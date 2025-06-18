@@ -1,12 +1,23 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get,HostParam,Redirect } from '@nestjs/common';
 import { AppService } from './app.service';
 
-@Controller()
+@Controller({host:':prefix.localhost'})
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  getInfo(@HostParam('prefix') prefix:string): string {
+    console.log(prefix)
+    return prefix;
+  }
+
+  @Get('/hello2')
+  getHello2(): string {
+    return this.appService.getHello2();
+  }
+
+  @Get('/hello3')
+  ttt(): string {
+    return this.appService.getHello3();
   }
 }
