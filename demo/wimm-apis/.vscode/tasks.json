@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Template: Generate Feature",
+      "type": "shell",
+      "command": "npx ts-node .templates/feature.generator.ts ${input:featureName}",
+      "presentation": {
+        "reveal": "never",
+        "panel": "shared"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "featureName",
+      "description": "Feature name to create?"
+    }
+  ]
+}
