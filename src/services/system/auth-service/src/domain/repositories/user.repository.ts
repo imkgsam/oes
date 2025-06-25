@@ -1,4 +1,9 @@
+import { User } from "../entities/user.entity";
 
-export interface UserRepository {
-
+export interface IUserRepository {
+  findByEmail(email: string): Promise<User | null>;
+  findByPhone(phone: string): Promise<User | null>;
+  findByGoogleId(googleId: string): Promise<User | null>;
+  findByWechatOpenId(wechatOpenId: string): Promise<User | null>;
+  create(user: Partial<User>): Promise<User>;
 }
