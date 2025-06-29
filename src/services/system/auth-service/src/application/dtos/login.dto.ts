@@ -1,13 +1,13 @@
-import { IsEmail, MaxLength, MinLength, Length, IsPhone } from 'class-validator';
-
+import { IsEmail, Length, IsPhoneNumber, IsNotEmpty } from 'class-validator';
 
 //邮箱密码登录
 export class EmailPasswordLoginDto {
+  @IsNotEmpty()
   @IsEmail()
   readonly email: string;
 
-  @MinLength(6)
-  @MaxLength(100)
+  @IsNotEmpty()
+  @Length(6, 30)
   readonly password: string;
 }
 
@@ -21,8 +21,18 @@ export class EmailOtpLoginDto {
 
 //手机验证码登录
 export class PhoneOtpLoginDto {
-  @IsPhone()
+  @IsPhoneNumber()
   readonly phone: string;
   @Length(6)
   readonly otp: string;
+}
+
+//微信扫码登录
+export class WechatLoginDto {
+  readonly code: string;
+}
+
+//google登录
+export class GoogleLoginDto {
+  readonly idToken: string;
 }

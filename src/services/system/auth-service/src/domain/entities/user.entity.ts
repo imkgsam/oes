@@ -1,11 +1,12 @@
 
 import { User as PrismaUser } from '@prisma/client'
+import * as bcrypt from 'bcrypt';
 export class User {
   constructor(
-    public readonly id: number,
+    public readonly id: string,
     public readonly email: string | null,
     public readonly phone: string | null,
-    private passwordHash: string | null,
+    public readonly passwordHash: string | null,
     public readonly googleId: string | null,
     public readonly wechatOpenId: string | null
 
@@ -22,18 +23,14 @@ export class User {
     )
   }
 
-  async validatePassword(password: string, compareFunction: (a: string, b: string) => Promise<boolean>): Promise<boolean> {
+  async validatePassword(password: string): Promise<boolean> {
     if (this.passwordHash)
-      return compareFunction(password, this.passwordHash)
+      return bcrypt.compare(password, this.passwordHash)
     return false
   }
 
   hasPassword(): boolean {
     return this.passwordHash !== null && this.passwordHash !== undefined
-  }
-
-  changePassword(newHash: string) {
-    this.passwordHash = newHash
   }
 
 }

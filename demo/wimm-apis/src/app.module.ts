@@ -62,7 +62,7 @@ import cacheConfig from './config/cache.config';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }
 
 function getEnvFilePath() {
   return process.env.NODE_ENV === 'test' ? '.env.test' : '.env';

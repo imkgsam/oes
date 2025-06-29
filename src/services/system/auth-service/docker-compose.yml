@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: 'bitnami/postgresql:latest'
+    container_name: bitnami_postgres
+    environment:
+      - POSTGRESQL_USERNAME=imkgsam
+      - POSTGRESQL_PASSWORD=imkgsam
+      - POSTGRESQL_DATABASE=mydb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/bitnami/postgresql
+
+volumes:
+  postgres_data:
