@@ -2,7 +2,7 @@ import { IsEmail, Length, IsPhoneNumber, IsNotEmpty, IsOptional, } from 'class-v
 
 
 //admin 创建新用户
-export class CreateNewUserDto {
+export class AdminCreateUserDto {
 
   @IsNotEmpty()
   @IsEmail()
