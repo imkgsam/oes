@@ -9,6 +9,7 @@ import { AuthDomainService } from 'src/domain/services/auth.domain-service';
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { JwtModule } from 'src/infrastructure/jwt/jwt.module';
 import { HttpAuthController } from 'src/interfaces/http/controllers/auth/auth-local.controller';
+import { TcpAuthController } from 'src/interfaces/tcp/controllers/auth/auth-local.controller';
 
 @Module({
   imports: [JwtModule],
@@ -23,6 +24,6 @@ import { HttpAuthController } from 'src/interfaces/http/controllers/auth/auth-lo
     { provide: 'UserRepository', useClass: PrismaUserRepository },
     AuthDomainService
   ],
-  controllers: [HttpAuthController]
+  controllers: [HttpAuthController, TcpAuthController]
 })
 export class AuthModule { }

@@ -9,7 +9,7 @@ import { JwtService } from './jwt.service';
     ConfigModule,
     NestJwtModule.registerAsync({
       imports: [ConfigModule],
-      // inject: [ConfigService],
+      inject: [ConfigService],
       useClass: OptionsFactory
     })
   ],

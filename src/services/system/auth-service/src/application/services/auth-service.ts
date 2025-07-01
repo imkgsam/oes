@@ -5,8 +5,6 @@ import { WechatAuthProvider } from "../providers/wechat.provider";
 import { EmailOtpProvider, PhoneOtpProvider } from "../providers/otp.provider";
 import { LoginMethodEnum } from "src/domain/constants/login-method.enum";
 import { GoogleAuthProvider } from "../providers/google.provider";
-import { CreateNewUserDto } from "../dtos/admin-create-user.dto";
-import { IUserRepository } from "src/domain/repositories/user.repository";
 
 
 @Injectable()
@@ -48,5 +46,5 @@ export class AuthService {
     return { accessToken: token };
   }
 
-  
+
 }
