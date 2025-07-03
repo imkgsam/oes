@@ -6,15 +6,14 @@ import { GoogleAuthProvider } from '../../application/providers/google.provider'
 import { WechatAuthProvider } from '../../application/providers/wechat.provider';
 import { PrismaUserRepository } from 'src/infrastructure/repositories/prisma/prisma.user.repository';
 import { AuthDomainService } from 'src/domain/services/auth.domain-service';
-import { PrismaService } from 'src/infrastructure/prisma/prisma.service';
 import { JwtModule } from 'src/infrastructure/jwt/jwt.module';
 import { HttpAuthController } from 'src/interfaces/http/controllers/auth/auth-local.controller';
 import { TcpAuthController } from 'src/interfaces/tcp/controllers/auth/auth-local.controller';
+import { PrismaModule } from 'src/infrastructure/prisma/prisma.module';
 
 @Module({
-  imports: [JwtModule],
+  imports: [JwtModule, PrismaModule],
   providers: [
-    PrismaService,
     AuthService,
     EmailOtpProvider,
     PhoneOtpProvider,
