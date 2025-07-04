@@ -14,51 +14,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model UserRole {
-  id String @id @default(uuid())
-  userId String 
+  id     String @id @default(uuid())
+  userId String
   roleId String
-  role Role @relation(fields:[roleId], references: [id])
+  role   Role   @relation(fields: [roleId], references: [id])
 
-  @@unique([userId,roleId])
+  @@unique([userId, roleId])
 }
 
 model Role {
-  id String @id @default(uuid())
-  name String
+  id          String           @id @default(uuid())
+  name        String
   description String?
-  module String
+  module      String
   permissions RolePermission[]
-  users UserRole[]
+  users       UserRole[]
 }
 
-model Permission{
-  id String @id @default(uuid())
-  code String @unique
+model Permission {
+  id          String           @id @default(uuid())
+  code        String           @unique
   description String?
-  module String
-  roles RolePermission[]
+  module      String
+  roles       RolePermission[]
 }
 
-model RolePermission{
-  id String @id @default(uuid())
-  roleId String
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
   permissionId String
-  role Role @relation(fields:[roleId],references: [id])
-  permission Permission @relation(fields: [permissionId],references: [id])
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
 
-  @@unique([roleId,permissionId])
+  @@unique([roleId, permissionId])
 }
 
-model UserScope{
-  id String @id @default(uuid())
-  userId String
+model UserScope {
+  id             String @id @default(uuid())
+  userId         String
   permissionCode String
-  resourceType String
-  resourceId String
-  action String
+  resourceType   String
+  resourceId     String
+  action         String
 
-  @@index([userId,permissionCode])
-  @@index([userId,resourceType,resourceId])
+  @@index([userId, permissionCode])
+  @@index([userId, resourceType, resourceId])
 }
