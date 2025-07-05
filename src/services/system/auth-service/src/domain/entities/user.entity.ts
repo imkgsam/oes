@@ -1,5 +1,5 @@
 
-import { User as PrismaUser } from '@prisma/client'
+import { User as PrismaUser } from '../../../prisma/generated/prisma'
 import * as bcrypt from 'bcrypt';
 export class User {
   constructor(

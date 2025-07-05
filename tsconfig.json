@@ -6,16 +6,23 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
-    "target": "ES2023",
     "sourceMap": true,
-    "outDir": "./dist",
     "baseUrl": "./",
+    "paths": {
+      "@oes/*": ["src/common/*"]
+    },
     "incremental": true,
+    "rootDir": "src",
+    "outDir": "dist",
+    "target": "ES2023",
+    "esModuleInterop": true,
     "skipLibCheck": true,
     "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false
-  }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }
