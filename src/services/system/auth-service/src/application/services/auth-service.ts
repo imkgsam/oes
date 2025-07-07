@@ -15,6 +15,7 @@ export class AuthService {
     private readonly wechatProvider: WechatAuthProvider,
     private readonly emailOtpProvider: EmailOtpProvider,
     private readonly phoneOtpProvider: PhoneOtpProvider,
+    // private readonly sessionDomainService: SessionDomainService
     private readonly jwtService: JwtService,
   ) { }
 
