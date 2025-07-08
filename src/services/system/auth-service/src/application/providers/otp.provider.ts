@@ -8,7 +8,6 @@ export class EmailOtpProvider implements IAuthProvider {
     throw new Error("Method not implemented.");
   }
 }
-
 @Injectable()
 export class PhoneOtpProvider implements IAuthProvider {
   authenticate(dto: any): Promise<User> {

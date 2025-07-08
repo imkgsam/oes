@@ -60,10 +60,11 @@ export class RedisSessionRepository implements ISessionRepository {
     const pipeline = this.redis.pipeline();
     sessionIds.forEach(sid => pipeline.get(this.getSessionKey(userId, sid)));
     const results = await pipeline.exec();
+    if (!results) return []
     const sessions: Session[] = [];
     results.forEach(([err, data]) => {
       if (!err && data) {
-        const obj = JSON.parse(data);
+        const obj = JSON.parse(data.toString());
         if (obj.status === 'active') {
           sessions.push(Object.assign(new Session('', '', '', '', '', '', '', new Date(), new Date()), obj));
         }

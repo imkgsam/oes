@@ -6,4 +6,4 @@ import { CommonModule } from '@oes/common';
   controllers: [],
   providers: [],
 })
-export class AppModule { }
+export class AppModule {  }
