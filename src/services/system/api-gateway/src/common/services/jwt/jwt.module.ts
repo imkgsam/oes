@@ -12,10 +12,10 @@ import { join } from 'path';
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => {
         const publicKeyPath = configService.getOrThrow<string>('AUTH_PUBLIC_KEY_PATH')
-        const publicKey = await readFileSync(join(__dirname, '../../../..', publicKeyPath), 'utf8')
+        const publicKey = await readFileSync(join(__dirname, '../../../../..', publicKeyPath), 'utf8')
         return {
           publicKey,
-          signOptions: { 
+          signOptions: {
             algorithm: 'RS256',
           },
         }

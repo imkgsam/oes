@@ -1,6 +1,0 @@
-
-
-export const MicroservicesList = {
-  PERMISSION_SERVICE: 'PERMISSION-SERVICE',
-  AUTH_SERVICE: 'AUTH-SERVICE',
-}

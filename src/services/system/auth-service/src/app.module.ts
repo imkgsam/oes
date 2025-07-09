@@ -3,7 +3,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import tokenConfig from './infrastructure/config/token.config';
 import authKeyConfig from './infrastructure/config/authKey.config';
-
+import { ClientModule } from '@oes/common/modules/clients/client.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -15,7 +15,8 @@ import authKeyConfig from './infrastructure/config/authKey.config';
         authKeyConfig
       ]
     }),
-    AuthModule
+    AuthModule,
+    ClientModule.register()
   ],
   controllers: [],
   providers: [],

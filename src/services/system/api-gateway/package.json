@@ -30,6 +30,7 @@
     "class-validator": "^0.14.2",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "@oes/common": "workspace:*",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {

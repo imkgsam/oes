@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
-import { AdminCreateUserDto } from 'src/application/dtos/admin-create-user.dto';
-import { AdminService } from 'src/application/services/account.service';
-import { AdminCreateUserUseCase } from 'src/application/user-cases/admin/admin-create-user.use-case';
+import { AdminCreateUserDto } from '../../../../application/dtos/admin-create-user.dto';
+import { AdminService } from '../../../../application/services/account.service';
+import { AdminCreateUserUseCase } from '../../../../application/user-cases/admin/admin-create-user.use-case';
 
 @Controller('admin/users')
 export class AdminUsersController {
@@ -11,7 +11,7 @@ export class AdminUsersController {
 
 
   @Get('/')
-  async listAllUsers(){
+  async listAllUsers() {
   }
 
   @Post('/create')

@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
+import { PermissionModule } from './modules/permission/permission.module';
 
 @Module({
-  imports: [],
+  imports: [PermissionModule],
   providers: [],
   controllers: [],
 })

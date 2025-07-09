@@ -26,5 +26,13 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  isActive          Boolean   @default(false)
+  isLocked          Boolean   @default(false)
+  lockReason        String?
+  loginFailCount    Int       @default(0)
+  lastLoginAt       DateTime?
+  lastLoginIp       String?
+  lastFailedLoginAt DateTime?
+
   @@schema("auth")
 }

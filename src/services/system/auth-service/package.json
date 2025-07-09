@@ -9,7 +9,7 @@
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
-    "start:dev": "nest start --watch",
+    "start:dev": "nest start --watch ",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -36,7 +36,8 @@
     "prisma": "^6.10.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "@oes/common": "workspace:*"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",

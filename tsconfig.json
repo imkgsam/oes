@@ -7,9 +7,9 @@
     "experimentalDecorators": true,
     "allowSyntheticDefaultImports": true,
     "sourceMap": true,
-    "baseUrl": "./",
+    "baseUrl": ".",
     "paths": {
-      "@oes/*": ["src/common/*"]
+      "@oes/common/*": ["common/*"],
     },
     "incremental": true,
     "rootDir": "src",

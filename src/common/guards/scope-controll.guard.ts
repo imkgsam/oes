@@ -1,17 +1,17 @@
 import { CanActivate, ExecutionContext, Inject, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
-import { MicroservicesList } from '../constants/microservices-list';
 import { ClientProxy } from '@nestjs/microservices';
 import { SCOPE_CHECK_KEY } from '../decorators/scope-check.decorator';
 import { PERMISSION_MESSAGES } from '../constants/messages/permission.message';
 import { firstValueFrom } from 'rxjs';
+import { InjectServiceClient } from '@oes/modules/clients/client.decorator';
 
 @Injectable()
 export class ScopeControllGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
-    @Inject(MicroservicesList.PERMISSION_SERVICE)
+    @InjectServiceClient('PERMISSION_TCP')
     private readonly permissionServiceClient: ClientProxy
   ) { }
 

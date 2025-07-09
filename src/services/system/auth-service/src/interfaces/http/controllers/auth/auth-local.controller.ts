@@ -1,7 +1,7 @@
 import { Body, Controller, Post } from "@nestjs/common";
-import { EmailOtpLoginDto, EmailPasswordLoginDto, GoogleLoginDto, PhoneOtpLoginDto, WechatLoginDto } from "src/application/dtos/login.dto";
-import { AuthService } from "src/application/services/auth-service";
-import { LoginMethodEnum } from "src/domain/constants/login-method.enum";
+import { EmailOtpLoginDto, EmailPasswordLoginDto, GoogleLoginDto, PhoneOtpLoginDto, WechatLoginDto } from "../../../../application/dtos/login.dto";
+import { AuthService } from "../../../../application/services/auth-service";
+import { LoginMethodEnum } from "../../../../domain/constants/login-method.enum";
 
 @Controller('auth')
 export class HttpAuthController {
