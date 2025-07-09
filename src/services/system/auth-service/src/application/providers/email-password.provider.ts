@@ -1,9 +1,9 @@
 import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { IAuthProvider } from "./interfaces/auth-provider.interface";
 import { EmailPasswordLoginDto } from "../dtos/login.dto";
-import { User } from "../../domain/entities/user.entity";
-import { IUserRepository } from "../../domain/repositories/user.repository";
-import { AuthDomainService } from "../../domain/services/auth.domain-service";
+import { User } from "src/domain/entities/user.entity";
+import { IUserRepository } from "src/domain/repositories/user.repository";
+import { AuthDomainService } from "src/domain/services/auth.domain-service";
 
 @Injectable()
 export class EmailPasswordAuthProvider implements IAuthProvider<EmailPasswordLoginDto> {

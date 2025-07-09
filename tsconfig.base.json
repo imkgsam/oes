@@ -1,0 +1,18 @@
+// oes/tsconfig.base.json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "lib": ["ES2022"],
+    // "strict": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "declaration": true,
+    "incremental": true,
+    "sourceMap": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}

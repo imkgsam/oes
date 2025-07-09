@@ -875,8 +875,18 @@ export namespace Prisma {
 
   export type AggregateUser = {
     _count: UserCountAggregateOutputType | null
+    _avg: UserAvgAggregateOutputType | null
+    _sum: UserSumAggregateOutputType | null
     _min: UserMinAggregateOutputType | null
     _max: UserMaxAggregateOutputType | null
+  }
+
+  export type UserAvgAggregateOutputType = {
+    loginFailCount: number | null
+  }
+
+  export type UserSumAggregateOutputType = {
+    loginFailCount: number | null
   }
 
   export type UserMinAggregateOutputType = {
@@ -888,6 +898,13 @@ export namespace Prisma {
     wechatOpenId: string | null
     createdAt: Date | null
     updatedAt: Date | null
+    isActive: boolean | null
+    isLocked: boolean | null
+    lockReason: string | null
+    loginFailCount: number | null
+    lastLoginAt: Date | null
+    lastLoginIp: string | null
+    lastFailedLoginAt: Date | null
   }
 
   export type UserMaxAggregateOutputType = {
@@ -899,6 +916,13 @@ export namespace Prisma {
     wechatOpenId: string | null
     createdAt: Date | null
     updatedAt: Date | null
+    isActive: boolean | null
+    isLocked: boolean | null
+    lockReason: string | null
+    loginFailCount: number | null
+    lastLoginAt: Date | null
+    lastLoginIp: string | null
+    lastFailedLoginAt: Date | null
   }
 
   export type UserCountAggregateOutputType = {
@@ -910,9 +934,24 @@ export namespace Prisma {
     wechatOpenId: number
     createdAt: number
     updatedAt: number
+    isActive: number
+    isLocked: number
+    lockReason: number
+    loginFailCount: number
+    lastLoginAt: number
+    lastLoginIp: number
+    lastFailedLoginAt: number
     _all: number
   }
 
+
+  export type UserAvgAggregateInputType = {
+    loginFailCount?: true
+  }
+
+  export type UserSumAggregateInputType = {
+    loginFailCount?: true
+  }
 
   export type UserMinAggregateInputType = {
     id?: true
@@ -923,6 +962,13 @@ export namespace Prisma {
     wechatOpenId?: true
     createdAt?: true
     updatedAt?: true
+    isActive?: true
+    isLocked?: true
+    lockReason?: true
+    loginFailCount?: true
+    lastLoginAt?: true
+    lastLoginIp?: true
+    lastFailedLoginAt?: true
   }
 
   export type UserMaxAggregateInputType = {
@@ -934,6 +980,13 @@ export namespace Prisma {
     wechatOpenId?: true
     createdAt?: true
     updatedAt?: true
+    isActive?: true
+    isLocked?: true
+    lockReason?: true
+    loginFailCount?: true
+    lastLoginAt?: true
+    lastLoginIp?: true
+    lastFailedLoginAt?: true
   }
 
   export type UserCountAggregateInputType = {
@@ -945,6 +998,13 @@ export namespace Prisma {
     wechatOpenId?: true
     createdAt?: true
     updatedAt?: true
+    isActive?: true
+    isLocked?: true
+    lockReason?: true
+    loginFailCount?: true
+    lastLoginAt?: true
+    lastLoginIp?: true
+    lastFailedLoginAt?: true
     _all?: true
   }
 
@@ -986,6 +1046,18 @@ export namespace Prisma {
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
+     * Select which fields to average
+    **/
+    _avg?: UserAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: UserSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
      * Select which fields to find the minimum value
     **/
     _min?: UserMinAggregateInputType
@@ -1016,6 +1088,8 @@ export namespace Prisma {
     take?: number
     skip?: number
     _count?: UserCountAggregateInputType | true
+    _avg?: UserAvgAggregateInputType
+    _sum?: UserSumAggregateInputType
     _min?: UserMinAggregateInputType
     _max?: UserMaxAggregateInputType
   }
@@ -1029,7 +1103,16 @@ export namespace Prisma {
     wechatOpenId: string | null
     createdAt: Date
     updatedAt: Date
+    isActive: boolean
+    isLocked: boolean
+    lockReason: string | null
+    loginFailCount: number
+    lastLoginAt: Date | null
+    lastLoginIp: string | null
+    lastFailedLoginAt: Date | null
     _count: UserCountAggregateOutputType | null
+    _avg: UserAvgAggregateOutputType | null
+    _sum: UserSumAggregateOutputType | null
     _min: UserMinAggregateOutputType | null
     _max: UserMaxAggregateOutputType | null
   }
@@ -1057,6 +1140,13 @@ export namespace Prisma {
     wechatOpenId?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    isActive?: boolean
+    isLocked?: boolean
+    lockReason?: boolean
+    loginFailCount?: boolean
+    lastLoginAt?: boolean
+    lastLoginIp?: boolean
+    lastFailedLoginAt?: boolean
   }, ExtArgs["result"]["user"]>
 
   export type UserSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -1068,6 +1158,13 @@ export namespace Prisma {
     wechatOpenId?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    isActive?: boolean
+    isLocked?: boolean
+    lockReason?: boolean
+    loginFailCount?: boolean
+    lastLoginAt?: boolean
+    lastLoginIp?: boolean
+    lastFailedLoginAt?: boolean
   }, ExtArgs["result"]["user"]>
 
   export type UserSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -1079,6 +1176,13 @@ export namespace Prisma {
     wechatOpenId?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    isActive?: boolean
+    isLocked?: boolean
+    lockReason?: boolean
+    loginFailCount?: boolean
+    lastLoginAt?: boolean
+    lastLoginIp?: boolean
+    lastFailedLoginAt?: boolean
   }, ExtArgs["result"]["user"]>
 
   export type UserSelectScalar = {
@@ -1090,9 +1194,16 @@ export namespace Prisma {
     wechatOpenId?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    isActive?: boolean
+    isLocked?: boolean
+    lockReason?: boolean
+    loginFailCount?: boolean
+    lastLoginAt?: boolean
+    lastLoginIp?: boolean
+    lastFailedLoginAt?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "phone" | "passwordHash" | "googleId" | "wechatOpenId" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "phone" | "passwordHash" | "googleId" | "wechatOpenId" | "createdAt" | "updatedAt" | "isActive" | "isLocked" | "lockReason" | "loginFailCount" | "lastLoginAt" | "lastLoginIp" | "lastFailedLoginAt", ExtArgs["result"]["user"]>
 
   export type $UserPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "User"
@@ -1106,6 +1217,13 @@ export namespace Prisma {
       wechatOpenId: string | null
       createdAt: Date
       updatedAt: Date
+      isActive: boolean
+      isLocked: boolean
+      lockReason: string | null
+      loginFailCount: number
+      lastLoginAt: Date | null
+      lastLoginIp: string | null
+      lastFailedLoginAt: Date | null
     }, ExtArgs["result"]["user"]>
     composites: {}
   }
@@ -1537,6 +1655,13 @@ export namespace Prisma {
     readonly wechatOpenId: FieldRef<"User", 'String'>
     readonly createdAt: FieldRef<"User", 'DateTime'>
     readonly updatedAt: FieldRef<"User", 'DateTime'>
+    readonly isActive: FieldRef<"User", 'Boolean'>
+    readonly isLocked: FieldRef<"User", 'Boolean'>
+    readonly lockReason: FieldRef<"User", 'String'>
+    readonly loginFailCount: FieldRef<"User", 'Int'>
+    readonly lastLoginAt: FieldRef<"User", 'DateTime'>
+    readonly lastLoginIp: FieldRef<"User", 'String'>
+    readonly lastFailedLoginAt: FieldRef<"User", 'DateTime'>
   }
     
 
@@ -1925,7 +2050,14 @@ export namespace Prisma {
     googleId: 'googleId',
     wechatOpenId: 'wechatOpenId',
     createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    updatedAt: 'updatedAt',
+    isActive: 'isActive',
+    isLocked: 'isLocked',
+    lockReason: 'lockReason',
+    loginFailCount: 'loginFailCount',
+    lastLoginAt: 'lastLoginAt',
+    lastLoginIp: 'lastLoginIp',
+    lastFailedLoginAt: 'lastFailedLoginAt'
   };
 
   export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
@@ -1989,6 +2121,13 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Boolean'
+   */
+  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+  /**
    * Reference to a field of type 'Int'
    */
   export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
@@ -1999,6 +2138,20 @@ export namespace Prisma {
    * Reference to a field of type 'Int[]'
    */
   export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'Float'
+   */
+  export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
+    
+
+
+  /**
+   * Reference to a field of type 'Float[]'
+   */
+  export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
     
   /**
    * Deep Input Types
@@ -2017,6 +2170,13 @@ export namespace Prisma {
     wechatOpenId?: StringNullableFilter<"User"> | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
+    isActive?: BoolFilter<"User"> | boolean
+    isLocked?: BoolFilter<"User"> | boolean
+    lockReason?: StringNullableFilter<"User"> | string | null
+    loginFailCount?: IntFilter<"User"> | number
+    lastLoginAt?: DateTimeNullableFilter<"User"> | Date | string | null
+    lastLoginIp?: StringNullableFilter<"User"> | string | null
+    lastFailedLoginAt?: DateTimeNullableFilter<"User"> | Date | string | null
   }
 
   export type UserOrderByWithRelationInput = {
@@ -2028,6 +2188,13 @@ export namespace Prisma {
     wechatOpenId?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    isActive?: SortOrder
+    isLocked?: SortOrder
+    lockReason?: SortOrderInput | SortOrder
+    loginFailCount?: SortOrder
+    lastLoginAt?: SortOrderInput | SortOrder
+    lastLoginIp?: SortOrderInput | SortOrder
+    lastFailedLoginAt?: SortOrderInput | SortOrder
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -2042,6 +2209,13 @@ export namespace Prisma {
     passwordHash?: StringNullableFilter<"User"> | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
+    isActive?: BoolFilter<"User"> | boolean
+    isLocked?: BoolFilter<"User"> | boolean
+    lockReason?: StringNullableFilter<"User"> | string | null
+    loginFailCount?: IntFilter<"User"> | number
+    lastLoginAt?: DateTimeNullableFilter<"User"> | Date | string | null
+    lastLoginIp?: StringNullableFilter<"User"> | string | null
+    lastFailedLoginAt?: DateTimeNullableFilter<"User"> | Date | string | null
   }, "id" | "email" | "phone" | "googleId" | "wechatOpenId">
 
   export type UserOrderByWithAggregationInput = {
@@ -2053,9 +2227,18 @@ export namespace Prisma {
     wechatOpenId?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    isActive?: SortOrder
+    isLocked?: SortOrder
+    lockReason?: SortOrderInput | SortOrder
+    loginFailCount?: SortOrder
+    lastLoginAt?: SortOrderInput | SortOrder
+    lastLoginIp?: SortOrderInput | SortOrder
+    lastFailedLoginAt?: SortOrderInput | SortOrder
     _count?: UserCountOrderByAggregateInput
+    _avg?: UserAvgOrderByAggregateInput
     _max?: UserMaxOrderByAggregateInput
     _min?: UserMinOrderByAggregateInput
+    _sum?: UserSumOrderByAggregateInput
   }
 
   export type UserScalarWhereWithAggregatesInput = {
@@ -2070,6 +2253,13 @@ export namespace Prisma {
     wechatOpenId?: StringNullableWithAggregatesFilter<"User"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
+    isActive?: BoolWithAggregatesFilter<"User"> | boolean
+    isLocked?: BoolWithAggregatesFilter<"User"> | boolean
+    lockReason?: StringNullableWithAggregatesFilter<"User"> | string | null
+    loginFailCount?: IntWithAggregatesFilter<"User"> | number
+    lastLoginAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
+    lastLoginIp?: StringNullableWithAggregatesFilter<"User"> | string | null
+    lastFailedLoginAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
   }
 
   export type UserCreateInput = {
@@ -2081,6 +2271,13 @@ export namespace Prisma {
     wechatOpenId?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    isActive?: boolean
+    isLocked?: boolean
+    lockReason?: string | null
+    loginFailCount?: number
+    lastLoginAt?: Date | string | null
+    lastLoginIp?: string | null
+    lastFailedLoginAt?: Date | string | null
   }
 
   export type UserUncheckedCreateInput = {
@@ -2092,6 +2289,13 @@ export namespace Prisma {
     wechatOpenId?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    isActive?: boolean
+    isLocked?: boolean
+    lockReason?: string | null
+    loginFailCount?: number
+    lastLoginAt?: Date | string | null
+    lastLoginIp?: string | null
+    lastFailedLoginAt?: Date | string | null
   }
 
   export type UserUpdateInput = {
@@ -2103,6 +2307,13 @@ export namespace Prisma {
     wechatOpenId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    isLocked?: BoolFieldUpdateOperationsInput | boolean
+    lockReason?: NullableStringFieldUpdateOperationsInput | string | null
+    loginFailCount?: IntFieldUpdateOperationsInput | number
+    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastLoginIp?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFailedLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type UserUncheckedUpdateInput = {
@@ -2114,6 +2325,13 @@ export namespace Prisma {
     wechatOpenId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    isLocked?: BoolFieldUpdateOperationsInput | boolean
+    lockReason?: NullableStringFieldUpdateOperationsInput | string | null
+    loginFailCount?: IntFieldUpdateOperationsInput | number
+    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastLoginIp?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFailedLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type UserCreateManyInput = {
@@ -2125,6 +2343,13 @@ export namespace Prisma {
     wechatOpenId?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    isActive?: boolean
+    isLocked?: boolean
+    lockReason?: string | null
+    loginFailCount?: number
+    lastLoginAt?: Date | string | null
+    lastLoginIp?: string | null
+    lastFailedLoginAt?: Date | string | null
   }
 
   export type UserUpdateManyMutationInput = {
@@ -2136,6 +2361,13 @@ export namespace Prisma {
     wechatOpenId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    isLocked?: BoolFieldUpdateOperationsInput | boolean
+    lockReason?: NullableStringFieldUpdateOperationsInput | string | null
+    loginFailCount?: IntFieldUpdateOperationsInput | number
+    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastLoginIp?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFailedLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type UserUncheckedUpdateManyInput = {
@@ -2147,6 +2379,13 @@ export namespace Prisma {
     wechatOpenId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    isActive?: BoolFieldUpdateOperationsInput | boolean
+    isLocked?: BoolFieldUpdateOperationsInput | boolean
+    lockReason?: NullableStringFieldUpdateOperationsInput | string | null
+    loginFailCount?: IntFieldUpdateOperationsInput | number
+    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    lastLoginIp?: NullableStringFieldUpdateOperationsInput | string | null
+    lastFailedLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
   export type StringFilter<$PrismaModel = never> = {
@@ -2190,6 +2429,33 @@ export namespace Prisma {
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
+  export type IntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
+  export type DateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
   export type SortOrderInput = {
     sort: SortOrder
     nulls?: NullsOrder
@@ -2204,6 +2470,17 @@ export namespace Prisma {
     wechatOpenId?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    isActive?: SortOrder
+    isLocked?: SortOrder
+    lockReason?: SortOrder
+    loginFailCount?: SortOrder
+    lastLoginAt?: SortOrder
+    lastLoginIp?: SortOrder
+    lastFailedLoginAt?: SortOrder
+  }
+
+  export type UserAvgOrderByAggregateInput = {
+    loginFailCount?: SortOrder
   }
 
   export type UserMaxOrderByAggregateInput = {
@@ -2215,6 +2492,13 @@ export namespace Prisma {
     wechatOpenId?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    isActive?: SortOrder
+    isLocked?: SortOrder
+    lockReason?: SortOrder
+    loginFailCount?: SortOrder
+    lastLoginAt?: SortOrder
+    lastLoginIp?: SortOrder
+    lastFailedLoginAt?: SortOrder
   }
 
   export type UserMinOrderByAggregateInput = {
@@ -2226,6 +2510,17 @@ export namespace Prisma {
     wechatOpenId?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    isActive?: SortOrder
+    isLocked?: SortOrder
+    lockReason?: SortOrder
+    loginFailCount?: SortOrder
+    lastLoginAt?: SortOrder
+    lastLoginIp?: SortOrder
+    lastFailedLoginAt?: SortOrder
+  }
+
+  export type UserSumOrderByAggregateInput = {
+    loginFailCount?: SortOrder
   }
 
   export type StringWithAggregatesFilter<$PrismaModel = never> = {
@@ -2278,6 +2573,44 @@ export namespace Prisma {
     _max?: NestedDateTimeFilter<$PrismaModel>
   }
 
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
+
+  export type IntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  }
+
   export type StringFieldUpdateOperationsInput = {
     set?: string
   }
@@ -2288,6 +2621,22 @@ export namespace Prisma {
 
   export type DateTimeFieldUpdateOperationsInput = {
     set?: Date | string
+  }
+
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
+  }
+
+  export type IntFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
+  export type NullableDateTimeFieldUpdateOperationsInput = {
+    set?: Date | string | null
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -2329,6 +2678,33 @@ export namespace Prisma {
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
+  }
+
+  export type NestedIntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
+  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  }
+
   export type NestedStringWithAggregatesFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -2344,17 +2720,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedStringFilter<$PrismaModel>
     _max?: NestedStringFilter<$PrismaModel>
-  }
-
-  export type NestedIntFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntFilter<$PrismaModel> | number
   }
 
   export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -2397,6 +2762,55 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
+  }
+
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
+
+  export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type NestedFloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
+  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedDateTimeNullableFilter<$PrismaModel>
+    _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
 

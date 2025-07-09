@@ -151,8 +151,7 @@ exports.Prisma.UserScopeScalarFieldEnum = {
   userId: 'userId',
   permissionCode: 'permissionCode',
   resourceType: 'resourceType',
-  resourceId: 'resourceId',
-  action: 'action'
+  resourceId: 'resourceId'
 };
 
 exports.Prisma.SortOrder = {

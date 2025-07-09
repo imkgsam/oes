@@ -6,16 +6,26 @@ export class Role {
     public readonly id: string,
     public name: string,
     public module: string,
-    public description: string | null = null,
+    public description?: string,
     public permissions: RolePermission[] = [],
     public users: UserRole[] = [],
   ) {}
 
-  assignPermission(permission: RolePermission) {
-    this.permissions.push(permission);
+  get permissionIds(): string[] {
+    return this.permissions.map(rp => rp.permissionId);
   }
 
-  assignUser(user: UserRole) {
-    this.users.push(user);
-  }
+  // addPermission(permissionId: string) {
+  //   if (!this.permissionIds.includes(permissionId)) {
+  //     this.permissions.push(permissionId);
+  //   }
+  // }
+
+  // removePermission(permissionId: string) {
+  //   this.permissions = this.permissions.filter(id => id !== permissionId);
+  // }
+
+  // hasPermission(permissionId: string): boolean {
+  //   return this.permissions.includes(permissionId);
+  // }
 }

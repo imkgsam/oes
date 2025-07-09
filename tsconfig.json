@@ -1,28 +1,10 @@
 {
-  "compilerOptions": {
-    "module": "commonjs",
-    "declaration": true,
-    "removeComments": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "sourceMap": true,
-    "baseUrl": ".",
-    "paths": {
-      "@oes/common/*": ["common/*"],
-    },
-    "incremental": true,
-    "rootDir": "src",
-    "outDir": "dist",
-    "target": "ES2023",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "strictNullChecks": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
-  },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "files": [],
+  "references": [
+    { "path": "./src/services/system/api-gateway" },
+    { "path": "./src/services/system/auth-service" },
+    { "path": "./src/services/system/permission-service" },
+    { "path": "./src/services/business/erp-service" },
+    { "path": "./src/services/business/mes-service" }
+  ]
 }

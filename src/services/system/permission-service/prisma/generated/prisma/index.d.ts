@@ -5533,7 +5533,6 @@ export namespace Prisma {
     permissionCode: string | null
     resourceType: string | null
     resourceId: string | null
-    action: string | null
   }
 
   export type UserScopeMaxAggregateOutputType = {
@@ -5542,7 +5541,6 @@ export namespace Prisma {
     permissionCode: string | null
     resourceType: string | null
     resourceId: string | null
-    action: string | null
   }
 
   export type UserScopeCountAggregateOutputType = {
@@ -5551,7 +5549,6 @@ export namespace Prisma {
     permissionCode: number
     resourceType: number
     resourceId: number
-    action: number
     _all: number
   }
 
@@ -5562,7 +5559,6 @@ export namespace Prisma {
     permissionCode?: true
     resourceType?: true
     resourceId?: true
-    action?: true
   }
 
   export type UserScopeMaxAggregateInputType = {
@@ -5571,7 +5567,6 @@ export namespace Prisma {
     permissionCode?: true
     resourceType?: true
     resourceId?: true
-    action?: true
   }
 
   export type UserScopeCountAggregateInputType = {
@@ -5580,7 +5575,6 @@ export namespace Prisma {
     permissionCode?: true
     resourceType?: true
     resourceId?: true
-    action?: true
     _all?: true
   }
 
@@ -5662,7 +5656,6 @@ export namespace Prisma {
     permissionCode: string
     resourceType: string
     resourceId: string
-    action: string
     _count: UserScopeCountAggregateOutputType | null
     _min: UserScopeMinAggregateOutputType | null
     _max: UserScopeMaxAggregateOutputType | null
@@ -5688,7 +5681,6 @@ export namespace Prisma {
     permissionCode?: boolean
     resourceType?: boolean
     resourceId?: boolean
-    action?: boolean
   }, ExtArgs["result"]["userScope"]>
 
   export type UserScopeSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -5697,7 +5689,6 @@ export namespace Prisma {
     permissionCode?: boolean
     resourceType?: boolean
     resourceId?: boolean
-    action?: boolean
   }, ExtArgs["result"]["userScope"]>
 
   export type UserScopeSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -5706,7 +5697,6 @@ export namespace Prisma {
     permissionCode?: boolean
     resourceType?: boolean
     resourceId?: boolean
-    action?: boolean
   }, ExtArgs["result"]["userScope"]>
 
   export type UserScopeSelectScalar = {
@@ -5715,10 +5705,9 @@ export namespace Prisma {
     permissionCode?: boolean
     resourceType?: boolean
     resourceId?: boolean
-    action?: boolean
   }
 
-  export type UserScopeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "permissionCode" | "resourceType" | "resourceId" | "action", ExtArgs["result"]["userScope"]>
+  export type UserScopeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "permissionCode" | "resourceType" | "resourceId", ExtArgs["result"]["userScope"]>
 
   export type $UserScopePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "UserScope"
@@ -5729,7 +5718,6 @@ export namespace Prisma {
       permissionCode: string
       resourceType: string
       resourceId: string
-      action: string
     }, ExtArgs["result"]["userScope"]>
     composites: {}
   }
@@ -6158,7 +6146,6 @@ export namespace Prisma {
     readonly permissionCode: FieldRef<"UserScope", 'String'>
     readonly resourceType: FieldRef<"UserScope", 'String'>
     readonly resourceId: FieldRef<"UserScope", 'String'>
-    readonly action: FieldRef<"UserScope", 'String'>
   }
     
 
@@ -6582,8 +6569,7 @@ export namespace Prisma {
     userId: 'userId',
     permissionCode: 'permissionCode',
     resourceType: 'resourceType',
-    resourceId: 'resourceId',
-    action: 'action'
+    resourceId: 'resourceId'
   };
 
   export type UserScopeScalarFieldEnum = (typeof UserScopeScalarFieldEnum)[keyof typeof UserScopeScalarFieldEnum]
@@ -6856,7 +6842,6 @@ export namespace Prisma {
     permissionCode?: StringFilter<"UserScope"> | string
     resourceType?: StringFilter<"UserScope"> | string
     resourceId?: StringFilter<"UserScope"> | string
-    action?: StringFilter<"UserScope"> | string
   }
 
   export type UserScopeOrderByWithRelationInput = {
@@ -6865,7 +6850,6 @@ export namespace Prisma {
     permissionCode?: SortOrder
     resourceType?: SortOrder
     resourceId?: SortOrder
-    action?: SortOrder
   }
 
   export type UserScopeWhereUniqueInput = Prisma.AtLeast<{
@@ -6877,7 +6861,6 @@ export namespace Prisma {
     permissionCode?: StringFilter<"UserScope"> | string
     resourceType?: StringFilter<"UserScope"> | string
     resourceId?: StringFilter<"UserScope"> | string
-    action?: StringFilter<"UserScope"> | string
   }, "id">
 
   export type UserScopeOrderByWithAggregationInput = {
@@ -6886,7 +6869,6 @@ export namespace Prisma {
     permissionCode?: SortOrder
     resourceType?: SortOrder
     resourceId?: SortOrder
-    action?: SortOrder
     _count?: UserScopeCountOrderByAggregateInput
     _max?: UserScopeMaxOrderByAggregateInput
     _min?: UserScopeMinOrderByAggregateInput
@@ -6901,7 +6883,6 @@ export namespace Prisma {
     permissionCode?: StringWithAggregatesFilter<"UserScope"> | string
     resourceType?: StringWithAggregatesFilter<"UserScope"> | string
     resourceId?: StringWithAggregatesFilter<"UserScope"> | string
-    action?: StringWithAggregatesFilter<"UserScope"> | string
   }
 
   export type UserRoleCreateInput = {
@@ -7101,7 +7082,6 @@ export namespace Prisma {
     permissionCode: string
     resourceType: string
     resourceId: string
-    action: string
   }
 
   export type UserScopeUncheckedCreateInput = {
@@ -7110,7 +7090,6 @@ export namespace Prisma {
     permissionCode: string
     resourceType: string
     resourceId: string
-    action: string
   }
 
   export type UserScopeUpdateInput = {
@@ -7119,7 +7098,6 @@ export namespace Prisma {
     permissionCode?: StringFieldUpdateOperationsInput | string
     resourceType?: StringFieldUpdateOperationsInput | string
     resourceId?: StringFieldUpdateOperationsInput | string
-    action?: StringFieldUpdateOperationsInput | string
   }
 
   export type UserScopeUncheckedUpdateInput = {
@@ -7128,7 +7106,6 @@ export namespace Prisma {
     permissionCode?: StringFieldUpdateOperationsInput | string
     resourceType?: StringFieldUpdateOperationsInput | string
     resourceId?: StringFieldUpdateOperationsInput | string
-    action?: StringFieldUpdateOperationsInput | string
   }
 
   export type UserScopeCreateManyInput = {
@@ -7137,7 +7114,6 @@ export namespace Prisma {
     permissionCode: string
     resourceType: string
     resourceId: string
-    action: string
   }
 
   export type UserScopeUpdateManyMutationInput = {
@@ -7146,7 +7122,6 @@ export namespace Prisma {
     permissionCode?: StringFieldUpdateOperationsInput | string
     resourceType?: StringFieldUpdateOperationsInput | string
     resourceId?: StringFieldUpdateOperationsInput | string
-    action?: StringFieldUpdateOperationsInput | string
   }
 
   export type UserScopeUncheckedUpdateManyInput = {
@@ -7155,7 +7130,6 @@ export namespace Prisma {
     permissionCode?: StringFieldUpdateOperationsInput | string
     resourceType?: StringFieldUpdateOperationsInput | string
     resourceId?: StringFieldUpdateOperationsInput | string
-    action?: StringFieldUpdateOperationsInput | string
   }
 
   export type StringFilter<$PrismaModel = never> = {
@@ -7353,7 +7327,6 @@ export namespace Prisma {
     permissionCode?: SortOrder
     resourceType?: SortOrder
     resourceId?: SortOrder
-    action?: SortOrder
   }
 
   export type UserScopeMaxOrderByAggregateInput = {
@@ -7362,7 +7335,6 @@ export namespace Prisma {
     permissionCode?: SortOrder
     resourceType?: SortOrder
     resourceId?: SortOrder
-    action?: SortOrder
   }
 
   export type UserScopeMinOrderByAggregateInput = {
@@ -7371,7 +7343,6 @@ export namespace Prisma {
     permissionCode?: SortOrder
     resourceType?: SortOrder
     resourceId?: SortOrder
-    action?: SortOrder
   }
 
   export type RoleCreateNestedOneWithoutUsersInput = {

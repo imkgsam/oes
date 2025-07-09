@@ -128,7 +128,14 @@ exports.Prisma.UserScalarFieldEnum = {
   googleId: 'googleId',
   wechatOpenId: 'wechatOpenId',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  isActive: 'isActive',
+  isLocked: 'isLocked',
+  lockReason: 'lockReason',
+  loginFailCount: 'loginFailCount',
+  lastLoginAt: 'lastLoginAt',
+  lastLoginIp: 'lastLoginIp',
+  lastFailedLoginAt: 'lastFailedLoginAt'
 };
 
 exports.Prisma.SortOrder = {
