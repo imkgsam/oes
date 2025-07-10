@@ -9,23 +9,17 @@ export class Role {
     public description?: string,
     public permissions: RolePermission[] = [],
     public users: UserRole[] = [],
-  ) {}
+  ) { }
 
   get permissionIds(): string[] {
     return this.permissions.map(rp => rp.permissionId);
   }
 
-  // addPermission(permissionId: string) {
-  //   if (!this.permissionIds.includes(permissionId)) {
-  //     this.permissions.push(permissionId);
-  //   }
-  // }
+  removePermission(permissionId: string) {
+    this.permissions = this.permissions.filter(p => p.permissionId !== permissionId);
+  }
 
-  // removePermission(permissionId: string) {
-  //   this.permissions = this.permissions.filter(id => id !== permissionId);
-  // }
-
-  // hasPermission(permissionId: string): boolean {
-  //   return this.permissions.includes(permissionId);
-  // }
+  hasPermission(permissionId: string): boolean {
+    return this.permissions.some(p => p.permissionId === permissionId);
+  }
 }

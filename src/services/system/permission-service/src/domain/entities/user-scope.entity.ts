@@ -9,7 +9,7 @@ export class UserScope {
     public resourceId: string,
   ) { }
 
-  matches(resourceType: ScopeResourceType, resourceId: string): boolean {
-    return this.resourceType === resourceType && this.resourceId === resourceId;
-  }
+  // matches(resourceType: ScopeResourceType, resourceId: string): boolean {
+  //   return this.resourceType === resourceType && this.resourceId === resourceId;
+  // }
 }

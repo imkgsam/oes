@@ -1,4 +1,5 @@
-import { RolePermission } from './role-permission.entity';
+
+import { Permission as PrismaPermission } from "prisma/generated/prisma";
 
 export class Permission {
   constructor(
@@ -6,10 +7,19 @@ export class Permission {
     public code: string,
     public module: string,
     public description?: string | "",
-    public permissions?: RolePermission[],
-  ) {}
+  ) { }
 
-  assignPermission(permission: RolePermission) {
-    this.permissions.push(permission);
+  static fromPrisma(prismaPermission: PrismaPermission): Permission {
+    return new Permission(
+      prismaPermission.id,
+      prismaPermission.code,
+      prismaPermission.module,
+      prismaPermission.description || "",
+    )
   }
+
+  matchesModule(module: string): boolean {
+    return this.module === module;
+  }
+
 }

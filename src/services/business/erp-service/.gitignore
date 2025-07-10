@@ -2,7 +2,8 @@
 /dist
 /node_modules
 /build
-
+/dict
+/tsconfig.tsbuildinfo
 # Logs
 logs
 *.log
