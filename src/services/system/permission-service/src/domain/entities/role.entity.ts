@@ -1,5 +1,6 @@
 import { RolePermission } from './role-permission.entity';
 import { UserRole } from './user-role.entity';
+import { Role as PrismaRole } from "prisma/generated/prisma";
 
 export class Role {
   constructor(
@@ -14,6 +15,17 @@ export class Role {
   get permissionIds(): string[] {
     return this.permissions.map(rp => rp.permissionId);
   }
+
+  static fromPrisma (role: PrismaRole, permissions: RolePermission[] = [], users: UserRole[] = []): Role {
+    return new Role(
+      role.id,
+      role.name,
+      role.module,
+      role.description || "",
+      permissions,
+      users
+    )
+  } 
 
   removePermission(permissionId: string) {
     this.permissions = this.permissions.filter(p => p.permissionId !== permissionId);
