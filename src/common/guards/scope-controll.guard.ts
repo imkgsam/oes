@@ -9,11 +9,15 @@ import { ClientProxy } from '@nestjs/microservices'
 import { SCOPE_CHECK_KEY } from '../decorators/scope-check.decorator'
 import { PERMISSION_MESSAGES } from '../constants/messages/permission.message'
 import { firstValueFrom } from 'rxjs'
-import { InjectServiceClient } from '../modules/clients/client.decorator';
+import { InjectServiceClient } from '../modules/clients/client.decorator'
 
 @Injectable()
 export class ScopeControllGuard implements CanActivate {
-  constructor(@InjectServiceClient('PERMI_TCP') private readonly permissionServiceClient: ClientProxy, private readonly reflector: Reflector,) { }
+  constructor(
+    @InjectServiceClient('PERMI_TCP')
+    private readonly permissionServiceClient: ClientProxy,
+    private readonly reflector: Reflector,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const metadata = this.reflector.get(SCOPE_CHECK_KEY, context.getHandler())

@@ -14,7 +14,6 @@ export class CreatePermissionDto {
   module: string
 }
 
-
 export class CheckUserPermissionDto {
   @IsUUID()
   @IsNotEmpty()

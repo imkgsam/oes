@@ -1,4 +1,4 @@
-import { Permission } from "./permission.entity";
+import { Permission } from './permission.entity'
 
 export class RolePermission {
   static fromPrisma(r: { id: string; roleId: string; permissionId: string }): any {
@@ -8,6 +8,6 @@ export class RolePermission {
     public readonly id: string,
     public roleId: string,
     public permissionId: string,
-    public permission?: Permission
+    public permission?: Permission,
   ) {}
 }

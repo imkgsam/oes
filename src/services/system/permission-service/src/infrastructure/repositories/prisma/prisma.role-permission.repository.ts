@@ -5,9 +5,12 @@ import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 
 @Injectable()
 export class PrismaRolePermissionRepository implements RolePermissionRepository {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
   async findByRoleIds(roleIds: string[]): Promise<RolePermission[]> {
-    const founds = await this.prisma.rolePermission.findMany({ where: { roleId: { in: roleIds } }, include: { permission: true } })
+    const founds = await this.prisma.rolePermission.findMany({
+      where: { roleId: { in: roleIds } },
+      include: { permission: true },
+    })
     return founds.map((r) => RolePermission.fromPrisma(r))
   }
 
@@ -28,7 +31,7 @@ export class PrismaRolePermissionRepository implements RolePermissionRepository 
       data: {
         roleId: rolePermission.roleId,
         permissionId: rolePermission.permissionId,
-      }
+      },
     })
     return RolePermission.fromPrisma(created)
   }

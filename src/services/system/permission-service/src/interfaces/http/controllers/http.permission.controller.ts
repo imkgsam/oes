@@ -8,7 +8,7 @@ export class HttpPermissionController {
   constructor(
     private readonly createPermissionUseCase: CreatePermissionUseCase,
     private readonly permissionService: PermissionService,
-  ) { }
+  ) {}
 
   @Post()
   CreatePermission(@Body() dto: CreatePermissionDto) {

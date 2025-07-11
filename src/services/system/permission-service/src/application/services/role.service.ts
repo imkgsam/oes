@@ -5,7 +5,7 @@ import { Role } from 'src/domain/entities/role.entity'
 
 @Injectable()
 export class RoleService {
-  constructor(private readonly roleRepo: RoleRepository) { }
+  constructor(private readonly roleRepo: RoleRepository) {}
 
   async create(dto: CreateRoleDto): Promise<void> {
     const role = new Role(crypto.randomUUID(), dto.name, dto.description, dto.module)

@@ -6,7 +6,7 @@ import { UserRole } from '../../domain/entities/user-role.entity'
 
 @Injectable()
 export class UserRoleService {
-  constructor(private readonly repo: UserRoleRepository) { }
+  constructor(private readonly repo: UserRoleRepository) {}
 
   async assign(dto: AssignUserRoleDto): Promise<void> {
     await this.repo.add(new UserRole(crypto.randomUUID(), dto.userId, dto.roleId))

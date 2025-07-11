@@ -6,4 +6,4 @@ import { PermissionModule } from './modules/permission/permission.module'
   providers: [],
   controllers: [],
 })
-export class AppModule { }
+export class AppModule {}

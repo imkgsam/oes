@@ -6,7 +6,7 @@ import { RolePermission } from 'src/domain/entities/role-permission.entity'
 
 @Injectable()
 export class RolePermissionService {
-  constructor(private readonly rolePermissionRepo: RolePermissionRepository) { }
+  constructor(private readonly rolePermissionRepo: RolePermissionRepository) {}
 
   async assign(dto: AssignRolePermissionDto): Promise<void> {
     const found = await this.rolePermissionRepo.find(dto.roleId, dto.permissionId)

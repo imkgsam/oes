@@ -4,7 +4,7 @@ import { ClientProxy } from '@nestjs/microservices'
 import { Logger } from '@nestjs/common'
 
 const logger = new Logger('ClientManager')
-const MAX_RETRIES = 3;
+const MAX_RETRIES = 3
 interface ManagedClient {
   id: string
   client: ClientProxy
@@ -36,7 +36,9 @@ async function tryConnect(managed: ManagedClient) {
     managed.connected = false
     managed.retries += 1
     if (managed.retries > MAX_RETRIES) {
-      logger.error(`[${managed.id}] Connection failed. Reached max retries (${MAX_RETRIES}). Stop retrying.`)
+      logger.error(
+        `[${managed.id}] Connection failed. Reached max retries (${MAX_RETRIES}). Stop retrying.`,
+      )
       return
     }
     logger.warn(`[${managed.id}] Connection failed. Retry #${managed.retries}`)

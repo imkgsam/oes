@@ -9,14 +9,15 @@ import { ClientProxy } from '@nestjs/microservices'
 import { PERMISSION_CHECK_KEY } from '../decorators/permission-check.decorator'
 import { PERMISSION_MESSAGES } from '../constants/messages/permission.message'
 import { firstValueFrom } from 'rxjs'
-import { InjectServiceClient } from '../modules/clients/client.decorator';
+import { InjectServiceClient } from '../modules/clients/client.decorator'
 
 @Injectable()
 export class PermissionControllGuard implements CanActivate {
   constructor(
-    @InjectServiceClient('PERMI_TCP') private readonly permissionServiceClient: ClientProxy,
+    @InjectServiceClient('PERMI_TCP')
+    private readonly permissionServiceClient: ClientProxy,
     private readonly reflector: Reflector,
-  ) { }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const metadata = this.reflector.get(
@@ -32,7 +33,7 @@ export class PermissionControllGuard implements CanActivate {
       this.permissionServiceClient.send<boolean>(
         PERMISSION_MESSAGES.CHECK_USER_PERMISSION,
         { userId, permissionCode: permission, resourceId: undefined },
-      )
+      ),
     )
     return hasPermission === true
   }

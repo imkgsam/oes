@@ -121,11 +121,7 @@ importers:
         specifier: ^8.20.0
         version: 8.35.1(eslint@9.30.1(jiti@2.4.2))(typescript@5.8.3)
 
-  src/common:
-    dependencies:
-      rxjs:
-        specifier: ^7.8.2
-        version: 7.8.2
+  src/common: {}
 
   src/services/auxiliary/im-service:
     dependencies:
@@ -232,9 +228,6 @@ importers:
       '@nestjs/platform-express':
         specifier: ^11.0.1
         version: 11.1.3(@nestjs/common@11.1.3(class-transformer@0.5.1)(class-validator@0.14.2)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.3)
-      '@oes/common':
-        specifier: workspace:*
-        version: link:../../../common
       '@prisma/client':
         specifier: ^6.11.1
         version: 6.11.1(prisma@6.11.1(typescript@5.8.3))(typescript@5.8.3)
@@ -3988,10 +3981,12 @@ packages:
   superagent@10.2.1:
     resolution: {integrity: sha512-O+PCv11lgTNJUzy49teNAWLjBZfc+A1enOwTpLlH6/rsvKcTwcdTT8m9azGkVqM7HBl5jpyZ7KTPhHweokBcdg==}
     engines: {node: '>=14.18.0'}
+    deprecated: Please upgrade to superagent v10.2.2+, see release notes at https://github.com/forwardemail/superagent/releases/tag/v10.2.2 - maintenance is supported by Forward Email @ https://forwardemail.net
 
   supertest@7.1.1:
     resolution: {integrity: sha512-aI59HBTlG9e2wTjxGJV+DygfNLgnWbGdZxiA/sgrnNNikIW8lbDvCtF6RnhZoJ82nU7qv7ZLjrvWqCEm52fAmw==}
     engines: {node: '>=14.18.0'}
+    deprecated: Please upgrade to supertest v7.1.3+, see release notes at https://github.com/forwardemail/supertest/releases/tag/v7.1.3 - maintenance is supported by Forward Email @ https://forwardemail.net
 
   supports-color@7.2.0:
     resolution: {integrity: sha512-qpCAvRl9stuOHveKsn7HncJRvv501qIacKzQlO/+Lwxc9+0q2wLyv4Dfvt80/DPn2pqOBsJdDiogXGR9+OvwRw==}

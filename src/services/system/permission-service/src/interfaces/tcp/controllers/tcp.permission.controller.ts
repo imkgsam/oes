@@ -11,7 +11,7 @@ export class TcpPermissionController {
   constructor(
     private readonly createPermissionUseCase: CreatePermissionUseCase,
     private readonly checkUserPermissionUseCase: CheckUserPermissionUseCase,
-  ) { }
+  ) {}
 
   @MessagePattern(PERMISSION_MESSAGES.CHECK_USER_PERMISSION)
   checkUserPermission(@Payload() data: CheckUserPermissionDto): Promise<boolean> {

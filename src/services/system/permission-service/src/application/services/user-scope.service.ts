@@ -7,7 +7,7 @@ import { ScopeResourceType } from 'src/domain/enums/scope-resource-type.enum'
 
 @Injectable()
 export class UserScopeService {
-  constructor(private readonly repo: UserScopeRepository) { }
+  constructor(private readonly repo: UserScopeRepository) {}
 
   async addScope(dto: AddUserScopeDto): Promise<void> {
     await this.repo.add(

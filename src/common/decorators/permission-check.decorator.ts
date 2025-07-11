@@ -5,4 +5,4 @@ export interface PermissionCheckOptions {
   resourceParam?: string
 }
 export const PermissionCheck = (permission: string) =>
-  SetMetadata(PERMISSION_CHECK_KEY, { Permissions })
+  SetMetadata(PERMISSION_CHECK_KEY, { permission })

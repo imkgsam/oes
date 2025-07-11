@@ -6,4 +6,4 @@ import { TcpPermissionController } from 'src/interfaces/tcp/controllers/tcp.perm
   providers: [PermissionService],
   controllers: [HttpPermissionController, TcpPermissionController],
 })
-export class PermissionModule { }
+export class PermissionModule {}

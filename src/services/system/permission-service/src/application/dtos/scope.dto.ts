@@ -18,7 +18,6 @@ export class AddUserScopeDto {
   resourceId: string
 }
 
-
 export class CheckUserScopeDto {
   @IsUUID()
   @IsNotEmpty()

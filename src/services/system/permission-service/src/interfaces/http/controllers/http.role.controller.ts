@@ -1,4 +1,4 @@
 import { Controller } from '@nestjs/common'
 
 @Controller('role')
-export class HttpRoleController { }
+export class HttpRoleController {}

@@ -4,7 +4,7 @@ import { RoleService } from '../services/role.service'
 
 @Injectable()
 export class CreateRoleUseCase {
-  constructor(private readonly roleService: RoleService) { }
+  constructor(private readonly roleService: RoleService) {}
 
   async execute(dto: CreateRoleDto): Promise<void> {
     await this.roleService.create(dto)
