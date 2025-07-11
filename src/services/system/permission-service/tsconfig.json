@@ -4,6 +4,9 @@
     "rootDir": "src",
     "outDir": "dict",
     "baseUrl": ".",
+     "paths": {
+        "@oes/common/*": ["../../../common/dict/*"] 
+      }
   },
   "include": ["src"],
   "exclude": ["node_modules"]
