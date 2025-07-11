@@ -1,13 +1,12 @@
-import { registerAs } from "@nestjs/config";
-
+import { registerAs } from '@nestjs/config'
 
 export const TokenConfigName = 'token'
 
 export interface ITokenConfig {
-  accessTokenValidity: number;
-  refreshTokenValidity: number;
-  issuer: string;
-  audience: string;
+  accessTokenValidity: number
+  refreshTokenValidity: number
+  issuer: string
+  audience: string
 }
 
 export default registerAs(TokenConfigName, () => ({

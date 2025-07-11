@@ -1,8 +1,9 @@
-import { RolePermission } from '../entities/role-permission.entity';
+import { RolePermission } from '../entities/role-permission.entity'
 
 export abstract class RolePermissionRepository {
-  abstract findByRoleId(roleId: string): Promise<RolePermission[]>;
-  abstract find(roleId: string, permissionId: string): Promise<RolePermission | null>;
-  abstract add(rolePermission: RolePermission): Promise<RolePermission>;
-  abstract remove(roleId: string, permissionId: string): Promise<RolePermission | null>;
+  abstract find(roleId: string, permissionId: string): Promise<RolePermission | null>
+  abstract remove(roleId: string, permissionId: string): Promise<RolePermission | null>
+  abstract add(rolePermission: RolePermission): Promise<RolePermission>
+  abstract findByRoleIds(roleIds: string[]): Promise<RolePermission[]>
+  abstract findByRoleId(roleId: string): Promise<RolePermission[]>
 }

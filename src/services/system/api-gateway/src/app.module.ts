@@ -1,10 +1,10 @@
-import { Module } from '@nestjs/common';
-import { PermissionController } from './controllers/permission.controller';
-import { MicroserviceClientModule } from './clients/microservice-client.module';
-import { JwtModule } from './common/services/jwt/jwt.module';
-import { ConfigModule } from '@nestjs/config';
-import { AuthModule } from './controllers/auth/auth.module';
-import { ClientModule } from '@oes/common/modules/clients/client.module';
+import { Module } from '@nestjs/common'
+import { PermissionController } from './controllers/permission.controller'
+import { MicroserviceClientModule } from './clients/microservice-client.module'
+import { JwtModule } from './common/services/jwt/jwt.module'
+import { ConfigModule } from '@nestjs/config'
+import { AuthModule } from './controllers/auth/auth.module'
+import { ClientModule } from '@oes/common/modules/clients/client.module'
 
 @Module({
   imports: [
@@ -16,4 +16,4 @@ import { ClientModule } from '@oes/common/modules/clients/client.module';
   controllers: [],
   providers: [],
 })
-export class AppModule { }
+export class AppModule {}

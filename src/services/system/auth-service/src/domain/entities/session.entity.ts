@@ -10,23 +10,23 @@ export class Session {
     public loginAt: Date,
     public lastActiveAt: Date,
     public status: 'active' | 'revoked' = 'active',
-  ) { }
+  ) {}
 
   revoke() {
-    this.status = 'revoked';
+    this.status = 'revoked'
   }
 
   refreshTokens(accessToken: string, refreshToken: string) {
-    this.accessToken = accessToken;
-    this.refreshToken = refreshToken;
-    this.lastActiveAt = new Date();
+    this.accessToken = accessToken
+    this.refreshToken = refreshToken
+    this.lastActiveAt = new Date()
   }
 
   touch() {
-    this.lastActiveAt = new Date();
+    this.lastActiveAt = new Date()
   }
 
   isActive() {
-    return this.status === 'active';
+    return this.status === 'active'
   }
 }

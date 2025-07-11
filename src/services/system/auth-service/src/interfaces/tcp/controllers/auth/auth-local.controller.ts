@@ -1,12 +1,18 @@
-import { Body, Controller, Post } from "@nestjs/common";
-import { MessagePattern } from "@nestjs/microservices";
-import { EmailOtpLoginDto, EmailPasswordLoginDto, GoogleLoginDto, PhoneOtpLoginDto, WechatLoginDto } from "src/application/dtos/login.dto";
-import { AuthService } from "src/application/services/auth-service";
-import { LoginMethodEnum } from "src/domain/constants/login-method.enum";
+import { Body, Controller, Post } from '@nestjs/common'
+import { MessagePattern } from '@nestjs/microservices'
+import {
+  EmailOtpLoginDto,
+  EmailPasswordLoginDto,
+  GoogleLoginDto,
+  PhoneOtpLoginDto,
+  WechatLoginDto,
+} from 'src/application/dtos/login.dto'
+import { AuthService } from 'src/application/services/auth-service'
+import { LoginMethodEnum } from 'src/domain/constants/login-method.enum'
 
 @Controller('auth')
 export class TcpAuthController {
-  constructor(private readonly authService: AuthService) { }
+  constructor(private readonly authService: AuthService) {}
 
   @MessagePattern('email_password_login')
   async loginWithEmailPassword(@Body() dto: EmailPasswordLoginDto) {
@@ -33,5 +39,4 @@ export class TcpAuthController {
   // async loginWithWechat(@Body() dto: WechatLoginDto) {
   //   return this.authService.login(LoginMethodEnum.Wechat, dto)
   // }
-
 }

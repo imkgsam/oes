@@ -5,7 +5,7 @@ import {
   ClientProxyFactory,
   Transport,
   ClientOptions,
-} from '@nestjs/microservices';
+} from '@nestjs/microservices'
 
 export type ServiceProtocol =
   | 'TCP'
@@ -14,22 +14,24 @@ export type ServiceProtocol =
   | 'KAFKA'
   | 'RABBITMQ'
   | 'GRPC'
-  | 'MQTT';
+  | 'MQTT'
 
 export interface IServiceEndpointConfig {
-  protocol: ServiceProtocol;
-  serviceName: string;
-  host: string;
-  port?: number;
-  url?: string;
-  queue?: string;
-  kafkaBrokers?: string[];
-  grpcPackage?: string;
-  grpcProtoPath?: string;
+  protocol: ServiceProtocol
+  serviceName: string
+  host: string
+  port?: number
+  url?: string
+  queue?: string
+  kafkaBrokers?: string[]
+  grpcPackage?: string
+  grpcProtoPath?: string
 }
 
-export function createClient(endpointConfig: IServiceEndpointConfig): ClientProxy {
-  let options: ClientOptions;
+export function createClient(
+  endpointConfig: IServiceEndpointConfig,
+): ClientProxy {
+  let options: ClientOptions
 
   switch (endpointConfig.protocol) {
     case 'TCP':
@@ -39,76 +41,87 @@ export function createClient(endpointConfig: IServiceEndpointConfig): ClientProx
           host: endpointConfig.host,
           port: endpointConfig.port!,
         },
-      };
-      break;
+      }
+      break
 
     case 'REDIS':
       options = {
         transport: Transport.REDIS,
         options: {
           host: endpointConfig.host,
-          port: endpointConfig.port!
+          port: endpointConfig.port!,
         },
-      };
-      break;
+      }
+      break
 
     case 'NATS':
       options = {
         transport: Transport.NATS,
         options: {
-          url: endpointConfig.url || `nats://${endpointConfig.host}:${endpointConfig.port}`,
+          url:
+            endpointConfig.url ||
+            `nats://${endpointConfig.host}:${endpointConfig.port}`,
         },
-      };
-      break;
+      }
+      break
 
     case 'KAFKA':
       options = {
         transport: Transport.KAFKA,
         options: {
           client: {
-            brokers: endpointConfig.kafkaBrokers || [`${endpointConfig.host}:${endpointConfig.port}`],
+            brokers: endpointConfig.kafkaBrokers || [
+              `${endpointConfig.host}:${endpointConfig.port}`,
+            ],
           },
           consumer: {
             groupId: `${endpointConfig.serviceName}-consumer`,
           },
         },
-      };
-      break;
+      }
+      break
 
     case 'RABBITMQ':
       options = {
         transport: Transport.RMQ,
         options: {
-          urls: [endpointConfig.url || `amqp://${endpointConfig.host}:${endpointConfig.port}`],
+          urls: [
+            endpointConfig.url ||
+              `amqp://${endpointConfig.host}:${endpointConfig.port}`,
+          ],
           queue: endpointConfig.queue!,
           queueOptions: { durable: true },
         },
-      };
-      break;
+      }
+      break
 
     case 'GRPC':
       options = {
         transport: Transport.GRPC,
         options: {
-          url: endpointConfig.url || `${endpointConfig.host}:${endpointConfig.port}`,
+          url:
+            endpointConfig.url ||
+            `${endpointConfig.host}:${endpointConfig.port}`,
           protoPath: endpointConfig.grpcProtoPath!,
           package: endpointConfig.grpcPackage!,
         },
-      };
-      break;
+      }
+      break
 
     case 'MQTT':
       options = {
         transport: Transport.MQTT,
         options: {
-          url: endpointConfig.url || `mqtt://${endpointConfig.host}:${endpointConfig.port}`,
+          url:
+            endpointConfig.url ||
+            `mqtt://${endpointConfig.host}:${endpointConfig.port}`,
         },
-      };
-      break;
+      }
+      break
 
     default:
-      throw new Error(`Unsupported protocol: ${endpointConfig.protocol}`);
+      throw new Error(`Unsupported protocol: ${endpointConfig.protocol}`)
   }
 
-  return ClientProxyFactory.create(options as ClientOptions);
+  return ClientProxyFactory.create(options as ClientOptions)
 }

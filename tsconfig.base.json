@@ -12,6 +12,7 @@
     "resolveJsonModule": true,
     "declaration": true,
     "incremental": true,
+    "useDefineForClassFields": false, 
     "sourceMap": true,
     "forceConsistentCasingInFileNames": true
   }

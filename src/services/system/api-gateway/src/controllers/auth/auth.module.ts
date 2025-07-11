@@ -1,12 +1,9 @@
-import { Module } from "@nestjs/common";
-import { AuthController } from "./auth-local.controller";
-import { MicroserviceClientModule } from "src/clients/microservice-client.module";
-
+import { Module } from '@nestjs/common'
+import { AuthController } from './auth-local.controller'
+import { MicroserviceClientModule } from 'src/clients/microservice-client.module'
 
 @Module({
   imports: [MicroserviceClientModule],
-  controllers: [AuthController]
+  controllers: [AuthController],
 })
-export class AuthModule {
-
-}
+export class AuthModule {}

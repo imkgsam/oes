@@ -1,8 +1,8 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule as NestJwtModule } from "@nestjs/jwt";
-import { OptionsFactory } from './jwtOptions.factory';
-import { JwtService } from './jwt.service';
+import { Module } from '@nestjs/common'
+import { ConfigModule, ConfigService } from '@nestjs/config'
+import { JwtModule as NestJwtModule } from '@nestjs/jwt'
+import { OptionsFactory } from './jwtOptions.factory'
+import { JwtService } from './jwt.service'
 
 @Module({
   imports: [
@@ -10,10 +10,10 @@ import { JwtService } from './jwt.service';
     NestJwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useClass: OptionsFactory
-    })
+      useClass: OptionsFactory,
+    }),
   ],
   providers: [JwtService],
-  exports: [JwtService]
+  exports: [JwtService],
 })
-export class JwtModule { }
+export class JwtModule {}

@@ -1,17 +1,20 @@
 export const PERMISSION_MESSAGES = {
+  CHECK_USER_PERMISSION: 'permis.check_user_permission',
+  GET_USER_PERMISSIONS: 'permis.user.get_permissions',
 
-
-  CHECK_USER_PERMISSION: 'permission.check_user_permission',
-  GET_USER_PERMISSIONS: 'permission.user.get_permissions',
+  // PERMISSION
+  CREATE_PERMISSION: 'permis.permission.create',
+  UPDATE_PERMISSION: 'permis.permission.update',
+  DELETE_PERMISSION: 'permis.permission.delete',
+  LIST_PERMISSIONS: 'permis.permission.list',
 
   //ROLE
-  ASSIGN_ROLE: 'permission.role.assign',
-  REMOVE_ROLE: 'permission.role.remove',
-  CREATE_ROLE: 'permission.role.create',
-  UPDATE_ROLE: 'permission.role.update',
-  DELETE_ROLE: 'permission.role.delete',
-  LIST_ROLES: 'permission.role.list',
-
+  ASSIGN_ROLE: 'permis.role.assign',
+  REMOVE_ROLE: 'permis.role.remove',
+  CREATE_ROLE: 'permis.role.create',
+  UPDATE_ROLE: 'permis.role.update',
+  DELETE_ROLE: 'permis.role.delete',
+  LIST_ROLES: 'permis.role.list',
 
   //scope
   CheckUserScope: 'check_user_scope',

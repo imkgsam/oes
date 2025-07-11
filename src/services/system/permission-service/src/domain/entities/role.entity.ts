@@ -1,6 +1,6 @@
-import { RolePermission } from './role-permission.entity';
-import { UserRole } from './user-role.entity';
-import { Role as PrismaRole } from "prisma/generated/prisma";
+import { RolePermission } from './role-permission.entity'
+import { UserRole } from './user-role.entity'
+import { Role as PrismaRole } from 'prisma/generated/prisma'
 
 export class Role {
   constructor(
@@ -10,28 +10,21 @@ export class Role {
     public description?: string,
     public permissions: RolePermission[] = [],
     public users: UserRole[] = [],
-  ) { }
+  ) {}
 
   get permissionIds(): string[] {
-    return this.permissions.map(rp => rp.permissionId);
+    return this.permissions.map((rp) => rp.permissionId)
   }
 
-  static fromPrisma (role: PrismaRole, permissions: RolePermission[] = [], users: UserRole[] = []): Role {
-    return new Role(
-      role.id,
-      role.name,
-      role.module,
-      role.description || "",
-      permissions,
-      users
-    )
-  } 
+  static fromPrisma(role: PrismaRole, permissions: RolePermission[] = [], users: UserRole[] = []): Role {
+    return new Role(role.id, role.name, role.module, role.description || '', permissions, users)
+  }
 
   removePermission(permissionId: string) {
-    this.permissions = this.permissions.filter(p => p.permissionId !== permissionId);
+    this.permissions = this.permissions.filter((p) => p.permissionId !== permissionId)
   }
 
   hasPermission(permissionId: string): boolean {
-    return this.permissions.some(p => p.permissionId === permissionId);
+    return this.permissions.some((p) => p.permissionId === permissionId)
   }
 }

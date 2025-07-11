@@ -1,8 +1,22 @@
-export class Permission {
-  constructor(
-    public readonly id: string,
-    public code: string,
-    public module: string,
-    public description?: string,
-  ) { }
+import { Injectable } from '@nestjs/common'
+import { PermissionRepository } from 'src/domain/repositories/permission.repository'
+import { CreatePermissionDto } from '../dtos/permission.dto'
+import { Permission } from 'src/domain/entities/permission.entity'
+
+@Injectable()
+export class PermissionService {
+  constructor(private readonly permissionRepo: PermissionRepository) { }
+
+  async create(dto: CreatePermissionDto): Promise<Permission> {
+    const permission = new Permission(crypto.randomUUID(), dto.code, dto.description, dto.module)
+    return this.permissionRepo.create(permission)
+  }
+
+  async getByCode(code: string): Promise<Permission | null> {
+    return this.permissionRepo.findByCode(code)
+  }
+
+  async getAllPermissions(): Promise<Permission[]> {
+    return this.permissionRepo.findAll()
+  }
 }
