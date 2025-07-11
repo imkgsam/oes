@@ -36,7 +36,7 @@ importers:
         specifier: ^0.2.2
         version: 0.2.2
       rxjs:
-        specifier: ^7.8.1
+        specifier: ^7.8.2
         version: 7.8.2
     devDependencies:
       '@eslint/eslintrc':
@@ -121,7 +121,11 @@ importers:
         specifier: ^8.20.0
         version: 8.35.1(eslint@9.30.1(jiti@2.4.2))(typescript@5.8.3)
 
-  src/common: {}
+  src/common:
+    dependencies:
+      rxjs:
+        specifier: ^7.8.2
+        version: 7.8.2
 
   src/services/auxiliary/im-service:
     dependencies:
