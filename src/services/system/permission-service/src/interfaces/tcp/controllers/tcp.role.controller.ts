@@ -1,10 +1,9 @@
 import { Controller } from '@nestjs/common'
 import { MessagePattern, Payload } from '@nestjs/microservices'
 import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'
-import { CreatePermissionUseCase, ListPermissionsUseCase } from 'src/application/use-cases/permission.use-case'
-import { CreatePermissionDto, CheckUserPermissionDto } from 'src/application/dtos/permission.dto'
-import { CheckUserPermissionUseCase } from 'src/application/use-cases/permission.use-case'
+import { CreateRoleDto } from 'src/application/dtos/role.dto'
 import { RoleService } from 'src/application/services/role.service'
+import { Role } from 'src/domain/entities/role.entity'
 
 @Controller()
 export class TcpRoleController {
@@ -12,8 +11,23 @@ export class TcpRoleController {
     private readonly roleService: RoleService
   ) { }
 
-  @MessagePattern(PERMISSION_MESSAGES.CHECK_USER_PERMISSION)
-  checkUserPermission(@Payload() data: CheckUserPermissionDto): Promise<boolean> {
-    return this.checkUserPermissionUseCase.execute(data.userId, data.permissionCode)
+  @MessagePattern(PERMISSION_MESSAGES.CREATE_ROLE)
+  checkUserPermission(@Payload() data: CreateRoleDto): Promise<Role> {
+    return this.roleService.create(data)
+  }
+
+  @MessagePattern(PERMISSION_MESSAGES.GET_ROLE_BY_ID)
+  getRoleById(@Payload() id: string): Promise<Role | null> {
+    return this.roleService.getById(id)
+  }
+
+  @MessagePattern(PERMISSION_MESSAGES.LIST_ROLES)
+  getAllRoles(): Promise<Role[]> {
+    return this.roleService.getAllRoles()
+  } 
+
+  @MessagePattern(PERMISSION_MESSAGES.DELETE_ROLE)
+  deleteRole(@Payload() id: string): Promise<Role | null> {  
+    return this.roleService.delete(id)
   }
 }

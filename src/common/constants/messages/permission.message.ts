@@ -13,12 +13,13 @@ export const PERMISSION_MESSAGES = {
 
 
   //ROLE
+  DELETE_ROLE: 'permis.role.delete',
+  CREATE_ROLE: 'permis.role.create',
+  LIST_ROLES: 'permis.role.list',
+  GET_ROLE_BY_ID: 'permis.role.get_by_id',
   ASSIGN_ROLE: 'permis.role.assign',
   REMOVE_ROLE: 'permis.role.remove',
-  CREATE_ROLE: 'permis.role.create',
   UPDATE_ROLE: 'permis.role.update',
-  DELETE_ROLE: 'permis.role.delete',
-  LIST_ROLES: 'permis.role.list',
 
   //scope
   CheckUserScope: 'check_user_scope',

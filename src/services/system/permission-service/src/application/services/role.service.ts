@@ -7,20 +7,20 @@ import { Role } from 'src/domain/entities/role.entity'
 export class RoleService {
   constructor(private readonly roleRepo: RoleRepository) {}
 
-  async create(dto: CreateRoleDto): Promise<void> {
-    const role = new Role(crypto.randomUUID(), dto.name, dto.description, dto.module)
-    await this.roleRepo.save(role)
+  async create(dto: CreateRoleDto): Promise<Role> {
+    const role = new Role(crypto.randomUUID(), dto.name, dto.module, dto.description)
+    return this.roleRepo.save(role)
   }
 
   async getById(id: string): Promise<Role | null> {
     return this.roleRepo.findById(id)
   }
 
-  async getAll(): Promise<Role[]> {
+  async getAllRoles(): Promise<Role[]> {
     return this.roleRepo.findAll()
   }
 
-  async delete(id: string): Promise<void> {
-    await this.roleRepo.delete(id)
+  async delete(id: string): Promise<Role | null> {
+    return this.roleRepo.delete(id)
   }
 }
