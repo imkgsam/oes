@@ -13,7 +13,7 @@ import { ClientModule } from '@oes/common/modules/clients/client.module'
       load: [tokenConfig, authKeyConfig],
     }),
     AuthModule,
-    ClientModule.register(),
+    ClientModule.register(['PERMI_TCP']),
   ],
   controllers: [],
   providers: [],

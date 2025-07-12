@@ -5,7 +5,8 @@ import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 
 @Injectable()
 export class PrismaPermissionRepository implements PermissionRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
+
   async findAll(): Promise<Permission[]> {
     const founds = await this.prisma.permission.findMany()
     return founds.map((p) => Permission.fromPrisma(p))
@@ -32,10 +33,12 @@ export class PrismaPermissionRepository implements PermissionRepository {
   }
   async delete(id: string): Promise<Permission> {
     const deleted = await this.prisma.permission.delete({ where: { id } })
-    return Permission.fromPrisma(deleted)
+    return deleted ? Permission.fromPrisma(deleted) : null
   }
   async findAllByModule(module: string): Promise<Permission[]> {
+    console.log('Finding permissions by module:', module)
     const founds = await this.prisma.permission.findMany({ where: { module } })
+    console.log('Founds by module:', founds)
     return founds.map((p) => Permission.fromPrisma(p))
   }
 }

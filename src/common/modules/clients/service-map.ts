@@ -33,6 +33,6 @@ export const SERVICE_ENDPOINTS_CONFIG: Record<string, IServiceEndpointConfig> =
 export const SERVICE_CLIENT_TOKENS = Object.fromEntries(
   Object.keys(SERVICE_ENDPOINTS_CONFIG).map((key, value) => [
     key,
-    `${key}_${value['protocol']}_CLIENT`,
+    `${key}_CLIENT`,
   ]),
 ) as Record<keyof typeof SERVICE_ENDPOINTS_CONFIG, string>

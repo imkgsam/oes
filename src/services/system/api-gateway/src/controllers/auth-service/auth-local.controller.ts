@@ -1,5 +1,7 @@
 import { Body, Controller, Post } from '@nestjs/common'
-import { AuthClient } from 'src/clients/auth.client'
+import { ClientProxy } from '@nestjs/microservices'
+import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
+
 import {
   EmailPasswordLoginDto,
   GoogleLoginDto,
@@ -10,7 +12,10 @@ import {
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authClient: AuthClient) {}
+  constructor(
+    @InjectServiceClient('AUTH_TCP')
+    private readonly authClient: ClientProxy,
+  ) {}
 
   @Post('login/email-password')
   async loginWithEmailPassword(@Body() dto: EmailPasswordLoginDto) {

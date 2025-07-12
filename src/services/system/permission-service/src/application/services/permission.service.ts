@@ -5,10 +5,10 @@ import { Permission } from 'src/domain/entities/permission.entity'
 
 @Injectable()
 export class PermissionService {
-  constructor(@Inject('PermissionRepository') private readonly permissionRepo: PermissionRepository) {}
+  constructor(@Inject('PermissionRepository') private readonly permissionRepo: PermissionRepository) { }
 
   async create(dto: CreatePermissionDto): Promise<Permission> {
-    const permission = new Permission(crypto.randomUUID(), dto.code, dto.description, dto.module)
+    const permission = new Permission(crypto.randomUUID(), dto.code, dto.module, dto.description)
     return this.permissionRepo.create(permission)
   }
 
@@ -18,5 +18,13 @@ export class PermissionService {
 
   async getAllPermissions(): Promise<Permission[]> {
     return this.permissionRepo.findAll()
+  }
+
+  async getAllByModule(module: string): Promise<Permission[]> {
+    return this.permissionRepo.findAllByModule(module)
+  }
+
+  async delete(id: string): Promise<Permission | null> {
+    return this.permissionRepo.delete(id)
   }
 }

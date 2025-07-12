@@ -5,13 +5,14 @@ export class CreatePermissionDto {
   @IsNotEmpty()
   code: string
 
+  @IsString()
+  @IsNotEmpty()
+  module: string
+
   @IsOptional()
   @IsString()
   description?: string
 
-  @IsString()
-  @IsNotEmpty()
-  module: string
 }
 
 export class CheckUserPermissionDto {
