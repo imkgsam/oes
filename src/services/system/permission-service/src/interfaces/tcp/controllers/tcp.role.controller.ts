@@ -1,5 +1,5 @@
 import { Controller } from '@nestjs/common'
-import { MessagePattern, Payload } from '@nestjs/microservices'
+import { MessagePattern, Payload, RpcException } from '@nestjs/microservices'
 import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'
 import { CreateRoleDto } from 'src/application/dtos/role.dto'
 import { RoleService } from 'src/application/services/role.service'
@@ -17,17 +17,25 @@ export class TcpRoleController {
   }
 
   @MessagePattern(PERMISSION_MESSAGES.GET_ROLE_BY_ID)
-  getRoleById(@Payload() id: string): Promise<Role | null> {
-    return this.roleService.getById(id)
+  async getRoleById(@Payload('id') id: string): Promise<Role | null> {
+    const found = await this.roleService.getById(id)
+    if (!found) {
+      console.log(`Role with id ${id} not found`)
+      throw new RpcException({
+        code: 'ROLE_NOT_FOUND',
+        message: `Role with id ${id} not found`,
+      });
+    }
+    return found
   }
 
   @MessagePattern(PERMISSION_MESSAGES.LIST_ROLES)
   getAllRoles(): Promise<Role[]> {
     return this.roleService.getAllRoles()
-  } 
+  }
 
   @MessagePattern(PERMISSION_MESSAGES.DELETE_ROLE)
-  deleteRole(@Payload() id: string): Promise<Role | null> {  
+  deleteRole(@Payload('id') id: string): Promise<Role | null> {
     return this.roleService.delete(id)
   }
 }

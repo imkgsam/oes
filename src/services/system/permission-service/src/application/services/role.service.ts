@@ -1,11 +1,11 @@
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import { RoleRepository } from 'src/domain/repositories/role.repository'
 import { CreateRoleDto } from '../dtos/role.dto'
 import { Role } from 'src/domain/entities/role.entity'
 
 @Injectable()
 export class RoleService {
-  constructor(private readonly roleRepo: RoleRepository) {}
+  constructor(@Inject('RoleRepository') private readonly roleRepo: RoleRepository) { }
 
   async create(dto: CreateRoleDto): Promise<Role> {
     const role = new Role(crypto.randomUUID(), dto.name, dto.module, dto.description)
