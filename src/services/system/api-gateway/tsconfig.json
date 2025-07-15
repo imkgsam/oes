@@ -2,7 +2,7 @@
   "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dict",
+    "outDir": "dist",
     "baseUrl": ".",
      "paths": {
         "@oes/common/*": ["../../../common/dict/*"] 

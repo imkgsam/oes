@@ -9,7 +9,7 @@
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
-    "start:dev": "nest start --watch",
+    "start:dev": "pnpm run check:buildinfo && nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
@@ -18,8 +18,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
-    "prisma:push": "npx prisma db push"
+    "check:buildinfo": "if not exist dist (echo dist not found, removing tsconfig.tsbuildinfo && del /f /q tsconfig.tsbuildinfo)"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

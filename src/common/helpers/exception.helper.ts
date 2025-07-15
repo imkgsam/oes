@@ -16,7 +16,7 @@ export const genSystemExceptionObject = (
   }
   const nE = {
     ...exception,
-    prefixCode: `${EXCEPTION_TYPE_PREFIX.BUSINESS}${foundModule.code}`,
+    prefixCode: `${EXCEPTION_TYPE_PREFIX.SYSTEM}${foundModule.code}`,
     module: foundModule.name,
   } as ExceptionObject
 

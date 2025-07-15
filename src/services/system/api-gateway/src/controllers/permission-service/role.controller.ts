@@ -5,7 +5,6 @@ import {
   Get,
   Param,
   Post,
-  Query,
 } from '@nestjs/common'
 import { ClientProxy } from '@nestjs/microservices'
 import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'

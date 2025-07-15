@@ -4,6 +4,9 @@ import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.m
 import { CreateRoleDto } from 'src/application/dtos/role.dto'
 import { RoleService } from 'src/application/services/role.service'
 import { Role } from 'src/domain/entities/role.entity'
+import { genBusinessExceptionObject } from '@oes/common/helpers/exception.helper'
+import { BusinessException } from '@oes/common/exceptions/business.exception'
+import { PERMISSION_SERVICE_ERRORS } from '@oes/common/constants/res-codes/permission-service.errors'
 
 @Controller()
 export class TcpRoleController {
@@ -18,11 +21,9 @@ export class TcpRoleController {
   async getRoleById(@Payload('id') id: string): Promise<Role | null> {
     const found = await this.roleService.getById(id)
     if (!found) {
-      console.log(`Role with id ${id} not found`)
-      throw new RpcException({
-        code: 'ROLE_NOT_FOUND',
-        message: `Role with id ${id} not found`,
-      })
+      throw new BusinessException(
+        genBusinessExceptionObject('PERMISSION_SERVICE', PERMISSION_SERVICE_ERRORS.ROLE_NOT_FOUND),
+      )
     }
     return found
   }

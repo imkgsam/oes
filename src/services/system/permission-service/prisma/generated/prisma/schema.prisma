@@ -10,16 +10,6 @@ datasource db {
   schemas  = ["permi"]
 }
 
-model UserRole {
-  id     String @id @default(uuid())
-  userId String
-  roleId String
-  role   Role   @relation(fields: [roleId], references: [id])
-
-  @@unique([userId, roleId])
-  @@schema("permi")
-}
-
 model Role {
   id          String           @id @default(uuid())
   name        String
@@ -38,6 +28,16 @@ model Permission {
   module      String
   roles       RolePermission[]
 
+  @@schema("permi")
+}
+
+model UserRole {
+  id     String @id @default(uuid())
+  userId String
+  roleId String
+  role   Role   @relation(fields: [roleId], references: [id])
+
+  @@unique([userId, roleId])
   @@schema("permi")
 }
 

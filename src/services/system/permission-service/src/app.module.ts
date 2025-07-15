@@ -5,9 +5,7 @@ import { APP_FILTER } from '@nestjs/core'
 
 @Module({
   imports: [PermissionModule, RoleModule],
-  providers: [
-
-  ],
+  providers: [],
   controllers: [],
 })
-export class AppModule { }
+export class AppModule {}

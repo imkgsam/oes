@@ -9,17 +9,24 @@ import { GLOBAL_SYSTEM_ERRORS } from '../constants/res-codes/system.errors'
 
 @Catch()
 export class AllRpcExceptionsFilter implements RpcExceptionFilter<any> {
-  constructor(private readonly moduleName: string) { }
+  constructor(private readonly moduleName: string) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
-
     console.log(`[${this.moduleName}]`, 'Caught exception:', exception)
     if (exception instanceof RpcException) {
-      console.log(`[${this.moduleName}]`, 'Caught RpcException:', exception.getError())
+      console.log(
+        `[${this.moduleName}]`,
+        'Caught RpcException:',
+        exception.getError(),
+      )
       return throwError(() => exception)
     }
     if (exception instanceof BusinessException) {
-      console.log(`[${this.moduleName}]`, 'Caught BusinessException:', exception)
+      console.log(
+        `[${this.moduleName}]`,
+        'Caught BusinessException:',
+        exception,
+      )
       // 业务异常，转 RpcException
       return throwError(
         () =>

@@ -22,4 +22,4 @@ import { AllRpcExceptionsFilter } from './filters/all-rpc-exception.filter'
     AllRpcExceptionsFilter,
   ],
 })
-export class CommonModule { }
+export class CommonModule {}
