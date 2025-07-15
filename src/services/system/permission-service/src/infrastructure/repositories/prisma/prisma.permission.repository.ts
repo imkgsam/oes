@@ -5,7 +5,7 @@ import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 
 @Injectable()
 export class PrismaPermissionRepository implements PermissionRepository {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async findAll(): Promise<Permission[]> {
     const founds = await this.prisma.permission.findMany()

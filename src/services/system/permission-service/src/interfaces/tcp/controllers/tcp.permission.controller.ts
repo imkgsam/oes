@@ -13,8 +13,8 @@ export class TcpPermissionController {
     private readonly listPermissionsUseCase: ListPermissionsUseCase,
     private readonly createPermissionUseCase: CreatePermissionUseCase,
     private readonly checkUserPermissionUseCase: CheckUserPermissionUseCase,
-    private readonly permissionService: PermissionService
-  ) { }
+    private readonly permissionService: PermissionService,
+  ) {}
 
   @MessagePattern(PERMISSION_MESSAGES.CHECK_USER_PERMISSION)
   checkUserPermission(@Payload() data: CheckUserPermissionDto): Promise<boolean> {
@@ -25,7 +25,6 @@ export class TcpPermissionController {
   createPermission(@Payload() data: CreatePermissionDto): Promise<Permission> {
     return this.createPermissionUseCase.execute(data)
   }
-
 
   @MessagePattern(PERMISSION_MESSAGES.LIST_PERMISSIONS)
   listAllPermissions(): Promise<Permission[]> {

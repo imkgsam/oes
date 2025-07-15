@@ -7,7 +7,7 @@ import { Permission } from 'src/domain/entities/permission.entity'
 
 @Injectable()
 export class CreatePermissionUseCase {
-  constructor(private readonly permissionService: PermissionService) { }
+  constructor(private readonly permissionService: PermissionService) {}
   async execute(dto: CreatePermissionDto): Promise<Permission> {
     return this.permissionService.create(dto)
   }
@@ -15,7 +15,7 @@ export class CreatePermissionUseCase {
 
 @Injectable()
 export class ListPermissionsUseCase {
-  constructor(private readonly permissionService: PermissionService) { }
+  constructor(private readonly permissionService: PermissionService) {}
   async execute(): Promise<Permission[]> {
     return this.permissionService.getAllPermissions()
   }
@@ -28,7 +28,7 @@ export class CheckUserPermissionUseCase {
     private readonly userRoleRepo: UserRoleRepository,
     @Inject('RolePermissionRepository')
     private readonly rolePermissionRepo: RolePermissionRepository,
-  ) { }
+  ) {}
   async execute(userId: string, permissionCode: string): Promise<boolean> {
     const roles = await this.userRoleRepo.findByUserId(userId)
     const roleIds = roles.map((r) => r.roleId)

@@ -1,5 +1,4 @@
 export const PERMISSION_MESSAGES = {
-
   CHECK_USER_PERMISSION: 'permis.check_user_permission',
   GET_USER_PERMISSIONS: 'permis.user.get_permissions',
 
@@ -10,7 +9,6 @@ export const PERMISSION_MESSAGES = {
   LIST_PERMISSIONS: 'permis.permission.list',
   FIND_PERMISSION_BY_MODULE: 'permis.permission.find_by_module',
   FIND_PERMISSION_BY_CODE: 'permis.permission.find_by_code',
-
 
   //ROLE
   DELETE_ROLE: 'permis.role.delete',

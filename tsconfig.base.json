@@ -1,10 +1,8 @@
-// oes/tsconfig.base.json
 {
   "compilerOptions": {
     "target": "ES2022",
     "module": "CommonJS",
     "lib": ["ES2022"],
-    // "strict": true,
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
@@ -15,8 +13,5 @@
     "useDefineForClassFields": false, 
     "sourceMap": true,
     "forceConsistentCasingInFileNames": true,
-    // "paths": {
-    //   "@oes/common/*": ["./src/common/*"]
-    // }
   },
 }

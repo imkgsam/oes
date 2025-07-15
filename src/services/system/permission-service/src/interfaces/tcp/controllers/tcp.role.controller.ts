@@ -7,9 +7,7 @@ import { Role } from 'src/domain/entities/role.entity'
 
 @Controller()
 export class TcpRoleController {
-  constructor(
-    private readonly roleService: RoleService
-  ) { }
+  constructor(private readonly roleService: RoleService) {}
 
   @MessagePattern(PERMISSION_MESSAGES.CREATE_ROLE)
   checkUserPermission(@Payload() data: CreateRoleDto): Promise<Role> {
@@ -24,7 +22,7 @@ export class TcpRoleController {
       throw new RpcException({
         code: 'ROLE_NOT_FOUND',
         message: `Role with id ${id} not found`,
-      });
+      })
     }
     return found
   }

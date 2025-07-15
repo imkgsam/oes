@@ -3,16 +3,16 @@ import {
   NestInterceptor,
   ExecutionContext,
   CallHandler,
-} from '@nestjs/common';
-import { Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
-import { Request } from 'express';
+} from '@nestjs/common'
+import { Observable } from 'rxjs'
+import { map } from 'rxjs/operators'
+import { Request } from 'express'
 
 @Injectable()
 export class ResponseTransformInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const ctx = context.switchToHttp();
-    const request = ctx.getRequest<Request>();
+    const ctx = context.switchToHttp()
+    const request = ctx.getRequest<Request>()
 
     return next.handle().pipe(
       map((data: any) => ({
@@ -23,6 +23,6 @@ export class ResponseTransformInterceptor implements NestInterceptor {
         timestamp: Date.now(),
         path: request.originalUrl,
       })),
-    );
+    )
   }
 }

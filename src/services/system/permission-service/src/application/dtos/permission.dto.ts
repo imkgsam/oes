@@ -12,7 +12,6 @@ export class CreatePermissionDto {
   @IsOptional()
   @IsString()
   description?: string
-
 }
 
 export class CheckUserPermissionDto {

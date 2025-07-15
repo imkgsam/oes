@@ -7,9 +7,9 @@ import { ResponseTransformInterceptor } from './common/interceptors/response.int
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
-  app.useGlobalFilters(new HttpExceptionFilter());
-  app.useGlobalInterceptors(new ResponseTransformInterceptor());
-  app.use(new TraceIdMiddleware().use);
+  app.useGlobalFilters(new HttpExceptionFilter())
+  app.useGlobalInterceptors(new ResponseTransformInterceptor())
+  app.use(new TraceIdMiddleware().use)
   await app.listen(process.env.API_GATEWAY_PORT ?? 9101)
 }
 bootstrap()

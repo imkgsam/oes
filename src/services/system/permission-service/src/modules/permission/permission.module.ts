@@ -1,6 +1,10 @@
 import { Module } from '@nestjs/common'
 import { PermissionService } from 'src/application/services/permission.service'
-import { CheckUserPermissionUseCase, CreatePermissionUseCase, ListPermissionsUseCase } from 'src/application/use-cases/permission.use-case'
+import {
+  CheckUserPermissionUseCase,
+  CreatePermissionUseCase,
+  ListPermissionsUseCase,
+} from 'src/application/use-cases/permission.use-case'
 import { PrismaModule } from 'src/infrastructure/prisma/prisma.module'
 import { PrismaPermissionRepository } from 'src/infrastructure/repositories/prisma/prisma.permission.repository'
 import { PrismaRolePermissionRepository } from 'src/infrastructure/repositories/prisma/prisma.role-permission.repository'
@@ -17,12 +21,9 @@ import { TcpPermissionController } from 'src/interfaces/tcp/controllers/tcp.perm
     ListPermissionsUseCase,
     CreatePermissionUseCase,
     CreatePermissionUseCase,
-    CheckUserPermissionUseCase
+    CheckUserPermissionUseCase,
   ],
-  controllers: [
-    HttpPermissionController,
-    TcpPermissionController
-  ],
+  controllers: [HttpPermissionController, TcpPermissionController],
   exports: [PermissionService],
 })
-export class PermissionModule { }
+export class PermissionModule {}
