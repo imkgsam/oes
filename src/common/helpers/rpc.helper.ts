@@ -5,7 +5,7 @@ import { GLOBAL_SYSTEM_ERRORS } from '../constants/res-codes/system.errors'
 import { createSystemException, createBusinessException } from './exception.factory'
 import { BusinessException } from '../exceptions/business.exception'
 import { SystemException } from '../exceptions/system.exception'
-import { ExceptionObject } from '../interfaces/exception-object.interface'
+import { ExceptionObject } from '../interfaces/exceptions.interface'
 
 export async function safeRpcCall<T>(
   rpcCall: Promise<T> | Observable<T>,

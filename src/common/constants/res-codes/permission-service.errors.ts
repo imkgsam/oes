@@ -1,6 +1,6 @@
-import { ExceptionObject } from '../../interfaces/exception-object.interface'
+import { RawException } from '../../interfaces/exceptions.interface'
 
-export const PERMISSION_SERVICE_ERRORS: Record<string, ExceptionObject> = {
+export const PERMISSION_SERVICE_ERRORS: Record<string, RawException> = {
   ROLE_NOT_FOUND: {
     code: '0001',
     message: 'Role not found',

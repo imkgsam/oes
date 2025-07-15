@@ -1,14 +1,14 @@
-import { ExceptionObject } from '../interfaces/exception-object.interface'
+import { RawException } from '../interfaces/exceptions.interface'
 import { BaseException } from './base.exception'
 
 export class SystemException extends BaseException {
-  constructor(excep: ExceptionObject, details?: any) {
+  constructor(raw: RawException, details?: any) {
     super(
-      `${excep.prefixCode}${excep.code}`,
-      excep.message,
-      excep.messageKey,
-      excep.httpStatus,
-      excep.module,
+      `${raw.prefixCode}${raw.code}`,
+      raw.message,
+      raw.messageKey,
+      raw.httpStatus,
+      raw.module,
       details,
     )
   }

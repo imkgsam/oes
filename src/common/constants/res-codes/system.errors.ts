@@ -1,6 +1,6 @@
-import { ExceptionObject } from '../../interfaces/exception-object.interface'
+import { RawException } from '../../interfaces/exceptions.interface'
 
-export const GLOBAL_SYSTEM_ERRORS: Record<string, ExceptionObject> = {
+export const GLOBAL_SYSTEM_ERRORS: Record<string, RawException> = {
   UNKNOWN_ERROR: {
     code: '1001',
     message: '未知系统错误',

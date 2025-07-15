@@ -1,5 +1,5 @@
 import { BaseException } from './base.exception'
-import { ExceptionObject } from '../interfaces/exception-object.interface'
+import { ExceptionObject } from '../interfaces/exceptions.interface'
 
 export class BusinessException extends BaseException {
   constructor(excep: ExceptionObject) {

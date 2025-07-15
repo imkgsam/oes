@@ -1,5 +1,4 @@
-import { ExceptionObject } from '../../interfaces/exception-object.interface'
-import { ModuleDetails } from '../../interfaces/module-detail.interface'
+import { ModuleDetails } from '../../interfaces/module.interface'
 
 export enum EXCEPTION_TYPE_PREFIX {
   SYSTEM = 'SYS',
