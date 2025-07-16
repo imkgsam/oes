@@ -1,16 +1,43 @@
 import { BusinessException } from '../exceptions/business.exception'
 import { SystemException } from '../exceptions/system.exception'
 import { RuntimeException } from '../exceptions/runtime.exception'
-import { RawException } from '../interfaces/exceptions.interface'
+import { RawException, RpcExceptionPayload } from '../interfaces/exceptions.interface'
+import { buildGlobalErrorCode } from '../helpers/exception.helper'
+import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
 
-export function createBusinessException(raw: RawException) {
-  return new BusinessException(raw)
+const moduleNameFromEnv = process.env.MODULE_NAME || 'UNKNOWN_MODULE'
+
+export function createBusinessException(input: RawException | RpcExceptionPayload, details?: any) {
+  return createException(EXCEPTION_TYPE_PREFIX.BUSINESS, input, details)
 }
 
-export function createSystemException(raw: RawException) {
-  return new SystemException(raw)
+export function createSystemException(input: RawException | RpcExceptionPayload, details?: any) {
+  return createException(EXCEPTION_TYPE_PREFIX.SYSTEM, input, details)
 }
 
-export function createRuntimeException(raw: RawException, details?: any) {
-  return new RuntimeException(raw, details)
+export function createRuntimeException(raw: RawException | RpcExceptionPayload, details?: any) {
+  return createException(EXCEPTION_TYPE_PREFIX.RUNTIME, raw, details)
+}
+
+function createException(etype: EXCEPTION_TYPE_PREFIX, input: RawException | RpcExceptionPayload, details?: any) {
+  console.log('in createException', etype, input, details)
+  const isRaw = (input as RawException).subCode !== undefined
+  let code: string
+  if (isRaw)
+    code = buildGlobalErrorCode(etype, moduleNameFromEnv, (input as RawException).subCode)
+  else
+    code = (input as RpcExceptionPayload).code
+  let k: SystemException | BusinessException | RuntimeException
+  switch (etype) {
+    case EXCEPTION_TYPE_PREFIX.BUSINESS:
+      k = new BusinessException(code, input.message, input.messageKey, input.httpStatus, details)
+      break
+    case EXCEPTION_TYPE_PREFIX.SYSTEM:
+      k = new SystemException(code, input.message, input.messageKey, input.httpStatus, details)
+      break
+    case EXCEPTION_TYPE_PREFIX.RUNTIME:
+      k = new RuntimeException(code, input.message, input.messageKey, input.httpStatus, details)
+      break
+  }
+  return k
 }

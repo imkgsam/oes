@@ -3,15 +3,16 @@ import { JwtModule } from './common/services/jwt/jwt.module'
 import { ConfigModule } from '@nestjs/config'
 import { AuthServiceModule } from './modules/auth-service.module'
 import { PermissionServiceModule } from 'src/modules/permission-service.module'
-
+import { TraceModule } from '@oes/common/modules/trace/trace.module'
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     JwtModule,
     AuthServiceModule,
     PermissionServiceModule,
+    TraceModule.forHttp()
   ],
   controllers: [],
   providers: [],
 })
-export class AppModule {}
+export class AppModule { }

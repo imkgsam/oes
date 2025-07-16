@@ -2,13 +2,10 @@ import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import { ValidationPipe } from '@nestjs/common'
 import { MicroserviceOptions, Transport } from '@nestjs/microservices'
-import { AllRpcExceptionsFilter } from '@oes/common/filters/all-rpc-exception.filter'
-import { ConfigService } from '@nestjs/config'
-import { initExceptionFactory } from '@oes/common/helpers/exception.factory'
-
+import { MicroserviceExceptionsFilter } from '@oes/common/filters/microservice-exception.filter'
 
 async function bootstrap() {
-  
+
   const microservice = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
     transport: Transport.TCP,
     options: {
@@ -16,15 +13,9 @@ async function bootstrap() {
       port: Number(process.env.PERMISSION_TCP_PORT ?? '9302'),
     },
   })
-  
-  // 初始化 ConfigService
-  const configService = microservice.get(ConfigService)
 
-  // ✅ 初始化 ExceptionFactory 的模块名称
-  initExceptionFactory(configService)
-  
   microservice.useGlobalPipes(new ValidationPipe())
-  microservice.useGlobalFilters(new AllRpcExceptionsFilter('AUTH_SERVICE'))
+  microservice.useGlobalFilters(new MicroserviceExceptionsFilter('PERMISSION_SERVICE'))
   await microservice.listen()
 }
 bootstrap()

@@ -1,0 +1,1 @@
+{"version":3,"file":"trace-context.js","sourceRoot":"","sources":["trace-context.ts"],"names":[],"mappings":";;;AASA,gCAEC;AAED,gCAEC;AAdD,6CAA+C;AAMlC,QAAA,YAAY,GAAG,IAAI,+BAAiB,EAAc,CAAA;AAE/D,SAAgB,UAAU,CAAC,OAAe;IACxC,oBAAY,CAAC,SAAS,CAAC,EAAE,OAAO,EAAE,CAAC,CAAA;AACrC,CAAC;AAED,SAAgB,UAAU;IACxB,OAAO,oBAAY,CAAC,QAAQ,EAAE,EAAE,OAAO,CAAA;AACzC,CAAC"}

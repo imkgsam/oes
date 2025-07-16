@@ -4,27 +4,6 @@ import { ErrorContext, RawException, RpcError, RpcExceptionPayload } from '../in
 import { ModuleDetails } from '../interfaces/module.interface'
 import { v4 as uuidv4 } from 'uuid'
 
-const genRpcPayload = (exceptionType: EXCEPTION_TYPE_PREFIX, moduleName: string, exception: RawException): RpcExceptionPayload => {
-  const foundModule: ModuleDetails = MODULES[moduleName]
-  if (!foundModule) throw new Error(`Module ${moduleName} not existed`)
-
-  return {
-    code: `${EXCEPTION_TYPE_PREFIX[exceptionType]}${foundModule.code}${exception.code}`,
-    module: foundModule.name,
-    message: exception.message,
-    messageKey: exception.messageKey,
-    timestamp: new Date().toISOString(),
-    httpStatus: exception.httpStatus
-  } as RpcExceptionPayload
-}
-
-export const genSystemExceptionObject = (moduleName: string, exception: RawException): RpcExceptionPayload => {
-  return genRpcPayload(EXCEPTION_TYPE_PREFIX.SYSTEM, moduleName, exception)
-}
-
-export const genBusinessExceptionObject = (moduleName: string, exception: RawException): RpcExceptionPayload => {
-  return genRpcPayload(EXCEPTION_TYPE_PREFIX.BUSINESS, moduleName, exception)
-}
 
 export function toRpcException(error: RpcExceptionPayload, partialContext: Partial<ErrorContext>): RpcException {
   const context: ErrorContext = {
@@ -35,7 +14,6 @@ export function toRpcException(error: RpcExceptionPayload, partialContext: Parti
     spanId: partialContext.spanId,
     isPropagated: partialContext.isPropagated ?? false,
   }
-
   return new RpcException({ error, context } as RpcError)
 }
 
@@ -46,12 +24,23 @@ export function toRpcException(error: RpcExceptionPayload, partialContext: Parti
  * @returns 全局唯一错误码，如 SYS2011001
  */
 export function buildGlobalErrorCode(
-  typePrefix: EXCEPTION_TYPE_PREFIX,
+  typePrefix: EXCEPTION_TYPE_PREFIX = EXCEPTION_TYPE_PREFIX.RUNTIME,
   moduleName: string,
   subCode: string,
 ): string {
+  console.log(`Building global error code: ${typePrefix}${moduleName}${subCode}`)
   const foundModule: ModuleDetails = MODULES[moduleName]
   if (!foundModule) throw new Error(`Module ${moduleName} not existed`)
   const moduleCode = foundModule.code
   return `${typePrefix}${moduleCode}${subCode}`
+}
+
+export function isRpcError(obj: any): obj is RpcError {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'error' in obj &&
+    'context' in obj &&
+    typeof obj.error?.code === 'string'
+  )
 }

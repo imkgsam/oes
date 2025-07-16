@@ -4,10 +4,10 @@
     "rootDir": "src",
     "outDir": "dist",
     "baseUrl": ".",
-     "paths": {
-        "@oes/common/*": ["../../../common/dict/*"] 
-      }
+    "paths": {
+      "@oes/common/*": ["../../../common/dist/*"]
+    }
   },
-  "include": ["src", "../../../common/trace", "../../../common/modules/trace/trace-context.ts"],
+  "include": ["src"],
   "exclude": ["node_modules"]
 }

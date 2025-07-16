@@ -1,8 +1,13 @@
+import { ErrorContext } from "./exceptions.interface"
+
 export interface StandardResponse<T> {
   code: string
   message: string
-  data: T | null
+  messageKey?: string
+  data?: T
+  details?: any
   traceId?: string
-  timestamp: number
+  timestamp: string
   path?: string
+  debugContext?: ErrorContext
 }

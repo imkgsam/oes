@@ -1,45 +1,30 @@
-// src/utils/safe-rpc-call.ts
-import { RpcException } from '@nestjs/microservices'
-import { firstValueFrom, isObservable, Observable } from 'rxjs'
-import {
-  createSystemException,
-  createBusinessException,
-  createRuntimeException,
-} from './exception.factory'
-import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
-import { RpcError } from '../interfaces/exceptions.interface'
+import { RpcException } from "@nestjs/microservices"
+import { Observable, isObservable, firstValueFrom } from "rxjs"
+import { GLOBAL_RUNTIME_ERRORS } from "../constants/res-codes/runtime.errors"
+import { createRuntimeException } from "./exception.factory"
+import { isRpcError } from "./exception.helper"
 
 export async function safeRpcCall<T>(
-  rpcCall: Promise<T> | Observable<T>,
+  rpcCall: Promise<T> | Observable<T>
 ): Promise<T> {
+  console.log("[safeRpcCall] Executing RPC call...")
   try {
-    return (isObservable(rpcCall)
+    const result = isObservable(rpcCall)
       ? await firstValueFrom(rpcCall)
-      : await rpcCall)
+      : await rpcCall
+    return result
   } catch (error) {
     if (error instanceof RpcException) {
       const payload = error.getError?.()
 
-      if (payload?.error && payload?.context) {
-        const rpcError = payload as RpcError
-        const typePrefix = rpcError.error.code.slice(0, 3)
-        const moduleName = rpcError.context.module || 'UNKNOWN_MODULE'
-
-        switch (typePrefix) {
-          case 'BUS':
-            throw createBusinessException(rpcError.error)
-          case 'SYS':
-            throw createSystemException(rpcError.error)
-          case 'RT':
-            throw createRuntimeException(rpcError.error, rpcError.error.details)
-          default:
-            throw createRuntimeException(GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR, rpcError.error.details)
-        }
+      if (isRpcError(payload)) {
+        // ✅ 正确用法：直接抛出，保留 context
+        throw error
       }
-
-      throw createRuntimeException(GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR, payload)
+      // ❌ 结构不合法，封装 Runtime 异常
+      throw createRuntimeException(GLOBAL_RUNTIME_ERRORS.INVALID_RPC_STRUCTURE, payload)
     }
-
+    // ❌ 非 RpcException
     throw createRuntimeException(GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR, error)
   }
 }

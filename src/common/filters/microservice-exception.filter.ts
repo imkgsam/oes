@@ -1,4 +1,4 @@
-import { Catch, ArgumentsHost, RpcExceptionFilter } from '@nestjs/common';
+import { Catch, ArgumentsHost, RpcExceptionFilter, Logger } from '@nestjs/common';
 import { RpcException } from '@nestjs/microservices';
 import { BusinessException } from '../exceptions/business.exception';
 import { SystemException } from '../exceptions/system.exception';
@@ -10,9 +10,12 @@ import { GLOBAL_SYSTEM_ERRORS } from '../constants/res-codes/system.errors';
 
 @Catch() // 无参数 → 捕获所有异常
 export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
-  private readonly moduleName = process.env.MODULE_NAME || 'UNKNOWN_MODULE'
+  private readonly logger = new Logger(MicroserviceExceptionsFilter.name);
+  constructor(private readonly moduleName: string = process.env.MODULE_NAME) { }
 
   catch(exception: BusinessException | SystemException | RpcException | unknown, host: ArgumentsHost) {
+    this.logger.error('Exception caught by MicroserviceExceptionsFilter', exception);
+
     const traceId = getTraceId() || undefined
 
     if (exception instanceof RpcException) {
@@ -20,14 +23,14 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
     }
 
     if (exception instanceof BusinessException) {
-      return this.handleBusinessException(exception, host)
+      return this.handleBusinessException(exception, host, traceId)
     }
 
     if (exception instanceof SystemException) {
-      return this.handleSystemException(exception, host)
+      return this.handleSystemException(exception, host, traceId)
     }
 
-    return this.handleUnknownException(exception, host)
+    return this.handleUnknownException(exception, host, traceId)
   }
 
   private handleRpcException(exception: RpcException): Observable<any> {
@@ -85,7 +88,7 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
     return throwError(() =>
       toRpcException(
         {
-          code: GLOBAL_SYSTEM_ERRORS.UNKNOWN_ERROR.code,
+          code: GLOBAL_SYSTEM_ERRORS.UNKNOWN_ERROR.subCode,
           message: exception?.message || GLOBAL_SYSTEM_ERRORS.UNKNOWN_ERROR.message,
           messageKey: GLOBAL_SYSTEM_ERRORS.UNKNOWN_ERROR.messageKey,
           httpStatus: GLOBAL_SYSTEM_ERRORS.UNKNOWN_ERROR.httpStatus,

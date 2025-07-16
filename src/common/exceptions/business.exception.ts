@@ -1,20 +1,17 @@
-import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
-import { buildGlobalErrorCode } from '../helpers/exception.helper'
-import { RawException, RpcExceptionPayload } from '../interfaces/exceptions.interface'
+import {  RpcExceptionPayload } from '../interfaces/exceptions.interface'
 
-const moduleNameFromEnv = process.env.MODULE_NAME || 'UNKNOWN_MODULE'
 export class BusinessException extends Error {
   public readonly code: string
   public readonly messageKey: string
   public readonly httpStatus: number
   public readonly details?: any
 
-  constructor(raw: RawException, details?: any) {
-    super(raw.message)
-    this.messageKey = raw.messageKey
-    this.httpStatus = raw.httpStatus
+  constructor(code:string, message:string, messageKey: string, httpStatus: number, details?: any) {
+    super(message)
+    this.code = code
+    this.messageKey = messageKey
+    this.httpStatus = httpStatus
     this.details = details
-    this.code = buildGlobalErrorCode(EXCEPTION_TYPE_PREFIX.BUSINESS, moduleNameFromEnv, raw.subCode)
     Object.setPrototypeOf(this, BusinessException.prototype)
   }
 

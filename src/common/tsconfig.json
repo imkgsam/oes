@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dict",
+    "outDir": "./dist",
     "rootDir": "."
   },
   "include": ["**/*.ts", "constants/response-codes.enum.ts"]

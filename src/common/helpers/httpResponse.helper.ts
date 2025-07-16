@@ -3,32 +3,32 @@ import { StandardResponse } from '../interfaces/httpResponse.interface'
 import { SUCCESS } from '../constants/res-codes/system.errors'
 
 export class ResponseHelper {
-  static async success<T>(
+  static success<T>(
     data: T,
     req?: Request,
-  ): Promise<StandardResponse<T>> {
+  ): StandardResponse<T> {
     return {
-      code: SUCCESS.code,
+      code: SUCCESS.subCode,
       message: SUCCESS.message,
       data,
-      traceId: req && (req as any).traceId,
-      timestamp: Date.now(),
+      traceId: req?.['traceId'],
+      timestamp: new Date().toISOString(),
       path: req?.originalUrl,
     }
   }
 
-  static async error(
+  static error(
     code: string,
+    message?: string,
     req?: Request,
     data: any = null,
-    params?: Record<string, string>,
-  ): Promise<StandardResponse<any>> {
+  ): StandardResponse<any> {
     return {
       code,
-      message: 'error',
+      message: message ?? 'error',
       data,
-      traceId: req && (req as any).traceId,
-      timestamp: Date.now(),
+      traceId: req?.['traceId'],
+      timestamp: new Date().toISOString(),
       path: req?.originalUrl,
     }
   }
