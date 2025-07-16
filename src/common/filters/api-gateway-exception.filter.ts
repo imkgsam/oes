@@ -11,7 +11,7 @@ import { RpcException } from '@nestjs/microservices'
 import { GLOBAL_SYSTEM_ERRORS } from '../constants/res-codes/system.errors'
 
 @Catch()
-export class AllHttpExceptionsFilter implements ExceptionFilter {
+export class ApiGatewayExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp()
     const response = ctx.getResponse()

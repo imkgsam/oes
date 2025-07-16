@@ -1,37 +1,45 @@
-// src/common/utils/safe-rpc-call.ts
+// src/utils/safe-rpc-call.ts
 import { RpcException } from '@nestjs/microservices'
-import { firstValueFrom, Observable } from 'rxjs'
-import { GLOBAL_SYSTEM_ERRORS } from '../constants/res-codes/system.errors'
-import { createSystemException, createBusinessException } from './exception.factory'
-import { BusinessException } from '../exceptions/business.exception'
-import { SystemException } from '../exceptions/system.exception'
-import { ExceptionObject } from '../interfaces/exceptions.interface'
+import { firstValueFrom, isObservable, Observable } from 'rxjs'
+import {
+  createSystemException,
+  createBusinessException,
+  createRuntimeException,
+} from './exception.factory'
+import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
+import { RpcError } from '../interfaces/exceptions.interface'
 
 export async function safeRpcCall<T>(
   rpcCall: Promise<T> | Observable<T>,
-  moduleName = 'UNKNOWN_MODULE',
 ): Promise<T> {
   try {
-    return await firstValueFrom(rpcCall)
+    return (isObservable(rpcCall)
+      ? await firstValueFrom(rpcCall)
+      : await rpcCall)
   } catch (error) {
-    // 来自 RpcException
     if (error instanceof RpcException) {
       const payload = error.getError?.()
 
-      if (payload?.prefixCode?.startsWith('SYS')) {
-        let t = payload as ExceptionObject
-        throw createSystemException( t, t?.details)
+      if (payload?.error && payload?.context) {
+        const rpcError = payload as RpcError
+        const typePrefix = rpcError.error.code.slice(0, 3)
+        const moduleName = rpcError.context.module || 'UNKNOWN_MODULE'
+
+        switch (typePrefix) {
+          case 'BUS':
+            throw createBusinessException(rpcError.error)
+          case 'SYS':
+            throw createSystemException(rpcError.error)
+          case 'RT':
+            throw createRuntimeException(rpcError.error, rpcError.error.details)
+          default:
+            throw createRuntimeException(GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR, rpcError.error.details)
+        }
       }
 
-      if (payload?.prefixCode?.startsWith('BUS')) {
-        throw createBusinessException( payload as ExceptionObject)
-      }
-
-      // fallback: RpcException 但结构不明
-      throw createSystemException( GLOBAL_SYSTEM_ERRORS.UNKNOWN_ERROR, payload)
+      throw createRuntimeException(GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR, payload)
     }
 
-    // 非 RpcException
-    throw createSystemException( GLOBAL_SYSTEM_ERRORS.UNKNOWN_ERROR, error)
+    throw createRuntimeException(GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR, error)
   }
 }

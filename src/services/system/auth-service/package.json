@@ -20,7 +20,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
     "prisma:push": "npx prisma db push",
-    "check:buildinfo": "if not exist dist (echo dist not found, removing tsconfig.tsbuildinfo && del /f /q tsconfig.tsbuildinfo)"
+    "check:buildinfo": "if not exist dist (echo dist not found, removing tsconfig.tsbuildinfo && del /f /q tsconfig.tsbuildinfo)",
+    "remove:dist": "if exist dist rmdir /s /q dist && del /f /q tsconfig.tsbuildinfo"
+
   },
   "dependencies": {
     "@nestjs/common": "^11.1.3",

@@ -3,6 +3,7 @@ import { ModuleDetails } from '../../interfaces/module.interface'
 export enum EXCEPTION_TYPE_PREFIX {
   SYSTEM = 'SYS',
   BUSINESS = 'BUS',
+  RUNTIME = 'RT',
 }
 
 export const MODULES: Record<string, ModuleDetails> = {

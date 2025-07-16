@@ -3,7 +3,8 @@ import { buildGlobalErrorCode } from "../helpers/exception.helper"
 import { RawException, RpcExceptionPayload } from "../interfaces/exceptions.interface"
 
 const moduleNameFromEnv = process.env.MODULE_NAME || 'UNKNOWN_MODULE'
-export class SystemException extends Error {
+
+export class RuntimeException extends Error {
   public readonly code: string
   public readonly messageKey: string
   public readonly httpStatus: number
@@ -15,8 +16,8 @@ export class SystemException extends Error {
     this.messageKey = raw.messageKey
     this.httpStatus = raw.httpStatus
     this.details = details
-    this.code = buildGlobalErrorCode(EXCEPTION_TYPE_PREFIX.SYSTEM, moduleNameFromEnv, raw.subCode)
-    Object.setPrototypeOf(this, SystemException.prototype)
+    this.code = buildGlobalErrorCode(EXCEPTION_TYPE_PREFIX.RUNTIME, moduleNameFromEnv, raw.subCode)
+    Object.setPrototypeOf(this, RuntimeException.prototype)
   }
 
   toRpcPayload(): RpcExceptionPayload {

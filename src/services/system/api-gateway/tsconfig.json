@@ -8,6 +8,6 @@
         "@oes/common/*": ["../../../common/dict/*"] 
       }
   },
-  "include": ["src"],
+  "include": ["src", "../../../common/trace", "../../../common/modules/trace/trace-context.ts"],
   "exclude": ["node_modules"]
 }

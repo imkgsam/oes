@@ -1,14 +1,30 @@
-import { BaseException } from './base.exception'
-import { ExceptionObject } from '../interfaces/exceptions.interface'
+import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
+import { buildGlobalErrorCode } from '../helpers/exception.helper'
+import { RawException, RpcExceptionPayload } from '../interfaces/exceptions.interface'
 
-export class BusinessException extends BaseException {
-  constructor(excep: ExceptionObject) {
-    super(
-      `${excep.prefixCode}${excep.code}`,
-      excep.message,
-      excep.messageKey,
-      excep.httpStatus,
-      excep.module,
-    )
+const moduleNameFromEnv = process.env.MODULE_NAME || 'UNKNOWN_MODULE'
+export class BusinessException extends Error {
+  public readonly code: string
+  public readonly messageKey: string
+  public readonly httpStatus: number
+  public readonly details?: any
+
+  constructor(raw: RawException, details?: any) {
+    super(raw.message)
+    this.messageKey = raw.messageKey
+    this.httpStatus = raw.httpStatus
+    this.details = details
+    this.code = buildGlobalErrorCode(EXCEPTION_TYPE_PREFIX.BUSINESS, moduleNameFromEnv, raw.subCode)
+    Object.setPrototypeOf(this, BusinessException.prototype)
+  }
+
+  toRpcPayload(): RpcExceptionPayload {
+    return {
+      code: this.code,
+      message: this.message,
+      messageKey: this.messageKey,
+      httpStatus: this.httpStatus,
+      details: this.details,
+    }
   }
 }
