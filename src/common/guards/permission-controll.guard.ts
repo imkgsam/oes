@@ -13,14 +13,15 @@ import {
 import { PERMISSION_MESSAGES } from '../constants/messages/permission.message'
 import { firstValueFrom } from 'rxjs'
 import { InjectServiceClient } from '../modules/clients/client.decorator'
+import { ServiceKeys } from '../modules/clients/service-map'
 
 @Injectable()
 export class PermissionControllGuard implements CanActivate {
   constructor(
-    @InjectServiceClient('PERMI_TCP')
+    @InjectServiceClient(ServiceKeys.PERMI_TCP)
     private readonly permissionServiceClient: ClientProxy,
     private readonly reflector: Reflector,
-  ) {}
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const metadata = this.reflector.get<{

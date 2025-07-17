@@ -20,9 +20,11 @@ export function createRuntimeException(raw: RawException | RpcExceptionPayload, 
 }
 
 function createException(etype: EXCEPTION_TYPE_PREFIX, input: RawException | RpcExceptionPayload, details?: any) {
-  console.log('in createException', etype, input, details)
+  console.log(`in createException: type ${etype}\n input: ${input}\n detail:${details} \n`)
   const isRaw = (input as RawException).subCode !== undefined
   let code: string
+  if (moduleNameFromEnv === 'UNKNOWN_MODULE')
+    throw new Error('MODULE_NAME environment variable is not set. Please set it to the current module name.')
   if (isRaw)
     code = buildGlobalErrorCode(etype, moduleNameFromEnv, (input as RawException).subCode)
   else

@@ -7,18 +7,16 @@ import {
   PhoneOtpLoginDto,
   WechatLoginDto,
 } from 'src/application/dtos/login.dto'
-import { AuthService } from 'src/application/services/auth-service'
 import { LoginMethodEnum } from 'src/domain/constants/login-method.enum'
 
 @Controller('auth')
 export class TcpAuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor() { }
 
-  @MessagePattern('email_password_login')
-  async loginWithEmailPassword(@Body() dto: EmailPasswordLoginDto) {
-    console.log('in auth-service, tcp, loginWithEmailPassword')
-    return this.authService.login(LoginMethodEnum.EmailPassword, dto)
-  }
+  // @MessagePattern('email_password_login')
+  // async loginWithEmailPassword(@Body() dto: EmailPasswordLoginDto) {
+  //   console.log('in auth-service, tcp, loginWithEmailPassword')
+  // }
 
   // @Post('login/google')
   // async loginWithGoogle(@Body() dto: GoogleLoginDto) {

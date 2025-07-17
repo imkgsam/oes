@@ -9,7 +9,6 @@ import {
   Logger,
 } from '@nestjs/common'
 import { RpcException } from '@nestjs/microservices'
-import { GLOBAL_SYSTEM_ERRORS } from '../constants/res-codes/system.errors'
 import { buildGlobalErrorCode, isRpcError } from '../helpers/exception.helper'
 import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
 import { StandardResponse } from '../interfaces/httpResponse.interface'
@@ -22,21 +21,24 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
 
   constructor(private readonly moduleName: string = process.env.MODULE_NAME) { }
   catch(exception: unknown, host: ArgumentsHost) {
-    this.logger.error('Exception caught by ApiGatewayExceptionsFilter', exception);
+    this.logger.error('in ApiGatewayExceptionsFilter catch: ', exception);
     const ctx = host.switchToHttp()
     const response = ctx.getResponse()
     const request = ctx.getRequest()
     let status = HttpStatus.INTERNAL_SERVER_ERROR
     let responseBody = this.buildDefaultResponse(request.url)
     if (exception instanceof HttpException) {
+      this.logger.error('Caught HttpException:');
       const { statusCode, body } = this.handleHttpException(exception, request.url)
       status = statusCode
       responseBody = body
     } else if (exception instanceof RpcException) {
+      this.logger.error('Caught RpcException:');
       const { statusCode, body } = this.handleRpcException(exception, request.url)
       status = statusCode
       responseBody = body
-    } else if (exception instanceof Error) {
+    } else {
+      this.logger.error('Caught unknown Exception:');
       const { statusCode, body } = this.handleGenericError(exception, request.url)
       status = statusCode
       responseBody = body
@@ -50,11 +52,11 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
       code: buildGlobalErrorCode(
         EXCEPTION_TYPE_PREFIX.RUNTIME,
         this.moduleName,
-        GLOBAL_SYSTEM_ERRORS.INTERNAL_SERVER_ERROR.subCode,
+        GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.subCode,
       ),
       traceId: getTraceId(),
-      message: GLOBAL_SYSTEM_ERRORS.INTERNAL_SERVER_ERROR.message,
-      messageKey: GLOBAL_SYSTEM_ERRORS.INTERNAL_SERVER_ERROR.messageKey,
+      message: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message,
+      messageKey: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.messageKey,
       details: null,
       timestamp: new Date().toISOString(),
       path,
@@ -107,7 +109,7 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
     return { statusCode, body: defualtRes }
   }
 
-  private handleGenericError(exception: Error, path: string) {
+  private handleGenericError(exception: any, path: string) {
     const statusCode = GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.httpStatus
     const defaultRes = this.buildDefaultResponse(path)
     if (exception instanceof Error) {

@@ -6,11 +6,12 @@ import { CreateRoleDto } from 'src/dtos/role.dto'
 import { safeRpcCall } from '@oes/common/helpers/rpc.helper'
 import { createBusinessException } from '@oes/common/helpers/exception.factory'
 import { PERMISSION_SERVICE_ERRORS } from '@oes/common/constants/res-codes/permission-service.errors'
+import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 
 @Controller('role')
 export class RoleController {
   constructor(
-    @InjectServiceClient('PERMI_TCP')
+    @InjectServiceClient(ServiceKeys.PERMI_TCP)
     private readonly permissionClient: ClientProxy,
   ) { }
 

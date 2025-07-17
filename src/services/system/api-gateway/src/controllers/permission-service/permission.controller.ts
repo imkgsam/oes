@@ -11,13 +11,14 @@ import { ClientProxy } from '@nestjs/microservices'
 import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'
 import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
 import { CreatePermissionDto } from 'src/dtos/permission.dto'
+import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 
 @Controller('permission')
 export class PermissionController {
   constructor(
-    @InjectServiceClient('PERMI_TCP')
+    @InjectServiceClient(ServiceKeys.PERMI_TCP)
     private readonly permissionClient: ClientProxy,
-  ) {}
+  ) { }
 
   @Get('/all')
   async getAllPermissions() {

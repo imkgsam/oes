@@ -3,6 +3,7 @@ import { RoleService } from 'src/application/services/role.service'
 import { PrismaModule } from 'src/infrastructure/prisma/prisma.module'
 import { PrismaRoleRepository } from 'src/infrastructure/repositories/prisma/prisma.role.repository'
 import { TcpRoleController } from 'src/interfaces/tcp/controllers/tcp.role.controller'
+import { TcpTestController } from 'src/interfaces/tcp/controllers/tcp.test.controller'
 
 @Module({
   imports: [PrismaModule],
@@ -13,7 +14,7 @@ import { TcpRoleController } from 'src/interfaces/tcp/controllers/tcp.role.contr
       useClass: PrismaRoleRepository,
     },
   ],
-  controllers: [TcpRoleController],
+  controllers: [TcpRoleController, TcpTestController],
   exports: [],
 })
-export class RoleModule {}
+export class RoleModule { }

@@ -28,8 +28,8 @@ export function buildGlobalErrorCode(
   moduleName: string,
   subCode: string,
 ): string {
-  console.log(`Building global error code: ${typePrefix}${moduleName}${subCode}`)
   const foundModule: ModuleDetails = MODULES[moduleName]
+  console.log(`Building global error code: ${typePrefix}${foundModule.code}${subCode}`)
   if (!foundModule) throw new Error(`Module ${moduleName} not existed`)
   const moduleCode = foundModule.code
   return `${typePrefix}${moduleCode}${subCode}`

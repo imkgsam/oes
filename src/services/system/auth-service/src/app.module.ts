@@ -4,6 +4,9 @@ import { ConfigModule } from '@nestjs/config'
 import tokenConfig from './infrastructure/config/token.config'
 import authKeyConfig from './infrastructure/config/authKey.config'
 import { ClientModule } from '@oes/common/modules/clients/client.module'
+import { TraceModule } from '@oes/common/modules/trace/trace.module'
+import { ServiceKeys } from '@oes/common/modules/clients/service-map'
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -12,14 +15,15 @@ import { ClientModule } from '@oes/common/modules/clients/client.module'
       // envFilePath: getEnvFilePath(),
       load: [tokenConfig, authKeyConfig],
     }),
+    TraceModule.forRpc(),
     AuthModule,
-    ClientModule.register(['PERMI_TCP']),
+    ClientModule.register([ServiceKeys.PERMI_TCP]),
   ],
   controllers: [],
   providers: [],
 })
-export class AppModule {}
+export class AppModule { }
 
-function getEnvFilePath() {
-  return process.env.NODE_ENV === 'test' ? '.env.test' : '.env'
-}
+// function getEnvFilePath() {
+//   return process.env.NODE_ENV === 'test' ? '.env.test' : '.env'
+// }

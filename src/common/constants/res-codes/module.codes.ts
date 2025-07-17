@@ -12,7 +12,7 @@ export const MODULES: Record<string, ModuleDetails> = {
     name: 'PERMISSION_SERVICE',
   },
   AUTH_SERVICE: {
-    code: '1012',
+    code: '102',
     name: 'AUTH_SERVICE',
   },
   API_GATEWAY: {
