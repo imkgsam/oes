@@ -1,7 +1,6 @@
 import {
   CanActivate,
   ExecutionContext,
-  Inject,
   Injectable,
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
@@ -11,9 +10,9 @@ import {
   PermissionCheckType,
 } from '../decorators/permission-check.decorator'
 import { PERMISSION_MESSAGES } from '../constants/messages/permission.message'
-import { firstValueFrom } from 'rxjs'
 import { InjectServiceClient } from '../modules/clients/client.decorator'
 import { ServiceKeys } from '../modules/clients/service-map'
+import { safeRpcCall } from '../helpers/rpc.helper'
 
 @Injectable()
 export class PermissionControllGuard implements CanActivate {
@@ -36,7 +35,7 @@ export class PermissionControllGuard implements CanActivate {
 
     const results = await Promise.all(
       permissions.map((permissionCode) =>
-        firstValueFrom(
+        safeRpcCall<boolean>(
           this.permissionServiceClient.send<boolean>(
             PERMISSION_MESSAGES.CHECK_USER_PERMISSION,
             { userId, permissionCode },
