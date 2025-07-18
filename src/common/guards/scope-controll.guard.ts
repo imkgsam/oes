@@ -8,9 +8,9 @@ import { Reflector } from '@nestjs/core'
 import { ClientProxy } from '@nestjs/microservices'
 import { SCOPE_CHECK_KEY } from '../decorators/scope-check.decorator'
 import { PERMISSION_MESSAGES } from '../constants/messages/permission.message'
-import { firstValueFrom } from 'rxjs'
 import { InjectServiceClient } from '../modules/clients/client.decorator'
 import { ServiceKeys } from '../modules/clients/service-map'
+import { safeRpcCall } from "../helpers/rpc.helper";
 ServiceKeys
 @Injectable()
 export class ScopeControllGuard implements CanActivate {
@@ -31,7 +31,7 @@ export class ScopeControllGuard implements CanActivate {
     if (resourceParam && data?.[resourceParam])
       resourceId = data?.[resourceParam]
     if (!userId) return false
-    const hasPermission = await firstValueFrom(
+    const hasPermission = await safeRpcCall(
       this.permissionServiceClient.send<boolean>(
         PERMISSION_MESSAGES.CHECK_USER_PERMISSION,
         {
