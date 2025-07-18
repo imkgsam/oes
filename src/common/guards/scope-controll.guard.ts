@@ -1,7 +1,6 @@
 import {
   CanActivate,
   ExecutionContext,
-  Inject,
   Injectable,
 } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
