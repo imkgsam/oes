@@ -11,10 +11,17 @@ datasource db {
 }
 
 model Role {
-  id          String           @id @default(uuid())
+  id          String   @id @default(uuid())
+  code        String   @unique
   name        String
   description String?
   module      String
+  isSystem    Boolean  @default(false) // 是否为系统内置角色
+  autoGrant   Boolean  @default(false) // 是否新用户自动赋予
+  enabled     Boolean  @default(true) // 是否启用
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
   permissions RolePermission[]
   users       UserRole[]
 

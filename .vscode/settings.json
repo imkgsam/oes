@@ -1,9 +1,12 @@
 {
   "typescript.tsdk": "node_modules/typescript/lib",
   // "typescript.enablePromptUseWorkspaceTsdk": true,
-    "editor.formatOnSave": true,
+  "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[typescript]": {
     "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
   }
 }
