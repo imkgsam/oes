@@ -1,5 +1,3 @@
-
-
 export const ROLES = {
   REGULAR_USER: {
     code: 'regular_user',
