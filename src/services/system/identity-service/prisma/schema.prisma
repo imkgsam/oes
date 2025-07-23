@@ -1,0 +1,37 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../prisma/generated/prisma"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["identity"]
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String?  @unique
+  phone        String?  @unique
+  googleId     String?  @unique
+  wechatOpenId String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  isActive          Boolean   @default(false)
+  isLocked          Boolean   @default(false)
+  lockReason        String?
+  loginFailCount    Int       @default(0)
+  lastLoginAt       DateTime?
+  lastLoginIp       String?
+  lastFailedLoginAt DateTime?
+
+  @@schema("identity")
+}
