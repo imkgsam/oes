@@ -17,21 +17,67 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  email        String?  @unique
-  phone        String?  @unique
-  googleId     String?  @unique
-  wechatOpenId String?  @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(uuid()) // 用户唯一 ID，例如 "usr_9d8f8a2f"
+  email     String?  @unique // 用户邮箱，例如 "alice@example.com"（可选）
+  phone     String?  @unique // 用户手机号，例如 "+8613800138000"（可选）
+  name      String? // 用户姓名，例如 "Alice Zhang"
+  createdAt DateTime @default(now()) // 创建时间
+  updatedAt DateTime @updatedAt // 更新时间
 
-  isActive          Boolean   @default(false)
-  isLocked          Boolean   @default(false)
-  lockReason        String?
-  loginFailCount    Int       @default(0)
-  lastLoginAt       DateTime?
-  lastLoginIp       String?
-  lastFailedLoginAt DateTime?
+  accounts Account[] // 一个用户可在多个租户中拥有账户
+
+  @@schema("identity")
+}
+
+// 租户
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String //  例如 阿里巴巴集团
+  code      String   @unique // 例如 alibaba
+  status    String   @default("active") // 租户状态，如 "active" | "disabled"
+  createdAt DateTime @default(now()) // 创建时间
+  updatedAt DateTime @updatedAt // 更新时间
+
+  accounts Account[] // 所有账户
+  orgUnits Org[] // 所有组织结构节点
+
+  @@schema("identity")
+}
+
+//组织，可以是公司，也可以是部门，也可以是小组...
+model Org {
+  id        String   @id @default(uuid())
+  tenantId  String // 所属租户 ID
+  parentId  String? // 上级组织 ID，可为空表示顶层
+  name      String // 名称，如 "技术部"、"广州分公司"
+  code      String? // 可选唯一编码，如 "TECH_GZ"
+  type      String? // 类型，如 "department" | "branch" | "team"
+  order     Int      @default(0) // 排序字段
+  createdAt DateTime @default(now()) // 创建时间
+  updatedAt DateTime @updatedAt // 更新时间
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  parent   Org?   @relation("OrgUnitToParent", fields: [parentId], references: [id])
+  children Org[]  @relation("OrgUnitToParent") // 子组织结构
+
+  @@schema("identity")
+}
+
+//账号， 一个租户下只有一个账号
+model Account {
+  id        String   @id @default(uuid()) // 账号 ID，如 "acc-001"
+  userId    String // 系统全局用户 ID,关联至
+  tenantId  String // 所属租户 ID
+  email     String? // 登录邮箱（可选）
+  phone     String? // 登录手机号（可选）
+  isEnable  Boolean  @default(true) // 是否启用账号
+  isAdmin   Boolean  @default(false) // 是否为租户管理员
+  avatarUrl String? // 用户头像链接，例如 "https://example.com/avatar.png"
+  createdAt DateTime @default(now()) // 创建时间
+  updatedAt DateTime @updatedAt // 更新时间
+
+  Tenant Tenant? @relation(fields: [tenantId], references: [id])
+  User   User    @relation(fields: [userId], references: [id])
 
   @@schema("identity")
 }
