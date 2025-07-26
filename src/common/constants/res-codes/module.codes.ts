@@ -19,6 +19,10 @@ export const MODULES: Record<string, ModuleDetails> = {
     code: '103',
     name: 'API_GATEWAY',
   },
+  IDENTITY_SERVICE: {
+    code: '104',
+    name: 'IDENTITY_SERVICE',
+  },
   ERP_SERVICE: {
     code: '201',
     name: 'ERP_SERVICE',

@@ -1,4 +1,4 @@
-import { User } from 'src/domain/entities/user.entity'
+import { User } from 'src/domain/entities/credential.entity'
 import { IAuthProvider } from './interfaces/auth-provider.interface'
 import { Injectable } from '@nestjs/common'
 

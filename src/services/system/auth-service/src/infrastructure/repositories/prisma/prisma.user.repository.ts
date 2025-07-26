@@ -1,11 +1,14 @@
 import { Injectable } from '@nestjs/common'
-import { User } from 'src/domain/entities/user.entity'
+import { User } from 'src/domain/entities/credential.entity'
 import { IUserRepository } from 'src/domain/repositories/user.repository'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 
 @Injectable()
 export class PrismaUserRepository implements IUserRepository {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(private readonly prismaService: PrismaService) { }
+  findAll(): Promise<User[]> {
+    throw new Error('Method not implemented.')
+  }
   async findByFields(fields: Partial<User>): Promise<User | null> {
     const filters = Object.entries(fields)
       .filter(([key, value]) => value != null && key != 'password')

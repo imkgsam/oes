@@ -28,6 +28,12 @@ export const SERVICE_ENDPOINTS_CONFIG: Record<string, IServiceEndpointConfig> =
     port: 9302,
     host: 'localhost',
   },
+  IDENT_TCP: {
+    protocol: 'TCP',
+    serviceName: 'IDENTITY-SERVICE',
+    port: 9402,
+    host: 'localhost',
+  },
 }
 
 export const SERVICE_CLIENT_TOKENS = Object.fromEntries(

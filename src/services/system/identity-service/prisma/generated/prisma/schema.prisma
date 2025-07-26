@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../prisma/generated/prisma"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["identity"]
+}
+
+model User {
+  id        String   @id @default(uuid()) // 用户唯一 ID，例如 "usr_9d8f8a2f"
+  email     String?  @unique // 用户个人邮箱，例如 "alice@example.com"（可选）
+  phone     String?  @unique // 用户个人手机号，例如 "+8613800138000"（可选）
+  fullname  String? // 用户姓名，例如 "Alice Zhang"
+  createdAt DateTime @default(now()) // 创建时间
+  updatedAt DateTime @updatedAt // 更新时间
+
+  accounts Account[] // 一个用户可在多个租户中拥有账户
+
+  @@schema("identity")
+}
+
+// 租户
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String //  例如 阿里巴巴集团
+  code      String   @unique // 例如 alibaba
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) // 创建时间
+  updatedAt DateTime @updatedAt // 更新时间
+
+  accounts Account[] // 所有账户
+  orgUnits Org[] // 所有组织结构节点
+
+  @@schema("identity")
+}
+
+//组织，可以是公司，也可以是部门，也可以是小组...
+model Org {
+  id        String   @id @default(uuid())
+  // 所属租户 ID
+  tenantId  String
+  // 上级组织 ID，可为空表示顶层
+  parentId  String?
+  // 名称，如 "技术部"、"广州分公司"
+  name      String
+  // 可选唯一编码，如 "TECH_GZ"
+  code      String?
+  // 类型，如 "department" | "branch" | "team"
+  type      String?
+  // 排序字段
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  parent   Org?   @relation("OrgToParent", fields: [parentId], references: [id])
+  children Org[]  @relation("OrgToParent") // 子组织结构
+
+  @@schema("identity")
+}
+
+//账号， 一个租户下只有一个账号
+model Account {
+  // 账号 ID，如 "acc-001"
+  id        String   @id @default(uuid())
+  // 系统全局用户 ID
+  userId    String
+  // 所属租户 ID
+  tenantId  String
+  // 企业邮箱
+  email     String?  @unique
+  // 企业手机号
+  phone     String?  @unique
+  // 是否启用账号
+  isEnable  Boolean  @default(true)
+  // 是否为租户管理员
+  isAdmin   Boolean  @default(false)
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Tenant Tenant? @relation(fields: [tenantId], references: [id])
+  User   User    @relation(fields: [userId], references: [id])
+
+  @@schema("identity")
+}

@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider        = "prisma-client-js"
   output          = "../prisma/generated/prisma"
@@ -18,9 +12,9 @@ datasource db {
 
 model User {
   id        String   @id @default(uuid()) // 用户唯一 ID，例如 "usr_9d8f8a2f"
-  email     String?  @unique // 用户邮箱，例如 "alice@example.com"（可选）
-  phone     String?  @unique // 用户手机号，例如 "+8613800138000"（可选）
-  name      String? // 用户姓名，例如 "Alice Zhang"
+  email     String?  @unique // 用户个人邮箱，例如 "alice@example.com"（可选）
+  phone     String?  @unique // 用户个人手机号，例如 "+8613800138000"（可选）
+  fullname  String? // 用户姓名，例如 "Alice Zhang"
   createdAt DateTime @default(now()) // 创建时间
   updatedAt DateTime @updatedAt // 更新时间
 
@@ -34,7 +28,7 @@ model Tenant {
   id        String   @id @default(uuid())
   name      String //  例如 阿里巴巴集团
   code      String   @unique // 例如 alibaba
-  status    String   @default("active") // 租户状态，如 "active" | "disabled"
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now()) // 创建时间
   updatedAt DateTime @updatedAt // 更新时间
 
@@ -53,12 +47,12 @@ model Org {
   code      String? // 可选唯一编码，如 "TECH_GZ"
   type      String? // 类型，如 "department" | "branch" | "team"
   order     Int      @default(0) // 排序字段
-  createdAt DateTime @default(now()) // 创建时间
-  updatedAt DateTime @updatedAt // 更新时间
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   tenant   Tenant @relation(fields: [tenantId], references: [id])
-  parent   Org?   @relation("OrgUnitToParent", fields: [parentId], references: [id])
-  children Org[]  @relation("OrgUnitToParent") // 子组织结构
+  parent   Org?   @relation("OrgToParent", fields: [parentId], references: [id])
+  children Org[]  @relation("OrgToParent") // 子组织结构
 
   @@schema("identity")
 }
@@ -66,15 +60,15 @@ model Org {
 //账号， 一个租户下只有一个账号
 model Account {
   id        String   @id @default(uuid()) // 账号 ID，如 "acc-001"
-  userId    String // 系统全局用户 ID,关联至
+  userId    String // 系统全局用户 ID
   tenantId  String // 所属租户 ID
-  email     String? // 登录邮箱（可选）
-  phone     String? // 登录手机号（可选）
+  email     String?  @unique // 企业邮箱
+  phone     String?  @unique // 企业手机号
   isEnable  Boolean  @default(true) // 是否启用账号
   isAdmin   Boolean  @default(false) // 是否为租户管理员
-  avatarUrl String? // 用户头像链接，例如 "https://example.com/avatar.png"
-  createdAt DateTime @default(now()) // 创建时间
-  updatedAt DateTime @updatedAt // 更新时间
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   Tenant Tenant? @relation(fields: [tenantId], references: [id])
   User   User    @relation(fields: [userId], references: [id])

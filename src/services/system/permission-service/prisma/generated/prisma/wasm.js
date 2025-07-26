@@ -122,22 +122,31 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
 
 exports.Prisma.RoleScalarFieldEnum = {
   id: 'id',
+  tenantId: 'tenantId',
+  code: 'code',
   name: 'name',
   description: 'description',
-  module: 'module'
+  module: 'module',
+  isSystem: 'isSystem',
+  autoGrant: 'autoGrant',
+  isEnabled: 'isEnabled',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 };
 
 exports.Prisma.PermissionScalarFieldEnum = {
   id: 'id',
+  tenantId: 'tenantId',
   code: 'code',
   description: 'description',
   module: 'module'
 };
 
-exports.Prisma.UserRoleScalarFieldEnum = {
+exports.Prisma.AccountRoleScalarFieldEnum = {
   id: 'id',
-  userId: 'userId',
-  roleId: 'roleId'
+  accountId: 'accountId',
+  roleId: 'roleId',
+  tenantId: 'tenantId'
 };
 
 exports.Prisma.RolePermissionScalarFieldEnum = {
@@ -146,9 +155,10 @@ exports.Prisma.RolePermissionScalarFieldEnum = {
   permissionId: 'permissionId'
 };
 
-exports.Prisma.UserScopeScalarFieldEnum = {
+exports.Prisma.AccountScopeScalarFieldEnum = {
   id: 'id',
-  userId: 'userId',
+  accountId: 'accountId',
+  tenantId: 'tenantId',
   permissionCode: 'permissionCode',
   resourceType: 'resourceType',
   resourceId: 'resourceId'
@@ -173,9 +183,9 @@ exports.Prisma.NullsOrder = {
 exports.Prisma.ModelName = {
   Role: 'Role',
   Permission: 'Permission',
-  UserRole: 'UserRole',
+  AccountRole: 'AccountRole',
   RolePermission: 'RolePermission',
-  UserScope: 'UserScope'
+  AccountScope: 'AccountScope'
 };
 
 /**

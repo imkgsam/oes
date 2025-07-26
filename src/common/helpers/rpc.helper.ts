@@ -2,7 +2,6 @@ import { Observable, isObservable, firstValueFrom } from "rxjs"
 import { GLOBAL_RUNTIME_ERRORS } from "../constants/res-codes/runtime.errors"
 import { createRuntimeException } from "./exception.factory"
 import { isRpcError, toRpcException } from "./exception.helper"
-import { RpcException } from "@nestjs/microservices"
 
 export async function safeRpcCall<T>(
   rpcCall: Promise<T> | Observable<T>

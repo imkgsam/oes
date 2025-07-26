@@ -25,8 +25,6 @@ export const PERMISSION_MESSAGES = {
   AssignScopeToUser: 'assign_scope_to_user',
   RevokeScopeFromUser: 'revoke_scope_from_user',
 
-
-
   //test
   Test: "permission.test"
 }

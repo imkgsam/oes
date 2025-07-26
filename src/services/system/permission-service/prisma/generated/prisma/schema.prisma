@@ -11,33 +11,46 @@ datasource db {
 }
 
 model Role {
-  id          String           @id @default(uuid())
-  name        String
-  description String?
-  module      String
-  permissions RolePermission[]
-  users       UserRole[]
+  id          String   @id @default(uuid())
+  tenantId    String? // 外部字段，指向 identity-service 的 Tenant.id（可为 null 表示平台角色）
+  code        String // 角色唯一代码，例如 "admin"
+  name        String // 角色名称，例如 "管理员"
+  description String? // 角色描述
+  module      String // 所属模块，如 "finance"、"crm"
+  isSystem    Boolean  @default(false) // 是否为系统内置角色
+  autoGrant   Boolean  @default(false) // 是否新用户自动赋予
+  isEnabled   Boolean  @default(true) // 是否启用
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
+  permissions RolePermission[]
+  accounts    AccountRole[]
+
+  @@unique([tenantId, code]) // 每个租户下角色 code 唯一，系统级角色可重复
   @@schema("permi")
 }
 
 model Permission {
   id          String           @id @default(uuid())
-  code        String           @unique
+  tenantId    String? // 外部字段，表示权限属于哪个租户（可为 null 表示平台权限）
+  code        String // 权限代码，如 "order:read"
   description String?
   module      String
   roles       RolePermission[]
 
+  @@unique([tenantId, code]) // 每个租户下权限 code 唯一
   @@schema("permi")
 }
 
-model UserRole {
-  id     String @id @default(uuid())
-  userId String
-  roleId String
-  role   Role   @relation(fields: [roleId], references: [id])
+model AccountRole {
+  id        String @id @default(uuid())
+  accountId String // 对应 identity.Account.id
+  roleId    String
+  tenantId  String // 冗余字段，方便查询
+  role      Role   @relation(fields: [roleId], references: [id])
 
-  @@unique([userId, roleId])
+  @@unique([accountId, roleId])
+  @@index([accountId, tenantId])
   @@schema("permi")
 }
 
@@ -52,14 +65,16 @@ model RolePermission {
   @@schema("permi")
 }
 
-model UserScope {
+model AccountScope {
   id             String @id @default(uuid())
-  userId         String
+  accountId      String //指向identity.account
+  tenantId       String // 指向identity.tenant
   permissionCode String
   resourceType   String
   resourceId     String
 
-  @@index([userId, permissionCode])
-  @@index([userId, resourceType, resourceId])
+  @@index([accountId, permissionCode])
+  @@index([accountId, resourceType, resourceId])
+  @@index([accountId, tenantId])
   @@schema("permi")
 }

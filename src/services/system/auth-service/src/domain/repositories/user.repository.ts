@@ -1,4 +1,4 @@
-import { User } from '../entities/user.entity'
+import { User } from '../entities/credential.entity'
 
 export interface IUserRepository {
   findByEmail(email: string): Promise<User | null>
@@ -7,4 +7,5 @@ export interface IUserRepository {
   findByWechatOpenId(wechatOpenId: string): Promise<User | null>
   findByFields(fields: Partial<User>): Promise<User | null>
   create(user: Partial<User>): Promise<User>
+  findAll(): Promise<User[]>
 }

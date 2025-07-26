@@ -1,8 +1,11 @@
-import { Module } from '@nestjs/common';
+import { Module } from '@nestjs/common'
+import { TraceModule } from '@oes/common/modules/trace/trace.module'
 
 @Module({
-  imports: [],
-  controllers: [],
+  imports: [
+    TraceModule.forRpc()
+  ],
   providers: [],
+  controllers: [],
 })
 export class AppModule { }

@@ -14,10 +14,80 @@ export type PrismaPromise<T> = $Public.PrismaPromise<T>
 
 
 /**
- * Model User
+ * Model LoginMethod
  * 
  */
-export type User = $Result.DefaultSelection<Prisma.$UserPayload>
+export type LoginMethod = $Result.DefaultSelection<Prisma.$LoginMethodPayload>
+/**
+ * Model Credential
+ * 
+ */
+export type Credential = $Result.DefaultSelection<Prisma.$CredentialPayload>
+/**
+ * Model OneTimeToken
+ * 
+ */
+export type OneTimeToken = $Result.DefaultSelection<Prisma.$OneTimeTokenPayload>
+
+/**
+ * Enums
+ */
+export namespace $Enums {
+  export const LoginMethodType: {
+  EMAIL: 'EMAIL',
+  PHONE: 'PHONE',
+  OAUTH_OPENID: 'OAUTH_OPENID'
+};
+
+export type LoginMethodType = (typeof LoginMethodType)[keyof typeof LoginMethodType]
+
+
+export const CredentialType: {
+  PASSWORD: 'PASSWORD',
+  EMAIL_OTP: 'EMAIL_OTP',
+  PHONE_OTP: 'PHONE_OTP',
+  OAUTH: 'OAUTH'
+};
+
+export type CredentialType = (typeof CredentialType)[keyof typeof CredentialType]
+
+
+export const OtpType: {
+  EMAIL: 'EMAIL',
+  PHONE: 'PHONE',
+  TOTP: 'TOTP',
+  BACKUP_CODE: 'BACKUP_CODE'
+};
+
+export type OtpType = (typeof OtpType)[keyof typeof OtpType]
+
+
+export const OtpUsage: {
+  LOGIN: 'LOGIN',
+  REGISTER: 'REGISTER',
+  RESET_PASSWORD: 'RESET_PASSWORD',
+  MFA_VERIFY: 'MFA_VERIFY'
+};
+
+export type OtpUsage = (typeof OtpUsage)[keyof typeof OtpUsage]
+
+}
+
+export type LoginMethodType = $Enums.LoginMethodType
+
+export const LoginMethodType: typeof $Enums.LoginMethodType
+
+export type CredentialType = $Enums.CredentialType
+
+export const CredentialType: typeof $Enums.CredentialType
+
+export type OtpType = $Enums.OtpType
+
+export const OtpType: typeof $Enums.OtpType
+
+export type OtpUsage = $Enums.OtpUsage
+
+export const OtpUsage: typeof $Enums.OtpUsage
 
 /**
  * ##  Prisma Client ʲˢ
@@ -26,8 +96,8 @@ export type User = $Result.DefaultSelection<Prisma.$UserPayload>
  * @example
  * ```
  * const prisma = new PrismaClient()
- * // Fetch zero or more Users
- * const users = await prisma.user.findMany()
+ * // Fetch zero or more LoginMethods
+ * const loginMethods = await prisma.loginMethod.findMany()
  * ```
  *
  *
@@ -47,8 +117,8 @@ export class PrismaClient<
    * @example
    * ```
    * const prisma = new PrismaClient()
-   * // Fetch zero or more Users
-   * const users = await prisma.user.findMany()
+   * // Fetch zero or more LoginMethods
+   * const loginMethods = await prisma.loginMethod.findMany()
    * ```
    *
    *
@@ -145,14 +215,34 @@ export class PrismaClient<
   }>>
 
       /**
-   * `prisma.user`: Exposes CRUD operations for the **User** model.
+   * `prisma.loginMethod`: Exposes CRUD operations for the **LoginMethod** model.
     * Example usage:
     * ```ts
-    * // Fetch zero or more Users
-    * const users = await prisma.user.findMany()
+    * // Fetch zero or more LoginMethods
+    * const loginMethods = await prisma.loginMethod.findMany()
     * ```
     */
-  get user(): Prisma.UserDelegate<ExtArgs, ClientOptions>;
+  get loginMethod(): Prisma.LoginMethodDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.credential`: Exposes CRUD operations for the **Credential** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more Credentials
+    * const credentials = await prisma.credential.findMany()
+    * ```
+    */
+  get credential(): Prisma.CredentialDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.oneTimeToken`: Exposes CRUD operations for the **OneTimeToken** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more OneTimeTokens
+    * const oneTimeTokens = await prisma.oneTimeToken.findMany()
+    * ```
+    */
+  get oneTimeToken(): Prisma.OneTimeTokenDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -593,7 +683,9 @@ export namespace Prisma {
 
 
   export const ModelName: {
-    User: 'User'
+    LoginMethod: 'LoginMethod',
+    Credential: 'Credential',
+    OneTimeToken: 'OneTimeToken'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -612,81 +704,229 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "user"
+      modelProps: "loginMethod" | "credential" | "oneTimeToken"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
-      User: {
-        payload: Prisma.$UserPayload<ExtArgs>
-        fields: Prisma.UserFieldRefs
+      LoginMethod: {
+        payload: Prisma.$LoginMethodPayload<ExtArgs>
+        fields: Prisma.LoginMethodFieldRefs
         operations: {
           findUnique: {
-            args: Prisma.UserFindUniqueArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$UserPayload> | null
+            args: Prisma.LoginMethodFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LoginMethodPayload> | null
           }
           findUniqueOrThrow: {
-            args: Prisma.UserFindUniqueOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$UserPayload>
+            args: Prisma.LoginMethodFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LoginMethodPayload>
           }
           findFirst: {
-            args: Prisma.UserFindFirstArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$UserPayload> | null
+            args: Prisma.LoginMethodFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LoginMethodPayload> | null
           }
           findFirstOrThrow: {
-            args: Prisma.UserFindFirstOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$UserPayload>
+            args: Prisma.LoginMethodFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LoginMethodPayload>
           }
           findMany: {
-            args: Prisma.UserFindManyArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$UserPayload>[]
+            args: Prisma.LoginMethodFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LoginMethodPayload>[]
           }
           create: {
-            args: Prisma.UserCreateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$UserPayload>
+            args: Prisma.LoginMethodCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LoginMethodPayload>
           }
           createMany: {
-            args: Prisma.UserCreateManyArgs<ExtArgs>
+            args: Prisma.LoginMethodCreateManyArgs<ExtArgs>
             result: BatchPayload
           }
           createManyAndReturn: {
-            args: Prisma.UserCreateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$UserPayload>[]
+            args: Prisma.LoginMethodCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LoginMethodPayload>[]
           }
           delete: {
-            args: Prisma.UserDeleteArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$UserPayload>
+            args: Prisma.LoginMethodDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LoginMethodPayload>
           }
           update: {
-            args: Prisma.UserUpdateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$UserPayload>
+            args: Prisma.LoginMethodUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LoginMethodPayload>
           }
           deleteMany: {
-            args: Prisma.UserDeleteManyArgs<ExtArgs>
+            args: Prisma.LoginMethodDeleteManyArgs<ExtArgs>
             result: BatchPayload
           }
           updateMany: {
-            args: Prisma.UserUpdateManyArgs<ExtArgs>
+            args: Prisma.LoginMethodUpdateManyArgs<ExtArgs>
             result: BatchPayload
           }
           updateManyAndReturn: {
-            args: Prisma.UserUpdateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$UserPayload>[]
+            args: Prisma.LoginMethodUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LoginMethodPayload>[]
           }
           upsert: {
-            args: Prisma.UserUpsertArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$UserPayload>
+            args: Prisma.LoginMethodUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$LoginMethodPayload>
           }
           aggregate: {
-            args: Prisma.UserAggregateArgs<ExtArgs>
-            result: $Utils.Optional<AggregateUser>
+            args: Prisma.LoginMethodAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateLoginMethod>
           }
           groupBy: {
-            args: Prisma.UserGroupByArgs<ExtArgs>
-            result: $Utils.Optional<UserGroupByOutputType>[]
+            args: Prisma.LoginMethodGroupByArgs<ExtArgs>
+            result: $Utils.Optional<LoginMethodGroupByOutputType>[]
           }
           count: {
-            args: Prisma.UserCountArgs<ExtArgs>
-            result: $Utils.Optional<UserCountAggregateOutputType> | number
+            args: Prisma.LoginMethodCountArgs<ExtArgs>
+            result: $Utils.Optional<LoginMethodCountAggregateOutputType> | number
+          }
+        }
+      }
+      Credential: {
+        payload: Prisma.$CredentialPayload<ExtArgs>
+        fields: Prisma.CredentialFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CredentialFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CredentialPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CredentialFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CredentialPayload>
+          }
+          findFirst: {
+            args: Prisma.CredentialFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CredentialPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CredentialFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CredentialPayload>
+          }
+          findMany: {
+            args: Prisma.CredentialFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CredentialPayload>[]
+          }
+          create: {
+            args: Prisma.CredentialCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CredentialPayload>
+          }
+          createMany: {
+            args: Prisma.CredentialCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CredentialCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CredentialPayload>[]
+          }
+          delete: {
+            args: Prisma.CredentialDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CredentialPayload>
+          }
+          update: {
+            args: Prisma.CredentialUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CredentialPayload>
+          }
+          deleteMany: {
+            args: Prisma.CredentialDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CredentialUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.CredentialUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CredentialPayload>[]
+          }
+          upsert: {
+            args: Prisma.CredentialUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CredentialPayload>
+          }
+          aggregate: {
+            args: Prisma.CredentialAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateCredential>
+          }
+          groupBy: {
+            args: Prisma.CredentialGroupByArgs<ExtArgs>
+            result: $Utils.Optional<CredentialGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CredentialCountArgs<ExtArgs>
+            result: $Utils.Optional<CredentialCountAggregateOutputType> | number
+          }
+        }
+      }
+      OneTimeToken: {
+        payload: Prisma.$OneTimeTokenPayload<ExtArgs>
+        fields: Prisma.OneTimeTokenFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.OneTimeTokenFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OneTimeTokenPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.OneTimeTokenFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OneTimeTokenPayload>
+          }
+          findFirst: {
+            args: Prisma.OneTimeTokenFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OneTimeTokenPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.OneTimeTokenFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OneTimeTokenPayload>
+          }
+          findMany: {
+            args: Prisma.OneTimeTokenFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OneTimeTokenPayload>[]
+          }
+          create: {
+            args: Prisma.OneTimeTokenCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OneTimeTokenPayload>
+          }
+          createMany: {
+            args: Prisma.OneTimeTokenCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.OneTimeTokenCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OneTimeTokenPayload>[]
+          }
+          delete: {
+            args: Prisma.OneTimeTokenDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OneTimeTokenPayload>
+          }
+          update: {
+            args: Prisma.OneTimeTokenUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OneTimeTokenPayload>
+          }
+          deleteMany: {
+            args: Prisma.OneTimeTokenDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.OneTimeTokenUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.OneTimeTokenUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OneTimeTokenPayload>[]
+          }
+          upsert: {
+            args: Prisma.OneTimeTokenUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$OneTimeTokenPayload>
+          }
+          aggregate: {
+            args: Prisma.OneTimeTokenAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateOneTimeToken>
+          }
+          groupBy: {
+            args: Prisma.OneTimeTokenGroupByArgs<ExtArgs>
+            result: $Utils.Optional<OneTimeTokenGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.OneTimeTokenCountArgs<ExtArgs>
+            result: $Utils.Optional<OneTimeTokenCountAggregateOutputType> | number
           }
         }
       }
@@ -774,7 +1014,9 @@ export namespace Prisma {
     omit?: Prisma.GlobalOmitConfig
   }
   export type GlobalOmitConfig = {
-    user?: UserOmit
+    loginMethod?: LoginMethodOmit
+    credential?: CredentialOmit
+    oneTimeToken?: OneTimeTokenOmit
   }
 
   /* Types for Logging */
@@ -864,496 +1106,418 @@ export namespace Prisma {
    */
 
 
+  /**
+   * Count Type LoginMethodCountOutputType
+   */
+
+  export type LoginMethodCountOutputType = {
+    credentials: number
+  }
+
+  export type LoginMethodCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    credentials?: boolean | LoginMethodCountOutputTypeCountCredentialsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * LoginMethodCountOutputType without action
+   */
+  export type LoginMethodCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethodCountOutputType
+     */
+    select?: LoginMethodCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * LoginMethodCountOutputType without action
+   */
+  export type LoginMethodCountOutputTypeCountCredentialsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CredentialWhereInput
+  }
+
 
   /**
    * Models
    */
 
   /**
-   * Model User
+   * Model LoginMethod
    */
 
-  export type AggregateUser = {
-    _count: UserCountAggregateOutputType | null
-    _avg: UserAvgAggregateOutputType | null
-    _sum: UserSumAggregateOutputType | null
-    _min: UserMinAggregateOutputType | null
-    _max: UserMaxAggregateOutputType | null
+  export type AggregateLoginMethod = {
+    _count: LoginMethodCountAggregateOutputType | null
+    _min: LoginMethodMinAggregateOutputType | null
+    _max: LoginMethodMaxAggregateOutputType | null
   }
 
-  export type UserAvgAggregateOutputType = {
-    loginFailCount: number | null
-  }
-
-  export type UserSumAggregateOutputType = {
-    loginFailCount: number | null
-  }
-
-  export type UserMinAggregateOutputType = {
+  export type LoginMethodMinAggregateOutputType = {
     id: string | null
-    email: string | null
-    phone: string | null
-    passwordHash: string | null
-    googleId: string | null
-    wechatOpenId: string | null
+    userId: string | null
+    type: $Enums.LoginMethodType | null
+    identifier: string | null
+    verified: boolean | null
+    enabled: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
-    isActive: boolean | null
-    isLocked: boolean | null
-    lockReason: string | null
-    loginFailCount: number | null
-    lastLoginAt: Date | null
-    lastLoginIp: string | null
-    lastFailedLoginAt: Date | null
   }
 
-  export type UserMaxAggregateOutputType = {
+  export type LoginMethodMaxAggregateOutputType = {
     id: string | null
-    email: string | null
-    phone: string | null
-    passwordHash: string | null
-    googleId: string | null
-    wechatOpenId: string | null
+    userId: string | null
+    type: $Enums.LoginMethodType | null
+    identifier: string | null
+    verified: boolean | null
+    enabled: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
-    isActive: boolean | null
-    isLocked: boolean | null
-    lockReason: string | null
-    loginFailCount: number | null
-    lastLoginAt: Date | null
-    lastLoginIp: string | null
-    lastFailedLoginAt: Date | null
   }
 
-  export type UserCountAggregateOutputType = {
+  export type LoginMethodCountAggregateOutputType = {
     id: number
-    email: number
-    phone: number
-    passwordHash: number
-    googleId: number
-    wechatOpenId: number
+    userId: number
+    type: number
+    identifier: number
+    verified: number
+    enabled: number
     createdAt: number
     updatedAt: number
-    isActive: number
-    isLocked: number
-    lockReason: number
-    loginFailCount: number
-    lastLoginAt: number
-    lastLoginIp: number
-    lastFailedLoginAt: number
     _all: number
   }
 
 
-  export type UserAvgAggregateInputType = {
-    loginFailCount?: true
-  }
-
-  export type UserSumAggregateInputType = {
-    loginFailCount?: true
-  }
-
-  export type UserMinAggregateInputType = {
+  export type LoginMethodMinAggregateInputType = {
     id?: true
-    email?: true
-    phone?: true
-    passwordHash?: true
-    googleId?: true
-    wechatOpenId?: true
+    userId?: true
+    type?: true
+    identifier?: true
+    verified?: true
+    enabled?: true
     createdAt?: true
     updatedAt?: true
-    isActive?: true
-    isLocked?: true
-    lockReason?: true
-    loginFailCount?: true
-    lastLoginAt?: true
-    lastLoginIp?: true
-    lastFailedLoginAt?: true
   }
 
-  export type UserMaxAggregateInputType = {
+  export type LoginMethodMaxAggregateInputType = {
     id?: true
-    email?: true
-    phone?: true
-    passwordHash?: true
-    googleId?: true
-    wechatOpenId?: true
+    userId?: true
+    type?: true
+    identifier?: true
+    verified?: true
+    enabled?: true
     createdAt?: true
     updatedAt?: true
-    isActive?: true
-    isLocked?: true
-    lockReason?: true
-    loginFailCount?: true
-    lastLoginAt?: true
-    lastLoginIp?: true
-    lastFailedLoginAt?: true
   }
 
-  export type UserCountAggregateInputType = {
+  export type LoginMethodCountAggregateInputType = {
     id?: true
-    email?: true
-    phone?: true
-    passwordHash?: true
-    googleId?: true
-    wechatOpenId?: true
+    userId?: true
+    type?: true
+    identifier?: true
+    verified?: true
+    enabled?: true
     createdAt?: true
     updatedAt?: true
-    isActive?: true
-    isLocked?: true
-    lockReason?: true
-    loginFailCount?: true
-    lastLoginAt?: true
-    lastLoginIp?: true
-    lastFailedLoginAt?: true
     _all?: true
   }
 
-  export type UserAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type LoginMethodAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Filter which User to aggregate.
+     * Filter which LoginMethod to aggregate.
      */
-    where?: UserWhereInput
+    where?: LoginMethodWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of Users to fetch.
+     * Determine the order of LoginMethods to fetch.
      */
-    orderBy?: UserOrderByWithRelationInput | UserOrderByWithRelationInput[]
+    orderBy?: LoginMethodOrderByWithRelationInput | LoginMethodOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
      * Sets the start position
      */
-    cursor?: UserWhereUniqueInput
+    cursor?: LoginMethodWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` Users from the position of the cursor.
+     * Take `±n` LoginMethods from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` Users.
+     * Skip the first `n` LoginMethods.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
-     * Count returned Users
+     * Count returned LoginMethods
     **/
-    _count?: true | UserCountAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to average
-    **/
-    _avg?: UserAvgAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to sum
-    **/
-    _sum?: UserSumAggregateInputType
+    _count?: true | LoginMethodCountAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
      * Select which fields to find the minimum value
     **/
-    _min?: UserMinAggregateInputType
+    _min?: LoginMethodMinAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
      * Select which fields to find the maximum value
     **/
-    _max?: UserMaxAggregateInputType
+    _max?: LoginMethodMaxAggregateInputType
   }
 
-  export type GetUserAggregateType<T extends UserAggregateArgs> = {
-        [P in keyof T & keyof AggregateUser]: P extends '_count' | 'count'
+  export type GetLoginMethodAggregateType<T extends LoginMethodAggregateArgs> = {
+        [P in keyof T & keyof AggregateLoginMethod]: P extends '_count' | 'count'
       ? T[P] extends true
         ? number
-        : GetScalarType<T[P], AggregateUser[P]>
-      : GetScalarType<T[P], AggregateUser[P]>
+        : GetScalarType<T[P], AggregateLoginMethod[P]>
+      : GetScalarType<T[P], AggregateLoginMethod[P]>
   }
 
 
 
 
-  export type UserGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: UserWhereInput
-    orderBy?: UserOrderByWithAggregationInput | UserOrderByWithAggregationInput[]
-    by: UserScalarFieldEnum[] | UserScalarFieldEnum
-    having?: UserScalarWhereWithAggregatesInput
+  export type LoginMethodGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: LoginMethodWhereInput
+    orderBy?: LoginMethodOrderByWithAggregationInput | LoginMethodOrderByWithAggregationInput[]
+    by: LoginMethodScalarFieldEnum[] | LoginMethodScalarFieldEnum
+    having?: LoginMethodScalarWhereWithAggregatesInput
     take?: number
     skip?: number
-    _count?: UserCountAggregateInputType | true
-    _avg?: UserAvgAggregateInputType
-    _sum?: UserSumAggregateInputType
-    _min?: UserMinAggregateInputType
-    _max?: UserMaxAggregateInputType
+    _count?: LoginMethodCountAggregateInputType | true
+    _min?: LoginMethodMinAggregateInputType
+    _max?: LoginMethodMaxAggregateInputType
   }
 
-  export type UserGroupByOutputType = {
+  export type LoginMethodGroupByOutputType = {
     id: string
-    email: string | null
-    phone: string | null
-    passwordHash: string | null
-    googleId: string | null
-    wechatOpenId: string | null
+    userId: string
+    type: $Enums.LoginMethodType
+    identifier: string
+    verified: boolean
+    enabled: boolean
     createdAt: Date
     updatedAt: Date
-    isActive: boolean
-    isLocked: boolean
-    lockReason: string | null
-    loginFailCount: number
-    lastLoginAt: Date | null
-    lastLoginIp: string | null
-    lastFailedLoginAt: Date | null
-    _count: UserCountAggregateOutputType | null
-    _avg: UserAvgAggregateOutputType | null
-    _sum: UserSumAggregateOutputType | null
-    _min: UserMinAggregateOutputType | null
-    _max: UserMaxAggregateOutputType | null
+    _count: LoginMethodCountAggregateOutputType | null
+    _min: LoginMethodMinAggregateOutputType | null
+    _max: LoginMethodMaxAggregateOutputType | null
   }
 
-  type GetUserGroupByPayload<T extends UserGroupByArgs> = Prisma.PrismaPromise<
+  type GetLoginMethodGroupByPayload<T extends LoginMethodGroupByArgs> = Prisma.PrismaPromise<
     Array<
-      PickEnumerable<UserGroupByOutputType, T['by']> &
+      PickEnumerable<LoginMethodGroupByOutputType, T['by']> &
         {
-          [P in ((keyof T) & (keyof UserGroupByOutputType))]: P extends '_count'
+          [P in ((keyof T) & (keyof LoginMethodGroupByOutputType))]: P extends '_count'
             ? T[P] extends boolean
               ? number
-              : GetScalarType<T[P], UserGroupByOutputType[P]>
-            : GetScalarType<T[P], UserGroupByOutputType[P]>
+              : GetScalarType<T[P], LoginMethodGroupByOutputType[P]>
+            : GetScalarType<T[P], LoginMethodGroupByOutputType[P]>
         }
       >
     >
 
 
-  export type UserSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+  export type LoginMethodSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    email?: boolean
-    phone?: boolean
-    passwordHash?: boolean
-    googleId?: boolean
-    wechatOpenId?: boolean
+    userId?: boolean
+    type?: boolean
+    identifier?: boolean
+    verified?: boolean
+    enabled?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    isActive?: boolean
-    isLocked?: boolean
-    lockReason?: boolean
-    loginFailCount?: boolean
-    lastLoginAt?: boolean
-    lastLoginIp?: boolean
-    lastFailedLoginAt?: boolean
-  }, ExtArgs["result"]["user"]>
+    credentials?: boolean | LoginMethod$credentialsArgs<ExtArgs>
+    _count?: boolean | LoginMethodCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["loginMethod"]>
 
-  export type UserSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+  export type LoginMethodSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    email?: boolean
-    phone?: boolean
-    passwordHash?: boolean
-    googleId?: boolean
-    wechatOpenId?: boolean
+    userId?: boolean
+    type?: boolean
+    identifier?: boolean
+    verified?: boolean
+    enabled?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    isActive?: boolean
-    isLocked?: boolean
-    lockReason?: boolean
-    loginFailCount?: boolean
-    lastLoginAt?: boolean
-    lastLoginIp?: boolean
-    lastFailedLoginAt?: boolean
-  }, ExtArgs["result"]["user"]>
+  }, ExtArgs["result"]["loginMethod"]>
 
-  export type UserSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+  export type LoginMethodSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    email?: boolean
-    phone?: boolean
-    passwordHash?: boolean
-    googleId?: boolean
-    wechatOpenId?: boolean
+    userId?: boolean
+    type?: boolean
+    identifier?: boolean
+    verified?: boolean
+    enabled?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    isActive?: boolean
-    isLocked?: boolean
-    lockReason?: boolean
-    loginFailCount?: boolean
-    lastLoginAt?: boolean
-    lastLoginIp?: boolean
-    lastFailedLoginAt?: boolean
-  }, ExtArgs["result"]["user"]>
+  }, ExtArgs["result"]["loginMethod"]>
 
-  export type UserSelectScalar = {
+  export type LoginMethodSelectScalar = {
     id?: boolean
-    email?: boolean
-    phone?: boolean
-    passwordHash?: boolean
-    googleId?: boolean
-    wechatOpenId?: boolean
+    userId?: boolean
+    type?: boolean
+    identifier?: boolean
+    verified?: boolean
+    enabled?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    isActive?: boolean
-    isLocked?: boolean
-    lockReason?: boolean
-    loginFailCount?: boolean
-    lastLoginAt?: boolean
-    lastLoginIp?: boolean
-    lastFailedLoginAt?: boolean
   }
 
-  export type UserOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "email" | "phone" | "passwordHash" | "googleId" | "wechatOpenId" | "createdAt" | "updatedAt" | "isActive" | "isLocked" | "lockReason" | "loginFailCount" | "lastLoginAt" | "lastLoginIp" | "lastFailedLoginAt", ExtArgs["result"]["user"]>
+  export type LoginMethodOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "type" | "identifier" | "verified" | "enabled" | "createdAt" | "updatedAt", ExtArgs["result"]["loginMethod"]>
+  export type LoginMethodInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    credentials?: boolean | LoginMethod$credentialsArgs<ExtArgs>
+    _count?: boolean | LoginMethodCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type LoginMethodIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type LoginMethodIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
 
-  export type $UserPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    name: "User"
-    objects: {}
+  export type $LoginMethodPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "LoginMethod"
+    objects: {
+      credentials: Prisma.$CredentialPayload<ExtArgs>[]
+    }
     scalars: $Extensions.GetPayloadResult<{
       id: string
-      email: string | null
-      phone: string | null
-      passwordHash: string | null
-      googleId: string | null
-      wechatOpenId: string | null
+      userId: string
+      type: $Enums.LoginMethodType
+      identifier: string
+      verified: boolean
+      enabled: boolean
       createdAt: Date
       updatedAt: Date
-      isActive: boolean
-      isLocked: boolean
-      lockReason: string | null
-      loginFailCount: number
-      lastLoginAt: Date | null
-      lastLoginIp: string | null
-      lastFailedLoginAt: Date | null
-    }, ExtArgs["result"]["user"]>
+    }, ExtArgs["result"]["loginMethod"]>
     composites: {}
   }
 
-  type UserGetPayload<S extends boolean | null | undefined | UserDefaultArgs> = $Result.GetResult<Prisma.$UserPayload, S>
+  type LoginMethodGetPayload<S extends boolean | null | undefined | LoginMethodDefaultArgs> = $Result.GetResult<Prisma.$LoginMethodPayload, S>
 
-  type UserCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
-    Omit<UserFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
-      select?: UserCountAggregateInputType | true
+  type LoginMethodCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<LoginMethodFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: LoginMethodCountAggregateInputType | true
     }
 
-  export interface UserDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
-    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['User'], meta: { name: 'User' } }
+  export interface LoginMethodDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['LoginMethod'], meta: { name: 'LoginMethod' } }
     /**
-     * Find zero or one User that matches the filter.
-     * @param {UserFindUniqueArgs} args - Arguments to find a User
+     * Find zero or one LoginMethod that matches the filter.
+     * @param {LoginMethodFindUniqueArgs} args - Arguments to find a LoginMethod
      * @example
-     * // Get one User
-     * const user = await prisma.user.findUnique({
+     * // Get one LoginMethod
+     * const loginMethod = await prisma.loginMethod.findUnique({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findUnique<T extends UserFindUniqueArgs>(args: SelectSubset<T, UserFindUniqueArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    findUnique<T extends LoginMethodFindUniqueArgs>(args: SelectSubset<T, LoginMethodFindUniqueArgs<ExtArgs>>): Prisma__LoginMethodClient<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Find one User that matches the filter or throw an error with `error.code='P2025'`
+     * Find one LoginMethod that matches the filter or throw an error with `error.code='P2025'`
      * if no matches were found.
-     * @param {UserFindUniqueOrThrowArgs} args - Arguments to find a User
+     * @param {LoginMethodFindUniqueOrThrowArgs} args - Arguments to find a LoginMethod
      * @example
-     * // Get one User
-     * const user = await prisma.user.findUniqueOrThrow({
+     * // Get one LoginMethod
+     * const loginMethod = await prisma.loginMethod.findUniqueOrThrow({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findUniqueOrThrow<T extends UserFindUniqueOrThrowArgs>(args: SelectSubset<T, UserFindUniqueOrThrowArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    findUniqueOrThrow<T extends LoginMethodFindUniqueOrThrowArgs>(args: SelectSubset<T, LoginMethodFindUniqueOrThrowArgs<ExtArgs>>): Prisma__LoginMethodClient<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Find the first User that matches the filter.
+     * Find the first LoginMethod that matches the filter.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UserFindFirstArgs} args - Arguments to find a User
+     * @param {LoginMethodFindFirstArgs} args - Arguments to find a LoginMethod
      * @example
-     * // Get one User
-     * const user = await prisma.user.findFirst({
+     * // Get one LoginMethod
+     * const loginMethod = await prisma.loginMethod.findFirst({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findFirst<T extends UserFindFirstArgs>(args?: SelectSubset<T, UserFindFirstArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+    findFirst<T extends LoginMethodFindFirstArgs>(args?: SelectSubset<T, LoginMethodFindFirstArgs<ExtArgs>>): Prisma__LoginMethodClient<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Find the first User that matches the filter or
+     * Find the first LoginMethod that matches the filter or
      * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UserFindFirstOrThrowArgs} args - Arguments to find a User
+     * @param {LoginMethodFindFirstOrThrowArgs} args - Arguments to find a LoginMethod
      * @example
-     * // Get one User
-     * const user = await prisma.user.findFirstOrThrow({
+     * // Get one LoginMethod
+     * const loginMethod = await prisma.loginMethod.findFirstOrThrow({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findFirstOrThrow<T extends UserFindFirstOrThrowArgs>(args?: SelectSubset<T, UserFindFirstOrThrowArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    findFirstOrThrow<T extends LoginMethodFindFirstOrThrowArgs>(args?: SelectSubset<T, LoginMethodFindFirstOrThrowArgs<ExtArgs>>): Prisma__LoginMethodClient<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Find zero or more Users that matches the filter.
+     * Find zero or more LoginMethods that matches the filter.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UserFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @param {LoginMethodFindManyArgs} args - Arguments to filter and select certain fields only.
      * @example
-     * // Get all Users
-     * const users = await prisma.user.findMany()
+     * // Get all LoginMethods
+     * const loginMethods = await prisma.loginMethod.findMany()
      * 
-     * // Get first 10 Users
-     * const users = await prisma.user.findMany({ take: 10 })
+     * // Get first 10 LoginMethods
+     * const loginMethods = await prisma.loginMethod.findMany({ take: 10 })
      * 
      * // Only select the `id`
-     * const userWithIdOnly = await prisma.user.findMany({ select: { id: true } })
+     * const loginMethodWithIdOnly = await prisma.loginMethod.findMany({ select: { id: true } })
      * 
      */
-    findMany<T extends UserFindManyArgs>(args?: SelectSubset<T, UserFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+    findMany<T extends LoginMethodFindManyArgs>(args?: SelectSubset<T, LoginMethodFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
 
     /**
-     * Create a User.
-     * @param {UserCreateArgs} args - Arguments to create a User.
+     * Create a LoginMethod.
+     * @param {LoginMethodCreateArgs} args - Arguments to create a LoginMethod.
      * @example
-     * // Create one User
-     * const User = await prisma.user.create({
+     * // Create one LoginMethod
+     * const LoginMethod = await prisma.loginMethod.create({
      *   data: {
-     *     // ... data to create a User
+     *     // ... data to create a LoginMethod
      *   }
      * })
      * 
      */
-    create<T extends UserCreateArgs>(args: SelectSubset<T, UserCreateArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    create<T extends LoginMethodCreateArgs>(args: SelectSubset<T, LoginMethodCreateArgs<ExtArgs>>): Prisma__LoginMethodClient<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Create many Users.
-     * @param {UserCreateManyArgs} args - Arguments to create many Users.
+     * Create many LoginMethods.
+     * @param {LoginMethodCreateManyArgs} args - Arguments to create many LoginMethods.
      * @example
-     * // Create many Users
-     * const user = await prisma.user.createMany({
+     * // Create many LoginMethods
+     * const loginMethod = await prisma.loginMethod.createMany({
      *   data: [
      *     // ... provide data here
      *   ]
      * })
      *     
      */
-    createMany<T extends UserCreateManyArgs>(args?: SelectSubset<T, UserCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+    createMany<T extends LoginMethodCreateManyArgs>(args?: SelectSubset<T, LoginMethodCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
     /**
-     * Create many Users and returns the data saved in the database.
-     * @param {UserCreateManyAndReturnArgs} args - Arguments to create many Users.
+     * Create many LoginMethods and returns the data saved in the database.
+     * @param {LoginMethodCreateManyAndReturnArgs} args - Arguments to create many LoginMethods.
      * @example
-     * // Create many Users
-     * const user = await prisma.user.createManyAndReturn({
+     * // Create many LoginMethods
+     * const loginMethod = await prisma.loginMethod.createManyAndReturn({
      *   data: [
      *     // ... provide data here
      *   ]
      * })
      * 
-     * // Create many Users and only return the `id`
-     * const userWithIdOnly = await prisma.user.createManyAndReturn({
+     * // Create many LoginMethods and only return the `id`
+     * const loginMethodWithIdOnly = await prisma.loginMethod.createManyAndReturn({
      *   select: { id: true },
      *   data: [
      *     // ... provide data here
@@ -1363,28 +1527,28 @@ export namespace Prisma {
      * Read more here: https://pris.ly/d/null-undefined
      * 
      */
-    createManyAndReturn<T extends UserCreateManyAndReturnArgs>(args?: SelectSubset<T, UserCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+    createManyAndReturn<T extends LoginMethodCreateManyAndReturnArgs>(args?: SelectSubset<T, LoginMethodCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
 
     /**
-     * Delete a User.
-     * @param {UserDeleteArgs} args - Arguments to delete one User.
+     * Delete a LoginMethod.
+     * @param {LoginMethodDeleteArgs} args - Arguments to delete one LoginMethod.
      * @example
-     * // Delete one User
-     * const User = await prisma.user.delete({
+     * // Delete one LoginMethod
+     * const LoginMethod = await prisma.loginMethod.delete({
      *   where: {
-     *     // ... filter to delete one User
+     *     // ... filter to delete one LoginMethod
      *   }
      * })
      * 
      */
-    delete<T extends UserDeleteArgs>(args: SelectSubset<T, UserDeleteArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    delete<T extends LoginMethodDeleteArgs>(args: SelectSubset<T, LoginMethodDeleteArgs<ExtArgs>>): Prisma__LoginMethodClient<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Update one User.
-     * @param {UserUpdateArgs} args - Arguments to update one User.
+     * Update one LoginMethod.
+     * @param {LoginMethodUpdateArgs} args - Arguments to update one LoginMethod.
      * @example
-     * // Update one User
-     * const user = await prisma.user.update({
+     * // Update one LoginMethod
+     * const loginMethod = await prisma.loginMethod.update({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -1394,30 +1558,30 @@ export namespace Prisma {
      * })
      * 
      */
-    update<T extends UserUpdateArgs>(args: SelectSubset<T, UserUpdateArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    update<T extends LoginMethodUpdateArgs>(args: SelectSubset<T, LoginMethodUpdateArgs<ExtArgs>>): Prisma__LoginMethodClient<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
     /**
-     * Delete zero or more Users.
-     * @param {UserDeleteManyArgs} args - Arguments to filter Users to delete.
+     * Delete zero or more LoginMethods.
+     * @param {LoginMethodDeleteManyArgs} args - Arguments to filter LoginMethods to delete.
      * @example
-     * // Delete a few Users
-     * const { count } = await prisma.user.deleteMany({
+     * // Delete a few LoginMethods
+     * const { count } = await prisma.loginMethod.deleteMany({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      * 
      */
-    deleteMany<T extends UserDeleteManyArgs>(args?: SelectSubset<T, UserDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+    deleteMany<T extends LoginMethodDeleteManyArgs>(args?: SelectSubset<T, LoginMethodDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
     /**
-     * Update zero or more Users.
+     * Update zero or more LoginMethods.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UserUpdateManyArgs} args - Arguments to update one or more rows.
+     * @param {LoginMethodUpdateManyArgs} args - Arguments to update one or more rows.
      * @example
-     * // Update many Users
-     * const user = await prisma.user.updateMany({
+     * // Update many LoginMethods
+     * const loginMethod = await prisma.loginMethod.updateMany({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -1427,14 +1591,14 @@ export namespace Prisma {
      * })
      * 
      */
-    updateMany<T extends UserUpdateManyArgs>(args: SelectSubset<T, UserUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+    updateMany<T extends LoginMethodUpdateManyArgs>(args: SelectSubset<T, LoginMethodUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
     /**
-     * Update zero or more Users and returns the data updated in the database.
-     * @param {UserUpdateManyAndReturnArgs} args - Arguments to update many Users.
+     * Update zero or more LoginMethods and returns the data updated in the database.
+     * @param {LoginMethodUpdateManyAndReturnArgs} args - Arguments to update many LoginMethods.
      * @example
-     * // Update many Users
-     * const user = await prisma.user.updateManyAndReturn({
+     * // Update many LoginMethods
+     * const loginMethod = await prisma.loginMethod.updateManyAndReturn({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -1443,8 +1607,8 @@ export namespace Prisma {
      *   ]
      * })
      * 
-     * // Update zero or more Users and only return the `id`
-     * const userWithIdOnly = await prisma.user.updateManyAndReturn({
+     * // Update zero or more LoginMethods and only return the `id`
+     * const loginMethodWithIdOnly = await prisma.loginMethod.updateManyAndReturn({
      *   select: { id: true },
      *   where: {
      *     // ... provide filter here
@@ -1457,56 +1621,56 @@ export namespace Prisma {
      * Read more here: https://pris.ly/d/null-undefined
      * 
      */
-    updateManyAndReturn<T extends UserUpdateManyAndReturnArgs>(args: SelectSubset<T, UserUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+    updateManyAndReturn<T extends LoginMethodUpdateManyAndReturnArgs>(args: SelectSubset<T, LoginMethodUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
 
     /**
-     * Create or update one User.
-     * @param {UserUpsertArgs} args - Arguments to update or create a User.
+     * Create or update one LoginMethod.
+     * @param {LoginMethodUpsertArgs} args - Arguments to update or create a LoginMethod.
      * @example
-     * // Update or create a User
-     * const user = await prisma.user.upsert({
+     * // Update or create a LoginMethod
+     * const loginMethod = await prisma.loginMethod.upsert({
      *   create: {
-     *     // ... data to create a User
+     *     // ... data to create a LoginMethod
      *   },
      *   update: {
      *     // ... in case it already exists, update
      *   },
      *   where: {
-     *     // ... the filter for the User we want to update
+     *     // ... the filter for the LoginMethod we want to update
      *   }
      * })
      */
-    upsert<T extends UserUpsertArgs>(args: SelectSubset<T, UserUpsertArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+    upsert<T extends LoginMethodUpsertArgs>(args: SelectSubset<T, LoginMethodUpsertArgs<ExtArgs>>): Prisma__LoginMethodClient<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
 
 
     /**
-     * Count the number of Users.
+     * Count the number of LoginMethods.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UserCountArgs} args - Arguments to filter Users to count.
+     * @param {LoginMethodCountArgs} args - Arguments to filter LoginMethods to count.
      * @example
-     * // Count the number of Users
-     * const count = await prisma.user.count({
+     * // Count the number of LoginMethods
+     * const count = await prisma.loginMethod.count({
      *   where: {
-     *     // ... the filter for the Users we want to count
+     *     // ... the filter for the LoginMethods we want to count
      *   }
      * })
     **/
-    count<T extends UserCountArgs>(
-      args?: Subset<T, UserCountArgs>,
+    count<T extends LoginMethodCountArgs>(
+      args?: Subset<T, LoginMethodCountArgs>,
     ): Prisma.PrismaPromise<
       T extends $Utils.Record<'select', any>
         ? T['select'] extends true
           ? number
-          : GetScalarType<T['select'], UserCountAggregateOutputType>
+          : GetScalarType<T['select'], LoginMethodCountAggregateOutputType>
         : number
     >
 
     /**
-     * Allows you to perform aggregations operations on a User.
+     * Allows you to perform aggregations operations on a LoginMethod.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UserAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @param {LoginMethodAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
      * @example
      * // Ordered by age ascending
      * // Where email contains prisma.io
@@ -1526,13 +1690,13 @@ export namespace Prisma {
      *   take: 10,
      * })
     **/
-    aggregate<T extends UserAggregateArgs>(args: Subset<T, UserAggregateArgs>): Prisma.PrismaPromise<GetUserAggregateType<T>>
+    aggregate<T extends LoginMethodAggregateArgs>(args: Subset<T, LoginMethodAggregateArgs>): Prisma.PrismaPromise<GetLoginMethodAggregateType<T>>
 
     /**
-     * Group by User.
+     * Group by LoginMethod.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {UserGroupByArgs} args - Group by arguments.
+     * @param {LoginMethodGroupByArgs} args - Group by arguments.
      * @example
      * // Group by city, order by createdAt, get count
      * const result = await prisma.user.groupBy({
@@ -1547,14 +1711,14 @@ export namespace Prisma {
      * 
     **/
     groupBy<
-      T extends UserGroupByArgs,
+      T extends LoginMethodGroupByArgs,
       HasSelectOrTake extends Or<
         Extends<'skip', Keys<T>>,
         Extends<'take', Keys<T>>
       >,
       OrderByArg extends True extends HasSelectOrTake
-        ? { orderBy: UserGroupByArgs['orderBy'] }
-        : { orderBy?: UserGroupByArgs['orderBy'] },
+        ? { orderBy: LoginMethodGroupByArgs['orderBy'] }
+        : { orderBy?: LoginMethodGroupByArgs['orderBy'] },
       OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
       ByFields extends MaybeTupleToUnion<T['by']>,
       ByValid extends Has<ByFields, OrderFields>,
@@ -1603,20 +1767,2261 @@ export namespace Prisma {
             ? never
             : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
         }[OrderFields]
-    >(args: SubsetIntersection<T, UserGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetUserGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+    >(args: SubsetIntersection<T, LoginMethodGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetLoginMethodGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
   /**
-   * Fields of the User model
+   * Fields of the LoginMethod model
    */
-  readonly fields: UserFieldRefs;
+  readonly fields: LoginMethodFieldRefs;
   }
 
   /**
-   * The delegate class that acts as a "Promise-like" for User.
+   * The delegate class that acts as a "Promise-like" for LoginMethod.
    * Why is this prefixed with `Prisma__`?
    * Because we want to prevent naming conflicts as mentioned in
    * https://github.com/prisma/prisma-client-js/issues/707
    */
-  export interface Prisma__UserClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+  export interface Prisma__LoginMethodClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    credentials<T extends LoginMethod$credentialsArgs<ExtArgs> = {}>(args?: Subset<T, LoginMethod$credentialsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CredentialPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the LoginMethod model
+   */
+  interface LoginMethodFieldRefs {
+    readonly id: FieldRef<"LoginMethod", 'String'>
+    readonly userId: FieldRef<"LoginMethod", 'String'>
+    readonly type: FieldRef<"LoginMethod", 'LoginMethodType'>
+    readonly identifier: FieldRef<"LoginMethod", 'String'>
+    readonly verified: FieldRef<"LoginMethod", 'Boolean'>
+    readonly enabled: FieldRef<"LoginMethod", 'Boolean'>
+    readonly createdAt: FieldRef<"LoginMethod", 'DateTime'>
+    readonly updatedAt: FieldRef<"LoginMethod", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * LoginMethod findUnique
+   */
+  export type LoginMethodFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethod
+     */
+    select?: LoginMethodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LoginMethod
+     */
+    omit?: LoginMethodOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: LoginMethodInclude<ExtArgs> | null
+    /**
+     * Filter, which LoginMethod to fetch.
+     */
+    where: LoginMethodWhereUniqueInput
+  }
+
+  /**
+   * LoginMethod findUniqueOrThrow
+   */
+  export type LoginMethodFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethod
+     */
+    select?: LoginMethodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LoginMethod
+     */
+    omit?: LoginMethodOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: LoginMethodInclude<ExtArgs> | null
+    /**
+     * Filter, which LoginMethod to fetch.
+     */
+    where: LoginMethodWhereUniqueInput
+  }
+
+  /**
+   * LoginMethod findFirst
+   */
+  export type LoginMethodFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethod
+     */
+    select?: LoginMethodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LoginMethod
+     */
+    omit?: LoginMethodOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: LoginMethodInclude<ExtArgs> | null
+    /**
+     * Filter, which LoginMethod to fetch.
+     */
+    where?: LoginMethodWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of LoginMethods to fetch.
+     */
+    orderBy?: LoginMethodOrderByWithRelationInput | LoginMethodOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for LoginMethods.
+     */
+    cursor?: LoginMethodWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` LoginMethods from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` LoginMethods.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of LoginMethods.
+     */
+    distinct?: LoginMethodScalarFieldEnum | LoginMethodScalarFieldEnum[]
+  }
+
+  /**
+   * LoginMethod findFirstOrThrow
+   */
+  export type LoginMethodFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethod
+     */
+    select?: LoginMethodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LoginMethod
+     */
+    omit?: LoginMethodOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: LoginMethodInclude<ExtArgs> | null
+    /**
+     * Filter, which LoginMethod to fetch.
+     */
+    where?: LoginMethodWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of LoginMethods to fetch.
+     */
+    orderBy?: LoginMethodOrderByWithRelationInput | LoginMethodOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for LoginMethods.
+     */
+    cursor?: LoginMethodWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` LoginMethods from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` LoginMethods.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of LoginMethods.
+     */
+    distinct?: LoginMethodScalarFieldEnum | LoginMethodScalarFieldEnum[]
+  }
+
+  /**
+   * LoginMethod findMany
+   */
+  export type LoginMethodFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethod
+     */
+    select?: LoginMethodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LoginMethod
+     */
+    omit?: LoginMethodOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: LoginMethodInclude<ExtArgs> | null
+    /**
+     * Filter, which LoginMethods to fetch.
+     */
+    where?: LoginMethodWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of LoginMethods to fetch.
+     */
+    orderBy?: LoginMethodOrderByWithRelationInput | LoginMethodOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing LoginMethods.
+     */
+    cursor?: LoginMethodWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` LoginMethods from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` LoginMethods.
+     */
+    skip?: number
+    distinct?: LoginMethodScalarFieldEnum | LoginMethodScalarFieldEnum[]
+  }
+
+  /**
+   * LoginMethod create
+   */
+  export type LoginMethodCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethod
+     */
+    select?: LoginMethodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LoginMethod
+     */
+    omit?: LoginMethodOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: LoginMethodInclude<ExtArgs> | null
+    /**
+     * The data needed to create a LoginMethod.
+     */
+    data: XOR<LoginMethodCreateInput, LoginMethodUncheckedCreateInput>
+  }
+
+  /**
+   * LoginMethod createMany
+   */
+  export type LoginMethodCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many LoginMethods.
+     */
+    data: LoginMethodCreateManyInput | LoginMethodCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * LoginMethod createManyAndReturn
+   */
+  export type LoginMethodCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethod
+     */
+    select?: LoginMethodSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the LoginMethod
+     */
+    omit?: LoginMethodOmit<ExtArgs> | null
+    /**
+     * The data used to create many LoginMethods.
+     */
+    data: LoginMethodCreateManyInput | LoginMethodCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * LoginMethod update
+   */
+  export type LoginMethodUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethod
+     */
+    select?: LoginMethodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LoginMethod
+     */
+    omit?: LoginMethodOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: LoginMethodInclude<ExtArgs> | null
+    /**
+     * The data needed to update a LoginMethod.
+     */
+    data: XOR<LoginMethodUpdateInput, LoginMethodUncheckedUpdateInput>
+    /**
+     * Choose, which LoginMethod to update.
+     */
+    where: LoginMethodWhereUniqueInput
+  }
+
+  /**
+   * LoginMethod updateMany
+   */
+  export type LoginMethodUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update LoginMethods.
+     */
+    data: XOR<LoginMethodUpdateManyMutationInput, LoginMethodUncheckedUpdateManyInput>
+    /**
+     * Filter which LoginMethods to update
+     */
+    where?: LoginMethodWhereInput
+    /**
+     * Limit how many LoginMethods to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * LoginMethod updateManyAndReturn
+   */
+  export type LoginMethodUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethod
+     */
+    select?: LoginMethodSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the LoginMethod
+     */
+    omit?: LoginMethodOmit<ExtArgs> | null
+    /**
+     * The data used to update LoginMethods.
+     */
+    data: XOR<LoginMethodUpdateManyMutationInput, LoginMethodUncheckedUpdateManyInput>
+    /**
+     * Filter which LoginMethods to update
+     */
+    where?: LoginMethodWhereInput
+    /**
+     * Limit how many LoginMethods to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * LoginMethod upsert
+   */
+  export type LoginMethodUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethod
+     */
+    select?: LoginMethodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LoginMethod
+     */
+    omit?: LoginMethodOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: LoginMethodInclude<ExtArgs> | null
+    /**
+     * The filter to search for the LoginMethod to update in case it exists.
+     */
+    where: LoginMethodWhereUniqueInput
+    /**
+     * In case the LoginMethod found by the `where` argument doesn't exist, create a new LoginMethod with this data.
+     */
+    create: XOR<LoginMethodCreateInput, LoginMethodUncheckedCreateInput>
+    /**
+     * In case the LoginMethod was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<LoginMethodUpdateInput, LoginMethodUncheckedUpdateInput>
+  }
+
+  /**
+   * LoginMethod delete
+   */
+  export type LoginMethodDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethod
+     */
+    select?: LoginMethodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LoginMethod
+     */
+    omit?: LoginMethodOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: LoginMethodInclude<ExtArgs> | null
+    /**
+     * Filter which LoginMethod to delete.
+     */
+    where: LoginMethodWhereUniqueInput
+  }
+
+  /**
+   * LoginMethod deleteMany
+   */
+  export type LoginMethodDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which LoginMethods to delete
+     */
+    where?: LoginMethodWhereInput
+    /**
+     * Limit how many LoginMethods to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * LoginMethod.credentials
+   */
+  export type LoginMethod$credentialsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialInclude<ExtArgs> | null
+    where?: CredentialWhereInput
+    orderBy?: CredentialOrderByWithRelationInput | CredentialOrderByWithRelationInput[]
+    cursor?: CredentialWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: CredentialScalarFieldEnum | CredentialScalarFieldEnum[]
+  }
+
+  /**
+   * LoginMethod without action
+   */
+  export type LoginMethodDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the LoginMethod
+     */
+    select?: LoginMethodSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the LoginMethod
+     */
+    omit?: LoginMethodOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: LoginMethodInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model Credential
+   */
+
+  export type AggregateCredential = {
+    _count: CredentialCountAggregateOutputType | null
+    _min: CredentialMinAggregateOutputType | null
+    _max: CredentialMaxAggregateOutputType | null
+  }
+
+  export type CredentialMinAggregateOutputType = {
+    id: string | null
+    loginMethodId: string | null
+    secretType: $Enums.CredentialType | null
+    secretValue: string | null
+    provider: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CredentialMaxAggregateOutputType = {
+    id: string | null
+    loginMethodId: string | null
+    secretType: $Enums.CredentialType | null
+    secretValue: string | null
+    provider: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CredentialCountAggregateOutputType = {
+    id: number
+    loginMethodId: number
+    secretType: number
+    secretValue: number
+    provider: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type CredentialMinAggregateInputType = {
+    id?: true
+    loginMethodId?: true
+    secretType?: true
+    secretValue?: true
+    provider?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CredentialMaxAggregateInputType = {
+    id?: true
+    loginMethodId?: true
+    secretType?: true
+    secretValue?: true
+    provider?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CredentialCountAggregateInputType = {
+    id?: true
+    loginMethodId?: true
+    secretType?: true
+    secretValue?: true
+    provider?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type CredentialAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Credential to aggregate.
+     */
+    where?: CredentialWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Credentials to fetch.
+     */
+    orderBy?: CredentialOrderByWithRelationInput | CredentialOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CredentialWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Credentials from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Credentials.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned Credentials
+    **/
+    _count?: true | CredentialCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CredentialMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CredentialMaxAggregateInputType
+  }
+
+  export type GetCredentialAggregateType<T extends CredentialAggregateArgs> = {
+        [P in keyof T & keyof AggregateCredential]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCredential[P]>
+      : GetScalarType<T[P], AggregateCredential[P]>
+  }
+
+
+
+
+  export type CredentialGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CredentialWhereInput
+    orderBy?: CredentialOrderByWithAggregationInput | CredentialOrderByWithAggregationInput[]
+    by: CredentialScalarFieldEnum[] | CredentialScalarFieldEnum
+    having?: CredentialScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CredentialCountAggregateInputType | true
+    _min?: CredentialMinAggregateInputType
+    _max?: CredentialMaxAggregateInputType
+  }
+
+  export type CredentialGroupByOutputType = {
+    id: string
+    loginMethodId: string
+    secretType: $Enums.CredentialType
+    secretValue: string | null
+    provider: string | null
+    createdAt: Date
+    updatedAt: Date
+    _count: CredentialCountAggregateOutputType | null
+    _min: CredentialMinAggregateOutputType | null
+    _max: CredentialMaxAggregateOutputType | null
+  }
+
+  type GetCredentialGroupByPayload<T extends CredentialGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CredentialGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CredentialGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CredentialGroupByOutputType[P]>
+            : GetScalarType<T[P], CredentialGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CredentialSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    loginMethodId?: boolean
+    secretType?: boolean
+    secretValue?: boolean
+    provider?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["credential"]>
+
+  export type CredentialSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    loginMethodId?: boolean
+    secretType?: boolean
+    secretValue?: boolean
+    provider?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["credential"]>
+
+  export type CredentialSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    loginMethodId?: boolean
+    secretType?: boolean
+    secretValue?: boolean
+    provider?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["credential"]>
+
+  export type CredentialSelectScalar = {
+    id?: boolean
+    loginMethodId?: boolean
+    secretType?: boolean
+    secretValue?: boolean
+    provider?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type CredentialOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "loginMethodId" | "secretType" | "secretValue" | "provider" | "createdAt" | "updatedAt", ExtArgs["result"]["credential"]>
+  export type CredentialInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
+  }
+  export type CredentialIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
+  }
+  export type CredentialIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
+  }
+
+  export type $CredentialPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Credential"
+    objects: {
+      LoginMethods: Prisma.$LoginMethodPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      loginMethodId: string
+      secretType: $Enums.CredentialType
+      secretValue: string | null
+      provider: string | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["credential"]>
+    composites: {}
+  }
+
+  type CredentialGetPayload<S extends boolean | null | undefined | CredentialDefaultArgs> = $Result.GetResult<Prisma.$CredentialPayload, S>
+
+  type CredentialCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<CredentialFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: CredentialCountAggregateInputType | true
+    }
+
+  export interface CredentialDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Credential'], meta: { name: 'Credential' } }
+    /**
+     * Find zero or one Credential that matches the filter.
+     * @param {CredentialFindUniqueArgs} args - Arguments to find a Credential
+     * @example
+     * // Get one Credential
+     * const credential = await prisma.credential.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CredentialFindUniqueArgs>(args: SelectSubset<T, CredentialFindUniqueArgs<ExtArgs>>): Prisma__CredentialClient<$Result.GetResult<Prisma.$CredentialPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one Credential that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {CredentialFindUniqueOrThrowArgs} args - Arguments to find a Credential
+     * @example
+     * // Get one Credential
+     * const credential = await prisma.credential.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CredentialFindUniqueOrThrowArgs>(args: SelectSubset<T, CredentialFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CredentialClient<$Result.GetResult<Prisma.$CredentialPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Credential that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CredentialFindFirstArgs} args - Arguments to find a Credential
+     * @example
+     * // Get one Credential
+     * const credential = await prisma.credential.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CredentialFindFirstArgs>(args?: SelectSubset<T, CredentialFindFirstArgs<ExtArgs>>): Prisma__CredentialClient<$Result.GetResult<Prisma.$CredentialPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first Credential that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CredentialFindFirstOrThrowArgs} args - Arguments to find a Credential
+     * @example
+     * // Get one Credential
+     * const credential = await prisma.credential.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CredentialFindFirstOrThrowArgs>(args?: SelectSubset<T, CredentialFindFirstOrThrowArgs<ExtArgs>>): Prisma__CredentialClient<$Result.GetResult<Prisma.$CredentialPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more Credentials that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CredentialFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all Credentials
+     * const credentials = await prisma.credential.findMany()
+     * 
+     * // Get first 10 Credentials
+     * const credentials = await prisma.credential.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const credentialWithIdOnly = await prisma.credential.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CredentialFindManyArgs>(args?: SelectSubset<T, CredentialFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CredentialPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a Credential.
+     * @param {CredentialCreateArgs} args - Arguments to create a Credential.
+     * @example
+     * // Create one Credential
+     * const Credential = await prisma.credential.create({
+     *   data: {
+     *     // ... data to create a Credential
+     *   }
+     * })
+     * 
+     */
+    create<T extends CredentialCreateArgs>(args: SelectSubset<T, CredentialCreateArgs<ExtArgs>>): Prisma__CredentialClient<$Result.GetResult<Prisma.$CredentialPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many Credentials.
+     * @param {CredentialCreateManyArgs} args - Arguments to create many Credentials.
+     * @example
+     * // Create many Credentials
+     * const credential = await prisma.credential.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CredentialCreateManyArgs>(args?: SelectSubset<T, CredentialCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many Credentials and returns the data saved in the database.
+     * @param {CredentialCreateManyAndReturnArgs} args - Arguments to create many Credentials.
+     * @example
+     * // Create many Credentials
+     * const credential = await prisma.credential.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many Credentials and only return the `id`
+     * const credentialWithIdOnly = await prisma.credential.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends CredentialCreateManyAndReturnArgs>(args?: SelectSubset<T, CredentialCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CredentialPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a Credential.
+     * @param {CredentialDeleteArgs} args - Arguments to delete one Credential.
+     * @example
+     * // Delete one Credential
+     * const Credential = await prisma.credential.delete({
+     *   where: {
+     *     // ... filter to delete one Credential
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CredentialDeleteArgs>(args: SelectSubset<T, CredentialDeleteArgs<ExtArgs>>): Prisma__CredentialClient<$Result.GetResult<Prisma.$CredentialPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one Credential.
+     * @param {CredentialUpdateArgs} args - Arguments to update one Credential.
+     * @example
+     * // Update one Credential
+     * const credential = await prisma.credential.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CredentialUpdateArgs>(args: SelectSubset<T, CredentialUpdateArgs<ExtArgs>>): Prisma__CredentialClient<$Result.GetResult<Prisma.$CredentialPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more Credentials.
+     * @param {CredentialDeleteManyArgs} args - Arguments to filter Credentials to delete.
+     * @example
+     * // Delete a few Credentials
+     * const { count } = await prisma.credential.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CredentialDeleteManyArgs>(args?: SelectSubset<T, CredentialDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Credentials.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CredentialUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many Credentials
+     * const credential = await prisma.credential.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CredentialUpdateManyArgs>(args: SelectSubset<T, CredentialUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more Credentials and returns the data updated in the database.
+     * @param {CredentialUpdateManyAndReturnArgs} args - Arguments to update many Credentials.
+     * @example
+     * // Update many Credentials
+     * const credential = await prisma.credential.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more Credentials and only return the `id`
+     * const credentialWithIdOnly = await prisma.credential.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends CredentialUpdateManyAndReturnArgs>(args: SelectSubset<T, CredentialUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CredentialPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one Credential.
+     * @param {CredentialUpsertArgs} args - Arguments to update or create a Credential.
+     * @example
+     * // Update or create a Credential
+     * const credential = await prisma.credential.upsert({
+     *   create: {
+     *     // ... data to create a Credential
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the Credential we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CredentialUpsertArgs>(args: SelectSubset<T, CredentialUpsertArgs<ExtArgs>>): Prisma__CredentialClient<$Result.GetResult<Prisma.$CredentialPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of Credentials.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CredentialCountArgs} args - Arguments to filter Credentials to count.
+     * @example
+     * // Count the number of Credentials
+     * const count = await prisma.credential.count({
+     *   where: {
+     *     // ... the filter for the Credentials we want to count
+     *   }
+     * })
+    **/
+    count<T extends CredentialCountArgs>(
+      args?: Subset<T, CredentialCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CredentialCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a Credential.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CredentialAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CredentialAggregateArgs>(args: Subset<T, CredentialAggregateArgs>): Prisma.PrismaPromise<GetCredentialAggregateType<T>>
+
+    /**
+     * Group by Credential.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CredentialGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CredentialGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CredentialGroupByArgs['orderBy'] }
+        : { orderBy?: CredentialGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CredentialGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCredentialGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the Credential model
+   */
+  readonly fields: CredentialFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for Credential.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CredentialClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    LoginMethods<T extends LoginMethodDefaultArgs<ExtArgs> = {}>(args?: Subset<T, LoginMethodDefaultArgs<ExtArgs>>): Prisma__LoginMethodClient<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the Credential model
+   */
+  interface CredentialFieldRefs {
+    readonly id: FieldRef<"Credential", 'String'>
+    readonly loginMethodId: FieldRef<"Credential", 'String'>
+    readonly secretType: FieldRef<"Credential", 'CredentialType'>
+    readonly secretValue: FieldRef<"Credential", 'String'>
+    readonly provider: FieldRef<"Credential", 'String'>
+    readonly createdAt: FieldRef<"Credential", 'DateTime'>
+    readonly updatedAt: FieldRef<"Credential", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * Credential findUnique
+   */
+  export type CredentialFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialInclude<ExtArgs> | null
+    /**
+     * Filter, which Credential to fetch.
+     */
+    where: CredentialWhereUniqueInput
+  }
+
+  /**
+   * Credential findUniqueOrThrow
+   */
+  export type CredentialFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialInclude<ExtArgs> | null
+    /**
+     * Filter, which Credential to fetch.
+     */
+    where: CredentialWhereUniqueInput
+  }
+
+  /**
+   * Credential findFirst
+   */
+  export type CredentialFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialInclude<ExtArgs> | null
+    /**
+     * Filter, which Credential to fetch.
+     */
+    where?: CredentialWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Credentials to fetch.
+     */
+    orderBy?: CredentialOrderByWithRelationInput | CredentialOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Credentials.
+     */
+    cursor?: CredentialWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Credentials from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Credentials.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Credentials.
+     */
+    distinct?: CredentialScalarFieldEnum | CredentialScalarFieldEnum[]
+  }
+
+  /**
+   * Credential findFirstOrThrow
+   */
+  export type CredentialFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialInclude<ExtArgs> | null
+    /**
+     * Filter, which Credential to fetch.
+     */
+    where?: CredentialWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Credentials to fetch.
+     */
+    orderBy?: CredentialOrderByWithRelationInput | CredentialOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for Credentials.
+     */
+    cursor?: CredentialWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Credentials from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Credentials.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of Credentials.
+     */
+    distinct?: CredentialScalarFieldEnum | CredentialScalarFieldEnum[]
+  }
+
+  /**
+   * Credential findMany
+   */
+  export type CredentialFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialInclude<ExtArgs> | null
+    /**
+     * Filter, which Credentials to fetch.
+     */
+    where?: CredentialWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of Credentials to fetch.
+     */
+    orderBy?: CredentialOrderByWithRelationInput | CredentialOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing Credentials.
+     */
+    cursor?: CredentialWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` Credentials from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` Credentials.
+     */
+    skip?: number
+    distinct?: CredentialScalarFieldEnum | CredentialScalarFieldEnum[]
+  }
+
+  /**
+   * Credential create
+   */
+  export type CredentialCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Credential.
+     */
+    data: XOR<CredentialCreateInput, CredentialUncheckedCreateInput>
+  }
+
+  /**
+   * Credential createMany
+   */
+  export type CredentialCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many Credentials.
+     */
+    data: CredentialCreateManyInput | CredentialCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * Credential createManyAndReturn
+   */
+  export type CredentialCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * The data used to create many Credentials.
+     */
+    data: CredentialCreateManyInput | CredentialCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Credential update
+   */
+  export type CredentialUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialInclude<ExtArgs> | null
+    /**
+     * The data needed to update a Credential.
+     */
+    data: XOR<CredentialUpdateInput, CredentialUncheckedUpdateInput>
+    /**
+     * Choose, which Credential to update.
+     */
+    where: CredentialWhereUniqueInput
+  }
+
+  /**
+   * Credential updateMany
+   */
+  export type CredentialUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update Credentials.
+     */
+    data: XOR<CredentialUpdateManyMutationInput, CredentialUncheckedUpdateManyInput>
+    /**
+     * Filter which Credentials to update
+     */
+    where?: CredentialWhereInput
+    /**
+     * Limit how many Credentials to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * Credential updateManyAndReturn
+   */
+  export type CredentialUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * The data used to update Credentials.
+     */
+    data: XOR<CredentialUpdateManyMutationInput, CredentialUncheckedUpdateManyInput>
+    /**
+     * Filter which Credentials to update
+     */
+    where?: CredentialWhereInput
+    /**
+     * Limit how many Credentials to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * Credential upsert
+   */
+  export type CredentialUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialInclude<ExtArgs> | null
+    /**
+     * The filter to search for the Credential to update in case it exists.
+     */
+    where: CredentialWhereUniqueInput
+    /**
+     * In case the Credential found by the `where` argument doesn't exist, create a new Credential with this data.
+     */
+    create: XOR<CredentialCreateInput, CredentialUncheckedCreateInput>
+    /**
+     * In case the Credential was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CredentialUpdateInput, CredentialUncheckedUpdateInput>
+  }
+
+  /**
+   * Credential delete
+   */
+  export type CredentialDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialInclude<ExtArgs> | null
+    /**
+     * Filter which Credential to delete.
+     */
+    where: CredentialWhereUniqueInput
+  }
+
+  /**
+   * Credential deleteMany
+   */
+  export type CredentialDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which Credentials to delete
+     */
+    where?: CredentialWhereInput
+    /**
+     * Limit how many Credentials to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * Credential without action
+   */
+  export type CredentialDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Credential
+     */
+    select?: CredentialSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Credential
+     */
+    omit?: CredentialOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CredentialInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model OneTimeToken
+   */
+
+  export type AggregateOneTimeToken = {
+    _count: OneTimeTokenCountAggregateOutputType | null
+    _avg: OneTimeTokenAvgAggregateOutputType | null
+    _sum: OneTimeTokenSumAggregateOutputType | null
+    _min: OneTimeTokenMinAggregateOutputType | null
+    _max: OneTimeTokenMaxAggregateOutputType | null
+  }
+
+  export type OneTimeTokenAvgAggregateOutputType = {
+    attemptCount: number | null
+  }
+
+  export type OneTimeTokenSumAggregateOutputType = {
+    attemptCount: number | null
+  }
+
+  export type OneTimeTokenMinAggregateOutputType = {
+    id: string | null
+    type: $Enums.OtpType | null
+    usage: $Enums.OtpUsage | null
+    identifier: string | null
+    code: string | null
+    expiredAt: Date | null
+    consumed: boolean | null
+    attemptCount: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type OneTimeTokenMaxAggregateOutputType = {
+    id: string | null
+    type: $Enums.OtpType | null
+    usage: $Enums.OtpUsage | null
+    identifier: string | null
+    code: string | null
+    expiredAt: Date | null
+    consumed: boolean | null
+    attemptCount: number | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type OneTimeTokenCountAggregateOutputType = {
+    id: number
+    type: number
+    usage: number
+    identifier: number
+    code: number
+    expiredAt: number
+    consumed: number
+    attemptCount: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type OneTimeTokenAvgAggregateInputType = {
+    attemptCount?: true
+  }
+
+  export type OneTimeTokenSumAggregateInputType = {
+    attemptCount?: true
+  }
+
+  export type OneTimeTokenMinAggregateInputType = {
+    id?: true
+    type?: true
+    usage?: true
+    identifier?: true
+    code?: true
+    expiredAt?: true
+    consumed?: true
+    attemptCount?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type OneTimeTokenMaxAggregateInputType = {
+    id?: true
+    type?: true
+    usage?: true
+    identifier?: true
+    code?: true
+    expiredAt?: true
+    consumed?: true
+    attemptCount?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type OneTimeTokenCountAggregateInputType = {
+    id?: true
+    type?: true
+    usage?: true
+    identifier?: true
+    code?: true
+    expiredAt?: true
+    consumed?: true
+    attemptCount?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type OneTimeTokenAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which OneTimeToken to aggregate.
+     */
+    where?: OneTimeTokenWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of OneTimeTokens to fetch.
+     */
+    orderBy?: OneTimeTokenOrderByWithRelationInput | OneTimeTokenOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: OneTimeTokenWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` OneTimeTokens from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` OneTimeTokens.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned OneTimeTokens
+    **/
+    _count?: true | OneTimeTokenCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: OneTimeTokenAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: OneTimeTokenSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: OneTimeTokenMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: OneTimeTokenMaxAggregateInputType
+  }
+
+  export type GetOneTimeTokenAggregateType<T extends OneTimeTokenAggregateArgs> = {
+        [P in keyof T & keyof AggregateOneTimeToken]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateOneTimeToken[P]>
+      : GetScalarType<T[P], AggregateOneTimeToken[P]>
+  }
+
+
+
+
+  export type OneTimeTokenGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: OneTimeTokenWhereInput
+    orderBy?: OneTimeTokenOrderByWithAggregationInput | OneTimeTokenOrderByWithAggregationInput[]
+    by: OneTimeTokenScalarFieldEnum[] | OneTimeTokenScalarFieldEnum
+    having?: OneTimeTokenScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: OneTimeTokenCountAggregateInputType | true
+    _avg?: OneTimeTokenAvgAggregateInputType
+    _sum?: OneTimeTokenSumAggregateInputType
+    _min?: OneTimeTokenMinAggregateInputType
+    _max?: OneTimeTokenMaxAggregateInputType
+  }
+
+  export type OneTimeTokenGroupByOutputType = {
+    id: string
+    type: $Enums.OtpType
+    usage: $Enums.OtpUsage
+    identifier: string
+    code: string
+    expiredAt: Date
+    consumed: boolean
+    attemptCount: number
+    createdAt: Date
+    updatedAt: Date
+    _count: OneTimeTokenCountAggregateOutputType | null
+    _avg: OneTimeTokenAvgAggregateOutputType | null
+    _sum: OneTimeTokenSumAggregateOutputType | null
+    _min: OneTimeTokenMinAggregateOutputType | null
+    _max: OneTimeTokenMaxAggregateOutputType | null
+  }
+
+  type GetOneTimeTokenGroupByPayload<T extends OneTimeTokenGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<OneTimeTokenGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof OneTimeTokenGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], OneTimeTokenGroupByOutputType[P]>
+            : GetScalarType<T[P], OneTimeTokenGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type OneTimeTokenSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    type?: boolean
+    usage?: boolean
+    identifier?: boolean
+    code?: boolean
+    expiredAt?: boolean
+    consumed?: boolean
+    attemptCount?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["oneTimeToken"]>
+
+  export type OneTimeTokenSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    type?: boolean
+    usage?: boolean
+    identifier?: boolean
+    code?: boolean
+    expiredAt?: boolean
+    consumed?: boolean
+    attemptCount?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["oneTimeToken"]>
+
+  export type OneTimeTokenSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    type?: boolean
+    usage?: boolean
+    identifier?: boolean
+    code?: boolean
+    expiredAt?: boolean
+    consumed?: boolean
+    attemptCount?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["oneTimeToken"]>
+
+  export type OneTimeTokenSelectScalar = {
+    id?: boolean
+    type?: boolean
+    usage?: boolean
+    identifier?: boolean
+    code?: boolean
+    expiredAt?: boolean
+    consumed?: boolean
+    attemptCount?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type OneTimeTokenOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "type" | "usage" | "identifier" | "code" | "expiredAt" | "consumed" | "attemptCount" | "createdAt" | "updatedAt", ExtArgs["result"]["oneTimeToken"]>
+
+  export type $OneTimeTokenPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "OneTimeToken"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      type: $Enums.OtpType
+      usage: $Enums.OtpUsage
+      identifier: string
+      code: string
+      expiredAt: Date
+      consumed: boolean
+      attemptCount: number
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["oneTimeToken"]>
+    composites: {}
+  }
+
+  type OneTimeTokenGetPayload<S extends boolean | null | undefined | OneTimeTokenDefaultArgs> = $Result.GetResult<Prisma.$OneTimeTokenPayload, S>
+
+  type OneTimeTokenCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<OneTimeTokenFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: OneTimeTokenCountAggregateInputType | true
+    }
+
+  export interface OneTimeTokenDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['OneTimeToken'], meta: { name: 'OneTimeToken' } }
+    /**
+     * Find zero or one OneTimeToken that matches the filter.
+     * @param {OneTimeTokenFindUniqueArgs} args - Arguments to find a OneTimeToken
+     * @example
+     * // Get one OneTimeToken
+     * const oneTimeToken = await prisma.oneTimeToken.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends OneTimeTokenFindUniqueArgs>(args: SelectSubset<T, OneTimeTokenFindUniqueArgs<ExtArgs>>): Prisma__OneTimeTokenClient<$Result.GetResult<Prisma.$OneTimeTokenPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one OneTimeToken that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {OneTimeTokenFindUniqueOrThrowArgs} args - Arguments to find a OneTimeToken
+     * @example
+     * // Get one OneTimeToken
+     * const oneTimeToken = await prisma.oneTimeToken.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends OneTimeTokenFindUniqueOrThrowArgs>(args: SelectSubset<T, OneTimeTokenFindUniqueOrThrowArgs<ExtArgs>>): Prisma__OneTimeTokenClient<$Result.GetResult<Prisma.$OneTimeTokenPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first OneTimeToken that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OneTimeTokenFindFirstArgs} args - Arguments to find a OneTimeToken
+     * @example
+     * // Get one OneTimeToken
+     * const oneTimeToken = await prisma.oneTimeToken.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends OneTimeTokenFindFirstArgs>(args?: SelectSubset<T, OneTimeTokenFindFirstArgs<ExtArgs>>): Prisma__OneTimeTokenClient<$Result.GetResult<Prisma.$OneTimeTokenPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first OneTimeToken that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OneTimeTokenFindFirstOrThrowArgs} args - Arguments to find a OneTimeToken
+     * @example
+     * // Get one OneTimeToken
+     * const oneTimeToken = await prisma.oneTimeToken.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends OneTimeTokenFindFirstOrThrowArgs>(args?: SelectSubset<T, OneTimeTokenFindFirstOrThrowArgs<ExtArgs>>): Prisma__OneTimeTokenClient<$Result.GetResult<Prisma.$OneTimeTokenPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more OneTimeTokens that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OneTimeTokenFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all OneTimeTokens
+     * const oneTimeTokens = await prisma.oneTimeToken.findMany()
+     * 
+     * // Get first 10 OneTimeTokens
+     * const oneTimeTokens = await prisma.oneTimeToken.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const oneTimeTokenWithIdOnly = await prisma.oneTimeToken.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends OneTimeTokenFindManyArgs>(args?: SelectSubset<T, OneTimeTokenFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OneTimeTokenPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a OneTimeToken.
+     * @param {OneTimeTokenCreateArgs} args - Arguments to create a OneTimeToken.
+     * @example
+     * // Create one OneTimeToken
+     * const OneTimeToken = await prisma.oneTimeToken.create({
+     *   data: {
+     *     // ... data to create a OneTimeToken
+     *   }
+     * })
+     * 
+     */
+    create<T extends OneTimeTokenCreateArgs>(args: SelectSubset<T, OneTimeTokenCreateArgs<ExtArgs>>): Prisma__OneTimeTokenClient<$Result.GetResult<Prisma.$OneTimeTokenPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many OneTimeTokens.
+     * @param {OneTimeTokenCreateManyArgs} args - Arguments to create many OneTimeTokens.
+     * @example
+     * // Create many OneTimeTokens
+     * const oneTimeToken = await prisma.oneTimeToken.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends OneTimeTokenCreateManyArgs>(args?: SelectSubset<T, OneTimeTokenCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many OneTimeTokens and returns the data saved in the database.
+     * @param {OneTimeTokenCreateManyAndReturnArgs} args - Arguments to create many OneTimeTokens.
+     * @example
+     * // Create many OneTimeTokens
+     * const oneTimeToken = await prisma.oneTimeToken.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many OneTimeTokens and only return the `id`
+     * const oneTimeTokenWithIdOnly = await prisma.oneTimeToken.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends OneTimeTokenCreateManyAndReturnArgs>(args?: SelectSubset<T, OneTimeTokenCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OneTimeTokenPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a OneTimeToken.
+     * @param {OneTimeTokenDeleteArgs} args - Arguments to delete one OneTimeToken.
+     * @example
+     * // Delete one OneTimeToken
+     * const OneTimeToken = await prisma.oneTimeToken.delete({
+     *   where: {
+     *     // ... filter to delete one OneTimeToken
+     *   }
+     * })
+     * 
+     */
+    delete<T extends OneTimeTokenDeleteArgs>(args: SelectSubset<T, OneTimeTokenDeleteArgs<ExtArgs>>): Prisma__OneTimeTokenClient<$Result.GetResult<Prisma.$OneTimeTokenPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one OneTimeToken.
+     * @param {OneTimeTokenUpdateArgs} args - Arguments to update one OneTimeToken.
+     * @example
+     * // Update one OneTimeToken
+     * const oneTimeToken = await prisma.oneTimeToken.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends OneTimeTokenUpdateArgs>(args: SelectSubset<T, OneTimeTokenUpdateArgs<ExtArgs>>): Prisma__OneTimeTokenClient<$Result.GetResult<Prisma.$OneTimeTokenPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more OneTimeTokens.
+     * @param {OneTimeTokenDeleteManyArgs} args - Arguments to filter OneTimeTokens to delete.
+     * @example
+     * // Delete a few OneTimeTokens
+     * const { count } = await prisma.oneTimeToken.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends OneTimeTokenDeleteManyArgs>(args?: SelectSubset<T, OneTimeTokenDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more OneTimeTokens.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OneTimeTokenUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many OneTimeTokens
+     * const oneTimeToken = await prisma.oneTimeToken.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends OneTimeTokenUpdateManyArgs>(args: SelectSubset<T, OneTimeTokenUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more OneTimeTokens and returns the data updated in the database.
+     * @param {OneTimeTokenUpdateManyAndReturnArgs} args - Arguments to update many OneTimeTokens.
+     * @example
+     * // Update many OneTimeTokens
+     * const oneTimeToken = await prisma.oneTimeToken.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more OneTimeTokens and only return the `id`
+     * const oneTimeTokenWithIdOnly = await prisma.oneTimeToken.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends OneTimeTokenUpdateManyAndReturnArgs>(args: SelectSubset<T, OneTimeTokenUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$OneTimeTokenPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one OneTimeToken.
+     * @param {OneTimeTokenUpsertArgs} args - Arguments to update or create a OneTimeToken.
+     * @example
+     * // Update or create a OneTimeToken
+     * const oneTimeToken = await prisma.oneTimeToken.upsert({
+     *   create: {
+     *     // ... data to create a OneTimeToken
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the OneTimeToken we want to update
+     *   }
+     * })
+     */
+    upsert<T extends OneTimeTokenUpsertArgs>(args: SelectSubset<T, OneTimeTokenUpsertArgs<ExtArgs>>): Prisma__OneTimeTokenClient<$Result.GetResult<Prisma.$OneTimeTokenPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of OneTimeTokens.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OneTimeTokenCountArgs} args - Arguments to filter OneTimeTokens to count.
+     * @example
+     * // Count the number of OneTimeTokens
+     * const count = await prisma.oneTimeToken.count({
+     *   where: {
+     *     // ... the filter for the OneTimeTokens we want to count
+     *   }
+     * })
+    **/
+    count<T extends OneTimeTokenCountArgs>(
+      args?: Subset<T, OneTimeTokenCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], OneTimeTokenCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a OneTimeToken.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OneTimeTokenAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends OneTimeTokenAggregateArgs>(args: Subset<T, OneTimeTokenAggregateArgs>): Prisma.PrismaPromise<GetOneTimeTokenAggregateType<T>>
+
+    /**
+     * Group by OneTimeToken.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {OneTimeTokenGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends OneTimeTokenGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: OneTimeTokenGroupByArgs['orderBy'] }
+        : { orderBy?: OneTimeTokenGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, OneTimeTokenGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetOneTimeTokenGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the OneTimeToken model
+   */
+  readonly fields: OneTimeTokenFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for OneTimeToken.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__OneTimeTokenClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1644,387 +4049,382 @@ export namespace Prisma {
 
 
   /**
-   * Fields of the User model
+   * Fields of the OneTimeToken model
    */
-  interface UserFieldRefs {
-    readonly id: FieldRef<"User", 'String'>
-    readonly email: FieldRef<"User", 'String'>
-    readonly phone: FieldRef<"User", 'String'>
-    readonly passwordHash: FieldRef<"User", 'String'>
-    readonly googleId: FieldRef<"User", 'String'>
-    readonly wechatOpenId: FieldRef<"User", 'String'>
-    readonly createdAt: FieldRef<"User", 'DateTime'>
-    readonly updatedAt: FieldRef<"User", 'DateTime'>
-    readonly isActive: FieldRef<"User", 'Boolean'>
-    readonly isLocked: FieldRef<"User", 'Boolean'>
-    readonly lockReason: FieldRef<"User", 'String'>
-    readonly loginFailCount: FieldRef<"User", 'Int'>
-    readonly lastLoginAt: FieldRef<"User", 'DateTime'>
-    readonly lastLoginIp: FieldRef<"User", 'String'>
-    readonly lastFailedLoginAt: FieldRef<"User", 'DateTime'>
+  interface OneTimeTokenFieldRefs {
+    readonly id: FieldRef<"OneTimeToken", 'String'>
+    readonly type: FieldRef<"OneTimeToken", 'OtpType'>
+    readonly usage: FieldRef<"OneTimeToken", 'OtpUsage'>
+    readonly identifier: FieldRef<"OneTimeToken", 'String'>
+    readonly code: FieldRef<"OneTimeToken", 'String'>
+    readonly expiredAt: FieldRef<"OneTimeToken", 'DateTime'>
+    readonly consumed: FieldRef<"OneTimeToken", 'Boolean'>
+    readonly attemptCount: FieldRef<"OneTimeToken", 'Int'>
+    readonly createdAt: FieldRef<"OneTimeToken", 'DateTime'>
+    readonly updatedAt: FieldRef<"OneTimeToken", 'DateTime'>
   }
     
 
   // Custom InputTypes
   /**
-   * User findUnique
+   * OneTimeToken findUnique
    */
-  export type UserFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the User
+     * Select specific fields to fetch from the OneTimeToken
      */
-    select?: UserSelect<ExtArgs> | null
+    select?: OneTimeTokenSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the User
+     * Omit specific fields from the OneTimeToken
      */
-    omit?: UserOmit<ExtArgs> | null
+    omit?: OneTimeTokenOmit<ExtArgs> | null
     /**
-     * Filter, which User to fetch.
+     * Filter, which OneTimeToken to fetch.
      */
-    where: UserWhereUniqueInput
+    where: OneTimeTokenWhereUniqueInput
   }
 
   /**
-   * User findUniqueOrThrow
+   * OneTimeToken findUniqueOrThrow
    */
-  export type UserFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the User
+     * Select specific fields to fetch from the OneTimeToken
      */
-    select?: UserSelect<ExtArgs> | null
+    select?: OneTimeTokenSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the User
+     * Omit specific fields from the OneTimeToken
      */
-    omit?: UserOmit<ExtArgs> | null
+    omit?: OneTimeTokenOmit<ExtArgs> | null
     /**
-     * Filter, which User to fetch.
+     * Filter, which OneTimeToken to fetch.
      */
-    where: UserWhereUniqueInput
+    where: OneTimeTokenWhereUniqueInput
   }
 
   /**
-   * User findFirst
+   * OneTimeToken findFirst
    */
-  export type UserFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the User
+     * Select specific fields to fetch from the OneTimeToken
      */
-    select?: UserSelect<ExtArgs> | null
+    select?: OneTimeTokenSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the User
+     * Omit specific fields from the OneTimeToken
      */
-    omit?: UserOmit<ExtArgs> | null
+    omit?: OneTimeTokenOmit<ExtArgs> | null
     /**
-     * Filter, which User to fetch.
+     * Filter, which OneTimeToken to fetch.
      */
-    where?: UserWhereInput
+    where?: OneTimeTokenWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of Users to fetch.
+     * Determine the order of OneTimeTokens to fetch.
      */
-    orderBy?: UserOrderByWithRelationInput | UserOrderByWithRelationInput[]
+    orderBy?: OneTimeTokenOrderByWithRelationInput | OneTimeTokenOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
-     * Sets the position for searching for Users.
+     * Sets the position for searching for OneTimeTokens.
      */
-    cursor?: UserWhereUniqueInput
+    cursor?: OneTimeTokenWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` Users from the position of the cursor.
+     * Take `±n` OneTimeTokens from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` Users.
+     * Skip the first `n` OneTimeTokens.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
      * 
-     * Filter by unique combinations of Users.
+     * Filter by unique combinations of OneTimeTokens.
      */
-    distinct?: UserScalarFieldEnum | UserScalarFieldEnum[]
+    distinct?: OneTimeTokenScalarFieldEnum | OneTimeTokenScalarFieldEnum[]
   }
 
   /**
-   * User findFirstOrThrow
+   * OneTimeToken findFirstOrThrow
    */
-  export type UserFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the User
+     * Select specific fields to fetch from the OneTimeToken
      */
-    select?: UserSelect<ExtArgs> | null
+    select?: OneTimeTokenSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the User
+     * Omit specific fields from the OneTimeToken
      */
-    omit?: UserOmit<ExtArgs> | null
+    omit?: OneTimeTokenOmit<ExtArgs> | null
     /**
-     * Filter, which User to fetch.
+     * Filter, which OneTimeToken to fetch.
      */
-    where?: UserWhereInput
+    where?: OneTimeTokenWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of Users to fetch.
+     * Determine the order of OneTimeTokens to fetch.
      */
-    orderBy?: UserOrderByWithRelationInput | UserOrderByWithRelationInput[]
+    orderBy?: OneTimeTokenOrderByWithRelationInput | OneTimeTokenOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
-     * Sets the position for searching for Users.
+     * Sets the position for searching for OneTimeTokens.
      */
-    cursor?: UserWhereUniqueInput
+    cursor?: OneTimeTokenWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` Users from the position of the cursor.
+     * Take `±n` OneTimeTokens from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` Users.
+     * Skip the first `n` OneTimeTokens.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
      * 
-     * Filter by unique combinations of Users.
+     * Filter by unique combinations of OneTimeTokens.
      */
-    distinct?: UserScalarFieldEnum | UserScalarFieldEnum[]
+    distinct?: OneTimeTokenScalarFieldEnum | OneTimeTokenScalarFieldEnum[]
   }
 
   /**
-   * User findMany
+   * OneTimeToken findMany
    */
-  export type UserFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the User
+     * Select specific fields to fetch from the OneTimeToken
      */
-    select?: UserSelect<ExtArgs> | null
+    select?: OneTimeTokenSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the User
+     * Omit specific fields from the OneTimeToken
      */
-    omit?: UserOmit<ExtArgs> | null
+    omit?: OneTimeTokenOmit<ExtArgs> | null
     /**
-     * Filter, which Users to fetch.
+     * Filter, which OneTimeTokens to fetch.
      */
-    where?: UserWhereInput
+    where?: OneTimeTokenWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of Users to fetch.
+     * Determine the order of OneTimeTokens to fetch.
      */
-    orderBy?: UserOrderByWithRelationInput | UserOrderByWithRelationInput[]
+    orderBy?: OneTimeTokenOrderByWithRelationInput | OneTimeTokenOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
-     * Sets the position for listing Users.
+     * Sets the position for listing OneTimeTokens.
      */
-    cursor?: UserWhereUniqueInput
+    cursor?: OneTimeTokenWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` Users from the position of the cursor.
+     * Take `±n` OneTimeTokens from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` Users.
+     * Skip the first `n` OneTimeTokens.
      */
     skip?: number
-    distinct?: UserScalarFieldEnum | UserScalarFieldEnum[]
+    distinct?: OneTimeTokenScalarFieldEnum | OneTimeTokenScalarFieldEnum[]
   }
 
   /**
-   * User create
+   * OneTimeToken create
    */
-  export type UserCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the User
+     * Select specific fields to fetch from the OneTimeToken
      */
-    select?: UserSelect<ExtArgs> | null
+    select?: OneTimeTokenSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the User
+     * Omit specific fields from the OneTimeToken
      */
-    omit?: UserOmit<ExtArgs> | null
+    omit?: OneTimeTokenOmit<ExtArgs> | null
     /**
-     * The data needed to create a User.
+     * The data needed to create a OneTimeToken.
      */
-    data: XOR<UserCreateInput, UserUncheckedCreateInput>
+    data: XOR<OneTimeTokenCreateInput, OneTimeTokenUncheckedCreateInput>
   }
 
   /**
-   * User createMany
+   * OneTimeToken createMany
    */
-  export type UserCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * The data used to create many Users.
+     * The data used to create many OneTimeTokens.
      */
-    data: UserCreateManyInput | UserCreateManyInput[]
+    data: OneTimeTokenCreateManyInput | OneTimeTokenCreateManyInput[]
     skipDuplicates?: boolean
   }
 
   /**
-   * User createManyAndReturn
+   * OneTimeToken createManyAndReturn
    */
-  export type UserCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the User
+     * Select specific fields to fetch from the OneTimeToken
      */
-    select?: UserSelectCreateManyAndReturn<ExtArgs> | null
+    select?: OneTimeTokenSelectCreateManyAndReturn<ExtArgs> | null
     /**
-     * Omit specific fields from the User
+     * Omit specific fields from the OneTimeToken
      */
-    omit?: UserOmit<ExtArgs> | null
+    omit?: OneTimeTokenOmit<ExtArgs> | null
     /**
-     * The data used to create many Users.
+     * The data used to create many OneTimeTokens.
      */
-    data: UserCreateManyInput | UserCreateManyInput[]
+    data: OneTimeTokenCreateManyInput | OneTimeTokenCreateManyInput[]
     skipDuplicates?: boolean
   }
 
   /**
-   * User update
+   * OneTimeToken update
    */
-  export type UserUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the User
+     * Select specific fields to fetch from the OneTimeToken
      */
-    select?: UserSelect<ExtArgs> | null
+    select?: OneTimeTokenSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the User
+     * Omit specific fields from the OneTimeToken
      */
-    omit?: UserOmit<ExtArgs> | null
+    omit?: OneTimeTokenOmit<ExtArgs> | null
     /**
-     * The data needed to update a User.
+     * The data needed to update a OneTimeToken.
      */
-    data: XOR<UserUpdateInput, UserUncheckedUpdateInput>
+    data: XOR<OneTimeTokenUpdateInput, OneTimeTokenUncheckedUpdateInput>
     /**
-     * Choose, which User to update.
+     * Choose, which OneTimeToken to update.
      */
-    where: UserWhereUniqueInput
+    where: OneTimeTokenWhereUniqueInput
   }
 
   /**
-   * User updateMany
+   * OneTimeToken updateMany
    */
-  export type UserUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * The data used to update Users.
+     * The data used to update OneTimeTokens.
      */
-    data: XOR<UserUpdateManyMutationInput, UserUncheckedUpdateManyInput>
+    data: XOR<OneTimeTokenUpdateManyMutationInput, OneTimeTokenUncheckedUpdateManyInput>
     /**
-     * Filter which Users to update
+     * Filter which OneTimeTokens to update
      */
-    where?: UserWhereInput
+    where?: OneTimeTokenWhereInput
     /**
-     * Limit how many Users to update.
+     * Limit how many OneTimeTokens to update.
      */
     limit?: number
   }
 
   /**
-   * User updateManyAndReturn
+   * OneTimeToken updateManyAndReturn
    */
-  export type UserUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the User
+     * Select specific fields to fetch from the OneTimeToken
      */
-    select?: UserSelectUpdateManyAndReturn<ExtArgs> | null
+    select?: OneTimeTokenSelectUpdateManyAndReturn<ExtArgs> | null
     /**
-     * Omit specific fields from the User
+     * Omit specific fields from the OneTimeToken
      */
-    omit?: UserOmit<ExtArgs> | null
+    omit?: OneTimeTokenOmit<ExtArgs> | null
     /**
-     * The data used to update Users.
+     * The data used to update OneTimeTokens.
      */
-    data: XOR<UserUpdateManyMutationInput, UserUncheckedUpdateManyInput>
+    data: XOR<OneTimeTokenUpdateManyMutationInput, OneTimeTokenUncheckedUpdateManyInput>
     /**
-     * Filter which Users to update
+     * Filter which OneTimeTokens to update
      */
-    where?: UserWhereInput
+    where?: OneTimeTokenWhereInput
     /**
-     * Limit how many Users to update.
+     * Limit how many OneTimeTokens to update.
      */
     limit?: number
   }
 
   /**
-   * User upsert
+   * OneTimeToken upsert
    */
-  export type UserUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the User
+     * Select specific fields to fetch from the OneTimeToken
      */
-    select?: UserSelect<ExtArgs> | null
+    select?: OneTimeTokenSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the User
+     * Omit specific fields from the OneTimeToken
      */
-    omit?: UserOmit<ExtArgs> | null
+    omit?: OneTimeTokenOmit<ExtArgs> | null
     /**
-     * The filter to search for the User to update in case it exists.
+     * The filter to search for the OneTimeToken to update in case it exists.
      */
-    where: UserWhereUniqueInput
+    where: OneTimeTokenWhereUniqueInput
     /**
-     * In case the User found by the `where` argument doesn't exist, create a new User with this data.
+     * In case the OneTimeToken found by the `where` argument doesn't exist, create a new OneTimeToken with this data.
      */
-    create: XOR<UserCreateInput, UserUncheckedCreateInput>
+    create: XOR<OneTimeTokenCreateInput, OneTimeTokenUncheckedCreateInput>
     /**
-     * In case the User was found with the provided `where` argument, update it with this data.
+     * In case the OneTimeToken was found with the provided `where` argument, update it with this data.
      */
-    update: XOR<UserUpdateInput, UserUncheckedUpdateInput>
+    update: XOR<OneTimeTokenUpdateInput, OneTimeTokenUncheckedUpdateInput>
   }
 
   /**
-   * User delete
+   * OneTimeToken delete
    */
-  export type UserDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the User
+     * Select specific fields to fetch from the OneTimeToken
      */
-    select?: UserSelect<ExtArgs> | null
+    select?: OneTimeTokenSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the User
+     * Omit specific fields from the OneTimeToken
      */
-    omit?: UserOmit<ExtArgs> | null
+    omit?: OneTimeTokenOmit<ExtArgs> | null
     /**
-     * Filter which User to delete.
+     * Filter which OneTimeToken to delete.
      */
-    where: UserWhereUniqueInput
+    where: OneTimeTokenWhereUniqueInput
   }
 
   /**
-   * User deleteMany
+   * OneTimeToken deleteMany
    */
-  export type UserDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Filter which Users to delete
+     * Filter which OneTimeTokens to delete
      */
-    where?: UserWhereInput
+    where?: OneTimeTokenWhereInput
     /**
-     * Limit how many Users to delete.
+     * Limit how many OneTimeTokens to delete.
      */
     limit?: number
   }
 
   /**
-   * User without action
+   * OneTimeToken without action
    */
-  export type UserDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type OneTimeTokenDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the User
+     * Select specific fields to fetch from the OneTimeToken
      */
-    select?: UserSelect<ExtArgs> | null
+    select?: OneTimeTokenSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the User
+     * Omit specific fields from the OneTimeToken
      */
-    omit?: UserOmit<ExtArgs> | null
+    omit?: OneTimeTokenOmit<ExtArgs> | null
   }
 
 
@@ -2042,25 +4442,47 @@ export namespace Prisma {
   export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof typeof TransactionIsolationLevel]
 
 
-  export const UserScalarFieldEnum: {
+  export const LoginMethodScalarFieldEnum: {
     id: 'id',
-    email: 'email',
-    phone: 'phone',
-    passwordHash: 'passwordHash',
-    googleId: 'googleId',
-    wechatOpenId: 'wechatOpenId',
+    userId: 'userId',
+    type: 'type',
+    identifier: 'identifier',
+    verified: 'verified',
+    enabled: 'enabled',
     createdAt: 'createdAt',
-    updatedAt: 'updatedAt',
-    isActive: 'isActive',
-    isLocked: 'isLocked',
-    lockReason: 'lockReason',
-    loginFailCount: 'loginFailCount',
-    lastLoginAt: 'lastLoginAt',
-    lastLoginIp: 'lastLoginIp',
-    lastFailedLoginAt: 'lastFailedLoginAt'
+    updatedAt: 'updatedAt'
   };
 
-  export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+  export type LoginMethodScalarFieldEnum = (typeof LoginMethodScalarFieldEnum)[keyof typeof LoginMethodScalarFieldEnum]
+
+
+  export const CredentialScalarFieldEnum: {
+    id: 'id',
+    loginMethodId: 'loginMethodId',
+    secretType: 'secretType',
+    secretValue: 'secretValue',
+    provider: 'provider',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type CredentialScalarFieldEnum = (typeof CredentialScalarFieldEnum)[keyof typeof CredentialScalarFieldEnum]
+
+
+  export const OneTimeTokenScalarFieldEnum: {
+    id: 'id',
+    type: 'type',
+    usage: 'usage',
+    identifier: 'identifier',
+    code: 'code',
+    expiredAt: 'expiredAt',
+    consumed: 'consumed',
+    attemptCount: 'attemptCount',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type OneTimeTokenScalarFieldEnum = (typeof OneTimeTokenScalarFieldEnum)[keyof typeof OneTimeTokenScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -2107,6 +4529,27 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'LoginMethodType'
+   */
+  export type EnumLoginMethodTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'LoginMethodType'>
+    
+
+
+  /**
+   * Reference to a field of type 'LoginMethodType[]'
+   */
+  export type ListEnumLoginMethodTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'LoginMethodType[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'Boolean'
+   */
+  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+    
+
+
+  /**
    * Reference to a field of type 'DateTime'
    */
   export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -2121,9 +4564,44 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'Boolean'
+   * Reference to a field of type 'CredentialType'
    */
-  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
+  export type EnumCredentialTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CredentialType'>
+    
+
+
+  /**
+   * Reference to a field of type 'CredentialType[]'
+   */
+  export type ListEnumCredentialTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CredentialType[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'OtpType'
+   */
+  export type EnumOtpTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'OtpType'>
+    
+
+
+  /**
+   * Reference to a field of type 'OtpType[]'
+   */
+  export type ListEnumOtpTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'OtpType[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'OtpUsage'
+   */
+  export type EnumOtpUsageFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'OtpUsage'>
+    
+
+
+  /**
+   * Reference to a field of type 'OtpUsage[]'
+   */
+  export type ListEnumOtpUsageFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'OtpUsage[]'>
     
 
 
@@ -2158,234 +4636,461 @@ export namespace Prisma {
    */
 
 
-  export type UserWhereInput = {
-    AND?: UserWhereInput | UserWhereInput[]
-    OR?: UserWhereInput[]
-    NOT?: UserWhereInput | UserWhereInput[]
-    id?: StringFilter<"User"> | string
-    email?: StringNullableFilter<"User"> | string | null
-    phone?: StringNullableFilter<"User"> | string | null
-    passwordHash?: StringNullableFilter<"User"> | string | null
-    googleId?: StringNullableFilter<"User"> | string | null
-    wechatOpenId?: StringNullableFilter<"User"> | string | null
-    createdAt?: DateTimeFilter<"User"> | Date | string
-    updatedAt?: DateTimeFilter<"User"> | Date | string
-    isActive?: BoolFilter<"User"> | boolean
-    isLocked?: BoolFilter<"User"> | boolean
-    lockReason?: StringNullableFilter<"User"> | string | null
-    loginFailCount?: IntFilter<"User"> | number
-    lastLoginAt?: DateTimeNullableFilter<"User"> | Date | string | null
-    lastLoginIp?: StringNullableFilter<"User"> | string | null
-    lastFailedLoginAt?: DateTimeNullableFilter<"User"> | Date | string | null
+  export type LoginMethodWhereInput = {
+    AND?: LoginMethodWhereInput | LoginMethodWhereInput[]
+    OR?: LoginMethodWhereInput[]
+    NOT?: LoginMethodWhereInput | LoginMethodWhereInput[]
+    id?: StringFilter<"LoginMethod"> | string
+    userId?: StringFilter<"LoginMethod"> | string
+    type?: EnumLoginMethodTypeFilter<"LoginMethod"> | $Enums.LoginMethodType
+    identifier?: StringFilter<"LoginMethod"> | string
+    verified?: BoolFilter<"LoginMethod"> | boolean
+    enabled?: BoolFilter<"LoginMethod"> | boolean
+    createdAt?: DateTimeFilter<"LoginMethod"> | Date | string
+    updatedAt?: DateTimeFilter<"LoginMethod"> | Date | string
+    credentials?: CredentialListRelationFilter
   }
 
-  export type UserOrderByWithRelationInput = {
+  export type LoginMethodOrderByWithRelationInput = {
     id?: SortOrder
-    email?: SortOrderInput | SortOrder
-    phone?: SortOrderInput | SortOrder
-    passwordHash?: SortOrderInput | SortOrder
-    googleId?: SortOrderInput | SortOrder
-    wechatOpenId?: SortOrderInput | SortOrder
+    userId?: SortOrder
+    type?: SortOrder
+    identifier?: SortOrder
+    verified?: SortOrder
+    enabled?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    isActive?: SortOrder
-    isLocked?: SortOrder
-    lockReason?: SortOrderInput | SortOrder
-    loginFailCount?: SortOrder
-    lastLoginAt?: SortOrderInput | SortOrder
-    lastLoginIp?: SortOrderInput | SortOrder
-    lastFailedLoginAt?: SortOrderInput | SortOrder
+    credentials?: CredentialOrderByRelationAggregateInput
   }
 
-  export type UserWhereUniqueInput = Prisma.AtLeast<{
+  export type LoginMethodWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    email?: string
-    phone?: string
-    googleId?: string
-    wechatOpenId?: string
-    AND?: UserWhereInput | UserWhereInput[]
-    OR?: UserWhereInput[]
-    NOT?: UserWhereInput | UserWhereInput[]
-    passwordHash?: StringNullableFilter<"User"> | string | null
-    createdAt?: DateTimeFilter<"User"> | Date | string
-    updatedAt?: DateTimeFilter<"User"> | Date | string
-    isActive?: BoolFilter<"User"> | boolean
-    isLocked?: BoolFilter<"User"> | boolean
-    lockReason?: StringNullableFilter<"User"> | string | null
-    loginFailCount?: IntFilter<"User"> | number
-    lastLoginAt?: DateTimeNullableFilter<"User"> | Date | string | null
-    lastLoginIp?: StringNullableFilter<"User"> | string | null
-    lastFailedLoginAt?: DateTimeNullableFilter<"User"> | Date | string | null
-  }, "id" | "email" | "phone" | "googleId" | "wechatOpenId">
+    type_identifier?: LoginMethodTypeIdentifierCompoundUniqueInput
+    AND?: LoginMethodWhereInput | LoginMethodWhereInput[]
+    OR?: LoginMethodWhereInput[]
+    NOT?: LoginMethodWhereInput | LoginMethodWhereInput[]
+    userId?: StringFilter<"LoginMethod"> | string
+    type?: EnumLoginMethodTypeFilter<"LoginMethod"> | $Enums.LoginMethodType
+    identifier?: StringFilter<"LoginMethod"> | string
+    verified?: BoolFilter<"LoginMethod"> | boolean
+    enabled?: BoolFilter<"LoginMethod"> | boolean
+    createdAt?: DateTimeFilter<"LoginMethod"> | Date | string
+    updatedAt?: DateTimeFilter<"LoginMethod"> | Date | string
+    credentials?: CredentialListRelationFilter
+  }, "id" | "type_identifier">
 
-  export type UserOrderByWithAggregationInput = {
+  export type LoginMethodOrderByWithAggregationInput = {
     id?: SortOrder
-    email?: SortOrderInput | SortOrder
-    phone?: SortOrderInput | SortOrder
-    passwordHash?: SortOrderInput | SortOrder
-    googleId?: SortOrderInput | SortOrder
-    wechatOpenId?: SortOrderInput | SortOrder
+    userId?: SortOrder
+    type?: SortOrder
+    identifier?: SortOrder
+    verified?: SortOrder
+    enabled?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    isActive?: SortOrder
-    isLocked?: SortOrder
-    lockReason?: SortOrderInput | SortOrder
-    loginFailCount?: SortOrder
-    lastLoginAt?: SortOrderInput | SortOrder
-    lastLoginIp?: SortOrderInput | SortOrder
-    lastFailedLoginAt?: SortOrderInput | SortOrder
-    _count?: UserCountOrderByAggregateInput
-    _avg?: UserAvgOrderByAggregateInput
-    _max?: UserMaxOrderByAggregateInput
-    _min?: UserMinOrderByAggregateInput
-    _sum?: UserSumOrderByAggregateInput
+    _count?: LoginMethodCountOrderByAggregateInput
+    _max?: LoginMethodMaxOrderByAggregateInput
+    _min?: LoginMethodMinOrderByAggregateInput
   }
 
-  export type UserScalarWhereWithAggregatesInput = {
-    AND?: UserScalarWhereWithAggregatesInput | UserScalarWhereWithAggregatesInput[]
-    OR?: UserScalarWhereWithAggregatesInput[]
-    NOT?: UserScalarWhereWithAggregatesInput | UserScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"User"> | string
-    email?: StringNullableWithAggregatesFilter<"User"> | string | null
-    phone?: StringNullableWithAggregatesFilter<"User"> | string | null
-    passwordHash?: StringNullableWithAggregatesFilter<"User"> | string | null
-    googleId?: StringNullableWithAggregatesFilter<"User"> | string | null
-    wechatOpenId?: StringNullableWithAggregatesFilter<"User"> | string | null
-    createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
-    updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
-    isActive?: BoolWithAggregatesFilter<"User"> | boolean
-    isLocked?: BoolWithAggregatesFilter<"User"> | boolean
-    lockReason?: StringNullableWithAggregatesFilter<"User"> | string | null
-    loginFailCount?: IntWithAggregatesFilter<"User"> | number
-    lastLoginAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
-    lastLoginIp?: StringNullableWithAggregatesFilter<"User"> | string | null
-    lastFailedLoginAt?: DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
+  export type LoginMethodScalarWhereWithAggregatesInput = {
+    AND?: LoginMethodScalarWhereWithAggregatesInput | LoginMethodScalarWhereWithAggregatesInput[]
+    OR?: LoginMethodScalarWhereWithAggregatesInput[]
+    NOT?: LoginMethodScalarWhereWithAggregatesInput | LoginMethodScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"LoginMethod"> | string
+    userId?: StringWithAggregatesFilter<"LoginMethod"> | string
+    type?: EnumLoginMethodTypeWithAggregatesFilter<"LoginMethod"> | $Enums.LoginMethodType
+    identifier?: StringWithAggregatesFilter<"LoginMethod"> | string
+    verified?: BoolWithAggregatesFilter<"LoginMethod"> | boolean
+    enabled?: BoolWithAggregatesFilter<"LoginMethod"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"LoginMethod"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"LoginMethod"> | Date | string
   }
 
-  export type UserCreateInput = {
+  export type CredentialWhereInput = {
+    AND?: CredentialWhereInput | CredentialWhereInput[]
+    OR?: CredentialWhereInput[]
+    NOT?: CredentialWhereInput | CredentialWhereInput[]
+    id?: StringFilter<"Credential"> | string
+    loginMethodId?: StringFilter<"Credential"> | string
+    secretType?: EnumCredentialTypeFilter<"Credential"> | $Enums.CredentialType
+    secretValue?: StringNullableFilter<"Credential"> | string | null
+    provider?: StringNullableFilter<"Credential"> | string | null
+    createdAt?: DateTimeFilter<"Credential"> | Date | string
+    updatedAt?: DateTimeFilter<"Credential"> | Date | string
+    LoginMethods?: XOR<LoginMethodScalarRelationFilter, LoginMethodWhereInput>
+  }
+
+  export type CredentialOrderByWithRelationInput = {
+    id?: SortOrder
+    loginMethodId?: SortOrder
+    secretType?: SortOrder
+    secretValue?: SortOrderInput | SortOrder
+    provider?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    LoginMethods?: LoginMethodOrderByWithRelationInput
+  }
+
+  export type CredentialWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    email?: string | null
-    phone?: string | null
-    passwordHash?: string | null
-    googleId?: string | null
-    wechatOpenId?: string | null
+    AND?: CredentialWhereInput | CredentialWhereInput[]
+    OR?: CredentialWhereInput[]
+    NOT?: CredentialWhereInput | CredentialWhereInput[]
+    loginMethodId?: StringFilter<"Credential"> | string
+    secretType?: EnumCredentialTypeFilter<"Credential"> | $Enums.CredentialType
+    secretValue?: StringNullableFilter<"Credential"> | string | null
+    provider?: StringNullableFilter<"Credential"> | string | null
+    createdAt?: DateTimeFilter<"Credential"> | Date | string
+    updatedAt?: DateTimeFilter<"Credential"> | Date | string
+    LoginMethods?: XOR<LoginMethodScalarRelationFilter, LoginMethodWhereInput>
+  }, "id">
+
+  export type CredentialOrderByWithAggregationInput = {
+    id?: SortOrder
+    loginMethodId?: SortOrder
+    secretType?: SortOrder
+    secretValue?: SortOrderInput | SortOrder
+    provider?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: CredentialCountOrderByAggregateInput
+    _max?: CredentialMaxOrderByAggregateInput
+    _min?: CredentialMinOrderByAggregateInput
+  }
+
+  export type CredentialScalarWhereWithAggregatesInput = {
+    AND?: CredentialScalarWhereWithAggregatesInput | CredentialScalarWhereWithAggregatesInput[]
+    OR?: CredentialScalarWhereWithAggregatesInput[]
+    NOT?: CredentialScalarWhereWithAggregatesInput | CredentialScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"Credential"> | string
+    loginMethodId?: StringWithAggregatesFilter<"Credential"> | string
+    secretType?: EnumCredentialTypeWithAggregatesFilter<"Credential"> | $Enums.CredentialType
+    secretValue?: StringNullableWithAggregatesFilter<"Credential"> | string | null
+    provider?: StringNullableWithAggregatesFilter<"Credential"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"Credential"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Credential"> | Date | string
+  }
+
+  export type OneTimeTokenWhereInput = {
+    AND?: OneTimeTokenWhereInput | OneTimeTokenWhereInput[]
+    OR?: OneTimeTokenWhereInput[]
+    NOT?: OneTimeTokenWhereInput | OneTimeTokenWhereInput[]
+    id?: StringFilter<"OneTimeToken"> | string
+    type?: EnumOtpTypeFilter<"OneTimeToken"> | $Enums.OtpType
+    usage?: EnumOtpUsageFilter<"OneTimeToken"> | $Enums.OtpUsage
+    identifier?: StringFilter<"OneTimeToken"> | string
+    code?: StringFilter<"OneTimeToken"> | string
+    expiredAt?: DateTimeFilter<"OneTimeToken"> | Date | string
+    consumed?: BoolFilter<"OneTimeToken"> | boolean
+    attemptCount?: IntFilter<"OneTimeToken"> | number
+    createdAt?: DateTimeFilter<"OneTimeToken"> | Date | string
+    updatedAt?: DateTimeFilter<"OneTimeToken"> | Date | string
+  }
+
+  export type OneTimeTokenOrderByWithRelationInput = {
+    id?: SortOrder
+    type?: SortOrder
+    usage?: SortOrder
+    identifier?: SortOrder
+    code?: SortOrder
+    expiredAt?: SortOrder
+    consumed?: SortOrder
+    attemptCount?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type OneTimeTokenWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    identifier_usage?: OneTimeTokenIdentifierUsageCompoundUniqueInput
+    AND?: OneTimeTokenWhereInput | OneTimeTokenWhereInput[]
+    OR?: OneTimeTokenWhereInput[]
+    NOT?: OneTimeTokenWhereInput | OneTimeTokenWhereInput[]
+    type?: EnumOtpTypeFilter<"OneTimeToken"> | $Enums.OtpType
+    usage?: EnumOtpUsageFilter<"OneTimeToken"> | $Enums.OtpUsage
+    identifier?: StringFilter<"OneTimeToken"> | string
+    code?: StringFilter<"OneTimeToken"> | string
+    expiredAt?: DateTimeFilter<"OneTimeToken"> | Date | string
+    consumed?: BoolFilter<"OneTimeToken"> | boolean
+    attemptCount?: IntFilter<"OneTimeToken"> | number
+    createdAt?: DateTimeFilter<"OneTimeToken"> | Date | string
+    updatedAt?: DateTimeFilter<"OneTimeToken"> | Date | string
+  }, "id" | "identifier_usage">
+
+  export type OneTimeTokenOrderByWithAggregationInput = {
+    id?: SortOrder
+    type?: SortOrder
+    usage?: SortOrder
+    identifier?: SortOrder
+    code?: SortOrder
+    expiredAt?: SortOrder
+    consumed?: SortOrder
+    attemptCount?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: OneTimeTokenCountOrderByAggregateInput
+    _avg?: OneTimeTokenAvgOrderByAggregateInput
+    _max?: OneTimeTokenMaxOrderByAggregateInput
+    _min?: OneTimeTokenMinOrderByAggregateInput
+    _sum?: OneTimeTokenSumOrderByAggregateInput
+  }
+
+  export type OneTimeTokenScalarWhereWithAggregatesInput = {
+    AND?: OneTimeTokenScalarWhereWithAggregatesInput | OneTimeTokenScalarWhereWithAggregatesInput[]
+    OR?: OneTimeTokenScalarWhereWithAggregatesInput[]
+    NOT?: OneTimeTokenScalarWhereWithAggregatesInput | OneTimeTokenScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"OneTimeToken"> | string
+    type?: EnumOtpTypeWithAggregatesFilter<"OneTimeToken"> | $Enums.OtpType
+    usage?: EnumOtpUsageWithAggregatesFilter<"OneTimeToken"> | $Enums.OtpUsage
+    identifier?: StringWithAggregatesFilter<"OneTimeToken"> | string
+    code?: StringWithAggregatesFilter<"OneTimeToken"> | string
+    expiredAt?: DateTimeWithAggregatesFilter<"OneTimeToken"> | Date | string
+    consumed?: BoolWithAggregatesFilter<"OneTimeToken"> | boolean
+    attemptCount?: IntWithAggregatesFilter<"OneTimeToken"> | number
+    createdAt?: DateTimeWithAggregatesFilter<"OneTimeToken"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"OneTimeToken"> | Date | string
+  }
+
+  export type LoginMethodCreateInput = {
+    id?: string
+    userId: string
+    type: $Enums.LoginMethodType
+    identifier: string
+    verified?: boolean
+    enabled?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
-    isActive?: boolean
-    isLocked?: boolean
-    lockReason?: string | null
-    loginFailCount?: number
-    lastLoginAt?: Date | string | null
-    lastLoginIp?: string | null
-    lastFailedLoginAt?: Date | string | null
+    credentials?: CredentialCreateNestedManyWithoutLoginMethodsInput
   }
 
-  export type UserUncheckedCreateInput = {
+  export type LoginMethodUncheckedCreateInput = {
     id?: string
-    email?: string | null
-    phone?: string | null
-    passwordHash?: string | null
-    googleId?: string | null
-    wechatOpenId?: string | null
+    userId: string
+    type: $Enums.LoginMethodType
+    identifier: string
+    verified?: boolean
+    enabled?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
-    isActive?: boolean
-    isLocked?: boolean
-    lockReason?: string | null
-    loginFailCount?: number
-    lastLoginAt?: Date | string | null
-    lastLoginIp?: string | null
-    lastFailedLoginAt?: Date | string | null
+    credentials?: CredentialUncheckedCreateNestedManyWithoutLoginMethodsInput
   }
 
-  export type UserUpdateInput = {
+  export type LoginMethodUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
-    googleId?: NullableStringFieldUpdateOperationsInput | string | null
-    wechatOpenId?: NullableStringFieldUpdateOperationsInput | string | null
+    userId?: StringFieldUpdateOperationsInput | string
+    type?: EnumLoginMethodTypeFieldUpdateOperationsInput | $Enums.LoginMethodType
+    identifier?: StringFieldUpdateOperationsInput | string
+    verified?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isLocked?: BoolFieldUpdateOperationsInput | boolean
-    lockReason?: NullableStringFieldUpdateOperationsInput | string | null
-    loginFailCount?: IntFieldUpdateOperationsInput | number
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    lastLoginIp?: NullableStringFieldUpdateOperationsInput | string | null
-    lastFailedLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    credentials?: CredentialUpdateManyWithoutLoginMethodsNestedInput
   }
 
-  export type UserUncheckedUpdateInput = {
+  export type LoginMethodUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
-    googleId?: NullableStringFieldUpdateOperationsInput | string | null
-    wechatOpenId?: NullableStringFieldUpdateOperationsInput | string | null
+    userId?: StringFieldUpdateOperationsInput | string
+    type?: EnumLoginMethodTypeFieldUpdateOperationsInput | $Enums.LoginMethodType
+    identifier?: StringFieldUpdateOperationsInput | string
+    verified?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isLocked?: BoolFieldUpdateOperationsInput | boolean
-    lockReason?: NullableStringFieldUpdateOperationsInput | string | null
-    loginFailCount?: IntFieldUpdateOperationsInput | number
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    lastLoginIp?: NullableStringFieldUpdateOperationsInput | string | null
-    lastFailedLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    credentials?: CredentialUncheckedUpdateManyWithoutLoginMethodsNestedInput
   }
 
-  export type UserCreateManyInput = {
+  export type LoginMethodCreateManyInput = {
     id?: string
-    email?: string | null
-    phone?: string | null
-    passwordHash?: string | null
-    googleId?: string | null
-    wechatOpenId?: string | null
+    userId: string
+    type: $Enums.LoginMethodType
+    identifier: string
+    verified?: boolean
+    enabled?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
-    isActive?: boolean
-    isLocked?: boolean
-    lockReason?: string | null
-    loginFailCount?: number
-    lastLoginAt?: Date | string | null
-    lastLoginIp?: string | null
-    lastFailedLoginAt?: Date | string | null
   }
 
-  export type UserUpdateManyMutationInput = {
+  export type LoginMethodUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
-    googleId?: NullableStringFieldUpdateOperationsInput | string | null
-    wechatOpenId?: NullableStringFieldUpdateOperationsInput | string | null
+    userId?: StringFieldUpdateOperationsInput | string
+    type?: EnumLoginMethodTypeFieldUpdateOperationsInput | $Enums.LoginMethodType
+    identifier?: StringFieldUpdateOperationsInput | string
+    verified?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isLocked?: BoolFieldUpdateOperationsInput | boolean
-    lockReason?: NullableStringFieldUpdateOperationsInput | string | null
-    loginFailCount?: IntFieldUpdateOperationsInput | number
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    lastLoginIp?: NullableStringFieldUpdateOperationsInput | string | null
-    lastFailedLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
-  export type UserUncheckedUpdateManyInput = {
+  export type LoginMethodUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    passwordHash?: NullableStringFieldUpdateOperationsInput | string | null
-    googleId?: NullableStringFieldUpdateOperationsInput | string | null
-    wechatOpenId?: NullableStringFieldUpdateOperationsInput | string | null
+    userId?: StringFieldUpdateOperationsInput | string
+    type?: EnumLoginMethodTypeFieldUpdateOperationsInput | $Enums.LoginMethodType
+    identifier?: StringFieldUpdateOperationsInput | string
+    verified?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    isLocked?: BoolFieldUpdateOperationsInput | boolean
-    lockReason?: NullableStringFieldUpdateOperationsInput | string | null
-    loginFailCount?: IntFieldUpdateOperationsInput | number
-    lastLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    lastLoginIp?: NullableStringFieldUpdateOperationsInput | string | null
-    lastFailedLoginAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  }
+
+  export type CredentialCreateInput = {
+    id?: string
+    secretType: $Enums.CredentialType
+    secretValue?: string | null
+    provider?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    LoginMethods: LoginMethodCreateNestedOneWithoutCredentialsInput
+  }
+
+  export type CredentialUncheckedCreateInput = {
+    id?: string
+    loginMethodId: string
+    secretType: $Enums.CredentialType
+    secretValue?: string | null
+    provider?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CredentialUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
+    secretValue?: NullableStringFieldUpdateOperationsInput | string | null
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    LoginMethods?: LoginMethodUpdateOneRequiredWithoutCredentialsNestedInput
+  }
+
+  export type CredentialUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    loginMethodId?: StringFieldUpdateOperationsInput | string
+    secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
+    secretValue?: NullableStringFieldUpdateOperationsInput | string | null
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CredentialCreateManyInput = {
+    id?: string
+    loginMethodId: string
+    secretType: $Enums.CredentialType
+    secretValue?: string | null
+    provider?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CredentialUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
+    secretValue?: NullableStringFieldUpdateOperationsInput | string | null
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CredentialUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    loginMethodId?: StringFieldUpdateOperationsInput | string
+    secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
+    secretValue?: NullableStringFieldUpdateOperationsInput | string | null
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type OneTimeTokenCreateInput = {
+    id?: string
+    type: $Enums.OtpType
+    usage: $Enums.OtpUsage
+    identifier: string
+    code: string
+    expiredAt: Date | string
+    consumed?: boolean
+    attemptCount?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type OneTimeTokenUncheckedCreateInput = {
+    id?: string
+    type: $Enums.OtpType
+    usage: $Enums.OtpUsage
+    identifier: string
+    code: string
+    expiredAt: Date | string
+    consumed?: boolean
+    attemptCount?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type OneTimeTokenUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    type?: EnumOtpTypeFieldUpdateOperationsInput | $Enums.OtpType
+    usage?: EnumOtpUsageFieldUpdateOperationsInput | $Enums.OtpUsage
+    identifier?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    expiredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    consumed?: BoolFieldUpdateOperationsInput | boolean
+    attemptCount?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type OneTimeTokenUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    type?: EnumOtpTypeFieldUpdateOperationsInput | $Enums.OtpType
+    usage?: EnumOtpUsageFieldUpdateOperationsInput | $Enums.OtpUsage
+    identifier?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    expiredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    consumed?: BoolFieldUpdateOperationsInput | boolean
+    attemptCount?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type OneTimeTokenCreateManyInput = {
+    id?: string
+    type: $Enums.OtpType
+    usage: $Enums.OtpUsage
+    identifier: string
+    code: string
+    expiredAt: Date | string
+    consumed?: boolean
+    attemptCount?: number
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type OneTimeTokenUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    type?: EnumOtpTypeFieldUpdateOperationsInput | $Enums.OtpType
+    usage?: EnumOtpUsageFieldUpdateOperationsInput | $Enums.OtpUsage
+    identifier?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    expiredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    consumed?: BoolFieldUpdateOperationsInput | boolean
+    attemptCount?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type OneTimeTokenUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    type?: EnumOtpTypeFieldUpdateOperationsInput | $Enums.OtpType
+    usage?: EnumOtpUsageFieldUpdateOperationsInput | $Enums.OtpUsage
+    identifier?: StringFieldUpdateOperationsInput | string
+    code?: StringFieldUpdateOperationsInput | string
+    expiredAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    consumed?: BoolFieldUpdateOperationsInput | boolean
+    attemptCount?: IntFieldUpdateOperationsInput | number
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type StringFilter<$PrismaModel = never> = {
@@ -2403,19 +5108,16 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
-  export type StringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    mode?: QueryMode
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  export type EnumLoginMethodTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.LoginMethodType | EnumLoginMethodTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.LoginMethodType[] | ListEnumLoginMethodTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.LoginMethodType[] | ListEnumLoginMethodTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumLoginMethodTypeFilter<$PrismaModel> | $Enums.LoginMethodType
+  }
+
+  export type BoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
   }
 
   export type DateTimeFilter<$PrismaModel = never> = {
@@ -2429,98 +5131,52 @@ export namespace Prisma {
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
-  export type BoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
+  export type CredentialListRelationFilter = {
+    every?: CredentialWhereInput
+    some?: CredentialWhereInput
+    none?: CredentialWhereInput
   }
 
-  export type IntFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntFilter<$PrismaModel> | number
+  export type CredentialOrderByRelationAggregateInput = {
+    _count?: SortOrder
   }
 
-  export type DateTimeNullableFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  export type LoginMethodTypeIdentifierCompoundUniqueInput = {
+    type: $Enums.LoginMethodType
+    identifier: string
   }
 
-  export type SortOrderInput = {
-    sort: SortOrder
-    nulls?: NullsOrder
-  }
-
-  export type UserCountOrderByAggregateInput = {
+  export type LoginMethodCountOrderByAggregateInput = {
     id?: SortOrder
-    email?: SortOrder
-    phone?: SortOrder
-    passwordHash?: SortOrder
-    googleId?: SortOrder
-    wechatOpenId?: SortOrder
+    userId?: SortOrder
+    type?: SortOrder
+    identifier?: SortOrder
+    verified?: SortOrder
+    enabled?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    isActive?: SortOrder
-    isLocked?: SortOrder
-    lockReason?: SortOrder
-    loginFailCount?: SortOrder
-    lastLoginAt?: SortOrder
-    lastLoginIp?: SortOrder
-    lastFailedLoginAt?: SortOrder
   }
 
-  export type UserAvgOrderByAggregateInput = {
-    loginFailCount?: SortOrder
-  }
-
-  export type UserMaxOrderByAggregateInput = {
+  export type LoginMethodMaxOrderByAggregateInput = {
     id?: SortOrder
-    email?: SortOrder
-    phone?: SortOrder
-    passwordHash?: SortOrder
-    googleId?: SortOrder
-    wechatOpenId?: SortOrder
+    userId?: SortOrder
+    type?: SortOrder
+    identifier?: SortOrder
+    verified?: SortOrder
+    enabled?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    isActive?: SortOrder
-    isLocked?: SortOrder
-    lockReason?: SortOrder
-    loginFailCount?: SortOrder
-    lastLoginAt?: SortOrder
-    lastLoginIp?: SortOrder
-    lastFailedLoginAt?: SortOrder
   }
 
-  export type UserMinOrderByAggregateInput = {
+  export type LoginMethodMinOrderByAggregateInput = {
     id?: SortOrder
-    email?: SortOrder
-    phone?: SortOrder
-    passwordHash?: SortOrder
-    googleId?: SortOrder
-    wechatOpenId?: SortOrder
+    userId?: SortOrder
+    type?: SortOrder
+    identifier?: SortOrder
+    verified?: SortOrder
+    enabled?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    isActive?: SortOrder
-    isLocked?: SortOrder
-    lockReason?: SortOrder
-    loginFailCount?: SortOrder
-    lastLoginAt?: SortOrder
-    lastLoginIp?: SortOrder
-    lastFailedLoginAt?: SortOrder
-  }
-
-  export type UserSumOrderByAggregateInput = {
-    loginFailCount?: SortOrder
   }
 
   export type StringWithAggregatesFilter<$PrismaModel = never> = {
@@ -2541,6 +5197,110 @@ export namespace Prisma {
     _max?: NestedStringFilter<$PrismaModel>
   }
 
+  export type EnumLoginMethodTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.LoginMethodType | EnumLoginMethodTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.LoginMethodType[] | ListEnumLoginMethodTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.LoginMethodType[] | ListEnumLoginMethodTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumLoginMethodTypeWithAggregatesFilter<$PrismaModel> | $Enums.LoginMethodType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumLoginMethodTypeFilter<$PrismaModel>
+    _max?: NestedEnumLoginMethodTypeFilter<$PrismaModel>
+  }
+
+  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
+
+  export type DateTimeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeWithAggregatesFilter<$PrismaModel> | Date | string
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedDateTimeFilter<$PrismaModel>
+    _max?: NestedDateTimeFilter<$PrismaModel>
+  }
+
+  export type EnumCredentialTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.CredentialType | EnumCredentialTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.CredentialType[] | ListEnumCredentialTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.CredentialType[] | ListEnumCredentialTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumCredentialTypeFilter<$PrismaModel> | $Enums.CredentialType
+  }
+
+  export type StringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
+  export type LoginMethodScalarRelationFilter = {
+    is?: LoginMethodWhereInput
+    isNot?: LoginMethodWhereInput
+  }
+
+  export type SortOrderInput = {
+    sort: SortOrder
+    nulls?: NullsOrder
+  }
+
+  export type CredentialCountOrderByAggregateInput = {
+    id?: SortOrder
+    loginMethodId?: SortOrder
+    secretType?: SortOrder
+    secretValue?: SortOrder
+    provider?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CredentialMaxOrderByAggregateInput = {
+    id?: SortOrder
+    loginMethodId?: SortOrder
+    secretType?: SortOrder
+    secretValue?: SortOrder
+    provider?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CredentialMinOrderByAggregateInput = {
+    id?: SortOrder
+    loginMethodId?: SortOrder
+    secretType?: SortOrder
+    secretValue?: SortOrder
+    provider?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type EnumCredentialTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.CredentialType | EnumCredentialTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.CredentialType[] | ListEnumCredentialTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.CredentialType[] | ListEnumCredentialTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumCredentialTypeWithAggregatesFilter<$PrismaModel> | $Enums.CredentialType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumCredentialTypeFilter<$PrismaModel>
+    _max?: NestedEnumCredentialTypeFilter<$PrismaModel>
+  }
+
   export type StringNullableWithAggregatesFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel> | null
     in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
@@ -2559,26 +5319,101 @@ export namespace Prisma {
     _max?: NestedStringNullableFilter<$PrismaModel>
   }
 
-  export type DateTimeWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeWithAggregatesFilter<$PrismaModel> | Date | string
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedDateTimeFilter<$PrismaModel>
-    _max?: NestedDateTimeFilter<$PrismaModel>
+  export type EnumOtpTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.OtpType | EnumOtpTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.OtpType[] | ListEnumOtpTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.OtpType[] | ListEnumOtpTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumOtpTypeFilter<$PrismaModel> | $Enums.OtpType
   }
 
-  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+  export type EnumOtpUsageFilter<$PrismaModel = never> = {
+    equals?: $Enums.OtpUsage | EnumOtpUsageFieldRefInput<$PrismaModel>
+    in?: $Enums.OtpUsage[] | ListEnumOtpUsageFieldRefInput<$PrismaModel>
+    notIn?: $Enums.OtpUsage[] | ListEnumOtpUsageFieldRefInput<$PrismaModel>
+    not?: NestedEnumOtpUsageFilter<$PrismaModel> | $Enums.OtpUsage
+  }
+
+  export type IntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
+  export type OneTimeTokenIdentifierUsageCompoundUniqueInput = {
+    identifier: string
+    usage: $Enums.OtpUsage
+  }
+
+  export type OneTimeTokenCountOrderByAggregateInput = {
+    id?: SortOrder
+    type?: SortOrder
+    usage?: SortOrder
+    identifier?: SortOrder
+    code?: SortOrder
+    expiredAt?: SortOrder
+    consumed?: SortOrder
+    attemptCount?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type OneTimeTokenAvgOrderByAggregateInput = {
+    attemptCount?: SortOrder
+  }
+
+  export type OneTimeTokenMaxOrderByAggregateInput = {
+    id?: SortOrder
+    type?: SortOrder
+    usage?: SortOrder
+    identifier?: SortOrder
+    code?: SortOrder
+    expiredAt?: SortOrder
+    consumed?: SortOrder
+    attemptCount?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type OneTimeTokenMinOrderByAggregateInput = {
+    id?: SortOrder
+    type?: SortOrder
+    usage?: SortOrder
+    identifier?: SortOrder
+    code?: SortOrder
+    expiredAt?: SortOrder
+    consumed?: SortOrder
+    attemptCount?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type OneTimeTokenSumOrderByAggregateInput = {
+    attemptCount?: SortOrder
+  }
+
+  export type EnumOtpTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.OtpType | EnumOtpTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.OtpType[] | ListEnumOtpTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.OtpType[] | ListEnumOtpTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumOtpTypeWithAggregatesFilter<$PrismaModel> | $Enums.OtpType
     _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
+    _min?: NestedEnumOtpTypeFilter<$PrismaModel>
+    _max?: NestedEnumOtpTypeFilter<$PrismaModel>
+  }
+
+  export type EnumOtpUsageWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.OtpUsage | EnumOtpUsageFieldRefInput<$PrismaModel>
+    in?: $Enums.OtpUsage[] | ListEnumOtpUsageFieldRefInput<$PrismaModel>
+    notIn?: $Enums.OtpUsage[] | ListEnumOtpUsageFieldRefInput<$PrismaModel>
+    not?: NestedEnumOtpUsageWithAggregatesFilter<$PrismaModel> | $Enums.OtpUsage
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumOtpUsageFilter<$PrismaModel>
+    _max?: NestedEnumOtpUsageFilter<$PrismaModel>
   }
 
   export type IntWithAggregatesFilter<$PrismaModel = never> = {
@@ -2597,34 +5432,92 @@ export namespace Prisma {
     _max?: NestedIntFilter<$PrismaModel>
   }
 
-  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedDateTimeNullableFilter<$PrismaModel>
-    _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  export type CredentialCreateNestedManyWithoutLoginMethodsInput = {
+    create?: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput> | CredentialCreateWithoutLoginMethodsInput[] | CredentialUncheckedCreateWithoutLoginMethodsInput[]
+    connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodsInput | CredentialCreateOrConnectWithoutLoginMethodsInput[]
+    createMany?: CredentialCreateManyLoginMethodsInputEnvelope
+    connect?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
+  }
+
+  export type CredentialUncheckedCreateNestedManyWithoutLoginMethodsInput = {
+    create?: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput> | CredentialCreateWithoutLoginMethodsInput[] | CredentialUncheckedCreateWithoutLoginMethodsInput[]
+    connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodsInput | CredentialCreateOrConnectWithoutLoginMethodsInput[]
+    createMany?: CredentialCreateManyLoginMethodsInputEnvelope
+    connect?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
     set?: string
   }
 
-  export type NullableStringFieldUpdateOperationsInput = {
-    set?: string | null
+  export type EnumLoginMethodTypeFieldUpdateOperationsInput = {
+    set?: $Enums.LoginMethodType
+  }
+
+  export type BoolFieldUpdateOperationsInput = {
+    set?: boolean
   }
 
   export type DateTimeFieldUpdateOperationsInput = {
     set?: Date | string
   }
 
-  export type BoolFieldUpdateOperationsInput = {
-    set?: boolean
+  export type CredentialUpdateManyWithoutLoginMethodsNestedInput = {
+    create?: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput> | CredentialCreateWithoutLoginMethodsInput[] | CredentialUncheckedCreateWithoutLoginMethodsInput[]
+    connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodsInput | CredentialCreateOrConnectWithoutLoginMethodsInput[]
+    upsert?: CredentialUpsertWithWhereUniqueWithoutLoginMethodsInput | CredentialUpsertWithWhereUniqueWithoutLoginMethodsInput[]
+    createMany?: CredentialCreateManyLoginMethodsInputEnvelope
+    set?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
+    disconnect?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
+    delete?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
+    connect?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
+    update?: CredentialUpdateWithWhereUniqueWithoutLoginMethodsInput | CredentialUpdateWithWhereUniqueWithoutLoginMethodsInput[]
+    updateMany?: CredentialUpdateManyWithWhereWithoutLoginMethodsInput | CredentialUpdateManyWithWhereWithoutLoginMethodsInput[]
+    deleteMany?: CredentialScalarWhereInput | CredentialScalarWhereInput[]
+  }
+
+  export type CredentialUncheckedUpdateManyWithoutLoginMethodsNestedInput = {
+    create?: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput> | CredentialCreateWithoutLoginMethodsInput[] | CredentialUncheckedCreateWithoutLoginMethodsInput[]
+    connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodsInput | CredentialCreateOrConnectWithoutLoginMethodsInput[]
+    upsert?: CredentialUpsertWithWhereUniqueWithoutLoginMethodsInput | CredentialUpsertWithWhereUniqueWithoutLoginMethodsInput[]
+    createMany?: CredentialCreateManyLoginMethodsInputEnvelope
+    set?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
+    disconnect?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
+    delete?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
+    connect?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
+    update?: CredentialUpdateWithWhereUniqueWithoutLoginMethodsInput | CredentialUpdateWithWhereUniqueWithoutLoginMethodsInput[]
+    updateMany?: CredentialUpdateManyWithWhereWithoutLoginMethodsInput | CredentialUpdateManyWithWhereWithoutLoginMethodsInput[]
+    deleteMany?: CredentialScalarWhereInput | CredentialScalarWhereInput[]
+  }
+
+  export type LoginMethodCreateNestedOneWithoutCredentialsInput = {
+    create?: XOR<LoginMethodCreateWithoutCredentialsInput, LoginMethodUncheckedCreateWithoutCredentialsInput>
+    connectOrCreate?: LoginMethodCreateOrConnectWithoutCredentialsInput
+    connect?: LoginMethodWhereUniqueInput
+  }
+
+  export type EnumCredentialTypeFieldUpdateOperationsInput = {
+    set?: $Enums.CredentialType
+  }
+
+  export type NullableStringFieldUpdateOperationsInput = {
+    set?: string | null
+  }
+
+  export type LoginMethodUpdateOneRequiredWithoutCredentialsNestedInput = {
+    create?: XOR<LoginMethodCreateWithoutCredentialsInput, LoginMethodUncheckedCreateWithoutCredentialsInput>
+    connectOrCreate?: LoginMethodCreateOrConnectWithoutCredentialsInput
+    upsert?: LoginMethodUpsertWithoutCredentialsInput
+    connect?: LoginMethodWhereUniqueInput
+    update?: XOR<XOR<LoginMethodUpdateToOneWithWhereWithoutCredentialsInput, LoginMethodUpdateWithoutCredentialsInput>, LoginMethodUncheckedUpdateWithoutCredentialsInput>
+  }
+
+  export type EnumOtpTypeFieldUpdateOperationsInput = {
+    set?: $Enums.OtpType
+  }
+
+  export type EnumOtpUsageFieldUpdateOperationsInput = {
+    set?: $Enums.OtpUsage
   }
 
   export type IntFieldUpdateOperationsInput = {
@@ -2633,10 +5526,6 @@ export namespace Prisma {
     decrement?: number
     multiply?: number
     divide?: number
-  }
-
-  export type NullableDateTimeFieldUpdateOperationsInput = {
-    set?: Date | string | null
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -2653,18 +5542,16 @@ export namespace Prisma {
     not?: NestedStringFilter<$PrismaModel> | string
   }
 
-  export type NestedStringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  export type NestedEnumLoginMethodTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.LoginMethodType | EnumLoginMethodTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.LoginMethodType[] | ListEnumLoginMethodTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.LoginMethodType[] | ListEnumLoginMethodTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumLoginMethodTypeFilter<$PrismaModel> | $Enums.LoginMethodType
+  }
+
+  export type NestedBoolFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolFilter<$PrismaModel> | boolean
   }
 
   export type NestedDateTimeFilter<$PrismaModel = never> = {
@@ -2676,33 +5563,6 @@ export namespace Prisma {
     gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
-  }
-
-  export type NestedBoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
-  }
-
-  export type NestedIntFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel>
-    in?: number[] | ListIntFieldRefInput<$PrismaModel>
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntFilter<$PrismaModel> | number
-  }
-
-  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
   }
 
   export type NestedStringWithAggregatesFilter<$PrismaModel = never> = {
@@ -2720,6 +5580,80 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedStringFilter<$PrismaModel>
     _max?: NestedStringFilter<$PrismaModel>
+  }
+
+  export type NestedIntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
+  export type NestedEnumLoginMethodTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.LoginMethodType | EnumLoginMethodTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.LoginMethodType[] | ListEnumLoginMethodTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.LoginMethodType[] | ListEnumLoginMethodTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumLoginMethodTypeWithAggregatesFilter<$PrismaModel> | $Enums.LoginMethodType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumLoginMethodTypeFilter<$PrismaModel>
+    _max?: NestedEnumLoginMethodTypeFilter<$PrismaModel>
+  }
+
+  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
+    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedBoolFilter<$PrismaModel>
+    _max?: NestedBoolFilter<$PrismaModel>
+  }
+
+  export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
+    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
+    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
+    not?: NestedDateTimeWithAggregatesFilter<$PrismaModel> | Date | string
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedDateTimeFilter<$PrismaModel>
+    _max?: NestedDateTimeFilter<$PrismaModel>
+  }
+
+  export type NestedEnumCredentialTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.CredentialType | EnumCredentialTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.CredentialType[] | ListEnumCredentialTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.CredentialType[] | ListEnumCredentialTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumCredentialTypeFilter<$PrismaModel> | $Enums.CredentialType
+  }
+
+  export type NestedStringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
+  export type NestedEnumCredentialTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.CredentialType | EnumCredentialTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.CredentialType[] | ListEnumCredentialTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.CredentialType[] | ListEnumCredentialTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumCredentialTypeWithAggregatesFilter<$PrismaModel> | $Enums.CredentialType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumCredentialTypeFilter<$PrismaModel>
+    _max?: NestedEnumCredentialTypeFilter<$PrismaModel>
   }
 
   export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -2750,26 +5684,38 @@ export namespace Prisma {
     not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
 
-  export type NestedDateTimeWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel>
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeWithAggregatesFilter<$PrismaModel> | Date | string
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedDateTimeFilter<$PrismaModel>
-    _max?: NestedDateTimeFilter<$PrismaModel>
+  export type NestedEnumOtpTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.OtpType | EnumOtpTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.OtpType[] | ListEnumOtpTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.OtpType[] | ListEnumOtpTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumOtpTypeFilter<$PrismaModel> | $Enums.OtpType
   }
 
-  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
+  export type NestedEnumOtpUsageFilter<$PrismaModel = never> = {
+    equals?: $Enums.OtpUsage | EnumOtpUsageFieldRefInput<$PrismaModel>
+    in?: $Enums.OtpUsage[] | ListEnumOtpUsageFieldRefInput<$PrismaModel>
+    notIn?: $Enums.OtpUsage[] | ListEnumOtpUsageFieldRefInput<$PrismaModel>
+    not?: NestedEnumOtpUsageFilter<$PrismaModel> | $Enums.OtpUsage
+  }
+
+  export type NestedEnumOtpTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.OtpType | EnumOtpTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.OtpType[] | ListEnumOtpTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.OtpType[] | ListEnumOtpTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumOtpTypeWithAggregatesFilter<$PrismaModel> | $Enums.OtpType
     _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
+    _min?: NestedEnumOtpTypeFilter<$PrismaModel>
+    _max?: NestedEnumOtpTypeFilter<$PrismaModel>
+  }
+
+  export type NestedEnumOtpUsageWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.OtpUsage | EnumOtpUsageFieldRefInput<$PrismaModel>
+    in?: $Enums.OtpUsage[] | ListEnumOtpUsageFieldRefInput<$PrismaModel>
+    notIn?: $Enums.OtpUsage[] | ListEnumOtpUsageFieldRefInput<$PrismaModel>
+    not?: NestedEnumOtpUsageWithAggregatesFilter<$PrismaModel> | $Enums.OtpUsage
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumOtpUsageFilter<$PrismaModel>
+    _max?: NestedEnumOtpUsageFilter<$PrismaModel>
   }
 
   export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
@@ -2799,18 +5745,157 @@ export namespace Prisma {
     not?: NestedFloatFilter<$PrismaModel> | number
   }
 
-  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedDateTimeNullableFilter<$PrismaModel>
-    _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  export type CredentialCreateWithoutLoginMethodsInput = {
+    id?: string
+    secretType: $Enums.CredentialType
+    secretValue?: string | null
+    provider?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CredentialUncheckedCreateWithoutLoginMethodsInput = {
+    id?: string
+    secretType: $Enums.CredentialType
+    secretValue?: string | null
+    provider?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CredentialCreateOrConnectWithoutLoginMethodsInput = {
+    where: CredentialWhereUniqueInput
+    create: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput>
+  }
+
+  export type CredentialCreateManyLoginMethodsInputEnvelope = {
+    data: CredentialCreateManyLoginMethodsInput | CredentialCreateManyLoginMethodsInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type CredentialUpsertWithWhereUniqueWithoutLoginMethodsInput = {
+    where: CredentialWhereUniqueInput
+    update: XOR<CredentialUpdateWithoutLoginMethodsInput, CredentialUncheckedUpdateWithoutLoginMethodsInput>
+    create: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput>
+  }
+
+  export type CredentialUpdateWithWhereUniqueWithoutLoginMethodsInput = {
+    where: CredentialWhereUniqueInput
+    data: XOR<CredentialUpdateWithoutLoginMethodsInput, CredentialUncheckedUpdateWithoutLoginMethodsInput>
+  }
+
+  export type CredentialUpdateManyWithWhereWithoutLoginMethodsInput = {
+    where: CredentialScalarWhereInput
+    data: XOR<CredentialUpdateManyMutationInput, CredentialUncheckedUpdateManyWithoutLoginMethodsInput>
+  }
+
+  export type CredentialScalarWhereInput = {
+    AND?: CredentialScalarWhereInput | CredentialScalarWhereInput[]
+    OR?: CredentialScalarWhereInput[]
+    NOT?: CredentialScalarWhereInput | CredentialScalarWhereInput[]
+    id?: StringFilter<"Credential"> | string
+    loginMethodId?: StringFilter<"Credential"> | string
+    secretType?: EnumCredentialTypeFilter<"Credential"> | $Enums.CredentialType
+    secretValue?: StringNullableFilter<"Credential"> | string | null
+    provider?: StringNullableFilter<"Credential"> | string | null
+    createdAt?: DateTimeFilter<"Credential"> | Date | string
+    updatedAt?: DateTimeFilter<"Credential"> | Date | string
+  }
+
+  export type LoginMethodCreateWithoutCredentialsInput = {
+    id?: string
+    userId: string
+    type: $Enums.LoginMethodType
+    identifier: string
+    verified?: boolean
+    enabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type LoginMethodUncheckedCreateWithoutCredentialsInput = {
+    id?: string
+    userId: string
+    type: $Enums.LoginMethodType
+    identifier: string
+    verified?: boolean
+    enabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type LoginMethodCreateOrConnectWithoutCredentialsInput = {
+    where: LoginMethodWhereUniqueInput
+    create: XOR<LoginMethodCreateWithoutCredentialsInput, LoginMethodUncheckedCreateWithoutCredentialsInput>
+  }
+
+  export type LoginMethodUpsertWithoutCredentialsInput = {
+    update: XOR<LoginMethodUpdateWithoutCredentialsInput, LoginMethodUncheckedUpdateWithoutCredentialsInput>
+    create: XOR<LoginMethodCreateWithoutCredentialsInput, LoginMethodUncheckedCreateWithoutCredentialsInput>
+    where?: LoginMethodWhereInput
+  }
+
+  export type LoginMethodUpdateToOneWithWhereWithoutCredentialsInput = {
+    where?: LoginMethodWhereInput
+    data: XOR<LoginMethodUpdateWithoutCredentialsInput, LoginMethodUncheckedUpdateWithoutCredentialsInput>
+  }
+
+  export type LoginMethodUpdateWithoutCredentialsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    type?: EnumLoginMethodTypeFieldUpdateOperationsInput | $Enums.LoginMethodType
+    identifier?: StringFieldUpdateOperationsInput | string
+    verified?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type LoginMethodUncheckedUpdateWithoutCredentialsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    type?: EnumLoginMethodTypeFieldUpdateOperationsInput | $Enums.LoginMethodType
+    identifier?: StringFieldUpdateOperationsInput | string
+    verified?: BoolFieldUpdateOperationsInput | boolean
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CredentialCreateManyLoginMethodsInput = {
+    id?: string
+    secretType: $Enums.CredentialType
+    secretValue?: string | null
+    provider?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CredentialUpdateWithoutLoginMethodsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
+    secretValue?: NullableStringFieldUpdateOperationsInput | string | null
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CredentialUncheckedUpdateWithoutLoginMethodsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
+    secretValue?: NullableStringFieldUpdateOperationsInput | string | null
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CredentialUncheckedUpdateManyWithoutLoginMethodsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
+    secretValue?: NullableStringFieldUpdateOperationsInput | string | null
+    provider?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
 

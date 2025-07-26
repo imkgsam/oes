@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { IAuthProvider } from './interfaces/auth-provider.interface'
-import { User } from 'src/domain/entities/user.entity'
+import { User } from 'src/domain/entities/credential.entity'
 
 @Injectable()
 export class WechatAuthProvider implements IAuthProvider {

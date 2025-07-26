@@ -36,6 +36,8 @@ enum LoginMethodType {
   EMAIL
   PHONE
   OAUTH_OPENID
+
+  @@schema("auth")
 }
 
 model Credential {
@@ -47,6 +49,8 @@ model Credential {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 
+  LoginMethods LoginMethod @relation(fields: [loginMethodId], references: [id])
+
   @@schema("auth")
 }
 
@@ -55,6 +59,8 @@ enum CredentialType {
   EMAIL_OTP
   PHONE_OTP
   OAUTH
+
+  @@schema("auth")
 }
 
 model OneTimeToken {
@@ -78,6 +84,8 @@ enum OtpType {
   PHONE
   TOTP
   BACKUP_CODE
+
+  @@schema("auth")
 }
 
 enum OtpUsage {
@@ -85,4 +93,6 @@ enum OtpUsage {
   REGISTER
   RESET_PASSWORD
   MFA_VERIFY
+
+  @@schema("auth")
 }

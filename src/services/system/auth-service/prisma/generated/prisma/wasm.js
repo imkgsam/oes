@@ -120,22 +120,38 @@ exports.Prisma.TransactionIsolationLevel = makeStrictEnum({
   Serializable: 'Serializable'
 });
 
-exports.Prisma.UserScalarFieldEnum = {
+exports.Prisma.LoginMethodScalarFieldEnum = {
   id: 'id',
-  email: 'email',
-  phone: 'phone',
-  passwordHash: 'passwordHash',
-  googleId: 'googleId',
-  wechatOpenId: 'wechatOpenId',
+  userId: 'userId',
+  type: 'type',
+  identifier: 'identifier',
+  verified: 'verified',
+  enabled: 'enabled',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt',
-  isActive: 'isActive',
-  isLocked: 'isLocked',
-  lockReason: 'lockReason',
-  loginFailCount: 'loginFailCount',
-  lastLoginAt: 'lastLoginAt',
-  lastLoginIp: 'lastLoginIp',
-  lastFailedLoginAt: 'lastFailedLoginAt'
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.CredentialScalarFieldEnum = {
+  id: 'id',
+  loginMethodId: 'loginMethodId',
+  secretType: 'secretType',
+  secretValue: 'secretValue',
+  provider: 'provider',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.OneTimeTokenScalarFieldEnum = {
+  id: 'id',
+  type: 'type',
+  usage: 'usage',
+  identifier: 'identifier',
+  code: 'code',
+  expiredAt: 'expiredAt',
+  consumed: 'consumed',
+  attemptCount: 'attemptCount',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
 };
 
 exports.Prisma.SortOrder = {
@@ -152,10 +168,37 @@ exports.Prisma.NullsOrder = {
   first: 'first',
   last: 'last'
 };
+exports.LoginMethodType = exports.$Enums.LoginMethodType = {
+  EMAIL: 'EMAIL',
+  PHONE: 'PHONE',
+  OAUTH_OPENID: 'OAUTH_OPENID'
+};
 
+exports.CredentialType = exports.$Enums.CredentialType = {
+  PASSWORD: 'PASSWORD',
+  EMAIL_OTP: 'EMAIL_OTP',
+  PHONE_OTP: 'PHONE_OTP',
+  OAUTH: 'OAUTH'
+};
+
+exports.OtpType = exports.$Enums.OtpType = {
+  EMAIL: 'EMAIL',
+  PHONE: 'PHONE',
+  TOTP: 'TOTP',
+  BACKUP_CODE: 'BACKUP_CODE'
+};
+
+exports.OtpUsage = exports.$Enums.OtpUsage = {
+  LOGIN: 'LOGIN',
+  REGISTER: 'REGISTER',
+  RESET_PASSWORD: 'RESET_PASSWORD',
+  MFA_VERIFY: 'MFA_VERIFY'
+};
 
 exports.Prisma.ModelName = {
-  User: 'User'
+  LoginMethod: 'LoginMethod',
+  Credential: 'Credential',
+  OneTimeToken: 'OneTimeToken'
 };
 
 /**

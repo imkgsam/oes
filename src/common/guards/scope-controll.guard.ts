@@ -11,7 +11,6 @@ import { InjectServiceClient } from '../modules/clients/client.decorator'
 import { ServiceKeys } from '../modules/clients/service-map'
 import { safeRpcCall } from '../helpers/rpc.helper'
 
-ServiceKeys
 @Injectable()
 export class ScopeControllGuard implements CanActivate {
   constructor(

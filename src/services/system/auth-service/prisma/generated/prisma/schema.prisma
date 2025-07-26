@@ -16,23 +16,83 @@ datasource db {
   schemas  = ["auth"]
 }
 
-model User {
+model LoginMethod {
+  id         String          @id @default(uuid())
+  userId     String //关联至identity 中的user
+  type       LoginMethodType
+  identifier String
+  verified   Boolean         @default(false)
+  enabled    Boolean         @default(true)
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+
+  credentials Credential[]
+
+  @@unique([type, identifier])
+  @@schema("auth")
+}
+
+enum LoginMethodType {
+  EMAIL
+  PHONE
+  OAUTH_OPENID
+
+  @@schema("auth")
+}
+
+model Credential {
+  id            String         @id @default(uuid())
+  loginMethodId String
+  secretType    CredentialType
+  secretValue   String?
+  provider      String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  LoginMethods LoginMethod @relation(fields: [loginMethodId], references: [id])
+
+  @@schema("auth")
+}
+
+enum CredentialType {
+  PASSWORD
+  EMAIL_OTP
+  PHONE_OTP
+  OAUTH
+
+  @@schema("auth")
+}
+
+model OneTimeToken {
   id           String   @id @default(uuid())
-  email        String?  @unique
-  phone        String?  @unique
-  passwordHash String?
-  googleId     String?  @unique
-  wechatOpenId String?  @unique
+  type         OtpType
+  usage        OtpUsage
+  identifier   String
+  code         String
+  expiredAt    DateTime
+  consumed     Boolean  @default(false)
+  attemptCount Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  isActive          Boolean   @default(false)
-  isLocked          Boolean   @default(false)
-  lockReason        String?
-  loginFailCount    Int       @default(0)
-  lastLoginAt       DateTime?
-  lastLoginIp       String?
-  lastFailedLoginAt DateTime?
+  @@unique([identifier, usage])
+  @@schema("auth")
+}
+
+enum OtpType {
+  EMAIL
+  PHONE
+  TOTP
+  BACKUP_CODE
+
+  @@schema("auth")
+}
+
+enum OtpUsage {
+  LOGIN
+  REGISTER
+  RESET_PASSWORD
+  MFA_VERIFY
 
   @@schema("auth")
 }
