@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider        = "prisma-client-js"
   output          = "../prisma/generated/prisma"
@@ -47,18 +41,12 @@ model Tenant {
 //组织，可以是公司，也可以是部门，也可以是小组...
 model Org {
   id        String   @id @default(uuid())
-  // 所属租户 ID
-  tenantId  String
-  // 上级组织 ID，可为空表示顶层
-  parentId  String?
-  // 名称，如 "技术部"、"广州分公司"
-  name      String
-  // 可选唯一编码，如 "TECH_GZ"
-  code      String?
-  // 类型，如 "department" | "branch" | "team"
-  type      String?
-  // 排序字段
-  order     Int      @default(0)
+  tenantId  String // 所属租户 ID
+  parentId  String? // 上级组织 ID，可为空表示顶层
+  name      String // 名称，如 "技术部"、"广州分公司"
+  code      String? // 可选唯一编码，如 "TECH_GZ"
+  type      String? // 类型，如 "department" | "branch" | "team"
+  order     Int      @default(0) // 排序字段
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -71,20 +59,13 @@ model Org {
 
 //账号， 一个租户下只有一个账号
 model Account {
-  // 账号 ID，如 "acc-001"
-  id        String   @id @default(uuid())
-  // 系统全局用户 ID
-  userId    String
-  // 所属租户 ID
-  tenantId  String
-  // 企业邮箱
-  email     String?  @unique
-  // 企业手机号
-  phone     String?  @unique
-  // 是否启用账号
-  isEnable  Boolean  @default(true)
-  // 是否为租户管理员
-  isAdmin   Boolean  @default(false)
+  id        String   @id @default(uuid()) // 账号 ID，如 "acc-001"
+  userId    String // 系统全局用户 ID
+  tenantId  String // 所属租户 ID
+  email     String?  @unique // 企业邮箱
+  phone     String?  @unique // 企业手机号
+  isEnable  Boolean  @default(true) // 是否启用账号
+  isAdmin   Boolean  @default(false) // 是否为租户管理员
   avatarUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

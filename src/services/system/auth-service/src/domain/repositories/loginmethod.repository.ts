@@ -1,11 +1,8 @@
 import { LoginMethod } from '../entities/loginmethod.entity'
 
-export interface IUserRepository {
-  findByEmail(email: string): Promise<User | null>
-  findByPhone(phone: string): Promise<User | null>
-  findByGoogleId(googleId: string): Promise<User | null>
-  findByWechatOpenId(wechatOpenId: string): Promise<User | null>
-  findByFields(fields: Partial<User>): Promise<User | null>
-  create(user: Partial<User>): Promise<User>
-  findAll(): Promise<User[]>
+export interface ILoginMethodRepository {
+  findById(id: string): Promise<LoginMethod | null> // 通过id获取LoginMethod
+  findAll(): Promise<LoginMethod[]> // 获取所有的loginmethod
+  save(newOne: Partial<LoginMethod>): Promise<LoginMethod>
+  delete(id: string): Promise<LoginMethod>
 }
