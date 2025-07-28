@@ -14,13 +14,13 @@ model LoginMethod {
   id         String          @id @default(uuid())
   userId     String //关联至identity 中的user
   type       LoginMethodType
-  identifier String
+  identifier String //例子 testing@email.com
   verified   Boolean         @default(false)
   enabled    Boolean         @default(true)
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
 
-  credentials Credential[]
+  credentials Credential[] // 一个loginmethod可以有多个credentials，例如邮箱可以通过密码以及otp登录，手机可以密码或者otp，oauth可以是wechat/google
 
   @@unique([type, identifier])
   @@schema("auth")
@@ -36,10 +36,11 @@ enum LoginMethodType {
 
 model Credential {
   id            String         @id @default(uuid())
-  loginMethodId String
-  secretType    CredentialType
+  loginMethodId String // 关联的登录方式，例如email、phone、 oauth
+  secretType    CredentialType // 可以是密码 或者是email_otp
   secretValue   String?
   provider      String?
+  enabled       Boolean        @default(true) // 默认启用
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
 

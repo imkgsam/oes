@@ -137,6 +137,7 @@ exports.Prisma.CredentialScalarFieldEnum = {
   secretType: 'secretType',
   secretValue: 'secretValue',
   provider: 'provider',
+  enabled: 'enabled',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

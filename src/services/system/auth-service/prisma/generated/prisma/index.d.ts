@@ -2266,6 +2266,7 @@ export namespace Prisma {
     secretType: $Enums.CredentialType | null
     secretValue: string | null
     provider: string | null
+    enabled: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2276,6 +2277,7 @@ export namespace Prisma {
     secretType: $Enums.CredentialType | null
     secretValue: string | null
     provider: string | null
+    enabled: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2286,6 +2288,7 @@ export namespace Prisma {
     secretType: number
     secretValue: number
     provider: number
+    enabled: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -2298,6 +2301,7 @@ export namespace Prisma {
     secretType?: true
     secretValue?: true
     provider?: true
+    enabled?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -2308,6 +2312,7 @@ export namespace Prisma {
     secretType?: true
     secretValue?: true
     provider?: true
+    enabled?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -2318,6 +2323,7 @@ export namespace Prisma {
     secretType?: true
     secretValue?: true
     provider?: true
+    enabled?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -2401,6 +2407,7 @@ export namespace Prisma {
     secretType: $Enums.CredentialType
     secretValue: string | null
     provider: string | null
+    enabled: boolean
     createdAt: Date
     updatedAt: Date
     _count: CredentialCountAggregateOutputType | null
@@ -2428,6 +2435,7 @@ export namespace Prisma {
     secretType?: boolean
     secretValue?: boolean
     provider?: boolean
+    enabled?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
@@ -2439,6 +2447,7 @@ export namespace Prisma {
     secretType?: boolean
     secretValue?: boolean
     provider?: boolean
+    enabled?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
@@ -2450,6 +2459,7 @@ export namespace Prisma {
     secretType?: boolean
     secretValue?: boolean
     provider?: boolean
+    enabled?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
@@ -2461,11 +2471,12 @@ export namespace Prisma {
     secretType?: boolean
     secretValue?: boolean
     provider?: boolean
+    enabled?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type CredentialOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "loginMethodId" | "secretType" | "secretValue" | "provider" | "createdAt" | "updatedAt", ExtArgs["result"]["credential"]>
+  export type CredentialOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "loginMethodId" | "secretType" | "secretValue" | "provider" | "enabled" | "createdAt" | "updatedAt", ExtArgs["result"]["credential"]>
   export type CredentialInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
   }
@@ -2487,6 +2498,7 @@ export namespace Prisma {
       secretType: $Enums.CredentialType
       secretValue: string | null
       provider: string | null
+      enabled: boolean
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["credential"]>
@@ -2918,6 +2930,7 @@ export namespace Prisma {
     readonly secretType: FieldRef<"Credential", 'CredentialType'>
     readonly secretValue: FieldRef<"Credential", 'String'>
     readonly provider: FieldRef<"Credential", 'String'>
+    readonly enabled: FieldRef<"Credential", 'Boolean'>
     readonly createdAt: FieldRef<"Credential", 'DateTime'>
     readonly updatedAt: FieldRef<"Credential", 'DateTime'>
   }
@@ -4462,6 +4475,7 @@ export namespace Prisma {
     secretType: 'secretType',
     secretValue: 'secretValue',
     provider: 'provider',
+    enabled: 'enabled',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -4716,6 +4730,7 @@ export namespace Prisma {
     secretType?: EnumCredentialTypeFilter<"Credential"> | $Enums.CredentialType
     secretValue?: StringNullableFilter<"Credential"> | string | null
     provider?: StringNullableFilter<"Credential"> | string | null
+    enabled?: BoolFilter<"Credential"> | boolean
     createdAt?: DateTimeFilter<"Credential"> | Date | string
     updatedAt?: DateTimeFilter<"Credential"> | Date | string
     LoginMethods?: XOR<LoginMethodScalarRelationFilter, LoginMethodWhereInput>
@@ -4727,6 +4742,7 @@ export namespace Prisma {
     secretType?: SortOrder
     secretValue?: SortOrderInput | SortOrder
     provider?: SortOrderInput | SortOrder
+    enabled?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     LoginMethods?: LoginMethodOrderByWithRelationInput
@@ -4741,6 +4757,7 @@ export namespace Prisma {
     secretType?: EnumCredentialTypeFilter<"Credential"> | $Enums.CredentialType
     secretValue?: StringNullableFilter<"Credential"> | string | null
     provider?: StringNullableFilter<"Credential"> | string | null
+    enabled?: BoolFilter<"Credential"> | boolean
     createdAt?: DateTimeFilter<"Credential"> | Date | string
     updatedAt?: DateTimeFilter<"Credential"> | Date | string
     LoginMethods?: XOR<LoginMethodScalarRelationFilter, LoginMethodWhereInput>
@@ -4752,6 +4769,7 @@ export namespace Prisma {
     secretType?: SortOrder
     secretValue?: SortOrderInput | SortOrder
     provider?: SortOrderInput | SortOrder
+    enabled?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: CredentialCountOrderByAggregateInput
@@ -4768,6 +4786,7 @@ export namespace Prisma {
     secretType?: EnumCredentialTypeWithAggregatesFilter<"Credential"> | $Enums.CredentialType
     secretValue?: StringNullableWithAggregatesFilter<"Credential"> | string | null
     provider?: StringNullableWithAggregatesFilter<"Credential"> | string | null
+    enabled?: BoolWithAggregatesFilter<"Credential"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Credential"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Credential"> | Date | string
   }
@@ -4938,6 +4957,7 @@ export namespace Prisma {
     secretType: $Enums.CredentialType
     secretValue?: string | null
     provider?: string | null
+    enabled?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
     LoginMethods: LoginMethodCreateNestedOneWithoutCredentialsInput
@@ -4949,6 +4969,7 @@ export namespace Prisma {
     secretType: $Enums.CredentialType
     secretValue?: string | null
     provider?: string | null
+    enabled?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4958,6 +4979,7 @@ export namespace Prisma {
     secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
     secretValue?: NullableStringFieldUpdateOperationsInput | string | null
     provider?: NullableStringFieldUpdateOperationsInput | string | null
+    enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     LoginMethods?: LoginMethodUpdateOneRequiredWithoutCredentialsNestedInput
@@ -4969,6 +4991,7 @@ export namespace Prisma {
     secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
     secretValue?: NullableStringFieldUpdateOperationsInput | string | null
     provider?: NullableStringFieldUpdateOperationsInput | string | null
+    enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4979,6 +5002,7 @@ export namespace Prisma {
     secretType: $Enums.CredentialType
     secretValue?: string | null
     provider?: string | null
+    enabled?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -4988,6 +5012,7 @@ export namespace Prisma {
     secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
     secretValue?: NullableStringFieldUpdateOperationsInput | string | null
     provider?: NullableStringFieldUpdateOperationsInput | string | null
+    enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -4998,6 +5023,7 @@ export namespace Prisma {
     secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
     secretValue?: NullableStringFieldUpdateOperationsInput | string | null
     provider?: NullableStringFieldUpdateOperationsInput | string | null
+    enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5267,6 +5293,7 @@ export namespace Prisma {
     secretType?: SortOrder
     secretValue?: SortOrder
     provider?: SortOrder
+    enabled?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -5277,6 +5304,7 @@ export namespace Prisma {
     secretType?: SortOrder
     secretValue?: SortOrder
     provider?: SortOrder
+    enabled?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -5287,6 +5315,7 @@ export namespace Prisma {
     secretType?: SortOrder
     secretValue?: SortOrder
     provider?: SortOrder
+    enabled?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -5750,6 +5779,7 @@ export namespace Prisma {
     secretType: $Enums.CredentialType
     secretValue?: string | null
     provider?: string | null
+    enabled?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5759,6 +5789,7 @@ export namespace Prisma {
     secretType: $Enums.CredentialType
     secretValue?: string | null
     provider?: string | null
+    enabled?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5798,6 +5829,7 @@ export namespace Prisma {
     secretType?: EnumCredentialTypeFilter<"Credential"> | $Enums.CredentialType
     secretValue?: StringNullableFilter<"Credential"> | string | null
     provider?: StringNullableFilter<"Credential"> | string | null
+    enabled?: BoolFilter<"Credential"> | boolean
     createdAt?: DateTimeFilter<"Credential"> | Date | string
     updatedAt?: DateTimeFilter<"Credential"> | Date | string
   }
@@ -5867,6 +5899,7 @@ export namespace Prisma {
     secretType: $Enums.CredentialType
     secretValue?: string | null
     provider?: string | null
+    enabled?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5876,6 +5909,7 @@ export namespace Prisma {
     secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
     secretValue?: NullableStringFieldUpdateOperationsInput | string | null
     provider?: NullableStringFieldUpdateOperationsInput | string | null
+    enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5885,6 +5919,7 @@ export namespace Prisma {
     secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
     secretValue?: NullableStringFieldUpdateOperationsInput | string | null
     provider?: NullableStringFieldUpdateOperationsInput | string | null
+    enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5894,6 +5929,7 @@ export namespace Prisma {
     secretType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
     secretValue?: NullableStringFieldUpdateOperationsInput | string | null
     provider?: NullableStringFieldUpdateOperationsInput | string | null
+    enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

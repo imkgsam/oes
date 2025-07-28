@@ -1,15 +1,15 @@
-export const OTP_USAGES = {
-    LOGIN: "LOGIN",
-    REGISTER: "REGISTER",
-    RESET_PASSWORD: "RESET_PASSWORD",
-    MFA_VERIFY: "MFA_VERIFY"
+export enum OTP_USAGES {
+    LOGIN = "LOGIN",
+    REGISTER = "REGISTER",
+    RESET_PASSWORD = "RESET_PASSWORD",
+    MFA_VERIFY = "MFA_VERIFY"
 }
 
-export const OTP_TYPES = {
-    EMAIL: "EMAIL",
-    PHONE: "PHONE",
-    TOTP: "TOTP",
-    BACKUP_CODE: "BACKUP_CODE"
+export enum OTP_TYPES {
+    EMAIL = "EMAIL",
+    PHONE = "PHONE",
+    TOTP = "TOTP",
+    BACKUP_CODE = "BACKUP_CODE"
 }
 
 export const LOGIN_METHOD_TYPES = {

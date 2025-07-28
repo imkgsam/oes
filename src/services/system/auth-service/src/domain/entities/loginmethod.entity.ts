@@ -52,6 +52,7 @@ export class Credential {
     public readonly loginMethodId: string,
     public readonly secretType: string,
     private secretValue: string,
+    private enabled: boolean,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
     public readonly provider?: string,
@@ -63,14 +64,17 @@ export class Credential {
       prismaCredential.loginMethodId,
       prismaCredential.secretType,
       prismaCredential.secretValue,
-      prismaCredential.provider,
+      prismaCredential.enabled,
       prismaCredential.createdAt,
-      prismaCredential.updatedAt
+      prismaCredential.updatedAt,
+      prismaCredential.provider,
     )
   }
 
+  enable() { this.enabled = true }
+  disable() { this.enabled = false }
+  isEnabled(): Boolean { return this.enabled }
   validate(secrete: string): boolean { return secrete == this.secretValue }
   updateSecrete(newSecrete: string) { this.secretValue = newSecrete }
   getSecrete(): string { return this.secretValue }
-
 }
