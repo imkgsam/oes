@@ -171,7 +171,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "E:\\code\\nestjs\\oes\\src\\services\\system\\permission-service\\prisma\\generated\\prisma",
+      "value": "D:\\user\\vic\\code\\code_base\\nestjs\\oes\\src\\services\\system\\permission-service\\prisma\\generated\\prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -187,7 +187,7 @@ const config = {
     "previewFeatures": [
       "multiSchema"
     ],
-    "sourceFilePath": "E:\\code\\nestjs\\oes\\src\\services\\system\\permission-service\\prisma\\schema.prisma",
+    "sourceFilePath": "D:\\user\\vic\\code\\code_base\\nestjs\\oes\\src\\services\\system\\permission-service\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
