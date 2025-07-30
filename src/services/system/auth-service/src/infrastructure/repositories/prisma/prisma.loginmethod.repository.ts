@@ -20,10 +20,10 @@ export class PrismaUserRepository implements ILoginMethodRepository {
     })
     return founds.map(LoginMethod.fromPrisma)
   }
-  save(newOne: Partial<LoginMethod>): Promise<LoginMethod> {
+  async save(newOne: Partial<LoginMethod>): Promise<LoginMethod> {
     throw new Error('Method not implemented.')
   }
-  delete(id: string): Promise<LoginMethod> {
+  async delete(id: string): Promise<LoginMethod> {
     throw new Error('Method not implemented.')
   }
 }

@@ -1,11 +1,9 @@
-import { OneTimeToken } from ''
+import { OneTimeToken } from '../entities/otp.entity'
 
 export interface ICredentialRepository {
-  findByEmail(email: string): Promise<User | null>
-  findByPhone(phone: string): Promise<User | null>
-  findByGoogleId(googleId: string): Promise<User | null>
-  findByWechatOpenId(wechatOpenId: string): Promise<User | null>
-  findByFields(fields: Partial<User>): Promise<User | null>
-  create(user: Partial<User>): Promise<User>
-  findAll(): Promise<User[]>
+  create(otp: Partial<OneTimeToken>): Promise<OneTimeToken>
+  findAll(): Promise<OneTimeToken[]>
+  save(otp: OneTimeToken): Promise<OneTimeToken>
+  findOneById(id: string): Promise<OneTimeToken | null>
+  delete(id: string): Promise<OneTimeToken | null>
 }

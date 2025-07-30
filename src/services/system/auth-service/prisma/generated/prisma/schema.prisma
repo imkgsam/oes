@@ -67,6 +67,8 @@ model OneTimeToken {
   expiredAt    DateTime
   consumed     Boolean  @default(false)
   attemptCount Int      @default(0)
+  maxAttempt   Int      @default(1)
+  valid        Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

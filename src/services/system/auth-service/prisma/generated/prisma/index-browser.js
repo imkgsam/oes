@@ -151,6 +151,8 @@ exports.Prisma.OneTimeTokenScalarFieldEnum = {
   expiredAt: 'expiredAt',
   consumed: 'consumed',
   attemptCount: 'attemptCount',
+  maxAttempt: 'maxAttempt',
+  valid: 'valid',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };

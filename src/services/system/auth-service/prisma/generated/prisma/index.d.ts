@@ -3361,10 +3361,12 @@ export namespace Prisma {
 
   export type OneTimeTokenAvgAggregateOutputType = {
     attemptCount: number | null
+    maxAttempt: number | null
   }
 
   export type OneTimeTokenSumAggregateOutputType = {
     attemptCount: number | null
+    maxAttempt: number | null
   }
 
   export type OneTimeTokenMinAggregateOutputType = {
@@ -3376,6 +3378,8 @@ export namespace Prisma {
     expiredAt: Date | null
     consumed: boolean | null
     attemptCount: number | null
+    maxAttempt: number | null
+    valid: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -3389,6 +3393,8 @@ export namespace Prisma {
     expiredAt: Date | null
     consumed: boolean | null
     attemptCount: number | null
+    maxAttempt: number | null
+    valid: boolean | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -3402,6 +3408,8 @@ export namespace Prisma {
     expiredAt: number
     consumed: number
     attemptCount: number
+    maxAttempt: number
+    valid: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -3410,10 +3418,12 @@ export namespace Prisma {
 
   export type OneTimeTokenAvgAggregateInputType = {
     attemptCount?: true
+    maxAttempt?: true
   }
 
   export type OneTimeTokenSumAggregateInputType = {
     attemptCount?: true
+    maxAttempt?: true
   }
 
   export type OneTimeTokenMinAggregateInputType = {
@@ -3425,6 +3435,8 @@ export namespace Prisma {
     expiredAt?: true
     consumed?: true
     attemptCount?: true
+    maxAttempt?: true
+    valid?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -3438,6 +3450,8 @@ export namespace Prisma {
     expiredAt?: true
     consumed?: true
     attemptCount?: true
+    maxAttempt?: true
+    valid?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -3451,6 +3465,8 @@ export namespace Prisma {
     expiredAt?: true
     consumed?: true
     attemptCount?: true
+    maxAttempt?: true
+    valid?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -3551,6 +3567,8 @@ export namespace Prisma {
     expiredAt: Date
     consumed: boolean
     attemptCount: number
+    maxAttempt: number
+    valid: boolean
     createdAt: Date
     updatedAt: Date
     _count: OneTimeTokenCountAggregateOutputType | null
@@ -3583,6 +3601,8 @@ export namespace Prisma {
     expiredAt?: boolean
     consumed?: boolean
     attemptCount?: boolean
+    maxAttempt?: boolean
+    valid?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["oneTimeToken"]>
@@ -3596,6 +3616,8 @@ export namespace Prisma {
     expiredAt?: boolean
     consumed?: boolean
     attemptCount?: boolean
+    maxAttempt?: boolean
+    valid?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["oneTimeToken"]>
@@ -3609,6 +3631,8 @@ export namespace Prisma {
     expiredAt?: boolean
     consumed?: boolean
     attemptCount?: boolean
+    maxAttempt?: boolean
+    valid?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }, ExtArgs["result"]["oneTimeToken"]>
@@ -3622,11 +3646,13 @@ export namespace Prisma {
     expiredAt?: boolean
     consumed?: boolean
     attemptCount?: boolean
+    maxAttempt?: boolean
+    valid?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
 
-  export type OneTimeTokenOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "type" | "usage" | "identifier" | "code" | "expiredAt" | "consumed" | "attemptCount" | "createdAt" | "updatedAt", ExtArgs["result"]["oneTimeToken"]>
+  export type OneTimeTokenOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "type" | "usage" | "identifier" | "code" | "expiredAt" | "consumed" | "attemptCount" | "maxAttempt" | "valid" | "createdAt" | "updatedAt", ExtArgs["result"]["oneTimeToken"]>
 
   export type $OneTimeTokenPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "OneTimeToken"
@@ -3640,6 +3666,8 @@ export namespace Prisma {
       expiredAt: Date
       consumed: boolean
       attemptCount: number
+      maxAttempt: number
+      valid: boolean
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["oneTimeToken"]>
@@ -4073,6 +4101,8 @@ export namespace Prisma {
     readonly expiredAt: FieldRef<"OneTimeToken", 'DateTime'>
     readonly consumed: FieldRef<"OneTimeToken", 'Boolean'>
     readonly attemptCount: FieldRef<"OneTimeToken", 'Int'>
+    readonly maxAttempt: FieldRef<"OneTimeToken", 'Int'>
+    readonly valid: FieldRef<"OneTimeToken", 'Boolean'>
     readonly createdAt: FieldRef<"OneTimeToken", 'DateTime'>
     readonly updatedAt: FieldRef<"OneTimeToken", 'DateTime'>
   }
@@ -4492,6 +4522,8 @@ export namespace Prisma {
     expiredAt: 'expiredAt',
     consumed: 'consumed',
     attemptCount: 'attemptCount',
+    maxAttempt: 'maxAttempt',
+    valid: 'valid',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -4803,6 +4835,8 @@ export namespace Prisma {
     expiredAt?: DateTimeFilter<"OneTimeToken"> | Date | string
     consumed?: BoolFilter<"OneTimeToken"> | boolean
     attemptCount?: IntFilter<"OneTimeToken"> | number
+    maxAttempt?: IntFilter<"OneTimeToken"> | number
+    valid?: BoolFilter<"OneTimeToken"> | boolean
     createdAt?: DateTimeFilter<"OneTimeToken"> | Date | string
     updatedAt?: DateTimeFilter<"OneTimeToken"> | Date | string
   }
@@ -4816,6 +4850,8 @@ export namespace Prisma {
     expiredAt?: SortOrder
     consumed?: SortOrder
     attemptCount?: SortOrder
+    maxAttempt?: SortOrder
+    valid?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -4833,6 +4869,8 @@ export namespace Prisma {
     expiredAt?: DateTimeFilter<"OneTimeToken"> | Date | string
     consumed?: BoolFilter<"OneTimeToken"> | boolean
     attemptCount?: IntFilter<"OneTimeToken"> | number
+    maxAttempt?: IntFilter<"OneTimeToken"> | number
+    valid?: BoolFilter<"OneTimeToken"> | boolean
     createdAt?: DateTimeFilter<"OneTimeToken"> | Date | string
     updatedAt?: DateTimeFilter<"OneTimeToken"> | Date | string
   }, "id" | "identifier_usage">
@@ -4846,6 +4884,8 @@ export namespace Prisma {
     expiredAt?: SortOrder
     consumed?: SortOrder
     attemptCount?: SortOrder
+    maxAttempt?: SortOrder
+    valid?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: OneTimeTokenCountOrderByAggregateInput
@@ -4867,6 +4907,8 @@ export namespace Prisma {
     expiredAt?: DateTimeWithAggregatesFilter<"OneTimeToken"> | Date | string
     consumed?: BoolWithAggregatesFilter<"OneTimeToken"> | boolean
     attemptCount?: IntWithAggregatesFilter<"OneTimeToken"> | number
+    maxAttempt?: IntWithAggregatesFilter<"OneTimeToken"> | number
+    valid?: BoolWithAggregatesFilter<"OneTimeToken"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"OneTimeToken"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"OneTimeToken"> | Date | string
   }
@@ -5037,6 +5079,8 @@ export namespace Prisma {
     expiredAt: Date | string
     consumed?: boolean
     attemptCount?: number
+    maxAttempt?: number
+    valid?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5050,6 +5094,8 @@ export namespace Prisma {
     expiredAt: Date | string
     consumed?: boolean
     attemptCount?: number
+    maxAttempt?: number
+    valid?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5063,6 +5109,8 @@ export namespace Prisma {
     expiredAt?: DateTimeFieldUpdateOperationsInput | Date | string
     consumed?: BoolFieldUpdateOperationsInput | boolean
     attemptCount?: IntFieldUpdateOperationsInput | number
+    maxAttempt?: IntFieldUpdateOperationsInput | number
+    valid?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5076,6 +5124,8 @@ export namespace Prisma {
     expiredAt?: DateTimeFieldUpdateOperationsInput | Date | string
     consumed?: BoolFieldUpdateOperationsInput | boolean
     attemptCount?: IntFieldUpdateOperationsInput | number
+    maxAttempt?: IntFieldUpdateOperationsInput | number
+    valid?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5089,6 +5139,8 @@ export namespace Prisma {
     expiredAt: Date | string
     consumed?: boolean
     attemptCount?: number
+    maxAttempt?: number
+    valid?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -5102,6 +5154,8 @@ export namespace Prisma {
     expiredAt?: DateTimeFieldUpdateOperationsInput | Date | string
     consumed?: BoolFieldUpdateOperationsInput | boolean
     attemptCount?: IntFieldUpdateOperationsInput | number
+    maxAttempt?: IntFieldUpdateOperationsInput | number
+    valid?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5115,6 +5169,8 @@ export namespace Prisma {
     expiredAt?: DateTimeFieldUpdateOperationsInput | Date | string
     consumed?: BoolFieldUpdateOperationsInput | boolean
     attemptCount?: IntFieldUpdateOperationsInput | number
+    maxAttempt?: IntFieldUpdateOperationsInput | number
+    valid?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5387,12 +5443,15 @@ export namespace Prisma {
     expiredAt?: SortOrder
     consumed?: SortOrder
     attemptCount?: SortOrder
+    maxAttempt?: SortOrder
+    valid?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
 
   export type OneTimeTokenAvgOrderByAggregateInput = {
     attemptCount?: SortOrder
+    maxAttempt?: SortOrder
   }
 
   export type OneTimeTokenMaxOrderByAggregateInput = {
@@ -5404,6 +5463,8 @@ export namespace Prisma {
     expiredAt?: SortOrder
     consumed?: SortOrder
     attemptCount?: SortOrder
+    maxAttempt?: SortOrder
+    valid?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -5417,12 +5478,15 @@ export namespace Prisma {
     expiredAt?: SortOrder
     consumed?: SortOrder
     attemptCount?: SortOrder
+    maxAttempt?: SortOrder
+    valid?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
 
   export type OneTimeTokenSumOrderByAggregateInput = {
     attemptCount?: SortOrder
+    maxAttempt?: SortOrder
   }
 
   export type EnumOtpTypeWithAggregatesFilter<$PrismaModel = never> = {
