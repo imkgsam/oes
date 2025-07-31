@@ -3,7 +3,7 @@ import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repo
 import { IOtpRepository } from 'src/domain/repositories/otp.repository'
 
 @Injectable()
-export class AdminService {
+export class AdminAuthService {
   constructor(
     @Inject('LoginMethodRepository') private readonly loginMethodRepository: ILoginMethodRepository,
     @Inject('OtpRepository') private readonly otpRepository: IOtpRepository,

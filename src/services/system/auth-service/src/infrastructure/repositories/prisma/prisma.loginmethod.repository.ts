@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common'
-import { LoginMethod } from 'src/domain/entities/loginmethod.entity'
+import { Credential, LoginMethod } from 'src/domain/entities/loginmethod.entity'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 
 @Injectable()
 export class PrismaUserRepository implements ILoginMethodRepository {
   constructor(private readonly prismaService: PrismaService) { }
+  _Credential: {
+    findAll(): Promise<Credential>; delete(id: string): Promise<Credential | null>;
+    findById(id: string): Promise<Credential | null>
+  }
   async findById(id: string): Promise<LoginMethod | null> {
     const found = await this.prismaService.loginMethod.findUnique({
       where: { id },
