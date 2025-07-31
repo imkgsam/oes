@@ -1,5 +1,7 @@
 import { LoginMethod as PrismaLoginMethod } from 'prisma/generated/prisma'
 import { Credential as PrismaCredential } from 'prisma/generated/prisma'
+import { compare, hash } from 'bcrypt'
+import { CREDENTIAL_TYPES } from '@oes/common/constants/enums/auth-relative.enums'
 export class LoginMethod {
   private credentials: Credential[] = []
   constructor(
@@ -51,10 +53,10 @@ export class Credential {
     public readonly id: string,
     public readonly loginMethodId: string,
     public readonly secretType: string,
-    private secretValue: string,
+    private _secretValue: string,
     private enabled: boolean,
-    public readonly createdAt: Date,
-    public readonly updatedAt: Date,
+    public readonly createdAt: Date = new Date(),
+    public readonly updatedAt: Date = new Date(),
     public readonly provider?: string,
   ) { }
 
@@ -71,10 +73,20 @@ export class Credential {
     )
   }
 
+  static async createPasswordCredential(loginMethodId: string, plainPassword: string): Promise<Credential> {
+    const hashedPassword = await hash(plainPassword, 10);
+    return new Credential(
+      crypto.randomUUID(),
+      loginMethodId,
+      CREDENTIAL_TYPES.PASSWORD,
+      hashedPassword,
+      true,
+    );
+  }
   enable() { this.enabled = true }
   disable() { this.enabled = false }
   isEnabled(): Boolean { return this.enabled }
-  validate(secrete: string): boolean { return secrete == this.secretValue }
-  updateSecrete(newSecrete: string) { this.secretValue = newSecrete }
-  getSecrete(): string { return this.secretValue }
+  async validate(input: string): Promise<boolean> { return compare(input, this._secretValue); }
+  updateSecrete(newSecrete: string) { this._secretValue = newSecrete }
+  getSecrete(): string { return this._secretValue }
 }

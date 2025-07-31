@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common'
-import { AdminCreateUserDto } from '../dtos/admin-create-user.dto'
+import { AdminCreateUserDto } from '../../../../auth-service/src/application/dtos/admin-create-user.dto'
 import { IUserRepository } from 'src/domain/repositories/user.repository'
 import { hash } from 'bcrypt'
 
@@ -7,7 +7,7 @@ import { hash } from 'bcrypt'
 export class AdminService {
   constructor(
     @Inject('UserRepository') private readonly userRepository: IUserRepository,
-  ) {}
+  ) { }
 
   async existsByEmailOrPhone(email: string, phone: string) {
     let conditions: any = {

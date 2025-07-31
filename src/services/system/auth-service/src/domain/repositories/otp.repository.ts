@@ -1,6 +1,6 @@
 import { OneTimeToken } from '../entities/otp.entity'
 
-export interface ICredentialRepository {
+export interface IOtpRepository {
   create(otp: Partial<OneTimeToken>): Promise<OneTimeToken>
   findAll(): Promise<OneTimeToken[]>
   save(otp: OneTimeToken): Promise<OneTimeToken>
