@@ -1,6 +1,6 @@
 import Redis from 'ioredis'
-import { Session } from '../../../../domain/entities/session.entity'
-import { ISessionRepository } from '../../../../domain/repositories/session.repository'
+import { Session } from 'src/domain/entities/session.entity'
+import { ISessionRepository } from 'src/domain/repositories/session.repository'
 
 export class RedisSessionRepository implements ISessionRepository {
   private redis: Redis

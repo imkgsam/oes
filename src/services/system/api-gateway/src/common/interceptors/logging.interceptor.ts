@@ -8,6 +8,7 @@ import {
 import { Observable } from 'rxjs'
 import { tap } from 'rxjs/operators'
 
+// 日志拦截器, 记录请求和响应时长
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
   private readonly logger = new Logger('HTTP')

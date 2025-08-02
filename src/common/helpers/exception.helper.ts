@@ -4,7 +4,7 @@ import { ErrorContext, RawException, RpcError, RpcExceptionPayload } from '../in
 import { ModuleDetails } from '../interfaces/module.interface'
 import { v4 as uuidv4 } from 'uuid'
 
-
+// 将RpcExceptionPayload转换为 RpcException
 export function toRpcException(error: RpcExceptionPayload, partialContext: Partial<ErrorContext>): RpcException {
   const context: ErrorContext = {
     module: partialContext.module ?? process.env.MODULE_NAME ?? 'UNKNOWN_MODULE',
@@ -35,6 +35,7 @@ export function buildGlobalErrorCode(
   return `${typePrefix}${moduleCode}${subCode}`
 }
 
+// 判断是否为自定义的RpcError
 export function isRpcError(obj: any): obj is RpcError {
   return (
     typeof obj === 'object' &&

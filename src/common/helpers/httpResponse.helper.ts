@@ -2,6 +2,11 @@ import { Request } from 'express'
 import { StandardResponse } from '../interfaces/httpResponse.interface'
 import { SUCCESS } from '../constants/res-codes/system.errors'
 
+/**
+ * 响应帮助类, 这个目前没有使用
+ * 
+ * 目前没有使用. 而是在apigateway中使用ResponseTransformInterceptor 拦截器来处理统一返回response结构
+ */ 
 export class ResponseHelper {
   static success<T>(
     data: T,

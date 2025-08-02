@@ -5,16 +5,24 @@ import { RawException, RpcExceptionPayload } from '../interfaces/exceptions.inte
 import { buildGlobalErrorCode } from '../helpers/exception.helper'
 import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
 
+/**
+ * 异常工厂
+ * 根据异常类型创建异常
+ * 异常类型：
+ * 1. 业务异常
+ * 2. 系统异常
+ * 3. 运行时异常
+ */
 const moduleNameFromEnv = process.env.MODULE_NAME || 'UNKNOWN_MODULE'
-
+// 创建业务异常
 export function createBusinessException(input: RawException | RpcExceptionPayload, details?: any) {
   return createException(EXCEPTION_TYPE_PREFIX.BUSINESS, input, details)
 }
-
+// 创建系统异常
 export function createSystemException(input: RawException | RpcExceptionPayload, details?: any) {
   return createException(EXCEPTION_TYPE_PREFIX.SYSTEM, input, details)
 }
-
+// 创建运行时异常
 export function createRuntimeException(raw: RawException | RpcExceptionPayload, details?: any) {
   return createException(EXCEPTION_TYPE_PREFIX.RUNTIME, raw, details)
 }

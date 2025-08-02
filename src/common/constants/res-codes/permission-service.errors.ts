@@ -11,6 +11,6 @@ export const PERMISSION_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0002',
     message: 'Permission not found',
     messageKey: 'permission.permission_not_found',
-    httpStatus: 404,
-  },
+    httpStatus: 404
+  }
 }

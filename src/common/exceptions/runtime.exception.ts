@@ -1,6 +1,5 @@
 import {  RpcExceptionPayload } from "../interfaces/exceptions.interface"
 
-
 export class RuntimeException extends Error {
   public readonly code: string
   public readonly messageKey: string
