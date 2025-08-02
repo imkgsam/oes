@@ -1,0 +1,2 @@
+# 在项目根目录新建或编辑 .gitattributes 文件，添加：
+* text eol=lf

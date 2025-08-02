@@ -7,20 +7,20 @@ import { hash } from 'bcrypt'
 export class AdminService {
   constructor(
     @Inject('UserRepository') private readonly userRepository: IUserRepository,
-  ) { }
+  ) {}
 
   async existsByEmailOrPhone(email: string, phone: string) {
-    let conditions: any = {
+    const conditions: any = {
       OR: [],
     }
     if (email) conditions.OR.push({ email })
     if (phone) conditions.OR.push({ phone })
-    let found = await this.userRepository.findByFields(conditions)
+    const found = await this.userRepository.findByFields(conditions)
     return found ? true : false
   }
 
   async createUser(dto: AdminCreateUserDto) {
-    let found = await this.userRepository.findByFields(dto)
+    const found = await this.userRepository.findByFields(dto)
     if (found) throw new BadRequestException('User Exists')
     const passwordHash = await hash(dto.password, 10)
     console.log('pwh', passwordHash)

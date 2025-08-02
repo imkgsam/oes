@@ -13,15 +13,16 @@ export class LoginMethod {
     private enabled: boolean,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
-    credentials?: Credential[]
+    credentials?: Credential[],
   ) {
     if (credentials) this.credentials = credentials
   }
 
-  static fromPrisma(prismaLoginMethod: PrismaLoginMethod & { credentials?: PrismaCredential[] }): LoginMethod {
-    const credentialEntities = prismaLoginMethod.credentials?.map(c =>
-      Credential.fromPrisma(c),
-    ) ?? []
+  static fromPrisma(
+    prismaLoginMethod: PrismaLoginMethod & { credentials?: PrismaCredential[] },
+  ): LoginMethod {
+    const credentialEntities =
+      prismaLoginMethod.credentials?.map((c) => Credential.fromPrisma(c)) ?? []
     return new LoginMethod(
       prismaLoginMethod.id,
       prismaLoginMethod.userId,
@@ -31,21 +32,35 @@ export class LoginMethod {
       prismaLoginMethod.enabled,
       prismaLoginMethod.createdAt,
       prismaLoginMethod.updatedAt,
-      credentialEntities
+      credentialEntities,
     )
   }
 
+  enable() {
+    this.enabled = true
+  }
+  disable() {
+    this.enabled = false
+  }
+  verify() {
+    this.verified = true
+  }
+  isEnabled() {
+    return this.enabled
+  }
+  isVerified() {
+    return this.verified
+  }
 
-  enable() { this.enabled = true }
-  disable() { this.enabled = false }
-  verify() { this.verified = true }
-  isEnabled() { return this.enabled }
-  isVerified() { return this.verified }
-
-  createNewCredential(cred: Credential) { this.credentials.push(cred) }
-  removeCredential(credId: string) { this.credentials = this.credentials.filter(c => c.id !== credId) }
-  getCredentials() { return this.credentials }
-
+  createNewCredential(cred: Credential) {
+    this.credentials.push(cred)
+  }
+  removeCredential(credId: string) {
+    this.credentials = this.credentials.filter((c) => c.id !== credId)
+  }
+  getCredentials() {
+    return this.credentials
+  }
 }
 
 export class Credential {
@@ -58,7 +73,7 @@ export class Credential {
     public readonly createdAt: Date = new Date(),
     public readonly updatedAt: Date = new Date(),
     public readonly provider?: string,
-  ) { }
+  ) {}
 
   static fromPrisma(prismaCredential: PrismaCredential): Credential {
     return new Credential(
@@ -73,20 +88,35 @@ export class Credential {
     )
   }
 
-  static async createPasswordCredential(loginMethodId: string, plainPassword: string): Promise<Credential> {
-    const hashedPassword = await hash(plainPassword, 10);
+  static async createPasswordCredential(
+    loginMethodId: string,
+    plainPassword: string,
+  ): Promise<Credential> {
+    const hashedPassword = await hash(plainPassword, 10)
     return new Credential(
       crypto.randomUUID(),
       loginMethodId,
       CREDENTIAL_TYPES.PASSWORD,
       hashedPassword,
       true,
-    );
+    )
   }
-  enable() { this.enabled = true }
-  disable() { this.enabled = false }
-  isEnabled(): Boolean { return this.enabled }
-  async validate(input: string): Promise<boolean> { return compare(input, this._secretValue); }
-  updateSecrete(newSecrete: string) { this._secretValue = newSecrete }
-  getSecrete(): string { return this._secretValue }
+  enable() {
+    this.enabled = true
+  }
+  disable() {
+    this.enabled = false
+  }
+  isEnabled(): Boolean {
+    return this.enabled
+  }
+  async validate(input: string): Promise<boolean> {
+    return compare(input, this._secretValue)
+  }
+  updateSecrete(newSecrete: string) {
+    this._secretValue = newSecrete
+  }
+  getSecrete(): string {
+    return this._secretValue
+  }
 }

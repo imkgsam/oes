@@ -5,9 +5,10 @@ import { IOtpRepository } from 'src/domain/repositories/otp.repository'
 @Injectable()
 export class AdminAuthService {
   constructor(
-    @Inject('LoginMethodRepository') private readonly loginMethodRepository: ILoginMethodRepository,
+    @Inject('LoginMethodRepository')
+    private readonly loginMethodRepository: ILoginMethodRepository,
     @Inject('OtpRepository') private readonly otpRepository: IOtpRepository,
-  ) { }
+  ) {}
 
   async getAllCredentials() {
     return this.loginMethodRepository._Credential.findAll()
@@ -20,5 +21,4 @@ export class AdminAuthService {
   async getAllOtps() {
     return this.otpRepository.findAll()
   }
-
 }

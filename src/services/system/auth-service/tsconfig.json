@@ -8,6 +8,9 @@
       "@oes/common/*": ["../../../common/dist/*"]
     }
   },
-  "include": ["src", "../identity-service/src/application/services/account.service.ts"],
+  "include": [
+    "src",
+    "../identity-service/src/application/services/account.service.ts"
+  ],
   "exclude": ["node_modules"]
 }
