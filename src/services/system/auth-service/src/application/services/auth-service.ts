@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Inject } from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
 import { JwtService } from 'src/infrastructure/jwt/jwt.service'
 import { EmailPasswordAuthProvider } from '../providers/email-password.provider'
 import { WechatAuthProvider } from '../providers/wechat.provider'

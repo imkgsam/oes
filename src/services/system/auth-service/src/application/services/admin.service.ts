@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Inject } from '@nestjs/common'
+import { Injectable, Inject } from '@nestjs/common'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
 import { IOtpRepository } from 'src/domain/repositories/otp.repository'
 

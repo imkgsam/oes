@@ -39,8 +39,9 @@ model Credential {
   secretValue   String?
   provider      String?
   enabled       Boolean        @default(true) // 默认启用
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   LoginMethods LoginMethod @relation(fields: [loginMethodId], references: [id])
 
@@ -77,8 +78,6 @@ model OneTimeToken {
 enum OtpType {
   EMAIL
   PHONE
-  TOTP
-  BACKUP_CODE
 
   @@schema("auth")
 }
@@ -90,4 +89,25 @@ enum OtpUsage {
   MFA_VERIFY
 
   @@schema("auth")
+}
+
+model MfaBinding {
+  id        String   @id @default(uuid())
+  userId    String
+  type      MfaType
+  secret    String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@schema("auth")
+}
+
+enum MfaType {
+  TOTP
+  EMAIL_OTP
+  SMS_OTP
+  BACKUP_CODE
+  PUSH_NOTIFICATION
+  HARDWARE_TOKEN
+  BIOMETRIC
 }
