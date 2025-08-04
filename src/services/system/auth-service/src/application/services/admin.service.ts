@@ -10,10 +10,6 @@ export class AdminAuthService {
     @Inject('OtpRepository') private readonly otpRepository: IOtpRepository,
   ) {}
 
-  async getAllCredentials() {
-    return this.loginMethodRepository._Credential.findAll()
-  }
-
   async getAllLoginMethods() {
     return this.loginMethodRepository.findAll()
   }

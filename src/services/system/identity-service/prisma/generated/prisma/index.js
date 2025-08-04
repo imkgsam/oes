@@ -35,12 +35,12 @@ exports.Prisma = Prisma
 exports.$Enums = {}
 
 /**
- * Prisma Client JS version: 6.11.1
- * Query Engine version: f40f79ec31188888a2e33acda0ecc8fd10a853a9
+ * Prisma Client JS version: 6.13.0
+ * Query Engine version: 361e86d0ea4987e9f53a565309b3eed797a6bcbd
  */
 Prisma.prismaVersion = {
-  client: "6.11.1",
-  engine: "f40f79ec31188888a2e33acda0ecc8fd10a853a9"
+  client: "6.13.0",
+  engine: "361e86d0ea4987e9f53a565309b3eed797a6bcbd"
 }
 
 Prisma.PrismaClientKnownRequestError = PrismaClientKnownRequestError;
@@ -169,7 +169,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "E:\\code\\nestjs\\oes\\src\\services\\system\\identity-service\\prisma\\generated\\prisma",
+      "value": "D:\\user\\vic\\code\\code_base\\nestjs\\oes\\src\\services\\system\\identity-service\\prisma\\generated\\prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -182,10 +182,8 @@ const config = {
         "native": true
       }
     ],
-    "previewFeatures": [
-      "multiSchema"
-    ],
-    "sourceFilePath": "E:\\code\\nestjs\\oes\\src\\services\\system\\identity-service\\prisma\\schema.prisma",
+    "previewFeatures": [],
+    "sourceFilePath": "D:\\user\\vic\\code\\code_base\\nestjs\\oes\\src\\services\\system\\identity-service\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
@@ -193,8 +191,8 @@ const config = {
     "schemaEnvPath": "../../../.env"
   },
   "relativePath": "../..",
-  "clientVersion": "6.11.1",
-  "engineVersion": "f40f79ec31188888a2e33acda0ecc8fd10a853a9",
+  "clientVersion": "6.13.0",
+  "engineVersion": "361e86d0ea4987e9f53a565309b3eed797a6bcbd",
   "datasourceNames": [
     "db"
   ],
@@ -208,8 +206,8 @@ const config = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider        = \"prisma-client-js\"\n  output          = \"../prisma/generated/prisma\"\n  previewFeatures = [\"multiSchema\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n  schemas  = [\"identity\"]\n}\n\nmodel User {\n  id        String   @id @default(uuid()) // 用户唯一 ID，例如 \"usr_9d8f8a2f\"\n  email     String?  @unique // 用户个人邮箱，例如 \"alice@example.com\"（可选）\n  phone     String?  @unique // 用户个人手机号，例如 \"+8613800138000\"（可选）\n  fullname  String? // 用户姓名，例如 \"Alice Zhang\"\n  createdAt DateTime @default(now()) // 创建时间\n  updatedAt DateTime @updatedAt // 更新时间\n\n  accounts Account[] // 一个用户可在多个租户中拥有账户\n\n  @@schema(\"identity\")\n}\n\n// 租户\nmodel Tenant {\n  id        String   @id @default(uuid())\n  name      String //  例如 阿里巴巴集团\n  code      String   @unique // 例如 alibaba\n  isActive  Boolean  @default(true)\n  createdAt DateTime @default(now()) // 创建时间\n  updatedAt DateTime @updatedAt // 更新时间\n\n  accounts Account[] // 所有账户\n  orgUnits Org[] // 所有组织结构节点\n\n  @@schema(\"identity\")\n}\n\n//组织，可以是公司，也可以是部门，也可以是小组...\nmodel Org {\n  id        String   @id @default(uuid())\n  tenantId  String // 所属租户 ID\n  parentId  String? // 上级组织 ID，可为空表示顶层\n  name      String // 名称，如 \"技术部\"、\"广州分公司\"\n  code      String? // 可选唯一编码，如 \"TECH_GZ\"\n  type      String? // 类型，如 \"department\" | \"branch\" | \"team\"\n  order     Int      @default(0) // 排序字段\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  tenant   Tenant @relation(fields: [tenantId], references: [id])\n  parent   Org?   @relation(\"OrgToParent\", fields: [parentId], references: [id])\n  children Org[]  @relation(\"OrgToParent\") // 子组织结构\n\n  @@schema(\"identity\")\n}\n\n//账号， 一个租户下只有一个账号\nmodel Account {\n  id        String   @id @default(uuid()) // 账号 ID，如 \"acc-001\"\n  userId    String // 系统全局用户 ID\n  tenantId  String // 所属租户 ID\n  email     String?  @unique // 企业邮箱\n  phone     String?  @unique // 企业手机号\n  isEnable  Boolean  @default(true) // 是否启用账号\n  isAdmin   Boolean  @default(false) // 是否为租户管理员\n  avatarUrl String?\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  Tenant Tenant? @relation(fields: [tenantId], references: [id])\n  User   User    @relation(fields: [userId], references: [id])\n\n  @@schema(\"identity\")\n}\n",
-  "inlineSchemaHash": "285cd192f779f9f66ccb617e12b2f1d6240b0195196912cf646f55574a243585",
+  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../prisma/generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n  schemas  = [\"identity\"]\n}\n\nmodel User {\n  id        String   @id @default(uuid()) // 用户唯一 ID，例如 \"usr_9d8f8a2f\"\n  email     String?  @unique // 用户个人邮箱，例如 \"alice@example.com\"（可选）\n  phone     String?  @unique // 用户个人手机号，例如 \"+8613800138000\"（可选）\n  fullname  String? // 用户姓名，例如 \"Alice Zhang\"\n  createdAt DateTime @default(now()) // 创建时间\n  updatedAt DateTime @updatedAt // 更新时间\n\n  accounts Account[] // 一个用户可在多个租户中拥有账户\n\n  @@schema(\"identity\")\n}\n\n// 租户\nmodel Tenant {\n  id        String   @id @default(uuid())\n  name      String //  例如 阿里巴巴集团\n  code      String   @unique // 例如 alibaba\n  isActive  Boolean  @default(true)\n  createdAt DateTime @default(now()) // 创建时间\n  updatedAt DateTime @updatedAt // 更新时间\n\n  accounts Account[] // 所有账户\n  orgUnits Org[] // 所有组织结构节点\n\n  @@schema(\"identity\")\n}\n\n//组织，可以是公司，也可以是部门，也可以是小组...\nmodel Org {\n  id        String   @id @default(uuid())\n  tenantId  String // 所属租户 ID\n  parentId  String? // 上级组织 ID，可为空表示顶层\n  name      String // 名称，如 \"技术部\"、\"广州分公司\"\n  code      String? // 可选唯一编码，如 \"TECH_GZ\"\n  type      String? // 类型，如 \"department\" | \"branch\" | \"team\"\n  order     Int      @default(0) // 排序字段\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  tenant   Tenant @relation(fields: [tenantId], references: [id])\n  parent   Org?   @relation(\"OrgToParent\", fields: [parentId], references: [id])\n  children Org[]  @relation(\"OrgToParent\") // 子组织结构\n\n  @@schema(\"identity\")\n}\n\n//账号， 一个租户下只有一个账号\nmodel Account {\n  id        String   @id @default(uuid()) // 账号 ID，如 \"acc-001\"\n  userId    String // 系统全局用户 ID\n  tenantId  String // 所属租户 ID\n  email     String?  @unique // 企业邮箱\n  phone     String?  @unique // 企业手机号\n  isEnable  Boolean  @default(true) // 是否启用账号\n  isAdmin   Boolean  @default(false) // 是否为租户管理员\n  avatarUrl String?\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n\n  Tenant Tenant? @relation(fields: [tenantId], references: [id])\n  User   User    @relation(fields: [userId], references: [id])\n\n  @@schema(\"identity\")\n}\n",
+  "inlineSchemaHash": "27337128a5df07aa424428c3b8f4930f7a66d2ac1413dc0e0c892be8c50fc48b",
   "copyEngine": true
 }
 

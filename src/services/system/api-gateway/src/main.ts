@@ -3,7 +3,7 @@ import { AppModule } from './app.module'
 import { ApiGatewayExceptionsFilter } from '@oes/common/filters/api-gateway-exception.filter'
 import { TraceIdMiddleware } from 'src/common/middlewares/trace-id.middleware'
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)

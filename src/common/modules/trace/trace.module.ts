@@ -1,6 +1,6 @@
 // src/common/trace/trace.module.ts
 
-import { DynamicModule, Global, Module, Provider } from '@nestjs/common'
+import { DynamicModule, Global, Module } from '@nestjs/common'
 import { APP_INTERCEPTOR } from '@nestjs/core'
 import { HttpTraceInterceptor } from './http-trace.interceptor'
 import { RpcTraceInterceptor } from './rpc-trace.interceptor'

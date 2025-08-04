@@ -1,20 +1,20 @@
 import { Module } from '@nestjs/common'
-import { JwtModule } from './common/services/jwt/jwt.module'
+import { CommonJwtModule } from '@oes/common/modules/jwt/jwt.module'
 import { ConfigModule } from '@nestjs/config'
 import { AuthServiceModule } from './modules/auth-service/auth-service.module'
 import { PermissionServiceModule } from 'src/modules/permission-service/permission-service.module'
 import { TraceModule } from '@oes/common/modules/trace/trace.module'
-import { IdentityServiceModule } from './modules/identity-service/identity-service.module';
+import { IdentityServiceModule } from './modules/identity-service/identity-service.module'
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    JwtModule,
+    CommonJwtModule,
     AuthServiceModule,
     PermissionServiceModule,
     TraceModule.forHttp(),
-    IdentityServiceModule
+    IdentityServiceModule,
   ],
   controllers: [],
   providers: [],
 })
-export class AppModule { }
+export class AppModule {}

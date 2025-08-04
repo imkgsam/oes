@@ -2,18 +2,22 @@ import { Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { JwtModule as NestJwtModule } from '@nestjs/jwt'
 import { OptionsFactory } from './jwtOptions.factory'
-import { JwtService } from './jwt.service'
+import { CommonJwtService } from './jwt.service'
+import authKeyConfig from '../../configs/authKey.config'
+import tokenConfig from '../../configs/token.config'
 
+//自定义jwt模块
 @Module({
   imports: [
-    ConfigModule,
+    ConfigModule.forFeature(authKeyConfig),
+    ConfigModule.forFeature(tokenConfig),
     NestJwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useClass: OptionsFactory,
     }),
   ],
-  providers: [JwtService],
-  exports: [JwtService],
+  providers: [CommonJwtService],
+  exports: [CommonJwtService, NestJwtModule],
 })
-export class JwtModule {}
+export class CommonJwtModule {}

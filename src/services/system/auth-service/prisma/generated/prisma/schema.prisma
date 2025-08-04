@@ -1,7 +1,6 @@
 generator client {
-  provider        = "prisma-client-js"
-  output          = "../prisma/generated/prisma"
-  previewFeatures = ["multiSchema"]
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
 }
 
 datasource db {
@@ -41,8 +40,9 @@ model Credential {
   secretValue   String?
   provider      String?
   enabled       Boolean        @default(true) // 默认启用
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   LoginMethods LoginMethod @relation(fields: [loginMethodId], references: [id])
 
@@ -79,8 +79,6 @@ model OneTimeToken {
 enum OtpType {
   EMAIL
   PHONE
-  TOTP
-  BACKUP_CODE
 
   @@schema("auth")
 }
@@ -90,6 +88,33 @@ enum OtpUsage {
   REGISTER
   RESET_PASSWORD
   MFA_VERIFY
+
+  @@schema("auth")
+}
+
+model MfaBinding {
+  id         String   @id @default(uuid())
+  userId     String
+  type       MfaType
+  secret     String
+  enabled    Boolean  @default(true)
+  metadata   String? // JSON 格式的元数据，用于存储额外配置
+  deviceInfo String? // JSON 格式的设备信息
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, type]) // 每个用户每种类型只能有一个绑定
+  @@schema("auth")
+}
+
+enum MfaType {
+  TOTP
+  EMAIL_OTP
+  SMS_OTP
+  BACKUP_CODE
+  PUSH_NOTIFICATION
+  HARDWARE_TOKEN
+  BIOMETRIC
 
   @@schema("auth")
 }

@@ -107,7 +107,7 @@ export class Credential {
   disable() {
     this.enabled = false
   }
-  isEnabled(): Boolean {
+  isEnabled(): boolean {
     return this.enabled
   }
   async validate(input: string): Promise<boolean> {

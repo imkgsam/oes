@@ -20,12 +20,12 @@ exports.Prisma = Prisma
 exports.$Enums = {}
 
 /**
- * Prisma Client JS version: 6.11.1
- * Query Engine version: f40f79ec31188888a2e33acda0ecc8fd10a853a9
+ * Prisma Client JS version: 6.13.0
+ * Query Engine version: 361e86d0ea4987e9f53a565309b3eed797a6bcbd
  */
 Prisma.prismaVersion = {
-  client: "6.11.1",
-  engine: "f40f79ec31188888a2e33acda0ecc8fd10a853a9"
+  client: "6.13.0",
+  engine: "361e86d0ea4987e9f53a565309b3eed797a6bcbd"
 }
 
 Prisma.PrismaClientKnownRequestError = () => {
@@ -157,6 +157,18 @@ exports.Prisma.OneTimeTokenScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.MfaBindingScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  type: 'type',
+  secret: 'secret',
+  enabled: 'enabled',
+  metadata: 'metadata',
+  deviceInfo: 'deviceInfo',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -186,9 +198,7 @@ exports.CredentialType = exports.$Enums.CredentialType = {
 
 exports.OtpType = exports.$Enums.OtpType = {
   EMAIL: 'EMAIL',
-  PHONE: 'PHONE',
-  TOTP: 'TOTP',
-  BACKUP_CODE: 'BACKUP_CODE'
+  PHONE: 'PHONE'
 };
 
 exports.OtpUsage = exports.$Enums.OtpUsage = {
@@ -198,10 +208,21 @@ exports.OtpUsage = exports.$Enums.OtpUsage = {
   MFA_VERIFY: 'MFA_VERIFY'
 };
 
+exports.MfaType = exports.$Enums.MfaType = {
+  TOTP: 'TOTP',
+  EMAIL_OTP: 'EMAIL_OTP',
+  SMS_OTP: 'SMS_OTP',
+  BACKUP_CODE: 'BACKUP_CODE',
+  PUSH_NOTIFICATION: 'PUSH_NOTIFICATION',
+  HARDWARE_TOKEN: 'HARDWARE_TOKEN',
+  BIOMETRIC: 'BIOMETRIC'
+};
+
 exports.Prisma.ModelName = {
   LoginMethod: 'LoginMethod',
   Credential: 'Credential',
-  OneTimeToken: 'OneTimeToken'
+  OneTimeToken: 'OneTimeToken',
+  MfaBinding: 'MfaBinding'
 };
 
 /**

@@ -10,9 +10,8 @@ async function bootstrap() {
     options: {
       host: '127.0.0.1',
       port: Number(process.env.AUTH_TCP_PORT ?? '9202'),
-    }
-  }
-  )
+    },
+  })
   microservice.useGlobalPipes(new ValidationPipe())
   microservice.useGlobalFilters(new MicroserviceExceptionsFilter('AUTH_SERVICE'))
   await microservice.listen()

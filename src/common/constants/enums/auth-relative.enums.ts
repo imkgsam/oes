@@ -8,8 +8,6 @@ export enum OTP_USAGES {
 export enum OTP_TYPES {
   EMAIL = 'EMAIL',
   PHONE = 'PHONE',
-  TOTP = 'TOTP',
-  BACKUP_CODE = 'BACKUP_CODE',
 }
 
 export const LOGIN_METHOD_TYPES = {
@@ -33,4 +31,28 @@ export enum MfaType {
   PUSH_NOTIFICATION = 'PUSH_NOTIFICATION', // 推送通知
   HARDWARE_TOKEN = 'HARDWARE_TOKEN', // 硬件令牌
   BIOMETRIC = 'BIOMETRIC', // 生物识别
+}
+
+/**
+ * 认证相关枚举
+ *
+ * 功能：定义认证相关的枚举类型
+ *
+ * 使用场景：
+ * - 登录方式管理
+ * - 认证方法分类
+ * - 跨模块的认证功能
+ * - 统一的认证方式标识
+ *
+ * 技术特点：
+ * - 字符串枚举，便于序列化
+ * - 语义化命名
+ * - 跨模块共享
+ */
+export enum LoginMethodEnum {
+  EmailPassword = 'email-password',
+  EmailOtp = 'email-otp',
+  PhoneOtp = 'phone-otp',
+  Google = 'google',
+  Wechat = 'wechat',
 }

@@ -35,12 +35,12 @@ exports.Prisma = Prisma
 exports.$Enums = {}
 
 /**
- * Prisma Client JS version: 6.11.1
- * Query Engine version: f40f79ec31188888a2e33acda0ecc8fd10a853a9
+ * Prisma Client JS version: 6.13.0
+ * Query Engine version: 361e86d0ea4987e9f53a565309b3eed797a6bcbd
  */
 Prisma.prismaVersion = {
-  client: "6.11.1",
-  engine: "f40f79ec31188888a2e33acda0ecc8fd10a853a9"
+  client: "6.13.0",
+  engine: "361e86d0ea4987e9f53a565309b3eed797a6bcbd"
 }
 
 Prisma.PrismaClientKnownRequestError = PrismaClientKnownRequestError;
@@ -170,7 +170,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "E:\\code\\nestjs\\oes\\src\\services\\system\\permission-service\\prisma\\generated\\prisma",
+      "value": "D:\\user\\vic\\code\\code_base\\nestjs\\oes\\src\\services\\system\\permission-service\\prisma\\generated\\prisma",
       "fromEnvVar": null
     },
     "config": {
@@ -183,10 +183,8 @@ const config = {
         "native": true
       }
     ],
-    "previewFeatures": [
-      "multiSchema"
-    ],
-    "sourceFilePath": "E:\\code\\nestjs\\oes\\src\\services\\system\\permission-service\\prisma\\schema.prisma",
+    "previewFeatures": [],
+    "sourceFilePath": "D:\\user\\vic\\code\\code_base\\nestjs\\oes\\src\\services\\system\\permission-service\\prisma\\schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
@@ -194,8 +192,8 @@ const config = {
     "schemaEnvPath": "../../../.env"
   },
   "relativePath": "../..",
-  "clientVersion": "6.11.1",
-  "engineVersion": "f40f79ec31188888a2e33acda0ecc8fd10a853a9",
+  "clientVersion": "6.13.0",
+  "engineVersion": "361e86d0ea4987e9f53a565309b3eed797a6bcbd",
   "datasourceNames": [
     "db"
   ],
@@ -209,8 +207,8 @@ const config = {
       }
     }
   },
-  "inlineSchema": "generator client {\n  provider        = \"prisma-client-js\"\n  output          = \"../prisma/generated/prisma\"\n  previewFeatures = [\"multiSchema\"]\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n  schemas  = [\"permi\"]\n}\n\nmodel Role {\n  id          String   @id @default(uuid())\n  tenantId    String? // 外部字段，指向 identity-service 的 Tenant.id（可为 null 表示平台角色）\n  code        String // 角色唯一代码，例如 \"admin\"\n  name        String // 角色名称，例如 \"管理员\"\n  description String? // 角色描述\n  module      String // 所属模块，如 \"finance\"、\"crm\"\n  isSystem    Boolean  @default(false) // 是否为系统内置角色\n  autoGrant   Boolean  @default(false) // 是否新用户自动赋予\n  isEnabled   Boolean  @default(true) // 是否启用\n  createdAt   DateTime @default(now())\n  updatedAt   DateTime @updatedAt\n\n  permissions RolePermission[]\n  accounts    AccountRole[]\n\n  @@unique([tenantId, code]) // 每个租户下角色 code 唯一，系统级角色可重复\n  @@schema(\"permi\")\n}\n\nmodel Permission {\n  id          String           @id @default(uuid())\n  tenantId    String? // 外部字段，表示权限属于哪个租户（可为 null 表示平台权限）\n  code        String // 权限代码，如 \"order:read\"\n  description String?\n  module      String\n  roles       RolePermission[]\n\n  @@unique([tenantId, code]) // 每个租户下权限 code 唯一\n  @@schema(\"permi\")\n}\n\nmodel AccountRole {\n  id        String @id @default(uuid())\n  accountId String // 对应 identity.Account.id\n  roleId    String\n  tenantId  String // 冗余字段，方便查询\n  role      Role   @relation(fields: [roleId], references: [id])\n\n  @@unique([accountId, roleId])\n  @@index([accountId, tenantId])\n  @@schema(\"permi\")\n}\n\nmodel RolePermission {\n  id           String     @id @default(uuid())\n  roleId       String\n  permissionId String\n  role         Role       @relation(fields: [roleId], references: [id])\n  permission   Permission @relation(fields: [permissionId], references: [id])\n\n  @@unique([roleId, permissionId])\n  @@schema(\"permi\")\n}\n\nmodel AccountScope {\n  id             String @id @default(uuid())\n  accountId      String //指向identity.account\n  tenantId       String // 指向identity.tenant\n  permissionCode String\n  resourceType   String\n  resourceId     String\n\n  @@index([accountId, permissionCode])\n  @@index([accountId, resourceType, resourceId])\n  @@index([accountId, tenantId])\n  @@schema(\"permi\")\n}\n",
-  "inlineSchemaHash": "66d07c4ad881575a42fbd5848df9e3c789415447d47d3e86c8ee792bade26f65",
+  "inlineSchema": "generator client {\n  provider = \"prisma-client-js\"\n  output   = \"../prisma/generated/prisma\"\n}\n\ndatasource db {\n  provider = \"postgresql\"\n  url      = env(\"DATABASE_URL\")\n  schemas  = [\"permi\"]\n}\n\nmodel Role {\n  id          String   @id @default(uuid())\n  tenantId    String? // 外部字段，指向 identity-service 的 Tenant.id（可为 null 表示平台角色）\n  code        String // 角色唯一代码，例如 \"admin\"\n  name        String // 角色名称，例如 \"管理员\"\n  description String? // 角色描述\n  module      String // 所属模块，如 \"finance\"、\"crm\"\n  isSystem    Boolean  @default(false) // 是否为系统内置角色\n  autoGrant   Boolean  @default(false) // 是否新用户自动赋予\n  isEnabled   Boolean  @default(true) // 是否启用\n  createdAt   DateTime @default(now())\n  updatedAt   DateTime @updatedAt\n\n  permissions RolePermission[]\n  accounts    AccountRole[]\n\n  @@unique([tenantId, code]) // 每个租户下角色 code 唯一，系统级角色可重复\n  @@schema(\"permi\")\n}\n\nmodel Permission {\n  id          String           @id @default(uuid())\n  tenantId    String? // 外部字段，表示权限属于哪个租户（可为 null 表示平台权限）\n  code        String // 权限代码，如 \"order:read\"\n  description String?\n  module      String\n  roles       RolePermission[]\n\n  @@unique([tenantId, code]) // 每个租户下权限 code 唯一\n  @@schema(\"permi\")\n}\n\nmodel AccountRole {\n  id        String @id @default(uuid())\n  accountId String // 对应 identity.Account.id\n  roleId    String\n  tenantId  String // 冗余字段，方便查询\n  role      Role   @relation(fields: [roleId], references: [id])\n\n  @@unique([accountId, roleId])\n  @@index([accountId, tenantId])\n  @@schema(\"permi\")\n}\n\nmodel RolePermission {\n  id           String     @id @default(uuid())\n  roleId       String\n  permissionId String\n  role         Role       @relation(fields: [roleId], references: [id])\n  permission   Permission @relation(fields: [permissionId], references: [id])\n\n  @@unique([roleId, permissionId])\n  @@schema(\"permi\")\n}\n\nmodel AccountScope {\n  id             String @id @default(uuid())\n  accountId      String //指向identity.account\n  tenantId       String // 指向identity.tenant\n  permissionCode String\n  resourceType   String\n  resourceId     String\n\n  @@index([accountId, permissionCode])\n  @@index([accountId, resourceType, resourceId])\n  @@index([accountId, tenantId])\n  @@schema(\"permi\")\n}\n",
+  "inlineSchemaHash": "52b7454d83fb9e126134226d76f53c82f819e5dcdeb708305ff0c46ea24ac4a9",
   "copyEngine": true
 }
 config.dirname = '/'

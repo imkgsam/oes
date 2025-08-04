@@ -1,20 +1,21 @@
 import { Module } from '@nestjs/common'
 import { AuthModule } from './modules/auth/auth.module'
 import { ConfigModule } from '@nestjs/config'
-import tokenConfig from './infrastructure/config/token.config'
-import authKeyConfig from './infrastructure/config/authKey.config'
+import tokenConfig from '@oes/common/configs/token.config'
+import authKeyConfig from '@oes/common/configs/authKey.config'
 import { ClientModule } from '@oes/common/modules/clients/client.module'
 import { TraceModule } from '@oes/common/modules/trace/trace.module'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
+import { CommonJwtModule } from '@oes/common/modules/jwt/jwt.module'
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       cache: true,
       isGlobal: true,
-      // envFilePath: getEnvFilePath(),
-      load: [tokenConfig, authKeyConfig],
+      load: [tokenConfig, authKeyConfig], // 从common中加载配置
     }),
+    CommonJwtModule,
     TraceModule.forRpc(),
     AuthModule,
     ClientModule.register([ServiceKeys.PERMI_TCP]),
@@ -22,8 +23,4 @@ import { ServiceKeys } from '@oes/common/modules/clients/service-map'
   controllers: [],
   providers: [],
 })
-export class AppModule { }
-
-// function getEnvFilePath() {
-//   return process.env.NODE_ENV === 'test' ? '.env.test' : '.env'
-// }
+export class AppModule {}

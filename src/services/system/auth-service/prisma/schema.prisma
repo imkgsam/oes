@@ -6,6 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  schemas  = ["auth"]
 }
 
 model LoginMethod {
@@ -92,13 +93,17 @@ enum OtpUsage {
 }
 
 model MfaBinding {
-  id        String   @id @default(uuid())
-  userId    String
-  type      MfaType
-  secret    String
-  enabled   Boolean  @default(true)
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String
+  type       MfaType
+  secret     String
+  enabled    Boolean  @default(true)
+  metadata   String? // JSON 格式的元数据，用于存储额外配置
+  deviceInfo String? // JSON 格式的设备信息
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
+  @@unique([userId, type]) // 每个用户每种类型只能有一个绑定
   @@schema("auth")
 }
 
@@ -110,4 +115,6 @@ enum MfaType {
   PUSH_NOTIFICATION
   HARDWARE_TOKEN
   BIOMETRIC
+
+  @@schema("auth")
 }

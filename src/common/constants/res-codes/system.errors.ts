@@ -1,7 +1,6 @@
 import { RawException } from '../../interfaces/exceptions.interface'
 
 export const GLOBAL_SYSTEM_ERRORS: Record<string, RawException> = {
-
   DATABASE_CONNECTION_FAILED: {
     subCode: '1002',
     message: '数据库连接失败',
@@ -72,6 +71,18 @@ export const GLOBAL_SYSTEM_ERRORS: Record<string, RawException> = {
     httpStatus: 404,
   },
 
+  MFA_METADATA_PARSE_ERROR: {
+    subCode: '0005',
+    message: '解析 MFA 绑定元数据失败',
+    messageKey: 'system.mfa_metadata_parse_error',
+    httpStatus: 500,
+  },
+  MFA_DEVICE_INFO_PARSE_ERROR: {
+    subCode: '0006',
+    message: '解析 MFA 绑定设备信息失败',
+    messageKey: 'system.mfa_device_info_parse_error',
+    httpStatus: 500,
+  },
 }
 
 export const SUCCESS = {

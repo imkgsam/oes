@@ -28,6 +28,11 @@ export type Credential = $Result.DefaultSelection<Prisma.$CredentialPayload>
  * 
  */
 export type OneTimeToken = $Result.DefaultSelection<Prisma.$OneTimeTokenPayload>
+/**
+ * Model MfaBinding
+ * 
+ */
+export type MfaBinding = $Result.DefaultSelection<Prisma.$MfaBindingPayload>
 
 /**
  * Enums
@@ -54,9 +59,7 @@ export type CredentialType = (typeof CredentialType)[keyof typeof CredentialType
 
 export const OtpType: {
   EMAIL: 'EMAIL',
-  PHONE: 'PHONE',
-  TOTP: 'TOTP',
-  BACKUP_CODE: 'BACKUP_CODE'
+  PHONE: 'PHONE'
 };
 
 export type OtpType = (typeof OtpType)[keyof typeof OtpType]
@@ -70,6 +73,19 @@ export const OtpUsage: {
 };
 
 export type OtpUsage = (typeof OtpUsage)[keyof typeof OtpUsage]
+
+
+export const MfaType: {
+  TOTP: 'TOTP',
+  EMAIL_OTP: 'EMAIL_OTP',
+  SMS_OTP: 'SMS_OTP',
+  BACKUP_CODE: 'BACKUP_CODE',
+  PUSH_NOTIFICATION: 'PUSH_NOTIFICATION',
+  HARDWARE_TOKEN: 'HARDWARE_TOKEN',
+  BIOMETRIC: 'BIOMETRIC'
+};
+
+export type MfaType = (typeof MfaType)[keyof typeof MfaType]
 
 }
 
@@ -89,6 +105,10 @@ export type OtpUsage = $Enums.OtpUsage
 
 export const OtpUsage: typeof $Enums.OtpUsage
 
+export type MfaType = $Enums.MfaType
+
+export const MfaType: typeof $Enums.MfaType
+
 /**
  * ##  Prisma Client ʲˢ
  *
@@ -105,7 +125,7 @@ export const OtpUsage: typeof $Enums.OtpUsage
  */
 export class PrismaClient<
   ClientOptions extends Prisma.PrismaClientOptions = Prisma.PrismaClientOptions,
-  U = 'log' extends keyof ClientOptions ? ClientOptions['log'] extends Array<Prisma.LogLevel | Prisma.LogDefinition> ? Prisma.GetEvents<ClientOptions['log']> : never : never,
+  const U = 'log' extends keyof ClientOptions ? ClientOptions['log'] extends Array<Prisma.LogLevel | Prisma.LogDefinition> ? Prisma.GetEvents<ClientOptions['log']> : never : never,
   ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs
 > {
   [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['other'] }
@@ -243,6 +263,16 @@ export class PrismaClient<
     * ```
     */
   get oneTimeToken(): Prisma.OneTimeTokenDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.mfaBinding`: Exposes CRUD operations for the **MfaBinding** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more MfaBindings
+    * const mfaBindings = await prisma.mfaBinding.findMany()
+    * ```
+    */
+  get mfaBinding(): Prisma.MfaBindingDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -301,8 +331,8 @@ export namespace Prisma {
   export import Exact = $Public.Exact
 
   /**
-   * Prisma Client JS version: 6.11.1
-   * Query Engine version: f40f79ec31188888a2e33acda0ecc8fd10a853a9
+   * Prisma Client JS version: 6.13.0
+   * Query Engine version: 361e86d0ea4987e9f53a565309b3eed797a6bcbd
    */
   export type PrismaVersion = {
     client: string
@@ -685,7 +715,8 @@ export namespace Prisma {
   export const ModelName: {
     LoginMethod: 'LoginMethod',
     Credential: 'Credential',
-    OneTimeToken: 'OneTimeToken'
+    OneTimeToken: 'OneTimeToken',
+    MfaBinding: 'MfaBinding'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -704,7 +735,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "loginMethod" | "credential" | "oneTimeToken"
+      modelProps: "loginMethod" | "credential" | "oneTimeToken" | "mfaBinding"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -930,6 +961,80 @@ export namespace Prisma {
           }
         }
       }
+      MfaBinding: {
+        payload: Prisma.$MfaBindingPayload<ExtArgs>
+        fields: Prisma.MfaBindingFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.MfaBindingFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MfaBindingPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.MfaBindingFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MfaBindingPayload>
+          }
+          findFirst: {
+            args: Prisma.MfaBindingFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MfaBindingPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.MfaBindingFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MfaBindingPayload>
+          }
+          findMany: {
+            args: Prisma.MfaBindingFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MfaBindingPayload>[]
+          }
+          create: {
+            args: Prisma.MfaBindingCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MfaBindingPayload>
+          }
+          createMany: {
+            args: Prisma.MfaBindingCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.MfaBindingCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MfaBindingPayload>[]
+          }
+          delete: {
+            args: Prisma.MfaBindingDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MfaBindingPayload>
+          }
+          update: {
+            args: Prisma.MfaBindingUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MfaBindingPayload>
+          }
+          deleteMany: {
+            args: Prisma.MfaBindingDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.MfaBindingUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.MfaBindingUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MfaBindingPayload>[]
+          }
+          upsert: {
+            args: Prisma.MfaBindingUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$MfaBindingPayload>
+          }
+          aggregate: {
+            args: Prisma.MfaBindingAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateMfaBinding>
+          }
+          groupBy: {
+            args: Prisma.MfaBindingGroupByArgs<ExtArgs>
+            result: $Utils.Optional<MfaBindingGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.MfaBindingCountArgs<ExtArgs>
+            result: $Utils.Optional<MfaBindingCountAggregateOutputType> | number
+          }
+        }
+      }
     }
   } & {
     other: {
@@ -973,16 +1078,24 @@ export namespace Prisma {
     /**
      * @example
      * ```
-     * // Defaults to stdout
+     * // Shorthand for `emit: 'stdout'`
      * log: ['query', 'info', 'warn', 'error']
      * 
-     * // Emit as events
+     * // Emit as events only
      * log: [
-     *   { emit: 'stdout', level: 'query' },
-     *   { emit: 'stdout', level: 'info' },
-     *   { emit: 'stdout', level: 'warn' }
-     *   { emit: 'stdout', level: 'error' }
+     *   { emit: 'event', level: 'query' },
+     *   { emit: 'event', level: 'info' },
+     *   { emit: 'event', level: 'warn' }
+     *   { emit: 'event', level: 'error' }
      * ]
+     * 
+     * / Emit as events and log to stdout
+     * og: [
+     *  { emit: 'stdout', level: 'query' },
+     *  { emit: 'stdout', level: 'info' },
+     *  { emit: 'stdout', level: 'warn' }
+     *  { emit: 'stdout', level: 'error' }
+     * 
      * ```
      * Read more in our [docs](https://www.prisma.io/docs/reference/tools-and-interfaces/prisma-client/logging#the-log-option).
      */
@@ -1017,6 +1130,7 @@ export namespace Prisma {
     loginMethod?: LoginMethodOmit
     credential?: CredentialOmit
     oneTimeToken?: OneTimeTokenOmit
+    mfaBinding?: MfaBindingOmit
   }
 
   /* Types for Logging */
@@ -1026,10 +1140,15 @@ export namespace Prisma {
     emit: 'stdout' | 'event'
   }
 
-  export type GetLogType<T extends LogLevel | LogDefinition> = T extends LogDefinition ? T['emit'] extends 'event' ? T['level'] : never : never
-  export type GetEvents<T extends any> = T extends Array<LogLevel | LogDefinition> ?
-    GetLogType<T[0]> | GetLogType<T[1]> | GetLogType<T[2]> | GetLogType<T[3]>
-    : never
+  export type CheckIsLogLevel<T> = T extends LogLevel ? T : never;
+
+  export type GetLogType<T> = CheckIsLogLevel<
+    T extends LogDefinition ? T['level'] : T
+  >;
+
+  export type GetEvents<T extends any[]> = T extends Array<LogLevel | LogDefinition>
+    ? GetLogType<T[number]>
+    : never;
 
   export type QueryEvent = {
     timestamp: Date
@@ -4472,6 +4591,1053 @@ export namespace Prisma {
 
 
   /**
+   * Model MfaBinding
+   */
+
+  export type AggregateMfaBinding = {
+    _count: MfaBindingCountAggregateOutputType | null
+    _min: MfaBindingMinAggregateOutputType | null
+    _max: MfaBindingMaxAggregateOutputType | null
+  }
+
+  export type MfaBindingMinAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    type: $Enums.MfaType | null
+    secret: string | null
+    enabled: boolean | null
+    metadata: string | null
+    deviceInfo: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type MfaBindingMaxAggregateOutputType = {
+    id: string | null
+    userId: string | null
+    type: $Enums.MfaType | null
+    secret: string | null
+    enabled: boolean | null
+    metadata: string | null
+    deviceInfo: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type MfaBindingCountAggregateOutputType = {
+    id: number
+    userId: number
+    type: number
+    secret: number
+    enabled: number
+    metadata: number
+    deviceInfo: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type MfaBindingMinAggregateInputType = {
+    id?: true
+    userId?: true
+    type?: true
+    secret?: true
+    enabled?: true
+    metadata?: true
+    deviceInfo?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type MfaBindingMaxAggregateInputType = {
+    id?: true
+    userId?: true
+    type?: true
+    secret?: true
+    enabled?: true
+    metadata?: true
+    deviceInfo?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type MfaBindingCountAggregateInputType = {
+    id?: true
+    userId?: true
+    type?: true
+    secret?: true
+    enabled?: true
+    metadata?: true
+    deviceInfo?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type MfaBindingAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which MfaBinding to aggregate.
+     */
+    where?: MfaBindingWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of MfaBindings to fetch.
+     */
+    orderBy?: MfaBindingOrderByWithRelationInput | MfaBindingOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: MfaBindingWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` MfaBindings from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` MfaBindings.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned MfaBindings
+    **/
+    _count?: true | MfaBindingCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: MfaBindingMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: MfaBindingMaxAggregateInputType
+  }
+
+  export type GetMfaBindingAggregateType<T extends MfaBindingAggregateArgs> = {
+        [P in keyof T & keyof AggregateMfaBinding]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateMfaBinding[P]>
+      : GetScalarType<T[P], AggregateMfaBinding[P]>
+  }
+
+
+
+
+  export type MfaBindingGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: MfaBindingWhereInput
+    orderBy?: MfaBindingOrderByWithAggregationInput | MfaBindingOrderByWithAggregationInput[]
+    by: MfaBindingScalarFieldEnum[] | MfaBindingScalarFieldEnum
+    having?: MfaBindingScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: MfaBindingCountAggregateInputType | true
+    _min?: MfaBindingMinAggregateInputType
+    _max?: MfaBindingMaxAggregateInputType
+  }
+
+  export type MfaBindingGroupByOutputType = {
+    id: string
+    userId: string
+    type: $Enums.MfaType
+    secret: string
+    enabled: boolean
+    metadata: string | null
+    deviceInfo: string | null
+    createdAt: Date
+    updatedAt: Date
+    _count: MfaBindingCountAggregateOutputType | null
+    _min: MfaBindingMinAggregateOutputType | null
+    _max: MfaBindingMaxAggregateOutputType | null
+  }
+
+  type GetMfaBindingGroupByPayload<T extends MfaBindingGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<MfaBindingGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof MfaBindingGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], MfaBindingGroupByOutputType[P]>
+            : GetScalarType<T[P], MfaBindingGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type MfaBindingSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    type?: boolean
+    secret?: boolean
+    enabled?: boolean
+    metadata?: boolean
+    deviceInfo?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["mfaBinding"]>
+
+  export type MfaBindingSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    type?: boolean
+    secret?: boolean
+    enabled?: boolean
+    metadata?: boolean
+    deviceInfo?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["mfaBinding"]>
+
+  export type MfaBindingSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    userId?: boolean
+    type?: boolean
+    secret?: boolean
+    enabled?: boolean
+    metadata?: boolean
+    deviceInfo?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["mfaBinding"]>
+
+  export type MfaBindingSelectScalar = {
+    id?: boolean
+    userId?: boolean
+    type?: boolean
+    secret?: boolean
+    enabled?: boolean
+    metadata?: boolean
+    deviceInfo?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type MfaBindingOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "type" | "secret" | "enabled" | "metadata" | "deviceInfo" | "createdAt" | "updatedAt", ExtArgs["result"]["mfaBinding"]>
+
+  export type $MfaBindingPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "MfaBinding"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      userId: string
+      type: $Enums.MfaType
+      secret: string
+      enabled: boolean
+      metadata: string | null
+      deviceInfo: string | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["mfaBinding"]>
+    composites: {}
+  }
+
+  type MfaBindingGetPayload<S extends boolean | null | undefined | MfaBindingDefaultArgs> = $Result.GetResult<Prisma.$MfaBindingPayload, S>
+
+  type MfaBindingCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<MfaBindingFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: MfaBindingCountAggregateInputType | true
+    }
+
+  export interface MfaBindingDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['MfaBinding'], meta: { name: 'MfaBinding' } }
+    /**
+     * Find zero or one MfaBinding that matches the filter.
+     * @param {MfaBindingFindUniqueArgs} args - Arguments to find a MfaBinding
+     * @example
+     * // Get one MfaBinding
+     * const mfaBinding = await prisma.mfaBinding.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends MfaBindingFindUniqueArgs>(args: SelectSubset<T, MfaBindingFindUniqueArgs<ExtArgs>>): Prisma__MfaBindingClient<$Result.GetResult<Prisma.$MfaBindingPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find one MfaBinding that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {MfaBindingFindUniqueOrThrowArgs} args - Arguments to find a MfaBinding
+     * @example
+     * // Get one MfaBinding
+     * const mfaBinding = await prisma.mfaBinding.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends MfaBindingFindUniqueOrThrowArgs>(args: SelectSubset<T, MfaBindingFindUniqueOrThrowArgs<ExtArgs>>): Prisma__MfaBindingClient<$Result.GetResult<Prisma.$MfaBindingPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first MfaBinding that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MfaBindingFindFirstArgs} args - Arguments to find a MfaBinding
+     * @example
+     * // Get one MfaBinding
+     * const mfaBinding = await prisma.mfaBinding.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends MfaBindingFindFirstArgs>(args?: SelectSubset<T, MfaBindingFindFirstArgs<ExtArgs>>): Prisma__MfaBindingClient<$Result.GetResult<Prisma.$MfaBindingPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find the first MfaBinding that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MfaBindingFindFirstOrThrowArgs} args - Arguments to find a MfaBinding
+     * @example
+     * // Get one MfaBinding
+     * const mfaBinding = await prisma.mfaBinding.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends MfaBindingFindFirstOrThrowArgs>(args?: SelectSubset<T, MfaBindingFindFirstOrThrowArgs<ExtArgs>>): Prisma__MfaBindingClient<$Result.GetResult<Prisma.$MfaBindingPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Find zero or more MfaBindings that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MfaBindingFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all MfaBindings
+     * const mfaBindings = await prisma.mfaBinding.findMany()
+     * 
+     * // Get first 10 MfaBindings
+     * const mfaBindings = await prisma.mfaBinding.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const mfaBindingWithIdOnly = await prisma.mfaBinding.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends MfaBindingFindManyArgs>(args?: SelectSubset<T, MfaBindingFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$MfaBindingPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
+
+    /**
+     * Create a MfaBinding.
+     * @param {MfaBindingCreateArgs} args - Arguments to create a MfaBinding.
+     * @example
+     * // Create one MfaBinding
+     * const MfaBinding = await prisma.mfaBinding.create({
+     *   data: {
+     *     // ... data to create a MfaBinding
+     *   }
+     * })
+     * 
+     */
+    create<T extends MfaBindingCreateArgs>(args: SelectSubset<T, MfaBindingCreateArgs<ExtArgs>>): Prisma__MfaBindingClient<$Result.GetResult<Prisma.$MfaBindingPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Create many MfaBindings.
+     * @param {MfaBindingCreateManyArgs} args - Arguments to create many MfaBindings.
+     * @example
+     * // Create many MfaBindings
+     * const mfaBinding = await prisma.mfaBinding.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends MfaBindingCreateManyArgs>(args?: SelectSubset<T, MfaBindingCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many MfaBindings and returns the data saved in the database.
+     * @param {MfaBindingCreateManyAndReturnArgs} args - Arguments to create many MfaBindings.
+     * @example
+     * // Create many MfaBindings
+     * const mfaBinding = await prisma.mfaBinding.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many MfaBindings and only return the `id`
+     * const mfaBindingWithIdOnly = await prisma.mfaBinding.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends MfaBindingCreateManyAndReturnArgs>(args?: SelectSubset<T, MfaBindingCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$MfaBindingPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Delete a MfaBinding.
+     * @param {MfaBindingDeleteArgs} args - Arguments to delete one MfaBinding.
+     * @example
+     * // Delete one MfaBinding
+     * const MfaBinding = await prisma.mfaBinding.delete({
+     *   where: {
+     *     // ... filter to delete one MfaBinding
+     *   }
+     * })
+     * 
+     */
+    delete<T extends MfaBindingDeleteArgs>(args: SelectSubset<T, MfaBindingDeleteArgs<ExtArgs>>): Prisma__MfaBindingClient<$Result.GetResult<Prisma.$MfaBindingPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Update one MfaBinding.
+     * @param {MfaBindingUpdateArgs} args - Arguments to update one MfaBinding.
+     * @example
+     * // Update one MfaBinding
+     * const mfaBinding = await prisma.mfaBinding.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends MfaBindingUpdateArgs>(args: SelectSubset<T, MfaBindingUpdateArgs<ExtArgs>>): Prisma__MfaBindingClient<$Result.GetResult<Prisma.$MfaBindingPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+    /**
+     * Delete zero or more MfaBindings.
+     * @param {MfaBindingDeleteManyArgs} args - Arguments to filter MfaBindings to delete.
+     * @example
+     * // Delete a few MfaBindings
+     * const { count } = await prisma.mfaBinding.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends MfaBindingDeleteManyArgs>(args?: SelectSubset<T, MfaBindingDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more MfaBindings.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MfaBindingUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many MfaBindings
+     * const mfaBinding = await prisma.mfaBinding.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends MfaBindingUpdateManyArgs>(args: SelectSubset<T, MfaBindingUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more MfaBindings and returns the data updated in the database.
+     * @param {MfaBindingUpdateManyAndReturnArgs} args - Arguments to update many MfaBindings.
+     * @example
+     * // Update many MfaBindings
+     * const mfaBinding = await prisma.mfaBinding.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more MfaBindings and only return the `id`
+     * const mfaBindingWithIdOnly = await prisma.mfaBinding.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends MfaBindingUpdateManyAndReturnArgs>(args: SelectSubset<T, MfaBindingUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$MfaBindingPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
+
+    /**
+     * Create or update one MfaBinding.
+     * @param {MfaBindingUpsertArgs} args - Arguments to update or create a MfaBinding.
+     * @example
+     * // Update or create a MfaBinding
+     * const mfaBinding = await prisma.mfaBinding.upsert({
+     *   create: {
+     *     // ... data to create a MfaBinding
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the MfaBinding we want to update
+     *   }
+     * })
+     */
+    upsert<T extends MfaBindingUpsertArgs>(args: SelectSubset<T, MfaBindingUpsertArgs<ExtArgs>>): Prisma__MfaBindingClient<$Result.GetResult<Prisma.$MfaBindingPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
+
+
+    /**
+     * Count the number of MfaBindings.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MfaBindingCountArgs} args - Arguments to filter MfaBindings to count.
+     * @example
+     * // Count the number of MfaBindings
+     * const count = await prisma.mfaBinding.count({
+     *   where: {
+     *     // ... the filter for the MfaBindings we want to count
+     *   }
+     * })
+    **/
+    count<T extends MfaBindingCountArgs>(
+      args?: Subset<T, MfaBindingCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], MfaBindingCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a MfaBinding.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MfaBindingAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends MfaBindingAggregateArgs>(args: Subset<T, MfaBindingAggregateArgs>): Prisma.PrismaPromise<GetMfaBindingAggregateType<T>>
+
+    /**
+     * Group by MfaBinding.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {MfaBindingGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends MfaBindingGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: MfaBindingGroupByArgs['orderBy'] }
+        : { orderBy?: MfaBindingGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, MfaBindingGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetMfaBindingGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the MfaBinding model
+   */
+  readonly fields: MfaBindingFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for MfaBinding.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__MfaBindingClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the MfaBinding model
+   */
+  interface MfaBindingFieldRefs {
+    readonly id: FieldRef<"MfaBinding", 'String'>
+    readonly userId: FieldRef<"MfaBinding", 'String'>
+    readonly type: FieldRef<"MfaBinding", 'MfaType'>
+    readonly secret: FieldRef<"MfaBinding", 'String'>
+    readonly enabled: FieldRef<"MfaBinding", 'Boolean'>
+    readonly metadata: FieldRef<"MfaBinding", 'String'>
+    readonly deviceInfo: FieldRef<"MfaBinding", 'String'>
+    readonly createdAt: FieldRef<"MfaBinding", 'DateTime'>
+    readonly updatedAt: FieldRef<"MfaBinding", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * MfaBinding findUnique
+   */
+  export type MfaBindingFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MfaBinding
+     */
+    select?: MfaBindingSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MfaBinding
+     */
+    omit?: MfaBindingOmit<ExtArgs> | null
+    /**
+     * Filter, which MfaBinding to fetch.
+     */
+    where: MfaBindingWhereUniqueInput
+  }
+
+  /**
+   * MfaBinding findUniqueOrThrow
+   */
+  export type MfaBindingFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MfaBinding
+     */
+    select?: MfaBindingSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MfaBinding
+     */
+    omit?: MfaBindingOmit<ExtArgs> | null
+    /**
+     * Filter, which MfaBinding to fetch.
+     */
+    where: MfaBindingWhereUniqueInput
+  }
+
+  /**
+   * MfaBinding findFirst
+   */
+  export type MfaBindingFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MfaBinding
+     */
+    select?: MfaBindingSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MfaBinding
+     */
+    omit?: MfaBindingOmit<ExtArgs> | null
+    /**
+     * Filter, which MfaBinding to fetch.
+     */
+    where?: MfaBindingWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of MfaBindings to fetch.
+     */
+    orderBy?: MfaBindingOrderByWithRelationInput | MfaBindingOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for MfaBindings.
+     */
+    cursor?: MfaBindingWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` MfaBindings from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` MfaBindings.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of MfaBindings.
+     */
+    distinct?: MfaBindingScalarFieldEnum | MfaBindingScalarFieldEnum[]
+  }
+
+  /**
+   * MfaBinding findFirstOrThrow
+   */
+  export type MfaBindingFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MfaBinding
+     */
+    select?: MfaBindingSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MfaBinding
+     */
+    omit?: MfaBindingOmit<ExtArgs> | null
+    /**
+     * Filter, which MfaBinding to fetch.
+     */
+    where?: MfaBindingWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of MfaBindings to fetch.
+     */
+    orderBy?: MfaBindingOrderByWithRelationInput | MfaBindingOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for MfaBindings.
+     */
+    cursor?: MfaBindingWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` MfaBindings from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` MfaBindings.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of MfaBindings.
+     */
+    distinct?: MfaBindingScalarFieldEnum | MfaBindingScalarFieldEnum[]
+  }
+
+  /**
+   * MfaBinding findMany
+   */
+  export type MfaBindingFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MfaBinding
+     */
+    select?: MfaBindingSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MfaBinding
+     */
+    omit?: MfaBindingOmit<ExtArgs> | null
+    /**
+     * Filter, which MfaBindings to fetch.
+     */
+    where?: MfaBindingWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of MfaBindings to fetch.
+     */
+    orderBy?: MfaBindingOrderByWithRelationInput | MfaBindingOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing MfaBindings.
+     */
+    cursor?: MfaBindingWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` MfaBindings from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` MfaBindings.
+     */
+    skip?: number
+    distinct?: MfaBindingScalarFieldEnum | MfaBindingScalarFieldEnum[]
+  }
+
+  /**
+   * MfaBinding create
+   */
+  export type MfaBindingCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MfaBinding
+     */
+    select?: MfaBindingSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MfaBinding
+     */
+    omit?: MfaBindingOmit<ExtArgs> | null
+    /**
+     * The data needed to create a MfaBinding.
+     */
+    data: XOR<MfaBindingCreateInput, MfaBindingUncheckedCreateInput>
+  }
+
+  /**
+   * MfaBinding createMany
+   */
+  export type MfaBindingCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many MfaBindings.
+     */
+    data: MfaBindingCreateManyInput | MfaBindingCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * MfaBinding createManyAndReturn
+   */
+  export type MfaBindingCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MfaBinding
+     */
+    select?: MfaBindingSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the MfaBinding
+     */
+    omit?: MfaBindingOmit<ExtArgs> | null
+    /**
+     * The data used to create many MfaBindings.
+     */
+    data: MfaBindingCreateManyInput | MfaBindingCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * MfaBinding update
+   */
+  export type MfaBindingUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MfaBinding
+     */
+    select?: MfaBindingSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MfaBinding
+     */
+    omit?: MfaBindingOmit<ExtArgs> | null
+    /**
+     * The data needed to update a MfaBinding.
+     */
+    data: XOR<MfaBindingUpdateInput, MfaBindingUncheckedUpdateInput>
+    /**
+     * Choose, which MfaBinding to update.
+     */
+    where: MfaBindingWhereUniqueInput
+  }
+
+  /**
+   * MfaBinding updateMany
+   */
+  export type MfaBindingUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update MfaBindings.
+     */
+    data: XOR<MfaBindingUpdateManyMutationInput, MfaBindingUncheckedUpdateManyInput>
+    /**
+     * Filter which MfaBindings to update
+     */
+    where?: MfaBindingWhereInput
+    /**
+     * Limit how many MfaBindings to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * MfaBinding updateManyAndReturn
+   */
+  export type MfaBindingUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MfaBinding
+     */
+    select?: MfaBindingSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the MfaBinding
+     */
+    omit?: MfaBindingOmit<ExtArgs> | null
+    /**
+     * The data used to update MfaBindings.
+     */
+    data: XOR<MfaBindingUpdateManyMutationInput, MfaBindingUncheckedUpdateManyInput>
+    /**
+     * Filter which MfaBindings to update
+     */
+    where?: MfaBindingWhereInput
+    /**
+     * Limit how many MfaBindings to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * MfaBinding upsert
+   */
+  export type MfaBindingUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MfaBinding
+     */
+    select?: MfaBindingSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MfaBinding
+     */
+    omit?: MfaBindingOmit<ExtArgs> | null
+    /**
+     * The filter to search for the MfaBinding to update in case it exists.
+     */
+    where: MfaBindingWhereUniqueInput
+    /**
+     * In case the MfaBinding found by the `where` argument doesn't exist, create a new MfaBinding with this data.
+     */
+    create: XOR<MfaBindingCreateInput, MfaBindingUncheckedCreateInput>
+    /**
+     * In case the MfaBinding was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<MfaBindingUpdateInput, MfaBindingUncheckedUpdateInput>
+  }
+
+  /**
+   * MfaBinding delete
+   */
+  export type MfaBindingDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MfaBinding
+     */
+    select?: MfaBindingSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MfaBinding
+     */
+    omit?: MfaBindingOmit<ExtArgs> | null
+    /**
+     * Filter which MfaBinding to delete.
+     */
+    where: MfaBindingWhereUniqueInput
+  }
+
+  /**
+   * MfaBinding deleteMany
+   */
+  export type MfaBindingDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which MfaBindings to delete
+     */
+    where?: MfaBindingWhereInput
+    /**
+     * Limit how many MfaBindings to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * MfaBinding without action
+   */
+  export type MfaBindingDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the MfaBinding
+     */
+    select?: MfaBindingSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the MfaBinding
+     */
+    omit?: MfaBindingOmit<ExtArgs> | null
+  }
+
+
+  /**
    * Enums
    */
 
@@ -4529,6 +5695,21 @@ export namespace Prisma {
   };
 
   export type OneTimeTokenScalarFieldEnum = (typeof OneTimeTokenScalarFieldEnum)[keyof typeof OneTimeTokenScalarFieldEnum]
+
+
+  export const MfaBindingScalarFieldEnum: {
+    id: 'id',
+    userId: 'userId',
+    type: 'type',
+    secret: 'secret',
+    enabled: 'enabled',
+    metadata: 'metadata',
+    deviceInfo: 'deviceInfo',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type MfaBindingScalarFieldEnum = (typeof MfaBindingScalarFieldEnum)[keyof typeof MfaBindingScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -4662,6 +5843,20 @@ export namespace Prisma {
    * Reference to a field of type 'Int[]'
    */
   export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'MfaType'
+   */
+  export type EnumMfaTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MfaType'>
+    
+
+
+  /**
+   * Reference to a field of type 'MfaType[]'
+   */
+  export type ListEnumMfaTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MfaType[]'>
     
 
 
@@ -4911,6 +6106,79 @@ export namespace Prisma {
     valid?: BoolWithAggregatesFilter<"OneTimeToken"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"OneTimeToken"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"OneTimeToken"> | Date | string
+  }
+
+  export type MfaBindingWhereInput = {
+    AND?: MfaBindingWhereInput | MfaBindingWhereInput[]
+    OR?: MfaBindingWhereInput[]
+    NOT?: MfaBindingWhereInput | MfaBindingWhereInput[]
+    id?: StringFilter<"MfaBinding"> | string
+    userId?: StringFilter<"MfaBinding"> | string
+    type?: EnumMfaTypeFilter<"MfaBinding"> | $Enums.MfaType
+    secret?: StringFilter<"MfaBinding"> | string
+    enabled?: BoolFilter<"MfaBinding"> | boolean
+    metadata?: StringNullableFilter<"MfaBinding"> | string | null
+    deviceInfo?: StringNullableFilter<"MfaBinding"> | string | null
+    createdAt?: DateTimeFilter<"MfaBinding"> | Date | string
+    updatedAt?: DateTimeFilter<"MfaBinding"> | Date | string
+  }
+
+  export type MfaBindingOrderByWithRelationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    type?: SortOrder
+    secret?: SortOrder
+    enabled?: SortOrder
+    metadata?: SortOrderInput | SortOrder
+    deviceInfo?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type MfaBindingWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    userId_type?: MfaBindingUserIdTypeCompoundUniqueInput
+    AND?: MfaBindingWhereInput | MfaBindingWhereInput[]
+    OR?: MfaBindingWhereInput[]
+    NOT?: MfaBindingWhereInput | MfaBindingWhereInput[]
+    userId?: StringFilter<"MfaBinding"> | string
+    type?: EnumMfaTypeFilter<"MfaBinding"> | $Enums.MfaType
+    secret?: StringFilter<"MfaBinding"> | string
+    enabled?: BoolFilter<"MfaBinding"> | boolean
+    metadata?: StringNullableFilter<"MfaBinding"> | string | null
+    deviceInfo?: StringNullableFilter<"MfaBinding"> | string | null
+    createdAt?: DateTimeFilter<"MfaBinding"> | Date | string
+    updatedAt?: DateTimeFilter<"MfaBinding"> | Date | string
+  }, "id" | "userId_type">
+
+  export type MfaBindingOrderByWithAggregationInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    type?: SortOrder
+    secret?: SortOrder
+    enabled?: SortOrder
+    metadata?: SortOrderInput | SortOrder
+    deviceInfo?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: MfaBindingCountOrderByAggregateInput
+    _max?: MfaBindingMaxOrderByAggregateInput
+    _min?: MfaBindingMinOrderByAggregateInput
+  }
+
+  export type MfaBindingScalarWhereWithAggregatesInput = {
+    AND?: MfaBindingScalarWhereWithAggregatesInput | MfaBindingScalarWhereWithAggregatesInput[]
+    OR?: MfaBindingScalarWhereWithAggregatesInput[]
+    NOT?: MfaBindingScalarWhereWithAggregatesInput | MfaBindingScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"MfaBinding"> | string
+    userId?: StringWithAggregatesFilter<"MfaBinding"> | string
+    type?: EnumMfaTypeWithAggregatesFilter<"MfaBinding"> | $Enums.MfaType
+    secret?: StringWithAggregatesFilter<"MfaBinding"> | string
+    enabled?: BoolWithAggregatesFilter<"MfaBinding"> | boolean
+    metadata?: StringNullableWithAggregatesFilter<"MfaBinding"> | string | null
+    deviceInfo?: StringNullableWithAggregatesFilter<"MfaBinding"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"MfaBinding"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"MfaBinding"> | Date | string
   }
 
   export type LoginMethodCreateInput = {
@@ -5171,6 +6439,90 @@ export namespace Prisma {
     attemptCount?: IntFieldUpdateOperationsInput | number
     maxAttempt?: IntFieldUpdateOperationsInput | number
     valid?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MfaBindingCreateInput = {
+    id?: string
+    userId: string
+    type: $Enums.MfaType
+    secret: string
+    enabled?: boolean
+    metadata?: string | null
+    deviceInfo?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type MfaBindingUncheckedCreateInput = {
+    id?: string
+    userId: string
+    type: $Enums.MfaType
+    secret: string
+    enabled?: boolean
+    metadata?: string | null
+    deviceInfo?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type MfaBindingUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    type?: EnumMfaTypeFieldUpdateOperationsInput | $Enums.MfaType
+    secret?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    metadata?: NullableStringFieldUpdateOperationsInput | string | null
+    deviceInfo?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MfaBindingUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    type?: EnumMfaTypeFieldUpdateOperationsInput | $Enums.MfaType
+    secret?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    metadata?: NullableStringFieldUpdateOperationsInput | string | null
+    deviceInfo?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MfaBindingCreateManyInput = {
+    id?: string
+    userId: string
+    type: $Enums.MfaType
+    secret: string
+    enabled?: boolean
+    metadata?: string | null
+    deviceInfo?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type MfaBindingUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    type?: EnumMfaTypeFieldUpdateOperationsInput | $Enums.MfaType
+    secret?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    metadata?: NullableStringFieldUpdateOperationsInput | string | null
+    deviceInfo?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type MfaBindingUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    type?: EnumMfaTypeFieldUpdateOperationsInput | $Enums.MfaType
+    secret?: StringFieldUpdateOperationsInput | string
+    enabled?: BoolFieldUpdateOperationsInput | boolean
+    metadata?: NullableStringFieldUpdateOperationsInput | string | null
+    deviceInfo?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -5525,6 +6877,64 @@ export namespace Prisma {
     _max?: NestedIntFilter<$PrismaModel>
   }
 
+  export type EnumMfaTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.MfaType | EnumMfaTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.MfaType[] | ListEnumMfaTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.MfaType[] | ListEnumMfaTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumMfaTypeFilter<$PrismaModel> | $Enums.MfaType
+  }
+
+  export type MfaBindingUserIdTypeCompoundUniqueInput = {
+    userId: string
+    type: $Enums.MfaType
+  }
+
+  export type MfaBindingCountOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    type?: SortOrder
+    secret?: SortOrder
+    enabled?: SortOrder
+    metadata?: SortOrder
+    deviceInfo?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type MfaBindingMaxOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    type?: SortOrder
+    secret?: SortOrder
+    enabled?: SortOrder
+    metadata?: SortOrder
+    deviceInfo?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type MfaBindingMinOrderByAggregateInput = {
+    id?: SortOrder
+    userId?: SortOrder
+    type?: SortOrder
+    secret?: SortOrder
+    enabled?: SortOrder
+    metadata?: SortOrder
+    deviceInfo?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type EnumMfaTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.MfaType | EnumMfaTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.MfaType[] | ListEnumMfaTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.MfaType[] | ListEnumMfaTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumMfaTypeWithAggregatesFilter<$PrismaModel> | $Enums.MfaType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumMfaTypeFilter<$PrismaModel>
+    _max?: NestedEnumMfaTypeFilter<$PrismaModel>
+  }
+
   export type CredentialCreateNestedManyWithoutLoginMethodsInput = {
     create?: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput> | CredentialCreateWithoutLoginMethodsInput[] | CredentialUncheckedCreateWithoutLoginMethodsInput[]
     connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodsInput | CredentialCreateOrConnectWithoutLoginMethodsInput[]
@@ -5619,6 +7029,10 @@ export namespace Prisma {
     decrement?: number
     multiply?: number
     divide?: number
+  }
+
+  export type EnumMfaTypeFieldUpdateOperationsInput = {
+    set?: $Enums.MfaType
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -5836,6 +7250,23 @@ export namespace Prisma {
     gt?: number | FloatFieldRefInput<$PrismaModel>
     gte?: number | FloatFieldRefInput<$PrismaModel>
     not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
+  export type NestedEnumMfaTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.MfaType | EnumMfaTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.MfaType[] | ListEnumMfaTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.MfaType[] | ListEnumMfaTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumMfaTypeFilter<$PrismaModel> | $Enums.MfaType
+  }
+
+  export type NestedEnumMfaTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.MfaType | EnumMfaTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.MfaType[] | ListEnumMfaTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.MfaType[] | ListEnumMfaTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumMfaTypeWithAggregatesFilter<$PrismaModel> | $Enums.MfaType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumMfaTypeFilter<$PrismaModel>
+    _max?: NestedEnumMfaTypeFilter<$PrismaModel>
   }
 
   export type CredentialCreateWithoutLoginMethodsInput = {

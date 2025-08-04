@@ -15,15 +15,18 @@ import { GLOBAL_SYSTEM_ERRORS } from '@oes/common/constants/res-codes/system.err
 import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
 import { safeRpcCall } from '@oes/common/helpers/rpc.helper'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
-import { createBusinessException, createSystemException } from '@oes/common/helpers/exception.factory'
+import {
+  createBusinessException,
+  createSystemException,
+} from '@oes/common/helpers/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
 
 @Controller('test')
 export class TcpTestController {
   constructor(
     @InjectServiceClient(ServiceKeys.PERMI_TCP)
-    private readonly permissionClient: ClientProxy
-  ) { }
+    private readonly permissionClient: ClientProxy,
+  ) {}
 
   @MessagePattern(AUTH_MESSAGES.Test)
   async testing() {
@@ -34,4 +37,3 @@ export class TcpTestController {
     return safeRpcCall(this.permissionClient.send(PERMISSION_MESSAGES.Test, {}))
   }
 }
-

@@ -11,7 +11,7 @@ import { LoginMethodEnum } from 'src/domain/constants/login-method.enum'
 
 @Controller('auth')
 export class TcpAuthController {
-  constructor() { }
+  constructor() {}
 
   // @MessagePattern('email_password_login')
   // async loginWithEmailPassword(@Body() dto: EmailPasswordLoginDto) {

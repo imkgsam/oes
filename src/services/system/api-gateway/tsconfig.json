@@ -8,6 +8,6 @@
       "@oes/common/*": ["../../../common/dist/*"]
     }
   },
-  "include": ["src"],
+  "include": ["src", "../../../common/modules/jwt"],
   "exclude": ["node_modules"]
 }

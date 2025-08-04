@@ -4,9 +4,7 @@ import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.m
 
 @Controller()
 export class TcpPermissionController {
-  constructor(
-    private readonly permissionService: PermissionService,
-  ) { }
+  constructor(private readonly permissionService: PermissionService) {}
 
   @MessagePattern(PERMISSION_MESSAGES.DELETE_PERMISSION)
   deletePermission(@Payload('id') id: string): Promise<Permission | null> {
