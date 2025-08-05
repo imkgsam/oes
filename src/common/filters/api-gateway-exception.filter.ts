@@ -1,5 +1,3 @@
-// src/common/filters/all-http-exceptions.filter.ts
-
 import {
   ExceptionFilter,
   Catch,

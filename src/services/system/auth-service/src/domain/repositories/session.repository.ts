@@ -1,5 +1,5 @@
 import { Session } from 'src/domain/entities/session.entity'
-import { SessionStatus } from '@oes/common/constants/enums/session.enums'
+import { SessionStatus } from '@oes/common/constants/enums/auth-service.enums'
 
 /**
  * Session Repository 接口

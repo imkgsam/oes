@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import Redis from 'ioredis'
 import { Session } from 'src/domain/entities/session.entity'
-import { SessionStatus } from '@oes/common/constants/enums/session.enums'
+import { SessionStatus } from '@oes/common/constants/enums/auth-service.enums'
 import { ISessionRepository } from 'src/domain/repositories/session.repository'
 
 /**

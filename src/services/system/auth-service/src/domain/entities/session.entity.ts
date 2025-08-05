@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { SessionStatus } from '@oes/common/constants/enums/session.enums'
+import { SessionStatus } from '@oes/common/constants/enums/auth-service.enums'
 
 // 设备信息接口
 export interface DeviceInfo {
