@@ -23,12 +23,11 @@ export interface RpcResponseMeta {
   timestamp: string
   callStack: string[]
   module: string
+  warnings?: RpcResponseWarning[]
 }
 
-// export interface RpcExceptionPayload {
-//     code: string      // 全局唯一错误码，如 SYS2011001
-//     message: string
-//     messageKey: string
-//     httpStatus: number
-//     details?: any
-//   }
+export interface RpcResponseWarning {
+  code: string
+  message: string
+  messageKey: string
+}
