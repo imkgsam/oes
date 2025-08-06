@@ -1,4 +1,4 @@
-import {  RpcExceptionPayload } from '../interfaces/exceptions.interface'
+import { RpcExceptionPayload } from '../interfaces/exceptions.interface'
 
 export class BusinessException extends Error {
   public readonly code: string
@@ -6,7 +6,13 @@ export class BusinessException extends Error {
   public readonly httpStatus: number
   public readonly details?: any
 
-  constructor(code:string, message:string, messageKey: string, httpStatus: number, details?: any) {
+  constructor(
+    code: string,
+    message: string,
+    messageKey: string,
+    httpStatus: number,
+    details?: any,
+  ) {
     super(message)
     this.code = code
     this.messageKey = messageKey

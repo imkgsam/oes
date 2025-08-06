@@ -1,4 +1,4 @@
-import { ErrorContext } from "./exceptions.interface"
+import { ErrorContext } from './exceptions.interface'
 
 export interface StandardResponse<T> {
   code: string

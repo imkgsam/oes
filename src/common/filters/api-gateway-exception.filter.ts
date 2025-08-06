@@ -15,29 +15,38 @@ import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
 
 @Catch()
 export class ApiGatewayExceptionsFilter implements ExceptionFilter {
-  private readonly logger = new Logger(ApiGatewayExceptionsFilter.name);
+  private readonly logger = new Logger(ApiGatewayExceptionsFilter.name)
 
-  constructor(private readonly moduleName: string = process.env.MODULE_NAME) { }
+  constructor(private readonly moduleName: string = process.env.MODULE_NAME) {}
   catch(exception: unknown, host: ArgumentsHost) {
-    this.logger.error('in ApiGatewayExceptionsFilter catch: ', exception);
+    this.logger.error('in ApiGatewayExceptionsFilter catch: ', exception)
     const ctx = host.switchToHttp()
     const response = ctx.getResponse()
     const request = ctx.getRequest()
     let status = HttpStatus.INTERNAL_SERVER_ERROR
     let responseBody = this.buildDefaultResponse(request.url)
     if (exception instanceof HttpException) {
-      this.logger.error('Caught HttpException:');
-      const { statusCode, body } = this.handleHttpException(exception, request.url)
+      this.logger.error('Caught HttpException:')
+      const { statusCode, body } = this.handleHttpException(
+        exception,
+        request.url,
+      )
       status = statusCode
       responseBody = body
     } else if (exception instanceof RpcException) {
-      this.logger.error('Caught RpcException:');
-      const { statusCode, body } = this.handleRpcException(exception, request.url)
+      this.logger.error('Caught RpcException:')
+      const { statusCode, body } = this.handleRpcException(
+        exception,
+        request.url,
+      )
       status = statusCode
       responseBody = body
     } else {
-      this.logger.error('Caught unknown Exception:');
-      const { statusCode, body } = this.handleGenericError(exception, request.url)
+      this.logger.error('Caught unknown Exception:')
+      const { statusCode, body } = this.handleGenericError(
+        exception,
+        request.url,
+      )
       status = statusCode
       responseBody = body
     }
@@ -45,7 +54,7 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
   }
 
   private buildDefaultResponse(path: string): StandardResponse<any> {
-    console.log('in buildDefaultResponse', path);
+    console.log('in buildDefaultResponse', path)
     return {
       code: buildGlobalErrorCode(
         EXCEPTION_TYPE_PREFIX.RUNTIME,
@@ -101,8 +110,10 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
         spanId: context.spanId,
       }
     } else {
-      if (typeof exceptionError === 'string') defualtRes.message = exceptionError
-      if (typeof exceptionError === 'object') defualtRes.details = exceptionError
+      if (typeof exceptionError === 'string')
+        defualtRes.message = exceptionError
+      if (typeof exceptionError === 'object')
+        defualtRes.details = exceptionError
     }
     return { statusCode, body: defualtRes }
   }
@@ -111,12 +122,14 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
     const statusCode = GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.httpStatus
     const defaultRes = this.buildDefaultResponse(path)
     if (exception instanceof Error) {
-      defaultRes.message = exception.message || GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message
+      defaultRes.message =
+        exception.message || GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message
       defaultRes.details = {
         name: exception.name,
         stack: exception.stack,
       }
-    } if (typeof exception === 'string' || typeof exception === 'number') {
+    }
+    if (typeof exception === 'string' || typeof exception === 'number') {
       defaultRes.message = String(exception)
       defaultRes.details = { value: exception }
     } else if (typeof exception === 'object' && exception !== null) {
@@ -125,7 +138,3 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
     return { statusCode, body: defaultRes }
   }
 }
-
-
-
-
