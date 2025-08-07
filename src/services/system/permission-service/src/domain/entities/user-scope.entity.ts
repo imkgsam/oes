@@ -6,7 +6,7 @@ export class UserScope {
     public userId: string,
     public permissionCode: string,
     public resourceType: ScopeResourceType,
-    public resourceId: string,
+    public resourceId: string
   ) {}
 
   static fromPrisma(prisma: PrismaUserScope): UserScope {
@@ -15,7 +15,7 @@ export class UserScope {
       prisma.userId,
       prisma.permissionCode,
       prisma.resourceType as ScopeResourceType,
-      prisma.resourceId,
+      prisma.resourceId
     )
   }
   // matches(resourceType: ScopeResourceType, resourceId: string): boolean {

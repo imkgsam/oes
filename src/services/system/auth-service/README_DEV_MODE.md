@@ -39,7 +39,7 @@ if (result.needsEmailVerification) {
   // 2. 验证邮箱验证码
   const verifyResult = await mfaService.verifyEmailCode(
     result.otpTokenId,
-    '123456', // 使用硬编码验证码
+    '123456' // 使用硬编码验证码
   )
 
   if (verifyResult.success) {
@@ -61,7 +61,7 @@ if (result.needsPhoneVerification) {
   // 2. 验证手机验证码
   const verifyResult = await mfaService.verifySmsCode(
     result.otpTokenId,
-    '654321', // 使用硬编码验证码
+    '654321' // 使用硬编码验证码
   )
 
   if (verifyResult.success) {

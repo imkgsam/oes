@@ -240,5 +240,5 @@ export const PERMISSION_MESSAGES = {
    * 使用场景：获取权限服务的详细状态信息
    * 参数：{}
    */
-  GET_SERVICE_STATUS: 'permission.get_service_status',
+  GET_SERVICE_STATUS: 'permission.get_service_status'
 }

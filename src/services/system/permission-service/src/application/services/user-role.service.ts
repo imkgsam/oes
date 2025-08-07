@@ -9,7 +9,9 @@ export class UserRoleService {
   constructor(private readonly repo: UserRoleRepository) {}
 
   async assign(dto: AssignUserRoleDto): Promise<void> {
-    await this.repo.add(new UserRole(crypto.randomUUID(), dto.userId, dto.roleId))
+    await this.repo.add(
+      new UserRole(crypto.randomUUID(), dto.userId, dto.roleId)
+    )
   }
 
   async revoke(dto: AssignUserRoleDto): Promise<void> {

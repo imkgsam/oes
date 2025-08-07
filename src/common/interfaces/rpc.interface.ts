@@ -7,6 +7,7 @@ export interface RpcRequestMeta {
   traceId: string
   spanId: string
   timestamp: string
+  caller: string
 }
 
 export interface RpcResponse<T = unknown> {
@@ -21,14 +22,20 @@ export interface RpcResponseMeta {
   traceId?: string
   spanId?: string
   timestamp: string
-  callStack: string[]
+  callStack: CallTrace[]
+  module: string
+  warnings: RpcErrorWarning[]
+}
+
+export interface RpcErrorWarning {
+  code: string
+  message: string
+  messageKey: string
   module: string
 }
 
-// export interface RpcExceptionPayload {
-//     code: string      // 全局唯一错误码，如 SYS2011001
-//     message: string
-//     messageKey: string
-//     httpStatus: number
-//     details?: any
-//   }
+export interface CallTrace {
+  id: string
+  module: string
+  parentId: string
+}

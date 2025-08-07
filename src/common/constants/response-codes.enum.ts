@@ -2,11 +2,11 @@ export enum ModuleTypeCode {
   SYSTEM = 0x1,
   BUSINESS = 0x2,
   AUXILIARY = 0x3,
-  RESERVED = 0xf,
+  RESERVED = 0xf
 }
 
 export enum ResponseCode {
-  SUCCESS = 0x0,
+  SUCCESS = 0x0
 }
 
 export enum ModuleCode {
@@ -17,5 +17,5 @@ export enum ModuleCode {
   MENU = 0x5,
   DICT = 0x6,
   FILE = 0x7,
-  LOG = 0x8,
+  LOG = 0x8
 }

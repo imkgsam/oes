@@ -2,7 +2,7 @@ import { MfaBinding as PrismaMfaBinding } from '../../../prisma/generated/prisma
 import { MfaType } from '@oes/common/constants/enums/auth-relative.enums'
 import {
   createSystemException,
-  createBusinessException,
+  createBusinessException
 } from '@oes/common/helpers/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
 import { authenticator } from 'otplib' //是一个用于生成和验证一次性密码（OTP）的 JavaScript 库，主要用于实现多因素认证（MFA）功能。
@@ -33,7 +33,7 @@ export class MfaBindingEntity {
       metadata?: Record<string, any>
       backupCodes?: string[] // 备用码，用于 BACKUP_CODE 类型
       deviceInfo?: DeviceInfo
-    },
+    }
   ) {}
 
   // 从 Prisma 模型创建 MfaBindingEntity
@@ -47,10 +47,13 @@ export class MfaBindingEntity {
         metadata = JSON.parse(prismaMfaBinding.metadata) as Record<string, any>
       }
     } catch (error) {
-      throw createSystemException(GLOBAL_SYSTEM_ERRORS.MFA_METADATA_PARSE_ERROR, {
-        bindingId: prismaMfaBinding.id,
-        originalError: error instanceof Error ? error.message : String(error),
-      })
+      throw createSystemException(
+        GLOBAL_SYSTEM_ERRORS.MFA_METADATA_PARSE_ERROR,
+        {
+          bindingId: prismaMfaBinding.id,
+          originalError: error instanceof Error ? error.message : String(error)
+        }
+      )
     }
 
     try {
@@ -59,10 +62,13 @@ export class MfaBindingEntity {
         deviceInfo = JSON.parse(prismaMfaBinding.deviceInfo) as DeviceInfo
       }
     } catch (error) {
-      throw createSystemException(GLOBAL_SYSTEM_ERRORS.MFA_DEVICE_INFO_PARSE_ERROR, {
-        bindingId: prismaMfaBinding.id,
-        originalError: error instanceof Error ? error.message : String(error),
-      })
+      throw createSystemException(
+        GLOBAL_SYSTEM_ERRORS.MFA_DEVICE_INFO_PARSE_ERROR,
+        {
+          bindingId: prismaMfaBinding.id,
+          originalError: error instanceof Error ? error.message : String(error)
+        }
+      )
     }
 
     return new MfaBindingEntity({
@@ -74,12 +80,15 @@ export class MfaBindingEntity {
       createdAt: prismaMfaBinding.createdAt,
       updatedAt: prismaMfaBinding.updatedAt,
       metadata,
-      deviceInfo,
+      deviceInfo
     })
   }
 
   // 创建新的 TOTP 绑定（步骤 1-2：用户发起绑定请求，后端生成密钥）
-  static createTotpBinding(userId: string, deviceInfo?: DeviceInfo): MfaBindingEntity {
+  static createTotpBinding(
+    userId: string,
+    deviceInfo?: DeviceInfo
+  ): MfaBindingEntity {
     const secret = authenticator.generateSecret() // 步骤 2：生成密钥
     return new MfaBindingEntity({
       id: randomUUID(),
@@ -89,7 +98,7 @@ export class MfaBindingEntity {
       enabled: false, // 初始状态为禁用，验证后启用
       createdAt: new Date(),
       updatedAt: new Date(),
-      deviceInfo,
+      deviceInfo
     })
   }
 
@@ -122,7 +131,7 @@ export class MfaBindingEntity {
     // 验证用户输入的验证码是否正确
     return authenticator.verify({
       token: inputCode,
-      secret: this.props.secret,
+      secret: this.props.secret
     })
   }
 
@@ -148,7 +157,7 @@ export class MfaBindingEntity {
 
     return authenticator.verify({
       token: inputCode,
-      secret: this.props.secret,
+      secret: this.props.secret
     })
   }
 
@@ -169,7 +178,7 @@ export class MfaBindingEntity {
   // 获取绑定信息（用于前端显示）
   getBindingInfo(
     issuer: string,
-    accountName: string,
+    accountName: string
   ): {
     qrCodeUrl: string
     secret: string
@@ -182,7 +191,7 @@ export class MfaBindingEntity {
     return {
       qrCodeUrl: this.generateBindingQrCode(issuer, accountName),
       secret: this.props.secret,
-      testCode: this.generateTestCode(),
+      testCode: this.generateTestCode()
     }
   }
 
@@ -195,7 +204,7 @@ export class MfaBindingEntity {
       secret: '', // 邮箱 OTP 不需要预存密钥
       enabled: true,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      updatedAt: new Date()
     })
   }
 
@@ -208,14 +217,18 @@ export class MfaBindingEntity {
       secret: '', // 短信 OTP 不需要预存密钥
       enabled: true,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      updatedAt: new Date()
     })
   }
 
   // 创建备用码绑定（不需要 OTP 验证）
-  static async createBackupCodeBinding(userId: string): Promise<MfaBindingEntity> {
+  static async createBackupCodeBinding(
+    userId: string
+  ): Promise<MfaBindingEntity> {
     const backupCodes = this.generateBackupCodes()
-    const hashedCodes = await Promise.all(backupCodes.map((code) => hash(code, 10)))
+    const hashedCodes = await Promise.all(
+      backupCodes.map((code) => hash(code, 10))
+    )
 
     return new MfaBindingEntity({
       id: randomUUID(),
@@ -225,7 +238,7 @@ export class MfaBindingEntity {
       enabled: true,
       createdAt: new Date(),
       updatedAt: new Date(),
-      backupCodes, // 明文备用码，仅用于初始显示
+      backupCodes // 明文备用码，仅用于初始显示
     })
   }
 
@@ -261,7 +274,10 @@ export class MfaBindingEntity {
   }
 
   // 验证通用 MFA 代码（根据类型自动选择验证方法）
-  async verify(inputCode: string, oneTimeToken?: OneTimeToken): Promise<boolean> {
+  async verify(
+    inputCode: string,
+    oneTimeToken?: OneTimeToken
+  ): Promise<boolean> {
     switch (this.props.type) {
       case MfaType.TOTP:
         return this.verifyTotp(inputCode)
@@ -271,7 +287,9 @@ export class MfaBindingEntity {
       case MfaType.SMS_OTP:
         // 这些类型通过 OneTimeToken 验证
         if (!oneTimeToken) {
-          throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_OTP_TOKEN_REQUIRED)
+          throw createBusinessException(
+            AUTH_SERVICE_ERRORS.MFA_OTP_TOKEN_REQUIRED
+          )
         }
         return oneTimeToken.verify(inputCode)
       case MfaType.PUSH_NOTIFICATION:
@@ -280,7 +298,9 @@ export class MfaBindingEntity {
         // 这些类型需要特殊处理
         return true
       default:
-        throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_TYPE_NOT_SUPPORTED)
+        throw createBusinessException(
+          AUTH_SERVICE_ERRORS.MFA_TYPE_NOT_SUPPORTED
+        )
     }
   }
 
@@ -362,7 +382,7 @@ export class MfaBindingEntity {
     return {
       ...prismaProps,
       metadata: metadata ? JSON.stringify(metadata) : null,
-      deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null,
+      deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : null
     }
   }
 }

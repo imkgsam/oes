@@ -1,4 +1,4 @@
 export const ERP_MESSAGES = {
   //test
-  Test: 'erp.test',
+  Test: 'erp.test'
 }

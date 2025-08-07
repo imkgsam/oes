@@ -97,7 +97,7 @@ describe('Content Controller - Cache (e2e)', () => {
       name: contentInfoDto.createdBy.name,
       profilePicUrl: contentInfoDto.createdBy.profilePicUrl,
     };
-    
+
     const data = {
       ...contentInfoDto,
       _id: contentInfoDto._id.toHexString(),

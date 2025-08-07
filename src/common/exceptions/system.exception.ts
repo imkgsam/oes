@@ -1,4 +1,4 @@
-import {  RpcExceptionPayload } from "../interfaces/exceptions.interface"
+import { RpcExceptionPayload } from '../interfaces/exceptions.interface'
 
 export class SystemException extends Error {
   public readonly code: string
@@ -6,8 +6,13 @@ export class SystemException extends Error {
   public readonly httpStatus: number
   public readonly details?: any
 
-
-  constructor(code:string, message:string, messageKey: string, httpStatus: number, details?: any) {
+  constructor(
+    code: string,
+    message: string,
+    messageKey: string,
+    httpStatus: number,
+    details?: any
+  ) {
     super(message)
     this.code = code
     this.messageKey = messageKey
@@ -22,7 +27,7 @@ export class SystemException extends Error {
       message: this.message,
       messageKey: this.messageKey,
       httpStatus: this.httpStatus,
-      details: this.details,
+      details: this.details
     }
   }
 }

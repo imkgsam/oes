@@ -16,8 +16,8 @@ export class UserScopeService {
         dto.userId,
         dto.permissionCode,
         dto.resourceType as ScopeResourceType,
-        dto.resourceId,
-      ),
+        dto.resourceId
+      )
     )
   }
 

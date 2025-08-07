@@ -8,11 +8,11 @@ import { ClientProxy } from '@nestjs/microservices'
 export class JwtAuthGuard implements CanActivate {
   constructor(
     @InjectServiceClient(ServiceKeys.AUTH_TCP)
-    private readonly authServiceClient: ClientProxy,
-  ) { }
+    private readonly authServiceClient: ClientProxy
+  ) {}
 
   canActivate(
-    context: ExecutionContext,
+    context: ExecutionContext
   ): boolean | Promise<boolean> | Observable<boolean> {
     return true
   }

@@ -2,6 +2,12 @@ import { Observable, isObservable, firstValueFrom } from 'rxjs'
 import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
 import { createRuntimeException } from './exception.factory'
 import { isRpcError, toRpcException } from './exception.helper'
+import {
+  RpcRequest,
+  RpcRequestMeta,
+  RpcResponse
+} from '../interfaces/rpc.interface'
+import { ClientProxy } from '@nestjs/microservices'
 
 /**
  * 安全的 RPC 调用包装器
@@ -13,141 +19,42 @@ import { isRpcError, toRpcException } from './exception.helper'
  * - 可选的日志记录
  *
  * @param rpcCall RPC 调用（Observable 或 Promise）
- * @param options 配置选项
  * @returns 调用结果
  */
 export async function safeRpcCall<T>(
-  rpcCall: Promise<T> | Observable<T>,
-  options?: {
-    /** 是否启用调试日志 */
-    enableDebugLog?: boolean
-    /** 自定义错误上下文 */
-    context?: Record<string, any>
-    /** 自定义错误消息 */
-    errorMessage?: string
-  },
+  rpcCall: Promise<T> | Observable<T>
 ): Promise<T> {
-  const { enableDebugLog = false, context, errorMessage } = options || {}
-
-  if (enableDebugLog) {
-    console.log('[safeRpcCall] Executing RPC call...')
-  }
-
   try {
     const result = isObservable(rpcCall)
       ? await firstValueFrom(rpcCall)
       : await rpcCall
     return result
   } catch (exception) {
-    if (enableDebugLog) {
-      console.error(
-        `[safeRpcCall] Error occurred: type: ${typeof exception} \n`,
-        exception,
-      )
-    }
-
-    // 安全地提取错误对象
-    const errorObject = extractErrorObject(exception)
-
-    if (isRpcError(errorObject)) {
-      const { error, context: rpcContext } = errorObject
-      if (enableDebugLog) {
-        console.error('[safeRpcCall] Caught RpcError:', error)
-      }
-      throw toRpcException(error, { ...rpcContext, ...context })
-    } else {
-      if (enableDebugLog) {
-        console.error(
-          '[safeRpcCall] Caught INVALID_RPC_STRUCTURE error, throwing RuntimeException',
-          exception,
-        )
-      }
-
-      const finalContext = {
-        originalError: errorObject,
-        ...context,
-      }
-
-      throw createRuntimeException(
-        GLOBAL_RUNTIME_ERRORS.INVALID_RPC_STRUCTURE,
-        finalContext,
-      )
-    }
+    exceptionHandler(exception)
   }
 }
 
-/**
- * 带重试的 RPC 调用包装器
- *
- * @param rpcCall RPC 调用
- * @param options 配置选项
- * @returns 调用结果
- */
-export async function safeRpcCallWithRetry<T>(
-  rpcCall: Promise<T> | Observable<T>,
-  options?: {
-    /** 最大重试次数 */
-    maxRetries?: number
-    /** 重试延迟（毫秒） */
-    retryDelay?: number
-    /** 是否启用调试日志 */
-    enableDebugLog?: boolean
-    /** 自定义错误上下文 */
-    context?: Record<string, any>
-    /** 自定义错误消息 */
-    errorMessage?: string
-    /** 重试条件函数 */
-    shouldRetry?: (error: unknown) => boolean
-  },
-): Promise<T> {
-  const {
-    maxRetries = 3,
-    retryDelay = 1000,
-    enableDebugLog = false,
-    context,
-    errorMessage,
-    shouldRetry = (error: unknown) => {
-      // 默认只对网络错误和超时进行重试
-      const errorObj = extractErrorObject(error)
-      return (
-        (errorObj as { code?: string })?.code === 'ECONNRESET' ||
-        (errorObj as { code?: string })?.code === 'ETIMEDOUT' ||
-        (errorObj as { message?: string })?.message?.includes('timeout')
-      )
-    },
-  } = options || {}
-
-  let lastError: unknown
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      if (enableDebugLog && attempt > 0) {
-        console.log(
-          `[safeRpcCallWithRetry] Retry attempt ${attempt}/${maxRetries}`,
-        )
+export async function safeRpcCall2<I, O>(
+  client: ClientProxy,
+  pattern: string,
+  inputData: I,
+  requestMeta: RpcRequestMeta
+): Promise<RpcResponse<O>> {
+  try {
+    const rpcRequest: RpcRequest<I> = {
+      payload: inputData,
+      meta: {
+        ...requestMeta,
+        timestamp: new Date().toISOString()
       }
-
-      return await safeRpcCall(rpcCall, {
-        enableDebugLog,
-        context,
-        errorMessage,
-      })
-    } catch (error) {
-      lastError = error
-
-      if (attempt === maxRetries || !shouldRetry(error)) {
-        throw error
-      }
-
-      if (enableDebugLog) {
-        console.log(`[safeRpcCallWithRetry] Retrying in ${retryDelay}ms...`)
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, retryDelay))
     }
+    const response = await firstValueFrom(
+      client.send<RpcResponse<O>, RpcRequest<I>>(pattern, rpcRequest)
+    )
+    return response
+  } catch (exception) {
+    exceptionHandler(exception)
   }
-
-  throw lastError
 }
 
 /**
@@ -165,4 +72,21 @@ function extractErrorObject(exception: unknown): unknown {
     return obj.error ?? exception
   }
   return exception
+}
+
+function exceptionHandler(exception: unknown): void {
+  // 安全地提取错误对象
+  const errorObject = extractErrorObject(exception)
+  if (isRpcError(errorObject)) {
+    const { error, context: rpcContext } = errorObject
+    throw toRpcException(error, { ...rpcContext })
+  } else {
+    const finalContext = {
+      originalError: errorObject
+    }
+    throw createRuntimeException(
+      GLOBAL_RUNTIME_ERRORS.INVALID_RPC_STRUCTURE,
+      finalContext
+    )
+  }
 }

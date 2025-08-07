@@ -16,7 +16,7 @@ export class ApiKeyGuard implements CanActivate {
   constructor(
     private readonly authService: AuthService,
     private readonly reflector: Reflector,
-  ) { }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const permissions = this.reflector.get(Permissions, context.getClass()) ?? [

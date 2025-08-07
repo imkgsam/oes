@@ -11,7 +11,7 @@ export {
   AccountInfo,
   TenantInfo,
   UserAccountRelation,
-  AccountTenantRelation,
+  AccountTenantRelation
 } from './identity-service.port'
 
 // Permission Service 端口
@@ -22,7 +22,7 @@ export {
   UserPermission,
   UserRole,
   AccountPermission,
-  AccountRole,
+  AccountRole
 } from './permission-service.port'
 
 // Notification Service 端口
@@ -30,8 +30,13 @@ export {
   INotificationServicePort,
   NotificationTemplate,
   NotificationRequest,
-  NotificationResponse,
+  NotificationResponse
 } from './notification-service.port'
 
 // Audit Service 端口
-export { IAuditServicePort, AuditEvent, AuditRequest, AuditResponse } from './audit-service.port'
+export {
+  IAuditServicePort,
+  AuditEvent,
+  AuditRequest,
+  AuditResponse
+} from './audit-service.port'

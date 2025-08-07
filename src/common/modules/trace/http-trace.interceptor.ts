@@ -1,9 +1,8 @@
-
 import {
   Injectable,
   NestInterceptor,
   ExecutionContext,
-  CallHandler,
+  CallHandler
 } from '@nestjs/common'
 import { Observable } from 'rxjs'
 import { v4 as uuidv4 } from 'uuid'
@@ -21,7 +20,7 @@ export class HttpTraceInterceptor implements NestInterceptor {
         next.handle().subscribe({
           next: (val) => subscriber.next(val),
           error: (err) => subscriber.error(err),
-          complete: () => subscriber.complete(),
+          complete: () => subscriber.complete()
         })
       })
     })

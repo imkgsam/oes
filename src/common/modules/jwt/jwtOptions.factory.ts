@@ -15,18 +15,18 @@ export class OptionsFactory implements JwtOptionsFactory {
       this.configService.getOrThrow<IAuthKeyConfig>(AuthKeyConfigName)
     const publicKey = await readFile(
       join(__dirname, '../../..', keys.publicKeyPath),
-      'utf8',
+      'utf8'
     )
     const privateKey = await readFile(
       join(__dirname, '../../..', keys.privateKeyPath),
-      'utf8',
+      'utf8'
     )
     return {
       publicKey,
       privateKey,
       signOptions: {
-        algorithm: 'RS256',
-      },
+        algorithm: 'RS256'
+      }
     }
   }
 }

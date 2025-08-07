@@ -11,7 +11,7 @@ export class BusinessException extends Error {
     message: string,
     messageKey: string,
     httpStatus: number,
-    details?: any,
+    details?: any
   ) {
     super(message)
     this.code = code
@@ -27,7 +27,7 @@ export class BusinessException extends Error {
       message: this.message,
       messageKey: this.messageKey,
       httpStatus: this.httpStatus,
-      details: this.details,
+      details: this.details
     }
   }
 }

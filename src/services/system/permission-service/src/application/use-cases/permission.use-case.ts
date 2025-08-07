@@ -27,7 +27,7 @@ export class CheckUserPermissionUseCase {
     @Inject('UserRoleRepository')
     private readonly userRoleRepo: UserRoleRepository,
     @Inject('RolePermissionRepository')
-    private readonly rolePermissionRepo: RolePermissionRepository,
+    private readonly rolePermissionRepo: RolePermissionRepository
   ) {}
   async execute(userId: string, permissionCode: string): Promise<boolean> {
     const roles = await this.userRoleRepo.findByUserId(userId)

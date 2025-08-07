@@ -177,13 +177,21 @@ const result = await sessionService.refreshTokens(refreshToken)
 
 ```typescript
 // 撤销用户所有 Session
-await sessionService.adminRevokeAllSessions('user-123', '违规行为处理', 'admin-456')
+await sessionService.adminRevokeAllSessions(
+  'user-123',
+  '违规行为处理',
+  'admin-456'
+)
 
 // 撤销特定 Session
 await sessionService.adminRevokeSession('session-123', '可疑设备', 'admin-456')
 
 // 暂停用户所有 Session
-await sessionService.adminSuspendAllSessions('user-123', '调查期间暂停', 'admin-456')
+await sessionService.adminSuspendAllSessions(
+  'user-123',
+  '调查期间暂停',
+  'admin-456'
+)
 
 // 恢复用户所有 Session
 await sessionService.adminRestoreAllSessions('user-123')
@@ -234,16 +242,16 @@ const userStats = await sessionService.getUserSessionStats('user-123')
   imports: [
     ConfigModule,
     CommonJwtModule, // 使用现有的 JWT 模块
-    RedisModule,
+    RedisModule
   ],
   providers: [
     SessionService,
     {
       provide: ISessionRepository,
-      useClass: RedisSessionRepository,
-    },
+      useClass: RedisSessionRepository
+    }
   ],
-  exports: [SessionService, ISessionRepository],
+  exports: [SessionService, ISessionRepository]
 })
 export class SessionModule {}
 ```
@@ -255,7 +263,7 @@ export class SessionModule {}
 export class AuthService {
   constructor(
     private readonly sessionService: SessionService,
-    private readonly commonJwtService: CommonJwtService,
+    private readonly commonJwtService: CommonJwtService
   ) {}
 
   async login(credentials: LoginDto) {
@@ -270,7 +278,7 @@ export class AuthService {
       ipAddress: this.getClientIp(),
       location: await this.getLocation(),
       platform: this.getPlatform(),
-      browser: this.getBrowser(),
+      browser: this.getBrowser()
     }
 
     // 创建 Session
@@ -283,8 +291,8 @@ export class AuthService {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email,
-      },
+        email: user.email
+      }
     }
   }
 
@@ -399,7 +407,7 @@ class TokenManager {
 
   private async refreshTokens() {
     const result = await api.post('/auth/refresh', {
-      refreshToken: this.refreshToken,
+      refreshToken: this.refreshToken
     })
     this.accessToken = result.accessToken
     this.refreshToken = result.refreshToken
@@ -517,7 +525,7 @@ const productionConfig: SessionConfig = {
   refreshTokenExpiry: 30 * 24 * 60 * 60, // 30 天
   maxSessionsPerUser: 3, // 限制设备数量
   enableAutoRenewal: true, // 启用自动续期
-  enableDeviceTracking: true, // 启用设备追踪
+  enableDeviceTracking: true // 启用设备追踪
 }
 ```
 

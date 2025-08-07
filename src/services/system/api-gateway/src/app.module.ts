@@ -12,9 +12,9 @@ import { IdentityServiceModule } from './modules/identity-service/identity-servi
     AuthServiceModule,
     PermissionServiceModule,
     TraceModule.forHttp(),
-    IdentityServiceModule,
+    IdentityServiceModule
   ],
   controllers: [],
-  providers: [],
+  providers: []
 })
 export class AppModule {}

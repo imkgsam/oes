@@ -1,8 +1,4 @@
-import {
-  CanActivate,
-  ExecutionContext,
-  Injectable,
-} from '@nestjs/common'
+import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { ClientProxy } from '@nestjs/microservices'
 import { SCOPE_CHECK_KEY } from '../decorators/scope-check.decorator'
@@ -16,8 +12,8 @@ export class ScopeControllGuard implements CanActivate {
   constructor(
     @InjectServiceClient(ServiceKeys.PERMI_TCP)
     private readonly permissionServiceClient: ClientProxy,
-    private readonly reflector: Reflector,
-  ) { }
+    private readonly reflector: Reflector
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const metadata = this.reflector.get(SCOPE_CHECK_KEY, context.getHandler())
@@ -36,9 +32,9 @@ export class ScopeControllGuard implements CanActivate {
         {
           userId,
           permissionCode: permission,
-          resourceId,
-        },
-      ),
+          resourceId
+        }
+      )
     )
     return hasPermission === true
   }

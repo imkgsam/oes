@@ -13,14 +13,14 @@ import { CommonJwtModule } from '@oes/common/modules/jwt/jwt.module'
     ConfigModule.forRoot({
       cache: true,
       isGlobal: true,
-      load: [tokenConfig, authKeyConfig], // 从common中加载配置
+      load: [tokenConfig, authKeyConfig] // 从common中加载配置
     }),
     CommonJwtModule,
     TraceModule.forRpc(),
     AuthModule,
-    ClientModule.register([ServiceKeys.PERMI_TCP]),
+    ClientModule.register([ServiceKeys.PERMI_TCP])
   ],
   controllers: [],
-  providers: [],
+  providers: []
 })
 export class AppModule {}

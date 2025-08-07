@@ -8,7 +8,7 @@ export class PrismaUserScopeRepository implements UserScopeRepository {
   constructor(private readonly prisma: PrismaService) {}
   async findByUserId(userId: string): Promise<UserScope[]> {
     const founds = await this.prisma.userScope.findMany({
-      where: { userId },
+      where: { userId }
     })
     return founds.map((s) => UserScope.fromPrisma(s))
   }
@@ -18,14 +18,14 @@ export class PrismaUserScopeRepository implements UserScopeRepository {
         userId: scope.userId,
         permissionCode: scope.permissionCode,
         resourceType: scope.resourceType,
-        resourceId: scope.resourceId,
-      },
+        resourceId: scope.resourceId
+      }
     })
     return UserScope.fromPrisma(created)
   }
   async remove(id: string): Promise<UserScope> {
     const deleted = await this.prisma.userScope.delete({
-      where: { id },
+      where: { id }
     })
     return UserScope.fromPrisma(deleted)
   }

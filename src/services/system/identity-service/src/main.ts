@@ -10,13 +10,13 @@ async function bootstrap() {
       transport: Transport.TCP,
       options: {
         host: '127.0.0.1',
-        port: Number(process.env.IDENTITYN_TCP_PORT ?? '9402'),
-      },
+        port: Number(process.env.IDENTITYN_TCP_PORT ?? '9402')
+      }
     })
 
   microservice.useGlobalPipes(new ValidationPipe())
   microservice.useGlobalFilters(
-    new MicroserviceExceptionsFilter('IDENTITY_SERVICE'),
+    new MicroserviceExceptionsFilter('IDENTITY_SERVICE')
   )
   await microservice.listen()
 }

@@ -17,7 +17,10 @@ export interface IMfaBindingRepository {
    * @param type MFA 类型
    * @returns Promise<MfaBindingEntity | null>
    */
-  findByUserIdAndType(userId: string, type: MfaType): Promise<MfaBindingEntity | null>
+  findByUserIdAndType(
+    userId: string,
+    type: MfaType
+  ): Promise<MfaBindingEntity | null>
 
   /**
    * 查找用户的所有 MFA 绑定

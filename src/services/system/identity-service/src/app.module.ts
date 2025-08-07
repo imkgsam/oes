@@ -4,6 +4,6 @@ import { TraceModule } from '@oes/common/modules/trace/trace.module'
 @Module({
   imports: [TraceModule.forRpc()],
   providers: [],
-  controllers: [],
+  controllers: []
 })
 export class AppModule {}

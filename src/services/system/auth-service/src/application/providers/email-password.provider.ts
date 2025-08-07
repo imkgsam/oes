@@ -19,20 +19,26 @@ export class EmailPasswordAuthProvider extends BaseAuthProvider<EmailPasswordLog
       throw createBusinessException(AUTH_SERVICE_ERRORS.INVALID_CREDENTIALS, {
         reason: 'MISSING_EMAIL_OR_PASSWORD',
         email: dto.email ? 'provided' : 'missing',
-        password: dto.password ? 'provided' : 'missing',
+        password: dto.password ? 'provided' : 'missing'
       })
     }
 
     try {
       // 查找并验证登录方法
-      const loginMethod = await this.findAndValidateLoginMethod(LOGIN_METHOD_TYPES.EMAIL, dto.email)
+      const loginMethod = await this.findAndValidateLoginMethod(
+        LOGIN_METHOD_TYPES.EMAIL,
+        dto.email
+      )
 
       // 验证密码
-      const isValidPassword = await this.validatePasswordCredential(loginMethod, dto.password)
+      const isValidPassword = await this.validatePasswordCredential(
+        loginMethod,
+        dto.password
+      )
       if (!isValidPassword) {
         throw createBusinessException(AUTH_SERVICE_ERRORS.INVALID_CREDENTIALS, {
           reason: 'INVALID_PASSWORD',
-          email: dto.email,
+          email: dto.email
         })
       }
 

@@ -5,7 +5,7 @@ import {
   EmailPasswordLoginDto,
   GoogleLoginDto,
   PhoneOtpLoginDto,
-  WechatLoginDto,
+  WechatLoginDto
 } from 'src/application/dtos/login.dto'
 import { LoginMethodEnum } from 'src/domain/constants/login-method.enum'
 

@@ -22,7 +22,10 @@ export interface ILoginMethodRepository {
    * @param identifier 标识符（邮箱、手机号等）
    * @returns Promise<LoginMethod | null>
    */
-  findByTypeAndIdentifier(type: string, identifier: string): Promise<LoginMethod | null>
+  findByTypeAndIdentifier(
+    type: string,
+    identifier: string
+  ): Promise<LoginMethod | null>
 
   /**
    * 根据用户 ID 和类型查找登录方法

@@ -7,16 +7,16 @@ export interface PermissionCheckOptions {
 
 export enum PermissionCheckType {
   ALL = 'ALL',
-  ANY = 'ANY',
+  ANY = 'ANY'
 }
 
 export const PermissionCheckAll = (permissions: string[]) =>
   SetMetadata(PERMISSION_CHECK_KEY, {
     type: PermissionCheckType.ALL,
-    permissions,
+    permissions
   })
 export const PermissionCheckAny = (permissions: string[]) =>
   SetMetadata(PERMISSION_CHECK_KEY, {
     type: PermissionCheckType.ANY,
-    permissions,
+    permissions
   })

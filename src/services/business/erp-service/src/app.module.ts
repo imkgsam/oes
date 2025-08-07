@@ -9,10 +9,10 @@ import { ServiceKeys } from '@oes/common/modules/clients/service-map'
     ClientModule.register([
       ServiceKeys.PERMI_TCP,
       ServiceKeys.AUTH_TCP,
-      ServiceKeys.MES_TCP,
-    ]),
+      ServiceKeys.MES_TCP
+    ])
   ],
   controllers: [],
-  providers: [],
+  providers: []
 })
 export class AppModule {}

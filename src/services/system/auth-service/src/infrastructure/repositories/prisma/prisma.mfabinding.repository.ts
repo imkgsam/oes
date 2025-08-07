@@ -17,7 +17,7 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
    */
   async findById(id: string): Promise<MfaBindingEntity | null> {
     const found = await this.prismaService.mfaBinding.findUnique({
-      where: { id },
+      where: { id }
     })
     if (!found) return null
     return MfaBindingEntity.fromPrisma(found)
@@ -29,9 +29,12 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
    * @param type MFA 类型
    * @returns Promise<MfaBindingEntity | null>
    */
-  async findByUserIdAndType(userId: string, type: MfaType): Promise<MfaBindingEntity | null> {
+  async findByUserIdAndType(
+    userId: string,
+    type: MfaType
+  ): Promise<MfaBindingEntity | null> {
     const found = await this.prismaService.mfaBinding.findFirst({
-      where: { userId, type },
+      where: { userId, type }
     })
     if (!found) return null
     return MfaBindingEntity.fromPrisma(found)
@@ -44,7 +47,7 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
    */
   async findAllByUserId(userId: string): Promise<MfaBindingEntity[]> {
     const founds = await this.prismaService.mfaBinding.findMany({
-      where: { userId },
+      where: { userId }
     })
     return founds.map((found) => MfaBindingEntity.fromPrisma(found))
   }
@@ -72,9 +75,13 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
         type: binding.getType(),
         secret: binding.getSecret(),
         enabled: binding.isEnabled(),
-        metadata: binding.getProps().metadata ? JSON.stringify(binding.getProps().metadata) : null,
-        deviceInfo: binding.getDeviceInfo() ? JSON.stringify(binding.getDeviceInfo()) : null,
-        updatedAt: new Date(),
+        metadata: binding.getProps().metadata
+          ? JSON.stringify(binding.getProps().metadata)
+          : null,
+        deviceInfo: binding.getDeviceInfo()
+          ? JSON.stringify(binding.getDeviceInfo())
+          : null,
+        updatedAt: new Date()
       },
       create: {
         id: binding.getId(),
@@ -82,11 +89,15 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
         type: binding.getType(),
         secret: binding.getSecret(),
         enabled: binding.isEnabled(),
-        metadata: binding.getProps().metadata ? JSON.stringify(binding.getProps().metadata) : null,
-        deviceInfo: binding.getDeviceInfo() ? JSON.stringify(binding.getDeviceInfo()) : null,
+        metadata: binding.getProps().metadata
+          ? JSON.stringify(binding.getProps().metadata)
+          : null,
+        deviceInfo: binding.getDeviceInfo()
+          ? JSON.stringify(binding.getDeviceInfo())
+          : null,
         createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+        updatedAt: new Date()
+      }
     })
     return MfaBindingEntity.fromPrisma(updated)
   }
@@ -100,7 +111,7 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
    */
   async delete(id: string): Promise<void> {
     await this.prismaService.mfaBinding.delete({
-      where: { id },
+      where: { id }
     })
   }
 }

@@ -4,7 +4,7 @@ export class UserRole {
   constructor(
     public readonly id: string,
     public userId: string,
-    public roleId: string,
+    public roleId: string
   ) {}
 
   static fromPrisma(prisma: PrismaUserRole): UserRole {

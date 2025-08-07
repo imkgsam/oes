@@ -1,5 +1,8 @@
 import { OneTimeToken as PrismaOneTimeToken } from '../../../prisma/generated/prisma'
-import { OTP_TYPES, OTP_USAGES } from '@oes/common/constants/enums/auth-relative.enums'
+import {
+  OTP_TYPES,
+  OTP_USAGES
+} from '@oes/common/constants/enums/auth-relative.enums'
 import { createBusinessException } from '@oes/common/helpers/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
 import { randomUUID } from 'crypto'
@@ -19,7 +22,7 @@ export class OneTimeToken {
       valid: boolean
       createdAt: Date
       updatedAt: Date
-    },
+    }
   ) {}
 
   // 从 Prisma 实体创建 OneTimeToken 实例
@@ -36,7 +39,7 @@ export class OneTimeToken {
       maxAttempt: prismaOneTimeToken.maxAttempt,
       valid: prismaOneTimeToken.valid,
       createdAt: prismaOneTimeToken.createdAt,
-      updatedAt: prismaOneTimeToken.updatedAt,
+      updatedAt: prismaOneTimeToken.updatedAt
     })
   }
 
@@ -59,7 +62,7 @@ export class OneTimeToken {
       maxAttempt: 3,
       valid: true,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      updatedAt: new Date()
     })
   }
 
@@ -82,7 +85,7 @@ export class OneTimeToken {
       maxAttempt: 3,
       valid: true,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      updatedAt: new Date()
     })
   }
 
@@ -105,7 +108,7 @@ export class OneTimeToken {
       maxAttempt: 3,
       valid: true,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      updatedAt: new Date()
     })
   }
 
@@ -128,13 +131,15 @@ export class OneTimeToken {
       maxAttempt: 3,
       valid: true,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      updatedAt: new Date()
     })
   }
 
   verify(inputCode: string): boolean {
-    if (!this.isValid()) throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_INVALID)
-    if (this.isExpired()) throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_EXPIRED)
+    if (!this.isValid())
+      throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_INVALID)
+    if (this.isExpired())
+      throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_EXPIRED)
     if (this.props.attemptCount >= this.props.maxAttempt)
       throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_REACH_LIMIT)
     if (this.props.code === inputCode) {
@@ -148,8 +153,10 @@ export class OneTimeToken {
 
   // 验证 MFA OTP（不自动标记为已消费）
   verifyMfa(inputCode: string): boolean {
-    if (!this.isValid()) throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_INVALID)
-    if (this.isExpired()) throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_EXPIRED)
+    if (!this.isValid())
+      throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_INVALID)
+    if (this.isExpired())
+      throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_EXPIRED)
     if (this.props.attemptCount >= this.props.maxAttempt)
       throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_REACH_LIMIT)
     if (this.props.code === inputCode) {
@@ -192,14 +199,20 @@ export class OneTimeToken {
 
   markConsumed() {
     this.props.consumed = true
-    if (this.props.type === OTP_TYPES.EMAIL || this.props.type === OTP_TYPES.PHONE)
+    if (
+      this.props.type === OTP_TYPES.EMAIL ||
+      this.props.type === OTP_TYPES.PHONE
+    )
       this.props.valid = false
     this.touch()
   }
 
   recordFailAttempt() {
     this.props.attemptCount += 1
-    if (this.props.type === OTP_TYPES.EMAIL || this.props.type === OTP_TYPES.PHONE)
+    if (
+      this.props.type === OTP_TYPES.EMAIL ||
+      this.props.type === OTP_TYPES.PHONE
+    )
       this.props.valid = false
     this.touch()
   }

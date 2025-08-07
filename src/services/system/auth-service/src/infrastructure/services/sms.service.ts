@@ -15,7 +15,10 @@ export class SmsService {
    * @param code 验证码
    * @returns Promise<string> 返回验证码（开发阶段返回硬编码，生产阶段返回实际验证码）
    */
-  async sendPhoneVerificationCode(phone: string, code: string): Promise<string> {
+  async sendPhoneVerificationCode(
+    phone: string,
+    code: string
+  ): Promise<string> {
     // 开发测试阶段：使用硬编码验证码
     if (this.isDevelopmentMode()) {
       console.log(`[开发模式] 短信验证码已发送到 ${phone}`)
@@ -51,7 +54,9 @@ export class SmsService {
    * @returns boolean
    */
   private isDevelopmentMode(): boolean {
-    return process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
+    return (
+      process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
+    )
   }
 
   /**

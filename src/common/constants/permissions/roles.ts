@@ -17,7 +17,6 @@ export const ROLES = {
   }
 }
 
-
 // code        String   @unique
 // description String?
 // module      String

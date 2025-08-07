@@ -32,7 +32,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly userService: UserService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   async signUpBasic(
     signUpBasicDto: SignUpBasicDto,
@@ -80,7 +80,7 @@ export class AuthService {
   }
 
   async signOutFromEverywhere2(user: User): Promise<any> {
-    return this.keystoreModel.deleteMany({ client: user }).lean().exec()
+    return this.keystoreModel.deleteMany({ client: user }).lean().exec();
   }
 
   async refreshToken(

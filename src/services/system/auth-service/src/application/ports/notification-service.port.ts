@@ -39,28 +39,36 @@ export interface INotificationServicePort {
    * @param request 通知请求
    * @returns 通知响应
    */
-  sendEmailNotification(request: NotificationRequest): Promise<NotificationResponse>
+  sendEmailNotification(
+    request: NotificationRequest
+  ): Promise<NotificationResponse>
 
   /**
    * 发送短信通知
    * @param request 通知请求
    * @returns 通知响应
    */
-  sendSmsNotification(request: NotificationRequest): Promise<NotificationResponse>
+  sendSmsNotification(
+    request: NotificationRequest
+  ): Promise<NotificationResponse>
 
   /**
    * 发送推送通知
    * @param request 通知请求
    * @returns 通知响应
    */
-  sendPushNotification(request: NotificationRequest): Promise<NotificationResponse>
+  sendPushNotification(
+    request: NotificationRequest
+  ): Promise<NotificationResponse>
 
   /**
    * 发送应用内通知
    * @param request 通知请求
    * @returns 通知响应
    */
-  sendInAppNotification(request: NotificationRequest): Promise<NotificationResponse>
+  sendInAppNotification(
+    request: NotificationRequest
+  ): Promise<NotificationResponse>
 
   /**
    * 发送验证码邮件
@@ -72,7 +80,7 @@ export interface INotificationServicePort {
   sendVerificationEmail(
     email: string,
     code: string,
-    templateId?: string,
+    templateId?: string
   ): Promise<NotificationResponse>
 
   /**
@@ -85,7 +93,7 @@ export interface INotificationServicePort {
   sendVerificationSms(
     phone: string,
     code: string,
-    templateId?: string,
+    templateId?: string
   ): Promise<NotificationResponse>
 
   /**
@@ -98,7 +106,7 @@ export interface INotificationServicePort {
   sendSecurityNotification(
     userId: string,
     type: string,
-    details: Record<string, any>,
+    details: Record<string, any>
   ): Promise<NotificationResponse>
 
   /**
@@ -111,7 +119,7 @@ export interface INotificationServicePort {
   sendLoginSuccessNotification(
     userId: string,
     deviceInfo: Record<string, any>,
-    locationInfo?: Record<string, any>,
+    locationInfo?: Record<string, any>
   ): Promise<NotificationResponse>
 
   /**
@@ -126,7 +134,7 @@ export interface INotificationServicePort {
     userId: string,
     deviceInfo: Record<string, any>,
     locationInfo?: Record<string, any>,
-    reason?: string,
+    reason?: string
   ): Promise<NotificationResponse>
 
   /**
@@ -139,7 +147,7 @@ export interface INotificationServicePort {
   sendRemoteLoginNotification(
     userId: string,
     deviceInfo: Record<string, any>,
-    locationInfo: Record<string, any>,
+    locationInfo: Record<string, any>
   ): Promise<NotificationResponse>
 
   /**
@@ -152,7 +160,7 @@ export interface INotificationServicePort {
   sendAccountLockedNotification(
     userId: string,
     reason: string,
-    duration?: string,
+    duration?: string
   ): Promise<NotificationResponse>
 
   /**
@@ -165,7 +173,7 @@ export interface INotificationServicePort {
   sendPasswordResetNotification(
     userId: string,
     resetToken: string,
-    expiresAt: Date,
+    expiresAt: Date
   ): Promise<NotificationResponse>
 
   /**

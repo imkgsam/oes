@@ -1,3 +1,1 @@
-export const PERMISSIONS = {
-
-}
+export const PERMISSIONS = {}

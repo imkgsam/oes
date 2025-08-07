@@ -1,7 +1,11 @@
 import { Injectable, Logger, Inject } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { CommonJwtService } from '@oes/common/modules/jwt/jwt.service'
-import { Session, SessionConfig, DeviceInfo } from 'src/domain/entities/session.entity'
+import {
+  Session,
+  SessionConfig,
+  DeviceInfo
+} from 'src/domain/entities/session.entity'
 import { ISessionRepository } from 'src/domain/repositories/session.repository'
 import { SESSION_REPOSITORY } from 'src/common/constants/injection-tokens'
 
@@ -33,13 +37,14 @@ export class SessionService {
     refreshTokenExpiry: 7 * 24 * 3600, // 7天
     maxSessionsPerUser: 5,
     enableAutoRenewal: true,
-    enableDeviceTracking: true,
+    enableDeviceTracking: true
   }
 
   constructor(
-    @Inject(SESSION_REPOSITORY) private readonly sessionRepo: ISessionRepository,
+    @Inject(SESSION_REPOSITORY)
+    private readonly sessionRepo: ISessionRepository,
     private readonly commonJwtService: CommonJwtService,
-    private readonly configService: ConfigService,
+    private readonly configService: ConfigService
   ) {}
 
   // ==================== 核心方法 ====================
@@ -62,7 +67,7 @@ export class SessionService {
   async createSession(
     userId: string,
     deviceInfo: DeviceInfo,
-    config?: Partial<SessionConfig>,
+    config?: Partial<SessionConfig>
   ): Promise<{ accessToken: string; refreshToken: string; sessionId: string }> {
     // 检查会话数量限制
     await this.checkSessionLimit(userId)
@@ -79,14 +84,14 @@ export class SessionService {
       ...this.defaultConfig,
       accessTokenExpiry,
       refreshTokenExpiry,
-      ...config,
+      ...config
     }
 
     // 创建会话实体
     const session = Session.createSession({
       userId,
       deviceInfo,
-      config: sessionConfig,
+      config: sessionConfig
     })
 
     // 生成 JWT 令牌
@@ -100,12 +105,14 @@ export class SessionService {
     // 保存会话
     await this.sessionRepo.save(session)
 
-    this.logger.log(`Created session for user ${userId} on device ${deviceInfo.deviceId}`)
+    this.logger.log(
+      `Created session for user ${userId} on device ${deviceInfo.deviceId}`
+    )
 
     return {
       accessToken,
       refreshToken,
-      sessionId: session.getId(),
+      sessionId: session.getId()
     }
   }
 
@@ -161,11 +168,11 @@ export class SessionService {
         isValid: true,
         session,
         userId: session.getUserId(),
-        shouldRenew,
+        shouldRenew
       }
     } catch (error) {
       this.logger.warn(
-        `Invalid access token: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Invalid access token: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
       return { isValid: false }
     }
@@ -221,11 +228,11 @@ export class SessionService {
       return {
         accessToken: newAccessToken,
         refreshToken: newRefreshToken,
-        sessionId: session.getId(),
+        sessionId: session.getId()
       }
     } catch (error) {
       this.logger.warn(
-        `Token refresh failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Token refresh failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
       throw new Error('Token refresh failed')
     }
@@ -250,7 +257,7 @@ export class SessionService {
       return { success: true }
     } catch (error) {
       this.logger.error(
-        `Logout failed for session ${sessionId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Logout failed for session ${sessionId}: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
       return { success: false }
     }
@@ -268,18 +275,22 @@ export class SessionService {
    * @param userId 用户 ID
    * @returns 登出结果
    */
-  async logoutAll(userId: string): Promise<{ success: boolean; sessionCount: number }> {
+  async logoutAll(
+    userId: string
+  ): Promise<{ success: boolean; sessionCount: number }> {
     try {
       const sessions = await this.sessionRepo.findAllByUserId(userId)
       const sessionCount = sessions.length
 
       await this.sessionRepo.deleteAllByUserId(userId)
 
-      this.logger.log(`User ${userId} logged out from all ${sessionCount} sessions`)
+      this.logger.log(
+        `User ${userId} logged out from all ${sessionCount} sessions`
+      )
       return { success: true, sessionCount }
     } catch (error) {
       this.logger.error(
-        `Logout all failed for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Logout all failed for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
       return { success: false, sessionCount: 0 }
     }
@@ -305,17 +316,19 @@ export class SessionService {
   async adminRevokeAllSessions(
     userId: string,
     reason: string,
-    adminId: string,
+    adminId: string
   ): Promise<{ success: boolean; sessionCount: number }> {
     try {
       await this.sessionRepo.adminRevokeAllByUserId(userId, reason, adminId)
       const sessions = await this.sessionRepo.findAllByUserId(userId)
 
-      this.logger.log(`Admin ${adminId} revoked all sessions for user ${userId}: ${reason}`)
+      this.logger.log(
+        `Admin ${adminId} revoked all sessions for user ${userId}: ${reason}`
+      )
       return { success: true, sessionCount: sessions.length }
     } catch (error) {
       this.logger.error(
-        `Admin revoke failed for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Admin revoke failed for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
       return { success: false, sessionCount: 0 }
     }
@@ -338,16 +351,18 @@ export class SessionService {
   async adminRevokeSession(
     sessionId: string,
     reason: string,
-    adminId: string,
+    adminId: string
   ): Promise<{ success: boolean }> {
     try {
       await this.sessionRepo.adminRevokeSession(sessionId, reason, adminId)
 
-      this.logger.log(`Admin ${adminId} revoked session ${sessionId}: ${reason}`)
+      this.logger.log(
+        `Admin ${adminId} revoked session ${sessionId}: ${reason}`
+      )
       return { success: true }
     } catch (error) {
       this.logger.error(
-        `Admin revoke session failed for ${sessionId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Admin revoke session failed for ${sessionId}: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
       return { success: false }
     }
@@ -370,17 +385,19 @@ export class SessionService {
   async adminSuspendAllSessions(
     userId: string,
     reason: string,
-    adminId: string,
+    adminId: string
   ): Promise<{ success: boolean; sessionCount: number }> {
     try {
       await this.sessionRepo.adminSuspendAllByUserId(userId, reason, adminId)
       const sessions = await this.sessionRepo.findAllByUserId(userId)
 
-      this.logger.log(`Admin ${adminId} suspended all sessions for user ${userId}: ${reason}`)
+      this.logger.log(
+        `Admin ${adminId} suspended all sessions for user ${userId}: ${reason}`
+      )
       return { success: true, sessionCount: sessions.length }
     } catch (error) {
       this.logger.error(
-        `Admin suspend failed for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Admin suspend failed for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
       return { success: false, sessionCount: 0 }
     }
@@ -399,7 +416,7 @@ export class SessionService {
    * @returns 恢复结果
    */
   async adminRestoreAllSessions(
-    userId: string,
+    userId: string
   ): Promise<{ success: boolean; sessionCount: number }> {
     try {
       await this.sessionRepo.adminRestoreAllByUserId(userId)
@@ -409,7 +426,7 @@ export class SessionService {
       return { success: true, sessionCount: sessions.length }
     } catch (error) {
       this.logger.error(
-        `Admin restore failed for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Admin restore failed for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
       return { success: false, sessionCount: 0 }
     }
@@ -432,21 +449,25 @@ export class SessionService {
    */
   async kickOtherDevices(
     userId: string,
-    excludeSessionId: string,
+    excludeSessionId: string
   ): Promise<{ success: boolean; kickedCount: number }> {
     try {
       const sessions = await this.sessionRepo.findAllByUserId(userId)
-      const sessionsToKick = sessions.filter((session) => session.getId() !== excludeSessionId)
+      const sessionsToKick = sessions.filter(
+        (session) => session.getId() !== excludeSessionId
+      )
 
       for (const session of sessionsToKick) {
         await this.sessionRepo.delete(session.getId())
       }
 
-      this.logger.log(`Kicked ${sessionsToKick.length} other devices for user ${userId}`)
+      this.logger.log(
+        `Kicked ${sessionsToKick.length} other devices for user ${userId}`
+      )
       return { success: true, kickedCount: sessionsToKick.length }
     } catch (error) {
       this.logger.error(
-        `Kick other devices failed for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Kick other devices failed for user ${userId}: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
       return { success: false, kickedCount: 0 }
     }
@@ -472,7 +493,7 @@ export class SessionService {
       return { success: true }
     } catch (error) {
       this.logger.error(
-        `Kick device failed for session ${sessionId}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Kick device failed for session ${sessionId}: ${error instanceof Error ? error.message : 'Unknown error'}`
       )
       return { success: false }
     }
@@ -514,10 +535,10 @@ export class SessionService {
         status: session.getStatus(),
         createdAt: session.getCreatedAt(),
         lastActiveAt: session.getLastActiveAt(),
-        expiresAt: session.getExpiresAt(),
+        expiresAt: session.getExpiresAt()
       })),
       totalCount: sessions.length,
-      activeCount: activeSessions.length,
+      activeCount: activeSessions.length
     }
   }
 
@@ -596,23 +617,26 @@ export class SessionService {
    * @param type 令牌类型
    * @returns JWT 令牌
    */
-  private async generateJwtToken(session: Session, type: 'ACCESS' | 'REFRESH'): Promise<string> {
+  private async generateJwtToken(
+    session: Session,
+    type: 'ACCESS' | 'REFRESH'
+  ): Promise<string> {
     const tokenConfig = this.configService.get('token')
     const payload = {
       sub: session.getUserId(),
       sessionId: session.getId(),
-      type,
+      type
     }
 
     if (type === 'ACCESS') {
       return this.commonJwtService.signAccessToken(payload, {
         issuer: tokenConfig?.issuer,
-        audience: tokenConfig?.audience,
+        audience: tokenConfig?.audience
       })
     } else {
       return this.commonJwtService.signRefreshToken(payload, {
         issuer: tokenConfig?.issuer,
-        audience: tokenConfig?.audience,
+        audience: tokenConfig?.audience
       })
     }
   }

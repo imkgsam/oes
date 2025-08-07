@@ -5,7 +5,7 @@ import {
   EmailPasswordLoginDto,
   GoogleLoginDto,
   PhoneOtpLoginDto,
-  WechatLoginDto,
+  WechatLoginDto
 } from 'src/application/dtos/login.dto'
 import { LoginMethodEnum } from 'src/domain/constants/login-method.enum'
 import { AUTH_MESSAGES } from '@oes/common/constants/messages/auth.message'
@@ -17,7 +17,7 @@ import { safeRpcCall } from '@oes/common/helpers/rpc.helper'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 import {
   createBusinessException,
-  createSystemException,
+  createSystemException
 } from '@oes/common/helpers/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
 
@@ -25,7 +25,7 @@ import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-servic
 export class TcpTestController {
   constructor(
     @InjectServiceClient(ServiceKeys.PERMI_TCP)
-    private readonly permissionClient: ClientProxy,
+    private readonly permissionClient: ClientProxy
   ) {}
 
   @MessagePattern(AUTH_MESSAGES.Test)

@@ -9,7 +9,7 @@ import { createBusinessException } from '@oes/common/helpers/exception.factory'
 
 @Controller()
 export class TcpRoleController {
-  constructor(private readonly roleService: RoleService) { }
+  constructor(private readonly roleService: RoleService) {}
 
   @MessagePattern(PERMISSION_MESSAGES.CREATE_ROLE)
   checkUserPermission(@Payload() data: CreateRoleDto): Promise<Role> {
@@ -19,7 +19,8 @@ export class TcpRoleController {
   @MessagePattern(PERMISSION_MESSAGES.GET_ROLE_BY_ID)
   async getRoleById(@Payload('id') id: string): Promise<Role | null> {
     const found = await this.roleService.getById(id)
-    if (!found) throw createBusinessException(PERMISSION_SERVICE_ERRORS.ROLE_NOT_FOUND)
+    if (!found)
+      throw createBusinessException(PERMISSION_SERVICE_ERRORS.ROLE_NOT_FOUND)
     return found
   }
 

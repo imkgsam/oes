@@ -10,7 +10,12 @@ export interface AuditEvent {
   accountId?: string
   tenantId?: string
   eventType: string
-  eventCategory: 'AUTHENTICATION' | 'AUTHORIZATION' | 'SECURITY' | 'ADMIN' | 'SYSTEM'
+  eventCategory:
+    | 'AUTHENTICATION'
+    | 'AUTHORIZATION'
+    | 'SECURITY'
+    | 'ADMIN'
+    | 'SYSTEM'
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
   description: string
   details: Record<string, any>
@@ -28,7 +33,12 @@ export interface AuditRequest {
   accountId?: string
   tenantId?: string
   eventType: string
-  eventCategory: 'AUTHENTICATION' | 'AUTHORIZATION' | 'SECURITY' | 'ADMIN' | 'SYSTEM'
+  eventCategory:
+    | 'AUTHENTICATION'
+    | 'AUTHORIZATION'
+    | 'SECURITY'
+    | 'ADMIN'
+    | 'SYSTEM'
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
   description: string
   details: Record<string, any>
@@ -71,7 +81,7 @@ export interface IAuditServicePort {
     loginMethod: string,
     deviceInfo: Record<string, any>,
     locationInfo?: Record<string, any>,
-    sessionId?: string,
+    sessionId?: string
   ): Promise<AuditResponse>
 
   /**
@@ -88,7 +98,7 @@ export interface IAuditServicePort {
     loginMethod: string,
     reason: string,
     deviceInfo: Record<string, any>,
-    locationInfo?: Record<string, any>,
+    locationInfo?: Record<string, any>
   ): Promise<AuditResponse>
 
   /**
@@ -98,7 +108,11 @@ export interface IAuditServicePort {
    * @param reason 登出原因
    * @returns 审计响应
    */
-  recordLogout(userId: string, sessionId: string, reason?: string): Promise<AuditResponse>
+  recordLogout(
+    userId: string,
+    sessionId: string,
+    reason?: string
+  ): Promise<AuditResponse>
 
   /**
    * 记录密码重置事件
@@ -110,7 +124,7 @@ export interface IAuditServicePort {
   recordPasswordReset(
     userId: string,
     resetMethod: string,
-    deviceInfo: Record<string, any>,
+    deviceInfo: Record<string, any>
   ): Promise<AuditResponse>
 
   /**
@@ -125,7 +139,7 @@ export interface IAuditServicePort {
     userId: string,
     reason: string,
     duration?: string,
-    deviceInfo?: Record<string, any>,
+    deviceInfo?: Record<string, any>
   ): Promise<AuditResponse>
 
   /**
@@ -142,7 +156,7 @@ export interface IAuditServicePort {
     resource: string,
     action: string,
     granted: boolean,
-    reason?: string,
+    reason?: string
   ): Promise<AuditResponse>
 
   /**
@@ -159,7 +173,7 @@ export interface IAuditServicePort {
     eventType: string,
     description: string,
     details: Record<string, any>,
-    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+    severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
   ): Promise<AuditResponse>
 
   /**
@@ -176,7 +190,7 @@ export interface IAuditServicePort {
     eventType: string,
     mfaType: string,
     success: boolean,
-    details: Record<string, any>,
+    details: Record<string, any>
   ): Promise<AuditResponse>
 
   /**
@@ -191,7 +205,7 @@ export interface IAuditServicePort {
     userId: string,
     sessionId: string,
     eventType: string,
-    details: Record<string, any>,
+    details: Record<string, any>
   ): Promise<AuditResponse>
 
   /**
@@ -206,7 +220,7 @@ export interface IAuditServicePort {
     adminUserId: string,
     targetUserId: string,
     action: string,
-    details: Record<string, any>,
+    details: Record<string, any>
   ): Promise<AuditResponse>
 
   /**
@@ -228,7 +242,7 @@ export interface IAuditServicePort {
     userId: string,
     startDate: Date,
     endDate: Date,
-    limit?: number,
+    limit?: number
   ): Promise<AuditEvent[]>
 
   /**
@@ -243,6 +257,6 @@ export interface IAuditServicePort {
     accountId: string,
     startDate: Date,
     endDate: Date,
-    limit?: number,
+    limit?: number
   ): Promise<AuditEvent[]>
 }

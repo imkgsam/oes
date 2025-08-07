@@ -34,7 +34,7 @@ const otp = OneTimeToken.createMfaOtp({
   type: OTP_TYPES.EMAIL,
   identifier: email,
   code: this.generateEmailCode(),
-  expiredAt: new Date(Date.now() + 5 * 60 * 1000),
+  expiredAt: new Date(Date.now() + 5 * 60 * 1000)
 })
 await this.oneTimeTokenRepo.save(otp)
 ```
@@ -45,7 +45,10 @@ await this.oneTimeTokenRepo.save(otp)
 
 ```typescript
 // 查找并更新登录方法
-const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('EMAIL', email)
+const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier(
+  'EMAIL',
+  email
+)
 if (loginMethod) {
   loginMethod.verify() // 使用领域实体的业务方法
   await this.loginMethodRepo.save(loginMethod)
@@ -152,7 +155,7 @@ const testOtp = OneTimeToken.createMfaOtp({
   type: OTP_TYPES.EMAIL,
   identifier: 'test@example.com',
   code: '123456',
-  expiredAt: new Date(Date.now() + 5 * 60 * 1000),
+  expiredAt: new Date(Date.now() + 5 * 60 * 1000)
 })
 await oneTimeTokenRepo.save(testOtp)
 ```

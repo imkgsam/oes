@@ -26,10 +26,10 @@ To suggest enhancements or new features, please use the [GitHub Issues](https://
 
 1. Fork the repository and create your branch from `main`.
 
-    ```bash
-    git clone https://github.com/janishar/wimm-node-app.git --recursive
-    git checkout -b your-feature-branch
-    ```
+   ```bash
+   git clone https://github.com/janishar/wimm-node-app.git --recursive
+   git checkout -b your-feature-branch
+   ```
 
 2. Make your changes and ensure that your code adheres to the project's coding standards.
 
@@ -37,16 +37,16 @@ To suggest enhancements or new features, please use the [GitHub Issues](https://
 
 4. Commit your changes with a clear and concise commit message.
 
-    ```bash
-    git add .
-    git commit -m "Add your concise commit message here"
-    ```
+   ```bash
+   git add .
+   git commit -m "Add your concise commit message here"
+   ```
 
 5. Push to your forked repository.
 
-    ```bash
-    git push origin your-feature-branch
-    ```
+   ```bash
+   git push origin your-feature-branch
+   ```
 
 6. Open a pull request with a detailed description of your changes.
 

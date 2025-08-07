@@ -6,12 +6,12 @@ import { hash } from 'bcrypt'
 @Injectable()
 export class AdminService {
   constructor(
-    @Inject('UserRepository') private readonly userRepository: IUserRepository,
+    @Inject('UserRepository') private readonly userRepository: IUserRepository
   ) {}
 
   async existsByEmailOrPhone(email: string, phone: string) {
     const conditions: any = {
-      OR: [],
+      OR: []
     }
     if (email) conditions.OR.push({ email })
     if (phone) conditions.OR.push({ phone })

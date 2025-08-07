@@ -3,7 +3,7 @@ import { PermissionService } from 'src/application/services/permission.service'
 import {
   CheckUserPermissionUseCase,
   CreatePermissionUseCase,
-  ListPermissionsUseCase,
+  ListPermissionsUseCase
 } from 'src/application/use-cases/permission.use-case'
 import { PrismaModule } from 'src/infrastructure/prisma/prisma.module'
 import { PrismaPermissionRepository } from 'src/infrastructure/repositories/prisma/prisma.permission.repository'
@@ -16,14 +16,17 @@ import { TcpPermissionController } from 'src/interfaces/tcp/controllers/tcp.perm
   providers: [
     { provide: 'PermissionRepository', useClass: PrismaPermissionRepository },
     { provide: 'UserRoleRepository', useClass: PrismaUserRoleRepository },
-    { provide: 'RolePermissionRepository', useClass: PrismaRolePermissionRepository },
+    {
+      provide: 'RolePermissionRepository',
+      useClass: PrismaRolePermissionRepository
+    },
     PermissionService,
     ListPermissionsUseCase,
     CreatePermissionUseCase,
     CreatePermissionUseCase,
-    CheckUserPermissionUseCase,
+    CheckUserPermissionUseCase
   ],
   controllers: [HttpPermissionController, TcpPermissionController],
-  exports: [PermissionService],
+  exports: [PermissionService]
 })
 export class PermissionModule {}

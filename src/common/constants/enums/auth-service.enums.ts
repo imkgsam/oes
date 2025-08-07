@@ -2,25 +2,25 @@ export enum OTP_USAGES {
   LOGIN = 'LOGIN',
   REGISTER = 'REGISTER',
   RESET_PASSWORD = 'RESET_PASSWORD',
-  MFA_VERIFY = 'MFA_VERIFY',
+  MFA_VERIFY = 'MFA_VERIFY'
 }
 
 export enum OTP_TYPES {
   EMAIL = 'EMAIL',
-  PHONE = 'PHONE',
+  PHONE = 'PHONE'
 }
 
 export const LOGIN_METHOD_TYPES = {
   EMAIL: 'EMAIL',
   PHONE: 'PHONE',
-  OAUTH_OPENID: 'OAUTH_OPENID',
+  OAUTH_OPENID: 'OAUTH_OPENID'
 }
 
 export const CREDENTIAL_TYPES = {
   PASSWORD: 'PASSWORD',
   EMAIL_OTP: 'EMAIL_OTP',
   PHONE_OTP: 'PHONE_OTP',
-  OAUTH: 'OAUTH',
+  OAUTH: 'OAUTH'
 }
 
 export enum MfaType {
@@ -30,7 +30,7 @@ export enum MfaType {
   BACKUP_CODE = 'BACKUP_CODE', // 备用码
   PUSH_NOTIFICATION = 'PUSH_NOTIFICATION', // 推送通知
   HARDWARE_TOKEN = 'HARDWARE_TOKEN', // 硬件令牌
-  BIOMETRIC = 'BIOMETRIC', // 生物识别
+  BIOMETRIC = 'BIOMETRIC' // 生物识别
 }
 
 /**
@@ -54,7 +54,7 @@ export enum LoginMethodEnum {
   EmailOtp = 'email-otp',
   PhoneOtp = 'phone-otp',
   Google = 'google',
-  Wechat = 'wechat',
+  Wechat = 'wechat'
 }
 
 /**
@@ -77,7 +77,7 @@ export enum SessionStatus {
   ACTIVE = 'ACTIVE',
   EXPIRED = 'EXPIRED',
   REVOKED = 'REVOKED',
-  SUSPENDED = 'SUSPENDED',
+  SUSPENDED = 'SUSPENDED'
 }
 
 /**
@@ -91,5 +91,5 @@ export enum SessionStatus {
  */
 export enum TokenType {
   ACCESS = 'ACCESS',
-  REFRESH = 'REFRESH',
+  REFRESH = 'REFRESH'
 }

@@ -15,10 +15,10 @@ export class TraceModule {
       providers: [
         {
           provide: APP_INTERCEPTOR,
-          useClass: HttpTraceInterceptor,
-        },
+          useClass: HttpTraceInterceptor
+        }
       ],
-      exports: [],
+      exports: []
     }
   }
 
@@ -28,10 +28,10 @@ export class TraceModule {
       providers: [
         {
           provide: APP_INTERCEPTOR,
-          useClass: RpcTraceInterceptor,
-        },
+          useClass: RpcTraceInterceptor
+        }
       ],
-      exports: [],
+      exports: []
     }
   }
 }

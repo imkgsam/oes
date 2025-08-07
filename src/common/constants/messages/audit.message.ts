@@ -235,5 +235,5 @@ export const AUDIT_MESSAGES = {
    * 使用场景：获取审计数据存储的状态信息
    * 参数：{}
    */
-  GET_STORAGE_STATUS: 'audit.get_storage_status',
+  GET_STORAGE_STATUS: 'audit.get_storage_status'
 }

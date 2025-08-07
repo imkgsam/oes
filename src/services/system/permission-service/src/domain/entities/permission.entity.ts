@@ -5,7 +5,7 @@ export class Permission {
     public readonly id: string,
     public code: string,
     public module: string,
-    public description?: string | '',
+    public description?: string | ''
   ) {}
 
   static fromPrisma(prismaPermission: PrismaPermission): Permission {
@@ -13,7 +13,7 @@ export class Permission {
       prismaPermission.id,
       prismaPermission.code,
       prismaPermission.module,
-      prismaPermission.description || '',
+      prismaPermission.description || ''
     )
   }
 

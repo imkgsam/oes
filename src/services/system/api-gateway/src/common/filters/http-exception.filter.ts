@@ -3,7 +3,7 @@ import {
   Catch,
   ArgumentsHost,
   HttpException,
-  HttpStatus,
+  HttpStatus
 } from '@nestjs/common'
 import { RpcException } from '@nestjs/microservices'
 import { Request, Response } from 'express'
@@ -52,7 +52,7 @@ export class HttpExceptionFilter<T> implements ExceptionFilter {
       data: null,
       timestamp,
       path,
-      traceId,
+      traceId
     })
   }
 }

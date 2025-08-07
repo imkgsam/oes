@@ -22,36 +22,36 @@ import { IAuditServicePort } from 'src/application/ports/audit-service.port'
       ServiceKeys.IDENTITY_TCP,
       ServiceKeys.PERMISSION_TCP,
       ServiceKeys.NOTIFICATION_TCP,
-      ServiceKeys.AUDIT_TCP,
-    ]),
+      ServiceKeys.AUDIT_TCP
+    ])
   ],
   providers: [
     // Identity Service 适配器
     {
       provide: IIdentityServicePort,
-      useClass: IdentityServiceAdaptor,
+      useClass: IdentityServiceAdaptor
     },
     // Permission Service 适配器
     {
       provide: IPermissionServicePort,
-      useClass: PermissionServiceAdaptor,
+      useClass: PermissionServiceAdaptor
     },
     // Notification Service 适配器
     {
       provide: INotificationServicePort,
-      useClass: NotificationServiceAdaptor,
+      useClass: NotificationServiceAdaptor
     },
     // Audit Service 适配器
     {
       provide: IAuditServicePort,
-      useClass: AuditServiceAdaptor,
-    },
+      useClass: AuditServiceAdaptor
+    }
   ],
   exports: [
     IIdentityServicePort,
     IPermissionServicePort,
     INotificationServicePort,
-    IAuditServicePort,
-  ],
+    IAuditServicePort
+  ]
 })
 export class ExternalServicesModule {}

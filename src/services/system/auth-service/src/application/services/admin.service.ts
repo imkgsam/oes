@@ -7,7 +7,7 @@ export class AdminAuthService {
   constructor(
     @Inject('LoginMethodRepository')
     private readonly loginMethodRepository: ILoginMethodRepository,
-    @Inject('OtpRepository') private readonly otpRepository: IOtpRepository,
+    @Inject('OtpRepository') private readonly otpRepository: IOtpRepository
   ) {}
 
   async getAllLoginMethods() {

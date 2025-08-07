@@ -12,14 +12,14 @@ import { MicroserviceExceptionsFilter } from './filters/microservice-exception.f
     PermissionControllGuard,
     ScopeControllGuard,
     ApiGatewayExceptionsFilter,
-    MicroserviceExceptionsFilter,
+    MicroserviceExceptionsFilter
   ],
   exports: [
     PermissionControllGuard,
     ScopeControllGuard,
     ClientModule,
     ApiGatewayExceptionsFilter,
-    MicroserviceExceptionsFilter,
-  ],
+    MicroserviceExceptionsFilter
+  ]
 })
-export class CommonModule { }
+export class CommonModule {}

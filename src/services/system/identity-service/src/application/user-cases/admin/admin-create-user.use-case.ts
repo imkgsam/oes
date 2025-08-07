@@ -11,7 +11,7 @@ export class AdminCreateUserUseCase {
     // 检查是否重复（也可以放到 domain 规则中）
     const exists = await this.adminService.existsByEmailOrPhone(
       dto.email,
-      dto.phone,
+      dto.phone
     )
     if (exists) {
       throw new Error('User with this email or phone already exists')

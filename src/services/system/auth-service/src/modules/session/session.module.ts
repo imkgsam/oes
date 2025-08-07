@@ -34,9 +34,9 @@ import { SESSION_REPOSITORY } from 'src/common/constants/injection-tokens'
     SessionService,
     {
       provide: SESSION_REPOSITORY,
-      useClass: RedisSessionRepository,
-    },
+      useClass: RedisSessionRepository
+    }
   ],
-  exports: [SessionService, SESSION_REPOSITORY],
+  exports: [SessionService, SESSION_REPOSITORY]
 })
 export class SessionModule {}

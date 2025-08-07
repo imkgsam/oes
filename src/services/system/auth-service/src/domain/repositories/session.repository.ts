@@ -270,7 +270,11 @@ export interface ISessionRepository {
    * @param adminId 管理员 ID
    * @returns Promise<void>
    */
-  adminRevokeAllByUserId(userId: string, reason: string, adminId: string): Promise<void>
+  adminRevokeAllByUserId(
+    userId: string,
+    reason: string,
+    adminId: string
+  ): Promise<void>
 
   /**
    * 管理员撤销指定 Session
@@ -286,7 +290,11 @@ export interface ISessionRepository {
    * @param adminId 管理员 ID
    * @returns Promise<void>
    */
-  adminRevokeSession(sessionId: string, reason: string, adminId: string): Promise<void>
+  adminRevokeSession(
+    sessionId: string,
+    reason: string,
+    adminId: string
+  ): Promise<void>
 
   /**
    * 管理员暂停用户的所有 Session
@@ -302,7 +310,11 @@ export interface ISessionRepository {
    * @param adminId 管理员 ID
    * @returns Promise<void>
    */
-  adminSuspendAllByUserId(userId: string, reason: string, adminId: string): Promise<void>
+  adminSuspendAllByUserId(
+    userId: string,
+    reason: string,
+    adminId: string
+  ): Promise<void>
 
   /**
    * 管理员恢复用户的所有 Session

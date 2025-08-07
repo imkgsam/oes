@@ -38,5 +38,5 @@ export const IDENTITY_MESSAGES = {
   GET_ACCOUNT_DEFAULT_TENANT: 'identity.account.get_default_tenant',
 
   //test
-  Test: 'identity.test',
+  Test: 'identity.test'
 }

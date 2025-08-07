@@ -10,7 +10,7 @@ export class PrismaRoleRepository implements RoleRepository {
   async findById(id: string): Promise<Role | null> {
     const found = await this.prisma.role.findUnique({
       where: { id },
-      include: { permissions: true, users: true },
+      include: { permissions: true, users: true }
     })
     return found ? Role.fromPrisma(found, found.permissions, found.users) : null
   }
@@ -24,18 +24,18 @@ export class PrismaRoleRepository implements RoleRepository {
       update: {
         name: role.name,
         description: role.description,
-        module: role.module,
+        module: role.module
       },
       create: {
         id: role.id,
         name: role.name,
         description: role.description,
-        module: role.module,
+        module: role.module
       },
       include: {
         permissions: true,
-        users: true,
-      },
+        users: true
+      }
     })
     return Role.fromPrisma(saved, saved.permissions, saved.users)
   }

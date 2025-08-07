@@ -8,7 +8,7 @@ const clientCache = new Map<string, ClientProxy>()
 
 export function getOrCreateClient(
   id: string,
-  endpointConfig: IServiceEndpointConfig,
+  endpointConfig: IServiceEndpointConfig
 ): ClientProxy {
   if (!clientCache.has(id)) {
     const client = createClient(endpointConfig)

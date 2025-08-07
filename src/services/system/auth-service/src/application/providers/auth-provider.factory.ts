@@ -13,7 +13,7 @@ export class AuthProviderFactory {
     private readonly googleProvider: GoogleAuthProvider,
     private readonly wechatProvider: WechatAuthProvider,
     private readonly emailOtpProvider: EmailOtpProvider,
-    private readonly phoneOtpProvider: PhoneOtpProvider,
+    private readonly phoneOtpProvider: PhoneOtpProvider
   ) {}
 
   /**
@@ -34,7 +34,9 @@ export class AuthProviderFactory {
       case LoginMethodEnum.Wechat:
         return this.wechatProvider
       default:
-        throw new Error(`Unsupported login method type: ${String(loginMethodType)}`)
+        throw new Error(
+          `Unsupported login method type: ${String(loginMethodType)}`
+        )
     }
   }
 
@@ -44,7 +46,10 @@ export class AuthProviderFactory {
    * @param loginDto 登录数据
    * @returns 认证结果
    */
-  async authenticate(loginMethodType: LoginMethodEnum, loginDto: any): Promise<AuthResult> {
+  async authenticate(
+    loginMethodType: LoginMethodEnum,
+    loginDto: any
+  ): Promise<AuthResult> {
     const provider = this.getProvider(loginMethodType)
     return await provider.authenticate(loginDto)
   }
@@ -59,7 +64,7 @@ export class AuthProviderFactory {
       LoginMethodEnum.EmailOtp,
       LoginMethodEnum.PhoneOtp,
       LoginMethodEnum.Google,
-      LoginMethodEnum.Wechat,
+      LoginMethodEnum.Wechat
     ]
   }
 

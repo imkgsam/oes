@@ -11,10 +11,10 @@ import { TcpTestController } from 'src/interfaces/tcp/controllers/tcp.test.contr
     RoleService,
     {
       provide: 'RoleRepository',
-      useClass: PrismaRoleRepository,
-    },
+      useClass: PrismaRoleRepository
+    }
   ],
   controllers: [TcpRoleController, TcpTestController],
-  exports: [],
+  exports: []
 })
-export class RoleModule { }
+export class RoleModule {}

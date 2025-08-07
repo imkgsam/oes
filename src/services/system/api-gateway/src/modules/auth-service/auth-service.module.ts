@@ -8,6 +8,6 @@ import { AdminController } from './controllers/admin.controller'
 @Module({
   imports: [ClientModule.register([ServiceKeys.AUTH_TCP])],
   controllers: [AuthController, AdminController],
-  providers: [AuthServiceService],
+  providers: [AuthServiceService]
 })
 export class AuthServiceModule {}

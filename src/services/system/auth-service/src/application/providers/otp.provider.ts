@@ -1,4 +1,8 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common'
+import {
+  Injectable,
+  UnauthorizedException,
+  BadRequestException
+} from '@nestjs/common'
 import { AuthResult } from './interfaces/auth-provider.interface'
 import { EmailOtpLoginDto, PhoneOtpLoginDto } from '../dtos/login.dto'
 import { BaseAuthProvider } from './base-auth.provider'
@@ -7,7 +11,7 @@ import { OneTimeToken } from 'src/domain/entities/otp.entity'
 import {
   LOGIN_METHOD_TYPES,
   OTP_TYPES,
-  OTP_USAGES,
+  OTP_USAGES
 } from '@oes/common/constants/enums/auth-relative.enums'
 import { LoginMethodEnum } from '@oes/common/constants/enums/auth-relative.enums'
 
@@ -15,7 +19,7 @@ import { LoginMethodEnum } from '@oes/common/constants/enums/auth-relative.enums
 export class EmailOtpProvider extends BaseAuthProvider<EmailOtpLoginDto> {
   constructor(
     loginMethodRepository: any,
-    private readonly otpRepository: IOtpRepository,
+    private readonly otpRepository: IOtpRepository
   ) {
     super(loginMethodRepository, LoginMethodEnum.EmailOtp)
   }
@@ -28,10 +32,18 @@ export class EmailOtpProvider extends BaseAuthProvider<EmailOtpLoginDto> {
 
     try {
       // 查找并验证登录方法
-      const loginMethod = await this.findAndValidateLoginMethod(LOGIN_METHOD_TYPES.EMAIL, dto.email)
+      const loginMethod = await this.findAndValidateLoginMethod(
+        LOGIN_METHOD_TYPES.EMAIL,
+        dto.email
+      )
 
       // 验证 OTP
-      const otp = await this.validateOtp(OTP_TYPES.EMAIL, dto.email, dto.otp, OTP_USAGES.LOGIN)
+      const otp = await this.validateOtp(
+        OTP_TYPES.EMAIL,
+        dto.email,
+        dto.otp,
+        OTP_USAGES.LOGIN
+      )
 
       if (!otp) {
         throw new UnauthorizedException('Invalid OTP')
@@ -42,7 +54,7 @@ export class EmailOtpProvider extends BaseAuthProvider<EmailOtpLoginDto> {
 
       return this.createAuthResult(loginMethod, {
         otpId: otp.getProps().id,
-        otpType: OTP_TYPES.EMAIL,
+        otpType: OTP_TYPES.EMAIL
       })
     } catch (error) {
       return this.handleAuthError(error, 'OTP authentication failed')
@@ -71,7 +83,7 @@ export class EmailOtpProvider extends BaseAuthProvider<EmailOtpLoginDto> {
     type: OTP_TYPES,
     identifier: string,
     code: string,
-    usage: OTP_USAGES,
+    usage: OTP_USAGES
   ): Promise<OneTimeToken | null> {
     // 查找有效的 OTP
     const otps = await this.otpRepository.findAll()
@@ -82,7 +94,7 @@ export class EmailOtpProvider extends BaseAuthProvider<EmailOtpLoginDto> {
         otp.getProps().usage === usage &&
         otp.isValid() &&
         !otp.isConsumed() &&
-        !otp.isExpired(),
+        !otp.isExpired()
     )
 
     if (!validOtp) {
@@ -105,7 +117,7 @@ export class EmailOtpProvider extends BaseAuthProvider<EmailOtpLoginDto> {
 export class PhoneOtpProvider extends BaseAuthProvider<PhoneOtpLoginDto> {
   constructor(
     loginMethodRepository: any,
-    private readonly otpRepository: IOtpRepository,
+    private readonly otpRepository: IOtpRepository
   ) {
     super(loginMethodRepository, LoginMethodEnum.PhoneOtp)
   }
@@ -118,10 +130,18 @@ export class PhoneOtpProvider extends BaseAuthProvider<PhoneOtpLoginDto> {
 
     try {
       // 查找并验证登录方法
-      const loginMethod = await this.findAndValidateLoginMethod(LOGIN_METHOD_TYPES.PHONE, dto.phone)
+      const loginMethod = await this.findAndValidateLoginMethod(
+        LOGIN_METHOD_TYPES.PHONE,
+        dto.phone
+      )
 
       // 验证 OTP
-      const otp = await this.validateOtp(OTP_TYPES.PHONE, dto.phone, dto.otp, OTP_USAGES.LOGIN)
+      const otp = await this.validateOtp(
+        OTP_TYPES.PHONE,
+        dto.phone,
+        dto.otp,
+        OTP_USAGES.LOGIN
+      )
 
       if (!otp) {
         throw new UnauthorizedException('Invalid OTP')
@@ -132,7 +152,7 @@ export class PhoneOtpProvider extends BaseAuthProvider<PhoneOtpLoginDto> {
 
       return this.createAuthResult(loginMethod, {
         otpId: otp.getProps().id,
-        otpType: OTP_TYPES.PHONE,
+        otpType: OTP_TYPES.PHONE
       })
     } catch (error) {
       return this.handleAuthError(error, 'OTP authentication failed')
@@ -161,7 +181,7 @@ export class PhoneOtpProvider extends BaseAuthProvider<PhoneOtpLoginDto> {
     type: OTP_TYPES,
     identifier: string,
     code: string,
-    usage: OTP_USAGES,
+    usage: OTP_USAGES
   ): Promise<OneTimeToken | null> {
     // 查找有效的 OTP
     const otps = await this.otpRepository.findAll()
@@ -172,7 +192,7 @@ export class PhoneOtpProvider extends BaseAuthProvider<PhoneOtpLoginDto> {
         otp.getProps().usage === usage &&
         otp.isValid() &&
         !otp.isConsumed() &&
-        !otp.isExpired(),
+        !otp.isExpired()
     )
 
     if (!validOtp) {

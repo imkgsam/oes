@@ -216,5 +216,5 @@ export const NOTIFICATION_MESSAGES = {
    * 使用场景：获取通知服务的详细状态信息
    * 参数：{}
    */
-  GET_SERVICE_STATUS: 'notification.get_service_status',
+  GET_SERVICE_STATUS: 'notification.get_service_status'
 }

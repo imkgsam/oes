@@ -4,7 +4,7 @@ import {
   ClientProxy,
   ClientProxyFactory,
   Transport,
-  ClientOptions,
+  ClientOptions
 } from '@nestjs/microservices'
 
 export type ServiceProtocol =
@@ -29,7 +29,7 @@ export interface IServiceEndpointConfig {
 }
 
 export function createClient(
-  endpointConfig: IServiceEndpointConfig,
+  endpointConfig: IServiceEndpointConfig
 ): ClientProxy {
   let options: ClientOptions
 
@@ -39,8 +39,8 @@ export function createClient(
         transport: Transport.TCP,
         options: {
           host: endpointConfig.host,
-          port: endpointConfig.port!,
-        },
+          port: endpointConfig.port!
+        }
       }
       break
 
@@ -49,8 +49,8 @@ export function createClient(
         transport: Transport.REDIS,
         options: {
           host: endpointConfig.host,
-          port: endpointConfig.port!,
-        },
+          port: endpointConfig.port!
+        }
       }
       break
 
@@ -60,8 +60,8 @@ export function createClient(
         options: {
           url:
             endpointConfig.url ||
-            `nats://${endpointConfig.host}:${endpointConfig.port}`,
-        },
+            `nats://${endpointConfig.host}:${endpointConfig.port}`
+        }
       }
       break
 
@@ -71,13 +71,13 @@ export function createClient(
         options: {
           client: {
             brokers: endpointConfig.kafkaBrokers || [
-              `${endpointConfig.host}:${endpointConfig.port}`,
-            ],
+              `${endpointConfig.host}:${endpointConfig.port}`
+            ]
           },
           consumer: {
-            groupId: `${endpointConfig.serviceName}-consumer`,
-          },
-        },
+            groupId: `${endpointConfig.serviceName}-consumer`
+          }
+        }
       }
       break
 
@@ -87,11 +87,11 @@ export function createClient(
         options: {
           urls: [
             endpointConfig.url ||
-              `amqp://${endpointConfig.host}:${endpointConfig.port}`,
+              `amqp://${endpointConfig.host}:${endpointConfig.port}`
           ],
           queue: endpointConfig.queue!,
-          queueOptions: { durable: true },
-        },
+          queueOptions: { durable: true }
+        }
       }
       break
 
@@ -103,8 +103,8 @@ export function createClient(
             endpointConfig.url ||
             `${endpointConfig.host}:${endpointConfig.port}`,
           protoPath: endpointConfig.grpcProtoPath!,
-          package: endpointConfig.grpcPackage!,
-        },
+          package: endpointConfig.grpcPackage!
+        }
       }
       break
 
@@ -114,8 +114,8 @@ export function createClient(
         options: {
           url:
             endpointConfig.url ||
-            `mqtt://${endpointConfig.host}:${endpointConfig.port}`,
-        },
+            `mqtt://${endpointConfig.host}:${endpointConfig.port}`
+        }
       }
       break
 

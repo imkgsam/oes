@@ -4,9 +4,7 @@ import { IdentityServiceService } from '../identity-service.service'
 
 @Controller('identity/admin')
 export class AdminController {
-  constructor(
-    private readonly identityService: IdentityServiceService,
-  ) { }
+  constructor(private readonly identityService: IdentityServiceService) {}
 
   @Get('/user/all')
   async getAllUsers() {

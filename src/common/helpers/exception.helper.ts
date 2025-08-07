@@ -1,13 +1,13 @@
 import { RpcException } from '@nestjs/microservices'
 import {
   EXCEPTION_TYPE_PREFIX,
-  MODULES,
+  MODULES
 } from '../constants/res-codes/module.codes'
 import {
   ErrorContext,
   RawException,
   RpcError,
-  RpcExceptionPayload,
+  RpcExceptionPayload
 } from '../interfaces/exceptions.interface'
 import { ModuleDetails } from '../interfaces/module.interface'
 import { v4 as uuidv4 } from 'uuid'
@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from 'uuid'
 // 将RpcExceptionPayload转换为 RpcException
 export function toRpcException(
   error: RpcExceptionPayload,
-  partialContext: Partial<ErrorContext>,
+  partialContext: Partial<ErrorContext>
 ): RpcException {
   const context: ErrorContext = {
     module:
@@ -24,7 +24,7 @@ export function toRpcException(
     traceId: partialContext.traceId ?? uuidv4(),
     timestamp: partialContext.timestamp ?? new Date().toISOString(),
     spanId: partialContext.spanId,
-    isPropagated: partialContext.isPropagated ?? false,
+    isPropagated: partialContext.isPropagated ?? false
   }
   return new RpcException({ error, context } as RpcError)
 }
@@ -38,11 +38,11 @@ export function toRpcException(
 export function buildGlobalErrorCode(
   typePrefix: EXCEPTION_TYPE_PREFIX = EXCEPTION_TYPE_PREFIX.RUNTIME,
   moduleName: string,
-  subCode: string,
+  subCode: string
 ): string {
   const foundModule: ModuleDetails = MODULES[moduleName]
   console.log(
-    `Building global error code: ${typePrefix}${foundModule.code}${subCode}`,
+    `Building global error code: ${typePrefix}${foundModule.code}${subCode}`
   )
   if (!foundModule) throw new Error(`Module ${moduleName} not existed`)
   const moduleCode = foundModule.code

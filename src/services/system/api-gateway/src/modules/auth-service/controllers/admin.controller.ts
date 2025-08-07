@@ -1,12 +1,9 @@
 import { Body, Controller, Get, Post } from '@nestjs/common'
 import { AuthServiceService } from '../auth-service.service'
 
-
 @Controller('auth/admin')
 export class AdminController {
-  constructor(
-    private readonly authService: AuthServiceService,
-  ) { }
+  constructor(private readonly authService: AuthServiceService) {}
 
   @Get('/loginmethod/all')
   async getAllLoginMethods() {

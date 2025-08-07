@@ -4,12 +4,8 @@ import { RoleModule } from './modules/role/role.module'
 import { TraceModule } from '@oes/common/modules/trace/trace.module'
 
 @Module({
-  imports: [
-    PermissionModule,
-    RoleModule,
-    TraceModule.forRpc()
-  ],
+  imports: [PermissionModule, RoleModule, TraceModule.forRpc()],
   providers: [],
-  controllers: [],
+  controllers: []
 })
-export class AppModule { }
+export class AppModule {}

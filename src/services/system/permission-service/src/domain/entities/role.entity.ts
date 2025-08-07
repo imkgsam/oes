@@ -9,19 +9,32 @@ export class Role {
     public module: string,
     public description?: string,
     public permissions: RolePermission[] = [],
-    public users: UserRole[] = [],
+    public users: UserRole[] = []
   ) {}
 
   get permissionIds(): string[] {
     return this.permissions.map((rp) => rp.permissionId)
   }
 
-  static fromPrisma(role: PrismaRole, permissions: RolePermission[] = [], users: UserRole[] = []): Role {
-    return new Role(role.id, role.name, role.module, role.description || '', permissions, users)
+  static fromPrisma(
+    role: PrismaRole,
+    permissions: RolePermission[] = [],
+    users: UserRole[] = []
+  ): Role {
+    return new Role(
+      role.id,
+      role.name,
+      role.module,
+      role.description || '',
+      permissions,
+      users
+    )
   }
 
   removePermission(permissionId: string) {
-    this.permissions = this.permissions.filter((p) => p.permissionId !== permissionId)
+    this.permissions = this.permissions.filter(
+      (p) => p.permissionId !== permissionId
+    )
   }
 
   hasPermission(permissionId: string): boolean {

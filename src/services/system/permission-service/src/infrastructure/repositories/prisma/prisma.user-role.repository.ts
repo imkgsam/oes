@@ -15,14 +15,14 @@ export class PrismaUserRoleRepository implements UserRoleRepository {
     const created = await this.prisma.userRole.create({
       data: {
         userId: userRole.userId,
-        roleId: userRole.roleId,
-      },
+        roleId: userRole.roleId
+      }
     })
     return UserRole.fromPrisma(created)
   }
   async remove(userId: string, roleId: string): Promise<UserRole> {
     const deleted = await this.prisma.userRole.delete({
-      where: { userId_roleId: { userId, roleId } },
+      where: { userId_roleId: { userId, roleId } }
     })
     return UserRole.fromPrisma(deleted)
   }

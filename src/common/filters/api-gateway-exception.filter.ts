@@ -4,7 +4,7 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
-  Logger,
+  Logger
 } from '@nestjs/common'
 import { RpcException } from '@nestjs/microservices'
 import { buildGlobalErrorCode, isRpcError } from '../helpers/exception.helper'
@@ -29,7 +29,7 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
       this.logger.error('Caught HttpException:')
       const { statusCode, body } = this.handleHttpException(
         exception,
-        request.url,
+        request.url
       )
       status = statusCode
       responseBody = body
@@ -37,7 +37,7 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
       this.logger.error('Caught RpcException:')
       const { statusCode, body } = this.handleRpcException(
         exception,
-        request.url,
+        request.url
       )
       status = statusCode
       responseBody = body
@@ -45,7 +45,7 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
       this.logger.error('Caught unknown Exception:')
       const { statusCode, body } = this.handleGenericError(
         exception,
-        request.url,
+        request.url
       )
       status = statusCode
       responseBody = body
@@ -59,14 +59,14 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
       code: buildGlobalErrorCode(
         EXCEPTION_TYPE_PREFIX.RUNTIME,
         this.moduleName,
-        GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.subCode,
+        GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.subCode
       ),
       traceId: getTraceId(),
       message: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message,
       messageKey: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.messageKey,
       details: null,
       timestamp: new Date().toISOString(),
-      path,
+      path
     }
   }
 
@@ -83,7 +83,7 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
         ...defualtRes,
         ...res,
         timestamp: new Date().toISOString(),
-        path,
+        path
       }
     }
     return { statusCode, body: defualtRes }
@@ -107,7 +107,7 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
         isPropagated: context.isPropagated ?? true,
         timestamp: context.timestamp || new Date().toISOString(),
         module: context.module,
-        spanId: context.spanId,
+        spanId: context.spanId
       }
     } else {
       if (typeof exceptionError === 'string')
@@ -126,7 +126,7 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
         exception.message || GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message
       defaultRes.details = {
         name: exception.name,
-        stack: exception.stack,
+        stack: exception.stack
       }
     }
     if (typeof exception === 'string' || typeof exception === 'number') {

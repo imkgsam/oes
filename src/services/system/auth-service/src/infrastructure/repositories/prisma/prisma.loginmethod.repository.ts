@@ -17,7 +17,7 @@ export class PrismaUserRepository implements ILoginMethodRepository {
   async findById(id: string): Promise<LoginMethod | null> {
     const found = await this.prismaService.loginMethod.findUnique({
       where: { id },
-      include: { credentials: true },
+      include: { credentials: true }
     })
     if (!found) return null
     return LoginMethod.fromPrisma(found)
@@ -29,7 +29,7 @@ export class PrismaUserRepository implements ILoginMethodRepository {
    */
   async findAll(): Promise<LoginMethod[]> {
     const founds = await this.prismaService.loginMethod.findMany({
-      include: { credentials: true },
+      include: { credentials: true }
     })
     return founds.map((found) => LoginMethod.fromPrisma(found))
   }
@@ -40,10 +40,13 @@ export class PrismaUserRepository implements ILoginMethodRepository {
    * @param identifier 标识符（邮箱、手机号等）
    * @returns Promise<LoginMethod | null>
    */
-  async findByTypeAndIdentifier(type: string, identifier: string): Promise<LoginMethod | null> {
+  async findByTypeAndIdentifier(
+    type: string,
+    identifier: string
+  ): Promise<LoginMethod | null> {
     const found = await this.prismaService.loginMethod.findFirst({
       where: { type: type as any, identifier },
-      include: { credentials: true },
+      include: { credentials: true }
     })
     if (!found) return null
     return LoginMethod.fromPrisma(found)
@@ -55,10 +58,13 @@ export class PrismaUserRepository implements ILoginMethodRepository {
    * @param type 登录类型
    * @returns Promise<LoginMethod | null>
    */
-  async findByUserIdAndType(userId: string, type: string): Promise<LoginMethod | null> {
+  async findByUserIdAndType(
+    userId: string,
+    type: string
+  ): Promise<LoginMethod | null> {
     const found = await this.prismaService.loginMethod.findFirst({
       where: { userId, type: type as any },
-      include: { credentials: true },
+      include: { credentials: true }
     })
     if (!found) return null
     return LoginMethod.fromPrisma(found)
@@ -89,7 +95,7 @@ export class PrismaUserRepository implements ILoginMethodRepository {
         identifier: loginMethod.identifier,
         verified: loginMethod.isVerified(),
         enabled: loginMethod.isEnabled(),
-        updatedAt: new Date(),
+        updatedAt: new Date()
       },
       create: {
         id: loginMethod.id,
@@ -99,9 +105,9 @@ export class PrismaUserRepository implements ILoginMethodRepository {
         verified: loginMethod.isVerified(),
         enabled: loginMethod.isEnabled(),
         createdAt: new Date(),
-        updatedAt: new Date(),
+        updatedAt: new Date()
       },
-      include: { credentials: true },
+      include: { credentials: true }
     })
     return LoginMethod.fromPrisma(updated)
   }

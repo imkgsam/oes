@@ -26,8 +26,8 @@ export class PrismaPermissionRepository implements PermissionRepository {
         id: permission.id,
         code: permission.code,
         description: permission.description,
-        module: permission.module,
-      },
+        module: permission.module
+      }
     })
     return Permission.fromPrisma(created)
   }

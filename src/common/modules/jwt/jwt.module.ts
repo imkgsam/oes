@@ -14,10 +14,10 @@ import tokenConfig from '../../configs/token.config'
     NestJwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useClass: OptionsFactory,
-    }),
+      useClass: OptionsFactory
+    })
   ],
   providers: [CommonJwtService],
-  exports: [CommonJwtService, NestJwtModule],
+  exports: [CommonJwtService, NestJwtModule]
 })
 export class CommonJwtModule {}

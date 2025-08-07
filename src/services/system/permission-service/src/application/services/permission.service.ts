@@ -5,10 +5,18 @@ import { Permission } from 'src/domain/entities/permission.entity'
 
 @Injectable()
 export class PermissionService {
-  constructor(@Inject('PermissionRepository') private readonly permissionRepo: PermissionRepository) {}
+  constructor(
+    @Inject('PermissionRepository')
+    private readonly permissionRepo: PermissionRepository
+  ) {}
 
   async create(dto: CreatePermissionDto): Promise<Permission> {
-    const permission = new Permission(crypto.randomUUID(), dto.code, dto.module, dto.description)
+    const permission = new Permission(
+      crypto.randomUUID(),
+      dto.code,
+      dto.module,
+      dto.description
+    )
     return this.permissionRepo.create(permission)
   }
 

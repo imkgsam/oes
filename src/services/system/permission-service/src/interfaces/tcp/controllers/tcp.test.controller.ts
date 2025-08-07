@@ -9,7 +9,7 @@ import { createBusinessException } from '@oes/common/helpers/exception.factory'
 
 @Controller()
 export class TcpTestController {
-  constructor(private readonly roleService: RoleService) { }
+  constructor(private readonly roleService: RoleService) {}
 
   @MessagePattern(PERMISSION_MESSAGES.Test)
   async testing() {

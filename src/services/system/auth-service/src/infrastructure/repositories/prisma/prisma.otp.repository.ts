@@ -16,7 +16,7 @@ export class PrismaOtpRepository implements IOtpRepository {
    */
   async findById(id: string): Promise<OneTimeToken | null> {
     const found = await this.prismaService.oneTimeToken.findUnique({
-      where: { id },
+      where: { id }
     })
     if (!found) return null
     return OneTimeToken.fromPrisma(found)
@@ -60,7 +60,7 @@ export class PrismaOtpRepository implements IOtpRepository {
         attemptCount: props.attemptCount,
         maxAttempt: props.maxAttempt,
         valid: props.valid,
-        updatedAt: new Date(),
+        updatedAt: new Date()
       },
       create: {
         id: props.id,
@@ -74,8 +74,8 @@ export class PrismaOtpRepository implements IOtpRepository {
         maxAttempt: props.maxAttempt,
         valid: props.valid,
         createdAt: new Date(),
-        updatedAt: new Date(),
-      },
+        updatedAt: new Date()
+      }
     })
     return OneTimeToken.fromPrisma(updated)
   }
@@ -90,7 +90,7 @@ export class PrismaOtpRepository implements IOtpRepository {
   async markUsed(id: string): Promise<void> {
     await this.prismaService.oneTimeToken.update({
       where: { id },
-      data: { consumed: true },
+      data: { consumed: true }
     })
   }
 }

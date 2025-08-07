@@ -13,13 +13,13 @@ export class LoginMethod {
     private enabled: boolean,
     public readonly createdAt: Date,
     public readonly updatedAt: Date,
-    credentials?: Credential[],
+    credentials?: Credential[]
   ) {
     if (credentials) this.credentials = credentials
   }
 
   static fromPrisma(
-    prismaLoginMethod: PrismaLoginMethod & { credentials?: PrismaCredential[] },
+    prismaLoginMethod: PrismaLoginMethod & { credentials?: PrismaCredential[] }
   ): LoginMethod {
     const credentialEntities =
       prismaLoginMethod.credentials?.map((c) => Credential.fromPrisma(c)) ?? []
@@ -32,7 +32,7 @@ export class LoginMethod {
       prismaLoginMethod.enabled,
       prismaLoginMethod.createdAt,
       prismaLoginMethod.updatedAt,
-      credentialEntities,
+      credentialEntities
     )
   }
 
@@ -72,7 +72,7 @@ export class Credential {
     private enabled: boolean,
     public readonly createdAt: Date = new Date(),
     public readonly updatedAt: Date = new Date(),
-    public readonly provider?: string,
+    public readonly provider?: string
   ) {}
 
   static fromPrisma(prismaCredential: PrismaCredential): Credential {
@@ -84,13 +84,13 @@ export class Credential {
       prismaCredential.enabled,
       prismaCredential.createdAt,
       prismaCredential.updatedAt,
-      prismaCredential.provider,
+      prismaCredential.provider
     )
   }
 
   static async createPasswordCredential(
     loginMethodId: string,
-    plainPassword: string,
+    plainPassword: string
   ): Promise<Credential> {
     const hashedPassword = await hash(plainPassword, 10)
     return new Credential(
@@ -98,7 +98,7 @@ export class Credential {
       loginMethodId,
       CREDENTIAL_TYPES.PASSWORD,
       hashedPassword,
-      true,
+      true
     )
   }
   enable() {

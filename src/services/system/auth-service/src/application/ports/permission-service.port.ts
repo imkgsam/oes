@@ -111,7 +111,10 @@ export interface IPermissionServicePort {
    * @param permissionCode 权限代码
    * @returns 是否有权限
    */
-  checkAccountPermission(accountId: string, permissionCode: string): Promise<boolean>
+  checkAccountPermission(
+    accountId: string,
+    permissionCode: string
+  ): Promise<boolean>
 
   /**
    * 检查账户是否有指定角色

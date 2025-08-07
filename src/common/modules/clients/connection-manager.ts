@@ -19,7 +19,7 @@ export async function initManagedClient(id: string, client: ClientProxy) {
     id,
     client,
     connected: false,
-    retries: 0,
+    retries: 0
   }
 
   clients.set(id, managed)
@@ -37,7 +37,7 @@ async function tryConnect(managed: ManagedClient) {
     managed.retries += 1
     if (managed.retries > MAX_RETRIES) {
       logger.error(
-        `[${managed.id}] Connection failed. Reached max retries (${MAX_RETRIES}). Stop retrying.`,
+        `[${managed.id}] Connection failed. Reached max retries (${MAX_RETRIES}). Stop retrying.`
       )
       return
     }

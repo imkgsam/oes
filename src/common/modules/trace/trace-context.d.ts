@@ -1,8 +1,8 @@
-import { AsyncLocalStorage } from 'async_hooks';
+import { AsyncLocalStorage } from 'async_hooks'
 interface TraceStore {
-    traceId: string;
+  traceId: string
 }
-export declare const traceStorage: AsyncLocalStorage<TraceStore>;
-export declare function setTraceId(traceId: string): void;
-export declare function getTraceId(): string | undefined;
-export {};
+export declare const traceStorage: AsyncLocalStorage<TraceStore>
+export declare function setTraceId(traceId: string): void
+export declare function getTraceId(): string | undefined
+export {}

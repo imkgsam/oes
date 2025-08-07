@@ -5,7 +5,7 @@ export const PERMISSION_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0001',
     message: 'Role not found',
     messageKey: 'permission.role_not_found',
-    httpStatus: 404,
+    httpStatus: 404
   },
   PERMISSION_NOT_FOUND: {
     subCode: '0002',

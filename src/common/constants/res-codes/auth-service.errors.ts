@@ -27,7 +27,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0001',
     message: '不允许登录',
     messageKey: 'auth.not_allow_login',
-    httpStatus: 403,
+    httpStatus: 403
   },
 
   /**
@@ -43,7 +43,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0002',
     message: '验证码已过期',
     messageKey: 'auth.otp_expired',
-    httpStatus: 400,
+    httpStatus: 400
   },
 
   /**
@@ -58,7 +58,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0003',
     message: '验证码尝试次数已达上限',
     messageKey: 'auth.otp_reach_limit',
-    httpStatus: 400,
+    httpStatus: 400
   },
 
   /**
@@ -74,7 +74,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0004',
     message: '验证码无效',
     messageKey: 'auth.otp_invalid',
-    httpStatus: 400,
+    httpStatus: 400
   },
 
   // ==================== 登录认证错误 (0100-0199) ====================
@@ -91,7 +91,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0100',
     message: '认证失败',
     messageKey: 'auth.authentication_failed',
-    httpStatus: 401,
+    httpStatus: 401
   },
 
   /**
@@ -106,7 +106,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0101',
     message: '用户名或密码错误',
     messageKey: 'auth.invalid_credentials',
-    httpStatus: 401,
+    httpStatus: 401
   },
 
   /**
@@ -121,7 +121,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0102',
     message: '账户已被禁用',
     messageKey: 'auth.account_disabled',
-    httpStatus: 403,
+    httpStatus: 403
   },
 
   /**
@@ -136,7 +136,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0103',
     message: '登录方法未验证',
     messageKey: 'auth.login_method_not_verified',
-    httpStatus: 403,
+    httpStatus: 403
   },
 
   /**
@@ -151,7 +151,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0104',
     message: 'OAuth 凭证无效',
     messageKey: 'auth.oauth_invalid',
-    httpStatus: 401,
+    httpStatus: 401
   },
 
   /**
@@ -166,7 +166,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0105',
     message: '账户未关联',
     messageKey: 'auth.account_not_linked',
-    httpStatus: 404,
+    httpStatus: 404
   },
 
   /**
@@ -181,7 +181,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0106',
     message: '密码凭证未找到',
     messageKey: 'auth.password_credential_not_found',
-    httpStatus: 404,
+    httpStatus: 404
   },
 
   /**
@@ -196,7 +196,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0107',
     message: '密码登录被禁用',
     messageKey: 'auth.password_credential_disabled',
-    httpStatus: 403,
+    httpStatus: 403
   },
 
   /**
@@ -211,7 +211,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0108',
     message: 'OAuth 凭证未找到',
     messageKey: 'auth.oauth_credential_not_found',
-    httpStatus: 404,
+    httpStatus: 404
   },
 
   /**
@@ -226,7 +226,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0109',
     message: 'OAuth 登录被禁用',
     messageKey: 'auth.oauth_credential_disabled',
-    httpStatus: 403,
+    httpStatus: 403
   },
 
   // ==================== MFA 相关错误 (0200-0299) ====================
@@ -243,7 +243,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0200',
     message: 'MFA 类型不匹配',
     messageKey: 'auth.mfa_type_mismatch',
-    httpStatus: 400,
+    httpStatus: 400
   },
 
   /**
@@ -258,7 +258,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0201',
     message: 'MFA 绑定已禁用',
     messageKey: 'auth.mfa_disabled',
-    httpStatus: 403,
+    httpStatus: 403
   },
 
   /**
@@ -273,7 +273,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0202',
     message: 'MFA 类型不支持',
     messageKey: 'auth.mfa_type_not_supported',
-    httpStatus: 400,
+    httpStatus: 400
   },
 
   /**
@@ -288,7 +288,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0203',
     message: 'MFA 验证需要 OTP 令牌',
     messageKey: 'auth.mfa_otp_token_required',
-    httpStatus: 400,
+    httpStatus: 400
   },
 
   /**
@@ -304,7 +304,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0204',
     message: 'MFA 绑定不存在',
     messageKey: 'auth.mfa_binding_not_found',
-    httpStatus: 404,
+    httpStatus: 404
   },
 
   /**
@@ -320,7 +320,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0205',
     message: 'MFA 验证失败',
     messageKey: 'auth.mfa_verification_failed',
-    httpStatus: 400,
+    httpStatus: 400
   },
 
   /**
@@ -335,7 +335,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0206',
     message: 'MFA 绑定已存在',
     messageKey: 'auth.mfa_binding_already_exists',
-    httpStatus: 409,
+    httpStatus: 409
   },
 
   /**
@@ -350,7 +350,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0207',
     message: '用户没有活跃的 MFA 绑定',
     messageKey: 'auth.mfa_no_active_bindings',
-    httpStatus: 404,
+    httpStatus: 404
   },
 
   /**
@@ -365,7 +365,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0208',
     message: '邮箱未验证，无法绑定 MFA',
     messageKey: 'auth.mfa_email_not_verified',
-    httpStatus: 400,
+    httpStatus: 400
   },
 
   /**
@@ -380,7 +380,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0209',
     message: '手机号未验证，无法绑定 MFA',
     messageKey: 'auth.mfa_phone_not_verified',
-    httpStatus: 400,
+    httpStatus: 400
   },
 
   /**
@@ -395,7 +395,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0210',
     message: 'MFA 绑定类型无效',
     messageKey: 'auth.mfa_invalid_binding_type',
-    httpStatus: 400,
+    httpStatus: 400
   },
 
   /**
@@ -410,7 +410,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0211',
     message: 'MFA 验证码已过期',
     messageKey: 'auth.mfa_verification_code_expired',
-    httpStatus: 400,
+    httpStatus: 400
   },
 
   /**
@@ -425,7 +425,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0212',
     message: 'MFA 验证尝试次数过多',
     messageKey: 'auth.mfa_too_many_attempts',
-    httpStatus: 429,
+    httpStatus: 429
   },
 
   /**
@@ -440,7 +440,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0213',
     message: 'MFA 绑定已停用',
     messageKey: 'auth.mfa_binding_deactivated',
-    httpStatus: 403,
+    httpStatus: 403
   },
 
   /**
@@ -455,7 +455,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0214',
     message: '此操作需要 MFA 验证',
     messageKey: 'auth.mfa_required_for_operation',
-    httpStatus: 403,
+    httpStatus: 403
   },
 
   /**
@@ -470,7 +470,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0215',
     message: 'TOTP 二维码生成失败',
     messageKey: 'auth.mfa_qr_code_generation_failed',
-    httpStatus: 500,
+    httpStatus: 500
   },
 
   /**
@@ -485,7 +485,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0216',
     message: 'MFA 密钥生成失败',
     messageKey: 'auth.mfa_secret_generation_failed',
-    httpStatus: 500,
+    httpStatus: 500
   },
 
   // ==================== Session 相关错误 (0300-0399) ====================
@@ -502,7 +502,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0300',
     message: 'Session 不存在',
     messageKey: 'auth.session_not_found',
-    httpStatus: 401,
+    httpStatus: 401
   },
 
   /**
@@ -518,7 +518,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0301',
     message: 'Session 无效',
     messageKey: 'auth.session_invalid',
-    httpStatus: 401,
+    httpStatus: 401
   },
 
   /**
@@ -534,7 +534,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0302',
     message: 'Session 已被撤销',
     messageKey: 'auth.session_revoked',
-    httpStatus: 401,
+    httpStatus: 401
   },
 
   /**
@@ -549,7 +549,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0303',
     message: 'Session 已被暂停',
     messageKey: 'auth.session_suspended',
-    httpStatus: 403,
+    httpStatus: 403
   },
 
   /**
@@ -564,7 +564,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0304',
     message: 'Session 数量超限',
     messageKey: 'auth.session_limit_exceeded',
-    httpStatus: 403,
+    httpStatus: 403
   },
 
   /**
@@ -579,7 +579,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0305',
     message: '刷新令牌无效',
     messageKey: 'auth.refresh_token_invalid',
-    httpStatus: 401,
+    httpStatus: 401
   },
 
   /**
@@ -594,7 +594,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0306',
     message: '访问令牌即将过期',
     messageKey: 'auth.access_token_expiring_soon',
-    httpStatus: 200,
+    httpStatus: 200
   },
 
   // ==================== 设备相关错误 (0400-0499) ====================
@@ -611,7 +611,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0400',
     message: '设备已被踢出',
     messageKey: 'auth.device_kicked',
-    httpStatus: 401,
+    httpStatus: 401
   },
 
   /**
@@ -626,7 +626,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0401',
     message: '设备信息无效',
     messageKey: 'auth.device_info_invalid',
-    httpStatus: 400,
+    httpStatus: 400
   },
 
   /**
@@ -641,7 +641,7 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0402',
     message: '检测到异地登录',
     messageKey: 'auth.remote_login_detected',
-    httpStatus: 200,
+    httpStatus: 200
   },
 
   /**
@@ -656,6 +656,6 @@ export const AUTH_SERVICE_ERRORS: Record<string, RawException> = {
     subCode: '0403',
     message: '跨端登录受限',
     messageKey: 'auth.cross_device_login_restricted',
-    httpStatus: 403,
-  },
+    httpStatus: 403
+  }
 }

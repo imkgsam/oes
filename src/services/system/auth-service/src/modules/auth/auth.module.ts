@@ -1,5 +1,8 @@
 import { Module } from '@nestjs/common'
-import { EmailOtpProvider, PhoneOtpProvider } from '../../application/providers/otp.provider'
+import {
+  EmailOtpProvider,
+  PhoneOtpProvider
+} from '../../application/providers/otp.provider'
 import { EmailPasswordAuthProvider } from '../../application/providers/email-password.provider'
 import { GoogleAuthProvider } from '../../application/providers/google.provider'
 import { WechatAuthProvider } from '../../application/providers/wechat.provider'
@@ -20,8 +23,8 @@ import { TcpTestController } from 'src/interfaces/tcp/controllers/test/test.cont
     GoogleAuthProvider,
     WechatAuthProvider,
     { provide: 'UserRepository', useClass: PrismaUserRepository },
-    AuthDomainService,
+    AuthDomainService
   ],
-  controllers: [TcpAuthController, TcpTestController],
+  controllers: [TcpAuthController, TcpTestController]
 })
 export class AuthModule {}
