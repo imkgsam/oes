@@ -1,9 +1,15 @@
-export interface RawException {
-  subCode: string // 模块内错误码，如 '0001', '1001' 等
+// 定义 code-based error 结构
+export interface RawError {
+  subCode: string
   message: string
   messageKey: string
+}
+
+// 定义 exception-based error 结构
+export interface RawException extends RawError {
   httpStatus: number
 }
+
 export interface RpcExceptionPayload {
   code: string // 全局唯一错误码，如 SYS2011001
   message: string

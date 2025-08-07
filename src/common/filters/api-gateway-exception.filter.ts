@@ -17,7 +17,7 @@ import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
 export class ApiGatewayExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(ApiGatewayExceptionsFilter.name)
 
-  constructor(private readonly moduleName: string = process.env.MODULE_NAME) {}
+  constructor(private readonly moduleName: string = process.env.MODULE_NAME || 'UNKNOWN') {}
   catch(exception: unknown, host: ArgumentsHost) {
     this.logger.error('in ApiGatewayExceptionsFilter catch: ', exception)
     const ctx = host.switchToHttp()

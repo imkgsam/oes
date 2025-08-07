@@ -32,6 +32,7 @@ export interface RpcErrorWarning {
   message: string
   messageKey: string
   module: string
+  warnings?: RpcResponseWarning[]
 }
 
 export interface CallTrace {
