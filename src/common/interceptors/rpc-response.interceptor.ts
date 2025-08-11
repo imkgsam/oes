@@ -7,8 +7,12 @@ import {
 } from '@nestjs/common'
 import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
-import { RpcResponse, RpcResponseMeta } from '../interfaces/rpc.interface'
-import { getTraceId } from '../modules/trace/trace-context'
+import {
+  CallTrace,
+  RpcRequest,
+  RpcResponse,
+  RpcResponseMeta
+} from '../interfaces/rpc.interface'
 import { RawError, RawException } from '../interfaces/exceptions.interface'
 import { SUCCESS } from '../constants/res-codes/system.errors'
 
@@ -28,8 +32,8 @@ import { SUCCESS } from '../constants/res-codes/system.errors'
  * - 错误处理标准化
  */
 @Injectable()
-export class RpcResponseFilter implements NestInterceptor {
-  private readonly logger = new Logger(RpcResponseFilter.name)
+export class RpcResponseInterceptor implements NestInterceptor {
+  private readonly logger = new Logger(RpcResponseInterceptor.name)
 
   constructor(
     private readonly moduleName: string = process.env.MODULE_NAME || 'UNKNOWN'
@@ -37,8 +41,11 @@ export class RpcResponseFilter implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const rpcContext = context.switchToRpc()
-    const data = rpcContext.getData()
-    const traceId = getTraceId() || data?.traceId || 'unknown'
+    const data: RpcRequest<any> = rpcContext.getData()
+    const traceId = data?.meta?.traceId || 'unknown' // 从请求中获取traceId
+    const parentSpanId = data?.meta?.spanId || 'root' // 从请求中获取父spanId
+    const startTime = Date.now() // 本操作的运行起始时间
+    const currentSpanId = uuidv4() // 本操作的spanId
 
     return next.handle().pipe(
       map((response) => {
@@ -49,7 +56,13 @@ export class RpcResponseFilter implements NestInterceptor {
 
         // 检查是否为错误响应
         if (this.isErrorResponse(response)) {
-          return this.wrapErrorResponse(response, traceId)
+          return this.wrapErrorResponse(
+            response,
+            traceId,
+            currentSpanId,
+            parentSpanId,
+            startTime
+          )
         }
 
         // 包装成标准响应格式
@@ -94,12 +107,22 @@ export class RpcResponseFilter implements NestInterceptor {
   /**
    * 包装错误响应
    */
-  private wrapErrorResponse(error: any, traceId: string): RpcResponse<any> {
+  private wrapErrorResponse(
+    error: any,
+    traceId: string,
+    currentSpanId: string,
+    parentSpanId: string,
+    startTime: number,
+    callTrace: CallTrace[]
+  ): RpcResponse<any> {
     const meta: RpcResponseMeta = {
       traceId,
+      spanId: currentSpanId,
+      parentSpanId,
       timestamp: new Date().toISOString(),
-      callStack: [this.moduleName],
-      module: this.moduleName
+      durationMs: Date.now() - startTime,
+      module: this.moduleName,
+      warnings: undefined
     }
 
     // 处理 RawError
@@ -171,4 +194,7 @@ export class RpcResponseFilter implements NestInterceptor {
       meta
     }
   }
+}
+function uuidv4() {
+  throw new Error('Function not implemented.')
 }

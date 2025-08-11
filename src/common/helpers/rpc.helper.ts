@@ -8,6 +8,7 @@ import {
   RpcResponse
 } from '../interfaces/rpc.interface'
 import { ClientProxy } from '@nestjs/microservices'
+import { v4 as uuidv4 } from 'uuid'
 
 /**
  * 安全的 RPC 调用包装器
@@ -40,12 +41,24 @@ export async function safeRpcCall2<I, O>(
   inputData: I,
   requestMeta: RpcRequestMeta
 ): Promise<RpcResponse<O>> {
+  const moduleName = process.env.MODULE_NAME || 'UNKNOWN_MODULE'
+
   try {
     const rpcRequest: RpcRequest<I> = {
-      payload: inputData,
+      data: inputData,
       meta: {
         ...requestMeta,
-        timestamp: new Date().toISOString()
+        spanId: uuidv4(), // 服务端自动生成spanId
+        timestamp: new Date().toISOString(), // 服务端自动生成 请求timestamp
+        caller: moduleName,
+        callTrace: [
+          ...(requestMeta.callTrace ?? []),
+          {
+            module: moduleName,
+            spanId: requestMeta.spanId,
+            parentSpanId: requestMeta.parentSpanId
+          }
+        ]
       }
     }
     const response = await firstValueFrom(

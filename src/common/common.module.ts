@@ -4,7 +4,7 @@ import { ClientModule } from './modules/clients/client.module'
 import { ScopeControllGuard } from './guards/scope-controll.guard'
 import { ApiGatewayExceptionsFilter } from './filters/api-gateway-exception.filter'
 import { MicroserviceExceptionsFilter } from './filters/microservice-exception.filter'
-import { RpcResponseFilter } from './filters/rpc-response.filter'
+import { RpcResponseInterceptor } from './interceptors/rpc-response.interceptor'
 
 @Global()
 @Module({
@@ -14,7 +14,7 @@ import { RpcResponseFilter } from './filters/rpc-response.filter'
     ScopeControllGuard,
     ApiGatewayExceptionsFilter,
     MicroserviceExceptionsFilter,
-    RpcResponseFilter,
+    RpcResponseInterceptor
   ],
   exports: [
     PermissionControllGuard,
@@ -22,7 +22,7 @@ import { RpcResponseFilter } from './filters/rpc-response.filter'
     ClientModule,
     ApiGatewayExceptionsFilter,
     MicroserviceExceptionsFilter,
-    RpcResponseFilter,
-  ],
+    RpcResponseInterceptor
+  ]
 })
 export class CommonModule {}

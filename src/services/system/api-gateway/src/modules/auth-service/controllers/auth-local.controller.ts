@@ -2,14 +2,7 @@ import { Body, Controller, Post } from '@nestjs/common'
 import { ClientProxy } from '@nestjs/microservices'
 import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
-import {
-  ApiTags,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiBody,
-  ApiBearerAuth
-} from '@nestjs/swagger'
+import { ApiTags } from '@nestjs/swagger'
 import { safeRpcCall } from '@oes/common/helpers/rpc.helper'
 import {
   EmailPasswordLoginDto,
