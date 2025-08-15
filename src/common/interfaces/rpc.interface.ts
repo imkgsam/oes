@@ -1,3 +1,5 @@
+import { RawError } from './exceptions.interface'
+
 export interface RpcRequest<T = unknown> {
   data: T | null
   meta: RpcRequestMeta
@@ -45,4 +47,10 @@ export interface CallTrace {
   parentSpanId?: string
   startTime: string
   endTime: string
+}
+
+export interface RpcControllerResult<T = unknown> {
+  data?: T // 返回业务数据
+  warnings?: RawError[] // 本服务产生的code-based error
+  downstreamMeta?: RpcResponseMeta[] // 下游服务原始返回结果中的meta
 }
