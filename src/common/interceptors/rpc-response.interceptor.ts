@@ -9,13 +9,14 @@ import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 import {
   CallTrace,
+  RpcModuleWarnings,
   RpcRequest,
   RpcResponse,
   RpcResponseMeta
 } from '../interfaces/rpc.interface'
 import { RawError, RawException } from '../interfaces/exceptions.interface'
 import { SUCCESS } from '../constants/res-codes/system.errors'
-
+import { v4 as uuidv4 } from 'uuid'
 /**
  * RPC 响应包装过滤器
  *
@@ -49,20 +50,63 @@ export class RpcResponseInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       map((response) => {
-        // 如果响应已经是标准格式，直接返回
-        if (this.isStandardResponse(response)) {
-          return response
+        /**
+         * response 返回的是固定的 rpccontrollerResult 结构
+         * 包含的fields 有
+         * data ： 返回的数据，如果是出现强依赖的错误，那么就会使用exception 抛出， 如果是弱依赖，那么默认都是返回data
+         * warnings 本服务所出现的弱依赖的错误
+         * downstreammeta 下游服务所返回的元数据
+         */
+
+        //1. 合并下游warnings 以及 下游 calltrace
+        const mergedWarnings: RpcModuleWarnings = {}
+        const downstreamCalltraces: CallTrace[] = []
+        response.downstreamMeta.map((resMeta) => {
+          if (resMeta.warnings) {
+            Object.entries(resMeta.warnings).forEach(
+              ([moduleName, warnings]) => {
+                if (!mergedWarnings[moduleName]) {
+                  mergedWarnings[moduleName] = []
+                }
+                mergedWarnings[moduleName].push(...(warnings as RawError[]))
+              }
+            )
+          }
+          if (resMeta.callTrace) {
+            downstreamCalltraces.push(...resMeta.callTrace)
+          }
+        })
+        // 2. 合并本服务的warnings
+        if (response.warnings) {
+          response.warnings.forEach((error) => {
+            if (!mergedWarnings[this.moduleName]) {
+              mergedWarnings[this.moduleName] = []
+            }
+            mergedWarnings[this.moduleName].push(error)
+          })
+        }
+        //2. 计算 durationMs
+        const endTime = Date.now()
+        const durationMs = endTime - startTime
+        //3. 合并 calltrace
+        const currentCallTrace: CallTrace = {
+          traceId,
+          module: this.moduleName,
+          spanId: currentSpanId,
+          parentSpanId,
+          startTime: new Date(startTime).toISOString(),
+          endTime: new Date(endTime).toISOString()
         }
 
-        // 检查是否为错误响应
-        if (this.isErrorResponse(response)) {
-          return this.wrapErrorResponse(
-            response,
-            traceId,
-            currentSpanId,
-            parentSpanId,
-            startTime
-          )
+        const newMeta: RpcResponseMeta = {
+          traceId,
+          spanId: currentSpanId,
+          parentSpanId,
+          module: this.moduleName,
+          timestamp: new Date(endTime).toISOString(),
+          durationMs,
+          callTrace: [currentCallTrace, ...downstreamCalltraces],
+          warnings: mergedWarnings
         }
 
         // 包装成标准响应格式
@@ -72,98 +116,9 @@ export class RpcResponseInterceptor implements NestInterceptor {
   }
 
   /**
-   * 检查响应是否已经是标准格式
-   */
-  private isStandardResponse(response: any): response is RpcResponse<any> {
-    return (
-      response &&
-      typeof response === 'object' &&
-      'code' in response &&
-      'message' in response &&
-      'messageKey' in response &&
-      'data' in response &&
-      'meta' in response
-    )
-  }
-
-  /**
-   * 检查是否为错误响应
-   */
-  private isErrorResponse(response: any): boolean {
-    // 检查是否为 RawError
-    if (response && typeof response === 'object') {
-      // 检查是否包含错误相关字段
-      const hasErrorFields =
-        'code' in response && 'message' in response && 'messageKey' in response
-
-      // 检查是否为 RawError (不包含 httpStatus)
-      const isRawError = hasErrorFields && !('httpStatus' in response)
-
-      return isRawError
-    }
-    return false
-  }
-
-  /**
-   * 包装错误响应
-   */
-  private wrapErrorResponse(
-    error: any,
-    traceId: string,
-    currentSpanId: string,
-    parentSpanId: string,
-    startTime: number,
-    callTrace: CallTrace[]
-  ): RpcResponse<any> {
-    const meta: RpcResponseMeta = {
-      traceId,
-      spanId: currentSpanId,
-      parentSpanId,
-      timestamp: new Date().toISOString(),
-      durationMs: Date.now() - startTime,
-      module: this.moduleName,
-      warnings: undefined
-    }
-
-    // 处理 RawError
-    if (this.isRawError(error)) {
-      return {
-        code: error.code,
-        message: error.message,
-        messageKey: error.messageKey,
-        data: null,
-        meta
-      }
-    }
-
-    // 处理未知错误
-    return {
-      code: '9999',
-      message: 'Unknown error occurred',
-      messageKey: 'common.unknown_error',
-      data: null,
-      meta
-    }
-  }
-
-  /**
-   * 检查是否为 RawError
-   */
-  private isRawError(error: any): error is RawError {
-    return (
-      error &&
-      typeof error === 'object' &&
-      'code' in error &&
-      'message' in error &&
-      'messageKey' in error &&
-      !('httpStatus' in error)
-    )
-  }
-
-  /**
    * 将响应包装成标准格式
    */
-  private wrapResponse(data: any, traceId: string): RpcResponse<any> {
+  private wrapResponse<T>(data: T, meta: string): RpcResponse<T> {
     const meta: RpcResponseMeta = {
       traceId,
       timestamp: new Date().toISOString(),
@@ -194,7 +149,4 @@ export class RpcResponseInterceptor implements NestInterceptor {
       meta
     }
   }
-}
-function uuidv4() {
-  throw new Error('Function not implemented.')
 }
