@@ -9,7 +9,7 @@ export interface RpcResponse<T = unknown> {
   code: string // 成功或错误码
   message: string // 成功或错误信息
   messageKey?: string // 错误信息key
-  data: T | null // 返回数据
+  data?: T | null // 返回数据
   meta: RpcResponseMeta // 响应元数据
 }
 
@@ -32,9 +32,9 @@ export interface RpcResponseMeta {
   warnings: RpcModuleWarnings // 按模块分组的警告，用于记录调用过程中的警告信息
 }
 
-export type RpcModuleWarnings = Record<string, RawError[]>
+export type RpcModuleWarnings = Record<string, CBError[]>
 
-export interface RawError {
+export interface CBError {
   code: string
   message: string
   messageKey?: string
@@ -49,8 +49,11 @@ export interface CallTrace {
   endTime: string
 }
 
+export type RpcModuleErrors = Record<string, RawError>
+
 export interface RpcControllerResult<T = unknown> {
   data?: T // 返回业务数据
-  warnings?: RawError[] // 本服务产生的code-based error
+  warnings?: CBError[] // 本服务产生的code-based error
+  error?: RawError // 本服务产生的raw error, interceptor 再拼接成 CBERROR
   downstreamMeta?: RpcResponseMeta[] // 下游服务原始返回结果中的meta
 }

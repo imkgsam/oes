@@ -9,14 +9,17 @@ import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 import {
   CallTrace,
+  RpcControllerResult,
   RpcModuleWarnings,
   RpcRequest,
   RpcResponse,
   RpcResponseMeta
 } from '../interfaces/rpc.interface'
-import { RawError, RawException } from '../interfaces/exceptions.interface'
+import { CBError } from '../interfaces/rpc.interface'
 import { SUCCESS } from '../constants/res-codes/system.errors'
 import { v4 as uuidv4 } from 'uuid'
+import { buildGlobalErrorCode } from '../helpers/exception.helper'
+import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
 /**
  * RPC 响应包装过滤器
  *
@@ -55,6 +58,7 @@ export class RpcResponseInterceptor implements NestInterceptor {
          * 包含的fields 有
          * data ： 返回的数据，如果是出现强依赖的错误，那么就会使用exception 抛出， 如果是弱依赖，那么默认都是返回data
          * warnings 本服务所出现的弱依赖的错误
+         * error: 本服务所出现的强依赖错误
          * downstreammeta 下游服务所返回的元数据
          */
 
@@ -68,7 +72,7 @@ export class RpcResponseInterceptor implements NestInterceptor {
                 if (!mergedWarnings[moduleName]) {
                   mergedWarnings[moduleName] = []
                 }
-                mergedWarnings[moduleName].push(...(warnings as RawError[]))
+                mergedWarnings[moduleName].push(...(warnings as CBError[]))
               }
             )
           }
@@ -110,7 +114,7 @@ export class RpcResponseInterceptor implements NestInterceptor {
         }
 
         // 包装成标准响应格式
-        return this.wrapResponse(response, traceId)
+        return this.wrapResponse(response, newMeta)
       })
     )
   }
@@ -118,35 +122,30 @@ export class RpcResponseInterceptor implements NestInterceptor {
   /**
    * 将响应包装成标准格式
    */
-  private wrapResponse<T>(data: T, meta: string): RpcResponse<T> {
-    const meta: RpcResponseMeta = {
-      traceId,
-      timestamp: new Date().toISOString(),
-      callStack: [this.moduleName],
-      module: this.moduleName
-    }
-
-    // 如果数据包含 spanId，添加到 meta 中
-    if (data && typeof data === 'object' && 'spanId' in data) {
-      meta.spanId = data.spanId
-    }
-
-    // 如果数据包含警告信息，添加到 meta 中
-    if (
-      data &&
-      typeof data === 'object' &&
-      'warnings' in data &&
-      Array.isArray(data.warnings)
-    ) {
-      meta.warnings = data.warnings
-    }
-
-    return {
+  private wrapResponse(
+    response: RpcControllerResult,
+    meta: RpcResponseMeta
+  ): RpcResponse {
+    const rt: RpcResponse = {
       code: SUCCESS.subCode,
       message: SUCCESS.message,
       messageKey: SUCCESS.messageKey,
-      data,
       meta
     }
+    if (response.error) {
+      rt.code = buildGlobalErrorCode(
+        EXCEPTION_TYPE_PREFIX.BUSINESS,
+        this.moduleName,
+        response.error.subCode
+      )
+      rt.message = response?.error.message
+      rt.messageKey = response?.error?.messageKey
+    } else {
+      rt.code = SUCCESS.subCode
+      rt.message = SUCCESS.message
+      rt.messageKey = SUCCESS.messageKey
+      rt.data = response?.data
+    }
+    return rt
   }
 }
