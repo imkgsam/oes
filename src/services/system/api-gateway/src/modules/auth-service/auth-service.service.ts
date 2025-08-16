@@ -13,9 +13,7 @@ export class AuthServiceService {
   ) {}
 
   async getAllLoginMethods() {
-    return safeRpcCall(
-      this.authClient.send(AUTH_MESSAGES.LIST_LOGINMETHODS, {})
-    )
+    return safeRpcCall(this.authClient.send(AUTH_MESSAGES.LIST_LOGINMETHODS, {}))
   }
 
   async getAllCredentials() {

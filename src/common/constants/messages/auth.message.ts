@@ -223,5 +223,11 @@ export const AUTH_MESSAGES = {
    * 使用场景：获取认证服务的详细状态信息
    * 参数：{}
    */
-  GET_SERVICE_STATUS: 'auth.get_service_status'
+  GET_SERVICE_STATUS: 'auth.get_service_status',
+
+  // ==================== developing test 消息 ====================
+
+  LIST_LOGINMETHODS: 'auth.list_loginmethods',
+  LIST_CREDENTIALS: 'auth.list_credentials',
+  LIST_OTPS: 'auth.list_otps'
 }

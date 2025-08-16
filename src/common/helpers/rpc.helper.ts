@@ -2,11 +2,7 @@ import { Observable, isObservable, firstValueFrom } from 'rxjs'
 import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
 import { createRuntimeException } from './exception.factory'
 import { isRpcError, toRpcException } from './exception.helper'
-import {
-  RpcRequest,
-  RpcRequestMeta,
-  RpcResponse
-} from '../interfaces/rpc.interface'
+import { RpcRequest, RpcRequestMeta, RpcResponse } from '../interfaces/rpc.interface'
 import { ClientProxy } from '@nestjs/microservices'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -22,13 +18,9 @@ import { v4 as uuidv4 } from 'uuid'
  * @param rpcCall RPC 调用（Observable 或 Promise）
  * @returns 调用结果
  */
-export async function safeRpcCall<T>(
-  rpcCall: Promise<T> | Observable<T>
-): Promise<T> {
+export async function safeRpcCall<T>(rpcCall: Promise<T> | Observable<T>): Promise<T> {
   try {
-    const result = isObservable(rpcCall)
-      ? await firstValueFrom(rpcCall)
-      : await rpcCall
+    const result = isObservable(rpcCall) ? await firstValueFrom(rpcCall) : await rpcCall
     return result
   } catch (exception) {
     exceptionHandler(exception)
@@ -50,15 +42,7 @@ export async function safeRpcCall2<I, O>(
         ...requestMeta,
         spanId: uuidv4(), // 服务端自动生成spanId
         timestamp: new Date().toISOString(), // 服务端自动生成 请求timestamp
-        caller: moduleName,
-        callTrace: [
-          ...(requestMeta.callTrace ?? []),
-          {
-            module: moduleName,
-            spanId: requestMeta.spanId,
-            parentSpanId: requestMeta.parentSpanId
-          }
-        ]
+        caller: moduleName
       }
     }
     const response = await firstValueFrom(
@@ -97,9 +81,6 @@ function exceptionHandler(exception: unknown): void {
     const finalContext = {
       originalError: errorObject
     }
-    throw createRuntimeException(
-      GLOBAL_RUNTIME_ERRORS.INVALID_RPC_STRUCTURE,
-      finalContext
-    )
+    throw createRuntimeException(GLOBAL_RUNTIME_ERRORS.INVALID_RPC_STRUCTURE, finalContext)
   }
 }
