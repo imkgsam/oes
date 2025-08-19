@@ -5,7 +5,7 @@ import { Request } from 'express'
 import { StandardResponse } from '@oes/common/interfaces/httpResponse.interface'
 import { SUCCESS } from '@oes/common/constants/res-codes/system.errors'
 
-// 响应拦截器, 统一返回response结构
+// http response 响应拦截器, 统一返回response结构
 @Injectable()
 export class ResponseTransformInterceptor<T = any>
   implements NestInterceptor<any, StandardResponse<T>>
