@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler,
-  Logger
-} from '@nestjs/common'
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler, Logger } from '@nestjs/common'
 import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 import {
@@ -39,9 +33,7 @@ import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
 export class RpcResponseInterceptor implements NestInterceptor {
   private readonly logger = new Logger(RpcResponseInterceptor.name)
 
-  constructor(
-    private readonly moduleName: string = process.env.MODULE_NAME || 'UNKNOWN'
-  ) {}
+  constructor(private readonly moduleName: string = process.env.MODULE_NAME || 'UNKNOWN') {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const rpcContext = context.switchToRpc()
@@ -52,7 +44,7 @@ export class RpcResponseInterceptor implements NestInterceptor {
     const currentSpanId = uuidv4() // 本操作的spanId
 
     return next.handle().pipe(
-      map((response) => {
+      map((response: RpcControllerResult) => {
         /**
          * response 返回的是固定的 rpccontrollerResult 结构
          * 包含的fields 有
@@ -67,14 +59,12 @@ export class RpcResponseInterceptor implements NestInterceptor {
         const downstreamCalltraces: CallTrace[] = []
         response.downstreamMeta.map((resMeta) => {
           if (resMeta.warnings) {
-            Object.entries(resMeta.warnings).forEach(
-              ([moduleName, warnings]) => {
-                if (!mergedWarnings[moduleName]) {
-                  mergedWarnings[moduleName] = []
-                }
-                mergedWarnings[moduleName].push(...(warnings as CBError[]))
+            Object.entries(resMeta.warnings).forEach(([moduleName, warnings]) => {
+              if (!mergedWarnings[moduleName]) {
+                mergedWarnings[moduleName] = []
               }
-            )
+              mergedWarnings[moduleName].push(...warnings)
+            })
           }
           if (resMeta.callTrace) {
             downstreamCalltraces.push(...resMeta.callTrace)
@@ -122,10 +112,7 @@ export class RpcResponseInterceptor implements NestInterceptor {
   /**
    * 将响应包装成标准格式
    */
-  private wrapResponse(
-    response: RpcControllerResult,
-    meta: RpcResponseMeta
-  ): RpcResponse {
+  private wrapResponse(response: RpcControllerResult, meta: RpcResponseMeta): RpcResponse {
     const rt: RpcResponse = {
       code: SUCCESS.subCode,
       message: SUCCESS.message,

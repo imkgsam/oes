@@ -1,18 +1,11 @@
-import {
-  Catch,
-  ArgumentsHost,
-  RpcExceptionFilter,
-  Logger
-} from '@nestjs/common'
+import { Catch, ArgumentsHost, RpcExceptionFilter, Logger } from '@nestjs/common'
 import { RpcException } from '@nestjs/microservices'
 import { BusinessException } from '../exceptions/business.exception'
 import { SystemException } from '../exceptions/system.exception'
+import { RuntimeException } from '../exceptions/runtime.exception'
 import { RpcError } from '../interfaces/exceptions.interface'
 import { Observable, throwError } from 'rxjs'
-import {
-  buildGlobalErrorCode,
-  toRpcException
-} from '../helpers/exception.helper'
+import { buildGlobalErrorCode, toRpcException } from '../helpers/exception.helper'
 import { getTraceId } from '../modules/trace/trace-context'
 import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
 import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
@@ -23,7 +16,7 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
   constructor(private readonly moduleName: string = process.env.MODULE_NAME) {}
 
   catch(
-    exception: BusinessException | SystemException | RpcException | unknown,
+    exception: BusinessException | SystemException | RuntimeException | RpcException,
     host: ArgumentsHost
   ) {
     this.logger.error('in MicroserviceExceptionsFilter catch:', exception)
@@ -52,10 +45,7 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
   private handleRpcException(exception: RpcException): Observable<any> {
     const rpcError = exception.getError() as RpcError
     if (rpcError?.error && rpcError?.context) {
-      rpcError.context.callStack = [
-        ...(rpcError.context.callStack || []),
-        this.moduleName
-      ]
+      rpcError.context.callStack = [...(rpcError.context.callStack || []), this.moduleName]
       rpcError.context.isPropagated = true
       return throwError(() => new RpcException(rpcError))
     }
@@ -100,10 +90,7 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
     traceId?: string
   ): Observable<any> {
     this.logger.error('in handleUnknownException', exception)
-    const details =
-      exception instanceof Error
-        ? { stack: exception.stack }
-        : { raw: exception }
+    const details = exception instanceof Error ? { stack: exception.stack } : { raw: exception }
     return throwError(() =>
       toRpcException(
         {
@@ -112,8 +99,7 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
             this.moduleName,
             GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.subCode
           ),
-          message:
-            exception?.message || GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message,
+          message: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message,
           messageKey: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.messageKey,
           httpStatus: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.httpStatus,
           details

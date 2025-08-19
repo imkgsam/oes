@@ -9,9 +9,10 @@ import {
 import { RpcException } from '@nestjs/microservices'
 import { buildGlobalErrorCode, isRpcError } from '../helpers/exception.helper'
 import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
-import { StandardResponse } from '../interfaces/httpResponse.interface'
+import { HttpResponse } from '../interfaces/http.interface'
 import { getTraceId } from '../modules/trace/trace-context'
 import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
+import { Request, Response } from 'express'
 
 @Catch()
 export class ApiGatewayExceptionsFilter implements ExceptionFilter {
@@ -21,39 +22,30 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     this.logger.error('in ApiGatewayExceptionsFilter catch: ', exception)
     const ctx = host.switchToHttp()
-    const response = ctx.getResponse()
-    const request = ctx.getRequest()
+    const response: Response = ctx.getResponse()
+    const request: Request = ctx.getRequest()
     let status = HttpStatus.INTERNAL_SERVER_ERROR
     let responseBody = this.buildDefaultResponse(request.url)
     if (exception instanceof HttpException) {
       this.logger.error('Caught HttpException:')
-      const { statusCode, body } = this.handleHttpException(
-        exception,
-        request.url
-      )
+      const { statusCode, body } = this.handleHttpException(exception, request.url)
       status = statusCode
       responseBody = body
     } else if (exception instanceof RpcException) {
       this.logger.error('Caught RpcException:')
-      const { statusCode, body } = this.handleRpcException(
-        exception,
-        request.url
-      )
+      const { statusCode, body } = this.handleRpcException(exception, request.url)
       status = statusCode
       responseBody = body
     } else {
       this.logger.error('Caught unknown Exception:')
-      const { statusCode, body } = this.handleGenericError(
-        exception,
-        request.url
-      )
+      const { statusCode, body } = this.handleGenericError(exception, request.url)
       status = statusCode
       responseBody = body
     }
     response.status(status).json(responseBody)
   }
 
-  private buildDefaultResponse(path: string): StandardResponse<any> {
+  private buildDefaultResponse(path: string): HttpResponse<any> {
     console.log('in buildDefaultResponse', path)
     return {
       code: buildGlobalErrorCode(
@@ -110,10 +102,8 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
         spanId: context.spanId
       }
     } else {
-      if (typeof exceptionError === 'string')
-        defualtRes.message = exceptionError
-      if (typeof exceptionError === 'object')
-        defualtRes.details = exceptionError
+      if (typeof exceptionError === 'string') defualtRes.message = exceptionError
+      if (typeof exceptionError === 'object') defualtRes.details = exceptionError
     }
     return { statusCode, body: defualtRes }
   }
@@ -122,8 +112,7 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
     const statusCode = GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.httpStatus
     const defaultRes = this.buildDefaultResponse(path)
     if (exception instanceof Error) {
-      defaultRes.message =
-        exception.message || GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message
+      defaultRes.message = exception.message || GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message
       defaultRes.details = {
         name: exception.name,
         stack: exception.stack

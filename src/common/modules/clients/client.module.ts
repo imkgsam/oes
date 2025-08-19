@@ -14,13 +14,9 @@ export class ClientModule {
       Object.prototype.hasOwnProperty.call(SERVICE_ENDPOINTS_CONFIG, k)
     )
 
-    const unknownKeys = uniqueClientKeys.filter(
-      (k) => !validClientKeys.includes(k)
-    )
+    const unknownKeys = uniqueClientKeys.filter((k) => !validClientKeys.includes(k))
     if (unknownKeys.length) {
-      logger.warn(
-        `ClientModule.register() 忽略了未知 client: ${unknownKeys.join(', ')}`
-      )
+      logger.warn(`ClientModule.register() 忽略了未知 client: ${unknownKeys.join(', ')}`)
     }
 
     const providers: Provider[] = validClientKeys.map((key) => ({
@@ -29,8 +25,7 @@ export class ClientModule {
     }))
 
     logger.log(
-      'ClientModule initialized with endpoints: ' +
-        Object.keys(SERVICE_ENDPOINTS_CONFIG).length
+      'ClientModule initialized with endpoints: ' + Object.keys(SERVICE_ENDPOINTS_CONFIG).length
     )
 
     return {

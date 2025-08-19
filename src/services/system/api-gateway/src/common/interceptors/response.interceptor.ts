@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NestInterceptor,
-  ExecutionContext,
-  CallHandler
-} from '@nestjs/common'
+import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common'
 import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 import { Request } from 'express'
@@ -15,15 +10,11 @@ import { SUCCESS } from '@oes/common/constants/res-codes/system.errors'
 export class ResponseTransformInterceptor<T = any>
   implements NestInterceptor<any, StandardResponse<T>>
 {
-  intercept(
-    context: ExecutionContext,
-    next: CallHandler<T>
-  ): Observable<StandardResponse<T>> {
+  intercept(context: ExecutionContext, next: CallHandler<T>): Observable<StandardResponse<T>> {
     const ctx = context.switchToHttp()
     const request = ctx.getRequest<Request>()
 
-    const traceId =
-      (request as any).traceId || request.headers['x-trace-id'] || null
+    const traceId = (request as any).traceId || request.headers['x-trace-id'] || null
 
     return next.handle().pipe(
       map(

@@ -1,20 +1,8 @@
 // 工厂函数： 创建不同协议的客户端代理
 
-import {
-  ClientProxy,
-  ClientProxyFactory,
-  Transport,
-  ClientOptions
-} from '@nestjs/microservices'
+import { ClientProxy, ClientProxyFactory, Transport, ClientOptions } from '@nestjs/microservices'
 
-export type ServiceProtocol =
-  | 'TCP'
-  | 'REDIS'
-  | 'NATS'
-  | 'KAFKA'
-  | 'RABBITMQ'
-  | 'GRPC'
-  | 'MQTT'
+export type ServiceProtocol = 'TCP' | 'REDIS' | 'NATS' | 'KAFKA' | 'RABBITMQ' | 'GRPC' | 'MQTT'
 
 export interface IServiceEndpointConfig {
   protocol: ServiceProtocol
@@ -28,9 +16,7 @@ export interface IServiceEndpointConfig {
   grpcProtoPath?: string
 }
 
-export function createClient(
-  endpointConfig: IServiceEndpointConfig
-): ClientProxy {
+export function createClient(endpointConfig: IServiceEndpointConfig): ClientProxy {
   let options: ClientOptions
 
   switch (endpointConfig.protocol) {
@@ -39,7 +25,7 @@ export function createClient(
         transport: Transport.TCP,
         options: {
           host: endpointConfig.host,
-          port: endpointConfig.port!
+          port: endpointConfig.port
         }
       }
       break
@@ -49,7 +35,7 @@ export function createClient(
         transport: Transport.REDIS,
         options: {
           host: endpointConfig.host,
-          port: endpointConfig.port!
+          port: endpointConfig.port
         }
       }
       break
@@ -58,9 +44,7 @@ export function createClient(
       options = {
         transport: Transport.NATS,
         options: {
-          url:
-            endpointConfig.url ||
-            `nats://${endpointConfig.host}:${endpointConfig.port}`
+          url: endpointConfig.url || `nats://${endpointConfig.host}:${endpointConfig.port}`
         }
       }
       break
@@ -85,11 +69,8 @@ export function createClient(
       options = {
         transport: Transport.RMQ,
         options: {
-          urls: [
-            endpointConfig.url ||
-              `amqp://${endpointConfig.host}:${endpointConfig.port}`
-          ],
-          queue: endpointConfig.queue!,
+          urls: [endpointConfig.url || `amqp://${endpointConfig.host}:${endpointConfig.port}`],
+          queue: endpointConfig.queue,
           queueOptions: { durable: true }
         }
       }
@@ -99,11 +80,9 @@ export function createClient(
       options = {
         transport: Transport.GRPC,
         options: {
-          url:
-            endpointConfig.url ||
-            `${endpointConfig.host}:${endpointConfig.port}`,
-          protoPath: endpointConfig.grpcProtoPath!,
-          package: endpointConfig.grpcPackage!
+          url: endpointConfig.url || `${endpointConfig.host}:${endpointConfig.port}`,
+          protoPath: endpointConfig.grpcProtoPath,
+          package: endpointConfig.grpcPackage
         }
       }
       break
@@ -112,9 +91,7 @@ export function createClient(
       options = {
         transport: Transport.MQTT,
         options: {
-          url:
-            endpointConfig.url ||
-            `mqtt://${endpointConfig.host}:${endpointConfig.port}`
+          url: endpointConfig.url || `mqtt://${endpointConfig.host}:${endpointConfig.port}`
         }
       }
       break

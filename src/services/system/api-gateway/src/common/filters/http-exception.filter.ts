@@ -1,10 +1,4 @@
-import {
-  ExceptionFilter,
-  Catch,
-  ArgumentsHost,
-  HttpException,
-  HttpStatus
-} from '@nestjs/common'
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common'
 import { RpcException } from '@nestjs/microservices'
 import { Request, Response } from 'express'
 
@@ -20,8 +14,7 @@ export class HttpExceptionFilter<T> implements ExceptionFilter {
     let message = 'Internal server error'
     const timestamp = Date.now()
     const path = request.originalUrl
-    const traceId =
-      request.headers['x-trace-id']?.toString() || request['traceId'] || ''
+    const traceId = request.headers['x-trace-id']?.toString() || request['traceId'] || ''
 
     if (exception instanceof RpcException) {
       const error = exception.getError() as any
@@ -35,11 +28,7 @@ export class HttpExceptionFilter<T> implements ExceptionFilter {
       message = exception.message
     } else {
       console.error('Unhandled exception:', typeof exception, exception)
-      if (
-        exception &&
-        typeof exception === 'object' &&
-        'message' in exception
-      ) {
+      if (exception && typeof exception === 'object' && 'message' in exception) {
         message = (exception as any).message
       } else {
         message = String(exception)

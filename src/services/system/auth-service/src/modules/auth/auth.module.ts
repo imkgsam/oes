@@ -1,8 +1,5 @@
 import { Module } from '@nestjs/common'
-import {
-  EmailOtpProvider,
-  PhoneOtpProvider
-} from '../../application/providers/otp.provider'
+import { EmailOtpProvider, PhoneOtpProvider } from '../../application/providers/otp.provider'
 import { EmailPasswordAuthProvider } from '../../application/providers/email-password.provider'
 import { GoogleAuthProvider } from '../../application/providers/google.provider'
 import { WechatAuthProvider } from '../../application/providers/wechat.provider'

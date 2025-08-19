@@ -2,9 +2,7 @@
 import { Inject } from '@nestjs/common'
 import { SERVICE_CLIENT_TOKENS } from './service-map'
 
-export function InjectServiceClient(
-  serviceKey: keyof typeof SERVICE_CLIENT_TOKENS
-) {
+export function InjectServiceClient(serviceKey: keyof typeof SERVICE_CLIENT_TOKENS) {
   const token = SERVICE_CLIENT_TOKENS[serviceKey]
 
   if (!token) {

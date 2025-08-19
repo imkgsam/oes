@@ -34,10 +34,12 @@ export interface RpcResponseMeta {
 
 export type RpcModuleWarnings = Record<string, CBError[]>
 
+// 定义 code-based error 结构, 从rawerror转换成cberror， 主要是将subcode 转换成全局的code
 export interface CBError {
   code: string
   message: string
   messageKey?: string
+  details?: any // 错误详情
 }
 
 export interface CallTrace {
