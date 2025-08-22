@@ -10,12 +10,7 @@ export interface AuditEvent {
   accountId?: string
   tenantId?: string
   eventType: string
-  eventCategory:
-    | 'AUTHENTICATION'
-    | 'AUTHORIZATION'
-    | 'SECURITY'
-    | 'ADMIN'
-    | 'SYSTEM'
+  eventCategory: 'AUTHENTICATION' | 'AUTHORIZATION' | 'SECURITY' | 'ADMIN' | 'SYSTEM'
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
   description: string
   details: Record<string, any>
@@ -33,12 +28,7 @@ export interface AuditRequest {
   accountId?: string
   tenantId?: string
   eventType: string
-  eventCategory:
-    | 'AUTHENTICATION'
-    | 'AUTHORIZATION'
-    | 'SECURITY'
-    | 'ADMIN'
-    | 'SYSTEM'
+  eventCategory: 'AUTHENTICATION' | 'AUTHORIZATION' | 'SECURITY' | 'ADMIN' | 'SYSTEM'
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
   description: string
   details: Record<string, any>
@@ -108,11 +98,7 @@ export interface IAuditServicePort {
    * @param reason 登出原因
    * @returns 审计响应
    */
-  recordLogout(
-    userId: string,
-    sessionId: string,
-    reason?: string
-  ): Promise<AuditResponse>
+  recordLogout(userId: string, sessionId: string, reason?: string): Promise<AuditResponse>
 
   /**
    * 记录密码重置事件

@@ -10,6 +10,15 @@ export interface HttpResponse<T = any> {
   meta: HttpResponseMeta
 }
 
+export interface HttpRequest<T = any> {
+  code: string
+  message: string
+  messageKey?: string
+  data?: T
+  details?: any
+  meta: HttpResponseMeta
+}
+
 export interface HttpResponseMeta extends RpcResponseMeta {
   path?: string
 }

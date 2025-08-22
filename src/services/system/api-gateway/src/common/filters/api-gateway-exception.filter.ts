@@ -7,11 +7,11 @@ import {
   Logger
 } from '@nestjs/common'
 import { RpcException } from '@nestjs/microservices'
-import { buildGlobalErrorCode, isRpcError } from '../helpers/exception.helper'
-import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
-import { HttpResponse } from '../interfaces/http.interface'
-import { getTraceId } from '../modules/trace/trace-context'
-import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
+import { buildGlobalErrorCode, isRpcError } from '@oes/common/helpers/exception.helper'
+import { EXCEPTION_TYPE_PREFIX } from '@oes/common/constants/res-codes/module.codes'
+import { HttpResponse } from '@oes/common/interfaces/http.interface'
+import { getTraceId } from '@oes/common/modules/trace/trace-context'
+import { GLOBAL_RUNTIME_ERRORS } from '@oes/common/constants/res-codes/runtime.errors'
 import { Request, Response } from 'express'
 
 @Catch()

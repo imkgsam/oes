@@ -101,48 +101,30 @@ export class IdentityServiceAdaptor implements IIdentityServicePort {
     }
   }
 
-  async getUserAccountRelations(
-    userId: string
-  ): Promise<UserAccountRelation[]> {
+  async getUserAccountRelations(userId: string): Promise<UserAccountRelation[]> {
     try {
       this.logger.debug(`Getting user account relations for user: ${userId}`)
       const response = await safeRpcCall<UserAccountRelation[]>(
-        this.identityServiceClient.send(
-          IDENTITY_MESSAGES.GET_USER_ACCOUNT_RELATIONS,
-          { userId }
-        )
+        this.identityServiceClient.send(IDENTITY_MESSAGES.GET_USER_ACCOUNT_RELATIONS, { userId })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to get user account relations for user: ${userId}`,
-        error
-      )
+      this.logger.error(`Failed to get user account relations for user: ${userId}`, error)
       throw error
     }
   }
 
-  async getAccountTenantRelations(
-    accountId: string
-  ): Promise<AccountTenantRelation[]> {
+  async getAccountTenantRelations(accountId: string): Promise<AccountTenantRelation[]> {
     try {
-      this.logger.debug(
-        `Getting account tenant relations for account: ${accountId}`
-      )
+      this.logger.debug(`Getting account tenant relations for account: ${accountId}`)
       const response = await safeRpcCall<AccountTenantRelation[]>(
-        this.identityServiceClient.send(
-          IDENTITY_MESSAGES.GET_ACCOUNT_TENANT_RELATIONS,
-          {
-            accountId
-          }
-        )
+        this.identityServiceClient.send(IDENTITY_MESSAGES.GET_ACCOUNT_TENANT_RELATIONS, {
+          accountId
+        })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to get account tenant relations for account: ${accountId}`,
-        error
-      )
+      this.logger.error(`Failed to get account tenant relations for account: ${accountId}`, error)
       throw error
     }
   }
@@ -196,40 +178,26 @@ export class IdentityServiceAdaptor implements IIdentityServicePort {
     try {
       this.logger.debug(`Getting user default account for user: ${userId}`)
       const response = await safeRpcCall<AccountInfo>(
-        this.identityServiceClient.send(
-          IDENTITY_MESSAGES.GET_USER_DEFAULT_ACCOUNT,
-          { userId }
-        )
+        this.identityServiceClient.send(IDENTITY_MESSAGES.GET_USER_DEFAULT_ACCOUNT, { userId })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to get user default account for user: ${userId}`,
-        error
-      )
+      this.logger.error(`Failed to get user default account for user: ${userId}`, error)
       throw error
     }
   }
 
   async getAccountDefaultTenant(accountId: string): Promise<TenantInfo> {
     try {
-      this.logger.debug(
-        `Getting account default tenant for account: ${accountId}`
-      )
+      this.logger.debug(`Getting account default tenant for account: ${accountId}`)
       const response = await safeRpcCall<TenantInfo>(
-        this.identityServiceClient.send(
-          IDENTITY_MESSAGES.GET_ACCOUNT_DEFAULT_TENANT,
-          {
-            accountId
-          }
-        )
+        this.identityServiceClient.send(IDENTITY_MESSAGES.GET_ACCOUNT_DEFAULT_TENANT, {
+          accountId
+        })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to get account default tenant for account: ${accountId}`,
-        error
-      )
+      this.logger.error(`Failed to get account default tenant for account: ${accountId}`, error)
       throw error
     }
   }

@@ -39,36 +39,28 @@ export interface INotificationServicePort {
    * @param request 通知请求
    * @returns 通知响应
    */
-  sendEmailNotification(
-    request: NotificationRequest
-  ): Promise<NotificationResponse>
+  sendEmailNotification(request: NotificationRequest): Promise<NotificationResponse>
 
   /**
    * 发送短信通知
    * @param request 通知请求
    * @returns 通知响应
    */
-  sendSmsNotification(
-    request: NotificationRequest
-  ): Promise<NotificationResponse>
+  sendSmsNotification(request: NotificationRequest): Promise<NotificationResponse>
 
   /**
    * 发送推送通知
    * @param request 通知请求
    * @returns 通知响应
    */
-  sendPushNotification(
-    request: NotificationRequest
-  ): Promise<NotificationResponse>
+  sendPushNotification(request: NotificationRequest): Promise<NotificationResponse>
 
   /**
    * 发送应用内通知
    * @param request 通知请求
    * @returns 通知响应
    */
-  sendInAppNotification(
-    request: NotificationRequest
-  ): Promise<NotificationResponse>
+  sendInAppNotification(request: NotificationRequest): Promise<NotificationResponse>
 
   /**
    * 发送验证码邮件

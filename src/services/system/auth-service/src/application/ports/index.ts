@@ -34,9 +34,4 @@ export {
 } from './notification-service.port'
 
 // Audit Service 端口
-export {
-  IAuditServicePort,
-  AuditEvent,
-  AuditRequest,
-  AuditResponse
-} from './audit-service.port'
+export { IAuditServicePort, AuditEvent, AuditRequest, AuditResponse } from './audit-service.port'
