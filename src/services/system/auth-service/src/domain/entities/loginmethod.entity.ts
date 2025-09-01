@@ -1,7 +1,7 @@
 import { LoginMethod as PrismaLoginMethod } from 'prisma/generated/prisma'
 import { Credential as PrismaCredential } from 'prisma/generated/prisma'
 import { compare, hash } from 'bcrypt'
-import { CREDENTIAL_TYPES } from '@oes/common/constants/enums/auth-relative.enums'
+import { CREDENTIAL_TYPES } from '@oes/common/constants/enums/auth-service.enums'
 export class LoginMethod {
   private credentials: Credential[] = []
   constructor(

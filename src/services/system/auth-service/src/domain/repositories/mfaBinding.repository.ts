@@ -1,4 +1,4 @@
-import { MfaType } from '@oes/common/constants/enums/auth-relative.enums'
+import { MfaType } from '@oes/common/constants/enums/auth-service.enums'
 import { MfaBindingEntity } from '../entities/mfabinding.entity'
 
 export interface IMfaBindingRepository {
@@ -17,10 +17,7 @@ export interface IMfaBindingRepository {
    * @param type MFA 类型
    * @returns Promise<MfaBindingEntity | null>
    */
-  findByUserIdAndType(
-    userId: string,
-    type: MfaType
-  ): Promise<MfaBindingEntity | null>
+  findByUserIdAndType(userId: string, type: MfaType): Promise<MfaBindingEntity | null>
 
   /**
    * 查找用户的所有 MFA 绑定

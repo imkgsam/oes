@@ -7,7 +7,7 @@ import { EmailService } from '../../infrastructure/services/email.service'
 import { SmsService } from '../../infrastructure/services/sms.service'
 import { createBusinessException } from '@oes/common/exceptions/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
-import { OTP_TYPES, MfaType } from '@oes/common/constants/enums/auth-relative.enums'
+import { OTP_TYPES, MfaType } from '@oes/common/constants/enums/auth-service.enums'
 import { OneTimeToken } from '../../domain/entities/otp.entity'
 
 /**

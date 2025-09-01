@@ -7,7 +7,7 @@ import {
   PhoneOtpLoginDto,
   WechatLoginDto
 } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
-import { LoginMethodEnum } from '@oes/common/constants/enums/auth-relative.enums'
+import { LoginMethodEnum } from '@oes/common/constants/enums/auth-service.enums'
 import { IAuthServiceRpcAuthPort } from '@oes/common/interfaces/services/auth-service.interface'
 
 @Controller('auth')

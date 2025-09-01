@@ -1,4 +1,4 @@
-import { MfaType } from '@oes/common/constants/enums/auth-relative.enums'
+import { MfaType } from '@oes/common/constants/enums/auth-service.enums'
 
 export class LoginResultDto {
   // 以下字段仅在 SUCCESS 时有值

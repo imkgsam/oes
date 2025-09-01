@@ -5,7 +5,7 @@ import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repo
 import {
   LOGIN_METHOD_TYPES,
   CREDENTIAL_TYPES
-} from '@oes/common/constants/enums/auth-relative.enums'
+} from '@oes/common/constants/enums/auth-service.enums'
 import { createBusinessException } from '@oes/common/exceptions/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
 

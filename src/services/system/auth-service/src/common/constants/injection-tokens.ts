@@ -15,6 +15,7 @@ export const SESSION_REPOSITORY = 'ISessionRepository'
 export const MFA_BINDING_REPOSITORY = 'IMfaBindingRepository'
 export const OTP_REPOSITORY = 'IOtpRepository'
 export const LOGIN_METHOD_REPOSITORY = 'ILoginMethodRepository'
+export const USER_REPOSITORY = 'IUserRepository'
 
 // Service Tokens
 export const SESSION_SERVICE = 'SessionService'

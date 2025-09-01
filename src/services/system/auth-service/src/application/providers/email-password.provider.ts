@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { AuthResult } from './interfaces/auth-provider.interface'
-import { EmailPasswordLoginDto } from '../dtos/login.dto'
+import { EmailPasswordLoginDto } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
 import { BaseAuthProvider } from './base-auth.provider'
-import { LOGIN_METHOD_TYPES } from '@oes/common/constants/enums/auth-relative.enums'
-import { LoginMethodEnum } from '@oes/common/constants/enums/auth-relative.enums'
+import { LOGIN_METHOD_TYPES } from '@oes/common/constants/enums/auth-service.enums'
+import { LoginMethodEnum } from '@oes/common/constants/enums/auth-service.enums'
 import { createBusinessException } from '@oes/common/exceptions/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
 

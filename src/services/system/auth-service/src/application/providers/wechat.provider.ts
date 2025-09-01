@@ -5,8 +5,8 @@ import { BaseAuthProvider } from './base-auth.provider'
 import {
   LOGIN_METHOD_TYPES,
   CREDENTIAL_TYPES
-} from '@oes/common/constants/enums/auth-relative.enums'
-import { LoginMethodEnum } from '@oes/common/constants/enums/auth-relative.enums'
+} from '@oes/common/constants/enums/auth-service.enums'
+import { LoginMethodEnum } from '@oes/common/constants/enums/auth-service.enums'
 
 @Injectable()
 export class WechatAuthProvider extends BaseAuthProvider<WechatLoginDto> {
@@ -20,11 +20,10 @@ export class WechatAuthProvider extends BaseAuthProvider<WechatLoginDto> {
       const wechatUserInfo = await this.verifyWechatCode(dto.code)
 
       // 查找微信登录方法
-      const loginMethod =
-        await this.loginMethodRepository.findByTypeAndIdentifier(
-          LOGIN_METHOD_TYPES.OAUTH_OPENID,
-          wechatUserInfo.openid
-        )
+      const loginMethod = await this.loginMethodRepository.findByTypeAndIdentifier(
+        LOGIN_METHOD_TYPES.OAUTH_OPENID,
+        wechatUserInfo.openid
+      )
 
       if (!loginMethod) {
         throw new UnauthorizedException('WeChat account not linked to any user')
@@ -32,16 +31,12 @@ export class WechatAuthProvider extends BaseAuthProvider<WechatLoginDto> {
 
       // 检查登录方法是否启用和已验证
       if (!loginMethod.isEnabled() || !loginMethod.isVerified()) {
-        throw new UnauthorizedException(
-          'WeChat login method not enabled or verified'
-        )
+        throw new UnauthorizedException('WeChat login method not enabled or verified')
       }
 
       // 验证 OAuth 凭证
       const credentials = loginMethod.getCredentials()
-      const oauthCredential = credentials.find(
-        (cred) => cred.secretType === CREDENTIAL_TYPES.OAUTH
-      )
+      const oauthCredential = credentials.find((cred) => cred.secretType === CREDENTIAL_TYPES.OAUTH)
 
       if (!oauthCredential || !oauthCredential.isEnabled()) {
         throw new UnauthorizedException('Invalid OAuth credentials')

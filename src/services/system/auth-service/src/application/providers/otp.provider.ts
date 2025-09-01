@@ -8,8 +8,8 @@ import {
   LOGIN_METHOD_TYPES,
   OTP_TYPES,
   OTP_USAGES
-} from '@oes/common/constants/enums/auth-relative.enums'
-import { LoginMethodEnum } from '@oes/common/constants/enums/auth-relative.enums'
+} from '@oes/common/constants/enums/auth-service.enums'
+import { LoginMethodEnum } from '@oes/common/constants/enums/auth-service.enums'
 
 @Injectable()
 export class EmailOtpProvider extends BaseAuthProvider<EmailOtpLoginDto> {

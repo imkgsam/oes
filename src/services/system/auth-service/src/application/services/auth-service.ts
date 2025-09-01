@@ -4,7 +4,7 @@ import { CommonJwtService } from '@oes/common/modules/jwt/jwt.service'
 import { EmailPasswordAuthProvider } from '../providers/email-password.provider'
 import { WechatAuthProvider } from '../providers/wechat.provider'
 import { EmailOtpProvider, PhoneOtpProvider } from '../providers/otp.provider'
-import { LoginMethodEnum } from '@oes/common/constants/enums/auth-relative.enums'
+import { LoginMethodEnum } from '@oes/common/constants/enums/auth-service.enums'
 import { GoogleAuthProvider } from '../providers/google.provider'
 import { SessionService } from './session.service'
 import { MfaService } from './mfa.service'
@@ -98,10 +98,7 @@ export class AuthService {
     }
 
     // 创建会话
-    const sessionResult = await this.sessionService.createSession(
-      user.id,
-      deviceInfo
-    )
+    const sessionResult = await this.sessionService.createSession(user.id, deviceInfo)
 
     this.logger.log(
       `User ${user.id} logged in successfully with session ${sessionResult.sessionId}`
@@ -149,10 +146,7 @@ export class AuthService {
     }
 
     // 创建会话
-    const sessionResult = await this.sessionService.createSession(
-      userId,
-      deviceInfo
-    )
+    const sessionResult = await this.sessionService.createSession(userId, deviceInfo)
 
     this.logger.log(
       `MFA login completed for user ${userId} with session ${sessionResult.sessionId}`
@@ -230,17 +224,13 @@ export class AuthService {
    * @param userId 用户 ID
    * @returns 登出结果
    */
-  async logoutAll(
-    userId: string
-  ): Promise<{ success: boolean; sessionCount: number }> {
+  async logoutAll(userId: string): Promise<{ success: boolean; sessionCount: number }> {
     this.logger.log(`User ${userId} logout from all devices`)
 
     const result = await this.sessionService.logoutAll(userId)
 
     if (result.success) {
-      this.logger.log(
-        `User ${userId} logged out from all ${result.sessionCount} sessions`
-      )
+      this.logger.log(`User ${userId} logged out from all ${result.sessionCount} sessions`)
     } else {
       this.logger.warn(`Logout all failed for user ${userId}`)
     }
@@ -321,20 +311,12 @@ export class AuthService {
     reason: string,
     adminId: string
   ): Promise<{ success: boolean; sessionCount: number }> {
-    this.logger.log(
-      `Admin ${adminId} revoking all sessions for user ${userId}: ${reason}`
-    )
+    this.logger.log(`Admin ${adminId} revoking all sessions for user ${userId}: ${reason}`)
 
-    const result = await this.sessionService.adminRevokeAllSessions(
-      userId,
-      reason,
-      adminId
-    )
+    const result = await this.sessionService.adminRevokeAllSessions(userId, reason, adminId)
 
     if (result.success) {
-      this.logger.log(
-        `Admin ${adminId} revoked ${result.sessionCount} sessions for user ${userId}`
-      )
+      this.logger.log(`Admin ${adminId} revoked ${result.sessionCount} sessions for user ${userId}`)
     } else {
       this.logger.error(`Admin revoke failed for user ${userId}`)
     }
@@ -383,10 +365,7 @@ export class AuthService {
    * @param dto 登录数据
    * @returns 用户信息
    */
-  private async authenticateUser(
-    method: LoginMethodEnum,
-    dto: any
-  ): Promise<any> {
+  private async authenticateUser(method: LoginMethodEnum, dto: any): Promise<any> {
     let user
 
     try {

@@ -4,7 +4,7 @@ import { InjectServiceClient } from '@oes/common/modules/clients/client.decorato
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'
 import { safeRpcCall } from '@oes/common/helpers/rpc.helper'
-import { IPermissionServicePort } from '../../application/ports/permission-service.port'
+import { IPermissionServicePort } from 'src/application/ports/permission-service.port'
 import { ClientProxy } from '@nestjs/microservices'
 
 /**

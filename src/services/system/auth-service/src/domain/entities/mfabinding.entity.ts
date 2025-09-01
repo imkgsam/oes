@@ -1,5 +1,5 @@
 import { MfaBinding as PrismaMfaBinding } from '../../../prisma/generated/prisma'
-import { MfaType } from '@oes/common/constants/enums/auth-relative.enums'
+import { MfaType } from '@oes/common/constants/enums/auth-service.enums'
 import {
   createSystemException,
   createBusinessException

@@ -4,7 +4,7 @@ import { EmailPasswordAuthProvider } from './email-password.provider'
 import { GoogleAuthProvider } from './google.provider'
 import { WechatAuthProvider } from './wechat.provider'
 import { EmailOtpProvider, PhoneOtpProvider } from './otp.provider'
-import { LoginMethodEnum } from '@oes/common/constants/enums/auth-relative.enums'
+import { LoginMethodEnum } from '@oes/common/constants/enums/auth-service.enums'
 
 @Injectable()
 export class AuthProviderFactory {
@@ -34,9 +34,7 @@ export class AuthProviderFactory {
       case LoginMethodEnum.Wechat:
         return this.wechatProvider
       default:
-        throw new Error(
-          `Unsupported login method type: ${String(loginMethodType)}`
-        )
+        throw new Error(`Unsupported login method type: ${String(loginMethodType)}`)
     }
   }
 
@@ -46,10 +44,7 @@ export class AuthProviderFactory {
    * @param loginDto 登录数据
    * @returns 认证结果
    */
-  async authenticate(
-    loginMethodType: LoginMethodEnum,
-    loginDto: any
-  ): Promise<AuthResult> {
+  async authenticate(loginMethodType: LoginMethodEnum, loginDto: any): Promise<AuthResult> {
     const provider = this.getProvider(loginMethodType)
     return await provider.authenticate(loginDto)
   }

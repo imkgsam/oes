@@ -1,11 +1,7 @@
 import { Injectable, Logger, Inject } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { CommonJwtService } from '@oes/common/modules/jwt/jwt.service'
-import {
-  Session,
-  SessionConfig,
-  DeviceInfo
-} from 'src/domain/entities/session.entity'
+import { Session, SessionConfig, DeviceInfo } from 'src/domain/entities/session.entity'
 import { ISessionRepository } from 'src/domain/repositories/session.repository'
 import { SESSION_REPOSITORY } from 'src/common/constants/injection-tokens'
 
@@ -105,9 +101,7 @@ export class SessionService {
     // 保存会话
     await this.sessionRepo.save(session)
 
-    this.logger.log(
-      `Created session for user ${userId} on device ${deviceInfo.deviceId}`
-    )
+    this.logger.log(`Created session for user ${userId} on device ${deviceInfo.deviceId}`)
 
     return {
       accessToken,
@@ -275,18 +269,14 @@ export class SessionService {
    * @param userId 用户 ID
    * @returns 登出结果
    */
-  async logoutAll(
-    userId: string
-  ): Promise<{ success: boolean; sessionCount: number }> {
+  async logoutAll(userId: string): Promise<{ success: boolean; sessionCount: number }> {
     try {
       const sessions = await this.sessionRepo.findAllByUserId(userId)
       const sessionCount = sessions.length
 
       await this.sessionRepo.deleteAllByUserId(userId)
 
-      this.logger.log(
-        `User ${userId} logged out from all ${sessionCount} sessions`
-      )
+      this.logger.log(`User ${userId} logged out from all ${sessionCount} sessions`)
       return { success: true, sessionCount }
     } catch (error) {
       this.logger.error(
@@ -322,9 +312,7 @@ export class SessionService {
       await this.sessionRepo.adminRevokeAllByUserId(userId, reason, adminId)
       const sessions = await this.sessionRepo.findAllByUserId(userId)
 
-      this.logger.log(
-        `Admin ${adminId} revoked all sessions for user ${userId}: ${reason}`
-      )
+      this.logger.log(`Admin ${adminId} revoked all sessions for user ${userId}: ${reason}`)
       return { success: true, sessionCount: sessions.length }
     } catch (error) {
       this.logger.error(
@@ -356,9 +344,7 @@ export class SessionService {
     try {
       await this.sessionRepo.adminRevokeSession(sessionId, reason, adminId)
 
-      this.logger.log(
-        `Admin ${adminId} revoked session ${sessionId}: ${reason}`
-      )
+      this.logger.log(`Admin ${adminId} revoked session ${sessionId}: ${reason}`)
       return { success: true }
     } catch (error) {
       this.logger.error(
@@ -391,9 +377,7 @@ export class SessionService {
       await this.sessionRepo.adminSuspendAllByUserId(userId, reason, adminId)
       const sessions = await this.sessionRepo.findAllByUserId(userId)
 
-      this.logger.log(
-        `Admin ${adminId} suspended all sessions for user ${userId}: ${reason}`
-      )
+      this.logger.log(`Admin ${adminId} suspended all sessions for user ${userId}: ${reason}`)
       return { success: true, sessionCount: sessions.length }
     } catch (error) {
       this.logger.error(
@@ -453,17 +437,13 @@ export class SessionService {
   ): Promise<{ success: boolean; kickedCount: number }> {
     try {
       const sessions = await this.sessionRepo.findAllByUserId(userId)
-      const sessionsToKick = sessions.filter(
-        (session) => session.getId() !== excludeSessionId
-      )
+      const sessionsToKick = sessions.filter((session) => session.getId() !== excludeSessionId)
 
       for (const session of sessionsToKick) {
         await this.sessionRepo.delete(session.getId())
       }
 
-      this.logger.log(
-        `Kicked ${sessionsToKick.length} other devices for user ${userId}`
-      )
+      this.logger.log(`Kicked ${sessionsToKick.length} other devices for user ${userId}`)
       return { success: true, kickedCount: sessionsToKick.length }
     } catch (error) {
       this.logger.error(
@@ -617,10 +597,7 @@ export class SessionService {
    * @param type 令牌类型
    * @returns JWT 令牌
    */
-  private async generateJwtToken(
-    session: Session,
-    type: 'ACCESS' | 'REFRESH'
-  ): Promise<string> {
+  private async generateJwtToken(session: Session, type: 'ACCESS' | 'REFRESH'): Promise<string> {
     const tokenConfig = this.configService.get('token')
     const payload = {
       sub: session.getUserId(),

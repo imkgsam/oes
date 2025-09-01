@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { MfaBindingEntity } from 'src/domain/entities/mfabinding.entity'
 import { IMfaBindingRepository } from 'src/domain/repositories/mfaBinding.repository'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
-import { MfaType } from '@oes/common/constants/enums/auth-relative.enums'
+import { MfaType } from '@oes/common/constants/enums/auth-service.enums'
 
 @Injectable()
 export class PrismaMfaBindingRepository implements IMfaBindingRepository {
@@ -29,10 +29,7 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
    * @param type MFA 类型
    * @returns Promise<MfaBindingEntity | null>
    */
-  async findByUserIdAndType(
-    userId: string,
-    type: MfaType
-  ): Promise<MfaBindingEntity | null> {
+  async findByUserIdAndType(userId: string, type: MfaType): Promise<MfaBindingEntity | null> {
     const found = await this.prismaService.mfaBinding.findFirst({
       where: { userId, type }
     })
@@ -75,12 +72,8 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
         type: binding.getType(),
         secret: binding.getSecret(),
         enabled: binding.isEnabled(),
-        metadata: binding.getProps().metadata
-          ? JSON.stringify(binding.getProps().metadata)
-          : null,
-        deviceInfo: binding.getDeviceInfo()
-          ? JSON.stringify(binding.getDeviceInfo())
-          : null,
+        metadata: binding.getProps().metadata ? JSON.stringify(binding.getProps().metadata) : null,
+        deviceInfo: binding.getDeviceInfo() ? JSON.stringify(binding.getDeviceInfo()) : null,
         updatedAt: new Date()
       },
       create: {
@@ -89,12 +82,8 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
         type: binding.getType(),
         secret: binding.getSecret(),
         enabled: binding.isEnabled(),
-        metadata: binding.getProps().metadata
-          ? JSON.stringify(binding.getProps().metadata)
-          : null,
-        deviceInfo: binding.getDeviceInfo()
-          ? JSON.stringify(binding.getDeviceInfo())
-          : null,
+        metadata: binding.getProps().metadata ? JSON.stringify(binding.getProps().metadata) : null,
+        deviceInfo: binding.getDeviceInfo() ? JSON.stringify(binding.getDeviceInfo()) : null,
         createdAt: new Date(),
         updatedAt: new Date()
       }
