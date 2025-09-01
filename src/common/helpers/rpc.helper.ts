@@ -1,6 +1,6 @@
 import { Observable, isObservable, firstValueFrom } from 'rxjs'
 import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
-import { createRuntimeException } from './exception.factory'
+import { createRuntimeException } from '../exceptions/exception.factory'
 import { isRpcError, toRpcException } from './exception.helper'
 import { RpcRequest, RpcRequestMeta, RpcResponse } from '../interfaces/rpc.interface'
 import { ClientProxy } from '@nestjs/microservices'

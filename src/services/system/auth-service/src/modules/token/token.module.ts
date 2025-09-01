@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common'
-import { JwtModule } from '../../infrastructure/jwt/jwt.module'
+import { CommonJwtModule } from '@oes/common/modules/jwt/jwt.module'
 
 @Module({
-  imports: [JwtModule]
+  imports: [CommonJwtModule]
 })
 export class TokenModule {}

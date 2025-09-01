@@ -5,7 +5,7 @@ import { CreateRoleDto } from 'src/application/dtos/role.dto'
 import { RoleService } from 'src/application/services/role.service'
 import { Role } from 'src/domain/entities/role.entity'
 import { PERMISSION_SERVICE_ERRORS } from '@oes/common/constants/res-codes/permission-service.errors'
-import { createBusinessException } from '@oes/common/helpers/exception.factory'
+import { createBusinessException } from '@oes/common/exceptions/exception.factory'
 
 @Controller()
 export class TcpTestController {

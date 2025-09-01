@@ -1,14 +1,9 @@
 import { Module } from '@nestjs/common'
 import { ClientModule } from '@oes/common/modules/clients/client.module'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
-import { IdentityServiceAdaptor } from '../adaptors/identity-service.adaptor'
-import { PermissionServiceAdaptor } from '../adaptors/permission-service.adaptor'
-import { NotificationServiceAdaptor } from '../adaptors/notification-service.adaptor'
-import { AuditServiceAdaptor } from '../adaptors/audit-service.adaptor'
-import { IIdentityServicePort } from 'src/application/ports/identity-service.port'
-import { IPermissionServicePort } from 'src/application/ports/permission-service.port'
-import { INotificationServicePort } from 'src/application/ports/notification-service.port'
-import { IAuditServicePort } from 'src/application/ports/audit-service.port'
+import { IdentityServiceAdaptor } from '../adaptors'
+import { PermissionServiceAdaptor } from '../adaptors'
+import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants/service.symbols'
 
 /**
  * 外部服务模块
@@ -26,32 +21,15 @@ import { IAuditServicePort } from 'src/application/ports/audit-service.port'
     ])
   ],
   providers: [
-    // Identity Service 适配器
     {
-      provide: IIdentityServicePort,
+      provide: IDENTITY_SERVICE,
       useClass: IdentityServiceAdaptor
     },
-    // Permission Service 适配器
     {
-      provide: IPermissionServicePort,
+      provide: PERMISSION_SERVICE,
       useClass: PermissionServiceAdaptor
-    },
-    // Notification Service 适配器
-    {
-      provide: INotificationServicePort,
-      useClass: NotificationServiceAdaptor
-    },
-    // Audit Service 适配器
-    {
-      provide: IAuditServicePort,
-      useClass: AuditServiceAdaptor
     }
   ],
-  exports: [
-    IIdentityServicePort,
-    IPermissionServicePort,
-    INotificationServicePort,
-    IAuditServicePort
-  ]
+  exports: [IDENTITY_SERVICE, PERMISSION_SERVICE]
 })
 export class ExternalServicesModule {}

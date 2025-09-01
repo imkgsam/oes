@@ -3,7 +3,7 @@ import { MfaType } from '@oes/common/constants/enums/auth-relative.enums'
 import {
   createSystemException,
   createBusinessException
-} from '@oes/common/helpers/exception.factory'
+} from '@oes/common/exceptions/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
 import { authenticator } from 'otplib' //是一个用于生成和验证一次性密码（OTP）的 JavaScript 库，主要用于实现多因素认证（MFA）功能。
 import { compare, hash } from 'bcrypt'
@@ -47,13 +47,10 @@ export class MfaBindingEntity {
         metadata = JSON.parse(prismaMfaBinding.metadata) as Record<string, any>
       }
     } catch (error) {
-      throw createSystemException(
-        GLOBAL_SYSTEM_ERRORS.MFA_METADATA_PARSE_ERROR,
-        {
-          bindingId: prismaMfaBinding.id,
-          originalError: error instanceof Error ? error.message : String(error)
-        }
-      )
+      throw createSystemException(GLOBAL_SYSTEM_ERRORS.MFA_METADATA_PARSE_ERROR, {
+        bindingId: prismaMfaBinding.id,
+        originalError: error instanceof Error ? error.message : String(error)
+      })
     }
 
     try {
@@ -62,13 +59,10 @@ export class MfaBindingEntity {
         deviceInfo = JSON.parse(prismaMfaBinding.deviceInfo) as DeviceInfo
       }
     } catch (error) {
-      throw createSystemException(
-        GLOBAL_SYSTEM_ERRORS.MFA_DEVICE_INFO_PARSE_ERROR,
-        {
-          bindingId: prismaMfaBinding.id,
-          originalError: error instanceof Error ? error.message : String(error)
-        }
-      )
+      throw createSystemException(GLOBAL_SYSTEM_ERRORS.MFA_DEVICE_INFO_PARSE_ERROR, {
+        bindingId: prismaMfaBinding.id,
+        originalError: error instanceof Error ? error.message : String(error)
+      })
     }
 
     return new MfaBindingEntity({
@@ -85,10 +79,7 @@ export class MfaBindingEntity {
   }
 
   // 创建新的 TOTP 绑定（步骤 1-2：用户发起绑定请求，后端生成密钥）
-  static createTotpBinding(
-    userId: string,
-    deviceInfo?: DeviceInfo
-  ): MfaBindingEntity {
+  static createTotpBinding(userId: string, deviceInfo?: DeviceInfo): MfaBindingEntity {
     const secret = authenticator.generateSecret() // 步骤 2：生成密钥
     return new MfaBindingEntity({
       id: randomUUID(),
@@ -222,13 +213,9 @@ export class MfaBindingEntity {
   }
 
   // 创建备用码绑定（不需要 OTP 验证）
-  static async createBackupCodeBinding(
-    userId: string
-  ): Promise<MfaBindingEntity> {
+  static async createBackupCodeBinding(userId: string): Promise<MfaBindingEntity> {
     const backupCodes = this.generateBackupCodes()
-    const hashedCodes = await Promise.all(
-      backupCodes.map((code) => hash(code, 10))
-    )
+    const hashedCodes = await Promise.all(backupCodes.map((code) => hash(code, 10)))
 
     return new MfaBindingEntity({
       id: randomUUID(),
@@ -274,10 +261,7 @@ export class MfaBindingEntity {
   }
 
   // 验证通用 MFA 代码（根据类型自动选择验证方法）
-  async verify(
-    inputCode: string,
-    oneTimeToken?: OneTimeToken
-  ): Promise<boolean> {
+  async verify(inputCode: string, oneTimeToken?: OneTimeToken): Promise<boolean> {
     switch (this.props.type) {
       case MfaType.TOTP:
         return this.verifyTotp(inputCode)
@@ -287,9 +271,7 @@ export class MfaBindingEntity {
       case MfaType.SMS_OTP:
         // 这些类型通过 OneTimeToken 验证
         if (!oneTimeToken) {
-          throw createBusinessException(
-            AUTH_SERVICE_ERRORS.MFA_OTP_TOKEN_REQUIRED
-          )
+          throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_OTP_TOKEN_REQUIRED)
         }
         return oneTimeToken.verify(inputCode)
       case MfaType.PUSH_NOTIFICATION:
@@ -298,9 +280,7 @@ export class MfaBindingEntity {
         // 这些类型需要特殊处理
         return true
       default:
-        throw createBusinessException(
-          AUTH_SERVICE_ERRORS.MFA_TYPE_NOT_SUPPORTED
-        )
+        throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_TYPE_NOT_SUPPORTED)
     }
   }
 

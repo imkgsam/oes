@@ -1,13 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common'
-import {
-  IPermissionServicePort,
-  Permission,
-  Role
-} from 'src/application/ports/permission-service.port'
+import { Permission, Role } from '@oes/common/dtos/permission-service/api/rpc/all.dto'
 import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'
 import { safeRpcCall } from '@oes/common/helpers/rpc.helper'
+import { IPermissionServicePort } from '../../application/ports/permission-service.port'
+import { ClientProxy } from '@nestjs/microservices'
 
 /**
  * Permission Service 适配器实现
@@ -20,24 +18,18 @@ export class PermissionServiceAdaptor implements IPermissionServicePort {
 
   constructor(
     @InjectServiceClient(ServiceKeys.PERMISSION_TCP)
-    private readonly permissionServiceClient: any
+    private readonly permissionServiceClient: ClientProxy
   ) {}
 
   async getUserPermissions(userId: string): Promise<Permission[]> {
     try {
       this.logger.debug(`Getting user permissions for user: ${userId}`)
       const response = await safeRpcCall<Permission[]>(
-        this.permissionServiceClient.send(
-          PERMISSION_MESSAGES.GET_USER_PERMISSIONS,
-          { userId }
-        )
+        this.permissionServiceClient.send(PERMISSION_MESSAGES.GET_USER_PERMISSIONS, { userId })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to get user permissions for user: ${userId}`,
-        error
-      )
+      this.logger.error(`Failed to get user permissions for user: ${userId}`, error)
       throw error
     }
   }
@@ -46,9 +38,7 @@ export class PermissionServiceAdaptor implements IPermissionServicePort {
     try {
       this.logger.debug(`Getting user roles for user: ${userId}`)
       const response = await safeRpcCall<Role[]>(
-        this.permissionServiceClient.send(PERMISSION_MESSAGES.GET_USER_ROLES, {
-          userId
-        })
+        this.permissionServiceClient.send(PERMISSION_MESSAGES.GET_USER_ROLES, { userId })
       )
       return response
     } catch (error) {
@@ -61,19 +51,13 @@ export class PermissionServiceAdaptor implements IPermissionServicePort {
     try {
       this.logger.debug(`Getting account permissions for account: ${accountId}`)
       const response = await safeRpcCall<Permission[]>(
-        this.permissionServiceClient.send(
-          PERMISSION_MESSAGES.GET_ACCOUNT_PERMISSIONS,
-          {
-            accountId
-          }
-        )
+        this.permissionServiceClient.send(PERMISSION_MESSAGES.GET_ACCOUNT_PERMISSIONS, {
+          accountId
+        })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to get account permissions for account: ${accountId}`,
-        error
-      )
+      this.logger.error(`Failed to get account permissions for account: ${accountId}`, error)
       throw error
     }
   }
@@ -82,44 +66,27 @@ export class PermissionServiceAdaptor implements IPermissionServicePort {
     try {
       this.logger.debug(`Getting account roles for account: ${accountId}`)
       const response = await safeRpcCall<Role[]>(
-        this.permissionServiceClient.send(
-          PERMISSION_MESSAGES.GET_ACCOUNT_ROLES,
-          { accountId }
-        )
+        this.permissionServiceClient.send(PERMISSION_MESSAGES.GET_ACCOUNT_ROLES, { accountId })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to get account roles for account: ${accountId}`,
-        error
-      )
+      this.logger.error(`Failed to get account roles for account: ${accountId}`, error)
       throw error
     }
   }
 
-  async checkUserPermission(
-    userId: string,
-    permissionCode: string
-  ): Promise<boolean> {
+  async checkUserPermission(userId: string, permissionCode: string): Promise<boolean> {
     try {
-      this.logger.debug(
-        `Checking user permission: ${userId} - ${permissionCode}`
-      )
+      this.logger.debug(`Checking user permission: ${userId} - ${permissionCode}`)
       const response = await safeRpcCall<boolean>(
-        this.permissionServiceClient.send(
-          PERMISSION_MESSAGES.CHECK_USER_PERMISSION,
-          {
-            userId,
-            permissionCode
-          }
-        )
+        this.permissionServiceClient.send(PERMISSION_MESSAGES.CHECK_USER_PERMISSION, {
+          userId,
+          permissionCode
+        })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to check user permission: ${userId} - ${permissionCode}`,
-        error
-      )
+      this.logger.error(`Failed to check user permission: ${userId} - ${permissionCode}`, error)
       return false
     }
   }
@@ -135,30 +102,19 @@ export class PermissionServiceAdaptor implements IPermissionServicePort {
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to check user role: ${userId} - ${roleCode}`,
-        error
-      )
+      this.logger.error(`Failed to check user role: ${userId} - ${roleCode}`, error)
       return false
     }
   }
 
-  async checkAccountPermission(
-    accountId: string,
-    permissionCode: string
-  ): Promise<boolean> {
+  async checkAccountPermission(accountId: string, permissionCode: string): Promise<boolean> {
     try {
-      this.logger.debug(
-        `Checking account permission: ${accountId} - ${permissionCode}`
-      )
+      this.logger.debug(`Checking account permission: ${accountId} - ${permissionCode}`)
       const response = await safeRpcCall<boolean>(
-        this.permissionServiceClient.send(
-          PERMISSION_MESSAGES.CHECK_ACCOUNT_PERMISSION,
-          {
-            accountId,
-            permissionCode
-          }
-        )
+        this.permissionServiceClient.send(PERMISSION_MESSAGES.CHECK_ACCOUNT_PERMISSION, {
+          accountId,
+          permissionCode
+        })
       )
       return response
     } catch (error) {
@@ -170,27 +126,18 @@ export class PermissionServiceAdaptor implements IPermissionServicePort {
     }
   }
 
-  async checkAccountRole(
-    accountId: string,
-    roleCode: string
-  ): Promise<boolean> {
+  async checkAccountRole(accountId: string, roleCode: string): Promise<boolean> {
     try {
       this.logger.debug(`Checking account role: ${accountId} - ${roleCode}`)
       const response = await safeRpcCall<boolean>(
-        this.permissionServiceClient.send(
-          PERMISSION_MESSAGES.CHECK_ACCOUNT_ROLE,
-          {
-            accountId,
-            roleCode
-          }
-        )
+        this.permissionServiceClient.send(PERMISSION_MESSAGES.CHECK_ACCOUNT_ROLE, {
+          accountId,
+          roleCode
+        })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to check account role: ${accountId} - ${roleCode}`,
-        error
-      )
+      this.logger.error(`Failed to check account role: ${accountId} - ${roleCode}`, error)
       return false
     }
   }
@@ -199,40 +146,26 @@ export class PermissionServiceAdaptor implements IPermissionServicePort {
     try {
       this.logger.debug(`Getting user all permissions for user: ${userId}`)
       const response = await safeRpcCall<Permission[]>(
-        this.permissionServiceClient.send(
-          PERMISSION_MESSAGES.GET_USER_ALL_PERMISSIONS,
-          { userId }
-        )
+        this.permissionServiceClient.send(PERMISSION_MESSAGES.GET_USER_ALL_PERMISSIONS, { userId })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to get user all permissions for user: ${userId}`,
-        error
-      )
+      this.logger.error(`Failed to get user all permissions for user: ${userId}`, error)
       throw error
     }
   }
 
   async getAccountAllPermissions(accountId: string): Promise<Permission[]> {
     try {
-      this.logger.debug(
-        `Getting account all permissions for account: ${accountId}`
-      )
+      this.logger.debug(`Getting account all permissions for account: ${accountId}`)
       const response = await safeRpcCall<Permission[]>(
-        this.permissionServiceClient.send(
-          PERMISSION_MESSAGES.GET_ACCOUNT_ALL_PERMISSIONS,
-          {
-            accountId
-          }
-        )
+        this.permissionServiceClient.send(PERMISSION_MESSAGES.GET_ACCOUNT_ALL_PERMISSIONS, {
+          accountId
+        })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to get account all permissions for account: ${accountId}`,
-        error
-      )
+      this.logger.error(`Failed to get account all permissions for account: ${accountId}`, error)
       throw error
     }
   }
@@ -241,19 +174,13 @@ export class PermissionServiceAdaptor implements IPermissionServicePort {
     try {
       this.logger.debug(`Validating permission: ${permissionCode}`)
       const response = await safeRpcCall<boolean>(
-        this.permissionServiceClient.send(
-          PERMISSION_MESSAGES.VALIDATE_PERMISSION,
-          {
-            permissionCode
-          }
-        )
+        this.permissionServiceClient.send(PERMISSION_MESSAGES.VALIDATE_PERMISSION, {
+          permissionCode
+        })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to validate permission: ${permissionCode}`,
-        error
-      )
+      this.logger.error(`Failed to validate permission: ${permissionCode}`, error)
       return false
     }
   }
@@ -277,19 +204,13 @@ export class PermissionServiceAdaptor implements IPermissionServicePort {
     try {
       this.logger.debug(`Getting permission by code: ${permissionCode}`)
       const response = await safeRpcCall<Permission>(
-        this.permissionServiceClient.send(
-          PERMISSION_MESSAGES.GET_PERMISSION_BY_CODE,
-          {
-            permissionCode
-          }
-        )
+        this.permissionServiceClient.send(PERMISSION_MESSAGES.GET_PERMISSION_BY_CODE, {
+          permissionCode
+        })
       )
       return response
     } catch (error) {
-      this.logger.error(
-        `Failed to get permission by code: ${permissionCode}`,
-        error
-      )
+      this.logger.error(`Failed to get permission by code: ${permissionCode}`, error)
       throw error
     }
   }
@@ -298,10 +219,7 @@ export class PermissionServiceAdaptor implements IPermissionServicePort {
     try {
       this.logger.debug(`Getting role by code: ${roleCode}`)
       const response = await safeRpcCall<Role>(
-        this.permissionServiceClient.send(
-          PERMISSION_MESSAGES.GET_ROLE_BY_CODE,
-          { roleCode }
-        )
+        this.permissionServiceClient.send(PERMISSION_MESSAGES.GET_ROLE_BY_CODE, { roleCode })
       )
       return response
     } catch (error) {

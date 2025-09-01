@@ -9,9 +9,3 @@ export { IdentityServiceAdaptor } from './identity-service.adaptor'
 
 // Permission Service 适配器
 export { PermissionServiceAdaptor } from './permission-service.adaptor'
-
-// Notification Service 适配器
-export { NotificationServiceAdaptor } from './notification-service.adaptor'
-
-// Audit Service 适配器
-export { AuditServiceAdaptor } from './audit-service.adaptor'

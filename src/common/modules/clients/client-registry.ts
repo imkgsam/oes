@@ -6,11 +6,14 @@ import { initManagedClient } from './connection-manager'
 
 const clientCache = new Map<string, ClientProxy>()
 
-export function getOrCreateClient(id: string, endpointConfig: IServiceEndpointConfig): ClientProxy {
+export async function getOrCreateClient(
+  id: string,
+  endpointConfig: IServiceEndpointConfig
+): Promise<ClientProxy> {
   if (!clientCache.has(id)) {
     const client = createClient(endpointConfig)
     clientCache.set(id, client)
-    initManagedClient(id, client)
+    await initManagedClient(id, client)
   }
   return clientCache.get(id)
 }

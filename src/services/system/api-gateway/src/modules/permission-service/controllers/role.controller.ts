@@ -4,17 +4,10 @@ import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.m
 import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
 import { CreateRoleDto } from 'src/dtos/role.dto'
 import { safeRpcCall } from '@oes/common/helpers/rpc.helper'
-import { createBusinessException } from '@oes/common/helpers/exception.factory'
+import { createBusinessException } from '@oes/common/exceptions/exception.factory'
 import { PERMISSION_SERVICE_ERRORS } from '@oes/common/constants/res-codes/permission-service.errors'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
-import {
-  ApiTags,
-  ApiOperation,
-  ApiParam,
-  ApiQuery,
-  ApiBody,
-  ApiBearerAuth
-} from '@nestjs/swagger'
+import { ApiTags, ApiOperation, ApiParam, ApiQuery, ApiBody, ApiBearerAuth } from '@nestjs/swagger'
 
 @ApiTags('角色管理')
 @Controller('role')
@@ -27,18 +20,14 @@ export class RoleController {
   @Get('/all')
   @ApiOperation({ summary: '获取所有角色' })
   async getAllRoles() {
-    return safeRpcCall(
-      this.permissionClient.send(PERMISSION_MESSAGES.LIST_ROLES, {})
-    )
+    return safeRpcCall(this.permissionClient.send(PERMISSION_MESSAGES.LIST_ROLES, {}))
   }
 
   @Post()
   @ApiOperation({ summary: '创建角色' })
   @ApiBody({ type: CreateRoleDto })
   async createRole(@Body() dto: CreateRoleDto) {
-    return safeRpcCall(
-      this.permissionClient.send(PERMISSION_MESSAGES.CREATE_ROLE, dto)
-    )
+    return safeRpcCall(this.permissionClient.send(PERMISSION_MESSAGES.CREATE_ROLE, dto))
   }
 
   @Get(':id')
@@ -49,8 +38,7 @@ export class RoleController {
       this.permissionClient.send(PERMISSION_MESSAGES.GET_ROLE_BY_ID, { id })
     )
     console.log('Role found:', found)
-    if (!found)
-      throw createBusinessException(PERMISSION_SERVICE_ERRORS.ROLE_NOT_FOUND)
+    if (!found) throw createBusinessException(PERMISSION_SERVICE_ERRORS.ROLE_NOT_FOUND)
     return found
   }
 
@@ -61,8 +49,7 @@ export class RoleController {
     const deleted = await safeRpcCall(
       this.permissionClient.send(PERMISSION_MESSAGES.DELETE_ROLE, { id })
     )
-    if (!deleted)
-      throw createBusinessException(PERMISSION_SERVICE_ERRORS.ROLE_NOT_FOUND)
+    if (!deleted) throw createBusinessException(PERMISSION_SERVICE_ERRORS.ROLE_NOT_FOUND)
     return deleted
   }
 }

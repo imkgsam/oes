@@ -97,8 +97,8 @@ export function createClient(endpointConfig: IServiceEndpointConfig): ClientProx
       break
 
     default:
-      throw new Error(`Unsupported protocol: ${endpointConfig.protocol}`)
+      throw new Error(`Unsupported protocol: ${endpointConfig.protocol as string}`)
   }
 
-  return ClientProxyFactory.create(options as ClientOptions)
+  return ClientProxyFactory.create(options)
 }

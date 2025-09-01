@@ -6,7 +6,7 @@ import {
   LOGIN_METHOD_TYPES,
   CREDENTIAL_TYPES
 } from '@oes/common/constants/enums/auth-relative.enums'
-import { createBusinessException } from '@oes/common/helpers/exception.factory'
+import { createBusinessException } from '@oes/common/exceptions/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
 
 @Injectable()
@@ -45,8 +45,7 @@ export abstract class BaseAuthProvider<T = any> implements IAuthProvider<T> {
     type: string,
     identifier: string
   ): Promise<LoginMethod> {
-    const loginMethod =
-      await this.loginMethodRepository.findByTypeAndIdentifier(type, identifier)
+    const loginMethod = await this.loginMethodRepository.findByTypeAndIdentifier(type, identifier)
 
     if (!loginMethod) {
       throw createBusinessException(AUTH_SERVICE_ERRORS.INVALID_CREDENTIALS, {
@@ -63,13 +62,10 @@ export abstract class BaseAuthProvider<T = any> implements IAuthProvider<T> {
     }
 
     if (!loginMethod.isVerified()) {
-      throw createBusinessException(
-        AUTH_SERVICE_ERRORS.LOGIN_METHOD_NOT_VERIFIED,
-        {
-          type,
-          identifier
-        }
-      )
+      throw createBusinessException(AUTH_SERVICE_ERRORS.LOGIN_METHOD_NOT_VERIFIED, {
+        type,
+        identifier
+      })
     }
 
     return loginMethod
@@ -91,21 +87,15 @@ export abstract class BaseAuthProvider<T = any> implements IAuthProvider<T> {
     )
 
     if (!passwordCredential) {
-      throw createBusinessException(
-        AUTH_SERVICE_ERRORS.PASSWORD_CREDENTIAL_NOT_FOUND,
-        {
-          loginMethodId: loginMethod.id
-        }
-      )
+      throw createBusinessException(AUTH_SERVICE_ERRORS.PASSWORD_CREDENTIAL_NOT_FOUND, {
+        loginMethodId: loginMethod.id
+      })
     }
 
     if (!passwordCredential.isEnabled()) {
-      throw createBusinessException(
-        AUTH_SERVICE_ERRORS.PASSWORD_CREDENTIAL_DISABLED,
-        {
-          loginMethodId: loginMethod.id
-        }
-      )
+      throw createBusinessException(AUTH_SERVICE_ERRORS.PASSWORD_CREDENTIAL_DISABLED, {
+        loginMethodId: loginMethod.id
+      })
     }
 
     return await passwordCredential.validate(password)
@@ -118,26 +108,18 @@ export abstract class BaseAuthProvider<T = any> implements IAuthProvider<T> {
    */
   protected validateOAuthCredential(loginMethod: LoginMethod): boolean {
     const credentials = loginMethod.getCredentials()
-    const oauthCredential = credentials.find(
-      (cred) => cred.secretType === CREDENTIAL_TYPES.OAUTH
-    )
+    const oauthCredential = credentials.find((cred) => cred.secretType === CREDENTIAL_TYPES.OAUTH)
 
     if (!oauthCredential) {
-      throw createBusinessException(
-        AUTH_SERVICE_ERRORS.OAUTH_CREDENTIAL_NOT_FOUND,
-        {
-          loginMethodId: loginMethod.id
-        }
-      )
+      throw createBusinessException(AUTH_SERVICE_ERRORS.OAUTH_CREDENTIAL_NOT_FOUND, {
+        loginMethodId: loginMethod.id
+      })
     }
 
     if (!oauthCredential.isEnabled()) {
-      throw createBusinessException(
-        AUTH_SERVICE_ERRORS.OAUTH_CREDENTIAL_DISABLED,
-        {
-          loginMethodId: loginMethod.id
-        }
-      )
+      throw createBusinessException(AUTH_SERVICE_ERRORS.OAUTH_CREDENTIAL_DISABLED, {
+        loginMethodId: loginMethod.id
+      })
     }
 
     return true
@@ -149,10 +131,7 @@ export abstract class BaseAuthProvider<T = any> implements IAuthProvider<T> {
    * @param metadata 元数据
    * @returns AuthResult
    */
-  protected createAuthResult(
-    loginMethod: LoginMethod,
-    metadata?: Record<string, any>
-  ): AuthResult {
+  protected createAuthResult(loginMethod: LoginMethod, metadata?: Record<string, any>): AuthResult {
     return {
       loginMethod,
       metadata

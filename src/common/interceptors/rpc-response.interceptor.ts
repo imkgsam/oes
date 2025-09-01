@@ -7,7 +7,7 @@ import {
   RpcModuleWarnings,
   RpcRequest,
   RpcResponse,
-  RpcResponseMeta
+  ResponseMeta
 } from '../interfaces/rpc.interface'
 import { CBError } from '../interfaces/rpc.interface'
 import { SUCCESS } from '../constants/res-codes/system.errors'
@@ -15,7 +15,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { buildGlobalErrorCode } from '../helpers/exception.helper'
 import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
 /**
- * RPC 响应包装过滤器
+ * RPC 响应包装拦截器
  *
  * 功能：
  * - 将 RPC 调用的返回值包装成统一的响应结构
@@ -92,7 +92,7 @@ export class RpcResponseInterceptor implements NestInterceptor {
           endTime: new Date(endTime).toISOString()
         }
 
-        const newMeta: RpcResponseMeta = {
+        const newMeta: ResponseMeta = {
           traceId,
           spanId: currentSpanId,
           parentSpanId,
@@ -112,7 +112,7 @@ export class RpcResponseInterceptor implements NestInterceptor {
   /**
    * 将响应包装成标准格式
    */
-  private wrapResponse(response: RpcControllerResult, meta: RpcResponseMeta): RpcResponse {
+  private wrapResponse(response: RpcControllerResult, meta: ResponseMeta): RpcResponse {
     const rt: RpcResponse = {
       code: SUCCESS.subCode,
       message: SUCCESS.message,

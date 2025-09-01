@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  BadRequestException
-} from '@nestjs/common'
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common'
 import { AuthResult } from './interfaces/auth-provider.interface'
 import { EmailOtpLoginDto, PhoneOtpLoginDto } from '../dtos/login.dto'
 import { BaseAuthProvider } from './base-auth.provider'
@@ -32,18 +28,10 @@ export class EmailOtpProvider extends BaseAuthProvider<EmailOtpLoginDto> {
 
     try {
       // 查找并验证登录方法
-      const loginMethod = await this.findAndValidateLoginMethod(
-        LOGIN_METHOD_TYPES.EMAIL,
-        dto.email
-      )
+      const loginMethod = await this.findAndValidateLoginMethod(LOGIN_METHOD_TYPES.EMAIL, dto.email)
 
       // 验证 OTP
-      const otp = await this.validateOtp(
-        OTP_TYPES.EMAIL,
-        dto.email,
-        dto.otp,
-        OTP_USAGES.LOGIN
-      )
+      const otp = await this.validateOtp(OTP_TYPES.EMAIL, dto.email, dto.otp, OTP_USAGES.LOGIN)
 
       if (!otp) {
         throw new UnauthorizedException('Invalid OTP')
@@ -130,18 +118,10 @@ export class PhoneOtpProvider extends BaseAuthProvider<PhoneOtpLoginDto> {
 
     try {
       // 查找并验证登录方法
-      const loginMethod = await this.findAndValidateLoginMethod(
-        LOGIN_METHOD_TYPES.PHONE,
-        dto.phone
-      )
+      const loginMethod = await this.findAndValidateLoginMethod(LOGIN_METHOD_TYPES.PHONE, dto.phone)
 
       // 验证 OTP
-      const otp = await this.validateOtp(
-        OTP_TYPES.PHONE,
-        dto.phone,
-        dto.otp,
-        OTP_USAGES.LOGIN
-      )
+      const otp = await this.validateOtp(OTP_TYPES.PHONE, dto.phone, dto.otp, OTP_USAGES.LOGIN)
 
       if (!otp) {
         throw new UnauthorizedException('Invalid OTP')

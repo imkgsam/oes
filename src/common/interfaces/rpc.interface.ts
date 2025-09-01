@@ -10,7 +10,7 @@ export interface RpcResponse<T = unknown> {
   message: string // 成功或错误信息
   messageKey?: string // 错误信息key
   data?: T | null // 返回数据
-  meta: RpcResponseMeta // 响应元数据
+  meta: ResponseMeta // 响应元数据
 }
 
 export interface RpcRequestMeta {
@@ -21,7 +21,7 @@ export interface RpcRequestMeta {
   caller: string // 调用方模块名
 }
 
-export interface RpcResponseMeta {
+export interface ResponseMeta {
   traceId: string // 全局链路ID
   spanId: string // 当前spanID
   parentSpanId: string // 父spanID
@@ -57,5 +57,5 @@ export interface RpcControllerResult<T = unknown> {
   data?: T // 返回业务数据
   warnings?: CBError[] // 本服务产生的code-based error
   error?: RawError // 本服务产生的raw error, interceptor 再拼接成 CBERROR
-  downstreamMeta?: RpcResponseMeta[] // 下游服务原始返回结果中的meta
+  downstreamMeta?: ResponseMeta[] // 下游服务原始返回结果中的meta
 }

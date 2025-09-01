@@ -5,12 +5,9 @@ import { IOtpRepository } from '../../domain/repositories/otp.repository'
 import { ILoginMethodRepository } from '../../domain/repositories/loginmethod.repository'
 import { EmailService } from '../../infrastructure/services/email.service'
 import { SmsService } from '../../infrastructure/services/sms.service'
-import { createBusinessException } from '@oes/common/helpers/exception.factory'
+import { createBusinessException } from '@oes/common/exceptions/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
-import {
-  OTP_TYPES,
-  MfaType
-} from '@oes/common/constants/enums/auth-relative.enums'
+import { OTP_TYPES, MfaType } from '@oes/common/constants/enums/auth-relative.enums'
 import { OneTimeToken } from '../../domain/entities/otp.entity'
 
 /**
@@ -89,9 +86,7 @@ export class MfaService {
   }> {
     // 获取用户的所有活跃 MFA 绑定
     const bindings = await this.mfaBindingRepo.findAllByUserId(userId)
-    const activeBindings = bindings.filter((binding) =>
-      binding.isBindingActive()
-    )
+    const activeBindings = bindings.filter((binding) => binding.isBindingActive())
 
     if (activeBindings.length === 0) {
       throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
@@ -101,8 +96,7 @@ export class MfaService {
     const preferredBinding =
       activeBindings.find(
         (binding) =>
-          binding.getType() === MfaType.EMAIL_OTP ||
-          binding.getType() === MfaType.SMS_OTP
+          binding.getType() === MfaType.EMAIL_OTP || binding.getType() === MfaType.SMS_OTP
       ) || activeBindings[0]
 
     const bindingType = preferredBinding.getType()
@@ -111,14 +105,9 @@ export class MfaService {
     switch (bindingType) {
       case MfaType.EMAIL_OTP: {
         // 获取用户的邮箱
-        const emailLoginMethod = await this.loginMethodRepo.findByUserIdAndType(
-          userId,
-          'EMAIL'
-        )
+        const emailLoginMethod = await this.loginMethodRepo.findByUserIdAndType(userId, 'EMAIL')
         if (!emailLoginMethod) {
-          throw createBusinessException(
-            AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND
-          )
+          throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
         }
 
         const otp = OneTimeToken.createMfaOtp({
@@ -149,14 +138,9 @@ export class MfaService {
 
       case MfaType.SMS_OTP: {
         // 获取用户的手机号
-        const phoneLoginMethod = await this.loginMethodRepo.findByUserIdAndType(
-          userId,
-          'PHONE'
-        )
+        const phoneLoginMethod = await this.loginMethodRepo.findByUserIdAndType(userId, 'PHONE')
         if (!phoneLoginMethod) {
-          throw createBusinessException(
-            AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND
-          )
+          throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
         }
 
         const otp = OneTimeToken.createMfaOtp({
@@ -196,9 +180,7 @@ export class MfaService {
       }
 
       default:
-        throw createBusinessException(
-          AUTH_SERVICE_ERRORS.MFA_TYPE_NOT_SUPPORTED
-        )
+        throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_TYPE_NOT_SUPPORTED)
     }
   }
 
@@ -286,14 +268,9 @@ export class MfaService {
     secret: string
     testCode: string
   }> {
-    const existingBinding = await this.mfaBindingRepo.findByUserIdAndType(
-      userId,
-      MfaType.TOTP
-    )
+    const existingBinding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.TOTP)
     if (existingBinding && existingBinding.isBindingActive()) {
-      throw createBusinessException(
-        AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS
-      )
+      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS)
     }
 
     const binding = MfaBindingEntity.createTotpBinding(userId)
@@ -334,19 +311,14 @@ export class MfaService {
    * @param inputCode 用户输入的验证码
    * @returns Promise<boolean> 是否激活成功
    */
-  async verifyAndActivateTotpBinding(
-    bindingId: string,
-    inputCode: string
-  ): Promise<boolean> {
+  async verifyAndActivateTotpBinding(bindingId: string, inputCode: string): Promise<boolean> {
     const binding = await this.mfaBindingRepo.findById(bindingId)
     if (!binding || binding.getType() !== MfaType.TOTP) {
       throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
     }
 
     if (binding.isBindingActive()) {
-      throw createBusinessException(
-        AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS
-      )
+      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS)
     }
 
     const isValid = binding.verifyTotpBinding(inputCode)
@@ -393,20 +365,12 @@ export class MfaService {
     needsEmailVerification: boolean
     message: string
   }> {
-    const existingBinding = await this.mfaBindingRepo.findByUserIdAndType(
-      userId,
-      MfaType.EMAIL_OTP
-    )
+    const existingBinding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.EMAIL_OTP)
     if (existingBinding && existingBinding.isBindingActive()) {
-      throw createBusinessException(
-        AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS
-      )
+      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS)
     }
 
-    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier(
-      'EMAIL',
-      email
-    )
+    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('EMAIL', email)
     const isEmailVerified = loginMethod?.isVerified() || false
 
     if (isEmailVerified) {
@@ -427,10 +391,7 @@ export class MfaService {
       })
 
       await this.oneTimeTokenRepo.save(otp)
-      const sentCode = await this.emailService.sendEmailVerificationCode(
-        email,
-        otp.getProps().code
-      )
+      const sentCode = await this.emailService.sendEmailVerificationCode(email, otp.getProps().code)
       // 在开发模式下，使用发送的验证码更新 OTP
       if (this.isDevelopmentMode()) {
         otp.updateCode(sentCode)
@@ -540,20 +501,12 @@ export class MfaService {
     needsPhoneVerification: boolean
     message: string
   }> {
-    const existingBinding = await this.mfaBindingRepo.findByUserIdAndType(
-      userId,
-      MfaType.SMS_OTP
-    )
+    const existingBinding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.SMS_OTP)
     if (existingBinding && existingBinding.isBindingActive()) {
-      throw createBusinessException(
-        AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS
-      )
+      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS)
     }
 
-    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier(
-      'PHONE',
-      phone
-    )
+    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('PHONE', phone)
     const isPhoneVerified = loginMethod?.isVerified() || false
 
     if (isPhoneVerified) {
@@ -574,10 +527,7 @@ export class MfaService {
       })
 
       await this.oneTimeTokenRepo.save(otp)
-      const sentCode = await this.smsService.sendPhoneVerificationCode(
-        phone,
-        otp.getProps().code
-      )
+      const sentCode = await this.smsService.sendPhoneVerificationCode(phone, otp.getProps().code)
       // 在开发模式下，使用发送的验证码更新 OTP
       if (this.isDevelopmentMode()) {
         otp.updateCode(sentCode)
@@ -685,10 +635,7 @@ export class MfaService {
     const newCode = this.generateEmailCode()
     otp.updateCode(newCode)
     await this.oneTimeTokenRepo.save(otp)
-    const sentCode = await this.emailService.sendEmailVerificationCode(
-      otp.getIdentifier(),
-      newCode
-    )
+    const sentCode = await this.emailService.sendEmailVerificationCode(otp.getIdentifier(), newCode)
     // 在开发模式下，使用发送的验证码更新 OTP
     if (this.isDevelopmentMode()) {
       otp.updateCode(sentCode)
@@ -732,10 +679,7 @@ export class MfaService {
     const newCode = this.generateSmsCode()
     otp.updateCode(newCode)
     await this.oneTimeTokenRepo.save(otp)
-    const sentCode = await this.smsService.sendPhoneVerificationCode(
-      otp.getIdentifier(),
-      newCode
-    )
+    const sentCode = await this.smsService.sendPhoneVerificationCode(otp.getIdentifier(), newCode)
     // 在开发模式下，使用发送的验证码更新 OTP
     if (this.isDevelopmentMode()) {
       otp.updateCode(sentCode)
@@ -785,27 +729,12 @@ export class MfaService {
       isPhoneVerified: boolean
     }
   }> {
-    const totpBinding = await this.mfaBindingRepo.findByUserIdAndType(
-      userId,
-      MfaType.TOTP
-    )
-    const emailBinding = await this.mfaBindingRepo.findByUserIdAndType(
-      userId,
-      MfaType.EMAIL_OTP
-    )
-    const smsBinding = await this.mfaBindingRepo.findByUserIdAndType(
-      userId,
-      MfaType.SMS_OTP
-    )
+    const totpBinding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.TOTP)
+    const emailBinding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.EMAIL_OTP)
+    const smsBinding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.SMS_OTP)
 
-    const emailLoginMethod = await this.loginMethodRepo.findByUserIdAndType(
-      userId,
-      'EMAIL'
-    )
-    const phoneLoginMethod = await this.loginMethodRepo.findByUserIdAndType(
-      userId,
-      'PHONE'
-    )
+    const emailLoginMethod = await this.loginMethodRepo.findByUserIdAndType(userId, 'EMAIL')
+    const phoneLoginMethod = await this.loginMethodRepo.findByUserIdAndType(userId, 'PHONE')
 
     return {
       totp: {
@@ -899,9 +828,7 @@ export class MfaService {
    * @returns boolean
    */
   private isDevelopmentMode(): boolean {
-    return (
-      process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
-    )
+    return process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
   }
 
   /**
@@ -917,10 +844,7 @@ export class MfaService {
    * @returns Promise<void>
    */
   private async markEmailAsVerified(email: string): Promise<void> {
-    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier(
-      'EMAIL',
-      email
-    )
+    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('EMAIL', email)
     if (loginMethod) {
       // 使用领域实体的方法
       loginMethod.verify()
@@ -941,10 +865,7 @@ export class MfaService {
    * @returns Promise<void>
    */
   private async markPhoneAsVerified(phone: string): Promise<void> {
-    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier(
-      'PHONE',
-      phone
-    )
+    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('PHONE', phone)
     if (loginMethod) {
       // 使用领域实体的方法
       loginMethod.verify()
@@ -965,10 +886,7 @@ export class MfaService {
    * @returns Promise<string> 用户ID
    */
   private async getUserIdByEmail(email: string): Promise<string> {
-    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier(
-      'EMAIL',
-      email
-    )
+    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('EMAIL', email)
     if (!loginMethod) {
       throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
     }
@@ -988,10 +906,7 @@ export class MfaService {
    * @returns Promise<string> 用户ID
    */
   private async getUserIdByPhone(phone: string): Promise<string> {
-    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier(
-      'PHONE',
-      phone
-    )
+    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('PHONE', phone)
     if (!loginMethod) {
       throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
     }

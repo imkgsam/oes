@@ -42,7 +42,12 @@ async function tryConnect(managed: ManagedClient) {
       return
     }
     logger.warn(`[${managed.id}] Connection failed. Retry #${managed.retries}`)
-    setTimeout(() => tryConnect(managed), 1000 * Math.min(managed.retries, 10))
+    const retryConnection = () => {
+      tryConnect(managed).catch((err) => {
+        logger.error(`[${managed.id}] Retry connection failed:`, err)
+      })
+    }
+    setTimeout(retryConnection, 1000 * Math.min(managed.retries, 10))
   }
 }
 

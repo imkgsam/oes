@@ -4,7 +4,7 @@ import { EmailPasswordLoginDto } from '../dtos/login.dto'
 import { BaseAuthProvider } from './base-auth.provider'
 import { LOGIN_METHOD_TYPES } from '@oes/common/constants/enums/auth-relative.enums'
 import { LoginMethodEnum } from '@oes/common/constants/enums/auth-relative.enums'
-import { createBusinessException } from '@oes/common/helpers/exception.factory'
+import { createBusinessException } from '@oes/common/exceptions/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
 
 @Injectable()
@@ -25,16 +25,10 @@ export class EmailPasswordAuthProvider extends BaseAuthProvider<EmailPasswordLog
 
     try {
       // 查找并验证登录方法
-      const loginMethod = await this.findAndValidateLoginMethod(
-        LOGIN_METHOD_TYPES.EMAIL,
-        dto.email
-      )
+      const loginMethod = await this.findAndValidateLoginMethod(LOGIN_METHOD_TYPES.EMAIL, dto.email)
 
       // 验证密码
-      const isValidPassword = await this.validatePasswordCredential(
-        loginMethod,
-        dto.password
-      )
+      const isValidPassword = await this.validatePasswordCredential(loginMethod, dto.password)
       if (!isValidPassword) {
         throw createBusinessException(AUTH_SERVICE_ERRORS.INVALID_CREDENTIALS, {
           reason: 'INVALID_PASSWORD',
