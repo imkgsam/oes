@@ -43,7 +43,6 @@ export class MfaBindingEntity {
 
     try {
       if (prismaMfaBinding.metadata) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         metadata = JSON.parse(prismaMfaBinding.metadata) as Record<string, any>
       }
     } catch (error) {
@@ -55,7 +54,6 @@ export class MfaBindingEntity {
 
     try {
       if (prismaMfaBinding.deviceInfo) {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         deviceInfo = JSON.parse(prismaMfaBinding.deviceInfo) as DeviceInfo
       }
     } catch (error) {
