@@ -1,6 +1,6 @@
-import { RawException } from '../../interfaces/exceptions.interface'
+import { RawError } from '../../interfaces/exceptions.interface'
 
-export const GLOBAL_SYSTEM_ERRORS: Record<string, RawException> = {
+export const GLOBAL_SYSTEM_ERRORS: Record<string, RawError> = {
   DATABASE_CONNECTION_FAILED: {
     subCode: '1002',
     message: '数据库连接失败',

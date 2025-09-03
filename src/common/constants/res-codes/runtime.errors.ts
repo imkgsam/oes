@@ -1,6 +1,6 @@
-import { RawException } from '../../interfaces/exceptions.interface'
+import { RawError } from '../../interfaces/exceptions.interface'
 
-export const GLOBAL_RUNTIME_ERRORS: Record<string, RawException> = {
+export const GLOBAL_RUNTIME_ERRORS: Record<string, RawError> = {
   UNKNOWN_ERROR: {
     subCode: '9999',
     message: '未知系统错误',

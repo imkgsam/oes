@@ -1,7 +1,7 @@
 import { BusinessException } from './business.exception'
 import { SystemException } from './system.exception'
 import { RuntimeException } from './runtime.exception'
-import { RawException, RpcExceptionPayload } from '../interfaces/exceptions.interface'
+import { RawError } from '../interfaces/exceptions.interface'
 import { buildGlobalErrorCode } from '../helpers/exception.helper'
 import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
 import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
@@ -16,32 +16,27 @@ import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
  */
 const moduleNameFromEnv = process.env.MODULE_NAME || 'UNKNOWN_MODULE'
 // 创建业务异常
-export function createBusinessException(input: RawException | RpcExceptionPayload, details?: any) {
+export function createBusinessException(input: RawError, details?: any) {
   return createException(EXCEPTION_TYPE_PREFIX.BUSINESS, input, details)
 }
 // 创建系统异常
-export function createSystemException(input: RawException | RpcExceptionPayload, details?: any) {
+export function createSystemException(input: RawError, details?: any) {
   return createException(EXCEPTION_TYPE_PREFIX.SYSTEM, input, details)
 }
 // 创建运行时异常
-export function createRuntimeException(raw: RawException | RpcExceptionPayload, details?: any) {
+export function createRuntimeException(raw: RawError, details?: any) {
   return createException(EXCEPTION_TYPE_PREFIX.RUNTIME, raw, details)
 }
 
-function createException(
-  etype: EXCEPTION_TYPE_PREFIX,
-  input: RawException | RpcExceptionPayload,
-  details?: any
-) {
-  console.log(`in createException: type ${etype}\n input: ${input}\n detail:${details} \n`)
-  const isRaw = (input as RawException).subCode !== undefined
-  let code: string
+function createException(etype: EXCEPTION_TYPE_PREFIX, input: RawError, details?: any) {
+  console.log(
+    `in createException: type ${etype}\n input: ${JSON.stringify(input)}\n detail:${details} \n`
+  )
   if (moduleNameFromEnv === 'UNKNOWN_MODULE')
     throw createRuntimeException(GLOBAL_RUNTIME_ERRORS.ENV_VARIABLE_NOT_SET, {
       moduleName: moduleNameFromEnv
     })
-  if (isRaw) code = buildGlobalErrorCode(etype, moduleNameFromEnv, (input as RawException).subCode)
-  else code = (input as RpcExceptionPayload).code
+  const code: string = buildGlobalErrorCode(etype, moduleNameFromEnv, input.subCode)
   let k: SystemException | BusinessException | RuntimeException
   switch (etype) {
     case EXCEPTION_TYPE_PREFIX.BUSINESS:

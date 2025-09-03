@@ -1,4 +1,4 @@
-import { RawError, RawException } from '../../interfaces/exceptions.interface'
+import { RawError } from '../../interfaces/exceptions.interface'
 
 /**
  * 认证服务错误码定义
@@ -149,10 +149,10 @@ export const AUTH_SERVICE_CODE_ERRORS: Record<string, RawError> = {
   }
 }
 
-// ==================== Exception-based Errors (RawException) ====================
+// ==================== Exception-based Errors (RawError) ====================
 // 这些错误会直接返回给客户端，包含 HTTP 状态码
 
-export const AUTH_SERVICE_EXCEPTION_ERRORS: Record<string, RawException> = {
+export const AUTH_SERVICE_EXCEPTION_ERRORS: Record<string, RawError> = {
   // ==================== 登录认证错误 (0100-0199) ====================
 
   /**
@@ -279,7 +279,7 @@ export const AUTH_SERVICE_EXCEPTION_ERRORS: Record<string, RawException> = {
 // ==================== 兼容性导出 ====================
 // 为了保持向后兼容，合并所有错误到一个对象中
 
-export const AUTH_SERVICE_ERRORS: Record<string, RawException | RawError> = {
+export const AUTH_SERVICE_ERRORS: Record<string, RawError> = {
   ...AUTH_SERVICE_CODE_ERRORS,
   ...AUTH_SERVICE_EXCEPTION_ERRORS
 }

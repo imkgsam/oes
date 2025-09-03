@@ -1,11 +1,6 @@
 import { RpcException } from '@nestjs/microservices'
 import { EXCEPTION_TYPE_PREFIX, MODULES } from '../constants/res-codes/module.codes'
-import {
-  ErrorContext,
-  RawException,
-  RpcError,
-  RpcExceptionPayload
-} from '../interfaces/exceptions.interface'
+import { ErrorContext, RpcError, RpcExceptionPayload } from '../interfaces/exceptions.interface'
 import { ModuleDetails } from '../interfaces/module.interface'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -50,6 +45,6 @@ export function isRpcError(obj: any): obj is RpcError {
     obj !== null &&
     'error' in obj &&
     'context' in obj &&
-    typeof obj.error?.code === 'string'
+    typeof (obj as RpcError).error?.code === 'string'
   )
 }

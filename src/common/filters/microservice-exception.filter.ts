@@ -42,6 +42,7 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
     return this.handleUnknownException(exception, host, traceId)
   }
 
+  // 处理从其他模块抛出的rpc异常(可能是业务异常，也可能是系统异常)
   private handleRpcException(exception: RpcException): Observable<any> {
     const rpcError = exception.getError() as RpcError
     if (rpcError?.error && rpcError?.context) {
@@ -52,6 +53,7 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
     return this.handleUnknownException(exception)
   }
 
+  // 处理本模块抛出的业务异常
   private handleBusinessException(
     exception: BusinessException,
     host: ArgumentsHost,
@@ -68,6 +70,7 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
     )
   }
 
+  // 处理本模块抛出的系统异常
   private handleSystemException(
     exception: SystemException,
     host: ArgumentsHost,
@@ -84,6 +87,7 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
     )
   }
 
+  // 处理本模块抛出的未知异常
   private handleUnknownException(
     exception: any,
     host?: ArgumentsHost,

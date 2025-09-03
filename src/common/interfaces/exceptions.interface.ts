@@ -3,11 +3,7 @@ export interface RawError {
   subCode: string
   message: string
   messageKey: string
-}
-
-// 定义 exception-based error 结构
-export interface RawException extends RawError {
-  httpStatus: number
+  httpStatus?: number
 }
 
 export interface RpcExceptionPayload {
