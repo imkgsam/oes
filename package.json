@@ -24,6 +24,7 @@
     "common:build": "pnpm --filter common run build",
     "auth:dev": "pnpm --filter auth-service run start:dev",
     "permi:dev": "pnpm --filter permission-service run start:dev",
+    "iden:dev": "pnpm --filter identity-service run start:dev",
     "api:dev": "pnpm --filter api-gateway run start:dev",
     "remove:node_modules": "rmdir /s /q node_modules",
     "rm:nm": "pnpm run remove:node_modules && pnpm -r run remove:node_modules"

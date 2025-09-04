@@ -1,16 +1,17 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { AuthResult } from './interfaces/auth-provider.interface'
-import { WechatLoginDto } from '../dtos/login.dto'
+import { WechatLoginDto } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
 import { BaseAuthProvider } from './base-auth.provider'
 import {
   LOGIN_METHOD_TYPES,
   CREDENTIAL_TYPES
 } from '@oes/common/constants/enums/auth-service.enums'
 import { LoginMethodEnum } from '@oes/common/constants/enums/auth-service.enums'
+import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
 
 @Injectable()
 export class WechatAuthProvider extends BaseAuthProvider<WechatLoginDto> {
-  constructor(loginMethodRepository: any) {
+  constructor(loginMethodRepository: ILoginMethodRepository) {
     super(loginMethodRepository, LoginMethodEnum.Wechat)
   }
 

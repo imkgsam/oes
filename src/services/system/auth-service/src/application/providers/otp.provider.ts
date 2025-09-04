@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common'
 import { AuthResult } from './interfaces/auth-provider.interface'
-import { EmailOtpLoginDto, PhoneOtpLoginDto } from '../dtos/login.dto'
+import { EmailOtpLoginDto, PhoneOtpLoginDto } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
 import { BaseAuthProvider } from './base-auth.provider'
 import { IOtpRepository } from 'src/domain/repositories/otp.repository'
 import { OneTimeToken } from 'src/domain/entities/otp.entity'
@@ -10,11 +10,12 @@ import {
   OTP_USAGES
 } from '@oes/common/constants/enums/auth-service.enums'
 import { LoginMethodEnum } from '@oes/common/constants/enums/auth-service.enums'
+import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
 
 @Injectable()
 export class EmailOtpProvider extends BaseAuthProvider<EmailOtpLoginDto> {
   constructor(
-    loginMethodRepository: any,
+    loginMethodRepository: ILoginMethodRepository,
     private readonly otpRepository: IOtpRepository
   ) {
     super(loginMethodRepository, LoginMethodEnum.EmailOtp)
