@@ -64,11 +64,11 @@ model OneTimeToken {
   usage        OtpUsage
   identifier   String
   code         String
-  expiredAt    DateTime
   consumed     Boolean  @default(false)
   attemptCount Int      @default(0)
   maxAttempt   Int      @default(1)
   valid        Boolean  @default(true)
+  expiredAt    DateTime
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -115,6 +115,45 @@ enum MfaType {
   PUSH_NOTIFICATION
   HARDWARE_TOKEN
   BIOMETRIC
+
+  @@schema("auth")
+}
+
+enum DefiveType {
+  WEB
+  MINI_PROGRAM
+  MOBILE_APP
+  DESKTOP_APP
+  PDA
+
+  @@schema("auth")
+}
+
+model UserSession {
+  id            String     @id @default(uuid())
+  userId        String // 关联至identity 中的user
+  loginMethodID String //登录方式，例如邮箱、手机、oauth
+  deviceType    DefiveType
+  deviceInfo    String? // JSON 格式的设备信息
+  ipAddress     String? //登录IP地址
+  refreshToken  String     @unique
+  issuedAt      DateTime   @default(now())
+  revoked       Boolean    @default(false)
+  revokedAt     DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  expiresAt     DateTime //session 过期时间
+
+  @@index([userId, deviceType])
+  @@index([refreshToken])
+  @@schema("auth")
+}
+
+model jwtBlacklist {
+  id        String   @id @default(uuid())
+  jti       String   @unique // JWT ID
+  expiresAt DateTime // 过期时间
+  createdAt DateTime @default(now())
 
   @@schema("auth")
 }
