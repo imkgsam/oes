@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { IAuthProvider, AuthResult } from './interfaces/auth-provider.interface'
-import { LoginMethod } from 'src/domain/entities/loginmethod.entity'
+import { LoginMethod } from 'src/domain/aggregates/loginmethod.aggregate'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
 import {
   LOGIN_METHOD_TYPES,

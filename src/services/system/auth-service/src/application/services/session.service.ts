@@ -1,7 +1,7 @@
 import { Injectable, Logger, Inject } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { CommonJwtService } from '@oes/common/modules/jwt/jwt.service'
-import { Session, SessionConfig, DeviceInfo } from 'src/domain/entities/session.entity'
+import { Session, SessionConfig, DeviceInfo } from 'src/domain/aggregates/usersession.aggregate'
 import { ISessionRepository } from 'src/domain/repositories/session.repository'
 import { SESSION_REPOSITORY } from 'src/common/constants/injection-tokens'
 

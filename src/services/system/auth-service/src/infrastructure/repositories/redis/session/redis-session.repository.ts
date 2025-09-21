@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import Redis from 'ioredis'
-import { Session } from 'src/domain/entities/session.entity'
+import { Session } from 'src/domain/aggregates/usersession.aggregate'
 import { SessionStatus } from '@oes/common/constants/enums/auth-service.enums'
 import { ISessionRepository } from 'src/domain/repositories/session.repository'
 
@@ -74,9 +74,7 @@ export class RedisSessionRepository implements ISessionRepository {
    * @returns Promise<Session | null>
    */
   async findByAccessToken(accessToken: string): Promise<Session | null> {
-    const sessionId = await this.redis.get(
-      `${this.ACCESS_TOKEN_PREFIX}${accessToken}`
-    )
+    const sessionId = await this.redis.get(`${this.ACCESS_TOKEN_PREFIX}${accessToken}`)
     if (!sessionId) return null
     return this.findById(sessionId)
   }
@@ -94,9 +92,7 @@ export class RedisSessionRepository implements ISessionRepository {
    * @returns Promise<Session | null>
    */
   async findByRefreshToken(refreshToken: string): Promise<Session | null> {
-    const sessionId = await this.redis.get(
-      `${this.REFRESH_TOKEN_PREFIX}${refreshToken}`
-    )
+    const sessionId = await this.redis.get(`${this.REFRESH_TOKEN_PREFIX}${refreshToken}`)
     if (!sessionId) return null
     return this.findById(sessionId)
   }
@@ -114,9 +110,7 @@ export class RedisSessionRepository implements ISessionRepository {
    * @returns Promise<Session[]>
    */
   async findActiveByUserId(userId: string): Promise<Session[]> {
-    const sessionIds = await this.redis.smembers(
-      `${this.USER_SESSIONS_PREFIX}${userId}`
-    )
+    const sessionIds = await this.redis.smembers(`${this.USER_SESSIONS_PREFIX}${userId}`)
     const sessions: Session[] = []
 
     for (const sessionId of sessionIds) {
@@ -142,9 +136,7 @@ export class RedisSessionRepository implements ISessionRepository {
    * @returns Promise<Session[]>
    */
   async findAllByUserId(userId: string): Promise<Session[]> {
-    const sessionIds = await this.redis.smembers(
-      `${this.USER_SESSIONS_PREFIX}${userId}`
-    )
+    const sessionIds = await this.redis.smembers(`${this.USER_SESSIONS_PREFIX}${userId}`)
     const sessions: Session[] = []
 
     for (const sessionId of sessionIds) {
@@ -170,9 +162,7 @@ export class RedisSessionRepository implements ISessionRepository {
    * @returns Promise<Session[]>
    */
   async findByDeviceId(deviceId: string): Promise<Session[]> {
-    const sessionIds = await this.redis.smembers(
-      `${this.DEVICE_SESSIONS_PREFIX}${deviceId}`
-    )
+    const sessionIds = await this.redis.smembers(`${this.DEVICE_SESSIONS_PREFIX}${deviceId}`)
     const sessions: Session[] = []
 
     for (const sessionId of sessionIds) {
@@ -198,9 +188,7 @@ export class RedisSessionRepository implements ISessionRepository {
    * @returns Promise<Session[]>
    */
   async findByIpAddress(ipAddress: string): Promise<Session[]> {
-    const sessionIds = await this.redis.smembers(
-      `${this.IP_SESSIONS_PREFIX}${ipAddress}`
-    )
+    const sessionIds = await this.redis.smembers(`${this.IP_SESSIONS_PREFIX}${ipAddress}`)
     const sessions: Session[] = []
 
     for (const sessionId of sessionIds) {
@@ -242,20 +230,14 @@ export class RedisSessionRepository implements ISessionRepository {
     multi.expire(sessionKey, this.getSessionTTL(session))
 
     // 设置访问令牌索引
-    multi.set(
-      `${this.ACCESS_TOKEN_PREFIX}${session.getAccessToken()}`,
-      session.getId()
-    )
+    multi.set(`${this.ACCESS_TOKEN_PREFIX}${session.getAccessToken()}`, session.getId())
     multi.expire(
       `${this.ACCESS_TOKEN_PREFIX}${session.getAccessToken()}`,
       this.getSessionTTL(session)
     )
 
     // 设置刷新令牌索引
-    multi.set(
-      `${this.REFRESH_TOKEN_PREFIX}${session.getRefreshToken()}`,
-      session.getId()
-    )
+    multi.set(`${this.REFRESH_TOKEN_PREFIX}${session.getRefreshToken()}`, session.getId())
     multi.expire(
       `${this.REFRESH_TOKEN_PREFIX}${session.getRefreshToken()}`,
       this.getRefreshTTL(session)
@@ -391,10 +373,7 @@ export class RedisSessionRepository implements ISessionRepository {
    * @param status 新状态
    * @returns Promise<void>
    */
-  async batchUpdateStatus(
-    sessionIds: string[],
-    status: SessionStatus
-  ): Promise<void> {
+  async batchUpdateStatus(sessionIds: string[], status: SessionStatus): Promise<void> {
     const multi = this.redis.multi()
 
     for (const sessionId of sessionIds) {
@@ -524,11 +503,7 @@ export class RedisSessionRepository implements ISessionRepository {
    * @param adminId 管理员 ID
    * @returns Promise<void>
    */
-  async adminRevokeAllByUserId(
-    userId: string,
-    reason: string,
-    adminId: string
-  ): Promise<void> {
+  async adminRevokeAllByUserId(userId: string, reason: string, adminId: string): Promise<void> {
     const sessions = await this.findAllByUserId(userId)
     const multi = this.redis.multi()
 
@@ -555,11 +530,7 @@ export class RedisSessionRepository implements ISessionRepository {
    * @param adminId 管理员 ID
    * @returns Promise<void>
    */
-  async adminRevokeSession(
-    sessionId: string,
-    reason: string,
-    adminId: string
-  ): Promise<void> {
+  async adminRevokeSession(sessionId: string, reason: string, adminId: string): Promise<void> {
     const session = await this.findById(sessionId)
     if (session) {
       session.adminRevoke(reason, adminId)
@@ -581,11 +552,7 @@ export class RedisSessionRepository implements ISessionRepository {
    * @param adminId 管理员 ID
    * @returns Promise<void>
    */
-  async adminSuspendAllByUserId(
-    userId: string,
-    reason: string,
-    adminId: string
-  ): Promise<void> {
+  async adminSuspendAllByUserId(userId: string, reason: string, adminId: string): Promise<void> {
     const sessions = await this.findAllByUserId(userId)
     const multi = this.redis.multi()
 
@@ -638,14 +605,9 @@ export class RedisSessionRepository implements ISessionRepository {
    * @param excludeSessionId 排除的 Session ID
    * @returns Promise<void>
    */
-  async kickOtherDevices(
-    userId: string,
-    excludeSessionId: string
-  ): Promise<void> {
+  async kickOtherDevices(userId: string, excludeSessionId: string): Promise<void> {
     const sessions = await this.findAllByUserId(userId)
-    const sessionsToKick = sessions.filter(
-      (session) => session.getId() !== excludeSessionId
-    )
+    const sessionsToKick = sessions.filter((session) => session.getId() !== excludeSessionId)
 
     for (const session of sessionsToKick) {
       await this.delete(session.getId())
@@ -747,13 +709,9 @@ export class RedisSessionRepository implements ISessionRepository {
     lastActiveAt: Date
   }> {
     const sessions = await this.findAllByUserId(userId)
-    const devices = [
-      ...new Set(sessions.map((s) => s.getDeviceInfo().deviceId))
-    ]
+    const devices = [...new Set(sessions.map((s) => s.getDeviceInfo().deviceId))]
     const lastActiveAt = sessions.reduce((latest, session) => {
-      return session.getLastActiveAt() > latest
-        ? session.getLastActiveAt()
-        : latest
+      return session.getLastActiveAt() > latest ? session.getLastActiveAt() : latest
     }, new Date(0))
 
     return {
@@ -773,10 +731,7 @@ export class RedisSessionRepository implements ISessionRepository {
    * @returns number TTL 秒数
    */
   private getSessionTTL(session: Session): number {
-    return Math.max(
-      0,
-      Math.floor((session.getExpiresAt().getTime() - Date.now()) / 1000)
-    )
+    return Math.max(0, Math.floor((session.getExpiresAt().getTime() - Date.now()) / 1000))
   }
 
   /**
@@ -786,9 +741,6 @@ export class RedisSessionRepository implements ISessionRepository {
    * @returns number TTL 秒数
    */
   private getRefreshTTL(session: Session): number {
-    return Math.max(
-      0,
-      Math.floor((session.getRefreshExpiresAt().getTime() - Date.now()) / 1000)
-    )
+    return Math.max(0, Math.floor((session.getRefreshExpiresAt().getTime() - Date.now()) / 1000))
   }
 }

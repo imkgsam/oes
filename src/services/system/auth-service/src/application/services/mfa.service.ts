@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { MfaBindingEntity } from '../../domain/entities/mfabinding.entity'
+import { MfaBindingEntity } from '../../domain/aggregates/mfabinding.aggregate'
 import { IMfaBindingRepository } from '../../domain/repositories/mfaBinding.repository'
 import { IOtpRepository } from '../../domain/repositories/otp.repository'
 import { ILoginMethodRepository } from '../../domain/repositories/loginmethod.repository'
@@ -8,7 +8,7 @@ import { SmsService } from '../../infrastructure/services/sms.service'
 import { createBusinessException } from '@oes/common/exceptions/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
 import { OTP_TYPES, MfaType } from '@oes/common/constants/enums/auth-service.enums'
-import { OneTimeToken } from '../../domain/entities/otp.entity'
+import { OneTimeToken } from '../../domain/aggregates/otp.aggregate'
 
 /**
  * MFA (Multi-Factor Authentication) 服务

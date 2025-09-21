@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { LoginMethod } from 'src/domain/entities/loginmethod.entity'
+import { LoginMethod } from 'src/domain/aggregates/loginmethod.aggregate'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 
@@ -40,10 +40,7 @@ export class PrismaUserRepository implements ILoginMethodRepository {
    * @param identifier 标识符（邮箱、手机号等）
    * @returns Promise<LoginMethod | null>
    */
-  async findByTypeAndIdentifier(
-    type: string,
-    identifier: string
-  ): Promise<LoginMethod | null> {
+  async findByTypeAndIdentifier(type: string, identifier: string): Promise<LoginMethod | null> {
     const found = await this.prismaService.loginMethod.findFirst({
       where: { type: type as any, identifier },
       include: { credentials: true }
@@ -58,10 +55,7 @@ export class PrismaUserRepository implements ILoginMethodRepository {
    * @param type 登录类型
    * @returns Promise<LoginMethod | null>
    */
-  async findByUserIdAndType(
-    userId: string,
-    type: string
-  ): Promise<LoginMethod | null> {
+  async findByUserIdAndType(userId: string, type: string): Promise<LoginMethod | null> {
     const found = await this.prismaService.loginMethod.findFirst({
       where: { userId, type: type as any },
       include: { credentials: true }

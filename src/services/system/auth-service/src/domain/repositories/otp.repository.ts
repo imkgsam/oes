@@ -1,4 +1,4 @@
-import { OneTimeToken } from '../entities/otp.entity'
+import { OneTimeToken } from '../aggregates/otp.aggregate'
 
 export interface IOtpRepository {
   // ==================== 查询方法 ====================

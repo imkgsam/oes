@@ -1,4 +1,4 @@
-import { LoginMethod } from 'src/domain/entities/loginmethod.entity'
+import { LoginMethod } from 'src/domain/aggregates/loginmethod.aggregate'
 
 export interface AuthResult {
   loginMethod: LoginMethod

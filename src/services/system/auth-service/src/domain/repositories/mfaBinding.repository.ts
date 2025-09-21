@@ -1,5 +1,5 @@
 import { MfaType } from '@oes/common/constants/enums/auth-service.enums'
-import { MfaBindingEntity } from '../entities/mfabinding.entity'
+import { MfaBindingEntity } from '../aggregates/mfabinding.aggregate'
 
 export interface IMfaBindingRepository {
   // ==================== 查询方法 ====================

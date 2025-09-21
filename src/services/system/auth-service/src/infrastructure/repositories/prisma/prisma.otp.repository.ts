@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { OneTimeToken } from 'src/domain/entities/otp.entity'
+import { OneTimeToken } from 'src/domain/aggregates/otp.aggregate'
 import { IOtpRepository } from 'src/domain/repositories/otp.repository'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 

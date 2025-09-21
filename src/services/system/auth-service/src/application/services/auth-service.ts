@@ -8,7 +8,7 @@ import { LoginMethodEnum } from '@oes/common/constants/enums/auth-service.enums'
 import { GoogleAuthProvider } from '../providers/google.provider'
 import { SessionService } from './session.service'
 import { MfaService } from './mfa.service'
-import { DeviceInfo } from 'src/domain/entities/session.entity'
+import { DeviceInfo } from 'src/domain/aggregates/usersession.aggregate'
 
 /**
  * 认证服务

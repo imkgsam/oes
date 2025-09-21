@@ -3,7 +3,7 @@ import { AuthResult } from './interfaces/auth-provider.interface'
 import { EmailOtpLoginDto, PhoneOtpLoginDto } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
 import { BaseAuthProvider } from './base-auth.provider'
 import { IOtpRepository } from 'src/domain/repositories/otp.repository'
-import { OneTimeToken } from 'src/domain/entities/otp.entity'
+import { OneTimeToken } from 'src/domain/aggregates/otp.aggregate'
 import {
   LOGIN_METHOD_TYPES,
   OTP_TYPES,
