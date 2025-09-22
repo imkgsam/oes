@@ -21,7 +21,7 @@ import { SessionStatus } from '@oes/common/constants/enums/auth-service.enums'
  * - 自动过期机制
  * - 批量操作支持
  */
-export interface ISessionRepository {
+export interface IUserSessionRepository {
   // ==================== 查询方法 ====================
 
   /**

@@ -34,12 +34,12 @@ enum LoginMethodType {
 }
 
 model Credential {
-  id            String         @id @default(uuid())
-  loginMethodId String // 关联的登录方式，例如email、phone、 oauth
-  secretType    CredentialType // 可以是密码 或者是email_otp
-  secretValue   String?
-  provider      String?
-  enabled       Boolean        @default(true) // 默认启用
+  id             String         @id @default(uuid())
+  loginMethodId  String // 关联的登录方式，例如email、phone、 oauth
+  credentialType CredentialType // 可以是密码 或者是email_otp
+  secretValue    String?
+  provider       String?
+  enabled        Boolean        @default(true) // 默认启用
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

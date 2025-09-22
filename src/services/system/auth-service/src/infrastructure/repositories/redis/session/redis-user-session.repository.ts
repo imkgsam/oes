@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common'
 import Redis from 'ioredis'
 import { Session } from 'src/domain/aggregates/usersession.aggregate'
 import { SessionStatus } from '@oes/common/constants/enums/auth-service.enums'
-import { ISessionRepository } from 'src/domain/repositories/session.repository'
+import { IUserSessionRepository } from 'src/domain/repositories/user-session.repository'
 
 /**
  * Redis Session Repository
@@ -22,7 +22,7 @@ import { ISessionRepository } from 'src/domain/repositories/session.repository'
  * - 事务保证数据一致性
  */
 @Injectable()
-export class RedisSessionRepository implements ISessionRepository {
+export class RedisUserSessionRepository implements IUserSessionRepository {
   private readonly SESSION_PREFIX = 'session:'
   private readonly USER_SESSIONS_PREFIX = 'user_sessions:'
   private readonly DEVICE_SESSIONS_PREFIX = 'device_sessions:'

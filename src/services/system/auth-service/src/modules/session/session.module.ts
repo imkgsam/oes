@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { CommonJwtModule } from '@oes/common/modules/jwt/jwt.module'
 import { SessionService } from 'src/application/services/session.service'
-import { RedisSessionRepository } from 'src/infrastructure/repositories/redis/session/redis-session.repository'
+import { RedisUserSessionRepository } from 'src/infrastructure/repositories/redis/session/redis-user-session.repository'
 import { SESSION_REPOSITORY } from 'src/common/constants/injection-tokens'
 
 /**
@@ -34,7 +34,7 @@ import { SESSION_REPOSITORY } from 'src/common/constants/injection-tokens'
     SessionService,
     {
       provide: SESSION_REPOSITORY,
-      useClass: RedisSessionRepository
+      useClass: RedisUserSessionRepository
     }
   ],
   exports: [SessionService, SESSION_REPOSITORY]
