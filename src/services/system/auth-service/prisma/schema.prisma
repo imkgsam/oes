@@ -38,13 +38,13 @@ model Credential {
   loginMethodId  String // 关联的登录方式，例如email、phone、 oauth
   credentialType CredentialType // 可以是密码 或者是email_otp
   secretValue    String?
-  provider       String?
+  provider       String? // 第三方登录提供商，例如 google, facebook
   enabled        Boolean        @default(true) // 默认启用
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  LoginMethods LoginMethod @relation(fields: [loginMethodId], references: [id])
+  LoginMethod LoginMethod @relation(fields: [loginMethodId], references: [id])
 
   @@schema("auth")
 }
@@ -119,7 +119,7 @@ enum MfaType {
   @@schema("auth")
 }
 
-enum DefiveType {
+enum DeviceType {
   WEB
   MINI_PROGRAM
   MOBILE_APP
@@ -132,7 +132,7 @@ enum DefiveType {
 model UserSession {
   id            String     @id @default(uuid())
   userId        String // 关联至identity 中的user
-  loginMethodID String //登录方式，例如邮箱、手机、oauth
+  loginMethodId String //登录方式，例如邮箱、手机、oauth
   deviceType    DefiveType
   deviceInfo    String? // JSON 格式的设备信息
   ipAddress     String? //登录IP地址
@@ -146,14 +146,5 @@ model UserSession {
 
   @@index([userId, deviceType])
   @@index([refreshToken])
-  @@schema("auth")
-}
-
-model jwtBlacklist {
-  id        String   @id @default(uuid())
-  jti       String   @unique // JWT ID
-  expiresAt DateTime // 过期时间
-  createdAt DateTime @default(now())
-
   @@schema("auth")
 }
