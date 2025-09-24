@@ -4,7 +4,7 @@ import { MfaType } from '../../../../constants/const/auth-service.const'
 // ============================== 登录 LOGIN ==============================
 
 //邮箱密码登录
-export class EmailPasswordLoginDto {
+export class EmailPasswordLoginRequestDto {
   @IsNotEmpty()
   @IsEmail()
   readonly email: string
@@ -14,7 +14,7 @@ export class EmailPasswordLoginDto {
 }
 
 //邮箱验证码登录
-export class EmailOtpLoginDto {
+export class EmailOtpLoginRequestDto {
   @IsEmail()
   readonly email: string
   @Length(6)
@@ -22,7 +22,7 @@ export class EmailOtpLoginDto {
 }
 
 //手机验证码登录
-export class PhoneOtpLoginDto {
+export class PhoneOtpLoginRequestDto {
   @IsPhoneNumber()
   readonly phone: string
   @Length(6)
@@ -30,7 +30,7 @@ export class PhoneOtpLoginDto {
 }
 
 //手机密码登录
-export class PhonePasswordLoginDto {
+export class PhonePasswordLoginRequestDto {
   @IsPhoneNumber()
   readonly phone: string
   @IsNotEmpty()
@@ -39,16 +39,16 @@ export class PhonePasswordLoginDto {
 }
 
 //微信扫码登录
-export class WechatLoginDto {
+export class WechatLoginRequestDto {
   readonly code: string
 }
 
 //google登录
-export class GoogleLoginDto {
+export class GoogleLoginRequestDto {
   readonly token: string
 }
 
-export class LoginResultDto {
+export class LoginResponseDto {
   // 以下字段仅在 SUCCESS 时有值
   userId: string
   accessToken?: string

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { AuthResult } from './interfaces/auth-provider.interface'
-import { EmailPasswordLoginDto } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
+import { EmailPasswordLoginRequestDto } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
 import { BaseAuthProvider } from './base-auth.provider'
 import { LOGIN_METHOD_TYPES } from '@oes/common/constants/enums/auth-service.enums'
 import { LoginMethodEnum } from '@oes/common/constants/enums/auth-service.enums'
@@ -9,12 +9,12 @@ import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-servic
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
 
 @Injectable()
-export class EmailPasswordAuthProvider extends BaseAuthProvider<EmailPasswordLoginDto> {
+export class EmailPasswordAuthProvider extends BaseAuthProvider<EmailPasswordLoginRequestDto> {
   constructor(loginMethodRepository: ILoginMethodRepository) {
     super(loginMethodRepository, LoginMethodEnum.EmailPassword)
   }
 
-  async authenticate(dto: EmailPasswordLoginDto): Promise<AuthResult> {
+  async authenticate(dto: EmailPasswordLoginRequestDto): Promise<AuthResult> {
     // 验证输入参数
     if (!this.validateInput(dto) || !dto.email || !dto.password) {
       throw createBusinessException(AUTH_SERVICE_ERRORS.INVALID_CREDENTIALS, {
@@ -43,7 +43,7 @@ export class EmailPasswordAuthProvider extends BaseAuthProvider<EmailPasswordLog
     }
   }
 
-  override validateInput(dto: EmailPasswordLoginDto): boolean {
+  override validateInput(dto: EmailPasswordLoginRequestDto): boolean {
     return (
       super.validateInput(dto) &&
       typeof dto.email === 'string' &&

@@ -5,7 +5,7 @@ import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 import { ApiTags } from '@nestjs/swagger'
 import { safeRpcCall } from '@oes/common/helpers/rpc.helper'
 import {
-  EmailPasswordLoginDto,
+  EmailPasswordLoginRequestDto,
   GoogleLoginDto,
   EmailOtpLoginDto,
   PhoneOtpLoginDto,
@@ -23,7 +23,7 @@ export class AuthController {
   ) {}
 
   @Post('login/email-password')
-  async loginWithEmailPassword(@Body() dto: EmailPasswordLoginDto) {
+  async loginWithEmailPassword(@Body() dto: EmailPasswordLoginRequestDto) {
     return safeRpcCall(this.authClient.send(AUTH_MESSAGES.LOGIN_WITH_EMAIL_PW, dto))
   }
 

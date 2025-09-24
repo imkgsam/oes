@@ -1,9 +1,9 @@
 import {
-  EmailOtpLoginDto,
-  EmailPasswordLoginDto,
-  GoogleLoginDto,
-  PhoneOtpLoginDto,
-  WechatLoginDto
+  EmailOtpLoginRequestDto,
+  EmailPasswordLoginRequestDto,
+  GoogleLoginRequestDto,
+  PhoneOtpLoginRequestDto,
+  WechatLoginRequestDto
 } from '../../dtos/auth-service/api/rpc/all.dto'
 
 // RPC 测试接口

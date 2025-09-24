@@ -35,14 +35,17 @@ export class PrismaUserRepository implements ILoginMethodRepository {
   }
 
   /**
-   * 根据类型和标识符查找登录方法
+   * 根据类型和标识符查找 有效的 登录方法
    * @param type 登录类型
    * @param identifier 标识符（邮箱、手机号等）
    * @returns Promise<LoginMethod | null>
    */
-  async findByTypeAndIdentifier(type: string, identifier: string): Promise<LoginMethod | null> {
+  async findValidOneByTypeAndIdentifier(
+    type: string,
+    identifier: string
+  ): Promise<LoginMethod | null> {
     const found = await this.prismaService.loginMethod.findFirst({
-      where: { type: type as any, identifier },
+      where: { type: type as any, identifier, enabled: true, verified: true },
       include: { credentials: true }
     })
     if (!found) return null

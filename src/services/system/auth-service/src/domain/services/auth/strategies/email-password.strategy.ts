@@ -1,8 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import {
-  EmailPasswordLoginDto,
-  LoginResultDto
-} from '@oes/common/dtos/auth-service/api/rpc/all.dto'
+import { EmailPasswordLoginRequestDto } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
 import { AuthStrategyPort } from 'src/domain/ports/auth-strategy.port'
 import { LoginMethodEnum } from '@oes/common/constants/const/auth-service.const'
 import { HashingPort } from 'src/domain/ports/hashing.port'
@@ -10,7 +7,7 @@ import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repo
 import { LoginMethodType } from 'prisma/generated/prisma'
 
 @Injectable()
-export class EmailPasswordStrategy implements AuthStrategyPort<EmailPasswordLoginDto> {
+export class EmailPasswordStrategy implements AuthStrategyPort<EmailPasswordLoginRequestDto> {
   constructor(
     private readonly loginMethodRepo: ILoginMethodRepository,
     private readonly passwordHasher: HashingPort
@@ -19,7 +16,7 @@ export class EmailPasswordStrategy implements AuthStrategyPort<EmailPasswordLogi
   getType(): string {
     return LoginMethodEnum.EmailPassword
   }
-  async authenticate(dto: EmailPasswordLoginDto): Promise<string> {
+  async authenticate(dto: EmailPasswordLoginRequestDto): Promise<string> {
     const loginMethod = await this.loginMethodRepo.findValidOneByTypeAndIdentifier(
       LoginMethodType.EMAIL,
       dto.email

@@ -3,7 +3,7 @@ import { MessagePattern, Payload } from '@nestjs/microservices'
 import { LoginUsecase } from 'src/application/use-cases/login.usecase'
 import { AUTH_MESSAGES } from '@oes/common/constants/messages/auth.message'
 import {
-  EmailPasswordLoginDto,
+  EmailPasswordLoginRequestDto,
   PhonePasswordLoginDto
 } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
 import { LoginResultDto } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
@@ -13,8 +13,13 @@ export class TcpAuthController {
   constructor(private readonly loginUsecase: LoginUsecase) {}
 
   @MessagePattern(AUTH_MESSAGES.LOGIN_WITH_EMAIL_PW)
-  async loginWithEmailPassword(@Payload() data: EmailPasswordLoginDto): Promise<LoginResultDto> {
-    return this.loginUsecase.login<EmailPasswordLoginDto>(LoginMethodEnum.EmailPassword, data)
+  async loginWithEmailPassword(
+    @Payload() data: EmailPasswordLoginRequestDto
+  ): Promise<LoginResultDto> {
+    return this.loginUsecase.login<EmailPasswordLoginRequestDto>(
+      LoginMethodEnum.EmailPassword,
+      data
+    )
   }
 
   @MessagePattern(AUTH_MESSAGES.LOGIN_WITH_PHONE_PW)
