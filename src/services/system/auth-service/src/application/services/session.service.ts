@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config'
 import { CommonJwtService } from '@oes/common/modules/jwt/jwt.service'
 import { Session, SessionConfig, DeviceInfo } from 'src/domain/aggregates/usersession.aggregate'
 import { IUserSessionRepository } from 'src/domain/repositories/user-session.repository'
-import { SESSION_REPOSITORY } from 'src/common/constants/injection-tokens'
+import { SESSION_REPOSITORY } from 'src/common/const/injection-tokens'
 
 /**
  * Session 服务

@@ -92,6 +92,37 @@ enum OtpUsage {
   @@schema("auth")
 }
 
+enum DeviceType {
+  WEB
+  MINI_PROGRAM
+  MOBILE_APP
+  DESKTOP_APP
+  PDA
+
+  @@schema("auth")
+}
+
+model UserSession {
+  id            String     @id @default(uuid())
+  userId        String // 关联至identity 中的user
+  loginMethodId String //登录方式，例如邮箱、手机、oauth
+  deviceType    DeviceType
+  deviceInfo    String? // JSON 格式的设备信息
+  ipAddress     String? //登录IP地址
+  refreshToken  String     @unique
+  issuedAt      DateTime   @default(now())
+  revoked       Boolean    @default(false)
+  revokedAt     DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  expiresAt     DateTime //session 过期时间
+
+  @@index([userId, deviceType])
+  @@index([refreshToken])
+  @@schema("auth")
+}
+
+// 推迟实现： 多重因素认证
 model MfaBinding {
   id         String   @id @default(uuid())
   userId     String
@@ -116,35 +147,5 @@ enum MfaType {
   HARDWARE_TOKEN
   BIOMETRIC
 
-  @@schema("auth")
-}
-
-enum DeviceType {
-  WEB
-  MINI_PROGRAM
-  MOBILE_APP
-  DESKTOP_APP
-  PDA
-
-  @@schema("auth")
-}
-
-model UserSession {
-  id            String     @id @default(uuid())
-  userId        String // 关联至identity 中的user
-  loginMethodId String //登录方式，例如邮箱、手机、oauth
-  deviceType    DefiveType
-  deviceInfo    String? // JSON 格式的设备信息
-  ipAddress     String? //登录IP地址
-  refreshToken  String     @unique
-  issuedAt      DateTime   @default(now())
-  revoked       Boolean    @default(false)
-  revokedAt     DateTime?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  expiresAt     DateTime //session 过期时间
-
-  @@index([userId, deviceType])
-  @@index([refreshToken])
   @@schema("auth")
 }

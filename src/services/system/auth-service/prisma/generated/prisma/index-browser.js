@@ -172,7 +172,7 @@ exports.Prisma.MfaBindingScalarFieldEnum = {
 exports.Prisma.UserSessionScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
-  loginMethodID: 'loginMethodID',
+  loginMethodId: 'loginMethodId',
   deviceType: 'deviceType',
   deviceInfo: 'deviceInfo',
   ipAddress: 'ipAddress',
@@ -183,13 +183,6 @@ exports.Prisma.UserSessionScalarFieldEnum = {
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   expiresAt: 'expiresAt'
-};
-
-exports.Prisma.JwtBlacklistScalarFieldEnum = {
-  id: 'id',
-  jti: 'jti',
-  expiresAt: 'expiresAt',
-  createdAt: 'createdAt'
 };
 
 exports.Prisma.SortOrder = {
@@ -241,7 +234,7 @@ exports.MfaType = exports.$Enums.MfaType = {
   BIOMETRIC: 'BIOMETRIC'
 };
 
-exports.DefiveType = exports.$Enums.DefiveType = {
+exports.DeviceType = exports.$Enums.DeviceType = {
   WEB: 'WEB',
   MINI_PROGRAM: 'MINI_PROGRAM',
   MOBILE_APP: 'MOBILE_APP',
@@ -254,8 +247,7 @@ exports.Prisma.ModelName = {
   Credential: 'Credential',
   OneTimeToken: 'OneTimeToken',
   MfaBinding: 'MfaBinding',
-  UserSession: 'UserSession',
-  jwtBlacklist: 'jwtBlacklist'
+  UserSession: 'UserSession'
 };
 
 /**

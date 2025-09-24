@@ -8,12 +8,13 @@
 export const AUTH_MESSAGES = {
   // ==================== 认证相关消息 ====================
 
-  /**
-   * 用户登录
-   * 使用场景：用户通过邮箱密码、手机验证码等方式登录系统
-   * 参数：{ loginMethod: string, credentials: any, deviceInfo?: any }
-   */
-  LOGIN: 'auth.login',
+  // 不同的登录方式
+  LOGIN_WITH_EMAIL_PW: 'auth.login_email_pw',
+  LOGIN_WITH_PHONE_PW: 'auth.login_phone_pw',
+  LOGIN_WITH_EMAIL_OTP: 'auth.login_email_otp',
+  LOGIN_WITH_PHONE_OTP: 'auth.login_phone_otp',
+  LOGIN_WITH_GOOGLE: 'auth.login_google',
+  LOGIN_WITH_WECHAT: 'auth.login_wechat',
 
   /**
    * 用户登出

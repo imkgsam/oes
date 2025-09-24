@@ -38,11 +38,6 @@ export type MfaBinding = $Result.DefaultSelection<Prisma.$MfaBindingPayload>
  * 
  */
 export type UserSession = $Result.DefaultSelection<Prisma.$UserSessionPayload>
-/**
- * Model jwtBlacklist
- * 
- */
-export type jwtBlacklist = $Result.DefaultSelection<Prisma.$jwtBlacklistPayload>
 
 /**
  * Enums
@@ -98,7 +93,7 @@ export const MfaType: {
 export type MfaType = (typeof MfaType)[keyof typeof MfaType]
 
 
-export const DefiveType: {
+export const DeviceType: {
   WEB: 'WEB',
   MINI_PROGRAM: 'MINI_PROGRAM',
   MOBILE_APP: 'MOBILE_APP',
@@ -106,7 +101,7 @@ export const DefiveType: {
   PDA: 'PDA'
 };
 
-export type DefiveType = (typeof DefiveType)[keyof typeof DefiveType]
+export type DeviceType = (typeof DeviceType)[keyof typeof DeviceType]
 
 }
 
@@ -130,9 +125,9 @@ export type MfaType = $Enums.MfaType
 
 export const MfaType: typeof $Enums.MfaType
 
-export type DefiveType = $Enums.DefiveType
+export type DeviceType = $Enums.DeviceType
 
-export const DefiveType: typeof $Enums.DefiveType
+export const DeviceType: typeof $Enums.DeviceType
 
 /**
  * ##  Prisma Client ʲˢ
@@ -308,16 +303,6 @@ export class PrismaClient<
     * ```
     */
   get userSession(): Prisma.UserSessionDelegate<ExtArgs, ClientOptions>;
-
-  /**
-   * `prisma.jwtBlacklist`: Exposes CRUD operations for the **jwtBlacklist** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more JwtBlacklists
-    * const jwtBlacklists = await prisma.jwtBlacklist.findMany()
-    * ```
-    */
-  get jwtBlacklist(): Prisma.jwtBlacklistDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -762,8 +747,7 @@ export namespace Prisma {
     Credential: 'Credential',
     OneTimeToken: 'OneTimeToken',
     MfaBinding: 'MfaBinding',
-    UserSession: 'UserSession',
-    jwtBlacklist: 'jwtBlacklist'
+    UserSession: 'UserSession'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -782,7 +766,7 @@ export namespace Prisma {
       omit: GlobalOmitOptions
     }
     meta: {
-      modelProps: "loginMethod" | "credential" | "oneTimeToken" | "mfaBinding" | "userSession" | "jwtBlacklist"
+      modelProps: "loginMethod" | "credential" | "oneTimeToken" | "mfaBinding" | "userSession"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1156,80 +1140,6 @@ export namespace Prisma {
           }
         }
       }
-      jwtBlacklist: {
-        payload: Prisma.$jwtBlacklistPayload<ExtArgs>
-        fields: Prisma.jwtBlacklistFieldRefs
-        operations: {
-          findUnique: {
-            args: Prisma.jwtBlacklistFindUniqueArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$jwtBlacklistPayload> | null
-          }
-          findUniqueOrThrow: {
-            args: Prisma.jwtBlacklistFindUniqueOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$jwtBlacklistPayload>
-          }
-          findFirst: {
-            args: Prisma.jwtBlacklistFindFirstArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$jwtBlacklistPayload> | null
-          }
-          findFirstOrThrow: {
-            args: Prisma.jwtBlacklistFindFirstOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$jwtBlacklistPayload>
-          }
-          findMany: {
-            args: Prisma.jwtBlacklistFindManyArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$jwtBlacklistPayload>[]
-          }
-          create: {
-            args: Prisma.jwtBlacklistCreateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$jwtBlacklistPayload>
-          }
-          createMany: {
-            args: Prisma.jwtBlacklistCreateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          createManyAndReturn: {
-            args: Prisma.jwtBlacklistCreateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$jwtBlacklistPayload>[]
-          }
-          delete: {
-            args: Prisma.jwtBlacklistDeleteArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$jwtBlacklistPayload>
-          }
-          update: {
-            args: Prisma.jwtBlacklistUpdateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$jwtBlacklistPayload>
-          }
-          deleteMany: {
-            args: Prisma.jwtBlacklistDeleteManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          updateMany: {
-            args: Prisma.jwtBlacklistUpdateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          updateManyAndReturn: {
-            args: Prisma.jwtBlacklistUpdateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$jwtBlacklistPayload>[]
-          }
-          upsert: {
-            args: Prisma.jwtBlacklistUpsertArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$jwtBlacklistPayload>
-          }
-          aggregate: {
-            args: Prisma.JwtBlacklistAggregateArgs<ExtArgs>
-            result: $Utils.Optional<AggregateJwtBlacklist>
-          }
-          groupBy: {
-            args: Prisma.jwtBlacklistGroupByArgs<ExtArgs>
-            result: $Utils.Optional<JwtBlacklistGroupByOutputType>[]
-          }
-          count: {
-            args: Prisma.jwtBlacklistCountArgs<ExtArgs>
-            result: $Utils.Optional<JwtBlacklistCountAggregateOutputType> | number
-          }
-        }
-      }
     }
   } & {
     other: {
@@ -1327,7 +1237,6 @@ export namespace Prisma {
     oneTimeToken?: OneTimeTokenOmit
     mfaBinding?: MfaBindingOmit
     userSession?: UserSessionOmit
-    jwtBlacklist?: jwtBlacklistOmit
   }
 
   /* Types for Logging */
@@ -2754,7 +2663,7 @@ export namespace Prisma {
     enabled?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
+    LoginMethod?: boolean | LoginMethodDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["credential"]>
 
   export type CredentialSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -2766,7 +2675,7 @@ export namespace Prisma {
     enabled?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
+    LoginMethod?: boolean | LoginMethodDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["credential"]>
 
   export type CredentialSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -2778,7 +2687,7 @@ export namespace Prisma {
     enabled?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
+    LoginMethod?: boolean | LoginMethodDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["credential"]>
 
   export type CredentialSelectScalar = {
@@ -2794,19 +2703,19 @@ export namespace Prisma {
 
   export type CredentialOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "loginMethodId" | "credentialType" | "secretValue" | "provider" | "enabled" | "createdAt" | "updatedAt", ExtArgs["result"]["credential"]>
   export type CredentialInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
+    LoginMethod?: boolean | LoginMethodDefaultArgs<ExtArgs>
   }
   export type CredentialIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
+    LoginMethod?: boolean | LoginMethodDefaultArgs<ExtArgs>
   }
   export type CredentialIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    LoginMethods?: boolean | LoginMethodDefaultArgs<ExtArgs>
+    LoginMethod?: boolean | LoginMethodDefaultArgs<ExtArgs>
   }
 
   export type $CredentialPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Credential"
     objects: {
-      LoginMethods: Prisma.$LoginMethodPayload<ExtArgs>
+      LoginMethod: Prisma.$LoginMethodPayload<ExtArgs>
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -3211,7 +3120,7 @@ export namespace Prisma {
    */
   export interface Prisma__CredentialClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
-    LoginMethods<T extends LoginMethodDefaultArgs<ExtArgs> = {}>(args?: Subset<T, LoginMethodDefaultArgs<ExtArgs>>): Prisma__LoginMethodClient<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+    LoginMethod<T extends LoginMethodDefaultArgs<ExtArgs> = {}>(args?: Subset<T, LoginMethodDefaultArgs<ExtArgs>>): Prisma__LoginMethodClient<$Result.GetResult<Prisma.$LoginMethodPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -5847,8 +5756,8 @@ export namespace Prisma {
   export type UserSessionMinAggregateOutputType = {
     id: string | null
     userId: string | null
-    loginMethodID: string | null
-    deviceType: $Enums.DefiveType | null
+    loginMethodId: string | null
+    deviceType: $Enums.DeviceType | null
     deviceInfo: string | null
     ipAddress: string | null
     refreshToken: string | null
@@ -5863,8 +5772,8 @@ export namespace Prisma {
   export type UserSessionMaxAggregateOutputType = {
     id: string | null
     userId: string | null
-    loginMethodID: string | null
-    deviceType: $Enums.DefiveType | null
+    loginMethodId: string | null
+    deviceType: $Enums.DeviceType | null
     deviceInfo: string | null
     ipAddress: string | null
     refreshToken: string | null
@@ -5879,7 +5788,7 @@ export namespace Prisma {
   export type UserSessionCountAggregateOutputType = {
     id: number
     userId: number
-    loginMethodID: number
+    loginMethodId: number
     deviceType: number
     deviceInfo: number
     ipAddress: number
@@ -5897,7 +5806,7 @@ export namespace Prisma {
   export type UserSessionMinAggregateInputType = {
     id?: true
     userId?: true
-    loginMethodID?: true
+    loginMethodId?: true
     deviceType?: true
     deviceInfo?: true
     ipAddress?: true
@@ -5913,7 +5822,7 @@ export namespace Prisma {
   export type UserSessionMaxAggregateInputType = {
     id?: true
     userId?: true
-    loginMethodID?: true
+    loginMethodId?: true
     deviceType?: true
     deviceInfo?: true
     ipAddress?: true
@@ -5929,7 +5838,7 @@ export namespace Prisma {
   export type UserSessionCountAggregateInputType = {
     id?: true
     userId?: true
-    loginMethodID?: true
+    loginMethodId?: true
     deviceType?: true
     deviceInfo?: true
     ipAddress?: true
@@ -6018,8 +5927,8 @@ export namespace Prisma {
   export type UserSessionGroupByOutputType = {
     id: string
     userId: string
-    loginMethodID: string
-    deviceType: $Enums.DefiveType
+    loginMethodId: string
+    deviceType: $Enums.DeviceType
     deviceInfo: string | null
     ipAddress: string | null
     refreshToken: string
@@ -6051,7 +5960,7 @@ export namespace Prisma {
   export type UserSessionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    loginMethodID?: boolean
+    loginMethodId?: boolean
     deviceType?: boolean
     deviceInfo?: boolean
     ipAddress?: boolean
@@ -6067,7 +5976,7 @@ export namespace Prisma {
   export type UserSessionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    loginMethodID?: boolean
+    loginMethodId?: boolean
     deviceType?: boolean
     deviceInfo?: boolean
     ipAddress?: boolean
@@ -6083,7 +5992,7 @@ export namespace Prisma {
   export type UserSessionSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    loginMethodID?: boolean
+    loginMethodId?: boolean
     deviceType?: boolean
     deviceInfo?: boolean
     ipAddress?: boolean
@@ -6099,7 +6008,7 @@ export namespace Prisma {
   export type UserSessionSelectScalar = {
     id?: boolean
     userId?: boolean
-    loginMethodID?: boolean
+    loginMethodId?: boolean
     deviceType?: boolean
     deviceInfo?: boolean
     ipAddress?: boolean
@@ -6112,7 +6021,7 @@ export namespace Prisma {
     expiresAt?: boolean
   }
 
-  export type UserSessionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "loginMethodID" | "deviceType" | "deviceInfo" | "ipAddress" | "refreshToken" | "issuedAt" | "revoked" | "revokedAt" | "createdAt" | "updatedAt" | "expiresAt", ExtArgs["result"]["userSession"]>
+  export type UserSessionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "userId" | "loginMethodId" | "deviceType" | "deviceInfo" | "ipAddress" | "refreshToken" | "issuedAt" | "revoked" | "revokedAt" | "createdAt" | "updatedAt" | "expiresAt", ExtArgs["result"]["userSession"]>
 
   export type $UserSessionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "UserSession"
@@ -6120,8 +6029,8 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       userId: string
-      loginMethodID: string
-      deviceType: $Enums.DefiveType
+      loginMethodId: string
+      deviceType: $Enums.DeviceType
       deviceInfo: string | null
       ipAddress: string | null
       refreshToken: string
@@ -6556,8 +6465,8 @@ export namespace Prisma {
   interface UserSessionFieldRefs {
     readonly id: FieldRef<"UserSession", 'String'>
     readonly userId: FieldRef<"UserSession", 'String'>
-    readonly loginMethodID: FieldRef<"UserSession", 'String'>
-    readonly deviceType: FieldRef<"UserSession", 'DefiveType'>
+    readonly loginMethodId: FieldRef<"UserSession", 'String'>
+    readonly deviceType: FieldRef<"UserSession", 'DeviceType'>
     readonly deviceInfo: FieldRef<"UserSession", 'String'>
     readonly ipAddress: FieldRef<"UserSession", 'String'>
     readonly refreshToken: FieldRef<"UserSession", 'String'>
@@ -6934,988 +6843,6 @@ export namespace Prisma {
 
 
   /**
-   * Model jwtBlacklist
-   */
-
-  export type AggregateJwtBlacklist = {
-    _count: JwtBlacklistCountAggregateOutputType | null
-    _min: JwtBlacklistMinAggregateOutputType | null
-    _max: JwtBlacklistMaxAggregateOutputType | null
-  }
-
-  export type JwtBlacklistMinAggregateOutputType = {
-    id: string | null
-    jti: string | null
-    expiresAt: Date | null
-    createdAt: Date | null
-  }
-
-  export type JwtBlacklistMaxAggregateOutputType = {
-    id: string | null
-    jti: string | null
-    expiresAt: Date | null
-    createdAt: Date | null
-  }
-
-  export type JwtBlacklistCountAggregateOutputType = {
-    id: number
-    jti: number
-    expiresAt: number
-    createdAt: number
-    _all: number
-  }
-
-
-  export type JwtBlacklistMinAggregateInputType = {
-    id?: true
-    jti?: true
-    expiresAt?: true
-    createdAt?: true
-  }
-
-  export type JwtBlacklistMaxAggregateInputType = {
-    id?: true
-    jti?: true
-    expiresAt?: true
-    createdAt?: true
-  }
-
-  export type JwtBlacklistCountAggregateInputType = {
-    id?: true
-    jti?: true
-    expiresAt?: true
-    createdAt?: true
-    _all?: true
-  }
-
-  export type JwtBlacklistAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Filter which jwtBlacklist to aggregate.
-     */
-    where?: jwtBlacklistWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of jwtBlacklists to fetch.
-     */
-    orderBy?: jwtBlacklistOrderByWithRelationInput | jwtBlacklistOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the start position
-     */
-    cursor?: jwtBlacklistWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` jwtBlacklists from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` jwtBlacklists.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Count returned jwtBlacklists
-    **/
-    _count?: true | JwtBlacklistCountAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the minimum value
-    **/
-    _min?: JwtBlacklistMinAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the maximum value
-    **/
-    _max?: JwtBlacklistMaxAggregateInputType
-  }
-
-  export type GetJwtBlacklistAggregateType<T extends JwtBlacklistAggregateArgs> = {
-        [P in keyof T & keyof AggregateJwtBlacklist]: P extends '_count' | 'count'
-      ? T[P] extends true
-        ? number
-        : GetScalarType<T[P], AggregateJwtBlacklist[P]>
-      : GetScalarType<T[P], AggregateJwtBlacklist[P]>
-  }
-
-
-
-
-  export type jwtBlacklistGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: jwtBlacklistWhereInput
-    orderBy?: jwtBlacklistOrderByWithAggregationInput | jwtBlacklistOrderByWithAggregationInput[]
-    by: JwtBlacklistScalarFieldEnum[] | JwtBlacklistScalarFieldEnum
-    having?: jwtBlacklistScalarWhereWithAggregatesInput
-    take?: number
-    skip?: number
-    _count?: JwtBlacklistCountAggregateInputType | true
-    _min?: JwtBlacklistMinAggregateInputType
-    _max?: JwtBlacklistMaxAggregateInputType
-  }
-
-  export type JwtBlacklistGroupByOutputType = {
-    id: string
-    jti: string
-    expiresAt: Date
-    createdAt: Date
-    _count: JwtBlacklistCountAggregateOutputType | null
-    _min: JwtBlacklistMinAggregateOutputType | null
-    _max: JwtBlacklistMaxAggregateOutputType | null
-  }
-
-  type GetJwtBlacklistGroupByPayload<T extends jwtBlacklistGroupByArgs> = Prisma.PrismaPromise<
-    Array<
-      PickEnumerable<JwtBlacklistGroupByOutputType, T['by']> &
-        {
-          [P in ((keyof T) & (keyof JwtBlacklistGroupByOutputType))]: P extends '_count'
-            ? T[P] extends boolean
-              ? number
-              : GetScalarType<T[P], JwtBlacklistGroupByOutputType[P]>
-            : GetScalarType<T[P], JwtBlacklistGroupByOutputType[P]>
-        }
-      >
-    >
-
-
-  export type jwtBlacklistSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    jti?: boolean
-    expiresAt?: boolean
-    createdAt?: boolean
-  }, ExtArgs["result"]["jwtBlacklist"]>
-
-  export type jwtBlacklistSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    jti?: boolean
-    expiresAt?: boolean
-    createdAt?: boolean
-  }, ExtArgs["result"]["jwtBlacklist"]>
-
-  export type jwtBlacklistSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    jti?: boolean
-    expiresAt?: boolean
-    createdAt?: boolean
-  }, ExtArgs["result"]["jwtBlacklist"]>
-
-  export type jwtBlacklistSelectScalar = {
-    id?: boolean
-    jti?: boolean
-    expiresAt?: boolean
-    createdAt?: boolean
-  }
-
-  export type jwtBlacklistOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "jti" | "expiresAt" | "createdAt", ExtArgs["result"]["jwtBlacklist"]>
-
-  export type $jwtBlacklistPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    name: "jwtBlacklist"
-    objects: {}
-    scalars: $Extensions.GetPayloadResult<{
-      id: string
-      jti: string
-      expiresAt: Date
-      createdAt: Date
-    }, ExtArgs["result"]["jwtBlacklist"]>
-    composites: {}
-  }
-
-  type jwtBlacklistGetPayload<S extends boolean | null | undefined | jwtBlacklistDefaultArgs> = $Result.GetResult<Prisma.$jwtBlacklistPayload, S>
-
-  type jwtBlacklistCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
-    Omit<jwtBlacklistFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
-      select?: JwtBlacklistCountAggregateInputType | true
-    }
-
-  export interface jwtBlacklistDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> {
-    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['jwtBlacklist'], meta: { name: 'jwtBlacklist' } }
-    /**
-     * Find zero or one JwtBlacklist that matches the filter.
-     * @param {jwtBlacklistFindUniqueArgs} args - Arguments to find a JwtBlacklist
-     * @example
-     * // Get one JwtBlacklist
-     * const jwtBlacklist = await prisma.jwtBlacklist.findUnique({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUnique<T extends jwtBlacklistFindUniqueArgs>(args: SelectSubset<T, jwtBlacklistFindUniqueArgs<ExtArgs>>): Prisma__jwtBlacklistClient<$Result.GetResult<Prisma.$jwtBlacklistPayload<ExtArgs>, T, "findUnique", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find one JwtBlacklist that matches the filter or throw an error with `error.code='P2025'`
-     * if no matches were found.
-     * @param {jwtBlacklistFindUniqueOrThrowArgs} args - Arguments to find a JwtBlacklist
-     * @example
-     * // Get one JwtBlacklist
-     * const jwtBlacklist = await prisma.jwtBlacklist.findUniqueOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUniqueOrThrow<T extends jwtBlacklistFindUniqueOrThrowArgs>(args: SelectSubset<T, jwtBlacklistFindUniqueOrThrowArgs<ExtArgs>>): Prisma__jwtBlacklistClient<$Result.GetResult<Prisma.$jwtBlacklistPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find the first JwtBlacklist that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {jwtBlacklistFindFirstArgs} args - Arguments to find a JwtBlacklist
-     * @example
-     * // Get one JwtBlacklist
-     * const jwtBlacklist = await prisma.jwtBlacklist.findFirst({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirst<T extends jwtBlacklistFindFirstArgs>(args?: SelectSubset<T, jwtBlacklistFindFirstArgs<ExtArgs>>): Prisma__jwtBlacklistClient<$Result.GetResult<Prisma.$jwtBlacklistPayload<ExtArgs>, T, "findFirst", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find the first JwtBlacklist that matches the filter or
-     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {jwtBlacklistFindFirstOrThrowArgs} args - Arguments to find a JwtBlacklist
-     * @example
-     * // Get one JwtBlacklist
-     * const jwtBlacklist = await prisma.jwtBlacklist.findFirstOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirstOrThrow<T extends jwtBlacklistFindFirstOrThrowArgs>(args?: SelectSubset<T, jwtBlacklistFindFirstOrThrowArgs<ExtArgs>>): Prisma__jwtBlacklistClient<$Result.GetResult<Prisma.$jwtBlacklistPayload<ExtArgs>, T, "findFirstOrThrow", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Find zero or more JwtBlacklists that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {jwtBlacklistFindManyArgs} args - Arguments to filter and select certain fields only.
-     * @example
-     * // Get all JwtBlacklists
-     * const jwtBlacklists = await prisma.jwtBlacklist.findMany()
-     * 
-     * // Get first 10 JwtBlacklists
-     * const jwtBlacklists = await prisma.jwtBlacklist.findMany({ take: 10 })
-     * 
-     * // Only select the `id`
-     * const jwtBlacklistWithIdOnly = await prisma.jwtBlacklist.findMany({ select: { id: true } })
-     * 
-     */
-    findMany<T extends jwtBlacklistFindManyArgs>(args?: SelectSubset<T, jwtBlacklistFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$jwtBlacklistPayload<ExtArgs>, T, "findMany", GlobalOmitOptions>>
-
-    /**
-     * Create a JwtBlacklist.
-     * @param {jwtBlacklistCreateArgs} args - Arguments to create a JwtBlacklist.
-     * @example
-     * // Create one JwtBlacklist
-     * const JwtBlacklist = await prisma.jwtBlacklist.create({
-     *   data: {
-     *     // ... data to create a JwtBlacklist
-     *   }
-     * })
-     * 
-     */
-    create<T extends jwtBlacklistCreateArgs>(args: SelectSubset<T, jwtBlacklistCreateArgs<ExtArgs>>): Prisma__jwtBlacklistClient<$Result.GetResult<Prisma.$jwtBlacklistPayload<ExtArgs>, T, "create", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Create many JwtBlacklists.
-     * @param {jwtBlacklistCreateManyArgs} args - Arguments to create many JwtBlacklists.
-     * @example
-     * // Create many JwtBlacklists
-     * const jwtBlacklist = await prisma.jwtBlacklist.createMany({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     *     
-     */
-    createMany<T extends jwtBlacklistCreateManyArgs>(args?: SelectSubset<T, jwtBlacklistCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Create many JwtBlacklists and returns the data saved in the database.
-     * @param {jwtBlacklistCreateManyAndReturnArgs} args - Arguments to create many JwtBlacklists.
-     * @example
-     * // Create many JwtBlacklists
-     * const jwtBlacklist = await prisma.jwtBlacklist.createManyAndReturn({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * 
-     * // Create many JwtBlacklists and only return the `id`
-     * const jwtBlacklistWithIdOnly = await prisma.jwtBlacklist.createManyAndReturn({
-     *   select: { id: true },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * 
-     */
-    createManyAndReturn<T extends jwtBlacklistCreateManyAndReturnArgs>(args?: SelectSubset<T, jwtBlacklistCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$jwtBlacklistPayload<ExtArgs>, T, "createManyAndReturn", GlobalOmitOptions>>
-
-    /**
-     * Delete a JwtBlacklist.
-     * @param {jwtBlacklistDeleteArgs} args - Arguments to delete one JwtBlacklist.
-     * @example
-     * // Delete one JwtBlacklist
-     * const JwtBlacklist = await prisma.jwtBlacklist.delete({
-     *   where: {
-     *     // ... filter to delete one JwtBlacklist
-     *   }
-     * })
-     * 
-     */
-    delete<T extends jwtBlacklistDeleteArgs>(args: SelectSubset<T, jwtBlacklistDeleteArgs<ExtArgs>>): Prisma__jwtBlacklistClient<$Result.GetResult<Prisma.$jwtBlacklistPayload<ExtArgs>, T, "delete", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Update one JwtBlacklist.
-     * @param {jwtBlacklistUpdateArgs} args - Arguments to update one JwtBlacklist.
-     * @example
-     * // Update one JwtBlacklist
-     * const jwtBlacklist = await prisma.jwtBlacklist.update({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    update<T extends jwtBlacklistUpdateArgs>(args: SelectSubset<T, jwtBlacklistUpdateArgs<ExtArgs>>): Prisma__jwtBlacklistClient<$Result.GetResult<Prisma.$jwtBlacklistPayload<ExtArgs>, T, "update", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-    /**
-     * Delete zero or more JwtBlacklists.
-     * @param {jwtBlacklistDeleteManyArgs} args - Arguments to filter JwtBlacklists to delete.
-     * @example
-     * // Delete a few JwtBlacklists
-     * const { count } = await prisma.jwtBlacklist.deleteMany({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     * 
-     */
-    deleteMany<T extends jwtBlacklistDeleteManyArgs>(args?: SelectSubset<T, jwtBlacklistDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Update zero or more JwtBlacklists.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {jwtBlacklistUpdateManyArgs} args - Arguments to update one or more rows.
-     * @example
-     * // Update many JwtBlacklists
-     * const jwtBlacklist = await prisma.jwtBlacklist.updateMany({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    updateMany<T extends jwtBlacklistUpdateManyArgs>(args: SelectSubset<T, jwtBlacklistUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Update zero or more JwtBlacklists and returns the data updated in the database.
-     * @param {jwtBlacklistUpdateManyAndReturnArgs} args - Arguments to update many JwtBlacklists.
-     * @example
-     * // Update many JwtBlacklists
-     * const jwtBlacklist = await prisma.jwtBlacklist.updateManyAndReturn({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * 
-     * // Update zero or more JwtBlacklists and only return the `id`
-     * const jwtBlacklistWithIdOnly = await prisma.jwtBlacklist.updateManyAndReturn({
-     *   select: { id: true },
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * 
-     */
-    updateManyAndReturn<T extends jwtBlacklistUpdateManyAndReturnArgs>(args: SelectSubset<T, jwtBlacklistUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$jwtBlacklistPayload<ExtArgs>, T, "updateManyAndReturn", GlobalOmitOptions>>
-
-    /**
-     * Create or update one JwtBlacklist.
-     * @param {jwtBlacklistUpsertArgs} args - Arguments to update or create a JwtBlacklist.
-     * @example
-     * // Update or create a JwtBlacklist
-     * const jwtBlacklist = await prisma.jwtBlacklist.upsert({
-     *   create: {
-     *     // ... data to create a JwtBlacklist
-     *   },
-     *   update: {
-     *     // ... in case it already exists, update
-     *   },
-     *   where: {
-     *     // ... the filter for the JwtBlacklist we want to update
-     *   }
-     * })
-     */
-    upsert<T extends jwtBlacklistUpsertArgs>(args: SelectSubset<T, jwtBlacklistUpsertArgs<ExtArgs>>): Prisma__jwtBlacklistClient<$Result.GetResult<Prisma.$jwtBlacklistPayload<ExtArgs>, T, "upsert", GlobalOmitOptions>, never, ExtArgs, GlobalOmitOptions>
-
-
-    /**
-     * Count the number of JwtBlacklists.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {jwtBlacklistCountArgs} args - Arguments to filter JwtBlacklists to count.
-     * @example
-     * // Count the number of JwtBlacklists
-     * const count = await prisma.jwtBlacklist.count({
-     *   where: {
-     *     // ... the filter for the JwtBlacklists we want to count
-     *   }
-     * })
-    **/
-    count<T extends jwtBlacklistCountArgs>(
-      args?: Subset<T, jwtBlacklistCountArgs>,
-    ): Prisma.PrismaPromise<
-      T extends $Utils.Record<'select', any>
-        ? T['select'] extends true
-          ? number
-          : GetScalarType<T['select'], JwtBlacklistCountAggregateOutputType>
-        : number
-    >
-
-    /**
-     * Allows you to perform aggregations operations on a JwtBlacklist.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {JwtBlacklistAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
-     * @example
-     * // Ordered by age ascending
-     * // Where email contains prisma.io
-     * // Limited to the 10 users
-     * const aggregations = await prisma.user.aggregate({
-     *   _avg: {
-     *     age: true,
-     *   },
-     *   where: {
-     *     email: {
-     *       contains: "prisma.io",
-     *     },
-     *   },
-     *   orderBy: {
-     *     age: "asc",
-     *   },
-     *   take: 10,
-     * })
-    **/
-    aggregate<T extends JwtBlacklistAggregateArgs>(args: Subset<T, JwtBlacklistAggregateArgs>): Prisma.PrismaPromise<GetJwtBlacklistAggregateType<T>>
-
-    /**
-     * Group by JwtBlacklist.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {jwtBlacklistGroupByArgs} args - Group by arguments.
-     * @example
-     * // Group by city, order by createdAt, get count
-     * const result = await prisma.user.groupBy({
-     *   by: ['city', 'createdAt'],
-     *   orderBy: {
-     *     createdAt: true
-     *   },
-     *   _count: {
-     *     _all: true
-     *   },
-     * })
-     * 
-    **/
-    groupBy<
-      T extends jwtBlacklistGroupByArgs,
-      HasSelectOrTake extends Or<
-        Extends<'skip', Keys<T>>,
-        Extends<'take', Keys<T>>
-      >,
-      OrderByArg extends True extends HasSelectOrTake
-        ? { orderBy: jwtBlacklistGroupByArgs['orderBy'] }
-        : { orderBy?: jwtBlacklistGroupByArgs['orderBy'] },
-      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
-      ByFields extends MaybeTupleToUnion<T['by']>,
-      ByValid extends Has<ByFields, OrderFields>,
-      HavingFields extends GetHavingFields<T['having']>,
-      HavingValid extends Has<ByFields, HavingFields>,
-      ByEmpty extends T['by'] extends never[] ? True : False,
-      InputErrors extends ByEmpty extends True
-      ? `Error: "by" must not be empty.`
-      : HavingValid extends False
-      ? {
-          [P in HavingFields]: P extends ByFields
-            ? never
-            : P extends string
-            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
-            : [
-                Error,
-                'Field ',
-                P,
-                ` in "having" needs to be provided in "by"`,
-              ]
-        }[HavingFields]
-      : 'take' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "take", you also need to provide "orderBy"'
-      : 'skip' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "skip", you also need to provide "orderBy"'
-      : ByValid extends True
-      ? {}
-      : {
-          [P in OrderFields]: P extends ByFields
-            ? never
-            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-        }[OrderFields]
-    >(args: SubsetIntersection<T, jwtBlacklistGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetJwtBlacklistGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
-  /**
-   * Fields of the jwtBlacklist model
-   */
-  readonly fields: jwtBlacklistFieldRefs;
-  }
-
-  /**
-   * The delegate class that acts as a "Promise-like" for jwtBlacklist.
-   * Why is this prefixed with `Prisma__`?
-   * Because we want to prevent naming conflicts as mentioned in
-   * https://github.com/prisma/prisma-client-js/issues/707
-   */
-  export interface Prisma__jwtBlacklistClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
-    readonly [Symbol.toStringTag]: "PrismaPromise"
-    /**
-     * Attaches callbacks for the resolution and/or rejection of the Promise.
-     * @param onfulfilled The callback to execute when the Promise is resolved.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of which ever callback is executed.
-     */
-    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
-    /**
-     * Attaches a callback for only the rejection of the Promise.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of the callback.
-     */
-    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
-    /**
-     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
-     * resolved value cannot be modified from the callback.
-     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
-     * @returns A Promise for the completion of the callback.
-     */
-    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
-  }
-
-
-
-
-  /**
-   * Fields of the jwtBlacklist model
-   */
-  interface jwtBlacklistFieldRefs {
-    readonly id: FieldRef<"jwtBlacklist", 'String'>
-    readonly jti: FieldRef<"jwtBlacklist", 'String'>
-    readonly expiresAt: FieldRef<"jwtBlacklist", 'DateTime'>
-    readonly createdAt: FieldRef<"jwtBlacklist", 'DateTime'>
-  }
-    
-
-  // Custom InputTypes
-  /**
-   * jwtBlacklist findUnique
-   */
-  export type jwtBlacklistFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the jwtBlacklist
-     */
-    select?: jwtBlacklistSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the jwtBlacklist
-     */
-    omit?: jwtBlacklistOmit<ExtArgs> | null
-    /**
-     * Filter, which jwtBlacklist to fetch.
-     */
-    where: jwtBlacklistWhereUniqueInput
-  }
-
-  /**
-   * jwtBlacklist findUniqueOrThrow
-   */
-  export type jwtBlacklistFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the jwtBlacklist
-     */
-    select?: jwtBlacklistSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the jwtBlacklist
-     */
-    omit?: jwtBlacklistOmit<ExtArgs> | null
-    /**
-     * Filter, which jwtBlacklist to fetch.
-     */
-    where: jwtBlacklistWhereUniqueInput
-  }
-
-  /**
-   * jwtBlacklist findFirst
-   */
-  export type jwtBlacklistFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the jwtBlacklist
-     */
-    select?: jwtBlacklistSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the jwtBlacklist
-     */
-    omit?: jwtBlacklistOmit<ExtArgs> | null
-    /**
-     * Filter, which jwtBlacklist to fetch.
-     */
-    where?: jwtBlacklistWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of jwtBlacklists to fetch.
-     */
-    orderBy?: jwtBlacklistOrderByWithRelationInput | jwtBlacklistOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for jwtBlacklists.
-     */
-    cursor?: jwtBlacklistWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` jwtBlacklists from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` jwtBlacklists.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of jwtBlacklists.
-     */
-    distinct?: JwtBlacklistScalarFieldEnum | JwtBlacklistScalarFieldEnum[]
-  }
-
-  /**
-   * jwtBlacklist findFirstOrThrow
-   */
-  export type jwtBlacklistFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the jwtBlacklist
-     */
-    select?: jwtBlacklistSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the jwtBlacklist
-     */
-    omit?: jwtBlacklistOmit<ExtArgs> | null
-    /**
-     * Filter, which jwtBlacklist to fetch.
-     */
-    where?: jwtBlacklistWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of jwtBlacklists to fetch.
-     */
-    orderBy?: jwtBlacklistOrderByWithRelationInput | jwtBlacklistOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for jwtBlacklists.
-     */
-    cursor?: jwtBlacklistWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` jwtBlacklists from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` jwtBlacklists.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of jwtBlacklists.
-     */
-    distinct?: JwtBlacklistScalarFieldEnum | JwtBlacklistScalarFieldEnum[]
-  }
-
-  /**
-   * jwtBlacklist findMany
-   */
-  export type jwtBlacklistFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the jwtBlacklist
-     */
-    select?: jwtBlacklistSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the jwtBlacklist
-     */
-    omit?: jwtBlacklistOmit<ExtArgs> | null
-    /**
-     * Filter, which jwtBlacklists to fetch.
-     */
-    where?: jwtBlacklistWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of jwtBlacklists to fetch.
-     */
-    orderBy?: jwtBlacklistOrderByWithRelationInput | jwtBlacklistOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for listing jwtBlacklists.
-     */
-    cursor?: jwtBlacklistWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` jwtBlacklists from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` jwtBlacklists.
-     */
-    skip?: number
-    distinct?: JwtBlacklistScalarFieldEnum | JwtBlacklistScalarFieldEnum[]
-  }
-
-  /**
-   * jwtBlacklist create
-   */
-  export type jwtBlacklistCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the jwtBlacklist
-     */
-    select?: jwtBlacklistSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the jwtBlacklist
-     */
-    omit?: jwtBlacklistOmit<ExtArgs> | null
-    /**
-     * The data needed to create a jwtBlacklist.
-     */
-    data: XOR<jwtBlacklistCreateInput, jwtBlacklistUncheckedCreateInput>
-  }
-
-  /**
-   * jwtBlacklist createMany
-   */
-  export type jwtBlacklistCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * The data used to create many jwtBlacklists.
-     */
-    data: jwtBlacklistCreateManyInput | jwtBlacklistCreateManyInput[]
-    skipDuplicates?: boolean
-  }
-
-  /**
-   * jwtBlacklist createManyAndReturn
-   */
-  export type jwtBlacklistCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the jwtBlacklist
-     */
-    select?: jwtBlacklistSelectCreateManyAndReturn<ExtArgs> | null
-    /**
-     * Omit specific fields from the jwtBlacklist
-     */
-    omit?: jwtBlacklistOmit<ExtArgs> | null
-    /**
-     * The data used to create many jwtBlacklists.
-     */
-    data: jwtBlacklistCreateManyInput | jwtBlacklistCreateManyInput[]
-    skipDuplicates?: boolean
-  }
-
-  /**
-   * jwtBlacklist update
-   */
-  export type jwtBlacklistUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the jwtBlacklist
-     */
-    select?: jwtBlacklistSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the jwtBlacklist
-     */
-    omit?: jwtBlacklistOmit<ExtArgs> | null
-    /**
-     * The data needed to update a jwtBlacklist.
-     */
-    data: XOR<jwtBlacklistUpdateInput, jwtBlacklistUncheckedUpdateInput>
-    /**
-     * Choose, which jwtBlacklist to update.
-     */
-    where: jwtBlacklistWhereUniqueInput
-  }
-
-  /**
-   * jwtBlacklist updateMany
-   */
-  export type jwtBlacklistUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * The data used to update jwtBlacklists.
-     */
-    data: XOR<jwtBlacklistUpdateManyMutationInput, jwtBlacklistUncheckedUpdateManyInput>
-    /**
-     * Filter which jwtBlacklists to update
-     */
-    where?: jwtBlacklistWhereInput
-    /**
-     * Limit how many jwtBlacklists to update.
-     */
-    limit?: number
-  }
-
-  /**
-   * jwtBlacklist updateManyAndReturn
-   */
-  export type jwtBlacklistUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the jwtBlacklist
-     */
-    select?: jwtBlacklistSelectUpdateManyAndReturn<ExtArgs> | null
-    /**
-     * Omit specific fields from the jwtBlacklist
-     */
-    omit?: jwtBlacklistOmit<ExtArgs> | null
-    /**
-     * The data used to update jwtBlacklists.
-     */
-    data: XOR<jwtBlacklistUpdateManyMutationInput, jwtBlacklistUncheckedUpdateManyInput>
-    /**
-     * Filter which jwtBlacklists to update
-     */
-    where?: jwtBlacklistWhereInput
-    /**
-     * Limit how many jwtBlacklists to update.
-     */
-    limit?: number
-  }
-
-  /**
-   * jwtBlacklist upsert
-   */
-  export type jwtBlacklistUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the jwtBlacklist
-     */
-    select?: jwtBlacklistSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the jwtBlacklist
-     */
-    omit?: jwtBlacklistOmit<ExtArgs> | null
-    /**
-     * The filter to search for the jwtBlacklist to update in case it exists.
-     */
-    where: jwtBlacklistWhereUniqueInput
-    /**
-     * In case the jwtBlacklist found by the `where` argument doesn't exist, create a new jwtBlacklist with this data.
-     */
-    create: XOR<jwtBlacklistCreateInput, jwtBlacklistUncheckedCreateInput>
-    /**
-     * In case the jwtBlacklist was found with the provided `where` argument, update it with this data.
-     */
-    update: XOR<jwtBlacklistUpdateInput, jwtBlacklistUncheckedUpdateInput>
-  }
-
-  /**
-   * jwtBlacklist delete
-   */
-  export type jwtBlacklistDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the jwtBlacklist
-     */
-    select?: jwtBlacklistSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the jwtBlacklist
-     */
-    omit?: jwtBlacklistOmit<ExtArgs> | null
-    /**
-     * Filter which jwtBlacklist to delete.
-     */
-    where: jwtBlacklistWhereUniqueInput
-  }
-
-  /**
-   * jwtBlacklist deleteMany
-   */
-  export type jwtBlacklistDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Filter which jwtBlacklists to delete
-     */
-    where?: jwtBlacklistWhereInput
-    /**
-     * Limit how many jwtBlacklists to delete.
-     */
-    limit?: number
-  }
-
-  /**
-   * jwtBlacklist without action
-   */
-  export type jwtBlacklistDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the jwtBlacklist
-     */
-    select?: jwtBlacklistSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the jwtBlacklist
-     */
-    omit?: jwtBlacklistOmit<ExtArgs> | null
-  }
-
-
-  /**
    * Enums
    */
 
@@ -7993,7 +6920,7 @@ export namespace Prisma {
   export const UserSessionScalarFieldEnum: {
     id: 'id',
     userId: 'userId',
-    loginMethodID: 'loginMethodID',
+    loginMethodId: 'loginMethodId',
     deviceType: 'deviceType',
     deviceInfo: 'deviceInfo',
     ipAddress: 'ipAddress',
@@ -8007,16 +6934,6 @@ export namespace Prisma {
   };
 
   export type UserSessionScalarFieldEnum = (typeof UserSessionScalarFieldEnum)[keyof typeof UserSessionScalarFieldEnum]
-
-
-  export const JwtBlacklistScalarFieldEnum: {
-    id: 'id',
-    jti: 'jti',
-    expiresAt: 'expiresAt',
-    createdAt: 'createdAt'
-  };
-
-  export type JwtBlacklistScalarFieldEnum = (typeof JwtBlacklistScalarFieldEnum)[keyof typeof JwtBlacklistScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -8168,16 +7085,16 @@ export namespace Prisma {
 
 
   /**
-   * Reference to a field of type 'DefiveType'
+   * Reference to a field of type 'DeviceType'
    */
-  export type EnumDefiveTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DefiveType'>
+  export type EnumDeviceTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DeviceType'>
     
 
 
   /**
-   * Reference to a field of type 'DefiveType[]'
+   * Reference to a field of type 'DeviceType[]'
    */
-  export type ListEnumDefiveTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DefiveType[]'>
+  export type ListEnumDeviceTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DeviceType[]'>
     
 
 
@@ -8281,7 +7198,7 @@ export namespace Prisma {
     enabled?: BoolFilter<"Credential"> | boolean
     createdAt?: DateTimeFilter<"Credential"> | Date | string
     updatedAt?: DateTimeFilter<"Credential"> | Date | string
-    LoginMethods?: XOR<LoginMethodScalarRelationFilter, LoginMethodWhereInput>
+    LoginMethod?: XOR<LoginMethodScalarRelationFilter, LoginMethodWhereInput>
   }
 
   export type CredentialOrderByWithRelationInput = {
@@ -8293,7 +7210,7 @@ export namespace Prisma {
     enabled?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    LoginMethods?: LoginMethodOrderByWithRelationInput
+    LoginMethod?: LoginMethodOrderByWithRelationInput
   }
 
   export type CredentialWhereUniqueInput = Prisma.AtLeast<{
@@ -8308,7 +7225,7 @@ export namespace Prisma {
     enabled?: BoolFilter<"Credential"> | boolean
     createdAt?: DateTimeFilter<"Credential"> | Date | string
     updatedAt?: DateTimeFilter<"Credential"> | Date | string
-    LoginMethods?: XOR<LoginMethodScalarRelationFilter, LoginMethodWhereInput>
+    LoginMethod?: XOR<LoginMethodScalarRelationFilter, LoginMethodWhereInput>
   }, "id">
 
   export type CredentialOrderByWithAggregationInput = {
@@ -8508,8 +7425,8 @@ export namespace Prisma {
     NOT?: UserSessionWhereInput | UserSessionWhereInput[]
     id?: StringFilter<"UserSession"> | string
     userId?: StringFilter<"UserSession"> | string
-    loginMethodID?: StringFilter<"UserSession"> | string
-    deviceType?: EnumDefiveTypeFilter<"UserSession"> | $Enums.DefiveType
+    loginMethodId?: StringFilter<"UserSession"> | string
+    deviceType?: EnumDeviceTypeFilter<"UserSession"> | $Enums.DeviceType
     deviceInfo?: StringNullableFilter<"UserSession"> | string | null
     ipAddress?: StringNullableFilter<"UserSession"> | string | null
     refreshToken?: StringFilter<"UserSession"> | string
@@ -8524,7 +7441,7 @@ export namespace Prisma {
   export type UserSessionOrderByWithRelationInput = {
     id?: SortOrder
     userId?: SortOrder
-    loginMethodID?: SortOrder
+    loginMethodId?: SortOrder
     deviceType?: SortOrder
     deviceInfo?: SortOrderInput | SortOrder
     ipAddress?: SortOrderInput | SortOrder
@@ -8544,8 +7461,8 @@ export namespace Prisma {
     OR?: UserSessionWhereInput[]
     NOT?: UserSessionWhereInput | UserSessionWhereInput[]
     userId?: StringFilter<"UserSession"> | string
-    loginMethodID?: StringFilter<"UserSession"> | string
-    deviceType?: EnumDefiveTypeFilter<"UserSession"> | $Enums.DefiveType
+    loginMethodId?: StringFilter<"UserSession"> | string
+    deviceType?: EnumDeviceTypeFilter<"UserSession"> | $Enums.DeviceType
     deviceInfo?: StringNullableFilter<"UserSession"> | string | null
     ipAddress?: StringNullableFilter<"UserSession"> | string | null
     issuedAt?: DateTimeFilter<"UserSession"> | Date | string
@@ -8559,7 +7476,7 @@ export namespace Prisma {
   export type UserSessionOrderByWithAggregationInput = {
     id?: SortOrder
     userId?: SortOrder
-    loginMethodID?: SortOrder
+    loginMethodId?: SortOrder
     deviceType?: SortOrder
     deviceInfo?: SortOrderInput | SortOrder
     ipAddress?: SortOrderInput | SortOrder
@@ -8581,8 +7498,8 @@ export namespace Prisma {
     NOT?: UserSessionScalarWhereWithAggregatesInput | UserSessionScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"UserSession"> | string
     userId?: StringWithAggregatesFilter<"UserSession"> | string
-    loginMethodID?: StringWithAggregatesFilter<"UserSession"> | string
-    deviceType?: EnumDefiveTypeWithAggregatesFilter<"UserSession"> | $Enums.DefiveType
+    loginMethodId?: StringWithAggregatesFilter<"UserSession"> | string
+    deviceType?: EnumDeviceTypeWithAggregatesFilter<"UserSession"> | $Enums.DeviceType
     deviceInfo?: StringNullableWithAggregatesFilter<"UserSession"> | string | null
     ipAddress?: StringNullableWithAggregatesFilter<"UserSession"> | string | null
     refreshToken?: StringWithAggregatesFilter<"UserSession"> | string
@@ -8594,53 +7511,6 @@ export namespace Prisma {
     expiresAt?: DateTimeWithAggregatesFilter<"UserSession"> | Date | string
   }
 
-  export type jwtBlacklistWhereInput = {
-    AND?: jwtBlacklistWhereInput | jwtBlacklistWhereInput[]
-    OR?: jwtBlacklistWhereInput[]
-    NOT?: jwtBlacklistWhereInput | jwtBlacklistWhereInput[]
-    id?: StringFilter<"jwtBlacklist"> | string
-    jti?: StringFilter<"jwtBlacklist"> | string
-    expiresAt?: DateTimeFilter<"jwtBlacklist"> | Date | string
-    createdAt?: DateTimeFilter<"jwtBlacklist"> | Date | string
-  }
-
-  export type jwtBlacklistOrderByWithRelationInput = {
-    id?: SortOrder
-    jti?: SortOrder
-    expiresAt?: SortOrder
-    createdAt?: SortOrder
-  }
-
-  export type jwtBlacklistWhereUniqueInput = Prisma.AtLeast<{
-    id?: string
-    jti?: string
-    AND?: jwtBlacklistWhereInput | jwtBlacklistWhereInput[]
-    OR?: jwtBlacklistWhereInput[]
-    NOT?: jwtBlacklistWhereInput | jwtBlacklistWhereInput[]
-    expiresAt?: DateTimeFilter<"jwtBlacklist"> | Date | string
-    createdAt?: DateTimeFilter<"jwtBlacklist"> | Date | string
-  }, "id" | "jti">
-
-  export type jwtBlacklistOrderByWithAggregationInput = {
-    id?: SortOrder
-    jti?: SortOrder
-    expiresAt?: SortOrder
-    createdAt?: SortOrder
-    _count?: jwtBlacklistCountOrderByAggregateInput
-    _max?: jwtBlacklistMaxOrderByAggregateInput
-    _min?: jwtBlacklistMinOrderByAggregateInput
-  }
-
-  export type jwtBlacklistScalarWhereWithAggregatesInput = {
-    AND?: jwtBlacklistScalarWhereWithAggregatesInput | jwtBlacklistScalarWhereWithAggregatesInput[]
-    OR?: jwtBlacklistScalarWhereWithAggregatesInput[]
-    NOT?: jwtBlacklistScalarWhereWithAggregatesInput | jwtBlacklistScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"jwtBlacklist"> | string
-    jti?: StringWithAggregatesFilter<"jwtBlacklist"> | string
-    expiresAt?: DateTimeWithAggregatesFilter<"jwtBlacklist"> | Date | string
-    createdAt?: DateTimeWithAggregatesFilter<"jwtBlacklist"> | Date | string
-  }
-
   export type LoginMethodCreateInput = {
     id?: string
     userId: string
@@ -8650,7 +7520,7 @@ export namespace Prisma {
     enabled?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
-    credentials?: CredentialCreateNestedManyWithoutLoginMethodsInput
+    credentials?: CredentialCreateNestedManyWithoutLoginMethodInput
   }
 
   export type LoginMethodUncheckedCreateInput = {
@@ -8662,7 +7532,7 @@ export namespace Prisma {
     enabled?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
-    credentials?: CredentialUncheckedCreateNestedManyWithoutLoginMethodsInput
+    credentials?: CredentialUncheckedCreateNestedManyWithoutLoginMethodInput
   }
 
   export type LoginMethodUpdateInput = {
@@ -8674,7 +7544,7 @@ export namespace Prisma {
     enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    credentials?: CredentialUpdateManyWithoutLoginMethodsNestedInput
+    credentials?: CredentialUpdateManyWithoutLoginMethodNestedInput
   }
 
   export type LoginMethodUncheckedUpdateInput = {
@@ -8686,7 +7556,7 @@ export namespace Prisma {
     enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    credentials?: CredentialUncheckedUpdateManyWithoutLoginMethodsNestedInput
+    credentials?: CredentialUncheckedUpdateManyWithoutLoginMethodNestedInput
   }
 
   export type LoginMethodCreateManyInput = {
@@ -8730,7 +7600,7 @@ export namespace Prisma {
     enabled?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
-    LoginMethods: LoginMethodCreateNestedOneWithoutCredentialsInput
+    LoginMethod: LoginMethodCreateNestedOneWithoutCredentialsInput
   }
 
   export type CredentialUncheckedCreateInput = {
@@ -8752,7 +7622,7 @@ export namespace Prisma {
     enabled?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    LoginMethods?: LoginMethodUpdateOneRequiredWithoutCredentialsNestedInput
+    LoginMethod?: LoginMethodUpdateOneRequiredWithoutCredentialsNestedInput
   }
 
   export type CredentialUncheckedUpdateInput = {
@@ -8990,8 +7860,8 @@ export namespace Prisma {
   export type UserSessionCreateInput = {
     id?: string
     userId: string
-    loginMethodID: string
-    deviceType: $Enums.DefiveType
+    loginMethodId: string
+    deviceType: $Enums.DeviceType
     deviceInfo?: string | null
     ipAddress?: string | null
     refreshToken: string
@@ -9006,8 +7876,8 @@ export namespace Prisma {
   export type UserSessionUncheckedCreateInput = {
     id?: string
     userId: string
-    loginMethodID: string
-    deviceType: $Enums.DefiveType
+    loginMethodId: string
+    deviceType: $Enums.DeviceType
     deviceInfo?: string | null
     ipAddress?: string | null
     refreshToken: string
@@ -9022,8 +7892,8 @@ export namespace Prisma {
   export type UserSessionUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    loginMethodID?: StringFieldUpdateOperationsInput | string
-    deviceType?: EnumDefiveTypeFieldUpdateOperationsInput | $Enums.DefiveType
+    loginMethodId?: StringFieldUpdateOperationsInput | string
+    deviceType?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
     deviceInfo?: NullableStringFieldUpdateOperationsInput | string | null
     ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
     refreshToken?: StringFieldUpdateOperationsInput | string
@@ -9038,8 +7908,8 @@ export namespace Prisma {
   export type UserSessionUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    loginMethodID?: StringFieldUpdateOperationsInput | string
-    deviceType?: EnumDefiveTypeFieldUpdateOperationsInput | $Enums.DefiveType
+    loginMethodId?: StringFieldUpdateOperationsInput | string
+    deviceType?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
     deviceInfo?: NullableStringFieldUpdateOperationsInput | string | null
     ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
     refreshToken?: StringFieldUpdateOperationsInput | string
@@ -9054,8 +7924,8 @@ export namespace Prisma {
   export type UserSessionCreateManyInput = {
     id?: string
     userId: string
-    loginMethodID: string
-    deviceType: $Enums.DefiveType
+    loginMethodId: string
+    deviceType: $Enums.DeviceType
     deviceInfo?: string | null
     ipAddress?: string | null
     refreshToken: string
@@ -9070,8 +7940,8 @@ export namespace Prisma {
   export type UserSessionUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    loginMethodID?: StringFieldUpdateOperationsInput | string
-    deviceType?: EnumDefiveTypeFieldUpdateOperationsInput | $Enums.DefiveType
+    loginMethodId?: StringFieldUpdateOperationsInput | string
+    deviceType?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
     deviceInfo?: NullableStringFieldUpdateOperationsInput | string | null
     ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
     refreshToken?: StringFieldUpdateOperationsInput | string
@@ -9086,8 +7956,8 @@ export namespace Prisma {
   export type UserSessionUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    loginMethodID?: StringFieldUpdateOperationsInput | string
-    deviceType?: EnumDefiveTypeFieldUpdateOperationsInput | $Enums.DefiveType
+    loginMethodId?: StringFieldUpdateOperationsInput | string
+    deviceType?: EnumDeviceTypeFieldUpdateOperationsInput | $Enums.DeviceType
     deviceInfo?: NullableStringFieldUpdateOperationsInput | string | null
     ipAddress?: NullableStringFieldUpdateOperationsInput | string | null
     refreshToken?: StringFieldUpdateOperationsInput | string
@@ -9097,55 +7967,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type jwtBlacklistCreateInput = {
-    id?: string
-    jti: string
-    expiresAt: Date | string
-    createdAt?: Date | string
-  }
-
-  export type jwtBlacklistUncheckedCreateInput = {
-    id?: string
-    jti: string
-    expiresAt: Date | string
-    createdAt?: Date | string
-  }
-
-  export type jwtBlacklistUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    jti?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type jwtBlacklistUncheckedUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    jti?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type jwtBlacklistCreateManyInput = {
-    id?: string
-    jti: string
-    expiresAt: Date | string
-    createdAt?: Date | string
-  }
-
-  export type jwtBlacklistUpdateManyMutationInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    jti?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type jwtBlacklistUncheckedUpdateManyInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    jti?: StringFieldUpdateOperationsInput | string
-    expiresAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type StringFilter<$PrismaModel = never> = {
@@ -9556,11 +8377,11 @@ export namespace Prisma {
     _max?: NestedEnumMfaTypeFilter<$PrismaModel>
   }
 
-  export type EnumDefiveTypeFilter<$PrismaModel = never> = {
-    equals?: $Enums.DefiveType | EnumDefiveTypeFieldRefInput<$PrismaModel>
-    in?: $Enums.DefiveType[] | ListEnumDefiveTypeFieldRefInput<$PrismaModel>
-    notIn?: $Enums.DefiveType[] | ListEnumDefiveTypeFieldRefInput<$PrismaModel>
-    not?: NestedEnumDefiveTypeFilter<$PrismaModel> | $Enums.DefiveType
+  export type EnumDeviceTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.DeviceType | EnumDeviceTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumDeviceTypeFilter<$PrismaModel> | $Enums.DeviceType
   }
 
   export type DateTimeNullableFilter<$PrismaModel = never> = {
@@ -9577,7 +8398,7 @@ export namespace Prisma {
   export type UserSessionCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
-    loginMethodID?: SortOrder
+    loginMethodId?: SortOrder
     deviceType?: SortOrder
     deviceInfo?: SortOrder
     ipAddress?: SortOrder
@@ -9593,7 +8414,7 @@ export namespace Prisma {
   export type UserSessionMaxOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
-    loginMethodID?: SortOrder
+    loginMethodId?: SortOrder
     deviceType?: SortOrder
     deviceInfo?: SortOrder
     ipAddress?: SortOrder
@@ -9609,7 +8430,7 @@ export namespace Prisma {
   export type UserSessionMinOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
-    loginMethodID?: SortOrder
+    loginMethodId?: SortOrder
     deviceType?: SortOrder
     deviceInfo?: SortOrder
     ipAddress?: SortOrder
@@ -9622,14 +8443,14 @@ export namespace Prisma {
     expiresAt?: SortOrder
   }
 
-  export type EnumDefiveTypeWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: $Enums.DefiveType | EnumDefiveTypeFieldRefInput<$PrismaModel>
-    in?: $Enums.DefiveType[] | ListEnumDefiveTypeFieldRefInput<$PrismaModel>
-    notIn?: $Enums.DefiveType[] | ListEnumDefiveTypeFieldRefInput<$PrismaModel>
-    not?: NestedEnumDefiveTypeWithAggregatesFilter<$PrismaModel> | $Enums.DefiveType
+  export type EnumDeviceTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.DeviceType | EnumDeviceTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumDeviceTypeWithAggregatesFilter<$PrismaModel> | $Enums.DeviceType
     _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedEnumDefiveTypeFilter<$PrismaModel>
-    _max?: NestedEnumDefiveTypeFilter<$PrismaModel>
+    _min?: NestedEnumDeviceTypeFilter<$PrismaModel>
+    _max?: NestedEnumDeviceTypeFilter<$PrismaModel>
   }
 
   export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -9646,38 +8467,17 @@ export namespace Prisma {
     _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
-  export type jwtBlacklistCountOrderByAggregateInput = {
-    id?: SortOrder
-    jti?: SortOrder
-    expiresAt?: SortOrder
-    createdAt?: SortOrder
-  }
-
-  export type jwtBlacklistMaxOrderByAggregateInput = {
-    id?: SortOrder
-    jti?: SortOrder
-    expiresAt?: SortOrder
-    createdAt?: SortOrder
-  }
-
-  export type jwtBlacklistMinOrderByAggregateInput = {
-    id?: SortOrder
-    jti?: SortOrder
-    expiresAt?: SortOrder
-    createdAt?: SortOrder
-  }
-
-  export type CredentialCreateNestedManyWithoutLoginMethodsInput = {
-    create?: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput> | CredentialCreateWithoutLoginMethodsInput[] | CredentialUncheckedCreateWithoutLoginMethodsInput[]
-    connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodsInput | CredentialCreateOrConnectWithoutLoginMethodsInput[]
-    createMany?: CredentialCreateManyLoginMethodsInputEnvelope
+  export type CredentialCreateNestedManyWithoutLoginMethodInput = {
+    create?: XOR<CredentialCreateWithoutLoginMethodInput, CredentialUncheckedCreateWithoutLoginMethodInput> | CredentialCreateWithoutLoginMethodInput[] | CredentialUncheckedCreateWithoutLoginMethodInput[]
+    connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodInput | CredentialCreateOrConnectWithoutLoginMethodInput[]
+    createMany?: CredentialCreateManyLoginMethodInputEnvelope
     connect?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
   }
 
-  export type CredentialUncheckedCreateNestedManyWithoutLoginMethodsInput = {
-    create?: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput> | CredentialCreateWithoutLoginMethodsInput[] | CredentialUncheckedCreateWithoutLoginMethodsInput[]
-    connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodsInput | CredentialCreateOrConnectWithoutLoginMethodsInput[]
-    createMany?: CredentialCreateManyLoginMethodsInputEnvelope
+  export type CredentialUncheckedCreateNestedManyWithoutLoginMethodInput = {
+    create?: XOR<CredentialCreateWithoutLoginMethodInput, CredentialUncheckedCreateWithoutLoginMethodInput> | CredentialCreateWithoutLoginMethodInput[] | CredentialUncheckedCreateWithoutLoginMethodInput[]
+    connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodInput | CredentialCreateOrConnectWithoutLoginMethodInput[]
+    createMany?: CredentialCreateManyLoginMethodInputEnvelope
     connect?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
   }
 
@@ -9697,31 +8497,31 @@ export namespace Prisma {
     set?: Date | string
   }
 
-  export type CredentialUpdateManyWithoutLoginMethodsNestedInput = {
-    create?: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput> | CredentialCreateWithoutLoginMethodsInput[] | CredentialUncheckedCreateWithoutLoginMethodsInput[]
-    connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodsInput | CredentialCreateOrConnectWithoutLoginMethodsInput[]
-    upsert?: CredentialUpsertWithWhereUniqueWithoutLoginMethodsInput | CredentialUpsertWithWhereUniqueWithoutLoginMethodsInput[]
-    createMany?: CredentialCreateManyLoginMethodsInputEnvelope
+  export type CredentialUpdateManyWithoutLoginMethodNestedInput = {
+    create?: XOR<CredentialCreateWithoutLoginMethodInput, CredentialUncheckedCreateWithoutLoginMethodInput> | CredentialCreateWithoutLoginMethodInput[] | CredentialUncheckedCreateWithoutLoginMethodInput[]
+    connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodInput | CredentialCreateOrConnectWithoutLoginMethodInput[]
+    upsert?: CredentialUpsertWithWhereUniqueWithoutLoginMethodInput | CredentialUpsertWithWhereUniqueWithoutLoginMethodInput[]
+    createMany?: CredentialCreateManyLoginMethodInputEnvelope
     set?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
     disconnect?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
     delete?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
     connect?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
-    update?: CredentialUpdateWithWhereUniqueWithoutLoginMethodsInput | CredentialUpdateWithWhereUniqueWithoutLoginMethodsInput[]
-    updateMany?: CredentialUpdateManyWithWhereWithoutLoginMethodsInput | CredentialUpdateManyWithWhereWithoutLoginMethodsInput[]
+    update?: CredentialUpdateWithWhereUniqueWithoutLoginMethodInput | CredentialUpdateWithWhereUniqueWithoutLoginMethodInput[]
+    updateMany?: CredentialUpdateManyWithWhereWithoutLoginMethodInput | CredentialUpdateManyWithWhereWithoutLoginMethodInput[]
     deleteMany?: CredentialScalarWhereInput | CredentialScalarWhereInput[]
   }
 
-  export type CredentialUncheckedUpdateManyWithoutLoginMethodsNestedInput = {
-    create?: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput> | CredentialCreateWithoutLoginMethodsInput[] | CredentialUncheckedCreateWithoutLoginMethodsInput[]
-    connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodsInput | CredentialCreateOrConnectWithoutLoginMethodsInput[]
-    upsert?: CredentialUpsertWithWhereUniqueWithoutLoginMethodsInput | CredentialUpsertWithWhereUniqueWithoutLoginMethodsInput[]
-    createMany?: CredentialCreateManyLoginMethodsInputEnvelope
+  export type CredentialUncheckedUpdateManyWithoutLoginMethodNestedInput = {
+    create?: XOR<CredentialCreateWithoutLoginMethodInput, CredentialUncheckedCreateWithoutLoginMethodInput> | CredentialCreateWithoutLoginMethodInput[] | CredentialUncheckedCreateWithoutLoginMethodInput[]
+    connectOrCreate?: CredentialCreateOrConnectWithoutLoginMethodInput | CredentialCreateOrConnectWithoutLoginMethodInput[]
+    upsert?: CredentialUpsertWithWhereUniqueWithoutLoginMethodInput | CredentialUpsertWithWhereUniqueWithoutLoginMethodInput[]
+    createMany?: CredentialCreateManyLoginMethodInputEnvelope
     set?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
     disconnect?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
     delete?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
     connect?: CredentialWhereUniqueInput | CredentialWhereUniqueInput[]
-    update?: CredentialUpdateWithWhereUniqueWithoutLoginMethodsInput | CredentialUpdateWithWhereUniqueWithoutLoginMethodsInput[]
-    updateMany?: CredentialUpdateManyWithWhereWithoutLoginMethodsInput | CredentialUpdateManyWithWhereWithoutLoginMethodsInput[]
+    update?: CredentialUpdateWithWhereUniqueWithoutLoginMethodInput | CredentialUpdateWithWhereUniqueWithoutLoginMethodInput[]
+    updateMany?: CredentialUpdateManyWithWhereWithoutLoginMethodInput | CredentialUpdateManyWithWhereWithoutLoginMethodInput[]
     deleteMany?: CredentialScalarWhereInput | CredentialScalarWhereInput[]
   }
 
@@ -9767,8 +8567,8 @@ export namespace Prisma {
     set?: $Enums.MfaType
   }
 
-  export type EnumDefiveTypeFieldUpdateOperationsInput = {
-    set?: $Enums.DefiveType
+  export type EnumDeviceTypeFieldUpdateOperationsInput = {
+    set?: $Enums.DeviceType
   }
 
   export type NullableDateTimeFieldUpdateOperationsInput = {
@@ -10009,11 +8809,11 @@ export namespace Prisma {
     _max?: NestedEnumMfaTypeFilter<$PrismaModel>
   }
 
-  export type NestedEnumDefiveTypeFilter<$PrismaModel = never> = {
-    equals?: $Enums.DefiveType | EnumDefiveTypeFieldRefInput<$PrismaModel>
-    in?: $Enums.DefiveType[] | ListEnumDefiveTypeFieldRefInput<$PrismaModel>
-    notIn?: $Enums.DefiveType[] | ListEnumDefiveTypeFieldRefInput<$PrismaModel>
-    not?: NestedEnumDefiveTypeFilter<$PrismaModel> | $Enums.DefiveType
+  export type NestedEnumDeviceTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.DeviceType | EnumDeviceTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumDeviceTypeFilter<$PrismaModel> | $Enums.DeviceType
   }
 
   export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
@@ -10027,14 +8827,14 @@ export namespace Prisma {
     not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
   }
 
-  export type NestedEnumDefiveTypeWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: $Enums.DefiveType | EnumDefiveTypeFieldRefInput<$PrismaModel>
-    in?: $Enums.DefiveType[] | ListEnumDefiveTypeFieldRefInput<$PrismaModel>
-    notIn?: $Enums.DefiveType[] | ListEnumDefiveTypeFieldRefInput<$PrismaModel>
-    not?: NestedEnumDefiveTypeWithAggregatesFilter<$PrismaModel> | $Enums.DefiveType
+  export type NestedEnumDeviceTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.DeviceType | EnumDeviceTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.DeviceType[] | ListEnumDeviceTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumDeviceTypeWithAggregatesFilter<$PrismaModel> | $Enums.DeviceType
     _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedEnumDefiveTypeFilter<$PrismaModel>
-    _max?: NestedEnumDefiveTypeFilter<$PrismaModel>
+    _min?: NestedEnumDeviceTypeFilter<$PrismaModel>
+    _max?: NestedEnumDeviceTypeFilter<$PrismaModel>
   }
 
   export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
@@ -10051,7 +8851,7 @@ export namespace Prisma {
     _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
-  export type CredentialCreateWithoutLoginMethodsInput = {
+  export type CredentialCreateWithoutLoginMethodInput = {
     id?: string
     credentialType: $Enums.CredentialType
     secretValue?: string | null
@@ -10061,7 +8861,7 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
-  export type CredentialUncheckedCreateWithoutLoginMethodsInput = {
+  export type CredentialUncheckedCreateWithoutLoginMethodInput = {
     id?: string
     credentialType: $Enums.CredentialType
     secretValue?: string | null
@@ -10071,30 +8871,30 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
-  export type CredentialCreateOrConnectWithoutLoginMethodsInput = {
+  export type CredentialCreateOrConnectWithoutLoginMethodInput = {
     where: CredentialWhereUniqueInput
-    create: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput>
+    create: XOR<CredentialCreateWithoutLoginMethodInput, CredentialUncheckedCreateWithoutLoginMethodInput>
   }
 
-  export type CredentialCreateManyLoginMethodsInputEnvelope = {
-    data: CredentialCreateManyLoginMethodsInput | CredentialCreateManyLoginMethodsInput[]
+  export type CredentialCreateManyLoginMethodInputEnvelope = {
+    data: CredentialCreateManyLoginMethodInput | CredentialCreateManyLoginMethodInput[]
     skipDuplicates?: boolean
   }
 
-  export type CredentialUpsertWithWhereUniqueWithoutLoginMethodsInput = {
+  export type CredentialUpsertWithWhereUniqueWithoutLoginMethodInput = {
     where: CredentialWhereUniqueInput
-    update: XOR<CredentialUpdateWithoutLoginMethodsInput, CredentialUncheckedUpdateWithoutLoginMethodsInput>
-    create: XOR<CredentialCreateWithoutLoginMethodsInput, CredentialUncheckedCreateWithoutLoginMethodsInput>
+    update: XOR<CredentialUpdateWithoutLoginMethodInput, CredentialUncheckedUpdateWithoutLoginMethodInput>
+    create: XOR<CredentialCreateWithoutLoginMethodInput, CredentialUncheckedCreateWithoutLoginMethodInput>
   }
 
-  export type CredentialUpdateWithWhereUniqueWithoutLoginMethodsInput = {
+  export type CredentialUpdateWithWhereUniqueWithoutLoginMethodInput = {
     where: CredentialWhereUniqueInput
-    data: XOR<CredentialUpdateWithoutLoginMethodsInput, CredentialUncheckedUpdateWithoutLoginMethodsInput>
+    data: XOR<CredentialUpdateWithoutLoginMethodInput, CredentialUncheckedUpdateWithoutLoginMethodInput>
   }
 
-  export type CredentialUpdateManyWithWhereWithoutLoginMethodsInput = {
+  export type CredentialUpdateManyWithWhereWithoutLoginMethodInput = {
     where: CredentialScalarWhereInput
-    data: XOR<CredentialUpdateManyMutationInput, CredentialUncheckedUpdateManyWithoutLoginMethodsInput>
+    data: XOR<CredentialUpdateManyMutationInput, CredentialUncheckedUpdateManyWithoutLoginMethodInput>
   }
 
   export type CredentialScalarWhereInput = {
@@ -10171,7 +8971,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type CredentialCreateManyLoginMethodsInput = {
+  export type CredentialCreateManyLoginMethodInput = {
     id?: string
     credentialType: $Enums.CredentialType
     secretValue?: string | null
@@ -10181,7 +8981,7 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
-  export type CredentialUpdateWithoutLoginMethodsInput = {
+  export type CredentialUpdateWithoutLoginMethodInput = {
     id?: StringFieldUpdateOperationsInput | string
     credentialType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
     secretValue?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10191,7 +8991,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type CredentialUncheckedUpdateWithoutLoginMethodsInput = {
+  export type CredentialUncheckedUpdateWithoutLoginMethodInput = {
     id?: StringFieldUpdateOperationsInput | string
     credentialType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
     secretValue?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10201,7 +9001,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type CredentialUncheckedUpdateManyWithoutLoginMethodsInput = {
+  export type CredentialUncheckedUpdateManyWithoutLoginMethodInput = {
     id?: StringFieldUpdateOperationsInput | string
     credentialType?: EnumCredentialTypeFieldUpdateOperationsInput | $Enums.CredentialType
     secretValue?: NullableStringFieldUpdateOperationsInput | string | null

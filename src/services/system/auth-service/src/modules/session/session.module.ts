@@ -3,7 +3,7 @@ import { ConfigModule } from '@nestjs/config'
 import { CommonJwtModule } from '@oes/common/modules/jwt/jwt.module'
 import { SessionService } from 'src/application/services/session.service'
 import { RedisUserSessionRepository } from 'src/infrastructure/repositories/redis/session/redis-user-session.repository'
-import { SESSION_REPOSITORY } from 'src/common/constants/injection-tokens'
+import { SESSION_REPOSITORY } from 'src/common/const/injection-tokens'
 
 /**
  * Session 模块

@@ -1,6 +1,7 @@
 import {
   LoginMethod as PrismaLoginMethod,
-  Credential as PrismaCredential
+  Credential as PrismaCredential,
+  LoginMethodType
 } from 'prisma/generated/prisma'
 import { Credential } from '../entities/credential.entity'
 
@@ -9,7 +10,7 @@ export class LoginMethod {
   constructor(
     public readonly id: string,
     public readonly userId: string,
-    public readonly type: string,
+    public readonly type: LoginMethodType,
     public readonly identifier: string,
     private verified: boolean,
     private enabled: boolean,
@@ -62,5 +63,8 @@ export class LoginMethod {
   }
   getCredentials() {
     return this.credentials
+  }
+  getPasswordCredential(): Credential | null {
+    return this.credentials.find((c) => c.type === 'PASSWORD' && c.isEnabled()) || null
   }
 }

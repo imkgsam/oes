@@ -10,7 +10,7 @@ import { PrismaModule } from 'src/infrastructure/prisma/prisma.module'
 import { ClientModule } from '@oes/common/modules/clients/client.module'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 import { TcpTestController } from 'src/interfaces/tcp/controllers/test/test.controller'
-import { USER_REPOSITORY } from 'src/common/constants/injection-tokens'
+import { USER_REPOSITORY } from 'src/common/const/injection-tokens'
 
 @Module({
   imports: [PrismaModule, ClientModule.register([ServiceKeys.PERMI_TCP])],
