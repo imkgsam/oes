@@ -6,11 +6,11 @@ import { ApiTags } from '@nestjs/swagger'
 import { safeRpcCall } from '@oes/common/helpers/rpc.helper'
 import {
   EmailPasswordLoginRequestDto,
-  GoogleLoginDto,
-  EmailOtpLoginDto,
-  PhoneOtpLoginDto,
-  WechatLoginDto,
-  PhonePasswordLoginDto
+  GoogleLoginRequestDto,
+  EmailOtpLoginRequestDto,
+  PhoneOtpLoginRequestDto,
+  WechatLoginRequestDto,
+  PhonePasswordLoginRequestDto
 } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
 import { AUTH_MESSAGES } from '@oes/common/constants/messages/auth.message'
 
@@ -28,27 +28,27 @@ export class AuthController {
   }
 
   @Post('login/phone-password')
-  async loginWithPhonePassword(@Body() dto: PhonePasswordLoginDto) {
+  async loginWithPhonePassword(@Body() dto: PhonePasswordLoginRequestDto) {
     return safeRpcCall(this.authClient.send(AUTH_MESSAGES.LOGIN_WITH_PHONE_PW, dto))
   }
 
   @Post('login/email-otp')
-  async loginWithEmailOtp(@Body() dto: EmailOtpLoginDto) {
+  async loginWithEmailOtp(@Body() dto: EmailOtpLoginRequestDto) {
     return safeRpcCall(this.authClient.send(AUTH_MESSAGES.LOGIN_WITH_EMAIL_OTP, dto))
   }
 
   @Post('login/phone-otp')
-  async loginWithPhoneOtp(@Body() dto: PhoneOtpLoginDto) {
+  async loginWithPhoneOtp(@Body() dto: PhoneOtpLoginRequestDto) {
     return safeRpcCall(this.authClient.send(AUTH_MESSAGES.LOGIN_WITH_EMAIL_OTP, dto))
   }
 
   @Post('login/wechat')
-  async loginWithWechat(@Body() dto: WechatLoginDto) {
+  async loginWithWechat(@Body() dto: WechatLoginRequestDto) {
     return safeRpcCall(this.authClient.send(AUTH_MESSAGES.LOGIN_WITH_EMAIL_OTP, dto))
   }
 
   @Post('login/google')
-  async loginWithGoogle(@Body() dto: GoogleLoginDto) {
+  async loginWithGoogle(@Body() dto: GoogleLoginRequestDto) {
     return safeRpcCall(this.authClient.send(AUTH_MESSAGES.LOGIN_WITH_EMAIL_OTP, dto))
   }
 }

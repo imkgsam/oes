@@ -1,14 +1,13 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { CommonJwtService } from '@oes/common/modules/jwt/jwt.service'
-import { EmailPasswordAuthProvider } from '../providers/email-password.provider'
-import { WechatAuthProvider } from '../providers/wechat.provider'
-import { EmailOtpProvider, PhoneOtpProvider } from '../providers/otp.provider'
-import { LoginMethodEnum } from '@oes/common/constants/enums/auth-service.enums'
-import { GoogleAuthProvider } from '../providers/google.provider'
+import { LoginMethodEnum } from '@oes/common/constants/const/auth-service.const'
 import { SessionService } from './session.service'
 import { MfaService } from './mfa.service'
 import { DeviceInfo } from 'src/domain/aggregates/usersession.aggregate'
+import { AuthStrategyFactory } from 'src/domain/services/strategies/auth-strategies.factory'
+import { IIdentityServicePort } from '../ports'
+import { LoginResponseDto } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
 
 /**
  * 认证服务
@@ -36,15 +35,12 @@ export class AuthService {
   private readonly logger = new Logger(AuthService.name)
 
   constructor(
-    private readonly emailProvider: EmailPasswordAuthProvider,
-    private readonly googleProvider: GoogleAuthProvider,
-    private readonly wechatProvider: WechatAuthProvider,
-    private readonly emailOtpProvider: EmailOtpProvider,
-    private readonly phoneOtpProvider: PhoneOtpProvider,
+    private readonly strategyFactory: AuthStrategyFactory,
     private readonly commonJwtService: CommonJwtService,
     private readonly sessionService: SessionService,
     private readonly mfaService: MfaService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly identityService: IIdentityServicePort
   ) {}
 
   /**
@@ -62,22 +58,17 @@ export class AuthService {
    * @param deviceInfo 设备信息
    * @returns 登录结果
    */
-  async login(
+  async login<T>(
     method: LoginMethodEnum,
-    dto: any,
-    deviceInfo: DeviceInfo
-  ): Promise<{
-    accessToken: string
-    refreshToken: string
-    sessionId: string
-    userId: string
-    requiresMfa: boolean
-    mfaTokenId?: string
-  }> {
-    this.logger.log(`User login attempt with method: ${method}`)
+    payload: T,
+    deviceInfo?: DeviceInfo
+  ): Promise<LoginResponseDto> {
+    const strategy = this.strategyFactory.get(method)
+    if (!strategy) throw new Error(`Unsupported login method type: ${String(method)}`)
 
-    // 根据登录方式选择认证提供者
-    const user = await this.authenticateUser(method, dto)
+    const userId = await strategy.authenticate(payload)
+    const user = await this.identityService.getUserById(userId)
+    if (!user) throw new Error('User not found')
 
     // 检查是否需要 MFA
     const shouldTriggerMfa = await this.mfaService.shouldTriggerMfa(user.id)

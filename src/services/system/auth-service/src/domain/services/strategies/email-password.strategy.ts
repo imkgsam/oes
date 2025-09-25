@@ -16,6 +16,7 @@ export class EmailPasswordStrategy implements AuthStrategyPort<EmailPasswordLogi
   getType(): string {
     return LoginMethodEnum.EmailPassword
   }
+
   async authenticate(dto: EmailPasswordLoginRequestDto): Promise<string> {
     const loginMethod = await this.loginMethodRepo.findValidOneByTypeAndIdentifier(
       LoginMethodType.EMAIL,

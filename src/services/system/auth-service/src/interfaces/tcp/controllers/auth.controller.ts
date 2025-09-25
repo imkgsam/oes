@@ -4,18 +4,24 @@ import { LoginUsecase } from 'src/application/use-cases/login.usecase'
 import { AUTH_MESSAGES } from '@oes/common/constants/messages/auth.message'
 import {
   EmailPasswordLoginRequestDto,
-  PhonePasswordLoginDto
+  PhonePasswordLoginRequestDto,
+  LoginResponseDto,
+  EmailOtpLoginRequestDto,
+  PhoneOtpLoginRequestDto,
+  GoogleLoginRequestDto,
+  WechatLoginRequestDto
 } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
-import { LoginResultDto } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
 import { LoginMethodEnum } from '@oes/common/constants/const/auth-service.const'
+import { IAuthServiceRpcAuthPort } from '@oes/common/interfaces/services/auth-service.interface'
+
 @Controller()
-export class TcpAuthController {
+export class TcpAuthController implements IAuthServiceRpcAuthPort {
   constructor(private readonly loginUsecase: LoginUsecase) {}
 
   @MessagePattern(AUTH_MESSAGES.LOGIN_WITH_EMAIL_PW)
   async loginWithEmailPassword(
     @Payload() data: EmailPasswordLoginRequestDto
-  ): Promise<LoginResultDto> {
+  ): Promise<LoginResponseDto> {
     return this.loginUsecase.login<EmailPasswordLoginRequestDto>(
       LoginMethodEnum.EmailPassword,
       data
@@ -23,27 +29,32 @@ export class TcpAuthController {
   }
 
   @MessagePattern(AUTH_MESSAGES.LOGIN_WITH_PHONE_PW)
-  async loginWithPhonePassword(@Payload() data: PhonePasswordLoginDto): Promise<LoginResultDto> {
-    return this.loginUsecase.login<PhonePasswordLoginDto>(LoginMethodEnum.PhonePassword, data)
+  async loginWithPhonePassword(
+    @Payload() data: PhonePasswordLoginRequestDto
+  ): Promise<LoginResponseDto> {
+    return this.loginUsecase.login<PhonePasswordLoginRequestDto>(
+      LoginMethodEnum.PhonePassword,
+      data
+    )
   }
 
   @MessagePattern(AUTH_MESSAGES.LOGIN_WITH_EMAIL_OTP)
-  async loginWithEmailOtp(@Payload() data: any): Promise<LoginResultDto> {
-    return this.loginUsecase.login<any>(LoginMethodEnum.EmailOtp, data)
+  async loginWithEmailOtp(@Payload() data: EmailOtpLoginRequestDto): Promise<LoginResponseDto> {
+    return this.loginUsecase.login<EmailOtpLoginRequestDto>(LoginMethodEnum.EmailOtp, data)
   }
 
   @MessagePattern(AUTH_MESSAGES.LOGIN_WITH_PHONE_OTP)
-  async loginWithPhoneOtp(@Payload() data: any): Promise<LoginResultDto> {
-    return this.loginUsecase.login<any>(LoginMethodEnum.PhoneOtp, data)
+  async loginWithPhoneOtp(@Payload() data: PhoneOtpLoginRequestDto): Promise<LoginResponseDto> {
+    return this.loginUsecase.login<PhoneOtpLoginRequestDto>(LoginMethodEnum.PhoneOtp, data)
   }
 
   @MessagePattern(AUTH_MESSAGES.LOGIN_WITH_GOOGLE)
-  async loginWithGoogle(@Payload() data: any): Promise<LoginResultDto> {
-    return this.loginUsecase.login<any>(LoginMethodEnum.Google, data)
+  async loginWithGoogle(@Payload() data: GoogleLoginRequestDto): Promise<LoginResponseDto> {
+    return this.loginUsecase.login<GoogleLoginRequestDto>(LoginMethodEnum.Google, data)
   }
 
   @MessagePattern(AUTH_MESSAGES.LOGIN_WITH_WECHAT)
-  async loginWithWechat(@Payload() data: any): Promise<LoginResultDto> {
-    return this.loginUsecase.login<any>(LoginMethodEnum.Wechat, data)
+  async loginWithWechat(@Payload() data: WechatLoginRequestDto): Promise<LoginResponseDto> {
+    return this.loginUsecase.login<WechatLoginRequestDto>(LoginMethodEnum.Wechat, data)
   }
 }

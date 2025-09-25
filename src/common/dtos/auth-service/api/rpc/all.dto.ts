@@ -48,29 +48,32 @@ export class GoogleLoginRequestDto {
   readonly token: string
 }
 
-export class LoginResponseDto {
-  // 以下字段仅在 SUCCESS 时有值
+export type LoginResponseDto =
+  | LoginResponseDto_MFA_notRequired
+  | LoginResponseDto_MFA_required
+  | LoginResponseDto_MultipleAccounts
+class LoginResponseDto_MFA_notRequired {
+  mfaRequired: boolean = false
+  accessToken: string
+  refreshToken: string
   userId: string
-  accessToken?: string
-  refreshToken?: string
-  // user?: {
-  //   id: string
-  //   name: string
-  //   email?: string
-  //   phone?: string
-  //   tenantId: string
-  // }
-  roles?: {
-    id: string
-    name: string
-    code: string
-    permissions: string[]
-  }[]
+  accountId: string
+  tenantId: string
+}
 
-  // 以下字段仅在 MFA_REQUIRED 时有值
-  mfa?: {
-    ticket: string // 👈 MFA 的临时票据，后续验证用
-    methods: MfaType[] // 👈 可用的 MFA 类型（如 ["TOTP", "EMAIL_OTP"]）
-    preferredMethod?: MfaType // 👈 建议的验证方式（如有）
-  }
+class LoginResponseDto_MFA_required {
+  userId: string
+  mfaRequired: boolean = true
+  challengeId: string
+  mfaType: MfaType
+}
+
+interface LoginResponseDto_MultipleAccounts {
+  multipleAccounts: true // discriminant
+  userId: string
+  accounts: Array<{
+    accountId: string
+    tenantId: string
+    displayName?: string // 账号显示名,用于用于区分不同账号
+  }>
 }

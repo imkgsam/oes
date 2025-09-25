@@ -2,19 +2,6 @@ import { IPermissionServicePort as IBasePermissionServicePort } from '@oes/commo
 
 type PermissionMethodsSelections =
   | 'getUserPermissions'
-  | 'getUserRoles'
-  | 'getAccountPermissions'
-  | 'getAccountRoles'
-  | 'checkUserPermission'
-  | 'checkUserRole'
-  | 'checkAccountPermission'
-  | 'checkAccountRole'
-  | 'getUserAllPermissions'
-  | 'getAccountAllPermissions'
-  | 'validatePermission'
-  | 'validateRole'
-  | 'getPermissionByCode'
-  | 'getRoleByCode'
 /**
  * Permission Service 端口接口
  */

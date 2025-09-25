@@ -2,6 +2,7 @@ import {
   EmailOtpLoginRequestDto,
   EmailPasswordLoginRequestDto,
   GoogleLoginRequestDto,
+  LoginResponseDto,
   PhoneOtpLoginRequestDto,
   WechatLoginRequestDto
 } from '../../dtos/auth-service/api/rpc/all.dto'
@@ -12,7 +13,14 @@ export interface IAuthServiceRpcTestPort {
 }
 
 // PRC AUTH 接口
-export interface IAuthServiceRpcAuthPort {}
+export interface IAuthServiceRpcAuthPort {
+  loginWithEmailPassword(data: EmailPasswordLoginRequestDto): Promise<LoginResponseDto>
+  loginWithPhonePassword(data: PhoneOtpLoginRequestDto): Promise<LoginResponseDto>
+  loginWithEmailOtp(data: PhoneOtpLoginRequestDto): Promise<LoginResponseDto>
+  loginWithPhoneOtp(data: PhoneOtpLoginRequestDto): Promise<LoginResponseDto>
+  loginWithGoogle(data: PhoneOtpLoginRequestDto): Promise<LoginResponseDto>
+  loginWithWechat(data: PhoneOtpLoginRequestDto): Promise<LoginResponseDto>
+}
 
 // PRC ADMIN 接口
 export interface IAuthServiceRpcAdminPort {}

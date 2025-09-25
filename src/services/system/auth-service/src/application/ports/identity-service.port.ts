@@ -4,15 +4,7 @@ type IdentityMethodsSelections =
   | 'getUserById'
   | 'getUserByEmail'
   | 'getUserByPhone'
-  | 'getAccountById'
-  | 'getTenantById'
-  | 'getUserAccountRelations'
-  | 'getAccountTenantRelations'
-  | 'validateUser'
-  | 'validateAccount'
-  | 'validateTenant'
-  | 'getUserDefaultAccount'
-  | 'getAccountDefaultTenant'
+  | 'getAccountsByUserId'
 
 /**
  * Identity Service 端口接口

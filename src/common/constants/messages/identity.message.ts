@@ -16,6 +16,7 @@ export const IDENTITY_MESSAGES = {
   LIST_ACCOUNTS: 'identity.account.list',
   GET_ACCOUNT_BY_ID: 'identity.account.get_by_id',
   VALIDATE_ACCOUNT: 'identity.account.validate',
+  GET_ACCOUNTS_BY_USER_ID: 'identity.account.get_by_user_id',
 
   //TENANT
   CREATE_TENANT: 'identity.tenant.create',
