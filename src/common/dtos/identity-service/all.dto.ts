@@ -8,14 +8,14 @@ export interface UserDto {
 }
 
 export interface AccountDto {
-  id: String
-  userId: String
-  tenantId: String
-  email?: String
-  phone?: String
+  id: string
+  userId: string
+  tenantId: string
+  email?: string
+  phone?: string
   isEnable: Boolean
   isAdmin: Boolean
-  avatarUrl?: String
+  avatarUrl?: string
   createdAt: Date
   updatedAt: Date
 }

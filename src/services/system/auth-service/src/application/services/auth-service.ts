@@ -7,7 +7,8 @@ import { MfaService } from './mfa.service'
 import { DeviceInfo } from 'src/domain/aggregates/usersession.aggregate'
 import { AuthStrategyFactory } from 'src/domain/services/strategies/auth-strategies.factory'
 import { IIdentityServicePort } from '../ports'
-import { LoginResponseDto } from '@oes/common/dtos/auth-service/api/rpc/all.dto'
+import { LoginResponseDto } from '@oes/common/dtos/auth-service/all.dto'
+import { AccountDto } from '@oes/common/dtos/identity-service/all.dto'
 
 /**
  * 认证服务
@@ -63,49 +64,71 @@ export class AuthService {
     payload: T,
     deviceInfo?: DeviceInfo
   ): Promise<LoginResponseDto> {
+    // 1 选择认证策略
     const strategy = this.strategyFactory.get(method)
     if (!strategy) throw new Error(`Unsupported login method type: ${String(method)}`)
 
+    // 2 认证用户
     const userId = await strategy.authenticate(payload)
     const user = await this.identityService.getUserById(userId)
     if (!user) throw new Error('User not found')
 
-    // 检查是否需要 MFA
+    // 3 检查是否需要 MFA
     const shouldTriggerMfa = await this.mfaService.shouldTriggerMfa(user.id)
     if (shouldTriggerMfa) {
       // 生成 MFA 令牌
       const mfaToken = await this.mfaService.generateOneTimeToken(user.id)
-
       this.logger.log(`MFA required for user ${user.id}, token generated`)
 
+      // 返回 MFA 挑战信息
       return {
-        accessToken: '',
-        refreshToken: '',
-        sessionId: '',
         userId: user.id,
-        requiresMfa: true,
-        mfaTokenId: mfaToken.tokenId
+        mfaRequired: true,
+        challengeId: mfaToken.tokenId,
+        mfaType: mfaToken.type
       }
     }
 
-    // 创建会话
-    const sessionResult = await this.sessionService.createSession(user.id, deviceInfo)
+    // 4 检查是否为多账户
+    const accounts: AccountDto[] = await this.identityService.getAccountsByUserId(user.id)
+    const validAccounts: AccountDto[] = accounts.filter((acc) => !acc.isEnable)
+    if (validAccounts.length > 1) {
+      this.logger.log(`User ${user.id} has multiple accounts, prompting for selection`)
+      return {
+        multipleAccounts: true,
+        userId: user.id,
+        accounts: accounts.map((acc) => ({
+          accountId: acc.id,
+          tenantId: acc.tenantId,
+          displayName: `${acc.userId} / ${acc.tenantId}`
+        }))
+      }
+    } else if (validAccounts.length === 0) {
+      throw new BadRequestException('No valid accounts found for user')
+    }
 
+    // 5 创建会话
+    const selectedAccount = validAccounts[0]
+    const sessionResult = await this.sessionService.createSession(
+      user.id,
+      selectedAccount.id,
+      deviceInfo
+    )
     this.logger.log(
       `User ${user.id} logged in successfully with session ${sessionResult.sessionId}`
     )
-
     return {
+      userId: user.id,
+      mfaRequired: false,
       accessToken: sessionResult.accessToken,
       refreshToken: sessionResult.refreshToken,
-      sessionId: sessionResult.sessionId,
-      userId: user.id,
-      requiresMfa: false
+      accountId: selectedAccount.id,
+      tenantId: selectedAccount.tenantId
     }
   }
 
   /**
-   * MFA 验证并完成登录
+   * MFA 验证后，再选择账户登录
    *
    * 使用场景：
    * - MFA 验证流程
@@ -118,36 +141,82 @@ export class AuthService {
    * @param deviceInfo 设备信息
    * @returns 登录结果
    */
-  async completeMfaLogin(
+  async loginAfterMfa(
     mfaTokenId: string,
     mfaCode: string,
     deviceInfo: DeviceInfo
-  ): Promise<{
-    accessToken: string
-    refreshToken: string
-    sessionId: string
-    userId: string
-  }> {
+  ): Promise<LoginResponseDto> {
     this.logger.log(`MFA verification for token ${mfaTokenId}`)
 
-    // 验证 MFA 代码
+    // 1 验证 MFA 代码
     const userId = await this.mfaService.verifyMfaCode(mfaTokenId, mfaCode)
     if (!userId) {
       throw new BadRequestException('Invalid MFA code')
     }
 
-    // 创建会话
-    const sessionResult = await this.sessionService.createSession(userId, deviceInfo)
+    // 2 检查是否为多账户
+    const accounts: AccountDto[] = await this.identityService.getAccountsByUserId(userId)
+    const validAccounts: AccountDto[] = accounts.filter((acc) => !acc.isEnable)
+    if (validAccounts.length > 1) {
+      this.logger.log(`User ${userId} has multiple accounts, prompting for selection`)
+      return {
+        multipleAccounts: true,
+        userId: userId,
+        accounts: accounts.map((acc) => ({
+          accountId: acc.id,
+          tenantId: acc.tenantId,
+          displayName: `${acc.userId} / ${acc.tenantId}`
+        }))
+      }
+    } else if (validAccounts.length === 0) {
+      throw new BadRequestException('No valid accounts found for user')
+    }
 
-    this.logger.log(
-      `MFA login completed for user ${userId} with session ${sessionResult.sessionId}`
+    // 3 创建会话
+    const selectedAccount = validAccounts[0]
+    const sessionResult = await this.sessionService.createSession(
+      userId,
+      selectedAccount.id,
+      deviceInfo
     )
-
+    this.logger.log(`User ${userId} logged in successfully with session ${sessionResult.sessionId}`)
     return {
+      userId: userId,
+      mfaRequired: false,
       accessToken: sessionResult.accessToken,
       refreshToken: sessionResult.refreshToken,
-      sessionId: sessionResult.sessionId,
-      userId
+      accountId: selectedAccount.id,
+      tenantId: selectedAccount.tenantId
+    }
+  }
+
+  async loginAfterAccountSelect(
+    userId: string,
+    accountId: string,
+    deviceInfo: DeviceInfo
+  ): Promise<LoginResponseDto> {
+    this.logger.log(`Account selection login for user ${userId}, account ${accountId}`)
+
+    // 1 检查用户有效性
+    const user = await this.identityService.getUserById(userId)
+    if (!user) throw new Error('User not found')
+
+    // 2 检查账户有效性
+    const account = await this.identityService.getAccountById(accountId)
+    if (!account || account.userId !== user.id || account.isEnable) {
+      throw new BadRequestException('Invalid account selection')
+    }
+
+    // 3 创建会话
+    const sessionResult = await this.sessionService.createSession(userId, account.id, deviceInfo)
+    this.logger.log(`User ${userId} logged in successfully with session ${sessionResult.sessionId}`)
+    return {
+      userId: userId,
+      mfaRequired: false,
+      accessToken: sessionResult.accessToken,
+      refreshToken: sessionResult.refreshToken,
+      accountId: account.id,
+      tenantId: account.tenantId
     }
   }
 
@@ -337,56 +406,8 @@ export class AuthService {
     } else {
       this.logger.error(`Admin kick device failed for session ${sessionId}`)
     }
-
     return result
   }
 
-  // ==================== 私有方法 ====================
-
-  /**
-   * 根据登录方式认证用户
-   *
-   * 使用场景：
-   * - 路由到正确的认证提供者
-   * - 统一认证接口
-   * - 错误处理
-   * - 日志记录
-   *
-   * @param method 登录方式
-   * @param dto 登录数据
-   * @returns 用户信息
-   */
-  private async authenticateUser(method: LoginMethodEnum, dto: any): Promise<any> {
-    let user
-
-    try {
-      switch (method) {
-        case LoginMethodEnum.EmailPassword:
-          user = await this.emailProvider.authenticate(dto)
-          break
-        case LoginMethodEnum.Google:
-          user = await this.googleProvider.authenticate(dto)
-          break
-        case LoginMethodEnum.Wechat:
-          user = await this.wechatProvider.authenticate(dto)
-          break
-        case LoginMethodEnum.EmailOtp:
-          user = await this.emailOtpProvider.authenticate(dto)
-          break
-        case LoginMethodEnum.PhoneOtp:
-          user = await this.phoneOtpProvider.authenticate(dto)
-          break
-        default:
-          throw new BadRequestException(`Unsupported login method: ${method}`)
-      }
-
-      this.logger.log(`User authenticated successfully with method: ${method}`)
-      return user
-    } catch (error) {
-      this.logger.warn(
-        `Authentication failed for method ${method}: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
-      throw error
-    }
-  }
+  // ================================= private helper functions ================================
 }

@@ -62,6 +62,7 @@ export class SessionService {
    */
   async createSession(
     userId: string,
+    accountId: string,
     deviceInfo: DeviceInfo,
     config?: Partial<SessionConfig>
   ): Promise<{ accessToken: string; refreshToken: string; sessionId: string }> {
@@ -86,6 +87,7 @@ export class SessionService {
     // 创建会话实体
     const session = Session.createSession({
       userId,
+      accountId,
       deviceInfo,
       config: sessionConfig
     })

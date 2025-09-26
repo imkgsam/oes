@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { SessionStatus } from '@oes/common/constants/enums/auth-service.enums'
+import { SessionStatus } from '@oes/common/constants/const/auth-service.const'
 
 // 设备信息接口
 export interface DeviceInfo {
@@ -44,6 +44,7 @@ export class Session {
     private props: {
       id: string
       userId: string
+      accountId: string
       accessToken: string
       refreshToken: string
       status: SessionStatus
@@ -75,19 +76,19 @@ export class Session {
    */
   static createSession(params: {
     userId: string
+    accountId: string
     deviceInfo: DeviceInfo
     config: SessionConfig
     metadata?: Record<string, any>
   }): Session {
     const now = new Date()
-    const accessTokenExpiry =
-      now.getTime() + params.config.accessTokenExpiry * 1000
-    const refreshTokenExpiry =
-      now.getTime() + params.config.refreshTokenExpiry * 1000
+    const accessTokenExpiry = now.getTime() + params.config.accessTokenExpiry * 1000
+    const refreshTokenExpiry = now.getTime() + params.config.refreshTokenExpiry * 1000
 
     return new Session({
       id: randomUUID(),
       userId: params.userId,
+      accountId: params.accountId,
       accessToken: randomUUID(),
       refreshToken: randomUUID(),
       status: SessionStatus.ACTIVE,
@@ -128,9 +129,7 @@ export class Session {
       metadata: data.metadata,
       isAdminControlled: data.isAdminControlled || false,
       adminRevokeReason: data.adminRevokeReason,
-      adminRevokeAt: data.adminRevokeAt
-        ? new Date(data.adminRevokeAt)
-        : undefined,
+      adminRevokeAt: data.adminRevokeAt ? new Date(data.adminRevokeAt) : undefined,
       adminRevokeBy: data.adminRevokeBy
     })
   }
@@ -181,9 +180,7 @@ export class Session {
    * @returns 是否有效
    */
   validateAccessToken(token: string): boolean {
-    return (
-      this.props.accessToken === token && this.isActive() && !this.isExpired()
-    )
+    return this.props.accessToken === token && this.isActive() && !this.isExpired()
   }
 
   /**
@@ -199,11 +196,7 @@ export class Session {
    * @returns 是否有效
    */
   validateRefreshToken(token: string): boolean {
-    return (
-      this.props.refreshToken === token &&
-      this.isActive() &&
-      !this.isRefreshExpired()
-    )
+    return this.props.refreshToken === token && this.isActive() && !this.isRefreshExpired()
   }
 
   // ==================== 状态检查方法 ====================
@@ -250,10 +243,7 @@ export class Session {
    * @returns 是否被撤销
    */
   isAdminRevoked(): boolean {
-    return (
-      this.props.status === SessionStatus.REVOKED &&
-      this.props.isAdminControlled
-    )
+    return this.props.status === SessionStatus.REVOKED && this.props.isAdminControlled
   }
 
   // ==================== 业务方法 ====================

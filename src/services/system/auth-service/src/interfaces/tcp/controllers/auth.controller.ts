@@ -10,12 +10,12 @@ import {
   PhoneOtpLoginRequestDto,
   GoogleLoginRequestDto,
   WechatLoginRequestDto
-} from '@oes/common/dtos/auth-service/api/rpc/all.dto'
+} from '@oes/common/dtos/auth-service/all.dto'
 import { LoginMethodEnum } from '@oes/common/constants/const/auth-service.const'
-import { IAuthServiceRpcAuthPort } from '@oes/common/interfaces/services/auth-service.interface'
+import { IAuthServiceRpcAuthContract } from '@oes/common/interfaces/services/auth-service/rpc.contract'
 
 @Controller()
-export class TcpAuthController implements IAuthServiceRpcAuthPort {
+export class TcpAuthController implements IAuthServiceRpcAuthContract {
   constructor(private readonly loginUsecase: LoginUsecase) {}
 
   @MessagePattern(AUTH_MESSAGES.LOGIN_WITH_EMAIL_PW)

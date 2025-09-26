@@ -1,34 +1,15 @@
-import { Permission, Role } from '../../dtos/permission-service/api/rpc/all.dto'
+import { Permission, Role } from '../../../dtos/permission-service/all.dto'
 
 /**
  * RPC 测试接口
  */
-export interface IPermissionServiceRpcTestPort {
+export interface IPermissionServiceRpcTestContract {
   testing(): Promise<void>
 }
 /**
  * RPC 接口
  */
-export interface IPermissionServiceRpcPort {}
-
-/**
- * HTTP 接口
- */
-export interface IPermissionServiceHttpPort {}
-
-/**
- * 汇总服务接口
- * 汇总服务接口不包含任何接口定义，只是为了方便管理所有的接口
- */
-export interface IPermissionServicePort
-  extends IPermissionServiceRpcPort,
-    IPermissionServiceHttpPort {
-  // =================以下的接口需要整理归类到所属的ports中 =================
-  /**
-   * 获取用户的所有权限
-   * @param userId 用户ID
-   * @returns 用户权限列表
-   */
+export interface IPermissionServiceRpcContract {
   getUserPermissions(userId: string): Promise<Permission[]>
 
   /**

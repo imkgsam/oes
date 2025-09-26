@@ -104,7 +104,8 @@ enum DeviceType {
 
 model UserSession {
   id            String     @id @default(uuid())
-  userId        String // 关联至identity 中的user
+  userId        String // 关联至identity中的user
+  accountId     String // 关联至identity中的Account
   loginMethodId String //登录方式，例如邮箱、手机、oauth
   deviceType    DeviceType
   deviceInfo    String? // JSON 格式的设备信息

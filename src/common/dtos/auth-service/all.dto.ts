@@ -1,5 +1,5 @@
 import { IsEmail, Length, IsPhoneNumber, IsNotEmpty } from 'class-validator'
-import { MfaType } from '../../../../constants/const/auth-service.const'
+import { MfaType } from '../../constants/const/auth-service.const'
 
 // ============================== 登录 LOGIN ==============================
 

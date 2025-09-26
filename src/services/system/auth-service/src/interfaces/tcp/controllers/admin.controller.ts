@@ -1,7 +1,7 @@
 import { Controller } from '@nestjs/common'
 import { MessagePattern, Payload } from '@nestjs/microservices'
-import { IAuthServiceRpcAdminPort } from '@oes/common/interfaces/services/auth-service.interface'
+import { IAuthServiceRpcAdminContract } from '@oes/common/interfaces/services/auth-service/rpc.contract'
 @Controller()
-export class TcpPermissionController implements IAuthServiceRpcAdminPort {
+export class TcpPermissionController implements IAuthServiceRpcAdminContract {
   constructor() {}
 }
