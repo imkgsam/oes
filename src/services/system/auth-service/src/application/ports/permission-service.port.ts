@@ -1,9 +1,8 @@
-import { IPermissionServicePort as IBasePermissionServicePort } from '@oes/common/interfaces/services/permission-service.interface'
+import { IPermissionServiceContract } from '@oes/common/interfaces/services/permission-service'
 
-type PermissionMethodsSelections =
-  | 'getUserPermissions'
+type PermissionMethodsSelections = 'getUserPermissions'
 /**
  * Permission Service 端口接口
  */
 export interface IPermissionServicePort
-  extends Pick<IBasePermissionServicePort, PermissionMethodsSelections> {}
+  extends Pick<IPermissionServiceContract, PermissionMethodsSelections> {}

@@ -1,13 +1,14 @@
-import { IIdentityServicePort as IBaseIdentityServicePort } from '@oes/common/interfaces/services/identity-service.interface'
+import { IIdentityServiceContract } from '@oes/common/interfaces/services/identity-service'
 
 type IdentityMethodsSelections =
   | 'getUserById'
   | 'getUserByEmail'
   | 'getUserByPhone'
   | 'getAccountsByUserId'
+  | 'getAccountById'
 
 /**
  * Identity Service 端口接口
  */
 export interface IIdentityServicePort
-  extends Pick<IBaseIdentityServicePort, IdentityMethodsSelections> {}
+  extends Pick<IIdentityServiceContract, IdentityMethodsSelections> {}

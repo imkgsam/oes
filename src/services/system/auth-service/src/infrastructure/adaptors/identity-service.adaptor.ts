@@ -1,17 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common'
-import {
-  UserInfo,
-  AccountInfo,
-  TenantInfo,
-  UserAccountRelation,
-  AccountTenantRelation,
-  AccountDto,
-  UserDto
-} from '@oes/common/dtos/identity-service/api/rpc/all.dto'
+import { UserDto, AccountDto } from '@oes/common/dtos/identity-service/all.dto'
 import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 import { IDENTITY_MESSAGES } from '@oes/common/constants/messages/identity.message'
-import { safeRpcCall } from '@oes/common/helpers/rpc.helper'
+import { safeRpcCall, safeRpcCall2 } from '@oes/common/helpers/rpc.helper'
 import { IIdentityServicePort } from '../../application/ports/identity-service.port'
 import { ClientProxy } from '@nestjs/microservices'
 
@@ -29,10 +21,15 @@ export class IdentityServiceAdaptor implements IIdentityServicePort {
     private readonly identityServiceClient: ClientProxy
   ) {}
 
+  async getAccountById(accountId: string): Promise<AccountDto | null> {
+    this.logger.debug(`Getting account by ID: ${accountId}`)
+    const response = await safeRpcCall2<>()
+  }
+
   async getUserById(userId: string): Promise<UserDto | null> {
     try {
       this.logger.debug(`Getting user by ID: ${userId}`)
-      const response = await safeRpcCall<UserInfo>(
+      const response = await safeRpcCall<UserDto>(
         this.identityServiceClient.send(IDENTITY_MESSAGES.GET_USER_BY_ID, { userId })
       )
       return response

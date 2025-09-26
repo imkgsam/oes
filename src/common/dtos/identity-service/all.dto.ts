@@ -1,4 +1,4 @@
-export interface UserDto {
+export class UserDto {
   id: string
   email?: string
   phone?: string
@@ -7,7 +7,7 @@ export interface UserDto {
   updatedAt: Date
 }
 
-export interface AccountDto {
+export class AccountDto {
   id: string
   userId: string
   tenantId: string
@@ -19,3 +19,6 @@ export interface AccountDto {
   createdAt: Date
   updatedAt: Date
 }
+
+
+export class 

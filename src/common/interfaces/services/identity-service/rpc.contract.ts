@@ -14,6 +14,7 @@ export interface IIdentityServiceRpcTestContract {
 
 export interface IIdentityServiceRpcAccountContract {
   getAccountsByUserId(userId: string): Promise<AccountDto[]>
+  getAccountById(accountId: string): Promise<AccountDto | null>
 }
 
 export interface IIdentityServiceRpcUserContract {
