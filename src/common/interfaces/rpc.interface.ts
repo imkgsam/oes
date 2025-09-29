@@ -16,9 +16,9 @@ export interface RpcResponse<T = unknown> {
 export interface RpcRequestMeta {
   traceId: string // 全局链路ID
   spanId: string // 当前spanID
-  parentSpanId: string // 父spanID
-  timestamp: string // 请求发起时间
-  caller: string // 调用方模块名
+  parentSpanId?: string // 父spanID
+  timestamp?: string // 请求发起时间
+  caller?: string // 调用方模块名
 }
 
 export interface ResponseMeta {

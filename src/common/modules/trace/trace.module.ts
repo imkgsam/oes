@@ -1,4 +1,4 @@
-// src/common/trace/trace.module.ts
+// File: src/common/modules/trace/trace.module.ts
 
 import { DynamicModule, Global, Module } from '@nestjs/common'
 import { APP_INTERCEPTOR } from '@nestjs/core'
@@ -17,8 +17,7 @@ export class TraceModule {
           provide: APP_INTERCEPTOR,
           useClass: HttpTraceInterceptor
         }
-      ],
-      exports: []
+      ]
     }
   }
 
@@ -30,8 +29,7 @@ export class TraceModule {
           provide: APP_INTERCEPTOR,
           useClass: RpcTraceInterceptor
         }
-      ],
-      exports: []
+      ]
     }
   }
 }

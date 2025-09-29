@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { AdminCreateUserDto } from 'src/application/dtos/admin-create-user.dto'
-import { AdminService } from 'src/application/services/account.service'
+import { AdminService } from 'src/application/services/admin.service'
 import { User } from 'src/domain/entities/credential.entity'
 
 @Injectable()

@@ -5,6 +5,7 @@ import { isRpcError, toRpcException } from './exception.helper'
 import { RpcRequest, RpcRequestMeta, RpcResponse } from '../interfaces/rpc.interface'
 import { ClientProxy } from '@nestjs/microservices'
 import { v4 as uuidv4 } from 'uuid'
+import { getTraceId } from '../modules/trace/trace-context'
 
 /**
  * 安全的 RPC 调用包装器
@@ -31,18 +32,16 @@ export async function safeRpcCall2<I, O>(
   client: ClientProxy,
   pattern: string,
   inputData: I,
-  requestMeta: RpcRequestMeta
+  requestMeta: Partial<RpcRequestMeta>
 ): Promise<RpcResponse<O>> {
-  const moduleName = process.env.MODULE_NAME || 'UNKNOWN_MODULE'
-
   try {
     const rpcRequest: RpcRequest<I> = {
       data: inputData,
       meta: {
-        ...requestMeta,
+        traceId: requestMeta?.caller || getTraceId() || uuidv4(),
         spanId: uuidv4(), // 服务端自动生成spanId
         timestamp: new Date().toISOString(), // 服务端自动生成 请求timestamp
-        caller: moduleName
+        caller: requestMeta?.caller || process.env.MODULE_NAME || 'UNKNOWN_MODULE'
       }
     }
     const response = await firstValueFrom(

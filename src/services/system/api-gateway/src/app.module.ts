@@ -9,9 +9,11 @@ import { IdentityServiceModule } from './modules/identity-service/identity-servi
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     CommonJwtModule,
+    // 链路追踪模块
+    TraceModule.forHttp(),
+    // 系统模块
     AuthServiceModule,
     PermissionServiceModule,
-    TraceModule.forHttp(),
     IdentityServiceModule
   ],
   controllers: [],

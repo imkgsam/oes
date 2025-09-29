@@ -61,8 +61,8 @@ model Account {
   id        String   @id @default(uuid()) // 账号 ID，如 "acc-001"
   userId    String // 系统全局用户 ID
   tenantId  String // 所属租户 ID
-  email     String?  @unique // 企业邮箱
-  phone     String?  @unique // 企业手机号
+  email     String? // 企业邮箱
+  phone     String? // 企业手机号
   isEnable  Boolean  @default(true) // 是否启用账号
   isAdmin   Boolean  @default(false) // 是否为租户管理员
   avatarUrl String?
@@ -72,5 +72,7 @@ model Account {
   Tenant Tenant? @relation(fields: [tenantId], references: [id])
   User   User    @relation(fields: [userId], references: [id])
 
+  @@unique([email, tenantId])
+  @@unique([phone, tenantId])
   @@schema("identity")
 }

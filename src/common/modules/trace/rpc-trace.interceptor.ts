@@ -1,25 +1,20 @@
-// src/common/trace/rpc-trace.interceptor.ts
-
+// File: src/common/modules/trace/http-trace.interceptor.ts
 import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common'
 import { Observable } from 'rxjs'
 import { v4 as uuidv4 } from 'uuid'
-import { traceStorage } from './trace-context'
+import { runWithTraceContext } from './trace-context'
+import { RpcRequest } from '../../interfaces/rpc.interface'
 
 @Injectable()
 export class RpcTraceInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const rpcCtx = context.switchToRpc()
-    const data = rpcCtx.getData()
-    const traceId = data?.traceId || uuidv4()
+    const data = rpcCtx.getData() as RpcRequest<any>
 
-    return new Observable((subscriber) => {
-      traceStorage.run({ traceId }, () => {
-        next.handle().subscribe({
-          next: (val) => subscriber.next(val),
-          error: (err) => subscriber.error(err),
-          complete: () => subscriber.complete()
-        })
-      })
-    })
+    const traceId = data?.meta?.traceId || uuidv4()
+    const parentSpanId = data?.meta?.spanId || undefined //如果调用方未传递，则未undefined
+    const spanId = uuidv4()
+
+    return runWithTraceContext({ traceId, spanId, parentSpanId }, () => next.handle())
   }
 }

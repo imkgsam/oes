@@ -20,5 +20,15 @@ export class AccountDto {
   updatedAt: Date
 }
 
-
-export class 
+export class UserIdRequestDto {
+  userId: string
+}
+export class AccountIdRequestDto {
+  accountId: string
+}
+export class EmailRequestDto {
+  email: string
+}
+export class PhoneRequestDto {
+  phone: string
+}

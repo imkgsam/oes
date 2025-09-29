@@ -1,3 +1,4 @@
+// File: src/common/interfaces/services/auth-service/rpc.contract.ts
 import {
   EmailOtpLoginRequestDto,
   EmailPasswordLoginRequestDto,

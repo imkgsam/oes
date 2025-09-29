@@ -1,3 +1,4 @@
+// File: src/services/system/auth-service/src/infrastructure/adaptors/identity-service.adaptor.ts
 import { Injectable, Logger } from '@nestjs/common'
 import { UserDto, AccountDto } from '@oes/common/dtos/identity-service/all.dto'
 import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
@@ -22,8 +23,15 @@ export class IdentityServiceAdaptor implements IIdentityServicePort {
   ) {}
 
   async getAccountById(accountId: string): Promise<AccountDto | null> {
-    this.logger.debug(`Getting account by ID: ${accountId}`)
-    const response = await safeRpcCall2<>()
+    this.logger.debug(
+      `requesting identity-service RPC: ==${IDENTITY_MESSAGES.GET_ACCOUNT_BY_ID}== \nID: ${accountId}`
+    )
+    const response = await safeRpcCall2<{ accountId: string }, AccountDto>(
+      this.identityServiceClient,
+      IDENTITY_MESSAGES.GET_ACCOUNT_BY_ID,
+      { accountId },
+      { traceId: '' }
+    )
   }
 
   async getUserById(userId: string): Promise<UserDto | null> {

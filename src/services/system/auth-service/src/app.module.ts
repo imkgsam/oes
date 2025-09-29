@@ -16,6 +16,7 @@ import { CommonJwtModule } from '@oes/common/modules/jwt/jwt.module'
       load: [tokenConfig, authKeyConfig] // 从common中加载配置
     }),
     CommonJwtModule,
+    // 链路追踪模块
     TraceModule.forRpc(),
     AuthModule,
     ClientModule.register([ServiceKeys.PERMI_TCP])

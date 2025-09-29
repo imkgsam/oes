@@ -2,7 +2,10 @@ import { Module } from '@nestjs/common'
 import { TraceModule } from '@oes/common/modules/trace/trace.module'
 
 @Module({
-  imports: [TraceModule.forRpc()],
+  imports: [
+    // 链路追踪模块
+    TraceModule.forRpc()
+  ],
   providers: [],
   controllers: []
 })
