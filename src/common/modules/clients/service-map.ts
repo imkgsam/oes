@@ -1,5 +1,5 @@
 //作用： 记录所有微服务的配置和客户端令牌
-
+// File:  src/common/modules/clients/service-map.ts
 import { IServiceEndpointConfig } from './client-factory'
 
 export const SERVICE_ENDPOINTS_CONFIG: Record<string, IServiceEndpointConfig> = {

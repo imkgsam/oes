@@ -5,6 +5,7 @@
     { "path": "./src/services/system/auth-service" },
     { "path": "./src/services/system/permission-service" },
     { "path": "./src/services/system/identity-service" },
+    { "path": "./src/services/business/resource-service" },
     { "path": "./src/services/business/erp-service" },
     { "path": "./src/services/business/mes-service" }
   ]

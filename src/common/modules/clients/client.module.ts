@@ -1,4 +1,4 @@
-// common/clients/client.module.ts
+// File: src/common/modules/clients/client.module.ts
 import { DynamicModule, Logger, Module, Provider } from '@nestjs/common'
 import { SERVICE_ENDPOINTS_CONFIG, SERVICE_CLIENT_TOKENS } from './service-map'
 import { getOrCreateClient } from './client-registry'

@@ -1,4 +1,5 @@
 // 作用: 管理微服务客户端连接的生命周期
+// File: src/common/modules/clients/lifecycle.hook.ts
 import { Injectable, OnApplicationShutdown } from '@nestjs/common'
 import { closeAllClients } from './connection-manager'
 

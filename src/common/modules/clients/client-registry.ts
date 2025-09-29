@@ -1,5 +1,5 @@
 // 作用: 创建和管理微服务客户端代理
-
+// Filed: src/common/modules/clients/client-registry.ts
 import { ClientProxy } from '@nestjs/microservices'
 import { createClient, IServiceEndpointConfig } from './client-factory'
 import { initManagedClient } from './connection-manager'

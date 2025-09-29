@@ -1,5 +1,5 @@
 //作用： 管理所有微服务连接
-
+// File: src/common/modules/clients/connection-manager.ts
 import { ClientProxy } from '@nestjs/microservices'
 import { Logger } from '@nestjs/common'
 

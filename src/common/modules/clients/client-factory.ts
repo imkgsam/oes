@@ -1,4 +1,5 @@
 // 工厂函数： 创建不同协议的客户端代理
+// File: src/common/modules/clients/client-factory.ts
 
 import { ClientProxy, ClientProxyFactory, Transport, ClientOptions } from '@nestjs/microservices'
 

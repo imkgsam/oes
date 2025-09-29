@@ -1,4 +1,5 @@
 // 装饰器注入微服务代理
+// File: src/common/modules/clients/client.decorator.ts
 import { Inject } from '@nestjs/common'
 import { SERVICE_CLIENT_TOKENS } from './service-map'
 
