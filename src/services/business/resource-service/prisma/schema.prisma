@@ -1,0 +1,12 @@
+//File: src/services/system/resource-service/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["resource"]
+}

@@ -1,12 +1,18 @@
 {
   "files": [],
   "references": [
+    // System Services
     { "path": "./src/services/system/api-gateway" },
     { "path": "./src/services/system/auth-service" },
     { "path": "./src/services/system/permission-service" },
     { "path": "./src/services/system/identity-service" },
+    // business services
     { "path": "./src/services/business/resource-service" },
+    { "path": "./src/services/business/asset-service" },
     { "path": "./src/services/business/erp-service" },
-    { "path": "./src/services/business/mes-service" }
+    { "path": "./src/services/business/mes-service" },
+    // auxiliary services
+    {"path":"./src/services/auxiliary/im-service"},
+    {"path":"./src/services/auxiliary/mailbox-service"},
   ]
 }

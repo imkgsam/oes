@@ -3,10 +3,22 @@
 import { IServiceEndpointConfig } from './client-factory'
 
 export const SERVICE_ENDPOINTS_CONFIG: Record<string, IServiceEndpointConfig> = {
-  MES_TCP: {
+  IM_TCP: {
     protocol: 'TCP',
-    serviceName: 'MES-SERVICE',
-    port: 11102,
+    serviceName: 'IM-SERVICE',
+    port: 11002,
+    host: 'localhost'
+  },
+  MAIL_TCP: {
+    protocol: 'TCP',
+    serviceName: 'MAIL-SERVICE',
+    port: 11302,
+    host: 'localhost'
+  },
+  ASSET_TCP: {
+    protocol: 'TCP',
+    serviceName: 'ASSET-SERVICE',
+    port: 11402,
     host: 'localhost'
   },
   ERP_TCP: {
@@ -15,22 +27,34 @@ export const SERVICE_ENDPOINTS_CONFIG: Record<string, IServiceEndpointConfig> = 
     port: 11202,
     host: 'localhost'
   },
+  MES_TCP: {
+    protocol: 'TCP',
+    serviceName: 'MES-SERVICE',
+    port: 11102,
+    host: 'localhost'
+  },
+  RESOURCE_TCP: {
+    protocol: 'TCP',
+    serviceName: 'RESOURCE-SERVICE',
+    port: 11502,
+    host: 'localhost'
+  },
   AUTH_TCP: {
     protocol: 'TCP',
     serviceName: 'AUTH-SERVICE',
     port: 9202,
     host: 'localhost'
   },
-  PERMI_TCP: {
-    protocol: 'TCP',
-    serviceName: 'PERMISSION-SERVICE',
-    port: 9302,
-    host: 'localhost'
-  },
   IDENT_TCP: {
     protocol: 'TCP',
     serviceName: 'IDENTITY-SERVICE',
     port: 9402,
+    host: 'localhost'
+  },
+  PERMI_TCP: {
+    protocol: 'TCP',
+    serviceName: 'PERMISSION-SERVICE',
+    port: 9302,
     host: 'localhost'
   }
 }
