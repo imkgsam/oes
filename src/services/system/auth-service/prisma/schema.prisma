@@ -11,7 +11,7 @@ datasource db {
 
 model LoginMethod {
   id         String          @id @default(uuid())
-  userId     String //关联至identity 中的user
+  partyId    String //关联至identity 中的party
   type       LoginMethodType
   identifier String //例子 testing@email.com
   verified   Boolean         @default(false)
@@ -104,7 +104,7 @@ enum DeviceType {
 
 model UserSession {
   id            String     @id @default(uuid())
-  userId        String // 关联至identity中的user
+  partyId       String // 关联至identity中的party
   accountId     String // 关联至identity中的Account
   loginMethodId String //登录方式，例如邮箱、手机、oauth
   deviceType    DeviceType
@@ -118,15 +118,15 @@ model UserSession {
   updatedAt     DateTime   @updatedAt
   expiresAt     DateTime //session 过期时间
 
-  @@index([userId, deviceType])
+  @@index([partyId, deviceType])
   @@index([refreshToken])
   @@schema("auth")
 }
 
-// 推迟实现： 多重因素认证
+// 推迟实现： 多重因素认证。 account级
 model MfaBinding {
   id         String   @id @default(uuid())
-  userId     String
+  accountId  String
   type       MfaType
   secret     String
   enabled    Boolean  @default(true)
@@ -135,7 +135,7 @@ model MfaBinding {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  @@unique([userId, type]) // 每个用户每种类型只能有一个绑定
+  @@unique([accountId, type]) // 每个账号每种类型只能有一个绑定
   @@schema("auth")
 }
 
@@ -148,5 +148,23 @@ enum MfaType {
   HARDWARE_TOKEN
   BIOMETRIC
 
+  @@schema("auth")
+}
+
+//账号， 一个租户下只有一个账号
+model Account {
+  id        String   @id @default(uuid()) // 账号 ID，如 "acc-001"
+  partyId   String // 关联identity中实体 ID， 对应实体
+  tenantId  String // 关联identity中租户 ID，所属商户
+  email     String? // 企业邮箱
+  phone     String? // 企业手机号
+  isEnable  Boolean  @default(true) // 是否启用账号
+  isAdmin   Boolean  @default(false) // 是否为租户管理员
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([email, tenantId])
+  @@unique([phone, tenantId])
   @@schema("auth")
 }

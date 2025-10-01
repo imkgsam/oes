@@ -9,10 +9,64 @@ datasource db {
   schemas  = ["identity"]
 }
 
+model Party {
+  id        String    @id @default(uuid()) // 实体 ID
+  type      PartyType // 实体类型，个人还是公司
+  legalname String // 实体法定名称
+  alias     String? // 实体别名
+  isActive  Boolean   @default(true) // 实体是否激活
+  userId    String? // 关联的用户 ID（如果是个人）
+
+  personInfo  PersonInfo?
+  companyInfo CompanyInfo?
+
+  user User? @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@schema("identity")
+}
+
+enum PartyType {
+  PERSON
+  COMPANY
+}
+
+model PersonInfo {
+  id             String    @id @default(uuid()) // 个人信息 ID
+  partyId        String    @unique // 关联的实体 ID
+  IDNumber       String?   @unique // 身份证号码
+  passportNumber String?   @unique // 护照号码
+  birthday       DateTime?
+  gender         Gender? // 性别
+
+  party Party @relation(fields: [partyId], references: [id])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model CompanyInfo {
+  id            String  @id @default(uuid()) // 公司信息 ID
+  partyId       String  @unique // 关联的实体 ID
+  industry      String? // 行业
+  size          String? // 公司规模
+  website       String? // 公司官网
+  licenseNumber String? @unique // 营业执照号码
+  taxID         String? @unique // 税务登记号码
+  country       String? // 注册国家
+
+  party Party @relation(fields: [partyId], references: [id])
+}
+
 model User {
   id        String   @id @default(uuid()) // 用户唯一 ID，例如 "usr_9d8f8a2f"
-  email     String?  @unique // 用户个人邮箱，例如 "alice@example.com"（可选）
-  phone     String?  @unique // 用户个人手机号，例如 "+8613800138000"（可选）
+  email     String?  @unique // 用户个人邮箱，例如 "alice@example.com"
+  phone     String?  @unique // 用户个人手机号，例如 "+8613800138000"
   fullname  String? // 用户姓名，例如 "Alice Zhang"
   createdAt DateTime @default(now()) // 创建时间
   updatedAt DateTime @updatedAt // 更新时间
@@ -56,23 +110,4 @@ model Org {
   @@schema("identity")
 }
 
-//账号， 一个租户下只有一个账号
-model Account {
-  id        String   @id @default(uuid()) // 账号 ID，如 "acc-001"
-  userId    String // 系统全局用户 ID
-  tenantId  String // 所属租户 ID
-  email     String? // 企业邮箱
-  phone     String? // 企业手机号
-  isEnable  Boolean  @default(true) // 是否启用账号
-  isAdmin   Boolean  @default(false) // 是否为租户管理员
-  avatarUrl String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  Tenant Tenant? @relation(fields: [tenantId], references: [id])
-  User   User    @relation(fields: [userId], references: [id])
-
-  @@unique([email, tenantId])
-  @@unique([phone, tenantId])
-  @@schema("identity")
-}
