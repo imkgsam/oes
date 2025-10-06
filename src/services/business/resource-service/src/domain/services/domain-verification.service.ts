@@ -1,12 +1,11 @@
 import { Domain } from '../aggregates/domain.aggregate'
 import { DomainRecord } from '../entities/domain-record.entity'
 import {
-  IDomainVerificationPort,
   IDomainChallengeGeneratorPort,
   DomainVerificationMethod,
   DomainVerificationChallenge
-} from '../ports'
-
+} from '../ports/domain-challenge-generator.port'
+import { IDomainVerificationPort } from '../ports/domain.ports'
 /**
  * 域名验证服务接口
  *

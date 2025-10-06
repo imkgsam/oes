@@ -28,4 +28,7 @@ export interface IAuthServiceRpcAuthContract {
 export interface IAuthServiceRpcAdminContract {}
 
 // RPC 接口
-export interface IAuthServiceRpcContract extends IAuthServiceRpcTestContract {}
+export interface IAuthServiceRpcContract
+  extends IAuthServiceRpcTestContract,
+    IAuthServiceRpcAuthContract,
+    IAuthServiceRpcAdminContract {}
