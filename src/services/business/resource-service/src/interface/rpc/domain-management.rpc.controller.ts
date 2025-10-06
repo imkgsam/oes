@@ -2,7 +2,7 @@ import { Controller } from '@nestjs/common'
 import { MessagePattern } from '@nestjs/microservices'
 import { DomainService } from '../../application/services/domain.service'
 import { DomainVerificationService } from '../../application/services/domain-verification.service'
-import { IDomainManagementRpcContract } from '@oes/common/interfaces/services/resource-service/rpc.contract'
+import { IResourceServiceRpcDomainContract } from '@oes/common/interfaces/services/resource-service/rpc.contract'
 import { RESOURCE_SERVICE_MESSAGES } from '@oes/common/constants/messages/resource-service.messages'
 import { RpcRequestData } from '@oes/common/decorators/rpc-request-data.decorator'
 import {
@@ -56,7 +56,7 @@ import {
  * 注意：这是域名管理模块的RPC控制器，不包含管理员功能
  */
 @Controller()
-export class DomainManagementRpcController implements IDomainManagementRpcContract {
+export class DomainManagementRpcController implements IResourceServiceRpcDomainContract {
   constructor(
     private readonly domainService: DomainService,
     private readonly domainVerificationService: DomainVerificationService
