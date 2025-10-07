@@ -6,7 +6,7 @@ import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 import { PermissionServiceService } from './permission-service.service'
 
 @Module({
-  imports: [ClientModule.register([ServiceKeys.PERMI_TCP])],
+  imports: [ClientModule.register([ServiceKeys.PERMISSION_TCP])],
   controllers: [PermissionController, RoleController],
   providers: [PermissionServiceService]
 })

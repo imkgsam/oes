@@ -4,7 +4,7 @@ import { ClientModule } from '@oes/common/modules/clients/client.module'
 
 @Module({
   imports: [
-    ClientModule.register([ServiceKeys.PERMI_TCP, ServiceKeys.AUTH_TCP, ServiceKeys.MES_TCP])
+    ClientModule.register([ServiceKeys.PERMISSION_TCP, ServiceKeys.AUTH_TCP, ServiceKeys.MES_TCP])
   ],
   controllers: [],
   providers: []

@@ -8,6 +8,6 @@ export interface IAuthKeyConfig {
 }
 
 export default registerAs(AuthKeyConfigName, () => ({
-  publicKeyPath: process.env.AUTH_PUBLIC_KEY_PATH,
-  privateKeyPath: process.env.AUTH_PRIVATE_KEY_PATH
+  publicKeyPath: process.env.AUTH_PUBLIC_KEY_PATH || 'keys/public.key',
+  privateKeyPath: process.env.AUTH_PRIVATE_KEY_PATH || 'keys/private.key'
 }))

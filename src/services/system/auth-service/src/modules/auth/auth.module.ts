@@ -9,7 +9,7 @@ import { USER_REPOSITORY } from 'src/common/const/injection-tokens'
 import { AuthService } from 'src/application/services/auth-service'
 
 @Module({
-  imports: [PrismaModule, ClientModule.register([ServiceKeys.PERMI_TCP])],
+  imports: [PrismaModule, ClientModule.register([ServiceKeys.PERMISSION_TCP])],
   providers: [{ provide: USER_REPOSITORY, useClass: PrismaUserRepository }, AuthService],
   controllers: [TcpAuthController, TcpTestController]
 })

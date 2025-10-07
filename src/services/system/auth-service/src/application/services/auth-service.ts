@@ -90,7 +90,9 @@ export class AuthService {
     }
 
     // 4 检查是否为多账户
-    const accounts: AccountDto[] = await this.identityService.getAccountsByUserId(user.id)
+    const accounts: AccountDto[] = await this.identityService.getAccountsByUserId({
+      userId: user.id
+    })
     const validAccounts: AccountDto[] = accounts.filter((acc) => !acc.isEnable)
     if (validAccounts.length > 1) {
       this.logger.log(`User ${user.id} has multiple accounts, prompting for selection`)
@@ -155,7 +157,9 @@ export class AuthService {
     }
 
     // 2 检查是否为多账户
-    const accounts: AccountDto[] = await this.identityService.getAccountsByUserId(userId)
+    const accounts: AccountDto[] = await this.identityService.getAccountsByUserId({
+      userId: userId
+    })
     const validAccounts: AccountDto[] = accounts.filter((acc) => !acc.isEnable)
     if (validAccounts.length > 1) {
       this.logger.log(`User ${userId} has multiple accounts, prompting for selection`)
@@ -198,11 +202,11 @@ export class AuthService {
     this.logger.log(`Account selection login for user ${userId}, account ${accountId}`)
 
     // 1 检查用户有效性
-    const user = await this.identityService.getUserById(userId)
+    const user = await this.identityService.getUserById({ userId: userId })
     if (!user) throw new Error('User not found')
 
     // 2 检查账户有效性
-    const account = await this.identityService.getAccountById(accountId)
+    const account = await this.identityService.getAccountById({ accountId: accountId })
     if (!account || account.userId !== user.id || account.isEnable) {
       throw new BadRequestException('Invalid account selection')
     }

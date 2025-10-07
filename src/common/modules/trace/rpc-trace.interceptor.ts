@@ -9,7 +9,7 @@ import { RpcRequest } from '../../interfaces/rpc.interface'
 export class RpcTraceInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const rpcCtx = context.switchToRpc()
-    const data = rpcCtx.getData() as RpcRequest<any>
+    const data: RpcRequest<any> = rpcCtx.getData()
 
     const traceId = data?.meta?.traceId || uuidv4()
     const parentSpanId = data?.meta?.spanId || undefined //如果调用方未传递，则未undefined
