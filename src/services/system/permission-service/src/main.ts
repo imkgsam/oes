@@ -9,8 +9,8 @@ async function bootstrap() {
   const microservice = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
     transport: Transport.TCP,
     options: {
-      host: SERVICE_ENDPOINTS_CONFIG.PERMI_TCP.host,
-      port: Number(SERVICE_ENDPOINTS_CONFIG.PERMI_TCP.port)
+      host: SERVICE_ENDPOINTS_CONFIG.PERMISSION_TCP.host,
+      port: Number(SERVICE_ENDPOINTS_CONFIG.PERMISSION_TCP.port)
     }
   })
   microservice.useGlobalPipes(new ValidationPipe())

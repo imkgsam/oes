@@ -11,7 +11,7 @@ datasource db {
 
 model Party {
   id        String    @id @default(uuid()) // 实体 ID
-  type      PartyType // 实体类型，个人还是公司
+  type      PartyType
   legalname String // 实体法定名称
   alias     String? // 实体别名
   isActive  Boolean   @default(true) // 实体是否激活
@@ -30,7 +30,7 @@ model Party {
 
 enum PartyType {
   PERSON
-  COMPANY
+  ORGANIZATION
 }
 
 model PersonInfo {
@@ -63,15 +63,20 @@ model CompanyInfo {
   party Party @relation(fields: [partyId], references: [id])
 }
 
-model User {
-  id        String   @id @default(uuid()) // 用户唯一 ID，例如 "usr_9d8f8a2f"
-  email     String?  @unique // 用户个人邮箱，例如 "alice@example.com"
-  phone     String?  @unique // 用户个人手机号，例如 "+8613800138000"
-  fullname  String? // 用户姓名，例如 "Alice Zhang"
-  createdAt DateTime @default(now()) // 创建时间
-  updatedAt DateTime @updatedAt // 更新时间
+model Account {
+  id        String   @id @default(uuid()) // 账号 ID，如 "acc-001"
+  partyId   String // 系统全局party ID
+  tenantId  String // 所属租户 ID
+  email     String?  @unique // 企业邮箱
+  phone     String?  @unique // 企业手机号
+  isEnable  Boolean  @default(true) // 是否启用账号
+  isAdmin   Boolean  @default(false) // 是否为租户管理员
+  avatarUrl String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  accounts Account[] // 一个用户可在多个租户中拥有账户
+  Tenant Tenant? @relation(fields: [tenantId], references: [id])
+  Party  Party   @relation(fields: [partyId], references: [id])
 
   @@schema("identity")
 }
@@ -109,5 +114,3 @@ model Org {
 
   @@schema("identity")
 }
-
-

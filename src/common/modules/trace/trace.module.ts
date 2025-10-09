@@ -10,6 +10,7 @@ import { RpcTraceInterceptor } from './rpc-trace.interceptor'
 @Module({})
 export class TraceModule {
   static forHttp(): DynamicModule {
+    console.log('TraceModule forHttp start running')
     return {
       module: TraceModule,
       providers: [
@@ -22,6 +23,7 @@ export class TraceModule {
   }
 
   static forRpc(): DynamicModule {
+    console.log('TraceModule forRpc start running')
     return {
       module: TraceModule,
       providers: [

@@ -45,13 +45,13 @@ export const SERVICE_ENDPOINTS_CONFIG: Record<string, IServiceEndpointConfig> = 
     port: 9202,
     host: 'localhost'
   },
-  IDENT_TCP: {
+  IDENTITY_TCP: {
     protocol: 'TCP',
     serviceName: 'IDENTITY-SERVICE',
     port: 9402,
     host: 'localhost'
   },
-  PERMI_TCP: {
+  PERMISSION_TCP: {
     protocol: 'TCP',
     serviceName: 'PERMISSION-SERVICE',
     port: 9302,

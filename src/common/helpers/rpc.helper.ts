@@ -32,7 +32,7 @@ export async function safeRpcCall2<I, O>(
   client: ClientProxy,
   pattern: string,
   inputData: I,
-  requestMeta: Partial<RpcRequestMeta>
+  requestMeta?: Partial<RpcRequestMeta>
 ): Promise<RpcResponse<O>> {
   try {
     const rpcRequest: RpcRequest<I> = {

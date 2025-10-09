@@ -13,6 +13,7 @@ import { HttpResponse } from '@oes/common/interfaces/http.interface'
 import { getTraceId } from '@oes/common/modules/trace/trace-context'
 import { GLOBAL_RUNTIME_ERRORS } from '@oes/common/constants/res-codes/runtime.errors'
 import { Request, Response } from 'express'
+import { v4 as uuidv4 } from 'uuid'
 
 @Catch()
 export class ApiGatewayExceptionsFilter implements ExceptionFilter {
@@ -53,12 +54,19 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
         this.moduleName,
         GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.subCode
       ),
-      traceId: getTraceId(),
       message: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message,
       messageKey: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.messageKey,
       details: null,
-      timestamp: new Date().toISOString(),
-      path
+      meta: {
+        path: path,
+        traceId: getTraceId(),
+        spanId: uuidv4(),
+        parentSpanId: 'root',
+        timestamp: new Date().toISOString(),
+        module: this.moduleName,
+        callTrace: [],
+        warnings: {}
+      }
     }
   }
 
@@ -74,8 +82,11 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
       defualtRes = {
         ...defualtRes,
         ...res,
-        timestamp: new Date().toISOString(),
-        path
+        meta: {
+          ...defualtRes.meta,
+          timestamp: new Date().toISOString(),
+          path: path
+        }
       }
     }
     return { statusCode, body: defualtRes }
@@ -92,15 +103,20 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
       defualtRes.message = error.message || defualtRes.message
       defualtRes.messageKey = error.messageKey || defualtRes.messageKey
       defualtRes.details = error.details || undefined
-      defualtRes.traceId = context.traceId || defualtRes.traceId
-      defualtRes.timestamp = context.timestamp || new Date().toISOString()
-      defualtRes.debugContext = {
-        callStack: context.callStack || [context.module],
-        isPropagated: context.isPropagated ?? true,
-        timestamp: context.timestamp || new Date().toISOString(),
-        module: context.module,
-        spanId: context.spanId
-      }
+      defualtRes.meta.traceId = context.traceId || defualtRes.meta.traceId
+      defualtRes.meta.timestamp = context.timestamp || new Date().toISOString()
+      // Convert callStack string array to CallTrace objects
+      defualtRes.meta.callTrace = (context.callStack || []).map((module, index) => ({
+        traceId: context.traceId || defualtRes.meta.traceId,
+        module: module,
+        spanId: `${context.spanId || defualtRes.meta.spanId}-${index}`,
+        parentSpanId:
+          index > 0 ? `${context.spanId || defualtRes.meta.spanId}-${index - 1}` : undefined,
+        startTime: context.timestamp || new Date().toISOString(),
+        endTime: new Date().toISOString()
+      }))
+      defualtRes.meta.module = context.module || defualtRes.meta.module
+      defualtRes.meta.spanId = context.spanId || defualtRes.meta.spanId
     } else {
       if (typeof exceptionError === 'string') defualtRes.message = exceptionError
       if (typeof exceptionError === 'object') defualtRes.details = exceptionError

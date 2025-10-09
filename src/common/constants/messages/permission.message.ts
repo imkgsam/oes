@@ -41,7 +41,7 @@ export const PERMISSION_MESSAGES = {
    * 使用场景：获取特定权限的详细信息
    * 参数：{ id: string }
    */
-  GET_PERMISSION: 'permission.get',
+  GET_PERMISSION_BY_ID: 'permission.get_by_id',
 
   /**
    * 根据代码获取权限
@@ -49,6 +49,8 @@ export const PERMISSION_MESSAGES = {
    * 参数：{ code: string }
    */
   GET_PERMISSION_BY_CODE: 'permission.get_by_code',
+
+  GET_PERMISSIONS_BY_MODULE: 'permission.get_by_module',
 
   // ==================== 角色相关消息 ====================
 
@@ -71,7 +73,7 @@ export const PERMISSION_MESSAGES = {
    * 使用场景：管理员删除角色
    * 参数：{ id: string }
    */
-  DELETE_ROLE: 'permission.role.delete',
+  DELETE_ROLE_BY_ID: 'permission.role.delete_by_id',
 
   /**
    * 获取角色列表
@@ -85,7 +87,7 @@ export const PERMISSION_MESSAGES = {
    * 使用场景：获取特定角色的详细信息
    * 参数：{ id: string }
    */
-  GET_ROLE: 'permission.role.get',
+  GET_ROLE_BY_ID: 'permission.role.get_by_id',
 
   /**
    * 根据代码获取角色

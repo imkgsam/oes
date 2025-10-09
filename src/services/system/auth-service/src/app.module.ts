@@ -19,7 +19,7 @@ import { CommonJwtModule } from '@oes/common/modules/jwt/jwt.module'
     // 链路追踪模块
     TraceModule.forRpc(),
     AuthModule,
-    ClientModule.register([ServiceKeys.PERMI_TCP])
+    ClientModule.register([ServiceKeys.PERMISSION_TCP])
   ],
   controllers: [],
   providers: []

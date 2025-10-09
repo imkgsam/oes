@@ -4,7 +4,7 @@ import { ClientProxy } from '@nestjs/microservices'
 import { Logger } from '@nestjs/common'
 
 const logger = new Logger('ClientManager')
-const MAX_RETRIES = 3
+const MAX_RETRIES = 5
 interface ManagedClient {
   id: string
   client: ClientProxy
@@ -21,7 +21,6 @@ export async function initManagedClient(id: string, client: ClientProxy) {
     connected: false,
     retries: 0
   }
-
   clients.set(id, managed)
   await tryConnect(managed)
 }

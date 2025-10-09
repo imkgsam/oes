@@ -11,7 +11,7 @@ import {
   PhoneOtpLoginRequestDto,
   WechatLoginRequestDto,
   PhonePasswordLoginRequestDto
-} from '@oes/common/dtos/auth-service/api/rpc/all.dto'
+} from '@oes/common/dtos/auth-service/all.dto'
 import { AUTH_MESSAGES } from '@oes/common/constants/messages/auth.message'
 
 @ApiTags('身份认证')
