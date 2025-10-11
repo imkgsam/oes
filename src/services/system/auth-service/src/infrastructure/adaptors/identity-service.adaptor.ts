@@ -1,6 +1,11 @@
 // File: src/services/system/auth-service/src/infrastructure/adaptors/identity-service.adaptor.ts
 import { Injectable, Logger } from '@nestjs/common'
-import { UserDto, AccountDto } from '@oes/common/dtos/identity-service/all.dto'
+import {
+  UserDto,
+  AccountDto,
+  AccountIdRequestDto,
+  UserIdRequestDto
+} from '@oes/common/dtos/identity-service/all.dto'
 import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 import { IDENTITY_MESSAGES } from '@oes/common/constants/messages/identity.message'
@@ -21,30 +26,8 @@ export class IdentityServiceAdaptor implements IIdentityServicePort {
     @InjectServiceClient(ServiceKeys.IDENTITY_TCP)
     private readonly identityServiceClient: ClientProxy
   ) {}
-
-  async getAccountById(accountId: string): Promise<AccountDto | null> {
-    this.logger.debug(
-      `requesting identity-service RPC: ==${IDENTITY_MESSAGES.GET_ACCOUNT_BY_ID}== \nID: ${accountId}`
-    )
-    const response = await safeRpcCall2<{ accountId: string }, AccountDto>(
-      this.identityServiceClient,
-      IDENTITY_MESSAGES.GET_ACCOUNT_BY_ID,
-      { accountId },
-      { traceId: '' }
-    )
-  }
-
-  async getUserById(userId: string): Promise<UserDto | null> {
-    try {
-      this.logger.debug(`Getting user by ID: ${userId}`)
-      const response = await safeRpcCall<UserDto>(
-        this.identityServiceClient.send(IDENTITY_MESSAGES.GET_USER_BY_ID, { userId })
-      )
-      return response
-    } catch (error) {
-      this.logger.error(`Failed to get user by ID: ${userId}`, error)
-      throw error
-    }
+  getUserById(data: UserIdRequestDto): Promise<UserDto | null> {
+    throw new Error('Method not implemented.')
   }
   getUserByEmail(email: string): Promise<UserDto | null> {
     throw new Error('Method not implemented.')
@@ -52,7 +35,44 @@ export class IdentityServiceAdaptor implements IIdentityServicePort {
   getUserByPhone(phone: string): Promise<UserDto | null> {
     throw new Error('Method not implemented.')
   }
-  getAccountsByUserId(userId: string): Promise<AccountDto[]> {
+  getAccountsByUserId(data: UserIdRequestDto): Promise<AccountDto[]> {
     throw new Error('Method not implemented.')
   }
+  getAccountById(data: AccountIdRequestDto): Promise<AccountDto | null> {
+    throw new Error('Method not implemented.')
+  }
+
+  // async getAccountById(accountId: string): Promise<AccountDto | null> {
+  //   this.logger.debug(
+  //     `requesting identity-service RPC: ==${IDENTITY_MESSAGES.GET_ACCOUNT_BY_ID}== \nID: ${accountId}`
+  //   )
+  //   const response = await safeRpcCall2<{ accountId: string }, AccountDto>(
+  //     this.identityServiceClient,
+  //     IDENTITY_MESSAGES.GET_ACCOUNT_BY_ID,
+  //     { accountId },
+  //     { traceId: '' }
+  //   )
+  // }
+
+  // async getUserById(userId: string): Promise<UserDto | null> {
+  //   try {
+  //     this.logger.debug(`Getting user by ID: ${userId}`)
+  //     const response = await safeRpcCall<UserDto>(
+  //       this.identityServiceClient.send(IDENTITY_MESSAGES.GET_USER_BY_ID, { userId })
+  //     )
+  //     return response
+  //   } catch (error) {
+  //     this.logger.error(`Failed to get user by ID: ${userId}`, error)
+  //     throw error
+  //   }
+  // }
+  // getUserByEmail(email: string): Promise<UserDto | null> {
+  //   throw new Error('Method not implemented.')
+  // }
+  // getUserByPhone(phone: string): Promise<UserDto | null> {
+  //   throw new Error('Method not implemented.')
+  // }
+  // getAccountsByUserId(userId: string): Promise<AccountDto[]> {
+  //   throw new Error('Method not implemented.')
+  // }
 }

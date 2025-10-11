@@ -356,55 +356,55 @@ export class MfaService {
    * @param email 邮箱地址
    * @returns Promise<{bindingId?, otpTokenId?, needsEmailVerification, message}> 绑定结果
    */
-  async startEmailMfaBinding(
-    userId: string,
-    email: string
-  ): Promise<{
-    bindingId?: string
-    otpTokenId?: string
-    needsEmailVerification: boolean
-    message: string
-  }> {
-    const existingBinding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.EMAIL_OTP)
-    if (existingBinding && existingBinding.isBindingActive()) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS)
-    }
+  // async startEmailMfaBinding(
+  //   userId: string,
+  //   email: string
+  // ): Promise<{
+  //   bindingId?: string
+  //   otpTokenId?: string
+  //   needsEmailVerification: boolean
+  //   message: string
+  // }> {
+  //   const existingBinding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.EMAIL_OTP)
+  //   if (existingBinding && existingBinding.isBindingActive()) {
+  //     throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS)
+  //   }
 
-    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('EMAIL', email)
-    const isEmailVerified = loginMethod?.isVerified() || false
+  //   const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('EMAIL', email)
+  //   const isEmailVerified = loginMethod?.isVerified() || false
 
-    if (isEmailVerified) {
-      const binding = MfaBindingEntity.createEmailOtpBinding(userId)
-      await this.mfaBindingRepo.save(binding)
+  //   if (isEmailVerified) {
+  //     const binding = MfaBindingEntity.createEmailOtpBinding(userId)
+  //     await this.mfaBindingRepo.save(binding)
 
-      return {
-        bindingId: binding.getId(),
-        needsEmailVerification: false,
-        message: '邮箱已验证，MFA 绑定已启用'
-      }
-    } else {
-      const otp = OneTimeToken.createMfaOtp({
-        type: OTP_TYPES.EMAIL,
-        identifier: email,
-        code: this.generateEmailCode(),
-        expiredAt: new Date(Date.now() + 5 * 60 * 1000)
-      })
+  //     return {
+  //       bindingId: binding.getId(),
+  //       needsEmailVerification: false,
+  //       message: '邮箱已验证，MFA 绑定已启用'
+  //     }
+  //   } else {
+  //     const otp = OneTimeToken.createMfaOtp({
+  //       type: OTP_TYPES.EMAIL,
+  //       identifier: email,
+  //       code: this.generateEmailCode(),
+  //       expiredAt: new Date(Date.now() + 5 * 60 * 1000)
+  //     })
 
-      await this.oneTimeTokenRepo.save(otp)
-      const sentCode = await this.emailService.sendEmailVerificationCode(email, otp.getProps().code)
-      // 在开发模式下，使用发送的验证码更新 OTP
-      if (this.isDevelopmentMode()) {
-        otp.updateCode(sentCode)
-        await this.oneTimeTokenRepo.save(otp)
-      }
+  //     await this.oneTimeTokenRepo.save(otp)
+  //     const sentCode = await this.emailService.sendEmailVerificationCode(email, otp.getProps().code)
+  //     // 在开发模式下，使用发送的验证码更新 OTP
+  //     if (this.isDevelopmentMode()) {
+  //       otp.updateCode(sentCode)
+  //       await this.oneTimeTokenRepo.save(otp)
+  //     }
 
-      return {
-        otpTokenId: otp.getProps().id,
-        needsEmailVerification: true,
-        message: '该邮箱尚未验证，请输入验证码以完成邮箱验证'
-      }
-    }
-  }
+  //     return {
+  //       otpTokenId: otp.getProps().id,
+  //       needsEmailVerification: true,
+  //       message: '该邮箱尚未验证，请输入验证码以完成邮箱验证'
+  //     }
+  //   }
+  // }
 
   /**
    * 验证邮箱验证码
@@ -429,42 +429,42 @@ export class MfaService {
    * @param inputCode 用户输入的验证码
    * @returns Promise<{success, bindingId?, message}> 验证结果
    */
-  async verifyEmailCode(
-    otpTokenId: string,
-    inputCode: string
-  ): Promise<{
-    success: boolean
-    bindingId?: string
-    message: string
-  }> {
-    const otp = await this.oneTimeTokenRepo.findById(otpTokenId)
-    if (!otp) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_INVALID)
-    }
+  // async verifyEmailCode(
+  //   otpTokenId: string,
+  //   inputCode: string
+  // ): Promise<{
+  //   success: boolean
+  //   bindingId?: string
+  //   message: string
+  // }> {
+  //   const otp = await this.oneTimeTokenRepo.findById(otpTokenId)
+  //   if (!otp) {
+  //     throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_INVALID)
+  //   }
 
-    const isValid = otp.verify(inputCode)
-    if (!isValid) {
-      return {
-        success: false,
-        message: '验证码错误，请重试'
-      }
-    }
+  //   const isValid = otp.verify(inputCode)
+  //   if (!isValid) {
+  //     return {
+  //       success: false,
+  //       message: '验证码错误，请重试'
+  //     }
+  //   }
 
-    const email = otp.getIdentifier()
-    await this.markEmailAsVerified(email)
+  //   const email = otp.getIdentifier()
+  //   await this.markEmailAsVerified(email)
 
-    const userId = await this.getUserIdByEmail(email)
-    const binding = MfaBindingEntity.createEmailOtpBinding(userId)
-    await this.mfaBindingRepo.save(binding)
+  //   const userId = await this.getUserIdByEmail(email)
+  //   const binding = MfaBindingEntity.createEmailOtpBinding(userId)
+  //   await this.mfaBindingRepo.save(binding)
 
-    await this.oneTimeTokenRepo.markUsed(otpTokenId)
+  //   await this.oneTimeTokenRepo.markUsed(otpTokenId)
 
-    return {
-      success: true,
-      bindingId: binding.getId(),
-      message: '邮箱验证成功，MFA 绑定已启用'
-    }
-  }
+  //   return {
+  //     success: true,
+  //     bindingId: binding.getId(),
+  //     message: '邮箱验证成功，MFA 绑定已启用'
+  //   }
+  // }
 
   // ==================== 手机验证码 MFA 绑定相关方法 ====================
 
@@ -492,55 +492,55 @@ export class MfaService {
    * @param phone 手机号
    * @returns Promise<{bindingId?, otpTokenId?, needsPhoneVerification, message}> 绑定结果
    */
-  async startSmsMfaBinding(
-    userId: string,
-    phone: string
-  ): Promise<{
-    bindingId?: string
-    otpTokenId?: string
-    needsPhoneVerification: boolean
-    message: string
-  }> {
-    const existingBinding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.SMS_OTP)
-    if (existingBinding && existingBinding.isBindingActive()) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS)
-    }
+  // async startSmsMfaBinding(
+  //   userId: string,
+  //   phone: string
+  // ): Promise<{
+  //   bindingId?: string
+  //   otpTokenId?: string
+  //   needsPhoneVerification: boolean
+  //   message: string
+  // }> {
+  //   const existingBinding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.SMS_OTP)
+  //   if (existingBinding && existingBinding.isBindingActive()) {
+  //     throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS)
+  //   }
 
-    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('PHONE', phone)
-    const isPhoneVerified = loginMethod?.isVerified() || false
+  //   const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('PHONE', phone)
+  //   const isPhoneVerified = loginMethod?.isVerified() || false
 
-    if (isPhoneVerified) {
-      const binding = MfaBindingEntity.createSmsOtpBinding(userId)
-      await this.mfaBindingRepo.save(binding)
+  //   if (isPhoneVerified) {
+  //     const binding = MfaBindingEntity.createSmsOtpBinding(userId)
+  //     await this.mfaBindingRepo.save(binding)
 
-      return {
-        bindingId: binding.getId(),
-        needsPhoneVerification: false,
-        message: '手机已验证，MFA 绑定已启用'
-      }
-    } else {
-      const otp = OneTimeToken.createMfaOtp({
-        type: OTP_TYPES.PHONE,
-        identifier: phone,
-        code: this.generateSmsCode(),
-        expiredAt: new Date(Date.now() + 5 * 60 * 1000)
-      })
+  //     return {
+  //       bindingId: binding.getId(),
+  //       needsPhoneVerification: false,
+  //       message: '手机已验证，MFA 绑定已启用'
+  //     }
+  //   } else {
+  //     const otp = OneTimeToken.createMfaOtp({
+  //       type: OTP_TYPES.PHONE,
+  //       identifier: phone,
+  //       code: this.generateSmsCode(),
+  //       expiredAt: new Date(Date.now() + 5 * 60 * 1000)
+  //     })
 
-      await this.oneTimeTokenRepo.save(otp)
-      const sentCode = await this.smsService.sendPhoneVerificationCode(phone, otp.getProps().code)
-      // 在开发模式下，使用发送的验证码更新 OTP
-      if (this.isDevelopmentMode()) {
-        otp.updateCode(sentCode)
-        await this.oneTimeTokenRepo.save(otp)
-      }
+  //     await this.oneTimeTokenRepo.save(otp)
+  //     const sentCode = await this.smsService.sendPhoneVerificationCode(phone, otp.getProps().code)
+  //     // 在开发模式下，使用发送的验证码更新 OTP
+  //     if (this.isDevelopmentMode()) {
+  //       otp.updateCode(sentCode)
+  //       await this.oneTimeTokenRepo.save(otp)
+  //     }
 
-      return {
-        otpTokenId: otp.getProps().id,
-        needsPhoneVerification: true,
-        message: '该手机号尚未验证，请输入验证码以完成手机验证'
-      }
-    }
-  }
+  //     return {
+  //       otpTokenId: otp.getProps().id,
+  //       needsPhoneVerification: true,
+  //       message: '该手机号尚未验证，请输入验证码以完成手机验证'
+  //     }
+  //   }
+  // }
 
   /**
    * 验证手机验证码
@@ -565,42 +565,42 @@ export class MfaService {
    * @param inputCode 用户输入的验证码
    * @returns Promise<{success, bindingId?, message}> 验证结果
    */
-  async verifySmsCode(
-    otpTokenId: string,
-    inputCode: string
-  ): Promise<{
-    success: boolean
-    bindingId?: string
-    message: string
-  }> {
-    const otp = await this.oneTimeTokenRepo.findById(otpTokenId)
-    if (!otp) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_INVALID)
-    }
+  // async verifySmsCode(
+  //   otpTokenId: string,
+  //   inputCode: string
+  // ): Promise<{
+  //   success: boolean
+  //   bindingId?: string
+  //   message: string
+  // }> {
+  //   const otp = await this.oneTimeTokenRepo.findById(otpTokenId)
+  //   if (!otp) {
+  //     throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_INVALID)
+  //   }
 
-    const isValid = otp.verify(inputCode)
-    if (!isValid) {
-      return {
-        success: false,
-        message: '验证码错误，请重试'
-      }
-    }
+  //   const isValid = otp.verify(inputCode)
+  //   if (!isValid) {
+  //     return {
+  //       success: false,
+  //       message: '验证码错误，请重试'
+  //     }
+  //   }
 
-    const phone = otp.getIdentifier()
-    await this.markPhoneAsVerified(phone)
+  //   const phone = otp.getIdentifier()
+  //   await this.markPhoneAsVerified(phone)
 
-    const userId = await this.getUserIdByPhone(phone)
-    const binding = MfaBindingEntity.createSmsOtpBinding(userId)
-    await this.mfaBindingRepo.save(binding)
+  //   const userId = await this.getUserIdByPhone(phone)
+  //   const binding = MfaBindingEntity.createSmsOtpBinding(userId)
+  //   await this.mfaBindingRepo.save(binding)
 
-    await this.oneTimeTokenRepo.markUsed(otpTokenId)
+  //   await this.oneTimeTokenRepo.markUsed(otpTokenId)
 
-    return {
-      success: true,
-      bindingId: binding.getId(),
-      message: '手机验证成功，MFA 绑定已启用'
-    }
-  }
+  //   return {
+  //     success: true,
+  //     bindingId: binding.getId(),
+  //     message: '手机验证成功，MFA 绑定已启用'
+  //   }
+  // }
 
   // ==================== 通用方法 ====================
 
@@ -843,48 +843,48 @@ export class MfaService {
    * @param email 邮箱地址
    * @returns Promise<void>
    */
-  private async markEmailAsVerified(email: string): Promise<void> {
-    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('EMAIL', email)
-    if (loginMethod) {
-      // 使用领域实体的方法
-      loginMethod.verify()
-      await this.loginMethodRepo.save(loginMethod)
-    }
-  }
+  // private async markEmailAsVerified(email: string): Promise<void> {
+  //   const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('EMAIL', email)
+  //   if (loginMethod) {
+  //     // 使用领域实体的方法
+  //     loginMethod.verify()
+  //     await this.loginMethodRepo.save(loginMethod)
+  //   }
+  // }
 
-  /**
-   * 标记手机号为已验证
-   *
-   * 功能：将用户的手机号标记为已验证状态
-   *
-   * 使用场景：
-   * - 手机验证码验证成功后标记手机号状态
-   * - 确保后续 MFA 绑定流程正常进行
-   *
-   * @param phone 手机号
-   * @returns Promise<void>
-   */
-  private async markPhoneAsVerified(phone: string): Promise<void> {
-    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('PHONE', phone)
-    if (loginMethod) {
-      // 使用领域实体的方法
-      loginMethod.verify()
-      await this.loginMethodRepo.save(loginMethod)
-    }
-  }
+  // /**
+  //  * 标记手机号为已验证
+  //  *
+  //  * 功能：将用户的手机号标记为已验证状态
+  //  *
+  //  * 使用场景：
+  //  * - 手机验证码验证成功后标记手机号状态
+  //  * - 确保后续 MFA 绑定流程正常进行
+  //  *
+  //  * @param phone 手机号
+  //  * @returns Promise<void>
+  //  */
+  // private async markPhoneAsVerified(phone: string): Promise<void> {
+  //   const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('PHONE', phone)
+  //   if (loginMethod) {
+  //     // 使用领域实体的方法
+  //     loginMethod.verify()
+  //     await this.loginMethodRepo.save(loginMethod)
+  //   }
+  // }
 
-  /**
-   * 根据邮箱获取用户ID
-   *
-   * 功能：通过邮箱地址查找对应的用户ID
-   *
-   * 使用场景：
-   * - 邮箱验证成功后获取用户ID进行 MFA 绑定
-   * - 邮箱相关的用户操作
-   *
-   * @param email 邮箱地址
-   * @returns Promise<string> 用户ID
-   */
+  // /**
+  //  * 根据邮箱获取用户ID
+  //  *
+  //  * 功能：通过邮箱地址查找对应的用户ID
+  //  *
+  //  * 使用场景：
+  //  * - 邮箱验证成功后获取用户ID进行 MFA 绑定
+  //  * - 邮箱相关的用户操作
+  //  *
+  //  * @param email 邮箱地址
+  //  * @returns Promise<string> 用户ID
+  //  */
   private async getUserIdByEmail(email: string): Promise<string> {
     const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('EMAIL', email)
     if (!loginMethod) {
@@ -893,23 +893,23 @@ export class MfaService {
     return loginMethod.userId
   }
 
-  /**
-   * 根据手机号获取用户ID
-   *
-   * 功能：通过手机号查找对应的用户ID
-   *
-   * 使用场景：
-   * - 手机验证成功后获取用户ID进行 MFA 绑定
-   * - 手机号相关的用户操作
-   *
-   * @param phone 手机号
-   * @returns Promise<string> 用户ID
-   */
-  private async getUserIdByPhone(phone: string): Promise<string> {
-    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('PHONE', phone)
-    if (!loginMethod) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
-    }
-    return loginMethod.userId
-  }
+  // /**
+  //  * 根据手机号获取用户ID
+  //  *
+  //  * 功能：通过手机号查找对应的用户ID
+  //  *
+  //  * 使用场景：
+  //  * - 手机验证成功后获取用户ID进行 MFA 绑定
+  //  * - 手机号相关的用户操作
+  //  *
+  //  * @param phone 手机号
+  //  * @returns Promise<string> 用户ID
+  //  */
+  // private async getUserIdByPhone(phone: string): Promise<string> {
+  //   const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('PHONE', phone)
+  //   if (!loginMethod) {
+  //     throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
+  //   }
+  //   return loginMethod.userId
+  // }
 }

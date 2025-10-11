@@ -23,18 +23,14 @@ export class ScopeControllGuard implements CanActivate {
     let resourceId: string | undefined
     const data = context.switchToRpc().getData()
     userId = data.user?.id
-    if (resourceParam && data?.[resourceParam])
-      resourceId = data?.[resourceParam]
+    if (resourceParam && data?.[resourceParam]) resourceId = data?.[resourceParam]
     if (!userId) return false
     const hasPermission = await safeRpcCall(
-      this.permissionServiceClient.send<boolean>(
-        PERMISSION_MESSAGES.CHECK_USER_PERMISSION,
-        {
-          userId,
-          permissionCode: permission,
-          resourceId
-        }
-      )
+      this.permissionServiceClient.send<boolean>(PERMISSION_MESSAGES.CHECK_USER_PERMISSION, {
+        userId,
+        permissionCode: permission,
+        resourceId
+      })
     )
     return hasPermission === true
   }

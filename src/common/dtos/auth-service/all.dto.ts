@@ -1,4 +1,4 @@
-import { IsEmail, Length, IsPhoneNumber, IsNotEmpty } from 'class-validator'
+import { IsEmail, Length, IsPhoneNumber, IsNotEmpty, IsString, IsNumber } from 'class-validator'
 import { MfaType } from '../../constants/const/auth-service.const'
 
 // ============================== 登录 LOGIN ==============================
@@ -76,4 +76,20 @@ interface LoginResponseDto_MultipleAccounts {
     tenantId: string
     displayName?: string // 账号显示名,用于用于区分不同账号
   }>
+}
+
+// ============================== 测试 TEST ==============================
+
+export class TestingWithParamsRequestDto {
+  @IsNotEmpty()
+  @IsString()
+  name: string
+  @IsNotEmpty()
+  @IsNumber()
+  age: number
+}
+
+export class TestingWithParamsResponseDto {
+  result: number
+  msg: string
 }

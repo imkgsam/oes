@@ -6,15 +6,20 @@ import {
   LoginResponseDto,
   PhoneOtpLoginRequestDto,
   PhonePasswordLoginRequestDto,
-  WechatLoginRequestDto
+  WechatLoginRequestDto,
+
+  // 测试 TEST
+  TestingWithParamsRequestDto,
+  TestingWithParamsResponseDto
 } from '../../../dtos/auth-service/all.dto'
 
 // RPC 测试接口
 export interface IAuthServiceRpcTestContract {
   testing(): Promise<any>
+  testingWithParams(dto: TestingWithParamsRequestDto): Promise<TestingWithParamsResponseDto>
 }
 
-// PRC AUTH 接口
+// RPC AUTH 接口
 export interface IAuthServiceRpcAuthContract {
   loginWithEmailPassword(data: EmailPasswordLoginRequestDto): Promise<LoginResponseDto>
   loginWithPhonePassword(data: PhonePasswordLoginRequestDto): Promise<LoginResponseDto>

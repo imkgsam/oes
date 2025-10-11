@@ -37,7 +37,8 @@ export default tseslint.config(
       '@typescript-eslint/no-base-to-string': 'off',
       'comma-dangle': ['error', 'never'], // 禁止结尾逗号
       '@typescript-eslint/no-empty-object-type': 'off',
-      '@typescript-eslint/prefer-promise-reject-errors': 'off' // 添加这行
+      '@typescript-eslint/prefer-promise-reject-errors': 'off', // 添加这行
+      'no-unused-vars': 'off'
     }
   }
 )

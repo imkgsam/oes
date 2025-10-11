@@ -31,7 +31,7 @@ export async function safeRpcCall<T>(rpcCall: Promise<T> | Observable<T>): Promi
 export async function safeRpcCall2<I, O>(
   client: ClientProxy,
   pattern: string,
-  inputData: I,
+  inputData?: I,
   requestMeta?: Partial<RpcRequestMeta>
 ): Promise<RpcResponse<O>> {
   try {

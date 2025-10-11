@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Permission, Role } from '@oes/common/dtos/permission-service/api/rpc/all.dto'
+import { Permission, Role } from '@oes/common/dtos/permission-service/all.dto'
 import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'

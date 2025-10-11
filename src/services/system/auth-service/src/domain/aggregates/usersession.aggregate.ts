@@ -118,6 +118,7 @@ export class Session {
     return new Session({
       id: data.id,
       userId: data.userId,
+      accountId: data.accountId,
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
       status: data.status as SessionStatus,

@@ -231,5 +231,6 @@ export const AUTH_MESSAGES = {
   LIST_LOGINMETHODS: 'auth.list_loginmethods',
   LIST_CREDENTIALS: 'auth.list_credentials',
   LIST_OTPS: 'auth.list_otps',
-  TESTING: 'auth.testing'
+  TESTING: 'auth.testing',
+  TESTING_WITH_PARAMS: 'auth.testing_with_params'
 }
