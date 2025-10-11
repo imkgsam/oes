@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Inject } from '@nestjs/common'
 import { MfaBindingEntity } from '../../domain/aggregates/mfabinding.aggregate'
 import { IMfaBindingRepository } from '../../domain/repositories/mfaBinding.repository'
 import { IOtpRepository } from '../../domain/repositories/otp.repository'
@@ -7,8 +7,13 @@ import { EmailService } from '../../infrastructure/services/email.service'
 import { SmsService } from '../../infrastructure/services/sms.service'
 import { createBusinessException } from '@oes/common/exceptions/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
-import { OTP_TYPES, MfaType } from '@oes/common/constants/const/auth-service.const'
+import { OTP_TYPES, MfaType, LoginMethodType } from '@oes/common/constants/const/auth-service.const'
 import { OneTimeToken } from '../../domain/aggregates/otp.aggregate'
+import {
+  MFA_BINDING_REPOSITORY,
+  OTP_REPOSITORY,
+  USER_REPOSITORY
+} from 'src/common/const/injection-tokens'
 
 /**
  * MFA (Multi-Factor Authentication) 服务
@@ -26,8 +31,11 @@ import { OneTimeToken } from '../../domain/aggregates/otp.aggregate'
 @Injectable()
 export class MfaService {
   constructor(
+    @Inject(MFA_BINDING_REPOSITORY)
     private readonly mfaBindingRepo: IMfaBindingRepository,
+    @Inject(OTP_REPOSITORY)
     private readonly oneTimeTokenRepo: IOtpRepository,
+    @Inject(USER_REPOSITORY)
     private readonly loginMethodRepo: ILoginMethodRepository,
     private readonly emailService: EmailService,
     private readonly smsService: SmsService
@@ -886,7 +894,10 @@ export class MfaService {
   //  * @returns Promise<string> 用户ID
   //  */
   private async getUserIdByEmail(email: string): Promise<string> {
-    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('EMAIL', email)
+    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier(
+      LoginMethodType.EMAIL,
+      email
+    )
     if (!loginMethod) {
       throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
     }
@@ -905,11 +916,14 @@ export class MfaService {
   //  * @param phone 手机号
   //  * @returns Promise<string> 用户ID
   //  */
-  // private async getUserIdByPhone(phone: string): Promise<string> {
-  //   const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier('PHONE', phone)
-  //   if (!loginMethod) {
-  //     throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
-  //   }
-  //   return loginMethod.userId
-  // }
+  private async getUserIdByPhone(phone: string): Promise<string> {
+    const loginMethod = await this.loginMethodRepo.findByTypeAndIdentifier(
+      LoginMethodType.PHONE,
+      phone
+    )
+    if (!loginMethod) {
+      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
+    }
+    return loginMethod.userId
+  }
 }

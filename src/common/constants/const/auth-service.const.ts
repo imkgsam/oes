@@ -10,6 +10,12 @@ export enum OTP_TYPES {
   PHONE = 'PHONE'
 }
 
+export enum LoginMethodType {
+  EMAIL = 'EMAIL',
+  PHONE = 'PHONE',
+  OAUTH_OPENID = 'OAUTH_OPENID'
+}
+
 export enum MfaType {
   // 时间动态密码，典型 MFA 方式
   TOTP = 'TOTP',

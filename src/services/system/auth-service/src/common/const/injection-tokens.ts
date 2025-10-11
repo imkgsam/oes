@@ -21,6 +21,7 @@ export const USER_REPOSITORY = 'IUserRepository'
 export const SESSION_SERVICE = 'SessionService'
 export const MFA_SERVICE = 'MfaService'
 export const AUTH_SERVICE = 'AuthService'
+export const HASHING_SERVICE = 'HashingService'
 
 // Configuration Tokens
 export const TOKEN_CONFIG = 'TokenConfig'

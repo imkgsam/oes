@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { LoginMethodType } from '@oes/common/constants/const/auth-service.const'
 import { LoginMethod } from 'src/domain/aggregates/loginmethod.aggregate'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
@@ -9,6 +10,23 @@ export class PrismaUserRepository implements ILoginMethodRepository {
 
   // ==================== 查询方法 ====================
 
+  /**
+   * 根据类型和标识符查找登录方法
+   * @param type 登录类型
+   * @param identifier 标识符（邮箱、手机号等）
+   * @returns Promise<LoginMethod | null>
+   */
+  async findByTypeAndIdentifier(
+    type: LoginMethodType,
+    identifier: string
+  ): Promise<LoginMethod | null> {
+    const found = await this.prismaService.loginMethod.findFirst({
+      where: { type: type, identifier, enabled: true, verified: true },
+      include: { credentials: true }
+    })
+    if (!found) return null
+    return LoginMethod.fromPrisma(found)
+  }
   /**
    * 根据 ID 查找登录方法
    * @param id 登录方法 ID

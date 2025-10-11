@@ -1,3 +1,4 @@
+import { LoginMethodType } from '@oes/common/constants/const/auth-service.const'
 import { LoginMethod } from '../aggregates/loginmethod.aggregate'
 
 export interface ILoginMethodRepository {
@@ -31,6 +32,8 @@ export interface ILoginMethodRepository {
    * @returns Promise<LoginMethod | null>
    */
   findByUserIdAndType(userId: string, type: string): Promise<LoginMethod | null>
+
+  findByTypeAndIdentifier(type: LoginMethodType, identifier: string): Promise<LoginMethod | null>
 
   // ==================== 保存方法 ====================
 

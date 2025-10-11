@@ -1,15 +1,18 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Inject } from '@nestjs/common'
 import { EmailPasswordLoginRequestDto } from '@oes/common/dtos/auth-service/all.dto'
 import { AuthStrategyPort } from 'src/domain/ports/auth-strategy.port'
 import { LoginMethodEnum } from '@oes/common/constants/const/auth-service.const'
 import { HashingPort } from 'src/domain/ports/hashing.port'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
 import { LoginMethodType } from 'prisma/generated/prisma'
+import { USER_REPOSITORY, HASHING_SERVICE } from 'src/common/const/injection-tokens'
 
 @Injectable()
 export class EmailPasswordStrategy implements AuthStrategyPort<EmailPasswordLoginRequestDto> {
   constructor(
+    @Inject(USER_REPOSITORY)
     private readonly loginMethodRepo: ILoginMethodRepository,
+    @Inject(HASHING_SERVICE)
     private readonly passwordHasher: HashingPort
   ) {}
 

@@ -1,8 +1,8 @@
 import {
   LoginMethod as PrismaLoginMethod,
-  Credential as PrismaCredential,
-  LoginMethodType
+  Credential as PrismaCredential
 } from 'prisma/generated/prisma'
+import { LoginMethodType } from '@oes/common/constants/const/auth-service.const'
 import { Credential } from '../entities/credential.entity'
 
 export class LoginMethod {
@@ -29,7 +29,7 @@ export class LoginMethod {
     return new LoginMethod(
       prismaLoginMethod.id,
       prismaLoginMethod.userId,
-      prismaLoginMethod.type,
+      prismaLoginMethod.type as LoginMethodType,
       prismaLoginMethod.identifier,
       prismaLoginMethod.verified,
       prismaLoginMethod.enabled,

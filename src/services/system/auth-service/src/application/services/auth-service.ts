@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common'
+import { BadRequestException, Injectable, Logger, Inject } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { CommonJwtService } from '@oes/common/modules/jwt/jwt.service'
 import { LoginMethodEnum } from '@oes/common/constants/const/auth-service.const'
@@ -9,6 +9,7 @@ import { AuthStrategyFactory } from 'src/domain/services/strategies/auth-strateg
 import { IIdentityServicePort } from '../ports'
 import { LoginResponseDto } from '@oes/common/dtos/auth-service/all.dto'
 import { AccountDto } from '@oes/common/dtos/identity-service/all.dto'
+import { IDENTITY_SERVICE } from '@oes/common/constants/service.symbols'
 
 /**
  * 认证服务
@@ -41,6 +42,7 @@ export class AuthService {
     private readonly sessionService: SessionService,
     private readonly mfaService: MfaService,
     private readonly configService: ConfigService,
+    @Inject(IDENTITY_SERVICE)
     private readonly identityService: IIdentityServicePort
   ) {}
 
