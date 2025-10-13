@@ -18,5 +18,11 @@ export const GLOBAL_RUNTIME_ERRORS: Record<string, RawError> = {
     message: '环境变量未设置',
     messageKey: 'runtime.env_variable_not_set',
     httpStatus: 500
+  },
+  VALIDATION_ERROR: {
+    subCode: '0004',
+    message: '数据验证失败',
+    messageKey: 'runtime.validation_error',
+    httpStatus: 400
   }
 }

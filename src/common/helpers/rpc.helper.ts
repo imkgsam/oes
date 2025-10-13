@@ -6,6 +6,7 @@ import { RpcRequest, RpcRequestMeta, RpcResponse } from '../interfaces/rpc.inter
 import { ClientProxy } from '@nestjs/microservices'
 import { v4 as uuidv4 } from 'uuid'
 import { getTraceId } from '../modules/trace/trace-context'
+import { envConfig } from './env.helper'
 
 /**
  * 安全的 RPC 调用包装器
@@ -38,10 +39,12 @@ export async function safeRpcCall2<I, O>(
     const rpcRequest: RpcRequest<I> = {
       data: inputData,
       meta: {
-        traceId: requestMeta?.caller || getTraceId() || uuidv4(),
+        traceId: requestMeta?.traceId || getTraceId() || uuidv4(),
         spanId: uuidv4(), // 服务端自动生成spanId
         timestamp: new Date().toISOString(), // 服务端自动生成 请求timestamp
-        caller: requestMeta?.caller || process.env.MODULE_NAME || 'UNKNOWN_MODULE'
+        caller: requestMeta?.caller || process.env.MODULE_NAME || 'UNKNOWN_MODULE',
+        // 只在开发/测试环境中传递 pattern 信息
+        ...(envConfig.showRpcPattern && { pattern })
       }
     }
     const response = await firstValueFrom(

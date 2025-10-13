@@ -11,6 +11,8 @@ HttpModule, // 导入HTTP模块
 })
 export class AppModule {}
 
+---
+
 // 任何服务中
 import { Injectable } from '@nestjs/common'
 import { HttpServiceFactory } from '@oes/common/modules/http/http.service'
@@ -21,6 +23,8 @@ constructor(
 private readonly httpFactory: HttpServiceFactory // 注入工厂
 ) {}
 }
+
+---
 
 @Injectable()
 export class ExternalApiService {

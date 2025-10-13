@@ -11,10 +11,7 @@ import { IDENTITY_MESSAGES } from '@oes/common/constants/messages/identity.messa
 import { RpcRequestData } from '@oes/common/decorators/rpc-request-data.decorator'
 @Injectable()
 export class AccountController implements IIdentityServiceRpcAccountContract {
-  constructor(
-    private readonly accountService: IAccountService 
-  ) {}
-
+  constructor() {}
 
   @MessagePattern(IDENTITY_MESSAGES.GET_ACCOUNT_BY_ID)
   getAccountById(@RpcRequestData() data: AccountIdRequestDto): Promise<AccountDto | null> {

@@ -19,6 +19,7 @@ export interface RpcRequestMeta {
   parentSpanId?: string // 父spanID
   timestamp?: string // 请求发起时间
   caller?: string // 调用方模块名
+  pattern?: string // RPC 调用模式，用于测试环境调试
 }
 
 export interface ResponseMeta {
@@ -49,6 +50,7 @@ export interface CallTrace {
   parentSpanId?: string
   startTime: string
   endTime: string
+  pattern?: string // 在测试环境中显示 RPC 调用的模式/路径
 }
 
 export type RpcModuleErrors = Record<string, RawError>

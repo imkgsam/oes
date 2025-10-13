@@ -14,6 +14,7 @@ import { getTraceId } from '@oes/common/modules/trace/trace-context'
 import { GLOBAL_RUNTIME_ERRORS } from '@oes/common/constants/res-codes/runtime.errors'
 import { Request, Response } from 'express'
 import { v4 as uuidv4 } from 'uuid'
+import { envConfig } from '@oes/common/helpers/env.helper'
 
 @Catch()
 export class ApiGatewayExceptionsFilter implements ExceptionFilter {
@@ -113,9 +114,14 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
         parentSpanId:
           index > 0 ? `${context.spanId || defualtRes.meta.spanId}-${index - 1}` : undefined,
         startTime: context.timestamp || new Date().toISOString(),
-        endTime: new Date().toISOString()
+        endTime: new Date().toISOString(),
+        // 在开发环境中添加 pattern 信息
+        ...(envConfig.showRpcPattern && {
+          pattern: (error.details as { rpcPattern?: string })?.rpcPattern
+        })
       }))
-      defualtRes.meta.module = context.module || defualtRes.meta.module
+      // 保持 API Gateway 的模块名，不覆盖为下游服务的模块名
+      // defualtRes.meta.module = context.module || defualtRes.meta.module
       defualtRes.meta.spanId = context.spanId || defualtRes.meta.spanId
     } else {
       if (typeof exceptionError === 'string') defualtRes.message = exceptionError

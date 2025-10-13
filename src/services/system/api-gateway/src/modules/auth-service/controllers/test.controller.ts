@@ -1,35 +1,35 @@
-import { Controller, Get } from '@nestjs/common'
+import { Body, Controller, Get, Post } from '@nestjs/common'
 import { ClientProxy } from '@nestjs/microservices'
 import { AUTH_MESSAGES } from '@oes/common/constants/messages/auth.message'
-import { TestingWithParamsRequestDto } from '@oes/common/dtos/auth-service/all.dto'
+import {
+  TestingWithParamsRequestDto,
+  TestingWithParamsResponseDto
+} from '@oes/common/dtos/auth-service/all.dto'
 import { safeRpcCall2 } from '@oes/common/helpers/rpc.helper'
 import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 
-@Controller('auth/test')
+@Controller('test')
 export class TestController {
   constructor(
     @InjectServiceClient(ServiceKeys.AUTH_TCP)
     private readonly authClient: ClientProxy
   ) {}
 
-  @Get('testing')
+  @Get('1')
   async test() {
-    interface testRt {
-      result: number
-      msg: string
-    }
-    const k = await safeRpcCall2<any, testRt>(this.authClient, AUTH_MESSAGES.TESTING, {})
-    return k.data.result
+    const k = await safeRpcCall2(this.authClient, AUTH_MESSAGES.TESTING, {})
+    return k.data
   }
 
-  @Get('testing-with-params')
-  async testingWithParams() {
-    const k = await safeRpcCall2<any, TestingWithParamsRequestDto>(
+  @Post('2')
+  async testingWithParams(@Body() dto: TestingWithParamsRequestDto) {
+    const k = await safeRpcCall2<any, TestingWithParamsResponseDto>(
       this.authClient,
-      AUTH_MESSAGES.TESTING_WITH_PARAMS
+      AUTH_MESSAGES.TESTING_WITH_PARAMS,
+      dto
     )
-    console.log(k)
+    console.log(dto, k)
     return k
   }
 }

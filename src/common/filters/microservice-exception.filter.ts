@@ -1,14 +1,22 @@
-import { Catch, ArgumentsHost, RpcExceptionFilter, Logger } from '@nestjs/common'
+import {
+  Catch,
+  ArgumentsHost,
+  RpcExceptionFilter,
+  Logger,
+  BadRequestException
+} from '@nestjs/common'
 import { RpcException } from '@nestjs/microservices'
 import { BusinessException } from '../exceptions/business.exception'
 import { SystemException } from '../exceptions/system.exception'
 import { RuntimeException } from '../exceptions/runtime.exception'
 import { RpcError } from '../interfaces/exceptions.interface'
+import { RpcRequest } from '../interfaces/rpc.interface'
 import { Observable, throwError } from 'rxjs'
 import { buildGlobalErrorCode, toRpcException } from '../helpers/exception.helper'
 import { getTraceId } from '../modules/trace/trace-context'
 import { GLOBAL_RUNTIME_ERRORS } from '../constants/res-codes/runtime.errors'
 import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
+import { envConfig } from '../helpers/env.helper'
 
 @Catch() // 无参数 → 捕获所有异常
 export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
@@ -16,7 +24,12 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
   constructor(private readonly moduleName: string = process.env.MODULE_NAME) {}
 
   catch(
-    exception: BusinessException | SystemException | RuntimeException | RpcException,
+    exception:
+      | BusinessException
+      | SystemException
+      | RuntimeException
+      | RpcException
+      | BadRequestException,
     host: ArgumentsHost
   ) {
     this.logger.error('in MicroserviceExceptionsFilter catch:', exception)
@@ -26,6 +39,11 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
     if (exception instanceof RpcException) {
       this.logger.error('Caught RpcException:')
       return this.handleRpcException(exception)
+    }
+
+    if (exception instanceof BadRequestException) {
+      this.logger.error('Caught BadRequestException (Validation Error):')
+      return this.handleValidationException(exception, host, traceId)
     }
 
     if (exception instanceof BusinessException) {
@@ -51,6 +69,54 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
       return throwError(() => new RpcException(rpcError))
     }
     return this.handleUnknownException(exception)
+  }
+
+  // 处理验证异常
+  private handleValidationException(
+    exception: BadRequestException,
+    host: ArgumentsHost,
+    traceId?: string
+  ): Observable<any> {
+    const response = exception.getResponse() as { message?: string | string[] }
+    const responseMessage = response?.message
+    const validationMessages = Array.isArray(responseMessage)
+      ? responseMessage.join('; ')
+      : responseMessage || '数据验证失败'
+
+    // 获取 RPC 上下文信息
+    const rpcContext = host.switchToRpc()
+    const rpcData = rpcContext.getData<RpcRequest<any>>()
+    console.log('envConfig.showDebugInfo', envConfig.showDebugInfo)
+    return throwError(() =>
+      toRpcException(
+        {
+          code: buildGlobalErrorCode(
+            EXCEPTION_TYPE_PREFIX.RUNTIME,
+            this.moduleName,
+            GLOBAL_RUNTIME_ERRORS.VALIDATION_ERROR.subCode
+          ),
+          message: validationMessages,
+          messageKey: GLOBAL_RUNTIME_ERRORS.VALIDATION_ERROR.messageKey,
+          httpStatus: GLOBAL_RUNTIME_ERRORS.VALIDATION_ERROR.httpStatus,
+          details: {
+            validationErrors: responseMessage,
+            originalException: exception.message,
+            // 在开发环境中添加更多调试信息
+            ...(envConfig.showDebugInfo && {
+              rpcPattern: rpcData?.meta?.pattern,
+              rpcCaller: rpcData?.meta?.caller
+            })
+          }
+        },
+        {
+          module: this.moduleName,
+          traceId,
+          callStack: [this.moduleName],
+          isPropagated: false,
+          timestamp: new Date().toISOString()
+        }
+      )
+    )
   }
 
   // 处理本模块抛出的业务异常

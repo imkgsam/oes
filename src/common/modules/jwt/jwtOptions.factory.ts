@@ -12,7 +12,6 @@ export class OptionsFactory implements JwtOptionsFactory {
 
   async createJwtOptions(): Promise<JwtModuleOptions> {
     const keys = this.configService.getOrThrow<IAuthKeyConfig>(AuthKeyConfigName)
-    console.log(keys)
     const publicKey = await readFile(join(__dirname, '../../..', keys.publicKeyPath), 'utf8')
     const privateKey = await readFile(join(__dirname, '../../..', keys.privateKeyPath), 'utf8')
     return {

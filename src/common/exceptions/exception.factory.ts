@@ -32,10 +32,13 @@ function createException(etype: EXCEPTION_TYPE_PREFIX, input: RawError, details?
   console.log(
     `in createException: type ${etype}\n input: ${JSON.stringify(input)}\n detail:${details} \n`
   )
-  if (moduleNameFromEnv === 'UNKNOWN_MODULE')
-    throw createRuntimeException(GLOBAL_RUNTIME_ERRORS.ENV_VARIABLE_NOT_SET, {
-      moduleName: moduleNameFromEnv
-    })
+
+  // 避免无限递归：如果 MODULE_NAME 未设置，直接创建异常而不再次调用 createRuntimeException
+  if (moduleNameFromEnv === 'UNKNOWN_MODULE') {
+    const code: string = buildGlobalErrorCode(etype, moduleNameFromEnv, input.subCode)
+    return new RuntimeException(code, input.message, input.messageKey, input.httpStatus, details)
+  }
+
   const code: string = buildGlobalErrorCode(etype, moduleNameFromEnv, input.subCode)
   let k: SystemException | BusinessException | RuntimeException
   switch (etype) {

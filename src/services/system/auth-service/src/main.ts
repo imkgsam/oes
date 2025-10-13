@@ -13,7 +13,15 @@ async function bootstrap() {
       port: Number(SERVICE_ENDPOINTS_CONFIG.AUTH_TCP.port)
     }
   })
-  microservice.useGlobalPipes(new ValidationPipe())
+  microservice.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      forbidUnknownValues: true,
+      validateCustomDecorators: true
+    })
+  )
   microservice.useGlobalFilters(new MicroserviceExceptionsFilter(process.env.MODULE_NAME))
   await microservice.listen()
 }
