@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { SessionStatus } from '@oes/common/constants/const/auth-service.const'
+import { SessionStatus } from 'src/common/const'
 
 // 设备信息接口
 export interface DeviceInfo {

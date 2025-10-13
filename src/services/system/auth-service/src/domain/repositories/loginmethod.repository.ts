@@ -1,4 +1,4 @@
-import { LoginMethodType } from '@oes/common/constants/const/auth-service.const'
+import { LoginMethodType } from 'src/common/const'
 import { LoginMethod } from '../aggregates/loginmethod.aggregate'
 
 export interface ILoginMethodRepository {

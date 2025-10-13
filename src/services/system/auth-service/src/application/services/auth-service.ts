@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger, Inject } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { CommonJwtService } from '@oes/common/modules/jwt/jwt.service'
-import { LoginMethodEnum } from '@oes/common/constants/const/auth-service.const'
+import { LoginMethodEnum } from 'src/common/const'
 import { SessionService } from './session.service'
 import { MfaService } from './mfa.service'
 import { DeviceInfo } from 'src/domain/aggregates/usersession.aggregate'

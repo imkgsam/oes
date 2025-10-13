@@ -15,12 +15,9 @@ model Party {
   legalname String // 实体法定名称，如果是个人的话就是
   alias     String? // 实体别名
   isActive  Boolean   @default(true) // 实体是否激活
-  userId    String? // 关联的用户 ID（如果是个人）
 
   personInfo  PersonInfo?
   companyInfo CompanyInfo?
-
-  user User? @relation(fields: [userId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

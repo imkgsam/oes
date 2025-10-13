@@ -1,4 +1,4 @@
-import { MfaType } from '@oes/common/constants/const/auth-service.const'
+import { MfaType } from 'src/common/const'
 import { MfaBindingEntity } from '../aggregates/mfabinding.aggregate'
 
 export interface IMfaBindingRepository {

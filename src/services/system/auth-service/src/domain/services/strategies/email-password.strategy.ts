@@ -1,7 +1,7 @@
 import { Injectable, Inject } from '@nestjs/common'
 import { EmailPasswordLoginRequestDto } from '@oes/common/dtos/auth-service/all.dto'
 import { AuthStrategyPort } from 'src/domain/ports/auth-strategy.port'
-import { LoginMethodEnum } from '@oes/common/constants/const/auth-service.const'
+import { LoginMethodEnum } from 'src/common/const'
 import { HashingPort } from 'src/domain/ports/hashing.port'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
 import { LoginMethodType } from 'prisma/generated/prisma'

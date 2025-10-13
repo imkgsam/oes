@@ -1,5 +1,5 @@
 import { Session } from 'src/domain/aggregates/usersession.aggregate'
-import { SessionStatus } from '@oes/common/constants/const/auth-service.const'
+import { SessionStatus } from 'src/common/const'
 
 /**
  * Session Repository 接口
