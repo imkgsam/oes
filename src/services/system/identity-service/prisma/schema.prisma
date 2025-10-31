@@ -9,15 +9,21 @@ datasource db {
   schemas  = ["identity"]
 }
 
-model Party {
-  id        String    @id @default(uuid()) // 实体 ID
-  type      PartyType
-  legalname String // 实体法定名称，如果是个人的话就是
-  alias     String? // 实体别名
-  isActive  Boolean   @default(true) // 实体是否激活
+model ContactParty {
+  id       String           @id @default(uuid()) // 实体 ID
+  type     ContactPartyType
+  name     String // 实体名称
+  alias    String? // 实体别名
+  isActive Boolean          @default(true) // 实体是否激活
+  parentId String? // 上级实体 ID，可为空表示顶层
+  tenantId String // 所属租户 ID
+  notes    String? // 备注信息
 
   personInfo  PersonInfo?
   companyInfo CompanyInfo?
+
+  parent   ContactParty?  @relation("ContactHierarchy", fields: [parentId], references: [id])
+  children ContactParty[] @relation("ContactHierarchy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -25,14 +31,14 @@ model Party {
   @@schema("identity")
 }
 
-enum PartyType {
+enum ContactPartyType {
   PERSON
   ORGANIZATION
 }
 
 model PersonInfo {
   id             String    @id @default(uuid()) // 个人信息 ID
-  partyId        String    @unique // 关联的实体 ID
+  contactPartyId String    @unique // 关联的实体 ID
   IDNumber       String?   @unique // 身份证号码
   passportNumber String?   @unique // 护照号码
   birthday       DateTime?
@@ -40,7 +46,7 @@ model PersonInfo {
 
   // preferredLanguage String? // 第一语言
 
-  party Party @relation(fields: [partyId], references: [id])
+  contactParty ContactParty @relation(fields: [contactPartyId], references: [id])
 }
 
 enum Gender {
@@ -50,32 +56,32 @@ enum Gender {
 }
 
 model CompanyInfo {
-  id            String  @id @default(uuid()) // 公司信息 ID
-  partyId       String  @unique // 关联的实体 ID
-  industry      String? // 行业
-  size          String? // 公司规模
-  website       String? // 公司官网
-  licenseNumber String? @unique // 营业执照号码
-  taxID         String? @unique // 税务登记号码
-  country       String? // 注册国家
+  id             String  @id @default(uuid()) // 公司信息 ID
+  contactPartyId String  @unique // 关联的实体 ID
+  industry       String? // 行业
+  size           String? // 公司规模
+  website        String? // 公司官网
+  licenseNumber  String? @unique // 营业执照号码
+  taxID          String? @unique // 税务登记号码
+  country        String? // 注册国家
 
-  party Party @relation(fields: [partyId], references: [id])
+  contactParty ContactParty @relation(fields: [contactPartyId], references: [id])
 }
 
 model Account {
-  id        String   @id @default(uuid()) // 账号 ID，如 "acc-001"
-  partyId   String // 系统全局party ID
-  tenantId  String // 所属租户 ID
-  email     String?  @unique // 企业邮箱
-  phone     String?  @unique // 企业手机号
-  isEnable  Boolean  @default(true) // 是否启用账号
-  isAdmin   Boolean  @default(false) // 是否为租户管理员
-  avatarUrl String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(uuid()) // 账号 ID，如 "acc-001"
+  contactPartyId String // 系统全局party ID
+  tenantId       String // 所属租户 ID
+  email          String?  @unique // 企业邮箱
+  phone          String?  @unique // 企业手机号
+  isEnable       Boolean  @default(true) // 是否启用账号
+  isAdmin        Boolean  @default(false) // 是否为租户管理员
+  avatarUrl      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  Tenant Tenant? @relation(fields: [tenantId], references: [id])
-  Party  Party   @relation(fields: [partyId], references: [id])
+  Tenant       Tenant?      @relation(fields: [tenantId], references: [id])
+  ContactParty ContactParty @relation(fields: [contactPartyId], references: [id])
 
   @@schema("identity")
 }
@@ -110,6 +116,25 @@ model Org {
   tenant   Tenant @relation(fields: [tenantId], references: [id])
   parent   Org?   @relation("OrgToParent", fields: [parentId], references: [id])
   children Org[]  @relation("OrgToParent") // 子组织结构
+
+  @@schema("identity")
+}
+
+/// -------------------------
+/// 用户登录身份（跨租户统一）
+/// -------------------------
+model User {
+  id        String   @id @default(uuid())
+  email     String?  @unique //用户登录邮箱，跨租户唯一
+  phone     String?  @unique // 用户登录手机号，跨租户唯一
+  password  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts       Account[] // 一个用户可关联多个租户账号
+  contactPartyId String? // 可选关联 ContactParty
+  contactParty   ContactParty? @relation(fields: [contactPartyId], references: [id])
 
   @@schema("identity")
 }
