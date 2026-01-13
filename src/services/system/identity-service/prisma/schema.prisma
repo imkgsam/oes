@@ -1,3 +1,4 @@
+// src/services/system/identity-service/prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
   output   = "../prisma/generated/prisma"
@@ -6,135 +7,122 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["identity"]
-}
-
-model ContactParty {
-  id       String           @id @default(uuid()) // 实体 ID
-  type     ContactPartyType
-  name     String // 实体名称
-  alias    String? // 实体别名
-  isActive Boolean          @default(true) // 实体是否激活
-  parentId String? // 上级实体 ID，可为空表示顶层
-  tenantId String // 所属租户 ID
-  notes    String? // 备注信息
-
-  personInfo  PersonInfo?
-  companyInfo CompanyInfo?
-
-  parent   ContactParty?  @relation("ContactHierarchy", fields: [parentId], references: [id])
-  children ContactParty[] @relation("ContactHierarchy")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@schema("identity")
-}
-
-enum ContactPartyType {
-  PERSON
-  ORGANIZATION
-}
-
-model PersonInfo {
-  id             String    @id @default(uuid()) // 个人信息 ID
-  contactPartyId String    @unique // 关联的实体 ID
-  IDNumber       String?   @unique // 身份证号码
-  passportNumber String?   @unique // 护照号码
-  birthday       DateTime?
-  gender         Gender? // 性别
-
-  // preferredLanguage String? // 第一语言
-
-  contactParty ContactParty @relation(fields: [contactPartyId], references: [id])
-}
-
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
-}
-
-model CompanyInfo {
-  id             String  @id @default(uuid()) // 公司信息 ID
-  contactPartyId String  @unique // 关联的实体 ID
-  industry       String? // 行业
-  size           String? // 公司规模
-  website        String? // 公司官网
-  licenseNumber  String? @unique // 营业执照号码
-  taxID          String? @unique // 税务登记号码
-  country        String? // 注册国家
-
-  contactParty ContactParty @relation(fields: [contactPartyId], references: [id])
-}
-
-model Account {
-  id             String   @id @default(uuid()) // 账号 ID，如 "acc-001"
-  contactPartyId String // 系统全局party ID
-  tenantId       String // 所属租户 ID
-  email          String?  @unique // 企业邮箱
-  phone          String?  @unique // 企业手机号
-  isEnable       Boolean  @default(true) // 是否启用账号
-  isAdmin        Boolean  @default(false) // 是否为租户管理员
-  avatarUrl      String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  Tenant       Tenant?      @relation(fields: [tenantId], references: [id])
-  ContactParty ContactParty @relation(fields: [contactPartyId], references: [id])
-
-  @@schema("identity")
 }
 
 // 租户
 model Tenant {
-  id        String   @id @default(uuid())
-  name      String //  例如 阿里巴巴集团
-  code      String   @unique // 例如 alibaba
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now()) // 创建时间
-  updatedAt DateTime @updatedAt // 更新时间
-
-  accounts Account[] // 所有账户
-  orgUnits Org[] // 所有组织结构节点
-
-  @@schema("identity")
+  id           String        @id @default(uuid())
+  entityId     String        @unique
+  name         String
+  code         String        @unique
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  orgUnits     Org[]
+  userAccounts UserAccount[]
 }
 
-//组织，可以是公司，也可以是部门，也可以是小组...
+//组织，可以是分公司，分支机构，也可以是部门，也可以是小组...
 model Org {
   id        String   @id @default(uuid())
-  tenantId  String // 所属租户 ID
-  parentId  String? // 上级组织 ID，可为空表示顶层
-  name      String // 名称，如 "技术部"、"广州分公司"
-  code      String? // 可选唯一编码，如 "TECH_GZ"
-  type      String? // 类型，如 "department" | "branch" | "team"
-  order     Int      @default(0) // 排序字段
+  tenantId  String
+  parentId  String?
+  name      String
+  code      String?
+  type      OrgType
+  order     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-  parent   Org?   @relation("OrgToParent", fields: [parentId], references: [id])
-  children Org[]  @relation("OrgToParent") // 子组织结构
-
-  @@schema("identity")
+  parent    Org?     @relation("OrgToParent", fields: [parentId], references: [id])
+  children  Org[]    @relation("OrgToParent") // 子组织结构
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
 }
 
-/// -------------------------
-/// 用户登录身份（跨租户统一）
-/// -------------------------
+enum OrgType {
+  DEPARTMENT
+  BRANCH
+  TEAM
+}
+
+/**
+ * 用户登录身份（跨租户统一）
+ * 一个用户user可以有多个账号account，每个账号归属一个租户tenant
+ */
 model User {
+  id           String        @id @default(uuid()) @db.uuid
+  entityId     String        @unique //所绑定的entity-serive 中的 entity
+  username     String?       @unique
+  email        String?       @unique //绑定的邮箱，跨租户唯一
+  phone        String?       @unique // 绑定的手机号，跨租户唯一
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  userAccounts UserAccount[]
+}
+
+//用户账号， 一个租户下一个人只有一个账号
+model UserAccount {
   id        String   @id @default(uuid())
-  email     String?  @unique //用户登录邮箱，跨租户唯一
-  phone     String?  @unique // 用户登录手机号，跨租户唯一
-  password  String?
-  isActive  Boolean  @default(true)
+  tenantId  String
+  userId    String
+  isEnable  Boolean  @default(true)
+  avatarUrl String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  accounts       Account[] // 一个用户可关联多个租户账号
-  contactPartyId String? // 可选关联 ContactParty
-  contactParty   ContactParty? @relation(fields: [contactPartyId], references: [id])
+  User   User   @relation(fields: [userId], references: [id])
+  Tenant Tenant @relation(fields: [tenantId], references: [id])
 
-  @@schema("identity")
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+}
+
+//服务账号
+model ServiceAccount {
+  id           String      @id @default(uuid())
+  clientId     String      @unique @default(cuid())
+  tenantId     String // 指向所属租户或系统租户
+  creatorId    String? // 指向创建该服务账号的 UserAccount.id, 允许系统初始化时自动创建
+  level        Level //区分是系统级别还是租户级别
+  name         String
+  description  String?
+  type         ServiceType
+  hashedSecret String? //hashed 私钥
+  isEnable     Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  apikey       APIKey?
+
+  @@index([tenantId])
+}
+
+enum Level {
+  SYSTEM //系统级别，可以访问所有租户的数据
+  TENANT //租户级别，只能访问所属租户的数据
+}
+
+enum ServiceType {
+  INTERNAL //内部模块
+  EXTERNAL // 外部调用，例如api
+  BOT // 机器人服务
+}
+
+model APIKey {
+  id               String    @id @default(uuid())
+  keyCode          String //例如customers-read-key
+  description      String?
+  serviceAccountId String    @unique //对应哪个服务账号
+  hashedValue      String    @unique //加密存储，明文只在创建时返回并展示
+  creatorId        String //所属用户账号,也就是哪个useraccount创建的
+  tenantId         String // 可以是普通租户或系统租户
+  level            Level // 区分是系统级别还是租户级别
+  isEnable         Boolean   @default(true)
+  expiresAt        DateTime? // 过期时间，null表示不过期
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  serviceAccount ServiceAccount @relation(fields: [serviceAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, keyCode])
+  @@index([hashedValue])
 }

@@ -1,0 +1,84 @@
+// src/services/system/entity-service/prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EntityType {
+  PERSON
+  ORGANIZATION
+}
+
+model Entity {
+  id                  String               @id @default(uuid()) @db.Uuid
+  type                EntityType
+  name                String               @db.VarChar(255)
+  alias               String?              @db.VarChar(255)
+  isActive            Boolean              @default(true)
+  notes               String?              @db.Text
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  personProfile       PersonProfile?
+  organizationProfile OrganizationProfile?
+  addresses           Address[]
+
+  @@index([type])
+  @@index([name])
+  @@index([isActive])
+}
+
+model PersonProfile {
+  id             String    @id @default(uuid()) @db.Uuid
+  entityId       String    @unique @db.Uuid
+  gender         String?   @db.VarChar(20)
+  birthday       DateTime? @db.Date
+  idNumber       String?   @unique @db.VarChar(50)
+  passportNumber String?   @unique @db.VarChar(50)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+}
+
+model OrganizationProfile {
+  id                 String   @id @default(uuid()) @db.Uuid
+  entityId           String   @unique @db.Uuid
+  legalName          String?  @db.VarChar(255)
+  registrationNumber String?  @unique @db.VarChar(100)
+  taxId              String?  @unique @db.VarChar(100)
+  country            String?  @db.VarChar(100)
+  website            String?  @db.VarChar(255)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+}
+
+enum AddressType {
+  HOME
+  WORK
+  OTHER
+}
+
+model Address {
+  id         String      @id @default(uuid()) @db.Uuid
+  entityId   String      @db.Uuid
+  type       AddressType
+  street     String      @db.VarChar(255)
+  city       String      @db.VarChar(100)
+  state      String?     @db.VarChar(100)
+  postalCode String?     @db.VarChar(20)
+  country    String      @db.VarChar(100)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  entity Entity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@index([entityId])
+  @@index([type])
+}

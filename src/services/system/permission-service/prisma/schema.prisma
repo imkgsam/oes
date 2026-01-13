@@ -1,3 +1,4 @@
+// src/services/system/permission-service/prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
   output   = "../prisma/generated/prisma"
@@ -6,15 +7,20 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["permi"]
+}
+
+enum level {
+  PLATFORM
+  TENANT
 }
 
 model Role {
   id          String   @id @default(uuid())
-  tenantId    String? // 外部字段，指向 identity-service 的 Tenant.id（可为 null 表示平台角色）
+  type        level    @default(TENANT)
+  tenantId    String? // 指向 identity-service 的 Tenant.id
   code        String // 角色唯一代码，例如 "admin"
   name        String // 角色名称，例如 "管理员"
-  description String? // 角色描述
+  description String?
   module      String // 所属模块，如 "finance"、"crm"
   isSystem    Boolean  @default(false) // 是否为系统内置角色
   autoGrant   Boolean  @default(false) // 是否新用户自动赋予
@@ -25,8 +31,17 @@ model Role {
   permissions RolePermission[]
   accounts    AccountRole[]
 
-  @@unique([tenantId, code]) // 每个租户下角色 code 唯一，系统级角色可重复
-  @@schema("permi")
+  @@unique([tenantId, code])
+}
+
+enum Modules {
+  ENTITY_SERVICE
+  IDENTITY_SERVICE
+  PERMISSION_SERVICE
+  AUTH_SERVICE
+  EPR_SERVICE
+  MES_SERVICE
+  WMS_SERVICE
 }
 
 model Permission {
@@ -34,11 +49,10 @@ model Permission {
   tenantId    String? // 外部字段，表示权限属于哪个租户（可为 null 表示平台权限）
   code        String // 权限代码，如 "order:read"
   description String?
-  module      String
+  module      Modules
   roles       RolePermission[]
 
-  @@unique([tenantId, code]) // 每个租户下权限 code 唯一
-  @@schema("permi")
+  @@unique([tenantId, code])
 }
 
 model AccountRole {
@@ -50,7 +64,6 @@ model AccountRole {
 
   @@unique([accountId, roleId])
   @@index([accountId, tenantId])
-  @@schema("permi")
 }
 
 model RolePermission {
@@ -61,19 +74,25 @@ model RolePermission {
   permission   Permission @relation(fields: [permissionId], references: [id])
 
   @@unique([roleId, permissionId])
-  @@schema("permi")
 }
 
 model AccountScope {
-  id             String @id @default(uuid())
-  accountId      String //指向identity.account
-  tenantId       String // 指向identity.tenant
+  id             String      @id @default(uuid())
+  holderType     AccountType
+  holderId       String // 指向identity-service 中 serviceAccount.id 或 userAccount.id
+  tenantId       String // 指向identity-service 中 tenant.id
+  isActive       Boolean     @default(true)
   permissionCode String
   resourceType   String
   resourceId     String
+  expiredAt      DateTime?
 
-  @@index([accountId, permissionCode])
-  @@index([accountId, resourceType, resourceId])
-  @@index([accountId, tenantId])
-  @@schema("permi")
+  @@index([holderId, permissionCode])
+  @@index([holderId, resourceType, resourceId])
+  @@index([holderId, tenantId])
+}
+
+enum AccountType {
+  USER
+  SERVICE
 }

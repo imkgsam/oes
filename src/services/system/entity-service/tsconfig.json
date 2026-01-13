@@ -1,0 +1,14 @@
+// src/services/system/entity-service/tsconfig.json
+{
+  "extends": "../../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "baseUrl": ".",
+  },
+    "references": [
+      { "path": "../../../common" }
+    ],
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}

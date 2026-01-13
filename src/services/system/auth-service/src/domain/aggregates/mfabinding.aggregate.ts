@@ -4,12 +4,12 @@ import {
   createSystemException,
   createBusinessException
 } from '@oes/common/exceptions/exception.factory'
-import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
 import { authenticator } from 'otplib' //是一个用于生成和验证一次性密码（OTP）的 JavaScript 库，主要用于实现多因素认证（MFA）功能。
 import { compare, hash } from 'bcrypt'
 import { randomUUID } from 'crypto'
-import { GLOBAL_SYSTEM_ERRORS } from '@oes/common/constants/res-codes/system.errors'
 import { OneTimeToken } from './otp.aggregate'
+import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/errors/auth-service.errors'
+import { GLOBAL_SYSTEM_ERRORS } from '@oes/common/constants/res-codes/errors/system.errors'
 
 // 设备信息接口
 export interface DeviceInfo {

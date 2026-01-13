@@ -24,12 +24,11 @@ export class TestController {
 
   @Post('2')
   async testingWithParams(@Body() dto: TestingWithParamsRequestDto) {
-    const k = await safeRpcCall2<any, TestingWithParamsResponseDto>(
+    const k = await safeRpcCall2<TestingWithParamsRequestDto, TestingWithParamsResponseDto>(
       this.authClient,
       AUTH_MESSAGES.TESTING_WITH_PARAMS,
       dto
     )
-    console.log(dto, k)
     return k
   }
 }

@@ -1,3 +1,4 @@
+// src/services/system/auth-service/prisma/schema.prisma
 generator client {
   provider = "prisma-client-js"
   output   = "../prisma/generated/prisma"
@@ -6,47 +7,39 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["auth"]
 }
 
 model LoginMethod {
-  id         String          @id @default(uuid())
-  partyId    String //关联至identity 中的party
-  type       LoginMethodType
-  identifier String //例子 testing@email.com
-  verified   Boolean         @default(false)
-  enabled    Boolean         @default(true)
-  createdAt  DateTime        @default(now())
-  updatedAt  DateTime        @updatedAt
-
+  id          String          @id @default(uuid())
+  userId      String //关联至identity-service 中的 user
+  type        LoginMethodType
+  identifier  String
+  verified    Boolean         @default(false)
+  enabled     Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
   credentials Credential[]
 
   @@unique([type, identifier])
-  @@schema("auth")
 }
 
 enum LoginMethodType {
   EMAIL
   PHONE
   OAUTH_OPENID
-
-  @@schema("auth")
 }
 
 model Credential {
   id             String         @id @default(uuid())
-  loginMethodId  String // 关联的登录方式，例如email、phone、 oauth
-  credentialType CredentialType // 可以是密码 或者是email_otp
-  secretValue    String?
+  loginMethodId  String
+  credentialType CredentialType
+  hashedValue    String? // 如果type是password，则存储哈希后的密码， 反之则为空
   provider       String? // 第三方登录提供商，例如 google, facebook
-  enabled        Boolean        @default(true) // 默认启用
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  enabled        Boolean        @default(true)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   LoginMethod LoginMethod @relation(fields: [loginMethodId], references: [id])
-
-  @@schema("auth")
 }
 
 enum CredentialType {
@@ -54,16 +47,15 @@ enum CredentialType {
   EMAIL_OTP
   PHONE_OTP
   OAUTH
-
-  @@schema("auth")
 }
 
-model OneTimeToken {
+model OTP {
   id           String   @id @default(uuid())
-  type         OtpType
-  usage        OtpUsage
+  usage        OTPUsage
   identifier   String
-  code         String
+  hashedValue  String
+  lastSentAt   DateTime
+  dailyCount   Int      @default(0) // 当天已发送次数
   consumed     Boolean  @default(false)
   attemptCount Int      @default(0)
   maxAttempt   Int      @default(1)
@@ -73,23 +65,13 @@ model OneTimeToken {
   updatedAt    DateTime @updatedAt
 
   @@unique([identifier, usage])
-  @@schema("auth")
 }
 
-enum OtpType {
-  EMAIL
-  PHONE
-
-  @@schema("auth")
-}
-
-enum OtpUsage {
+enum OTPUsage {
   LOGIN
   REGISTER
   RESET_PASSWORD
   MFA_VERIFY
-
-  @@schema("auth")
 }
 
 enum DeviceType {
@@ -98,73 +80,48 @@ enum DeviceType {
   MOBILE_APP
   DESKTOP_APP
   PDA
-
-  @@schema("auth")
 }
 
 model UserSession {
-  id            String     @id @default(uuid())
-  partyId       String // 关联至identity中的party
-  accountId     String // 关联至identity中的Account
-  loginMethodId String //登录方式，例如邮箱、手机、oauth
-  deviceType    DeviceType
-  deviceInfo    String? // JSON 格式的设备信息
-  ipAddress     String? //登录IP地址
-  refreshToken  String     @unique
-  issuedAt      DateTime   @default(now())
-  revoked       Boolean    @default(false)
-  revokedAt     DateTime?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  expiresAt     DateTime //session 过期时间
+  id               String     @id @default(uuid())
+  userId           String //关联identity-service中的user
+  currentAccountId String? //关联identity-service中的account， 当前会话所使用的账号
+  loginMethodId    String
+  deviceType       DeviceType
+  deviceInfo       String?
+  ipAddress        String?
+  refreshTokenHash String     @unique
+  issuedAt         DateTime   @default(now())
+  revoked          Boolean    @default(false)
+  revokedAt        DateTime?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+  expiresAt        DateTime //session 过期时间
 
-  @@index([partyId, deviceType])
-  @@index([refreshToken])
-  @@schema("auth")
+  @@index([refreshTokenHash])
+  @@index([userId, revoked])
 }
 
-// 推迟实现： 多重因素认证。 account级
-model MfaBinding {
-  id         String   @id @default(uuid())
-  accountId  String
-  type       MfaType
-  secret     String
-  enabled    Boolean  @default(true)
-  metadata   String? // JSON 格式的元数据，用于存储额外配置
-  deviceInfo String? // JSON 格式的设备信息
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@unique([accountId, type]) // 每个账号每种类型只能有一个绑定
-  @@schema("auth")
-}
-
-enum MfaType {
-  TOTP
-  EMAIL_OTP
-  SMS_OTP
-  BACKUP_CODE
-  PUSH_NOTIFICATION
-  HARDWARE_TOKEN
-  BIOMETRIC
-
-  @@schema("auth")
-}
-
-//账号， 一个租户下只有一个账号
-model Account {
-  id        String   @id @default(uuid()) // 账号 ID，如 "acc-001"
-  partyId   String // 关联identity中实体 ID， 对应实体
-  tenantId  String // 关联identity中租户 ID，所属商户
-  email     String? // 企业邮箱
-  phone     String? // 企业手机号
-  isEnable  Boolean  @default(true) // 是否启用账号
-  isAdmin   Boolean  @default(false) // 是否为租户管理员
-  avatarUrl String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([email, tenantId])
-  @@unique([phone, tenantId])
-  @@schema("auth")
-}
+// // 推迟实现： 多重因素认证。 user级
+// model MfaBinding {
+//   id         String   @id @default(uuid())
+//   userId     String //关联identity-service中的user
+//   type       MfaType
+//   secret     String
+//   enabled    Boolean  @default(true)
+//   metadata   String?
+//   deviceInfo String?
+//   createdAt  DateTime @default(now())
+//   updatedAt  DateTime @updatedAt
+//   // 每个账号每种类型只能有一个绑定
+//   @@unique([userId, type])
+// }
+// enum MfaType {
+//   TOTP
+//   EMAIL_OTP
+//   SMS_OTP
+//   BACKUP_CODE
+//   PUSH_NOTIFICATION
+//   HARDWARE_TOKEN
+//   BIOMETRIC
+// }

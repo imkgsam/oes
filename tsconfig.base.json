@@ -1,17 +1,18 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
+    "composite": true, // 新增
     "lib": ["ES2022"],
     "esModuleInterop": true,
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "moduleResolution": "node",
+    "moduleResolution": "Node16",
+    "module": "Node16",
     "resolveJsonModule": true,
-    "declaration": true,
     "incremental": true,
     "useDefineForClassFields": false,
     "sourceMap": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+
   }
 }

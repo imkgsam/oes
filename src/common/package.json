@@ -1,13 +1,18 @@
 {
   "name": "@oes/common",
   "version": "1.0.0",
+  "private": true,
+
   "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
+  "types": "./src",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc -b"
+  },
+  "exports": {
+    "./*": {
+      "types": "./src/*.ts",
+      "require": "./dist/*.js"
+    }
   },
   "dependencies": {
     "@nestjs/config": "^4.0.2",
