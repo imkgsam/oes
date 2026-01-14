@@ -16,6 +16,6 @@ export enum ModuleCode {
   ROLE = 0x4,
   MENU = 0x5,
   DICT = 0x6,
-  FILE = 0x7,
+  FILE = 0x7, 
   LOG = 0x8
 }

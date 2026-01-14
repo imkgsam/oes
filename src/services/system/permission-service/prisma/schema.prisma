@@ -56,11 +56,12 @@ model Permission {
 }
 
 model AccountRole {
-  id        String @id @default(uuid())
-  accountId String // 对应 identity.Account.id
-  roleId    String
-  tenantId  String // 冗余字段，方便查询
-  role      Role   @relation(fields: [roleId], references: [id])
+  id          String      @id @default(uuid())
+  accountType AccountType
+  accountId   String // 指向 identity-service 中 serviceAccount.id 或 userAccount.id
+  roleId      String
+  tenantId    String // 冗余字段，方便查询
+  role        Role        @relation(fields: [roleId], references: [id])
 
   @@unique([accountId, roleId])
   @@index([accountId, tenantId])
