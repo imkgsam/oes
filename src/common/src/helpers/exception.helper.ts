@@ -1,5 +1,5 @@
 import { RpcException } from '@nestjs/microservices'
-import { EXCEPTION_TYPE_PREFIX, MODULES } from '../constants/res-codes/module.codes'
+import { EXCEPTION_TYPE_PREFIX, MODULES } from '../constants/module.codes'
 import { ErrorContext, RpcError, RpcExceptionPayload } from '../interfaces/exceptions.interface'
 import { ModuleDetails } from '../interfaces/module.interface'
 import { v4 as uuidv4 } from 'uuid'

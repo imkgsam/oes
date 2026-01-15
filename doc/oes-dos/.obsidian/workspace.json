@@ -4,24 +4,39 @@
     "type": "split",
     "children": [
       {
-        "id": "838761606780039e",
+        "id": "3c3fa58fc0d5323c",
         "type": "tabs",
         "children": [
           {
-            "id": "a6725f0a5d4498a5",
+            "id": "26c05a171cbd0cd8",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "OES项目/项目进度跟踪/2026-01-14.md",
+                "file": "OES项目/项目细节/项目介绍.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "2026-01-14"
+              "title": "项目介绍"
+            }
+          },
+          {
+            "id": "01f73e83f766073a",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "JWTGuard认证.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "JWTGuard认证"
             }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -183,21 +198,29 @@
       "bases:创建新数据库": false
     }
   },
-  "active": "a6725f0a5d4498a5",
+  "active": "01f73e83f766073a",
   "lastOpenFiles": [
-    "OES项目/项目介绍.md",
+    "permissionCheckGuard.md",
+    "OES项目/项目细节/项目介绍.md",
+    "JWTGuard认证.md",
+    "OES项目/项目细节/模块/API-GATEWAY.md",
+    "OES项目/项目细节/安全模型/认证渠道/用户认证.md",
+    "OES项目/项目细节/模块",
+    "OES项目/项目细节/安全模型/认证渠道/服务认证.md",
+    "OES项目/项目细节",
+    "OES项目/项目细节/安全模型/认证渠道",
+    "OES项目/项目细节/安全模型",
+    "OES项目/待实现功能/OES Robot 设计方案书.md",
+    "OES项目/待实现功能/OES 高安全微服务权限优化方案.md",
+    "OES项目/待实现功能/mTLS支持以及gRPC升级.md",
     "OES项目/项目进度跟踪/2026-01-14.md",
+    "OES项目/模板/日进度模板.md",
     "OES项目/项目进度跟踪/未命名.md",
     "未命名.base",
     "未命名.md",
-    "未命名",
-    "OES项目/模板/日进度模板.md",
     "OES项目/项目进度跟踪",
     "OES项目/项目进度跟踪.md",
     "OES项目/模板",
-    "OES项目/待实现功能/OES 高安全微服务权限优化方案.md",
-    "OES项目/待实现功能/OES Robot 设计方案书.md",
-    "OES项目/待实现功能/mTLS支持以及gRPC升级.md",
     "OES项目",
     "欢迎.md",
     "创建链接.md",

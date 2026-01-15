@@ -1,4 +1,4 @@
-import { ModuleDetails } from '../../interfaces/module.interface'
+import { ModuleDetails } from '../interfaces/module.interface'
 
 export enum EXCEPTION_TYPE_PREFIX {
   SYSTEM = 'SYS',
@@ -31,12 +31,4 @@ export const MODULES: Record<string, ModuleDetails> = {
     code: '202',
     name: 'MES_SERVICE'
   }
-  // RESOURCE_SERVICE: {
-  //   code: '203',
-  //   name: 'RESOURCE_SERVICE'
-  // },
-  // EMAIL_SERVICE: {
-  //   code: '301',
-  //   name: 'EMAIL_SERVICE'
-  // }
 }

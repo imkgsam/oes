@@ -3,6 +3,8 @@ import { Observable } from 'rxjs'
 import { ServiceKeys } from '../modules/clients/service-map'
 import { InjectServiceClient } from '../modules/clients/client.decorator'
 import { ClientProxy } from '@nestjs/microservices'
+import { CommonJwtService } from '../modules/jwt/jwt.service'
+import { createSystemException } from '../exceptions/exception.factory'
 
 export enum AccountHolderType {
   USER = 'USER',
@@ -16,12 +18,18 @@ export interface UserAccountContext {
 }
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
-  constructor(
-    @InjectServiceClient(ServiceKeys.AUTH_TCP)
-    private readonly authServiceClient: ClientProxy
-  ) {}
+  constructor(private readonly jwtService: CommonJwtService) {}
 
   canActivate(context: ExecutionContext): boolean | Promise<boolean> | Observable<boolean> {
-    return true
+    const token = extractToken(context)
+    if (!token) {
+    }
   }
+}
+function extractToken(ctx: ExecutionContext): string | null {
+  if (ctx.getType() !== 'http') return null
+  const req = ctx.switchToHttp().getRequest()
+  const authHeader = req.headers['authorization'] || req.headers['Authorization']
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null
+  return authHeader.slice(7)
 }

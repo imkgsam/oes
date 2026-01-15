@@ -9,24 +9,17 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum level {
-  PLATFORM
-  TENANT
-}
-
 model Role {
   id          String   @id @default(uuid())
-  type        level    @default(TENANT)
-  tenantId    String? // 指向 identity-service 的 Tenant.id
+  tenantId    String? // 应用范围： 1. 租户内 2.null代表全平台可用
   code        String // 角色唯一代码，例如 "admin"
   name        String // 角色名称，例如 "管理员"
   description String?
-  module      String // 所属模块，如 "finance"、"crm"
   isSystem    Boolean  @default(false) // 是否为系统内置角色
-  autoGrant   Boolean  @default(false) // 是否新用户自动赋予
   isEnabled   Boolean  @default(true) // 是否启用
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  createdBy   String // 创建者是谁：可以是租户管理员也可以是系统管理员。指向 identity-service 的 userAccount.id
 
   permissions RolePermission[]
   accounts    AccountRole[]
@@ -46,11 +39,12 @@ enum Modules {
 
 model Permission {
   id          String           @id @default(uuid())
-  tenantId    String? // 外部字段，表示权限属于哪个租户（可为 null 表示平台权限）
+  tenantId    String? // 应用范围： 1. 租户内 2.null代表全平台可用
   code        String // 权限代码，如 "order:read"
   description String?
   module      Modules
   roles       RolePermission[]
+  createdBy   String // 创建者是谁：可以是租户管理员也可以是系统管理员。指向 identity-service 的 userAccount.id
 
   @@unique([tenantId, code])
 }
@@ -62,6 +56,7 @@ model AccountRole {
   roleId      String
   tenantId    String // 冗余字段，方便查询
   role        Role        @relation(fields: [roleId], references: [id])
+  createdBy   String // 创建者是谁：可以是租户管理员也可以是系统管理员。指向 identity-service 的 userAccount.id
 
   @@unique([accountId, roleId])
   @@index([accountId, tenantId])
@@ -73,6 +68,7 @@ model RolePermission {
   permissionId String
   role         Role       @relation(fields: [roleId], references: [id])
   permission   Permission @relation(fields: [permissionId], references: [id])
+  createdBy    String // 创建者是谁：可以是租户管理员也可以是系统管理员。指向 identity-service 的 userAccount.id
 
   @@unique([roleId, permissionId])
 }
@@ -87,6 +83,7 @@ model AccountScope {
   resourceType   String
   resourceId     String
   expiredAt      DateTime?
+  createdBy      String // 创建者是谁：可以是租户管理员也可以是系统管理员。指向 identity-service 的 userAccount.id
 
   @@index([holderId, permissionCode])
   @@index([holderId, resourceType, resourceId])

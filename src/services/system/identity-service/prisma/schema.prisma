@@ -31,11 +31,12 @@ model Org {
   code      String?
   type      OrgType
   order     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
   parent    Org?     @relation("OrgToParent", fields: [parentId], references: [id])
   children  Org[]    @relation("OrgToParent") // 子组织结构
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  createdBy String // 创建者：指向identity-service 中的 useraccount.id
 }
 
 enum OrgType {
@@ -91,6 +92,7 @@ model ServiceAccount {
   isEnable     Boolean     @default(true)
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
+  createdBy    String // 创建者：指向identity-service 中的 useraccount.id
   apikey       APIKey?
 
   @@index([tenantId])
@@ -113,10 +115,11 @@ model APIKey {
   description      String?
   serviceAccountId String    @unique //对应哪个服务账号
   hashedValue      String    @unique //加密存储，明文只在创建时返回并展示
-  creatorId        String //所属用户账号,也就是哪个useraccount创建的
   tenantId         String // 可以是普通租户或系统租户
   level            Level // 区分是系统级别还是租户级别
   isEnable         Boolean   @default(true)
+  remainingCount   Int       @default(-1) // 剩余调用次数：当长期有效apiKey时为-1，当限制调用次数时为N，当一次性apiKey时为1
+  createdBy        String // 所属用户账号: 也就是哪个useraccount创建的
   expiresAt        DateTime? // 过期时间，null表示不过期
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
