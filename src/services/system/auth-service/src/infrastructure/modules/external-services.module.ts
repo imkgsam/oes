@@ -3,7 +3,7 @@ import { ClientModule } from '@oes/common/modules/clients/client.module'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 import { IdentityServiceAdaptor } from '../adaptors'
 import { PermissionServiceAdaptor } from '../adaptors'
-import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants/service.symbols'
+import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants/enums/service.symbols'
 
 /**
  * 外部服务模块

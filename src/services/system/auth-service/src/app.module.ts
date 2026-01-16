@@ -4,7 +4,7 @@ import { ConfigModule } from '@nestjs/config'
 import tokenConfig from '@oes/common/configs/token.config'
 import authKeyConfig from '@oes/common/configs/authKey.config'
 import { ClientModule } from '@oes/common/modules/clients/client.module'
-import { TraceModule } from '@oes/common/modules/trace/trace.module'
+import { TraceModule } from '@oes/common/tracing/trace.module'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 
 @Module({

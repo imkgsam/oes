@@ -1,5 +1,5 @@
 import { MfaBinding as PrismaMfaBinding } from '../../../prisma/generated/prisma'
-import { MfaType } from 'src/common/const'
+import { MfaType } from '@oes/common/constants/auth/mfa.type'
 import {
   createSystemException,
   createBusinessException

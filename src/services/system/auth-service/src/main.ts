@@ -3,7 +3,7 @@ import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import { ValidationPipe } from '@nestjs/common'
 import { MicroserviceOptions, Transport } from '@nestjs/microservices'
-import { MicroserviceExceptionsFilter } from '@oes/common/filters/microservice-exception.filter'
+import { MicroserviceExceptionsFilter } from '@oes/common/final/rpc/filters/microservice-exception.filter'
 import { SERVICE_ENDPOINTS_CONFIG } from '@oes/common/modules/clients/service-map'
 import { RpcResponseInterceptor } from '@oes/common/interceptors/rpc-response.interceptor'
 

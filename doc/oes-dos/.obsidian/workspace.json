@@ -13,30 +13,15 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "OES项目/项目细节/项目介绍.md",
+                "file": "OES项目/草稿/权限控制模拟.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "项目介绍"
-            }
-          },
-          {
-            "id": "01f73e83f766073a",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "JWTGuard认证.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "JWTGuard认证"
+              "title": "权限控制模拟"
             }
           }
-        ],
-        "currentTab": 1
+        ]
       }
     ],
     "direction": "vertical"
@@ -93,7 +78,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 225.5
   },
   "right": {
     "id": "573d09691edf2dc1",
@@ -198,11 +183,13 @@
       "bases:创建新数据库": false
     }
   },
-  "active": "01f73e83f766073a",
+  "active": "26c05a171cbd0cd8",
   "lastOpenFiles": [
-    "permissionCheckGuard.md",
     "OES项目/项目细节/项目介绍.md",
+    "OES项目/草稿/权限控制模拟.md",
+    "OES项目/草稿",
     "JWTGuard认证.md",
+    "permissionCheckGuard.md",
     "OES项目/项目细节/模块/API-GATEWAY.md",
     "OES项目/项目细节/安全模型/认证渠道/用户认证.md",
     "OES项目/项目细节/模块",
@@ -217,7 +204,6 @@
     "OES项目/模板/日进度模板.md",
     "OES项目/项目进度跟踪/未命名.md",
     "未命名.base",
-    "未命名.md",
     "OES项目/项目进度跟踪",
     "OES项目/项目进度跟踪.md",
     "OES项目/模板",
