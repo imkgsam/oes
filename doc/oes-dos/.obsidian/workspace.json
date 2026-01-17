@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "OES项目/草稿/权限控制模拟.md",
+                "file": "permissionCheckGuard.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "权限控制模拟"
+              "title": "permissionCheckGuard"
             }
           }
         ]
@@ -185,11 +185,12 @@
   },
   "active": "26c05a171cbd0cd8",
   "lastOpenFiles": [
-    "OES项目/项目细节/项目介绍.md",
-    "OES项目/草稿/权限控制模拟.md",
-    "OES项目/草稿",
     "JWTGuard认证.md",
     "permissionCheckGuard.md",
+    "OES项目/草稿/权限控制模拟.md",
+    "OES项目/待实现功能/AI能力拓展方案.md",
+    "OES项目/项目细节/项目介绍.md",
+    "OES项目/草稿",
     "OES项目/项目细节/模块/API-GATEWAY.md",
     "OES项目/项目细节/安全模型/认证渠道/用户认证.md",
     "OES项目/项目细节/模块",
