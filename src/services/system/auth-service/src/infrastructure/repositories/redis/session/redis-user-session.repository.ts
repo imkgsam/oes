@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import Redis from 'ioredis'
 import { Session } from 'src/domain/aggregates/usersession.aggregate'
-import { SessionStatus } from 'src/common/const'
+import { SessionStatus } from 'src/common/constants'
 import { IUserSessionRepository } from 'src/domain/repositories/user-session.repository'
 
 /**

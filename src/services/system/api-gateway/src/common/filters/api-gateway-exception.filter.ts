@@ -9,9 +9,9 @@ import {
 import { RpcException } from '@nestjs/microservices'
 import { buildGlobalErrorCode, isRpcError } from '@oes/common/helpers/exception.helper'
 import { EXCEPTION_TYPE_PREFIX } from '@oes/common/constants/res-codes/module.codes'
-import { HttpResponse } from '@oes/common/final/core/interfaces/http.interface'
-import { getTraceId } from '@oes/common/modules/tracing/trace-context'
-import { GLOBAL_RUNTIME_ERRORS } from '@oes/common/constants/res-codes/runtime.errors'
+import { HttpResponse } from '@oes/common/core/interfaces/http.interface'
+import { getTraceId } from '@oes/common/tracing/trace-context'
+import { GLOBAL_EXCEPTIONS } from '@oes/common/constants/exceptions/index'
 import { Request, Response } from 'express'
 import { v4 as uuidv4 } from 'uuid'
 import { envConfig } from '@oes/common/helpers/env.helper'
@@ -53,10 +53,10 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
       code: buildGlobalErrorCode(
         EXCEPTION_TYPE_PREFIX.RUNTIME,
         this.moduleName,
-        GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.subCode
+        GLOBAL_EXCEPTIONS.SYSTEM_EXCEPTIONS.UNKNOWN_ERROR.subCode
       ),
-      message: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message,
-      messageKey: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.messageKey,
+      message: GLOBAL_EXCEPTIONS.SYSTEM_EXCEPTIONS.UNKNOWN_ERROR.message,
+      messageKey: GLOBAL_EXCEPTIONS.SYSTEM_EXCEPTIONS.UNKNOWN_ERROR.messageKey,
       details: null,
       meta: {
         path: path,
@@ -131,10 +131,10 @@ export class ApiGatewayExceptionsFilter implements ExceptionFilter {
   }
 
   private handleGenericError(exception: any, path: string) {
-    const statusCode = GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.httpStatus
+    const statusCode = GLOBAL_EXCEPTIONS.SYSTEM_EXCEPTIONS.UNKNOWN_ERROR.httpStatus
     const defaultRes = this.buildDefaultResponse(path)
     if (exception instanceof Error) {
-      defaultRes.message = exception.message || GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message
+      defaultRes.message = exception.message || GLOBAL_EXCEPTIONS.SYSTEM_EXCEPTIONS.UNKNOWN_ERROR.message
       defaultRes.details = {
         name: exception.name,
         stack: exception.stack

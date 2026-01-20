@@ -8,7 +8,7 @@ import {
   RpcRequest,
   RpcResponse,
   ResponseMeta
-} from '../final/core/interfaces/rpc.interface'
+} from '../core/interfaces/rpc.interface'
 import { CBError } from '../final/core/interfaces/rpc.interface'
 import { SUCCESS } from '../constants/res-codes/errors/system.errors'
 import { v4 as uuidv4 } from 'uuid'

@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException } from '@nestjs/common'
 import { AuthStrategyPort } from 'src/domain/ports/auth-strategy.port'
-import { LoginMethodEnum } from 'src/common/const'
+import { LoginMethodEnum } from 'src/common/constants'
 
 @Injectable()
 export class AuthStrategyFactory {

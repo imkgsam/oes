@@ -1,35 +1,16 @@
-// File: src/common/modules/trace/trace.module.ts
-
-import { DynamicModule, Global, Module } from '@nestjs/common'
+// src/common/tracing/trace.module.ts
+import { Global, Module } from '@nestjs/common'
 import { APP_INTERCEPTOR } from '@nestjs/core'
-import { HttpTraceInterceptor } from './http-trace.interceptor'
-import { RpcTraceInterceptor } from './rpc-trace.interceptor'
+import { TraceInterceptor } from './trace.interceptor'
 
-// 标记为全局模块（可选，如果你希望自动生效）
 @Global()
-@Module({})
-export class TraceModule {
-  static forHttp(): DynamicModule {
-    return {
-      module: TraceModule,
-      providers: [
-        {
-          provide: APP_INTERCEPTOR,
-          useClass: HttpTraceInterceptor
-        }
-      ]
+@Module({
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TraceInterceptor
     }
-  }
-
-  static forRpc(): DynamicModule {
-    return {
-      module: TraceModule,
-      providers: [
-        {
-          provide: APP_INTERCEPTOR,
-          useClass: RpcTraceInterceptor
-        }
-      ]
-    }
-  }
-}
+  ],
+  exports: []
+})
+export class TraceModule {}

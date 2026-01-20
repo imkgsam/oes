@@ -9,6 +9,7 @@ async function bootstrap() {
   app.useGlobalFilters(new ApiGatewayExceptionsFilter())
   //使用全局拦截器 返回结构化res
   app.useGlobalInterceptors(new ResponseTransformInterceptor())
+  
   await app.listen(process.env.API_GATEWAY_PORT ?? 9101)
 }
 bootstrap()

@@ -1,4 +1,4 @@
-import { RawError } from '../../core/interfaces/exceptions.interface'
+import { RawError } from '../../../../../../../common/src/core/interfaces/exceptions.interface'
 
 /**
  * 资源服务错误码定义

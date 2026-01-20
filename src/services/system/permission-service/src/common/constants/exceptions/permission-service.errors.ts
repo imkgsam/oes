@@ -1,4 +1,4 @@
-import { RawError } from '../../core/interfaces/exceptions.interface'
+import { RawError } from '@oes/common/core/interfaces/exceptions.interface'
 
 export const PERMISSION_SERVICE_ERRORS: Record<string, RawError> = {
   ROLE_NOT_FOUND: {

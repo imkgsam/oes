@@ -2,7 +2,6 @@
   "name": "@oes/common",
   "version": "1.0.0",
   "private": true,
-
   "main": "dist/index.js",
   "types": "./src",
   "scripts": {
@@ -15,6 +14,7 @@
     }
   },
   "dependencies": {
+    "@grpc/grpc-js": "^1.14.3",
     "@nestjs/config": "^4.0.2",
     "@nestjs/jwt": "^11.0.0"
   }

@@ -12,8 +12,8 @@ import {
   GoogleLoginRequestDto,
   WechatLoginRequestDto
 } from '@oes/common/dtos/auth-service/all.dto'
-import { LoginMethodEnum } from 'src/common/const'
-import { IAuthServiceRpcAuthContract } from '@oes/common/interfaces/contracts/auth-service/rpc.contract'
+import { LoginMethodEnum } from '@oes/common/constants/auth/index'
+import { IAuthServiceRpcAuthContract } from '@oes/common/contracts/auth-service/rpc.contract'
 import { RpcRequestData } from '@oes/common/decorators/rpc-request-data.decorator'
 
 @Controller()

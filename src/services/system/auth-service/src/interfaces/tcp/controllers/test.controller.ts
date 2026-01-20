@@ -6,9 +6,9 @@ import {
   TestingWithParamsRequestDto,
   TestingWithParamsResponseDto
 } from '@oes/common/dtos/auth-service/all.dto'
-import { IAuthServiceRpcTestContract } from '@oes/common/interfaces/contracts/auth-service/rpc.contract'
-import { HttpClient } from '@oes/common/modules/client/http.client'
-import { HttpServiceFactory } from '@oes/common/final/http/client/http.service'
+import { IAuthServiceRpcTestContract } from '@oes/common/contracts/auth-service/rpc.contract'
+import { HttpClient } from '@oes/common/http/client/http.client'
+import { HttpServiceFactory } from '@oes/common/http/client/http.service'
 @Controller('test')
 export class TcpTestController implements IAuthServiceRpcTestContract {
   private readonly httpClient: HttpClient

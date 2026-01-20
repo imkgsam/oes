@@ -7,13 +7,13 @@ import { EmailService } from '../../infrastructure/services/email.service'
 import { SmsService } from '../../infrastructure/services/sms.service'
 import { createBusinessException } from '@oes/common/exceptions/exception.factory'
 import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
-import { OTP_TYPES, MfaType, LoginMethodType } from 'src/common/const'
+import { OTP_TYPES, MfaType, LoginMethodType } from 'src/common/constants'
 import { OneTimeToken } from '../../domain/aggregates/otp.aggregate'
 import {
   MFA_BINDING_REPOSITORY,
   OTP_REPOSITORY,
   USER_REPOSITORY
-} from 'src/common/const/injection-tokens'
+} from 'src/common/constants/injection-tokens'
 
 /**
  * MFA (Multi-Factor Authentication) 服务

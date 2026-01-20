@@ -1,4 +1,4 @@
-import { RawError } from '../../core/interfaces/exceptions.interface'
+import { RawError } from '@oes/common/core/interfaces/exceptions.interface'
 
 /**
  * 认证服务错误码定义

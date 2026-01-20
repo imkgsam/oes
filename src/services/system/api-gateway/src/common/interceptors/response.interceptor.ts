@@ -2,9 +2,9 @@ import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nes
 import { Observable } from 'rxjs'
 import { map } from 'rxjs/operators'
 import { Request } from 'express'
-import { HttpResponse } from '@oes/common/final/core/interfaces/http.interface'
-import { SUCCESS } from '@oes/common/constants/res-codes/system.errors'
-import { getSpanId, getTraceId } from '@oes/common/modules/tracing/trace-context'
+import { HttpResponse } from '@oes/common/core/interfaces/http.interface'
+import { SUCCESS } from '@oes/common/constants/errors/system.errors'
+import { getSpanId, getTraceId } from '@oes/common/tracing/trace-context'
 
 /**
  * HTTP 响应拦截器 - 统一返回响应结构

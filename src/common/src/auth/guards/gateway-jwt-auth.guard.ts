@@ -1,12 +1,11 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
-import { Observable } from 'rxjs'
 import { InjectServiceClient } from '../../rpc/clients/client.decorator'
 import { ClientProxy } from '@nestjs/microservices'
 import { CommonJwtService } from '../jwt/jwt.service'
 import { createSystemException } from '../../core/exceptions'
 import { Reflector } from '@nestjs/core'
 import { IS_PUBLIC_KEY } from '../decorators/is-public.decorator'
-import { GLOBAL_SYSTEM_ERRORS } from '../../constants/errors/system.errors'
+import { GLOBAL_EXCEPTIONS } from '../../constants/exceptions'
 
 export enum AccountHolderType {
   USER = 'USER',
@@ -43,13 +42,13 @@ export class GatewayJwtAuthGuard implements CanActivate {
     const token = authHeader.slice(7)
     //token 缺失
     if (!token) {
-      throw createSystemException(GLOBAL_SYSTEM_ERRORS.JWT_MISSING)
+      throw createSystemException(GLOBAL_EXCEPTIONS.SECURITY_EXCEPTIONS.JWT_EXCEPTIONS.JWT_MISSING)
     }
     try {
       const payload = await this.jwtService.verifyAsync(token)
       req['user'] = payload
     } catch (error) {
-      throw createSystemException(GLOBAL_SYSTEM_ERRORS.JWT_INVALID)
+      throw createSystemException(GLOBAL_EXCEPTIONS.SECURITY_EXCEPTIONS.JWT_EXCEPTIONS.JWT_INVALID)
     }
     return true
   }

@@ -5,7 +5,7 @@ import { PrismaModule } from 'src/infrastructure/prisma/prisma.module'
 import { ClientModule } from '@oes/common/modules/clients/client.module'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 import { TcpTestController } from 'src/interfaces/tcp/controllers/test.controller'
-import { USER_REPOSITORY } from 'src/common/const/injection-tokens'
+import { USER_REPOSITORY } from 'src/common/constants/injection-tokens'
 import { AuthService } from 'src/application/services/auth-service'
 import { AuthStrategyFactory } from 'src/domain/services/strategies/auth-strategies.factory'
 import { SessionService } from 'src/application/services/session.service'
@@ -22,7 +22,7 @@ import {
   OTP_REPOSITORY,
   SESSION_REPOSITORY,
   HASHING_SERVICE
-} from 'src/common/const/injection-tokens'
+} from 'src/common/constants/injection-tokens'
 import { BcryptHashingService } from 'src/infrastructure/services/hashing.service'
 import { RedisUserSessionRepository } from 'src/infrastructure/repositories/redis/session/redis-user-session.repository'
 

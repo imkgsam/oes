@@ -15,7 +15,7 @@ import { ServiceKeys } from '@oes/common/modules/clients/service-map'
       load: [tokenConfig, authKeyConfig] // 从common中加载配置
     }),
     // 链路追踪模块
-    TraceModule.forRpc(),
+    TraceModule,
     AuthModule,
     // 注册微服务客户端
     ClientModule.register([ServiceKeys.PERMISSION_TCP])

@@ -3,10 +3,13 @@ import { ModuleDetails } from '../../core/interfaces/module.interface'
 export enum EXCEPTION_TYPE_PREFIX {
   SYSTEM = 'SYS',
   BUSINESS = 'BUS',
-  RUNTIME = 'RT'
+  RUNTIME = 'RT',
+  VALIDATION = 'VAL',
+  SECURITY = 'SEC',
+  INTEGRATION = 'INT'
 }
 
-export const MODULES: Record<string, ModuleDetails> = {
+export const MODULE_CODES: Record<string, ModuleDetails> = {
   API_GATEWAY: {
     code: '101',
     name: 'API_GATEWAY'
@@ -30,5 +33,9 @@ export const MODULES: Record<string, ModuleDetails> = {
   MES_SERVICE: {
     code: '202',
     name: 'MES_SERVICE'
+  },
+  ENTITY_SERVICE: {
+    code: '203',
+    name: 'ENTITY_SERVICE'
   }
 }

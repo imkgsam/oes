@@ -1,5 +1,5 @@
 import { RpcException } from '@nestjs/microservices'
-import { EXCEPTION_TYPE_PREFIX, MODULES } from '../../constants/shared/module.codes'
+import { EXCEPTION_TYPE_PREFIX, MODULE_CODES } from '../../constants/exceptions/module.codes'
 import {
   ErrorContext,
   RpcError,
@@ -35,8 +35,7 @@ export function buildGlobalErrorCode(
   moduleName: string,
   subCode: string
 ): string {
-  const foundModule: ModuleDetails = MODULES[moduleName]
-  console.log(`Building global error code: ${typePrefix}${foundModule.code}${subCode}`)
+  const foundModule: ModuleDetails = MODULE_CODES[moduleName]
   if (!foundModule) throw new Error(`Module ${moduleName} not existed`)
   const moduleCode = foundModule.code
   return `${typePrefix}${moduleCode}${subCode}`

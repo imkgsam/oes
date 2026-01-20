@@ -3,8 +3,11 @@ import { SystemException } from './system.exception'
 import { RuntimeException } from './runtime.exception'
 import { RawError } from '../interfaces/exceptions.interface'
 import { buildGlobalErrorCode } from '../helpers/exception.helper'
-import { EXCEPTION_TYPE_PREFIX } from '../../constants/shared/module.codes'
-import { GLOBAL_RUNTIME_ERRORS } from '../../constants/errors/runtime.errors'
+import { EXCEPTION_TYPE_PREFIX } from '../../constants/exceptions/module.codes'
+import { OESException } from './oes.exception'
+import { IntegrationException } from './integration.exception'
+import { SecurityException } from './security.exception'
+import { ValidationException } from './validation.exception'
 /**
  * 异常工厂
  * 根据异常类型创建异常
@@ -16,30 +19,35 @@ import { GLOBAL_RUNTIME_ERRORS } from '../../constants/errors/runtime.errors'
 const moduleNameFromEnv = process.env.MODULE_NAME || 'UNKNOWN_MODULE'
 // 创建业务异常
 export function createBusinessException(input: RawError, details?: any) {
-  return createException(EXCEPTION_TYPE_PREFIX.BUSINESS, input, details)
+  return createTException(EXCEPTION_TYPE_PREFIX.BUSINESS, input, details)
 }
+
 // 创建系统异常
 export function createSystemException(input: RawError, details?: any) {
-  return createException(EXCEPTION_TYPE_PREFIX.SYSTEM, input, details)
+  return createTException(EXCEPTION_TYPE_PREFIX.SYSTEM, input, details)
 }
+
 // 创建运行时异常
-export function createRuntimeException(raw: RawError, details?: any) {
-  return createException(EXCEPTION_TYPE_PREFIX.RUNTIME, raw, details)
+export function createRuntimeException(input: RawError, details?: any) {
+  return createTException(EXCEPTION_TYPE_PREFIX.RUNTIME, input, details)
 }
 
-function createException(etype: EXCEPTION_TYPE_PREFIX, input: RawError, details?: any) {
-  console.log(
-    `in createException: type ${etype}\n input: ${JSON.stringify(input)}\n detail:${details} \n`
-  )
+// 创建集成异常
+export function createIntegrationException(input: RawError, details?: any) {
+  return createTException(EXCEPTION_TYPE_PREFIX.INTEGRATION, input, details)
+}
+// 创建安全异常
+export function createSecurityException(input: RawError, details?: any) {
+  return createTException(EXCEPTION_TYPE_PREFIX.SECURITY, input, details)
+}
+// 创建验证异常
+export function createValidationException(input: RawError, details?: any) {
+  return createTException(EXCEPTION_TYPE_PREFIX.VALIDATION, input, details)
+}
 
-  // 避免无限递归：如果 MODULE_NAME 未设置，直接创建异常而不再次调用 createRuntimeException
-  if (moduleNameFromEnv === 'UNKNOWN_MODULE') {
-    const code: string = buildGlobalErrorCode(etype, moduleNameFromEnv, input.subCode)
-    return new RuntimeException(code, input.message, input.messageKey, input.httpStatus, details)
-  }
-
+function createTException(etype: EXCEPTION_TYPE_PREFIX, input: RawError, details?: any) {
   const code: string = buildGlobalErrorCode(etype, moduleNameFromEnv, input.subCode)
-  let k: SystemException | BusinessException | RuntimeException
+  let k: OESException
   switch (etype) {
     case EXCEPTION_TYPE_PREFIX.BUSINESS:
       k = new BusinessException(code, input.message, input.messageKey, input.httpStatus, details)
@@ -49,6 +57,15 @@ function createException(etype: EXCEPTION_TYPE_PREFIX, input: RawError, details?
       break
     case EXCEPTION_TYPE_PREFIX.RUNTIME:
       k = new RuntimeException(code, input.message, input.messageKey, input.httpStatus, details)
+      break
+    case EXCEPTION_TYPE_PREFIX.INTEGRATION:
+      k = new IntegrationException(code, input.message, input.messageKey, input.httpStatus, details)
+      break
+    case EXCEPTION_TYPE_PREFIX.SECURITY:
+      k = new SecurityException(code, input.message, input.messageKey, input.httpStatus, details)
+      break
+    case EXCEPTION_TYPE_PREFIX.VALIDATION:
+      k = new ValidationException(code, input.message, input.messageKey, input.httpStatus, details)
       break
   }
   return k

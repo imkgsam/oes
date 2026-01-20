@@ -6,18 +6,17 @@ import {
   BadRequestException
 } from '@nestjs/common'
 import { RpcException } from '@nestjs/microservices'
-import { BusinessException } from '../exceptions/business.exception'
-import { SystemException } from '../exceptions/system.exception'
-import { RuntimeException } from '../exceptions/runtime.exception'
+import { BusinessException } from '../../core/exceptions/business.exception'
+import { SystemException } from '../../core/exceptions/system.exception'
+import { RuntimeException } from '../../core/exceptions/runtime.exception'
 import { RpcError } from '../../core/interfaces/exceptions.interface'
 import { RpcRequest } from '../../core/interfaces/rpc.interface'
 import { Observable, throwError } from 'rxjs'
-import { buildGlobalErrorCode, toRpcException } from '../../../helpers/exception.helper'
-import { getTraceId } from '../../../modules/tracing/trace-context'
-import { GLOBAL_RUNTIME_ERRORS } from '../../../constants/res-codes/errors/runtime.errors'
-import { EXCEPTION_TYPE_PREFIX } from '../constants/res-codes/module.codes'
-import { envConfig } from '../../../helpers/env.helper'
-
+import { buildGlobalErrorCode, toRpcException } from '../../core/helpers/exception.helper'
+import { getTraceId } from '../../tracing/trace-context'
+import { GLOBAL_EXCEPTIONS } from '../../constants/exceptions'
+import { EXCEPTION_TYPE_PREFIX } from '../../constants/exceptions/module.codes'
+import { envConfig } from '../../core/helpers/env.helper'
 @Catch() // 无参数 → 捕获所有异常
 export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
   private readonly logger = new Logger(MicroserviceExceptionsFilter.name)
@@ -35,7 +34,6 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
     this.logger.error('in MicroserviceExceptionsFilter catch:', exception)
 
     const traceId = getTraceId() || undefined
-
     if (exception instanceof RpcException) {
       this.logger.error('Caught RpcException:')
       return this.handleRpcException(exception)
@@ -93,11 +91,11 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
           code: buildGlobalErrorCode(
             EXCEPTION_TYPE_PREFIX.RUNTIME,
             this.moduleName,
-            GLOBAL_RUNTIME_ERRORS.VALIDATION_ERROR.subCode
+            GLOBAL_EXCEPTIONS.VALIDATION_EXCEPTIONS.VALIDATION_ERROR.subCode
           ),
           message: validationMessages,
-          messageKey: GLOBAL_RUNTIME_ERRORS.VALIDATION_ERROR.messageKey,
-          httpStatus: GLOBAL_RUNTIME_ERRORS.VALIDATION_ERROR.httpStatus,
+          messageKey: GLOBAL_EXCEPTIONS.VALIDATION_EXCEPTIONS.VALIDATION_ERROR.messageKey,
+          httpStatus: GLOBAL_EXCEPTIONS.VALIDATION_EXCEPTIONS.VALIDATION_ERROR.httpStatus,
           details: {
             validationErrors: responseMessage,
             originalException: exception.message,
@@ -167,11 +165,11 @@ export class MicroserviceExceptionsFilter implements RpcExceptionFilter {
           code: buildGlobalErrorCode(
             EXCEPTION_TYPE_PREFIX.RUNTIME,
             this.moduleName,
-            GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.subCode
+            GLOBAL_EXCEPTIONS.RUNTIME_ERRORS.UNKNOWN_ERROR.subCode
           ),
-          message: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.message,
-          messageKey: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.messageKey,
-          httpStatus: GLOBAL_RUNTIME_ERRORS.UNKNOWN_ERROR.httpStatus,
+          message: GLOBAL_EXCEPTIONS.RUNTIME_ERRORS.UNKNOWN_ERROR.message,
+          messageKey: GLOBAL_EXCEPTIONS.RUNTIME_ERRORS.UNKNOWN_ERROR.messageKey,
+          httpStatus: GLOBAL_EXCEPTIONS.RUNTIME_ERRORS.UNKNOWN_ERROR.httpStatus,
           details
         },
         {

@@ -1,6 +1,6 @@
-// File: src/common/modules/trace/trace-context.ts
+// File: src/common/tracing/trace-context.ts
 import { AsyncLocalStorage } from 'async_hooks'
-interface TraceContext {
+export interface TraceContext {
   traceId: string
   spanId: string
   parentSpanId?: string
