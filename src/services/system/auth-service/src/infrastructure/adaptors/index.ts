@@ -1,3 +1,4 @@
+// File: src/services/system/auth-service/src/infrastructure/adaptors/index.ts
 /**
  * Auth Service 适配器实现导出
  *

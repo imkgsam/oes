@@ -1,15 +1,12 @@
 // File: src/services/system/auth-service/src/application/ports/identity-service.port.ts
-import { IIdentityServiceContract } from '@oes/common/interfaces/services/identity-service'
+import { UserPort, AccountPort } from '@oes/common/contracts/identity-service/index'
 
-type IdentityMethodsSelections =
-  | 'getUserById'
-  | 'getUserByEmail'
-  | 'getUserByPhone'
-  | 'getAccountsByUserId'
-  | 'getAccountById'
+type UserPortSelections = 'getUserById' | 'getUserByEmail' | 'getUserByPhone'
+
+type AccountPortSelections = 'getAccountsByUserId' | 'getAccountById'
 
 /**
  * Identity Service 端口接口
  */
 export interface IIdentityServicePort
-  extends Pick<IIdentityServiceContract, IdentityMethodsSelections> {}
+  extends Pick<UserPort, UserPortSelections>, Pick<AccountPort, AccountPortSelections> {}

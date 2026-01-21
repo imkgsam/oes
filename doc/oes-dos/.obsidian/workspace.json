@@ -13,34 +13,6 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "OES项目/项目细节/项目介绍.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "项目介绍"
-            }
-          },
-          {
-            "id": "8a365e37d2e73a8a",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "OES项目/待实现功能/Process Manager (PM) 模块完整方案.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "Process Manager (PM) 模块完整方案"
-            }
-          },
-          {
-            "id": "859e88f644c79741",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
                 "file": "常见概念.md",
                 "mode": "source",
                 "source": false
@@ -48,23 +20,8 @@
               "icon": "lucide-file",
               "title": "常见概念"
             }
-          },
-          {
-            "id": "393c5e2e4400a53f",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "traceId.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "traceId"
-            }
           }
-        ],
-        "currentTab": 3
+        ]
       }
     ],
     "direction": "vertical"
@@ -226,13 +183,15 @@
       "bases:创建新数据库": false
     }
   },
-  "active": "393c5e2e4400a53f",
+  "active": "26c05a171cbd0cd8",
   "lastOpenFiles": [
-    "traceId.md",
-    "常见概念.md",
     "OES项目/项目细节/项目介绍.md",
-    "OES项目/待实现功能/Robot-Engine (RE) 模块完整方案.md",
     "OES项目/待实现功能/Process Manager (PM) 模块完整方案.md",
+    "常见概念.md",
+    "traceId.md",
+    "模块调用顺序.md",
+    "Pasted image 20260121162349.png",
+    "OES项目/待实现功能/Robot-Engine (RE) 模块完整方案.md",
     "JWTGuard认证.md",
     "OES项目/项目细节/模块/API-GATEWAY.md",
     "permissionCheckGuard.md",

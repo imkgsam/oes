@@ -1,3 +1,4 @@
+// File: src/services/system/auth-service/src/infrastructure/modules/external-services.module.ts
 import { Module } from '@nestjs/common'
 import { ClientModule } from '@oes/common/modules/clients/client.module'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'

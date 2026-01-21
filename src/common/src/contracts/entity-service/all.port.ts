@@ -1,4 +1,4 @@
-// File: src/common/interfaces/services/entity-service/rpc.contract.ts
+// File: src/common/contracts/entity-service/all.port.ts
 import {
   EntityDto,
   PersonProfileDto,
@@ -13,16 +13,7 @@ import {
   UpdateOrganizationProfileRequestDto,
   EntityListResponseDto
 } from '../../dtos/entity-service/all.dto'
-
-// RPC 接口入口
-export interface IEntityServiceRpcContract
-  extends
-    IEntityServiceRpcEntityContract,
-    IEntityServiceRpcPersonProfileContract,
-    IEntityServiceRpcOrganizationProfileContract {}
-
-// Entity RPC Contract
-export interface IEntityServiceRpcEntityContract {
+export interface EntityPort {
   createEntity(data: CreateEntityRequestDto): Promise<EntityDto>
   getEntityById(data: EntityIdRequestDto): Promise<EntityDto | null>
   listEntities(data: ListEntitiesRequestDto): Promise<EntityListResponseDto>
@@ -30,16 +21,13 @@ export interface IEntityServiceRpcEntityContract {
   deleteEntity(data: EntityIdRequestDto): Promise<void>
 }
 
-// Person Profile RPC Contract
-export interface IEntityServiceRpcPersonProfileContract {
+export interface ProfilePort {
   createPersonProfile(data: CreatePersonProfileRequestDto): Promise<PersonProfileDto>
   getPersonProfileByEntityId(data: EntityIdRequestDto): Promise<PersonProfileDto | null>
   updatePersonProfile(data: UpdatePersonProfileRequestDto): Promise<PersonProfileDto>
   deletePersonProfile(data: EntityIdRequestDto): Promise<void>
 }
-
-// Organization Profile RPC Contract
-export interface IEntityServiceRpcOrganizationProfileContract {
+export interface OrganizationPort {
   createOrganizationProfile(
     data: CreateOrganizationProfileRequestDto
   ): Promise<OrganizationProfileDto>

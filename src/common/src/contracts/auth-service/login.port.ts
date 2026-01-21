@@ -1,4 +1,4 @@
-// File: src/common/contracts/auth-service/rpc.contract.ts
+// File: src/common/contracts/auth-service/login.port.ts
 import {
   EmailOtpLoginRequestDto,
   EmailPasswordLoginRequestDto,
@@ -6,21 +6,11 @@ import {
   LoginResponseDto,
   PhoneOtpLoginRequestDto,
   PhonePasswordLoginRequestDto,
-  WechatLoginRequestDto,
-
-  // 测试 TEST
-  TestingWithParamsRequestDto,
-  TestingWithParamsResponseDto
+  WechatLoginRequestDto
 } from '../../dtos/auth-service/all.dto'
 
-// RPC 测试接口
-export interface IAuthServiceRpcTestContract {
-  testing(): Promise<any>
-  testingWithParams(dto: TestingWithParamsRequestDto): Promise<TestingWithParamsResponseDto>
-}
-
 // RPC AUTH 接口
-export interface IAuthServiceRpcAuthContract {
+export interface LoginPort {
   loginWithEmailPassword(data: EmailPasswordLoginRequestDto): Promise<LoginResponseDto>
   loginWithPhonePassword(data: PhonePasswordLoginRequestDto): Promise<LoginResponseDto>
   loginWithEmailOtp(data: EmailOtpLoginRequestDto): Promise<LoginResponseDto>
@@ -28,10 +18,3 @@ export interface IAuthServiceRpcAuthContract {
   loginWithGoogle(data: GoogleLoginRequestDto): Promise<LoginResponseDto>
   loginWithWechat(data: WechatLoginRequestDto): Promise<LoginResponseDto>
 }
-
-// PRC ADMIN 接口
-export interface IAuthServiceRpcAdminContract {}
-
-// RPC 接口
-export interface IAuthServiceRpcContract
-  extends IAuthServiceRpcTestContract, IAuthServiceRpcAuthContract, IAuthServiceRpcAdminContract {}

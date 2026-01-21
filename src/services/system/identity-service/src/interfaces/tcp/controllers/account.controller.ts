@@ -6,11 +6,10 @@ import {
   AccountIdRequestDto,
   UserIdRequestDto
 } from '@oes/common/dtos/identity-service/all.dto'
-import { IIdentityServiceRpcAccountContract } from '@oes/common/interfaces/services/identity-service'
 import { IDENTITY_MESSAGES } from '@oes/common/constants/messages/identity.message'
 import { RpcRequestData } from '@oes/common/decorators/rpc-request-data.decorator'
 @Injectable()
-export class AccountController implements IIdentityServiceRpcAccountContract {
+export class AccountController {
   constructor() {}
 
   @MessagePattern(IDENTITY_MESSAGES.GET_ACCOUNT_BY_ID)
