@@ -13,11 +13,10 @@ import {
   WechatLoginRequestDto
 } from '@oes/common/dtos/auth-service/all.dto'
 import { LoginMethodEnum } from '@oes/common/constants/auth/index'
-import { IAuthServiceRpcAuthContract } from '@oes/common/contracts/auth-service/rpc.contract'
 import { RpcRequestData } from '@oes/common/decorators/rpc-request-data.decorator'
 
 @Controller()
-export class TcpAuthController implements IAuthServiceRpcAuthContract {
+export class TcpAuthController  {
   constructor(private readonly authService: AuthService) {}
 
   @MessagePattern(AUTH_MESSAGES.LOGIN_WITH_EMAIL_PW)

@@ -8,7 +8,8 @@ import { Metadata } from '@grpc/grpc-js'
 @Injectable()
 export class TraceInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const type = context.getType<'http' | 'rpc' | 'ws'>()
+    type protocalTypes = 'http' | 'rpc' | 'ws'
+    const type = context.getType<protocalTypes>()
 
     // 处理http请求
     if (type === 'http') {
@@ -24,7 +25,12 @@ export class TraceInterceptor implements NestInterceptor {
     return next.handle()
   }
 
-  // ---------- HTTP ----------
+  /**
+   * 处理 http request
+   * @param context
+   * @param next
+   * @returns
+   */
   private handleHttp(context: ExecutionContext, next: CallHandler): Observable<any> {
     const req = context.switchToHttp().getRequest()
     const res = context.switchToHttp().getResponse()

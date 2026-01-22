@@ -6,11 +6,10 @@ import {
   TestingWithParamsRequestDto,
   TestingWithParamsResponseDto
 } from '@oes/common/dtos/auth-service/all.dto'
-import { IAuthServiceRpcTestContract } from '@oes/common/contracts/auth-service/rpc.contract'
 import { HttpClient } from '@oes/common/http/client/http.client'
 import { HttpServiceFactory } from '@oes/common/http/client/http.service'
 @Controller('test')
-export class TcpTestController implements IAuthServiceRpcTestContract {
+export class TcpTestController {
   private readonly httpClient: HttpClient
   constructor(private readonly httpFactory: HttpServiceFactory) {
     this.httpClient = this.httpFactory.createClient({
