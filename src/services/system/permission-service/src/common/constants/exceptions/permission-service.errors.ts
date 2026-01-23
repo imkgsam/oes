@@ -1,6 +1,6 @@
-import { RawError } from '@oes/common/core/interfaces/exceptions.interface'
+import { ExceptionConst } from '@oes/common/core/interfaces/exceptions.interface'
 
-export const PERMISSION_SERVICE_ERRORS: Record<string, RawError> = {
+export const PERMISSION_SERVICE_ERRORS: Record<string, ExceptionConst> = {
   ROLE_NOT_FOUND: {
     subCode: '0001',
     message: 'Role not found',

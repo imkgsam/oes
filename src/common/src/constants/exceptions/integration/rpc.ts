@@ -1,9 +1,9 @@
-import { RawError } from '../../../core/interfaces/exceptions.interface'
+import { ExceptionConst } from '../../../core/interfaces/exceptions.interface'
 
 // RPC 相关错误
 // 3xxx
 
-export const RPC_EXCEPTIONS: Record<string, RawError> = {
+export const RPC_EXCEPTIONS: Record<string, ExceptionConst> = {
   INVALID_RPC_STRUCTURE: {
     subCode: '3001',
     message: '无效的 RPC 响应结构',

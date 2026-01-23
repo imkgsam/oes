@@ -1,6 +1,6 @@
-import { RawError } from './exceptions.interface'
+import { ExceptionConst } from './exceptions.interface'
 import { FailureDescriptor } from './failure.interface'
-import { WarningDescriptor } from './warnings.interface'
+import { WarningConst } from './warnings.interface'
 
 export interface ServiceRequest<T = unknown> {
   payload: T
@@ -33,7 +33,7 @@ export interface ResponseMeta {
   timestamp: string // 请求恢复时间
   durationMs?: number //调用耗时
   callTrace: CallTrace[] // 全链路调用轨迹
-  warnings: Record<string, WarningDescriptor[]>
+  warnings: Record<string, WarningConst[]>
 }
 
 export interface CallTrace {
@@ -55,11 +55,11 @@ export interface CBError {
   details?: any // 错误详情
 }
 export type RpcModuleWarnings = Record<string, CBError[]>
-export type RpcModuleErrors = Record<string, RawError>
+export type RpcModuleErrors = Record<string, ExceptionConst>
 
 export interface RpcControllerResult<T = unknown> {
   data?: T // 返回业务数据
   warnings?: CBError[] // 本服务产生的code-based error
-  error?: RawError // 本服务产生的raw error, interceptor 再拼接成 CBERROR
+  error?: ExceptionConst // 本服务产生的raw error, interceptor 再拼接成 CBERROR
   downstreamMeta?: ResponseMeta[] // 下游服务原始返回结果中的meta
 }

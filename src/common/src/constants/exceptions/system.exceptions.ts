@@ -1,6 +1,6 @@
-import { RawError } from '../../core/interfaces/exceptions.interface'
+import { ExceptionConst } from '../../core/interfaces/exceptions.interface'
 
-export const SYSTEM_EXCEPTIONS: Record<string, RawError> = {
+export const SYSTEM_EXCEPTIONS: Record<string, ExceptionConst> = {
   // 未知兜底错误
   UNKNOWN_ERROR: {
     subCode: '9999',

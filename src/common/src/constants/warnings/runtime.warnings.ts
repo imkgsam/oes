@@ -1,7 +1,7 @@
 // common/constants/warnings/runtime.warnings.ts
-import { WarningDescriptor } from '../../core/interfaces/warnings.interface'
+import { WarningConst } from '../../core/interfaces/warnings.interface'
 
-export const RUNTIME_WARNINGS: Record<string, WarningDescriptor> = {
+export const RUNTIME_WARNINGS: Record<string, WarningConst> = {
   SLOW_RESPONSE: {
     code: 'RUN_001',
     message: '请求响应时间较慢',

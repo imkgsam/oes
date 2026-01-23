@@ -1,4 +1,4 @@
-export interface WarningDescriptor {
+export interface WarningConst {
   code: string
   message: string
   messageKey: string

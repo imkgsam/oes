@@ -1,6 +1,6 @@
-import { RawError } from '../../core/interfaces/exceptions.interface'
+import { ExceptionConst } from '../../core/interfaces/exceptions.interface'
 
-export const VALIDATION_EXCEPTIONS: Record<string, RawError> = {
+export const VALIDATION_EXCEPTIONS: Record<string, ExceptionConst> = {
   VALIDATION_ERROR: {
     subCode: '9999',
     message: '数据验证失败',

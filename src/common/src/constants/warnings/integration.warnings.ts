@@ -1,8 +1,8 @@
 // common/constants/warnings/integration.warnings.ts
 
-import { WarningDescriptor } from '../../core/interfaces/warnings.interface'
+import { WarningConst } from '../../core/interfaces/warnings.interface'
 
-export const INTEGRATION_WARNINGS: Record<string, WarningDescriptor> = {
+export const INTEGRATION_WARNINGS: Record<string, WarningConst> = {
   RPC_PARTIAL_FAILURE: {
     code: 'INT_001',
     message: '部分下游服务调用失败',

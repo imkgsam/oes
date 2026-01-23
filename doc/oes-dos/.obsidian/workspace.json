@@ -20,8 +20,21 @@
               "icon": "lucide-file",
               "title": "模块调用顺序"
             }
+          },
+          {
+            "id": "647c4704fbc6927d",
+            "type": "leaf",
+            "state": {
+              "type": "image",
+              "state": {
+                "file": "Pasted image 20260121162349.png"
+              },
+              "icon": "lucide-image",
+              "title": "Pasted image 20260121162349"
+            }
           }
-        ]
+        ],
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -174,23 +187,23 @@
   },
   "left-ribbon": {
     "hiddenItems": {
+      "bases:新建数据库": false,
       "switcher:打开快速切换": false,
       "graph:查看关系图谱": false,
       "canvas:新建白板": false,
       "daily-notes:打开/创建今天的日记": false,
       "templates:插入模板": false,
-      "command-palette:打开命令面板": false,
-      "bases:创建新数据库": false
+      "command-palette:打开命令面板": false
     }
   },
-  "active": "26c05a171cbd0cd8",
+  "active": "647c4704fbc6927d",
   "lastOpenFiles": [
+    "traceId.md",
     "Pasted image 20260121162349.png",
     "模块调用顺序.md",
     "常见概念.md",
     "OES项目/项目细节/项目介绍.md",
     "OES项目/待实现功能/Process Manager (PM) 模块完整方案.md",
-    "traceId.md",
     "OES项目/待实现功能/Robot-Engine (RE) 模块完整方案.md",
     "JWTGuard认证.md",
     "OES项目/项目细节/模块/API-GATEWAY.md",

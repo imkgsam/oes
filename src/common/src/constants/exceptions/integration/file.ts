@@ -1,8 +1,8 @@
-import { RawError } from '../../../core/interfaces/exceptions.interface'
+import { ExceptionConst } from '../../../core/interfaces/exceptions.interface'
 // 文件相关错误
 // 4xxx
 
-export const FILE_EXCEPTIONS: Record<string, RawError> = {
+export const FILE_EXCEPTIONS: Record<string, ExceptionConst> = {
   FILE_UPLOAD_FAILED: {
     subCode: '4001',
     message: '文件上传失败',

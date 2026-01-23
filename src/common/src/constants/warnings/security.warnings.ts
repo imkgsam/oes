@@ -1,8 +1,8 @@
 // common/constants/warnings/security.warnings.ts
 
-import { WarningDescriptor } from '../../core/interfaces/warnings.interface'
+import { WarningConst } from '../../core/interfaces/warnings.interface'
 
-export const SECURITY_WARNINGS: Record<string, WarningDescriptor> = {
+export const SECURITY_WARNINGS: Record<string, WarningConst> = {
   MFA_NOT_BOUND: {
     code: 'SEC_001',
     message: '当前账号尚未绑定 MFA',

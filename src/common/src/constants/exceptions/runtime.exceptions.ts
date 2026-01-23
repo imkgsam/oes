@@ -1,5 +1,3 @@
-import { RawError } from '../../core/interfaces/exceptions.interface'
+import { ExceptionConst } from '../../core/interfaces/exceptions.interface'
 
-export const RUNTIME_ERRORS: Record<string, RawError> = {
-  
-}
+export const RUNTIME_ERRORS: Record<string, ExceptionConst> = {}

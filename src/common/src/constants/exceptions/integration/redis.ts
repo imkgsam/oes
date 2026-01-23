@@ -1,9 +1,9 @@
-import { RawError } from '../../../core/interfaces/exceptions.interface'
+import { ExceptionConst } from '../../../core/interfaces/exceptions.interface'
 
 // Redis 相关错误
 // 2xxx
 
-export const REDIS_EXCEPTIONS: Record<string, RawError> = {
+export const REDIS_EXCEPTIONS: Record<string, ExceptionConst> = {
   REDIS_CONNECTION_FAILED: {
     subCode: '2001',
     message: 'Redis 连接失败',

@@ -10,6 +10,8 @@ import { OrganizationProfileRepository } from './infrastructure/repositories/org
 import { EntityController } from './interfaces/tcp/controllers/entity.controller'
 import { PersonProfileController } from './interfaces/tcp/controllers/person-profile.controller'
 import { OrganizationProfileController } from './interfaces/tcp/controllers/organization-profile.controller'
+import { TraceModule } from '@oes/common/tracing/trace.module'
+
 import {
   ENTITY_REPOSITORY,
   PERSON_PROFILE_REPOSITORY,
@@ -22,7 +24,8 @@ import {
       isGlobal: true,
       envFilePath: ['.env']
     }),
-    PrismaModule
+    PrismaModule,
+    TraceModule
   ],
   controllers: [EntityController, PersonProfileController, OrganizationProfileController],
   providers: [

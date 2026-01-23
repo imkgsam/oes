@@ -1,9 +1,9 @@
-import { RawError } from '../../../core/interfaces/exceptions.interface'
+import { ExceptionConst } from '../../../core/interfaces/exceptions.interface'
 
 //token 相关
 // 0xxx
 
-export const JWT_EXCEPTIONS: Record<string, RawError> = {
+export const JWT_EXCEPTIONS: Record<string, ExceptionConst> = {
   JWT_MISSING: {
     subCode: '0001',
     message: '缺少 JWT 访问令牌',

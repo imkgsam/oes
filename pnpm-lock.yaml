@@ -953,6 +953,9 @@ importers:
       '@nestjs/platform-express':
         specifier: ^10.0.0
         version: 10.4.21(@nestjs/common@10.4.21(class-transformer@0.5.1)(class-validator@0.14.3)(reflect-metadata@0.1.14)(rxjs@7.8.2))(@nestjs/core@10.4.21)
+      '@oes/common':
+        specifier: workspace:*
+        version: link:../../../common
       class-transformer:
         specifier: ^0.5.1
         version: 0.5.1

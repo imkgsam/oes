@@ -1,5 +1,5 @@
-// 定义 code-based error 结构
-export interface RawError {
+// const 中定义的结构
+export interface ExceptionConst {
   subCode: string
   message: string
   messageKey: string

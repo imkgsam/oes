@@ -1,8 +1,8 @@
 // common/constants/warnings/validation.warnings.ts
 
-import { WarningDescriptor } from '../../core/interfaces/warnings.interface'
+import { WarningConst } from '../../core/interfaces/warnings.interface'
 
-export const VALIDATION_WARNINGS: Record<string, WarningDescriptor> = {
+export const VALIDATION_WARNINGS: Record<string, WarningConst> = {
   PARTIAL_PERMISSION_GRANTED: {
     code: 'VAL_001',
     message: '仅授予了部分权限',

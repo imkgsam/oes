@@ -1,9 +1,9 @@
-import { RawError } from '../../../core/interfaces/exceptions.interface'
+import { ExceptionConst } from '../../../core/interfaces/exceptions.interface'
 
 // 数据库相关错误
 // 1xxx
 
-export const DB_EXCEPTIONS: Record<string, RawError> = {
+export const DB_EXCEPTIONS: Record<string, ExceptionConst> = {
   DATABASE_CONNECTION_FAILED: {
     subCode: '1001',
     message: '数据库连接失败',

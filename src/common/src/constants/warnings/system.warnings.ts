@@ -1,8 +1,8 @@
 // common/constants/warnings/index.ts
 
-import { WarningDescriptor } from '../../core/interfaces/warnings.interface'
+import { WarningConst } from '../../core/interfaces/warnings.interface'
 
-export const SYSTEM_WARNINGS: Record<string, WarningDescriptor> = {
+export const SYSTEM_WARNINGS: Record<string, WarningConst> = {
   CONFIG_MISSING: {
     code: 'SYS_001',
     message: '系统配置缺失，已使用默认配置',

@@ -1,7 +1,7 @@
 import { BusinessException } from './business.exception'
 import { SystemException } from './system.exception'
 import { RuntimeException } from './runtime.exception'
-import { RawError } from '../interfaces/exceptions.interface'
+import { ExceptionConst } from '../interfaces/exceptions.interface'
 import { buildGlobalErrorCode } from '../helpers/exception.helper'
 import { EXCEPTION_TYPE_PREFIX } from '../../constants/exceptions/module.codes'
 import { OESException } from './oes.exception'
@@ -18,34 +18,34 @@ import { ValidationException } from './validation.exception'
  */
 const moduleNameFromEnv = process.env.MODULE_NAME || 'UNKNOWN_MODULE'
 // 创建业务异常
-export function createBusinessException(input: RawError, details?: any) {
+export function createBusinessException(input: ExceptionConst, details?: any) {
   return createTException(EXCEPTION_TYPE_PREFIX.BUSINESS, input, details)
 }
 
 // 创建系统异常
-export function createSystemException(input: RawError, details?: any) {
+export function createSystemException(input: ExceptionConst, details?: any) {
   return createTException(EXCEPTION_TYPE_PREFIX.SYSTEM, input, details)
 }
 
 // 创建运行时异常
-export function createRuntimeException(input: RawError, details?: any) {
+export function createRuntimeException(input: ExceptionConst, details?: any) {
   return createTException(EXCEPTION_TYPE_PREFIX.RUNTIME, input, details)
 }
 
 // 创建集成异常
-export function createIntegrationException(input: RawError, details?: any) {
+export function createIntegrationException(input: ExceptionConst, details?: any) {
   return createTException(EXCEPTION_TYPE_PREFIX.INTEGRATION, input, details)
 }
 // 创建安全异常
-export function createSecurityException(input: RawError, details?: any) {
+export function createSecurityException(input: ExceptionConst, details?: any) {
   return createTException(EXCEPTION_TYPE_PREFIX.SECURITY, input, details)
 }
 // 创建验证异常
-export function createValidationException(input: RawError, details?: any) {
+export function createValidationException(input: ExceptionConst, details?: any) {
   return createTException(EXCEPTION_TYPE_PREFIX.VALIDATION, input, details)
 }
 
-function createTException(etype: EXCEPTION_TYPE_PREFIX, input: RawError, details?: any) {
+function createTException(etype: EXCEPTION_TYPE_PREFIX, input: ExceptionConst, details?: any) {
   const code: string = buildGlobalErrorCode(etype, moduleNameFromEnv, input.subCode)
   let k: OESException
   switch (etype) {
