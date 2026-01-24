@@ -1,12 +1,14 @@
 export interface WarningConst {
-  code: string
+  subCode: string
   message: string
   messageKey: string
   category: WarningCategory
   severity: WarningSeverity
-  retriable?: boolean
-  degraded?: boolean
+}
+
+export interface WarningDescriptor extends WarningConst {
+  details?: any
 }
 
 type WarningSeverity = 'INFO' | 'WARN'
-type WarningCategory = 'SYSTEM' | 'RUNTIME' | 'INTEGRATION' | 'SECURITY' | 'VALIDATION' | 'BUSINESS'
+export type WarningCategory = 'INTEGRATION' | 'VALIDATION' | 'BUSINESS'
