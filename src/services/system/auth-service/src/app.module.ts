@@ -4,18 +4,16 @@ import { ConfigModule } from '@nestjs/config'
 import tokenConfig from '@oes/common/configs/token.config'
 import authKeyConfig from '@oes/common/configs/authKey.config'
 import { ClientModule } from '@oes/common/modules/clients/client.module'
-import { TraceModule } from '@oes/common/tracing/trace.module'
 import { ServiceKeys } from '@oes/common/modules/clients/service-map'
-
+import { LoggingModule } from '@oes/common/logging/logging.module'
 @Module({
   imports: [
+    LoggingModule,
     ConfigModule.forRoot({
       cache: true,
       isGlobal: true,
       load: [tokenConfig, authKeyConfig] // 从common中加载配置
     }),
-    // 链路追踪模块
-    TraceModule,
     AuthModule,
     // 注册微服务客户端
     ClientModule.register([ServiceKeys.PERMISSION_TCP])

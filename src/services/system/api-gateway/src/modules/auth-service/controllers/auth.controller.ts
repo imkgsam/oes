@@ -13,7 +13,8 @@ import {
   PhonePasswordLoginRequestDto
 } from '@oes/common/dtos/auth-service/all.dto'
 import { AUTH_MESSAGES } from '@oes/common/constants/messages/auth.message'
-
+import { Public } from '@oes/common/auth/decorators/is-public.decorator'
+@Public()
 @ApiTags('身份认证')
 @Controller('auth')
 export class AuthController {

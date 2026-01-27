@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common'
-import { TraceModule } from '@oes/common/tracing/trace.module'
+import { LoggingModule } from '@oes/common/logging/logging.module'
 
 @Module({
   imports: [
     // 链路追踪模块
-    TraceModule
+    LoggingModule
   ],
   providers: [],
   controllers: []

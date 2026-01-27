@@ -8,7 +8,4 @@
 - mq或者kafka 协议 在 controller 处
 
 
-
-
-
-- 
+### 已通过 OTEL 实现

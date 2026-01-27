@@ -1,3 +1,6 @@
+export const API_GATEWAY = Symbol('api-gateway')
 export const IDENTITY_SERVICE = Symbol('identity-service')
 export const PERMISSION_SERVICE = Symbol('permission-service')
 export const AUTH_SERVICE = Symbol('auth-service')
+export const ENTITY_SERVICE = Symbol('entity-service')
+export const RESOURCE_SERVICE = Symbol('resource-service')

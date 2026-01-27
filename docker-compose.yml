@@ -1,17 +1,199 @@
-version: '3.8'
-
+# File: docker-compose.yml
 services:
+  # ============ Infrastructure ============
   postgres:
-    image: 'bitnami/postgresql:latest'
-    container_name: bitnami_postgres
+    image: "bitnami/postgresql:latest"
+    container_name: oes_postgres
     environment:
       - POSTGRESQL_USERNAME=imkgsam
       - POSTGRESQL_PASSWORD=imkgsam
       - POSTGRESQL_DATABASE=mydb
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
       - postgres_data:/bitnami/postgresql
+    networks:
+      - oes_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oes_user -d oes_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: "redis:7-alpine"
+    container_name: oes_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - oes_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============ OpenTelemetry Stack ============
+  # Jaeger v2 - 基于 OpenTelemetry Collector 架构
+  # 直接接收 OTLP 数据，无需单独的 OTel Collector
+  jaeger:
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.14.1
+    container_name: oes_jaeger
+    volumes:
+      - ./otel/jaeger-v2-config.yaml:/etc/jaeger/config.yaml
+    command: ["--config", "/etc/jaeger/config.yaml"]
+    ports:
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+      - "16686:16686" # Jaeger UI
+    networks:
+      - oes_network
+    environment:
+      - METRICS_STORAGE_TYPE=prometheus
+
+  # ============ System Services ============
+  api-gateway:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.api-gateway
+    container_name: oes_api_gateway
+    environment:
+      - NODE_ENV=production
+      - API_GATEWAY_PORT=9101
+      - AUTH_SERVICE_HOST=auth-service
+      - AUTH_SERVICE_PORT=9202
+      - IDENTITY_SERVICE_HOST=identity-service
+      - IDENTITY_SERVICE_PORT=9402
+      - PERMISSION_SERVICE_HOST=permission-service
+      - PERMISSION_SERVICE_PORT=9302
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_SERVICE_NAME=api-gateway
+    ports:
+      - "9101:9101"
+    networks:
+      - oes_network
+    depends_on:
+      - jaeger
+      - auth-service
+      - identity-service
+      - permission-service
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.auth-service
+    container_name: oes_auth_service
+    environment:
+      - NODE_ENV=production
+      - MODULE_NAME=auth-service
+      - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_SERVICE_NAME=auth-service
+    ports:
+      - "9202:9202"
+    networks:
+      - oes_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+
+  identity-service:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.identity-service
+    container_name: oes_identity_service
+    environment:
+      - NODE_ENV=production
+      - MODULE_NAME=identity-service
+      - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_SERVICE_NAME=identity-service
+    ports:
+      - "9402:9402"
+    networks:
+      - oes_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+
+  permission-service:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.permission-service
+    container_name: oes_permission_service
+    environment:
+      - NODE_ENV=production
+      - MODULE_NAME=permission-service
+      - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_SERVICE_NAME=permission-service
+    ports:
+      - "9302:9302"
+    networks:
+      - oes_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+
+  entity-service:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.entity-service
+    container_name: oes_entity_service
+    environment:
+      - NODE_ENV=production
+      - MODULE_NAME=entity-service
+      - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_SERVICE_NAME=entity-service
+    ports:
+      - "9502:9502"
+    networks:
+      - oes_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+
+  # ============ Business Services ============
+  resource-service:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.resource-service
+    container_name: oes_resource_service
+    environment:
+      - NODE_ENV=production
+      - MODULE_NAME=resource-service
+      - DATABASE_URL=postgresql://oes_user:oes_password@postgres:5432/oes_db
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318
+      - OTEL_SERVICE_NAME=resource-service
+    ports:
+      - "11502:11502"
+    networks:
+      - oes_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
 
 volumes:
   postgres_data:
+  redis_data:
+
+networks:
+  oes_network:
+    driver: bridge

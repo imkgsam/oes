@@ -6,7 +6,12 @@ export interface WarningConst {
   severity: WarningSeverity
 }
 
-export interface WarningDescriptor extends WarningConst {
+export interface WarningDescriptor {
+  code: string
+  message: string
+  messageKey: string
+  category: WarningCategory
+  severity: WarningSeverity
   details?: any
 }
 

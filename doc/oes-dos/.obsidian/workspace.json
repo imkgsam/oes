@@ -25,16 +25,32 @@
             "id": "647c4704fbc6927d",
             "type": "leaf",
             "state": {
-              "type": "image",
+              "type": "markdown",
               "state": {
-                "file": "Pasted image 20260121162349.png"
+                "file": "OES项目/待实现功能/mTLS支持以及gRPC升级.md",
+                "mode": "source",
+                "source": false
               },
-              "icon": "lucide-image",
-              "title": "Pasted image 20260121162349"
+              "icon": "lucide-file",
+              "title": "mTLS支持以及gRPC升级"
+            }
+          },
+          {
+            "id": "a68ea4928791b6d4",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "OES项目/note/模块调用顺序.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "模块调用顺序"
             }
           }
         ],
-        "currentTab": 1
+        "currentTab": 2
       }
     ],
     "direction": "vertical"
@@ -196,22 +212,27 @@
       "command-palette:打开命令面板": false
     }
   },
-  "active": "647c4704fbc6927d",
+  "active": "a68ea4928791b6d4",
   "lastOpenFiles": [
-    "traceId.md",
-    "Pasted image 20260121162349.png",
-    "模块调用顺序.md",
-    "常见概念.md",
+    "OES项目/note/Pasted image 20260121162349.png",
+    "OES项目/note/traceId.md",
+    "OES项目/生产级迁移要点/OpenTelemetry.md",
+    "OES项目/项目细节/安全模型/认证渠道/用户认证.md",
+    "OES项目/项目细节/安全模型/认证渠道/服务认证.md",
+    "OES项目/项目细节/模块/API-GATEWAY.md",
     "OES项目/项目细节/项目介绍.md",
+    "OES项目/note/模块调用顺序.md",
+    "OES项目/note/常见概念.md",
+    "OES项目/note",
+    "OES项目/项目进度跟踪/2026-01-14.md",
+    "OES项目/待实现功能/mTLS支持以及gRPC升级.md",
+    "OES项目/生产级迁移要点",
+    "OES项目/待实现功能/AI能力拓展方案.md",
+    "OES项目/草稿/权限控制模拟.md",
     "OES项目/待实现功能/Process Manager (PM) 模块完整方案.md",
     "OES项目/待实现功能/Robot-Engine (RE) 模块完整方案.md",
     "JWTGuard认证.md",
-    "OES项目/项目细节/模块/API-GATEWAY.md",
     "permissionCheckGuard.md",
-    "OES项目/项目细节/安全模型/认证渠道/用户认证.md",
-    "OES项目/项目细节/安全模型/认证渠道/服务认证.md",
-    "OES项目/草稿/权限控制模拟.md",
-    "OES项目/待实现功能/AI能力拓展方案.md",
     "OES项目/草稿",
     "OES项目/项目细节/模块",
     "OES项目/项目细节",
@@ -219,17 +240,13 @@
     "OES项目/项目细节/安全模型",
     "OES项目/待实现功能/OES Robot 设计方案书.md",
     "OES项目/待实现功能/OES 高安全微服务权限优化方案.md",
-    "OES项目/待实现功能/mTLS支持以及gRPC升级.md",
-    "OES项目/项目进度跟踪/2026-01-14.md",
     "OES项目/模板/日进度模板.md",
     "OES项目/项目进度跟踪/未命名.md",
     "未命名.base",
     "OES项目/项目进度跟踪",
     "OES项目/项目进度跟踪.md",
     "OES项目/模板",
-    "OES项目",
     "欢迎.md",
-    "创建链接.md",
-    "OES项目/待实现功能"
+    "创建链接.md"
   ]
 }
