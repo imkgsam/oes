@@ -1,22 +1,22 @@
 import { Module, Global } from '@nestjs/common'
-import { PermissionControllGuard } from './guards/permission-controll.guard'
-import { ClientModule } from './modules/clients/client.module'
-// import { ScopeControllGuard } from './guards/scope-controll.guard'
-import { MicroserviceExceptionsFilter } from './final/rpc/filters/microservice-exception.filter'
-import { RpcResponseInterceptor } from './interceptors/rpc-response.interceptor'
+import { PermissionControllGuard } from './permission/guards/permission-controll.guard'
+import { ClientModule } from './rpc/clients/client.module'
+import { ScopeControllGuard } from './permission/guards/scope-controll.guard'
+import { MicroserviceExceptionsFilter } from './rpc/filters/microservice-exception.filter'
+import { RpcResponseInterceptor } from './rpc/interceptors/rpc-response.interceptor'
 
 @Global()
 @Module({
   imports: [ClientModule],
   providers: [
     PermissionControllGuard,
-    // ScopeControllGuard,
+    ScopeControllGuard,
     MicroserviceExceptionsFilter,
     RpcResponseInterceptor
   ],
   exports: [
     PermissionControllGuard,
-    // ScopeControllGuard,
+    ScopeControllGuard,
     ClientModule,
     MicroserviceExceptionsFilter,
     RpcResponseInterceptor

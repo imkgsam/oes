@@ -2,10 +2,10 @@ import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import { ClientProxy } from '@nestjs/microservices'
 import { PERMISSION_CHECK_KEY, PermissionCheckType } from '../decorators/permission-check.decorator'
-import { PERMISSION_MESSAGES } from '../constants/messages/permission.message'
-import { InjectServiceClient } from '../modules/clients/client.decorator'
-import { ServiceKeys } from '../modules/clients/service-map'
-import { safeRpcCall } from '../helpers/rpc.helper'
+import { PERMISSION_MESSAGES } from '../../constants/messages/permission.message'
+import { InjectServiceClient } from '../../rpc/clients/client.decorator'
+import { ServiceKeys } from '../../rpc/clients/service-map'
+import { safeRpcCall } from '../../rpc/helpers/rpc.helper'
 
 @Injectable()
 export class PermissionControllGuard implements CanActivate {
