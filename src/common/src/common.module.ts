@@ -1,5 +1,5 @@
 import { Module, Global } from '@nestjs/common'
-import { PermissionControllGuard } from './permission/guards/permission-controll.guard'
+import { GatewayPermissionControllGuard } from './permission/guards/gateway-permission-controll.guard'
 import { ClientModule } from './rpc/clients/client.module'
 import { ScopeControllGuard } from './permission/guards/scope-controll.guard'
 import { MicroserviceExceptionsFilter } from './rpc/filters/microservice-exception.filter'
@@ -9,13 +9,13 @@ import { RpcResponseInterceptor } from './rpc/interceptors/rpc-response.intercep
 @Module({
   imports: [ClientModule],
   providers: [
-    PermissionControllGuard,
+    GatewayPermissionControllGuard,
     ScopeControllGuard,
     MicroserviceExceptionsFilter,
     RpcResponseInterceptor
   ],
   exports: [
-    PermissionControllGuard,
+    GatewayPermissionControllGuard,
     ScopeControllGuard,
     ClientModule,
     MicroserviceExceptionsFilter,

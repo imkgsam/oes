@@ -7,8 +7,11 @@ import { InjectServiceClient } from '../../rpc/clients/client.decorator'
 import { ServiceKeys } from '../../rpc/clients/service-map'
 import { safeRpcCall } from '../../rpc/helpers/rpc.helper'
 
+/**
+ * Note: 只检查permission， 不检查scope
+ */
 @Injectable()
-export class PermissionControllGuard implements CanActivate {
+export class GatewayPermissionControllGuard implements CanActivate {
   constructor(
     @InjectServiceClient(ServiceKeys.PERMISSION_TCP)
     private readonly permissionServiceClient: ClientProxy,

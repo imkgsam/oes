@@ -39,11 +39,8 @@ export async function safeRpcCall2<I, O>(
     const rpcRequest: RpcRequest<I> = {
       data: inputData,
       meta: {
-        traceId: requestMeta?.traceId || getTraceId() || uuidv4(),
-        spanId: uuidv4(), // 服务端自动生成spanId
         timestamp: new Date().toISOString(), // 服务端自动生成 请求timestamp
         caller: requestMeta?.caller || process.env.MODULE_NAME || 'UNKNOWN_MODULE',
-        _authToken: requestMeta?._authToken, // 调用模块的认证token
         // 只在开发/测试环境中传递 pattern 信息
         ...(envConfig.showRpcPattern && { pattern })
       }
