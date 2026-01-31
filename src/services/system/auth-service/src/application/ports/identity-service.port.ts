@@ -1,5 +1,5 @@
 // File: src/services/system/auth-service/src/application/ports/identity-service.port.ts
-import { UserPort, AccountPort } from '@oes/common/contracts/identity-service/index'
+import { UserPort, AccountPort } from '@oes/common/contracts/identity_service/index'
 
 type UserPortSelections = 'getUserById' | 'getUserByEmail' | 'getUserByPhone'
 

@@ -1,0 +1,23 @@
+version: v2
+managed:
+  enabled: true
+plugins:
+  # 生成 TypeScript 类型和 NestJS gRPC 服务代码
+  - local: protoc-gen-ts_proto
+    out: src/common/src/generated
+    opt:
+      # NestJS 集成 - 生成与 @nestjs/microservices 兼容的代码
+      - nestJs=true
+      - addGrpcMetadata=true
+      - addNestjsRestParameter=true
+      # 类型选项
+      - esModuleInterop=true
+      - forceLong=string
+      - useOptionals=messages
+      - snakeToCamel=true
+      - env=node
+      # 枚举选项 - 使用数字枚举以兼容 NestJS
+      - unrecognizedEnum=false
+      # 输出选项
+      - exportCommonSymbols=false
+      - outputIndex=true

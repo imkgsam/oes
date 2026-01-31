@@ -5,6 +5,9 @@
 */dict/*
 */tsconfig.tsbuildinfo
 
+# Proto generated files
+src/common/src/generated/
+
 # Logs
 logs
 *.log

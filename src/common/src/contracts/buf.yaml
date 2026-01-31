@@ -1,0 +1,13 @@
+version: v2
+modules:
+  - path: .
+    name: buf.build/oes/contracts
+lint:
+  use:
+    - STANDARD
+  except:
+    - PACKAGE_VERSION_SUFFIX
+  disallow_comment_ignores: true
+breaking:
+  use:
+    - FILE

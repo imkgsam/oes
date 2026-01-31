@@ -1,8 +1,3 @@
-export interface PermissionCheckPort {
-  checkAccountPermission(input: PermissionCheckInput): Promise<PermissionCheckOutput>
-  checkAccountPermissionScope(input: PermissionCheckInput): Promise<PermissionCheckOutput>
-}
-
 export interface PermissionCheckInput {
   accountId: string
   permissionCode: string
@@ -24,3 +19,4 @@ export enum PermissionScopeType {
   RESOURCE = 'resource',
   SELF = 'self'
 }
+

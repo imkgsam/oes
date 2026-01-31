@@ -1,4 +1,4 @@
-import { SomePort } from '@oes/common/contracts/permission-service/index'
+import { SomePort } from '@oes/common/contracts/permission_service/index'
 
 //所需的方法
 type SomePortSelection = 'getUserPermissions'

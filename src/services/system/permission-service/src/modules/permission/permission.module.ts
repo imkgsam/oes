@@ -9,7 +9,6 @@ import { PrismaModule } from 'src/infrastructure/prisma/prisma.module'
 import { PrismaPermissionRepository } from 'src/infrastructure/repositories/prisma/prisma.permission.repository'
 import { PrismaRolePermissionRepository } from 'src/infrastructure/repositories/prisma/prisma.role-permission.repository'
 import { PrismaUserRoleRepository } from 'src/infrastructure/repositories/prisma/prisma.user-role.repository'
-import { HttpPermissionController } from 'src/interfaces/http/controllers/http.permission.controller'
 import { TcpPermissionController } from 'src/interfaces/tcp/controllers/tcp.permission.controller'
 @Module({
   imports: [PrismaModule],
@@ -26,7 +25,7 @@ import { TcpPermissionController } from 'src/interfaces/tcp/controllers/tcp.perm
     CreatePermissionUseCase,
     CheckUserPermissionUseCase
   ],
-  controllers: [HttpPermissionController, TcpPermissionController],
+  controllers: [ TcpPermissionController],
   exports: [PermissionService]
 })
 export class PermissionModule {}
