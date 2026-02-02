@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { Permission } from 'src/domain/entities/permission.entity'
+import { Permission } from 'src/domain/aggregates/permission.aggregate'
 import { PermissionRepository } from 'src/domain/repositories/permission.repository'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 

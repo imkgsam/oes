@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { Role } from 'src/domain/entities/role.entity'
+import { Role } from 'src/domain/aggregates/role.aggregate'
 import { RoleRepository } from 'src/domain/repositories/role.repository'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 

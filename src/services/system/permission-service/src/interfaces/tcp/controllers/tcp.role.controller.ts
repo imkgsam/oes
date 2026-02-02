@@ -3,7 +3,7 @@ import { MessagePattern, Payload, RpcException } from '@nestjs/microservices'
 import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'
 import { CreateRoleDto } from 'src/application/dtos/role.dto'
 import { RoleService } from 'src/application/services/role.service'
-import { Role } from 'src/domain/entities/role.entity'
+import { Role } from 'src/domain/aggregates/role.aggregate'
 import { PERMISSION_SERVICE_ERRORS } from '@oes/common/constants/res-codes/permission-service.errors'
 import { createBusinessException } from '@oes/common/exceptions/exception.factory'
 

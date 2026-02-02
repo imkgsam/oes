@@ -1,5 +1,5 @@
-import { Permission } from '../entities/permission.entity'
-
-export abstract class PermissionRepository {
-  abstract findByAccountIdAndCode(accountId: string, code: string): Promise<Permission | null>
+import { Permission } from '../aggregates/permission.aggregate'
+export interface PermissionRepository {
+  findById(id: string): Promise<Permission | null>
+  findByCode(code: string): Promise<Permission | null>
 }

@@ -1,12 +1,10 @@
 import { Injectable } from '@nestjs/common'
-import { RolePermission } from 'src/domain/entities/role-permission.entity'
+import { RolePermission } from 'src/domain/vo/role-permission.entity'
 import { RolePermissionRepository } from 'src/domain/repositories/role-permission.repository'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 
 @Injectable()
-export class PrismaRolePermissionRepository
-  implements RolePermissionRepository
-{
+export class PrismaRolePermissionRepository implements RolePermissionRepository {
   constructor(private readonly prisma: PrismaService) {}
   async findByRoleIds(roleIds: string[]): Promise<RolePermission[]> {
     const founds = await this.prisma.rolePermission.findMany({
@@ -23,10 +21,7 @@ export class PrismaRolePermissionRepository
     return records.map((r) => RolePermission.fromPrisma(r))
   }
 
-  async find(
-    roleId: string,
-    permissionId: string
-  ): Promise<RolePermission | null> {
+  async find(roleId: string, permissionId: string): Promise<RolePermission | null> {
     const found = await this.prisma.rolePermission.findUnique({
       where: { roleId_permissionId: { roleId, permissionId } }
     })
@@ -43,10 +38,7 @@ export class PrismaRolePermissionRepository
     return RolePermission.fromPrisma(created)
   }
 
-  async remove(
-    roleId: string,
-    permissionId: string
-  ): Promise<RolePermission | null> {
+  async remove(roleId: string, permissionId: string): Promise<RolePermission | null> {
     const deleted = await this.prisma.rolePermission.delete({
       where: { roleId_permissionId: { roleId, permissionId } }
     })

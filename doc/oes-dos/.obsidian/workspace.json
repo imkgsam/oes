@@ -13,44 +13,30 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "模块调用顺序.md",
+                "file": "OES项目/OES项目开发计划书.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "模块调用顺序"
+              "title": "OES项目开发计划书"
             }
           },
           {
-            "id": "647c4704fbc6927d",
+            "id": "9dd71cf9f01c1ee1",
             "type": "leaf",
             "state": {
               "type": "markdown",
               "state": {
-                "file": "OES项目/待实现功能/mTLS支持以及gRPC升级.md",
+                "file": "OES项目/OES项目开发计划书.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "mTLS支持以及gRPC升级"
-            }
-          },
-          {
-            "id": "a68ea4928791b6d4",
-            "type": "leaf",
-            "state": {
-              "type": "markdown",
-              "state": {
-                "file": "OES项目/项目细节/项目介绍.md",
-                "mode": "source",
-                "source": false
-              },
-              "icon": "lucide-file",
-              "title": "项目介绍"
+              "title": "OES项目开发计划书"
             }
           }
         ],
-        "currentTab": 2
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -212,17 +198,19 @@
       "command-palette:打开命令面板": false
     }
   },
-  "active": "a68ea4928791b6d4",
+  "active": "9dd71cf9f01c1ee1",
   "lastOpenFiles": [
+    "OES项目/草稿/架构方案.md",
+    "OES项目/OES项目开发计划书.md",
+    "OES项目/生产级迁移要点/OpenTelemetry.md",
+    "OES项目/项目细节/项目介绍.md",
     "OES项目/项目细节/模块/API-GATEWAY.md",
     "OES项目/项目细节/安全模型/认证渠道/服务认证.md",
     "OES项目/note/常见概念.md",
     "OES项目/note/模块调用顺序.md",
     "OES项目/note/Pasted image 20260121162349.png",
     "OES项目/note/traceId.md",
-    "OES项目/生产级迁移要点/OpenTelemetry.md",
     "OES项目/项目细节/安全模型/认证渠道/用户认证.md",
-    "OES项目/项目细节/项目介绍.md",
     "OES项目/note",
     "OES项目/项目进度跟踪/2026-01-14.md",
     "OES项目/待实现功能/mTLS支持以及gRPC升级.md",

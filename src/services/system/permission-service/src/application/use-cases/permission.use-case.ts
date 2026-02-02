@@ -3,7 +3,7 @@ import { CreatePermissionDto } from '../dtos/permission.dto'
 import { PermissionService } from '../services/permission.service'
 import { UserRoleRepository } from 'src/domain/repositories/user-role.repository'
 import { RolePermissionRepository } from 'src/domain/repositories/role-permission.repository'
-import { Permission } from 'src/domain/entities/permission.entity'
+import { Permission } from 'src/domain/aggregates/permission.aggregate'
 
 @Injectable()
 export class CreatePermissionUseCase {

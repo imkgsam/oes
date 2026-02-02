@@ -6,7 +6,6 @@ import {
   CheckPermissionRequest,
   CheckPermissionResponse
 } from '@oes/common/generated/permission_service/permission_check'
-import { Observable } from 'rxjs'
 import { PermissionService } from 'src/application/services/permission.service'
 
 @Injectable()

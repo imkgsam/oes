@@ -1,0 +1,15 @@
+// File: src/services/system/permission-service/src/domain/aggregates/permission.aggregate.ts
+import { PermissionModule } from '../enums/permission-module.enum'
+
+export class Permission {
+  constructor(
+    public readonly id: string,
+    public code: string,
+    public module: PermissionModule,
+    public description?: string
+  ) {}
+
+  matchesModule(module: PermissionModule): boolean {
+    return this.module === module
+  }
+}
