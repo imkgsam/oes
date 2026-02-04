@@ -1,7 +1,7 @@
 import { PermissionRepository } from '../repositories/permission.repository'
 import { RoleRepository } from '../repositories/role.repository'
 
-export class AccountPermissionCheckerService {
+export class AccountAuthorizationService {
   constructor(
     private roleRepo: RoleRepository,
     private permissionRepo: PermissionRepository

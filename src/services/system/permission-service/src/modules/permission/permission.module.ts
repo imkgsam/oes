@@ -1,31 +1,28 @@
 import { Module } from '@nestjs/common'
-import { PermissionService } from 'src/application/services/permission.service'
-import {
-  CheckUserPermissionUseCase,
-  CreatePermissionUseCase,
-  ListPermissionsUseCase
-} from 'src/application/use-cases/permission.use-case'
+import { CqrsModule } from '@nestjs/cqrs'
 import { PrismaModule } from 'src/infrastructure/prisma/prisma.module'
 import { PrismaPermissionRepository } from 'src/infrastructure/repositories/prisma/prisma.permission.repository'
-import { PrismaRolePermissionRepository } from 'src/infrastructure/repositories/prisma/prisma.role-permission.repository'
-import { PrismaUserRoleRepository } from 'src/infrastructure/repositories/prisma/prisma.user-role.repository'
 import { TcpPermissionController } from 'src/interfaces/tcp/controllers/tcp.permission.controller'
+import { SYMBOLS } from 'src/common/constants/symbols'
+import { ValidatingCommandBus, ValidatingQueryBus } from 'src/application/cqrs'
+import { PermissionCommandHandlers } from 'src/application/commands/permission'
+import { PermissionQueryHandlers } from 'src/application/queries/permission'
+import { AuthorizationQueryHandlers } from 'src/application/queries/authorization'
+
 @Module({
-  imports: [PrismaModule],
+  imports: [CqrsModule, PrismaModule],
   providers: [
-    { provide: 'PermissionRepository', useClass: PrismaPermissionRepository },
-    { provide: 'UserRoleRepository', useClass: PrismaUserRoleRepository },
     {
-      provide: 'RolePermissionRepository',
-      useClass: PrismaRolePermissionRepository
+      provide: SYMBOLS.REPO.PERMISSION,
+      useClass: PrismaPermissionRepository
     },
-    PermissionService,
-    ListPermissionsUseCase,
-    CreatePermissionUseCase,
-    CreatePermissionUseCase,
-    CheckUserPermissionUseCase
+    ValidatingCommandBus,
+    ValidatingQueryBus,
+    ...PermissionCommandHandlers,
+    ...PermissionQueryHandlers,
+    ...AuthorizationQueryHandlers
   ],
-  controllers: [ TcpPermissionController],
-  exports: [PermissionService]
+  controllers: [TcpPermissionController],
+  exports: [ValidatingCommandBus, ValidatingQueryBus]
 })
 export class PermissionModule {}

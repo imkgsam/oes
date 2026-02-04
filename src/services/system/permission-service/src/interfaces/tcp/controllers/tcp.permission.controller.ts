@@ -1,52 +1,60 @@
 import { Controller } from '@nestjs/common'
 import { MessagePattern, Payload } from '@nestjs/microservices'
 import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'
-import {
-  CreatePermissionUseCase,
-  ListPermissionsUseCase
-} from 'src/application/use-cases/permission.use-case'
-import { CreatePermissionDto, CheckUserPermissionDto } from 'src/application/dtos/permission.dto'
-import { CheckUserPermissionUseCase } from 'src/application/use-cases/permission.use-case'
 import { Permission } from 'src/domain/aggregates/permission.aggregate'
-import { PermissionService } from 'src/application/services/permission.service'
+import { ValidatingCommandBus, ValidatingQueryBus } from 'src/application/cqrs'
+import {
+  CreatePermissionCommand,
+  DeletePermissionCommand
+} from 'src/application/commands/permission'
+import {
+  GetPermissionByCodeQuery,
+  ListPermissionsQuery,
+  ListPermissionsByModuleQuery
+} from 'src/application/queries/permission'
+import { CheckUserPermissionQuery } from 'src/application/queries/authorization'
+import { PermissionModule } from 'src/domain/enums/permission-module.enum'
 
 @Controller()
 export class TcpPermissionController {
   constructor(
-    private readonly listPermissionsUseCase: ListPermissionsUseCase,
-    private readonly createPermissionUseCase: CreatePermissionUseCase,
-    private readonly checkUserPermissionUseCase: CheckUserPermissionUseCase,
-    private readonly permissionService: PermissionService
+    private readonly commandBus: ValidatingCommandBus,
+    private readonly queryBus: ValidatingQueryBus
   ) {}
 
   @MessagePattern(PERMISSION_MESSAGES.CHECK_USER_PERMISSION)
-  checkUserPermission(@Payload() data: CheckUserPermissionDto): Promise<boolean> {
-    return this.checkUserPermissionUseCase.execute(data.userId, data.permissionCode)
+  checkUserPermission(
+    @Payload() data: { userId: string; permissionCode: string }
+  ): Promise<boolean> {
+    return this.queryBus.execute(new CheckUserPermissionQuery(data.userId, data.permissionCode))
   }
 
   @MessagePattern(PERMISSION_MESSAGES.CREATE_PERMISSION)
-  createPermission(@Payload() data: CreatePermissionDto): Promise<Permission> {
-    return this.createPermissionUseCase.execute(data)
+  createPermission(
+    @Payload() data: { code: string; module: string; description?: string }
+  ): Promise<Permission> {
+    const module = PermissionModule.from(data.module)
+    return this.commandBus.execute(new CreatePermissionCommand(data.code, module, data.description))
   }
 
   @MessagePattern(PERMISSION_MESSAGES.LIST_PERMISSIONS)
   listAllPermissions(): Promise<Permission[]> {
-    return this.listPermissionsUseCase.execute()
+    return this.queryBus.execute(new ListPermissionsQuery())
   }
 
-  @MessagePattern(PERMISSION_MESSAGES.FIND_PERMISSION_BY_MODULE)
+  @MessagePattern(PERMISSION_MESSAGES.GET_PERMISSIONS_BY_MODULE)
   findPermissionByModule(@Payload('module') module: string): Promise<Permission[]> {
-    console.log('Finding permissions by module:', module)
-    return this.permissionService.getAllByModule(module)
+    const permissionModule = PermissionModule.from(module)
+    return this.queryBus.execute(new ListPermissionsByModuleQuery(permissionModule))
   }
 
-  @MessagePattern(PERMISSION_MESSAGES.FIND_PERMISSION_BY_CODE)
+  @MessagePattern(PERMISSION_MESSAGES.GET_PERMISSION_BY_CODE)
   findPermissionByCode(@Payload('code') code: string): Promise<Permission | null> {
-    return this.permissionService.getByCode(code)
+    return this.queryBus.execute(new GetPermissionByCodeQuery(code))
   }
 
   @MessagePattern(PERMISSION_MESSAGES.DELETE_PERMISSION)
   deletePermission(@Payload('id') id: string): Promise<Permission | null> {
-    return this.permissionService.delete(id)
+    return this.commandBus.execute(new DeletePermissionCommand(id))
   }
 }

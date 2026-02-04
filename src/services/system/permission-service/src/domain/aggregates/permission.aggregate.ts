@@ -1,4 +1,5 @@
 // File: src/services/system/permission-service/src/domain/aggregates/permission.aggregate.ts
+
 import { PermissionModule } from '../enums/permission-module.enum'
 
 export class Permission {
@@ -8,7 +9,7 @@ export class Permission {
     public module: PermissionModule,
     public description?: string
   ) {}
-
+  
   matchesModule(module: PermissionModule): boolean {
     return this.module === module
   }

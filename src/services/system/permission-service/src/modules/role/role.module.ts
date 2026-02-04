@@ -1,20 +1,26 @@
 import { Module } from '@nestjs/common'
-import { RoleService } from 'src/application/services/role.service'
+import { CqrsModule } from '@nestjs/cqrs'
 import { PrismaModule } from 'src/infrastructure/prisma/prisma.module'
 import { PrismaRoleRepository } from 'src/infrastructure/repositories/prisma/prisma.role.repository'
 import { TcpRoleController } from 'src/interfaces/tcp/controllers/tcp.role.controller'
-import { TcpTestController } from 'src/interfaces/tcp/controllers/tcp.test.controller'
+import { SYMBOLS } from 'src/common/constants/symbols'
+import { ValidatingCommandBus, ValidatingQueryBus } from 'src/application/cqrs'
+import { RoleCommandHandlers } from 'src/application/commands/role'
+import { RoleQueryHandlers } from 'src/application/queries/role'
 
 @Module({
-  imports: [PrismaModule],
+  imports: [CqrsModule, PrismaModule],
   providers: [
-    RoleService,
     {
-      provide: 'RoleRepository',
+      provide: SYMBOLS.REPO.ROLE,
       useClass: PrismaRoleRepository
-    }
+    },
+    ValidatingCommandBus,
+    ValidatingQueryBus,
+    ...RoleCommandHandlers,
+    ...RoleQueryHandlers
   ],
-  controllers: [TcpRoleController, TcpTestController],
-  exports: []
+  controllers: [TcpRoleController],
+  exports: [ValidatingCommandBus, ValidatingQueryBus]
 })
 export class RoleModule {}
