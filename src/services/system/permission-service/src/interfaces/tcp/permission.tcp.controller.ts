@@ -1,3 +1,6 @@
+// File: src/services/system/permission-service/src/interfaces/tcp/permission.tcp.controller.ts
+// Note: this file is deprecated and migrate to grpc controller.
+
 import { Controller } from '@nestjs/common'
 import { MessagePattern, Payload } from '@nestjs/microservices'
 import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'
