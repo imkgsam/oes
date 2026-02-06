@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { QueryBus, IQuery } from '@nestjs/cqrs'
+import { ExceptionFactory } from '@oes/common/core/exceptions/exception.factory'
 import { validate, ValidationError } from 'class-validator'
-import { ValidationException } from './exceptions/validation.exception'
+import { VALIDATION_FAILED } from '@oes/common/core/exceptions/exception-enums/index'
 
 @Injectable()
 export class ValidatingQueryBus {
@@ -21,7 +22,7 @@ export class ValidatingQueryBus {
 
     if (errors.length > 0) {
       const messages = this.formatErrors(errors)
-      throw new ValidationException(messages)
+      throw ExceptionFactory.domain(VALIDATION_FAILED, messages)
     }
   }
 

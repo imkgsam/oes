@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { CommandBus, ICommand } from '@nestjs/cqrs'
+import { VALIDATION_FAILED } from '@oes/common/core/exceptions/exception-enums/application-exception.enum'
+import { ExceptionFactory } from '@oes/common/core/exceptions/exception.factory'
 import { validate, ValidationError } from 'class-validator'
-import { ValidationException } from './exceptions/validation.exception'
 
 @Injectable()
 export class ValidatingCommandBus {
@@ -21,7 +22,7 @@ export class ValidatingCommandBus {
 
     if (errors.length > 0) {
       const messages = this.formatErrors(errors)
-      throw new ValidationException(messages)
+      throw ExceptionFactory.domain(VALIDATION_FAILED, messages)
     }
   }
 

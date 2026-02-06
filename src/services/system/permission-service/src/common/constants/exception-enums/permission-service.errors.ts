@@ -7,6 +7,12 @@ export const ROLE_NOT_FOUND: ExceptionDefinition = {
   messageKey: 'permission.role_not_found',
   rpcStatus: status.NOT_FOUND
 }
+export const ROLE_ALREADY_EXISTS: ExceptionDefinition = {
+  code: 'ROLE_ALREADY_EXISTS',
+  message: 'Role already exists',
+  messageKey: 'permission.role_already_exists',
+  rpcStatus: status.ALREADY_EXISTS
+}
 export const PERMISSION_NOT_FOUND: ExceptionDefinition = {
   code: 'PERMISSION_NOT_FOUND',
   message: 'Permission not found',
