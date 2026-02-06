@@ -4,8 +4,8 @@ import { DeletePermissionCommand } from './delete-permission.command'
 import { PermissionRepository } from 'src/domain/repositories/permission.repository'
 import { Permission } from 'src/domain/aggregates/permission.aggregate'
 import { SYMBOLS } from 'src/common/constants/symbols'
-import { createBusinessException } from '@oes/common/exceptions/exception.factory'
-import { PERMISSION_SERVICE_ERRORS } from '@oes/common/constants/res-codes/permission-service.errors'
+import { ExceptionFactory } from '@oes/common/core/exceptions/exception.factory'
+import { PERMISSION_NOT_FOUND } from 'src/common/constants/exception-enums/permission-service.errors'
 
 @CommandHandler(DeletePermissionCommand)
 export class DeletePermissionHandler implements ICommandHandler<DeletePermissionCommand> {
@@ -17,14 +17,12 @@ export class DeletePermissionHandler implements ICommandHandler<DeletePermission
   async execute(command: DeletePermissionCommand): Promise<Permission> {
     const existing = await this.permissionRepo.findById(command.id)
     if (!existing) {
-      throw createBusinessException(PERMISSION_SERVICE_ERRORS.PERMISSION_NOT_FOUND)
+      throw ExceptionFactory.domain(PERMISSION_NOT_FOUND)
     }
-
     const deleted = await this.permissionRepo.delete(command.id)
     if (!deleted) {
-      throw createBusinessException(PERMISSION_SERVICE_ERRORS.PERMISSION_NOT_FOUND)
+      throw ExceptionFactory.domain(PERMISSION_NOT_FOUND)
     }
-
     return deleted
   }
 }
