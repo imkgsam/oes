@@ -1,6 +1,6 @@
-export * from './check-user-permission.query'
-export * from './check-user-permission.handler'
+export * from './check-account-permission.query'
+export * from './check-account-permission.handler'
 
-import { CheckUserPermissionHandler } from './check-user-permission.handler'
+import { CheckAccountPermissionHandler } from './check-account-permission.handler'
 
-export const AuthorizationQueryHandlers = [CheckUserPermissionHandler]
+export const AuthorizationQueryHandlers = [CheckAccountPermissionHandler]

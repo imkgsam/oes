@@ -6,26 +6,33 @@ import {
   CheckPermissionRequest,
   CheckPermissionResponse
 } from '@oes/common/generated/permission_service/permission_check'
-import { PermissionService } from 'src/application/services/permission.service'
-
+import { CheckAccountPermissionQuery } from '../../application/index'
+import { ValidatingQueryBus } from '@oes/common/cqrs/validating-query-bus'
 @Injectable()
 @PermissionCheckServiceControllerMethods()
 export class PermissionCheckController implements PermissionCheckServiceController {
+  constructor(private readonly queryBus: ValidatingQueryBus) {}
 
-  constructor(private readonly permissionService: PermissionService) {}
-
-  checkPermission(
+  async checkPermission(
     request: CheckPermissionRequest,
     metadata: Metadata,
     ...rest: any
   ): Promise<CheckPermissionResponse> {
-    throw new Error('Method not implemented.')
+    const pass = await this.queryBus.execute(
+      new CheckAccountPermissionQuery(request.accountId, request.permissionCode)
+    )
+    return {
+      pass,
+      scopes: []
+    }
   }
-  checkPermissionScope(
+  async checkPermissionScope(
     request: CheckPermissionRequest,
     metadata: Metadata,
     ...rest: any
   ): Promise<CheckPermissionResponse> {
-    throw new Error('Method not implemented.')
+    const pass = await this.queryBus.execute(
+      new CheckAccountPermissionQuery(request.accountId, request.permissionCode)
+    )
   }
 }

@@ -4,6 +4,10 @@ import { status } from '@grpc/grpc-js'
 import { ExceptionDefinition } from './exception.interface'
 import { RpcMappableException } from './exception.interface'
 
+const getCurrentServiceName = (): string => {
+  return process.env.MODULE_NAME || 'unknown-service'
+}
+
 export abstract class OESExceptionBase extends Error implements RpcMappableException {
   public readonly definition: ExceptionDefinition
   public readonly args: any[]
@@ -19,6 +23,7 @@ export abstract class OESExceptionBase extends Error implements RpcMappableExcep
     this.args = args
     this.internalDetails = internalDetails
   }
+
   toRpcStatus(): { code: status; message: string; details?: Record<string, any> | string } {
     return {
       code: this.definition.rpcStatus,
@@ -27,7 +32,8 @@ export abstract class OESExceptionBase extends Error implements RpcMappableExcep
         code: this.definition.code,
         messageKey: this.definition.messageKey,
         args: this.args,
-        internalDetails: this.internalDetails
+        internalDetails: this.internalDetails,
+        service: getCurrentServiceName()
       }
     }
   }
