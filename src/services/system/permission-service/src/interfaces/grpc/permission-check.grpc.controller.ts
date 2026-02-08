@@ -8,6 +8,8 @@ import {
 } from '@oes/common/generated/permission_service/permission_check'
 import { CheckAccountPermissionQuery } from '../../application/index'
 import { ValidatingQueryBus } from '@oes/common/cqrs/validating-query-bus'
+import { CheckAccountPermissionWithScopeQuery } from 'src/application/queries/authorization/check-account-permission-with-scope.query'
+
 @Injectable()
 @PermissionCheckServiceControllerMethods()
 export class PermissionCheckController implements PermissionCheckServiceController {
@@ -32,7 +34,11 @@ export class PermissionCheckController implements PermissionCheckServiceControll
     ...rest: any
   ): Promise<CheckPermissionResponse> {
     const pass = await this.queryBus.execute(
-      new CheckAccountPermissionQuery(request.accountId, request.permissionCode)
+      new CheckAccountPermissionWithScopeQuery(request.accountId, request.permissionCode)
     )
+    return {
+      pass,
+      scopes: 
+    }
   }
 }

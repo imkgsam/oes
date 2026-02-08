@@ -1,3 +1,5 @@
+// File: src/services/system/permission-service/src/application/queries/authorization/check-account-permission-with-scope.handler.ts
+
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { CheckAccountPermissionWithScopeQuery } from './check-account-permission-with-scope.query'
