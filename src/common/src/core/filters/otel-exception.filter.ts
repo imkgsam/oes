@@ -3,6 +3,11 @@
 import { ExceptionFilter, Catch, ArgumentsHost } from '@nestjs/common'
 import { SpanStatusCode, trace } from '@opentelemetry/api'
 
+/**
+ * OTel 异常过滤器
+ * 将异常记录到当前 Span 中, 并继续交给后续的异常过滤器处理
+ */
+
 @Catch()
 export class OtelExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {

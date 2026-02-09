@@ -7,15 +7,7 @@ import { RpcMappableException } from '../exceptions/exception.interface'
 import { AppLogger } from '../../logging/app-logger.service'
 import { LogMeta } from '../../logging/oes-logger.interface'
 
-interface RpcErrorObject {
-  code?: number
-  message?: string
-  details?: {
-    code?: string
-    service?: string
-    [key: string]: unknown
-  }
-}
+
 
 @Catch()
 export class GrpcExceptionFilter implements ExceptionFilter {
