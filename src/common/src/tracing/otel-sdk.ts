@@ -1,14 +1,9 @@
-//File: src/common/src/tracing/otel-sdk.ts
-
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http'
-import { Resource } from '@opentelemetry/resources'
-import {
-  SEMRESATTRS_SERVICE_NAME,
-  SEMRESATTRS_SERVICE_VERSION
-} from '@opentelemetry/semantic-conventions'
+import { resourceFromAttributes } from '@opentelemetry/resources'
+import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
 
 export function initOtelSdk(serviceName: string) {
@@ -22,20 +17,27 @@ export function initOtelSdk(serviceName: string) {
     url: `${otlpEndpoint}/v1/metrics`
   })
 
+  const resource = resourceFromAttributes({
+    [ATTR_SERVICE_NAME]: serviceName,
+    [ATTR_SERVICE_VERSION]: process.env.npm_package_version || '1.0.0'
+  })
+
+  // metricReader 改用 PeriodicExportingMetricReader
+  const metricReader = new PeriodicExportingMetricReader({
+    exporter: metricExporter,
+    exportIntervalMillis: 10000
+  })
+
   const sdk = new NodeSDK({
-    resource: new Resource({
-      [SEMRESATTRS_SERVICE_NAME]: serviceName,
-      [SEMRESATTRS_SERVICE_VERSION]: process.env.npm_package_version || '1.0.0'
-    }),
+    resource,
     traceExporter,
-    metricReader: new PeriodicExportingMetricReader({
-      exporter: metricExporter,
-      exportIntervalMillis: 10000
-    }),
+    metricReader,
     instrumentations: [
       getNodeAutoInstrumentations({
         '@opentelemetry/instrumentation-http': {
-          ignoreIncomingPaths: ['/health', '/metrics']
+          ignoreIncomingRequestHook: (request) => {
+            return ['/health', '/metrics'].includes(request.url ?? '')
+          }
         },
         '@opentelemetry/instrumentation-fs': {
           enabled: false

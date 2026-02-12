@@ -9,7 +9,7 @@ import { ApiGatewayExceptionsFilter } from './common/filters/api-gateway-excepti
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
 import { GatewayJwtAuthGuard } from '@oes/common/auth/guards/gateway-jwt-auth.guard'
 async function bootstrap() {
-  initOtelSdk(process.env.OTEL_SERVICE_NAME || 'api-gateway')
+  initOtelSdk(process.env.MODULE_NAME || 'api-gateway')
   const app = await NestFactory.create(AppModule)
   //设置自定义日志服务
   app.useLogger(app.get(AppLogger))

@@ -3,7 +3,7 @@ import { CqrsModule } from '@nestjs/cqrs'
 import { PrismaModule } from 'src/infrastructure/prisma/prisma.module'
 import { PrismaRoleRepository } from 'src/infrastructure/repositories/prisma/prisma.role.repository'
 import { SYMBOLS } from 'src/common/constants/symbols'
-import { ValidatingCommandBus, ValidatingQueryBus } from 'src/application/cqrs'
+import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs/index'
 import { RoleCommandHandlers } from 'src/application/commands/role'
 import { RoleQueryHandlers } from 'src/application/queries/role'
 

@@ -12,7 +12,7 @@ import { SERVICE_ENDPOINTS_CONFIG } from '@oes/common/modules/clients/service-ma
 // import { RpcResponseInterceptor } from '@oes/common/interceptors/rpc-response.interceptor'
 
 async function bootstrap() {
-  initOtelSdk(process.env.OTEL_SERVICE_NAME || 'auth-service')
+  initOtelSdk(process.env.MODULE_NAME || 'auth-service')
 
   const microservice = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
     transport: Transport.TCP,

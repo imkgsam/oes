@@ -12,7 +12,7 @@ import { MicroserviceExceptionsFilter } from '@oes/common/filters/microservice-e
 import { SERVICE_ENDPOINTS_CONFIG } from '@oes/common/rpc/clients/service-map'
 
 async function bootstrap() {
-  initOtelSdk(process.env.OTEL_SERVICE_NAME || 'identity-service')
+  initOtelSdk(process.env.MODULE_NAME || 'identity-service')
   const microservice = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
     transport: Transport.TCP,
     options: {

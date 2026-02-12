@@ -8,7 +8,6 @@ import { AppLogger } from '../../logging/app-logger.service'
 import { LogMeta } from '../../logging/oes-logger.interface'
 
 
-
 @Catch()
 export class GrpcExceptionFilter implements ExceptionFilter {
   constructor(private readonly logger: AppLogger) {}
