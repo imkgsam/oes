@@ -1,5 +1,5 @@
 import { Metadata } from '@grpc/grpc-js'
-import { Injectable } from '@nestjs/common'
+import { Injectable,UseFilters  } from '@nestjs/common'
 import {
   PermissionCheckServiceControllerMethods,
   PermissionCheckServiceController,
@@ -9,8 +9,11 @@ import {
 import { CheckAccountPermissionQuery } from '../../application/index'
 import { ValidatingQueryBus } from '@oes/common/cqrs/validating-query-bus'
 import { CheckAccountPermissionWithScopeQuery } from 'src/application/queries/authorization/check-account-permission-with-scope.query'
+import { GrpcExceptionFilter } from '@oes/common/core/filters/gprc-exception.filter'
+import { OtelExceptionFilter } from '@oes/common/core/filters/otel-exception.filter'
 
 @Injectable()
+@UseFilters (OtelExceptionFilter,GrpcExceptionFilter)
 @PermissionCheckServiceControllerMethods()
 export class PermissionCheckController implements PermissionCheckServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}

@@ -6,6 +6,7 @@ import { CheckAccountPermissionWithScopeQuery } from './check-account-permission
 import { RoleRepository } from 'src/domain/repositories/role.repository'
 import { PermissionRepository } from 'src/domain/repositories/permission.repository'
 import { SYMBOLS } from 'src/common/constants/symbols'
+import { CheckPermissionResponse } from '@oes/common/generated/permission_service/permission_check'
 
 @QueryHandler(CheckAccountPermissionWithScopeQuery)
 export class CheckAccountPermissionWithScopeHandler implements IQueryHandler<CheckAccountPermissionWithScopeQuery> {
@@ -16,17 +17,19 @@ export class CheckAccountPermissionWithScopeHandler implements IQueryHandler<Che
     private readonly permissionRepo: PermissionRepository
   ) {}
 
-  async execute(query: CheckAccountPermissionWithScopeQuery): Promise<boolean> {
+  async execute(query: CheckAccountPermissionWithScopeQuery): Promise<CheckPermissionResponse> {
     const permission = await this.permissionRepo.findByCode(query.permissionCode)
+    const rt = { pass: false, scopes: [] }
     if (!permission) {
-      return false
+      return rt
     }
 
     const roles = await this.roleRepo.findRolesForAccountId(query.accountId)
     if (!roles || roles.length === 0) {
-      return false
+      return rt
     }
 
-    return roles.some((role) => role.hasPermissionByCode(query.permissionCode))
+    const pass = roles.some((role) => role.hasPermissionByCode(query.permissionCode))
+    if (!pass) return rt
   }
 }

@@ -9,9 +9,11 @@ export interface ExceptionDefinition {
 }
 
 export interface RpcMappableException {
-  toRpcStatus(): {
-    code: status
-    message: string
-    details?: Record<string, any> | string
-  }
+  toRpcStatus(): RpcExceptionPayload
+}
+
+export interface RpcExceptionPayload {
+  code: status
+  message: string
+  details?: Record<string, any> | string
 }

@@ -30,3 +30,19 @@ export const THIRD_PARTY_SERVICE_UNAVAILABLE: ExceptionDefinition = {
   messageKey: 'infra.external.unavailable',
   rpcStatus: status.UNAVAILABLE
 }
+
+// 项目内其他服务
+export const INTERNAL_SERVICE_UNAVAILABLE: ExceptionDefinition = {
+  code: 'INFRA_INTERNAL_DEPENDENCY_UNAVALABLE',
+  message: 'Internal service is unavailable',
+  messageKey: 'infra.internal.unavailable',
+  rpcStatus: status.INTERNAL
+}
+
+// 未知异常
+export const UNKNOWN_EXCEPTION: ExceptionDefinition = {
+  code: 'INFRA_UNKNOWN_EXCEPTION',
+  message: 'Unknown exception',
+  messageKey: 'infra.unknown_exception',
+  rpcStatus: status.INTERNAL
+}
