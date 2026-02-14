@@ -1,5 +1,6 @@
 // File:
 import { status } from '@grpc/grpc-js'
+import { HttpStatus } from '@nestjs/common'
 
 export interface ExceptionDefinition {
   code: string // 标准错误码
@@ -9,11 +10,23 @@ export interface ExceptionDefinition {
 }
 
 export interface RpcMappableException {
-  toRpcStatus(): RpcExceptionPayload
+  toRpcPayload(): RpcExceptionPayload
+}
+
+export interface HttpMappableException {
+  toHttpPayload(): HttpExceptionPayload
 }
 
 export interface RpcExceptionPayload {
   code: status
   message: string
-  details?: Record<string, any> | string
+  details?: Record<string, any>
+}
+
+export interface HttpExceptionPayload {
+  code: HttpStatus
+  message: string
+  messageKey?: string
+  traceId?: string
+  details?: Record<string, any>
 }

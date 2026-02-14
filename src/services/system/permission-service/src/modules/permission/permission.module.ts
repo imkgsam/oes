@@ -7,7 +7,8 @@ import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs/index
 import { PermissionCommandHandlers } from 'src/application/commands/permission'
 import { PermissionQueryHandlers } from 'src/application/queries/permission'
 import { AuthorizationQueryHandlers } from 'src/application/queries/authorization'
-
+import { PermissionCheckController } from 'src/interfaces/grpc/permission-check.grpc.controller'
+import { AppLogger } from '@oes/common/logging/app-logger.service'
 @Module({
   imports: [CqrsModule, PrismaModule],
   providers: [
@@ -19,9 +20,10 @@ import { AuthorizationQueryHandlers } from 'src/application/queries/authorizatio
     ValidatingQueryBus,
     ...PermissionCommandHandlers,
     ...PermissionQueryHandlers,
-    ...AuthorizationQueryHandlers
+    ...AuthorizationQueryHandlers,
+    AppLogger
   ],
-  controllers: [],
+  controllers: [PermissionCheckController],
   exports: [ValidatingCommandBus, ValidatingQueryBus]
 })
 export class PermissionModule {}

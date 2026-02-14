@@ -5,7 +5,8 @@ import { AppLogger } from '@oes/common/logging/app-logger.service'
 
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
-import { ApiGatewayExceptionsFilter } from './common/filters/api-gateway-exception.filter'
+import { GatewayExceptionFilter } from './common/filters/gateway-exception.filter'
+import { OtelExceptionFilter } from '@oes/common/core/filters/otel-exception.filter'
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
 import { GatewayJwtAuthGuard } from '@oes/common/auth/guards/gateway-jwt-auth.guard'
 async function bootstrap() {
@@ -15,7 +16,7 @@ async function bootstrap() {
   app.useLogger(app.get(AppLogger))
   app.useGlobalGuards(app.get(GatewayJwtAuthGuard))
   //使用全局过滤器
-  app.useGlobalFilters(new ApiGatewayExceptionsFilter())
+  app.useGlobalFilters(new OtelExceptionFilter(), new GatewayExceptionFilter(app.get(AppLogger)))
   //使用全局拦截器 返回结构化res
   app.useGlobalInterceptors(new ResponseTransformInterceptor())
   await app.listen(process.env.API_GATEWAY_PORT ?? 9101)

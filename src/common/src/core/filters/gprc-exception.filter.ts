@@ -17,9 +17,19 @@ export class GrpcExceptionFilter implements ExceptionFilter {
     const methodName = call?.call?.method || 'unknown-method'
     const module = process.env.MODULE_NAME || 'unknown-service'
 
-    if (exception instanceof OESExceptionBase) {
-      // 处理本服务抛出的三类异常, 同时包含了 adaptor 或者client 返回的 包裹了 下游rpcexception的infra异常
-      const payload = exception.toRpcStatus()
+    if (exception instanceof RpcException) {
+      // 处理下游返回的 rpc exception (不包括 下游服务的timeout unavailable, 等情况)
+      const payload = exception.getError() as RpcExceptionPayload
+      this.logger.warn('Downstream rpc exception', {
+        module,
+        operation: methodName,
+        errorCode: this.getErrorCode(payload.details),
+        details: payload.details
+      })
+      return throwError(() => exception)
+    } else if (exception instanceof OESExceptionBase) {
+      // 处理本服务抛出的三类异常, 同时包含了 adaptor以及client返回的针对对下游请求的timeout,unavailable, 等情况的包装成本服务的infra异常
+      const payload = exception.toRpcPayload()
       this.logger.warn('Local business exception', {
         module,
         operation: methodName,
@@ -33,7 +43,7 @@ export class GrpcExceptionFilter implements ExceptionFilter {
         stack: (exception as Error)?.stack,
         message: (exception as Error)?.message
       })
-      const payload = unknownExp.toRpcStatus()
+      const payload = unknownExp.toRpcPayload()
       this.logger.error('Unhandled unknown exception', {
         module,
         operation: methodName,

@@ -1,14 +1,21 @@
 // src/common/core/exceptions/oes.exception.ts
-
 import { status } from '@grpc/grpc-js'
-import { ExceptionDefinition, RpcExceptionPayload } from './exception.interface'
-import { RpcMappableException } from './exception.interface'
+import { HttpStatus } from '@nestjs/common'
+import {
+  ExceptionDefinition,
+  HttpExceptionPayload,
+  RpcExceptionPayload
+} from './exception.interface'
+import { RpcMappableException, HttpMappableException } from './exception.interface'
 
 const getCurrentServiceName = (): string => {
   return process.env.MODULE_NAME || 'unknown-service'
 }
 
-export abstract class OESExceptionBase extends Error implements RpcMappableException {
+export abstract class OESExceptionBase
+  extends Error
+  implements RpcMappableException, HttpMappableException
+{
   public readonly definition: ExceptionDefinition
   public readonly internalDetails: any
 
@@ -22,18 +29,28 @@ export abstract class OESExceptionBase extends Error implements RpcMappableExcep
     this.internalDetails = internalDetails
   }
 
-  toRpcStatus(): RpcExceptionPayload {
-    const safeInternalDetails =
-      this.internalDetails && typeof this.internalDetails === 'object'
-        ? this.internalDetails
-        : { raw: this.internalDetails }
+  toRpcPayload(): RpcExceptionPayload {
     return {
       code: this.definition.rpcStatus,
       message: this.definition.message,
       details: {
         code: this.definition.code,
         messageKey: this.definition.messageKey,
-        internalDetails: safeInternalDetails,
+        internalDetails: this.internalDetails,
+        service: getCurrentServiceName(),
+        timestamp: new Date().toISOString()
+      }
+    }
+  }
+
+  toHttpPayload(): HttpExceptionPayload {
+    return {
+      code: grpcStatusToHttpStatus(this.definition.rpcStatus),
+      message: this.definition.message,
+      messageKey: this.definition.messageKey,
+      details: {
+        code: this.definition.code,
+        internalDetails: this.internalDetails,
         service: getCurrentServiceName(),
         timestamp: new Date().toISOString()
       }
@@ -56,3 +73,27 @@ export abstract class OESExceptionBase extends Error implements RpcMappableExcep
 export class DomainException extends OESExceptionBase {}
 export class InfrastructureException extends OESExceptionBase {}
 export class ApplicationException extends OESExceptionBase {}
+
+/**
+ * gRPC Status -> HTTP Status 映射
+ */
+function grpcStatusToHttpStatus(code: number): number {
+  switch (code) {
+    case status.INVALID_ARGUMENT:
+      return HttpStatus.BAD_REQUEST
+    case status.NOT_FOUND:
+      return HttpStatus.NOT_FOUND
+    case status.ALREADY_EXISTS:
+      return HttpStatus.CONFLICT
+    case status.PERMISSION_DENIED:
+      return HttpStatus.FORBIDDEN
+    case status.UNAUTHENTICATED:
+      return HttpStatus.UNAUTHORIZED
+    case status.UNAVAILABLE:
+    case status.DEADLINE_EXCEEDED:
+      return HttpStatus.SERVICE_UNAVAILABLE
+    case status.INTERNAL:
+    default:
+      return HttpStatus.INTERNAL_SERVER_ERROR
+  }
+}
