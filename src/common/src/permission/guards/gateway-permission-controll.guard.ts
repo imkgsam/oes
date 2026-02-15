@@ -5,7 +5,7 @@ import { PERMISSION_CHECK_KEY, PermissionCheckType } from '../decorators/permiss
 import { PERMISSION_MESSAGES } from '../../constants/messages/permission.message'
 import { InjectServiceClient } from '../../rpc/clients/client.decorator'
 import { ServiceKeys } from '../../rpc/clients/service-map'
-import { safeRpcCall } from '../../rpc/helpers/rpc.helper'
+import { safeRpcCall } from '../../rpc/helpers/-rpc.helper'
 
 /**
  * Note: 只检查permission， 不检查scope
