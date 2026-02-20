@@ -2,11 +2,14 @@ import { Injectable, OnModuleDestroy } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { NacosConfigClient } from 'nacos'
 import { ConfigService } from './config.interface'
+import { ConfigChangedEvent } from './config.events'
 
 @Injectable()
 export class NacosConfigService implements ConfigService, OnModuleDestroy {
   private client: NacosConfigClient
   private cache: Record<string, any> = {}
+
+  constructor(private readonly eventEmitter: EventEmitter2) {}
 
   async init() {
     this.client = new NacosConfigClient({
@@ -30,7 +33,11 @@ export class NacosConfigService implements ConfigService, OnModuleDestroy {
       },
       (content: string) => {
         console.log('[Nacos] Config Changed')
+
         this.updateCache(content)
+
+        // ✅ 发布事件
+        this.eventEmitter.emit('config.changed', new ConfigChangedEvent(this.cache))
       }
     )
   }
@@ -39,7 +46,7 @@ export class NacosConfigService implements ConfigService, OnModuleDestroy {
     try {
       this.cache = JSON.parse(content)
     } catch (e) {
-      console.error('[Nacos] Invalid JSON')
+      console.error('[Nacos] Invalid JSON format')
     }
   }
 
