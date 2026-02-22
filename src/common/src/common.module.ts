@@ -1,12 +1,11 @@
 import { Module, Global } from '@nestjs/common'
 import { GatewayPermissionControllGuard } from './permission/guards/gateway-permission-controll.guard'
-import { ClientModule } from './rpc/clients/client.module'
-import { RpcResponseInterceptor } from './rpc/interceptors/-rpc-response.interceptor'
+import { RegistryModule } from './registry/registry.module'
 
 @Global()
 @Module({
-  imports: [ClientModule],
-  providers: [GatewayPermissionControllGuard, RpcResponseInterceptor],
-  exports: [GatewayPermissionControllGuard, ClientModule, RpcResponseInterceptor]
+  imports: [RegistryModule],
+  providers: [GatewayPermissionControllGuard],
+  exports: [GatewayPermissionControllGuard, RegistryModule]
 })
 export class CommonModule {}

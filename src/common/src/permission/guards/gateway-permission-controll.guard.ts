@@ -1,22 +1,43 @@
-import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
+import { CanActivate, ExecutionContext, Injectable, OnModuleInit } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { ClientProxy } from '@nestjs/microservices'
+import { ClientGrpc } from '@nestjs/microservices'
+import { firstValueFrom, Observable } from 'rxjs'
 import { PERMISSION_CHECK_KEY, PermissionCheckType } from '../decorators/permission-check.decorator'
-import { PERMISSION_MESSAGES } from '../../constants/messages/permission.message'
-import { InjectServiceClient } from '../../rpc/clients/client.decorator'
-import { ServiceKeys } from '../../rpc/clients/service-map'
-import { safeRpcCall } from '../../rpc/helpers/-rpc.helper'
+import { InjectGrpcClient } from '../../transport/grpc/grpc-client.decorator'
 
 /**
- * Note: 只检查permission， 不检查scope
+ * gRPC service interface for permission checking.
+ * Must match the PermissionCheckService defined in permission_check.proto.
+ */
+interface PermissionCheckService {
+  checkPermission(data: {
+    accountId: string
+    permissionCode: string
+  }): Observable<{ pass: boolean }>
+}
+
+/**
+ * Gateway-level permission guard.
+ *
+ * Checks if the current user has the required permissions by calling
+ * the permission-service via gRPC.
+ *
+ * Note: Only checks permissions, not scopes.
  */
 @Injectable()
-export class GatewayPermissionControllGuard implements CanActivate {
+export class GatewayPermissionControllGuard implements CanActivate, OnModuleInit {
+  private permissionSvc: PermissionCheckService
+
   constructor(
-    @InjectServiceClient(ServiceKeys.PERMISSION_TCP)
-    private readonly permissionServiceClient: ClientProxy,
+    @InjectGrpcClient('permission-service')
+    private readonly permissionClient: ClientGrpc,
     private readonly reflector: Reflector
   ) {}
+
+  onModuleInit() {
+    this.permissionSvc =
+      this.permissionClient.getService<PermissionCheckService>('PermissionCheckService')
+  }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const metadata = this.reflector.get<{
@@ -30,15 +51,17 @@ export class GatewayPermissionControllGuard implements CanActivate {
     if (!userId) return false
 
     const results = await Promise.all(
-      permissions.map((permissionCode) =>
-        safeRpcCall<boolean>(
-          this.permissionServiceClient.send<boolean>(PERMISSION_MESSAGES.CHECK_USER_PERMISSION, {
-            userId,
+      permissions.map(async (permissionCode) => {
+        const response = await firstValueFrom(
+          this.permissionSvc.checkPermission({
+            accountId: userId,
             permissionCode
           })
         )
-      )
+        return response.pass
+      })
     )
+
     if (type === PermissionCheckType.ALL) {
       return results.every(Boolean)
     }

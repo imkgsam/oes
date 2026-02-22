@@ -1,5 +1,5 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
-import { InjectServiceClient } from '../../rpc/clients/client.decorator'
+import { InjectServiceClient } from '../../clients/client.decorator'
 import { ClientProxy } from '@nestjs/microservices'
 import { CommonJwtService } from '../jwt/jwt.service'
 import { createSystemException } from '../../core/exceptions'

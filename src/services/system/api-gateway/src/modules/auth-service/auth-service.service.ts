@@ -1,12 +1,16 @@
-import { Injectable } from '@nestjs/common'
-import { ClientProxy } from '@nestjs/microservices'
-import { ServiceKeys } from '@oes/common/rpc/clients/service-map'
-import { InjectServiceClient } from '@oes/common/rpc/clients/client.decorator'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { ClientGrpc } from '@nestjs/microservices'
+import { InjectGrpcClient } from '@oes/common/transport/grpc/grpc-client.decorator'
 
 @Injectable()
-export class AuthServiceService {
+export class AuthServiceService implements OnModuleInit {
   constructor(
-    @InjectServiceClient(ServiceKeys.AUTH_TCP)
-    private readonly authClient: ClientProxy
+    @InjectGrpcClient('auth-service')
+    private readonly authClient: ClientGrpc
   ) {}
+
+  onModuleInit() {
+    // Initialize gRPC service stubs here
+    // e.g., this.authSvc = this.authClient.getService<AuthService>('AuthService')
+  }
 }

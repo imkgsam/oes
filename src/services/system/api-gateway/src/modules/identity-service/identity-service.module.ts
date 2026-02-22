@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common'
 import { IdentityServiceService } from './identity-service.service'
 import { AdminController } from './controllers/admin.controller'
-import { ClientModule } from '@oes/common/modules/clients/client.module'
-import { ServiceKeys } from '@oes/common/modules/clients/service-map'
+import { GrpcTransportModule } from '@oes/common/transport/grpc/grpc-transport.module'
 
 @Module({
-  imports: [ClientModule.register([ServiceKeys.IDENTITY_TCP])],
+  imports: [GrpcTransportModule.forFeature(['identity-service'])],
   providers: [IdentityServiceService],
   controllers: [AdminController]
 })

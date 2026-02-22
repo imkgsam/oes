@@ -9,7 +9,7 @@ import { AppModule } from './app.module'
 import { ValidationPipe } from '@nestjs/common'
 import { MicroserviceOptions, Transport } from '@nestjs/microservices'
 import { MicroserviceExceptionsFilter } from '@oes/common/filters/microservice-exception.filter'
-import { SERVICE_ENDPOINTS_CONFIG } from '@oes/common/rpc/clients/service-map'
+import { SERVICE_ENDPOINTS_CONFIG } from '@oes/common/clients/service-map'
 
 async function bootstrap() {
   initOtelSdk(process.env.MODULE_NAME || 'identity-service')
