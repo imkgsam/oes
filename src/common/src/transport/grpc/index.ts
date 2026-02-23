@@ -11,3 +11,4 @@ export {
   DEFAULT_POOL_CONFIG,
   resolvePoolConfig
 } from './grpc.interfaces'
+export { safeGrpcCall, SafeGrpcCallOptions } from './safe-grpc-call'

@@ -1,128 +1,90 @@
-# Transport Module
+# transport 模块
 
-> Inter-service communication layer for OES microservices.
+gRPC 客户端通信层，集成连接池、负载均衡与 Nacos 服务发现，提供声明式的跨服务调用能力。
 
-## Overview
-
-The `transport/` module provides a unified, production-ready abstraction for inter-service communication. It currently supports **gRPC** for synchronous RPC calls between internal services, with a pluggable architecture for future event-driven transports (Kafka, RabbitMQ).
-
-### Architecture
+## 目录结构
 
 ```
 transport/
-├── grpc/                          # gRPC inter-service communication
-│   ├── grpc-transport.module.ts   # NestJS DynamicModule (forRoot / forFeature)
-│   ├── grpc-client.manager.ts     # Connection pool orchestrator
-│   ├── grpc-connection-pool.ts    # Per-service connection pool
-│   ├── grpc-client.decorator.ts   # @InjectGrpcClient() decorator
-│   ├── grpc.interfaces.ts         # Type definitions & config interfaces
-│   ├── grpc.constants.ts          # DI tokens
-│   └── index.ts                   # Barrel exports
-│
-├── loadbalancer/                  # Load balancing strategies
-│   ├── loadbalancer.interface.ts  # LoadBalancer contract
-│   ├── round-robin.strategy.ts    # Simple round-robin
-│   ├── weighted-round-robin.strategy.ts  # Weighted (Nginx-style)
-│   └── index.ts
-│
-└── index.ts                       # Top-level barrel export
+├── grpc/
+│   ├── grpc.interfaces.ts          # 类型定义：GrpcServiceConfig、GrpcPoolConfig、GrpcModuleOptions
+│   ├── grpc.constants.ts           # 注入 Token（GRPC_MODULE_OPTIONS）与 Token 生成函数
+│   ├── grpc-transport.module.ts    # DynamicModule：forRoot() 全局注册 / forFeature() 按模块注入 / forRootAsync() 异步配置
+│   ├── grpc-client.manager.ts      # GrpcClientManager：连接池编排、Nacos 订阅、周期健康检查
+│   ├── grpc-connection-pool.ts     # GrpcConnectionPool：单服务连接池（min/max、空闲淘汰、故障摘除）
+│   ├── grpc-client.decorator.ts    # @InjectGrpcClient() 参数装饰器
+│   └── index.ts                    # grpc 子模块统一导出
+├── loadbalancer/
+│   ├── loadbalancer.interface.ts   # LoadBalancer / ServiceEndpoint 接口
+│   ├── round-robin.strategy.ts     # 轮询策略
+│   ├── weighted-round-robin.strategy.ts  # 加权平滑轮询策略（Nginx 算法）
+│   └── index.ts                    # loadbalancer 子模块统一导出
+└── index.ts                        # 顶层统一导出
 ```
 
-## Quick Start
+## 核心设计
 
-### 1. Root Module Setup
+1. **DynamicModule 模式**：`forRoot()` 全局注册配置与 Manager；`forFeature()` 按需为功能模块创建服务级注入 Token。
+2. **连接池**：每个服务独立池，支持 min/max 容量、空闲超时淘汰、连续失败摘除。
+3. **负载均衡**：可插拔策略接口，内置 RoundRobin 和 WeightedRoundRobin（Nginx 平滑算法）。
+4. **Nacos 集成**：自动订阅服务实例变更，动态刷新端点；也支持 `url` 静态地址回退（开发/测试用）。
+5. **生命周期**：启动时订阅 + 建池，运行中周期健康检查，销毁时优雅 drain。
 
-Register `GrpcTransportModule.forRoot()` in your root `AppModule` with all service configurations:
+## 连接池默认参数
+
+| 参数                    | 默认值 | 说明              |
+| ----------------------- | ------ | ----------------- |
+| `minSize`               | 1      | 最小连接数        |
+| `maxSize`               | 10     | 最大连接数        |
+| `idleTimeoutMs`         | 60000  | 空闲淘汰时间 (ms) |
+| `acquireTimeoutMs`      | 5000   | 获取连接超时 (ms) |
+| `healthCheckIntervalMs` | 15000  | 健康检查间隔 (ms) |
+
+## 用法示例
+
+### 1. 根模块注册
 
 ```typescript
-import { Module } from '@nestjs/common'
-import { RegistryModule } from '@oes/common/registry'
-import { GrpcTransportModule } from '@oes/common/transport/grpc'
+import { GrpcTransportModule } from '@app/common/transport'
 
 @Module({
   imports: [
-    // Nacos service discovery (required for dynamic endpoint resolution)
     RegistryModule,
-
-    // gRPC transport with service definitions
     GrpcTransportModule.forRoot({
       services: {
         'permission-service': {
           serviceName: 'permission-service',
           protoPath: 'protos/permission_check.proto',
           packageName: 'permission_service'
-        },
-        'auth-service': {
-          serviceName: 'auth-service',
-          protoPath: 'protos/auth.proto',
-          packageName: 'auth_service',
-          // Static URL for development (bypasses Nacos discovery)
-          url: 'localhost:50051'
-        },
-        'identity-service': {
-          serviceName: 'identity-service',
-          protoPath: 'protos/identity.proto',
-          packageName: 'identity_service',
-          // Custom pool config
-          pool: {
-            minSize: 2,
-            maxSize: 5,
-            idleTimeoutMs: 30000
-          }
         }
       },
-      // Default pool config for all services
-      defaultPoolConfig: {
-        minSize: 1,
-        maxSize: 10,
-        idleTimeoutMs: 60000,
-        acquireTimeoutMs: 5000,
-        healthCheckIntervalMs: 15000
-      }
+      defaultPoolConfig: { minSize: 2, maxSize: 10 }
     })
   ]
 })
 export class AppModule {}
 ```
 
-### 2. Feature Module Setup
-
-In feature modules, use `GrpcTransportModule.forFeature()` to register the specific service clients you need:
+### 2. 功能模块引入
 
 ```typescript
-import { Module } from '@nestjs/common'
-import { GrpcTransportModule } from '@oes/common/transport/grpc'
-import { PermissionAdapter } from './permission.adapter'
+import { GrpcTransportModule } from '@app/common/transport'
 
 @Module({
-  imports: [GrpcTransportModule.forFeature(['permission-service'])],
-  providers: [PermissionAdapter],
-  exports: [PermissionAdapter]
+  imports: [GrpcTransportModule.forFeature(['permission-service'])]
 })
 export class PermissionModule {}
 ```
 
-### 3. Injecting gRPC Clients
-
-Use the `@InjectGrpcClient()` decorator to inject a `ClientGrpc` instance:
+### 3. 装饰器注入调用
 
 ```typescript
-import { Injectable, OnModuleInit } from '@nestjs/common'
+import { InjectGrpcClient } from '@app/common/transport'
 import { ClientGrpc } from '@nestjs/microservices'
-import { firstValueFrom } from 'rxjs'
-import { InjectGrpcClient } from '@oes/common/transport/grpc'
-
-// Generated from .proto file
-interface PermissionCheckService {
-  checkPermission(data: {
-    accountId: string
-    permissionCode: string
-  }): Observable<{ pass: boolean }>
-}
 
 @Injectable()
 export class PermissionAdapter implements OnModuleInit {
-  private permissionSvc: PermissionCheckService
+  private svc: PermissionCheckService
 
   constructor(
     @InjectGrpcClient('permission-service')
@@ -130,129 +92,28 @@ export class PermissionAdapter implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    this.permissionSvc = this.client.getService<PermissionCheckService>('PermissionCheckService')
+    this.svc = this.client.getService<PermissionCheckService>('PermissionCheckService')
   }
 
-  async checkPermission(accountId: string, permissionCode: string): Promise<boolean> {
-    const response = await firstValueFrom(
-      this.permissionSvc.checkPermission({ accountId, permissionCode })
-    )
-    return response.pass
+  check(userId: string, resource: string) {
+    return firstValueFrom(this.svc.checkPermission({ userId, resource }))
   }
 }
 ```
 
-### 4. Async Configuration (from Nacos Config)
-
-If your service configurations come from Nacos Config or another dynamic source:
+### 4. 通过 Manager 直接获取
 
 ```typescript
-import { GrpcTransportModule } from '@oes/common/transport/grpc'
-import { NacosConfigService } from '@oes/common/config/nacos.config.service'
+import { GrpcClientManager } from '@app/common/transport'
 
-GrpcTransportModule.forRootAsync({
-  imports: [NacosConfigModule],
-  useFactory: (nacosConfig: NacosConfigService) => {
-    const grpcConfig = nacosConfig.get<GrpcModuleOptions>('grpc')
-    return grpcConfig
-  },
-  inject: [NacosConfigService]
-})
-```
-
-## Connection Pool
-
-Each service gets its own connection pool managed by `GrpcClientManager`.
-
-### Pool Configuration
-
-| Option                  | Default | Description                                |
-| ----------------------- | ------- | ------------------------------------------ |
-| `minSize`               | `1`     | Minimum connections to maintain            |
-| `maxSize`               | `10`    | Maximum connections allowed                |
-| `idleTimeoutMs`         | `60000` | Idle connection eviction timeout (ms)      |
-| `acquireTimeoutMs`      | `5000`  | Max wait time to acquire a connection (ms) |
-| `healthCheckIntervalMs` | `15000` | Health check sweep interval (ms)           |
-
-### Pool Behavior
-
-1. **Acquire**: Load balancer selects an endpoint → reuse existing healthy connection or create new
-2. **Health Check**: Periodic sweep removes unhealthy connections (3 consecutive failures)
-3. **Idle Eviction**: Connections idle beyond `idleTimeoutMs` are removed (respects `minSize`)
-4. **Instance Refresh**: When Nacos reports instance changes, stale connections are removed
-5. **Graceful Shutdown**: All pools are drained on application shutdown
-
-## Load Balancing
-
-Two strategies are available:
-
-### Round-Robin (Default)
-
-Cycles through healthy endpoints sequentially. Simple and effective for homogeneous instances.
-
-### Weighted Round-Robin
-
-Distributes traffic proportionally based on endpoint weights. Uses the Nginx smooth weighted round-robin algorithm to avoid burst traffic.
-
-```typescript
-// Endpoints with different weights
-const endpoints = [
-  { ip: '10.0.0.1', port: 50051, weight: 3, healthy: true }, // 3x traffic
-  { ip: '10.0.0.2', port: 50051, weight: 1, healthy: true } // 1x traffic
-]
-```
-
-## gRPC Channel Options
-
-You can configure gRPC channel options globally or per-service:
-
-```typescript
-GrpcTransportModule.forRoot({
-  services: { ... },
-  defaultChannelOptions: {
-    'grpc.keepalive_time_ms': 10000,
-    'grpc.keepalive_timeout_ms': 5000,
-    'grpc.keepalive_permit_without_calls': 1,
-    'grpc.max_receive_message_length': 4 * 1024 * 1024,  // 4MB
-    'grpc.max_send_message_length': 4 * 1024 * 1024,
-  },
-})
-```
-
-## Monitoring
-
-Access pool statistics via `GrpcClientManager.getPoolStats()`:
-
-```typescript
 @Injectable()
-export class HealthService {
-  constructor(private readonly grpcManager: GrpcClientManager) {}
+export class SomeService {
+  constructor(private readonly grpc: GrpcClientManager) {}
 
-  getGrpcPoolStats() {
-    return this.grpcManager.getPoolStats()
-    // Returns:
-    // {
-    //   'permission-service': {
-    //     serviceName: 'permission-service',
-    //     totalConnections: 3,
-    //     healthyConnections: 3,
-    //     maxSize: 10,
-    //     minSize: 1,
-    //   },
-    //   ...
-    // }
+  async call() {
+    const client = await this.grpc.getClient('permission-service')
+    const svc = client.getService<PermissionCheckService>('PermissionCheckService')
+    return firstValueFrom(svc.checkPermission({ userId: '1', resource: 'orders' }))
   }
 }
 ```
-
-## Migration from `clients/` Module
-
-If you're migrating from the old `ClientModule` (TCP-based):
-
-| Before (TCP)                                          | After (gRPC)                                             |
-| ----------------------------------------------------- | -------------------------------------------------------- |
-| `ClientModule.register([ServiceKeys.PERMISSION_TCP])` | `GrpcTransportModule.forFeature(['permission-service'])` |
-| `@InjectServiceClient(ServiceKeys.PERMISSION_TCP)`    | `@InjectGrpcClient('permission-service')`                |
-| `client.send('pattern', payload)`                     | `svc.rpcMethod(payload)` via `client.getService()`       |
-| Hardcoded `service-map.ts`                            | Dynamic Nacos discovery or static URL config             |
-| Global `Map` connection cache                         | IoC-managed connection pool with health checks           |

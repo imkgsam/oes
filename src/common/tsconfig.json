@@ -8,6 +8,6 @@
     "declaration": true,
     "declarationMap": true
   },
-   "include": ["src", "../services/system/api-gateway/src/common/filters/gateway-exception.filter.ts"],
+   "include": ["src"],
   "exclude": ["dist", "node_modules"]
 }

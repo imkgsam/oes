@@ -1,190 +1,71 @@
-# Registry Module
+# registry 模块
 
-> Nacos-based service registration and discovery for OES microservices.
+基于 Nacos 的服务注册与发现封装，提供实例注册、自动注销、服务订阅及健康实例缓存能力。通过 `CommonModule` 全局导出。
 
-## Overview
+## 目录结构
 
-The `registry/` module provides service registration and discovery via [Nacos](https://nacos.io/). It is used by the `transport/grpc` module to dynamically resolve service endpoints, enabling zero-configuration service-to-service communication.
+| 文件                                | 职责                                                                               |
+| ----------------------------------- | ---------------------------------------------------------------------------------- |
+| `interfaces/discovery.interface.ts` | 定义 `ServiceDiscovery` 接口与 `ServiceInstance` 类型                              |
+| `interfaces/registry.interface.ts`  | 定义 `ServiceRegistry` 接口（`register()` / `deregister()`）                       |
+| `nacos-naming-client.provider.ts`   | `NacosNamingClientProvider`——共享的 Nacos 命名客户端，模块初始化时连接、销毁时关闭 |
+| `nacos-discovery.service.ts`        | `NacosDiscoveryService`——订阅服务变更，本地缓存健康实例                            |
+| `nacos-registry.service.ts`         | `NacosRegistryService`——模块启动时自动注册当前实例，销毁时自动注销                 |
+| `registry.module.ts`                | `RegistryModule`——全局模块，组装上述 Provider 并导出 Discovery/Registry 服务       |
+| `index.ts`                          | 统一导出入口                                                                       |
 
-### Architecture
+## 设计要点
 
-```
-registry/
-├── registry.module.ts              # Global NestJS module
-├── nacos-naming-client.provider.ts  # Shared NacosNamingClient (singleton)
-├── nacos-discovery.service.ts       # Service discovery (subscribe + cache)
-├── nacos-registry.service.ts        # Service registration (register + deregister)
-├── interfaces/
-│   ├── discovery.interface.ts       # ServiceDiscovery contract
-│   └── registry.interface.ts        # ServiceRegistry contract
-├── index.ts                         # Barrel exports
-└── README.md                        # This file
-```
+1. **接口抽象**：业务层依赖 `ServiceDiscovery` / `ServiceRegistry` 接口，可替换为 Consul、etcd 等实现。
+2. **共享连接**：`NacosNamingClientProvider` 维护单一 `NacosNamingClient`，Discovery 和 Registry 共用，减少资源开销。
+3. **生命周期自动化**：注册/注销绑定 `OnModuleInit` / `OnModuleDestroy`，无需手动管理。
+4. **优雅降级**：未配置 `NACOS_SERVER` 时仅打印警告，不阻塞启动。
 
-### Key Design Decisions
+## 环境变量
 
-1. **Shared NacosNamingClient**: A single `NacosNamingClient` connection is shared between discovery and registration, reducing resource usage and connection overhead.
+| 变量              | 说明                   | 默认值            |
+| ----------------- | ---------------------- | ----------------- |
+| `NACOS_SERVER`    | Nacos 服务地址（必填） | —                 |
+| `NACOS_NAMESPACE` | 命名空间               | `public`          |
+| `MODULE_NAME`     | 当前服务名（用于注册） | —                 |
+| `SERVICE_IP`      | 注册 IP                | 自动获取本机 IPv4 |
+| `SERVICE_PORT`    | 注册端口（必填）       | —                 |
 
-2. **Interface-driven**: Both `ServiceDiscovery` and `ServiceRegistry` are defined as interfaces, making it easy to swap Nacos for another registry (Consul, etcd, etc.).
+## 用法示例
 
-3. **Global Module**: `RegistryModule` is decorated with `@Global()`, so it only needs to be imported once in the root module.
+### 1. 导入模块
 
-4. **Graceful Degradation**: If `NACOS_SERVER` is not set, the module logs a warning and continues without Nacos. This allows local development without a Nacos instance.
-
-## Quick Start
-
-### 1. Import RegistryModule
-
-Add `RegistryModule` to your root `AppModule`:
+`RegistryModule` 已通过 `CommonModule` 全局导出，根模块导入 `CommonModule` 即可：
 
 ```typescript
-import { Module } from '@nestjs/common'
-import { RegistryModule } from '@oes/common/registry'
+import { CommonModule } from '@app/common'
 
 @Module({
-  imports: [RegistryModule]
+  imports: [CommonModule]
 })
 export class AppModule {}
 ```
 
-### 2. Environment Variables
-
-| Variable          | Required | Default     | Description                                           |
-| ----------------- | -------- | ----------- | ----------------------------------------------------- |
-| `NACOS_SERVER`    | Yes\*    | —           | Nacos server address (e.g., `localhost:8848`)         |
-| `NACOS_NAMESPACE` | No       | `public`    | Nacos namespace for isolation                         |
-| `MODULE_NAME`     | Yes\*    | —           | Service name to register (e.g., `permission-service`) |
-| `SERVICE_IP`      | No       | Auto-detect | IP address to register                                |
-| `SERVICE_PORT`    | Yes\*    | —           | Port number to register                               |
-
-\* Required for Nacos integration. Without `NACOS_SERVER`, the module operates in degraded mode.
-
-### 3. Service Registration (Automatic)
-
-When `RegistryModule` is imported and the required environment variables are set, the service automatically:
-
-- **Registers** itself with Nacos on startup (`onModuleInit`)
-- **Deregisters** itself on shutdown (`onModuleDestroy`)
-
-No additional code is needed.
-
-### 4. Service Discovery
-
-Use `NacosDiscoveryService` to discover other services:
+### 2. 服务发现
 
 ```typescript
-import { Injectable, OnModuleInit } from '@nestjs/common'
-import { NacosDiscoveryService } from '@oes/common/registry'
+import { NacosDiscoveryService } from '@app/common/registry'
 
 @Injectable()
 export class GatewayService implements OnModuleInit {
   constructor(private readonly discovery: NacosDiscoveryService) {}
 
   async onModuleInit() {
-    // Subscribe to instance changes
-    await this.discovery.subscribe('permission-service')
-    await this.discovery.subscribe('auth-service')
+    await this.discovery.subscribe('user-service')
   }
 
-  getServiceUrl(serviceName: string): string {
-    const instances = this.discovery.getInstances(serviceName)
-    if (instances.length === 0) {
-      throw new Error(`No instances available for ${serviceName}`)
-    }
-    // Simple selection (use transport/loadbalancer for production)
-    const instance = instances[0]
-    return `${instance.ip}:${instance.port}`
+  getEndpoint(): string {
+    const [inst] = this.discovery.getInstances('user-service')
+    return inst ? `${inst.ip}:${inst.port}` : ''
   }
 }
 ```
 
-## Integration with gRPC Transport
+### 3. 服务注册
 
-The `registry/` module is designed to work seamlessly with `transport/grpc`:
-
-```typescript
-import { Module } from '@nestjs/common'
-import { RegistryModule } from '@oes/common/registry'
-import { GrpcTransportModule } from '@oes/common/transport/grpc'
-
-@Module({
-  imports: [
-    RegistryModule, // Provides NacosDiscoveryService
-    GrpcTransportModule.forRoot({
-      services: {
-        'permission-service': {
-          serviceName: 'permission-service',
-          protoPath: 'protos/permission_check.proto',
-          packageName: 'permission_service'
-          // No 'url' → uses Nacos discovery automatically
-        }
-      }
-    })
-  ]
-})
-export class AppModule {}
-```
-
-When `GrpcClientManager` needs to resolve endpoints for a service:
-
-1. It checks if a static `url` is configured → use it directly
-2. Otherwise, it queries `NacosDiscoveryService.getInstances()` for live endpoints
-3. The load balancer selects one endpoint from the list
-4. A connection is acquired from the pool for that endpoint
-
-## Local Development (Without Nacos)
-
-For local development, you can bypass Nacos by:
-
-1. **Not setting `NACOS_SERVER`**: The module will log a warning and skip initialization
-2. **Using static URLs in gRPC config**:
-
-```typescript
-GrpcTransportModule.forRoot({
-  services: {
-    'permission-service': {
-      serviceName: 'permission-service',
-      protoPath: 'protos/permission_check.proto',
-      packageName: 'permission_service',
-      url: 'localhost:50051' // Static URL, no Nacos needed
-    }
-  }
-})
-```
-
-## API Reference
-
-### NacosDiscoveryService
-
-| Method                                                 | Description                                 |
-| ------------------------------------------------------ | ------------------------------------------- |
-| `subscribe(serviceName: string): Promise<void>`        | Subscribe to instance changes for a service |
-| `getInstances(serviceName: string): ServiceInstance[]` | Get cached healthy instances                |
-
-### NacosRegistryService
-
-| Method                        | Description                                            |
-| ----------------------------- | ------------------------------------------------------ |
-| `register(): Promise<void>`   | Register the current instance (called automatically)   |
-| `deregister(): Promise<void>` | Deregister the current instance (called automatically) |
-
-### ServiceInstance
-
-```typescript
-interface ServiceInstance {
-  ip: string
-  port: number
-  metadata?: Record<string, string>
-}
-```
-
-## Comparison with Old Registry
-
-| Aspect               | Old (`registry/`)        | New (`registry/`)                           |
-| -------------------- | ------------------------ | ------------------------------------------- |
-| NacosNamingClient    | Two separate instances   | Single shared instance                      |
-| Module encapsulation | No NestJS module         | `RegistryModule` with `@Global()`           |
-| Error handling       | Throws on missing config | Graceful degradation with warnings          |
-| IP detection         | Throws if no IPv4 found  | Falls back to `127.0.0.1`                   |
-| gRPC pool            | Simple `Map` cache       | Removed (moved to `transport/grpc`)         |
-| Load balancer        | Inline `RoundRobin`      | Removed (moved to `transport/loadbalancer`) |
+`NacosRegistryService` 在模块初始化时自动注册，无需手动调用。确保设置 `MODULE_NAME` 和 `SERVICE_PORT` 环境变量即可。

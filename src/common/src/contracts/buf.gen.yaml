@@ -8,12 +8,12 @@ plugins:
     opt:
       # NestJS 集成 - 生成与 @nestjs/microservices 兼容的代码
       - nestJs=true
-      - addGrpcMetadata=true
+      - addGrpcMetadata=false
       - addNestjsRestParameter=true
       # 类型选项
       - esModuleInterop=true
       - forceLong=string
-      - useOptionals=messages
+      - useOptionals=all
       - snakeToCamel=true
       - env=node
       # 枚举选项 - 使用数字枚举以兼容 NestJS
