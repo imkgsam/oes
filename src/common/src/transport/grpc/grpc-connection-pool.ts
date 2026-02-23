@@ -6,11 +6,11 @@
  * with support for min/max sizing, idle eviction, and health checking.
  */
 
-import { Logger } from '@nestjs/common'
 import { ClientGrpc, ClientProxyFactory, Transport } from '@nestjs/microservices'
 import { ChannelOptions } from '@grpc/grpc-js'
 import { ResolvedPoolConfig } from './grpc.interfaces'
 import { LoadBalancer, ServiceEndpoint } from '../loadbalancer/loadbalancer.interface'
+import { AppLogger } from '../../logging'
 
 /**
  * Internal representation of a pooled gRPC connection.
@@ -62,7 +62,7 @@ interface PooledConnection {
  * ```
  */
 export class GrpcConnectionPool {
-  private readonly logger: Logger
+  private readonly logger: AppLogger
   private readonly connections = new Map<string, PooledConnection>()
   private readonly serviceName: string
   private readonly protoPath: string
@@ -72,6 +72,7 @@ export class GrpcConnectionPool {
   private readonly channelOptions?: ChannelOptions
 
   constructor(options: {
+    logger: AppLogger
     serviceName: string
     protoPath: string
     packageName: string
@@ -85,7 +86,7 @@ export class GrpcConnectionPool {
     this.config = options.poolConfig
     this.loadBalancer = options.loadBalancer
     this.channelOptions = options.channelOptions
-    this.logger = new Logger(`GrpcPool:${this.serviceName}`)
+    this.logger = options.logger
   }
 
   /**

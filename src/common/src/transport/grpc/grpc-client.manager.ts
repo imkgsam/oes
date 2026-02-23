@@ -6,7 +6,7 @@
  * and provides the primary API for obtaining gRPC clients.
  */
 
-import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common'
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import { GrpcConnectionPool } from './grpc-connection-pool'
 import { GrpcModuleOptions, GrpcServiceConfig, resolvePoolConfig } from './grpc.interfaces'
@@ -14,6 +14,7 @@ import { GRPC_MODULE_OPTIONS } from './grpc.constants'
 import { RoundRobinStrategy } from '../loadbalancer/round-robin.strategy'
 import { LoadBalancer, ServiceEndpoint } from '../loadbalancer/loadbalancer.interface'
 import { NacosDiscoveryService } from '../../registry/nacos-discovery.service'
+import { AppLogger } from '../../logging'
 
 /**
  * Central manager for all gRPC client connections.
@@ -41,7 +42,6 @@ import { NacosDiscoveryService } from '../../registry/nacos-discovery.service'
  */
 @Injectable()
 export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
-  private readonly logger = new Logger(GrpcClientManager.name)
   private readonly pools = new Map<string, GrpcConnectionPool>()
   private readonly loadBalancer: LoadBalancer
   private healthCheckTimer?: ReturnType<typeof setInterval>
@@ -49,10 +49,12 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
   constructor(
     @Inject(GRPC_MODULE_OPTIONS)
     private readonly options: GrpcModuleOptions,
+    private readonly logger: AppLogger,
     @Optional()
     private readonly discovery?: NacosDiscoveryService
   ) {
     this.loadBalancer = new RoundRobinStrategy()
+    this.logger = logger.child({ context: GrpcClientManager.name })
   }
 
   async onModuleInit(): Promise<void> {
@@ -137,6 +139,7 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
       const poolConfig = resolvePoolConfig(config.pool, this.options.defaultPoolConfig)
 
       const pool = new GrpcConnectionPool({
+        logger: this.logger,
         serviceName: config.serviceName,
         protoPath: config.protoPath,
         packageName: config.packageName,
