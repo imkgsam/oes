@@ -1,3 +1,5 @@
+// File: src/services/system/api-gateway/src/main.ts
+
 import { initOtelSdk } from '@oes/common/tracing/otel-sdk'
 import { NestFactory } from '@nestjs/core'
 import { ValidationPipe } from '@nestjs/common'
@@ -44,10 +46,10 @@ async function bootstrap() {
   )
 
   // ── Interceptors ──
+  // interceptor执行顺序是： 先注册先执行
   app.useGlobalInterceptors(app.get(TimeoutInterceptor), new ResponseTransformInterceptor())
-
-  // ── Exception filters (order matters: last registered = first executed) ──
-  app.useGlobalFilters(new OtelExceptionFilter(), new GatewayExceptionFilter(logger))
+  // filter 的执行顺序是： 后注册先执行
+  app.useGlobalFilters(new GatewayExceptionFilter(logger), new OtelExceptionFilter())
 
   // ── Swagger (pluggable — disable in production if needed) ──
   if (config.get<boolean>('gateway.swagger.enabled', true)) {

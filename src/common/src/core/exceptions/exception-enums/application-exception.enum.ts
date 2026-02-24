@@ -21,3 +21,17 @@ export const VALIDATION_FAILED: ExceptionDefinition = {
   messageKey: 'app.validation.failed',
   rpcStatus: status.INVALID_ARGUMENT
 }
+
+export const JWT_MISSING: ExceptionDefinition = {
+  code: 'APP_AUTH_003',
+  message: 'Authorization token is missing',
+  messageKey: 'app.auth.jwt_missing',
+  rpcStatus: status.UNAUTHENTICATED
+}
+
+export const JWT_INVALID: ExceptionDefinition = {
+  code: 'APP_AUTH_004',
+  message: 'Authorization token is invalid or expired',
+  messageKey: 'app.auth.jwt_invalid',
+  rpcStatus: status.UNAUTHENTICATED
+}
