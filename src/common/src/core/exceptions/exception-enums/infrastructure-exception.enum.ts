@@ -31,6 +31,28 @@ export const THIRD_PARTY_SERVICE_UNAVAILABLE: ExceptionDefinition = {
   rpcStatus: status.UNAVAILABLE
 }
 
+// 外部 HTTP 调用
+export const EXTERNAL_HTTP_TIMEOUT: ExceptionDefinition = {
+  code: 'INFRA_HTTP_001',
+  message: 'External HTTP request timed out',
+  messageKey: 'infra.http.timeout',
+  rpcStatus: status.DEADLINE_EXCEEDED
+}
+
+export const EXTERNAL_HTTP_UNAVAILABLE: ExceptionDefinition = {
+  code: 'INFRA_HTTP_002',
+  message: 'External HTTP service unavailable',
+  messageKey: 'infra.http.unavailable',
+  rpcStatus: status.UNAVAILABLE
+}
+
+export const EXTERNAL_HTTP_ERROR: ExceptionDefinition = {
+  code: 'INFRA_HTTP_003',
+  message: 'External HTTP request failed',
+  messageKey: 'infra.http.error',
+  rpcStatus: status.INTERNAL
+}
+
 // 项目内其他服务
 export const INTERNAL_SERVICE_UNAVAILABLE: ExceptionDefinition = {
   code: 'INFRA_INTERNAL_DEPENDENCY_UNAVALABLE',

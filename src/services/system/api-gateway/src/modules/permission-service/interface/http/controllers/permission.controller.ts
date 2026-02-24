@@ -1,44 +1,47 @@
 import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common'
-import { ClientProxy } from '@nestjs/microservices'
-import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'
-import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
+import { ClientGrpc } from '@nestjs/microservices'
+import { InjectGrpcClient } from '@oes/common/transport/grpc/grpc-client.decorator'
 import { CreatePermissionDto } from 'src/dtos/permission.dto'
-import { ServiceKeys } from '@oes/common/modules/clients/service-map'
-import { safeRpcCall2 } from '@oes/common/helpers/rpc.helper'
 
+@ApiBearerAuth('JWT')
+@ApiTags('permission')
 @Controller('permission')
 export class PermissionController {
   constructor(
-    @InjectServiceClient(ServiceKeys.PERMISSION_TCP)
-    private readonly permissionClient: ClientProxy
+    @InjectGrpcClient('permission-service')
+    private readonly permissionClient: ClientGrpc
   ) {}
 
-  @Get('/all')
+  // TODO: bind gRPC service stubs after proto definitions are finalized
+
+  @Get('all')
+  @ApiOperation({ summary: 'List all permissions' })
   async getAllPermissions() {
-    return safeRpcCall2(this.permissionClient, PERMISSION_MESSAGES.LIST_PERMISSIONS, {})
+    // return safeGrpcCall(this.permissionSvc.listPermissions({}), { ... })
   }
 
   @Post()
-  async createPermission(@Body() dto: CreatePermissionDto) {
-    return safeRpcCall2(this.permissionClient, PERMISSION_MESSAGES.CREATE_PERMISSION, dto)
+  @ApiOperation({ summary: 'Create a permission' })
+  async createPermission(@Body() _dto: CreatePermissionDto) {
+    // return safeGrpcCall(this.permissionSvc.createPermission(dto), { ... })
   }
 
-  @Get('/by-module')
-  async findByModule(@Query('module') module: string) {
-    return safeRpcCall2(this.permissionClient, PERMISSION_MESSAGES.GET_PERMISSIONS_BY_MODULE, {
-      module
-    })
+  @Get('by-module')
+  @ApiOperation({ summary: 'Find permissions by module' })
+  async findByModule(@Query('module') _module: string) {
+    // return safeGrpcCall(this.permissionSvc.getPermissionsByModule({ module }), { ... })
   }
 
   @Get(':code')
-  async findByCode(@Param('code') code: string) {
-    return safeRpcCall2(this.permissionClient, PERMISSION_MESSAGES.GET_PERMISSION_BY_CODE, {
-      code
-    })
+  @ApiOperation({ summary: 'Find permission by code' })
+  async findByCode(@Param('code') _code: string) {
+    // return safeGrpcCall(this.permissionSvc.getPermissionByCode({ code }), { ... })
   }
 
   @Delete(':id')
-  async delete(@Param('id') id: string) {
-    return safeRpcCall2(this.permissionClient, PERMISSION_MESSAGES.DELETE_PERMISSION, { id })
+  @ApiOperation({ summary: 'Delete a permission' })
+  async delete(@Param('id') _id: string) {
+    // return safeGrpcCall(this.permissionSvc.deletePermission({ id }), { ... })
   }
 }

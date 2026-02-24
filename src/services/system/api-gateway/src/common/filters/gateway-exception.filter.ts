@@ -1,5 +1,4 @@
-// src/common/core/filters/http-exception.filter.ts
-import { ExceptionFilter, Catch, ArgumentsHost, HttpStatus } from '@nestjs/common'
+import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common'
 import { Request, Response } from 'express'
 import { RpcException } from '@nestjs/microservices'
 import { OESExceptionBase } from '@oes/common/core/exceptions/oes.exception'
@@ -18,17 +17,13 @@ export class GatewayExceptionFilter implements ExceptionFilter {
     const res = ctx.getResponse<Response>()
     const req = ctx.getRequest<Request>()
 
-    const moduleName = process.env.MODULE_NAME || 'unknown-service'
-    const methodName = req.method + ' ' + req.originalUrl
-
-    //获取当前的trace
-    const activeSpan = trace.getActiveSpan()
-    const traceId = activeSpan?.spanContext().traceId
+    const moduleName = process.env.MODULE_NAME || 'api-gateway'
+    const methodName = `${req.method} ${req.originalUrl}`
+    const traceId = trace.getActiveSpan()?.spanContext().traceId
 
     let payload: HttpExceptionPayload
 
     if (exception instanceof RpcException) {
-      // 下游服务返回的异常，透传
       const err = exception.getError() as any
       const details = err?.details
 
@@ -40,31 +35,47 @@ export class GatewayExceptionFilter implements ExceptionFilter {
         details
       }
 
-      this.logger.warn('Propagating downstream RpcException', {
+      this.logger.warn('Downstream RpcException', {
         module: moduleName,
         operation: methodName,
         errorCode: details?.code,
         details
       })
+    } else if (exception instanceof HttpException) {
+      const response = exception.getResponse()
+      const statusCode = exception.getStatus()
+
+      payload = {
+        code: statusCode,
+        message: typeof response === 'string' ? response : (response as any)?.message,
+        traceId,
+        details: typeof response === 'object' ? response : undefined
+      }
+
+      this.logger.warn('HttpException', {
+        module: moduleName,
+        operation: methodName,
+        statusCode
+      })
     } else if (exception instanceof OESExceptionBase) {
-      // 本服务抛出的三类异常（包括包裹下游异常的 infra 异常）
-      const payload = exception.toHttpPayload()
+      payload = exception.toHttpPayload()
       payload.traceId = traceId
-      this.logger.warn('Local business exception', {
+
+      this.logger.warn('Business exception', {
         module: moduleName,
         operation: methodName,
         errorCode: (payload.details as any)?.code,
         details: payload.details
       })
     } else {
-      // 未知异常，包装成 infra
       const unknownExp = ExceptionFactory.infrastructure(UNKNOWN_EXCEPTION, {
         message: (exception as Error)?.message,
         stack: (exception as Error)?.stack
       })
-      const payload = unknownExp.toHttpPayload()
+      payload = unknownExp.toHttpPayload()
       payload.traceId = traceId
-      this.logger.error('Unhandled unknown exception', {
+
+      this.logger.error('Unhandled exception', {
         module: moduleName,
         operation: methodName,
         errorCode: (payload.details as any)?.code,
@@ -75,9 +86,6 @@ export class GatewayExceptionFilter implements ExceptionFilter {
     res.status(payload.code).json(payload)
   }
 
-  /**
-   * gRPC Status -> HTTP Status 映射
-   */
   private grpcStatusToHttpStatus(code: number): number {
     switch (code) {
       case status.INVALID_ARGUMENT:

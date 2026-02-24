@@ -1,18 +1,22 @@
-import { Injectable } from '@nestjs/common'
-import { ClientProxy } from '@nestjs/microservices'
-import { safeRpcCall2 } from '@oes/common/helpers/rpc.helper'
-import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
-import { ServiceKeys } from '@oes/common/modules/clients/service-map'
-import { IDENTITY_MESSAGES } from '@oes/common/constants/messages/identity.message'
+import { Injectable, OnModuleInit } from '@nestjs/common'
+import { ClientGrpc } from '@nestjs/microservices'
+import { InjectGrpcClient } from '@oes/common/transport/grpc/grpc-client.decorator'
 
 @Injectable()
-export class IdentityServiceService {
+export class IdentityServiceService implements OnModuleInit {
   constructor(
-    @InjectServiceClient(ServiceKeys.IDENTITY_TCP)
-    private readonly identityClient: ClientProxy
+    @InjectGrpcClient('identity-service')
+    private readonly identityClient: ClientGrpc
   ) {}
 
+  onModuleInit() {
+    // TODO: bind gRPC service stubs after proto definitions are finalized
+    // this.identitySvc = this.identityClient.getService<IdentityService>('IdentityService')
+  }
+
   async getAllUsers() {
-    return safeRpcCall2(this.identityClient, IDENTITY_MESSAGES.LIST_USERS, {})
+    // TODO: replace with gRPC call
+    // return safeGrpcCall(this.identitySvc.listUsers({}), { ... })
+    return []
   }
 }

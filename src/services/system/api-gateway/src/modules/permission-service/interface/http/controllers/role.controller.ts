@@ -1,38 +1,41 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common'
-import { ClientProxy } from '@nestjs/microservices'
-import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'
-import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
+import { ClientGrpc } from '@nestjs/microservices'
+import { InjectGrpcClient } from '@oes/common/transport/grpc/grpc-client.decorator'
 import { CreateRoleDto } from 'src/dtos/role.dto'
-import { safeRpcCall2 } from '@oes/common/helpers/rpc.helper'
-import { ServiceKeys } from '@oes/common/modules/clients/service-map'
 
+@ApiBearerAuth('JWT')
+@ApiTags('role')
 @Controller('role')
 export class RoleController {
   constructor(
-    @InjectServiceClient(ServiceKeys.PERMISSION_TCP)
-    private readonly permissionClient: ClientProxy
+    @InjectGrpcClient('permission-service')
+    private readonly permissionClient: ClientGrpc
   ) {}
 
-  @Get('/all')
+  // TODO: bind gRPC service stubs after proto definitions are finalized
+
+  @Get('all')
+  @ApiOperation({ summary: 'List all roles' })
   async getAllRoles() {
-    return safeRpcCall2(this.permissionClient, PERMISSION_MESSAGES.LIST_ROLES, {})
+    // return safeGrpcCall(this.permissionSvc.listRoles({}), { ... })
   }
 
   @Post()
-  async createRole(@Body() dto: CreateRoleDto) {
-    return safeRpcCall2(this.permissionClient, PERMISSION_MESSAGES.CREATE_ROLE, dto)
+  @ApiOperation({ summary: 'Create a role' })
+  async createRole(@Body() _dto: CreateRoleDto) {
+    // return safeGrpcCall(this.permissionSvc.createRole(dto), { ... })
   }
 
   @Get(':id')
-  async findById(@Param('id') id: string) {
-    const found = await safeRpcCall2(this.permissionClient, PERMISSION_MESSAGES.GET_ROLE_BY_ID, {
-      id
-    })
-    return found
+  @ApiOperation({ summary: 'Find role by ID' })
+  async findById(@Param('id') _id: string) {
+    // return safeGrpcCall(this.permissionSvc.getRoleById({ id }), { ... })
   }
 
   @Delete(':id')
-  async deleteRole(@Param('id') id: string) {
-    return safeRpcCall2(this.permissionClient, PERMISSION_MESSAGES.DELETE_ROLE_BY_ID, { id })
+  @ApiOperation({ summary: 'Delete a role' })
+  async deleteRole(@Param('id') _id: string) {
+    // return safeGrpcCall(this.permissionSvc.deleteRole({ id }), { ... })
   }
 }

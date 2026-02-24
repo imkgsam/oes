@@ -1,30 +1,51 @@
-import { Module } from '@nestjs/common'
-import { CommonJwtModule } from '@oes/common/auth/jwt/jwt.module'
-import { ConfigModule } from '@nestjs/config'
-import { LoggingModule } from '@oes/common/logging/logging.module'
-import { AuthServiceModule } from './modules/auth-service/auth-service.module'
-import { PermissionServiceModule } from 'src/modules/permission-service/permission-service.module'
-import { IdentityServiceModule } from './modules/identity-service/identity-service.module'
-import { GatewayJwtAuthGuard } from '@oes/common/auth/guards/gateway-jwt-auth.guard'
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
+import { ConfigModule } from '@nestjs/config'
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
+
+import { CommonJwtModule } from '@oes/common/auth/jwt/jwt.module'
+import { LoggingModule } from '@oes/common/logging/logging.module'
+import { GatewayJwtAuthGuard } from '@oes/common/auth/guards/gateway-jwt-auth.guard'
+
+import { gatewayConfig } from './config/gateway.config'
+import { HealthModule } from './health/health.module'
+import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
+import { AuthServiceModule } from './modules/auth-service/auth-service.module'
 
 @Module({
   imports: [
+    // ── Infrastructure ──
+    ConfigModule.forRoot({ isGlobal: true, load: [gatewayConfig] }),
     LoggingModule,
-    ConfigModule.forRoot({ isGlobal: true }),
     CommonJwtModule,
-    // 系统模块
+
+    // ── Rate limiting (pluggable — remove when migrating to APISIX) ──
+    ThrottlerModule.forRoot({
+      throttlers: [
+        {
+          name: 'default',
+          ttl: parseInt(process.env.THROTTLE_TTL ?? '60000', 10),
+          limit: parseInt(process.env.THROTTLE_LIMIT ?? '100', 10)
+        }
+      ]
+    }),
+
+    // ── Core ──
+    HealthModule,
+
+    // ── System service proxies ──
     AuthServiceModule
-    // PermissionServiceModule,
-    // IdentityServiceModule
-    // 业务模块
+    // PermissionProxyModule,   // enable after gRPC migration
+    // IdentityProxyModule,     // enable after gRPC migration
   ],
-  controllers: [],
   providers: [
-    {
-      provide: APP_GUARD,
-      useClass: GatewayJwtAuthGuard
-    }
+    // ── Guards (pluggable — JWT/throttle move to APISIX later) ──
+    { provide: APP_GUARD, useClass: GatewayJwtAuthGuard },
+    { provide: APP_GUARD, useClass: ThrottlerGuard }
   ]
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggerMiddleware).forRoutes('*')
+  }
+}
