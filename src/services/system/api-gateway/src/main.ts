@@ -22,7 +22,7 @@ async function bootstrap() {
 
   app.useLogger(logger)
 
-  // ── API versioning ──
+  // ── http API versioning ──
   app.setGlobalPrefix(config.get<string>('gateway.globalPrefix', 'api/v1'), {
     exclude: ['health', 'health/ready', 'docs', 'docs-json']
   })
@@ -32,7 +32,7 @@ async function bootstrap() {
   app.enableCors({
     origin: config.get<string[]>('gateway.cors.origins', ['*']),
     methods: config.get<string>('gateway.cors.methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS'),
-    credentials: config.get<boolean>('gateway.cors.credentials', true)
+    credentials: config.get<boolean>('gateway.cors.credentials', false)
   })
 
   // ── Validation ──
@@ -47,9 +47,9 @@ async function bootstrap() {
 
   // ── Interceptors ──
   // interceptor执行顺序是： 先注册先执行
-  app.useGlobalInterceptors(app.get(TimeoutInterceptor), new ResponseTransformInterceptor())
+  app.useGlobalInterceptors(app.get(TimeoutInterceptor), app.get(ResponseTransformInterceptor))
   // filter 的执行顺序是： 后注册先执行
-  app.useGlobalFilters(new GatewayExceptionFilter(logger), new OtelExceptionFilter())
+  app.useGlobalFilters(app.get(GatewayExceptionFilter), app.get(OtelExceptionFilter))
 
   // ── Swagger (pluggable — disable in production if needed) ──
   if (config.get<boolean>('gateway.swagger.enabled', true)) {

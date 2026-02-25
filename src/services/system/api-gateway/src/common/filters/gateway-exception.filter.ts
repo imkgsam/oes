@@ -1,3 +1,5 @@
+// File: src/services/system/api-gateway/src/common/filters/gateway-exception.filter.ts
+
 import { ExceptionFilter, Catch, ArgumentsHost, HttpException, HttpStatus } from '@nestjs/common'
 import { Request, Response } from 'express'
 import { RpcException } from '@nestjs/microservices'

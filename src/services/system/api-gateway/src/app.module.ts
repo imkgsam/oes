@@ -5,15 +5,20 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 
 import { CommonJwtModule } from '@oes/common/auth/jwt/jwt.module'
 import { LoggingModule } from '@oes/common/logging/logging.module'
+import { RegistryModule } from '@oes/common/registry/index'
 import { GatewayJwtAuthGuard } from '@oes/common/auth/guards/gateway-jwt-auth.guard'
-
 import { gatewayConfig } from './config/gateway.config'
 import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
-import { AuthServiceModule } from './modules/auth-service/auth-service.module'
+import { AuthServiceProxyModule } from './modules/auth-service/auth-service.module'
+import { GatewayExceptionFilter } from './common/filters/gateway-exception.filter'
+import { OtelExceptionFilter } from '@oes/common/core/filters/otel-exception.filter'
+import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
+import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
 
 @Module({
   imports: [
+    RegistryModule,
     // ── Infrastructure ──
     ConfigModule.forRoot({ isGlobal: true, load: [gatewayConfig] }),
     LoggingModule,
@@ -34,14 +39,20 @@ import { AuthServiceModule } from './modules/auth-service/auth-service.module'
     HealthModule,
 
     // ── System service proxies ──
-    AuthServiceModule
+    AuthServiceProxyModule
     // PermissionProxyModule,   // enable after gRPC migration
     // IdentityProxyModule,     // enable after gRPC migration
   ],
+  // 执行顺序是： 先注册先执行，所以为了避免jwtguard被滥用，我们把它放在后面注册
   providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     // ── Guards (pluggable — JWT/throttle move to APISIX later) ──
     { provide: APP_GUARD, useClass: GatewayJwtAuthGuard },
-    { provide: APP_GUARD, useClass: ThrottlerGuard }
+
+    GatewayExceptionFilter,
+    OtelExceptionFilter,
+    ResponseTransformInterceptor,
+    TimeoutInterceptor
   ]
 })
 export class AppModule implements NestModule {
