@@ -999,5 +999,5 @@ async function rollbackConfig(dataId: string, group: string, historyId: string) 
 
 完成 Nacos 集成后，建议继续：
 
-1. [可观测性组件集成](./03-可观测性组件集成指南.md)
-2. [API 网关集成](./04-API网关集成指南.md)
+1. [可观测性组件集成](03-可观测性组件集成指南.md)
+2. [API 网关集成](04-API网关集成指南.md)

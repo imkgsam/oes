@@ -8,10 +8,10 @@
 
 | 序号 | 文档                                                    | 说明                                  | 优先级 |
 | ---- | ------------------------------------------------------- | ------------------------------------- | ------ |
-| 01   | [gRPC 迁移指南](./01-gRPC迁移指南.md)                   | TCP → gRPC 迁移，Proto 定义，代码生成 | 🔴 高  |
-| 02   | [Nacos 配置中心集成指南](./02-Nacos配置中心集成指南.md) | 服务发现，动态配置，健康检查          | 🟡 中  |
-| 03   | [可观测性组件集成指南](./03-可观测性组件集成指南.md)    | Prometheus, SkyWalking, Loki          | 🟡 中  |
-| 04   | [API 网关集成指南](./04-API网关集成指南.md)             | APISIX 部署，路由，限流，认证         | 🟢 低  |
+| 01   | [gRPC 迁移指南](01-gRPC迁移指南.md)                   | TCP → gRPC 迁移，Proto 定义，代码生成 | 🔴 高  |
+| 02   | [Nacos 配置中心集成指南](02-Nacos配置中心集成指南.md) | 服务发现，动态配置，健康检查          | 🟡 中  |
+| 03   | [可观测性组件集成指南](03-可观测性组件集成指南.md)    | Prometheus, SkyWalking, Loki          | 🟡 中  |
+| 04   | [API 网关集成指南](04-API网关集成指南.md)             | APISIX 部署，路由，限流，认证         | 🟢 低  |
 
 ---
 
@@ -197,11 +197,11 @@ docker-compose -f docker-compose.apisix.yml up -d
 
 ## 📁 相关文档
 
-- [OES 项目开发计划书](../OES项目开发计划书.md)
-- [mTLS 支持以及 gRPC 升级](../待实现功能/mTLS支持以及gRPC升级.md)
-- [OES 高安全微服务权限优化方案](../待实现功能/OES%20高安全微服务权限优化方案.md)
-- [OES Robot 设计方案书](../待实现功能/OES%20Robot%20设计方案书.md)
-- [AI 能力拓展方案](../待实现功能/AI能力拓展方案.md)
+- [OES 项目开发计划书](OES项目开发计划书.md)
+- [mTLS 支持以及 gRPC 升级](mTLS支持以及gRPC升级.md)
+- [OES 高安全微服务权限优化方案](OES%20高安全微服务权限优化方案.md)
+- [OES Robot 设计方案书](OES%20Robot%20设计方案书.md)
+- [AI 能力拓展方案](AI能力拓展方案.md)
 
 ---
 
@@ -209,7 +209,7 @@ docker-compose -f docker-compose.apisix.yml up -d
 
 ### Q1: gRPC 和 TCP 可以并行运行吗？
 
-可以。在迁移期间，可以同时启动 TCP 和 gRPC 端口，逐步切换调用方。参考 [gRPC 迁移指南 - 双协议运行](./01-gRPC迁移指南.md#72-详细步骤)。
+可以。在迁移期间，可以同时启动 TCP 和 gRPC 端口，逐步切换调用方。参考 [gRPC 迁移指南 - 双协议运行](01-gRPC迁移指南.md#72-详细步骤)。
 
 ### Q2: Nacos 和 Kubernetes 服务发现冲突吗？
 
@@ -224,7 +224,7 @@ docker-compose -f docker-compose.apisix.yml up -d
 - **APISIX**：基础设施功能（认证、限流、路由）
 - **NestJS Gateway**：业务聚合（BFF）
 
-参考 [API 网关集成指南 - 职责划分](./04-API网关集成指南.md#61-职责划分)。
+参考 [API 网关集成指南 - 职责划分](04-API网关集成指南.md#61-职责划分)。
 
 ### Q4: 可观测性组件资源消耗大吗？
 

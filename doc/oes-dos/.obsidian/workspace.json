@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "OES项目/生产级迁移要点/OpenTelemetry.md",
+                "file": "OES项目/待实现功能/OES 高安全微服务权限优化方案.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "OpenTelemetry"
+              "title": "OES 高安全微服务权限优化方案"
             }
           }
         ]
@@ -183,25 +183,35 @@
       "command-palette:打开命令面板": false
     }
   },
-  "active": "26c05a171cbd0cd8",
+  "active": "ae0adf05950be3b5",
   "lastOpenFiles": [
-    "OES项目/OES项目开发计划书.md",
+    "OES项目/模块/permission",
+    "OES项目/待实现功能/mTLS支持以及gRPC升级.md",
+    "OES项目/待实现功能/AI能力拓展方案.md",
     "OES项目/项目进度跟踪/2026-01-14.md",
-    "OES项目/项目细节/项目介绍.md",
-    "OES项目/项目细节/模块/API-GATEWAY.md",
+    "OES项目/项目介绍.md",
+    "OES项目/note/常见概念.md",
     "OES项目/note/traceId.md",
     "OES项目/note/Pasted image 20260121162349.png",
-    "OES项目/note/模块调用顺序.md",
-    "OES项目/note/常见概念.md",
-    "OES项目/草稿/架构方案.md",
-    "OES项目/生产级迁移要点/OpenTelemetry.md",
-    "OES项目/项目细节/安全模型/认证渠道/服务认证.md",
-    "OES项目/项目细节/安全模型/认证渠道/用户认证.md",
-    "OES项目/note",
-    "OES项目/待实现功能/mTLS支持以及gRPC升级.md",
-    "OES项目/生产级迁移要点",
-    "OES项目/待实现功能/AI能力拓展方案.md",
+    "OES项目/架构方案.md",
     "OES项目/草稿/权限控制模拟.md",
+    "OES项目/OES项目开发计划书.md",
+    "OES项目/模块/api-gateway/技术路线/01-gRPC迁移指南.md",
+    "OES项目/项目细节/模块/API-GATEWAY.md",
+    "OES项目/项目细节/安全模型/认证渠道/用户认证.md",
+    "OES项目/项目细节/安全模型/认证渠道/服务认证.md",
+    "OES项目/note/模块调用顺序.md",
+    "OES项目/模板/日进度模板.md",
+    "OES项目/模块/common/OpenTelemetry.md",
+    "OES项目/模块/common",
+    "OES项目/模块/api-gateway",
+    "OES项目/模块",
+    "OES项目/模块/api-gateway/技术路线/README.md",
+    "OES项目/模块/api-gateway/技术路线/04-API网关集成指南.md",
+    "OES项目/模块/api-gateway/技术路线/03-可观测性组件集成指南.md",
+    "OES项目/模块/api-gateway/技术路线/02-Nacos配置中心集成指南.md",
+    "OES项目/note",
+    "OES项目/生产级迁移要点",
     "OES项目/待实现功能/Process Manager (PM) 模块完整方案.md",
     "OES项目/待实现功能/Robot-Engine (RE) 模块完整方案.md",
     "JWTGuard认证.md",
@@ -211,15 +221,6 @@
     "OES项目/项目细节",
     "OES项目/项目细节/安全模型/认证渠道",
     "OES项目/项目细节/安全模型",
-    "OES项目/待实现功能/OES Robot 设计方案书.md",
-    "OES项目/待实现功能/OES 高安全微服务权限优化方案.md",
-    "OES项目/模板/日进度模板.md",
-    "OES项目/项目进度跟踪/未命名.md",
-    "未命名.base",
-    "OES项目/项目进度跟踪",
-    "OES项目/项目进度跟踪.md",
-    "OES项目/模板",
-    "欢迎.md",
-    "创建链接.md"
+    "OES项目/待实现功能/OES Robot 设计方案书.md"
   ]
 }

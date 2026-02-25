@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/commo
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
 import { ClientGrpc } from '@nestjs/microservices'
 import { InjectGrpcClient } from '@oes/common/transport/grpc/grpc-client.decorator'
-import { CreatePermissionDto } from 'src/dtos/permission.dto'
+import { CreatePermissionDto } from 'src/modules/permission-service/interface/http/dtos/create-permission.dto'
 
 @ApiBearerAuth('JWT')
 @ApiTags('permission')
