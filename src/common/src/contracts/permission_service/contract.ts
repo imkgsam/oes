@@ -1,3 +1,5 @@
+// ---- Permission Check contracts ----
+
 export interface PermissionCheckInput {
   accountId: string
   permissionCode: string
@@ -5,18 +7,20 @@ export interface PermissionCheckInput {
 
 export interface PermissionCheckOutput {
   pass: boolean
-  scopes?: PermissionScope[]
 }
 
-interface PermissionScope {
-  type: PermissionScopeType
-  value: string
+export interface PermissionCheckWithContextInput {
+  accountId: string
+  permissionCode: string
+  tenantId?: string
+  subjectAttributes: Record<string, string>
+  resourceAttributes: Record<string, string>
+  environmentAttributes: Record<string, string>
+  actionAttributes: Record<string, string>
 }
 
-export enum PermissionScopeType {
-  TENANT = 'tenant',
-  ORG = 'org',
-  RESOURCE = 'resource',
-  SELF = 'self'
+export interface AuthzDecisionOutput {
+  allowed: boolean
+  matchedPolicy?: string
+  reason?: string
 }
-

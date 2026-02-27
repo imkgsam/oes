@@ -1,27 +1,30 @@
-//File: src/services/system/permission-service/src/main.ts
-
-// 初始化otel sdk
 import { initOtelSdk } from '@oes/common/tracing/otel-sdk'
 import { AppLogger } from '@oes/common/logging/app-logger.service'
-
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
-import { ValidationPipe } from '@nestjs/common'
 import { MicroserviceOptions, Transport } from '@nestjs/microservices'
-import { SERVICE_ENDPOINTS_CONFIG } from '@oes/common/modules/clients/service-map'
+import { join } from 'path'
 
 async function bootstrap() {
   initOtelSdk(process.env.MODULE_NAME || 'permission-service')
-  const microservice = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
-    transport: Transport.TCP,
+
+  const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
+    transport: Transport.GRPC,
     options: {
-      host: SERVICE_ENDPOINTS_CONFIG.PERMISSION_TCP.host,
-      port: Number(SERVICE_ENDPOINTS_CONFIG.PERMISSION_TCP.port)
+      package: 'permission_service',
+      protoPath: [
+        join(__dirname, '../../common/src/contracts/permission_service/permission_check.proto'),
+        join(
+          __dirname,
+          '../../common/src/contracts/permission_service/permission_management.proto'
+        ),
+        join(__dirname, '../../common/src/contracts/permission_service/policy_management.proto')
+      ],
+      url: `${process.env.GRPC_HOST || '0.0.0.0'}:${process.env.GRPC_PORT || '50051'}`
     }
   })
-  //设置自定义日志服务
-  microservice.useLogger(microservice.get(AppLogger))
-  microservice.useGlobalPipes(new ValidationPipe())
-  await microservice.listen()
+
+  app.useLogger(app.get(AppLogger))
+  await app.listen()
 }
 bootstrap()

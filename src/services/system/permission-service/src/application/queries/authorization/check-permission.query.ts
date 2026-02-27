@@ -1,13 +1,13 @@
 import { IQuery } from '@nestjs/cqrs'
 import { IsNotEmpty, IsString, IsUUID } from 'class-validator'
 
-export class CheckAccountPermissionWithScopeQuery implements IQuery {
-  @IsUUID('4', { message: 'Invalid user ID format' })
-  @IsNotEmpty({ message: 'User ID is required' })
+export class CheckPermissionQuery implements IQuery {
+  @IsUUID()
+  @IsNotEmpty()
   readonly accountId: string
 
   @IsString()
-  @IsNotEmpty({ message: 'Permission code is required' })
+  @IsNotEmpty()
   readonly permissionCode: string
 
   constructor(accountId: string, permissionCode: string) {

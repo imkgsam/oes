@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { PrismaClient } from '../../../prisma/generated/prisma'
-import { GLOBAL_SYSTEM_ERRORS } from '@oes/common/constants/res-codes/system.errors'
-import { createSystemException } from '@oes/common/exceptions/exception.factory'
+import { ExceptionFactory } from '@oes/common/core/exceptions/exception.factory'
+import { DATABASE_CONNECTION_FAILED } from '@oes/common/core/exceptions/exception-enums/infrastructure-exception.enum'
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -10,11 +10,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   async onModuleInit() {
     try {
       await this.$connect()
-      this.logger.log('PrismaService connected to the database successfully.')
+      this.logger.log('Connected to database')
     } catch (error) {
-      const e = createSystemException(GLOBAL_SYSTEM_ERRORS.DATABASE_CONNECTION_FAILED)
-      this.logger.error(`[PERMISSION_SERVICE]`, 'PrismaService connection failed:', e)
-      process.exit(1)
+      this.logger.error('Database connection failed', error)
+      throw ExceptionFactory.infrastructure(DATABASE_CONNECTION_FAILED, { error })
     }
   }
 

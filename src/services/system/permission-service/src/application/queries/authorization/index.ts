@@ -1,6 +1,12 @@
-export * from './check-account-permission.query'
-export * from './check-account-permission.handler'
+export * from './check-permission.query'
+export * from './check-permission.handler'
+export * from './check-permission-with-context.query'
+export * from './check-permission-with-context.handler'
 
-import { CheckAccountPermissionHandler } from './check-account-permission.handler'
+import { CheckPermissionHandler } from './check-permission.handler'
+import { CheckPermissionWithContextHandler } from './check-permission-with-context.handler'
 
-export const AuthorizationQueryHandlers = [CheckAccountPermissionHandler]
+export const AuthorizationQueryHandlers = [
+  CheckPermissionHandler,
+  CheckPermissionWithContextHandler
+]

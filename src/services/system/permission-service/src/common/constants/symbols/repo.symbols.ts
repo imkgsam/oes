@@ -1,4 +1,5 @@
 export const REPO = {
   PERMISSION: Symbol('PermissionRepository'),
-  ROLE: Symbol('RoleRepository')
+  ROLE: Symbol('RoleRepository'),
+  POLICY: Symbol('PolicyRepository')
 }

@@ -8,7 +8,7 @@ import { AppLogger } from '@oes/common/logging/app-logger.service'
 import { ExceptionFactory, UNKNOWN_EXCEPTION } from '@oes/common/core/exceptions/index'
 import { status } from '@grpc/grpc-js'
 import { HttpExceptionPayload } from '@oes/common/core/exceptions/exception.interface'
-import { trace } from '@opentelemetry/api'
+import { getTraceId } from '@oes/common/tracing/trace-context'
 
 @Catch()
 export class GatewayExceptionFilter implements ExceptionFilter {
@@ -21,7 +21,7 @@ export class GatewayExceptionFilter implements ExceptionFilter {
 
     const moduleName = process.env.MODULE_NAME || 'api-gateway'
     const methodName = `${req.method} ${req.originalUrl}`
-    const traceId = trace.getActiveSpan()?.spanContext().traceId
+    const traceId = getTraceId()
 
     let payload: HttpExceptionPayload
 

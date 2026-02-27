@@ -2,7 +2,6 @@ import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { ConfigModule } from '@nestjs/config'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
-
 import { CommonJwtModule } from '@oes/common/auth/jwt/jwt.module'
 import { LoggingModule } from '@oes/common/logging/logging.module'
 import { RegistryModule } from '@oes/common/registry/index'
