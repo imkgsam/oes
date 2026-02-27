@@ -1,3 +1,5 @@
+// File: src/common/src/transport/grpc/safe-grpc-call.ts
+
 /**
  * @file gRPC 安全调用工具
  * @module transport/grpc

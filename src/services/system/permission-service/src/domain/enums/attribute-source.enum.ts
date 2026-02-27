@@ -1,0 +1,6 @@
+export enum AttributeSource {
+  SUBJECT = 'SUBJECT',
+  RESOURCE = 'RESOURCE',
+  ENVIRONMENT = 'ENVIRONMENT',
+  ACTION = 'ACTION'
+}

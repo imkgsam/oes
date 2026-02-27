@@ -9,23 +9,102 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================================
+// RBAC 核心模型
+// ============================================================
+
 model Role {
   id          String   @id @default(uuid())
-  tenantId    String? // 应用范围： 1. 租户内 2.null代表全平台可用
-  code        String // 角色唯一代码，例如 "admin"
-  name        String // 角色名称，例如 "管理员"
+  tenantId    String? // null = 全平台可用
+  code        String
+  name        String
   description String?
-  isSystem    Boolean  @default(false) // 是否为系统内置角色
-  isEnabled   Boolean  @default(true) // 是否启用
+  isSystem    Boolean  @default(false)
+  isEnabled   Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  createdBy   String // 创建者是谁：可以是租户管理员也可以是系统管理员。指向 identity-service 的 userAccount.id
+  createdBy   String
 
   permissions RolePermission[]
   accounts    AccountRole[]
 
   @@unique([tenantId, code])
 }
+
+model Permission {
+  id          String  @id @default(uuid())
+  code        String  @unique
+  description String?
+  module      Modules
+
+  roles RolePermission[]
+}
+
+model RolePermission {
+  id           String     @id @default(uuid())
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id])
+  createdBy    String
+
+  @@unique([roleId, permissionId])
+}
+
+model AccountRole {
+  id          String      @id @default(uuid())
+  accountType AccountType
+  accountId   String
+  roleId      String
+  tenantId    String
+  role        Role        @relation(fields: [roleId], references: [id])
+  createdBy   String
+
+  @@unique([accountId, roleId])
+  @@index([accountId, tenantId])
+}
+
+// ============================================================
+// ABAC 策略模型
+// ============================================================
+
+model Policy {
+  id             String            @id @default(uuid())
+  name           String
+  description    String?
+  tenantId       String? // null = 全局策略
+  effect         PolicyEffect
+  subjectType    PolicySubjectType @default(ANY)
+  subjectId      String? // ROLE 时为 roleCode，ACCOUNT 时为 accountId
+  permissionCode String? // null = 适用所有权限
+  resourceType   String? // null = 适用所有资源类型
+  priority       Int               @default(0)
+  isEnabled      Boolean           @default(true)
+  conditions     PolicyCondition[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  createdBy      String
+
+  @@index([tenantId, isEnabled])
+  @@index([permissionCode])
+  @@index([subjectType, subjectId])
+}
+
+model PolicyCondition {
+  id              String            @id @default(uuid())
+  policyId        String
+  policy          Policy            @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  attributeSource AttributeSource
+  attributeKey    String
+  operator        ConditionOperator
+  value           String // JSON 编码，支持 $subject.xxx 动态引用
+
+  @@index([policyId])
+}
+
+// ============================================================
+// 枚举
+// ============================================================
 
 enum Modules {
   ENTITY_SERVICE
@@ -37,58 +116,42 @@ enum Modules {
   WMS_SERVICE
 }
 
-model Permission {
-  id          String           @id @default(uuid())
-  code        String // 权限代码，如 "order:read"
-  description String?
-  module      Modules
-  roles       RolePermission[]
-
-  @@unique([code])
-}
-
-model RolePermission {
-  id           String     @id @default(uuid())
-  roleId       String
-  permissionId String
-  role         Role       @relation(fields: [roleId], references: [id])
-  permission   Permission @relation(fields: [permissionId], references: [id])
-  createdBy    String // 创建者是谁：可以是租户管理员也可以是系统管理员。指向 identity-service 的 userAccount.id
-
-  @@unique([roleId, permissionId])
-}
-
-model AccountRole {
-  id          String      @id @default(uuid())
-  accountType AccountType
-  accountId   String // 指向 identity-service 中 serviceAccount.id 或 userAccount.id
-  roleId      String
-  tenantId    String // 冗余字段，方便查询
-  role        Role        @relation(fields: [roleId], references: [id])
-  createdBy   String // 创建者是谁：可以是租户管理员也可以是系统管理员。指向 identity-service 的 userAccount.id
-
-  @@unique([accountId, roleId])
-  @@index([accountId, tenantId])
-}
-
-model AccountScope {
-  id             String      @id @default(uuid())
-  holderType     AccountType
-  holderId       String // 指向identity-service 中 serviceAccount.id 或 userAccount.id
-  tenantId       String // 指向identity-service 中 tenant.id
-  isActive       Boolean     @default(true)
-  permissionCode String
-  resourceType   String
-  resourceId     String
-  expiredAt      DateTime?
-  createdBy      String // 创建者是谁：可以是租户管理员也可以是系统管理员。指向 identity-service 的 userAccount.id
-
-  @@index([holderId, permissionCode])
-  @@index([holderId, resourceType, resourceId])
-  @@index([holderId, tenantId])
-}
-
 enum AccountType {
   USER
   SERVICE
+}
+
+enum PolicyEffect {
+  ALLOW
+  DENY
+}
+
+enum PolicySubjectType {
+  ROLE
+  ACCOUNT
+  ANY
+}
+
+enum AttributeSource {
+  SUBJECT
+  RESOURCE
+  ENVIRONMENT
+  ACTION
+}
+
+enum ConditionOperator {
+  EQUALS
+  NOT_EQUALS
+  IN
+  NOT_IN
+  GREATER_THAN
+  GREATER_THAN_OR_EQUAL
+  LESS_THAN
+  LESS_THAN_OR_EQUAL
+  BETWEEN
+  CONTAINS
+  STARTS_WITH
+  REGEX
+  IS_NULL
+  IS_NOT_NULL
 }

@@ -1,4 +1,3 @@
-import { ExceptionConst } from './exceptions.interface'
 import { ResponseMeta, CBError } from './rpc.interface'
 
 export interface HttpResponse<T = any> {

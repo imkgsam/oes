@@ -1,3 +1,5 @@
+// File: src/common/src/core/filters/grpc-exception.filter.ts
+
 import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common'
 import { AppLogger } from '../../logging/app-logger.service'
 import { Observable, throwError } from 'rxjs'

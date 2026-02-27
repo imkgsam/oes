@@ -153,17 +153,30 @@ exports.Prisma.AccountRoleScalarFieldEnum = {
   createdBy: 'createdBy'
 };
 
-exports.Prisma.AccountScopeScalarFieldEnum = {
+exports.Prisma.PolicyScalarFieldEnum = {
   id: 'id',
-  holderType: 'holderType',
-  holderId: 'holderId',
+  name: 'name',
+  description: 'description',
   tenantId: 'tenantId',
-  isActive: 'isActive',
+  effect: 'effect',
+  subjectType: 'subjectType',
+  subjectId: 'subjectId',
   permissionCode: 'permissionCode',
   resourceType: 'resourceType',
-  resourceId: 'resourceId',
-  expiredAt: 'expiredAt',
+  priority: 'priority',
+  isEnabled: 'isEnabled',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
   createdBy: 'createdBy'
+};
+
+exports.Prisma.PolicyConditionScalarFieldEnum = {
+  id: 'id',
+  policyId: 'policyId',
+  attributeSource: 'attributeSource',
+  attributeKey: 'attributeKey',
+  operator: 'operator',
+  value: 'value'
 };
 
 exports.Prisma.SortOrder = {
@@ -195,12 +208,48 @@ exports.AccountType = exports.$Enums.AccountType = {
   SERVICE: 'SERVICE'
 };
 
+exports.PolicyEffect = exports.$Enums.PolicyEffect = {
+  ALLOW: 'ALLOW',
+  DENY: 'DENY'
+};
+
+exports.PolicySubjectType = exports.$Enums.PolicySubjectType = {
+  ROLE: 'ROLE',
+  ACCOUNT: 'ACCOUNT',
+  ANY: 'ANY'
+};
+
+exports.AttributeSource = exports.$Enums.AttributeSource = {
+  SUBJECT: 'SUBJECT',
+  RESOURCE: 'RESOURCE',
+  ENVIRONMENT: 'ENVIRONMENT',
+  ACTION: 'ACTION'
+};
+
+exports.ConditionOperator = exports.$Enums.ConditionOperator = {
+  EQUALS: 'EQUALS',
+  NOT_EQUALS: 'NOT_EQUALS',
+  IN: 'IN',
+  NOT_IN: 'NOT_IN',
+  GREATER_THAN: 'GREATER_THAN',
+  GREATER_THAN_OR_EQUAL: 'GREATER_THAN_OR_EQUAL',
+  LESS_THAN: 'LESS_THAN',
+  LESS_THAN_OR_EQUAL: 'LESS_THAN_OR_EQUAL',
+  BETWEEN: 'BETWEEN',
+  CONTAINS: 'CONTAINS',
+  STARTS_WITH: 'STARTS_WITH',
+  REGEX: 'REGEX',
+  IS_NULL: 'IS_NULL',
+  IS_NOT_NULL: 'IS_NOT_NULL'
+};
+
 exports.Prisma.ModelName = {
   Role: 'Role',
   Permission: 'Permission',
   RolePermission: 'RolePermission',
   AccountRole: 'AccountRole',
-  AccountScope: 'AccountScope'
+  Policy: 'Policy',
+  PolicyCondition: 'PolicyCondition'
 };
 
 /**

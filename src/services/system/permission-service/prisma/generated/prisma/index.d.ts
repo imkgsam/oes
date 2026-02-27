@@ -34,10 +34,15 @@ export type RolePermission = $Result.DefaultSelection<Prisma.$RolePermissionPayl
  */
 export type AccountRole = $Result.DefaultSelection<Prisma.$AccountRolePayload>
 /**
- * Model AccountScope
+ * Model Policy
  * 
  */
-export type AccountScope = $Result.DefaultSelection<Prisma.$AccountScopePayload>
+export type Policy = $Result.DefaultSelection<Prisma.$PolicyPayload>
+/**
+ * Model PolicyCondition
+ * 
+ */
+export type PolicyCondition = $Result.DefaultSelection<Prisma.$PolicyConditionPayload>
 
 /**
  * Enums
@@ -63,6 +68,53 @@ export const AccountType: {
 
 export type AccountType = (typeof AccountType)[keyof typeof AccountType]
 
+
+export const PolicyEffect: {
+  ALLOW: 'ALLOW',
+  DENY: 'DENY'
+};
+
+export type PolicyEffect = (typeof PolicyEffect)[keyof typeof PolicyEffect]
+
+
+export const PolicySubjectType: {
+  ROLE: 'ROLE',
+  ACCOUNT: 'ACCOUNT',
+  ANY: 'ANY'
+};
+
+export type PolicySubjectType = (typeof PolicySubjectType)[keyof typeof PolicySubjectType]
+
+
+export const AttributeSource: {
+  SUBJECT: 'SUBJECT',
+  RESOURCE: 'RESOURCE',
+  ENVIRONMENT: 'ENVIRONMENT',
+  ACTION: 'ACTION'
+};
+
+export type AttributeSource = (typeof AttributeSource)[keyof typeof AttributeSource]
+
+
+export const ConditionOperator: {
+  EQUALS: 'EQUALS',
+  NOT_EQUALS: 'NOT_EQUALS',
+  IN: 'IN',
+  NOT_IN: 'NOT_IN',
+  GREATER_THAN: 'GREATER_THAN',
+  GREATER_THAN_OR_EQUAL: 'GREATER_THAN_OR_EQUAL',
+  LESS_THAN: 'LESS_THAN',
+  LESS_THAN_OR_EQUAL: 'LESS_THAN_OR_EQUAL',
+  BETWEEN: 'BETWEEN',
+  CONTAINS: 'CONTAINS',
+  STARTS_WITH: 'STARTS_WITH',
+  REGEX: 'REGEX',
+  IS_NULL: 'IS_NULL',
+  IS_NOT_NULL: 'IS_NOT_NULL'
+};
+
+export type ConditionOperator = (typeof ConditionOperator)[keyof typeof ConditionOperator]
+
 }
 
 export type Modules = $Enums.Modules
@@ -72,6 +124,22 @@ export const Modules: typeof $Enums.Modules
 export type AccountType = $Enums.AccountType
 
 export const AccountType: typeof $Enums.AccountType
+
+export type PolicyEffect = $Enums.PolicyEffect
+
+export const PolicyEffect: typeof $Enums.PolicyEffect
+
+export type PolicySubjectType = $Enums.PolicySubjectType
+
+export const PolicySubjectType: typeof $Enums.PolicySubjectType
+
+export type AttributeSource = $Enums.AttributeSource
+
+export const AttributeSource: typeof $Enums.AttributeSource
+
+export type ConditionOperator = $Enums.ConditionOperator
+
+export const ConditionOperator: typeof $Enums.ConditionOperator
 
 /**
  * ##  Prisma Client ʲˢ
@@ -239,14 +307,24 @@ export class PrismaClient<
   get accountRole(): Prisma.AccountRoleDelegate<ExtArgs, ClientOptions>;
 
   /**
-   * `prisma.accountScope`: Exposes CRUD operations for the **AccountScope** model.
+   * `prisma.policy`: Exposes CRUD operations for the **Policy** model.
     * Example usage:
     * ```ts
-    * // Fetch zero or more AccountScopes
-    * const accountScopes = await prisma.accountScope.findMany()
+    * // Fetch zero or more Policies
+    * const policies = await prisma.policy.findMany()
     * ```
     */
-  get accountScope(): Prisma.AccountScopeDelegate<ExtArgs, ClientOptions>;
+  get policy(): Prisma.PolicyDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.policyCondition`: Exposes CRUD operations for the **PolicyCondition** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more PolicyConditions
+    * const policyConditions = await prisma.policyCondition.findMany()
+    * ```
+    */
+  get policyCondition(): Prisma.PolicyConditionDelegate<ExtArgs, ClientOptions>;
 }
 
 export namespace Prisma {
@@ -691,7 +769,8 @@ export namespace Prisma {
     Permission: 'Permission',
     RolePermission: 'RolePermission',
     AccountRole: 'AccountRole',
-    AccountScope: 'AccountScope'
+    Policy: 'Policy',
+    PolicyCondition: 'PolicyCondition'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -707,7 +786,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "role" | "permission" | "rolePermission" | "accountRole" | "accountScope"
+      modelProps: "role" | "permission" | "rolePermission" | "accountRole" | "policy" | "policyCondition"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1007,77 +1086,151 @@ export namespace Prisma {
           }
         }
       }
-      AccountScope: {
-        payload: Prisma.$AccountScopePayload<ExtArgs>
-        fields: Prisma.AccountScopeFieldRefs
+      Policy: {
+        payload: Prisma.$PolicyPayload<ExtArgs>
+        fields: Prisma.PolicyFieldRefs
         operations: {
           findUnique: {
-            args: Prisma.AccountScopeFindUniqueArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$AccountScopePayload> | null
+            args: Prisma.PolicyFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyPayload> | null
           }
           findUniqueOrThrow: {
-            args: Prisma.AccountScopeFindUniqueOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$AccountScopePayload>
+            args: Prisma.PolicyFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyPayload>
           }
           findFirst: {
-            args: Prisma.AccountScopeFindFirstArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$AccountScopePayload> | null
+            args: Prisma.PolicyFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyPayload> | null
           }
           findFirstOrThrow: {
-            args: Prisma.AccountScopeFindFirstOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$AccountScopePayload>
+            args: Prisma.PolicyFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyPayload>
           }
           findMany: {
-            args: Prisma.AccountScopeFindManyArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$AccountScopePayload>[]
+            args: Prisma.PolicyFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyPayload>[]
           }
           create: {
-            args: Prisma.AccountScopeCreateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$AccountScopePayload>
+            args: Prisma.PolicyCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyPayload>
           }
           createMany: {
-            args: Prisma.AccountScopeCreateManyArgs<ExtArgs>
+            args: Prisma.PolicyCreateManyArgs<ExtArgs>
             result: BatchPayload
           }
           createManyAndReturn: {
-            args: Prisma.AccountScopeCreateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$AccountScopePayload>[]
+            args: Prisma.PolicyCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyPayload>[]
           }
           delete: {
-            args: Prisma.AccountScopeDeleteArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$AccountScopePayload>
+            args: Prisma.PolicyDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyPayload>
           }
           update: {
-            args: Prisma.AccountScopeUpdateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$AccountScopePayload>
+            args: Prisma.PolicyUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyPayload>
           }
           deleteMany: {
-            args: Prisma.AccountScopeDeleteManyArgs<ExtArgs>
+            args: Prisma.PolicyDeleteManyArgs<ExtArgs>
             result: BatchPayload
           }
           updateMany: {
-            args: Prisma.AccountScopeUpdateManyArgs<ExtArgs>
+            args: Prisma.PolicyUpdateManyArgs<ExtArgs>
             result: BatchPayload
           }
           updateManyAndReturn: {
-            args: Prisma.AccountScopeUpdateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$AccountScopePayload>[]
+            args: Prisma.PolicyUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyPayload>[]
           }
           upsert: {
-            args: Prisma.AccountScopeUpsertArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$AccountScopePayload>
+            args: Prisma.PolicyUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyPayload>
           }
           aggregate: {
-            args: Prisma.AccountScopeAggregateArgs<ExtArgs>
-            result: $Utils.Optional<AggregateAccountScope>
+            args: Prisma.PolicyAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregatePolicy>
           }
           groupBy: {
-            args: Prisma.AccountScopeGroupByArgs<ExtArgs>
-            result: $Utils.Optional<AccountScopeGroupByOutputType>[]
+            args: Prisma.PolicyGroupByArgs<ExtArgs>
+            result: $Utils.Optional<PolicyGroupByOutputType>[]
           }
           count: {
-            args: Prisma.AccountScopeCountArgs<ExtArgs>
-            result: $Utils.Optional<AccountScopeCountAggregateOutputType> | number
+            args: Prisma.PolicyCountArgs<ExtArgs>
+            result: $Utils.Optional<PolicyCountAggregateOutputType> | number
+          }
+        }
+      }
+      PolicyCondition: {
+        payload: Prisma.$PolicyConditionPayload<ExtArgs>
+        fields: Prisma.PolicyConditionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.PolicyConditionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyConditionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.PolicyConditionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyConditionPayload>
+          }
+          findFirst: {
+            args: Prisma.PolicyConditionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyConditionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.PolicyConditionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyConditionPayload>
+          }
+          findMany: {
+            args: Prisma.PolicyConditionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyConditionPayload>[]
+          }
+          create: {
+            args: Prisma.PolicyConditionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyConditionPayload>
+          }
+          createMany: {
+            args: Prisma.PolicyConditionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.PolicyConditionCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyConditionPayload>[]
+          }
+          delete: {
+            args: Prisma.PolicyConditionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyConditionPayload>
+          }
+          update: {
+            args: Prisma.PolicyConditionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyConditionPayload>
+          }
+          deleteMany: {
+            args: Prisma.PolicyConditionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.PolicyConditionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.PolicyConditionUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyConditionPayload>[]
+          }
+          upsert: {
+            args: Prisma.PolicyConditionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$PolicyConditionPayload>
+          }
+          aggregate: {
+            args: Prisma.PolicyConditionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregatePolicyCondition>
+          }
+          groupBy: {
+            args: Prisma.PolicyConditionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<PolicyConditionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.PolicyConditionCountArgs<ExtArgs>
+            result: $Utils.Optional<PolicyConditionCountAggregateOutputType> | number
           }
         }
       }
@@ -1169,7 +1322,8 @@ export namespace Prisma {
     permission?: PermissionOmit
     rolePermission?: RolePermissionOmit
     accountRole?: AccountRoleOmit
-    accountScope?: AccountScopeOmit
+    policy?: PolicyOmit
+    policyCondition?: PolicyConditionOmit
   }
 
   /* Types for Logging */
@@ -1327,6 +1481,37 @@ export namespace Prisma {
    */
   export type PermissionCountOutputTypeCountRolesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: RolePermissionWhereInput
+  }
+
+
+  /**
+   * Count Type PolicyCountOutputType
+   */
+
+  export type PolicyCountOutputType = {
+    conditions: number
+  }
+
+  export type PolicyCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    conditions?: boolean | PolicyCountOutputTypeCountConditionsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * PolicyCountOutputType without action
+   */
+  export type PolicyCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCountOutputType
+     */
+    select?: PolicyCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * PolicyCountOutputType without action
+   */
+  export type PolicyCountOutputTypeCountConditionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PolicyConditionWhereInput
   }
 
 
@@ -5679,396 +5864,488 @@ export namespace Prisma {
 
 
   /**
-   * Model AccountScope
+   * Model Policy
    */
 
-  export type AggregateAccountScope = {
-    _count: AccountScopeCountAggregateOutputType | null
-    _min: AccountScopeMinAggregateOutputType | null
-    _max: AccountScopeMaxAggregateOutputType | null
+  export type AggregatePolicy = {
+    _count: PolicyCountAggregateOutputType | null
+    _avg: PolicyAvgAggregateOutputType | null
+    _sum: PolicySumAggregateOutputType | null
+    _min: PolicyMinAggregateOutputType | null
+    _max: PolicyMaxAggregateOutputType | null
   }
 
-  export type AccountScopeMinAggregateOutputType = {
+  export type PolicyAvgAggregateOutputType = {
+    priority: number | null
+  }
+
+  export type PolicySumAggregateOutputType = {
+    priority: number | null
+  }
+
+  export type PolicyMinAggregateOutputType = {
     id: string | null
-    holderType: $Enums.AccountType | null
-    holderId: string | null
+    name: string | null
+    description: string | null
     tenantId: string | null
-    isActive: boolean | null
+    effect: $Enums.PolicyEffect | null
+    subjectType: $Enums.PolicySubjectType | null
+    subjectId: string | null
     permissionCode: string | null
     resourceType: string | null
-    resourceId: string | null
-    expiredAt: Date | null
+    priority: number | null
+    isEnabled: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
     createdBy: string | null
   }
 
-  export type AccountScopeMaxAggregateOutputType = {
+  export type PolicyMaxAggregateOutputType = {
     id: string | null
-    holderType: $Enums.AccountType | null
-    holderId: string | null
+    name: string | null
+    description: string | null
     tenantId: string | null
-    isActive: boolean | null
+    effect: $Enums.PolicyEffect | null
+    subjectType: $Enums.PolicySubjectType | null
+    subjectId: string | null
     permissionCode: string | null
     resourceType: string | null
-    resourceId: string | null
-    expiredAt: Date | null
+    priority: number | null
+    isEnabled: boolean | null
+    createdAt: Date | null
+    updatedAt: Date | null
     createdBy: string | null
   }
 
-  export type AccountScopeCountAggregateOutputType = {
+  export type PolicyCountAggregateOutputType = {
     id: number
-    holderType: number
-    holderId: number
+    name: number
+    description: number
     tenantId: number
-    isActive: number
+    effect: number
+    subjectType: number
+    subjectId: number
     permissionCode: number
     resourceType: number
-    resourceId: number
-    expiredAt: number
+    priority: number
+    isEnabled: number
+    createdAt: number
+    updatedAt: number
     createdBy: number
     _all: number
   }
 
 
-  export type AccountScopeMinAggregateInputType = {
+  export type PolicyAvgAggregateInputType = {
+    priority?: true
+  }
+
+  export type PolicySumAggregateInputType = {
+    priority?: true
+  }
+
+  export type PolicyMinAggregateInputType = {
     id?: true
-    holderType?: true
-    holderId?: true
+    name?: true
+    description?: true
     tenantId?: true
-    isActive?: true
+    effect?: true
+    subjectType?: true
+    subjectId?: true
     permissionCode?: true
     resourceType?: true
-    resourceId?: true
-    expiredAt?: true
+    priority?: true
+    isEnabled?: true
+    createdAt?: true
+    updatedAt?: true
     createdBy?: true
   }
 
-  export type AccountScopeMaxAggregateInputType = {
+  export type PolicyMaxAggregateInputType = {
     id?: true
-    holderType?: true
-    holderId?: true
+    name?: true
+    description?: true
     tenantId?: true
-    isActive?: true
+    effect?: true
+    subjectType?: true
+    subjectId?: true
     permissionCode?: true
     resourceType?: true
-    resourceId?: true
-    expiredAt?: true
+    priority?: true
+    isEnabled?: true
+    createdAt?: true
+    updatedAt?: true
     createdBy?: true
   }
 
-  export type AccountScopeCountAggregateInputType = {
+  export type PolicyCountAggregateInputType = {
     id?: true
-    holderType?: true
-    holderId?: true
+    name?: true
+    description?: true
     tenantId?: true
-    isActive?: true
+    effect?: true
+    subjectType?: true
+    subjectId?: true
     permissionCode?: true
     resourceType?: true
-    resourceId?: true
-    expiredAt?: true
+    priority?: true
+    isEnabled?: true
+    createdAt?: true
+    updatedAt?: true
     createdBy?: true
     _all?: true
   }
 
-  export type AccountScopeAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Filter which AccountScope to aggregate.
+     * Filter which Policy to aggregate.
      */
-    where?: AccountScopeWhereInput
+    where?: PolicyWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of AccountScopes to fetch.
+     * Determine the order of Policies to fetch.
      */
-    orderBy?: AccountScopeOrderByWithRelationInput | AccountScopeOrderByWithRelationInput[]
+    orderBy?: PolicyOrderByWithRelationInput | PolicyOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
      * Sets the start position
      */
-    cursor?: AccountScopeWhereUniqueInput
+    cursor?: PolicyWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` AccountScopes from the position of the cursor.
+     * Take `±n` Policies from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` AccountScopes.
+     * Skip the first `n` Policies.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
-     * Count returned AccountScopes
+     * Count returned Policies
     **/
-    _count?: true | AccountScopeCountAggregateInputType
+    _count?: true | PolicyCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: PolicyAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: PolicySumAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
      * Select which fields to find the minimum value
     **/
-    _min?: AccountScopeMinAggregateInputType
+    _min?: PolicyMinAggregateInputType
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
      * 
      * Select which fields to find the maximum value
     **/
-    _max?: AccountScopeMaxAggregateInputType
+    _max?: PolicyMaxAggregateInputType
   }
 
-  export type GetAccountScopeAggregateType<T extends AccountScopeAggregateArgs> = {
-        [P in keyof T & keyof AggregateAccountScope]: P extends '_count' | 'count'
+  export type GetPolicyAggregateType<T extends PolicyAggregateArgs> = {
+        [P in keyof T & keyof AggregatePolicy]: P extends '_count' | 'count'
       ? T[P] extends true
         ? number
-        : GetScalarType<T[P], AggregateAccountScope[P]>
-      : GetScalarType<T[P], AggregateAccountScope[P]>
+        : GetScalarType<T[P], AggregatePolicy[P]>
+      : GetScalarType<T[P], AggregatePolicy[P]>
   }
 
 
 
 
-  export type AccountScopeGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: AccountScopeWhereInput
-    orderBy?: AccountScopeOrderByWithAggregationInput | AccountScopeOrderByWithAggregationInput[]
-    by: AccountScopeScalarFieldEnum[] | AccountScopeScalarFieldEnum
-    having?: AccountScopeScalarWhereWithAggregatesInput
+  export type PolicyGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PolicyWhereInput
+    orderBy?: PolicyOrderByWithAggregationInput | PolicyOrderByWithAggregationInput[]
+    by: PolicyScalarFieldEnum[] | PolicyScalarFieldEnum
+    having?: PolicyScalarWhereWithAggregatesInput
     take?: number
     skip?: number
-    _count?: AccountScopeCountAggregateInputType | true
-    _min?: AccountScopeMinAggregateInputType
-    _max?: AccountScopeMaxAggregateInputType
+    _count?: PolicyCountAggregateInputType | true
+    _avg?: PolicyAvgAggregateInputType
+    _sum?: PolicySumAggregateInputType
+    _min?: PolicyMinAggregateInputType
+    _max?: PolicyMaxAggregateInputType
   }
 
-  export type AccountScopeGroupByOutputType = {
+  export type PolicyGroupByOutputType = {
     id: string
-    holderType: $Enums.AccountType
-    holderId: string
-    tenantId: string
-    isActive: boolean
-    permissionCode: string
-    resourceType: string
-    resourceId: string
-    expiredAt: Date | null
+    name: string
+    description: string | null
+    tenantId: string | null
+    effect: $Enums.PolicyEffect
+    subjectType: $Enums.PolicySubjectType
+    subjectId: string | null
+    permissionCode: string | null
+    resourceType: string | null
+    priority: number
+    isEnabled: boolean
+    createdAt: Date
+    updatedAt: Date
     createdBy: string
-    _count: AccountScopeCountAggregateOutputType | null
-    _min: AccountScopeMinAggregateOutputType | null
-    _max: AccountScopeMaxAggregateOutputType | null
+    _count: PolicyCountAggregateOutputType | null
+    _avg: PolicyAvgAggregateOutputType | null
+    _sum: PolicySumAggregateOutputType | null
+    _min: PolicyMinAggregateOutputType | null
+    _max: PolicyMaxAggregateOutputType | null
   }
 
-  type GetAccountScopeGroupByPayload<T extends AccountScopeGroupByArgs> = Prisma.PrismaPromise<
+  type GetPolicyGroupByPayload<T extends PolicyGroupByArgs> = Prisma.PrismaPromise<
     Array<
-      PickEnumerable<AccountScopeGroupByOutputType, T['by']> &
+      PickEnumerable<PolicyGroupByOutputType, T['by']> &
         {
-          [P in ((keyof T) & (keyof AccountScopeGroupByOutputType))]: P extends '_count'
+          [P in ((keyof T) & (keyof PolicyGroupByOutputType))]: P extends '_count'
             ? T[P] extends boolean
               ? number
-              : GetScalarType<T[P], AccountScopeGroupByOutputType[P]>
-            : GetScalarType<T[P], AccountScopeGroupByOutputType[P]>
+              : GetScalarType<T[P], PolicyGroupByOutputType[P]>
+            : GetScalarType<T[P], PolicyGroupByOutputType[P]>
         }
       >
     >
 
 
-  export type AccountScopeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+  export type PolicySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    holderType?: boolean
-    holderId?: boolean
+    name?: boolean
+    description?: boolean
     tenantId?: boolean
-    isActive?: boolean
+    effect?: boolean
+    subjectType?: boolean
+    subjectId?: boolean
     permissionCode?: boolean
     resourceType?: boolean
-    resourceId?: boolean
-    expiredAt?: boolean
+    priority?: boolean
+    isEnabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
     createdBy?: boolean
-  }, ExtArgs["result"]["accountScope"]>
+    conditions?: boolean | Policy$conditionsArgs<ExtArgs>
+    _count?: boolean | PolicyCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["policy"]>
 
-  export type AccountScopeSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+  export type PolicySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    holderType?: boolean
-    holderId?: boolean
+    name?: boolean
+    description?: boolean
     tenantId?: boolean
-    isActive?: boolean
+    effect?: boolean
+    subjectType?: boolean
+    subjectId?: boolean
     permissionCode?: boolean
     resourceType?: boolean
-    resourceId?: boolean
-    expiredAt?: boolean
+    priority?: boolean
+    isEnabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
     createdBy?: boolean
-  }, ExtArgs["result"]["accountScope"]>
+  }, ExtArgs["result"]["policy"]>
 
-  export type AccountScopeSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+  export type PolicySelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
-    holderType?: boolean
-    holderId?: boolean
+    name?: boolean
+    description?: boolean
     tenantId?: boolean
-    isActive?: boolean
+    effect?: boolean
+    subjectType?: boolean
+    subjectId?: boolean
     permissionCode?: boolean
     resourceType?: boolean
-    resourceId?: boolean
-    expiredAt?: boolean
+    priority?: boolean
+    isEnabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
     createdBy?: boolean
-  }, ExtArgs["result"]["accountScope"]>
+  }, ExtArgs["result"]["policy"]>
 
-  export type AccountScopeSelectScalar = {
+  export type PolicySelectScalar = {
     id?: boolean
-    holderType?: boolean
-    holderId?: boolean
+    name?: boolean
+    description?: boolean
     tenantId?: boolean
-    isActive?: boolean
+    effect?: boolean
+    subjectType?: boolean
+    subjectId?: boolean
     permissionCode?: boolean
     resourceType?: boolean
-    resourceId?: boolean
-    expiredAt?: boolean
+    priority?: boolean
+    isEnabled?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
     createdBy?: boolean
   }
 
-  export type AccountScopeOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "holderType" | "holderId" | "tenantId" | "isActive" | "permissionCode" | "resourceType" | "resourceId" | "expiredAt" | "createdBy", ExtArgs["result"]["accountScope"]>
+  export type PolicyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "name" | "description" | "tenantId" | "effect" | "subjectType" | "subjectId" | "permissionCode" | "resourceType" | "priority" | "isEnabled" | "createdAt" | "updatedAt" | "createdBy", ExtArgs["result"]["policy"]>
+  export type PolicyInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    conditions?: boolean | Policy$conditionsArgs<ExtArgs>
+    _count?: boolean | PolicyCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type PolicyIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type PolicyIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
 
-  export type $AccountScopePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    name: "AccountScope"
-    objects: {}
+  export type $PolicyPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "Policy"
+    objects: {
+      conditions: Prisma.$PolicyConditionPayload<ExtArgs>[]
+    }
     scalars: $Extensions.GetPayloadResult<{
       id: string
-      holderType: $Enums.AccountType
-      holderId: string
-      tenantId: string
-      isActive: boolean
-      permissionCode: string
-      resourceType: string
-      resourceId: string
-      expiredAt: Date | null
+      name: string
+      description: string | null
+      tenantId: string | null
+      effect: $Enums.PolicyEffect
+      subjectType: $Enums.PolicySubjectType
+      subjectId: string | null
+      permissionCode: string | null
+      resourceType: string | null
+      priority: number
+      isEnabled: boolean
+      createdAt: Date
+      updatedAt: Date
       createdBy: string
-    }, ExtArgs["result"]["accountScope"]>
+    }, ExtArgs["result"]["policy"]>
     composites: {}
   }
 
-  type AccountScopeGetPayload<S extends boolean | null | undefined | AccountScopeDefaultArgs> = $Result.GetResult<Prisma.$AccountScopePayload, S>
+  type PolicyGetPayload<S extends boolean | null | undefined | PolicyDefaultArgs> = $Result.GetResult<Prisma.$PolicyPayload, S>
 
-  type AccountScopeCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
-    Omit<AccountScopeFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
-      select?: AccountScopeCountAggregateInputType | true
+  type PolicyCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<PolicyFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: PolicyCountAggregateInputType | true
     }
 
-  export interface AccountScopeDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> {
-    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['AccountScope'], meta: { name: 'AccountScope' } }
+  export interface PolicyDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['Policy'], meta: { name: 'Policy' } }
     /**
-     * Find zero or one AccountScope that matches the filter.
-     * @param {AccountScopeFindUniqueArgs} args - Arguments to find a AccountScope
+     * Find zero or one Policy that matches the filter.
+     * @param {PolicyFindUniqueArgs} args - Arguments to find a Policy
      * @example
-     * // Get one AccountScope
-     * const accountScope = await prisma.accountScope.findUnique({
+     * // Get one Policy
+     * const policy = await prisma.policy.findUnique({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findUnique<T extends AccountScopeFindUniqueArgs>(args: SelectSubset<T, AccountScopeFindUniqueArgs<ExtArgs>>): Prisma__AccountScopeClient<$Result.GetResult<Prisma.$AccountScopePayload<ExtArgs>, T, "findUnique", ClientOptions> | null, null, ExtArgs, ClientOptions>
+    findUnique<T extends PolicyFindUniqueArgs>(args: SelectSubset<T, PolicyFindUniqueArgs<ExtArgs>>): Prisma__PolicyClient<$Result.GetResult<Prisma.$PolicyPayload<ExtArgs>, T, "findUnique", ClientOptions> | null, null, ExtArgs, ClientOptions>
 
     /**
-     * Find one AccountScope that matches the filter or throw an error with `error.code='P2025'`
+     * Find one Policy that matches the filter or throw an error with `error.code='P2025'`
      * if no matches were found.
-     * @param {AccountScopeFindUniqueOrThrowArgs} args - Arguments to find a AccountScope
+     * @param {PolicyFindUniqueOrThrowArgs} args - Arguments to find a Policy
      * @example
-     * // Get one AccountScope
-     * const accountScope = await prisma.accountScope.findUniqueOrThrow({
+     * // Get one Policy
+     * const policy = await prisma.policy.findUniqueOrThrow({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findUniqueOrThrow<T extends AccountScopeFindUniqueOrThrowArgs>(args: SelectSubset<T, AccountScopeFindUniqueOrThrowArgs<ExtArgs>>): Prisma__AccountScopeClient<$Result.GetResult<Prisma.$AccountScopePayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+    findUniqueOrThrow<T extends PolicyFindUniqueOrThrowArgs>(args: SelectSubset<T, PolicyFindUniqueOrThrowArgs<ExtArgs>>): Prisma__PolicyClient<$Result.GetResult<Prisma.$PolicyPayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
 
     /**
-     * Find the first AccountScope that matches the filter.
+     * Find the first Policy that matches the filter.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {AccountScopeFindFirstArgs} args - Arguments to find a AccountScope
+     * @param {PolicyFindFirstArgs} args - Arguments to find a Policy
      * @example
-     * // Get one AccountScope
-     * const accountScope = await prisma.accountScope.findFirst({
+     * // Get one Policy
+     * const policy = await prisma.policy.findFirst({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findFirst<T extends AccountScopeFindFirstArgs>(args?: SelectSubset<T, AccountScopeFindFirstArgs<ExtArgs>>): Prisma__AccountScopeClient<$Result.GetResult<Prisma.$AccountScopePayload<ExtArgs>, T, "findFirst", ClientOptions> | null, null, ExtArgs, ClientOptions>
+    findFirst<T extends PolicyFindFirstArgs>(args?: SelectSubset<T, PolicyFindFirstArgs<ExtArgs>>): Prisma__PolicyClient<$Result.GetResult<Prisma.$PolicyPayload<ExtArgs>, T, "findFirst", ClientOptions> | null, null, ExtArgs, ClientOptions>
 
     /**
-     * Find the first AccountScope that matches the filter or
+     * Find the first Policy that matches the filter or
      * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {AccountScopeFindFirstOrThrowArgs} args - Arguments to find a AccountScope
+     * @param {PolicyFindFirstOrThrowArgs} args - Arguments to find a Policy
      * @example
-     * // Get one AccountScope
-     * const accountScope = await prisma.accountScope.findFirstOrThrow({
+     * // Get one Policy
+     * const policy = await prisma.policy.findFirstOrThrow({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      */
-    findFirstOrThrow<T extends AccountScopeFindFirstOrThrowArgs>(args?: SelectSubset<T, AccountScopeFindFirstOrThrowArgs<ExtArgs>>): Prisma__AccountScopeClient<$Result.GetResult<Prisma.$AccountScopePayload<ExtArgs>, T, "findFirstOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+    findFirstOrThrow<T extends PolicyFindFirstOrThrowArgs>(args?: SelectSubset<T, PolicyFindFirstOrThrowArgs<ExtArgs>>): Prisma__PolicyClient<$Result.GetResult<Prisma.$PolicyPayload<ExtArgs>, T, "findFirstOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
 
     /**
-     * Find zero or more AccountScopes that matches the filter.
+     * Find zero or more Policies that matches the filter.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {AccountScopeFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @param {PolicyFindManyArgs} args - Arguments to filter and select certain fields only.
      * @example
-     * // Get all AccountScopes
-     * const accountScopes = await prisma.accountScope.findMany()
+     * // Get all Policies
+     * const policies = await prisma.policy.findMany()
      * 
-     * // Get first 10 AccountScopes
-     * const accountScopes = await prisma.accountScope.findMany({ take: 10 })
+     * // Get first 10 Policies
+     * const policies = await prisma.policy.findMany({ take: 10 })
      * 
      * // Only select the `id`
-     * const accountScopeWithIdOnly = await prisma.accountScope.findMany({ select: { id: true } })
+     * const policyWithIdOnly = await prisma.policy.findMany({ select: { id: true } })
      * 
      */
-    findMany<T extends AccountScopeFindManyArgs>(args?: SelectSubset<T, AccountScopeFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AccountScopePayload<ExtArgs>, T, "findMany", ClientOptions>>
+    findMany<T extends PolicyFindManyArgs>(args?: SelectSubset<T, PolicyFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PolicyPayload<ExtArgs>, T, "findMany", ClientOptions>>
 
     /**
-     * Create a AccountScope.
-     * @param {AccountScopeCreateArgs} args - Arguments to create a AccountScope.
+     * Create a Policy.
+     * @param {PolicyCreateArgs} args - Arguments to create a Policy.
      * @example
-     * // Create one AccountScope
-     * const AccountScope = await prisma.accountScope.create({
+     * // Create one Policy
+     * const Policy = await prisma.policy.create({
      *   data: {
-     *     // ... data to create a AccountScope
+     *     // ... data to create a Policy
      *   }
      * })
      * 
      */
-    create<T extends AccountScopeCreateArgs>(args: SelectSubset<T, AccountScopeCreateArgs<ExtArgs>>): Prisma__AccountScopeClient<$Result.GetResult<Prisma.$AccountScopePayload<ExtArgs>, T, "create", ClientOptions>, never, ExtArgs, ClientOptions>
+    create<T extends PolicyCreateArgs>(args: SelectSubset<T, PolicyCreateArgs<ExtArgs>>): Prisma__PolicyClient<$Result.GetResult<Prisma.$PolicyPayload<ExtArgs>, T, "create", ClientOptions>, never, ExtArgs, ClientOptions>
 
     /**
-     * Create many AccountScopes.
-     * @param {AccountScopeCreateManyArgs} args - Arguments to create many AccountScopes.
+     * Create many Policies.
+     * @param {PolicyCreateManyArgs} args - Arguments to create many Policies.
      * @example
-     * // Create many AccountScopes
-     * const accountScope = await prisma.accountScope.createMany({
+     * // Create many Policies
+     * const policy = await prisma.policy.createMany({
      *   data: [
      *     // ... provide data here
      *   ]
      * })
      *     
      */
-    createMany<T extends AccountScopeCreateManyArgs>(args?: SelectSubset<T, AccountScopeCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+    createMany<T extends PolicyCreateManyArgs>(args?: SelectSubset<T, PolicyCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
     /**
-     * Create many AccountScopes and returns the data saved in the database.
-     * @param {AccountScopeCreateManyAndReturnArgs} args - Arguments to create many AccountScopes.
+     * Create many Policies and returns the data saved in the database.
+     * @param {PolicyCreateManyAndReturnArgs} args - Arguments to create many Policies.
      * @example
-     * // Create many AccountScopes
-     * const accountScope = await prisma.accountScope.createManyAndReturn({
+     * // Create many Policies
+     * const policy = await prisma.policy.createManyAndReturn({
      *   data: [
      *     // ... provide data here
      *   ]
      * })
      * 
-     * // Create many AccountScopes and only return the `id`
-     * const accountScopeWithIdOnly = await prisma.accountScope.createManyAndReturn({
+     * // Create many Policies and only return the `id`
+     * const policyWithIdOnly = await prisma.policy.createManyAndReturn({
      *   select: { id: true },
      *   data: [
      *     // ... provide data here
@@ -6078,28 +6355,28 @@ export namespace Prisma {
      * Read more here: https://pris.ly/d/null-undefined
      * 
      */
-    createManyAndReturn<T extends AccountScopeCreateManyAndReturnArgs>(args?: SelectSubset<T, AccountScopeCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AccountScopePayload<ExtArgs>, T, "createManyAndReturn", ClientOptions>>
+    createManyAndReturn<T extends PolicyCreateManyAndReturnArgs>(args?: SelectSubset<T, PolicyCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PolicyPayload<ExtArgs>, T, "createManyAndReturn", ClientOptions>>
 
     /**
-     * Delete a AccountScope.
-     * @param {AccountScopeDeleteArgs} args - Arguments to delete one AccountScope.
+     * Delete a Policy.
+     * @param {PolicyDeleteArgs} args - Arguments to delete one Policy.
      * @example
-     * // Delete one AccountScope
-     * const AccountScope = await prisma.accountScope.delete({
+     * // Delete one Policy
+     * const Policy = await prisma.policy.delete({
      *   where: {
-     *     // ... filter to delete one AccountScope
+     *     // ... filter to delete one Policy
      *   }
      * })
      * 
      */
-    delete<T extends AccountScopeDeleteArgs>(args: SelectSubset<T, AccountScopeDeleteArgs<ExtArgs>>): Prisma__AccountScopeClient<$Result.GetResult<Prisma.$AccountScopePayload<ExtArgs>, T, "delete", ClientOptions>, never, ExtArgs, ClientOptions>
+    delete<T extends PolicyDeleteArgs>(args: SelectSubset<T, PolicyDeleteArgs<ExtArgs>>): Prisma__PolicyClient<$Result.GetResult<Prisma.$PolicyPayload<ExtArgs>, T, "delete", ClientOptions>, never, ExtArgs, ClientOptions>
 
     /**
-     * Update one AccountScope.
-     * @param {AccountScopeUpdateArgs} args - Arguments to update one AccountScope.
+     * Update one Policy.
+     * @param {PolicyUpdateArgs} args - Arguments to update one Policy.
      * @example
-     * // Update one AccountScope
-     * const accountScope = await prisma.accountScope.update({
+     * // Update one Policy
+     * const policy = await prisma.policy.update({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -6109,30 +6386,30 @@ export namespace Prisma {
      * })
      * 
      */
-    update<T extends AccountScopeUpdateArgs>(args: SelectSubset<T, AccountScopeUpdateArgs<ExtArgs>>): Prisma__AccountScopeClient<$Result.GetResult<Prisma.$AccountScopePayload<ExtArgs>, T, "update", ClientOptions>, never, ExtArgs, ClientOptions>
+    update<T extends PolicyUpdateArgs>(args: SelectSubset<T, PolicyUpdateArgs<ExtArgs>>): Prisma__PolicyClient<$Result.GetResult<Prisma.$PolicyPayload<ExtArgs>, T, "update", ClientOptions>, never, ExtArgs, ClientOptions>
 
     /**
-     * Delete zero or more AccountScopes.
-     * @param {AccountScopeDeleteManyArgs} args - Arguments to filter AccountScopes to delete.
+     * Delete zero or more Policies.
+     * @param {PolicyDeleteManyArgs} args - Arguments to filter Policies to delete.
      * @example
-     * // Delete a few AccountScopes
-     * const { count } = await prisma.accountScope.deleteMany({
+     * // Delete a few Policies
+     * const { count } = await prisma.policy.deleteMany({
      *   where: {
      *     // ... provide filter here
      *   }
      * })
      * 
      */
-    deleteMany<T extends AccountScopeDeleteManyArgs>(args?: SelectSubset<T, AccountScopeDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+    deleteMany<T extends PolicyDeleteManyArgs>(args?: SelectSubset<T, PolicyDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
     /**
-     * Update zero or more AccountScopes.
+     * Update zero or more Policies.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {AccountScopeUpdateManyArgs} args - Arguments to update one or more rows.
+     * @param {PolicyUpdateManyArgs} args - Arguments to update one or more rows.
      * @example
-     * // Update many AccountScopes
-     * const accountScope = await prisma.accountScope.updateMany({
+     * // Update many Policies
+     * const policy = await prisma.policy.updateMany({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -6142,14 +6419,14 @@ export namespace Prisma {
      * })
      * 
      */
-    updateMany<T extends AccountScopeUpdateManyArgs>(args: SelectSubset<T, AccountScopeUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+    updateMany<T extends PolicyUpdateManyArgs>(args: SelectSubset<T, PolicyUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
 
     /**
-     * Update zero or more AccountScopes and returns the data updated in the database.
-     * @param {AccountScopeUpdateManyAndReturnArgs} args - Arguments to update many AccountScopes.
+     * Update zero or more Policies and returns the data updated in the database.
+     * @param {PolicyUpdateManyAndReturnArgs} args - Arguments to update many Policies.
      * @example
-     * // Update many AccountScopes
-     * const accountScope = await prisma.accountScope.updateManyAndReturn({
+     * // Update many Policies
+     * const policy = await prisma.policy.updateManyAndReturn({
      *   where: {
      *     // ... provide filter here
      *   },
@@ -6158,8 +6435,8 @@ export namespace Prisma {
      *   ]
      * })
      * 
-     * // Update zero or more AccountScopes and only return the `id`
-     * const accountScopeWithIdOnly = await prisma.accountScope.updateManyAndReturn({
+     * // Update zero or more Policies and only return the `id`
+     * const policyWithIdOnly = await prisma.policy.updateManyAndReturn({
      *   select: { id: true },
      *   where: {
      *     // ... provide filter here
@@ -6172,56 +6449,56 @@ export namespace Prisma {
      * Read more here: https://pris.ly/d/null-undefined
      * 
      */
-    updateManyAndReturn<T extends AccountScopeUpdateManyAndReturnArgs>(args: SelectSubset<T, AccountScopeUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$AccountScopePayload<ExtArgs>, T, "updateManyAndReturn", ClientOptions>>
+    updateManyAndReturn<T extends PolicyUpdateManyAndReturnArgs>(args: SelectSubset<T, PolicyUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PolicyPayload<ExtArgs>, T, "updateManyAndReturn", ClientOptions>>
 
     /**
-     * Create or update one AccountScope.
-     * @param {AccountScopeUpsertArgs} args - Arguments to update or create a AccountScope.
+     * Create or update one Policy.
+     * @param {PolicyUpsertArgs} args - Arguments to update or create a Policy.
      * @example
-     * // Update or create a AccountScope
-     * const accountScope = await prisma.accountScope.upsert({
+     * // Update or create a Policy
+     * const policy = await prisma.policy.upsert({
      *   create: {
-     *     // ... data to create a AccountScope
+     *     // ... data to create a Policy
      *   },
      *   update: {
      *     // ... in case it already exists, update
      *   },
      *   where: {
-     *     // ... the filter for the AccountScope we want to update
+     *     // ... the filter for the Policy we want to update
      *   }
      * })
      */
-    upsert<T extends AccountScopeUpsertArgs>(args: SelectSubset<T, AccountScopeUpsertArgs<ExtArgs>>): Prisma__AccountScopeClient<$Result.GetResult<Prisma.$AccountScopePayload<ExtArgs>, T, "upsert", ClientOptions>, never, ExtArgs, ClientOptions>
+    upsert<T extends PolicyUpsertArgs>(args: SelectSubset<T, PolicyUpsertArgs<ExtArgs>>): Prisma__PolicyClient<$Result.GetResult<Prisma.$PolicyPayload<ExtArgs>, T, "upsert", ClientOptions>, never, ExtArgs, ClientOptions>
 
 
     /**
-     * Count the number of AccountScopes.
+     * Count the number of Policies.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {AccountScopeCountArgs} args - Arguments to filter AccountScopes to count.
+     * @param {PolicyCountArgs} args - Arguments to filter Policies to count.
      * @example
-     * // Count the number of AccountScopes
-     * const count = await prisma.accountScope.count({
+     * // Count the number of Policies
+     * const count = await prisma.policy.count({
      *   where: {
-     *     // ... the filter for the AccountScopes we want to count
+     *     // ... the filter for the Policies we want to count
      *   }
      * })
     **/
-    count<T extends AccountScopeCountArgs>(
-      args?: Subset<T, AccountScopeCountArgs>,
+    count<T extends PolicyCountArgs>(
+      args?: Subset<T, PolicyCountArgs>,
     ): Prisma.PrismaPromise<
       T extends $Utils.Record<'select', any>
         ? T['select'] extends true
           ? number
-          : GetScalarType<T['select'], AccountScopeCountAggregateOutputType>
+          : GetScalarType<T['select'], PolicyCountAggregateOutputType>
         : number
     >
 
     /**
-     * Allows you to perform aggregations operations on a AccountScope.
+     * Allows you to perform aggregations operations on a Policy.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {AccountScopeAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @param {PolicyAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
      * @example
      * // Ordered by age ascending
      * // Where email contains prisma.io
@@ -6241,13 +6518,13 @@ export namespace Prisma {
      *   take: 10,
      * })
     **/
-    aggregate<T extends AccountScopeAggregateArgs>(args: Subset<T, AccountScopeAggregateArgs>): Prisma.PrismaPromise<GetAccountScopeAggregateType<T>>
+    aggregate<T extends PolicyAggregateArgs>(args: Subset<T, PolicyAggregateArgs>): Prisma.PrismaPromise<GetPolicyAggregateType<T>>
 
     /**
-     * Group by AccountScope.
+     * Group by Policy.
      * Note, that providing `undefined` is treated as the value not being there.
      * Read more here: https://pris.ly/d/null-undefined
-     * @param {AccountScopeGroupByArgs} args - Group by arguments.
+     * @param {PolicyGroupByArgs} args - Group by arguments.
      * @example
      * // Group by city, order by createdAt, get count
      * const result = await prisma.user.groupBy({
@@ -6262,14 +6539,14 @@ export namespace Prisma {
      * 
     **/
     groupBy<
-      T extends AccountScopeGroupByArgs,
+      T extends PolicyGroupByArgs,
       HasSelectOrTake extends Or<
         Extends<'skip', Keys<T>>,
         Extends<'take', Keys<T>>
       >,
       OrderByArg extends True extends HasSelectOrTake
-        ? { orderBy: AccountScopeGroupByArgs['orderBy'] }
-        : { orderBy?: AccountScopeGroupByArgs['orderBy'] },
+        ? { orderBy: PolicyGroupByArgs['orderBy'] }
+        : { orderBy?: PolicyGroupByArgs['orderBy'] },
       OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
       ByFields extends MaybeTupleToUnion<T['by']>,
       ByValid extends Has<ByFields, OrderFields>,
@@ -6318,21 +6595,22 @@ export namespace Prisma {
             ? never
             : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
         }[OrderFields]
-    >(args: SubsetIntersection<T, AccountScopeGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetAccountScopeGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+    >(args: SubsetIntersection<T, PolicyGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPolicyGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
   /**
-   * Fields of the AccountScope model
+   * Fields of the Policy model
    */
-  readonly fields: AccountScopeFieldRefs;
+  readonly fields: PolicyFieldRefs;
   }
 
   /**
-   * The delegate class that acts as a "Promise-like" for AccountScope.
+   * The delegate class that acts as a "Promise-like" for Policy.
    * Why is this prefixed with `Prisma__`?
    * Because we want to prevent naming conflicts as mentioned in
    * https://github.com/prisma/prisma-client-js/issues/707
    */
-  export interface Prisma__AccountScopeClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> extends Prisma.PrismaPromise<T> {
+  export interface Prisma__PolicyClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    conditions<T extends Policy$conditionsArgs<ExtArgs> = {}>(args?: Subset<T, Policy$conditionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PolicyConditionPayload<ExtArgs>, T, "findMany", ClientOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -6359,382 +6637,1521 @@ export namespace Prisma {
 
 
   /**
-   * Fields of the AccountScope model
+   * Fields of the Policy model
    */ 
-  interface AccountScopeFieldRefs {
-    readonly id: FieldRef<"AccountScope", 'String'>
-    readonly holderType: FieldRef<"AccountScope", 'AccountType'>
-    readonly holderId: FieldRef<"AccountScope", 'String'>
-    readonly tenantId: FieldRef<"AccountScope", 'String'>
-    readonly isActive: FieldRef<"AccountScope", 'Boolean'>
-    readonly permissionCode: FieldRef<"AccountScope", 'String'>
-    readonly resourceType: FieldRef<"AccountScope", 'String'>
-    readonly resourceId: FieldRef<"AccountScope", 'String'>
-    readonly expiredAt: FieldRef<"AccountScope", 'DateTime'>
-    readonly createdBy: FieldRef<"AccountScope", 'String'>
+  interface PolicyFieldRefs {
+    readonly id: FieldRef<"Policy", 'String'>
+    readonly name: FieldRef<"Policy", 'String'>
+    readonly description: FieldRef<"Policy", 'String'>
+    readonly tenantId: FieldRef<"Policy", 'String'>
+    readonly effect: FieldRef<"Policy", 'PolicyEffect'>
+    readonly subjectType: FieldRef<"Policy", 'PolicySubjectType'>
+    readonly subjectId: FieldRef<"Policy", 'String'>
+    readonly permissionCode: FieldRef<"Policy", 'String'>
+    readonly resourceType: FieldRef<"Policy", 'String'>
+    readonly priority: FieldRef<"Policy", 'Int'>
+    readonly isEnabled: FieldRef<"Policy", 'Boolean'>
+    readonly createdAt: FieldRef<"Policy", 'DateTime'>
+    readonly updatedAt: FieldRef<"Policy", 'DateTime'>
+    readonly createdBy: FieldRef<"Policy", 'String'>
   }
     
 
   // Custom InputTypes
   /**
-   * AccountScope findUnique
+   * Policy findUnique
    */
-  export type AccountScopeFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the AccountScope
+     * Select specific fields to fetch from the Policy
      */
-    select?: AccountScopeSelect<ExtArgs> | null
+    select?: PolicySelect<ExtArgs> | null
     /**
-     * Omit specific fields from the AccountScope
+     * Omit specific fields from the Policy
      */
-    omit?: AccountScopeOmit<ExtArgs> | null
+    omit?: PolicyOmit<ExtArgs> | null
     /**
-     * Filter, which AccountScope to fetch.
+     * Choose, which related nodes to fetch as well
      */
-    where: AccountScopeWhereUniqueInput
+    include?: PolicyInclude<ExtArgs> | null
+    /**
+     * Filter, which Policy to fetch.
+     */
+    where: PolicyWhereUniqueInput
   }
 
   /**
-   * AccountScope findUniqueOrThrow
+   * Policy findUniqueOrThrow
    */
-  export type AccountScopeFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the AccountScope
+     * Select specific fields to fetch from the Policy
      */
-    select?: AccountScopeSelect<ExtArgs> | null
+    select?: PolicySelect<ExtArgs> | null
     /**
-     * Omit specific fields from the AccountScope
+     * Omit specific fields from the Policy
      */
-    omit?: AccountScopeOmit<ExtArgs> | null
+    omit?: PolicyOmit<ExtArgs> | null
     /**
-     * Filter, which AccountScope to fetch.
+     * Choose, which related nodes to fetch as well
      */
-    where: AccountScopeWhereUniqueInput
+    include?: PolicyInclude<ExtArgs> | null
+    /**
+     * Filter, which Policy to fetch.
+     */
+    where: PolicyWhereUniqueInput
   }
 
   /**
-   * AccountScope findFirst
+   * Policy findFirst
    */
-  export type AccountScopeFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the AccountScope
+     * Select specific fields to fetch from the Policy
      */
-    select?: AccountScopeSelect<ExtArgs> | null
+    select?: PolicySelect<ExtArgs> | null
     /**
-     * Omit specific fields from the AccountScope
+     * Omit specific fields from the Policy
      */
-    omit?: AccountScopeOmit<ExtArgs> | null
+    omit?: PolicyOmit<ExtArgs> | null
     /**
-     * Filter, which AccountScope to fetch.
+     * Choose, which related nodes to fetch as well
      */
-    where?: AccountScopeWhereInput
+    include?: PolicyInclude<ExtArgs> | null
+    /**
+     * Filter, which Policy to fetch.
+     */
+    where?: PolicyWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of AccountScopes to fetch.
+     * Determine the order of Policies to fetch.
      */
-    orderBy?: AccountScopeOrderByWithRelationInput | AccountScopeOrderByWithRelationInput[]
+    orderBy?: PolicyOrderByWithRelationInput | PolicyOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
-     * Sets the position for searching for AccountScopes.
+     * Sets the position for searching for Policies.
      */
-    cursor?: AccountScopeWhereUniqueInput
+    cursor?: PolicyWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` AccountScopes from the position of the cursor.
+     * Take `±n` Policies from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` AccountScopes.
+     * Skip the first `n` Policies.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
      * 
-     * Filter by unique combinations of AccountScopes.
+     * Filter by unique combinations of Policies.
      */
-    distinct?: AccountScopeScalarFieldEnum | AccountScopeScalarFieldEnum[]
+    distinct?: PolicyScalarFieldEnum | PolicyScalarFieldEnum[]
   }
 
   /**
-   * AccountScope findFirstOrThrow
+   * Policy findFirstOrThrow
    */
-  export type AccountScopeFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the AccountScope
+     * Select specific fields to fetch from the Policy
      */
-    select?: AccountScopeSelect<ExtArgs> | null
+    select?: PolicySelect<ExtArgs> | null
     /**
-     * Omit specific fields from the AccountScope
+     * Omit specific fields from the Policy
      */
-    omit?: AccountScopeOmit<ExtArgs> | null
+    omit?: PolicyOmit<ExtArgs> | null
     /**
-     * Filter, which AccountScope to fetch.
+     * Choose, which related nodes to fetch as well
      */
-    where?: AccountScopeWhereInput
+    include?: PolicyInclude<ExtArgs> | null
+    /**
+     * Filter, which Policy to fetch.
+     */
+    where?: PolicyWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of AccountScopes to fetch.
+     * Determine the order of Policies to fetch.
      */
-    orderBy?: AccountScopeOrderByWithRelationInput | AccountScopeOrderByWithRelationInput[]
+    orderBy?: PolicyOrderByWithRelationInput | PolicyOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
-     * Sets the position for searching for AccountScopes.
+     * Sets the position for searching for Policies.
      */
-    cursor?: AccountScopeWhereUniqueInput
+    cursor?: PolicyWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` AccountScopes from the position of the cursor.
+     * Take `±n` Policies from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` AccountScopes.
+     * Skip the first `n` Policies.
      */
     skip?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
      * 
-     * Filter by unique combinations of AccountScopes.
+     * Filter by unique combinations of Policies.
      */
-    distinct?: AccountScopeScalarFieldEnum | AccountScopeScalarFieldEnum[]
+    distinct?: PolicyScalarFieldEnum | PolicyScalarFieldEnum[]
   }
 
   /**
-   * AccountScope findMany
+   * Policy findMany
    */
-  export type AccountScopeFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the AccountScope
+     * Select specific fields to fetch from the Policy
      */
-    select?: AccountScopeSelect<ExtArgs> | null
+    select?: PolicySelect<ExtArgs> | null
     /**
-     * Omit specific fields from the AccountScope
+     * Omit specific fields from the Policy
      */
-    omit?: AccountScopeOmit<ExtArgs> | null
+    omit?: PolicyOmit<ExtArgs> | null
     /**
-     * Filter, which AccountScopes to fetch.
+     * Choose, which related nodes to fetch as well
      */
-    where?: AccountScopeWhereInput
+    include?: PolicyInclude<ExtArgs> | null
+    /**
+     * Filter, which Policies to fetch.
+     */
+    where?: PolicyWhereInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
      * 
-     * Determine the order of AccountScopes to fetch.
+     * Determine the order of Policies to fetch.
      */
-    orderBy?: AccountScopeOrderByWithRelationInput | AccountScopeOrderByWithRelationInput[]
+    orderBy?: PolicyOrderByWithRelationInput | PolicyOrderByWithRelationInput[]
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
      * 
-     * Sets the position for listing AccountScopes.
+     * Sets the position for listing Policies.
      */
-    cursor?: AccountScopeWhereUniqueInput
+    cursor?: PolicyWhereUniqueInput
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Take `±n` AccountScopes from the position of the cursor.
+     * Take `±n` Policies from the position of the cursor.
      */
     take?: number
     /**
      * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
      * 
-     * Skip the first `n` AccountScopes.
+     * Skip the first `n` Policies.
      */
     skip?: number
-    distinct?: AccountScopeScalarFieldEnum | AccountScopeScalarFieldEnum[]
+    distinct?: PolicyScalarFieldEnum | PolicyScalarFieldEnum[]
   }
 
   /**
-   * AccountScope create
+   * Policy create
    */
-  export type AccountScopeCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the AccountScope
+     * Select specific fields to fetch from the Policy
      */
-    select?: AccountScopeSelect<ExtArgs> | null
+    select?: PolicySelect<ExtArgs> | null
     /**
-     * Omit specific fields from the AccountScope
+     * Omit specific fields from the Policy
      */
-    omit?: AccountScopeOmit<ExtArgs> | null
+    omit?: PolicyOmit<ExtArgs> | null
     /**
-     * The data needed to create a AccountScope.
+     * Choose, which related nodes to fetch as well
      */
-    data: XOR<AccountScopeCreateInput, AccountScopeUncheckedCreateInput>
+    include?: PolicyInclude<ExtArgs> | null
+    /**
+     * The data needed to create a Policy.
+     */
+    data: XOR<PolicyCreateInput, PolicyUncheckedCreateInput>
   }
 
   /**
-   * AccountScope createMany
+   * Policy createMany
    */
-  export type AccountScopeCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * The data used to create many AccountScopes.
+     * The data used to create many Policies.
      */
-    data: AccountScopeCreateManyInput | AccountScopeCreateManyInput[]
+    data: PolicyCreateManyInput | PolicyCreateManyInput[]
     skipDuplicates?: boolean
   }
 
   /**
-   * AccountScope createManyAndReturn
+   * Policy createManyAndReturn
    */
-  export type AccountScopeCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the AccountScope
+     * Select specific fields to fetch from the Policy
      */
-    select?: AccountScopeSelectCreateManyAndReturn<ExtArgs> | null
+    select?: PolicySelectCreateManyAndReturn<ExtArgs> | null
     /**
-     * Omit specific fields from the AccountScope
+     * Omit specific fields from the Policy
      */
-    omit?: AccountScopeOmit<ExtArgs> | null
+    omit?: PolicyOmit<ExtArgs> | null
     /**
-     * The data used to create many AccountScopes.
+     * The data used to create many Policies.
      */
-    data: AccountScopeCreateManyInput | AccountScopeCreateManyInput[]
+    data: PolicyCreateManyInput | PolicyCreateManyInput[]
     skipDuplicates?: boolean
   }
 
   /**
-   * AccountScope update
+   * Policy update
    */
-  export type AccountScopeUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the AccountScope
+     * Select specific fields to fetch from the Policy
      */
-    select?: AccountScopeSelect<ExtArgs> | null
+    select?: PolicySelect<ExtArgs> | null
     /**
-     * Omit specific fields from the AccountScope
+     * Omit specific fields from the Policy
      */
-    omit?: AccountScopeOmit<ExtArgs> | null
+    omit?: PolicyOmit<ExtArgs> | null
     /**
-     * The data needed to update a AccountScope.
+     * Choose, which related nodes to fetch as well
      */
-    data: XOR<AccountScopeUpdateInput, AccountScopeUncheckedUpdateInput>
+    include?: PolicyInclude<ExtArgs> | null
     /**
-     * Choose, which AccountScope to update.
+     * The data needed to update a Policy.
      */
-    where: AccountScopeWhereUniqueInput
+    data: XOR<PolicyUpdateInput, PolicyUncheckedUpdateInput>
+    /**
+     * Choose, which Policy to update.
+     */
+    where: PolicyWhereUniqueInput
   }
 
   /**
-   * AccountScope updateMany
+   * Policy updateMany
    */
-  export type AccountScopeUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * The data used to update AccountScopes.
+     * The data used to update Policies.
      */
-    data: XOR<AccountScopeUpdateManyMutationInput, AccountScopeUncheckedUpdateManyInput>
+    data: XOR<PolicyUpdateManyMutationInput, PolicyUncheckedUpdateManyInput>
     /**
-     * Filter which AccountScopes to update
+     * Filter which Policies to update
      */
-    where?: AccountScopeWhereInput
+    where?: PolicyWhereInput
     /**
-     * Limit how many AccountScopes to update.
+     * Limit how many Policies to update.
      */
     limit?: number
   }
 
   /**
-   * AccountScope updateManyAndReturn
+   * Policy updateManyAndReturn
    */
-  export type AccountScopeUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the AccountScope
+     * Select specific fields to fetch from the Policy
      */
-    select?: AccountScopeSelectUpdateManyAndReturn<ExtArgs> | null
+    select?: PolicySelectUpdateManyAndReturn<ExtArgs> | null
     /**
-     * Omit specific fields from the AccountScope
+     * Omit specific fields from the Policy
      */
-    omit?: AccountScopeOmit<ExtArgs> | null
+    omit?: PolicyOmit<ExtArgs> | null
     /**
-     * The data used to update AccountScopes.
+     * The data used to update Policies.
      */
-    data: XOR<AccountScopeUpdateManyMutationInput, AccountScopeUncheckedUpdateManyInput>
+    data: XOR<PolicyUpdateManyMutationInput, PolicyUncheckedUpdateManyInput>
     /**
-     * Filter which AccountScopes to update
+     * Filter which Policies to update
      */
-    where?: AccountScopeWhereInput
+    where?: PolicyWhereInput
     /**
-     * Limit how many AccountScopes to update.
+     * Limit how many Policies to update.
      */
     limit?: number
   }
 
   /**
-   * AccountScope upsert
+   * Policy upsert
    */
-  export type AccountScopeUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the AccountScope
+     * Select specific fields to fetch from the Policy
      */
-    select?: AccountScopeSelect<ExtArgs> | null
+    select?: PolicySelect<ExtArgs> | null
     /**
-     * Omit specific fields from the AccountScope
+     * Omit specific fields from the Policy
      */
-    omit?: AccountScopeOmit<ExtArgs> | null
+    omit?: PolicyOmit<ExtArgs> | null
     /**
-     * The filter to search for the AccountScope to update in case it exists.
+     * Choose, which related nodes to fetch as well
      */
-    where: AccountScopeWhereUniqueInput
+    include?: PolicyInclude<ExtArgs> | null
     /**
-     * In case the AccountScope found by the `where` argument doesn't exist, create a new AccountScope with this data.
+     * The filter to search for the Policy to update in case it exists.
      */
-    create: XOR<AccountScopeCreateInput, AccountScopeUncheckedCreateInput>
+    where: PolicyWhereUniqueInput
     /**
-     * In case the AccountScope was found with the provided `where` argument, update it with this data.
+     * In case the Policy found by the `where` argument doesn't exist, create a new Policy with this data.
      */
-    update: XOR<AccountScopeUpdateInput, AccountScopeUncheckedUpdateInput>
+    create: XOR<PolicyCreateInput, PolicyUncheckedCreateInput>
+    /**
+     * In case the Policy was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<PolicyUpdateInput, PolicyUncheckedUpdateInput>
   }
 
   /**
-   * AccountScope delete
+   * Policy delete
    */
-  export type AccountScopeDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the AccountScope
+     * Select specific fields to fetch from the Policy
      */
-    select?: AccountScopeSelect<ExtArgs> | null
+    select?: PolicySelect<ExtArgs> | null
     /**
-     * Omit specific fields from the AccountScope
+     * Omit specific fields from the Policy
      */
-    omit?: AccountScopeOmit<ExtArgs> | null
+    omit?: PolicyOmit<ExtArgs> | null
     /**
-     * Filter which AccountScope to delete.
+     * Choose, which related nodes to fetch as well
      */
-    where: AccountScopeWhereUniqueInput
+    include?: PolicyInclude<ExtArgs> | null
+    /**
+     * Filter which Policy to delete.
+     */
+    where: PolicyWhereUniqueInput
   }
 
   /**
-   * AccountScope deleteMany
+   * Policy deleteMany
    */
-  export type AccountScopeDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type PolicyDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Filter which AccountScopes to delete
+     * Filter which Policies to delete
      */
-    where?: AccountScopeWhereInput
+    where?: PolicyWhereInput
     /**
-     * Limit how many AccountScopes to delete.
+     * Limit how many Policies to delete.
      */
     limit?: number
   }
 
   /**
-   * AccountScope without action
+   * Policy.conditions
    */
-  export type AccountScopeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type Policy$conditionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
-     * Select specific fields to fetch from the AccountScope
+     * Select specific fields to fetch from the PolicyCondition
      */
-    select?: AccountScopeSelect<ExtArgs> | null
+    select?: PolicyConditionSelect<ExtArgs> | null
     /**
-     * Omit specific fields from the AccountScope
+     * Omit specific fields from the PolicyCondition
      */
-    omit?: AccountScopeOmit<ExtArgs> | null
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionInclude<ExtArgs> | null
+    where?: PolicyConditionWhereInput
+    orderBy?: PolicyConditionOrderByWithRelationInput | PolicyConditionOrderByWithRelationInput[]
+    cursor?: PolicyConditionWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: PolicyConditionScalarFieldEnum | PolicyConditionScalarFieldEnum[]
+  }
+
+  /**
+   * Policy without action
+   */
+  export type PolicyDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Policy
+     */
+    select?: PolicySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Policy
+     */
+    omit?: PolicyOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model PolicyCondition
+   */
+
+  export type AggregatePolicyCondition = {
+    _count: PolicyConditionCountAggregateOutputType | null
+    _min: PolicyConditionMinAggregateOutputType | null
+    _max: PolicyConditionMaxAggregateOutputType | null
+  }
+
+  export type PolicyConditionMinAggregateOutputType = {
+    id: string | null
+    policyId: string | null
+    attributeSource: $Enums.AttributeSource | null
+    attributeKey: string | null
+    operator: $Enums.ConditionOperator | null
+    value: string | null
+  }
+
+  export type PolicyConditionMaxAggregateOutputType = {
+    id: string | null
+    policyId: string | null
+    attributeSource: $Enums.AttributeSource | null
+    attributeKey: string | null
+    operator: $Enums.ConditionOperator | null
+    value: string | null
+  }
+
+  export type PolicyConditionCountAggregateOutputType = {
+    id: number
+    policyId: number
+    attributeSource: number
+    attributeKey: number
+    operator: number
+    value: number
+    _all: number
+  }
+
+
+  export type PolicyConditionMinAggregateInputType = {
+    id?: true
+    policyId?: true
+    attributeSource?: true
+    attributeKey?: true
+    operator?: true
+    value?: true
+  }
+
+  export type PolicyConditionMaxAggregateInputType = {
+    id?: true
+    policyId?: true
+    attributeSource?: true
+    attributeKey?: true
+    operator?: true
+    value?: true
+  }
+
+  export type PolicyConditionCountAggregateInputType = {
+    id?: true
+    policyId?: true
+    attributeSource?: true
+    attributeKey?: true
+    operator?: true
+    value?: true
+    _all?: true
+  }
+
+  export type PolicyConditionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PolicyCondition to aggregate.
+     */
+    where?: PolicyConditionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PolicyConditions to fetch.
+     */
+    orderBy?: PolicyConditionOrderByWithRelationInput | PolicyConditionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: PolicyConditionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PolicyConditions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PolicyConditions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned PolicyConditions
+    **/
+    _count?: true | PolicyConditionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: PolicyConditionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: PolicyConditionMaxAggregateInputType
+  }
+
+  export type GetPolicyConditionAggregateType<T extends PolicyConditionAggregateArgs> = {
+        [P in keyof T & keyof AggregatePolicyCondition]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregatePolicyCondition[P]>
+      : GetScalarType<T[P], AggregatePolicyCondition[P]>
+  }
+
+
+
+
+  export type PolicyConditionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: PolicyConditionWhereInput
+    orderBy?: PolicyConditionOrderByWithAggregationInput | PolicyConditionOrderByWithAggregationInput[]
+    by: PolicyConditionScalarFieldEnum[] | PolicyConditionScalarFieldEnum
+    having?: PolicyConditionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: PolicyConditionCountAggregateInputType | true
+    _min?: PolicyConditionMinAggregateInputType
+    _max?: PolicyConditionMaxAggregateInputType
+  }
+
+  export type PolicyConditionGroupByOutputType = {
+    id: string
+    policyId: string
+    attributeSource: $Enums.AttributeSource
+    attributeKey: string
+    operator: $Enums.ConditionOperator
+    value: string
+    _count: PolicyConditionCountAggregateOutputType | null
+    _min: PolicyConditionMinAggregateOutputType | null
+    _max: PolicyConditionMaxAggregateOutputType | null
+  }
+
+  type GetPolicyConditionGroupByPayload<T extends PolicyConditionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<PolicyConditionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof PolicyConditionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], PolicyConditionGroupByOutputType[P]>
+            : GetScalarType<T[P], PolicyConditionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type PolicyConditionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    policyId?: boolean
+    attributeSource?: boolean
+    attributeKey?: boolean
+    operator?: boolean
+    value?: boolean
+    policy?: boolean | PolicyDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["policyCondition"]>
+
+  export type PolicyConditionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    policyId?: boolean
+    attributeSource?: boolean
+    attributeKey?: boolean
+    operator?: boolean
+    value?: boolean
+    policy?: boolean | PolicyDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["policyCondition"]>
+
+  export type PolicyConditionSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    policyId?: boolean
+    attributeSource?: boolean
+    attributeKey?: boolean
+    operator?: boolean
+    value?: boolean
+    policy?: boolean | PolicyDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["policyCondition"]>
+
+  export type PolicyConditionSelectScalar = {
+    id?: boolean
+    policyId?: boolean
+    attributeSource?: boolean
+    attributeKey?: boolean
+    operator?: boolean
+    value?: boolean
+  }
+
+  export type PolicyConditionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "policyId" | "attributeSource" | "attributeKey" | "operator" | "value", ExtArgs["result"]["policyCondition"]>
+  export type PolicyConditionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    policy?: boolean | PolicyDefaultArgs<ExtArgs>
+  }
+  export type PolicyConditionIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    policy?: boolean | PolicyDefaultArgs<ExtArgs>
+  }
+  export type PolicyConditionIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    policy?: boolean | PolicyDefaultArgs<ExtArgs>
+  }
+
+  export type $PolicyConditionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "PolicyCondition"
+    objects: {
+      policy: Prisma.$PolicyPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      policyId: string
+      attributeSource: $Enums.AttributeSource
+      attributeKey: string
+      operator: $Enums.ConditionOperator
+      value: string
+    }, ExtArgs["result"]["policyCondition"]>
+    composites: {}
+  }
+
+  type PolicyConditionGetPayload<S extends boolean | null | undefined | PolicyConditionDefaultArgs> = $Result.GetResult<Prisma.$PolicyConditionPayload, S>
+
+  type PolicyConditionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<PolicyConditionFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: PolicyConditionCountAggregateInputType | true
+    }
+
+  export interface PolicyConditionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['PolicyCondition'], meta: { name: 'PolicyCondition' } }
+    /**
+     * Find zero or one PolicyCondition that matches the filter.
+     * @param {PolicyConditionFindUniqueArgs} args - Arguments to find a PolicyCondition
+     * @example
+     * // Get one PolicyCondition
+     * const policyCondition = await prisma.policyCondition.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends PolicyConditionFindUniqueArgs>(args: SelectSubset<T, PolicyConditionFindUniqueArgs<ExtArgs>>): Prisma__PolicyConditionClient<$Result.GetResult<Prisma.$PolicyConditionPayload<ExtArgs>, T, "findUnique", ClientOptions> | null, null, ExtArgs, ClientOptions>
+
+    /**
+     * Find one PolicyCondition that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {PolicyConditionFindUniqueOrThrowArgs} args - Arguments to find a PolicyCondition
+     * @example
+     * // Get one PolicyCondition
+     * const policyCondition = await prisma.policyCondition.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends PolicyConditionFindUniqueOrThrowArgs>(args: SelectSubset<T, PolicyConditionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__PolicyConditionClient<$Result.GetResult<Prisma.$PolicyConditionPayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Find the first PolicyCondition that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PolicyConditionFindFirstArgs} args - Arguments to find a PolicyCondition
+     * @example
+     * // Get one PolicyCondition
+     * const policyCondition = await prisma.policyCondition.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends PolicyConditionFindFirstArgs>(args?: SelectSubset<T, PolicyConditionFindFirstArgs<ExtArgs>>): Prisma__PolicyConditionClient<$Result.GetResult<Prisma.$PolicyConditionPayload<ExtArgs>, T, "findFirst", ClientOptions> | null, null, ExtArgs, ClientOptions>
+
+    /**
+     * Find the first PolicyCondition that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PolicyConditionFindFirstOrThrowArgs} args - Arguments to find a PolicyCondition
+     * @example
+     * // Get one PolicyCondition
+     * const policyCondition = await prisma.policyCondition.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends PolicyConditionFindFirstOrThrowArgs>(args?: SelectSubset<T, PolicyConditionFindFirstOrThrowArgs<ExtArgs>>): Prisma__PolicyConditionClient<$Result.GetResult<Prisma.$PolicyConditionPayload<ExtArgs>, T, "findFirstOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Find zero or more PolicyConditions that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PolicyConditionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all PolicyConditions
+     * const policyConditions = await prisma.policyCondition.findMany()
+     * 
+     * // Get first 10 PolicyConditions
+     * const policyConditions = await prisma.policyCondition.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const policyConditionWithIdOnly = await prisma.policyCondition.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends PolicyConditionFindManyArgs>(args?: SelectSubset<T, PolicyConditionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PolicyConditionPayload<ExtArgs>, T, "findMany", ClientOptions>>
+
+    /**
+     * Create a PolicyCondition.
+     * @param {PolicyConditionCreateArgs} args - Arguments to create a PolicyCondition.
+     * @example
+     * // Create one PolicyCondition
+     * const PolicyCondition = await prisma.policyCondition.create({
+     *   data: {
+     *     // ... data to create a PolicyCondition
+     *   }
+     * })
+     * 
+     */
+    create<T extends PolicyConditionCreateArgs>(args: SelectSubset<T, PolicyConditionCreateArgs<ExtArgs>>): Prisma__PolicyConditionClient<$Result.GetResult<Prisma.$PolicyConditionPayload<ExtArgs>, T, "create", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Create many PolicyConditions.
+     * @param {PolicyConditionCreateManyArgs} args - Arguments to create many PolicyConditions.
+     * @example
+     * // Create many PolicyConditions
+     * const policyCondition = await prisma.policyCondition.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends PolicyConditionCreateManyArgs>(args?: SelectSubset<T, PolicyConditionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many PolicyConditions and returns the data saved in the database.
+     * @param {PolicyConditionCreateManyAndReturnArgs} args - Arguments to create many PolicyConditions.
+     * @example
+     * // Create many PolicyConditions
+     * const policyCondition = await prisma.policyCondition.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many PolicyConditions and only return the `id`
+     * const policyConditionWithIdOnly = await prisma.policyCondition.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends PolicyConditionCreateManyAndReturnArgs>(args?: SelectSubset<T, PolicyConditionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PolicyConditionPayload<ExtArgs>, T, "createManyAndReturn", ClientOptions>>
+
+    /**
+     * Delete a PolicyCondition.
+     * @param {PolicyConditionDeleteArgs} args - Arguments to delete one PolicyCondition.
+     * @example
+     * // Delete one PolicyCondition
+     * const PolicyCondition = await prisma.policyCondition.delete({
+     *   where: {
+     *     // ... filter to delete one PolicyCondition
+     *   }
+     * })
+     * 
+     */
+    delete<T extends PolicyConditionDeleteArgs>(args: SelectSubset<T, PolicyConditionDeleteArgs<ExtArgs>>): Prisma__PolicyConditionClient<$Result.GetResult<Prisma.$PolicyConditionPayload<ExtArgs>, T, "delete", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Update one PolicyCondition.
+     * @param {PolicyConditionUpdateArgs} args - Arguments to update one PolicyCondition.
+     * @example
+     * // Update one PolicyCondition
+     * const policyCondition = await prisma.policyCondition.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends PolicyConditionUpdateArgs>(args: SelectSubset<T, PolicyConditionUpdateArgs<ExtArgs>>): Prisma__PolicyConditionClient<$Result.GetResult<Prisma.$PolicyConditionPayload<ExtArgs>, T, "update", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Delete zero or more PolicyConditions.
+     * @param {PolicyConditionDeleteManyArgs} args - Arguments to filter PolicyConditions to delete.
+     * @example
+     * // Delete a few PolicyConditions
+     * const { count } = await prisma.policyCondition.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends PolicyConditionDeleteManyArgs>(args?: SelectSubset<T, PolicyConditionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more PolicyConditions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PolicyConditionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many PolicyConditions
+     * const policyCondition = await prisma.policyCondition.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends PolicyConditionUpdateManyArgs>(args: SelectSubset<T, PolicyConditionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more PolicyConditions and returns the data updated in the database.
+     * @param {PolicyConditionUpdateManyAndReturnArgs} args - Arguments to update many PolicyConditions.
+     * @example
+     * // Update many PolicyConditions
+     * const policyCondition = await prisma.policyCondition.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more PolicyConditions and only return the `id`
+     * const policyConditionWithIdOnly = await prisma.policyCondition.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends PolicyConditionUpdateManyAndReturnArgs>(args: SelectSubset<T, PolicyConditionUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PolicyConditionPayload<ExtArgs>, T, "updateManyAndReturn", ClientOptions>>
+
+    /**
+     * Create or update one PolicyCondition.
+     * @param {PolicyConditionUpsertArgs} args - Arguments to update or create a PolicyCondition.
+     * @example
+     * // Update or create a PolicyCondition
+     * const policyCondition = await prisma.policyCondition.upsert({
+     *   create: {
+     *     // ... data to create a PolicyCondition
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the PolicyCondition we want to update
+     *   }
+     * })
+     */
+    upsert<T extends PolicyConditionUpsertArgs>(args: SelectSubset<T, PolicyConditionUpsertArgs<ExtArgs>>): Prisma__PolicyConditionClient<$Result.GetResult<Prisma.$PolicyConditionPayload<ExtArgs>, T, "upsert", ClientOptions>, never, ExtArgs, ClientOptions>
+
+
+    /**
+     * Count the number of PolicyConditions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PolicyConditionCountArgs} args - Arguments to filter PolicyConditions to count.
+     * @example
+     * // Count the number of PolicyConditions
+     * const count = await prisma.policyCondition.count({
+     *   where: {
+     *     // ... the filter for the PolicyConditions we want to count
+     *   }
+     * })
+    **/
+    count<T extends PolicyConditionCountArgs>(
+      args?: Subset<T, PolicyConditionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], PolicyConditionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a PolicyCondition.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PolicyConditionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends PolicyConditionAggregateArgs>(args: Subset<T, PolicyConditionAggregateArgs>): Prisma.PrismaPromise<GetPolicyConditionAggregateType<T>>
+
+    /**
+     * Group by PolicyCondition.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {PolicyConditionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends PolicyConditionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: PolicyConditionGroupByArgs['orderBy'] }
+        : { orderBy?: PolicyConditionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, PolicyConditionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetPolicyConditionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the PolicyCondition model
+   */
+  readonly fields: PolicyConditionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for PolicyCondition.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__PolicyConditionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    policy<T extends PolicyDefaultArgs<ExtArgs> = {}>(args?: Subset<T, PolicyDefaultArgs<ExtArgs>>): Prisma__PolicyClient<$Result.GetResult<Prisma.$PolicyPayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions> | Null, Null, ExtArgs, ClientOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the PolicyCondition model
+   */ 
+  interface PolicyConditionFieldRefs {
+    readonly id: FieldRef<"PolicyCondition", 'String'>
+    readonly policyId: FieldRef<"PolicyCondition", 'String'>
+    readonly attributeSource: FieldRef<"PolicyCondition", 'AttributeSource'>
+    readonly attributeKey: FieldRef<"PolicyCondition", 'String'>
+    readonly operator: FieldRef<"PolicyCondition", 'ConditionOperator'>
+    readonly value: FieldRef<"PolicyCondition", 'String'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * PolicyCondition findUnique
+   */
+  export type PolicyConditionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCondition
+     */
+    select?: PolicyConditionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PolicyCondition
+     */
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionInclude<ExtArgs> | null
+    /**
+     * Filter, which PolicyCondition to fetch.
+     */
+    where: PolicyConditionWhereUniqueInput
+  }
+
+  /**
+   * PolicyCondition findUniqueOrThrow
+   */
+  export type PolicyConditionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCondition
+     */
+    select?: PolicyConditionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PolicyCondition
+     */
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionInclude<ExtArgs> | null
+    /**
+     * Filter, which PolicyCondition to fetch.
+     */
+    where: PolicyConditionWhereUniqueInput
+  }
+
+  /**
+   * PolicyCondition findFirst
+   */
+  export type PolicyConditionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCondition
+     */
+    select?: PolicyConditionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PolicyCondition
+     */
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionInclude<ExtArgs> | null
+    /**
+     * Filter, which PolicyCondition to fetch.
+     */
+    where?: PolicyConditionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PolicyConditions to fetch.
+     */
+    orderBy?: PolicyConditionOrderByWithRelationInput | PolicyConditionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PolicyConditions.
+     */
+    cursor?: PolicyConditionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PolicyConditions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PolicyConditions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PolicyConditions.
+     */
+    distinct?: PolicyConditionScalarFieldEnum | PolicyConditionScalarFieldEnum[]
+  }
+
+  /**
+   * PolicyCondition findFirstOrThrow
+   */
+  export type PolicyConditionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCondition
+     */
+    select?: PolicyConditionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PolicyCondition
+     */
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionInclude<ExtArgs> | null
+    /**
+     * Filter, which PolicyCondition to fetch.
+     */
+    where?: PolicyConditionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PolicyConditions to fetch.
+     */
+    orderBy?: PolicyConditionOrderByWithRelationInput | PolicyConditionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for PolicyConditions.
+     */
+    cursor?: PolicyConditionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PolicyConditions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PolicyConditions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of PolicyConditions.
+     */
+    distinct?: PolicyConditionScalarFieldEnum | PolicyConditionScalarFieldEnum[]
+  }
+
+  /**
+   * PolicyCondition findMany
+   */
+  export type PolicyConditionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCondition
+     */
+    select?: PolicyConditionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PolicyCondition
+     */
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionInclude<ExtArgs> | null
+    /**
+     * Filter, which PolicyConditions to fetch.
+     */
+    where?: PolicyConditionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of PolicyConditions to fetch.
+     */
+    orderBy?: PolicyConditionOrderByWithRelationInput | PolicyConditionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing PolicyConditions.
+     */
+    cursor?: PolicyConditionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` PolicyConditions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` PolicyConditions.
+     */
+    skip?: number
+    distinct?: PolicyConditionScalarFieldEnum | PolicyConditionScalarFieldEnum[]
+  }
+
+  /**
+   * PolicyCondition create
+   */
+  export type PolicyConditionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCondition
+     */
+    select?: PolicyConditionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PolicyCondition
+     */
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionInclude<ExtArgs> | null
+    /**
+     * The data needed to create a PolicyCondition.
+     */
+    data: XOR<PolicyConditionCreateInput, PolicyConditionUncheckedCreateInput>
+  }
+
+  /**
+   * PolicyCondition createMany
+   */
+  export type PolicyConditionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many PolicyConditions.
+     */
+    data: PolicyConditionCreateManyInput | PolicyConditionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * PolicyCondition createManyAndReturn
+   */
+  export type PolicyConditionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCondition
+     */
+    select?: PolicyConditionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the PolicyCondition
+     */
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * The data used to create many PolicyConditions.
+     */
+    data: PolicyConditionCreateManyInput | PolicyConditionCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * PolicyCondition update
+   */
+  export type PolicyConditionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCondition
+     */
+    select?: PolicyConditionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PolicyCondition
+     */
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionInclude<ExtArgs> | null
+    /**
+     * The data needed to update a PolicyCondition.
+     */
+    data: XOR<PolicyConditionUpdateInput, PolicyConditionUncheckedUpdateInput>
+    /**
+     * Choose, which PolicyCondition to update.
+     */
+    where: PolicyConditionWhereUniqueInput
+  }
+
+  /**
+   * PolicyCondition updateMany
+   */
+  export type PolicyConditionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update PolicyConditions.
+     */
+    data: XOR<PolicyConditionUpdateManyMutationInput, PolicyConditionUncheckedUpdateManyInput>
+    /**
+     * Filter which PolicyConditions to update
+     */
+    where?: PolicyConditionWhereInput
+    /**
+     * Limit how many PolicyConditions to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * PolicyCondition updateManyAndReturn
+   */
+  export type PolicyConditionUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCondition
+     */
+    select?: PolicyConditionSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the PolicyCondition
+     */
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * The data used to update PolicyConditions.
+     */
+    data: XOR<PolicyConditionUpdateManyMutationInput, PolicyConditionUncheckedUpdateManyInput>
+    /**
+     * Filter which PolicyConditions to update
+     */
+    where?: PolicyConditionWhereInput
+    /**
+     * Limit how many PolicyConditions to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * PolicyCondition upsert
+   */
+  export type PolicyConditionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCondition
+     */
+    select?: PolicyConditionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PolicyCondition
+     */
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionInclude<ExtArgs> | null
+    /**
+     * The filter to search for the PolicyCondition to update in case it exists.
+     */
+    where: PolicyConditionWhereUniqueInput
+    /**
+     * In case the PolicyCondition found by the `where` argument doesn't exist, create a new PolicyCondition with this data.
+     */
+    create: XOR<PolicyConditionCreateInput, PolicyConditionUncheckedCreateInput>
+    /**
+     * In case the PolicyCondition was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<PolicyConditionUpdateInput, PolicyConditionUncheckedUpdateInput>
+  }
+
+  /**
+   * PolicyCondition delete
+   */
+  export type PolicyConditionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCondition
+     */
+    select?: PolicyConditionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PolicyCondition
+     */
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionInclude<ExtArgs> | null
+    /**
+     * Filter which PolicyCondition to delete.
+     */
+    where: PolicyConditionWhereUniqueInput
+  }
+
+  /**
+   * PolicyCondition deleteMany
+   */
+  export type PolicyConditionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which PolicyConditions to delete
+     */
+    where?: PolicyConditionWhereInput
+    /**
+     * Limit how many PolicyConditions to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * PolicyCondition without action
+   */
+  export type PolicyConditionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the PolicyCondition
+     */
+    select?: PolicyConditionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the PolicyCondition
+     */
+    omit?: PolicyConditionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: PolicyConditionInclude<ExtArgs> | null
   }
 
 
@@ -6800,20 +8217,36 @@ export namespace Prisma {
   export type AccountRoleScalarFieldEnum = (typeof AccountRoleScalarFieldEnum)[keyof typeof AccountRoleScalarFieldEnum]
 
 
-  export const AccountScopeScalarFieldEnum: {
+  export const PolicyScalarFieldEnum: {
     id: 'id',
-    holderType: 'holderType',
-    holderId: 'holderId',
+    name: 'name',
+    description: 'description',
     tenantId: 'tenantId',
-    isActive: 'isActive',
+    effect: 'effect',
+    subjectType: 'subjectType',
+    subjectId: 'subjectId',
     permissionCode: 'permissionCode',
     resourceType: 'resourceType',
-    resourceId: 'resourceId',
-    expiredAt: 'expiredAt',
+    priority: 'priority',
+    isEnabled: 'isEnabled',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt',
     createdBy: 'createdBy'
   };
 
-  export type AccountScopeScalarFieldEnum = (typeof AccountScopeScalarFieldEnum)[keyof typeof AccountScopeScalarFieldEnum]
+  export type PolicyScalarFieldEnum = (typeof PolicyScalarFieldEnum)[keyof typeof PolicyScalarFieldEnum]
+
+
+  export const PolicyConditionScalarFieldEnum: {
+    id: 'id',
+    policyId: 'policyId',
+    attributeSource: 'attributeSource',
+    attributeKey: 'attributeKey',
+    operator: 'operator',
+    value: 'value'
+  };
+
+  export type PolicyConditionScalarFieldEnum = (typeof PolicyConditionScalarFieldEnum)[keyof typeof PolicyConditionScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -6909,6 +8342,34 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'PolicyEffect'
+   */
+  export type EnumPolicyEffectFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PolicyEffect'>
+    
+
+
+  /**
+   * Reference to a field of type 'PolicyEffect[]'
+   */
+  export type ListEnumPolicyEffectFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PolicyEffect[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'PolicySubjectType'
+   */
+  export type EnumPolicySubjectTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PolicySubjectType'>
+    
+
+
+  /**
+   * Reference to a field of type 'PolicySubjectType[]'
+   */
+  export type ListEnumPolicySubjectTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PolicySubjectType[]'>
+    
+
+
+  /**
    * Reference to a field of type 'Int'
    */
   export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
@@ -6919,6 +8380,48 @@ export namespace Prisma {
    * Reference to a field of type 'Int[]'
    */
   export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'AttributeSource'
+   */
+  export type EnumAttributeSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AttributeSource'>
+    
+
+
+  /**
+   * Reference to a field of type 'AttributeSource[]'
+   */
+  export type ListEnumAttributeSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AttributeSource[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'ConditionOperator'
+   */
+  export type EnumConditionOperatorFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ConditionOperator'>
+    
+
+
+  /**
+   * Reference to a field of type 'ConditionOperator[]'
+   */
+  export type ListEnumConditionOperatorFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ConditionOperator[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'Float'
+   */
+  export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
+    
+
+
+  /**
+   * Reference to a field of type 'Float[]'
+   */
+  export type ListFloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float[]'>
     
   /**
    * Deep Input Types
@@ -7174,81 +8677,166 @@ export namespace Prisma {
     createdBy?: StringWithAggregatesFilter<"AccountRole"> | string
   }
 
-  export type AccountScopeWhereInput = {
-    AND?: AccountScopeWhereInput | AccountScopeWhereInput[]
-    OR?: AccountScopeWhereInput[]
-    NOT?: AccountScopeWhereInput | AccountScopeWhereInput[]
-    id?: StringFilter<"AccountScope"> | string
-    holderType?: EnumAccountTypeFilter<"AccountScope"> | $Enums.AccountType
-    holderId?: StringFilter<"AccountScope"> | string
-    tenantId?: StringFilter<"AccountScope"> | string
-    isActive?: BoolFilter<"AccountScope"> | boolean
-    permissionCode?: StringFilter<"AccountScope"> | string
-    resourceType?: StringFilter<"AccountScope"> | string
-    resourceId?: StringFilter<"AccountScope"> | string
-    expiredAt?: DateTimeNullableFilter<"AccountScope"> | Date | string | null
-    createdBy?: StringFilter<"AccountScope"> | string
+  export type PolicyWhereInput = {
+    AND?: PolicyWhereInput | PolicyWhereInput[]
+    OR?: PolicyWhereInput[]
+    NOT?: PolicyWhereInput | PolicyWhereInput[]
+    id?: StringFilter<"Policy"> | string
+    name?: StringFilter<"Policy"> | string
+    description?: StringNullableFilter<"Policy"> | string | null
+    tenantId?: StringNullableFilter<"Policy"> | string | null
+    effect?: EnumPolicyEffectFilter<"Policy"> | $Enums.PolicyEffect
+    subjectType?: EnumPolicySubjectTypeFilter<"Policy"> | $Enums.PolicySubjectType
+    subjectId?: StringNullableFilter<"Policy"> | string | null
+    permissionCode?: StringNullableFilter<"Policy"> | string | null
+    resourceType?: StringNullableFilter<"Policy"> | string | null
+    priority?: IntFilter<"Policy"> | number
+    isEnabled?: BoolFilter<"Policy"> | boolean
+    createdAt?: DateTimeFilter<"Policy"> | Date | string
+    updatedAt?: DateTimeFilter<"Policy"> | Date | string
+    createdBy?: StringFilter<"Policy"> | string
+    conditions?: PolicyConditionListRelationFilter
   }
 
-  export type AccountScopeOrderByWithRelationInput = {
+  export type PolicyOrderByWithRelationInput = {
     id?: SortOrder
-    holderType?: SortOrder
-    holderId?: SortOrder
-    tenantId?: SortOrder
-    isActive?: SortOrder
-    permissionCode?: SortOrder
-    resourceType?: SortOrder
-    resourceId?: SortOrder
-    expiredAt?: SortOrderInput | SortOrder
+    name?: SortOrder
+    description?: SortOrderInput | SortOrder
+    tenantId?: SortOrderInput | SortOrder
+    effect?: SortOrder
+    subjectType?: SortOrder
+    subjectId?: SortOrderInput | SortOrder
+    permissionCode?: SortOrderInput | SortOrder
+    resourceType?: SortOrderInput | SortOrder
+    priority?: SortOrder
+    isEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
     createdBy?: SortOrder
+    conditions?: PolicyConditionOrderByRelationAggregateInput
   }
 
-  export type AccountScopeWhereUniqueInput = Prisma.AtLeast<{
+  export type PolicyWhereUniqueInput = Prisma.AtLeast<{
     id?: string
-    AND?: AccountScopeWhereInput | AccountScopeWhereInput[]
-    OR?: AccountScopeWhereInput[]
-    NOT?: AccountScopeWhereInput | AccountScopeWhereInput[]
-    holderType?: EnumAccountTypeFilter<"AccountScope"> | $Enums.AccountType
-    holderId?: StringFilter<"AccountScope"> | string
-    tenantId?: StringFilter<"AccountScope"> | string
-    isActive?: BoolFilter<"AccountScope"> | boolean
-    permissionCode?: StringFilter<"AccountScope"> | string
-    resourceType?: StringFilter<"AccountScope"> | string
-    resourceId?: StringFilter<"AccountScope"> | string
-    expiredAt?: DateTimeNullableFilter<"AccountScope"> | Date | string | null
-    createdBy?: StringFilter<"AccountScope"> | string
+    AND?: PolicyWhereInput | PolicyWhereInput[]
+    OR?: PolicyWhereInput[]
+    NOT?: PolicyWhereInput | PolicyWhereInput[]
+    name?: StringFilter<"Policy"> | string
+    description?: StringNullableFilter<"Policy"> | string | null
+    tenantId?: StringNullableFilter<"Policy"> | string | null
+    effect?: EnumPolicyEffectFilter<"Policy"> | $Enums.PolicyEffect
+    subjectType?: EnumPolicySubjectTypeFilter<"Policy"> | $Enums.PolicySubjectType
+    subjectId?: StringNullableFilter<"Policy"> | string | null
+    permissionCode?: StringNullableFilter<"Policy"> | string | null
+    resourceType?: StringNullableFilter<"Policy"> | string | null
+    priority?: IntFilter<"Policy"> | number
+    isEnabled?: BoolFilter<"Policy"> | boolean
+    createdAt?: DateTimeFilter<"Policy"> | Date | string
+    updatedAt?: DateTimeFilter<"Policy"> | Date | string
+    createdBy?: StringFilter<"Policy"> | string
+    conditions?: PolicyConditionListRelationFilter
   }, "id">
 
-  export type AccountScopeOrderByWithAggregationInput = {
+  export type PolicyOrderByWithAggregationInput = {
     id?: SortOrder
-    holderType?: SortOrder
-    holderId?: SortOrder
-    tenantId?: SortOrder
-    isActive?: SortOrder
-    permissionCode?: SortOrder
-    resourceType?: SortOrder
-    resourceId?: SortOrder
-    expiredAt?: SortOrderInput | SortOrder
+    name?: SortOrder
+    description?: SortOrderInput | SortOrder
+    tenantId?: SortOrderInput | SortOrder
+    effect?: SortOrder
+    subjectType?: SortOrder
+    subjectId?: SortOrderInput | SortOrder
+    permissionCode?: SortOrderInput | SortOrder
+    resourceType?: SortOrderInput | SortOrder
+    priority?: SortOrder
+    isEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
     createdBy?: SortOrder
-    _count?: AccountScopeCountOrderByAggregateInput
-    _max?: AccountScopeMaxOrderByAggregateInput
-    _min?: AccountScopeMinOrderByAggregateInput
+    _count?: PolicyCountOrderByAggregateInput
+    _avg?: PolicyAvgOrderByAggregateInput
+    _max?: PolicyMaxOrderByAggregateInput
+    _min?: PolicyMinOrderByAggregateInput
+    _sum?: PolicySumOrderByAggregateInput
   }
 
-  export type AccountScopeScalarWhereWithAggregatesInput = {
-    AND?: AccountScopeScalarWhereWithAggregatesInput | AccountScopeScalarWhereWithAggregatesInput[]
-    OR?: AccountScopeScalarWhereWithAggregatesInput[]
-    NOT?: AccountScopeScalarWhereWithAggregatesInput | AccountScopeScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"AccountScope"> | string
-    holderType?: EnumAccountTypeWithAggregatesFilter<"AccountScope"> | $Enums.AccountType
-    holderId?: StringWithAggregatesFilter<"AccountScope"> | string
-    tenantId?: StringWithAggregatesFilter<"AccountScope"> | string
-    isActive?: BoolWithAggregatesFilter<"AccountScope"> | boolean
-    permissionCode?: StringWithAggregatesFilter<"AccountScope"> | string
-    resourceType?: StringWithAggregatesFilter<"AccountScope"> | string
-    resourceId?: StringWithAggregatesFilter<"AccountScope"> | string
-    expiredAt?: DateTimeNullableWithAggregatesFilter<"AccountScope"> | Date | string | null
-    createdBy?: StringWithAggregatesFilter<"AccountScope"> | string
+  export type PolicyScalarWhereWithAggregatesInput = {
+    AND?: PolicyScalarWhereWithAggregatesInput | PolicyScalarWhereWithAggregatesInput[]
+    OR?: PolicyScalarWhereWithAggregatesInput[]
+    NOT?: PolicyScalarWhereWithAggregatesInput | PolicyScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"Policy"> | string
+    name?: StringWithAggregatesFilter<"Policy"> | string
+    description?: StringNullableWithAggregatesFilter<"Policy"> | string | null
+    tenantId?: StringNullableWithAggregatesFilter<"Policy"> | string | null
+    effect?: EnumPolicyEffectWithAggregatesFilter<"Policy"> | $Enums.PolicyEffect
+    subjectType?: EnumPolicySubjectTypeWithAggregatesFilter<"Policy"> | $Enums.PolicySubjectType
+    subjectId?: StringNullableWithAggregatesFilter<"Policy"> | string | null
+    permissionCode?: StringNullableWithAggregatesFilter<"Policy"> | string | null
+    resourceType?: StringNullableWithAggregatesFilter<"Policy"> | string | null
+    priority?: IntWithAggregatesFilter<"Policy"> | number
+    isEnabled?: BoolWithAggregatesFilter<"Policy"> | boolean
+    createdAt?: DateTimeWithAggregatesFilter<"Policy"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"Policy"> | Date | string
+    createdBy?: StringWithAggregatesFilter<"Policy"> | string
+  }
+
+  export type PolicyConditionWhereInput = {
+    AND?: PolicyConditionWhereInput | PolicyConditionWhereInput[]
+    OR?: PolicyConditionWhereInput[]
+    NOT?: PolicyConditionWhereInput | PolicyConditionWhereInput[]
+    id?: StringFilter<"PolicyCondition"> | string
+    policyId?: StringFilter<"PolicyCondition"> | string
+    attributeSource?: EnumAttributeSourceFilter<"PolicyCondition"> | $Enums.AttributeSource
+    attributeKey?: StringFilter<"PolicyCondition"> | string
+    operator?: EnumConditionOperatorFilter<"PolicyCondition"> | $Enums.ConditionOperator
+    value?: StringFilter<"PolicyCondition"> | string
+    policy?: XOR<PolicyScalarRelationFilter, PolicyWhereInput>
+  }
+
+  export type PolicyConditionOrderByWithRelationInput = {
+    id?: SortOrder
+    policyId?: SortOrder
+    attributeSource?: SortOrder
+    attributeKey?: SortOrder
+    operator?: SortOrder
+    value?: SortOrder
+    policy?: PolicyOrderByWithRelationInput
+  }
+
+  export type PolicyConditionWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: PolicyConditionWhereInput | PolicyConditionWhereInput[]
+    OR?: PolicyConditionWhereInput[]
+    NOT?: PolicyConditionWhereInput | PolicyConditionWhereInput[]
+    policyId?: StringFilter<"PolicyCondition"> | string
+    attributeSource?: EnumAttributeSourceFilter<"PolicyCondition"> | $Enums.AttributeSource
+    attributeKey?: StringFilter<"PolicyCondition"> | string
+    operator?: EnumConditionOperatorFilter<"PolicyCondition"> | $Enums.ConditionOperator
+    value?: StringFilter<"PolicyCondition"> | string
+    policy?: XOR<PolicyScalarRelationFilter, PolicyWhereInput>
+  }, "id">
+
+  export type PolicyConditionOrderByWithAggregationInput = {
+    id?: SortOrder
+    policyId?: SortOrder
+    attributeSource?: SortOrder
+    attributeKey?: SortOrder
+    operator?: SortOrder
+    value?: SortOrder
+    _count?: PolicyConditionCountOrderByAggregateInput
+    _max?: PolicyConditionMaxOrderByAggregateInput
+    _min?: PolicyConditionMinOrderByAggregateInput
+  }
+
+  export type PolicyConditionScalarWhereWithAggregatesInput = {
+    AND?: PolicyConditionScalarWhereWithAggregatesInput | PolicyConditionScalarWhereWithAggregatesInput[]
+    OR?: PolicyConditionScalarWhereWithAggregatesInput[]
+    NOT?: PolicyConditionScalarWhereWithAggregatesInput | PolicyConditionScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"PolicyCondition"> | string
+    policyId?: StringWithAggregatesFilter<"PolicyCondition"> | string
+    attributeSource?: EnumAttributeSourceWithAggregatesFilter<"PolicyCondition"> | $Enums.AttributeSource
+    attributeKey?: StringWithAggregatesFilter<"PolicyCondition"> | string
+    operator?: EnumConditionOperatorWithAggregatesFilter<"PolicyCondition"> | $Enums.ConditionOperator
+    value?: StringWithAggregatesFilter<"PolicyCondition"> | string
   }
 
   export type RoleCreateInput = {
@@ -7512,95 +9100,189 @@ export namespace Prisma {
     createdBy?: StringFieldUpdateOperationsInput | string
   }
 
-  export type AccountScopeCreateInput = {
+  export type PolicyCreateInput = {
     id?: string
-    holderType: $Enums.AccountType
-    holderId: string
-    tenantId: string
-    isActive?: boolean
-    permissionCode: string
-    resourceType: string
-    resourceId: string
-    expiredAt?: Date | string | null
+    name: string
+    description?: string | null
+    tenantId?: string | null
+    effect: $Enums.PolicyEffect
+    subjectType?: $Enums.PolicySubjectType
+    subjectId?: string | null
+    permissionCode?: string | null
+    resourceType?: string | null
+    priority?: number
+    isEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    createdBy: string
+    conditions?: PolicyConditionCreateNestedManyWithoutPolicyInput
+  }
+
+  export type PolicyUncheckedCreateInput = {
+    id?: string
+    name: string
+    description?: string | null
+    tenantId?: string | null
+    effect: $Enums.PolicyEffect
+    subjectType?: $Enums.PolicySubjectType
+    subjectId?: string | null
+    permissionCode?: string | null
+    resourceType?: string | null
+    priority?: number
+    isEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    createdBy: string
+    conditions?: PolicyConditionUncheckedCreateNestedManyWithoutPolicyInput
+  }
+
+  export type PolicyUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    tenantId?: NullableStringFieldUpdateOperationsInput | string | null
+    effect?: EnumPolicyEffectFieldUpdateOperationsInput | $Enums.PolicyEffect
+    subjectType?: EnumPolicySubjectTypeFieldUpdateOperationsInput | $Enums.PolicySubjectType
+    subjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionCode?: NullableStringFieldUpdateOperationsInput | string | null
+    resourceType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdBy?: StringFieldUpdateOperationsInput | string
+    conditions?: PolicyConditionUpdateManyWithoutPolicyNestedInput
+  }
+
+  export type PolicyUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    tenantId?: NullableStringFieldUpdateOperationsInput | string | null
+    effect?: EnumPolicyEffectFieldUpdateOperationsInput | $Enums.PolicyEffect
+    subjectType?: EnumPolicySubjectTypeFieldUpdateOperationsInput | $Enums.PolicySubjectType
+    subjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionCode?: NullableStringFieldUpdateOperationsInput | string | null
+    resourceType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdBy?: StringFieldUpdateOperationsInput | string
+    conditions?: PolicyConditionUncheckedUpdateManyWithoutPolicyNestedInput
+  }
+
+  export type PolicyCreateManyInput = {
+    id?: string
+    name: string
+    description?: string | null
+    tenantId?: string | null
+    effect: $Enums.PolicyEffect
+    subjectType?: $Enums.PolicySubjectType
+    subjectId?: string | null
+    permissionCode?: string | null
+    resourceType?: string | null
+    priority?: number
+    isEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
     createdBy: string
   }
 
-  export type AccountScopeUncheckedCreateInput = {
+  export type PolicyUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    tenantId?: NullableStringFieldUpdateOperationsInput | string | null
+    effect?: EnumPolicyEffectFieldUpdateOperationsInput | $Enums.PolicyEffect
+    subjectType?: EnumPolicySubjectTypeFieldUpdateOperationsInput | $Enums.PolicySubjectType
+    subjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionCode?: NullableStringFieldUpdateOperationsInput | string | null
+    resourceType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdBy?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type PolicyUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    tenantId?: NullableStringFieldUpdateOperationsInput | string | null
+    effect?: EnumPolicyEffectFieldUpdateOperationsInput | $Enums.PolicyEffect
+    subjectType?: EnumPolicySubjectTypeFieldUpdateOperationsInput | $Enums.PolicySubjectType
+    subjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionCode?: NullableStringFieldUpdateOperationsInput | string | null
+    resourceType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdBy?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type PolicyConditionCreateInput = {
     id?: string
-    holderType: $Enums.AccountType
-    holderId: string
-    tenantId: string
-    isActive?: boolean
-    permissionCode: string
-    resourceType: string
-    resourceId: string
-    expiredAt?: Date | string | null
-    createdBy: string
+    attributeSource: $Enums.AttributeSource
+    attributeKey: string
+    operator: $Enums.ConditionOperator
+    value: string
+    policy: PolicyCreateNestedOneWithoutConditionsInput
   }
 
-  export type AccountScopeUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    holderType?: EnumAccountTypeFieldUpdateOperationsInput | $Enums.AccountType
-    holderId?: StringFieldUpdateOperationsInput | string
-    tenantId?: StringFieldUpdateOperationsInput | string
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    permissionCode?: StringFieldUpdateOperationsInput | string
-    resourceType?: StringFieldUpdateOperationsInput | string
-    resourceId?: StringFieldUpdateOperationsInput | string
-    expiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdBy?: StringFieldUpdateOperationsInput | string
-  }
-
-  export type AccountScopeUncheckedUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    holderType?: EnumAccountTypeFieldUpdateOperationsInput | $Enums.AccountType
-    holderId?: StringFieldUpdateOperationsInput | string
-    tenantId?: StringFieldUpdateOperationsInput | string
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    permissionCode?: StringFieldUpdateOperationsInput | string
-    resourceType?: StringFieldUpdateOperationsInput | string
-    resourceId?: StringFieldUpdateOperationsInput | string
-    expiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdBy?: StringFieldUpdateOperationsInput | string
-  }
-
-  export type AccountScopeCreateManyInput = {
+  export type PolicyConditionUncheckedCreateInput = {
     id?: string
-    holderType: $Enums.AccountType
-    holderId: string
-    tenantId: string
-    isActive?: boolean
-    permissionCode: string
-    resourceType: string
-    resourceId: string
-    expiredAt?: Date | string | null
-    createdBy: string
+    policyId: string
+    attributeSource: $Enums.AttributeSource
+    attributeKey: string
+    operator: $Enums.ConditionOperator
+    value: string
   }
 
-  export type AccountScopeUpdateManyMutationInput = {
+  export type PolicyConditionUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    holderType?: EnumAccountTypeFieldUpdateOperationsInput | $Enums.AccountType
-    holderId?: StringFieldUpdateOperationsInput | string
-    tenantId?: StringFieldUpdateOperationsInput | string
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    permissionCode?: StringFieldUpdateOperationsInput | string
-    resourceType?: StringFieldUpdateOperationsInput | string
-    resourceId?: StringFieldUpdateOperationsInput | string
-    expiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdBy?: StringFieldUpdateOperationsInput | string
+    attributeSource?: EnumAttributeSourceFieldUpdateOperationsInput | $Enums.AttributeSource
+    attributeKey?: StringFieldUpdateOperationsInput | string
+    operator?: EnumConditionOperatorFieldUpdateOperationsInput | $Enums.ConditionOperator
+    value?: StringFieldUpdateOperationsInput | string
+    policy?: PolicyUpdateOneRequiredWithoutConditionsNestedInput
   }
 
-  export type AccountScopeUncheckedUpdateManyInput = {
+  export type PolicyConditionUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    holderType?: EnumAccountTypeFieldUpdateOperationsInput | $Enums.AccountType
-    holderId?: StringFieldUpdateOperationsInput | string
-    tenantId?: StringFieldUpdateOperationsInput | string
-    isActive?: BoolFieldUpdateOperationsInput | boolean
-    permissionCode?: StringFieldUpdateOperationsInput | string
-    resourceType?: StringFieldUpdateOperationsInput | string
-    resourceId?: StringFieldUpdateOperationsInput | string
-    expiredAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    createdBy?: StringFieldUpdateOperationsInput | string
+    policyId?: StringFieldUpdateOperationsInput | string
+    attributeSource?: EnumAttributeSourceFieldUpdateOperationsInput | $Enums.AttributeSource
+    attributeKey?: StringFieldUpdateOperationsInput | string
+    operator?: EnumConditionOperatorFieldUpdateOperationsInput | $Enums.ConditionOperator
+    value?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type PolicyConditionCreateManyInput = {
+    id?: string
+    policyId: string
+    attributeSource: $Enums.AttributeSource
+    attributeKey: string
+    operator: $Enums.ConditionOperator
+    value: string
+  }
+
+  export type PolicyConditionUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    attributeSource?: EnumAttributeSourceFieldUpdateOperationsInput | $Enums.AttributeSource
+    attributeKey?: StringFieldUpdateOperationsInput | string
+    operator?: EnumConditionOperatorFieldUpdateOperationsInput | $Enums.ConditionOperator
+    value?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type PolicyConditionUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    policyId?: StringFieldUpdateOperationsInput | string
+    attributeSource?: EnumAttributeSourceFieldUpdateOperationsInput | $Enums.AttributeSource
+    attributeKey?: StringFieldUpdateOperationsInput | string
+    operator?: EnumConditionOperatorFieldUpdateOperationsInput | $Enums.ConditionOperator
+    value?: StringFieldUpdateOperationsInput | string
   }
 
   export type StringFilter<$PrismaModel = never> = {
@@ -7899,68 +9581,200 @@ export namespace Prisma {
     _max?: NestedEnumAccountTypeFilter<$PrismaModel>
   }
 
-  export type DateTimeNullableFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  export type EnumPolicyEffectFilter<$PrismaModel = never> = {
+    equals?: $Enums.PolicyEffect | EnumPolicyEffectFieldRefInput<$PrismaModel>
+    in?: $Enums.PolicyEffect[] | ListEnumPolicyEffectFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PolicyEffect[] | ListEnumPolicyEffectFieldRefInput<$PrismaModel>
+    not?: NestedEnumPolicyEffectFilter<$PrismaModel> | $Enums.PolicyEffect
   }
 
-  export type AccountScopeCountOrderByAggregateInput = {
+  export type EnumPolicySubjectTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.PolicySubjectType | EnumPolicySubjectTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.PolicySubjectType[] | ListEnumPolicySubjectTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PolicySubjectType[] | ListEnumPolicySubjectTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumPolicySubjectTypeFilter<$PrismaModel> | $Enums.PolicySubjectType
+  }
+
+  export type IntFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntFilter<$PrismaModel> | number
+  }
+
+  export type PolicyConditionListRelationFilter = {
+    every?: PolicyConditionWhereInput
+    some?: PolicyConditionWhereInput
+    none?: PolicyConditionWhereInput
+  }
+
+  export type PolicyConditionOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type PolicyCountOrderByAggregateInput = {
     id?: SortOrder
-    holderType?: SortOrder
-    holderId?: SortOrder
+    name?: SortOrder
+    description?: SortOrder
     tenantId?: SortOrder
-    isActive?: SortOrder
+    effect?: SortOrder
+    subjectType?: SortOrder
+    subjectId?: SortOrder
     permissionCode?: SortOrder
     resourceType?: SortOrder
-    resourceId?: SortOrder
-    expiredAt?: SortOrder
+    priority?: SortOrder
+    isEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
     createdBy?: SortOrder
   }
 
-  export type AccountScopeMaxOrderByAggregateInput = {
+  export type PolicyAvgOrderByAggregateInput = {
+    priority?: SortOrder
+  }
+
+  export type PolicyMaxOrderByAggregateInput = {
     id?: SortOrder
-    holderType?: SortOrder
-    holderId?: SortOrder
+    name?: SortOrder
+    description?: SortOrder
     tenantId?: SortOrder
-    isActive?: SortOrder
+    effect?: SortOrder
+    subjectType?: SortOrder
+    subjectId?: SortOrder
     permissionCode?: SortOrder
     resourceType?: SortOrder
-    resourceId?: SortOrder
-    expiredAt?: SortOrder
+    priority?: SortOrder
+    isEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
     createdBy?: SortOrder
   }
 
-  export type AccountScopeMinOrderByAggregateInput = {
+  export type PolicyMinOrderByAggregateInput = {
     id?: SortOrder
-    holderType?: SortOrder
-    holderId?: SortOrder
+    name?: SortOrder
+    description?: SortOrder
     tenantId?: SortOrder
-    isActive?: SortOrder
+    effect?: SortOrder
+    subjectType?: SortOrder
+    subjectId?: SortOrder
     permissionCode?: SortOrder
     resourceType?: SortOrder
-    resourceId?: SortOrder
-    expiredAt?: SortOrder
+    priority?: SortOrder
+    isEnabled?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
     createdBy?: SortOrder
   }
 
-  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedDateTimeNullableFilter<$PrismaModel>
-    _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  export type PolicySumOrderByAggregateInput = {
+    priority?: SortOrder
+  }
+
+  export type EnumPolicyEffectWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.PolicyEffect | EnumPolicyEffectFieldRefInput<$PrismaModel>
+    in?: $Enums.PolicyEffect[] | ListEnumPolicyEffectFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PolicyEffect[] | ListEnumPolicyEffectFieldRefInput<$PrismaModel>
+    not?: NestedEnumPolicyEffectWithAggregatesFilter<$PrismaModel> | $Enums.PolicyEffect
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumPolicyEffectFilter<$PrismaModel>
+    _max?: NestedEnumPolicyEffectFilter<$PrismaModel>
+  }
+
+  export type EnumPolicySubjectTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.PolicySubjectType | EnumPolicySubjectTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.PolicySubjectType[] | ListEnumPolicySubjectTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PolicySubjectType[] | ListEnumPolicySubjectTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumPolicySubjectTypeWithAggregatesFilter<$PrismaModel> | $Enums.PolicySubjectType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumPolicySubjectTypeFilter<$PrismaModel>
+    _max?: NestedEnumPolicySubjectTypeFilter<$PrismaModel>
+  }
+
+  export type IntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type EnumAttributeSourceFilter<$PrismaModel = never> = {
+    equals?: $Enums.AttributeSource | EnumAttributeSourceFieldRefInput<$PrismaModel>
+    in?: $Enums.AttributeSource[] | ListEnumAttributeSourceFieldRefInput<$PrismaModel>
+    notIn?: $Enums.AttributeSource[] | ListEnumAttributeSourceFieldRefInput<$PrismaModel>
+    not?: NestedEnumAttributeSourceFilter<$PrismaModel> | $Enums.AttributeSource
+  }
+
+  export type EnumConditionOperatorFilter<$PrismaModel = never> = {
+    equals?: $Enums.ConditionOperator | EnumConditionOperatorFieldRefInput<$PrismaModel>
+    in?: $Enums.ConditionOperator[] | ListEnumConditionOperatorFieldRefInput<$PrismaModel>
+    notIn?: $Enums.ConditionOperator[] | ListEnumConditionOperatorFieldRefInput<$PrismaModel>
+    not?: NestedEnumConditionOperatorFilter<$PrismaModel> | $Enums.ConditionOperator
+  }
+
+  export type PolicyScalarRelationFilter = {
+    is?: PolicyWhereInput
+    isNot?: PolicyWhereInput
+  }
+
+  export type PolicyConditionCountOrderByAggregateInput = {
+    id?: SortOrder
+    policyId?: SortOrder
+    attributeSource?: SortOrder
+    attributeKey?: SortOrder
+    operator?: SortOrder
+    value?: SortOrder
+  }
+
+  export type PolicyConditionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    policyId?: SortOrder
+    attributeSource?: SortOrder
+    attributeKey?: SortOrder
+    operator?: SortOrder
+    value?: SortOrder
+  }
+
+  export type PolicyConditionMinOrderByAggregateInput = {
+    id?: SortOrder
+    policyId?: SortOrder
+    attributeSource?: SortOrder
+    attributeKey?: SortOrder
+    operator?: SortOrder
+    value?: SortOrder
+  }
+
+  export type EnumAttributeSourceWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.AttributeSource | EnumAttributeSourceFieldRefInput<$PrismaModel>
+    in?: $Enums.AttributeSource[] | ListEnumAttributeSourceFieldRefInput<$PrismaModel>
+    notIn?: $Enums.AttributeSource[] | ListEnumAttributeSourceFieldRefInput<$PrismaModel>
+    not?: NestedEnumAttributeSourceWithAggregatesFilter<$PrismaModel> | $Enums.AttributeSource
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumAttributeSourceFilter<$PrismaModel>
+    _max?: NestedEnumAttributeSourceFilter<$PrismaModel>
+  }
+
+  export type EnumConditionOperatorWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.ConditionOperator | EnumConditionOperatorFieldRefInput<$PrismaModel>
+    in?: $Enums.ConditionOperator[] | ListEnumConditionOperatorFieldRefInput<$PrismaModel>
+    notIn?: $Enums.ConditionOperator[] | ListEnumConditionOperatorFieldRefInput<$PrismaModel>
+    not?: NestedEnumConditionOperatorWithAggregatesFilter<$PrismaModel> | $Enums.ConditionOperator
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumConditionOperatorFilter<$PrismaModel>
+    _max?: NestedEnumConditionOperatorFilter<$PrismaModel>
   }
 
   export type RolePermissionCreateNestedManyWithoutRoleInput = {
@@ -8155,8 +9969,84 @@ export namespace Prisma {
     update?: XOR<XOR<RoleUpdateToOneWithWhereWithoutAccountsInput, RoleUpdateWithoutAccountsInput>, RoleUncheckedUpdateWithoutAccountsInput>
   }
 
-  export type NullableDateTimeFieldUpdateOperationsInput = {
-    set?: Date | string | null
+  export type PolicyConditionCreateNestedManyWithoutPolicyInput = {
+    create?: XOR<PolicyConditionCreateWithoutPolicyInput, PolicyConditionUncheckedCreateWithoutPolicyInput> | PolicyConditionCreateWithoutPolicyInput[] | PolicyConditionUncheckedCreateWithoutPolicyInput[]
+    connectOrCreate?: PolicyConditionCreateOrConnectWithoutPolicyInput | PolicyConditionCreateOrConnectWithoutPolicyInput[]
+    createMany?: PolicyConditionCreateManyPolicyInputEnvelope
+    connect?: PolicyConditionWhereUniqueInput | PolicyConditionWhereUniqueInput[]
+  }
+
+  export type PolicyConditionUncheckedCreateNestedManyWithoutPolicyInput = {
+    create?: XOR<PolicyConditionCreateWithoutPolicyInput, PolicyConditionUncheckedCreateWithoutPolicyInput> | PolicyConditionCreateWithoutPolicyInput[] | PolicyConditionUncheckedCreateWithoutPolicyInput[]
+    connectOrCreate?: PolicyConditionCreateOrConnectWithoutPolicyInput | PolicyConditionCreateOrConnectWithoutPolicyInput[]
+    createMany?: PolicyConditionCreateManyPolicyInputEnvelope
+    connect?: PolicyConditionWhereUniqueInput | PolicyConditionWhereUniqueInput[]
+  }
+
+  export type EnumPolicyEffectFieldUpdateOperationsInput = {
+    set?: $Enums.PolicyEffect
+  }
+
+  export type EnumPolicySubjectTypeFieldUpdateOperationsInput = {
+    set?: $Enums.PolicySubjectType
+  }
+
+  export type IntFieldUpdateOperationsInput = {
+    set?: number
+    increment?: number
+    decrement?: number
+    multiply?: number
+    divide?: number
+  }
+
+  export type PolicyConditionUpdateManyWithoutPolicyNestedInput = {
+    create?: XOR<PolicyConditionCreateWithoutPolicyInput, PolicyConditionUncheckedCreateWithoutPolicyInput> | PolicyConditionCreateWithoutPolicyInput[] | PolicyConditionUncheckedCreateWithoutPolicyInput[]
+    connectOrCreate?: PolicyConditionCreateOrConnectWithoutPolicyInput | PolicyConditionCreateOrConnectWithoutPolicyInput[]
+    upsert?: PolicyConditionUpsertWithWhereUniqueWithoutPolicyInput | PolicyConditionUpsertWithWhereUniqueWithoutPolicyInput[]
+    createMany?: PolicyConditionCreateManyPolicyInputEnvelope
+    set?: PolicyConditionWhereUniqueInput | PolicyConditionWhereUniqueInput[]
+    disconnect?: PolicyConditionWhereUniqueInput | PolicyConditionWhereUniqueInput[]
+    delete?: PolicyConditionWhereUniqueInput | PolicyConditionWhereUniqueInput[]
+    connect?: PolicyConditionWhereUniqueInput | PolicyConditionWhereUniqueInput[]
+    update?: PolicyConditionUpdateWithWhereUniqueWithoutPolicyInput | PolicyConditionUpdateWithWhereUniqueWithoutPolicyInput[]
+    updateMany?: PolicyConditionUpdateManyWithWhereWithoutPolicyInput | PolicyConditionUpdateManyWithWhereWithoutPolicyInput[]
+    deleteMany?: PolicyConditionScalarWhereInput | PolicyConditionScalarWhereInput[]
+  }
+
+  export type PolicyConditionUncheckedUpdateManyWithoutPolicyNestedInput = {
+    create?: XOR<PolicyConditionCreateWithoutPolicyInput, PolicyConditionUncheckedCreateWithoutPolicyInput> | PolicyConditionCreateWithoutPolicyInput[] | PolicyConditionUncheckedCreateWithoutPolicyInput[]
+    connectOrCreate?: PolicyConditionCreateOrConnectWithoutPolicyInput | PolicyConditionCreateOrConnectWithoutPolicyInput[]
+    upsert?: PolicyConditionUpsertWithWhereUniqueWithoutPolicyInput | PolicyConditionUpsertWithWhereUniqueWithoutPolicyInput[]
+    createMany?: PolicyConditionCreateManyPolicyInputEnvelope
+    set?: PolicyConditionWhereUniqueInput | PolicyConditionWhereUniqueInput[]
+    disconnect?: PolicyConditionWhereUniqueInput | PolicyConditionWhereUniqueInput[]
+    delete?: PolicyConditionWhereUniqueInput | PolicyConditionWhereUniqueInput[]
+    connect?: PolicyConditionWhereUniqueInput | PolicyConditionWhereUniqueInput[]
+    update?: PolicyConditionUpdateWithWhereUniqueWithoutPolicyInput | PolicyConditionUpdateWithWhereUniqueWithoutPolicyInput[]
+    updateMany?: PolicyConditionUpdateManyWithWhereWithoutPolicyInput | PolicyConditionUpdateManyWithWhereWithoutPolicyInput[]
+    deleteMany?: PolicyConditionScalarWhereInput | PolicyConditionScalarWhereInput[]
+  }
+
+  export type PolicyCreateNestedOneWithoutConditionsInput = {
+    create?: XOR<PolicyCreateWithoutConditionsInput, PolicyUncheckedCreateWithoutConditionsInput>
+    connectOrCreate?: PolicyCreateOrConnectWithoutConditionsInput
+    connect?: PolicyWhereUniqueInput
+  }
+
+  export type EnumAttributeSourceFieldUpdateOperationsInput = {
+    set?: $Enums.AttributeSource
+  }
+
+  export type EnumConditionOperatorFieldUpdateOperationsInput = {
+    set?: $Enums.ConditionOperator
+  }
+
+  export type PolicyUpdateOneRequiredWithoutConditionsNestedInput = {
+    create?: XOR<PolicyCreateWithoutConditionsInput, PolicyUncheckedCreateWithoutConditionsInput>
+    connectOrCreate?: PolicyCreateOrConnectWithoutConditionsInput
+    upsert?: PolicyUpsertWithoutConditionsInput
+    connect?: PolicyWhereUniqueInput
+    update?: XOR<XOR<PolicyUpdateToOneWithWhereWithoutConditionsInput, PolicyUpdateWithoutConditionsInput>, PolicyUncheckedUpdateWithoutConditionsInput>
   }
 
   export type NestedStringFilter<$PrismaModel = never> = {
@@ -8315,29 +10205,99 @@ export namespace Prisma {
     _max?: NestedEnumAccountTypeFilter<$PrismaModel>
   }
 
-  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
+  export type NestedEnumPolicyEffectFilter<$PrismaModel = never> = {
+    equals?: $Enums.PolicyEffect | EnumPolicyEffectFieldRefInput<$PrismaModel>
+    in?: $Enums.PolicyEffect[] | ListEnumPolicyEffectFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PolicyEffect[] | ListEnumPolicyEffectFieldRefInput<$PrismaModel>
+    not?: NestedEnumPolicyEffectFilter<$PrismaModel> | $Enums.PolicyEffect
   }
 
-  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    notIn?: Date[] | string[] | ListDateTimeFieldRefInput<$PrismaModel> | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedDateTimeNullableFilter<$PrismaModel>
-    _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  export type NestedEnumPolicySubjectTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.PolicySubjectType | EnumPolicySubjectTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.PolicySubjectType[] | ListEnumPolicySubjectTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PolicySubjectType[] | ListEnumPolicySubjectTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumPolicySubjectTypeFilter<$PrismaModel> | $Enums.PolicySubjectType
+  }
+
+  export type NestedEnumPolicyEffectWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.PolicyEffect | EnumPolicyEffectFieldRefInput<$PrismaModel>
+    in?: $Enums.PolicyEffect[] | ListEnumPolicyEffectFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PolicyEffect[] | ListEnumPolicyEffectFieldRefInput<$PrismaModel>
+    not?: NestedEnumPolicyEffectWithAggregatesFilter<$PrismaModel> | $Enums.PolicyEffect
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumPolicyEffectFilter<$PrismaModel>
+    _max?: NestedEnumPolicyEffectFilter<$PrismaModel>
+  }
+
+  export type NestedEnumPolicySubjectTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.PolicySubjectType | EnumPolicySubjectTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.PolicySubjectType[] | ListEnumPolicySubjectTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PolicySubjectType[] | ListEnumPolicySubjectTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumPolicySubjectTypeWithAggregatesFilter<$PrismaModel> | $Enums.PolicySubjectType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumPolicySubjectTypeFilter<$PrismaModel>
+    _max?: NestedEnumPolicySubjectTypeFilter<$PrismaModel>
+  }
+
+  export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel>
+    in?: number[] | ListIntFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel>
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntWithAggregatesFilter<$PrismaModel> | number
+    _count?: NestedIntFilter<$PrismaModel>
+    _avg?: NestedFloatFilter<$PrismaModel>
+    _sum?: NestedIntFilter<$PrismaModel>
+    _min?: NestedIntFilter<$PrismaModel>
+    _max?: NestedIntFilter<$PrismaModel>
+  }
+
+  export type NestedFloatFilter<$PrismaModel = never> = {
+    equals?: number | FloatFieldRefInput<$PrismaModel>
+    in?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    notIn?: number[] | ListFloatFieldRefInput<$PrismaModel>
+    lt?: number | FloatFieldRefInput<$PrismaModel>
+    lte?: number | FloatFieldRefInput<$PrismaModel>
+    gt?: number | FloatFieldRefInput<$PrismaModel>
+    gte?: number | FloatFieldRefInput<$PrismaModel>
+    not?: NestedFloatFilter<$PrismaModel> | number
+  }
+
+  export type NestedEnumAttributeSourceFilter<$PrismaModel = never> = {
+    equals?: $Enums.AttributeSource | EnumAttributeSourceFieldRefInput<$PrismaModel>
+    in?: $Enums.AttributeSource[] | ListEnumAttributeSourceFieldRefInput<$PrismaModel>
+    notIn?: $Enums.AttributeSource[] | ListEnumAttributeSourceFieldRefInput<$PrismaModel>
+    not?: NestedEnumAttributeSourceFilter<$PrismaModel> | $Enums.AttributeSource
+  }
+
+  export type NestedEnumConditionOperatorFilter<$PrismaModel = never> = {
+    equals?: $Enums.ConditionOperator | EnumConditionOperatorFieldRefInput<$PrismaModel>
+    in?: $Enums.ConditionOperator[] | ListEnumConditionOperatorFieldRefInput<$PrismaModel>
+    notIn?: $Enums.ConditionOperator[] | ListEnumConditionOperatorFieldRefInput<$PrismaModel>
+    not?: NestedEnumConditionOperatorFilter<$PrismaModel> | $Enums.ConditionOperator
+  }
+
+  export type NestedEnumAttributeSourceWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.AttributeSource | EnumAttributeSourceFieldRefInput<$PrismaModel>
+    in?: $Enums.AttributeSource[] | ListEnumAttributeSourceFieldRefInput<$PrismaModel>
+    notIn?: $Enums.AttributeSource[] | ListEnumAttributeSourceFieldRefInput<$PrismaModel>
+    not?: NestedEnumAttributeSourceWithAggregatesFilter<$PrismaModel> | $Enums.AttributeSource
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumAttributeSourceFilter<$PrismaModel>
+    _max?: NestedEnumAttributeSourceFilter<$PrismaModel>
+  }
+
+  export type NestedEnumConditionOperatorWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.ConditionOperator | EnumConditionOperatorFieldRefInput<$PrismaModel>
+    in?: $Enums.ConditionOperator[] | ListEnumConditionOperatorFieldRefInput<$PrismaModel>
+    notIn?: $Enums.ConditionOperator[] | ListEnumConditionOperatorFieldRefInput<$PrismaModel>
+    not?: NestedEnumConditionOperatorWithAggregatesFilter<$PrismaModel> | $Enums.ConditionOperator
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumConditionOperatorFilter<$PrismaModel>
+    _max?: NestedEnumConditionOperatorFilter<$PrismaModel>
   }
 
   export type RolePermissionCreateWithoutRoleInput = {
@@ -8668,6 +10628,144 @@ export namespace Prisma {
     permissions?: RolePermissionUncheckedUpdateManyWithoutRoleNestedInput
   }
 
+  export type PolicyConditionCreateWithoutPolicyInput = {
+    id?: string
+    attributeSource: $Enums.AttributeSource
+    attributeKey: string
+    operator: $Enums.ConditionOperator
+    value: string
+  }
+
+  export type PolicyConditionUncheckedCreateWithoutPolicyInput = {
+    id?: string
+    attributeSource: $Enums.AttributeSource
+    attributeKey: string
+    operator: $Enums.ConditionOperator
+    value: string
+  }
+
+  export type PolicyConditionCreateOrConnectWithoutPolicyInput = {
+    where: PolicyConditionWhereUniqueInput
+    create: XOR<PolicyConditionCreateWithoutPolicyInput, PolicyConditionUncheckedCreateWithoutPolicyInput>
+  }
+
+  export type PolicyConditionCreateManyPolicyInputEnvelope = {
+    data: PolicyConditionCreateManyPolicyInput | PolicyConditionCreateManyPolicyInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type PolicyConditionUpsertWithWhereUniqueWithoutPolicyInput = {
+    where: PolicyConditionWhereUniqueInput
+    update: XOR<PolicyConditionUpdateWithoutPolicyInput, PolicyConditionUncheckedUpdateWithoutPolicyInput>
+    create: XOR<PolicyConditionCreateWithoutPolicyInput, PolicyConditionUncheckedCreateWithoutPolicyInput>
+  }
+
+  export type PolicyConditionUpdateWithWhereUniqueWithoutPolicyInput = {
+    where: PolicyConditionWhereUniqueInput
+    data: XOR<PolicyConditionUpdateWithoutPolicyInput, PolicyConditionUncheckedUpdateWithoutPolicyInput>
+  }
+
+  export type PolicyConditionUpdateManyWithWhereWithoutPolicyInput = {
+    where: PolicyConditionScalarWhereInput
+    data: XOR<PolicyConditionUpdateManyMutationInput, PolicyConditionUncheckedUpdateManyWithoutPolicyInput>
+  }
+
+  export type PolicyConditionScalarWhereInput = {
+    AND?: PolicyConditionScalarWhereInput | PolicyConditionScalarWhereInput[]
+    OR?: PolicyConditionScalarWhereInput[]
+    NOT?: PolicyConditionScalarWhereInput | PolicyConditionScalarWhereInput[]
+    id?: StringFilter<"PolicyCondition"> | string
+    policyId?: StringFilter<"PolicyCondition"> | string
+    attributeSource?: EnumAttributeSourceFilter<"PolicyCondition"> | $Enums.AttributeSource
+    attributeKey?: StringFilter<"PolicyCondition"> | string
+    operator?: EnumConditionOperatorFilter<"PolicyCondition"> | $Enums.ConditionOperator
+    value?: StringFilter<"PolicyCondition"> | string
+  }
+
+  export type PolicyCreateWithoutConditionsInput = {
+    id?: string
+    name: string
+    description?: string | null
+    tenantId?: string | null
+    effect: $Enums.PolicyEffect
+    subjectType?: $Enums.PolicySubjectType
+    subjectId?: string | null
+    permissionCode?: string | null
+    resourceType?: string | null
+    priority?: number
+    isEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    createdBy: string
+  }
+
+  export type PolicyUncheckedCreateWithoutConditionsInput = {
+    id?: string
+    name: string
+    description?: string | null
+    tenantId?: string | null
+    effect: $Enums.PolicyEffect
+    subjectType?: $Enums.PolicySubjectType
+    subjectId?: string | null
+    permissionCode?: string | null
+    resourceType?: string | null
+    priority?: number
+    isEnabled?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    createdBy: string
+  }
+
+  export type PolicyCreateOrConnectWithoutConditionsInput = {
+    where: PolicyWhereUniqueInput
+    create: XOR<PolicyCreateWithoutConditionsInput, PolicyUncheckedCreateWithoutConditionsInput>
+  }
+
+  export type PolicyUpsertWithoutConditionsInput = {
+    update: XOR<PolicyUpdateWithoutConditionsInput, PolicyUncheckedUpdateWithoutConditionsInput>
+    create: XOR<PolicyCreateWithoutConditionsInput, PolicyUncheckedCreateWithoutConditionsInput>
+    where?: PolicyWhereInput
+  }
+
+  export type PolicyUpdateToOneWithWhereWithoutConditionsInput = {
+    where?: PolicyWhereInput
+    data: XOR<PolicyUpdateWithoutConditionsInput, PolicyUncheckedUpdateWithoutConditionsInput>
+  }
+
+  export type PolicyUpdateWithoutConditionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    tenantId?: NullableStringFieldUpdateOperationsInput | string | null
+    effect?: EnumPolicyEffectFieldUpdateOperationsInput | $Enums.PolicyEffect
+    subjectType?: EnumPolicySubjectTypeFieldUpdateOperationsInput | $Enums.PolicySubjectType
+    subjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionCode?: NullableStringFieldUpdateOperationsInput | string | null
+    resourceType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdBy?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type PolicyUncheckedUpdateWithoutConditionsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    tenantId?: NullableStringFieldUpdateOperationsInput | string | null
+    effect?: EnumPolicyEffectFieldUpdateOperationsInput | $Enums.PolicyEffect
+    subjectType?: EnumPolicySubjectTypeFieldUpdateOperationsInput | $Enums.PolicySubjectType
+    subjectId?: NullableStringFieldUpdateOperationsInput | string | null
+    permissionCode?: NullableStringFieldUpdateOperationsInput | string | null
+    resourceType?: NullableStringFieldUpdateOperationsInput | string | null
+    priority?: IntFieldUpdateOperationsInput | number
+    isEnabled?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    createdBy?: StringFieldUpdateOperationsInput | string
+  }
+
   export type RolePermissionCreateManyRoleInput = {
     id?: string
     permissionId: string
@@ -8746,6 +10844,38 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     roleId?: StringFieldUpdateOperationsInput | string
     createdBy?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type PolicyConditionCreateManyPolicyInput = {
+    id?: string
+    attributeSource: $Enums.AttributeSource
+    attributeKey: string
+    operator: $Enums.ConditionOperator
+    value: string
+  }
+
+  export type PolicyConditionUpdateWithoutPolicyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    attributeSource?: EnumAttributeSourceFieldUpdateOperationsInput | $Enums.AttributeSource
+    attributeKey?: StringFieldUpdateOperationsInput | string
+    operator?: EnumConditionOperatorFieldUpdateOperationsInput | $Enums.ConditionOperator
+    value?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type PolicyConditionUncheckedUpdateWithoutPolicyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    attributeSource?: EnumAttributeSourceFieldUpdateOperationsInput | $Enums.AttributeSource
+    attributeKey?: StringFieldUpdateOperationsInput | string
+    operator?: EnumConditionOperatorFieldUpdateOperationsInput | $Enums.ConditionOperator
+    value?: StringFieldUpdateOperationsInput | string
+  }
+
+  export type PolicyConditionUncheckedUpdateManyWithoutPolicyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    attributeSource?: EnumAttributeSourceFieldUpdateOperationsInput | $Enums.AttributeSource
+    attributeKey?: StringFieldUpdateOperationsInput | string
+    operator?: EnumConditionOperatorFieldUpdateOperationsInput | $Enums.ConditionOperator
+    value?: StringFieldUpdateOperationsInput | string
   }
 
 

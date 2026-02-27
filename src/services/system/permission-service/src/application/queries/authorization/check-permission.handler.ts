@@ -1,12 +1,12 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
-import { CheckAccountPermissionQuery } from './check-account-permission.query'
+import { CheckPermissionQuery } from './check-permission.query'
 import { RoleRepository } from 'src/domain/repositories/role.repository'
 import { PermissionRepository } from 'src/domain/repositories/permission.repository'
 import { SYMBOLS } from 'src/common/constants/symbols'
 
-@QueryHandler(CheckAccountPermissionQuery)
-export class CheckAccountPermissionHandler implements IQueryHandler<CheckAccountPermissionQuery> {
+@QueryHandler(CheckPermissionQuery)
+export class CheckPermissionHandler implements IQueryHandler<CheckPermissionQuery> {
   constructor(
     @Inject(SYMBOLS.REPO.ROLE)
     private readonly roleRepo: RoleRepository,
@@ -14,16 +14,12 @@ export class CheckAccountPermissionHandler implements IQueryHandler<CheckAccount
     private readonly permissionRepo: PermissionRepository
   ) {}
 
-  async execute(query: CheckAccountPermissionQuery): Promise<boolean> {
+  async execute(query: CheckPermissionQuery): Promise<boolean> {
     const permission = await this.permissionRepo.findByCode(query.permissionCode)
-    if (!permission) {
-      return false
-    }
+    if (!permission) return false
 
     const roles = await this.roleRepo.findRolesForAccountId(query.accountId)
-    if (!roles || roles.length === 0) {
-      return false
-    }
+    if (!roles || roles.length === 0) return false
 
     return roles.some((role) => role.hasPermissionByCode(query.permissionCode))
   }

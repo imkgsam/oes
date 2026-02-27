@@ -1,47 +1,56 @@
+import { Controller, UseFilters } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
-import { Injectable,UseFilters  } from '@nestjs/common'
 import {
-  PermissionCheckServiceControllerMethods,
   PermissionCheckServiceController,
+  PermissionCheckServiceControllerMethods,
   CheckPermissionRequest,
-  CheckPermissionResponse
+  CheckPermissionResponse,
+  CheckPermissionWithContextRequest,
+  AuthzDecisionResponse
 } from '@oes/common/generated/permission_service/permission_check'
-import { CheckAccountPermissionQuery } from '../../application/index'
 import { ValidatingQueryBus } from '@oes/common/cqrs/validating-query-bus'
-import { CheckAccountPermissionWithScopeQuery } from 'src/application/queries/authorization/check-account-permission-with-scope.query'
 import { GrpcExceptionFilter } from '@oes/common/core/filters/gprc-exception.filter'
 import { OtelExceptionFilter } from '@oes/common/core/filters/otel-exception.filter'
+import { CheckPermissionQuery } from 'src/application/queries/authorization/check-permission.query'
+import { CheckPermissionWithContextQuery } from 'src/application/queries/authorization/check-permission-with-context.query'
 
-@Injectable()
-@UseFilters (OtelExceptionFilter,GrpcExceptionFilter)
+@Controller()
+@UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
 @PermissionCheckServiceControllerMethods()
-export class PermissionCheckController implements PermissionCheckServiceController {
+export class PermissionCheckGrpcController implements PermissionCheckServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
   async checkPermission(
     request: CheckPermissionRequest,
-    metadata: Metadata,
+    metadata?: Metadata,
     ...rest: any
   ): Promise<CheckPermissionResponse> {
     const pass = await this.queryBus.execute(
-      new CheckAccountPermissionQuery(request.accountId, request.permissionCode)
+      new CheckPermissionQuery(request.accountId!, request.permissionCode!)
     )
-    return {
-      pass,
-      scopes: []
-    }
+    return { pass }
   }
-  async checkPermissionScope(
-    request: CheckPermissionRequest,
-    metadata: Metadata,
+
+  async checkPermissionWithContext(
+    request: CheckPermissionWithContextRequest,
+    metadata?: Metadata,
     ...rest: any
-  ): Promise<CheckPermissionResponse> {
-    const pass = await this.queryBus.execute(
-      new CheckAccountPermissionWithScopeQuery(request.accountId, request.permissionCode)
+  ): Promise<AuthzDecisionResponse> {
+    const decision = await this.queryBus.execute(
+      new CheckPermissionWithContextQuery({
+        accountId: request.accountId!,
+        permissionCode: request.permissionCode!,
+        tenantId: request.tenantId || undefined,
+        subject: request.subjectAttributes ?? {},
+        resource: request.resourceAttributes ?? {},
+        environment: request.environmentAttributes ?? {},
+        action: request.actionAttributes ?? {}
+      })
     )
     return {
-      pass,
-      scopes: 
+      allowed: decision.allowed,
+      matchedPolicy: decision.matchedPolicy ?? '',
+      reason: decision.reason ?? ''
     }
   }
 }

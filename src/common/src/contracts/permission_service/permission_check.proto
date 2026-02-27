@@ -1,4 +1,3 @@
-// File: contracts/permission_service/permission_check.proto
 syntax = "proto3";
 
 package permission_service;
@@ -6,15 +5,15 @@ package permission_service;
 option java_multiple_files = true;
 option java_package = "com.oes.permission.v1";
 
-// 权限检查服务
+// 权限鉴权服务
 service PermissionCheckService {
-  // 检查用户是否拥有指定权限
+  // 纯 RBAC 鉴权
   rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
-  // 检查用户权限范围
-  rpc CheckPermissionScope(CheckPermissionRequest) returns (CheckPermissionResponse);
+  // RBAC + ABAC 混合鉴权
+  rpc CheckPermissionWithContext(CheckPermissionWithContextRequest) returns (AuthzDecisionResponse);
 }
 
-// 权限检查请求
+// 纯 RBAC 鉴权请求
 message CheckPermissionRequest {
   // 账户ID
   string account_id = 1;
@@ -22,32 +21,36 @@ message CheckPermissionRequest {
   string permission_code = 2;
 }
 
-// 权限检查响应
+// 纯 RBAC 鉴权响应
 message CheckPermissionResponse {
   // 是否通过
   bool pass = 1;
-  // 权限范围列表
-  repeated PermissionScope scopes = 2;
 }
 
-// 权限范围
-message PermissionScope {
-  // 范围类型
-  PermissionScopeType type = 1;
-  // 范围值
-  string value = 2;
+// RBAC + ABAC 混合鉴权请求
+message CheckPermissionWithContextRequest {
+  // 账户ID
+  string account_id = 1;
+  // 权限代码
+  string permission_code = 2;
+  // 租户ID
+  string tenant_id = 3;
+  // 主体属性
+  map<string, string> subject_attributes = 4;
+  // 资源属性
+  map<string, string> resource_attributes = 5;
+  // 环境属性
+  map<string, string> environment_attributes = 6;
+  // 操作属性
+  map<string, string> action_attributes = 7;
 }
 
-// 权限范围类型
-enum PermissionScopeType {
-  // 未指定
-  PERMISSION_SCOPE_TYPE_UNSPECIFIED = 0;
-  // 租户级别
-  PERMISSION_SCOPE_TYPE_TENANT = 1;
-  // 组织级别
-  PERMISSION_SCOPE_TYPE_ORG = 2;
-  // 资源级别
-  PERMISSION_SCOPE_TYPE_RESOURCE = 3;
-  // 自身级别
-  PERMISSION_SCOPE_TYPE_SELF = 4;
+// ABAC 鉴权决策响应
+message AuthzDecisionResponse {
+  // 是否允许
+  bool allowed = 1;
+  // 匹配的策略名称
+  string matched_policy = 2;
+  // 决策原因
+  string reason = 3;
 }

@@ -1,5 +1,6 @@
 import { Permission } from '../aggregates/permission.aggregate'
 import { Role } from '../aggregates/role.aggregate'
+import { AccountType } from '../enums/account-type.enum'
 
 export interface RoleRepository {
   findById(id: string): Promise<Role | null>
@@ -7,8 +8,17 @@ export interface RoleRepository {
   findAll(): Promise<Role[]>
   save(role: Role): Promise<Role>
   delete(id: string): Promise<Role | null>
-  //查找role拥有的所有permissions
   findOwnPermissions(roleId: string): Promise<Permission[]>
-  //根据accountid找所拥有的roles
   findRolesForAccountId(accountId: string): Promise<Role[]>
+
+  // Account-Role binding
+  assignAccountRole(
+    accountId: string,
+    roleId: string,
+    tenantId: string,
+    accountType: AccountType,
+    createdBy: string
+  ): Promise<void>
+  revokeAccountRole(accountId: string, roleId: string): Promise<void>
+  findAccountRoles(accountId: string, tenantId: string): Promise<Role[]>
 }
