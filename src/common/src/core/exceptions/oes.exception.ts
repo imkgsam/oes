@@ -30,10 +30,7 @@ export abstract class OESExceptionBase
       code: this.definition.rpcStatus,
       message: this.definition.message,
       details: {
-        code: this.definition.code,
-        messageKey: this.definition.messageKey,
-        additionalDetails: this.additionalDetails,
-        service: getCurrentServiceName(),
+        module: getCurrentServiceName(),
         timestamp: new Date().toISOString()
       }
     }
@@ -43,10 +40,8 @@ export abstract class OESExceptionBase
     return {
       code: grpcStatusToHttpStatus(this.definition.rpcStatus),
       message: this.definition.message,
-      messageKey: this.definition.messageKey,
       details: {
         code: this.definition.code,
-        internalDetails: this.internalDetails,
         service: getCurrentServiceName(),
         timestamp: new Date().toISOString()
       }

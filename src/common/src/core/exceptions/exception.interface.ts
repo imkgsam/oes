@@ -23,13 +23,5 @@ export interface HttpMappableException {
 export interface ExceptionPayload {
   code: status
   message: string
-  details?: ExceptionPayloadDetails
-}
-
-export interface ExceptionPayloadDetails {
-  messageKey?: string
-  happenedAt?: string
-  operation?: string
-  traceId?: string
-  cause?: ExceptionPayload
+  details?: Record<string, any>
 }

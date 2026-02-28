@@ -5,7 +5,7 @@ import { AppLogger } from '../../logging/app-logger.service'
 import { Observable, throwError } from 'rxjs'
 import { OESExceptionBase } from '../exceptions/oes.exception'
 import { RpcException } from '@nestjs/microservices'
-import { RpcExceptionPayload } from '../exceptions/exception.interface'
+import { ExceptionPayload } from '../exceptions/exception.interface'
 import { ExceptionFactory, UNKNOWN_EXCEPTION } from '../exceptions'
 
 @Catch()
@@ -20,7 +20,7 @@ export class GrpcExceptionFilter implements ExceptionFilter {
 
     if (exception instanceof RpcException) {
       // 处理下游返回的 rpc exception (不包括 下游服务的timeout unavailable, 等情况)
-      const payload = exception.getError() as RpcExceptionPayload
+      const payload = exception.getError() as ExceptionPayload
       this.logger.warn('Downstream rpc exception', {
         module,
         operation: methodName,
