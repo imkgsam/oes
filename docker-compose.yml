@@ -55,7 +55,7 @@ services:
 
   # ============ Nacos Service Registry ============
   nacos:
-    image: nacos/nacos-server:v2.3.0
+    image: nacos/nacos-server:v2.3.1
     container_name: nacos
     environment:
       - MODE=standalone

@@ -20,7 +20,7 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
     RegistryModule,
     // ── Infrastructure ──
     ConfigModule.forRoot({ isGlobal: true, load: [gatewayConfig] }),
-    LoggingModule,
+    LoggingModule.forRoot({ serviceName: 'api-gateway' }),
     CommonJwtModule,
 
     // ── Rate limiting (pluggable — remove when migrating to APISIX) ──

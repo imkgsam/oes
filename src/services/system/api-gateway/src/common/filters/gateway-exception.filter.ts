@@ -7,7 +7,7 @@ import { OESExceptionBase } from '@oes/common/core/exceptions/oes.exception'
 import { AppLogger } from '@oes/common/logging/app-logger.service'
 import { ExceptionFactory, UNKNOWN_EXCEPTION } from '@oes/common/core/exceptions/index'
 import { status } from '@grpc/grpc-js'
-import { HttpExceptionPayload } from '@oes/common/core/exceptions/exception.interface'
+import { ExceptionPayload } from '@oes/common/core/exceptions/exception.interface'
 import { getTraceId } from '@oes/common/tracing/trace-context'
 
 @Catch()
@@ -23,7 +23,7 @@ export class GatewayExceptionFilter implements ExceptionFilter {
     const methodName = `${req.method} ${req.originalUrl}`
     const traceId = getTraceId()
 
-    let payload: HttpExceptionPayload
+    let payload: ExceptionPayload
 
     if (exception instanceof RpcException) {
       const err = exception.getError() as any
@@ -32,8 +32,6 @@ export class GatewayExceptionFilter implements ExceptionFilter {
       payload = {
         code: this.grpcStatusToHttpStatus(err?.code ?? status.UNKNOWN),
         message: err?.message || 'Downstream service error',
-        messageKey: details?.messageKey,
-        traceId,
         details
       }
 
@@ -50,7 +48,6 @@ export class GatewayExceptionFilter implements ExceptionFilter {
       payload = {
         code: statusCode,
         message: typeof response === 'string' ? response : (response as any)?.message,
-        traceId,
         details: typeof response === 'object' ? response : undefined
       }
 
@@ -61,7 +58,6 @@ export class GatewayExceptionFilter implements ExceptionFilter {
       })
     } else if (exception instanceof OESExceptionBase) {
       payload = exception.toHttpPayload()
-      payload.traceId = traceId
 
       this.logger.warn('Business exception', {
         module: moduleName,
@@ -75,7 +71,6 @@ export class GatewayExceptionFilter implements ExceptionFilter {
         stack: (exception as Error)?.stack
       })
       payload = unknownExp.toHttpPayload()
-      payload.traceId = traceId
 
       this.logger.error('Unhandled exception', {
         module: moduleName,

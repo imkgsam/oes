@@ -47,7 +47,8 @@ export { PinoOtelLogger, PinoOtelLoggerOptions } from './pino-otel.logger'
 
 // NestJS integration
 export { AppLogger } from './app-logger.service'
-export { LoggingModule, LOGGER_OPTIONS } from './logging.module'
+export { LoggingModule } from './logging.module'
+export { LOGGER_OPTIONS } from './logging.constants'
 
 // Adapters for third-party SDK compatibility
 export { ConsoleLoggerAdapter } from './console-logger.adapter'

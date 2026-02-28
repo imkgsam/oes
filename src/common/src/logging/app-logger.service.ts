@@ -1,8 +1,9 @@
 // File: src/common/src/logging/app-logger.service.ts
 
-import { Injectable, LoggerService, Scope } from '@nestjs/common'
+import { Injectable, LoggerService, Scope, Optional, Inject } from '@nestjs/common'
 import { OesLogger, LogMeta } from './oes-logger.interface'
 import { PinoOtelLogger, PinoOtelLoggerOptions } from './pino-otel.logger'
+import { LOGGER_OPTIONS } from './logging.constants'
 
 /**
  * Application logger service that integrates with NestJS DI system.
@@ -44,7 +45,7 @@ export class AppLogger implements LoggerService, OesLogger {
   private readonly logger: PinoOtelLogger
   private context?: string
 
-  constructor(options?: Partial<PinoOtelLoggerOptions>) {
+  constructor(@Optional() @Inject(LOGGER_OPTIONS) options?: Partial<PinoOtelLoggerOptions>) {
     const serviceName =
       options?.serviceName ??
       process.env.OTEL_SERVICE_NAME ??

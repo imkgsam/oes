@@ -3,11 +3,7 @@
 import { Global, Module, DynamicModule } from '@nestjs/common'
 import { AppLogger } from './app-logger.service'
 import { PinoOtelLoggerOptions } from './pino-otel.logger'
-
-/**
- * Token for injecting logger options.
- */
-export const LOGGER_OPTIONS = Symbol('LOGGER_OPTIONS')
+import { LOGGER_OPTIONS } from './logging.constants'
 
 /**
  * Global logging module providing AppLogger throughout the application.
@@ -62,10 +58,7 @@ export class LoggingModule {
           provide: LOGGER_OPTIONS,
           useValue: options
         },
-        {
-          provide: AppLogger,
-          useFactory: () => new AppLogger(options)
-        }
+        AppLogger
       ],
       exports: [AppLogger]
     }

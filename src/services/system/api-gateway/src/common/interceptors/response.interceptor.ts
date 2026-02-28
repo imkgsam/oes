@@ -20,17 +20,7 @@ export class ResponseTransformInterceptor implements NestInterceptor<any, HttpRe
           code: data?.code || SUCCESS.subCode,
           message: data?.message || SUCCESS.message,
           messageKey: data?.messageKey || SUCCESS.messageKey,
-          data: data?.data !== undefined ? data.data : data,
-          meta: {
-            traceId,
-            spanId,
-            timestamp: new Date().toISOString(),
-            path: request.originalUrl,
-            parentSpanId: 'root',
-            module: 'api-gateway',
-            callTrace: data?.meta?.callTrace || [],
-            warnings: data?.meta?.warnings || {}
-          }
+          data: data?.data !== undefined ? data.data : data
         })
       )
     )

@@ -1,3 +1,0 @@
-[submodule "disk"]
-	path = disk
-	url = https://github.com/fifocode/wimm-disk.git

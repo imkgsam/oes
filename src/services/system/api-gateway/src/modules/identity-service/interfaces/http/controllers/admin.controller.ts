@@ -1,6 +1,6 @@
 import { Controller, Get } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
-import { IdentityServiceService } from '../identity-service.service'
+import { IdentityServiceService } from '../../../identity-service.service'
 
 @ApiBearerAuth('JWT')
 @ApiTags('identity')
