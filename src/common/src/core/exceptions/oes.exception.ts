@@ -1,11 +1,7 @@
 // src/common/core/exceptions/oes.exception.ts
 import { status } from '@grpc/grpc-js'
 import { HttpStatus } from '@nestjs/common'
-import {
-  ExceptionDefinition,
-  HttpExceptionPayload,
-  RpcExceptionPayload
-} from './exception.interface'
+import { ExceptionDefinition, ExceptionPayload } from './exception.interface'
 import { RpcMappableException, HttpMappableException } from './exception.interface'
 
 const getCurrentServiceName = (): string => {
@@ -17,33 +13,33 @@ export abstract class OESExceptionBase
   implements RpcMappableException, HttpMappableException
 {
   public readonly definition: ExceptionDefinition
-  public readonly internalDetails: any
+  public readonly additionalDetails: any
 
-  constructor(def: ExceptionDefinition, internalDetails?: any) {
+  constructor(def: ExceptionDefinition, additionalDetails?: any) {
     super(def.message)
     this.name = this.constructor.name
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, this.constructor)
     }
     this.definition = def
-    this.internalDetails = internalDetails
+    this.additionalDetails = additionalDetails
   }
 
-  toRpcPayload(): RpcExceptionPayload {
+  toRpcPayload(): ExceptionPayload {
     return {
       code: this.definition.rpcStatus,
       message: this.definition.message,
       details: {
         code: this.definition.code,
         messageKey: this.definition.messageKey,
-        internalDetails: this.internalDetails,
+        additionalDetails: this.additionalDetails,
         service: getCurrentServiceName(),
         timestamp: new Date().toISOString()
       }
     }
   }
 
-  toHttpPayload(): HttpExceptionPayload {
+  toHttpPayload(): ExceptionPayload {
     return {
       code: grpcStatusToHttpStatus(this.definition.rpcStatus),
       message: this.definition.message,

@@ -6,7 +6,6 @@ import { Observable, throwError } from 'rxjs'
 import { OESExceptionBase } from '../exceptions/oes.exception'
 import { RpcException } from '@nestjs/microservices'
 import { RpcExceptionPayload } from '../exceptions/exception.interface'
-import { status } from '@grpc/grpc-js'
 import { ExceptionFactory, UNKNOWN_EXCEPTION } from '../exceptions'
 
 @Catch()
