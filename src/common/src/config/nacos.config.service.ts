@@ -13,15 +13,17 @@ export class NacosConfigService implements ConfigService, OnModuleDestroy {
 
   async init() {
     this.client = new NacosConfigClient({
-      serverAddr: process.env.NACOS_SERVER_ADDR!,
-      namespace: process.env.NACOS_NAMESPACE!
+      serverAddr: process.env.NACOS_SERVER!,
+      namespace: process.env.NACOS_NAMESPACE!,
+      username: process.env.NACOS_USERNAME!,
+      password: process.env.NACOS_PASSWORD!
     })
 
     await this.client.ready()
 
     const content = await this.client.getConfig(
       process.env.NACOS_DATA_ID!,
-      process.env.NACOS_GROUP!
+      process.env.NACOS_GROUP || 'DEFAULT_GROUP'
     )
 
     this.updateCache(content)

@@ -1,4 +1,3 @@
-// src/services/system/api-gateway/tsconfig.json
 {
   "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {

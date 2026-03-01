@@ -411,7 +411,7 @@ async function bootstrap() {
   app.enableShutdownHooks()
 
   // 13. 启动
-  await app.listen(process.env.API_GATEWAY_PORT ?? 9101)
+  await app.listen(process.env.SERVICE_PORT ?? 9101)
 }
 ```
 
@@ -798,7 +798,7 @@ flowchart LR
 
 | 变量名                        | 默认值                  | 说明                |
 | ----------------------------- | ----------------------- | ------------------- |
-| `API_GATEWAY_PORT`            | `9101`                  | 网关端口            |
+| `SERVICE_PORT`                | `9101`                  | 网关端口            |
 | `MODULE_NAME`                 | `api-gateway`           | 模块名称            |
 | `CORS_ORIGINS`                | `*`                     | CORS 允许的源       |
 | `GLOBAL_PREFIX`               | `api/v1`                | API 全局前缀        |

@@ -21,7 +21,9 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
+    "clear:nm": "rimraf node_modules"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",

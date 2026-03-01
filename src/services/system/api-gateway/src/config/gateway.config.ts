@@ -1,7 +1,8 @@
 import { registerAs } from '@nestjs/config'
+import { join } from 'path'
 
 export const gatewayConfig = registerAs('gateway', () => ({
-  port: parseInt(process.env.API_GATEWAY_PORT ?? '9101', 10),
+  port: parseInt(process.env.SERVICE_PORT ?? '9101', 10),
   globalPrefix: process.env.GLOBAL_PREFIX ?? 'api/v1',
   cors: {
     origins: process.env.CORS_ORIGINS?.split(',') ?? ['*'],
@@ -17,5 +18,24 @@ export const gatewayConfig = registerAs('gateway', () => ({
   },
   swagger: {
     enabled: process.env.SWAGGER_ENABLED !== 'false'
+  },
+
+  // ── gRPC downstream services ──
+  grpc: {
+    services: {
+      'permission-service': {
+        serviceName: 'permission-service',
+        protoPath: join(
+          __dirname,
+          '../../../../../common/src/contracts/permission_service/permission_management.proto'
+        ),
+        packageName: 'permission_service',
+        // Static URL fallback (used when Nacos discovery is unavailable)
+        url:
+          process.env.PERMISSION_SERVICE_HOST && process.env.PERMISSION_SERVICE_PORT
+            ? `${process.env.PERMISSION_SERVICE_HOST}:${process.env.PERMISSION_SERVICE_PORT}`
+            : undefined
+      }
+    }
   }
 }))

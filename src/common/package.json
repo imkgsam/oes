@@ -5,6 +5,8 @@
   "main": "dist/index.js",
   "types": "./src",
   "scripts": {
+    "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
+    "clear:nm": "rimraf node_modules",
     "build": "tsc -b"
   },
   "exports": {

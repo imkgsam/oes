@@ -47,9 +47,10 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
   private healthCheckTimer?: ReturnType<typeof setInterval>
 
   constructor(
-    @Inject(GRPC_MODULE_OPTIONS)
-    private readonly options: GrpcModuleOptions,
     private readonly logger: AppLogger,
+    @Inject(GRPC_MODULE_OPTIONS)
+    @Optional()
+    private readonly options: GrpcModuleOptions,
     @Optional()
     private readonly discovery?: NacosDiscoveryService
   ) {

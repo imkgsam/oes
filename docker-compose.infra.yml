@@ -2,36 +2,36 @@
 services:
   # ============ Infrastructure ============
   postgres:
-    image: 'bitnami/postgresql:latest'
+    image: "bitnami/postgresql:latest"
     container_name: oes_postgres
     environment:
       - POSTGRESQL_USERNAME=imkgsam
       - POSTGRESQL_PASSWORD=imkgsam
       - POSTGRESQL_DATABASE=mydb
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
       - postgres_data:/bitnami/postgresql
     networks:
       - oes_network
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U imkgsam -d mydb']
+      test: ["CMD-SHELL", "pg_isready -U imkgsam -d mydb"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
   redis:
-    image: 'redis:7-alpine'
+    image: "redis:7-alpine"
     container_name: oes_redis
     ports:
-      - '6379:6379'
+      - "6379:6379"
     volumes:
       - redis_data:/data
     networks:
       - oes_network
     healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
+      test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -45,11 +45,11 @@ services:
     container_name: oes_jaeger
     volumes:
       - ./otel/jaeger-v2-config.yaml:/etc/jaeger/config.yaml
-    command: ['--config', '/etc/jaeger/config.yaml']
+    command: ["--config", "/etc/jaeger/config.yaml"]
     ports:
-      - '4317:4317' # OTLP gRPC receiver
-      - '4318:4318' # OTLP HTTP receiver
-      - '16686:16686' # Jaeger UI
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+      - "16686:16686" # Jaeger UI
     networks:
       - oes_network
     environment:
@@ -58,14 +58,12 @@ services:
 
   # ============ Nacos Service Registry ============
   nacos:
-    image: nacos/nacos-server:latest
+    image: nacos/nacos-server:v2.5.1
     container_name: nacos
     environment:
       - MODE=standalone
       - PREFER_HOST_MODE=hostname
       - MYSQL_SERVICE_DB_URL=jdbc:mysql://mysql:3306/nacos?characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useUnicode=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-      - MYSQL_SERVICE_USER=nacos
-      - MYSQL_SERVICE_DB_NAME=nacos
       - MYSQL_SERVICE_USER=nacos
       - MYSQL_SERVICE_PASSWORD=nacos
       - NACOS_AUTH_ENABLE=true
@@ -74,10 +72,10 @@ services:
       - NACOS_AUTH_IDENTITY_VALUE=security
       - MYSQL_SERVICE_CONNECTION_PARAMS=?characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true # <--- 新增
     ports:
-      - '8848:8848'
-      - '9848:9848'
-      - '9849:9849'
-      - '8080:8080'
+      - "8848:8848"
+      - "9848:9848"
+      - "9849:9849"
+      - "8080:8080"
     depends_on:
       - mysql
     volumes:
@@ -96,7 +94,7 @@ services:
       - MYSQL_USER=nacos
       - MYSQL_PASSWORD=nacos
     ports:
-      - '3307:3306'
+      - "3307:3306"
     volumes:
       - nacos_mysql_data:/var/lib/mysql
       - ./nacos/init.sql:/docker-entrypoint-initdb.d/init.sql

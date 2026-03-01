@@ -18,4 +18,4 @@ import { httpControllers } from './interface/http/controllers'
   ],
   exports: [PERMISSION_MANAGEMENT_PORT]
 })
-export class PermissionServiceModule {}
+export class PermissionServiceProxyModule {}

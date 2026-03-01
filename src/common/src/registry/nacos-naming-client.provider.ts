@@ -48,6 +48,8 @@ export class NacosNamingClientProvider implements OnModuleInit, OnModuleDestroy 
     this.client = new NacosNamingClient({
       serverList,
       namespace,
+      username: process.env.NACOS_USERNAME!,
+      password: process.env.NACOS_PASSWORD!,
       logger: new ConsoleLoggerAdapter(this.logger, 'nacos-naming')
     })
 

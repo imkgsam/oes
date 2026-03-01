@@ -6,6 +6,6 @@ import { NacosConfigService } from './nacos.config.service'
 @Module({
   imports: [EventEmitterModule.forRoot()],
   providers: [NacosConfigService],
-  exports: [NacosConfigService],
+  exports: [NacosConfigService]
 })
 export class NacosConfigModule {}

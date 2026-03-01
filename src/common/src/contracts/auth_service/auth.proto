@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package auth_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.auth.v1";
+
+// 认证服务
+service AuthService {
+  // 邮箱密码登录
+  rpc LoginWithEmailPassword(EmailPasswordLoginRequest) returns (LoginResponse);
+}
+
+// 邮箱密码登录请求
+message EmailPasswordLoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+// 登录响应
+message LoginResponse {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_in = 3;
+}

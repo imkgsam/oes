@@ -31,8 +31,14 @@
     "identity:dev": "pnpm --filter identity-service run start:dev",
     "resource:dev": "pnpm --filter resource-service run start:dev",
     "api:dev": "pnpm --filter api-gateway run start:dev",
-    "remove:node_modules": "rimraf node_modules",
-    "rm:nm": "pnpm -r run remove:node_modules && pnpm run remove:node_modules"
+    
+    "clear:nm": "rimraf node_modules",
+    "clear:nm:all": "pnpm -r run clear:nm",
+    "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
+    "clear:build:all": "pnpm -r run clear:build",
+
+    "docker:infra:up": "docker compose -f docker-compose.infra.yml up -d",
+    "docker:infra:down": "docker compose -f docker-compose.infra.yml down"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",

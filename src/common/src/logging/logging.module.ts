@@ -5,39 +5,6 @@ import { AppLogger } from './app-logger.service'
 import { PinoOtelLoggerOptions } from './pino-otel.logger'
 import { LOGGER_OPTIONS } from './logging.constants'
 
-/**
- * Global logging module providing AppLogger throughout the application.
- *
- * @example Basic usage (uses environment variables for configuration)
- * ```typescript
- * @Module({
- *   imports: [LoggingModule]
- * })
- * export class AppModule {}
- * ```
- *
- * @example With custom configuration
- * ```typescript
- * @Module({
- *   imports: [
- *     LoggingModule.forRoot({
- *       serviceName: 'api-gateway',
- *       level: 'debug'
- *     })
- *   ]
- * })
- * export class AppModule {}
- * ```
- *
- * @example Using as NestJS application logger
- * ```typescript
- * async function bootstrap() {
- *   const app = await NestFactory.create(AppModule, { bufferLogs: true })
- *   app.useLogger(app.get(AppLogger))
- *   await app.listen(3000)
- * }
- * ```
- */
 @Global()
 @Module({
   providers: [AppLogger],
