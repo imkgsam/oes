@@ -27,14 +27,15 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
     CommonJwtModule,
 
     // ── gRPC transport (global — must come before any forFeature modules) ──
-    GrpcTransportModule.forRootAsync({
-      useFactory: (config: ConfigService): GrpcModuleOptions => {
-        const grpcCfg = config.get('gateway.grpc')
-        return {
-          services: grpcCfg.services
+    GrpcTransportModule.forRoot({
+      services: {
+        'permission-service': {
+          serviceName: 'permission-service',
+          protoPath: 'protos/permission_check.proto',
+          packageName: 'permission_service'
         }
       },
-      inject: [ConfigService]
+      defaultPoolConfig: { minSize: 3, maxSize: 3 }
     }),
 
     // ── Rate limiting (pluggable — remove when migrating to APISIX) ──

@@ -14,7 +14,7 @@ import {
 } from '@oes/common/generated/permission_service/policy_management'
 import { ValidatingCommandBus } from '@oes/common/cqrs/validating-command-bus'
 import { ValidatingQueryBus } from '@oes/common/cqrs/validating-query-bus'
-import { GrpcExceptionFilter } from '@oes/common/core/filters/gprc-exception.filter'
+import { GrpcExceptionFilter } from '@oes/common/core/filters/grpc-exception.filter'
 import { OtelExceptionFilter } from '@oes/common/core/filters/otel-exception.filter'
 
 import { CreatePolicyCommand } from 'src/application/commands/policy/create-policy.command'

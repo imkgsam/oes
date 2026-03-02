@@ -14,7 +14,7 @@ export class NacosConfigService implements ConfigService, OnModuleDestroy {
   async init() {
     this.client = new NacosConfigClient({
       serverAddr: process.env.NACOS_SERVER!,
-      namespace: process.env.NACOS_NAMESPACE!,
+      namespace: process.env.NACOS_NAMESPACE,
       username: process.env.NACOS_USERNAME!,
       password: process.env.NACOS_PASSWORD!
     })

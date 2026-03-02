@@ -49,7 +49,7 @@ export class AppLogger implements LoggerService, OesLogger {
     const serviceName =
       options?.serviceName ??
       process.env.OTEL_SERVICE_NAME ??
-      process.env.SERVICE_NAME ??
+      process.env.MODULE_NAME ??
       'unknown-service'
 
     this.logger = new PinoOtelLogger({

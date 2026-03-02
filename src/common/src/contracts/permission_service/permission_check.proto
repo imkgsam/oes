@@ -1,3 +1,5 @@
+// File: src/common/src/contracts/permission_service/permission_check.proto
+
 syntax = "proto3";
 
 package permission_service;

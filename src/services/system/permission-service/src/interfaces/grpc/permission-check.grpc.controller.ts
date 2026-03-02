@@ -9,7 +9,7 @@ import {
   AuthzDecisionResponse
 } from '@oes/common/generated/permission_service/permission_check'
 import { ValidatingQueryBus } from '@oes/common/cqrs/validating-query-bus'
-import { GrpcExceptionFilter } from '@oes/common/core/filters/gprc-exception.filter'
+import { GrpcExceptionFilter } from '@oes/common/core/filters/grpc-exception.filter'
 import { OtelExceptionFilter } from '@oes/common/core/filters/otel-exception.filter'
 import { CheckPermissionQuery } from 'src/application/queries/authorization/check-permission.query'
 import { CheckPermissionWithContextQuery } from 'src/application/queries/authorization/check-permission-with-context.query'
