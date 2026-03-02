@@ -8,6 +8,9 @@
 # Proto generated files
 src/common/src/generated/
 
+nacos/
+otel/
+
 # Logs
 logs
 *.log
