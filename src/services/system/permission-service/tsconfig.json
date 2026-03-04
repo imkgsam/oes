@@ -1,3 +1,4 @@
+// File: src/services/system/permission-service/tsconfig.json
 {
   "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {

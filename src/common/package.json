@@ -4,6 +4,10 @@
   "private": true,
   "main": "dist/index.js",
   "types": "./src",
+  "files":[
+    "dist",
+    "src/contracts"
+  ],
   "scripts": {
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",

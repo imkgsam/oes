@@ -45,7 +45,6 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
   private readonly pools = new Map<string, GrpcConnectionPool>()
   private readonly loadBalancer: LoadBalancer
   private healthCheckTimer?: ReturnType<typeof setInterval>
-
   constructor(
     private readonly logger: AppLogger,
     @Inject(GRPC_MODULE_OPTIONS)
@@ -59,8 +58,10 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit(): Promise<void> {
+    this.logger.info('in GRPCCLIENTMANAGER onModuleInit ')
     // Subscribe to all configured services via Nacos discovery
     if (this.discovery) {
+      this.logger.info(this.discovery)
       const subscribePromises = Object.values(this.options.services)
         .filter((svc) => !svc.url) // Only subscribe for services without static URL
         .map((svc) => this.discovery!.subscribe(svc.serviceName))
@@ -105,6 +106,7 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
 
     const pool = this.getOrCreatePool(serviceName, config)
     const endpoints = this.resolveEndpoints(config)
+    this.logger.info('endpoints ', endpoints)
 
     return pool.acquire(endpoints)
   }
@@ -166,6 +168,7 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
    * Otherwise, query Nacos discovery for live instances.
    */
   private resolveEndpoints(config: GrpcServiceConfig): ServiceEndpoint[] {
+    this.logger.info('in resolveEndpoints', config)
     // Static URL override (for development or non-Nacos environments)
     if (config.url) {
       const [ip, portStr] = config.url.split(':')
@@ -182,6 +185,7 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
     // Dynamic discovery via Nacos
     if (this.discovery) {
       const instances = this.discovery.getInstances(config.serviceName)
+      this.logger.info('instance ', instances)
       return instances.map((inst) => ({
         ip: inst.ip,
         port: inst.port,
