@@ -96,6 +96,7 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
    * @throws Error if the service is not configured or no endpoints are available
    */
   async getClient(serviceName: string): Promise<ClientGrpc> {
+    this.logger.info(`Getting gRPC client for service "${serviceName}"`)
     const config = this.options.services[serviceName]
     if (!config) {
       throw new Error(
@@ -103,6 +104,7 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
           `Available services: ${Object.keys(this.options.services).join(', ')}`
       )
     }
+    this.logger.info('config ', config)
 
     const pool = this.getOrCreatePool(serviceName, config)
     const endpoints = this.resolveEndpoints(config)
@@ -184,6 +186,7 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
 
     // Dynamic discovery via Nacos
     if (this.discovery) {
+      this.logger.info('discovery ', this.discovery)
       const instances = this.discovery.getInstances(config.serviceName)
       this.logger.info('instance ', instances)
       return instances.map((inst) => ({

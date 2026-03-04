@@ -5,10 +5,11 @@
     "rootDir": "src",
     "outDir": "dist",
     "baseUrl": ".",
+    "paths": {
+      "@oes/common": ["../../common/src"]
+    }
   },
-    "references": [
-      { "path": "../../../common" }
-    ],
+  "references": [{ "path": "../../../common" }],
   "include": ["src"],
   "exclude": ["node_modules"]
 }
