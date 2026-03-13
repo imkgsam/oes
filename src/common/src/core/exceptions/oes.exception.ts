@@ -30,8 +30,10 @@ export abstract class OESExceptionBase
       code: this.definition.rpcStatus,
       message: this.definition.message,
       details: {
+        code: this.definition.code,
         module: getCurrentServiceName(),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        internalDetails: this.additionalDetails
       }
     }
   }

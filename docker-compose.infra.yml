@@ -44,7 +44,7 @@ services:
     image: cr.jaegertracing.io/jaegertracing/jaeger:2.14.1
     container_name: oes_jaeger
     volumes:
-      - ./otel/jaeger-v2-config.yaml:/etc/jaeger/config.yaml
+      - ./docker/output/otel/jaeger-v2-config.yaml:/etc/jaeger/config.yaml
     command: ["--config", "/etc/jaeger/config.yaml"]
     ports:
       - "4317:4317" # OTLP gRPC receiver
@@ -77,7 +77,7 @@ services:
     depends_on:
       - mysql
     volumes:
-      - ./nacos/logs:/home/nacos/logs
+      - ./docker/output/nacos/logs:/home/nacos/logs
     networks:
       - oes_network
     restart: unless-stopped
@@ -95,7 +95,7 @@ services:
       - "3307:3306"
     volumes:
       - nacos_mysql_data:/var/lib/mysql
-      - ./nacos/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./docker/output/nacos/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - oes_network
     restart: unless-stopped

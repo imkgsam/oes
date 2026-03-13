@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common'
-import { Permission } from 'src/domain/aggregates/permission.aggregate'
-import { Role } from 'src/domain/aggregates/role.aggregate'
-import { AccountType } from 'src/domain/enums/account-type.enum'
-import { RoleRepository } from 'src/domain/repositories/role.repository'
-import { PermissionMapper } from 'src/infrastructure/mappers/permission.mapper'
-import { RoleMapper } from 'src/infrastructure/mappers/role.mapper'
-import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
+import { Permission } from '../../../domain/aggregates/permission.aggregate'
+import { Role } from '../../../domain/aggregates/role.aggregate'
+import { AccountType } from '../../../domain/enums/account-type.enum'
+import { RoleRepository } from '../../../domain/repositories/role.repository'
+import { PermissionMapper } from '../../mappers/permission.mapper'
+import { RoleMapper } from '../../mappers/role.mapper'
+import { PrismaService } from '../../prisma/prisma.service'
 
 const ROLE_INCLUDE = {
   permissions: { include: { permission: true } }
@@ -39,55 +39,50 @@ export class PrismaRoleRepository implements RoleRepository {
   async save(role: Role): Promise<Role> {
     const data = RoleMapper.toPersistent(role)
 
-    // Upsert the role itself
-    await this.prisma.role.upsert({
-      where: { id: role.id },
-      update: {
-        name: data.name,
-        code: data.code,
-        tenantId: data.tenantId,
-        isSystem: data.isSystem,
-        isEnabled: data.isEnabled,
-        description: data.description
-      },
-      create: {
-        ...data,
-        createdBy: role.id // placeholder – actual createdBy is set at command level
+    await this.prisma.$transaction(async (tx) => {
+      await tx.role.upsert({
+        where: { id: role.id },
+        update: {
+          name: data.name,
+          code: data.code,
+          tenantId: data.tenantId,
+          isSystem: data.isSystem,
+          isEnabled: data.isEnabled,
+          description: data.description
+        },
+        create: {
+          ...data
+        }
+      })
+
+      const existingRPs = await tx.rolePermission.findMany({
+        where: { roleId: role.id }
+      })
+      const currentIds = new Set(role.permissions.map((p) => p.permissionId))
+      const existingIds = new Set(existingRPs.map((rp) => rp.permissionId))
+
+      const toDelete = existingRPs.filter((rp) => !currentIds.has(rp.permissionId))
+      if (toDelete.length > 0) {
+        await tx.rolePermission.deleteMany({
+          where: { id: { in: toDelete.map((rp) => rp.id) } }
+        })
+      }
+
+      const toCreate = role.permissions.filter((p) => !existingIds.has(p.permissionId))
+      if (toCreate.length > 0) {
+        await tx.rolePermission.createMany({
+          data: toCreate.map((p) => ({
+            roleId: role.id,
+            permissionId: p.permissionId
+          }))
+        })
       }
     })
-
-    // Sync role-permission bindings: delete removed, create new
-    const existingRPs = await this.prisma.rolePermission.findMany({
-      where: { roleId: role.id }
-    })
-    const currentIds = new Set(role.permissions.map((p) => p.permissionId))
-    const existingIds = new Set(existingRPs.map((rp) => rp.permissionId))
-
-    // Delete removed
-    const toDelete = existingRPs.filter((rp) => !currentIds.has(rp.permissionId))
-    if (toDelete.length > 0) {
-      await this.prisma.rolePermission.deleteMany({
-        where: { id: { in: toDelete.map((rp) => rp.id) } }
-      })
-    }
-
-    // Create new
-    const toCreate = role.permissions.filter((p) => !existingIds.has(p.permissionId))
-    if (toCreate.length > 0) {
-      await this.prisma.rolePermission.createMany({
-        data: toCreate.map((p) => ({
-          roleId: role.id,
-          permissionId: p.permissionId,
-          createdBy: role.id // placeholder
-        }))
-      })
-    }
 
     return (await this.findById(role.id))!
   }
 
   async delete(id: string): Promise<Role | null> {
-    // Delete role-permission bindings first
     await this.prisma.rolePermission.deleteMany({ where: { roleId: id } })
     await this.prisma.accountRole.deleteMany({ where: { roleId: id } })
     const deleted = await this.prisma.role.delete({ where: { id } })
@@ -104,7 +99,12 @@ export class PrismaRoleRepository implements RoleRepository {
 
   async findRolesForAccountId(accountId: string): Promise<Role[]> {
     const accountRoles = await this.prisma.accountRole.findMany({
-      where: { accountId },
+      where: {
+        accountId,
+        role: {
+          isEnabled: true
+        }
+      },
       include: { role: { include: ROLE_INCLUDE } }
     })
     return accountRoles.map((ar) => RoleMapper.toDomain(ar.role))
@@ -114,11 +114,10 @@ export class PrismaRoleRepository implements RoleRepository {
     accountId: string,
     roleId: string,
     tenantId: string,
-    accountType: AccountType,
-    createdBy: string
+    accountType: AccountType
   ): Promise<void> {
     await this.prisma.accountRole.create({
-      data: { accountId, roleId, tenantId, accountType, createdBy }
+      data: { accountId, roleId, tenantId, accountType }
     })
   }
 

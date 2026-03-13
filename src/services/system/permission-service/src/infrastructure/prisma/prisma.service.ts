@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { PrismaClient } from '../../../prisma/generated/prisma'
-import { ExceptionFactory } from '@oes/common/core/exceptions/exception.factory'
-import { DATABASE_CONNECTION_FAILED } from '@oes/common/core/exceptions/exception-enums/infrastructure-exception.enum'
+import { ExceptionFactory } from '@oes/common/exceptions'
+import { DATABASE_CONNECTION_FAILED } from '@oes/common/exceptions'
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {

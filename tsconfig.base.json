@@ -13,6 +13,5 @@
     "useDefineForClassFields": false,
     "sourceMap": true,
     "forceConsistentCasingInFileNames": true,
-
   }
 }

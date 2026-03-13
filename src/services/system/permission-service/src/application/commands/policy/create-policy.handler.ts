@@ -1,10 +1,10 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { CreatePolicyCommand } from './create-policy.command'
-import { PolicyRepository } from 'src/domain/repositories/policy.repository'
-import { Policy } from 'src/domain/aggregates/policy.aggregate'
-import { PolicyConditionVO } from 'src/domain/vo/policy-condition.value-object'
-import { SYMBOLS } from 'src/common/constants/symbols'
+import { PolicyRepository } from '../../../domain/repositories/policy.repository'
+import { Policy } from '../../../domain/aggregates/policy.aggregate'
+import { PolicyConditionVO } from '../../../domain/vo/policy-condition.value-object'
+import { SYMBOLS } from '../../../common/constants/symbols'
 
 @CommandHandler(CreatePolicyCommand)
 export class CreatePolicyHandler implements ICommandHandler<CreatePolicyCommand> {

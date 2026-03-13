@@ -10,13 +10,8 @@ export class AssignRolePermissionCommand implements ICommand {
   @IsNotEmpty()
   readonly permissionId: string
 
-  @IsUUID()
-  @IsNotEmpty()
-  readonly createdBy: string
-
-  constructor(roleId: string, permissionId: string, createdBy: string) {
+  constructor(roleId: string, permissionId: string) {
     this.roleId = roleId
     this.permissionId = permissionId
-    this.createdBy = createdBy
   }
 }

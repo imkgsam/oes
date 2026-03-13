@@ -2,7 +2,7 @@ import {
   LoginMethod as PrismaLoginMethod,
   Credential as PrismaCredential
 } from 'prisma/generated/prisma'
-import { LoginMethodType } from '@oes/common/constants/auth/login-method.type'
+import { LoginMethodType } from '@oes/common/constants'
 import { Credential } from '../entities/credential.entity'
 
 export class LoginMethod {

@@ -22,31 +22,31 @@ import {
   AssignAccountRoleRequest,
   RevokeAccountRoleRequest,
   ListAccountRolesRequest
-} from '@oes/common/generated/permission_service/permission_management'
-import { ValidatingCommandBus } from '@oes/common/cqrs/validating-command-bus'
-import { ValidatingQueryBus } from '@oes/common/cqrs/validating-query-bus'
-import { GrpcExceptionFilter } from '@oes/common/core/filters/grpc-exception.filter'
-import { OtelExceptionFilter } from '@oes/common/core/filters/otel-exception.filter'
+} from '@oes/common/generated'
+import { ValidatingCommandBus } from '@oes/common/cqrs'
+import { ValidatingQueryBus } from '@oes/common/cqrs'
+import { GrpcExceptionFilter } from '@oes/common/filters'
+import { OtelExceptionFilter } from '@oes/common/filters'
 
-import { CreatePermissionCommand } from 'src/application/commands/permission/create-permission.command'
-import { DeletePermissionCommand } from 'src/application/commands/permission/delete-permission.command'
-import { GetPermissionByIdQuery } from 'src/application/queries/permission/get-permission-by-id.query'
-import { GetPermissionByCodeQuery } from 'src/application/queries/permission/get-permission-by-code.query'
-import { ListPermissionsQuery } from 'src/application/queries/permission/list-permissions.query'
-import { ListPermissionsByModuleQuery } from 'src/application/queries/permission/list-permissions-by-module.query'
-import { CreateRoleCommand } from 'src/application/commands/role/create-role.command'
-import { DeleteRoleCommand } from 'src/application/commands/role/delete-role.command'
-import { AssignRolePermissionCommand } from 'src/application/commands/role/assign-role-permission.command'
-import { RevokeRolePermissionCommand } from 'src/application/commands/role/revoke-role-permission.command'
-import { AssignAccountRoleCommand } from 'src/application/commands/role/assign-account-role.command'
-import { RevokeAccountRoleCommand } from 'src/application/commands/role/revoke-account-role.command'
-import { GetRoleByIdQuery } from 'src/application/queries/role/get-role-by-id.query'
-import { ListRolesQuery } from 'src/application/queries/role/list-roles.query'
-import { ListAccountRolesQuery } from 'src/application/queries/role/list-account-roles.query'
-import { AccountType } from 'src/domain/enums/account-type.enum'
-import { PermissionModule } from 'src/domain/enums/permission-module.enum'
-import { Permission } from 'src/domain/aggregates/permission.aggregate'
-import { Role } from 'src/domain/aggregates/role.aggregate'
+import { CreatePermissionCommand } from '../../application/commands/permission/create-permission.command'
+import { DeletePermissionCommand } from '../../application/commands/permission/delete-permission.command'
+import { GetPermissionByIdQuery } from '../../application/queries/permission/get-permission-by-id.query'
+import { GetPermissionByCodeQuery } from '../../application/queries/permission/get-permission-by-code.query'
+import { ListPermissionsQuery } from '../../application/queries/permission/list-permissions.query'
+import { ListPermissionsByModuleQuery } from '../../application/queries/permission/list-permissions-by-module.query'
+import { CreateRoleCommand } from '../../application/commands/role/create-role.command'
+import { DeleteRoleCommand } from '../../application/commands/role/delete-role.command'
+import { AssignRolePermissionCommand } from '../../application/commands/role/assign-role-permission.command'
+import { RevokeRolePermissionCommand } from '../../application/commands/role/revoke-role-permission.command'
+import { AssignAccountRoleCommand } from '../../application/commands/role/assign-account-role.command'
+import { RevokeAccountRoleCommand } from '../../application/commands/role/revoke-account-role.command'
+import { GetRoleByIdQuery } from '../../application/queries/role/get-role-by-id.query'
+import { ListRolesQuery } from '../../application/queries/role/list-roles.query'
+import { ListAccountRolesQuery } from '../../application/queries/role/list-account-roles.query'
+import { AccountType } from '../../domain/enums/account-type.enum'
+import { PermissionModule } from '../../domain/enums/permission-module.enum'
+import { Permission } from '../../domain/aggregates/permission.aggregate'
+import { Role } from '../../domain/aggregates/role.aggregate'
 
 @Controller()
 @UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
@@ -131,7 +131,6 @@ export class PermissionManagementGrpcController implements PermissionManagementS
       new CreateRoleCommand({
         name: request.name!,
         code: request.code!,
-        createdBy: request.createdBy!,
         tenantId: request.tenantId || undefined,
         isSystem: request.isSystem,
         description: request.description
@@ -170,7 +169,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<void> {
     await this.commandBus.execute(
-      new AssignRolePermissionCommand(request.roleId!, request.permissionId!, request.createdBy!)
+      new AssignRolePermissionCommand(request.roleId!, request.permissionId!)
     )
   }
 
@@ -196,8 +195,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         accountId: request.accountId!,
         accountType: request.accountType! as AccountType,
         roleId: request.roleId!,
-        tenantId: request.tenantId!,
-        createdBy: request.createdBy!
+        tenantId: request.tenantId!
       })
     )
   }

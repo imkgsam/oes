@@ -1,4 +1,5 @@
 packages:
+  - 'src/services/*'
   - 'src/services/auxiliary/*'
   - 'src/services/business/*'
   - 'src/services/system/*'

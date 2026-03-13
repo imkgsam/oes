@@ -7,15 +7,14 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
   Min,
   ValidateNested
 } from 'class-validator'
 import { Type } from 'class-transformer'
-import { PolicyEffect } from 'src/domain/enums/policy-effect.enum'
-import { PolicySubjectType } from 'src/domain/enums/policy-subject-type.enum'
-import { AttributeSource } from 'src/domain/enums/attribute-source.enum'
-import { ConditionOperator } from 'src/domain/enums/condition-operator.enum'
+import { PolicyEffect } from '../../../domain/enums/policy-effect.enum'
+import { PolicySubjectType } from '../../../domain/enums/policy-subject-type.enum'
+import { AttributeSource } from '../../../domain/enums/attribute-source.enum'
+import { ConditionOperator } from '../../../domain/enums/condition-operator.enum'
 
 export class PolicyConditionInput {
   @IsEnum(AttributeSource)
@@ -75,14 +74,9 @@ export class CreatePolicyCommand implements ICommand {
   @Type(() => PolicyConditionInput)
   readonly conditions?: PolicyConditionInput[]
 
-  @IsUUID()
-  @IsNotEmpty()
-  readonly createdBy: string
-
   constructor(params: {
     name: string
     effect: PolicyEffect
-    createdBy: string
     description?: string
     tenantId?: string
     subjectType: PolicySubjectType
@@ -94,7 +88,6 @@ export class CreatePolicyCommand implements ICommand {
   }) {
     this.name = params.name
     this.effect = params.effect
-    this.createdBy = params.createdBy
     this.description = params.description
     this.tenantId = params.tenantId
     this.subjectType = params.subjectType

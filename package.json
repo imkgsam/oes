@@ -6,36 +6,29 @@
   "private": true,
   "license": "UNLICENSED",
   "workspaces": [
+    "src/services/*",
     "src/services/auxiliary/*",
     "src/services/business/*",
     "src/services/system/*",
     "src/common"
   ],
   "scripts": {
-    "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start -- -b swc",
     "lint": "pnpm -r run lint",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+
+    "prisma:generate:all": "pnpm -r run prisma:generate",
+    "prisma:push:all": "pnpm -r run prisma:push",
+
     "proto:gen": "buf generate --template src/common/src/contracts/buf.gen.yaml src/common/src/contracts",
     "proto:lint": "buf lint src/common/src/contracts",
     "proto:breaking": "buf breaking src/common/src/contracts --against .git#subdir=src/common/src/contracts",
     "proto:format": "buf format -w src/common/src/contracts",
-    "common:build": "pnpm --filter common run build",
-    "auth:dev": "pnpm --filter auth-service run start:dev",
-    "permission:dev": "pnpm --filter permission-service run start:dev",
-    "identity:dev": "pnpm --filter identity-service run start:dev",
-    "resource:dev": "pnpm --filter resource-service run start:dev",
-    "api:dev": "pnpm --filter api-gateway run start:dev",
     
     "clear:nm": "rimraf node_modules",
-    "clear:nm:all": "pnpm -r run clear:nm",
-    "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
-    "clear:build:all": "pnpm -r run clear:build",
+    "clear:nm:all": "pnpm -r run clear:nm && pnpm clear:nm",
+    "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo && rimraf pnpm-lock.yaml",
+    "clear:build:all": "pnpm -r run clear:build && pnpm clear:build",
+    "clear": "npm run clear:build:all && npm run clear:nm:all",
 
     "docker:infra:up": "docker compose -f docker-compose.infra.yml up -d",
     "docker:infra:down": "docker compose -f docker-compose.infra.yml down"

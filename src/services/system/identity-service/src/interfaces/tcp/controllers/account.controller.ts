@@ -5,9 +5,9 @@ import {
   AccountDto,
   AccountIdRequestDto,
   UserIdRequestDto
-} from '@oes/common/dtos/identity-service/all.dto'
-import { IDENTITY_MESSAGES } from '@oes/common/constants/messages/identity.message'
-import { RpcRequestData } from '@oes/common/decorators/rpc-request-data.decorator'
+} from '@oes/common/dtos'
+import { IDENTITY_MESSAGES } from '@oes/common/constants'
+import { RpcRequestData } from '@oes/common/decorators'
 @Injectable()
 export class AccountController {
   constructor() {}

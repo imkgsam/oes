@@ -1,12 +1,12 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { UpdatePolicyCommand } from './update-policy.command'
-import { PolicyRepository } from 'src/domain/repositories/policy.repository'
-import { Policy } from 'src/domain/aggregates/policy.aggregate'
-import { PolicyConditionVO } from 'src/domain/vo/policy-condition.value-object'
-import { SYMBOLS } from 'src/common/constants/symbols'
-import { ExceptionFactory } from '@oes/common/core/exceptions/exception.factory'
-import { POLICY_NOT_FOUND } from 'src/common/constants/exception-enums/permission-service.errors'
+import { PolicyRepository } from '../../../domain/repositories/policy.repository'
+import { Policy } from '../../../domain/aggregates/policy.aggregate'
+import { PolicyConditionVO } from '../../../domain/vo/policy-condition.value-object'
+import { SYMBOLS } from '../../../common/constants/symbols'
+import { ExceptionFactory } from '@oes/common/exceptions'
+import { POLICY_NOT_FOUND } from '../../../common/constants/exception-enums/permission-service.errors'
 
 @CommandHandler(UpdatePolicyCommand)
 export class UpdatePolicyHandler implements ICommandHandler<UpdatePolicyCommand> {

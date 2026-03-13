@@ -13,9 +13,9 @@ export class NacosRegistryService implements ServiceRegistry, OnModuleInit, OnMo
     private readonly namingClientProvider: NacosNamingClientProvider,
     private readonly logger: AppLogger
   ) {
-    const ip = process.env.SERVICE_IP ?? getLocalIP()
-    const port = Number(process.env.SERVICE_PORT)
-
+    const ip = process.env.SERVICE_REGISTRY_IP ?? getLocalIP()
+    const port = Number(process.env.SERVICE_REGISTRY_PORT)
+    this.logger.warn(`Initializing NacosRegistryService with IP: ${ip}, Port: ${port}`)
     this.instance = {
       instanceId: `${ip}:${port}`,
       ip,
@@ -46,7 +46,7 @@ export class NacosRegistryService implements ServiceRegistry, OnModuleInit, OnMo
     await client.registerInstance(serviceName, this.instance)
 
     this.logger.log(
-      `Service registered: ${serviceName} @ ${this.instance.ip}:${this.instance.port}`
+      `Service registered - : ${serviceName} @ ${this.instance.ip}:${this.instance.port}`
     )
   }
 

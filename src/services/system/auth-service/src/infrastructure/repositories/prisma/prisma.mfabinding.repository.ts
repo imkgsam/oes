@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { MfaBindingEntity } from 'src/domain/aggregates/mfabinding.aggregate'
 import { IMfaBindingRepository } from 'src/domain/repositories/mfaBinding.repository'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
-import { MfaType } from '@oes/common/constants/const/auth-service.const'
+import { MfaType } from '@oes/common/constants'
 
 @Injectable()
 export class PrismaMfaBindingRepository implements IMfaBindingRepository {

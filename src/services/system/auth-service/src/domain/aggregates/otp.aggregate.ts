@@ -1,7 +1,7 @@
 import { OneTimeToken as PrismaOneTimeToken } from '../../../prisma/generated/prisma'
 import { OTP_TYPES, OTP_USAGES } from 'src/common/constants'
-import { createBusinessException } from '@oes/common/exceptions/exception.factory'
-import { AUTH_SERVICE_ERRORS } from '@oes/common/constants/res-codes/auth-service.errors'
+import { createBusinessException } from '@oes/common/exceptions'
+import { AUTH_SERVICE_ERRORS } from '../../common/constants/exceptions/auth-service.exceptions'
 import { randomUUID } from 'crypto'
 
 export class OneTimeToken {

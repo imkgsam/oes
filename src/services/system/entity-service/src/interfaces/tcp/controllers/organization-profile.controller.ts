@@ -6,10 +6,10 @@ import {
   EntityIdRequestDto,
   CreateOrganizationProfileRequestDto,
   UpdateOrganizationProfileRequestDto
-} from '@oes/common/dtos/entity-service/all.dto'
-import { IEntityServiceRpcOrganizationProfileContract } from '@oes/common/interfaces/services/entity-service'
-import { ENTITY_MESSAGES } from '@oes/common/constants/messages/entity.message'
-import { RpcRequestData } from '@oes/common/decorators/rpc-request-data.decorator'
+} from '@oes/common/dtos'
+import { IEntityServiceRpcOrganizationProfileContract } from '@oes/common/interfaces'
+import { ENTITY_MESSAGES } from '@oes/common/constants'
+import { RpcRequestData } from '@oes/common/decorators'
 import { OrganizationProfileService } from '../../../application/services/organization-profile.service'
 
 @Controller()

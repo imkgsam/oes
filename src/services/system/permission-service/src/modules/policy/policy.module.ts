@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common'
 import { CqrsModule } from '@nestjs/cqrs'
-import { PrismaModule } from 'src/infrastructure/prisma/prisma.module'
-import { PrismaPolicyRepository } from 'src/infrastructure/repositories/prisma/prisma.policy.repository'
-import { SYMBOLS } from 'src/common/constants/symbols'
-import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs/index'
-import { PolicyCommandHandlers } from 'src/application/commands/policy'
-import { PolicyQueryHandlers } from 'src/application/queries/policy'
-import { PolicyManagementGrpcController } from 'src/interfaces/grpc/policy-management.grpc.controller'
+import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
+import { PrismaPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.policy.repository'
+import { SYMBOLS } from '../../common/constants/symbols'
+import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
+import { PolicyCommandHandlers } from '../../application/commands/policy'
+import { PolicyQueryHandlers } from '../../application/queries/policy'
+import { PolicyManagementGrpcController } from '../../interfaces/grpc/policy-management.grpc.controller'
 
 @Module({
   imports: [CqrsModule, PrismaModule],

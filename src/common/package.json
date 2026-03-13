@@ -3,24 +3,91 @@
   "version": "1.0.0",
   "private": true,
   "main": "dist/index.js",
-  "types": "./src",
-  "files":[
+  "types": "dist/index.d.ts",
+  "files": [
     "dist",
     "src/contracts"
   ],
   "scripts": {
+    "build": "tsc -b",
+    "dev": "tsc -b -w --preserveWatchOutput",
+
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",
-    "build": "tsc -b"
+    "clear": "npm run clear:build && npm run clear:nm"
   },
   "exports": {
-    "./*": {
-      "types": "./src/*.ts",
-      "require": "./dist/*.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "require": "./dist/index.js"
     },
-    "./generated/*": {
-      "types": "./src/generated/*.ts",
-      "require": "./dist/generated/*.js"
+    "./auth": {
+      "types": "./dist/auth/index.d.ts",
+      "require": "./dist/auth/index.js"
+    },
+    "./clients": {
+      "types": "./dist/clients/index.d.ts",
+      "require": "./dist/clients/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "require": "./dist/config/index.js"
+    },
+    "./constants": {
+      "types": "./dist/constants/index.d.ts",
+      "require": "./dist/constants/index.js"
+    },
+    "./contracts": {
+      "types": "./dist/contracts/index.d.ts",
+      "require": "./dist/contracts/index.js"
+    },
+    "./cqrs": {
+      "types": "./dist/cqrs/index.d.ts",
+      "require": "./dist/cqrs/index.js"
+    },
+    "./decorators": {
+      "types": "./dist/decorators/index.d.ts",
+      "require": "./dist/decorators/index.js"
+    },
+    "./dtos": {
+      "types": "./dist/dtos/index.d.ts",
+      "require": "./dist/dtos/index.js"
+    },
+    "./exceptions": {
+      "types": "./dist/exceptions/index.d.ts",
+      "require": "./dist/exceptions/index.js"
+    },
+    "./filters": {
+      "types": "./dist/filters/index.d.ts",
+      "require": "./dist/filters/index.js"
+    },
+    "./helpers": {
+      "types": "./dist/helpers/index.d.ts",
+      "require": "./dist/helpers/index.js"
+    },
+    "./generated": {
+      "types": "./dist/generated/index.d.ts",
+      "require": "./dist/generated/index.js"
+    },
+    "./interfaces": {
+      "types": "./dist/interfaces/index.d.ts",
+      "require": "./dist/interfaces/index.js"
+    },
+    "./logging": {
+      "types": "./dist/logging/index.d.ts",
+      "require": "./dist/logging/index.js"
+    },
+    "./registry": {
+      "types": "./dist/registry/index.d.ts",
+      "require": "./dist/registry/index.js"
+    },
+    "./tracing": {
+      "types": "./dist/tracing/index.d.ts",
+      "require": "./dist/tracing/index.js"
+    },
+    "./transport": {
+      "types": "./dist/transport/index.d.ts",
+      "require": "./dist/transport/index.js"
     }
   },
   "dependencies": {

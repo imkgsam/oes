@@ -1,4 +1,4 @@
-import { Permission } from 'src/domain/aggregates/permission.aggregate'
+import { Permission } from '../../domain/aggregates/permission.aggregate'
 
 export class PermissionMapper {
   static toDomain(input: any) {

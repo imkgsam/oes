@@ -1,283 +1,231 @@
-import { ExceptionConst } from '@oes/common/core/interfaces/exceptions.interface'
+import { ExceptionConst } from '@oes/common/exceptions'
 
 /**
- * 认证服务错误码定义
- *
- * 错误码分类：
- * - 0001-0099: 通用认证错误
- * - 0100-0199: 登录认证错误
- * - 0200-0299: MFA 相关错误
- * - 0300-0399: Session 相关错误
- * - 0400-0499: 设备相关错误
+ * 璁よ瘉鏈嶅姟閿欒鐮佸畾涔? *
+ * 閿欒鐮佸垎绫伙細
+ * - 0001-0099: 閫氱敤璁よ瘉閿欒
+ * - 0100-0199: 鐧诲綍璁よ瘉閿欒
+ * - 0200-0299: MFA 鐩稿叧閿欒
+ * - 0300-0399: Session 鐩稿叧閿欒
+ * - 0400-0499: 璁惧鐩稿叧閿欒
  */
 
 // ==================== Code-based Errors (RawError) ====================
-// 这些错误用于内部业务逻辑，不直接返回给客户端
+// 杩欎簺閿欒鐢ㄤ簬鍐呴儴涓氬姟閫昏緫锛屼笉鐩存帴杩斿洖缁欏鎴风
 
 export const AUTH_SERVICE_CODE_ERRORS: Record<string, ExceptionConst> = {
-  // ==================== 通用认证错误 (0001-0099) ====================
+  // ==================== 閫氱敤璁よ瘉閿欒 (0001-0099) ====================
 
   /**
-   * OTP 验证码已过期
+   * OTP 楠岃瘉鐮佸凡杩囨湡
    *
-   * 使用场景：
-   * - 邮箱验证码超过有效期
-   * - 短信验证码超过有效期
-   * - TOTP 时间窗口已过期
-   * - 用户输入验证码时已超时
-   */
+   * 浣跨敤鍦烘櫙锛?   * - 閭楠岃瘉鐮佽秴杩囨湁鏁堟湡
+   * - 鐭俊楠岃瘉鐮佽秴杩囨湁鏁堟湡
+   * - TOTP 鏃堕棿绐楀彛宸茶繃鏈?   * - 鐢ㄦ埛杈撳叆楠岃瘉鐮佹椂宸茶秴鏃?   */
   OTP_EXPIRED: {
     subCode: '0002',
-    message: '验证码已过期',
+    message: '楠岃瘉鐮佸凡杩囨湡',
     messageKey: 'auth.otp_expired'
   },
 
   /**
-   * OTP 验证尝试次数已达上限
+   * OTP 楠岃瘉灏濊瘯娆℃暟宸茶揪涓婇檺
    *
-   * 使用场景：
-   * - 用户连续输入错误验证码超过限制
-   * - 防止暴力破解验证码
-   * - 需要用户重新获取验证码
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛杩炵画杈撳叆閿欒楠岃瘉鐮佽秴杩囬檺鍒?   * - 闃叉鏆村姏鐮磋В楠岃瘉鐮?   * - 闇€瑕佺敤鎴烽噸鏂拌幏鍙栭獙璇佺爜
    */
   OTP_REACH_LIMIT: {
     subCode: '0003',
-    message: '验证码尝试次数已达上限',
+    message: '楠岃瘉鐮佸皾璇曟鏁板凡杈句笂闄?,
     messageKey: 'auth.otp_reach_limit'
   },
 
   /**
-   * OTP 验证码无效
-   *
-   * 使用场景：
-   * - 用户输入错误的验证码
-   * - 验证码格式不正确
-   * - 验证码已被使用
-   * - 验证码与用户不匹配
-   */
+   * OTP 楠岃瘉鐮佹棤鏁?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛杈撳叆閿欒鐨勯獙璇佺爜
+   * - 楠岃瘉鐮佹牸寮忎笉姝ｇ‘
+   * - 楠岃瘉鐮佸凡琚娇鐢?   * - 楠岃瘉鐮佷笌鐢ㄦ埛涓嶅尮閰?   */
   OTP_INVALID: {
     subCode: '0004',
-    message: '验证码无效',
+    message: '楠岃瘉鐮佹棤鏁?,
     messageKey: 'auth.otp_invalid'
   },
 
-  // ==================== MFA 相关错误 (0200-0299) ====================
+  // ==================== MFA 鐩稿叧閿欒 (0200-0299) ====================
 
   /**
-   * MFA 类型不匹配
-   *
-   * 使用场景：
-   * - 用户尝试使用错误的 MFA 类型进行验证
-   * - 前端传递的 MFA 类型与后端期望不符
-   * - 用户绑定类型与验证类型不一致
-   */
+   * MFA 绫诲瀷涓嶅尮閰?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛灏濊瘯浣跨敤閿欒鐨?MFA 绫诲瀷杩涜楠岃瘉
+   * - 鍓嶇浼犻€掔殑 MFA 绫诲瀷涓庡悗绔湡鏈涗笉绗?   * - 鐢ㄦ埛缁戝畾绫诲瀷涓庨獙璇佺被鍨嬩笉涓€鑷?   */
   MFA_TYPE_MISMATCH: {
     subCode: '0200',
-    message: 'MFA 类型不匹配',
+    message: 'MFA 绫诲瀷涓嶅尮閰?,
     messageKey: 'auth.mfa_type_mismatch'
   },
 
   /**
-   * MFA 绑定已禁用
-   *
-   * 使用场景：
-   * - 用户禁用了某种 MFA 方式
-   * - 管理员禁用了用户的 MFA 绑定
-   * - 系统维护时临时禁用 MFA
+   * MFA 缁戝畾宸茬鐢?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛绂佺敤浜嗘煇绉?MFA 鏂瑰紡
+   * - 绠＄悊鍛樼鐢ㄤ簡鐢ㄦ埛鐨?MFA 缁戝畾
+   * - 绯荤粺缁存姢鏃朵复鏃剁鐢?MFA
    */
   MFA_DISABLED: {
     subCode: '0201',
-    message: 'MFA 绑定已禁用',
+    message: 'MFA 缁戝畾宸茬鐢?,
     messageKey: 'auth.mfa_disabled'
   },
 
   /**
-   * MFA 类型不支持
-   *
-   * 使用场景：
-   * - 用户尝试绑定不支持的 MFA 类型
-   * - 系统不支持某种 MFA 方式
-   * - 配置错误导致类型不支持
-   */
+   * MFA 绫诲瀷涓嶆敮鎸?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛灏濊瘯缁戝畾涓嶆敮鎸佺殑 MFA 绫诲瀷
+   * - 绯荤粺涓嶆敮鎸佹煇绉?MFA 鏂瑰紡
+   * - 閰嶇疆閿欒瀵艰嚧绫诲瀷涓嶆敮鎸?   */
   MFA_TYPE_NOT_SUPPORTED: {
     subCode: '0202',
-    message: 'MFA 类型不支持',
+    message: 'MFA 绫诲瀷涓嶆敮鎸?,
     messageKey: 'auth.mfa_type_not_supported'
   },
 
   /**
-   * MFA 验证需要 OTP 令牌
+   * MFA 楠岃瘉闇€瑕?OTP 浠ょ墝
    *
-   * 使用场景：
-   * - 验证邮箱或短信 MFA 时缺少 OTP 令牌
-   * - 前端未正确传递 OTP 令牌
-   * - 令牌已过期或无效
+   * 浣跨敤鍦烘櫙锛?   * - 楠岃瘉閭鎴栫煭淇?MFA 鏃剁己灏?OTP 浠ょ墝
+   * - 鍓嶇鏈纭紶閫?OTP 浠ょ墝
+   * - 浠ょ墝宸茶繃鏈熸垨鏃犳晥
    */
   MFA_OTP_TOKEN_REQUIRED: {
     subCode: '0203',
-    message: 'MFA 验证需要 OTP 令牌',
+    message: 'MFA 楠岃瘉闇€瑕?OTP 浠ょ墝',
     messageKey: 'auth.mfa_otp_token_required'
   },
 
   /**
-   * MFA 绑定不存在
-   *
-   * 使用场景：
-   * - 用户尝试验证未绑定的 MFA 方式
-   * - 绑定 ID 不存在或已删除
-   * - 用户未设置 MFA
-   * - 绑定数据损坏或丢失
-   */
+   * MFA 缁戝畾涓嶅瓨鍦?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛灏濊瘯楠岃瘉鏈粦瀹氱殑 MFA 鏂瑰紡
+   * - 缁戝畾 ID 涓嶅瓨鍦ㄦ垨宸插垹闄?   * - 鐢ㄦ埛鏈缃?MFA
+   * - 缁戝畾鏁版嵁鎹熷潖鎴栦涪澶?   */
   MFA_BINDING_NOT_FOUND: {
     subCode: '0204',
-    message: 'MFA 绑定不存在',
+    message: 'MFA 缁戝畾涓嶅瓨鍦?,
     messageKey: 'auth.mfa_binding_not_found'
   },
 
   /**
-   * MFA 绑定已存在
-   *
-   * 使用场景：
-   * - 用户尝试重复绑定同类型的 MFA
-   * - 用户已绑定该类型的 MFA
-   * - 防止重复绑定同一设备或账号
-   */
+   * MFA 缁戝畾宸插瓨鍦?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛灏濊瘯閲嶅缁戝畾鍚岀被鍨嬬殑 MFA
+   * - 鐢ㄦ埛宸茬粦瀹氳绫诲瀷鐨?MFA
+   * - 闃叉閲嶅缁戝畾鍚屼竴璁惧鎴栬处鍙?   */
   MFA_BINDING_ALREADY_EXISTS: {
     subCode: '0206',
-    message: 'MFA 绑定已存在',
+    message: 'MFA 缁戝畾宸插瓨鍦?,
     messageKey: 'auth.mfa_binding_already_exists'
   }
 }
 
 // ==================== Exception-based Errors (RawError) ====================
-// 这些错误会直接返回给客户端，包含 HTTP 状态码
+// 杩欎簺閿欒浼氱洿鎺ヨ繑鍥炵粰瀹㈡埛绔紝鍖呭惈 HTTP 鐘舵€佺爜
 
 export const AUTH_SERVICE_EXCEPTION_ERRORS: Record<string, ExceptionConst> = {
-  // ==================== 登录认证错误 (0100-0199) ====================
+  // ==================== 鐧诲綍璁よ瘉閿欒 (0100-0199) ====================
 
   /**
-   * 认证失败
+   * 璁よ瘉澶辫触
    *
-   * 使用场景：
-   * - 通用认证失败
-   * - 认证过程中发生未知错误
-   * - 系统无法完成认证流程
+   * 浣跨敤鍦烘櫙锛?   * - 閫氱敤璁よ瘉澶辫触
+   * - 璁よ瘉杩囩▼涓彂鐢熸湭鐭ラ敊璇?   * - 绯荤粺鏃犳硶瀹屾垚璁よ瘉娴佺▼
    */
   AUTHENTICATION_FAILED: {
     subCode: '0100',
-    message: '认证失败',
+    message: '璁よ瘉澶辫触',
     messageKey: 'auth.authentication_failed',
     httpStatus: 401
   },
 
   /**
-   * 无效凭证
+   * 鏃犳晥鍑瘉
    *
-   * 使用场景：
-   * - 用户名或密码错误
-   * - 邮箱或密码不匹配
-   * - 手机号或密码不匹配
-   */
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒
+   * - 閭鎴栧瘑鐮佷笉鍖归厤
+   * - 鎵嬫満鍙锋垨瀵嗙爜涓嶅尮閰?   */
   INVALID_CREDENTIALS: {
     subCode: '0101',
-    message: '用户名或密码错误',
+    message: '鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒',
     messageKey: 'auth.invalid_credentials',
     httpStatus: 401
   },
 
   /**
-   * 账户被禁用
-   *
-   * 使用场景：
-   * - 用户账户被管理员禁用
-   * - 用户账户因违规被封禁
-   * - 账户状态异常
-   */
+   * 璐︽埛琚鐢?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛璐︽埛琚鐞嗗憳绂佺敤
+   * - 鐢ㄦ埛璐︽埛鍥犺繚瑙勮灏佺
+   * - 璐︽埛鐘舵€佸紓甯?   */
   ACCOUNT_DISABLED: {
     subCode: '0102',
-    message: '账户已被禁用',
+    message: '璐︽埛宸茶绂佺敤',
     messageKey: 'auth.account_disabled',
     httpStatus: 403
   },
 
   /**
-   * 登录方法未验证
-   *
-   * 使用场景：
-   * - 邮箱登录方法未验证
-   * - 手机号登录方法未验证
-   * - 需要先验证登录方法才能使用
+   * 鐧诲綍鏂规硶鏈獙璇?   *
+   * 浣跨敤鍦烘櫙锛?   * - 閭鐧诲綍鏂规硶鏈獙璇?   * - 鎵嬫満鍙风櫥褰曟柟娉曟湭楠岃瘉
+   * - 闇€瑕佸厛楠岃瘉鐧诲綍鏂规硶鎵嶈兘浣跨敤
    */
   LOGIN_METHOD_NOT_VERIFIED: {
     subCode: '0103',
-    message: '登录方法未验证',
+    message: '鐧诲綍鏂规硶鏈獙璇?,
     messageKey: 'auth.login_method_not_verified',
     httpStatus: 403
   },
 
   /**
-   * 密码凭证未找到
-   *
-   * 使用场景：
-   * - 用户没有设置密码
-   * - 密码凭证被删除
-   * - 密码凭证配置错误
+   * 瀵嗙爜鍑瘉鏈壘鍒?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛娌℃湁璁剧疆瀵嗙爜
+   * - 瀵嗙爜鍑瘉琚垹闄?   * - 瀵嗙爜鍑瘉閰嶇疆閿欒
    */
   PASSWORD_CREDENTIAL_NOT_FOUND: {
     subCode: '0106',
-    message: '密码凭证未找到',
+    message: '瀵嗙爜鍑瘉鏈壘鍒?,
     messageKey: 'auth.password_credential_not_found',
     httpStatus: 404
   },
 
   /**
-   * 密码凭证被禁用
-   *
-   * 使用场景：
-   * - 密码登录被禁用
-   * - 管理员禁用了密码登录
-   * - 密码凭证状态异常
-   */
+   * 瀵嗙爜鍑瘉琚鐢?   *
+   * 浣跨敤鍦烘櫙锛?   * - 瀵嗙爜鐧诲綍琚鐢?   * - 绠＄悊鍛樼鐢ㄤ簡瀵嗙爜鐧诲綍
+   * - 瀵嗙爜鍑瘉鐘舵€佸紓甯?   */
   PASSWORD_CREDENTIAL_DISABLED: {
     subCode: '0107',
-    message: '密码登录被禁用',
+    message: '瀵嗙爜鐧诲綍琚鐢?,
     messageKey: 'auth.password_credential_disabled',
     httpStatus: 403
   },
 
   /**
-   * OAuth 凭证未找到
-   *
-   * 使用场景：
-   * - 用户没有 OAuth 凭证
-   * - OAuth 凭证被删除
-   * - OAuth 配置缺失
+   * OAuth 鍑瘉鏈壘鍒?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛娌℃湁 OAuth 鍑瘉
+   * - OAuth 鍑瘉琚垹闄?   * - OAuth 閰嶇疆缂哄け
    */
   OAUTH_CREDENTIAL_NOT_FOUND: {
     subCode: '0108',
-    message: 'OAuth 凭证未找到',
+    message: 'OAuth 鍑瘉鏈壘鍒?,
     messageKey: 'auth.oauth_credential_not_found',
     httpStatus: 404
   },
 
   /**
-   * OAuth 凭证被禁用
-   *
-   * 使用场景：
-   * - OAuth 登录被禁用
-   * - 管理员禁用了 OAuth 登录
-   * - OAuth 凭证状态异常
-   */
+   * OAuth 鍑瘉琚鐢?   *
+   * 浣跨敤鍦烘櫙锛?   * - OAuth 鐧诲綍琚鐢?   * - 绠＄悊鍛樼鐢ㄤ簡 OAuth 鐧诲綍
+   * - OAuth 鍑瘉鐘舵€佸紓甯?   */
   OAUTH_CREDENTIAL_DISABLED: {
     subCode: '0109',
-    message: 'OAuth 登录被禁用',
+    message: 'OAuth 鐧诲綍琚鐢?,
     messageKey: 'auth.oauth_credential_disabled',
     httpStatus: 403
   }
 }
 
-// ==================== 兼容性导出 ====================
-// 为了保持向后兼容，合并所有错误到一个对象中
+// ==================== 鍏煎鎬у鍑?====================
+// 涓轰簡淇濇寔鍚戝悗鍏煎锛屽悎骞舵墍鏈夐敊璇埌涓€涓璞′腑
 
 export const AUTH_SERVICE_ERRORS: Record<string, ExceptionConst> = {
   ...AUTH_SERVICE_CODE_ERRORS,

@@ -14,8 +14,8 @@ export class GrpcExceptionFilter implements ExceptionFilter {
 
   catch(exception: unknown, host: ArgumentsHost): Observable<never> {
     const rpcCtx = host.switchToRpc()
-    const call = rpcCtx.getContext() as any
-    const methodName = call?.call?.method || 'unknown-method'
+    const call = host.getArgByIndex(2)
+    const methodName = this.getMethodName(call)
     const module = process.env.MODULE_NAME || 'unknown-service'
 
     if (exception instanceof RpcException) {
@@ -37,7 +37,7 @@ export class GrpcExceptionFilter implements ExceptionFilter {
         errorCode: this.getErrorCode(payload.details),
         details: payload.details
       })
-      return throwError(() => new RpcException(payload))
+      return throwError(() => payload)
     } else {
       // 处理未知异常
       const unknownExp = ExceptionFactory.infrastructure(UNKNOWN_EXCEPTION, {
@@ -51,7 +51,7 @@ export class GrpcExceptionFilter implements ExceptionFilter {
         errorCode: this.getErrorCode(payload.details),
         details: payload.details
       })
-      return throwError(() => new RpcException(payload))
+      return throwError(() => payload)
     }
   }
 
@@ -80,5 +80,24 @@ export class GrpcExceptionFilter implements ExceptionFilter {
 
   private getErrorCode(details?: any): string | undefined {
     return details && typeof details === 'object' ? details.code : undefined
+  }
+
+  private getMethodName(call: any): string {
+    const candidates = [
+      call?.call?.handler?.path,
+      call?.handler?.path,
+      call?.call?.path,
+      call?.path,
+      call?.call?.method,
+      call?.method
+    ]
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim().length > 0) {
+        return candidate
+      }
+    }
+
+    return 'unknown-method'
   }
 }

@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common'
-import { CommonJwtModule } from '@oes/common/modules/jwt/jwt.module'
+import { CommonJwtModule } from '@oes/common/auth'
 
 @Module({
   imports: [CommonJwtModule]

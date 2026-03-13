@@ -33,21 +33,15 @@ export class CreateRoleCommand implements ICommand {
   @MaxLength(200)
   readonly description?: string
 
-  @IsUUID()
-  @IsNotEmpty()
-  readonly createdBy: string
-
   constructor(params: {
     name: string
     code: string
-    createdBy: string
     tenantId?: string
     isSystem?: boolean
     description?: string
   }) {
     this.name = params.name
     this.code = params.code
-    this.createdBy = params.createdBy
     this.tenantId = params.tenantId
     this.isSystem = params.isSystem
     this.description = params.description

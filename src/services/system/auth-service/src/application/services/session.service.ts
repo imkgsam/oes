@@ -1,37 +1,27 @@
 import { Injectable, Logger, Inject } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { CommonJwtService } from '@oes/common/modules/jwt/jwt.service'
+import { CommonJwtService } from '@oes/common/auth'
 import { Session, SessionConfig, DeviceInfo } from 'src/domain/aggregates/usersession.aggregate'
 import { IUserSessionRepository } from 'src/domain/repositories/user-session.repository'
 import { SESSION_REPOSITORY } from 'src/common/constants/injection-tokens'
 
 /**
- * Session 服务
+ * Session 鏈嶅姟
  *
- * 功能：管理用户会话的核心业务逻辑
+ * 鍔熻兘锛氱鐞嗙敤鎴蜂細璇濈殑鏍稿績涓氬姟閫昏緫
  *
- * 使用场景：
- * - 用户登录后的会话创建和管理
- * - 双令牌（访问令牌 + 刷新令牌）机制
- * - 自动续期和令牌轮换
- * - 管理员对会话的实时控制
- * - 设备级别的会话管理
- * - 安全审计和监控
- *
- * 技术特点：
- * - 集成 CommonJwtService 进行令牌生成
- * - 使用 TokenConfig 进行配置管理
- * - 支持自动续期机制
- * - 多维度安全控制
- * - 实时监控和统计
- */
+ * 浣跨敤鍦烘櫙锛? * - 鐢ㄦ埛鐧诲綍鍚庣殑浼氳瘽鍒涘缓鍜岀鐞? * - 鍙屼护鐗岋紙璁块棶浠ょ墝 + 鍒锋柊浠ょ墝锛夋満鍒? * - 鑷姩缁湡鍜屼护鐗岃疆鎹? * - 绠＄悊鍛樺浼氳瘽鐨勫疄鏃舵帶鍒? * - 璁惧绾у埆鐨勪細璇濈鐞? * - 瀹夊叏瀹¤鍜岀洃鎺? *
+ * 鎶€鏈壒鐐癸細
+ * - 闆嗘垚 CommonJwtService 杩涜浠ょ墝鐢熸垚
+ * - 浣跨敤 TokenConfig 杩涜閰嶇疆绠＄悊
+ * - 鏀寔鑷姩缁湡鏈哄埗
+ * - 澶氱淮搴﹀畨鍏ㄦ帶鍒? * - 瀹炴椂鐩戞帶鍜岀粺璁? */
 @Injectable()
 export class SessionService {
   private readonly logger = new Logger(SessionService.name)
   private readonly defaultConfig: SessionConfig = {
-    accessTokenExpiry: 3600, // 1小时
-    refreshTokenExpiry: 7 * 24 * 3600, // 7天
-    maxSessionsPerUser: 5,
+    accessTokenExpiry: 3600, // 1灏忔椂
+    refreshTokenExpiry: 7 * 24 * 3600, // 7澶?    maxSessionsPerUser: 5,
     enableAutoRenewal: true,
     enableDeviceTracking: true
   }
@@ -43,40 +33,35 @@ export class SessionService {
     private readonly configService: ConfigService
   ) {}
 
-  // ==================== 核心方法 ====================
+  // ==================== 鏍稿績鏂规硶 ====================
 
   /**
-   * 创建新的用户会话
+   * 鍒涘缓鏂扮殑鐢ㄦ埛浼氳瘽
    *
-   * 使用场景：
-   * - 用户首次登录时创建会话
-   * - 新设备登录时创建会话
-   * - 令牌刷新时创建新会话
-   * - 管理员为用户创建会话
-   * - 多设备登录管理
-   *
-   * @param userId 用户 ID
-   * @param deviceInfo 设备信息
-   * @param config 会话配置（可选）
-   * @returns 创建的会话信息
-   */
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛棣栨鐧诲綍鏃跺垱寤轰細璇?   * - 鏂拌澶囩櫥褰曟椂鍒涘缓浼氳瘽
+   * - 浠ょ墝鍒锋柊鏃跺垱寤烘柊浼氳瘽
+   * - 绠＄悊鍛樹负鐢ㄦ埛鍒涘缓浼氳瘽
+   * - 澶氳澶囩櫥褰曠鐞?   *
+   * @param userId 鐢ㄦ埛 ID
+   * @param deviceInfo 璁惧淇℃伅
+   * @param config 浼氳瘽閰嶇疆锛堝彲閫夛級
+   * @returns 鍒涘缓鐨勪細璇濅俊鎭?   */
   async createSession(
     userId: string,
     accountId: string,
     deviceInfo: DeviceInfo,
     config?: Partial<SessionConfig>
   ): Promise<{ accessToken: string; refreshToken: string; sessionId: string }> {
-    // 检查会话数量限制
-    await this.checkSessionLimit(userId)
+    // 妫€鏌ヤ細璇濇暟閲忛檺鍒?    await this.checkSessionLimit(userId)
 
-    // 获取令牌配置
+    // 鑾峰彇浠ょ墝閰嶇疆
     const tokenConfig = this.configService.getOrThrow('token')
     const accessTokenExpiry =
       tokenConfig?.accessTokenValidity || this.defaultConfig.accessTokenExpiry
     const refreshTokenExpiry =
       tokenConfig?.refreshTokenValidity || this.defaultConfig.refreshTokenExpiry
 
-    // 合并配置
+    // 鍚堝苟閰嶇疆
     const sessionConfig: SessionConfig = {
       ...this.defaultConfig,
       accessTokenExpiry,
@@ -84,7 +69,7 @@ export class SessionService {
       ...config
     }
 
-    // 创建会话实体
+    // 鍒涘缓浼氳瘽瀹炰綋
     const session = Session.createSession({
       userId,
       accountId,
@@ -92,15 +77,14 @@ export class SessionService {
       config: sessionConfig
     })
 
-    // 生成 JWT 令牌
+    // 鐢熸垚 JWT 浠ょ墝
     const accessToken = await this.generateJwtToken(session, 'ACCESS')
     const refreshToken = await this.generateJwtToken(session, 'REFRESH')
 
-    // 更新会话的令牌
-    session['props'].accessToken = accessToken
+    // 鏇存柊浼氳瘽鐨勪护鐗?    session['props'].accessToken = accessToken
     session['props'].refreshToken = refreshToken
 
-    // 保存会话
+    // 淇濆瓨浼氳瘽
     await this.sessionRepo.save(session)
 
     this.logger.log(`Created session for user ${userId} on device ${deviceInfo.deviceId}`)
@@ -113,18 +97,13 @@ export class SessionService {
   }
 
   /**
-   * 验证访问令牌
+   * 楠岃瘉璁块棶浠ょ墝
    *
-   * 使用场景：
-   * - API 请求时的令牌验证
-   * - 获取令牌对应的会话信息
-   * - 自动续期机制触发
-   * - 安全审计和监控
-   * - 用户活跃度追踪
-   *
-   * @param accessToken 访问令牌
-   * @returns 验证结果和会话信息
-   */
+   * 浣跨敤鍦烘櫙锛?   * - API 璇锋眰鏃剁殑浠ょ墝楠岃瘉
+   * - 鑾峰彇浠ょ墝瀵瑰簲鐨勪細璇濅俊鎭?   * - 鑷姩缁湡鏈哄埗瑙﹀彂
+   * - 瀹夊叏瀹¤鍜岀洃鎺?   * - 鐢ㄦ埛娲昏穬搴﹁拷韪?   *
+   * @param accessToken 璁块棶浠ょ墝
+   * @returns 楠岃瘉缁撴灉鍜屼細璇濅俊鎭?   */
   async validateAccessToken(accessToken: string): Promise<{
     isValid: boolean
     session?: Session
@@ -132,7 +111,7 @@ export class SessionService {
     shouldRenew?: boolean
   }> {
     try {
-      // 验证 JWT 令牌
+      // 楠岃瘉 JWT 浠ょ墝
       await this.commonJwtService.verifyAsync<{
         sub: string
         sessionId: string
@@ -141,21 +120,18 @@ export class SessionService {
         exp: number
       }>(accessToken)
 
-      // 查找对应的会话
-      const session = await this.sessionRepo.findByAccessToken(accessToken)
+      // 鏌ユ壘瀵瑰簲鐨勪細璇?      const session = await this.sessionRepo.findByAccessToken(accessToken)
       if (!session) {
         return { isValid: false }
       }
 
-      // 验证会话状态
-      if (!session.isActive()) {
+      // 楠岃瘉浼氳瘽鐘舵€?      if (!session.isActive()) {
         return { isValid: false }
       }
 
-      // 检查是否需要自动续期
-      const shouldRenew = this.shouldAutoRenew(session)
+      // 妫€鏌ユ槸鍚﹂渶瑕佽嚜鍔ㄧ画鏈?      const shouldRenew = this.shouldAutoRenew(session)
 
-      // 如果需要续期，自动续期
+      // 濡傛灉闇€瑕佺画鏈燂紝鑷姩缁湡
       if (shouldRenew) {
         await this.autoRenewSession(session)
       }
@@ -175,25 +151,23 @@ export class SessionService {
   }
 
   /**
-   * 刷新令牌
+   * 鍒锋柊浠ょ墝
    *
-   * 使用场景：
-   * - 访问令牌过期时的刷新
-   * - 长期会话管理
-   * - 令牌轮换机制
-   * - 安全策略执行
-   * - 用户体验优化
+   * 浣跨敤鍦烘櫙锛?   * - 璁块棶浠ょ墝杩囨湡鏃剁殑鍒锋柊
+   * - 闀挎湡浼氳瘽绠＄悊
+   * - 浠ょ墝杞崲鏈哄埗
+   * - 瀹夊叏绛栫暐鎵ц
+   * - 鐢ㄦ埛浣撻獙浼樺寲
    *
-   * @param refreshToken 刷新令牌
-   * @returns 新的令牌对
-   */
+   * @param refreshToken 鍒锋柊浠ょ墝
+   * @returns 鏂扮殑浠ょ墝瀵?   */
   async refreshTokens(refreshToken: string): Promise<{
     accessToken: string
     refreshToken: string
     sessionId: string
   }> {
     try {
-      // 验证刷新令牌
+      // 楠岃瘉鍒锋柊浠ょ墝
       await this.commonJwtService.verifyAsync<{
         sub: string
         sessionId: string
@@ -202,21 +176,19 @@ export class SessionService {
         exp: number
       }>(refreshToken)
 
-      // 查找对应的会话
-      const session = await this.sessionRepo.findByRefreshToken(refreshToken)
+      // 鏌ユ壘瀵瑰簲鐨勪細璇?      const session = await this.sessionRepo.findByRefreshToken(refreshToken)
       if (!session || !session.isActive()) {
         throw new Error('Invalid or expired refresh token')
       }
 
-      // 生成新的令牌
+      // 鐢熸垚鏂扮殑浠ょ墝
       const newAccessToken = await this.generateJwtToken(session, 'ACCESS')
       const newRefreshToken = await this.generateJwtToken(session, 'REFRESH')
 
-      // 更新会话的令牌
-      session['props'].accessToken = newAccessToken
+      // 鏇存柊浼氳瘽鐨勪护鐗?      session['props'].accessToken = newAccessToken
       session['props'].refreshToken = newRefreshToken
 
-      // 保存会话
+      // 淇濆瓨浼氳瘽
       await this.sessionRepo.save(session)
 
       this.logger.log(`Refreshed tokens for session ${session.getId()}`)
@@ -235,16 +207,15 @@ export class SessionService {
   }
 
   /**
-   * 用户登出
+   * 鐢ㄦ埛鐧诲嚭
    *
-   * 使用场景：
-   * - 用户主动登出
-   * - 设备丢失处理
-   * - 安全事件响应
-   * - 会话清理
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛涓诲姩鐧诲嚭
+   * - 璁惧涓㈠け澶勭悊
+   * - 瀹夊叏浜嬩欢鍝嶅簲
+   * - 浼氳瘽娓呯悊
    *
-   * @param sessionId 会话 ID
-   * @returns 登出结果
+   * @param sessionId 浼氳瘽 ID
+   * @returns 鐧诲嚭缁撴灉
    */
   async logout(sessionId: string): Promise<{ success: boolean }> {
     try {
@@ -260,16 +231,13 @@ export class SessionService {
   }
 
   /**
-   * 用户登出所有设备
+   * 鐢ㄦ埛鐧诲嚭鎵€鏈夎澶?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛淇敼瀵嗙爜鍚庡己鍒堕噸鏂扮櫥褰?   * - 瀹夊叏浜嬩欢澶勭悊
+   * - 璐︽埛灏佺
+   * - 鎵归噺浼氳瘽娓呯悊
    *
-   * 使用场景：
-   * - 用户修改密码后强制重新登录
-   * - 安全事件处理
-   * - 账户封禁
-   * - 批量会话清理
-   *
-   * @param userId 用户 ID
-   * @returns 登出结果
+   * @param userId 鐢ㄦ埛 ID
+   * @returns 鐧诲嚭缁撴灉
    */
   async logoutAll(userId: string): Promise<{ success: boolean; sessionCount: number }> {
     try {
@@ -288,22 +256,20 @@ export class SessionService {
     }
   }
 
-  // ==================== 管理员控制方法 ====================
+  // ==================== 绠＄悊鍛樻帶鍒舵柟娉?====================
 
   /**
-   * 管理员撤销用户的所有会话
+   * 绠＄悊鍛樻挙閿€鐢ㄦ埛鐨勬墍鏈変細璇?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛杩濊澶勭悊
+   * - 瀹夊叏浜嬩欢鍝嶅簲
+   * - 璐︽埛灏佺
+   * - 寮哄埗鐢ㄦ埛閲嶆柊鐧诲綍
+   * - 瀹夊叏瀹¤
    *
-   * 使用场景：
-   * - 用户违规处理
-   * - 安全事件响应
-   * - 账户封禁
-   * - 强制用户重新登录
-   * - 安全审计
-   *
-   * @param userId 用户 ID
-   * @param reason 撤销原因
-   * @param adminId 管理员 ID
-   * @returns 撤销结果
+   * @param userId 鐢ㄦ埛 ID
+   * @param reason 鎾ら攢鍘熷洜
+   * @param adminId 绠＄悊鍛?ID
+   * @returns 鎾ら攢缁撴灉
    */
   async adminRevokeAllSessions(
     userId: string,
@@ -325,18 +291,17 @@ export class SessionService {
   }
 
   /**
-   * 管理员撤销指定会话
+   * 绠＄悊鍛樻挙閿€鎸囧畾浼氳瘽
    *
-   * 使用场景：
-   * - 可疑设备处理
-   * - 特定设备封禁
-   * - 精确控制
-   * - 安全调查
+   * 浣跨敤鍦烘櫙锛?   * - 鍙枒璁惧澶勭悊
+   * - 鐗瑰畾璁惧灏佺
+   * - 绮剧‘鎺у埗
+   * - 瀹夊叏璋冩煡
    *
-   * @param sessionId 会话 ID
-   * @param reason 撤销原因
-   * @param adminId 管理员 ID
-   * @returns 撤销结果
+   * @param sessionId 浼氳瘽 ID
+   * @param reason 鎾ら攢鍘熷洜
+   * @param adminId 绠＄悊鍛?ID
+   * @returns 鎾ら攢缁撴灉
    */
   async adminRevokeSession(
     sessionId: string,
@@ -357,18 +322,16 @@ export class SessionService {
   }
 
   /**
-   * 管理员暂停用户的所有会话
+   * 绠＄悊鍛樻殏鍋滅敤鎴风殑鎵€鏈変細璇?   *
+   * 浣跨敤鍦烘櫙锛?   * - 涓存椂灏佺鐢ㄦ埛
+   * - 璋冩煡鏈熼棿鏆傚仠
+   * - 鍙仮澶嶇殑澶勭綒
+   * - 瀹夊叏浜嬩欢澶勭悊
    *
-   * 使用场景：
-   * - 临时封禁用户
-   * - 调查期间暂停
-   * - 可恢复的处罚
-   * - 安全事件处理
-   *
-   * @param userId 用户 ID
-   * @param reason 暂停原因
-   * @param adminId 管理员 ID
-   * @returns 暂停结果
+   * @param userId 鐢ㄦ埛 ID
+   * @param reason 鏆傚仠鍘熷洜
+   * @param adminId 绠＄悊鍛?ID
+   * @returns 鏆傚仠缁撴灉
    */
   async adminSuspendAllSessions(
     userId: string,
@@ -390,16 +353,14 @@ export class SessionService {
   }
 
   /**
-   * 管理员恢复用户的所有会话
+   * 绠＄悊鍛樻仮澶嶇敤鎴风殑鎵€鏈変細璇?   *
+   * 浣跨敤鍦烘櫙锛?   * - 璋冩煡缁撴潫鍚庣殑鎭㈠
+   * - 璇皝鍚庣殑鎭㈠
+   * - 澶勭綒鏈熸弧鍚庣殑鎭㈠
+   * - 瀹夊叏浜嬩欢瑙ｅ喅
    *
-   * 使用场景：
-   * - 调查结束后的恢复
-   * - 误封后的恢复
-   * - 处罚期满后的恢复
-   * - 安全事件解决
-   *
-   * @param userId 用户 ID
-   * @returns 恢复结果
+   * @param userId 鐢ㄦ埛 ID
+   * @returns 鎭㈠缁撴灉
    */
   async adminRestoreAllSessions(
     userId: string
@@ -418,20 +379,16 @@ export class SessionService {
     }
   }
 
-  // ==================== 实时控制方法 ====================
+  // ==================== 瀹炴椂鎺у埗鏂规硶 ====================
 
   /**
-   * 踢出用户的所有其他设备
-   *
-   * 使用场景：
-   * - 新设备登录时踢出旧设备
-   * - 安全策略执行
-   * - 设备数量限制
-   * - 强制单设备登录
-   *
-   * @param userId 用户 ID
-   * @param excludeSessionId 排除的会话 ID
-   * @returns 踢出结果
+   * 韪㈠嚭鐢ㄦ埛鐨勬墍鏈夊叾浠栬澶?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鏂拌澶囩櫥褰曟椂韪㈠嚭鏃ц澶?   * - 瀹夊叏绛栫暐鎵ц
+   * - 璁惧鏁伴噺闄愬埗
+   * - 寮哄埗鍗曡澶囩櫥褰?   *
+   * @param userId 鐢ㄦ埛 ID
+   * @param excludeSessionId 鎺掗櫎鐨勪細璇?ID
+   * @returns 韪㈠嚭缁撴灉
    */
   async kickOtherDevices(
     userId: string,
@@ -456,16 +413,15 @@ export class SessionService {
   }
 
   /**
-   * 踢出指定设备
+   * 韪㈠嚭鎸囧畾璁惧
    *
-   * 使用场景：
-   * - 可疑设备处理
-   * - 设备丢失处理
-   * - 精确控制
-   * - 安全事件响应
+   * 浣跨敤鍦烘櫙锛?   * - 鍙枒璁惧澶勭悊
+   * - 璁惧涓㈠け澶勭悊
+   * - 绮剧‘鎺у埗
+   * - 瀹夊叏浜嬩欢鍝嶅簲
    *
-   * @param sessionId 会话 ID
-   * @returns 踢出结果
+   * @param sessionId 浼氳瘽 ID
+   * @returns 韪㈠嚭缁撴灉
    */
   async kickDevice(sessionId: string): Promise<{ success: boolean }> {
     try {
@@ -481,19 +437,14 @@ export class SessionService {
     }
   }
 
-  // ==================== 查询和监控方法 ====================
+  // ==================== 鏌ヨ鍜岀洃鎺ф柟娉?====================
 
   /**
-   * 获取用户的所有会话
+   * 鑾峰彇鐢ㄦ埛鐨勬墍鏈変細璇?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛鏌ョ湅鑷繁鐨勭櫥褰曡澶?   * - 绠＄悊鍛樻煡鐪嬬敤鎴蜂細璇濈姸鎬?   * - 瀹夊叏瀹¤鍜岃皟鏌?   * - 璁惧绠＄悊
    *
-   * 使用场景：
-   * - 用户查看自己的登录设备
-   * - 管理员查看用户会话状态
-   * - 安全审计和调查
-   * - 设备管理
-   *
-   * @param userId 用户 ID
-   * @returns 会话列表
+   * @param userId 鐢ㄦ埛 ID
+   * @returns 浼氳瘽鍒楄〃
    */
   async getUserSessions(userId: string): Promise<{
     sessions: Array<{
@@ -525,15 +476,14 @@ export class SessionService {
   }
 
   /**
-   * 获取会话统计信息
+   * 鑾峰彇浼氳瘽缁熻淇℃伅
    *
-   * 使用场景：
-   * - 系统监控面板
-   * - 性能分析
-   * - 容量规划
-   * - 安全审计
+   * 浣跨敤鍦烘櫙锛?   * - 绯荤粺鐩戞帶闈㈡澘
+   * - 鎬ц兘鍒嗘瀽
+   * - 瀹归噺瑙勫垝
+   * - 瀹夊叏瀹¤
    *
-   * @returns 统计信息
+   * @returns 缁熻淇℃伅
    */
   async getSessionStats(): Promise<{
     total: number
@@ -546,16 +496,15 @@ export class SessionService {
   }
 
   /**
-   * 获取用户会话统计信息
+   * 鑾峰彇鐢ㄦ埛浼氳瘽缁熻淇℃伅
    *
-   * 使用场景：
-   * - 用户行为分析
-   * - 安全风险评估
-   * - 用户支持
-   * - 个性化服务
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛琛屼负鍒嗘瀽
+   * - 瀹夊叏椋庨櫓璇勪及
+   * - 鐢ㄦ埛鏀寔
+   * - 涓€у寲鏈嶅姟
    *
-   * @param userId 用户 ID
-   * @returns 用户统计信息
+   * @param userId 鐢ㄦ埛 ID
+   * @returns 鐢ㄦ埛缁熻淇℃伅
    */
   async getUserSessionStats(userId: string): Promise<{
     total: number
@@ -566,18 +515,16 @@ export class SessionService {
     return this.sessionRepo.getUserSessionStats(userId)
   }
 
-  // ==================== 私有方法 ====================
+  // ==================== 绉佹湁鏂规硶 ====================
 
   /**
-   * 检查用户会话数量限制
+   * 妫€鏌ョ敤鎴蜂細璇濇暟閲忛檺鍒?   *
+   * 浣跨敤鍦烘櫙锛?   * - 闃叉鐢ㄦ埛鍒涘缓杩囧浼氳瘽
+   * - 璧勬簮浣跨敤鎺у埗
+   * - 瀹夊叏绛栫暐鎵ц
+   * - 鎬ц兘浼樺寲
    *
-   * 使用场景：
-   * - 防止用户创建过多会话
-   * - 资源使用控制
-   * - 安全策略执行
-   * - 性能优化
-   *
-   * @param userId 用户 ID
+   * @param userId 鐢ㄦ埛 ID
    */
   private async checkSessionLimit(userId: string): Promise<void> {
     const activeCount = await this.sessionRepo.countActiveByUserId(userId)
@@ -587,17 +534,15 @@ export class SessionService {
   }
 
   /**
-   * 生成 JWT 令牌
+   * 鐢熸垚 JWT 浠ょ墝
    *
-   * 使用场景：
-   * - 创建访问令牌
-   * - 创建刷新令牌
-   * - 令牌签名和验证
-   * - 安全策略应用
+   * 浣跨敤鍦烘櫙锛?   * - 鍒涘缓璁块棶浠ょ墝
+   * - 鍒涘缓鍒锋柊浠ょ墝
+   * - 浠ょ墝绛惧悕鍜岄獙璇?   * - 瀹夊叏绛栫暐搴旂敤
    *
-   * @param session 会话实体
-   * @param type 令牌类型
-   * @returns JWT 令牌
+   * @param session 浼氳瘽瀹炰綋
+   * @param type 浠ょ墝绫诲瀷
+   * @returns JWT 浠ょ墝
    */
   private async generateJwtToken(session: Session, type: 'ACCESS' | 'REFRESH'): Promise<string> {
     const tokenConfig = this.configService.get('token')
@@ -621,38 +566,33 @@ export class SessionService {
   }
 
   /**
-   * 判断是否需要自动续期
+   * 鍒ゆ柇鏄惁闇€瑕佽嚜鍔ㄧ画鏈?   *
+   * 浣跨敤鍦烘櫙锛?   * - 鑷姩缁湡鏈哄埗瑙﹀彂
+   * - 鐢ㄦ埛浣撻獙浼樺寲
+   * - 瀹夊叏绛栫暐鎵ц
+   * - 鎬ц兘浼樺寲
    *
-   * 使用场景：
-   * - 自动续期机制触发
-   * - 用户体验优化
-   * - 安全策略执行
-   * - 性能优化
-   *
-   * @param session 会话实体
-   * @returns 是否需要续期
-   */
+   * @param session 浼氳瘽瀹炰綋
+   * @returns 鏄惁闇€瑕佺画鏈?   */
   private shouldAutoRenew(session: Session): boolean {
     if (!this.defaultConfig.enableAutoRenewal) {
       return false
     }
 
     const remainingTime = session.getRemainingTime()
-    const renewalThreshold = 300 // 5分钟
+    const renewalThreshold = 300 // 5鍒嗛挓
 
     return remainingTime > 0 && remainingTime <= renewalThreshold
   }
 
   /**
-   * 自动续期会话
+   * 鑷姩缁湡浼氳瘽
    *
-   * 使用场景：
-   * - 用户活跃时的自动续期
-   * - 无缝的用户体验
-   * - 安全策略调整
-   * - 性能优化
+   * 浣跨敤鍦烘櫙锛?   * - 鐢ㄦ埛娲昏穬鏃剁殑鑷姩缁湡
+   * - 鏃犵紳鐨勭敤鎴蜂綋楠?   * - 瀹夊叏绛栫暐璋冩暣
+   * - 鎬ц兘浼樺寲
    *
-   * @param session 会话实体
+   * @param session 浼氳瘽瀹炰綋
    */
   private async autoRenewSession(session: Session): Promise<void> {
     const tokenConfig = this.configService.get('token')

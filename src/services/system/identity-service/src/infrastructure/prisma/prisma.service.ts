@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { PrismaClient } from '../../../prisma/generated/prisma'
-import { GLOBAL_SYSTEM_ERRORS } from '@oes/common/constants/res-codes/system.errors'
-import { createSystemException } from '@oes/common/exceptions/exception.factory'
+import { GLOBAL_SYSTEM_ERRORS } from '@oes/common/constants'
+import { createSystemException } from '@oes/common/exceptions'
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {

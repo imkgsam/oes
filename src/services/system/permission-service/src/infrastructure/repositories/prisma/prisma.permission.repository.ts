@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common'
-import { Permission } from 'src/domain/aggregates/permission.aggregate'
-import { PermissionModule } from 'src/domain/enums/permission-module.enum'
-import { PermissionRepository } from 'src/domain/repositories/permission.repository'
-import { PermissionMapper } from 'src/infrastructure/mappers/permission.mapper'
-import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
+import { Permission } from '../../../domain/aggregates/permission.aggregate'
+import { PermissionModule } from '../../../domain/enums/permission-module.enum'
+import { PermissionRepository } from '../../../domain/repositories/permission.repository'
+import { PermissionMapper } from '../../mappers/permission.mapper'
+import { PrismaService } from '../../prisma/prisma.service'
 
 @Injectable()
 export class PrismaPermissionRepository implements PermissionRepository {

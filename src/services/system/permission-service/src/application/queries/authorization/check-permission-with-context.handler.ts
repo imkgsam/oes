@@ -1,8 +1,8 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { CheckPermissionWithContextQuery } from './check-permission-with-context.query'
-import { AccountAuthorizationService } from 'src/domain/services/account-authorization.service'
-import { AuthzDecision } from 'src/domain/services/policy-engine'
+import { AccountAuthorizationService } from '../../../domain/services/account-authorization.service'
+import { AuthzDecision } from '../../../domain/services/policy-engine'
 
 export const ACCOUNT_AUTHORIZATION_SERVICE = Symbol('AccountAuthorizationService')
 

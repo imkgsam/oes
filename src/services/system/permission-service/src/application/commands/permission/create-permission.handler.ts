@@ -1,11 +1,11 @@
 import { CommandHandler, ICommandHandler, EventBus } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { CreatePermissionCommand } from './create-permission.command'
-import { PermissionRepository } from 'src/domain/repositories/permission.repository'
-import { Permission } from 'src/domain/aggregates/permission.aggregate'
-import { SYMBOLS } from 'src/common/constants/symbols'
-import { ExceptionFactory } from '@oes/common/core/exceptions/exception.factory'
-import { PERMISSION_ALREADY_EXISTS } from 'src/common/constants/exception-enums/permission-service.errors'
+import { PermissionRepository } from '../../../domain/repositories/permission.repository'
+import { Permission } from '../../../domain/aggregates/permission.aggregate'
+import { SYMBOLS } from '../../../common/constants/symbols'
+import { ExceptionFactory } from '@oes/common/exceptions'
+import { PERMISSION_ALREADY_EXISTS } from '../../../common/constants/exception-enums/permission-service.errors'
 
 @CommandHandler(CreatePermissionCommand)
 export class CreatePermissionHandler implements ICommandHandler<CreatePermissionCommand> {

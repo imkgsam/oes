@@ -11,8 +11,8 @@ import {
   ValidateNested
 } from 'class-validator'
 import { Type } from 'class-transformer'
-import { PolicyEffect } from 'src/domain/enums/policy-effect.enum'
-import { PolicySubjectType } from 'src/domain/enums/policy-subject-type.enum'
+import { PolicyEffect } from '../../../domain/enums/policy-effect.enum'
+import { PolicySubjectType } from '../../../domain/enums/policy-subject-type.enum'
 import { PolicyConditionInput } from './create-policy.command'
 
 export class UpdatePolicyCommand implements ICommand {

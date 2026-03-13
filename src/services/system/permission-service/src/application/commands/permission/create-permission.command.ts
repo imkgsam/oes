@@ -1,6 +1,6 @@
 import { ICommand } from '@nestjs/cqrs'
 import { IsNotEmpty, IsOptional, IsString, IsEnum } from 'class-validator'
-import { PermissionModule } from 'src/domain/enums/permission-module.enum'
+import { PermissionModule } from '../../../domain/enums/permission-module.enum'
 
 export class CreatePermissionCommand implements ICommand {
   @IsString()

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
-import { Policy } from 'src/domain/aggregates/policy.aggregate'
-import { PolicyRepository } from 'src/domain/repositories/policy.repository'
-import { PolicyMapper } from 'src/infrastructure/mappers/policy.mapper'
-import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
+import { Policy } from '../../../domain/aggregates/policy.aggregate'
+import { PolicyRepository } from '../../../domain/repositories/policy.repository'
+import { PolicyMapper } from '../../mappers/policy.mapper'
+import { PrismaService } from '../../prisma/prisma.service'
 
 const POLICY_INCLUDE = { conditions: true } as const
 
@@ -68,8 +68,7 @@ export class PrismaPolicyRepository implements PolicyRepository {
           isEnabled: data.isEnabled
         },
         create: {
-          ...data,
-          createdBy: policy.id // placeholder – actual createdBy set at command level
+          ...data
         }
       })
 

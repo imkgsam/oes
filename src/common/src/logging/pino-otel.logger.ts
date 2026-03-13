@@ -3,6 +3,7 @@
 import pino, { Logger as PinoLogger, LoggerOptions } from 'pino'
 import { trace, SpanContext } from '@opentelemetry/api'
 import { OesLogger, LogMeta, isLogMeta } from './oes-logger.interface'
+import { isDevelopment } from '../core/helpers/env.helper'
 
 /**
  * Configuration options for PinoOtelLogger.
@@ -60,8 +61,20 @@ export class PinoOtelLogger implements OesLogger {
       },
       // Optimize for production: disable pretty print, use fast serializers
       formatters: {
-        level: (label) => ({ level: label })
+        level: (label) => ({ level: label.toUpperCase() })
       },
+      // 测试开发中，启用 pino-pretty 以便于阅读；生产环境中使用默认 JSON 输出
+      transport: isDevelopment()
+        ? {
+            target: 'pino-pretty',
+            options: {
+              colorize: true,
+              translateTime: 'yyyy-mm-dd HH:MM:ss',
+              ignore: 'pid,hostname',
+              singleLine: true
+            }
+          }
+        : undefined,
       // Merge custom pino options
       ...opts.pinoOptions
     })

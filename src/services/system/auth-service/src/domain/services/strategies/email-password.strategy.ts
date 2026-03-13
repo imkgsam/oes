@@ -1,5 +1,5 @@
 import { Injectable, Inject } from '@nestjs/common'
-import { EmailPasswordLoginRequestDto } from '@oes/common/dtos/auth-service/all.dto'
+import { EmailPasswordLoginRequestDto } from '@oes/common/dtos'
 import { AuthStrategyPort } from 'src/domain/ports/auth-strategy.port'
 import { LoginMethodEnum } from 'src/common/constants'
 import { HashingPort } from 'src/domain/ports/hashing.port'

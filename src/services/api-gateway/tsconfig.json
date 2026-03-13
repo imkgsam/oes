@@ -1,0 +1,13 @@
+// src/services/system/api-gateway/tsconfig.json
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "baseUrl": ".",
+    "skipLibCheck": true
+  },
+  "references": [{ "path": "../../common" }],
+  "include": ["src"],
+  "exclude": ["node_modules"]
+}

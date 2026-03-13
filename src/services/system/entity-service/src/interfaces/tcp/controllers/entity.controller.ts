@@ -8,10 +8,10 @@ import {
   UpdateEntityRequestDto,
   ListEntitiesRequestDto,
   EntityListResponseDto
-} from '@oes/common/dtos/entity-service/all.dto'
-import { IEntityServiceRpcEntityContract } from '@oes/common/interfaces/services/entity-service'
-import { ENTITY_MESSAGES } from '@oes/common/constants/messages/entity.message'
-import { RpcRequestData } from '@oes/common/decorators/rpc-request-data.decorator'
+} from '@oes/common/dtos'
+import { IEntityServiceRpcEntityContract } from '@oes/common/interfaces'
+import { ENTITY_MESSAGES } from '@oes/common/constants'
+import { RpcRequestData } from '@oes/common/decorators'
 import { EntityService } from '../../../application/services/entity.service'
 
 @Controller()

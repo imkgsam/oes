@@ -1,15 +1,15 @@
-// File: src/services/system/permission-service/tsconfig.json
+// src/services/system/permission-service/tsconfig.json
 {
   "extends": "../../../../tsconfig.base.json",
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
     "baseUrl": ".",
-    "paths": {
-      "@oes/common": ["../../common/src"]
-    }
+    "skipLibCheck": true
   },
-  "references": [{ "path": "../../../common" }],
+  "references": [
+    { "path": "../../../common" }
+  ],
   "include": ["src"],
   "exclude": ["node_modules"]
 }

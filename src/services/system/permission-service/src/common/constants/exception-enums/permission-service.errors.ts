@@ -1,5 +1,5 @@
 import { status } from '@grpc/grpc-js'
-import { ExceptionDefinition } from '@oes/common/core/exceptions/exception.interface'
+import { ExceptionDefinition } from '@oes/common/exceptions'
 
 // ---- Role ----
 export const ROLE_NOT_FOUND: ExceptionDefinition = {

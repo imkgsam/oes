@@ -1,14 +1,14 @@
 // src/services/system/auth-service/src/main.ts
 
-// 初始化otel sdk
-import { initOtelSdk } from '@oes/common/tracing/otel-sdk'
-import { AppLogger } from '@oes/common/logging/app-logger.service'
+// 鍒濆鍖杘tel sdk
+import { initOtelSdk } from '@oes/common/tracing'
+import { AppLogger } from '@oes/common/logging'
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import { ValidationPipe } from '@nestjs/common'
 import { MicroserviceOptions, Transport } from '@nestjs/microservices'
 // import { MicroserviceExceptionsFilter } from '@oes/common/final/rpc/filters/microservice-exception.filter'
-import { SERVICE_ENDPOINTS_CONFIG } from '@oes/common/modules/clients/service-map'
+import { SERVICE_ENDPOINTS_CONFIG } from '@oes/common/clients'
 // import { RpcResponseInterceptor } from '@oes/common/interceptors/rpc-response.interceptor'
 
 async function bootstrap() {
@@ -21,8 +21,7 @@ async function bootstrap() {
       port: Number(SERVICE_ENDPOINTS_CONFIG.AUTH_TCP.port)
     }
   })
-  //设置自定义日志服务
-  microservice.useLogger(microservice.get(AppLogger))
+  //璁剧疆鑷畾涔夋棩蹇楁湇鍔?  microservice.useLogger(microservice.get(AppLogger))
   microservice.useGlobalPipes(
     new ValidationPipe({
       transform: true,

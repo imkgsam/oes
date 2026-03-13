@@ -1,7 +1,6 @@
-import { SomePort } from '@oes/common/contracts/permission_service/index'
+import { SomePort } from '@oes/common/contracts'
 
-//所需的方法
-type SomePortSelection = 'getUserPermissions'
+//鎵€闇€鐨勬柟娉?type SomePortSelection = 'getUserPermissions'
 
-//Permission Service 端口接口
+//Permission Service 绔彛鎺ュ彛
 export interface IPermissionServicePort extends Pick<SomePort, SomePortSelection> {}

@@ -1,20 +1,17 @@
 // File: src/services/system/auth-service/src/infrastructure/modules/external-services.module.ts
 import { Module } from '@nestjs/common'
-import { ClientModule } from '@oes/common/modules/clients/client.module'
-import { ServiceKeys } from '@oes/common/modules/clients/service-map'
+import { ClientModule, ServiceKeys } from '@oes/common/clients'
 import { IdentityServiceAdaptor } from '../adaptors'
 import { PermissionServiceAdaptor } from '../adaptors'
-import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants/enums/service.symbols'
+import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
 
 /**
- * 外部服务模块
+ * 澶栭儴鏈嶅姟妯″潡
  *
- * 配置 Auth Service 依赖的外部服务客户端和适配器
- */
+ * 閰嶇疆 Auth Service 渚濊禆鐨勫閮ㄦ湇鍔″鎴风鍜岄€傞厤鍣? */
 @Module({
   imports: [
-    // 注册外部服务客户端
-    ClientModule.register([
+    // 娉ㄥ唽澶栭儴鏈嶅姟瀹㈡埛绔?    ClientModule.register([
       ServiceKeys.IDENTITY_TCP,
       ServiceKeys.PERMISSION_TCP,
       ServiceKeys.NOTIFICATION_TCP,

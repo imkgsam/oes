@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common'
-import { LoggingModule } from '@oes/common/logging/logging.module'
+import { LoggingModule } from '@oes/common/logging'
 
 @Module({
   imports: [
-    // 链路追踪模块
+    // 閾捐矾杩借釜妯″潡
     LoggingModule
   ],
   providers: [],

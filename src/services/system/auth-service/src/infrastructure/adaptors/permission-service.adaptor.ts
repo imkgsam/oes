@@ -1,17 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { Permission, Role } from '@oes/common/dtos/permission-service/all.dto'
-import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
-import { ServiceKeys } from '@oes/common/modules/clients/service-map'
-import { PERMISSION_MESSAGES } from '@oes/common/constants/messages/permission.message'
-import { safeRpcCall } from '@oes/common/helpers/rpc.helper'
+import { Permission, Role } from '@oes/common/dtos'
+import { InjectServiceClient, ServiceKeys } from '@oes/common/clients'
+import { PERMISSION_MESSAGES } from '@oes/common/constants'
+import { safeRpcCall } from '@oes/common/helpers'
 import { IPermissionServicePort } from 'src/application/ports/permission-service.port'
 import { ClientProxy } from '@nestjs/microservices'
 
 /**
- * Permission Service 适配器实现
- *
- * 通过 RPC 调用 Permission Service 获取用户权限、角色信息
- */
+ * Permission Service 閫傞厤鍣ㄥ疄鐜? *
+ * 閫氳繃 RPC 璋冪敤 Permission Service 鑾峰彇鐢ㄦ埛鏉冮檺銆佽鑹蹭俊鎭? */
 @Injectable()
 export class PermissionServiceAdaptor implements IPermissionServicePort {
   private readonly logger = new Logger(PermissionServiceAdaptor.name)

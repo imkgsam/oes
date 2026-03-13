@@ -1,9 +1,9 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { ListPoliciesQuery } from './list-policies.query'
-import { PolicyRepository } from 'src/domain/repositories/policy.repository'
-import { Policy } from 'src/domain/aggregates/policy.aggregate'
-import { SYMBOLS } from 'src/common/constants/symbols'
+import { PolicyRepository } from '../../../domain/repositories/policy.repository'
+import { Policy } from '../../../domain/aggregates/policy.aggregate'
+import { SYMBOLS } from '../../../common/constants/symbols'
 
 @QueryHandler(ListPoliciesQuery)
 export class ListPoliciesHandler implements IQueryHandler<ListPoliciesQuery> {

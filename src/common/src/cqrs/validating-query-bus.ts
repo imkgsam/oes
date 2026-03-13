@@ -17,6 +17,7 @@ export class ValidatingQueryBus {
     const errors = await validate(query as object, {
       whitelist: true,
       forbidNonWhitelisted: true,
+      forbidUnknownValues: false,
       skipMissingProperties: false
     })
 

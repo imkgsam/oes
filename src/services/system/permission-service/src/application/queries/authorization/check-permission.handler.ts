@@ -1,9 +1,9 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { CheckPermissionQuery } from './check-permission.query'
-import { RoleRepository } from 'src/domain/repositories/role.repository'
-import { PermissionRepository } from 'src/domain/repositories/permission.repository'
-import { SYMBOLS } from 'src/common/constants/symbols'
+import { RoleRepository } from '../../../domain/repositories/role.repository'
+import { PermissionRepository } from '../../../domain/repositories/permission.repository'
+import { SYMBOLS } from '../../../common/constants/symbols'
 
 @QueryHandler(CheckPermissionQuery)
 export class CheckPermissionHandler implements IQueryHandler<CheckPermissionQuery> {

@@ -1,11 +1,13 @@
 // File: src/services/system/permission-service/src/main.ts
 
-import { initOtelSdk } from '@oes/common/tracing/otel-sdk'
-import { AppLogger } from '@oes/common/logging/app-logger.service'
+import { initOtelSdk } from '@oes/common/tracing'
+import { AppLogger } from '@oes/common/logging'
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
 import { MicroserviceOptions, Transport } from '@nestjs/microservices'
-import { join } from 'path'
+import { dirname, join } from 'path'
+
+const commonPackageRoot = dirname(dirname(require.resolve('@oes/common')))
 
 async function bootstrap() {
   initOtelSdk(process.env.MODULE_NAME || 'permission-service')
@@ -14,20 +16,11 @@ async function bootstrap() {
     options: {
       package: 'permission_service',
       protoPath: [
-        join(
-          process.cwd(),
-          'node_modules/@oes/common/src/contracts/permission_service/permission_check.proto'
-        ),
-        join(
-          process.cwd(),
-          'node_modules/@oes/common/src/contracts/permission_service/permission_management.proto'
-        ),
-        join(
-          process.cwd(),
-          'node_modules/@oes/common/src/contracts/permission_service/policy_management.proto'
-        )
+        join(commonPackageRoot, 'src', 'contracts', 'permission_service', 'permission_check.proto'),
+        join(commonPackageRoot, 'src', 'contracts', 'permission_service', 'permission_management.proto'),
+        join(commonPackageRoot, 'src', 'contracts', 'permission_service', 'policy_management.proto')
       ],
-      url: `${process.env.GRPC_HOST || '0.0.0.0'}:${process.env.GRPC_PORT || '50051'}`
+      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50051'}`
     }
   })
 

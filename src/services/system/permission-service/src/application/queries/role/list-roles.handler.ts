@@ -1,9 +1,9 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { ListRolesQuery } from './list-roles.query'
-import { RoleRepository } from 'src/domain/repositories/role.repository'
-import { Role } from 'src/domain/aggregates/role.aggregate'
-import { SYMBOLS } from 'src/common/constants/symbols'
+import { RoleRepository } from '../../../domain/repositories/role.repository'
+import { Role } from '../../../domain/aggregates/role.aggregate'
+import { SYMBOLS } from '../../../common/constants/symbols'
 
 @QueryHandler(ListRolesQuery)
 export class ListRolesHandler implements IQueryHandler<ListRolesQuery> {

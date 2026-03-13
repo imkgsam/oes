@@ -17,6 +17,7 @@ export class ValidatingCommandBus {
     const errors = await validate(command as object, {
       whitelist: true,
       forbidNonWhitelisted: true,
+      forbidUnknownValues: false,
       skipMissingProperties: false
     })
 

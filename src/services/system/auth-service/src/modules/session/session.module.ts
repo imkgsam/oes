@@ -1,32 +1,26 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
-import { CommonJwtModule } from '@oes/common/modules/jwt/jwt.module'
+import { CommonJwtModule } from '@oes/common/auth'
 import { SessionService } from 'src/application/services/session.service'
 import { RedisUserSessionRepository } from 'src/infrastructure/repositories/redis/session/redis-user-session.repository'
 import { SESSION_REPOSITORY } from 'src/common/constants/injection-tokens'
 
 /**
- * Session 模块
+ * Session 妯″潡
  *
- * 功能：提供 Session 管理相关的服务和依赖注入
+ * 鍔熻兘锛氭彁渚?Session 绠＄悊鐩稿叧鐨勬湇鍔″拰渚濊禆娉ㄥ叆
  *
- * 使用场景：
- * - 用户会话管理
- * - 双令牌机制
- * - 管理员控制功能
- * - 设备级别管理
- * - 安全审计和监控
+ * 浣跨敤鍦烘櫙锛? * - 鐢ㄦ埛浼氳瘽绠＄悊
+ * - 鍙屼护鐗屾満鍒? * - 绠＄悊鍛樻帶鍒跺姛鑳? * - 璁惧绾у埆绠＄悊
+ * - 瀹夊叏瀹¤鍜岀洃鎺? *
+ * 鎶€鏈壒鐐癸細
+ * - 闆嗘垚 CommonJwtModule 杩涜浠ょ墝澶勭悊
+ * - 浣跨敤 ConfigModule 杩涜閰嶇疆绠＄悊
+ * - 缁戝畾 RedisSessionRepository 瀹炵幇
+ * - 鏀寔渚濊禆娉ㄥ叆鍜屾ā鍧楀寲
  *
- * 技术特点：
- * - 集成 CommonJwtModule 进行令牌处理
- * - 使用 ConfigModule 进行配置管理
- * - 绑定 RedisSessionRepository 实现
- * - 支持依赖注入和模块化
- *
- * 架构位置：模块层（Modules Layer）
- * - 独立的业务模块组织
- * - 便于模块化开发和维护
- * - 支持模块间的清晰边界
+ * 鏋舵瀯浣嶇疆锛氭ā鍧楀眰锛圡odules Layer锛? * - 鐙珛鐨勪笟鍔℃ā鍧楃粍缁? * - 渚夸簬妯″潡鍖栧紑鍙戝拰缁存姢
+ * - 鏀寔妯″潡闂寸殑娓呮櫚杈圭晫
  */
 @Module({
   imports: [ConfigModule, CommonJwtModule],

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { LoginMethodType } from '@oes/common/constants/const/auth-service.const'
+import { LoginMethodType } from '@oes/common/constants'
 import { LoginMethod } from 'src/domain/aggregates/loginmethod.aggregate'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'

@@ -1,9 +1,9 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { ListPermissionsByModuleQuery } from './list-permissions-by-module.query'
-import { PermissionRepository } from 'src/domain/repositories/permission.repository'
-import { Permission } from 'src/domain/aggregates/permission.aggregate'
-import { SYMBOLS } from 'src/common/constants/symbols'
+import { PermissionRepository } from '../../../domain/repositories/permission.repository'
+import { Permission } from '../../../domain/aggregates/permission.aggregate'
+import { SYMBOLS } from '../../../common/constants/symbols'
 
 @QueryHandler(ListPermissionsByModuleQuery)
 export class ListPermissionsByModuleHandler implements IQueryHandler<ListPermissionsByModuleQuery> {

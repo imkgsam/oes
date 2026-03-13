@@ -1,15 +1,15 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { AssignRolePermissionCommand } from './assign-role-permission.command'
-import { RoleRepository } from 'src/domain/repositories/role.repository'
-import { PermissionRepository } from 'src/domain/repositories/permission.repository'
-import { RolePermission } from 'src/domain/vo/role-permission.value-object'
-import { SYMBOLS } from 'src/common/constants/symbols'
-import { ExceptionFactory } from '@oes/common/core/exceptions/exception.factory'
+import { RoleRepository } from '../../../domain/repositories/role.repository'
+import { PermissionRepository } from '../../../domain/repositories/permission.repository'
+import { RolePermission } from '../../../domain/vo/role-permission.value-object'
+import { SYMBOLS } from '../../../common/constants/symbols'
+import { ExceptionFactory } from '@oes/common/exceptions'
 import {
   ROLE_NOT_FOUND,
   PERMISSION_NOT_FOUND
-} from 'src/common/constants/exception-enums/permission-service.errors'
+} from '../../../common/constants/exception-enums/permission-service.errors'
 
 @CommandHandler(AssignRolePermissionCommand)
 export class AssignRolePermissionHandler implements ICommandHandler<AssignRolePermissionCommand> {

@@ -11,21 +11,21 @@ import {
   ListPoliciesRequest,
   PolicyResponse,
   ListPoliciesResponse
-} from '@oes/common/generated/permission_service/policy_management'
-import { ValidatingCommandBus } from '@oes/common/cqrs/validating-command-bus'
-import { ValidatingQueryBus } from '@oes/common/cqrs/validating-query-bus'
-import { GrpcExceptionFilter } from '@oes/common/core/filters/grpc-exception.filter'
-import { OtelExceptionFilter } from '@oes/common/core/filters/otel-exception.filter'
+} from '@oes/common/generated'
+import { ValidatingCommandBus } from '@oes/common/cqrs'
+import { ValidatingQueryBus } from '@oes/common/cqrs'
+import { GrpcExceptionFilter } from '@oes/common/filters'
+import { OtelExceptionFilter } from '@oes/common/filters'
 
-import { CreatePolicyCommand } from 'src/application/commands/policy/create-policy.command'
-import { UpdatePolicyCommand } from 'src/application/commands/policy/update-policy.command'
-import { DeletePolicyCommand } from 'src/application/commands/policy/delete-policy.command'
-import { TogglePolicyCommand } from 'src/application/commands/policy/toggle-policy.command'
-import { GetPolicyByIdQuery } from 'src/application/queries/policy/get-policy-by-id.query'
-import { ListPoliciesQuery } from 'src/application/queries/policy/list-policies.query'
-import { Policy } from 'src/domain/aggregates/policy.aggregate'
+import { CreatePolicyCommand } from '../../application/commands/policy/create-policy.command'
+import { UpdatePolicyCommand } from '../../application/commands/policy/update-policy.command'
+import { DeletePolicyCommand } from '../../application/commands/policy/delete-policy.command'
+import { TogglePolicyCommand } from '../../application/commands/policy/toggle-policy.command'
+import { GetPolicyByIdQuery } from '../../application/queries/policy/get-policy-by-id.query'
+import { ListPoliciesQuery } from '../../application/queries/policy/list-policies.query'
+import { Policy } from '../../domain/aggregates/policy.aggregate'
 
-// Proto enum → domain enum mapping tables
+// Proto enum 鈫?domain enum mapping tables
 const EFFECT_MAP: Record<number, string> = { 1: 'ALLOW', 2: 'DENY' }
 const SUBJECT_TYPE_MAP: Record<number, string> = { 1: 'ROLE', 2: 'ACCOUNT', 3: 'ANY' }
 const ATTR_SOURCE_MAP: Record<number, string> = {
@@ -55,6 +55,10 @@ function mapEnum<T>(val: number | string | undefined, table: Record<number, stri
   return (typeof val === 'number' ? (table[val] ?? val) : val) as T
 }
 
+function hasOwnField<T extends object>(obj: T, key: keyof T): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key)
+}
+
 @Controller()
 @UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
 @PolicyManagementServiceControllerMethods()
@@ -73,7 +77,6 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
       new CreatePolicyCommand({
         name: request.name!,
         effect: mapEnum(request.effect, EFFECT_MAP),
-        createdBy: request.createdBy!,
         description: request.description || undefined,
         tenantId: request.tenantId || undefined,
         subjectType: mapEnum(request.subjectType, SUBJECT_TYPE_MAP),
@@ -97,21 +100,24 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     metadata?: Metadata,
     ...rest: any
   ): Promise<PolicyResponse> {
+    const hasEffect = hasOwnField(request, 'effect')
+    const hasSubjectType = hasOwnField(request, 'subjectType')
+    const hasPriority = hasOwnField(request, 'priority')
+    const hasConditions = hasOwnField(request, 'conditions')
+
     const result: Policy = await this.commandBus.execute(
       new UpdatePolicyCommand({
         id: request.id!,
-        name: request.name || undefined,
-        effect: request.effect ? mapEnum(request.effect, EFFECT_MAP) : undefined,
-        description: request.description || undefined,
-        subjectType: request.subjectType
-          ? mapEnum(request.subjectType, SUBJECT_TYPE_MAP)
-          : undefined,
-        subjectId: request.subjectId || undefined,
-        permissionCode: request.permissionCode || undefined,
-        resourceType: request.resourceType || undefined,
-        priority: request.priority || undefined,
-        conditions: request.conditions
-          ? request.conditions.map((c) => ({
+        name: hasOwnField(request, 'name') ? request.name : undefined,
+        effect: hasEffect ? mapEnum(request.effect, EFFECT_MAP) : undefined,
+        description: hasOwnField(request, 'description') ? request.description : undefined,
+        subjectType: hasSubjectType ? mapEnum(request.subjectType, SUBJECT_TYPE_MAP) : undefined,
+        subjectId: hasOwnField(request, 'subjectId') ? request.subjectId : undefined,
+        permissionCode: hasOwnField(request, 'permissionCode') ? request.permissionCode : undefined,
+        resourceType: hasOwnField(request, 'resourceType') ? request.resourceType : undefined,
+        priority: hasPriority ? request.priority : undefined,
+        conditions: hasConditions
+          ? (request.conditions ?? []).map((c) => ({
               attributeSource: mapEnum(c.attributeSource, ATTR_SOURCE_MAP),
               attributeKey: c.attributeKey!,
               operator: mapEnum(c.operator, OPERATOR_MAP),

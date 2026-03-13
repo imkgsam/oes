@@ -1,5 +1,5 @@
-import { Policy } from 'src/domain/aggregates/policy.aggregate'
-import { PolicyConditionVO } from 'src/domain/vo/policy-condition.value-object'
+import { Policy } from '../../domain/aggregates/policy.aggregate'
+import { PolicyConditionVO } from '../../domain/vo/policy-condition.value-object'
 
 export class PolicyMapper {
   static toDomain(record: any): Policy {

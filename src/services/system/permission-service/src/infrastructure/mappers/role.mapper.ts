@@ -1,5 +1,5 @@
-import { Role } from 'src/domain/aggregates/role.aggregate'
-import { RolePermission } from 'src/domain/vo/role-permission.value-object'
+import { Role } from '../../domain/aggregates/role.aggregate'
+import { RolePermission } from '../../domain/vo/role-permission.value-object'
 
 export class RoleMapper {
   static toDomain(record: any): Role {

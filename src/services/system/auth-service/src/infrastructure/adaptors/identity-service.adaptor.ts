@@ -5,19 +5,16 @@ import {
   AccountDto,
   AccountIdRequestDto,
   UserIdRequestDto
-} from '@oes/common/dtos/identity-service/all.dto'
-import { InjectServiceClient } from '@oes/common/modules/clients/client.decorator'
-import { ServiceKeys } from '@oes/common/modules/clients/service-map'
-import { IDENTITY_MESSAGES } from '@oes/common/constants/messages/identity.message'
-import { safeRpcCall, safeRpcCall2 } from '@oes/common/helpers/rpc.helper'
+} from '@oes/common/dtos'
+import { InjectServiceClient, ServiceKeys } from '@oes/common/clients'
+import { IDENTITY_MESSAGES } from '@oes/common/constants'
+import { safeRpcCall, safeRpcCall2 } from '@oes/common/helpers'
 import { IIdentityServicePort } from '../../application/ports/identity-service.port'
 import { ClientProxy } from '@nestjs/microservices'
 
 /**
- * Identity Service 适配器实现
- *
- * 通过 RPC 调用 Identity Service 获取用户、账户、租户信息
- */
+ * Identity Service 閫傞厤鍣ㄥ疄鐜? *
+ * 閫氳繃 RPC 璋冪敤 Identity Service 鑾峰彇鐢ㄦ埛銆佽处鎴枫€佺鎴蜂俊鎭? */
 @Injectable()
 export class IdentityServiceAdaptor implements IIdentityServicePort {
   private readonly logger = new Logger(IdentityServiceAdaptor.name)
