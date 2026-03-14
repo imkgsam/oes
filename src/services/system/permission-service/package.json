@@ -20,8 +20,8 @@
 
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",
-    "clear": "npm run clear:build && npm run clear:nm",
-    "rebuild": "npm run clear && npm install && npm run build"
+    "clear": "pnpm run clear:build && pnpm run clear:nm",
+    "rb": "pnpm run clear && pnpm install && pnpm run build"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

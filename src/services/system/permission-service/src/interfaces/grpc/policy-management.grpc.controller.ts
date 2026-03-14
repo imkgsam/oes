@@ -1,9 +1,7 @@
 import { Controller, UseFilters } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
+import { permission_service } from '@oes/common/generated'
 import {
-  PolicyManagementServiceController,
-  PolicyManagementServiceControllerMethods,
-  CreatePolicyRequest,
   UpdatePolicyRequest,
   DeletePolicyRequest,
   TogglePolicyRequest,
@@ -12,6 +10,7 @@ import {
   PolicyResponse,
   ListPoliciesResponse
 } from '@oes/common/generated'
+
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
@@ -61,15 +60,17 @@ function hasOwnField<T extends object>(obj: T, key: keyof T): boolean {
 
 @Controller()
 @UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
-@PolicyManagementServiceControllerMethods()
-export class PolicyManagementGrpcController implements PolicyManagementServiceController {
+@permission_service.PolicyManagementServiceControllerMethods()
+export class PolicyManagementGrpcController
+  implements permission_service.PolicyManagementServiceController
+{
   constructor(
     private readonly commandBus: ValidatingCommandBus,
     private readonly queryBus: ValidatingQueryBus
   ) {}
 
   async createPolicy(
-    request: CreatePolicyRequest,
+    request: permission_service.CreatePolicyRequest,
     metadata?: Metadata,
     ...rest: any
   ): Promise<PolicyResponse> {
@@ -81,7 +82,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
         tenantId: request.tenantId || undefined,
         subjectType: mapEnum(request.subjectType, SUBJECT_TYPE_MAP),
         subjectId: request.subjectId || undefined,
-        permissionCode: request.permissionCode || undefined,
+        permissionCode: request.permissionCode!,
         resourceType: request.resourceType || undefined,
         priority: request.priority,
         conditions: (request.conditions ?? []).map((c) => ({
@@ -179,7 +180,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
       tenantId: p.tenantId ?? '',
       subjectType: p.subjectType as any,
       subjectId: p.subjectId ?? '',
-      permissionCode: p.permissionCode ?? '',
+      permissionCode: p.permissionCode,
       resourceType: p.resourceType ?? '',
       priority: p.priority,
       isEnabled: p.isEnabled,

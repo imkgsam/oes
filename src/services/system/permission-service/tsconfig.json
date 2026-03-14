@@ -5,7 +5,10 @@
     "rootDir": "src",
     "outDir": "dist",
     "baseUrl": ".",
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@oes/common": ["../../common/src"]
+    }
   },
   "references": [
     { "path": "../../../common" }

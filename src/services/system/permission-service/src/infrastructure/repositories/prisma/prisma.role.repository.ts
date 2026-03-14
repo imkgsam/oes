@@ -46,13 +46,15 @@ export class PrismaRoleRepository implements RoleRepository {
           name: data.name,
           code: data.code,
           tenantId: data.tenantId,
-          isSystem: data.isSystem,
+          scopeKey: data.scopeKey,
+          kind: data.kind,
+          templateRoleId: data.templateRoleId,
           isEnabled: data.isEnabled,
           description: data.description
-        },
+        } as any,
         create: {
           ...data
-        }
+        } as any
       })
 
       const existingRPs = await tx.rolePermission.findMany({

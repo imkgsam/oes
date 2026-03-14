@@ -3,7 +3,7 @@
 /node_modules
 /build
 */dict/*
-*/tsconfig.tsbuildinfo
+tsconfig.tsbuildinfo
 
 # Proto generated files
 src/common/src/generated/

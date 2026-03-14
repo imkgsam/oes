@@ -32,7 +32,7 @@ export class CreatePolicyHandler implements ICommandHandler<CreatePolicyCommand>
       command.priority ?? 0,
       command.subjectType,
       command.subjectId ?? null,
-      command.permissionCode ?? null,
+      command.permissionCode,
       command.resourceType ?? null,
       command.tenantId ?? null,
       true, // isEnabled

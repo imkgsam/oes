@@ -61,7 +61,7 @@ export class GatewayPermissionControllGuard implements CanActivate, OnModuleInit
    */
   private async checkSingle(accountId: string, permissionCode: string): Promise<boolean> {
     try {
-      const { pass } = await safeGrpcCall(
+      const { allowed } = await safeGrpcCall(
         this.permissionSvc.checkPermission({ accountId, permissionCode }),
         {
           timeoutMs: PERMISSION_CHECK_TIMEOUT_MS,
@@ -69,7 +69,7 @@ export class GatewayPermissionControllGuard implements CanActivate, OnModuleInit
           method: 'PermissionCheckService.checkPermission'
         }
       )
-      return pass
+      return allowed ?? false
     } catch (error) {
       // fail-closed：无论业务异常还是基础设施异常，都拒绝访问
       this.logger.warn('权限检查失败，拒绝访问（fail-closed）', {

@@ -1,13 +1,14 @@
 import { ICommand } from '@nestjs/cqrs'
 import {
   IsBoolean,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
-  IsUUID,
   Matches,
   MaxLength
 } from 'class-validator'
+import { RoleKind } from '../../../domain/enums/role-kind.enum'
 
 export class CreateRoleCommand implements ICommand {
   @IsString()
@@ -29,6 +30,14 @@ export class CreateRoleCommand implements ICommand {
   readonly isSystem?: boolean
 
   @IsOptional()
+  @IsEnum(RoleKind)
+  readonly roleKind?: RoleKind
+
+  @IsOptional()
+  @IsString()
+  readonly templateRoleId?: string
+
+  @IsOptional()
   @IsString()
   @MaxLength(200)
   readonly description?: string
@@ -38,12 +47,16 @@ export class CreateRoleCommand implements ICommand {
     code: string
     tenantId?: string
     isSystem?: boolean
+    roleKind?: RoleKind
+    templateRoleId?: string
     description?: string
   }) {
     this.name = params.name
     this.code = params.code
     this.tenantId = params.tenantId
     this.isSystem = params.isSystem
+    this.roleKind = params.roleKind
+    this.templateRoleId = params.templateRoleId
     this.description = params.description
   }
 }

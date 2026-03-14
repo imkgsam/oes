@@ -10,9 +10,16 @@ option java_package = "com.oes.permission.v1";
 // 权限鉴权服务
 service PermissionCheckService {
   // 纯 RBAC 鉴权
-  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
+  rpc CheckPermission(CheckPermissionRequest) returns (AuthorizationDecisionResponse);
   // RBAC + ABAC 混合鉴权
-  rpc CheckPermissionWithContext(CheckPermissionWithContextRequest) returns (AuthzDecisionResponse);
+  rpc CheckPermissionWithContext(CheckPermissionWithContextRequest)
+      returns (AuthorizationDecisionResponse);
+}
+
+enum EvaluationModeProto {
+  EVALUATION_MODE_PROTO_UNSPECIFIED = 0;
+  EVALUATION_MODE_PROTO_RBAC = 1;
+  EVALUATION_MODE_PROTO_RBAC_ABAC = 2;
 }
 
 // 纯 RBAC 鉴权请求
@@ -21,12 +28,8 @@ message CheckPermissionRequest {
   string account_id = 1;
   // 权限代码
   string permission_code = 2;
-}
-
-// 纯 RBAC 鉴权响应
-message CheckPermissionResponse {
-  // 是否通过
-  bool pass = 1;
+  // 租户ID（可选）
+  string tenant_id = 3;
 }
 
 // RBAC + ABAC 混合鉴权请求
@@ -47,12 +50,14 @@ message CheckPermissionWithContextRequest {
   map<string, string> action_attributes = 7;
 }
 
-// ABAC 鉴权决策响应
-message AuthzDecisionResponse {
+// 统一鉴权决策响应
+message AuthorizationDecisionResponse {
   // 是否允许
   bool allowed = 1;
-  // 匹配的策略名称
-  string matched_policy = 2;
+  // 决策评估层级
+  EvaluationModeProto evaluation_mode = 2;
+  // 命中的策略名称
+  string matched_policy = 3;
   // 决策原因
-  string reason = 3;
+  string reason = 4;
 }

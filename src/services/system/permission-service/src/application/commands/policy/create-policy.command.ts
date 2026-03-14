@@ -55,9 +55,9 @@ export class CreatePolicyCommand implements ICommand {
   @IsString()
   readonly subjectId?: string
 
-  @IsOptional()
   @IsString()
-  readonly permissionCode?: string
+  @IsNotEmpty()
+  readonly permissionCode: string
 
   @IsOptional()
   @IsString()
@@ -81,7 +81,7 @@ export class CreatePolicyCommand implements ICommand {
     tenantId?: string
     subjectType: PolicySubjectType
     subjectId?: string
-    permissionCode?: string
+    permissionCode: string
     resourceType?: string
     priority?: number
     conditions?: PolicyConditionInput[]

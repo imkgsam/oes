@@ -14,27 +14,37 @@ datasource db {
 // ============================================================
 
 model Role {
-  id          String   @id @default(uuid())
-  tenantId    String? // null = global role
-  code        String   @unique
-  name        String
-  description String?
-  isSystem    Boolean  @default(false)
-  isEnabled   Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(uuid())
+  tenantId       String? // null = system template
+  scopeKey       String // "__SYSTEM__" for templates, tenantId for tenant instances
+  code           String
+  name           String
+  description    String?
+  kind           RoleKind
+  templateRoleId String?
+  isEnabled      Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  permissions RolePermission[]
-  accounts    AccountRole[]
+  permissions  RolePermission[]
+  accounts     AccountRole[]
+  templateRole Role?            @relation("RoleTemplateInstances", fields: [templateRoleId], references: [id])
+  instances    Role[]           @relation("RoleTemplateInstances")
+
+  @@unique([scopeKey, code])
+  @@index([tenantId, kind])
 }
 
 model Permission {
-  id          String  @id @default(uuid())
-  code        String  @unique
+  id          String   @id @default(uuid())
+  code        String   @unique
   description String?
   module      Modules
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  roles RolePermission[]
+  roles    RolePermission[]
+  policies Policy[]
 }
 
 model RolePermission {
@@ -71,7 +81,8 @@ model Policy {
   effect         PolicyEffect
   subjectType    PolicySubjectType @default(ANY)
   subjectId      String? // ROLE uses roleCode, ACCOUNT uses accountId
-  permissionCode String? // null = applies to all permissions
+  permissionCode String // always bound to a permission
+  permission     Permission        @relation(fields: [permissionCode], references: [code])
   resourceType   String? // null = applies to all resource types
   priority       Int               @default(0)
   isEnabled      Boolean           @default(true)
@@ -80,7 +91,7 @@ model Policy {
   updatedAt      DateTime          @updatedAt
 
   @@index([tenantId, isEnabled])
-  @@index([permissionCode])
+  @@index([permissionCode, isEnabled])
   @@index([subjectType, subjectId])
 }
 
@@ -94,6 +105,45 @@ model PolicyCondition {
   value           String // JSON encoded, supports $subject.xxx dynamic refs
 
   @@index([policyId])
+}
+
+model AuditEvent {
+  id         String          @id @default(uuid())
+  tenantId   String?
+  actorType  ActorType
+  actorId    String
+  action     String
+  targetType AuditTargetType
+  targetId   String
+  targetCode String?
+  beforeData Json?
+  afterData  Json?
+  metadata   Json?
+  createdAt  DateTime        @default(now())
+
+  @@index([targetType, targetId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([tenantId, createdAt])
+}
+
+model DecisionEvent {
+  id                String                @id @default(uuid())
+  tenantId          String?
+  accountId         String
+  permissionCode    String
+  resourceType      String?
+  resourceId        String?
+  evaluationMode    EvaluationMode
+  decision          AuthorizationDecision
+  matchedPolicyId   String?
+  matchedPolicyName String?
+  reason            String?
+  requestContext    Json?
+  createdAt         DateTime              @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([permissionCode, createdAt])
+  @@index([tenantId, createdAt])
 }
 
 // ============================================================
@@ -113,6 +163,11 @@ enum Modules {
 enum AccountType {
   USER
   SERVICE
+}
+
+enum RoleKind {
+  SYSTEM_TEMPLATE
+  TENANT_INSTANCE
 }
 
 enum PolicyEffect {
@@ -148,4 +203,28 @@ enum ConditionOperator {
   REGEX
   IS_NULL
   IS_NOT_NULL
+}
+
+enum ActorType {
+  USER
+  SERVICE
+  SYSTEM
+}
+
+enum AuditTargetType {
+  ROLE
+  PERMISSION
+  POLICY
+  ACCOUNT_ROLE
+  ROLE_PERMISSION
+}
+
+enum EvaluationMode {
+  RBAC
+  RBAC_ABAC
+}
+
+enum AuthorizationDecision {
+  ALLOW
+  DENY
 }

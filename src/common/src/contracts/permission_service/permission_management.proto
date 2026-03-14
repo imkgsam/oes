@@ -7,9 +7,7 @@ option java_package = "com.oes.permission.v1";
 
 import "google/protobuf/empty.proto";
 
-// 权限与角色管理服务
 service PermissionManagementService {
-  // Permission CRUD
   rpc CreatePermission(CreatePermissionRequest) returns (PermissionResponse);
   rpc DeletePermission(DeletePermissionRequest) returns (google.protobuf.Empty);
   rpc GetPermissionById(GetPermissionByIdRequest) returns (PermissionResponse);
@@ -17,184 +15,122 @@ service PermissionManagementService {
   rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse);
   rpc ListPermissionsByModule(ListPermissionsByModuleRequest) returns (ListPermissionsResponse);
 
-  // Role CRUD
   rpc CreateRole(CreateRoleRequest) returns (RoleResponse);
   rpc DeleteRole(DeleteRoleRequest) returns (google.protobuf.Empty);
   rpc GetRoleById(GetRoleByIdRequest) returns (RoleResponse);
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
 
-  // Role-Permission 绑定
   rpc AssignRolePermission(AssignRolePermissionRequest) returns (google.protobuf.Empty);
   rpc RevokeRolePermission(RevokeRolePermissionRequest) returns (google.protobuf.Empty);
 
-  // Account-Role 绑定
   rpc AssignAccountRole(AssignAccountRoleRequest) returns (google.protobuf.Empty);
   rpc RevokeAccountRole(RevokeAccountRoleRequest) returns (google.protobuf.Empty);
   rpc ListAccountRoles(ListAccountRolesRequest) returns (ListRolesResponse);
 }
 
-// ---- Permission messages ----
+enum RoleKindProto {
+  ROLE_KIND_PROTO_UNSPECIFIED = 0;
+  ROLE_KIND_PROTO_SYSTEM_TEMPLATE = 1;
+  ROLE_KIND_PROTO_TENANT_INSTANCE = 2;
+}
 
-// 创建权限请求
 message CreatePermissionRequest {
-  // 权限代码
   string code = 1;
-  // 所属模块
   string module = 2;
-  // 描述
   string description = 3;
 }
 
-// 删除权限请求
 message DeletePermissionRequest {
-  // 权限ID
   string id = 1;
 }
 
-// 按ID查询权限请求
 message GetPermissionByIdRequest {
-  // 权限ID
   string id = 1;
 }
 
-// 按代码查询权限请求
 message GetPermissionByCodeRequest {
-  // 权限代码
   string code = 1;
 }
 
-// 列出所有权限请求
 message ListPermissionsRequest {}
 
-// 按模块列出权限请求
 message ListPermissionsByModuleRequest {
-  // 模块名称
   string module = 1;
 }
 
-// 权限响应
 message PermissionResponse {
-  // 权限ID
   string id = 1;
-  // 权限代码
   string code = 2;
-  // 所属模块
   string module = 3;
-  // 描述
   string description = 4;
 }
 
-// 权限列表响应
 message ListPermissionsResponse {
-  // 权限列表
   repeated PermissionResponse permissions = 1;
 }
 
-// ---- Role messages ----
-
-// 创建角色请求
 message CreateRoleRequest {
-  // 角色名称
   string name = 1;
-  // 角色代码
   string code = 2;
-  // 租户ID
   string tenant_id = 3;
-  // 是否系统角色
   bool is_system = 4;
-  // 描述
   string description = 5;
-  // 创建者ID
   string created_by = 6;
+  RoleKindProto role_kind = 7;
+  string template_role_id = 8;
 }
 
-// 删除角色请求
 message DeleteRoleRequest {
-  // 角色ID
   string id = 1;
 }
 
-// 按ID查询角色请求
 message GetRoleByIdRequest {
-  // 角色ID
   string id = 1;
 }
 
-// 列出所有角色请求
 message ListRolesRequest {}
 
-// 角色响应
 message RoleResponse {
-  // 角色ID
   string id = 1;
-  // 角色名称
   string name = 2;
-  // 角色代码
   string code = 3;
-  // 租户ID
   string tenant_id = 4;
-  // 是否系统角色
   bool is_system = 5;
-  // 是否启用
   bool is_enabled = 6;
-  // 描述
   string description = 7;
+  RoleKindProto role_kind = 8;
+  string template_role_id = 9;
 }
 
-// 角色列表响应
 message ListRolesResponse {
-  // 角色列表
   repeated RoleResponse roles = 1;
 }
 
-// ---- Role-Permission binding messages ----
-
-// 为角色分配权限请求
 message AssignRolePermissionRequest {
-  // 角色ID
   string role_id = 1;
-  // 权限ID
   string permission_id = 2;
-  // 操作者ID
   string created_by = 3;
 }
 
-// 撤销角色权限请求
 message RevokeRolePermissionRequest {
-  // 角色ID
   string role_id = 1;
-  // 权限ID
   string permission_id = 2;
 }
 
-// ---- Account-Role binding messages ----
-
-// 为账户分配角色请求
 message AssignAccountRoleRequest {
-  // 账户ID
   string account_id = 1;
-  // 账户类型
   string account_type = 2;
-  // 角色ID
   string role_id = 3;
-  // 租户ID
   string tenant_id = 4;
-  // 操作者ID
   string created_by = 5;
 }
 
-// 撤销账户角色请求
 message RevokeAccountRoleRequest {
-  // 账户ID
   string account_id = 1;
-  // 角色ID
   string role_id = 2;
 }
 
-// 列出账户角色请求
 message ListAccountRolesRequest {
-  // 账户ID
   string account_id = 1;
-  // 租户ID
   string tenant_id = 2;
 }

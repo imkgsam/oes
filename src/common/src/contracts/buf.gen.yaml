@@ -7,6 +7,7 @@ plugins:
   # 生成 TypeScript 类型和 NestJS gRPC 服务代码
   - local: protoc-gen-ts_proto
     out: src/common/src/generated
+    strategy: all
     opt:
       # NestJS 集成 - 生成与 @nestjs/microservices 兼容的代码
       - nestJs=true

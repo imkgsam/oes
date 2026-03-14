@@ -20,9 +20,11 @@
     "prisma:push:all": "pnpm -r run prisma:push",
 
     "proto:gen": "buf generate --template src/common/src/contracts/buf.gen.yaml src/common/src/contracts",
+    "proto:regen": "rimraf src/common/src/generated && pnpm run proto:gen",
     "proto:lint": "buf lint src/common/src/contracts",
     "proto:breaking": "buf breaking src/common/src/contracts --against .git#subdir=src/common/src/contracts",
     "proto:format": "buf format -w src/common/src/contracts",
+
     
     "clear:nm": "rimraf node_modules",
     "clear:nm:all": "pnpm -r run clear:nm && pnpm clear:nm",

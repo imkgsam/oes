@@ -1,4 +1,5 @@
 import { Role } from '../../domain/aggregates/role.aggregate'
+import { RoleKind } from '../../domain/enums/role-kind.enum'
 import { RolePermission } from '../../domain/vo/role-permission.value-object'
 
 export class RoleMapper {
@@ -12,9 +13,11 @@ export class RoleMapper {
       record.name,
       record.code,
       record.tenantId ?? null,
-      record.isSystem ?? false,
+      (record.kind as RoleKind | undefined) ??
+        (record.isSystem ? RoleKind.SYSTEM_TEMPLATE : RoleKind.TENANT_INSTANCE),
       record.isEnabled ?? true,
       record.description ?? undefined,
+      record.templateRoleId ?? null,
       permissions
     )
   }
@@ -25,7 +28,9 @@ export class RoleMapper {
       name: role.name,
       code: role.code,
       tenantId: role.tenantId,
-      isSystem: role.isSystem,
+      scopeKey: role.isSystem ? '__SYSTEM__' : role.tenantId!,
+      kind: role.kind,
+      templateRoleId: role.templateRoleId,
       isEnabled: role.isEnabled,
       description: role.description
     }

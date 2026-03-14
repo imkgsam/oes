@@ -1,3 +1,4 @@
+import { RoleKind } from '../enums/role-kind.enum'
 import { RolePermission } from '../vo/role-permission.value-object'
 
 /** Role aggregate root – RBAC core entity */
@@ -7,11 +8,16 @@ export class Role {
     public name: string,
     public code: string,
     public tenantId: string | null,
-    public isSystem: boolean,
+    public kind: RoleKind,
     public isEnabled: boolean,
     public description?: string,
+    public templateRoleId: string | null = null,
     private _permissions: RolePermission[] = []
   ) {}
+
+  get isSystem(): boolean {
+    return this.kind === RoleKind.SYSTEM_TEMPLATE
+  }
 
   get permissions(): ReadonlyArray<RolePermission> {
     return [...this._permissions]

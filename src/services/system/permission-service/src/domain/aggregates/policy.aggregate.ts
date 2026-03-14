@@ -11,7 +11,7 @@ export class Policy {
     public priority: number,
     public subjectType: PolicySubjectType,
     public subjectId: string | null,
-    public permissionCode: string | null,
+    public permissionCode: string,
     public resourceType: string | null,
     public tenantId: string | null,
     public isEnabled: boolean,

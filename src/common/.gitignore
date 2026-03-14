@@ -4,7 +4,7 @@
 /node_modules
 /build
 */dict/*
-*/tsconfig.tsbuildinfo
+tsconfig.tsbuildinfo
 
 # Logs
 logs

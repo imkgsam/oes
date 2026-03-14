@@ -15,7 +15,7 @@ export class PolicyMapper {
       record.priority,
       record.subjectType,
       record.subjectId ?? null,
-      record.permissionCode ?? null,
+      record.permissionCode,
       record.resourceType ?? null,
       record.tenantId ?? null,
       record.isEnabled,

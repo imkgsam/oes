@@ -23,11 +23,7 @@ export class PrismaPolicyRepository implements PolicyRepository {
       where: {
         isEnabled: true,
         OR: [{ tenantId: null }, ...(tenantId ? [{ tenantId }] : [])],
-        AND: [
-          {
-            OR: [{ permissionCode: null }, { permissionCode }]
-          }
-        ]
+        permissionCode
       },
       include: POLICY_INCLUDE,
       orderBy: { priority: 'desc' }

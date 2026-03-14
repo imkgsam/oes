@@ -3,10 +3,14 @@
 export interface PermissionCheckInput {
   accountId: string
   permissionCode: string
+  tenantId?: string
 }
 
-export interface PermissionCheckOutput {
-  pass: boolean
+export interface AuthorizationDecisionOutput {
+  allowed: boolean
+  evaluationMode: 'RBAC' | 'RBAC_ABAC'
+  reason?: string
+  matchedPolicy?: string
 }
 
 export interface PermissionCheckWithContextInput {
@@ -19,8 +23,5 @@ export interface PermissionCheckWithContextInput {
   actionAttributes: Record<string, string>
 }
 
-export interface AuthzDecisionOutput {
-  allowed: boolean
-  matchedPolicy?: string
-  reason?: string
-}
+export type PermissionCheckOutput = AuthorizationDecisionOutput
+export type AuthzDecisionOutput = AuthorizationDecisionOutput

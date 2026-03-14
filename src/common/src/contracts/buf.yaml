@@ -1,3 +1,5 @@
+# File: src/common/src/contracts/buf.yaml
+
 version: v2
 modules:
   - path: .
