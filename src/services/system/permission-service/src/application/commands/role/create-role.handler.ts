@@ -5,7 +5,7 @@ import { RoleRepository } from '../../../domain/repositories/role.repository'
 import { Role } from '../../../domain/aggregates/role.aggregate'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ExceptionFactory } from '@oes/common/exceptions'
-import { ROLE_ALREADY_EXISTS } from '../../../common/constants/exception-enums/permission-service.errors'
+import { ROLE_ALREADY_EXISTS } from '../../../common/constants/exception-enums'
 import { RoleKind } from '../../../domain/enums/role-kind.enum'
 
 @CommandHandler(CreateRoleCommand)

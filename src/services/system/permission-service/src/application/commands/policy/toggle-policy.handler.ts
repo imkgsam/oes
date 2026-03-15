@@ -5,7 +5,7 @@ import { PolicyRepository } from '../../../domain/repositories/policy.repository
 import { Policy } from '../../../domain/aggregates/policy.aggregate'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ExceptionFactory } from '@oes/common/exceptions'
-import { POLICY_NOT_FOUND } from '../../../common/constants/exception-enums/permission-service.errors'
+import { POLICY_NOT_FOUND } from '../../../common/constants/exception-enums'
 
 @CommandHandler(TogglePolicyCommand)
 export class TogglePolicyHandler implements ICommandHandler<TogglePolicyCommand> {

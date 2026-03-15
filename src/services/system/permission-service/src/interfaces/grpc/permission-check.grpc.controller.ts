@@ -1,25 +1,28 @@
 import { Controller, UseFilters } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
-import { permission_service } from '@oes/common/generated'
-
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter, OtelExceptionFilter } from '@oes/common/filters'
 import { CheckPermissionQuery } from '../../application/queries/authorization/check-permission.query'
 import { CheckPermissionWithContextQuery } from '../../application/queries/authorization/check-permission-with-context.query'
+import {
+  PermissionCheckServiceControllerMethods,
+  PermissionCheckServiceController,
+  CheckPermissionRequest,
+  CheckPermissionWithContextRequest,
+  AuthorizationDecisionResponse
+} from '@oes/common/generated/permission_service'
 
 @Controller()
 @UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
-@permission_service.PermissionCheckServiceControllerMethods()
-export class PermissionCheckGrpcController
-  implements permission_service.PermissionCheckServiceController
-{
+@PermissionCheckServiceControllerMethods()
+export class PermissionCheckGrpcController implements PermissionCheckServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
   async checkPermission(
-    request: permission_service.CheckPermissionRequest,
+    request: CheckPermissionRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<permission_service.AuthorizationDecisionResponse> {
+  ): Promise<AuthorizationDecisionResponse> {
     const allowed = await this.queryBus.execute(
       new CheckPermissionQuery(request.accountId!, request.permissionCode!)
     )
@@ -33,10 +36,10 @@ export class PermissionCheckGrpcController
   }
 
   async checkPermissionWithContext(
-    request: permission_service.CheckPermissionWithContextRequest,
+    request: CheckPermissionWithContextRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<permission_service.AuthorizationDecisionResponse> {
+  ): Promise<AuthorizationDecisionResponse> {
     const decision = await this.queryBus.execute(
       new CheckPermissionWithContextQuery({
         accountId: request.accountId!,

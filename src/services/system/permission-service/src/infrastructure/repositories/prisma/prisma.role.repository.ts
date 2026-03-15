@@ -3,6 +3,7 @@ import { Permission } from '../../../domain/aggregates/permission.aggregate'
 import { Role } from '../../../domain/aggregates/role.aggregate'
 import { AccountType } from '../../../domain/enums/account-type.enum'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
+import { AccountRole } from '../../../domain/vo/account-role.value-object'
 import { PermissionMapper } from '../../mappers/permission.mapper'
 import { RoleMapper } from '../../mappers/role.mapper'
 import { PrismaService } from '../../prisma/prisma.service'
@@ -85,10 +86,18 @@ export class PrismaRoleRepository implements RoleRepository {
   }
 
   async delete(id: string): Promise<Role | null> {
-    await this.prisma.rolePermission.deleteMany({ where: { roleId: id } })
-    await this.prisma.accountRole.deleteMany({ where: { roleId: id } })
     const deleted = await this.prisma.role.delete({ where: { id } })
     return deleted ? RoleMapper.toDomain(deleted) : null
+  }
+
+  async hasAssignedAccounts(roleId: string): Promise<boolean> {
+    const count = await this.prisma.accountRole.count({ where: { roleId } })
+    return count > 0
+  }
+
+  async hasAssignedPermissions(roleId: string): Promise<boolean> {
+    const count = await this.prisma.rolePermission.count({ where: { roleId } })
+    return count > 0
   }
 
   async findOwnPermissions(roleId: string): Promise<Permission[]> {
@@ -135,5 +144,21 @@ export class PrismaRoleRepository implements RoleRepository {
       include: { role: { include: ROLE_INCLUDE } }
     })
     return accountRoles.map((ar) => RoleMapper.toDomain(ar.role))
+  }
+
+  async findRoleAccounts(roleId: string): Promise<AccountRole[]> {
+    const accountRoles = await this.prisma.accountRole.findMany({
+      where: { roleId }
+    })
+
+    return accountRoles.map(
+      (accountRole) =>
+        new AccountRole(
+          accountRole.accountType as AccountType,
+          accountRole.accountId,
+          accountRole.roleId,
+          accountRole.tenantId
+        )
+    )
   }
 }

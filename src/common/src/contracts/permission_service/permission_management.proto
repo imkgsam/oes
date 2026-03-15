@@ -16,9 +16,12 @@ service PermissionManagementService {
   rpc ListPermissionsByModule(ListPermissionsByModuleRequest) returns (ListPermissionsResponse);
 
   rpc CreateRole(CreateRoleRequest) returns (RoleResponse);
+  rpc UpdateRole(UpdateRoleRequest) returns (RoleResponse);
+  rpc SetRoleEnabled(SetRoleEnabledRequest) returns (RoleResponse);
   rpc DeleteRole(DeleteRoleRequest) returns (google.protobuf.Empty);
   rpc GetRoleById(GetRoleByIdRequest) returns (RoleResponse);
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
+  rpc ListRolePermissions(ListRolePermissionsRequest) returns (ListPermissionsResponse);
 
   rpc AssignRolePermission(AssignRolePermissionRequest) returns (google.protobuf.Empty);
   rpc RevokeRolePermission(RevokeRolePermissionRequest) returns (google.protobuf.Empty);
@@ -26,6 +29,7 @@ service PermissionManagementService {
   rpc AssignAccountRole(AssignAccountRoleRequest) returns (google.protobuf.Empty);
   rpc RevokeAccountRole(RevokeAccountRoleRequest) returns (google.protobuf.Empty);
   rpc ListAccountRoles(ListAccountRolesRequest) returns (ListRolesResponse);
+  rpc ListRoleAccounts(ListRoleAccountsRequest) returns (ListRoleAccountsResponse);
 }
 
 enum RoleKindProto {
@@ -80,6 +84,17 @@ message CreateRoleRequest {
   string template_role_id = 8;
 }
 
+message UpdateRoleRequest {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message SetRoleEnabledRequest {
+  string id = 1;
+  bool is_enabled = 2;
+}
+
 message DeleteRoleRequest {
   string id = 1;
 }
@@ -89,6 +104,10 @@ message GetRoleByIdRequest {
 }
 
 message ListRolesRequest {}
+
+message ListRolePermissionsRequest {
+  string role_id = 1;
+}
 
 message RoleResponse {
   string id = 1;
@@ -133,4 +152,19 @@ message RevokeAccountRoleRequest {
 message ListAccountRolesRequest {
   string account_id = 1;
   string tenant_id = 2;
+}
+
+message ListRoleAccountsRequest {
+  string role_id = 1;
+}
+
+message AccountRoleBindingResponse {
+  string account_id = 1;
+  string account_type = 2;
+  string role_id = 3;
+  string tenant_id = 4;
+}
+
+message ListRoleAccountsResponse {
+  repeated AccountRoleBindingResponse accounts = 1;
 }

@@ -5,7 +5,10 @@ import { RoleRepository } from '../../../domain/repositories/role.repository'
 import { Role } from '../../../domain/aggregates/role.aggregate'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ExceptionFactory } from '@oes/common/exceptions'
-import { ROLE_NOT_FOUND } from '../../../common/constants/exception-enums/permission-service.errors'
+import {
+  ROLE_DELETE_FORBIDDEN,
+  ROLE_NOT_FOUND
+} from '../../../common/constants/exception-enums'
 
 @CommandHandler(DeleteRoleCommand)
 export class DeleteRoleHandler implements ICommandHandler<DeleteRoleCommand> {
@@ -18,6 +21,15 @@ export class DeleteRoleHandler implements ICommandHandler<DeleteRoleCommand> {
     const existing = await this.roleRepo.findById(command.id)
     if (!existing) {
       throw ExceptionFactory.domain(ROLE_NOT_FOUND)
+    }
+
+    const [hasAssignedAccounts, hasAssignedPermissions] = await Promise.all([
+      this.roleRepo.hasAssignedAccounts(command.id),
+      this.roleRepo.hasAssignedPermissions(command.id)
+    ])
+
+    if (hasAssignedAccounts || hasAssignedPermissions) {
+      throw ExceptionFactory.domain(ROLE_DELETE_FORBIDDEN)
     }
 
     const deleted = await this.roleRepo.delete(command.id)

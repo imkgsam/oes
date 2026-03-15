@@ -1,21 +1,9 @@
 import { Controller, UseFilters } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
-import { permission_service } from '@oes/common/generated'
-import {
-  UpdatePolicyRequest,
-  DeletePolicyRequest,
-  TogglePolicyRequest,
-  GetPolicyByIdRequest,
-  ListPoliciesRequest,
-  PolicyResponse,
-  ListPoliciesResponse
-} from '@oes/common/generated'
-
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import { OtelExceptionFilter } from '@oes/common/filters'
-
 import { CreatePolicyCommand } from '../../application/commands/policy/create-policy.command'
 import { UpdatePolicyCommand } from '../../application/commands/policy/update-policy.command'
 import { DeletePolicyCommand } from '../../application/commands/policy/delete-policy.command'
@@ -23,8 +11,20 @@ import { TogglePolicyCommand } from '../../application/commands/policy/toggle-po
 import { GetPolicyByIdQuery } from '../../application/queries/policy/get-policy-by-id.query'
 import { ListPoliciesQuery } from '../../application/queries/policy/list-policies.query'
 import { Policy } from '../../domain/aggregates/policy.aggregate'
+import {
+  PolicyResponse,
+  UpdatePolicyRequest,
+  DeletePolicyRequest,
+  TogglePolicyRequest,
+  GetPolicyByIdRequest,
+  ListPoliciesRequest,
+  ListPoliciesResponse,
+  CreatePolicyRequest,
+  PolicyManagementServiceControllerMethods,
+  PolicyManagementServiceController
+} from '@oes/common/generated/permission_service'
 
-// Proto enum 鈫?domain enum mapping tables
+// Proto enum domain enum mapping tables
 const EFFECT_MAP: Record<number, string> = { 1: 'ALLOW', 2: 'DENY' }
 const SUBJECT_TYPE_MAP: Record<number, string> = { 1: 'ROLE', 2: 'ACCOUNT', 3: 'ANY' }
 const ATTR_SOURCE_MAP: Record<number, string> = {
@@ -60,17 +60,15 @@ function hasOwnField<T extends object>(obj: T, key: keyof T): boolean {
 
 @Controller()
 @UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
-@permission_service.PolicyManagementServiceControllerMethods()
-export class PolicyManagementGrpcController
-  implements permission_service.PolicyManagementServiceController
-{
+@PolicyManagementServiceControllerMethods()
+export class PolicyManagementGrpcController implements PolicyManagementServiceController {
   constructor(
     private readonly commandBus: ValidatingCommandBus,
     private readonly queryBus: ValidatingQueryBus
   ) {}
 
   async createPolicy(
-    request: permission_service.CreatePolicyRequest,
+    request: CreatePolicyRequest,
     metadata?: Metadata,
     ...rest: any
   ): Promise<PolicyResponse> {

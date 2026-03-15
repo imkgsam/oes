@@ -6,7 +6,7 @@ import { Policy } from '../../../domain/aggregates/policy.aggregate'
 import { PolicyConditionVO } from '../../../domain/vo/policy-condition.value-object'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ExceptionFactory } from '@oes/common/exceptions'
-import { POLICY_NOT_FOUND } from '../../../common/constants/exception-enums/permission-service.errors'
+import { POLICY_NOT_FOUND } from '../../../common/constants/exception-enums'
 
 @CommandHandler(UpdatePolicyCommand)
 export class UpdatePolicyHandler implements ICommandHandler<UpdatePolicyCommand> {

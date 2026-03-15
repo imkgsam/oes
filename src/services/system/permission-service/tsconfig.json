@@ -6,9 +6,6 @@
     "outDir": "dist",
     "baseUrl": ".",
     "skipLibCheck": true,
-    "paths": {
-      "@oes/common": ["../../common/src"]
-    }
   },
   "references": [
     { "path": "../../../common" }

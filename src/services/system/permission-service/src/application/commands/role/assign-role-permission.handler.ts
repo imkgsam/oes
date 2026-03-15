@@ -9,7 +9,7 @@ import { ExceptionFactory } from '@oes/common/exceptions'
 import {
   ROLE_NOT_FOUND,
   PERMISSION_NOT_FOUND
-} from '../../../common/constants/exception-enums/permission-service.errors'
+} from '../../../common/constants/exception-enums'
 
 @CommandHandler(AssignRolePermissionCommand)
 export class AssignRolePermissionHandler implements ICommandHandler<AssignRolePermissionCommand> {

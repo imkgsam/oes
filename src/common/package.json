@@ -14,7 +14,8 @@
 
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",
-    "clear": "npm run clear:build && npm run clear:nm"
+    "clear": "pnpm run clear:build && pnpm run clear:nm",
+    "rebuild": "pnpm run clear:build && pnpm run build"
   },
   "exports": {
     ".": {
@@ -65,9 +66,9 @@
       "types": "./dist/helpers/index.d.ts",
       "require": "./dist/helpers/index.js"
     },
-    "./generated": {
-      "types": "./dist/generated/index.d.ts",
-      "require": "./dist/generated/index.js"
+    "./generated/*": {
+      "types": "./dist/generated/index.*.d.ts",
+      "require": "./dist/generated/index.*.js"
     },
     "./interfaces": {
       "types": "./dist/interfaces/index.d.ts",

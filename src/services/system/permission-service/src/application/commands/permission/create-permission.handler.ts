@@ -5,7 +5,7 @@ import { PermissionRepository } from '../../../domain/repositories/permission.re
 import { Permission } from '../../../domain/aggregates/permission.aggregate'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ExceptionFactory } from '@oes/common/exceptions'
-import { PERMISSION_ALREADY_EXISTS } from '../../../common/constants/exception-enums/permission-service.errors'
+import { PERMISSION_ALREADY_EXISTS } from '../../../common/constants/exception-enums'
 
 @CommandHandler(CreatePermissionCommand)
 export class CreatePermissionHandler implements ICommandHandler<CreatePermissionCommand> {

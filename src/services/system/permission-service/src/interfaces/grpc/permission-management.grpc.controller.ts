@@ -11,6 +11,8 @@ import { GetPermissionByCodeQuery } from '../../application/queries/permission/g
 import { ListPermissionsQuery } from '../../application/queries/permission/list-permissions.query'
 import { ListPermissionsByModuleQuery } from '../../application/queries/permission/list-permissions-by-module.query'
 import { CreateRoleCommand } from '../../application/commands/role/create-role.command'
+import { UpdateRoleCommand } from '../../application/commands/role/update-role.command'
+import { SetRoleEnabledCommand } from '../../application/commands/role/set-role-enabled.command'
 import { DeleteRoleCommand } from '../../application/commands/role/delete-role.command'
 import { AssignRolePermissionCommand } from '../../application/commands/role/assign-role-permission.command'
 import { RevokeRolePermissionCommand } from '../../application/commands/role/revoke-role-permission.command'
@@ -19,19 +21,48 @@ import { RevokeAccountRoleCommand } from '../../application/commands/role/revoke
 import { GetRoleByIdQuery } from '../../application/queries/role/get-role-by-id.query'
 import { ListRolesQuery } from '../../application/queries/role/list-roles.query'
 import { ListAccountRolesQuery } from '../../application/queries/role/list-account-roles.query'
+import { ListRolePermissionsQuery } from '../../application/queries/role/list-role-permissions.query'
+import { ListRoleAccountsQuery } from '../../application/queries/role/list-role-accounts.query'
 import { AccountType } from '../../domain/enums/account-type.enum'
 import { PermissionModule } from '../../domain/enums/permission-module.enum'
 import { RoleKind } from '../../domain/enums/role-kind.enum'
 import { Permission } from '../../domain/aggregates/permission.aggregate'
 import { Role } from '../../domain/aggregates/role.aggregate'
-import { permission_service } from '@oes/common/generated'
+import { AccountRole } from '../../domain/vo/account-role.value-object'
+import {
+  PermissionManagementServiceControllerMethods,
+  PermissionManagementServiceController,
+  CreatePermissionRequest,
+  PermissionResponse,
+  DeletePermissionRequest,
+  GetPermissionByIdRequest,
+  GetPermissionByCodeRequest,
+  ListPermissionsRequest,
+  ListPermissionsResponse,
+  ListPermissionsByModuleRequest,
+  CreateRoleRequest,
+  UpdateRoleRequest,
+  SetRoleEnabledRequest,
+  RoleResponse,
+  DeleteRoleRequest,
+  GetRoleByIdRequest,
+  ListRolesRequest,
+  ListRolesResponse,
+  ListRolePermissionsRequest,
+  AssignRolePermissionRequest,
+  RevokeRolePermissionRequest,
+  AssignAccountRoleRequest,
+  RevokeAccountRoleRequest,
+  ListAccountRolesRequest,
+  ListRoleAccountsRequest,
+  ListRoleAccountsResponse,
+  AccountRoleBindingResponse
+} from '@oes/common/generated/permission_service'
 
 @Controller()
 @UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
-@permission_service.PermissionManagementServiceControllerMethods()
-export class PermissionManagementGrpcController
-  implements permission_service.PermissionManagementServiceController
-{
+@PermissionManagementServiceControllerMethods()
+export class PermissionManagementGrpcController implements PermissionManagementServiceController {
   constructor(
     private readonly commandBus: ValidatingCommandBus,
     private readonly queryBus: ValidatingQueryBus
@@ -40,10 +71,10 @@ export class PermissionManagementGrpcController
   // ---- Permission CRUD ----
 
   async createPermission(
-    request: permission_service.CreatePermissionRequest,
+    request: CreatePermissionRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<permission_service.PermissionResponse> {
+  ): Promise<PermissionResponse> {
     const p: Permission = await this.commandBus.execute(
       new CreatePermissionCommand(
         request.code!,
@@ -55,7 +86,7 @@ export class PermissionManagementGrpcController
   }
 
   async deletePermission(
-    request: permission_service.DeletePermissionRequest,
+    request: DeletePermissionRequest,
     metadata?: Metadata,
     ...rest: any
   ): Promise<void> {
@@ -63,37 +94,37 @@ export class PermissionManagementGrpcController
   }
 
   async getPermissionById(
-    request: permission_service.GetPermissionByIdRequest,
+    request: GetPermissionByIdRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<permission_service.PermissionResponse> {
+  ): Promise<PermissionResponse> {
     const p: Permission = await this.queryBus.execute(new GetPermissionByIdQuery(request.id!))
     return this.toPermissionResponse(p)
   }
 
   async getPermissionByCode(
-    request: permission_service.GetPermissionByCodeRequest,
+    request: GetPermissionByCodeRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<permission_service.PermissionResponse> {
+  ): Promise<PermissionResponse> {
     const p: Permission = await this.queryBus.execute(new GetPermissionByCodeQuery(request.code!))
     return this.toPermissionResponse(p)
   }
 
   async listPermissions(
-    request: permission_service.ListPermissionsRequest,
+    request: ListPermissionsRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<permission_service.ListPermissionsResponse> {
+  ): Promise<ListPermissionsResponse> {
     const list: Permission[] = await this.queryBus.execute(new ListPermissionsQuery())
     return { permissions: list.map((p) => this.toPermissionResponse(p)) }
   }
 
   async listPermissionsByModule(
-    request: permission_service.ListPermissionsByModuleRequest,
+    request: ListPermissionsByModuleRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<permission_service.ListPermissionsResponse> {
+  ): Promise<ListPermissionsResponse> {
     const list: Permission[] = await this.queryBus.execute(
       new ListPermissionsByModuleQuery(PermissionModule.from(request.module!))
     )
@@ -103,10 +134,10 @@ export class PermissionManagementGrpcController
   // ---- Role CRUD ----
 
   async createRole(
-    request: permission_service.CreateRoleRequest,
+    request: CreateRoleRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<permission_service.RoleResponse> {
+  ): Promise<RoleResponse> {
     const r: Role = await this.commandBus.execute(
       new CreateRoleCommand({
         name: request.name!,
@@ -126,36 +157,71 @@ export class PermissionManagementGrpcController
     return this.toRoleResponse(r)
   }
 
-  async deleteRole(
-    request: permission_service.DeleteRoleRequest,
+  async updateRole(
+    request: UpdateRoleRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<void> {
+  ): Promise<RoleResponse> {
+    const r: Role = await this.commandBus.execute(
+      new UpdateRoleCommand({
+        id: request.id!,
+        name: Object.prototype.hasOwnProperty.call(request, 'name') ? request.name : undefined,
+        description: Object.prototype.hasOwnProperty.call(request, 'description')
+          ? request.description
+          : undefined
+      })
+    )
+    return this.toRoleResponse(r)
+  }
+
+  async setRoleEnabled(
+    request: SetRoleEnabledRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<RoleResponse> {
+    const r: Role = await this.commandBus.execute(
+      new SetRoleEnabledCommand(request.id!, request.isEnabled!)
+    )
+    return this.toRoleResponse(r)
+  }
+
+  async deleteRole(request: DeleteRoleRequest, metadata?: Metadata, ...rest: any): Promise<void> {
     await this.commandBus.execute(new DeleteRoleCommand(request.id!))
   }
 
   async getRoleById(
-    request: permission_service.GetRoleByIdRequest,
+    request: GetRoleByIdRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<permission_service.RoleResponse> {
+  ): Promise<RoleResponse> {
     const r: Role = await this.queryBus.execute(new GetRoleByIdQuery(request.id!))
     return this.toRoleResponse(r)
   }
 
   async listRoles(
-    request: permission_service.ListRolesRequest,
+    request: ListRolesRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<permission_service.ListRolesResponse> {
+  ): Promise<ListRolesResponse> {
     const list: Role[] = await this.queryBus.execute(new ListRolesQuery())
     return { roles: list.map((r) => this.toRoleResponse(r)) }
+  }
+
+  async listRolePermissions(
+    request: ListRolePermissionsRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<ListPermissionsResponse> {
+    const list: Permission[] = await this.queryBus.execute(
+      new ListRolePermissionsQuery(request.roleId!)
+    )
+    return { permissions: list.map((p) => this.toPermissionResponse(p)) }
   }
 
   // ---- Role-Permission binding ----
 
   async assignRolePermission(
-    request: permission_service.AssignRolePermissionRequest,
+    request: AssignRolePermissionRequest,
     metadata?: Metadata,
     ...rest: any
   ): Promise<void> {
@@ -165,7 +231,7 @@ export class PermissionManagementGrpcController
   }
 
   async revokeRolePermission(
-    request: permission_service.RevokeRolePermissionRequest,
+    request: RevokeRolePermissionRequest,
     metadata?: Metadata,
     ...rest: any
   ): Promise<void> {
@@ -177,7 +243,7 @@ export class PermissionManagementGrpcController
   // ---- Account-Role binding ----
 
   async assignAccountRole(
-    request: permission_service.AssignAccountRoleRequest,
+    request: AssignAccountRoleRequest,
     metadata?: Metadata,
     ...rest: any
   ): Promise<void> {
@@ -192,7 +258,7 @@ export class PermissionManagementGrpcController
   }
 
   async revokeAccountRole(
-    request: permission_service.RevokeAccountRoleRequest,
+    request: RevokeAccountRoleRequest,
     metadata?: Metadata,
     ...rest: any
   ): Promise<void> {
@@ -200,23 +266,34 @@ export class PermissionManagementGrpcController
   }
 
   async listAccountRoles(
-    request: permission_service.ListAccountRolesRequest,
+    request: ListAccountRolesRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<permission_service.ListRolesResponse> {
+  ): Promise<ListRolesResponse> {
     const list: Role[] = await this.queryBus.execute(
       new ListAccountRolesQuery(request.accountId!, request.tenantId!)
     )
     return { roles: list.map((r) => this.toRoleResponse(r)) }
   }
 
+  async listRoleAccounts(
+    request: ListRoleAccountsRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<ListRoleAccountsResponse> {
+    const list: AccountRole[] = await this.queryBus.execute(
+      new ListRoleAccountsQuery(request.roleId!)
+    )
+    return { accounts: list.map((accountRole) => this.toAccountRoleBindingResponse(accountRole)) }
+  }
+
   // ---- Mapping helpers ----
 
-  private toPermissionResponse(p: Permission): permission_service.PermissionResponse {
+  private toPermissionResponse(p: Permission): PermissionResponse {
     return { id: p.id, code: p.code, module: p.module, description: p.description ?? '' }
   }
 
-  private toRoleResponse(r: Role): permission_service.RoleResponse {
+  private toRoleResponse(r: Role): RoleResponse {
     return {
       id: r.id,
       name: r.name,
@@ -227,6 +304,15 @@ export class PermissionManagementGrpcController
       description: r.description ?? '',
       roleKind: r.kind as any,
       templateRoleId: r.templateRoleId ?? ''
+    }
+  }
+
+  private toAccountRoleBindingResponse(accountRole: AccountRole): AccountRoleBindingResponse {
+    return {
+      accountId: accountRole.accountId,
+      accountType: accountRole.accountType,
+      roleId: accountRole.roleId,
+      tenantId: accountRole.tenantId
     }
   }
 }

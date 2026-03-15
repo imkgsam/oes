@@ -23,6 +23,14 @@ export class Role {
     return [...this._permissions]
   }
 
+  rename(name: string): void {
+    this.name = name
+  }
+
+  updateDescription(description?: string): void {
+    this.description = description
+  }
+
   addPermission(permission: RolePermission): void {
     if (this.hasPermissionById(permission.permissionId)) return
     this._permissions.push(permission)

@@ -7,7 +7,7 @@ import { ExceptionFactory } from '@oes/common/exceptions'
 import {
   ROLE_NOT_FOUND,
   ACCOUNT_ROLE_ALREADY_ASSIGNED
-} from '../../../common/constants/exception-enums/permission-service.errors'
+} from '../../../common/constants/exception-enums'
 
 @CommandHandler(AssignAccountRoleCommand)
 export class AssignAccountRoleHandler implements ICommandHandler<AssignAccountRoleCommand> {

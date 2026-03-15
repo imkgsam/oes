@@ -4,7 +4,7 @@ import { RevokeRolePermissionCommand } from './revoke-role-permission.command'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ExceptionFactory } from '@oes/common/exceptions'
-import { ROLE_NOT_FOUND } from '../../../common/constants/exception-enums/permission-service.errors'
+import { ROLE_NOT_FOUND } from '../../../common/constants/exception-enums'
 
 @CommandHandler(RevokeRolePermissionCommand)
 export class RevokeRolePermissionHandler implements ICommandHandler<RevokeRolePermissionCommand> {
