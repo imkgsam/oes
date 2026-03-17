@@ -14,6 +14,8 @@ export * from './assign-account-role.command'
 export * from './assign-account-role.handler'
 export * from './revoke-account-role.command'
 export * from './revoke-account-role.handler'
+export * from './set-account-roles.command'
+export * from './set-account-roles.handler'
 
 import { CreateRoleHandler } from './create-role.handler'
 import { UpdateRoleHandler } from './update-role.handler'
@@ -23,6 +25,7 @@ import { AssignRolePermissionHandler } from './assign-role-permission.handler'
 import { RevokeRolePermissionHandler } from './revoke-role-permission.handler'
 import { AssignAccountRoleHandler } from './assign-account-role.handler'
 import { RevokeAccountRoleHandler } from './revoke-account-role.handler'
+import { SetAccountRolesHandler } from './set-account-roles.handler'
 
 export const RoleCommandHandlers = [
   CreateRoleHandler,
@@ -32,5 +35,6 @@ export const RoleCommandHandlers = [
   AssignRolePermissionHandler,
   RevokeRolePermissionHandler,
   AssignAccountRoleHandler,
-  RevokeAccountRoleHandler
+  RevokeAccountRoleHandler,
+  SetAccountRolesHandler
 ]

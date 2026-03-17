@@ -12,6 +12,9 @@ import {
   GetRoleByIdRequest,
   ListRolePermissionsRequest,
   ListRoleAccountsRequest,
+  GetAccountRoleSelectionRequest,
+  AccountRoleSelectionResponse,
+  SetAccountRolesRequest,
   ListRolesResponse,
   ListRoleAccountsResponse,
   RoleResponse
@@ -32,4 +35,8 @@ export interface PermissionManagementPort {
   listRoles(): Promise<ListRolesResponse>
   listRolePermissions(req: ListRolePermissionsRequest): Promise<ListPermissionsResponse>
   listRoleAccounts(req: ListRoleAccountsRequest): Promise<ListRoleAccountsResponse>
+  getAccountRoleSelection(
+    req: GetAccountRoleSelectionRequest
+  ): Promise<AccountRoleSelectionResponse>
+  setAccountRoles(req: SetAccountRolesRequest): Promise<ListRolesResponse>
 }

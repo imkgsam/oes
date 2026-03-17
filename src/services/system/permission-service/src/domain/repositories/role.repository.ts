@@ -24,4 +24,11 @@ export interface RoleRepository {
   revokeAccountRole(accountId: string, roleId: string): Promise<void>
   findAccountRoles(accountId: string, tenantId: string): Promise<Role[]>
   findRoleAccounts(roleId: string): Promise<AccountRole[]>
+  findTenantRoles(tenantId: string): Promise<Role[]>
+  replaceAccountRoles(
+    accountId: string,
+    tenantId: string,
+    accountType: AccountType,
+    roleIds: string[]
+  ): Promise<Role[]>
 }

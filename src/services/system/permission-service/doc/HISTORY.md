@@ -2,6 +2,304 @@
 
 本文档用于记录 `permission-service` 的阶段性代码修改历史，便于后续持续追踪、回顾与审核。
 
+## 2026-03-17 17:58 +08:00
+
+### 本次目标
+
+将 `Role template / instance` 的使用场景、权限策略和后续实现阶段明确写入 checklist，避免后续实现时语义反复变化。
+
+### 修改范围
+
+- checklist 文档
+- 变更历史文档
+
+### 主要改动
+
+- 在“已确认设计决策”中补充了模板/实例的明确规则：
+  - `SYSTEM_TEMPLATE` 必须预置标准权限组合
+  - `TENANT_INSTANCE` 创建时复制模板权限
+  - 模板角色不允许直接授予账号
+  - `Phase 1` 不开放租户管理员直接修改模板生成的实例权限
+  - 后续若开放实例权限自定义，需要显式标记该实例已偏离模板
+- 在 `4.2 角色管理` 中新增 3 个 `P1` 设计项：
+  - `系统模板角色管理`
+  - `基于模板创建租户角色实例`
+  - `租户实例权限自定义`
+- 将每一项的使用场景和阶段策略写入备注
+
+### 兼容性影响
+
+- 本次仅更新文档设计，不改业务代码
+- 无运行时兼容性风险
+
+### 验证结果
+
+- 本次仅做设计收敛与 checklist 更新，未涉及代码编译验证
+
+### 备注
+
+- 当前系统已经部分体现该模型边界：
+  - 账号角色分配只允许使用租户实例角色
+- 但模板管理、模板实例化、实例权限偏离模板的治理能力仍属于后续 `P1`
+
+## 2026-03-17 12:15 +08:00
+
+### 本次目标
+
+一次性实现 `4.3 账号角色管理` 下两个页面闭环分片：
+
+- 获取账号角色选择列表
+- 设置账号角色集合
+
+### 修改范围
+
+- `permission_management.proto`
+- `management.port.ts`
+- `role` 相关 query/command/handler
+- `RoleRepository` 与 Prisma 仓储实现
+- gRPC role 管理控制器
+- checklist 与变更历史文档
+
+### 主要改动
+
+- 新增 `GetAccountRoleSelection` RPC
+- 新增 `SetAccountRoles` RPC
+- 新增消息：
+  - `GetAccountRoleSelectionRequest`
+  - `AccountRoleSelectionResponse`
+  - `SetAccountRolesRequest`
+- 在 `PermissionManagementPort` 中补充：
+  - `getAccountRoleSelection(...)`
+  - `setAccountRoles(...)`
+- 新增查询：
+  - `get-account-role-selection.query.ts`
+  - `get-account-role-selection.handler.ts`
+- 新增命令：
+  - `set-account-roles.command.ts`
+  - `set-account-roles.handler.ts`
+- 在 `RoleRepository` 中新增：
+  - `findTenantRoles(tenantId)`
+  - `replaceAccountRoles(accountId, tenantId, accountType, roleIds)`
+- 在 Prisma 仓储中实现：
+  - 按租户查询角色列表
+  - 事务型全量同步账号角色集合
+- `GetAccountRoleSelection` 当前返回：
+  - `availableRoles[]`
+  - `selectedRoleIds[]`
+- `SetAccountRoles` 当前行为：
+  - 仅支持单个账号
+  - 按提交结果全量同步当前租户下的账号角色集合
+  - 仅允许设置当前租户的租户实例角色
+  - 非当前租户角色或系统模板角色会被拒绝
+
+### 兼容性影响
+
+- 本次为新增接口，不破坏现有账号角色单条授予/撤销能力
+- “仅租户管理员可调用”当前未在 `permission-service` 服务层内做操作者身份校验
+- 该限制目前依赖上层 gateway / guard / 鉴权策略保证
+
+### 验证结果
+
+已执行：
+
+```powershell
+pnpm proto:gen
+pnpm --filter @oes/common build
+pnpm --filter permission-service build
+```
+
+结果：
+- proto 生成通过
+- `@oes/common` 构建通过
+- `permission-service` 构建通过
+
+### 备注
+
+- `GetAccountRoleSelection` 当前返回的是当前租户角色全集，不额外过滤禁用角色
+- 页面如果需要禁用不可选角色，可直接使用返回的 `RoleResponse.isEnabled`
+- 这两个分片完成后，`4.3` 当前 `P0` 范围已全部打通
+
+## 2026-03-17 12:15 +08:00
+
+### 本次目标
+
+根据页面交互方式，收敛 `4.3 账号角色管理` 中原“批量授予/撤销角色”的设计，并拆分为更适合前端使用的两个明确分片。
+
+### 修改范围
+
+- checklist 文档
+- 变更历史文档
+
+### 主要改动
+
+- 取消原来的“批量授予/撤销角色”表述
+- 将其收敛为两个新的 `P0` 分片：
+  - `获取账号角色选择列表`
+  - `设置账号角色集合`
+- 明确页面语义：
+  - checkbox 勾选表示应持有该角色
+  - 未勾选表示应撤销该角色
+  - 点击更新后按最终角色集合做一次全量同步
+- 明确适用范围：
+  - 仅用于单个账号
+  - 仅由租户管理员使用
+- 明确查询接口建议返回：
+  - `availableRoles[]`
+  - `selectedRoleIds[]`
+- 明确保存接口建议采用：
+  - `SetAccountRoles`
+  - 全量同步语义
+
+### 兼容性影响
+
+- 本次仅更新文档设计，不改业务代码
+- 无运行时兼容性风险
+
+### 验证结果
+
+- 本次仅做设计收敛与 checklist 更新，未涉及代码编译验证
+
+### 备注
+
+- 后续代码实现前，应从这两个新分片中按顺序选择一个先做
+- 更合理的顺序是先实现“获取账号角色选择列表”，再实现“设置账号角色集合”
+
+## 2026-03-17 12:04 +08:00
+
+### 本次目标
+
+收敛“撤销账号角色”的边界行为，并按已确认方案将其实现为幂等删除。
+
+### 修改范围
+
+- Prisma 账号角色仓储实现
+- checklist 文档
+- 变更历史文档
+
+### 主要改动
+
+- 根据已确认方案，将“解绑不存在的账号角色绑定”定义为幂等成功
+- 在 Prisma 仓储中将 `revokeAccountRole` 从 `delete(...)` 调整为 `deleteMany(...)`
+- 避免不存在绑定时透出底层 Prisma 持久化异常
+- 将 checklist 中“撤销账号角色”从“部分实现”更新为“已实现”
+
+### 兼容性影响
+
+- 这是边界行为调整
+- 之前对不存在绑定执行撤销会抛底层异常
+- 现在改为直接成功返回，更适合作为稳定服务契约
+
+### 验证结果
+
+已执行：
+
+```powershell
+pnpm --filter permission-service build
+```
+
+结果：
+- `permission-service` 构建通过
+
+### 备注
+
+- `4.3` 中 3 个原有 `P0` 能力现在都已完成核查
+- 下一个待推进的 `P0` 分片是“单个账号批量授予/撤销多个角色”
+
+## 2026-03-17 11:53 +08:00
+
+### 本次目标
+
+继续核查 `4.3 账号角色管理` 的已标记功能，并把批量账号角色操作的优先级与范围更新到 checklist。
+
+### 修改范围
+
+- checklist 文档
+- 变更历史文档
+
+### 主要改动
+
+- 将“批量授予/撤销角色”从 `P1` 调整为 `P0`
+- 将该能力的范围明确为：
+  - 单个账号批量授予多个角色
+  - 单个账号批量撤销多个角色
+- 明确暂不包含：
+  - 多个账号批量授予同一角色
+  - 多账号多角色矩阵式批量操作
+- 核查“给账号授予角色”完整链路：
+  - proto 契约
+  - gRPC controller
+  - command
+  - handler
+  - repository
+- 将“给账号授予角色”更新为已核查状态
+- 核查“撤销账号角色”后，发现当前实现对不存在绑定会透出底层 Prisma 异常，因此先调整为“部分实现”，等待语义确认后再收敛
+
+### 兼容性影响
+
+- 本次不改业务代码，只更新文档状态和优先级
+- 无运行时兼容性风险
+
+### 验证结果
+
+已执行：
+
+```powershell
+pnpm --filter permission-service build
+```
+
+结果：
+- `permission-service` 构建通过
+
+### 备注
+
+- `4.3` 中“查看账号持有的角色”与“给账号授予角色”已完成核查
+- “撤销账号角色”还差一个行为约定：解绑不存在绑定时，应该幂等成功，还是明确报业务错误
+
+## 2026-03-17 11:53 +08:00
+
+### 本次目标
+
+收敛 `4.3 账号角色管理` 的 checklist 描述，移除重复能力项，并核查“查看账号持有的角色”是否已完整实现。
+
+### 修改范围
+
+- checklist 文档
+- 变更历史文档
+
+### 主要改动
+
+- 确认 `4.3` 中“查看角色下有哪些账号”与 `4.2` 中已实现的 `ListRoleAccounts` 属于同一能力
+- 按当前确认结果，从 `4.3` 中移除该重复项
+- 核查“查看账号持有的角色”完整链路：
+  - proto 契约
+  - gRPC controller
+  - query
+  - repository
+- 在 checklist 中将“查看账号持有的角色”补充为已核查状态
+- 对“批量授予/撤销角色”补充实现范围建议：
+  - V1 优先做单个账号批量授予/撤销多个角色
+  - 暂不做多个账号批量授予同一角色或矩阵式批量操作
+
+### 兼容性影响
+
+- 本次不改业务代码，只更新文档状态与范围定义
+- 无运行时兼容性风险
+
+### 验证结果
+
+已执行：
+
+```powershell
+pnpm --filter permission-service build
+```
+
+结果：
+- `permission-service` 构建通过
+
+### 备注
+
+- 后续继续推进 `4.3` 时，下一个需要核查的 `P0` 项是“给账号授予角色”
+
 ## 2026-03-15 23:23 +08:00
 
 ### 本次目标

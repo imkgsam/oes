@@ -133,8 +133,8 @@ export class PrismaRoleRepository implements RoleRepository {
   }
 
   async revokeAccountRole(accountId: string, roleId: string): Promise<void> {
-    await this.prisma.accountRole.delete({
-      where: { accountId_roleId: { accountId, roleId } }
+    await this.prisma.accountRole.deleteMany({
+      where: { accountId, roleId }
     })
   }
 
@@ -144,6 +144,18 @@ export class PrismaRoleRepository implements RoleRepository {
       include: { role: { include: ROLE_INCLUDE } }
     })
     return accountRoles.map((ar) => RoleMapper.toDomain(ar.role))
+  }
+
+  async findTenantRoles(tenantId: string): Promise<Role[]> {
+    const records = await this.prisma.role.findMany({
+      where: {
+        tenantId
+      },
+      include: ROLE_INCLUDE,
+      orderBy: { name: 'asc' }
+    })
+
+    return records.map(RoleMapper.toDomain)
   }
 
   async findRoleAccounts(roleId: string): Promise<AccountRole[]> {
@@ -160,5 +172,51 @@ export class PrismaRoleRepository implements RoleRepository {
           accountRole.tenantId
         )
     )
+  }
+
+  async replaceAccountRoles(
+    accountId: string,
+    tenantId: string,
+    accountType: AccountType,
+    roleIds: string[]
+  ): Promise<Role[]> {
+    const uniqueRoleIds = [...new Set(roleIds)]
+
+    await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.accountRole.findMany({
+        where: { accountId, tenantId }
+      })
+      const existingRoleIds = new Set(existing.map((item) => item.roleId))
+      const targetRoleIds = new Set(uniqueRoleIds)
+
+      const roleIdsToDelete = existing
+        .filter((item) => !targetRoleIds.has(item.roleId))
+        .map((item) => item.roleId)
+
+      if (roleIdsToDelete.length > 0) {
+        await tx.accountRole.deleteMany({
+          where: {
+            accountId,
+            tenantId,
+            roleId: { in: roleIdsToDelete }
+          }
+        })
+      }
+
+      const roleIdsToCreate = uniqueRoleIds.filter((roleId) => !existingRoleIds.has(roleId))
+
+      if (roleIdsToCreate.length > 0) {
+        await tx.accountRole.createMany({
+          data: roleIdsToCreate.map((roleId) => ({
+            accountId,
+            tenantId,
+            roleId,
+            accountType
+          }))
+        })
+      }
+    })
+
+    return this.findAccountRoles(accountId, tenantId)
   }
 }

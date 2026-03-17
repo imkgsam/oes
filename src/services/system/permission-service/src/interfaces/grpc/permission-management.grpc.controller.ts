@@ -23,6 +23,9 @@ import { ListRolesQuery } from '../../application/queries/role/list-roles.query'
 import { ListAccountRolesQuery } from '../../application/queries/role/list-account-roles.query'
 import { ListRolePermissionsQuery } from '../../application/queries/role/list-role-permissions.query'
 import { ListRoleAccountsQuery } from '../../application/queries/role/list-role-accounts.query'
+import { GetAccountRoleSelectionQuery } from '../../application/queries/role/get-account-role-selection.query'
+import { AccountRoleSelectionResult } from '../../application/queries/role/get-account-role-selection.handler'
+import { SetAccountRolesCommand } from '../../application/commands/role/set-account-roles.command'
 import { AccountType } from '../../domain/enums/account-type.enum'
 import { PermissionModule } from '../../domain/enums/permission-module.enum'
 import { RoleKind } from '../../domain/enums/role-kind.enum'
@@ -56,7 +59,10 @@ import {
   ListAccountRolesRequest,
   ListRoleAccountsRequest,
   ListRoleAccountsResponse,
-  AccountRoleBindingResponse
+  AccountRoleBindingResponse,
+  GetAccountRoleSelectionRequest,
+  AccountRoleSelectionResponse,
+  SetAccountRolesRequest
 } from '@oes/common/generated/permission_service'
 
 @Controller()
@@ -285,6 +291,38 @@ export class PermissionManagementGrpcController implements PermissionManagementS
       new ListRoleAccountsQuery(request.roleId!)
     )
     return { accounts: list.map((accountRole) => this.toAccountRoleBindingResponse(accountRole)) }
+  }
+
+  async getAccountRoleSelection(
+    request: GetAccountRoleSelectionRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<AccountRoleSelectionResponse> {
+    const selection: AccountRoleSelectionResult = await this.queryBus.execute(
+      new GetAccountRoleSelectionQuery(request.accountId!, request.tenantId!)
+    )
+
+    return {
+      availableRoles: selection.availableRoles.map((role) => this.toRoleResponse(role)),
+      selectedRoleIds: selection.selectedRoleIds
+    }
+  }
+
+  async setAccountRoles(
+    request: SetAccountRolesRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<ListRolesResponse> {
+    const roles: Role[] = await this.commandBus.execute(
+      new SetAccountRolesCommand({
+        accountId: request.accountId!,
+        accountType: request.accountType! as AccountType,
+        tenantId: request.tenantId!,
+        roleIds: request.roleIds ?? []
+      })
+    )
+
+    return { roles: roles.map((role) => this.toRoleResponse(role)) }
   }
 
   // ---- Mapping helpers ----

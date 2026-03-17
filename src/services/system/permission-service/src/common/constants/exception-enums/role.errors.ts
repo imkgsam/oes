@@ -21,3 +21,10 @@ export const ROLE_DELETE_FORBIDDEN: ExceptionDefinition = {
   messageKey: 'permission.role_delete_forbidden',
   rpcStatus: status.FAILED_PRECONDITION
 }
+
+export const ROLE_NOT_ASSIGNABLE: ExceptionDefinition = {
+  code: 'ROLE_NOT_ASSIGNABLE',
+  message: 'Role is not assignable in the current tenant context',
+  messageKey: 'permission.role_not_assignable',
+  rpcStatus: status.FAILED_PRECONDITION
+}

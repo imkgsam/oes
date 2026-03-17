@@ -30,6 +30,8 @@ service PermissionManagementService {
   rpc RevokeAccountRole(RevokeAccountRoleRequest) returns (google.protobuf.Empty);
   rpc ListAccountRoles(ListAccountRolesRequest) returns (ListRolesResponse);
   rpc ListRoleAccounts(ListRoleAccountsRequest) returns (ListRoleAccountsResponse);
+  rpc GetAccountRoleSelection(GetAccountRoleSelectionRequest) returns (AccountRoleSelectionResponse);
+  rpc SetAccountRoles(SetAccountRolesRequest) returns (ListRolesResponse);
 }
 
 enum RoleKindProto {
@@ -154,6 +156,18 @@ message ListAccountRolesRequest {
   string tenant_id = 2;
 }
 
+message GetAccountRoleSelectionRequest {
+  string account_id = 1;
+  string tenant_id = 2;
+}
+
+message SetAccountRolesRequest {
+  string account_id = 1;
+  string account_type = 2;
+  string tenant_id = 3;
+  repeated string role_ids = 4;
+}
+
 message ListRoleAccountsRequest {
   string role_id = 1;
 }
@@ -167,4 +181,9 @@ message AccountRoleBindingResponse {
 
 message ListRoleAccountsResponse {
   repeated AccountRoleBindingResponse accounts = 1;
+}
+
+message AccountRoleSelectionResponse {
+  repeated RoleResponse available_roles = 1;
+  repeated string selected_role_ids = 2;
 }

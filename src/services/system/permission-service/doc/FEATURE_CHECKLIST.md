@@ -33,6 +33,11 @@
 - 租户角色与系统模板角色不可同名。
 - 账号通过 `AccountRole` 持有角色。
 - 角色直接持有权限，不引入角色继承。
+- `SYSTEM_TEMPLATE` 必须预置标准权限组合。
+- `TENANT_INSTANCE` 创建时从模板复制权限，而不是运行时动态继承模板权限。
+- `SYSTEM_TEMPLATE` 不允许直接授予账号，账号只能持有 `TENANT_INSTANCE`。
+- `Phase 1` 先不开放租户管理员直接修改模板生成的角色实例权限。
+- 后续如果开放租户实例权限自定义，需要显式标记该实例已偏离模板。
 
 ### 2.2 Policy 模型
 
@@ -97,16 +102,19 @@
 | 角色管理 | 为角色添加权限 | 建立 `RolePermission` 关系 | P0 | 已实现 | 2026-03-15 已核查：`AssignRolePermission` 的 proto、controller、command、handler、aggregate 与 repository save 链路完整，重复绑定会被聚合去重，build 通过 |
 | 角色管理 | 为角色移除权限 | 删除 `RolePermission` 关系 | P0 | 已实现 | 2026-03-15 已核查：`RevokeRolePermission` 的 proto、controller、command、handler、aggregate 与 repository save 链路完整，移除不存在的绑定会保持幂等，build 通过 |
 | 角色管理 | 角色授予有效期 | 支持临时授权、到期回收 | P1 | 未开始 | |
+| 角色管理 | 系统模板角色管理 | 平台维护标准角色模板及其预置权限组合 | P1 | 未开始 | 2026-03-17 设计已确认：模板只用于平台侧定义标准角色蓝本，不直接授予账号 |
+| 角色管理 | 基于模板创建租户角色实例 | 从系统模板复制出租户可用角色实例及默认权限 | P1 | 未开始 | 2026-03-17 设计已确认：创建时复制模板权限到实例；实例是独立对象，不是运行时继承 |
+| 角色管理 | 租户实例权限自定义 | 允许租户管理员调整模板生成的角色实例权限 | P1 | 未开始 | 2026-03-17 设计已确认：Phase 1 暂不开放；后续开放时需标记实例已偏离模板 |
 
 ### 4.3 账号角色管理
 
 | 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
 |---|---|---|---|---|---|
-| 账号角色 | 查看账号持有的角色 | 支持按租户查询 | P0 | 已实现 | 需补分页/过滤 |
-| 账号角色 | 给账号授予角色 | 绑定账号与角色 | P0 | 已实现 | |
-| 账号角色 | 撤销账号角色 | 解除绑定 | P0 | 已实现 | |
-| 账号角色 | 查看角色下有哪些账号 | 角色维度反查 | P0 | 未开始 | |
-| 账号角色 | 批量授予/撤销角色 | 提升后台管理效率 | P1 | 未开始 | |
+| 账号角色 | 查看账号持有的角色 | 支持按租户查询 | P0 | 已实现 | 2026-03-17 已核查：`ListAccountRoles` 的 proto、controller、query、repository 链路完整，当前支持按 `accountId + tenantId` 查询，分页/过滤未实现 |
+| 账号角色 | 给账号授予角色 | 绑定账号与角色 | P0 | 已实现 | 2026-03-17 已核查：`AssignAccountRole` 的 proto、controller、command、handler、repository 链路完整，当前会校验角色存在与重复绑定，build 通过 |
+| 账号角色 | 撤销账号角色 | 解除绑定 | P0 | 已实现 | 2026-03-17 已实现并验证：`RevokeAccountRole` 的 proto、controller、command、handler、repository 链路完整；按确认方案，解绑不存在的账号角色绑定按幂等成功处理 |
+| 账号角色 | 获取账号角色选择列表 | 用于 checkbox list 页面初始化，返回租户内可选角色与账号当前已选角色 | P0 | 已实现 | 2026-03-17 已实现并验证：已补齐 `GetAccountRoleSelection` gRPC/query 链路，当前返回 `availableRoles[] + selectedRoleIds[]`；仅返回当前租户角色；“仅租户管理员可调用”依赖上层鉴权 |
+| 账号角色 | 设置账号角色集合 | 用于 checkbox list 页面保存，将账号在租户内的角色集合全量同步为提交结果 | P0 | 已实现 | 2026-03-17 已实现并验证：已补齐 `SetAccountRoles` gRPC/command/repository 事务链路，按全量同步语义更新账号角色集合；只允许设置当前租户的租户实例角色；“仅租户管理员可调用”依赖上层鉴权 |
 
 ### 4.4 权限管理
 
