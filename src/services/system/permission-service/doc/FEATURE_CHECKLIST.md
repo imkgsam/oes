@@ -1,261 +1,37 @@
-# Permission Service 功能清单
+# Permission Service 文档索引
 
-更新时间：2026-03-15
+更新时间：2026-03-18 17:40:01 +08:00
 
-本文档用于沉淀 `permission-service` 的已确认设计、阶段性目标与开发跟踪状态。
+本文档只作为 `permission-service` 文档索引使用，不再承载完整设计细节。
 
-## 1. 目标与边界
+## 基础文档
 
-`permission-service` 负责：
+| 文档 | 说明 |
+|---|---|
+| [CORE_MODEL_MIGRATION_PLAN.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/CORE_MODEL_MIGRATION_PLAN.md) | 核心模型迁移计划与兼容性说明 |
+| [HISTORY.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/HISTORY.md) | 功能集合历史索引 |
 
-- RBAC 权限模型管理
-- 挂载在 `Permission` 上的业务授权策略管理
-- RBAC 与 RBAC + ABAC 鉴权
-- 权限审计事件与鉴权决策事件的追踪
+## 功能集合索引
 
-`permission-service` 当前不负责：
-
-- 登录态管理
-- 设备指纹、异地登录、频率限制
-- 全站 IP 白名单、入口级风控
-
-说明：
-
-- 与具体 `Permission` 强相关的条件，例如“仅工作时间允许审批”“仅允许访问所属仓库”，属于本服务范围。
-- 与系统入口安全更相关的条件，例如“非白名单 IP 禁止登录系统”，应由 `auth-service` / `gateway` / 独立风险控制模块负责。
-
-## 2. 已确认设计决策
-
-### 2.1 RBAC 模型
-
-- 角色采用“系统模板 + 租户实例”模式。
-- 系统角色模板用于初始化租户角色，不直接等同于租户内角色实例。
-- 租户角色与系统模板角色不可同名。
-- 账号通过 `AccountRole` 持有角色。
-- 角色直接持有权限，不引入角色继承。
-- `SYSTEM_TEMPLATE` 必须预置标准权限组合。
-- `TENANT_INSTANCE` 创建时从模板复制权限，而不是运行时动态继承模板权限。
-- `SYSTEM_TEMPLATE` 不允许直接授予账号，账号只能持有 `TENANT_INSTANCE`。
-- `Phase 1` 先不开放租户管理员直接修改模板生成的角色实例权限。
-- 后续如果开放租户实例权限自定义，需要显式标记该实例已偏离模板。
-
-### 2.2 Policy 模型
-
-- Policy 以 `Permission` 为核心挂载对象。
-- Policy 用于表达业务授权条件，而不是承载所有系统级风控规则。
-- V1 不采用过于自由的“任意主体 + 任意权限 + 任意资源”的产品暴露方式。
-- V1 默认要求 Policy 绑定到明确的 `permissionCode`。
-- 少量全局安全策略可作为后续增强能力，但不作为 V1 主路径。
-
-### 2.3 鉴权模型
-
-- 第一层：RBAC 判断账号是否拥有目标权限。
-- 第二层：若该权限配置了 Policy，则执行 ABAC 条件评估。
-- 决策规则：
-  - `DENY` 优先于 `ALLOW`
-  - 存在 `ALLOW` 策略时，至少命中一条 `ALLOW` 才放行
-  - 无策略时，RBAC 通过即放行
-
-### 2.4 审计与追踪
-
-- 普通应用日志：各服务输出，统一采集。
-- 权限审计事件：由 `permission-service` 负责落库，记录“谁修改了什么对象”。
-- 鉴权决策事件：由 `permission-service` 负责落库，记录“谁发起了什么鉴权，命中了什么策略，结果是什么”。
-
-## 3. 状态说明
-
-- `已实现`：仓库中已有明确实现，且方向与已确认方案一致
-- `部分实现`：已有部分代码或契约，但仍需补全或调整
-- `待调整`：已有实现，但与本次确认方案存在偏差，需要重构或收敛
-- `未开始`：尚未开始实现
-- `暂缓`：明确进入后续阶段，不纳入当前阶段交付
-
-## 4. 分阶段实施
-
-## Phase 1
-
-目标：先形成可用、可管理、可审计的权限服务主闭环。
-
-### 4.1 核心模型与数据约束
-
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
+| 功能集合 | 当前阶段 | 优先级 | 当前状态 | 主文档 | 历史文档 |
 |---|---|---|---|---|---|
-| 数据模型 | 角色模板 + 租户实例建模 | 支持系统模板角色与租户内角色实例 | P0 | 待调整 | 当前 schema 中 `Role.code` 为全局唯一，需要按租户实例模式重新审视 |
-| 数据模型 | 租户内角色唯一性约束 | 确保租户内角色编码/名称约束符合产品规则 | P0 | 未开始 | 需与模板复制策略一起设计 |
-| 数据模型 | 账号角色关系 | `AccountRole` 作为账号与角色绑定表 | P0 | 已实现 | 已有 schema 与命令/查询 |
-| 数据模型 | 角色权限关系 | `RolePermission` 作为角色与权限绑定表 | P0 | 已实现 | 已有 schema 与命令 |
-| 数据模型 | Permission 核心模型 | 权限编码、模块、描述等基础字段 | P0 | 已实现 | 需补更新能力 |
-| 数据模型 | Permission 挂载 Policy | 以 `permissionCode` 为主绑定业务策略 | P0 | 待调整 | 当前 Policy 设计过于灵活，需产品与接口层收敛 |
+| 角色管理 | Phase 1 | P0 / P1 | 进行中 | [role-management.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/role-management.md) | [role-management.history.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/role-management.history.md) |
+| 账号角色管理 | Phase 1 | P0 / P1 | 进行中 | [account-role-management.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/account-role-management.md) | [account-role-management.history.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/account-role-management.history.md) |
+| 权限管理 | Phase 1 | P0 / P1 | 进行中 | [permission-management.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/permission-management.md) | [permission-management.history.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/permission-management.history.md) |
+| Policy 管理 | Phase 1 | P0 / P1 | 进行中 | [policy-management.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/policy-management.md) | [policy-management.history.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/policy-management.history.md) |
+| 鉴权能力 | Phase 1 | P0 / P1 | 进行中 | [authorization.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/authorization.md) | [authorization.history.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/authorization.history.md) |
 
-### 4.2 角色管理
+## 已确认的全局决策
 
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
-|---|---|---|---|---|---|
-| 角色管理 | 查看角色详情 | 按 ID 查询角色 | P0 | 已实现 | 2026-03-15 已核查：`GetRoleByIdQuery`、gRPC 接口与 build 通过，当前可正常工作 |
-| 角色管理 | 查看角色列表 | 支持基础列表查询 | P0 | 已实现 | 2026-03-15 已核查：`ListRolesQuery`、gRPC 接口与 build 通过；分页/过滤仍未实现 |
-| 角色管理 | 创建角色 | 创建租户角色或模板角色 | P0 | 已实现 | 2026-03-15 已核查：`CreateRoleCommand`、handler、gRPC 接口与 build 通过；后续仍需补模板/实例约束细化 |
-| 角色管理 | 修改角色 | 修改名称、描述等可编辑字段 | P0 | 已实现 | 2026-03-15 已实现并验证：已补齐 `UpdateRole` gRPC/command/handler 链路，当前支持修改 `name` 与 `description` |
-| 角色管理 | 删除角色 | 删除前需校验引用关系 | P0 | 已实现 | 2026-03-15 已实现并验证：删除前校验账号绑定与权限绑定，存在关联时拒绝删除 |
-| 角色管理 | 启用/停用角色 | 角色禁用后不再参与鉴权 | P0 | 已实现 | 2026-03-15 已实现并验证：已补齐 `SetRoleEnabled` gRPC/command/handler 链路，可显式设置 `isEnabled` |
-| 角色管理 | 查看角色持有的权限 | 区分直接绑定权限 | P0 | 已实现 | 2026-03-15 已实现并验证：已补齐 `ListRolePermissions` gRPC/query 链路，当前返回角色直接绑定的权限列表，不包含推导权限 |
-| 角色管理 | 查看持有该角色的账号 | 用于反查角色使用范围 | P0 | 已实现 | 2026-03-15 已实现并验证：已补齐 `ListRoleAccounts` gRPC/query 链路，当前返回账号绑定关系基础信息（`accountId`、`accountType`、`tenantId`） |
-| 角色管理 | 为角色添加权限 | 建立 `RolePermission` 关系 | P0 | 已实现 | 2026-03-15 已核查：`AssignRolePermission` 的 proto、controller、command、handler、aggregate 与 repository save 链路完整，重复绑定会被聚合去重，build 通过 |
-| 角色管理 | 为角色移除权限 | 删除 `RolePermission` 关系 | P0 | 已实现 | 2026-03-15 已核查：`RevokeRolePermission` 的 proto、controller、command、handler、aggregate 与 repository save 链路完整，移除不存在的绑定会保持幂等，build 通过 |
-| 角色管理 | 角色授予有效期 | 支持临时授权、到期回收 | P1 | 未开始 | |
-| 角色管理 | 系统模板角色管理 | 平台维护标准角色模板及其预置权限组合 | P1 | 未开始 | 2026-03-17 设计已确认：模板只用于平台侧定义标准角色蓝本，不直接授予账号 |
-| 角色管理 | 基于模板创建租户角色实例 | 从系统模板复制出租户可用角色实例及默认权限 | P1 | 未开始 | 2026-03-17 设计已确认：创建时复制模板权限到实例；实例是独立对象，不是运行时继承 |
-| 角色管理 | 租户实例权限自定义 | 允许租户管理员调整模板生成的角色实例权限 | P1 | 未开始 | 2026-03-17 设计已确认：Phase 1 暂不开放；后续开放时需标记实例已偏离模板 |
+- `Role` 采用 `SYSTEM_TEMPLATE + TENANT_INSTANCE` 模型。
+- `Policy` 以 `Permission` 为核心挂载对象。
+- `permission-service` 只承载业务授权，不承载入口级风控。
+- 租户管理员继续使用现有 `PermissionManagementService`。
+- 系统管理员后续新增专属接口面，不与租户侧接口混用。
+- 需要在服务内做接口访问控制，不能只依赖外层网关。
 
-### 4.3 账号角色管理
+## 使用规则
 
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
-|---|---|---|---|---|---|
-| 账号角色 | 查看账号持有的角色 | 支持按租户查询 | P0 | 已实现 | 2026-03-17 已核查：`ListAccountRoles` 的 proto、controller、query、repository 链路完整，当前支持按 `accountId + tenantId` 查询，分页/过滤未实现 |
-| 账号角色 | 给账号授予角色 | 绑定账号与角色 | P0 | 已实现 | 2026-03-17 已核查：`AssignAccountRole` 的 proto、controller、command、handler、repository 链路完整，当前会校验角色存在与重复绑定，build 通过 |
-| 账号角色 | 撤销账号角色 | 解除绑定 | P0 | 已实现 | 2026-03-17 已实现并验证：`RevokeAccountRole` 的 proto、controller、command、handler、repository 链路完整；按确认方案，解绑不存在的账号角色绑定按幂等成功处理 |
-| 账号角色 | 获取账号角色选择列表 | 用于 checkbox list 页面初始化，返回租户内可选角色与账号当前已选角色 | P0 | 已实现 | 2026-03-17 已实现并验证：已补齐 `GetAccountRoleSelection` gRPC/query 链路，当前返回 `availableRoles[] + selectedRoleIds[]`；仅返回当前租户角色；“仅租户管理员可调用”依赖上层鉴权 |
-| 账号角色 | 设置账号角色集合 | 用于 checkbox list 页面保存，将账号在租户内的角色集合全量同步为提交结果 | P0 | 已实现 | 2026-03-17 已实现并验证：已补齐 `SetAccountRoles` gRPC/command/repository 事务链路，按全量同步语义更新账号角色集合；只允许设置当前租户的租户实例角色；“仅租户管理员可调用”依赖上层鉴权 |
-
-### 4.4 权限管理
-
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
-|---|---|---|---|---|---|
-| 权限管理 | 查看权限详情 | 按 ID / Code 查询 | P0 | 已实现 | |
-| 权限管理 | 查看权限列表 | 支持全量与按模块查询 | P0 | 已实现 | 需补分页/过滤 |
-| 权限管理 | 创建权限 | 定义权限点 | P0 | 已实现 | |
-| 权限管理 | 修改权限 | 修改描述、模块等元数据 | P0 | 未开始 | |
-| 权限管理 | 删除权限 | 删除前需校验角色引用 | P0 | 部分实现 | 已有删除命令，需补删除保护 |
-| 权限管理 | 查看拥有该权限的角色 | 反查权限使用范围 | P0 | 未开始 | |
-| 权限管理 | 批量创建权限 | 降低初始化成本 | P1 | 未开始 | |
-
-### 4.5 Policy 管理
-
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
-|---|---|---|---|---|---|
-| Policy 管理 | 查看 Policy 详情 | 按 ID 查询 | P0 | 已实现 | |
-| Policy 管理 | 查看 Policy 列表 | 支持按租户查询 | P0 | 已实现 | 需补分页/过滤 |
-| Policy 管理 | 创建 Policy | 基于 Permission 创建业务授权策略 | P0 | 部分实现 | 当前接口已存在，需按新模型收敛 |
-| Policy 管理 | 修改 Policy | 修改条件、优先级、描述等 | P0 | 部分实现 | 当前接口已存在，需按新模型收敛 |
-| Policy 管理 | 删除 Policy | 删除前检查引用并记录审计 | P0 | 部分实现 | 当前已有删除能力 |
-| Policy 管理 | 启用/停用 Policy | 控制策略是否生效 | P0 | 已实现 | |
-| Policy 管理 | 查看某权限关联的 Policy | 只展示挂载到该 Permission 的策略 | P0 | 未开始 | |
-| Policy 管理 | 为权限添加 Policy | 以 Permission 为入口绑定策略 | P0 | 待调整 | 当前更像自由创建策略 |
-| Policy 管理 | 为权限移除 Policy | 从 Permission 移除策略 | P0 | 未开始 | |
-| Policy 管理 | Policy 时间条件 | 支持生效时间、失效时间、时间窗口 | P1 | 未开始 | |
-| Policy 管理 | Policy 表达式校验 | 保存/发布前进行语法与字段校验 | P1 | 未开始 | |
-
-### 4.6 鉴权能力
-
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
-|---|---|---|---|---|---|
-| 鉴权 | 纯 RBAC 鉴权 | 给 gateway 或其他服务快速判断是否具备权限 | P0 | 已实现 | `CheckPermission` 已存在 |
-| 鉴权 | RBAC + ABAC 鉴权 | 传入上下文后执行策略判定 | P0 | 部分实现 | 已有接口与引擎，需按新 Policy 模型收敛 |
-| 鉴权 | DENY 优先 | 命中拒绝策略立即拒绝 | P0 | 部分实现 | 设计存在，需与最终产品模型对齐验证 |
-| 鉴权 | ALLOW 白名单语义 | 存在 ALLOW 时至少命中一条才放行 | P0 | 部分实现 | 同上 |
-| 鉴权 | 鉴权批量检查 | 一次校验多个权限或多个资源 | P1 | 未开始 | |
-| 鉴权 | 轻量 Explain | 返回命中角色、命中权限、命中策略、拒绝原因 | P1 | 未开始 | |
-
-### 4.7 查询增强与后台可用性
-
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
-|---|---|---|---|---|---|
-| 查询增强 | 分页 | 角色、权限、Policy、审计、决策历史统一分页 | P0 | 未开始 | |
-| 查询增强 | 关键字搜索 | 按名称、编码、描述搜索 | P0 | 未开始 | |
-| 查询增强 | 状态过滤 | 按启用/停用过滤 | P0 | 未开始 | |
-| 查询增强 | 租户过滤 | 按租户隔离查询 | P0 | 部分实现 | 现有列表能力仅部分支持 |
-| 查询增强 | 排序 | 按创建时间、更新时间排序 | P1 | 未开始 | |
-
-### 4.8 批量操作
-
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
-|---|---|---|---|---|---|
-| 批量操作 | 批量创建权限 | 权限初始化与导入 | P1 | 未开始 | |
-| 批量操作 | 批量绑定角色权限 | 角色初始化常见场景 | P1 | 未开始 | |
-| 批量操作 | 批量绑定账号角色 | 提升运营管理效率 | P1 | 未开始 | |
-| 批量操作 | 批量启用/停用 | 角色与 Policy 批量维护 | P1 | 未开始 | |
-
-### 4.9 删除保护
-
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
-|---|---|---|---|---|---|
-| 删除保护 | 角色删除保护 | 若仍有账号或权限绑定，则拒绝删除 | P0 | 未开始 | |
-| 删除保护 | 权限删除保护 | 若仍被角色或策略引用，则拒绝删除 | P0 | 未开始 | |
-| 删除保护 | Policy 删除保护 | 若处于关键引用场景，拒绝删除或要求强确认 | P1 | 未开始 | |
-
-### 4.10 审计与追踪
-
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
-|---|---|---|---|---|---|
-| 审计事件 | 角色变更审计 | 谁创建、修改、启停、删除了角色 | P0 | 未开始 | 需独立持久化，不仅是普通日志 |
-| 审计事件 | 权限变更审计 | 谁创建、修改、删除了权限 | P0 | 未开始 | |
-| 审计事件 | 角色权限变更审计 | 谁给角色添加/移除了什么权限 | P0 | 未开始 | |
-| 审计事件 | 账号角色变更审计 | 谁给账号授予/撤销了什么角色 | P0 | 未开始 | |
-| 审计事件 | Policy 变更审计 | 谁创建、修改、启停、删除了 Policy | P0 | 未开始 | |
-| 决策事件 | 鉴权决策记录 | 谁检查了什么权限，结果如何 | P0 | 未开始 | |
-| 决策事件 | Policy 命中记录 | 命中了哪个 Policy、拒绝原因是什么 | P0 | 未开始 | |
-| 决策事件 | 对象历史查询 | 展示某角色/权限/Policy 的修改历史 | P1 | 未开始 | 基于审计事件查询 |
-| 决策事件 | 权限触发历史查询 | 展示某权限或某账号的鉴权历史 | P1 | 未开始 | 基于决策事件查询 |
-
-### 4.11 缓存与性能
-
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
-|---|---|---|---|---|---|
-| 缓存 | 服务内缓存 | 对角色、权限、Policy 评估所需数据做本地缓存 | P1 | 未开始 | 第一阶段优先 |
-| 缓存 | 变更后主动失效 | 本服务内角色/权限/Policy 更新后清理缓存 | P1 | 未开始 | |
-
-## Phase 1.5
-
-目标：补强治理、调试、标准化能力，降低接入与排障成本。
-
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
-|---|---|---|---|---|---|
-| Policy 治理 | Policy 版本管理 | 草稿、发布、历史版本、回滚 | P1 | 未开始 | |
-| Policy 治理 | Policy 模拟执行 | 后台输入上下文测试策略结果 | P1 | 未开始 | |
-| ABAC 标准化 | ABAC Context Schema | 统一 subject/resource/environment/action 字段规范 | P1 | 未开始 | |
-| ABAC 标准化 | 资源类型标准化 | 标准化 `resourceType` 与常用属性键 | P1 | 未开始 | |
-| 鉴权 | 轻量 Explain 接口增强 | 提供更稳定的调试返回结构 | P1 | 未开始 | 如果 Phase 1 已做基础版，这里做增强 |
-| 缓存 | gateway / 子服务短 TTL 缓存 | 减少高频重复鉴权请求 | P2 | 未开始 | |
-| 缓存 | 权限变更事件通知 | 权限变化后通知其他服务清理缓存 | P2 | 未开始 | |
-| 查询 | 对象历史页 | 面向后台展示对象审计轨迹 | P2 | 未开始 | |
-| 查询 | 鉴权异常分析 | 面向后台展示拒绝趋势、命中趋势 | P2 | 未开始 | |
-
-## Phase 2
-
-目标：在稳定主模型基础上再做复杂能力，避免过度设计。
-
-| 模块 | 功能项 | 说明 | 优先级 | 状态 | 备注 |
-|---|---|---|---|---|---|
-| 查询分析 | 生效权限查询 | 查询账号最终权限与来源链路 | P2 | 暂缓 | 主要用于排障与解释 |
-| 查询分析 | 完整影响分析 | 删除前展示受影响账号、角色、权限范围 | P2 | 暂缓 | 当前先采用删除保护 |
-| 鉴权调试 | 完整 Explain Trace | 返回完整决策链与逐条条件命中结果 | P2 | 暂缓 | |
-| 模型增强 | 全局安全策略能力 | 少量跨 Permission 的全局约束策略 | P2 | 暂缓 | 不作为 V1 主路径 |
-| 模型增强 | 更复杂的策略挂载范围 | 角色级、资源类型级等更自由挂载 | P2 | 暂缓 | 当前先坚持 Permission 为中心 |
-| 缓存 | 更强一致性缓存方案 | 事件 + 分布式缓存 + 快照版本 | P2 | 暂缓 | |
-
-## 5. 当前实现与目标方案的不一致点
-
-以下事项已在本轮讨论中确认，后续需要优先修正：
-
-| 项目 | 当前情况 | 目标方案 |
-|---|---|---|
-| Role 唯一约束 | 当前 schema 中 `Role.code` 为全局唯一 | 需要支持“模板 + 租户实例”建模，重新审视唯一性策略 |
-| Policy 产品模型 | 当前 schema/接口允许较自由的多维匹配 | V1 收敛为“以 Permission 为核心挂载的业务授权策略” |
-| Policy 挂载方式 | 当前更像策略选择器 | 管理端与接口层需要体现“Permission -> Policy”主入口 |
-| 风控边界 | 当前容易把业务授权与系统入口风控混用 | 入口级风控留在 `auth-service` / `gateway`，本服务聚焦业务授权 |
-| 审计能力 | 当前主要是业务能力实现，缺少可追溯落库模型 | 新增审计事件与鉴权决策事件模型 |
-
-## 6. 建议的下一步实施顺序
-
-1. 收敛数据模型与契约
-2. 先补角色/权限/Policy 的管理闭环
-3. 落地删除保护与分页过滤
-4. 落地审计事件与鉴权决策事件
-5. 收敛 ABAC Context 标准
-6. 再做 Policy 版本、模拟执行、缓存扩展
-
-## 7. 后续维护规则
-
-- 每完成一个功能项，更新其 `状态`
-- 若设计发生变更，同步更新“已确认设计决策”
-- 若某功能被移出本服务范围，需在“目标与边界”中记录
-- 若当前实现与文档不一致，以最新确认的设计决策为准，并尽快补充迁移计划
+- 细节设计、分片步骤、操作者约束，统一写入各功能集合主文档。
+- 每次改动后，优先更新对应功能集合的历史文档。
+- 跨模块设计不要写在本索引中，统一放仓库根目录 `doc`。
