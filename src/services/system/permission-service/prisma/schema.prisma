@@ -63,6 +63,8 @@ model AccountRole {
   accountId   String
   roleId      String
   tenantId    String
+  effectiveAt DateTime?
+  expiresAt   DateTime?
   role        Role        @relation(fields: [roleId], references: [id])
 
   @@unique([accountId, roleId])

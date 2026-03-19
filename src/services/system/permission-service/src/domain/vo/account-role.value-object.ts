@@ -6,6 +6,8 @@ export class AccountRole {
     public readonly accountType: AccountType,
     public readonly accountId: string,
     public readonly roleId: string,
-    public readonly tenantId: string
+    public readonly tenantId: string,
+    public readonly effectiveAt: Date | null = null,
+    public readonly expiresAt: Date | null = null
   ) {}
 }

@@ -7,224 +7,171 @@ option java_package = "com.oes.permission.v1";
 
 import "google/protobuf/empty.proto";
 
-// ABAC 策略管理服务
 service PolicyManagementService {
-  // 创建策略
   rpc CreatePolicy(CreatePolicyRequest) returns (PolicyResponse);
-  // 更新策略
   rpc UpdatePolicy(UpdatePolicyRequest) returns (PolicyResponse);
-  // 删除策略
   rpc DeletePolicy(DeletePolicyRequest) returns (google.protobuf.Empty);
-  // 启用/禁用策略
   rpc TogglePolicy(TogglePolicyRequest) returns (PolicyResponse);
-  // 按ID查询策略
   rpc GetPolicyById(GetPolicyByIdRequest) returns (PolicyResponse);
-  // 列出策略
   rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
+  rpc ListPoliciesPaged(ListPoliciesPagedRequest) returns (PagedPoliciesResponse);
+  rpc ListPoliciesByPermission(ListPoliciesByPermissionRequest) returns (ListPoliciesResponse);
+  rpc AddPermissionPolicy(AddPermissionPolicyRequest) returns (PolicyResponse);
+  rpc RemovePermissionPolicy(RemovePermissionPolicyRequest) returns (google.protobuf.Empty);
 }
 
-// 策略效果
 enum PolicyEffectProto {
-  // 未指定
   POLICY_EFFECT_PROTO_UNSPECIFIED = 0;
-  // 允许
   POLICY_EFFECT_PROTO_ALLOW = 1;
-  // 拒绝
   POLICY_EFFECT_PROTO_DENY = 2;
 }
 
-// 策略主体类型
 enum PolicySubjectTypeProto {
-  // 未指定
   POLICY_SUBJECT_TYPE_PROTO_UNSPECIFIED = 0;
-  // 角色
   POLICY_SUBJECT_TYPE_PROTO_ROLE = 1;
-  // 账户
   POLICY_SUBJECT_TYPE_PROTO_ACCOUNT = 2;
-  // 任意
   POLICY_SUBJECT_TYPE_PROTO_ANY = 3;
 }
 
-// 属性来源
 enum AttributeSourceProto {
-  // 未指定
   ATTRIBUTE_SOURCE_PROTO_UNSPECIFIED = 0;
-  // 主体
   ATTRIBUTE_SOURCE_PROTO_SUBJECT = 1;
-  // 资源
   ATTRIBUTE_SOURCE_PROTO_RESOURCE = 2;
-  // 环境
   ATTRIBUTE_SOURCE_PROTO_ENVIRONMENT = 3;
-  // 操作
   ATTRIBUTE_SOURCE_PROTO_ACTION = 4;
 }
 
-// 条件操作符
 enum ConditionOperatorProto {
-  // 未指定
   CONDITION_OPERATOR_PROTO_UNSPECIFIED = 0;
-  // 等于
   CONDITION_OPERATOR_PROTO_EQUALS = 1;
-  // 不等于
   CONDITION_OPERATOR_PROTO_NOT_EQUALS = 2;
-  // 在集合中
   CONDITION_OPERATOR_PROTO_IN = 3;
-  // 不在集合中
   CONDITION_OPERATOR_PROTO_NOT_IN = 4;
-  // 大于
   CONDITION_OPERATOR_PROTO_GREATER_THAN = 5;
-  // 大于等于
   CONDITION_OPERATOR_PROTO_GREATER_THAN_OR_EQUAL = 6;
-  // 小于
   CONDITION_OPERATOR_PROTO_LESS_THAN = 7;
-  // 小于等于
   CONDITION_OPERATOR_PROTO_LESS_THAN_OR_EQUAL = 8;
-  // 区间
   CONDITION_OPERATOR_PROTO_BETWEEN = 9;
-  // 包含
   CONDITION_OPERATOR_PROTO_CONTAINS = 10;
-  // 前缀匹配
   CONDITION_OPERATOR_PROTO_STARTS_WITH = 11;
-  // 正则匹配
   CONDITION_OPERATOR_PROTO_REGEX = 12;
-  // 为空
   CONDITION_OPERATOR_PROTO_IS_NULL = 13;
-  // 不为空
   CONDITION_OPERATOR_PROTO_IS_NOT_NULL = 14;
 }
 
-// 策略条件输入
 message PolicyConditionInput {
-  // 属性来源
   AttributeSourceProto attribute_source = 1;
-  // 属性键
   string attribute_key = 2;
-  // 操作符
   ConditionOperatorProto operator = 3;
-  // 值（JSON 编码）
   string value = 4;
 }
 
-// 策略条件响应
 message PolicyConditionResponse {
-  // 条件ID
   string id = 1;
-  // 属性来源
   AttributeSourceProto attribute_source = 2;
-  // 属性键
   string attribute_key = 3;
-  // 操作符
   ConditionOperatorProto operator = 4;
-  // 值（JSON 编码）
   string value = 5;
 }
 
-// 创建策略请求
 message CreatePolicyRequest {
-  // 策略名称
   string name = 1;
-  // 策略效果
   PolicyEffectProto effect = 2;
-  // 描述
   string description = 3;
-  // 租户ID
   string tenant_id = 4;
-  // 主体类型
   PolicySubjectTypeProto subject_type = 5;
-  // 主体ID
   string subject_id = 6;
-  // 权限代码
   string permission_code = 7;
-  // 资源类型
   string resource_type = 8;
-  // 优先级
   int32 priority = 9;
-  // 条件列表
   repeated PolicyConditionInput conditions = 10;
-  // 创建者ID
   string created_by = 11;
 }
 
-// 更新策略请求
 message UpdatePolicyRequest {
-  // 策略ID
   string id = 1;
-  // 策略名称
   string name = 2;
-  // 策略效果
   PolicyEffectProto effect = 3;
-  // 描述
   string description = 4;
-  // 主体类型
   PolicySubjectTypeProto subject_type = 5;
-  // 主体ID
   string subject_id = 6;
-  // 权限代码
   string permission_code = 7;
-  // 资源类型
   string resource_type = 8;
-  // 优先级
   int32 priority = 9;
-  // 条件列表
   repeated PolicyConditionInput conditions = 10;
 }
 
-// 删除策略请求
 message DeletePolicyRequest {
-  // 策略ID
   string id = 1;
 }
 
-// 启用/禁用策略请求
 message TogglePolicyRequest {
-  // 策略ID
   string id = 1;
-  // 是否启用
   bool is_enabled = 2;
 }
 
-// 按ID查询策略请求
 message GetPolicyByIdRequest {
-  // 策略ID
   string id = 1;
 }
 
-// 列出策略请求
 message ListPoliciesRequest {
-  // 租户ID（可选）
   string tenant_id = 1;
 }
 
-// 策略响应
-message PolicyResponse {
-  // 策略ID
-  string id = 1;
-  // 策略名称
+message ListPoliciesPagedRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string tenant_id = 3;
+  string permission_code = 4;
+  bool is_enabled = 5;
+  string keyword = 6;
+}
+
+message ListPoliciesByPermissionRequest {
+  string permission_code = 1;
+  string tenant_id = 2;
+}
+
+message AddPermissionPolicyRequest {
+  string permission_code = 1;
   string name = 2;
-  // 策略效果
   PolicyEffectProto effect = 3;
-  // 描述
   string description = 4;
-  // 租户ID
   string tenant_id = 5;
-  // 主体类型
   PolicySubjectTypeProto subject_type = 6;
-  // 主体ID
   string subject_id = 7;
-  // 权限代码
+  string resource_type = 8;
+  int32 priority = 9;
+  repeated PolicyConditionInput conditions = 10;
+}
+
+message RemovePermissionPolicyRequest {
+  string permission_code = 1;
+  string policy_id = 2;
+}
+
+message PolicyResponse {
+  string id = 1;
+  string name = 2;
+  PolicyEffectProto effect = 3;
+  string description = 4;
+  string tenant_id = 5;
+  PolicySubjectTypeProto subject_type = 6;
+  string subject_id = 7;
   string permission_code = 8;
-  // 资源类型
   string resource_type = 9;
-  // 优先级
   int32 priority = 10;
-  // 是否启用
   bool is_enabled = 11;
-  // 条件列表
   repeated PolicyConditionResponse conditions = 12;
 }
 
-// 策略列表响应
 message ListPoliciesResponse {
-  // 策略列表
   repeated PolicyResponse policies = 1;
+}
+
+message PagedPoliciesResponse {
+  repeated PolicyResponse policies = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
 }

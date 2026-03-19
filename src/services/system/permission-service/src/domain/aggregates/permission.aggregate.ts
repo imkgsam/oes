@@ -13,4 +13,12 @@ export class Permission {
   matchesModule(module: PermissionModule): boolean {
     return this.module === module
   }
+
+  moveToModule(module: PermissionModule): void {
+    this.module = module
+  }
+
+  updateDescription(description?: string): void {
+    this.description = description
+  }
 }

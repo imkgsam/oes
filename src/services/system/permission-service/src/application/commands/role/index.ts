@@ -1,5 +1,21 @@
 export * from './create-role.command'
 export * from './create-role.handler'
+export * from './create-role-template.command'
+export * from './create-role-template.handler'
+export * from './create-role-instance.command'
+export * from './create-role-instance.handler'
+export * from './update-role-template.command'
+export * from './update-role-template.handler'
+export * from './delete-role-template.command'
+export * from './delete-role-template.handler'
+export * from './set-role-template-enabled.command'
+export * from './set-role-template-enabled.handler'
+export * from './assign-role-template-permission.command'
+export * from './assign-role-template-permission.handler'
+export * from './revoke-role-template-permission.command'
+export * from './revoke-role-template-permission.handler'
+export * from './create-role-instance-from-template.command'
+export * from './create-role-instance-from-template.handler'
 export * from './update-role.command'
 export * from './update-role.handler'
 export * from './set-role-enabled.command'
@@ -18,6 +34,14 @@ export * from './set-account-roles.command'
 export * from './set-account-roles.handler'
 
 import { CreateRoleHandler } from './create-role.handler'
+import { CreateRoleTemplateHandler } from './create-role-template.handler'
+import { CreateRoleInstanceHandler } from './create-role-instance.handler'
+import { UpdateRoleTemplateHandler } from './update-role-template.handler'
+import { DeleteRoleTemplateHandler } from './delete-role-template.handler'
+import { SetRoleTemplateEnabledHandler } from './set-role-template-enabled.handler'
+import { AssignRoleTemplatePermissionHandler } from './assign-role-template-permission.handler'
+import { RevokeRoleTemplatePermissionHandler } from './revoke-role-template-permission.handler'
+import { CreateRoleInstanceFromTemplateHandler } from './create-role-instance-from-template.handler'
 import { UpdateRoleHandler } from './update-role.handler'
 import { SetRoleEnabledHandler } from './set-role-enabled.handler'
 import { DeleteRoleHandler } from './delete-role.handler'
@@ -29,6 +53,14 @@ import { SetAccountRolesHandler } from './set-account-roles.handler'
 
 export const RoleCommandHandlers = [
   CreateRoleHandler,
+  CreateRoleTemplateHandler,
+  CreateRoleInstanceHandler,
+  UpdateRoleTemplateHandler,
+  DeleteRoleTemplateHandler,
+  SetRoleTemplateEnabledHandler,
+  AssignRoleTemplatePermissionHandler,
+  RevokeRoleTemplatePermissionHandler,
+  CreateRoleInstanceFromTemplateHandler,
   UpdateRoleHandler,
   SetRoleEnabledHandler,
   DeleteRoleHandler,

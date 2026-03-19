@@ -28,3 +28,17 @@ export const ROLE_NOT_ASSIGNABLE: ExceptionDefinition = {
   messageKey: 'permission.role_not_assignable',
   rpcStatus: status.FAILED_PRECONDITION
 }
+
+export const ROLE_TEMPLATE_NOT_FOUND: ExceptionDefinition = {
+  code: 'ROLE_TEMPLATE_NOT_FOUND',
+  message: 'Role template not found',
+  messageKey: 'permission.role_template_not_found',
+  rpcStatus: status.NOT_FOUND
+}
+
+export const ROLE_CREATE_CONSTRAINT_INVALID: ExceptionDefinition = {
+  code: 'ROLE_CREATE_CONSTRAINT_INVALID',
+  message: 'Role creation constraints are invalid',
+  messageKey: 'permission.role_create_constraint_invalid',
+  rpcStatus: status.INVALID_ARGUMENT
+}

@@ -6,7 +6,8 @@ import { SYMBOLS } from '../../../common/constants/symbols'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import {
   ROLE_NOT_FOUND,
-  ACCOUNT_ROLE_ALREADY_ASSIGNED
+  ACCOUNT_ROLE_ALREADY_ASSIGNED,
+  ACCOUNT_ROLE_TIME_WINDOW_INVALID
 } from '../../../common/constants/exception-enums'
 
 @CommandHandler(AssignAccountRoleCommand)
@@ -20,6 +21,13 @@ export class AssignAccountRoleHandler implements ICommandHandler<AssignAccountRo
     const role = await this.roleRepo.findById(command.roleId)
     if (!role) throw ExceptionFactory.domain(ROLE_NOT_FOUND)
 
+    const effectiveAt = command.effectiveAt ? new Date(command.effectiveAt) : null
+    const expiresAt = command.expiresAt ? new Date(command.expiresAt) : null
+
+    if (effectiveAt && expiresAt && effectiveAt >= expiresAt) {
+      throw ExceptionFactory.domain(ACCOUNT_ROLE_TIME_WINDOW_INVALID)
+    }
+
     // Check if already assigned
     const existing = await this.roleRepo.findAccountRoles(command.accountId, command.tenantId)
     if (existing.some((r) => r.id === command.roleId)) {
@@ -31,6 +39,8 @@ export class AssignAccountRoleHandler implements ICommandHandler<AssignAccountRo
       command.roleId,
       command.tenantId,
       command.accountType,
+      effectiveAt,
+      expiresAt
     )
   }
 }

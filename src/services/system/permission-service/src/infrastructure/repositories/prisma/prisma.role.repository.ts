@@ -2,8 +2,10 @@ import { Injectable } from '@nestjs/common'
 import { Permission } from '../../../domain/aggregates/permission.aggregate'
 import { Role } from '../../../domain/aggregates/role.aggregate'
 import { AccountType } from '../../../domain/enums/account-type.enum'
+import { RoleKind } from '../../../domain/enums/role-kind.enum'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
 import { AccountRole } from '../../../domain/vo/account-role.value-object'
+import { Prisma } from '../../../../prisma/generated/prisma'
 import { PermissionMapper } from '../../mappers/permission.mapper'
 import { RoleMapper } from '../../mappers/role.mapper'
 import { PrismaService } from '../../prisma/prisma.service'
@@ -11,6 +13,19 @@ import { PrismaService } from '../../prisma/prisma.service'
 const ROLE_INCLUDE = {
   permissions: { include: { permission: true } }
 } as const
+
+function buildActiveAccountRoleWhere(now: Date): Prisma.AccountRoleWhereInput {
+  return {
+    AND: [
+      {
+        OR: [{ effectiveAt: null }, { effectiveAt: { lte: now } }]
+      },
+      {
+        OR: [{ expiresAt: null }, { expiresAt: { gt: now } }]
+      }
+    ]
+  } as const
+}
 
 @Injectable()
 export class PrismaRoleRepository implements RoleRepository {
@@ -32,9 +47,101 @@ export class PrismaRoleRepository implements RoleRepository {
     return found ? RoleMapper.toDomain(found) : null
   }
 
+  async findByScopeAndCode(scopeKey: string, code: string): Promise<Role | null> {
+    const found = await this.prisma.role.findFirst({
+      where: { scopeKey, code },
+      include: ROLE_INCLUDE
+    })
+    return found ? RoleMapper.toDomain(found) : null
+  }
+
   async findAll(): Promise<Role[]> {
     const records = await this.prisma.role.findMany({ include: ROLE_INCLUDE })
     return records.map(RoleMapper.toDomain)
+  }
+
+  async findRoleInstances(query: {
+    page: number
+    pageSize: number
+    tenantId?: string
+    keyword?: string
+  }): Promise<{ roles: Role[]; total: number; page: number; pageSize: number }> {
+    const page = query.page
+    const pageSize = query.pageSize
+    const skip = (page - 1) * pageSize
+    const keyword = query.keyword?.trim()
+
+    const where = {
+      kind: RoleKind.TENANT_INSTANCE,
+      ...(query.tenantId ? { tenantId: query.tenantId } : {}),
+      ...(keyword
+        ? {
+            OR: [
+              { name: { contains: keyword, mode: 'insensitive' as const } },
+              { code: { contains: keyword, mode: 'insensitive' as const } }
+            ]
+          }
+        : {})
+    }
+
+    const [records, total] = await this.prisma.$transaction([
+      this.prisma.role.findMany({
+        where,
+        include: ROLE_INCLUDE,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize
+      }),
+      this.prisma.role.count({ where })
+    ])
+
+    return {
+      roles: records.map(RoleMapper.toDomain),
+      total,
+      page,
+      pageSize
+    }
+  }
+
+  async findRoleTemplates(query: {
+    page: number
+    pageSize: number
+    keyword?: string
+  }): Promise<{ roles: Role[]; total: number; page: number; pageSize: number }> {
+    const page = query.page
+    const pageSize = query.pageSize
+    const skip = (page - 1) * pageSize
+    const keyword = query.keyword?.trim()
+
+    const where = {
+      kind: RoleKind.SYSTEM_TEMPLATE,
+      ...(keyword
+        ? {
+            OR: [
+              { name: { contains: keyword, mode: 'insensitive' as const } },
+              { code: { contains: keyword, mode: 'insensitive' as const } }
+            ]
+          }
+        : {})
+    }
+
+    const [records, total] = await this.prisma.$transaction([
+      this.prisma.role.findMany({
+        where,
+        include: ROLE_INCLUDE,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize
+      }),
+      this.prisma.role.count({ where })
+    ])
+
+    return {
+      roles: records.map(RoleMapper.toDomain),
+      total,
+      page,
+      pageSize
+    }
   }
 
   async save(role: Role): Promise<Role> {
@@ -100,6 +207,16 @@ export class PrismaRoleRepository implements RoleRepository {
     return count > 0
   }
 
+  async hasTemplateInstances(roleTemplateId: string): Promise<boolean> {
+    const count = await this.prisma.role.count({
+      where: {
+        templateRoleId: roleTemplateId,
+        kind: RoleKind.TENANT_INSTANCE
+      }
+    })
+    return count > 0
+  }
+
   async findOwnPermissions(roleId: string): Promise<Permission[]> {
     const rps = await this.prisma.rolePermission.findMany({
       where: { roleId },
@@ -108,27 +225,69 @@ export class PrismaRoleRepository implements RoleRepository {
     return rps.map((rp) => PermissionMapper.toDomain(rp.permission))
   }
 
+  async findRolesByPermissionId(permissionId: string): Promise<Role[]> {
+    const records = await this.prisma.role.findMany({
+      where: {
+        permissions: {
+          some: {
+            permissionId
+          }
+        }
+      },
+      include: ROLE_INCLUDE
+    })
+
+    return records.map(RoleMapper.toDomain)
+  }
+
   async findRolesForAccountId(accountId: string): Promise<Role[]> {
+    const now = new Date()
     const accountRoles = await this.prisma.accountRole.findMany({
       where: {
         accountId,
+        ...buildActiveAccountRoleWhere(now),
         role: {
           isEnabled: true
         }
       },
       include: { role: { include: ROLE_INCLUDE } }
     })
-    return accountRoles.map((ar) => RoleMapper.toDomain(ar.role))
+    return accountRoles.map((ar) =>
+      RoleMapper.toDomain(
+        (ar as Prisma.AccountRoleGetPayload<{ include: { role: { include: typeof ROLE_INCLUDE } } }>).role
+      )
+    )
   }
 
   async assignAccountRole(
     accountId: string,
     roleId: string,
     tenantId: string,
-    accountType: AccountType
+    accountType: AccountType,
+    effectiveAt?: Date | null,
+    expiresAt?: Date | null
   ): Promise<void> {
-    await this.prisma.accountRole.create({
-      data: { accountId, roleId, tenantId, accountType }
+    await this.prisma.accountRole.upsert({
+      where: {
+        accountId_roleId: {
+          accountId,
+          roleId
+        }
+      },
+      update: {
+        tenantId,
+        accountType,
+        effectiveAt: effectiveAt ?? null,
+        expiresAt: expiresAt ?? null
+      },
+      create: {
+        accountId,
+        roleId,
+        tenantId,
+        accountType,
+        effectiveAt: effectiveAt ?? null,
+        expiresAt: expiresAt ?? null
+      }
     })
   }
 
@@ -139,11 +298,20 @@ export class PrismaRoleRepository implements RoleRepository {
   }
 
   async findAccountRoles(accountId: string, tenantId: string): Promise<Role[]> {
+    const now = new Date()
     const accountRoles = await this.prisma.accountRole.findMany({
-      where: { accountId, tenantId },
+      where: {
+        accountId,
+        tenantId,
+        ...buildActiveAccountRoleWhere(now)
+      },
       include: { role: { include: ROLE_INCLUDE } }
     })
-    return accountRoles.map((ar) => RoleMapper.toDomain(ar.role))
+    return accountRoles.map((ar) =>
+      RoleMapper.toDomain(
+        (ar as Prisma.AccountRoleGetPayload<{ include: { role: { include: typeof ROLE_INCLUDE } } }>).role
+      )
+    )
   }
 
   async findTenantRoles(tenantId: string): Promise<Role[]> {
@@ -158,9 +326,25 @@ export class PrismaRoleRepository implements RoleRepository {
     return records.map(RoleMapper.toDomain)
   }
 
+  async findRoleTemplateById(id: string): Promise<Role | null> {
+    const found = await this.prisma.role.findFirst({
+      where: {
+        id,
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      include: ROLE_INCLUDE
+    })
+
+    return found ? RoleMapper.toDomain(found) : null
+  }
+
   async findRoleAccounts(roleId: string): Promise<AccountRole[]> {
+    const now = new Date()
     const accountRoles = await this.prisma.accountRole.findMany({
-      where: { roleId }
+      where: {
+        roleId,
+        ...buildActiveAccountRoleWhere(now)
+      }
     })
 
     return accountRoles.map(
@@ -169,7 +353,9 @@ export class PrismaRoleRepository implements RoleRepository {
           accountRole.accountType as AccountType,
           accountRole.accountId,
           accountRole.roleId,
-          accountRole.tenantId
+          accountRole.tenantId,
+          accountRole.effectiveAt ?? null,
+          accountRole.expiresAt ?? null
         )
     )
   }

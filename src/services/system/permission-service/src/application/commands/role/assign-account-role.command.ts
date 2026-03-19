@@ -1,5 +1,5 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsEnum, IsNotEmpty, IsString, IsUUID } from 'class-validator'
+import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator'
 import { AccountType } from '../../../domain/enums/account-type.enum'
 
 export class AssignAccountRoleCommand implements ICommand {
@@ -18,15 +18,27 @@ export class AssignAccountRoleCommand implements ICommand {
   @IsNotEmpty()
   readonly tenantId: string
 
+  @IsOptional()
+  @IsDateString()
+  readonly effectiveAt?: string
+
+  @IsOptional()
+  @IsDateString()
+  readonly expiresAt?: string
+
   constructor(params: {
     accountId: string
     accountType: AccountType
     roleId: string
     tenantId: string
+    effectiveAt?: string
+    expiresAt?: string
   }) {
     this.accountId = params.accountId
     this.accountType = params.accountType
     this.roleId = params.roleId
     this.tenantId = params.tenantId
+    this.effectiveAt = params.effectiveAt
+    this.expiresAt = params.expiresAt
   }
 }

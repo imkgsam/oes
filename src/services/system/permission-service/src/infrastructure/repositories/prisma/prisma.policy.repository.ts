@@ -31,6 +31,18 @@ export class PrismaPolicyRepository implements PolicyRepository {
     return records.map(PolicyMapper.toDomain)
   }
 
+  async findByPermissionCode(permissionCode: string, tenantId?: string): Promise<Policy[]> {
+    const records = await this.prisma.policy.findMany({
+      where: {
+        permissionCode,
+        ...(tenantId ? { OR: [{ tenantId: null }, { tenantId }] } : {})
+      },
+      include: POLICY_INCLUDE,
+      orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }]
+    })
+    return records.map(PolicyMapper.toDomain)
+  }
+
   async findByTenant(tenantId: string): Promise<Policy[]> {
     const records = await this.prisma.policy.findMany({
       where: { tenantId },
@@ -42,6 +54,52 @@ export class PrismaPolicyRepository implements PolicyRepository {
   async findAll(): Promise<Policy[]> {
     const records = await this.prisma.policy.findMany({ include: POLICY_INCLUDE })
     return records.map(PolicyMapper.toDomain)
+  }
+
+  async findPaged(query: {
+    page: number
+    pageSize: number
+    tenantId?: string
+    permissionCode?: string
+    isEnabled?: boolean
+    keyword?: string
+  }): Promise<{ policies: Policy[]; total: number; page: number; pageSize: number }> {
+    const page = query.page
+    const pageSize = query.pageSize
+    const skip = (page - 1) * pageSize
+    const keyword = query.keyword?.trim()
+
+    const where = {
+      ...(query.tenantId ? { tenantId: query.tenantId } : {}),
+      ...(query.permissionCode ? { permissionCode: query.permissionCode } : {}),
+      ...(typeof query.isEnabled === 'boolean' ? { isEnabled: query.isEnabled } : {}),
+      ...(keyword
+        ? {
+            OR: [
+              { name: { contains: keyword, mode: 'insensitive' as const } },
+              { description: { contains: keyword, mode: 'insensitive' as const } }
+            ]
+          }
+        : {})
+    }
+
+    const [records, total] = await this.prisma.$transaction([
+      this.prisma.policy.findMany({
+        where,
+        include: POLICY_INCLUDE,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: pageSize
+      }),
+      this.prisma.policy.count({ where })
+    ])
+
+    return {
+      policies: records.map(PolicyMapper.toDomain),
+      total,
+      page,
+      pageSize
+    }
   }
 
   async save(policy: Policy): Promise<Policy> {

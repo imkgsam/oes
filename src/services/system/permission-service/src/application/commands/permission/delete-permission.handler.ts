@@ -5,7 +5,10 @@ import { PermissionRepository } from '../../../domain/repositories/permission.re
 import { Permission } from '../../../domain/aggregates/permission.aggregate'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ExceptionFactory } from '@oes/common/exceptions'
-import { PERMISSION_NOT_FOUND } from '../../../common/constants/exception-enums'
+import {
+  PERMISSION_DELETE_FORBIDDEN,
+  PERMISSION_NOT_FOUND
+} from '../../../common/constants/exception-enums'
 
 @CommandHandler(DeletePermissionCommand)
 export class DeletePermissionHandler implements ICommandHandler<DeletePermissionCommand> {
@@ -19,6 +22,16 @@ export class DeletePermissionHandler implements ICommandHandler<DeletePermission
     if (!existing) {
       throw ExceptionFactory.domain(PERMISSION_NOT_FOUND)
     }
+
+    const [hasAssignedRoles, hasAttachedPolicies] = await Promise.all([
+      this.permissionRepo.hasAssignedRoles(command.id),
+      this.permissionRepo.hasAttachedPolicies(existing.code)
+    ])
+
+    if (hasAssignedRoles || hasAttachedPolicies) {
+      throw ExceptionFactory.domain(PERMISSION_DELETE_FORBIDDEN)
+    }
+
     const deleted = await this.permissionRepo.delete(command.id)
     if (!deleted) {
       throw ExceptionFactory.domain(PERMISSION_NOT_FOUND)

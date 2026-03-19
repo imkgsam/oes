@@ -5,12 +5,27 @@ import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import { OtelExceptionFilter } from '@oes/common/filters'
 import { CreatePermissionCommand } from '../../application/commands/permission/create-permission.command'
+import {
+  BatchCreatePermissionItemInput,
+  BatchCreatePermissionsCommand
+} from '../../application/commands/permission/batch-create-permissions.command'
+import { UpdatePermissionCommand } from '../../application/commands/permission/update-permission.command'
 import { DeletePermissionCommand } from '../../application/commands/permission/delete-permission.command'
 import { GetPermissionByIdQuery } from '../../application/queries/permission/get-permission-by-id.query'
 import { GetPermissionByCodeQuery } from '../../application/queries/permission/get-permission-by-code.query'
 import { ListPermissionsQuery } from '../../application/queries/permission/list-permissions.query'
 import { ListPermissionsByModuleQuery } from '../../application/queries/permission/list-permissions-by-module.query'
+import { ListPermissionsPagedQuery } from '../../application/queries/permission/list-permissions-paged.query'
+import { ListPermissionRolesQuery } from '../../application/queries/permission/list-permission-roles.query'
 import { CreateRoleCommand } from '../../application/commands/role/create-role.command'
+import { CreateRoleTemplateCommand } from '../../application/commands/role/create-role-template.command'
+import { CreateRoleInstanceCommand } from '../../application/commands/role/create-role-instance.command'
+import { UpdateRoleTemplateCommand } from '../../application/commands/role/update-role-template.command'
+import { DeleteRoleTemplateCommand } from '../../application/commands/role/delete-role-template.command'
+import { SetRoleTemplateEnabledCommand } from '../../application/commands/role/set-role-template-enabled.command'
+import { AssignRoleTemplatePermissionCommand } from '../../application/commands/role/assign-role-template-permission.command'
+import { RevokeRoleTemplatePermissionCommand } from '../../application/commands/role/revoke-role-template-permission.command'
+import { CreateRoleInstanceFromTemplateCommand } from '../../application/commands/role/create-role-instance-from-template.command'
 import { UpdateRoleCommand } from '../../application/commands/role/update-role.command'
 import { SetRoleEnabledCommand } from '../../application/commands/role/set-role-enabled.command'
 import { DeleteRoleCommand } from '../../application/commands/role/delete-role.command'
@@ -19,9 +34,13 @@ import { RevokeRolePermissionCommand } from '../../application/commands/role/rev
 import { AssignAccountRoleCommand } from '../../application/commands/role/assign-account-role.command'
 import { RevokeAccountRoleCommand } from '../../application/commands/role/revoke-account-role.command'
 import { GetRoleByIdQuery } from '../../application/queries/role/get-role-by-id.query'
+import { GetRoleTemplateByIdQuery } from '../../application/queries/role/get-role-template-by-id.query'
 import { ListRolesQuery } from '../../application/queries/role/list-roles.query'
+import { ListRoleInstancesQuery } from '../../application/queries/role/list-role-instances.query'
+import { ListRoleTemplatesQuery } from '../../application/queries/role/list-role-templates.query'
 import { ListAccountRolesQuery } from '../../application/queries/role/list-account-roles.query'
 import { ListRolePermissionsQuery } from '../../application/queries/role/list-role-permissions.query'
+import { ListRoleTemplatePermissionsQuery } from '../../application/queries/role/list-role-template-permissions.query'
 import { ListRoleAccountsQuery } from '../../application/queries/role/list-role-accounts.query'
 import { GetAccountRoleSelectionQuery } from '../../application/queries/role/get-account-role-selection.query'
 import { AccountRoleSelectionResult } from '../../application/queries/role/get-account-role-selection.handler'
@@ -36,14 +55,29 @@ import {
   PermissionManagementServiceControllerMethods,
   PermissionManagementServiceController,
   CreatePermissionRequest,
+  BatchCreatePermissionsRequest,
+  UpdatePermissionRequest,
   PermissionResponse,
   DeletePermissionRequest,
   GetPermissionByIdRequest,
   GetPermissionByCodeRequest,
+  ListPermissionRolesRequest,
   ListPermissionsRequest,
   ListPermissionsResponse,
   ListPermissionsByModuleRequest,
+  ListPermissionsPagedRequest,
+  PagedPermissionsResponse,
   CreateRoleRequest,
+  CreateRoleTemplateRequest,
+  CreateRoleInstanceRequest,
+  GetRoleTemplateByIdRequest,
+  UpdateRoleTemplateRequest,
+  DeleteRoleTemplateRequest,
+  SetRoleTemplateEnabledRequest,
+  ListRoleTemplatePermissionsRequest,
+  AssignRoleTemplatePermissionRequest,
+  RevokeRoleTemplatePermissionRequest,
+  CreateRoleInstanceFromTemplateRequest,
   UpdateRoleRequest,
   SetRoleEnabledRequest,
   RoleResponse,
@@ -51,6 +85,9 @@ import {
   GetRoleByIdRequest,
   ListRolesRequest,
   ListRolesResponse,
+  ListRoleInstancesRequest,
+  ListRoleTemplatesRequest,
+  PagedRolesResponse,
   ListRolePermissionsRequest,
   AssignRolePermissionRequest,
   RevokeRolePermissionRequest,
@@ -84,9 +121,47 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     const p: Permission = await this.commandBus.execute(
       new CreatePermissionCommand(
         request.code!,
-        PermissionModule.from(request.module!),
+        request.module! as PermissionModule,
         request.description
       )
+    )
+    return this.toPermissionResponse(p)
+  }
+
+  async batchCreatePermissions(
+    request: BatchCreatePermissionsRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<ListPermissionsResponse> {
+    const created: Permission[] = await this.commandBus.execute(
+      new BatchCreatePermissionsCommand({
+        permissions: (request.permissions ?? []).map(
+          (permission) =>
+            new BatchCreatePermissionItemInput({
+              code: permission.code!,
+              module: permission.module! as PermissionModule,
+              description: permission.description || undefined
+            })
+        )
+      })
+    )
+
+    return { permissions: created.map((permission) => this.toPermissionResponse(permission)) }
+  }
+
+  async updatePermission(
+    request: UpdatePermissionRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<PermissionResponse> {
+    const p: Permission = await this.commandBus.execute(
+      new UpdatePermissionCommand({
+        id: request.id!,
+        module: request.module! as PermissionModule,
+        description: Object.prototype.hasOwnProperty.call(request, 'description')
+          ? request.description
+          : undefined
+      })
     )
     return this.toPermissionResponse(p)
   }
@@ -117,48 +192,123 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return this.toPermissionResponse(p)
   }
 
-  async listPermissions(
-    request: ListPermissionsRequest,
+
+
+
+  async listPermissionsPaged(
+    request: ListPermissionsPagedRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<ListPermissionsResponse> {
-    const list: Permission[] = await this.queryBus.execute(new ListPermissionsQuery())
-    return { permissions: list.map((p) => this.toPermissionResponse(p)) }
+  ): Promise<PagedPermissionsResponse> {
+    const result: {
+      permissions: Permission[]
+      total: number
+      page: number
+      pageSize: number
+    } = await this.queryBus.execute(
+      new ListPermissionsPagedQuery({
+        page: request.page || 1,
+        pageSize: request.pageSize || 20,
+        module: request.module ? PermissionModule.from(request.module) : undefined,
+        keyword: request.keyword || undefined
+      })
+    )
+
+    return {
+      permissions: result.permissions.map((permission) => this.toPermissionResponse(permission)),
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize
+    }
   }
 
-  async listPermissionsByModule(
-    request: ListPermissionsByModuleRequest,
+  async listPermissionRoles(
+    request: ListPermissionRolesRequest,
     metadata?: Metadata,
     ...rest: any
-  ): Promise<ListPermissionsResponse> {
-    const list: Permission[] = await this.queryBus.execute(
-      new ListPermissionsByModuleQuery(PermissionModule.from(request.module!))
+  ): Promise<ListRolesResponse> {
+    const list: Role[] = await this.queryBus.execute(
+      new ListPermissionRolesQuery(request.permissionId!)
     )
-    return { permissions: list.map((p) => this.toPermissionResponse(p)) }
+    return { roles: list.map((role) => this.toRoleResponse(role)) }
   }
 
   // ---- Role CRUD ----
 
-  async createRole(
-    request: CreateRoleRequest,
+
+  async createRoleTemplate(
+    request: CreateRoleTemplateRequest,
     metadata?: Metadata,
     ...rest: any
   ): Promise<RoleResponse> {
     const r: Role = await this.commandBus.execute(
-      new CreateRoleCommand({
+      new CreateRoleTemplateCommand({
         name: request.name!,
         code: request.code!,
-        tenantId: request.tenantId || undefined,
-        isSystem: request.isSystem,
-        roleKind:
-          request.roleKind === 1
-            ? RoleKind.SYSTEM_TEMPLATE
-            : request.roleKind === 2
-              ? RoleKind.TENANT_INSTANCE
-              : undefined,
-        templateRoleId: request.templateRoleId || undefined,
-        description: request.description
+        description: request.description || undefined
       })
+    )
+    return this.toRoleResponse(r)
+  }
+
+  async createRoleInstance(
+    request: CreateRoleInstanceRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<RoleResponse> {
+    const r: Role = await this.commandBus.execute(
+      new CreateRoleInstanceCommand({
+        name: request.name!,
+        code: request.code!,
+        tenantId: request.tenantId!,
+        description: request.description || undefined,
+        templateRoleId: request.templateRoleId || undefined
+      })
+    )
+    return this.toRoleResponse(r)
+  }
+
+  async getRoleTemplateById(
+    request: GetRoleTemplateByIdRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<RoleResponse> {
+    const r: Role = await this.queryBus.execute(new GetRoleTemplateByIdQuery(request.id!))
+    return this.toRoleResponse(r)
+  }
+
+  async updateRoleTemplate(
+    request: UpdateRoleTemplateRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<RoleResponse> {
+    const r: Role = await this.commandBus.execute(
+      new UpdateRoleTemplateCommand({
+        id: request.id!,
+        name: Object.prototype.hasOwnProperty.call(request, 'name') ? request.name : undefined,
+        description: Object.prototype.hasOwnProperty.call(request, 'description')
+          ? request.description
+          : undefined
+      })
+    )
+    return this.toRoleResponse(r)
+  }
+
+  async deleteRoleTemplate(
+    request: DeleteRoleTemplateRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<void> {
+    await this.commandBus.execute(new DeleteRoleTemplateCommand(request.id!))
+  }
+
+  async setRoleTemplateEnabled(
+    request: SetRoleTemplateEnabledRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<RoleResponse> {
+    const r: Role = await this.commandBus.execute(
+      new SetRoleTemplateEnabledCommand(request.id!, request.isEnabled!)
     )
     return this.toRoleResponse(r)
   }
@@ -213,6 +363,59 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return { roles: list.map((r) => this.toRoleResponse(r)) }
   }
 
+  async listRoleInstances(
+    request: ListRoleInstancesRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<PagedRolesResponse> {
+    const result: {
+      roles: Role[]
+      total: number
+      page: number
+      pageSize: number
+    } = await this.queryBus.execute(
+      new ListRoleInstancesQuery({
+        page: request.page || 1,
+        pageSize: request.pageSize || 20,
+        tenantId: request.tenantId || undefined,
+        keyword: request.keyword || undefined
+      })
+    )
+
+    return {
+      roles: result.roles.map((role) => this.toRoleResponse(role)),
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize
+    }
+  }
+
+  async listRoleTemplates(
+    request: ListRoleTemplatesRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<PagedRolesResponse> {
+    const result: {
+      roles: Role[]
+      total: number
+      page: number
+      pageSize: number
+    } = await this.queryBus.execute(
+      new ListRoleTemplatesQuery({
+        page: request.page || 1,
+        pageSize: request.pageSize || 20,
+        keyword: request.keyword || undefined
+      })
+    )
+
+    return {
+      roles: result.roles.map((role) => this.toRoleResponse(role)),
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize
+    }
+  }
+
   async listRolePermissions(
     request: ListRolePermissionsRequest,
     metadata?: Metadata,
@@ -220,6 +423,17 @@ export class PermissionManagementGrpcController implements PermissionManagementS
   ): Promise<ListPermissionsResponse> {
     const list: Permission[] = await this.queryBus.execute(
       new ListRolePermissionsQuery(request.roleId!)
+    )
+    return { permissions: list.map((p) => this.toPermissionResponse(p)) }
+  }
+
+  async listRoleTemplatePermissions(
+    request: ListRoleTemplatePermissionsRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<ListPermissionsResponse> {
+    const list: Permission[] = await this.queryBus.execute(
+      new ListRoleTemplatePermissionsQuery(request.roleTemplateId!)
     )
     return { permissions: list.map((p) => this.toPermissionResponse(p)) }
   }
@@ -234,6 +448,43 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     await this.commandBus.execute(
       new AssignRolePermissionCommand(request.roleId!, request.permissionId!)
     )
+  }
+
+  async assignRoleTemplatePermission(
+    request: AssignRoleTemplatePermissionRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<void> {
+    await this.commandBus.execute(
+      new AssignRoleTemplatePermissionCommand(request.roleTemplateId!, request.permissionId!)
+    )
+  }
+
+  async revokeRoleTemplatePermission(
+    request: RevokeRoleTemplatePermissionRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<void> {
+    await this.commandBus.execute(
+      new RevokeRoleTemplatePermissionCommand(request.roleTemplateId!, request.permissionId!)
+    )
+  }
+
+  async createRoleInstanceFromTemplate(
+    request: CreateRoleInstanceFromTemplateRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<RoleResponse> {
+    const r: Role = await this.commandBus.execute(
+      new CreateRoleInstanceFromTemplateCommand({
+        templateRoleId: request.templateRoleId!,
+        tenantId: request.tenantId!,
+        name: request.name || undefined,
+        code: request.code || undefined,
+        description: request.description || undefined
+      })
+    )
+    return this.toRoleResponse(r)
   }
 
   async revokeRolePermission(
@@ -258,7 +509,9 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         accountId: request.accountId!,
         accountType: request.accountType! as AccountType,
         roleId: request.roleId!,
-        tenantId: request.tenantId!
+        tenantId: request.tenantId!,
+        effectiveAt: request.effectiveAt || undefined,
+        expiresAt: request.expiresAt || undefined
       })
     )
   }

@@ -8,17 +8,26 @@ import { CreatePolicyCommand } from '../../application/commands/policy/create-po
 import { UpdatePolicyCommand } from '../../application/commands/policy/update-policy.command'
 import { DeletePolicyCommand } from '../../application/commands/policy/delete-policy.command'
 import { TogglePolicyCommand } from '../../application/commands/policy/toggle-policy.command'
+import { AddPermissionPolicyCommand } from '../../application/commands/policy/add-permission-policy.command'
+import { RemovePermissionPolicyCommand } from '../../application/commands/policy/remove-permission-policy.command'
 import { GetPolicyByIdQuery } from '../../application/queries/policy/get-policy-by-id.query'
 import { ListPoliciesQuery } from '../../application/queries/policy/list-policies.query'
+import { ListPoliciesPagedQuery } from '../../application/queries/policy/list-policies-paged.query'
+import { ListPoliciesByPermissionQuery } from '../../application/queries/policy/list-policies-by-permission.query'
 import { Policy } from '../../domain/aggregates/policy.aggregate'
 import {
+  AddPermissionPolicyRequest,
   PolicyResponse,
+  RemovePermissionPolicyRequest,
   UpdatePolicyRequest,
   DeletePolicyRequest,
   TogglePolicyRequest,
   GetPolicyByIdRequest,
   ListPoliciesRequest,
+  ListPoliciesPagedRequest,
+  ListPoliciesByPermissionRequest,
   ListPoliciesResponse,
+  PagedPoliciesResponse,
   CreatePolicyRequest,
   PolicyManagementServiceControllerMethods,
   PolicyManagementServiceController
@@ -156,15 +165,83 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     return this.toResponse(result)
   }
 
-  async listPolicies(
-    request: ListPoliciesRequest,
+  async listPoliciesPaged(
+    request: ListPoliciesPagedRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<PagedPoliciesResponse> {
+    const hasIsEnabled = Object.prototype.hasOwnProperty.call(request, 'isEnabled')
+
+    const result: {
+      policies: Policy[]
+      total: number
+      page: number
+      pageSize: number
+    } = await this.queryBus.execute(
+      new ListPoliciesPagedQuery({
+        page: request.page || 1,
+        pageSize: request.pageSize || 20,
+        tenantId: request.tenantId || undefined,
+        permissionCode: request.permissionCode || undefined,
+        isEnabled: hasIsEnabled ? request.isEnabled : undefined,
+        keyword: request.keyword || undefined
+      })
+    )
+
+    return {
+      policies: result.policies.map((policy) => this.toResponse(policy)),
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize
+    }
+  }
+
+  async listPoliciesByPermission(
+    request: ListPoliciesByPermissionRequest,
     metadata?: Metadata,
     ...rest: any
   ): Promise<ListPoliciesResponse> {
     const list: Policy[] = await this.queryBus.execute(
-      new ListPoliciesQuery(request.tenantId || undefined)
+      new ListPoliciesByPermissionQuery(request.permissionCode!, request.tenantId || undefined)
     )
     return { policies: list.map((p) => this.toResponse(p)) }
+  }
+
+  async addPermissionPolicy(
+    request: AddPermissionPolicyRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<PolicyResponse> {
+    const result: Policy = await this.commandBus.execute(
+      new AddPermissionPolicyCommand({
+        permissionCode: request.permissionCode!,
+        name: request.name!,
+        effect: mapEnum(request.effect, EFFECT_MAP),
+        description: request.description || undefined,
+        tenantId: request.tenantId || undefined,
+        subjectType: mapEnum(request.subjectType, SUBJECT_TYPE_MAP),
+        subjectId: request.subjectId || undefined,
+        resourceType: request.resourceType || undefined,
+        priority: request.priority,
+        conditions: (request.conditions ?? []).map((c) => ({
+          attributeSource: mapEnum(c.attributeSource, ATTR_SOURCE_MAP),
+          attributeKey: c.attributeKey!,
+          operator: mapEnum(c.operator, OPERATOR_MAP),
+          value: c.value!
+        }))
+      })
+    )
+    return this.toResponse(result)
+  }
+
+  async removePermissionPolicy(
+    request: RemovePermissionPolicyRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<void> {
+    await this.commandBus.execute(
+      new RemovePermissionPolicyCommand(request.permissionCode!, request.policyId!)
+    )
   }
 
   // ---- Mapping ----
