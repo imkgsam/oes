@@ -8,7 +8,7 @@
 
 ### 主要改动
 
-- 新建 [permission-management.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/permission-management.md)
+- 新建 [permission-management.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/func/permission-management.md)
 - 提取 Permission 相关状态与约束
 
 ## 2026-03-15 22:40 +08:00

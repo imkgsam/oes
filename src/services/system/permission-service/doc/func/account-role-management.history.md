@@ -8,7 +8,7 @@
 
 ### 主要改动
 
-- 新建 [account-role-management.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/account-role-management.md)
+- 新建 [account-role-management.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/func/account-role-management.md)
 - 汇总 checkbox list 页面语义与现有接口状态
 
 ## 2026-03-17 12:15 +08:00

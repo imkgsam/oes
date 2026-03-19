@@ -8,7 +8,7 @@
 
 ### 主要改动
 
-- 新建 [authorization.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/authorization.md)
+- 新建 [authorization.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/func/authorization.md)
 - 明确服务内接口保护需要两层校验：
   - 可信内部服务认证
   - 业务管理接口的操作者上下文校验

@@ -8,7 +8,7 @@
 
 ### 主要改动
 
-- 新建 [role-management.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/role-management.md)
+- 新建 [role-management.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/func/role-management.md)
 - 从总 checklist 中提取角色管理范围、阶段和设计决策
 - 为模板 / 实例相关后续事项单独列出 `P1` 项
 

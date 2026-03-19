@@ -8,5 +8,5 @@
 
 ### 主要改动
 
-- 新建 [policy-management.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/policy-management.md)
+- 新建 [policy-management.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/func/policy-management.md)
 - 提取 Policy 相关设计决策和实施状态
