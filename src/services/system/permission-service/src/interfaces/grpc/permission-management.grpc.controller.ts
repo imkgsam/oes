@@ -13,11 +13,8 @@ import { UpdatePermissionCommand } from '../../application/commands/permission/u
 import { DeletePermissionCommand } from '../../application/commands/permission/delete-permission.command'
 import { GetPermissionByIdQuery } from '../../application/queries/permission/get-permission-by-id.query'
 import { GetPermissionByCodeQuery } from '../../application/queries/permission/get-permission-by-code.query'
-import { ListPermissionsQuery } from '../../application/queries/permission/list-permissions.query'
-import { ListPermissionsByModuleQuery } from '../../application/queries/permission/list-permissions-by-module.query'
 import { ListPermissionsPagedQuery } from '../../application/queries/permission/list-permissions-paged.query'
 import { ListPermissionRolesQuery } from '../../application/queries/permission/list-permission-roles.query'
-import { CreateRoleCommand } from '../../application/commands/role/create-role.command'
 import { CreateRoleTemplateCommand } from '../../application/commands/role/create-role-template.command'
 import { CreateRoleInstanceCommand } from '../../application/commands/role/create-role-instance.command'
 import { UpdateRoleTemplateCommand } from '../../application/commands/role/update-role-template.command'
@@ -35,7 +32,6 @@ import { AssignAccountRoleCommand } from '../../application/commands/role/assign
 import { RevokeAccountRoleCommand } from '../../application/commands/role/revoke-account-role.command'
 import { GetRoleByIdQuery } from '../../application/queries/role/get-role-by-id.query'
 import { GetRoleTemplateByIdQuery } from '../../application/queries/role/get-role-template-by-id.query'
-import { ListRolesQuery } from '../../application/queries/role/list-roles.query'
 import { ListRoleInstancesQuery } from '../../application/queries/role/list-role-instances.query'
 import { ListRoleTemplatesQuery } from '../../application/queries/role/list-role-templates.query'
 import { ListAccountRolesQuery } from '../../application/queries/role/list-account-roles.query'
@@ -47,7 +43,6 @@ import { AccountRoleSelectionResult } from '../../application/queries/role/get-a
 import { SetAccountRolesCommand } from '../../application/commands/role/set-account-roles.command'
 import { AccountType } from '../../domain/enums/account-type.enum'
 import { PermissionModule } from '../../domain/enums/permission-module.enum'
-import { RoleKind } from '../../domain/enums/role-kind.enum'
 import { Permission } from '../../domain/aggregates/permission.aggregate'
 import { Role } from '../../domain/aggregates/role.aggregate'
 import { AccountRole } from '../../domain/vo/account-role.value-object'
@@ -62,12 +57,9 @@ import {
   GetPermissionByIdRequest,
   GetPermissionByCodeRequest,
   ListPermissionRolesRequest,
-  ListPermissionsRequest,
   ListPermissionsResponse,
-  ListPermissionsByModuleRequest,
   ListPermissionsPagedRequest,
   PagedPermissionsResponse,
-  CreateRoleRequest,
   CreateRoleTemplateRequest,
   CreateRoleInstanceRequest,
   GetRoleTemplateByIdRequest,
@@ -83,7 +75,6 @@ import {
   RoleResponse,
   DeleteRoleRequest,
   GetRoleByIdRequest,
-  ListRolesRequest,
   ListRolesResponse,
   ListRoleInstancesRequest,
   ListRoleTemplatesRequest,
@@ -192,9 +183,6 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return this.toPermissionResponse(p)
   }
 
-
-
-
   async listPermissionsPaged(
     request: ListPermissionsPagedRequest,
     metadata?: Metadata,
@@ -234,7 +222,6 @@ export class PermissionManagementGrpcController implements PermissionManagementS
   }
 
   // ---- Role CRUD ----
-
 
   async createRoleTemplate(
     request: CreateRoleTemplateRequest,
@@ -352,15 +339,6 @@ export class PermissionManagementGrpcController implements PermissionManagementS
   ): Promise<RoleResponse> {
     const r: Role = await this.queryBus.execute(new GetRoleByIdQuery(request.id!))
     return this.toRoleResponse(r)
-  }
-
-  async listRoles(
-    request: ListRolesRequest,
-    metadata?: Metadata,
-    ...rest: any
-  ): Promise<ListRolesResponse> {
-    const list: Role[] = await this.queryBus.execute(new ListRolesQuery())
-    return { roles: list.map((r) => this.toRoleResponse(r)) }
   }
 
   async listRoleInstances(

@@ -13,7 +13,6 @@ service PolicyManagementService {
   rpc DeletePolicy(DeletePolicyRequest) returns (google.protobuf.Empty);
   rpc TogglePolicy(TogglePolicyRequest) returns (PolicyResponse);
   rpc GetPolicyById(GetPolicyByIdRequest) returns (PolicyResponse);
-  rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse);
   rpc ListPoliciesPaged(ListPoliciesPagedRequest) returns (PagedPoliciesResponse);
   rpc ListPoliciesByPermission(ListPoliciesByPermissionRequest) returns (ListPoliciesResponse);
   rpc AddPermissionPolicy(AddPermissionPolicyRequest) returns (PolicyResponse);
@@ -33,47 +32,6 @@ enum PolicySubjectTypeProto {
   POLICY_SUBJECT_TYPE_PROTO_ANY = 3;
 }
 
-enum AttributeSourceProto {
-  ATTRIBUTE_SOURCE_PROTO_UNSPECIFIED = 0;
-  ATTRIBUTE_SOURCE_PROTO_SUBJECT = 1;
-  ATTRIBUTE_SOURCE_PROTO_RESOURCE = 2;
-  ATTRIBUTE_SOURCE_PROTO_ENVIRONMENT = 3;
-  ATTRIBUTE_SOURCE_PROTO_ACTION = 4;
-}
-
-enum ConditionOperatorProto {
-  CONDITION_OPERATOR_PROTO_UNSPECIFIED = 0;
-  CONDITION_OPERATOR_PROTO_EQUALS = 1;
-  CONDITION_OPERATOR_PROTO_NOT_EQUALS = 2;
-  CONDITION_OPERATOR_PROTO_IN = 3;
-  CONDITION_OPERATOR_PROTO_NOT_IN = 4;
-  CONDITION_OPERATOR_PROTO_GREATER_THAN = 5;
-  CONDITION_OPERATOR_PROTO_GREATER_THAN_OR_EQUAL = 6;
-  CONDITION_OPERATOR_PROTO_LESS_THAN = 7;
-  CONDITION_OPERATOR_PROTO_LESS_THAN_OR_EQUAL = 8;
-  CONDITION_OPERATOR_PROTO_BETWEEN = 9;
-  CONDITION_OPERATOR_PROTO_CONTAINS = 10;
-  CONDITION_OPERATOR_PROTO_STARTS_WITH = 11;
-  CONDITION_OPERATOR_PROTO_REGEX = 12;
-  CONDITION_OPERATOR_PROTO_IS_NULL = 13;
-  CONDITION_OPERATOR_PROTO_IS_NOT_NULL = 14;
-}
-
-message PolicyConditionInput {
-  AttributeSourceProto attribute_source = 1;
-  string attribute_key = 2;
-  ConditionOperatorProto operator = 3;
-  string value = 4;
-}
-
-message PolicyConditionResponse {
-  string id = 1;
-  AttributeSourceProto attribute_source = 2;
-  string attribute_key = 3;
-  ConditionOperatorProto operator = 4;
-  string value = 5;
-}
-
 message CreatePolicyRequest {
   string name = 1;
   PolicyEffectProto effect = 2;
@@ -84,8 +42,8 @@ message CreatePolicyRequest {
   string permission_code = 7;
   string resource_type = 8;
   int32 priority = 9;
-  repeated PolicyConditionInput conditions = 10;
-  string created_by = 11;
+  string created_by = 10;
+  string condition_ast_json = 11;
 }
 
 message UpdatePolicyRequest {
@@ -98,7 +56,7 @@ message UpdatePolicyRequest {
   string permission_code = 7;
   string resource_type = 8;
   int32 priority = 9;
-  repeated PolicyConditionInput conditions = 10;
+  string condition_ast_json = 10;
 }
 
 message DeletePolicyRequest {
@@ -112,10 +70,6 @@ message TogglePolicyRequest {
 
 message GetPolicyByIdRequest {
   string id = 1;
-}
-
-message ListPoliciesRequest {
-  string tenant_id = 1;
 }
 
 message ListPoliciesPagedRequest {
@@ -142,7 +96,7 @@ message AddPermissionPolicyRequest {
   string subject_id = 7;
   string resource_type = 8;
   int32 priority = 9;
-  repeated PolicyConditionInput conditions = 10;
+  string condition_ast_json = 10;
 }
 
 message RemovePermissionPolicyRequest {
@@ -162,7 +116,7 @@ message PolicyResponse {
   string resource_type = 9;
   int32 priority = 10;
   bool is_enabled = 11;
-  repeated PolicyConditionResponse conditions = 12;
+  string condition_ast_json = 12;
 }
 
 message ListPoliciesResponse {

@@ -2,8 +2,6 @@ export * from './get-role-by-id.query'
 export * from './get-role-by-id.handler'
 export * from './get-role-template-by-id.query'
 export * from './get-role-template-by-id.handler'
-export * from './list-roles.query'
-export * from './list-roles.handler'
 export * from './list-account-roles.query'
 export * from './list-account-roles.handler'
 export * from './list-role-permissions.query'
@@ -21,7 +19,6 @@ export * from './get-account-role-selection.handler'
 
 import { GetRoleByIdHandler } from './get-role-by-id.handler'
 import { GetRoleTemplateByIdHandler } from './get-role-template-by-id.handler'
-import { ListRolesHandler } from './list-roles.handler'
 import { ListAccountRolesHandler } from './list-account-roles.handler'
 import { ListRolePermissionsHandler } from './list-role-permissions.handler'
 import { ListRoleTemplatePermissionsHandler } from './list-role-template-permissions.handler'
@@ -33,7 +30,6 @@ import { GetAccountRoleSelectionHandler } from './get-account-role-selection.han
 export const RoleQueryHandlers = [
   GetRoleByIdHandler,
   GetRoleTemplateByIdHandler,
-  ListRolesHandler,
   ListAccountRolesHandler,
   ListRolePermissionsHandler,
   ListRoleTemplatePermissionsHandler,

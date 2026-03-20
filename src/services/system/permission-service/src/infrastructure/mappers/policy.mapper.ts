@@ -1,13 +1,7 @@
 import { Policy } from '../../domain/aggregates/policy.aggregate'
-import { PolicyConditionVO } from '../../domain/vo/policy-condition.value-object'
 
 export class PolicyMapper {
   static toDomain(record: any): Policy {
-    const conditions = (record.conditions ?? []).map(
-      (c: any) =>
-        new PolicyConditionVO(c.id, c.attributeSource, c.attributeKey, c.operator, c.value)
-    )
-
     return new Policy(
       record.id,
       record.name,
@@ -19,7 +13,7 @@ export class PolicyMapper {
       record.resourceType ?? null,
       record.tenantId ?? null,
       record.isEnabled,
-      conditions,
+      record.conditionAstJson ?? null,
       record.description ?? undefined
     )
   }
@@ -36,7 +30,8 @@ export class PolicyMapper {
       permissionCode: policy.permissionCode,
       resourceType: policy.resourceType,
       priority: policy.priority,
-      isEnabled: policy.isEnabled
+      isEnabled: policy.isEnabled,
+      conditionAstJson: policy.conditionAstJson
     }
   }
 }

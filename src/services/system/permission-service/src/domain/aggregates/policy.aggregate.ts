@@ -1,6 +1,5 @@
 import { PolicyEffect } from '../enums/policy-effect.enum'
 import { PolicySubjectType } from '../enums/policy-subject-type.enum'
-import { PolicyConditionVO } from '../vo/policy-condition.value-object'
 
 /** ABAC Policy aggregate root */
 export class Policy {
@@ -15,25 +14,9 @@ export class Policy {
     public resourceType: string | null,
     public tenantId: string | null,
     public isEnabled: boolean,
-    private _conditions: PolicyConditionVO[] = [],
+    public conditionAstJson: string | null = null,
     public description?: string
   ) {}
-
-  get conditions(): ReadonlyArray<PolicyConditionVO> {
-    return [...this._conditions]
-  }
-
-  addCondition(condition: PolicyConditionVO): void {
-    this._conditions.push(condition)
-  }
-
-  removeCondition(conditionId: string): void {
-    this._conditions = this._conditions.filter((c) => c.id !== conditionId)
-  }
-
-  replaceConditions(conditions: PolicyConditionVO[]): void {
-    this._conditions = [...conditions]
-  }
 
   disable(): void {
     this.isEnabled = false

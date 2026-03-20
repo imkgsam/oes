@@ -1,7 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
 import { PermissionProxyService } from '../../../permission-service.service'
-import { CreateRoleDto } from '../dtos/create-role.dto'
 
 @ApiBearerAuth('JWT')
 @ApiTags('role')
@@ -13,12 +12,6 @@ export class RoleController {
   @ApiOperation({ summary: 'List all roles' })
   async getAllRoles() {
     return this.permissionService.listRoles()
-  }
-
-  @Post()
-  @ApiOperation({ summary: 'Create a role' })
-  async createRole(@Body() dto: CreateRoleDto) {
-    return this.permissionService.createRole(dto)
   }
 
   @Get(':id')

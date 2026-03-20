@@ -1,19 +1,15 @@
 import { ICommand } from '@nestjs/cqrs'
 import {
-  IsArray,
   IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
-  Min,
-  ValidateNested
+  Min
 } from 'class-validator'
-import { Type } from 'class-transformer'
 import { PolicyEffect } from '../../../domain/enums/policy-effect.enum'
 import { PolicySubjectType } from '../../../domain/enums/policy-subject-type.enum'
-import { PolicyConditionInput } from './create-policy.command'
 
 export class UpdatePolicyCommand implements ICommand {
   @IsUUID()
@@ -54,10 +50,8 @@ export class UpdatePolicyCommand implements ICommand {
   readonly priority?: number
 
   @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => PolicyConditionInput)
-  readonly conditions?: PolicyConditionInput[]
+  @IsString()
+  readonly conditionAstJson?: string
 
   constructor(params: {
     id: string
@@ -69,7 +63,7 @@ export class UpdatePolicyCommand implements ICommand {
     permissionCode?: string
     resourceType?: string
     priority?: number
-    conditions?: PolicyConditionInput[]
+    conditionAstJson?: string
   }) {
     this.id = params.id
     this.name = params.name
@@ -80,6 +74,6 @@ export class UpdatePolicyCommand implements ICommand {
     this.permissionCode = params.permissionCode
     this.resourceType = params.resourceType
     this.priority = params.priority
-    this.conditions = params.conditions
+    this.conditionAstJson = params.conditionAstJson
   }
 }

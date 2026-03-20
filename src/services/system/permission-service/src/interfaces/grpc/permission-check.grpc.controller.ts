@@ -54,7 +54,7 @@ export class PermissionCheckGrpcController implements PermissionCheckServiceCont
 
     return {
       allowed: decision.allowed,
-      evaluationMode: 2,
+      evaluationMode: decision.evaluationMode === 'RBAC' ? 1 : 2,
       matchedPolicy: decision.matchedPolicy ?? '',
       reason: decision.reason ?? ''
     }

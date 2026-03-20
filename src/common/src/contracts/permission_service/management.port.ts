@@ -6,11 +6,9 @@ import {
   GetPermissionByCodeRequest,
   ListPermissionRolesRequest,
   ListPermissionsResponse,
-  ListPermissionsByModuleRequest,
   ListPermissionsPagedRequest,
   PagedPermissionsResponse,
   PermissionResponse,
-  CreateRoleRequest,
   CreateRoleTemplateRequest,
   CreateRoleInstanceRequest,
   GetRoleTemplateByIdRequest,
@@ -23,18 +21,18 @@ import {
   CreateRoleInstanceFromTemplateRequest,
   UpdateRoleRequest,
   SetRoleEnabledRequest,
-  ListRoleInstancesRequest,
-  ListRoleTemplatesRequest,
-  PagedRolesResponse,
   DeleteRoleRequest,
   GetRoleByIdRequest,
+  ListRoleInstancesRequest,
   ListRolePermissionsRequest,
   ListRoleAccountsRequest,
   GetAccountRoleSelectionRequest,
   AccountRoleSelectionResponse,
   SetAccountRolesRequest,
+  ListRoleTemplatesRequest,
   ListRolesResponse,
   ListRoleAccountsResponse,
+  PagedRolesResponse,
   RoleResponse
 } from '../../generated/permission_service/permission_management'
 
@@ -44,12 +42,9 @@ export interface PermissionManagementPort {
   updatePermission(req: UpdatePermissionRequest): Promise<PermissionResponse>
   deletePermission(req: DeletePermissionRequest): Promise<void>
   getPermissionByCode(req: GetPermissionByCodeRequest): Promise<PermissionResponse>
-  listPermissions(): Promise<ListPermissionsResponse>
-  listPermissionsByModule(req: ListPermissionsByModuleRequest): Promise<ListPermissionsResponse>
   listPermissionsPaged(req: ListPermissionsPagedRequest): Promise<PagedPermissionsResponse>
   listPermissionRoles(req: ListPermissionRolesRequest): Promise<ListRolesResponse>
 
-  createRole(req: CreateRoleRequest): Promise<RoleResponse>
   createRoleTemplate(req: CreateRoleTemplateRequest): Promise<RoleResponse>
   createRoleInstance(req: CreateRoleInstanceRequest): Promise<RoleResponse>
   getRoleTemplateById(req: GetRoleTemplateByIdRequest): Promise<RoleResponse>
@@ -64,7 +59,6 @@ export interface PermissionManagementPort {
   setRoleEnabled(req: SetRoleEnabledRequest): Promise<RoleResponse>
   deleteRole(req: DeleteRoleRequest): Promise<void>
   getRoleById(req: GetRoleByIdRequest): Promise<RoleResponse>
-  listRoles(): Promise<ListRolesResponse>
   listRoleInstances(req: ListRoleInstancesRequest): Promise<PagedRolesResponse>
   listRoleTemplates(req: ListRoleTemplatesRequest): Promise<PagedRolesResponse>
   listRolePermissions(req: ListRolePermissionsRequest): Promise<ListPermissionsResponse>

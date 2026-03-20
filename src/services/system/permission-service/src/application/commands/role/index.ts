@@ -1,5 +1,3 @@
-export * from './create-role.command'
-export * from './create-role.handler'
 export * from './create-role-template.command'
 export * from './create-role-template.handler'
 export * from './create-role-instance.command'
@@ -33,7 +31,6 @@ export * from './revoke-account-role.handler'
 export * from './set-account-roles.command'
 export * from './set-account-roles.handler'
 
-import { CreateRoleHandler } from './create-role.handler'
 import { CreateRoleTemplateHandler } from './create-role-template.handler'
 import { CreateRoleInstanceHandler } from './create-role-instance.handler'
 import { UpdateRoleTemplateHandler } from './update-role-template.handler'
@@ -52,7 +49,6 @@ import { RevokeAccountRoleHandler } from './revoke-account-role.handler'
 import { SetAccountRolesHandler } from './set-account-roles.handler'
 
 export const RoleCommandHandlers = [
-  CreateRoleHandler,
   CreateRoleTemplateHandler,
   CreateRoleInstanceHandler,
   UpdateRoleTemplateHandler,

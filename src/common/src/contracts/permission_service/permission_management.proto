@@ -14,12 +14,9 @@ service PermissionManagementService {
   rpc DeletePermission(DeletePermissionRequest) returns (google.protobuf.Empty);
   rpc GetPermissionById(GetPermissionByIdRequest) returns (PermissionResponse);
   rpc GetPermissionByCode(GetPermissionByCodeRequest) returns (PermissionResponse);
-  rpc ListPermissions(ListPermissionsRequest) returns (ListPermissionsResponse);
-  rpc ListPermissionsByModule(ListPermissionsByModuleRequest) returns (ListPermissionsResponse);
   rpc ListPermissionsPaged(ListPermissionsPagedRequest) returns (PagedPermissionsResponse);
   rpc ListPermissionRoles(ListPermissionRolesRequest) returns (ListRolesResponse);
 
-  rpc CreateRole(CreateRoleRequest) returns (RoleResponse);
   rpc CreateRoleTemplate(CreateRoleTemplateRequest) returns (RoleResponse);
   rpc CreateRoleInstance(CreateRoleInstanceRequest) returns (RoleResponse);
   rpc GetRoleTemplateById(GetRoleTemplateByIdRequest) returns (RoleResponse);
@@ -34,7 +31,6 @@ service PermissionManagementService {
   rpc SetRoleEnabled(SetRoleEnabledRequest) returns (RoleResponse);
   rpc DeleteRole(DeleteRoleRequest) returns (google.protobuf.Empty);
   rpc GetRoleById(GetRoleByIdRequest) returns (RoleResponse);
-  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
   rpc ListRoleInstances(ListRoleInstancesRequest) returns (PagedRolesResponse);
   rpc ListRoleTemplates(ListRoleTemplatesRequest) returns (PagedRolesResponse);
   rpc ListRolePermissions(ListRolePermissionsRequest) returns (ListPermissionsResponse);
@@ -90,12 +86,6 @@ message GetPermissionByCodeRequest {
   string code = 1;
 }
 
-message ListPermissionsRequest {}
-
-message ListPermissionsByModuleRequest {
-  string module = 1;
-}
-
 message ListPermissionsPagedRequest {
   int32 page = 1;
   int32 page_size = 2;
@@ -123,17 +113,6 @@ message PagedPermissionsResponse {
   int32 total = 2;
   int32 page = 3;
   int32 page_size = 4;
-}
-
-message CreateRoleRequest {
-  string name = 1;
-  string code = 2;
-  string tenant_id = 3;
-  bool is_system = 4;
-  string description = 5;
-  string created_by = 6;
-  RoleKindProto role_kind = 7;
-  string template_role_id = 8;
 }
 
 message CreateRoleTemplateRequest {
@@ -209,8 +188,6 @@ message DeleteRoleRequest {
 message GetRoleByIdRequest {
   string id = 1;
 }
-
-message ListRolesRequest {}
 
 message ListRoleInstancesRequest {
   int32 page = 1;

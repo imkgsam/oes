@@ -132,3 +132,27 @@
 
 - 本次不做部分成功
 - 本次不扩展批量更新或批量删除
+
+## 2026-03-20 12:35:00 +08:00
+
+### 本次目标
+
+补齐旧列表查询兼容路径的 `OUTDATED` 标记范围，便于后续统一清理。
+
+### 主要改动
+
+- 在 proto 中为以下 RPC 补充 `OUTDATED` 注释：
+  - `ListPermissions`
+  - `ListPermissionsByModule`
+  - `ListRoles`
+  - `ListPolicies`
+- 在 application query 中为以下兼容 query 补充 `OUTDATED` 注释：
+  - `ListPermissionsQuery`
+  - `ListPermissionsByModuleQuery`
+  - `ListPoliciesQuery`
+  - `ListRolesQuery`
+
+### 备注
+
+- 本次只做清理标记，不删除代码
+- 这些路径仍可运行，等待后续明确清理指令

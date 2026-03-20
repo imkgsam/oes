@@ -217,3 +217,29 @@
 - `pnpm proto:gen` 通过。
 - `pnpm --filter @oes/common build` 通过。
 - `pnpm --filter permission-service build` 通过。
+
+## 2026-03-20 13:32:00 +08:00
+
+### 本次目标
+
+清理旧的 `CreateRole` 兼容链路，避免继续保留模板/实例拆分前的模糊创建入口。
+
+### 主要改动
+
+- 从 proto 中删除：
+  - `CreateRole`
+  - `CreateRoleRequest`
+- 从 common contract 中删除 `createRole(...)`
+- 从 `permission-management.grpc.controller.ts` 中删除旧的 `createRole(...)`
+- 删除 `CreateRoleCommand / CreateRoleHandler`
+- 删除 `api-gateway` 中对应的旧包装方法
+- 删除 `api-gateway` 旧的 `CreateRoleDto`
+- 删除 `api-gateway` 旧的 `POST /role` 入口
+
+### 备注
+
+- 角色创建现在只保留明确入口：
+  - `CreateRoleTemplate`
+  - `CreateRoleInstance`
+  - `CreateRoleInstanceFromTemplate`
+- 这是 breaking change，旧创建入口不再可调用

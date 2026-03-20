@@ -5,7 +5,7 @@ import { AddPermissionPolicyCommand } from './add-permission-policy.command'
 import { PermissionRepository } from '../../../domain/repositories/permission.repository'
 import { PolicyRepository } from '../../../domain/repositories/policy.repository'
 import { Policy } from '../../../domain/aggregates/policy.aggregate'
-import { PolicyConditionVO } from '../../../domain/vo/policy-condition.value-object'
+import { normalizePolicyConditionAstJson } from './normalize-policy-condition-ast'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { PERMISSION_NOT_FOUND } from '../../../common/constants/exception-enums'
 
@@ -22,16 +22,7 @@ export class AddPermissionPolicyHandler implements ICommandHandler<AddPermission
     const permission = await this.permissionRepo.findByCode(command.permissionCode)
     if (!permission) throw ExceptionFactory.domain(PERMISSION_NOT_FOUND)
 
-    const conditions = (command.conditions ?? []).map(
-      (c) =>
-        new PolicyConditionVO(
-          crypto.randomUUID(),
-          c.attributeSource,
-          c.attributeKey,
-          c.operator,
-          c.value
-        )
-    )
+    const conditionAstJson = normalizePolicyConditionAstJson(command.conditionAstJson)
 
     const policy = new Policy(
       crypto.randomUUID(),
@@ -44,7 +35,7 @@ export class AddPermissionPolicyHandler implements ICommandHandler<AddPermission
       command.resourceType ?? null,
       command.tenantId ?? null,
       true,
-      conditions,
+      conditionAstJson,
       command.description
     )
 

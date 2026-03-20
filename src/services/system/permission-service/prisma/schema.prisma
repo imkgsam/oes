@@ -76,37 +76,25 @@ model AccountRole {
 // ============================================================
 
 model Policy {
-  id             String            @id @default(uuid())
-  name           String
-  description    String?
-  tenantId       String? // null = global policy
-  effect         PolicyEffect
-  subjectType    PolicySubjectType @default(ANY)
-  subjectId      String? // ROLE uses roleCode, ACCOUNT uses accountId
-  permissionCode String // always bound to a permission
-  permission     Permission        @relation(fields: [permissionCode], references: [code])
-  resourceType   String? // null = applies to all resource types
-  priority       Int               @default(0)
-  isEnabled      Boolean           @default(true)
-  conditions     PolicyCondition[]
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
+  id               String            @id @default(uuid())
+  name             String
+  description      String?
+  tenantId         String? // null = global policy
+  effect           PolicyEffect
+  subjectType      PolicySubjectType @default(ANY)
+  subjectId        String? // ROLE uses roleCode, ACCOUNT uses accountId
+  permissionCode   String // always bound to a permission
+  permission       Permission        @relation(fields: [permissionCode], references: [code])
+  resourceType     String? // null = applies to all resource types
+  priority         Int               @default(0)
+  isEnabled        Boolean           @default(true)
+  conditionAstJson String?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   @@index([tenantId, isEnabled])
   @@index([permissionCode, isEnabled])
   @@index([subjectType, subjectId])
-}
-
-model PolicyCondition {
-  id              String            @id @default(uuid())
-  policyId        String
-  policy          Policy            @relation(fields: [policyId], references: [id], onDelete: Cascade)
-  attributeSource AttributeSource
-  attributeKey    String
-  operator        ConditionOperator
-  value           String // JSON encoded, supports $subject.xxx dynamic refs
-
-  @@index([policyId])
 }
 
 model AuditEvent {
@@ -181,30 +169,6 @@ enum PolicySubjectType {
   ROLE
   ACCOUNT
   ANY
-}
-
-enum AttributeSource {
-  SUBJECT
-  RESOURCE
-  ENVIRONMENT
-  ACTION
-}
-
-enum ConditionOperator {
-  EQUALS
-  NOT_EQUALS
-  IN
-  NOT_IN
-  GREATER_THAN
-  GREATER_THAN_OR_EQUAL
-  LESS_THAN
-  LESS_THAN_OR_EQUAL
-  BETWEEN
-  CONTAINS
-  STARTS_WITH
-  REGEX
-  IS_NULL
-  IS_NOT_NULL
 }
 
 enum ActorType {

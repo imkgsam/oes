@@ -4,7 +4,7 @@ import { UpdatePolicyCommand } from './update-policy.command'
 import { PolicyRepository } from '../../../domain/repositories/policy.repository'
 import { PermissionRepository } from '../../../domain/repositories/permission.repository'
 import { Policy } from '../../../domain/aggregates/policy.aggregate'
-import { PolicyConditionVO } from '../../../domain/vo/policy-condition.value-object'
+import { normalizePolicyConditionAstJson } from './normalize-policy-condition-ast'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { PERMISSION_NOT_FOUND, POLICY_NOT_FOUND } from '../../../common/constants/exception-enums'
@@ -35,19 +35,8 @@ export class UpdatePolicyHandler implements ICommandHandler<UpdatePolicyCommand>
     if (command.permissionCode !== undefined) policy.permissionCode = command.permissionCode
     if (command.resourceType !== undefined) policy.resourceType = command.resourceType
     if (command.priority !== undefined) policy.priority = command.priority
-
-    if (command.conditions !== undefined) {
-      const conditions = command.conditions.map(
-        (c) =>
-          new PolicyConditionVO(
-            crypto.randomUUID(),
-            c.attributeSource,
-            c.attributeKey,
-            c.operator,
-            c.value
-          )
-      )
-      policy.replaceConditions(conditions)
+    if (command.conditionAstJson !== undefined) {
+      policy.conditionAstJson = normalizePolicyConditionAstJson(command.conditionAstJson)
     }
 
     return this.policyRepo.save(policy)

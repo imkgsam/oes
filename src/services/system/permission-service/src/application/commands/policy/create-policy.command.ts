@@ -1,36 +1,14 @@
 import { ICommand } from '@nestjs/cqrs'
 import {
-  IsArray,
-  IsBoolean,
   IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
-  Min,
-  ValidateNested
+  Min
 } from 'class-validator'
-import { Type } from 'class-transformer'
 import { PolicyEffect } from '../../../domain/enums/policy-effect.enum'
 import { PolicySubjectType } from '../../../domain/enums/policy-subject-type.enum'
-import { AttributeSource } from '../../../domain/enums/attribute-source.enum'
-import { ConditionOperator } from '../../../domain/enums/condition-operator.enum'
-
-export class PolicyConditionInput {
-  @IsEnum(AttributeSource)
-  readonly attributeSource: AttributeSource
-
-  @IsString()
-  @IsNotEmpty()
-  readonly attributeKey: string
-
-  @IsEnum(ConditionOperator)
-  readonly operator: ConditionOperator
-
-  @IsString()
-  @IsNotEmpty()
-  readonly value: string // JSON-encoded
-}
 
 export class CreatePolicyCommand implements ICommand {
   @IsString()
@@ -69,10 +47,8 @@ export class CreatePolicyCommand implements ICommand {
   readonly priority?: number
 
   @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => PolicyConditionInput)
-  readonly conditions?: PolicyConditionInput[]
+  @IsString()
+  readonly conditionAstJson?: string
 
   constructor(params: {
     name: string
@@ -84,7 +60,7 @@ export class CreatePolicyCommand implements ICommand {
     permissionCode: string
     resourceType?: string
     priority?: number
-    conditions?: PolicyConditionInput[]
+    conditionAstJson?: string
   }) {
     this.name = params.name
     this.effect = params.effect
@@ -95,6 +71,6 @@ export class CreatePolicyCommand implements ICommand {
     this.permissionCode = params.permissionCode
     this.resourceType = params.resourceType
     this.priority = params.priority
-    this.conditions = params.conditions
+    this.conditionAstJson = params.conditionAstJson
   }
 }

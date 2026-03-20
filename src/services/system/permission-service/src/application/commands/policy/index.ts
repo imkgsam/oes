@@ -1,5 +1,6 @@
 export * from './create-policy.command'
 export * from './create-policy.handler'
+export * from './normalize-policy-condition-ast'
 export * from './update-policy.command'
 export * from './update-policy.handler'
 export * from './delete-policy.command'

@@ -2,27 +2,26 @@ import { Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import { InjectGrpcClient } from '@oes/common/transport'
 import { safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
-import { PermissionManagementPort } from '@oes/common/contracts'
 import {
   PermissionManagementServiceClient,
   CreatePermissionRequest,
   DeletePermissionRequest,
   GetPermissionByCodeRequest,
-  ListPermissionsByModuleRequest,
+  ListPermissionsPagedRequest,
   ListPermissionsResponse,
   PermissionResponse,
-  CreateRoleRequest,
   DeleteRoleRequest,
   GetRoleByIdRequest,
   ListRolesResponse,
+  ListRoleInstancesRequest,
   RoleResponse,
   PERMISSION_MANAGEMENT_SERVICE_NAME
-} from '@oes/common/generated'
+} from '@oes/common/generated/permission_service'
 
 const CALLER = 'api-gateway'
 
 @Injectable()
-export class PermissionManagementGrpcAdapter implements PermissionManagementPort, OnModuleInit {
+export class PermissionManagementGrpcAdapter implements OnModuleInit {
   private svc!: PermissionManagementServiceClient
 
   constructor(
@@ -36,7 +35,7 @@ export class PermissionManagementGrpcAdapter implements PermissionManagementPort
     )
   }
 
-  // 鈹€鈹€ Permission 鈹€鈹€
+  // Permission methods
 
   async createPermission(req: CreatePermissionRequest): Promise<PermissionResponse> {
     return safeGrpcCall(this.svc.createPermission(req), this.opts('createPermission'))
@@ -51,20 +50,28 @@ export class PermissionManagementGrpcAdapter implements PermissionManagementPort
   }
 
   async listPermissions(): Promise<ListPermissionsResponse> {
-    return safeGrpcCall(this.svc.listPermissions({}), this.opts('listPermissions'))
+    const result = await safeGrpcCall(
+      this.svc.listPermissionsPaged({ page: 1, pageSize: 1000 }),
+      this.opts('listPermissionsPaged')
+    )
+
+    return { permissions: result.permissions }
   }
 
-  async listPermissionsByModule(
-    req: ListPermissionsByModuleRequest
-  ): Promise<ListPermissionsResponse> {
-    return safeGrpcCall(this.svc.listPermissionsByModule(req), this.opts('listPermissionsByModule'))
+  async listPermissionsByModule(req: { module: string }): Promise<ListPermissionsResponse> {
+    const result = await safeGrpcCall(
+      this.svc.listPermissionsPaged({
+        page: 1,
+        pageSize: 1000,
+        module: req.module
+      } as ListPermissionsPagedRequest),
+      this.opts('listPermissionsPaged')
+    )
+
+    return { permissions: result.permissions }
   }
 
-  // 鈹€鈹€ Role 鈹€鈹€
-
-  async createRole(req: CreateRoleRequest): Promise<RoleResponse> {
-    return safeGrpcCall(this.svc.createRole(req), this.opts('createRole'))
-  }
+  // Role methods
 
   async deleteRole(req: DeleteRoleRequest): Promise<void> {
     await safeGrpcCall(this.svc.deleteRole(req), this.opts('deleteRole'))
@@ -75,10 +82,13 @@ export class PermissionManagementGrpcAdapter implements PermissionManagementPort
   }
 
   async listRoles(): Promise<ListRolesResponse> {
-    return safeGrpcCall(this.svc.listRoles({}), this.opts('listRoles'))
-  }
+    const result = await safeGrpcCall(
+      this.svc.listRoleInstances({ page: 1, pageSize: 1000 } as ListRoleInstancesRequest),
+      this.opts('listRoleInstances')
+    )
 
-  // 鈹€鈹€ Helpers 鈹€鈹€
+    return { roles: result.roles }
+  }
 
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method }

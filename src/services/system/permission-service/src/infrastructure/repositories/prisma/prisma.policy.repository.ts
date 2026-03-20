@@ -4,16 +4,13 @@ import { PolicyRepository } from '../../../domain/repositories/policy.repository
 import { PolicyMapper } from '../../mappers/policy.mapper'
 import { PrismaService } from '../../prisma/prisma.service'
 
-const POLICY_INCLUDE = { conditions: true } as const
-
 @Injectable()
 export class PrismaPolicyRepository implements PolicyRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findById(id: string): Promise<Policy | null> {
     const found = await this.prisma.policy.findUnique({
-      where: { id },
-      include: POLICY_INCLUDE
+      where: { id }
     })
     return found ? PolicyMapper.toDomain(found) : null
   }
@@ -25,7 +22,6 @@ export class PrismaPolicyRepository implements PolicyRepository {
         OR: [{ tenantId: null }, ...(tenantId ? [{ tenantId }] : [])],
         permissionCode
       },
-      include: POLICY_INCLUDE,
       orderBy: { priority: 'desc' }
     })
     return records.map(PolicyMapper.toDomain)
@@ -37,7 +33,6 @@ export class PrismaPolicyRepository implements PolicyRepository {
         permissionCode,
         ...(tenantId ? { OR: [{ tenantId: null }, { tenantId }] } : {})
       },
-      include: POLICY_INCLUDE,
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }]
     })
     return records.map(PolicyMapper.toDomain)
@@ -45,14 +40,13 @@ export class PrismaPolicyRepository implements PolicyRepository {
 
   async findByTenant(tenantId: string): Promise<Policy[]> {
     const records = await this.prisma.policy.findMany({
-      where: { tenantId },
-      include: POLICY_INCLUDE
+      where: { tenantId }
     })
     return records.map(PolicyMapper.toDomain)
   }
 
   async findAll(): Promise<Policy[]> {
-    const records = await this.prisma.policy.findMany({ include: POLICY_INCLUDE })
+    const records = await this.prisma.policy.findMany()
     return records.map(PolicyMapper.toDomain)
   }
 
@@ -86,7 +80,6 @@ export class PrismaPolicyRepository implements PolicyRepository {
     const [records, total] = await this.prisma.$transaction([
       this.prisma.policy.findMany({
         where,
-        include: POLICY_INCLUDE,
         orderBy: { createdAt: 'desc' },
         skip,
         take: pageSize
@@ -119,35 +112,19 @@ export class PrismaPolicyRepository implements PolicyRepository {
           permissionCode: data.permissionCode,
           resourceType: data.resourceType,
           priority: data.priority,
-          isEnabled: data.isEnabled
+          isEnabled: data.isEnabled,
+          conditionAstJson: data.conditionAstJson
         },
         create: {
           ...data
         }
       })
-
-      // Replace conditions: delete all then recreate
-      await tx.policyCondition.deleteMany({ where: { policyId: policy.id } })
-
-      if (policy.conditions.length > 0) {
-        await tx.policyCondition.createMany({
-          data: policy.conditions.map((c) => ({
-            id: c.id,
-            policyId: policy.id,
-            attributeSource: c.attributeSource,
-            attributeKey: c.attributeKey,
-            operator: c.operator,
-            value: c.rawValue
-          }))
-        })
-      }
     })
 
     return (await this.findById(policy.id))!
   }
 
   async delete(id: string): Promise<void> {
-    // Conditions cascade-delete via onDelete: Cascade in schema
     await this.prisma.policy.delete({ where: { id } })
   }
 }

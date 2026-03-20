@@ -6,14 +6,14 @@ import {
   DeletePermissionRequest,
   GetPermissionByCodeRequest,
   ListPermissionsResponse,
-  ListPermissionsByModuleRequest,
+  ListPermissionsPagedRequest,
   PermissionResponse,
-  CreateRoleRequest,
   DeleteRoleRequest,
   GetRoleByIdRequest,
   ListRolesResponse,
+  ListRoleInstancesRequest,
   RoleResponse
-} from '@oes/common/generated'
+} from '@oes/common/generated/permission_service'
 
 @Injectable()
 export class PermissionProxyService {
@@ -37,20 +37,24 @@ export class PermissionProxyService {
   }
 
   async listPermissions(): Promise<ListPermissionsResponse> {
-    return this.managementPort.listPermissions()
+    const result = await this.managementPort.listPermissionsPaged({
+      page: 1,
+      pageSize: 1000
+    } as ListPermissionsPagedRequest)
+
+    return { permissions: result.permissions }
   }
 
-  async listPermissionsByModule(
-    req: ListPermissionsByModuleRequest
-  ): Promise<ListPermissionsResponse> {
-    return this.managementPort.listPermissionsByModule(req)
+  async listPermissionsByModule(req: { module: string }): Promise<ListPermissionsResponse> {
+    const result = await this.managementPort.listPermissionsPaged({
+      page: 1,
+      pageSize: 1000,
+      module: req.module
+    } as ListPermissionsPagedRequest)
+
+    return { permissions: result.permissions }
   }
 
-  // 鈹€鈹€ Role 鈹€鈹€
-
-  async createRole(req: CreateRoleRequest): Promise<RoleResponse> {
-    return this.managementPort.createRole(req)
-  }
 
   async deleteRole(req: DeleteRoleRequest): Promise<void> {
     return this.managementPort.deleteRole(req)
@@ -61,6 +65,11 @@ export class PermissionProxyService {
   }
 
   async listRoles(): Promise<ListRolesResponse> {
-    return this.managementPort.listRoles()
+    const result = await this.managementPort.listRoleInstances({
+      page: 1,
+      pageSize: 1000
+    } as ListRoleInstancesRequest)
+
+    return { roles: result.roles }
   }
 }
