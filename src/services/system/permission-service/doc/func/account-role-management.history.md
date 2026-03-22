@@ -1,5 +1,21 @@
 # 账号角色管理历史
 
+## 2026-03-21 12:00:00 +08:00
+
+### 本次目标
+
+记录账号角色管理实现核查中发现的约束缺口，避免后续跨服务改造时遗漏。
+
+### 主要改动
+
+- 在 [account-role-management.md](/D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/func/account-role-management.md) 新增“待办问题”表。
+- 记录 `AssignAccountRole` 当前仍缺少“仅允许当前租户 `TENANT_INSTANCE`”约束校验的问题。
+
+### 备注
+
+- 该问题属于“文档约束已明确、实现尚未完全补齐”的缺口。
+- 后续进行跨服务鉴权与服务内授权改造前，应优先纳入实现清单。
+
 ## 2026-03-17 11:53:00 +08:00
 
 ### 本次目标

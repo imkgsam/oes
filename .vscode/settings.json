@@ -11,5 +11,7 @@
   "[prisma]": {
     "editor.defaultFormatter": "Prisma.prisma"
   },
-  "prisma.pinToPrisma6": true
+  "prisma.pinToPrisma6": true,
+  "http.proxy": "http://User:Proxypassword765@10.11.12.1:11111",
+  "http.proxyStrictSSL": false
 }

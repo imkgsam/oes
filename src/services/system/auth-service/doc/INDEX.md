@@ -1,6 +1,6 @@
 # Auth Service 文档索引
 
-更新时间：2026-03-21 17:20:00 +08:00
+更新时间：2026-03-22 12:30:00 +09:00
 
 本文档作为 `auth-service` 的主索引文档，定义认证中心在 `oes` 项目中的职责边界、功能集合、优先级、落地阶段与后续分片实现方向。详细实现时，后续应按本索引继续拆分到 `doc/func/*.md` 与对应 history 文档中。
 
@@ -38,6 +38,18 @@
 - 多租户兼容：认证归一，身份上下文与授权上下文解耦
 
 ## 3. 核心边界与协作
+
+### 3.0 跨模块关联方案
+
+当前与 `gateway`、`common`、`permission-service` 共同协作的跨模块安全方案，统一以根目录文档为准：
+
+- [internal-service-auth-and-operator-context.md](D:/user/vic/code/code_base/on/oes/doc/func/internal-service-auth-and-operator-context.md)
+
+说明：
+
+- `Phase 1` 默认不让 `auth-service` 参与每请求实时签发操作者上下文
+- `auth-service` 当前阶段主要负责认证、令牌签发、公钥体系或等价验签基础设施
+- 后续若将操作者上下文签发能力下沉到认证域，应先更新根目录跨模块文档，再拆分本模块功能文档
 
 ### 3.1 与 `identity-service` 的边界
 

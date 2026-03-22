@@ -1,6 +1,6 @@
 # Permission Service 文档索引
 
-更新时间：2026-03-19 10:16:12 +08:00
+更新时间：2026-03-22 12:30:00 +09:00
 
 本文档只作为 `permission-service` 文档索引使用，不再承载完整设计细节。
 
@@ -10,6 +10,7 @@
 |---|---|
 | [CORE_MODEL_MIGRATION_PLAN.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/CORE_MODEL_MIGRATION_PLAN.md) | 核心模型迁移计划与兼容性说明 |
 | [HISTORY.md](D:/user/vic/code/code_base/on/oes/src/services/system/permission-service/doc/HISTORY.md) | 功能集合历史索引 |
+| [internal-service-auth-and-operator-context.md](D:/user/vic/code/code_base/on/oes/doc/func/internal-service-auth-and-operator-context.md) | 跨模块内部服务认证、操作者上下文与全链路授权实施蓝图 |
 
 ## 功能集合索引
 

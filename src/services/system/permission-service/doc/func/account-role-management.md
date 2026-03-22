@@ -1,6 +1,6 @@
 # 账号角色管理
 
-更新时间：2026-03-19 17:08:00 +08:00
+更新时间：2026-03-21 12:00:00 +08:00
 
 ## 目标
 
@@ -94,6 +94,12 @@
 | 4.3.4 | 获取账号角色选择列表 | `gateway` | 租户管理员 | P0 | 已实现 | 2026-03-17 | 返回 `availableRoles[] + selectedRoleIds[]` |
 | 4.3.5 | 设置账号角色集合 | `gateway` | 租户管理员 | P0 | 已实现 | 2026-03-17 | checkbox list 页面保存入口 |
 | 4.3.6 | 账号角色生效时间 | `gateway` | 租户管理员 | P1 | 已实现 | 2026-03-19 | 支持临时授权、预约生效、自动过期；`Phase 1` 已扩展 `AssignAccountRole` 和当前有效角色读取逻辑 |
+
+## 待办问题
+
+| 编号 | 问题 | 优先级 | 当前状态 | 备注 |
+|---|---|---|---|---|
+| TODO-4.3-01 | `AssignAccountRole` 仍缺少“仅允许授予当前租户的 `TENANT_INSTANCE`”约束校验 | P0 | 未开始 | 当前实现只校验 `roleId` 存在与时间窗口合法性，尚未校验 `role.kind === TENANT_INSTANCE` 且 `role.tenantId === command.tenantId`；需与 `SetAccountRoles` 的约束保持一致 |
 
 ## 分片实施建议
 

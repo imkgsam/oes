@@ -1,5 +1,30 @@
 # 内部服务认证与可验签操作者上下文历史
 
+## 2026-03-22 12:30:00 +09:00
+
+### 本次目标
+
+将跨模块方案从“可执行设计稿”继续升级为“全链路实现蓝图”，用于指导按模块分片实施。
+
+### 修改范围
+
+- [internal-service-auth-and-operator-context.md](D:/user/vic/code/code_base/on/oes/doc/func/internal-service-auth-and-operator-context.md)
+
+### 主要改动
+
+- 补充全链路授权分层说明
+- 明确 `CheckPermission` 与 `CheckPermissionWithContext` 的职责分工
+- 补充 `gateway` 的入口级粗粒度门禁职责
+- 补充 `x-internal-service-name` 与 `x-operator-context` 的推荐编码与约束
+- 明确 `Phase 1` 不采用“每请求实时调用 `auth-service` 远程签发”方案
+- 为 `common`、`gateway`、`permission-service`、其他子服务、`auth-service` 分别补充详细分片步骤
+- 新增跨模块优先级与推荐实现顺序
+
+### 备注
+
+- 当前文档已可作为“全链路 + 按模块”的分片实施蓝图
+- 具体代码落地时，仍需分别更新各模块自己的功能文档与历史文档
+
 ## 2026-03-19 10:10:03 +08:00
 
 ### 本次目标
