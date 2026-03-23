@@ -18,18 +18,6 @@ export interface DeviceInfo {
   ipAddress: string
 }
 
-type PrismaMfaBindingRecord = {
-  id: string
-  userId: string
-  type: string
-  secret: string
-  enabled: boolean
-  createdAt: Date
-  updatedAt: Date
-  metadata?: string | null
-  deviceInfo?: string | null
-}
-
 export class MfaBindingEntity {
   constructor(
     private props: {
@@ -45,20 +33,6 @@ export class MfaBindingEntity {
       deviceInfo?: DeviceInfo
     }
   ) {}
-
-  static fromPrisma(record: PrismaMfaBindingRecord): MfaBindingEntity {
-    return new MfaBindingEntity({
-      id: record.id,
-      userId: record.userId,
-      type: record.type as MfaType,
-      secret: record.secret,
-      enabled: record.enabled,
-      createdAt: record.createdAt,
-      updatedAt: record.updatedAt,
-      metadata: record.metadata ? (JSON.parse(record.metadata) as Record<string, unknown>) : undefined,
-      deviceInfo: record.deviceInfo ? (JSON.parse(record.deviceInfo) as DeviceInfo) : undefined
-    })
-  }
 
   static createTotpBinding(userId: string, deviceInfo?: DeviceInfo): MfaBindingEntity {
     return new MfaBindingEntity({

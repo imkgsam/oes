@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { CredentialType, Credential as PrismaCredential } from '../../../prisma/generated/prisma'
+import { CredentialType } from '../../../prisma/generated/prisma'
 import { compare, hash } from 'bcrypt'
 
 export class Credential {
@@ -12,18 +12,6 @@ export class Credential {
     public readonly updatedAt: Date = new Date(),
     public readonly provider?: string
   ) {}
-
-  static fromPrisma(prismaCredential: PrismaCredential): Credential {
-    return new Credential(
-      prismaCredential.id,
-      prismaCredential.credentialType,
-      prismaCredential.hashedValue ?? '',
-      prismaCredential.enabled,
-      prismaCredential.createdAt,
-      prismaCredential.updatedAt,
-      prismaCredential.provider
-    )
-  }
 
   static async createPasswordCredential(plainPassword: string): Promise<Credential> {
     const hashedPassword = await hash(plainPassword, 10)

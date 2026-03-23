@@ -98,8 +98,8 @@
 | 序号 | 任务编号 | 任务文档 | 描述 | 当前状态 | 最后一次全局审核时间 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | AUTH-01 | [auth-01-email-password-login.md](../tasks/auth-01-email-password-login.md) | 邮箱密码主认证闭环 | 部分实现 | 2026-03-23 | 已切到 command/handler，并可返回 `ACCOUNT_SELECTION_REQUIRED + accounts` |
-| 2 | AUTH-02 | [auth-02-email-otp-login.md](../tasks/auth-02-email-otp-login.md) | 邮箱 OTP 主认证闭环 | 未开始 | 2026-03-22 | OTP 登录链路尚未进入实现 |
-| 3 | AUTH-03 | [auth-03-phone-password-login.md](../tasks/auth-03-phone-password-login.md) | 手机密码主认证闭环 | 未开始 | 2026-03-22 | 手机密码主认证尚未实现 |
-| 4 | AUTH-04 | [auth-04-phone-otp-login.md](../tasks/auth-04-phone-otp-login.md) | 手机 OTP 主认证闭环 | 未开始 | 2026-03-22 | 手机 OTP 主认证尚未实现 |
+| 2 | AUTH-02 | [auth-02-email-otp-login.md](../tasks/auth-02-email-otp-login.md) | 邮箱 OTP 主认证闭环 | 部分实现 | 2026-03-24 00:15:04 +09:00 | 已接入登录 OTP 发码、校验与统一编排 |
+| 3 | AUTH-03 | [auth-03-phone-password-login.md](../tasks/auth-03-phone-password-login.md) | 手机密码主认证闭环 | 部分实现 | 2026-03-23 23:44:40 +09:00 | 已接入 gRPC 入口并复用统一主认证编排 |
+| 4 | AUTH-04 | [auth-04-phone-otp-login.md](../tasks/auth-04-phone-otp-login.md) | 手机 OTP 主认证闭环 | 部分实现 | 2026-03-23 23:52:28 +09:00 | 已接入登录 OTP 发码、校验与统一编排 |
 | 5 | AUTH-05 | [auth-05-account-selection.md](../tasks/auth-05-account-selection.md) | 登录后账户选择闭环 | 部分实现 | 2026-03-23 | `auth-service` 已可承载候选账户列表，`identity-service` 真实查询仍未就绪 |
 | 6 | SESS-01 | [sess-01-session-and-token-issuance.md](../tasks/sess-01-session-and-token-issuance.md) | 主认证后会话签发闭环 | 部分实现 | 2026-03-22 | Session 聚合已恢复编译，业务签发闭环未完成 |

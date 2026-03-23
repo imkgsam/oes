@@ -61,6 +61,12 @@
 - OTP 不作为长期凭据保存
 - 第三方登录身份应绑定到 `user`，而不是直接绑定 `account`
 
+### 当前规范化规则
+
+- email：`trim + lowercase`
+- phone：去除非数字字符；若原值以 `+` 开头，则保留单个前导 `+`
+- repository 查询当前兼容“原始值 / 规范化值”双查，以避免存量数据立即失效
+
 ## 当前阶段范围
 
 ### P0
@@ -90,6 +96,6 @@
 | 序号 | 任务编号 | 任务文档 | 描述 | 当前状态 | 最后一次全局审核时间 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | AUTH-01 | [auth-01-email-password-login.md](../tasks/auth-01-email-password-login.md) | 邮箱密码凭据与登录方式闭环 | 部分实现 | 2026-03-23 | 邮箱密码认证策略已收敛到统一异常语义，并已具备最小状态响应 |
-| 2 | AUTH-02 | [auth-02-email-otp-login.md](../tasks/auth-02-email-otp-login.md) | 邮箱 OTP 凭据与登录方式闭环 | 未开始 | 2026-03-22 | 邮箱 OTP 主认证未实现 |
-| 3 | AUTH-03 | [auth-03-phone-password-login.md](../tasks/auth-03-phone-password-login.md) | 手机密码凭据与登录方式闭环 | 未开始 | 2026-03-22 | 手机密码凭据链路未实现 |
-| 4 | AUTH-04 | [auth-04-phone-otp-login.md](../tasks/auth-04-phone-otp-login.md) | 手机 OTP 凭据与登录方式闭环 | 未开始 | 2026-03-22 | 手机 OTP 凭据链路未实现 |
+| 2 | AUTH-02 | [auth-02-email-otp-login.md](../tasks/auth-02-email-otp-login.md) | 邮箱 OTP 凭据与登录方式闭环 | 部分实现 | 2026-03-24 00:15:04 +09:00 | 已接入发码、校验与统一认证编排 |
+| 3 | AUTH-03 | [auth-03-phone-password-login.md](../tasks/auth-03-phone-password-login.md) | 手机密码凭据与登录方式闭环 | 部分实现 | 2026-03-23 23:44:40 +09:00 | 已接入统一认证编排与 gRPC 入口 |
+| 4 | AUTH-04 | [auth-04-phone-otp-login.md](../tasks/auth-04-phone-otp-login.md) | 手机 OTP 凭据与登录方式闭环 | 部分实现 | 2026-03-23 23:52:28 +09:00 | 已接入发码、校验与统一认证编排 |

@@ -63,3 +63,77 @@
 - Result: the active MFA-04 login path now uses focused services instead of depending directly on `MfaService`
 - Status: passed local build with `pnpm --filter auth-service build`
 - Note: `MfaService` is now explicitly marked `OUTDATED`; do not add new MFA-04 flow logic back into it
+
+## 2026-03-23 22:38:03 +09:00 Incremental Review
+
+- Scope: complete the current `MfaService` shrink step
+- Result: removed the legacy `MfaService` from the codebase and `AuthModule` provider graph after verifying no runtime path still referenced it
+- Status: auth-service local build blocked by pre-existing workspace generation / dependency issues, not by remaining `MfaService` references
+- Build blockers observed:
+  - `@oes/common` generated permission/auth contract exports are inconsistent with current TypeScript imports
+  - local Prisma generated client for `auth-service` is missing
+  - `@nestjs/event-emitter` types/module resolution is currently unavailable in local build
+- Note: subsequent MFA work should continue as focused application services / command handlers instead of recreating a catch-all MFA facade
+
+## 2026-03-23 22:54:30 +09:00 Incremental Review
+
+- Scope: harden OTP persistence before continuing `AUTH-02`
+- Result: `IOtpRepository` now supports `identifier + usage` lookup, Prisma OTP persistence aligns with schema fields, and successful OTP consumption is persisted as invalidation
+- Status: passed local build with `pnpm --filter auth-service build`
+- Note: this is an internal persistence refactor only; no gRPC contract or login flow surface was expanded in this slice
+
+## 2026-03-23 23:00:29 +09:00 Incremental Review
+
+- Scope: align OTP persistence mapping with the `permission-service` repository/mapper pattern
+- Result: removed `OneTimeToken.fromPrisma()` from active repository flow and moved OTP record mapping into `src/infrastructure/mappers/otp.mapper.ts`
+- Status: passed local build with `pnpm --filter auth-service build`
+- Note: similar Prisma-to-domain mapping smells still exist in other `auth-service` aggregates and should be cleaned incrementally instead of assuming the whole service now matches the sample pattern
+
+## 2026-03-23 23:04:36 +09:00 Incremental Review
+
+- Scope: align `LoginMethod` / `Credential` mapping with the `permission-service` repository/mapper pattern
+- Result: removed Prisma-based construction helpers from the active login-method domain objects and moved conversion into `src/infrastructure/mappers/login-method.mapper.ts`
+- Status: passed local build with `pnpm --filter auth-service build`
+- Note: MFA persistence mapping still contains the same style of domain-side conversion and should be handled in a separate slice
+
+## 2026-03-23 23:09:24 +09:00 Incremental Review
+
+- Scope: align `MfaBinding` mapping with the `permission-service` repository/mapper pattern
+- Result: removed Prisma-based construction from `MfaBindingEntity` and moved repository conversion into `src/infrastructure/mappers/mfa-binding.mapper.ts`
+- Status: passed local build with `pnpm --filter auth-service build`
+- Note: this improves boundary consistency, but the current MFA binding persistence still depends on a temporary Prisma compatibility seam because the schema model itself is not yet formally reinstated
+
+## 2026-03-23 23:35:50 +09:00 Incremental Review
+
+- Scope: start the `MFA-05` phone OTP MFA slice on the active password-login path
+- Result: `LoginWithEmailPassword` can now issue `MFA_REQUIRED` for an active `SMS_OTP` binding through `PhoneOtpMfaChallengeService`
+- Status: passed local build with `pnpm --filter auth-service build`
+- Note: this slice reuses the existing `SubmitMfaChallenge` path and does not yet add phone-password primary login or new external gRPC requests
+
+## 2026-03-23 23:44:40 +09:00 Incremental Review
+
+- Scope: start the `AUTH-03` phone-password primary auth slice
+- Result: `LoginWithPhonePassword` is now available through proto + gRPC controller and reuses the existing risk, MFA, and account-selection orchestration
+- Status: passed `pnpm proto:gen`, `pnpm --filter @oes/common build`, and `pnpm --filter auth-service build`
+- Note: phone-number normalization is still not formally unified, so this slice currently depends on the existing stored identifier format
+
+## 2026-03-23 23:52:28 +09:00 Incremental Review
+
+- Scope: start the `AUTH-04` phone OTP primary auth slice
+- Result: added phone OTP challenge issuance and phone OTP login on the unified auth flow, reusing OTP persistence and existing downstream orchestration
+- Status: passed `pnpm proto:gen`, `cd src/common && pnpm exec tsc -b --force`, and `pnpm --filter auth-service build`
+- Note: production SMS delivery and formal phone normalization remain pending, so this slice is structurally complete but still operationally constrained
+
+## 2026-03-24 00:15:04 +09:00 Incremental Review
+
+- Scope: start the `AUTH-02` email OTP primary auth slice
+- Result: added email OTP challenge issuance and email OTP login on the unified auth flow, reusing OTP persistence and the downstream account-selection / phone-MFA branches
+- Status: passed `pnpm proto:gen`, `cd src/common && pnpm exec tsc -b --force`, and `pnpm --filter auth-service build`
+- Note: delivery currently stays on the development email stub, so this slice is structurally complete but not yet production-ready
+
+## 2026-03-24 00:28:22 +09:00 Incremental Review
+
+- Scope: consolidate identifier normalization across the active human-auth paths
+- Result: email/phone password login, email/phone OTP login, and login-method persistence now share a consistent normalization rule set with repository compatibility lookup for legacy stored identifiers
+- Status: passed `pnpm --filter auth-service build`
+- Note: compatibility lookup remains intentionally in place until the team decides whether to backfill stored identifiers

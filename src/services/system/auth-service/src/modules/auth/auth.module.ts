@@ -16,12 +16,15 @@ import { AuthAuditService } from 'src/application/services/auth-audit.service'
 import { LoginRiskThrottleService } from 'src/application/services/login-risk-throttle.service'
 import { EmailOtpMfaChallengeService } from 'src/application/services/mfa/email-otp-mfa-challenge.service'
 import { MfaChallengeVerificationService } from 'src/application/services/mfa/mfa-challenge-verification.service'
+import { PhoneOtpMfaChallengeService } from 'src/application/services/mfa/phone-otp-mfa-challenge.service'
+import { EmailOtpLoginService } from 'src/application/services/email-otp-login.service'
 import { OtpRiskThrottleService } from 'src/application/services/otp-risk-throttle.service'
+import { PhoneOtpLoginService } from 'src/application/services/phone-otp-login.service'
 import { SessionService } from 'src/application/services/session.service'
-import { MfaService } from 'src/application/services/mfa.service'
 import { AuthCommandHandlers } from 'src/application/commands/auth'
 import { AuthStrategyFactory } from 'src/domain/services/strategies/auth-strategies.factory'
 import { EmailPasswordStrategy } from 'src/domain/services/strategies/email-password.strategy'
+import { PhonePasswordStrategy } from 'src/domain/services/strategies/phone-password.strategy'
 import { PrismaModule } from 'src/infrastructure/prisma/prisma.module'
 import { PrismaUserRepository } from 'src/infrastructure/repositories/prisma/prisma.loginmethod.repository'
 import { PrismaMfaBindingRepository } from 'src/infrastructure/repositories/prisma/prisma.mfabinding.repository'
@@ -32,8 +35,8 @@ import { RedisUserSessionRepository } from 'src/infrastructure/repositories/redi
 import { AuthAuditListener } from 'src/infrastructure/listeners/auth-audit.listener'
 import { ExternalServicesModule } from 'src/infrastructure/modules/external-services.module'
 import { EmailService } from 'src/infrastructure/services/email.service'
-import { SmsService } from 'src/infrastructure/services/sms.service'
 import { BcryptHashingService } from 'src/infrastructure/services/hashing.service'
+import { SmsService } from 'src/infrastructure/services/sms.service'
 import { AuthGrpcController } from 'src/interfaces/grpc/auth.grpc.controller'
 
 @Module({
@@ -50,22 +53,29 @@ import { AuthGrpcController } from 'src/interfaces/grpc/auth.grpc.controller'
     ValidatingQueryBus,
     {
       provide: AuthStrategyFactory,
-      useFactory: (emailPasswordStrategy: EmailPasswordStrategy) => {
+      useFactory: (
+        emailPasswordStrategy: EmailPasswordStrategy,
+        phonePasswordStrategy: PhonePasswordStrategy
+      ) => {
         const factory = new AuthStrategyFactory()
         factory.register(emailPasswordStrategy)
+        factory.register(phonePasswordStrategy)
         return factory
       },
-      inject: [EmailPasswordStrategy]
+      inject: [EmailPasswordStrategy, PhonePasswordStrategy]
     },
     AuthAuditService,
     AuthAuditListener,
+    EmailOtpLoginService,
     EmailOtpMfaChallengeService,
     MfaChallengeVerificationService,
+    PhoneOtpMfaChallengeService,
     LoginRiskThrottleService,
     OtpRiskThrottleService,
+    PhoneOtpLoginService,
     SessionService,
-    MfaService,
     EmailPasswordStrategy,
+    PhonePasswordStrategy,
     EmailService,
     SmsService,
     ...AuthCommandHandlers

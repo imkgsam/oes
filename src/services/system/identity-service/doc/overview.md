@@ -1,6 +1,6 @@
 # Identity Service 概览
 
-更新时间：2026-03-23 15:20:00 +08:00
+更新时间：2026-03-24 11:08:00 +09:00
 
 ## 服务定位
 
@@ -62,9 +62,27 @@
 - 租户信息查询
 - 组织信息查询
 
+当前已提供：
+
+- `getUserByEmail`
+- `getUserByPhone`
+- `getUserById`
+- `getAccountsByUserId`
+- `getAccountById`
+- `getTenantById`
+- `getOrgTreeByTenantId`
+- `listAccountOrgMemberships`
+- `setAccountPrimaryOrg`
+- `addAccountOrgMembership`
+- `removeAccountOrgMembership`
+
 ## 当前阶段定位
 
-当前阶段优先做“身份查询支撑服务”，先支撑 `auth-service AUTH-05` 这类上游查询闭环，不先做完整管理后台。
+当前阶段已经完成身份查询基线和组织结构最小闭环。
+
+- `Phase 1` 查询基线已完成
+- `Phase 2` 组织结构分片已完成
+- 下一步建议进入联系方式资产分片
 
 ## 文档分工
 

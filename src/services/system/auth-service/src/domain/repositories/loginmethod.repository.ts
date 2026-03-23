@@ -42,9 +42,11 @@ export interface ILoginMethodRepository {
    *
    * 推荐使用此方法，配合领域实体：
    * ```typescript
-   * const loginMethod = LoginMethod.fromPrisma(prismaData)
-   * loginMethod.verify()
-   * await repo.save(loginMethod)
+   * const loginMethod = await repo.findById(id)
+   * if (loginMethod) {
+   *   loginMethod.verify()
+   *   await repo.save(loginMethod)
+   * }
    * ```
    *
    * @param loginMethod 登录方法实体

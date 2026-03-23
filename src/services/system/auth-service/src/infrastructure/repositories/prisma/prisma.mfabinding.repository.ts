@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { MfaBindingEntity } from 'src/domain/aggregates/mfabinding.aggregate'
 import { IMfaBindingRepository } from 'src/domain/repositories/mfaBinding.repository'
+import { MfaBindingMapper } from 'src/infrastructure/mappers/mfa-binding.mapper'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 import { MfaType } from '@oes/common/constants'
 
@@ -20,7 +21,7 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
       where: { id }
     })
     if (!found) return null
-    return MfaBindingEntity.fromPrisma(found)
+    return MfaBindingMapper.toDomain(found)
   }
 
   /**
@@ -34,7 +35,7 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
       where: { userId, type }
     })
     if (!found) return null
-    return MfaBindingEntity.fromPrisma(found)
+    return MfaBindingMapper.toDomain(found)
   }
 
   /**
@@ -46,7 +47,7 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
     const founds = await this.prismaService.mfaBinding.findMany({
       where: { userId }
     })
-    return founds.map((found) => MfaBindingEntity.fromPrisma(found))
+    return founds.map((found) => MfaBindingMapper.toDomain(found))
   }
 
   // ==================== 保存方法 ====================
@@ -64,31 +65,31 @@ export class PrismaMfaBindingRepository implements IMfaBindingRepository {
    * @returns Promise<MfaBindingEntity>
    */
   async save(binding: MfaBindingEntity): Promise<MfaBindingEntity> {
-    // 使用 upsert 来创建或更新
+    const data = MfaBindingMapper.toPersistence(binding)
     const updated = await this.prismaService.mfaBinding.upsert({
       where: { id: binding.getId() },
       update: {
-        userId: binding.getUserId(),
-        type: binding.getType(),
-        secret: binding.getSecret(),
-        enabled: binding.isEnabled(),
-        metadata: binding.getProps().metadata ? JSON.stringify(binding.getProps().metadata) : null,
-        deviceInfo: binding.getDeviceInfo() ? JSON.stringify(binding.getDeviceInfo()) : null,
-        updatedAt: new Date()
+        userId: data.userId,
+        type: data.type,
+        secret: data.secret,
+        enabled: data.enabled,
+        metadata: data.metadata,
+        deviceInfo: data.deviceInfo,
+        updatedAt: data.updatedAt
       },
       create: {
-        id: binding.getId(),
-        userId: binding.getUserId(),
-        type: binding.getType(),
-        secret: binding.getSecret(),
-        enabled: binding.isEnabled(),
-        metadata: binding.getProps().metadata ? JSON.stringify(binding.getProps().metadata) : null,
-        deviceInfo: binding.getDeviceInfo() ? JSON.stringify(binding.getDeviceInfo()) : null,
-        createdAt: new Date(),
-        updatedAt: new Date()
+        id: data.id,
+        userId: data.userId,
+        type: data.type,
+        secret: data.secret,
+        enabled: data.enabled,
+        metadata: data.metadata,
+        deviceInfo: data.deviceInfo,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
       }
     })
-    return MfaBindingEntity.fromPrisma(updated)
+    return MfaBindingMapper.toDomain(updated)
   }
 
   // ==================== 删除方法 ====================

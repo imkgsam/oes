@@ -1,6 +1,6 @@
 # Account Identity 设计
 
-更新时间：2026-03-23 18:15:00 +08:00
+更新时间：2026-03-24 11:08:00 +09:00
 
 ## 文档定位
 
@@ -48,5 +48,5 @@
 
 | 序号 | 任务编号 | 任务文档 | 描述 | 当前状态 | 最后一次全局审核时间 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | 2.1 | [idn-account-01-get-accounts-by-user-id.md](../tasks/idn-account-01-get-accounts-by-user-id.md) | 查询用户可用账户候选列表 | 已实现 | 2026-03-23 18:15 +08:00 | 当前以 `Tenant.name` 临时承接展示名 |
-| 2 | 2.2 | [idn-account-02-get-account-by-id.md](../tasks/idn-account-02-get-account-by-id.md) | 查询单个账户详情 | 已实现 | 2026-03-23 18:15 +08:00 | 支撑 `auth-service` 账户上下文校验 |
+| 1 | 2.1 | [idn-account-01-get-accounts-by-user-id.md](../tasks/idn-account-01-get-accounts-by-user-id.md) | 查询用户可用账户候选列表 | 已实现 | 2026-03-24 10:52 +09:00 | `displayName` 已正式回归 `UserAccount` |
+| 2 | 2.2 | [idn-account-02-get-account-by-id.md](../tasks/idn-account-02-get-account-by-id.md) | 查询单个账户详情 | 已实现 | 2026-03-24 10:52 +09:00 | 支撑 `auth-service` 账户上下文校验 |

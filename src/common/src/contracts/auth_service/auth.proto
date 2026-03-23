@@ -7,6 +7,11 @@ option java_package = "com.oes.auth.v1";
 
 service AuthService {
   rpc LoginWithEmailPassword(EmailPasswordLoginRequest) returns (LoginResponse);
+  rpc RequestEmailOtpLoginChallenge(EmailOtpChallengeRequest) returns (OtpChallengeResponse);
+  rpc LoginWithEmailOtp(EmailOtpLoginRequest) returns (LoginResponse);
+  rpc LoginWithPhonePassword(PhonePasswordLoginRequest) returns (LoginResponse);
+  rpc RequestPhoneOtpLoginChallenge(PhoneOtpChallengeRequest) returns (OtpChallengeResponse);
+  rpc LoginWithPhoneOtp(PhoneOtpLoginRequest) returns (LoginResponse);
   rpc SubmitMfaChallenge(SubmitMfaChallengeRequest) returns (LoginResponse);
   rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse);
   rpc SelectAccount(SelectAccountRequest) returns (SelectAccountResponse);
@@ -15,6 +20,35 @@ service AuthService {
 message EmailPasswordLoginRequest {
   string email = 1;
   string password = 2;
+}
+
+message EmailOtpChallengeRequest {
+  string email = 1;
+}
+
+message EmailOtpLoginRequest {
+  string email = 1;
+  string otp = 2;
+}
+
+message PhonePasswordLoginRequest {
+  string phone = 1;
+  string password = 2;
+}
+
+message PhoneOtpChallengeRequest {
+  string phone = 1;
+}
+
+message OtpChallengeResponse {
+  string challenge_id = 1;
+  string expires_at = 2;
+  string destination = 3;
+}
+
+message PhoneOtpLoginRequest {
+  string phone = 1;
+  string otp = 2;
 }
 
 enum LoginStatus {

@@ -1,6 +1,6 @@
 # MFA-05 手机 OTP MFA 任务
 
-更新时间：2026-03-22 16:40:00 +08:00
+更新时间：2026-03-23 23:35:50 +09:00
 
 ## 上游设计文档
 
@@ -14,7 +14,7 @@
 
 ## 当前状态
 
-- 未开始
+- 部分实现
 
 ## 最小闭环范围
 
@@ -44,4 +44,11 @@
 
 ## 阻塞项
 
-- 短信通道与限流尚未形成闭环
+- 当前仅接入“邮箱密码登录后触发手机 OTP MFA challenge”，尚未覆盖手机密码登录主认证链
+- 短信通道当前仍为开发/占位实现，生产短信能力未接通
+
+## 2026-03-23 Incremental Update
+
+- 已新增 `PhoneOtpMfaChallengeService`
+- `LoginWithEmailPassword` 现可在存在 `SMS_OTP` 绑定时返回 `MFA_REQUIRED`
+- `SubmitMfaChallenge` 复用了既有 challenge 提交流程，无需新增外部接口

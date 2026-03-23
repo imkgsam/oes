@@ -1,4 +1,5 @@
 import { OneTimeToken } from '../aggregates/otp.aggregate'
+import { OTP_USAGES } from 'src/common/constants'
 
 export interface IOtpRepository {
   // ==================== 查询方法 ====================
@@ -15,6 +16,14 @@ export interface IOtpRepository {
    * @returns Promise<OneTimeToken[]>
    */
   findAll(): Promise<OneTimeToken[]>
+
+  /**
+   * 根据标识符与 usage 查找 OTP
+   * @param identifier 标识符（邮箱、手机号等）
+   * @param usage OTP 使用场景
+   * @returns Promise<OneTimeToken | null>
+   */
+  findByIdentifierAndUsage(identifier: string, usage: OTP_USAGES): Promise<OneTimeToken | null>
 
   // ==================== 保存方法 ====================
 

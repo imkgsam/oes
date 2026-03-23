@@ -5,9 +5,15 @@ import { GrpcExceptionFilter, OtelExceptionFilter } from '@oes/common/filters'
 import {
   AuthServiceController,
   AuthServiceControllerMethods,
+  EmailOtpChallengeRequest,
   EmailPasswordLoginRequest,
+  EmailOtpLoginRequest,
   LoginStatus,
   LoginResponse,
+  OtpChallengeResponse,
+  PhoneOtpChallengeRequest,
+  PhoneOtpLoginRequest,
+  PhonePasswordLoginRequest,
   RefreshSessionRequest,
   RefreshSessionResponse,
   SelectAccountRequest,
@@ -16,7 +22,12 @@ import {
 } from '@oes/common/generated/auth_service'
 import {
   LoginWithEmailPasswordCommand,
+  LoginWithEmailOtpCommand,
+  LoginWithPhoneOtpCommand,
+  LoginWithPhonePasswordCommand,
   RefreshSessionCommand,
+  RequestEmailOtpLoginChallengeCommand,
+  RequestPhoneOtpLoginChallengeCommand,
   SelectAccountCommand,
   SubmitMfaChallengeCommand
 } from 'src/application/commands/auth'
@@ -83,6 +94,142 @@ export class AuthGrpcController implements AuthServiceController {
   async loginWithEmailPassword(request: EmailPasswordLoginRequest): Promise<LoginResponse> {
     const result = await this.commandBus.execute(
       new LoginWithEmailPasswordCommand(request.email ?? '', request.password ?? '')
+    )
+
+    if (result.nextStep === 'MFA_REQUIRED') {
+      return {
+        status: LoginStatus.LOGIN_STATUS_MFA_REQUIRED,
+        userId: result.userId,
+        challengeId: result.challengeId ?? '',
+        accessToken: '',
+        refreshToken: '',
+        expiresIn: '0',
+        accounts: []
+      }
+    }
+
+    if (result.nextStep === 'ACCOUNT_SELECTION_REQUIRED') {
+      return {
+        status: LoginStatus.LOGIN_STATUS_ACCOUNT_SELECTION_REQUIRED,
+        userId: result.userId,
+        challengeId: '',
+        accessToken: '',
+        refreshToken: '',
+        expiresIn: '0',
+        accounts: result.accounts.map((account) => ({
+          accountId: account.accountId,
+          tenantId: account.tenantId,
+          displayName: account.displayName ?? ''
+        }))
+      }
+    }
+
+    throw ExceptionFactory.application(AUTH_LOGIN_FLOW_RESULT_UNSUPPORTED)
+  }
+
+  async requestEmailOtpLoginChallenge(
+    request: EmailOtpChallengeRequest
+  ): Promise<OtpChallengeResponse> {
+    const result = await this.commandBus.execute(
+      new RequestEmailOtpLoginChallengeCommand(request.email ?? '')
+    )
+
+    return {
+      challengeId: result.challengeId,
+      expiresAt: result.expiresAt.toISOString(),
+      destination: result.destination
+    }
+  }
+
+  async loginWithEmailOtp(request: EmailOtpLoginRequest): Promise<LoginResponse> {
+    const result = await this.commandBus.execute(
+      new LoginWithEmailOtpCommand(request.email ?? '', request.otp ?? '')
+    )
+
+    if (result.nextStep === 'MFA_REQUIRED') {
+      return {
+        status: LoginStatus.LOGIN_STATUS_MFA_REQUIRED,
+        userId: result.userId,
+        challengeId: result.challengeId ?? '',
+        accessToken: '',
+        refreshToken: '',
+        expiresIn: '0',
+        accounts: []
+      }
+    }
+
+    if (result.nextStep === 'ACCOUNT_SELECTION_REQUIRED') {
+      return {
+        status: LoginStatus.LOGIN_STATUS_ACCOUNT_SELECTION_REQUIRED,
+        userId: result.userId,
+        challengeId: '',
+        accessToken: '',
+        refreshToken: '',
+        expiresIn: '0',
+        accounts: result.accounts.map((account) => ({
+          accountId: account.accountId,
+          tenantId: account.tenantId,
+          displayName: account.displayName ?? ''
+        }))
+      }
+    }
+
+    throw ExceptionFactory.application(AUTH_LOGIN_FLOW_RESULT_UNSUPPORTED)
+  }
+
+  async loginWithPhonePassword(request: PhonePasswordLoginRequest): Promise<LoginResponse> {
+    const result = await this.commandBus.execute(
+      new LoginWithPhonePasswordCommand(request.phone ?? '', request.password ?? '')
+    )
+
+    if (result.nextStep === 'MFA_REQUIRED') {
+      return {
+        status: LoginStatus.LOGIN_STATUS_MFA_REQUIRED,
+        userId: result.userId,
+        challengeId: result.challengeId ?? '',
+        accessToken: '',
+        refreshToken: '',
+        expiresIn: '0',
+        accounts: []
+      }
+    }
+
+    if (result.nextStep === 'ACCOUNT_SELECTION_REQUIRED') {
+      return {
+        status: LoginStatus.LOGIN_STATUS_ACCOUNT_SELECTION_REQUIRED,
+        userId: result.userId,
+        challengeId: '',
+        accessToken: '',
+        refreshToken: '',
+        expiresIn: '0',
+        accounts: result.accounts.map((account) => ({
+          accountId: account.accountId,
+          tenantId: account.tenantId,
+          displayName: account.displayName ?? ''
+        }))
+      }
+    }
+
+    throw ExceptionFactory.application(AUTH_LOGIN_FLOW_RESULT_UNSUPPORTED)
+  }
+
+  async requestPhoneOtpLoginChallenge(
+    request: PhoneOtpChallengeRequest
+  ): Promise<OtpChallengeResponse> {
+    const result = await this.commandBus.execute(
+      new RequestPhoneOtpLoginChallengeCommand(request.phone ?? '')
+    )
+
+    return {
+      challengeId: result.challengeId,
+      expiresAt: result.expiresAt.toISOString(),
+      destination: result.destination
+    }
+  }
+
+  async loginWithPhoneOtp(request: PhoneOtpLoginRequest): Promise<LoginResponse> {
+    const result = await this.commandBus.execute(
+      new LoginWithPhoneOtpCommand(request.phone ?? '', request.otp ?? '')
     )
 
     if (result.nextStep === 'MFA_REQUIRED') {

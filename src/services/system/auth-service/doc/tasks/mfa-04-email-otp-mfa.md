@@ -1,6 +1,6 @@
 # MFA-04 Email OTP MFA
 
-更新时间：2026-03-23 22:05:00 +08:00
+更新时间：2026-03-23 22:38:03 +09:00
 
 ## 上游设计文档
 
@@ -48,11 +48,11 @@
 
 ## 阻塞项
 
-- 当前仍复用 `MfaService.verifyMfaCode()` 完成验证码校验
-- `MfaService` 结构偏大，后续完成当前主线后应拆为更细的 CQRS 用例能力
+- 当前任务本身的活跃链路已不再依赖遗留 `MfaService`
+- 后续重点转为按场景补齐 `MFA-05` 与 MFA 管理能力，不再恢复聚合式 MFA facade
 ## 2026-03-23 Decomposition Update
 
 - The active MFA-04 login-path flow no longer depends directly on `MfaService`.
 - `LoginWithEmailPasswordHandler` now uses `EmailOtpMfaChallengeService`.
 - `SubmitMfaChallengeHandler` now uses `MfaChallengeVerificationService`.
-- `MfaService` remains only as a legacy holder for non-migrated MFA methods and is now marked `OUTDATED`.
+- The legacy `MfaService` has been removed from the codebase after the active flow migration was completed.

@@ -1,6 +1,6 @@
 # Auth Service 文档索引
 
-更新时间：2026-03-23 23:45:00 +08:00
+更新时间：2026-03-24 00:28:22 +09:00
 
 ## 文档定位
 
@@ -8,18 +8,22 @@
 
 ## 当前进度
 
-- 总体进度：约 45%
-- 工程基线与结构收敛：约 75%
-- 人类认证主线：约 55%
-- 安全增强能力：约 30%
+- 总体进度：约 68%
+- 工程基线与结构收敛：约 88%
+- 人类认证主线：约 82%
+- 安全增强能力：约 52%
 
 ## 已完成分片
 
 - `AUTH-01` 邮箱密码登录
+- `AUTH-02` 邮箱 OTP 登录
+- `AUTH-03` 手机密码登录
+- `AUTH-04` 手机 OTP 登录
 - `AUTH-05` 登录后账户选择
 - `SESS-01` 会话建立与 token 签发
 - `SESS-03` refresh token rotation
 - `MFA-04` 邮箱 OTP MFA challenge 与 challenge 提交
+- `MFA-05` 手机 OTP MFA challenge
 - `RISK-01` 登录失败限流与临时锁定
 - `RISK-02` OTP 发码频控与 OTP 失败次数持久化
 - `AUD-01` 认证审计事件
@@ -28,7 +32,10 @@
 
 - `auth-service` 已切回 `gRPC`
 - 活跃认证链路已按 `CQRS` 推进
-- `MfaService` 已开始拆分，活跃 `MFA-04` 链路不再直接依赖它
+- 遗留 `MfaService` 已移除，活跃 `MFA-04` 链路已收敛到聚焦服务
+- `MfaBinding` 已正式落到 Prisma schema 与数据库
+- 四个 P0 人类认证方式已全部接入统一主链
+- 邮箱/手机号标识符规范化规则已开始统一
 - session 族能力已达到当前结构边界，后续继续扩展前需先做 session 结构重构
 
 ## 推荐阅读顺序
@@ -85,6 +92,14 @@
 - [history/minimum-closure-global-review.history.md](./history/minimum-closure-global-review.history.md)
 - [history/session-token-structure-review.history.md](./history/session-token-structure-review.history.md)
 - [history/mfa-service-decomposition.history.md](./history/mfa-service-decomposition.history.md)
+- [history/mfa-05-phone-otp-challenge.history.md](./history/mfa-05-phone-otp-challenge.history.md)
+- [history/auth-02-email-otp-login.history.md](./history/auth-02-email-otp-login.history.md)
+- [history/auth-03-phone-password-login.history.md](./history/auth-03-phone-password-login.history.md)
+- [history/auth-04-phone-otp-login.history.md](./history/auth-04-phone-otp-login.history.md)
+- [history/auth-identifier-normalization.history.md](./history/auth-identifier-normalization.history.md)
+- [history/otp-persistence-hardening.history.md](./history/otp-persistence-hardening.history.md)
+- [history/loginmethod-mapper-alignment.history.md](./history/loginmethod-mapper-alignment.history.md)
+- [history/mfabinding-mapper-alignment.history.md](./history/mfabinding-mapper-alignment.history.md)
 
 ## 关联规范
 

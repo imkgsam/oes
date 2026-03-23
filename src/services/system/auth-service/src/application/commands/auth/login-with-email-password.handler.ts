@@ -10,6 +10,7 @@ import {
 import { AuthAuditService } from 'src/application/services/auth-audit.service'
 import { LoginRiskThrottleService } from 'src/application/services/login-risk-throttle.service'
 import { EmailOtpMfaChallengeService } from 'src/application/services/mfa/email-otp-mfa-challenge.service'
+import { PhoneOtpMfaChallengeService } from 'src/application/services/mfa/phone-otp-mfa-challenge.service'
 import { AUTH_NO_AVAILABLE_ACCOUNT } from 'src/common/constants/exception-enums'
 import { AuthStrategyFactory } from 'src/domain/services/strategies/auth-strategies.factory'
 import { LoginWithEmailPasswordCommand } from './login-with-email-password.command'
@@ -33,6 +34,7 @@ export class LoginWithEmailPasswordHandler
     private readonly authAuditService: AuthAuditService,
     private readonly loginRiskThrottleService: LoginRiskThrottleService,
     private readonly emailOtpMfaChallengeService: EmailOtpMfaChallengeService,
+    private readonly phoneOtpMfaChallengeService: PhoneOtpMfaChallengeService,
     @Inject(IDENTITY_SERVICE)
     private readonly identityService: IIdentityServicePort
   ) {}
@@ -64,6 +66,18 @@ export class LoginWithEmailPasswordHandler
     if (await this.emailOtpMfaChallengeService.hasActiveBinding(userId)) {
       const challenge = await this.emailOtpMfaChallengeService.createChallenge(userId)
       this.authAuditService.emitMfaChallengeCreated(userId, challenge.challengeId, 'EMAIL_OTP')
+      return {
+        userId,
+        method: LoginMethodEnum.EmailPassword,
+        nextStep: 'MFA_REQUIRED',
+        accounts: [],
+        challengeId: challenge.challengeId
+      }
+    }
+
+    if (await this.phoneOtpMfaChallengeService.hasActiveBinding(userId)) {
+      const challenge = await this.phoneOtpMfaChallengeService.createChallenge(userId)
+      this.authAuditService.emitMfaChallengeCreated(userId, challenge.challengeId, 'SMS_OTP')
       return {
         userId,
         method: LoginMethodEnum.EmailPassword,

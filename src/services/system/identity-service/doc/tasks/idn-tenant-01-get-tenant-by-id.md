@@ -1,6 +1,6 @@
 # 4.3.1 按租户 ID 查询租户任务
 
-更新时间：2026-03-23 15:20:00 +08:00
+更新时间：2026-03-23 19:42:00 +08:00
 
 ## 上游设计文档
 
@@ -17,7 +17,7 @@
 
 ## 当前状态
 
-- 未开始
+- 已实现
 
 ## 最小闭环范围
 
@@ -39,10 +39,19 @@
 - 可供账户上下文展示和后续聚合使用
 - build 通过
 
+## 本次实现结果
+
+- 新增 `GetTenantById` gRPC contract
+- 新增 `TenantSummaryEntity`
+- 新增 `GetTenantByIdQuery` 与 Handler
+- 新增 `TenantRepository` 与 Prisma 实现
+- gRPC controller 已接入 `getTenantById`
+- `identity-service` 服务内构建已通过
+
 ## 关联设计文档
 
 - [../design/tenant-identity.md](../design/tenant-identity.md)
 
 ## 阻塞项
 
-- `IDN-FOUNDATION-01` 未完成前无法进入正式实现
+- 当前无

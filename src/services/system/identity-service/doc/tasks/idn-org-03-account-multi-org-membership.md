@@ -1,6 +1,6 @@
 # 4.4.3 账户多组织归属任务
 
-更新时间：2026-03-23 15:20:00 +08:00
+更新时间：2026-03-24 10:52:00 +09:00
 
 ## 上游设计文档
 
@@ -17,11 +17,11 @@
 
 ## 当前状态
 
-- 未开始
+- 已实现
 
 ## 最小闭环范围
 
-- schema：增加账户组织归属关联表
+- schema：补齐账户组织归属关系语义
 - domain：主归属与附属归属规则
 - application：Command / Query + Handler
 - infra：Repository 实现
@@ -38,10 +38,19 @@
 - 可区分主组织和附属组织
 - build 通过
 
+## 本次实现结果
+
+- `UserAccountOrgMembership` 正式补齐 `relationType`
+- 新增 `AddAccountOrgMembership` 与 `RemoveAccountOrgMembership` gRPC 管理接口
+- 新增 `ListAccountOrgMemberships` gRPC 查询接口
+- 新增多组织归属 command / query 与 handler
+- 当前支持新增附属组织、移除附属组织、列出账户全部组织归属
+- 当前会阻止重复归属，并阻止直接删除主组织归属
+
 ## 关联设计文档
 
 - [../design/organization-structure.md](../design/organization-structure.md)
 
 ## 阻塞项
 
-- 依赖 `IDN-ORG-02`
+- 当前无

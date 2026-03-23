@@ -6,8 +6,12 @@ import {
   GetAccountByIdResponse,
   GetAccountsByUserIdRequest,
   GetAccountsByUserIdResponse,
+  GetUserByIdRequest,
+  GetUserByIdResponse,
   GetUserByEmailRequest,
   GetUserByEmailResponse,
+  GetUserByPhoneRequest,
+  GetUserByPhoneResponse,
   IdentityQueryServiceClient
 } from '@oes/common/generated/identity_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
@@ -38,11 +42,25 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   }
 
   async getUserById(userId: string): Promise<IdentityUserSummary | null> {
-    this.logger.warn(`Identity upstream does not expose getUserById yet: userId=${userId}`)
-    throw ExceptionFactory.application(AUTH_IDENTITY_UPSTREAM_UNAVAILABLE, {
-      method: 'getUserById',
-      upstream: 'identity-service'
-    })
+    try {
+      const response = await safeGrpcCall<GetUserByIdResponse>(
+        this.identityQueryService.getUserById({
+          userId
+        } as GetUserByIdRequest),
+        {
+          caller: 'auth-service',
+          method: 'IdentityQueryService.getUserById'
+        }
+      )
+
+      return this.mapUser(response)
+    } catch (error) {
+      this.logger.error(`Failed to get user by id: ${userId}`, error)
+      throw ExceptionFactory.application(AUTH_IDENTITY_UPSTREAM_UNAVAILABLE, {
+        method: 'getUserById',
+        upstream: 'identity-service'
+      })
+    }
   }
 
   async getUserByEmail(email: string): Promise<IdentityUserSummary | null> {
@@ -68,11 +86,25 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   }
 
   async getUserByPhone(phone: string): Promise<IdentityUserSummary | null> {
-    this.logger.warn(`Identity upstream does not expose getUserByPhone yet: phone=${phone}`)
-    throw ExceptionFactory.application(AUTH_IDENTITY_UPSTREAM_UNAVAILABLE, {
-      method: 'getUserByPhone',
-      upstream: 'identity-service'
-    })
+    try {
+      const response = await safeGrpcCall<GetUserByPhoneResponse>(
+        this.identityQueryService.getUserByPhone({
+          phone
+        } as GetUserByPhoneRequest),
+        {
+          caller: 'auth-service',
+          method: 'IdentityQueryService.getUserByPhone'
+        }
+      )
+
+      return this.mapUser(response)
+    } catch (error) {
+      this.logger.error(`Failed to get user by phone: ${phone}`, error)
+      throw ExceptionFactory.application(AUTH_IDENTITY_UPSTREAM_UNAVAILABLE, {
+        method: 'getUserByPhone',
+        upstream: 'identity-service'
+      })
+    }
   }
 
   async getAvailableAccountsByUserId(userId: string): Promise<AccountCandidateSummary[]> {
@@ -134,7 +166,9 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
     }
   }
 
-  private mapUser(response: GetUserByEmailResponse): IdentityUserSummary | null {
+  private mapUser(
+    response: GetUserByIdResponse | GetUserByEmailResponse | GetUserByPhoneResponse
+  ): IdentityUserSummary | null {
     const user = response.user
     if (!user?.id) {
       return null

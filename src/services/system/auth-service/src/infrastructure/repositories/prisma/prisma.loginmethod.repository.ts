@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common'
 import { LoginMethodType } from '@oes/common/constants'
 import { LoginMethod } from 'src/domain/aggregates/loginmethod.aggregate'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
+import { AuthIdentifierNormalizer } from 'src/domain/services/auth-identifier-normalizer'
+import { LoginMethodMapper } from 'src/infrastructure/mappers/login-method.mapper'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -20,12 +22,19 @@ export class PrismaUserRepository implements ILoginMethodRepository {
     type: LoginMethodType,
     identifier: string
   ): Promise<LoginMethod | null> {
+    const normalizedIdentifier = AuthIdentifierNormalizer.normalize(type, identifier)
     const found = await this.prismaService.loginMethod.findFirst({
-      where: { type: type, identifier, enabled: true, verified: true },
+      where: {
+        type: type,
+        identifier:
+          identifier === normalizedIdentifier ? identifier : { in: [identifier, normalizedIdentifier] },
+        enabled: true,
+        verified: true
+      },
       include: { credentials: true }
     })
     if (!found) return null
-    return LoginMethod.fromPrisma(found)
+    return LoginMethodMapper.toDomain(found)
   }
   /**
    * 根据 ID 查找登录方法
@@ -38,7 +47,7 @@ export class PrismaUserRepository implements ILoginMethodRepository {
       include: { credentials: true }
     })
     if (!found) return null
-    return LoginMethod.fromPrisma(found)
+    return LoginMethodMapper.toDomain(found)
   }
 
   /**
@@ -49,7 +58,7 @@ export class PrismaUserRepository implements ILoginMethodRepository {
     const founds = await this.prismaService.loginMethod.findMany({
       include: { credentials: true }
     })
-    return founds.map((found) => LoginMethod.fromPrisma(found))
+    return founds.map((found) => LoginMethodMapper.toDomain(found))
   }
 
   /**
@@ -62,12 +71,19 @@ export class PrismaUserRepository implements ILoginMethodRepository {
     type: string,
     identifier: string
   ): Promise<LoginMethod | null> {
+    const normalizedIdentifier = AuthIdentifierNormalizer.normalize(type as LoginMethodType, identifier)
     const found = await this.prismaService.loginMethod.findFirst({
-      where: { type: type as any, identifier, enabled: true, verified: true },
+      where: {
+        type: type as any,
+        identifier:
+          identifier === normalizedIdentifier ? identifier : { in: [identifier, normalizedIdentifier] },
+        enabled: true,
+        verified: true
+      },
       include: { credentials: true }
     })
     if (!found) return null
-    return LoginMethod.fromPrisma(found)
+    return LoginMethodMapper.toDomain(found)
   }
 
   /**
@@ -82,7 +98,7 @@ export class PrismaUserRepository implements ILoginMethodRepository {
       include: { credentials: true }
     })
     if (!found) return null
-    return LoginMethod.fromPrisma(found)
+    return LoginMethodMapper.toDomain(found)
   }
 
   // ==================== 保存方法 ====================
@@ -92,8 +108,8 @@ export class PrismaUserRepository implements ILoginMethodRepository {
    *
    * 推荐使用此方法，配合领域实体：
    * ```typescript
-   * const loginMethod = LoginMethod.fromPrisma(prismaData)
-   * loginMethod.verify()
+   * const loginMethod = await repo.findById(id)
+   * loginMethod?.verify()
    * await repo.save(loginMethod)
    * ```
    *
@@ -101,29 +117,33 @@ export class PrismaUserRepository implements ILoginMethodRepository {
    * @returns Promise<LoginMethod>
    */
   async save(loginMethod: LoginMethod): Promise<LoginMethod> {
-    // 使用 upsert 来创建或更新
+    const data = LoginMethodMapper.toPersistence(loginMethod)
+    const normalizedIdentifier = AuthIdentifierNormalizer.normalize(
+      data.type as LoginMethodType,
+      data.identifier
+    )
     const updated = await this.prismaService.loginMethod.upsert({
       where: { id: loginMethod.id },
       update: {
-        userId: loginMethod.userId,
-        type: loginMethod.type as any,
-        identifier: loginMethod.identifier,
-        verified: loginMethod.isVerified(),
-        enabled: loginMethod.isEnabled(),
-        updatedAt: new Date()
+        userId: data.userId,
+        type: data.type as any,
+        identifier: normalizedIdentifier,
+        verified: data.verified,
+        enabled: data.enabled,
+        updatedAt: data.updatedAt
       },
       create: {
-        id: loginMethod.id,
-        userId: loginMethod.userId,
-        type: loginMethod.type as any,
-        identifier: loginMethod.identifier,
-        verified: loginMethod.isVerified(),
-        enabled: loginMethod.isEnabled(),
-        createdAt: new Date(),
-        updatedAt: new Date()
+        id: data.id,
+        userId: data.userId,
+        type: data.type as any,
+        identifier: normalizedIdentifier,
+        verified: data.verified,
+        enabled: data.enabled,
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt
       },
       include: { credentials: true }
     })
-    return LoginMethod.fromPrisma(updated)
+    return LoginMethodMapper.toDomain(updated)
   }
 }

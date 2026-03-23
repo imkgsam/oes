@@ -10,6 +10,7 @@ import {
 import { AuthStrategyPort } from 'src/domain/ports/auth-strategy.port'
 import { HashingPort } from 'src/domain/ports/hashing.port'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
+import { AuthIdentifierNormalizer } from '../auth-identifier-normalizer'
 
 @Injectable()
 export class EmailPasswordStrategy implements AuthStrategyPort<EmailPasswordLoginRequestDto> {
@@ -25,9 +26,10 @@ export class EmailPasswordStrategy implements AuthStrategyPort<EmailPasswordLogi
   }
 
   async authenticate(dto: EmailPasswordLoginRequestDto): Promise<string> {
+    const normalizedEmail = AuthIdentifierNormalizer.normalize(LoginMethodType.EMAIL, dto.email)
     const loginMethod = await this.loginMethodRepo.findValidOneByTypeAndIdentifier(
       LoginMethodType.EMAIL,
-      dto.email
+      normalizedEmail
     )
 
     if (!loginMethod) {

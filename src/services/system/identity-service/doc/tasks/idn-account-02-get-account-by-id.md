@@ -1,6 +1,6 @@
 # 2.2 按账户 ID 查询账户
 
-更新时间：2026-03-23 18:15:00 +08:00
+更新时间：2026-03-24 10:18:00 +09:00
 
 ## 上游设计文档
 
@@ -48,7 +48,7 @@
 - 新增 `GetAccountByIdQuery` 与 `GetAccountByIdHandler`
 - `PrismaAccountRepository` 支持按账户 ID 查询
 - gRPC controller 已接入 `getAccountById`
-- 当前 `displayName` 继续使用 `Tenant.name` 作为临时承接展示名
+- `displayName` 已正式由 `UserAccount.displayName` 承接
 
 ## 关联设计文档
 

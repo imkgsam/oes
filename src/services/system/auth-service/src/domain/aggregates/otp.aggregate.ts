@@ -3,20 +3,6 @@ import { createBusinessException } from '@oes/common/exceptions'
 import { AUTH_OTP_EXPIRED, AUTH_OTP_INVALID, AUTH_OTP_REACH_LIMIT } from '../../common/constants/exception-enums'
 import { randomUUID } from 'crypto'
 
-type PrismaOtpRecord = {
-  id: string
-  usage: OTP_USAGES
-  identifier: string
-  hashedValue: string
-  consumed: boolean
-  attemptCount: number
-  maxAttempt: number
-  valid: boolean
-  expiredAt: Date
-  createdAt: Date
-  updatedAt: Date
-}
-
 export class OneTimeToken {
   constructor(
     private props: {
@@ -34,24 +20,6 @@ export class OneTimeToken {
       updatedAt: Date
     }
   ) {}
-
-  // 从 Prisma 实体创建 OneTimeToken 实例
-  static fromPrisma(prismaOneTimeToken: PrismaOtpRecord): OneTimeToken {
-    return new OneTimeToken({
-      id: prismaOneTimeToken.id,
-      type: OTP_TYPES.EMAIL,
-      usage: prismaOneTimeToken.usage as OTP_USAGES,
-      identifier: prismaOneTimeToken.identifier,
-      code: prismaOneTimeToken.hashedValue,
-      expiredAt: prismaOneTimeToken.expiredAt,
-      consumed: prismaOneTimeToken.consumed,
-      attemptCount: prismaOneTimeToken.attemptCount,
-      maxAttempt: prismaOneTimeToken.maxAttempt,
-      valid: prismaOneTimeToken.valid,
-      createdAt: prismaOneTimeToken.createdAt,
-      updatedAt: prismaOneTimeToken.updatedAt
-    })
-  }
 
   // 创建用于 MFA 验证的 OTP
   static createMfaOtp(params: {
@@ -201,6 +169,14 @@ export class OneTimeToken {
   // 获取标识符（用于识别用户）
   getIdentifier(): string {
     return this.props.identifier
+  }
+
+  getUsage(): OTP_USAGES {
+    return this.props.usage
+  }
+
+  getType(): OTP_TYPES {
+    return this.props.type
   }
 
   markConsumed() {

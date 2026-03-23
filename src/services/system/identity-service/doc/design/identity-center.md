@@ -1,6 +1,6 @@
 # Identity Service 身份主数据中心设计
 
-更新时间：2026-03-23 18:15:00 +08:00
+更新时间：2026-03-24 10:52:00 +09:00
 
 ## 文档定位
 
@@ -141,15 +141,15 @@
 | 序号 | 分类 | 任务编号 | 任务文档 | 描述 | 当前状态 | 最后一次全局审核时间 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | 服务基线 | 0.1 | [idn-foundation-01-grpc-cqrs-baseline.md](../tasks/idn-foundation-01-grpc-cqrs-baseline.md) | 建立 gRPC + CQRS 结构基线并标记 TCP 过时代码 | 已实现 | 2026-03-23 18:15 +08:00 | 结构基线已建立 |
-| 2 | Human Identity | 1.1 | [idn-user-01-get-user-by-email.md](../tasks/idn-user-01-get-user-by-email.md) | 提供按个人邮箱查询自然人身份 | 已实现 | 2026-03-23 18:15 +08:00 | 当前以 `User.email` 承接个人邮箱语义 |
-| 3 | Human Identity | 1.2 | [idn-user-02-get-user-by-phone.md](../tasks/idn-user-02-get-user-by-phone.md) | 提供按个人手机查询自然人身份 | 未开始 | 2026-03-23 18:15 +08:00 | 支撑后续手机登录链 |
-| 4 | Human Identity | 1.3 | [idn-user-03-get-user-by-id.md](../tasks/idn-user-03-get-user-by-id.md) | 提供按用户 ID 查询自然人身份 | 未开始 | 2026-03-23 18:15 +08:00 | 支撑上下游关联查询 |
-| 5 | Account Identity | 2.1 | [idn-account-01-get-accounts-by-user-id.md](../tasks/idn-account-01-get-accounts-by-user-id.md) | 查询用户可用账户候选列表 | 已实现 | 2026-03-23 18:15 +08:00 | 当前以 `Tenant.name` 临时承接展示名 |
-| 6 | Account Identity | 2.2 | [idn-account-02-get-account-by-id.md](../tasks/idn-account-02-get-account-by-id.md) | 查询单个账户详情 | 已实现 | 2026-03-23 18:15 +08:00 | 支撑 `auth-service` 账户上下文校验 |
-| 7 | Tenant Identity | 3.1 | [idn-tenant-01-get-tenant-by-id.md](../tasks/idn-tenant-01-get-tenant-by-id.md) | 查询租户最小信息 | 未开始 | 2026-03-23 18:15 +08:00 | 支撑账户上下文展示 |
-| 8 | Organization Structure | 4.1 | [idn-org-01-org-tree-query.md](../tasks/idn-org-01-org-tree-query.md) | 查询租户组织树 | 未开始 | 2026-03-23 18:15 +08:00 | 设计已确定，实现后置 |
-| 9 | Organization Structure | 4.2 | [idn-org-02-account-primary-org-binding.md](../tasks/idn-org-02-account-primary-org-binding.md) | 账户主组织绑定能力 | 未开始 | 2026-03-23 18:15 +08:00 | Phase 2 |
-| 10 | Organization Structure | 4.3 | [idn-org-03-account-multi-org-membership.md](../tasks/idn-org-03-account-multi-org-membership.md) | 账户多组织归属能力 | 未开始 | 2026-03-23 18:15 +08:00 | Phase 2 |
+| 2 | Human Identity | 1.1 | [idn-user-01-get-user-by-email.md](../tasks/idn-user-01-get-user-by-email.md) | 提供按个人邮箱查询自然人身份 | 已实现 | 2026-03-23 21:00 +08:00 | 当前以 `User.email` 承接个人邮箱语义 |
+| 3 | Human Identity | 1.2 | [idn-user-02-get-user-by-phone.md](../tasks/idn-user-02-get-user-by-phone.md) | 提供按个人手机查询自然人身份 | 已实现 | 2026-03-23 21:00 +08:00 | 支撑后续手机登录链 |
+| 4 | Human Identity | 1.3 | [idn-user-03-get-user-by-id.md](../tasks/idn-user-03-get-user-by-id.md) | 提供按用户 ID 查询自然人身份 | 已实现 | 2026-03-23 21:00 +08:00 | 支撑上下游关联查询 |
+| 5 | Account Identity | 2.1 | [idn-account-01-get-accounts-by-user-id.md](../tasks/idn-account-01-get-accounts-by-user-id.md) | 查询用户可用账户候选列表 | 已实现 | 2026-03-24 10:18 +09:00 | `displayName` 已正式回归 `UserAccount` |
+| 6 | Account Identity | 2.2 | [idn-account-02-get-account-by-id.md](../tasks/idn-account-02-get-account-by-id.md) | 查询单个账户详情 | 已实现 | 2026-03-24 10:18 +09:00 | 支撑 `auth-service` 账户上下文校验 |
+| 7 | Tenant Identity | 3.1 | [idn-tenant-01-get-tenant-by-id.md](../tasks/idn-tenant-01-get-tenant-by-id.md) | 查询租户最小信息 | 已实现 | 2026-03-23 21:00 +08:00 | 支撑账户上下文展示 |
+| 8 | Organization Structure | 4.1 | [idn-org-01-org-tree-query.md](../tasks/idn-org-01-org-tree-query.md) | 查询租户组织树 | 已实现 | 2026-03-23 21:00 +08:00 | 组织树查询已落地 |
+| 9 | Organization Structure | 4.2 | [idn-org-02-account-primary-org-binding.md](../tasks/idn-org-02-account-primary-org-binding.md) | 账户主组织绑定能力 | 已实现 | 2026-03-23 21:00 +08:00 | schema 已按 membership 方向落地 |
+| 10 | Organization Structure | 4.3 | [idn-org-03-account-multi-org-membership.md](../tasks/idn-org-03-account-multi-org-membership.md) | 账户多组织归属能力 | 已实现 | 2026-03-24 10:52 +09:00 | membership 增删查已落地 |
 | 11 | Contact Asset | 5.1 | [idn-contact-01-account-work-email-asset.md](../tasks/idn-contact-01-account-work-email-asset.md) | 企业邮箱资产绑定 | 未开始 | 2026-03-23 18:15 +08:00 | 先在本服务内建子域 |
 | 12 | Contact Asset | 5.2 | [idn-contact-02-account-work-phone-asset.md](../tasks/idn-contact-02-account-work-phone-asset.md) | 企业手机资产绑定 | 未开始 | 2026-03-23 18:15 +08:00 | 先在本服务内建子域 |
 | 13 | Machine Identity | 6.1 | [idn-machine-01-service-account-model.md](../tasks/idn-machine-01-service-account-model.md) | 机器身份主体模型 | 未开始 | 2026-03-23 18:15 +08:00 | Phase 3 |

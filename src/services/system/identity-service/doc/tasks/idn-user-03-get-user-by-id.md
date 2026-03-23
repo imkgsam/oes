@@ -1,6 +1,6 @@
 # 4.1.3 按用户 ID 查询用户任务
 
-更新时间：2026-03-23 15:20:00 +08:00
+更新时间：2026-03-23 19:05:00 +08:00
 
 ## 上游设计文档
 
@@ -17,7 +17,7 @@
 
 ## 当前状态
 
-- 未开始
+- 已实现
 
 ## 最小闭环范围
 
@@ -39,10 +39,18 @@
 - 查询结果可供上游服务关联使用
 - build 通过
 
+## 本次实现结果
+
+- 新增 `GetUserById` gRPC contract
+- 新增 `GetUserByIdQuery` 与 Handler
+- `UserRepository` 与 Prisma 实现支持按用户 ID 查询
+- gRPC controller 已接入 `getUserById`
+- `auth-service` adaptor 已接入上游调用
+
 ## 关联设计文档
 
 - [../design/human-identity.md](../design/human-identity.md)
 
 ## 阻塞项
 
-- `IDN-FOUNDATION-01` 未完成前无法进入正式实现
+- 当前无

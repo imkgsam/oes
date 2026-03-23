@@ -16,6 +16,8 @@
     "start": "node dist/main.js",
   
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
+    "prisma:migrate:dev": "npx prisma migrate dev --schema=./prisma/schema.prisma",
+    "prisma:migrate:deploy": "npx prisma migrate deploy --schema=./prisma/schema.prisma",
     "prisma:push": "npx prisma db push",
 
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",

@@ -8,11 +8,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     return this.oTP
   }
 
-  // Temporary compatibility alias: schema does not currently define MfaBinding.
-  get mfaBinding(): any {
-    throw new Error('MfaBinding Prisma model is not available in current schema.')
-  }
-
   async onModuleInit() {
     await this.$connect()
   }

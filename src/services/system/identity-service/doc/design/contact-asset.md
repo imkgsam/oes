@@ -1,6 +1,6 @@
 # Contact Asset 设计
 
-更新时间：2026-03-23 15:20:00 +08:00
+更新时间：2026-03-24 11:08:00 +09:00
 
 ## 文档定位
 
@@ -41,8 +41,9 @@
 
 ## 5. 当前阶段取舍
 
-- 第一阶段只确定模型和文档
-- 实现后置到 Phase 2
+- 当前已完成组织结构分片最小闭环
+- 联系方式资产是当前建议优先推进的下一分片
+- 机器身份仍后置到 Phase 3
 
 ## 6. 关联任务完成情况
 
@@ -50,5 +51,5 @@
 
 | 序号 | 任务编号 | 任务文档                                                                                       | 描述             | 当前状态 | 最后一次全局审核时间 | 备注             |
 | ---- | -------- | ---------------------------------------------------------------------------------------------- | ---------------- | -------- | -------------------- | ---------------- |
-| 1    | 5.1      | [idn-contact-01-account-work-email-asset.md](../tasks/idn-contact-01-account-work-email-asset.md) | 企业邮箱资产绑定 | 未开始   | 2026-03-23           | 先作为本服务子域 |
-| 2    | 5.2      | [idn-contact-02-account-work-phone-asset.md](../tasks/idn-contact-02-account-work-phone-asset.md) | 企业手机资产绑定 | 未开始   | 2026-03-23           | 先作为本服务子域 |
+| 1    | 5.1      | [idn-contact-01-account-work-email-asset.md](../tasks/idn-contact-01-account-work-email-asset.md) | 企业邮箱资产绑定 | 未开始   | 2026-03-24 10:52 +09:00 | 当前建议优先推进 |
+| 2    | 5.2      | [idn-contact-02-account-work-phone-asset.md](../tasks/idn-contact-02-account-work-phone-asset.md) | 企业手机资产绑定 | 未开始   | 2026-03-24 10:52 +09:00 | 紧随邮箱资产之后 |

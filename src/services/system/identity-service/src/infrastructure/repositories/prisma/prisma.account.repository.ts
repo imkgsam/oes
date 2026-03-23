@@ -3,7 +3,10 @@ import { AccountRepository } from '../../../domain/repositories/account.reposito
 import { AccountCandidateEntity } from '../../../domain/entities/account-candidate.entity'
 import { AccountSummaryEntity } from '../../../domain/entities/account-summary.entity'
 import { PrismaService } from '../../prisma/prisma.service'
-import { PrismaAccountMapper } from '../../mappers/prisma-account.mapper'
+import {
+  PrismaAccountCandidateMapper,
+  PrismaAccountSummaryMapper
+} from '../../mappers/prisma-account.mapper'
 
 @Injectable()
 export class PrismaAccountRepository implements AccountRepository {
@@ -18,10 +21,14 @@ export class PrismaAccountRepository implements AccountRepository {
           isActive: true
         }
       },
-      include: {
+      select: {
+        id: true,
+        userId: true,
+        tenantId: true,
+        displayName: true,
+        isEnable: true,
         Tenant: {
           select: {
-            name: true,
             isActive: true
           }
         }
@@ -31,7 +38,7 @@ export class PrismaAccountRepository implements AccountRepository {
       }
     })
 
-    return records.map((record) => PrismaAccountMapper.toEntity(record))
+    return records.map((record) => PrismaAccountCandidateMapper.toDomain(record))
   }
 
   async findById(accountId: string): Promise<AccountSummaryEntity | null> {
@@ -39,10 +46,14 @@ export class PrismaAccountRepository implements AccountRepository {
       where: {
         id: accountId
       },
-      include: {
+      select: {
+        id: true,
+        userId: true,
+        tenantId: true,
+        displayName: true,
+        isEnable: true,
         Tenant: {
           select: {
-            name: true,
             isActive: true
           }
         }
@@ -53,6 +64,6 @@ export class PrismaAccountRepository implements AccountRepository {
       return null
     }
 
-    return PrismaAccountMapper.toSummaryEntity(record)
+    return PrismaAccountSummaryMapper.toDomain(record)
   }
 }

@@ -7,8 +7,27 @@ option java_package = "com.oes.identity.v1";
 
 service IdentityQueryService {
   rpc GetAccountById(GetAccountByIdRequest) returns (GetAccountByIdResponse);
+  rpc ListAccountOrgMemberships(ListAccountOrgMembershipsRequest) returns (ListAccountOrgMembershipsResponse);
+  rpc GetOrgTreeByTenantId(GetOrgTreeByTenantIdRequest) returns (GetOrgTreeByTenantIdResponse);
+  rpc GetTenantById(GetTenantByIdRequest) returns (GetTenantByIdResponse);
+  rpc GetUserById(GetUserByIdRequest) returns (GetUserByIdResponse);
   rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserByEmailResponse);
+  rpc GetUserByPhone(GetUserByPhoneRequest) returns (GetUserByPhoneResponse);
   rpc GetAccountsByUserId(GetAccountsByUserIdRequest) returns (GetAccountsByUserIdResponse);
+}
+
+service IdentityManagementService {
+  rpc AddAccountOrgMembership(AddAccountOrgMembershipRequest) returns (AccountOrgMembershipResponse);
+  rpc RemoveAccountOrgMembership(RemoveAccountOrgMembershipRequest) returns (AccountOrgMembershipResponse);
+  rpc SetAccountPrimaryOrg(SetAccountPrimaryOrgRequest) returns (SetAccountPrimaryOrgResponse);
+}
+
+message GetUserByIdRequest {
+  string user_id = 1;
+}
+
+message GetUserByIdResponse {
+  UserSummary user = 1;
 }
 
 message GetUserByEmailRequest {
@@ -25,6 +44,89 @@ message UserSummary {
 
 message GetUserByEmailResponse {
   UserSummary user = 1;
+}
+
+message GetUserByPhoneRequest {
+  string phone = 1;
+}
+
+message GetUserByPhoneResponse {
+  UserSummary user = 1;
+}
+
+message GetTenantByIdRequest {
+  string tenant_id = 1;
+}
+
+message TenantSummary {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  bool is_active = 4;
+}
+
+message GetTenantByIdResponse {
+  TenantSummary tenant = 1;
+}
+
+message GetOrgTreeByTenantIdRequest {
+  string tenant_id = 1;
+}
+
+message OrgNode {
+  string id = 1;
+  string tenant_id = 2;
+  string parent_id = 3;
+  string name = 4;
+  string code = 5;
+  string type = 6;
+  int32 sort_order = 7;
+  repeated OrgNode children = 8;
+}
+
+message GetOrgTreeByTenantIdResponse {
+  repeated OrgNode roots = 1;
+}
+
+message AccountOrgMembership {
+  string id = 1;
+  string account_id = 2;
+  string org_id = 3;
+  string org_name = 4;
+  string org_type = 5;
+  string relation_type = 6;
+  bool is_primary = 7;
+}
+
+message AccountOrgMembershipResponse {
+  AccountOrgMembership membership = 1;
+}
+
+message AddAccountOrgMembershipRequest {
+  string account_id = 1;
+  string org_id = 2;
+}
+
+message RemoveAccountOrgMembershipRequest {
+  string account_id = 1;
+  string org_id = 2;
+}
+
+message SetAccountPrimaryOrgRequest {
+  string account_id = 1;
+  string org_id = 2;
+}
+
+message SetAccountPrimaryOrgResponse {
+  AccountOrgMembership membership = 1;
+}
+
+message ListAccountOrgMembershipsRequest {
+  string account_id = 1;
+}
+
+message ListAccountOrgMembershipsResponse {
+  repeated AccountOrgMembership memberships = 1;
 }
 
 message GetAccountsByUserIdRequest {

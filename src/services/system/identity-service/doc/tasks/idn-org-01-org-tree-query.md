@@ -1,6 +1,6 @@
 # 4.4.1 查询租户组织树任务
 
-更新时间：2026-03-23 15:20:00 +08:00
+更新时间：2026-03-23 20:18:00 +08:00
 
 ## 上游设计文档
 
@@ -17,7 +17,7 @@
 
 ## 当前状态
 
-- 未开始
+- 已实现
 
 ## 最小闭环范围
 
@@ -40,10 +40,19 @@
 - 支持子公司、部门、小组这类层级
 - build 通过
 
+## 本次实现结果
+
+- 新增 `GetOrgTreeByTenantId` gRPC contract
+- 新增 `OrgNodeEntity`
+- 新增 `OrgRepository`、`GetOrgTreeByTenantIdQuery` 与 Handler
+- 新增 Prisma mapper 与 repository 实现
+- gRPC controller 已接入 `getOrgTreeByTenantId`
+- 当前按 `order asc, createdAt asc` 构造稳定树结构
+
 ## 关联设计文档
 
 - [../design/organization-structure.md](../design/organization-structure.md)
 
 ## 阻塞项
 
-- Phase 2 任务，当前不优先开发
+- 当前无

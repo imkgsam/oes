@@ -18,7 +18,11 @@ export class AuthAuditService {
     )
   }
 
-  emitMfaChallengeCreated(userId: string, challengeId: string, channel: 'EMAIL_OTP'): void {
+  emitMfaChallengeCreated(
+    userId: string,
+    challengeId: string,
+    channel: 'EMAIL_OTP' | 'SMS_OTP'
+  ): void {
     this.emit(
       new AuthAuditEvent('MFA_CHALLENGE_CREATED', {
         userId,

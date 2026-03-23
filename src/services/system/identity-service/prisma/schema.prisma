@@ -34,6 +34,7 @@ model Org {
   parent    Org?     @relation("OrgToParent", fields: [parentId], references: [id])
   children  Org[]    @relation("OrgToParent") // 子组织结构
   tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  accountMemberships UserAccountOrgMembership[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   createdBy String // 创建者：指向identity-service 中的 useraccount.id
@@ -66,8 +67,10 @@ model UserAccount {
   id        String   @id @default(uuid())
   tenantId  String
   userId    String
+  displayName String?
   isEnable  Boolean  @default(true)
   avatarUrl String?
+  orgMemberships UserAccountOrgMembership[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -76,6 +79,27 @@ model UserAccount {
 
   @@unique([userId, tenantId])
   @@index([tenantId])
+}
+
+model UserAccountOrgMembership {
+  id        String      @id @default(uuid())
+  accountId String
+  orgId     String
+  relationType AccountOrgRelationType
+  isPrimary Boolean     @default(false)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  account   UserAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  org       Org         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([accountId, orgId])
+  @@index([orgId])
+  @@index([accountId, isPrimary])
+}
+
+enum AccountOrgRelationType {
+  PRIMARY
+  SECONDARY
 }
 
 //服务账号

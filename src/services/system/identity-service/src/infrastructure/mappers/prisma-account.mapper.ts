@@ -5,29 +5,31 @@ type UserAccountWithTenant = {
   id: string
   userId: string
   tenantId: string
+  displayName: string | null
   isEnable: boolean
   Tenant: {
-    name: string
     isActive: boolean
   }
 }
 
-export class PrismaAccountMapper {
-  static toEntity(record: UserAccountWithTenant): AccountCandidateEntity {
+export class PrismaAccountCandidateMapper {
+  static toDomain(record: UserAccountWithTenant): AccountCandidateEntity {
     return new AccountCandidateEntity(
       record.id,
       record.tenantId,
-      record.Tenant?.name ?? null,
+      record.displayName ?? null,
       record.isEnable && record.Tenant?.isActive !== false
     )
   }
+}
 
-  static toSummaryEntity(record: UserAccountWithTenant): AccountSummaryEntity {
+export class PrismaAccountSummaryMapper {
+  static toDomain(record: UserAccountWithTenant): AccountSummaryEntity {
     return new AccountSummaryEntity(
       record.id,
       record.userId,
       record.tenantId,
-      record.Tenant?.name ?? null,
+      record.displayName ?? null,
       record.isEnable && record.Tenant?.isActive !== false
     )
   }

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common'
+import { OTP_USAGES } from 'src/common/constants'
 import { OneTimeToken } from 'src/domain/aggregates/otp.aggregate'
 import { IOtpRepository } from 'src/domain/repositories/otp.repository'
+import { OtpMapper } from 'src/infrastructure/mappers/otp.mapper'
 import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
 
 @Injectable()
@@ -19,7 +21,7 @@ export class PrismaOtpRepository implements IOtpRepository {
       where: { id }
     })
     if (!found) return null
-    return OneTimeToken.fromPrisma(found)
+    return OtpMapper.toDomain(found)
   }
 
   /**
@@ -28,7 +30,23 @@ export class PrismaOtpRepository implements IOtpRepository {
    */
   async findAll(): Promise<OneTimeToken[]> {
     const founds = await this.prismaService.oneTimeToken.findMany()
-    return founds.map((found) => OneTimeToken.fromPrisma(found))
+    return founds.map((found) => OtpMapper.toDomain(found))
+  }
+
+  async findByIdentifierAndUsage(
+    identifier: string,
+    usage: OTP_USAGES
+  ): Promise<OneTimeToken | null> {
+    const found = await this.prismaService.oneTimeToken.findUnique({
+      where: {
+        identifier_usage: {
+          identifier,
+          usage
+        }
+      }
+    })
+    if (!found) return null
+    return OtpMapper.toDomain(found)
   }
 
   // ==================== 保存方法 ====================
@@ -46,38 +64,38 @@ export class PrismaOtpRepository implements IOtpRepository {
    * @returns Promise<OneTimeToken>
    */
   async save(otp: OneTimeToken): Promise<OneTimeToken> {
+    const data = OtpMapper.toPersistence(otp)
     const props = otp.getProps()
-    // 使用 upsert 来创建或更新
+    const existing = await this.findByIdentifierAndUsage(props.identifier, props.usage)
+
+    if (existing && existing.getProps().id !== props.id) {
+      await this.prismaService.oneTimeToken.delete({
+        where: {
+          identifier_usage: {
+            identifier: props.identifier,
+            usage: props.usage
+          }
+        }
+      })
+    }
+
     const updated = await this.prismaService.oneTimeToken.upsert({
       where: { id: props.id },
       update: {
-        type: props.type,
-        usage: props.usage,
-        identifier: props.identifier,
-        code: props.code,
-        expiredAt: props.expiredAt,
-        consumed: props.consumed,
-        attemptCount: props.attemptCount,
-        maxAttempt: props.maxAttempt,
-        valid: props.valid,
-        updatedAt: new Date()
+        usage: data.usage,
+        identifier: data.identifier,
+        hashedValue: data.hashedValue,
+        lastSentAt: data.lastSentAt,
+        expiredAt: data.expiredAt,
+        consumed: data.consumed,
+        attemptCount: data.attemptCount,
+        maxAttempt: data.maxAttempt,
+        valid: data.valid,
+        updatedAt: data.updatedAt
       },
-      create: {
-        id: props.id,
-        type: props.type,
-        usage: props.usage,
-        identifier: props.identifier,
-        code: props.code,
-        expiredAt: props.expiredAt,
-        consumed: props.consumed,
-        attemptCount: props.attemptCount,
-        maxAttempt: props.maxAttempt,
-        valid: props.valid,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }
+      create: data
     })
-    return OneTimeToken.fromPrisma(updated)
+    return OtpMapper.toDomain(updated)
   }
 
   // ==================== 业务操作方法 ====================
@@ -90,7 +108,11 @@ export class PrismaOtpRepository implements IOtpRepository {
   async markUsed(id: string): Promise<void> {
     await this.prismaService.oneTimeToken.update({
       where: { id },
-      data: { consumed: true }
+      data: {
+        consumed: true,
+        valid: false,
+        updatedAt: new Date()
+      }
     })
   }
 }

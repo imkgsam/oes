@@ -102,26 +102,26 @@ model UserSession {
   @@index([userId, revoked])
 }
 
-// // 推迟实现： 多重因素认证。 user级
-// model MfaBinding {
-//   id         String   @id @default(uuid())
-//   userId     String //关联identity-service中的user
-//   type       MfaType
-//   secret     String
-//   enabled    Boolean  @default(true)
-//   metadata   String?
-//   deviceInfo String?
-//   createdAt  DateTime @default(now())
-//   updatedAt  DateTime @updatedAt
-//   // 每个账号每种类型只能有一个绑定
-//   @@unique([userId, type])
-// }
-// enum MfaType {
-//   TOTP
-//   EMAIL_OTP
-//   SMS_OTP
-//   BACKUP_CODE
-//   PUSH_NOTIFICATION
-//   HARDWARE_TOKEN
-//   BIOMETRIC
-// }
+model MfaBinding {
+  id         String   @id @default(uuid())
+  userId     String //关联identity-service中的user
+  type       MfaType
+  secret     String
+  enabled    Boolean  @default(true)
+  metadata   String?
+  deviceInfo String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([userId, type])
+}
+
+enum MfaType {
+  TOTP
+  EMAIL_OTP
+  SMS_OTP
+  BACKUP_CODE
+  PUSH_NOTIFICATION
+  HARDWARE_TOKEN
+  BIOMETRIC
+}

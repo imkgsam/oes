@@ -1,7 +1,3 @@
-import {
-  LoginMethod as PrismaLoginMethod,
-  Credential as PrismaCredential
-} from '../../../prisma/generated/prisma'
 import { LoginMethodType } from '@oes/common/constants'
 import { Credential } from '../entities/credential.entity'
 
@@ -19,24 +15,6 @@ export class LoginMethod {
     credentials?: Credential[]
   ) {
     if (credentials) this.credentials = credentials
-  }
-
-  static fromPrisma(
-    prismaLoginMethod: PrismaLoginMethod & { credentials?: PrismaCredential[] }
-  ): LoginMethod {
-    const credentialEntities =
-      prismaLoginMethod.credentials?.map((c) => Credential.fromPrisma(c)) ?? []
-    return new LoginMethod(
-      prismaLoginMethod.id,
-      prismaLoginMethod.userId,
-      prismaLoginMethod.type as LoginMethodType,
-      prismaLoginMethod.identifier,
-      prismaLoginMethod.verified,
-      prismaLoginMethod.enabled,
-      prismaLoginMethod.createdAt,
-      prismaLoginMethod.updatedAt,
-      credentialEntities
-    )
   }
 
   enable() {
