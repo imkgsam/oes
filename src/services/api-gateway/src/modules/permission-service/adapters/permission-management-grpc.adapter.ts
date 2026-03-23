@@ -14,9 +14,15 @@ import {
   GetRoleByIdRequest,
   ListRolesResponse,
   ListRoleInstancesRequest,
+  PagedPermissionsResponse,
+  PagedRolesResponse,
   RoleResponse,
   PERMISSION_MANAGEMENT_SERVICE_NAME
 } from '@oes/common/generated/permission_service'
+import {
+  DownstreamGrpcMetadataFactory,
+  DownstreamRequestSource
+} from '../../../common/grpc/downstream-grpc-metadata.factory'
 
 const CALLER = 'api-gateway'
 
@@ -26,7 +32,8 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
 
   constructor(
     @InjectGrpcClient('permission-service')
-    private readonly client: ClientGrpc
+    private readonly client: ClientGrpc,
+    private readonly metadataFactory: DownstreamGrpcMetadataFactory
   ) {}
 
   onModuleInit() {
@@ -37,35 +44,57 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
 
   // Permission methods
 
-  async createPermission(req: CreatePermissionRequest): Promise<PermissionResponse> {
-    return safeGrpcCall(this.svc.createPermission(req), this.opts('createPermission'))
+  async createPermission(
+    req: CreatePermissionRequest,
+    source: DownstreamRequestSource
+  ): Promise<PermissionResponse> {
+    return this.call('createPermission', () =>
+      this.svc.createPermission(req, this.metadataFactory.createManagementMetadata(source))
+    )
   }
 
-  async deletePermission(req: DeletePermissionRequest): Promise<void> {
-    await safeGrpcCall(this.svc.deletePermission(req), this.opts('deletePermission'))
+  async deletePermission(
+    req: DeletePermissionRequest,
+    source: DownstreamRequestSource
+  ): Promise<void> {
+    await this.call('deletePermission', () =>
+      this.svc.deletePermission(req, this.metadataFactory.createManagementMetadata(source))
+    )
   }
 
-  async getPermissionByCode(req: GetPermissionByCodeRequest): Promise<PermissionResponse> {
-    return safeGrpcCall(this.svc.getPermissionByCode(req), this.opts('getPermissionByCode'))
+  async getPermissionByCode(
+    req: GetPermissionByCodeRequest,
+    source: DownstreamRequestSource
+  ): Promise<PermissionResponse> {
+    return this.call('getPermissionByCode', () =>
+      this.svc.getPermissionByCode(req, this.metadataFactory.createManagementMetadata(source))
+    )
   }
 
-  async listPermissions(): Promise<ListPermissionsResponse> {
-    const result = await safeGrpcCall(
-      this.svc.listPermissionsPaged({ page: 1, pageSize: 1000 }),
-      this.opts('listPermissionsPaged')
+  async listPermissions(source: DownstreamRequestSource): Promise<ListPermissionsResponse> {
+    const result = await this.call<PagedPermissionsResponse>('listPermissionsPaged', () =>
+      this.svc.listPermissionsPaged(
+        { page: 1, pageSize: 1000 },
+        this.metadataFactory.createManagementMetadata(source)
+      )
     )
 
     return { permissions: result.permissions }
   }
 
-  async listPermissionsByModule(req: { module: string }): Promise<ListPermissionsResponse> {
-    const result = await safeGrpcCall(
-      this.svc.listPermissionsPaged({
-        page: 1,
-        pageSize: 1000,
-        module: req.module
-      } as ListPermissionsPagedRequest),
-      this.opts('listPermissionsPaged')
+  async listPermissionsByModule(
+    req: { module: string },
+    source: DownstreamRequestSource
+  ): Promise<ListPermissionsResponse> {
+    const result = await this.call<PagedPermissionsResponse>('listPermissionsPaged', () =>
+      this.svc.listPermissionsPaged(
+        {
+          page: 1,
+          pageSize: 1000,
+          module: req.module
+        } as ListPermissionsPagedRequest,
+        this.metadataFactory.createManagementMetadata(source)
+      )
     )
 
     return { permissions: result.permissions }
@@ -73,21 +102,34 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
 
   // Role methods
 
-  async deleteRole(req: DeleteRoleRequest): Promise<void> {
-    await safeGrpcCall(this.svc.deleteRole(req), this.opts('deleteRole'))
+  async deleteRole(req: DeleteRoleRequest, source: DownstreamRequestSource): Promise<void> {
+    await this.call('deleteRole', () =>
+      this.svc.deleteRole(req, this.metadataFactory.createManagementMetadata(source))
+    )
   }
 
-  async getRoleById(req: GetRoleByIdRequest): Promise<RoleResponse> {
-    return safeGrpcCall(this.svc.getRoleById(req), this.opts('getRoleById'))
+  async getRoleById(
+    req: GetRoleByIdRequest,
+    source: DownstreamRequestSource
+  ): Promise<RoleResponse> {
+    return this.call('getRoleById', () =>
+      this.svc.getRoleById(req, this.metadataFactory.createManagementMetadata(source))
+    )
   }
 
-  async listRoles(): Promise<ListRolesResponse> {
-    const result = await safeGrpcCall(
-      this.svc.listRoleInstances({ page: 1, pageSize: 1000 } as ListRoleInstancesRequest),
-      this.opts('listRoleInstances')
+  async listRoles(source: DownstreamRequestSource): Promise<ListRolesResponse> {
+    const result = await this.call<PagedRolesResponse>('listRoleInstances', () =>
+      this.svc.listRoleInstances(
+        { page: 1, pageSize: 1000 } as ListRoleInstancesRequest,
+        this.metadataFactory.createManagementMetadata(source)
+      )
     )
 
     return { roles: result.roles }
+  }
+
+  private call<T>(method: string, factory: () => any): Promise<T> {
+    return safeGrpcCall(factory(), this.opts(method))
   }
 
   private opts(method: string): SafeGrpcCallOptions {

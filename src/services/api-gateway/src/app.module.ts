@@ -13,7 +13,7 @@ import { gatewayConfig } from './config/gateway.config'
 import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
 // import { AuthServiceProxyModule } from './modules/auth-service/auth-service.module'
-// import { PermissionServiceProxyModule } from './modules/permission-service/permission-service.module'
+import { PermissionServiceProxyModule } from './modules/permission-service/permission-service.module'
 import { GatewayExceptionFilter } from './common/filters/gateway-exception.filter'
 import { OtelExceptionFilter } from '@oes/common/filters'
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
@@ -32,7 +32,7 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
       services: {
         'permission-service': {
           serviceName: 'permission-service',
-          protoPath: 'protos/permission_check.proto',
+          protoPath: 'protos/permission_management.proto',
           packageName: 'permission_service'
         }
       },
@@ -51,10 +51,10 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
     }),
 
     // 鈹€鈹€ Core 鈹€鈹€
-    HealthModule
+    HealthModule,
 
     // 鈹€鈹€ System service proxies 鈹€鈹€
-    // PermissionServiceProxyModule
+    PermissionServiceProxyModule,
     // AuthServiceProxyModule,  // enable after auth-service gRPC migration
     // IdentityProxyModule,     // enable after gRPC migration
   ],

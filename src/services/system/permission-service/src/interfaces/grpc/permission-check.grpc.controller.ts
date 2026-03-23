@@ -1,7 +1,8 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter, OtelExceptionFilter } from '@oes/common/filters'
+import { InternalServiceGuard } from '@oes/common/security'
 import { CheckPermissionQuery } from '../../application/queries/authorization/check-permission.query'
 import { CheckPermissionWithContextQuery } from '../../application/queries/authorization/check-permission-with-context.query'
 import {
@@ -14,6 +15,7 @@ import {
 
 @Controller()
 @UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
+@UseGuards(InternalServiceGuard)
 @PermissionCheckServiceControllerMethods()
 export class PermissionCheckGrpcController implements PermissionCheckServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}

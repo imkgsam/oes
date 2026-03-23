@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package identity_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.identity.v1";
+
+service IdentityQueryService {
+  rpc GetAccountById(GetAccountByIdRequest) returns (GetAccountByIdResponse);
+  rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserByEmailResponse);
+  rpc GetAccountsByUserId(GetAccountsByUserIdRequest) returns (GetAccountsByUserIdResponse);
+}
+
+message GetUserByEmailRequest {
+  string email = 1;
+}
+
+message UserSummary {
+  string id = 1;
+  string username = 2;
+  string personal_email = 3;
+  string personal_phone = 4;
+  bool is_active = 5;
+}
+
+message GetUserByEmailResponse {
+  UserSummary user = 1;
+}
+
+message GetAccountsByUserIdRequest {
+  string user_id = 1;
+}
+
+message AccountCandidate {
+  string account_id = 1;
+  string tenant_id = 2;
+  string display_name = 3;
+}
+
+message GetAccountsByUserIdResponse {
+  repeated AccountCandidate accounts = 1;
+}
+
+message GetAccountByIdRequest {
+  string account_id = 1;
+}
+
+message AccountSummary {
+  string id = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  string display_name = 4;
+  bool is_enabled = 5;
+}
+
+message GetAccountByIdResponse {
+  AccountSummary account = 1;
+}

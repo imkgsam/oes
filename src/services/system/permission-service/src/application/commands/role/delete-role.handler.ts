@@ -3,6 +3,7 @@ import { Inject } from '@nestjs/common'
 import { DeleteRoleCommand } from './delete-role.command'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
 import { Role } from '../../../domain/aggregates/role.aggregate'
+import { RoleKind } from '../../../domain/enums/role-kind.enum'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import {
@@ -19,7 +20,7 @@ export class DeleteRoleHandler implements ICommandHandler<DeleteRoleCommand> {
 
   async execute(command: DeleteRoleCommand): Promise<Role> {
     const existing = await this.roleRepo.findById(command.id)
-    if (!existing) {
+    if (!existing || existing.kind !== RoleKind.TENANT_INSTANCE) {
       throw ExceptionFactory.domain(ROLE_NOT_FOUND)
     }
 

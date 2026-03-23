@@ -7,9 +7,10 @@ import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { PolicyCommandHandlers } from '../../application/commands/policy'
 import { PolicyQueryHandlers } from '../../application/queries/policy'
 import { PolicyManagementGrpcController } from '../../interfaces/grpc/policy-management.grpc.controller'
+import { ManagementAuthorizationModule } from '../management-authorization/management-authorization.module'
 
 @Module({
-  imports: [CqrsModule, PrismaModule],
+  imports: [CqrsModule, PrismaModule, ManagementAuthorizationModule],
   providers: [
     {
       provide: SYMBOLS.REPO.POLICY,

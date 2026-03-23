@@ -8,6 +8,10 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
+    "test": "jest --config jest.config.js --runInBand",
+    "test:l1": "jest --config jest.config.js --runInBand test/l1",
+    "test:l2": "jest --config jest.config.js --runInBand test/l2",
+    "test:l3": "jest --config jest.config.js --runInBand test/l3",
     
     "build": "tsc -b",
     "dev:build": "tsc -b -w --preserveWatchOutput",

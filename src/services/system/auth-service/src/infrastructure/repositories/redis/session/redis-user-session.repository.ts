@@ -221,11 +221,25 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     const userId = session.getUserId()
     const deviceId = session.getDeviceInfo().deviceId
     const ipAddress = session.getDeviceInfo().ipAddress
+    const existingSession = await this.findById(session.getId())
 
     // 使用 Redis 事务确保数据一致性
     const multi = this.redis.multi()
 
     // 保存 Session 数据
+    if (existingSession) {
+      const previousAccessToken = existingSession.getAccessToken()
+      const previousRefreshToken = existingSession.getRefreshToken()
+
+      if (previousAccessToken && previousAccessToken !== session.getAccessToken()) {
+        await this.redis.del(`${this.ACCESS_TOKEN_PREFIX}${previousAccessToken}`)
+      }
+
+      if (previousRefreshToken && previousRefreshToken !== session.getRefreshToken()) {
+        await this.redis.del(`${this.REFRESH_TOKEN_PREFIX}${previousRefreshToken}`)
+      }
+    }
+
     multi.set(sessionKey, JSON.stringify(sessionData))
     multi.expire(sessionKey, this.getSessionTTL(session))
 

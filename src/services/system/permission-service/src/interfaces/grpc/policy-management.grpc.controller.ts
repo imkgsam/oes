@@ -1,9 +1,17 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import { OtelExceptionFilter } from '@oes/common/filters'
+import {
+  AuthenticatedOperatorGuard,
+  InternalServiceGuard,
+  RequireAuthenticatedOperator
+} from '@oes/common/security'
+import { ManagementAuthorizationGuard } from '../guards'
+import { RequireManagementPermission } from '../decorators'
+import { MANAGEMENT_PERMISSION_CODES } from '../../common/constants/authorization'
 import { CreatePolicyCommand } from '../../application/commands/policy/create-policy.command'
 import { UpdatePolicyCommand } from '../../application/commands/policy/update-policy.command'
 import { DeletePolicyCommand } from '../../application/commands/policy/delete-policy.command'
@@ -45,6 +53,8 @@ function hasOwnField<T extends object>(obj: T, key: keyof T): boolean {
 
 @Controller()
 @UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
+@RequireAuthenticatedOperator()
+@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, ManagementAuthorizationGuard)
 @PolicyManagementServiceControllerMethods()
 export class PolicyManagementGrpcController implements PolicyManagementServiceController {
   constructor(
@@ -52,6 +62,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     private readonly queryBus: ValidatingQueryBus
   ) {}
 
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_POLICY)
   async createPolicy(
     request: CreatePolicyRequest,
     metadata?: Metadata,
@@ -74,6 +85,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     return this.toResponse(result)
   }
 
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_POLICY)
   async updatePolicy(
     request: UpdatePolicyRequest,
     metadata?: Metadata,
@@ -101,6 +113,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     return this.toResponse(result)
   }
 
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.DELETE_POLICY)
   async deletePolicy(
     request: DeletePolicyRequest,
     metadata?: Metadata,
@@ -109,6 +122,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     await this.commandBus.execute(new DeletePolicyCommand(request.id!))
   }
 
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_POLICY)
   async togglePolicy(
     request: TogglePolicyRequest,
     metadata?: Metadata,
@@ -120,6 +134,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     return this.toResponse(result)
   }
 
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
   async getPolicyById(
     request: GetPolicyByIdRequest,
     metadata?: Metadata,
@@ -129,6 +144,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     return this.toResponse(result)
   }
 
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
   async listPoliciesPaged(
     request: ListPoliciesPagedRequest,
     metadata?: Metadata,
@@ -160,6 +176,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     }
   }
 
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
   async listPoliciesByPermission(
     request: ListPoliciesByPermissionRequest,
     metadata?: Metadata,
@@ -171,6 +188,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     return { policies: list.map((p) => this.toResponse(p)) }
   }
 
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_POLICY)
   async addPermissionPolicy(
     request: AddPermissionPolicyRequest,
     metadata?: Metadata,
@@ -193,6 +211,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     return this.toResponse(result)
   }
 
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.DELETE_POLICY)
   async removePermissionPolicy(
     request: RemovePermissionPolicyRequest,
     metadata?: Metadata,

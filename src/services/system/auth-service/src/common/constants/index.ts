@@ -1,3 +1,5 @@
+export { LoginMethodEnum, LoginMethodType, MfaType, SessionStatus } from '@oes/common/constants'
+
 export enum OTP_USAGES {
   LOGIN = 'LOGIN',
   REGISTER = 'REGISTER',

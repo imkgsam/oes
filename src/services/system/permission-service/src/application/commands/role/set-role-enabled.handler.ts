@@ -4,6 +4,7 @@ import { ExceptionFactory } from '@oes/common/exceptions'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ROLE_NOT_FOUND } from '../../../common/constants/exception-enums'
 import { Role } from '../../../domain/aggregates/role.aggregate'
+import { RoleKind } from '../../../domain/enums/role-kind.enum'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
 import { SetRoleEnabledCommand } from './set-role-enabled.command'
 
@@ -16,7 +17,7 @@ export class SetRoleEnabledHandler implements ICommandHandler<SetRoleEnabledComm
 
   async execute(command: SetRoleEnabledCommand): Promise<Role> {
     const role = await this.roleRepo.findById(command.id)
-    if (!role) {
+    if (!role || role.kind !== RoleKind.TENANT_INSTANCE) {
       throw ExceptionFactory.domain(ROLE_NOT_FOUND)
     }
 

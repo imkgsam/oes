@@ -3,11 +3,13 @@ import { Inject } from '@nestjs/common'
 import { AssignRolePermissionCommand } from './assign-role-permission.command'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
 import { PermissionRepository } from '../../../domain/repositories/permission.repository'
+import { RoleKind } from '../../../domain/enums/role-kind.enum'
 import { RolePermission } from '../../../domain/vo/role-permission.value-object'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import {
   ROLE_NOT_FOUND,
+  ROLE_NOT_ASSIGNABLE,
   PERMISSION_NOT_FOUND
 } from '../../../common/constants/exception-enums'
 
@@ -23,6 +25,9 @@ export class AssignRolePermissionHandler implements ICommandHandler<AssignRolePe
   async execute(command: AssignRolePermissionCommand): Promise<void> {
     const role = await this.roleRepo.findById(command.roleId)
     if (!role) throw ExceptionFactory.domain(ROLE_NOT_FOUND)
+    if (role.kind !== RoleKind.TENANT_INSTANCE) {
+      throw ExceptionFactory.domain(ROLE_NOT_ASSIGNABLE)
+    }
 
     const permission = await this.permissionRepo.findById(command.permissionId)
     if (!permission) throw ExceptionFactory.domain(PERMISSION_NOT_FOUND)

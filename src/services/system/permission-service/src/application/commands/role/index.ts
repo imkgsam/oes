@@ -32,12 +32,12 @@ export * from './set-account-roles.command'
 export * from './set-account-roles.handler'
 
 import { CreateRoleTemplateHandler } from './create-role-template.handler'
-import { CreateRoleInstanceHandler } from './create-role-instance.handler'
 import { UpdateRoleTemplateHandler } from './update-role-template.handler'
 import { DeleteRoleTemplateHandler } from './delete-role-template.handler'
 import { SetRoleTemplateEnabledHandler } from './set-role-template-enabled.handler'
 import { AssignRoleTemplatePermissionHandler } from './assign-role-template-permission.handler'
 import { RevokeRoleTemplatePermissionHandler } from './revoke-role-template-permission.handler'
+import { CreateRoleInstanceHandler } from './create-role-instance.handler'
 import { CreateRoleInstanceFromTemplateHandler } from './create-role-instance-from-template.handler'
 import { UpdateRoleHandler } from './update-role.handler'
 import { SetRoleEnabledHandler } from './set-role-enabled.handler'
@@ -48,21 +48,33 @@ import { AssignAccountRoleHandler } from './assign-account-role.handler'
 import { RevokeAccountRoleHandler } from './revoke-account-role.handler'
 import { SetAccountRolesHandler } from './set-account-roles.handler'
 
-export const RoleCommandHandlers = [
+export const RoleTemplateCommandHandlers = [
   CreateRoleTemplateHandler,
-  CreateRoleInstanceHandler,
   UpdateRoleTemplateHandler,
   DeleteRoleTemplateHandler,
   SetRoleTemplateEnabledHandler,
   AssignRoleTemplatePermissionHandler,
-  RevokeRoleTemplatePermissionHandler,
+  RevokeRoleTemplatePermissionHandler
+]
+
+export const RoleInstanceCommandHandlers = [
+  CreateRoleInstanceHandler,
   CreateRoleInstanceFromTemplateHandler,
   UpdateRoleHandler,
   SetRoleEnabledHandler,
   DeleteRoleHandler,
   AssignRolePermissionHandler,
-  RevokeRolePermissionHandler,
+  RevokeRolePermissionHandler
+]
+
+export const AccountRoleCommandHandlers = [
   AssignAccountRoleHandler,
   RevokeAccountRoleHandler,
   SetAccountRolesHandler
+]
+
+export const RoleCommandHandlers = [
+  ...RoleTemplateCommandHandlers,
+  ...RoleInstanceCommandHandlers,
+  ...AccountRoleCommandHandlers
 ]

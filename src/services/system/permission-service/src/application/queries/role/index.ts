@@ -27,14 +27,23 @@ import { ListRoleInstancesHandler } from './list-role-instances.handler'
 import { ListRoleTemplatesHandler } from './list-role-templates.handler'
 import { GetAccountRoleSelectionHandler } from './get-account-role-selection.handler'
 
-export const RoleQueryHandlers = [
-  GetRoleByIdHandler,
+export const RoleTemplateQueryHandlers = [
   GetRoleTemplateByIdHandler,
-  ListAccountRolesHandler,
-  ListRolePermissionsHandler,
   ListRoleTemplatePermissionsHandler,
+  ListRoleTemplatesHandler
+]
+
+export const RoleInstanceQueryHandlers = [
+  GetRoleByIdHandler,
+  ListRolePermissionsHandler,
   ListRoleAccountsHandler,
-  ListRoleInstancesHandler,
-  ListRoleTemplatesHandler,
-  GetAccountRoleSelectionHandler
+  ListRoleInstancesHandler
+]
+
+export const AccountRoleQueryHandlers = [ListAccountRolesHandler, GetAccountRoleSelectionHandler]
+
+export const RoleQueryHandlers = [
+  ...RoleTemplateQueryHandlers,
+  ...RoleInstanceQueryHandlers,
+  ...AccountRoleQueryHandlers
 ]

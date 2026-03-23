@@ -1,4 +1,4 @@
-export interface AuthStrategyPort<T = any> {
+export interface AuthStrategyPort<T = unknown> {
   getType(): string
-  authenticate(dto: T): Promise<any> //Q： auth 之后返回的是什么 ？
+  authenticate(dto: T): Promise<string>
 }

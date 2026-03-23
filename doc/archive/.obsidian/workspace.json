@@ -1,0 +1,226 @@
+{
+  "main": {
+    "id": "55ed01c60fdc4e28",
+    "type": "split",
+    "children": [
+      {
+        "id": "3c3fa58fc0d5323c",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "26c05a171cbd0cd8",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "OES项目/项目介绍.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "项目介绍"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "c93689071a601a2a",
+    "type": "split",
+    "children": [
+      {
+        "id": "4bced03e972f450d",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "ae0adf05950be3b5",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "3e8df23c11a7e25e",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "搜索"
+            }
+          },
+          {
+            "id": "7b6d6ec238b244d9",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "书签"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 225.5
+  },
+  "right": {
+    "id": "573d09691edf2dc1",
+    "type": "split",
+    "children": [
+      {
+        "id": "fa7db9042ecc2fb9",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "4722cd5ca90c40fd",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "待实现功能/OES 高安全微服务权限优化方案.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "OES 高安全微服务权限优化方案 的反向链接列表"
+            }
+          },
+          {
+            "id": "05261bc9766b6e07",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "待实现功能/OES 高安全微服务权限优化方案.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "OES 高安全微服务权限优化方案 的出链列表"
+            }
+          },
+          {
+            "id": "19669a4ce26f2e7f",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "标签"
+            }
+          },
+          {
+            "id": "e435c6014cdc6444",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "添加笔记属性"
+            }
+          },
+          {
+            "id": "def93f11d3243fa2",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "待实现功能/OES 高安全微服务权限优化方案.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "OES 高安全微服务权限优化方案 的大纲"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "26c05a171cbd0cd8",
+  "lastOpenFiles": [
+    "OES项目/架构方案.md",
+    "OES项目/项目进度跟踪/进度.md",
+    "未命名.base",
+    "未命名.canvas",
+    "OES项目/待实现功能/OES 高安全微服务权限优化方案.md",
+    "OES项目/notion文档 未整理",
+    "OES项目/模块/permission",
+    "OES项目/待实现功能/mTLS支持以及gRPC升级.md",
+    "OES项目/待实现功能/AI能力拓展方案.md",
+    "OES项目/项目介绍.md",
+    "OES项目/note/常见概念.md",
+    "OES项目/note/traceId.md",
+    "OES项目/note/Pasted image 20260121162349.png",
+    "OES项目/草稿/权限控制模拟.md",
+    "OES项目/OES项目开发计划书.md",
+    "OES项目/模块/api-gateway/技术路线/01-gRPC迁移指南.md",
+    "OES项目/项目细节/模块/API-GATEWAY.md",
+    "OES项目/项目细节/安全模型/认证渠道/用户认证.md",
+    "OES项目/项目细节/安全模型/认证渠道/服务认证.md",
+    "OES项目/note/模块调用顺序.md",
+    "OES项目/模板/日进度模板.md",
+    "OES项目/模块/common/OpenTelemetry.md",
+    "OES项目/模块/common",
+    "OES项目/模块/api-gateway",
+    "OES项目/模块",
+    "OES项目/模块/api-gateway/技术路线/README.md",
+    "OES项目/模块/api-gateway/技术路线/04-API网关集成指南.md",
+    "OES项目/模块/api-gateway/技术路线/03-可观测性组件集成指南.md",
+    "OES项目/模块/api-gateway/技术路线/02-Nacos配置中心集成指南.md",
+    "OES项目/note",
+    "OES项目/生产级迁移要点",
+    "OES项目/待实现功能/Process Manager (PM) 模块完整方案.md",
+    "OES项目/待实现功能/Robot-Engine (RE) 模块完整方案.md",
+    "JWTGuard认证.md",
+    "permissionCheckGuard.md",
+    "OES项目/草稿",
+    "OES项目/项目细节/模块"
+  ]
+}

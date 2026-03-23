@@ -1,21 +1,35 @@
 import { Module } from '@nestjs/common'
-import { AuthModule } from './modules/auth/auth.module'
 import { ConfigModule } from '@nestjs/config'
-import { tokenConfig, authKeyConfig } from '@oes/common/auth'
-import { ClientModule, ServiceKeys } from '@oes/common/clients'
+import { authKeyConfig, tokenConfig } from '@oes/common/auth'
 import { LoggingModule } from '@oes/common/logging'
+import { RegistryModule } from '@oes/common/registry'
+import { GrpcTransportModule } from '@oes/common/transport'
+import { AuthModule } from './modules/auth/auth.module'
+
 @Module({
   imports: [
+    RegistryModule,
     LoggingModule,
     ConfigModule.forRoot({
       cache: true,
       isGlobal: true,
-      load: [tokenConfig, authKeyConfig] // 浠巆ommon涓姞杞介厤缃?    }),
-    AuthModule,
-    // 娉ㄥ唽寰湇鍔″鎴风
-    ClientModule.register([ServiceKeys.PERMISSION_TCP])
-  ],
-  controllers: [],
-  providers: []
+      load: [tokenConfig, authKeyConfig]
+    }),
+    GrpcTransportModule.forRoot({
+      services: {
+        'identity-service': {
+          serviceName: 'identity-service',
+          protoPath: 'protos/identity_query.proto',
+          packageName: 'identity_service'
+        },
+        'permission-service': {
+          serviceName: 'permission-service',
+          protoPath: 'protos/permission_check.proto',
+          packageName: 'permission_service'
+        }
+      }
+    }),
+    AuthModule
+  ]
 })
 export class AppModule {}

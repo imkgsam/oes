@@ -6,14 +6,20 @@ import { ILoginMethodRepository } from '../../domain/repositories/loginmethod.re
 import { EmailService } from '../../infrastructure/services/email.service'
 import { SmsService } from '../../infrastructure/services/sms.service'
 import { createBusinessException } from '@oes/common/exceptions'
-import { AUTH_SERVICE_ERRORS } from '../../common/constants/exceptions/auth-service.exceptions'
-import { OTP_TYPES, MfaType, LoginMethodType } from 'src/common/constants'
+import {
+  AUTH_MFA_BINDING_ALREADY_EXISTS,
+  AUTH_MFA_BINDING_NOT_FOUND,
+  AUTH_MFA_TYPE_NOT_SUPPORTED,
+  AUTH_OTP_INVALID
+} from '../../common/constants/exception-enums'
+import { OTP_TYPES, OTP_USAGES, MfaType, LoginMethodType } from 'src/common/constants'
 import { OneTimeToken } from '../../domain/aggregates/otp.aggregate'
 import {
   MFA_BINDING_REPOSITORY,
   OTP_REPOSITORY,
   USER_REPOSITORY
 } from 'src/common/constants/injection-tokens'
+import { OtpRiskThrottleService } from './otp-risk-throttle.service'
 
 /**
  * MFA (Multi-Factor Authentication) 服务
@@ -28,6 +34,15 @@ import {
  * - 敏感操作的额外安全验证
  * - 账户安全设置
  */
+/**
+ * OUTDATED:
+ * This legacy MFA application service still groups multiple unrelated MFA use cases.
+ * The active MFA-04 login-path flow has been extracted to focused services:
+ * - EmailOtpMfaChallengeService
+ * - MfaChallengeVerificationService
+ *
+ * Keep the remaining methods only until dedicated CQRS handlers/services replace them.
+ */
 @Injectable()
 export class MfaService {
   constructor(
@@ -38,8 +53,65 @@ export class MfaService {
     @Inject(USER_REPOSITORY)
     private readonly loginMethodRepo: ILoginMethodRepository,
     private readonly emailService: EmailService,
-    private readonly smsService: SmsService
+    private readonly smsService: SmsService,
+    private readonly otpRiskThrottleService: OtpRiskThrottleService
   ) {}
+
+  async hasActiveEmailOtpBinding(userId: string): Promise<boolean> {
+    const binding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.EMAIL_OTP)
+    return binding?.isBindingActive() ?? false
+  }
+
+  async createEmailOtpChallenge(userId: string): Promise<{
+    challengeId: string
+    expiresAt: Date
+    destination: string
+  }> {
+    const binding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.EMAIL_OTP)
+    if (!binding || !binding.isBindingActive()) {
+      throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
+    }
+
+    const emailLoginMethod = await this.loginMethodRepo.findByUserIdAndType(
+      userId,
+      LoginMethodType.EMAIL
+    )
+    if (!emailLoginMethod) {
+      throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
+    }
+
+    await this.otpRiskThrottleService.assertCanSend(
+      emailLoginMethod.identifier,
+      OTP_USAGES.MFA_VERIFY
+    )
+
+    const otp = OneTimeToken.createMfaOtp({
+      type: OTP_TYPES.EMAIL,
+      identifier: emailLoginMethod.identifier,
+      code: this.generateEmailCode(),
+      expiredAt: new Date(Date.now() + 5 * 60 * 1000)
+    })
+
+    await this.oneTimeTokenRepo.save(otp)
+
+    const sentCode = await this.emailService.sendEmailVerificationCode(
+      emailLoginMethod.identifier,
+      otp.getProps().code
+    )
+
+    if (this.isDevelopmentMode()) {
+      otp.updateCode(sentCode)
+      await this.oneTimeTokenRepo.save(otp)
+    }
+
+    await this.otpRiskThrottleService.recordSend(emailLoginMethod.identifier, OTP_USAGES.MFA_VERIFY)
+
+    return {
+      challengeId: otp.getProps().id,
+      expiresAt: otp.getProps().expiredAt,
+      destination: emailLoginMethod.identifier
+    }
+  }
 
   // ==================== MFA 验证相关方法 ====================
 
@@ -97,7 +169,7 @@ export class MfaService {
     const activeBindings = bindings.filter((binding) => binding.isBindingActive())
 
     if (activeBindings.length === 0) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
+      throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
     }
 
     // 优先选择 EMAIL_OTP 或 SMS_OTP 类型的绑定
@@ -115,8 +187,13 @@ export class MfaService {
         // 获取用户的邮箱
         const emailLoginMethod = await this.loginMethodRepo.findByUserIdAndType(userId, 'EMAIL')
         if (!emailLoginMethod) {
-          throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
+          throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
         }
+
+        await this.otpRiskThrottleService.assertCanSend(
+          emailLoginMethod.identifier,
+          OTP_USAGES.MFA_VERIFY
+        )
 
         const otp = OneTimeToken.createMfaOtp({
           type: OTP_TYPES.EMAIL,
@@ -136,6 +213,11 @@ export class MfaService {
           await this.oneTimeTokenRepo.save(otp)
         }
 
+        await this.otpRiskThrottleService.recordSend(
+          emailLoginMethod.identifier,
+          OTP_USAGES.MFA_VERIFY
+        )
+
         return {
           tokenId: otp.getProps().id,
           type: MfaType.EMAIL_OTP,
@@ -148,8 +230,13 @@ export class MfaService {
         // 获取用户的手机号
         const phoneLoginMethod = await this.loginMethodRepo.findByUserIdAndType(userId, 'PHONE')
         if (!phoneLoginMethod) {
-          throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
+          throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
         }
+
+        await this.otpRiskThrottleService.assertCanSend(
+          phoneLoginMethod.identifier,
+          OTP_USAGES.MFA_VERIFY
+        )
 
         const otp = OneTimeToken.createMfaOtp({
           type: OTP_TYPES.PHONE,
@@ -168,6 +255,11 @@ export class MfaService {
           otp.updateCode(sentCode)
           await this.oneTimeTokenRepo.save(otp)
         }
+
+        await this.otpRiskThrottleService.recordSend(
+          phoneLoginMethod.identifier,
+          OTP_USAGES.MFA_VERIFY
+        )
 
         return {
           tokenId: otp.getProps().id,
@@ -188,7 +280,7 @@ export class MfaService {
       }
 
       default:
-        throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_TYPE_NOT_SUPPORTED)
+        throw createBusinessException(AUTH_MFA_TYPE_NOT_SUPPORTED)
     }
   }
 
@@ -220,6 +312,7 @@ export class MfaService {
     // 验证 OTP 代码
     const isValid = token.verify(code)
     if (!isValid) {
+      await this.oneTimeTokenRepo.save(token)
       return null
     }
 
@@ -278,7 +371,7 @@ export class MfaService {
   }> {
     const existingBinding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.TOTP)
     if (existingBinding && existingBinding.isBindingActive()) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS)
+      throw createBusinessException(AUTH_MFA_BINDING_ALREADY_EXISTS)
     }
 
     const binding = MfaBindingEntity.createTotpBinding(userId)
@@ -322,11 +415,11 @@ export class MfaService {
   async verifyAndActivateTotpBinding(bindingId: string, inputCode: string): Promise<boolean> {
     const binding = await this.mfaBindingRepo.findById(bindingId)
     if (!binding || binding.getType() !== MfaType.TOTP) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
+      throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
     }
 
     if (binding.isBindingActive()) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_ALREADY_EXISTS)
+      throw createBusinessException(AUTH_MFA_BINDING_ALREADY_EXISTS)
     }
 
     const isValid = binding.verifyTotpBinding(inputCode)
@@ -637,8 +730,10 @@ export class MfaService {
   ): Promise<{ success: boolean; message: string }> {
     const otp = await this.oneTimeTokenRepo.findById(otpTokenId)
     if (!otp) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_INVALID)
+      throw createBusinessException(AUTH_OTP_INVALID)
     }
+
+    await this.otpRiskThrottleService.assertCanSend(otp.getIdentifier(), otp.getProps().usage)
 
     const newCode = this.generateEmailCode()
     otp.updateCode(newCode)
@@ -649,6 +744,8 @@ export class MfaService {
       otp.updateCode(sentCode)
       await this.oneTimeTokenRepo.save(otp)
     }
+
+    await this.otpRiskThrottleService.recordSend(otp.getIdentifier(), otp.getProps().usage)
 
     return {
       success: true,
@@ -681,8 +778,10 @@ export class MfaService {
   ): Promise<{ success: boolean; message: string }> {
     const otp = await this.oneTimeTokenRepo.findById(otpTokenId)
     if (!otp) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.OTP_INVALID)
+      throw createBusinessException(AUTH_OTP_INVALID)
     }
+
+    await this.otpRiskThrottleService.assertCanSend(otp.getIdentifier(), otp.getProps().usage)
 
     const newCode = this.generateSmsCode()
     otp.updateCode(newCode)
@@ -693,6 +792,8 @@ export class MfaService {
       otp.updateCode(sentCode)
       await this.oneTimeTokenRepo.save(otp)
     }
+
+    await this.otpRiskThrottleService.recordSend(otp.getIdentifier(), otp.getProps().usage)
 
     return {
       success: true,
@@ -785,7 +886,7 @@ export class MfaService {
   async cancelMfaBinding(bindingId: string, type: MfaType): Promise<void> {
     const binding = await this.mfaBindingRepo.findById(bindingId)
     if (!binding || binding.getType() !== type) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
+      throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
     }
 
     await this.mfaBindingRepo.delete(bindingId)
@@ -899,7 +1000,7 @@ export class MfaService {
       email
     )
     if (!loginMethod) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
+      throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
     }
     return loginMethod.userId
   }
@@ -922,7 +1023,7 @@ export class MfaService {
       phone
     )
     if (!loginMethod) {
-      throw createBusinessException(AUTH_SERVICE_ERRORS.MFA_BINDING_NOT_FOUND)
+      throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
     }
     return loginMethod.userId
   }

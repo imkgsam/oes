@@ -1,29 +1,27 @@
-// File: src/services/system/identity-service/src/main.ts
-
-// 鍒濆鍖杘tel sdk
 import { initOtelSdk } from '@oes/common/tracing'
 import { AppLogger } from '@oes/common/logging'
-
 import { NestFactory } from '@nestjs/core'
 import { AppModule } from './app.module'
-import { ValidationPipe } from '@nestjs/common'
 import { MicroserviceOptions, Transport } from '@nestjs/microservices'
-import { MicroserviceExceptionsFilter } from '@oes/common/filters'
-import { SERVICE_ENDPOINTS_CONFIG } from '@oes/common/clients'
+import { dirname, join } from 'path'
+
+const commonPackageRoot = dirname(dirname(require.resolve('@oes/common')))
 
 async function bootstrap() {
   initOtelSdk(process.env.MODULE_NAME || 'identity-service')
-  const microservice = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
-    transport: Transport.TCP,
+  const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
+    transport: Transport.GRPC,
     options: {
-      host: SERVICE_ENDPOINTS_CONFIG.IDENT_TCP.host,
-      port: Number(SERVICE_ENDPOINTS_CONFIG.IDENT_TCP.port)
+      package: 'identity_service',
+      protoPath: [
+        join(commonPackageRoot, 'src', 'contracts', 'identity_service', 'identity_query.proto')
+      ],
+      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50052'}`
     }
   })
 
-  //璁剧疆鑷畾涔夋棩蹇楁湇鍔?  microservice.useLogger(microservice.get(AppLogger))
-  microservice.useGlobalPipes(new ValidationPipe())
-  microservice.useGlobalFilters(new MicroserviceExceptionsFilter(process.env.MODULE_NAME))
-  await microservice.listen()
+  app.useLogger(app.get(AppLogger))
+  await app.listen()
 }
+
 bootstrap()

@@ -78,6 +78,10 @@
       "types": "./dist/logging/index.d.ts",
       "require": "./dist/logging/index.js"
     },
+    "./security": {
+      "types": "./dist/security/index.d.ts",
+      "require": "./dist/security/index.js"
+    },
     "./registry": {
       "types": "./dist/registry/index.d.ts",
       "require": "./dist/registry/index.js"

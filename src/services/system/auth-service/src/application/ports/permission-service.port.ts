@@ -1,6 +1,18 @@
-import { SomePort } from '@oes/common/contracts'
+export interface AccountAuthorizationSummary {
+  accountId: string
+  roleCodes: string[]
+  permissionCodes: string[]
+}
 
-//鎵€闇€鐨勬柟娉?type SomePortSelection = 'getUserPermissions'
-
-//Permission Service 绔彛鎺ュ彛
-export interface IPermissionServicePort extends Pick<SomePort, SomePortSelection> {}
+/**
+ * Application port for permission lookups required by auth-service.
+ *
+ * Rules:
+ * - Define only auth-service's required capabilities.
+ * - Do not expose transport details or generated client types.
+ * - Keep return models local to auth-service's application layer.
+ */
+export interface IPermissionServicePort {
+  getAccountAuthorizationSummary(accountId: string): Promise<AccountAuthorizationSummary>
+  checkAccountPermission(accountId: string, permissionCode: string): Promise<boolean>
+}

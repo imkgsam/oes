@@ -1,12 +1,25 @@
-// File: src/services/system/auth-service/src/application/ports/identity-service.port.ts
-import { UserPort, AccountPort } from '@oes/common/contracts'
+export interface IdentityUserSummary {
+  userId: string
+  email?: string
+  phone?: string
+  fullName?: string
+}
 
-type UserPortSelections = 'getUserById' | 'getUserByEmail' | 'getUserByPhone'
+export interface AccountCandidateSummary {
+  accountId: string
+  tenantId: string
+  displayName?: string
+}
 
-type AccountPortSelections = 'getAccountsByUserId' | 'getAccountById'
+export interface IdentityAccountSummary extends AccountCandidateSummary {
+  userId: string
+  isEnabled: boolean
+}
 
-/**
- * Identity Service 绔彛鎺ュ彛
- */
-export interface IIdentityServicePort
-  extends Pick<UserPort, UserPortSelections>, Pick<AccountPort, AccountPortSelections> {}
+export interface IIdentityServicePort {
+  getUserById(userId: string): Promise<IdentityUserSummary | null>
+  getUserByEmail(email: string): Promise<IdentityUserSummary | null>
+  getUserByPhone(phone: string): Promise<IdentityUserSummary | null>
+  getAvailableAccountsByUserId(userId: string): Promise<AccountCandidateSummary[]>
+  getAccountById(accountId: string): Promise<IdentityAccountSummary | null>
+}

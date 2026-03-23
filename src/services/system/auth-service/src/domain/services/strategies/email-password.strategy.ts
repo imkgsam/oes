@@ -1,16 +1,20 @@
-import { Injectable, Inject } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
+import { LoginMethodEnum, LoginMethodType } from 'src/common/constants'
+import { ExceptionFactory } from '@oes/common/exceptions'
 import { EmailPasswordLoginRequestDto } from '@oes/common/dtos'
+import { AUTH_INVALID_CREDENTIALS } from 'src/common/constants/exception-enums'
+import {
+  HASHING_SERVICE,
+  LOGIN_METHOD_REPOSITORY
+} from 'src/common/constants/injection-tokens'
 import { AuthStrategyPort } from 'src/domain/ports/auth-strategy.port'
-import { LoginMethodEnum } from 'src/common/constants'
 import { HashingPort } from 'src/domain/ports/hashing.port'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
-import { LoginMethodType } from 'prisma/generated/prisma'
-import { USER_REPOSITORY, HASHING_SERVICE } from 'src/common/constants/injection-tokens'
 
 @Injectable()
 export class EmailPasswordStrategy implements AuthStrategyPort<EmailPasswordLoginRequestDto> {
   constructor(
-    @Inject(USER_REPOSITORY)
+    @Inject(LOGIN_METHOD_REPOSITORY)
     private readonly loginMethodRepo: ILoginMethodRepository,
     @Inject(HASHING_SERVICE)
     private readonly passwordHasher: HashingPort
@@ -25,12 +29,20 @@ export class EmailPasswordStrategy implements AuthStrategyPort<EmailPasswordLogi
       LoginMethodType.EMAIL,
       dto.email
     )
-    if (!loginMethod) throw new Error('Valid login method not found')
+
+    if (!loginMethod) {
+      throw ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
+    }
 
     const passwordCredential = loginMethod.getPasswordCredential()
-    if (!passwordCredential) throw new Error('Password credential not found or disabled')
+    if (!passwordCredential) {
+      throw ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
+    }
+
     const valid = await this.passwordHasher.compare(dto.password, passwordCredential.getSecret())
-    if (!valid) throw new Error('Invalid credentials')
+    if (!valid) {
+      throw ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
+    }
 
     return loginMethod.userId
   }

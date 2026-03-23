@@ -4,6 +4,7 @@ import { ExceptionFactory } from '@oes/common/exceptions'
 import { ListRolePermissionsQuery } from './list-role-permissions.query'
 import { Permission } from '../../../domain/aggregates/permission.aggregate'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
+import { RoleKind } from '../../../domain/enums/role-kind.enum'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ROLE_NOT_FOUND } from '../../../common/constants/exception-enums'
 
@@ -16,7 +17,7 @@ export class ListRolePermissionsHandler implements IQueryHandler<ListRolePermiss
 
   async execute(query: ListRolePermissionsQuery): Promise<Permission[]> {
     const role = await this.roleRepo.findById(query.roleId)
-    if (!role) {
+    if (!role || role.kind !== RoleKind.TENANT_INSTANCE) {
       throw ExceptionFactory.domain(ROLE_NOT_FOUND)
     }
 
