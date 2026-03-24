@@ -27,7 +27,6 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
   private readonly USER_SESSIONS_PREFIX = 'user_sessions:'
   private readonly DEVICE_SESSIONS_PREFIX = 'device_sessions:'
   private readonly IP_SESSIONS_PREFIX = 'ip_sessions:'
-  private readonly ACCESS_TOKEN_PREFIX = 'access_token:'
   private readonly REFRESH_TOKEN_PREFIX = 'refresh_token:'
   private readonly redis: Redis
 
@@ -59,24 +58,6 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     const data = await this.redis.get(key)
     if (!data) return null
     return Session.fromRedis(JSON.parse(data))
-  }
-
-  /**
-   * 根据访问令牌查找
-   *
-   * 使用场景：
-   * - API 请求时的令牌验证
-   * - 获取令牌对应的 Session 信息
-   * - 自动续期时的 Session 查找
-   * - 安全审计和监控
-   *
-   * @param accessToken 访问令牌
-   * @returns Promise<Session | null>
-   */
-  async findByAccessToken(accessToken: string): Promise<Session | null> {
-    const sessionId = await this.redis.get(`${this.ACCESS_TOKEN_PREFIX}${accessToken}`)
-    if (!sessionId) return null
-    return this.findById(sessionId)
   }
 
   /**
@@ -228,12 +209,7 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
 
     // 保存 Session 数据
     if (existingSession) {
-      const previousAccessToken = existingSession.getAccessToken()
       const previousRefreshToken = existingSession.getRefreshToken()
-
-      if (previousAccessToken && previousAccessToken !== session.getAccessToken()) {
-        await this.redis.del(`${this.ACCESS_TOKEN_PREFIX}${previousAccessToken}`)
-      }
 
       if (previousRefreshToken && previousRefreshToken !== session.getRefreshToken()) {
         await this.redis.del(`${this.REFRESH_TOKEN_PREFIX}${previousRefreshToken}`)
@@ -242,13 +218,6 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
 
     multi.set(sessionKey, JSON.stringify(sessionData))
     multi.expire(sessionKey, this.getSessionTTL(session))
-
-    // 设置访问令牌索引
-    multi.set(`${this.ACCESS_TOKEN_PREFIX}${session.getAccessToken()}`, session.getId())
-    multi.expire(
-      `${this.ACCESS_TOKEN_PREFIX}${session.getAccessToken()}`,
-      this.getSessionTTL(session)
-    )
 
     // 设置刷新令牌索引
     multi.set(`${this.REFRESH_TOKEN_PREFIX}${session.getRefreshToken()}`, session.getId())
@@ -299,7 +268,6 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     multi.del(`${this.SESSION_PREFIX}${sessionId}`)
 
     // 删除令牌索引
-    multi.del(`${this.ACCESS_TOKEN_PREFIX}${session.getAccessToken()}`)
     multi.del(`${this.REFRESH_TOKEN_PREFIX}${session.getRefreshToken()}`)
 
     // 从集合中移除
@@ -331,7 +299,6 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
       const ipAddress = session.getDeviceInfo().ipAddress
 
       multi.del(`${this.SESSION_PREFIX}${session.getId()}`)
-      multi.del(`${this.ACCESS_TOKEN_PREFIX}${session.getAccessToken()}`)
       multi.del(`${this.REFRESH_TOKEN_PREFIX}${session.getRefreshToken()}`)
       multi.srem(`${this.DEVICE_SESSIONS_PREFIX}${deviceId}`, session.getId())
       multi.srem(`${this.IP_SESSIONS_PREFIX}${ipAddress}`, session.getId())
@@ -362,7 +329,6 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
       const ipAddress = session.getDeviceInfo().ipAddress
 
       multi.del(`${this.SESSION_PREFIX}${session.getId()}`)
-      multi.del(`${this.ACCESS_TOKEN_PREFIX}${session.getAccessToken()}`)
       multi.del(`${this.REFRESH_TOKEN_PREFIX}${session.getRefreshToken()}`)
       multi.srem(`${this.USER_SESSIONS_PREFIX}${userId}`, session.getId())
       multi.srem(`${this.IP_SESSIONS_PREFIX}${ipAddress}`, session.getId())

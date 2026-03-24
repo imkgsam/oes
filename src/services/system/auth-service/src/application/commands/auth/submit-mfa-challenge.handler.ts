@@ -43,7 +43,7 @@ export class SubmitMfaChallengeHandler
 
     return {
       userId,
-      method: LoginMethodEnum.EmailPassword,
+      method: command.loginMethod,
       nextStep: 'ACCOUNT_SELECTION_REQUIRED',
       accounts
     }

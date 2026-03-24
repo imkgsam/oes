@@ -1,6 +1,6 @@
 # Identity Service 概览
 
-更新时间：2026-03-24 11:08:00 +09:00
+更新时间：2026-03-24 12:40:00 +09:00
 
 ## 服务定位
 
@@ -75,14 +75,24 @@
 - `setAccountPrimaryOrg`
 - `addAccountOrgMembership`
 - `removeAccountOrgMembership`
+- `listAccountWorkEmailAssets`
+- `assignAccountWorkEmailAsset`
+- `revokeAccountWorkEmailAsset`
+- `setAccountWorkEmailAssetStatus`
+- `setAccountPrimaryWorkEmailAsset`
+- `listAccountWorkPhoneAssets`
+- `assignAccountWorkPhoneAsset`
+- `revokeAccountWorkPhoneAsset`
+- `setAccountWorkPhoneAssetStatus`
+- `setAccountPrimaryWorkPhoneAsset`
 
 ## 当前阶段定位
 
-当前阶段已经完成身份查询基线和组织结构最小闭环。
+当前阶段已经完成身份查询基线、组织结构最小闭环，以及联系方式资产最小闭环。
 
 - `Phase 1` 查询基线已完成
-- `Phase 2` 组织结构分片已完成
-- 下一步建议进入联系方式资产分片
+- `Phase 2` 组织结构与联系方式资产分片已完成
+- 下一步建议进入机器身份分片
 
 ## 文档分工
 
@@ -93,3 +103,30 @@
 - `design/*.md`：功能集合设计
 - `tasks/*.md`：最小闭环任务
 - `history/*.history.md`：设计与文档演进记录
+## Status Update 2026-03-24
+
+- Current implementation has completed the Phase 2 minimum closure for org structure and contact assets.
+- Implemented contact asset capabilities now include:
+  - `listAccountWorkEmailAssets`
+  - `assignAccountWorkEmailAsset`
+  - `revokeAccountWorkEmailAsset`
+  - `setAccountWorkEmailAssetStatus`
+  - `setAccountPrimaryWorkEmailAsset`
+  - `listAccountWorkPhoneAssets`
+  - `assignAccountWorkPhoneAsset`
+  - `revokeAccountWorkPhoneAsset`
+  - `setAccountWorkPhoneAssetStatus`
+  - `setAccountPrimaryWorkPhoneAsset`
+- Current work focus has shifted from "add Phase 3 machine identity" to "tighten internal quality of Phase 2".
+- Service-internal testing baseline has been added under `test/l1` and aligned with the independent microservice testing standard.
+- Jest configuration is now aligned with `permission-service` using `jest.config.js` plus `tsconfig.spec.json`.
+- `ts-jest` warnings for the current test mode have been removed.
+- Contact commands now participate in `ValidatingCommandBus` validation with `class-validator` decorators, consistent with the existing validation path used by the service.
+
+### Current stop point
+
+- Do not start `6.1 ServiceAccount` yet.
+- Next recommended step is to continue identity-service internal tightening:
+  - add missing validation decorators for contact queries
+  - clean controller-side `?? ''` fallback inputs
+  - keep Phase 2 behavior stable before entering machine identity

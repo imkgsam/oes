@@ -10,6 +10,10 @@ import {
   EmailOtpLoginRequest,
   LoginStatus,
   LoginResponse,
+  LogoutAllRequest,
+  LogoutAllResponse,
+  LogoutRequest,
+  LogoutResponse,
   OtpChallengeResponse,
   PhoneOtpChallengeRequest,
   PhoneOtpLoginRequest,
@@ -25,6 +29,8 @@ import {
   LoginWithEmailOtpCommand,
   LoginWithPhoneOtpCommand,
   LoginWithPhonePasswordCommand,
+  LogoutAllCommand,
+  LogoutCommand,
   RefreshSessionCommand,
   RequestEmailOtpLoginChallengeCommand,
   RequestPhoneOtpLoginChallengeCommand,
@@ -39,9 +45,34 @@ import { AUTH_LOGIN_FLOW_RESULT_UNSUPPORTED } from 'src/common/constants/excepti
 export class AuthGrpcController implements AuthServiceController {
   constructor(private readonly commandBus: ValidatingCommandBus) {}
 
+  async logout(request: LogoutRequest): Promise<LogoutResponse> {
+    const result = await this.commandBus.execute(
+      new LogoutCommand(request.sessionId ?? '')
+    )
+
+    return {
+      success: result.success
+    }
+  }
+
+  async logoutAll(request: LogoutAllRequest): Promise<LogoutAllResponse> {
+    const result = await this.commandBus.execute(
+      new LogoutAllCommand(request.userId ?? '')
+    )
+
+    return {
+      success: result.success,
+      sessionCount: String(result.sessionCount)
+    }
+  }
+
   async submitMfaChallenge(request: SubmitMfaChallengeRequest): Promise<LoginResponse> {
     const result = await this.commandBus.execute(
-      new SubmitMfaChallengeCommand(request.challengeId ?? '', request.code ?? '')
+      new SubmitMfaChallengeCommand(
+        request.challengeId ?? '',
+        request.code ?? '',
+        (request.loginMethod as any) ?? ''
+      )
     )
 
     return {
@@ -51,6 +82,7 @@ export class AuthGrpcController implements AuthServiceController {
       accessToken: '',
       refreshToken: '',
       expiresIn: '0',
+      loginMethod: result.method,
       accounts: result.accounts.map((account) => ({
         accountId: account.accountId,
         tenantId: account.tenantId,
@@ -74,7 +106,11 @@ export class AuthGrpcController implements AuthServiceController {
 
   async selectAccount(request: SelectAccountRequest): Promise<SelectAccountResponse> {
     const result = await this.commandBus.execute(
-      new SelectAccountCommand(request.userId ?? '', request.accountId ?? '')
+      new SelectAccountCommand(
+        request.userId ?? '',
+        request.accountId ?? '',
+        (request.loginMethod as any) ?? ''
+      )
     )
 
     return {
@@ -104,6 +140,7 @@ export class AuthGrpcController implements AuthServiceController {
         accessToken: '',
         refreshToken: '',
         expiresIn: '0',
+        loginMethod: result.method,
         accounts: []
       }
     }
@@ -116,6 +153,7 @@ export class AuthGrpcController implements AuthServiceController {
         accessToken: '',
         refreshToken: '',
         expiresIn: '0',
+        loginMethod: result.method,
         accounts: result.accounts.map((account) => ({
           accountId: account.accountId,
           tenantId: account.tenantId,
@@ -154,6 +192,7 @@ export class AuthGrpcController implements AuthServiceController {
         accessToken: '',
         refreshToken: '',
         expiresIn: '0',
+        loginMethod: result.method,
         accounts: []
       }
     }
@@ -166,6 +205,7 @@ export class AuthGrpcController implements AuthServiceController {
         accessToken: '',
         refreshToken: '',
         expiresIn: '0',
+        loginMethod: result.method,
         accounts: result.accounts.map((account) => ({
           accountId: account.accountId,
           tenantId: account.tenantId,
@@ -190,6 +230,7 @@ export class AuthGrpcController implements AuthServiceController {
         accessToken: '',
         refreshToken: '',
         expiresIn: '0',
+        loginMethod: result.method,
         accounts: []
       }
     }
@@ -202,6 +243,7 @@ export class AuthGrpcController implements AuthServiceController {
         accessToken: '',
         refreshToken: '',
         expiresIn: '0',
+        loginMethod: result.method,
         accounts: result.accounts.map((account) => ({
           accountId: account.accountId,
           tenantId: account.tenantId,
@@ -240,6 +282,7 @@ export class AuthGrpcController implements AuthServiceController {
         accessToken: '',
         refreshToken: '',
         expiresIn: '0',
+        loginMethod: result.method,
         accounts: []
       }
     }
@@ -252,6 +295,7 @@ export class AuthGrpcController implements AuthServiceController {
         accessToken: '',
         refreshToken: '',
         expiresIn: '0',
+        loginMethod: result.method,
         accounts: result.accounts.map((account) => ({
           accountId: account.accountId,
           tenantId: account.tenantId,

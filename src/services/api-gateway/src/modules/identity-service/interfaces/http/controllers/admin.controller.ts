@@ -2,6 +2,7 @@ import { Controller, Get } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
 import { IdentityServiceService } from '../../../identity-service.service'
 
+// OUTDATED: this controller fronts a placeholder proxy that is not wired to the active identity-service contract.
 @ApiBearerAuth('JWT')
 @ApiTags('identity')
 @Controller('identity/admin')

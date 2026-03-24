@@ -1,3 +1,5 @@
+// OUTDATED: this gateway-side identity proxy is still a placeholder from the pre-contract stage.
+// It is not aligned with the current identity-service gRPC contract and should not be treated as an active integration path.
 import { Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import { InjectGrpcClient } from '@oes/common/transport'
@@ -10,12 +12,13 @@ export class IdentityServiceService implements OnModuleInit {
   ) {}
 
   onModuleInit() {
-    // TODO: bind gRPC service stubs after proto definitions are finalized
+    // OUTDATED: this placeholder never bound the real IdentityQueryService / IdentityManagementService stubs.
     // this.identitySvc = this.identityClient.getService<IdentityService>('IdentityService')
   }
 
   async getAllUsers() {
-    // TODO: replace with gRPC call
+    // OUTDATED: identity-service no longer exposes a "listUsers" style admin endpoint.
+    // Keep the empty response only as an explicit compatibility marker until the proxy is removed or redesigned.
     // return safeGrpcCall(this.identitySvc.listUsers({}), { ... })
     return []
   }

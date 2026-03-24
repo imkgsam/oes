@@ -3,6 +3,8 @@ export type AuthAuditEventType =
   | 'MFA_CHALLENGE_CREATED'
   | 'LOGIN_SUCCEEDED'
   | 'SESSION_REFRESHED'
+  | 'LOGOUT_SUCCEEDED'
+  | 'LOGOUT_ALL_SUCCEEDED'
 
 export class AuthAuditEvent<TDetails extends Record<string, unknown> = Record<string, unknown>> {
   constructor(

@@ -15,6 +15,8 @@ service AuthService {
   rpc SubmitMfaChallenge(SubmitMfaChallengeRequest) returns (LoginResponse);
   rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse);
   rpc SelectAccount(SelectAccountRequest) returns (SelectAccountResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc LogoutAll(LogoutAllRequest) returns (LogoutAllResponse);
 }
 
 message EmailPasswordLoginRequest {
@@ -68,11 +70,13 @@ message AccountCandidate {
 message SelectAccountRequest {
   string user_id = 1;
   string account_id = 2;
+  string login_method = 3;
 }
 
 message SubmitMfaChallengeRequest {
   string challenge_id = 1;
   string code = 2;
+  string login_method = 3;
 }
 
 message RefreshSessionRequest {
@@ -84,6 +88,23 @@ message RefreshSessionResponse {
   string access_token = 2;
   string refresh_token = 3;
   int64 expires_in = 4;
+}
+
+message LogoutRequest {
+  string session_id = 1;
+}
+
+message LogoutResponse {
+  bool success = 1;
+}
+
+message LogoutAllRequest {
+  string user_id = 1;
+}
+
+message LogoutAllResponse {
+  bool success = 1;
+  int64 session_count = 2;
 }
 
 message SelectAccountResponse {
@@ -107,4 +128,5 @@ message LoginResponse {
   string refresh_token = 5;
   int64 expires_in = 6;
   repeated AccountCandidate accounts = 7;
+  string login_method = 8;
 }

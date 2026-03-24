@@ -58,3 +58,8 @@
 
 - [../design/auth-flow.md](../design/auth-flow.md)
 - [../design/frontend-auth-context.md](../design/frontend-auth-context.md)
+## 2026-03-24 Current Alignment
+
+- `SelectAccount` now requires the caller to carry the original `loginMethod`.
+- Login success audit now uses the actual primary login method instead of a hard-coded `EmailPassword`.
+- This keeps downstream audit and risk statistics aligned with the real auth entry path.

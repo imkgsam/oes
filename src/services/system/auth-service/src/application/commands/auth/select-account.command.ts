@@ -1,5 +1,6 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator'
+import { LoginMethodEnum } from '@oes/common/constants'
+import { IsEnum, IsNotEmpty, IsString, IsUUID } from 'class-validator'
 
 export class SelectAccountCommand implements ICommand {
   @IsString()
@@ -12,11 +13,16 @@ export class SelectAccountCommand implements ICommand {
   @IsUUID()
   public readonly accountId: string
 
+  @IsEnum(LoginMethodEnum)
+  public readonly loginMethod: LoginMethodEnum
+
   constructor(
     userId: string,
-    accountId: string
+    accountId: string,
+    loginMethod: LoginMethodEnum
   ) {
     this.userId = userId
     this.accountId = accountId
+    this.loginMethod = loginMethod
   }
 }

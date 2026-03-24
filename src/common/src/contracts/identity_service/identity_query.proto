@@ -7,6 +7,8 @@ option java_package = "com.oes.identity.v1";
 
 service IdentityQueryService {
   rpc GetAccountById(GetAccountByIdRequest) returns (GetAccountByIdResponse);
+  rpc ListAccountWorkEmailAssets(ListAccountWorkEmailAssetsRequest) returns (ListAccountWorkEmailAssetsResponse);
+  rpc ListAccountWorkPhoneAssets(ListAccountWorkPhoneAssetsRequest) returns (ListAccountWorkPhoneAssetsResponse);
   rpc ListAccountOrgMemberships(ListAccountOrgMembershipsRequest) returns (ListAccountOrgMembershipsResponse);
   rpc GetOrgTreeByTenantId(GetOrgTreeByTenantIdRequest) returns (GetOrgTreeByTenantIdResponse);
   rpc GetTenantById(GetTenantByIdRequest) returns (GetTenantByIdResponse);
@@ -17,6 +19,14 @@ service IdentityQueryService {
 }
 
 service IdentityManagementService {
+  rpc AssignAccountWorkEmailAsset(AssignAccountWorkEmailAssetRequest) returns (AccountContactAssetResponse);
+  rpc AssignAccountWorkPhoneAsset(AssignAccountWorkPhoneAssetRequest) returns (AccountContactAssetResponse);
+  rpc RevokeAccountWorkEmailAsset(RevokeAccountWorkEmailAssetRequest) returns (AccountContactAssetResponse);
+  rpc RevokeAccountWorkPhoneAsset(RevokeAccountWorkPhoneAssetRequest) returns (AccountContactAssetResponse);
+  rpc SetAccountWorkEmailAssetStatus(SetAccountWorkEmailAssetStatusRequest) returns (AccountContactAssetResponse);
+  rpc SetAccountWorkPhoneAssetStatus(SetAccountWorkPhoneAssetStatusRequest) returns (AccountContactAssetResponse);
+  rpc SetAccountPrimaryWorkEmailAsset(SetAccountPrimaryWorkEmailAssetRequest) returns (AccountContactAssetResponse);
+  rpc SetAccountPrimaryWorkPhoneAsset(SetAccountPrimaryWorkPhoneAssetRequest) returns (AccountContactAssetResponse);
   rpc AddAccountOrgMembership(AddAccountOrgMembershipRequest) returns (AccountOrgMembershipResponse);
   rpc RemoveAccountOrgMembership(RemoveAccountOrgMembershipRequest) returns (AccountOrgMembershipResponse);
   rpc SetAccountPrimaryOrg(SetAccountPrimaryOrgRequest) returns (SetAccountPrimaryOrgResponse);
@@ -100,6 +110,76 @@ message AccountOrgMembership {
 
 message AccountOrgMembershipResponse {
   AccountOrgMembership membership = 1;
+}
+
+message AccountContactAsset {
+  string id = 1;
+  string tenant_id = 2;
+  string account_id = 3;
+  string type = 4;
+  string value = 5;
+  string status = 6;
+  bool is_primary = 7;
+  string assigned_at = 8;
+  string revoked_at = 9;
+}
+
+message AccountContactAssetResponse {
+  AccountContactAsset asset = 1;
+}
+
+message ListAccountWorkEmailAssetsRequest {
+  string account_id = 1;
+}
+
+message ListAccountWorkEmailAssetsResponse {
+  repeated AccountContactAsset assets = 1;
+}
+
+message ListAccountWorkPhoneAssetsRequest {
+  string account_id = 1;
+}
+
+message ListAccountWorkPhoneAssetsResponse {
+  repeated AccountContactAsset assets = 1;
+}
+
+message AssignAccountWorkEmailAssetRequest {
+  string account_id = 1;
+  string email = 2;
+  bool is_primary = 3;
+}
+
+message AssignAccountWorkPhoneAssetRequest {
+  string account_id = 1;
+  string phone = 2;
+  bool is_primary = 3;
+}
+
+message RevokeAccountWorkEmailAssetRequest {
+  string asset_id = 1;
+}
+
+message RevokeAccountWorkPhoneAssetRequest {
+  string asset_id = 1;
+}
+
+message SetAccountWorkEmailAssetStatusRequest {
+  string asset_id = 1;
+  bool enabled = 2;
+}
+
+message SetAccountWorkPhoneAssetStatusRequest {
+  string asset_id = 1;
+  bool enabled = 2;
+}
+
+message SetAccountPrimaryWorkEmailAssetRequest {
+  string asset_id = 1;
+}
+
+message SetAccountPrimaryWorkPhoneAssetRequest {
+  string asset_id = 1;
 }
 
 message AddAccountOrgMembershipRequest {

@@ -1,12 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common'
-import { LOGIN_RISK_REPOSITORY } from 'src/common/constants/injection-tokens'
+import { REPO } from 'src/common/constants'
 import { LoginFailureState } from 'src/domain/aggregates/login-failure-state.aggregate'
 import { ILoginRiskRepository } from 'src/domain/repositories/login-risk.repository'
 
 @Injectable()
 export class LoginRiskThrottleService {
   constructor(
-    @Inject(LOGIN_RISK_REPOSITORY)
+    @Inject(REPO.LOGIN_RISK)
     private readonly loginRiskRepository: ILoginRiskRepository
   ) {}
 

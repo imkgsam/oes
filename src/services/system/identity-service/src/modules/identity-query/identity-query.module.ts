@@ -4,10 +4,12 @@ import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { SYMBOLS } from '../../common/constants'
 import {
   AccountQueryHandlers,
+  ContactQueryHandlers,
   OrgQueryHandlers,
   TenantQueryHandlers,
   UserQueryHandlers
 } from '../../application/queries'
+import { PrismaAccountContactAssetRepository } from '../../infrastructure/repositories/prisma/prisma.account-contact-asset.repository'
 import { PrismaAccountRepository } from '../../infrastructure/repositories/prisma/prisma.account.repository'
 import { PrismaOrgRepository } from '../../infrastructure/repositories/prisma/prisma.org.repository'
 import { PrismaTenantRepository } from '../../infrastructure/repositories/prisma/prisma.tenant.repository'
@@ -34,12 +36,17 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
       provide: SYMBOLS.REPO.ORG,
       useClass: PrismaOrgRepository
     },
+    {
+      provide: SYMBOLS.REPO.ACCOUNT_CONTACT_ASSET,
+      useClass: PrismaAccountContactAssetRepository
+    },
     ValidatingCommandBus,
     ValidatingQueryBus,
     ...UserQueryHandlers,
     ...AccountQueryHandlers,
     ...TenantQueryHandlers,
-    ...OrgQueryHandlers
+    ...OrgQueryHandlers,
+    ...ContactQueryHandlers
   ],
   controllers: [IdentityQueryGrpcController]
 })

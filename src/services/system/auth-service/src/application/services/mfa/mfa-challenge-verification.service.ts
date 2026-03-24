@@ -1,23 +1,25 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { createBusinessException } from '@oes/common/exceptions'
 import { AUTH_MFA_BINDING_NOT_FOUND } from 'src/common/constants/exception-enums'
-import { LoginMethodType, OTP_TYPES } from 'src/common/constants'
-import { OTP_REPOSITORY, USER_REPOSITORY } from 'src/common/constants/injection-tokens'
+import { LoginMethodType, OTP_TYPES, REPO } from 'src/common/constants'
 import { IOtpRepository } from 'src/domain/repositories/otp.repository'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
 
 @Injectable()
 export class MfaChallengeVerificationService {
   constructor(
-    @Inject(OTP_REPOSITORY)
+    @Inject(REPO.OTP)
     private readonly oneTimeTokenRepo: IOtpRepository,
-    @Inject(USER_REPOSITORY)
+    @Inject(REPO.LOGIN_METHOD)
     private readonly loginMethodRepo: ILoginMethodRepository
   ) {}
 
   async verifyChallenge(tokenId: string, code: string): Promise<string | null> {
     const token = await this.oneTimeTokenRepo.findById(tokenId)
     if (!token) return null
+    if (!token.isMfaOtp()) {
+      return null
+    }
 
     const isValid = token.verify(code)
     if (!isValid) {

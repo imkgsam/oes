@@ -39,20 +39,6 @@ export interface IUserSessionRepository {
   findById(sessionId: string): Promise<Session | null>
 
   /**
-   * 根据访问令牌查找
-   *
-   * 使用场景：
-   * - API 请求时的令牌验证
-   * - 获取令牌对应的 Session 信息
-   * - 自动续期时的 Session 查找
-   * - 安全审计和监控
-   *
-   * @param accessToken 访问令牌
-   * @returns Promise<Session | null>
-   */
-  findByAccessToken(accessToken: string): Promise<Session | null>
-
-  /**
    * 根据刷新令牌查找
    *
    * 使用场景：

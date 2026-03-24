@@ -2,12 +2,17 @@ import { Controller, UseFilters } from '@nestjs/common'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter, OtelExceptionFilter } from '@oes/common/filters'
 import {
+  AccountContactAsset,
   GetAccountByIdRequest,
   GetAccountByIdResponse,
   GetAccountsByUserIdRequest,
   GetAccountsByUserIdResponse,
   ListAccountOrgMembershipsRequest,
   ListAccountOrgMembershipsResponse,
+  ListAccountWorkEmailAssetsRequest,
+  ListAccountWorkEmailAssetsResponse,
+  ListAccountWorkPhoneAssetsRequest,
+  ListAccountWorkPhoneAssetsResponse,
   GetOrgTreeByTenantIdRequest,
   GetOrgTreeByTenantIdResponse,
   GetTenantByIdRequest,
@@ -25,6 +30,8 @@ import {
   GetAccountByIdQuery,
   GetAccountsByUserIdQuery,
   ListAccountOrgMembershipsQuery,
+  ListAccountWorkEmailAssetsQuery,
+  ListAccountWorkPhoneAssetsQuery,
   GetOrgTreeByTenantIdQuery,
   GetTenantByIdQuery,
   GetUserByIdQuery,
@@ -56,6 +63,30 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
         displayName: account.displayName ?? '',
         isEnabled: account.isEnabled
       }
+    }
+  }
+
+  async listAccountWorkEmailAssets(
+    request: ListAccountWorkEmailAssetsRequest
+  ): Promise<ListAccountWorkEmailAssetsResponse> {
+    const assets = await this.queryBus.execute(
+      new ListAccountWorkEmailAssetsQuery(request.accountId ?? '')
+    )
+
+    return {
+      assets: assets.map((asset) => this.toContactAsset(asset))
+    }
+  }
+
+  async listAccountWorkPhoneAssets(
+    request: ListAccountWorkPhoneAssetsRequest
+  ): Promise<ListAccountWorkPhoneAssetsResponse> {
+    const assets = await this.queryBus.execute(
+      new ListAccountWorkPhoneAssetsQuery(request.accountId ?? '')
+    )
+
+    return {
+      assets: assets.map((asset) => this.toContactAsset(asset))
     }
   }
 
@@ -196,6 +227,30 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
       type: node.type,
       sortOrder: node.sortOrder,
       children: node.children.map((child) => this.toOrgNode(child))
+    }
+  }
+
+  private toContactAsset(asset: {
+    id: string
+    tenantId: string
+    accountId: string
+    type: string
+    value: string
+    status: string
+    isPrimary: boolean
+    assignedAt: Date
+    revokedAt: Date | null
+  }): AccountContactAsset {
+    return {
+      id: asset.id,
+      tenantId: asset.tenantId,
+      accountId: asset.accountId,
+      type: asset.type,
+      value: asset.value,
+      status: asset.status,
+      isPrimary: asset.isPrimary,
+      assignedAt: asset.assignedAt.toISOString(),
+      revokedAt: asset.revokedAt?.toISOString() ?? ''
     }
   }
 }

@@ -23,7 +23,6 @@ type SessionProps = {
   id: string
   userId: string
   accountId: string
-  accessToken: string
   refreshToken: string
   status: SessionStatus
   deviceInfo: DeviceInfo
@@ -56,7 +55,6 @@ export class Session {
       id: randomUUID(),
       userId: params.userId,
       accountId: params.accountId,
-      accessToken: randomUUID(),
       refreshToken: randomUUID(),
       status: SessionStatus.ACTIVE,
       deviceInfo: params.deviceInfo,
@@ -74,7 +72,6 @@ export class Session {
       id: data.id,
       userId: data.userId,
       accountId: data.accountId,
-      accessToken: data.accessToken,
       refreshToken: data.refreshToken,
       status: data.status as SessionStatus,
       deviceInfo: data.deviceInfo as DeviceInfo,
@@ -95,7 +92,6 @@ export class Session {
       id: this.props.id,
       userId: this.props.userId,
       accountId: this.props.accountId,
-      accessToken: this.props.accessToken,
       refreshToken: this.props.refreshToken,
       status: this.props.status,
       deviceInfo: this.props.deviceInfo,
@@ -109,10 +105,6 @@ export class Session {
       adminRevokeAt: this.props.adminRevokeAt?.toISOString(),
       adminRevokeBy: this.props.adminRevokeBy
     }
-  }
-
-  validateAccessToken(token: string): boolean {
-    return this.props.accessToken === token && this.isActive() && !this.isExpired()
   }
 
   validateRefreshToken(token: string): boolean {
@@ -145,8 +137,7 @@ export class Session {
     this.touch()
   }
 
-  issueTokens(accessToken: string, refreshToken: string, accessExpiry: number, refreshExpiry: number): void {
-    this.props.accessToken = accessToken
+  activateTokenWindow(refreshToken: string, accessExpiry: number, refreshExpiry: number): void {
     this.props.refreshToken = refreshToken
     this.props.expiresAt = new Date(Date.now() + accessExpiry * 1000)
     this.props.refreshExpiresAt = new Date(Date.now() + refreshExpiry * 1000)
@@ -197,10 +188,6 @@ export class Session {
 
   getAccountId(): string {
     return this.props.accountId
-  }
-
-  getAccessToken(): string {
-    return this.props.accessToken
   }
 
   getRefreshToken(): string {

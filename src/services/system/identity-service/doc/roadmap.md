@@ -1,6 +1,6 @@
 # Identity Service 路线图
 
-更新时间：2026-03-24 11:02:00 +09:00
+更新时间：2026-03-24 12:40:00 +09:00
 
 ## Phase 1：身份查询基线
 
@@ -74,12 +74,44 @@
   - `IDN-ORG-01`
   - `IDN-ORG-02`
   - `IDN-ORG-03`
-- 当前建议下一步进入联系方式资产分片：
+- `Phase 2` 中企业邮箱资产分片已完成：
   - `IDN-CONTACT-01`
+- `Phase 2` 中企业手机资产分片已完成：
   - `IDN-CONTACT-02`
+- 当前建议下一步进入机器身份分片：
+  - `IDN-MACHINE-01`
+  - `IDN-MACHINE-02`
 
-当前应优先推进 `IDN-CONTACT-01`。原因：
+当前应优先推进 `IDN-MACHINE-01`。原因：
 
-- 组织结构最小闭环已经完成
-- `identity-service` 还缺企业联系方式资产这一层正式主数据
-- 联系方式资产比机器身份更贴近现阶段账号与租户边界能力建设
+- 联系方式资产子域最小闭环已经完成
+- `identity-service` 已具备继续承接机器身份主数据的空间
+- Phase 3 是当前剩余的主线能力缺口
+## Status Update 2026-03-24
+
+### Current decision
+
+- `Phase 1` is complete.
+- `Phase 2` minimum closure is complete for:
+  - org tree query
+  - account primary org binding
+  - account multi-org membership
+  - work email asset management
+  - work phone asset management
+- `Phase 3` is intentionally deferred.
+
+### Immediate next step
+
+Do not enter `IDN-MACHINE-01` yet.
+
+The current priority is service-internal consolidation for `identity-service`:
+
+1. complete validation coverage for contact queries
+2. remove loose controller fallback inputs such as `?? ''`
+3. preserve and extend L1 regression protection for Phase 2 behavior
+
+### Rationale
+
+- The current gap is maintainability and input-boundary consistency, not feature coverage.
+- `identity-service` already has the minimum feature closure needed for the current stage.
+- Entering machine identity before tightening validation and regression coverage would carry Phase 2 debt into Phase 3.

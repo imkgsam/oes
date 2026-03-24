@@ -56,3 +56,7 @@
 - `LoginWithEmailPasswordHandler` now uses `EmailOtpMfaChallengeService`.
 - `SubmitMfaChallengeHandler` now uses `MfaChallengeVerificationService`.
 - The legacy `MfaService` has been removed from the codebase after the active flow migration was completed.
+## 2026-03-24 Current Alignment
+
+- `SubmitMfaChallenge` now accepts the upstream `loginMethod` and carries it forward to the account-selection stage.
+- MFA challenge verification now rejects non-`MFA_VERIFY` OTP usage, so login OTP challenges cannot be reused as MFA challenges.

@@ -1,6 +1,6 @@
 // src/services/system/entity-service/src/main.ts
 
-// 鍒濆鍖杘tel sdk
+// Initialize OpenTelemetry before the Nest microservice starts.
 import { initOtelSdk } from '@oes/common/tracing'
 import { AppLogger } from '@oes/common/logging'
 
@@ -20,7 +20,8 @@ async function bootstrap() {
       port: Number(SERVICE_ENDPOINTS_CONFIG.ENTITY_TCP.port)
     }
   })
-  //璁剧疆鑷畾涔夋棩蹇楁湇鍔?  microservice.useLogger(microservice.get(AppLogger))
+  // Use the shared application logger once the microservice is created.
+  microservice.useLogger(microservice.get(AppLogger))
   microservice.useGlobalPipes(new ValidationPipe())
   microservice.useGlobalFilters(new MicroserviceExceptionsFilter(process.env.MODULE_NAME))
   await microservice.listen()

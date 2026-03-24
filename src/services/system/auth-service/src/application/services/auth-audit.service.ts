@@ -58,6 +58,23 @@ export class AuthAuditService {
     )
   }
 
+  emitLogoutSucceeded(sessionId: string): void {
+    this.emit(
+      new AuthAuditEvent('LOGOUT_SUCCEEDED', {
+        sessionId
+      })
+    )
+  }
+
+  emitLogoutAllSucceeded(userId: string, sessionCount: number): void {
+    this.emit(
+      new AuthAuditEvent('LOGOUT_ALL_SUCCEEDED', {
+        userId,
+        sessionCount
+      })
+    )
+  }
+
   private emit(event: AuthAuditEvent): void {
     this.eventEmitter.emit(AuthAuditService.EVENT_NAME, event)
   }

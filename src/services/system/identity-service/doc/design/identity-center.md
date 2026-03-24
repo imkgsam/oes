@@ -150,7 +150,7 @@
 | 8 | Organization Structure | 4.1 | [idn-org-01-org-tree-query.md](../tasks/idn-org-01-org-tree-query.md) | 查询租户组织树 | 已实现 | 2026-03-23 21:00 +08:00 | 组织树查询已落地 |
 | 9 | Organization Structure | 4.2 | [idn-org-02-account-primary-org-binding.md](../tasks/idn-org-02-account-primary-org-binding.md) | 账户主组织绑定能力 | 已实现 | 2026-03-23 21:00 +08:00 | schema 已按 membership 方向落地 |
 | 10 | Organization Structure | 4.3 | [idn-org-03-account-multi-org-membership.md](../tasks/idn-org-03-account-multi-org-membership.md) | 账户多组织归属能力 | 已实现 | 2026-03-24 10:52 +09:00 | membership 增删查已落地 |
-| 11 | Contact Asset | 5.1 | [idn-contact-01-account-work-email-asset.md](../tasks/idn-contact-01-account-work-email-asset.md) | 企业邮箱资产绑定 | 未开始 | 2026-03-23 18:15 +08:00 | 先在本服务内建子域 |
-| 12 | Contact Asset | 5.2 | [idn-contact-02-account-work-phone-asset.md](../tasks/idn-contact-02-account-work-phone-asset.md) | 企业手机资产绑定 | 未开始 | 2026-03-23 18:15 +08:00 | 先在本服务内建子域 |
+| 11 | Contact Asset | 5.1 | [idn-contact-01-account-work-email-asset.md](../tasks/idn-contact-01-account-work-email-asset.md) | 企业邮箱资产绑定 | 已实现 | 2026-03-24 12:20 +09:00 | `AccountContactAsset` 子域已落最小闭环 |
+| 12 | Contact Asset | 5.2 | [idn-contact-02-account-work-phone-asset.md](../tasks/idn-contact-02-account-work-phone-asset.md) | 企业手机资产绑定 | 已实现 | 2026-03-24 12:40 +09:00 | 已复用 `AccountContactAsset` 子域落最小闭环 |
 | 13 | Machine Identity | 6.1 | [idn-machine-01-service-account-model.md](../tasks/idn-machine-01-service-account-model.md) | 机器身份主体模型 | 未开始 | 2026-03-23 18:15 +08:00 | Phase 3 |
 | 14 | Machine Identity | 6.2 | [idn-machine-02-api-key-model.md](../tasks/idn-machine-02-api-key-model.md) | 机器凭据模型 | 未开始 | 2026-03-23 18:15 +08:00 | Phase 3 |

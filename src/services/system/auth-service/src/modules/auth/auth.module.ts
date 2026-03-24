@@ -3,15 +3,8 @@ import { CqrsModule } from '@nestjs/cqrs'
 import { EventEmitterModule } from '@nestjs/event-emitter'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { CommonJwtModule } from '@oes/common/auth'
-import {
-  LOGIN_RISK_REPOSITORY,
-  LOGIN_METHOD_REPOSITORY,
-  MFA_BINDING_REPOSITORY,
-  OTP_REPOSITORY,
-  OTP_SEND_THROTTLE_REPOSITORY,
-  SESSION_REPOSITORY,
-  HASHING_SERVICE
-} from 'src/common/constants/injection-tokens'
+import { REPO } from 'src/common/constants'
+import { HASHING_SERVICE } from 'src/common/constants/injection-tokens'
 import { AuthAuditService } from 'src/application/services/auth-audit.service'
 import { LoginRiskThrottleService } from 'src/application/services/login-risk-throttle.service'
 import { EmailOtpMfaChallengeService } from 'src/application/services/mfa/email-otp-mfa-challenge.service'
@@ -20,7 +13,6 @@ import { PhoneOtpMfaChallengeService } from 'src/application/services/mfa/phone-
 import { EmailOtpLoginService } from 'src/application/services/email-otp-login.service'
 import { OtpRiskThrottleService } from 'src/application/services/otp-risk-throttle.service'
 import { PhoneOtpLoginService } from 'src/application/services/phone-otp-login.service'
-import { SessionService } from 'src/application/services/session.service'
 import { AuthCommandHandlers } from 'src/application/commands/auth'
 import { AuthStrategyFactory } from 'src/domain/services/strategies/auth-strategies.factory'
 import { EmailPasswordStrategy } from 'src/domain/services/strategies/email-password.strategy'
@@ -42,12 +34,12 @@ import { AuthGrpcController } from 'src/interfaces/grpc/auth.grpc.controller'
 @Module({
   imports: [CqrsModule, EventEmitterModule.forRoot(), PrismaModule, CommonJwtModule, ExternalServicesModule],
   providers: [
-    { provide: LOGIN_METHOD_REPOSITORY, useClass: PrismaUserRepository },
-    { provide: MFA_BINDING_REPOSITORY, useClass: PrismaMfaBindingRepository },
-    { provide: OTP_REPOSITORY, useClass: PrismaOtpRepository },
-    { provide: LOGIN_RISK_REPOSITORY, useClass: RedisLoginRiskRepository },
-    { provide: OTP_SEND_THROTTLE_REPOSITORY, useClass: RedisOtpSendThrottleRepository },
-    { provide: SESSION_REPOSITORY, useClass: RedisUserSessionRepository },
+    { provide: REPO.LOGIN_METHOD, useClass: PrismaUserRepository },
+    { provide: REPO.MFA_BINDING, useClass: PrismaMfaBindingRepository },
+    { provide: REPO.OTP, useClass: PrismaOtpRepository },
+    { provide: REPO.LOGIN_RISK, useClass: RedisLoginRiskRepository },
+    { provide: REPO.OTP_SEND_THROTTLE, useClass: RedisOtpSendThrottleRepository },
+    { provide: REPO.SESSION, useClass: RedisUserSessionRepository },
     { provide: HASHING_SERVICE, useClass: BcryptHashingService },
     ValidatingCommandBus,
     ValidatingQueryBus,
@@ -73,7 +65,6 @@ import { AuthGrpcController } from 'src/interfaces/grpc/auth.grpc.controller'
     LoginRiskThrottleService,
     OtpRiskThrottleService,
     PhoneOtpLoginService,
-    SessionService,
     EmailPasswordStrategy,
     PhonePasswordStrategy,
     EmailService,

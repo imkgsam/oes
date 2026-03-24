@@ -1,12 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { createBusinessException } from '@oes/common/exceptions'
 import { AUTH_MFA_BINDING_NOT_FOUND } from 'src/common/constants/exception-enums'
-import { LoginMethodType, MfaType, OTP_TYPES, OTP_USAGES } from 'src/common/constants'
-import {
-  MFA_BINDING_REPOSITORY,
-  OTP_REPOSITORY,
-  USER_REPOSITORY
-} from 'src/common/constants/injection-tokens'
+import { LoginMethodType, MfaType, OTP_TYPES, OTP_USAGES, REPO } from 'src/common/constants'
 import { OneTimeToken } from 'src/domain/aggregates/otp.aggregate'
 import { IMfaBindingRepository } from 'src/domain/repositories/mfaBinding.repository'
 import { IOtpRepository } from 'src/domain/repositories/otp.repository'
@@ -17,11 +12,11 @@ import { OtpRiskThrottleService } from '../otp-risk-throttle.service'
 @Injectable()
 export class EmailOtpMfaChallengeService {
   constructor(
-    @Inject(MFA_BINDING_REPOSITORY)
+    @Inject(REPO.MFA_BINDING)
     private readonly mfaBindingRepo: IMfaBindingRepository,
-    @Inject(OTP_REPOSITORY)
+    @Inject(REPO.OTP)
     private readonly oneTimeTokenRepo: IOtpRepository,
-    @Inject(USER_REPOSITORY)
+    @Inject(REPO.LOGIN_METHOD)
     private readonly loginMethodRepo: ILoginMethodRepository,
     private readonly emailService: EmailService,
     private readonly otpRiskThrottleService: OtpRiskThrottleService

@@ -1,6 +1,6 @@
 # Contact Asset 设计
 
-更新时间：2026-03-24 11:08:00 +09:00
+更新时间：2026-03-24 12:40:00 +09:00
 
 ## 文档定位
 
@@ -51,5 +51,5 @@
 
 | 序号 | 任务编号 | 任务文档                                                                                       | 描述             | 当前状态 | 最后一次全局审核时间 | 备注             |
 | ---- | -------- | ---------------------------------------------------------------------------------------------- | ---------------- | -------- | -------------------- | ---------------- |
-| 1    | 5.1      | [idn-contact-01-account-work-email-asset.md](../tasks/idn-contact-01-account-work-email-asset.md) | 企业邮箱资产绑定 | 未开始   | 2026-03-24 10:52 +09:00 | 当前建议优先推进 |
-| 2    | 5.2      | [idn-contact-02-account-work-phone-asset.md](../tasks/idn-contact-02-account-work-phone-asset.md) | 企业手机资产绑定 | 未开始   | 2026-03-24 10:52 +09:00 | 紧随邮箱资产之后 |
+| 1    | 5.1      | [idn-contact-01-account-work-email-asset.md](../tasks/idn-contact-01-account-work-email-asset.md) | 企业邮箱资产绑定 | 已实现   | 2026-03-24 12:20 +09:00 | 已落最小管理闭环 |
+| 2    | 5.2      | [idn-contact-02-account-work-phone-asset.md](../tasks/idn-contact-02-account-work-phone-asset.md) | 企业手机资产绑定 | 已实现   | 2026-03-24 12:40 +09:00 | 已复用资产子域落最小管理闭环 |

@@ -1,10 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { ExceptionFactory } from '@oes/common/exceptions'
-import { LoginMethodType, OTP_TYPES, OTP_USAGES } from 'src/common/constants'
-import {
-  LOGIN_METHOD_REPOSITORY,
-  OTP_REPOSITORY
-} from 'src/common/constants/injection-tokens'
+import { LoginMethodType, OTP_TYPES, OTP_USAGES, REPO } from 'src/common/constants'
 import { AUTH_INVALID_CREDENTIALS, AUTH_OTP_INVALID } from 'src/common/constants/exception-enums'
 import { OneTimeToken } from 'src/domain/aggregates/otp.aggregate'
 import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
@@ -16,9 +12,9 @@ import { OtpRiskThrottleService } from './otp-risk-throttle.service'
 @Injectable()
 export class EmailOtpLoginService {
   constructor(
-    @Inject(LOGIN_METHOD_REPOSITORY)
+    @Inject(REPO.LOGIN_METHOD)
     private readonly loginMethodRepo: ILoginMethodRepository,
-    @Inject(OTP_REPOSITORY)
+    @Inject(REPO.OTP)
     private readonly otpRepository: IOtpRepository,
     private readonly emailService: EmailService,
     private readonly otpRiskThrottleService: OtpRiskThrottleService

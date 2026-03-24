@@ -20,6 +20,7 @@ model Tenant {
   updatedAt    DateTime      @updatedAt
   orgUnits     Org[]
   userAccounts UserAccount[]
+  contactAssets AccountContactAsset[]
 }
 
 //组织，可以是分公司，分支机构，也可以是部门，也可以是小组...
@@ -71,6 +72,7 @@ model UserAccount {
   isEnable  Boolean  @default(true)
   avatarUrl String?
   orgMemberships UserAccountOrgMembership[]
+  contactAssets AccountContactAsset[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -79,6 +81,39 @@ model UserAccount {
 
   @@unique([userId, tenantId])
   @@index([tenantId])
+}
+
+model AccountContactAsset {
+  id         String                   @id @default(uuid())
+  tenantId   String
+  accountId  String
+  type       AccountContactAssetType
+  value      String
+  status     AccountContactAssetStatus @default(ACTIVE)
+  isPrimary  Boolean                  @default(false)
+  assignedAt DateTime                 @default(now())
+  revokedAt  DateTime?
+  assignedBy String
+  revokedBy  String?
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+  account    UserAccount              @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tenant     Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([accountId, type, status])
+  @@index([tenantId, type, value])
+  @@index([accountId, type, isPrimary])
+}
+
+enum AccountContactAssetType {
+  WORK_EMAIL
+  WORK_PHONE
+}
+
+enum AccountContactAssetStatus {
+  ACTIVE
+  DISABLED
+  REVOKED
 }
 
 model UserAccountOrgMembership {

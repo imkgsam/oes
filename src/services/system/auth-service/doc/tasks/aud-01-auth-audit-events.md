@@ -44,5 +44,5 @@
 
 ## 阻塞项
 
-- 当前 logout 仍是占位实现，因此登出审计尚未接入
+- 当前 `SESS-04` 已接入 `LOGOUT_SUCCEEDED` / `LOGOUT_ALL_SUCCEEDED` 事件
 - 当前仅落本地内部事件与日志输出，未接外部审计平台
