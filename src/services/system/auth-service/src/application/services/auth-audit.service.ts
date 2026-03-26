@@ -32,6 +32,16 @@ export class AuthAuditService {
     )
   }
 
+  emitAdminSessionRevoked(adminId: string, sessionId: string, reason: string): void {
+    this.emit(
+      new AuthAuditEvent('ADMIN_SESSION_REVOKED', {
+        adminId,
+        sessionId,
+        reason
+      })
+    )
+  }
+
   emitLoginSucceeded(
     userId: string,
     accountId: string,
@@ -58,10 +68,34 @@ export class AuthAuditService {
     )
   }
 
+  emitSessionDeviceRenamed(userId: string, sessionId: string, deviceName: string): void {
+    this.emit(
+      new AuthAuditEvent('SESSION_DEVICE_RENAMED', {
+        userId,
+        sessionId,
+        deviceName
+      })
+    )
+  }
+
   emitLogoutSucceeded(sessionId: string): void {
     this.emit(
       new AuthAuditEvent('LOGOUT_SUCCEEDED', {
         sessionId
+      })
+    )
+  }
+
+  emitLogoutOtherDevicesSucceeded(
+    userId: string,
+    currentSessionId: string,
+    sessionCount: number
+  ): void {
+    this.emit(
+      new AuthAuditEvent('LOGOUT_OTHER_DEVICES_SUCCEEDED', {
+        userId,
+        currentSessionId,
+        sessionCount
       })
     )
   }

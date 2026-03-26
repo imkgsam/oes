@@ -1,8 +1,21 @@
-import { Controller, UseFilters } from '@nestjs/common'
-import { ValidatingCommandBus } from '@oes/common/cqrs'
+import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import {
+  AuthenticatedOperatorGuard,
+  AUTH_SESSION_PERMISSION_CODES,
+  getAuthenticatedGrpcRequestContext,
+  InternalServiceGuard,
+  OPERATOR_CONTEXT_MISSING,
+  RequireAuthenticatedOperator
+} from '@oes/common/security'
+import { PermissionGuard, RequirePermission } from '@oes/common/security'
+import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { GrpcExceptionFilter, OtelExceptionFilter } from '@oes/common/filters'
 import {
+  AdminListUserSessionsRequest,
+  AdminListUserSessionsResponse,
+  AdminRevokeSessionRequest,
+  AdminRevokeSessionResponse,
   AuthServiceController,
   AuthServiceControllerMethods,
   EmailOtpChallengeRequest,
@@ -10,8 +23,14 @@ import {
   EmailOtpLoginRequest,
   LoginStatus,
   LoginResponse,
+  ListSessionsRequest,
+  ListSessionsResponse,
+  RenameSessionDeviceRequest,
+  RenameSessionDeviceResponse,
   LogoutAllRequest,
   LogoutAllResponse,
+  LogoutOtherDevicesRequest,
+  LogoutOtherDevicesResponse,
   LogoutRequest,
   LogoutResponse,
   OtpChallengeResponse,
@@ -25,25 +44,123 @@ import {
   SubmitMfaChallengeRequest
 } from '@oes/common/generated/auth_service'
 import {
+  AdminRevokeSessionCommand,
   LoginWithEmailPasswordCommand,
   LoginWithEmailOtpCommand,
   LoginWithPhoneOtpCommand,
   LoginWithPhonePasswordCommand,
   LogoutAllCommand,
+  LogoutOtherDevicesCommand,
   LogoutCommand,
   RefreshSessionCommand,
+  RenameSessionDeviceCommand,
   RequestEmailOtpLoginChallengeCommand,
   RequestPhoneOtpLoginChallengeCommand,
   SelectAccountCommand,
   SubmitMfaChallengeCommand
 } from 'src/application/commands/auth'
+import { AdminListUserSessionsQuery, ListSessionsQuery } from 'src/application/queries'
 import { AUTH_LOGIN_FLOW_RESULT_UNSUPPORTED } from 'src/common/constants/exception-enums'
 
 @Controller()
 @UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
 @AuthServiceControllerMethods()
 export class AuthGrpcController implements AuthServiceController {
-  constructor(private readonly commandBus: ValidatingCommandBus) {}
+  constructor(
+    private readonly commandBus: ValidatingCommandBus,
+    private readonly queryBus: ValidatingQueryBus
+  ) {}
+
+  @RequirePermission(AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS)
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
+  async adminListUserSessions(
+    request: AdminListUserSessionsRequest
+  ): Promise<AdminListUserSessionsResponse> {
+    this.getRequiredOperatorId(request)
+    const sessions = await this.queryBus.execute(new AdminListUserSessionsQuery(request.userId ?? ''))
+
+    return {
+      sessions: sessions.map((session) => ({
+        sessionId: session.sessionId,
+        userId: session.userId,
+        accountId: session.accountId,
+        tenantId: session.tenantId,
+        status: session.status,
+        deviceId: session.deviceId,
+        deviceName: session.deviceName,
+        userAgent: session.userAgent,
+        ipAddress: session.ipAddress,
+        createdAt: session.createdAt.toISOString(),
+        lastActiveAt: session.lastActiveAt.toISOString(),
+        expiresAt: session.expiresAt.toISOString(),
+        refreshExpiresAt: session.refreshExpiresAt.toISOString(),
+        isAdminControlled: session.isAdminControlled,
+        adminRevokeReason: session.adminRevokeReason,
+        adminRevokeAt: session.adminRevokeAt?.toISOString() ?? '',
+        adminRevokeBy: session.adminRevokeBy
+      }))
+    }
+  }
+
+  async listSessions(request: ListSessionsRequest): Promise<ListSessionsResponse> {
+    const sessions = await this.queryBus.execute(
+      new ListSessionsQuery(request.userId ?? '', request.currentSessionId ?? undefined)
+    )
+
+    return {
+      sessions: sessions.map((session) => ({
+        sessionId: session.sessionId,
+        userId: session.userId,
+        accountId: session.accountId,
+        tenantId: session.tenantId,
+        status: session.status,
+        deviceId: session.deviceId,
+        deviceName: session.deviceName,
+        userAgent: session.userAgent,
+        ipAddress: session.ipAddress,
+        createdAt: session.createdAt.toISOString(),
+        lastActiveAt: session.lastActiveAt.toISOString(),
+        expiresAt: session.expiresAt.toISOString(),
+        refreshExpiresAt: session.refreshExpiresAt.toISOString(),
+        isCurrent: session.isCurrent,
+        isAdminControlled: session.isAdminControlled
+      }))
+    }
+  }
+
+  async renameSessionDevice(
+    request: RenameSessionDeviceRequest
+  ): Promise<RenameSessionDeviceResponse> {
+    const result = await this.commandBus.execute(
+      new RenameSessionDeviceCommand(
+        request.userId ?? '',
+        request.sessionId ?? '',
+        request.deviceName ?? ''
+      )
+    )
+
+    return {
+      success: result.success,
+      sessionId: result.sessionId,
+      deviceName: result.deviceName
+    }
+  }
+
+  @RequirePermission(AUTH_SESSION_PERMISSION_CODES.ADMIN_REVOKE_SESSION)
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
+  async adminRevokeSession(
+    request: AdminRevokeSessionRequest
+  ): Promise<AdminRevokeSessionResponse> {
+    const operatorId = this.getRequiredOperatorId(request)
+    const result = await this.commandBus.execute(
+      new AdminRevokeSessionCommand(operatorId, request.sessionId ?? '', request.reason ?? '')
+    )
+
+    return {
+      success: result.success,
+      sessionId: result.sessionId
+    }
+  }
 
   async logout(request: LogoutRequest): Promise<LogoutResponse> {
     const result = await this.commandBus.execute(
@@ -52,6 +169,19 @@ export class AuthGrpcController implements AuthServiceController {
 
     return {
       success: result.success
+    }
+  }
+
+  async logoutOtherDevices(
+    request: LogoutOtherDevicesRequest
+  ): Promise<LogoutOtherDevicesResponse> {
+    const result = await this.commandBus.execute(
+      new LogoutOtherDevicesCommand(request.userId ?? '', request.currentSessionId ?? '')
+    )
+
+    return {
+      success: result.success,
+      sessionCount: String(result.sessionCount)
     }
   }
 
@@ -305,5 +435,15 @@ export class AuthGrpcController implements AuthServiceController {
     }
 
     throw ExceptionFactory.application(AUTH_LOGIN_FLOW_RESULT_UNSUPPORTED)
+  }
+
+  private getRequiredOperatorId(rpcData: unknown): string {
+    const operatorId = getAuthenticatedGrpcRequestContext(rpcData)?.operatorContext?.operator_id?.trim()
+
+    if (!operatorId) {
+      throw ExceptionFactory.application(OPERATOR_CONTEXT_MISSING)
+    }
+
+    return operatorId
   }
 }

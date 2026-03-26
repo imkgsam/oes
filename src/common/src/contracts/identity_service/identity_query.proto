@@ -7,6 +7,8 @@ option java_package = "com.oes.identity.v1";
 
 service IdentityQueryService {
   rpc GetAccountById(GetAccountByIdRequest) returns (GetAccountByIdResponse);
+  rpc GetServiceAccountById(GetServiceAccountByIdRequest) returns (GetServiceAccountByIdResponse);
+  rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse);
   rpc ListAccountWorkEmailAssets(ListAccountWorkEmailAssetsRequest) returns (ListAccountWorkEmailAssetsResponse);
   rpc ListAccountWorkPhoneAssets(ListAccountWorkPhoneAssetsRequest) returns (ListAccountWorkPhoneAssetsResponse);
   rpc ListAccountOrgMemberships(ListAccountOrgMembershipsRequest) returns (ListAccountOrgMembershipsResponse);
@@ -19,6 +21,8 @@ service IdentityQueryService {
 }
 
 service IdentityManagementService {
+  rpc CreateServiceAccount(CreateServiceAccountRequest) returns (ServiceAccountResponse);
+  rpc SetServiceAccountEnabled(SetServiceAccountEnabledRequest) returns (ServiceAccountResponse);
   rpc AssignAccountWorkEmailAsset(AssignAccountWorkEmailAssetRequest) returns (AccountContactAssetResponse);
   rpc AssignAccountWorkPhoneAsset(AssignAccountWorkPhoneAssetRequest) returns (AccountContactAssetResponse);
   rpc RevokeAccountWorkEmailAsset(RevokeAccountWorkEmailAssetRequest) returns (AccountContactAssetResponse);
@@ -237,4 +241,55 @@ message AccountSummary {
 
 message GetAccountByIdResponse {
   AccountSummary account = 1;
+}
+
+message ServiceAccount {
+  string id = 1;
+  string tenant_id = 2;
+  string scope_level = 3;
+  string type = 4;
+  string name = 5;
+  string description = 6;
+  string status = 7;
+  string created_at = 8;
+  string updated_at = 9;
+  string created_by = 10;
+  string disabled_at = 11;
+  string disabled_by = 12;
+}
+
+message ServiceAccountResponse {
+  ServiceAccount account = 1;
+}
+
+message GetServiceAccountByIdRequest {
+  string service_account_id = 1;
+}
+
+message GetServiceAccountByIdResponse {
+  ServiceAccount account = 1;
+}
+
+message ListServiceAccountsRequest {
+  string tenant_id = 1;
+  string scope_level = 2;
+  string type = 3;
+  string status = 4;
+}
+
+message ListServiceAccountsResponse {
+  repeated ServiceAccount accounts = 1;
+}
+
+message CreateServiceAccountRequest {
+  string tenant_id = 1;
+  string scope_level = 2;
+  string type = 3;
+  string name = 4;
+  string description = 5;
+}
+
+message SetServiceAccountEnabledRequest {
+  string service_account_id = 1;
+  bool enabled = 2;
 }

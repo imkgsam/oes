@@ -6,12 +6,14 @@ import {
   AccountQueryHandlers,
   ContactQueryHandlers,
   OrgQueryHandlers,
+  ServiceAccountQueryHandlers,
   TenantQueryHandlers,
   UserQueryHandlers
 } from '../../application/queries'
 import { PrismaAccountContactAssetRepository } from '../../infrastructure/repositories/prisma/prisma.account-contact-asset.repository'
 import { PrismaAccountRepository } from '../../infrastructure/repositories/prisma/prisma.account.repository'
 import { PrismaOrgRepository } from '../../infrastructure/repositories/prisma/prisma.org.repository'
+import { PrismaServiceAccountRepository } from '../../infrastructure/repositories/prisma/prisma.service-account.repository'
 import { PrismaTenantRepository } from '../../infrastructure/repositories/prisma/prisma.tenant.repository'
 import { PrismaUserRepository } from '../../infrastructure/repositories/prisma/prisma.user.repository'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
@@ -40,13 +42,18 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
       provide: SYMBOLS.REPO.ACCOUNT_CONTACT_ASSET,
       useClass: PrismaAccountContactAssetRepository
     },
+    {
+      provide: SYMBOLS.REPO.SERVICE_ACCOUNT,
+      useClass: PrismaServiceAccountRepository
+    },
     ValidatingCommandBus,
     ValidatingQueryBus,
     ...UserQueryHandlers,
     ...AccountQueryHandlers,
     ...TenantQueryHandlers,
     ...OrgQueryHandlers,
-    ...ContactQueryHandlers
+    ...ContactQueryHandlers,
+    ...ServiceAccountQueryHandlers
   ],
   controllers: [IdentityQueryGrpcController]
 })

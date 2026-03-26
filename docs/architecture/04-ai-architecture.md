@@ -265,3 +265,100 @@ OES 当前阶段不应先做“大而全 AI 中台”，而应先做：
 - 首批高价值低风险场景接入
 
 这样可以在控制风险的同时逐步建立企业级 AI 平台能力。
+## 9. Extension-First AI Platform Update (2026-03-25)
+
+### 9.1 Core decision
+
+OES AI architecture must not depend on a fixed list of AI scenario types.
+
+The platform must remain stable even when new AI ideas appear in the future, such as:
+
+- knowledge assistant
+- analytics assistant
+- workflow assistant
+- risk and governance assistant
+- quality and inspection assistant
+- optimization assistant
+- future AI forms that are not yet known
+
+Therefore, the architecture should be driven by stable extension points instead of hard-coded scenario branches.
+
+### 9.2 Stable extension points
+
+Future AI scenarios should be connected through the following stable platform objects:
+
+1. `AgentPrincipal`
+- the machine principal that runs the AI capability
+- must be stable, few in number, and governed
+
+2. `AgentProfile`
+- the scenario-specific profile
+- defines role, operating style, model policy, knowledge scope, allowed tools, and write mode
+
+3. `KnowledgeScope`
+- defines what the AI can read
+- must support tenant, org, source, visibility, and lifecycle filtering
+
+4. `ToolContract`
+- defines what the AI can call
+- input/output must be explicit
+- tools are the only allowed path to business actions
+
+5. `Policy`
+- defines risk gates, approval rules, delegation rules, and execution mode
+
+6. `ExecutionContext`
+- defines who initiated the action, for which tenant, in which session, under which trace
+
+7. `ModelRouting`
+- defines how local and remote models are selected
+- this is infrastructure policy, not identity policy
+
+### 9.3 Consequence for future AI onboarding
+
+When a new AI scenario is proposed, the default implementation path should be:
+
+- reuse an existing governed `AgentPrincipal` when possible
+- add or update an `AgentProfile`
+- bind the right `KnowledgeScope`
+- register or reuse the required `ToolContract`
+- configure `Policy`
+- execute under a per-request `ExecutionContext`
+
+This means most new AI scenarios should be introduced by configuration, bounded tool exposure, and profile extension, not by redesigning the base architecture.
+
+### 9.4 Service responsibilities in the future AI platform
+
+`identity-service`
+- owns machine identity truth such as governed AI service principals
+
+`auth-service`
+- authenticates machine principals
+- issues delegation or execution context for AI-assisted operations
+
+`permission-service`
+- evaluates the upper bound of machine permissions
+- combines machine scope with human delegation scope when applicable
+
+future knowledge layer
+- owns document ingestion, metadata, retrieval, and citation filtering
+
+future tool layer / agent orchestration
+- owns controlled tool invocation, planning, confirmation gates, and execution logs
+
+### 9.5 AI scenario taxonomy is advisory, not architectural
+
+Scenario categories are useful for planning and communication, but they must not become rigid architectural partitions.
+
+They should be treated as profile groupings, not as separate identity or permission systems.
+
+### 9.6 High-risk actions
+
+For all future AI scenarios:
+
+- read and explanation scenarios may run directly under governed retrieval and query policies
+- draft generation scenarios may create proposals
+- submit and mutate scenarios must go through controlled tools
+- high-risk actions must support confirmation and/or approval
+
+This is required to satisfy OES audit, tenant isolation, and AI governance goals.

@@ -9,36 +9,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 租户
 model Tenant {
-  id           String        @id @default(uuid())
-  entityId     String        @unique
-  name         String
-  code         String        @unique
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  orgUnits     Org[]
-  userAccounts UserAccount[]
+  id            String                @id @default(uuid())
+  entityId      String                @unique
+  name          String
+  code          String                @unique
+  isActive      Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  orgUnits      Org[]
+  userAccounts  UserAccount[]
   contactAssets AccountContactAsset[]
 }
 
-//组织，可以是分公司，分支机构，也可以是部门，也可以是小组...
 model Org {
-  id        String   @id @default(uuid())
-  tenantId  String
-  parentId  String?
-  name      String
-  code      String?
-  type      OrgType
-  order     Int      @default(0)
-  parent    Org?     @relation("OrgToParent", fields: [parentId], references: [id])
-  children  Org[]    @relation("OrgToParent") // 子组织结构
-  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  id                 String                     @id @default(uuid())
+  tenantId           String
+  parentId           String?
+  name               String
+  code               String?
+  type               OrgType
+  order              Int                        @default(0)
+  parent             Org?                       @relation("OrgToParent", fields: [parentId], references: [id])
+  children           Org[]                      @relation("OrgToParent")
+  tenant             Tenant                     @relation(fields: [tenantId], references: [id])
   accountMemberships UserAccountOrgMembership[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  createdBy String // 创建者：指向identity-service 中的 useraccount.id
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  createdBy          String
 }
 
 enum OrgType {
@@ -47,58 +45,52 @@ enum OrgType {
   TEAM
 }
 
-/**
- * 用户登录身份（跨租户统一）
- * 一个用户user可以有多个账号account，每个账号归属一个租户tenant
- */
 model User {
   id           String        @id @default(uuid())
-  entityId     String        @unique //所绑定的entity-serive 中的 entity
+  entityId     String        @unique
   username     String?       @unique
-  email        String?       @unique //绑定的邮箱，跨租户唯一
-  phone        String?       @unique // 绑定的手机号，跨租户唯一
+  email        String?       @unique
+  phone        String?       @unique
   isActive     Boolean       @default(true)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   userAccounts UserAccount[]
 }
 
-//用户账号， 一个租户下一个人只有一个账号
 model UserAccount {
-  id        String   @id @default(uuid())
-  tenantId  String
-  userId    String
-  displayName String?
-  isEnable  Boolean  @default(true)
-  avatarUrl String?
+  id             String                     @id @default(uuid())
+  tenantId       String
+  userId         String
+  displayName    String?
+  isEnable       Boolean                    @default(true)
+  avatarUrl      String?
   orgMemberships UserAccountOrgMembership[]
-  contactAssets AccountContactAsset[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  User   User   @relation(fields: [userId], references: [id])
-  Tenant Tenant @relation(fields: [tenantId], references: [id])
+  contactAssets  AccountContactAsset[]
+  createdAt      DateTime                   @default(now())
+  updatedAt      DateTime                   @updatedAt
+  User           User                       @relation(fields: [userId], references: [id])
+  Tenant         Tenant                     @relation(fields: [tenantId], references: [id])
 
   @@unique([userId, tenantId])
   @@index([tenantId])
 }
 
 model AccountContactAsset {
-  id         String                   @id @default(uuid())
+  id         String                    @id @default(uuid())
   tenantId   String
   accountId  String
   type       AccountContactAssetType
   value      String
   status     AccountContactAssetStatus @default(ACTIVE)
-  isPrimary  Boolean                  @default(false)
-  assignedAt DateTime                 @default(now())
+  isPrimary  Boolean                   @default(false)
+  assignedAt DateTime                  @default(now())
   revokedAt  DateTime?
   assignedBy String
   revokedBy  String?
-  createdAt  DateTime                 @default(now())
-  updatedAt  DateTime                 @updatedAt
-  account    UserAccount              @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  tenant     Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime                  @updatedAt
+  account    UserAccount               @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tenant     Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([accountId, type, status])
   @@index([tenantId, type, value])
@@ -117,15 +109,15 @@ enum AccountContactAssetStatus {
 }
 
 model UserAccountOrgMembership {
-  id        String      @id @default(uuid())
-  accountId String
-  orgId     String
+  id           String                  @id @default(uuid())
+  accountId    String
+  orgId        String
   relationType AccountOrgRelationType
-  isPrimary Boolean     @default(false)
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  account   UserAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  org       Org         @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  isPrimary    Boolean                 @default(false)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  account      UserAccount             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  org          Org                     @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@unique([accountId, orgId])
   @@index([orgId])
@@ -137,54 +129,39 @@ enum AccountOrgRelationType {
   SECONDARY
 }
 
-//服务账号
 model ServiceAccount {
-  id           String      @id @default(uuid())
-  clientId     String      @unique @default(cuid())
-  tenantId     String // 指向所属租户或系统租户
-  creatorId    String? // 指向创建该服务账号的 UserAccount.id, 允许系统初始化时自动创建
-  level        Level //区分是系统级别还是租户级别
-  name         String
-  description  String?
-  type         ServiceType
-  hashedSecret String? //hashed 私钥
-  isEnable     Boolean     @default(true)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  createdBy    String // 创建者：指向identity-service 中的 useraccount.id
-  apikey       APIKey?
+  id          String                     @id @default(uuid())
+  tenantId    String?
+  scopeLevel  MachinePrincipalScopeLevel
+  type        MachinePrincipalType
+  name        String
+  description String?
+  status      MachinePrincipalStatus     @default(ACTIVE)
+  createdAt   DateTime                   @default(now())
+  updatedAt   DateTime                   @updatedAt
+  createdBy   String?
+  disabledAt  DateTime?
+  disabledBy  String?
 
   @@index([tenantId])
+  @@index([scopeLevel])
+  @@index([type])
+  @@index([status])
 }
 
-enum Level {
-  SYSTEM //系统级别，可以访问所有租户的数据
-  TENANT //租户级别，只能访问所属租户的数据
+enum MachinePrincipalScopeLevel {
+  SYSTEM
+  TENANT
 }
 
-enum ServiceType {
-  INTERNAL //内部模块
-  EXTERNAL // 外部调用，例如api
-  BOT // 机器人服务
+enum MachinePrincipalType {
+  INTERNAL_SERVICE
+  EXTERNAL_INTEGRATION
+  AI_AGENT
+  AUTOMATION_BOT
 }
 
-model APIKey {
-  id               String    @id @default(uuid())
-  keyCode          String //例如customers-read-key
-  description      String?
-  serviceAccountId String    @unique //对应哪个服务账号
-  hashedValue      String    @unique //加密存储，明文只在创建时返回并展示
-  tenantId         String // 可以是普通租户或系统租户
-  level            Level // 区分是系统级别还是租户级别
-  isEnable         Boolean   @default(true)
-  remainingCount   Int       @default(-1) // 剩余调用次数：当长期有效apiKey时为-1，当限制调用次数时为N，当一次性apiKey时为1
-  createdBy        String // 所属用户账号: 也就是哪个useraccount创建的
-  expiresAt        DateTime? // 过期时间，null表示不过期
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  serviceAccount ServiceAccount @relation(fields: [serviceAccountId], references: [id], onDelete: Cascade)
-
-  @@unique([tenantId, keyCode])
-  @@index([hashedValue])
+enum MachinePrincipalStatus {
+  ACTIVE
+  DISABLED
 }

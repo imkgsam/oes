@@ -1,0 +1,62 @@
+import { Inject } from '@nestjs/common'
+import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
+import { ExceptionFactory } from '@oes/common/exceptions'
+import {
+  IDENTITY_SERVICE_ACCOUNT_SYSTEM_SCOPE_FORBIDS_TENANT,
+  IDENTITY_SERVICE_ACCOUNT_TENANT_SCOPE_REQUIRES_TENANT,
+  IDENTITY_TENANT_NOT_FOUND,
+  MACHINE_PRINCIPAL_SCOPE_LEVELS,
+  SYMBOLS
+} from '../../../common/constants'
+import { ServiceAccountEntity } from '../../../domain/entities/service-account.entity'
+import { ServiceAccountRepository } from '../../../domain/repositories/service-account.repository'
+import { TenantRepository } from '../../../domain/repositories/tenant.repository'
+import { CreateServiceAccountCommand } from './create-service-account.command'
+
+@CommandHandler(CreateServiceAccountCommand)
+export class CreateServiceAccountHandler
+  implements ICommandHandler<CreateServiceAccountCommand, ServiceAccountEntity>
+{
+  constructor(
+    @Inject(SYMBOLS.REPO.TENANT)
+    private readonly tenantRepository: TenantRepository,
+    @Inject(SYMBOLS.REPO.SERVICE_ACCOUNT)
+    private readonly serviceAccountRepository: ServiceAccountRepository
+  ) {}
+
+  async execute(command: CreateServiceAccountCommand): Promise<ServiceAccountEntity> {
+    if (
+      command.scopeLevel === MACHINE_PRINCIPAL_SCOPE_LEVELS.TENANT &&
+      !command.tenantId
+    ) {
+      throw ExceptionFactory.domain(IDENTITY_SERVICE_ACCOUNT_TENANT_SCOPE_REQUIRES_TENANT)
+    }
+
+    if (
+      command.scopeLevel === MACHINE_PRINCIPAL_SCOPE_LEVELS.SYSTEM &&
+      command.tenantId
+    ) {
+      throw ExceptionFactory.domain(IDENTITY_SERVICE_ACCOUNT_SYSTEM_SCOPE_FORBIDS_TENANT, {
+        tenantId: command.tenantId
+      })
+    }
+
+    if (command.tenantId) {
+      const tenant = await this.tenantRepository.findById(command.tenantId)
+      if (!tenant) {
+        throw ExceptionFactory.domain(IDENTITY_TENANT_NOT_FOUND, {
+          tenantId: command.tenantId
+        })
+      }
+    }
+
+    return this.serviceAccountRepository.create({
+      tenantId: command.tenantId,
+      scopeLevel: command.scopeLevel,
+      type: command.type,
+      name: command.name,
+      description: command.description,
+      createdBy: command.operatorId
+    })
+  }
+}

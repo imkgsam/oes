@@ -52,3 +52,12 @@
 - 若实现与本目录下架构文档不一致，应以架构文档为目标状态进行对齐，除非有更新的 ADR 明确覆盖。
 - 本目录下文档承载项目级稳定设计，不承载零散实施步骤。
 - 项目级设计应优先沉淀到本目录，而不是继续扩散到多个历史文档中。
+
+## 6. 配套计划文档
+
+- `docs/plans/index.md`
+  - 计划文档索引
+- `docs/plans/frontend-planning-summary.md`
+  - 当前前端规划讨论总结
+- `docs/plans/ai-platform-foundation-plan.md`
+  - AI 平台基础能力实施计划

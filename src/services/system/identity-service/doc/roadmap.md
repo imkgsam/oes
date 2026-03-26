@@ -115,3 +115,80 @@ The current priority is service-internal consolidation for `identity-service`:
 - The current gap is maintainability and input-boundary consistency, not feature coverage.
 - `identity-service` already has the minimum feature closure needed for the current stage.
 - Entering machine identity before tightening validation and regression coverage would carry Phase 2 debt into Phase 3.
+
+## Status Update 2026-03-25
+
+### Consolidation progress
+
+- Completed contact-query validation coverage.
+- Completed controller-side input fallback cleanup for gRPC command/query creation.
+- Added targeted L1 regression tests for:
+  - validating command path
+  - validating query path
+  - controller input boundary
+
+### Updated next-step view
+
+- The original internal-tightening checklist for Phase 2 is now largely complete.
+- The service can return to the main roadmap after any final documentation sync or minor code-structure cleanup.
+- `IDN-MACHINE-01` remains deferred until we explicitly choose to re-enter the Phase 3 track.
+
+## Status Update 2026-03-25 B
+
+### Phase 3 entry refinement
+
+When `IDN-MACHINE-01` is resumed, it should enter as a machine principal foundation task, not as an isolated local `ServiceAccount` task.
+
+This means:
+
+- `ServiceAccount` is the first concrete persistence form
+- the real design target is governed machine principal identity
+- later AI, automation, and integration scenarios should reuse this foundation without redesigning identity boundaries
+
+### Implication
+
+Before Phase 3 code work starts, `IDN-MACHINE-01` must stay aligned with:
+
+- project-level AI platform design
+- future `auth-service` machine-auth consumption
+- future `permission-service` machine-permission evaluation
+
+## Status Update 2026-03-25 C
+
+### Phase 3 implementation entry
+
+`IDN-MACHINE-01` has now entered code implementation at the machine-principal foundation level.
+
+Completed in this step:
+
+- principal-only `ServiceAccount` Prisma schema alignment
+- minimum repository, query, command, and gRPC entry points
+- L1 coverage for scope-level and enable/disable guard rules
+
+Still deferred in Phase 3:
+
+- `APIKey`
+- machine authentication
+- delegation token/session work
+- permission policy integration
+
+## Status Update 2026-03-26
+
+### Phase 3 verification progress
+
+`IDN-MACHINE-01` has now completed:
+
+- build verification
+- L1 verification
+- L2 repository verification for `ServiceAccount`
+
+Observed during verification:
+
+- local L2 execution required a test-database schema sync
+- `prisma db push` was used only as a local test-environment recovery step
+- one legacy org-membership constraint test remains open because the primary-org partial unique index is a SQL-level constraint not recoverable from Prisma schema alone
+
+### Current roadmap interpretation
+
+- `6.1` machine-principal foundation remains on the mainline
+- the remaining L2 failure should be tracked as test-environment / legacy-constraint restoration work, not as a blocker for `ServiceAccount` mainline progress

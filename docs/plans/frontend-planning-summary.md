@@ -168,6 +168,8 @@ OES 不是单一管理后台，而是面向租户内全员与租户外协同对�
 - 平台管理员 Web 与租户业务 Web 应分开
 - 租户管理员与普通租户办公用户可先放在同一个租户业务 Web 中
 - 当前不建议一开始把租户业务 Web 再拆成多个独立 Web 前端
+- 租户侧 Web 当前更适合采用类似 Odoo 的统一业务 Web 思路
+- 平台侧 Web 当前更适合采用独立控制台思路
 
 因此，现阶段可先理解为：
 
@@ -176,8 +178,13 @@ OES 不是单一管理后台，而是面向租户内全员与租户外协同对�
 
 其中：
 
-- `platform-web` 独立
-- `tenant-web` 先融合办公用户与租户管理员
+- `platform-web` 独立，承载平台级治理能力
+- `tenant-web` 先融合办公用户、租户管理员与租户内业务操作能力
+
+补充说明：
+
+- `platform-web` 的边界更接近平台控制台模式
+- `tenant-web` 的边界更接近 Odoo 式统一租户业务后台
 
 ## 5. 关于多终端登录控制的当前结论
 
@@ -289,3 +296,94 @@ OES 不是单一管理后台，而是面向租户内全员与租户外协同对�
 其中当前优先级最高的起点是：
 
 - 租户业务 Web
+
+## 10. 本轮新增结论
+
+本轮新增明确：
+
+- OES 不采用“平台侧与租户侧共用同一 Web”的方案
+- OES 采用“平台侧独立、租户侧统一”的 Web 策略
+- 租户侧统一 Web 可同时承载：
+  - 租户配置
+  - 租户管理
+  - 业务操作
+  - 报表分析
+  - 审批与监管
+- 这一策略更接近 Odoo，而不是飞书式的“租户管理与租户工作入口完全分离”
+
+一句话总结：
+
+- 平台侧像独立控制台
+- 租户侧像统一业务中台 Web
+
+## 11. Web 技术选型结论
+
+当前已明确以下结论：
+
+- `tenant-web` 技术栈采用 `Vue`
+- Web 基础工程采用 `vue-vben-admin`
+- 不再继续在 `vue-pure-admin` 与 `vue-vben-admin` 之间摇摆
+
+选择 `vue-vben-admin` 的原因包括：
+
+- 更适合作为长期 Web 工程底座，而不是一次性后台模板
+- 更符合 `platform-web` 与 `tenant-web` 后续双应用演进
+- 版本治理、包治理与工程化能力更强
+- 更符合当前对技术选型、代码质量、框架设计、运行效率的偏好
+
+## 12. 当前实施进度
+
+当前已完成：
+
+- 在仓库根目录下建立 `app/` 前端目录分层
+- 建立 `app/web/` 作为 Web 前端工作区
+- 将原始 `vue-vben-admin` 工程并入 `app/web/`
+- 删除上游模板中的部分无关目录与文件：
+  - `.github`
+  - `.vscode`
+  - `.changeset`
+  - `docs`
+  - `playground`
+  - 以及部分无关元文件
+- 删除 `app/web/.git`，使其彻底并入 OES 主仓库
+- 将 `apps/web-ele` 重命名为 `apps/tenant-web`
+- 将工作区脚本切换到 `tenant-web`：
+  - `pnpm dev:tenant`
+  - `pnpm build:tenant`
+- 将 `tenant-web` 的应用标识改为 OES：
+  - 包名改为 `@oes/tenant-web`
+  - 环境标题改为 `OES Tenant Web`
+  - 命名空间改为 `oes-tenant-web`
+- 删除 `tenant-web` 中的演示路由：
+  - `demos.ts`
+  - `vben.ts`
+- 新增 OES 租户工作台首页，作为 `tenant-web` 起始入口
+- 登录页已去除默认演示账号选择逻辑
+
+## 13. 当前验证结果
+
+当前验证结果如下：
+
+- `tenant-web` 构建已通过
+- `tenant-web` 类型检查未完全通过
+
+当前类型检查失败点不在 `tenant-web` 应用层，而在上游包：
+
+- `app/web/packages/@core/ui-kit/form-ui/src/form-render/form-field.vue`
+
+因此当前判断为：
+
+- `tenant-web` 已可作为 OES 租户业务 Web 起点继续推进
+- 但在继续大规模改造前，建议先修复该上游类型问题，恢复 `typecheck` 绿色状态
+
+## 14. 下一步建议
+
+建议按以下顺序继续：
+
+1. 修复 `form-field.vue` 的类型错误
+2. 继续收敛 `tenant-web` 第一阶段骨架：
+   - OES 登录页文案与租户语义
+   - 用户初始化上下文
+   - 菜单/路由来源改造
+   - 工作台首页继续 OES 化
+3. 再考虑 `platform-web` 的派生

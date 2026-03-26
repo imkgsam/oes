@@ -66,6 +66,19 @@ export function createTestPrefix(): string {
 export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Promise<void> {
   if (!prisma) return
 
+  await prisma.serviceAccount.deleteMany({
+    where: {
+      OR: [
+        { id: { startsWith: prefix } },
+        { tenantId: { startsWith: prefix } },
+        { name: { startsWith: prefix } },
+        { description: { startsWith: prefix } },
+        { createdBy: { startsWith: prefix } },
+        { disabledBy: { startsWith: prefix } }
+      ]
+    }
+  })
+
   await prisma.accountContactAsset.deleteMany({
     where: {
       OR: [

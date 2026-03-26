@@ -1,3 +1,11 @@
-export class ListAccountWorkEmailAssetsQuery {
-  constructor(public readonly accountId: string) {}
+import { IQuery } from '@nestjs/cqrs'
+import { IsUUID } from 'class-validator'
+
+export class ListAccountWorkEmailAssetsQuery implements IQuery {
+  @IsUUID()
+  readonly accountId: string
+
+  constructor(accountId: string) {
+    this.accountId = accountId
+  }
 }

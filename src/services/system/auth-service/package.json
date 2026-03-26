@@ -17,6 +17,7 @@
   
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
     "prisma:push": "npx prisma db push",
+    "identifier:scan": "node -r ts-node/register -r tsconfig-paths/register ./src/scripts/identifier-backfill-scan.ts",
 
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",

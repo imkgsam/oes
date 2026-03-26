@@ -201,3 +201,77 @@
   - complete validation for contact queries
   - clean controller input fallback patterns
   - keep machine identity work on hold until the input boundary is consistent
+
+## Update 2026-03-25
+
+### Additional consolidation progress
+
+- Added validation decorators to contact query objects so they participate in `ValidatingQueryBus`.
+- Removed controller-side request fallback rewrites such as `?? ''` and `?? false` from the command/query creation path.
+- Preserved optional `orgId` semantics by passing `undefined` only when the field is actually absent.
+- Added targeted L1 tests to confirm:
+  - invalid contact commands are rejected before handler execution
+  - invalid contact queries are rejected before handler execution
+  - gRPC controllers no longer sanitize missing required input into empty placeholder values
+
+### Current assessment
+
+- Phase 2 internal tightening is now materially closer to completion.
+- The current validation chain is more consistent with `permission-service`.
+- The service is ready to return to the main roadmap discussion without immediately starting Phase 3 code work.
+
+## Update 2026-03-25 B
+
+### Machine principal foundation implementation started
+
+The service has now started `IDN-MACHINE-01` implementation as a machine-principal foundation task.
+
+Implemented in this step:
+
+- aligned `ServiceAccount` schema to principal-only shape
+- added `MachinePrincipalScopeLevel`, `MachinePrincipalType`, and `MachinePrincipalStatus`
+- removed the historical `APIKey` draft from the active `6.1` schema target
+- added minimum CQRS + gRPC surface for:
+  - `getServiceAccountById`
+  - `listServiceAccounts`
+  - `createServiceAccount`
+  - `setServiceAccountEnabled`
+- added L1 tests for scope binding and enable/disable guard rules
+
+Validation completed:
+
+- `pnpm --filter @oes/common build`
+- `pnpm --filter identity-service prisma:generate`
+- `pnpm --filter identity-service build`
+- `pnpm --filter identity-service run test:l1`
+
+## Update 2026-03-26
+
+### Machine principal verification follow-up
+
+Follow-up verification was completed for the `ServiceAccount` foundation work.
+
+Completed in this step:
+
+- added L2 repository coverage for `ServiceAccount`
+- added L2 database-constraint checks for machine-principal enums
+- aligned the local test database to the current `identity-service` schema using `prisma db push` for local verification only
+
+Verification result:
+
+- `identity-service build` passed
+- `prisma.account-contact-asset.repository.spec.ts` passed
+- `prisma.account-org-membership.repository.spec.ts` passed
+- `prisma.service-account.repository.spec.ts` passed
+- `service-account-database-constraints.spec.ts` passed
+
+Remaining open item:
+
+- `database-constraints.spec.ts` still has one failing legacy test:
+  - primary org partial unique constraint is missing in the current local database state
+  - this constraint depends on SQL-level index restoration and is not represented by Prisma schema
+
+Assessment:
+
+- `IDN-MACHINE-01` verification is materially complete for its own scope
+- the remaining failure should be treated as a legacy Phase 2 database-constraint issue, not as a `ServiceAccount` implementation failure

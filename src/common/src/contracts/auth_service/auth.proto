@@ -15,7 +15,12 @@ service AuthService {
   rpc SubmitMfaChallenge(SubmitMfaChallengeRequest) returns (LoginResponse);
   rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse);
   rpc SelectAccount(SelectAccountRequest) returns (SelectAccountResponse);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc AdminListUserSessions(AdminListUserSessionsRequest) returns (AdminListUserSessionsResponse);
+  rpc AdminRevokeSession(AdminRevokeSessionRequest) returns (AdminRevokeSessionResponse);
+  rpc RenameSessionDevice(RenameSessionDeviceRequest) returns (RenameSessionDeviceResponse);
   rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc LogoutOtherDevices(LogoutOtherDevicesRequest) returns (LogoutOtherDevicesResponse);
   rpc LogoutAll(LogoutAllRequest) returns (LogoutAllResponse);
 }
 
@@ -90,12 +95,99 @@ message RefreshSessionResponse {
   int64 expires_in = 4;
 }
 
+message ListSessionsRequest {
+  string user_id = 1;
+  string current_session_id = 2;
+}
+
+message SessionView {
+  string session_id = 1;
+  string user_id = 2;
+  string account_id = 3;
+  string tenant_id = 4;
+  string status = 5;
+  string device_id = 6;
+  string device_name = 7;
+  string user_agent = 8;
+  string ip_address = 9;
+  string created_at = 10;
+  string last_active_at = 11;
+  string expires_at = 12;
+  string refresh_expires_at = 13;
+  bool is_current = 14;
+  bool is_admin_controlled = 15;
+}
+
+message ListSessionsResponse {
+  repeated SessionView sessions = 1;
+}
+
+message AdminListUserSessionsRequest {
+  string user_id = 1;
+}
+
+message AdminSessionView {
+  string session_id = 1;
+  string user_id = 2;
+  string account_id = 3;
+  string tenant_id = 4;
+  string status = 5;
+  string device_id = 6;
+  string device_name = 7;
+  string user_agent = 8;
+  string ip_address = 9;
+  string created_at = 10;
+  string last_active_at = 11;
+  string expires_at = 12;
+  string refresh_expires_at = 13;
+  bool is_admin_controlled = 14;
+  string admin_revoke_reason = 15;
+  string admin_revoke_at = 16;
+  string admin_revoke_by = 17;
+}
+
+message AdminListUserSessionsResponse {
+  repeated AdminSessionView sessions = 1;
+}
+
+message AdminRevokeSessionRequest {
+  string session_id = 1;
+  string reason = 2;
+}
+
+message AdminRevokeSessionResponse {
+  bool success = 1;
+  string session_id = 2;
+}
+
+message RenameSessionDeviceRequest {
+  string user_id = 1;
+  string session_id = 2;
+  string device_name = 3;
+}
+
+message RenameSessionDeviceResponse {
+  bool success = 1;
+  string session_id = 2;
+  string device_name = 3;
+}
+
 message LogoutRequest {
   string session_id = 1;
 }
 
 message LogoutResponse {
   bool success = 1;
+}
+
+message LogoutOtherDevicesRequest {
+  string user_id = 1;
+  string current_session_id = 2;
+}
+
+message LogoutOtherDevicesResponse {
+  bool success = 1;
+  int64 session_count = 2;
 }
 
 message LogoutAllRequest {

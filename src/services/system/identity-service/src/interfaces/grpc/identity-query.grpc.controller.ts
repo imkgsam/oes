@@ -5,10 +5,14 @@ import {
   AccountContactAsset,
   GetAccountByIdRequest,
   GetAccountByIdResponse,
+  GetServiceAccountByIdRequest,
+  GetServiceAccountByIdResponse,
   GetAccountsByUserIdRequest,
   GetAccountsByUserIdResponse,
   ListAccountOrgMembershipsRequest,
   ListAccountOrgMembershipsResponse,
+  ListServiceAccountsRequest,
+  ListServiceAccountsResponse,
   ListAccountWorkEmailAssetsRequest,
   ListAccountWorkEmailAssetsResponse,
   ListAccountWorkPhoneAssetsRequest,
@@ -24,12 +28,15 @@ import {
   GetUserByPhoneRequest,
   GetUserByPhoneResponse,
   IdentityQueryServiceController,
-  IdentityQueryServiceControllerMethods
+  IdentityQueryServiceControllerMethods,
+  ServiceAccount
 } from '@oes/common/generated/identity_service'
 import {
   GetAccountByIdQuery,
   GetAccountsByUserIdQuery,
+  GetServiceAccountByIdQuery,
   ListAccountOrgMembershipsQuery,
+  ListServiceAccountsQuery,
   ListAccountWorkEmailAssetsQuery,
   ListAccountWorkPhoneAssetsQuery,
   GetOrgTreeByTenantIdQuery,
@@ -47,9 +54,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
   async getAccountById(request: GetAccountByIdRequest): Promise<GetAccountByIdResponse> {
-    const account = await this.queryBus.execute(
-      new GetAccountByIdQuery(request.accountId ?? '')
-    )
+    const account = await this.queryBus.execute(new GetAccountByIdQuery(request.accountId!))
 
     if (!account) {
       return {}
@@ -66,12 +71,43 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     }
   }
 
+  async getServiceAccountById(
+    request: GetServiceAccountByIdRequest
+  ): Promise<GetServiceAccountByIdResponse> {
+    const account = await this.queryBus.execute(
+      new GetServiceAccountByIdQuery(request.serviceAccountId!)
+    )
+
+    if (!account) {
+      return {}
+    }
+
+    return {
+      account: this.toServiceAccount(account)
+    }
+  }
+
+  async listServiceAccounts(
+    request: ListServiceAccountsRequest
+  ): Promise<ListServiceAccountsResponse> {
+    const accounts = await this.queryBus.execute(
+      new ListServiceAccountsQuery({
+        tenantId: request.tenantId || undefined,
+        scopeLevel: request.scopeLevel || undefined,
+        type: request.type || undefined,
+        status: request.status || undefined
+      })
+    )
+
+    return {
+      accounts: accounts.map((account) => this.toServiceAccount(account))
+    }
+  }
+
   async listAccountWorkEmailAssets(
     request: ListAccountWorkEmailAssetsRequest
   ): Promise<ListAccountWorkEmailAssetsResponse> {
-    const assets = await this.queryBus.execute(
-      new ListAccountWorkEmailAssetsQuery(request.accountId ?? '')
-    )
+    const assets = await this.queryBus.execute(new ListAccountWorkEmailAssetsQuery(request.accountId!))
 
     return {
       assets: assets.map((asset) => this.toContactAsset(asset))
@@ -81,9 +117,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   async listAccountWorkPhoneAssets(
     request: ListAccountWorkPhoneAssetsRequest
   ): Promise<ListAccountWorkPhoneAssetsResponse> {
-    const assets = await this.queryBus.execute(
-      new ListAccountWorkPhoneAssetsQuery(request.accountId ?? '')
-    )
+    const assets = await this.queryBus.execute(new ListAccountWorkPhoneAssetsQuery(request.accountId!))
 
     return {
       assets: assets.map((asset) => this.toContactAsset(asset))
@@ -93,9 +127,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   async getOrgTreeByTenantId(
     request: GetOrgTreeByTenantIdRequest
   ): Promise<GetOrgTreeByTenantIdResponse> {
-    const roots = await this.queryBus.execute(
-      new GetOrgTreeByTenantIdQuery(request.tenantId ?? '')
-    )
+    const roots = await this.queryBus.execute(new GetOrgTreeByTenantIdQuery(request.tenantId!))
 
     return {
       roots: roots.map((node) => this.toOrgNode(node))
@@ -105,9 +137,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   async listAccountOrgMemberships(
     request: ListAccountOrgMembershipsRequest
   ): Promise<ListAccountOrgMembershipsResponse> {
-    const memberships = await this.queryBus.execute(
-      new ListAccountOrgMembershipsQuery(request.accountId ?? '')
-    )
+    const memberships = await this.queryBus.execute(new ListAccountOrgMembershipsQuery(request.accountId!))
 
     return {
       memberships: memberships.map((membership) => ({
@@ -125,9 +155,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   async getAccountsByUserId(
     request: GetAccountsByUserIdRequest
   ): Promise<GetAccountsByUserIdResponse> {
-    const accounts = await this.queryBus.execute(
-      new GetAccountsByUserIdQuery(request.userId ?? '')
-    )
+    const accounts = await this.queryBus.execute(new GetAccountsByUserIdQuery(request.userId!))
 
     return {
       accounts: accounts.map((account) => ({
@@ -139,9 +167,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   }
 
   async getTenantById(request: GetTenantByIdRequest): Promise<GetTenantByIdResponse> {
-    const tenant = await this.queryBus.execute(
-      new GetTenantByIdQuery(request.tenantId ?? '')
-    )
+    const tenant = await this.queryBus.execute(new GetTenantByIdQuery(request.tenantId!))
 
     if (!tenant) {
       return {}
@@ -158,9 +184,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   }
 
   async getUserById(request: GetUserByIdRequest): Promise<GetUserByIdResponse> {
-    const user = await this.queryBus.execute(
-      new GetUserByIdQuery(request.userId ?? '')
-    )
+    const user = await this.queryBus.execute(new GetUserByIdQuery(request.userId!))
 
     if (!user) {
       return {}
@@ -178,9 +202,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   }
 
   async getUserByEmail(request: GetUserByEmailRequest): Promise<GetUserByEmailResponse> {
-    const user = await this.queryBus.execute(
-      new GetUserByEmailQuery(request.email ?? '')
-    )
+    const user = await this.queryBus.execute(new GetUserByEmailQuery(request.email!))
 
     if (!user) {
       return {}
@@ -198,9 +220,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   }
 
   async getUserByPhone(request: GetUserByPhoneRequest): Promise<GetUserByPhoneResponse> {
-    const user = await this.queryBus.execute(
-      new GetUserByPhoneQuery(request.phone ?? '')
-    )
+    const user = await this.queryBus.execute(new GetUserByPhoneQuery(request.phone!))
 
     if (!user) {
       return {}
@@ -251,6 +271,36 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
       isPrimary: asset.isPrimary,
       assignedAt: asset.assignedAt.toISOString(),
       revokedAt: asset.revokedAt?.toISOString() ?? ''
+    }
+  }
+
+  private toServiceAccount(account: {
+    id: string
+    tenantId: string | null
+    scopeLevel: string
+    type: string
+    name: string
+    description: string | null
+    status: string
+    createdAt: Date
+    updatedAt: Date
+    createdBy: string | null
+    disabledAt: Date | null
+    disabledBy: string | null
+  }): ServiceAccount {
+    return {
+      id: account.id,
+      tenantId: account.tenantId ?? '',
+      scopeLevel: account.scopeLevel,
+      type: account.type,
+      name: account.name,
+      description: account.description ?? '',
+      status: account.status,
+      createdAt: account.createdAt.toISOString(),
+      updatedAt: account.updatedAt.toISOString(),
+      createdBy: account.createdBy ?? '',
+      disabledAt: account.disabledAt?.toISOString() ?? '',
+      disabledBy: account.disabledBy ?? ''
     }
   }
 }

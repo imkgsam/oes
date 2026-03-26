@@ -134,6 +134,20 @@ export const AUTH_ACCOUNT_DISABLED: ExceptionDefinition = {
   rpcStatus: status.FAILED_PRECONDITION
 }
 
+export const AUTH_SESSION_NOT_FOUND: ExceptionDefinition = {
+  code: 'AUTH_SESSION_NOT_FOUND',
+  message: 'Session was not found',
+  messageKey: 'auth.session_not_found',
+  rpcStatus: status.NOT_FOUND
+}
+
+export const AUTH_SESSION_OWNER_MISMATCH: ExceptionDefinition = {
+  code: 'AUTH_SESSION_OWNER_MISMATCH',
+  message: 'Session does not belong to the current user',
+  messageKey: 'auth.session_owner_mismatch',
+  rpcStatus: status.PERMISSION_DENIED
+}
+
 export const AUTH_REFRESH_TOKEN_INVALID: ExceptionDefinition = {
   code: 'AUTH_REFRESH_TOKEN_INVALID',
   message: 'Refresh token is invalid or expired',

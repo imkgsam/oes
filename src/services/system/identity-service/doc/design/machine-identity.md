@@ -69,3 +69,84 @@
 | ---- | -------- | ---------------------------------------------------------------------------------------- | -------------------- | -------- | -------------------- | ------- |
 | 1    | 6.1      | [idn-machine-01-service-account-model.md](../tasks/idn-machine-01-service-account-model.md) | 建立机器身份主体模型 | 未开始   | 2026-03-23           | Phase 3 |
 | 2    | 6.2      | [idn-machine-02-api-key-model.md](../tasks/idn-machine-02-api-key-model.md)                 | 建立机器凭据模型     | 未开始   | 2026-03-23           | Phase 3 |
+## Status Update 2026-03-25
+
+### Design refinement
+
+The current machine-identity design should be read as a machine principal foundation, not as a narrow credential design.
+
+The key clarification is:
+
+- `ServiceAccount` is the first concrete machine-principal model in `identity-service`
+- `APIKey` remains a later credential model
+- future AI scenarios should not require redesigning machine identity each time
+
+### Stable design intent
+
+`ServiceAccount` must be able to act as a governed principal for:
+
+- internal services
+- external integrations
+- automation bots
+- AI agent principals
+
+This does not mean every AI scenario creates a new principal.
+
+Instead:
+
+- principals should remain few and governed
+- scenario differences should later be handled through profile, policy, knowledge scope, tool contract, and execution context
+
+### Cross-service role of machine identity
+
+`identity-service`
+- owns machine principal truth
+
+`auth-service`
+- authenticates machine principals
+- later issues delegated execution context when needed
+
+`permission-service`
+- evaluates machine upper-bound permissions
+- later combines them with delegated human scope when applicable
+
+### Implementation interpretation for 6.1
+
+For the first implementation step:
+
+- persist the principal
+- express scope and type semantics
+- expose minimal query and management interfaces
+- do not implement machine authentication yet
+- do not implement API keys yet
+
+This keeps `6.1` reusable for later AI platform evolution instead of making it a one-off local service feature.
+
+### Minimum implementation shape for the first code step
+
+The first code step should stop at:
+
+- principal identity persistence
+- explicit scope-level semantics
+- explicit type semantics
+- explicit active/disabled lifecycle
+- minimal query and management interfaces
+
+Tenant binding rule for the first code step:
+
+- system-level principal does not belong to any tenant and therefore keeps `tenantId = null`
+- tenant-level principal must bind to a real tenant and therefore requires `tenantId`
+
+It should not yet include:
+
+- API key lifecycle
+- hashed secret verification
+- machine login
+- delegated execution issuance
+- permission policy binding
+
+### Note on current repository draft
+
+The repository already contains a historical draft for `ServiceAccount` and `APIKey` in Prisma.
+
+That draft is useful as history, but it must be reviewed against the current design before implementation begins, because the current design treats `6.1` as machine-principal foundation first, credential model later.

@@ -22,12 +22,10 @@ export class PrismaUserRepository implements ILoginMethodRepository {
     type: LoginMethodType,
     identifier: string
   ): Promise<LoginMethod | null> {
-    const normalizedIdentifier = AuthIdentifierNormalizer.normalize(type, identifier)
     const found = await this.prismaService.loginMethod.findFirst({
       where: {
         type: type,
-        identifier:
-          identifier === normalizedIdentifier ? identifier : { in: [identifier, normalizedIdentifier] },
+        identifier,
         enabled: true,
         verified: true
       },
@@ -71,12 +69,10 @@ export class PrismaUserRepository implements ILoginMethodRepository {
     type: string,
     identifier: string
   ): Promise<LoginMethod | null> {
-    const normalizedIdentifier = AuthIdentifierNormalizer.normalize(type as LoginMethodType, identifier)
     const found = await this.prismaService.loginMethod.findFirst({
       where: {
         type: type as any,
-        identifier:
-          identifier === normalizedIdentifier ? identifier : { in: [identifier, normalizedIdentifier] },
+        identifier,
         enabled: true,
         verified: true
       },

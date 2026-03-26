@@ -21,6 +21,7 @@
   
     "prisma:generate": "npx prisma generate --schema=./prisma/schema.prisma",
     "prisma:push": "npx prisma db push",
+    "permission-codes:sync": "node -r ts-node/register ./src/scripts/sync-permission-codes.ts",
 
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",

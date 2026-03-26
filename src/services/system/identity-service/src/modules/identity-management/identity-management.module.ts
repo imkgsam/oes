@@ -1,12 +1,18 @@
 import { Module } from '@nestjs/common'
 import { CqrsModule } from '@nestjs/cqrs'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
-import { ContactCommandHandlers, OrgCommandHandlers } from '../../application/commands'
+import {
+  ContactCommandHandlers,
+  OrgCommandHandlers,
+  ServiceAccountCommandHandlers
+} from '../../application/commands'
 import { SYMBOLS } from '../../common/constants'
 import { PrismaAccountContactAssetRepository } from '../../infrastructure/repositories/prisma/prisma.account-contact-asset.repository'
 import { PrismaAccountOrgMembershipRepository } from '../../infrastructure/repositories/prisma/prisma.account-org-membership.repository'
 import { PrismaAccountRepository } from '../../infrastructure/repositories/prisma/prisma.account.repository'
 import { PrismaOrgRepository } from '../../infrastructure/repositories/prisma/prisma.org.repository'
+import { PrismaServiceAccountRepository } from '../../infrastructure/repositories/prisma/prisma.service-account.repository'
+import { PrismaTenantRepository } from '../../infrastructure/repositories/prisma/prisma.tenant.repository'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { IdentityManagementGrpcController } from '../../interfaces/grpc/identity-management.grpc.controller'
 
@@ -29,10 +35,19 @@ import { IdentityManagementGrpcController } from '../../interfaces/grpc/identity
       provide: SYMBOLS.REPO.ACCOUNT_CONTACT_ASSET,
       useClass: PrismaAccountContactAssetRepository
     },
+    {
+      provide: SYMBOLS.REPO.TENANT,
+      useClass: PrismaTenantRepository
+    },
+    {
+      provide: SYMBOLS.REPO.SERVICE_ACCOUNT,
+      useClass: PrismaServiceAccountRepository
+    },
     ValidatingCommandBus,
     ValidatingQueryBus,
     ...OrgCommandHandlers,
-    ...ContactCommandHandlers
+    ...ContactCommandHandlers,
+    ...ServiceAccountCommandHandlers
   ],
   controllers: [IdentityManagementGrpcController]
 })

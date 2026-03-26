@@ -1,13 +1,15 @@
 # Auth Service 路线图
 
-更新时间：2026-03-24 14:20 +08:00
+更新时间：2026-03-25 15:40 +08:00
 
 ## 当前阶段判断
 
 - 当前处于 `Phase 1` 后段
 - 人类认证主线最小闭环已经打通
 - 安全增强能力已进入收口阶段
-- session 结构主问题已收口，后续可继续在正确结构上扩展 session 族能力
+- session 主问题已收口，并已进入最小 session query / device control 阶段
+- `CRED-01` 已在当前目标数据库上关闭
+- `SESS-05` 的 admin 接口已开始接入既有 `operator context`
 
 ## 当前已完成
 
@@ -23,6 +25,7 @@
 - `SESS-02` session 结构重构
 - `SESS-03` refresh token rotation
 - `SESS-04` logout / logoutAll
+- `SESS-05` session query、设备重命名、保留当前设备退出其他设备、管理员单 session 管理
 
 3. MFA
 - `MFA-04` 邮箱 OTP MFA challenge 与 challenge 提交
@@ -33,65 +36,24 @@
 - `RISK-02` OTP 发码频控与失败次数持久化
 - `AUD-01` 认证审计事件
 
-5. 标识符与基础模型
-- `MfaBinding` 已落到 schema 与数据库
-- 邮箱 / 手机标识符规范化已统一到活跃主链
-- repository 注入风格已对齐 `permission-service`
+5. 标识治理
+- `CRED-01` 已建立治理文档与扫描脚本
+- 当前目标数据库已 schema push 完成
+- 当前目标数据库 `LoginMethod` 记录数为 `0`
+- repository 兼容双查已清理
 
 ## 当前未完成但优先级高
 
-1. 运行通道收口
-- 邮件发送仍为开发/模拟通道
-- 短信发送仍为开发/模拟通道
+1. operator context 接入
+- `SESS-05` 的 admin session 接口已完成第一步收口
+- 后续其余 admin / management 接口应继续接入项目既有 operator context，而不是局部继续扩展请求字段
 
-2. 标识符治理
-- 决定是否做 identifier backfill
-- 决定何时移除 repository 兼容双查
-
-3. session 族下一阶段能力
-- `SESS-05` session query / device view
-- 后续再进入更完整的设备管理
-
-## Phase 划分
-
-### Phase 1
-
-目标：
-- 完成可落地的人类认证中心
-
-范围：
-- 邮箱 / 手机 + 密码或 OTP 登录
-- 登录后账户选择
-- access token / refresh token
-- refresh token rotation
-- logout / logoutAll
-- 基础 MFA
-- 基础风控
-- 基础认证审计
-
-### Phase 2
-
-目标：
-- 补强平台安全治理能力
-
-范围：
-- 更强风控
-- 账户恢复与安全处置
-- 管理员安全操作
-- session 查询与设备管理增强
-
-### Phase 3
-
-目标：
-- 预留并落地外部生态扩展
-
-范围：
-- 微信 / Google 扩展
-- 开放 API
-- 机器身份与 AI 扩展
+2. 运行通道收口
+- 邮件发送仍为开发 / 模拟通道
+- 短信发送仍为开发 / 模拟通道
 
 ## 当前建议顺序
 
-1. 收口邮件 / 短信真实通道方案
-2. 决定 identifier backfill 策略
-3. 进入 `SESS-05`，继续 session query / device view
+1. 继续进入既有 `operator context` 的接入改造，删除其余 admin 请求中的显式操作者字段
+2. 保持 `SESS-05` 与顶层文档同步，收口当前主线
+3. 仅在接入真实历史数据后，再继续 `CRED-01` 的 backfill 执行阶段

@@ -137,6 +137,13 @@ export class Session {
     this.touch()
   }
 
+  renameDevice(deviceName: string): void {
+    this.props.deviceInfo = {
+      ...this.props.deviceInfo,
+      deviceName
+    }
+  }
+
   activateTokenWindow(refreshToken: string, accessExpiry: number, refreshExpiry: number): void {
     this.props.refreshToken = refreshToken
     this.props.expiresAt = new Date(Date.now() + accessExpiry * 1000)

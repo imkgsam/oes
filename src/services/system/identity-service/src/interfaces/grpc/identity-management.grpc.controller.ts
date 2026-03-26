@@ -12,10 +12,13 @@ import {
   AccountOrgMembershipResponse,
   AssignAccountWorkEmailAssetRequest,
   AssignAccountWorkPhoneAssetRequest,
+  CreateServiceAccountRequest,
   RevokeAccountWorkEmailAssetRequest,
   RevokeAccountWorkPhoneAssetRequest,
+  ServiceAccountResponse,
   SetAccountPrimaryWorkEmailAssetRequest,
   SetAccountPrimaryWorkPhoneAssetRequest,
+  SetServiceAccountEnabledRequest,
   SetAccountWorkEmailAssetStatusRequest,
   SetAccountWorkPhoneAssetStatusRequest,
   AddAccountOrgMembershipRequest,
@@ -28,10 +31,12 @@ import {
 import {
   AssignAccountWorkEmailAssetCommand,
   AssignAccountWorkPhoneAssetCommand,
+  CreateServiceAccountCommand,
   RevokeAccountWorkEmailAssetCommand,
   RevokeAccountWorkPhoneAssetCommand,
   SetAccountPrimaryWorkEmailAssetCommand,
   SetAccountPrimaryWorkPhoneAssetCommand,
+  SetServiceAccountEnabledCommand,
   SetAccountWorkEmailAssetStatusCommand,
   SetAccountWorkPhoneAssetStatusCommand,
   AddAccountOrgMembershipCommand,
@@ -49,16 +54,51 @@ export class IdentityManagementGrpcController
 {
   constructor(private readonly commandBus: ValidatingCommandBus) {}
 
+  async createServiceAccount(
+    request: CreateServiceAccountRequest
+  ): Promise<ServiceAccountResponse> {
+    const authenticatedContext = getAuthenticatedGrpcRequestContext(request)
+    const operatorId = authenticatedContext?.operatorContext?.operator_id!
+    const account = await this.commandBus.execute(
+      new CreateServiceAccountCommand({
+        tenantId: request.tenantId || undefined,
+        scopeLevel: request.scopeLevel!,
+        type: request.type!,
+        name: request.name!,
+        description: request.description || undefined,
+        operatorId
+      })
+    )
+
+    return {
+      account: this.toServiceAccount(account)
+    }
+  }
+
+  async setServiceAccountEnabled(
+    request: SetServiceAccountEnabledRequest
+  ): Promise<ServiceAccountResponse> {
+    const authenticatedContext = getAuthenticatedGrpcRequestContext(request)
+    const operatorId = authenticatedContext?.operatorContext?.operator_id!
+    const account = await this.commandBus.execute(
+      new SetServiceAccountEnabledCommand(request.serviceAccountId!, request.enabled!, operatorId)
+    )
+
+    return {
+      account: this.toServiceAccount(account)
+    }
+  }
+
   async assignAccountWorkEmailAsset(
     request: AssignAccountWorkEmailAssetRequest
   ): Promise<AccountContactAssetResponse> {
     const authenticatedContext = getAuthenticatedGrpcRequestContext(request)
-    const operatorId = authenticatedContext?.operatorContext?.operator_id ?? ''
+    const operatorId = authenticatedContext?.operatorContext?.operator_id!
     const asset = await this.commandBus.execute(
       new AssignAccountWorkEmailAssetCommand(
-        request.accountId ?? '',
-        request.email ?? '',
-        request.isPrimary ?? false,
+        request.accountId!,
+        request.email!,
+        request.isPrimary!,
         operatorId
       )
     )
@@ -72,12 +112,12 @@ export class IdentityManagementGrpcController
     request: AssignAccountWorkPhoneAssetRequest
   ): Promise<AccountContactAssetResponse> {
     const authenticatedContext = getAuthenticatedGrpcRequestContext(request)
-    const operatorId = authenticatedContext?.operatorContext?.operator_id ?? ''
+    const operatorId = authenticatedContext?.operatorContext?.operator_id!
     const asset = await this.commandBus.execute(
       new AssignAccountWorkPhoneAssetCommand(
-        request.accountId ?? '',
-        request.phone ?? '',
-        request.isPrimary ?? false,
+        request.accountId!,
+        request.phone!,
+        request.isPrimary!,
         operatorId
       )
     )
@@ -91,10 +131,8 @@ export class IdentityManagementGrpcController
     request: RevokeAccountWorkEmailAssetRequest
   ): Promise<AccountContactAssetResponse> {
     const authenticatedContext = getAuthenticatedGrpcRequestContext(request)
-    const operatorId = authenticatedContext?.operatorContext?.operator_id ?? ''
-    const asset = await this.commandBus.execute(
-      new RevokeAccountWorkEmailAssetCommand(request.assetId ?? '', operatorId)
-    )
+    const operatorId = authenticatedContext?.operatorContext?.operator_id!
+    const asset = await this.commandBus.execute(new RevokeAccountWorkEmailAssetCommand(request.assetId!, operatorId))
 
     return {
       asset: this.toContactAsset(asset)
@@ -105,10 +143,8 @@ export class IdentityManagementGrpcController
     request: RevokeAccountWorkPhoneAssetRequest
   ): Promise<AccountContactAssetResponse> {
     const authenticatedContext = getAuthenticatedGrpcRequestContext(request)
-    const operatorId = authenticatedContext?.operatorContext?.operator_id ?? ''
-    const asset = await this.commandBus.execute(
-      new RevokeAccountWorkPhoneAssetCommand(request.assetId ?? '', operatorId)
-    )
+    const operatorId = authenticatedContext?.operatorContext?.operator_id!
+    const asset = await this.commandBus.execute(new RevokeAccountWorkPhoneAssetCommand(request.assetId!, operatorId))
 
     return {
       asset: this.toContactAsset(asset)
@@ -118,9 +154,7 @@ export class IdentityManagementGrpcController
   async setAccountPrimaryWorkEmailAsset(
     request: SetAccountPrimaryWorkEmailAssetRequest
   ): Promise<AccountContactAssetResponse> {
-    const asset = await this.commandBus.execute(
-      new SetAccountPrimaryWorkEmailAssetCommand(request.assetId ?? '')
-    )
+    const asset = await this.commandBus.execute(new SetAccountPrimaryWorkEmailAssetCommand(request.assetId!))
 
     return {
       asset: this.toContactAsset(asset)
@@ -130,9 +164,7 @@ export class IdentityManagementGrpcController
   async setAccountPrimaryWorkPhoneAsset(
     request: SetAccountPrimaryWorkPhoneAssetRequest
   ): Promise<AccountContactAssetResponse> {
-    const asset = await this.commandBus.execute(
-      new SetAccountPrimaryWorkPhoneAssetCommand(request.assetId ?? '')
-    )
+    const asset = await this.commandBus.execute(new SetAccountPrimaryWorkPhoneAssetCommand(request.assetId!))
 
     return {
       asset: this.toContactAsset(asset)
@@ -143,7 +175,7 @@ export class IdentityManagementGrpcController
     request: SetAccountWorkEmailAssetStatusRequest
   ): Promise<AccountContactAssetResponse> {
     const asset = await this.commandBus.execute(
-      new SetAccountWorkEmailAssetStatusCommand(request.assetId ?? '', request.enabled ?? false)
+      new SetAccountWorkEmailAssetStatusCommand(request.assetId!, request.enabled!)
     )
 
     return {
@@ -155,7 +187,7 @@ export class IdentityManagementGrpcController
     request: SetAccountWorkPhoneAssetStatusRequest
   ): Promise<AccountContactAssetResponse> {
     const asset = await this.commandBus.execute(
-      new SetAccountWorkPhoneAssetStatusCommand(request.assetId ?? '', request.enabled ?? false)
+      new SetAccountWorkPhoneAssetStatusCommand(request.assetId!, request.enabled!)
     )
 
     return {
@@ -167,9 +199,9 @@ export class IdentityManagementGrpcController
     request: AddAccountOrgMembershipRequest
   ): Promise<AccountOrgMembershipResponse> {
     const authenticatedContext = getAuthenticatedGrpcRequestContext(request)
-    const operatorId = authenticatedContext?.operatorContext?.operator_id ?? ''
+    const operatorId = authenticatedContext?.operatorContext?.operator_id!
     const membership = await this.commandBus.execute(
-      new AddAccountOrgMembershipCommand(request.accountId ?? '', request.orgId ?? '', operatorId)
+      new AddAccountOrgMembershipCommand(request.accountId!, request.orgId!, operatorId)
     )
 
     return {
@@ -189,11 +221,11 @@ export class IdentityManagementGrpcController
     request: RemoveAccountOrgMembershipRequest
   ): Promise<AccountOrgMembershipResponse> {
     const authenticatedContext = getAuthenticatedGrpcRequestContext(request)
-    const operatorId = authenticatedContext?.operatorContext?.operator_id ?? ''
+    const operatorId = authenticatedContext?.operatorContext?.operator_id!
     const membership = await this.commandBus.execute(
       new RemoveAccountOrgMembershipCommand(
-        request.accountId ?? '',
-        request.orgId ?? '',
+        request.accountId!,
+        request.orgId!,
         operatorId
       )
     )
@@ -215,9 +247,13 @@ export class IdentityManagementGrpcController
     request: SetAccountPrimaryOrgRequest
   ): Promise<SetAccountPrimaryOrgResponse> {
     const authenticatedContext = getAuthenticatedGrpcRequestContext(request)
-    const operatorId = authenticatedContext?.operatorContext?.operator_id ?? ''
+    const operatorId = authenticatedContext?.operatorContext?.operator_id!
     const membership = await this.commandBus.execute(
-      new SetAccountPrimaryOrgCommand(request.accountId ?? '', request.orgId || undefined, operatorId)
+      new SetAccountPrimaryOrgCommand(
+        request.accountId!,
+        Object.prototype.hasOwnProperty.call(request, 'orgId') ? request.orgId : undefined,
+        operatorId
+      )
     )
 
     if (!membership) {
@@ -258,6 +294,36 @@ export class IdentityManagementGrpcController
       isPrimary: asset.isPrimary,
       assignedAt: asset.assignedAt.toISOString(),
       revokedAt: asset.revokedAt?.toISOString() ?? ''
+    }
+  }
+
+  private toServiceAccount(account: {
+    id: string
+    tenantId: string | null
+    scopeLevel: string
+    type: string
+    name: string
+    description: string | null
+    status: string
+    createdAt: Date
+    updatedAt: Date
+    createdBy: string | null
+    disabledAt: Date | null
+    disabledBy: string | null
+  }) {
+    return {
+      id: account.id,
+      tenantId: account.tenantId ?? '',
+      scopeLevel: account.scopeLevel,
+      type: account.type,
+      name: account.name,
+      description: account.description ?? '',
+      status: account.status,
+      createdAt: account.createdAt.toISOString(),
+      updatedAt: account.updatedAt.toISOString(),
+      createdBy: account.createdBy ?? '',
+      disabledAt: account.disabledAt?.toISOString() ?? '',
+      disabledBy: account.disabledBy ?? ''
     }
   }
 }

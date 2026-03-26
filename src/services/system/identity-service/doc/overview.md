@@ -130,3 +130,21 @@
   - add missing validation decorators for contact queries
   - clean controller-side `?? ''` fallback inputs
   - keep Phase 2 behavior stable before entering machine identity
+
+## Status Update 2026-03-25
+
+- Contact queries now participate in `ValidatingQueryBus` validation.
+- Contact query objects now use `IQuery + class-validator`, consistent with the existing validation pattern used by `permission-service`.
+- gRPC controller input mapping has been tightened:
+  - required request fields are no longer rewritten to `''` or `false`
+  - optional `orgId` is preserved as `undefined` instead of being normalized through loose fallback logic
+- L1 regression coverage now includes:
+  - command validation path
+  - query validation path
+  - gRPC controller input-to-validation path
+
+### Current position
+
+- Phase 2 feature work is still complete.
+- Phase 2 input-boundary tightening is now substantially more complete than before.
+- The service is in a reasonable state to return to the main roadmap discussion after any final minor cleanup.
