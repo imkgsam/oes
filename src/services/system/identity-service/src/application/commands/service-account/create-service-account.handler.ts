@@ -1,6 +1,7 @@
 import { Inject } from '@nestjs/common'
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
-import { ExceptionFactory } from '@oes/common/exceptions'
+import { ACCESS_DENIED, ExceptionFactory } from '@oes/common/exceptions'
+import { CheckResourceService } from '../../authorization'
 import {
   IDENTITY_SERVICE_ACCOUNT_SYSTEM_SCOPE_FORBIDS_TENANT,
   IDENTITY_SERVICE_ACCOUNT_TENANT_SCOPE_REQUIRES_TENANT,
@@ -21,7 +22,8 @@ export class CreateServiceAccountHandler
     @Inject(SYMBOLS.REPO.TENANT)
     private readonly tenantRepository: TenantRepository,
     @Inject(SYMBOLS.REPO.SERVICE_ACCOUNT)
-    private readonly serviceAccountRepository: ServiceAccountRepository
+    private readonly serviceAccountRepository: ServiceAccountRepository,
+    private readonly checkResourceService: CheckResourceService
   ) {}
 
   async execute(command: CreateServiceAccountCommand): Promise<ServiceAccountEntity> {
@@ -48,6 +50,18 @@ export class CreateServiceAccountHandler
           tenantId: command.tenantId
         })
       }
+
+      this.checkResourceService.checkTenant(command.operatorScope, {
+        resourceId: tenant.id,
+        tenantId: tenant.id
+      })
+    } else if (command.operatorScope && !command.operatorScope.isSystemScope) {
+      throw ExceptionFactory.application(ACCESS_DENIED, {
+        resourceType: 'service_account',
+        resourceId: null,
+        tenantId: null,
+        operatorTenantId: command.operatorScope.tenantId
+      })
     }
 
     return this.serviceAccountRepository.create({

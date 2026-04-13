@@ -20,9 +20,10 @@
 | [requirements.md](./requirements.md) | `permission-service` 继承和补充的实施约束 |
 | [roadmap.md](./roadmap.md) | 当前阶段划分、优先级和实施顺序 |
 | [design/core-model-migration-plan.md](./design/core-model-migration-plan.md) | 核心模型迁移计划与兼容性说明 |
-| [../../../../../doc/standards/requirements.md](../../../../../doc/standards/requirements.md) | 仓库级 Codex 执行约束 |
-| [../../../../../doc/standards/microservice-architecture-reuse-guide.md](../../../../../doc/standards/microservice-architecture-reuse-guide.md) | 其他子服务应遵循的统一微服务骨架与文档规范 |
-| [../../../../../doc/cross-service/internal-service-auth-and-operator-context.md](../../../../../doc/cross-service/internal-service-auth-and-operator-context.md) | 跨服务功能总设计与总拆分，`permission-service` 需要按其中的分片要求落地 |
+| [../../../../../AGENTS.md](../../../../../AGENTS.md) | 仓库级协作与架构执行约束 |
+| [../../../../../docs/architecture/05-governance.md](../../../../../docs/architecture/05-governance.md) | 项目级治理、文档与变更纪律 |
+| [../../../../../docs/architecture/14-grpc-metadata-and-service-trust-architecture.md](../../../../../docs/architecture/14-grpc-metadata-and-service-trust-architecture.md) | 内部服务信任、gRPC metadata 与 operator context 稳定设计 |
+| [../../../../../docs/architecture/15-authorization-layering-and-resource-policy-architecture.md](../../../../../docs/architecture/15-authorization-layering-and-resource-policy-architecture.md) | 授权分层、资源策略与业务边界稳定设计 |
 | [history/INDEX.md](./history/INDEX.md) | 功能集合历史索引 |
 | [tasks/internal-service-auth-and-operator-context.md](./tasks/internal-service-auth-and-operator-context.md) | `permission-service` 对该跨服务功能的本服务落地分片与状态 |
 
@@ -41,5 +42,5 @@
 - 稳定设计结论统一写入 `design/*.md`
 - 阶段说明、实施顺序和待办切片统一写入 [roadmap.md](./roadmap.md) 或后续 `tasks/*.md`
 - 历史变更统一写入 `history/*.history.md`
-- 跨服务功能主文档不在本目录重复展开，统一引用根目录 `doc/`，本服务只维护自己的落地任务文档
-- 其中 [design/authorization.md](./design/authorization.md) 是根目录跨服务功能在 `permission-service` 内的设计承接文档，[tasks/internal-service-auth-and-operator-context.md](./tasks/internal-service-auth-and-operator-context.md) 是对应实施文档
+- 跨服务稳定设计不在本目录重复展开，统一引用 `docs/architecture/`，本服务只维护自己的落地任务文档
+- 其中 [design/authorization.md](./design/authorization.md) 是项目级授权与服务信任架构在 `permission-service` 内的设计承接文档，[tasks/internal-service-auth-and-operator-context.md](./tasks/internal-service-auth-and-operator-context.md) 是对应实施文档

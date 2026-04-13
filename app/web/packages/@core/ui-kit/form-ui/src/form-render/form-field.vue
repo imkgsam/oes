@@ -175,17 +175,15 @@ const computedProps = computed(() => {
   };
 });
 
-// 自定义帮助信息
+// Resolve help content before passing it to FormLabel so the final value
+// always conforms to CustomRenderType instead of a function that may yield undefined.
 const computedHelp = computed(() => {
-  return help ? onHelpFunc : undefined;
-});
-
-const onHelpFunc = () => {
   if (!help) {
     return undefined;
   }
-  return isFunction(help) ? help(values.value, formApi!) : help;
-};
+  const resolved = isFunction(help) ? help(values.value, formApi!) : help;
+  return resolved ?? undefined;
+});
 
 watch(
   () => computedProps.value?.autofocus,

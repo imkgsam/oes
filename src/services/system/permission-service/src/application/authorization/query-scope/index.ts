@@ -1,0 +1,6 @@
+export * from './query-scope.types'
+export * from './query-scope-builder.interface'
+export * from './authorization-query-scope.service'
+export * from './builders/role-instance-query-scope.builder'
+export * from './builders/role-template-query-scope.builder'
+export * from './builders/account-role-query-scope.builder'

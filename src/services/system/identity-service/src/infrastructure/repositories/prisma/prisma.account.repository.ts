@@ -17,14 +17,27 @@ export class PrismaAccountRepository implements AccountRepository {
       where: {
         userId,
         isEnable: true,
-        Tenant: {
-          isActive: true
-        }
+        OR: [
+          {
+            scopeLevel: 'SYSTEM',
+            tenantId: null
+          },
+          {
+            scopeLevel: 'TENANT',
+            tenantId: {
+              not: null
+            },
+            Tenant: {
+              isActive: true
+            }
+          }
+        ]
       },
       select: {
         id: true,
         userId: true,
         tenantId: true,
+        scopeLevel: true,
         displayName: true,
         isEnable: true,
         Tenant: {
@@ -50,6 +63,7 @@ export class PrismaAccountRepository implements AccountRepository {
         id: true,
         userId: true,
         tenantId: true,
+        scopeLevel: true,
         displayName: true,
         isEnable: true,
         Tenant: {

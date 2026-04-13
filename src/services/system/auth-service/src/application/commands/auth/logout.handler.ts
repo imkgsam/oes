@@ -1,8 +1,8 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
-import { REPO } from 'src/common/constants'
-import { AuthAuditService } from 'src/application/services/auth-audit.service'
-import { IUserSessionRepository } from 'src/domain/repositories/user-session.repository'
+import { REPO } from '../../../common/constants'
+import { AuthAuditService } from '../../services/auth-audit.service'
+import { IUserSessionRepository } from '../../../domain/repositories/user-session.repository'
 import { LogoutCommand } from './logout.command'
 
 export interface LogoutResult {
@@ -18,8 +18,13 @@ export class LogoutHandler implements ICommandHandler<LogoutCommand, LogoutResul
   ) {}
 
   async execute(command: LogoutCommand): Promise<LogoutResult> {
+    const session = await this.sessionRepository.findById(command.sessionId)
+    if (!session) {
+      return { success: true }
+    }
+
     await this.sessionRepository.delete(command.sessionId)
-    this.authAuditService.emitLogoutSucceeded(command.sessionId)
+    this.authAuditService.emitLogoutSucceeded(session)
     return { success: true }
   }
 }

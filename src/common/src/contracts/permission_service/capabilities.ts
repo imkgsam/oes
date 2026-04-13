@@ -12,8 +12,10 @@ export const PermissionCheckCapability = {
     transport: [Transport.GRPC]
   } as Cability<PermissionCheckInput, PermissionCheckOutput>,
 
+  // OUTDATED: compatibility capability for the historical context RPC; do not use for new resource authorization integrations.
   checkPermissionWithContext: {
-    description: 'RBAC + ABAC permission check with evaluation context',
+    description:
+      'OUTDATED compatibility RPC for historical RBAC + ABAC evaluation context checks',
     transport: [Transport.GRPC]
   } as Cability<PermissionCheckWithContextInput, AuthzDecisionOutput>
 }

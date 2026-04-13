@@ -1,4 +1,4 @@
-import { OTP_USAGES } from 'src/common/constants'
+import { OTP_USAGES } from '../../common/constants'
 import { OtpSendThrottleState } from '../aggregates/otp-send-throttle-state.aggregate'
 
 export interface IOtpSendThrottleRepository {

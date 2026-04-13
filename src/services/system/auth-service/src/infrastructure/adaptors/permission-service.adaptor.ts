@@ -1,14 +1,20 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
+import { SERVICE_NAMES } from '@oes/common/constants'
 import { PermissionCheckInput, PermissionCheckOutput } from '@oes/common/contracts'
-import { ExceptionFactory } from '@oes/common/exceptions'
+import { ExceptionFactory, InfrastructureException } from '@oes/common/exceptions'
+import {
+  GRPC_METADATA_PROPAGATION_FACTORY,
+  GrpcMetadataPropagationFactory,
+  GrpcRequestContextStore
+} from '@oes/common/authorization'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import { Observable } from 'rxjs'
 import {
   AccountAuthorizationSummary,
   IPermissionServicePort
-} from 'src/application/ports/permission-service.port'
-import { AUTH_PERMISSION_UPSTREAM_UNAVAILABLE } from 'src/common/constants/exception-enums'
+} from '../../application/ports/permission-service.port'
+import { AUTH_PERMISSION_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
 
 const PERMISSION_CHECK_SERVICE_NAME = 'PermissionCheckService'
 
@@ -25,8 +31,11 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
   private permissionService!: PermissionCheckGrpcClient
 
   constructor(
-    @InjectGrpcClient('permission-service')
-    private readonly permissionClient: ClientGrpc
+    @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
+    private readonly permissionClient: ClientGrpc,
+    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
+    private readonly metadataFactory: GrpcMetadataPropagationFactory,
+    private readonly requestContextStore: GrpcRequestContextStore
   ) {}
 
   onModuleInit() {
@@ -52,7 +61,7 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
         this.permissionService.checkPermission({
           accountId,
           permissionCode
-        }),
+        }, this.metadata()),
         {
           caller: 'auth-service',
           method: 'PermissionCheckService.checkPermission'
@@ -61,11 +70,29 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
 
       return response.allowed ?? false
     } catch (error) {
-      this.logger.error(
-        `Failed to check account permission: ${accountId} - ${permissionCode}`,
-        error
-      )
-      return false
+      if (error instanceof InfrastructureException) {
+        this.logger.error(
+          `Permission upstream unavailable during check: ${accountId} - ${permissionCode}`,
+          error
+        )
+        throw ExceptionFactory.infrastructure(AUTH_PERMISSION_UPSTREAM_UNAVAILABLE, {
+          upstream: 'permission-service',
+          method: 'checkAccountPermission',
+          accountId,
+          permissionCode
+        })
+      }
+
+      throw error
     }
+  }
+
+  private metadata() {
+    const current = this.requestContextStore.getContext()
+    return this.metadataFactory.createInternalCallMetadata({
+      callerServiceName: 'auth-service',
+      requestId: current?.requestId,
+      traceId: current?.traceId
+    })
   }
 }

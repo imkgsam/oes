@@ -7,6 +7,7 @@ import { Role } from '../../../domain/aggregates/role.aggregate'
 import { RoleKind } from '../../../domain/enums/role-kind.enum'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ROLE_TEMPLATE_NOT_FOUND } from '../../../common/constants/exception-enums'
+import { assertSystemScope } from '../../authorization/operator-scope'
 
 @CommandHandler(SetRoleTemplateEnabledCommand)
 export class SetRoleTemplateEnabledHandler
@@ -18,6 +19,8 @@ export class SetRoleTemplateEnabledHandler
   ) {}
 
   async execute(command: SetRoleTemplateEnabledCommand): Promise<Role> {
+    assertSystemScope(command.operatorScope, 'template enable requires system scope')
+
     const role = await this.roleRepo.findById(command.id)
     if (!role || role.kind !== RoleKind.SYSTEM_TEMPLATE) {
       throw ExceptionFactory.domain(ROLE_TEMPLATE_NOT_FOUND)

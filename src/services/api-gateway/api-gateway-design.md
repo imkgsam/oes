@@ -159,10 +159,10 @@ flowchart TB
 | 统一异常过滤器       | ✅   | [`GatewayExceptionFilter`](src/services/system/api-gateway/src/common/filters/gateway-exception.filter.ts)                                   |
 | 统一响应拦截器       | ✅   | [`ResponseTransformInterceptor`](src/services/system/api-gateway/src/common/interceptors/response.interceptor.ts)                            |
 | gRPC → HTTP 异常映射 | ✅   | [`grpcStatusToHttpStatus()`](src/services/system/api-gateway/src/common/filters/gateway-exception.filter.ts:81)                              |
-| 权限检查守卫         | ✅   | [`GatewayPermissionControllGuard`](src/common/src/permission/guards/gateway-permission-controll.guard.ts)                                    |
-| Auth 路由代理        | ⚠️   | [`AuthController`](src/services/system/api-gateway/src/modules/auth-service/controllers/auth.controller.ts) (TODO)                           |
+| 权限检查守卫         | ✅   | [`GatewayPermissionGuard`](src/common/src/authorization/guards/gateway-permission.guard.ts)                                                   |
+| Auth BFF 编排        | ✅   | [`AuthController`](src/services/api-gateway/src/modules/auth-bff/interfaces/http/controllers/auth.controller.ts)                              |
 | Permission 路由代理  | ✅   | [`PermissionController`](src/services/system/api-gateway/src/modules/permission-service/interface/http/controllers/permission.controller.ts) |
-| Identity 路由代理    | ⚠️   | [`AdminController`](src/services/system/api-gateway/src/modules/identity-service/controllers/admin.controller.ts) (基础)                     |
+| Identity 路由代理    | ❌   | 历史占位代理已清理；后续如需对外暴露身份能力，应以新的场景型 BFF 重新设计                                                                   |
 | OpenTelemetry 集成   | ✅   | [`initOtelSdk()`](src/services/system/api-gateway/src/main.ts:13)                                                                            |
 | 结构化日志           | ✅   | [`AppLogger`](src/services/system/api-gateway/src/main.ts:16)                                                                                |
 
@@ -211,10 +211,9 @@ flowchart LR
 ### 2.3 代码质量问题
 
 1. **[`GatewayExceptionFilter`](src/services/system/api-gateway/src/common/filters/gateway-exception.filter.ts:49)** 中 `OESExceptionBase` 和 unknown 分支的 `payload` 变量被 `const` 重新声明遮蔽了外层变量，导致最终 `res.status(payload.code).json(payload)` 使用的是未初始化的外层 `payload`，会抛出运行时错误
-2. **[`AuthController`](src/services/system/api-gateway/src/modules/auth-service/controllers/auth.controller.ts)** 所有方法都被注释掉，仅有空壳
-3. **[`AuthServiceService`](src/services/system/api-gateway/src/modules/auth-service/auth-service.service.ts)** 同时注入了 gRPC client 但 module 注册的是 TCP client，存在不一致
-4. **[`app.module.ts`](src/services/system/api-gateway/src/app.module.ts:18)** 中 `PermissionServiceModule` 和 `IdentityServiceModule` 被注释掉
-5. 缺少全局 `ValidationPipe`，入参未校验
+2. 历史 `modules/auth-service` 与 `modules/identity-service` 占位代理曾长期留在代码仓库中，容易误导线程继续在死代码上扩写；现已清理
+3. 历史设计文档中仍存在部分旧路径与旧模块名引用，需要持续收口，避免把已删除代理视为活跃集成路径
+4. 缺少全局 `ValidationPipe`，入参未校验
 
 ---
 
@@ -389,7 +388,7 @@ async function bootstrap() {
   // 8. 全局守卫 (JWT → Permission → RateLimit)
   app.useGlobalGuards(
     app.get(GatewayJwtAuthGuard),
-    app.get(GatewayPermissionControllGuard),
+    app.get(GatewayPermissionGuard),
   )
 
   // 9. 全局拦截器
@@ -399,8 +398,8 @@ async function bootstrap() {
   )
 
   // 10. 全局过滤器
+  // GatewayExceptionFilter 内部先记录 tracing，再完成 HTTP 异常映射
   app.useGlobalFilters(
-    new OtelExceptionFilter(),
     new GatewayExceptionFilter(app.get(AppLogger)),
   )
 
@@ -444,7 +443,7 @@ async function bootstrap() {
   ],
   providers: [
     { provide: APP_GUARD, useClass: GatewayJwtAuthGuard },
-    { provide: APP_GUARD, useClass: GatewayPermissionControllGuard },
+    { provide: APP_GUARD, useClass: GatewayPermissionGuard },
   ],
 })
 export class AppModule implements NestModule {
@@ -599,26 +598,39 @@ modules/
 
 ### 4.9 GatewayExceptionFilter 修复
 
-当前 [`GatewayExceptionFilter`](src/services/system/api-gateway/src/common/filters/gateway-exception.filter.ts) 存在变量遮蔽 bug，需要修复：
+当前 [`GatewayExceptionFilter`](src/services/system/api-gateway/src/common/filters/gateway-exception.filter.ts) 需要同时承担两项职责：
+
+- 在写出 HTTP 响应前调用 tracing helper 记录异常
+- 统一将 `RpcException` / `HttpException` / `OESExceptionBase` 映射为 JSON 响应
+
+注意：
+
+- tracing helper 归属 `@oes/common/tracing`
+- 不再通过 `OtelExceptionFilter -> GatewayExceptionFilter` 的 filter 串联方式实现
+- 原因是 Nest exception filter 不是稳定的链式传递模型，重新 `throw` 可能直接落回底层 adapter
+
+修复后的关键点如下：
 
 ```typescript
-// 修复方案：统一使用同一个 payload 变量
 catch(exception: unknown, host: ArgumentsHost) {
-  // ...
+  recordExceptionToActiveSpan(exception)
+
   let payload: HttpExceptionPayload
+  let httpStatus = HttpStatus.INTERNAL_SERVER_ERROR
 
   if (exception instanceof RpcException) {
     payload = { /* ... */ }
+    httpStatus = this.grpcStatusToHttpStatus(...)
   } else if (exception instanceof OESExceptionBase) {
-    payload = exception.toHttpPayload()  // 不要用 const 重新声明
-    payload.traceId = traceId
+    payload = exception.toHttpPayload()
+    httpStatus = exception.getHttpStatus()
   } else {
     const unknownExp = ExceptionFactory.infrastructure(UNKNOWN_EXCEPTION, { ... })
-    payload = unknownExp.toHttpPayload()  // 不要用 const 重新声明
-    payload.traceId = traceId
+    payload = unknownExp.toHttpPayload()
+    httpStatus = unknownExp.getHttpStatus()
   }
 
-  res.status(payload.code).json(payload)
+  res.status(httpStatus).json(payload)
 }
 ```
 
@@ -628,9 +640,8 @@ catch(exception: unknown, host: ArgumentsHost) {
 
 | 模块                                                                                                                     | 当前协议                                          | 目标协议 |
 | ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------- | -------- |
-| [`AuthServiceModule`](src/services/system/api-gateway/src/modules/auth-service/auth-service.module.ts)                   | TCP (ClientModule) + gRPC (InjectGrpcClient) 混用 | gRPC     |
-| [`PermissionServiceModule`](src/services/system/api-gateway/src/modules/permission-service/permission-service.module.ts) | TCP (ClientModule)                                | gRPC     |
-| [`IdentityServiceModule`](src/services/system/api-gateway/src/modules/identity-service/identity-service.module.ts)       | gRPC (GrpcTransportModule)                        | gRPC     |
+| [`AuthBffModule`](src/services/api-gateway/src/modules/auth-bff/auth-bff.module.ts)                                     | HTTP BFF controller + gRPC adapter                | gRPC     |
+| [`PermissionServiceProxyModule`](src/services/api-gateway/src/modules/permission-service/permission-service.module.ts)   | HTTP 管理薄代理 + gRPC adapter                    | gRPC     |
 
 **目标**: 统一使用 `GrpcTransportModule.forFeature()` + `@InjectGrpcClient()` 模式。
 

@@ -5,9 +5,7 @@ import { computed, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { AuthenticationLoginExpiredModal } from '@vben/common-ui';
-import { VBEN_DOC_URL, VBEN_GITHUB_URL } from '@vben/constants';
 import { useWatermark } from '@vben/hooks';
-import { BookOpenText, CircleHelp, SvgGithubIcon } from '@vben/icons';
 import {
   BasicLayout,
   LockScreen,
@@ -16,117 +14,91 @@ import {
 } from '@vben/layouts';
 import { preferences } from '@vben/preferences';
 import { useAccessStore, useUserStore } from '@vben/stores';
-import { openWindow } from '@vben/utils';
 
-import { $t } from '#/locales';
 import { useAuthStore } from '#/store';
+import { useAuthContextStore } from '#/store/auth-context';
 import LoginForm from '#/views/_core/authentication/login.vue';
 
 const notifications = ref<NotificationItem[]>([
   {
+    avatar: preferences.app.defaultAvatar,
     id: 1,
-    avatar: 'https://avatar.vercel.sh/vercel.svg?text=VB',
-    date: '3小时前',
-    isRead: true,
-    message: '描述信息描述信息描述信息',
-    title: '收到了 14 份新周报',
+    date: '当前阶段',
+    isRead: false,
+    message: '登录、MFA、账户选择和登出链路已接通，适合作为首轮手动联调基线。',
+    title: '认证主链已完成第一轮接入',
   },
   {
+    avatar: preferences.app.defaultAvatar,
     id: 2,
-    avatar: 'https://avatar.vercel.sh/1',
-    date: '刚刚',
+    date: '已接入',
     isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '朱偏右 回复了你',
+    message:
+      '登录后上下文、导航可见入口和权限摘要已由 auth-bff 提供，前端会继续收敛到这些稳定契约。',
+    title: '认证上下文已接入 BFF',
   },
   {
+    avatar: preferences.app.defaultAvatar,
     id: 3,
-    avatar: 'https://avatar.vercel.sh/1',
-    date: '2024-01-01',
+    date: '下一步',
     isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '曲丽丽 评论了你',
-  },
-  {
-    id: 4,
-    avatar: 'https://avatar.vercel.sh/satori',
-    date: '1天前',
-    isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '代办提醒',
-  },
-  {
-    id: 5,
-    avatar: 'https://avatar.vercel.sh/satori',
-    date: '1天前',
-    isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '跳转Workspace示例',
-    link: '/workspace',
-  },
-  {
-    id: 6,
-    avatar: 'https://avatar.vercel.sh/satori',
-    date: '1天前',
-    isRead: false,
-    message: '描述信息描述信息描述信息',
-    title: '跳转外部链接示例',
-    link: 'https://doc.vben.pro',
+    message: '建议继续推进 dashboard 手动联调与退出登录体验收尾。',
+    title: '工作台与登出体验继续收敛',
   },
 ]);
 
 const router = useRouter();
 const userStore = useUserStore();
 const authStore = useAuthStore();
+const authContextStore = useAuthContextStore();
 const accessStore = useAccessStore();
 const { destroyWatermark, updateWatermark } = useWatermark();
 const showDot = computed(() =>
   notifications.value.some((item) => !item.isRead),
 );
 
-const menus = computed(() => [
-  {
-    handler: () => {
-      router.push({ name: 'Profile' });
+// Builds the user dropdown menu from the authenticated session scope and action codes.
+const menus = computed(() => {
+  const items = [
+    {
+      handler: () => {
+        router.push({ name: 'SelfSecurityCenter' });
+      },
+      icon: 'lucide:shield-check',
+      text: '账户安全',
     },
-    icon: 'lucide:user',
-    text: $t('page.auth.profile'),
-  },
-  {
+  ];
+
+  if (
+    authContextStore.actionCodes.includes('auth.audit.list') ||
+    authContextStore.actionCodes.includes('auth.session.admin.view')
+  ) {
+    items.push({
+      handler: () => {
+        router.push({ name: 'AdminAuthSessionManagement' });
+      },
+      icon: 'lucide:shield',
+      text: '认证与会话管理',
+    });
+  }
+
+  items.push({
     handler: () => {
-      openWindow(VBEN_DOC_URL, {
-        target: '_blank',
-      });
+      router.push(authContextStore.homePath);
     },
-    icon: BookOpenText,
-    text: $t('ui.widgets.document'),
-  },
-  {
-    handler: () => {
-      openWindow(VBEN_GITHUB_URL, {
-        target: '_blank',
-      });
-    },
-    icon: SvgGithubIcon,
-    text: 'GitHub',
-  },
-  {
-    handler: () => {
-      openWindow(`${VBEN_GITHUB_URL}/issues`, {
-        target: '_blank',
-      });
-    },
-    icon: CircleHelp,
-    text: $t('ui.widgets.qa'),
-  },
-]);
+    icon: 'lucide:layout-dashboard',
+    text: '返回首页',
+  });
+
+  return items;
+});
 
 const avatar = computed(() => {
   return userStore.userInfo?.avatar ?? preferences.app.defaultAvatar;
 });
 
 async function handleLogout() {
-  await authStore.logout(false);
+  await authStore.logout(true);
 }
 
 function handleNoticeClear() {
@@ -176,8 +148,8 @@ watch(
         :avatar
         :menus
         :text="userStore.userInfo?.realName"
-        description="ann.vben@gmail.com"
-        tag-text="Pro"
+        :description="userStore.userInfo?.username"
+        :tag-text="authContextStore.scopeLabel"
         @logout="handleLogout"
       />
     </template>

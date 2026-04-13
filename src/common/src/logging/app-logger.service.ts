@@ -58,8 +58,6 @@ export class AppLogger implements LoggerService, OesLogger {
     })
   }
 
-
-
   /**
    * Set the logging context (typically the class name).
    * Used by NestJS for contextual logging.
@@ -214,6 +212,13 @@ export class AppLogger implements LoggerService, OesLogger {
     }
 
     return true
+  }
+
+  /**
+   * Return the configured service name so transport logging can tag entries consistently.
+   */
+  getServiceName(): string {
+    return this.logger.getServiceName()
   }
 
   /**

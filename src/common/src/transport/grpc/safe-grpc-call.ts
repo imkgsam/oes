@@ -4,35 +4,31 @@
  * @file gRPC 安全调用工具
  * @module transport/grpc
  *
- * 封装 gRPC 调用的通用逻辑：超时控制、异常分类处理。
- * - 业务异常（下游 RpcException）：直接透传
- * - 基础设施异常（timeout / unavailable 等）：包装为本服务的 InfrastructureException
+ * 封装 gRPC 调用的通用逻辑：超时控制与技术层异常分类。
+ * - 标准下游业务异常（RpcExceptionPayload）直接透传
+ * - 基础设施异常（timeout / unavailable 等）包装为本服务的 InfrastructureException
+ * - 非标准 RpcException 与原生 gRPC 错误统一视为 infra 异常
  */
 
-import { Observable, firstValueFrom, timeout, TimeoutError } from 'rxjs'
-import { RpcException } from '@nestjs/microservices'
 import { status as GrpcStatus } from '@grpc/grpc-js'
+import { RpcException } from '@nestjs/microservices'
+import { Observable, TimeoutError, firstValueFrom, timeout } from 'rxjs'
 import { ExceptionFactory } from '../../core/exceptions'
 import { INTERNAL_SERVICE_UNAVAILABLE } from '../../core/exceptions/exception-enums/infrastructure-exception.enum'
+import { RpcExceptionPayload } from '../../core/exceptions/exception.interface'
 
-/** 默认超时时间（毫秒） */
 const DEFAULT_TIMEOUT_MS = 5000
 
-/** 被视为基础设施异常的 gRPC 状态码 */
 const INFRA_STATUS_CODES = new Set<number>([
   GrpcStatus.UNAVAILABLE,
   GrpcStatus.DEADLINE_EXCEEDED,
-  GrpcStatus.RESOURCE_EXHAUSTED,
   GrpcStatus.ABORTED,
   GrpcStatus.INTERNAL
 ])
 
 export interface SafeGrpcCallOptions {
-  /** 超时时间（毫秒），默认 5000 */
   timeoutMs?: number
-  /** 调用方服务名，用于日志上下文 */
   caller?: string
-  /** 被调用的方法名，用于日志上下文 */
   method?: string
 }
 
@@ -40,18 +36,10 @@ export interface SafeGrpcCallOptions {
  * 安全执行 gRPC 调用。
  *
  * 处理策略：
- * 1. 超时 → 包装为 InfrastructureException（DEADLINE_EXCEEDED）
- * 2. 下游业务异常（RpcException）→ 直接透传，由上层 filter 处理
- * 3. 基础设施异常（UNAVAILABLE 等）→ 包装为 InfrastructureException
- * 4. 未知异常 → 包装为 InfrastructureException
- *
- * @example
- * ```typescript
- * const result = await safeGrpcCall(
- *   this.permissionSvc.checkPermission({ accountId, permissionCode }),
- *   { timeoutMs: 3000, caller: 'auth-service', method: 'checkPermission' }
- * )
- * ```
+ * 1. 超时 → 包装为 InfrastructureException
+ * 2. 标准下游业务异常（RpcExceptionPayload）→ 直接透传
+ * 3. 下游基础设施异常（UNAVAILABLE 等）→ 包装为 InfrastructureException
+ * 4. 非标准 RpcException、原生 gRPC error、未知异常 → 包装为 InfrastructureException
  */
 export async function safeGrpcCall<T>(
   call$: Observable<T>,
@@ -66,65 +54,61 @@ export async function safeGrpcCall<T>(
   }
 }
 
-/**
- * 异常分类与包装。
- *
- * - RpcException 且非基础设施状态码 → 业务异常，透传
- * - RpcException 且基础设施状态码 → 包装为 infra 异常
- * - TimeoutError → 包装为 infra 异常（超时）
- * - 其他 → 包装为 infra 异常（未知）
- */
 function classifyAndWrap(error: unknown, options?: SafeGrpcCallOptions): Error {
   const context = buildContext(options)
 
-  // rxjs 超时
   if (error instanceof TimeoutError) {
-    return ExceptionFactory.infrastructure(INTERNAL_SERVICE_UNAVAILABLE, {
-      ...context,
-      reason: 'TIMEOUT',
+    return wrapInfrastructureError(context, 'TIMEOUT', {
       message: `gRPC 调用超时（${options?.timeoutMs ?? DEFAULT_TIMEOUT_MS}ms）`
     })
   }
 
-  // 下游返回的 RpcException
   if (error instanceof RpcException) {
-    const rpcError = error.getError() as any
-    const grpcCode: number = rpcError?.code ?? GrpcStatus.UNKNOWN
+    const payload = error.getError()
 
-    // 基础设施级别的 gRPC 状态码 → 包装为本服务 infra 异常
-    if (INFRA_STATUS_CODES.has(grpcCode)) {
-      return ExceptionFactory.infrastructure(INTERNAL_SERVICE_UNAVAILABLE, {
-        ...context,
-        reason: GrpcStatus[grpcCode] ?? 'UNKNOWN',
-        originalMessage: rpcError?.message,
-        originalDetails: rpcError?.details
+    if (!isRpcExceptionPayload(payload)) {
+      return wrapInfrastructureError(context, 'NON_STANDARD_RPC_EXCEPTION', {
+        originalMessage: getErrorMessage(payload),
+        originalDetails: getErrorDetails(payload)
       })
     }
 
-    // 业务异常 → 直接透传
+    if (isInfrastructureRpcPayload(payload)) {
+      return wrapInfrastructureError(context, grpcStatusName(payload.grpcStatus), {
+        originalMessage: payload.message,
+        originalDetails: payload.details
+      })
+    }
+
     return error
   }
 
-  // gRPC 原生错误（非 NestJS 包装），通常是连接级别的错误
   if (isGrpcNativeError(error)) {
-    const grpcCode = (error as any).code
-    return ExceptionFactory.infrastructure(INTERNAL_SERVICE_UNAVAILABLE, {
-      ...context,
-      reason: GrpcStatus[grpcCode] ?? 'UNKNOWN',
-      originalMessage: (error as Error).message
+    const payload = parseGrpcNativePayload(error)
+
+    if (payload) {
+      if (isInfrastructureRpcPayload(payload)) {
+        return wrapInfrastructureError(context, grpcStatusName(payload.grpcStatus), {
+          originalMessage: payload.message,
+          originalDetails: payload.details
+        })
+      }
+
+      return new RpcException(payload)
+    }
+
+    return wrapInfrastructureError(context, grpcStatusName(error.code), {
+      originalMessage: error.message,
+      originalDetails: error.details
     })
   }
 
-  // 未知异常
-  return ExceptionFactory.infrastructure(INTERNAL_SERVICE_UNAVAILABLE, {
-    ...context,
-    reason: 'UNKNOWN',
-    originalMessage: (error as Error)?.message,
-    stack: (error as Error)?.stack
+  return wrapInfrastructureError(context, 'UNKNOWN', {
+    originalMessage: getErrorMessage(error),
+    stack: getErrorStack(error)
   })
 }
 
-/** 构建日志上下文 */
 function buildContext(options?: SafeGrpcCallOptions): Record<string, string | undefined> {
   return {
     caller: options?.caller,
@@ -132,12 +116,109 @@ function buildContext(options?: SafeGrpcCallOptions): Record<string, string | un
   }
 }
 
-/** 判断是否为 gRPC 原生错误（带有数字 code 字段） */
-function isGrpcNativeError(error: unknown): boolean {
+function wrapInfrastructureError(
+  context: Record<string, string | undefined>,
+  reason: string,
+  details?: Record<string, unknown>
+): Error {
+  return ExceptionFactory.infrastructure(INTERNAL_SERVICE_UNAVAILABLE, {
+    ...context,
+    reason,
+    ...details
+  })
+}
+
+function isInfrastructureGrpcStatus(code: number): boolean {
+  return INFRA_STATUS_CODES.has(code)
+}
+
+// Classifies standardized OES payloads by semantic error code first, not by broad gRPC status.
+function isInfrastructureRpcPayload(payload: RpcExceptionPayload): boolean {
+  return payload.code.startsWith('INFRA_') || isInfrastructureGrpcStatus(payload.grpcStatus)
+}
+
+function isRpcExceptionPayload(value: unknown): value is RpcExceptionPayload {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const candidate = value as Partial<RpcExceptionPayload>
   return (
-    error instanceof Error &&
-    typeof (error as any).code === 'number' &&
-    (error as any).code >= 0 &&
-    (error as any).code <= 16
+    typeof candidate.grpcStatus === 'number' &&
+    typeof candidate.code === 'string' &&
+    typeof candidate.message === 'string'
   )
+}
+
+// Restores an OES RpcExceptionPayload from the JSON details emitted by GrpcExceptionFilter.
+function parseGrpcNativePayload(
+  error: Error & { code: number; details?: unknown }
+): RpcExceptionPayload | null {
+  const details = error.details
+
+  if (typeof details !== 'string') {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(details)
+    if (isRpcExceptionPayload(parsed)) {
+      return parsed
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
+/**
+ * 判断是否为 gRPC 原生错误（非 NestJS RpcException）。
+ *
+ * 常见形态近似：
+ * `{ message: '14 UNAVAILABLE: No connection established', code: 14, details: 'No connection established' }`
+ */
+function isGrpcNativeError(error: unknown): error is Error & { code: number; details?: unknown } {
+  if (!(error instanceof Error)) {
+    return false
+  }
+
+  const candidate = error as Error & { code?: unknown; details?: unknown }
+  return typeof candidate.code === 'number' && candidate.code >= 0 && candidate.code <= 16
+}
+
+function grpcStatusName(code: number): string {
+  return GrpcStatus[code] ?? 'UNKNOWN'
+}
+
+function getErrorMessage(error: unknown): string | undefined {
+  if (error instanceof Error) {
+    return error.message
+  }
+
+  if (typeof error === 'object' && error !== null) {
+    const candidate = error as { message?: unknown }
+    if (typeof candidate.message === 'string') {
+      return candidate.message
+    }
+  }
+
+  return undefined
+}
+
+function getErrorDetails(error: unknown): unknown {
+  if (typeof error !== 'object' || error === null) {
+    return undefined
+  }
+
+  const candidate = error as { details?: unknown }
+  return candidate.details
+}
+
+function getErrorStack(error: unknown): string | undefined {
+  if (error instanceof Error) {
+    return error.stack
+  }
+
+  return undefined
 }

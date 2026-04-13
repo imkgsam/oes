@@ -1,5 +1,5 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
-import { PhoneOtpLoginService } from 'src/application/services/phone-otp-login.service'
+import { PhoneOtpLoginService } from '../../services/phone-otp-login.service'
 import { RequestPhoneOtpLoginChallengeCommand } from './request-phone-otp-login-challenge.command'
 
 export interface RequestPhoneOtpLoginChallengeResult {

@@ -1,5 +1,5 @@
-import { createBusinessException } from '@oes/common/exceptions'
-import { AUTH_LOGIN_TEMPORARILY_LOCKED } from 'src/common/constants/exception-enums'
+import { ExceptionFactory } from '@oes/common/exceptions'
+import { AUTH_LOGIN_TEMPORARILY_LOCKED } from '../../common/constants/exception-enums'
 
 export interface LoginFailureStateProps {
   identifier: string
@@ -42,7 +42,7 @@ export class LoginFailureState {
 
   assertCanAttempt(now: Date = new Date()): void {
     if (this.isLocked(now)) {
-      throw createBusinessException(AUTH_LOGIN_TEMPORARILY_LOCKED, {
+      throw ExceptionFactory.domain(AUTH_LOGIN_TEMPORARILY_LOCKED, {
         identifier: this.props.identifier,
         lockedUntil: this.props.lockedUntil?.toISOString()
       })

@@ -1,42 +1,12 @@
 <script lang="ts" setup>
-import type { VbenFormSchema } from '@vben/common-ui';
-import type { Recordable } from '@vben/types';
-
-import { computed, ref } from 'vue';
-
-import { AuthenticationForgetPassword, z } from '@vben/common-ui';
-import { $t } from '@vben/locales';
+import AuthNotice from './auth-notice.vue';
 
 defineOptions({ name: 'ForgetPassword' });
-
-const loading = ref(false);
-
-const formSchema = computed((): VbenFormSchema[] => {
-  return [
-    {
-      component: 'VbenInput',
-      componentProps: {
-        placeholder: 'example@example.com',
-      },
-      fieldName: 'email',
-      label: $t('authentication.email'),
-      rules: z
-        .string()
-        .min(1, { message: $t('authentication.emailTip') })
-        .email($t('authentication.emailValidErrorTip')),
-    },
-  ];
-});
-
-function handleSubmit(value: Recordable<any>) {
-  void value;
-}
 </script>
 
 <template>
-  <AuthenticationForgetPassword
-    :form-schema="formSchema"
-    :loading="loading"
-    @submit="handleSubmit"
+  <AuthNotice
+    description="当前阶段暂未开放自助找回密码，请联系租户管理员或平台运维处理。"
+    title="找回密码"
   />
 </template>

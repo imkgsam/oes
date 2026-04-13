@@ -15,7 +15,7 @@
 
 ### SLICE-01 权限码统一目录基线
 
-- 在 `src/common/src/security/permission-codes/` 建立目录结构
+- 在 `src/common/src/authorization/permission-codes/` 建立目录结构
 - 建立模块聚合导出
 - 不改业务调用
 
@@ -76,7 +76,14 @@ Updated: 2026-03-26 00:45 +08:00
   - `AdminListUserSessions`
   - `AdminRevokeSession`
   - 已接入统一权限码常量与 `RequirePermission(...)`
-  - 当前通过 `operator_context.operator_permissions` 完成权限解析
+  - 当时通过旧的权限快照字段完成权限解析
+
+需要补充说明：
+
+- 上述解析方式是该阶段的过渡实现，不是目标状态
+- 自 2026-03-29 起，项目级目标状态已由 `docs/architecture/09-role-based-permission-resolution.md` 明确为：
+  - `operator_context` 传播 `operator_roles`
+  - 子服务通过共享 resolver 调用 `permission-service` 解析 permissions
 
 同时，需要明确一点：
 

@@ -64,6 +64,24 @@ export class PolicyConditionAstValidationError extends Error {
   }
 }
 
+export interface PolicyConditionExplainNode {
+  nodeType: 'ALL' | 'ANY' | 'NOT' | 'COMPARISON'
+  path: string
+  matched: boolean
+  reasonCode: string
+  source?: PolicyAstSource
+  key?: string
+  operator?: string
+  actualValue?: unknown
+  expectedValue?: unknown
+  children?: PolicyConditionExplainNode[]
+}
+
+export interface PolicyConditionExplainResult {
+  matched: boolean
+  explainTree: PolicyConditionExplainNode
+}
+
 const ALLOWED_KEYS: Record<PolicyAstSource, Set<string>> = {
   subject: new Set(['account_id', 'tenant_id', 'role_codes', 'department_id', 'is_system_admin']),
   resource: new Set([
@@ -163,6 +181,79 @@ export function evaluatePolicyConditionAst(
   return evaluateComparison(node.comparison, ctx)
 }
 
+export function evaluatePolicyConditionAstWithExplain(
+  node: PolicyConditionAstNode,
+  ctx: EvaluationContext
+): PolicyConditionExplainResult {
+  return evaluateNodeWithExplain(node, ctx, '$')
+}
+
+export function buildInvalidPolicyConditionExplainTree(reasonCode: string): PolicyConditionExplainNode {
+  return {
+    nodeType: 'COMPARISON',
+    path: '$',
+    matched: false,
+    reasonCode
+  }
+}
+
+function evaluateNodeWithExplain(
+  node: PolicyConditionAstNode,
+  ctx: EvaluationContext,
+  path: string
+): PolicyConditionExplainResult {
+  if ('all' in node) {
+    const children = node.all.map((child, index) =>
+      evaluateNodeWithExplain(child, ctx, `${path}.all[${index}]`)
+    )
+    const matched = children.every((child) => child.matched)
+    return {
+      matched,
+      explainTree: {
+        nodeType: 'ALL',
+        path,
+        matched,
+        reasonCode: matched ? 'ALL_MATCHED' : 'ALL_CHILD_NOT_MATCHED',
+        children: children.map((child) => child.explainTree)
+      }
+    }
+  }
+
+  if ('any' in node) {
+    const children = node.any.map((child, index) =>
+      evaluateNodeWithExplain(child, ctx, `${path}.any[${index}]`)
+    )
+    const matched = children.some((child) => child.matched)
+    return {
+      matched,
+      explainTree: {
+        nodeType: 'ANY',
+        path,
+        matched,
+        reasonCode: matched ? 'ANY_MATCHED' : 'ANY_CHILD_NOT_MATCHED',
+        children: children.map((child) => child.explainTree)
+      }
+    }
+  }
+
+  if ('not' in node) {
+    const child = evaluateNodeWithExplain(node.not, ctx, `${path}.not`)
+    const matched = !child.matched
+    return {
+      matched,
+      explainTree: {
+        nodeType: 'NOT',
+        path,
+        matched,
+        reasonCode: matched ? 'NOT_CHILD_NOT_MATCHED' : 'NOT_CHILD_MATCHED',
+        children: [child.explainTree]
+      }
+    }
+  }
+
+  return evaluateComparisonWithExplain(node.comparison, ctx, path)
+}
+
 function evaluateComparison(
   comparison: PolicyAstComparisonNode['comparison'],
   ctx: EvaluationContext
@@ -181,6 +272,67 @@ function evaluateComparison(
     comparison.operator as ConditionOperator,
     normalizeRightValue(comparison.left.key, expected)
   )
+}
+
+function evaluateComparisonWithExplain(
+  comparison: PolicyAstComparisonNode['comparison'],
+  ctx: EvaluationContext,
+  path: string
+): PolicyConditionExplainResult {
+  if (!isAllowedOperand(comparison.left)) {
+    return {
+      matched: false,
+      explainTree: {
+        nodeType: 'COMPARISON',
+        path,
+        matched: false,
+        reasonCode: 'INVALID_LEFT_OPERAND',
+        source: comparison.left.source,
+        key: comparison.left.key,
+        operator: String(comparison.operator)
+      }
+    }
+  }
+
+  if (comparison.right.type === 'attribute' && !isAllowedOperand(comparison.right)) {
+    return {
+      matched: false,
+      explainTree: {
+        nodeType: 'COMPARISON',
+        path,
+        matched: false,
+        reasonCode: 'INVALID_RIGHT_OPERAND',
+        source: comparison.left.source,
+        key: comparison.left.key,
+        operator: String(comparison.operator)
+      }
+    }
+  }
+
+  const rawActual = resolveOperand(ctx, comparison.left)
+  const rawExpected =
+    comparison.right.type === 'attribute'
+      ? resolveOperand(ctx, comparison.right)
+      : comparison.right.value
+
+  const actual = normalizeValue(comparison.left.key, rawActual)
+  const expected = normalizeRightValue(comparison.left.key, rawExpected)
+  const matched = compare(actual, comparison.operator as ConditionOperator, expected)
+
+  return {
+    matched,
+    explainTree: {
+      nodeType: 'COMPARISON',
+      path,
+      matched,
+      reasonCode: matched ? 'COMPARISON_MATCHED' : 'COMPARISON_NOT_MATCHED',
+      source: comparison.left.source,
+      key: comparison.left.key,
+      operator: String(comparison.operator),
+      actualValue: rawActual,
+      expectedValue: rawExpected
+    }
+  }
 }
 
 function resolveOperand(ctx: EvaluationContext, operand: PolicyAstOperandRef): unknown {

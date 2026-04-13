@@ -23,12 +23,19 @@ export class RoleMapper {
   }
 
   static toPersistent(role: Role) {
+    const scopeKey =
+      role.kind === RoleKind.TENANT_INSTANCE
+        ? role.tenantId!
+        : role.kind === RoleKind.SYSTEM_INSTANCE
+          ? '__SYSTEM__'
+          : '__SYSTEM_TEMPLATE__'
+
     return {
       id: role.id,
       name: role.name,
       code: role.code,
       tenantId: role.tenantId,
-      scopeKey: role.isSystem ? '__SYSTEM__' : role.tenantId!,
+      scopeKey,
       kind: role.kind,
       templateRoleId: role.templateRoleId,
       isEnabled: role.isEnabled,

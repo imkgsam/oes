@@ -1,6 +1,6 @@
 import { IQuery } from '@nestjs/cqrs'
-import { IsInt, IsOptional, IsString, Min } from 'class-validator'
-import { OperatorScope } from './operator-scope'
+import { Allow, IsInt, IsOptional, IsString, Min } from 'class-validator'
+import { OperatorScope } from '../../authorization/operator-scope'
 
 export class ListRoleTemplatesQuery implements IQuery {
   @IsInt()
@@ -15,6 +15,7 @@ export class ListRoleTemplatesQuery implements IQuery {
   @IsString()
   readonly keyword?: string
 
+  @Allow()
   readonly operatorScope?: OperatorScope
 
   constructor(params: { page: number; pageSize: number; keyword?: string; operatorScope?: OperatorScope }) {

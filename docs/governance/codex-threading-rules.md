@@ -46,7 +46,6 @@
 
 - 项目级架构文档
 - 治理文档
-- 旧 `doc/standards/**` 经验
 - 当前仓库结构与已有服务现状
 
 输出是什么：
@@ -299,12 +298,11 @@
 | `docs/governance/**` | architecture thread | 低 | 执行规则，通常串行修改 |
 | `docs/adr/**` | architecture thread | 否 | 关键架构决策 |
 | `docs/plans/**` | plan thread | 低 | 可拆分不同计划文件，但不宜并发改同一文件 |
-| `doc/standards/**` | architecture thread | 低 | 旧经验来源，原则上只读 |
+| `docs/contracts/**` | architecture thread / plan thread | 低 | 黑盒接口契约，涉及协议语义时需先冻结设计 |
 | `src/common/src/contracts/**` | architecture thread | 否 | 共享契约边界，受保护 |
 | `src/common/src/generated/**` | integration thread | 否 | 生成物，不由普通实现线程直接维护 |
 | `src/common/src/auth/**` | architecture thread / integration thread | 低 | 公共认证能力，影响面大 |
-| `src/common/src/permission/**` | architecture thread / integration thread | 低 | 公共权限能力，影响面大 |
-| `src/common/src/security/**` | architecture thread / integration thread | 低 | operator context、内部认证等高风险路径 |
+| `src/common/src/authorization/**` | architecture thread / integration thread | 低 | 公共权限、operator context 与内部服务认证能力，影响面大 |
 | `src/common/src/transport/**` | architecture thread / integration thread | 低 | gRPC 与调用基础设施 |
 | `src/common/src/config/**` | architecture thread / integration thread | 中 | 平台配置能力 |
 | `src/common/src/registry/**` | architecture thread / integration thread | 中 | 服务发现与注册 |
@@ -337,21 +335,16 @@
 以下路径原则上不应由普通 implementation thread 自由修改：
 
 - `src/common/src/auth/**`
-- `src/common/src/permission/**`
-- `src/common/src/security/**`
+- `src/common/src/authorization/**`
 - `src/common/src/transport/**`
 - `src/common/src/config/**`
 - `src/common/src/registry/**`
 - `src/common/src/logging/**`
 - `src/common/src/cqrs/**`
 
-### 6.3 默认只读历史路径
+### 6.3 历史材料规则
 
-- `doc/standards/**`
-- `doc/archive/**`
-- `doc/history/**`
-
-这些路径主要作为经验参考与历史追溯来源，不应作为普通实现线程的主要修改目标。
+根目录旧 `doc/` 不再作为项目级设计入口。若发现外部材料或历史方案需要保留，应先判断是否仍有当前价值：稳定设计进入 `docs/architecture/`，阶段路径进入 `docs/plans/`，接口契约进入 `docs/contracts/`，不再新增根目录 `doc/*` 作为长期依据。
 
 ## 7. 各类线程的路径权限矩阵
 
@@ -454,6 +447,10 @@
 - 文档正文可以使用中文
 - 代码标识符与协议标识符统一使用英文
 - 发现历史乱码时先标记问题，不在乱码基础上继续扩写
+- 缺陷修复必须先定位根本原因，再提出正式方案，最后实施代码修改
+- 禁止临时补丁式实现、硬编码绕过、未确认根因的试错式改动
+- 所有实现都必须尽量使用最少、最优雅、最成熟、符合最佳实践且长期可维护的代码
+- 发现既有边界或契约不合理时，应升级治理流程，而不是在局部线程内绕过
 
 ## 10. 执行结论
 

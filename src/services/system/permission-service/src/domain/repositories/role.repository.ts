@@ -1,12 +1,14 @@
 import { Permission } from '../aggregates/permission.aggregate'
 import { Role } from '../aggregates/role.aggregate'
 import { AccountType } from '../enums/account-type.enum'
+import { ScopeLevel } from '../enums/scope-level.enum'
 import { AccountRole } from '../vo/account-role.value-object'
 
 export interface RolePageQuery {
   page: number
   pageSize: number
   tenantId?: string
+  scopeLevel?: ScopeLevel
   keyword?: string
 }
 
@@ -21,6 +23,7 @@ export interface RoleRepository {
   findById(id: string): Promise<Role | null>
   findByCode(code: string): Promise<Role | null>
   findByScopeAndCode(scopeKey: string, code: string): Promise<Role | null>
+  findByScopeKindAndCode(scopeKey: string, kind: Role['kind'], code: string): Promise<Role | null>
   findAll(): Promise<Role[]>
   findRoleInstances(query: RolePageQuery): Promise<PagedRoleResult>
   findRoleTemplates(query: Omit<RolePageQuery, 'tenantId'>): Promise<PagedRoleResult>
@@ -37,19 +40,22 @@ export interface RoleRepository {
   assignAccountRole(
     accountId: string,
     roleId: string,
-    tenantId: string,
+    tenantId: string | null,
+    scopeLevel: ScopeLevel,
     accountType: AccountType,
     effectiveAt?: Date | null,
     expiresAt?: Date | null
   ): Promise<void>
   revokeAccountRole(accountId: string, roleId: string): Promise<void>
-  findAccountRoles(accountId: string, tenantId: string): Promise<Role[]>
+  findAccountRoles(accountId: string, tenantId?: string | null, scopeLevel?: ScopeLevel): Promise<Role[]>
   findRoleAccounts(roleId: string): Promise<AccountRole[]>
   findTenantRoles(tenantId: string): Promise<Role[]>
+  findSystemRoles(): Promise<Role[]>
   findRoleTemplateById(id: string): Promise<Role | null>
   replaceAccountRoles(
     accountId: string,
-    tenantId: string,
+    tenantId: string | null,
+    scopeLevel: ScopeLevel,
     accountType: AccountType,
     roleIds: string[]
   ): Promise<Role[]>

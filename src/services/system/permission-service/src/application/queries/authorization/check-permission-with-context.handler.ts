@@ -6,6 +6,10 @@ import { AuthzDecision } from '../../../domain/services/policy-engine'
 
 export const ACCOUNT_AUTHORIZATION_SERVICE = Symbol('AccountAuthorizationService')
 
+/**
+ * @deprecated OUTDATED: serves the historical CheckPermissionWithContext RPC only.
+ * New business resource authorization should use application-level checkResource / buildQueryScope.
+ */
 @QueryHandler(CheckPermissionWithContextQuery)
 export class CheckPermissionWithContextHandler implements IQueryHandler<CheckPermissionWithContextQuery> {
   constructor(

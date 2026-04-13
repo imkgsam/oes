@@ -1,13 +1,12 @@
-import { IsOptional, IsString, IsUUID } from 'class-validator'
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator'
 
 export class ListSessionsQuery {
   @IsString()
-  @IsUUID()
+  @IsNotEmpty()
   readonly userId: string
 
   @IsOptional()
   @IsString()
-  @IsUUID()
   readonly currentSessionId?: string
 
   constructor(userId: string, currentSessionId?: string) {

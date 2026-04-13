@@ -5,12 +5,15 @@ import { CreateRoleInstanceCommand } from './create-role-instance.command'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
 import { Role } from '../../../domain/aggregates/role.aggregate'
 import { RoleKind } from '../../../domain/enums/role-kind.enum'
+import { ScopeLevel } from '../../../domain/enums/scope-level.enum'
 import { RolePermission } from '../../../domain/vo/role-permission.value-object'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import {
+  AUTHORIZATION_DENIED,
   ROLE_ALREADY_EXISTS,
   ROLE_TEMPLATE_NOT_FOUND
 } from '../../../common/constants/exception-enums'
+import { assertRoleScopeAccess } from '../../authorization/operator-scope'
 
 @CommandHandler(CreateRoleInstanceCommand)
 export class CreateRoleInstanceHandler implements ICommandHandler<CreateRoleInstanceCommand> {
@@ -20,7 +23,23 @@ export class CreateRoleInstanceHandler implements ICommandHandler<CreateRoleInst
   ) {}
 
   async execute(command: CreateRoleInstanceCommand): Promise<Role> {
-    const existing = await this.roleRepo.findByScopeAndCode(command.tenantId, command.code)
+    assertRoleScopeAccess(command.operatorScope, command.scopeLevel, command.tenantId, {
+      requestedTenantId: command.tenantId
+    })
+
+    const tenantId = command.scopeLevel === ScopeLevel.SYSTEM ? null : command.tenantId?.trim()
+    if (command.scopeLevel === ScopeLevel.TENANT && !tenantId) {
+      throw ExceptionFactory.application(AUTHORIZATION_DENIED, {
+        reason: 'tenant role instance requires tenantId'
+      })
+    }
+    const scopeKey = command.scopeLevel === ScopeLevel.SYSTEM ? '__SYSTEM__' : tenantId
+    const roleKind =
+      command.scopeLevel === ScopeLevel.SYSTEM
+        ? RoleKind.SYSTEM_INSTANCE
+        : RoleKind.TENANT_INSTANCE
+
+    const existing = await this.roleRepo.findByScopeKindAndCode(scopeKey!, roleKind, command.code)
     if (existing) throw ExceptionFactory.domain(ROLE_ALREADY_EXISTS)
 
     let templateRole: Role | null = null
@@ -33,8 +52,8 @@ export class CreateRoleInstanceHandler implements ICommandHandler<CreateRoleInst
       crypto.randomUUID(),
       command.name,
       command.code,
-      command.tenantId,
-      RoleKind.TENANT_INSTANCE,
+      tenantId,
+      roleKind,
       true,
       command.description,
       command.templateRoleId ?? null

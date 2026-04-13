@@ -1,5 +1,118 @@
 # 鉴权能力历史
 
+## 2026-04-06 10:30:00 +08:00
+
+### 本次目标
+
+补齐 `permission-service` 服务内 `Policy Explain` 的 AST 节点级命中树。
+
+### 主要改动
+
+- 为 `Policy` 条目 explain 增加条件树级解释输出
+- `CheckPermissionWithContext` 现在除了 policy 级 `applicable/matched/reasonCode` 外，还会返回：
+  - AST 节点类型
+  - 节点路径
+  - 节点命中结果
+  - 左右值快照
+  - 子节点解释树
+- 同步更新本服务设计文档与状态文档，将 `4.5.18` 从“部分实现”更新为“已实现”
+
+### 备注
+
+- 本次只补服务内 explain 能力，不处理 gateway 错误响应链
+- 本次不改变既有鉴权决策优先级，仍保持 `DENY > ALLOW > default deny`
+
+## 2026-03-31 14:45:00 +09:00
+
+### 本次目标
+
+推进真实上游联调验收，验证 `api-gateway -> permission-service` 管理链路。
+
+### 主要改动
+
+- 为本地联调补齐 `permission-service` 与 `api-gateway` 的运行基线
+- 修复真实启动时暴露出的模块装配问题：
+  - `permission-service` 的 `ManagementAuthorizationModule` 导出 `AccountAuthorizationService`
+  - `api-gateway` 的 `AuthBffModule` 显式装配 `DownstreamGrpcMetadataFactory`
+- 为 `api-gateway` 接入本地静态 gRPC URL fallback
+- 修正 permission 代理层分页参数，避免上游传入超出服务端校验上限的 `pageSize=1000`
+- 完成一条真实成功链验证：
+  - gateway JWT
+  - operator context 透传
+  - `InternalServiceGuard`
+  - `AuthenticatedOperatorGuard`
+  - `ManagementAuthorizationGuard`
+  - `permission.list` 最小权限放行
+
+### 备注
+
+- 成功路径已通过真实 HTTP -> gateway -> gRPC -> permission-service 验证
+- 无权限路径在 `permission-service` 侧已正确判定为 `AUTHORIZATION_DENIED`
+- 后续已进一步推进拒绝路径转译：
+  - HTTP status 已从错误的 `500` 收敛为正确的 `403`
+  - 但 `api-gateway` 当前仍把该拒绝响应渲染成 Express HTML error page，而不是统一 JSON 错误体
+- 因此这条真实上游联调链当前状态应视为：
+  - 成功链已完成
+  - 拒绝链 HTTP 语义已完成
+  - 拒绝链统一错误响应格式仍待收尾
+
+## 2026-03-31 11:40:00 +09:00
+
+### 本次目标
+
+将 `permission-service` 中不依赖外部支持的鉴权与审计能力推进到完成态。
+
+### 主要改动
+
+- 根模块补齐 `AuthorizationModule`，修复运行时 guard provider 缺失
+- 禁用角色不再允许继续分配或出现在当前可选角色列表中
+- 新增管理变更审计与鉴权决策记录持久化：
+  - 管理写操作写入 `AuditEvent`
+  - `CheckPermission / CheckPermissionWithContext` 写入 `DecisionEvent`
+- 更新路线与任务文档，将服务内已闭环能力标记为完成，把批量鉴权、Explain 和真实上游联调明确后置
+
+### 备注
+
+- 本次不涉及新的外部 gRPC 契约
+- `4.6.6` 与 `4.6.7` 继续后置，因为它们会影响公共契约和上游调用方
+
+## 2026-03-31 12:10:00 +09:00
+
+### 本次目标
+
+推进 `4.6.6`，为 `permission-service` 增加第一阶段批量鉴权能力。
+
+### 主要改动
+
+- 在 `permission_check.proto` 中新增 `BatchCheckPermission`
+- 新增批量 RBAC query / handler / gRPC 映射
+- 响应按请求顺序返回，并回显调用方传入的 `requestId`
+- 批量鉴权结果也会写入 `DecisionEvent`
+
+### 备注
+
+- 第一阶段仅覆盖 `RBAC-only` 批量鉴权
+- `BatchCheckPermissionWithContext` 不在本轮范围内
+
+## 2026-03-31 12:35:00 +09:00
+
+### 本次目标
+
+推进 `4.6.7`，为鉴权结果增加轻量 Explain。
+
+### 主要改动
+
+- 在鉴权响应中新增稳定的 `explainCode`
+- 增加 `matchedPolicyId`
+- 增加 `policyExplainEntries`，可返回本次参与评估的策略解释条目
+- `RBAC` 与 `RBAC + ABAC` 决策链都输出机器可读解释码
+- 批量鉴权单项结果也同步输出 `explainCode`
+
+### 备注
+
+- 当前 Explain 已提供 `explainCode + matchedPolicyId + policyExplainEntries`
+- 更重的 AST 逐节点命中树继续后置
+
 ## 2026-03-23 13:35:00 +08:00
 
 ### 本次目标

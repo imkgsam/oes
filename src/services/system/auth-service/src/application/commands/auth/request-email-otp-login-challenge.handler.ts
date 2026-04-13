@@ -1,5 +1,5 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
-import { EmailOtpLoginService } from 'src/application/services/email-otp-login.service'
+import { EmailOtpLoginService } from '../../services/email-otp-login.service'
 import { RequestEmailOtpLoginChallengeCommand } from './request-email-otp-login-challenge.command'
 
 export interface RequestEmailOtpLoginChallengeResult {

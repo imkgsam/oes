@@ -1,6 +1,6 @@
 # SESS-03 Refresh Token Rotation 任务
 
-更新时间：2026-03-23 20:30:00 +08:00
+更新时间：2026-03-28 23:00 +09:00
 
 ## 上游设计文档
 
@@ -13,7 +13,7 @@
 
 ## 当前状态
 
-- 部分实现
+- 已实现
 
 ## 最小闭环范围
 
@@ -38,12 +38,23 @@
 - 每次刷新返回新的 refresh token
 - 旧 refresh token 再次使用时能识别为 replay 并拒绝
 - 刷新成功后旧 token 索引被清理
+- refresh token 索引与 session 绑定关系不一致时会视为 replay 并撤销当前 session
 - `auth-service` 构建通过
 
 ## 关联设计文档
 
 - [../design/session-token-management.md](../design/session-token-management.md)
 
-## 阻塞项
+## 当前完成结果
 
-- 当前仍未对 token family 做独立建模，replay 检测以“当前 session 仅保存最新 refresh token”为边界
+- `RefreshSession` 已形成正式 gRPC + CQRS 闭环
+- 每次 refresh 都会轮换 refresh token
+- Redis session repository 已在同一事务内替换 refresh token 索引
+- handler 会同时校验 JWT 中的 `sid` 与 refresh token 索引命中的 session 是否一致
+- 旧 token 重放、索引错配或当前 session 不再持有该 token 时，都会触发 `AUTH_REFRESH_TOKEN_REPLAY_DETECTED`
+- replay 检测命中后会撤销当前 session，并进入统一审计链路
+
+## 后续增强但不计入本任务缺口
+
+- token family 独立建模
+- 更细粒度的风险联动策略

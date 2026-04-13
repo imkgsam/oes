@@ -45,6 +45,7 @@ OES 的实施路线必须遵循以下原则：
 - 统一 Internal gRPC 契约策略
 - 引入或明确 Event Bus
 - 完成日志、追踪、配置中心、服务发现、调度、审计等横向能力基线
+- 冻结 Notification 平台边界与第一阶段交互模式
 
 ### 3.2 前置条件
 
@@ -55,6 +56,7 @@ OES 的实施路线必须遵循以下原则：
 - 平台能力清单与基线实现
 - 基础通信与观测规范
 - 系统服务可复用接入模式
+- `notification-service` 的架构边界与实施计划
 
 ### 3.4 依赖关系
 
@@ -67,6 +69,7 @@ OES 的实施路线必须遵循以下原则：
 - 完成 Auth、Identity、Permission、Entity、Tenant / Org 的平台边界定义与能力闭环
 - 打通 operator context 在系统中的传递方式
 - 建立统一权限判定与租户隔离基线
+- 完成 `auth-service -> notification-service` 的 OTP 通知协作边界
 
 ### 4.2 前置条件
 
@@ -77,6 +80,7 @@ OES 的实施路线必须遵循以下原则：
 - 稳定的 IAM 平台模型
 - 稳定的 tenant / org 基础模型
 - 可供业务域接入的身份与权限能力
+- 可供 Auth 和后续业务域复用的通知平台接入模式
 
 ### 4.4 依赖关系
 

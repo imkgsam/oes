@@ -1,15 +1,12 @@
 import { PrismaServiceAccountRepository } from '../../src/infrastructure/repositories/prisma/prisma.service-account.repository'
 import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
-import {
-  MACHINE_PRINCIPAL_SCOPE_LEVELS,
-  MACHINE_PRINCIPAL_STATUSES,
-  MACHINE_PRINCIPAL_TYPES
-} from '../../src/common/constants'
+import { MACHINE_PRINCIPAL_SCOPE_LEVELS, MACHINE_PRINCIPAL_STATUSES, MACHINE_PRINCIPAL_TYPES } from '../../src/common/constants'
 import {
   cleanupByPrefix,
   createPrismaForIntegration,
   createTestPrefix
 } from '../helpers/integration-db'
+import { seedMachineTenant } from '../helpers/machine-fixtures'
 
 describe('PrismaServiceAccountRepository L2', () => {
   let prisma: PrismaService
@@ -36,19 +33,8 @@ describe('PrismaServiceAccountRepository L2', () => {
     }
   })
 
-  async function seedTenant() {
-    return prisma.tenant.create({
-      data: {
-        id: `${prefix}_tenant`,
-        entityId: `${prefix}_tenant_entity`,
-        name: `${prefix}_tenant_name`,
-        code: `${prefix}_tenant_code`
-      }
-    })
-  }
-
-  it('ServiceAccount 浠撳偍 / 褰撳垱寤?tenant-scope service account 鏃? / 搴旇兘鍐欏叆骞舵寜 id 鏌ュ埌', async () => {
-    const tenant = await seedTenant()
+  it('ServiceAccount 仓储 / 当创建 tenant-scope service account 时 / 应能写入并按 id 查到', async () => {
+    const tenant = await seedMachineTenant(prisma, prefix)
 
     const created = await repository.create({
       tenantId: tenant.id,
@@ -73,7 +59,7 @@ describe('PrismaServiceAccountRepository L2', () => {
     })
   })
 
-  it('ServiceAccount 浠撳偍 / 褰撳垱寤?system-scope service account 鏃? / 搴?tenantId 涓?null', async () => {
+  it('ServiceAccount 仓储 / 当创建 system-scope service account 时 / 应使 tenantId 为 null', async () => {
     const created = await repository.create({
       scopeLevel: MACHINE_PRINCIPAL_SCOPE_LEVELS.SYSTEM,
       type: MACHINE_PRINCIPAL_TYPES.INTERNAL_SERVICE,
@@ -89,8 +75,8 @@ describe('PrismaServiceAccountRepository L2', () => {
     expect(found?.type).toBe(MACHINE_PRINCIPAL_TYPES.INTERNAL_SERVICE)
   })
 
-  it('ServiceAccount 浠撳偍 / 褰撴寜 tenantId 鍜?status 鍒楀嚭鏃? / 搴斿彧杩斿洖鍖归厤璁板綍', async () => {
-    const tenant = await seedTenant()
+  it('ServiceAccount 仓储 / 当按 tenantId 和 status 列出时 / 应只返回匹配记录', async () => {
+    const tenant = await seedMachineTenant(prisma, prefix)
     const otherTenant = await prisma.tenant.create({
       data: {
         id: `${prefix}_tenant_other`,
@@ -138,7 +124,7 @@ describe('PrismaServiceAccountRepository L2', () => {
     expect(listed.map((item) => item.id)).toEqual([target.id])
   })
 
-  it('ServiceAccount 浠撳偍 / 褰撶鐢?service account 鏃? / 搴旀洿鏂扮姸鎬佸拰 disabled metadata', async () => {
+  it('ServiceAccount 仓储 / 当禁用 service account 时 / 应更新状态和 disabled metadata', async () => {
     const created = await repository.create({
       scopeLevel: MACHINE_PRINCIPAL_SCOPE_LEVELS.SYSTEM,
       type: MACHINE_PRINCIPAL_TYPES.INTERNAL_SERVICE,

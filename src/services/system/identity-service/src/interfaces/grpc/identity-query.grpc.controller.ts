@@ -1,16 +1,28 @@
-import { Controller, UseFilters } from '@nestjs/common'
+import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import {
+  AuthenticatedOperatorGuard,
+  GrpcRequestContextInterceptor,
+  InternalServiceGuard,
+  RequireAuthenticatedOperator
+} from '@oes/common/authorization'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
-import { GrpcExceptionFilter, OtelExceptionFilter } from '@oes/common/filters'
+import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   AccountContactAsset,
   GetAccountByIdRequest,
   GetAccountByIdResponse,
+  GetApiKeyByIdRequest,
+  GetApiKeyByIdResponse,
   GetServiceAccountByIdRequest,
   GetServiceAccountByIdResponse,
   GetAccountsByUserIdRequest,
   GetAccountsByUserIdResponse,
+  ListAuditEventsRequest,
+  ListAuditEventsResponse,
   ListAccountOrgMembershipsRequest,
   ListAccountOrgMembershipsResponse,
+  ListApiKeysByServiceAccountIdRequest,
+  ListApiKeysByServiceAccountIdResponse,
   ListServiceAccountsRequest,
   ListServiceAccountsResponse,
   ListAccountWorkEmailAssetsRequest,
@@ -32,29 +44,88 @@ import {
   ServiceAccount
 } from '@oes/common/generated/identity_service'
 import {
+  AccountCandidateView,
+  AccountContactAssetView,
+  AccountOrgMembershipView,
+  AccountSummaryView,
+  ListAuditEventsQuery,
+  ListAuditEventsView,
+  ApiKeyView,
   GetAccountByIdQuery,
   GetAccountsByUserIdQuery,
+  GetApiKeyByIdQuery,
   GetServiceAccountByIdQuery,
   ListAccountOrgMembershipsQuery,
+  ListApiKeysByServiceAccountIdQuery,
   ListServiceAccountsQuery,
   ListAccountWorkEmailAssetsQuery,
   ListAccountWorkPhoneAssetsQuery,
   GetOrgTreeByTenantIdQuery,
   GetTenantByIdQuery,
+  OrgNodeView,
+  ServiceAccountView,
+  TenantSummaryView,
   GetUserByIdQuery,
+  UserSummaryView,
   GetUserByPhoneQuery,
   GetUserByEmailQuery
 } from '../../application/queries'
-import { OrgNodeEntity } from '../../domain/entities/org-node.entity'
+import { IdentityGrpcPresenter } from './identity-grpc.presenter'
+import { getOptionalOperatorScope } from './grpc-request-context'
 
-@UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
+@UseFilters(GrpcExceptionFilter)
 @Controller()
 @IdentityQueryServiceControllerMethods()
 export class IdentityQueryGrpcController implements IdentityQueryServiceController {
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
+  async listAuditEvents(request: ListAuditEventsRequest): Promise<ListAuditEventsResponse> {
+    const operatorScope = getOptionalOperatorScope(request)
+    const result = await this.queryBus.execute<ListAuditEventsQuery, ListAuditEventsView>(
+      new ListAuditEventsQuery({
+        service: request.service || undefined,
+        module: request.module || undefined,
+        eventType: request.eventType || undefined,
+        result: request.result || undefined,
+        operatorId: request.operatorId || undefined,
+        tenantId: request.tenantId || undefined,
+        orgId: request.orgId || undefined,
+        resourceType: request.resourceType || undefined,
+        resourceId: request.resourceId || undefined,
+        occurredAtFrom: request.occurredAtFrom || undefined,
+        occurredAtTo: request.occurredAtTo || undefined,
+        cursor: request.cursor || undefined,
+        pageSize: request.pageSize || undefined,
+        operatorScope
+      })
+    )
+
+    return {
+      items: result.items.map((item) => IdentityGrpcPresenter.toAuditEvent(item)),
+      nextCursor: result.nextCursor ?? ''
+    }
+  }
+
+  async getApiKeyById(request: GetApiKeyByIdRequest): Promise<GetApiKeyByIdResponse> {
+    const operatorScope = getOptionalOperatorScope(request)
+    const apiKey = await this.queryBus.execute<GetApiKeyByIdQuery, ApiKeyView | null>(
+      new GetApiKeyByIdQuery(request.apiKeyId!, operatorScope)
+    )
+
+    if (!apiKey) {
+      return {}
+    }
+
+    return {
+      apiKey: IdentityGrpcPresenter.toApiKey(apiKey)
+    }
+  }
+
   async getAccountById(request: GetAccountByIdRequest): Promise<GetAccountByIdResponse> {
-    const account = await this.queryBus.execute(new GetAccountByIdQuery(request.accountId!))
+    const operatorScope = getOptionalOperatorScope(request)
+    const account = await this.queryBus.execute<GetAccountByIdQuery, AccountSummaryView | null>(
+      new GetAccountByIdQuery(request.accountId!, operatorScope)
+    )
 
     if (!account) {
       return {}
@@ -64,9 +135,10 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
       account: {
         id: account.id,
         userId: account.userId,
-        tenantId: account.tenantId,
+        tenantId: account.tenantId ?? '',
         displayName: account.displayName ?? '',
-        isEnabled: account.isEnabled
+        isEnabled: account.isEnabled,
+        scopeLevel: account.scopeLevel
       }
     }
   }
@@ -74,8 +146,9 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   async getServiceAccountById(
     request: GetServiceAccountByIdRequest
   ): Promise<GetServiceAccountByIdResponse> {
-    const account = await this.queryBus.execute(
-      new GetServiceAccountByIdQuery(request.serviceAccountId!)
+    const operatorScope = getOptionalOperatorScope(request)
+    const account = await this.queryBus.execute<GetServiceAccountByIdQuery, ServiceAccountView | null>(
+      new GetServiceAccountByIdQuery(request.serviceAccountId!, operatorScope)
     )
 
     if (!account) {
@@ -83,91 +156,127 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     }
 
     return {
-      account: this.toServiceAccount(account)
+      account: IdentityGrpcPresenter.toServiceAccount(account)
     }
   }
 
   async listServiceAccounts(
     request: ListServiceAccountsRequest
   ): Promise<ListServiceAccountsResponse> {
-    const accounts = await this.queryBus.execute(
+    const operatorScope = getOptionalOperatorScope(request)
+    const accounts = await this.queryBus.execute<ListServiceAccountsQuery, ServiceAccountView[]>(
       new ListServiceAccountsQuery({
         tenantId: request.tenantId || undefined,
         scopeLevel: request.scopeLevel || undefined,
         type: request.type || undefined,
-        status: request.status || undefined
+        status: request.status || undefined,
+        operatorScope
       })
     )
 
     return {
-      accounts: accounts.map((account) => this.toServiceAccount(account))
+      accounts: accounts.map((account) => IdentityGrpcPresenter.toServiceAccount(account))
     }
   }
 
+  async listApiKeysByServiceAccountId(
+    request: ListApiKeysByServiceAccountIdRequest
+  ): Promise<ListApiKeysByServiceAccountIdResponse> {
+    const operatorScope = getOptionalOperatorScope(request)
+    const apiKeys = await this.queryBus.execute<ListApiKeysByServiceAccountIdQuery, ApiKeyView[]>(
+      new ListApiKeysByServiceAccountIdQuery(request.serviceAccountId!, operatorScope)
+    )
+
+    return {
+      apiKeys: apiKeys.map((apiKey) => IdentityGrpcPresenter.toApiKey(apiKey))
+    }
+  }
+
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  @UseInterceptors(GrpcRequestContextInterceptor)
   async listAccountWorkEmailAssets(
     request: ListAccountWorkEmailAssetsRequest
   ): Promise<ListAccountWorkEmailAssetsResponse> {
-    const assets = await this.queryBus.execute(new ListAccountWorkEmailAssetsQuery(request.accountId!))
+    const operatorScope = getOptionalOperatorScope(request)
+    const assets = await this.queryBus.execute<
+      ListAccountWorkEmailAssetsQuery,
+      AccountContactAssetView[]
+    >(new ListAccountWorkEmailAssetsQuery(request.accountId!, operatorScope))
 
     return {
-      assets: assets.map((asset) => this.toContactAsset(asset))
+      assets: assets.map((asset) => IdentityGrpcPresenter.toContactAsset(asset))
     }
   }
 
   async listAccountWorkPhoneAssets(
     request: ListAccountWorkPhoneAssetsRequest
   ): Promise<ListAccountWorkPhoneAssetsResponse> {
-    const assets = await this.queryBus.execute(new ListAccountWorkPhoneAssetsQuery(request.accountId!))
+    const operatorScope = getOptionalOperatorScope(request)
+    const assets = await this.queryBus.execute<
+      ListAccountWorkPhoneAssetsQuery,
+      AccountContactAssetView[]
+    >(new ListAccountWorkPhoneAssetsQuery(request.accountId!, operatorScope))
 
     return {
-      assets: assets.map((asset) => this.toContactAsset(asset))
+      assets: assets.map((asset) => IdentityGrpcPresenter.toContactAsset(asset))
     }
   }
 
   async getOrgTreeByTenantId(
     request: GetOrgTreeByTenantIdRequest
   ): Promise<GetOrgTreeByTenantIdResponse> {
-    const roots = await this.queryBus.execute(new GetOrgTreeByTenantIdQuery(request.tenantId!))
+    const operatorScope = getOptionalOperatorScope(request)
+    const roots = await this.queryBus.execute<GetOrgTreeByTenantIdQuery, OrgNodeView[]>(
+      new GetOrgTreeByTenantIdQuery(request.tenantId!, operatorScope)
+    )
 
     return {
       roots: roots.map((node) => this.toOrgNode(node))
     }
   }
 
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  @UseInterceptors(GrpcRequestContextInterceptor)
   async listAccountOrgMemberships(
     request: ListAccountOrgMembershipsRequest
   ): Promise<ListAccountOrgMembershipsResponse> {
-    const memberships = await this.queryBus.execute(new ListAccountOrgMembershipsQuery(request.accountId!))
+    const operatorScope = getOptionalOperatorScope(request)
+    const memberships = await this.queryBus.execute<
+      ListAccountOrgMembershipsQuery,
+      AccountOrgMembershipView[]
+    >(new ListAccountOrgMembershipsQuery(request.accountId!, operatorScope))
 
     return {
-      memberships: memberships.map((membership) => ({
-        id: membership.id,
-        accountId: membership.accountId,
-        orgId: membership.orgId,
-        orgName: membership.orgName ?? '',
-        orgType: membership.orgType ?? '',
-        relationType: membership.relationType,
-        isPrimary: membership.isPrimary
-      }))
+      memberships: memberships.map((membership) =>
+        IdentityGrpcPresenter.toAccountOrgMembership(membership)
+      )
     }
   }
 
   async getAccountsByUserId(
     request: GetAccountsByUserIdRequest
   ): Promise<GetAccountsByUserIdResponse> {
-    const accounts = await this.queryBus.execute(new GetAccountsByUserIdQuery(request.userId!))
+    const accounts = await this.queryBus.execute<GetAccountsByUserIdQuery, AccountCandidateView[]>(
+      new GetAccountsByUserIdQuery(request.userId!)
+    )
 
     return {
       accounts: accounts.map((account) => ({
         accountId: account.accountId,
-        tenantId: account.tenantId,
-        displayName: account.displayName ?? ''
+        tenantId: account.tenantId ?? '',
+        displayName: account.displayName ?? '',
+        scopeLevel: account.scopeLevel
       }))
     }
   }
 
   async getTenantById(request: GetTenantByIdRequest): Promise<GetTenantByIdResponse> {
-    const tenant = await this.queryBus.execute(new GetTenantByIdQuery(request.tenantId!))
+    const operatorScope = getOptionalOperatorScope(request)
+    const tenant = await this.queryBus.execute<GetTenantByIdQuery, TenantSummaryView | null>(
+      new GetTenantByIdQuery(request.tenantId!, operatorScope)
+    )
 
     if (!tenant) {
       return {}
@@ -184,7 +293,9 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   }
 
   async getUserById(request: GetUserByIdRequest): Promise<GetUserByIdResponse> {
-    const user = await this.queryBus.execute(new GetUserByIdQuery(request.userId!))
+    const user = await this.queryBus.execute<GetUserByIdQuery, UserSummaryView | null>(
+      new GetUserByIdQuery(request.userId!)
+    )
 
     if (!user) {
       return {}
@@ -202,7 +313,9 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   }
 
   async getUserByEmail(request: GetUserByEmailRequest): Promise<GetUserByEmailResponse> {
-    const user = await this.queryBus.execute(new GetUserByEmailQuery(request.email!))
+    const user = await this.queryBus.execute<GetUserByEmailQuery, UserSummaryView | null>(
+      new GetUserByEmailQuery(request.email!)
+    )
 
     if (!user) {
       return {}
@@ -220,7 +333,9 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   }
 
   async getUserByPhone(request: GetUserByPhoneRequest): Promise<GetUserByPhoneResponse> {
-    const user = await this.queryBus.execute(new GetUserByPhoneQuery(request.phone!))
+    const user = await this.queryBus.execute<GetUserByPhoneQuery, UserSummaryView | null>(
+      new GetUserByPhoneQuery(request.phone!)
+    )
 
     if (!user) {
       return {}
@@ -237,7 +352,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     }
   }
 
-  private toOrgNode(node: OrgNodeEntity) {
+  private toOrgNode(node: OrgNodeView) {
     return {
       id: node.id,
       tenantId: node.tenantId,
@@ -247,60 +362,6 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
       type: node.type,
       sortOrder: node.sortOrder,
       children: node.children.map((child) => this.toOrgNode(child))
-    }
-  }
-
-  private toContactAsset(asset: {
-    id: string
-    tenantId: string
-    accountId: string
-    type: string
-    value: string
-    status: string
-    isPrimary: boolean
-    assignedAt: Date
-    revokedAt: Date | null
-  }): AccountContactAsset {
-    return {
-      id: asset.id,
-      tenantId: asset.tenantId,
-      accountId: asset.accountId,
-      type: asset.type,
-      value: asset.value,
-      status: asset.status,
-      isPrimary: asset.isPrimary,
-      assignedAt: asset.assignedAt.toISOString(),
-      revokedAt: asset.revokedAt?.toISOString() ?? ''
-    }
-  }
-
-  private toServiceAccount(account: {
-    id: string
-    tenantId: string | null
-    scopeLevel: string
-    type: string
-    name: string
-    description: string | null
-    status: string
-    createdAt: Date
-    updatedAt: Date
-    createdBy: string | null
-    disabledAt: Date | null
-    disabledBy: string | null
-  }): ServiceAccount {
-    return {
-      id: account.id,
-      tenantId: account.tenantId ?? '',
-      scopeLevel: account.scopeLevel,
-      type: account.type,
-      name: account.name,
-      description: account.description ?? '',
-      status: account.status,
-      createdAt: account.createdAt.toISOString(),
-      updatedAt: account.updatedAt.toISOString(),
-      createdBy: account.createdBy ?? '',
-      disabledAt: account.disabledAt?.toISOString() ?? '',
-      disabledBy: account.disabledBy ?? ''
     }
   }
 }

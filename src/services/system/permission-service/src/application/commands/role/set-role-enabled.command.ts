@@ -1,5 +1,6 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsBoolean, IsNotEmpty, IsUUID } from 'class-validator'
+import { Allow, IsBoolean, IsNotEmpty, IsUUID } from 'class-validator'
+import { OperatorScope } from '../../authorization/operator-scope'
 
 export class SetRoleEnabledCommand implements ICommand {
   @IsUUID()
@@ -9,8 +10,12 @@ export class SetRoleEnabledCommand implements ICommand {
   @IsBoolean()
   readonly isEnabled: boolean
 
-  constructor(id: string, isEnabled: boolean) {
+  @Allow()
+  readonly operatorScope?: OperatorScope
+
+  constructor(id: string, isEnabled: boolean, operatorScope?: OperatorScope) {
     this.id = id
     this.isEnabled = isEnabled
+    this.operatorScope = operatorScope
   }
 }

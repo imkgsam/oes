@@ -168,4 +168,31 @@ describe('PrismaAccountContactAssetRepository L2', () => {
     expect(listed.find((asset) => asset.id === first.id)?.isPrimary).toBe(false)
     expect(listed.find((asset) => asset.id === second.id)?.isPrimary).toBe(true)
   })
+
+  it('AccountContactAsset 仓储 / 当附加 tenant scope 与账户所属租户不匹配时 / 应返回空结果', async () => {
+    const { tenant, account } = await seedAccountContext()
+    const otherTenant = await prisma.tenant.create({
+      data: {
+        id: `${prefix}_tenant_other`,
+        entityId: `${prefix}_tenant_entity_other`,
+        name: `${prefix}_tenant_name_other`,
+        code: `${prefix}_tenant_code_other`
+      }
+    })
+
+    await repository.assign({
+      tenantId: tenant.id,
+      accountId: account.id,
+      type: 'WORK_EMAIL',
+      value: `${prefix}_scoped@corp.local`,
+      isPrimary: true,
+      assignedBy: account.id
+    })
+
+    const listed = await repository.listByAccountIdAndType(account.id, 'WORK_EMAIL', {
+      tenantId: otherTenant.id
+    })
+
+    expect(listed).toEqual([])
+  })
 })

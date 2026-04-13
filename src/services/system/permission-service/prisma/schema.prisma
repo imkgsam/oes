@@ -15,8 +15,8 @@ datasource db {
 
 model Role {
   id             String   @id @default(uuid())
-  tenantId       String? // null = system template
-  scopeKey       String // "__SYSTEM__" for templates, tenantId for tenant instances
+  tenantId       String? // null = system template or system instance
+  scopeKey       String // "__SYSTEM_TEMPLATE__" for templates, "__SYSTEM__" for system instances, tenantId for tenant instances
   code           String
   name           String
   description    String?
@@ -31,7 +31,7 @@ model Role {
   templateRole Role?            @relation("RoleTemplateInstances", fields: [templateRoleId], references: [id])
   instances    Role[]           @relation("RoleTemplateInstances")
 
-  @@unique([scopeKey, code])
+  @@unique([scopeKey, kind, code])
   @@index([tenantId, kind])
 }
 
@@ -62,13 +62,14 @@ model AccountRole {
   accountType AccountType
   accountId   String
   roleId      String
-  tenantId    String
+  tenantId    String?
+  scopeLevel  ScopeLevel  @default(TENANT)
   effectiveAt DateTime?
   expiresAt   DateTime?
   role        Role        @relation(fields: [roleId], references: [id])
 
   @@unique([accountId, roleId])
-  @@index([accountId, tenantId])
+  @@index([accountId, scopeLevel, tenantId])
 }
 
 // ============================================================
@@ -98,22 +99,26 @@ model Policy {
 }
 
 model AuditEvent {
-  id         String          @id @default(uuid())
-  tenantId   String?
-  actorType  ActorType
-  actorId    String
-  action     String
-  targetType AuditTargetType
-  targetId   String
-  targetCode String?
-  beforeData Json?
-  afterData  Json?
-  metadata   Json?
-  createdAt  DateTime        @default(now())
+  id           String   @id
+  service      String
+  module       String
+  eventType    String
+  occurredAt   DateTime
+  result       String
+  operatorId   String?
+  operatorType String
+  tenantId     String?
+  orgId        String?
+  traceId      String?
+  resourceType String
+  resourceId   String?
+  details      Json
+  createdAt    DateTime @default(now())
 
-  @@index([targetType, targetId, createdAt])
-  @@index([actorId, createdAt])
-  @@index([tenantId, createdAt])
+  @@index([service, module, eventType, occurredAt])
+  @@index([tenantId, occurredAt])
+  @@index([operatorId, occurredAt])
+  @@index([resourceType, resourceId, occurredAt])
 }
 
 model DecisionEvent {
@@ -157,7 +162,13 @@ enum AccountType {
 
 enum RoleKind {
   SYSTEM_TEMPLATE
+  SYSTEM_INSTANCE
   TENANT_INSTANCE
+}
+
+enum ScopeLevel {
+  SYSTEM
+  TENANT
 }
 
 enum PolicyEffect {
@@ -169,20 +180,6 @@ enum PolicySubjectType {
   ROLE
   ACCOUNT
   ANY
-}
-
-enum ActorType {
-  USER
-  SERVICE
-  SYSTEM
-}
-
-enum AuditTargetType {
-  ROLE
-  PERMISSION
-  POLICY
-  ACCOUNT_ROLE
-  ROLE_PERMISSION
 }
 
 enum EvaluationMode {

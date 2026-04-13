@@ -5,7 +5,7 @@ Updated: 2026-03-26 00:20 +08:00
 ## Scope
 
 - Enforce explicit permission codes on `SESS-05` admin session interfaces
-- Consume unified permission-code constants from `@oes/common/security`
+- Consume unified permission-code constants from `@oes/common/authorization`
 - Keep the current operator-context contract unchanged
 
 ## Changes
@@ -33,5 +33,5 @@ Updated: 2026-03-26 00:20 +08:00
 
 ## Notes
 
-- This slice consumes `operator_permissions` from authenticated operator context.
+- This slice consumes the legacy permission snapshot from authenticated operator context.
 - It does not yet migrate `permission-service` to unified common permission-code constants.

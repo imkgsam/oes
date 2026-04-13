@@ -1,5 +1,6 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsOptional, IsUUID } from 'class-validator'
+import { Allow, IsOptional, IsUUID } from 'class-validator'
+import { OperatorScope } from '../../authorization'
 
 export class SetAccountPrimaryOrgCommand implements ICommand {
   @IsUUID()
@@ -12,9 +13,18 @@ export class SetAccountPrimaryOrgCommand implements ICommand {
   @IsUUID()
   readonly operatorId: string
 
-  constructor(accountId: string, orgId: string | undefined, operatorId: string) {
+  @Allow()
+  readonly operatorScope?: OperatorScope
+
+  constructor(
+    accountId: string,
+    orgId: string | undefined,
+    operatorId: string,
+    operatorScope?: OperatorScope
+  ) {
     this.accountId = accountId
     this.orgId = orgId
     this.operatorId = operatorId
+    this.operatorScope = operatorScope
   }
 }

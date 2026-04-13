@@ -71,6 +71,27 @@ export const AUTH_MFA_BINDING_ALREADY_EXISTS: ExceptionDefinition = {
   rpcStatus: status.ALREADY_EXISTS
 }
 
+export const AUTH_MFA_LOGIN_METHOD_UNAVAILABLE: ExceptionDefinition = {
+  code: 'AUTH_MFA_LOGIN_METHOD_UNAVAILABLE',
+  message: 'Required login method is unavailable for MFA binding',
+  messageKey: 'auth.mfa_login_method_unavailable',
+  rpcStatus: status.FAILED_PRECONDITION
+}
+
+export const AUTH_MFA_INVALID_CODE: ExceptionDefinition = {
+  code: 'AUTH_MFA_INVALID_CODE',
+  message: 'MFA code is invalid',
+  messageKey: 'auth.mfa_invalid_code',
+  rpcStatus: status.INVALID_ARGUMENT
+}
+
+export const AUTH_MFA_RECOVERY_CODES_REQUIRE_TOTP: ExceptionDefinition = {
+  code: 'AUTH_MFA_RECOVERY_CODES_REQUIRE_TOTP',
+  message: 'Recovery codes require an active TOTP binding',
+  messageKey: 'auth.mfa_recovery_codes_require_totp',
+  rpcStatus: status.FAILED_PRECONDITION
+}
+
 export const AUTH_INVALID_CREDENTIALS: ExceptionDefinition = {
   code: 'AUTH_INVALID_CREDENTIALS',
   message: 'Invalid credentials',
@@ -167,4 +188,18 @@ export const AUTH_PERMISSION_UPSTREAM_UNAVAILABLE: ExceptionDefinition = {
   message: 'Permission upstream is unavailable for authorization checks',
   messageKey: 'auth.permission_upstream_unavailable',
   rpcStatus: status.UNAVAILABLE
+}
+
+export const AUTH_NOTIFICATION_UPSTREAM_UNAVAILABLE: ExceptionDefinition = {
+  code: 'AUTH_NOTIFICATION_UPSTREAM_UNAVAILABLE',
+  message: 'Notification upstream is unavailable for OTP delivery',
+  messageKey: 'auth.notification_upstream_unavailable',
+  rpcStatus: status.UNAVAILABLE
+}
+
+export const AUTH_OTP_DELIVERY_REJECTED: ExceptionDefinition = {
+  code: 'AUTH_OTP_DELIVERY_REJECTED',
+  message: 'OTP delivery request was rejected',
+  messageKey: 'auth.otp_delivery_rejected',
+  rpcStatus: status.FAILED_PRECONDITION
 }

@@ -59,8 +59,10 @@ model User {
 
 model UserAccount {
   id             String                     @id @default(uuid())
-  tenantId       String
+  tenantId       String?
   userId         String
+  scopeLevel     UserAccountScopeLevel      @default(TENANT)
+  contextKey     String
   displayName    String?
   isEnable       Boolean                    @default(true)
   avatarUrl      String?
@@ -69,10 +71,16 @@ model UserAccount {
   createdAt      DateTime                   @default(now())
   updatedAt      DateTime                   @updatedAt
   User           User                       @relation(fields: [userId], references: [id])
-  Tenant         Tenant                     @relation(fields: [tenantId], references: [id])
+  Tenant         Tenant?                    @relation(fields: [tenantId], references: [id])
 
-  @@unique([userId, tenantId])
+  @@unique([userId, scopeLevel, contextKey])
+  @@index([scopeLevel])
   @@index([tenantId])
+}
+
+enum UserAccountScopeLevel {
+  SYSTEM
+  TENANT
 }
 
 model AccountContactAsset {
@@ -137,6 +145,7 @@ model ServiceAccount {
   name        String
   description String?
   status      MachinePrincipalStatus     @default(ACTIVE)
+  apiKeys     APIKey[]
   createdAt   DateTime                   @default(now())
   updatedAt   DateTime                   @updatedAt
   createdBy   String?
@@ -164,4 +173,63 @@ enum MachinePrincipalType {
 enum MachinePrincipalStatus {
   ACTIVE
   DISABLED
+}
+
+model APIKey {
+  id               String       @id @default(uuid())
+  serviceAccountId String
+  keyCode          String       @unique
+  hashedValue      String       @unique
+  status           APIKeyStatus @default(ACTIVE)
+  expiresAt        DateTime?
+  lastUsedAt       DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  createdBy        String?
+  revokedAt        DateTime?
+  revokedBy        String?
+  serviceAccount   ServiceAccount @relation(fields: [serviceAccountId], references: [id], onDelete: Cascade)
+
+  @@index([serviceAccountId, status])
+  @@index([expiresAt])
+}
+
+enum APIKeyStatus {
+  ACTIVE
+  REVOKED
+}
+
+model AuditEvent {
+  eventId      String             @id
+  service      String
+  module       String
+  eventType    String
+  occurredAt   DateTime
+  result       AuditEventResult
+  operatorId   String?
+  operatorType AuditOperatorType
+  tenantId     String?
+  orgId        String?
+  traceId      String?
+  resourceType String
+  resourceId   String?
+  details      Json
+  createdAt    DateTime           @default(now())
+
+  @@index([service, occurredAt])
+  @@index([module, occurredAt])
+  @@index([eventType, occurredAt])
+  @@index([tenantId, occurredAt])
+  @@index([resourceType, resourceId])
+}
+
+enum AuditEventResult {
+  SUCCEEDED
+  REJECTED
+  FAILED
+}
+
+enum AuditOperatorType {
+  HUMAN
+  SYSTEM
 }

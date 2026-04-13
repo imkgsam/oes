@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import Redis from 'ioredis'
-import { Session } from 'src/domain/aggregates/usersession.aggregate'
-import { SessionStatus } from 'src/common/constants'
-import { IUserSessionRepository } from 'src/domain/repositories/user-session.repository'
+import { Session } from '../../../../domain/aggregates/usersession.aggregate'
+import { SessionStatus } from '../../../../common/constants'
+import { IUserSessionRepository } from '../../../../domain/repositories/user-session.repository'
 
 /**
  * Redis Session Repository
@@ -116,13 +116,14 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
    * @param userId 用户 ID
    * @returns Promise<Session[]>
    */
-  async findAllByUserId(userId: string): Promise<Session[]> {
+  async findAllByUserId(userId: string, scope?: { tenantId?: string }): Promise<Session[]> {
     const sessionIds = await this.redis.smembers(`${this.USER_SESSIONS_PREFIX}${userId}`)
     const sessions: Session[] = []
+    const tenantId = scope?.tenantId?.trim() || undefined
 
     for (const sessionId of sessionIds) {
       const session = await this.findById(sessionId)
-      if (session) {
+      if (session && (!tenantId || session.getTenantId() === tenantId)) {
         sessions.push(session)
       }
     }
@@ -210,9 +211,19 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     // 保存 Session 数据
     if (existingSession) {
       const previousRefreshToken = existingSession.getRefreshToken()
+      const previousDeviceId = existingSession.getDeviceInfo().deviceId
+      const previousIpAddress = existingSession.getDeviceInfo().ipAddress
 
       if (previousRefreshToken && previousRefreshToken !== session.getRefreshToken()) {
-        await this.redis.del(`${this.REFRESH_TOKEN_PREFIX}${previousRefreshToken}`)
+        multi.del(`${this.REFRESH_TOKEN_PREFIX}${previousRefreshToken}`)
+      }
+
+      if (previousDeviceId && previousDeviceId !== deviceId) {
+        multi.srem(`${this.DEVICE_SESSIONS_PREFIX}${previousDeviceId}`, session.getId())
+      }
+
+      if (previousIpAddress && previousIpAddress !== ipAddress) {
+        multi.srem(`${this.IP_SESSIONS_PREFIX}${previousIpAddress}`, session.getId())
       }
     }
 

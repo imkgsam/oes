@@ -90,6 +90,23 @@ const coreRoutes: RouteRecordRaw[] = [
           title: $t('page.auth.register'),
         },
       },
+      {
+        name: 'CompleteMfa',
+        path: 'mfa',
+        component: () => import('#/views/_core/authentication/mfa.vue'),
+        meta: {
+          title: 'MFA',
+        },
+      },
+      {
+        name: 'AccountSelection',
+        path: 'account-selection',
+        component: () =>
+          import('#/views/_core/authentication/account-selection.vue'),
+        meta: {
+          title: 'Account Selection',
+        },
+      },
     ],
   },
 ];

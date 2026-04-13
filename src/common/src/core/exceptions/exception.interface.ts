@@ -13,15 +13,35 @@ export interface ExceptionDefinition {
 }
 
 export interface RpcMappableException {
-  toRpcPayload(): ExceptionPayload
+  toRpcPayload(): RpcExceptionPayload
 }
 
 export interface HttpMappableException {
-  toHttpPayload(): ExceptionPayload
+  toHttpPayload(): HttpExceptionPayload
 }
 
-export interface ExceptionPayload {
-  code: status
+export interface RpcExceptionPayload {
+  grpcStatus: status
+  code: string
   message: string
+  messageKey?: string
   details?: Record<string, any>
+  meta?: {
+    service?: string
+    timestamp?: string
+    traceId?: string
+  }
+}
+
+export interface HttpExceptionPayload {
+  code: string
+  message: string
+  messageKey?: string
+  details?: Record<string, any>
+  meta?: {
+    service?: string
+    timestamp?: string
+    traceId?: string
+    requestId?: string
+  }
 }

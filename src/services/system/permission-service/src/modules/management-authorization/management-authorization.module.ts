@@ -32,6 +32,6 @@ import { ManagementAuthorizationGuard } from '../../interfaces/guards'
     },
     ManagementAuthorizationGuard
   ],
-  exports: [ManagementAuthorizationGuard]
+  exports: [AccountAuthorizationService, ManagementAuthorizationGuard]
 })
 export class ManagementAuthorizationModule {}

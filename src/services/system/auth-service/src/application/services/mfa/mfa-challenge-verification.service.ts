@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common'
-import { createBusinessException } from '@oes/common/exceptions'
-import { AUTH_MFA_BINDING_NOT_FOUND } from 'src/common/constants/exception-enums'
-import { LoginMethodType, OTP_TYPES, REPO } from 'src/common/constants'
-import { IOtpRepository } from 'src/domain/repositories/otp.repository'
-import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
+import { ExceptionFactory } from '@oes/common/exceptions'
+import { AUTH_MFA_BINDING_NOT_FOUND } from '../../../common/constants/exception-enums'
+import { LoginMethodType, MfaType, OTP_TYPES, REPO } from '../../../common/constants'
+import { IMfaBindingRepository } from '../../../domain/repositories/mfaBinding.repository'
+import { IOtpRepository } from '../../../domain/repositories/otp.repository'
+import { ILoginMethodRepository } from '../../../domain/repositories/loginmethod.repository'
 
 @Injectable()
 export class MfaChallengeVerificationService {
@@ -11,33 +12,70 @@ export class MfaChallengeVerificationService {
     @Inject(REPO.OTP)
     private readonly oneTimeTokenRepo: IOtpRepository,
     @Inject(REPO.LOGIN_METHOD)
-    private readonly loginMethodRepo: ILoginMethodRepository
+    private readonly loginMethodRepo: ILoginMethodRepository,
+    @Inject(REPO.MFA_BINDING)
+    private readonly mfaBindingRepo: IMfaBindingRepository
   ) {}
 
   async verifyChallenge(tokenId: string, code: string): Promise<string | null> {
     const token = await this.oneTimeTokenRepo.findById(tokenId)
-    if (!token) return null
-    if (!token.isMfaOtp()) {
+    if (token) {
+      if (!token.isMfaOtp()) {
+        return null
+      }
+
+      const isValid = token.verify(code)
+      if (!isValid) {
+        await this.oneTimeTokenRepo.save(token)
+        return null
+      }
+
+      await this.oneTimeTokenRepo.markUsed(tokenId)
+
+      const identifier = token.getIdentifier()
+      if (token.getProps().type === OTP_TYPES.EMAIL) {
+        return this.getUserIdByEmail(identifier)
+      }
+      if (token.getProps().type === OTP_TYPES.PHONE) {
+        return this.getUserIdByPhone(identifier)
+      }
+
       return null
     }
 
-    const isValid = token.verify(code)
-    if (!isValid) {
-      await this.oneTimeTokenRepo.save(token)
+    const binding = await this.mfaBindingRepo.findById(tokenId)
+    if (!binding || binding.getType() !== MfaType.TOTP || !binding.isBindingActive()) {
       return null
     }
 
-    await this.oneTimeTokenRepo.markUsed(tokenId)
-
-    const identifier = token.getIdentifier()
-    if (token.getProps().type === OTP_TYPES.EMAIL) {
-      return this.getUserIdByEmail(identifier)
+    try {
+      const validTotp = binding.verifyTotp(code)
+      if (validTotp) {
+        return binding.getUserId()
+      }
+    } catch {
+      return null
     }
-    if (token.getProps().type === OTP_TYPES.PHONE) {
-      return this.getUserIdByPhone(identifier)
-    }
 
-    return null
+    try {
+      const backupBinding = await this.mfaBindingRepo.findByUserIdAndType(
+        binding.getUserId(),
+        MfaType.BACKUP_CODE
+      )
+      if (!backupBinding?.isBindingActive()) {
+        return null
+      }
+
+      const consumed = await backupBinding.consumeBackupCode(code)
+      if (!consumed) {
+        return null
+      }
+
+      await this.mfaBindingRepo.save(backupBinding)
+      return binding.getUserId()
+    } catch {
+      return null
+    }
   }
 
   private async getUserIdByEmail(email: string): Promise<string> {
@@ -46,7 +84,7 @@ export class MfaChallengeVerificationService {
       email
     )
     if (!loginMethod) {
-      throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
+      throw ExceptionFactory.domain(AUTH_MFA_BINDING_NOT_FOUND)
     }
     return loginMethod.userId
   }
@@ -57,7 +95,7 @@ export class MfaChallengeVerificationService {
       phone
     )
     if (!loginMethod) {
-      throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
+      throw ExceptionFactory.domain(AUTH_MFA_BINDING_NOT_FOUND)
     }
     return loginMethod.userId
   }

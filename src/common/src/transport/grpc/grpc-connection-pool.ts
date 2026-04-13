@@ -65,7 +65,7 @@ export class GrpcConnectionPool {
   private readonly logger: AppLogger
   private readonly connections = new Map<string, PooledConnection>()
   private readonly serviceName: string
-  private readonly protoPath: string
+  private readonly protoPath: string | string[]
   private readonly packageName: string
   private readonly config: ResolvedPoolConfig
   private readonly loadBalancer: LoadBalancer
@@ -74,7 +74,7 @@ export class GrpcConnectionPool {
   constructor(options: {
     logger: AppLogger
     serviceName: string
-    protoPath: string
+    protoPath: string | string[]
     packageName: string
     poolConfig: ResolvedPoolConfig
     loadBalancer: LoadBalancer

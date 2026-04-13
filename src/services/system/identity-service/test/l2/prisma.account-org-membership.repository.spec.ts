@@ -138,4 +138,24 @@ describe('PrismaAccountOrgMembershipRepository L2', () => {
     expect(removed?.id).toBe(added.id)
     expect(after).toBeNull()
   })
+
+  it('AccountOrgMembership 仓储 / 当附加 tenant scope 与账户所属租户不匹配时 / 应返回空结果', async () => {
+    const { account, orgA } = await seedOrgContext()
+    const otherTenant = await prisma.tenant.create({
+      data: {
+        id: `${prefix}_tenant_other`,
+        entityId: `${prefix}_tenant_entity_other`,
+        name: `${prefix}_tenant_name_other`,
+        code: `${prefix}_tenant_code_other`
+      }
+    })
+
+    await repository.addSecondaryMembership(account.id, orgA.id)
+
+    const listed = await repository.listByAccountId(account.id, {
+      tenantId: otherTenant.id
+    })
+
+    expect(listed).toEqual([])
+  })
 })

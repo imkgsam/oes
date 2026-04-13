@@ -1,6 +1,6 @@
 # Permission Service 阶段路线
 
-更新时间：2026-03-22 12:00:00 +08:00
+更新时间：2026-04-06 11:20:00 +08:00
 
 本文档只负责记录阶段说明、优先级和实施顺序，不重复展开功能设计细节。
 
@@ -19,7 +19,7 @@
 - 权限管理
 - Policy 收敛
 - `CheckPermission`
-- `CheckPermissionWithContext`
+- 历史兼容 `CheckPermissionWithContext`
 - 管理接口边界补强
 
 ### Phase 2：服务内授权与安全收口
@@ -50,21 +50,25 @@
 
 ## 当前优先级
 
-1. 继续收敛 `Role` 模板 / 实例边界
-2. 完成管理接口服务内授权收口
-3. 修补租户边界和资源边界缺口
-4. 稳定 `Policy` 与鉴权结果语义
-5. 再考虑更广泛的服务模板推广
+1. 收尾 gateway 拒绝链统一 JSON 错误响应
+2. 将依赖上游联调或共享能力的鉴权增强项单独排期
+3. 再考虑更广泛的服务模板推广
 
 ## 当前功能状态摘要
 
 | 功能集合 | 当前状态 | 主要文档 |
 |---|---|---|
-| 4.2 角色管理 | 进行中 | [design/role-management.md](./design/role-management.md) |
-| 4.3 账号角色管理 | 进行中 | [design/account-role-management.md](./design/account-role-management.md) |
-| 4.4 权限管理 | 进行中 | [design/permission-management.md](./design/permission-management.md) |
-| 4.5 Policy 管理 | 进行中 | [design/policy-management.md](./design/policy-management.md) |
-| 4.6 鉴权能力 | 进行中 | [design/authorization.md](./design/authorization.md) |
+| 4.2 角色管理 | 已实现 | [design/role-management.md](./design/role-management.md) |
+| 4.3 账号角色管理 | 已实现 | [design/account-role-management.md](./design/account-role-management.md) |
+| 4.4 权限管理 | 已实现 | [design/permission-management.md](./design/permission-management.md) |
+| 4.5 Policy 管理 | 已实现 | [design/policy-management.md](./design/policy-management.md) |
+| 4.6 鉴权能力 | 已实现 | [design/authorization.md](./design/authorization.md) |
+
+## 当前阶段判断
+
+- 不依赖外部支持的服务内功能已基本收口完成。
+- 当前剩余缺口主要集中在需要新增公共契约或上游联调支持的部分：
+  - gateway 拒绝链统一错误响应格式收尾
 
 ## 任务文档约定
 

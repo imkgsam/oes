@@ -49,3 +49,10 @@ export const IDENTITY_DISABLED_CONTACT_ASSET_CANNOT_BE_PRIMARY: ExceptionDefinit
   rpcStatus: status.INVALID_ARGUMENT,
   messageKey: 'identity.contact.asset.disabled.cannot.be.primary'
 }
+
+export const IDENTITY_CONTACT_ASSET_TYPE_MISMATCH: ExceptionDefinition = {
+  code: 'IDENTITY_CONTACT_ASSET_TYPE_MISMATCH',
+  message: 'Contact asset type does not match operation',
+  rpcStatus: status.INVALID_ARGUMENT,
+  messageKey: 'identity.contact.asset.type.mismatch'
+}

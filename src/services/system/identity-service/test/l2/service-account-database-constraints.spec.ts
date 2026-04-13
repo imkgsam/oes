@@ -28,7 +28,7 @@ describe('ServiceAccount Database Constraints L2', () => {
     }
   })
 
-  it('ServiceAccount scopeLevel 枚举约束 / 褰撳啓鍏ラ潪娉曞€兼椂 / 搴斿け璐?', async () => {
+  it('ServiceAccount scopeLevel 枚举约束 / 当写入非法值时 / 应失败', async () => {
     await expect(
       prisma.$executeRawUnsafe(
         `
@@ -42,7 +42,7 @@ describe('ServiceAccount Database Constraints L2', () => {
     ).rejects.toBeTruthy()
   })
 
-  it('ServiceAccount status 枚举约束 / 褰撳啓鍏ラ潪娉?status 鏃? / 搴斿け璐?', async () => {
+  it('ServiceAccount status 枚举约束 / 当写入非法 status 时 / 应失败', async () => {
     await expect(
       prisma.$executeRawUnsafe(
         `

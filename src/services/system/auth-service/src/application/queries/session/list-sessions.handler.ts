@@ -1,7 +1,7 @@
 import { Inject } from '@nestjs/common'
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
-import { REPO } from 'src/common/constants'
-import { IUserSessionRepository } from 'src/domain/repositories/user-session.repository'
+import { REPO } from '../../../common/constants'
+import { IUserSessionRepository } from '../../../domain/repositories/user-session.repository'
 import { ListSessionsQuery } from './list-sessions.query'
 
 export interface SessionViewResult {
@@ -10,14 +10,24 @@ export interface SessionViewResult {
   accountId: string
   tenantId: string
   status: string
+  loginMethod: string
   deviceId: string
   deviceName: string
   userAgent: string
   ipAddress: string
+  platform: string
+  browser: string
   createdAt: Date
   lastActiveAt: Date
   expiresAt: Date
   refreshExpiresAt: Date
+  accessRemainingSeconds: number
+  refreshRemainingSeconds: number
+  sessionAgeSeconds: number
+  idleSeconds: number
+  isAccessExpired: boolean
+  isRefreshExpired: boolean
+  isRevoked: boolean
   isCurrent: boolean
   isAdminControlled: boolean
 }
@@ -42,16 +52,26 @@ export class ListSessionsHandler
         sessionId: session.getId(),
         userId: session.getUserId(),
         accountId: session.getAccountId(),
-        tenantId: String(session.getMetadata()?.tenantId ?? ''),
+        tenantId: session.getTenantId() ?? '',
         status: String(session.getStatus()),
+        loginMethod: session.getLoginMethod(),
         deviceId: session.getDeviceInfo().deviceId,
         deviceName: session.getDeviceInfo().deviceName,
         userAgent: session.getDeviceInfo().userAgent,
         ipAddress: session.getDeviceInfo().ipAddress,
+        platform: session.getDeviceInfo().platform ?? '',
+        browser: session.getDeviceInfo().browser ?? '',
         createdAt: session.getCreatedAt(),
         lastActiveAt: session.getLastActiveAt(),
         expiresAt: session.getExpiresAt(),
         refreshExpiresAt: session.getRefreshExpiresAt(),
+        accessRemainingSeconds: session.getRemainingTime(),
+        refreshRemainingSeconds: session.getRefreshRemainingTime(),
+        sessionAgeSeconds: session.getSessionAgeSeconds(),
+        idleSeconds: session.getIdleSeconds(),
+        isAccessExpired: session.isExpired(),
+        isRefreshExpired: session.isRefreshExpired(),
+        isRevoked: !session.isActive(),
         isCurrent: session.getId() === query.currentSessionId,
         isAdminControlled: session.isAdminControlled()
       }))

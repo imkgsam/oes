@@ -28,3 +28,45 @@ export const IDENTITY_SERVICE_ACCOUNT_SYSTEM_SCOPE_FORBIDS_TENANT: ExceptionDefi
   rpcStatus: status.INVALID_ARGUMENT,
   messageKey: 'identity.service.account.system.scope.forbids.tenant'
 }
+
+export const IDENTITY_SERVICE_ACCOUNT_DISABLED: ExceptionDefinition = {
+  code: 'IDENTITY_SERVICE_ACCOUNT_DISABLED',
+  message: 'Service account is disabled',
+  rpcStatus: status.INVALID_ARGUMENT,
+  messageKey: 'identity.service.account.disabled'
+}
+
+export const IDENTITY_API_KEY_NOT_FOUND: ExceptionDefinition = {
+  code: 'IDENTITY_API_KEY_NOT_FOUND',
+  message: 'API key not found',
+  rpcStatus: status.NOT_FOUND,
+  messageKey: 'identity.api.key.not.found'
+}
+
+export const IDENTITY_API_KEY_ALREADY_REVOKED: ExceptionDefinition = {
+  code: 'IDENTITY_API_KEY_ALREADY_REVOKED',
+  message: 'API key already revoked',
+  rpcStatus: status.INVALID_ARGUMENT,
+  messageKey: 'identity.api.key.already.revoked'
+}
+
+export const IDENTITY_API_KEY_EXPIRES_AT_MUST_BE_FUTURE: ExceptionDefinition = {
+  code: 'IDENTITY_API_KEY_EXPIRES_AT_MUST_BE_FUTURE',
+  message: 'API key expiresAt must be in the future',
+  rpcStatus: status.INVALID_ARGUMENT,
+  messageKey: 'identity.api.key.expires.at.must.be.future'
+}
+
+export const IDENTITY_API_KEY_INVALID: ExceptionDefinition = {
+  code: 'IDENTITY_API_KEY_INVALID',
+  message: 'API key is invalid',
+  rpcStatus: status.UNAUTHENTICATED,
+  messageKey: 'identity.api.key.invalid'
+}
+
+export const IDENTITY_API_KEY_EXPIRED: ExceptionDefinition = {
+  code: 'IDENTITY_API_KEY_EXPIRED',
+  message: 'API key is expired',
+  rpcStatus: status.UNAUTHENTICATED,
+  messageKey: 'identity.api.key.expired'
+}

@@ -1,45 +1,69 @@
-// File: src/services/system/api-gateway/src/app.module.ts
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
-import { ConfigModule, ConfigService } from '@nestjs/config'
+import { ConfigModule } from '@nestjs/config'
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler'
 import { CommonJwtModule } from '@oes/common/auth'
+import { GatewayPermissionGuard } from '@oes/common/authorization'
+import { SERVICE_NAMES } from '@oes/common/constants'
+import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { LoggingModule } from '@oes/common/logging'
 import { RegistryModule } from '@oes/common/registry'
 import { GatewayJwtAuthGuard } from '@oes/common/auth'
 import { GrpcTransportModule } from '@oes/common/transport'
-import { GrpcModuleOptions } from '@oes/common/transport'
 import { gatewayConfig } from './config/gateway.config'
 import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
-// import { AuthServiceProxyModule } from './modules/auth-service/auth-service.module'
+import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
 import { PermissionServiceProxyModule } from './modules/permission-service/permission-service.module'
 import { GatewayExceptionFilter } from './common/filters/gateway-exception.filter'
-import { OtelExceptionFilter } from '@oes/common/filters'
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
 
 @Module({
   imports: [
     RegistryModule,
-    // 鈹€鈹€ Infrastructure 鈹€鈹€
     ConfigModule.forRoot({ isGlobal: true, load: [gatewayConfig] }),
     LoggingModule.forRoot({ serviceName: 'api-gateway' }),
     CommonJwtModule,
 
-    // 鈹€鈹€ gRPC transport (global 鈥?must come before any forFeature modules) 鈹€鈹€
     GrpcTransportModule.forRoot({
       services: {
-        'permission-service': {
-          serviceName: 'permission-service',
-          protoPath: 'protos/permission_management.proto',
-          packageName: 'permission_service'
+        [SERVICE_NAMES.AUTH]: {
+          serviceName: SERVICE_NAMES.AUTH,
+          protoPath: resolveCommonProtoPath('auth_service/auth.proto'),
+          packageName: 'auth_service',
+          url:
+            process.env.AUTH_SERVICE_HOST && process.env.AUTH_SERVICE_PORT
+              ? `${process.env.AUTH_SERVICE_HOST}:${process.env.AUTH_SERVICE_PORT}`
+              : undefined
+        },
+        [SERVICE_NAMES.PERMISSION]: {
+          serviceName: SERVICE_NAMES.PERMISSION,
+          protoPath: [
+            resolveCommonProtoPath('permission_service/permission_management.proto'),
+            resolveCommonProtoPath('permission_service/permission_check.proto'),
+            resolveCommonProtoPath('permission_service/permission_access_summary.proto')
+          ],
+          packageName: 'permission_service',
+          url:
+            process.env.PERMISSION_SERVICE_HOST && process.env.PERMISSION_SERVICE_PORT
+              ? `${process.env.PERMISSION_SERVICE_HOST}:${process.env.PERMISSION_SERVICE_PORT}`
+              : undefined
+        },
+        [SERVICE_NAMES.IDENTITY]: {
+          serviceName: SERVICE_NAMES.IDENTITY,
+          protoPath: resolveCommonProtoPath('identity_service/identity_query.proto'),
+          packageName: 'identity_service',
+          url:
+            process.env.IDENTITY_SERVICE_HOST && process.env.IDENTITY_SERVICE_PORT
+              ? `${process.env.IDENTITY_SERVICE_HOST}:${process.env.IDENTITY_SERVICE_PORT}`
+              : 'localhost:50052'
         }
       },
       defaultPoolConfig: { minSize: 3, maxSize: 3 }
     }),
+    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION]),
 
-    // 鈹€鈹€ Rate limiting (pluggable 鈥?remove when migrating to APISIX) 鈹€鈹€
     ThrottlerModule.forRoot({
       throttlers: [
         {
@@ -50,22 +74,17 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
       ]
     }),
 
-    // 鈹€鈹€ Core 鈹€鈹€
     HealthModule,
-
-    // 鈹€鈹€ System service proxies 鈹€鈹€
-    PermissionServiceProxyModule,
-    // AuthServiceProxyModule,  // enable after auth-service gRPC migration
-    // IdentityProxyModule,     // enable after gRPC migration
+    AuthBffModule,
+    PermissionServiceProxyModule
   ],
-  // 鎵ц椤哄簭鏄細 鍏堟敞鍐屽厛鎵ц锛屾墍浠ヤ负浜嗛伩鍏峧wtguard琚互鐢紝鎴戜滑鎶婂畠鏀惧湪鍚庨潰娉ㄥ唽
   providers: [
+    GatewayPermissionGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-    // 鈹€鈹€ Guards (pluggable 鈥?JWT/throttle move to APISIX later) 鈹€鈹€
     { provide: APP_GUARD, useClass: GatewayJwtAuthGuard },
+    { provide: APP_GUARD, useExisting: GatewayPermissionGuard },
 
     GatewayExceptionFilter,
-    OtelExceptionFilter,
     ResponseTransformInterceptor,
     TimeoutInterceptor
   ]

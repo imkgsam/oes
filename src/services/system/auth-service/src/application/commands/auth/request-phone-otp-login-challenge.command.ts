@@ -1,9 +1,9 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsNotEmpty, IsPhoneNumber } from 'class-validator'
+import { IsNotEmpty, Matches } from 'class-validator'
 
 export class RequestPhoneOtpLoginChallengeCommand implements ICommand {
   @IsNotEmpty()
-  @IsPhoneNumber()
+  @Matches(/^\+?\d{6,20}$/)
   readonly phone: string
 
   constructor(phone: string) {

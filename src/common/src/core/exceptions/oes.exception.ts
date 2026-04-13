@@ -1,7 +1,8 @@
 // src/common/core/exceptions/oes.exception.ts
 import { status } from '@grpc/grpc-js'
 import { HttpStatus } from '@nestjs/common'
-import { ExceptionDefinition, ExceptionPayload } from './exception.interface'
+import { getTraceId } from '../../tracing'
+import { ExceptionDefinition, HttpExceptionPayload, RpcExceptionPayload } from './exception.interface'
 import { RpcMappableException, HttpMappableException } from './exception.interface'
 
 const getCurrentServiceName = (): string => {
@@ -25,29 +26,37 @@ export abstract class OESExceptionBase
     this.additionalDetails = additionalDetails
   }
 
-  toRpcPayload(): ExceptionPayload {
+  toRpcPayload(): RpcExceptionPayload {
     return {
-      code: this.definition.rpcStatus,
+      grpcStatus: this.definition.rpcStatus,
+      code: this.definition.code,
       message: this.definition.message,
-      details: {
-        code: this.definition.code,
-        module: getCurrentServiceName(),
+      messageKey: this.definition.messageKey,
+      details: this.normalizeDetails(),
+      meta: {
+        service: getCurrentServiceName(),
         timestamp: new Date().toISOString(),
-        internalDetails: this.additionalDetails
+        traceId: getTraceId()
       }
     }
   }
 
-  toHttpPayload(): ExceptionPayload {
+  toHttpPayload(): HttpExceptionPayload {
     return {
-      code: grpcStatusToHttpStatus(this.definition.rpcStatus),
+      code: this.definition.code,
       message: this.definition.message,
-      details: {
-        code: this.definition.code,
+      messageKey: this.definition.messageKey,
+      details: this.normalizeDetails(),
+      meta: {
         service: getCurrentServiceName(),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        traceId: getTraceId()
       }
     }
+  }
+
+  getHttpStatus() {
+    return this.definition.httpStatus ?? grpcStatusToHttpStatus(this.definition.rpcStatus)
   }
 
   getRpcStatus() {
@@ -60,6 +69,20 @@ export abstract class OESExceptionBase
 
   getI18nKey() {
     return this.definition.messageKey
+  }
+
+  private normalizeDetails(): Record<string, any> | undefined {
+    if (this.additionalDetails == null) {
+      return undefined
+    }
+
+    if (typeof this.additionalDetails === 'object' && !Array.isArray(this.additionalDetails)) {
+      return this.additionalDetails
+    }
+
+    return {
+      value: this.additionalDetails
+    }
   }
 }
 

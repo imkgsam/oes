@@ -362,3 +362,78 @@ For all future AI scenarios:
 - high-risk actions must support confirmation and/or approval
 
 This is required to satisfy OES audit, tenant isolation, and AI governance goals.
+
+## 10. AI Decision Context Reference (Draft)
+
+This section records a useful reference direction for future AI-assisted decision design.
+
+It is not yet a frozen object model. Names such as `DecisionType`, `ContextBuilder`, and `ContextPackage` are candidate terms only. Before implementation, the project must decide whether to adopt these exact concepts, rename them, merge them into `AgentProfile / KnowledgeScope / ToolContract`, or split them into a separate architecture / ADR.
+
+### 10.1 Reference principle
+
+OES should remain the source of truth and the execution boundary.
+
+AI should help with sense-making, judgment, simulation, and recommendations, but it should not decide by itself which raw business data it can access.
+
+For decision-oriented AI scenarios, the preferred direction is:
+
+- OES defines the decision scenario.
+- OES defines the allowed context.
+- OES builds a business-semantic context package.
+- AI consumes that context and returns a structured suggestion.
+- Any state-changing action goes back through OES approval, workflow, and controlled tools.
+
+### 10.2 Candidate flow
+
+The old design draft proposed the following flow as a reference:
+
+```text
+DecisionType
+  -> ContextDefinition
+  -> ContextBuilder
+  -> ContextPackage
+  -> AI
+  -> Suggestion / Plan
+  -> Action / Workflow
+```
+
+The valuable idea is not the naming itself, but the direction:
+
+- AI should not query arbitrary source data.
+- Context should be business-semantic material, not raw tables or unrestricted dumps.
+- Each context package should be versioned, traceable, auditable, and replayable.
+- AI output should contain judgment, reasons, suggested actions, and risk points.
+- Human confirmation or policy-controlled workflow is required before high-risk execution.
+
+### 10.3 Reference scenarios
+
+These scenarios are useful as future AI onboarding examples, but they do not define immediate implementation scope.
+
+`SalesRiskDecision`
+- Example question: which orders or opportunities may be lost?
+- Possible context: customer interaction history, quotation changes, sales cycle age, overdue follow-ups, recent order trend.
+- Expected output: risk level, reasons, suggested follow-up actions.
+
+`ProductionAdjustDecision`
+- Example question: should the production plan be adjusted?
+- Possible context: current work orders, process capacity, equipment status, material availability, delivery pressure.
+- Expected output: adjustment suggestion, affected orders, bottleneck reason, risk warning.
+
+`InventoryClearDecision`
+- Example question: which SKUs should be cleared, promoted, paused, or reprioritized?
+- Possible context: inventory age, sales in the last 90 days, production plan, gross margin, replacement products.
+- Expected output: SKU risk list, suggested action, business reason, financial risk.
+
+`SupplierRiskDecision`
+- Example question: which suppliers may affect delivery or quality stability?
+- Possible context: delivery delay history, quality inspection results, price fluctuation, open purchase orders, complaint records.
+- Expected output: supplier risk level, reason, recommended mitigation.
+
+Reference skill examples:
+
+- `InventoryDiagnosisSkill`
+- `ProductionBottleneckSkill`
+- `SalesFunnelAnalysisSkill`
+- `CostAnomalyDetectionSkill`
+
+These skills should never hide core business rules in prompts. Business rules remain inside their owning business domains. Skills may only orchestrate AI prompts, context consumption, output structure, and validation around governed tools and approved data scopes.

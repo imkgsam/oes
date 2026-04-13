@@ -1,9 +1,8 @@
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator'
+import { IsNotEmpty, IsString } from 'class-validator'
 
 export class LogoutAllCommand {
   @IsString()
   @IsNotEmpty()
-  @IsUUID()
   readonly userId: string
 
   constructor(userId: string) {

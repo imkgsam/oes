@@ -14,10 +14,7 @@
 
 ## 当前状态
 
-- `SESS-01` 与 `SESS-03` 已形成主登录链最小闭环
-- 当前模型仍以“一个 session 仅保存最新 refresh token”为边界
-- 当前 `Session` 聚合仍保存完整 `accessToken` / `refreshToken` 文本，不适合继续扩展
-- 当前 `SessionService` 不应继续承接更多 session 族行为
+- 已实现
 
 ## 最小闭环范围
 
@@ -66,3 +63,32 @@
 - `SelectAccountHandler` 与 `RefreshSessionHandler` 已直接承接活跃 create / refresh 编排，不再经过过渡 session 小 service
 - 遗留 `SessionService` 与 `SessionModule` 已退出代码基线
 - `logout`、`logoutAll`、`session query`、`device management` 继续后置
+
+## 2026-03-27 Current Focus
+
+- 当前 `SESS-02` 的剩余缺口已聚焦到“设备上下文如何进入 session 主链”
+- `SelectAccount` 被确认为当前阶段正式的 session 建立入口
+- 本轮收口目标是：让 `SelectAccountRequest` 与 handler 能承接 `deviceId/deviceName/userAgent/ipAddress`
+- 若调用方未提供设备上下文，服务端仍允许兼容默认值，但这不再被视为完成态
+
+## 2026-03-27 Boundary Decision
+
+- 已确认当前共享 gRPC authenticated context 只覆盖：
+  - internal service metadata
+  - operator context
+  - request / trace metadata
+- 本任务不继续扩展 `src/common/src/authorization/**` 中的共享 metadata 语义
+- 当前阶段设备上下文的正式进入方式保持为：
+  - `SelectAccountRequest` 显式字段
+- 若未来需要网关自动注入设备上下文，应升级为跨模块治理项，而不是继续以单服务实现推进
+
+## 2026-03-28 Completion Notes
+
+- `Session` 聚合现在会对持久化读回的 `deviceInfo` 做统一标准化，避免历史数据缺字段时继续扩散脏形状
+- `SelectAccountHandler` 现在会对进入主链的设备上下文做最小规范化：
+  - `userAgent` 默认值从 `grpc` 收敛为 `unknown`
+  - 尝试从 `userAgent` 推导 `platform / browser`
+  - 若调用方未传 `deviceName`，会生成最小可读默认名
+- Redis session repository 现在会在同一事务里完成 refresh token 索引替换与设备/IP 索引更新，不再依赖事务外补丁式清理
+- 当前 `SESS-02` 在 `auth-service` 边界内可视为完成
+- gateway 自动透传设备上下文仍是已记录的跨模块后续项，不属于本任务未完成项

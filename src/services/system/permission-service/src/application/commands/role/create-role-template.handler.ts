@@ -7,6 +7,7 @@ import { Role } from '../../../domain/aggregates/role.aggregate'
 import { RoleKind } from '../../../domain/enums/role-kind.enum'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ROLE_ALREADY_EXISTS } from '../../../common/constants/exception-enums'
+import { assertSystemScope } from '../../authorization/operator-scope'
 
 @CommandHandler(CreateRoleTemplateCommand)
 export class CreateRoleTemplateHandler implements ICommandHandler<CreateRoleTemplateCommand> {
@@ -16,7 +17,13 @@ export class CreateRoleTemplateHandler implements ICommandHandler<CreateRoleTemp
   ) {}
 
   async execute(command: CreateRoleTemplateCommand): Promise<Role> {
-    const existing = await this.roleRepo.findByScopeAndCode('__SYSTEM__', command.code)
+    assertSystemScope(command.operatorScope, 'template create requires system scope')
+
+    const existing = await this.roleRepo.findByScopeKindAndCode(
+      '__SYSTEM_TEMPLATE__',
+      RoleKind.SYSTEM_TEMPLATE,
+      command.code
+    )
     if (existing) throw ExceptionFactory.domain(ROLE_ALREADY_EXISTS)
 
     const role = new Role(

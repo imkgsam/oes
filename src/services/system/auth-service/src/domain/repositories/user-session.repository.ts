@@ -1,5 +1,5 @@
-import { Session } from 'src/domain/aggregates/usersession.aggregate'
-import { SessionStatus } from 'src/common/constants'
+import { Session } from '../aggregates/usersession.aggregate'
+import { SessionStatus } from '../../common/constants'
 
 /**
  * Session Repository 接口
@@ -78,7 +78,7 @@ export interface IUserSessionRepository {
    * @param userId 用户 ID
    * @returns Promise<Session[]>
    */
-  findAllByUserId(userId: string): Promise<Session[]>
+  findAllByUserId(userId: string, scope?: { tenantId?: string }): Promise<Session[]>
 
   /**
    * 查找设备的所有 Session

@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common'
-import { OTP_USAGES } from 'src/common/constants'
-import { OneTimeToken } from 'src/domain/aggregates/otp.aggregate'
-import { IOtpRepository } from 'src/domain/repositories/otp.repository'
-import { OtpMapper } from 'src/infrastructure/mappers/otp.mapper'
-import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
+import { OTP_USAGES } from '../../../common/constants'
+import { OneTimeToken } from '../../../domain/aggregates/otp.aggregate'
+import { IOtpRepository } from '../../../domain/repositories/otp.repository'
+import { OtpMapper } from '../../mappers/otp.mapper'
+import { PrismaService } from '../../prisma/prisma.service'
 
 @Injectable()
 export class PrismaOtpRepository implements IOtpRepository {
@@ -17,7 +17,7 @@ export class PrismaOtpRepository implements IOtpRepository {
    * @returns Promise<OneTimeToken | null>
    */
   async findById(id: string): Promise<OneTimeToken | null> {
-    const found = await this.prismaService.oneTimeToken.findUnique({
+    const found = await this.prismaService.oTP.findUnique({
       where: { id }
     })
     if (!found) return null
@@ -29,7 +29,7 @@ export class PrismaOtpRepository implements IOtpRepository {
    * @returns Promise<OneTimeToken[]>
    */
   async findAll(): Promise<OneTimeToken[]> {
-    const founds = await this.prismaService.oneTimeToken.findMany()
+    const founds = await this.prismaService.oTP.findMany()
     return founds.map((found) => OtpMapper.toDomain(found))
   }
 
@@ -37,7 +37,7 @@ export class PrismaOtpRepository implements IOtpRepository {
     identifier: string,
     usage: OTP_USAGES
   ): Promise<OneTimeToken | null> {
-    const found = await this.prismaService.oneTimeToken.findUnique({
+    const found = await this.prismaService.oTP.findUnique({
       where: {
         identifier_usage: {
           identifier,
@@ -69,7 +69,7 @@ export class PrismaOtpRepository implements IOtpRepository {
     const existing = await this.findByIdentifierAndUsage(props.identifier, props.usage)
 
     if (existing && existing.getProps().id !== props.id) {
-      await this.prismaService.oneTimeToken.delete({
+      await this.prismaService.oTP.delete({
         where: {
           identifier_usage: {
             identifier: props.identifier,
@@ -79,7 +79,7 @@ export class PrismaOtpRepository implements IOtpRepository {
       })
     }
 
-    const updated = await this.prismaService.oneTimeToken.upsert({
+    const updated = await this.prismaService.oTP.upsert({
       where: { id: props.id },
       update: {
         usage: data.usage,
@@ -106,7 +106,7 @@ export class PrismaOtpRepository implements IOtpRepository {
    * @returns Promise<void>
    */
   async markUsed(id: string): Promise<void> {
-    await this.prismaService.oneTimeToken.update({
+    await this.prismaService.oTP.update({
       where: { id },
       data: {
         consumed: true,

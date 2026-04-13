@@ -6,11 +6,14 @@ import { SYMBOLS } from '../../common/constants/symbols'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { PermissionCommandHandlers } from '../../application/commands/permission'
 import { PermissionQueryHandlers } from '../../application/queries/permission'
+import { AuditQueryHandlers } from '../../application/queries/audit'
 import { PermissionManagementGrpcController } from '../../interfaces/grpc/permission-management.grpc.controller'
 import { ManagementAuthorizationModule } from '../management-authorization/management-authorization.module'
+import { RoleModule } from '../role/role.module'
+import { PermissionAuditModule } from '../audit/permission-audit.module'
 
 @Module({
-  imports: [CqrsModule, PrismaModule, ManagementAuthorizationModule],
+  imports: [CqrsModule, PrismaModule, ManagementAuthorizationModule, RoleModule, PermissionAuditModule],
   providers: [
     {
       provide: SYMBOLS.REPO.PERMISSION,
@@ -19,7 +22,8 @@ import { ManagementAuthorizationModule } from '../management-authorization/manag
     ValidatingCommandBus,
     ValidatingQueryBus,
     ...PermissionCommandHandlers,
-    ...PermissionQueryHandlers
+    ...PermissionQueryHandlers,
+    ...AuditQueryHandlers
   ],
   controllers: [PermissionManagementGrpcController],
   exports: [SYMBOLS.REPO.PERMISSION]

@@ -2,7 +2,7 @@ import { MfaType } from '@oes/common/constants'
 import {
   DeviceInfo,
   MfaBindingEntity
-} from 'src/domain/aggregates/mfabinding.aggregate'
+} from '../../domain/aggregates/mfabinding.aggregate'
 
 type PrismaMfaBindingRecord = {
   id: string

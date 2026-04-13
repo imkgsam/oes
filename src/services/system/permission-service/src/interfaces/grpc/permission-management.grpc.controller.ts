@@ -1,14 +1,16 @@
 import { Controller, UseFilters, UseGuards } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
-import { GrpcExceptionFilter, OtelExceptionFilter } from '@oes/common/filters'
+import {
+  GrpcExceptionFilter
+} from '../../../../../../common/dist/core/filters'
 import {
   AuthenticatedOperatorGuard,
   InternalServiceGuard,
   getAuthenticatedGrpcRequestContext,
   OperatorContextPayload,
   RequireAuthenticatedOperator
-} from '@oes/common/security'
+} from '@oes/common/authorization'
 import {
   PermissionManagementServiceController,
   PermissionManagementServiceControllerMethods,
@@ -28,6 +30,8 @@ import {
   GetPermissionByIdRequest,
   GetRoleByIdRequest,
   GetRoleTemplateByIdRequest,
+  ListAuditEventsRequest,
+  ListAuditEventsResponse,
   ListAccountRolesRequest,
   ListPermissionRolesRequest,
   ListPermissionsPagedRequest,
@@ -94,27 +98,32 @@ import { ListRoleTemplatePermissionsQuery } from '../../application/queries/role
 import { ListRoleAccountsQuery } from '../../application/queries/role/list-role-accounts.query'
 import { GetAccountRoleSelectionQuery } from '../../application/queries/role/get-account-role-selection.query'
 import { AccountRoleSelectionResult } from '../../application/queries/role/get-account-role-selection.handler'
-import { resolveOperatorScope } from '../../application/queries/role/operator-scope'
+import { ListAuditEventsQuery } from '../../application/queries/audit/list-audit-events.query'
+import { resolveOperatorScope } from '../../application/authorization/operator-scope'
 import { PermissionModule } from '../../domain/enums/permission-module.enum'
 import { AccountType } from '../../domain/enums/account-type.enum'
+import { ScopeLevel } from '../../domain/enums/scope-level.enum'
 import { Permission } from '../../domain/aggregates/permission.aggregate'
 import { Role } from '../../domain/aggregates/role.aggregate'
 import { AccountRole } from '../../domain/vo/account-role.value-object'
 import {
   toAccountRoleBindingResponse,
+  toPermissionAuditEventRecord,
   toPermissionResponse,
   toRoleResponse
 } from './permission-management.grpc.presenter'
+import { PermissionAuditService } from '../../application/services/permission-audit.service'
 
 @Controller()
-@UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
+@UseFilters(GrpcExceptionFilter)
 @RequireAuthenticatedOperator()
 @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, ManagementAuthorizationGuard)
 @PermissionManagementServiceControllerMethods()
 export class PermissionManagementGrpcController implements PermissionManagementServiceController {
   constructor(
     private readonly commandBus: ValidatingCommandBus,
-    private readonly queryBus: ValidatingQueryBus
+    private readonly queryBus: ValidatingQueryBus,
+    private readonly permissionAuditService: PermissionAuditService
   ) {}
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_PERMISSION)
@@ -130,7 +139,16 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         request.description
       )
     )
-    return toPermissionResponse(permission)
+    const response = toPermissionResponse(permission)
+    this.recordMutation(
+      request,
+      'PERMISSION_CREATED',
+      'PERMISSION',
+      permission.id,
+      permission.code,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_PERMISSION)
@@ -151,6 +169,16 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         )
       })
     )
+    for (const permission of created) {
+      this.recordMutation(
+        request,
+        'PERMISSION_CREATED',
+        'PERMISSION',
+        permission.id,
+        permission.code,
+        toPermissionResponse(permission) as unknown as Record<string, unknown>
+      )
+    }
     return { permissions: created.map(toPermissionResponse) }
   }
 
@@ -169,7 +197,16 @@ export class PermissionManagementGrpcController implements PermissionManagementS
           : undefined
       })
     )
-    return toPermissionResponse(permission)
+    const response = toPermissionResponse(permission)
+    this.recordMutation(
+      request,
+      'PERMISSION_UPDATED',
+      'PERMISSION',
+      permission.id,
+      permission.code,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.DELETE_PERMISSION)
@@ -179,6 +216,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<void> {
     await this.commandBus.execute(new DeletePermissionCommand(request.id!))
+    this.recordMutation(request, 'PERMISSION_DELETED', 'PERMISSION', request.id!)
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION_DETAIL)
@@ -187,7 +225,9 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     metadata?: Metadata,
     ...rest: any
   ): Promise<PermissionResponse> {
-    const permission: Permission = await this.queryBus.execute(new GetPermissionByIdQuery(request.id!))
+    const permission: Permission = await this.queryBus.execute(
+      new GetPermissionByIdQuery(request.id!)
+    )
     return toPermissionResponse(permission)
   }
 
@@ -233,7 +273,9 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     metadata?: Metadata,
     ...rest: any
   ): Promise<ListRolesResponse> {
-    const roles: Role[] = await this.queryBus.execute(new ListPermissionRolesQuery(request.permissionId!))
+    const roles: Role[] = await this.queryBus.execute(
+      new ListPermissionRolesQuery(request.permissionId!)
+    )
     return { roles: roles.map(toRoleResponse) }
   }
 
@@ -247,10 +289,20 @@ export class PermissionManagementGrpcController implements PermissionManagementS
       new CreateRoleTemplateCommand({
         name: request.name!,
         code: request.code!,
-        description: request.description || undefined
+        description: request.description || undefined,
+        operatorScope: this.getOperatorScope(request)
       })
     )
-    return toRoleResponse(role)
+    const response = toRoleResponse(role)
+    this.recordMutation(
+      request,
+      'ROLE_TEMPLATE_CREATED',
+      'ROLE',
+      role.id,
+      role.code,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_ROLE)
@@ -264,11 +316,22 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         name: request.name!,
         code: request.code!,
         tenantId: request.tenantId!,
+        scopeLevel: normalizeScopeLevel(request.scopeLevel),
         description: request.description || undefined,
-        templateRoleId: request.templateRoleId || undefined
+        templateRoleId: request.templateRoleId || undefined,
+        operatorScope: this.getOperatorScope(request)
       })
     )
-    return toRoleResponse(role)
+    const response = toRoleResponse(role)
+    this.recordMutation(
+      request,
+      'ROLE_INSTANCE_CREATED',
+      'ROLE',
+      role.id,
+      role.code,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL)
@@ -295,10 +358,20 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         name: Object.prototype.hasOwnProperty.call(request, 'name') ? request.name : undefined,
         description: Object.prototype.hasOwnProperty.call(request, 'description')
           ? request.description
-          : undefined
+          : undefined,
+        operatorScope: this.getOperatorScope(request)
       })
     )
-    return toRoleResponse(role)
+    const response = toRoleResponse(role)
+    this.recordMutation(
+      request,
+      'ROLE_TEMPLATE_UPDATED',
+      'ROLE',
+      role.id,
+      role.code,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.DELETE_ROLE)
@@ -307,7 +380,10 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     metadata?: Metadata,
     ...rest: any
   ): Promise<void> {
-    await this.commandBus.execute(new DeleteRoleTemplateCommand(request.id!))
+    await this.commandBus.execute(
+      new DeleteRoleTemplateCommand(request.id!, this.getOperatorScope(request))
+    )
+    this.recordMutation(request, 'ROLE_TEMPLATE_DELETED', 'ROLE', request.id!)
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
@@ -317,9 +393,18 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<RoleResponse> {
     const role: Role = await this.commandBus.execute(
-      new SetRoleTemplateEnabledCommand(request.id!, request.isEnabled!)
+      new SetRoleTemplateEnabledCommand(request.id!, request.isEnabled!, this.getOperatorScope(request))
     )
-    return toRoleResponse(role)
+    const response = toRoleResponse(role)
+    this.recordMutation(
+      request,
+      request.isEnabled ? 'ROLE_TEMPLATE_ENABLED' : 'ROLE_TEMPLATE_DISABLED',
+      'ROLE',
+      role.id,
+      role.code,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
@@ -334,10 +419,20 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         name: Object.prototype.hasOwnProperty.call(request, 'name') ? request.name : undefined,
         description: Object.prototype.hasOwnProperty.call(request, 'description')
           ? request.description
-          : undefined
+          : undefined,
+        operatorScope: this.getOperatorScope(request)
       })
     )
-    return toRoleResponse(role)
+    const response = toRoleResponse(role)
+    this.recordMutation(
+      request,
+      'ROLE_UPDATED',
+      'ROLE',
+      role.id,
+      role.code,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
@@ -347,14 +442,24 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<RoleResponse> {
     const role: Role = await this.commandBus.execute(
-      new SetRoleEnabledCommand(request.id!, request.isEnabled!)
+      new SetRoleEnabledCommand(request.id!, request.isEnabled!, this.getOperatorScope(request))
     )
-    return toRoleResponse(role)
+    const response = toRoleResponse(role)
+    this.recordMutation(
+      request,
+      request.isEnabled ? 'ROLE_ENABLED' : 'ROLE_DISABLED',
+      'ROLE',
+      role.id,
+      role.code,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.DELETE_ROLE)
   async deleteRole(request: DeleteRoleRequest, metadata?: Metadata, ...rest: any): Promise<void> {
-    await this.commandBus.execute(new DeleteRoleCommand(request.id!))
+    await this.commandBus.execute(new DeleteRoleCommand(request.id!, this.getOperatorScope(request)))
+    this.recordMutation(request, 'ROLE_DELETED', 'ROLE', request.id!)
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL)
@@ -381,6 +486,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
           page: request.page || 1,
           pageSize: request.pageSize || 20,
           tenantId: request.tenantId || undefined,
+          scopeLevel: normalizeOptionalScopeLevel(request.scopeLevel),
           keyword: request.keyword || undefined,
           operatorScope: this.getOperatorScope(request)
         })
@@ -425,7 +531,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<ListPermissionsResponse> {
     const permissions: Permission[] = await this.queryBus.execute(
-      new ListRolePermissionsQuery(request.roleId!)
+      new ListRolePermissionsQuery(request.roleId!, this.getOperatorScope(request))
     )
     return { permissions: permissions.map(toPermissionResponse) }
   }
@@ -437,7 +543,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<ListPermissionsResponse> {
     const permissions: Permission[] = await this.queryBus.execute(
-      new ListRoleTemplatePermissionsQuery(request.roleTemplateId!)
+      new ListRoleTemplatePermissionsQuery(request.roleTemplateId!, this.getOperatorScope(request))
     )
     return { permissions: permissions.map(toPermissionResponse) }
   }
@@ -449,7 +555,13 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<void> {
     await this.commandBus.execute(
-      new AssignRolePermissionCommand(request.roleId!, request.permissionId!)
+      new AssignRolePermissionCommand(request.roleId!, request.permissionId!, this.getOperatorScope(request))
+    )
+    this.recordMutation(
+      request,
+      'ROLE_PERMISSION_ASSIGNED',
+      'ROLE_PERMISSION',
+      `${request.roleId!}:${request.permissionId!}`
     )
   }
 
@@ -460,7 +572,17 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<void> {
     await this.commandBus.execute(
-      new AssignRoleTemplatePermissionCommand(request.roleTemplateId!, request.permissionId!)
+      new AssignRoleTemplatePermissionCommand(
+        request.roleTemplateId!,
+        request.permissionId!,
+        this.getOperatorScope(request)
+      )
+    )
+    this.recordMutation(
+      request,
+      'ROLE_TEMPLATE_PERMISSION_ASSIGNED',
+      'ROLE_PERMISSION',
+      `${request.roleTemplateId!}:${request.permissionId!}`
     )
   }
 
@@ -471,7 +593,17 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<void> {
     await this.commandBus.execute(
-      new RevokeRoleTemplatePermissionCommand(request.roleTemplateId!, request.permissionId!)
+      new RevokeRoleTemplatePermissionCommand(
+        request.roleTemplateId!,
+        request.permissionId!,
+        this.getOperatorScope(request)
+      )
+    )
+    this.recordMutation(
+      request,
+      'ROLE_TEMPLATE_PERMISSION_REVOKED',
+      'ROLE_PERMISSION',
+      `${request.roleTemplateId!}:${request.permissionId!}`
     )
   }
 
@@ -487,10 +619,20 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         tenantId: request.tenantId!,
         name: request.name || undefined,
         code: request.code || undefined,
-        description: request.description || undefined
+        description: request.description || undefined,
+        operatorScope: this.getOperatorScope(request)
       })
     )
-    return toRoleResponse(role)
+    const response = toRoleResponse(role)
+    this.recordMutation(
+      request,
+      'ROLE_INSTANCE_CREATED_FROM_TEMPLATE',
+      'ROLE',
+      role.id,
+      role.code,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.REVOKE_ROLE_PERMISSION)
@@ -500,7 +642,13 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<void> {
     await this.commandBus.execute(
-      new RevokeRolePermissionCommand(request.roleId!, request.permissionId!)
+      new RevokeRolePermissionCommand(request.roleId!, request.permissionId!, this.getOperatorScope(request))
+    )
+    this.recordMutation(
+      request,
+      'ROLE_PERMISSION_REVOKED',
+      'ROLE_PERMISSION',
+      `${request.roleId!}:${request.permissionId!}`
     )
   }
 
@@ -516,9 +664,27 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         accountType: request.accountType! as AccountType,
         roleId: request.roleId!,
         tenantId: request.tenantId!,
+        scopeLevel: normalizeScopeLevel(request.scopeLevel),
         effectiveAt: request.effectiveAt || undefined,
-        expiresAt: request.expiresAt || undefined
+        expiresAt: request.expiresAt || undefined,
+        operatorScope: this.getOperatorScope(request)
       })
+    )
+    this.recordMutation(
+      request,
+      'ACCOUNT_ROLE_ASSIGNED',
+      'ACCOUNT_ROLE',
+      `${request.accountId!}:${request.roleId!}`,
+      undefined,
+      {
+        accountId: request.accountId!,
+        accountType: request.accountType!,
+        roleId: request.roleId!,
+        tenantId: request.tenantId!,
+        scopeLevel: normalizeScopeLevel(request.scopeLevel),
+        effectiveAt: request.effectiveAt || '',
+        expiresAt: request.expiresAt || ''
+      }
     )
   }
 
@@ -528,7 +694,15 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     metadata?: Metadata,
     ...rest: any
   ): Promise<void> {
-    await this.commandBus.execute(new RevokeAccountRoleCommand(request.accountId!, request.roleId!))
+    await this.commandBus.execute(
+      new RevokeAccountRoleCommand(request.accountId!, request.roleId!, this.getOperatorScope(request))
+    )
+    this.recordMutation(
+      request,
+      'ACCOUNT_ROLE_REVOKED',
+      'ACCOUNT_ROLE',
+      `${request.accountId!}:${request.roleId!}`
+    )
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE)
@@ -538,7 +712,12 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<ListRolesResponse> {
     const roles: Role[] = await this.queryBus.execute(
-      new ListAccountRolesQuery(request.accountId!, request.tenantId!)
+      new ListAccountRolesQuery(
+        request.accountId!,
+        request.tenantId || undefined,
+        this.getOperatorScope(request),
+        normalizeScopeLevel(request.scopeLevel)
+      )
     )
     return { roles: roles.map(toRoleResponse) }
   }
@@ -550,7 +729,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<ListRoleAccountsResponse> {
     const accounts: AccountRole[] = await this.queryBus.execute(
-      new ListRoleAccountsQuery(request.roleId!)
+      new ListRoleAccountsQuery(request.roleId!, this.getOperatorScope(request))
     )
     return { accounts: accounts.map(toAccountRoleBindingResponse) }
   }
@@ -562,7 +741,12 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     ...rest: any
   ): Promise<AccountRoleSelectionResponse> {
     const selection: AccountRoleSelectionResult = await this.queryBus.execute(
-      new GetAccountRoleSelectionQuery(request.accountId!, request.tenantId!)
+      new GetAccountRoleSelectionQuery(
+        request.accountId!,
+        request.tenantId || undefined,
+        this.getOperatorScope(request),
+        normalizeScopeLevel(request.scopeLevel)
+      )
     )
     return {
       availableRoles: selection.availableRoles.map(toRoleResponse),
@@ -581,10 +765,88 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         accountId: request.accountId!,
         accountType: request.accountType! as AccountType,
         tenantId: request.tenantId!,
-        roleIds: request.roleIds ?? []
+        scopeLevel: normalizeScopeLevel(request.scopeLevel),
+        roleIds: request.roleIds ?? [],
+        operatorScope: this.getOperatorScope(request)
       })
     )
+    this.recordMutation(
+      request,
+      'ACCOUNT_ROLES_SET',
+      'ACCOUNT_ROLE',
+      request.accountId!,
+      undefined,
+      {
+        accountId: request.accountId!,
+        tenantId: request.tenantId!,
+        scopeLevel: normalizeScopeLevel(request.scopeLevel),
+        roleIds: request.roleIds ?? [],
+        resolvedRoles: roles.map((role) => toRoleResponse(role))
+      }
+    )
     return { roles: roles.map(toRoleResponse) }
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_AUDIT_EVENT)
+  // This method exposes permission management audit records through the management gRPC surface.
+  async listAuditEvents(
+    request: ListAuditEventsRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<ListAuditEventsResponse> {
+    const result = await this.queryBus.execute(
+      new ListAuditEventsQuery({
+        service: request.service || undefined,
+        module: request.module || undefined,
+        eventType: request.eventType || undefined,
+        result: request.result || undefined,
+        operatorId: request.operatorId || undefined,
+        tenantId: request.tenantId || undefined,
+        orgId: request.orgId || undefined,
+        resourceType: request.resourceType || undefined,
+        resourceId: request.resourceId || undefined,
+        occurredAtFrom: request.occurredAtFrom || undefined,
+        occurredAtTo: request.occurredAtTo || undefined,
+        cursor: request.cursor || undefined,
+        pageSize: request.pageSize || undefined
+      })
+    )
+
+    return {
+      items: result.items.map(toPermissionAuditEventRecord),
+      nextCursor: result.nextCursor ?? ''
+    }
+  }
+
+  private recordMutation(
+    rpcData: unknown,
+    action: string,
+    targetType: 'ROLE' | 'PERMISSION' | 'ACCOUNT_ROLE' | 'ROLE_PERMISSION',
+    targetId: string,
+    targetCode?: string,
+    afterData?: Record<string, unknown>
+  ): void {
+    const operatorContext = getAuthenticatedGrpcRequestContext(rpcData)?.operatorContext as
+      | OperatorContextPayload
+      | undefined
+    const operatorId = operatorContext?.operator_id
+
+    if (!operatorId) {
+      return
+    }
+
+    this.permissionAuditService.emitManagementMutation({
+      actorId: operatorId,
+      tenantId: operatorContext?.tenant_id || undefined,
+      action,
+      targetType,
+      targetId,
+      targetCode,
+      afterData,
+      metadata: {
+        request: (rpcData as Record<string, unknown>) ?? {}
+      }
+    })
   }
 
   private getOperatorScope(rpcData: unknown) {
@@ -593,4 +855,16 @@ export class PermissionManagementGrpcController implements PermissionManagementS
       | undefined
     return resolveOperatorScope(operatorContext)
   }
+}
+
+// Normalizes role/account scope strings from gRPC requests while preserving tenant behavior for old callers.
+function normalizeScopeLevel(scopeLevel?: string): ScopeLevel {
+  return scopeLevel === ScopeLevel.SYSTEM ? ScopeLevel.SYSTEM : ScopeLevel.TENANT
+}
+
+// Preserves optional scope filters so legacy role list callers can keep their tenant-instance behavior.
+function normalizeOptionalScopeLevel(scopeLevel?: string): ScopeLevel | undefined {
+  return scopeLevel === ScopeLevel.SYSTEM || scopeLevel === ScopeLevel.TENANT
+    ? scopeLevel
+    : undefined
 }

@@ -1,0 +1,5 @@
+export * from './authorization-query-scope.service'
+export * from './query-scope-builder.interface'
+export * from './query-scope.types'
+export * from './builders/audit-event-query-scope.builder'
+export * from './builders/admin-user-session-query-scope.builder'

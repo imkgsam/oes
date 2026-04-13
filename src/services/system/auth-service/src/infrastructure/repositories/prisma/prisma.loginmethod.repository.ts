@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common'
 import { LoginMethodType } from '@oes/common/constants'
-import { LoginMethod } from 'src/domain/aggregates/loginmethod.aggregate'
-import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
-import { AuthIdentifierNormalizer } from 'src/domain/services/auth-identifier-normalizer'
-import { LoginMethodMapper } from 'src/infrastructure/mappers/login-method.mapper'
-import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
+import { LoginMethod } from '../../../domain/aggregates/loginmethod.aggregate'
+import { ILoginMethodRepository } from '../../../domain/repositories/loginmethod.repository'
+import { AuthIdentifierNormalizer } from '../../../domain/services/auth-identifier-normalizer'
+import { LoginMethodMapper } from '../../mappers/login-method.mapper'
+import { PrismaService } from '../../prisma/prisma.service'
 
 @Injectable()
 export class PrismaUserRepository implements ILoginMethodRepository {

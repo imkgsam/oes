@@ -108,6 +108,8 @@ defineExpose({
       </Title>
     </slot>
 
+    <slot name="form-prepend"></slot>
+
     <Form />
 
     <div
@@ -128,10 +130,13 @@ defineExpose({
         v-if="showForgetPassword"
         class="vben-link text-sm font-normal"
         @click="handleGo(forgetPasswordPath)"
-      >
-        {{ $t('authentication.forgetPassword') }}
-      </span>
+        >
+          {{ $t('authentication.forgetPassword') }}
+        </span>
     </div>
+
+    <slot name="submit-prepend"></slot>
+
     <VbenButton
       :class="{
         'cursor-wait': loading,

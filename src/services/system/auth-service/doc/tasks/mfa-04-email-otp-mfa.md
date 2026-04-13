@@ -1,6 +1,6 @@
 # MFA-04 Email OTP MFA
 
-更新时间：2026-03-23 22:38:03 +09:00
+更新时间：2026-03-27 15:10 +09:00
 
 ## 上游设计文档
 
@@ -15,7 +15,7 @@
 
 ## 当前状态
 
-- 部分实现
+- 已实现
 
 ## 最小闭环范围
 
@@ -60,3 +60,10 @@
 
 - `SubmitMfaChallenge` now accepts the upstream `loginMethod` and carries it forward to the account-selection stage.
 - MFA challenge verification now rejects non-`MFA_VERIFY` OTP usage, so login OTP challenges cannot be reused as MFA challenges.
+
+## 2026-03-27 Completion Notes
+
+- 邮箱 OTP MFA challenge 已接入主登录链
+- challenge 提交已恢复到账户选择阶段
+- 当前已补齐 OTP MFA binding 管理入口，因此 `EMAIL_OTP` MFA 在 Phase 1 范围内已闭环
+- 当前剩余约束仅为真实邮件通道尚未接通，这不再阻塞本任务的最小闭环状态

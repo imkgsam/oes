@@ -18,6 +18,18 @@ export interface LogMeta {
   module?: string
   /** Operation or action being performed */
   operation?: string
+  /** Correlation identifier for the current request */
+  requestId?: string
+  /** Tenant scope identifier */
+  tenantId?: string
+  /** Organization scope identifier */
+  orgId?: string
+  /** Human or machine operator identifier */
+  operatorId?: string
+  /** Domain resource type */
+  resourceType?: string
+  /** Domain resource identifier */
+  resourceId?: string
   /** Application-specific error code for error tracking */
   errorCode?: string
   /** Additional contextual data */
@@ -147,7 +159,20 @@ export function isLogMeta(value: unknown): value is LogMeta {
   }
 
   const obj = value as Record<string, unknown>
-  const knownKeys = ['module', 'operation', 'errorCode', 'details']
+  const knownKeys = [
+    'module',
+    'operation',
+    'requestId',
+    'traceId',
+    'spanId',
+    'tenantId',
+    'orgId',
+    'operatorId',
+    'resourceType',
+    'resourceId',
+    'errorCode',
+    'details'
+  ]
 
   // Check if object has at least one known LogMeta key
   // or is an empty object (valid as empty metadata)

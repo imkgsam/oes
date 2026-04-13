@@ -129,7 +129,7 @@
 - 默认至少是跨模块变更
 - 如果连契约治理方式一起调整，则是架构级变更
 
-#### 案例 C：修改 `src/common/src/security/**` 中 operator context 结构
+#### 案例 C：修改 `src/common/src/authorization/**` 中 operator context 结构
 
 结论：
 

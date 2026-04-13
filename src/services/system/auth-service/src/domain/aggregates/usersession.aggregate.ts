@@ -23,6 +23,9 @@ type SessionProps = {
   id: string
   userId: string
   accountId: string
+  scopeLevel?: 'SYSTEM' | 'TENANT'
+  tenantId?: string
+  orgId?: string
   refreshToken: string
   status: SessionStatus
   deviceInfo: DeviceInfo
@@ -40,11 +43,18 @@ type SessionProps = {
 export class Session {
   constructor(private props: SessionProps) {
     this.props.isAdminControlled ??= false
+    this.props.deviceInfo = Session.normalizeDeviceInfo(this.props.deviceInfo)
+    this.props.scopeLevel = Session.normalizeScopeLevel(this.props.scopeLevel, this.props.tenantId)
+    this.props.tenantId = Session.normalizeOptionalText(this.props.tenantId)
+    this.props.orgId = Session.normalizeOptionalText(this.props.orgId)
   }
 
   static createSession(params: {
     userId: string
     accountId: string
+    scopeLevel?: 'SYSTEM' | 'TENANT'
+    tenantId?: string
+    orgId?: string
     deviceInfo: DeviceInfo
     config: SessionConfig
     metadata?: Record<string, any>
@@ -55,6 +65,9 @@ export class Session {
       id: randomUUID(),
       userId: params.userId,
       accountId: params.accountId,
+      scopeLevel: params.scopeLevel,
+      tenantId: params.tenantId,
+      orgId: params.orgId,
       refreshToken: randomUUID(),
       status: SessionStatus.ACTIVE,
       deviceInfo: params.deviceInfo,
@@ -72,6 +85,9 @@ export class Session {
       id: data.id,
       userId: data.userId,
       accountId: data.accountId,
+      scopeLevel: data.scopeLevel ?? data.metadata?.scopeLevel,
+      tenantId: data.tenantId ?? data.metadata?.tenantId,
+      orgId: data.orgId ?? data.metadata?.orgId,
       refreshToken: data.refreshToken,
       status: data.status as SessionStatus,
       deviceInfo: data.deviceInfo as DeviceInfo,
@@ -87,11 +103,37 @@ export class Session {
     })
   }
 
+  private static normalizeDeviceInfo(deviceInfo: Partial<DeviceInfo> | undefined): DeviceInfo {
+    return {
+      deviceId: String(deviceInfo?.deviceId ?? '').trim() || 'unknown',
+      deviceName: String(deviceInfo?.deviceName ?? '').trim() || 'unknown',
+      userAgent: String(deviceInfo?.userAgent ?? '').trim() || 'unknown',
+      ipAddress: String(deviceInfo?.ipAddress ?? '').trim() || 'unknown',
+      location: String(deviceInfo?.location ?? '').trim() || undefined,
+      platform: String(deviceInfo?.platform ?? '').trim() || undefined,
+      browser: String(deviceInfo?.browser ?? '').trim() || undefined
+    }
+  }
+
+  private static normalizeOptionalText(value: unknown): string | undefined {
+    return typeof value === 'string' && value.trim().length > 0 ? value : undefined
+  }
+
+  private static normalizeScopeLevel(
+    scopeLevel: unknown,
+    tenantId: unknown
+  ): 'SYSTEM' | 'TENANT' {
+    return scopeLevel === 'SYSTEM' && !Session.normalizeOptionalText(tenantId) ? 'SYSTEM' : 'TENANT'
+  }
+
   toRedis(): Record<string, any> {
     return {
       id: this.props.id,
       userId: this.props.userId,
       accountId: this.props.accountId,
+      scopeLevel: this.props.scopeLevel,
+      tenantId: this.props.tenantId,
+      orgId: this.props.orgId,
       refreshToken: this.props.refreshToken,
       status: this.props.status,
       deviceInfo: this.props.deviceInfo,
@@ -185,6 +227,16 @@ export class Session {
     return Math.max(0, Math.floor(remaining / 1000))
   }
 
+  getSessionAgeSeconds(): number {
+    const age = Date.now() - this.props.createdAt.getTime()
+    return Math.max(0, Math.floor(age / 1000))
+  }
+
+  getIdleSeconds(): number {
+    const idle = Date.now() - this.props.lastActiveAt.getTime()
+    return Math.max(0, Math.floor(idle / 1000))
+  }
+
   getId(): string {
     return this.props.id
   }
@@ -195,6 +247,11 @@ export class Session {
 
   getAccountId(): string {
     return this.props.accountId
+  }
+
+  // Returns the account scope selected for this session.
+  getScopeLevel(): 'SYSTEM' | 'TENANT' {
+    return this.props.scopeLevel ?? 'TENANT'
   }
 
   getRefreshToken(): string {
@@ -227,6 +284,19 @@ export class Session {
 
   getMetadata(): Record<string, any> | undefined {
     return this.props.metadata
+  }
+
+  // Returns the tenant boundary carried by the session metadata when the session belongs to a tenant scope.
+  getTenantId(): string | undefined {
+    return this.props.tenantId
+  }
+
+  getOrgId(): string | undefined {
+    return this.props.orgId
+  }
+
+  getLoginMethod(): string {
+    return String(this.props.metadata?.loginMethod ?? '')
   }
 
   isActive(): boolean {

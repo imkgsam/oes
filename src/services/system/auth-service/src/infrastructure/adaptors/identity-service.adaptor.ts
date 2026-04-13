@@ -1,6 +1,12 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
-import { ExceptionFactory } from '@oes/common/exceptions'
+import { SERVICE_NAMES } from '@oes/common/constants'
+import { ExceptionFactory, InfrastructureException } from '@oes/common/exceptions'
+import {
+  GRPC_METADATA_PROPAGATION_FACTORY,
+  GrpcMetadataPropagationFactory,
+  GrpcRequestContextStore
+} from '@oes/common/authorization'
 import {
   GetAccountByIdRequest,
   GetAccountByIdResponse,
@@ -21,7 +27,7 @@ import {
   IdentityAccountSummary,
   IdentityUserSummary
 } from '../../application/ports/identity-service.port'
-import { AUTH_IDENTITY_UPSTREAM_UNAVAILABLE } from 'src/common/constants/exception-enums'
+import { AUTH_IDENTITY_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
 
 const IDENTITY_QUERY_SERVICE_NAME = 'IdentityQueryService'
 
@@ -31,8 +37,11 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   private identityQueryService!: IdentityQueryServiceClient
 
   constructor(
-    @InjectGrpcClient('identity-service')
-    private readonly identityClient: ClientGrpc
+    @InjectGrpcClient(SERVICE_NAMES.IDENTITY)
+    private readonly identityClient: ClientGrpc,
+    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
+    private readonly metadataFactory: GrpcMetadataPropagationFactory,
+    private readonly requestContextStore: GrpcRequestContextStore
   ) {}
 
   onModuleInit() {
@@ -46,7 +55,7 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       const response = await safeGrpcCall<GetUserByIdResponse>(
         this.identityQueryService.getUserById({
           userId
-        } as GetUserByIdRequest),
+        } as GetUserByIdRequest, this.metadata()),
         {
           caller: 'auth-service',
           method: 'IdentityQueryService.getUserById'
@@ -55,11 +64,8 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
 
       return this.mapUser(response)
     } catch (error) {
-      this.logger.error(`Failed to get user by id: ${userId}`, error)
-      throw ExceptionFactory.application(AUTH_IDENTITY_UPSTREAM_UNAVAILABLE, {
-        method: 'getUserById',
-        upstream: 'identity-service'
-      })
+      this.rethrowIfInfrastructureError(error, 'getUserById', { userId })
+      throw error
     }
   }
 
@@ -68,7 +74,7 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       const response = await safeGrpcCall<GetUserByEmailResponse>(
         this.identityQueryService.getUserByEmail({
           email
-        } as GetUserByEmailRequest),
+        } as GetUserByEmailRequest, this.metadata()),
         {
           caller: 'auth-service',
           method: 'IdentityQueryService.getUserByEmail'
@@ -77,11 +83,8 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
 
       return this.mapUser(response)
     } catch (error) {
-      this.logger.error(`Failed to get user by email: ${email}`, error)
-      throw ExceptionFactory.application(AUTH_IDENTITY_UPSTREAM_UNAVAILABLE, {
-        method: 'getUserByEmail',
-        upstream: 'identity-service'
-      })
+      this.rethrowIfInfrastructureError(error, 'getUserByEmail', { email })
+      throw error
     }
   }
 
@@ -90,7 +93,7 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       const response = await safeGrpcCall<GetUserByPhoneResponse>(
         this.identityQueryService.getUserByPhone({
           phone
-        } as GetUserByPhoneRequest),
+        } as GetUserByPhoneRequest, this.metadata()),
         {
           caller: 'auth-service',
           method: 'IdentityQueryService.getUserByPhone'
@@ -99,11 +102,8 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
 
       return this.mapUser(response)
     } catch (error) {
-      this.logger.error(`Failed to get user by phone: ${phone}`, error)
-      throw ExceptionFactory.application(AUTH_IDENTITY_UPSTREAM_UNAVAILABLE, {
-        method: 'getUserByPhone',
-        upstream: 'identity-service'
-      })
+      this.rethrowIfInfrastructureError(error, 'getUserByPhone', { phone })
+      throw error
     }
   }
 
@@ -112,7 +112,7 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       const response = await safeGrpcCall<GetAccountsByUserIdResponse>(
         this.identityQueryService.getAccountsByUserId({
           userId
-        } as GetAccountsByUserIdRequest),
+        } as GetAccountsByUserIdRequest, this.metadata()),
         {
           caller: 'auth-service',
           method: 'IdentityQueryService.getAccountsByUserId'
@@ -121,15 +121,13 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
 
       return (response.accounts ?? []).map((account) => ({
         accountId: account.accountId ?? '',
-        tenantId: account.tenantId ?? '',
+        tenantId: this.normalizeTenantId(account.tenantId),
+        scopeLevel: this.normalizeScopeLevel(account.scopeLevel),
         displayName: account.displayName ?? ''
       }))
     } catch (error) {
-      this.logger.error(`Failed to get accounts by userId: ${userId}`, error)
-      throw ExceptionFactory.application(AUTH_IDENTITY_UPSTREAM_UNAVAILABLE, {
-        method: 'getAccountsByUserId',
-        upstream: 'identity-service'
-      })
+      this.rethrowIfInfrastructureError(error, 'getAccountsByUserId', { userId })
+      throw error
     }
   }
 
@@ -138,7 +136,7 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       const response = await safeGrpcCall<GetAccountByIdResponse>(
         this.identityQueryService.getAccountById({
           accountId
-        } as GetAccountByIdRequest),
+        } as GetAccountByIdRequest, this.metadata()),
         {
           caller: 'auth-service',
           method: 'IdentityQueryService.getAccountById'
@@ -153,17 +151,32 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       return {
         accountId: account.id,
         userId: account.userId ?? '',
-        tenantId: account.tenantId ?? '',
+        tenantId: this.normalizeTenantId(account.tenantId),
+        scopeLevel: this.normalizeScopeLevel(account.scopeLevel),
         displayName: account.displayName ?? '',
         isEnabled: account.isEnabled ?? false
       }
     } catch (error) {
-      this.logger.error(`Failed to get account by id: ${accountId}`, error)
-      throw ExceptionFactory.application(AUTH_IDENTITY_UPSTREAM_UNAVAILABLE, {
-        method: 'getAccountById',
-        upstream: 'identity-service'
-      })
+      this.rethrowIfInfrastructureError(error, 'getAccountById', { accountId })
+      throw error
     }
+  }
+
+  private rethrowIfInfrastructureError(
+    error: unknown,
+    method: string,
+    context: Record<string, string>
+  ): void {
+    if (!(error instanceof InfrastructureException)) {
+      return
+    }
+
+    this.logger.error(`Identity upstream unavailable in ${method}`, error)
+    throw ExceptionFactory.infrastructure(AUTH_IDENTITY_UPSTREAM_UNAVAILABLE, {
+      method,
+      upstream: 'identity-service',
+      ...context
+    })
   }
 
   private mapUser(
@@ -180,5 +193,23 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       phone: user.personalPhone ?? undefined,
       fullName: user.username ?? undefined
     }
+  }
+
+  private normalizeScopeLevel(scopeLevel?: string): 'SYSTEM' | 'TENANT' {
+    return scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT'
+  }
+
+  private normalizeTenantId(tenantId?: string): string | null {
+    const normalized = tenantId?.trim()
+    return normalized ? normalized : null
+  }
+
+  private metadata() {
+    const current = this.requestContextStore.getContext()
+    return this.metadataFactory.createInternalCallMetadata({
+      callerServiceName: 'auth-service',
+      requestId: current?.requestId,
+      traceId: current?.traceId
+    })
   }
 }

@@ -1,8 +1,8 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
-import { REPO } from 'src/common/constants'
-import { AuthAuditService } from 'src/application/services/auth-audit.service'
-import { IUserSessionRepository } from 'src/domain/repositories/user-session.repository'
+import { REPO } from '../../../common/constants'
+import { AuthAuditService } from '../../services/auth-audit.service'
+import { IUserSessionRepository } from '../../../domain/repositories/user-session.repository'
 import { LogoutAllCommand } from './logout-all.command'
 
 export interface LogoutAllResult {
@@ -21,7 +21,11 @@ export class LogoutAllHandler implements ICommandHandler<LogoutAllCommand, Logou
   async execute(command: LogoutAllCommand): Promise<LogoutAllResult> {
     const sessions = await this.sessionRepository.findAllByUserId(command.userId)
     await this.sessionRepository.deleteAllByUserId(command.userId)
-    this.authAuditService.emitLogoutAllSucceeded(command.userId, sessions.length)
+    this.authAuditService.emitLogoutAllSucceeded(
+      command.userId,
+      sessions.length,
+      sessions.map((session) => session.getId())
+    )
     return {
       success: true,
       sessionCount: sessions.length

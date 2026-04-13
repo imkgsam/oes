@@ -1,6 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common'
-import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
-import { IOtpRepository } from 'src/domain/repositories/otp.repository'
+import { ILoginMethodRepository } from '../../domain/repositories/loginmethod.repository'
+import { IOtpRepository } from '../../domain/repositories/otp.repository'
 
 @Injectable()
 export class AdminAuthService {

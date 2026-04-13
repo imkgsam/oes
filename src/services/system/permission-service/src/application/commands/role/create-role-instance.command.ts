@@ -1,5 +1,7 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsNotEmpty, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator'
+import { Allow, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator'
+import { ScopeLevel } from '../../../domain/enums/scope-level.enum'
+import { OperatorScope } from '../../authorization/operator-scope'
 
 export class CreateRoleInstanceCommand implements ICommand {
   @IsString()
@@ -12,9 +14,12 @@ export class CreateRoleInstanceCommand implements ICommand {
   @Matches(/^[A-Z][A-Z0-9_]*$/)
   readonly code: string
 
+  @IsEnum(ScopeLevel)
+  readonly scopeLevel: ScopeLevel
+
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  readonly tenantId: string
+  readonly tenantId?: string
 
   @IsOptional()
   @IsString()
@@ -25,17 +30,24 @@ export class CreateRoleInstanceCommand implements ICommand {
   @IsUUID()
   readonly templateRoleId?: string
 
+  @Allow()
+  readonly operatorScope?: OperatorScope
+
   constructor(params: {
     name: string
     code: string
-    tenantId: string
+    scopeLevel?: ScopeLevel
+    tenantId?: string
     description?: string
     templateRoleId?: string
+    operatorScope?: OperatorScope
   }) {
     this.name = params.name
     this.code = params.code
+    this.scopeLevel = params.scopeLevel ?? ScopeLevel.TENANT
     this.tenantId = params.tenantId
     this.description = params.description
     this.templateRoleId = params.templateRoleId
+    this.operatorScope = params.operatorScope
   }
 }

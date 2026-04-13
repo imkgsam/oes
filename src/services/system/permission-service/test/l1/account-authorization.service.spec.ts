@@ -42,6 +42,7 @@ describe('AccountAuthorizationService', () => {
     findById: jest.fn(),
     findByCode: jest.fn(),
     findByScopeAndCode: jest.fn(),
+    findByScopeKindAndCode: jest.fn(),
     findAll: jest.fn(),
     findRoleInstances: jest.fn(),
     findRoleTemplates: jest.fn(),
@@ -58,6 +59,7 @@ describe('AccountAuthorizationService', () => {
     findAccountRoles: jest.fn(),
     findRoleAccounts: jest.fn(),
     findTenantRoles: jest.fn(),
+    findSystemRoles: jest.fn(),
     findRoleTemplateById: jest.fn(),
     replaceAccountRoles: jest.fn()
   })
@@ -129,7 +131,9 @@ describe('AccountAuthorizationService', () => {
     expect(result).toEqual({
       allowed: false,
       reason: 'RBAC: role does not have this permission',
-      evaluationMode: 'RBAC'
+      evaluationMode: 'RBAC',
+      explainCode: 'RBAC_DENIED',
+      policyExplainEntries: []
     })
     expect(policyRepo.findApplicable).not.toHaveBeenCalled()
   })
@@ -171,5 +175,6 @@ describe('AccountAuthorizationService', () => {
 
     expect(result.allowed).toBe(false)
     expect(result.evaluationMode).toBe('RBAC_ABAC')
+    expect(result.explainCode).toBe('POLICY_DENY_MATCHED')
   })
 })

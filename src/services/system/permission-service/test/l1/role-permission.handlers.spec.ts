@@ -33,6 +33,7 @@ describe('Role Permission Handlers', () => {
     findById: jest.fn(),
     findByCode: jest.fn(),
     findByScopeAndCode: jest.fn(),
+    findByScopeKindAndCode: jest.fn(),
     findAll: jest.fn(),
     findRoleInstances: jest.fn(),
     findRoleTemplates: jest.fn(),
@@ -49,12 +50,13 @@ describe('Role Permission Handlers', () => {
     findAccountRoles: jest.fn(),
     findRoleAccounts: jest.fn(),
     findTenantRoles: jest.fn(),
+    findSystemRoles: jest.fn(),
     findRoleTemplateById: jest.fn(),
     replaceAccountRoles: jest.fn()
   })
 
   const createRole = () =>
-    new Role('role-id', 'Admin', 'ADMIN', null, RoleKind.SYSTEM_TEMPLATE, true)
+    new Role('role-id', 'Admin', 'ADMIN', 'tenant-1', RoleKind.TENANT_INSTANCE, true)
 
   it('分配角色权限 / 当角色不存在时 / 应返回 ROLE_NOT_FOUND', async () => {
     const roleRepo = createRoleRepository()
@@ -134,8 +136,8 @@ describe('Role Permission Handlers', () => {
       'role-id',
       'Admin',
       'ADMIN',
-      null,
-      RoleKind.SYSTEM_TEMPLATE,
+      'tenant-1',
+      RoleKind.TENANT_INSTANCE,
       true,
       undefined,
       null,

@@ -19,13 +19,19 @@ export class AccountAuthorizationService {
     return roles.some((role) => role.hasPermissionByCode(permissionCode))
   }
 
+  /**
+   * @deprecated OUTDATED: retained for historical CheckPermissionWithContext compatibility.
+   * New resource authorization should use application-level checkResource / buildQueryScope.
+   */
   async checkPermissionWithContext(request: AuthzRequest): Promise<AuthzDecision> {
     const rbacPass = await this.checkPermission(request.accountId, request.permissionCode)
     if (!rbacPass) {
       return {
         allowed: false,
         reason: 'RBAC: role does not have this permission',
-        evaluationMode: 'RBAC'
+        evaluationMode: 'RBAC',
+        explainCode: 'RBAC_DENIED',
+        policyExplainEntries: []
       }
     }
 

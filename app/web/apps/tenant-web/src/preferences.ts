@@ -8,6 +8,8 @@ import { defineOverridesPreferences } from '@vben/preferences';
 export const overridesPreferences = defineOverridesPreferences({
   // overrides
   app: {
+    defaultHomePath: '/workbench/home',
+    enableRefreshToken: true,
     name: import.meta.env.VITE_APP_TITLE,
   },
 });

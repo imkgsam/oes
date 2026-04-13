@@ -2,14 +2,14 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { CommonJwtService, ITokenConfig, TokenConfigName } from '@oes/common/auth'
-import { REPO } from 'src/common/constants'
+import { REPO } from '../../../common/constants'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import {
   AUTH_REFRESH_TOKEN_INVALID,
   AUTH_REFRESH_TOKEN_REPLAY_DETECTED
-} from 'src/common/constants/exception-enums'
-import { AuthAuditService } from 'src/application/services/auth-audit.service'
-import { IUserSessionRepository } from 'src/domain/repositories/user-session.repository'
+} from '../../../common/constants/exception-enums'
+import { AuthAuditService } from '../../services/auth-audit.service'
+import { IUserSessionRepository } from '../../../domain/repositories/user-session.repository'
 import { RefreshSessionCommand } from './refresh-session.command'
 
 export interface RefreshSessionResult {
@@ -41,13 +41,24 @@ export class RefreshSessionHandler
     }
 
     const session = await this.sessionRepository.findById(sessionId)
+    const indexedSession = await this.sessionRepository.findByRefreshToken(command.refreshToken)
+
+    if (session && indexedSession && indexedSession.getId() !== session.getId()) {
+      this.authAuditService.emitRefreshTokenReplayDetected(session)
+      await this.sessionRepository.delete(sessionId)
+      throw ExceptionFactory.domain(AUTH_REFRESH_TOKEN_REPLAY_DETECTED, {
+        sessionId
+      })
+    }
+
     if (!session) {
       throw ExceptionFactory.domain(AUTH_REFRESH_TOKEN_INVALID, {
         sessionId
       })
     }
 
-    if (!session.validateRefreshToken(command.refreshToken)) {
+    if (!indexedSession || !session.validateRefreshToken(command.refreshToken)) {
+      this.authAuditService.emitRefreshTokenReplayDetected(session)
       await this.sessionRepository.delete(sessionId)
       throw ExceptionFactory.domain(AUTH_REFRESH_TOKEN_REPLAY_DETECTED, {
         sessionId
@@ -55,8 +66,8 @@ export class RefreshSessionHandler
     }
 
     const signOptions = {
-      issuer: tokenConfig.issuer || undefined,
-      audience: tokenConfig.audience || undefined
+      ...(tokenConfig.issuer ? { issuer: tokenConfig.issuer } : {}),
+      ...(tokenConfig.audience ? { audience: tokenConfig.audience } : {})
     }
 
     const accessToken = this.jwtService.signAccessToken(
@@ -64,7 +75,8 @@ export class RefreshSessionHandler
         sub: session.getUserId(),
         sid: session.getId(),
         aid: session.getAccountId(),
-        tid: String(session.getMetadata()?.tenantId ?? ''),
+        tid: session.getTenantId() ?? '',
+        scopeLevel: session.getScopeLevel(),
         tokenType: 'access'
       },
       signOptions
@@ -75,7 +87,8 @@ export class RefreshSessionHandler
         sub: session.getUserId(),
         sid: session.getId(),
         aid: session.getAccountId(),
-        tid: String(session.getMetadata()?.tenantId ?? ''),
+        tid: session.getTenantId() ?? '',
+        scopeLevel: session.getScopeLevel(),
         tokenType: 'refresh'
       },
       signOptions
@@ -95,18 +108,20 @@ export class RefreshSessionHandler
       expiresIn: tokenConfig.accessTokenValidity
     }
 
-    this.authAuditService.emitSessionRefreshed(result.sessionId)
+    this.authAuditService.emitSessionRefreshed(session)
     return result
   }
 
   private getTokenConfig(): ITokenConfig {
     const config = this.configService.get<ITokenConfig>(TokenConfigName)
+    const issuer = typeof config?.issuer === 'string' ? config.issuer : ''
+    const audience = typeof config?.audience === 'string' ? config.audience : ''
 
     return {
       accessTokenValidity: config?.accessTokenValidity || 900,
       refreshTokenValidity: config?.refreshTokenValidity || 604800,
-      issuer: config?.issuer || '',
-      audience: config?.audience || ''
+      issuer,
+      audience
     }
   }
 

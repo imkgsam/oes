@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common'
-import { REPO } from 'src/common/constants'
-import { LoginFailureState } from 'src/domain/aggregates/login-failure-state.aggregate'
-import { ILoginRiskRepository } from 'src/domain/repositories/login-risk.repository'
+import { LoginMethodType, REPO } from '../../common/constants'
+import { LoginFailureState } from '../../domain/aggregates/login-failure-state.aggregate'
+import { ILoginRiskRepository } from '../../domain/repositories/login-risk.repository'
+import { AuthIdentifierNormalizer } from '../../domain/services/auth-identifier-normalizer'
 
 @Injectable()
 export class LoginRiskThrottleService {
@@ -10,31 +11,38 @@ export class LoginRiskThrottleService {
     private readonly loginRiskRepository: ILoginRiskRepository
   ) {}
 
-  async assertPasswordLoginAllowed(identifier: string): Promise<void> {
-    const state = await this.getState(identifier)
+  async assertPasswordLoginAllowed(type: LoginMethodType, identifier: string): Promise<void> {
+    const state = await this.getState(type, identifier)
     state.assertCanAttempt()
   }
 
-  async recordPasswordLoginFailure(identifier: string): Promise<void> {
-    const state = await this.getState(identifier)
+  async recordPasswordLoginFailure(type: LoginMethodType, identifier: string): Promise<void> {
+    const state = await this.getState(type, identifier)
     state.recordFailure()
     await this.loginRiskRepository.save(state)
   }
 
-  async clearPasswordLoginFailures(identifier: string): Promise<void> {
-    const state = await this.loginRiskRepository.findByIdentifier(identifier)
+  async clearPasswordLoginFailures(type: LoginMethodType, identifier: string): Promise<void> {
+    const normalizedIdentifier = this.normalizeIdentifier(type, identifier)
+    const state = await this.loginRiskRepository.findByIdentifier(normalizedIdentifier)
     if (!state) {
       return
     }
 
     state.recordSuccess()
-    await this.loginRiskRepository.delete(identifier)
+    await this.loginRiskRepository.delete(normalizedIdentifier)
   }
 
-  private async getState(identifier: string): Promise<LoginFailureState> {
+  private async getState(type: LoginMethodType, identifier: string): Promise<LoginFailureState> {
+    const normalizedIdentifier = this.normalizeIdentifier(type, identifier)
+
     return (
-      (await this.loginRiskRepository.findByIdentifier(identifier)) ??
-      LoginFailureState.create(identifier)
+      (await this.loginRiskRepository.findByIdentifier(normalizedIdentifier)) ??
+      LoginFailureState.create(normalizedIdentifier)
     )
+  }
+
+  private normalizeIdentifier(type: LoginMethodType, identifier: string): string {
+    return AuthIdentifierNormalizer.normalize(type, identifier)
   }
 }

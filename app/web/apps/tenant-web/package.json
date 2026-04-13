@@ -37,13 +37,10 @@
     "@vben/types": "workspace:*",
     "@vben/utils": "workspace:*",
     "@vueuse/core": "catalog:",
+    "ant-design-vue": "catalog:",
     "dayjs": "catalog:",
-    "element-plus": "catalog:",
     "pinia": "catalog:",
     "vue": "catalog:",
     "vue-router": "catalog:"
-  },
-  "devDependencies": {
-    "unplugin-element-plus": "catalog:"
   }
 }

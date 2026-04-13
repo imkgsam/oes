@@ -1,6 +1,6 @@
 {
   "title": "Demos",
-  "elementPlus": "Element Plus",
+  "antd": "Ant Design Vue",
   "form": "Form",
   "vben": {
     "title": "Project",
@@ -9,7 +9,6 @@
     "antdv": "Ant Design Vue Version",
     "antdv-next": "Antdv Next Version",
     "naive-ui": "Naive UI Version",
-    "element-plus": "Element Plus Version",
     "tdesign": "TDesign Vue Version"
   }
 }

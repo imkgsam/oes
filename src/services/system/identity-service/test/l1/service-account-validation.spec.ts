@@ -4,8 +4,8 @@ import { VALIDATION_FAILED } from '@oes/common/exceptions'
 import { CreateServiceAccountCommand } from '../../src/application/commands/service-account/create-service-account.command'
 import { GetServiceAccountByIdQuery } from '../../src/application/queries/service-account/get-service-account-by-id.query'
 
-describe('service account 鏍￠獙', () => {
-  it('鍒涘缓 service account 鍛戒护 / 褰?scopeLevel 涓嶅湪鍚堟硶鍊煎唴鏃? / 搴旇繑鍥?VALIDATION_FAILED', async () => {
+describe('service account 校验', () => {
+  it('创建 service account 命令 / 当 scopeLevel 不在合法值内时 / 应返回 VALIDATION_FAILED', async () => {
     const commandBus = {
       execute: jest.fn()
     } as unknown as CommandBus
@@ -27,7 +27,7 @@ describe('service account 鏍￠獙', () => {
     expect(commandBus.execute).not.toHaveBeenCalled()
   })
 
-  it('鏌ヨ service account / 褰?serviceAccountId 涓嶆槸 UUID 鏃? / 搴旇繑鍥?VALIDATION_FAILED', async () => {
+  it('查询 service account / 当 serviceAccountId 不是 UUID 时 / 应返回 VALIDATION_FAILED', async () => {
     const queryBus = {
       execute: jest.fn()
     } as unknown as QueryBus

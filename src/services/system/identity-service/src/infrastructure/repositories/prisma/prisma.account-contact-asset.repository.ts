@@ -46,12 +46,16 @@ export class PrismaAccountContactAssetRepository implements AccountContactAssetR
 
   async listByAccountIdAndType(
     accountId: string,
-    type: string
+    type: string,
+    scope?: {
+      tenantId?: string
+    }
   ): Promise<AccountContactAssetEntity[]> {
     const records = await this.prisma.accountContactAsset.findMany({
       where: {
         accountId,
-        type: type as AccountContactAssetType
+        type: type as AccountContactAssetType,
+        tenantId: scope?.tenantId
       },
       orderBy: [{ isPrimary: 'desc' }, { assignedAt: 'asc' }]
     })

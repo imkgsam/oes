@@ -14,10 +14,6 @@ function parseEnvValue(raw: string): string {
 }
 
 export function ensureIntegrationDatabaseUrl(): string {
-  if (process.env.DATABASE_URL) {
-    return process.env.DATABASE_URL
-  }
-
   const envPath = resolve(__dirname, '../../.env')
   if (!existsSync(envPath)) {
     throw new Error(`DATABASE_URL is not set and .env was not found at ${envPath}`)
@@ -65,6 +61,30 @@ export function createTestPrefix(): string {
 
 export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Promise<void> {
   if (!prisma) return
+
+  await prisma.auditEvent.deleteMany({
+    where: {
+      OR: [
+        { eventId: { startsWith: prefix } },
+        { operatorId: { startsWith: prefix } },
+        { tenantId: { startsWith: prefix } },
+        { orgId: { startsWith: prefix } },
+        { resourceId: { startsWith: prefix } }
+      ]
+    }
+  })
+
+  await prisma.aPIKey.deleteMany({
+    where: {
+      OR: [
+        { id: { startsWith: prefix } },
+        { serviceAccountId: { startsWith: prefix } },
+        { keyCode: { startsWith: prefix } },
+        { createdBy: { startsWith: prefix } },
+        { revokedBy: { startsWith: prefix } }
+      ]
+    }
+  })
 
   await prisma.serviceAccount.deleteMany({
     where: {

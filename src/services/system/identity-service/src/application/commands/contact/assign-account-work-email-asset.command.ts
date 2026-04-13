@@ -1,5 +1,6 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsBoolean, IsNotEmpty, IsString, IsUUID, MaxLength } from 'class-validator'
+import { Allow, IsBoolean, IsNotEmpty, IsString, IsUUID, MaxLength } from 'class-validator'
+import { OperatorScope } from '../../authorization'
 
 export class AssignAccountWorkEmailAssetCommand implements ICommand {
   @IsUUID()
@@ -16,10 +17,20 @@ export class AssignAccountWorkEmailAssetCommand implements ICommand {
   @IsUUID()
   readonly operatorId: string
 
-  constructor(accountId: string, email: string, isPrimary: boolean, operatorId: string) {
+  @Allow()
+  readonly operatorScope?: OperatorScope
+
+  constructor(
+    accountId: string,
+    email: string,
+    isPrimary: boolean,
+    operatorId: string,
+    operatorScope?: OperatorScope
+  ) {
     this.accountId = accountId
     this.email = email
     this.isPrimary = isPrimary
     this.operatorId = operatorId
+    this.operatorScope = operatorScope
   }
 }

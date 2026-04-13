@@ -1,0 +1,32 @@
+// File: src/common/src/contracts/permission_service/permission_access_summary.proto
+syntax = "proto3";
+
+package permission_service;
+
+// PermissionAccessSummaryService exposes self-context authorization summaries for internal BFF consumers.
+service PermissionAccessSummaryService {
+  rpc GetAccountAccessSummary(GetAccountAccessSummaryRequest)
+      returns (AccountAccessSummaryResponse);
+}
+
+// GetAccountAccessSummaryRequest identifies the selected account and tenant context whose effective access should be summarized.
+message GetAccountAccessSummaryRequest {
+  string account_id = 1;
+  string tenant_id = 2;
+  string scope_level = 3;
+}
+
+// AccountAccessSummaryResponse returns display roles plus action codes for front-end action gating.
+message AccountAccessSummaryResponse {
+  repeated AccessRoleSummary roles = 1;
+  repeated string action_codes = 2;
+}
+
+// AccessRoleSummary carries role metadata for display and diagnostics, not for front-end permission derivation.
+message AccessRoleSummary {
+  string role_id = 1;
+  string code = 2;
+  string name = 3;
+  string tenant_id = 4;
+  string scope = 5;
+}

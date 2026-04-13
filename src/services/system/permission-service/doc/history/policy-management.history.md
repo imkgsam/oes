@@ -1,5 +1,29 @@
 ﻿# Policy 管理历史
 
+## 2026-03-31 13:05:00 +09:00
+
+### 本次目标
+
+推进 `4.5.18 Policy Explain`，为 `CheckPermissionWithContext` 增加可机读的策略解释输出。
+
+### 主要改动
+
+- 在鉴权响应中补充 `matchedPolicyId`
+- 新增 `policyExplainEntries`，返回参与本次评估的 policy 条目
+- 每个解释条目当前输出：
+  - policy 基本信息
+  - effect / priority
+  - 是否适用
+  - 是否命中
+  - 原因码
+- 保持 `explainCode` 作为稳定顶层解释码
+- 补齐 `PolicyEngine`、gRPC controller 与相关单测
+
+### 备注
+
+- 当前 Explain 仍是“policy 级解释”，不是 AST 逐节点命中树
+- 更重的 AST Explain 继续后置
+
 ## 2026-03-20 14:25:00 +08:00
 
 ### 本次目标
@@ -201,7 +225,6 @@
 ### 备注
 
 - `4.5.10` 保留为后续分页与过滤增强项
-
 
 
 

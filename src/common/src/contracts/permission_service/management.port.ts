@@ -28,6 +28,8 @@ import {
   ListRoleAccountsRequest,
   GetAccountRoleSelectionRequest,
   AccountRoleSelectionResponse,
+  ListAuditEventsRequest,
+  ListAuditEventsResponse,
   SetAccountRolesRequest,
   ListRoleTemplatesRequest,
   ListRolesResponse,
@@ -66,5 +68,6 @@ export interface PermissionManagementPort {
   getAccountRoleSelection(
     req: GetAccountRoleSelectionRequest
   ): Promise<AccountRoleSelectionResponse>
+  listAuditEvents(req: ListAuditEventsRequest): Promise<ListAuditEventsResponse>
   setAccountRoles(req: SetAccountRolesRequest): Promise<ListRolesResponse>
 }

@@ -13,13 +13,37 @@ import {
 } from '@vben/request';
 import { useAccessStore } from '@vben/stores';
 
-import { ElMessage } from 'element-plus';
+import { message } from 'ant-design-vue';
 
 import { useAuthStore } from '#/store';
 
 import { refreshTokenApi } from './core';
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
+
+// Converts backend and transitional gateway error payloads into user-facing messages.
+function resolveUserFacingErrorMessage(responseData: any, fallbackMessage: string) {
+  const code = `${responseData?.code ?? ''}`;
+  const messageText = `${responseData?.message ?? ''}`;
+  const messageKey = `${responseData?.messageKey ?? ''}`;
+  const originalMessage = `${responseData?.details?.originalMessage ?? ''}`;
+  const originalDetails = `${responseData?.details?.originalDetails ?? ''}`;
+  const combined = `${code} ${messageText} ${messageKey} ${originalMessage} ${originalDetails}`;
+
+  if (/AUTH_INVALID_CREDENTIALS|Invalid credentials|auth\.invalid_credentials/i.test(combined)) {
+    return '账号或密码错误，请检查后重试。';
+  }
+
+  if (/APP_VALIDATION_001|Request validation failed|app\.validation\.failed/i.test(combined)) {
+    return '登录信息格式不正确，请检查后重试。';
+  }
+
+  if (/AUTH_LOGIN_TEMPORARILY_LOCKED|auth\.login_temporarily_locked/i.test(combined)) {
+    return '登录失败次数过多，请稍后再试。';
+  }
+
+  return responseData?.error ?? responseData?.message ?? fallbackMessage;
+}
 
 function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   const client = new RequestClient({
@@ -50,9 +74,17 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
    */
   async function doRefreshToken() {
     const accessStore = useAccessStore();
-    const resp = await refreshTokenApi();
-    const newToken = resp.data;
+    if (!accessStore.refreshToken) {
+      throw new Error('Missing refresh token');
+    }
+    const session = await refreshTokenApi(accessStore.refreshToken);
+    const tokenPayload = session.data;
+    const newToken = tokenPayload?.accessToken;
+    if (!newToken) {
+      throw new Error('Refresh session response is missing access token');
+    }
     accessStore.setAccessToken(newToken);
+    accessStore.setRefreshToken(tokenPayload.refreshToken);
     return newToken;
   }
 
@@ -76,7 +108,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     defaultResponseInterceptor({
       codeField: 'code',
       dataField: 'data',
-      successCode: 0,
+      successCode: (code) => code === 0 || code === 'SYS_000000',
     }),
   );
 
@@ -97,9 +129,9 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
       // 这里可以根据业务进行定制,你可以拿到 error 内的信息进行定制化处理，根据不同的 code 做不同的提示，而不是直接使用 message.error 提示 msg
       // 当前mock接口返回的错误字段是 error 或者 message
       const responseData = error?.response?.data ?? {};
-      const errorMessage = responseData?.error ?? responseData?.message ?? '';
+      const errorMessage = resolveUserFacingErrorMessage(responseData, msg);
       // 如果没有错误信息，则会根据状态码进行提示
-      ElMessage.error(errorMessage || msg);
+      message.error(errorMessage || msg);
     }),
   );
 

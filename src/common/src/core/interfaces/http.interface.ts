@@ -4,6 +4,11 @@ export interface HttpResponse<T = any> {
   messageKey?: string
   data?: T
   details?: any
+  meta?: {
+    traceId?: string
+    requestId?: string
+    timestamp?: string
+  }
 }
 
 export interface HttpRequest<T = any> {
@@ -12,6 +17,11 @@ export interface HttpRequest<T = any> {
   messageKey?: string
   data?: T
   details?: any
+  meta?: {
+    traceId?: string
+    requestId?: string
+    timestamp?: string
+  }
 }
 
 export interface HttpControllerResult<T = unknown> {

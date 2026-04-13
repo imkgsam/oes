@@ -9,7 +9,7 @@
 - `Role` 明确为“系统模板 + 租户实例”模型
 - `Permission` 保持为清晰、稳定的核心权限对象
 - `Policy` 收敛为必须绑定 `permissionCode`
-- `CheckPermission` 与 `CheckPermissionWithContext` 统一为同一决策响应结构
+- `CheckPermission` 与历史兼容 `CheckPermissionWithContext` 统一为同一决策响应结构
 - 增加 `AuditEvent` 与 `DecisionEvent` 基础模型
 
 ## 2. Schema 方向调整
@@ -71,7 +71,7 @@
 当前：
 
 - `CheckPermission` 返回简单布尔结果
-- `CheckPermissionWithContext` 返回 ABAC 决策结果
+- 历史兼容 `CheckPermissionWithContext` 返回 ABAC 决策结果
 
 目标：
 
@@ -86,6 +86,12 @@
 
 - 旧调用方如果仍依赖 `pass` 字段，需要同步升级
 - 网关和子服务升级时，可先只读取 `allowed`
+
+当前架构说明：
+
+- `CheckPermissionWithContext` 已不作为新业务资源授权标准入口
+- 新业务单资源授权应使用 application 层 `checkResource`
+- 列表 / 搜索 / 分页授权应使用 `buildQueryScope`
 
 ### 3.2 Role 契约
 

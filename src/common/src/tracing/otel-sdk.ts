@@ -1,42 +1,32 @@
 import { NodeSDK } from '@opentelemetry/sdk-node'
 import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node'
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http'
-import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http'
 import { resourceFromAttributes } from '@opentelemetry/resources'
 import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions'
-import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics'
+import { resolveTracingConfig } from './tracing-config'
 
 export function initOtelSdk(serviceName: string) {
-  const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'http://localhost:4318'
+  const config = resolveTracingConfig(serviceName)
+  process.env.OTEL_TRACES_SAMPLER = process.env.OTEL_TRACES_SAMPLER || 'parentbased_traceidratio'
+  process.env.OTEL_TRACES_SAMPLER_ARG = process.env.OTEL_TRACES_SAMPLER_ARG || String(config.sampleRatio)
 
   const traceExporter = new OTLPTraceExporter({
-    url: `${otlpEndpoint}/v1/traces`
-  })
-
-  const metricExporter = new OTLPMetricExporter({
-    url: `${otlpEndpoint}/v1/metrics`
+    url: `${config.otlpEndpoint}/v1/traces`
   })
 
   const resource = resourceFromAttributes({
-    [ATTR_SERVICE_NAME]: serviceName,
-    [ATTR_SERVICE_VERSION]: process.env.npm_package_version || '1.0.0'
-  })
-
-  // metricReader 改用 PeriodicExportingMetricReader
-  const metricReader = new PeriodicExportingMetricReader({
-    exporter: metricExporter,
-    exportIntervalMillis: 10000
+    [ATTR_SERVICE_NAME]: config.serviceName,
+    [ATTR_SERVICE_VERSION]: config.serviceVersion
   })
 
   const sdk = new NodeSDK({
     resource,
     traceExporter,
-    metricReader,
     instrumentations: [
       getNodeAutoInstrumentations({
         '@opentelemetry/instrumentation-http': {
           ignoreIncomingRequestHook: (request) => {
-            return ['/health', '/metrics'].includes(request.url ?? '')
+            return config.ignoreIncomingPaths.includes(request.url ?? '')
           }
         },
         '@opentelemetry/instrumentation-fs': {

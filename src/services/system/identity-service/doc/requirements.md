@@ -6,9 +6,9 @@
 
 `identity-service` 默认继承并严格遵循以下规范：
 
-- [requirements.md](../../../../../doc/standards/requirements.md)
-- [doc-architecture-requirements.md](../../../../../doc/standards/doc-architecture-requirements.md)
-- [microservice-architecture-reuse-guide.md](../../../../../doc/standards/microservice-architecture-reuse-guide.md)
+- [AGENTS.md](../../../../../AGENTS.md)
+- [docs/architecture/05-governance.md](../../../../../docs/architecture/05-governance.md)
+- [docs/governance/codex-threading-rules.md](../../../../../docs/governance/codex-threading-rules.md)
 
 ## 本服务额外约束
 

@@ -99,9 +99,9 @@
 
 ## 关联规范
 
-- 仓库级文档规范：[doc-architecture-requirements.md](../../../../../doc/standards/doc-architecture-requirements.md)
-- 服务架构复用规范：[microservice-architecture-reuse-guide.md](../../../../../doc/standards/microservice-architecture-reuse-guide.md)
-- 执行约束规范：[requirements.md](../../../../../doc/standards/requirements.md)
+- 仓库级协作与架构约束：[AGENTS.md](../../../../../AGENTS.md)
+- 项目级治理规则：[docs/architecture/05-governance.md](../../../../../docs/architecture/05-governance.md)
+- 多线程协作规则：[docs/governance/codex-threading-rules.md](../../../../../docs/governance/codex-threading-rules.md)
 
 ## 当前有效主文档
 

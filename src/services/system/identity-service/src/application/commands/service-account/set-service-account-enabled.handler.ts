@@ -1,6 +1,7 @@
 import { Inject } from '@nestjs/common'
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { ExceptionFactory } from '@oes/common/exceptions'
+import { CheckResourceService } from '../../authorization'
 import {
   IDENTITY_SERVICE_ACCOUNT_NOT_FOUND,
   MACHINE_PRINCIPAL_STATUSES,
@@ -16,7 +17,8 @@ export class SetServiceAccountEnabledHandler
 {
   constructor(
     @Inject(SYMBOLS.REPO.SERVICE_ACCOUNT)
-    private readonly serviceAccountRepository: ServiceAccountRepository
+    private readonly serviceAccountRepository: ServiceAccountRepository,
+    private readonly checkResourceService: CheckResourceService
   ) {}
 
   async execute(command: SetServiceAccountEnabledCommand): Promise<ServiceAccountEntity> {
@@ -26,6 +28,11 @@ export class SetServiceAccountEnabledHandler
         serviceAccountId: command.serviceAccountId
       })
     }
+
+    this.checkResourceService.checkServiceAccount(command.operatorScope, {
+      resourceId: serviceAccount.id,
+      tenantId: serviceAccount.tenantId
+    })
 
     return this.serviceAccountRepository.setStatus({
       serviceAccountId: command.serviceAccountId,

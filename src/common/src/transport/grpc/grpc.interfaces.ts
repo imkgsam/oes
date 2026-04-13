@@ -15,8 +15,8 @@ export interface GrpcServiceConfig {
   /** Unique service name used for discovery and injection (e.g., 'permission-service') */
   serviceName: string
 
-  /** Path to the .proto file relative to the project root */
-  protoPath: string
+  /** Path to one or more .proto files relative to the project root */
+  protoPath: string | string[]
 
   /** Protobuf package name as defined in the .proto file */
   packageName: string

@@ -3,9 +3,11 @@ import { PolicyEffect } from '../enums/policy-effect.enum'
 import { PolicySubjectType } from '../enums/policy-subject-type.enum'
 import { EvaluationContext } from './evaluation-context'
 import {
-  evaluatePolicyConditionAst,
+  buildInvalidPolicyConditionExplainTree,
+  evaluatePolicyConditionAstWithExplain,
   parsePolicyConditionAstJson
 } from './policy-condition-ast'
+import type { PolicyConditionExplainNode } from './policy-condition-ast'
 
 export interface AuthzRequest {
   accountId: string
@@ -20,8 +22,22 @@ export interface AuthzRequest {
 export interface AuthzDecision {
   allowed: boolean
   matchedPolicy?: string
+  matchedPolicyId?: string
   reason?: string
   evaluationMode?: 'RBAC' | 'RBAC_ABAC'
+  explainCode?: string
+  policyExplainEntries?: PolicyExplainEntry[]
+}
+
+export interface PolicyExplainEntry {
+  policyId: string
+  policyName: string
+  effect: 'ALLOW' | 'DENY'
+  priority: number
+  applicable: boolean
+  matched: boolean
+  reasonCode: string
+  conditionExplainTree?: PolicyConditionExplainNode
 }
 
 /**
@@ -38,100 +54,168 @@ export class PolicyEngine {
       return {
         allowed: true,
         reason: 'No enabled policies, RBAC allow',
-        evaluationMode: 'RBAC'
+        evaluationMode: 'RBAC',
+        explainCode: 'RBAC_POLICY_BYPASS_NO_ENABLED_POLICY',
+        policyExplainEntries: []
       }
     }
 
-    const applicable = policies.filter((policy) => policy.isEnabled && this.isApplicable(policy, request))
+    const sorted = [...policies].sort((a, b) => b.priority - a.priority)
+    const explainEntries: PolicyExplainEntry[] = sorted.map((policy) =>
+      this.buildExplainEntry(policy, request)
+    )
+    const applicable = explainEntries.filter((entry) => entry.applicable)
 
     if (applicable.length === 0) {
       return {
         allowed: false,
         reason: 'Policies exist but none matched target scope',
-        evaluationMode: 'RBAC_ABAC'
+        evaluationMode: 'RBAC_ABAC',
+        explainCode: 'POLICY_SCOPE_NOT_MATCHED',
+        policyExplainEntries: explainEntries
       }
     }
 
-    const sorted = [...applicable].sort((a, b) => b.priority - a.priority)
-    const denyPolicies = sorted.filter((policy) => policy.effect === PolicyEffect.DENY)
-    const allowPolicies = sorted.filter((policy) => policy.effect === PolicyEffect.ALLOW)
+    const denyEntries = applicable.filter((entry) => entry.effect === 'DENY')
+    const allowEntries = applicable.filter((entry) => entry.effect === 'ALLOW')
 
-    const ctx: EvaluationContext = {
-      subject: request.subject,
-      resource: request.resource,
-      environment: request.environment,
-      action: request.action
-    }
-
-    for (const policy of denyPolicies) {
-      if (this.evaluatePolicy(policy, ctx)) {
+    for (const entry of denyEntries) {
+      if (entry.matched) {
         return {
           allowed: false,
-          matchedPolicy: policy.name,
-          reason: `Denied by policy "${policy.name}"`,
-          evaluationMode: 'RBAC_ABAC'
+          matchedPolicy: entry.policyName,
+          matchedPolicyId: entry.policyId,
+          reason: `Denied by policy "${entry.policyName}"`,
+          evaluationMode: 'RBAC_ABAC',
+          explainCode: 'POLICY_DENY_MATCHED',
+          policyExplainEntries: explainEntries
         }
       }
     }
 
-    if (allowPolicies.length === 0) {
+    if (allowEntries.length === 0) {
       return {
         allowed: false,
         reason: 'Policies exist but no ALLOW policy is configured',
-        evaluationMode: 'RBAC_ABAC'
+        evaluationMode: 'RBAC_ABAC',
+        explainCode: 'POLICY_NO_ALLOW_CONFIGURED',
+        policyExplainEntries: explainEntries
       }
     }
 
-    const matchedPolicy = allowPolicies.find((policy) => this.evaluatePolicy(policy, ctx))
+    const matchedPolicy = allowEntries.find((entry) => entry.matched)
     if (matchedPolicy) {
       return {
         allowed: true,
-        matchedPolicy: matchedPolicy.name,
-        reason: `Allowed by policy "${matchedPolicy.name}"`,
-        evaluationMode: 'RBAC_ABAC'
+        matchedPolicy: matchedPolicy.policyName,
+        matchedPolicyId: matchedPolicy.policyId,
+        reason: `Allowed by policy "${matchedPolicy.policyName}"`,
+        evaluationMode: 'RBAC_ABAC',
+        explainCode: 'POLICY_ALLOW_MATCHED',
+        policyExplainEntries: explainEntries
       }
     }
 
     return {
       allowed: false,
       reason: 'No ALLOW policy matched',
-      evaluationMode: 'RBAC_ABAC'
+      evaluationMode: 'RBAC_ABAC',
+      explainCode: 'POLICY_NO_ALLOW_MATCHED',
+      policyExplainEntries: explainEntries
     }
   }
 
-  private isApplicable(policy: Policy, request: AuthzRequest): boolean {
+  private buildExplainEntry(policy: Policy, request: AuthzRequest): PolicyExplainEntry {
+    const applicability = this.determineApplicability(policy, request)
+    const evaluationContext = {
+      subject: request.subject,
+      resource: request.resource,
+      environment: request.environment,
+      action: request.action
+    }
+    const policyEvaluation = applicability.applicable
+      ? this.evaluatePolicy(policy, evaluationContext)
+      : { matched: false, explainTree: undefined }
+
+    return {
+      policyId: policy.id,
+      policyName: policy.name,
+      effect: policy.effect === PolicyEffect.ALLOW ? 'ALLOW' : 'DENY',
+      priority: policy.priority,
+      applicable: applicability.applicable,
+      matched: policyEvaluation.matched,
+      reasonCode: !applicability.applicable
+        ? applicability.reasonCode
+        : policyEvaluation.matched
+          ? policy.effect === PolicyEffect.DENY
+            ? 'DENY_POLICY_MATCHED'
+            : 'ALLOW_POLICY_MATCHED'
+          : 'CONDITION_NOT_MATCHED',
+      conditionExplainTree: policyEvaluation.explainTree
+    }
+  }
+
+  private determineApplicability(
+    policy: Policy,
+    request: AuthzRequest
+  ): { applicable: boolean; reasonCode: string } {
     const resourceType = request.resource?.resource_type ?? request.resource?.type
-    if (policy.tenantId != null && policy.tenantId !== request.tenantId) return false
-    if (policy.permissionCode !== request.permissionCode) return false
-    if (policy.resourceType != null && policy.resourceType !== resourceType) return false
+    if (policy.tenantId != null && policy.tenantId !== request.tenantId) {
+      return { applicable: false, reasonCode: 'TENANT_SCOPE_MISMATCH' }
+    }
+    if (policy.permissionCode !== request.permissionCode) {
+      return { applicable: false, reasonCode: 'PERMISSION_CODE_MISMATCH' }
+    }
+    if (policy.resourceType != null && policy.resourceType !== resourceType) {
+      return { applicable: false, reasonCode: 'RESOURCE_TYPE_MISMATCH' }
+    }
 
     switch (policy.subjectType) {
       case PolicySubjectType.ANY:
-        return true
+        return { applicable: true, reasonCode: 'SUBJECT_ANY' }
       case PolicySubjectType.ROLE: {
         const roleCodes = request.subject.role_codes ?? request.subject.roleCodes
-        if (Array.isArray(roleCodes)) return roleCodes.includes(policy.subjectId)
+        if (Array.isArray(roleCodes)) {
+          return {
+            applicable: roleCodes.includes(policy.subjectId),
+            reasonCode: roleCodes.includes(policy.subjectId) ? 'ROLE_MATCHED' : 'ROLE_NOT_MATCHED'
+          }
+        }
 
         const roleCode = request.subject.role_code ?? request.subject.roleCode
-        return roleCode === policy.subjectId
+        return {
+          applicable: roleCode === policy.subjectId,
+          reasonCode: roleCode === policy.subjectId ? 'ROLE_MATCHED' : 'ROLE_NOT_MATCHED'
+        }
       }
       case PolicySubjectType.ACCOUNT:
-        return request.accountId === policy.subjectId
+        return {
+          applicable: request.accountId === policy.subjectId,
+          reasonCode: request.accountId === policy.subjectId ? 'ACCOUNT_MATCHED' : 'ACCOUNT_NOT_MATCHED'
+        }
       default:
-        return false
+        return { applicable: false, reasonCode: 'UNSUPPORTED_SUBJECT_TYPE' }
     }
   }
 
-  private evaluatePolicy(policy: Policy, ctx: EvaluationContext): boolean {
+  private evaluatePolicy(
+    policy: Policy,
+    ctx: EvaluationContext
+  ): { matched: boolean; explainTree?: PolicyConditionExplainNode } {
     if (policy.conditionAstJson) {
       try {
         const ast = parsePolicyConditionAstJson(policy.conditionAstJson)
-        return evaluatePolicyConditionAst(ast, ctx)
+        return evaluatePolicyConditionAstWithExplain(ast, ctx)
       } catch {
-        return false
+        return {
+          matched: false,
+          explainTree: buildInvalidPolicyConditionExplainTree('INVALID_CONDITION_AST')
+        }
       }
     }
 
-    return true
+    return {
+      matched: true
+    }
   }
 }

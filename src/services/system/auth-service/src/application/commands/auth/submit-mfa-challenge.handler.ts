@@ -5,9 +5,9 @@ import { ExceptionFactory } from '@oes/common/exceptions'
 import {
   AccountCandidateSummary,
   IIdentityServicePort
-} from 'src/application/ports/identity-service.port'
-import { MfaChallengeVerificationService } from 'src/application/services/mfa/mfa-challenge-verification.service'
-import { AUTH_NO_AVAILABLE_ACCOUNT, AUTH_OTP_INVALID } from 'src/common/constants/exception-enums'
+} from '../../ports/identity-service.port'
+import { MfaChallengeVerificationService } from '../../services/mfa/mfa-challenge-verification.service'
+import { AUTH_NO_AVAILABLE_ACCOUNT, AUTH_OTP_INVALID } from '../../../common/constants/exception-enums'
 import { SubmitMfaChallengeCommand } from './submit-mfa-challenge.command'
 
 export interface SubmitMfaChallengeResult {

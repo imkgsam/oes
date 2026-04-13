@@ -3,7 +3,7 @@ import { h } from 'vue';
 
 import { Page, useVbenDrawer } from '@vben/common-ui';
 
-import { ElButton, ElCard, ElCheckbox, ElMessage } from 'element-plus';
+import { Button, Card, Checkbox, message } from 'ant-design-vue';
 
 import { useVbenForm } from '#/adapter/form';
 import { getAllMenusApi } from '#/api';
@@ -19,7 +19,7 @@ const [Form, formApi] = useVbenForm({
   // 大屏一行显示3个，中屏一行显示2个，小屏一行显示1个
   // wrapperClass: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
   handleSubmit: (values) => {
-    ElMessage.success(`表单数据：${JSON.stringify(values)}`);
+    message.success(`表单数据：${JSON.stringify(values)}`);
   },
   schema: [
     {
@@ -115,7 +115,7 @@ const [Form, formApi] = useVbenForm({
         return {
           default: () => {
             return ['A', 'B', 'C', 'D'].map((v) =>
-              h(ElCheckbox, { label: v, value: v }),
+              h(Checkbox, { value: v }, () => v),
             );
           },
         };
@@ -178,14 +178,14 @@ function setFormValues() {
     <Drawer class="w-150" title="基础表单示例">
       <Form />
     </Drawer>
-    <ElCard>
-      <template #header>
+    <Card>
+      <template #title>
         <div class="flex items-center">
           <span class="flex-auto">基础表单演示</span>
-          <ElButton type="primary" @click="setFormValues">设置表单值</ElButton>
+          <Button type="primary" @click="setFormValues">设置表单值</Button>
         </div>
       </template>
-      <ElButton type="primary" @click="drawerApi.open"> 打开抽屉 </ElButton>
-    </ElCard>
+      <Button type="primary" @click="drawerApi.open"> 打开抽屉 </Button>
+    </Card>
   </Page>
 </template>

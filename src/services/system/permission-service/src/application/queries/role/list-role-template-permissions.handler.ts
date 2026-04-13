@@ -1,6 +1,10 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { ExceptionFactory } from '@oes/common/exceptions'
+import {
+  AuthorizationQueryScopeService,
+  SystemQueryScope
+} from '../../authorization'
 import { ListRoleTemplatePermissionsQuery } from './list-role-template-permissions.query'
 import { Permission } from '../../../domain/aggregates/permission.aggregate'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
@@ -14,10 +18,17 @@ export class ListRoleTemplatePermissionsHandler
 {
   constructor(
     @Inject(SYMBOLS.REPO.ROLE)
-    private readonly roleRepo: RoleRepository
+    private readonly roleRepo: RoleRepository,
+    private readonly authorizationQueryScopeService: AuthorizationQueryScopeService
   ) {}
 
   async execute(query: ListRoleTemplatePermissionsQuery): Promise<Permission[]> {
+    this.authorizationQueryScopeService.build<SystemQueryScope>({
+      resource: 'role_template_permission',
+      action: 'list',
+      operatorScope: query.operatorScope
+    })
+
     const role = await this.roleRepo.findById(query.roleTemplateId)
     if (!role || role.kind !== RoleKind.SYSTEM_TEMPLATE) {
       throw ExceptionFactory.domain(ROLE_TEMPLATE_NOT_FOUND)

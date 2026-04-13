@@ -1,7 +1,9 @@
 import { ExceptionFactory } from '@oes/common/exceptions'
 import {
+  CONTACT_ASSET_TYPES,
   CONTACT_ASSET_STATUSES,
   IDENTITY_ACCOUNT_CONTACT_ASSET_NOT_FOUND,
+  IDENTITY_CONTACT_ASSET_TYPE_MISMATCH,
   IDENTITY_DISABLED_CONTACT_ASSET_CANNOT_BE_PRIMARY,
   IDENTITY_REVOKED_CONTACT_ASSET_CANNOT_BE_MODIFIED
 } from '../../../common/constants'
@@ -35,6 +37,20 @@ export function assertContactAssetCanBePrimary(asset: AccountContactAssetEntity)
   if (asset.status !== CONTACT_ASSET_STATUSES.ACTIVE) {
     throw ExceptionFactory.domain(IDENTITY_DISABLED_CONTACT_ASSET_CANNOT_BE_PRIMARY, {
       assetId: asset.id
+    })
+  }
+}
+
+export function assertContactAssetType(
+  asset: AccountContactAssetEntity,
+  expectedType: string
+): void {
+  if (asset.type !== expectedType) {
+    throw ExceptionFactory.domain(IDENTITY_CONTACT_ASSET_TYPE_MISMATCH, {
+      assetId: asset.id,
+      actualType: asset.type,
+      expectedType,
+      supportedTypes: Object.values(CONTACT_ASSET_TYPES)
     })
   }
 }

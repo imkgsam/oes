@@ -11,7 +11,9 @@ option java_package = "com.oes.permission.v1";
 service PermissionCheckService {
   // 纯 RBAC 鉴权
   rpc CheckPermission(CheckPermissionRequest) returns (AuthorizationDecisionResponse);
-  // RBAC + ABAC 混合鉴权
+  // 纯 RBAC 批量鉴权
+  rpc BatchCheckPermission(BatchCheckPermissionRequest) returns (BatchAuthorizationDecisionResponse);
+  // OUTDATED: 历史 RBAC + ABAC 混合鉴权兼容接口；新业务资源授权应使用 application 层 checkResource / buildQueryScope。
   rpc CheckPermissionWithContext(CheckPermissionWithContextRequest)
       returns (AuthorizationDecisionResponse);
 }
@@ -20,6 +22,12 @@ enum EvaluationModeProto {
   EVALUATION_MODE_PROTO_UNSPECIFIED = 0;
   EVALUATION_MODE_PROTO_RBAC = 1;
   EVALUATION_MODE_PROTO_RBAC_ABAC = 2;
+}
+
+enum PolicyEffectExplainProto {
+  POLICY_EFFECT_EXPLAIN_PROTO_UNSPECIFIED = 0;
+  POLICY_EFFECT_EXPLAIN_PROTO_ALLOW = 1;
+  POLICY_EFFECT_EXPLAIN_PROTO_DENY = 2;
 }
 
 // 纯 RBAC 鉴权请求
@@ -32,7 +40,24 @@ message CheckPermissionRequest {
   string tenant_id = 3;
 }
 
-// RBAC + ABAC 混合鉴权请求
+// 纯 RBAC 批量鉴权单项
+message BatchCheckPermissionItem {
+  // 调用方自带回显标识
+  string request_id = 1;
+  // 账户ID
+  string account_id = 2;
+  // 权限代码
+  string permission_code = 3;
+  // 租户ID（可选）
+  string tenant_id = 4;
+}
+
+// 纯 RBAC 批量鉴权请求
+message BatchCheckPermissionRequest {
+  repeated BatchCheckPermissionItem items = 1;
+}
+
+// OUTDATED: 历史 RBAC + ABAC 混合鉴权请求；不作为新业务资源授权标准入口。
 message CheckPermissionWithContextRequest {
   // 账户ID
   string account_id = 1;
@@ -60,4 +85,55 @@ message AuthorizationDecisionResponse {
   string matched_policy = 3;
   // 决策原因
   string reason = 4;
+  // 稳定的机器可读解释码
+  string explain_code = 5;
+  // 命中的策略ID
+  string matched_policy_id = 6;
+  // 参与本次评估的策略解释条目
+  repeated PolicyExplainEntry policy_explain_entries = 7;
+}
+
+// 批量鉴权单项决策
+message BatchAuthorizationDecisionItem {
+  // 调用方回显标识
+  string request_id = 1;
+  // 是否允许
+  bool allowed = 2;
+  // 决策评估层级
+  EvaluationModeProto evaluation_mode = 3;
+  // 命中的策略名称
+  string matched_policy = 4;
+  // 决策原因
+  string reason = 5;
+  // 稳定的机器可读解释码
+  string explain_code = 6;
+}
+
+// 批量鉴权响应
+message BatchAuthorizationDecisionResponse {
+  repeated BatchAuthorizationDecisionItem decisions = 1;
+}
+
+message PolicyExplainEntry {
+  string policy_id = 1;
+  string policy_name = 2;
+  PolicyEffectExplainProto effect = 3;
+  int32 priority = 4;
+  bool applicable = 5;
+  bool matched = 6;
+  string reason_code = 7;
+  PolicyConditionExplainNode condition_explain_tree = 8;
+}
+
+message PolicyConditionExplainNode {
+  string node_type = 1;
+  string path = 2;
+  bool matched = 3;
+  string reason_code = 4;
+  string source = 5;
+  string key = 6;
+  string operator = 7;
+  string actual_value_json = 8;
+  string expected_value_json = 9;
+  repeated PolicyConditionExplainNode children = 10;
 }

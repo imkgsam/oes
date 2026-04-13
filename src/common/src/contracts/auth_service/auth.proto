@@ -6,19 +6,26 @@ option java_multiple_files = true;
 option java_package = "com.oes.auth.v1";
 
 service AuthService {
+  rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
   rpc LoginWithEmailPassword(EmailPasswordLoginRequest) returns (LoginResponse);
   rpc RequestEmailOtpLoginChallenge(EmailOtpChallengeRequest) returns (OtpChallengeResponse);
   rpc LoginWithEmailOtp(EmailOtpLoginRequest) returns (LoginResponse);
   rpc LoginWithPhonePassword(PhonePasswordLoginRequest) returns (LoginResponse);
   rpc RequestPhoneOtpLoginChallenge(PhoneOtpChallengeRequest) returns (OtpChallengeResponse);
   rpc LoginWithPhoneOtp(PhoneOtpLoginRequest) returns (LoginResponse);
+  rpc ListMfaBindings(ListMfaBindingsRequest) returns (ListMfaBindingsResponse);
+  rpc EnableMfaBinding(EnableMfaBindingRequest) returns (MfaBindingMutationResponse);
+  rpc DisableMfaBinding(DisableMfaBindingRequest) returns (MfaBindingMutationResponse);
+  rpc InitializeTotpBinding(InitializeTotpBindingRequest) returns (InitializeTotpBindingResponse);
+  rpc ActivateTotpBinding(ActivateTotpBindingRequest) returns (MfaBindingMutationResponse);
+  rpc InitializeRecoveryCodes(InitializeRecoveryCodesRequest) returns (RecoveryCodesResponse);
+  rpc RegenerateRecoveryCodes(RegenerateRecoveryCodesRequest) returns (RecoveryCodesResponse);
   rpc SubmitMfaChallenge(SubmitMfaChallengeRequest) returns (LoginResponse);
   rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse);
   rpc SelectAccount(SelectAccountRequest) returns (SelectAccountResponse);
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
   rpc AdminListUserSessions(AdminListUserSessionsRequest) returns (AdminListUserSessionsResponse);
   rpc AdminRevokeSession(AdminRevokeSessionRequest) returns (AdminRevokeSessionResponse);
-  rpc RenameSessionDevice(RenameSessionDeviceRequest) returns (RenameSessionDeviceResponse);
   rpc Logout(LogoutRequest) returns (LogoutResponse);
   rpc LogoutOtherDevices(LogoutOtherDevicesRequest) returns (LogoutOtherDevicesResponse);
   rpc LogoutAll(LogoutAllRequest) returns (LogoutAllResponse);
@@ -58,6 +65,75 @@ message PhoneOtpLoginRequest {
   string otp = 2;
 }
 
+enum MfaBindingType {
+  MFA_BINDING_TYPE_UNSPECIFIED = 0;
+  MFA_BINDING_TYPE_EMAIL_OTP = 1;
+  MFA_BINDING_TYPE_SMS_OTP = 2;
+  MFA_BINDING_TYPE_TOTP = 3;
+  MFA_BINDING_TYPE_BACKUP_CODE = 4;
+}
+
+message ListMfaBindingsRequest {
+  string user_id = 1;
+}
+
+message MfaBindingView {
+  string binding_id = 1;
+  MfaBindingType type = 2;
+  bool enabled = 3;
+  bool available = 4;
+  string destination = 5;
+  string updated_at = 6;
+}
+
+message ListMfaBindingsResponse {
+  repeated MfaBindingView bindings = 1;
+}
+
+message EnableMfaBindingRequest {
+  string user_id = 1;
+  MfaBindingType type = 2;
+}
+
+message DisableMfaBindingRequest {
+  string user_id = 1;
+  MfaBindingType type = 2;
+}
+
+message MfaBindingMutationResponse {
+  bool success = 1;
+  MfaBindingView binding = 2;
+}
+
+message InitializeTotpBindingRequest {
+  string user_id = 1;
+}
+
+message InitializeTotpBindingResponse {
+  MfaBindingView binding = 1;
+  string secret = 2;
+  string qr_code_url = 3;
+}
+
+message ActivateTotpBindingRequest {
+  string user_id = 1;
+  string binding_id = 2;
+  string code = 3;
+}
+
+message InitializeRecoveryCodesRequest {
+  string user_id = 1;
+}
+
+message RegenerateRecoveryCodesRequest {
+  string user_id = 1;
+}
+
+message RecoveryCodesResponse {
+  MfaBindingView binding = 1;
+  repeated string recovery_codes = 2;
+}
+
 enum LoginStatus {
   LOGIN_STATUS_UNSPECIFIED = 0;
   LOGIN_STATUS_SUCCESS = 1;
@@ -70,12 +146,17 @@ message AccountCandidate {
   string account_id = 1;
   string tenant_id = 2;
   string display_name = 3;
+  string scope_level = 4;
 }
 
 message SelectAccountRequest {
   string user_id = 1;
   string account_id = 2;
   string login_method = 3;
+  string device_id = 4;
+  string device_name = 5;
+  string user_agent = 6;
+  string ip_address = 7;
 }
 
 message SubmitMfaChallengeRequest {
@@ -106,16 +187,26 @@ message SessionView {
   string account_id = 3;
   string tenant_id = 4;
   string status = 5;
-  string device_id = 6;
-  string device_name = 7;
-  string user_agent = 8;
-  string ip_address = 9;
-  string created_at = 10;
-  string last_active_at = 11;
-  string expires_at = 12;
-  string refresh_expires_at = 13;
-  bool is_current = 14;
-  bool is_admin_controlled = 15;
+  string login_method = 6;
+  string device_id = 7;
+  string device_name = 8;
+  string user_agent = 9;
+  string ip_address = 10;
+  string created_at = 11;
+  string last_active_at = 12;
+  string expires_at = 13;
+  string refresh_expires_at = 14;
+  bool is_current = 15;
+  bool is_admin_controlled = 16;
+  string platform = 17;
+  string browser = 18;
+  int64 access_remaining_seconds = 19;
+  int64 refresh_remaining_seconds = 20;
+  int64 session_age_seconds = 21;
+  int64 idle_seconds = 22;
+  bool is_access_expired = 23;
+  bool is_refresh_expired = 24;
+  bool is_revoked = 25;
 }
 
 message ListSessionsResponse {
@@ -132,18 +223,28 @@ message AdminSessionView {
   string account_id = 3;
   string tenant_id = 4;
   string status = 5;
-  string device_id = 6;
-  string device_name = 7;
-  string user_agent = 8;
-  string ip_address = 9;
-  string created_at = 10;
-  string last_active_at = 11;
-  string expires_at = 12;
-  string refresh_expires_at = 13;
-  bool is_admin_controlled = 14;
-  string admin_revoke_reason = 15;
-  string admin_revoke_at = 16;
-  string admin_revoke_by = 17;
+  string login_method = 6;
+  string device_id = 7;
+  string device_name = 8;
+  string user_agent = 9;
+  string ip_address = 10;
+  string created_at = 11;
+  string last_active_at = 12;
+  string expires_at = 13;
+  string refresh_expires_at = 14;
+  bool is_admin_controlled = 15;
+  string admin_revoke_reason = 16;
+  string admin_revoke_at = 17;
+  string admin_revoke_by = 18;
+  string platform = 19;
+  string browser = 20;
+  int64 access_remaining_seconds = 21;
+  int64 refresh_remaining_seconds = 22;
+  int64 session_age_seconds = 23;
+  int64 idle_seconds = 24;
+  bool is_access_expired = 25;
+  bool is_refresh_expired = 26;
+  bool is_revoked = 27;
 }
 
 message AdminListUserSessionsResponse {
@@ -158,18 +259,6 @@ message AdminRevokeSessionRequest {
 message AdminRevokeSessionResponse {
   bool success = 1;
   string session_id = 2;
-}
-
-message RenameSessionDeviceRequest {
-  string user_id = 1;
-  string session_id = 2;
-  string device_name = 3;
-}
-
-message RenameSessionDeviceResponse {
-  bool success = 1;
-  string session_id = 2;
-  string device_name = 3;
 }
 
 message LogoutRequest {
@@ -199,6 +288,44 @@ message LogoutAllResponse {
   int64 session_count = 2;
 }
 
+message ListAuditEventsRequest {
+  string service = 1;
+  string module = 2;
+  string event_type = 3;
+  string result = 4;
+  string operator_id = 5;
+  string tenant_id = 6;
+  string org_id = 7;
+  string resource_type = 8;
+  string resource_id = 9;
+  string occurred_at_from = 10;
+  string occurred_at_to = 11;
+  string cursor = 12;
+  int32 page_size = 13;
+}
+
+message AuditEventRecord {
+  string event_id = 1;
+  string service = 2;
+  string module = 3;
+  string event_type = 4;
+  string occurred_at = 5;
+  string result = 6;
+  string operator_id = 7;
+  string operator_type = 8;
+  string tenant_id = 9;
+  string org_id = 10;
+  string trace_id = 11;
+  string resource_type = 12;
+  string resource_id = 13;
+  string details_json = 14;
+}
+
+message ListAuditEventsResponse {
+  repeated AuditEventRecord items = 1;
+  string next_cursor = 2;
+}
+
 message SelectAccountResponse {
   LoginStatus status = 1;
   string user_id = 2;
@@ -210,6 +337,7 @@ message SelectAccountResponse {
   string refresh_token = 8;
   int64 expires_in = 9;
   string next_step = 10;
+  string scope_level = 11;
 }
 
 message LoginResponse {

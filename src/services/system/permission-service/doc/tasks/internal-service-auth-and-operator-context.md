@@ -1,10 +1,11 @@
 # Permission Service 对接内部服务认证与操作者上下文
 
-更新时间：2026-03-22 12:20:00 +08:00
+更新时间：2026-03-31 11:40:00 +09:00
 
 ## 上游主文档
 
-- [../../../../../../doc/cross-service/internal-service-auth-and-operator-context.md](../../../../../../doc/cross-service/internal-service-auth-and-operator-context.md)
+- [../../../../../../docs/architecture/14-grpc-metadata-and-service-trust-architecture.md](../../../../../../docs/architecture/14-grpc-metadata-and-service-trust-architecture.md)
+- [../../../../../../docs/architecture/15-authorization-layering-and-resource-policy-architecture.md](../../../../../../docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
 - [../design/authorization.md](../design/authorization.md)
 
 本文件不重复描述跨服务功能的总设计，也不替代本服务的设计承接文档；它只记录 `permission-service` 需要承接的实现分片、状态和验收要求。
@@ -20,10 +21,10 @@
 
 | 分片 | 状态 | 说明 |
 |---|---|---|
-| `SLICE-04` | 部分实现 | 已为现有 3 个开放 gRPC controller 接入 `InternalServiceGuard`；待结合真实调用链补充运行验收 |
-| `SLICE-05` | 部分实现 | 已为 `permission-management` 与 `policy-management` controller 接入 `RequireAuthenticatedOperator()` 和 `AuthenticatedOperatorGuard`；待结合 gateway 转发链路补充运行验收 |
-| `SLICE-06` | 部分实现 | 已为管理接口接入基于 permission code 的 `ManagementAuthorizationGuard`；租户一致性与模板/实例边界仍待后续收口 |
-| `SLICE-07` | 部分实现 | 已补齐 `AssignAccountRole` 的租户实例角色约束；其余管理边界仍待继续收口 |
+| `SLICE-04` | 已实现 | 现有 3 个开放 gRPC controller 已接入 `InternalServiceGuard`；真实调用链验收后置 |
+| `SLICE-05` | 已实现 | `permission-management` 与 `policy-management` controller 已接入 `RequireAuthenticatedOperator()` 和 `AuthenticatedOperatorGuard`；真实 gateway 转发链路验收后置 |
+| `SLICE-06` | 已实现 | 管理接口已接入基于 permission code 的 `ManagementAuthorizationGuard` |
+| `SLICE-07` | 已实现（服务内范围） | 模板/实例入口、租户实例分配、禁用角色分配约束和当前服务内可闭环的边界已收口；上游 `operator_roles` 能力后置 |
 
 ## 实施顺序
 
@@ -46,16 +47,16 @@
 - [../design/role-management.md](../design/role-management.md)
 - [../design/account-role-management.md](../design/account-role-management.md)
 - [../history/authorization.history.md](../history/authorization.history.md)
-## 0. 当前暂停点（2026-03-23）
+## 0. 当前暂停点（2026-03-31）
 
 当前 `permission-service` 承接进度：
 
 | 分片 | 状态 | 补充说明 |
 |---|---|---|
-| `SLICE-04` | 部分实现 | 已接入 `InternalServiceGuard`，编译通过 |
-| `SLICE-05` | 部分实现 | 已接入 `RequireAuthenticatedOperator()` + `AuthenticatedOperatorGuard` |
-| `SLICE-06` | 部分实现 | 已接入 `ManagementAuthorizationGuard`，并改成接口显式声明所需 permission |
-| `SLICE-07` | 部分实现 | 已补 `AssignAccountRole` 租户实例约束，已收口部分 role template / instance 查询与写入口 |
+| `SLICE-04` | 已实现 | 已接入 `InternalServiceGuard`，并修复根模块安全装配缺口 |
+| `SLICE-05` | 已实现 | 已接入 `RequireAuthenticatedOperator()` + `AuthenticatedOperatorGuard` |
+| `SLICE-06` | 已实现 | 已接入 `ManagementAuthorizationGuard`，并改成接口显式声明所需 permission |
+| `SLICE-07` | 已实现（服务内范围） | 已补模板/实例边界、租户实例分配约束、禁用角色分配约束，以及管理审计/鉴权决策记录 |
 
 当前已经完成的 `SLICE-07` 收口点：
 
@@ -73,3 +74,5 @@
 - 以 `operator_roles` 作为上游声明
 - 在服务内解析成 permission / capability
 - 再据此收口模板 / 全局数据与租户数据边界
+
+这些方向已明确属于后续依赖上游支持的范围，不纳入当前服务内闭环完成态判断。

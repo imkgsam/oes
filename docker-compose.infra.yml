@@ -38,22 +38,69 @@ services:
     restart: unless-stopped
 
   # ============ OpenTelemetry Stack ============
-  # Jaeger v2 - 基于 OpenTelemetry Collector 架构
-  # 直接接收 OTLP 数据，无需单独的 OTel Collector
-  jaeger:
-    image: cr.jaegertracing.io/jaegertracing/jaeger:2.14.1
-    container_name: oes_jaeger
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.137.0
+    container_name: oes_otel_collector
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
     volumes:
-      - ./docker/output/otel/jaeger-v2-config.yaml:/etc/jaeger/config.yaml
-    command: ["--config", "/etc/jaeger/config.yaml"]
+      - ./docker/otel/collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+      - ./docker/output/otel-logs:/var/log/oes
     ports:
-      - "4317:4317" # OTLP gRPC receiver
-      - "4318:4318" # OTLP HTTP receiver
-      - "16686:16686" # Jaeger UI
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - tempo
+      - loki
     networks:
       - oes_network
+    restart: unless-stopped
+
+  tempo:
+    image: grafana/tempo:2.8.2
+    container_name: oes_tempo
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./docker/otel/tempo.yaml:/etc/tempo/tempo.yaml:ro
+    tmpfs:
+      - /tmp/tempo:mode=1777,uid=0,gid=0
+    ports:
+      - "3200:3200"
+    networks:
+      - oes_network
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.5.3
+    container_name: oes_loki
+    command: ["-config.file=/etc/loki/loki.yaml"]
+    volumes:
+      - ./docker/otel/loki.yaml:/etc/loki/loki.yaml:ro
+    tmpfs:
+      - /tmp/loki:mode=1777,uid=0,gid=0
+    ports:
+      - "3100:3100"
+    networks:
+      - oes_network
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.6.2
+    container_name: oes_grafana
     environment:
-      - METRICS_STORAGE_TYPE=prometheus
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+    volumes:
+      - ./docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - tempo
+      - loki
+    networks:
+      - oes_network
     restart: unless-stopped
 
   # ============ Nacos Service Registry ============
@@ -104,6 +151,7 @@ volumes:
   postgres_data:
   redis_data:
   nacos_mysql_data:
+  grafana_data:
 
 networks:
   oes_network:

@@ -1,5 +1,6 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator'
+import { Allow, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator'
+import { OperatorScope } from '../../authorization'
 import {
   MACHINE_PRINCIPAL_SCOPE_LEVEL_VALUES,
   MACHINE_PRINCIPAL_TYPE_VALUES
@@ -28,6 +29,9 @@ export class CreateServiceAccountCommand implements ICommand {
   @IsUUID()
   readonly operatorId: string
 
+  @Allow()
+  readonly operatorScope?: OperatorScope
+
   constructor(input: {
     tenantId?: string
     scopeLevel: string
@@ -35,6 +39,7 @@ export class CreateServiceAccountCommand implements ICommand {
     name: string
     description?: string
     operatorId: string
+    operatorScope?: OperatorScope
   }) {
     this.tenantId = input.tenantId
     this.scopeLevel = input.scopeLevel
@@ -42,5 +47,6 @@ export class CreateServiceAccountCommand implements ICommand {
     this.name = input.name
     this.description = input.description
     this.operatorId = input.operatorId
+    this.operatorScope = input.operatorScope
   }
 }

@@ -7,7 +7,10 @@ option java_package = "com.oes.identity.v1";
 
 service IdentityQueryService {
   rpc GetAccountById(GetAccountByIdRequest) returns (GetAccountByIdResponse);
+  rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
+  rpc GetApiKeyById(GetApiKeyByIdRequest) returns (GetApiKeyByIdResponse);
   rpc GetServiceAccountById(GetServiceAccountByIdRequest) returns (GetServiceAccountByIdResponse);
+  rpc ListApiKeysByServiceAccountId(ListApiKeysByServiceAccountIdRequest) returns (ListApiKeysByServiceAccountIdResponse);
   rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse);
   rpc ListAccountWorkEmailAssets(ListAccountWorkEmailAssetsRequest) returns (ListAccountWorkEmailAssetsResponse);
   rpc ListAccountWorkPhoneAssets(ListAccountWorkPhoneAssetsRequest) returns (ListAccountWorkPhoneAssetsResponse);
@@ -20,8 +23,49 @@ service IdentityQueryService {
   rpc GetAccountsByUserId(GetAccountsByUserIdRequest) returns (GetAccountsByUserIdResponse);
 }
 
+message ListAuditEventsRequest {
+  string service = 1;
+  string module = 2;
+  string event_type = 3;
+  string result = 4;
+  string operator_id = 5;
+  string tenant_id = 6;
+  string org_id = 7;
+  string resource_type = 8;
+  string resource_id = 9;
+  string occurred_at_from = 10;
+  string occurred_at_to = 11;
+  string cursor = 12;
+  int32 page_size = 13;
+}
+
+message AuditEventRecord {
+  string event_id = 1;
+  string service = 2;
+  string module = 3;
+  string event_type = 4;
+  string occurred_at = 5;
+  string result = 6;
+  string operator_id = 7;
+  string operator_type = 8;
+  string tenant_id = 9;
+  string org_id = 10;
+  string trace_id = 11;
+  string resource_type = 12;
+  string resource_id = 13;
+  string details_json = 14;
+}
+
+message ListAuditEventsResponse {
+  repeated AuditEventRecord items = 1;
+  string next_cursor = 2;
+}
+
 service IdentityManagementService {
+  rpc RotateApiKey(RotateApiKeyRequest) returns (RotateApiKeyResponse);
+  rpc CreateApiKey(CreateApiKeyRequest) returns (CreateApiKeyResponse);
   rpc CreateServiceAccount(CreateServiceAccountRequest) returns (ServiceAccountResponse);
+  rpc RevokeApiKey(RevokeApiKeyRequest) returns (ApiKeyResponse);
   rpc SetServiceAccountEnabled(SetServiceAccountEnabledRequest) returns (ServiceAccountResponse);
   rpc AssignAccountWorkEmailAsset(AssignAccountWorkEmailAssetRequest) returns (AccountContactAssetResponse);
   rpc AssignAccountWorkPhoneAsset(AssignAccountWorkPhoneAssetRequest) returns (AccountContactAssetResponse);
@@ -34,6 +78,10 @@ service IdentityManagementService {
   rpc AddAccountOrgMembership(AddAccountOrgMembershipRequest) returns (AccountOrgMembershipResponse);
   rpc RemoveAccountOrgMembership(RemoveAccountOrgMembershipRequest) returns (AccountOrgMembershipResponse);
   rpc SetAccountPrimaryOrg(SetAccountPrimaryOrgRequest) returns (SetAccountPrimaryOrgResponse);
+}
+
+service IdentityMachineAuthService {
+  rpc AuthenticateApiKey(AuthenticateApiKeyRequest) returns (AuthenticateApiKeyResponse);
 }
 
 message GetUserByIdRequest {
@@ -221,6 +269,7 @@ message AccountCandidate {
   string account_id = 1;
   string tenant_id = 2;
   string display_name = 3;
+  string scope_level = 4;
 }
 
 message GetAccountsByUserIdResponse {
@@ -237,10 +286,85 @@ message AccountSummary {
   string tenant_id = 3;
   string display_name = 4;
   bool is_enabled = 5;
+  string scope_level = 6;
 }
 
 message GetAccountByIdResponse {
   AccountSummary account = 1;
+}
+
+message ApiKey {
+  string id = 1;
+  string service_account_id = 2;
+  string key_code = 3;
+  string status = 4;
+  string expires_at = 5;
+  string last_used_at = 6;
+  string created_at = 7;
+  string updated_at = 8;
+  string created_by = 9;
+  string revoked_at = 10;
+  string revoked_by = 11;
+}
+
+message ApiKeyResponse {
+  ApiKey api_key = 1;
+}
+
+message ApiKeyWithSecret {
+  ApiKey api_key = 1;
+  string secret = 2;
+}
+
+message CreateApiKeyRequest {
+  string service_account_id = 1;
+  string expires_at = 2;
+}
+
+message CreateApiKeyResponse {
+  ApiKeyWithSecret api_key = 1;
+}
+
+message RevokeApiKeyRequest {
+  string api_key_id = 1;
+}
+
+message RotateApiKeyRequest {
+  string api_key_id = 1;
+  string expires_at = 2;
+}
+
+message RotateApiKeyResponse {
+  ApiKeyWithSecret api_key = 1;
+}
+
+message AuthenticateApiKeyRequest {
+  string secret = 1;
+}
+
+message MachinePrincipalAuthentication {
+  ApiKey api_key = 1;
+  ServiceAccount account = 2;
+}
+
+message AuthenticateApiKeyResponse {
+  MachinePrincipalAuthentication principal = 1;
+}
+
+message GetApiKeyByIdRequest {
+  string api_key_id = 1;
+}
+
+message GetApiKeyByIdResponse {
+  ApiKey api_key = 1;
+}
+
+message ListApiKeysByServiceAccountIdRequest {
+  string service_account_id = 1;
+}
+
+message ListApiKeysByServiceAccountIdResponse {
+  repeated ApiKey api_keys = 1;
 }
 
 message ServiceAccount {

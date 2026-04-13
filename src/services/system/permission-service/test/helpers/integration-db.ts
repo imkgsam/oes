@@ -14,10 +14,6 @@ function parseEnvValue(raw: string): string {
 }
 
 export function ensureIntegrationDatabaseUrl(): string {
-  if (process.env.DATABASE_URL) {
-    return process.env.DATABASE_URL
-  }
-
   const envPath = resolve(__dirname, '../../.env')
   if (!existsSync(envPath)) {
     throw new Error(`DATABASE_URL is not set and .env was not found at ${envPath}`)

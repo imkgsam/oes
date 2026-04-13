@@ -1,6 +1,6 @@
 {
   "title": "演示",
-  "elementPlus": "Element Plus",
+  "antd": "Ant Design Vue",
   "form": "表单演示",
   "vben": {
     "title": "项目",
@@ -9,7 +9,6 @@
     "antdv": "Ant Design Vue 版本",
     "antdv-next": "Antdv Next 版本",
     "naive-ui": "Naive UI 版本",
-    "element-plus": "Element Plus 版本",
     "tdesign": "TDesign Vue 版本"
   }
 }

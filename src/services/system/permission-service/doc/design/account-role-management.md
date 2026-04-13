@@ -1,6 +1,6 @@
 # 账号角色管理
 
-更新时间：2026-03-21 12:00:00 +08:00
+更新时间：2026-04-13 14:40:00 +08:00
 
 ## 目标
 
@@ -9,9 +9,9 @@
 ## 设计决策
 
 - 当前页面交互采用“全量同步角色集合”语义，而不是多次增量授予/撤销。
-- `SetAccountRoles` 只允许设置当前租户的 `TENANT_INSTANCE`。
+- `SetAccountRoles` 当前支持按 `scopeLevel` 设置系统范围或租户范围角色集合。
 - 撤销不存在的账号角色绑定按幂等成功处理。
-- 当前“仅租户管理员可调用”仍依赖上层鉴权，后续需要在服务内补足保护。
+- 当前已在服务内补齐作用域保护；系统操作者可管理 `SYSTEM_INSTANCE`，非系统范围操作者只能访问和修改自己租户下的账号角色数据。
 - `Phase 1` 不开放租户实例权限自定义。
 
 ## 角色授予有效期设计
@@ -88,18 +88,18 @@
 
 | 功能编号 | 功能项 | 允许调用服务 | 允许操作者 | 优先级 | 状态 | 最后检查时间 | 备注 |
 |---|---|---|---|---|---|---|---|
-| 4.3.1 | 查看账号持有的角色 | `gateway` | 租户管理员 | P0 | 已实现 | 2026-03-17 | 按 `accountId + tenantId` 查询当前角色 |
-| 4.3.2 | 给账号授予角色 | `gateway` | 租户管理员 | P0 | 已实现 | 2026-03-19 | 单条绑定；支持可选 `effectiveAt/expiresAt` |
-| 4.3.3 | 撤销账号角色 | `gateway` | 租户管理员 | P0 | 已实现 | 2026-03-17 | 不存在绑定时幂等成功 |
-| 4.3.4 | 获取账号角色选择列表 | `gateway` | 租户管理员 | P0 | 已实现 | 2026-03-17 | 返回 `availableRoles[] + selectedRoleIds[]` |
-| 4.3.5 | 设置账号角色集合 | `gateway` | 租户管理员 | P0 | 已实现 | 2026-03-17 | checkbox list 页面保存入口 |
-| 4.3.6 | 账号角色生效时间 | `gateway` | 租户管理员 | P1 | 已实现 | 2026-03-19 | 支持临时授权、预约生效、自动过期；`Phase 1` 已扩展 `AssignAccountRole` 和当前有效角色读取逻辑 |
+| 4.3.1 | 查看账号持有的角色 | `gateway` | 系统管理员 / 租户管理员 | P0 | 已实现 | 2026-04-13 | 按 `accountId + scopeLevel + tenantId` 查询当前有效角色 |
+| 4.3.2 | 给账号授予角色 | `gateway` | 系统管理员 / 租户管理员 | P0 | 已实现 | 2026-04-13 | 单条绑定；支持可选 `effectiveAt/expiresAt`，按 `scopeLevel` 约束 system / tenant role |
+| 4.3.3 | 撤销账号角色 | `gateway` | 系统管理员 / 租户管理员 | P0 | 已实现 | 2026-04-13 | 不存在绑定时幂等成功 |
+| 4.3.4 | 获取账号角色选择列表 | `gateway` | 系统管理员 / 租户管理员 | P0 | 已实现 | 2026-04-13 | 返回 `availableRoles[] + selectedRoleIds[]` |
+| 4.3.5 | 设置账号角色集合 | `gateway` | 系统管理员 / 租户管理员 | P0 | 已实现 | 2026-04-13 | checkbox list 页面保存入口，支持 system / tenant scope |
+| 4.3.6 | 账号角色生效时间 | `gateway` | 系统管理员 / 租户管理员 | P1 | 已实现 | 2026-04-13 | 支持临时授权、预约生效、自动过期；`Phase 1` 已扩展 `AssignAccountRole` 和当前有效角色读取逻辑 |
 
 ## 待办问题
 
 | 编号 | 问题 | 优先级 | 当前状态 | 备注 |
 |---|---|---|---|---|
-| TODO-4.3-01 | `AssignAccountRole` 仅允许授予当前租户的 `TENANT_INSTANCE` | P0 | 已实现 | 2026-03-23 已补齐 `role.kind === TENANT_INSTANCE` 且 `role.tenantId === command.tenantId` 校验，与 `SetAccountRoles` 约束保持一致 |
+| TODO-4.3-01 | `AssignAccountRole` 需要同时支持系统范围与租户范围，并禁止 template 直接绑定账号 | P0 | 已实现 | 2026-04-13 已补齐 `SYSTEM_INSTANCE / TENANT_INSTANCE` 作用域约束，system binding 的 `tenantId` 允许为空，template 仍禁止直接绑定账号 |
 
 ## 分片实施建议
 

@@ -1,5 +1,5 @@
-import { OTP_TYPES, OTP_USAGES } from 'src/common/constants'
-import { createBusinessException } from '@oes/common/exceptions'
+import { OTP_TYPES, OTP_USAGES } from '../../common/constants'
+import { ExceptionFactory } from '@oes/common/exceptions'
 import { AUTH_OTP_EXPIRED, AUTH_OTP_INVALID, AUTH_OTP_REACH_LIMIT } from '../../common/constants/exception-enums'
 import { randomUUID } from 'crypto'
 
@@ -114,10 +114,10 @@ export class OneTimeToken {
   }
 
   verify(inputCode: string): boolean {
-    if (!this.isValid()) throw createBusinessException(AUTH_OTP_INVALID)
-    if (this.isExpired()) throw createBusinessException(AUTH_OTP_EXPIRED)
+    if (!this.isValid()) throw ExceptionFactory.domain(AUTH_OTP_INVALID)
+    if (this.isExpired()) throw ExceptionFactory.domain(AUTH_OTP_EXPIRED)
     if (this.props.attemptCount >= this.props.maxAttempt)
-      throw createBusinessException(AUTH_OTP_REACH_LIMIT)
+      throw ExceptionFactory.domain(AUTH_OTP_REACH_LIMIT)
     if (this.props.code === inputCode) {
       this.markConsumed()
       return true
@@ -129,10 +129,10 @@ export class OneTimeToken {
 
   // 验证 MFA OTP（不自动标记为已消费）
   verifyMfa(inputCode: string): boolean {
-    if (!this.isValid()) throw createBusinessException(AUTH_OTP_INVALID)
-    if (this.isExpired()) throw createBusinessException(AUTH_OTP_EXPIRED)
+    if (!this.isValid()) throw ExceptionFactory.domain(AUTH_OTP_INVALID)
+    if (this.isExpired()) throw ExceptionFactory.domain(AUTH_OTP_EXPIRED)
     if (this.props.attemptCount >= this.props.maxAttempt)
-      throw createBusinessException(AUTH_OTP_REACH_LIMIT)
+      throw ExceptionFactory.domain(AUTH_OTP_REACH_LIMIT)
     if (this.props.code === inputCode) {
       return true
     } else {

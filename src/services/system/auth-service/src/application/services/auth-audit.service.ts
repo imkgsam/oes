@@ -1,115 +1,418 @@
+import { randomUUID } from 'node:crypto'
 import { Injectable } from '@nestjs/common'
 import { EventEmitter2 } from '@nestjs/event-emitter'
 import { LoginMethodEnum } from '@oes/common/constants'
-import { AuthAuditEvent } from '../events/auth-audit.event'
+import { captureEventTraceContext } from '@oes/common/tracing'
+import { Session } from '../../domain/aggregates/usersession.aggregate'
+import {
+  AuthAuditEvent,
+  AuthAuditEventType,
+  AuthAuditModule,
+  AuthAuditOperator,
+  AuthAuditResource,
+  AuthAuditResult,
+  AuthAuditScope
+} from '../events/auth-audit.event'
 
+type SessionAuditContext = {
+  sessionId: string
+  userId: string
+  accountId: string
+  tenantId: string
+  loginMethod: string
+  deviceId: string
+  deviceName: string
+  userAgent: string
+  ipAddress: string
+  platform: string
+  browser: string
+}
+
+/**
+ * AuthAuditService emits auth-domain audit events while preserving the current trace correlation identifiers.
+ */
 @Injectable()
 export class AuthAuditService {
   private static readonly EVENT_NAME = 'auth.audit'
 
   constructor(private readonly eventEmitter: EventEmitter2) {}
 
+  /**
+   * emitLoginFailed records a failed login attempt as an auth-domain audit event with trace correlation.
+   */
   emitLoginFailed(identifier: string, reason: string): void {
-    this.emit(
-      new AuthAuditEvent('LOGIN_FAILED', {
+    this.emit('LOGIN_FAILED', 'auth', {
+      result: 'REJECTED',
+      operator: this.systemOperator(),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'login_attempt',
+        resourceId: null
+      },
+      details: {
         identifier,
         reason
-      })
-    )
+      }
+    })
   }
 
+  /**
+   * emitLoginBlocked records a blocked login attempt so operators can trace throttling or lock decisions.
+   */
+  emitLoginBlocked(identifier: string, reason: string, lockedUntil?: string): void {
+    this.emit('LOGIN_BLOCKED', 'auth', {
+      result: 'REJECTED',
+      operator: this.systemOperator(),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'login_attempt',
+        resourceId: null
+      },
+      details: {
+        identifier,
+        reason,
+        lockedUntil: lockedUntil ?? ''
+      }
+    })
+  }
+
+  /**
+   * emitMfaChallengeCreated records a newly issued MFA challenge for later security review.
+   */
   emitMfaChallengeCreated(
     userId: string,
     challengeId: string,
-    channel: 'EMAIL_OTP' | 'SMS_OTP'
+    channel: 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'
   ): void {
-    this.emit(
-      new AuthAuditEvent('MFA_CHALLENGE_CREATED', {
+    this.emit('MFA_CHALLENGE_CREATED', 'mfa', {
+      operator: this.systemOperator(),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'mfa_challenge',
+        resourceId: challengeId
+      },
+      details: {
         userId,
         challengeId,
         channel
-      })
-    )
+      }
+    })
   }
 
-  emitAdminSessionRevoked(adminId: string, sessionId: string, reason: string): void {
-    this.emit(
-      new AuthAuditEvent('ADMIN_SESSION_REVOKED', {
-        adminId,
-        sessionId,
-        reason
-      })
-    )
-  }
-
-  emitLoginSucceeded(
+  /**
+   * emitMfaBindingEnabled records a successful MFA binding enablement action.
+   */
+  emitMfaBindingEnabled(
     userId: string,
-    accountId: string,
-    tenantId: string,
-    sessionId: string,
-    method: LoginMethodEnum
+    type: 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP' | 'BACKUP_CODE'
   ): void {
-    this.emit(
-      new AuthAuditEvent('LOGIN_SUCCEEDED', {
+    this.emit('MFA_BINDING_ENABLED', 'mfa', {
+      operator: this.userOperator(userId),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'mfa_binding',
+        resourceId: `${userId}:${type}`
+      },
+      details: {
         userId,
-        accountId,
-        tenantId,
-        sessionId,
-        method
-      })
-    )
+        type
+      }
+    })
   }
 
-  emitSessionRefreshed(sessionId: string): void {
-    this.emit(
-      new AuthAuditEvent('SESSION_REFRESHED', {
-        sessionId
-      })
-    )
-  }
-
-  emitSessionDeviceRenamed(userId: string, sessionId: string, deviceName: string): void {
-    this.emit(
-      new AuthAuditEvent('SESSION_DEVICE_RENAMED', {
+  /**
+   * emitMfaBindingDisabled records a successful MFA binding disablement action.
+   */
+  emitMfaBindingDisabled(
+    userId: string,
+    type: 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP' | 'BACKUP_CODE'
+  ): void {
+    this.emit('MFA_BINDING_DISABLED', 'mfa', {
+      operator: this.userOperator(userId),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'mfa_binding',
+        resourceId: `${userId}:${type}`
+      },
+      details: {
         userId,
-        sessionId,
-        deviceName
-      })
-    )
+        type
+      }
+    })
   }
 
-  emitLogoutSucceeded(sessionId: string): void {
-    this.emit(
-      new AuthAuditEvent('LOGOUT_SUCCEEDED', {
-        sessionId
-      })
-    )
+  /**
+   * emitMfaBindingInitialized records an MFA binding initialization before activation completes.
+   */
+  emitMfaBindingInitialized(userId: string, type: 'TOTP' | 'BACKUP_CODE'): void {
+    this.emit('MFA_BINDING_INITIALIZED', 'mfa', {
+      operator: this.userOperator(userId),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'mfa_binding',
+        resourceId: `${userId}:${type}`
+      },
+      details: {
+        userId,
+        type
+      }
+    })
   }
 
+  /**
+   * emitMfaBindingRotated records a rotation of recovery credentials or backup factors.
+   */
+  emitMfaBindingRotated(userId: string, type: 'BACKUP_CODE'): void {
+    this.emit('MFA_BINDING_ROTATED', 'mfa', {
+      operator: this.userOperator(userId),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'mfa_binding',
+        resourceId: `${userId}:${type}`
+      },
+      details: {
+        userId,
+        type
+      }
+    })
+  }
+
+  /**
+   * emitAdminSessionRevoked records an administrative session revocation with target session context.
+   */
+  emitAdminSessionRevoked(adminId: string, session: Session, reason: string): void {
+    this.emit('ADMIN_SESSION_REVOKED', 'session', {
+      operator: this.userOperator(adminId),
+      scope: this.sessionScope(session),
+      resource: this.sessionResource(session),
+      details: {
+        adminId,
+        reason,
+        ...this.buildSessionContext(session)
+      }
+    })
+  }
+
+  /**
+   * emitLoginSucceeded records a successful login together with the resulting session context.
+   */
+  emitLoginSucceeded(session: Session, method: LoginMethodEnum): void {
+    this.emit('LOGIN_SUCCEEDED', 'auth', {
+      operator: this.userOperator(session.getAccountId()),
+      scope: this.sessionScope(session),
+      resource: this.sessionResource(session),
+      details: {
+        method,
+        ...this.buildSessionContext(session)
+      }
+    })
+  }
+
+  /**
+   * emitSessionRefreshed records a successful session refresh.
+   */
+  emitSessionRefreshed(session: Session): void {
+    this.emit('SESSION_REFRESHED', 'session', {
+      operator: this.userOperator(session.getAccountId()),
+      scope: this.sessionScope(session),
+      resource: this.sessionResource(session),
+      details: {
+        ...this.buildSessionContext(session)
+      }
+    })
+  }
+
+  /**
+   * emitRefreshTokenReplayDetected records a detected refresh-token replay security event.
+   */
+  emitRefreshTokenReplayDetected(session: Session): void {
+    this.emit('REFRESH_TOKEN_REPLAY_DETECTED', 'session', {
+      operator: this.userOperator(session.getAccountId()),
+      scope: this.sessionScope(session),
+      resource: this.sessionResource(session),
+      details: {
+        ...this.buildSessionContext(session)
+      }
+    })
+  }
+
+  /**
+   * emitSessionDeviceRenamed records a session device rename action for later review.
+   */
+  emitSessionDeviceRenamed(session: Session): void {
+    this.emit('SESSION_DEVICE_RENAMED', 'session', {
+      operator: this.userOperator(session.getAccountId()),
+      scope: this.sessionScope(session),
+      resource: this.sessionResource(session),
+      details: {
+        ...this.buildSessionContext(session)
+      }
+    })
+  }
+
+  /**
+   * emitLogoutSucceeded records a successful single-session logout action.
+   */
+  emitLogoutSucceeded(session: Session): void {
+    this.emit('LOGOUT_SUCCEEDED', 'session', {
+      operator: this.userOperator(session.getAccountId()),
+      scope: this.sessionScope(session),
+      resource: this.sessionResource(session),
+      details: {
+        ...this.buildSessionContext(session)
+      }
+    })
+  }
+
+  /**
+   * emitLogoutOtherDevicesSucceeded records a successful logout of all sessions except the current one.
+   */
   emitLogoutOtherDevicesSucceeded(
     userId: string,
-    currentSessionId: string,
-    sessionCount: number
+    currentSession: Session | null,
+    sessionCount: number,
+    revokedSessionIds: string[]
   ): void {
-    this.emit(
-      new AuthAuditEvent('LOGOUT_OTHER_DEVICES_SUCCEEDED', {
+    this.emit('LOGOUT_OTHER_DEVICES_SUCCEEDED', 'session', {
+      operator: this.userOperator(currentSession?.getAccountId() ?? userId),
+      scope: currentSession ? this.sessionScope(currentSession) : this.emptyScope(),
+      resource: currentSession
+        ? this.sessionResource(currentSession)
+        : {
+            resourceType: 'user_session_batch',
+            resourceId: userId
+          },
+      details: {
         userId,
-        currentSessionId,
-        sessionCount
-      })
+        sessionCount,
+        revokedSessionIds,
+        ...(currentSession ? this.buildSessionContext(currentSession) : { sessionId: '' })
+      }
+    })
+  }
+
+  /**
+   * emitLogoutAllSucceeded records a successful logout of all sessions for a user.
+   */
+  emitLogoutAllSucceeded(userId: string, sessionCount: number, sessionIds: string[]): void {
+    this.emit('LOGOUT_ALL_SUCCEEDED', 'session', {
+      operator: this.userOperator(userId),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'user_session_batch',
+        resourceId: userId
+      },
+      details: {
+        userId,
+        sessionCount,
+        sessionIds
+      }
+    })
+  }
+
+  /**
+   * buildSessionContext extracts stable session details that are shared across auth audit events.
+   */
+  private buildSessionContext(session: Session): SessionAuditContext {
+    const deviceInfo = session.getDeviceInfo()
+
+    return {
+      sessionId: session.getId(),
+      userId: session.getUserId(),
+      accountId: session.getAccountId(),
+      tenantId: session.getTenantId() ?? '',
+      loginMethod: session.getLoginMethod(),
+      deviceId: deviceInfo.deviceId,
+      deviceName: deviceInfo.deviceName,
+      userAgent: deviceInfo.userAgent,
+      ipAddress: deviceInfo.ipAddress,
+      platform: deviceInfo.platform ?? '',
+      browser: deviceInfo.browser ?? ''
+    }
+  }
+
+  /**
+   * emit publishes a local auth audit event together with the currently active trace correlation identifiers.
+   */
+  private emit(
+    type: AuthAuditEventType,
+    module: AuthAuditModule,
+    payload: {
+      operator: AuthAuditOperator
+      scope: AuthAuditScope
+      resource: AuthAuditResource
+      details: Record<string, unknown>
+      result?: AuthAuditResult
+    }
+  ): void {
+    const traceContext = captureEventTraceContext()
+    this.eventEmitter.emit(
+      AuthAuditService.EVENT_NAME,
+      new AuthAuditEvent(
+        randomUUID(),
+        module,
+        type,
+        new Date(),
+        payload.result ?? 'SUCCEEDED',
+        payload.operator,
+        payload.scope,
+        {
+          traceId: traceContext.traceId,
+          spanId: traceContext.spanId
+        },
+        payload.resource,
+        payload.details
+      )
     )
   }
 
-  emitLogoutAllSucceeded(userId: string, sessionCount: number): void {
-    this.emit(
-      new AuthAuditEvent('LOGOUT_ALL_SUCCEEDED', {
-        userId,
-        sessionCount
-      })
-    )
+  /**
+   * userOperator builds the standard auth audit operator payload for user-driven actions.
+   */
+  private userOperator(operatorId: string): AuthAuditOperator {
+    return {
+      operatorId,
+      operatorType: 'HUMAN'
+    }
   }
 
-  private emit(event: AuthAuditEvent): void {
-    this.eventEmitter.emit(AuthAuditService.EVENT_NAME, event)
+  /**
+   * systemOperator builds the standard auth audit operator payload for unauthenticated or system-driven actions.
+   */
+  private systemOperator(): AuthAuditOperator {
+    return {
+      operatorId: null,
+      operatorType: 'SYSTEM'
+    }
+  }
+
+  /**
+   * sessionScope extracts tenant and organization scope from session metadata when available.
+   */
+  private sessionScope(session: Session): AuthAuditScope {
+    return {
+      tenantId: session.getTenantId() ?? null,
+      orgId: session.getOrgId() ?? null
+    }
+  }
+
+  /**
+   * sessionResource builds the canonical audit resource reference for session-bound auth actions.
+   */
+  private sessionResource(session: Session): AuthAuditResource {
+    return {
+      resourceType: 'user_session',
+      resourceId: session.getId()
+    }
+  }
+
+  /**
+   * emptyScope returns a neutral scope for auth events that do not yet carry tenant or org context.
+   */
+  private emptyScope(): AuthAuditScope {
+    return {
+      tenantId: null,
+      orgId: null
+    }
   }
 }

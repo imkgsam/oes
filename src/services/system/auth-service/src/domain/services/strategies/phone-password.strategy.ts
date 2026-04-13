@@ -1,12 +1,12 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { PhonePasswordLoginRequestDto } from '@oes/common/dtos'
 import { ExceptionFactory } from '@oes/common/exceptions'
-import { LoginMethodEnum, LoginMethodType, REPO } from 'src/common/constants'
-import { AUTH_INVALID_CREDENTIALS } from 'src/common/constants/exception-enums'
-import { HASHING_SERVICE } from 'src/common/constants/injection-tokens'
-import { AuthStrategyPort } from 'src/domain/ports/auth-strategy.port'
-import { HashingPort } from 'src/domain/ports/hashing.port'
-import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
+import { LoginMethodEnum, LoginMethodType, REPO } from '../../../common/constants'
+import { AUTH_INVALID_CREDENTIALS } from '../../../common/constants/exception-enums'
+import { HASHING_SERVICE } from '../../../common/constants/injection-tokens'
+import { AuthStrategyPort } from '../../ports/auth-strategy.port'
+import { HashingPort } from '../../ports/hashing.port'
+import { ILoginMethodRepository } from '../../repositories/loginmethod.repository'
 import { AuthIdentifierNormalizer } from '../auth-identifier-normalizer'
 
 @Injectable()

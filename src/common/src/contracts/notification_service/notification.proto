@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package notification_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.notification.v1";
+
+service NotificationService {
+  rpc SendEmail(SendEmailRequest) returns (SendDispatchResponse);
+  rpc SendSms(SendSmsRequest) returns (SendDispatchResponse);
+}
+
+enum DispatchStatus {
+  DISPATCH_STATUS_UNSPECIFIED = 0;
+  DISPATCH_STATUS_ACCEPTED = 1;
+  DISPATCH_STATUS_QUEUED = 2;
+  DISPATCH_STATUS_REJECTED = 3;
+}
+
+enum DispatchPriority {
+  DISPATCH_PRIORITY_UNSPECIFIED = 0;
+  DISPATCH_PRIORITY_LOW = 1;
+  DISPATCH_PRIORITY_NORMAL = 2;
+  DISPATCH_PRIORITY_HIGH = 3;
+  DISPATCH_PRIORITY_CRITICAL = 4;
+}
+
+enum NotificationCategory {
+  NOTIFICATION_CATEGORY_UNSPECIFIED = 0;
+  NOTIFICATION_CATEGORY_AUTH_OTP = 1;
+  NOTIFICATION_CATEGORY_AUTH_SECURITY_ALERT = 2;
+  NOTIFICATION_CATEGORY_WORKFLOW_REMINDER = 3;
+  NOTIFICATION_CATEGORY_BUSINESS_STATUS = 4;
+}
+
+message NotificationVariable {
+  string key = 1;
+  string value = 2;
+}
+
+message RecipientSnapshot {
+  string address = 1;
+  string display_name = 2;
+}
+
+message SourceContext {
+  string source_service = 1;
+  string tenant_id = 2;
+  string org_id = 3;
+  string trace_id = 4;
+  string request_id = 5;
+}
+
+message SendEmailRequest {
+  SourceContext source = 1;
+  NotificationCategory category = 2;
+  string template_key = 3;
+  RecipientSnapshot recipient = 4;
+  repeated NotificationVariable variables = 5;
+  string idempotency_key = 6;
+  DispatchPriority priority = 7;
+  string subject_override = 8;
+}
+
+message SendSmsRequest {
+  SourceContext source = 1;
+  NotificationCategory category = 2;
+  string template_key = 3;
+  RecipientSnapshot recipient = 4;
+  repeated NotificationVariable variables = 5;
+  string idempotency_key = 6;
+  DispatchPriority priority = 7;
+}
+
+message SendDispatchResponse {
+  bool accepted = 1;
+  string dispatch_id = 2;
+  DispatchStatus status = 3;
+  string rejection_reason = 4;
+}

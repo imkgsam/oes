@@ -3,60 +3,38 @@ import {
   IDENTITY_ACCOUNT_ORG_TENANT_MISMATCH,
   IDENTITY_ORG_NOT_FOUND
 } from '../../src/common/constants'
-import { AccountOrgMembershipEntity } from '../../src/domain/entities/account-org-membership.entity'
-import { AccountSummaryEntity } from '../../src/domain/entities/account-summary.entity'
-import { OrgNodeEntity } from '../../src/domain/entities/org-node.entity'
-import { AccountOrgMembershipRepository } from '../../src/domain/repositories/account-org-membership.repository'
-import { AccountRepository } from '../../src/domain/repositories/account.repository'
-import { OrgRepository } from '../../src/domain/repositories/org.repository'
+import { CheckResourceService } from '../../src/application/authorization'
 import { SetAccountPrimaryOrgCommand } from '../../src/application/commands/org/set-account-primary-org.command'
 import { SetAccountPrimaryOrgHandler } from '../../src/application/commands/org/set-account-primary-org.handler'
+import {
+  createAccountOrgMembershipFixture,
+  createAccountOrgMembershipRepositoryMock,
+  createAccountRepositoryMock,
+  createAccountSummaryFixture,
+  createOrgNodeFixture,
+  createOrgRepositoryMock
+} from '../helpers/identity-fixtures'
 
 describe('设置主组织', () => {
-  const createAccountRepository = (): jest.Mocked<AccountRepository> =>
-    ({
-      findAvailableByUserId: jest.fn(),
-      findById: jest.fn()
-    }) as unknown as jest.Mocked<AccountRepository>
-
-  const createOrgRepository = (): jest.Mocked<OrgRepository> =>
-    ({
-      findById: jest.fn(),
-      findTreeByTenantId: jest.fn()
-    }) as unknown as jest.Mocked<OrgRepository>
-
-  const createMembershipRepository = (): jest.Mocked<AccountOrgMembershipRepository> =>
-    ({
-      clearPrimaryByAccountId: jest.fn(),
-      findByAccountAndOrg: jest.fn(),
-      listByAccountId: jest.fn(),
-      addSecondaryMembership: jest.fn(),
-      removeMembership: jest.fn(),
-      setPrimaryOrg: jest.fn()
-    }) as unknown as jest.Mocked<AccountOrgMembershipRepository>
-
-  const account = new AccountSummaryEntity('acc-1', 'user-1', 'tenant-1', 'demo', true)
-  const org = new OrgNodeEntity('org-1', 'tenant-1', null, 'HQ', null, 'DEPARTMENT', 1)
-  const primaryMembership = new AccountOrgMembershipEntity(
-    'mem-1',
-    'acc-1',
-    'org-1',
-    'HQ',
-    'DEPARTMENT',
-    'PRIMARY',
-    true
-  )
+  const account = createAccountSummaryFixture()
+  const checkResourceService = new CheckResourceService()
+  const org = createOrgNodeFixture()
+  const primaryMembership = createAccountOrgMembershipFixture({
+    relationType: 'PRIMARY',
+    isPrimary: true
+  })
 
   it('设置主组织 / 当未传 orgId 时 / 应清空当前主组织', async () => {
-    const accountRepository = createAccountRepository()
-    const orgRepository = createOrgRepository()
-    const membershipRepository = createMembershipRepository()
+    const accountRepository = createAccountRepositoryMock()
+    const orgRepository = createOrgRepositoryMock()
+    const membershipRepository = createAccountOrgMembershipRepositoryMock()
     accountRepository.findById.mockResolvedValue(account)
 
     const handler = new SetAccountPrimaryOrgHandler(
       accountRepository,
       orgRepository,
-      membershipRepository
+      membershipRepository,
+      checkResourceService
     )
 
     const result = await handler.execute(new SetAccountPrimaryOrgCommand('acc-1', undefined, 'op-1'))
@@ -66,15 +44,16 @@ describe('设置主组织', () => {
   })
 
   it('设置主组织 / 当账户不存在时 / 应返回 IDENTITY_ACCOUNT_NOT_FOUND', async () => {
-    const accountRepository = createAccountRepository()
-    const orgRepository = createOrgRepository()
-    const membershipRepository = createMembershipRepository()
+    const accountRepository = createAccountRepositoryMock()
+    const orgRepository = createOrgRepositoryMock()
+    const membershipRepository = createAccountOrgMembershipRepositoryMock()
     accountRepository.findById.mockResolvedValue(null)
 
     const handler = new SetAccountPrimaryOrgHandler(
       accountRepository,
       orgRepository,
-      membershipRepository
+      membershipRepository,
+      checkResourceService
     )
 
     await expect(
@@ -85,16 +64,17 @@ describe('设置主组织', () => {
   })
 
   it('设置主组织 / 当组织不存在时 / 应返回 IDENTITY_ORG_NOT_FOUND', async () => {
-    const accountRepository = createAccountRepository()
-    const orgRepository = createOrgRepository()
-    const membershipRepository = createMembershipRepository()
+    const accountRepository = createAccountRepositoryMock()
+    const orgRepository = createOrgRepositoryMock()
+    const membershipRepository = createAccountOrgMembershipRepositoryMock()
     accountRepository.findById.mockResolvedValue(account)
     orgRepository.findById.mockResolvedValue(null)
 
     const handler = new SetAccountPrimaryOrgHandler(
       accountRepository,
       orgRepository,
-      membershipRepository
+      membershipRepository,
+      checkResourceService
     )
 
     await expect(
@@ -105,18 +85,23 @@ describe('设置主组织', () => {
   })
 
   it('设置主组织 / 当组织与账户不属于同一租户时 / 应返回 IDENTITY_ACCOUNT_ORG_TENANT_MISMATCH', async () => {
-    const accountRepository = createAccountRepository()
-    const orgRepository = createOrgRepository()
-    const membershipRepository = createMembershipRepository()
+    const accountRepository = createAccountRepositoryMock()
+    const orgRepository = createOrgRepositoryMock()
+    const membershipRepository = createAccountOrgMembershipRepositoryMock()
     accountRepository.findById.mockResolvedValue(account)
     orgRepository.findById.mockResolvedValue(
-      new OrgNodeEntity('org-x', 'tenant-2', null, 'Other', null, 'DEPARTMENT', 1)
+      createOrgNodeFixture({
+        id: 'org-x',
+        tenantId: 'tenant-2',
+        name: 'Other'
+      })
     )
 
     const handler = new SetAccountPrimaryOrgHandler(
       accountRepository,
       orgRepository,
-      membershipRepository
+      membershipRepository,
+      checkResourceService
     )
 
     await expect(
@@ -127,9 +112,9 @@ describe('设置主组织', () => {
   })
 
   it('设置主组织 / 当组织与账户属于同一租户时 / 应写入新的主组织', async () => {
-    const accountRepository = createAccountRepository()
-    const orgRepository = createOrgRepository()
-    const membershipRepository = createMembershipRepository()
+    const accountRepository = createAccountRepositoryMock()
+    const orgRepository = createOrgRepositoryMock()
+    const membershipRepository = createAccountOrgMembershipRepositoryMock()
     accountRepository.findById.mockResolvedValue(account)
     orgRepository.findById.mockResolvedValue(org)
     membershipRepository.setPrimaryOrg.mockResolvedValue(primaryMembership)
@@ -137,7 +122,8 @@ describe('设置主组织', () => {
     const handler = new SetAccountPrimaryOrgHandler(
       accountRepository,
       orgRepository,
-      membershipRepository
+      membershipRepository,
+      checkResourceService
     )
 
     const result = await handler.execute(new SetAccountPrimaryOrgCommand('acc-1', 'org-1', 'op-1'))

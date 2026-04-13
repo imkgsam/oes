@@ -1,5 +1,5 @@
 import { OneTimeToken } from '../aggregates/otp.aggregate'
-import { OTP_USAGES } from 'src/common/constants'
+import { OTP_USAGES } from '../../common/constants'
 
 export interface IOtpRepository {
   // ==================== 查询方法 ====================

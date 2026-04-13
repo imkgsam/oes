@@ -6,6 +6,7 @@ import { RoleRepository } from '../../../domain/repositories/role.repository'
 import { RoleKind } from '../../../domain/enums/role-kind.enum'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ROLE_TEMPLATE_NOT_FOUND } from '../../../common/constants/exception-enums'
+import { assertSystemScope } from '../../authorization/operator-scope'
 
 @CommandHandler(RevokeRoleTemplatePermissionCommand)
 export class RevokeRoleTemplatePermissionHandler
@@ -17,6 +18,8 @@ export class RevokeRoleTemplatePermissionHandler
   ) {}
 
   async execute(command: RevokeRoleTemplatePermissionCommand): Promise<void> {
+    assertSystemScope(command.operatorScope, 'template permission revoke requires system scope')
+
     const role = await this.roleRepo.findById(command.roleTemplateId)
     if (!role || role.kind !== RoleKind.SYSTEM_TEMPLATE) {
       throw ExceptionFactory.domain(ROLE_TEMPLATE_NOT_FOUND)

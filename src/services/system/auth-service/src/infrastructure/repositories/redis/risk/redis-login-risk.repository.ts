@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import Redis from 'ioredis'
-import { LoginFailureState } from 'src/domain/aggregates/login-failure-state.aggregate'
-import { ILoginRiskRepository } from 'src/domain/repositories/login-risk.repository'
+import { LoginFailureState } from '../../../../domain/aggregates/login-failure-state.aggregate'
+import { ILoginRiskRepository } from '../../../../domain/repositories/login-risk.repository'
 
 @Injectable()
 export class RedisLoginRiskRepository implements ILoginRiskRepository {

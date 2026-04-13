@@ -1,7 +1,7 @@
 import { LoginMethodType as CommonLoginMethodType } from '@oes/common/constants'
 import { CredentialType } from '../../../prisma/generated/prisma'
-import { LoginMethod } from 'src/domain/aggregates/loginmethod.aggregate'
-import { Credential } from 'src/domain/entities/credential.entity'
+import { LoginMethod } from '../../domain/aggregates/loginmethod.aggregate'
+import { Credential } from '../../domain/entities/credential.entity'
 
 type PrismaCredentialRecord = {
   id: string

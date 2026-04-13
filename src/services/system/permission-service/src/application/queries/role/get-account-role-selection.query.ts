@@ -1,17 +1,32 @@
 import { IQuery } from '@nestjs/cqrs'
-import { IsNotEmpty, IsString, IsUUID } from 'class-validator'
+import { Allow, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from 'class-validator'
+import { ScopeLevel } from '../../../domain/enums/scope-level.enum'
+import { OperatorScope } from '../../authorization/operator-scope'
 
 export class GetAccountRoleSelectionQuery implements IQuery {
   @IsUUID()
   @IsNotEmpty()
   readonly accountId: string
 
-  @IsString()
-  @IsNotEmpty()
-  readonly tenantId: string
+  @IsEnum(ScopeLevel)
+  readonly scopeLevel: ScopeLevel
 
-  constructor(accountId: string, tenantId: string) {
+  @IsOptional()
+  @IsString()
+  readonly tenantId?: string
+
+  @Allow()
+  readonly operatorScope?: OperatorScope
+
+  constructor(
+    accountId: string,
+    tenantId?: string,
+    operatorScope?: OperatorScope,
+    scopeLevel: ScopeLevel = ScopeLevel.TENANT
+  ) {
     this.accountId = accountId
+    this.scopeLevel = scopeLevel
     this.tenantId = tenantId
+    this.operatorScope = operatorScope
   }
 }

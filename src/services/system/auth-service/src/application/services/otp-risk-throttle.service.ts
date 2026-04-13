@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common'
-import { OTP_USAGES, REPO } from 'src/common/constants'
-import { OtpSendThrottleState } from 'src/domain/aggregates/otp-send-throttle-state.aggregate'
-import { IOtpSendThrottleRepository } from 'src/domain/repositories/otp-send-throttle.repository'
+import { OTP_USAGES, REPO } from '../../common/constants'
+import { OtpSendThrottleState } from '../../domain/aggregates/otp-send-throttle-state.aggregate'
+import { IOtpSendThrottleRepository } from '../../domain/repositories/otp-send-throttle.repository'
 
 @Injectable()
 export class OtpRiskThrottleService {

@@ -9,7 +9,7 @@
 - `gateway`、`permission-service`、业务服务各自维护一份权限码副本
 - 修改权限码后无法稳定同步到数据库与运行时
 
-本设计只定义“权限码唯一语义源”的结构与同步机制，不改变现有 operator context 语义，不改变已有角色模型与授权判定流程。
+本设计只定义“权限码唯一语义源”的结构与同步机制，不直接承载 operator context 与权限解析链设计。相关内容已由 [09-role-based-permission-resolution.md](09-role-based-permission-resolution.md) 单独定义。
 
 ## 2. 目标
 
@@ -41,7 +41,7 @@
 建议目录：
 
 ```text
-src/common/src/security/permission-codes/
+src/common/src/authorization/permission-codes/
   auth/
     session.permission-codes.ts
     auth-management.permission-codes.ts
@@ -103,7 +103,7 @@ export const AUTH_SESSION_PERMISSION_CODES = {
 
 同步机制要求：
 
-- 输入：`src/common/src/security/permission-codes/**`
+- 输入：`src/common/src/authorization/permission-codes/**`
 - 输出：权限主数据表中的标准 permission code 记录
 - 能识别新增、缺失、重复
 - 默认只做 upsert，不自动删除数据库记录
@@ -184,7 +184,7 @@ Updated: 2026-03-26 00:45 +08:00
 截至当前，已完成：
 
 - `SLICE-01`
-  - `src/common/src/security/permission-codes/**` 目录与导出基线已建立
+  - `src/common/src/authorization/permission-codes/**` 目录与导出基线已建立
 - `SLICE-02`
   - `permission-service` 本地 `MANAGEMENT_PERMISSION_CODES` 已收敛为对 `common` 的复用导出
 - `SLICE-03`

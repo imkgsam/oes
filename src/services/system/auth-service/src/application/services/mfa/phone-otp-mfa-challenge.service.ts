@@ -1,12 +1,16 @@
 import { Inject, Injectable } from '@nestjs/common'
-import { createBusinessException } from '@oes/common/exceptions'
-import { AUTH_MFA_BINDING_NOT_FOUND } from 'src/common/constants/exception-enums'
-import { LoginMethodType, MfaType, OTP_TYPES, OTP_USAGES, REPO } from 'src/common/constants'
-import { OneTimeToken } from 'src/domain/aggregates/otp.aggregate'
-import { IMfaBindingRepository } from 'src/domain/repositories/mfaBinding.repository'
-import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
-import { IOtpRepository } from 'src/domain/repositories/otp.repository'
-import { SmsService } from 'src/infrastructure/services/sms.service'
+import { ExceptionFactory } from '@oes/common/exceptions'
+import {
+  AUTH_MFA_BINDING_NOT_FOUND,
+  AUTH_OTP_DELIVERY_REJECTED
+} from '../../../common/constants/exception-enums'
+import { LoginMethodType, MfaType, OTP_TYPES, OTP_USAGES, REPO } from '../../../common/constants'
+import { NOTIFICATION_DISPATCH_PORT } from '../../../common/constants/injection-tokens'
+import { OneTimeToken } from '../../../domain/aggregates/otp.aggregate'
+import { IMfaBindingRepository } from '../../../domain/repositories/mfaBinding.repository'
+import { ILoginMethodRepository } from '../../../domain/repositories/loginmethod.repository'
+import { IOtpRepository } from '../../../domain/repositories/otp.repository'
+import { NotificationDispatchPort } from '../../../domain/services/notification-dispatch.port'
 import { OtpRiskThrottleService } from '../otp-risk-throttle.service'
 
 @Injectable()
@@ -18,7 +22,8 @@ export class PhoneOtpMfaChallengeService {
     private readonly oneTimeTokenRepo: IOtpRepository,
     @Inject(REPO.LOGIN_METHOD)
     private readonly loginMethodRepo: ILoginMethodRepository,
-    private readonly smsService: SmsService,
+    @Inject(NOTIFICATION_DISPATCH_PORT)
+    private readonly notificationDispatchPort: NotificationDispatchPort,
     private readonly otpRiskThrottleService: OtpRiskThrottleService
   ) {}
 
@@ -34,7 +39,7 @@ export class PhoneOtpMfaChallengeService {
   }> {
     const binding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.SMS_OTP)
     if (!binding || !binding.isBindingActive()) {
-      throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
+      throw ExceptionFactory.domain(AUTH_MFA_BINDING_NOT_FOUND)
     }
 
     const phoneLoginMethod = await this.loginMethodRepo.findByUserIdAndType(
@@ -42,7 +47,7 @@ export class PhoneOtpMfaChallengeService {
       LoginMethodType.PHONE
     )
     if (!phoneLoginMethod) {
-      throw createBusinessException(AUTH_MFA_BINDING_NOT_FOUND)
+      throw ExceptionFactory.domain(AUTH_MFA_BINDING_NOT_FOUND)
     }
 
     await this.otpRiskThrottleService.assertCanSend(
@@ -53,19 +58,30 @@ export class PhoneOtpMfaChallengeService {
     const otp = OneTimeToken.createMfaOtp({
       type: OTP_TYPES.PHONE,
       identifier: phoneLoginMethod.identifier,
-      code: this.generateSmsCode(),
+      code: this.generateOtpCode(),
       expiredAt: new Date(Date.now() + 5 * 60 * 1000)
     })
 
     await this.oneTimeTokenRepo.save(otp)
 
-    const sentCode = await this.smsService.sendPhoneVerificationCode(
-      phoneLoginMethod.identifier,
-      otp.getProps().code
-    )
+    const dispatch = await this.notificationDispatchPort.sendAuthOtpSms({
+      recipient: phoneLoginMethod.identifier,
+      code: otp.getProps().code,
+      challengeId: otp.getProps().id,
+      maskedDestination: phoneLoginMethod.identifier,
+      ttlMinutes: 5
+    })
 
-    if (this.isDevelopmentMode()) {
-      otp.updateCode(sentCode)
+    if (!dispatch.accepted) {
+      throw ExceptionFactory.infrastructure(AUTH_OTP_DELIVERY_REJECTED, {
+        channel: 'sms',
+        recipient: phoneLoginMethod.identifier,
+        rejectionReason: dispatch.rejectionReason ?? 'UNKNOWN'
+      })
+    }
+
+    if (dispatch.effectiveCode && dispatch.effectiveCode !== otp.getProps().code) {
+      otp.updateCode(dispatch.effectiveCode)
       await this.oneTimeTokenRepo.save(otp)
     }
 
@@ -78,14 +94,7 @@ export class PhoneOtpMfaChallengeService {
     }
   }
 
-  private generateSmsCode(): string {
-    if (this.isDevelopmentMode()) {
-      return this.smsService.getDevSmsCode()
-    }
+  private generateOtpCode(): string {
     return Math.floor(100000 + Math.random() * 900000).toString()
-  }
-
-  private isDevelopmentMode(): boolean {
-    return process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
   }
 }

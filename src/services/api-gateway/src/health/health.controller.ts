@@ -19,10 +19,13 @@ export class HealthController {
   @Get('ready')
   @ApiOperation({ summary: 'Readiness probe' })
   readiness() {
-    // TODO: add downstream service connectivity checks
     return {
       status: 'ok',
       service: 'api-gateway',
+      checks: {
+        app: 'up',
+        downstream: 'pending'
+      },
       timestamp: new Date().toISOString()
     }
   }

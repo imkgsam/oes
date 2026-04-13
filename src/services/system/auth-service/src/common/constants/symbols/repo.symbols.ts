@@ -1,4 +1,5 @@
 export const REPO = {
+  AUDIT_EVENT: Symbol('AuthAuditRepository'),
   SESSION: Symbol('SessionRepository'),
   MFA_BINDING: Symbol('MfaBindingRepository'),
   OTP: Symbol('OtpRepository'),

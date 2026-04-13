@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
-import { MfaBindingEntity } from 'src/domain/aggregates/mfabinding.aggregate'
-import { IMfaBindingRepository } from 'src/domain/repositories/mfaBinding.repository'
-import { MfaBindingMapper } from 'src/infrastructure/mappers/mfa-binding.mapper'
-import { PrismaService } from 'src/infrastructure/prisma/prisma.service'
+import { MfaBindingEntity } from '../../../domain/aggregates/mfabinding.aggregate'
+import { IMfaBindingRepository } from '../../../domain/repositories/mfaBinding.repository'
+import { MfaBindingMapper } from '../../mappers/mfa-binding.mapper'
+import { PrismaService } from '../../prisma/prisma.service'
 import { MfaType } from '@oes/common/constants'
 
 @Injectable()

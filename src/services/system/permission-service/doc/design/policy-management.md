@@ -243,7 +243,7 @@
 
 | 功能编号 | 功能项 | 允许调用服务 | 允许操作者 | 优先级 | 状态 | 最后检查时间 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 4.5.11 | Policy Condition AST 第一阶段落地 | `gateway` | 系统管理员、租户管理员 | P1 | 已实现 | 2026-03-20 | `CreatePolicy / UpdatePolicy / AddPermissionPolicy / GetPolicyById / ListPoliciesPaged / CheckPermissionWithContext` 已接入 AST |
+| 4.5.11 | Policy Condition AST 第一阶段落地 | `gateway` | 系统管理员、租户管理员 | P1 | 已实现 | 2026-03-20 | `CreatePolicy / UpdatePolicy / AddPermissionPolicy / GetPolicyById / ListPoliciesPaged` 已接入 AST；`CheckPermissionWithContext` 仅作为历史兼容评估入口 |
 | 4.5.12 | Policy Condition AST 静态校验 | `gateway` | 系统管理员、租户管理员 | P2 | 已实现 | 2026-03-20 | 已接入保存前静态校验；覆盖 AST 深度/节点数限制、空 `all/any` 节点、key 白名单、operator 白名单、literal/attribute 类型匹配，以及 `BETWEEN/IN/NOT_IN/IS_NULL/IS_NOT_NULL` 规则校验 |
 
 ## Policy 引擎功能清单
@@ -253,6 +253,6 @@
 | 4.5.13 | Policy AST 存储模型收敛 | P1 | 已实现 | 2026-03-20 | `CreatePolicy` / `UpdatePolicy` / `AddPermissionPolicy` / `GetPolicyById` / `ListPoliciesPaged` | 当前 AST 通过 `Policy.conditionAstJson` 持久化 |
 | 4.5.14 | Policy AST 结构校验器 | P1 | 已实现 | 2026-03-20 | `CreatePolicy` / `UpdatePolicy` / `AddPermissionPolicy` | 已覆盖 JSON 解析、AST 根节点/子节点结构、空 `all/any` 节点、最大深度、最大节点数 |
 | 4.5.15 | Policy AST key/operator 类型校验器 | P2 | 已实现 | 2026-03-20 | `CreatePolicy` / `UpdatePolicy` / `AddPermissionPolicy` | 已覆盖 key 白名单、operator 白名单、literal/attribute 类型匹配，以及 `BETWEEN/IN/NOT_IN` 等操作符规则校验 |
-| 4.5.16 | Policy AST 评估器 | P1 | 已实现 | 2026-03-20 | `CheckPermission` / `CheckPermissionWithContext` | 已支持 `literal / attribute`、`all / any / not / comparison`、时间窗口以及 IPv4 / IPv6 CIDR；Explain 单列为 `4.5.18` |
-| 4.5.17 | Policy 决策整合层 | P1 | 已实现 | 2026-03-20 | `CheckPermission` / `CheckPermissionWithContext` | `CheckPermission` 保持 `RBAC-only` 供 gateway guard 使用；`CheckPermissionWithContext` 采用 `RBAC -> Policy` 决策链，无 policy 时按 RBAC，存在 policy 时采用 `DENY > ALLOW > default deny` |
-| 4.5.18 | Policy Explain 能力 | P2 | 未开始 |  | `CheckPermission` / `CheckPermissionWithContext` | 计划返回命中 policy、命中 AST 分支和拒绝原因 |
+| 4.5.16 | Policy AST 评估器 | P1 | 已实现 | 2026-03-20 | 历史兼容 `CheckPermissionWithContext` | 已支持 `literal / attribute`、`all / any / not / comparison`、时间窗口以及 IPv4 / IPv6 CIDR；Explain 单列为 `4.5.18` |
+| 4.5.17 | Policy 决策整合层 | P1 | 已实现 | 2026-03-20 | `CheckPermission` / 历史兼容 `CheckPermissionWithContext` | `CheckPermission` 保持 `RBAC-only` 供 gateway guard 使用；`CheckPermissionWithContext` 仅作为兼容评估入口保留，不作为新业务资源授权标准入口 |
+| 4.5.18 | Policy Explain 能力 | P2 | 已实现 | 2026-04-06 | 历史兼容 `CheckPermissionWithContext` | 当前输出 `explainCode + matchedPolicyId + policyExplainEntries`，并为命中范围内的 policy 返回 AST 节点级命中树、节点路径、左右值与原因码 |

@@ -1,5 +1,6 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator'
+import { Allow, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator'
+import { OperatorScope } from '../../authorization/operator-scope'
 
 export class UpdateRoleCommand implements ICommand {
   @IsUUID()
@@ -16,9 +17,13 @@ export class UpdateRoleCommand implements ICommand {
   @MaxLength(200)
   readonly description?: string
 
-  constructor(params: { id: string; name?: string; description?: string }) {
+  @Allow()
+  readonly operatorScope?: OperatorScope
+
+  constructor(params: { id: string; name?: string; description?: string; operatorScope?: OperatorScope }) {
     this.id = params.id
     this.name = params.name
     this.description = params.description
+    this.operatorScope = params.operatorScope
   }
 }

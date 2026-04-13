@@ -3,6 +3,7 @@ import { Permission } from '../../../domain/aggregates/permission.aggregate'
 import { Role } from '../../../domain/aggregates/role.aggregate'
 import { AccountType } from '../../../domain/enums/account-type.enum'
 import { RoleKind } from '../../../domain/enums/role-kind.enum'
+import { ScopeLevel } from '../../../domain/enums/scope-level.enum'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
 import { AccountRole } from '../../../domain/vo/account-role.value-object'
 import { Prisma } from '../../../../prisma/generated/prisma'
@@ -55,6 +56,14 @@ export class PrismaRoleRepository implements RoleRepository {
     return found ? RoleMapper.toDomain(found) : null
   }
 
+  async findByScopeKindAndCode(scopeKey: string, kind: RoleKind, code: string): Promise<Role | null> {
+    const found = await this.prisma.role.findFirst({
+      where: { scopeKey, kind, code },
+      include: ROLE_INCLUDE
+    })
+    return found ? RoleMapper.toDomain(found) : null
+  }
+
   async findAll(): Promise<Role[]> {
     const records = await this.prisma.role.findMany({ include: ROLE_INCLUDE })
     return records.map(RoleMapper.toDomain)
@@ -64,6 +73,7 @@ export class PrismaRoleRepository implements RoleRepository {
     page: number
     pageSize: number
     tenantId?: string
+    scopeLevel?: ScopeLevel
     keyword?: string
   }): Promise<{ roles: Role[]; total: number; page: number; pageSize: number }> {
     const page = query.page
@@ -71,8 +81,11 @@ export class PrismaRoleRepository implements RoleRepository {
     const skip = (page - 1) * pageSize
     const keyword = query.keyword?.trim()
 
+    const targetKind =
+      query.scopeLevel === ScopeLevel.SYSTEM ? RoleKind.SYSTEM_INSTANCE : RoleKind.TENANT_INSTANCE
+
     const where = {
-      kind: RoleKind.TENANT_INSTANCE,
+      kind: targetKind,
       ...(query.tenantId ? { tenantId: query.tenantId } : {}),
       ...(keyword
         ? {
@@ -211,7 +224,7 @@ export class PrismaRoleRepository implements RoleRepository {
     const count = await this.prisma.role.count({
       where: {
         templateRoleId: roleTemplateId,
-        kind: RoleKind.TENANT_INSTANCE
+        kind: { in: [RoleKind.SYSTEM_INSTANCE, RoleKind.TENANT_INSTANCE] }
       }
     })
     return count > 0
@@ -262,7 +275,8 @@ export class PrismaRoleRepository implements RoleRepository {
   async assignAccountRole(
     accountId: string,
     roleId: string,
-    tenantId: string,
+    tenantId: string | null,
+    scopeLevel: ScopeLevel,
     accountType: AccountType,
     effectiveAt?: Date | null,
     expiresAt?: Date | null
@@ -276,6 +290,7 @@ export class PrismaRoleRepository implements RoleRepository {
       },
       update: {
         tenantId,
+        scopeLevel,
         accountType,
         effectiveAt: effectiveAt ?? null,
         expiresAt: expiresAt ?? null
@@ -284,6 +299,7 @@ export class PrismaRoleRepository implements RoleRepository {
         accountId,
         roleId,
         tenantId,
+        scopeLevel,
         accountType,
         effectiveAt: effectiveAt ?? null,
         expiresAt: expiresAt ?? null
@@ -297,13 +313,21 @@ export class PrismaRoleRepository implements RoleRepository {
     })
   }
 
-  async findAccountRoles(accountId: string, tenantId: string): Promise<Role[]> {
+  async findAccountRoles(
+    accountId: string,
+    tenantId?: string | null,
+    scopeLevel: ScopeLevel = tenantId ? ScopeLevel.TENANT : ScopeLevel.SYSTEM
+  ): Promise<Role[]> {
     const now = new Date()
     const accountRoles = await this.prisma.accountRole.findMany({
       where: {
         accountId,
-        tenantId,
-        ...buildActiveAccountRoleWhere(now)
+        scopeLevel,
+        ...(scopeLevel === ScopeLevel.SYSTEM ? { tenantId: null } : { tenantId: tenantId! }),
+        ...buildActiveAccountRoleWhere(now),
+        role: {
+          isEnabled: true
+        }
       },
       include: { role: { include: ROLE_INCLUDE } }
     })
@@ -317,7 +341,23 @@ export class PrismaRoleRepository implements RoleRepository {
   async findTenantRoles(tenantId: string): Promise<Role[]> {
     const records = await this.prisma.role.findMany({
       where: {
-        tenantId
+        tenantId,
+        kind: RoleKind.TENANT_INSTANCE,
+        isEnabled: true
+      },
+      include: ROLE_INCLUDE,
+      orderBy: { name: 'asc' }
+    })
+
+    return records.map(RoleMapper.toDomain)
+  }
+
+  async findSystemRoles(): Promise<Role[]> {
+    const records = await this.prisma.role.findMany({
+      where: {
+        tenantId: null,
+        kind: RoleKind.SYSTEM_INSTANCE,
+        isEnabled: true
       },
       include: ROLE_INCLUDE,
       orderBy: { name: 'asc' }
@@ -353,7 +393,8 @@ export class PrismaRoleRepository implements RoleRepository {
           accountRole.accountType as AccountType,
           accountRole.accountId,
           accountRole.roleId,
-          accountRole.tenantId,
+          accountRole.tenantId ?? null,
+          accountRole.scopeLevel as ScopeLevel,
           accountRole.effectiveAt ?? null,
           accountRole.expiresAt ?? null
         )
@@ -362,7 +403,8 @@ export class PrismaRoleRepository implements RoleRepository {
 
   async replaceAccountRoles(
     accountId: string,
-    tenantId: string,
+    tenantId: string | null,
+    scopeLevel: ScopeLevel,
     accountType: AccountType,
     roleIds: string[]
   ): Promise<Role[]> {
@@ -370,7 +412,11 @@ export class PrismaRoleRepository implements RoleRepository {
 
     await this.prisma.$transaction(async (tx) => {
       const existing = await tx.accountRole.findMany({
-        where: { accountId, tenantId }
+        where: {
+          accountId,
+          scopeLevel,
+          ...(scopeLevel === ScopeLevel.SYSTEM ? { tenantId: null } : { tenantId: tenantId! })
+        }
       })
       const existingRoleIds = new Set(existing.map((item) => item.roleId))
       const targetRoleIds = new Set(uniqueRoleIds)
@@ -383,7 +429,8 @@ export class PrismaRoleRepository implements RoleRepository {
         await tx.accountRole.deleteMany({
           where: {
             accountId,
-            tenantId,
+            scopeLevel,
+            ...(scopeLevel === ScopeLevel.SYSTEM ? { tenantId: null } : { tenantId: tenantId! }),
             roleId: { in: roleIdsToDelete }
           }
         })
@@ -396,6 +443,7 @@ export class PrismaRoleRepository implements RoleRepository {
           data: roleIdsToCreate.map((roleId) => ({
             accountId,
             tenantId,
+            scopeLevel,
             roleId,
             accountType
           }))
@@ -403,6 +451,6 @@ export class PrismaRoleRepository implements RoleRepository {
       }
     })
 
-    return this.findAccountRoles(accountId, tenantId)
+    return this.findAccountRoles(accountId, tenantId, scopeLevel)
   }
 }

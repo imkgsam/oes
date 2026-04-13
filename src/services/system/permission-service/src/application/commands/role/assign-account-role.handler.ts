@@ -11,6 +11,8 @@ import {
   ACCOUNT_ROLE_TIME_WINDOW_INVALID
 } from '../../../common/constants/exception-enums'
 import { RoleKind } from '../../../domain/enums/role-kind.enum'
+import { ScopeLevel } from '../../../domain/enums/scope-level.enum'
+import { assertRoleScopeAccess } from '../../authorization/operator-scope'
 
 @CommandHandler(AssignAccountRoleCommand)
 export class AssignAccountRoleHandler implements ICommandHandler<AssignAccountRoleCommand> {
@@ -20,10 +22,24 @@ export class AssignAccountRoleHandler implements ICommandHandler<AssignAccountRo
   ) {}
 
   async execute(command: AssignAccountRoleCommand): Promise<void> {
+    assertRoleScopeAccess(command.operatorScope, command.scopeLevel, command.tenantId, {
+      requestedTenantId: command.tenantId
+    })
+
     const role = await this.roleRepo.findById(command.roleId)
     if (!role) throw ExceptionFactory.domain(ROLE_NOT_FOUND)
 
-    if (role.kind !== RoleKind.TENANT_INSTANCE || role.tenantId !== command.tenantId) {
+    const expectedRoleKind =
+      command.scopeLevel === ScopeLevel.SYSTEM
+        ? RoleKind.SYSTEM_INSTANCE
+        : RoleKind.TENANT_INSTANCE
+    const tenantId = command.scopeLevel === ScopeLevel.SYSTEM ? null : command.tenantId!
+
+    if (
+      role.kind !== expectedRoleKind ||
+      role.tenantId !== tenantId ||
+      !role.isEnabled
+    ) {
       throw ExceptionFactory.domain(ROLE_NOT_ASSIGNABLE)
     }
 
@@ -35,7 +51,11 @@ export class AssignAccountRoleHandler implements ICommandHandler<AssignAccountRo
     }
 
     // Check if already assigned
-    const existing = await this.roleRepo.findAccountRoles(command.accountId, command.tenantId)
+    const existing = await this.roleRepo.findAccountRoles(
+      command.accountId,
+      tenantId,
+      command.scopeLevel
+    )
     if (existing.some((r) => r.id === command.roleId)) {
       throw ExceptionFactory.domain(ACCOUNT_ROLE_ALREADY_ASSIGNED)
     }
@@ -43,7 +63,8 @@ export class AssignAccountRoleHandler implements ICommandHandler<AssignAccountRo
     await this.roleRepo.assignAccountRole(
       command.accountId,
       command.roleId,
-      command.tenantId,
+      tenantId,
+      command.scopeLevel,
       command.accountType,
       effectiveAt,
       expiresAt

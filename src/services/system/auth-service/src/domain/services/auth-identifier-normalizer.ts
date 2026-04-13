@@ -1,4 +1,4 @@
-import { LoginMethodType } from 'src/common/constants'
+import { LoginMethodType } from '../../common/constants'
 
 export class AuthIdentifierNormalizer {
   static normalize(type: LoginMethodType, identifier: string): string {

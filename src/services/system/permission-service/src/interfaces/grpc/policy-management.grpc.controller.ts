@@ -2,13 +2,13 @@ import { Controller, UseFilters, UseGuards } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
-import { GrpcExceptionFilter } from '@oes/common/filters'
-import { OtelExceptionFilter } from '@oes/common/filters'
+import { GrpcExceptionFilter } from '../../../../../../common/dist/core/filters'
 import {
   AuthenticatedOperatorGuard,
   InternalServiceGuard,
+  getAuthenticatedGrpcRequestContext,
   RequireAuthenticatedOperator
-} from '@oes/common/security'
+} from '@oes/common/authorization'
 import { ManagementAuthorizationGuard } from '../guards'
 import { RequireManagementPermission } from '../decorators'
 import { MANAGEMENT_PERMISSION_CODES } from '../../common/constants/authorization'
@@ -38,6 +38,7 @@ import {
   PolicyManagementServiceControllerMethods,
   PolicyManagementServiceController
 } from '@oes/common/generated/permission_service'
+import { PermissionAuditService } from '../../application/services/permission-audit.service'
 
 // Proto enum domain enum mapping tables
 const EFFECT_MAP: Record<number, string> = { 1: 'ALLOW', 2: 'DENY' }
@@ -52,14 +53,15 @@ function hasOwnField<T extends object>(obj: T, key: keyof T): boolean {
 }
 
 @Controller()
-@UseFilters(OtelExceptionFilter, GrpcExceptionFilter)
+@UseFilters(GrpcExceptionFilter)
 @RequireAuthenticatedOperator()
 @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, ManagementAuthorizationGuard)
 @PolicyManagementServiceControllerMethods()
 export class PolicyManagementGrpcController implements PolicyManagementServiceController {
   constructor(
     private readonly commandBus: ValidatingCommandBus,
-    private readonly queryBus: ValidatingQueryBus
+    private readonly queryBus: ValidatingQueryBus,
+    private readonly permissionAuditService: PermissionAuditService
   ) {}
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_POLICY)
@@ -82,7 +84,16 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
         conditionAstJson: request.conditionAstJson || undefined
       })
     )
-    return this.toResponse(result)
+    const response = this.toResponse(result)
+    this.recordMutation(
+      request,
+      'POLICY_CREATED',
+      'POLICY',
+      result.id,
+      result.permissionCode,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_POLICY)
@@ -110,7 +121,16 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
           : undefined
       })
     )
-    return this.toResponse(result)
+    const response = this.toResponse(result)
+    this.recordMutation(
+      request,
+      'POLICY_UPDATED',
+      'POLICY',
+      result.id,
+      result.permissionCode,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.DELETE_POLICY)
@@ -120,6 +140,7 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     ...rest: any
   ): Promise<void> {
     await this.commandBus.execute(new DeletePolicyCommand(request.id!))
+    this.recordMutation(request, 'POLICY_DELETED', 'POLICY', request.id!)
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_POLICY)
@@ -131,7 +152,16 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
     const result: Policy = await this.commandBus.execute(
       new TogglePolicyCommand(request.id!, request.isEnabled!)
     )
-    return this.toResponse(result)
+    const response = this.toResponse(result)
+    this.recordMutation(
+      request,
+      request.isEnabled ? 'POLICY_ENABLED' : 'POLICY_DISABLED',
+      'POLICY',
+      result.id,
+      result.permissionCode,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_POLICY)
@@ -208,7 +238,16 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
         conditionAstJson: request.conditionAstJson || undefined
       })
     )
-    return this.toResponse(result)
+    const response = this.toResponse(result)
+    this.recordMutation(
+      request,
+      'PERMISSION_POLICY_CREATED',
+      'POLICY',
+      result.id,
+      result.permissionCode,
+      response as unknown as Record<string, unknown>
+    )
+    return response
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.DELETE_POLICY)
@@ -219,6 +258,13 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
   ): Promise<void> {
     await this.commandBus.execute(
       new RemovePermissionPolicyCommand(request.permissionCode!, request.policyId!)
+    )
+    this.recordMutation(
+      request,
+      'PERMISSION_POLICY_REMOVED',
+      'POLICY',
+      request.policyId!,
+      request.permissionCode!
     )
   }
 
@@ -239,5 +285,35 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
       isEnabled: p.isEnabled,
       conditionAstJson: p.conditionAstJson ?? ''
     }
+  }
+
+  private recordMutation(
+    rpcData: unknown,
+    action: string,
+    targetType: 'POLICY',
+    targetId: string,
+    targetCode?: string,
+    afterData?: Record<string, unknown>
+  ): void {
+    const authenticatedContext = getAuthenticatedGrpcRequestContext(rpcData)
+    const operatorContext = authenticatedContext?.operatorContext
+    const operatorId = operatorContext?.operator_id
+
+    if (!operatorId) {
+      return
+    }
+
+    this.permissionAuditService.emitManagementMutation({
+      actorId: operatorId,
+      tenantId: operatorContext?.tenant_id || undefined,
+      action,
+      targetType,
+      targetId,
+      targetCode,
+      afterData,
+      metadata: {
+        request: (rpcData as Record<string, unknown>) ?? {}
+      }
+    })
   }
 }

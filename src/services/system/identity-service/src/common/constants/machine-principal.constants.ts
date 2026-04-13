@@ -20,3 +20,10 @@ export const MACHINE_PRINCIPAL_STATUSES = {
 } as const
 
 export const MACHINE_PRINCIPAL_STATUS_VALUES = Object.values(MACHINE_PRINCIPAL_STATUSES)
+
+export const API_KEY_STATUSES = {
+  ACTIVE: 'ACTIVE',
+  REVOKED: 'REVOKED'
+} as const
+
+export const API_KEY_STATUS_VALUES = Object.values(API_KEY_STATUSES)

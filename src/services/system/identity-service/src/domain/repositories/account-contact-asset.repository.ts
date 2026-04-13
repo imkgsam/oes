@@ -7,7 +7,13 @@ export interface AccountContactAssetRepository {
     type: string,
     value: string
   ): Promise<AccountContactAssetEntity | null>
-  listByAccountIdAndType(accountId: string, type: string): Promise<AccountContactAssetEntity[]>
+  listByAccountIdAndType(
+    accountId: string,
+    type: string,
+    scope?: {
+      tenantId?: string
+    }
+  ): Promise<AccountContactAssetEntity[]>
   assign(input: {
     tenantId: string
     accountId: string

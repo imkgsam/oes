@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import Redis from 'ioredis'
-import { OTP_USAGES } from 'src/common/constants'
-import { OtpSendThrottleState } from 'src/domain/aggregates/otp-send-throttle-state.aggregate'
-import { IOtpSendThrottleRepository } from 'src/domain/repositories/otp-send-throttle.repository'
+import { OTP_USAGES } from '../../../../common/constants'
+import { OtpSendThrottleState } from '../../../../domain/aggregates/otp-send-throttle-state.aggregate'
+import { IOtpSendThrottleRepository } from '../../../../domain/repositories/otp-send-throttle.repository'
 
 @Injectable()
 export class RedisOtpSendThrottleRepository implements IOtpSendThrottleRepository {

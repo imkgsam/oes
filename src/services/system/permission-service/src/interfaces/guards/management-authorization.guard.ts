@@ -4,7 +4,7 @@ import { ExceptionFactory } from '@oes/common/exceptions'
 import {
   getAuthenticatedGrpcRequestContext,
   MANAGEMENT_INTERFACE_METADATA_KEY
-} from '@oes/common/security'
+} from '@oes/common/authorization'
 import { AccountAuthorizationService } from '../../domain/services/account-authorization.service'
 import { AUTHORIZATION_DENIED } from '../../common/constants/exception-enums'
 import { REQUIRE_MANAGEMENT_PERMISSION_METADATA_KEY } from '../decorators'

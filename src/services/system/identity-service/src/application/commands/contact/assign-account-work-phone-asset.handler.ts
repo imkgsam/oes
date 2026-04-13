@@ -1,6 +1,7 @@
 import { Inject } from '@nestjs/common'
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { ExceptionFactory } from '@oes/common/exceptions'
+import { CheckResourceService } from '../../authorization'
 import {
   CONTACT_ASSET_PATTERNS,
   CONTACT_ASSET_TYPES,
@@ -22,7 +23,8 @@ export class AssignAccountWorkPhoneAssetHandler
     @Inject(SYMBOLS.REPO.ACCOUNT)
     private readonly accountRepository: AccountRepository,
     @Inject(SYMBOLS.REPO.ACCOUNT_CONTACT_ASSET)
-    private readonly accountContactAssetRepository: AccountContactAssetRepository
+    private readonly accountContactAssetRepository: AccountContactAssetRepository,
+    private readonly checkResourceService: CheckResourceService
   ) {}
 
   async execute(
@@ -34,6 +36,11 @@ export class AssignAccountWorkPhoneAssetHandler
         accountId: command.accountId
       })
     }
+
+    this.checkResourceService.checkAccount(command.operatorScope, {
+      resourceId: account.id,
+      tenantId: account.tenantId
+    })
 
     const normalizedPhone = command.phone.trim()
     if (!CONTACT_ASSET_PATTERNS.WORK_PHONE.test(normalizedPhone)) {

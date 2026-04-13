@@ -1,4 +1,4 @@
-import { LoginMethodType } from 'src/common/constants'
+import { LoginMethodType } from '../../common/constants'
 import { LoginMethod } from '../aggregates/loginmethod.aggregate'
 
 export interface ILoginMethodRepository {

@@ -23,7 +23,9 @@ export class ValidatingQueryBus {
 
     if (errors.length > 0) {
       const messages = this.formatErrors(errors)
-      throw ExceptionFactory.domain(VALIDATION_FAILED, messages)
+      throw ExceptionFactory.application(VALIDATION_FAILED, {
+        violations: messages
+      })
     }
   }
 

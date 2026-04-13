@@ -12,6 +12,7 @@ import {
   ROLE_CREATE_CONSTRAINT_INVALID,
   ROLE_TEMPLATE_NOT_FOUND
 } from '../../../common/constants/exception-enums'
+import { assertTenantAccess } from '../../authorization/operator-scope'
 
 @CommandHandler(CreateRoleInstanceFromTemplateCommand)
 export class CreateRoleInstanceFromTemplateHandler
@@ -23,6 +24,10 @@ export class CreateRoleInstanceFromTemplateHandler
   ) {}
 
   async execute(command: CreateRoleInstanceFromTemplateCommand): Promise<Role> {
+    assertTenantAccess(command.operatorScope, command.tenantId, {
+      requestedTenantId: command.tenantId
+    })
+
     const templateRole = await this.roleRepo.findRoleTemplateById(command.templateRoleId)
     if (!templateRole) throw ExceptionFactory.domain(ROLE_TEMPLATE_NOT_FOUND)
 
@@ -34,7 +39,11 @@ export class CreateRoleInstanceFromTemplateHandler
       throw ExceptionFactory.domain(ROLE_CREATE_CONSTRAINT_INVALID)
     }
 
-    const existing = await this.roleRepo.findByScopeAndCode(command.tenantId, code)
+    const existing = await this.roleRepo.findByScopeKindAndCode(
+      command.tenantId,
+      RoleKind.TENANT_INSTANCE,
+      code
+    )
     if (existing) throw ExceptionFactory.domain(ROLE_ALREADY_EXISTS)
 
     const role = new Role(

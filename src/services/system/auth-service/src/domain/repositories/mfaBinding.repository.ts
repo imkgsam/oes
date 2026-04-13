@@ -1,4 +1,4 @@
-import { MfaType } from 'src/common/constants'
+import { MfaType } from '../../common/constants'
 import { MfaBindingEntity } from '../aggregates/mfabinding.aggregate'
 
 export interface IMfaBindingRepository {

@@ -1,389 +1,80 @@
-# OES 前端规划讨论总结
+# OES 前端规划导航
 
-更新时间：2026-03-24 22:20:00 +08:00
+更新时间：2026-04-13
 
-## 1. 目标理解
+## 1. 目的
 
-OES 不是单一管理后台，而是面向租户内全员与租户外协同对象的统一平台。
+本文档只负责给前端相关 thread 提供高层结论与阅读导航。
 
-平台目标包括：
+它不是正式架构正文，也不是执行状态面板。
 
-- 租户内不同岗位通过不同终端完成日常工作
-- 不同岗位可被授权使用不同前端终端
-- 同一用户可被授权使用多个前端终端
-- 租户管理员可控制用户允许登录哪些终端
-- 平台管理员负责平台级治理、监控与配置
+## 2. 当前高层结论
 
-## 2. 当前前端边界判断
+当前前端方向已经收敛为以下结论：
 
-当前讨论形成的结论：
+- OES 采用“统一平台能力 + 多前端终端承载”的方向
+- 当前 Web 主线是统一 Web Shell，而不是一开始拆成多个独立 Web
+- 统一 Web Shell 内当前按 `/platform/*` 与 `/tenant/*` 区域区分平台侧与租户侧
+- `tenant-web` 当前作为租户业务 Web 主线前端继续推进
+- 平台、租户、终端准入、会话上下文、导航与权限必须显式区分，不能继续混在模板默认用户模型中
 
-- 不采用“一套前端适配所有设备”的方案
-- 采用“统一平台能力 + 多前端终端承载”的方案
-- 前端边界优先按工作场景划分，而不是只按设备名划分
+这些结论的正式归属位置如下：
 
-## 3. 当前识别出的前端类型
+- 统一 Web Shell、`SYSTEM / TENANT` scope、account context：
+  - [0001-unified-web-scope-aware-user-account.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0001-unified-web-scope-aware-user-account.md)
+  - [16-unified-web-account-context-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/16-unified-web-account-context-architecture.md)
+- Gateway / BFF 与前端契约边界：
+  - [11-gateway-and-bff-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/11-gateway-and-bff-architecture.md)
+  - [docs/contracts/api-gateway/README.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/README.md)
 
-### 3.1 平台管理 Web
+## 3. 前端文档阅读顺序
 
-面向平台管理员，负责平台级治理能力。
+### 3.1 如果你在做前端工程结构或代码组织
 
-典型能力：
+先读：
 
-- 租户管理
-- 平台配置
-- 平台监控
-- 平台审计
-- 套餐/能力开关
-- 平台级运营治理
+1. [tenant-web-frontend-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-frontend-architecture.md)
+2. [tenant-web-code-refactor-checklist.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-code-refactor-checklist.md)
 
-结论：
+### 3.2 如果你在做导航、工作台、模块分组或产品骨架
 
-- 应独立于租户侧前端
+先读：
 
-### 3.2 租户业务 Web
+1. [tenant-web-information-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-information-architecture.md)
+2. [tenant-web-frontend-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-frontend-architecture.md)
 
-面向租户内办公与管理岗位。
+### 3.3 如果你在做登录、上下文、菜单或权限接入
 
-典型角色：
+先读：
 
-- 老板/高管
-- 各业务主管
-- 销售
-- 采购
-- 财务/会计
-- 人事
-- 设计/技术
-- 售后
-- IT
-- 租户管理员
+1. [docs/contracts/api-gateway/README.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/README.md)
+2. [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)
+3. [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
+4. [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
+5. [tenant-web-code-refactor-checklist.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-code-refactor-checklist.md)
 
-典型能力：
+### 3.4 如果你在做底座适配、模板残留清理或 Vben 本地化
 
-- ERP/WMS/办公流程
-- 报表与驾驶舱
-- 审批与监管
-- 主数据与参数配置
-- 业务录入、查询、审核、分析
+先读：
 
-结论：
+1. [tenant-web-vben-implementation-plan.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-vben-implementation-plan.md)
+2. [tenant-web-frontend-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-frontend-architecture.md)
 
-- 当前适合先作为一个融合式租户 Web 前端建设
-- 租户管理员不需要单独前端，可先纳入租户业务 Web
+## 4. 各文档职责
 
-### 3.3 手持 PDA 前端
+当前前端 plans 文档分工如下：
 
-面向车间/仓库一线移动作业岗位。
+- [tenant-web-frontend-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-frontend-architecture.md)
+  - `tenant-web` 前端工程架构主文档
+- [tenant-web-information-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-information-architecture.md)
+  - `tenant-web` 产品级信息架构主文档
+- [tenant-web-code-refactor-checklist.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-code-refactor-checklist.md)
+  - 当前阶段代码改造与验证状态
+- [tenant-web-vben-implementation-plan.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-vben-implementation-plan.md)
+  - `vue-vben-admin` 底座适配与本地化专项说明
 
-典型能力：
+## 5. 使用约束
 
-- 扫码
-- 过站
-- 报工
-- 连续任务处理
-- 小屏触控作业
-
-结论：
-
-- 独立于 Web 前端
-
-### 3.4 Windows 工位前端
-
-面向质检台、操作台、固定工位。
-
-典型能力：
-
-- 触屏操作
-- 外接扫码设备
-- 缺陷录入
-- 评级
-- 固定工位任务处理
-
-结论：
-
-- 独立于 Web 前端
-- 与 PDA 同属现场作业产品线，但不是同一个前端页面壳
-
-### 3.5 微信小程序前端
-
-面向轻协同与轻量操作场景。
-
-典型能力：
-
-- 工资/考勤查询
-- 审批待办
-- 报修/申请/报销
-- 就餐申请
-- 通知确认
-- 轻量任务反馈
-
-结论：
-
-- 独立前端
-
-### 3.6 大屏前端
-
-面向生产、质量、仓储、经营可视化展示。
-
-典型能力：
-
-- 生产报告
-- 瑕疵报告
-- 日产出
-- 排名
-- 驾驶舱展示
-
-结论：
-
-- 独立前端
-- 可复用 Web 技术栈，但不直接复用租户业务 Web 页面
-
-### 3.7 外部协同前端
-
-面向租户外部对象。
-
-典型对象：
-
-- 客户
-- 供应商
-- 合作伙伴
-
-典型能力：
-
-- 协同查询
-- 询盘/报价
-- 订单进度
-- 售后反馈
-- 平台便利操作
-
-结论：
-
-- 当前已识别为独立前端类型
-- 后续需再细化边界
-
-## 4. 关于 Web 是否拆分的当前结论
-
-当前结论如下：
-
-- 平台管理员 Web 与租户业务 Web 应分开
-- 租户管理员与普通租户办公用户可先放在同一个租户业务 Web 中
-- 当前不建议一开始把租户业务 Web 再拆成多个独立 Web 前端
-- 租户侧 Web 当前更适合采用类似 Odoo 的统一业务 Web 思路
-- 平台侧 Web 当前更适合采用独立控制台思路
-
-因此，现阶段可先理解为：
-
-1. `platform-web`
-2. `tenant-web`
-
-其中：
-
-- `platform-web` 独立，承载平台级治理能力
-- `tenant-web` 先融合办公用户、租户管理员与租户内业务操作能力
-
-补充说明：
-
-- `platform-web` 的边界更接近平台控制台模式
-- `tenant-web` 的边界更接近 Odoo 式统一租户业务后台
-
-## 5. 关于多终端登录控制的当前结论
-
-当前讨论已明确：
-
-- 同一个用户可以被授权登录多个终端
-- 终端登录权限应独立于普通业务权限建模
-- “能登录哪个前端”不是普通菜单权限问题
-
-建议的权限认知结构：
-
-1. 账号身份
-2. 终端准入
-3. 业务权限（RBAC + ABAC）
-
-补充说明：
-
-- 数据范围属于 ABAC 的核心落地部分
-- 终端准入不应混入普通 RBAC 菜单权限
-
-## 6. 当前已识别的典型角色与终端倾向
-
-### 6.1 租户内办公/管理角色
-
-更适合：
-
-- 租户业务 Web
-- 部分角色可辅以小程序/移动端
-
-典型角色：
-
-- 老板/高管
-- 销售主管/销售人员
-- 采购主管/采购人员
-- 财务/会计
-- 人事
-- 设计/技术
-- 售后
-- 市场
-- IT
-- 租户管理员
-
-### 6.2 现场作业角色
-
-更适合：
-
-- PDA
-- Windows 工位前端
-
-典型角色：
-
-- 车间工人
-- 仓库作业员
-- 质检工位人员
-
-### 6.3 轻协同角色
-
-更适合：
-
-- 微信小程序
-
-典型角色：
-
-- 门卫
-- 电工/后勤
-- 厨师
-- 普通员工
-- 一部分出差人员
-
-## 7. 当前开发顺序建议
-
-当前讨论倾向如下：
-
-- 不建议多个前端同时全面开工
-- 应先选一个主前端打样
-
-当前建议的首选前端：
-
-- `租户业务 Web`
-
-原因：
-
-- 覆盖办公与管理核心岗位最多
-- 最适合先沉淀租户上下文、权限、菜单、工作台、审批和报表骨架
-- 后续 PDA、工位端、小程序可基于稳定的平台能力继续发展
-
-## 8. 当前未定事项
-
-以下事项仍需后续继续讨论：
-
-- 租户业务 Web 是否中长期拆分为 admin-web / ops-web
-- 外部协同前端的边界与产品形态
-- 移动 App 是否作为独立前端投入建设
-- 桌面端是否需要单独建设
-- 前端技术栈最终选型
-
-## 9. 当前简化结论
-
-截至本轮讨论，可先按以下结构理解 OES 前端：
-
-1. 平台管理 Web
-2. 租户业务 Web
-3. 手持 PDA 前端
-4. Windows 工位前端
-5. 微信小程序前端
-6. 大屏前端
-7. 外部协同前端
-
-其中当前优先级最高的起点是：
-
-- 租户业务 Web
-
-## 10. 本轮新增结论
-
-本轮新增明确：
-
-- OES 不采用“平台侧与租户侧共用同一 Web”的方案
-- OES 采用“平台侧独立、租户侧统一”的 Web 策略
-- 租户侧统一 Web 可同时承载：
-  - 租户配置
-  - 租户管理
-  - 业务操作
-  - 报表分析
-  - 审批与监管
-- 这一策略更接近 Odoo，而不是飞书式的“租户管理与租户工作入口完全分离”
-
-一句话总结：
-
-- 平台侧像独立控制台
-- 租户侧像统一业务中台 Web
-
-## 11. Web 技术选型结论
-
-当前已明确以下结论：
-
-- `tenant-web` 技术栈采用 `Vue`
-- Web 基础工程采用 `vue-vben-admin`
-- 不再继续在 `vue-pure-admin` 与 `vue-vben-admin` 之间摇摆
-
-选择 `vue-vben-admin` 的原因包括：
-
-- 更适合作为长期 Web 工程底座，而不是一次性后台模板
-- 更符合 `platform-web` 与 `tenant-web` 后续双应用演进
-- 版本治理、包治理与工程化能力更强
-- 更符合当前对技术选型、代码质量、框架设计、运行效率的偏好
-
-## 12. 当前实施进度
-
-当前已完成：
-
-- 在仓库根目录下建立 `app/` 前端目录分层
-- 建立 `app/web/` 作为 Web 前端工作区
-- 将原始 `vue-vben-admin` 工程并入 `app/web/`
-- 删除上游模板中的部分无关目录与文件：
-  - `.github`
-  - `.vscode`
-  - `.changeset`
-  - `docs`
-  - `playground`
-  - 以及部分无关元文件
-- 删除 `app/web/.git`，使其彻底并入 OES 主仓库
-- 将 `apps/web-ele` 重命名为 `apps/tenant-web`
-- 将工作区脚本切换到 `tenant-web`：
-  - `pnpm dev:tenant`
-  - `pnpm build:tenant`
-- 将 `tenant-web` 的应用标识改为 OES：
-  - 包名改为 `@oes/tenant-web`
-  - 环境标题改为 `OES Tenant Web`
-  - 命名空间改为 `oes-tenant-web`
-- 删除 `tenant-web` 中的演示路由：
-  - `demos.ts`
-  - `vben.ts`
-- 新增 OES 租户工作台首页，作为 `tenant-web` 起始入口
-- 登录页已去除默认演示账号选择逻辑
-
-## 13. 当前验证结果
-
-当前验证结果如下：
-
-- `tenant-web` 构建已通过
-- `tenant-web` 类型检查未完全通过
-
-当前类型检查失败点不在 `tenant-web` 应用层，而在上游包：
-
-- `app/web/packages/@core/ui-kit/form-ui/src/form-render/form-field.vue`
-
-因此当前判断为：
-
-- `tenant-web` 已可作为 OES 租户业务 Web 起点继续推进
-- 但在继续大规模改造前，建议先修复该上游类型问题，恢复 `typecheck` 绿色状态
-
-## 14. 下一步建议
-
-建议按以下顺序继续：
-
-1. 修复 `form-field.vue` 的类型错误
-2. 继续收敛 `tenant-web` 第一阶段骨架：
-   - OES 登录页文案与租户语义
-   - 用户初始化上下文
-   - 菜单/路由来源改造
-   - 工作台首页继续 OES 化
-3. 再考虑 `platform-web` 的派生
+- 本文档不再重复承载统一 Web Shell、scope、session context、导航与权限的正式设计正文
+- 本文档不记录当前 feature 执行状态
+- 若前端 thread 需要正式真相，应回到对应 `architecture / contracts / plans` 主文档，而不是扩写本页

@@ -1,6 +1,7 @@
 import { Inject } from '@nestjs/common'
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { ExceptionFactory } from '@oes/common/exceptions'
+import { CheckResourceService } from '../../authorization'
 import {
   IDENTITY_ACCOUNT_NOT_FOUND,
   IDENTITY_ACCOUNT_ORG_MEMBERSHIP_ALREADY_EXISTS,
@@ -24,7 +25,8 @@ export class AddAccountOrgMembershipHandler
     @Inject(SYMBOLS.REPO.ORG)
     private readonly orgRepository: OrgRepository,
     @Inject(SYMBOLS.REPO.ACCOUNT_ORG_MEMBERSHIP)
-    private readonly membershipRepository: AccountOrgMembershipRepository
+    private readonly membershipRepository: AccountOrgMembershipRepository,
+    private readonly checkResourceService: CheckResourceService
   ) {}
 
   async execute(command: AddAccountOrgMembershipCommand): Promise<AccountOrgMembershipEntity> {
@@ -34,6 +36,11 @@ export class AddAccountOrgMembershipHandler
         accountId: command.accountId
       })
     }
+
+    this.checkResourceService.checkAccount(command.operatorScope, {
+      resourceId: account.id,
+      tenantId: account.tenantId
+    })
 
     const org = await this.orgRepository.findById(command.orgId)
     if (!org) {

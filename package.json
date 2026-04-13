@@ -15,25 +15,29 @@
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "lint": "pnpm -r run lint",
-
     "prisma:generate:all": "pnpm -r run prisma:generate",
     "prisma:push:all": "pnpm -r run prisma:push",
-
     "proto:gen": "buf generate --template src/common/src/contracts/buf.gen.yaml src/common/src/contracts",
     "proto:regen": "rimraf src/common/src/generated && pnpm run proto:gen",
     "proto:lint": "buf lint src/common/src/contracts",
     "proto:breaking": "buf breaking src/common/src/contracts --against .git#subdir=src/common/src/contracts",
     "proto:format": "buf format -w src/common/src/contracts",
-
-    
     "clear:nm": "rimraf node_modules",
     "clear:nm:all": "pnpm -r run clear:nm && pnpm clear:nm",
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo && rimraf pnpm-lock.yaml",
     "clear:build:all": "pnpm -r run clear:build && pnpm clear:build",
     "clear": "npm run clear:build:all && npm run clear:nm:all",
-
     "docker:infra:up": "docker compose -f docker-compose.infra.yml up -d",
-    "docker:infra:down": "docker compose -f docker-compose.infra.yml down"
+    "docker:infra:down": "docker compose -f docker-compose.infra.yml down",
+    "common:build": "pnpm --filter @oes/common build",
+    "common:dev": "pnpm --filter @oes/common dev",
+    "pms": "pnpm --filter permission-service dev",
+    "ids": "pnpm --filter identity-service dev",
+    "ats": "pnpm --filter auth-service dev",
+    "bff": "pnpm --filter api-gateway dev",
+    "dev": "pnpm common:build && concurrently -k -n common,pms,ids,ats,bff \"pnpm common:dev\" \"pnpm pms\" \"pnpm ids\" \"pnpm ats\" \"pnpm bff\"",
+    "seed:tenant-web-auth": "node scripts/local/seed-tenant-web-auth-test-data.mjs",
+    "web": "pnpm --dir app/web --filter @oes/tenant-web dev"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.14.3",
@@ -75,6 +79,7 @@
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.7",
     "@types/supertest": "^6.0.2",
+    "concurrently": "^9.2.1",
     "@typescript-eslint/eslint-plugin": "^8.38.0",
     "@typescript-eslint/parser": "^8.38.0",
     "eslint": "^9.32.0",

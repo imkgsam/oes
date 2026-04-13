@@ -1,12 +1,10 @@
 import { Module, Global } from '@nestjs/common'
-import { GatewayPermissionControllGuard } from './permission/guards/gateway-permission-controll.guard'
 import { RegistryModule } from './registry/registry.module'
-import { SecurityModule } from './security/security.module'
+import { AuthorizationModule } from './authorization/authorization.module'
 
 @Global()
 @Module({
-  imports: [RegistryModule, SecurityModule],
-  providers: [GatewayPermissionControllGuard],
-  exports: [GatewayPermissionControllGuard, RegistryModule, SecurityModule]
+  imports: [RegistryModule, AuthorizationModule],
+  exports: [RegistryModule, AuthorizationModule]
 })
 export class CommonModule {}

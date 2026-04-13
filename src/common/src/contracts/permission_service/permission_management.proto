@@ -44,12 +44,14 @@ service PermissionManagementService {
   rpc ListRoleAccounts(ListRoleAccountsRequest) returns (ListRoleAccountsResponse);
   rpc GetAccountRoleSelection(GetAccountRoleSelectionRequest) returns (AccountRoleSelectionResponse);
   rpc SetAccountRoles(SetAccountRolesRequest) returns (ListRolesResponse);
+  rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
 }
 
 enum RoleKindProto {
   ROLE_KIND_PROTO_UNSPECIFIED = 0;
   ROLE_KIND_PROTO_SYSTEM_TEMPLATE = 1;
   ROLE_KIND_PROTO_TENANT_INSTANCE = 2;
+  ROLE_KIND_PROTO_SYSTEM_INSTANCE = 3;
 }
 
 message CreatePermissionRequest {
@@ -127,6 +129,7 @@ message CreateRoleInstanceRequest {
   string tenant_id = 3;
   string description = 4;
   string template_role_id = 5;
+  string scope_level = 6;
 }
 
 message GetRoleTemplateByIdRequest {
@@ -194,6 +197,7 @@ message ListRoleInstancesRequest {
   int32 page_size = 2;
   string tenant_id = 3;
   string keyword = 4;
+  string scope_level = 5;
 }
 
 message ListRoleTemplatesRequest {
@@ -248,6 +252,7 @@ message AssignAccountRoleRequest {
   string created_by = 5;
   string effective_at = 6;
   string expires_at = 7;
+  string scope_level = 8;
 }
 
 message RevokeAccountRoleRequest {
@@ -258,11 +263,13 @@ message RevokeAccountRoleRequest {
 message ListAccountRolesRequest {
   string account_id = 1;
   string tenant_id = 2;
+  string scope_level = 3;
 }
 
 message GetAccountRoleSelectionRequest {
   string account_id = 1;
   string tenant_id = 2;
+  string scope_level = 3;
 }
 
 message SetAccountRolesRequest {
@@ -270,6 +277,7 @@ message SetAccountRolesRequest {
   string account_type = 2;
   string tenant_id = 3;
   repeated string role_ids = 4;
+  string scope_level = 5;
 }
 
 message ListRoleAccountsRequest {
@@ -281,6 +289,7 @@ message AccountRoleBindingResponse {
   string account_type = 2;
   string role_id = 3;
   string tenant_id = 4;
+  string scope_level = 5;
 }
 
 message ListRoleAccountsResponse {
@@ -290,4 +299,42 @@ message ListRoleAccountsResponse {
 message AccountRoleSelectionResponse {
   repeated RoleResponse available_roles = 1;
   repeated string selected_role_ids = 2;
+}
+
+message ListAuditEventsRequest {
+  string service = 1;
+  string module = 2;
+  string event_type = 3;
+  string result = 4;
+  string operator_id = 5;
+  string tenant_id = 6;
+  string org_id = 7;
+  string resource_type = 8;
+  string resource_id = 9;
+  string occurred_at_from = 10;
+  string occurred_at_to = 11;
+  int32 page_size = 12;
+  string cursor = 13;
+}
+
+message PermissionAuditEventRecord {
+  string event_id = 1;
+  string service = 2;
+  string module = 3;
+  string event_type = 4;
+  string occurred_at = 5;
+  string result = 6;
+  string operator_id = 7;
+  string operator_type = 8;
+  string tenant_id = 9;
+  string org_id = 10;
+  string trace_id = 11;
+  string resource_type = 12;
+  string resource_id = 13;
+  string details_json = 14;
+}
+
+message ListAuditEventsResponse {
+  repeated PermissionAuditEventRecord items = 1;
+  string next_cursor = 2;
 }

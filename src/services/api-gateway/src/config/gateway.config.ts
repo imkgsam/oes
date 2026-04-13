@@ -1,5 +1,6 @@
+import { SERVICE_NAMES } from '@oes/common/constants'
+import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { registerAs } from '@nestjs/config'
-import { join } from 'path'
 
 export const gatewayConfig = registerAs('gateway', () => ({
   port: parseInt(process.env.SERVICE_PORT ?? '9100', 10),
@@ -23,12 +24,22 @@ export const gatewayConfig = registerAs('gateway', () => ({
   // ── gRPC downstream services ──
   grpc: {
     services: {
-      'permission-service': {
-        serviceName: 'permission-service',
-        protoPath: join(
-          __dirname,
-          '../../../../../common/src/contracts/permission_service/permission_management.proto'
-        ),
+      [SERVICE_NAMES.AUTH]: {
+        serviceName: SERVICE_NAMES.AUTH,
+        protoPath: resolveCommonProtoPath('auth_service/auth.proto'),
+        packageName: 'auth_service',
+        url:
+          process.env.AUTH_SERVICE_HOST && process.env.AUTH_SERVICE_PORT
+            ? `${process.env.AUTH_SERVICE_HOST}:${process.env.AUTH_SERVICE_PORT}`
+            : undefined
+      },
+      [SERVICE_NAMES.PERMISSION]: {
+        serviceName: SERVICE_NAMES.PERMISSION,
+        protoPath: [
+          resolveCommonProtoPath('permission_service/permission_management.proto'),
+          resolveCommonProtoPath('permission_service/permission_check.proto'),
+          resolveCommonProtoPath('permission_service/permission_access_summary.proto')
+        ],
         packageName: 'permission_service',
         // Static URL fallback (used when Nacos discovery is unavailable)
         url:

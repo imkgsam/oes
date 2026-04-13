@@ -1,6 +1,7 @@
 import { Inject } from '@nestjs/common'
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { ExceptionFactory } from '@oes/common/exceptions'
+import { CheckResourceService } from '../../authorization'
 import {
   IDENTITY_ACCOUNT_NOT_FOUND,
   IDENTITY_ACCOUNT_ORG_TENANT_MISMATCH,
@@ -23,7 +24,8 @@ export class SetAccountPrimaryOrgHandler
     @Inject(SYMBOLS.REPO.ORG)
     private readonly orgRepository: OrgRepository,
     @Inject(SYMBOLS.REPO.ACCOUNT_ORG_MEMBERSHIP)
-    private readonly accountOrgMembershipRepository: AccountOrgMembershipRepository
+    private readonly accountOrgMembershipRepository: AccountOrgMembershipRepository,
+    private readonly checkResourceService: CheckResourceService
   ) {}
 
   async execute(
@@ -35,6 +37,11 @@ export class SetAccountPrimaryOrgHandler
         accountId: command.accountId
       })
     }
+
+    this.checkResourceService.checkAccount(command.operatorScope, {
+      resourceId: account.id,
+      tenantId: account.tenantId
+    })
 
     if (!command.orgId) {
       await this.accountOrgMembershipRepository.clearPrimaryByAccountId(command.accountId)

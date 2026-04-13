@@ -1,6 +1,10 @@
 import { IQuery } from '@nestjs/cqrs'
 import { IsNotEmpty, IsObject, IsOptional, IsString, IsUUID } from 'class-validator'
 
+/**
+ * @deprecated OUTDATED: compatibility query for the historical CheckPermissionWithContext RPC.
+ * New resource authorization should be modeled as application-level checkResource / buildQueryScope.
+ */
 export class CheckPermissionWithContextQuery implements IQuery {
   @IsUUID()
   @IsNotEmpty()

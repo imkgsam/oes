@@ -1,4 +1,4 @@
-import { TokenRevocationService } from 'src/domain/ports/token.revocation.port'
+import { TokenRevocationService } from '../../domain/ports/token.revocation.port'
 import Redis from 'ioredis'
 
 export class RedisTokenRevocationService implements TokenRevocationService {

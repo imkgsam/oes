@@ -4,6 +4,7 @@ import { AssignRolePermissionCommand } from './assign-role-permission.command'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
 import { PermissionRepository } from '../../../domain/repositories/permission.repository'
 import { RoleKind } from '../../../domain/enums/role-kind.enum'
+import { ScopeLevel } from '../../../domain/enums/scope-level.enum'
 import { RolePermission } from '../../../domain/vo/role-permission.value-object'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { ExceptionFactory } from '@oes/common/exceptions'
@@ -12,6 +13,7 @@ import {
   ROLE_NOT_ASSIGNABLE,
   PERMISSION_NOT_FOUND
 } from '../../../common/constants/exception-enums'
+import { assertRoleScopeAccess } from '../../authorization/operator-scope'
 
 @CommandHandler(AssignRolePermissionCommand)
 export class AssignRolePermissionHandler implements ICommandHandler<AssignRolePermissionCommand> {
@@ -25,9 +27,18 @@ export class AssignRolePermissionHandler implements ICommandHandler<AssignRolePe
   async execute(command: AssignRolePermissionCommand): Promise<void> {
     const role = await this.roleRepo.findById(command.roleId)
     if (!role) throw ExceptionFactory.domain(ROLE_NOT_FOUND)
-    if (role.kind !== RoleKind.TENANT_INSTANCE) {
+    if (!role.isAssignable) {
       throw ExceptionFactory.domain(ROLE_NOT_ASSIGNABLE)
     }
+
+    assertRoleScopeAccess(
+      command.operatorScope,
+      role.kind === RoleKind.SYSTEM_INSTANCE ? ScopeLevel.SYSTEM : ScopeLevel.TENANT,
+      role.tenantId,
+      {
+      roleId: role.id
+      }
+    )
 
     const permission = await this.permissionRepo.findById(command.permissionId)
     if (!permission) throw ExceptionFactory.domain(PERMISSION_NOT_FOUND)

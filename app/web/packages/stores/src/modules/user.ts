@@ -55,6 +55,9 @@ export const useUserStore = defineStore('core-user', {
     userInfo: null,
     userRoles: [],
   }),
+  persist: {
+    pick: ['userInfo', 'userRoles'],
+  },
 });
 
 // 解决热更新问题

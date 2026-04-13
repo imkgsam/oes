@@ -3,6 +3,7 @@ import { ListAccountWorkPhoneAssetsHandler } from './list-account-work-phone-ass
 
 export * from './list-account-work-email-assets.query'
 export * from './list-account-work-phone-assets.query'
+export * from './contact-query.result'
 
 export const ContactQueryHandlers = [
   ListAccountWorkEmailAssetsHandler,

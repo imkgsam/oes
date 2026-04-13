@@ -6,16 +6,48 @@ import type {
 import { generateAccessible } from '@vben/access';
 import { preferences } from '@vben/preferences';
 
-import { ElMessage } from 'element-plus';
+import { message } from 'ant-design-vue';
 
 import { getAllMenusApi } from '#/api';
 import { BasicLayout, IFrameView } from '#/layouts';
 import { $t } from '#/locales';
+import { useAuthContextStore } from '#/store';
 
 const forbiddenComponent = () => import('#/views/_core/fallback/forbidden.vue');
 
+// Filters local front-end routes by the BFF navigation entries visible to the current session.
+function filterRoutesByVisibleEntries(
+  routes: GenerateMenuAndRoutesOptions['routes'],
+  visibleEntries: string[],
+): GenerateMenuAndRoutesOptions['routes'] {
+  if (visibleEntries.length === 0) {
+    return routes;
+  }
+
+  return routes
+    .map((route) => {
+      const entryKey = route.meta?.entryKey as string | undefined;
+      const children = route.children
+        ? filterRoutesByVisibleEntries(route.children, visibleEntries)
+        : undefined;
+      const isVisibleRoute = !entryKey || visibleEntries.includes(entryKey);
+
+      if (!isVisibleRoute && (!children || children.length === 0)) {
+        return null;
+      }
+
+      return {
+        ...route,
+        children,
+      };
+    })
+    .filter(Boolean) as GenerateMenuAndRoutesOptions['routes'];
+}
+
+// Generates the accessible route tree from local route definitions and BFF navigation visibility.
 async function generateAccess(options: GenerateMenuAndRoutesOptions) {
   const pageMap: ComponentRecordType = import.meta.glob('../views/**/*.vue');
+  const authContextStore = useAuthContextStore();
 
   const layoutMap: ComponentRecordType = {
     BasicLayout,
@@ -24,10 +56,14 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
 
   return await generateAccessible(preferences.app.accessMode, {
     ...options,
+    routes: filterRoutesByVisibleEntries(
+      options.routes,
+      authContextStore.visibleEntries,
+    ),
     fetchMenuListAsync: async () => {
-      ElMessage({
+      message.loading({
         duration: 1500,
-        message: `${$t('common.loadingMenu')}...`,
+        content: `${$t('common.loadingMenu')}...`,
       });
       return await getAllMenusApi();
     },

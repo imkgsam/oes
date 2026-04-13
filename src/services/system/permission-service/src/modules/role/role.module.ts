@@ -7,6 +7,13 @@ import { SYMBOLS } from '../../common/constants/symbols'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { RoleCommandHandlers } from '../../application/commands/role'
 import { RoleQueryHandlers } from '../../application/queries/role'
+import {
+  AccountRoleQueryScopeBuilder,
+  AUTHORIZATION_QUERY_SCOPE_BUILDERS,
+  AuthorizationQueryScopeService,
+  RoleInstanceQueryScopeBuilder,
+  RoleTemplateQueryScopeBuilder
+} from '../../application/authorization'
 
 @Module({
   imports: [CqrsModule, PrismaModule],
@@ -21,6 +28,23 @@ import { RoleQueryHandlers } from '../../application/queries/role'
     },
     ValidatingCommandBus,
     ValidatingQueryBus,
+    AuthorizationQueryScopeService,
+    RoleInstanceQueryScopeBuilder,
+    RoleTemplateQueryScopeBuilder,
+    AccountRoleQueryScopeBuilder,
+    {
+      provide: AUTHORIZATION_QUERY_SCOPE_BUILDERS,
+      useFactory: (
+        roleInstanceBuilder: RoleInstanceQueryScopeBuilder,
+        roleTemplateBuilder: RoleTemplateQueryScopeBuilder,
+        accountRoleBuilder: AccountRoleQueryScopeBuilder
+      ) => [roleInstanceBuilder, roleTemplateBuilder, accountRoleBuilder],
+      inject: [
+        RoleInstanceQueryScopeBuilder,
+        RoleTemplateQueryScopeBuilder,
+        AccountRoleQueryScopeBuilder
+      ]
+    },
     ...RoleCommandHandlers,
     ...RoleQueryHandlers
   ],

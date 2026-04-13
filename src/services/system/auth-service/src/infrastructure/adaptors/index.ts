@@ -10,3 +10,6 @@ export { IdentityServiceAdaptor } from './identity-service.adaptor'
 
 // Permission Service 适配器
 export { PermissionServiceAdaptor } from './permission-service.adaptor'
+
+// Notification Service 适配器
+export { NotificationServiceGrpcAdaptor } from './notification-service.grpc.adaptor'

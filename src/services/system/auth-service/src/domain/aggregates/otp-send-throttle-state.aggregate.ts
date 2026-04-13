@@ -1,6 +1,6 @@
-import { createBusinessException } from '@oes/common/exceptions'
-import { AUTH_OTP_SEND_RATE_LIMITED } from 'src/common/constants/exception-enums'
-import { OTP_USAGES } from 'src/common/constants'
+import { ExceptionFactory } from '@oes/common/exceptions'
+import { AUTH_OTP_SEND_RATE_LIMITED } from '../../common/constants/exception-enums/auth.errors'
+import { OTP_USAGES } from '../../common/constants'
 
 export interface OtpSendThrottleStateProps {
   identifier: string
@@ -23,7 +23,11 @@ export interface OtpSendThrottleStateRedisShape {
 export class OtpSendThrottleState {
   private constructor(private readonly props: OtpSendThrottleStateProps) {}
 
-  static create(identifier: string, usage: OTP_USAGES, now: Date = new Date()): OtpSendThrottleState {
+  static create(
+    identifier: string,
+    usage: OTP_USAGES,
+    now: Date = new Date()
+  ): OtpSendThrottleState {
     const windowMinutes = 10
     return new OtpSendThrottleState({
       identifier,
@@ -49,7 +53,7 @@ export class OtpSendThrottleState {
   assertCanSend(now: Date = new Date()): void {
     this.resetWindowIfNeeded(now)
     if (this.props.sendCount >= this.props.maxSends) {
-      throw createBusinessException(AUTH_OTP_SEND_RATE_LIMITED, {
+      throw ExceptionFactory.domain(AUTH_OTP_SEND_RATE_LIMITED, {
         identifier: this.props.identifier,
         usage: this.props.usage,
         windowEndsAt: this.props.windowEndsAt.toISOString()

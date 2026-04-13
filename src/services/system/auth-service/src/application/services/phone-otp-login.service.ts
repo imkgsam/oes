@@ -1,12 +1,17 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { ExceptionFactory } from '@oes/common/exceptions'
-import { LoginMethodType, OTP_TYPES, OTP_USAGES, REPO } from 'src/common/constants'
-import { AUTH_INVALID_CREDENTIALS, AUTH_OTP_INVALID } from 'src/common/constants/exception-enums'
-import { OneTimeToken } from 'src/domain/aggregates/otp.aggregate'
-import { ILoginMethodRepository } from 'src/domain/repositories/loginmethod.repository'
-import { IOtpRepository } from 'src/domain/repositories/otp.repository'
-import { AuthIdentifierNormalizer } from 'src/domain/services/auth-identifier-normalizer'
-import { SmsService } from 'src/infrastructure/services/sms.service'
+import { LoginMethodType, OTP_TYPES, OTP_USAGES, REPO } from '../../common/constants'
+import { NOTIFICATION_DISPATCH_PORT } from '../../common/constants/injection-tokens'
+import {
+  AUTH_INVALID_CREDENTIALS,
+  AUTH_OTP_DELIVERY_REJECTED,
+  AUTH_OTP_INVALID
+} from '../../common/constants/exception-enums'
+import { OneTimeToken } from '../../domain/aggregates/otp.aggregate'
+import { ILoginMethodRepository } from '../../domain/repositories/loginmethod.repository'
+import { IOtpRepository } from '../../domain/repositories/otp.repository'
+import { AuthIdentifierNormalizer } from '../../domain/services/auth-identifier-normalizer'
+import { NotificationDispatchPort } from '../../domain/services/notification-dispatch.port'
 import { OtpRiskThrottleService } from './otp-risk-throttle.service'
 
 @Injectable()
@@ -16,7 +21,8 @@ export class PhoneOtpLoginService {
     private readonly loginMethodRepo: ILoginMethodRepository,
     @Inject(REPO.OTP)
     private readonly otpRepository: IOtpRepository,
-    private readonly smsService: SmsService,
+    @Inject(NOTIFICATION_DISPATCH_PORT)
+    private readonly notificationDispatchPort: NotificationDispatchPort,
     private readonly otpRiskThrottleService: OtpRiskThrottleService
   ) {}
 
@@ -39,19 +45,30 @@ export class PhoneOtpLoginService {
     const otp = OneTimeToken.createLoginOtp({
       type: OTP_TYPES.PHONE,
       identifier: normalizedPhone,
-      code: this.generateSmsCode(),
+      code: this.generateOtpCode(),
       expiredAt: new Date(Date.now() + 5 * 60 * 1000)
     })
 
     await this.otpRepository.save(otp)
 
-    const sentCode = await this.smsService.sendPhoneVerificationCode(
-      normalizedPhone,
-      otp.getProps().code
-    )
+    const dispatch = await this.notificationDispatchPort.sendAuthOtpSms({
+      recipient: normalizedPhone,
+      code: otp.getProps().code,
+      challengeId: otp.getProps().id,
+      maskedDestination: normalizedPhone,
+      ttlMinutes: 5
+    })
 
-    if (this.isDevelopmentMode()) {
-      otp.updateCode(sentCode)
+    if (!dispatch.accepted) {
+      throw ExceptionFactory.infrastructure(AUTH_OTP_DELIVERY_REJECTED, {
+        channel: 'sms',
+        recipient: normalizedPhone,
+        rejectionReason: dispatch.rejectionReason ?? 'UNKNOWN'
+      })
+    }
+
+    if (dispatch.effectiveCode && dispatch.effectiveCode !== otp.getProps().code) {
+      otp.updateCode(dispatch.effectiveCode)
       await this.otpRepository.save(otp)
     }
 
@@ -93,14 +110,7 @@ export class PhoneOtpLoginService {
     return loginMethod.userId
   }
 
-  private generateSmsCode(): string {
-    if (this.isDevelopmentMode()) {
-      return this.smsService.getDevSmsCode()
-    }
+  private generateOtpCode(): string {
     return Math.floor(100000 + Math.random() * 900000).toString()
-  }
-
-  private isDevelopmentMode(): boolean {
-    return process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test'
   }
 }

@@ -1,10 +1,20 @@
 import { Module } from '@nestjs/common'
-import { IDENTITY_SERVICE, PERMISSION_SERVICE } from '@oes/common/constants'
+import { IDENTITY_SERVICE, PERMISSION_SERVICE, SERVICE_NAMES } from '@oes/common/constants'
 import { GrpcTransportModule } from '@oes/common/transport'
-import { IdentityServiceAdaptor, PermissionServiceAdaptor } from '../adaptors'
+import {
+  IdentityServiceAdaptor,
+  NotificationServiceGrpcAdaptor,
+  PermissionServiceAdaptor
+} from '../adaptors'
 
 @Module({
-  imports: [GrpcTransportModule.forFeature(['identity-service', 'permission-service'])],
+  imports: [
+    GrpcTransportModule.forFeature([
+      SERVICE_NAMES.IDENTITY,
+      SERVICE_NAMES.PERMISSION,
+      SERVICE_NAMES.NOTIFICATION
+    ])
+  ],
   providers: [
     {
       provide: IDENTITY_SERVICE,
@@ -13,8 +23,14 @@ import { IdentityServiceAdaptor, PermissionServiceAdaptor } from '../adaptors'
     {
       provide: PERMISSION_SERVICE,
       useClass: PermissionServiceAdaptor
-    }
+    },
+    NotificationServiceGrpcAdaptor
   ],
-  exports: [IDENTITY_SERVICE, PERMISSION_SERVICE]
+  exports: [
+    GrpcTransportModule,
+    IDENTITY_SERVICE,
+    PERMISSION_SERVICE,
+    NotificationServiceGrpcAdaptor
+  ]
 })
 export class ExternalServicesModule {}

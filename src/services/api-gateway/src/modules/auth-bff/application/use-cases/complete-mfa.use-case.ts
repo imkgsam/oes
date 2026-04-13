@@ -1,0 +1,24 @@
+import { Injectable } from '@nestjs/common'
+import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
+import { AuthGrpcAdapter } from '../../infrastructure/downstream/auth-service/auth-grpc.adapter'
+import { CompleteMfaDto } from '../../interfaces/http/dtos/login.dto'
+import { AuthResponseViewModel } from '../../interfaces/http/view-models/auth-response.view-model'
+import { toAuthResponseViewModel } from './auth-response.mapper'
+import { toAuthServiceLoginMethod } from './login-method.mapper'
+
+@Injectable()
+// Completes a pending MFA challenge and returns the next normalized auth flow state.
+export class CompleteMfaUseCase {
+  constructor(private readonly authAdapter: AuthGrpcAdapter) {}
+
+  async execute(dto: CompleteMfaDto, source: DownstreamRequestSource): Promise<AuthResponseViewModel> {
+    const result = await this.authAdapter.submitMfaChallenge(
+      dto.challengeId.trim(),
+      dto.code.trim(),
+      toAuthServiceLoginMethod(dto.loginMethod),
+      source
+    )
+
+    return toAuthResponseViewModel(result)
+  }
+}

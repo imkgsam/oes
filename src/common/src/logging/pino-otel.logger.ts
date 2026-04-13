@@ -4,6 +4,7 @@ import pino, { Logger as PinoLogger, LoggerOptions } from 'pino'
 import { trace, SpanContext } from '@opentelemetry/api'
 import { OesLogger, LogMeta, isLogMeta } from './oes-logger.interface'
 import { isDevelopment } from '../core/helpers/env.helper'
+import { sanitizeLogMeta } from './log-redaction'
 
 /**
  * Configuration options for PinoOtelLogger.
@@ -81,6 +82,13 @@ export class PinoOtelLogger implements OesLogger {
   }
 
   /**
+   * getServiceName exposes the bound service name for infrastructure code that needs consistent log tags.
+   */
+  getServiceName(): string {
+    return this.serviceName
+  }
+
+  /**
    * Enrich log entry with OpenTelemetry trace context.
    * Extracts traceId and spanId from the active span if available.
    *
@@ -91,11 +99,11 @@ export class PinoOtelLogger implements OesLogger {
     const span = trace.getActiveSpan()
     const ctx: SpanContext | undefined = span?.spanContext()
 
-    return {
+    return sanitizeLogMeta({
       ...(ctx?.traceId && { traceId: ctx.traceId }),
       ...(ctx?.spanId && { spanId: ctx.spanId }),
       ...meta
-    }
+    })
   }
 
   /**

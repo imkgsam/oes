@@ -46,10 +46,20 @@ export class PrismaAccountOrgMembershipRepository implements AccountOrgMembershi
     return record ? PrismaAccountOrgMembershipMapper.toDomain(record) : null
   }
 
-  async listByAccountId(accountId: string): Promise<AccountOrgMembershipEntity[]> {
+  async listByAccountId(
+    accountId: string,
+    scope?: {
+      tenantId?: string
+    }
+  ): Promise<AccountOrgMembershipEntity[]> {
     const records = await this.prisma.userAccountOrgMembership.findMany({
       where: {
-        accountId
+        accountId,
+        account: scope?.tenantId
+          ? {
+              tenantId: scope.tenantId
+            }
+          : undefined
       },
       include: {
         org: {

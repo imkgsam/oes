@@ -11,6 +11,7 @@ import {
   PERMISSION_NOT_FOUND,
   ROLE_TEMPLATE_NOT_FOUND
 } from '../../../common/constants/exception-enums'
+import { assertSystemScope } from '../../authorization/operator-scope'
 
 @CommandHandler(AssignRoleTemplatePermissionCommand)
 export class AssignRoleTemplatePermissionHandler
@@ -24,6 +25,8 @@ export class AssignRoleTemplatePermissionHandler
   ) {}
 
   async execute(command: AssignRoleTemplatePermissionCommand): Promise<void> {
+    assertSystemScope(command.operatorScope, 'template permission assign requires system scope')
+
     const role = await this.roleRepo.findById(command.roleTemplateId)
     if (!role || role.kind !== RoleKind.SYSTEM_TEMPLATE) {
       throw ExceptionFactory.domain(ROLE_TEMPLATE_NOT_FOUND)

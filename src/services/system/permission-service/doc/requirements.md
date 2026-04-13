@@ -6,7 +6,8 @@
 
 本文件继承仓库级约束：
 
-- [../../../../../doc/standards/requirements.md](../../../../../doc/standards/requirements.md)
+- [../../../../../AGENTS.md](../../../../../AGENTS.md)
+- [../../../../../docs/architecture/05-governance.md](../../../../../docs/architecture/05-governance.md)
 
 当本文件与仓库级约束不冲突时，默认同时生效；若本文件补充了更具体的服务级限制，以本文件为准。
 
@@ -31,12 +32,12 @@
 - 4.5 Policy 管理
 - 4.6 鉴权能力
 
-### 3. 根目录协议优先
+### 3. 项目级架构优先
 
 若某次改动涉及内部服务认证、操作者上下文或服务间授权链路：
 
-- 先以根目录跨服务功能主文档为准
-- 若需调整协议，先更新根目录文档
+- 先以 `docs/architecture/14-grpc-metadata-and-service-trust-architecture.md` 与 `docs/architecture/15-authorization-layering-and-resource-policy-architecture.md` 为准
+- 若需调整协议，先更新项目级架构或 ADR
 - 再更新本服务设计与代码
 
 ### 4. 文档更新规则

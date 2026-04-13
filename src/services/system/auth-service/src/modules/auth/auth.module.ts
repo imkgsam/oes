@@ -3,36 +3,53 @@ import { CqrsModule } from '@nestjs/cqrs'
 import { EventEmitterModule } from '@nestjs/event-emitter'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { CommonJwtModule } from '@oes/common/auth'
-import { OPERATOR_PERMISSION_RESOLVER, SecurityModule } from '@oes/common/security'
-import { REPO } from 'src/common/constants'
-import { HASHING_SERVICE } from 'src/common/constants/injection-tokens'
-import { AuthAuditService } from 'src/application/services/auth-audit.service'
-import { LoginRiskThrottleService } from 'src/application/services/login-risk-throttle.service'
-import { EmailOtpMfaChallengeService } from 'src/application/services/mfa/email-otp-mfa-challenge.service'
-import { MfaChallengeVerificationService } from 'src/application/services/mfa/mfa-challenge-verification.service'
-import { PhoneOtpMfaChallengeService } from 'src/application/services/mfa/phone-otp-mfa-challenge.service'
-import { EmailOtpLoginService } from 'src/application/services/email-otp-login.service'
-import { OtpRiskThrottleService } from 'src/application/services/otp-risk-throttle.service'
-import { PhoneOtpLoginService } from 'src/application/services/phone-otp-login.service'
-import { AuthCommandHandlers } from 'src/application/commands/auth'
-import { AuthQueryHandlers } from 'src/application/queries'
-import { AuthStrategyFactory } from 'src/domain/services/strategies/auth-strategies.factory'
-import { EmailPasswordStrategy } from 'src/domain/services/strategies/email-password.strategy'
-import { PhonePasswordStrategy } from 'src/domain/services/strategies/phone-password.strategy'
-import { PrismaModule } from 'src/infrastructure/prisma/prisma.module'
-import { PrismaUserRepository } from 'src/infrastructure/repositories/prisma/prisma.loginmethod.repository'
-import { PrismaMfaBindingRepository } from 'src/infrastructure/repositories/prisma/prisma.mfabinding.repository'
-import { PrismaOtpRepository } from 'src/infrastructure/repositories/prisma/prisma.otp.repository'
-import { RedisLoginRiskRepository } from 'src/infrastructure/repositories/redis/risk/redis-login-risk.repository'
-import { RedisOtpSendThrottleRepository } from 'src/infrastructure/repositories/redis/risk/redis-otp-send-throttle.repository'
-import { RedisUserSessionRepository } from 'src/infrastructure/repositories/redis/session/redis-user-session.repository'
-import { AuthAuditListener } from 'src/infrastructure/listeners/auth-audit.listener'
-import { ExternalServicesModule } from 'src/infrastructure/modules/external-services.module'
-import { AuthOperatorPermissionResolver } from 'src/infrastructure/security/auth-operator-permission.resolver'
-import { EmailService } from 'src/infrastructure/services/email.service'
-import { BcryptHashingService } from 'src/infrastructure/services/hashing.service'
-import { SmsService } from 'src/infrastructure/services/sms.service'
-import { AuthGrpcController } from 'src/interfaces/grpc/auth.grpc.controller'
+import {
+  OPERATOR_PERMISSION_RESOLVER,
+  PermissionServicePermissionReadAdaptor,
+  RoleBasedOperatorPermissionResolver,
+  AuthorizationModule
+} from '@oes/common/authorization'
+import { REPO } from '../../common/constants'
+import { HASHING_SERVICE, NOTIFICATION_DISPATCH_PORT } from '../../common/constants/injection-tokens'
+import {
+  AdminUserSessionQueryScopeBuilder,
+  AuditEventQueryScopeBuilder,
+  AUTHORIZATION_QUERY_SCOPE_BUILDERS,
+  AuthorizationQueryScopeService,
+  CheckResourceService,
+  QueryScopeBuilder
+} from '../../application/authorization'
+import { AuthAuditService } from '../../application/services/auth-audit.service'
+import { LoginRiskThrottleService } from '../../application/services/login-risk-throttle.service'
+import { EmailOtpMfaChallengeService } from '../../application/services/mfa/email-otp-mfa-challenge.service'
+import { MfaBindingManagementService } from '../../application/services/mfa/mfa-binding-management.service'
+import { MfaChallengeVerificationService } from '../../application/services/mfa/mfa-challenge-verification.service'
+import { PhoneOtpMfaChallengeService } from '../../application/services/mfa/phone-otp-mfa-challenge.service'
+import { TotpMfaChallengeService } from '../../application/services/mfa/totp-mfa-challenge.service'
+import { EmailOtpLoginService } from '../../application/services/email-otp-login.service'
+import { OtpRiskThrottleService } from '../../application/services/otp-risk-throttle.service'
+import { PhoneOtpLoginService } from '../../application/services/phone-otp-login.service'
+import { AuthCommandHandlers } from '../../application/commands/auth'
+import { AuthQueryHandlers } from '../../application/queries'
+import { AuthStrategyFactory } from '../../domain/services/strategies/auth-strategies.factory'
+import { EmailPasswordStrategy } from '../../domain/services/strategies/email-password.strategy'
+import { PhonePasswordStrategy } from '../../domain/services/strategies/phone-password.strategy'
+import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
+import { PrismaAuthAuditRepository } from '../../infrastructure/repositories/prisma/prisma.auth-audit.repository'
+import { PrismaUserRepository } from '../../infrastructure/repositories/prisma/prisma.loginmethod.repository'
+import { PrismaMfaBindingRepository } from '../../infrastructure/repositories/prisma/prisma.mfabinding.repository'
+import { PrismaOtpRepository } from '../../infrastructure/repositories/prisma/prisma.otp.repository'
+import { RedisLoginRiskRepository } from '../../infrastructure/repositories/redis/risk/redis-login-risk.repository'
+import { RedisOtpSendThrottleRepository } from '../../infrastructure/repositories/redis/risk/redis-otp-send-throttle.repository'
+import { RedisUserSessionRepository } from '../../infrastructure/repositories/redis/session/redis-user-session.repository'
+import { NotificationServiceGrpcAdaptor } from '../../infrastructure/adaptors/notification-service.grpc.adaptor'
+import { AuthAuditListener } from '../../infrastructure/listeners/auth-audit.listener'
+import { ExternalServicesModule } from '../../infrastructure/modules/external-services.module'
+import { LocalNotificationDispatchAdaptor } from '../../infrastructure/adaptors/local-notification-dispatch.adaptor'
+import { EmailService } from '../../infrastructure/services/email.service'
+import { BcryptHashingService } from '../../infrastructure/services/hashing.service'
+import { SmsService } from '../../infrastructure/services/sms.service'
+import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
 
 @Module({
   imports: [
@@ -40,10 +57,11 @@ import { AuthGrpcController } from 'src/interfaces/grpc/auth.grpc.controller'
     EventEmitterModule.forRoot(),
     PrismaModule,
     CommonJwtModule,
-    SecurityModule,
+    AuthorizationModule,
     ExternalServicesModule
   ],
   providers: [
+    { provide: REPO.AUDIT_EVENT, useExisting: PrismaAuthAuditRepository },
     { provide: REPO.LOGIN_METHOD, useClass: PrismaUserRepository },
     { provide: REPO.MFA_BINDING, useClass: PrismaMfaBindingRepository },
     { provide: REPO.OTP, useClass: PrismaOtpRepository },
@@ -51,9 +69,33 @@ import { AuthGrpcController } from 'src/interfaces/grpc/auth.grpc.controller'
     { provide: REPO.OTP_SEND_THROTTLE, useClass: RedisOtpSendThrottleRepository },
     { provide: REPO.SESSION, useClass: RedisUserSessionRepository },
     { provide: HASHING_SERVICE, useClass: BcryptHashingService },
-    { provide: OPERATOR_PERMISSION_RESOLVER, useClass: AuthOperatorPermissionResolver },
+    {
+      provide: NOTIFICATION_DISPATCH_PORT,
+      useFactory: (
+        localAdaptor: LocalNotificationDispatchAdaptor,
+        grpcAdaptor: NotificationServiceGrpcAdaptor
+      ) => {
+        return process.env.AUTH_NOTIFICATION_TRANSPORT === 'grpc' ? grpcAdaptor : localAdaptor
+      },
+      inject: [LocalNotificationDispatchAdaptor, NotificationServiceGrpcAdaptor]
+    },
+    PermissionServicePermissionReadAdaptor,
+    RoleBasedOperatorPermissionResolver,
+    { provide: OPERATOR_PERMISSION_RESOLVER, useExisting: RoleBasedOperatorPermissionResolver },
     ValidatingCommandBus,
     ValidatingQueryBus,
+    CheckResourceService,
+    AuthorizationQueryScopeService,
+    AuditEventQueryScopeBuilder,
+    AdminUserSessionQueryScopeBuilder,
+    {
+      provide: AUTHORIZATION_QUERY_SCOPE_BUILDERS,
+      useFactory: (
+        auditEventBuilder: AuditEventQueryScopeBuilder,
+        adminUserSessionBuilder: AdminUserSessionQueryScopeBuilder
+      ): QueryScopeBuilder[] => [auditEventBuilder, adminUserSessionBuilder],
+      inject: [AuditEventQueryScopeBuilder, AdminUserSessionQueryScopeBuilder]
+    },
     {
       provide: AuthStrategyFactory,
       useFactory: (
@@ -69,18 +111,22 @@ import { AuthGrpcController } from 'src/interfaces/grpc/auth.grpc.controller'
     },
     AuthAuditService,
     AuthAuditListener,
-    AuthOperatorPermissionResolver,
     EmailOtpLoginService,
     EmailOtpMfaChallengeService,
+    MfaBindingManagementService,
     MfaChallengeVerificationService,
     PhoneOtpMfaChallengeService,
+    TotpMfaChallengeService,
     LoginRiskThrottleService,
     OtpRiskThrottleService,
     PhoneOtpLoginService,
     EmailPasswordStrategy,
     PhonePasswordStrategy,
+    LocalNotificationDispatchAdaptor,
+    NotificationServiceGrpcAdaptor,
     EmailService,
     SmsService,
+    PrismaAuthAuditRepository,
     ...AuthCommandHandlers,
     ...AuthQueryHandlers
   ],

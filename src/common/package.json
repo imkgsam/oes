@@ -11,7 +11,6 @@
   "scripts": {
     "build": "tsc -b",
     "dev": "tsc -b -w --preserveWatchOutput",
-
     "clear:build": "rimraf dist && rimraf tsconfig.tsbuildinfo",
     "clear:nm": "rimraf node_modules",
     "clear": "pnpm run clear:build && pnpm run clear:nm",
@@ -21,6 +20,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "require": "./dist/index.js"
+    },
+    "./authorization": {
+      "types": "./dist/authorization/index.d.ts",
+      "require": "./dist/authorization/index.js"
     },
     "./auth": {
       "types": "./dist/auth/index.d.ts",
@@ -55,16 +58,12 @@
       "require": "./dist/dtos/index.js"
     },
     "./exceptions": {
-      "types": "./dist/exceptions/index.d.ts",
-      "require": "./dist/exceptions/index.js"
+      "types": "./dist/core/exceptions/index.d.ts",
+      "require": "./dist/core/exceptions/index.js"
     },
     "./filters": {
-      "types": "./dist/filters/index.d.ts",
-      "require": "./dist/filters/index.js"
-    },
-    "./helpers": {
-      "types": "./dist/helpers/index.d.ts",
-      "require": "./dist/helpers/index.js"
+      "types": "./dist/core/filters/index.d.ts",
+      "require": "./dist/core/filters/index.js"
     },
     "./generated/*": {
       "types": "./dist/generated/index.*.d.ts",
@@ -77,10 +76,6 @@
     "./logging": {
       "types": "./dist/logging/index.d.ts",
       "require": "./dist/logging/index.js"
-    },
-    "./security": {
-      "types": "./dist/security/index.d.ts",
-      "require": "./dist/security/index.js"
     },
     "./registry": {
       "types": "./dist/registry/index.d.ts",

@@ -8,9 +8,11 @@ import { PolicyCommandHandlers } from '../../application/commands/policy'
 import { PolicyQueryHandlers } from '../../application/queries/policy'
 import { PolicyManagementGrpcController } from '../../interfaces/grpc/policy-management.grpc.controller'
 import { ManagementAuthorizationModule } from '../management-authorization/management-authorization.module'
+import { PermissionModule } from '../permission/permission.module'
+import { PermissionAuditModule } from '../audit/permission-audit.module'
 
 @Module({
-  imports: [CqrsModule, PrismaModule, ManagementAuthorizationModule],
+  imports: [CqrsModule, PrismaModule, ManagementAuthorizationModule, PermissionModule, PermissionAuditModule],
   providers: [
     {
       provide: SYMBOLS.REPO.POLICY,

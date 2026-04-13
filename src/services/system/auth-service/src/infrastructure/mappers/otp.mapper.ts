@@ -1,5 +1,5 @@
-import { OTP_TYPES } from 'src/common/constants'
-import { OneTimeToken } from 'src/domain/aggregates/otp.aggregate'
+import { OTP_TYPES } from '../../common/constants'
+import { OneTimeToken } from '../../domain/aggregates/otp.aggregate'
 
 type PrismaOtpRecord = {
   id: string

@@ -2,7 +2,7 @@ import { compare, hash } from 'bcrypt'
 import { randomUUID } from 'crypto'
 import { authenticator } from 'otplib'
 import { MfaType } from '@oes/common/constants'
-import { createBusinessException } from '@oes/common/exceptions'
+import { ExceptionFactory } from '@oes/common/exceptions'
 import {
   AUTH_MFA_DISABLED,
   AUTH_MFA_OTP_TOKEN_REQUIRED,
@@ -72,10 +72,7 @@ export class MfaBindingEntity {
   }
 
   static async createBackupCodeBinding(userId: string): Promise<MfaBindingEntity> {
-    const rawCodes = Array.from({ length: 10 }, () =>
-      Math.floor(10000000 + Math.random() * 90000000).toString()
-    )
-    const hashedCodes = await Promise.all(rawCodes.map((code) => hash(code, 10)))
+    const { rawCodes, hashedCodes } = await this.issueBackupCodes()
 
     return new MfaBindingEntity({
       id: randomUUID(),
@@ -89,6 +86,15 @@ export class MfaBindingEntity {
     })
   }
 
+  static async issueBackupCodes(): Promise<{ rawCodes: string[]; hashedCodes: string[] }> {
+    const rawCodes = Array.from({ length: 10 }, () =>
+      Math.floor(10000000 + Math.random() * 90000000).toString()
+    )
+    const hashedCodes = await Promise.all(rawCodes.map((code) => hash(code, 10)))
+
+    return { rawCodes, hashedCodes }
+  }
+
   static needsOtpVerification(type: MfaType): boolean {
     return type === MfaType.EMAIL_OTP || type === MfaType.SMS_OTP
   }
@@ -99,7 +105,7 @@ export class MfaBindingEntity {
 
   generateBindingQrCode(issuer: string, accountName: string): string {
     if (this.props.type !== MfaType.TOTP) {
-      throw createBusinessException(AUTH_MFA_TYPE_MISMATCH)
+      throw ExceptionFactory.domain(AUTH_MFA_TYPE_MISMATCH)
     }
     return authenticator.keyuri(accountName, issuer, this.props.secret)
   }
@@ -110,41 +116,41 @@ export class MfaBindingEntity {
 
   generateTestCode(): string {
     if (this.props.type !== MfaType.TOTP) {
-      throw createBusinessException(AUTH_MFA_TYPE_MISMATCH)
+      throw ExceptionFactory.domain(AUTH_MFA_TYPE_MISMATCH)
     }
     return authenticator.generate(this.props.secret)
   }
 
   verifyTotpBinding(inputCode: string): boolean {
     if (this.props.type !== MfaType.TOTP) {
-      throw createBusinessException(AUTH_MFA_TYPE_MISMATCH)
+      throw ExceptionFactory.domain(AUTH_MFA_TYPE_MISMATCH)
     }
     return authenticator.verify({ token: inputCode, secret: this.props.secret })
   }
 
   activateTotpBinding(): void {
     if (this.props.type !== MfaType.TOTP) {
-      throw createBusinessException(AUTH_MFA_TYPE_MISMATCH)
+      throw ExceptionFactory.domain(AUTH_MFA_TYPE_MISMATCH)
     }
     this.enable()
   }
 
   verifyTotp(inputCode: string): boolean {
     if (this.props.type !== MfaType.TOTP) {
-      throw createBusinessException(AUTH_MFA_TYPE_MISMATCH)
+      throw ExceptionFactory.domain(AUTH_MFA_TYPE_MISMATCH)
     }
     if (!this.isEnabled()) {
-      throw createBusinessException(AUTH_MFA_DISABLED)
+      throw ExceptionFactory.domain(AUTH_MFA_DISABLED)
     }
     return authenticator.verify({ token: inputCode, secret: this.props.secret })
   }
 
   async verifyBackupCode(inputCode: string): Promise<boolean> {
     if (this.props.type !== MfaType.BACKUP_CODE) {
-      throw createBusinessException(AUTH_MFA_TYPE_MISMATCH)
+      throw ExceptionFactory.domain(AUTH_MFA_TYPE_MISMATCH)
     }
     if (!this.isEnabled()) {
-      throw createBusinessException(AUTH_MFA_DISABLED)
+      throw ExceptionFactory.domain(AUTH_MFA_DISABLED)
     }
 
     const hashedCodes = JSON.parse(this.props.secret) as string[]
@@ -156,6 +162,41 @@ export class MfaBindingEntity {
     return false
   }
 
+  async consumeBackupCode(inputCode: string): Promise<boolean> {
+    if (this.props.type !== MfaType.BACKUP_CODE) {
+      throw ExceptionFactory.domain(AUTH_MFA_TYPE_MISMATCH)
+    }
+    if (!this.isEnabled()) {
+      throw ExceptionFactory.domain(AUTH_MFA_DISABLED)
+    }
+
+    const hashedCodes = JSON.parse(this.props.secret) as string[]
+    for (let index = 0; index < hashedCodes.length; index += 1) {
+      if (await compare(inputCode, hashedCodes[index])) {
+        const remainingCodes = hashedCodes.filter((_, currentIndex) => currentIndex !== index)
+        this.props.secret = JSON.stringify(remainingCodes)
+        this.props.enabled = remainingCodes.length > 0
+        this.touch()
+        return true
+      }
+    }
+
+    return false
+  }
+
+  async regenerateBackupCodes(): Promise<string[]> {
+    if (this.props.type !== MfaType.BACKUP_CODE) {
+      throw ExceptionFactory.domain(AUTH_MFA_TYPE_MISMATCH)
+    }
+
+    const { rawCodes, hashedCodes } = await MfaBindingEntity.issueBackupCodes()
+    this.props.secret = JSON.stringify(hashedCodes)
+    this.props.backupCodes = rawCodes
+    this.props.enabled = true
+    this.touch()
+    return rawCodes
+  }
+
   async verify(inputCode: string, oneTimeToken?: OneTimeToken): Promise<boolean> {
     switch (this.props.type) {
       case MfaType.TOTP:
@@ -165,11 +206,11 @@ export class MfaBindingEntity {
       case MfaType.EMAIL_OTP:
       case MfaType.SMS_OTP:
         if (!oneTimeToken) {
-          throw createBusinessException(AUTH_MFA_OTP_TOKEN_REQUIRED)
+          throw ExceptionFactory.domain(AUTH_MFA_OTP_TOKEN_REQUIRED)
         }
         return oneTimeToken.verify(inputCode)
       default:
-        throw createBusinessException(AUTH_MFA_TYPE_NOT_SUPPORTED)
+        throw ExceptionFactory.domain(AUTH_MFA_TYPE_NOT_SUPPORTED)
     }
   }
 

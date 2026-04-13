@@ -65,7 +65,7 @@ export type MaybeComponentProps = { [K in MaybeComponentPropKey]?: any };
 
 export type FormActions = FormContext<GenericObject>;
 
-export type CustomRenderType = (() => Component | string) | string;
+export type CustomRenderType = Component | (() => Component | string) | string;
 
 // 动态渲染参数
 export type CustomParamsRenderType =

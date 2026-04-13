@@ -125,3 +125,26 @@ enum MfaType {
   HARDWARE_TOKEN
   BIOMETRIC
 }
+
+model AuditEvent {
+  id           String   @id
+  service      String
+  module       String
+  eventType    String
+  occurredAt   DateTime
+  result       String
+  operatorId   String?
+  operatorType String
+  tenantId     String?
+  orgId        String?
+  traceId      String?
+  resourceType String
+  resourceId   String?
+  details      Json
+  createdAt    DateTime @default(now())
+
+  @@index([service, module, eventType, occurredAt])
+  @@index([tenantId, occurredAt])
+  @@index([operatorId, occurredAt])
+  @@index([resourceType, resourceId, occurredAt])
+}

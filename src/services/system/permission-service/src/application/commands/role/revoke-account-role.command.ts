@@ -1,5 +1,6 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsNotEmpty, IsUUID } from 'class-validator'
+import { Allow, IsNotEmpty, IsUUID } from 'class-validator'
+import { OperatorScope } from '../../authorization/operator-scope'
 
 export class RevokeAccountRoleCommand implements ICommand {
   @IsUUID()
@@ -10,8 +11,12 @@ export class RevokeAccountRoleCommand implements ICommand {
   @IsNotEmpty()
   readonly roleId: string
 
-  constructor(accountId: string, roleId: string) {
+  @Allow()
+  readonly operatorScope?: OperatorScope
+
+  constructor(accountId: string, roleId: string, operatorScope?: OperatorScope) {
     this.accountId = accountId
     this.roleId = roleId
+    this.operatorScope = operatorScope
   }
 }

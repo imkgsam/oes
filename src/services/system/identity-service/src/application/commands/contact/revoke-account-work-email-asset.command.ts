@@ -1,5 +1,6 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsUUID } from 'class-validator'
+import { Allow, IsUUID } from 'class-validator'
+import { OperatorScope } from '../../authorization'
 
 export class RevokeAccountWorkEmailAssetCommand implements ICommand {
   @IsUUID()
@@ -8,8 +9,12 @@ export class RevokeAccountWorkEmailAssetCommand implements ICommand {
   @IsUUID()
   readonly operatorId: string
 
-  constructor(assetId: string, operatorId: string) {
+  @Allow()
+  readonly operatorScope?: OperatorScope
+
+  constructor(assetId: string, operatorId: string, operatorScope?: OperatorScope) {
     this.assetId = assetId
     this.operatorId = operatorId
+    this.operatorScope = operatorScope
   }
 }

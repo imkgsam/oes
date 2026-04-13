@@ -19,7 +19,7 @@ import {
 
 @Module({
   imports: [
-    LoggingModule,
+    LoggingModule.forRoot({ serviceName: 'entity-service' }),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env']
@@ -39,4 +39,7 @@ import {
     { provide: ORGANIZATION_PROFILE_REPOSITORY, useClass: OrganizationProfileRepository }
   ]
 })
+/**
+ * AppModule wires entity-service infrastructure and enables service-scoped logging metadata.
+ */
 export class AppModule {}

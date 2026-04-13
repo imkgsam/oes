@@ -16,7 +16,11 @@ export class Role {
   ) {}
 
   get isSystem(): boolean {
-    return this.kind === RoleKind.SYSTEM_TEMPLATE
+    return this.kind !== RoleKind.TENANT_INSTANCE
+  }
+
+  get isAssignable(): boolean {
+    return this.kind === RoleKind.SYSTEM_INSTANCE || this.kind === RoleKind.TENANT_INSTANCE
   }
 
   get permissions(): ReadonlyArray<RolePermission> {

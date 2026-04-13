@@ -9,6 +9,7 @@ import {
   ROLE_DELETE_FORBIDDEN,
   ROLE_TEMPLATE_NOT_FOUND
 } from '../../../common/constants/exception-enums'
+import { assertSystemScope } from '../../authorization/operator-scope'
 
 @CommandHandler(DeleteRoleTemplateCommand)
 export class DeleteRoleTemplateHandler implements ICommandHandler<DeleteRoleTemplateCommand> {
@@ -18,6 +19,8 @@ export class DeleteRoleTemplateHandler implements ICommandHandler<DeleteRoleTemp
   ) {}
 
   async execute(command: DeleteRoleTemplateCommand): Promise<void> {
+    assertSystemScope(command.operatorScope, 'template delete requires system scope')
+
     const role = await this.roleRepo.findById(command.id)
     if (!role || role.kind !== RoleKind.SYSTEM_TEMPLATE) {
       throw ExceptionFactory.domain(ROLE_TEMPLATE_NOT_FOUND)
