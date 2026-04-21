@@ -1,5 +1,5 @@
 import { ICommand } from '@nestjs/cqrs'
-import { Allow, IsNotEmpty, IsString, Matches, MaxLength } from 'class-validator'
+import { Allow, IsNotEmpty, IsOptional, IsString, Matches, MaxLength } from 'class-validator'
 import { OperatorScope } from '../../authorization/operator-scope'
 
 export class CreateRoleTemplateCommand implements ICommand {
@@ -10,9 +10,10 @@ export class CreateRoleTemplateCommand implements ICommand {
 
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[A-Z][A-Z0-9_]*$/)
+  @Matches(/^[A-Za-z][A-Za-z0-9._-]*$/)
   readonly code: string
 
+  @IsOptional()
   @IsString()
   @MaxLength(200)
   readonly description?: string

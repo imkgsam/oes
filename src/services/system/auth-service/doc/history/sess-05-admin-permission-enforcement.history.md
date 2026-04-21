@@ -1,6 +1,6 @@
 # SESS-05 Admin Permission Enforcement
 
-Updated: 2026-03-26 00:20 +08:00
+Updated: 2026-04-20 00:28 +08:00
 
 ## Scope
 
@@ -35,3 +35,9 @@ Updated: 2026-03-26 00:20 +08:00
 
 - This slice consumes the legacy permission snapshot from authenticated operator context.
 - It does not yet migrate `permission-service` to unified common permission-code constants.
+- 2026-04-20 follow-up pitfall:
+  - `AuthenticatedOperatorGuard` does not automatically parse operator metadata just because the guard is present in `@UseGuards(...)`
+  - The guard only activates operator-context verification/attachment when the interface also declares `@RequirePermission(...)` or `@RequireAuthenticatedOperator()`
+  - We hit this exact bug on `AdminDeleteAccountSessions`: the new RPC used `InternalServiceGuard + AuthenticatedOperatorGuard`, but omitted both metadata decorators, so handler-level `getRequiredOperatorId(...)` failed with `APP_SECURITY_003`
+  - Team rule going forward:
+    - any admin / management gRPC interface that reads operator identity, operator scope, or resource-boundary context must declare `@RequirePermission(...)` or `@RequireAuthenticatedOperator()`

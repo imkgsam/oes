@@ -28,6 +28,8 @@ model Role {
 
   permissions  RolePermission[]
   accounts     AccountRole[]
+  navigationVisibilities RoleNavigationVisibility[]
+  landingPolicies RoleLandingPolicy[]
   templateRole Role?            @relation("RoleTemplateInstances", fields: [templateRoleId], references: [id])
   instances    Role[]           @relation("RoleTemplateInstances")
 
@@ -70,6 +72,58 @@ model AccountRole {
 
   @@unique([accountId, roleId])
   @@index([accountId, scopeLevel, tenantId])
+}
+
+// ============================================================
+// Navigation governance model
+// ============================================================
+
+model NavigationEntry {
+  id                 String   @id @default(uuid())
+  entryKey           String   @unique
+  name               String
+  description        String?
+  featureKey         String?
+  supportedTerminals Json
+  registryPriority   Int      @default(0)
+  enabled            Boolean  @default(true)
+  entryType          String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  roleVisibilities   RoleNavigationVisibility[]
+  roleLandingPolicies RoleLandingPolicy[]
+
+  @@index([featureKey, enabled])
+}
+
+model RoleNavigationVisibility {
+  id         String @id @default(uuid())
+  roleId     String
+  entryKey   String
+  terminal   String
+  enabled    Boolean @default(true)
+
+  role  Role            @relation(fields: [roleId], references: [id])
+  entry NavigationEntry @relation(fields: [entryKey], references: [entryKey])
+
+  @@unique([roleId, entryKey, terminal])
+  @@index([roleId, terminal])
+}
+
+model RoleLandingPolicy {
+  id              String  @id @default(uuid())
+  roleId          String
+  terminal        String
+  defaultEntryKey String
+  priority        Int     @default(0)
+  enabled         Boolean @default(true)
+
+  role  Role            @relation(fields: [roleId], references: [id])
+  entry NavigationEntry @relation(fields: [defaultEntryKey], references: [entryKey])
+
+  @@unique([roleId, terminal, defaultEntryKey])
+  @@index([roleId, terminal])
 }
 
 // ============================================================

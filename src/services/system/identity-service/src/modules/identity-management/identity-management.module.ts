@@ -1,8 +1,17 @@
 import { Module } from '@nestjs/common'
 import { CqrsModule } from '@nestjs/cqrs'
+import {
+  OPERATOR_PERMISSION_RESOLVER,
+  PermissionGuard,
+  PermissionServicePermissionReadAdaptor,
+  RoleBasedOperatorPermissionResolver
+} from '@oes/common/authorization'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
+import { SERVICE_NAMES } from '@oes/common/constants'
+import { GrpcTransportModule } from '@oes/common/transport'
 import { CheckResourceService } from '../../application/authorization'
 import {
+  AccountCommandHandlers,
   ContactCommandHandlers,
   OrgCommandHandlers,
   ServiceAccountCommandHandlers
@@ -15,16 +24,26 @@ import { PrismaAccountRepository } from '../../infrastructure/repositories/prism
 import { PrismaOrgRepository } from '../../infrastructure/repositories/prisma/prisma.org.repository'
 import { PrismaServiceAccountRepository } from '../../infrastructure/repositories/prisma/prisma.service-account.repository'
 import { PrismaTenantRepository } from '../../infrastructure/repositories/prisma/prisma.tenant.repository'
+import { PrismaUserRepository } from '../../infrastructure/repositories/prisma/prisma.user.repository'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { IdentityManagementGrpcController } from '../../interfaces/grpc/identity-management.grpc.controller'
 import { IdentityAuditModule } from '../identity-audit/identity-audit.module'
 
 @Module({
-  imports: [CqrsModule, PrismaModule, IdentityAuditModule],
+  imports: [
+    CqrsModule,
+    PrismaModule,
+    IdentityAuditModule,
+    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION])
+  ],
   providers: [
     {
       provide: SYMBOLS.REPO.ACCOUNT,
       useClass: PrismaAccountRepository
+    },
+    {
+      provide: SYMBOLS.REPO.USER,
+      useClass: PrismaUserRepository
     },
     {
       provide: SYMBOLS.REPO.ORG,
@@ -52,7 +71,15 @@ import { IdentityAuditModule } from '../identity-audit/identity-audit.module'
     },
     ValidatingCommandBus,
     ValidatingQueryBus,
+    PermissionServicePermissionReadAdaptor,
+    RoleBasedOperatorPermissionResolver,
+    {
+      provide: OPERATOR_PERMISSION_RESOLVER,
+      useExisting: RoleBasedOperatorPermissionResolver
+    },
+    PermissionGuard,
     CheckResourceService,
+    ...AccountCommandHandlers,
     ...OrgCommandHandlers,
     ...ContactCommandHandlers,
     ...ServiceAccountCommandHandlers

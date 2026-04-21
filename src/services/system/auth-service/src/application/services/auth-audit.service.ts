@@ -28,6 +28,16 @@ type SessionAuditContext = {
   browser: string
 }
 
+type FailedLoginAuditContext = {
+  method?: string
+  userId?: string
+  deviceName?: string
+  userAgent?: string
+  ipAddress?: string
+  platform?: string
+  browser?: string
+}
+
 /**
  * AuthAuditService emits auth-domain audit events while preserving the current trace correlation identifiers.
  */
@@ -40,10 +50,12 @@ export class AuthAuditService {
   /**
    * emitLoginFailed records a failed login attempt as an auth-domain audit event with trace correlation.
    */
-  emitLoginFailed(identifier: string, reason: string): void {
+  emitLoginFailed(identifier: string, reason: string, context?: FailedLoginAuditContext): void {
+    const operator = context?.userId ? this.userOperator(context.userId) : this.systemOperator()
+
     this.emit('LOGIN_FAILED', 'auth', {
       result: 'REJECTED',
-      operator: this.systemOperator(),
+      operator,
       scope: this.emptyScope(),
       resource: {
         resourceType: 'login_attempt',
@@ -51,7 +63,14 @@ export class AuthAuditService {
       },
       details: {
         identifier,
-        reason
+        reason,
+        method: context?.method ?? '',
+        userId: context?.userId ?? '',
+        deviceName: context?.deviceName ?? '',
+        userAgent: context?.userAgent ?? '',
+        ipAddress: context?.ipAddress ?? '',
+        platform: context?.platform ?? '',
+        browser: context?.browser ?? ''
       }
     })
   }
@@ -178,6 +197,134 @@ export class AuthAuditService {
   }
 
   /**
+   * emitPasswordChanged records a successful self-service password change without credential material.
+   */
+  emitPasswordChanged(userId: string): void {
+    this.emit('PASSWORD_CHANGED', 'auth', {
+      operator: this.userOperator(userId),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'user_password',
+        resourceId: userId
+      },
+      details: {
+        userId
+      }
+    })
+  }
+
+  /**
+   * emitPasswordRecoveryChallengeCreated records a newly issued forgot-password challenge.
+   */
+  emitPasswordRecoveryChallengeCreated(
+    userId: string,
+    challengeId: string,
+    channel: 'EMAIL' | 'PHONE'
+  ): void {
+    this.emit('PASSWORD_RECOVERY_CHALLENGE_CREATED', 'auth', {
+      operator: this.systemOperator(),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'password_recovery_challenge',
+        resourceId: challengeId
+      },
+      details: {
+        userId,
+        challengeId,
+        channel
+      }
+    })
+  }
+
+  /**
+   * emitPasswordRecoveryChallengeVerified records a successfully verified forgot-password challenge.
+   */
+  emitPasswordRecoveryChallengeVerified(
+    userId: string,
+    challengeId: string,
+    resetToken: string
+  ): void {
+    this.emit('PASSWORD_RECOVERY_CHALLENGE_VERIFIED', 'auth', {
+      operator: this.systemOperator(),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'password_recovery_challenge',
+        resourceId: challengeId
+      },
+      details: {
+        userId,
+        challengeId,
+        resetToken
+      }
+    })
+  }
+
+  /**
+   * emitPasswordRecoveryCompleted records a completed forgot-password reset and the session blast radius.
+   */
+  emitPasswordRecoveryCompleted(userId: string, resetToken: string, sessionCount: number): void {
+    this.emit('PASSWORD_RECOVERY_COMPLETED', 'auth', {
+      operator: this.systemOperator(),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'user_password',
+        resourceId: userId
+      },
+      details: {
+        userId,
+        resetToken,
+        sessionCount
+      }
+    })
+  }
+
+  /**
+   * emitPasswordSetupRequired records an administrator-triggered password setup gate.
+   */
+  emitPasswordSetupRequired(requiredBy: string, userId: string, reason: string): void {
+    this.emit('PASSWORD_SETUP_REQUIRED', 'auth', {
+      operator: this.userOperator(requiredBy),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'user_password',
+        resourceId: userId
+      },
+      details: {
+        requiredBy,
+        userId,
+        reason
+      }
+    })
+  }
+
+  /**
+   * emitLoginMethodEnabledChanged records an enablement-state change for one login method.
+   */
+  emitLoginMethodEnabledChanged(
+    operatorId: string,
+    userId: string,
+    methodId: string,
+    enabled: boolean,
+    reason?: string
+  ): void {
+    this.emit('LOGIN_METHOD_ENABLED_CHANGED', 'auth', {
+      operator: this.userOperator(operatorId),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'login_method',
+        resourceId: methodId
+      },
+      details: {
+        operatorId,
+        userId,
+        methodId,
+        enabled,
+        reason: reason ?? ''
+      }
+    })
+  }
+
+  /**
    * emitAdminSessionRevoked records an administrative session revocation with target session context.
    */
   emitAdminSessionRevoked(adminId: string, session: Session, reason: string): void {
@@ -198,7 +345,7 @@ export class AuthAuditService {
    */
   emitLoginSucceeded(session: Session, method: LoginMethodEnum): void {
     this.emit('LOGIN_SUCCEEDED', 'auth', {
-      operator: this.userOperator(session.getAccountId()),
+      operator: this.userOperator(session.getUserId()),
       scope: this.sessionScope(session),
       resource: this.sessionResource(session),
       details: {

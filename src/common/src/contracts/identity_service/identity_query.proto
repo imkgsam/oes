@@ -17,6 +17,8 @@ service IdentityQueryService {
   rpc ListAccountOrgMemberships(ListAccountOrgMembershipsRequest) returns (ListAccountOrgMembershipsResponse);
   rpc GetOrgTreeByTenantId(GetOrgTreeByTenantIdRequest) returns (GetOrgTreeByTenantIdResponse);
   rpc GetTenantById(GetTenantByIdRequest) returns (GetTenantByIdResponse);
+  rpc ListTenants(ListTenantsRequest) returns (ListTenantsResponse);
+  rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
   rpc GetUserById(GetUserByIdRequest) returns (GetUserByIdResponse);
   rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserByEmailResponse);
   rpc GetUserByPhone(GetUserByPhoneRequest) returns (GetUserByPhoneResponse);
@@ -65,8 +67,11 @@ service IdentityManagementService {
   rpc RotateApiKey(RotateApiKeyRequest) returns (RotateApiKeyResponse);
   rpc CreateApiKey(CreateApiKeyRequest) returns (CreateApiKeyResponse);
   rpc CreateServiceAccount(CreateServiceAccountRequest) returns (ServiceAccountResponse);
+  rpc CreateUserAccount(CreateUserAccountRequest) returns (GetAccountByIdResponse);
   rpc RevokeApiKey(RevokeApiKeyRequest) returns (ApiKeyResponse);
   rpc SetServiceAccountEnabled(SetServiceAccountEnabledRequest) returns (ServiceAccountResponse);
+  rpc UpdateAccountProfile(UpdateAccountProfileRequest) returns (GetAccountByIdResponse);
+  rpc UpdateUserBasicInfo(UpdateUserBasicInfoRequest) returns (GetUserByIdResponse);
   rpc AssignAccountWorkEmailAsset(AssignAccountWorkEmailAssetRequest) returns (AccountContactAssetResponse);
   rpc AssignAccountWorkPhoneAsset(AssignAccountWorkPhoneAssetRequest) returns (AccountContactAssetResponse);
   rpc RevokeAccountWorkEmailAsset(RevokeAccountWorkEmailAssetRequest) returns (AccountContactAssetResponse);
@@ -129,6 +134,56 @@ message TenantSummary {
 
 message GetTenantByIdResponse {
   TenantSummary tenant = 1;
+}
+
+message ListTenantsRequest {
+  string keyword = 1;
+  int32 page_size = 2;
+  bool active_only = 3;
+}
+
+message ListTenantsResponse {
+  repeated TenantSummary tenants = 1;
+}
+
+message ListAccountsRequest {
+  string keyword = 1;
+  string scope_level = 2;
+  string status = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message AccountDirectoryItem {
+  string account_id = 1;
+  string user_id = 2;
+  string tenant_id = 3;
+  string tenant_name = 4;
+  string scope_level = 5;
+  string display_name = 6;
+  bool is_enabled = 7;
+  string user_display_name = 8;
+}
+
+message ListAccountsResponse {
+  repeated AccountDirectoryItem accounts = 1;
+  int32 total = 2;
+}
+
+message CreateUserAccountRequest {
+  string scope_level = 1;
+  string tenant_id = 2;
+  string display_name = 3;
+  string username = 4;
+  string email = 5;
+  string phone = 6;
+}
+
+message UpdateUserBasicInfoRequest {
+  string account_id = 1;
+  string user_id = 2;
+  string email = 3;
+  string phone = 4;
 }
 
 message GetOrgTreeByTenantIdRequest {
@@ -253,6 +308,14 @@ message SetAccountPrimaryOrgResponse {
   AccountOrgMembership membership = 1;
 }
 
+message UpdateAccountProfileRequest {
+  string account_id = 1;
+  string avatar_url = 2;
+  string display_name = 3;
+  string bio = 4;
+  optional bool is_enabled = 5;
+}
+
 message ListAccountOrgMembershipsRequest {
   string account_id = 1;
 }
@@ -270,6 +333,7 @@ message AccountCandidate {
   string tenant_id = 2;
   string display_name = 3;
   string scope_level = 4;
+  string tenant_name = 5;
 }
 
 message GetAccountsByUserIdResponse {
@@ -284,9 +348,11 @@ message AccountSummary {
   string id = 1;
   string user_id = 2;
   string tenant_id = 3;
-  string display_name = 4;
-  bool is_enabled = 5;
-  string scope_level = 6;
+  string avatar_url = 4;
+  string display_name = 5;
+  string bio = 6;
+  bool is_enabled = 7;
+  string scope_level = 8;
 }
 
 message GetAccountByIdResponse {

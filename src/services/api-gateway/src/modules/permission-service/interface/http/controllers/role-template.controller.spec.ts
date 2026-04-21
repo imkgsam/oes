@@ -133,7 +133,7 @@ describe('RoleTemplateController', () => {
     await expect(
       controller.createRoleFromTemplate(
         'template-id',
-        { tenantId: 'tenant-id', name: 'Tenant Admin', code: 'TENANT_ADMIN', description: 'Role' },
+        { tenantId: 'tenant-id', name: 'Tenant Admin', description: 'Role' },
         source as any
       )
     ).resolves.toEqual({ id: 'role-id' })
@@ -185,7 +185,6 @@ describe('RoleTemplateController', () => {
         templateRoleId: 'template-id',
         tenantId: 'tenant-id',
         name: 'Tenant Admin',
-        code: 'TENANT_ADMIN',
         description: 'Role'
       },
       source

@@ -55,5 +55,5 @@ Role CRUD and account-role management must understand the role kind boundary:
 
 ## Deferred Work
 
-- Tenant feature / plugin filtering in access summary remains deferred until the module enablement model is frozen.
+- Tenant feature / plugin filtering in access summary is permanently deferred under the current non-modular product direction.
 - Historical `CheckPermissionWithContext` removal remains deferred until all consumers are confirmed migrated to `checkResource` / `buildQueryScope`.

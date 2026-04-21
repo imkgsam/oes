@@ -14,6 +14,7 @@ import {
 import {
   AccountContactAssetQueryScopeBuilder,
   AccountMembershipQueryScopeBuilder,
+  AccountQueryScopeBuilder,
   ApiKeyQueryScopeBuilder,
   AuditEventQueryScopeBuilder,
   AUTHORIZATION_QUERY_SCOPE_BUILDERS,
@@ -77,6 +78,7 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
     ValidatingQueryBus,
     AuthorizationQueryScopeService,
     CheckResourceService,
+    AccountQueryScopeBuilder,
     AccountMembershipQueryScopeBuilder,
     AccountContactAssetQueryScopeBuilder,
     ApiKeyQueryScopeBuilder,
@@ -86,11 +88,13 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
       provide: AUTHORIZATION_QUERY_SCOPE_BUILDERS,
       useFactory: (
         membershipBuilder: AccountMembershipQueryScopeBuilder,
+        accountBuilder: AccountQueryScopeBuilder,
         contactAssetBuilder: AccountContactAssetQueryScopeBuilder,
         apiKeyBuilder: ApiKeyQueryScopeBuilder,
         auditEventBuilder: AuditEventQueryScopeBuilder,
         serviceAccountBuilder: ServiceAccountQueryScopeBuilder
       ): QueryScopeBuilder[] => [
+        accountBuilder,
         membershipBuilder,
         contactAssetBuilder,
         apiKeyBuilder,
@@ -98,6 +102,7 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
         serviceAccountBuilder
       ],
       inject: [
+        AccountQueryScopeBuilder,
         AccountMembershipQueryScopeBuilder,
         AccountContactAssetQueryScopeBuilder,
         ApiKeyQueryScopeBuilder,

@@ -1,51 +1,47 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
-import { IDENTITY_SERVICE, LoginMethodEnum } from '@oes/common/constants'
+import { IDENTITY_SERVICE } from '@oes/common/constants'
 import { ExceptionFactory } from '@oes/common/exceptions'
+import { IIdentityServicePort } from '../../ports/identity-service.port'
 import {
-  AccountCandidateSummary,
-  IIdentityServicePort
-} from '../../ports/identity-service.port'
-import { MfaChallengeVerificationService } from '../../services/mfa/mfa-challenge-verification.service'
-import { AUTH_NO_AVAILABLE_ACCOUNT, AUTH_OTP_INVALID } from '../../../common/constants/exception-enums'
+  AccountSessionEstablishmentService,
+  EstablishedAccountSession
+} from '../../services/account-session-establishment.service'
+import { LoginMfaOrchestrationService } from '../../services/mfa/login-mfa-orchestration.service'
+import { AUTH_NO_AVAILABLE_ACCOUNT } from '../../../common/constants/exception-enums'
 import { SubmitMfaChallengeCommand } from './submit-mfa-challenge.command'
 
-export interface SubmitMfaChallengeResult {
-  userId: string
-  method: LoginMethodEnum
-  nextStep: 'ACCOUNT_SELECTION_REQUIRED'
-  accounts: AccountCandidateSummary[]
-}
+export type SubmitMfaChallengeResult = EstablishedAccountSession
 
 @CommandHandler(SubmitMfaChallengeCommand)
 export class SubmitMfaChallengeHandler
   implements ICommandHandler<SubmitMfaChallengeCommand, SubmitMfaChallengeResult>
 {
   constructor(
-    private readonly mfaChallengeVerificationService: MfaChallengeVerificationService,
+    private readonly loginMfaOrchestrationService: LoginMfaOrchestrationService,
     @Inject(IDENTITY_SERVICE)
-    private readonly identityService: IIdentityServicePort
+    private readonly identityService: IIdentityServicePort,
+    private readonly accountSessionEstablishmentService: AccountSessionEstablishmentService
   ) {}
 
   async execute(command: SubmitMfaChallengeCommand): Promise<SubmitMfaChallengeResult> {
-    const userId = await this.mfaChallengeVerificationService.verifyChallenge(
-      command.challengeId,
-      command.code
-    )
-    if (!userId) {
-      throw ExceptionFactory.domain(AUTH_OTP_INVALID)
+    const flow = await this.loginMfaOrchestrationService.verifySelectedFactor({
+      challengeId: command.challengeId,
+      factor: command.factor,
+      code: command.code,
+      factorChallengeId: command.factorChallengeId
+    })
+    const account = await this.identityService.getAccountById(flow.aid)
+    if (!account || account.userId !== flow.sub) {
+      throw ExceptionFactory.domain(AUTH_NO_AVAILABLE_ACCOUNT, { userId: flow.sub, accountId: flow.aid })
     }
 
-    const accounts = await this.identityService.getAvailableAccountsByUserId(userId)
-    if (accounts.length === 0) {
-      throw ExceptionFactory.domain(AUTH_NO_AVAILABLE_ACCOUNT, { userId })
-    }
-
-    return {
-      userId,
-      method: command.loginMethod,
-      nextStep: 'ACCOUNT_SELECTION_REQUIRED',
-      accounts
-    }
+    return this.accountSessionEstablishmentService.establish({
+      userId: flow.sub,
+      account,
+      loginMethod: flow.loginMethod,
+      userAgent: flow.userAgent,
+      ipAddress: flow.ipAddress
+    })
   }
 }

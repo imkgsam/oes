@@ -12,6 +12,8 @@
 - 技术架构如何落地
 - AI 如何以平台能力方式接入
 - 多线程开发时如何保持一致性
+- 服务职责如何作为唯一真相源归位
+- 多个服务围绕关键能力如何协同
 
 ## 2. 推荐阅读顺序
 
@@ -72,6 +74,10 @@
 
 ## 4. 配套目录
 
+- `docs/architecture/services/`
+  - 用于记录服务职责卡；每个服务只有一份服务职责真相
+- `docs/architecture/collaborations/`
+  - 用于记录跨服务关键能力协同蓝图；每个协同主题只有一份协同真相
 - `docs/adr/`
   - 用于记录关键架构决策与取舍
 - `docs/plans/`
@@ -81,35 +87,29 @@
 - `docs/governance/`
   - 用于记录多线程协作、变更边界与执行流程
 
+建议优先从 [docs/governance/index.md](/Users/acehood/Documents/GitHub/oes/docs/governance/index.md) 进入，而不是直接跳到某一份单独规则文档。
+
 ## 5. 使用规则
 
 - 若实现与本目录下架构文档不一致，应以架构文档为目标状态进行对齐，除非有更新的 ADR 明确覆盖。
 - 本目录下文档承载项目级稳定设计，不承载零散实施步骤。
 - 项目级设计应优先沉淀到本目录，而不是继续扩散到多个历史文档中。
+- 服务“负责什么 / 不负责什么 / 拥有哪些核心能力”的真相应优先沉淀到 `docs/architecture/services/*.md`。
+- 跨服务“如何围绕某项能力协同”的真相应优先沉淀到 `docs/architecture/collaborations/*.md`。
+- `docs/plans/features/*.md` 只记录当前 feature 执行状态，不应重复承载已冻结的服务职责与协同规则正文。
 
 ## 6. 配套计划文档
 
 - `docs/plans/index.md`
-  - 计划文档索引
-- `docs/plans/frontend-planning-summary.md`
-  - 前端高层结论与阅读导航
-- `docs/plans/tenant-web-frontend-architecture.md`
-  - `tenant-web` 前端工程架构主文档
-- `docs/plans/tenant-web-information-architecture.md`
-  - `tenant-web` 产品级信息架构主文档
-- `docs/plans/tenant-web-code-refactor-checklist.md`
-  - `tenant-web` 当前执行状态与验证结果
-- `docs/plans/tenant-web-vben-implementation-plan.md`
-  - `tenant-web` 底座适配与本地化专项说明
-- `docs/plans/authorization-layering-implementation-plan.md`
-  - 授权分层与资源策略实施计划
-- `docs/plans/ai-platform-foundation-plan.md`
-  - AI 平台基础能力实施计划
-- `docs/plans/notification-service-foundation-plan.md`
-  - Notification Service 平台基础实施计划
-- `docs/plans/communication-mailbox-foundation-plan.md`
-  - Communication And Mailbox 平台基础实施计划
-- `docs/plans/notification-service-contract-draft.md`
-  - Notification Service 第一版契约草案
-- `docs/plans/communication-service-contract-draft.md`
-  - Communication Service 第一版契约草案
+  - 计划文档统一入口；所有实施计划、候选项、backlog 与 feature packet 应优先从该索引进入
+- 前端专题当前主入口：
+  - `docs/plans/frontend-planning-summary.md`
+- 其他专题计划、契约草案与 foundation plan：
+  - 统一通过 `docs/plans/index.md` 导航，避免在本页重复维护长清单
+
+## 7. 新增阅读入口
+
+- 服务职责入口：
+  - [services/index.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/index.md)
+- 协同蓝图入口：
+  - [collaborations/index.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/index.md)

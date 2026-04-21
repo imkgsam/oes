@@ -7,6 +7,12 @@ export const PERMISSION_MANAGEMENT_PERMISSION_CODES = {
   VIEW_PERMISSION_DETAIL_BY_CODE: 'permission.get_by_code',
   VIEW_AUDIT_EVENT: 'permission.audit.list',
 
+  VIEW_NAVIGATION_ENTRY: 'permission.navigation.entry.list',
+  VIEW_NAVIGATION_ENTRY_DETAIL: 'permission.navigation.entry.get_by_key',
+  CREATE_NAVIGATION_ENTRY: 'permission.navigation.entry.create',
+  UPDATE_NAVIGATION_ENTRY: 'permission.navigation.entry.update',
+  RESOLVE_NAVIGATION_PREVIEW: 'permission.navigation.resolve_preview',
+
   CREATE_ROLE: 'permission.role.create',
   UPDATE_ROLE: 'permission.role.update',
   DELETE_ROLE: 'permission.role.delete_by_id',

@@ -1,25 +1,83 @@
-import { Injectable } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { MfaBindingType } from '@oes/common/generated/auth_service'
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 import { AuthGrpcAdapter } from '../../infrastructure/downstream/auth-service/auth-grpc.adapter'
-import { AdminAuditEventQueryDto, AdminRevokeSessionDto } from '../../interfaces/http/dtos/admin-security.dto'
+import { IdentityQueryGrpcAdapter } from '../../infrastructure/downstream/identity-service/identity-query-grpc.adapter'
 import {
+  AdminAccountDirectoryQueryDto,
+  AdminAuditEventQueryDto,
+  AdminLoginMethodStateMutationDto,
+  AdminOnlineUserQueryDto,
+  AdminRequirePasswordSetupDto,
+  AdminTenantMfaPolicyMutationDto,
+  CreateAdminAccountDto,
+  AdminTenantOptionQueryDto,
+  AdminRevokeSessionDto,
+  UpdateAdminAccountBasicInfoDto
+} from '../../interfaces/http/dtos/admin-security.dto'
+import { AdminUserSearchQueryDto } from '../../interfaces/http/dtos/admin-security.dto'
+import {
+  AdminAccountDirectoryListViewModel,
+  AdminAccountBasicInfoViewModel,
+  AdminAccountDirectoryItemViewModel,
   AdminAuditEventListViewModel,
   AdminAuditEventViewModel,
+  AdminOnlineUserListViewModel,
+  AdminOnlineUserViewModel,
   AdminSessionListViewModel,
   AdminSessionMutationViewModel,
-  AdminSessionViewModel
+  AdminSessionViewModel,
+  AdminTenantMfaPolicyViewModel,
+  AdminTenantOptionListViewModel,
+  AdminUserSearchListViewModel
 } from '../../interfaces/http/view-models/admin-security.view-model'
+import {
+  LoginMethodListViewModel,
+  LoginMethodMutationViewModel,
+  LoginMethodViewModel,
+  PasswordMutationViewModel
+} from '../../interfaces/http/view-models/self-security.view-model'
+import { PermissionProxyService } from '../../../permission-service/permission-service.service'
 
 @Injectable()
 // Executes administrator-facing auth session and audit operations through the auth-service contract.
 export class AdminSecurityUseCase {
-  constructor(private readonly authAdapter: AuthGrpcAdapter) {}
+  constructor(
+    private readonly authAdapter: AuthGrpcAdapter,
+    private readonly identityAdapter: IdentityQueryGrpcAdapter,
+    private readonly permissionService: PermissionProxyService
+  ) {}
+
+  async listOnlineUsers(
+    query: AdminOnlineUserQueryDto,
+    source: DownstreamRequestSource
+  ): Promise<AdminOnlineUserListViewModel> {
+    const result = await this.authAdapter.adminListOnlineUsers(
+      {
+        tenantId: query.tenantId?.trim() || undefined
+      },
+      source
+    )
+    const hydratedItems = await this.hydrateOnlineUsers(result.items ?? [], source)
+    const filteredItems = filterOnlineUsers(hydratedItems, query.query)
+    const pageSize = query.pageSize ?? 20
+    const offset = parseCursor(query.cursor)
+    const items = filteredItems.slice(offset, offset + pageSize)
+    const localNextCursor =
+      offset + pageSize < filteredItems.length ? String(offset + pageSize) : undefined
+
+    return {
+      items,
+      nextCursor: result.nextCursor ?? localNextCursor
+    }
+  }
 
   async listUserSessions(
     userId: string,
     source: DownstreamRequestSource
   ): Promise<AdminSessionListViewModel> {
     const result = await this.authAdapter.adminListUserSessions(userId.trim(), source)
+    const accountNameMap = await this.loadAccountNames(result.sessions ?? [], source)
 
     return {
       sessions: (result.sessions ?? []).map(
@@ -27,6 +85,9 @@ export class AdminSecurityUseCase {
           sessionId: session.sessionId ?? '',
           userId: session.userId ?? '',
           accountId: session.accountId ?? undefined,
+          accountName: normalize(
+            session.accountId ? accountNameMap.get(session.accountId) : undefined
+          ),
           tenantId: session.tenantId ?? undefined,
           status: session.status ?? '',
           loginMethod: session.loginMethod ?? '',
@@ -56,11 +117,367 @@ export class AdminSecurityUseCase {
     }
   }
 
+  async searchUsers(
+    query: AdminUserSearchQueryDto,
+    source: DownstreamRequestSource
+  ): Promise<AdminUserSearchListViewModel> {
+    const keyword = normalize(query.keyword)
+
+    if (!keyword) {
+      return { items: [] }
+    }
+
+    const candidates = await this.findSearchCandidates(keyword, source)
+    const limit = Math.min(Math.max(query.limit ?? 10, 1), 10)
+    const items = (
+      await Promise.all(candidates.slice(0, limit).map((user) => this.buildSearchItem(user, source)))
+    ).filter(Boolean)
+
+    return {
+      items
+    }
+  }
+
+  async listAccounts(
+    query: AdminAccountDirectoryQueryDto,
+    source: DownstreamRequestSource
+  ): Promise<AdminAccountDirectoryListViewModel> {
+    const page = Math.max(query.page ?? 1, 1)
+    const pageSize = Math.min(Math.max(query.pageSize ?? 20, 1), 100)
+    const result = await this.identityAdapter.listAccounts(
+      {
+        keyword: normalize(query.keyword),
+        page,
+        pageSize,
+        scopeLevel: query.scopeLevel?.trim() || undefined,
+        status: query.status?.trim() || undefined
+      },
+      source
+    )
+
+    return {
+      items: (result.accounts ?? []).map((account) => ({
+        accountId: account.accountId ?? '',
+        userId: account.userId ?? '',
+        tenantId: normalize(account.tenantId),
+        tenantName: normalize(account.tenantName),
+        accountDisplayName: normalize(account.displayName),
+        userDisplayName: normalize(account.userDisplayName),
+        scopeLevel: account.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
+        isEnabled: Boolean(account.isEnabled)
+      })),
+      page,
+      pageSize,
+      total: Number(result.total ?? 0)
+    }
+  }
+
+  async getAccountBasicInfo(
+    accountId: string,
+    source: DownstreamRequestSource
+  ): Promise<AdminAccountBasicInfoViewModel> {
+    const accountResult = await this.identityAdapter.getAccountById(accountId.trim(), source)
+    const account = accountResult.account
+    if (!account?.id || !account.userId) {
+      throw new NotFoundException('Account not found')
+    }
+
+    const userResult = await this.identityAdapter.getUserById(account.userId, source)
+    const user = userResult.user
+    const tenantName =
+      account.scopeLevel === 'TENANT' && account.tenantId
+        ? normalize((await this.identityAdapter.getTenantById(account.tenantId, source)).tenant?.name)
+        : undefined
+
+    return {
+      accountId: account.id,
+      userId: account.userId,
+      displayName: normalize(account.displayName),
+      email: normalize(user?.personalEmail),
+      phone: normalize(user?.personalPhone),
+      tenantId: normalize(account.tenantId),
+      tenantName,
+      scopeLevel: account.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
+      isEnabled: Boolean(account.isEnabled)
+    }
+  }
+
+  async listAccountLoginMethods(
+    accountId: string,
+    source: DownstreamRequestSource
+  ): Promise<LoginMethodListViewModel> {
+    const account = await this.getRequiredAccount(accountId, source)
+    const result = await this.authAdapter.listLoginMethods(account.userId, source)
+
+    return {
+      loginMethods: (result.loginMethods ?? []).map(toLoginMethodViewModel),
+      passwordSetupRequired: Boolean(result.passwordSetupRequired)
+    }
+  }
+
+  async requireAccountPasswordSetup(
+    accountId: string,
+    dto: AdminRequirePasswordSetupDto,
+    source: DownstreamRequestSource
+  ): Promise<PasswordMutationViewModel> {
+    const account = await this.getRequiredAccount(accountId, source)
+    const result = await this.authAdapter.requirePasswordSetup(
+      {
+        userId: account.userId,
+        reason: normalize(dto.reason),
+        revokeSessions: dto.revokeSessions
+      },
+      source
+    )
+
+    return {
+      success: Boolean(result.success),
+      passwordSetupRequired: Boolean(result.passwordSetupRequired)
+    }
+  }
+
+  async setAccountLoginMethodEnabled(
+    accountId: string,
+    methodId: string,
+    enabled: boolean,
+    dto: AdminLoginMethodStateMutationDto,
+    source: DownstreamRequestSource
+  ): Promise<LoginMethodMutationViewModel> {
+    const account = await this.getRequiredAccount(accountId, source)
+    const result = await this.authAdapter.setLoginMethodEnabled(
+      {
+        userId: account.userId,
+        methodId: methodId.trim(),
+        enabled,
+        reason: normalize(dto.reason)
+      },
+      source
+    )
+
+    return {
+      success: Boolean(result.success),
+      loginMethod: toLoginMethodViewModel(result.loginMethod)
+    }
+  }
+
+  async getTenantMfaPolicy(source: DownstreamRequestSource): Promise<AdminTenantMfaPolicyViewModel> {
+    const tenantId = this.resolveTenantAdminTenantId(source)
+    const result = await this.authAdapter.getTenantMfaPolicy(tenantId, source)
+    return toTenantMfaPolicyViewModel(result)
+  }
+
+  async updateTenantMfaPolicy(
+    dto: AdminTenantMfaPolicyMutationDto,
+    source: DownstreamRequestSource
+  ): Promise<AdminTenantMfaPolicyViewModel> {
+    const tenantId = this.resolveTenantAdminTenantId(source)
+    const result = await this.authAdapter.updateTenantMfaPolicy(
+      {
+        tenantId,
+        loginRequired: dto.loginRequired,
+        factors: dto.factors.map((factor) => ({
+          factor: factor.factor,
+          enabled: factor.enabled,
+          priority: factor.priority
+        }))
+      },
+      source
+    )
+
+    return toTenantMfaPolicyViewModel(result)
+  }
+
+  async createAccount(
+    dto: CreateAdminAccountDto,
+    source: DownstreamRequestSource
+  ): Promise<AdminAccountDirectoryItemViewModel> {
+    const operatorScope = source.user?.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT'
+    const scopeLevel = dto.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT'
+
+    if (operatorScope !== 'SYSTEM' && scopeLevel === 'SYSTEM') {
+      throw new ForbiddenException('Forbidden resource')
+    }
+
+    const tenantId =
+      operatorScope === 'SYSTEM'
+        ? scopeLevel === 'TENANT'
+          ? normalize(dto.tenantId)
+          : undefined
+        : source.user?.tid
+
+    const displayName = dto.displayName.trim()
+    const userDisplayName = normalize(dto.username) ?? displayName
+    const created = await this.identityAdapter.createUserAccount(
+      {
+        scopeLevel,
+        tenantId,
+        displayName,
+        username: userDisplayName,
+        email: normalize(dto.email),
+        phone: normalize(dto.phone)
+      },
+      source
+    )
+
+    const account = created.account
+    if (!account?.id) {
+      throw new ForbiddenException('Account creation failed')
+    }
+
+    await this.authAdapter.bootstrapUserLoginMethods(
+      {
+        userId: account.userId ?? '',
+        accountId: account.id,
+        displayName: account.displayName ?? displayName,
+        email: normalize(dto.email),
+        phone: normalize(dto.phone)
+      },
+      source
+    )
+
+    if ((dto.initialRoleIds ?? []).length > 0) {
+      await this.permissionService.setAccountRoles(
+        {
+          accountId: account.id,
+          accountType: 'USER',
+          tenantId: tenantId ?? '',
+          scopeLevel,
+          roleIds: dto.initialRoleIds
+        },
+        source
+      )
+    }
+
+    return {
+      accountId: account.id,
+      userId: account.userId ?? '',
+      tenantId: normalize(account.tenantId),
+      tenantName: undefined,
+      accountDisplayName: normalize(account.displayName),
+      userDisplayName,
+      scopeLevel: account.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
+      isEnabled: Boolean(account.isEnabled)
+    }
+  }
+
+  async listTenantOptions(
+    query: AdminTenantOptionQueryDto,
+    source: DownstreamRequestSource
+  ): Promise<AdminTenantOptionListViewModel> {
+    const result = await this.identityAdapter.listTenants(
+      {
+        keyword: normalize(query.keyword),
+        pageSize: Math.min(Math.max(query.pageSize ?? 20, 1), 50)
+      },
+      source
+    )
+
+    return {
+      items: (result.tenants ?? []).map((tenant) => ({
+        id: tenant.id ?? '',
+        code: tenant.code ?? '',
+        name: tenant.name ?? '',
+        isActive: Boolean(tenant.isActive)
+      }))
+    }
+  }
+
+  async updateAccountBasicInfo(
+    accountId: string,
+    dto: UpdateAdminAccountBasicInfoDto,
+    source: DownstreamRequestSource
+  ): Promise<AdminAccountBasicInfoViewModel> {
+    const current = await this.getAccountBasicInfo(accountId, source)
+    const displayName = dto.displayName.trim()
+    const email = normalize(dto.email)?.toLowerCase()
+    const phone = normalize(dto.phone)
+    const requestedEnabled = dto.isEnabled ?? current.isEnabled
+    const currentDisplayName = normalize(current.displayName) ?? ''
+    const currentEmail = normalize(current.email)?.toLowerCase()
+    const currentPhone = normalize(current.phone)
+    const profileChanged =
+      displayName !== currentDisplayName
+      || email !== currentEmail
+      || phone !== currentPhone
+    const statusChanged = requestedEnabled !== current.isEnabled
+
+    if (profileChanged) {
+      if (!displayName) {
+        throw new BadRequestException('displayName is required')
+      }
+
+      if (!email && !phone) {
+        throw new BadRequestException('email or phone is required')
+      }
+
+      if (current.email && !email) {
+        throw new BadRequestException('Clearing an existing email is not supported yet')
+      }
+
+      if (current.phone && !phone) {
+        throw new BadRequestException('Clearing an existing phone is not supported yet')
+      }
+    }
+
+    if (!profileChanged && !statusChanged) {
+      return current
+    }
+
+    await this.identityAdapter.updateAccountProfile(
+      {
+        accountId: current.accountId,
+        displayName: profileChanged ? displayName : undefined,
+        isEnabled: statusChanged ? requestedEnabled : undefined
+      },
+      source
+    )
+
+    if (profileChanged) {
+      await this.authAdapter.bootstrapUserLoginMethods(
+        {
+          userId: current.userId,
+          accountId: current.accountId,
+          displayName,
+          email,
+          phone
+        },
+        source
+      )
+
+      await this.identityAdapter.updateUserBasicInfo(
+        {
+          accountId: current.accountId,
+          userId: current.userId,
+          email,
+          phone
+        },
+        source
+      )
+    }
+
+    if (statusChanged && !requestedEnabled) {
+      await this.authAdapter.adminDeleteAccountSessions(
+        {
+          userId: current.userId,
+          accountId: current.accountId,
+          reason: 'ACCOUNT_DISABLED'
+        },
+        source
+      )
+    }
+
+    return this.getAccountBasicInfo(current.accountId, source)
+  }
+
   async revokeSession(
     sessionId: string,
     dto: AdminRevokeSessionDto,
     source: DownstreamRequestSource
   ): Promise<AdminSessionMutationViewModel> {
+    if (source.user?.sid && source.user.sid === sessionId.trim()) {
+      throw new ForbiddenException('CANNOT_REVOKE_CURRENT_SESSION')
+    }
+
     const result = await this.authAdapter.adminRevokeSession(
       sessionId.trim(),
       dto.reason.trim(),
@@ -118,4 +535,419 @@ export class AdminSecurityUseCase {
       nextCursor: result.nextCursor ?? undefined
     }
   }
+
+  private async hydrateOnlineUsers(
+    items: Array<{
+      userId?: string
+      tenantId?: string
+      activeSessionCount?: string | number
+      lastActiveAt?: string
+    }>,
+    source: DownstreamRequestSource
+  ): Promise<AdminOnlineUserViewModel[]> {
+    const aggregatedItems = await this.aggregateOnlineUsers(items, source)
+    const userIds = aggregatedItems.map((item) => item.userId)
+    const tenantIds = [
+      ...new Set(aggregatedItems.flatMap((item) => item.tenantIds).filter(Boolean))
+    ] as string[]
+    const [userEntries, tenantEntries] = await Promise.all([
+      Promise.all(
+        userIds.map(async (userId) => {
+          const result = await this.identityAdapter.getUserById(userId, source)
+          return [userId, normalize(result.user?.username)] as const
+        })
+      ),
+      Promise.all(
+        tenantIds.map(async (tenantId) => {
+          const result = await this.identityAdapter.getTenantById(tenantId, source)
+          return [tenantId, normalize(result.tenant?.name)] as const
+        })
+      )
+    ])
+    const userNameMap = new Map(userEntries)
+    const tenantNameMap = new Map(tenantEntries)
+
+    return aggregatedItems.map((item): AdminOnlineUserViewModel => {
+      const tenantNames = item.tenantIds
+        .map((tenantId) => tenantNameMap.get(tenantId))
+        .filter(Boolean) as string[]
+
+      return {
+        userId: item.userId,
+        displayName: userNameMap.get(item.userId) ?? undefined,
+        tenantId: item.tenantIds.length === 1 ? item.tenantIds[0] : undefined,
+        tenantName:
+          item.tenantIds.length === 1
+            ? tenantNameMap.get(item.tenantIds[0]) ?? item.tenantIds[0] ?? null
+            : null,
+        tenantNames,
+        visibleTenantCount: item.tenantIds.length,
+        activeAccountCount: item.activeAccountCount,
+        activeSessionCount: item.activeSessionCount,
+        lastActiveAt: item.lastActiveAt
+      }
+    })
+  }
+
+  // Aggregates raw online-session rows into one user-centric summary with active account and tenant coverage.
+  private async aggregateOnlineUsers(
+    items: Array<{
+      userId?: string
+      tenantId?: string
+      activeSessionCount?: string | number
+      lastActiveAt?: string
+    }>,
+    source: DownstreamRequestSource
+  ): Promise<
+    Array<{
+      userId: string
+      tenantIds: string[]
+      activeAccountCount: number
+      activeSessionCount: number
+      lastActiveAt: string
+    }>
+  > {
+    const userIds = [...new Set(items.map((item) => normalize(item.userId)).filter(Boolean))] as string[]
+    const activeSessionMap = new Map(
+      userIds.map((userId) => [
+        userId,
+        items
+          .filter((item) => normalize(item.userId) === userId)
+          .reduce((total, item) => total + Number(item.activeSessionCount ?? '0'), 0)
+      ])
+    )
+    const lastActiveMap = new Map(
+      userIds.map((userId) => [
+        userId,
+        items
+          .filter((item) => normalize(item.userId) === userId)
+          .reduce((latest, item) => {
+            const candidate = item.lastActiveAt ?? ''
+            return candidate > latest ? candidate : latest
+          }, '')
+      ])
+    )
+    const sessionEntries = await Promise.all(
+      userIds.map(async (userId) => {
+        const result = await this.authAdapter.adminListUserSessions(userId, source)
+        return [userId, result.sessions ?? []] as const
+      })
+    )
+    const activeSessionEntries = sessionEntries.map(([userId, sessions]) => {
+      const activeSessions = sessions.filter(
+        (session) => !Boolean(session.isRevoked) && !Boolean(session.isAccessExpired)
+      )
+      const tenantIds = [
+        ...new Set(activeSessions.map((session) => normalize(session.tenantId)).filter(Boolean))
+      ] as string[]
+      const accountIds = [
+        ...new Set(activeSessions.map((session) => normalize(session.accountId)).filter(Boolean))
+      ] as string[]
+
+      return [
+        userId,
+        {
+          activeAccountCount: accountIds.length,
+          activeSessionCount: activeSessionMap.get(userId) ?? activeSessions.length,
+          lastActiveAt: lastActiveMap.get(userId) ?? '',
+          tenantIds
+        }
+      ] as const
+    })
+
+    return activeSessionEntries
+      .map(([userId, item]) => ({
+        userId,
+        tenantIds: item.tenantIds,
+        activeAccountCount: item.activeAccountCount,
+        activeSessionCount: item.activeSessionCount,
+        lastActiveAt: item.lastActiveAt
+      }))
+      .sort((left, right) => right.lastActiveAt.localeCompare(left.lastActiveAt))
+  }
+
+  // Resolves account display names so the UI can group user sessions under human-readable account labels.
+  private async loadAccountNames(
+    sessions: Array<{
+      accountId?: string
+    }>,
+    source: DownstreamRequestSource
+  ): Promise<Map<string, string | undefined>> {
+    const accountIds = [
+      ...new Set(sessions.map((session) => normalize(session.accountId)).filter(Boolean))
+    ] as string[]
+    const accountEntries = await Promise.all(
+      accountIds.map(async (accountId) => {
+        const result = await this.identityAdapter.getAccountById(accountId, source)
+        return [accountId, normalize(result.account?.displayName)] as const
+      })
+    )
+
+    return new Map(accountEntries)
+  }
+
+  // Resolves the identity account boundary before admin auth mutations target a user-level credential.
+  private async getRequiredAccount(
+    accountId: string,
+    source: DownstreamRequestSource
+  ): Promise<{ id: string; userId: string }> {
+    const accountResult = await this.identityAdapter.getAccountById(accountId.trim(), source)
+    const account = accountResult.account
+    if (!account?.id || !account.userId) {
+      throw new NotFoundException('Account not found')
+    }
+
+    return {
+      id: account.id,
+      userId: account.userId
+    }
+  }
+
+  private resolveTenantAdminTenantId(source: DownstreamRequestSource): string {
+    const tenantId = normalize(source.user?.tenantId || source.user?.tid)
+    if (!tenantId) {
+      throw new ForbiddenException('当前账号不在租户上下文中，无法管理租户登录 MFA 策略。')
+    }
+
+    return tenantId
+  }
+
+  // Resolves at most one identity user candidate from the supported admin-search keyword types.
+  private async findSearchCandidates(
+    keyword: string,
+    source: DownstreamRequestSource
+  ): Promise<Array<{ id: string; personalEmail?: string; personalPhone?: string }>> {
+    const candidates: Array<{ id: string; personalEmail?: string; personalPhone?: string }> = []
+    const seen = new Set<string>()
+    const pushCandidate = (user?: {
+      id?: string
+      personalEmail?: string
+      personalPhone?: string
+    }) => {
+      const userId = normalize(user?.id)
+      if (!userId || seen.has(userId)) {
+        return
+      }
+
+      seen.add(userId)
+      candidates.push({
+        id: userId,
+        personalEmail: normalize(user?.personalEmail),
+        personalPhone: normalize(user?.personalPhone)
+      })
+    }
+
+    if (looksLikeUserId(keyword)) {
+      pushCandidate((await this.identityAdapter.getUserById(keyword, source)).user)
+    }
+
+    if (keyword.includes('@')) {
+      pushCandidate((await this.identityAdapter.getUserByEmail(keyword, source)).user)
+    }
+
+    if (looksLikePhone(keyword)) {
+      pushCandidate((await this.identityAdapter.getUserByPhone(keyword, source)).user)
+    }
+
+    return candidates
+  }
+
+  // Builds one admin-search row by joining identity facts, tenant labels, and visible session counts.
+  private async buildSearchItem(
+    user: {
+      id: string
+      personalEmail?: string
+      personalPhone?: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<AdminUserSearchListViewModel['items'][number] | null> {
+    const visibleTenantId = normalize(source.user?.tenantId) ?? normalize(source.user?.tid)
+    const isTenantScope = source.user?.scopeLevel !== 'SYSTEM'
+    const accountsResult = await this.identityAdapter.getAccountsByUserId(user.id, source)
+    const accountSummaries = (accountsResult.accounts ?? []).filter((account) => {
+      if (!isTenantScope) {
+        return true
+      }
+
+      return normalize(account.tenantId) === visibleTenantId
+    })
+
+    if (accountSummaries.length === 0) {
+      return null
+    }
+
+    const tenantIds = [...new Set(accountSummaries.map((account) => normalize(account.tenantId)).filter(Boolean))] as string[]
+    const tenantEntries = await Promise.all(
+      tenantIds.map(async (tenantId) => {
+        const result = await this.identityAdapter.getTenantById(tenantId, source)
+        return [tenantId, normalize(result.tenant?.name)] as const
+      })
+    )
+    const tenantNameMap = new Map(tenantEntries)
+    const sessionsResult = await this.authAdapter.adminListUserSessions(user.id, source)
+    const activeSessions = (sessionsResult.sessions ?? []).filter((session) => {
+      if (Boolean(session.isRevoked) || Boolean(session.isAccessExpired)) {
+        return false
+      }
+
+      if (!isTenantScope) {
+        return true
+      }
+
+      return normalize(session.tenantId) === visibleTenantId
+    })
+
+    return {
+      userId: user.id,
+      displayName:
+        normalize(accountSummaries[0]?.displayName) ?? user.id,
+      emailMasked: maskEmail(user.personalEmail),
+      phoneMasked: maskPhone(user.personalPhone),
+      accountSummaries: accountSummaries.map((account) => ({
+        accountId: account.accountId ?? '',
+        accountDisplayName: normalize(account.displayName),
+        tenantId: normalize(account.tenantId),
+        tenantName: normalize(account.tenantId)
+          ? tenantNameMap.get(normalize(account.tenantId)!) ?? normalize(account.tenantId)
+          : undefined,
+        scopeLevel: account.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT'
+      })),
+      isOnline: activeSessions.length > 0,
+      activeSessionCount: activeSessions.length
+    }
+  }
+}
+
+function toLoginMethodViewModel(method?: {
+  methodId?: string
+  userId?: string
+  type?: string
+  identifier?: string
+  maskedIdentifier?: string
+  verified?: boolean
+  enabled?: boolean
+  hasPassword?: boolean
+  createdAt?: string
+  updatedAt?: string
+}): LoginMethodViewModel {
+  return {
+    methodId: method?.methodId ?? '',
+    userId: method?.userId ?? '',
+    type: method?.type ?? '',
+    identifier: method?.identifier ?? undefined,
+    maskedIdentifier: method?.maskedIdentifier ?? undefined,
+    verified: Boolean(method?.verified),
+    enabled: Boolean(method?.enabled),
+    hasPassword: Boolean(method?.hasPassword),
+    createdAt: method?.createdAt ?? undefined,
+    updatedAt: method?.updatedAt ?? undefined
+  }
+}
+
+function normalize(value?: string): string | undefined {
+  const normalized = value?.trim()
+  return normalized ? normalized : undefined
+}
+
+function toTenantMfaPolicyViewModel(result: {
+  factors?: Array<{ enabled?: boolean; factor?: MfaBindingType; priority?: number }>
+  loginRequired?: boolean
+  tenantId?: string
+}): AdminTenantMfaPolicyViewModel {
+  return {
+    tenantId: result.tenantId ?? '',
+    loginRequired: Boolean(result.loginRequired),
+    factors: (result.factors ?? [])
+      .map((factor) => {
+        const type = toTenantMfaFactor(factor.factor)
+        if (!type) {
+          return null
+        }
+
+        return {
+          factor: type,
+          enabled: Boolean(factor.enabled),
+          priority: Number(factor.priority ?? 0)
+        }
+      })
+      .filter((factor): factor is AdminTenantMfaPolicyViewModel['factors'][number] => Boolean(factor))
+      .sort((left, right) => left.priority - right.priority)
+  }
+}
+
+function toTenantMfaFactor(
+  factor?: MfaBindingType
+): 'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP' | undefined {
+  switch (factor) {
+    case MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP:
+      return 'EMAIL_OTP'
+    case MfaBindingType.MFA_BINDING_TYPE_SMS_OTP:
+      return 'SMS_OTP'
+    case MfaBindingType.MFA_BINDING_TYPE_TOTP:
+      return 'TOTP'
+    case MfaBindingType.MFA_BINDING_TYPE_BACKUP_CODE:
+      return 'BACKUP_CODE'
+    default:
+      return undefined
+  }
+}
+
+function parseCursor(cursor?: string): number {
+  const parsed = Number.parseInt(cursor ?? '0', 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
+}
+
+function filterOnlineUsers(
+  items: AdminOnlineUserViewModel[],
+  query?: string
+): AdminOnlineUserViewModel[] {
+  const keyword = normalize(query)?.toLowerCase()
+
+  if (!keyword) {
+    return items
+  }
+
+  return items.filter((item) =>
+    [item.userId, item.displayName, item.tenantId, item.tenantName, ...(item.tenantNames ?? [])]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(keyword))
+  )
+}
+
+function looksLikeUserId(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+}
+
+function looksLikePhone(value: string): boolean {
+  const compact = value.replace(/[\s()-]/g, '')
+  return /^\+?\d{6,20}$/.test(compact)
+}
+
+function maskEmail(value?: string): string | undefined {
+  const normalized = normalize(value)
+  if (!normalized) {
+    return undefined
+  }
+
+  const [local, domain] = normalized.split('@')
+  if (!local || !domain) {
+    return undefined
+  }
+
+  return `${local[0]}***@${domain}`
+}
+
+function maskPhone(value?: string): string | undefined {
+  const normalized = normalize(value)
+  if (!normalized) {
+    return undefined
+  }
+
+  const digitsOnly = normalized.replace(/\D/g, '')
+  if (digitsOnly.length < 4) {
+    return undefined
+  }
+
+  const prefix = normalized.startsWith('+') ? `+${digitsOnly[0]}` : digitsOnly.slice(0, 1)
+  return `${prefix}*******${digitsOnly.slice(-3)}`
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { Permission } from '../../../domain/aggregates/permission.aggregate'
 import { Role } from '../../../domain/aggregates/role.aggregate'
 import { AccountType } from '../../../domain/enums/account-type.enum'
@@ -30,6 +30,8 @@ function buildActiveAccountRoleWhere(now: Date): Prisma.AccountRoleWhereInput {
 
 @Injectable()
 export class PrismaRoleRepository implements RoleRepository {
+  private readonly logger = new Logger(PrismaRoleRepository.name)
+
   constructor(private readonly prisma: PrismaService) {}
 
   async findById(id: string): Promise<Role | null> {
@@ -81,11 +83,14 @@ export class PrismaRoleRepository implements RoleRepository {
     const skip = (page - 1) * pageSize
     const keyword = query.keyword?.trim()
 
-    const targetKind =
-      query.scopeLevel === ScopeLevel.SYSTEM ? RoleKind.SYSTEM_INSTANCE : RoleKind.TENANT_INSTANCE
-
     const where = {
-      kind: targetKind,
+      kind: query.scopeLevel
+        ? query.scopeLevel === ScopeLevel.SYSTEM
+          ? RoleKind.SYSTEM_INSTANCE
+          : RoleKind.TENANT_INSTANCE
+        : {
+            in: [RoleKind.SYSTEM_INSTANCE, RoleKind.TENANT_INSTANCE]
+          },
       ...(query.tenantId ? { tenantId: query.tenantId } : {}),
       ...(keyword
         ? {
@@ -331,11 +336,24 @@ export class PrismaRoleRepository implements RoleRepository {
       },
       include: { role: { include: ROLE_INCLUDE } }
     })
-    return accountRoles.map((ar) =>
+
+    const roles = accountRoles.map((ar) =>
       RoleMapper.toDomain(
         (ar as Prisma.AccountRoleGetPayload<{ include: { role: { include: typeof ROLE_INCLUDE } } }>).role
       )
     )
+
+    const repositoryMessage = `findAccountRoles: accountId=${accountId}; tenantId=${tenantId ?? ''}; scopeLevel=${scopeLevel}; bindings=${
+      accountRoles.length
+    }; roles=${roles.map((role) => `${role.code}[${role.permissions.length}]`).join(',')}`
+
+    if (roles.length === 0 || roles.some((role) => role.permissions.length === 0)) {
+      this.logger.warn(repositoryMessage)
+    } else {
+      this.logger.log(repositoryMessage)
+    }
+
+    return roles
   }
 
   async findTenantRoles(tenantId: string): Promise<Role[]> {

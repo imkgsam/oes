@@ -21,7 +21,6 @@ Back end owns:
 
 - Resolving current effective roles.
 - Resolving current effective permission codes.
-- Filtering out permissions for disabled tenant features or plugins.
 - Applying future policy / scope / deny rules before returning codes.
 
 Front end owns:
@@ -45,7 +44,6 @@ Current stage:
 
 - `actionCodes` equal the current context's effective permission codes.
 - The back end resolves roles and role permissions.
-- The back end filters codes that are not enabled by tenant feature / plugin state.
 - The front end consumes the resulting codes directly through `v-access:code`, `AccessControl type="code"`, or equivalent helpers.
 
 Future extension:
@@ -126,20 +124,21 @@ or:
 
 The front end should treat returned `actionCodes` as the effective authorization summary for the current session context.
 
-## 9. Implementation Status
+## 9. Current Integration Boundary
 
-Completed:
+Current state:
 
-- Implemented `GET /auth/session/access-summary`.
-- Added the dedicated `permission-service` access-summary gRPC contract.
-- Uses `permission-service` as the downstream source for effective roles and permission codes.
-- Supports both tenant-scope and system-scope accounts by forwarding the authenticated `scopeLevel`.
-- Tenant-web login hydration consumes the dedicated endpoint and writes `actionCodes` into the existing `accessCodes` store.
+- `GET /auth/session/access-summary` is already the dedicated access-summary endpoint.
+- The downstream source is `permission-service`.
+- Both tenant-scope and system-scope accounts are supported.
 
 ## 10. Current Deferred Work
 
-- Add tenant feature / plugin filtering once the feature registry exists.
 - Keep `session/context.access.actionCodes` as a compatibility field until all front-end callers no longer depend on it.
+
+## 11. Explicit Non-goal
+
+- Tenant feature / plugin enablement filtering is not part of the current OES authorization roadmap. The system is not expected to evolve toward tenant-level module or plugin enablement in the current architecture.
 
 Downstream design reference:
 

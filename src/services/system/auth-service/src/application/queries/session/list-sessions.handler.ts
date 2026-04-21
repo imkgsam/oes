@@ -43,8 +43,13 @@ export class ListSessionsHandler
 
   async execute(query: ListSessionsQuery): Promise<SessionViewResult[]> {
     const sessions = await this.sessionRepository.findAllByUserId(query.userId)
+    const currentSession = query.currentSessionId
+      ? await this.sessionRepository.findById(query.currentSessionId)
+      : null
+    const currentAccountId = currentSession?.getAccountId() ?? query.currentAccountId
 
     return sessions
+      .filter((session) => !currentAccountId || session.getAccountId() === currentAccountId)
       .sort((left, right) => {
         return right.getLastActiveAt().getTime() - left.getLastActiveAt().getTime()
       })

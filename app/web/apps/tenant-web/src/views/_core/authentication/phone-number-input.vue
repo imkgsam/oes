@@ -55,13 +55,13 @@ function syncFromModelValue(value?: string) {
     return;
   }
 
-  const matchedOption = [...PHONE_COUNTRY_OPTIONS]
-    .sort((left, right) => resolveDialCode(right.value).length - resolveDialCode(left.value).length)
+  const matchedOption = PHONE_COUNTRY_OPTIONS
+    .toSorted((left, right) => resolveDialCode(right.value).length - resolveDialCode(left.value).length)
     .find((option) => normalized.startsWith(resolveDialCode(option.value)));
 
   const nextCountryCode = matchedOption?.value ?? DEFAULT_COUNTRY_CODE;
   countryCode.value = nextCountryCode;
-  localPhoneNumber.value = normalized.replace(resolveDialCode(nextCountryCode), '');
+  localPhoneNumber.value = normalized.replaceAll(resolveDialCode(nextCountryCode), '');
 }
 
 watch(
@@ -75,7 +75,7 @@ watch(
 watch(
   [countryCode, localPhoneNumber],
   () => {
-    const normalizedLocalPhoneNumber = `${localPhoneNumber.value ?? ''}`.replace(/\D/g, '');
+    const normalizedLocalPhoneNumber = `${localPhoneNumber.value ?? ''}`.replaceAll(/\D/g, '');
     modelValue.value = normalizedLocalPhoneNumber
       ? buildPhoneNumber(countryCode.value, normalizedLocalPhoneNumber)
       : '';
@@ -88,7 +88,7 @@ const selectedCountryLabel = computed(() => {
 </script>
 
 <template>
-  <div class="flex w-full items-center rounded-md border border-border bg-background transition-colors focus-within:border-primary">
+  <div class="phone-number-input flex w-full items-center rounded-md border border-border bg-background transition-colors focus-within:border-primary">
     <Select
       :value="countryCode"
       :aria-label="selectedCountryLabel"
@@ -111,30 +111,63 @@ const selectedCountryLabel = computed(() => {
 </template>
 
 <style scoped>
+.phone-number-input {
+  --phone-input-bg: hsl(var(--input-background));
+  --phone-input-border: hsl(var(--border));
+  --phone-input-text: hsl(var(--foreground));
+  --phone-input-muted: hsl(var(--muted-foreground));
+  --phone-input-popover: hsl(var(--popover));
+  --phone-input-accent: hsl(var(--muted) / 0.82);
+  --phone-input-height: 32px;
+}
+
 :deep(.phone-country-select) {
   width: 84px;
 }
 
 :deep(.phone-country-select .ant-select-selector) {
   border: 0;
-  border-right: 1px solid hsl(var(--border));
+  border-right: 1px solid var(--phone-input-border);
   border-radius: 0;
   box-shadow: none;
-  background: rgb(246 248 250 / 88%) !important;
-  min-height: 40px;
+  background: var(--phone-input-bg) !important;
+  min-height: var(--phone-input-height);
   padding-inline: 10px 6px;
 }
 
 :deep(.phone-country-select .ant-select-selection-item) {
-  color: inherit;
-  line-height: 38px;
+  color: var(--phone-input-text);
+  line-height: calc(var(--phone-input-height) - 2px);
+}
+
+:deep(.phone-country-select .ant-select-arrow) {
+  color: var(--phone-input-muted);
 }
 
 :deep(.phone-local-input.ant-input) {
   border: 0;
   box-shadow: none;
   background: transparent;
-  min-height: 40px;
+  color: var(--phone-input-text);
+  min-height: var(--phone-input-height);
   padding-inline: 10px;
+}
+
+:deep(.phone-local-input.ant-input::placeholder) {
+  color: var(--phone-input-muted);
+}
+
+:deep(.phone-country-select-popper .ant-select-dropdown) {
+  background: var(--phone-input-popover);
+  border: 1px solid var(--phone-input-border);
+}
+
+:deep(.phone-country-select-popper .ant-select-item) {
+  color: var(--phone-input-text);
+}
+
+:deep(.phone-country-select-popper .ant-select-item-option-selected:not(.ant-select-item-option-disabled)),
+:deep(.phone-country-select-popper .ant-select-item-option-active:not(.ant-select-item-option-disabled)) {
+  background: var(--phone-input-accent);
 }
 </style>

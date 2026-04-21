@@ -36,7 +36,8 @@ export function createServiceAccountRepositoryMock(): jest.Mocked<ServiceAccount
 
 export function createTenantRepositoryMock(): jest.Mocked<TenantRepository> {
   return {
-    findById: jest.fn()
+    findById: jest.fn(),
+    list: jest.fn()
   } as unknown as jest.Mocked<TenantRepository>
 }
 

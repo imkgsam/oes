@@ -11,7 +11,7 @@ export class CreateRoleInstanceCommand implements ICommand {
 
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[A-Z][A-Z0-9_]*$/)
+  @Matches(/^[A-Za-z][A-Za-z0-9._-]*$/)
   readonly code: string
 
   @IsEnum(ScopeLevel)

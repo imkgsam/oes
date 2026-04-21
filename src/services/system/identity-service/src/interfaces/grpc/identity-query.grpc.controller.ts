@@ -9,6 +9,8 @@ import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   AccountContactAsset,
+  ListAccountsRequest,
+  ListAccountsResponse,
   GetAccountByIdRequest,
   GetAccountByIdResponse,
   GetApiKeyByIdRequest,
@@ -33,6 +35,8 @@ import {
   GetOrgTreeByTenantIdResponse,
   GetTenantByIdRequest,
   GetTenantByIdResponse,
+  ListTenantsRequest,
+  ListTenantsResponse,
   GetUserByIdRequest,
   GetUserByIdResponse,
   GetUserByEmailRequest,
@@ -45,6 +49,7 @@ import {
 } from '@oes/common/generated/identity_service'
 import {
   AccountCandidateView,
+  AccountDirectoryPageView,
   AccountContactAssetView,
   AccountOrgMembershipView,
   AccountSummaryView,
@@ -53,6 +58,7 @@ import {
   ApiKeyView,
   GetAccountByIdQuery,
   GetAccountsByUserIdQuery,
+  ListAccountsQuery,
   GetApiKeyByIdQuery,
   GetServiceAccountByIdQuery,
   ListAccountOrgMembershipsQuery,
@@ -62,6 +68,7 @@ import {
   ListAccountWorkPhoneAssetsQuery,
   GetOrgTreeByTenantIdQuery,
   GetTenantByIdQuery,
+  ListTenantsQuery,
   OrgNodeView,
   ServiceAccountView,
   TenantSummaryView,
@@ -136,7 +143,9 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
         id: account.id,
         userId: account.userId,
         tenantId: account.tenantId ?? '',
+        avatarUrl: account.avatarUrl ?? '',
         displayName: account.displayName ?? '',
+        bio: account.bio ?? '',
         isEnabled: account.isEnabled,
         scopeLevel: account.scopeLevel
       }
@@ -266,9 +275,41 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
       accounts: accounts.map((account) => ({
         accountId: account.accountId,
         tenantId: account.tenantId ?? '',
+        tenantName: account.tenantName ?? '',
         displayName: account.displayName ?? '',
         scopeLevel: account.scopeLevel
       }))
+    }
+  }
+
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  @UseInterceptors(GrpcRequestContextInterceptor)
+  async listAccounts(request: ListAccountsRequest): Promise<ListAccountsResponse> {
+    const operatorScope = getOptionalOperatorScope(request)
+    const result = await this.queryBus.execute<ListAccountsQuery, AccountDirectoryPageView>(
+      new ListAccountsQuery({
+        keyword: request.keyword || undefined,
+        page: request.page || undefined,
+        pageSize: request.pageSize || undefined,
+        scopeLevel: request.scopeLevel || undefined,
+        status: request.status || undefined,
+        operatorScope
+      })
+    )
+
+    return {
+      accounts: result.items.map((account) => ({
+        accountId: account.accountId,
+        userId: account.userId,
+        tenantId: account.tenantId ?? '',
+        tenantName: account.tenantName ?? '',
+        scopeLevel: account.scopeLevel,
+        displayName: account.displayName ?? '',
+        userDisplayName: account.userDisplayName ?? '',
+        isEnabled: account.isEnabled
+      })),
+      total: result.total
     }
   }
 
@@ -289,6 +330,27 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
         name: tenant.name,
         isActive: tenant.isActive
       }
+    }
+  }
+
+  async listTenants(request: ListTenantsRequest): Promise<ListTenantsResponse> {
+    const operatorScope = getOptionalOperatorScope(request)
+    const tenants = await this.queryBus.execute<ListTenantsQuery, TenantSummaryView[]>(
+      new ListTenantsQuery({
+        keyword: request.keyword || undefined,
+        pageSize: request.pageSize || undefined,
+        activeOnly: request.activeOnly,
+        operatorScope
+      })
+    )
+
+    return {
+      tenants: tenants.map((tenant) => ({
+        id: tenant.id,
+        code: tenant.code,
+        name: tenant.name,
+        isActive: tenant.isActive
+      }))
     }
   }
 

@@ -174,7 +174,6 @@ export class RoleTemplateController {
           templateRoleId: id,
           tenantId: body.tenantId,
           name: body.name,
-          code: body.code,
           description: body.description
         },
         source

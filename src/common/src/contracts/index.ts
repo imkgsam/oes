@@ -1,6 +1,6 @@
 export * from './auth_service'
 export * from './contract-path.util'
 export * from './permission_service'
-export * from './entity_service'
 export * from './identity_service'
 export * from './notification_service'
+export * from './party_service'

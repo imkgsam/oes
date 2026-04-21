@@ -45,13 +45,11 @@ This slice is for `用户自助找回密码`, not `管理员要求用户下次�
 
 ### 3.3 Channel Choice
 
-- The page provides two entry modes:
-  - `邮箱找回`
-  - `手机号找回`
-- The user chooses the mode by deciding which identifier to submit.
-- The system must not reveal all available verified channels before identity proof.
-- If the submitted identifier is valid for recovery, the system sends an OTP for that channel.
-- If the identifier is not valid for recovery, the API still returns a generic accepted response to avoid account enumeration.
+- The page first asks the user to submit one verified login identifier.
+- `auth-service` resolves which verified recovery channels are actually available for that matched user.
+- If only one verified channel is available, the frontend should default to that channel and continue.
+- If both verified email and verified phone are available, the frontend should let the user choose.
+- The OTP send step always targets the chosen verified channel, not just the originally submitted identifier.
 
 ### 3.4 OTP Policy
 
@@ -185,13 +183,10 @@ Must not own:
 
 ## 6. User Flow
 
-### 6.1 Step 1: Choose Channel And Submit Identifier
+### 6.1 Step 1: Submit One Verified Identifier
 
-- The page shows two tabs or segmented choices:
-  - `邮箱找回`
-  - `手机号找回`
-- The user enters one identifier for the selected mode.
-- The system validates only format on the client side at this step.
+- The page asks the user to enter one verified login email or one verified login phone.
+- The system validates only identifier format on the client side at this step.
 
 ### 6.2 Step 2: Frontend Captcha Gate
 
@@ -199,27 +194,33 @@ Must not own:
 - The widget is the same family of component already used in current authentication and security-center flows.
 - The result is used only to advance the current V1 page flow.
 
-### 6.3 Step 3: Create Reset Challenge And Mock Delivery
+### 6.3 Step 3: Inspect Verified Recovery Channels
 
 - `tenant-web` calls `auth-bff`.
 - `auth-bff` calls `auth-service`.
-- `auth-service` resolves whether the submitted identifier is a verified login method.
-- If resolvable, `auth-service` creates a forgot-password challenge and OTP.
+- `auth-service` matches the submitted identifier to the target user and inspects which verified recovery channels are available.
+- If only one verified channel is available, the frontend defaults to it.
+- If both email and phone are available, the frontend renders a choice step for the user.
+
+### 6.4 Step 4: Create Reset Challenge And Mock Delivery
+
+- `tenant-web` calls `auth-bff`.
+- `auth-bff` calls `auth-service`.
+- `auth-service` creates a forgot-password challenge and OTP for the selected verified channel.
 - `auth-service` asks `notification-service` to send the OTP through mock delivery.
-- The HTTP response stays generic whether or not the identifier is eligible.
 
 Recommended success copy:
 
 - `如果该方式可用于找回，我们已发送验证码，请注意查收。`
 
-### 6.4 Step 4: Verify OTP
+### 6.5 Step 5: Verify OTP
 
 - The user enters the six-digit OTP.
 - In current V1 mock mode, the valid code is `123456`.
 - On success, the user may proceed to the password setup step.
 - On failure, the user sees a stable error without leaking extra account-state detail.
 
-### 6.5 Step 5: Set New Password
+### 6.6 Step 6: Set New Password
 
 - The user enters the new password and confirmation.
 - `auth-service` validates password policy and updates password credentials.
@@ -232,6 +233,7 @@ Recommended success copy:
 
 Recommended endpoints:
 
+- `POST /auth/password-recovery/options`
 - `POST /auth/password-recovery/challenges`
 - `POST /auth/password-recovery/challenges/:challengeId/verify`
 - `POST /auth/password-recovery/complete`

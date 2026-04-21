@@ -17,12 +17,28 @@ import { message } from 'ant-design-vue';
 
 import { useAuthStore } from '#/store';
 
+import {
+  resolveLegacyUndefinedNamespace,
+  resolveTenantWebNamespace,
+} from '#/app-namespace';
 import { refreshTokenApi } from './core';
 
 const { apiURL } = useAppConfig(import.meta.env, import.meta.env.PROD);
 
+type RefreshTokenStore = {
+  refreshToken: null | string;
+  setRefreshToken: (token: null | string) => void;
+};
+
+type RefreshSessionPayload = {
+  accessToken?: string;
+  expiresIn?: number;
+  refreshToken?: string;
+  sessionId?: string;
+};
+
 // Converts backend and transitional gateway error payloads into user-facing messages.
-function resolveUserFacingErrorMessage(responseData: any, fallbackMessage: string) {
+export function resolveUserFacingErrorMessage(responseData: any, fallbackMessage: string) {
   const code = `${responseData?.code ?? ''}`;
   const messageText = `${responseData?.message ?? ''}`;
   const messageKey = `${responseData?.messageKey ?? ''}`;
@@ -35,7 +51,7 @@ function resolveUserFacingErrorMessage(responseData: any, fallbackMessage: strin
   }
 
   if (/APP_VALIDATION_001|Request validation failed|app\.validation\.failed/i.test(combined)) {
-    return '登录信息格式不正确，请检查后重试。';
+    return '请求数据校验失败，请检查输入后重试。';
   }
 
   if (/AUTH_LOGIN_TEMPORARILY_LOCKED|auth\.login_temporarily_locked/i.test(combined)) {
@@ -43,6 +59,26 @@ function resolveUserFacingErrorMessage(responseData: any, fallbackMessage: strin
   }
 
   return responseData?.error ?? responseData?.message ?? fallbackMessage;
+}
+
+// Identifies expected auth-expiry recovery failures that should stay silent while the client refreshes or logs out.
+export function shouldSuppressAuthRecoveryError(error: any) {
+  const responseData = error?.response?.data ?? error ?? {};
+  const code = `${responseData?.code ?? ''}`.trim();
+  const messageKey = `${responseData?.messageKey ?? ''}`.trim();
+
+  return (
+    code === 'APP_AUTH_001' ||
+    code === 'APP_AUTH_003' ||
+    code === 'APP_AUTH_004' ||
+    code === 'AUTH_REFRESH_TOKEN_INVALID' ||
+    code === 'AUTH_REFRESH_TOKEN_REPLAY_DETECTED' ||
+    messageKey === 'app.auth.unauthenticated' ||
+    messageKey === 'app.auth.jwt_missing' ||
+    messageKey === 'app.auth.jwt_invalid' ||
+    messageKey === 'auth.refresh_token_invalid' ||
+    messageKey === 'auth.refresh_token_replay_detected'
+  );
 }
 
 function createRequestClient(baseURL: string, options?: RequestClientOptions) {
@@ -55,7 +91,6 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
    * 重新认证逻辑
    */
   async function doReAuthenticate() {
-    console.warn('Access token or refresh token is invalid or expired. ');
     const accessStore = useAccessStore();
     const authStore = useAuthStore();
     accessStore.setAccessToken(null);
@@ -74,17 +109,18 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
    */
   async function doRefreshToken() {
     const accessStore = useAccessStore();
-    if (!accessStore.refreshToken) {
+    const refreshToken = resolveRefreshTokenForRequest(accessStore);
+    if (!refreshToken) {
       throw new Error('Missing refresh token');
     }
-    const session = await refreshTokenApi(accessStore.refreshToken);
-    const tokenPayload = session.data;
+    const session = await refreshTokenApi(refreshToken);
+    const tokenPayload = extractRefreshSessionPayload(session);
     const newToken = tokenPayload?.accessToken;
     if (!newToken) {
       throw new Error('Refresh session response is missing access token');
     }
     accessStore.setAccessToken(newToken);
-    accessStore.setRefreshToken(tokenPayload.refreshToken);
+    accessStore.setRefreshToken(tokenPayload.refreshToken ?? null);
     return newToken;
   }
 
@@ -126,6 +162,10 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   // 通用的错误处理,如果没有进入上面的错误处理逻辑，就会进入这里
   client.addResponseInterceptor(
     errorMessageResponseInterceptor((msg: string, error) => {
+      if (shouldSuppressAuthRecoveryError(error)) {
+        return;
+      }
+
       // 这里可以根据业务进行定制,你可以拿到 error 内的信息进行定制化处理，根据不同的 code 做不同的提示，而不是直接使用 message.error 提示 msg
       // 当前mock接口返回的错误字段是 error 或者 message
       const responseData = error?.response?.data ?? {};
@@ -136,6 +176,109 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
   );
 
   return client;
+}
+
+// Extracts the refresh session token pair from either the raw gateway envelope or an already-unwrapped payload.
+export function extractRefreshSessionPayload(session: any): RefreshSessionPayload {
+  const responseData = session?.data;
+
+  if (responseData?.data?.accessToken) {
+    return responseData.data as RefreshSessionPayload;
+  }
+
+  return responseData as RefreshSessionPayload;
+}
+
+// Resolves the freshest refresh token truth so stale in-memory tabs can reuse the latest persisted session token.
+export function resolveRefreshTokenForRequest(accessStore: RefreshTokenStore) {
+  const memoryToken = `${accessStore.refreshToken ?? ''}`.trim();
+  const persistedToken = readPersistedRefreshToken();
+
+  if (persistedToken && persistedToken !== memoryToken) {
+    accessStore.setRefreshToken(persistedToken);
+    return persistedToken;
+  }
+
+  return memoryToken || null;
+}
+
+export function resolveRefreshTokenForRequestWithKey(
+  accessStore: RefreshTokenStore,
+  storageKeyOverrides: {
+    appVersion?: string;
+    namespace?: string;
+    prod?: boolean;
+  }
+) {
+  const memoryToken = `${accessStore.refreshToken ?? ''}`.trim();
+  const persistedToken = readPersistedRefreshToken(storageKeyOverrides);
+
+  if (persistedToken && persistedToken !== memoryToken) {
+    accessStore.setRefreshToken(persistedToken);
+    return persistedToken;
+  }
+
+  return memoryToken || null;
+}
+
+// Reads the persisted access store snapshot so refresh can tolerate stale tab memory after token rotation.
+function readPersistedRefreshToken(storageKeyOverrides?: {
+  appVersion?: string;
+  namespace?: string;
+  prod?: boolean;
+}) {
+  if (typeof localStorage === 'undefined') {
+    return null;
+  }
+
+  for (const storageKey of resolveAccessStoreStorageKeys(storageKeyOverrides)) {
+    try {
+      const rawState = localStorage.getItem(storageKey);
+      if (!rawState) {
+        continue;
+      }
+
+      const parsedState = JSON.parse(rawState) as { refreshToken?: string };
+      const refreshToken = `${parsedState?.refreshToken ?? ''}`.trim();
+      if (refreshToken) {
+        return refreshToken;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+// Resolves the exact persisted access-store key for the current tenant-web runtime instead of scanning unrelated app snapshots.
+export function resolveAccessStoreStorageKey(overrides?: {
+  appVersion?: string;
+  namespace?: string;
+  prod?: boolean;
+}) {
+  const namespace = resolveTenantWebNamespace(overrides);
+  if (!namespace) {
+    return null;
+  }
+
+  return `${namespace}-core-access`;
+}
+
+// Returns current and legacy access-store keys in priority order so old sessions can recover after namespace fixes.
+export function resolveAccessStoreStorageKeys(overrides?: {
+  appVersion?: string;
+  namespace?: string;
+  prod?: boolean;
+}) {
+  const currentKey = resolveAccessStoreStorageKey(overrides);
+  const legacyNamespace = resolveLegacyUndefinedNamespace(overrides);
+  const keys = [
+    currentKey,
+    legacyNamespace ? `${legacyNamespace}-core-access` : null,
+  ].filter((value, index, array): value is string => Boolean(value) && array.indexOf(value) === index);
+
+  return keys;
 }
 
 export const requestClient = createRequestClient(apiURL, {

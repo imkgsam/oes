@@ -1,0 +1,15 @@
+# compiled output
+/dist
+/node_modules
+/build
+/tsconfig.tsbuildinfo
+
+# tests
+/coverage
+
+# generated clients
+/generated/prisma
+/prisma/generated
+
+# OS
+.DS_Store

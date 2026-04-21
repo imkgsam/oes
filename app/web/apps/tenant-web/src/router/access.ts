@@ -15,24 +15,36 @@ import { useAuthContextStore } from '#/store';
 
 const forbiddenComponent = () => import('#/views/_core/fallback/forbidden.vue');
 
-// Filters local front-end routes by the BFF navigation entries visible to the current session.
-function filterRoutesByVisibleEntries(
-  routes: GenerateMenuAndRoutesOptions['routes'],
+interface EntryKeyRouteLike {
+  children?: EntryKeyRouteLike[];
+  meta?: unknown;
+  [key: string]: unknown;
+}
+
+function getRouteEntryKey(route: { meta?: unknown }) {
+  const meta = route.meta as Record<string, unknown> | undefined;
+  return typeof meta?.entryKey === 'string' ? meta.entryKey : undefined;
+}
+
+function filterEntryRouteLikes(
+  routes: EntryKeyRouteLike[],
   visibleEntries: string[],
-): GenerateMenuAndRoutesOptions['routes'] {
+): EntryKeyRouteLike[] {
   if (visibleEntries.length === 0) {
     return routes;
   }
 
   return routes
     .map((route) => {
-      const entryKey = route.meta?.entryKey as string | undefined;
+      const entryKey = getRouteEntryKey(route);
+      const hadChildren = Boolean(route.children && route.children.length > 0);
       const children = route.children
-        ? filterRoutesByVisibleEntries(route.children, visibleEntries)
+        ? filterEntryRouteLikes(route.children, visibleEntries)
         : undefined;
       const isVisibleRoute = !entryKey || visibleEntries.includes(entryKey);
+      const isEmptyContainer = !entryKey && hadChildren && (!children || children.length === 0);
 
-      if (!isVisibleRoute && (!children || children.length === 0)) {
+      if ((!isVisibleRoute && (!children || children.length === 0)) || isEmptyContainer) {
         return null;
       }
 
@@ -41,7 +53,15 @@ function filterRoutesByVisibleEntries(
         children,
       };
     })
-    .filter(Boolean) as GenerateMenuAndRoutesOptions['routes'];
+    .filter(Boolean) as EntryKeyRouteLike[];
+}
+
+// Filters local front-end routes by the BFF navigation entries visible to the current session.
+function filterRoutesByVisibleEntries<T>(
+  routes: T[],
+  visibleEntries: string[],
+): T[] {
+  return filterEntryRouteLikes(routes as EntryKeyRouteLike[], visibleEntries) as T[];
 }
 
 // Generates the accessible route tree from local route definitions and BFF navigation visibility.
@@ -56,16 +76,16 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
 
   return await generateAccessible(preferences.app.accessMode, {
     ...options,
-    routes: filterRoutesByVisibleEntries(
-      options.routes,
-      authContextStore.visibleEntries,
-    ),
+    routes: filterRoutesByVisibleEntries(options.routes, authContextStore.visibleEntries),
     fetchMenuListAsync: async () => {
       message.loading({
         duration: 1500,
         content: `${$t('common.loadingMenu')}...`,
       });
-      return await getAllMenusApi();
+      return filterRoutesByVisibleEntries(
+        await getAllMenusApi(),
+        authContextStore.visibleEntries,
+      );
     },
     // 可以指定没有权限跳转403页面
     forbiddenComponent,
@@ -75,4 +95,4 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
   });
 }
 
-export { generateAccess };
+export { filterRoutesByVisibleEntries, generateAccess };

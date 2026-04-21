@@ -13,6 +13,8 @@
 - 阻塞与依赖
 - 派生问题
 - 验收与关闭条件
+- 当前 feature 依赖的服务职责文档
+- 当前 feature 依赖的协同蓝图
 
 如果某个 feature 需要多个 thread 并行，必须先建立对应的 feature packet。
 
@@ -34,10 +36,13 @@
 - 每个 packet 只服务一个 feature
 - 当前状态只回写这一份 packet，不在多份文档重复同步
 - 架构边界回写 `docs/architecture/**` 或 `docs/adr/**`
+- 服务职责回写 `docs/architecture/services/*.md`
+- 跨服务协同规则回写 `docs/architecture/collaborations/*.md`
 - 正式契约回写 `docs/contracts/**`
 - 后置事项回写 `docs/plans/backlog.md`
 - 灵感回写 `docs/plans/ideas.md`
 - 候选功能或候选设计议题回写 `docs/plans/candidates.md`
+- 如果某段正文未来会被第二个 feature 复用，它就不应继续留在当前 packet 中
 
 ## 4. 模板
 
@@ -56,6 +61,10 @@
 
 - architecture:
   - 
+- services:
+  -
+- collaborations:
+  -
 - contracts:
   - 
 - adr:
@@ -64,6 +73,7 @@
 ## 4. 当前结论
 
 - 
+- 仅保留当前 feature 必需结论；服务长期职责与可复用协同规则应改为引用上游真相源
 
 ## 5. 契约真相位置
 

@@ -19,13 +19,6 @@ export class CreateRoleFromTemplateDto {
   name?: string
 
   @ApiPropertyOptional({
-    description: 'Optional overridden role code.'
-  })
-  @IsOptional()
-  @IsString()
-  code?: string
-
-  @ApiPropertyOptional({
     description: 'Optional overridden role description.'
   })
   @IsOptional()

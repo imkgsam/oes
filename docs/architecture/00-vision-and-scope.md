@@ -109,7 +109,7 @@ OES 当前不应做的事情包括：
 - `auth-service`
 - `identity-service`
 - `permission-service`
-- `entity-service`
+- `party-service`（由既有 `entity-service` 概念演进）
 - `src/common`
 
 这意味着项目已经具备平台化方向，但离完整的项目级全局架构仍有明显差距。

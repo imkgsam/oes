@@ -68,7 +68,9 @@ export function useTabbar() {
    * 初始化固定标签页
    */
   const initAffixTabs = () => {
-    const affixTabs = filterTree(router.getRoutes(), (route) => {
+    const routeSource =
+      accessStore.accessRoutes.length > 0 ? accessStore.accessRoutes : router.getRoutes();
+    const affixTabs = filterTree(routeSource, (route) => {
       return !!route.meta?.affixTab;
     });
     tabbarStore.setAffixTabs(affixTabs);
@@ -96,11 +98,11 @@ export function useTabbar() {
   }
 
   watch(
-    () => accessStore.accessMenus,
+    () => accessStore.accessRoutes,
     () => {
       initAffixTabs();
     },
-    { immediate: true },
+    { deep: true, immediate: true },
   );
 
   watch(

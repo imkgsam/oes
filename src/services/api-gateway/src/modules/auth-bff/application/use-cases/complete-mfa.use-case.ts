@@ -14,8 +14,10 @@ export class CompleteMfaUseCase {
   async execute(dto: CompleteMfaDto, source: DownstreamRequestSource): Promise<AuthResponseViewModel> {
     const result = await this.authAdapter.submitMfaChallenge(
       dto.challengeId.trim(),
+      dto.factor,
       dto.code.trim(),
       toAuthServiceLoginMethod(dto.loginMethod),
+      dto.factorChallengeId?.trim() || undefined,
       source
     )
 

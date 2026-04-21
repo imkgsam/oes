@@ -9,22 +9,8 @@ export class RoleBasedOperatorPermissionResolver implements OperatorPermissionRe
   ) {}
 
   async resolvePermissions(operatorContext: OperatorContextPayload): Promise<string[]> {
-    const roleIds = this.getRoleIds(operatorContext)
-
-    if (roleIds.length === 0) {
-      return []
-    }
-
-    const permissionGroups = await Promise.all(
-      roleIds.map((roleId) => this.permissionReadAdaptor.listPermissionCodesByRoleId(roleId))
-    )
-
-    return [...new Set(permissionGroups.flat())]
-  }
-
-  private getRoleIds(operatorContext: OperatorContextPayload): string[] {
-    return [...new Set((operatorContext.operator_roles ?? []).map((roleId) => roleId.trim()))].filter(
-      (roleId) => roleId.length > 0
+    return this.permissionReadAdaptor.listPermissionCodesByOperatorContext(
+      operatorContext
     )
   }
 }

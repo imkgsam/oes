@@ -93,6 +93,102 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
     }
   }
 
+  async sendAccountInvitationEmail(input: {
+    accountId: string
+    displayName?: string
+    email?: string
+    recipient: string
+  }): Promise<NotificationDispatchResult> {
+    try {
+      const response = await safeGrpcCall<SendDispatchResponse>(
+        this.notificationService.sendEmail(
+          {
+            source: {
+              sourceService: 'auth-service',
+              tenantId: AUTH_PRELOGIN_TENANT_ID,
+              traceId: this.requestContextStore.getContext()?.traceId ?? '',
+              requestId: this.requestContextStore.getContext()?.requestId ?? ''
+            },
+            category: NotificationCategory.NOTIFICATION_CATEGORY_AUTH_SECURITY_ALERT,
+            templateKey: 'ACCOUNT_INVITATION_EMAIL',
+            recipient: {
+              address: input.recipient,
+              displayName: input.displayName ?? ''
+            },
+            variables: [
+              { key: 'displayName', value: input.displayName ?? '' },
+              { key: 'recipient', value: input.recipient },
+              { key: 'loginMode', value: 'OTP_FIRST' }
+            ],
+            idempotencyKey: `account:invite:email:${input.accountId}`,
+            priority: DispatchPriority.DISPATCH_PRIORITY_HIGH
+          },
+          this.metadata()
+        ),
+        {
+          caller: 'auth-service',
+          method: 'NotificationService.sendEmail'
+        }
+      )
+
+      return this.mapResponse(response)
+    } catch (error) {
+      this.rethrowIfInfrastructureError(error, 'sendAccountInvitationEmail', {
+        channel: 'email',
+        accountId: input.accountId
+      })
+      throw error
+    }
+  }
+
+  async sendAccountInvitationSms(input: {
+    accountId: string
+    displayName?: string
+    phone?: string
+    recipient: string
+  }): Promise<NotificationDispatchResult> {
+    try {
+      const response = await safeGrpcCall<SendDispatchResponse>(
+        this.notificationService.sendSms(
+          {
+            source: {
+              sourceService: 'auth-service',
+              tenantId: AUTH_PRELOGIN_TENANT_ID,
+              traceId: this.requestContextStore.getContext()?.traceId ?? '',
+              requestId: this.requestContextStore.getContext()?.requestId ?? ''
+            },
+            category: NotificationCategory.NOTIFICATION_CATEGORY_AUTH_SECURITY_ALERT,
+            templateKey: 'ACCOUNT_INVITATION_SMS',
+            recipient: {
+              address: input.recipient,
+              displayName: input.displayName ?? ''
+            },
+            variables: [
+              { key: 'displayName', value: input.displayName ?? '' },
+              { key: 'recipient', value: input.recipient },
+              { key: 'loginMode', value: 'OTP_FIRST' }
+            ],
+            idempotencyKey: `account:invite:sms:${input.accountId}`,
+            priority: DispatchPriority.DISPATCH_PRIORITY_HIGH
+          },
+          this.metadata()
+        ),
+        {
+          caller: 'auth-service',
+          method: 'NotificationService.sendSms'
+        }
+      )
+
+      return this.mapResponse(response)
+    } catch (error) {
+      this.rethrowIfInfrastructureError(error, 'sendAccountInvitationSms', {
+        channel: 'sms',
+        accountId: input.accountId
+      })
+      throw error
+    }
+  }
+
   private buildEmailRequest(input: {
     recipient: string
     code: string

@@ -3,6 +3,7 @@ import { CqrsModule } from '@nestjs/cqrs'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { PrismaRoleRepository } from '../../infrastructure/repositories/prisma/prisma.role.repository'
 import { PrismaPermissionRepository } from '../../infrastructure/repositories/prisma/prisma.permission.repository'
+import { PrismaNavigationRepository } from '../../infrastructure/repositories/prisma/prisma.navigation.repository'
 import { SYMBOLS } from '../../common/constants/symbols'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { RoleCommandHandlers } from '../../application/commands/role'
@@ -25,6 +26,10 @@ import {
     {
       provide: SYMBOLS.REPO.PERMISSION,
       useClass: PrismaPermissionRepository
+    },
+    {
+      provide: SYMBOLS.REPO.NAVIGATION,
+      useClass: PrismaNavigationRepository
     },
     ValidatingCommandBus,
     ValidatingQueryBus,

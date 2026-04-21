@@ -15,6 +15,7 @@ export enum LoginMethodEnum {
   EmailOtp = 'email-otp',
   PhoneOtp = 'phone-otp',
   PhonePassword = 'phone-password',
+  ContextSwitch = 'context-switch',
   Google = 'google',
   Wechat = 'wechat'
 }

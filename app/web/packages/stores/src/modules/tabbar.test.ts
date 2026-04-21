@@ -129,6 +129,37 @@ describe('useAccessStore', () => {
     expect(store.affixTabs).toContainEqual(affixTab);
   });
 
+  it('resets tab state for context switching', () => {
+    const store = useTabbarStore();
+    store.tabs.push({
+      fullPath: '/tenant/dashboard',
+      meta: {},
+      name: 'TenantDashboard',
+      path: '/tenant/dashboard',
+    } as any);
+    store.cachedTabs.add('TenantDashboard');
+    store.excludeCachedTabs.add('TenantDashboard');
+    store.cachedRoutes.set('/tenant/dashboard', {
+      component: {} as any,
+      key: '/tenant/dashboard',
+      route: {
+        fullPath: '/tenant/dashboard',
+        meta: {},
+        name: 'TenantDashboard',
+        path: '/tenant/dashboard',
+      } as any,
+    });
+    store.visitHistory.push('/tenant/dashboard');
+
+    store.resetForContextSwitch();
+
+    expect(store.tabs).toEqual([]);
+    expect(store.getCachedTabs).toEqual([]);
+    expect(store.getExcludeCachedTabs).toEqual([]);
+    expect(store.getCachedRoutes.size).toBe(0);
+    expect(store.visitHistory.size).toBe(0);
+  });
+
   it('navigates to a specific tab', async () => {
     const store = useTabbarStore();
     const tab: any = { meta: {}, name: 'Dashboard', path: '/dashboard' };

@@ -4,6 +4,13 @@ import { PermissionAccessSummaryGrpcAdapter } from '../../infrastructure/downstr
 import { SessionAccessSummaryViewModel } from '../../interfaces/http/view-models/session-access-summary.view-model'
 import { getAuthenticatedSelfContext } from './self-security-context'
 
+export interface SessionNavigationSummary {
+  visibleEntries: string[]
+  defaultEntry: string
+  resolvedByRoleId?: string
+  fallbackReason?: string
+}
+
 @Injectable()
 // Resolves the authenticated account's effective roles and action codes for front-end access gating.
 export class SessionAccessSummaryUseCase {
@@ -38,6 +45,39 @@ export class SessionAccessSummaryUseCase {
         scope: role.scope ?? ''
       })),
       actionCodes: summary.actionCodes ?? []
+    }
+  }
+
+  // Resolves runtime navigation for the authenticated selected account context.
+  async resolveNavigation(
+    source: DownstreamRequestSource,
+    terminal = 'WEB'
+  ): Promise<SessionNavigationSummary> {
+    const self = getAuthenticatedSelfContext(source)
+
+    if (!self.accountId) {
+      throw new UnauthorizedException('authenticated session navigation is missing account id')
+    }
+
+    if (self.scopeLevel === 'TENANT' && !self.tenantId) {
+      throw new UnauthorizedException('tenant session navigation is missing tenant id')
+    }
+
+    const summary = await this.permissionAdapter.resolveAccountNavigation(
+      {
+        accountId: self.accountId,
+        tenantId: self.tenantId,
+        scopeLevel: self.scopeLevel,
+        terminal
+      },
+      source
+    )
+
+    return {
+      visibleEntries: summary.visibleEntries ?? [],
+      defaultEntry: summary.defaultEntry ?? '',
+      resolvedByRoleId: summary.resolvedByRoleId || undefined,
+      fallbackReason: summary.fallbackReason || undefined
     }
   }
 }

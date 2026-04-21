@@ -119,6 +119,8 @@ export class GatewayExceptionFilter implements ExceptionFilter {
         return HttpStatus.FORBIDDEN
       case status.UNAUTHENTICATED:
         return HttpStatus.UNAUTHORIZED
+      case status.FAILED_PRECONDITION:
+        return HttpStatus.INTERNAL_SERVER_ERROR
       case status.RESOURCE_EXHAUSTED:
         return HttpStatus.TOO_MANY_REQUESTS
       case status.UNAVAILABLE:

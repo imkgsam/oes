@@ -26,7 +26,6 @@ Back end owns:
 - Current context visibility truth.
 - Which navigation entries are visible for the current operator / tenant / terminal.
 - Which entry should be the default entry.
-- Tenant feature / plugin enablement as part of visibility decisions.
 
 Front end owns:
 
@@ -49,7 +48,7 @@ Navigation visibility must not be modeled as a one-to-one mapping with permissio
 
 Example:
 
-- A tenant admin may need `permission.list` to assign permissions while editing tenant roles.
+- A tenant admin may still need `permission.list` to assign permissions while editing tenant roles, but that does not imply access to the standalone permission-management entry.
 - That does not mean the tenant admin should see the platform-level Permission Dictionary management page.
 
 OES separates:
@@ -64,12 +63,11 @@ Navigation visibility may use these inputs:
 
 - Current operator context.
 - Current account / tenant / org context.
-- Tenant feature or plugin enablement.
 - Terminal type.
 - Navigation visibility policy.
 - Permission or capability summaries when needed.
 
-Tenant feature / plugin enablement is required because OES is expected to evolve into a modular system where tenants enable only the modules they need.
+Tenant feature / plugin enablement is intentionally not part of the current navigation visibility model. OES is not currently pursuing tenant-level module or plugin enablement as a navigation or authorization concern.
 
 ## 7. Contract Shape
 
@@ -99,11 +97,12 @@ Rules:
 
 `GET /auth/session/context` is the first consumer of this design.
 
-Current stage-one behavior:
+Current behavior:
 
 - Returns `navigation.defaultEntry`.
 - Returns `navigation.visibleEntries`.
-- Returns `workbench.home` for tenant-scope sessions and `platform.home` for system-scope sessions as the initial visible entry.
+- Uses `PermissionAccessSummaryService.ResolveAccountNavigation` when managed role navigation config is available.
+- Falls back to `workbench.home` for tenant-scope sessions and `platform.home` for system-scope sessions while managed navigation config is not seeded.
 - Keeps `navigation.defaultHomePath` as a temporary Web compatibility field.
 - Keeps `navigation.menus` as a temporary compatibility placeholder.
 
@@ -118,12 +117,45 @@ Long-term direction:
 The default entry should eventually be resolved in this order:
 
 - Filter entries by terminal support.
-- Filter entries by tenant feature / plugin enablement.
 - Filter entries by operator navigation visibility.
-- Pick the highest-priority visible entry.
+- Resolve role landing candidates for the current `scopeLevel + terminal`.
+- Drop landing candidates that are not in `visibleEntries`.
+- Pick the highest-priority visible role landing entry.
+- Fall back to the highest-priority visible registry entry.
 - Fall back to `workbench.home` for tenant-scope sessions or `platform.home` for system-scope sessions if no better entry is available.
 
-The first implementation returns one default entry until the feature registry and navigation policy are introduced.
+Important rules:
+
+- Role landing policy must not grant entry visibility.
+- `defaultEntry` must always be chosen from the current `visibleEntries`.
+- User-specific landing preferences are not part of the current OES navigation model.
+
+The current implementation resolves managed navigation through `permission-service` and preserves a scope-based fallback for rollout safety.
+
+### 9.1 Future Managed Landing Policy
+
+The future navigation-management feature is expected to make default-entry resolution configuration-driven while preserving the current response shape.
+
+The first managed version is expected to use:
+
+- `NavigationEntry Registry`
+- `RoleNavigationVisibility`
+- `RoleLandingPolicy`
+
+Ownership split:
+
+- `permission-service` owns the first-stage governance truth for entry registry, role visibility, and role landing policy.
+- `api-gateway/auth-bff` consumes the runtime resolver result and exposes `navigation.defaultEntry` and `navigation.visibleEntries`.
+- Front ends still own terminal-specific route, menu, icon, and layout mapping.
+
+Conflict rule:
+
+- When the current account has multiple roles, the first-stage managed resolver should use `RoleLandingPolicy.priority`.
+- If no visible landing policy candidate remains, resolver falls back to registry priority and then scope fallback.
+
+Explicit non-goal:
+
+- Tenant feature / plugin enablement must not be added to the navigation visibility chain unless a future architecture decision reverses the current non-modular direction.
 
 ## 10. Entry Registry
 
@@ -135,17 +167,78 @@ Each entry should eventually define:
 
 - Stable entry key.
 - Human-readable purpose.
-- Owning feature or plugin.
+- Owning product capability.
 - Supported terminals.
 - Recommended priority.
 - Whether it is a page, task, workspace, or abstract entry.
 
 The registry is for governance and consistency. It is not a mandate for the back end to return terminal-specific menu trees.
 
+## 10.1 Current Tenant Web Mapping
+
+The current `tenant-web` implementation follows this split:
+
+- Routes that belong to the left-side workbench navigation must declare a local `meta.entryKey`.
+- `auth-bff` controls whether those entries are visible through `navigation.visibleEntries`.
+- `tenant-web` only maps `entryKey -> route` and filters its local route tree using `visibleEntries`.
+- Pages that belong to shell-level personal operations must not be treated as navigation entries unless the product explicitly decides to move them into the left-side navigation system.
+
+Current `tenant-web` entry mapping:
+
+| Entry key | Local route name | Path | Navigation ownership |
+| --- | --- | --- | --- |
+| `workbench.home` | `TenantWorkbenchHome` | `/workbench/home` | Back-end visible entry |
+| `platform.home` | `PlatformAnalyticsHome` | `/analytics` | Back-end visible entry |
+| `admin.auth-session-management` | `AdminAuthSessionManagement` | `/admin/auth-session-management` | Back-end visible entry |
+| `admin.role-management` | `AdminRoleManagement` | `/admin/role-management` | Back-end visible entry |
+| `admin.permission-management` | `AdminPermissionManagement` | `/admin/permission-management` | Back-end visible entry |
+
+Current `tenant-web` routes that are intentionally **not** navigation entries:
+
+| Local route name | Path | Reason |
+| --- | --- | --- |
+| `PersonalCenter` | `/account/profile` | Shell-level personal operation page entered from the user dropdown, not from left-side navigation |
+| `SelfSecurityCenter` | `/account/security` | Shell-level self-service security page entered from the user dropdown, not from left-side navigation |
+
+Governance rule:
+
+- If a page should be shown or hidden through the left-side menu, it must have a stable `entryKey` and be controlled by `auth-bff navigation.visibleEntries`.
+- If a page is a shell-level personal action, modal flow, fallback page, or authentication page, front ends may expose it through local shell UI without introducing a back-end navigation entry.
+- Front ends must not invent a second business-level visibility system for pages that already belong to the navigation-entry model.
+
+## 10.2 Current Auth BFF Entry Registry
+
+As of the current `auth-bff` implementation, the emitted navigation-entry set is intentionally still minimal.
+
+This section records the entry keys that are already treated as stable output of `GET /auth/session/context`, so later threads do not invent parallel keys or reassign existing ones casually.
+
+| Entry key | Current default usage | Current emission rule | Current tenant-web route |
+| --- | --- | --- | --- |
+| `workbench.home` | Default entry for tenant-scope sessions | Always emitted when the current account scope is `TENANT` | `TenantWorkbenchHome` -> `/workbench/home` |
+| `platform.home` | Default entry for system-scope sessions | Always emitted when the current account scope is `SYSTEM` | `PlatformAnalyticsHome` -> `/analytics` |
+| `admin.auth-session-management` | Optional admin navigation entry | Emitted only when the current context is granted admin visibility for authentication and session management | `AdminAuthSessionManagement` -> `/admin/auth-session-management` |
+| `admin.role-management` | Optional role management navigation entry | Emitted for current contexts that are allowed to manage role instances; `SYSTEM` scope can also manage templates, while `TENANT` scope stays on instance management only | `AdminRoleManagement` -> `/admin/role-management` |
+| `admin.permission-management` | Optional permission management navigation entry | Emitted only when the current account is in `SYSTEM` scope and carries the `system.admin` role code | `AdminPermissionManagement` -> `/admin/permission-management` |
+
+Current governance constraints:
+
+- `auth-bff` owns whether an entry key is emitted in `navigation.visibleEntries`.
+- Front ends may only map and render entry keys that already exist in the back-end contract.
+- Adding a new left-navigation page requires first assigning or documenting its stable `entryKey`; front ends must not silently treat route names as contract keys.
+- If a route does not have a back-end-owned `entryKey`, it must not be treated as part of the business navigation visibility model by default.
+
+Current implementation decision:
+
+- Navigation entries are not persisted as independent database records yet.
+- Entry visibility can remain hardcoded in `auth-bff` while the entry set is still small and the product policy is not yet configuration-driven.
+- Persisted role, permission, and account-role data remain the source facts used by `auth-bff` to derive `visibleEntries`.
+- A future navigation-management feature should introduce the durable model for entry registry, terminal support, role visibility policy, role landing policy, and resolver preview.
+
 ## 11. Current Deferred Work
 
-- Dynamic tenant feature / plugin enablement source.
 - Full navigation entry registry.
+- Navigation-management feature for persisted entry registry and configurable role / capability visibility policy.
+- Managed role landing policy and resolver preview contract.
 - Terminal-aware visibility presenters.
 - Action-code summary for button-level authorization.
 - Data-level authorization remains handled by downstream `buildQueryScope` and `checkResource`.

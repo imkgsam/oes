@@ -34,6 +34,7 @@
     "pms": "pnpm --filter permission-service dev",
     "ids": "pnpm --filter identity-service dev",
     "ats": "pnpm --filter auth-service dev",
+    "pts": "pnpm --filter party-service dev",
     "bff": "pnpm --filter api-gateway dev",
     "dev": "pnpm common:build && concurrently -k -n common,pms,ids,ats,bff \"pnpm common:dev\" \"pnpm pms\" \"pnpm ids\" \"pnpm ats\" \"pnpm bff\"",
     "seed:tenant-web-auth": "node scripts/local/seed-tenant-web-auth-test-data.mjs",

@@ -105,6 +105,8 @@ function grpcStatusToHttpStatus(code: number): number {
       return HttpStatus.FORBIDDEN
     case status.UNAUTHENTICATED:
       return HttpStatus.UNAUTHORIZED
+    case status.FAILED_PRECONDITION:
+      return HttpStatus.INTERNAL_SERVER_ERROR
     case status.UNAVAILABLE:
     case status.DEADLINE_EXCEEDED:
       return HttpStatus.SERVICE_UNAVAILABLE

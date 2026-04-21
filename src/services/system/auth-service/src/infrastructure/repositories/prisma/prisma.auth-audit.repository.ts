@@ -56,6 +56,9 @@ export class PrismaAuthAuditRepository implements AuthAuditRepository {
     if (input.eventType) {
       conditions.push({ eventType: input.eventType })
     }
+    if (input.eventTypes && input.eventTypes.length > 0) {
+      conditions.push({ eventType: { in: input.eventTypes } })
+    }
     if (input.result) {
       conditions.push({ result: input.result })
     }

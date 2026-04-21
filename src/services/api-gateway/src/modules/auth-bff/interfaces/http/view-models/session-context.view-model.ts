@@ -20,6 +20,9 @@ export class SessionContextAccountViewModel {
   @ApiPropertyOptional({ description: 'Display name currently available for the selected account.' })
   name?: string
 
+  @ApiPropertyOptional({ description: 'Avatar currently configured for the selected account profile.' })
+  avatar?: string
+
   @ApiProperty({ description: 'Scope level of the selected account.' })
   scopeLevel!: 'SYSTEM' | 'TENANT'
 }
@@ -105,4 +108,9 @@ export class SessionContextViewModel {
 
   @ApiProperty({ description: 'Scope level of the current shell context.' })
   scopeLevel!: 'SYSTEM' | 'TENANT'
+
+  @ApiPropertyOptional({
+    description: 'Whether the current authenticated session must complete first-login password setup before entering the workspace.'
+  })
+  passwordSetupRequired?: boolean
 }

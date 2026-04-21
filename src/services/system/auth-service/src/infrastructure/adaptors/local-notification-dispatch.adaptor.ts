@@ -13,6 +13,42 @@ export class LocalNotificationDispatchAdaptor implements NotificationDispatchPor
     private readonly smsService: SmsService
   ) {}
 
+  async sendAccountInvitationEmail(input: {
+    accountId: string
+    displayName?: string
+    email?: string
+    recipient: string
+  }): Promise<NotificationDispatchResult> {
+    const effectiveCode = await this.emailService.sendEmailVerificationCode(
+      input.recipient,
+      input.accountId
+    )
+
+    return {
+      accepted: true,
+      dispatchId: `local-account-invite-email-${input.accountId}`,
+      effectiveCode
+    }
+  }
+
+  async sendAccountInvitationSms(input: {
+    accountId: string
+    displayName?: string
+    phone?: string
+    recipient: string
+  }): Promise<NotificationDispatchResult> {
+    const effectiveCode = await this.smsService.sendPhoneVerificationCode(
+      input.recipient,
+      input.accountId
+    )
+
+    return {
+      accepted: true,
+      dispatchId: `local-account-invite-sms-${input.accountId}`,
+      effectiveCode
+    }
+  }
+
   async sendAuthOtpEmail(input: {
     recipient: string
     code: string

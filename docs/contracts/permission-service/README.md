@@ -9,7 +9,7 @@ The proto files remain the machine-readable source of truth. These documents exp
 ## 2. Current Documents
 
 - [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/access-summary.md)
-  - Current-session access summary contract proposed for `auth-bff`.
+  - Current-session access summary contract used by `auth-bff`.
   - Returns role summaries for display and effective permission codes for front-end action control.
 
 ## 3. Machine Contract Sources

@@ -2,13 +2,16 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { CommonJwtService, ITokenConfig, TokenConfigName } from '@oes/common/auth'
+import { PERMISSION_SERVICE } from '@oes/common/constants'
 import { REPO } from '../../../common/constants'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import {
   AUTH_REFRESH_TOKEN_INVALID,
   AUTH_REFRESH_TOKEN_REPLAY_DETECTED
 } from '../../../common/constants/exception-enums'
+import { IPermissionServicePort } from '../../ports'
 import { AuthAuditService } from '../../services/auth-audit.service'
+import { PasswordSetupRequirementService } from '../../services/password-setup-requirement.service'
 import { IUserSessionRepository } from '../../../domain/repositories/user-session.repository'
 import { RefreshSessionCommand } from './refresh-session.command'
 
@@ -26,6 +29,9 @@ export class RefreshSessionHandler
   constructor(
     private readonly jwtService: CommonJwtService,
     private readonly configService: ConfigService,
+    @Inject(PERMISSION_SERVICE)
+    private readonly permissionService: IPermissionServicePort,
+    private readonly passwordSetupRequirementService: PasswordSetupRequirementService,
     @Inject(REPO.SESSION)
     private readonly sessionRepository: IUserSessionRepository,
     private readonly authAuditService: AuthAuditService
@@ -69,28 +75,36 @@ export class RefreshSessionHandler
       ...(tokenConfig.issuer ? { issuer: tokenConfig.issuer } : {}),
       ...(tokenConfig.audience ? { audience: tokenConfig.audience } : {})
     }
+    const roleIds = await this.resolveRoleIds(session.getAccountId(), session.getTenantId(), session.getScopeLevel())
+    const passwordSetupRequired = await this.passwordSetupRequirementService.userRequiresPasswordSetup(
+      session.getUserId()
+    )
 
     const accessToken = this.jwtService.signAccessToken(
-      {
-        sub: session.getUserId(),
-        sid: session.getId(),
-        aid: session.getAccountId(),
-        tid: session.getTenantId() ?? '',
-        scopeLevel: session.getScopeLevel(),
-        tokenType: 'access'
-      },
+      this.buildTokenClaims(
+        session.getUserId(),
+        session.getId(),
+        session.getAccountId(),
+        session.getTenantId(),
+        session.getScopeLevel(),
+        roleIds,
+        'access',
+        passwordSetupRequired
+      ),
       signOptions
     )
 
     const nextRefreshToken = this.jwtService.signRefreshToken(
-      {
-        sub: session.getUserId(),
-        sid: session.getId(),
-        aid: session.getAccountId(),
-        tid: session.getTenantId() ?? '',
-        scopeLevel: session.getScopeLevel(),
-        tokenType: 'refresh'
-      },
+      this.buildTokenClaims(
+        session.getUserId(),
+        session.getId(),
+        session.getAccountId(),
+        session.getTenantId(),
+        session.getScopeLevel(),
+        roleIds,
+        'refresh',
+        passwordSetupRequired
+      ),
       signOptions
     )
 
@@ -142,6 +156,44 @@ export class RefreshSessionHandler
       }
 
       throw ExceptionFactory.domain(AUTH_REFRESH_TOKEN_INVALID)
+    }
+  }
+
+  // Resolves the effective role ids for the refreshed account context before reissuing JWT claims.
+  private async resolveRoleIds(
+    accountId: string,
+    tenantId: string | null,
+    scopeLevel: 'SYSTEM' | 'TENANT'
+  ): Promise<string[]> {
+    const summary = await this.permissionService.getAccountAuthorizationSummary({
+      accountId,
+      tenantId,
+      scopeLevel
+    })
+
+    return summary.roleIds
+  }
+
+  // Builds the normalized JWT claims shared by refreshed access and refresh tokens.
+  private buildTokenClaims(
+    userId: string,
+    sessionId: string,
+    accountId: string,
+    tenantId: string | null,
+    scopeLevel: 'SYSTEM' | 'TENANT',
+    roleIds: string[],
+    tokenType: 'access' | 'refresh',
+    passwordSetupRequired: boolean
+  ): Record<string, unknown> {
+    return {
+      sub: userId,
+      sid: sessionId,
+      aid: accountId,
+      ...(tenantId ? { tid: tenantId } : {}),
+      scopeLevel,
+      passwordSetupRequired,
+      roles: roleIds,
+      tokenType
     }
   }
 }

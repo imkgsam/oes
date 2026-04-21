@@ -1,4 +1,5 @@
 import { LoginMethodType } from '@oes/common/constants'
+import { CredentialType } from '../../../prisma/generated/prisma'
 import { Credential } from '../entities/credential.entity'
 
 export class LoginMethod {
@@ -42,7 +43,23 @@ export class LoginMethod {
   getCredentials() {
     return this.credentials
   }
+  getCredentialByType(type: CredentialType): Credential | null {
+    return this.credentials.find((credential) => credential.type === type) || null
+  }
   getPasswordCredential(): Credential | null {
     return this.credentials.find((c) => c.type === 'PASSWORD' && c.isEnabled()) || null
+  }
+
+  async replacePasswordCredential(plainPassword: string): Promise<void> {
+    const credential = await Credential.createPasswordCredential(plainPassword)
+    const existing = this.getCredentialByType(CredentialType.PASSWORD)
+
+    if (existing) {
+      existing.updateSecret(credential.getSecret())
+      existing.enable()
+      return
+    }
+
+    this.credentials.push(credential)
   }
 }

@@ -5,9 +5,7 @@ import { RoleController } from './role.controller'
 // Verifies the role gateway controller exposes the role management routes and expected guards.
 describe('RoleController', () => {
   const permissionService = {
-    listRoles: jest.fn(),
     createRole: jest.fn(),
-    getRoleById: jest.fn(),
     updateRole: jest.fn(),
     setRoleEnabled: jest.fn(),
     listRolePermissions: jest.fn(),
@@ -15,8 +13,16 @@ describe('RoleController', () => {
     revokeRolePermission: jest.fn(),
     deleteRole: jest.fn()
   }
+  const roleManagementReadService = {
+    listTenantOptions: jest.fn(),
+    listRoles: jest.fn(),
+    getRoleById: jest.fn()
+  }
 
-  const controller = new RoleController(permissionService as any)
+  const controller = new RoleController(
+    permissionService as any,
+    roleManagementReadService as any
+  )
 
   it('declares the expected coarse-grained permissions on role endpoints', () => {
     const reflector = new Reflector()
@@ -24,6 +30,10 @@ describe('RoleController', () => {
     expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.listRoles)).toEqual({
       type: 'ALL',
       permissions: ['permission.role.list']
+    })
+    expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.listTenantOptions)).toEqual({
+      type: 'ALL',
+      permissions: ['permission.role.create']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.createRole)).toEqual({
       type: 'ALL',
@@ -60,7 +70,7 @@ describe('RoleController', () => {
   })
 
   it('forwards role list filters to the proxy service', async () => {
-    permissionService.listRoles.mockResolvedValue({
+    roleManagementReadService.listRoles.mockResolvedValue({
       roles: [],
       total: 0,
       page: 2,
@@ -81,7 +91,7 @@ describe('RoleController', () => {
       )
     ).resolves.toEqual({ roles: [], total: 0, page: 2, pageSize: 25 })
 
-    expect(permissionService.listRoles).toHaveBeenCalledWith(
+    expect(roleManagementReadService.listRoles).toHaveBeenCalledWith(
       {
         page: 2,
         pageSize: 25,
@@ -93,7 +103,34 @@ describe('RoleController', () => {
     )
   })
 
-  it('forwards role mutation and detail routes to the proxy service', async () => {
+  it('forwards tenant selector queries to the role read-model service', async () => {
+    roleManagementReadService.listTenantOptions.mockResolvedValue({
+      tenants: [{ id: 'tenant-1', name: 'Alpha Tenant', code: 'tenant.alpha', isActive: true }]
+    })
+    const source = { requestId: 'req-1', traceId: 'trace-1' }
+
+    await expect(
+      controller.listTenantOptions(
+        {
+          keyword: 'alpha',
+          pageSize: 10
+        } as any,
+        source as any
+      )
+    ).resolves.toEqual({
+      tenants: [{ id: 'tenant-1', name: 'Alpha Tenant', code: 'tenant.alpha', isActive: true }]
+    })
+
+    expect(roleManagementReadService.listTenantOptions).toHaveBeenCalledWith(
+      {
+        keyword: 'alpha',
+        pageSize: 10
+      },
+      source
+    )
+  })
+
+  it('forwards role mutation routes to the proxy service', async () => {
     const source = { requestId: 'req-1', traceId: 'trace-1' }
     permissionService.createRole.mockResolvedValue({ id: 'role-id' })
     permissionService.updateRole.mockResolvedValue({ id: 'role-id' })
@@ -170,5 +207,20 @@ describe('RoleController', () => {
       },
       source
     )
+  })
+
+  it('delegates role detail reads to the role read-model service', async () => {
+    const source = { requestId: 'req-1', traceId: 'trace-1' }
+    roleManagementReadService.getRoleById.mockResolvedValue({
+      id: 'role-id',
+      tenantName: 'Tenant One'
+    })
+
+    await expect(controller.findById('role-id', source as any)).resolves.toEqual({
+      id: 'role-id',
+      tenantName: 'Tenant One'
+    })
+
+    expect(roleManagementReadService.getRoleById).toHaveBeenCalledWith({ id: 'role-id' }, source)
   })
 })

@@ -90,7 +90,43 @@
 - 线程路径权限说明
 - 验收标准
 
-### 2.3 implementation thread
+### 2.3 design thread
+
+职责范围：
+
+- 在既有 architecture / ADR 约束下推进单一设计主题
+- 记录长周期设计过程、开放问题、已冻结结论与回写目标
+- 为后续 architecture、contracts、feature packet 或 implementation 提供清晰上游设计输入
+
+可以做什么：
+
+- 修改 `docs/plans/designs/**`
+- 在必要时更新被确认的 `docs/architecture/**`
+- 在必要时更新被确认的 `docs/contracts/**`
+- 为单一设计主题维护决策日志与上下文恢复入口
+
+明确禁止做什么：
+
+- 不在一个 design thread 中长期混写多个无关设计主题
+- 不让 design workspace 变成第二份 architecture、contract 或 feature packet 真相
+- 不跳过上游真相源回写，长期把冻结结论留在 workspace
+- 不直接推进超出设计范围的业务实现
+
+输入是什么：
+
+- `AGENTS.md`
+- `docs/architecture/**`
+- `docs/governance/**`
+- 已有 ADR
+- 当前设计目标
+
+输出是什么：
+
+- `docs/plans/designs/<design-key>.md`
+- 已冻结决定的回写清单
+- 对下游 feature / implementation 的前置约束
+
+### 2.4 implementation thread
 
 职责范围：
 
@@ -125,7 +161,7 @@
 - 验证结果
 - 风险说明
 
-### 2.4 review thread
+### 2.5 review thread
 
 职责范围：
 
@@ -156,7 +192,7 @@
 - 问题清单
 - 是否允许集成
 
-### 2.5 integration thread
+### 2.6 integration thread
 
 职责范围：
 
@@ -201,6 +237,12 @@
 - 不依赖线程内临时发明架构
 - 可以在不修改受保护文件的前提下闭环
 
+对于 design thread，还必须满足：
+
+- 对应一个单一设计主题
+- 能明确列出未来要回写到哪些真相源
+- 不需要同时维护多个无直接关系的服务 / feature / 协同议题
+
 ### 3.2 如何避免多个线程修改同一批文件
 
 必须遵守：
@@ -221,6 +263,7 @@
 - 修改 `src/common` 公共边界
 - 修改权限、租户、operator context、AI 工具协议
 - 上游计划尚未冻结
+- 同一 design workspace 的真相源回写尚未完成，但准备切换到另一个无关设计主题
 
 ### 3.4 什么情况下可以并行
 
@@ -230,6 +273,7 @@
 - 已冻结契约下的多服务适配
 - 不同服务下的局部测试补齐
 - 不同独立文档的补充
+- 不同 design workspace 下、且真相源回写边界清晰的设计推进
 
 ### 3.5 跨模块任务如何拆分
 
@@ -240,6 +284,22 @@
 3. implementation threads 按服务或独立路径实现
 4. review thread 审核
 5. integration thread 收口
+
+### 3.6 长周期设计如何避免混乱
+
+必须遵守：
+
+- 一个 design thread 只维护一个 `docs/plans/designs/<design-key>.md`
+- 一个 workspace 只对应一个清晰设计主题
+- 已冻结决定必须回写到 services / collaborations / contracts / feature packet
+- workspace 只保留过程记录、开放问题、决策日志与恢复入口
+
+推荐切换顺序：
+
+1. 先在 workspace 记录本轮结论
+2. 标记哪些结论已冻结
+3. 回写对应唯一真相源
+4. 再切换到下一个设计主题
 
 ## 4. 文件修改边界规则
 

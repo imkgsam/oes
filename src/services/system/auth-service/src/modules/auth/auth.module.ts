@@ -20,14 +20,20 @@ import {
   QueryScopeBuilder
 } from '../../application/authorization'
 import { AuthAuditService } from '../../application/services/auth-audit.service'
+import { AccountSessionEstablishmentService } from '../../application/services/account-session-establishment.service'
 import { LoginRiskThrottleService } from '../../application/services/login-risk-throttle.service'
+import { AccountInvitationService } from '../../application/services/account-invitation.service'
+import { ContactBindingVerificationService } from '../../application/services/contact-binding-verification.service'
 import { EmailOtpMfaChallengeService } from '../../application/services/mfa/email-otp-mfa-challenge.service'
+import { LoginMfaOrchestrationService } from '../../application/services/mfa/login-mfa-orchestration.service'
 import { MfaBindingManagementService } from '../../application/services/mfa/mfa-binding-management.service'
 import { MfaChallengeVerificationService } from '../../application/services/mfa/mfa-challenge-verification.service'
 import { PhoneOtpMfaChallengeService } from '../../application/services/mfa/phone-otp-mfa-challenge.service'
 import { TotpMfaChallengeService } from '../../application/services/mfa/totp-mfa-challenge.service'
 import { EmailOtpLoginService } from '../../application/services/email-otp-login.service'
 import { OtpRiskThrottleService } from '../../application/services/otp-risk-throttle.service'
+import { PasswordRecoveryService } from '../../application/services/password-recovery.service'
+import { PasswordSetupRequirementService } from '../../application/services/password-setup-requirement.service'
 import { PhoneOtpLoginService } from '../../application/services/phone-otp-login.service'
 import { AuthCommandHandlers } from '../../application/commands/auth'
 import { AuthQueryHandlers } from '../../application/queries'
@@ -39,6 +45,9 @@ import { PrismaAuthAuditRepository } from '../../infrastructure/repositories/pri
 import { PrismaUserRepository } from '../../infrastructure/repositories/prisma/prisma.loginmethod.repository'
 import { PrismaMfaBindingRepository } from '../../infrastructure/repositories/prisma/prisma.mfabinding.repository'
 import { PrismaOtpRepository } from '../../infrastructure/repositories/prisma/prisma.otp.repository'
+import { PrismaPasswordRecoveryGrantRepository } from '../../infrastructure/repositories/prisma/prisma.password-recovery-grant.repository'
+import { PrismaPasswordSetupRequirementRepository } from '../../infrastructure/repositories/prisma/prisma.password-setup-requirement.repository'
+import { PrismaTenantMfaPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.tenant-mfa-policy.repository'
 import { RedisLoginRiskRepository } from '../../infrastructure/repositories/redis/risk/redis-login-risk.repository'
 import { RedisOtpSendThrottleRepository } from '../../infrastructure/repositories/redis/risk/redis-otp-send-throttle.repository'
 import { RedisUserSessionRepository } from '../../infrastructure/repositories/redis/session/redis-user-session.repository'
@@ -65,6 +74,12 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     { provide: REPO.LOGIN_METHOD, useClass: PrismaUserRepository },
     { provide: REPO.MFA_BINDING, useClass: PrismaMfaBindingRepository },
     { provide: REPO.OTP, useClass: PrismaOtpRepository },
+    { provide: REPO.PASSWORD_RECOVERY_GRANT, useClass: PrismaPasswordRecoveryGrantRepository },
+    { provide: REPO.TENANT_MFA_POLICY, useClass: PrismaTenantMfaPolicyRepository },
+    {
+      provide: REPO.PASSWORD_SETUP_REQUIREMENT,
+      useClass: PrismaPasswordSetupRequirementRepository
+    },
     { provide: REPO.LOGIN_RISK, useClass: RedisLoginRiskRepository },
     { provide: REPO.OTP_SEND_THROTTLE, useClass: RedisOtpSendThrottleRepository },
     { provide: REPO.SESSION, useClass: RedisUserSessionRepository },
@@ -110,15 +125,21 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
       inject: [EmailPasswordStrategy, PhonePasswordStrategy]
     },
     AuthAuditService,
+    AccountSessionEstablishmentService,
     AuthAuditListener,
+    AccountInvitationService,
+    ContactBindingVerificationService,
     EmailOtpLoginService,
     EmailOtpMfaChallengeService,
+    LoginMfaOrchestrationService,
     MfaBindingManagementService,
     MfaChallengeVerificationService,
     PhoneOtpMfaChallengeService,
     TotpMfaChallengeService,
     LoginRiskThrottleService,
     OtpRiskThrottleService,
+    PasswordRecoveryService,
+    PasswordSetupRequirementService,
     PhoneOtpLoginService,
     EmailPasswordStrategy,
     PhonePasswordStrategy,
@@ -127,6 +148,9 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     EmailService,
     SmsService,
     PrismaAuthAuditRepository,
+    PrismaPasswordRecoveryGrantRepository,
+    PrismaPasswordSetupRequirementRepository,
+    PrismaTenantMfaPolicyRepository,
     ...AuthCommandHandlers,
     ...AuthQueryHandlers
   ],

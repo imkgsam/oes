@@ -62,7 +62,7 @@
 | 4.2.19 | 查看模板角色持有权限 | `gateway` | 系统管理员 | P1 | 已实现 | 2026-04-06 | 使用 `ListRoleTemplatePermissions`；服务层要求系统范围 |
 | 4.2.20 | 为模板角色添加权限 | `gateway` | 系统管理员 | P1 | 已实现 | 2026-04-06 | 使用 `AssignRoleTemplatePermission`；服务层要求系统范围 |
 | 4.2.21 | 为模板角色移除权限 | `gateway` | 系统管理员 | P1 | 已实现 | 2026-04-06 | 使用 `RevokeRoleTemplatePermission`；服务层要求系统范围 |
-| 4.2.22 | 基于模板创建租户角色实例 | `gateway` | 系统管理员 | P1 | 已实现 | 2026-03-19 | 使用 `CreateRoleInstanceFromTemplate`；支持从模板复制当前权限，并允许覆盖实例 `name/code/description` |
+| 4.2.22 | 基于模板创建租户角色实例 | `gateway` | 系统管理员 | P1 | 已实现 | 2026-03-19 | 使用 `CreateRoleInstanceFromTemplate`；支持从模板复制当前权限，实例 `code` 继承模板，仅允许覆盖 `name/description` |
 | 4.2.23 | 租户实例权限自定义 | `gateway` | 租户管理员 | P2 | 已实现 | 2026-04-06 | 当前通过实例级 `AssignRolePermission / RevokeRolePermission` 落地；租户操作者仅可操作本租户实例，模板权限不受影响 |
 
 ## 分片实施建议

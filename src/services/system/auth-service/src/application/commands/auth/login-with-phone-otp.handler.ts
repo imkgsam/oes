@@ -7,9 +7,7 @@ import {
   IIdentityServicePort
 } from '../../ports/identity-service.port'
 import { AuthAuditService } from '../../services/auth-audit.service'
-import { EmailOtpMfaChallengeService } from '../../services/mfa/email-otp-mfa-challenge.service'
 import { PhoneOtpLoginService } from '../../services/phone-otp-login.service'
-import { TotpMfaChallengeService } from '../../services/mfa/totp-mfa-challenge.service'
 import { AUTH_NO_AVAILABLE_ACCOUNT } from '../../../common/constants/exception-enums'
 import { LoginWithPhoneOtpCommand } from './login-with-phone-otp.command'
 
@@ -29,8 +27,6 @@ export class LoginWithPhoneOtpHandler
 {
   constructor(
     private readonly phoneOtpLoginService: PhoneOtpLoginService,
-    private readonly totpMfaChallengeService: TotpMfaChallengeService,
-    private readonly emailOtpMfaChallengeService: EmailOtpMfaChallengeService,
     private readonly authAuditService: AuthAuditService,
     @Inject(IDENTITY_SERVICE)
     private readonly identityService: IIdentityServicePort
@@ -38,30 +34,6 @@ export class LoginWithPhoneOtpHandler
 
   async execute(command: LoginWithPhoneOtpCommand): Promise<LoginWithPhoneOtpResult> {
     const userId = await this.phoneOtpLoginService.authenticate(command.phone, command.otp)
-
-    if (await this.totpMfaChallengeService.hasActiveBinding(userId)) {
-      const challenge = await this.totpMfaChallengeService.createChallenge(userId)
-      this.authAuditService.emitMfaChallengeCreated(userId, challenge.challengeId, 'TOTP')
-      return {
-        userId,
-        method: LoginMethodEnum.PhoneOtp,
-        nextStep: 'MFA_REQUIRED',
-        accounts: [],
-        challengeId: challenge.challengeId
-      }
-    }
-
-    if (await this.emailOtpMfaChallengeService.hasActiveBinding(userId)) {
-      const challenge = await this.emailOtpMfaChallengeService.createChallenge(userId)
-      this.authAuditService.emitMfaChallengeCreated(userId, challenge.challengeId, 'EMAIL_OTP')
-      return {
-        userId,
-        method: LoginMethodEnum.PhoneOtp,
-        nextStep: 'MFA_REQUIRED',
-        accounts: [],
-        challengeId: challenge.challengeId
-      }
-    }
 
     const accounts = await this.identityService.getAvailableAccountsByUserId(userId)
     if (accounts.length === 0) {

@@ -15,6 +15,11 @@ import {
   IPermissionServicePort
 } from '../../application/ports/permission-service.port'
 import { AUTH_PERMISSION_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
+import {
+  AccountAccessSummaryResponse,
+  PERMISSION_ACCESS_SUMMARY_SERVICE_NAME,
+  PermissionAccessSummaryServiceClient
+} from '@oes/common/generated/permission_service'
 
 const PERMISSION_CHECK_SERVICE_NAME = 'PermissionCheckService'
 
@@ -29,6 +34,7 @@ interface PermissionCheckGrpcClient {
 export class PermissionServiceAdaptor implements IPermissionServicePort, OnModuleInit {
   private readonly logger = new Logger(PermissionServiceAdaptor.name)
   private permissionService!: PermissionCheckGrpcClient
+  private permissionAccessSummaryService!: PermissionAccessSummaryServiceClient
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
@@ -42,16 +48,70 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
     this.permissionService = this.permissionClient.getService<PermissionCheckGrpcClient>(
       PERMISSION_CHECK_SERVICE_NAME
     )
+    this.permissionAccessSummaryService =
+      this.permissionClient.getService<PermissionAccessSummaryServiceClient>(
+        PERMISSION_ACCESS_SUMMARY_SERVICE_NAME
+      )
   }
 
-  async getAccountAuthorizationSummary(accountId: string): Promise<AccountAuthorizationSummary> {
-    this.logger.warn(
-      `Account authorization summary requested for account=${accountId}, but no gRPC contract exists yet`
-    )
-    throw ExceptionFactory.application(AUTH_PERMISSION_UPSTREAM_UNAVAILABLE, {
-      method: 'getAccountAuthorizationSummary',
-      upstream: 'permission-service'
-    })
+  // Reads the effective role ids and permission codes for the selected account context from permission-service.
+  async getAccountAuthorizationSummary(params: {
+    accountId: string
+    tenantId?: string | null
+    scopeLevel: 'SYSTEM' | 'TENANT'
+  }): Promise<AccountAuthorizationSummary> {
+    const accountId = params.accountId.trim()
+
+    try {
+      const response = await safeGrpcCall<AccountAccessSummaryResponse>(
+        this.permissionAccessSummaryService.getAccountAccessSummary(
+          {
+            accountId,
+            tenantId: params.tenantId ?? undefined,
+            scopeLevel: params.scopeLevel
+          },
+          this.metadata()
+        ),
+        {
+          caller: 'auth-service',
+          method: 'PermissionAccessSummaryService.getAccountAccessSummary'
+        }
+      )
+
+      const roles = response.roles ?? []
+      const actionCodes = response.actionCodes ?? []
+
+      return {
+        accountId,
+        roleIds: Array.from(
+          new Set<string>(
+            roles.map((role) => role.roleId?.trim() ?? '').filter((roleId) => roleId.length > 0)
+          )
+        ),
+        roleCodes: Array.from(
+          new Set<string>(
+            roles.map((role) => role.code?.trim() ?? '').filter((code) => code.length > 0)
+          )
+        ),
+        permissionCodes: Array.from(
+          new Set<string>(actionCodes.map((code) => code.trim()).filter((code) => code.length > 0))
+        )
+      }
+    } catch (error) {
+      if (error instanceof InfrastructureException) {
+        this.logger.error(
+          `Permission upstream unavailable during access summary read: ${accountId}`,
+          error
+        )
+        throw ExceptionFactory.infrastructure(AUTH_PERMISSION_UPSTREAM_UNAVAILABLE, {
+          upstream: 'permission-service',
+          method: 'getAccountAuthorizationSummary',
+          accountId
+        })
+      }
+
+      throw error
+    }
   }
 
   async checkAccountPermission(accountId: string, permissionCode: string): Promise<boolean> {

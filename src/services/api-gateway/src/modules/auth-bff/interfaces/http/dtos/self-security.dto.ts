@@ -1,5 +1,16 @@
-import { ApiProperty } from '@nestjs/swagger'
-import { IsEnum, IsString, MaxLength, MinLength } from 'class-validator'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { Type } from 'class-transformer'
+import {
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength
+} from 'class-validator'
 
 export enum MfaBindingTypeDto {
   EMAIL_OTP = 'EMAIL_OTP',
@@ -40,4 +51,117 @@ export class ActivateTotpBindingDto {
   @MinLength(1)
   @MaxLength(64)
   code: string
+}
+
+// Defines the payload used by an authenticated user to change their own password.
+export class ChangeOwnPasswordDto {
+  @ApiProperty({
+    description: 'Current password used to verify the self-service password change.',
+    minLength: 1
+  })
+  @IsString()
+  @MinLength(1)
+  currentPassword: string
+
+  @ApiProperty({
+    description: 'New password to apply to the user login methods.',
+    minLength: 8
+  })
+  @IsString()
+  @MinLength(8)
+  newPassword: string
+}
+
+// Defines the payload used to request one authenticated self-service email binding challenge.
+export class RequestEmailContactBindingChallengeDto {
+  @ApiProperty({
+    description: 'Email address that should receive the contact-binding verification code.'
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(320)
+  email: string
+}
+
+// Defines the payload used to verify one authenticated self-service email binding challenge.
+export class VerifyEmailContactBindingDto extends RequestEmailContactBindingChallengeDto {
+  @ApiProperty({
+    description: 'One-time verification code delivered to the requested email address.'
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  otp: string
+}
+
+// Defines the payload used to request one authenticated self-service phone binding challenge.
+export class RequestPhoneContactBindingChallengeDto {
+  @ApiProperty({
+    description: 'Canonical phone number that should receive the contact-binding verification code.'
+  })
+  @IsString()
+  @MinLength(6)
+  @MaxLength(32)
+  phone: string
+}
+
+// Defines the payload used to verify one authenticated self-service phone binding challenge.
+export class VerifyPhoneContactBindingDto extends RequestPhoneContactBindingChallengeDto {
+  @ApiProperty({
+    description: 'One-time verification code delivered to the requested phone number.'
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  otp: string
+}
+
+export enum LoginHistoryResultDto {
+  FAILED = 'FAILED',
+  SUCCESS = 'SUCCESS'
+}
+
+// Defines the allowed query filters for the authenticated user's self-service login history.
+export class SelfLoginHistoryQueryDto {
+  @ApiPropertyOptional({
+    enum: LoginHistoryResultDto,
+    enumName: 'LoginHistoryResult',
+    description: 'Filters login history by success or failure outcome.'
+  })
+  @IsOptional()
+  @IsEnum(LoginHistoryResultDto)
+  result?: LoginHistoryResultDto
+
+  @ApiPropertyOptional({
+    description: 'Optional ISO-8601 lower bound for the login attempt occurrence time.'
+  })
+  @IsOptional()
+  @IsDateString()
+  occurredAtFrom?: string
+
+  @ApiPropertyOptional({
+    description: 'Optional ISO-8601 upper bound for the login attempt occurrence time.'
+  })
+  @IsOptional()
+  @IsDateString()
+  occurredAtTo?: string
+
+  @ApiPropertyOptional({
+    description: 'Opaque cursor returned by the previous login-history page.'
+  })
+  @IsOptional()
+  @IsString()
+  cursor?: string
+
+  @ApiPropertyOptional({
+    description: 'Maximum number of login-history records returned in one page.',
+    minimum: 1,
+    maximum: 100
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number
 }

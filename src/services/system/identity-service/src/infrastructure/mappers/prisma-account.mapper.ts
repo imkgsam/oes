@@ -1,4 +1,5 @@
 import { AccountCandidateEntity } from '../../domain/entities/account-candidate.entity'
+import { AccountDirectoryEntity } from '../../domain/entities/account-directory.entity'
 import { AccountSummaryEntity } from '../../domain/entities/account-summary.entity'
 
 type UserAccountWithTenant = {
@@ -6,10 +7,16 @@ type UserAccountWithTenant = {
   userId: string
   tenantId: string | null
   scopeLevel?: 'SYSTEM' | 'TENANT'
+  avatarUrl: string | null
   displayName: string | null
+  bio: string | null
   isEnable: boolean
   Tenant: {
     isActive: boolean
+    name?: string | null
+  } | null
+  User?: {
+    username?: string | null
   } | null
 }
 
@@ -20,6 +27,7 @@ export class PrismaAccountCandidateMapper {
     return new AccountCandidateEntity(
       record.id,
       record.tenantId,
+      record.Tenant?.name ?? null,
       scopeLevel,
       record.displayName ?? null,
       isAccountEnabled(record, scopeLevel)
@@ -36,6 +44,25 @@ export class PrismaAccountSummaryMapper {
       record.userId,
       record.tenantId,
       scopeLevel,
+      record.avatarUrl ?? null,
+      record.displayName ?? null,
+      record.bio ?? null,
+      isAccountEnabled(record, scopeLevel)
+    )
+  }
+}
+
+export class PrismaAccountDirectoryMapper {
+  // Converts a Prisma account record into the account-directory read model used by admin account management.
+  static toDomain(record: UserAccountWithTenant): AccountDirectoryEntity {
+    const scopeLevel = normalizeScopeLevel(record.scopeLevel)
+    return new AccountDirectoryEntity(
+      record.id,
+      record.userId,
+      record.tenantId,
+      record.Tenant?.name ?? null,
+      scopeLevel,
+      record.displayName ?? null,
       record.displayName ?? null,
       isAccountEnabled(record, scopeLevel)
     )

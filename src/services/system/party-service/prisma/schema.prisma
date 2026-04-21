@@ -1,0 +1,149 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PartyType {
+  PERSON
+  ORGANIZATION
+}
+
+enum PartyStatus {
+  ACTIVE
+  INACTIVE
+  MERGED
+  ARCHIVED
+}
+
+enum TenantPartyStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum IdentifierStatus {
+  DECLARED
+  VERIFIED
+  INVALID
+  EXPIRED
+}
+
+enum AssertionLevel {
+  DECLARED
+  VERIFIED
+}
+
+enum RelationshipType {
+  SUBSIDIARY_OF
+  BRANCH_OF
+  LEGAL_REPRESENTATIVE_OF
+  SHAREHOLDER_OF
+}
+
+model Party {
+  id                 String              @id @default(uuid()) @db.Uuid
+  type               PartyType
+  status             PartyStatus         @default(ACTIVE)
+  canonicalName      String              @db.VarChar(255)
+  displayName        String?             @db.VarChar(255)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  personParty        PersonParty?
+  organizationParty  OrganizationParty?
+  tenantParties      TenantParty[]
+  identifiers        PartyIdentifier[]
+  relationshipsFrom  PartyRelationship[] @relation("PartyRelationshipFrom")
+  relationshipsTo    PartyRelationship[] @relation("PartyRelationshipTo")
+
+  @@index([type])
+  @@index([status])
+  @@index([canonicalName])
+}
+
+model PersonParty {
+  id            String   @id @default(uuid()) @db.Uuid
+  partyId       String   @unique @db.Uuid
+  legalName     String   @db.VarChar(255)
+  preferredName String?  @db.VarChar(255)
+  dateOfBirth   DateTime? @db.Date
+  gender        String?  @db.VarChar(50)
+  nationality   String?  @db.VarChar(50)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+}
+
+model OrganizationParty {
+  id                 String   @id @default(uuid()) @db.Uuid
+  partyId            String   @unique @db.Uuid
+  legalName          String   @db.VarChar(255)
+  registeredCountry  String?  @db.VarChar(50)
+  registrationStatus String?  @db.VarChar(50)
+  incorporationDate  DateTime? @db.Date
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+}
+
+model TenantParty {
+  id               String            @id @default(uuid()) @db.Uuid
+  tenantId         String            @db.VarChar(64)
+  partyId          String            @db.Uuid
+  localDisplayName String?           @db.VarChar(255)
+  localCode        String?           @db.VarChar(100)
+  tags             Json?
+  status           TenantPartyStatus @default(ACTIVE)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, partyId])
+  @@index([tenantId])
+  @@index([status])
+}
+
+model PartyIdentifier {
+  id                    String           @id @default(uuid()) @db.Uuid
+  partyId               String           @db.Uuid
+  identifierType        String           @db.VarChar(100)
+  normalizedValue       String           @db.VarChar(255)
+  rawValue              String           @db.VarChar(255)
+  issuerCountryOrRegion String           @default("") @db.VarChar(50)
+  status                IdentifierStatus @default(DECLARED)
+  effectiveFrom         DateTime?
+  effectiveTo           DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@unique([identifierType, issuerCountryOrRegion, normalizedValue])
+  @@index([partyId])
+}
+
+model PartyRelationship {
+  id             String           @id @default(uuid()) @db.Uuid
+  fromPartyId    String           @db.Uuid
+  toPartyId      String           @db.Uuid
+  relationshipType RelationshipType
+  assertionLevel AssertionLevel   @default(DECLARED)
+  source         String?          @db.VarChar(100)
+  effectiveFrom  DateTime?
+  effectiveTo    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  fromParty Party @relation("PartyRelationshipFrom", fields: [fromPartyId], references: [id], onDelete: Cascade)
+  toParty   Party @relation("PartyRelationshipTo", fields: [toPartyId], references: [id], onDelete: Cascade)
+
+  @@index([fromPartyId])
+  @@index([toPartyId])
+  @@index([relationshipType])
+}

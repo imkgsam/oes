@@ -35,6 +35,77 @@ export class SelfSessionListViewModel {
   sessions!: SelfSessionViewModel[]
 }
 
+// Defines one self-service login-history record returned to the authenticated user.
+export class SelfLoginHistoryItemViewModel {
+  @ApiProperty() occurredAt!: string
+  @ApiProperty() outcome!: string
+  @ApiPropertyOptional() loginMethod?: string
+  @ApiPropertyOptional() ipAddress?: string
+  @ApiPropertyOptional() deviceName?: string
+  @ApiPropertyOptional() platform?: string
+  @ApiPropertyOptional() browser?: string
+  @ApiPropertyOptional() failureReason?: string
+  @ApiPropertyOptional() traceId?: string
+}
+
+// Defines the paged response for the authenticated user's login attempt history.
+export class SelfLoginHistoryListViewModel {
+  @ApiProperty({ type: SelfLoginHistoryItemViewModel, isArray: true })
+  items!: SelfLoginHistoryItemViewModel[]
+
+  @ApiPropertyOptional()
+  nextCursor?: string
+}
+
+// Defines one login-method status row returned by personal or admin account security pages.
+export class LoginMethodViewModel {
+  @ApiProperty() methodId!: string
+  @ApiProperty() userId!: string
+  @ApiProperty() type!: string
+  @ApiPropertyOptional() identifier?: string
+  @ApiPropertyOptional() maskedIdentifier?: string
+  @ApiProperty() verified!: boolean
+  @ApiProperty() enabled!: boolean
+  @ApiProperty() hasPassword!: boolean
+  @ApiPropertyOptional() createdAt?: string
+  @ApiPropertyOptional() updatedAt?: string
+}
+
+// Defines the login-method list response together with password-setup state.
+export class LoginMethodListViewModel {
+  @ApiProperty({ type: LoginMethodViewModel, isArray: true })
+  loginMethods!: LoginMethodViewModel[]
+
+  @ApiProperty()
+  passwordSetupRequired!: boolean
+}
+
+// Defines a password mutation response without exposing credential material.
+export class PasswordMutationViewModel {
+  @ApiProperty() success!: boolean
+  @ApiProperty() passwordSetupRequired!: boolean
+}
+
+// Defines the OTP challenge payload returned when the authenticated user starts a contact-binding flow.
+export class ContactBindingMutationViewModel {
+  @ApiProperty() challengeId!: string
+  @ApiProperty() destination!: string
+  @ApiProperty() expiresAt!: string
+}
+
+// Defines the verification payload returned when the authenticated user confirms a contact binding.
+export class ContactBindingVerificationViewModel {
+  @ApiProperty() success!: boolean
+  @ApiProperty() type!: string
+  @ApiProperty() identifier!: string
+}
+
+// Defines a login-method mutation response for enablement changes.
+export class LoginMethodMutationViewModel {
+  @ApiProperty() success!: boolean
+  @ApiProperty({ type: LoginMethodViewModel }) loginMethod!: LoginMethodViewModel
+}
+
 // Defines the generic success payload used by self-service session mutations.
 export class SessionMutationViewModel {
   @ApiProperty() success!: boolean

@@ -122,6 +122,7 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       return (response.accounts ?? []).map((account) => ({
         accountId: account.accountId ?? '',
         tenantId: this.normalizeTenantId(account.tenantId),
+        tenantName: this.normalizeOptionalText(account.tenantName),
         scopeLevel: this.normalizeScopeLevel(account.scopeLevel),
         displayName: account.displayName ?? ''
       }))
@@ -200,8 +201,12 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
   }
 
   private normalizeTenantId(tenantId?: string): string | null {
-    const normalized = tenantId?.trim()
-    return normalized ? normalized : null
+    return this.normalizeOptionalText(tenantId) ?? null
+  }
+
+  private normalizeOptionalText(value?: string): string | undefined {
+    const normalized = value?.trim()
+    return normalized ? normalized : undefined
   }
 
   private metadata() {

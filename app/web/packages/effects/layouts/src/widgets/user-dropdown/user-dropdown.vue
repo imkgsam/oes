@@ -130,6 +130,7 @@ const enableLockScreenShortcutKey = computed(() => {
 const enableShortcutKey = computed(() => {
   return props.enableShortcutKey && preferences.shortcutKeys.enable;
 });
+let menuActionLocked = false;
 
 function handleOpenLock() {
   lockModalApi.open();
@@ -144,6 +145,23 @@ function handleLogout() {
   // emit
   logoutModalApi.open();
   openPopover.value = false;
+}
+
+async function handleMenuSelect(handler: AnyFunction) {
+  if (menuActionLocked) {
+    return;
+  }
+
+  menuActionLocked = true;
+
+  try {
+    await Promise.resolve(handler());
+  } finally {
+    openPopover.value = false;
+    window.setTimeout(() => {
+      menuActionLocked = false;
+    }, 0);
+  }
 }
 
 function handleSubmitLogout() {
@@ -234,11 +252,16 @@ if (enableShortcutKey.value) {
         <DropdownMenuItem
           v-for="menu in menus"
           :key="menu.text"
-          class="mx-1 flex cursor-pointer items-center rounded-sm py-1 leading-8"
-          @click="menu.handler"
+          class="mx-1 rounded-sm p-0"
         >
-          <VbenIcon :icon="menu.icon" class="mr-2 size-4" />
-          {{ menu.text }}
+          <button
+            type="button"
+            class="flex w-full cursor-pointer items-center rounded-sm px-2 py-1 leading-8 text-left"
+            @click.stop.prevent="handleMenuSelect(menu.handler)"
+          >
+            <VbenIcon :icon="menu.icon" class="mr-2 size-4" />
+            {{ menu.text }}
+          </button>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

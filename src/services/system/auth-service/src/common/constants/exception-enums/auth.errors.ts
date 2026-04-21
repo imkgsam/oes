@@ -176,6 +176,13 @@ export const AUTH_REFRESH_TOKEN_INVALID: ExceptionDefinition = {
   rpcStatus: status.UNAUTHENTICATED
 }
 
+export const AUTH_ACCESS_TOKEN_INVALID: ExceptionDefinition = {
+  code: 'AUTH_ACCESS_TOKEN_INVALID',
+  message: 'Access token is invalid or expired',
+  messageKey: 'auth.access_token_invalid',
+  rpcStatus: status.UNAUTHENTICATED
+}
+
 export const AUTH_REFRESH_TOKEN_REPLAY_DETECTED: ExceptionDefinition = {
   code: 'AUTH_REFRESH_TOKEN_REPLAY_DETECTED',
   message: 'Refresh token replay detected',
@@ -201,5 +208,19 @@ export const AUTH_OTP_DELIVERY_REJECTED: ExceptionDefinition = {
   code: 'AUTH_OTP_DELIVERY_REJECTED',
   message: 'OTP delivery request was rejected',
   messageKey: 'auth.otp_delivery_rejected',
+  rpcStatus: status.FAILED_PRECONDITION
+}
+
+export const AUTH_PASSWORD_RECOVERY_GRANT_INVALID: ExceptionDefinition = {
+  code: 'AUTH_PASSWORD_RECOVERY_GRANT_INVALID',
+  message: 'Password recovery grant is invalid',
+  messageKey: 'auth.password_recovery_grant_invalid',
+  rpcStatus: status.INVALID_ARGUMENT
+}
+
+export const AUTH_PASSWORD_RECOVERY_GRANT_EXPIRED: ExceptionDefinition = {
+  code: 'AUTH_PASSWORD_RECOVERY_GRANT_EXPIRED',
+  message: 'Password recovery grant has expired',
+  messageKey: 'auth.password_recovery_grant_expired',
   rpcStatus: status.FAILED_PRECONDITION
 }

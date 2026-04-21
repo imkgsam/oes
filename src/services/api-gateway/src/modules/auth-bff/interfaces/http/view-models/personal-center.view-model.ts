@@ -1,0 +1,103 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+
+// Defines one login-method entry returned in the personal-center summary payload.
+export class PersonalCenterLoginMethodViewModel {
+  @ApiProperty({ description: 'Stable login-method type used by the front end to render the credential summary.' })
+  type!: string
+
+  @ApiProperty({ description: 'Human-readable login-method label shown to the authenticated user.' })
+  label!: string
+
+  @ApiPropertyOptional({ description: 'Masked or canonical login-method value shown in the personal-center summary.' })
+  value?: string
+}
+
+// Defines the user-level profile summary returned by the personal-center endpoint.
+export class PersonalCenterUserProfileViewModel {
+  @ApiPropertyOptional({ description: 'Primary login email for the authenticated user.' })
+  loginEmail?: string
+
+  @ApiPropertyOptional({ description: 'Primary login phone number for the authenticated user.' })
+  loginPhone?: string
+
+  @ApiProperty({ type: PersonalCenterLoginMethodViewModel, isArray: true })
+  loginMethods!: PersonalCenterLoginMethodViewModel[]
+}
+
+// Defines one role summary returned in the personal-center account context payload.
+export class PersonalCenterRoleViewModel {
+  @ApiProperty({ description: 'Effective role identifier bound to the current account context.' })
+  roleId!: string
+
+  @ApiProperty({ description: 'Stable role code used for display and diagnostics only.' })
+  code!: string
+
+  @ApiProperty({ description: 'Human-readable role name.' })
+  name!: string
+}
+
+// Defines the account-level work context returned by the personal-center endpoint.
+export class PersonalCenterAccountContextViewModel {
+  @ApiProperty({ description: 'Selected account identifier bound to the current authenticated context.' })
+  accountId!: string
+
+  @ApiPropertyOptional({ description: 'Display name for the current account context.' })
+  accountName?: string
+
+  @ApiPropertyOptional({ description: 'Editable avatar for the current account profile.' })
+  avatar?: string
+
+  @ApiPropertyOptional({ description: 'Editable display name for the current account profile.' })
+  displayName?: string
+
+  @ApiPropertyOptional({ description: 'Editable short bio for the current account profile.' })
+  bio?: string
+
+  @ApiPropertyOptional({ description: 'Selected tenant identifier bound to the current authenticated context.' })
+  tenantId?: string
+
+  @ApiPropertyOptional({ description: 'Display name for the current tenant context.' })
+  tenantName?: string
+
+  @ApiProperty({ description: 'Scope level of the current account context.' })
+  scopeLevel!: 'SYSTEM' | 'TENANT'
+
+  @ApiProperty({ type: PersonalCenterRoleViewModel, isArray: true })
+  roles!: PersonalCenterRoleViewModel[]
+
+  @ApiPropertyOptional({ description: 'Read-only work email assigned by the enterprise for this account context.' })
+  workEmail?: string
+
+  @ApiPropertyOptional({ description: 'Read-only work phone assigned by the enterprise for this account context.' })
+  workPhone?: string
+}
+
+// Defines one security-entry link exposed in the personal-center summary payload.
+export class PersonalCenterSecurityEntryViewModel {
+  @ApiProperty({ description: 'Stable security entry code used by the front end to route the user.' })
+  code!: string
+
+  @ApiProperty({ description: 'Human-readable security entry label.' })
+  label!: string
+
+  @ApiProperty({ description: 'Route path or target location for the security entry.' })
+  path!: string
+}
+
+// Defines the first-stage personal-center summary returned to authenticated end users.
+export class PersonalCenterViewModel {
+  @ApiProperty({ type: PersonalCenterUserProfileViewModel })
+  userProfile!: PersonalCenterUserProfileViewModel
+
+  @ApiProperty({ type: PersonalCenterAccountContextViewModel })
+  accountContext!: PersonalCenterAccountContextViewModel
+
+  @ApiProperty({ type: PersonalCenterSecurityEntryViewModel, isArray: true })
+  securityEntries!: PersonalCenterSecurityEntryViewModel[]
+}
+
+// Defines the response returned after mutating the current account profile.
+export class AccountProfileMutationViewModel {
+  @ApiProperty({ type: PersonalCenterAccountContextViewModel })
+  accountContext!: PersonalCenterAccountContextViewModel
+}

@@ -171,6 +171,8 @@
   - 不采用 `buildQueryScope`
   - 不采用 `checkResource`
   - 依赖 challenge 有效性、验证码校验与登录流程状态机
+- 关联说明：
+  - 该能力同时属于登录流程桥接接口；完整登录续流语义见 [login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md)
 
 ## 4. 当前授权模型说明
 

@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package permission_service;
 
+import "google/protobuf/empty.proto";
+
 option java_multiple_files = true;
 option java_package = "com.oes.permission.v1";
-
-import "google/protobuf/empty.proto";
 
 service PermissionManagementService {
   rpc CreatePermission(CreatePermissionRequest) returns (PermissionResponse);
@@ -45,6 +45,16 @@ service PermissionManagementService {
   rpc GetAccountRoleSelection(GetAccountRoleSelectionRequest) returns (AccountRoleSelectionResponse);
   rpc SetAccountRoles(SetAccountRolesRequest) returns (ListRolesResponse);
   rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
+
+  rpc ListNavigationEntries(ListNavigationEntriesRequest) returns (ListNavigationEntriesResponse);
+  rpc GetNavigationEntry(GetNavigationEntryRequest) returns (NavigationEntryResponse);
+  rpc CreateNavigationEntry(CreateNavigationEntryRequest) returns (NavigationEntryResponse);
+  rpc UpdateNavigationEntry(UpdateNavigationEntryRequest) returns (NavigationEntryResponse);
+  rpc GetRoleNavigation(GetRoleNavigationRequest) returns (RoleNavigationResponse);
+  rpc SetRoleNavigationVisibility(SetRoleNavigationVisibilityRequest) returns (RoleNavigationResponse);
+  rpc SetRoleLandingPolicies(SetRoleLandingPoliciesRequest) returns (RoleNavigationResponse);
+  rpc SyncRoleNavigationFromTemplate(SyncRoleNavigationFromTemplateRequest) returns (RoleNavigationResponse);
+  rpc ResolveNavigationPreview(ResolveNavigationPreviewRequest) returns (ResolveNavigationPreviewResponse);
 }
 
 enum RoleKindProto {
@@ -337,4 +347,123 @@ message PermissionAuditEventRecord {
 message ListAuditEventsResponse {
   repeated PermissionAuditEventRecord items = 1;
   string next_cursor = 2;
+}
+
+message NavigationEntryResponse {
+  string entry_key = 1;
+  string name = 2;
+  string description = 3;
+  string feature_key = 4;
+  repeated string supported_terminals = 5;
+  int32 registry_priority = 6;
+  bool enabled = 7;
+  string entry_type = 8;
+}
+
+message ListNavigationEntriesRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string keyword = 3;
+  string feature_key = 4;
+  string terminal = 5;
+  bool has_enabled_filter = 6;
+  bool enabled = 7;
+}
+
+message ListNavigationEntriesResponse {
+  repeated NavigationEntryResponse entries = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message GetNavigationEntryRequest {
+  string entry_key = 1;
+}
+
+message CreateNavigationEntryRequest {
+  string entry_key = 1;
+  string name = 2;
+  string description = 3;
+  string feature_key = 4;
+  repeated string supported_terminals = 5;
+  int32 registry_priority = 6;
+  bool enabled = 7;
+  string entry_type = 8;
+}
+
+message UpdateNavigationEntryRequest {
+  string entry_key = 1;
+  string name = 2;
+  string description = 3;
+  string feature_key = 4;
+  repeated string supported_terminals = 5;
+  int32 registry_priority = 6;
+  bool enabled = 7;
+  string entry_type = 8;
+}
+
+message RoleNavigationVisibilityResponse {
+  string role_id = 1;
+  string entry_key = 2;
+  string terminal = 3;
+  bool enabled = 4;
+}
+
+message RoleLandingPolicyResponse {
+  string role_id = 1;
+  string terminal = 2;
+  string default_entry_key = 3;
+  int32 priority = 4;
+  bool enabled = 5;
+}
+
+message RoleNavigationResponse {
+  string role_id = 1;
+  repeated RoleNavigationVisibilityResponse visibility = 2;
+  repeated RoleLandingPolicyResponse landing_policies = 3;
+}
+
+message GetRoleNavigationRequest {
+  string role_id = 1;
+}
+
+message RoleNavigationVisibilityInput {
+  string entry_key = 1;
+  string terminal = 2;
+  bool enabled = 3;
+}
+
+message SetRoleNavigationVisibilityRequest {
+  string role_id = 1;
+  repeated RoleNavigationVisibilityInput visibility = 2;
+}
+
+message RoleLandingPolicyInput {
+  string terminal = 1;
+  string default_entry_key = 2;
+  int32 priority = 3;
+  bool enabled = 4;
+}
+
+message SetRoleLandingPoliciesRequest {
+  string role_id = 1;
+  repeated RoleLandingPolicyInput landing_policies = 2;
+}
+
+message SyncRoleNavigationFromTemplateRequest {
+  string role_id = 1;
+}
+
+message ResolveNavigationPreviewRequest {
+  repeated string role_ids = 1;
+  string scope_level = 2;
+  string terminal = 3;
+}
+
+message ResolveNavigationPreviewResponse {
+  repeated string visible_entries = 1;
+  string default_entry = 2;
+  string resolved_by_role_id = 3;
+  string fallback_reason = 4;
 }

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
 import { EventEmitterModule } from '@nestjs/event-emitter'
 import { AuthorizationModule } from '@oes/common/authorization'
 import { NacosConfigModule } from '@oes/common/config'
@@ -32,6 +33,10 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      cache: true,
+      isGlobal: true
+    }),
     LoggingModule.forRoot({ serviceName: 'identity-service' }),
     RegistryModule,
     NacosConfigModule,
@@ -40,7 +45,10 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
       services: {
         [SERVICE_NAMES.PERMISSION]: {
           serviceName: SERVICE_NAMES.PERMISSION,
-          protoPath: resolveCommonProtoPath('permission_service/permission_management.proto'),
+          protoPath: [
+            resolveCommonProtoPath('permission_service/permission_management.proto'),
+            resolveCommonProtoPath('permission_service/permission_access_summary.proto')
+          ],
           packageName: 'permission_service',
           url: resolveGrpcUrl('GRPC_SERVICE_PERMISSION_URL', '127.0.0.1:50051')
         }

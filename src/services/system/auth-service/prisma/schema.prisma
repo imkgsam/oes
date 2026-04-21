@@ -49,6 +49,28 @@ enum CredentialType {
   OAUTH
 }
 
+model PasswordSetupRequirement {
+  id          String              @id @default(uuid())
+  userId      String              @unique
+  required    Boolean             @default(true)
+  reason      PasswordSetupReason
+  requiredBy  String?
+  requiredAt  DateTime            @default(now())
+  completedAt DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+}
+
+enum PasswordSetupReason {
+  FIRST_LOGIN
+  ADMIN_RESET
+  SECURITY_POLICY
+}
+
+enum TenantMfaScenario {
+  LOGIN
+}
+
 model OTP {
   id           String   @id @default(uuid())
   usage        OTPUsage
@@ -65,6 +87,21 @@ model OTP {
   updatedAt    DateTime @updatedAt
 
   @@unique([identifier, usage])
+}
+
+model PasswordRecoveryGrant {
+  id            String   @id
+  userId        String
+  loginMethodId String
+  challengeId   String   @unique
+  expiresAt     DateTime
+  verifiedAt    DateTime
+  consumedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([loginMethodId])
 }
 
 enum OTPUsage {
@@ -114,6 +151,29 @@ model MfaBinding {
   updatedAt  DateTime @updatedAt
 
   @@unique([userId, type])
+}
+
+model TenantMfaScenarioPolicy {
+  tenantId   String
+  scenario   TenantMfaScenario
+  required   Boolean            @default(false)
+  updatedBy  String?
+  updatedAt  DateTime           @updatedAt
+  createdAt  DateTime           @default(now())
+
+  @@id([tenantId, scenario])
+}
+
+model TenantMfaFactorPolicy {
+  tenantId   String
+  factor     MfaType
+  enabled    Boolean  @default(true)
+  priority   Int
+  updatedBy  String?
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@id([tenantId, factor])
 }
 
 enum MfaType {

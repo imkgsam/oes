@@ -18,14 +18,26 @@ describe('LoginUseCase', () => {
     const dto: LoginDto = {
       method: LoginMethodDto.EMAIL_PASSWORD,
       identifier: 'alice@example.com',
-      credential: 'secret'
+      credential: 'secret',
+      device: {
+        deviceName: ' Alice MacBook Pro '
+      }
     }
 
-    const result = await useCase.execute(dto, { requestId: 'req-1', traceId: 'trace-1' })
+    const result = await useCase.execute(
+      dto,
+      { requestId: 'req-1', traceId: 'trace-1' },
+      { userAgent: ' Mozilla/5.0 Firefox/149.0 ', ipAddress: ' 1.1.1.1 ' }
+    )
 
     expect(authAdapter.loginWithEmailPassword).toHaveBeenCalledWith(
-      'alice@example.com',
-      'secret',
+      {
+        email: 'alice@example.com',
+        password: 'secret',
+        deviceName: 'Alice MacBook Pro',
+        userAgent: 'Mozilla/5.0 Firefox/149.0',
+        ipAddress: '1.1.1.1'
+      },
       expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
     )
     expect(result).toEqual(
@@ -49,6 +61,7 @@ describe('LoginUseCase', () => {
           identifier: 'alice@example.com',
           credential: 'secret'
         },
+        {},
         {}
       )
     ).rejects.toBeInstanceOf(BadRequestException)

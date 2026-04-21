@@ -8,6 +8,7 @@ export interface IdentityUserSummary {
 export interface AccountCandidateSummary {
   accountId: string
   tenantId: string | null
+  tenantName?: string | null
   scopeLevel: 'SYSTEM' | 'TENANT'
   displayName?: string
 }

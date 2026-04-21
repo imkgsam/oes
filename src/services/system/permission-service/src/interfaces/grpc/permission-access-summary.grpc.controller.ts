@@ -1,30 +1,31 @@
-import { Controller, UseFilters, UseGuards } from '@nestjs/common'
+import { Controller, Logger, UseFilters, UseGuards } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '../../../../../../common/dist/core/filters'
 import {
-  AuthenticatedOperatorGuard,
-  InternalServiceGuard,
-  RequireAuthenticatedOperator
+  InternalServiceGuard
 } from '@oes/common/authorization'
 import {
   AccountAccessSummaryResponse,
+  AccountNavigationSummaryResponse,
   GetAccountAccessSummaryRequest,
   PermissionAccessSummaryServiceController,
-  PermissionAccessSummaryServiceControllerMethods
+  PermissionAccessSummaryServiceControllerMethods,
+  ResolveAccountNavigationRequest
 } from '@oes/common/generated/permission_service'
-import { GetAccountAccessSummaryQuery } from '../../application/queries/access-summary'
+import { GetAccountAccessSummaryQuery, ResolveAccountNavigationQuery } from '../../application/queries/access-summary'
 import { ScopeLevel } from '../../domain/enums/scope-level.enum'
 
 @Controller()
 @UseFilters(GrpcExceptionFilter)
-@RequireAuthenticatedOperator()
-@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+@UseGuards(InternalServiceGuard)
 @PermissionAccessSummaryServiceControllerMethods()
-// Exposes internal self-context access summaries without using management permission checks.
+// Exposes internal account access summaries for trusted service-to-service consumers.
 export class PermissionAccessSummaryGrpcController
   implements PermissionAccessSummaryServiceController
 {
+  private readonly logger = new Logger(PermissionAccessSummaryGrpcController.name)
+
   constructor(private readonly queryBus: ValidatingQueryBus) {}
 
   async getAccountAccessSummary(
@@ -32,6 +33,11 @@ export class PermissionAccessSummaryGrpcController
     metadata?: Metadata,
     ...rest: any
   ): Promise<AccountAccessSummaryResponse> {
+    this.logger.log(
+      `getAccountAccessSummary request: accountId=${request.accountId ?? ''}; tenantId=${
+        request.tenantId ?? ''
+      }; scopeLevel=${request.scopeLevel ?? ''}`
+    )
     return this.queryBus.execute(
       new GetAccountAccessSummaryQuery(
         request.accountId!,
@@ -39,6 +45,29 @@ export class PermissionAccessSummaryGrpcController
         normalizeScopeLevel(request.scopeLevel)
       )
     )
+  }
+
+  // Resolves runtime navigation for BFF session-context consumers without management permissions.
+  async resolveAccountNavigation(
+    request: ResolveAccountNavigationRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<AccountNavigationSummaryResponse> {
+    const result = await this.queryBus.execute(
+      new ResolveAccountNavigationQuery(
+        request.accountId!,
+        request.tenantId || undefined,
+        normalizeScopeLevel(request.scopeLevel),
+        request.terminal || 'WEB'
+      )
+    )
+
+    return {
+      visibleEntries: result.visibleEntries,
+      defaultEntry: result.defaultEntry,
+      resolvedByRoleId: result.resolvedByRoleId ?? '',
+      fallbackReason: result.fallbackReason ?? ''
+    }
   }
 }
 

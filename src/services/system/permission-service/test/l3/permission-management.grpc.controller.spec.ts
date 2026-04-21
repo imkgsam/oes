@@ -6,6 +6,7 @@ import { Permission } from '../../src/domain/aggregates/permission.aggregate'
 import { Role } from '../../src/domain/aggregates/role.aggregate'
 import { PermissionModule } from '../../src/domain/enums/permission-module.enum'
 import { RoleKind } from '../../src/domain/enums/role-kind.enum'
+import { RoleKindProto } from '@oes/common/generated/permission_service'
 
 describe('PermissionManagementGrpcController L3', () => {
   const createBuses = () => ({
@@ -161,7 +162,7 @@ describe('PermissionManagementGrpcController L3', () => {
           isSystem: true,
           isEnabled: true,
           description: '',
-          roleKind: RoleKind.SYSTEM_TEMPLATE,
+          roleKind: RoleKindProto.ROLE_KIND_PROTO_SYSTEM_TEMPLATE,
           templateRoleId: ''
         }
       ]

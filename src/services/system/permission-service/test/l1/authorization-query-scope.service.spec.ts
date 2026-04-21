@@ -39,18 +39,17 @@ describe('AuthorizationQueryScopeService', () => {
   it('应按 resource + action 分发到 role template builder', () => {
     const service = createService()
 
-    const scope = service.build<{ systemScopeOnly: true }>({
+    const scope = service.build<Record<string, never>>({
       resource: 'role_template',
       action: 'list',
       operatorScope: {
-        operatorId: 'system-1',
-        isSystemScope: true
+        operatorId: 'tenant-1',
+        tenantId: 'tenant-1',
+        isSystemScope: false
       }
     })
 
-    expect(scope).toEqual({
-      systemScopeOnly: true
-    })
+    expect(scope).toEqual({})
   })
 
   it('应支持 role template permission list 的系统范围 builder', () => {

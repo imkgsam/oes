@@ -20,15 +20,27 @@ export class LogoutAllHandler implements ICommandHandler<LogoutAllCommand, Logou
 
   async execute(command: LogoutAllCommand): Promise<LogoutAllResult> {
     const sessions = await this.sessionRepository.findAllByUserId(command.userId)
-    await this.sessionRepository.deleteAllByUserId(command.userId)
+    const currentSession = command.currentSessionId
+      ? await this.sessionRepository.findById(command.currentSessionId)
+      : null
+    const currentAccountId = currentSession?.getAccountId() ?? command.currentAccountId
+    const targetSessions = sessions.filter(
+      (session) => !currentAccountId || session.getAccountId() === currentAccountId
+    )
+
+    if (currentAccountId) {
+      await this.sessionRepository.deleteAllByAccountId(currentAccountId)
+    } else {
+      await this.sessionRepository.deleteAllByUserId(command.userId)
+    }
     this.authAuditService.emitLogoutAllSucceeded(
       command.userId,
-      sessions.length,
-      sessions.map((session) => session.getId())
+      targetSessions.length,
+      targetSessions.map((session) => session.getId())
     )
     return {
       success: true,
-      sessionCount: sessions.length
+      sessionCount: targetSessions.length
     }
   }
 }

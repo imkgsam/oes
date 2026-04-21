@@ -3,12 +3,32 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  buildSeedAccountRoleBindings,
+  buildSeedAccounts,
+  buildSeedContactAssets,
+  buildSeedTenantRoles,
+  DEFAULT_OTP_CODE,
+  DEFAULT_PASSWORD,
+  LEGACY_IDENTIFIERS,
+  MANAGED_ACCOUNT_IDS,
+  MANAGED_USER_IDS,
+  SEEDED_COMPANIES,
+  SEEDED_LOGIN_IDENTIFIERS,
+  SEEDED_OTP_IDENTIFIERS,
+  SEEDED_TENANT_ROLE_PERMISSION_CODES,
+  SEEDED_USERS,
+  SYSTEM_ACCOUNT_IDS,
+} from './tenant-web-auth-test-fixtures.mjs';
+
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
 
 const {
   PrismaClient: IdentityPrismaClient,
+  AccountContactAssetStatus,
+  AccountContactAssetType,
 } = require(path.join(
   ROOT,
   'src/services/system/identity-service/prisma/generated/prisma',
@@ -19,6 +39,15 @@ const {
   LoginMethodType,
   OTPUsage,
 } = require(path.join(ROOT, 'src/services/system/auth-service/prisma/generated/prisma'));
+const {
+  PrismaClient: PermissionPrismaClient,
+  AccountType,
+  RoleKind,
+  ScopeLevel,
+} = require(path.join(
+  ROOT,
+  'src/services/system/permission-service/prisma/generated/prisma',
+));
 const bcrypt = require(path.join(
   ROOT,
   'src/services/system/auth-service/node_modules/bcrypt',
@@ -27,32 +56,13 @@ const bcrypt = require(path.join(
 const AUTH_DB_URL = 'postgres://imkgsam:imkgsam@127.0.0.1:5432/authdb';
 const IDENTITY_DB_URL = 'postgres://imkgsam:imkgsam@127.0.0.1:5432/identitydb';
 const PERMISSION_DB_URL = 'postgres://imkgsam:imkgsam@127.0.0.1:5432/permissiondb';
-const PASSWORD_PLAIN = 'Passw0rd!123';
-const OTP_CODE = '123456';
 
-const TEST_IDS = {
-  userId: '7df29e8e-f2f4-4ca3-8c17-bfe3bba0f111',
-  tenantAId: 'ea06d4a0-6990-4ba0-ae13-fb31485c2001',
-  tenantBId: '1c1f7e79-e3d7-476e-9e85-3270d7f52002',
-  accountAId: 'cb3f1d5d-1406-4fb0-8d53-75a144093001',
-  accountBId: '3d1545a0-2f9f-4130-89ea-0e0bd8e45002',
-  accountSystemId: '911a28e9-0d30-4dc8-a391-60bed62f5003',
-};
+const SEEDED_ACCOUNTS = buildSeedAccounts();
+const SEEDED_CONTACT_ASSETS = buildSeedContactAssets();
+const SEEDED_TENANT_ROLES = buildSeedTenantRoles();
+const SEEDED_ACCOUNT_ROLE_BINDINGS = buildSeedAccountRoleBindings();
 
-const TEST_USER = {
-  email: 'ui.tester@oes.local',
-  phone: '+8613800000001',
-  username: 'ui.tester',
-  displayNameA: 'UI Tester @ OES Manufacturing',
-  displayNameB: 'UI Tester @ OES Trading',
-  displayNameSystem: 'UI Tester @ OES Platform',
-  tenantAName: 'OES Manufacturing Demo',
-  tenantBName: 'OES Trading Demo',
-  tenantACode: 'oes-manufacturing-demo',
-  tenantBCode: 'oes-trading-demo',
-};
-
-// Runs the permission-service foundation seed and binds the local system account to system.admin.
+// Runs the permission and navigation foundation sync so built-in roles and entries stay authoritative.
 function syncPermissionFoundationForLocalSystemAccount() {
   const result = spawnSync(
     'pnpm',
@@ -62,7 +72,7 @@ function syncPermissionFoundationForLocalSystemAccount() {
       env: {
         ...process.env,
         DATABASE_URL: PERMISSION_DB_URL,
-        OES_SYSTEM_ADMIN_ACCOUNT_IDS: TEST_IDS.accountSystemId,
+        OES_SYSTEM_ADMIN_ACCOUNT_IDS: SYSTEM_ACCOUNT_IDS.join(','),
       },
       stdio: 'inherit',
     },
@@ -71,6 +81,302 @@ function syncPermissionFoundationForLocalSystemAccount() {
   if (result.status !== 0) {
     throw new Error(`permission foundation sync failed with status ${result.status}`);
   }
+}
+
+// Writes the requested realistic tenant, user, account, and contact fixture rows into identity-service.
+async function seedIdentity(identity) {
+  await identity.$transaction(async (tx) => {
+    for (const company of SEEDED_COMPANIES) {
+      await tx.tenant.upsert({
+        where: { id: company.id },
+        update: {
+          code: company.code,
+          entityId: `entity:${company.id}`,
+          isActive: true,
+          name: company.name,
+        },
+        create: {
+          id: company.id,
+          code: company.code,
+          entityId: `entity:${company.id}`,
+          isActive: true,
+          name: company.name,
+        },
+      });
+    }
+
+    for (const user of SEEDED_USERS) {
+      await tx.user.upsert({
+        where: { id: user.id },
+        update: {
+          email: user.email,
+          entityId: `entity:${user.id}`,
+          isActive: true,
+          phone: user.phone,
+          username: user.username,
+        },
+        create: {
+          id: user.id,
+          email: user.email,
+          entityId: `entity:${user.id}`,
+          isActive: true,
+          phone: user.phone,
+          username: user.username,
+        },
+      });
+    }
+
+    await tx.userAccount.deleteMany({
+      where: {
+        userId: { in: MANAGED_USER_IDS },
+        id: { notIn: MANAGED_ACCOUNT_IDS },
+      },
+    });
+
+    for (const account of SEEDED_ACCOUNTS) {
+      await tx.userAccount.upsert({
+        where: { id: account.id },
+        update: {
+          avatarUrl: account.avatarUrl,
+          contextKey: account.contextKey,
+          displayName: account.displayName,
+          isEnable: true,
+          scopeLevel: account.scopeLevel,
+          tenantId: account.tenantId,
+          userId: account.userId,
+        },
+        create: {
+          id: account.id,
+          avatarUrl: account.avatarUrl,
+          contextKey: account.contextKey,
+          displayName: account.displayName,
+          isEnable: true,
+          scopeLevel: account.scopeLevel,
+          tenantId: account.tenantId,
+          userId: account.userId,
+        },
+      });
+    }
+
+    await tx.accountContactAsset.deleteMany({
+      where: {
+        accountId: { in: MANAGED_ACCOUNT_IDS },
+      },
+    });
+
+    if (SEEDED_CONTACT_ASSETS.length > 0) {
+      await tx.accountContactAsset.createMany({
+        data: SEEDED_CONTACT_ASSETS.map((asset) => ({
+          id: asset.id,
+          accountId: asset.accountId,
+          assignedAt: asset.assignedAt,
+          assignedBy: asset.assignedBy,
+          isPrimary: asset.isPrimary,
+          status: AccountContactAssetStatus[asset.status],
+          tenantId: asset.tenantId,
+          type: AccountContactAssetType[asset.type],
+          value: asset.value,
+        })),
+      });
+    }
+  });
+}
+
+// Rebuilds the managed local auth login methods, credentials, and OTP fixtures in auth-service.
+async function seedAuth(auth, passwordHash) {
+  await auth.$transaction(async (tx) => {
+    await tx.credential.deleteMany({
+      where: {
+        LoginMethod: {
+          userId: { in: MANAGED_USER_IDS },
+        },
+      },
+    });
+
+    await tx.loginMethod.deleteMany({
+      where: {
+        OR: [
+          { userId: { in: MANAGED_USER_IDS } },
+          { identifier: { in: [...SEEDED_LOGIN_IDENTIFIERS, ...LEGACY_IDENTIFIERS] } },
+        ],
+      },
+    });
+
+    for (const user of SEEDED_USERS) {
+      const emailMethod = await tx.loginMethod.create({
+        data: {
+          enabled: true,
+          identifier: user.email,
+          type: LoginMethodType.EMAIL,
+          userId: user.id,
+          verified: true,
+        },
+      });
+
+      const phoneMethod = await tx.loginMethod.create({
+        data: {
+          enabled: true,
+          identifier: user.phone,
+          type: LoginMethodType.PHONE,
+          userId: user.id,
+          verified: true,
+        },
+      });
+
+      await tx.credential.createMany({
+        data: [
+          {
+            credentialType: CredentialType.PASSWORD,
+            enabled: true,
+            hashedValue: passwordHash,
+            loginMethodId: emailMethod.id,
+          },
+          {
+            credentialType: CredentialType.PASSWORD,
+            enabled: true,
+            hashedValue: passwordHash,
+            loginMethodId: phoneMethod.id,
+          },
+        ],
+      });
+    }
+
+    await tx.oTP.deleteMany({
+      where: {
+        identifier: { in: SEEDED_OTP_IDENTIFIERS },
+      },
+    });
+
+    for (const identifier of SEEDED_LOGIN_IDENTIFIERS) {
+      await tx.oTP.create({
+        data: {
+          attemptCount: 0,
+          consumed: false,
+          expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          hashedValue: DEFAULT_OTP_CODE,
+          identifier,
+          lastSentAt: new Date(),
+          maxAttempt: 3,
+          usage: OTPUsage.LOGIN,
+          valid: true,
+        },
+      });
+    }
+  });
+}
+
+// Seeds tenant-scoped role instances and account-role bindings while preserving the built-in system admin role flow.
+async function seedPermission(permission) {
+  await permission.$transaction(async (tx) => {
+    for (const role of SEEDED_TENANT_ROLES) {
+      await tx.role.upsert({
+        where: { id: role.id },
+        update: {
+          code: role.code,
+          description: role.description,
+          isEnabled: role.isEnabled,
+          kind: RoleKind[role.kind],
+          name: role.name,
+          scopeKey: role.scopeKey,
+          templateRoleId: role.templateRoleId,
+          tenantId: role.tenantId,
+        },
+        create: {
+          id: role.id,
+          code: role.code,
+          description: role.description,
+          isEnabled: role.isEnabled,
+          kind: RoleKind[role.kind],
+          name: role.name,
+          scopeKey: role.scopeKey,
+          templateRoleId: role.templateRoleId,
+          tenantId: role.tenantId,
+        },
+      });
+    }
+
+    await tx.rolePermission.deleteMany({
+      where: {
+        roleId: { in: SEEDED_TENANT_ROLES.map((role) => role.id) },
+      },
+    });
+
+    const tenantPermissionCodes = [
+      ...new Set(
+        SEEDED_TENANT_ROLES.flatMap((role) =>
+          SEEDED_TENANT_ROLE_PERMISSION_CODES.get(role.code) ?? [],
+        ),
+      ),
+    ];
+    const permissionsByCode =
+      tenantPermissionCodes.length > 0
+        ? new Map(
+            (
+              await tx.permission.findMany({
+                where: {
+                  code: { in: tenantPermissionCodes },
+                },
+                select: {
+                  id: true,
+                  code: true,
+                },
+              })
+            ).map((permissionRow) => [permissionRow.code, permissionRow.id]),
+          )
+        : new Map();
+
+    const missingTenantPermissionCodes = tenantPermissionCodes.filter(
+      (code) => !permissionsByCode.has(code),
+    );
+
+    if (missingTenantPermissionCodes.length > 0) {
+      throw new Error(
+        `Missing seeded tenant role permissions: ${missingTenantPermissionCodes.join(', ')}`,
+      );
+    }
+
+    const tenantRolePermissionRows = SEEDED_TENANT_ROLES.flatMap((role) =>
+      (SEEDED_TENANT_ROLE_PERMISSION_CODES.get(role.code) ?? []).map((permissionCode) => ({
+        roleId: role.id,
+        permissionId: permissionsByCode.get(permissionCode),
+      })),
+    );
+
+    if (tenantRolePermissionRows.length > 0) {
+      await tx.rolePermission.createMany({
+        data: tenantRolePermissionRows,
+      });
+    }
+
+    await tx.accountRole.deleteMany({
+      where: {
+        roleId: { in: SEEDED_TENANT_ROLES.map((role) => role.id) },
+      },
+    });
+
+    if (SEEDED_ACCOUNT_ROLE_BINDINGS.length > 0) {
+      await tx.accountRole.createMany({
+        data: SEEDED_ACCOUNT_ROLE_BINDINGS.map((binding) => ({
+          accountId: binding.accountId,
+          accountType: AccountType[binding.accountType],
+          effectiveAt: binding.effectiveAt,
+          expiresAt: binding.expiresAt,
+          roleId: binding.roleId,
+          scopeLevel: ScopeLevel[binding.scopeLevel],
+          tenantId: binding.tenantId,
+        })),
+      });
+    }
+  });
+}
+
+// Prints a compact summary so local operators can immediately see which credentials were seeded.
+function printSummary() {
+  console.log('Seeded tenant-web auth test data successfully.');
+  console.log(`Companies: ${SEEDED_COMPANIES.map((company) => company.name).join(' / ')}`);
+  console.log(`Users: ${SEEDED_USERS.map((user) => `${user.personName}<${user.email}>`).join(' ; ')}`);
+  console.log(`Password: ${DEFAULT_PASSWORD}`);
+  console.log(`OTP: ${DEFAULT_OTP_CODE}`);
 }
 
 async function main() {
@@ -84,282 +390,27 @@ async function main() {
       db: { url: AUTH_DB_URL },
     },
   });
+  const permission = new PermissionPrismaClient({
+    datasources: {
+      db: { url: PERMISSION_DB_URL },
+    },
+  });
 
   try {
-    const passwordHash = await bcrypt.hash(PASSWORD_PLAIN, 10);
+    const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
 
-    await identity.$transaction(async (tx) => {
-      await tx.tenant.upsert({
-        where: { code: TEST_USER.tenantACode },
-        update: {
-          entityId: `entity:${TEST_IDS.tenantAId}`,
-          isActive: true,
-          name: TEST_USER.tenantAName,
-        },
-        create: {
-          id: TEST_IDS.tenantAId,
-          entityId: `entity:${TEST_IDS.tenantAId}`,
-          code: TEST_USER.tenantACode,
-          isActive: true,
-          name: TEST_USER.tenantAName,
-        },
-      });
-
-      await tx.tenant.upsert({
-        where: { code: TEST_USER.tenantBCode },
-        update: {
-          entityId: `entity:${TEST_IDS.tenantBId}`,
-          isActive: true,
-          name: TEST_USER.tenantBName,
-        },
-        create: {
-          id: TEST_IDS.tenantBId,
-          entityId: `entity:${TEST_IDS.tenantBId}`,
-          code: TEST_USER.tenantBCode,
-          isActive: true,
-          name: TEST_USER.tenantBName,
-        },
-      });
-
-      await tx.user.upsert({
-        where: { email: TEST_USER.email },
-        update: {
-          entityId: `entity:${TEST_IDS.userId}`,
-          isActive: true,
-          phone: TEST_USER.phone,
-          username: TEST_USER.username,
-        },
-        create: {
-          id: TEST_IDS.userId,
-          entityId: `entity:${TEST_IDS.userId}`,
-          email: TEST_USER.email,
-          isActive: true,
-          phone: TEST_USER.phone,
-          username: TEST_USER.username,
-        },
-      });
-
-      await tx.userAccount.upsert({
-        where: {
-          userId_scopeLevel_contextKey: {
-            contextKey: TEST_IDS.tenantAId,
-            scopeLevel: 'TENANT',
-            userId: TEST_IDS.userId,
-          },
-        },
-        update: {
-          avatarUrl: null,
-          contextKey: TEST_IDS.tenantAId,
-          displayName: TEST_USER.displayNameA,
-          isEnable: true,
-          scopeLevel: 'TENANT',
-        },
-        create: {
-          id: TEST_IDS.accountAId,
-          contextKey: TEST_IDS.tenantAId,
-          scopeLevel: 'TENANT',
-          tenantId: TEST_IDS.tenantAId,
-          userId: TEST_IDS.userId,
-          avatarUrl: null,
-          displayName: TEST_USER.displayNameA,
-          isEnable: true,
-        },
-      });
-
-      await tx.userAccount.upsert({
-        where: {
-          userId_scopeLevel_contextKey: {
-            contextKey: TEST_IDS.tenantBId,
-            scopeLevel: 'TENANT',
-            userId: TEST_IDS.userId,
-          },
-        },
-        update: {
-          avatarUrl: null,
-          contextKey: TEST_IDS.tenantBId,
-          displayName: TEST_USER.displayNameB,
-          isEnable: true,
-          scopeLevel: 'TENANT',
-        },
-        create: {
-          id: TEST_IDS.accountBId,
-          contextKey: TEST_IDS.tenantBId,
-          scopeLevel: 'TENANT',
-          tenantId: TEST_IDS.tenantBId,
-          userId: TEST_IDS.userId,
-          avatarUrl: null,
-          displayName: TEST_USER.displayNameB,
-          isEnable: true,
-        },
-      });
-
-      await tx.userAccount.upsert({
-        where: {
-          userId_scopeLevel_contextKey: {
-            contextKey: 'SYSTEM',
-            scopeLevel: 'SYSTEM',
-            userId: TEST_IDS.userId,
-          },
-        },
-        update: {
-          avatarUrl: null,
-          contextKey: 'SYSTEM',
-          displayName: TEST_USER.displayNameSystem,
-          isEnable: true,
-          scopeLevel: 'SYSTEM',
-          tenantId: null,
-        },
-        create: {
-          id: TEST_IDS.accountSystemId,
-          contextKey: 'SYSTEM',
-          scopeLevel: 'SYSTEM',
-          tenantId: null,
-          userId: TEST_IDS.userId,
-          avatarUrl: null,
-          displayName: TEST_USER.displayNameSystem,
-          isEnable: true,
-        },
-      });
-    });
-
-    await auth.$transaction(async (tx) => {
-      const emailMethod = await tx.loginMethod.upsert({
-        where: {
-          type_identifier: {
-            type: LoginMethodType.EMAIL,
-            identifier: TEST_USER.email,
-          },
-        },
-        update: {
-          enabled: true,
-          userId: TEST_IDS.userId,
-          verified: true,
-        },
-        create: {
-          userId: TEST_IDS.userId,
-          type: LoginMethodType.EMAIL,
-          identifier: TEST_USER.email,
-          verified: true,
-          enabled: true,
-        },
-      });
-
-      const phoneMethod = await tx.loginMethod.upsert({
-        where: {
-          type_identifier: {
-            type: LoginMethodType.PHONE,
-            identifier: TEST_USER.phone,
-          },
-        },
-        update: {
-          enabled: true,
-          userId: TEST_IDS.userId,
-          verified: true,
-        },
-        create: {
-          userId: TEST_IDS.userId,
-          type: LoginMethodType.PHONE,
-          identifier: TEST_USER.phone,
-          verified: true,
-          enabled: true,
-        },
-      });
-
-      await tx.credential.deleteMany({
-        where: {
-          loginMethodId: {
-            in: [emailMethod.id, phoneMethod.id],
-          },
-        },
-      });
-
-      await tx.credential.createMany({
-        data: [
-          {
-            loginMethodId: emailMethod.id,
-            credentialType: CredentialType.PASSWORD,
-            hashedValue: passwordHash,
-            enabled: true,
-          },
-          {
-            loginMethodId: phoneMethod.id,
-            credentialType: CredentialType.PASSWORD,
-            hashedValue: passwordHash,
-            enabled: true,
-          },
-        ],
-      });
-
-      await tx.oTP.upsert({
-        where: {
-          identifier_usage: {
-            identifier: TEST_USER.email,
-            usage: OTPUsage.LOGIN,
-          },
-        },
-        update: {
-          hashedValue: OTP_CODE,
-          consumed: false,
-          attemptCount: 0,
-          maxAttempt: 3,
-          valid: true,
-          expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          lastSentAt: new Date(),
-        },
-        create: {
-          id: 'a50f3c62-5d45-4518-87ab-52f2fd67e101',
-          identifier: TEST_USER.email,
-          usage: OTPUsage.LOGIN,
-          hashedValue: OTP_CODE,
-          consumed: false,
-          attemptCount: 0,
-          maxAttempt: 3,
-          valid: true,
-          expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          lastSentAt: new Date(),
-        },
-      });
-
-      await tx.oTP.upsert({
-        where: {
-          identifier_usage: {
-            identifier: TEST_USER.phone,
-            usage: OTPUsage.LOGIN,
-          },
-        },
-        update: {
-          hashedValue: OTP_CODE,
-          consumed: false,
-          attemptCount: 0,
-          maxAttempt: 3,
-          valid: true,
-          expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          lastSentAt: new Date(),
-        },
-        create: {
-          id: 'bfcb87d8-f8fc-468a-8a5e-f432e38aa102',
-          identifier: TEST_USER.phone,
-          usage: OTPUsage.LOGIN,
-          hashedValue: OTP_CODE,
-          consumed: false,
-          attemptCount: 0,
-          maxAttempt: 3,
-          valid: true,
-          expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-          lastSentAt: new Date(),
-        },
-      });
-    });
-
+    await seedIdentity(identity);
+    await seedAuth(auth, passwordHash);
     syncPermissionFoundationForLocalSystemAccount();
-
-    console.log('Seeded tenant-web auth test data successfully.');
-    console.log(`Email: ${TEST_USER.email}`);
-    console.log(`Phone: ${TEST_USER.phone}`);
-    console.log(`Password: ${PASSWORD_PLAIN}`);
-    console.log(`OTP: ${OTP_CODE}`);
+    await seedPermission(permission);
+    syncPermissionFoundationForLocalSystemAccount();
+    printSummary();
   } finally {
-    await Promise.allSettled([identity.$disconnect(), auth.$disconnect()]);
+    await Promise.allSettled([
+      identity.$disconnect(),
+      auth.$disconnect(),
+      permission.$disconnect(),
+    ]);
   }
 }
 

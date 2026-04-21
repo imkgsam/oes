@@ -11,7 +11,7 @@
     
     "build": "tsc -b",
     "dev:build": "tsc -b -w --preserveWatchOutput",
-    "dev:start": "wait-on dist/main.js ../../../common/dist/index.js && nodemon --watch dist --watch ../../../common/dist --ext js,json --signal SIGTERM dist/main.js",
+    "dev:start": "wait-on dist/main.js ../../../common/dist/index.js && ACCESS_TOKEN_VALIDITY_SEC=${ACCESS_TOKEN_VALIDITY_SEC:-900} REFRESH_TOKEN_VALIDITY_SEC=${REFRESH_TOKEN_VALIDITY_SEC:-604800} nodemon --watch dist --watch ../../../common/dist --ext js,json --signal SIGTERM dist/main.js",
     "dev": "concurrently -k -n build,run \"pnpm run dev:build\" \"pnpm run dev:start\"",
     "start": "node dist/main.js",
   

@@ -1,0 +1,2 @@
+ALTER TABLE "UserAccount"
+ADD COLUMN "bio" TEXT;

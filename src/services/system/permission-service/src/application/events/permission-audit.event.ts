@@ -8,7 +8,7 @@ import {
 } from '@oes/common'
 import { EventTraceContext } from '@oes/common/tracing'
 
-export type PermissionAuditModule = 'role' | 'permission' | 'policy' | 'authorization'
+export type PermissionAuditModule = 'role' | 'permission' | 'policy' | 'authorization' | 'navigation'
 export type PermissionManagementAuditEventType = string
 export type PermissionAuditOperator = AuditOperator
 export type PermissionAuditScope = AuditScope

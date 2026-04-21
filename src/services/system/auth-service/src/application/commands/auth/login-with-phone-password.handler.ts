@@ -9,14 +9,12 @@ import {
 } from '../../ports/identity-service.port'
 import { AuthAuditService } from '../../services/auth-audit.service'
 import { LoginRiskThrottleService } from '../../services/login-risk-throttle.service'
-import { EmailOtpMfaChallengeService } from '../../services/mfa/email-otp-mfa-challenge.service'
-import { PhoneOtpMfaChallengeService } from '../../services/mfa/phone-otp-mfa-challenge.service'
-import { TotpMfaChallengeService } from '../../services/mfa/totp-mfa-challenge.service'
 import {
   AUTH_LOGIN_TEMPORARILY_LOCKED,
   AUTH_NO_AVAILABLE_ACCOUNT
 } from '../../../common/constants/exception-enums'
 import { AuthStrategyFactory } from '../../../domain/services/strategies/auth-strategies.factory'
+import { normalizeAuthDeviceContext } from '../../services/auth-device-context'
 import { LoginWithPhonePasswordCommand } from './login-with-phone-password.command'
 
 export type LoginWithPhonePasswordNextStep = 'ACCOUNT_SELECTION_REQUIRED' | 'MFA_REQUIRED'
@@ -37,9 +35,6 @@ export class LoginWithPhonePasswordHandler
     private readonly authStrategyFactory: AuthStrategyFactory,
     private readonly authAuditService: AuthAuditService,
     private readonly loginRiskThrottleService: LoginRiskThrottleService,
-    private readonly totpMfaChallengeService: TotpMfaChallengeService,
-    private readonly emailOtpMfaChallengeService: EmailOtpMfaChallengeService,
-    private readonly phoneOtpMfaChallengeService: PhoneOtpMfaChallengeService,
     @Inject(IDENTITY_SERVICE)
     private readonly identityService: IIdentityServicePort
   ) {}
@@ -72,7 +67,22 @@ export class LoginWithPhonePasswordHandler
           LoginMethodType.PHONE,
           command.phone
         )
-        this.authAuditService.emitLoginFailed(command.phone, 'INVALID_CREDENTIALS')
+        const user = await this.identityService.getUserByPhone(command.phone)
+        const deviceContext = normalizeAuthDeviceContext({
+          deviceName: command.deviceName,
+          userAgent: command.userAgent,
+          ipAddress: command.ipAddress
+        })
+
+        this.authAuditService.emitLoginFailed(command.phone, 'INVALID_CREDENTIALS', {
+          method: LoginMethodEnum.PhonePassword,
+          userId: user?.userId,
+          deviceName: deviceContext.deviceName,
+          userAgent: deviceContext.userAgent,
+          ipAddress: deviceContext.ipAddress,
+          platform: deviceContext.platform,
+          browser: deviceContext.browser
+        })
       }
 
       throw error
@@ -82,42 +92,6 @@ export class LoginWithPhonePasswordHandler
       LoginMethodType.PHONE,
       command.phone
     )
-
-    if (await this.totpMfaChallengeService.hasActiveBinding(userId)) {
-      const challenge = await this.totpMfaChallengeService.createChallenge(userId)
-      this.authAuditService.emitMfaChallengeCreated(userId, challenge.challengeId, 'TOTP')
-      return {
-        userId,
-        method: LoginMethodEnum.PhonePassword,
-        nextStep: 'MFA_REQUIRED',
-        accounts: [],
-        challengeId: challenge.challengeId
-      }
-    }
-
-    if (await this.emailOtpMfaChallengeService.hasActiveBinding(userId)) {
-      const challenge = await this.emailOtpMfaChallengeService.createChallenge(userId)
-      this.authAuditService.emitMfaChallengeCreated(userId, challenge.challengeId, 'EMAIL_OTP')
-      return {
-        userId,
-        method: LoginMethodEnum.PhonePassword,
-        nextStep: 'MFA_REQUIRED',
-        accounts: [],
-        challengeId: challenge.challengeId
-      }
-    }
-
-    if (await this.phoneOtpMfaChallengeService.hasActiveBinding(userId)) {
-      const challenge = await this.phoneOtpMfaChallengeService.createChallenge(userId)
-      this.authAuditService.emitMfaChallengeCreated(userId, challenge.challengeId, 'SMS_OTP')
-      return {
-        userId,
-        method: LoginMethodEnum.PhonePassword,
-        nextStep: 'MFA_REQUIRED',
-        accounts: [],
-        challengeId: challenge.challengeId
-      }
-    }
 
     const accounts = await this.identityService.getAvailableAccountsByUserId(userId)
     if (accounts.length === 0) {

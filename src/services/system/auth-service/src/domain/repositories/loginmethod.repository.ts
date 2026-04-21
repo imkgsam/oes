@@ -33,6 +33,10 @@ export interface ILoginMethodRepository {
    */
   findByUserIdAndType(userId: string, type: string): Promise<LoginMethod | null>
 
+  findByUserId(userId: string): Promise<LoginMethod[]>
+
+  findByUserIdAndId(userId: string, methodId: string): Promise<LoginMethod | null>
+
   findByTypeAndIdentifier(type: LoginMethodType, identifier: string): Promise<LoginMethod | null>
 
   // ==================== 保存方法 ====================

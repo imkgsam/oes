@@ -7,9 +7,10 @@ import {
   AuditTrace
 } from '@oes/common'
 
-export type IdentityAuditModule = 'contact' | 'org' | 'machine'
+export type IdentityAuditModule = 'account' | 'contact' | 'org' | 'machine'
 
 export type IdentityAuditEventType =
+  | 'ACCOUNT_PROFILE_UPDATED'
   | 'ACCOUNT_WORK_EMAIL_ASSIGNED'
   | 'ACCOUNT_WORK_PHONE_ASSIGNED'
   | 'ACCOUNT_WORK_EMAIL_REVOKED'

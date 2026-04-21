@@ -20,6 +20,10 @@
 | 日期 | 名称 | 类型 | 当前判断 | 下一步 |
 | --- | --- | --- | --- | --- |
 | 2026-04-12 | 系统内 Robot / 自动化执行服务 | Architecture Candidate | 当前已有 machine principal、AI 工具治理、内部服务信任、权限与审计底座，但尚无完整 Robot / Automation 执行主体设计；历史草稿里的执行主体、触发、执行实例、动作语义、补偿、重试、超时、ActionRegistry 等思路可以作为候选素材，但服务拆分、身份模型、工作流关系、动态扩展边界均未冻结 | 后续单独讨论并决定是否升级到 architecture / ADR |
-| 2026-04-12 | 登录后支持从头像菜单切换 Tenant / Workspace / Account Context | Feature Candidate | 该能力会改变页面、数据范围、权限摘要、菜单与 operator context，不能只按前端下拉菜单处理；需要明确 tenant、workspace、account/context 的边界，以及切换后 session、权限、审计与导航如何刷新 | 后续单独做 feature design，形成 feature packet |
 | 2026-04-12 | AI Decision Context 模型 | Architecture Candidate | `docs/architecture/04-ai-architecture.md` 已记录参考方向，但 `DecisionType / ContextDefinition / ContextBuilder / ContextPackage / Suggestion` 是否作为正式对象模型尚未冻结 | 后续单独讨论是否升级为 architecture / ADR |
 | 2026-04-12 | 优化 tenant-web 锁屏：取消每次锁屏前输入临时密码，并支持自动锁屏 | Feature Candidate | 当前问题已经明确，但锁屏目的、安全语义、解锁凭据、独立锁屏密码与自动锁屏策略仍未冻结，暂时还不能直接进入实现 | 后续先做 feature design，再决定是否拆成独立 feature packet |
+| 2026-04-14 | QR Code Login | Feature Candidate | 当前只允许前端保留受控占位入口，不能伪造真实扫码登录；是否纳入当前阶段、确认终端、二维码生成/轮询/过期语义，以及 `auth-service` 的挑战态、重放保护与审计模型都尚未冻结 | 后续先做认证 feature design，再决定是否补正式 BFF 契约 |
+| 2026-04-14 | Forgot Password | Feature Candidate | 当前只适合保留受控提示页；是否允许用户自助找回、还是仅允许管理员重置，以及 BFF 挑战语义、通知投递、滥用防护与审计边界都尚未冻结 | 后续先做认证 feature design，再决定是否补正式 BFF 契约 |
+| 2026-04-14 | Self-service Registration | Feature Candidate | 当前只适合保留受控提示页；OES 是否允许自助注册、邀请接受与租户初始化边界、以及 `auth-service` / `identity-service` 的身份绑定模型都尚未冻结 | 后续先做认证 feature design，再决定是否补正式 BFF 契约 |
+| 2026-04-14 | Third-party Login | Feature Candidate | 当前第三方入口只能作为受控占位；支持哪些身份提供者、租户级还是平台级、回调续流与外部身份绑定边界都尚未冻结 | 后续先做认证 feature design，再决定是否补正式 BFF 契约 |
+| 2026-04-14 | Slider Verification 升级为服务端安全挑战 | Feature Candidate | 当前滑块仅属于前端受控交互，不能作为真实安全校验；若未来需要升级为安全能力，服务端 challenge 契约、时效与审计模型仍需单独设计 | 后续视安全需求决定是否进入正式 feature design |

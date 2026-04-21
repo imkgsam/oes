@@ -1,5 +1,10 @@
+import { AdminDeleteAccountSessionsHandler } from './admin-delete-account-sessions.handler'
 import { AdminRevokeSessionHandler } from './admin-revoke-session.handler'
 import { ActivateTotpBindingHandler } from './activate-totp-binding.handler'
+import { BootstrapUserLoginMethodsHandler } from './bootstrap-user-login-methods.handler'
+import { ChangeOwnPasswordHandler } from './change-own-password.handler'
+import { CompletePasswordRecoveryHandler } from './complete-password-recovery.handler'
+import { CompleteFirstLoginPasswordSetupHandler } from './complete-first-login-password-setup.handler'
 import { DisableMfaBindingHandler } from './disable-mfa-binding.handler'
 import { EnableMfaBindingHandler } from './enable-mfa-binding.handler'
 import { InitializeRecoveryCodesHandler } from './initialize-recovery-codes.handler'
@@ -9,19 +14,40 @@ import { LoginWithEmailOtpHandler } from './login-with-email-otp.handler'
 import { LoginWithPhoneOtpHandler } from './login-with-phone-otp.handler'
 import { LoginWithPhonePasswordHandler } from './login-with-phone-password.handler'
 import { LogoutAllHandler } from './logout-all.handler'
+import { LogoutSessionHandler } from './logout-session.handler'
 import { LogoutOtherDevicesHandler } from './logout-other-devices.handler'
 import { LogoutHandler } from './logout.handler'
 import { RefreshSessionHandler } from './refresh-session.handler'
 import { RegenerateRecoveryCodesHandler } from './regenerate-recovery-codes.handler'
+import { RequestPasswordRecoveryChallengeHandler } from './request-password-recovery-challenge.handler'
+import { RequestLoginMfaFactorChallengeHandler } from './request-login-mfa-factor-challenge.handler'
+import { RequestEmailBindingChallengeHandler } from './request-email-binding-challenge.handler'
 import { RequestEmailOtpLoginChallengeHandler } from './request-email-otp-login-challenge.handler'
+import { RequestPhoneBindingChallengeHandler } from './request-phone-binding-challenge.handler'
 import { RequestPhoneOtpLoginChallengeHandler } from './request-phone-otp-login-challenge.handler'
 import { SelectAccountHandler } from './select-account.handler'
+import { SetLoginMethodEnabledHandler } from './set-login-method-enabled.handler'
 import { SubmitMfaChallengeHandler } from './submit-mfa-challenge.handler'
+import { UpdateTenantMfaPolicyHandler } from './update-tenant-mfa-policy.handler'
+import { VerifyPasswordRecoveryChallengeHandler } from './verify-password-recovery-challenge.handler'
+import { RequirePasswordSetupHandler } from './require-password-setup.handler'
+import { VerifyEmailBindingHandler } from './verify-email-binding.handler'
+import { VerifyPhoneBindingHandler } from './verify-phone-binding.handler'
 
+export * from './admin-delete-account-sessions.command'
+export * from './admin-delete-account-sessions.handler'
 export * from './admin-revoke-session.command'
 export * from './admin-revoke-session.handler'
 export * from './activate-totp-binding.command'
 export * from './activate-totp-binding.handler'
+export * from './bootstrap-user-login-methods.command'
+export * from './bootstrap-user-login-methods.handler'
+export * from './change-own-password.command'
+export * from './change-own-password.handler'
+export * from './complete-password-recovery.command'
+export * from './complete-password-recovery.handler'
+export * from './complete-first-login-password-setup.command'
+export * from './complete-first-login-password-setup.handler'
 export * from './disable-mfa-binding.command'
 export * from './disable-mfa-binding.handler'
 export * from './enable-mfa-binding.command'
@@ -40,6 +66,8 @@ export * from './login-with-phone-password.command'
 export * from './login-with-phone-password.handler'
 export * from './logout-all.command'
 export * from './logout-all.handler'
+export * from './logout-session.command'
+export * from './logout-session.handler'
 export * from './logout-other-devices.command'
 export * from './logout-other-devices.handler'
 export * from './logout.command'
@@ -48,18 +76,43 @@ export * from './refresh-session.command'
 export * from './refresh-session.handler'
 export * from './regenerate-recovery-codes.command'
 export * from './regenerate-recovery-codes.handler'
+export * from './request-password-recovery-challenge.command'
+export * from './request-password-recovery-challenge.handler'
+export * from './request-login-mfa-factor-challenge.command'
+export * from './request-login-mfa-factor-challenge.handler'
+export * from './request-email-binding-challenge.command'
+export * from './request-email-binding-challenge.handler'
 export * from './request-email-otp-login-challenge.command'
 export * from './request-email-otp-login-challenge.handler'
+export * from './request-phone-binding-challenge.command'
+export * from './request-phone-binding-challenge.handler'
 export * from './request-phone-otp-login-challenge.command'
 export * from './request-phone-otp-login-challenge.handler'
+export * from './require-password-setup.command'
+export * from './require-password-setup.handler'
 export * from './select-account.command'
 export * from './select-account.handler'
+export * from './set-login-method-enabled.command'
+export * from './set-login-method-enabled.handler'
 export * from './submit-mfa-challenge.command'
 export * from './submit-mfa-challenge.handler'
+export * from './update-tenant-mfa-policy.command'
+export * from './update-tenant-mfa-policy.handler'
+export * from './verify-password-recovery-challenge.command'
+export * from './verify-password-recovery-challenge.handler'
+export * from './verify-email-binding.command'
+export * from './verify-email-binding.handler'
+export * from './verify-phone-binding.command'
+export * from './verify-phone-binding.handler'
 
 export const AuthCommandHandlers = [
+  AdminDeleteAccountSessionsHandler,
   AdminRevokeSessionHandler,
   ActivateTotpBindingHandler,
+  BootstrapUserLoginMethodsHandler,
+  ChangeOwnPasswordHandler,
+  CompletePasswordRecoveryHandler,
+  CompleteFirstLoginPasswordSetupHandler,
   DisableMfaBindingHandler,
   EnableMfaBindingHandler,
   InitializeRecoveryCodesHandler,
@@ -69,12 +122,23 @@ export const AuthCommandHandlers = [
   LoginWithPhoneOtpHandler,
   LoginWithPhonePasswordHandler,
   LogoutAllHandler,
+  LogoutSessionHandler,
   LogoutOtherDevicesHandler,
   LogoutHandler,
   RefreshSessionHandler,
   RegenerateRecoveryCodesHandler,
+  RequestPasswordRecoveryChallengeHandler,
+  RequestLoginMfaFactorChallengeHandler,
+  RequestEmailBindingChallengeHandler,
   RequestEmailOtpLoginChallengeHandler,
+  RequestPhoneBindingChallengeHandler,
   RequestPhoneOtpLoginChallengeHandler,
+  RequirePasswordSetupHandler,
   SelectAccountHandler,
-  SubmitMfaChallengeHandler
+  SetLoginMethodEnabledHandler,
+  SubmitMfaChallengeHandler,
+  UpdateTenantMfaPolicyHandler,
+  VerifyPasswordRecoveryChallengeHandler,
+  VerifyEmailBindingHandler,
+  VerifyPhoneBindingHandler
 ]

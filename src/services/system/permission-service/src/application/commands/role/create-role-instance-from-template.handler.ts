@@ -3,6 +3,7 @@ import { Inject } from '@nestjs/common'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { CreateRoleInstanceFromTemplateCommand } from './create-role-instance-from-template.command'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
+import { NavigationRepository } from '../../../domain/repositories/navigation.repository'
 import { Role } from '../../../domain/aggregates/role.aggregate'
 import { RoleKind } from '../../../domain/enums/role-kind.enum'
 import { RolePermission } from '../../../domain/vo/role-permission.value-object'
@@ -13,6 +14,7 @@ import {
   ROLE_TEMPLATE_NOT_FOUND
 } from '../../../common/constants/exception-enums'
 import { assertTenantAccess } from '../../authorization/operator-scope'
+import { syncTemplateNavigationToRole } from './template-navigation.sync'
 
 @CommandHandler(CreateRoleInstanceFromTemplateCommand)
 export class CreateRoleInstanceFromTemplateHandler
@@ -20,7 +22,9 @@ export class CreateRoleInstanceFromTemplateHandler
 {
   constructor(
     @Inject(SYMBOLS.REPO.ROLE)
-    private readonly roleRepo: RoleRepository
+    private readonly roleRepo: RoleRepository,
+    @Inject(SYMBOLS.REPO.NAVIGATION)
+    private readonly navigationRepo: NavigationRepository
   ) {}
 
   async execute(command: CreateRoleInstanceFromTemplateCommand): Promise<Role> {
@@ -31,7 +35,7 @@ export class CreateRoleInstanceFromTemplateHandler
     const templateRole = await this.roleRepo.findRoleTemplateById(command.templateRoleId)
     if (!templateRole) throw ExceptionFactory.domain(ROLE_TEMPLATE_NOT_FOUND)
 
-    const code = command.code ?? templateRole.code
+    const code = templateRole.code
     const name = command.name ?? templateRole.name
     const description = command.description ?? templateRole.description
 
@@ -61,6 +65,9 @@ export class CreateRoleInstanceFromTemplateHandler
       role.addPermission(new RolePermission(role.id, permission.permissionId, permission.permissionCode))
     }
 
-    return this.roleRepo.save(role)
+    const savedRole = await this.roleRepo.save(role)
+    await syncTemplateNavigationToRole(this.navigationRepo, command.templateRoleId, savedRole.id)
+
+    return savedRole
   }
 }

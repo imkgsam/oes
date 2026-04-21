@@ -36,6 +36,7 @@ export const gatewayConfig = registerAs('gateway', () => ({
       [SERVICE_NAMES.PERMISSION]: {
         serviceName: SERVICE_NAMES.PERMISSION,
         protoPath: [
+          resolveCommonProtoPath('permission_service/policy_management.proto'),
           resolveCommonProtoPath('permission_service/permission_management.proto'),
           resolveCommonProtoPath('permission_service/permission_check.proto'),
           resolveCommonProtoPath('permission_service/permission_access_summary.proto')

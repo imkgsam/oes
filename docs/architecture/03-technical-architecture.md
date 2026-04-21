@@ -302,9 +302,9 @@ OES 必须从平台层面支持多租户隔离。
 - policy
 - 授权判定
 
-### 9.4 Entity
+### 9.4 Party
 
-负责统一表示现实世界主体，不承载业务角色。
+负责统一表示交易与法律主体，并通过 `TenantParty` 提供租户内受控引用基础；不承载客户、供应商、员工等业务角色。
 
 ### 9.5 Tenant / Org
 
@@ -356,7 +356,7 @@ OES 必须平台化提供以下横向能力：
 - `auth-service`
 - `identity-service`
 - `permission-service`
-- `entity-service`
+- `party-service`（由既有 `entity-service` 概念演进）
 - `src/common` 中已有 transport、registry、logging、auth、contracts 等通用能力
 
 因此当前阶段的首要任务不是继续增加更多业务实现，而是：

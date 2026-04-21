@@ -17,7 +17,7 @@ export interface UserAccountContext {
   holderType: AccountHolderType.USER
   holderId: string // identity.UserAccount.id
   userId: string // identity.User.id
-  tenantId: string // identity.Tenant.id
+  tenantId?: string // identity.Tenant.id; omitted for system-scope contexts
 }
 
 @Injectable()

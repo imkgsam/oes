@@ -14,6 +14,8 @@ export * from './revoke-role-template-permission.command'
 export * from './revoke-role-template-permission.handler'
 export * from './create-role-instance-from-template.command'
 export * from './create-role-instance-from-template.handler'
+export * from './sync-role-navigation-from-template.command'
+export * from './sync-role-navigation-from-template.handler'
 export * from './update-role.command'
 export * from './update-role.handler'
 export * from './set-role-enabled.command'
@@ -39,6 +41,7 @@ import { AssignRoleTemplatePermissionHandler } from './assign-role-template-perm
 import { RevokeRoleTemplatePermissionHandler } from './revoke-role-template-permission.handler'
 import { CreateRoleInstanceHandler } from './create-role-instance.handler'
 import { CreateRoleInstanceFromTemplateHandler } from './create-role-instance-from-template.handler'
+import { SyncRoleNavigationFromTemplateHandler } from './sync-role-navigation-from-template.handler'
 import { UpdateRoleHandler } from './update-role.handler'
 import { SetRoleEnabledHandler } from './set-role-enabled.handler'
 import { DeleteRoleHandler } from './delete-role.handler'
@@ -60,6 +63,7 @@ export const RoleTemplateCommandHandlers = [
 export const RoleInstanceCommandHandlers = [
   CreateRoleInstanceHandler,
   CreateRoleInstanceFromTemplateHandler,
+  SyncRoleNavigationFromTemplateHandler,
   UpdateRoleHandler,
   SetRoleEnabledHandler,
   DeleteRoleHandler,

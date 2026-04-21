@@ -9,6 +9,7 @@ import { AuthorizationQueryHandlers } from '../../application/queries/authorizat
 import { ACCOUNT_AUTHORIZATION_SERVICE } from '../../application/queries/authorization/check-permission-with-context.handler'
 import { SYMBOLS } from '../../common/constants/symbols'
 import { AccountAuthorizationService } from '../../domain/services/account-authorization.service'
+import { NavigationResolverService } from '../../domain/services/navigation-resolver.service'
 import { PolicyEngine } from '../../domain/services/policy-engine'
 import { PermissionAccessSummaryGrpcController } from '../../interfaces/grpc/permission-access-summary.grpc.controller'
 import { PermissionCheckGrpcController } from '../../interfaces/grpc/permission-check.grpc.controller'
@@ -18,6 +19,7 @@ import { PermissionAuditModule } from '../audit/permission-audit.module'
   imports: [CqrsModule, PermissionModule, RoleModule, PolicyModule, PermissionAuditModule],
   providers: [
     PolicyEngine,
+    NavigationResolverService,
     {
       provide: ACCOUNT_AUTHORIZATION_SERVICE,
       useFactory: (roleRepo: any, permRepo: any, policyRepo: any, engine: PolicyEngine) =>

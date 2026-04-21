@@ -105,6 +105,31 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
   }
 
   /**
+   * 查找当前范围内的全部活跃 Session，用于管理员在线用户总览聚合。
+   */
+  async findAllActive(scope?: { tenantId?: string }): Promise<Session[]> {
+    const tenantId = scope?.tenantId?.trim() || undefined
+    const sessionIds = await this.listAllSessionIds()
+    const sessions: Session[] = []
+
+    for (const sessionId of sessionIds) {
+      const session = await this.findById(sessionId)
+
+      if (!session || !session.isActive()) {
+        continue
+      }
+
+      if (tenantId && session.getTenantId() !== tenantId) {
+        continue
+      }
+
+      sessions.push(session)
+    }
+
+    return sessions
+  }
+
+  /**
    * 查找用户的所有 Session（包括非活跃）
    *
    * 使用场景：
@@ -319,6 +344,20 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     await multi.exec()
   }
 
+  async deleteAllByAccountId(accountId: string): Promise<void> {
+    const pattern = `${this.SESSION_PREFIX}*`
+    const keys = await this.redis.keys(pattern)
+
+    for (const key of keys) {
+      const data = await this.redis.get(key)
+      if (!data) continue
+      const session = Session.fromRedis(JSON.parse(data))
+      if (session.getAccountId() === accountId) {
+        await this.delete(session.getId())
+      }
+    }
+  }
+
   /**
    * 删除设备的所有 Session
    *
@@ -478,6 +517,36 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     return activeCount
   }
 
+  /**
+   * 扫描 Redis 中全部 session key，并提取出 session id 列表供聚合查询复用。
+   */
+  private async listAllSessionIds(): Promise<string[]> {
+    const sessionIds: string[] = []
+    let cursor = '0'
+
+    do {
+      const [nextCursor, keys] = await this.redis.scan(
+        cursor,
+        'MATCH',
+        `${this.SESSION_PREFIX}*`,
+        'COUNT',
+        200
+      )
+
+      cursor = nextCursor
+
+      for (const key of keys) {
+        const sessionId = key.replace(this.SESSION_PREFIX, '').trim()
+
+        if (sessionId) {
+          sessionIds.push(sessionId)
+        }
+      }
+    } while (cursor !== '0')
+
+    return sessionIds
+  }
+
   // ==================== 管理员控制方法 ====================
 
   /**
@@ -596,9 +665,17 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
    * @param excludeSessionId 排除的 Session ID
    * @returns Promise<void>
    */
-  async kickOtherDevices(userId: string, excludeSessionId: string): Promise<void> {
+  async kickOtherDevices(
+    userId: string,
+    accountId: string | undefined,
+    excludeSessionId: string
+  ): Promise<void> {
     const sessions = await this.findAllByUserId(userId)
-    const sessionsToKick = sessions.filter((session) => session.getId() !== excludeSessionId)
+    const sessionsToKick = sessions.filter(
+      (session) =>
+        session.getId() !== excludeSessionId &&
+        (!accountId || session.getAccountId() === accountId)
+    )
 
     for (const session of sessionsToKick) {
       await this.delete(session.getId())
@@ -722,7 +799,7 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
    * @returns number TTL 秒数
    */
   private getSessionTTL(session: Session): number {
-    return Math.max(0, Math.floor((session.getExpiresAt().getTime() - Date.now()) / 1000))
+    return Math.max(0, Math.floor((session.getRefreshExpiresAt().getTime() - Date.now()) / 1000))
   }
 
   /**

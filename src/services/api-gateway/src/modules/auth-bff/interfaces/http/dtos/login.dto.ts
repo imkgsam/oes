@@ -8,6 +8,13 @@ export enum LoginMethodDto {
   PHONE_OTP = 'PHONE_OTP'
 }
 
+export enum MfaFactorDto {
+  EMAIL_OTP = 'EMAIL_OTP',
+  SMS_OTP = 'SMS_OTP',
+  TOTP = 'TOTP',
+  BACKUP_CODE = 'BACKUP_CODE'
+}
+
 // Defines optional device hints that help the auth flow label the resulting session.
 export class LoginDeviceDto {
   @ApiPropertyOptional({
@@ -118,6 +125,14 @@ export class CompleteMfaDto {
   challengeId: string
 
   @ApiProperty({
+    enum: MfaFactorDto,
+    enumName: 'MfaFactor',
+    description: 'Selected MFA factor used to verify the pending challenge.'
+  })
+  @IsEnum(MfaFactorDto)
+  factor: MfaFactorDto
+
+  @ApiProperty({
     description: 'Verification code entered by the user for the MFA challenge.',
     maxLength: 64,
     example: '123456'
@@ -134,6 +149,38 @@ export class CompleteMfaDto {
   })
   @IsEnum(LoginMethodDto)
   loginMethod: LoginMethodDto
+
+  @ApiPropertyOptional({
+    description: 'Factor-specific OTP challenge identifier when the selected MFA factor requires a separate OTP challenge.',
+    maxLength: 128,
+    example: 'challenge_01HZY2Q8S9K3'
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  factorChallengeId?: string
+}
+
+// Defines the payload used when the user switches the selected MFA factor during a pending login MFA flow.
+export class RequestMfaFactorChallengeDto {
+  @ApiProperty({
+    description: 'Challenge identifier previously returned by the account-selection MFA step.',
+    maxLength: 128,
+    example: 'challenge_01HZY2Q8S9K3'
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  challengeId: string
+
+  @ApiProperty({
+    enum: MfaFactorDto,
+    enumName: 'MfaFactor',
+    description: 'Target MFA factor that should become active for the pending login MFA flow.'
+  })
+  @IsEnum(MfaFactorDto)
+  factor: MfaFactorDto
 }
 
 // Defines the account selection payload used after authentication returns multiple account candidates.
@@ -185,4 +232,17 @@ export class RefreshSessionDto {
   @MinLength(1)
   @MaxLength(4096)
   refreshToken: string
+}
+
+// Defines the request payload used to switch the authenticated account context after login.
+export class SwitchContextDto {
+  @ApiProperty({
+    description: 'Target account context identifier that belongs to the current authenticated user.',
+    maxLength: 128,
+    example: 'acct_01HZY2Q8S9K3'
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  accountId: string
 }

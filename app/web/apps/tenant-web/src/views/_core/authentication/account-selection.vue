@@ -12,7 +12,7 @@ const authStore = useAuthStore();
 const router = useRouter();
 
 const options = computed(() => authStore.accountSelectionOptions);
-const contextCountText = computed(() => `${options.value.length} 个可用上下文`);
+const accountCountText = computed(() => `${options.value.length} 个可用账号`);
 
 // Returns users to login when the in-memory post-auth account selection state is no longer available.
 watchEffect(() => {
@@ -25,21 +25,26 @@ async function handleSelect(accountId: string) {
   await authStore.submitAccountSelection(accountId);
 }
 
-// Formats each selectable account context with stable copy for platform and tenant scopes.
+// Formats each selectable account card with stable copy for platform and tenant scopes.
 function getContextMeta(option: {
   accountId: string;
   displayName?: string;
   scopeLevel?: 'SYSTEM' | 'TENANT';
   tenantId?: null | string;
+  tenantName?: null | string;
 }) {
   const isSystem = option.scopeLevel === 'SYSTEM';
+  const tenantLabel = option.tenantName || option.tenantId;
+  const accountLabel = option.displayName || option.accountId;
   return {
-    badge: isSystem ? '平台' : '租户',
+    badge: isSystem ? '平台账号' : '租户账号',
     description: isSystem
-      ? '系统平台管理上下文'
-      : `租户上下文${option.tenantId ? ` · ${option.tenantId}` : ''}`,
-    initial: (option.displayName || option.accountId).slice(0, 1).toUpperCase(),
-    title: option.displayName || option.accountId,
+      ? '系统平台管理账号'
+      : accountLabel
+        ? `租户业务账号 · ${accountLabel}`
+        : '租户业务账号',
+    initial: (tenantLabel || accountLabel).slice(0, 1).toUpperCase(),
+    title: isSystem ? accountLabel : tenantLabel || accountLabel,
   };
 }
 </script>
@@ -51,9 +56,9 @@ function getContextMeta(option: {
         O
       </div>
       <div class="space-y-1">
-        <h2 class="text-2xl font-semibold">选择工作上下文</h2>
+        <h2 class="text-2xl font-semibold">选择账号</h2>
         <p class="text-sm text-muted-foreground">
-          当前身份已验证，请选择本次进入 OES 的平台或租户上下文。
+          当前身份已验证，请选择本次进入 OES 的平台账号或租户账号。
         </p>
       </div>
     </div>
@@ -61,12 +66,12 @@ function getContextMeta(option: {
     <Empty
       v-if="options.length === 0"
       class="py-8"
-      description="当前没有可用上下文，请返回登录页重试。"
+      description="当前没有可用账号，请返回登录页重试。"
     />
 
     <div v-else class="space-y-3">
       <div class="flex items-center justify-between text-xs text-muted-foreground">
-        <span>{{ contextCountText }}</span>
+        <span>{{ accountCountText }}</span>
         <span>可在登录后继续切换</span>
       </div>
 

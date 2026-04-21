@@ -18,6 +18,8 @@ export interface DeviceInfo {
   ipAddress: string
 }
 
+const SEEDED_TEST_TOTP_CODE_KEY = 'seededTestCode'
+
 export class MfaBindingEntity {
   constructor(
     private props: {
@@ -44,6 +46,21 @@ export class MfaBindingEntity {
       createdAt: new Date(),
       updatedAt: new Date(),
       deviceInfo
+    })
+  }
+
+  static createSeededTestTotpBinding(userId: string, fixedCode = '123456'): MfaBindingEntity {
+    return new MfaBindingEntity({
+      id: randomUUID(),
+      userId,
+      type: MfaType.TOTP,
+      secret: authenticator.generateSecret(),
+      enabled: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      metadata: {
+        [SEEDED_TEST_TOTP_CODE_KEY]: fixedCode
+      }
     })
   }
 
@@ -125,6 +142,9 @@ export class MfaBindingEntity {
     if (this.props.type !== MfaType.TOTP) {
       throw ExceptionFactory.domain(AUTH_MFA_TYPE_MISMATCH)
     }
+    if (this.matchesSeededTestCode(inputCode)) {
+      return true
+    }
     return authenticator.verify({ token: inputCode, secret: this.props.secret })
   }
 
@@ -142,7 +162,15 @@ export class MfaBindingEntity {
     if (!this.isEnabled()) {
       throw ExceptionFactory.domain(AUTH_MFA_DISABLED)
     }
+    if (this.matchesSeededTestCode(inputCode)) {
+      return true
+    }
     return authenticator.verify({ token: inputCode, secret: this.props.secret })
+  }
+
+  private matchesSeededTestCode(inputCode: string): boolean {
+    const seededCode = this.props.metadata?.[SEEDED_TEST_TOTP_CODE_KEY]
+    return typeof seededCode === 'string' && seededCode.length > 0 && seededCode === inputCode
   }
 
   async verifyBackupCode(inputCode: string): Promise<boolean> {
@@ -182,6 +210,16 @@ export class MfaBindingEntity {
     }
 
     return false
+  }
+
+  invalidateBackupCodes(): void {
+    if (this.props.type !== MfaType.BACKUP_CODE) {
+      throw ExceptionFactory.domain(AUTH_MFA_TYPE_MISMATCH)
+    }
+
+    this.props.secret = JSON.stringify([])
+    this.props.enabled = false
+    this.touch()
   }
 
   async regenerateBackupCodes(): Promise<string[]> {

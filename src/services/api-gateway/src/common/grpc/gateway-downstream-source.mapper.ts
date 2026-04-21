@@ -18,6 +18,7 @@ export interface GatewayAuthenticatedUser {
   tid?: string
   scopeLevel?: string
   typ?: string
+  passwordSetupRequired?: boolean
   roles?: string[]
   permissions?: string[]
   exp?: number

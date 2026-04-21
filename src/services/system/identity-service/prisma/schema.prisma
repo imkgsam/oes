@@ -66,6 +66,7 @@ model UserAccount {
   displayName    String?
   isEnable       Boolean                    @default(true)
   avatarUrl      String?
+  bio            String?
   orgMemberships UserAccountOrgMembership[]
   contactAssets  AccountContactAsset[]
   createdAt      DateTime                   @default(now())

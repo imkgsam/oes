@@ -85,4 +85,40 @@ describe('SessionAccessSummaryUseCase', () => {
       source
     )
   })
+
+  it('resolves selected account navigation through permission-service', async () => {
+    const permissionAdapter = {
+      resolveAccountNavigation: jest.fn().mockResolvedValue({
+        visibleEntries: ['workbench.home', 'mes.work-order-board'],
+        defaultEntry: 'mes.work-order-board',
+        resolvedByRoleId: 'role-2',
+        fallbackReason: ''
+      })
+    }
+    const useCase = new SessionAccessSummaryUseCase(permissionAdapter as any)
+    const source = {
+      user: {
+        sub: 'user-1',
+        aid: 'account-1',
+        tid: 'tenant-1'
+      },
+      requestId: 'req-1'
+    }
+
+    await expect(useCase.resolveNavigation(source as any, 'WEB')).resolves.toEqual({
+      visibleEntries: ['workbench.home', 'mes.work-order-board'],
+      defaultEntry: 'mes.work-order-board',
+      resolvedByRoleId: 'role-2',
+      fallbackReason: undefined
+    })
+    expect(permissionAdapter.resolveAccountNavigation).toHaveBeenCalledWith(
+      {
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        terminal: 'WEB'
+      },
+      source
+    )
+  })
 })

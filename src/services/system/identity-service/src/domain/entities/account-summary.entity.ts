@@ -5,7 +5,9 @@ export class AccountSummaryEntity {
     public readonly userId: string,
     public readonly tenantId: string | null,
     public readonly scopeLevel: 'SYSTEM' | 'TENANT',
+    public readonly avatarUrl: string | null,
     public readonly displayName: string | null,
+    public readonly bio: string | null,
     public readonly isEnabled: boolean
   ) {}
 }

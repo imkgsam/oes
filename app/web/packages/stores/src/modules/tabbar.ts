@@ -3,6 +3,7 @@ import type {
   RouteLocationNormalized,
   RouteLocationNormalizedLoaded,
   RouteLocationNormalizedLoadedGeneric,
+  RouteRecordRaw,
   Router,
   RouteRecordNormalized,
 } from 'vue-router';
@@ -63,6 +64,12 @@ interface TabbarState {
    */
   visitHistory: Stack<string>;
 }
+
+type AffixRouteDefinition = Pick<
+  RouteRecordNormalized,
+  'meta' | 'name' | 'path'
+> &
+  Partial<Pick<RouteLocationNormalized, 'fullPath' | 'query'>>;
 
 /**
  * @zh_CN 访问历史记录最大数量
@@ -431,6 +438,19 @@ export const useTabbarStore = defineStore('core-tabbar', {
     },
 
     /**
+     * 重置当前上下文的 tab、缓存与访问历史，避免跨账号残留旧导航状态。
+     */
+    resetForContextSwitch() {
+      this.tabs = [];
+      this.cachedRoutes.clear();
+      this.cachedTabs.clear();
+      this.excludeCachedTabs.clear();
+      this.visitHistory.clear();
+      this.renderRouteView = true;
+      this.setUpdateTime();
+    },
+
+    /**
      * @zh_CN 重置标签页标题
      */
     async resetTabTitle(tab: TabDefinition) {
@@ -448,11 +468,21 @@ export const useTabbarStore = defineStore('core-tabbar', {
      * 设置固定标签页
      * @param tabs
      */
-    setAffixTabs(tabs: RouteRecordNormalized[]) {
-      for (const tab of tabs) {
-        tab.meta.affixTab = true;
-        this.addTab(routeToTab(tab));
-      }
+    setAffixTabs(tabs: Array<AffixRouteDefinition | RouteRecordRaw>) {
+      const nextAffixTabs = tabs.map((tab) =>
+        routeToTab({
+          ...tab,
+          meta: {
+            ...(tab.meta ?? {}),
+            affixTab: true,
+          } as any,
+        }),
+      );
+      const normalTabs = this.tabs.filter((tab) => !isAffixTab(tab));
+
+      this.tabs = [...nextAffixTabs, ...normalTabs];
+      this.updateCacheTabs();
+      this.setUpdateTime();
     },
 
     /**
@@ -757,12 +787,13 @@ function equalTab(a: TabDefinition, b: TabDefinition) {
   return getTabKeyFromTab(a) === getTabKeyFromTab(b);
 }
 
-function routeToTab(route: RouteRecordNormalized) {
+function routeToTab(route: AffixRouteDefinition | RouteRecordRaw) {
+  const fullPath = 'fullPath' in route ? route.fullPath : undefined;
   return {
-    meta: route.meta,
+    meta: route.meta ?? {},
     name: route.name,
     path: route.path,
-    key: getTabKey(route),
+    key: fullPath ?? route.path,
   } as TabDefinition;
 }
 

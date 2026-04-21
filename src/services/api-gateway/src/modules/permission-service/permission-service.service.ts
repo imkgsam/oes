@@ -2,51 +2,74 @@ import { Injectable } from '@nestjs/common'
 import {
   AccountRoleSelectionResponse,
   AssignAccountRoleRequest,
-  CreatePermissionRequest,
-  DeletePermissionRequest,
-  GetPermissionByCodeRequest,
-  GetPermissionByIdRequest,
-  GetAccountRoleSelectionRequest,
-  ListPermissionRolesRequest,
-  ListPermissionsPagedRequest,
-  PagedPermissionsResponse,
-  PermissionResponse,
-  UpdatePermissionRequest,
   AssignRolePermissionRequest,
   AssignRoleTemplatePermissionRequest,
-  CreateRoleInstanceRequest,
+  CreateNavigationEntryRequest,
+  CreatePermissionRequest,
   CreateRoleInstanceFromTemplateRequest,
+  CreateRoleInstanceRequest,
   CreateRoleTemplateRequest,
+  DeletePermissionRequest,
   DeleteRoleRequest,
   DeleteRoleTemplateRequest,
+  GetAccountRoleSelectionRequest,
+  GetNavigationEntryRequest,
+  GetPermissionByCodeRequest,
+  GetPermissionByIdRequest,
+  GetPolicyByIdRequest,
   GetRoleByIdRequest,
+  GetRoleNavigationRequest,
   GetRoleTemplateByIdRequest,
   ListAccountRolesRequest,
+  ListNavigationEntriesRequest,
+  ListNavigationEntriesResponse,
+  ListPoliciesByPermissionRequest,
+  ListPoliciesPagedRequest,
+  ListPoliciesResponse,
+  ListPermissionRolesRequest,
+  ListPermissionsPagedRequest,
   ListPermissionsResponse,
   ListRoleAccountsRequest,
   ListRoleAccountsResponse,
-  ListRolePermissionsRequest,
   ListRoleInstancesRequest,
+  ListRolePermissionsRequest,
   ListRoleTemplatePermissionsRequest,
   ListRoleTemplatesRequest,
   ListRolesResponse,
-  RoleResponse,
+  NavigationEntryResponse,
+  PagedPoliciesResponse,
+  PagedPermissionsResponse,
+  PermissionResponse,
+  PolicyResponse,
+  ResolveNavigationPreviewRequest,
+  ResolveNavigationPreviewResponse,
   RevokeRolePermissionRequest,
   RevokeRoleTemplatePermissionRequest,
   RevokeAccountRoleRequest,
+  RoleNavigationResponse,
+  RoleResponse,
   SetAccountRolesRequest,
+  SetRoleLandingPoliciesRequest,
+  SyncRoleNavigationFromTemplateRequest,
   SetRoleEnabledRequest,
+  SetRoleNavigationVisibilityRequest,
   SetRoleTemplateEnabledRequest,
+  UpdateNavigationEntryRequest,
+  UpdatePermissionRequest,
   UpdateRoleRequest,
   UpdateRoleTemplateRequest
 } from '@oes/common/generated/permission_service'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
+import { PolicyManagementGrpcAdapter } from './adapters/policy-management-grpc.adapter'
 import { PermissionManagementGrpcAdapter } from './adapters/permission-management-grpc.adapter'
 
 // Provides the gateway-facing permission management port over the downstream gRPC adapter.
 @Injectable()
 export class PermissionProxyService {
-  constructor(private readonly managementPort: PermissionManagementGrpcAdapter) {}
+  constructor(
+    private readonly managementPort: PermissionManagementGrpcAdapter,
+    private readonly policyManagementPort: PolicyManagementGrpcAdapter
+  ) {}
 
   async createPermission(
     req: CreatePermissionRequest,
@@ -84,6 +107,30 @@ export class PermissionProxyService {
     source: DownstreamRequestSource
   ): Promise<PermissionResponse> {
     return this.managementPort.getPermissionByCode(req, source)
+  }
+
+  // Reads a paged policy governance list for readonly management tables.
+  async listPolicies(
+    req: ListPoliciesPagedRequest & { hasIsEnabledFilter?: boolean },
+    source: DownstreamRequestSource
+  ): Promise<PagedPoliciesResponse> {
+    return this.policyManagementPort.listPolicies(req, source)
+  }
+
+  // Reads one policy governance record by id for readonly detail views.
+  async getPolicyById(
+    req: GetPolicyByIdRequest,
+    source: DownstreamRequestSource
+  ): Promise<PolicyResponse> {
+    return this.policyManagementPort.getPolicyById(req, source)
+  }
+
+  // Reads policy governance records linked to one permission code.
+  async listPermissionPolicies(
+    req: ListPoliciesByPermissionRequest,
+    source: DownstreamRequestSource
+  ): Promise<ListPoliciesResponse> {
+    return this.policyManagementPort.listPoliciesByPermission(req, source)
   }
 
   // Reads a paged permission dictionary list for management tables.
@@ -295,5 +342,77 @@ export class PermissionProxyService {
     source: DownstreamRequestSource
   ): Promise<ListRoleAccountsResponse> {
     return this.managementPort.listRoleAccounts(req, source)
+  }
+
+  // Reads managed navigation entry registry records for navigation administration.
+  async listNavigationEntries(
+    req: ListNavigationEntriesRequest,
+    source: DownstreamRequestSource
+  ): Promise<ListNavigationEntriesResponse> {
+    return this.managementPort.listNavigationEntries(req, source)
+  }
+
+  // Reads one managed navigation entry registry record by entry key.
+  async getNavigationEntry(
+    req: GetNavigationEntryRequest,
+    source: DownstreamRequestSource
+  ): Promise<NavigationEntryResponse> {
+    return this.managementPort.getNavigationEntry(req, source)
+  }
+
+  // Creates one managed navigation entry registry record.
+  async createNavigationEntry(
+    req: CreateNavigationEntryRequest,
+    source: DownstreamRequestSource
+  ): Promise<NavigationEntryResponse> {
+    return this.managementPort.createNavigationEntry(req, source)
+  }
+
+  // Updates mutable metadata on one managed navigation entry registry record.
+  async updateNavigationEntry(
+    req: UpdateNavigationEntryRequest,
+    source: DownstreamRequestSource
+  ): Promise<NavigationEntryResponse> {
+    return this.managementPort.updateNavigationEntry(req, source)
+  }
+
+  // Reads role-scoped navigation visibility and landing policy configuration.
+  async getRoleNavigation(
+    req: GetRoleNavigationRequest,
+    source: DownstreamRequestSource
+  ): Promise<RoleNavigationResponse> {
+    return this.managementPort.getRoleNavigation(req, source)
+  }
+
+  // Replaces one role's navigation visibility configuration as a full set.
+  async setRoleNavigationVisibility(
+    req: SetRoleNavigationVisibilityRequest,
+    source: DownstreamRequestSource
+  ): Promise<RoleNavigationResponse> {
+    return this.managementPort.setRoleNavigationVisibility(req, source)
+  }
+
+  // Replaces one role's landing policy configuration as a full set.
+  async setRoleLandingPolicies(
+    req: SetRoleLandingPoliciesRequest,
+    source: DownstreamRequestSource
+  ): Promise<RoleNavigationResponse> {
+    return this.managementPort.setRoleLandingPolicies(req, source)
+  }
+
+  // Resets one role instance navigation to match its linked template snapshot.
+  async syncRoleNavigationFromTemplate(
+    req: SyncRoleNavigationFromTemplateRequest,
+    source: DownstreamRequestSource
+  ): Promise<RoleNavigationResponse> {
+    return this.managementPort.syncRoleNavigationFromTemplate(req, source)
+  }
+
+  // Resolves a management preview for visible entries and default landing entry.
+  async resolveNavigationPreview(
+    req: ResolveNavigationPreviewRequest,
+    source: DownstreamRequestSource
+  ): Promise<ResolveNavigationPreviewResponse> {
+    return this.managementPort.resolveNavigationPreview(req, source)
   }
 }

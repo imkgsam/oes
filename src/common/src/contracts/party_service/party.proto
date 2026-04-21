@@ -1,0 +1,179 @@
+syntax = "proto3";
+
+package party_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.party.v1";
+
+service PartyRegistrationService {
+  rpc RegisterPersonParty(RegisterPersonPartyRequest) returns (RegisterPersonPartyResponse);
+  rpc RegisterOrganizationParty(RegisterOrganizationPartyRequest) returns (RegisterOrganizationPartyResponse);
+  rpc BindExistingPartyToTenant(BindExistingPartyToTenantRequest) returns (BindExistingPartyToTenantResponse);
+  rpc DeactivateTenantParty(DeactivateTenantPartyRequest) returns (DeactivateTenantPartyResponse);
+}
+
+service PartyQueryService {
+  rpc GetPartyById(GetPartyByIdRequest) returns (GetPartyByIdResponse);
+  rpc GetTenantPartyById(GetTenantPartyByIdRequest) returns (GetTenantPartyByIdResponse);
+  rpc ResolvePartyByIdentifier(ResolvePartyByIdentifierRequest) returns (ResolvePartyByIdentifierResponse);
+  rpc SearchPartyCandidates(SearchPartyCandidatesRequest) returns (SearchPartyCandidatesResponse);
+  rpc ListPartyRelationships(ListPartyRelationshipsRequest) returns (ListPartyRelationshipsResponse);
+}
+
+service PartyMergeService {
+  rpc MergeParties(MergePartiesRequest) returns (MergePartiesResponse);
+}
+
+message PartyIdentifierInput {
+  string identifier_type = 1;
+  string normalized_value = 2;
+  string raw_value = 3;
+  string issuer_country_or_region = 4;
+  string status = 5;
+}
+
+message PartySummary {
+  string id = 1;
+  string type = 2;
+  string status = 3;
+  string canonical_name = 4;
+  string display_name = 5;
+}
+
+message TenantPartySummary {
+  string id = 1;
+  string tenant_id = 2;
+  string party_id = 3;
+  string local_display_name = 4;
+  string local_code = 5;
+  string status = 6;
+}
+
+message PartyCandidate {
+  PartySummary party = 1;
+  double confidence = 2;
+  repeated string match_signals = 3;
+}
+
+message PartyRelationshipSummary {
+  string id = 1;
+  string from_party_id = 2;
+  string to_party_id = 3;
+  string relationship_type = 4;
+  string assertion_level = 5;
+  string effective_from = 6;
+  string effective_to = 7;
+}
+
+message RegisterPersonPartyRequest {
+  string tenant_id = 1;
+  string canonical_name = 2;
+  string local_display_name = 3;
+  string local_code = 4;
+  repeated PartyIdentifierInput identifiers = 5;
+}
+
+message RegisterPersonPartyResponse {
+  PartySummary party = 1;
+  TenantPartySummary tenant_party = 2;
+  string match_result = 3;
+}
+
+message RegisterOrganizationPartyRequest {
+  string tenant_id = 1;
+  string canonical_name = 2;
+  string local_display_name = 3;
+  string local_code = 4;
+  string registered_country = 5;
+  repeated PartyIdentifierInput identifiers = 6;
+}
+
+message RegisterOrganizationPartyResponse {
+  PartySummary party = 1;
+  TenantPartySummary tenant_party = 2;
+  string match_result = 3;
+}
+
+message BindExistingPartyToTenantRequest {
+  string tenant_id = 1;
+  string party_id = 2;
+  string local_display_name = 3;
+  string local_code = 4;
+  repeated string tags = 5;
+}
+
+message BindExistingPartyToTenantResponse {
+  PartySummary party = 1;
+  TenantPartySummary tenant_party = 2;
+}
+
+message DeactivateTenantPartyRequest {
+  string tenant_id = 1;
+  string tenant_party_id = 2;
+  string reason = 3;
+}
+
+message DeactivateTenantPartyResponse {
+  TenantPartySummary tenant_party = 1;
+}
+
+message GetPartyByIdRequest {
+  string party_id = 1;
+}
+
+message GetPartyByIdResponse {
+  PartySummary party = 1;
+}
+
+message GetTenantPartyByIdRequest {
+  string tenant_id = 1;
+  string tenant_party_id = 2;
+}
+
+message GetTenantPartyByIdResponse {
+  TenantPartySummary tenant_party = 1;
+}
+
+message ResolvePartyByIdentifierRequest {
+  string identifier_type = 1;
+  string normalized_value = 2;
+  string raw_value = 3;
+  string issuer_country_or_region = 4;
+}
+
+message ResolvePartyByIdentifierResponse {
+  string match_type = 1;
+  PartySummary party = 2;
+}
+
+message SearchPartyCandidatesRequest {
+  string tenant_id = 1;
+  string keyword = 2;
+  string party_type = 3;
+  string registered_country = 4;
+  repeated PartyIdentifierInput identifiers = 5;
+}
+
+message SearchPartyCandidatesResponse {
+  repeated PartyCandidate candidates = 1;
+}
+
+message ListPartyRelationshipsRequest {
+  string party_id = 1;
+  string relationship_type = 2;
+}
+
+message ListPartyRelationshipsResponse {
+  repeated PartyRelationshipSummary relationships = 1;
+}
+
+message MergePartiesRequest {
+  string survivor_party_id = 1;
+  repeated string merged_party_ids = 2;
+  string reason = 3;
+}
+
+message MergePartiesResponse {
+  PartySummary survivor_party = 1;
+  repeated PartySummary merged_parties = 2;
+}

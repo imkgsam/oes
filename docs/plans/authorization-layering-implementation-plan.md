@@ -238,7 +238,7 @@ Updated: 2026-04-12 22:30 +08:00
 - 业务服务 application 层 `checkResource` 模式在更多业务域中的推广
 - 列表类 `buildQueryScope` 模式在更多业务域服务中的推广
 - 派生内部协作授权规范的代码化落实
-- Access Summary 的 tenant feature / plugin enablement 过滤仍未接入，需在模块化/插件启用模型冻结后实现
+- Access Summary 的 tenant feature / plugin enablement 过滤已永久后置；当前系统暂不继续向租户级模块化或插件启用模型演进
 - 历史 `CheckPermissionWithContext` deprecated 兼容链路后续需要走契约治理清理：
   - 先确认无真实业务调用方
   - 再标记 proto / controller 为 no-new-callers
@@ -336,7 +336,7 @@ Updated: 2026-04-12 22:30 +08:00
   - 请求 / 响应示例
   - 页面级错误处理建议
   - 更细的前端刷新 / 回填策略
-- Access Summary 的 tenant feature / plugin enablement 过滤
+- Access Summary 的 tenant feature / plugin enablement 过滤已永久后置，除非未来 ADR 反转当前非模块化方向
 - 历史 `CheckPermissionWithContext` deprecated 链路正式清理
 - `CheckResourceService` 更通用统一入口设计
 - detail query 的最小授权快照 / 预检查优化

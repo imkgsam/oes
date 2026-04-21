@@ -7,8 +7,10 @@ import {
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   AccountAccessSummaryResponse,
+  AccountNavigationSummaryResponse,
   PERMISSION_ACCESS_SUMMARY_SERVICE_NAME,
-  PermissionAccessSummaryServiceClient
+  PermissionAccessSummaryServiceClient,
+  ResolveAccountNavigationRequest
 } from '@oes/common/generated/permission_service'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import {
@@ -43,6 +45,17 @@ export class PermissionAccessSummaryGrpcAdapter implements OnModuleInit {
     return safeGrpcCall(
       this.svc.getAccountAccessSummary(request, this.metadata(source)),
       this.opts('getAccountAccessSummary')
+    )
+  }
+
+  // Resolves runtime navigation entries for the selected account context.
+  resolveAccountNavigation(
+    request: ResolveAccountNavigationRequest,
+    source: DownstreamRequestSource
+  ): Promise<AccountNavigationSummaryResponse> {
+    return safeGrpcCall(
+      this.svc.resolveAccountNavigation(request, this.metadata(source)),
+      this.opts('resolveAccountNavigation')
     )
   }
 

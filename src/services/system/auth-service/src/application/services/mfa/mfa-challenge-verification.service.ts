@@ -71,10 +71,31 @@ export class MfaChallengeVerificationService {
         return null
       }
 
+      backupBinding.invalidateBackupCodes()
       await this.mfaBindingRepo.save(backupBinding)
       return binding.getUserId()
     } catch {
       return null
+    }
+  }
+
+  async verifySelectedFactor(input: {
+    userId: string
+    factor: MfaType
+    code: string
+    factorChallengeId?: string
+  }): Promise<boolean> {
+    switch (input.factor) {
+      case MfaType.EMAIL_OTP:
+        return this.verifyOtpFactor(input.userId, OTP_TYPES.EMAIL, input.code, input.factorChallengeId)
+      case MfaType.SMS_OTP:
+        return this.verifyOtpFactor(input.userId, OTP_TYPES.PHONE, input.code, input.factorChallengeId)
+      case MfaType.TOTP:
+        return this.verifyTotpFactor(input.userId, input.code)
+      case MfaType.BACKUP_CODE:
+        return this.verifyBackupCodeFactor(input.userId, input.code)
+      default:
+        return false
     }
   }
 
@@ -98,5 +119,68 @@ export class MfaChallengeVerificationService {
       throw ExceptionFactory.domain(AUTH_MFA_BINDING_NOT_FOUND)
     }
     return loginMethod.userId
+  }
+
+  private async verifyOtpFactor(
+    userId: string,
+    type: OTP_TYPES.EMAIL | OTP_TYPES.PHONE,
+    code: string,
+    factorChallengeId?: string
+  ): Promise<boolean> {
+    if (!factorChallengeId) {
+      return false
+    }
+
+    const token = await this.oneTimeTokenRepo.findById(factorChallengeId)
+    if (!token || !token.isMfaOtp() || token.getType() !== type) {
+      return false
+    }
+
+    const isValid = token.verify(code)
+    if (!isValid) {
+      await this.oneTimeTokenRepo.save(token)
+      return false
+    }
+
+    await this.oneTimeTokenRepo.markUsed(factorChallengeId)
+    const resolvedUserId =
+      type === OTP_TYPES.EMAIL
+        ? await this.getUserIdByEmail(token.getIdentifier())
+        : await this.getUserIdByPhone(token.getIdentifier())
+
+    return resolvedUserId === userId
+  }
+
+  private async verifyTotpFactor(userId: string, code: string): Promise<boolean> {
+    const binding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.TOTP)
+    if (!binding || !binding.isBindingActive()) {
+      return false
+    }
+
+    try {
+      return binding.verifyTotp(code)
+    } catch {
+      return false
+    }
+  }
+
+  private async verifyBackupCodeFactor(userId: string, code: string): Promise<boolean> {
+    const binding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.BACKUP_CODE)
+    if (!binding || !binding.isBindingActive()) {
+      return false
+    }
+
+    try {
+      const consumed = await binding.consumeBackupCode(code)
+      if (!consumed) {
+        return false
+      }
+
+      binding.invalidateBackupCodes()
+      await this.mfaBindingRepo.save(binding)
+      return true
+    } catch {
+      return false
+    }
   }
 }

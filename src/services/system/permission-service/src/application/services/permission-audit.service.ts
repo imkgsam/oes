@@ -8,7 +8,14 @@ import { PermissionAuditEvent, PermissionAuditModule } from '../events/permissio
 import { PrismaPermissionAuditRepository } from '../../infrastructure/repositories/prisma/prisma.permission-audit.repository'
 
 type AuditActorType = 'USER' | 'SERVICE' | 'SYSTEM'
-type AuditTargetType = 'ROLE' | 'PERMISSION' | 'POLICY' | 'ACCOUNT_ROLE' | 'ROLE_PERMISSION'
+type AuditTargetType =
+  | 'ROLE'
+  | 'PERMISSION'
+  | 'POLICY'
+  | 'ACCOUNT_ROLE'
+  | 'ROLE_PERMISSION'
+  | 'NAVIGATION_ENTRY'
+  | 'ROLE_NAVIGATION'
 type EvaluationModeValue = 'RBAC' | 'RBAC_ABAC'
 type DecisionValue = 'ALLOW' | 'DENY'
 
@@ -127,6 +134,10 @@ export class PermissionAuditService {
 
     if (targetType === 'PERMISSION') {
       return 'permission'
+    }
+
+    if (targetType === 'NAVIGATION_ENTRY' || targetType === 'ROLE_NAVIGATION') {
+      return 'navigation'
     }
 
     return 'role'

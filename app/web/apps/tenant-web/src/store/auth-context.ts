@@ -2,6 +2,9 @@ import type { UserApi } from '#/api';
 
 import { defineStore } from 'pinia';
 
+import { resolveEntryPathFromRoutes } from '#/router/entry-path';
+import { accessRoutes } from '#/router/routes';
+
 interface AuthContextState {
   accessSummary: null | UserApi.SessionAccessSummary;
   homePath: string;
@@ -9,16 +12,11 @@ interface AuthContextState {
   visibleEntries: string[];
 }
 
-const entryHomePathMap: Record<string, string> = {
-  'platform.home': '/analytics',
-  'workbench.home': '/workbench/home',
-};
-
 // Stores the authenticated OES context returned by auth-bff separately from Vben's basic user profile.
 export const useAuthContextStore = defineStore('auth-context', {
   actions: {
     resolveEntryPath(entry?: string) {
-      return entry ? entryHomePathMap[entry] : undefined;
+      return resolveEntryPathFromRoutes(accessRoutes, entry);
     },
     setAuthContext(
       sessionContext: UserApi.SessionContext,

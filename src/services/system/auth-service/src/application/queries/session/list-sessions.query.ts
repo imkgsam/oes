@@ -9,8 +9,13 @@ export class ListSessionsQuery {
   @IsString()
   readonly currentSessionId?: string
 
-  constructor(userId: string, currentSessionId?: string) {
+  @IsOptional()
+  @IsString()
+  readonly currentAccountId?: string
+
+  constructor(userId: string, currentSessionId?: string, currentAccountId?: string) {
     this.userId = userId
     this.currentSessionId = currentSessionId || undefined
+    this.currentAccountId = currentAccountId || undefined
   }
 }

@@ -10,8 +10,8 @@ contracts/
 ├── buf.gen.yaml          # 代码生成配置
 ├── README.md             # 本文档
 ├── auth_service/         # 认证服务
-├── entity_service/       # 实体服务
 ├── identity_service/     # 身份服务
+├── party_service/        # 主体服务
 ├── permission_service/   # 权限服务
 │   └── permission_check.proto
 └── resource_service/     # 资源服务

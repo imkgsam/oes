@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { LoginMethodType, MfaType, REPO } from '../../../common/constants'
 import { ExceptionFactory } from '@oes/common/exceptions'
+import { CredentialType } from '../../../../prisma/generated/prisma'
 import {
   AUTH_MFA_BINDING_ALREADY_EXISTS,
   AUTH_MFA_BINDING_NOT_FOUND,
@@ -259,6 +260,11 @@ export class MfaBindingManagementService {
       return null
     }
 
+    const otpCredential = loginMethod.getCredentialByType(resolveOtpCredentialType(type))
+    if (otpCredential && !otpCredential.isEnabled()) {
+      return null
+    }
+
     return loginMethod
   }
 
@@ -309,4 +315,9 @@ export class MfaBindingManagementService {
       updatedAt: binding?.getProps().updatedAt
     }
   }
+}
+
+// Resolves the OTP credential flag that gates one OTP-capable MFA method.
+function resolveOtpCredentialType(type: MfaType.EMAIL_OTP | MfaType.SMS_OTP): CredentialType {
+  return type === MfaType.EMAIL_OTP ? CredentialType.EMAIL_OTP : CredentialType.PHONE_OTP
 }

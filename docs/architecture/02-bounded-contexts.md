@@ -41,7 +41,7 @@ bounded context 的划分依据应当是：
 
 - Identity & Access
 - Tenant & Organization
-- Entity Master
+- Party Master
 - Workflow & Task
 - Notification
 - Integration Hub
@@ -91,16 +91,18 @@ bounded context 的划分依据应当是：
 - 它负责“组织与隔离”
 - 不负责认证与权限具体判定
 
-### 3.3 Entity Master
+### 3.3 Party Master
 
 职责：
 
-- 现实世界主体抽象
-- Person / Organization 的统一实体模型
+- 交易与法律主体主数据
+- Person / Organization 的统一 party 模型
+- 租户对主体的 `TenantParty` 绑定关系
 
 边界说明：
 
 - 它不关心这个主体是客户、员工、供应商还是合作伙伴
+- 业务域第一阶段应引用 `tenantPartyId`，而不是复制主体主数据
 - 业务角色由其他上下文定义
 
 ### 3.4 CRM
@@ -253,7 +255,7 @@ bounded context 的划分依据应当是：
 - auth-service
 - identity-service
 - permission-service
-- entity-service
+- party-service
 - tenant / org service
 - notification-service
 - workflow-service

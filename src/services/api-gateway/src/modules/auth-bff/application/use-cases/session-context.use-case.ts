@@ -1,18 +1,20 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common'
+import { Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 import { IdentityQueryGrpcAdapter } from '../../infrastructure/downstream/identity-service/identity-query-grpc.adapter'
 import { SessionContextViewModel } from '../../interfaces/http/view-models/session-context.view-model'
+import { SessionAccessSummaryUseCase, SessionNavigationSummary } from './session-access-summary.use-case'
 import { getAuthenticatedSelfContext } from './self-security-context'
 
 const DEFAULT_HOME_PATH = '/workbench/home'
 const SYSTEM_HOME_PATH = '/platform/home'
-const TENANT_DEFAULT_ENTRY = 'workbench.home'
-const SYSTEM_DEFAULT_ENTRY = 'platform.home'
 
 @Injectable()
 // Builds the minimal authenticated shell context needed for the front-end to enter the workbench.
 export class SessionContextUseCase {
-  constructor(private readonly identityAdapter: IdentityQueryGrpcAdapter) {}
+  constructor(
+    private readonly identityAdapter: IdentityQueryGrpcAdapter,
+    private readonly sessionAccessSummaryUseCase: SessionAccessSummaryUseCase
+  ) {}
 
   async execute(source: DownstreamRequestSource): Promise<SessionContextViewModel> {
     const self = getAuthenticatedSelfContext(source)
@@ -40,7 +42,10 @@ export class SessionContextUseCase {
 
     const accountName = normalize(accountResult.account?.displayName)
     const tenantName = normalize(tenantResult?.tenant?.name)
-    const defaultEntry = accountScope === 'SYSTEM' ? SYSTEM_DEFAULT_ENTRY : TENANT_DEFAULT_ENTRY
+    const navigation = await resolveManagedNavigation(
+      this.sessionAccessSummaryUseCase,
+      source
+    )
 
     return {
       operator: {
@@ -51,6 +56,9 @@ export class SessionContextUseCase {
       account: {
         accountId: self.accountId,
         name: accountName,
+        ...(normalize(accountResult.account?.avatarUrl)
+          ? { avatar: normalize(accountResult.account?.avatarUrl) }
+          : {}),
         scopeLevel: accountScope
       },
       tenant:
@@ -62,15 +70,18 @@ export class SessionContextUseCase {
           : null,
       org: null,
       navigation: {
-        defaultEntry,
-        visibleEntries: [defaultEntry],
+        defaultEntry: navigation.defaultEntry,
+        visibleEntries: navigation.visibleEntries,
         defaultHomePath: accountScope === 'SYSTEM' ? SYSTEM_HOME_PATH : DEFAULT_HOME_PATH,
         menus: []
       },
       access: {
         actionCodes: []
       },
-      scopeLevel: accountScope
+      scopeLevel: accountScope,
+      ...(source.user?.passwordSetupRequired === true
+        ? { passwordSetupRequired: true }
+        : {})
     }
   }
 }
@@ -84,4 +95,40 @@ function normalize(value?: string): string | undefined {
 // Normalizes account scope while preserving backward-compatible tenant behavior for old tokens.
 function normalizeScopeLevel(scopeLevel?: string): 'SYSTEM' | 'TENANT' {
   return scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT'
+}
+
+// Resolves managed navigation and fails closed when the role navigation truth is unavailable.
+async function resolveManagedNavigation(
+  useCase: SessionAccessSummaryUseCase,
+  source: DownstreamRequestSource
+): Promise<SessionNavigationSummary> {
+  const resolver = (useCase as any).resolveNavigation
+  if (typeof resolver !== 'function') {
+    throw new InternalServerErrorException('managed navigation resolver is unavailable')
+  }
+
+  let navigation: SessionNavigationSummary
+
+  try {
+    navigation = await resolver.call(useCase, source, 'WEB')
+  } catch {
+    throw new InternalServerErrorException('managed navigation resolver failed')
+  }
+
+  if (!useManagedNavigation(navigation)) {
+    throw new InternalServerErrorException('managed navigation resolver returned incomplete navigation')
+  }
+
+  return navigation
+}
+
+// Accepts managed navigation only when it is complete enough for current tenant-web rendering.
+function useManagedNavigation(
+  navigation: SessionNavigationSummary | null
+): navigation is SessionNavigationSummary {
+  return Boolean(
+    navigation?.defaultEntry &&
+      navigation.visibleEntries.length > 0 &&
+      navigation.visibleEntries.includes(navigation.defaultEntry)
+  )
 }

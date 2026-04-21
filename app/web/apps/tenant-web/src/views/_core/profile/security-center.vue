@@ -1,63 +1,123 @@
 <script setup lang="ts">
+import type { TableColumnsType } from 'ant-design-vue';
+import type { Dayjs } from 'dayjs';
+
 import type { SelfSecurityApi } from '#/api';
 
-import { computed, onMounted, ref } from 'vue';
-
-import { useAccessStore } from '@vben/stores';
+import { computed, onMounted, reactive, ref } from 'vue';
 
 import {
   Alert,
   Button,
   Card,
+  DatePicker,
   Empty,
+  Form,
   Input,
-  List,
-  ListItem,
   message,
   Modal,
   QRCode,
+  Select,
   Space,
   Statistic,
+  Table,
   TabPane,
   Tabs,
   Tag,
+  Tooltip,
 } from 'ant-design-vue';
 
 import {
   activateTotpBindingApi,
+  changeOwnPasswordApi,
   disableMfaBindingApi,
+  disableSelfLoginMethodApi,
   enableMfaBindingApi,
+  enableSelfLoginMethodApi,
   initializeRecoveryCodesApi,
   initializeTotpBindingApi,
   listMfaBindingsApi,
+  listSelfLoginHistoryApi,
+  listSelfLoginMethodsApi,
   listSelfSessionsApi,
   logoutAllDevicesApi,
   logoutOtherDevicesApi,
+  logoutSelfSessionApi,
   regenerateRecoveryCodesApi,
 } from '#/api';
 import { useAuthStore } from '#/store';
 import { useAuthContextStore } from '#/store/auth-context';
 
-const accessStore = useAccessStore();
+import SecurityContactBindingCard from './components/security-contact-binding-card.vue';
+import {
+  buildLoginMethodGroups,
+  getMfaAvailabilityHint,
+  getMfaDisplayDestination,
+  getRecoveryCodePanelMeta,
+  getTotpPanelMeta,
+} from './security-center.helpers';
+
 const authStore = useAuthStore();
 const authContextStore = useAuthContextStore();
+const { RangePicker } = DatePicker;
 
-const activeTab = ref('sessions');
+const activeTab = ref('login-methods');
 const loading = ref(false);
-const mutationLoading = ref(false);
+const sessionMutationLoading = ref(false);
+const loginMethodMutationLoading = ref(false);
+const passwordMutationLoading = ref(false);
+const mfaMutationLoading = ref(false);
+const totpMutationLoading = ref(false);
+const recoveryCodeLoading = ref(false);
+const loginHistoryLoading = ref(false);
+const loginHistoryLoadingMore = ref(false);
+const mfaBindingsLoading = ref(false);
 const sessions = ref<SelfSecurityApi.Session[]>([]);
+const loginHistoryItems = ref<SelfSecurityApi.LoginHistoryItem[]>([]);
+const loginHistoryNextCursor = ref<null | string>(null);
+const loginMethods = ref<SelfSecurityApi.LoginMethod[]>([]);
+const passwordSetupRequired = ref(false);
 const mfaBindings = ref<SelfSecurityApi.MfaBinding[]>([]);
 const totpSetup = ref<null | SelfSecurityApi.InitializeTotpResult>(null);
 const totpCode = ref('');
 const recoveryCodes = ref<string[]>([]);
+const sessionFilters = reactive({
+  deviceQuery: '',
+  status: '',
+});
+
+type LoginHistoryRangeValue = [string, string] | undefined;
+
+const loginHistoryFilters = reactive<{
+  occurredRange: LoginHistoryRangeValue;
+  pageSize: number;
+  result: '' | SelfSecurityApi.LoginHistoryOutcome;
+}>({
+  occurredRange: undefined,
+  pageSize: 10,
+  result: '',
+});
+const loginHistoryRangeValue = ref<LoginHistoryRangeValue>(undefined);
+const passwordForm = reactive({
+  confirmPassword: '',
+  currentPassword: '',
+  newPassword: '',
+});
+const passwordFormErrors = reactive({
+  confirmPassword: '',
+  currentPassword: '',
+  newPassword: '',
+});
 
 const currentSession = computed(() =>
   sessions.value.find((session) => session.isCurrent),
 );
 
-const enabledMfaCount = computed(
-  () => mfaBindings.value.filter((binding) => binding.enabled).length,
+const enabledLoginMethodCount = computed(
+  () => loginMethods.value.filter((method) => method.enabled).length,
 );
+
+const groupedLoginMethods = computed(() => buildLoginMethodGroups(loginMethods.value));
 
 const activeSessions = computed(() =>
   sessions.value.filter((session) => !session.isRevoked),
@@ -67,6 +127,47 @@ const hasOtherSessions = computed(() =>
   sessions.value.some((session) => !session.isCurrent && !session.isRevoked),
 );
 
+const failedLoginHistoryCount = computed(
+  () => loginHistoryItems.value.filter((item) => item.outcome === 'FAILED').length,
+);
+
+const totpBinding = computed(
+  () => mfaBindings.value.find((binding) => binding.type === 'TOTP') ?? null,
+);
+
+const recoveryCodeBinding = computed(
+  () => mfaBindings.value.find((binding) => binding.type === 'BACKUP_CODE') ?? null,
+);
+
+// Applies lightweight local filters so users can quickly narrow their own session list.
+const filteredSessions = computed(() => {
+  const deviceQuery = sessionFilters.deviceQuery.trim().toLowerCase();
+  const status = sessionFilters.status.trim().toUpperCase();
+
+  return sessions.value.filter((session) => {
+    const sessionStatus = getSessionStatus(session);
+
+    if (status && sessionStatus !== status) {
+      return false;
+    }
+
+    if (!deviceQuery) {
+      return true;
+    }
+
+    return [
+      session.deviceName,
+      session.platform,
+      session.browser,
+      session.userAgent,
+      session.ipAddress,
+      session.sessionId,
+    ]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(deviceQuery));
+  });
+});
+
 const mfaTypeLabel: Record<SelfSecurityApi.MfaBindingType, string> = {
   BACKUP_CODE: '恢复码',
   EMAIL_OTP: '邮箱验证码',
@@ -74,22 +175,201 @@ const mfaTypeLabel: Record<SelfSecurityApi.MfaBindingType, string> = {
   TOTP: '认证器 App',
 };
 
-// Loads the self-service security snapshot from auth-bff.
+const loginMethodLabel: Record<string, string> = {
+  'context-switch': '账号切换',
+  EMAIL: '邮箱',
+  EMAIL_OTP: '邮箱验证码',
+  EMAIL_PASSWORD: '邮箱密码',
+  PHONE: '手机',
+  PHONE_OTP: '手机验证码',
+  PHONE_PASSWORD: '手机密码',
+};
+
+const sessionColumns = computed<TableColumnsType<SelfSecurityApi.Session>>(() => [
+  {
+    key: 'device',
+    title: '设备',
+    ellipsis: true,
+  },
+  {
+    key: 'loginMethod',
+    title: '登录方式',
+    width: 160,
+  },
+  {
+    key: 'status',
+    title: '状态',
+    width: 170,
+  },
+  {
+    key: 'lastActiveAt',
+    title: '最近活跃',
+    width: 200,
+  },
+  {
+    key: 'remaining',
+    title: '会话剩余',
+    width: 180,
+  },
+  {
+    key: 'action',
+    title: '操作',
+    width: 120,
+    align: 'right',
+  },
+]);
+
+const loginHistoryColumns = computed<TableColumnsType<SelfSecurityApi.LoginHistoryItem>>(() => [
+  {
+    dataIndex: 'occurredAt',
+    key: 'occurredAt',
+    title: '时间',
+    width: 180,
+  },
+  {
+    key: 'outcome',
+    title: '结果',
+    width: 120,
+  },
+  {
+    key: 'loginMethod',
+    title: '登录方式',
+    width: 150,
+  },
+  {
+    key: 'device',
+    title: '设备',
+    ellipsis: true,
+  },
+  {
+    dataIndex: 'ipAddress',
+    key: 'ipAddress',
+    title: 'IP',
+    width: 150,
+  },
+  {
+    key: 'failureReason',
+    title: '原因',
+    ellipsis: true,
+  },
+  {
+    dataIndex: 'traceId',
+    key: 'traceId',
+    title: 'Trace',
+    width: 220,
+    ellipsis: true,
+  },
+]);
+
+const mfaColumns = computed<TableColumnsType<SelfSecurityApi.MfaBinding>>(() => [
+  {
+    dataIndex: 'type',
+    key: 'type',
+    title: 'MFA 方式',
+    width: 180,
+  },
+  {
+    dataIndex: 'destination',
+    key: 'destination',
+    title: '绑定目标',
+    ellipsis: true,
+  },
+  {
+    key: 'status',
+    title: '状态',
+    width: 200,
+  },
+  {
+    dataIndex: 'updatedAt',
+    key: 'updatedAt',
+    title: '最近更新',
+    width: 180,
+  },
+  {
+    key: 'action',
+    title: '操作',
+    width: 120,
+    align: 'right',
+  },
+]);
+
+// Loads the signed-in user's current session list.
+async function loadSessionsSnapshot() {
+  const sessionResult = await listSelfSessionsApi();
+  sessions.value = sessionResult.sessions ?? [];
+}
+
+// Loads the signed-in user's current login-method snapshot.
+async function loadLoginMethodSnapshot() {
+  const loginMethodResult = await listSelfLoginMethodsApi();
+  loginMethods.value = loginMethodResult.loginMethods ?? [];
+  passwordSetupRequired.value = Boolean(loginMethodResult.passwordSetupRequired);
+}
+
+// Loads the signed-in user's MFA bindings without forcing unrelated sections into loading state.
+async function loadMfaBindingsSnapshot(options?: { silent?: boolean }) {
+  const silent = options?.silent ?? false;
+  if (!silent) {
+    mfaBindingsLoading.value = true;
+  }
+
+  try {
+    const mfaResult = await listMfaBindingsApi();
+    mfaBindings.value = mfaResult.bindings ?? [];
+  } finally {
+    if (!silent) {
+      mfaBindingsLoading.value = false;
+    }
+  }
+}
+
+// Loads the full self-service security snapshot on first entry.
 async function loadSecuritySnapshot() {
   loading.value = true;
   try {
-    const [sessionResult, mfaResult] = await Promise.all([
-      listSelfSessionsApi(),
-      listMfaBindingsApi(),
+    await Promise.all([
+      loadSessionsSnapshot(),
+      loadLoginMethodSnapshot(),
+      loadMfaBindingsSnapshot({ silent: true }),
     ]);
-    sessions.value = sessionResult.sessions ?? [];
-    mfaBindings.value = mfaResult.bindings ?? [];
   } finally {
     loading.value = false;
   }
 }
 
-// Formats ISO timestamps for compact security cards.
+// Loads the authenticated user's login-attempt history with cursor-based pagination.
+async function loadLoginHistory(options?: { append?: boolean }) {
+  const append = options?.append ?? false;
+
+  if (append) {
+    if (!loginHistoryNextCursor.value) {
+      return;
+    }
+    loginHistoryLoadingMore.value = true;
+  } else {
+    loginHistoryLoading.value = true;
+  }
+
+  try {
+    const result = await listSelfLoginHistoryApi({
+      result: loginHistoryFilters.result || undefined,
+      occurredAtFrom: loginHistoryFilters.occurredRange?.[0],
+      occurredAtTo: loginHistoryFilters.occurredRange?.[1],
+      cursor: append ? loginHistoryNextCursor.value ?? undefined : undefined,
+      pageSize: loginHistoryFilters.pageSize,
+    });
+
+    loginHistoryItems.value = append
+      ? [...loginHistoryItems.value, ...(result.items ?? [])]
+      : (result.items ?? []);
+    loginHistoryNextCursor.value = result.nextCursor ?? null;
+  } finally {
+    loginHistoryLoading.value = false;
+    loginHistoryLoadingMore.value = false;
+  }
+}
+
+// Formats ISO timestamps for compact tables and side panels.
 function formatDateTime(value?: string) {
   if (!value) {
     return '-';
@@ -130,29 +410,152 @@ function getSessionDeviceLabel(session: SelfSecurityApi.Session) {
   );
 }
 
+// Maps backend login method codes to stable user-facing labels.
+function getSessionLoginMethodLabel(session: SelfSecurityApi.Session) {
+  return loginMethodLabel[session.loginMethod] || '账号登录';
+}
+
+// Maps login-history method codes to stable user-facing labels.
+function getLoginHistoryMethodLabel(item: SelfSecurityApi.LoginHistoryItem) {
+  return item.loginMethod ? loginMethodLabel[item.loginMethod] || item.loginMethod : '未知方式';
+}
+
+// Maps login method read-model type codes to concise labels.
+function getLoginMethodTypeLabel(method: SelfSecurityApi.LoginMethod) {
+  return loginMethodLabel[method.type] || method.type || '登录方式';
+}
+
+// Narrows one table row payload back to the expected session shape for template bindings.
+function asSession(record: Record<string, any>) {
+  return record as SelfSecurityApi.Session;
+}
+
+// Narrows one table row payload back to the expected login-history shape for template bindings.
+function asLoginHistoryItem(record: Record<string, any>) {
+  return record as SelfSecurityApi.LoginHistoryItem;
+}
+
+// Narrows one table row payload back to the expected MFA binding shape for template bindings.
+function asMfaBinding(record: Record<string, any>) {
+  return record as SelfSecurityApi.MfaBinding;
+}
+
 // Returns the product label for one MFA binding.
 function getMfaBindingLabel(binding: SelfSecurityApi.MfaBinding) {
   return mfaTypeLabel[binding.type] ?? binding.type;
+}
+
+// Normalizes one session read-model into the unified table status.
+function getSessionStatus(session: SelfSecurityApi.Session) {
+  if (session.isRevoked) {
+    return 'REVOKED';
+  }
+
+  if (session.isAccessExpired) {
+    return 'EXPIRED';
+  }
+
+  return 'ACTIVE';
+}
+
+// Maps one session status code to the matching compact tag label.
+function getSessionStatusLabel(status: string) {
+  switch (status) {
+    case 'ACTIVE': {
+      return '活跃';
+    }
+    case 'EXPIRED': {
+      return '已过期';
+    }
+    case 'REVOKED': {
+      return '已撤销';
+    }
+    default: {
+      return status || '未知';
+    }
+  }
+}
+
+// Maps one session status code to the shared visual tag color.
+function getSessionStatusColor(status: string) {
+  switch (status) {
+    case 'ACTIVE': {
+      return 'success';
+    }
+    case 'EXPIRED': {
+      return 'orange';
+    }
+    case 'REVOKED': {
+      return 'error';
+    }
+    default: {
+      return 'default';
+    }
+  }
+}
+
+// Maps one login-history outcome to the shared visual tag color.
+function getLoginHistoryOutcomeColor(outcome: SelfSecurityApi.LoginHistoryOutcome) {
+  return outcome === 'FAILED' ? 'error' : 'success';
+}
+
+// Maps one login-history outcome to the shared compact label.
+function getLoginHistoryOutcomeLabel(outcome: SelfSecurityApi.LoginHistoryOutcome) {
+  return outcome === 'FAILED' ? '登录失败' : '登录成功';
+}
+
+// Maps one MFA binding to the shared visual status tag color.
+function getMfaBindingStatusColor(binding: SelfSecurityApi.MfaBinding) {
+  if (binding.enabled) {
+    return 'success';
+  }
+
+  if (!binding.available) {
+    return 'orange';
+  }
+
+  return 'default';
+}
+
+// Revokes one other active session after a user confirms the device-specific logout.
+function confirmLogoutSession(session: SelfSecurityApi.Session) {
+  Modal.confirm({
+    centered: true,
+    content: `“${getSessionDeviceLabel(session)}” 的会话将被立即退出，目标设备需要重新登录。`,
+    okText: '退出此会话',
+    okType: 'danger',
+    title: '确认退出此会话？',
+    async onOk() {
+      sessionMutationLoading.value = true;
+      try {
+        await logoutSelfSessionApi(session.sessionId);
+        message.success('已退出 1 个会话');
+        await loadSessionsSnapshot();
+      } finally {
+        sessionMutationLoading.value = false;
+      }
+    },
+  });
 }
 
 // Revokes all other sessions and refreshes the session list.
 function confirmLogoutOtherDevices() {
   Modal.confirm({
     centered: true,
-    content: '其他设备会被立即退出，当前浏览器会保留登录状态。',
+    content: '当前账号下的其他设备会被立即退出，当前浏览器会保留登录状态。',
     okButtonProps: {
       disabled: !hasOtherSessions.value,
     },
     okText: '退出其他设备',
     title: '确认退出其他设备？',
     async onOk() {
-      mutationLoading.value = true;
+      sessionMutationLoading.value = true;
       try {
         const result = await logoutOtherDevicesApi();
         message.success(`已退出 ${result.sessionCount ?? 0} 个其他会话`);
-        await loadSecuritySnapshot();
+        await loadSessionsSnapshot();
       } finally {
-        mutationLoading.value = false;
+        sessionMutationLoading.value = false;
       }
     },
   });
@@ -162,18 +565,18 @@ function confirmLogoutOtherDevices() {
 function confirmLogoutAllDevices() {
   Modal.confirm({
     centered: true,
-    content: '所有设备都会被退出，包括当前浏览器。你需要重新登录才能继续使用。',
+    content: '当前账号下的所有设备都会被退出，包括当前浏览器。你需要重新登录才能继续使用。',
     okText: '全部退出',
     okType: 'danger',
     title: '确认退出全部设备？',
     async onOk() {
-      mutationLoading.value = true;
+      sessionMutationLoading.value = true;
       try {
         await logoutAllDevicesApi();
         message.success('已退出全部设备');
         await authStore.logout(false);
       } finally {
-        mutationLoading.value = false;
+        sessionMutationLoading.value = false;
       }
     },
   });
@@ -181,7 +584,7 @@ function confirmLogoutAllDevices() {
 
 // Enables or disables one self-service MFA binding.
 async function toggleMfaBinding(binding: SelfSecurityApi.MfaBinding) {
-  mutationLoading.value = true;
+  mfaMutationLoading.value = true;
   try {
     if (binding.enabled) {
       await disableMfaBindingApi(binding.type);
@@ -190,21 +593,95 @@ async function toggleMfaBinding(binding: SelfSecurityApi.MfaBinding) {
       await enableMfaBindingApi(binding.type);
       message.success(`${mfaTypeLabel[binding.type]} 已启用`);
     }
-    await loadSecuritySnapshot();
+    await loadMfaBindingsSnapshot({ silent: true });
   } finally {
-    mutationLoading.value = false;
+    mfaMutationLoading.value = false;
   }
+}
+
+// Enables or disables one owned login method.
+async function toggleLoginMethod(method: SelfSecurityApi.LoginMethod) {
+  loginMethodMutationLoading.value = true;
+  try {
+    if (method.enabled) {
+      await disableSelfLoginMethodApi(method.methodId);
+      message.success(`${getLoginMethodTypeLabel(method)} 已停用`);
+    } else {
+      await enableSelfLoginMethodApi(method.methodId);
+      message.success(`${getLoginMethodTypeLabel(method)} 已启用`);
+    }
+    await loadLoginMethodSnapshot();
+  } finally {
+    loginMethodMutationLoading.value = false;
+  }
+}
+
+// Submits a self-service password change and clears password fields after success.
+async function changeOwnPassword() {
+  if (!validatePasswordForm()) {
+    message.warning('请先修正密码表单中的校验问题');
+    return;
+  }
+
+  passwordMutationLoading.value = true;
+  try {
+    const result = await changeOwnPasswordApi({
+      currentPassword: passwordForm.currentPassword,
+      newPassword: passwordForm.newPassword,
+    });
+    passwordSetupRequired.value = Boolean(result.passwordSetupRequired);
+    passwordForm.confirmPassword = '';
+    passwordForm.currentPassword = '';
+    passwordForm.newPassword = '';
+    resetPasswordFormErrors();
+    message.success('密码已更新');
+    await loadLoginMethodSnapshot();
+  } finally {
+    passwordMutationLoading.value = false;
+  }
+}
+
+function validatePasswordForm() {
+  resetPasswordFormErrors();
+
+  if (!passwordForm.currentPassword) {
+    passwordFormErrors.currentPassword = '请输入当前密码';
+  }
+
+  if (!passwordForm.newPassword) {
+    passwordFormErrors.newPassword = '请输入新密码';
+  } else if (passwordForm.newPassword.length < 8) {
+    passwordFormErrors.newPassword = '新密码至少需要 8 位';
+  } else if (!/[A-Za-z]/.test(passwordForm.newPassword) || !/\d/.test(passwordForm.newPassword)) {
+    passwordFormErrors.newPassword = '新密码需同时包含字母和数字';
+  } else if (passwordForm.newPassword === passwordForm.currentPassword) {
+    passwordFormErrors.newPassword = '新密码不能与当前密码相同';
+  }
+
+  if (!passwordForm.confirmPassword) {
+    passwordFormErrors.confirmPassword = '请再次输入新密码';
+  } else if (passwordForm.confirmPassword !== passwordForm.newPassword) {
+    passwordFormErrors.confirmPassword = '两次输入的新密码不一致';
+  }
+
+  return !Object.values(passwordFormErrors).some(Boolean);
+}
+
+function resetPasswordFormErrors() {
+  passwordFormErrors.confirmPassword = '';
+  passwordFormErrors.currentPassword = '';
+  passwordFormErrors.newPassword = '';
 }
 
 // Starts the TOTP enrollment flow and keeps the secret visible until activation.
 async function initializeTotp() {
-  mutationLoading.value = true;
+  totpMutationLoading.value = true;
   try {
     totpSetup.value = await initializeTotpBindingApi();
     totpCode.value = '';
     message.success('认证器初始化成功，请扫码并输入验证码完成绑定');
   } finally {
-    mutationLoading.value = false;
+    totpMutationLoading.value = false;
   }
 }
 
@@ -215,7 +692,7 @@ async function activateTotp() {
     return;
   }
 
-  mutationLoading.value = true;
+  totpMutationLoading.value = true;
   try {
     await activateTotpBindingApi({
       bindingId: totpSetup.value.binding.bindingId,
@@ -224,195 +701,556 @@ async function activateTotp() {
     totpSetup.value = null;
     totpCode.value = '';
     message.success('认证器 App 已绑定');
-    await loadSecuritySnapshot();
+    await loadMfaBindingsSnapshot({ silent: true });
   } finally {
-    mutationLoading.value = false;
+    totpMutationLoading.value = false;
   }
 }
 
 // Generates or rotates recovery codes and keeps them visible for the current page session.
 async function refreshRecoveryCodes(initial: boolean) {
-  mutationLoading.value = true;
+  recoveryCodeLoading.value = true;
   try {
     const result = initial
       ? await initializeRecoveryCodesApi()
       : await regenerateRecoveryCodesApi();
     recoveryCodes.value = result.recoveryCodes ?? [];
     message.success(initial ? '恢复码已生成' : '恢复码已重新生成');
-    await loadSecuritySnapshot();
+    await loadMfaBindingsSnapshot({ silent: true });
   } finally {
-    mutationLoading.value = false;
+    recoveryCodeLoading.value = false;
   }
 }
 
+// Stores the selected login-history time range as a stable ISO tuple.
+function handleLoginHistoryRangeChange(
+  values: [Dayjs, Dayjs] | [string, string] | null,
+) {
+  if (!values || values.length !== 2) {
+    loginHistoryRangeValue.value = undefined;
+    loginHistoryFilters.occurredRange = undefined;
+    return;
+  }
+
+  loginHistoryRangeValue.value = [String(values[0]), String(values[1])];
+  loginHistoryFilters.occurredRange = [String(values[0]), String(values[1])];
+}
+
+// Restores the login-history filters to the first-page defaults.
+function resetLoginHistoryFilters() {
+  loginHistoryFilters.result = '';
+  loginHistoryFilters.occurredRange = undefined;
+  loginHistoryFilters.pageSize = 10;
+  loginHistoryRangeValue.value = undefined;
+}
+
 onMounted(() => {
-  void loadSecuritySnapshot().catch(() => {
+  void Promise.all([loadSecuritySnapshot(), loadLoginHistory()]).catch(() => {
     sessions.value = [];
+    loginHistoryItems.value = [];
+    loginHistoryNextCursor.value = null;
+    loginMethods.value = [];
+    passwordSetupRequired.value = false;
     mfaBindings.value = [];
   });
 });
 </script>
 
 <template>
-  <div class="space-y-5 p-5">
-    <div class="grid gap-4 md:grid-cols-3">
-      <Card :bordered="false">
+  <div class="security-center-page space-y-5 p-5">
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <Card :bordered="false" class="summary-card">
         <Statistic title="当前安全范围" :value="authContextStore.scopeLabel" />
-        <p class="mt-3 text-sm text-gray-500">
+        <p class="summary-card__meta">
           {{ authContextStore.accountName || authContextStore.operatorName || '当前账号' }}
         </p>
       </Card>
-      <Card :bordered="false">
-        <Statistic title="有效会话" :value="activeSessions.length" />
-        <p class="mt-3 text-sm text-gray-500">
+      <Card :bordered="false" class="summary-card">
+        <Statistic title="当前账号会话" :value="activeSessions.length" />
+        <p class="summary-card__meta">
           当前会话：{{ currentSession?.sessionId || '-' }}
         </p>
       </Card>
-      <Card :bordered="false">
-        <Statistic title="已启用 MFA" :value="enabledMfaCount" />
-        <p class="mt-3 text-sm text-gray-500">
-          权限码：{{ accessStore.accessCodes.length }} 项
+      <Card :bordered="false" class="summary-card">
+        <Statistic title="已启用登录方式" :value="enabledLoginMethodCount" />
+        <p class="summary-card__meta">
+          密码设置：{{ passwordSetupRequired ? '需要设置' : '正常' }}
+        </p>
+      </Card>
+      <Card :bordered="false" class="summary-card">
+        <Statistic title="失败登录记录" :value="failedLoginHistoryCount" />
+        <p class="summary-card__meta">
+          最近加载登录历史 {{ loginHistoryItems.length }} 条
         </p>
       </Card>
     </div>
 
-    <Card :bordered="false">
+    <Card :bordered="false" class="content-surface">
       <Tabs v-model:active-key="activeTab">
-        <TabPane key="sessions" tab="会话管理">
-          <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-            <Alert
-              class="min-w-0 flex-1"
-              message="这里只管理当前登录用户自己的设备会话。管理员代管会话属于另一组后台安全接口。"
-              show-icon
-              type="info"
-            />
-            <Space>
-              <Button :loading="loading" @click="loadSecuritySnapshot">
-                刷新
-              </Button>
-              <Button
-                :disabled="!hasOtherSessions"
-                :loading="mutationLoading"
-                @click="confirmLogoutOtherDevices"
-              >
-                退出其他设备
-              </Button>
-              <Button
-                danger
-                :loading="mutationLoading"
-                @click="confirmLogoutAllDevices"
-              >
-                全部退出
-              </Button>
-            </Space>
-          </div>
+        <TabPane key="login-methods" tab="登录方式">
+          <div class="tab-grid">
+            <div class="side-card-stack">
+              <div class="binding-card-grid">
+                <SecurityContactBindingCard
+                  kind="email"
+                  :login-methods="loginMethods"
+                  @refreshed="loadSecuritySnapshot"
+                />
 
-          <Empty v-if="!loading && sessions.length === 0" description="暂无会话数据" />
-          <List
-            v-else
-            :data-source="sessions"
-            :loading="loading"
-            class="max-h-[560px] overflow-auto"
-          >
-            <template #renderItem="{ item }">
-              <ListItem>
-                <div class="w-full rounded-lg border border-gray-100 p-4">
-                  <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div class="flex flex-wrap items-center gap-2">
-                        <span class="font-medium">
-                          {{ getSessionDeviceLabel(item) }}
-                        </span>
-                        <Tag v-if="item.isCurrent" color="blue">当前设备</Tag>
-                        <Tag v-if="item.isRevoked" color="red">已撤销</Tag>
-                        <Tag v-else color="green">{{ item.status }}</Tag>
-                      </div>
-                      <div class="mt-2 text-sm text-gray-500">
-                        {{ item.ipAddress || '未知 IP' }} ·
-                        {{ item.loginMethod }} ·
-                        最后活跃 {{ formatDateTime(item.lastActiveAt) }}
-                      </div>
-                    </div>
-                    <div class="text-right text-sm text-gray-500">
-                      <div>Access 剩余 {{ formatDuration(item.accessRemainingSeconds) }}</div>
-                      <div>Refresh 剩余 {{ formatDuration(item.refreshRemainingSeconds) }}</div>
-                    </div>
-                  </div>
-                  <div class="mt-3 grid gap-2 text-xs text-gray-500 md:grid-cols-3">
-                    <span>创建：{{ formatDateTime(item.createdAt) }}</span>
-                    <span>Access 到期：{{ formatDateTime(item.expiresAt) }}</span>
-                    <span>Refresh 到期：{{ formatDateTime(item.refreshExpiresAt) }}</span>
-                  </div>
+                <SecurityContactBindingCard
+                  kind="phone"
+                  :login-methods="loginMethods"
+                  @refreshed="loadSecuritySnapshot"
+                />
+              </div>
+
+              <Card :bordered="false" class="section-card">
+                <div class="panel-caption">
+                  <span class="panel-caption__title">登录方式管理</span>
+                  <span class="panel-caption__meta">
+                    登录能力已按邮箱/手机分组展示；密码与验证码现在可分别启用或停用。
+                  </span>
                 </div>
-              </ListItem>
-            </template>
-          </List>
-        </TabPane>
 
-        <TabPane key="mfa" tab="MFA 与恢复码">
-          <div class="grid gap-4 lg:grid-cols-[1fr_380px]">
-            <div class="space-y-4">
-              <Alert
-                message="当前页面只启停已登录用户自己的 MFA 绑定。安全策略、强制 MFA 和管理员审计后续由独立后台页面承接。"
-                show-icon
-                type="info"
-              />
+                <Empty
+                  v-if="!loading && groupedLoginMethods.every((group) => !group.boundValue)"
+                  description="暂无可管理的登录方式"
+                />
 
-              <Empty
-                v-if="!loading && mfaBindings.length === 0"
-                description="暂无 MFA 绑定数据"
-              />
-              <List v-else :data-source="mfaBindings" :loading="loading">
-                <template #renderItem="{ item }">
-                  <ListItem>
-                    <div class="w-full rounded-lg border border-gray-100 p-4">
-                      <div class="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                          <div class="flex items-center gap-2">
-                            <span class="font-medium">
-                              {{ getMfaBindingLabel(item) }}
+                <div v-else class="login-method-group-grid">
+                  <div
+                    v-for="group in groupedLoginMethods"
+                    :key="group.kind"
+                    class="login-method-group-card"
+                  >
+                    <div class="login-method-group-card__header">
+                      <div>
+                        <div class="login-method-group-card__title">
+                          {{ group.title }}
+                        </div>
+                        <div class="login-method-group-card__meta">
+                          {{ group.boundValue || `暂未绑定${group.kind === 'email' ? '邮箱' : '手机号'}` }}
+                        </div>
+                      </div>
+                      <Tag :color="group.statusColor">
+                        {{ group.statusText }}
+                      </Tag>
+                    </div>
+
+                    <div class="login-method-capability-list">
+                      <div
+                        v-for="capability in group.capabilities"
+                        :key="capability.methodId || capability.type"
+                        class="login-method-capability-item"
+                      >
+                        <div class="login-method-capability-item__body">
+                          <div class="login-method-capability-item__title-row">
+                            <span class="login-method-capability-item__title">
+                              {{ capability.label }}
                             </span>
-                            <Tag v-if="item.enabled" color="green">已启用</Tag>
-                            <Tag v-else color="default">未启用</Tag>
-                            <Tag v-if="!item.available" color="orange">
-                              暂不可用
+                            <Tag :color="capability.enabled ? 'green' : 'default'">
+                              {{ capability.enabled ? '已启用' : '已停用' }}
                             </Tag>
                           </div>
-                          <div class="mt-2 text-sm text-gray-500">
-                            {{ item.destination || '未提供绑定目标' }}
-                            <span v-if="item.updatedAt">
-                              · 更新于 {{ formatDateTime(item.updatedAt) }}
-                            </span>
+                          <div v-if="capability.hint" class="table-cell-meta">
+                            {{ capability.hint }}
                           </div>
                         </div>
+
                         <Button
-                          :disabled="!item.available"
-                          :loading="mutationLoading"
-                          @click="toggleMfaBinding(item)"
+                          v-if="capability.type.endsWith('PASSWORD') && !capability.hasPassword"
+                          disabled
+                          size="small"
                         >
-                          {{ item.enabled ? '停用' : '启用' }}
+                          先设置密码
+                        </Button>
+                        <Button
+                          v-else
+                          :disabled="capability.enabled && enabledLoginMethodCount <= 1"
+                          :loading="loginMethodMutationLoading"
+                          size="small"
+                          @click="
+                            toggleLoginMethod({
+                              enabled: capability.enabled,
+                              hasPassword: capability.hasPassword,
+                              methodId: capability.methodId,
+                              type: capability.type,
+                              userId: '',
+                              verified: capability.verified,
+                            })
+                          "
+                        >
+                          {{ capability.enabled ? '停用' : '启用' }}
                         </Button>
                       </div>
                     </div>
-                  </ListItem>
-                </template>
-              </List>
+                  </div>
+                </div>
+              </Card>
             </div>
 
-            <div class="space-y-4">
-              <Card title="认证器 App">
-                <Space direction="vertical" class="w-full" size="middle">
+            <div class="side-card-stack">
+              <Card :bordered="false" class="section-card side-card">
+                <div class="panel-caption">
+                  <span class="panel-caption__title">修改密码</span>
+                  <span class="panel-caption__meta">
+                    {{ passwordSetupRequired ? '当前需要设置密码' : '密码状态正常' }}
+                  </span>
+                </div>
+                <Form layout="vertical" class="form-stack">
+                  <Form.Item
+                    label="当前密码"
+                    :help="passwordFormErrors.currentPassword || undefined"
+                    :validate-status="passwordFormErrors.currentPassword ? 'error' : undefined"
+                  >
+                    <Input.Password
+                      v-model:value="passwordForm.currentPassword"
+                      autocomplete="current-password"
+                      placeholder="请输入当前密码"
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label="新密码"
+                    :help="passwordFormErrors.newPassword || undefined"
+                    :validate-status="passwordFormErrors.newPassword ? 'error' : undefined"
+                  >
+                    <Input.Password
+                      v-model:value="passwordForm.newPassword"
+                      autocomplete="new-password"
+                      placeholder="请输入新密码"
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label="确认新密码"
+                    :help="passwordFormErrors.confirmPassword || undefined"
+                    :validate-status="passwordFormErrors.confirmPassword ? 'error' : undefined"
+                  >
+                    <Input.Password
+                      v-model:value="passwordForm.confirmPassword"
+                      autocomplete="new-password"
+                      placeholder="请再次输入新密码"
+                    />
+                  </Form.Item>
                   <Button
                     block
-                    :loading="mutationLoading"
+                    type="primary"
+                    :loading="passwordMutationLoading"
+                    @click="changeOwnPassword"
+                  >
+                    更新密码
+                  </Button>
+                </Form>
+              </Card>
+            </div>
+          </div>
+        </TabPane>
+
+        <TabPane key="sessions" tab="会话管理">
+          <Card :bordered="false" class="section-card">
+            <div class="security-toolbar">
+              <div class="security-toolbar__filters">
+                <Select
+                  v-model:value="sessionFilters.status"
+                  allow-clear
+                  class="toolbar-control toolbar-control--compact"
+                  placeholder="状态"
+                >
+                  <Select.Option value="ACTIVE">活跃</Select.Option>
+                  <Select.Option value="EXPIRED">已过期</Select.Option>
+                  <Select.Option value="REVOKED">已撤销</Select.Option>
+                </Select>
+                <Input
+                  v-model:value="sessionFilters.deviceQuery"
+                  class="toolbar-control toolbar-control--wide"
+                  placeholder="按设备、浏览器、平台、IP 或会话 ID 过滤"
+                />
+                <Button
+                  @click="
+                    sessionFilters.status = '';
+                    sessionFilters.deviceQuery = '';
+                  "
+                >
+                  清空筛选
+                </Button>
+              </div>
+              <div class="security-toolbar__actions">
+                <Button :loading="loading" @click="loadSecuritySnapshot">
+                  刷新
+                </Button>
+                <Button
+                  :disabled="!hasOtherSessions"
+                  :loading="sessionMutationLoading"
+                  @click="confirmLogoutOtherDevices"
+                >
+                  退出其他设备
+                </Button>
+                <Button
+                  danger
+                  :loading="sessionMutationLoading"
+                  @click="confirmLogoutAllDevices"
+                >
+                  全部退出
+                </Button>
+              </div>
+            </div>
+
+            <Table
+              :columns="sessionColumns"
+              :data-source="filteredSessions"
+              :loading="loading"
+              :pagination="false"
+              :scroll="{ x: 1080 }"
+              class="security-table"
+              row-key="sessionId"
+              size="middle"
+            >
+              <template #emptyText>
+                <Empty description="暂无会话数据" />
+              </template>
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'device'">
+                  <div class="table-cell-title">
+                    {{ getSessionDeviceLabel(asSession(record)) }}
+                  </div>
+                  <div class="table-cell-meta">
+                    {{ record.ipAddress || '未知 IP' }} · {{ record.sessionId }}
+                  </div>
+                </template>
+                <template v-else-if="column.key === 'loginMethod'">
+                  <div class="table-cell-title">
+                    {{ getSessionLoginMethodLabel(asSession(record)) }}
+                  </div>
+                  <div class="table-cell-meta">
+                    {{ [record.platform, record.browser].filter(Boolean).join(' / ') || '未识别环境' }}
+                  </div>
+                </template>
+                <template v-else-if="column.key === 'status'">
+                  <div class="tag-stack">
+                    <Tag :color="getSessionStatusColor(getSessionStatus(asSession(record)))">
+                      {{ getSessionStatusLabel(getSessionStatus(asSession(record))) }}
+                    </Tag>
+                    <Tag v-if="record.isCurrent" color="blue">当前设备</Tag>
+                  </div>
+                </template>
+                <template v-else-if="column.key === 'lastActiveAt'">
+                  <div class="table-cell-title">
+                    {{ formatDateTime(record.lastActiveAt) }}
+                  </div>
+                  <div class="table-cell-meta">
+                    创建于 {{ formatDateTime(record.createdAt) }}
+                  </div>
+                </template>
+                <template v-else-if="column.key === 'remaining'">
+                  <div class="table-cell-title">
+                    Access {{ formatDuration(record.accessRemainingSeconds) }}
+                  </div>
+                  <div class="table-cell-meta">
+                    Refresh {{ formatDuration(record.refreshRemainingSeconds) }}
+                  </div>
+                </template>
+                <template v-else-if="column.key === 'action'">
+                  <Button
+                    v-if="!record.isCurrent && !record.isRevoked"
+                    :loading="sessionMutationLoading"
+                    danger
+                    size="small"
+                    @click="confirmLogoutSession(asSession(record))"
+                  >
+                    退出
+                  </Button>
+                  <span v-else class="table-cell-meta">-</span>
+                </template>
+              </template>
+            </Table>
+          </Card>
+        </TabPane>
+
+        <TabPane key="login-history" tab="登录历史">
+          <Card :bordered="false" class="section-card">
+            <div class="security-toolbar">
+              <div class="security-toolbar__filters">
+                <Select
+                  v-model:value="loginHistoryFilters.result"
+                  allow-clear
+                  class="toolbar-control toolbar-control--compact"
+                  placeholder="结果"
+                >
+                  <Select.Option value="SUCCESS">登录成功</Select.Option>
+                  <Select.Option value="FAILED">登录失败</Select.Option>
+                </Select>
+                <RangePicker
+                  v-model:value="loginHistoryRangeValue"
+                  class="toolbar-control toolbar-control--range"
+                  show-time
+                  value-format="YYYY-MM-DDTHH:mm:ss[Z]"
+                  @change="handleLoginHistoryRangeChange"
+                />
+                <Button type="primary" :loading="loginHistoryLoading" @click="loadLoginHistory()">
+                  查询
+                </Button>
+                <Button
+                  @click="
+                    resetLoginHistoryFilters();
+                    loadLoginHistory();
+                  "
+                >
+                  重置
+                </Button>
+              </div>
+            </div>
+
+            <Table
+              :columns="loginHistoryColumns"
+              :data-source="loginHistoryItems"
+              :loading="loginHistoryLoading"
+              :pagination="false"
+              :scroll="{ x: 1200 }"
+              class="security-table"
+              :row-key="(record, index) => `${record.occurredAt}-${record.traceId || index}`"
+              size="middle"
+            >
+              <template #emptyText>
+                <Empty description="暂无登录历史" />
+              </template>
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'occurredAt'">
+                  {{ formatDateTime(record.occurredAt) }}
+                </template>
+                <template v-else-if="column.key === 'outcome'">
+                  <Tag :color="getLoginHistoryOutcomeColor(record.outcome)">
+                    {{ getLoginHistoryOutcomeLabel(record.outcome) }}
+                  </Tag>
+                </template>
+                <template v-else-if="column.key === 'loginMethod'">
+                  {{ getLoginHistoryMethodLabel(asLoginHistoryItem(record)) }}
+                </template>
+                <template v-else-if="column.key === 'device'">
+                  <div class="table-cell-title">
+                    {{ record.deviceName || [record.platform, record.browser].filter(Boolean).join(' / ') || '未知设备' }}
+                  </div>
+                </template>
+                <template v-else-if="column.key === 'ipAddress'">
+                  {{ record.ipAddress || '-' }}
+                </template>
+                <template v-else-if="column.key === 'failureReason'">
+                  <span :class="record.failureReason ? 'failure-text' : 'table-cell-meta'">
+                    {{ record.failureReason || '-' }}
+                  </span>
+                </template>
+                <template v-else-if="column.key === 'traceId'">
+                  <code class="trace-code">{{ record.traceId || '-' }}</code>
+                </template>
+              </template>
+            </Table>
+
+            <div class="table-footer">
+              <Button
+                v-if="loginHistoryNextCursor"
+                :loading="loginHistoryLoadingMore"
+                @click="loadLoginHistory({ append: true })"
+              >
+                加载更多
+              </Button>
+            </div>
+          </Card>
+        </TabPane>
+
+        <TabPane key="mfa" tab="MFA 与恢复码">
+          <div class="mfa-layout">
+            <Card :bordered="false" class="section-card">
+              <div class="panel-caption">
+                <div class="panel-caption__title-row">
+                  <span class="panel-caption__title">MFA 绑定</span>
+                  <Tooltip title="这里展示当前用户自己的 MFA 绑定状态。启用或停用只影响当前账号，不涉及管理员策略配置。">
+                    <span class="section-help-dot">?</span>
+                  </Tooltip>
+                </div>
+                <span class="panel-caption__meta">
+                  先查看绑定状态，再执行启用、停用或初始化动作。
+                </span>
+              </div>
+
+              <Table
+                :columns="mfaColumns"
+                :data-source="mfaBindings"
+                :loading="mfaBindingsLoading || loading"
+                :pagination="false"
+                :scroll="{ x: 860 }"
+                class="security-table"
+                row-key="bindingId"
+                size="middle"
+              >
+                <template #emptyText>
+                  <Empty description="暂无 MFA 绑定数据" />
+                </template>
+                <template #bodyCell="{ column, record }">
+                  <template v-if="column.key === 'type'">
+                    <div class="table-cell-title">
+                      {{ getMfaBindingLabel(asMfaBinding(record)) }}
+                    </div>
+                    <div class="table-cell-meta">
+                      类型编码：{{ record.type }}
+                    </div>
+                  </template>
+                  <template v-else-if="column.key === 'destination'">
+                    <div class="table-cell-title">
+                      {{ getMfaDisplayDestination(asMfaBinding(record)) }}
+                    </div>
+                    <div class="table-cell-meta">
+                      {{ getMfaAvailabilityHint(asMfaBinding(record)) }}
+                    </div>
+                  </template>
+                  <template v-else-if="column.key === 'status'">
+                    <div class="tag-stack">
+                      <Tag :color="getMfaBindingStatusColor(asMfaBinding(record))">
+                        {{ record.enabled ? '已启用' : '未启用' }}
+                      </Tag>
+                      <Tag v-if="!record.available" color="orange">暂不可用</Tag>
+                    </div>
+                  </template>
+                  <template v-else-if="column.key === 'updatedAt'">
+                    {{ formatDateTime(record.updatedAt) }}
+                  </template>
+                  <template v-else-if="column.key === 'action'">
+                    <Button
+                      :disabled="!record.available"
+                      :loading="mfaMutationLoading"
+                      size="small"
+                      @click="toggleMfaBinding(asMfaBinding(record))"
+                    >
+                      {{ record.enabled ? '停用' : '启用' }}
+                    </Button>
+                  </template>
+                </template>
+              </Table>
+            </Card>
+
+            <div class="tool-grid">
+              <Card :bordered="false" class="section-card side-card">
+                <div class="panel-caption">
+                  <div class="panel-caption__title-row">
+                    <span class="panel-caption__title">认证器 App</span>
+                    <Tooltip title="初始化后会生成二维码和 Secret。使用认证器应用扫码后，再输入一次验证码完成绑定。">
+                      <span class="section-help-dot">?</span>
+                    </Tooltip>
+                  </div>
+                  <span class="panel-caption__meta">
+                    {{ getTotpPanelMeta({ hasPendingSetup: Boolean(totpSetup), totpBinding }) }}
+                  </span>
+                </div>
+                <Space direction="vertical" class="tool-panel" size="middle">
+                  <Button
+                    v-if="!totpBinding?.enabled && !totpSetup"
+                    block
+                    :loading="totpMutationLoading"
                     type="primary"
                     @click="initializeTotp"
                   >
-                    初始化 TOTP 绑定
+                    开始绑定认证器
                   </Button>
-                  <div v-if="totpSetup" class="space-y-3">
+                  <div v-if="totpSetup" class="totp-panel">
                     <QRCode :value="totpSetup.qrCodeUrl" />
-                    <div class="break-all rounded bg-gray-50 p-2 text-xs text-gray-500">
+                    <div class="totp-secret">
                       Secret：{{ totpSetup.secret }}
                     </div>
                     <Input
@@ -422,27 +1260,46 @@ onMounted(() => {
                     />
                     <Button
                       block
-                      :loading="mutationLoading"
+                      :loading="totpMutationLoading"
                       @click="activateTotp"
                     >
                       完成绑定
                     </Button>
                   </div>
+                  <Alert
+                    v-else-if="totpBinding?.enabled"
+                    message="认证器 App 已绑定，可直接在上方 MFA 列表中启用或停用。"
+                    show-icon
+                    type="success"
+                  />
                 </Space>
               </Card>
 
-              <Card title="恢复码">
-                <Space direction="vertical" class="w-full" size="middle">
+              <Card :bordered="false" class="section-card side-card">
+                <div class="panel-caption">
+                  <div class="panel-caption__title-row">
+                    <span class="panel-caption__title">恢复码</span>
+                    <Tooltip title="恢复码适用于无法使用常规 MFA 方式时的应急登录。重新生成后，旧恢复码会失效。">
+                      <span class="section-help-dot">?</span>
+                    </Tooltip>
+                  </div>
+                  <span class="panel-caption__meta">
+                    {{ getRecoveryCodePanelMeta({ recoveryCodeBinding, recoveryCodes, totpBinding }) }}
+                  </span>
+                </div>
+                <Space direction="vertical" class="tool-panel" size="middle">
                   <Space wrap>
                     <Button
-                      :loading="mutationLoading"
+                      :disabled="!totpBinding?.enabled"
+                      :loading="recoveryCodeLoading"
                       @click="refreshRecoveryCodes(true)"
                     >
-                      初始化恢复码
+                      {{ recoveryCodeBinding?.enabled ? '重新生成并展示' : '生成恢复码' }}
                     </Button>
                     <Button
                       danger
-                      :loading="mutationLoading"
+                      :disabled="!totpBinding?.enabled || !recoveryCodeBinding?.enabled"
+                      :loading="recoveryCodeLoading"
                       @click="refreshRecoveryCodes(false)"
                     >
                       重新生成
@@ -455,12 +1312,12 @@ onMounted(() => {
                   />
                   <div
                     v-if="recoveryCodes.length > 0"
-                    class="grid grid-cols-2 gap-2"
+                    class="recovery-code-grid"
                   >
                     <code
                       v-for="code in recoveryCodes"
                       :key="code"
-                      class="rounded bg-gray-50 px-3 py-2 text-center text-sm"
+                      class="recovery-code-item"
                     >
                       {{ code }}
                     </code>
@@ -474,3 +1331,356 @@ onMounted(() => {
     </Card>
   </div>
 </template>
+
+<style scoped>
+.security-center-page {
+  max-width: 1320px;
+  margin: 0 auto;
+  --security-border: hsl(var(--border));
+  --security-card-bg: hsl(var(--card));
+  --security-card-bg-soft: hsl(var(--muted) / 0.55);
+  --security-card-bg-strong: hsl(var(--muted) / 0.82);
+  --security-card-bg-accent:
+    radial-gradient(circle at top right, hsl(var(--primary) / 0.14), transparent 32%),
+    linear-gradient(180deg, hsl(var(--card)), hsl(var(--muted) / 0.72));
+  --security-title: hsl(var(--foreground));
+  --security-text: hsl(var(--foreground) / 0.92);
+  --security-muted: hsl(var(--muted-foreground));
+  --security-warning: hsl(var(--warning));
+}
+
+.summary-card,
+.section-card,
+.content-surface {
+  border: 1px solid var(--security-border);
+  background: var(--security-card-bg);
+  box-shadow: none;
+}
+
+.summary-card__meta {
+  margin-top: 12px;
+  font-size: 14px;
+  color: var(--security-muted);
+}
+
+.tab-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+}
+
+.side-card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.binding-card-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.login-method-group-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.login-method-group-card {
+  padding: 18px;
+  border: 1px solid var(--security-border);
+  border-radius: 18px;
+  background: var(--security-card-bg-accent);
+}
+
+.login-method-group-card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.login-method-group-card__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--security-title);
+}
+
+.login-method-group-card__meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--security-muted);
+  line-height: 1.6;
+}
+
+.login-method-capability-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.login-method-capability-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--security-card-bg-soft);
+  border: 1px solid var(--security-border);
+}
+
+.login-method-capability-item__body {
+  min-width: 0;
+}
+
+.login-method-capability-item__title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.login-method-capability-item__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--security-text);
+}
+
+.mfa-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tool-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.section-alert {
+  margin-bottom: 12px;
+  border-radius: 12px;
+}
+
+.panel-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.panel-caption__title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-caption__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--security-title);
+}
+
+.panel-caption__meta {
+  font-size: 12px;
+  color: var(--security-muted);
+}
+
+.security-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.security-toolbar__filters,
+.security-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.toolbar-control {
+  width: 100%;
+}
+
+.toolbar-control--compact {
+  max-width: 180px;
+}
+
+.toolbar-control--wide {
+  max-width: 360px;
+}
+
+.toolbar-control--range {
+  min-width: 300px;
+}
+
+.security-table :deep(.ant-table-thead > tr > th) {
+  font-weight: 600;
+  color: var(--security-text);
+  background: var(--security-card-bg-strong);
+}
+
+.security-table :deep(.ant-table-tbody > tr > td) {
+  vertical-align: top;
+}
+
+.security-table :deep(.ant-table),
+.security-table :deep(.ant-table-container) {
+  background: transparent;
+}
+
+.table-cell-title {
+  font-weight: 500;
+  color: var(--security-title);
+}
+
+.table-cell-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--security-muted);
+  line-height: 1.6;
+}
+
+.tag-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.form-stack {
+  margin-top: 8px;
+}
+
+.tool-panel {
+  width: 100%;
+}
+
+.totp-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.totp-secret {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--security-card-bg-strong);
+  color: var(--security-muted);
+  font-size: 12px;
+  line-height: 1.7;
+  word-break: break-all;
+}
+
+.recovery-code-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.recovery-code-item {
+  display: block;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--security-card-bg-strong);
+  font-size: 13px;
+  text-align: center;
+  color: var(--security-text);
+}
+
+.failure-text {
+  color: var(--security-warning);
+}
+
+.trace-code {
+  display: inline-block;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--security-card-bg-strong);
+  font-size: 12px;
+  color: var(--security-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table-footer {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.section-help-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--security-border);
+  border-radius: 9999px;
+  background: var(--security-card-bg-strong);
+  color: var(--security-muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: help;
+}
+
+:deep(.summary-card .ant-statistic-title) {
+  color: var(--security-muted);
+}
+
+:deep(.summary-card .ant-statistic-content),
+:deep(.summary-card .ant-statistic-content-value) {
+  color: var(--security-title);
+}
+
+:deep(.section-card .ant-card-body),
+:deep(.content-surface .ant-card-body) {
+  background: transparent;
+}
+
+:deep(.ant-tabs-nav) {
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1200px) {
+  .tab-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .binding-card-grid,
+  .login-method-group-grid,
+  .tool-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .login-method-group-card__header,
+  .login-method-capability-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .security-toolbar__actions :deep(.ant-btn) {
+    flex: 1 1 auto;
+  }
+
+  .toolbar-control--compact,
+  .toolbar-control--wide,
+  .toolbar-control--range {
+    max-width: none;
+    min-width: 0;
+  }
+
+  .recovery-code-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

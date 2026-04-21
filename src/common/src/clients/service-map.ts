@@ -1,7 +1,7 @@
 export const ServiceKeys = {
   AUTH_TCP: 'AUTH_TCP',
   PERMISSION_TCP: 'PERMISSION_TCP',
-  ENTITY_TCP: 'ENTITY_TCP',
+  PARTY_GRPC: 'PARTY_GRPC',
   AUDIT_TCP: 'AUDIT_TCP',
   NOTIFICATION_TCP: 'NOTIFICATION_TCP'
 } as const
@@ -26,7 +26,7 @@ const endpoint = (hostEnv: string, portEnv: string, fallbackPort: number): Servi
 export const SERVICE_ENDPOINTS_CONFIG = {
   AUTH_TCP: endpoint('AUTH_HOST', 'AUTH_TCP_PORT', 9202),
   PERMISSION_TCP: endpoint('PERMISSION_HOST', 'PERMISSION_TCP_PORT', 9302),
-  ENTITY_TCP: endpoint('ENTITY_HOST', 'ENTITY_TCP_PORT', 9502),
+  PARTY_GRPC: endpoint('PARTY_SERVICE_GRPC_HOST', 'PARTY_SERVICE_GRPC_PORT', 50053),
   AUDIT_TCP: endpoint('AUDIT_HOST', 'AUDIT_TCP_PORT', 9602),
   NOTIFICATION_TCP: endpoint('NOTIFICATION_HOST', 'NOTIFICATION_TCP_PORT', 9702)
 } as const satisfies Record<ServiceKey, ServiceEndpointConfig>

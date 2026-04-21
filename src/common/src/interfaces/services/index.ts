@@ -1,1 +1,1 @@
-export * from './entity-service'
+export * from './party-service'

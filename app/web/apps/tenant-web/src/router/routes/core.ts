@@ -107,6 +107,15 @@ const coreRoutes: RouteRecordRaw[] = [
           title: 'Account Selection',
         },
       },
+      {
+        name: 'FirstLoginPasswordSetup',
+        path: 'first-login-password',
+        component: () =>
+          import('#/views/_core/authentication/first-login-password-setup.vue'),
+        meta: {
+          title: 'Set Password',
+        },
+      },
     ],
   },
 ];

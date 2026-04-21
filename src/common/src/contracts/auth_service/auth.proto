@@ -7,12 +7,27 @@ option java_package = "com.oes.auth.v1";
 
 service AuthService {
   rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
+  rpc ListLoginHistory(ListLoginHistoryRequest) returns (ListLoginHistoryResponse);
+  rpc BootstrapUserLoginMethods(BootstrapUserLoginMethodsRequest) returns (BootstrapUserLoginMethodsResponse);
+  rpc CompleteFirstLoginPasswordSetup(CompleteFirstLoginPasswordSetupRequest) returns (CompleteFirstLoginPasswordSetupResponse);
   rpc LoginWithEmailPassword(EmailPasswordLoginRequest) returns (LoginResponse);
   rpc RequestEmailOtpLoginChallenge(EmailOtpChallengeRequest) returns (OtpChallengeResponse);
+  rpc RequestEmailBindingChallenge(EmailBindingChallengeRequest) returns (OtpChallengeResponse);
   rpc LoginWithEmailOtp(EmailOtpLoginRequest) returns (LoginResponse);
   rpc LoginWithPhonePassword(PhonePasswordLoginRequest) returns (LoginResponse);
   rpc RequestPhoneOtpLoginChallenge(PhoneOtpChallengeRequest) returns (OtpChallengeResponse);
+  rpc RequestPhoneBindingChallenge(PhoneBindingChallengeRequest) returns (OtpChallengeResponse);
   rpc LoginWithPhoneOtp(PhoneOtpLoginRequest) returns (LoginResponse);
+  rpc InspectPasswordRecoveryChannels(InspectPasswordRecoveryChannelsRequest) returns (InspectPasswordRecoveryChannelsResponse);
+  rpc RequestPasswordRecoveryChallenge(RequestPasswordRecoveryChallengeRequest) returns (PasswordRecoveryChallengeResponse);
+  rpc VerifyPasswordRecoveryChallenge(VerifyPasswordRecoveryChallengeRequest) returns (PasswordRecoveryVerificationResponse);
+  rpc CompletePasswordRecovery(CompletePasswordRecoveryRequest) returns (PasswordRecoveryCompletionResponse);
+  rpc ListLoginMethods(ListLoginMethodsRequest) returns (ListLoginMethodsResponse);
+  rpc ChangeOwnPassword(ChangeOwnPasswordRequest) returns (PasswordMutationResponse);
+  rpc VerifyEmailBinding(VerifyEmailBindingRequest) returns (ContactBindingVerificationResponse);
+  rpc VerifyPhoneBinding(VerifyPhoneBindingRequest) returns (ContactBindingVerificationResponse);
+  rpc RequirePasswordSetup(RequirePasswordSetupRequest) returns (PasswordMutationResponse);
+  rpc SetLoginMethodEnabled(SetLoginMethodEnabledRequest) returns (LoginMethodMutationResponse);
   rpc ListMfaBindings(ListMfaBindingsRequest) returns (ListMfaBindingsResponse);
   rpc EnableMfaBinding(EnableMfaBindingRequest) returns (MfaBindingMutationResponse);
   rpc DisableMfaBinding(DisableMfaBindingRequest) returns (MfaBindingMutationResponse);
@@ -20,13 +35,20 @@ service AuthService {
   rpc ActivateTotpBinding(ActivateTotpBindingRequest) returns (MfaBindingMutationResponse);
   rpc InitializeRecoveryCodes(InitializeRecoveryCodesRequest) returns (RecoveryCodesResponse);
   rpc RegenerateRecoveryCodes(RegenerateRecoveryCodesRequest) returns (RecoveryCodesResponse);
+  rpc RequestLoginMfaFactorChallenge(RequestLoginMfaFactorChallengeRequest) returns (OtpChallengeResponse);
   rpc SubmitMfaChallenge(SubmitMfaChallengeRequest) returns (LoginResponse);
   rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse);
+  rpc ValidateAccessToken(ValidateAccessTokenRequest) returns (ValidateAccessTokenResponse);
   rpc SelectAccount(SelectAccountRequest) returns (SelectAccountResponse);
+  rpc GetTenantMfaPolicy(GetTenantMfaPolicyRequest) returns (TenantMfaPolicyResponse);
+  rpc UpdateTenantMfaPolicy(UpdateTenantMfaPolicyRequest) returns (TenantMfaPolicyResponse);
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc AdminListOnlineUsers(AdminListOnlineUsersRequest) returns (AdminListOnlineUsersResponse);
   rpc AdminListUserSessions(AdminListUserSessionsRequest) returns (AdminListUserSessionsResponse);
   rpc AdminRevokeSession(AdminRevokeSessionRequest) returns (AdminRevokeSessionResponse);
+  rpc AdminDeleteAccountSessions(AdminDeleteAccountSessionsRequest) returns (AdminDeleteAccountSessionsResponse);
   rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc LogoutSession(LogoutSessionRequest) returns (LogoutSessionResponse);
   rpc LogoutOtherDevices(LogoutOtherDevicesRequest) returns (LogoutOtherDevicesResponse);
   rpc LogoutAll(LogoutAllRequest) returns (LogoutAllResponse);
 }
@@ -34,10 +56,18 @@ service AuthService {
 message EmailPasswordLoginRequest {
   string email = 1;
   string password = 2;
+  string device_name = 3;
+  string user_agent = 4;
+  string ip_address = 5;
 }
 
 message EmailOtpChallengeRequest {
   string email = 1;
+}
+
+message EmailBindingChallengeRequest {
+  string user_id = 1;
+  string email = 2;
 }
 
 message EmailOtpLoginRequest {
@@ -48,16 +78,147 @@ message EmailOtpLoginRequest {
 message PhonePasswordLoginRequest {
   string phone = 1;
   string password = 2;
+  string device_name = 3;
+  string user_agent = 4;
+  string ip_address = 5;
 }
 
 message PhoneOtpChallengeRequest {
   string phone = 1;
 }
 
+message PhoneBindingChallengeRequest {
+  string user_id = 1;
+  string phone = 2;
+}
+
 message OtpChallengeResponse {
   string challenge_id = 1;
   string expires_at = 2;
   string destination = 3;
+}
+
+enum PasswordRecoveryChannel {
+  PASSWORD_RECOVERY_CHANNEL_UNSPECIFIED = 0;
+  PASSWORD_RECOVERY_CHANNEL_EMAIL = 1;
+  PASSWORD_RECOVERY_CHANNEL_PHONE = 2;
+}
+
+message InspectPasswordRecoveryChannelsRequest {
+  string identifier = 1;
+}
+
+message PasswordRecoveryChannelOption {
+  PasswordRecoveryChannel channel = 1;
+  string masked_destination = 2;
+}
+
+message InspectPasswordRecoveryChannelsResponse {
+  repeated PasswordRecoveryChannelOption channels = 1;
+  PasswordRecoveryChannel default_channel = 2;
+}
+
+message RequestPasswordRecoveryChallengeRequest {
+  PasswordRecoveryChannel channel = 1;
+  string identifier = 2;
+}
+
+message PasswordRecoveryChallengeResponse {
+  bool accepted = 1;
+  string challenge_id = 2;
+  string expires_at = 3;
+  string masked_destination = 4;
+}
+
+message VerifyPasswordRecoveryChallengeRequest {
+  string challenge_id = 1;
+  string otp = 2;
+}
+
+message PasswordRecoveryVerificationResponse {
+  bool verified = 1;
+  string reset_token = 2;
+}
+
+message CompletePasswordRecoveryRequest {
+  string reset_token = 1;
+  string new_password = 2;
+}
+
+message PasswordRecoveryCompletionResponse {
+  bool success = 1;
+  bool sessions_revoked = 2;
+}
+
+message LoginMethodView {
+  string method_id = 1;
+  string user_id = 2;
+  string type = 3;
+  string identifier = 4;
+  string masked_identifier = 5;
+  bool verified = 6;
+  bool enabled = 7;
+  bool has_password = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message ListLoginMethodsRequest {
+  string user_id = 1;
+}
+
+message ListLoginMethodsResponse {
+  repeated LoginMethodView login_methods = 1;
+  bool password_setup_required = 2;
+}
+
+message ChangeOwnPasswordRequest {
+  string user_id = 1;
+  string current_password = 2;
+  string new_password = 3;
+}
+
+message RequirePasswordSetupRequest {
+  string user_id = 1;
+  string required_by = 2;
+  string reason = 3;
+  bool revoke_sessions = 4;
+}
+
+message SetLoginMethodEnabledRequest {
+  string user_id = 1;
+  string method_id = 2;
+  bool enabled = 3;
+  string operator_id = 4;
+  string reason = 5;
+}
+
+message PasswordMutationResponse {
+  bool success = 1;
+  bool password_setup_required = 2;
+}
+
+message VerifyEmailBindingRequest {
+  string user_id = 1;
+  string email = 2;
+  string otp = 3;
+}
+
+message VerifyPhoneBindingRequest {
+  string user_id = 1;
+  string phone = 2;
+  string otp = 3;
+}
+
+message ContactBindingVerificationResponse {
+  bool success = 1;
+  string type = 2;
+  string identifier = 3;
+}
+
+message LoginMethodMutationResponse {
+  bool success = 1;
+  LoginMethodView login_method = 2;
 }
 
 message PhoneOtpLoginRequest {
@@ -71,6 +232,16 @@ enum MfaBindingType {
   MFA_BINDING_TYPE_SMS_OTP = 2;
   MFA_BINDING_TYPE_TOTP = 3;
   MFA_BINDING_TYPE_BACKUP_CODE = 4;
+}
+
+enum MfaScenario {
+  MFA_SCENARIO_UNSPECIFIED = 0;
+  MFA_SCENARIO_LOGIN = 1;
+}
+
+message LoginMfaFactorOption {
+  MfaBindingType type = 1;
+  string label = 2;
 }
 
 message ListMfaBindingsRequest {
@@ -147,6 +318,7 @@ message AccountCandidate {
   string tenant_id = 2;
   string display_name = 3;
   string scope_level = 4;
+  string tenant_name = 5;
 }
 
 message SelectAccountRequest {
@@ -157,12 +329,20 @@ message SelectAccountRequest {
   string device_name = 5;
   string user_agent = 6;
   string ip_address = 7;
+  string current_session_id = 8;
 }
 
 message SubmitMfaChallengeRequest {
   string challenge_id = 1;
-  string code = 2;
-  string login_method = 3;
+  MfaBindingType factor = 2;
+  string code = 3;
+  string login_method = 4;
+  string factor_challenge_id = 5;
+}
+
+message RequestLoginMfaFactorChallengeRequest {
+  string challenge_id = 1;
+  MfaBindingType factor = 2;
 }
 
 message RefreshSessionRequest {
@@ -174,6 +354,20 @@ message RefreshSessionResponse {
   string access_token = 2;
   string refresh_token = 3;
   int64 expires_in = 4;
+}
+
+message ValidateAccessTokenRequest {
+  string access_token = 1;
+}
+
+message ValidateAccessTokenResponse {
+  string user_id = 1;
+  string account_id = 2;
+  string tenant_id = 3;
+  string session_id = 4;
+  string scope_level = 5;
+  repeated string role_ids = 6;
+  bool password_setup_required = 7;
 }
 
 message ListSessionsRequest {
@@ -211,6 +405,22 @@ message SessionView {
 
 message ListSessionsResponse {
   repeated SessionView sessions = 1;
+}
+
+message AdminListOnlineUsersRequest {
+  string tenant_id = 1;
+}
+
+message AdminOnlineUserView {
+  string user_id = 1;
+  string tenant_id = 2;
+  int64 active_session_count = 3;
+  string last_active_at = 4;
+}
+
+message AdminListOnlineUsersResponse {
+  repeated AdminOnlineUserView items = 1;
+  string next_cursor = 2;
 }
 
 message AdminListUserSessionsRequest {
@@ -261,11 +471,32 @@ message AdminRevokeSessionResponse {
   string session_id = 2;
 }
 
+message AdminDeleteAccountSessionsRequest {
+  string user_id = 1;
+  string account_id = 2;
+  string reason = 3;
+}
+
+message AdminDeleteAccountSessionsResponse {
+  bool success = 1;
+  int64 deleted_session_count = 2;
+}
+
 message LogoutRequest {
   string session_id = 1;
 }
 
 message LogoutResponse {
+  bool success = 1;
+}
+
+message LogoutSessionRequest {
+  string user_id = 1;
+  string current_session_id = 2;
+  string target_session_id = 3;
+}
+
+message LogoutSessionResponse {
   bool success = 1;
 }
 
@@ -281,6 +512,7 @@ message LogoutOtherDevicesResponse {
 
 message LogoutAllRequest {
   string user_id = 1;
+  string current_session_id = 2;
 }
 
 message LogoutAllResponse {
@@ -326,6 +558,32 @@ message ListAuditEventsResponse {
   string next_cursor = 2;
 }
 
+message ListLoginHistoryRequest {
+  string user_id = 1;
+  string result = 2;
+  string occurred_at_from = 3;
+  string occurred_at_to = 4;
+  string cursor = 5;
+  int32 page_size = 6;
+}
+
+message LoginHistoryRecord {
+  string occurred_at = 1;
+  string outcome = 2;
+  string login_method = 3;
+  string ip_address = 4;
+  string device_name = 5;
+  string platform = 6;
+  string browser = 7;
+  string failure_reason = 8;
+  string trace_id = 9;
+}
+
+message ListLoginHistoryResponse {
+  repeated LoginHistoryRecord items = 1;
+  string next_cursor = 2;
+}
+
 message SelectAccountResponse {
   LoginStatus status = 1;
   string user_id = 2;
@@ -338,6 +596,36 @@ message SelectAccountResponse {
   int64 expires_in = 9;
   string next_step = 10;
   string scope_level = 11;
+  bool password_setup_required = 12;
+  string challenge_id = 13;
+  MfaScenario mfa_scenario = 14;
+  MfaBindingType default_mfa_factor = 15;
+  repeated LoginMfaFactorOption available_factors = 16;
+  string factor_challenge_id = 17;
+  string challenge_destination = 18;
+  string challenge_expires_at = 19;
+}
+
+message TenantMfaFactorPolicy {
+  MfaBindingType factor = 1;
+  bool enabled = 2;
+  int32 priority = 3;
+}
+
+message GetTenantMfaPolicyRequest {
+  string tenant_id = 1;
+}
+
+message UpdateTenantMfaPolicyRequest {
+  string tenant_id = 1;
+  bool login_required = 2;
+  repeated TenantMfaFactorPolicy factors = 3;
+}
+
+message TenantMfaPolicyResponse {
+  string tenant_id = 1;
+  bool login_required = 2;
+  repeated TenantMfaFactorPolicy factors = 3;
 }
 
 message LoginResponse {
@@ -349,4 +637,28 @@ message LoginResponse {
   int64 expires_in = 6;
   repeated AccountCandidate accounts = 7;
   string login_method = 8;
+  bool password_setup_required = 9;
+}
+
+message BootstrapUserLoginMethodsRequest {
+  string user_id = 1;
+  string account_id = 2;
+  string display_name = 3;
+  string email = 4;
+  string phone = 5;
+}
+
+message BootstrapUserLoginMethodsResponse {
+  bool phone_bootstrapped = 1;
+  bool email_bootstrapped = 2;
+  bool password_bootstrapped = 3;
+}
+
+message CompleteFirstLoginPasswordSetupRequest {
+  string user_id = 1;
+  string new_password = 2;
+}
+
+message CompleteFirstLoginPasswordSetupResponse {
+  bool completed = 1;
 }

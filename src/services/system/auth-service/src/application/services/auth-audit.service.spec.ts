@@ -50,10 +50,94 @@ describe('AuthAuditService', () => {
           resourceType: 'login_attempt',
           resourceId: null
         },
-        details: {
+        details: expect.objectContaining({
           identifier: 'user@example.com',
           reason: 'BAD_CREDENTIALS'
-        }
+        })
+      })
+    )
+  })
+
+  it('should emit successful login events under the authenticated user id instead of the account id', () => {
+    const eventEmitter = {
+      emit: jest.fn()
+    } as any
+    const service = new AuthAuditService(eventEmitter)
+    const session = {
+      getId: () => 'session-1',
+      getUserId: () => 'user-1',
+      getAccountId: () => 'account-1',
+      getTenantId: () => 'tenant-1',
+      getOrgId: () => null,
+      getLoginMethod: () => 'EMAIL_PASSWORD',
+      getDeviceInfo: () => ({
+        deviceId: 'device-1',
+        deviceName: 'MacBook Pro',
+        userAgent: 'Mozilla/5.0',
+        ipAddress: '127.0.0.1'
+      }),
+      getPlatform: () => 'macOS',
+      getBrowser: () => 'Firefox'
+    } as any
+
+    withMockedActiveSpan(() => {
+      service.emitLoginSucceeded(session, 'EMAIL_PASSWORD' as any)
+    })
+
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      'auth.audit',
+      expect.objectContaining({
+        eventType: 'LOGIN_SUCCEEDED',
+        operator: expect.objectContaining({
+          operatorId: 'user-1',
+          operatorType: 'HUMAN'
+        }),
+        details: expect.objectContaining({
+          userId: 'user-1',
+          accountId: 'account-1',
+          method: 'EMAIL_PASSWORD'
+        })
+      })
+    )
+  })
+
+  it('should attach the resolved user id and login method to failed login audit events when available', () => {
+    const eventEmitter = {
+      emit: jest.fn()
+    } as any
+    const service = new AuthAuditService(eventEmitter)
+
+    withMockedActiveSpan(() => {
+      service.emitLoginFailed('user@example.com', 'BAD_CREDENTIALS', {
+        method: 'EMAIL_PASSWORD',
+        userId: 'user-1',
+        deviceName: 'macOS / Firefox',
+        userAgent: 'Mozilla/5.0 Firefox/149.0',
+        ipAddress: '127.0.0.1',
+        platform: 'macOS',
+        browser: 'Firefox'
+      })
+    })
+
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      'auth.audit',
+      expect.objectContaining({
+        eventType: 'LOGIN_FAILED',
+        operator: expect.objectContaining({
+          operatorId: 'user-1',
+          operatorType: 'HUMAN'
+        }),
+        details: expect.objectContaining({
+          identifier: 'user@example.com',
+          reason: 'BAD_CREDENTIALS',
+          method: 'EMAIL_PASSWORD',
+          userId: 'user-1',
+          deviceName: 'macOS / Firefox',
+          userAgent: 'Mozilla/5.0 Firefox/149.0',
+          ipAddress: '127.0.0.1',
+          platform: 'macOS',
+          browser: 'Firefox'
+        })
       })
     )
   })

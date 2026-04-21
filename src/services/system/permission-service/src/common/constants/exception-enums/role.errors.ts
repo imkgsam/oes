@@ -42,3 +42,10 @@ export const ROLE_CREATE_CONSTRAINT_INVALID: ExceptionDefinition = {
   messageKey: 'permission.role_create_constraint_invalid',
   rpcStatus: status.INVALID_ARGUMENT
 }
+
+export const ROLE_TEMPLATE_SYNC_NOT_AVAILABLE: ExceptionDefinition = {
+  code: 'ROLE_TEMPLATE_SYNC_NOT_AVAILABLE',
+  message: 'Role instance is not linked to a source template',
+  messageKey: 'permission.role_template_sync_not_available',
+  rpcStatus: status.FAILED_PRECONDITION
+}

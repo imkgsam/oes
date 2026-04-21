@@ -23,11 +23,22 @@ export class LogoutOtherDevicesHandler
   async execute(command: LogoutOtherDevicesCommand): Promise<LogoutOtherDevicesResult> {
     const sessions = await this.sessionRepository.findAllByUserId(command.userId)
     const currentSession =
-      sessions.find((session) => session.getId() === command.currentSessionId) ?? null
-    const revokedSessions = sessions.filter((session) => session.getId() !== command.currentSessionId)
+      (await this.sessionRepository.findById(command.currentSessionId)) ??
+      sessions.find((session) => session.getId() === command.currentSessionId) ??
+      null
+    const currentAccountId = currentSession?.getAccountId() ?? command.currentAccountId
+    const revokedSessions = sessions.filter(
+      (session) =>
+        session.getId() !== command.currentSessionId &&
+        (!currentAccountId || session.getAccountId() === currentAccountId)
+    )
     const sessionCount = revokedSessions.length
 
-    await this.sessionRepository.kickOtherDevices(command.userId, command.currentSessionId)
+    await this.sessionRepository.kickOtherDevices(
+      command.userId,
+      currentAccountId,
+      command.currentSessionId
+    )
     this.authAuditService.emitLogoutOtherDevicesSucceeded(
       command.userId,
       currentSession,

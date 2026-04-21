@@ -67,6 +67,19 @@ export interface IUserSessionRepository {
   findActiveByUserId(userId: string): Promise<Session[]>
 
   /**
+   * 查找当前范围内的所有活跃 Session
+   *
+   * 使用场景：
+   * - 管理员在线用户总览
+   * - 当前范围在线人数与会话数统计
+   * - 平台 / 租户级在线会话聚合
+   *
+   * @param scope 可选租户范围
+   * @returns Promise<Session[]>
+   */
+  findAllActive(scope?: { tenantId?: string }): Promise<Session[]>
+
+  /**
    * 查找用户的所有 Session（包括非活跃）
    *
    * 使用场景：
@@ -153,6 +166,19 @@ export interface IUserSessionRepository {
    * @returns Promise<void>
    */
   deleteAllByUserId(userId: string): Promise<void>
+
+  /**
+   * 删除某个账号上下文下的所有 Session
+   *
+   * 使用场景：
+   * - 当前账号维度的全部退出
+   * - 切换账号时替换当前账号会话集合
+   * - 账号范围内的安全清理
+   *
+   * @param accountId 账号 ID
+   * @returns Promise<void>
+   */
+  deleteAllByAccountId(accountId: string): Promise<void>
 
   /**
    * 删除设备的所有 Session
@@ -319,7 +345,7 @@ export interface IUserSessionRepository {
    * @param excludeSessionId 排除的 Session ID
    * @returns Promise<void>
    */
-  kickOtherDevices(userId: string, excludeSessionId: string): Promise<void>
+  kickOtherDevices(userId: string, accountId: string | undefined, excludeSessionId: string): Promise<void>
 
   /**
    * 踢出指定设备

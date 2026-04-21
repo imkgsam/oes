@@ -8,11 +8,11 @@ import { SERVICE_NAMES } from '@oes/common/constants'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { LoggingModule } from '@oes/common/logging'
 import { RegistryModule } from '@oes/common/registry'
-import { GatewayJwtAuthGuard } from '@oes/common/auth'
 import { GrpcTransportModule } from '@oes/common/transport'
 import { gatewayConfig } from './config/gateway.config'
 import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
+import { GatewaySessionAuthGuard } from './common/guards/gateway-session-auth.guard'
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
 import { PermissionServiceProxyModule } from './modules/permission-service/permission-service.module'
 import { GatewayExceptionFilter } from './common/filters/gateway-exception.filter'
@@ -40,6 +40,7 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
         [SERVICE_NAMES.PERMISSION]: {
           serviceName: SERVICE_NAMES.PERMISSION,
           protoPath: [
+            resolveCommonProtoPath('permission_service/policy_management.proto'),
             resolveCommonProtoPath('permission_service/permission_management.proto'),
             resolveCommonProtoPath('permission_service/permission_check.proto'),
             resolveCommonProtoPath('permission_service/permission_access_summary.proto')
@@ -81,7 +82,7 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
   providers: [
     GatewayPermissionGuard,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
-    { provide: APP_GUARD, useClass: GatewayJwtAuthGuard },
+    { provide: APP_GUARD, useClass: GatewaySessionAuthGuard },
     { provide: APP_GUARD, useExisting: GatewayPermissionGuard },
 
     GatewayExceptionFilter,

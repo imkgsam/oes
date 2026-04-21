@@ -5,6 +5,7 @@ export interface ListAuditEventsInput {
   service?: string
   module?: string
   eventType?: string
+  eventTypes?: string[]
   result?: string
   operatorId?: string
   tenantId?: string

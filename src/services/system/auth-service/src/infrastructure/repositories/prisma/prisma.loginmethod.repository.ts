@@ -97,6 +97,23 @@ export class PrismaUserRepository implements ILoginMethodRepository {
     return LoginMethodMapper.toDomain(found)
   }
 
+  async findByUserId(userId: string): Promise<LoginMethod[]> {
+    const found = await this.prismaService.loginMethod.findMany({
+      where: { userId },
+      include: { credentials: true },
+      orderBy: [{ type: 'asc' }, { createdAt: 'asc' }]
+    })
+    return found.map((record) => LoginMethodMapper.toDomain(record))
+  }
+
+  async findByUserIdAndId(userId: string, methodId: string): Promise<LoginMethod | null> {
+    const found = await this.prismaService.loginMethod.findFirst({
+      where: { id: methodId, userId },
+      include: { credentials: true }
+    })
+    return found ? LoginMethodMapper.toDomain(found) : null
+  }
+
   // ==================== 保存方法 ====================
 
   /**
@@ -114,31 +131,61 @@ export class PrismaUserRepository implements ILoginMethodRepository {
    */
   async save(loginMethod: LoginMethod): Promise<LoginMethod> {
     const data = LoginMethodMapper.toPersistence(loginMethod)
+    const credentials = loginMethod.getCredentials()
     const normalizedIdentifier = AuthIdentifierNormalizer.normalize(
       data.type as LoginMethodType,
       data.identifier
     )
-    const updated = await this.prismaService.loginMethod.upsert({
-      where: { id: loginMethod.id },
-      update: {
-        userId: data.userId,
-        type: data.type as any,
-        identifier: normalizedIdentifier,
-        verified: data.verified,
-        enabled: data.enabled,
-        updatedAt: data.updatedAt
-      },
-      create: {
-        id: data.id,
-        userId: data.userId,
-        type: data.type as any,
-        identifier: normalizedIdentifier,
-        verified: data.verified,
-        enabled: data.enabled,
-        createdAt: data.createdAt,
-        updatedAt: data.updatedAt
-      },
-      include: { credentials: true }
+    const updated = await this.prismaService.$transaction(async (tx) => {
+      await tx.loginMethod.upsert({
+        where: { id: loginMethod.id },
+        update: {
+          userId: data.userId,
+          type: data.type as any,
+          identifier: normalizedIdentifier,
+          verified: data.verified,
+          enabled: data.enabled,
+          updatedAt: data.updatedAt
+        },
+        create: {
+          id: data.id,
+          userId: data.userId,
+          type: data.type as any,
+          identifier: normalizedIdentifier,
+          verified: data.verified,
+          enabled: data.enabled,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt
+        }
+      })
+
+      for (const credential of credentials) {
+        await tx.credential.upsert({
+          where: { id: credential.id },
+          update: {
+            credentialType: credential.type,
+            hashedValue: credential.getSecret() || null,
+            provider: credential.provider ?? null,
+            enabled: credential.isEnabled(),
+            updatedAt: credential.updatedAt
+          },
+          create: {
+            id: credential.id,
+            loginMethodId: loginMethod.id,
+            credentialType: credential.type,
+            hashedValue: credential.getSecret() || null,
+            provider: credential.provider ?? null,
+            enabled: credential.isEnabled(),
+            createdAt: credential.createdAt,
+            updatedAt: credential.updatedAt
+          }
+        })
+      }
+
+      return tx.loginMethod.findUniqueOrThrow({
+        where: { id: loginMethod.id },
+        include: { credentials: true }
+      })
     })
     return LoginMethodMapper.toDomain(updated)
   }

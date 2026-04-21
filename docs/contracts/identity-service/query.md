@@ -24,6 +24,14 @@
 
 ## 2. 用户与账户查询
 
+### 用户标识语义
+
+- `user.id` 是 identity 用户的稳定技术标识。
+- `user.username` 是历史字段，当前只能按可选 login handle 理解。
+- `user.username` 不是真实姓名、法定姓名、昵称或展示名真相源。
+- 如后续需要唯一用户名登录，应先冻结 login handle 语义，再新增或调整契约。
+- 如后续需要真实姓名搜索，应通过 `party-service` 的自然人主体模型协同设计，不在 `identity-service` query 中直接扩展姓名模糊搜索。
+
 ### `GetUserById`
 
 - 作用：按 `userId` 查询自然人身份摘要
@@ -81,6 +89,39 @@
   - `account.is_enabled`
 - 返回空语义：
   - 未匹配时返回空响应对象
+
+### `ListAccounts`
+
+- 作用：按当前操作者可见范围列出分页账号目录
+- 请求关键字段：
+  - `keyword`
+  - `scope_level`
+  - `status`
+  - `page`
+  - `page_size`
+- 响应关键字段：
+  - `accounts[].account_id`
+  - `accounts[].user_id`
+  - `accounts[].tenant_id`
+  - `accounts[].tenant_name`
+  - `accounts[].scope_level`
+  - `accounts[].display_name`
+  - `accounts[].is_enabled`
+  - `total`
+- 过滤语义：
+  - `keyword` 可匹配账号 ID、用户 ID、显示名、用户名、邮箱、手机号与租户名
+  - `scope_level` 当前支持 `SYSTEM / TENANT`
+  - `status` 当前支持 `ENABLED / DISABLED`
+- 作用域约束：
+  - system scope 可列出全局可见账号
+  - tenant-bound operator 仅列出本 tenant 可见账号
+  - tenant 边界由 query scope builder 收敛，不依赖调用方自行传 `tenant_id`
+- 排序与分页：
+  - 当前实现按 `createdAt desc, id desc`
+  - `page` 为 1-based；`page_size` 默认 20，最大 100
+- 第一阶段边界：
+  - 当前只覆盖 `USER` account 目录
+  - 不返回角色、组织归属、会话状态等详情
 
 ## 3. 租户与组织查询
 

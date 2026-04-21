@@ -1,14 +1,19 @@
-import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
-import { PermissionGuard, RequirePermission } from '@oes/common/authorization'
+import { Controller, Inject, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { ACCESS_DENIED, ExceptionFactory } from '@oes/common/exceptions'
 import { ValidatingCommandBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   AuthenticatedOperatorGuard,
+  getAuthenticatedGrpcRequestContext,
   GrpcRequestContextInterceptor,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
   InternalServiceGuard,
   IDENTITY_ORG_PERMISSION_CODES,
   IDENTITY_MACHINE_PERMISSION_CODES,
+  OPERATOR_PERMISSION_RESOLVER,
+  OperatorPermissionResolver,
+  PermissionGuard,
+  RequirePermission,
   RequireAuthenticatedOperator
 } from '@oes/common/authorization'
 import {
@@ -17,9 +22,12 @@ import {
   ApiKeyResponse,
   AssignAccountWorkEmailAssetRequest,
   AssignAccountWorkPhoneAssetRequest,
+  CreateUserAccountRequest,
   CreateApiKeyRequest,
   CreateApiKeyResponse,
   CreateServiceAccountRequest,
+  GetAccountByIdResponse,
+  GetUserByIdResponse,
   RevokeAccountWorkEmailAssetRequest,
   RevokeAccountWorkPhoneAssetRequest,
   ServiceAccountResponse,
@@ -36,9 +44,14 @@ import {
   RotateApiKeyRequest,
   RotateApiKeyResponse,
   SetAccountPrimaryOrgRequest,
-  SetAccountPrimaryOrgResponse
+  SetAccountPrimaryOrgResponse,
+  UpdateUserBasicInfoRequest,
+  UpdateAccountProfileRequest
 } from '@oes/common/generated/identity_service'
 import {
+  CreateUserAccountCommand,
+  UpdateAccountProfileCommand,
+  UpdateUserBasicInfoCommand,
   AssignAccountWorkEmailAssetCommand,
   AssignAccountWorkPhoneAssetCommand,
   CreateApiKeyCommand,
@@ -70,7 +83,9 @@ import { getOptionalOperatorScope, getRequiredOperatorId } from './grpc-request-
 export class IdentityManagementGrpcController implements IdentityManagementServiceController {
   constructor(
     private readonly commandBus: ValidatingCommandBus,
-    private readonly identityAuditService: IdentityAuditService
+    private readonly identityAuditService: IdentityAuditService,
+    @Inject(OPERATOR_PERMISSION_RESOLVER)
+    private readonly permissionResolver: OperatorPermissionResolver
   ) {}
 
   @RequirePermission(IDENTITY_MACHINE_PERMISSION_CODES.CREATE_API_KEY)
@@ -259,6 +274,130 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
 
         return {
           account: IdentityGrpcPresenter.toServiceAccount(account)
+        }
+      }
+    )
+  }
+
+  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT)
+  async createUserAccount(request: CreateUserAccountRequest): Promise<GetAccountByIdResponse> {
+    const operatorId = getRequiredOperatorId(request)
+    const operatorScope = getOptionalOperatorScope(request)
+    const account = await this.commandBus.execute(
+      new CreateUserAccountCommand({
+        scopeLevel: request.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
+        tenantId: request.tenantId || undefined,
+        displayName: request.displayName || undefined,
+        username: request.username || undefined,
+        email: request.email || undefined,
+        phone: request.phone || undefined,
+        operatorId,
+        operatorScope
+      })
+    )
+
+    return {
+      account: {
+        id: account.id,
+        userId: account.userId,
+        tenantId: account.tenantId ?? '',
+        avatarUrl: account.avatarUrl ?? '',
+        displayName: account.displayName ?? '',
+        bio: account.bio ?? '',
+        isEnabled: account.isEnabled,
+        scopeLevel: account.scopeLevel
+      }
+    }
+  }
+
+  async updateAccountProfile(
+    request: UpdateAccountProfileRequest
+  ): Promise<GetAccountByIdResponse> {
+    const operatorId = getRequiredOperatorId(request)
+    const operatorScope = getOptionalOperatorScope(request)
+    return this.executeWithAudit(
+      {
+        eventType: 'ACCOUNT_PROFILE_UPDATED',
+        module: 'account',
+        operatorId,
+        scope: { tenantId: null, orgId: null },
+        resource: { resourceType: 'account', resourceId: request.accountId! },
+        details: {
+          accountId: request.accountId!,
+          avatarUpdated: Boolean(request.avatarUrl),
+          displayNameUpdated: request.displayName !== undefined,
+          bioUpdated: request.bio !== undefined,
+          enabledUpdated: request.isEnabled !== undefined
+        }
+      },
+      async () => {
+        await this.enforceAccountProfileUpdatePermissions(request)
+
+        const account = await this.commandBus.execute(
+          new UpdateAccountProfileCommand(request.accountId!, {
+            avatarUrl: request.avatarUrl || undefined,
+            displayName: request.displayName || undefined,
+            bio: request.bio || undefined,
+            isEnabled: request.isEnabled,
+            operatorId,
+            operatorScope
+          })
+        )
+
+        return {
+          account: {
+            id: account.id,
+            userId: account.userId,
+            tenantId: account.tenantId ?? '',
+            avatarUrl: account.avatarUrl ?? '',
+            displayName: account.displayName ?? '',
+            bio: account.bio ?? '',
+            isEnabled: account.isEnabled,
+            scopeLevel: account.scopeLevel
+          }
+        }
+      }
+    )
+  }
+
+  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE)
+  async updateUserBasicInfo(request: UpdateUserBasicInfoRequest): Promise<GetUserByIdResponse> {
+    const operatorId = getRequiredOperatorId(request)
+    const operatorScope = getOptionalOperatorScope(request)
+    return this.executeWithAudit(
+      {
+        eventType: 'ACCOUNT_PROFILE_UPDATED',
+        module: 'account',
+        operatorId,
+        scope: { tenantId: null, orgId: null },
+        resource: { resourceType: 'user', resourceId: request.userId! },
+        details: {
+          accountId: request.accountId!,
+          userId: request.userId!,
+          emailUpdated: request.email !== undefined,
+          phoneUpdated: request.phone !== undefined
+        }
+      },
+      async () => {
+        const user = await this.commandBus.execute(
+          new UpdateUserBasicInfoCommand({
+            accountId: request.accountId ?? '',
+            userId: request.userId ?? '',
+            email: request.email || undefined,
+            phone: request.phone || undefined,
+            operatorId,
+            operatorScope
+          })
+        )
+
+        return {
+          user: {
+            id: user.id,
+            username: user.username ?? '',
+            personalEmail: user.personalEmail ?? '',
+            personalPhone: user.personalPhone ?? '',
+            isActive: user.isActive
+          }
         }
       }
     )
@@ -752,6 +891,47 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         }
       })
       throw error
+    }
+  }
+
+  // Applies field-level account-profile permission checks for the merged profile update interface.
+  private async enforceAccountProfileUpdatePermissions(
+    request: UpdateAccountProfileRequest
+  ): Promise<void> {
+    if (request.avatarUrl !== undefined || request.displayName !== undefined || request.bio !== undefined) {
+      await this.requireOperatorPermission(
+        request,
+        IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE
+      )
+    }
+
+    if (request.isEnabled !== undefined) {
+      await this.requireOperatorPermission(
+        request,
+        IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_STATUS
+      )
+    }
+  }
+
+  // Resolves one operator permission code from the authenticated gRPC request context for interface-layer authorization checks.
+  private async requireOperatorPermission(
+    request: object,
+    permissionCode: string
+  ): Promise<void> {
+    const operatorContext = getAuthenticatedGrpcRequestContext(request)?.operatorContext
+
+    if (!operatorContext) {
+      throw ExceptionFactory.application(ACCESS_DENIED, {
+        requiredPermission: permissionCode
+      })
+    }
+
+    const permissions = await this.permissionResolver.resolvePermissions(operatorContext)
+
+    if (!permissions.includes(permissionCode)) {
+      throw ExceptionFactory.application(ACCESS_DENIED, {
+        requiredPermission: permissionCode
+      })
     }
   }
 }

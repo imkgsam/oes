@@ -6,6 +6,20 @@ export interface NotificationDispatchResult {
 }
 
 export interface NotificationDispatchPort {
+  sendAccountInvitationEmail(input: {
+    accountId: string
+    displayName?: string
+    email?: string
+    recipient: string
+  }): Promise<NotificationDispatchResult>
+
+  sendAccountInvitationSms(input: {
+    accountId: string
+    displayName?: string
+    phone?: string
+    recipient: string
+  }): Promise<NotificationDispatchResult>
+
   sendAuthOtpEmail(input: {
     recipient: string
     code: string

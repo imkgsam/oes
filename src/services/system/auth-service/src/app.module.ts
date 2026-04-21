@@ -42,7 +42,8 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
           serviceName: SERVICE_NAMES.PERMISSION,
           protoPath: [
             resolveCommonProtoPath('permission_service/permission_check.proto'),
-            resolveCommonProtoPath('permission_service/permission_management.proto')
+            resolveCommonProtoPath('permission_service/permission_management.proto'),
+            resolveCommonProtoPath('permission_service/permission_access_summary.proto')
           ],
           packageName: 'permission_service',
           url: resolveGrpcUrl('PERMISSION_SERVICE_GRPC_URL', '127.0.0.1:50051')

@@ -6,14 +6,30 @@ import { AccountContactAssetRepository } from '../../src/domain/repositories/acc
 import { AccountOrgMembershipRepository } from '../../src/domain/repositories/account-org-membership.repository'
 import { AccountRepository } from '../../src/domain/repositories/account.repository'
 import { OrgRepository } from '../../src/domain/repositories/org.repository'
+import { UserRepository } from '../../src/domain/repositories/user.repository'
+import { UserSummaryEntity } from '../../src/domain/entities/user-summary.entity'
 
 const DEFAULT_ASSIGNED_AT = new Date('2026-03-24T00:00:00.000Z')
 
 export function createAccountRepositoryMock(): jest.Mocked<AccountRepository> {
   return {
+    createUserAccount: jest.fn(),
     findAvailableByUserId: jest.fn(),
-    findById: jest.fn()
+    findById: jest.fn(),
+    list: jest.fn(),
+    setEnabled: jest.fn(),
+    updateProfile: jest.fn()
   } as unknown as jest.Mocked<AccountRepository>
+}
+
+export function createUserRepositoryMock(): jest.Mocked<UserRepository> {
+  return {
+    create: jest.fn(),
+    findByEmail: jest.fn(),
+    findById: jest.fn(),
+    findByPhone: jest.fn(),
+    updateBasicInfo: jest.fn()
+  } as unknown as jest.Mocked<UserRepository>
 }
 
 export function createAccountContactAssetRepositoryMock(): jest.Mocked<AccountContactAssetRepository> {
@@ -51,7 +67,10 @@ export function createAccountSummaryFixture(
     id: string
     userId: string
     tenantId: string
+    scopeLevel: 'SYSTEM' | 'TENANT'
+    avatarUrl: string | null
     displayName: string | null
+    bio: string | null
     isEnabled: boolean
   }> = {}
 ): AccountSummaryEntity {
@@ -59,7 +78,10 @@ export function createAccountSummaryFixture(
     overrides.id ?? 'acc-1',
     overrides.userId ?? 'user-1',
     overrides.tenantId ?? 'tenant-1',
+    overrides.scopeLevel ?? 'TENANT',
+    Object.prototype.hasOwnProperty.call(overrides, 'avatarUrl') ? overrides.avatarUrl! : null,
     Object.prototype.hasOwnProperty.call(overrides, 'displayName') ? overrides.displayName! : 'demo',
+    Object.prototype.hasOwnProperty.call(overrides, 'bio') ? overrides.bio! : null,
     overrides.isEnabled ?? true
   )
 }
@@ -131,5 +153,27 @@ export function createAccountOrgMembershipFixture(
     Object.prototype.hasOwnProperty.call(overrides, 'orgType') ? overrides.orgType! : 'DEPARTMENT',
     overrides.relationType ?? 'SECONDARY',
     overrides.isPrimary ?? false
+  )
+}
+
+export function createUserSummaryFixture(
+  overrides: Partial<{
+    id: string
+    username: string | null
+    personalEmail: string | null
+    personalPhone: string | null
+    isActive: boolean
+  }> = {}
+): UserSummaryEntity {
+  return new UserSummaryEntity(
+    overrides.id ?? 'user-1',
+    Object.prototype.hasOwnProperty.call(overrides, 'username') ? overrides.username! : 'demo-user',
+    Object.prototype.hasOwnProperty.call(overrides, 'personalEmail')
+      ? overrides.personalEmail!
+      : 'demo@example.com',
+    Object.prototype.hasOwnProperty.call(overrides, 'personalPhone')
+      ? overrides.personalPhone!
+      : '13800138000',
+    overrides.isActive ?? true
   )
 }

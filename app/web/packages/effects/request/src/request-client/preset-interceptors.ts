@@ -64,17 +64,36 @@ export const authenticateResponseInterceptor = ({
       if (response?.status !== 401) {
         throw error;
       }
+      // 仅当 401 明确表示登录态失效时才触发重新认证，避免把平台内部鉴权错误误判成登出。
+      if (!shouldReAuthenticateFrom401(error)) {
+        throw error;
+      }
       // 判断是否启用了 refreshToken 功能
       // 如果没有启用或者已经是重试请求了，直接跳转到重新登录
-      if (!enableRefreshToken || config.__isRetryRequest) {
+      if (!enableRefreshToken) {
+        await doReAuthenticate();
+        throw error;
+      }
+      // 如果刷新后的重试请求仍然失败，只回传该次请求错误，避免因为单个并发请求再次401而误登出整段仍然有效的会话。
+      if (config.__isRetryRequest) {
+        if (config.__retryAfterRefresh) {
+          throw error;
+        }
         await doReAuthenticate();
         throw error;
       }
       // 如果正在刷新 token，则将请求加入队列，等待刷新完成
       if (client.isRefreshing) {
-        return new Promise((resolve) => {
-          client.refreshTokenQueue.push((newToken: string) => {
+        return new Promise((resolve, reject) => {
+          client.refreshTokenQueue.push((newToken?: string) => {
+            if (!newToken) {
+              reject(error);
+              return;
+            }
+
             config.headers.Authorization = formatToken(newToken);
+            config.__isRetryRequest = true;
+            config.__retryAfterRefresh = true;
             resolve(client.request(config.url, { ...config }));
           });
         });
@@ -85,29 +104,52 @@ export const authenticateResponseInterceptor = ({
       // 标记当前请求为重试请求，避免无限循环
       config.__isRetryRequest = true;
 
+      let newToken: string;
       try {
-        const newToken = await doRefreshToken();
-
-        // 处理队列中的请求
-        client.refreshTokenQueue.forEach((callback) => callback(newToken));
-        // 清空队列
-        client.refreshTokenQueue = [];
-
-        return client.request(error.config.url, { ...error.config });
+        newToken = await doRefreshToken();
+        client.isRefreshing = false;
       } catch (refreshError) {
+        client.isRefreshing = false;
         // 如果刷新 token 失败，处理错误（如强制登出或跳转登录页面）
-        client.refreshTokenQueue.forEach((callback) => callback(''));
+        client.refreshTokenQueue.forEach((callback) => callback());
         client.refreshTokenQueue = [];
         console.error('Refresh token failed, please login again.');
         await doReAuthenticate();
 
         throw refreshError;
-      } finally {
-        client.isRefreshing = false;
       }
+
+      // 处理队列中的请求
+      client.refreshTokenQueue.forEach((callback) => callback(newToken));
+      // 清空队列
+      client.refreshTokenQueue = [];
+
+      config.headers.Authorization = formatToken(newToken);
+      config.__retryAfterRefresh = true;
+      return client.request(error.config.url, { ...error.config });
     },
   };
 };
+
+// Classifies 401 responses so only real session-auth failures trigger global re-authentication.
+function shouldReAuthenticateFrom401(error: any): boolean {
+  const responseData = error?.response?.data ?? {};
+  const code = `${responseData?.code ?? ''}`.trim();
+  const messageKey = `${responseData?.messageKey ?? ''}`.trim();
+
+  if (!code && !messageKey) {
+    return true;
+  }
+
+  return (
+    code === 'APP_AUTH_001' ||
+    code === 'APP_AUTH_003' ||
+    code === 'APP_AUTH_004' ||
+    messageKey === 'app.auth.unauthenticated' ||
+    messageKey === 'app.auth.jwt_missing' ||
+    messageKey === 'app.auth.jwt_invalid'
+  );
+}
 
 export const errorMessageResponseInterceptor = (
   makeErrorMessage?: MakeErrorMessageFn,

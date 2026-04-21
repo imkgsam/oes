@@ -12,7 +12,19 @@ export enum AuthNextStep {
   NONE = 'NONE',
   COMPLETE_MFA = 'COMPLETE_MFA',
   SELECT_ACCOUNT = 'SELECT_ACCOUNT',
-  COMPLETE_CHALLENGE = 'COMPLETE_CHALLENGE'
+  COMPLETE_CHALLENGE = 'COMPLETE_CHALLENGE',
+  SET_PASSWORD_REQUIRED = 'SET_PASSWORD_REQUIRED'
+}
+
+export enum MfaScenarioViewModel {
+  LOGIN = 'LOGIN'
+}
+
+export enum MfaFactorTypeViewModel {
+  EMAIL_OTP = 'EMAIL_OTP',
+  SMS_OTP = 'SMS_OTP',
+  TOTP = 'TOTP',
+  BACKUP_CODE = 'BACKUP_CODE'
 }
 
 // Defines the session token payload returned when authentication fully succeeds.
@@ -49,9 +61,54 @@ export class OperatorViewModel {
 }
 
 // Defines the challenge context returned when the next auth step must resume a pending challenge.
+export class MfaFactorOptionViewModel {
+  @ApiProperty({
+    enum: MfaFactorTypeViewModel,
+    enumName: 'MfaFactorType',
+    description: 'Available MFA factor that the caller can use to continue the pending login MFA flow.'
+  })
+  type!: MfaFactorTypeViewModel
+
+  @ApiProperty({ description: 'User-facing factor label.' })
+  label!: string
+}
+
+// Defines the challenge context returned when the next auth step must resume a pending challenge.
 export class ChallengeViewModel {
   @ApiProperty({ description: 'Challenge identifier used by the next login step, such as MFA completion.' })
   challengeId!: string
+
+  @ApiPropertyOptional({
+    enum: MfaScenarioViewModel,
+    enumName: 'MfaScenario',
+    description: 'MFA scenario carried by the pending challenge when the next step is MFA.'
+  })
+  scenario?: MfaScenarioViewModel
+
+  @ApiPropertyOptional({
+    enum: MfaFactorTypeViewModel,
+    enumName: 'MfaFactorType',
+    description: 'Default MFA factor selected for the current challenge.'
+  })
+  defaultFactor?: MfaFactorTypeViewModel
+
+  @ApiPropertyOptional({
+    type: MfaFactorOptionViewModel,
+    isArray: true,
+    description: 'Available MFA factors resolved for the selected account and tenant policy.'
+  })
+  availableFactors?: MfaFactorOptionViewModel[]
+
+  @ApiPropertyOptional({
+    description: 'Downstream factor-specific challenge identifier when the selected factor is OTP-based.'
+  })
+  factorChallengeId?: string
+
+  @ApiPropertyOptional({ description: 'Masked destination for the currently selected OTP factor.' })
+  destination?: string
+
+  @ApiPropertyOptional({ description: 'Expiration timestamp for the factor-specific OTP challenge.' })
+  expiresAt?: string
 }
 
 // Defines one account candidate shown during multi-account selection.
@@ -64,6 +121,12 @@ export class AccountOptionViewModel {
     nullable: true
   })
   tenantId?: string | null
+
+  @ApiPropertyOptional({
+    description: 'Tenant display name associated with the candidate account; absent for system accounts.',
+    nullable: true
+  })
+  tenantName?: string | null
 
   @ApiProperty({ description: 'Scope level associated with the candidate account.' })
   scopeLevel!: string
@@ -120,6 +183,11 @@ export class AuthResponseViewModel {
     description: 'Candidate accounts returned when account selection is required.'
   })
   accountOptions!: AccountOptionViewModel[]
+
+  @ApiPropertyOptional({
+    description: 'Whether the authenticated user must complete first-login password setup before entering the workspace.'
+  })
+  passwordSetupRequired?: boolean
 }
 
 // Defines the OTP challenge payload returned when the caller requests a login code.

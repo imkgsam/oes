@@ -14,8 +14,7 @@ service PermissionCheckService {
   // 纯 RBAC 批量鉴权
   rpc BatchCheckPermission(BatchCheckPermissionRequest) returns (BatchAuthorizationDecisionResponse);
   // OUTDATED: 历史 RBAC + ABAC 混合鉴权兼容接口；新业务资源授权应使用 application 层 checkResource / buildQueryScope。
-  rpc CheckPermissionWithContext(CheckPermissionWithContextRequest)
-      returns (AuthorizationDecisionResponse);
+  rpc CheckPermissionWithContext(CheckPermissionWithContextRequest) returns (AuthorizationDecisionResponse);
 }
 
 enum EvaluationModeProto {

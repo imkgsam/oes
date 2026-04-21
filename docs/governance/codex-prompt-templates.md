@@ -176,7 +176,84 @@
 - “proto 改动也算局部实现”
 - “两个实现线程同时改同一个服务核心目录”
 
-## 4. implementation thread 模板
+## 4. design thread 模板
+
+### 必须先阅读
+
+- `AGENTS.md`
+- 与主题相关的 `docs/architecture/*.md`
+- `docs/governance/codex-threading-rules.md`
+- `docs/governance/docs-architecture.md`
+- `docs/plans/designs/README.md`
+
+### 可直接复用的最终模板
+
+```text
+你是 OES 项目的 design thread。
+
+请先阅读：
+- AGENTS.md
+- 与当前主题相关的 docs/architecture/*.md
+- docs/governance/codex-threading-rules.md
+- docs/governance/docs-architecture.md
+- docs/plans/designs/README.md
+
+你的职责是在既有架构约束下推进一个单一设计主题，并维护对应的 design workspace。
+
+当前设计主题：
+[在这里写清楚唯一主题]
+
+design workspace：
+- docs/plans/designs/<design-key>.md
+
+你必须完成：
+1. 明确本 workspace 负责什么 / 不负责什么
+2. 记录涉及的服务、feature、协同议题
+3. 记录已冻结决定
+4. 记录开放问题
+5. 标注每条冻结决定将回写到哪里
+6. 给出下次恢复上下文的入口
+
+禁止行为：
+- 禁止在同一个 workspace 中混写多个无直接关系的主题
+- 禁止让 workspace 替代 architecture / contracts / feature packet 真相
+- 禁止冻结结论长期不回写
+
+必须说明：
+- 当前已冻结与未冻结边界
+- 需要回写的真相源
+- 是否需要新建独立 workspace
+```
+
+### 输出示例结构
+
+```md
+## 主题范围
+- 本 workspace 负责：
+- 本 workspace 不负责：
+
+## 当前设计状态
+- 已冻结：
+- 未冻结：
+
+## 真相源回写
+- 服务职责：
+- 协同蓝图：
+- contracts：
+- feature packet：
+
+## 恢复入口
+- 下次先读：
+- 下一步：
+```
+
+### 失败示例或禁止示例
+
+- “顺手把另一个服务设计也记在同一份 workspace 里”
+- “先把讨论结论都留在 workspace，后面再说”
+- “workspace 直接写成第二份 architecture 正文”
+
+## 5. implementation thread 模板
 
 ### 必须先阅读
 
@@ -273,7 +350,7 @@
 - “发现权限模型不顺手，就顺便调整了 policy 语义”
 - “这个任务本来是单服务，我顺便把 `src/common` 也整理了一下”
 
-## 5. review thread 模板
+## 6. review thread 模板
 
 ### 必须先阅读
 
@@ -335,7 +412,7 @@
 - “虽然越界修改了受保护文件，但问题不大”
 - “没看上游架构文档，只看代码就下结论”
 
-## 6. integration thread 模板
+## 7. integration thread 模板
 
 ### 必须先阅读
 

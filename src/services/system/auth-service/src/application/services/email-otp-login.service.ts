@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { ExceptionFactory } from '@oes/common/exceptions'
+import { CredentialType } from '../../../prisma/generated/prisma'
 import { LoginMethodType, OTP_TYPES, OTP_USAGES, REPO } from '../../common/constants'
 import { NOTIFICATION_DISPATCH_PORT } from '../../common/constants/injection-tokens'
 import {
@@ -37,6 +38,10 @@ export class EmailOtpLoginService {
       normalizedEmail
     )
     if (!loginMethod) {
+      throw ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
+    }
+    const otpCredential = loginMethod.getCredentialByType(CredentialType.EMAIL_OTP)
+    if (otpCredential && !otpCredential.isEnabled()) {
       throw ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
     }
 
@@ -88,6 +93,10 @@ export class EmailOtpLoginService {
       normalizedEmail
     )
     if (!loginMethod) {
+      throw ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
+    }
+    const otpCredential = loginMethod.getCredentialByType(CredentialType.EMAIL_OTP)
+    if (otpCredential && !otpCredential.isEnabled()) {
       throw ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
     }
 

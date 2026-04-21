@@ -35,6 +35,15 @@ const workbenchRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'PersonalCenter',
+        path: '/account/profile',
+        component: () => import('#/views/_core/profile/index.vue'),
+        meta: {
+          icon: 'lucide:user-round',
+          title: '个人中心',
+        },
+      },
+      {
         name: 'SelfSecurityCenter',
         path: '/account/security',
         component: () => import('#/views/_core/profile/security-center.vue'),
@@ -48,6 +57,7 @@ const workbenchRoutes: RouteRecordRaw[] = [
         path: '/admin/auth-session-management',
         component: () => import('#/views/admin/auth-session-management.vue'),
         meta: {
+          entryKey: 'admin.auth-session-management',
           icon: 'lucide:shield',
           title: '认证与会话管理',
         },

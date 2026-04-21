@@ -28,8 +28,22 @@ describe('role-based operator permission resolver', () => {
     } as OperatorContextPayload)
 
     expect(adaptor.listPermissionCodesByRoleId).toHaveBeenCalledTimes(2)
-    expect(adaptor.listPermissionCodesByRoleId).toHaveBeenNthCalledWith(1, 'role-a')
-    expect(adaptor.listPermissionCodesByRoleId).toHaveBeenNthCalledWith(2, 'role-b')
+    expect(adaptor.listPermissionCodesByRoleId).toHaveBeenNthCalledWith(
+      1,
+      'role-a',
+      expect.objectContaining({
+        operator_id: '11111111-1111-4111-8111-111111111111',
+        operator_roles: [' role-a ', 'role-b', 'role-a', '']
+      })
+    )
+    expect(adaptor.listPermissionCodesByRoleId).toHaveBeenNthCalledWith(
+      2,
+      'role-b',
+      expect.objectContaining({
+        operator_id: '11111111-1111-4111-8111-111111111111',
+        operator_roles: [' role-a ', 'role-b', 'role-a', '']
+      })
+    )
     expect(permissions).toEqual([
       'identity.contact.work_email.assign',
       'identity.contact.work_email.set_status',

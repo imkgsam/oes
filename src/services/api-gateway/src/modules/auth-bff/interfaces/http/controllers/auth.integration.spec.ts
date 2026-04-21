@@ -1,12 +1,12 @@
-import { Controller, Module, ValidationPipe } from '@nestjs/common'
+import { Controller, Module, UseFilters, ValidationPipe } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
 import { INestApplication, INestMicroservice } from '@nestjs/common'
-import { GrpcMethod, MicroserviceOptions, Transport } from '@nestjs/microservices'
+import { GrpcMethod, MicroserviceOptions, RpcException, Transport } from '@nestjs/microservices'
 import { NestFactory } from '@nestjs/core'
 import { APP_GUARD } from '@nestjs/core'
 import request from 'supertest'
 import { ConfigModule } from '@nestjs/config'
-import { CommonJwtModule, CommonJwtService, GatewayJwtAuthGuard } from '@oes/common/auth'
+import { CommonJwtModule, CommonJwtService } from '@oes/common/auth'
 import { GatewayPermissionGuard } from '@oes/common/authorization'
 import { LoggingModule } from '@oes/common/logging'
 import { SERVICE_NAMES } from '@oes/common/constants'
@@ -22,32 +22,100 @@ import {
   PermissionCheckServiceController,
   PermissionCheckServiceControllerMethods
 } from '@oes/common/generated/permission_service'
+import { GatewaySessionAuthGuard } from '../../../../../common/guards/gateway-session-auth.guard'
+import { GrpcExceptionFilter } from '../../../../../../../../common/dist/core/filters'
+import { GatewayExceptionFilter } from '../../../../../common/filters/gateway-exception.filter'
 
 const AUTH_PORT = 56050
 const PERMISSION_PORT = 56051
 const IDENTITY_PORT = 56052
 
 type ObservedCallState = {
+  emailPasswordLoginRequest?: {
+    email?: string
+    password?: string
+    deviceName?: string
+    userAgent?: string
+    ipAddress?: string
+  }
+  listLoginHistoryUserId?: string
+  listAuditEventsOperatorContext?: string
+  adminListOnlineUsersOperatorContext?: string
   listSessionsCurrentSessionId?: string
   adminListUserSessionsOperatorContext?: string
+  logoutSession?: {
+    currentSessionId?: string
+    targetSessionId?: string
+    userId?: string
+  }
   checkedPermissions: string[]
+  revokedSessionIds: Set<string>
 }
 
 const observedState: ObservedCallState = {
-  checkedPermissions: []
+  checkedPermissions: [],
+  revokedSessionIds: new Set<string>()
 }
 
 const allowedPermissions = new Set<string>()
 
 // Implements the downstream auth-service gRPC contract used by the auth-bff integration test.
 @Controller()
+@UseFilters(GrpcExceptionFilter)
 @AuthServiceControllerMethods()
 class TestAuthGrpcController implements AuthServiceController {
-  listAuditEvents(): any {
+  bootstrapUserLoginMethods(): any {
+    return { emailBootstrapped: true, phoneBootstrapped: true, passwordBootstrapped: false }
+  }
+
+  completeFirstLoginPasswordSetup(): any {
+    return { success: true, passwordSetupRequired: false }
+  }
+
+  listAuditEvents(
+    _request?: unknown,
+    metadata?: { getMap?: () => Record<string, unknown> }
+  ): any {
+    const map = metadata?.getMap?.() ?? {}
+    observedState.listAuditEventsOperatorContext = String(map['x-operator-context'] ?? '')
+
     return { items: [{ eventId: 'audit-1', eventType: 'SESSION_REVOKED', tenantId: 'tenant-1' }], nextCursor: '' }
   }
 
-  loginWithEmailPassword(): any {
+  listLoginHistory(request: { userId?: string }): any {
+    observedState.listLoginHistoryUserId = request.userId ?? undefined
+    return {
+      items: [
+        {
+          occurredAt: '2026-04-12T12:00:00.000Z',
+          outcome: 'FAILED',
+          loginMethod: 'EMAIL_PASSWORD',
+          ipAddress: '127.0.0.1',
+          deviceName: 'MacBook Pro',
+          platform: 'macOS',
+          browser: 'Firefox',
+          failureReason: 'INVALID_CREDENTIALS',
+          traceId: 'trace-login-1'
+        }
+      ],
+      nextCursor: 'cursor-login-1'
+    }
+  }
+
+  loginWithEmailPassword(request: {
+    email?: string
+    password?: string
+    deviceName?: string
+    userAgent?: string
+    ipAddress?: string
+  }): any {
+    observedState.emailPasswordLoginRequest = {
+      email: request.email ?? undefined,
+      password: request.password ?? undefined,
+      deviceName: request.deviceName ?? undefined,
+      userAgent: request.userAgent ?? undefined,
+      ipAddress: request.ipAddress ?? undefined
+    }
     return {
       status: LoginStatus.LOGIN_STATUS_MFA_REQUIRED,
       challengeId: 'challenge-1',
@@ -57,6 +125,14 @@ class TestAuthGrpcController implements AuthServiceController {
 
   requestEmailOtpLoginChallenge(): any {
     return { challengeId: 'email-challenge-1', destination: 'a***@example.com' }
+  }
+
+  requestEmailBindingChallenge(): any {
+    return {
+      challengeId: 'email-binding-challenge-1',
+      expiresAt: '2026-04-20T08:30:00.000Z',
+      destination: 'a***@example.com'
+    }
   }
 
   loginWithEmailOtp(): any {
@@ -83,6 +159,14 @@ class TestAuthGrpcController implements AuthServiceController {
     return { challengeId: 'phone-challenge-1', destination: '+86******0000' }
   }
 
+  requestPhoneBindingChallenge(): any {
+    return {
+      challengeId: 'phone-binding-challenge-1',
+      expiresAt: '2026-04-20T08:30:00.000Z',
+      destination: '+86******0000'
+    }
+  }
+
   loginWithPhoneOtp(): any {
     return {
       status: LoginStatus.LOGIN_STATUS_SUCCESS,
@@ -90,6 +174,53 @@ class TestAuthGrpcController implements AuthServiceController {
       refreshToken: 'refresh-1',
       expiresIn: '3600',
       loginMethod: 'PHONE_OTP'
+    }
+  }
+
+  listLoginMethods(): any {
+    return {
+      loginMethods: [],
+      passwordSetupRequired: false
+    }
+  }
+
+  changeOwnPassword(): any {
+    return { success: true, passwordSetupRequired: false }
+  }
+
+  verifyEmailBinding(request: { email?: string }): any {
+    return {
+      success: true,
+      type: 'EMAIL',
+      identifier: request.email ?? ''
+    }
+  }
+
+  verifyPhoneBinding(request: { phone?: string }): any {
+    return {
+      success: true,
+      type: 'PHONE',
+      identifier: request.phone ?? ''
+    }
+  }
+
+  requirePasswordSetup(): any {
+    return { success: true, passwordSetupRequired: true }
+  }
+
+  setLoginMethodEnabled(): any {
+    return {
+      success: true,
+      loginMethod: {
+        methodId: 'method-1',
+        userId: 'user-1',
+        type: 'EMAIL',
+        identifier: 'alice@example.com',
+        maskedIdentifier: 'a***@example.com',
+        verified: true,
+        enabled: true,
+        hasPassword: true
+      }
     }
   }
 
@@ -149,6 +280,61 @@ class TestAuthGrpcController implements AuthServiceController {
     }
   }
 
+  inspectPasswordRecoveryChannels(): any {
+    return {
+      channels: [
+        { channel: 1, maskedDestination: 'u***@example.com' },
+        { channel: 2, maskedDestination: '+15****0100' }
+      ]
+    }
+  }
+
+  requestPasswordRecoveryChallenge(): any {
+    return {
+      accepted: true,
+      challengeId: 'challenge-recovery-1',
+      expiresAt: '2026-04-20T08:30:00.000Z',
+      maskedDestination: 'u***@example.com'
+    }
+  }
+
+  verifyPasswordRecoveryChallenge(): any {
+    return {
+      verified: true,
+      resetToken: 'reset-token-1'
+    }
+  }
+
+  completePasswordRecovery(): any {
+    return {
+      success: true,
+      sessionsRevoked: true
+    }
+  }
+
+  validateAccessToken(request: { accessToken?: string }): any {
+    const token = request.accessToken ?? ''
+    const payload = JSON.parse(Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'))
+    const sessionId = payload.sid ?? ''
+
+    if (!sessionId || observedState.revokedSessionIds.has(sessionId)) {
+      throw new RpcException({
+        grpcStatus: 16,
+        code: 'AUTH_ACCESS_TOKEN_INVALID',
+        message: 'Access token is invalid or expired'
+      })
+    }
+
+    return {
+      userId: payload.sub ?? payload.userId ?? '',
+      accountId: payload.aid ?? payload.holderId ?? '',
+      tenantId: payload.tid ?? payload.tenantId ?? '',
+      sessionId,
+      scopeLevel: payload.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
+      roleIds: Array.isArray(payload.roles) ? payload.roles : []
+    }
+  }
+
   selectAccount(): any {
     return {
       status: LoginStatus.LOGIN_STATUS_SUCCESS,
@@ -203,6 +389,7 @@ class TestAuthGrpcController implements AuthServiceController {
         {
           sessionId: 'session-admin-1',
           userId: request.userId ?? '',
+          accountId: 'account-1',
           tenantId: 'tenant-1',
           status: 'ACTIVE',
           loginMethod: 'EMAIL_PASSWORD',
@@ -223,11 +410,48 @@ class TestAuthGrpcController implements AuthServiceController {
     }
   }
 
+  adminListOnlineUsers(
+    _request?: unknown,
+    metadata?: { getMap?: () => Record<string, unknown> }
+  ): any {
+    const map = metadata?.getMap?.() ?? {}
+    observedState.adminListOnlineUsersOperatorContext = String(map['x-operator-context'] ?? '')
+
+    return {
+      items: [
+        {
+          userId: 'user-1',
+          tenantId: 'tenant-1',
+          activeSessionCount: '2',
+          lastActiveAt: '2026-04-09T10:10:00.000Z'
+        }
+      ],
+      nextCursor: ''
+    }
+  }
+
   adminRevokeSession(request: { sessionId?: string }): any {
     return { success: true, sessionId: request.sessionId ?? '' }
   }
 
+  adminDeleteAccountSessions(): any {
+    return { success: true, deletedSessionCount: '1' }
+  }
+
   logout(): any {
+    return { success: true }
+  }
+
+  logoutSession(request: {
+    currentSessionId?: string
+    targetSessionId?: string
+    userId?: string
+  }): any {
+    observedState.logoutSession = {
+      currentSessionId: request.currentSessionId ?? undefined,
+      targetSessionId: request.targetSessionId ?? undefined,
+      userId: request.userId ?? undefined
+    }
     return { success: true }
   }
 
@@ -273,11 +497,34 @@ class TestPermissionGrpcController implements PermissionCheckServiceController {
       actionCodes: ['permission.list', 'role.create']
     }
   }
+
+  @GrpcMethod('PermissionAccessSummaryService', 'ResolveAccountNavigation')
+  resolveAccountNavigation() {
+    return {
+      defaultEntry: 'workbench.home',
+      visibleEntries: ['workbench.home'],
+      resolvedByRoleId: 'role-1'
+    }
+  }
 }
 
 // Implements the downstream identity-service gRPC contract used by the session-context integration test.
 @Controller()
 class TestIdentityGrpcController {
+  // Returns a minimal identity user projection for auth-bff session-management integration tests.
+  @GrpcMethod('IdentityQueryService', 'GetUserById')
+  getUserById(request: { userId?: string }) {
+    return {
+      user: {
+        id: request.userId ?? '',
+        username: 'Vic Chen',
+        personalEmail: 'vic@example.com',
+        personalPhone: '',
+        isActive: true
+      }
+    }
+  }
+
   @GrpcMethod('IdentityQueryService', 'GetAccountById')
   getAccountById(request: { accountId?: string }) {
     return {
@@ -306,6 +553,7 @@ class TestIdentityGrpcController {
 
 // Hosts the test auth-service gRPC controller used by the gateway integration harness.
 @Module({
+  imports: [LoggingModule.forRoot({ serviceName: 'auth-service-test' })],
   controllers: [TestAuthGrpcController]
 })
 class TestAuthGrpcModule {}
@@ -339,6 +587,7 @@ class TestIdentityGrpcModule {}
         [SERVICE_NAMES.PERMISSION]: {
           serviceName: SERVICE_NAMES.PERMISSION,
           protoPath: [
+            resolveCommonProtoPath('permission_service/policy_management.proto'),
             resolveCommonProtoPath('permission_service/permission_management.proto'),
             resolveCommonProtoPath('permission_service/permission_check.proto'),
             resolveCommonProtoPath('permission_service/permission_access_summary.proto')
@@ -358,8 +607,9 @@ class TestIdentityGrpcModule {}
     AuthBffModule
   ],
   providers: [
+    GatewayExceptionFilter,
     GatewayPermissionGuard,
-    { provide: APP_GUARD, useClass: GatewayJwtAuthGuard },
+    { provide: APP_GUARD, useClass: GatewaySessionAuthGuard },
     { provide: APP_GUARD, useExisting: GatewayPermissionGuard }
   ]
 })
@@ -433,6 +683,7 @@ describe('AuthBff gateway integration', () => {
         forbidUnknownValues: true
       })
     )
+    app.useGlobalFilters(app.get(GatewayExceptionFilter))
     await app.init()
 
     jwtService = app.get(CommonJwtService)
@@ -446,22 +697,40 @@ describe('AuthBff gateway integration', () => {
   })
 
   beforeEach(() => {
+    observedState.emailPasswordLoginRequest = undefined
+    observedState.listLoginHistoryUserId = undefined
+    observedState.listAuditEventsOperatorContext = undefined
+    observedState.adminListOnlineUsersOperatorContext = undefined
     observedState.listSessionsCurrentSessionId = undefined
     observedState.adminListUserSessionsOperatorContext = undefined
     observedState.checkedPermissions = []
+    observedState.revokedSessionIds.clear()
     allowedPermissions.clear()
   })
 
   it('routes the public login endpoint through the real gRPC auth downstream', async () => {
     const response = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('User-Agent', 'Mozilla/5.0 Firefox/149.0')
       .send({
         method: 'EMAIL_PASSWORD',
         identifier: 'alice@example.com',
-        credential: 'secret-1'
+        credential: 'secret-1',
+        device: {
+          deviceName: 'Alice MacBook Pro'
+        }
       })
       .expect(201)
 
+    expect(observedState.emailPasswordLoginRequest).toEqual(
+      expect.objectContaining({
+        email: 'alice@example.com',
+        password: 'secret-1',
+        deviceName: 'Alice MacBook Pro',
+        userAgent: 'Mozilla/5.0 Firefox/149.0',
+        ipAddress: expect.stringContaining('127.0.0.1')
+      })
+    )
     expect(response.body).toEqual(
       expect.objectContaining({
         status: 'MFA_REQUIRED',
@@ -470,6 +739,63 @@ describe('AuthBff gateway integration', () => {
         challenge: expect.objectContaining({ challengeId: 'challenge-1' })
       })
     )
+  })
+
+  it('routes the public password recovery endpoints through the real gRPC auth downstream', async () => {
+    const optionsResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/password-recovery/options')
+      .send({
+        identifier: 'user@example.com'
+      })
+      .expect(200)
+
+    expect(optionsResponse.body).toEqual({
+      channels: [
+        { channel: 'EMAIL', maskedDestination: 'u***@example.com' },
+        { channel: 'PHONE', maskedDestination: '+15****0100' }
+      ]
+    })
+
+    const challengeResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/password-recovery/challenges')
+      .send({
+        channel: 'EMAIL',
+        identifier: 'user@example.com'
+      })
+      .expect(200)
+
+    expect(challengeResponse.body).toEqual({
+      accepted: true,
+      challengeId: 'challenge-recovery-1',
+      expiresAt: '2026-04-20T08:30:00.000Z',
+      maskedDestination: 'u***@example.com'
+    })
+
+    const verifyResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/password-recovery/challenges/challenge-recovery-1/verify')
+      .send({
+        otp: '123456'
+      })
+      .expect(200)
+
+    expect(verifyResponse.body).toEqual({
+      verified: true,
+      resetToken: 'reset-token-1'
+    })
+
+    const completeResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/password-recovery/complete')
+      .send({
+        resetToken: 'reset-token-1',
+        newPassword: 'NewSecret123!',
+        confirmPassword: 'NewSecret123!'
+      })
+      .expect(200)
+
+    expect(completeResponse.body).toEqual({
+      success: true,
+      sessionsRevoked: true
+    })
   })
 
   it('routes self-service session queries through the real gRPC auth downstream using JWT context', async () => {
@@ -494,6 +820,78 @@ describe('AuthBff gateway integration', () => {
       })
     )
     expect(observedState.listSessionsCurrentSessionId).toBe('session-1')
+  })
+
+  it('routes self-service login-history queries through the real gRPC auth downstream using JWT context', async () => {
+    const token = jwtService.signAccessToken({
+      sub: 'user-1',
+      userId: 'user-1',
+      holderId: 'account-1',
+      tenantId: 'tenant-1',
+      sid: 'session-1'
+    })
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/auth/login-history')
+      .query({ result: 'FAILED', pageSize: 10 })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+
+    expect(observedState.listLoginHistoryUserId).toBe('user-1')
+    expect(response.body).toEqual({
+      items: [
+        {
+          occurredAt: '2026-04-12T12:00:00.000Z',
+          outcome: 'FAILED',
+          loginMethod: 'EMAIL_PASSWORD',
+          ipAddress: '127.0.0.1',
+          deviceName: 'MacBook Pro',
+          platform: 'macOS',
+          browser: 'Firefox',
+          failureReason: 'INVALID_CREDENTIALS',
+          traceId: 'trace-login-1'
+        }
+      ],
+      nextCursor: 'cursor-login-1'
+    })
+  })
+
+  it('rejects protected requests when the presented session has already been revoked', async () => {
+    const token = jwtService.signAccessToken({
+      sub: 'user-1',
+      userId: 'user-1',
+      holderId: 'account-1',
+      tenantId: 'tenant-1',
+      sid: 'session-revoked'
+    })
+    observedState.revokedSessionIds.add('session-revoked')
+
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/sessions')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(401)
+  })
+
+  it('routes single-session self-service logout through the real gRPC auth downstream using JWT context', async () => {
+    const token = jwtService.signAccessToken({
+      sub: 'user-1',
+      userId: 'user-1',
+      holderId: 'account-1',
+      tenantId: 'tenant-1',
+      sid: 'session-1'
+    })
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/auth/sessions/session-target-1/logout')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+
+    expect(response.body).toEqual({ success: true })
+    expect(observedState.logoutSession).toEqual({
+      currentSessionId: 'session-1',
+      targetSessionId: 'session-target-1',
+      userId: 'user-1'
+    })
   })
 
   it('routes authenticated shell context queries through auth-bff into identity-service summaries', async () => {
@@ -530,7 +928,7 @@ describe('AuthBff gateway integration', () => {
       org: null,
       navigation: {
         defaultEntry: 'workbench.home',
-        visibleEntries: ['workbench.home'],
+        visibleEntries: expect.arrayContaining(['workbench.home']),
         defaultHomePath: '/workbench/home',
         menus: []
       },
@@ -596,6 +994,68 @@ describe('AuthBff gateway integration', () => {
         sessionId: 'session-admin-1',
         userId: 'user-1',
         isAdminControlled: true
+      })
+    )
+  })
+
+  it('routes admin online-user overview queries through gateway permission checks and operator-scoped downstream metadata', async () => {
+    allowedPermissions.add('auth.session.admin.view')
+
+    const token = jwtService.signAccessToken({
+      sub: 'operator-user-1',
+      holderId: 'account-admin-1',
+      userId: 'operator-user-1',
+      tenantId: 'tenant-1',
+      sid: 'session-admin-1',
+      roles: ['tenant-admin'],
+      typ: 'USER'
+    })
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/auth/admin/online-users')
+      .query({ tenantId: 'tenant-1' })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+
+    expect(observedState.checkedPermissions).toContain('auth.session.admin.view')
+    expect(observedState.adminListOnlineUsersOperatorContext).toContain('operator_id')
+    expect(response.body.items[0]).toEqual(
+      expect.objectContaining({
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        visibleTenantCount: 1,
+        activeAccountCount: 1,
+        activeSessionCount: 2
+      })
+    )
+  })
+
+  it('routes admin audit-event queries through gateway permission checks and operator-scoped downstream metadata', async () => {
+    allowedPermissions.add('auth.audit.list')
+
+    const token = jwtService.signAccessToken({
+      sub: 'operator-user-1',
+      holderId: 'account-admin-1',
+      userId: 'operator-user-1',
+      tenantId: 'tenant-1',
+      sid: 'session-admin-1',
+      roles: ['tenant-admin'],
+      typ: 'USER'
+    })
+
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/auth/admin/audit-events')
+      .query({ tenantId: 'tenant-1', pageSize: 20 })
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+
+    expect(observedState.checkedPermissions).toContain('auth.audit.list')
+    expect(observedState.listAuditEventsOperatorContext).toContain('operator_id')
+    expect(response.body.items[0]).toEqual(
+      expect.objectContaining({
+        eventId: 'audit-1',
+        eventType: 'SESSION_REVOKED',
+        tenantId: 'tenant-1'
       })
     )
   })

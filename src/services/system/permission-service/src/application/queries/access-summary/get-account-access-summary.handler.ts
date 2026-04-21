@@ -1,4 +1,4 @@
-import { Inject } from '@nestjs/common'
+import { Inject, Logger } from '@nestjs/common'
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { SYMBOLS } from '../../../common/constants/symbols'
@@ -26,6 +26,8 @@ export interface AccountAccessSummaryResult {
 export class GetAccountAccessSummaryHandler
   implements IQueryHandler<GetAccountAccessSummaryQuery, AccountAccessSummaryResult>
 {
+  private readonly logger = new Logger(GetAccountAccessSummaryHandler.name)
+
   constructor(
     @Inject(SYMBOLS.REPO.ROLE)
     private readonly roleRepo: RoleRepository
@@ -45,9 +47,23 @@ export class GetAccountAccessSummaryHandler
       query.scopeLevel
     )
 
+    const actionCodes = collectActionCodes(roles)
+
+    const resolvedMessage = `access summary resolved: accountId=${query.accountId}; tenantId=${
+      tenantId ?? ''
+    }; scopeLevel=${query.scopeLevel}; roles=${roles.length}; roleCodes=${roles
+      .map((role) => role.code)
+      .join(',')}; actionCodes=${actionCodes.length}; sample=${actionCodes.slice(0, 12).join(',')}`
+
+    if (actionCodes.length === 0) {
+      this.logger.warn(resolvedMessage)
+    } else {
+      this.logger.log(resolvedMessage)
+    }
+
     return {
       roles: roles.map(toRoleSummary).sort(sortRoleSummary),
-      actionCodes: collectActionCodes(roles)
+      actionCodes
     }
   }
 }

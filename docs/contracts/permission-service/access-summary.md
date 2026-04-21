@@ -18,7 +18,7 @@ They are not suitable as the long-term source for the current user's own access 
 
 Therefore, OES exposes a dedicated access-summary RPC.
 
-## 3. Proposed gRPC Service
+## 3. gRPC Service
 
 Proto source:
 
@@ -30,6 +30,9 @@ Current proto shape:
 service PermissionAccessSummaryService {
   rpc GetAccountAccessSummary(GetAccountAccessSummaryRequest)
       returns (AccountAccessSummaryResponse);
+
+  rpc ResolveAccountNavigation(ResolveAccountNavigationRequest)
+      returns (AccountNavigationSummaryResponse);
 }
 
 message GetAccountAccessSummaryRequest {
@@ -41,6 +44,20 @@ message GetAccountAccessSummaryRequest {
 message AccountAccessSummaryResponse {
   repeated AccessRoleSummary roles = 1;
   repeated string action_codes = 2;
+}
+
+message ResolveAccountNavigationRequest {
+  string account_id = 1;
+  string tenant_id = 2;
+  string scope_level = 3;
+  string terminal = 4;
+}
+
+message AccountNavigationSummaryResponse {
+  repeated string visible_entries = 1;
+  string default_entry = 2;
+  string resolved_by_role_id = 3;
+  string fallback_reason = 4;
 }
 
 message AccessRoleSummary {
@@ -68,6 +85,14 @@ Expected flow:
 - BFF sends `scope_level = SYSTEM` for system-scope accounts and `scope_level = TENANT` for tenant accounts.
 - BFF calls `PermissionAccessSummaryService.GetAccountAccessSummary`.
 - BFF returns role summaries and action codes to the front end.
+
+Navigation flow:
+
+- `GET /auth/session/context` calls `PermissionAccessSummaryService.ResolveAccountNavigation`.
+- BFF passes the selected account context plus the current terminal, currently `WEB`.
+- `permission-service` resolves role-driven `visible_entries` and `default_entry` from `NavigationEntry`, `RoleNavigationVisibility`, and `RoleLandingPolicy`.
+- BFF preserves the existing session-context response shape: `navigation.visibleEntries` and `navigation.defaultEntry`.
+- If managed navigation is not yet seeded or returns an incomplete result, BFF may temporarily fall back to the previous scope-based defaults during rollout.
 
 ## 5. Authorization Boundary
 
@@ -103,6 +128,15 @@ Expected controls:
 - Must be deduplicated.
 - Should be stable and sorted for deterministic client behavior.
 
+`AccountNavigationSummaryResponse`:
+
+- Used only by BFF session-context composition.
+- Must not require management permissions such as `permission.navigation.resolve_preview`.
+- `visible_entries` is the terminal-aware entry-key set for the selected account context.
+- `default_entry` is selected from visible role landing policies first, then registry priority, then scope fallback.
+- `resolved_by_role_id` is optional diagnostic metadata when a role landing policy wins.
+- `fallback_reason` is optional diagnostic metadata when registry or scope fallback wins.
+
 ## 7. Application-Layer Resolution
 
 The initial application handler should:
@@ -115,24 +149,29 @@ The initial application handler should:
 - Deduplicate and sort action codes.
 - Return role summaries and action codes.
 
+The runtime navigation handler should:
+
+- Load effective roles for `account_id + scope_level + tenant_id`.
+- Resolve visible entries through role navigation visibility.
+- Resolve role landing candidates for `scope_level + terminal`.
+- Drop landing candidates that are not visible.
+- Pick the highest-priority landing policy candidate.
+- Fall back to registry priority, then scope fallback.
+
 Current repository capability already exists in `permission-service`:
 
 - `RoleRepository.findAccountRoles(accountId, tenantId, scopeLevel)`
 
-## 8. Feature / Plugin Filtering
+## 8. Explicit Non-goal: Feature / Plugin Filtering
 
-OES is expected to evolve into a modular system where tenants enable modules or plugins.
+Tenant feature / plugin enablement filtering is not part of the current access-summary or navigation roadmap.
 
-Long-term behavior:
+Rules:
 
-- Permission codes belonging to disabled tenant features or plugins must be filtered out by `permission-service`.
-- BFF and front ends should not implement feature filtering independently.
-
-Current stage:
-
-- Feature / plugin registry is not yet available.
-- The implementation may initially return effective permission codes based on roles only.
-- Feature filtering must remain a clear extension point.
+- `permission-service` resolves effective permission codes from roles, account-role scope, role state, and active account-role windows.
+- `permission-service` resolves navigation visibility from managed navigation facts and role configuration.
+- BFF and front ends must not invent independent feature / plugin filtering.
+- Any future reversal toward tenant-level module enablement requires an explicit architecture decision before changing this contract.
 
 ## 9. Relationship With Existing RPCs
 
@@ -149,17 +188,16 @@ Do not implement access summary with:
 
 That RPC answers whether known permission codes are allowed. It does not discover the current effective permission set.
 
-## 10. Implementation Status
+## 10. Current Integration Boundary
 
-Completed:
+Current state:
 
-- Added the dedicated proto service and generated TypeScript client/server types.
-- Implemented the application query and gRPC controller in `permission-service`.
-- Added the BFF downstream adapter and `GET /auth/session/access-summary`.
-- Added system-scope access-summary support via `scope_level = SYSTEM`.
-- Wired the tenant web login hydration flow to consume `actionCodes` from the dedicated endpoint.
+- The dedicated proto service is already part of the current contract.
+- `permission-service` already exposes the gRPC controller for this query.
+- `auth-bff` already uses this RPC behind `GET /auth/session/access-summary`.
+- `auth-bff` uses `ResolveAccountNavigation` behind `GET /auth/session/context` for runtime navigation summary composition.
+- Both tenant-scope and system-scope accounts are supported.
 
 ## 11. Deferred Work
 
-- Add feature / plugin filtering after tenant enablement is introduced.
 - Decide whether short TTL caching is needed after usage patterns are known.

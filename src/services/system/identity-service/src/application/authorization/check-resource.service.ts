@@ -1,10 +1,12 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, Logger } from '@nestjs/common'
 import { ACCESS_DENIED, ExceptionFactory } from '@oes/common/exceptions'
 import { OperatorScope } from './operator-scope'
 
 // Applies resource-level tenant boundary checks for identity detail queries.
 @Injectable()
 export class CheckResourceService {
+  private readonly logger = new Logger(CheckResourceService.name)
+
   checkAccount(operatorScope: OperatorScope | undefined, input: {
     resourceId: string
     tenantId: string
@@ -85,6 +87,13 @@ export class CheckResourceService {
       return
     }
 
+    this.logger.warn(
+      `resource access denied: resourceType=${input.resourceType}; resourceId=${input.resourceId}; resourceTenantId=${
+        input.tenantId ?? ''
+      }; operatorId=${operatorScope.operatorId}; operatorTenantId=${operatorScope.tenantId ?? ''}; systemScope=${
+        operatorScope.isSystemScope
+      }`
+    )
     throw ExceptionFactory.application(ACCESS_DENIED, {
       resourceType: input.resourceType,
       resourceId: input.resourceId,

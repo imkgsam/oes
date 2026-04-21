@@ -5,9 +5,11 @@ import {
   PERMISSION_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
 import { PermissionProxyService } from '../../../permission-service.service'
+import { RoleManagementReadService } from '../../../role-management-read.service'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { ListRolesDto } from '../dtos/list-roles.dto'
+import { ListRoleTenantOptionsDto } from '../dtos/list-role-tenant-options.dto'
 import { CreateRoleDto } from '../dtos/create-role.dto'
 import { UpdateRoleDto } from '../dtos/update-role.dto'
 import { SetRoleEnabledDto } from '../dtos/set-role-enabled.dto'
@@ -18,7 +20,10 @@ import { AssignRolePermissionDto } from '../dtos/role-permission.dto'
 @Controller('role')
 // Exposes role instance management endpoints through the gateway permission proxy.
 export class RoleController {
-  constructor(private readonly permissionService: PermissionProxyService) {}
+  constructor(
+    private readonly permissionService: PermissionProxyService,
+    private readonly roleManagementReadService: RoleManagementReadService
+  ) {}
 
   @Get()
   @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE])
@@ -28,13 +33,31 @@ export class RoleController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.execute(() =>
-      this.permissionService.listRoles(
+      this.roleManagementReadService.listRoles(
         {
           page: query.page || 1,
           pageSize: query.pageSize || 20,
           tenantId: query.tenantId,
           scopeLevel: query.scopeLevel,
           keyword: query.keyword
+        },
+        source
+      )
+    )
+  }
+
+  @Get('tenant-options')
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_ROLE])
+  @ApiOperation({ summary: 'List tenant options for role creation selectors' })
+  async listTenantOptions(
+    @Query() query: ListRoleTenantOptionsDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.execute(() =>
+      this.roleManagementReadService.listTenantOptions(
+        {
+          keyword: query.keyword,
+          pageSize: query.pageSize || 20
         },
         source
       )
@@ -68,7 +91,7 @@ export class RoleController {
   @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL])
   @ApiOperation({ summary: 'Find role by ID' })
   async findById(@Param('id') id: string, @DownstreamSource() source: DownstreamRequestSource) {
-    return this.execute(() => this.permissionService.getRoleById({ id }, source))
+    return this.execute(() => this.roleManagementReadService.getRoleById({ id }, source))
   }
 
   @Patch(':id')

@@ -5,8 +5,8 @@ package permission_service;
 
 // PermissionAccessSummaryService exposes self-context authorization summaries for internal BFF consumers.
 service PermissionAccessSummaryService {
-  rpc GetAccountAccessSummary(GetAccountAccessSummaryRequest)
-      returns (AccountAccessSummaryResponse);
+  rpc GetAccountAccessSummary(GetAccountAccessSummaryRequest) returns (AccountAccessSummaryResponse);
+  rpc ResolveAccountNavigation(ResolveAccountNavigationRequest) returns (AccountNavigationSummaryResponse);
 }
 
 // GetAccountAccessSummaryRequest identifies the selected account and tenant context whose effective access should be summarized.
@@ -20,6 +20,22 @@ message GetAccountAccessSummaryRequest {
 message AccountAccessSummaryResponse {
   repeated AccessRoleSummary roles = 1;
   repeated string action_codes = 2;
+}
+
+// ResolveAccountNavigationRequest identifies the selected account context and terminal for runtime navigation resolution.
+message ResolveAccountNavigationRequest {
+  string account_id = 1;
+  string tenant_id = 2;
+  string scope_level = 3;
+  string terminal = 4;
+}
+
+// AccountNavigationSummaryResponse returns terminal-aware visible entries and the selected default landing entry.
+message AccountNavigationSummaryResponse {
+  repeated string visible_entries = 1;
+  string default_entry = 2;
+  string resolved_by_role_id = 3;
+  string fallback_reason = 4;
 }
 
 // AccessRoleSummary carries role metadata for display and diagnostics, not for front-end permission derivation.

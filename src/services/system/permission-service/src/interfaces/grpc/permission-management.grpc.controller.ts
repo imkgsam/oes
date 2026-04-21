@@ -33,6 +33,8 @@ import {
   ListAuditEventsRequest,
   ListAuditEventsResponse,
   ListAccountRolesRequest,
+  ListNavigationEntriesRequest,
+  ListNavigationEntriesResponse,
   ListPermissionRolesRequest,
   ListPermissionsPagedRequest,
   ListPermissionsResponse,
@@ -50,6 +52,17 @@ import {
   RevokeRolePermissionRequest,
   RevokeRoleTemplatePermissionRequest,
   RoleResponse,
+  NavigationEntryResponse,
+  CreateNavigationEntryRequest,
+  GetNavigationEntryRequest,
+  GetRoleNavigationRequest,
+  ResolveNavigationPreviewRequest,
+  ResolveNavigationPreviewResponse,
+  RoleNavigationResponse,
+  SetRoleLandingPoliciesRequest,
+  SyncRoleNavigationFromTemplateRequest,
+  SetRoleNavigationVisibilityRequest,
+  UpdateNavigationEntryRequest,
   SetAccountRolesRequest,
   SetRoleEnabledRequest,
   SetRoleTemplateEnabledRequest,
@@ -80,6 +93,7 @@ import { SetRoleTemplateEnabledCommand } from '../../application/commands/role/s
 import { AssignRoleTemplatePermissionCommand } from '../../application/commands/role/assign-role-template-permission.command'
 import { RevokeRoleTemplatePermissionCommand } from '../../application/commands/role/revoke-role-template-permission.command'
 import { CreateRoleInstanceFromTemplateCommand } from '../../application/commands/role/create-role-instance-from-template.command'
+import { SyncRoleNavigationFromTemplateCommand } from '../../application/commands/role/sync-role-navigation-from-template.command'
 import { UpdateRoleCommand } from '../../application/commands/role/update-role.command'
 import { SetRoleEnabledCommand } from '../../application/commands/role/set-role-enabled.command'
 import { DeleteRoleCommand } from '../../application/commands/role/delete-role.command'
@@ -99,6 +113,25 @@ import { ListRoleAccountsQuery } from '../../application/queries/role/list-role-
 import { GetAccountRoleSelectionQuery } from '../../application/queries/role/get-account-role-selection.query'
 import { AccountRoleSelectionResult } from '../../application/queries/role/get-account-role-selection.handler'
 import { ListAuditEventsQuery } from '../../application/queries/audit/list-audit-events.query'
+import { CreateNavigationEntryCommand } from '../../application/commands/navigation/create-navigation-entry.command'
+import {
+  RoleLandingPolicyInputCommand,
+  SetRoleLandingPoliciesCommand
+} from '../../application/commands/navigation/set-role-landing-policies.command'
+import {
+  RoleNavigationVisibilityInputCommand,
+  SetRoleNavigationVisibilityCommand
+} from '../../application/commands/navigation/set-role-navigation-visibility.command'
+import { UpdateNavigationEntryCommand } from '../../application/commands/navigation/update-navigation-entry.command'
+import { GetNavigationEntryQuery } from '../../application/queries/navigation/get-navigation-entry.query'
+import { GetRoleNavigationQuery } from '../../application/queries/navigation/get-role-navigation.query'
+import { ListNavigationEntriesQuery } from '../../application/queries/navigation/list-navigation-entries.query'
+import { ResolveNavigationPreviewQuery } from '../../application/queries/navigation/resolve-navigation-preview.query'
+import {
+  NavigationEntryPageResult,
+  NavigationPreviewResult,
+  RoleNavigationQueryResult
+} from '../../application/queries/navigation'
 import { resolveOperatorScope } from '../../application/authorization/operator-scope'
 import { PermissionModule } from '../../domain/enums/permission-module.enum'
 import { AccountType } from '../../domain/enums/account-type.enum'
@@ -108,8 +141,11 @@ import { Role } from '../../domain/aggregates/role.aggregate'
 import { AccountRole } from '../../domain/vo/account-role.value-object'
 import {
   toAccountRoleBindingResponse,
+  toNavigationEntryResponse,
   toPermissionAuditEventRecord,
   toPermissionResponse,
+  toResolveNavigationPreviewResponse,
+  toRoleNavigationResponse,
   toRoleResponse
 } from './permission-management.grpc.presenter'
 import { PermissionAuditService } from '../../application/services/permission-audit.service'
@@ -618,7 +654,6 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         templateRoleId: request.templateRoleId!,
         tenantId: request.tenantId!,
         name: request.name || undefined,
-        code: request.code || undefined,
         description: request.description || undefined,
         operatorScope: this.getOperatorScope(request)
       })
@@ -818,10 +853,231 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_NAVIGATION_ENTRY)
+  // This method exposes the managed navigation entry registry.
+  async listNavigationEntries(
+    request: ListNavigationEntriesRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<ListNavigationEntriesResponse> {
+    const result: NavigationEntryPageResult = await this.queryBus.execute(
+      new ListNavigationEntriesQuery({
+        page: request.page || 1,
+        pageSize: request.pageSize || 20,
+        keyword: request.keyword || undefined,
+        featureKey: request.featureKey || undefined,
+        terminal: request.terminal || undefined,
+        enabled: request.hasEnabledFilter ? request.enabled ?? false : undefined
+      })
+    )
+
+    return {
+      entries: result.entries.map(toNavigationEntryResponse),
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize
+    }
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_NAVIGATION_ENTRY_DETAIL)
+  // This method returns one managed navigation entry by stable entry key.
+  async getNavigationEntry(
+    request: GetNavigationEntryRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<NavigationEntryResponse> {
+    const entry = await this.queryBus.execute(new GetNavigationEntryQuery(request.entryKey!))
+    return toNavigationEntryResponse(entry)
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_NAVIGATION_ENTRY)
+  // This method creates one managed navigation entry registry item.
+  async createNavigationEntry(
+    request: CreateNavigationEntryRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<NavigationEntryResponse> {
+    const entry = await this.commandBus.execute(
+      new CreateNavigationEntryCommand({
+        entryKey: request.entryKey!,
+        name: request.name!,
+        description: request.description || null,
+        featureKey: request.featureKey || null,
+        supportedTerminals: request.supportedTerminals ?? [],
+        registryPriority: request.registryPriority ?? 0,
+        enabled: request.enabled ?? true,
+        entryType: request.entryType!
+      })
+    )
+    const response = toNavigationEntryResponse(entry)
+    this.recordMutation(
+      request,
+      'NAVIGATION_ENTRY_CREATED',
+      'NAVIGATION_ENTRY',
+      entry.entryKey,
+      entry.entryKey,
+      response as unknown as Record<string, unknown>
+    )
+    return response
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_NAVIGATION_ENTRY)
+  // This method updates mutable metadata for a managed navigation entry.
+  async updateNavigationEntry(
+    request: UpdateNavigationEntryRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<NavigationEntryResponse> {
+    const entry = await this.commandBus.execute(
+      new UpdateNavigationEntryCommand({
+        entryKey: request.entryKey!,
+        name: request.name || undefined,
+        description: Object.prototype.hasOwnProperty.call(request, 'description')
+          ? request.description ?? null
+          : undefined,
+        featureKey: Object.prototype.hasOwnProperty.call(request, 'featureKey')
+          ? request.featureKey ?? null
+          : undefined,
+        supportedTerminals: request.supportedTerminals,
+        registryPriority: request.registryPriority,
+        enabled: request.enabled,
+        entryType: request.entryType || undefined
+      })
+    )
+    const response = toNavigationEntryResponse(entry)
+    this.recordMutation(
+      request,
+      'NAVIGATION_ENTRY_UPDATED',
+      'NAVIGATION_ENTRY',
+      entry.entryKey,
+      entry.entryKey,
+      response as unknown as Record<string, unknown>
+    )
+    return response
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL)
+  // This method returns the role-scoped navigation visibility and landing config.
+  async getRoleNavigation(
+    request: GetRoleNavigationRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<RoleNavigationResponse> {
+    const config: RoleNavigationQueryResult = await this.queryBus.execute(
+      new GetRoleNavigationQuery(request.roleId!)
+    )
+    return toRoleNavigationResponse(config)
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
+  // This method replaces a role's navigation visibility config as a full set.
+  async setRoleNavigationVisibility(
+    request: SetRoleNavigationVisibilityRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<RoleNavigationResponse> {
+    const config: RoleNavigationQueryResult = await this.commandBus.execute(
+      new SetRoleNavigationVisibilityCommand({
+        roleId: request.roleId!,
+        visibility: (request.visibility ?? []).map((item) =>
+          Object.assign(new RoleNavigationVisibilityInputCommand(), {
+            entryKey: item.entryKey!,
+            terminal: item.terminal!,
+            enabled: item.enabled ?? false
+          })
+        )
+      })
+    )
+    const response = toRoleNavigationResponse(config)
+    this.recordMutation(
+      request,
+      'ROLE_NAVIGATION_VISIBILITY_SET',
+      'ROLE_NAVIGATION',
+      request.roleId!,
+      undefined,
+      response as unknown as Record<string, unknown>
+    )
+    return response
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
+  // This method replaces a role's landing policy config as a full set.
+  async setRoleLandingPolicies(
+    request: SetRoleLandingPoliciesRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<RoleNavigationResponse> {
+    const config: RoleNavigationQueryResult = await this.commandBus.execute(
+      new SetRoleLandingPoliciesCommand({
+        roleId: request.roleId!,
+        landingPolicies: (request.landingPolicies ?? []).map((item) =>
+          Object.assign(new RoleLandingPolicyInputCommand(), {
+            terminal: item.terminal!,
+            defaultEntryKey: item.defaultEntryKey!,
+            priority: item.priority ?? 0,
+            enabled: item.enabled ?? false
+          })
+        )
+      })
+    )
+    const response = toRoleNavigationResponse(config)
+    this.recordMutation(
+      request,
+      'ROLE_NAVIGATION_LANDING_POLICIES_SET',
+      'ROLE_NAVIGATION',
+      request.roleId!,
+      undefined,
+      response as unknown as Record<string, unknown>
+    )
+    return response
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
+  // This method resets one role instance navigation to the linked template snapshot.
+  async syncRoleNavigationFromTemplate(
+    request: SyncRoleNavigationFromTemplateRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<RoleNavigationResponse> {
+    const config: RoleNavigationQueryResult = await this.commandBus.execute(
+      new SyncRoleNavigationFromTemplateCommand({
+        roleId: request.roleId!,
+        operatorScope: this.getOperatorScope(request)
+      })
+    )
+    const response = toRoleNavigationResponse(config)
+    this.recordMutation(
+      request,
+      'ROLE_NAVIGATION_SYNCED_FROM_TEMPLATE',
+      'ROLE_NAVIGATION',
+      request.roleId!,
+      undefined,
+      response as unknown as Record<string, unknown>
+    )
+    return response
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.RESOLVE_NAVIGATION_PREVIEW)
+  // This method previews visible entries and default landing entry for one or more roles.
+  async resolveNavigationPreview(
+    request: ResolveNavigationPreviewRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<ResolveNavigationPreviewResponse> {
+    const result: NavigationPreviewResult = await this.queryBus.execute(
+      new ResolveNavigationPreviewQuery({
+        roleIds: request.roleIds ?? [],
+        scopeLevel: request.scopeLevel!,
+        terminal: request.terminal!
+      })
+    )
+    return toResolveNavigationPreviewResponse(result)
+  }
+
   private recordMutation(
     rpcData: unknown,
     action: string,
-    targetType: 'ROLE' | 'PERMISSION' | 'ACCOUNT_ROLE' | 'ROLE_PERMISSION',
+    targetType: 'ROLE' | 'PERMISSION' | 'ACCOUNT_ROLE' | 'ROLE_PERMISSION' | 'NAVIGATION_ENTRY' | 'ROLE_NAVIGATION',
     targetId: string,
     targetCode?: string,
     afterData?: Record<string, unknown>

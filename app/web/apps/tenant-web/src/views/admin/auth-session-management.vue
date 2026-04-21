@@ -1,14 +1,13 @@
 <script lang="ts" setup>
 import type { AdminSecurityApi } from '#/api';
 import type { Dayjs } from 'dayjs';
-import type { TableColumnsType } from 'ant-design-vue';
+import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue';
 
 import { computed, h, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 
 import {
-  Alert,
   Button,
   Card,
   Col,
@@ -24,11 +23,14 @@ import {
   Statistic,
   Table,
   Tag,
+  Tabs,
+  Tooltip,
   message,
 } from 'ant-design-vue';
 
 import {
   listAdminAuditEventsApi,
+  listAdminOnlineUsersApi,
   listAdminUserSessionsApi,
   revokeAdminSessionApi,
 } from '#/api';
@@ -53,21 +55,33 @@ const { TextArea } = Input;
 const authContextStore = useAuthContextStore();
 
 const auditLoading = ref(false);
+const onlineUsersLoading = ref(false);
 const sessionLoading = ref(false);
 const revoking = ref(false);
 const sessionDrawerOpen = ref(false);
 const revokeModalOpen = ref(false);
+const activeTab = ref('sessions');
 
 const auditItems = ref<AdminSecurityApi.AuditEvent[]>([]);
+const onlineUsers = ref<AdminSecurityApi.OnlineUser[]>([]);
 const sessionItems = ref<AdminSecurityApi.Session[]>([]);
 const auditNextCursor = ref<null | string>(null);
 const auditCursor = ref<null | string>(null);
 const auditCursorHistory = ref<string[]>([]);
 const selectedUserId = ref('');
 const selectedUserTenantId = ref('');
-const manualUserId = ref('');
+const selectedUserDisplayName = ref('');
+const selectedUserTenantName = ref('');
 const revokeReason = ref('');
 const pendingRevokeSession = ref<AdminSecurityApi.Session | null>(null);
+const onlineUserQuery = reactive({
+  query: '',
+  tenantId: '',
+});
+const sessionFilters = reactive({
+  deviceQuery: '',
+  status: '',
+});
 
 const filters = reactive<AuditFilterState>({
   eventType: '',
@@ -107,17 +121,22 @@ const effectiveTenantId = computed(() => {
   return authContextStore.sessionContext?.tenant?.tenantId || undefined;
 });
 
-// Summarizes the number of rejected login attempts visible in the current audit page.
-const failedAuditCount = computed(() =>
-  auditItems.value.filter(
-    (item) =>
-      item.eventType === 'LOGIN_FAILED' || item.result?.toUpperCase() === 'REJECTED',
-  ).length,
-);
-
 // Summarizes the number of currently active sessions in the loaded user investigation drawer.
 const activeSessionCount = computed(() =>
   sessionItems.value.filter((session) => !session.isRevoked).length,
+);
+
+// Summarizes how many online-user rows are visible in the current scope-aware overview.
+const onlineUserCount = computed(() => onlineUsers.value.length);
+
+// Summarizes the number of online accounts across the current user-centric overview page.
+const onlineAccountCount = computed(() =>
+  onlineUsers.value.reduce((total, user) => total + (user.activeAccountCount || 0), 0),
+);
+
+// Summarizes the number of online sessions across the current user-centric overview page.
+const onlineSessionTotal = computed(() =>
+  onlineUsers.value.reduce((total, user) => total + (user.activeSessionCount || 0), 0),
 );
 
 // Summarizes the number of revoked sessions in the current user investigation drawer.
@@ -125,10 +144,38 @@ const revokedSessionCount = computed(() =>
   sessionItems.value.filter((session) => session.isRevoked).length,
 );
 
+// Summarizes how many accounts remain after applying the local drawer filters.
+const filteredAccountCount = computed(() => filteredSessionGroups.value.length);
+
+// Maps the cursor-based audit history to a compact one-based page number for the footer pager.
+const currentAuditPage = computed(() => auditCursorHistory.value.length + 1);
+
+// Keeps the audit table pagination aligned with the permission-management table style.
+const auditTablePagination = computed<TablePaginationConfig>(() => ({
+  current: currentAuditPage.value,
+  hideOnSinglePage: false,
+  pageSize: filters.pageSize,
+  pageSizeOptions: ['20', '50', '100'],
+  position: ['bottomRight'],
+  showQuickJumper: true,
+  showSizeChanger: true,
+  showTotal: (total: number) => `共 ${total} 条`,
+  total:
+    ((currentAuditPage.value - 1) * filters.pageSize) +
+    auditItems.value.length +
+    (auditNextCursor.value ? 1 : 0),
+}));
+
 // Normalizes unknown request failures into a stable user-facing message.
 function getErrorMessage(error: unknown, fallback: string) {
+  if (error === 'CANNOT_REVOKE_CURRENT_SESSION') {
+    return '不能撤销当前正在使用的会话';
+  }
+
   if (typeof error === 'string' && error.trim()) {
-    return error;
+    return error.trim() === 'CANNOT_REVOKE_CURRENT_SESSION'
+      ? '不能撤销当前正在使用的会话'
+      : error;
   }
 
   if (
@@ -138,7 +185,9 @@ function getErrorMessage(error: unknown, fallback: string) {
     typeof error.message === 'string' &&
     error.message.trim()
   ) {
-    return error.message;
+    return error.message.trim() === 'CANNOT_REVOKE_CURRENT_SESSION'
+      ? '不能撤销当前正在使用的会话'
+      : error.message;
   }
 
   return fallback;
@@ -199,17 +248,40 @@ function formatDuration(seconds?: number) {
   return `${minutes}分钟`;
 }
 
+// Formats a compact tenant summary so the online-user table stays readable in both scopes.
+function formatTenantSummary(user: AdminSecurityApi.OnlineUser) {
+  if (!user.visibleTenantCount || user.visibleTenantCount <= 1) {
+    return user.tenantName || user.tenantId || '系统范围';
+  }
+
+  const names = (user.tenantNames ?? []).filter(Boolean);
+
+  if (names.length <= 2) {
+    return names.join(' / ');
+  }
+
+  return `${names.slice(0, 2).join(' / ')} 等 ${user.visibleTenantCount} 个租户`;
+}
+
+// Resolves the display label used for one account group inside the session drawer.
+function getSessionAccountLabel(session: AdminSecurityApi.Session) {
+  return session.accountName || session.accountId || '未命名账号';
+}
+
 // Builds the drawer header description for the currently investigated target user.
 const selectedUserScopeText = computed(() => {
   if (!selectedUserId.value) {
     return '未选择目标用户';
   }
 
-  if (selectedUserTenantId.value) {
-    return `目标用户：${selectedUserId.value} · 租户：${selectedUserTenantId.value}`;
+  const displayName = selectedUserDisplayName.value || selectedUserId.value;
+  const tenantLabel = selectedUserTenantName.value || selectedUserTenantId.value;
+
+  if (tenantLabel) {
+    return `目标用户：${displayName} · 租户：${tenantLabel}`;
   }
 
-  return `目标用户：${selectedUserId.value} · 系统范围`;
+  return `目标用户：${displayName} · 系统范围`;
 });
 
 // Converts the date range picker value into the BFF query fields.
@@ -239,6 +311,33 @@ async function resetAuditFilters() {
   filters.service = '';
   filters.tenantId = '';
   await loadAuditEvents({ resetCursor: true });
+}
+
+// Loads the scope-aware online-user overview used as the first layer of session management.
+async function loadOnlineUsers() {
+  if (!canViewUserSessions.value) {
+    onlineUsers.value = [];
+    return;
+  }
+
+  onlineUsersLoading.value = true;
+
+  try {
+    const result = await listAdminOnlineUsersApi({
+      query: onlineUserQuery.query.trim() || undefined,
+      tenantId: isPlatformScope.value
+        ? onlineUserQuery.tenantId.trim() || undefined
+        : effectiveTenantId.value,
+      pageSize: 50,
+    });
+
+    onlineUsers.value = result.items ?? [];
+  } catch (error) {
+    onlineUsers.value = [];
+    message.error(getErrorMessage(error, '加载在线用户失败，请稍后重试'));
+  } finally {
+    onlineUsersLoading.value = false;
+  }
 }
 
 // Loads one cursor page of audit events according to the current scope-aware filter state.
@@ -308,9 +407,36 @@ async function loadPreviousAuditPage() {
   await loadAuditEvents({ cursor: previousCursor || null });
 }
 
+// Bridges the footer pagination control to the cursor-based audit navigation helpers.
+async function handleAuditTableChange(pager: { current?: number; pageSize?: number }) {
+  if ((pager.pageSize ?? filters.pageSize) !== filters.pageSize) {
+    filters.pageSize = pager.pageSize ?? filters.pageSize;
+    auditCursor.value = null;
+    auditNextCursor.value = null;
+    auditCursorHistory.value = [];
+    await loadAuditEvents({ resetCursor: true });
+    return;
+  }
+
+  const page = pager.current ?? currentAuditPage.value;
+
+  if (page === currentAuditPage.value) {
+    return;
+  }
+
+  if (page > currentAuditPage.value) {
+    await loadNextAuditPage();
+    return;
+  }
+
+  await loadPreviousAuditPage();
+}
+
 // Loads the selected target user's session inventory and opens the investigation drawer.
 async function inspectUserSessions(params: {
+  displayName?: string;
   tenantId?: string;
+  tenantName?: null | string;
   userId: string;
 }) {
   if (!canViewUserSessions.value) {
@@ -327,6 +453,8 @@ async function inspectUserSessions(params: {
   sessionLoading.value = true;
   selectedUserId.value = userId;
   selectedUserTenantId.value = params.tenantId ?? '';
+  selectedUserDisplayName.value = params.displayName ?? '';
+  selectedUserTenantName.value = params.tenantName ?? '';
   sessionDrawerOpen.value = true;
 
   try {
@@ -338,14 +466,6 @@ async function inspectUserSessions(params: {
   } finally {
     sessionLoading.value = false;
   }
-}
-
-// Uses the manual investigation field as a direct session lookup入口.
-async function inspectManualUserSessions() {
-  await inspectUserSessions({
-    tenantId: effectiveTenantId.value,
-    userId: manualUserId.value,
-  });
 }
 
 // Opens the revocation modal for one concrete target session.
@@ -462,7 +582,7 @@ const auditColumns: TableColumnsType<AdminSecurityApi.AuditEvent> = [
       const item = record as AdminSecurityApi.AuditEvent;
 
       if (!canViewUserSessions.value || !item.operatorId) {
-        return h('span', { class: 'text-xs text-gray-400' }, '无可用操作');
+        return h('span', { class: 'session-muted-action' }, '无可用操作');
       }
 
       return h(
@@ -474,6 +594,75 @@ const auditColumns: TableColumnsType<AdminSecurityApi.AuditEvent> = [
             inspectUserSessions({
               tenantId: item.tenantId,
               userId: item.operatorId!,
+            }),
+        },
+        { default: () => '查看会话' },
+      );
+    },
+  },
+];
+
+// Defines the first-layer online-user overview columns for administrator session management.
+const onlineUserColumns: TableColumnsType<AdminSecurityApi.OnlineUser> = [
+  {
+    dataIndex: 'displayName',
+    key: 'displayName',
+    title: '用户',
+    width: 220,
+    customRender: ({ record }) => {
+      const user = record as AdminSecurityApi.OnlineUser;
+      return user.displayName || user.userId;
+    },
+  },
+  {
+    dataIndex: 'activeAccountCount',
+    key: 'activeAccountCount',
+    title: '在线账号数',
+    width: 120,
+  },
+  {
+    dataIndex: 'activeSessionCount',
+    key: 'activeSessionCount',
+    title: '在线会话数',
+    width: 120,
+  },
+  {
+    dataIndex: 'tenantNames',
+    key: 'tenantNames',
+    title: '可见范围',
+    width: 240,
+    ellipsis: true,
+    customRender: ({ record }) => {
+      const user = record as AdminSecurityApi.OnlineUser;
+      return formatTenantSummary(user);
+    },
+  },
+  {
+    dataIndex: 'lastActiveAt',
+    key: 'lastActiveAt',
+    title: '最近活跃',
+    width: 180,
+    customRender: ({ value }) => formatTime(value as string | undefined),
+  },
+  {
+    key: 'actions',
+    title: '操作',
+    width: 150,
+    fixed: 'right',
+    customRender: ({ record }) => {
+      const user = record as AdminSecurityApi.OnlineUser;
+
+      return h(
+        Button,
+        {
+          size: 'small',
+          type: 'link',
+          onClick: () =>
+            inspectUserSessions({
+              displayName: user.displayName,
+              tenantId: user.tenantId,
+              tenantName: user.tenantName,
+              userId: user.userId,
             }),
         },
         { default: () => '查看会话' },
@@ -555,7 +744,7 @@ const sessionColumns: TableColumnsType<AdminSecurityApi.Session> = [
       const session = record as AdminSecurityApi.Session;
 
       if (!canRevokeUserSession.value || session.isRevoked) {
-        return h('span', { class: 'text-xs text-gray-400' }, '无可用操作');
+        return h('span', { class: 'session-muted-action' }, '无可用操作');
       }
 
       return h(
@@ -571,252 +760,426 @@ const sessionColumns: TableColumnsType<AdminSecurityApi.Session> = [
   },
 ];
 
+// Applies the current local session filters without pushing extra complexity into the first implementation slice.
+const filteredSessionItems = computed(() => {
+  const deviceQuery = sessionFilters.deviceQuery.trim().toLowerCase();
+  const status = sessionFilters.status.trim().toUpperCase();
+
+  return sessionItems.value.filter((session) => {
+    if (status) {
+      const sessionStatus = session.isRevoked
+        ? 'REVOKED'
+        : session.isAccessExpired
+          ? 'EXPIRED'
+          : 'ACTIVE';
+
+      if (sessionStatus !== status) {
+        return false;
+      }
+    }
+
+    if (!deviceQuery) {
+      return true;
+    }
+
+    return [
+      session.deviceName,
+      session.platform,
+      session.browser,
+      session.userAgent,
+      session.ipAddress,
+    ]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(deviceQuery));
+  });
+});
+
+// Groups the filtered sessions by account so administrators can inspect one user through its active identities.
+const filteredSessionGroups = computed(() => {
+  const groups = new Map<
+    string,
+    {
+      accountId?: string;
+      accountName: string;
+      sessions: AdminSecurityApi.Session[];
+    }
+  >();
+
+  for (const session of filteredSessionItems.value) {
+    const key = session.accountId || `unknown:${session.sessionId}`;
+    const existing = groups.get(key);
+
+    if (existing) {
+      existing.sessions.push(session);
+      continue;
+    }
+
+    groups.set(key, {
+      accountId: session.accountId,
+      accountName: getSessionAccountLabel(session),
+      sessions: [session],
+    });
+  }
+
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      sessions: [...group.sessions].sort((left, right) =>
+        right.lastActiveAt.localeCompare(left.lastActiveAt),
+      ),
+    }))
+    .sort((left, right) => {
+      const leftLatest = left.sessions[0]?.lastActiveAt || '';
+      const rightLatest = right.sessions[0]?.lastActiveAt || '';
+      return rightLatest.localeCompare(leftLatest);
+    });
+});
+
 onMounted(async () => {
   if (!isPlatformScope.value) {
     filters.tenantId = authContextStore.sessionContext?.tenant?.tenantId ?? '';
+    onlineUserQuery.tenantId = filters.tenantId;
   }
 
   try {
+    await loadOnlineUsers();
     await loadAuditEvents({ resetCursor: true });
   } catch {
-    // loadAuditEvents already emits the stable user-facing error state.
+    // Nested loaders already emit stable user-facing error state.
   }
 });
 </script>
 
 <template>
   <Page auto-content-height>
-    <div class="space-y-5 p-5">
+    <div class="admin-session-page space-y-5 p-5">
       <Card v-if="!canListAuditEvents && !canViewUserSessions">
         <Empty description="当前账号没有管理员认证与会话管理权限" />
       </Card>
 
-      <div
-        v-if="canListAuditEvents || canViewUserSessions"
-        class="grid gap-4 md:grid-cols-4"
-      >
-        <Card>
-          <Statistic title="当前安全范围" :value="authContextStore.scopeLabel" />
-        </Card>
-        <Card>
-          <Statistic title="当前审计页事件数" :value="auditItems.length" />
-        </Card>
-        <Card>
-          <Statistic title="当前页失败事件" :value="failedAuditCount" />
-        </Card>
-        <Card>
-          <Statistic title="目标用户有效会话" :value="activeSessionCount" />
-        </Card>
-      </div>
-
-      <Card v-if="canListAuditEvents || canViewUserSessions" :bordered="false">
-        <template #title>
-          <div class="flex items-center justify-between">
-            <span class="text-base font-semibold">认证与会话管理</span>
+      <div v-if="canListAuditEvents || canViewUserSessions" class="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+        <Card :bordered="false" class="summary-hero">
+          <div class="summary-hero__eyebrow">Admin Security Console</div>
+          <div class="summary-hero__title-row">
+            <div>
+              <div class="summary-hero__title">认证与会话管理</div>
+              <div class="summary-hero__description">
+                先定位在线用户，再下钻到账号和会话；审计查询作为辅助入口保留在独立标签页。
+              </div>
+            </div>
             <Tag :color="isPlatformScope ? 'blue' : 'green'">
               {{ isPlatformScope ? 'System Scope' : 'Tenant Scope' }}
             </Tag>
           </div>
-        </template>
 
-        <Alert
-          show-icon
-          type="info"
-          message="当前页面使用单页双视角：系统管理员可按租户收敛审计范围，租户管理员自动限定在当前租户。"
-        />
-
-        <div class="mt-4 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-          <div class="space-y-3 text-sm leading-6 text-gray-600">
-            <p>
-              1. 审计事件是主入口，支持从事件中的 `operatorId`
-              直接进入目标用户会话排查。
-            </p>
-            <p>
-              2. 由于当前 BFF 还未开放管理员用户检索接口，这一版通过“审计事件跳转”与“手动输入用户
-              ID”完成精确排查。
-            </p>
+          <div class="summary-hero__meta">
+            <span class="summary-pill">当前安全范围：{{ authContextStore.scopeLabel }}</span>
+            <span class="summary-pill">主路径：在线用户 -> 账号 -> 会话</span>
+            <span class="summary-pill">审计：独立标签页</span>
           </div>
+        </Card>
 
-          <div class="rounded-lg border border-gray-200 bg-gray-50 p-4">
-            <div class="mb-2 text-sm font-semibold text-gray-900">目标用户排查</div>
-            <div class="flex gap-2">
-              <Input
-                v-model:value="manualUserId"
-                class="flex-1"
-                placeholder="请输入目标用户 ID"
-                @press-enter="inspectManualUserSessions"
-              />
-              <Button
-                type="primary"
-                :disabled="!canViewUserSessions"
-                @click="inspectManualUserSessions"
-              >
-                查看会话
-              </Button>
-            </div>
-            <div class="mt-2 text-xs text-gray-500">
-              {{ canViewUserSessions ? '支持手动输入 userId 直接排查。' : '当前账号没有查看用户会话的权限。' }}
-            </div>
-          </div>
+        <div class="grid gap-4 sm:grid-cols-3">
+          <Card :bordered="false" class="summary-card">
+            <Statistic title="在线用户" :value="onlineUserCount" />
+          </Card>
+          <Card :bordered="false" class="summary-card">
+            <Statistic title="在线账号" :value="onlineAccountCount" />
+          </Card>
+          <Card :bordered="false" class="summary-card">
+            <Statistic title="在线会话" :value="onlineSessionTotal" />
+          </Card>
         </div>
-      </Card>
+      </div>
 
-      <Card v-if="canListAuditEvents">
-        <template #title>
-          <div class="flex items-center justify-between">
-            <span class="text-base font-semibold">认证审计事件</span>
-            <Space>
-              <Button :disabled="auditCursorHistory.length === 0" @click="loadPreviousAuditPage">
-                上一页
-              </Button>
-              <Button :disabled="!auditNextCursor" type="primary" ghost @click="loadNextAuditPage">
-                下一页
-              </Button>
-            </Space>
-          </div>
-        </template>
+      <Card v-if="canListAuditEvents || canViewUserSessions" :bordered="false" class="panel-surface">
+        <Tabs v-model:active-key="activeTab">
+          <Tabs.TabPane key="sessions" tab="会话管理">
+            <div class="space-y-4">
+              <Form v-if="canViewUserSessions" layout="vertical" class="filter-shell">
+                <Row :gutter="16">
+                  <Col :span="isPlatformScope ? 8 : 12">
+                    <Form.Item v-if="isPlatformScope" label="租户 ID">
+                      <Input
+                        v-model:value="onlineUserQuery.tenantId"
+                        placeholder="系统管理员可按租户收敛在线用户范围"
+                      />
+                    </Form.Item>
+                    <Form.Item v-else label="当前租户">
+                      <Input
+                        :value="authContextStore.tenantName || effectiveTenantId || '-'"
+                        disabled
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col :span="isPlatformScope ? 10 : 12">
+                    <Form.Item label="在线用户关键词">
+                      <Input
+                        v-model:value="onlineUserQuery.query"
+                        placeholder="按用户、租户或范围关键词过滤"
+                        @press-enter="loadOnlineUsers"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col :span="6">
+                    <Form.Item label=" " :colon="false">
+                      <Space>
+                        <Button type="primary" @click="loadOnlineUsers">查询</Button>
+                        <Button
+                          @click="
+                            onlineUserQuery.query = '';
+                            if (isPlatformScope) onlineUserQuery.tenantId = '';
+                            loadOnlineUsers();
+                          "
+                        >
+                          重置
+                        </Button>
+                      </Space>
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Form>
 
-        <Form layout="vertical">
-          <Row :gutter="16">
-            <Col :span="isPlatformScope ? 6 : 8">
-              <Form.Item v-if="isPlatformScope" label="租户 ID">
-                <Input v-model:value="filters.tenantId" placeholder="系统管理员可按租户收敛范围" />
-              </Form.Item>
-              <Form.Item v-else label="当前租户">
-                <Input :value="authContextStore.tenantName || effectiveTenantId || '-'" disabled />
-              </Form.Item>
-            </Col>
-            <Col :span="6">
-              <Form.Item label="操作人 ID">
-                <Input v-model:value="filters.operatorId" placeholder="按 operatorId 过滤" />
-              </Form.Item>
-            </Col>
-            <Col :span="6">
-              <Form.Item label="事件类型">
-                <Input v-model:value="filters.eventType" placeholder="如 LOGIN_FAILED" />
-              </Form.Item>
-            </Col>
-            <Col :span="6">
-              <Form.Item label="结果">
-                <Input v-model:value="filters.result" placeholder="如 SUCCESS / REJECTED" />
-              </Form.Item>
-            </Col>
-          </Row>
+              <div class="section-caption">
+                <span>在线用户总览</span>
+                <span>{{ onlineUserCount }} 个用户</span>
+              </div>
 
-          <Row :gutter="16">
-            <Col :span="6">
-              <Form.Item label="服务名">
-                <Input v-model:value="filters.service" placeholder="如 auth-service" />
-              </Form.Item>
-            </Col>
-            <Col :span="6">
-              <Form.Item label="资源类型">
-                <Input v-model:value="filters.resourceType" placeholder="如 login_attempt" />
-              </Form.Item>
-            </Col>
-            <Col :span="8">
-              <Form.Item label="发生时间范围">
-                <RangePicker
-                  class="w-full"
-                  show-time
-                  value-format="YYYY-MM-DDTHH:mm:ss[Z]"
-                  @change="handleOccurredRangeChange"
-                />
-              </Form.Item>
-            </Col>
-            <Col :span="4">
-              <Form.Item label=" " :colon="false">
-                <Space>
-                  <Button type="primary" @click="loadAuditEvents({ resetCursor: true })">
-                    查询
-                  </Button>
-                  <Button @click="resetAuditFilters">重置</Button>
-                </Space>
-              </Form.Item>
-            </Col>
-          </Row>
-        </Form>
+              <Table
+                v-if="canViewUserSessions"
+                :columns="onlineUserColumns"
+                :data-source="onlineUsers"
+                :loading="onlineUsersLoading"
+                :pagination="false"
+                class="clean-table"
+                :row-key="(record) => record.userId"
+                :scroll="{ x: 980, y: 420 }"
+                size="small"
+              />
 
-        <Table
-          :columns="auditColumns"
-          :data-source="auditItems"
-          :loading="auditLoading"
-          :pagination="false"
-          :row-key="(record) => record.eventId"
-          :scroll="{ x: 1180, y: 520 }"
-          size="small"
-        >
-          <template #expandedRowRender="{ record }">
-            <pre class="overflow-x-auto rounded-lg bg-gray-950/90 p-4 text-xs leading-6 text-gray-100">{{
-              formatAuditDetails(record.detailsJson)
-            }}</pre>
-          </template>
-        </Table>
-      </Card>
+              <Empty
+                v-else
+                description="当前账号没有查看管理员会话的权限"
+              />
+            </div>
+          </Tabs.TabPane>
 
-      <Card v-else>
-        <Empty description="当前账号没有认证审计查询权限" />
+          <Tabs.TabPane key="audit" tab="审计">
+            <div v-if="canListAuditEvents" class="space-y-4">
+              <div class="audit-toolbar">
+                <div class="section-caption">
+                  <span>审计事件</span>
+                  <Tooltip placement="left">
+                    <template #title>
+                      审计查询保留在独立标签页，避免干扰管理员查看在线用户与会话主路径。
+                    </template>
+                    <span class="help-dot">?</span>
+                  </Tooltip>
+                </div>
+              </div>
+
+              <Form layout="vertical" class="filter-shell">
+                <Row :gutter="16">
+                  <Col :span="isPlatformScope ? 6 : 8">
+                    <Form.Item v-if="isPlatformScope" label="租户 ID">
+                      <Input v-model:value="filters.tenantId" placeholder="系统管理员可按租户收敛范围" />
+                    </Form.Item>
+                    <Form.Item v-else label="当前租户">
+                      <Input :value="authContextStore.tenantName || effectiveTenantId || '-'" disabled />
+                    </Form.Item>
+                  </Col>
+                  <Col :span="6">
+                    <Form.Item label="操作人 ID">
+                      <Input v-model:value="filters.operatorId" placeholder="按 operatorId 过滤" />
+                    </Form.Item>
+                  </Col>
+                  <Col :span="6">
+                    <Form.Item label="事件类型">
+                      <Input v-model:value="filters.eventType" placeholder="如 LOGIN_FAILED" />
+                    </Form.Item>
+                  </Col>
+                  <Col :span="6">
+                    <Form.Item label="结果">
+                      <Input v-model:value="filters.result" placeholder="如 SUCCESS / REJECTED" />
+                    </Form.Item>
+                  </Col>
+                </Row>
+
+                <Row :gutter="16">
+                  <Col :span="6">
+                    <Form.Item label="服务名">
+                      <Input v-model:value="filters.service" placeholder="如 auth-service" />
+                    </Form.Item>
+                  </Col>
+                  <Col :span="6">
+                    <Form.Item label="资源类型">
+                      <Input v-model:value="filters.resourceType" placeholder="如 login_attempt" />
+                    </Form.Item>
+                  </Col>
+                  <Col :span="8">
+                    <Form.Item label="发生时间范围">
+                      <RangePicker
+                        class="w-full"
+                        show-time
+                        value-format="YYYY-MM-DDTHH:mm:ss[Z]"
+                        @change="handleOccurredRangeChange"
+                      />
+                    </Form.Item>
+                  </Col>
+                  <Col :span="4">
+                    <Form.Item label=" " :colon="false">
+                      <Space>
+                        <Button type="primary" @click="loadAuditEvents({ resetCursor: true })">
+                          查询
+                        </Button>
+                        <Button @click="resetAuditFilters">重置</Button>
+                      </Space>
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Form>
+
+              <Table
+                :columns="auditColumns"
+                :data-source="auditItems"
+                :loading="auditLoading"
+                :pagination="auditTablePagination"
+                class="clean-table"
+                :row-key="(record) => record.eventId"
+                :scroll="{ x: 1180, y: 520 }"
+                size="small"
+                @change="handleAuditTableChange"
+              >
+                <template #expandedRowRender="{ record }">
+                  <pre class="audit-json-block">{{
+                    formatAuditDetails(record.detailsJson)
+                  }}</pre>
+                </template>
+              </Table>
+            </div>
+
+            <Empty
+              v-else
+              description="当前账号没有认证审计查询权限"
+            />
+          </Tabs.TabPane>
+        </Tabs>
       </Card>
     </div>
 
     <Drawer
       :open="sessionDrawerOpen"
       :title="selectedUserScopeText"
-      width="72%"
+      width="68%"
       @close="sessionDrawerOpen = false"
     >
       <Spin :spinning="sessionLoading">
-        <div class="space-y-5">
-          <div class="grid gap-4 md:grid-cols-3">
-            <Card size="small">
-              <Statistic title="目标用户总会话" :value="sessionItems.length" />
+        <div class="session-drawer-shell">
+          <div class="session-drawer-hero">
+            <div class="session-drawer-hero__main">
+              <div class="session-drawer-hero__eyebrow">Session Inspection</div>
+              <div class="session-drawer-hero__title">
+                {{ selectedUserDisplayName || selectedUserId || '未选择目标用户' }}
+              </div>
+              <div class="session-drawer-hero__meta">
+                <span class="session-drawer-meta-pill">
+                  用户 ID：{{ selectedUserId || '-' }}
+                </span>
+                <span class="session-drawer-meta-pill">
+                  范围：{{ selectedUserTenantName || selectedUserTenantId || '系统范围' }}
+                </span>
+              </div>
+            </div>
+            <Tag color="blue" class="session-drawer-hero__tag">按账号聚合查看</Tag>
+          </div>
+
+          <div class="session-drawer-stats">
+            <Card size="small" :bordered="false" class="summary-card summary-card--compact">
+              <Statistic title="可见账号数" :value="filteredAccountCount" />
             </Card>
-            <Card size="small">
+            <Card size="small" :bordered="false" class="summary-card summary-card--compact">
               <Statistic title="当前有效会话" :value="activeSessionCount" />
             </Card>
-            <Card size="small">
+            <Card size="small" :bordered="false" class="summary-card summary-card--compact">
               <Statistic title="已撤销会话" :value="revokedSessionCount" />
             </Card>
           </div>
 
           <Empty
-            v-if="!sessionLoading && sessionItems.length === 0"
+            v-if="!sessionLoading && filteredSessionItems.length === 0"
             description="当前目标用户暂无可见会话"
           />
 
-          <Table
-            v-if="sessionItems.length > 0"
-            :columns="sessionColumns"
-            :data-source="sessionItems"
-            :pagination="false"
-            :row-key="(record) => record.sessionId"
-            :scroll="{ x: 1080, y: 520 }"
-            size="small"
-          >
-            <template #expandedRowRender="{ record }">
-              <div class="grid gap-4 md:grid-cols-2">
-                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
-                  <div><span class="font-medium">会话 ID：</span>{{ record.sessionId }}</div>
-                  <div class="mt-2"><span class="font-medium">用户 ID：</span>{{ record.userId }}</div>
-                  <div class="mt-2"><span class="font-medium">账户 ID：</span>{{ record.accountId || '-' }}</div>
-                  <div class="mt-2"><span class="font-medium">租户 ID：</span>{{ record.tenantId || '-' }}</div>
-                  <div class="mt-2"><span class="font-medium">创建时间：</span>{{ formatTime(record.createdAt) }}</div>
-                  <div class="mt-2"><span class="font-medium">访问过期：</span>{{ formatTime(record.expiresAt) }}</div>
-                  <div class="mt-2">
-                    <span class="font-medium">刷新过期：</span>{{ formatTime(record.refreshExpiresAt) }}
+          <Form layout="vertical" class="filter-shell filter-shell--drawer">
+            <div class="session-filter-header">
+              <div class="session-filter-header__title">会话筛选</div>
+              <div class="session-filter-header__hint">按状态、设备、浏览器或 IP 缩小列表</div>
+            </div>
+            <Row :gutter="16">
+              <Col :span="10">
+                <Form.Item label="状态">
+                  <Input
+                    v-model:value="sessionFilters.status"
+                    placeholder="ACTIVE / REVOKED / EXPIRED"
+                  />
+                </Form.Item>
+              </Col>
+              <Col :span="10">
+                <Form.Item label="设备关键词">
+                  <Input
+                    v-model:value="sessionFilters.deviceQuery"
+                    placeholder="按设备、浏览器、平台或 IP 过滤"
+                  />
+                </Form.Item>
+              </Col>
+              <Col :span="4">
+                <Form.Item label=" " :colon="false">
+                  <Button
+                    @click="
+                      sessionFilters.status = '';
+                      sessionFilters.deviceQuery = '';
+                    "
+                  >
+                    清空
+                  </Button>
+                </Form.Item>
+              </Col>
+            </Row>
+          </Form>
+
+          <div v-if="filteredSessionGroups.length > 0" class="session-group-stack">
+            <Card
+              v-for="group in filteredSessionGroups"
+              :key="group.accountId || group.accountName"
+              size="small"
+              :bordered="false"
+              class="account-group-card"
+            >
+              <template #title>
+                <div class="account-group-header">
+                  <div class="account-group-header__main">
+                    <div class="account-group-header__name">
+                      {{ group.accountName }}
+                    </div>
+                    <div class="account-group-header__id">
+                      {{ group.accountId || '未提供账号 ID' }}
+                    </div>
                   </div>
+                  <Tag color="blue">{{ group.sessions.length }} 个会话</Tag>
                 </div>
-                <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm">
-                  <div><span class="font-medium">设备 ID：</span>{{ record.deviceId || '-' }}</div>
-                  <div class="mt-2"><span class="font-medium">平台 / 浏览器：</span>{{ [record.platform, record.browser].filter(Boolean).join(' / ') || '-' }}</div>
-                  <div class="mt-2"><span class="font-medium">User-Agent：</span>{{ record.userAgent || '-' }}</div>
-                  <div class="mt-2"><span class="font-medium">剩余访问令牌：</span>{{ formatDuration(record.accessRemainingSeconds) }}</div>
-                  <div class="mt-2"><span class="font-medium">剩余刷新令牌：</span>{{ formatDuration(record.refreshRemainingSeconds) }}</div>
-                  <div class="mt-2"><span class="font-medium">管理员撤销原因：</span>{{ record.adminRevokeReason || '-' }}</div>
-                </div>
-              </div>
-            </template>
-          </Table>
+              </template>
+
+              <Table
+                :columns="sessionColumns"
+                :data-source="group.sessions"
+                :pagination="false"
+                class="clean-table"
+                :row-key="(record) => record.sessionId"
+                :scroll="{ x: 1080 }"
+                size="small"
+              />
+            </Card>
+          </div>
         </div>
       </Spin>
     </Drawer>
@@ -831,9 +1194,9 @@ onMounted(async () => {
       @ok="submitSessionRevoke"
     >
       <div class="space-y-3">
-        <div class="text-sm text-gray-600">
+        <div class="revoke-modal-text">
           即将撤销会话：
-          <span class="font-medium text-gray-900">
+          <span class="revoke-modal-session-id">
             {{ pendingRevokeSession?.sessionId || '-' }}
           </span>
         </div>
@@ -848,3 +1211,341 @@ onMounted(async () => {
     </Modal>
   </Page>
 </template>
+
+<style scoped>
+.admin-session-page {
+  max-width: 1440px;
+  margin: 0 auto;
+  --session-border: hsl(var(--border));
+  --session-card-bg: hsl(var(--card));
+  --session-card-bg-soft: hsl(var(--muted) / 0.55);
+  --session-card-bg-strong: hsl(var(--muted) / 0.82);
+  --session-card-bg-accent:
+    radial-gradient(circle at top left, hsl(var(--primary) / 0.16) 0%, transparent 42%),
+    linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.72) 100%);
+  --session-text: hsl(var(--foreground) / 0.92);
+  --session-title: hsl(var(--foreground));
+  --session-muted: hsl(var(--muted-foreground));
+}
+
+.summary-hero {
+  background: var(--session-card-bg-accent);
+  border: 1px solid var(--session-border);
+  box-shadow: 0 16px 40px rgb(15 23 42 / 0.06);
+}
+
+.summary-hero__eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+  margin-bottom: 12px;
+}
+
+.summary-hero__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.summary-hero__title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--session-title);
+  line-height: 1.2;
+}
+
+.summary-hero__description {
+  margin-top: 8px;
+  max-width: 640px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--session-muted);
+}
+
+.summary-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.summary-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--session-card-bg-soft);
+  border: 1px solid var(--session-border);
+  color: var(--session-text);
+  font-size: 12px;
+}
+
+.help-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--session-card-bg-strong);
+  color: var(--session-muted);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: help;
+}
+
+.summary-card {
+  border: 1px solid var(--session-border);
+  background: var(--session-card-bg);
+  box-shadow: 0 10px 28px rgb(15 23 42 / 0.04);
+}
+
+.summary-card--compact {
+  background: var(--session-card-bg-soft);
+}
+
+.panel-surface {
+  border: 1px solid var(--session-border);
+  background: var(--session-card-bg);
+  box-shadow: 0 18px 40px rgb(15 23 42 / 0.05);
+}
+
+.filter-shell {
+  padding: 16px 16px 4px;
+  border: 1px solid var(--session-border);
+  border-radius: 16px;
+  background: var(--session-card-bg-soft);
+}
+
+.filter-shell--drawer {
+  background: var(--session-card-bg-soft);
+}
+
+.session-drawer-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.session-drawer-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px;
+  border: 1px solid var(--session-border);
+  border-radius: 18px;
+  background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.72) 100%);
+}
+
+.session-drawer-hero__main {
+  min-width: 0;
+}
+
+.session-drawer-hero__eyebrow {
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: hsl(var(--primary));
+}
+
+.session-drawer-hero__title {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--session-title);
+}
+
+.session-drawer-hero__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.session-drawer-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--session-border);
+  background: var(--session-card-bg-soft);
+  font-size: 12px;
+  color: var(--session-muted);
+}
+
+.session-drawer-hero__tag {
+  margin-top: 2px;
+}
+
+.session-drawer-stats {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.session-filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.session-filter-header__title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--session-text);
+}
+
+.session-filter-header__hint {
+  font-size: 12px;
+  color: var(--session-muted);
+}
+
+.section-caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--session-muted);
+}
+
+.audit-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.account-group-card {
+  border: 1px solid var(--session-border);
+  background: var(--session-card-bg);
+  box-shadow: 0 10px 28px rgb(15 23 42 / 0.04);
+}
+
+.session-group-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.account-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.account-group-header__main {
+  min-width: 0;
+}
+
+.account-group-header__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--session-title);
+}
+
+.account-group-header__id {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--session-muted);
+}
+
+:deep(.clean-table .ant-table) {
+  border-radius: 14px;
+  overflow: hidden;
+  background: transparent;
+}
+
+:deep(.clean-table .ant-table-thead > tr > th) {
+  background: var(--session-card-bg-strong);
+  color: var(--session-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+:deep(.clean-table .ant-table-tbody > tr > td) {
+  vertical-align: top;
+}
+
+:deep(.summary-card .ant-statistic-title) {
+  color: var(--session-muted);
+}
+
+:deep(.summary-card .ant-statistic-content),
+:deep(.summary-card .ant-statistic-content-value) {
+  color: var(--session-title);
+}
+
+:deep(.filter-shell .ant-input),
+:deep(.filter-shell .ant-input-affix-wrapper),
+:deep(.filter-shell .ant-select-selector),
+:deep(.filter-shell .ant-picker) {
+  background: hsl(var(--input-background));
+  border-color: hsl(var(--input));
+  color: var(--session-text);
+}
+
+.session-muted-action {
+  color: var(--session-muted);
+  font-size: 12px;
+}
+
+.audit-json-block {
+  overflow-x: auto;
+  border: 1px solid var(--session-border);
+  border-radius: 12px;
+  background: hsl(var(--popover));
+  color: var(--session-text);
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.revoke-modal-text {
+  color: var(--session-muted);
+  font-size: 14px;
+}
+
+.revoke-modal-session-id {
+  color: var(--session-title);
+  font-weight: 600;
+}
+
+:deep(.ant-tabs-nav) {
+  margin-bottom: 20px;
+}
+
+@media (max-width: 960px) {
+  .summary-hero__title-row,
+  .audit-toolbar,
+  .section-caption,
+  .session-drawer-hero,
+  .session-filter-header,
+  .account-group-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .session-drawer-stats {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

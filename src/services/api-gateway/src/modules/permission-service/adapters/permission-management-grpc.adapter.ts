@@ -13,16 +13,21 @@ import {
   PermissionManagementServiceClient,
   AssignRolePermissionRequest,
   AssignRoleTemplatePermissionRequest,
+  CreateNavigationEntryRequest,
   CreateRoleInstanceRequest,
   CreateRoleInstanceFromTemplateRequest,
   CreateRoleTemplateRequest,
   CreatePermissionRequest,
   DeletePermissionRequest,
   GetAccountRoleSelectionRequest,
+  GetNavigationEntryRequest,
   GetPermissionByCodeRequest,
   GetPermissionByIdRequest,
+  GetRoleNavigationRequest,
   GetRoleTemplateByIdRequest,
   ListAccountRolesRequest,
+  ListNavigationEntriesRequest,
+  ListNavigationEntriesResponse,
   ListPermissionRolesRequest,
   ListPermissionsResponse,
   ListPermissionsPagedRequest,
@@ -47,8 +52,16 @@ import {
   PagedPermissionsResponse,
   PagedRolesResponse,
   RoleResponse,
+  NavigationEntryResponse,
+  ResolveNavigationPreviewRequest,
+  ResolveNavigationPreviewResponse,
+  RoleNavigationResponse,
+  SyncRoleNavigationFromTemplateRequest,
   UpdateRoleRequest,
   UpdateRoleTemplateRequest,
+  SetRoleLandingPoliciesRequest,
+  SetRoleNavigationVisibilityRequest,
+  UpdateNavigationEntryRequest,
   PERMISSION_MANAGEMENT_SERVICE_NAME
 } from '@oes/common/generated/permission_service'
 import {
@@ -497,6 +510,131 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
+  // Lists managed navigation entry registry records through permission-service.
+  async listNavigationEntries(
+    req: ListNavigationEntriesRequest,
+    source: DownstreamRequestSource
+  ): Promise<ListNavigationEntriesResponse> {
+    return this.call('listNavigationEntries', () =>
+      this.svc.listNavigationEntries(
+        {
+          page: req.page || 1,
+          pageSize: req.pageSize || 20,
+          keyword: req.keyword || undefined,
+          featureKey: req.featureKey || undefined,
+          terminal: req.terminal || undefined,
+          hasEnabledFilter: req.hasEnabledFilter,
+          enabled: req.enabled
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Reads one managed navigation entry registry record by stable entry key.
+  async getNavigationEntry(
+    req: GetNavigationEntryRequest,
+    source: DownstreamRequestSource
+  ): Promise<NavigationEntryResponse> {
+    return this.call('getNavigationEntry', () =>
+      this.svc.getNavigationEntry(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Creates one managed navigation entry registry record.
+  async createNavigationEntry(
+    req: CreateNavigationEntryRequest,
+    source: DownstreamRequestSource
+  ): Promise<NavigationEntryResponse> {
+    return this.call('createNavigationEntry', () =>
+      this.svc.createNavigationEntry(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Updates mutable metadata on one managed navigation entry registry record.
+  async updateNavigationEntry(
+    req: UpdateNavigationEntryRequest,
+    source: DownstreamRequestSource
+  ): Promise<NavigationEntryResponse> {
+    return this.call('updateNavigationEntry', () =>
+      this.svc.updateNavigationEntry(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Reads role-scoped navigation visibility and landing policy configuration.
+  async getRoleNavigation(
+    req: GetRoleNavigationRequest,
+    source: DownstreamRequestSource
+  ): Promise<RoleNavigationResponse> {
+    return this.call('getRoleNavigation', () =>
+      this.svc.getRoleNavigation(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Replaces one role's navigation visibility configuration as a full set.
+  async setRoleNavigationVisibility(
+    req: SetRoleNavigationVisibilityRequest,
+    source: DownstreamRequestSource
+  ): Promise<RoleNavigationResponse> {
+    return this.call('setRoleNavigationVisibility', () =>
+      this.svc.setRoleNavigationVisibility(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Replaces one role's landing policy configuration as a full set.
+  async setRoleLandingPolicies(
+    req: SetRoleLandingPoliciesRequest,
+    source: DownstreamRequestSource
+  ): Promise<RoleNavigationResponse> {
+    return this.call('setRoleLandingPolicies', () =>
+      this.svc.setRoleLandingPolicies(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Resets one role instance navigation to match its linked template snapshot.
+  async syncRoleNavigationFromTemplate(
+    req: SyncRoleNavigationFromTemplateRequest,
+    source: DownstreamRequestSource
+  ): Promise<RoleNavigationResponse> {
+    return this.call('syncRoleNavigationFromTemplate', () =>
+      this.svc.syncRoleNavigationFromTemplate(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Resolves the management preview for visible entries and default landing entry.
+  async resolveNavigationPreview(
+    req: ResolveNavigationPreviewRequest,
+    source: DownstreamRequestSource
+  ): Promise<ResolveNavigationPreviewResponse> {
+    return this.call('resolveNavigationPreview', () =>
+      this.svc.resolveNavigationPreview(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
   private async call<T>(method: string, factory: () => any): Promise<T> {
     try {
       const result = await safeGrpcCall(factory(), this.opts(method))
@@ -534,7 +672,7 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
           code: 'APP_SECURITY_004',
           message: 'Operator context is invalid'
         },
-        HttpStatus.UNAUTHORIZED
+        HttpStatus.INTERNAL_SERVER_ERROR
       )
     }
 
@@ -544,7 +682,7 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
           code: 'APP_SECURITY_003',
           message: 'Operator context is missing'
         },
-        HttpStatus.UNAUTHORIZED
+        HttpStatus.INTERNAL_SERVER_ERROR
       )
     }
 
@@ -554,7 +692,7 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
           code: 'APP_SECURITY_001',
           message: 'Internal service metadata is missing'
         },
-        HttpStatus.UNAUTHORIZED
+        HttpStatus.INTERNAL_SERVER_ERROR
       )
     }
 

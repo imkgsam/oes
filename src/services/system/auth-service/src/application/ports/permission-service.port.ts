@@ -1,5 +1,6 @@
 export interface AccountAuthorizationSummary {
   accountId: string
+  roleIds: string[]
   roleCodes: string[]
   permissionCodes: string[]
 }
@@ -13,6 +14,10 @@ export interface AccountAuthorizationSummary {
  * - Keep return models local to auth-service's application layer.
  */
 export interface IPermissionServicePort {
-  getAccountAuthorizationSummary(accountId: string): Promise<AccountAuthorizationSummary>
+  getAccountAuthorizationSummary(params: {
+    accountId: string
+    tenantId?: string | null
+    scopeLevel: 'SYSTEM' | 'TENANT'
+  }): Promise<AccountAuthorizationSummary>
   checkAccountPermission(accountId: string, permissionCode: string): Promise<boolean>
 }

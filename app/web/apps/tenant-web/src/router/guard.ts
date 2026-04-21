@@ -7,8 +7,11 @@ import { startProgress, stopProgress } from '@vben/utils';
 
 import { accessRoutes, coreRouteNames } from '#/router/routes';
 import { useAuthStore } from '#/store';
+import { useAuthContextStore } from '#/store/auth-context';
 
 import { generateAccess } from './access';
+
+const FIRST_LOGIN_PASSWORD_ROUTE_NAME = 'FirstLoginPasswordSetup';
 
 /**
  * 通用守卫配置
@@ -49,9 +52,27 @@ function setupAccessGuard(router: Router) {
     const accessStore = useAccessStore();
     const userStore = useUserStore();
     const authStore = useAuthStore();
+    const authContextStore = useAuthContextStore();
+    const requiresPasswordSetup =
+      authContextStore.sessionContext?.passwordSetupRequired === true;
 
     // 基本路由，这些路由不需要进入权限拦截
     if (coreRouteNames.includes(to.name as string)) {
+      if (to.name === FIRST_LOGIN_PASSWORD_ROUTE_NAME && !accessStore.accessToken) {
+        return {
+          path: LOGIN_PATH,
+          replace: true,
+        };
+      }
+
+      if (
+        accessStore.accessToken
+        && requiresPasswordSetup
+        && to.name !== FIRST_LOGIN_PASSWORD_ROUTE_NAME
+      ) {
+        return { name: FIRST_LOGIN_PASSWORD_ROUTE_NAME, replace: true };
+      }
+
       if (to.path === LOGIN_PATH && accessStore.accessToken) {
         return decodeURIComponent(
           (to.query?.redirect as string) ||
@@ -85,6 +106,10 @@ function setupAccessGuard(router: Router) {
       return to;
     }
 
+    if (requiresPasswordSetup && to.name !== FIRST_LOGIN_PASSWORD_ROUTE_NAME) {
+      return { name: FIRST_LOGIN_PASSWORD_ROUTE_NAME, replace: true };
+    }
+
     // 是否已经生成过动态路由
     if (accessStore.isAccessChecked) {
       return true;
@@ -93,6 +118,9 @@ function setupAccessGuard(router: Router) {
     // 生成路由表
     // 当前登录用户拥有的角色标识列表
     const userInfo = userStore.userInfo || (await authStore.fetchUserInfo());
+    if (authContextStore.sessionContext?.passwordSetupRequired === true) {
+      return { name: FIRST_LOGIN_PASSWORD_ROUTE_NAME, replace: true };
+    }
     const userRoles = userInfo.roles ?? [];
 
     // 生成菜单和路由

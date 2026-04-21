@@ -4,7 +4,7 @@ export const SERVICE_NAMES = {
   IDENTITY: 'identity-service',
   PERMISSION: 'permission-service',
   NOTIFICATION: 'notification-service',
-  ENTITY: 'entity-service',
+  PARTY: 'party-service',
   RESOURCE: 'resource-service'
 } as const
 

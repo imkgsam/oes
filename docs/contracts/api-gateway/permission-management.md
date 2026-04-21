@@ -4,12 +4,15 @@
 
 本组接口用于权限管理后台读取和维护全局 `Permission` / `Role` 主数据。
 
+`Policy Governance Readonly` 是本组后续只读扩展，只用于查看既有 policy 事实，不开放 policy mutation。
+
 当前状态：
 
 - `permission` 组首批接口已完成 Gateway HTTP → permission-service gRPC 真实联调验证
 - `role` 组首批接口已完成 Gateway HTTP → permission-service gRPC 真实联调验证
 - `role-template` 组首批接口已完成 Gateway HTTP → permission-service gRPC 真实联调验证
 - `account-role` 组首批接口已完成 Gateway HTTP → permission-service gRPC 真实联调验证
+- `policy-governance-readonly` 组已冻结第一阶段 contract 方向，尚待 Gateway / tenant-web 实现
 - 已验证系统管理员账号可完成 permission / role / role-template / account-role 的首批管理闭环
 - 本组接口依赖 Gateway 全局 `checkPermission` guard，guard 会携带 `api-gateway` 内部服务 metadata 调用 permission-service
 
@@ -440,8 +443,9 @@
   - 调 `POST /role-template/:id/instantiate`
 - 当前适合输入：
   - `tenantId`
-  - 可选覆盖的 `name / code / description`
+  - 可选覆盖的 `name / description`
 - 当前不适合：
+  - 覆盖模板 `code`；实例 `code` 必须继承模板 `code`
   - 用它创建 system role
   - 用它替代模板本身的编辑
 
@@ -601,158 +605,259 @@
 - `GET /permission/all`
 - `GET /permission/by-module`
 
-## 9. 真相源
+## 9. 当前已冻结的 `policy-governance-readonly` 组边界
+
+本组接口用于权限治理后台只读查看 policy 主数据与 permission-policy 绑定关系。
+
+当前边界：
+
+- 只读治理，不开放 policy 创建、修改、删除、启停。
+- 不开放 `conditionAstJson` 编辑。
+- 不做 Policy Explain / Impact Preview。
+- 不做 Rule Builder。
+- 不做 Resource Policy Business Rollout。
+- 不接入 feature / plugin enablement。
+
+### `GET /policy`
+
+- 用途：读取 policy 分页列表，并支持基础过滤。
+- 使用人：
+  - 系统管理员
+  - 权限管理员
+- 权限控制：
+  - `checkPermission(permission.policy.list)`
+- 支持的过滤参数：
+  - `page`
+  - `pageSize`
+  - `tenantId`
+  - `permissionCode`
+  - `isEnabled`
+  - `keyword`
+- 响应语义：
+  - 返回分页结构：`policies / total / page / pageSize`
+  - `policies[]` 为只读 policy 摘要。
+  - `conditionAstJson` 可返回给只读详情和只读 JSON 展示，不得被前端编辑后提交。
+
+### `GET /policy/:id`
+
+- 用途：读取单个 policy 详情。
+- 使用人：
+  - 系统管理员
+  - 权限管理员
+- 权限控制：
+  - `checkPermission(permission.policy.list)`
+- 响应语义：
+  - 返回单个 policy 详情。
+  - 包含 `effect / subjectType / subjectId / permissionCode / resourceType / tenantId / priority / isEnabled / conditionAstJson`。
+  - 适合作为 policy 详情抽屉或只读详情页初始化接口。
+
+### `GET /permission/:permissionCode/policies`
+
+- 用途：查看某个 permission 当前关联的 policy 列表。
+- 使用人：
+  - 系统管理员
+  - 权限管理员
+- 权限控制：
+  - `checkPermission(permission.policy.list)`
+- 支持的过滤参数：
+  - `tenantId`
+- 响应语义：
+  - 返回结构：`policies[]`
+  - 面向 permission 详情页的“关联策略”只读区域。
+  - 不提供添加、移除、启停 policy 的动作。
+
+### `policy-governance-readonly` 页面接入建议
+
+- Policy 列表页：
+  - `GET /policy`
+- Policy 详情：
+  - `GET /policy/:id`
+- Permission 详情关联策略：
+  - `GET /permission/:permissionCode/policies`
+- 页面必须保持只读：
+  - 不渲染 create / edit / delete / enable-disable 操作。
+  - 不允许提交 `conditionAstJson`。
+  - 不把 explain / impact preview 混入当前页面主线。
+
+## 10. 当前已冻结的 `navigation-management` 组边界
+
+本组接口用于权限管理后台读取和维护第一阶段 navigation governance 主数据。
+
+定位约束：
+
+- 当前仍属于 `permission-management` 管理薄代理，不新增独立 navigation BFF。
+- 当前只治理稳定 `entryKey`、role visibility 与 role landing policy。
+- 当前不承载 Web route、菜单层级、icon、layout 等 terminal-specific UI 配置。
+- 当前不承载用户个人 landing preference。
+
+### `GET /navigation/entries`
+
+- 用途：读取 navigation entry registry 列表，并支持基础过滤。
+- 使用人：
+  - 系统管理员 / 权限管理员
+- 权限控制：
+  - `checkPermission(permission.navigation.entry.list)`
+- 支持的过滤参数：
+  - `keyword`
+  - `featureKey`
+  - `terminal`
+  - `enabled`
+- 响应语义：
+  - 返回稳定 entry registry 摘要列表。
+  - 返回项应至少包含：
+    - `entryKey`
+    - `name`
+    - `description`
+    - `featureKey`
+    - `supportedTerminals[]`
+    - `registryPriority`
+    - `enabled`
+    - `entryType`
+
+### `POST /navigation/entries`
+
+- 用途：创建一个新的 navigation entry registry 项。
+- 使用人：
+  - 系统管理员 / 权限管理员
+- 权限控制：
+  - `checkPermission(permission.navigation.entry.create)`
+- 请求语义：
+  - 只允许创建稳定 entry 元数据。
+  - 不允许提交 Web route、菜单层级、icon、layout。
+
+### `GET /navigation/entries/:entryKey`
+
+- 用途：读取单个 navigation entry registry 项详情。
+- 使用人：
+  - 系统管理员 / 权限管理员
+- 权限控制：
+  - `checkPermission(permission.navigation.entry.get_by_key)`
+
+### `PATCH /navigation/entries/:entryKey`
+
+- 用途：修改 navigation entry registry 的可变元数据。
+- 使用人：
+  - 系统管理员 / 权限管理员
+- 权限控制：
+  - `checkPermission(permission.navigation.entry.update)`
+- 第一阶段可修改字段：
+  - `name`
+  - `description`
+  - `featureKey`
+  - `supportedTerminals`
+  - `registryPriority`
+  - `enabled`
+  - `entryType`
+- 第一阶段不允许：
+  - 修改 `entryKey`
+  - 真删除被引用 entry
+
+### `GET /roles/:roleId/navigation`
+
+- 用途：读取某个 role 当前的 navigation 配置。
+- 使用人：
+  - 系统管理员
+  - 租户管理员（仅其租户范围）
+- 权限控制：
+  - `checkPermission(permission.role.get_by_id)`
+- 响应语义：
+  - 返回该 role 当前可见 entries。
+  - 返回该 role 当前 landing policies。
+  - 适合作为 `Role Detail > Navigation` 页的初始化接口。
+
+### `PUT /roles/:roleId/navigation/visibility`
+
+- 用途：整组替换某个 role 的 navigation visible entries 集合。
+- 使用人：
+  - 系统管理员 / 权限管理员
+- 权限控制：
+  - `checkPermission(permission.role.update)`
+- 请求语义：
+  - 采用“整组覆盖”而不是单条 add / remove patch。
+  - 每项 visibility 至少应带：
+    - `entryKey`
+    - `scopeLevel`
+    - `terminal`
+    - `enabled`
+- 服务端校验：
+  - `entryKey` 必须存在。
+  - `entryKey` 必须处于 enabled 状态。
+  - `entryKey` 必须支持目标 terminal。
+
+### `PUT /roles/:roleId/navigation/landing-policies`
+
+- 用途：整组替换某个 role 的 landing policy 集合。
+- 使用人：
+  - 系统管理员 / 权限管理员
+- 权限控制：
+  - `checkPermission(permission.role.update)`
+- 请求语义：
+  - 以 `scopeLevel + terminal` 为键提交整组 landing policy。
+  - 每项 policy 至少应带：
+    - `defaultEntryKey`
+    - `scopeLevel`
+    - `terminal`
+    - `priority`
+    - `enabled`
+- 服务端校验：
+  - `defaultEntryKey` 必须存在。
+  - `defaultEntryKey` 必须属于当前 role 可见 entries。
+  - `defaultEntryKey` 必须支持目标 terminal。
+- 规则说明：
+  - landing policy 只影响默认落点，不授予 entry 可见性或动作权限。
+
+### `POST /navigation/resolve-preview`
+
+- 用途：预览某组 role / scope / terminal 在当前导航治理规则下会解析出的 `visibleEntries` 与 `defaultEntry`。
+- 使用人：
+  - 系统管理员 / 权限管理员
+- 权限控制：
+  - `checkPermission(permission.navigation.resolve_preview)`
+- 输入语义：
+  - `roleIds[]`
+  - `scopeLevel`
+  - `terminal`
+- 第一阶段边界：
+  - 正式接口直接支持多 role 组合输入。
+  - role 页面做单 role 预览时复用同一接口，并传单元素 `roleIds[]`。
+- 输出语义：
+  - `visibleEntries`
+  - `defaultEntry`
+  - 可选 `resolvedByRoleId`
+  - 可选 `fallbackReason`
+
+### `navigation-management` 页面接入建议
+
+- `Navigation Entry` 页面：
+  - `GET /navigation/entries`
+  - `POST /navigation/entries`
+  - `GET /navigation/entries/:entryKey`
+  - `PATCH /navigation/entries/:entryKey`
+- `Role Detail > Navigation` 页面：
+  - `GET /roles/:roleId/navigation`
+  - `PUT /roles/:roleId/navigation/visibility`
+  - `PUT /roles/:roleId/navigation/landing-policies`
+  - `POST /navigation/resolve-preview`
+
+## 11. 真相源
+
+前端或调用方除本文件外，还应同时参考以下真相源：
 
 - Gateway controller：
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/permission.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/permission.controller.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/role.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/role.controller.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/role-template.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/role-template.controller.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/account-role.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/account-role.controller.ts)
-- Gateway DTO：
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/create-permission.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/create-permission.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/update-permission.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/update-permission.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/list-permissions.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/list-permissions.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/create-role.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/create-role.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/update-role.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/update-role.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/list-roles.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/list-roles.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/set-role-enabled.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/set-role-enabled.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/role-permission.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/role-permission.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/create-role-template.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/create-role-template.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/list-role-templates.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/list-role-templates.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/create-role-from-template.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/create-role-from-template.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/list-account-roles.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/list-account-roles.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/assign-account-role.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/assign-account-role.dto.ts)
-  - [/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/set-account-roles.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/dtos/set-account-roles.dto.ts)
+  - [permission.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/permission.controller.ts)
+  - [role.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/role.controller.ts)
+  - [role-template.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/role-template.controller.ts)
+  - [account-role.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/permission-service/interface/http/controllers/account-role.controller.ts)
+  - `policy-governance-readonly` controller 尚待实现
+- Gateway DTO
 - 下游 proto：
-  - [/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/permission_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/permission_management.proto)
+  - [permission_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/permission_management.proto)
+  - [policy_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/policy_management.proto)
 - 下游设计：
-  - [/Users/acehood/Documents/GitHub/oes/src/services/system/permission-service/doc/design/permission-management.md](/Users/acehood/Documents/GitHub/oes/src/services/system/permission-service/doc/design/permission-management.md)
+  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/src/services/system/permission-service/doc/design/permission-management.md)
 
-## 10. 前端页面建议
+## 12. 文档边界
 
-系统管理员 Permission 管理页首批可直接使用：
-
-- `GET /permission`：表格列表和搜索
-- `GET /permission/id/:id`：详情 / 编辑初始化
-- `GET /permission/:code`：按 code 快速定位
-- `PATCH /permission/:id`：编辑 `module / description`
-- `DELETE /permission/:id`：删除
-- `GET /permission/:id/roles`：删除前影响面提示或详情页引用信息
-
-按钮级权限建议：
-
-- 创建按钮：`permission.create`
-- 编辑按钮：`permission.update`
-- 删除按钮：`permission.delete`
-- 查看列表：`permission.list`
-- 查看详情：`permission.get_by_id` 或 `permission.get_by_code`
-
-系统管理员 Role 管理页首批可直接使用：
-
-- `GET /role`：表格列表和搜索
-- `POST /role`：创建 system / tenant role instance
-- `GET /role/:id`：详情 / 编辑初始化
-- `PATCH /role/:id`：编辑 `name / description`
-- `PATCH /role/:id/enabled`：启用 / 禁用
-- `GET /role/:id/permissions`：角色权限详情
-- `POST /role/:id/permissions`：分配 permission
-- `DELETE /role/:id/permissions/:permissionId`：撤销 permission
-- `DELETE /role/:id`：删除
-
-按钮级权限建议：
-
-- 创建按钮：`permission.role.create`
-- 编辑按钮：`permission.role.update`
-- 启用 / 禁用按钮：`permission.role.update`
-- 删除按钮：`permission.role.delete_by_id`
-- 查看列表：`permission.role.list`
-- 查看详情：`permission.role.get_by_id`
-- 分配 / 撤销 permission：`permission.role.update`
-
-系统管理员 Role Template 管理页首批可直接使用：
-
-- `GET /role-template`：模板表格列表和搜索
-- `POST /role-template`：创建模板
-- `GET /role-template/:id`：详情 / 编辑初始化
-- `PATCH /role-template/:id`：编辑 `name / description`
-- `PATCH /role-template/:id/enabled`：启用 / 禁用
-- `GET /role-template/:id/permissions`：模板权限详情
-- `POST /role-template/:id/permissions`：分配 permission
-- `DELETE /role-template/:id/permissions/:permissionId`：撤销 permission
-- `POST /role-template/:id/instantiate`：实例化 tenant role
-- `DELETE /role-template/:id`：删除模板
-
-按钮级权限建议：
-
-- 创建模板按钮：`permission.role.create`
-- 编辑模板按钮：`permission.role.update`
-- 启用 / 禁用按钮：`permission.role.update`
-- 删除模板按钮：`permission.role.delete_by_id`
-- 查看模板列表：`permission.role.list`
-- 查看模板详情：`permission.role.get_by_id`
-- 模板分配 / 撤销 permission：`permission.role.update`
-- 实例化按钮：`permission.role.create`
-
-系统管理员 / 租户管理员账号角色设置页首批可直接使用：
-
-- `GET /account/:accountId/roles`：当前生效角色列表
-- `GET /account/:accountId/roles/selection`：角色选择页初始化
-- `POST /account/:accountId/roles`：增量授予一个角色
-- `DELETE /account/:accountId/roles/:roleId`：撤销一个角色
-- `PUT /account/:accountId/roles`：整页保存角色集合
-- `GET /role/:roleId/accounts`：角色详情页查看成员账号
-
-按钮级权限建议：
-
-- 查看账号角色：`permission.account.get_roles`
-- 打开角色选择页：`permission.account.get_roles`
-- 增量授予 / 撤销角色：`permission.account.assign_roles`
-- 整页保存角色集合：`permission.account.assign_roles`
-
-## 11. 验证记录
-
-已完成验证：
-
-- `pnpm --filter @oes/common build`
-- `pnpm --filter api-gateway build`
-- `pnpm --filter api-gateway exec jest --runInBand src/common/guards/gateway-permission.guard.spec.ts src/modules/permission-service/interface/http/controllers/permission.controller.spec.ts`
-- `pnpm --filter permission-service build`
-- `pnpm --filter permission-service exec jest --config jest.config.js --runInBand test/l1/role-scope-boundary.spec.ts test/l1/authorization-query-scope.service.spec.ts test/l1/role-permission.handlers.spec.ts`
-- `pnpm --filter api-gateway exec jest --runInBand src/modules/permission-service/interface/http/controllers/role.controller.spec.ts src/modules/permission-service/interface/http/controllers/permission.controller.spec.ts`
-- `pnpm --filter api-gateway exec jest --runInBand src/modules/permission-service/interface/http/controllers/role-template.controller.spec.ts src/modules/permission-service/interface/http/controllers/role.controller.spec.ts src/modules/permission-service/interface/http/controllers/permission.controller.spec.ts`
-- `pnpm --filter api-gateway exec jest --runInBand src/modules/permission-service/interface/http/controllers/account-role.controller.spec.ts src/modules/permission-service/interface/http/controllers/role-template.controller.spec.ts src/modules/permission-service/interface/http/controllers/role.controller.spec.ts src/modules/permission-service/interface/http/controllers/permission.controller.spec.ts`
-- 真实 HTTP 联调：
-  - `POST /auth/login`
-  - `POST /auth/account-selection`
-  - `GET /permission?page=1&pageSize=5&keyword=permission`
-  - `POST /permission`
-  - `GET /permission/:code`
-  - `GET /permission/id/:id`
-  - `PATCH /permission/:id`
-  - `GET /permission/:id/roles`
-  - `DELETE /permission/:id`
-  - `GET /role?page=1&pageSize=5&scopeLevel=SYSTEM`
-  - `POST /role`
-  - `GET /role/:id`
-  - `PATCH /role/:id`
-  - `PATCH /role/:id/enabled`
-  - `POST /role/:id/permissions`
-  - `GET /role/:id/permissions`
-  - `DELETE /role/:id/permissions/:permissionId`
-  - `DELETE /role/:id`
-  - `GET /role-template?page=1&pageSize=5&keyword=TEMPLATE`
-  - `POST /role-template`
-  - `GET /role-template/:id`
-  - `PATCH /role-template/:id`
-  - `PATCH /role-template/:id/enabled`
-  - `POST /role-template/:id/permissions`
-  - `GET /role-template/:id/permissions`
-  - `POST /role-template/:id/instantiate`
-  - `DELETE /role-template/:id/permissions/:permissionId`
-  - `DELETE /role-template/:id`
-  - `GET /account/:accountId/roles?tenantId=:tenantId&scopeLevel=TENANT`
-  - `GET /account/:accountId/roles/selection?tenantId=:tenantId&scopeLevel=TENANT`
-  - `POST /account/:accountId/roles`
-  - `PUT /account/:accountId/roles`
-  - `DELETE /account/:accountId/roles/:roleId`
-  - `GET /role/:roleId/accounts`
+- 本文保留“调用方可依赖的权限管理 HTTP 契约”和“页面接入边界”。
+- 详细按钮权限、页面实现步骤、测试命令与联调记录，不再继续堆叠到本文件。
+- 如果后续需要记录阶段执行过程，应回写到对应 feature packet、计划文档或交付记录，而不是污染契约正文。

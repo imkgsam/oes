@@ -10,32 +10,63 @@ import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common
 import {
   AUTH_SERVICE_NAME,
   ActivateTotpBindingRequest,
+  AdminListOnlineUsersResponse,
   AdminListUserSessionsResponse,
+  AdminDeleteAccountSessionsRequest,
+  AdminDeleteAccountSessionsResponse,
   AdminRevokeSessionResponse,
   AuditEventRecord,
   AuthServiceClient,
+  BootstrapUserLoginMethodsRequest,
+  BootstrapUserLoginMethodsResponse,
+  ChangeOwnPasswordRequest,
+  ContactBindingVerificationResponse,
+  CompleteFirstLoginPasswordSetupRequest,
+  CompleteFirstLoginPasswordSetupResponse,
+  CompletePasswordRecoveryRequest,
   DisableMfaBindingRequest,
+  EmailBindingChallengeRequest,
   EmailOtpLoginRequest,
   EmailPasswordLoginRequest,
   EnableMfaBindingRequest,
   InitializeRecoveryCodesRequest,
   InitializeTotpBindingRequest,
   InitializeTotpBindingResponse,
+  InspectPasswordRecoveryChannelsRequest,
+  InspectPasswordRecoveryChannelsResponse,
   LoginResponse,
+  ListLoginMethodsResponse,
   ListMfaBindingsResponse,
+  ListLoginHistoryResponse,
   ListSessionsResponse,
+  LoginMethodMutationResponse,
   LogoutAllResponse,
   LogoutOtherDevicesResponse,
+  LogoutSessionRequest,
+  LogoutSessionResponse,
   LogoutResponse,
   MfaBindingMutationResponse,
   MfaBindingType,
   OtpChallengeResponse,
+  PasswordRecoveryChallengeResponse,
+  PasswordRecoveryChannel,
+  PasswordRecoveryCompletionResponse,
+  PasswordRecoveryVerificationResponse,
+  PhoneBindingChallengeRequest,
   PhoneOtpLoginRequest,
   PhonePasswordLoginRequest,
   RefreshSessionResponse,
+  ValidateAccessTokenRequest,
+  ValidateAccessTokenResponse,
   RecoveryCodesResponse,
   RegenerateRecoveryCodesRequest,
-  SelectAccountResponse
+  RequestPasswordRecoveryChallengeRequest,
+  RequirePasswordSetupRequest,
+  SelectAccountResponse,
+  TenantMfaPolicyResponse,
+  VerifyPasswordRecoveryChallengeRequest,
+  VerifyEmailBindingRequest,
+  VerifyPhoneBindingRequest
 } from '@oes/common/generated/auth_service'
 import {
   DownstreamRequestSource,
@@ -61,13 +92,21 @@ export class AuthGrpcAdapter implements OnModuleInit {
   }
 
   loginWithEmailPassword(
-    email: string,
-    password: string,
+    request: {
+      email: string
+      password: string
+      deviceName?: string
+      userAgent?: string
+      ipAddress?: string
+    },
     source: DownstreamRequestSource
   ): Promise<LoginResponse> {
-    const request: EmailPasswordLoginRequest = { email, password }
+    const grpcRequest: EmailPasswordLoginRequest = request
 
-    return this.call('loginWithEmailPassword', this.svc.loginWithEmailPassword(request, this.metadata(source)))
+    return this.call(
+      'loginWithEmailPassword',
+      this.svc.loginWithEmailPassword(grpcRequest, this.metadata(source))
+    )
   }
 
   loginWithEmailOtp(email: string, otp: string, source: DownstreamRequestSource): Promise<LoginResponse> {
@@ -86,14 +125,37 @@ export class AuthGrpcAdapter implements OnModuleInit {
     )
   }
 
+  requestEmailBindingChallenge(
+    request: { email: string; userId: string },
+    source: DownstreamRequestSource
+  ): Promise<OtpChallengeResponse> {
+    const grpcRequest: EmailBindingChallengeRequest = {
+      userId: request.userId,
+      email: request.email
+    }
+
+    return this.call(
+      'requestEmailBindingChallenge',
+      this.svc.requestEmailBindingChallenge(grpcRequest, this.operatorMetadata(source))
+    )
+  }
+
   loginWithPhonePassword(
-    phone: string,
-    password: string,
+    request: {
+      phone: string
+      password: string
+      deviceName?: string
+      userAgent?: string
+      ipAddress?: string
+    },
     source: DownstreamRequestSource
   ): Promise<LoginResponse> {
-    const request: PhonePasswordLoginRequest = { phone, password }
+    const grpcRequest: PhonePasswordLoginRequest = request
 
-    return this.call('loginWithPhonePassword', this.svc.loginWithPhonePassword(request, this.metadata(source)))
+    return this.call(
+      'loginWithPhonePassword',
+      this.svc.loginWithPhonePassword(grpcRequest, this.metadata(source))
+    )
   }
 
   loginWithPhoneOtp(phone: string, otp: string, source: DownstreamRequestSource): Promise<LoginResponse> {
@@ -112,15 +174,58 @@ export class AuthGrpcAdapter implements OnModuleInit {
     )
   }
 
+  requestPhoneBindingChallenge(
+    request: { phone: string; userId: string },
+    source: DownstreamRequestSource
+  ): Promise<OtpChallengeResponse> {
+    const grpcRequest: PhoneBindingChallengeRequest = {
+      userId: request.userId,
+      phone: request.phone
+    }
+
+    return this.call(
+      'requestPhoneBindingChallenge',
+      this.svc.requestPhoneBindingChallenge(grpcRequest, this.operatorMetadata(source))
+    )
+  }
+
+  requestLoginMfaFactorChallenge(
+    challengeId: string,
+    factor: 'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP',
+    source: DownstreamRequestSource
+  ): Promise<OtpChallengeResponse> {
+    return this.call(
+      'requestLoginMfaFactorChallenge',
+      this.svc.requestLoginMfaFactorChallenge(
+        {
+          challengeId,
+          factor: this.toGrpcMfaBindingType(factor)
+        },
+        this.metadata(source)
+      )
+    )
+  }
+
   submitMfaChallenge(
     challengeId: string,
+    factor: 'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP',
     code: string,
     loginMethod: string,
+    factorChallengeId: string | undefined,
     source: DownstreamRequestSource
   ): Promise<LoginResponse> {
     return this.call(
       'submitMfaChallenge',
-      this.svc.submitMfaChallenge({ challengeId, code, loginMethod }, this.metadata(source))
+      this.svc.submitMfaChallenge(
+        {
+          challengeId,
+          factor: this.toGrpcMfaBindingType(factor),
+          code,
+          loginMethod,
+          factorChallengeId
+        },
+        this.metadata(source)
+      )
     )
   }
 
@@ -129,6 +234,7 @@ export class AuthGrpcAdapter implements OnModuleInit {
       userId: string
       accountId: string
       loginMethod: string
+      currentSessionId?: string
       deviceId?: string
       deviceName?: string
       userAgent?: string
@@ -139,11 +245,123 @@ export class AuthGrpcAdapter implements OnModuleInit {
     return this.call('selectAccount', this.svc.selectAccount(request, this.metadata(source)))
   }
 
+  bootstrapUserLoginMethods(
+    request: {
+      userId: string
+      accountId: string
+      displayName?: string
+      email?: string
+      phone?: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<BootstrapUserLoginMethodsResponse> {
+    const grpcRequest: BootstrapUserLoginMethodsRequest = {
+      userId: request.userId,
+      accountId: request.accountId,
+      displayName: request.displayName,
+      email: request.email,
+      phone: request.phone
+    }
+
+    return this.call(
+      'bootstrapUserLoginMethods',
+      this.svc.bootstrapUserLoginMethods(grpcRequest, this.operatorMetadata(source))
+    )
+  }
+
+  completeFirstLoginPasswordSetup(
+    request: { newPassword: string; userId: string },
+    source: DownstreamRequestSource
+  ): Promise<CompleteFirstLoginPasswordSetupResponse> {
+    const grpcRequest: CompleteFirstLoginPasswordSetupRequest = {
+      userId: request.userId,
+      newPassword: request.newPassword
+    }
+
+    return this.call(
+      'completeFirstLoginPasswordSetup',
+      this.svc.completeFirstLoginPasswordSetup(grpcRequest, this.operatorMetadata(source))
+    )
+  }
+
+  inspectPasswordRecoveryChannels(
+    request: { identifier: string },
+    source: DownstreamRequestSource
+  ): Promise<InspectPasswordRecoveryChannelsResponse> {
+    const grpcRequest: InspectPasswordRecoveryChannelsRequest = {
+      identifier: request.identifier
+    }
+
+    return this.call(
+      'inspectPasswordRecoveryChannels',
+      this.svc.inspectPasswordRecoveryChannels(grpcRequest, this.metadata(source))
+    )
+  }
+
+  requestPasswordRecoveryChallenge(
+    request: { channel: 'EMAIL' | 'PHONE'; identifier: string },
+    source: DownstreamRequestSource
+  ): Promise<PasswordRecoveryChallengeResponse> {
+    const grpcRequest: RequestPasswordRecoveryChallengeRequest = {
+      channel:
+        request.channel === 'PHONE'
+          ? PasswordRecoveryChannel.PASSWORD_RECOVERY_CHANNEL_PHONE
+          : PasswordRecoveryChannel.PASSWORD_RECOVERY_CHANNEL_EMAIL,
+      identifier: request.identifier
+    }
+
+    return this.call(
+      'requestPasswordRecoveryChallenge',
+      this.svc.requestPasswordRecoveryChallenge(grpcRequest, this.metadata(source))
+    )
+  }
+
+  verifyPasswordRecoveryChallenge(
+    request: { challengeId: string; otp: string },
+    source: DownstreamRequestSource
+  ): Promise<PasswordRecoveryVerificationResponse> {
+    const grpcRequest: VerifyPasswordRecoveryChallengeRequest = {
+      challengeId: request.challengeId,
+      otp: request.otp
+    }
+
+    return this.call(
+      'verifyPasswordRecoveryChallenge',
+      this.svc.verifyPasswordRecoveryChallenge(grpcRequest, this.metadata(source))
+    )
+  }
+
+  completePasswordRecovery(
+    request: { resetToken: string; newPassword: string },
+    source: DownstreamRequestSource
+  ): Promise<PasswordRecoveryCompletionResponse> {
+    const grpcRequest: CompletePasswordRecoveryRequest = {
+      resetToken: request.resetToken,
+      newPassword: request.newPassword
+    }
+
+    return this.call(
+      'completePasswordRecovery',
+      this.svc.completePasswordRecovery(grpcRequest, this.metadata(source))
+    )
+  }
+
   refreshSession(
     refreshToken: string,
     source: DownstreamRequestSource
   ): Promise<RefreshSessionResponse> {
     return this.call('refreshSession', this.svc.refreshSession({ refreshToken }, this.metadata(source)))
+  }
+
+  validateAccessToken(
+    accessToken: string,
+    source: DownstreamRequestSource
+  ): Promise<ValidateAccessTokenResponse> {
+    const request: ValidateAccessTokenRequest = { accessToken }
+    return this.call(
+      'validateAccessToken',
+      this.svc.validateAccessToken(request, this.metadata(source))
+    )
   }
 
   listSessions(
@@ -154,6 +372,81 @@ export class AuthGrpcAdapter implements OnModuleInit {
     return this.call(
       'listSessions',
       this.svc.listSessions({ userId, currentSessionId }, this.metadata(source))
+    )
+  }
+
+  listLoginHistory(
+    request: {
+      userId: string
+      result?: string
+      occurredAtFrom?: string
+      occurredAtTo?: string
+      cursor?: string
+      pageSize?: number
+    },
+    source: DownstreamRequestSource
+  ): Promise<ListLoginHistoryResponse> {
+    return this.call(
+      'listLoginHistory',
+      this.svc.listLoginHistory(request, this.metadata(source))
+    )
+  }
+
+  listLoginMethods(
+    userId: string,
+    source: DownstreamRequestSource
+  ): Promise<ListLoginMethodsResponse> {
+    return this.call(
+      'listLoginMethods',
+      this.svc.listLoginMethods({ userId }, this.metadata(source))
+    )
+  }
+
+  changeOwnPassword(
+    request: { currentPassword: string; newPassword: string; userId: string },
+    source: DownstreamRequestSource
+  ): Promise<{ success?: boolean; passwordSetupRequired?: boolean }> {
+    const grpcRequest: ChangeOwnPasswordRequest = {
+      userId: request.userId,
+      currentPassword: request.currentPassword,
+      newPassword: request.newPassword
+    }
+
+    return this.call(
+      'changeOwnPassword',
+      this.svc.changeOwnPassword(grpcRequest, this.metadata(source))
+    )
+  }
+
+  verifyEmailBinding(
+    request: { email: string; otp: string; userId: string },
+    source: DownstreamRequestSource
+  ): Promise<ContactBindingVerificationResponse> {
+    const grpcRequest: VerifyEmailBindingRequest = {
+      userId: request.userId,
+      email: request.email,
+      otp: request.otp
+    }
+
+    return this.call(
+      'verifyEmailBinding',
+      this.svc.verifyEmailBinding(grpcRequest, this.operatorMetadata(source))
+    )
+  }
+
+  verifyPhoneBinding(
+    request: { phone: string; otp: string; userId: string },
+    source: DownstreamRequestSource
+  ): Promise<ContactBindingVerificationResponse> {
+    const grpcRequest: VerifyPhoneBindingRequest = {
+      userId: request.userId,
+      phone: request.phone,
+      otp: request.otp
+    }
+
+    return this.call(
+      'verifyPhoneBinding',
+      this.svc.verifyPhoneBinding(grpcRequest, this.operatorMetadata(source))
     )
   }
 
@@ -172,8 +465,28 @@ export class AuthGrpcAdapter implements OnModuleInit {
     )
   }
 
-  logoutAll(userId: string, source: DownstreamRequestSource): Promise<LogoutAllResponse> {
-    return this.call('logoutAll', this.svc.logoutAll({ userId }, this.metadata(source)))
+  logoutAll(
+    userId: string,
+    currentSessionId: string,
+    source: DownstreamRequestSource
+  ): Promise<LogoutAllResponse> {
+    return this.call(
+      'logoutAll',
+      this.svc.logoutAll({ userId, currentSessionId }, this.metadata(source))
+    )
+  }
+
+  logoutSession(
+    userId: string,
+    currentSessionId: string,
+    targetSessionId: string,
+    source: DownstreamRequestSource
+  ): Promise<LogoutSessionResponse> {
+    const request: LogoutSessionRequest = { userId, currentSessionId, targetSessionId }
+    return this.call(
+      'logoutSession',
+      this.svc.logoutSession(request, this.metadata(source))
+    )
   }
 
   listMfaBindings(userId: string, source: DownstreamRequestSource): Promise<ListMfaBindingsResponse> {
@@ -251,6 +564,19 @@ export class AuthGrpcAdapter implements OnModuleInit {
     )
   }
 
+  adminListOnlineUsers(
+    request: { tenantId?: string },
+    source: DownstreamRequestSource
+  ): Promise<AdminListOnlineUsersResponse> {
+    return this.call(
+      'adminListOnlineUsers',
+      this.svc.adminListOnlineUsers(
+        { tenantId: request.tenantId },
+        this.operatorMetadata(source)
+      )
+    )
+  }
+
   adminRevokeSession(
     sessionId: string,
     reason: string,
@@ -259,6 +585,100 @@ export class AuthGrpcAdapter implements OnModuleInit {
     return this.call(
       'adminRevokeSession',
       this.svc.adminRevokeSession({ sessionId, reason }, this.operatorMetadata(source))
+    )
+  }
+
+  adminDeleteAccountSessions(
+    request: {
+      userId: string
+      accountId: string
+      reason: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<AdminDeleteAccountSessionsResponse> {
+    const grpcRequest: AdminDeleteAccountSessionsRequest = {
+      userId: request.userId,
+      accountId: request.accountId,
+      reason: request.reason
+    }
+
+    return this.call(
+      'adminDeleteAccountSessions',
+      this.svc.adminDeleteAccountSessions(grpcRequest, this.operatorMetadata(source))
+    )
+  }
+
+  requirePasswordSetup(
+    request: {
+      userId: string
+      reason?: string
+      revokeSessions?: boolean
+    },
+    source: DownstreamRequestSource
+  ): Promise<{ success?: boolean; passwordSetupRequired?: boolean }> {
+    const grpcRequest: RequirePasswordSetupRequest = {
+      userId: request.userId,
+      reason: request.reason,
+      revokeSessions: request.revokeSessions
+    }
+
+    return this.call(
+      'requirePasswordSetup',
+      this.svc.requirePasswordSetup(grpcRequest, this.operatorMetadata(source))
+    )
+  }
+
+  setLoginMethodEnabled(
+    request: {
+      userId: string
+      methodId: string
+      enabled: boolean
+      reason?: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<LoginMethodMutationResponse> {
+    return this.call(
+      'setLoginMethodEnabled',
+      this.svc.setLoginMethodEnabled(request, this.operatorMetadata(source))
+    )
+  }
+
+  getTenantMfaPolicy(
+    tenantId: string,
+    source: DownstreamRequestSource
+  ): Promise<TenantMfaPolicyResponse> {
+    return this.call(
+      'getTenantMfaPolicy',
+      this.svc.getTenantMfaPolicy({ tenantId }, this.operatorMetadata(source))
+    )
+  }
+
+  updateTenantMfaPolicy(
+    request: {
+      factors: Array<{
+        enabled: boolean
+        factor: 'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'
+        priority: number
+      }>
+      loginRequired: boolean
+      tenantId: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<TenantMfaPolicyResponse> {
+    return this.call(
+      'updateTenantMfaPolicy',
+      this.svc.updateTenantMfaPolicy(
+        {
+          tenantId: request.tenantId,
+          loginRequired: request.loginRequired,
+          factors: request.factors.map((factor) => ({
+            factor: this.toGrpcMfaBindingType(factor.factor),
+            enabled: factor.enabled,
+            priority: factor.priority
+          }))
+        },
+        this.operatorMetadata(source)
+      )
     )
   }
 
@@ -292,6 +712,21 @@ export class AuthGrpcAdapter implements OnModuleInit {
 
   private operatorMetadata(source: DownstreamRequestSource) {
     return this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+  }
+
+  private toGrpcMfaBindingType(
+    factor: 'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'
+  ): MfaBindingType {
+    switch (factor) {
+      case 'EMAIL_OTP':
+        return MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP
+      case 'SMS_OTP':
+        return MfaBindingType.MFA_BINDING_TYPE_SMS_OTP
+      case 'TOTP':
+        return MfaBindingType.MFA_BINDING_TYPE_TOTP
+      case 'BACKUP_CODE':
+        return MfaBindingType.MFA_BINDING_TYPE_BACKUP_CODE
+    }
   }
 
   private call<T>(method: string, call$: any): Promise<T> {
