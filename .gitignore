@@ -57,6 +57,7 @@ lerna-debug.log*
 # temp directory
 .temp
 .tmp
+.worktrees/
 
 # Runtime data
 pids
