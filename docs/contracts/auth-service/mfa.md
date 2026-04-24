@@ -7,6 +7,7 @@
 - 当前用户自助查看与维护 MFA 绑定
 - 当前用户初始化或轮换 TOTP / Recovery Codes
 - 登录流程中的 MFA challenge 提交
+- 已登录敏感操作的 step-up MFA challenge 与短期授权
 
 调用约束：
 
@@ -130,6 +131,10 @@
   - 不采用管理员型 `checkPermission`
   - 不采用 `checkResource`
   - 依赖当前用户身份与恢复码生成规则
+- 稳定语义：
+  - 只有当前用户已经完成并启用 `TOTP` 绑定后，才能初始化恢复码。
+  - 如果 `TOTP` 未绑定或未启用，应返回明确业务错误，前端提示先绑定认证器 App。
+  - 生成后的恢复码只在本次响应中展示，服务端只保存 hash。
 
 ### `RegenerateRecoveryCodes`
 
@@ -147,6 +152,9 @@
   - 不采用管理员型 `checkPermission`
   - 不采用 `checkResource`
   - 依赖当前用户身份与恢复码轮换规则
+- 稳定语义：
+  - 重新生成恢复码同样要求当前用户已经启用 `TOTP`。
+  - 重新生成后旧恢复码集合整体失效。
 
 ## 3. 认证流程接口
 
@@ -160,7 +168,9 @@
   - 认证流程编排方
 - 请求关键字段：
   - `challenge_id`
+  - `factor`
   - `code`
+  - `factor_challenge_id`，仅 OTP 因子必填
   - `login_method`
 - 响应关键字段：
   - `user_id`
@@ -173,8 +183,114 @@
   - 依赖 challenge 有效性、验证码校验与登录流程状态机
 - 关联说明：
   - 该能力同时属于登录流程桥接接口；完整登录续流语义见 [login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md)
+  - `BACKUP_CODE` 成功验证后，当前恢复码集合整体作废并停用 `BACKUP_CODE` 绑定。
+  - `TOTP` 与 `BACKUP_CODE` 不依赖 factor-specific OTP challenge。
+  - `EMAIL_OTP / SMS_OTP` 必须携带由 `RequestLoginMfaFactorChallenge` 生成的 `factor_challenge_id`。
 
-## 4. 当前授权模型说明
+## 4. 租户登录 MFA 策略接口
+
+### `GetTenantMfaPolicy`
+
+- 作用：读取一个租户的登录 MFA 策略快照。
+- 使用场景：
+  - BFF 管理页加载当前租户登录 MFA 设置
+  - 登录 MFA 编排在账号选择后读取所选 tenant 的策略
+- 请求关键字段：
+  - `tenant_id`
+- 响应关键字段：
+  - `tenant_id`
+  - `login_required`
+  - `scenario_requirements[].scenario`
+  - `scenario_requirements[].required`
+  - `factors[].factor`
+  - `factors[].enabled`
+  - `factors[].priority`
+- 稳定语义：
+  - 当前策略模型已支持 `LOGIN / CHANGE_PASSWORD / CHANGE_CONTACT / NEW_DEVICE_LOGIN` 四个场景。
+  - 如果没有租户 override，应返回默认策略：`login_required=false`，四种因子按默认 priority 返回。
+
+### `UpdateTenantMfaPolicy`
+
+- 作用：更新一个租户的登录 MFA 策略快照。
+- 使用场景：
+  - 租户管理员保存登录 MFA 设置页
+- 请求关键字段：
+  - `tenant_id`
+  - `login_required`
+  - `scenario_requirements[].scenario`
+  - `scenario_requirements[].required`
+  - `factors[].factor`
+  - `factors[].enabled`
+  - `factors[].priority`
+  - `operator_id`
+- 响应关键字段：
+  - 与 `GetTenantMfaPolicy` 相同
+- 稳定语义：
+  - 请求必须覆盖 `EMAIL_OTP / SMS_OTP / TOTP / BACKUP_CODE` 四个受管因子且每个只出现一次。
+  - `login_required` 仍作为 `LOGIN` 场景的兼容镜像字段；正式多场景真相以 `scenario_requirements` 为准。
+  - 策略归属 tenant；用户自己的 MFA 绑定资产仍归 user。
+  - 系统管理员平台默认 MFA 策略继续后置，不在本接口中表达平台覆盖租户的继承规则。
+
+## 5. 已登录 step-up MFA 接口
+
+### `StartStepUpMfaChallenge`
+
+- 作用：为已登录后的敏感操作创建一个 MFA challenge。
+- 使用场景：
+  - 修改密码前
+  - 更换邮箱 / 手机前
+  - 仅保留 `NEW_DEVICE_LOGIN` 契约占位，不作为当前登录新设备识别的正式入口
+- 请求关键字段：
+  - `user_id`
+  - `account_id`
+  - `tenant_id`
+  - `scenario`
+- 响应关键字段：
+  - `required`
+  - `challenge_id`
+  - `scenario`
+  - `default_mfa_factor`
+  - `available_factors[]`
+- 稳定语义：
+  - 只有当当前 tenant policy 要求该 `scenario` 进入 MFA 时，才返回 `required=true` 与 challenge 详情。
+  - 因子可用性仍由 user 自己已绑定且已启用的 MFA 资产决定。
+  - 当前正式的新设备登录命中不通过本接口触发，而是在账号选择后由 trusted-device 判定自动进入登录续流 MFA。
+
+### `CompleteStepUpMfaChallenge`
+
+- 作用：完成 step-up MFA challenge，并换取一个短时 `mfa_grant_token`。
+- 使用场景：
+  - 前端在敏感操作提交前完成 MFA 验证，然后把 `mfa_grant_token` 带给最终写接口。
+- 请求关键字段：
+  - `challenge_id`
+  - `factor`
+  - `code`
+  - `factor_challenge_id`
+- 响应关键字段：
+  - `success`
+  - `scenario`
+  - `mfa_grant_token`
+- 稳定语义：
+  - 当前 grant 只面向 `CHANGE_PASSWORD / CHANGE_CONTACT` 这类已登录敏感操作。
+  - `NEW_DEVICE_LOGIN` 仍属于登录续流，不复用 step-up grant。
+
+## 6. 新设备登录 trusted-device 语义
+
+- 作用：
+  - 在账号选择后，基于显式 trusted-device 真相判断当前设备是否属于该用户在当前租户下已识别设备。
+- 命中条件：
+  - 当前账号属于 tenant scope
+  - 当前 tenant policy 开启 `NEW_DEVICE_LOGIN`
+  - 当前请求携带稳定 `deviceId`
+  - `auth-service` 的 trusted-device 持久化中不存在 `userId + tenantId + deviceId` 记录
+- 明确禁止：
+  - 不能以裸 `ipAddress` 相等当作 trusted device
+  - 不能以裸 `userAgent` 相等当作 trusted device
+- 成功后果：
+  - 用户完成本次 `NEW_DEVICE_LOGIN` MFA 后，当前 `userId + tenantId + deviceId` 会写入 trusted-device 真相。
+  - 后续同一用户在同一租户、同一 `deviceId` 下再次登录时，不再单独命中 `NEW_DEVICE_LOGIN`。
+
+## 7. 当前授权模型说明
 
 本模块中的接口不按管理员资源访问模型设计。
 

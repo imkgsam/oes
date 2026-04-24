@@ -41,6 +41,9 @@
   - `user_id`
   - `challenge_id`
   - `accounts[]`
+- 账户候选语义：
+  - `accounts[]` 只携带 `account_id / tenant_id / scope_level / display_name`
+  - 若调用方仍需要 tenant 名称，应在 gateway / BFF 通过 `tenant-org-service` 按 `tenant_id` 聚合补水
 - 权限与上下文要求：
   - 不采用 `checkPermission`
   - 不采用 `buildQueryScope`
@@ -82,6 +85,9 @@
   - `user_id`
   - `challenge_id`
   - `accounts[]`
+- 账户候选语义：
+  - `accounts[]` 只携带 `account_id / tenant_id / scope_level / display_name`
+  - 若调用方仍需要 tenant 名称，应在 gateway / BFF 通过 `tenant-org-service` 按 `tenant_id` 聚合补水
 - 权限与上下文要求：
   - 不采用资源授权模型
   - 依赖 OTP 校验与认证流程状态机
@@ -105,6 +111,9 @@
   - `user_id`
   - `challenge_id`
   - `accounts[]`
+- 账户候选语义：
+  - `accounts[]` 只携带 `account_id / tenant_id / scope_level / display_name`
+  - 若调用方仍需要 tenant 名称，应在 gateway / BFF 通过 `tenant-org-service` 按 `tenant_id` 聚合补水
 - 权限与上下文要求：
   - 不采用资源授权模型
   - 依赖凭证校验、登录限流、MFA 分支逻辑与认证流程状态机
@@ -144,6 +153,9 @@
   - `user_id`
   - `challenge_id`
   - `accounts[]`
+- 账户候选语义：
+  - `accounts[]` 只携带 `account_id / tenant_id / scope_level / display_name`
+  - 若调用方仍需要 tenant 名称，应在 gateway / BFF 通过 `tenant-org-service` 按 `tenant_id` 聚合补水
 - 权限与上下文要求：
   - 不采用资源授权模型
   - 依赖 OTP 校验与认证流程状态机
@@ -235,12 +247,17 @@
   - 登录流程编排方
 - 请求关键字段：
   - `challenge_id`
+  - `factor`
   - `code`
+  - `factor_challenge_id`，仅 `EMAIL_OTP / SMS_OTP` 必填
   - `login_method`
 - 响应关键字段：
   - `user_id`
   - `method`
   - `accounts[]`
+- 账户候选语义：
+  - `accounts[]` 只携带 `account_id / tenant_id / scope_level / display_name`
+  - 若调用方仍需要 tenant 名称，应在 gateway / BFF 通过 `tenant-org-service` 按 `tenant_id` 聚合补水
 - 权限与上下文要求：
   - 不采用 `checkPermission`
   - 不采用 `buildQueryScope`
@@ -248,6 +265,36 @@
   - 依赖 challenge 有效性、验证码校验与登录流程状态机
 - 关联说明：
   - 该能力同时也是 `mfa` 模块中的认证流程接口，MFA 绑定与自助安全管理边界见 [mfa.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/mfa.md)
+  - `challenge_id` 是登录 MFA flow token，当前实现允许 JWT 长度，调用方不得按短 ID 校验。
+  - `factor` 必须属于当前登录 MFA flow 所属 tenant policy 与当前 user 可用绑定的交集。
+  - `BACKUP_CODE` 验证成功后必须停用当前恢复码绑定并使旧恢复码集合整体失效。
+
+### `RequestLoginMfaFactorChallenge`
+
+- 作用：在已存在的登录 MFA flow 中，为用户主动选择的 OTP 因子创建 factor-specific challenge。
+- 使用场景：
+  - 用户进入 MFA 页面后主动点击发送邮箱验证码或短信验证码
+  - 用户在冷却结束后主动重新发送邮箱验证码或短信验证码
+- 适用调用方：
+  - 正在登录的用户
+  - 登录流程编排方
+- 请求关键字段：
+  - `challenge_id`
+  - `factor`
+- 响应关键字段：
+  - `challenge_id`
+  - `destination`
+  - `expires_at`
+- 权限与上下文要求：
+  - 不采用 `checkPermission`
+  - 不采用 `buildQueryScope`
+  - 不采用 `checkResource`
+  - 依赖登录 MFA flow challenge 有效性、因子可用性与 OTP 发码频控
+- 契约约束：
+  - `MFA_REQUIRED` 响应不得自动调用该能力
+  - `EMAIL_OTP / SMS_OTP` 必须由用户主动触发后才创建 factor-specific challenge
+  - `TOTP / BACKUP_CODE` 不需要该 factor-specific OTP challenge
+  - captcha provider 校验属于外部 HTTP / BFF 边界，`auth-service` 只接收已被 BFF 允许的内部请求
 
 ### `SelectAccount`
 
@@ -270,12 +317,20 @@
   - `user_id`
   - `account_id`
   - `tenant_id`
+  - `mfa_scenario`
+  - `default_mfa_factor`
+  - `available_factors[]`
   - `session_id`
   - `access_token`
   - `refresh_token`
 - 权限与上下文要求：
   - 不采用资源授权模型
   - 依赖账户归属校验、账户可用性校验与会话建立流程
+- MFA 语义：
+  - 登录 MFA 判定发生在账号选择之后，因为只有选定 account 后才能确定 tenant policy。
+  - 如果所选 tenant 未要求 `LOGIN` MFA，则直接建立 session。
+  - 如果所选 tenant 要求 `LOGIN` MFA，则返回 `MFA_REQUIRED`，并携带 `mfa_scenario=LOGIN`、`default_mfa_factor` 与按 tenant priority 排序的 `available_factors[]`。
+  - `EMAIL_OTP / SMS_OTP` 不会在返回 `MFA_REQUIRED` 时自动发码；必须由调用方随后显式调用 `RequestLoginMfaFactorChallenge`。
 
 ## 4. 会话续期
 

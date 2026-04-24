@@ -2,25 +2,28 @@ import { Injectable } from '@nestjs/common'
 import { MfaType } from '../../../common/constants'
 import {
   TenantMfaFactorPolicySnapshot,
+  TenantMfaScenario,
   TenantMfaPolicyEntity
 } from '../../../domain/entities/tenant-mfa-policy.entity'
 import { TenantMfaPolicyRepository } from '../../../domain/repositories/tenant-mfa-policy.repository'
 import { PrismaService } from '../../prisma/prisma.service'
 
+const MANAGED_TENANT_MFA_SCENARIOS: TenantMfaScenario[] = [
+  'LOGIN',
+  'NEW_DEVICE_LOGIN',
+  'CHANGE_PASSWORD',
+  'CHANGE_CONTACT'
+]
+
 @Injectable()
-// Persists one tenant-scoped MFA policy surface for login-scene factor orchestration.
+// Persists tenant-scoped MFA scenario requirements and the shared factor ordering snapshot.
 export class PrismaTenantMfaPolicyRepository implements TenantMfaPolicyRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async getTenantPolicy(tenantId: string): Promise<TenantMfaPolicyEntity> {
-    const [scenarioPolicy, factorPolicies] = await Promise.all([
-      this.prisma.tenantMfaScenarioPolicy.findUnique({
-        where: {
-          tenantId_scenario: {
-            tenantId,
-            scenario: 'LOGIN'
-          }
-        }
+    const [scenarioPolicies, factorPolicies] = await Promise.all([
+      this.prisma.tenantMfaScenarioPolicy.findMany({
+        where: { tenantId }
       }),
       this.prisma.tenantMfaFactorPolicy.findMany({
         where: { tenantId }
@@ -28,8 +31,8 @@ export class PrismaTenantMfaPolicyRepository implements TenantMfaPolicyRepositor
     ])
 
     const entity = TenantMfaPolicyEntity.defaults(tenantId)
-    if (scenarioPolicy) {
-      entity.setLoginRequired(Boolean(scenarioPolicy.required))
+    for (const scenarioPolicy of scenarioPolicies) {
+      entity.setScenarioRequired(scenarioPolicy.scenario as TenantMfaScenario, Boolean(scenarioPolicy.required))
     }
     if (factorPolicies.length > 0) {
       entity.replaceFactors(
@@ -48,22 +51,24 @@ export class PrismaTenantMfaPolicyRepository implements TenantMfaPolicyRepositor
 
   async saveTenantPolicy(policy: TenantMfaPolicyEntity): Promise<TenantMfaPolicyEntity> {
     await this.prisma.$transaction(async (tx) => {
-      await tx.tenantMfaScenarioPolicy.upsert({
-        where: {
-          tenantId_scenario: {
+      for (const scenario of MANAGED_TENANT_MFA_SCENARIOS) {
+        await tx.tenantMfaScenarioPolicy.upsert({
+          where: {
+            tenantId_scenario: {
+              tenantId: policy.tenantId,
+              scenario
+            }
+          },
+          update: {
+            required: policy.isScenarioRequired(scenario)
+          },
+          create: {
             tenantId: policy.tenantId,
-            scenario: 'LOGIN'
+            scenario,
+            required: policy.isScenarioRequired(scenario)
           }
-        },
-        update: {
-          required: policy.isLoginRequired()
-        },
-        create: {
-          tenantId: policy.tenantId,
-          scenario: 'LOGIN',
-          required: policy.isLoginRequired()
-        }
-      })
+        })
+      }
 
       for (const factorPolicy of policy.getFactors()) {
         await tx.tenantMfaFactorPolicy.upsert({

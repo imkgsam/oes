@@ -19,6 +19,7 @@ export interface DeviceInfo {
 }
 
 const SEEDED_TEST_TOTP_CODE_KEY = 'seededTestCode'
+const TOTP_VERIFICATION_WINDOW = 1
 
 export class MfaBindingEntity {
   constructor(
@@ -142,10 +143,11 @@ export class MfaBindingEntity {
     if (this.props.type !== MfaType.TOTP) {
       throw ExceptionFactory.domain(AUTH_MFA_TYPE_MISMATCH)
     }
-    if (this.matchesSeededTestCode(inputCode)) {
+    const normalizedCode = normalizeTotpCode(inputCode)
+    if (this.matchesSeededTestCode(normalizedCode)) {
       return true
     }
-    return authenticator.verify({ token: inputCode, secret: this.props.secret })
+    return verifyTotpCode(normalizedCode, this.props.secret)
   }
 
   activateTotpBinding(): void {
@@ -162,10 +164,11 @@ export class MfaBindingEntity {
     if (!this.isEnabled()) {
       throw ExceptionFactory.domain(AUTH_MFA_DISABLED)
     }
-    if (this.matchesSeededTestCode(inputCode)) {
+    const normalizedCode = normalizeTotpCode(inputCode)
+    if (this.matchesSeededTestCode(normalizedCode)) {
       return true
     }
-    return authenticator.verify({ token: inputCode, secret: this.props.secret })
+    return verifyTotpCode(normalizedCode, this.props.secret)
   }
 
   private matchesSeededTestCode(inputCode: string): boolean {
@@ -320,4 +323,18 @@ export class MfaBindingEntity {
       deviceInfo: this.props.deviceInfo ? JSON.stringify(this.props.deviceInfo) : null
     }
   }
+}
+
+function normalizeTotpCode(inputCode: string): string {
+  return inputCode.replace(/\s+/g, '').trim()
+}
+
+function verifyTotpCode(token: string, secret: string): boolean {
+  const verifier = authenticator.clone()
+  verifier.options = {
+    ...verifier.options,
+    window: TOTP_VERIFICATION_WINDOW
+  }
+
+  return verifier.verify({ token, secret })
 }

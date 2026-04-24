@@ -85,6 +85,13 @@ export const AUTH_MFA_INVALID_CODE: ExceptionDefinition = {
   rpcStatus: status.INVALID_ARGUMENT
 }
 
+export const AUTH_MFA_STEP_UP_REQUIRED: ExceptionDefinition = {
+  code: 'AUTH_MFA_STEP_UP_REQUIRED',
+  message: 'Step-up MFA is required',
+  messageKey: 'auth.mfa_step_up_required',
+  rpcStatus: status.FAILED_PRECONDITION
+}
+
 export const AUTH_MFA_RECOVERY_CODES_REQUIRE_TOTP: ExceptionDefinition = {
   code: 'AUTH_MFA_RECOVERY_CODES_REQUIRE_TOTP',
   message: 'Recovery codes require an active TOTP binding',

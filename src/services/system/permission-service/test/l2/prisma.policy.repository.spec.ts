@@ -214,4 +214,60 @@ describe('PrismaPolicyRepository L2', () => {
     expect(result.total).toBe(1)
     expect(result.policies[0]?.name).toBe(`${prefix}_policy_target`)
   })
+
+  it('Policy 分页查询 / 当按 subjectType 和 subjectId 过滤时 / 应只返回目标账号策略', async () => {
+    const permissionCode = `${prefix}_permission_subject_account`
+    await createPermission(permissionCode)
+
+    await prisma.policy.createMany({
+      data: [
+        {
+          id: randomUUID(),
+          name: `${prefix}_policy_target_account`,
+          tenantId: 'tenant-1',
+          effect: 'ALLOW',
+          subjectType: 'ACCOUNT',
+          subjectId: 'account-target',
+          permissionCode,
+          resourceType: null,
+          priority: 10,
+          isEnabled: true
+        },
+        {
+          id: randomUUID(),
+          name: `${prefix}_policy_other_account`,
+          tenantId: 'tenant-1',
+          effect: 'ALLOW',
+          subjectType: 'ACCOUNT',
+          subjectId: 'account-other',
+          permissionCode,
+          resourceType: null,
+          priority: 5,
+          isEnabled: true
+        },
+        {
+          id: randomUUID(),
+          name: `${prefix}_policy_any_subject`,
+          tenantId: 'tenant-1',
+          effect: 'ALLOW',
+          subjectType: 'ANY',
+          subjectId: null,
+          permissionCode,
+          resourceType: null,
+          priority: 1,
+          isEnabled: true
+        }
+      ]
+    })
+
+    const result = await repository.findPaged({
+      page: 1,
+      pageSize: 10,
+      subjectType: PolicySubjectType.ACCOUNT,
+      subjectId: 'account-target'
+    })
+
+    expect(result.total).toBe(1)
+    expect(result.policies[0]?.name).toBe(`${prefix}_policy_target_account`)
+  })
 })

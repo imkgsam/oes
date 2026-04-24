@@ -9,6 +9,7 @@ import {
   CreateRoleInstanceFromTemplateRequest,
   CreateRoleInstanceRequest,
   CreateRoleTemplateRequest,
+  DeletePolicyRequest,
   DeletePermissionRequest,
   DeleteRoleRequest,
   DeleteRoleTemplateRequest,
@@ -123,6 +124,11 @@ export class PermissionProxyService {
     source: DownstreamRequestSource
   ): Promise<PolicyResponse> {
     return this.policyManagementPort.getPolicyById(req, source)
+  }
+
+  // Deletes one policy governance row by id.
+  async deletePolicy(req: DeletePolicyRequest, source: DownstreamRequestSource): Promise<void> {
+    return this.policyManagementPort.deletePolicy(req, source)
   }
 
   // Reads policy governance records linked to one permission code.

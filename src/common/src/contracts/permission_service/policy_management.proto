@@ -2,21 +2,19 @@ syntax = "proto3";
 
 package permission_service;
 
-import "google/protobuf/empty.proto";
-
 option java_multiple_files = true;
 option java_package = "com.oes.permission.v1";
 
 service PolicyManagementService {
-  rpc CreatePolicy(CreatePolicyRequest) returns (PolicyResponse);
-  rpc UpdatePolicy(UpdatePolicyRequest) returns (PolicyResponse);
-  rpc DeletePolicy(DeletePolicyRequest) returns (google.protobuf.Empty);
-  rpc TogglePolicy(TogglePolicyRequest) returns (PolicyResponse);
-  rpc GetPolicyById(GetPolicyByIdRequest) returns (PolicyResponse);
-  rpc ListPoliciesPaged(ListPoliciesPagedRequest) returns (PagedPoliciesResponse);
-  rpc ListPoliciesByPermission(ListPoliciesByPermissionRequest) returns (ListPoliciesResponse);
-  rpc AddPermissionPolicy(AddPermissionPolicyRequest) returns (PolicyResponse);
-  rpc RemovePermissionPolicy(RemovePermissionPolicyRequest) returns (google.protobuf.Empty);
+  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse);
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse);
+  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse);
+  rpc TogglePolicy(TogglePolicyRequest) returns (TogglePolicyResponse);
+  rpc GetPolicyById(GetPolicyByIdRequest) returns (GetPolicyByIdResponse);
+  rpc ListPoliciesPaged(ListPoliciesPagedRequest) returns (ListPoliciesPagedResponse);
+  rpc ListPoliciesByPermission(ListPoliciesByPermissionRequest) returns (ListPoliciesByPermissionResponse);
+  rpc AddPermissionPolicy(AddPermissionPolicyRequest) returns (AddPermissionPolicyResponse);
+  rpc RemovePermissionPolicy(RemovePermissionPolicyRequest) returns (RemovePermissionPolicyResponse);
 }
 
 enum PolicyEffectProto {
@@ -79,6 +77,8 @@ message ListPoliciesPagedRequest {
   string permission_code = 4;
   bool is_enabled = 5;
   string keyword = 6;
+  PolicySubjectTypeProto subject_type = 7;
+  string subject_id = 8;
 }
 
 message ListPoliciesByPermissionRequest {
@@ -104,6 +104,68 @@ message RemovePermissionPolicyRequest {
   string policy_id = 2;
 }
 
+message CreatePolicyResponse {
+  string id = 1;
+  string name = 2;
+  PolicyEffectProto effect = 3;
+  string description = 4;
+  string tenant_id = 5;
+  PolicySubjectTypeProto subject_type = 6;
+  string subject_id = 7;
+  string permission_code = 8;
+  string resource_type = 9;
+  int32 priority = 10;
+  bool is_enabled = 11;
+  string condition_ast_json = 12;
+}
+
+message UpdatePolicyResponse {
+  string id = 1;
+  string name = 2;
+  PolicyEffectProto effect = 3;
+  string description = 4;
+  string tenant_id = 5;
+  PolicySubjectTypeProto subject_type = 6;
+  string subject_id = 7;
+  string permission_code = 8;
+  string resource_type = 9;
+  int32 priority = 10;
+  bool is_enabled = 11;
+  string condition_ast_json = 12;
+}
+
+message DeletePolicyResponse {}
+
+message TogglePolicyResponse {
+  string id = 1;
+  string name = 2;
+  PolicyEffectProto effect = 3;
+  string description = 4;
+  string tenant_id = 5;
+  PolicySubjectTypeProto subject_type = 6;
+  string subject_id = 7;
+  string permission_code = 8;
+  string resource_type = 9;
+  int32 priority = 10;
+  bool is_enabled = 11;
+  string condition_ast_json = 12;
+}
+
+message GetPolicyByIdResponse {
+  string id = 1;
+  string name = 2;
+  PolicyEffectProto effect = 3;
+  string description = 4;
+  string tenant_id = 5;
+  PolicySubjectTypeProto subject_type = 6;
+  string subject_id = 7;
+  string permission_code = 8;
+  string resource_type = 9;
+  int32 priority = 10;
+  bool is_enabled = 11;
+  string condition_ast_json = 12;
+}
+
 message PolicyResponse {
   string id = 1;
   string name = 2;
@@ -123,9 +185,37 @@ message ListPoliciesResponse {
   repeated PolicyResponse policies = 1;
 }
 
+message ListPoliciesByPermissionResponse {
+  repeated PolicyResponse policies = 1;
+}
+
 message PagedPoliciesResponse {
   repeated PolicyResponse policies = 1;
   int32 total = 2;
   int32 page = 3;
   int32 page_size = 4;
 }
+
+message ListPoliciesPagedResponse {
+  repeated PolicyResponse policies = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message AddPermissionPolicyResponse {
+  string id = 1;
+  string name = 2;
+  PolicyEffectProto effect = 3;
+  string description = 4;
+  string tenant_id = 5;
+  PolicySubjectTypeProto subject_type = 6;
+  string subject_id = 7;
+  string permission_code = 8;
+  string resource_type = 9;
+  int32 priority = 10;
+  bool is_enabled = 11;
+  string condition_ast_json = 12;
+}
+
+message RemovePermissionPolicyResponse {}

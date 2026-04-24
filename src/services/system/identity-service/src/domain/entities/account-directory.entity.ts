@@ -3,8 +3,8 @@ export class AccountDirectoryEntity {
   constructor(
     public readonly accountId: string,
     public readonly userId: string,
+    public readonly userPartyId: null | string,
     public readonly tenantId: null | string,
-    public readonly tenantName: null | string,
     public readonly scopeLevel: 'SYSTEM' | 'TENANT',
     public readonly displayName: null | string,
     public readonly userDisplayName: null | string,

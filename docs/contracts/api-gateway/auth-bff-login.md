@@ -19,7 +19,7 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
 - Control model: public authentication endpoint; no `checkPermission`, `buildQueryScope`, or `checkResource`.
 - Deferred fields:
   - `tenantHint` is kept in the HTTP contract as a future client-side preference input, but it is not forwarded downstream yet.
-  - `device.deviceId` remains reserved and is not forwarded during the primary login step yet.
+  - `device.deviceId` is not forwarded during the primary credential-verification step; it is forwarded in the post-auth account-selection step for trusted-device recognition.
   - OTP login methods do not consume login-device hints yet.
 - Active device propagation:
   - for `EMAIL_PASSWORD` and `PHONE_PASSWORD`, BFF now forwards `device.deviceName` together with the incoming HTTP `user-agent` and `ip` to `auth-service`
@@ -79,7 +79,31 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
   "nextStep": "COMPLETE_MFA",
   "loginMethod": "EMAIL_PASSWORD",
   "challenge": {
-    "challengeId": "chl_mfa_123"
+    "challengeId": "chl_mfa_123",
+    "scenario": "LOGIN",
+    "defaultFactor": "EMAIL_OTP",
+    "availableFactors": [
+      {
+        "type": "EMAIL_OTP",
+        "label": "邮箱验证码",
+        "priority": 1
+      },
+      {
+        "type": "TOTP",
+        "label": "认证器 App",
+        "priority": 2
+      },
+      {
+        "type": "SMS_OTP",
+        "label": "手机验证码",
+        "priority": 3
+      },
+      {
+        "type": "BACKUP_CODE",
+        "label": "恢复码",
+        "priority": 4
+      }
+    ]
   },
   "operator": {
     "userId": "usr_123",
@@ -88,6 +112,15 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
   "accountOptions": []
 }
 ```
+
+- MFA continuation constraint:
+  - `MFA_REQUIRED` only creates the login-level MFA flow challenge.
+  - `challenge.scenario` is `LOGIN` or `NEW_DEVICE_LOGIN` for the current login flow.
+  - `challenge.defaultFactor` and `challenge.availableFactors[]` are ordered by the selected account tenant's MFA factor priority.
+  - BFF must not treat `defaultFactor: EMAIL_OTP` or `defaultFactor: SMS_OTP` as meaning an OTP has already been sent.
+  - `factorChallengeId`, `destination`, and `expiresAt` are omitted until the user explicitly requests an OTP factor challenge.
+  - Current UI must gate email and SMS OTP send / resend behind captcha before calling the factor challenge endpoint.
+  - `NEW_DEVICE_LOGIN` only appears after primary身份验证成功且账号选择完成，不是登录前的独立风险页。
 
 - Proposed post-auth account-selection response:
 
@@ -194,6 +227,46 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
 - Users: end users in an in-progress authentication flow.
 - Control model: public authentication endpoint; challenge validation replaces resource authorization.
 - Downstream: `SubmitMfaChallenge`
+- Request fields:
+  - `challengeId`: JWT-sized login MFA flow challenge id; max length must allow signed JWT payloads
+  - `factor`: one of `EMAIL_OTP / SMS_OTP / TOTP / BACKUP_CODE`
+  - `code`: user-submitted factor code
+  - `factorChallengeId`: required only for `EMAIL_OTP / SMS_OTP`
+  - `loginMethod`: original primary login method
+- Recovery-code semantics:
+  - `BACKUP_CODE` participates in normal factor priority ordering.
+  - A successful backup-code verification consumes the emergency set and disables the current `BACKUP_CODE` binding.
+  - A used recovery-code set cannot be reused; the user must regenerate codes in the security center before it becomes available again.
+
+### `POST /auth/mfa/challenges`
+
+- Purpose: explicitly request an email or SMS OTP factor challenge inside a pending login MFA flow.
+- Users: end users in an in-progress authentication flow who have actively chosen to send or resend an OTP factor.
+- Control model: public authentication endpoint; challenge validation replaces resource authorization.
+- Downstream: `RequestLoginMfaFactorChallenge`
+- Contract constraint:
+  - this endpoint must be invoked only from a user action, not from page load, automatic MFA route entry, or passive factor selection
+  - email and SMS factors must be gated by captcha in the UI before this endpoint is called
+  - server-side captcha token validation is a BFF concern if/when a tokenized captcha provider is introduced
+  - `TOTP` and `BACKUP_CODE` do not create downstream OTP challenges
+- Proposed request:
+
+```json
+{
+  "challengeId": "chl_mfa_123",
+  "factor": "EMAIL_OTP"
+}
+```
+
+- Proposed response:
+
+```json
+{
+  "challengeId": "otp_factor_123",
+  "destination": "a***@example.com",
+  "expiresAt": "2026-04-22T10:00:00.000Z"
+}
+```
 
 ### `POST /auth/account-selection`
 
@@ -508,14 +581,18 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
   - it must not edit `user`-level login identity fields
   - it must not edit tenant context, role assignments, work contacts, or security settings
 - Editable fields in stage one:
-  - `avatar`
+  - `avatarAssetId`
   - `displayName`
   - `bio`
+- Avatar flow constraint:
+  - avatar file upload must go through the dedicated `POST /auth/personal-center/avatar` endpoint first
+  - this endpoint does not accept arbitrary external avatar URLs
+  - the avatar upload / bind flow is available for both `TENANT` and `SYSTEM` current-account contexts; the difference is the downstream asset ownership scope, not feature availability
 - Proposed request:
 
 ```json
 {
-  "avatar": "https://cdn.example.com/avatar/account-1.png",
+  "avatarAssetId": "ast_01JAVATARABCDEF1234567890",
   "displayName": "陈双鹏",
   "bio": "负责美隆陶瓷的外贸协同与重点客户经营。"
 }
@@ -544,16 +621,51 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
 ```
 
 - Proposed field expectations:
-  - `avatar`: optional account-avatar reference used by the current account shell and personal center; `avatar` is the BFF black-box field name and maps to downstream `identity-service.UserAccount.avatarUrl`, while BFF does not leak the internal field name into the external contract
+  - `avatarAssetId`: optional current-account avatar asset reference; it must come from the dedicated avatar upload flow rather than from a user-supplied URL
   - `displayName`: optional but user-facing current-account display label; when present it should be non-blank after trimming
   - `bio`: optional short current-account profile text
 - Proposed validation baseline:
-  - `avatar`: optional string, max length `2048`
+  - `avatarAssetId`: optional string, max length `64`
   - `displayName`: optional string, max length `64`, blank strings are normalized to `null`
   - `bio`: optional string, max length `280`, blank strings are normalized to `null`
 - Suggested downstream ownership:
   - `auth-bff` validates request shape and forwards a current-account profile mutation
-  - `identity-service` owns the write model because `displayName`, `avatarUrl`, and `bio` belong to `UserAccount`; the BFF black-box field `avatar` maps to the internal field `avatarUrl`
+  - `identity-service` owns the write model because `avatarAssetId`, `displayName`, and `bio` belong to `UserAccount`
+  - `asset-service` owns avatar asset upload, storage, and public URL generation
+
+### `POST /auth/personal-center/avatar`
+
+- Purpose: upload one avatar candidate file for the current authenticated account before saving the account profile.
+- Users: authenticated end users.
+- Control model: authenticated session endpoint; the target `account` is always the currently authenticated account context.
+- Scope constraint:
+  - this endpoint must support both `TENANT` and `SYSTEM` current-account contexts
+  - `TENANT` current-account uploads produce tenant-owned avatar assets
+  - `SYSTEM` current-account uploads produce system-owned avatar assets
+- Request model:
+  - `multipart/form-data`
+  - one required `file` field
+- Validation baseline:
+  - allowed MIME types: `image/jpeg`, `image/png`, `image/webp`
+  - max size: `2MB`
+  - the server must validate file headers and image decodability instead of trusting only the extension
+- Proposed response:
+
+```json
+{
+  "avatarAsset": {
+    "assetId": "ast_01JAVATARABCDEF1234567890",
+    "publicUrl": "https://assets.example.com/avatar/tenant-1/account-1/abc.webp",
+    "mimeType": "image/webp",
+    "size": 183421,
+    "status": "PENDING_BIND"
+  }
+}
+```
+
+- Downstream ownership:
+  - `auth-bff` owns the external HTTP endpoint and current-account authorization boundary
+  - `asset-service` owns asset metadata, scope-aware ownership, storage writes, and `publicUrl` generation
 
 ## Current front-end readiness
 

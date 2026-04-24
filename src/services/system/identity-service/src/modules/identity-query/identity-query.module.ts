@@ -6,9 +6,9 @@ import {
   AccountQueryHandlers,
   AuditQueryHandlers,
   ContactQueryHandlers,
+  EmployeeBindingQueryHandlers,
   OrgQueryHandlers,
   ServiceAccountQueryHandlers,
-  TenantQueryHandlers,
   UserQueryHandlers
 } from '../../application/queries'
 import {
@@ -23,10 +23,15 @@ import {
   QueryScopeBuilder,
   ServiceAccountQueryScopeBuilder
 } from '../../application/authorization'
+import {
+  ACCOUNT_DELETION_BLOCKER_CHECKERS,
+  AccountDeletionBlockerService
+} from '../../application/services/account-deletion-blocker.service'
 import { PrismaAccountContactAssetRepository } from '../../infrastructure/repositories/prisma/prisma.account-contact-asset.repository'
 import { PrismaAccountOrgMembershipRepository } from '../../infrastructure/repositories/prisma/prisma.account-org-membership.repository'
 import { PrismaApiKeyRepository } from '../../infrastructure/repositories/prisma/prisma.api-key.repository'
 import { PrismaAccountRepository } from '../../infrastructure/repositories/prisma/prisma.account.repository'
+import { PrismaEmployeeBindingRepository } from '../../infrastructure/repositories/prisma/prisma.employee-binding.repository'
 import { PrismaOrgRepository } from '../../infrastructure/repositories/prisma/prisma.org.repository'
 import { PrismaServiceAccountRepository } from '../../infrastructure/repositories/prisma/prisma.service-account.repository'
 import { PrismaTenantRepository } from '../../infrastructure/repositories/prisma/prisma.tenant.repository'
@@ -45,6 +50,10 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
     {
       provide: SYMBOLS.REPO.ACCOUNT,
       useClass: PrismaAccountRepository
+    },
+    {
+      provide: SYMBOLS.REPO.EMPLOYEE_BINDING,
+      useClass: PrismaEmployeeBindingRepository
     },
     {
       provide: SYMBOLS.REPO.TENANT,
@@ -78,6 +87,7 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
     ValidatingQueryBus,
     AuthorizationQueryScopeService,
     CheckResourceService,
+    AccountDeletionBlockerService,
     AccountQueryScopeBuilder,
     AccountMembershipQueryScopeBuilder,
     AccountContactAssetQueryScopeBuilder,
@@ -110,9 +120,13 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
         ServiceAccountQueryScopeBuilder
       ]
     },
+    {
+      provide: ACCOUNT_DELETION_BLOCKER_CHECKERS,
+      useValue: []
+    },
     ...UserQueryHandlers,
     ...AccountQueryHandlers,
-    ...TenantQueryHandlers,
+    ...EmployeeBindingQueryHandlers,
     ...OrgQueryHandlers,
     ...ContactQueryHandlers,
     ...ServiceAccountQueryHandlers,

@@ -40,8 +40,11 @@ export class SubmitMfaChallengeHandler
       userId: flow.sub,
       account,
       loginMethod: flow.loginMethod,
+      deviceId: flow.deviceId,
+      deviceName: flow.deviceName,
       userAgent: flow.userAgent,
-      ipAddress: flow.ipAddress
+      ipAddress: flow.ipAddress,
+      trustCurrentDevice: command.trustCurrentDevice
     })
   }
 }

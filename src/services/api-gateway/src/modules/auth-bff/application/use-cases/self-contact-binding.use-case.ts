@@ -70,8 +70,12 @@ export class SelfContactBindingUseCase {
     const result = await this.authAdapter.verifyEmailBinding(
       {
         userId: self.userId,
+        accountId: self.accountId,
+        tenantId: self.tenantId,
+        scopeLevel: self.scopeLevel,
         email: dto.email,
-        otp: dto.otp
+        otp: dto.otp,
+        mfaGrantToken: dto.mfaGrantToken
       },
       source
     )
@@ -108,8 +112,12 @@ export class SelfContactBindingUseCase {
     const result = await this.authAdapter.verifyPhoneBinding(
       {
         userId: self.userId,
+        accountId: self.accountId,
+        tenantId: self.tenantId,
+        scopeLevel: self.scopeLevel,
         phone: dto.phone,
-        otp: dto.otp
+        otp: dto.otp,
+        mfaGrantToken: dto.mfaGrantToken
       },
       source
     )

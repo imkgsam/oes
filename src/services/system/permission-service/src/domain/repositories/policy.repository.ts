@@ -1,4 +1,5 @@
 import { Policy } from '../aggregates/policy.aggregate'
+import { PolicySubjectType } from '../enums/policy-subject-type.enum'
 
 export interface PolicyRepository {
   findById(id: string): Promise<Policy | null>
@@ -13,6 +14,8 @@ export interface PolicyRepository {
     permissionCode?: string
     isEnabled?: boolean
     keyword?: string
+    subjectType?: PolicySubjectType
+    subjectId?: string
   }): Promise<{ policies: Policy[]; total: number; page: number; pageSize: number }>
   save(policy: Policy): Promise<Policy>
   delete(id: string): Promise<void>

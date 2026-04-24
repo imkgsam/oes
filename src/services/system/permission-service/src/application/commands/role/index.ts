@@ -28,6 +28,8 @@ export * from './revoke-role-permission.command'
 export * from './revoke-role-permission.handler'
 export * from './assign-account-role.command'
 export * from './assign-account-role.handler'
+export * from './grant-initial-access-for-employee-account.command'
+export * from './grant-initial-access-for-employee-account.handler'
 export * from './revoke-account-role.command'
 export * from './revoke-account-role.handler'
 export * from './set-account-roles.command'
@@ -48,6 +50,7 @@ import { DeleteRoleHandler } from './delete-role.handler'
 import { AssignRolePermissionHandler } from './assign-role-permission.handler'
 import { RevokeRolePermissionHandler } from './revoke-role-permission.handler'
 import { AssignAccountRoleHandler } from './assign-account-role.handler'
+import { GrantInitialAccessForEmployeeAccountHandler } from './grant-initial-access-for-employee-account.handler'
 import { RevokeAccountRoleHandler } from './revoke-account-role.handler'
 import { SetAccountRolesHandler } from './set-account-roles.handler'
 
@@ -73,6 +76,7 @@ export const RoleInstanceCommandHandlers = [
 
 export const AccountRoleCommandHandlers = [
   AssignAccountRoleHandler,
+  GrantInitialAccessForEmployeeAccountHandler,
   RevokeAccountRoleHandler,
   SetAccountRolesHandler
 ]

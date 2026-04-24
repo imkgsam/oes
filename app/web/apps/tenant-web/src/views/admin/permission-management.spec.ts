@@ -4,6 +4,15 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const listPermissionsApi = vi.fn();
+const authContextState = vi.hoisted(() => ({
+  actionCodes: [
+    'permission.create',
+    'permission.delete',
+    'permission.list',
+    'permission.role.list',
+    'permission.update',
+  ],
+}));
 
 vi.mock('#/api', () => ({
   createPermissionApi: vi.fn(),
@@ -16,13 +25,7 @@ vi.mock('#/api', () => ({
 
 vi.mock('#/store/auth-context', () => ({
   useAuthContextStore: () => ({
-    actionCodes: [
-      'permission.create',
-      'permission.delete',
-      'permission.list',
-      'permission.role.list',
-      'permission.update',
-    ],
+    actionCodes: authContextState.actionCodes,
   }),
 }));
 
@@ -44,6 +47,13 @@ vi.mock('@vben/icons', () => ({
 
 describe('permission management page', () => {
   beforeEach(() => {
+    authContextState.actionCodes = [
+      'permission.create',
+      'permission.delete',
+      'permission.list',
+      'permission.role.list',
+      'permission.update',
+    ];
     listPermissionsApi.mockReset();
     listPermissionsApi.mockResolvedValue({
       page: 1,
@@ -90,6 +100,35 @@ describe('permission management page', () => {
     expect(document.body.textContent).toContain('引用角色');
     expect(document.body.textContent).toContain('编辑');
     expect(document.body.textContent).toContain('删除');
+  });
+
+  it('hides edit and delete row actions when the tenant admin lacks matching action permissions', async () => {
+    authContextState.actionCodes = ['permission.list', 'permission.role.list'];
+    const view = await import('./permission-management.vue');
+
+    mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const trigger = document.body.querySelector(
+      'button[aria-label="权限操作"]',
+    ) as HTMLButtonElement | null;
+
+    expect(trigger).not.toBeNull();
+
+    trigger?.click();
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('引用角色');
+    expect(document.body.textContent).not.toContain('编辑');
+    expect(document.body.textContent).not.toContain('删除');
   });
 
   it('renders the catalog header with a primary section title and a narrower create modal', async () => {

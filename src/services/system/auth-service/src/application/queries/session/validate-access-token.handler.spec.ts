@@ -1,6 +1,7 @@
 import { CommonJwtService } from '@oes/common/auth'
 import { SessionStatus } from '@oes/common/constants'
 import { Session } from '../../../domain/aggregates/usersession.aggregate'
+import { TrustedDeviceService } from '../../services/trusted-device.service'
 import { ValidateAccessTokenHandler } from './validate-access-token.handler'
 import { ValidateAccessTokenQuery } from './validate-access-token.query'
 
@@ -60,9 +61,13 @@ describe('ValidateAccessTokenHandler', () => {
       })
     } as unknown as CommonJwtService
     const sessionRepository = {
-      findById: jest.fn().mockResolvedValue(session)
+      findById: jest.fn().mockResolvedValue(session),
+      save: jest.fn().mockImplementation(async (savedSession: Session) => savedSession)
     } as any
-    const handler = new ValidateAccessTokenHandler(jwtService, sessionRepository)
+    const trustedDeviceService = {
+      markTrustedDeviceSeen: jest.fn().mockResolvedValue(undefined)
+    } as unknown as TrustedDeviceService
+    const handler = new ValidateAccessTokenHandler(jwtService, sessionRepository, trustedDeviceService)
 
     await expect(handler.execute(new ValidateAccessTokenQuery('token-1'))).resolves.toEqual({
       userId: 'user-1',
@@ -72,6 +77,17 @@ describe('ValidateAccessTokenHandler', () => {
       scopeLevel: 'TENANT',
       passwordSetupRequired: true,
       roleIds: ['role-1']
+    })
+    expect(sessionRepository.save).toHaveBeenCalledWith(session)
+    expect(trustedDeviceService.markTrustedDeviceSeen).toHaveBeenCalledWith({
+      userId: 'user-1',
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-1',
+      deviceId: 'session-1-device',
+      deviceName: 'session-1-device-name',
+      userAgent: 'jest',
+      ipAddress: '127.0.0.1',
+      observedAt: session.getLastActiveAt()
     })
   })
 
@@ -90,8 +106,12 @@ describe('ValidateAccessTokenHandler', () => {
     const sessionRepository = {
       findById: jest.fn().mockResolvedValue(null)
     } as any
-    const handler = new ValidateAccessTokenHandler(jwtService, sessionRepository)
+    const trustedDeviceService = {
+      markTrustedDeviceSeen: jest.fn()
+    } as unknown as TrustedDeviceService
+    const handler = new ValidateAccessTokenHandler(jwtService, sessionRepository, trustedDeviceService)
 
     await expect(handler.execute(new ValidateAccessTokenQuery('token-1'))).rejects.toBeDefined()
+    expect(trustedDeviceService.markTrustedDeviceSeen).not.toHaveBeenCalled()
   })
 })

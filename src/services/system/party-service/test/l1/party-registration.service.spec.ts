@@ -125,4 +125,40 @@ describe('PartyRegistrationService', () => {
       })
     )
   })
+
+  it('registerPersonParty / when tenantId is omitted / should create only the canonical person party', async () => {
+    const partyRepository = createPartyRepositoryMock()
+    const tenantPartyRepository = createTenantPartyRepositoryMock()
+    const identifierRepository = createPartyIdentifierRepositoryMock()
+
+    identifierRepository.findStrongMatch.mockResolvedValue(null)
+    partyRepository.createPersonParty.mockResolvedValue({
+      id: 'party-person-1',
+      type: PartyType.PERSON,
+      canonicalName: 'Platform Operator',
+      displayName: 'Platform Operator',
+      status: 'ACTIVE'
+    })
+
+    const service = new PartyRegistrationService(
+      partyRepository as never,
+      tenantPartyRepository as never,
+      identifierRepository as never
+    )
+
+    const result = await service.registerPersonParty({
+      tenantId: '',
+      canonicalName: 'Platform Operator',
+      identifiers: []
+    })
+
+    expect(result).toMatchObject({
+      party: {
+        id: 'party-person-1'
+      }
+    })
+    expect(result.tenantParty).toBeUndefined()
+
+    expect(tenantPartyRepository.create).not.toHaveBeenCalled()
+  })
 })

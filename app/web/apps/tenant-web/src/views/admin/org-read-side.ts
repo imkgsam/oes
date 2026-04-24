@@ -1,0 +1,73 @@
+import type { TenantManagementApi } from '#/api'
+
+export interface FlatManagedOrgUnit {
+  depth: number
+  id: string
+  label: string
+  name: string
+  organizationParty?: TenantManagementApi.ManagedOrgUnit['organizationParty']
+  organizationPartyId?: string | null
+  parentOrgId?: string
+  path: string
+  sortOrder: number
+  status: string
+  tenantId: string
+  type: string
+}
+
+/** formatManagedOrganizationPartyName chooses the most human-readable organization-party label available for tenant/org read models. */
+export function formatManagedOrganizationPartyName(
+  orgUnit?: Pick<TenantManagementApi.ManagedOrgUnit, 'organizationParty' | 'organizationPartyId'> | null
+) {
+  return (
+    orgUnit?.organizationParty?.displayName ||
+    orgUnit?.organizationParty?.canonicalName ||
+    orgUnit?.organizationPartyId ||
+    ''
+  )
+}
+
+/** formatManagedOrgSelectorLabel builds one indentation-friendly org selector label without redefining org ownership semantics. */
+export function formatManagedOrgSelectorLabel(orgUnit: TenantManagementApi.ManagedOrgUnit) {
+  const organizationPartyName = formatManagedOrganizationPartyName(orgUnit)
+  const metadata = [orgUnit.type, organizationPartyName].filter(Boolean).join(' · ')
+  return `${'　'.repeat(orgUnit.depth)}${orgUnit.name}${metadata ? ` · ${metadata}` : ''}`
+}
+
+/** flattenManagedOrgTree converts the managed org tree into one flat read-side list that can back tables, trees, and selectors. */
+export function flattenManagedOrgTree(
+  nodes: TenantManagementApi.ManagedOrgNode[],
+  rows: FlatManagedOrgUnit[] = []
+) {
+  for (const node of nodes) {
+    rows.push({
+      depth: node.orgUnit.depth,
+      id: node.orgUnit.id,
+      label: formatManagedOrgSelectorLabel(node.orgUnit),
+      name: node.orgUnit.name,
+      organizationParty: node.orgUnit.organizationParty,
+      organizationPartyId: node.orgUnit.organizationPartyId,
+      parentOrgId: node.orgUnit.parentOrgId,
+      path: node.orgUnit.path,
+      sortOrder: node.orgUnit.sortOrder,
+      status: node.orgUnit.status,
+      tenantId: node.orgUnit.tenantId,
+      type: node.orgUnit.type
+    })
+    flattenManagedOrgTree(node.children ?? [], rows)
+  }
+
+  return rows
+}
+
+/** findManagedOrgUnitOption resolves one flat org read-side row by orgUnitId for HR and tenant workspace displays. */
+export function findManagedOrgUnitOption(
+  options: FlatManagedOrgUnit[],
+  orgUnitId?: string
+) {
+  if (!orgUnitId) {
+    return undefined
+  }
+
+  return options.find((item) => item.id === orgUnitId)
+}

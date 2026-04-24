@@ -8,8 +8,10 @@ import {
 import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
+  HR_MANAGEMENT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
-  PERMISSION_MANAGEMENT_PERMISSION_CODES
+  PERMISSION_MANAGEMENT_PERMISSION_CODES,
+  TENANT_ORG_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
 import {
   buildNavigationFoundationLandingSeeds,
@@ -54,6 +56,7 @@ const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'identity.account.create': '创建账号',
   'identity.account.update_status': '更新账号启停状态',
   'identity.account.profile.update': '更新账号档案信息',
+  'identity.account.delete': '删除账号',
   'identity.contact.work_email.assign': '分配工作邮箱',
   'identity.contact.work_email.revoke': '回收工作邮箱',
   'identity.contact.work_email.set_primary': '设置主工作邮箱',
@@ -62,9 +65,27 @@ const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'identity.contact.work_phone.revoke': '回收工作手机号',
   'identity.contact.work_phone.set_primary': '设置主工作手机号',
   'identity.contact.work_phone.set_status': '更新工作手机号状态',
+  'tenant_org.tenant.list': '查看租户列表',
+  'tenant_org.tenant.get_by_id': '查看租户详情',
+  'tenant_org.tenant.create': '创建租户',
+  'tenant_org.tenant.update_profile': '更新租户基础信息',
+  'tenant_org.tenant.update_status': '更新租户状态',
+  'tenant_org.org_unit.list_tree': '查看组织树',
+  'tenant_org.org_unit.get_by_id': '查看组织节点详情',
+  'tenant_org.org_unit.create': '创建组织节点',
+  'tenant_org.org_unit.update': '更新组织节点',
+  'tenant_org.org_unit.archive': '归档组织节点',
+  'hr.employee.list': '查看员工列表',
+  'hr.employee.get_by_id': '查看员工详情',
+  'hr.employee.create': '创建员工主档',
+  'hr.employment.create': '创建员工任职',
+  'hr.employment.end': '结束员工任职',
+  'hr.employment.change_primary': '调岗并切换主任职',
   'auth.audit.list': '查看认证审计事件',
   'auth.account_credentials.bootstrap': '初始化账号登录凭据',
   'auth.account_login_methods.manage': '管理账号登录方式',
+  'auth.mfa_policy.manage': '管理租户 MFA 策略',
+  'auth.platform_mfa_policy.manage': '管理平台 MFA 策略',
   'auth.session.admin.view': '查看用户会话',
   'auth.session.admin.revoke': '撤销用户会话'
 } as const
@@ -95,6 +116,16 @@ export function buildPermissionSeedItems(): PermissionSeedItem[] {
       description: getPermissionDescription(code)
     })),
     ...valuesOf(IDENTITY_ACCOUNT_PERMISSION_CODES).map((code) => ({
+      code,
+      module: Modules.IDENTITY_SERVICE,
+      description: getPermissionDescription(code)
+    })),
+    ...valuesOf(TENANT_ORG_MANAGEMENT_PERMISSION_CODES).map((code) => ({
+      code,
+      module: Modules.IDENTITY_SERVICE,
+      description: getPermissionDescription(code)
+    })),
+    ...valuesOf(HR_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,
       module: Modules.IDENTITY_SERVICE,
       description: getPermissionDescription(code)

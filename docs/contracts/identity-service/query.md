@@ -9,8 +9,7 @@
 - 登录后账户候选查询
 - 按邮箱 / 手机 / 用户 ID 查询自然人身份
 - 按账户 ID 查询账号摘要
-- 按租户 ID 查询租户摘要
-- 查询组织树、账户组织归属
+- 查询 legacy 组织树兼容面、账户组织归属投影
 - 查询联系方式资产
 - 查询机器身份与 API Key 摘要
 
@@ -39,10 +38,15 @@
   - `user_id`
 - 响应关键字段：
   - `user.id`
+  - `user.party_id`
   - `user.username`
   - `user.personal_email`
   - `user.personal_phone`
   - `user.is_active`
+- 说明：
+  - `user.party_id` 是 identity 用户到 `party-service` canonical 自然人主体的受控关联
+  - 管理端若需要稳定的人名展示，应优先联动 `party-service` 读取 `displayName / canonicalName`
+  - `user.username` 仍只作为历史 login handle 回传，不应再被理解为真实姓名真相
 - 返回空语义：
   - 用户不存在时返回空响应对象
 
@@ -75,6 +79,8 @@
   - `accounts[].display_name`
 - 说明：
   - 适合 `auth-service` 登录后账户选择场景
+  - `tenant_id` 只表示 account context 绑定的 tenant 引用，不表示 tenant 真相
+  - 如调用方仍需要 tenant 名称，应再通过 `tenant-org-service` 按 `tenant_id` 聚合补水
 
 ### `GetAccountById`
 
@@ -102,14 +108,15 @@
 - 响应关键字段：
   - `accounts[].account_id`
   - `accounts[].user_id`
+  - `accounts[].user_party_id`
   - `accounts[].tenant_id`
-  - `accounts[].tenant_name`
   - `accounts[].scope_level`
   - `accounts[].display_name`
+  - `accounts[].user_display_name`
   - `accounts[].is_enabled`
   - `total`
 - 过滤语义：
-  - `keyword` 可匹配账号 ID、用户 ID、显示名、用户名、邮箱、手机号与租户名
+  - `keyword` 可匹配账号 ID、用户 ID、显示名、用户名、邮箱、手机号
   - `scope_level` 当前支持 `SYSTEM / TENANT`
   - `status` 当前支持 `ENABLED / DISABLED`
 - 作用域约束：
@@ -122,23 +129,17 @@
 - 第一阶段边界：
   - 当前只覆盖 `USER` account 目录
   - 不返回角色、组织归属、会话状态等详情
+- 展示语义：
+  - `accounts[].display_name` 是 account 上下文显示名
+  - `accounts[].tenant_id` 只表示 tenant 引用，tenant 标签应由调用方再向 `tenant-org-service` 聚合
+  - `accounts[].user_party_id` 用于调用方继续联动 `party-service` 获取 user 级人名真相
+  - `accounts[].user_display_name` 当前仅作为 legacy fallback，不应再被当作长期真实姓名来源
 
-## 3. 租户与组织查询
-
-### `GetTenantById`
-
-- 作用：按租户 ID 查询租户最小摘要
-- 请求关键字段：
-  - `tenant_id`
-- 响应关键字段：
-  - `tenant.id`
-  - `tenant.code`
-  - `tenant.name`
-  - `tenant.is_active`
-- 返回空语义：
-  - 未匹配时返回空响应对象
+## 3. 组织查询
 
 ### `GetOrgTreeByTenantId`
+
+- 状态：deprecated compatibility only，禁止新增调用；tenant / org tree 真相已迁往 `tenant-org-service`
 
 - 作用：查询租户组织树
 - 请求关键字段：
@@ -151,7 +152,7 @@
 
 ### `ListAccountOrgMemberships`
 
-- 作用：列出账户全部组织归属
+- 作用：列出账户当前可见的 legacy 组织归属投影
 - 请求关键字段：
   - `account_id`
 - 响应关键字段：
@@ -162,6 +163,11 @@
   - `memberships[].org_type`
   - `memberships[].relation_type`
   - `memberships[].is_primary`
+- 关键语义：
+  - 当前返回的是 account 侧兼容性 projection
+  - 它不是正式 `Employee -> OrgUnit` 任职真相
+  - HR 上线后的新 onboarding / employee 场景不得继续把该接口当正式 owner 使用
+  - 如需正式人员组织归属，应联动 `hr-service` 的 `Employment` 真相
 
 ## 4. 联系方式资产查询
 

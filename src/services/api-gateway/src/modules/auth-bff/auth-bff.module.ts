@@ -5,8 +5,11 @@ import { AuthorizationModule } from '@oes/common/authorization'
 import { PermissionServiceProxyModule } from '../permission-service/permission-service.module'
 import { AuthController } from './interfaces/http/controllers/auth.controller'
 import { AuthGrpcAdapter } from './infrastructure/downstream/auth-service/auth-grpc.adapter'
+import { AssetGrpcAdapter } from './infrastructure/downstream/asset-service/asset-grpc.adapter'
 import { IdentityQueryGrpcAdapter } from './infrastructure/downstream/identity-service/identity-query-grpc.adapter'
+import { PartyQueryGrpcAdapter } from './infrastructure/downstream/party-service/party-query-grpc.adapter'
 import { PermissionAccessSummaryGrpcAdapter } from './infrastructure/downstream/permission-service/permission-access-summary-grpc.adapter'
+import { TenantOrgQueryGrpcAdapter } from './infrastructure/downstream/tenant-org-service/tenant-org-query-grpc.adapter'
 import { LoginUseCase } from './application/use-cases/login.use-case'
 import { RequestEmailOtpChallengeUseCase } from './application/use-cases/request-email-otp-challenge.use-case'
 import { RequestPhoneOtpChallengeUseCase } from './application/use-cases/request-phone-otp-challenge.use-case'
@@ -25,7 +28,9 @@ import { SessionContextsUseCase } from './application/use-cases/session-contexts
 import { SwitchContextUseCase } from './application/use-cases/switch-context.use-case'
 import { PersonalCenterUseCase } from './application/use-cases/personal-center.use-case'
 import { AccountProfileUseCase } from './application/use-cases/account-profile.use-case'
+import { AccountAvatarUploadUseCase } from './application/use-cases/account-avatar-upload.use-case'
 import { SelfContactBindingUseCase } from './application/use-cases/self-contact-binding.use-case'
+import { StepUpMfaUseCase } from './application/use-cases/step-up-mfa.use-case'
 import { PERSONAL_CENTER_SUMMARY_PORT } from './application/ports/personal-center-summary.port'
 import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/personal-center/personal-center-summary.adapter'
 
@@ -35,15 +40,21 @@ import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/person
     PermissionServiceProxyModule,
     GrpcTransportModule.forFeature([
       SERVICE_NAMES.AUTH,
+      SERVICE_NAMES.ASSET,
       SERVICE_NAMES.IDENTITY,
-      SERVICE_NAMES.PERMISSION
+      SERVICE_NAMES.PARTY,
+      SERVICE_NAMES.PERMISSION,
+      SERVICE_NAMES.TENANT_ORG
     ])
   ],
   controllers: [AuthController],
   providers: [
     AuthGrpcAdapter,
+    AssetGrpcAdapter,
     IdentityQueryGrpcAdapter,
+    PartyQueryGrpcAdapter,
     PermissionAccessSummaryGrpcAdapter,
+    TenantOrgQueryGrpcAdapter,
     PersonalCenterSummaryAdapter,
     {
       provide: PERSONAL_CENTER_SUMMARY_PORT,
@@ -67,7 +78,9 @@ import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/person
     SwitchContextUseCase,
     PersonalCenterUseCase,
     AccountProfileUseCase,
-    SelfContactBindingUseCase
+    AccountAvatarUploadUseCase,
+    SelfContactBindingUseCase,
+    StepUpMfaUseCase
   ],
   exports: [AuthGrpcAdapter]
 })

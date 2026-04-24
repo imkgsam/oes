@@ -2,58 +2,57 @@ syntax = "proto3";
 
 package permission_service;
 
-import "google/protobuf/empty.proto";
-
 option java_multiple_files = true;
 option java_package = "com.oes.permission.v1";
 
 service PermissionManagementService {
-  rpc CreatePermission(CreatePermissionRequest) returns (PermissionResponse);
-  rpc BatchCreatePermissions(BatchCreatePermissionsRequest) returns (ListPermissionsResponse);
-  rpc UpdatePermission(UpdatePermissionRequest) returns (PermissionResponse);
-  rpc DeletePermission(DeletePermissionRequest) returns (google.protobuf.Empty);
-  rpc GetPermissionById(GetPermissionByIdRequest) returns (PermissionResponse);
-  rpc GetPermissionByCode(GetPermissionByCodeRequest) returns (PermissionResponse);
-  rpc ListPermissionsPaged(ListPermissionsPagedRequest) returns (PagedPermissionsResponse);
-  rpc ListPermissionRoles(ListPermissionRolesRequest) returns (ListRolesResponse);
+  rpc CreatePermission(CreatePermissionRequest) returns (CreatePermissionResponse);
+  rpc BatchCreatePermissions(BatchCreatePermissionsRequest) returns (BatchCreatePermissionsResponse);
+  rpc UpdatePermission(UpdatePermissionRequest) returns (UpdatePermissionResponse);
+  rpc DeletePermission(DeletePermissionRequest) returns (DeletePermissionResponse);
+  rpc GetPermissionById(GetPermissionByIdRequest) returns (GetPermissionByIdResponse);
+  rpc GetPermissionByCode(GetPermissionByCodeRequest) returns (GetPermissionByCodeResponse);
+  rpc ListPermissionsPaged(ListPermissionsPagedRequest) returns (ListPermissionsPagedResponse);
+  rpc ListPermissionRoles(ListPermissionRolesRequest) returns (ListPermissionRolesResponse);
 
-  rpc CreateRoleTemplate(CreateRoleTemplateRequest) returns (RoleResponse);
-  rpc CreateRoleInstance(CreateRoleInstanceRequest) returns (RoleResponse);
-  rpc GetRoleTemplateById(GetRoleTemplateByIdRequest) returns (RoleResponse);
-  rpc UpdateRoleTemplate(UpdateRoleTemplateRequest) returns (RoleResponse);
-  rpc DeleteRoleTemplate(DeleteRoleTemplateRequest) returns (google.protobuf.Empty);
-  rpc SetRoleTemplateEnabled(SetRoleTemplateEnabledRequest) returns (RoleResponse);
-  rpc ListRoleTemplatePermissions(ListRoleTemplatePermissionsRequest) returns (ListPermissionsResponse);
-  rpc AssignRoleTemplatePermission(AssignRoleTemplatePermissionRequest) returns (google.protobuf.Empty);
-  rpc RevokeRoleTemplatePermission(RevokeRoleTemplatePermissionRequest) returns (google.protobuf.Empty);
-  rpc CreateRoleInstanceFromTemplate(CreateRoleInstanceFromTemplateRequest) returns (RoleResponse);
-  rpc UpdateRole(UpdateRoleRequest) returns (RoleResponse);
-  rpc SetRoleEnabled(SetRoleEnabledRequest) returns (RoleResponse);
-  rpc DeleteRole(DeleteRoleRequest) returns (google.protobuf.Empty);
-  rpc GetRoleById(GetRoleByIdRequest) returns (RoleResponse);
-  rpc ListRoleInstances(ListRoleInstancesRequest) returns (PagedRolesResponse);
-  rpc ListRoleTemplates(ListRoleTemplatesRequest) returns (PagedRolesResponse);
-  rpc ListRolePermissions(ListRolePermissionsRequest) returns (ListPermissionsResponse);
+  rpc CreateRoleTemplate(CreateRoleTemplateRequest) returns (CreateRoleTemplateResponse);
+  rpc CreateRoleInstance(CreateRoleInstanceRequest) returns (CreateRoleInstanceResponse);
+  rpc GetRoleTemplateById(GetRoleTemplateByIdRequest) returns (GetRoleTemplateByIdResponse);
+  rpc UpdateRoleTemplate(UpdateRoleTemplateRequest) returns (UpdateRoleTemplateResponse);
+  rpc DeleteRoleTemplate(DeleteRoleTemplateRequest) returns (DeleteRoleTemplateResponse);
+  rpc SetRoleTemplateEnabled(SetRoleTemplateEnabledRequest) returns (SetRoleTemplateEnabledResponse);
+  rpc ListRoleTemplatePermissions(ListRoleTemplatePermissionsRequest) returns (ListRoleTemplatePermissionsResponse);
+  rpc AssignRoleTemplatePermission(AssignRoleTemplatePermissionRequest) returns (AssignRoleTemplatePermissionResponse);
+  rpc RevokeRoleTemplatePermission(RevokeRoleTemplatePermissionRequest) returns (RevokeRoleTemplatePermissionResponse);
+  rpc CreateRoleInstanceFromTemplate(CreateRoleInstanceFromTemplateRequest) returns (CreateRoleInstanceFromTemplateResponse);
+  rpc UpdateRole(UpdateRoleRequest) returns (UpdateRoleResponse);
+  rpc SetRoleEnabled(SetRoleEnabledRequest) returns (SetRoleEnabledResponse);
+  rpc DeleteRole(DeleteRoleRequest) returns (DeleteRoleResponse);
+  rpc GetRoleById(GetRoleByIdRequest) returns (GetRoleByIdResponse);
+  rpc ListRoleInstances(ListRoleInstancesRequest) returns (ListRoleInstancesResponse);
+  rpc ListRoleTemplates(ListRoleTemplatesRequest) returns (ListRoleTemplatesResponse);
+  rpc ListRolePermissions(ListRolePermissionsRequest) returns (ListRolePermissionsResponse);
 
-  rpc AssignRolePermission(AssignRolePermissionRequest) returns (google.protobuf.Empty);
-  rpc RevokeRolePermission(RevokeRolePermissionRequest) returns (google.protobuf.Empty);
+  rpc AssignRolePermission(AssignRolePermissionRequest) returns (AssignRolePermissionResponse);
+  rpc RevokeRolePermission(RevokeRolePermissionRequest) returns (RevokeRolePermissionResponse);
 
-  rpc AssignAccountRole(AssignAccountRoleRequest) returns (google.protobuf.Empty);
-  rpc RevokeAccountRole(RevokeAccountRoleRequest) returns (google.protobuf.Empty);
-  rpc ListAccountRoles(ListAccountRolesRequest) returns (ListRolesResponse);
+  rpc AssignAccountRole(AssignAccountRoleRequest) returns (AssignAccountRoleResponse);
+  rpc GrantInitialAccessForEmployeeAccount(GrantInitialAccessForEmployeeAccountRequest) returns (GrantInitialAccessForEmployeeAccountResponse);
+  rpc RevokeAccountRole(RevokeAccountRoleRequest) returns (RevokeAccountRoleResponse);
+  rpc ListAccountRoles(ListAccountRolesRequest) returns (ListAccountRolesResponse);
   rpc ListRoleAccounts(ListRoleAccountsRequest) returns (ListRoleAccountsResponse);
-  rpc GetAccountRoleSelection(GetAccountRoleSelectionRequest) returns (AccountRoleSelectionResponse);
-  rpc SetAccountRoles(SetAccountRolesRequest) returns (ListRolesResponse);
+  rpc GetAccountRoleSelection(GetAccountRoleSelectionRequest) returns (GetAccountRoleSelectionResponse);
+  rpc SetAccountRoles(SetAccountRolesRequest) returns (SetAccountRolesResponse);
   rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
 
   rpc ListNavigationEntries(ListNavigationEntriesRequest) returns (ListNavigationEntriesResponse);
-  rpc GetNavigationEntry(GetNavigationEntryRequest) returns (NavigationEntryResponse);
-  rpc CreateNavigationEntry(CreateNavigationEntryRequest) returns (NavigationEntryResponse);
-  rpc UpdateNavigationEntry(UpdateNavigationEntryRequest) returns (NavigationEntryResponse);
-  rpc GetRoleNavigation(GetRoleNavigationRequest) returns (RoleNavigationResponse);
-  rpc SetRoleNavigationVisibility(SetRoleNavigationVisibilityRequest) returns (RoleNavigationResponse);
-  rpc SetRoleLandingPolicies(SetRoleLandingPoliciesRequest) returns (RoleNavigationResponse);
-  rpc SyncRoleNavigationFromTemplate(SyncRoleNavigationFromTemplateRequest) returns (RoleNavigationResponse);
+  rpc GetNavigationEntry(GetNavigationEntryRequest) returns (GetNavigationEntryResponse);
+  rpc CreateNavigationEntry(CreateNavigationEntryRequest) returns (CreateNavigationEntryResponse);
+  rpc UpdateNavigationEntry(UpdateNavigationEntryRequest) returns (UpdateNavigationEntryResponse);
+  rpc GetRoleNavigation(GetRoleNavigationRequest) returns (GetRoleNavigationResponse);
+  rpc SetRoleNavigationVisibility(SetRoleNavigationVisibilityRequest) returns (SetRoleNavigationVisibilityResponse);
+  rpc SetRoleLandingPolicies(SetRoleLandingPoliciesRequest) returns (SetRoleLandingPoliciesResponse);
+  rpc SyncRoleNavigationFromTemplate(SyncRoleNavigationFromTemplateRequest) returns (SyncRoleNavigationFromTemplateResponse);
   rpc ResolveNavigationPreview(ResolveNavigationPreviewRequest) returns (ResolveNavigationPreviewResponse);
 }
 
@@ -116,11 +115,52 @@ message PermissionResponse {
   string description = 4;
 }
 
+message CreatePermissionResponse {
+  string id = 1;
+  string code = 2;
+  string module = 3;
+  string description = 4;
+}
+
+message UpdatePermissionResponse {
+  string id = 1;
+  string code = 2;
+  string module = 3;
+  string description = 4;
+}
+
+message DeletePermissionResponse {}
+
+message GetPermissionByIdResponse {
+  string id = 1;
+  string code = 2;
+  string module = 3;
+  string description = 4;
+}
+
+message GetPermissionByCodeResponse {
+  string id = 1;
+  string code = 2;
+  string module = 3;
+  string description = 4;
+}
+
 message ListPermissionsResponse {
   repeated PermissionResponse permissions = 1;
 }
 
+message BatchCreatePermissionsResponse {
+  repeated PermissionResponse permissions = 1;
+}
+
 message PagedPermissionsResponse {
+  repeated PermissionResponse permissions = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListPermissionsPagedResponse {
   repeated PermissionResponse permissions = 1;
   int32 total = 2;
   int32 page = 3;
@@ -236,11 +276,153 @@ message ListRolesResponse {
   repeated RoleResponse roles = 1;
 }
 
+message ListPermissionRolesResponse {
+  repeated RoleResponse roles = 1;
+}
+
 message PagedRolesResponse {
   repeated RoleResponse roles = 1;
   int32 total = 2;
   int32 page = 3;
   int32 page_size = 4;
+}
+
+message CreateRoleTemplateResponse {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string tenant_id = 4;
+  bool is_system = 5;
+  bool is_enabled = 6;
+  string description = 7;
+  RoleKindProto role_kind = 8;
+  string template_role_id = 9;
+}
+
+message CreateRoleInstanceResponse {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string tenant_id = 4;
+  bool is_system = 5;
+  bool is_enabled = 6;
+  string description = 7;
+  RoleKindProto role_kind = 8;
+  string template_role_id = 9;
+}
+
+message GetRoleTemplateByIdResponse {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string tenant_id = 4;
+  bool is_system = 5;
+  bool is_enabled = 6;
+  string description = 7;
+  RoleKindProto role_kind = 8;
+  string template_role_id = 9;
+}
+
+message UpdateRoleTemplateResponse {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string tenant_id = 4;
+  bool is_system = 5;
+  bool is_enabled = 6;
+  string description = 7;
+  RoleKindProto role_kind = 8;
+  string template_role_id = 9;
+}
+
+message DeleteRoleTemplateResponse {}
+
+message SetRoleTemplateEnabledResponse {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string tenant_id = 4;
+  bool is_system = 5;
+  bool is_enabled = 6;
+  string description = 7;
+  RoleKindProto role_kind = 8;
+  string template_role_id = 9;
+}
+
+message ListRoleTemplatePermissionsResponse {
+  repeated PermissionResponse permissions = 1;
+}
+
+message AssignRoleTemplatePermissionResponse {}
+
+message RevokeRoleTemplatePermissionResponse {}
+
+message CreateRoleInstanceFromTemplateResponse {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string tenant_id = 4;
+  bool is_system = 5;
+  bool is_enabled = 6;
+  string description = 7;
+  RoleKindProto role_kind = 8;
+  string template_role_id = 9;
+}
+
+message UpdateRoleResponse {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string tenant_id = 4;
+  bool is_system = 5;
+  bool is_enabled = 6;
+  string description = 7;
+  RoleKindProto role_kind = 8;
+  string template_role_id = 9;
+}
+
+message SetRoleEnabledResponse {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string tenant_id = 4;
+  bool is_system = 5;
+  bool is_enabled = 6;
+  string description = 7;
+  RoleKindProto role_kind = 8;
+  string template_role_id = 9;
+}
+
+message DeleteRoleResponse {}
+
+message GetRoleByIdResponse {
+  string id = 1;
+  string name = 2;
+  string code = 3;
+  string tenant_id = 4;
+  bool is_system = 5;
+  bool is_enabled = 6;
+  string description = 7;
+  RoleKindProto role_kind = 8;
+  string template_role_id = 9;
+}
+
+message ListRoleInstancesResponse {
+  repeated RoleResponse roles = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListRoleTemplatesResponse {
+  repeated RoleResponse roles = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListRolePermissionsResponse {
+  repeated PermissionResponse permissions = 1;
 }
 
 message AssignRolePermissionRequest {
@@ -249,10 +431,14 @@ message AssignRolePermissionRequest {
   string created_by = 3;
 }
 
+message AssignRolePermissionResponse {}
+
 message RevokeRolePermissionRequest {
   string role_id = 1;
   string permission_id = 2;
 }
+
+message RevokeRolePermissionResponse {}
 
 message AssignAccountRoleRequest {
   string account_id = 1;
@@ -265,10 +451,34 @@ message AssignAccountRoleRequest {
   string scope_level = 8;
 }
 
+message AssignAccountRoleResponse {}
+
+message GrantInitialAccessForEmployeeAccountRequest {
+  string tenant_id = 1;
+  string account_id = 2;
+  repeated string role_ids = 3;
+  string idempotency_key = 4;
+  string reason = 5;
+}
+
+message OnboardingGrantResponse {
+  string id = 1;
+  string tenant_id = 2;
+  string account_id = 3;
+  repeated string role_ids = 4;
+  string idempotency_key = 5;
+}
+
+message GrantInitialAccessForEmployeeAccountResponse {
+  OnboardingGrantResponse grant = 1;
+}
+
 message RevokeAccountRoleRequest {
   string account_id = 1;
   string role_id = 2;
 }
+
+message RevokeAccountRoleResponse {}
 
 message ListAccountRolesRequest {
   string account_id = 1;
@@ -311,6 +521,19 @@ message AccountRoleSelectionResponse {
   repeated string selected_role_ids = 2;
 }
 
+message ListAccountRolesResponse {
+  repeated RoleResponse roles = 1;
+}
+
+message GetAccountRoleSelectionResponse {
+  repeated RoleResponse available_roles = 1;
+  repeated string selected_role_ids = 2;
+}
+
+message SetAccountRolesResponse {
+  repeated RoleResponse roles = 1;
+}
+
 message ListAuditEventsRequest {
   string service = 1;
   string module = 2;
@@ -350,6 +573,39 @@ message ListAuditEventsResponse {
 }
 
 message NavigationEntryResponse {
+  string entry_key = 1;
+  string name = 2;
+  string description = 3;
+  string feature_key = 4;
+  repeated string supported_terminals = 5;
+  int32 registry_priority = 6;
+  bool enabled = 7;
+  string entry_type = 8;
+}
+
+message GetNavigationEntryResponse {
+  string entry_key = 1;
+  string name = 2;
+  string description = 3;
+  string feature_key = 4;
+  repeated string supported_terminals = 5;
+  int32 registry_priority = 6;
+  bool enabled = 7;
+  string entry_type = 8;
+}
+
+message CreateNavigationEntryResponse {
+  string entry_key = 1;
+  string name = 2;
+  string description = 3;
+  string feature_key = 4;
+  repeated string supported_terminals = 5;
+  int32 registry_priority = 6;
+  bool enabled = 7;
+  string entry_type = 8;
+}
+
+message UpdateNavigationEntryResponse {
   string entry_key = 1;
   string name = 2;
   string description = 3;
@@ -419,6 +675,30 @@ message RoleLandingPolicyResponse {
 }
 
 message RoleNavigationResponse {
+  string role_id = 1;
+  repeated RoleNavigationVisibilityResponse visibility = 2;
+  repeated RoleLandingPolicyResponse landing_policies = 3;
+}
+
+message GetRoleNavigationResponse {
+  string role_id = 1;
+  repeated RoleNavigationVisibilityResponse visibility = 2;
+  repeated RoleLandingPolicyResponse landing_policies = 3;
+}
+
+message SetRoleNavigationVisibilityResponse {
+  string role_id = 1;
+  repeated RoleNavigationVisibilityResponse visibility = 2;
+  repeated RoleLandingPolicyResponse landing_policies = 3;
+}
+
+message SetRoleLandingPoliciesResponse {
+  string role_id = 1;
+  repeated RoleNavigationVisibilityResponse visibility = 2;
+  repeated RoleLandingPolicyResponse landing_policies = 3;
+}
+
+message SyncRoleNavigationFromTemplateResponse {
   string role_id = 1;
   repeated RoleNavigationVisibilityResponse visibility = 2;
   repeated RoleLandingPolicyResponse landing_policies = 3;

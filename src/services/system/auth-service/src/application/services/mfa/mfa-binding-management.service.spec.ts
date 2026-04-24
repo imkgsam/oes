@@ -39,6 +39,30 @@ function createLoginMethod(input: {
 }
 
 describe('MfaBindingManagementService', () => {
+  it('uses the verified email as the TOTP authenticator account label while keeping the binding user scoped', async () => {
+    const mfaBindingRepo = {
+      findByUserIdAndType: jest.fn().mockResolvedValue(null),
+      save: jest.fn(),
+    }
+    const loginMethodRepo = {
+      findByUserIdAndType: jest.fn().mockResolvedValue(
+        createLoginMethod({
+          type: LoginMethodType.EMAIL,
+        })
+      ),
+    }
+    const service = new MfaBindingManagementService(
+      mfaBindingRepo as any,
+      loginMethodRepo as any
+    )
+
+    const result = await service.initializeTotpBinding('user-1')
+
+    expect(result.qrCodeUrl).toContain('OES:user%40example.com')
+    expect(result.qrCodeUrl).not.toContain('OES:user-1')
+    expect(mfaBindingRepo.save.mock.calls[0][0].getUserId()).toBe('user-1')
+  })
+
   it('marks email otp mfa unavailable when the email otp login capability is disabled', async () => {
     const loginMethodRepo = {
       findByUserIdAndType: jest.fn().mockResolvedValue(

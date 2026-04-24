@@ -53,12 +53,14 @@ export const useAuthStore = defineStore('auth', () => {
   const pendingMfaAvailableFactors = ref<
     Array<{
       label: string;
+      priority: number;
       type: AuthApi.MfaFactor;
     }>
   >([]);
   const pendingMfaDestination = ref('');
   const pendingMfaExpiresAt = ref('');
   const pendingMfaResendCooldown = ref(0);
+  const pendingMfaScenario = ref<null | 'LOGIN' | 'NEW_DEVICE_LOGIN'>(null);
   const pendingIdentifier = ref('');
   const pendingLoginMethod = ref<AuthApi.LoginMethod | null>(null);
   const pendingUserId = ref('');
@@ -224,7 +226,7 @@ export const useAuthStore = defineStore('auth', () => {
     return result;
   }
 
-  async function completeMfa(code: string) {
+  async function completeMfa(code: string, options?: { trustCurrentDevice?: boolean }) {
     if (!pendingChallengeId.value || !pendingLoginMethod.value || !pendingMfaFactor.value) {
       throw new Error('当前没有待处理的 MFA 挑战');
     }
@@ -237,6 +239,7 @@ export const useAuthStore = defineStore('auth', () => {
         code: code.trim(),
         factorChallengeId: pendingMfaFactorChallengeId.value || undefined,
         loginMethod: pendingLoginMethod.value,
+        trustCurrentDevice: options?.trustCurrentDevice,
       });
 
       if (result.status !== 'SUCCESS' || !result.session) {
@@ -265,6 +268,44 @@ export const useAuthStore = defineStore('auth', () => {
 
     pendingMfaFactor.value = factor;
 
+    if (
+      factor === 'TOTP'
+      || factor === 'BACKUP_CODE'
+      || factor === 'EMAIL_OTP'
+      || factor === 'SMS_OTP'
+    ) {
+      pendingMfaFactorChallengeId.value = '';
+      pendingMfaDestination.value = '';
+      pendingMfaExpiresAt.value = '';
+      stopPendingMfaCooldown();
+
+      if (factor !== 'EMAIL_OTP' && factor !== 'SMS_OTP') {
+        return;
+      }
+    }
+
+    if (factor === 'EMAIL_OTP' || factor === 'SMS_OTP') {
+      return;
+    }
+
+    const result = await requestMfaFactorChallengeApi({
+      challengeId: pendingChallengeId.value,
+      factor,
+    });
+
+    pendingMfaFactorChallengeId.value = result.challengeId;
+    pendingMfaDestination.value = result.destination ?? '';
+    pendingMfaExpiresAt.value = result.expiresAt ?? '';
+    startPendingMfaCooldown();
+  }
+
+  async function requestPendingMfaFactorChallenge(
+    factor: AuthApi.MfaFactor = pendingMfaFactor.value as AuthApi.MfaFactor,
+  ) {
+    if (!pendingChallengeId.value || !factor) {
+      throw new Error('当前没有待处理的 MFA 挑战');
+    }
+
     if (factor === 'TOTP' || factor === 'BACKUP_CODE') {
       pendingMfaFactorChallengeId.value = '';
       pendingMfaDestination.value = '';
@@ -278,10 +319,29 @@ export const useAuthStore = defineStore('auth', () => {
       factor,
     });
 
+    pendingMfaFactor.value = factor;
     pendingMfaFactorChallengeId.value = result.challengeId;
     pendingMfaDestination.value = result.destination ?? '';
     pendingMfaExpiresAt.value = result.expiresAt ?? '';
     startPendingMfaCooldown();
+  }
+
+  async function cyclePendingMfaFactor() {
+    if (pendingMfaAvailableFactors.value.length === 0) {
+      throw new Error('当前没有可切换的 MFA 验证方式');
+    }
+
+    const currentIndex = pendingMfaAvailableFactors.value.findIndex(
+      (factor) => factor.type === pendingMfaFactor.value,
+    );
+    const nextIndex =
+      currentIndex >= 0
+        ? (currentIndex + 1) % pendingMfaAvailableFactors.value.length
+        : 0;
+
+    await switchPendingMfaFactor(
+      pendingMfaAvailableFactors.value[nextIndex]!.type,
+    );
   }
 
   async function submitAccountSelection(accountId: string) {
@@ -347,8 +407,8 @@ export const useAuthStore = defineStore('auth', () => {
     });
   }
 
-  async function fetchUserInfo() {
-    if (userStore.userInfo && authContextStore.sessionContext) {
+  async function fetchUserInfo(forceRefresh = false) {
+    if (!forceRefresh && userStore.userInfo) {
       return userStore.userInfo as UserInfo;
     }
     if (!accessStore.accessToken) {
@@ -462,6 +522,7 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const result = await switchSessionContextApi({
         accountId: accountId.trim(),
+        device: resolveAuthDeviceHints(),
       })
 
       if (result.status !== 'SUCCESS' || !result.session) {
@@ -587,6 +648,7 @@ export const useAuthStore = defineStore('auth', () => {
       challenge?: {
         availableFactors?: Array<{
           label: string;
+          priority: number;
           type: AuthApi.MfaFactor;
         }>;
         challengeId: string;
@@ -594,6 +656,7 @@ export const useAuthStore = defineStore('auth', () => {
         destination?: string;
         expiresAt?: string;
         factorChallengeId?: string;
+        scenario?: 'LOGIN' | 'NEW_DEVICE_LOGIN';
       } | null;
       nextStep?: string;
       operator?: { userId?: string } | null;
@@ -610,15 +673,21 @@ export const useAuthStore = defineStore('auth', () => {
 
     switch (result.status) {
       case 'MFA_REQUIRED': {
+        const orderedAvailableFactors = normalizePendingMfaFactors(
+          result.challenge?.availableFactors,
+        );
+        const defaultFactor = result.challenge?.defaultFactor ?? orderedAvailableFactors[0]?.type ?? null;
+
         pendingChallengeId.value = result.challenge?.challengeId ?? '';
-        pendingMfaFactor.value = result.challenge?.defaultFactor ?? null;
+        pendingMfaFactor.value = defaultFactor;
         pendingMfaFactorChallengeId.value = result.challenge?.factorChallengeId ?? '';
-        pendingMfaAvailableFactors.value = result.challenge?.availableFactors ?? [];
+        pendingMfaAvailableFactors.value = orderedAvailableFactors;
         pendingMfaDestination.value = result.challenge?.destination ?? '';
         pendingMfaExpiresAt.value = result.challenge?.expiresAt ?? '';
+        pendingMfaScenario.value = result.challenge?.scenario ?? 'LOGIN';
         if (
-          pendingMfaFactor.value === 'EMAIL_OTP'
-          || pendingMfaFactor.value === 'SMS_OTP'
+          (defaultFactor === 'EMAIL_OTP' || defaultFactor === 'SMS_OTP')
+          && pendingMfaFactorChallengeId.value
         ) {
           startPendingMfaCooldown();
         } else {
@@ -655,6 +724,7 @@ export const useAuthStore = defineStore('auth', () => {
     pendingMfaAvailableFactors.value = [];
     pendingMfaDestination.value = '';
     pendingMfaExpiresAt.value = '';
+    pendingMfaScenario.value = null;
     stopPendingMfaCooldown();
     pendingIdentifier.value = '';
     pendingLoginMethod.value = null;
@@ -726,6 +796,22 @@ export const useAuthStore = defineStore('auth', () => {
     return parts.length > 0 ? parts.join(' / ') : 'OES tenant user';
   }
 
+  function normalizePendingMfaFactors(
+    factors?: Array<{
+      label: string;
+      priority: number;
+      type: AuthApi.MfaFactor;
+    }>,
+  ) {
+    return [...(factors ?? [])].sort((left, right) => {
+      if (left.priority === right.priority) {
+        return left.label.localeCompare(right.label, 'zh-Hans-CN');
+      }
+
+      return left.priority - right.priority;
+    });
+  }
+
   function $reset() {
     loginLoading.value = false;
     stopPendingMfaCooldown();
@@ -740,6 +826,7 @@ export const useAuthStore = defineStore('auth', () => {
     authPhonePasswordLogin,
     completeFirstLoginPasswordSetup,
     completeMfa,
+    cyclePendingMfaFactor,
     fetchUserInfo,
     loginLoading,
     logout,
@@ -750,6 +837,7 @@ export const useAuthStore = defineStore('auth', () => {
     pendingMfaFactor,
     pendingMfaFactorChallengeId,
     pendingMfaResendCooldown,
+    pendingMfaScenario,
     pendingIdentifier,
     pendingLoginMethod,
     pendingUserId,
@@ -757,6 +845,7 @@ export const useAuthStore = defineStore('auth', () => {
     requestEmailOtpChallenge,
     requestPhoneOtpChallenge,
     refreshCurrentSessionAccess,
+    requestPendingMfaFactorChallenge,
     resetPendingAuthFlow,
     switchPendingMfaFactor,
     submitAccountSelection,

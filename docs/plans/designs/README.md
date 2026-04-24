@@ -106,3 +106,13 @@
 ## 6. 当前状态
 
 当前目录作为规则与模板入口保留；只有当某项设计确实进入长周期推进时，才建立具体 workspace。
+
+当前已建立或正在推进的 design workspace 包括：
+
+- [customer-touchpoint-and-platform-integration-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/customer-touchpoint-and-platform-integration-design.md)
+- [crm-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/crm-service-design.md)
+- [manufacturing-master-data-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/manufacturing-master-data-design.md)
+- [mes-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/mes-service-design.md)
+- [planning-workbench-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/planning-workbench-design.md)
+- [scan-identity-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/scan-identity-design.md)
+- [wms-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/wms-service-design.md)

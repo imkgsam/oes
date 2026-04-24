@@ -12,8 +12,6 @@ import {
   Drawer,
   Empty,
   Form,
-  Space,
-  Switch,
   Table,
   Tag,
   Tooltip,
@@ -21,11 +19,9 @@ import {
 } from 'ant-design-vue';
 
 import {
-  getAdminTenantMfaPolicyApi,
   getPolicyByIdApi,
   listPermissionPoliciesApi,
   listPoliciesApi,
-  updateAdminTenantMfaPolicyApi,
 } from '#/api';
 import { useAuthContextStore } from '#/store/auth-context';
 import {
@@ -63,22 +59,11 @@ const pagination = reactive({
 
 const loading = ref(false);
 const detailLoading = ref(false);
-const tenantMfaLoading = ref(false);
-const tenantMfaSaving = ref(false);
 const policies = ref<PolicyGovernanceApi.Policy[]>([]);
 const selectedPolicy = ref<null | PolicyGovernanceApi.Policy>(null);
 const linkedPolicies = ref<PolicyGovernanceApi.Policy[]>([]);
 const detailDrawerOpen = ref(false);
 const loadError = ref('');
-const tenantMfaPolicy = ref<null | {
-  factors: Array<{
-    enabled: boolean;
-    factor: 'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP';
-    priority: number;
-  }>;
-  loginRequired: boolean;
-  tenantId: string;
-}>(null);
 
 const statusOptions: SelectOption[] = [
   { label: '全部状态', value: '' },
@@ -88,12 +73,6 @@ const statusOptions: SelectOption[] = [
 
 const canViewPolicy = computed(() =>
   authContextStore.actionCodes.includes('permission.policy.list'),
-);
-const canManageLoginMfa = computed(() =>
-  authContextStore.actionCodes.includes('auth.account_login_methods.manage'),
-);
-const hasTenantContext = computed(
-  () => authContextStore.sessionContext?.scopeLevel === 'TENANT',
 );
 const formattedConditionAst = computed(() =>
   formatPolicyConditionAst(selectedPolicy.value?.conditionAstJson),
@@ -106,12 +85,6 @@ const tablePagination = computed(() =>
   }),
 );
 
-const orderedTenantMfaFactors = computed(() =>
-  [...(tenantMfaPolicy.value?.factors ?? [])].sort(
-    (left, right) => left.priority - right.priority,
-  ),
-);
-
 const policyColumns = computed<TableColumnsType>(() => [
   {
     dataIndex: 'name',
@@ -122,9 +95,9 @@ const policyColumns = computed<TableColumnsType>(() => [
       const description = policy.description?.trim();
 
       return h(
-        Space,
-        { direction: 'vertical', size: 2 },
-        () => [
+        'div',
+        { class: 'policy-governance__column-stack' },
+        [
           h(
             Tooltip,
             { title: name },
@@ -160,11 +133,7 @@ const policyColumns = computed<TableColumnsType>(() => [
         (record as PolicyGovernanceApi.Policy).effect,
       );
 
-      return h(
-        Tag,
-        { color: presentation.color },
-        () => presentation.label,
-      );
+      return h(Tag, { color: presentation.color }, () => presentation.label);
     },
   },
   {
@@ -230,14 +199,14 @@ const policyColumns = computed<TableColumnsType>(() => [
         {
           size: 'small',
           type: 'link',
-          onClick: () => openPolicyDetail((record as PolicyGovernanceApi.Policy)),
+          onClick: () => openPolicyDetail(record as PolicyGovernanceApi.Policy),
         },
         () => '查看详情',
       ),
   },
 ]);
 
-// Normalizes unknown request failures into a stable user-facing message.
+// Normalizes one unknown request failure into a stable user-facing message.
 function getErrorMessage(error: unknown, fallback: string) {
   if (
     error &&
@@ -252,7 +221,7 @@ function getErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-// Normalizes one readonly filter snapshot into the gateway query shape.
+// Normalizes the readonly filter state into the current policy-governance query payload.
 function buildQuery(page = 1) {
   return {
     isEnabled:
@@ -263,22 +232,6 @@ function buildQuery(page = 1) {
     permissionCode: filters.permissionCode.trim() || undefined,
     tenantId: filters.tenantId.trim() || undefined,
   };
-}
-
-function getTenantMfaFactorLabel(
-  factor: 'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP',
-) {
-  switch (factor) {
-    case 'EMAIL_OTP':
-      return '邮箱 OTP';
-    case 'SMS_OTP':
-      return '手机 OTP';
-    case 'BACKUP_CODE':
-      return '恢复码';
-    case 'TOTP':
-    default:
-      return '认证器';
-  }
 }
 
 // Loads one readonly policy page for the current governance filters.
@@ -309,76 +262,13 @@ async function loadPolicies(page = pagination.current) {
   }
 }
 
-async function loadTenantMfaPolicy() {
-  if (!hasTenantContext.value || !canManageLoginMfa.value) {
-    tenantMfaPolicy.value = null;
-    return;
-  }
-
-  tenantMfaLoading.value = true;
-
-  try {
-    tenantMfaPolicy.value = await getAdminTenantMfaPolicyApi();
-  } catch (error) {
-    tenantMfaPolicy.value = null;
-    message.error(getErrorMessage(error, '加载登录 MFA 策略失败'));
-  } finally {
-    tenantMfaLoading.value = false;
-  }
-}
-
-function moveTenantMfaFactor(index: number, direction: -1 | 1) {
-  if (!tenantMfaPolicy.value) {
-    return;
-  }
-
-  const nextIndex = index + direction;
-  if (nextIndex < 0 || nextIndex >= tenantMfaPolicy.value.factors.length) {
-    return;
-  }
-
-  const ordered = [...orderedTenantMfaFactors.value];
-  const [current] = ordered.splice(index, 1);
-  if (!current) {
-    return;
-  }
-  ordered.splice(nextIndex, 0, current);
-  tenantMfaPolicy.value.factors = ordered.map((factor, currentIndex) => ({
-    ...factor,
-    priority: currentIndex + 1,
-  }));
-}
-
-async function saveTenantMfaPolicy() {
-  if (!tenantMfaPolicy.value) {
-    return;
-  }
-
-  tenantMfaSaving.value = true;
-
-  try {
-    tenantMfaPolicy.value = await updateAdminTenantMfaPolicyApi({
-      loginRequired: tenantMfaPolicy.value.loginRequired,
-      factors: orderedTenantMfaFactors.value.map((factor, index) => ({
-        ...factor,
-        priority: index + 1,
-      })),
-    });
-    message.success('登录 MFA 策略已更新');
-  } catch (error) {
-    message.error(getErrorMessage(error, '保存登录 MFA 策略失败'));
-  } finally {
-    tenantMfaSaving.value = false;
-  }
-}
-
 // Applies the current filters and reloads the first readonly policy page.
 async function searchPolicies() {
   pagination.current = 1;
   await loadPolicies(1);
 }
 
-// Clears current filters and reloads the first readonly policy page.
+// Clears the current filters and reloads the first readonly policy page.
 async function resetFilters() {
   filters.isEnabled = '';
   filters.keyword = '';
@@ -422,92 +312,20 @@ async function openPolicyDetail(policy: PolicyGovernanceApi.Policy) {
 
 onMounted(() => {
   void loadPolicies(1);
-  void loadTenantMfaPolicy();
 });
 </script>
 
 <template>
   <Page auto-content-height title="策略治理">
     <div class="policy-governance-page">
-      <Card
-        v-if="hasTenantContext && canManageLoginMfa"
-        :bordered="false"
-        class="policy-governance__panel policy-governance__mfa-panel"
-      >
-        <div class="policy-governance__header">
-          <div class="policy-governance__title-row">
-            <div class="policy-governance__section-title policy-governance__section-title--primary">
-              登录 MFA 策略
-            </div>
-            <Tooltip title="控制租户账号在账号选择之后，是否需要二次验证，以及默认优先使用哪种 MFA 方式。">
-              <span class="policy-governance__help-dot">?</span>
-            </Tooltip>
-          </div>
-          <Button
-            :loading="tenantMfaSaving"
-            size="small"
-            type="primary"
-            @click="saveTenantMfaPolicy"
-          >
-            保存策略
-          </Button>
-        </div>
-
-        <div v-if="tenantMfaLoading" class="policy-governance__empty">
-          正在加载登录 MFA 策略...
-        </div>
-
-        <div v-else-if="tenantMfaPolicy" class="space-y-4">
-          <div class="policy-governance__mfa-toggle">
-            <div>
-              <div class="policy-governance__mfa-title">登录时要求二次验证</div>
-              <div class="policy-governance__mfa-meta">
-                开启后，用户完成主认证并选择账号后，还需要完成一项 MFA 验证才能进入租户工作台。
-              </div>
-            </div>
-            <Switch v-model:checked="tenantMfaPolicy.loginRequired" />
-          </div>
-
-          <div class="space-y-2">
-            <div class="policy-governance__mfa-title">因子优先级</div>
-            <div
-              v-for="(factor, index) in orderedTenantMfaFactors"
-              :key="factor.factor"
-              class="policy-governance__mfa-row"
-            >
-              <div class="policy-governance__mfa-order">{{ factor.priority }}</div>
-              <div class="min-w-0 flex-1">
-                <div class="text-sm font-medium text-foreground">
-                  {{ getTenantMfaFactorLabel(factor.factor) }}
-                </div>
-              </div>
-              <Switch v-model:checked="factor.enabled" />
-              <Space size="small">
-                <Button
-                  :disabled="index === 0"
-                  size="small"
-                  @click="moveTenantMfaFactor(index, -1)"
-                >
-                  上移
-                </Button>
-                <Button
-                  :disabled="index === orderedTenantMfaFactors.length - 1"
-                  size="small"
-                  @click="moveTenantMfaFactor(index, 1)"
-                >
-                  下移
-                </Button>
-              </Space>
-            </div>
-          </div>
-        </div>
-      </Card>
-
       <Card :bordered="false" class="policy-governance__panel">
         <div class="policy-governance__header">
           <div class="policy-governance__title-row">
-            <div class="policy-governance__section-title policy-governance__section-title--primary">
-              策略治理
+            <div>
+              <div class="policy-governance__eyebrow">权限治理</div>
+              <div class="policy-governance__section-title policy-governance__section-title--primary">
+                策略治理
+              </div>
             </div>
             <Tooltip title="只读查看策略事实、主体约束与条件 AST，不在此页面执行修改。">
               <span class="policy-governance__help-dot">?</span>
@@ -523,7 +341,6 @@ onMounted(() => {
                   v-model="filters.keyword"
                   aria-label="策略关键字"
                   class="policy-governance__native-input"
-                  @input="filters.keyword = (($event.target as HTMLInputElement | null)?.value ?? '')"
                   placeholder="按策略名称或描述搜索"
                 />
               </Form.Item>
@@ -532,7 +349,6 @@ onMounted(() => {
                   v-model="filters.permissionCode"
                   aria-label="权限码过滤"
                   class="policy-governance__native-input"
-                  @input="filters.permissionCode = (($event.target as HTMLInputElement | null)?.value ?? '')"
                   placeholder="permission.role.update"
                 />
               </Form.Item>
@@ -541,7 +357,6 @@ onMounted(() => {
                   v-model="filters.tenantId"
                   aria-label="租户过滤"
                   class="policy-governance__native-input"
-                  @input="filters.tenantId = (($event.target as HTMLInputElement | null)?.value ?? '')"
                   placeholder="tenant-1"
                 />
               </Form.Item>
@@ -551,7 +366,6 @@ onMounted(() => {
                     v-model="filters.isEnabled"
                     aria-label="状态过滤"
                     class="policy-governance__native-select"
-                    @change="filters.isEnabled = (($event.target as HTMLSelectElement | null)?.value ?? '') as '' | 'false' | 'true'"
                   >
                     <option
                       v-for="option in statusOptions"
@@ -567,23 +381,21 @@ onMounted(() => {
           </Form>
 
           <div class="policy-governance__filter-actions">
-            <Space>
+            <div class="policy-governance__button-row">
               <Button class="policy-governance__search-button" type="primary" @click="searchPolicies">
                 查询
               </Button>
               <Button class="policy-governance__reset-button" @click="resetFilters">
                 重置
               </Button>
-            </Space>
+            </div>
           </div>
         </Card>
 
         <Card :bordered="false" class="policy-governance__table-card">
           <div class="policy-governance__pane-header">
             <div class="policy-governance__section-title">策略目录</div>
-            <div class="policy-governance__meta">
-              共 {{ pagination.total }} 条
-            </div>
+            <div class="policy-governance__meta">共 {{ pagination.total }} 条</div>
           </div>
 
           <p v-if="loadError" class="policy-governance__error">
@@ -719,7 +531,6 @@ onMounted(() => {
   gap: 16px;
   --policy-border: hsl(var(--border));
   --policy-card-bg: hsl(var(--card));
-  --policy-card-bg-soft: hsl(var(--muted) / 0.55);
   --policy-card-bg-strong: hsl(var(--muted) / 0.82);
   --policy-title: hsl(var(--foreground));
   --policy-text: hsl(var(--foreground) / 0.92);
@@ -727,7 +538,9 @@ onMounted(() => {
   --policy-danger: hsl(var(--destructive));
 }
 
-.policy-governance__panel :deep(.ant-card-body) {
+.policy-governance__panel :deep(.ant-card-body),
+.policy-governance__filters-card :deep(.ant-card-body),
+.policy-governance__table-card :deep(.ant-card-body) {
   display: grid;
   gap: 16px;
   padding: 16px;
@@ -741,6 +554,20 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.policy-governance__eyebrow,
+.policy-governance__meta,
+.policy-governance__drawer-state,
+.policy-governance__detail-label,
+.policy-governance__error {
+  color: var(--policy-muted);
+  font-size: 13px;
+}
+
+.policy-governance__eyebrow {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .policy-governance__section-title {
@@ -768,18 +595,23 @@ onMounted(() => {
   cursor: help;
 }
 
-.policy-governance__filters-card :deep(.ant-card-body),
-.policy-governance__table-card :deep(.ant-card-body) {
+.policy-governance__filter-grid,
+.policy-governance__drawer-content,
+.policy-governance__detail-item,
+.policy-governance__detail-section,
+.policy-governance__column-stack {
   display: grid;
-  gap: 16px;
-  padding: 16px;
-  background: var(--policy-card-bg);
+  gap: 10px;
 }
 
 .policy-governance__filter-grid {
-  display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
+}
+
+.policy-governance__button-row {
+  display: flex;
+  gap: 8px;
 }
 
 .policy-governance__filter-actions {
@@ -787,34 +619,20 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-.policy-governance__status-select {
-  width: 100%;
-}
-
+.policy-governance__status-select,
+.policy-governance__native-input,
 .policy-governance__native-select {
   width: 100%;
-  min-height: 32px;
-  padding: 4px 11px;
-  border: 1px solid hsl(var(--input));
-  border-radius: 6px;
-  background: hsl(var(--input-background));
-  color: var(--policy-text);
 }
 
+.policy-governance__native-select,
 .policy-governance__native-input {
-  width: 100%;
   min-height: 32px;
   padding: 4px 11px;
   border: 1px solid hsl(var(--input));
   border-radius: 6px;
   background: hsl(var(--input-background));
   color: var(--policy-text);
-}
-
-.policy-governance__meta,
-.policy-governance__error {
-  color: var(--policy-muted);
-  font-size: 13px;
 }
 
 .policy-governance__error {
@@ -830,39 +648,14 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-.policy-governance__drawer-state {
-  color: var(--policy-muted);
-  font-size: 14px;
-}
-
-.policy-governance__drawer-content {
-  display: grid;
-  gap: 20px;
-}
-
 .policy-governance__detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px 16px;
 }
 
-.policy-governance__detail-item {
-  display: grid;
-  gap: 6px;
-}
-
 .policy-governance__detail-item--full {
   grid-column: 1 / -1;
-}
-
-.policy-governance__detail-label {
-  color: var(--policy-muted);
-  font-size: 12px;
-}
-
-.policy-governance__detail-section {
-  display: grid;
-  gap: 10px;
 }
 
 .policy-governance__code-block {
@@ -880,57 +673,6 @@ onMounted(() => {
 .policy-governance__linked-list {
   margin: 0;
   padding-left: 18px;
-}
-
-.policy-governance__mfa-panel {
-  margin-bottom: 16px;
-}
-
-.policy-governance__mfa-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px;
-  border: 1px solid var(--policy-border);
-  border-radius: 14px;
-  background: var(--policy-card-bg-strong);
-}
-
-.policy-governance__mfa-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--policy-text);
-}
-
-.policy-governance__mfa-meta {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--policy-muted);
-  line-height: 1.5;
-}
-
-.policy-governance__mfa-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 16px;
-  border: 1px solid var(--policy-border);
-  border-radius: 14px;
-  background: var(--policy-card-bg-strong);
-}
-
-.policy-governance__mfa-order {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: hsl(var(--accent));
-  color: var(--policy-text);
-  font-size: 13px;
-  font-weight: 700;
 }
 
 :deep(.policy-governance__table-card .ant-table),

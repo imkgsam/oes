@@ -16,7 +16,8 @@ import { resolveCommonProtoPath } from '@oes/common/contracts'
 import {
   AuthServiceController,
   AuthServiceControllerMethods,
-  LoginStatus
+  LoginStatus,
+  MfaBindingType
 } from '@oes/common/generated/auth_service'
 import {
   PermissionCheckServiceController,
@@ -29,6 +30,9 @@ import { GatewayExceptionFilter } from '../../../../../common/filters/gateway-ex
 const AUTH_PORT = 56050
 const PERMISSION_PORT = 56051
 const IDENTITY_PORT = 56052
+const ASSET_PORT = 56053
+const TENANT_ORG_PORT = 56054
+const PARTY_PORT = 56055
 
 type ObservedCallState = {
   emailPasswordLoginRequest?: {
@@ -38,11 +42,34 @@ type ObservedCallState = {
     userAgent?: string
     ipAddress?: string
   }
+  completeMfaRequest?: {
+    challengeId?: string
+    factor?: string
+    factorChallengeId?: string
+    code?: string
+    loginMethod?: string
+  }
   listLoginHistoryUserId?: string
   listAuditEventsOperatorContext?: string
   adminListOnlineUsersOperatorContext?: string
   listSessionsCurrentSessionId?: string
   adminListUserSessionsOperatorContext?: string
+  getTenantMfaPolicyTenantId?: string
+  getTenantMfaPolicyOperatorContext?: string
+  getPlatformMfaPolicyOperatorContext?: string
+  updateTenantMfaPolicyRequest?: {
+    tenantId?: string
+    loginRequired?: boolean
+    scenarioRequirements?: Array<{ scenario?: number; required?: boolean }>
+    factors?: Array<{ factor?: number; enabled?: boolean; priority?: number }>
+  }
+  updateTenantMfaPolicyOperatorContext?: string
+  updatePlatformMfaPolicyRequest?: {
+    loginRequired?: boolean
+    scenarioRequirements?: Array<{ scenario?: number; required?: boolean }>
+    factors?: Array<{ factor?: number; enabled?: boolean; priority?: number }>
+  }
+  updatePlatformMfaPolicyOperatorContext?: string
   logoutSession?: {
     currentSessionId?: string
     targetSessionId?: string
@@ -184,6 +211,22 @@ class TestAuthGrpcController implements AuthServiceController {
     }
   }
 
+  setOwnLoginMethodEnabled(): any {
+    return {
+      success: true,
+      loginMethod: {
+        methodId: 'method-1',
+        userId: 'user-1',
+        type: 'EMAIL',
+        identifier: 'alice@example.com',
+        maskedIdentifier: 'a***@example.com',
+        verified: true,
+        enabled: true,
+        source: 'USER'
+      }
+    }
+  }
+
   changeOwnPassword(): any {
     return { success: true, passwordSetupRequired: false }
   }
@@ -262,7 +305,14 @@ class TestAuthGrpcController implements AuthServiceController {
     }
   }
 
-  submitMfaChallenge(): any {
+  submitMfaChallenge(request: any): any {
+    observedState.completeMfaRequest = {
+      challengeId: request.challengeId ?? undefined,
+      factor: request.factor ?? undefined,
+      factorChallengeId: request.factorChallengeId ?? undefined,
+      code: request.code ?? undefined,
+      loginMethod: request.loginMethod ?? undefined
+    }
     return {
       status: LoginStatus.LOGIN_STATUS_ACCOUNT_SELECTION_REQUIRED,
       userId: 'user-1',
@@ -286,6 +336,121 @@ class TestAuthGrpcController implements AuthServiceController {
         { channel: 1, maskedDestination: 'u***@example.com' },
         { channel: 2, maskedDestination: '+15****0100' }
       ]
+    }
+  }
+
+  requestLoginMfaFactorChallenge(): any {
+    return {
+      challengeId: 'factor-challenge-1',
+      destination: 'a***@example.com',
+      expiresAt: '2026-04-21T08:00:00.000Z'
+    }
+  }
+
+  getTenantMfaPolicy(
+    request: { tenantId?: string },
+    metadata?: { getMap?: () => Record<string, unknown> }
+  ): any {
+    const map = metadata?.getMap?.() ?? {}
+    observedState.getTenantMfaPolicyTenantId = request.tenantId ?? undefined
+    observedState.getTenantMfaPolicyOperatorContext = String(map['x-operator-context'] ?? '')
+
+    return {
+      tenantId: request.tenantId ?? 'tenant-1',
+      loginRequired: true,
+      scenarioRequirements: [
+        { scenario: 1, required: true },
+        { scenario: 3, required: false }
+      ],
+      factors: [
+        {
+          factor: MfaBindingType.MFA_BINDING_TYPE_TOTP,
+          enabled: true,
+          priority: 2
+        },
+        {
+          factor: MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP,
+          enabled: true,
+          priority: 1
+        }
+      ]
+    }
+  }
+
+  getPlatformMfaPolicy(
+    _request?: unknown,
+    metadata?: { getMap?: () => Record<string, unknown> }
+  ): any {
+    const map = metadata?.getMap?.() ?? {}
+    observedState.getPlatformMfaPolicyOperatorContext = String(map['x-operator-context'] ?? '')
+
+    return {
+      loginRequired: false,
+      scenarioRequirements: [
+        { scenario: 1, required: false },
+        { scenario: 4, required: true }
+      ],
+      factors: [
+        {
+          factor: MfaBindingType.MFA_BINDING_TYPE_BACKUP_CODE,
+          enabled: true,
+          priority: 2
+        },
+        {
+          factor: MfaBindingType.MFA_BINDING_TYPE_SMS_OTP,
+          enabled: true,
+          priority: 1
+        }
+      ]
+    }
+  }
+
+  updateTenantMfaPolicy(
+    request: {
+      tenantId?: string
+      loginRequired?: boolean
+      scenarioRequirements?: Array<{ scenario?: number; required?: boolean }>
+      factors?: Array<{ factor?: number; enabled?: boolean; priority?: number }>
+    },
+    metadata?: { getMap?: () => Record<string, unknown> }
+  ): any {
+    const map = metadata?.getMap?.() ?? {}
+    observedState.updateTenantMfaPolicyRequest = {
+      tenantId: request.tenantId ?? undefined,
+      loginRequired: request.loginRequired ?? undefined,
+      scenarioRequirements: request.scenarioRequirements ?? [],
+      factors: request.factors ?? []
+    }
+    observedState.updateTenantMfaPolicyOperatorContext = String(map['x-operator-context'] ?? '')
+
+    return {
+      tenantId: request.tenantId ?? 'tenant-1',
+      loginRequired: Boolean(request.loginRequired),
+      scenarioRequirements: request.scenarioRequirements ?? [],
+      factors: request.factors ?? []
+    }
+  }
+
+  updatePlatformMfaPolicy(
+    request: {
+      loginRequired?: boolean
+      scenarioRequirements?: Array<{ scenario?: number; required?: boolean }>
+      factors?: Array<{ factor?: number; enabled?: boolean; priority?: number }>
+    },
+    metadata?: { getMap?: () => Record<string, unknown> }
+  ): any {
+    const map = metadata?.getMap?.() ?? {}
+    observedState.updatePlatformMfaPolicyRequest = {
+      loginRequired: request.loginRequired ?? undefined,
+      scenarioRequirements: request.scenarioRequirements ?? [],
+      factors: request.factors ?? []
+    }
+    observedState.updatePlatformMfaPolicyOperatorContext = String(map['x-operator-context'] ?? '')
+
+    return {
+      loginRequired: Boolean(request.loginRequired),
+      scenarioRequirements: request.scenarioRequirements ?? [],
+      factors: request.factors ?? []
     }
   }
 
@@ -375,6 +540,26 @@ class TestAuthGrpcController implements AuthServiceController {
         }
       ]
     }
+  }
+
+  startStepUpMfaChallenge(): any {
+    return { challengeId: 'step-up-challenge-1', expiresAt: '2026-04-22T12:00:00.000Z' }
+  }
+
+  completeStepUpMfaChallenge(): any {
+    return { grantToken: 'step-up-grant-1', expiresAt: '2026-04-22T12:05:00.000Z' }
+  }
+
+  listTrustedDevices(): any {
+    return { devices: [] }
+  }
+
+  revokeTrustedDevice(): any {
+    return { success: true, revokedCount: 1 }
+  }
+
+  revokeOtherTrustedDevices(): any {
+    return { success: true, revokedCount: 1 }
   }
 
   adminListUserSessions(
@@ -508,7 +693,7 @@ class TestPermissionGrpcController implements PermissionCheckServiceController {
   }
 }
 
-// Implements the downstream identity-service gRPC contract used by the session-context integration test.
+// Implements the downstream identity-service gRPC contract used by the auth-bff integration test.
 @Controller()
 class TestIdentityGrpcController {
   // Returns a minimal identity user projection for auth-bff session-management integration tests.
@@ -537,15 +722,91 @@ class TestIdentityGrpcController {
       }
     }
   }
+}
 
-  @GrpcMethod('IdentityQueryService', 'GetTenantById')
+// Implements the downstream asset-service gRPC contract used by auth-bff module wiring in the integration test.
+@Controller()
+class TestAssetGrpcController {
+  @GrpcMethod('AssetService', 'UploadAccountAvatar')
+  uploadAccountAvatar() {
+    return {
+      asset: {
+        assetId: 'asset-1',
+        tenantId: 'tenant-1',
+        ownerAccountId: 'account-1',
+        category: 'ACCOUNT_AVATAR',
+        storageKey: 'avatars/account-1/asset-1',
+        mimeType: 'image/png',
+        size: '123',
+        checksum: 'checksum-1',
+        publicUrl: 'https://example.test/assets/asset-1.png',
+        status: 'PENDING',
+        createdAt: '2026-04-09T10:00:00.000Z',
+        updatedAt: '2026-04-09T10:00:00.000Z'
+      }
+    }
+  }
+
+  @GrpcMethod('AssetService', 'BindAccountAvatar')
+  bindAccountAvatar() {
+    return {
+      activeAsset: {
+        assetId: 'asset-1',
+        tenantId: 'tenant-1',
+        ownerAccountId: 'account-1',
+        category: 'ACCOUNT_AVATAR',
+        storageKey: 'avatars/account-1/asset-1',
+        mimeType: 'image/png',
+        size: '123',
+        checksum: 'checksum-1',
+        publicUrl: 'https://example.test/assets/asset-1.png',
+        status: 'ACTIVE',
+        createdAt: '2026-04-09T10:00:00.000Z',
+        updatedAt: '2026-04-09T10:00:00.000Z'
+      },
+      replacedAssetId: ''
+    }
+  }
+
+  @GrpcMethod('AssetService', 'ResolveAssetPublicUrl')
+  resolveAssetPublicUrl(request: { assetId?: string }) {
+    return {
+      assetId: request.assetId ?? '',
+      publicUrl: `https://example.test/assets/${request.assetId ?? 'asset-1'}.png`,
+      status: 'ACTIVE'
+    }
+  }
+}
+
+// Implements the downstream party-service gRPC contract used by auth-bff display-name hydration in the integration test.
+@Controller()
+class TestPartyGrpcController {
+  @GrpcMethod('PartyQueryService', 'GetPartyById')
+  getPartyById(request: { partyId?: string }) {
+    return {
+      party: {
+        id: request.partyId ?? '',
+        type: 'PERSON',
+        status: 'ACTIVE',
+        canonicalName: 'Vic Chen',
+        displayName: 'Vic Chen'
+      }
+    }
+  }
+}
+
+// Implements the downstream tenant-org-service gRPC contract used by the session-context integration test.
+@Controller()
+class TestTenantOrgGrpcController {
+  @GrpcMethod('TenantOrgQueryService', 'GetTenantById')
   getTenantById(request: { tenantId?: string }) {
     return {
       tenant: {
         id: request.tenantId ?? '',
         code: 'meilong',
         name: 'Meilong Ceramics',
-        isActive: true
+        status: 'ACTIVE',
+        rootOrgId: 'org-root-1'
       }
     }
   }
@@ -569,6 +830,24 @@ class TestPermissionGrpcModule {}
   controllers: [TestIdentityGrpcController]
 })
 class TestIdentityGrpcModule {}
+
+// Hosts the test asset-service gRPC controller used by the gateway integration harness.
+@Module({
+  controllers: [TestAssetGrpcController]
+})
+class TestAssetGrpcModule {}
+
+// Hosts the test party-service gRPC controller used by the gateway integration harness.
+@Module({
+  controllers: [TestPartyGrpcController]
+})
+class TestPartyGrpcModule {}
+
+// Hosts the test tenant-org-service gRPC controller used by the gateway integration harness.
+@Module({
+  controllers: [TestTenantOrgGrpcController]
+})
+class TestTenantOrgGrpcModule {}
 
 // Hosts the minimal gateway application wiring needed to run auth-bff HTTP to gRPC integration tests.
 @Module({
@@ -600,10 +879,28 @@ class TestIdentityGrpcModule {}
           protoPath: resolveCommonProtoPath('identity_service/identity_query.proto'),
           packageName: 'identity_service',
           url: `127.0.0.1:${IDENTITY_PORT}`
+        },
+        [SERVICE_NAMES.ASSET]: {
+          serviceName: SERVICE_NAMES.ASSET,
+          protoPath: resolveCommonProtoPath('asset_service/asset.proto'),
+          packageName: 'asset_service',
+          url: `127.0.0.1:${ASSET_PORT}`
+        },
+        [SERVICE_NAMES.PARTY]: {
+          serviceName: SERVICE_NAMES.PARTY,
+          protoPath: resolveCommonProtoPath('party_service/party.proto'),
+          packageName: 'party_service',
+          url: `127.0.0.1:${PARTY_PORT}`
+        },
+        [SERVICE_NAMES.TENANT_ORG]: {
+          serviceName: SERVICE_NAMES.TENANT_ORG,
+          protoPath: resolveCommonProtoPath('tenant_org_service/tenant_org.proto'),
+          packageName: 'tenant_org_service',
+          url: `127.0.0.1:${TENANT_ORG_PORT}`
         }
       }
     }),
-    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION]),
+    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION, SERVICE_NAMES.TENANT_ORG]),
     AuthBffModule
   ],
   providers: [
@@ -621,6 +918,9 @@ describe('AuthBff gateway integration', () => {
   let authMicroservice: INestMicroservice
   let permissionMicroservice: INestMicroservice
   let identityMicroservice: INestMicroservice
+  let assetMicroservice: INestMicroservice
+  let partyMicroservice: INestMicroservice
+  let tenantOrgMicroservice: INestMicroservice
   let jwtService: CommonJwtService
 
   beforeAll(async () => {
@@ -666,6 +966,45 @@ describe('AuthBff gateway integration', () => {
     )
 
     await identityMicroservice.listen()
+    assetMicroservice = await NestFactory.createMicroservice<MicroserviceOptions>(
+      TestAssetGrpcModule,
+      {
+        transport: Transport.GRPC,
+        options: {
+          package: 'asset_service',
+          protoPath: resolveCommonProtoPath('asset_service/asset.proto'),
+          url: `127.0.0.1:${ASSET_PORT}`
+        }
+      }
+    )
+
+    await assetMicroservice.listen()
+    partyMicroservice = await NestFactory.createMicroservice<MicroserviceOptions>(
+      TestPartyGrpcModule,
+      {
+        transport: Transport.GRPC,
+        options: {
+          package: 'party_service',
+          protoPath: resolveCommonProtoPath('party_service/party.proto'),
+          url: `127.0.0.1:${PARTY_PORT}`
+        }
+      }
+    )
+
+    await partyMicroservice.listen()
+    tenantOrgMicroservice = await NestFactory.createMicroservice<MicroserviceOptions>(
+      TestTenantOrgGrpcModule,
+      {
+        transport: Transport.GRPC,
+        options: {
+          package: 'tenant_org_service',
+          protoPath: resolveCommonProtoPath('tenant_org_service/tenant_org.proto'),
+          url: `127.0.0.1:${TENANT_ORG_PORT}`
+        }
+      }
+    )
+
+    await tenantOrgMicroservice.listen()
 
     const moduleRef = await Test.createTestingModule({
       imports: [TestGatewayAppModule]
@@ -694,15 +1033,26 @@ describe('AuthBff gateway integration', () => {
     await authMicroservice?.close()
     await permissionMicroservice?.close()
     await identityMicroservice?.close()
+    await assetMicroservice?.close()
+    await partyMicroservice?.close()
+    await tenantOrgMicroservice?.close()
   })
 
   beforeEach(() => {
     observedState.emailPasswordLoginRequest = undefined
+    observedState.completeMfaRequest = undefined
     observedState.listLoginHistoryUserId = undefined
     observedState.listAuditEventsOperatorContext = undefined
     observedState.adminListOnlineUsersOperatorContext = undefined
     observedState.listSessionsCurrentSessionId = undefined
     observedState.adminListUserSessionsOperatorContext = undefined
+    observedState.getTenantMfaPolicyTenantId = undefined
+    observedState.getTenantMfaPolicyOperatorContext = undefined
+    observedState.getPlatformMfaPolicyOperatorContext = undefined
+    observedState.updateTenantMfaPolicyRequest = undefined
+    observedState.updateTenantMfaPolicyOperatorContext = undefined
+    observedState.updatePlatformMfaPolicyRequest = undefined
+    observedState.updatePlatformMfaPolicyOperatorContext = undefined
     observedState.checkedPermissions = []
     observedState.revokedSessionIds.clear()
     allowedPermissions.clear()
@@ -737,6 +1087,34 @@ describe('AuthBff gateway integration', () => {
         nextStep: 'COMPLETE_MFA',
         loginMethod: 'EMAIL_PASSWORD',
         challenge: expect.objectContaining({ challengeId: 'challenge-1' })
+      })
+    )
+  })
+
+  it('accepts JWT-sized login MFA challenge ids on the public complete-mfa endpoint', async () => {
+    const longChallengeId = 'x'.repeat(512)
+
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/auth/mfa/complete')
+      .send({
+        challengeId: longChallengeId,
+        factor: 'TOTP',
+        code: '123456',
+        loginMethod: 'EMAIL_PASSWORD'
+      })
+      .expect(201)
+
+    expect(observedState.completeMfaRequest).toEqual({
+      challengeId: longChallengeId,
+      factor: 3,
+      factorChallengeId: undefined,
+      code: '123456',
+      loginMethod: 'email-password'
+    })
+    expect(response.body).toEqual(
+      expect.objectContaining({
+        status: 'ACCOUNT_SELECTION_REQUIRED',
+        nextStep: 'SELECT_ACCOUNT'
       })
     )
   })
@@ -1058,5 +1436,172 @@ describe('AuthBff gateway integration', () => {
         tenantId: 'tenant-1'
       })
     )
+  })
+
+  it('routes tenant MFA policy admin queries and mutations through permission checks and tenant-scoped downstream metadata', async () => {
+    allowedPermissions.add('auth.mfa_policy.manage')
+
+    const token = jwtService.signAccessToken({
+      sub: 'operator-user-1',
+      holderId: 'account-admin-1',
+      userId: 'operator-user-1',
+      tenantId: 'tenant-1',
+      tid: 'tenant-1',
+      sid: 'session-admin-1',
+      roles: ['tenant-admin'],
+      typ: 'USER'
+    })
+
+    const getResponse = await request(app.getHttpServer())
+      .get('/api/v1/auth/admin/tenant-mfa-policy')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+
+    expect(observedState.checkedPermissions).toContain('auth.mfa_policy.manage')
+    expect(observedState.getTenantMfaPolicyTenantId).toBe('tenant-1')
+    expect(observedState.getTenantMfaPolicyOperatorContext).toContain('operator_id')
+    expect(getResponse.body).toEqual({
+      tenantId: 'tenant-1',
+      loginRequired: true,
+      scenarioRequirements: [
+        { scenario: 'LOGIN', required: true },
+        { scenario: 'CHANGE_PASSWORD', required: false }
+      ],
+      factors: [
+        { factor: 'EMAIL_OTP', enabled: true, priority: 1 },
+        { factor: 'TOTP', enabled: true, priority: 2 }
+      ]
+    })
+
+    const updateResponse = await request(app.getHttpServer())
+      .put('/api/v1/auth/admin/tenant-mfa-policy')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        loginRequired: false,
+        scenarioRequirements: [
+          { scenario: 'LOGIN', required: false },
+          { scenario: 'NEW_DEVICE_LOGIN', required: true }
+        ],
+        factors: [
+          { factor: 'BACKUP_CODE', enabled: true, priority: 2 },
+          { factor: 'SMS_OTP', enabled: true, priority: 1 }
+        ]
+      })
+      .expect(200)
+
+    expect(observedState.updateTenantMfaPolicyOperatorContext).toContain('operator_id')
+    expect(observedState.updateTenantMfaPolicyRequest).toEqual({
+      tenantId: 'tenant-1',
+      loginRequired: false,
+      scenarioRequirements: [
+        { scenario: 1, required: false },
+        { scenario: 2, required: true }
+      ],
+      factors: [
+        {
+          factor: MfaBindingType.MFA_BINDING_TYPE_BACKUP_CODE,
+          enabled: true,
+          priority: 2
+        },
+        {
+          factor: MfaBindingType.MFA_BINDING_TYPE_SMS_OTP,
+          enabled: true,
+          priority: 1
+        }
+      ]
+    })
+    expect(updateResponse.body).toEqual({
+      tenantId: 'tenant-1',
+      loginRequired: false,
+      scenarioRequirements: [
+        { scenario: 'LOGIN', required: false },
+        { scenario: 'NEW_DEVICE_LOGIN', required: true }
+      ],
+      factors: [
+        { factor: 'SMS_OTP', enabled: true, priority: 1 },
+        { factor: 'BACKUP_CODE', enabled: true, priority: 2 }
+      ]
+    })
+  })
+
+  it('routes platform MFA policy admin queries and mutations through permission checks and operator-scoped downstream metadata', async () => {
+    allowedPermissions.add('auth.platform_mfa_policy.manage')
+
+    const token = jwtService.signAccessToken({
+      sub: 'operator-user-1',
+      holderId: 'account-system-admin-1',
+      userId: 'operator-user-1',
+      sid: 'session-admin-1',
+      scopeLevel: 'SYSTEM',
+      roles: ['system-admin'],
+      typ: 'USER'
+    })
+
+    const getResponse = await request(app.getHttpServer())
+      .get('/api/v1/auth/admin/platform-mfa-policy')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+
+    expect(observedState.checkedPermissions).toContain('auth.platform_mfa_policy.manage')
+    expect(observedState.getPlatformMfaPolicyOperatorContext).toContain('operator_id')
+    expect(getResponse.body).toEqual({
+      loginRequired: false,
+      scenarioRequirements: [
+        { scenario: 'LOGIN', required: false },
+        { scenario: 'CHANGE_CONTACT', required: true }
+      ],
+      factors: [
+        { factor: 'SMS_OTP', enabled: true, priority: 1 },
+        { factor: 'BACKUP_CODE', enabled: true, priority: 2 }
+      ]
+    })
+
+    const updateResponse = await request(app.getHttpServer())
+      .put('/api/v1/auth/admin/platform-mfa-policy')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        loginRequired: true,
+        scenarioRequirements: [
+          { scenario: 'CHANGE_PASSWORD', required: true },
+          { scenario: 'CHANGE_CONTACT', required: false }
+        ],
+        factors: [
+          { factor: 'TOTP', enabled: true, priority: 2 },
+          { factor: 'EMAIL_OTP', enabled: true, priority: 1 }
+        ]
+      })
+      .expect(200)
+
+    expect(observedState.updatePlatformMfaPolicyOperatorContext).toContain('operator_id')
+    expect(observedState.updatePlatformMfaPolicyRequest).toEqual({
+      loginRequired: true,
+      scenarioRequirements: [
+        { scenario: 3, required: true },
+        { scenario: 4, required: false }
+      ],
+      factors: [
+        {
+          factor: MfaBindingType.MFA_BINDING_TYPE_TOTP,
+          enabled: true,
+          priority: 2
+        },
+        {
+          factor: MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP,
+          enabled: true,
+          priority: 1
+        }
+      ]
+    })
+    expect(updateResponse.body).toEqual({
+      loginRequired: true,
+      scenarioRequirements: [
+        { scenario: 'CHANGE_PASSWORD', required: true },
+        { scenario: 'CHANGE_CONTACT', required: false }
+      ],
+      factors: [
+        { factor: 'EMAIL_OTP', enabled: true, priority: 1 },
+        { factor: 'TOTP', enabled: true, priority: 2 }
+      ]
+    })
   })
 })

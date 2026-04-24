@@ -2,7 +2,7 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import {
   DispatchStatus,
   NotificationCategory,
-  SendDispatchResponse
+  SendEmailResponse
 } from '@oes/common/generated/notification_service'
 import { Inject } from '@nestjs/common'
 import { REPO_NOTIFICATION_DISPATCH, EMAIL_PROVIDER_PORT } from '../../common/constants/injection-tokens'
@@ -15,7 +15,7 @@ import { EmailProviderPort } from '../../domain/services/email-provider.port'
 import { SendEmailCommand } from './send-email.command'
 
 @CommandHandler(SendEmailCommand)
-export class SendEmailHandler implements ICommandHandler<SendEmailCommand, SendDispatchResponse> {
+export class SendEmailHandler implements ICommandHandler<SendEmailCommand, SendEmailResponse> {
   constructor(
     @Inject(REPO_NOTIFICATION_DISPATCH)
     private readonly dispatchRepository: INotificationDispatchRepository,
@@ -23,7 +23,7 @@ export class SendEmailHandler implements ICommandHandler<SendEmailCommand, SendD
     private readonly emailProvider: EmailProviderPort
   ) {}
 
-  async execute(command: SendEmailCommand): Promise<SendDispatchResponse> {
+  async execute(command: SendEmailCommand): Promise<SendEmailResponse> {
     const request = command.request
     const recipient = request.recipient?.address?.trim()
     const templateKey = request.templateKey?.trim()
@@ -70,7 +70,7 @@ export class SendEmailHandler implements ICommandHandler<SendEmailCommand, SendD
     return this.accept(saved)
   }
 
-  private accept(dispatch: NotificationDispatch): SendDispatchResponse {
+  private accept(dispatch: NotificationDispatch): SendEmailResponse {
     return {
       accepted: true,
       dispatchId: dispatch.getProps().id,
@@ -78,7 +78,7 @@ export class SendEmailHandler implements ICommandHandler<SendEmailCommand, SendD
     }
   }
 
-  private reject(reason: string): SendDispatchResponse {
+  private reject(reason: string): SendEmailResponse {
     return {
       accepted: false,
       dispatchId: '',

@@ -153,7 +153,9 @@ describe('PolicyManagementGrpcController L3', () => {
       tenantId: 'tenant-1',
       permissionCode: 'permission.read',
       isEnabled: true,
-      keyword: 'allow'
+      keyword: 'allow',
+      subjectType: 2,
+      subjectId: 'account-1'
     } as any)
 
     expect(buses.queryBus.execute).toHaveBeenCalledWith(
@@ -163,7 +165,9 @@ describe('PolicyManagementGrpcController L3', () => {
         tenantId: 'tenant-1',
         permissionCode: 'permission.read',
         isEnabled: true,
-        keyword: 'allow'
+        keyword: 'allow',
+        subjectType: PolicySubjectType.ACCOUNT,
+        subjectId: 'account-1'
       })
     )
     expect(result).toEqual({

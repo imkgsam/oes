@@ -146,6 +146,8 @@
 - 不擅自修改 proto
 - 不擅自修改 `src/common` 公共边界
 - 不改变权限、租户、operator context、AI 工具边界
+- 不擅自改变 self-service 与 admin-management 的授权边界
+- 不把 personal-center、账户安全或登录方式自助流程复用为管理员权限门
 - 不扩大任务范围
 
 输入是什么：
@@ -262,6 +264,7 @@
 - 修改 proto
 - 修改 `src/common` 公共边界
 - 修改权限、租户、operator context、AI 工具协议
+- 修改 personal-center、账户安全、登录方式、自助密码、自助 MFA 的 self-service / admin-management 边界
 - 上游计划尚未冻结
 - 同一 design workspace 的真相源回写尚未完成，但准备切换到另一个无关设计主题
 
@@ -341,8 +344,26 @@
 - 修改 `src/common` 公共抽象
 - 修改项目级架构文档
 - 修改租户、权限、operator context 语义
+- 修改 self-service 与 admin-management 的分层授权语义
 - 修改事件模型
 - 修改 AI 工具协议
+
+### 4.5 自助与管理授权边界敏感路径
+
+以下路径只要触及授权语义，就不能按普通局部实现处理：
+
+- `src/services/api-gateway/src/modules/auth-bff/application/use-cases/account-profile.use-case.ts`
+- `src/services/api-gateway/src/modules/auth-bff/application/use-cases/session-self-service.use-case.ts`
+- `src/services/api-gateway/src/modules/auth-bff/application/use-cases/admin-security.use-case.ts`
+- `src/services/api-gateway/src/modules/auth-bff/interfaces/http/controllers/auth.controller.ts`
+- `src/services/system/auth-service/src/interfaces/grpc/auth.grpc.controller.ts`
+- `src/services/system/identity-service/src/interfaces/grpc/identity-management.grpc.controller.ts`
+
+执行规则：
+
+- implementation thread 在修改这些路径前，必须先核对 [0004-self-service-and-admin-authorization-boundary.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0004-self-service-and-admin-authorization-boundary.md) 与相关 architecture / feature packet。
+- 若发现当前实现与文档冲突，应按“落实已冻结设计”的缺陷修复推进。
+- 若想改变这条边界本身，必须先回到 architecture thread，而不是在实现线程内自行改语义。
 
 ## 5. 路径 ownership 表
 
@@ -372,7 +393,7 @@
 | `src/services/system/auth-service/**` | implementation thread | 中 | 可独立线程开发，认证语义变更需升级 |
 | `src/services/system/identity-service/**` | implementation thread | 中 | 可独立线程开发，身份边界变更需升级 |
 | `src/services/system/permission-service/**` | implementation thread | 中 | 可独立线程开发，权限语义变更需升级 |
-| `src/services/system/entity-service/**` | implementation thread | 中 | 可独立线程开发，主体边界变更需升级 |
+| `src/services/system/party-service/**` | implementation thread | 中 | 可独立线程开发；旧 `entity-service` 残留仅按迁移治理处理，主体边界变更需升级 |
 | `src/services/business/**` | implementation thread | 高 | 在不碰共享边界前提下可按服务并行 |
 | `src/services/auxiliary/**` | implementation thread | 高 | 在不碰共享边界前提下可按服务并行 |
 
@@ -512,7 +533,20 @@
 - 所有实现都必须尽量使用最少、最优雅、最成熟、符合最佳实践且长期可维护的代码
 - 发现既有边界或契约不合理时，应升级治理流程，而不是在局部线程内绕过
 
-## 10. 执行结论
+## 10. 本地后端启动与数据库漂移纪律
+
+本地开发环境中，后端服务启动前必须先完成数据库 schema 与基础权限种子的显式同步，避免运行时才暴露 Prisma 缺表、缺列或权限基线缺失。
+
+必须遵守：
+
+- 默认使用 `pnpm backend` 或 `pnpm dev` 启动本地后端，不应绕过根目录脚本直接启动一组服务。
+- `pnpm backend` 必须在启动服务前执行 `pnpm backend:db:sync` 与 `pnpm backend:foundation:sync`。
+- 涉及 Prisma schema 的线程完成改动后，必须至少验证对应服务的 `prisma:push`，并在跨服务联调前验证 `pnpm backend:db:sync`。
+- 涉及权限码、内置角色、导航基线或授权基础数据的线程，必须验证 `pnpm backend:foundation:sync`。
+- 若 schema 同步需要破坏性变更，不得在启动脚本中默认使用强制丢数据参数；应停止启动并升级为显式迁移或人工确认的数据处理任务。
+- 不在默认 `pnpm backend` 中启动暂未纳入当前联调主链的服务；如果需要临时加入或移除服务，必须同步更新根目录脚本与本节约束。
+
+## 11. 执行结论
 
 OES 多线程治理的核心不是“尽量并行”，而是：
 

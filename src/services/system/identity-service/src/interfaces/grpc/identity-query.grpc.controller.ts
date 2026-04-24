@@ -13,6 +13,8 @@ import {
   ListAccountsResponse,
   GetAccountByIdRequest,
   GetAccountByIdResponse,
+  GetEmployeeBindingByAccountIdRequest,
+  GetEmployeeBindingByAccountIdResponse,
   GetApiKeyByIdRequest,
   GetApiKeyByIdResponse,
   GetServiceAccountByIdRequest,
@@ -33,10 +35,6 @@ import {
   ListAccountWorkPhoneAssetsResponse,
   GetOrgTreeByTenantIdRequest,
   GetOrgTreeByTenantIdResponse,
-  GetTenantByIdRequest,
-  GetTenantByIdResponse,
-  ListTenantsRequest,
-  ListTenantsResponse,
   GetUserByIdRequest,
   GetUserByIdResponse,
   GetUserByEmailRequest,
@@ -53,10 +51,12 @@ import {
   AccountContactAssetView,
   AccountOrgMembershipView,
   AccountSummaryView,
+  EmployeeBindingSummaryView,
   ListAuditEventsQuery,
   ListAuditEventsView,
   ApiKeyView,
   GetAccountByIdQuery,
+  GetEmployeeBindingByAccountIdQuery,
   GetAccountsByUserIdQuery,
   ListAccountsQuery,
   GetApiKeyByIdQuery,
@@ -67,11 +67,8 @@ import {
   ListAccountWorkEmailAssetsQuery,
   ListAccountWorkPhoneAssetsQuery,
   GetOrgTreeByTenantIdQuery,
-  GetTenantByIdQuery,
-  ListTenantsQuery,
   OrgNodeView,
   ServiceAccountView,
-  TenantSummaryView,
   GetUserByIdQuery,
   UserSummaryView,
   GetUserByPhoneQuery,
@@ -144,11 +141,29 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
         userId: account.userId,
         tenantId: account.tenantId ?? '',
         avatarUrl: account.avatarUrl ?? '',
+        avatarAssetId: account.avatarAssetId ?? '',
         displayName: account.displayName ?? '',
         bio: account.bio ?? '',
         isEnabled: account.isEnabled,
         scopeLevel: account.scopeLevel
       }
+    }
+  }
+
+  async getEmployeeBindingByAccountId(
+    request: GetEmployeeBindingByAccountIdRequest
+  ): Promise<GetEmployeeBindingByAccountIdResponse> {
+    const binding = await this.queryBus.execute<
+      GetEmployeeBindingByAccountIdQuery,
+      EmployeeBindingSummaryView | null
+    >(new GetEmployeeBindingByAccountIdQuery(request.accountId!))
+
+    if (!binding) {
+      return {}
+    }
+
+    return {
+      binding: IdentityGrpcPresenter.toEmployeeBinding(binding)
     }
   }
 
@@ -235,6 +250,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
   async getOrgTreeByTenantId(
     request: GetOrgTreeByTenantIdRequest
   ): Promise<GetOrgTreeByTenantIdResponse> {
+    // Deprecated compatibility entry: org tree truth has moved to tenant-org-service, so no new callers should use this path.
     const operatorScope = getOptionalOperatorScope(request)
     const roots = await this.queryBus.execute<GetOrgTreeByTenantIdQuery, OrgNodeView[]>(
       new GetOrgTreeByTenantIdQuery(request.tenantId!, operatorScope)
@@ -275,7 +291,6 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
       accounts: accounts.map((account) => ({
         accountId: account.accountId,
         tenantId: account.tenantId ?? '',
-        tenantName: account.tenantName ?? '',
         displayName: account.displayName ?? '',
         scopeLevel: account.scopeLevel
       }))
@@ -302,55 +317,14 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
       accounts: result.items.map((account) => ({
         accountId: account.accountId,
         userId: account.userId,
+        userPartyId: account.userPartyId ?? '',
         tenantId: account.tenantId ?? '',
-        tenantName: account.tenantName ?? '',
         scopeLevel: account.scopeLevel,
         displayName: account.displayName ?? '',
         userDisplayName: account.userDisplayName ?? '',
         isEnabled: account.isEnabled
       })),
       total: result.total
-    }
-  }
-
-  async getTenantById(request: GetTenantByIdRequest): Promise<GetTenantByIdResponse> {
-    const operatorScope = getOptionalOperatorScope(request)
-    const tenant = await this.queryBus.execute<GetTenantByIdQuery, TenantSummaryView | null>(
-      new GetTenantByIdQuery(request.tenantId!, operatorScope)
-    )
-
-    if (!tenant) {
-      return {}
-    }
-
-    return {
-      tenant: {
-        id: tenant.id,
-        code: tenant.code,
-        name: tenant.name,
-        isActive: tenant.isActive
-      }
-    }
-  }
-
-  async listTenants(request: ListTenantsRequest): Promise<ListTenantsResponse> {
-    const operatorScope = getOptionalOperatorScope(request)
-    const tenants = await this.queryBus.execute<ListTenantsQuery, TenantSummaryView[]>(
-      new ListTenantsQuery({
-        keyword: request.keyword || undefined,
-        pageSize: request.pageSize || undefined,
-        activeOnly: request.activeOnly,
-        operatorScope
-      })
-    )
-
-    return {
-      tenants: tenants.map((tenant) => ({
-        id: tenant.id,
-        code: tenant.code,
-        name: tenant.name,
-        isActive: tenant.isActive
-      }))
     }
   }
 
@@ -366,6 +340,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     return {
       user: {
         id: user.id,
+        partyId: user.partyId ?? '',
         username: user.username ?? '',
         personalEmail: user.personalEmail ?? '',
         personalPhone: user.personalPhone ?? '',
@@ -386,6 +361,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     return {
       user: {
         id: user.id,
+        partyId: user.partyId ?? '',
         username: user.username ?? '',
         personalEmail: user.personalEmail ?? '',
         personalPhone: user.personalPhone ?? '',
@@ -406,6 +382,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     return {
       user: {
         id: user.id,
+        partyId: user.partyId ?? '',
         username: user.username ?? '',
         personalEmail: user.personalEmail ?? '',
         personalPhone: user.personalPhone ?? '',

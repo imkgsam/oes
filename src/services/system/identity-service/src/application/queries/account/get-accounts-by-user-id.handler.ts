@@ -25,7 +25,6 @@ function toAccountCandidateView(account: AccountCandidateEntity): AccountCandida
   return {
     accountId: account.accountId,
     tenantId: account.tenantId,
-    tenantName: account.tenantName,
     scopeLevel: account.scopeLevel,
     displayName: account.displayName,
     isEnabled: account.isEnabled

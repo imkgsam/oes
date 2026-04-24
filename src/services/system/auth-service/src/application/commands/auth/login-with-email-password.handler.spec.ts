@@ -103,7 +103,6 @@ describe('LoginWithEmailPasswordHandler', () => {
         {
           accountId: 'account-1',
           tenantId: 'tenant-1',
-          tenantName: 'Tenant One',
           scopeLevel: 'TENANT',
           displayName: 'Tenant Account'
         }
@@ -128,7 +127,6 @@ describe('LoginWithEmailPasswordHandler', () => {
         {
           accountId: 'account-1',
           tenantId: 'tenant-1',
-          tenantName: 'Tenant One',
           scopeLevel: 'TENANT',
           displayName: 'Tenant Account'
         }

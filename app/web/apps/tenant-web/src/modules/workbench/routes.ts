@@ -39,6 +39,7 @@ const workbenchRoutes: RouteRecordRaw[] = [
         path: '/account/profile',
         component: () => import('#/views/_core/profile/index.vue'),
         meta: {
+          hideInMenu: true,
           icon: 'lucide:user-round',
           title: '个人中心',
         },
@@ -48,6 +49,7 @@ const workbenchRoutes: RouteRecordRaw[] = [
         path: '/account/security',
         component: () => import('#/views/_core/profile/security-center.vue'),
         meta: {
+          hideInMenu: true,
           icon: 'lucide:shield-check',
           title: '账户安全',
         },

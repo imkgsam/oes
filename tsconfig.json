@@ -9,7 +9,7 @@
     { "path": "./src/services/system/auth-service" },
     { "path": "./src/services/system/permission-service" },
     { "path": "./src/services/system/identity-service" },
-    { "path": "./src/services/system/entity-service" },
+    { "path": "./src/services/system/party-service" },
     { "path": "./src/services/system/notification-service" }
     // business services
     // auxiliary services

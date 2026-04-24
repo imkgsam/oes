@@ -16,6 +16,7 @@ describe('PersonalCenterSummaryAdapter', () => {
         account: {
           id: 'account-1',
           avatarUrl: 'data:image/svg+xml;base64,avatar',
+          avatarAssetId: '',
           displayName: '陈双鹏',
           bio: '外贸与平台协同负责人'
         }
@@ -80,7 +81,8 @@ describe('PersonalCenterSummaryAdapter', () => {
 
     const adapter = new PersonalCenterSummaryAdapter(
       identityAdapter as any,
-      authAdapter as any
+      authAdapter as any,
+      { resolveAssetPublicUrl: jest.fn() } as any
     )
 
     await expect(
@@ -128,6 +130,60 @@ describe('PersonalCenterSummaryAdapter', () => {
     expect(authAdapter.listSessions).toHaveBeenCalledWith(
       'user-1',
       'session-current',
+      expect.objectContaining({ user: { sid: 'session-current' } })
+    )
+  })
+
+  it('resolves current-account avatar from avatarAssetId when the account stores a controlled asset reference', async () => {
+    const identityAdapter = {
+      getUserById: jest.fn().mockResolvedValue({
+        user: {
+          id: 'user-1',
+          personalEmail: 'platform@example.com',
+          personalPhone: ''
+        }
+      }),
+      getAccountById: jest.fn().mockResolvedValue({
+        account: {
+          id: 'account-system',
+          avatarUrl: '',
+          avatarAssetId: 'asset-system-1',
+          displayName: 'Platform Admin',
+          bio: 'system profile'
+        }
+      }),
+      listAccountWorkEmailAssets: jest.fn().mockResolvedValue({ assets: [] }),
+      listAccountWorkPhoneAssets: jest.fn().mockResolvedValue({ assets: [] })
+    }
+    const authAdapter = {
+      listSessions: jest.fn().mockResolvedValue({ sessions: [] })
+    }
+    const assetAdapter = {
+      resolveAssetPublicUrl: jest.fn().mockResolvedValue({
+        assetId: 'asset-system-1',
+        publicUrl: 'http://localhost:9000/oes-assets/avatar/system/account-system/avatar.webp',
+        status: 'ACTIVE'
+      })
+    }
+
+    const adapter = new PersonalCenterSummaryAdapter(
+      identityAdapter as any,
+      authAdapter as any,
+      assetAdapter as any
+    )
+
+    await expect(
+      adapter.getPersonalCenterSummary('user-1', 'account-system', {
+        user: { sid: 'session-current' }
+      } as any)
+    ).resolves.toEqual(
+      expect.objectContaining({
+        avatar: 'http://localhost:9000/oes-assets/avatar/system/account-system/avatar.webp'
+      })
+    )
+
+    expect(assetAdapter.resolveAssetPublicUrl).toHaveBeenCalledWith(
+      { assetId: 'asset-system-1' },
       expect.objectContaining({ user: { sid: 'session-current' } })
     )
   })

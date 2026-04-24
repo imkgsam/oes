@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
+import { ConfigService } from '@nestjs/config'
 import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
 
 function parseEnvValue(raw: string): string {
@@ -33,7 +34,10 @@ export function ensureIntegrationDatabaseUrl(): string {
 
 export async function createPrismaForIntegration(): Promise<PrismaService> {
   const databaseUrl = ensureIntegrationDatabaseUrl()
-  const prisma = new PrismaService()
+  const configService = new ConfigService({
+    DATABASE_URL: databaseUrl
+  })
+  const prisma = new PrismaService(configService)
 
   try {
     await prisma.$connect()
@@ -109,6 +113,16 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     }
   })
 
+  await prisma.userAccountEmployeeBinding.deleteMany({
+    where: {
+      OR: [
+        { accountId: { startsWith: prefix } },
+        { employeeId: { startsWith: prefix } },
+        { tenantId: { startsWith: prefix } }
+      ]
+    }
+  })
+
   await prisma.userAccountOrgMembership.deleteMany({
     where: {
       OR: [{ accountId: { startsWith: prefix } }, { orgId: { startsWith: prefix } }]
@@ -136,7 +150,6 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     where: {
       OR: [
         { id: { startsWith: prefix } },
-        { entityId: { startsWith: prefix } },
         { username: { startsWith: prefix } },
         { email: { startsWith: prefix } },
         { phone: { startsWith: prefix } }
@@ -148,7 +161,6 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     where: {
       OR: [
         { id: { startsWith: prefix } },
-        { entityId: { startsWith: prefix } },
         { name: { startsWith: prefix } },
         { code: { startsWith: prefix } }
       ]

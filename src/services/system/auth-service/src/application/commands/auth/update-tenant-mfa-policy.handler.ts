@@ -1,13 +1,17 @@
 import { Inject } from '@nestjs/common'
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { REPO } from '../../../common/constants'
-import { TenantMfaFactorPolicySnapshot } from '../../../domain/entities/tenant-mfa-policy.entity'
+import {
+  TenantMfaFactorPolicySnapshot,
+  TenantMfaScenarioRequirementSnapshot
+} from '../../../domain/entities/tenant-mfa-policy.entity'
 import { TenantMfaPolicyRepository } from '../../../domain/repositories/tenant-mfa-policy.repository'
 import { UpdateTenantMfaPolicyCommand } from './update-tenant-mfa-policy.command'
 
 export interface TenantMfaPolicyView {
   factors: TenantMfaFactorPolicySnapshot[]
   loginRequired: boolean
+  scenarioRequirements: TenantMfaScenarioRequirementSnapshot
   tenantId: string
 }
 
@@ -23,7 +27,9 @@ export class UpdateTenantMfaPolicyHandler
 
   async execute(command: UpdateTenantMfaPolicyCommand): Promise<TenantMfaPolicyView> {
     const policy = await this.tenantMfaPolicyRepository.getTenantPolicy(command.tenantId)
-    policy.setLoginRequired(command.loginRequired)
+    for (const [scenario, required] of Object.entries(command.scenarioRequirements)) {
+      policy.setScenarioRequired(scenario as keyof TenantMfaScenarioRequirementSnapshot, required)
+    }
     policy.replaceFactors(
       command.factors.map((factor) => ({
         factor: factor.factor,
@@ -37,6 +43,7 @@ export class UpdateTenantMfaPolicyHandler
     return {
       tenantId: saved.tenantId,
       loginRequired: saved.isLoginRequired(),
+      scenarioRequirements: saved.getScenarioRequirements(),
       factors: saved.getFactors()
     }
   }

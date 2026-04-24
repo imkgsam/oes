@@ -16,6 +16,10 @@ export namespace UserApi {
 
   export interface SwitchContextPayload {
     accountId: string;
+    device?: {
+      deviceId?: string;
+      deviceName?: string;
+    };
   }
 
   export interface SwitchedContext {

@@ -16,7 +16,9 @@ export function createAccountRepositoryMock(): jest.Mocked<AccountRepository> {
     createUserAccount: jest.fn(),
     findAvailableByUserId: jest.fn(),
     findById: jest.fn(),
+    getDeletionImpact: jest.fn(),
     list: jest.fn(),
+    delete: jest.fn(),
     setEnabled: jest.fn(),
     updateProfile: jest.fn()
   } as unknown as jest.Mocked<AccountRepository>
@@ -69,6 +71,7 @@ export function createAccountSummaryFixture(
     tenantId: string
     scopeLevel: 'SYSTEM' | 'TENANT'
     avatarUrl: string | null
+    avatarAssetId: string | null
     displayName: string | null
     bio: string | null
     isEnabled: boolean
@@ -80,6 +83,7 @@ export function createAccountSummaryFixture(
     overrides.tenantId ?? 'tenant-1',
     overrides.scopeLevel ?? 'TENANT',
     Object.prototype.hasOwnProperty.call(overrides, 'avatarUrl') ? overrides.avatarUrl! : null,
+    Object.prototype.hasOwnProperty.call(overrides, 'avatarAssetId') ? overrides.avatarAssetId! : null,
     Object.prototype.hasOwnProperty.call(overrides, 'displayName') ? overrides.displayName! : 'demo',
     Object.prototype.hasOwnProperty.call(overrides, 'bio') ? overrides.bio! : null,
     overrides.isEnabled ?? true
@@ -159,6 +163,7 @@ export function createAccountOrgMembershipFixture(
 export function createUserSummaryFixture(
   overrides: Partial<{
     id: string
+    partyId: string | null
     username: string | null
     personalEmail: string | null
     personalPhone: string | null
@@ -167,6 +172,7 @@ export function createUserSummaryFixture(
 ): UserSummaryEntity {
   return new UserSummaryEntity(
     overrides.id ?? 'user-1',
+    Object.prototype.hasOwnProperty.call(overrides, 'partyId') ? overrides.partyId! : null,
     Object.prototype.hasOwnProperty.call(overrides, 'username') ? overrides.username! : 'demo-user',
     Object.prototype.hasOwnProperty.call(overrides, 'personalEmail')
       ? overrides.personalEmail!

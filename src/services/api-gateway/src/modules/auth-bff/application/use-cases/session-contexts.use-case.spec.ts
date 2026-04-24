@@ -24,7 +24,9 @@ describe('SessionContextsUseCase', () => {
             scopeLevel: 'TENANT'
           }
         ]
-      }),
+      })
+    }
+    const tenantOrgAdapter = {
       getTenantById: jest
         .fn()
         .mockImplementation(async (tenantId: string) => ({
@@ -35,7 +37,7 @@ describe('SessionContextsUseCase', () => {
         }))
     }
 
-    const useCase = new SessionContextsUseCase(identityAdapter as any)
+    const useCase = new SessionContextsUseCase(identityAdapter as any, tenantOrgAdapter as any)
     const source = {
       user: {
         sub: 'user-1',
@@ -80,19 +82,19 @@ describe('SessionContextsUseCase', () => {
       'user-1',
       expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
     )
-    expect(identityAdapter.getTenantById).toHaveBeenCalledTimes(2)
-    expect(identityAdapter.getTenantById).toHaveBeenCalledWith(
+    expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledTimes(2)
+    expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledWith(
       'tenant-a',
       expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
     )
-    expect(identityAdapter.getTenantById).toHaveBeenCalledWith(
+    expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledWith(
       'tenant-b',
       expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
     )
   })
 
   it('rejects unauthenticated requests without a user id', async () => {
-    const useCase = new SessionContextsUseCase({} as any)
+    const useCase = new SessionContextsUseCase({} as any, {} as any)
 
     await expect(
       useCase.execute({

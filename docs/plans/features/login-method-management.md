@@ -48,6 +48,8 @@
 - 管理员重设密码采用“要求用户下次登录设置密码”语义，不生成明文初始密码。
 - 当前“是否需要设置密码”不能长期只靠“是否存在 password credential”推断；管理员要求重设密码需要显式状态、原因、操作者与审计。
 - 用户自助接口只做 self-bound 认证，不依赖业务权限码。
+- 自助与管理员能力可以复用下层 application / domain 逻辑，但不得复用同一条接口层权限门。
+- 若 tenant / system 需要限制某项自助安全能力，应通过 self-service policy / capability 表达，而不是复用管理员权限码。
 - 管理员接口必须通过 BFF 做 account / user 解析与 operator scope 收敛，不允许前端直接调用内部 gRPC。
 
 ## 5. 契约真相位置
@@ -185,6 +187,7 @@ POST /api/v1/auth/admin/accounts/:accountId/login-methods/phone
 - 自助接口：
   - authenticated session 即可。
   - 语义上是 self-bound，不走 `checkPermission`。
+  - 不得复用管理员 `auth.login_method.manage` 或同类权限码作为前置条件。
 - 管理员接口：
   - 建议新增权限码：
     - `auth.login_method.read`

@@ -26,7 +26,7 @@
   - [11-gateway-and-bff-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/11-gateway-and-bff-architecture.md)
 - services:
   - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-  - [entity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/entity-service.md)
+  - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
 - collaborations:
   - [account-context-switch.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/account-context-switch.md)
 - contracts:
@@ -52,16 +52,23 @@
   - 显示名
   - 个人简介
 - 当前 `account` 资料字段统一建模为 `account profile`：
-  - 外部黑盒字段：`avatar`
+  - 读模型字段：`avatar`
+  - 写模型字段：`avatarAssetId`
   - `displayName`
   - `bio`
-- 下游 `identity-service.UserAccount` 内部字段使用 `avatarUrl`；BFF 对外 contract 使用 `avatar`，实现上必须显式按“`avatar` -> `avatarUrl`”映射，不能把内部字段名泄漏到黑盒接口。
+- 当前 `account profile` 的头像字段不再接受任意外链 URL；`avatar` 仅作为展示 URL 出现在读模型中，头像写路径必须通过受控头像上传产出 `avatarAssetId`。
+- `identity-service` 的当前账号资料真相应逐步从 `avatarUrl` 迁移为 `avatarAssetId`；BFF 对外继续保留 `avatar` 这个黑盒展示字段，但不再把内部存储细节或任意 URL 输入暴露给调用方。
+- 当前账号头像上传能力适用于 `TENANT` 与 `SYSTEM` 两类当前账号上下文；差异只在下游头像资产归属 scope，不在前端是否展示上传能力。
 - `account profile` 的真相源应落在 `identity-service.UserAccount`，而不是 `auth-service` 或前端本地状态。
 - 当前 `account` 拥有的角色必须作为个人中心核心信息之一直接展示，而不是藏在次级页面里。
 - 第一阶段只允许直接编辑低风险 `account` 级资料：
   - 头像
   - 显示名
   - 个人简介
+- 当前 `account profile` 自助编辑属于 self-service capability：
+  - 以 authenticated session + self-bound current account 为前提
+  - 不依赖管理员 `identity.account.profile.update` 权限码
+  - 只允许白名单字段 `avatar / displayName / bio`
 - 第一阶段不直接编辑：
   - 登录邮箱
   - 登录手机号
@@ -93,11 +100,14 @@
 - 当前 `account` 的角色展示继续以 [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md) 中的 `GET /auth/session/access-summary` 为真相源。
 - 安全与自助入口继续复用 [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md) 已冻结能力。
 - personal-center 的富资料读模型直接以 [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md) 中的 `GET /auth/personal-center` 为实现真相源，不应回退到 `GET /auth/session/context` 拼接资料字段。
+- 当前账号头像上传直接以 [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md) 中的 `POST /auth/personal-center/avatar` 为实现真相源。
+- `POST /auth/personal-center/avatar` 的下游头像资产归属语义直接以 [avatar.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/asset-service/avatar.md) 为真相源，必须支持 scope-aware avatar ownership，而不是假定所有头像都属于某个 tenant。
 - personal-center 的 `account profile` 写模型直接以 [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md) 中的 `PATCH /auth/personal-center/account-profile` 为实现真相源。
 - 第一阶段 `account profile` 黑盒 contract 的可编辑字段为：
-  - `avatar`
+  - `avatarAssetId`
   - `displayName`
   - `bio`
+- `PATCH /auth/personal-center/account-profile` 的授权语义冻结为“当前 `account` 自助编辑当前 `account profile`”，不得复用管理员修改他人账号资料的权限门。
 
 ## 6. 线程分工
 
@@ -135,6 +145,7 @@
   - 直接实现页面
   - 设计完整的登录方式绑定 / 解绑 / 验证流程
   - 设计企业工作联系方式的编辑流程
+  - 把个人中心资料自助编辑回退为管理员资料治理权限模型
   - 改动 `operator context`、租户模型、权限模型或 account-context 语义
 - 偏移返回条件：
   - 若需要改变 `user` / `account` / `tenant` 现有语义边界，则暂停并升级到 architecture / ADR
@@ -157,6 +168,7 @@
 | 2026-04-15 | `account` 级资料字段（头像 / 显示名 / 简介）的正式真相源与写接口是否已存在 | Blocker-Later | 影响头像 / 显示名 / 简介从“页面设计”走向“真实可编辑实现” | 已冻结为 BFF 黑盒 contract：读走 `GET /auth/personal-center`，写走 `PATCH /auth/personal-center/account-profile`；实现不得回退到 `GET /auth/session/context` 拼接资料字段 | `docs/contracts/api-gateway/**` | closed |
 | 2026-04-15 | 当前页面是否需要展示“其他 account 概览” | Sidecar | 会增加信息密度并弱化当前账号语义 | 当前已确认不纳入第一阶段，继续聚焦当前 `account` 上下文 | [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md) 或下一阶段 feature slice | open |
 | 2026-04-16 | `bio` 应落在哪个模型 | Blocker-Now | 若继续悬空，会导致资料编辑接口边界不清 | 已确认 `bio` 与 `avatarUrl` / `displayName` 一样归属于 `UserAccount`，统一作为 `account profile` 字段推进 | 当前 feature packet / 后续 contract | closed |
+| 2026-04-22 | 头像是否继续允许任意 URL 写入 | Blocker-Now | 若继续允许任意 URL，个人中心头像无法进入生产级受控资产边界 | 已确认头像上传必须通过独立受控资产服务完成；个人中心读模型继续返回 `avatar` 展示 URL，写模型改为 `avatarAssetId`，并新增 `POST /auth/personal-center/avatar` 上传入口 | `docs/architecture/services/asset-service.md` / `docs/contracts/**` | closed |
 
 ## 11. 验收标准
 
@@ -180,6 +192,9 @@
 - 页面能聚合现有安全与常用入口，而不伪造不存在的安全流程。
 - 第一阶段只允许编辑当前 `account` 的头像、显示名、个人简介，不越界承接高风险身份 / 安全修改能力。
 - 第一阶段资料编辑契约必须是“当前 `account` 自助编辑当前 `account profile`”，不接受跨账号 profile 修改。
+- 第一阶段资料编辑不得依赖管理员权限码；若 tenant / system 需要关闭此类自助能力，应通过策略控制，而不是复用管理员资料更新权限。
+- 头像上传必须进入受控资产边界，前端不再直接提交任意头像 URL。
+- 系统账号头像上传不应因为当前资产实现最初以 tenant 为中心而被禁用；若出现 system-scope avatar 失败，应优先视为 `asset-service` 归属模型缺口，而不是产品边界。
 
 ## 12. 关闭条件
 
@@ -208,7 +223,17 @@
 - 第一阶段个人中心应更像“身份与上下文总入口”，而不是模板表单或系统设置集合。
 - 后续若进入登录方式绑定 / 解绑 / 验证设计，应单独处理验证码、邮件链接确认、第三方 OAuth 回调与安全审计，不应继续塞回本页面的主表单里。
 - 当前已确认：`user` 级稳定字段以登录身份信息为主；头像、显示名、简介在本 feature 中统一视为当前 `account` 的展示资料。
-- 当前已确认：BFF 外部黑盒字段使用 `avatar` / `displayName` / `bio`，其中 `avatar` 在下游 `UserAccount` 内部映射到 `avatarUrl`；这组字段统一视为 `UserAccount` 的 `account profile`，而不是临时聚合字段。
+- 当前已确认：BFF 读模型继续使用 `avatar` / `displayName` / `bio`，其中 `avatar` 仅作为展示 URL；头像写路径改为 `avatarAssetId`，由受控头像上传流程产出，不再接受任意外链 URL。
+- 当前已确认：头像资产服务必须从 tenant-only 升级为 scope-aware；`TENANT` 账号头像与 `SYSTEM` 账号头像共用同一条自助编辑产品语义，但下游资产归属与存储路径按 scope 区分。
+- 当前已确认：`account profile` 自助编辑与管理员资料治理属于两条不同授权语义；即使下游复用同一份业务逻辑，也必须分开接口层授权路径。
+
+## 13.1 授权边界补充
+
+- 本 feature packet 自 2026-04-21 起显式服从 [0004-self-service-and-admin-authorization-boundary.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0004-self-service-and-admin-authorization-boundary.md)。
+- 若当前代码仍要求普通用户持有管理员资料修改权限码才能修改自己的头像、显示名或简介，应视为实现缺陷，而不是本 feature 的既定行为。
+- 后续线程在修改 `PATCH /auth/personal-center/account-profile` 链路前，必须先核对：
+  - [15-authorization-layering-and-resource-policy-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/15-authorization-layering-and-resource-policy-architecture.md)
+  - [authentication-and-identity.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/authentication-and-identity.md)
 
 ## 14. 当前实现归属整理
 

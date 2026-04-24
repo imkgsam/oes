@@ -12,8 +12,9 @@ import {
   NotificationCategory,
   NotificationServiceClient,
   NOTIFICATION_SERVICE_NAME,
-  SendDispatchResponse,
   SendEmailRequest,
+  SendEmailResponse,
+  SendSmsResponse,
   SendSmsRequest
 } from '@oes/common/generated/notification_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
@@ -21,6 +22,8 @@ import { AUTH_NOTIFICATION_UPSTREAM_UNAVAILABLE } from '../../common/constants/e
 import { NotificationDispatchPort, NotificationDispatchResult } from '../../domain/services/notification-dispatch.port'
 
 const AUTH_PRELOGIN_TENANT_ID = 'system'
+
+type NotificationDispatchResponse = SendEmailResponse | SendSmsResponse
 
 @Injectable()
 export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort, OnModuleInit {
@@ -49,7 +52,7 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
     ttlMinutes: number
   }): Promise<NotificationDispatchResult> {
     try {
-      const response = await safeGrpcCall<SendDispatchResponse>(
+      const response = await safeGrpcCall<SendEmailResponse>(
         this.notificationService.sendEmail(this.buildEmailRequest(input), this.metadata()),
         {
           caller: 'auth-service',
@@ -75,7 +78,7 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
     ttlMinutes: number
   }): Promise<NotificationDispatchResult> {
     try {
-      const response = await safeGrpcCall<SendDispatchResponse>(
+      const response = await safeGrpcCall<SendSmsResponse>(
         this.notificationService.sendSms(this.buildSmsRequest(input), this.metadata()),
         {
           caller: 'auth-service',
@@ -100,7 +103,7 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
     recipient: string
   }): Promise<NotificationDispatchResult> {
     try {
-      const response = await safeGrpcCall<SendDispatchResponse>(
+      const response = await safeGrpcCall<SendEmailResponse>(
         this.notificationService.sendEmail(
           {
             source: {
@@ -148,7 +151,7 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
     recipient: string
   }): Promise<NotificationDispatchResult> {
     try {
-      const response = await safeGrpcCall<SendDispatchResponse>(
+      const response = await safeGrpcCall<SendSmsResponse>(
         this.notificationService.sendSms(
           {
             source: {
@@ -251,7 +254,7 @@ export class NotificationServiceGrpcAdaptor implements NotificationDispatchPort,
     }
   }
 
-  private mapResponse(response: SendDispatchResponse): NotificationDispatchResult {
+  private mapResponse(response: NotificationDispatchResponse): NotificationDispatchResult {
     return {
       accepted: response.accepted ?? false,
       dispatchId: response.dispatchId || undefined,

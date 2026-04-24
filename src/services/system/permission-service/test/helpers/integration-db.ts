@@ -111,6 +111,28 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     }
   })
 
+  await prisma.onboardingGrantRequest.deleteMany({
+    where: {
+      OR: [
+        {
+          idempotencyKey: {
+            startsWith: prefix
+          }
+        },
+        {
+          accountId: {
+            startsWith: prefix
+          }
+        },
+        {
+          tenantId: {
+            startsWith: prefix
+          }
+        }
+      ]
+    }
+  })
+
   if (permissionCodes.length > 0) {
     await prisma.policy.deleteMany({
       where: {

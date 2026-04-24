@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
+import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
 
 export enum LoginMethodDto {
   EMAIL_PASSWORD = 'EMAIL_PASSWORD',
@@ -116,12 +116,12 @@ export class PhoneOtpChallengeDto {
 export class CompleteMfaDto {
   @ApiProperty({
     description: 'Challenge identifier previously returned by the login flow.',
-    maxLength: 128,
-    example: 'challenge_01HZY2Q8S9K3'
+    maxLength: 4096,
+    example: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'
   })
   @IsString()
   @MinLength(1)
-  @MaxLength(128)
+  @MaxLength(4096)
   challengeId: string
 
   @ApiProperty({
@@ -151,6 +151,14 @@ export class CompleteMfaDto {
   loginMethod: LoginMethodDto
 
   @ApiPropertyOptional({
+    description:
+      'Explicitly trusts the current device after NEW_DEVICE_LOGIN MFA succeeds so future logins can skip the new-device challenge for the configured trust window.'
+  })
+  @IsOptional()
+  @IsBoolean()
+  trustCurrentDevice?: boolean
+
+  @ApiPropertyOptional({
     description: 'Factor-specific OTP challenge identifier when the selected MFA factor requires a separate OTP challenge.',
     maxLength: 128,
     example: 'challenge_01HZY2Q8S9K3'
@@ -166,12 +174,12 @@ export class CompleteMfaDto {
 export class RequestMfaFactorChallengeDto {
   @ApiProperty({
     description: 'Challenge identifier previously returned by the account-selection MFA step.',
-    maxLength: 128,
-    example: 'challenge_01HZY2Q8S9K3'
+    maxLength: 4096,
+    example: 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...'
   })
   @IsString()
   @MinLength(1)
-  @MaxLength(128)
+  @MaxLength(4096)
   challengeId: string
 
   @ApiProperty({
@@ -245,4 +253,11 @@ export class SwitchContextDto {
   @MinLength(1)
   @MaxLength(128)
   accountId: string
+
+  @ApiPropertyOptional({
+    type: () => LoginDeviceDto,
+    description: 'Optional stable client device hints used to preserve trusted-device continuity across account context switches.'
+  })
+  @IsOptional()
+  device?: LoginDeviceDto
 }

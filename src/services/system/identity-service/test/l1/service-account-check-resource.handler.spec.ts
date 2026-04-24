@@ -8,8 +8,6 @@ import { GetApiKeyByIdHandler } from '../../src/application/queries/service-acco
 import { GetApiKeyByIdQuery } from '../../src/application/queries/service-account/get-api-key-by-id.query'
 import { GetServiceAccountByIdHandler } from '../../src/application/queries/service-account/get-service-account-by-id.handler'
 import { GetServiceAccountByIdQuery } from '../../src/application/queries/service-account/get-service-account-by-id.query'
-import { GetTenantByIdHandler } from '../../src/application/queries/tenant/get-tenant-by-id.handler'
-import { GetTenantByIdQuery } from '../../src/application/queries/tenant/get-tenant-by-id.query'
 import {
   createAccountRepositoryMock,
   createAccountSummaryFixture,
@@ -20,10 +18,8 @@ import {
   createApiKeyFixture,
   createApiKeyRepositoryMock,
   createServiceAccountFixture,
-  createServiceAccountRepositoryMock,
-  createTenantRepositoryMock
+  createServiceAccountRepositoryMock
 } from '../helpers/machine-fixtures'
-import { TenantSummaryEntity } from '../../src/domain/entities/tenant-summary.entity'
 
 // Verifies detail query handlers enforce checkResource before returning cross-tenant resources.
 describe('service-account detail checkResource handlers', () => {
@@ -71,29 +67,6 @@ describe('service-account detail checkResource handlers', () => {
       handler.execute(
         new GetServiceAccountByIdQuery('11111111-1111-1111-1111-111111111111', {
           operatorId: 'operator-1',
-          tenantId: 'tenant-a',
-          isSystemScope: false
-        })
-      )
-    ).rejects.toMatchObject({
-      definition: expect.objectContaining({
-        code: ACCESS_DENIED.code
-      })
-    })
-  })
-
-  it('getTenantById / 应拒绝 tenant scope 读取其他 tenant detail', async () => {
-    const tenantRepository = createTenantRepositoryMock()
-    tenantRepository.findById.mockResolvedValue(
-      new TenantSummaryEntity('tenant-b', 'tenant-b', 'Tenant B', true)
-    )
-
-    const handler = new GetTenantByIdHandler(tenantRepository, new CheckResourceService())
-
-    await expect(
-      handler.execute(
-        new GetTenantByIdQuery('44444444-4444-4444-4444-444444444444', {
-          operatorId: 'operator-4',
           tenantId: 'tenant-a',
           isSystemScope: false
         })

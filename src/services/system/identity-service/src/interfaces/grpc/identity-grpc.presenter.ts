@@ -1,19 +1,64 @@
 import {
   AccountContactAsset,
+  AccountDeletionBlockingReason,
+  AccountDeletionCleanupPlan,
   AccountOrgMembership,
   AuditEventRecord,
   ApiKey,
+  DeleteAccountResponse,
+  EmployeeBinding,
+  GetAccountDeletionImpactResponse,
   ServiceAccount
 } from '@oes/common/generated/identity_service'
 import {
   AccountContactAssetView,
+  AccountDeletionImpactView,
   AccountOrgMembershipView,
   AuditEventView,
   ApiKeyView,
+  EmployeeBindingSummaryView,
   ServiceAccountView
 } from '../../application/queries'
+import { DeleteAccountResult } from '../../application/commands'
 
 export class IdentityGrpcPresenter {
+  static toAccountDeletionCleanupPlan(
+    plan: AccountDeletionImpactView['cleanupPlan']
+  ): AccountDeletionCleanupPlan {
+    return {
+      willDeleteSessions: plan.willDeleteSessions,
+      willClearRoles: plan.willClearRoles,
+      willDeleteOrgMemberships: plan.willDeleteOrgMemberships,
+      willDeleteContactAssets: plan.willDeleteContactAssets
+    }
+  }
+
+  static toAccountDeletionBlockingReason(
+    reason: AccountDeletionImpactView['blockingReasons'][number]
+  ): AccountDeletionBlockingReason {
+    return {
+      resourceType: reason.resourceType,
+      resourceCount: reason.resourceCount,
+      message: reason.message
+    }
+  }
+
+  static toAccountDeletionImpact(
+    impact: AccountDeletionImpactView
+  ): GetAccountDeletionImpactResponse {
+    return {
+      accountId: impact.accountId,
+      canDelete: impact.canDelete,
+      userRetained: impact.userRetained,
+      cleanupPlan: this.toAccountDeletionCleanupPlan(impact.cleanupPlan),
+      blockingReasons: impact.blockingReasons.map((reason) =>
+        this.toAccountDeletionBlockingReason(reason)
+      ),
+      orgMembershipCount: impact.orgMembershipCount,
+      contactAssetCount: impact.contactAssetCount
+    }
+  }
+
   static toContactAsset(asset: AccountContactAssetView): AccountContactAsset {
     return {
       id: asset.id,
@@ -37,6 +82,15 @@ export class IdentityGrpcPresenter {
       orgType: membership.orgType ?? '',
       relationType: membership.relationType,
       isPrimary: membership.isPrimary
+    }
+  }
+
+  static toEmployeeBinding(binding: EmployeeBindingSummaryView): EmployeeBinding {
+    return {
+      id: binding.id,
+      tenantId: binding.tenantId,
+      accountId: binding.accountId,
+      employeeId: binding.employeeId
     }
   }
 
@@ -89,6 +143,15 @@ export class IdentityGrpcPresenter {
       resourceType: event.resourceType,
       resourceId: event.resourceId ?? '',
       detailsJson: JSON.stringify(event.details)
+    }
+  }
+
+  static toDeleteAccountResponse(result: DeleteAccountResult): DeleteAccountResponse {
+    return {
+      accountId: result.accountId,
+      deletedOrgMembershipCount: result.deletedOrgMembershipCount,
+      deletedContactAssetCount: result.deletedContactAssetCount,
+      userRetained: result.userRetained
     }
   }
 }

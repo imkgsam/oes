@@ -9,8 +9,8 @@
 
 ## 2. 不做什么
 
-- 不在第一期支持除 `LOGIN` 以外的 MFA 场景落地，例如新设备登录、修改密码、更换邮箱 / 手机、管理员高危操作。
-- 不在第一期开放系统管理员 MFA 策略配置页。
+- V1A 不支持除 `LOGIN` 以外的 MFA 场景落地；`新设备登录 / 修改密码 / 更换邮箱 / 手机` 已提升为 V1B 主线。
+- V1C 之前不开放系统管理员 MFA 策略配置页；平台 MFA 配置已提升为当前主线实现。
 - 不在第一期为每个场景单独配置允许因子与因子优先级。
 - 不在第一期引入基于风险评分、设备画像或异常行为的动态 MFA 决策。
 - 不在第一期实现“严格型”同类因子复用限制，只保留升级所需模型。
@@ -57,6 +57,11 @@
 ## 5. 当前结论
 
 - MFA 因子管理与登录方式管理必须分开；登录方式属于主认证能力，MFA 因子属于二次认证能力。
+- MFA 因子资产归属 `user`：
+  - 邮箱 OTP、手机 OTP、TOTP、恢复码都属于用户自己的长期安全凭证。
+- 登录场景是否触发 MFA、允许哪些因子、默认展示哪个因子，归属所选 `account` 对应的 tenant 策略：
+  - 因子归属 `user`
+  - 策略归属 `account -> tenant`
 - 当前纳入统一管理的 MFA 因子固定为：
   - `EMAIL_OTP`
   - `SMS_OTP`
@@ -85,17 +90,18 @@
 | Thread / Owner | 职责 | 允许修改路径 | 输入 | 输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | design owner | 冻结登录场景 MFA 策略、因子优先级模型、恢复码语义与后续升级边界 | `docs/plans/features/**`, 必要时 `docs/contracts/**` | 当前讨论结论、现有登录与安全中心能力 | 当前 feature packet | completed |
-| contract owner | 冻结登录续流 `defaultFactor / availableFactors` 契约与租户管理员治理契约 | `docs/contracts/**`, `src/common/src/contracts/**` | 当前 feature packet | 契约文档与 proto 变更计划 | pending |
-| auth-service owner | 实现租户 MFA 策略 read/write、challenge 编排、因子切换与恢复码消费规则 | `src/services/system/auth-service/**` | 当前 feature packet / contracts | 可测试认证编排能力 | pending |
-| api-gateway owner | 暴露登录续流 HTTP 编排与租户管理员策略管理 API | `src/services/api-gateway/src/modules/**` | auth-service contracts | BFF 黑盒能力 | pending |
-| tenant-web owner | 实现登录 MFA 续流 UI、用户安全中心收口与租户管理员配置页 | `app/web/apps/tenant-web/**` | BFF 契约 | 用户侧与管理员侧页面 | pending |
-| review / integration owner | 聚焦验证登录主链、恢复码失效规则与策略生效范围 | 只读全局，必要时最小修正 | 各实现输出 | 验证结论与关闭判断 | pending |
+| contract owner | 冻结登录续流 `defaultFactor / availableFactors` 契约与租户管理员治理契约 | `docs/contracts/**`, `src/common/src/contracts/**` | 当前 feature packet | 契约文档与 proto 变更计划 | completed |
+| auth-service owner | 实现租户 MFA 策略 read/write、challenge 编排、因子切换与恢复码消费规则 | `src/services/system/auth-service/**` | 当前 feature packet / contracts | 可测试认证编排能力 | completed |
+| api-gateway owner | 暴露登录续流 HTTP 编排与租户管理员策略管理 API | `src/services/api-gateway/src/modules/**` | auth-service contracts | BFF 黑盒能力 | completed |
+| tenant-web owner | 实现登录 MFA 续流 UI、用户安全中心收口与租户管理员配置页 | `app/web/apps/tenant-web/**` | BFF 契约 | 用户侧与管理员侧页面 | completed |
+| review / integration owner | 聚焦验证登录主链、恢复码失效规则与策略生效范围 | 只读全局，必要时最小修正 | 各实现输出 | 验证结论与关闭判断 | in_progress |
 
 ## 8. 当前 slice
 
 - slice:
   - V1A: 登录场景 MFA 策略 + 全局因子启停与 priority + 登录续流因子编排
 - scope:
+  - 用户级 MFA 因子资产与账号级策略分层
   - 租户级 `LOGIN` 场景开关
   - 租户级全局 MFA 因子启停
   - 租户级全局 MFA priority 排序
@@ -108,6 +114,37 @@
   - 登录页默认展示最高优先级可用因子
   - 用户可切换到其他可用因子
   - 任一因子成功通过即可完成本次 2FA
+
+## 8.1 下一阶段 slice
+
+- slice:
+  - V1B: 高风险自助场景 MFA
+- scope:
+  - 新设备登录
+  - 修改密码
+  - 更换邮箱 / 手机
+- rules:
+  - 继续复用 V1A 的用户级 MFA 因子资产与租户级 priority
+  - 不引入严格型同类因子排除
+  - 不引入系统管理员平台默认 MFA 策略
+  - 不把每个场景扩展成独立因子白名单；场景只控制是否要求 MFA
+- implementation boundary:
+  - 新设备登录需要先冻结设备识别 / trusted-device 语义，不得用 IP 或 user-agent 硬编码当正式设备模型
+  - 修改密码、更换邮箱 / 手机属于已登录自助敏感操作，应通过 step-up MFA challenge 保护最终提交动作
+- execution plan:
+  - [MFA Step-Up Sensitive Actions Implementation Plan](/Users/acehood/Documents/GitHub/oes/docs/superpowers/plans/2026-04-22-mfa-step-up-sensitive-actions.md)
+
+## 8.2 当前新增 slice
+
+- slice:
+  - V1C: 平台 MFA 配置
+- scope:
+  - `SYSTEM` 账号独立的 MFA 策略治理
+  - 与租户 MFA 同构但隔离的策略模型
+  - `SYSTEM/TENANT` 运行时策略分流
+  - 系统账号 `NEW_DEVICE_LOGIN` 的受信设备真相
+- execution plan:
+  - [Platform MFA Policy Implementation Plan](/Users/acehood/Documents/GitHub/oes/docs/superpowers/plans/2026-04-23-platform-mfa-policy.md)
 
 ## 9. 主线范围
 
@@ -145,9 +182,17 @@
 
 ### 10.2 运行时登录续流
 
-- 主登录成功后，如果当前租户未开启 `LOGIN` 场景 MFA：
-  - 直接进入后续账号选择 / 建立会话。
-- 如果当前租户开启 `LOGIN` 场景 MFA：
+- 登录顺序固定为：
+  - 主认证
+  - 账号选择
+  - 按所选 `account` 的 tenant MFA policy 判定是否需要 MFA
+  - 若命中 MFA，则完成 challenge
+  - 再建立最终 session
+- 主登录成功后，不得在账号选择之前提前触发 tenant-scoped MFA：
+  - 因为多账号、多租户场景下，只有选定 `account` 后才能知道当前应该采用哪个 tenant 的 MFA 策略。
+- 如果所选 `account` 对应 tenant 未开启 `LOGIN` 场景 MFA：
+  - 直接建立最终会话。
+- 如果所选 `account` 对应 tenant 开启 `LOGIN` 场景 MFA：
   - 创建当前登录专用的 `MFA challenge`。
   - challenge 中保留本次登录上下文。
 - 后端在 `MFA_REQUIRED` 响应中返回：
@@ -156,15 +201,40 @@
   - `defaultFactor`
   - `availableFactors[]`
   - 必要时返回当前选中的 `selectedFactor`
+- `MFA_REQUIRED` 响应不得自动创建或投递 `EMAIL_OTP / SMS_OTP` 的 factor-specific OTP challenge：
+  - 进入 MFA 页面只代表本次登录需要二次验证
+  - 邮箱 / 短信验证码必须由用户在 MFA 页面主动触发发送
+  - 当前前端发送入口必须先经过 captcha gate，再调用 factor challenge 接口
+  - 后续若引入服务端 captcha token，BFF 必须在调用 `auth-service` 前完成校验
+- `defaultFactor` 与 `availableFactors[]` 的顺序必须来自所选 `account` 对应 tenant 的因子 priority：
+  - 不是用户绑定顺序
+  - 不是前端写死顺序
+  - 不是任意后端枚举顺序
 - `availableFactors[]` 来源于：
   - 租户全局因子启用状态
   - 租户全局 priority
   - 用户本人已绑定且当前可用的因子
 - 前端默认展示最高优先级可用因子。
+- 前端中的其他候选因子必须按同一 priority 顺序，依次作为备选项展示。
 - 用户可切换到其他更低优先级但可用的因子。
 - 任一因子验证成功，即完成本次 MFA 并继续登录续流。
 
-### 10.3 恢复码语义
+### 10.3 登录页 MFA 交互
+
+- MFA 登录页默认只展示一个当前验证方式：
+  - 即当前优先级最高且可用的因子。
+- 不应在首屏一次性平铺展示所有可用 MFA 因子。
+- 页面应提供次级入口：
+  - `使用其他验证方式`
+- 用户点击该入口后，才展示其余可用因子列表。
+- 备选列表必须按所选 `account` 的 tenant priority 顺序排列，并从当前因子之后依次向后作为备选。
+- 用户切换验证方式时：
+  - 只改变本次 challenge 的当前展示因子
+  - 不改变 challenge 所属 user / account / tenant / scenario 上下文
+- `EMAIL_OTP / SMS_OTP` 发送或重发时才可申请 factor-specific challenge；
+  - `TOTP / BACKUP_CODE` 切换时不需要额外下游 OTP challenge。
+
+### 10.4 恢复码语义
 
 - 恢复码参与普通 priority 排序。
 - 恢复码在 UI 中必须被明确标注为“应急备用，一次性使用”。
@@ -173,7 +243,7 @@
   - 当前恢复码集合整体作废
   - 下次若要继续使用恢复码，必须重新生成并重新启用
 
-### 10.4 务实型与严格型边界
+### 10.5 务实型与严格型边界
 
 - 第一版运行时编排采用“务实型”：
   - 不限制与主登录同类因子的二次验证复用。
@@ -280,7 +350,8 @@ POST /api/v1/auth/mfa/select-factor
 
 - 如果租户开启 `LOGIN` 场景 MFA，而当前用户没有任何可用因子：
   - 不允许绕过 MFA 直接放行登录。
-  - 应返回明确状态，提示用户先完成安全设置或联系管理员。
+  - 应直接阻断登录，不发最终 session。
+  - 应返回明确状态，提示当前账号要求 MFA，但当前用户没有任何可用验证方式，需要先完成安全设置或联系管理员。
 - 恢复码验证成功后必须立即停用当前恢复码绑定，不能继续沿用剩余旧码。
 - 用户切换 MFA 因子时，不得改变 challenge 所属用户、租户和登录上下文。
 - 第一版允许与主登录同类因子复用，但必须作为显式设计结论记录，不能误判为漏洞修复遗漏。
@@ -300,14 +371,14 @@ POST /api/v1/auth/mfa/select-factor
 | 2026-04-20 | 第一版是否要求禁止与主登录同类因子复用 | Blocker-Later | 影响运行时过滤规则 | 第一版采用务实型；后续升级为严格型时基于 challenge 上下文追加过滤 | 当前 feature packet / 后续任务 | closed |
 | 2026-04-20 | 恢复码是否只消费单条还是整组失效 | Blocker-Now | 影响产品语义与实现 | 已冻结为“整组一次性应急包”；成功使用一次后绑定停用且旧码整体作废 | 当前 feature packet | closed |
 | 2026-04-20 | 系统管理员是否先开放 MFA 策略治理 | Blocker-Later | 会把模型拖入多层继承与强制覆盖 | 第一版不开放系统管理员页，只保留底层模型扩展位 | 当前 feature packet | closed |
-| 2026-04-20 | 第一版是否支持除登录外的 MFA 场景 | Sidecar | 会显著扩大策略与联动范围 | 第一版仅支持 `LOGIN`；其他场景列为后续增量 | 当前 feature packet | closed |
+| 2026-04-20 | 第一版是否支持除登录外的 MFA 场景 | Sidecar | 会显著扩大策略与联动范围 | V1A 仅支持 `LOGIN`；新设备登录、修改密码、更换邮箱 / 手机已迁入 V1B 主线 | 当前 feature packet / V1B plan | migrated |
 
 ## 17. 验收标准
 
 - 租户管理员能查看并修改当前租户“登录是否要求 MFA”。
 - 租户管理员能配置四种 MFA 因子的全局启停与 priority。
-- 用户命中登录场景 MFA 时，前端能拿到默认因子与候选因子列表。
-- 登录 MFA 页能在候选因子之间切换。
+- 用户命中登录场景 MFA 时，前端能拿到按所选 `account` priority 排序的默认因子与候选因子列表。
+- 登录 MFA 页默认只展示一个当前因子，其他因子通过次级入口按顺序切换。
 - 任意一个可用因子验证成功，登录续流可继续完成。
 - `TOTP` 在安全中心中以独立 MFA 因子身份清晰表达。
 - 恢复码成功使用一次后，对应 `BACKUP_CODE` 绑定自动停用，旧恢复码不再可用。
@@ -317,9 +388,6 @@ POST /api/v1/auth/mfa/select-factor
 - `严格型 MFA`
   - 根据 `primaryFactorFamily` 排除与主登录同类的二次验证因子。
 - `更多 MFA 场景`
-  - 新设备登录
-  - 修改密码
-  - 更换邮箱 / 手机
   - 安全中心敏感操作
   - 管理员高危操作
 - `平台级安全治理`

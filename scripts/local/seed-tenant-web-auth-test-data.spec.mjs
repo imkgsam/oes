@@ -5,6 +5,8 @@ import {
   DEFAULT_PASSWORD,
   DEFAULT_OTP_CODE,
   EXPECTED_ROLE_CODES,
+  buildSeedTenantOrgRootUnits,
+  buildSeedTenantOrgTenants,
   SEEDED_COMPANIES,
   SEEDED_USER_MEMBERSHIPS,
   SEEDED_USERS,
@@ -27,6 +29,19 @@ test('tenant-web auth fixtures expose the requested companies, users, accounts, 
   assert.deepEqual(
     SEEDED_COMPANIES.map((company) => company.domain),
     ['meilong-ceramics.com', 'dawu-tech.com', 'wooyun.com'],
+  );
+
+  const tenantOrgTenants = buildSeedTenantOrgTenants();
+  const tenantOrgRootUnits = buildSeedTenantOrgRootUnits();
+  assert.equal(tenantOrgTenants.length, SEEDED_COMPANIES.length);
+  assert.equal(tenantOrgRootUnits.length, SEEDED_COMPANIES.length);
+  assert.deepEqual(
+    tenantOrgTenants.map((tenant) => tenant.rootOrgId),
+    tenantOrgRootUnits.map((orgUnit) => orgUnit.id),
+  );
+  assert.ok(
+    tenantOrgRootUnits.every((orgUnit) => orgUnit.type === 'ROOT' && orgUnit.depth === 0),
+    'tenant-org seed should keep one deterministic root org per managed tenant',
   );
 
   assert.equal(SEEDED_USERS.length, 4);

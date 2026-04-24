@@ -1,6 +1,8 @@
 import { Injectable, InternalServerErrorException, UnauthorizedException } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
+import { AssetGrpcAdapter } from '../../infrastructure/downstream/asset-service/asset-grpc.adapter'
 import { IdentityQueryGrpcAdapter } from '../../infrastructure/downstream/identity-service/identity-query-grpc.adapter'
+import { TenantOrgQueryGrpcAdapter } from '../../infrastructure/downstream/tenant-org-service/tenant-org-query-grpc.adapter'
 import { SessionContextViewModel } from '../../interfaces/http/view-models/session-context.view-model'
 import { SessionAccessSummaryUseCase, SessionNavigationSummary } from './session-access-summary.use-case'
 import { getAuthenticatedSelfContext } from './self-security-context'
@@ -13,7 +15,9 @@ const SYSTEM_HOME_PATH = '/platform/home'
 export class SessionContextUseCase {
   constructor(
     private readonly identityAdapter: IdentityQueryGrpcAdapter,
-    private readonly sessionAccessSummaryUseCase: SessionAccessSummaryUseCase
+    private readonly sessionAccessSummaryUseCase: SessionAccessSummaryUseCase,
+    private readonly tenantOrgAdapter?: TenantOrgQueryGrpcAdapter,
+    private readonly assetAdapter?: AssetGrpcAdapter
   ) {}
 
   async execute(source: DownstreamRequestSource): Promise<SessionContextViewModel> {
@@ -37,11 +41,16 @@ export class SessionContextUseCase {
 
     const tenantResult =
       accountScope === 'TENANT' && tenantId
-        ? await this.identityAdapter.getTenantById(tenantId, source)
+        ? await this.requireTenantOrgAdapter().getTenantById(tenantId, source)
         : null
 
     const accountName = normalize(accountResult.account?.displayName)
     const tenantName = normalize(tenantResult?.tenant?.name)
+    const accountAvatar = await this.resolveAccountAvatar(
+      accountResult.account?.avatarAssetId,
+      accountResult.account?.avatarUrl,
+      source
+    )
     const navigation = await resolveManagedNavigation(
       this.sessionAccessSummaryUseCase,
       source
@@ -56,9 +65,7 @@ export class SessionContextUseCase {
       account: {
         accountId: self.accountId,
         name: accountName,
-        ...(normalize(accountResult.account?.avatarUrl)
-          ? { avatar: normalize(accountResult.account?.avatarUrl) }
-          : {}),
+        ...(accountAvatar ? { avatar: accountAvatar } : {}),
         scopeLevel: accountScope
       },
       tenant:
@@ -71,7 +78,7 @@ export class SessionContextUseCase {
       org: null,
       navigation: {
         defaultEntry: navigation.defaultEntry,
-        visibleEntries: navigation.visibleEntries,
+        visibleEntries: supplementOrganizationPeopleEntry(navigation.visibleEntries),
         defaultHomePath: accountScope === 'SYSTEM' ? SYSTEM_HOME_PATH : DEFAULT_HOME_PATH,
         menus: []
       },
@@ -83,6 +90,33 @@ export class SessionContextUseCase {
         ? { passwordSetupRequired: true }
         : {})
     }
+  }
+
+  private requireTenantOrgAdapter(): TenantOrgQueryGrpcAdapter {
+    if (!this.tenantOrgAdapter) {
+      throw new InternalServerErrorException('tenant-org query adapter is unavailable')
+    }
+
+    return this.tenantOrgAdapter
+  }
+
+  // resolveAccountAvatar turns the stored account avatar asset reference into the shell display URL.
+  private async resolveAccountAvatar(
+    avatarAssetId: string | undefined,
+    legacyAvatarUrl: string | undefined,
+    source: DownstreamRequestSource
+  ): Promise<string | undefined> {
+    const assetId = normalize(avatarAssetId)
+    if (!assetId) {
+      return normalize(legacyAvatarUrl)
+    }
+
+    if (!this.assetAdapter) {
+      throw new InternalServerErrorException('asset adapter is unavailable')
+    }
+
+    const result = await this.assetAdapter.resolveAssetPublicUrl({ assetId }, source)
+    return normalize(result.publicUrl) ?? normalize(legacyAvatarUrl)
   }
 }
 
@@ -131,4 +165,20 @@ function useManagedNavigation(
       navigation.visibleEntries.length > 0 &&
       navigation.visibleEntries.includes(navigation.defaultEntry)
   )
+}
+
+// Adds the unified organization-and-people navigation entry only when the session already carries both legacy compatibility entries.
+function supplementOrganizationPeopleEntry(visibleEntries: string[]): string[] {
+  const hasOrgStructure = visibleEntries.includes('tenant-settings.org-structure')
+  const hasEmployeeEmployment = visibleEntries.includes('tenant-settings.employee-employment')
+
+  if (
+    !hasOrgStructure ||
+    !hasEmployeeEmployment ||
+    visibleEntries.includes('tenant-settings.organization-people')
+  ) {
+    return visibleEntries
+  }
+
+  return [...visibleEntries, 'tenant-settings.organization-people']
 }

@@ -8,8 +8,8 @@ export class UpdateAccountProfileCommand implements ICommand {
 
   @IsOptional()
   @IsString()
-  @MaxLength(2048)
-  readonly avatarUrl?: string
+  @MaxLength(64)
+  readonly avatarAssetId?: string
 
   @IsOptional()
   @IsString()
@@ -36,7 +36,7 @@ export class UpdateAccountProfileCommand implements ICommand {
   constructor(
     accountId: string,
     input: {
-      avatarUrl?: string
+      avatarAssetId?: string
       displayName?: string
       bio?: string
       isEnabled?: boolean
@@ -45,7 +45,7 @@ export class UpdateAccountProfileCommand implements ICommand {
     }
   ) {
     this.accountId = accountId
-    this.avatarUrl = input.avatarUrl
+    this.avatarAssetId = input.avatarAssetId
     this.displayName = input.displayName
     this.bio = input.bio
     this.isEnabled = input.isEnabled

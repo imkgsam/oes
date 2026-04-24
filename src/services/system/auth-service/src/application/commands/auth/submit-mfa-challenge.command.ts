@@ -1,6 +1,6 @@
 import { ICommand } from '@nestjs/cqrs'
 import { LoginMethodEnum, MfaType } from '@oes/common/constants'
-import { IsEnum, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator'
+import { IsBoolean, IsEnum, IsNotEmpty, IsOptional, IsString, Length } from 'class-validator'
 import { TenantMfaFactor } from '../../../domain/entities/tenant-mfa-policy.entity'
 
 export class SubmitMfaChallengeCommand implements ICommand {
@@ -23,17 +23,23 @@ export class SubmitMfaChallengeCommand implements ICommand {
   @IsString()
   public readonly factorChallengeId?: string
 
+  @IsOptional()
+  @IsBoolean()
+  public readonly trustCurrentDevice?: boolean
+
   constructor(
     challengeId: string,
     factor: TenantMfaFactor,
     code: string,
     loginMethod: LoginMethodEnum,
-    factorChallengeId?: string
+    factorChallengeId?: string,
+    trustCurrentDevice?: boolean
   ) {
     this.challengeId = challengeId
     this.factor = factor
     this.code = code
     this.loginMethod = loginMethod
     this.factorChallengeId = factorChallengeId
+    this.trustCurrentDevice = trustCurrentDevice
   }
 }

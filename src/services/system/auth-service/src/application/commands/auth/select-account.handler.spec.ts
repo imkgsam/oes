@@ -63,6 +63,15 @@ describe('SelectAccountHandler', () => {
   })
 
   it('returns MFA_REQUIRED after account selection when the tenant login policy requires MFA', async () => {
+    const resolveChallengeForSelectedAccount = jest.fn().mockResolvedValue({
+      challengeId: 'login-mfa-flow-token',
+      scenario: 'NEW_DEVICE_LOGIN',
+      defaultFactor: 'EMAIL_OTP',
+      availableFactors: [
+        { type: 'EMAIL_OTP', label: '邮箱验证码' },
+        { type: 'TOTP', label: '认证器 App' }
+      ]
+    })
     const identityService = {
       getAccountById: jest.fn().mockResolvedValue({
         accountId: 'account-2',
@@ -79,22 +88,31 @@ describe('SelectAccountHandler', () => {
         establish: jest.fn()
       } as any,
       {
-        resolveChallengeForSelectedAccount: jest.fn().mockResolvedValue({
-          challengeId: 'login-mfa-flow-token',
-          scenario: 'LOGIN',
-          defaultFactor: 'EMAIL_OTP',
-          availableFactors: [
-            { type: 'EMAIL_OTP', label: '邮箱验证码' },
-            { type: 'TOTP', label: '认证器 App' }
-          ]
-        })
+        resolveChallengeForSelectedAccount
       } as any
     )
 
     const result = await handler.execute(
-      new SelectAccountCommand('user-1', 'account-2', LoginMethodEnum.EmailPassword)
+      new SelectAccountCommand('user-1', 'account-2', LoginMethodEnum.EmailPassword, {
+        deviceId: 'browser-device-1',
+        deviceName: 'Firefox on macOS',
+        userAgent: 'Mozilla/5.0 Firefox/149.0',
+        ipAddress: '127.0.0.1'
+      })
     )
 
+    expect(resolveChallengeForSelectedAccount).toHaveBeenCalledWith({
+      userId: 'user-1',
+      accountId: 'account-2',
+      tenantId: 'tenant-2',
+      scopeLevel: 'TENANT',
+      displayName: 'Target Account',
+      loginMethod: LoginMethodEnum.EmailPassword,
+      deviceId: 'browser-device-1',
+      deviceName: 'Firefox on macOS',
+      userAgent: 'Mozilla/5.0 Firefox/149.0',
+      ipAddress: '127.0.0.1'
+    })
     expect(result).toEqual({
       status: 'MFA_REQUIRED',
       userId: 'user-1',
@@ -103,7 +121,7 @@ describe('SelectAccountHandler', () => {
       scopeLevel: 'TENANT',
       displayName: 'Target Account',
       challengeId: 'login-mfa-flow-token',
-      scenario: 'LOGIN',
+      scenario: 'NEW_DEVICE_LOGIN',
       defaultFactor: 'EMAIL_OTP',
       availableFactors: [
         { type: 'EMAIL_OTP', label: '邮箱验证码' },

@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common'
 import { Policy } from '../../../domain/aggregates/policy.aggregate'
+import { PolicySubjectType } from '../../../domain/enums/policy-subject-type.enum'
 import { PolicyRepository } from '../../../domain/repositories/policy.repository'
 import { PolicyMapper } from '../../mappers/policy.mapper'
+import { Prisma, PolicySubjectType as PrismaPolicySubjectType } from '../../../../prisma/generated/prisma'
 import { PrismaService } from '../../prisma/prisma.service'
 
 @Injectable()
@@ -57,16 +59,20 @@ export class PrismaPolicyRepository implements PolicyRepository {
     permissionCode?: string
     isEnabled?: boolean
     keyword?: string
+    subjectType?: PolicySubjectType
+    subjectId?: string
   }): Promise<{ policies: Policy[]; total: number; page: number; pageSize: number }> {
     const page = query.page
     const pageSize = query.pageSize
     const skip = (page - 1) * pageSize
     const keyword = query.keyword?.trim()
 
-    const where = {
+    const where: Prisma.PolicyWhereInput = {
       ...(query.tenantId ? { tenantId: query.tenantId } : {}),
       ...(query.permissionCode ? { permissionCode: query.permissionCode } : {}),
       ...(typeof query.isEnabled === 'boolean' ? { isEnabled: query.isEnabled } : {}),
+      ...(query.subjectType ? { subjectType: this.toPrismaSubjectType(query.subjectType) } : {}),
+      ...(query.subjectId ? { subjectId: query.subjectId } : {}),
       ...(keyword
         ? {
             OR: [
@@ -126,5 +132,18 @@ export class PrismaPolicyRepository implements PolicyRepository {
 
   async delete(id: string): Promise<void> {
     await this.prisma.policy.delete({ where: { id } })
+  }
+
+  // Maps the domain policy subject type onto the generated Prisma enum used by repository filters.
+  private toPrismaSubjectType(subjectType: PolicySubjectType): PrismaPolicySubjectType {
+    switch (subjectType) {
+      case PolicySubjectType.ROLE:
+        return PrismaPolicySubjectType.ROLE
+      case PolicySubjectType.ACCOUNT:
+        return PrismaPolicySubjectType.ACCOUNT
+      case PolicySubjectType.ANY:
+      default:
+        return PrismaPolicySubjectType.ANY
+    }
   }
 }

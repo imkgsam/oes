@@ -2,7 +2,7 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import {
   DispatchStatus,
   NotificationCategory,
-  SendDispatchResponse
+  SendSmsResponse
 } from '@oes/common/generated/notification_service'
 import { Inject } from '@nestjs/common'
 import { REPO_NOTIFICATION_DISPATCH, SMS_PROVIDER_PORT } from '../../common/constants/injection-tokens'
@@ -15,7 +15,7 @@ import { SmsProviderPort } from '../../domain/services/sms-provider.port'
 import { SendSmsCommand } from './send-sms.command'
 
 @CommandHandler(SendSmsCommand)
-export class SendSmsHandler implements ICommandHandler<SendSmsCommand, SendDispatchResponse> {
+export class SendSmsHandler implements ICommandHandler<SendSmsCommand, SendSmsResponse> {
   constructor(
     @Inject(REPO_NOTIFICATION_DISPATCH)
     private readonly dispatchRepository: INotificationDispatchRepository,
@@ -23,7 +23,7 @@ export class SendSmsHandler implements ICommandHandler<SendSmsCommand, SendDispa
     private readonly smsProvider: SmsProviderPort
   ) {}
 
-  async execute(command: SendSmsCommand): Promise<SendDispatchResponse> {
+  async execute(command: SendSmsCommand): Promise<SendSmsResponse> {
     const request = command.request
     const recipient = request.recipient?.address?.trim()
     const templateKey = request.templateKey?.trim()
@@ -69,7 +69,7 @@ export class SendSmsHandler implements ICommandHandler<SendSmsCommand, SendDispa
     return this.accept(saved)
   }
 
-  private accept(dispatch: NotificationDispatch): SendDispatchResponse {
+  private accept(dispatch: NotificationDispatch): SendSmsResponse {
     return {
       accepted: true,
       dispatchId: dispatch.getProps().id,
@@ -77,7 +77,7 @@ export class SendSmsHandler implements ICommandHandler<SendSmsCommand, SendDispa
     }
   }
 
-  private reject(reason: string): SendDispatchResponse {
+  private reject(reason: string): SendSmsResponse {
     return {
       accepted: false,
       dispatchId: '',

@@ -41,6 +41,7 @@
 
 - 改变系统边界、上下文边界或平台语义
 - 改变 gRPC / Event / common / tenant / IAM / AI 等全局基础约束
+- 改变 self-service 与 admin-management 的授权边界、复用方式或权限语义
 - 影响未来多个线程的工作方式
 
 典型特征：
@@ -86,6 +87,7 @@
 约束：
 
 - 在架构边界未冻结前，不允许普通实现线程继续推进相关实现
+- 若改动涉及个人中心、账户安全、登录方式、自助密码、自助 MFA 等能力的 self-service / admin-management 边界，必须先对齐 ADR 与 architecture 真相，再进入实现
 
 ## 4. 基础示例
 
@@ -106,6 +108,12 @@
 - 修改 `common` 内部实现且不影响公共 API，可按局部平台变更处理。
 - 修改 `common` 对外公共接口、公共抽象、公共契约辅助能力，默认属于跨模块变更。
 - 修改 `common` 中承载全局语义的基础能力，例如认证、传输、contracts、operator context 支撑，通常属于架构级变更。
+
+### 4.4 修改“个人自助操作是否需要管理员权限”属于什么级别
+
+- 如果只是修复单个接口里已冻结的 self-service target 解析 bug，且不改变既有授权语义，可按单模块缺陷修复处理。
+- 如果会改变“当前主体管理自己”与“管理员管理别人”的授权边界、复用方式或权限要求，属于架构级变更。
+- 如果只是把已冻结的 architecture / ADR 规则落实到具体服务实现，属于跨模块实现，但不得再次私自改写语义。
 
 ## 5. 结合 OES 当前模块现状的真实案例
 
@@ -185,6 +193,17 @@
 
 - 架构级变更
 
+#### 案例 D：把 personal-center 或账户安全 self-service 入口复用为管理员权限接口，或反向拆开这条边界
+
+结论：
+
+- 架构级变更
+
+原因：
+
+- 直接改变 self-service 与 admin-management 的授权语义
+- 会同时影响 Gateway、下游服务、权限模型与 feature packet
+
 ### 5.4 `src/services/system/auth-service`
 
 #### 案例 A：修改登录流程内部校验细节，不影响 token 结构和对外接口
@@ -205,6 +224,16 @@
 
 - 架构级变更
 
+#### 案例 D：改变自助密码 / 登录方式 / MFA 与管理员治理入口是否共用同一条权限门
+
+结论：
+
+- 架构级变更
+
+原因：
+
+- 这不是单个 handler 内部实现细节，而是认证平台授权边界
+
 ### 5.5 `src/services/system/identity-service`
 
 #### 案例 A：只修改 identity 内部查询逻辑或 repository 实现
@@ -213,17 +242,27 @@
 
 - 单模块变更
 
-#### 案例 B：修改 account 与 entity 的映射契约，影响 `entity-service` 或 `auth-service`
+#### 案例 B：修改 account 与 party 的映射契约，影响 `party-service` 或 `auth-service`
 
 结论：
 
 - 跨模块变更
 
-#### 案例 C：改变 identity、entity、tenant 的归属关系
+#### 案例 C：改变 identity、party、tenant 的归属关系
 
 结论：
 
 - 架构级变更
+
+#### 案例 D：改变当前账号自己的 `account profile` 是否需要管理员资料修改权限
+
+结论：
+
+- 架构级变更
+
+原因：
+
+- 直接改变个人中心 self-service 与账号治理的边界
 
 ### 5.6 `src/services/system/permission-service`
 

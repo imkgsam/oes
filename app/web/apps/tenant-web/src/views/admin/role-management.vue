@@ -181,7 +181,6 @@ const navigationVisibilityBaseEntryKeys = ref<string[]>([]);
 const navigationVisibilityOverrides = ref<NavigationVisibilityOverrideState[]>([]);
 const navigationLandingBaseEntryKey = ref('');
 const navigationLandingOverrides = ref<NavigationLandingOverrideState[]>([]);
-const navigationOverrideEditorOpen = ref(false);
 const navigationOverrideActiveTab = ref('');
 const moduleOptions = ref<{ label: string; value: string }[]>([]);
 const tenantOptions = ref<RoleManagementApi.TenantOption[]>([]);
@@ -290,9 +289,6 @@ const navigationEntriesByKey = computed(
 const baseVisibilityGroups = computed(() =>
   resolveNavigationEntryGroups(),
 );
-const baseLandingGroups = computed(() =>
-  resolveNavigationEntryGroups(),
-);
 const activeNavigationTerminals = computed(() => {
   const knownTerminalOrder = navigationTerminalOptions.map((option) => option.value);
   const terminalSet = new Set<string>();
@@ -313,9 +309,10 @@ const defaultNavigationTerminal = computed(() => DEFAULT_NAVIGATION_TAB_KEY);
 const overrideNavigationTerminals = computed(() =>
   activeNavigationTerminals.value.length > 1 ? activeNavigationTerminals.value : [],
 );
-const showNavigationOverrideSection = computed(
-  () => overrideNavigationTerminals.value.length > 0,
-);
+const navigationConfigTabs = computed(() => [
+  defaultNavigationTerminal.value,
+  ...overrideNavigationTerminals.value,
+]);
 const configuredOverrideTerminalCount = computed(() => {
   const terminalSet = new Set<string>();
 
@@ -334,6 +331,15 @@ const navigationOverrideSummary = computed(() =>
     ? `已配置 ${configuredOverrideTerminalCount.value} 个前端差异`
     : '当前未配置前端差异',
 );
+const activeNavigationTabSummary = computed(() => {
+  const tabKey = navigationOverrideActiveTab.value || defaultNavigationTerminal.value;
+
+  if (tabKey === defaultNavigationTerminal.value) {
+    return '共享默认配置';
+  }
+
+  return hasNavigationOverride(tabKey) ? '当前前端已单独配置' : '当前继承默认配置';
+});
 const navigationTemplateSourceName = computed(
   () => navigationRole.value?.templateRoleName || navigationRole.value?.templateRoleId || '',
 );
@@ -392,6 +398,17 @@ async function refreshCurrentSessionNavigation() {
   } catch (error) {
     message.warning(
       getErrorMessage(error, '配置已保存，但当前会话导航未能自动刷新，请手动刷新页面。'),
+    );
+  }
+}
+
+// Refreshes the current operator access summary after role-level permission changes may alter visible actions.
+async function refreshCurrentSessionPermissions() {
+  try {
+    await authStore.refreshCurrentSessionAccess();
+  } catch (error) {
+    message.warning(
+      getErrorMessage(error, '权限已保存，但当前会话权限未能自动刷新，请手动刷新页面。'),
     );
   }
 }
@@ -517,9 +534,21 @@ function setVisibilityEntryKeysForTab(tabKey: string, entryKeys: string[]) {
   ];
 }
 
-function handleVisibilitySelectionChange(tabKey: string, value: unknown) {
-  const entryKeys = Array.isArray(value) ? value.map((item) => String(item)) : [];
-  setVisibilityEntryKeysForTab(tabKey, entryKeys);
+function toggleNavigationEntryVisibility(
+  tabKey: string,
+  entryKey: string,
+  checked: boolean,
+) {
+  const currentEntryKeys = getVisibilityEntryKeysForTab(tabKey);
+  const nextEntryKeys = checked
+    ? [...currentEntryKeys, entryKey]
+    : currentEntryKeys.filter((item) => item !== entryKey);
+
+  setVisibilityEntryKeysForTab(tabKey, nextEntryKeys);
+
+  if (!checked && getLandingEntryForTab(tabKey) === entryKey) {
+    setLandingEntryForTab(tabKey, '');
+  }
 }
 
 function getLandingEntryForTab(tabKey: string) {
@@ -571,16 +600,8 @@ function setLandingEntryForTab(tabKey: string, entryKey: string) {
   ];
 }
 
-function handleLandingSelectionChange(tabKey: string, value: unknown) {
-  setLandingEntryForTab(tabKey, typeof value === 'string' ? value : value ? String(value) : '');
-}
-
-function toggleNavigationOverrideEditor() {
-  navigationOverrideEditorOpen.value = !navigationOverrideEditorOpen.value;
-
-  if (navigationOverrideEditorOpen.value && !navigationOverrideActiveTab.value) {
-    navigationOverrideActiveTab.value = overrideNavigationTerminals.value[0] || '';
-  }
+function selectNavigationLandingEntry(tabKey: string, entryKey: string) {
+  setLandingEntryForTab(tabKey, entryKey);
 }
 
 function hasVisibilityOverride(terminal: string) {
@@ -602,6 +623,12 @@ function restoreNavigationOverride(terminal: string) {
   navigationLandingOverrides.value = navigationLandingOverrides.value.filter(
     (override) => override.terminal !== terminal,
   );
+}
+
+function getNavigationTabGroups(tabKey: string) {
+  return tabKey === defaultNavigationTerminal.value
+    ? baseVisibilityGroups.value
+    : resolveNavigationEntryGroups(tabKey);
 }
 
 async function loadTenantOptions(keyword?: string) {
@@ -1156,8 +1183,7 @@ async function openNavigationDrawer(role: RoleManagementApi.Role) {
   navigationVisibilityOverrides.value = [];
   navigationLandingBaseEntryKey.value = '';
   navigationLandingOverrides.value = [];
-  navigationOverrideEditorOpen.value = false;
-  navigationOverrideActiveTab.value = '';
+  navigationOverrideActiveTab.value = defaultNavigationTerminal.value;
   navigationDrawerOpen.value = true;
   navigationLoading.value = true;
 
@@ -1301,6 +1327,9 @@ async function assignPermission(permissionId: string) {
     }
 
     message.success('权限已分配');
+    if (permissionOwnerType.value === 'role') {
+      await refreshCurrentSessionPermissions();
+    }
     await reloadPermissionDrawerData({ page: permissionPagination.current });
   } catch (error) {
     message.error(getErrorMessage(error, '分配权限失败，请稍后重试'));
@@ -1324,6 +1353,9 @@ async function revokePermission(permissionId: string) {
     }
 
     message.success('权限已移除');
+    if (permissionOwnerType.value === 'role') {
+      await refreshCurrentSessionPermissions();
+    }
     await reloadPermissionDrawerData({ page: permissionPagination.current });
   } catch (error) {
     message.error(getErrorMessage(error, '移除权限失败，请稍后重试'));
@@ -2078,17 +2110,17 @@ onBeforeUnmount(() => {
                     <span class="role-management__help-dot">?</span>
                   </Tooltip>
                 </div>
-                <div
-                  v-if="!navigationRoleIsTemplate"
-                  class="role-management__detail-grid"
-                >
-                  <div class="role-management__detail-item">
-                    <div class="role-management__detail-label">实例详情</div>
-                    <div class="role-management__detail-value">
-                      <span class="role-management__detail-key">来源模板</span>
-                      <span>{{ navigationInstanceTemplateLabel }}</span>
-                    </div>
-                  </div>
+                <div class="role-management__navigation-context">
+                  <Tag color="blue">
+                    {{ navigationRoleIsTemplate ? '角色模板' : '角色实例' }}
+                  </Tag>
+                  <span class="role-management__panel-meta">
+                    {{
+                      navigationRoleIsTemplate
+                        ? '模板实例化时复制为初始导航'
+                        : `来源模板：${navigationInstanceTemplateLabel}`
+                    }}
+                  </span>
                 </div>
               </div>
               <Button
@@ -2106,267 +2138,119 @@ onBeforeUnmount(() => {
             <div class="role-management__panel-header">
               <div>
                 <div class="role-management__section-title-row">
-                  <div class="role-management__panel-title">默认配置</div>
-                  <Tooltip title="先确定默认前端可见入口，再为该前端选择默认进入。">
+                  <div class="role-management__panel-title">前端导航配置</div>
+                  <Tooltip title="DEFAULT 作为共享导航配置，其余前端在未单独配置时继承 DEFAULT。">
                     <span class="role-management__help-dot">?</span>
                   </Tooltip>
                 </div>
-              </div>
-            </div>
-            <div class="role-management__navigation-subsection">
-              <div class="role-management__section-title-row role-management__section-title-row--compact">
-                <div class="role-management__navigation-subtitle">可见入口</div>
-                <Tooltip title="勾选当前默认前端允许展示的导航入口。">
-                  <span class="role-management__help-dot role-management__help-dot--sm">?</span>
-                </Tooltip>
-              </div>
-              <div class="role-management__navigation-selection-panel">
-                <Checkbox.Group
-                  :value="getVisibilityEntryKeysForTab(defaultNavigationTerminal)"
-                  class="role-management__navigation-choice-group"
-                  @update:value="
-                    (value) =>
-                      handleVisibilitySelectionChange(defaultNavigationTerminal, value)
-                  "
-                >
-                  <div
-                    v-for="group in baseVisibilityGroups"
-                    :key="group.featureKey"
-                    class="role-management__navigation-feature-group"
-                  >
-                    <div class="role-management__navigation-feature-title">
-                      {{ group.label }}
-                    </div>
-                    <div class="role-management__navigation-list">
-                      <Checkbox
-                        v-for="entry in group.entries"
-                        :key="entry.entryKey"
-                        :value="entry.entryKey"
-                        class="role-management__navigation-list-item"
-                      >
-                        <div class="role-management__navigation-option-main">
-                          <div class="role-management__navigation-option-title">
-                            {{ entry.name }}
-                          </div>
-                          <div class="role-management__navigation-option-key">
-                            {{ entry.entryKey }}
-                          </div>
-                          <div class="role-management__navigation-option-priority">
-                            Priority {{ entry.registryPriority }}
-                          </div>
-                        </div>
-                      </Checkbox>
-                    </div>
-                  </div>
-                </Checkbox.Group>
-              </div>
-            </div>
-
-            <div class="role-management__navigation-subsection">
-              <div class="role-management__section-title-row role-management__section-title-row--compact">
-                <div class="role-management__navigation-subtitle">默认进入</div>
-                <Tooltip title="默认进入必须属于当前已勾选的可见入口。">
-                  <span class="role-management__help-dot role-management__help-dot--sm">?</span>
-                </Tooltip>
-              </div>
-              <div class="role-management__navigation-selection-panel">
-                <Radio.Group
-                  :value="getLandingEntryForTab(defaultNavigationTerminal)"
-                  class="role-management__navigation-choice-group"
-                  @update:value="
-                    (value) =>
-                      handleLandingSelectionChange(defaultNavigationTerminal, value)
-                  "
-                >
-                  <div
-                    v-for="group in baseLandingGroups"
-                    :key="`landing-${group.featureKey}`"
-                    class="role-management__navigation-feature-group"
-                  >
-                    <div class="role-management__navigation-feature-title">
-                      {{ group.label }}
-                    </div>
-                    <div class="role-management__navigation-list">
-                      <Radio
-                        v-for="entry in group.entries"
-                        :key="entry.entryKey"
-                        :value="entry.entryKey"
-                        :disabled="!navigationVisibilityBaseEntryKeys.includes(entry.entryKey)"
-                        class="role-management__navigation-list-item role-management__navigation-list-item--single"
-                      >
-                        <div class="role-management__navigation-option-main">
-                          <div class="role-management__navigation-option-title">
-                            {{ entry.name }}
-                          </div>
-                          <div class="role-management__navigation-option-key">
-                            {{ entry.entryKey }}
-                          </div>
-                          <div class="role-management__navigation-option-priority">
-                            Priority {{ entry.registryPriority }}
-                          </div>
-                        </div>
-                      </Radio>
-                    </div>
-                  </div>
-                </Radio.Group>
-              </div>
-            </div>
-          </section>
-
-          <section
-            v-if="showNavigationOverrideSection"
-            class="role-management__permission-section role-management__navigation-panel"
-          >
-            <div class="role-management__panel-header">
-              <div>
-                <div class="role-management__panel-title">前端差异配置</div>
                 <div class="role-management__panel-meta">
-                  {{ navigationOverrideSummary }}
+                  在同一张列表里完成可见入口与默认落点配置。
                 </div>
               </div>
-              <Button size="small" @click="toggleNavigationOverrideEditor">
-                {{ navigationOverrideEditorOpen ? '收起差异' : '管理差异' }}
-              </Button>
+              <Tag color="blue">{{ activeNavigationTabSummary }}</Tag>
             </div>
-
-            <div
-              v-if="navigationOverrideEditorOpen"
-              class="role-management__navigation-override-shell"
+            <Tabs
+              v-model:active-key="navigationOverrideActiveTab"
+              class="role-management__navigation-tabs"
+              size="small"
             >
-              <Tabs
-                v-model:active-key="navigationOverrideActiveTab"
-                class="role-management__navigation-tabs"
-                size="small"
+              <Tabs.TabPane
+                v-for="tabKey in navigationConfigTabs"
+                :key="tabKey"
+                :tab="tabKey"
               >
-                <Tabs.TabPane
-                  v-for="terminal in overrideNavigationTerminals"
-                  :key="terminal"
-                  :tab="terminal"
+                <div class="role-management__navigation-tab-header">
+                  <div class="role-management__navigation-section-intro">
+                    <div class="role-management__section-title-row role-management__section-title-row--compact">
+                      <div class="role-management__navigation-subtitle">当前前端导航</div>
+                      <Tooltip title="勾选表示入口可见；勾选默认表示当前前端的默认进入。">
+                        <span class="role-management__help-dot role-management__help-dot--sm">?</span>
+                      </Tooltip>
+                    </div>
+                    <Tag color="blue">{{ tabKey }}</Tag>
+                  </div>
+                  <Button
+                    v-if="tabKey !== defaultNavigationTerminal"
+                    :disabled="!hasNavigationOverride(tabKey)"
+                    size="small"
+                    type="text"
+                    @click="restoreNavigationOverride(tabKey)"
+                  >
+                    恢复默认
+                  </Button>
+                </div>
+                <div class="role-management__panel-meta role-management__navigation-tab-meta">
+                  {{
+                    tabKey === defaultNavigationTerminal
+                      ? `DEFAULT 为共享配置。${navigationOverrideSummary}`
+                      : hasNavigationOverride(tabKey)
+                        ? '当前前端已单独配置'
+                        : '当前继承默认配置'
+                  }}
+                </div>
+                <div
+                  v-for="group in getNavigationTabGroups(tabKey)"
+                  :key="`${tabKey}-${group.featureKey}`"
+                  class="role-management__navigation-feature-group"
                 >
-                  <div class="role-management__navigation-override-header">
-                    <div class="role-management__panel-meta">
-                      {{
-                        hasNavigationOverride(terminal)
-                          ? '当前前端已单独配置'
-                          : '当前继承默认配置'
-                      }}
+                  <div class="role-management__navigation-feature-title">
+                    {{ group.label }}
+                  </div>
+                  <div class="role-management__navigation-list">
+                    <div class="role-management__navigation-list-head">
+                      <span class="role-management__navigation-list-flag">可见</span>
+                      <span class="role-management__navigation-list-flag">默认</span>
+                      <span class="role-management__navigation-list-head-main">导航入口</span>
                     </div>
-                    <Button
-                      :disabled="!hasNavigationOverride(terminal)"
-                      size="small"
-                      type="text"
-                      @click="restoreNavigationOverride(terminal)"
+                    <div
+                      v-for="entry in group.entries"
+                      :key="entry.entryKey"
+                      class="role-management__navigation-list-row"
                     >
-                      恢复默认
-                    </Button>
-                  </div>
-
-                  <div class="role-management__navigation-subsection">
-                    <div class="role-management__section-title-row role-management__section-title-row--compact">
-                      <div class="role-management__navigation-subtitle">可见入口</div>
-                      <Tooltip title="单独调整当前前端的可见入口；未配置时继承默认配置。">
-                        <span class="role-management__help-dot role-management__help-dot--sm">?</span>
-                      </Tooltip>
-                    </div>
-                    <div class="role-management__navigation-selection-panel">
-                      <Checkbox.Group
-                        :value="getVisibilityEntryKeysForTab(terminal)"
-                        class="role-management__navigation-choice-group"
-                        @update:value="
-                          (value) => handleVisibilitySelectionChange(terminal, value)
+                      <Checkbox
+                        :checked="getVisibilityEntryKeysForTab(tabKey).includes(entry.entryKey)"
+                        class="role-management__navigation-list-check"
+                        @update:checked="
+                          (checked) =>
+                            toggleNavigationEntryVisibility(
+                              tabKey,
+                              entry.entryKey,
+                              checked,
+                            )
                         "
-                      >
-                        <div
-                          v-for="group in resolveNavigationEntryGroups(terminal)"
-                          :key="`${terminal}-${group.featureKey}`"
-                          class="role-management__navigation-feature-group"
-                        >
-                          <div class="role-management__navigation-feature-title">
-                            {{ group.label }}
+                      />
+                      <Radio
+                        :checked="getLandingEntryForTab(tabKey) === entry.entryKey"
+                        :disabled="!getVisibilityEntryKeysForTab(tabKey).includes(entry.entryKey)"
+                        class="role-management__navigation-list-radio"
+                        @change="
+                          () => selectNavigationLandingEntry(tabKey, entry.entryKey)
+                        "
+                      />
+                      <div class="role-management__navigation-option-main">
+                        <div class="role-management__navigation-option-top">
+                          <div class="role-management__navigation-option-title">
+                            {{ entry.name }}
                           </div>
-                          <div class="role-management__navigation-list">
-                            <Checkbox
-                              v-for="entry in group.entries"
-                              :key="entry.entryKey"
-                              :value="entry.entryKey"
-                              class="role-management__navigation-list-item"
-                            >
-                              <div class="role-management__navigation-option-main">
-                                <div class="role-management__navigation-option-title">
-                                  {{ entry.name }}
-                                </div>
-                                <div class="role-management__navigation-option-key">
-                                  {{ entry.entryKey }}
-                                </div>
-                                <div class="role-management__navigation-option-priority">
-                                  Priority {{ entry.registryPriority }}
-                                </div>
-                              </div>
-                            </Checkbox>
+                          <div class="role-management__navigation-option-priority">
+                            Priority {{ entry.registryPriority }}
                           </div>
                         </div>
-                      </Checkbox.Group>
-                    </div>
-                  </div>
-
-                  <div class="role-management__navigation-subsection">
-                    <div class="role-management__section-title-row role-management__section-title-row--compact">
-                      <div class="role-management__navigation-subtitle">默认进入</div>
-                      <Tooltip title="为当前前端单独指定默认进入；未配置时继承默认配置。">
-                        <span class="role-management__help-dot role-management__help-dot--sm">?</span>
-                      </Tooltip>
-                    </div>
-                    <div class="role-management__navigation-selection-panel">
-                      <Radio.Group
-                        :value="getLandingEntryForTab(terminal)"
-                        class="role-management__navigation-choice-group"
-                        @update:value="
-                          (value) => handleLandingSelectionChange(terminal, value)
-                        "
-                      >
-                        <div
-                          v-for="group in resolveNavigationEntryGroups(terminal)"
-                          :key="`${terminal}-landing-${group.featureKey}`"
-                          class="role-management__navigation-feature-group"
-                        >
-                          <div class="role-management__navigation-feature-title">
-                            {{ group.label }}
-                          </div>
-                          <div class="role-management__navigation-list">
-                            <Radio
-                              v-for="entry in group.entries"
-                              :key="entry.entryKey"
-                              :value="entry.entryKey"
-                              :disabled="!getVisibilityEntryKeysForTab(terminal).includes(entry.entryKey)"
-                              class="role-management__navigation-list-item role-management__navigation-list-item--single"
-                            >
-                              <div class="role-management__navigation-option-main">
-                                <div class="role-management__navigation-option-title">
-                                  {{ entry.name }}
-                                </div>
-                                <div class="role-management__navigation-option-key">
-                                  {{ entry.entryKey }}
-                                </div>
-                                <div class="role-management__navigation-option-priority">
-                                  Priority {{ entry.registryPriority }}
-                                </div>
-                              </div>
-                            </Radio>
+                        <div class="role-management__navigation-option-bottom">
+                          <div class="role-management__navigation-option-key">
+                            {{ entry.entryKey }}
                           </div>
                         </div>
-                      </Radio.Group>
+                      </div>
                     </div>
                   </div>
-                </Tabs.TabPane>
-              </Tabs>
-            </div>
+                </div>
+              </Tabs.TabPane>
+            </Tabs>
           </section>
         </div>
         <template #footer>
           <div class="role-management__navigation-footer">
-            <div class="role-management__navigation-footer-meta">
-              一次提交当前导航配置，并在发送前完成合法性校验。
-            </div>
             <Space>
               <Button @click="navigationDrawerOpen = false">关闭</Button>
               <Button
@@ -2681,6 +2565,14 @@ onBeforeUnmount(() => {
   padding: 14px;
 }
 
+.role-management__navigation-context {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .role-management__navigation-tabs {
   margin-top: 8px;
 }
@@ -2696,24 +2588,22 @@ onBeforeUnmount(() => {
   line-height: 20px;
 }
 
-.role-management__navigation-selection-panel {
-  border: 1px solid var(--role-border);
-  border-radius: 8px;
-  background: var(--role-card-bg);
-  padding: 14px;
-}
-
-.role-management__navigation-choice-group {
+.role-management__navigation-section-intro {
+  align-items: center;
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-  width: 100%;
+  gap: 10px;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
 .role-management__navigation-feature-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+}
+
+.role-management__navigation-feature-group + .role-management__navigation-feature-group {
+  margin-top: 4px;
 }
 
 .role-management__navigation-feature-title {
@@ -2731,23 +2621,68 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-.role-management__navigation-list-item {
-  align-items: center;
-  display: flex;
-  margin-inline-start: 0;
-  padding: 10px 12px;
+.role-management__navigation-list-head,
+.role-management__navigation-list-row {
+  align-items: flex-start;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 32px 32px minmax(0, 1fr);
+  padding: 12px;
 }
 
-.role-management__navigation-list-item + .role-management__navigation-list-item {
+.role-management__navigation-list-head {
+  align-items: center;
+  background: var(--role-card-bg-strong);
+  color: var(--role-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.role-management__navigation-list-head-main {
+  min-width: 0;
+}
+
+.role-management__navigation-list-flag {
+  text-align: center;
+}
+
+.role-management__navigation-list-row + .role-management__navigation-list-row {
   border-top: 1px solid var(--role-border);
 }
 
+.role-management__navigation-list-check,
+.role-management__navigation-list-radio {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+  margin-inline-start: 0;
+}
+
+.role-management__navigation-list-check :deep(.ant-checkbox),
+.role-management__navigation-list-radio :deep(.ant-radio) {
+  margin-top: 0;
+}
+
 .role-management__navigation-option-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 4px;
+  min-width: 0;
+}
+
+.role-management__navigation-option-top {
   align-items: center;
   display: flex;
-  flex: 1;
-  gap: 10px;
+  gap: 12px;
+  justify-content: space-between;
   min-width: 0;
+  width: 100%;
+}
+
+.role-management__navigation-option-bottom {
+  min-width: 0;
+  width: 100%;
 }
 
 .role-management__navigation-option-title {
@@ -2755,11 +2690,11 @@ onBeforeUnmount(() => {
   font-size: 13px;
   font-weight: 500;
   line-height: 20px;
+  min-width: 0;
 }
 
 .role-management__navigation-option-key {
   color: var(--role-muted);
-  flex: 1;
   font-size: 12px;
   line-height: 18px;
   min-width: 0;
@@ -2779,22 +2714,6 @@ onBeforeUnmount(() => {
   padding: 1px 8px;
 }
 
-.role-management__navigation-list-item--single {
-  width: 100%;
-}
-
-.role-management__navigation-list-item :deep(.ant-checkbox),
-.role-management__navigation-list-item :deep(.ant-radio) {
-  margin-top: 2px;
-}
-
-.role-management__navigation-list-item :deep(.ant-checkbox + span),
-.role-management__navigation-list-item :deep(.ant-radio + span) {
-  display: block;
-  padding-inline-start: 10px;
-  width: 100%;
-}
-
 .role-management__navigation-override-shell {
   border-top: 1px solid var(--role-border);
   margin-top: 12px;
@@ -2809,16 +2728,8 @@ onBeforeUnmount(() => {
 }
 
 .role-management__navigation-footer {
-  align-items: center;
   display: flex;
-  gap: 12px;
-  justify-content: space-between;
-}
-
-.role-management__navigation-footer-meta {
-  color: var(--role-muted);
-  font-size: 12px;
-  line-height: 20px;
+  justify-content: flex-end;
 }
 
 .role-management__help-dot {
@@ -2878,13 +2789,29 @@ onBeforeUnmount(() => {
     flex-direction: column;
   }
 
+  .role-management__navigation-section-intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .role-management__navigation-context {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
   .role-management__navigation-option-main {
-    flex-wrap: wrap;
-    row-gap: 6px;
+    align-items: flex-start;
+  }
+
+  .role-management__navigation-option-top {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .role-management__navigation-option-key {
-    flex-basis: 100%;
+    white-space: normal;
   }
 }
 </style>

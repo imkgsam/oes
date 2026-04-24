@@ -8,14 +8,15 @@ type UserAccountWithTenant = {
   tenantId: string | null
   scopeLevel?: 'SYSTEM' | 'TENANT'
   avatarUrl: string | null
+  avatarAssetId: string | null
   displayName: string | null
   bio: string | null
   isEnable: boolean
   Tenant: {
     isActive: boolean
-    name?: string | null
   } | null
   User?: {
+    partyId?: string | null
     username?: string | null
   } | null
 }
@@ -27,7 +28,6 @@ export class PrismaAccountCandidateMapper {
     return new AccountCandidateEntity(
       record.id,
       record.tenantId,
-      record.Tenant?.name ?? null,
       scopeLevel,
       record.displayName ?? null,
       isAccountEnabled(record, scopeLevel)
@@ -45,6 +45,7 @@ export class PrismaAccountSummaryMapper {
       record.tenantId,
       scopeLevel,
       record.avatarUrl ?? null,
+      record.avatarAssetId ?? null,
       record.displayName ?? null,
       record.bio ?? null,
       isAccountEnabled(record, scopeLevel)
@@ -59,11 +60,11 @@ export class PrismaAccountDirectoryMapper {
     return new AccountDirectoryEntity(
       record.id,
       record.userId,
+      record.User?.partyId ?? null,
       record.tenantId,
-      record.Tenant?.name ?? null,
       scopeLevel,
       record.displayName ?? null,
-      record.displayName ?? null,
+      record.User?.username ?? null,
       isAccountEnabled(record, scopeLevel)
     )
   }

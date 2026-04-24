@@ -116,7 +116,7 @@
 | 2026-04-18 | 显示名模糊搜索 | Blocker-Later | 重名和误匹配风险较高，容易把搜索能力推向用户目录 | 第一阶段不做；后续如需要，单独冻结匹配与展示规则 | future feature packet | open |
 | 2026-04-18 | 角色 / 权限摘要 | Sidecar | 会把目标发现层扩展成权限诊断工具 | 第一阶段不返回；权限诊断后续独立设计 | future feature packet | open |
 | 2026-04-18 | 搜索结果离线用户展示 | Blocker-Now | 影响 BFF 查询范围与空会话状态体验 | 第一阶段允许返回离线用户摘要，并用 `isOnline` 与 `activeSessionCount` 表达状态 | 当前 contract | closed |
-| 2026-04-18 | `username` / login handle 语义 | Blocker-Now | `username` 容易被误解为真实姓名或展示名，且真实姓名不应由 `identity-service` 拥有 | 第一阶段从搜索输入中移除；`identity.username` 暂按 legacy login handle 理解，真实姓名搜索未来通过 `entity-service` 协同设计 | `identity-service` 职责卡 + future architecture/ADR | closed |
+| 2026-04-18 | `username` / login handle 语义 | Blocker-Now | `username` 容易被误解为真实姓名或展示名，且真实姓名不应由 `identity-service` 拥有 | 第一阶段从搜索输入中移除；`identity.username` 暂按 legacy login handle 理解，真实姓名搜索未来通过 `party-service` 协同设计 | `identity-service` 职责卡 + future architecture/ADR | closed |
 
 ## 11. 验收标准
 

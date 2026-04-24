@@ -24,7 +24,9 @@ export class ListPoliciesPagedHandler implements IQueryHandler<ListPoliciesPaged
       tenantId: query.tenantId,
       permissionCode: query.permissionCode,
       isEnabled: query.isEnabled,
-      keyword: query.keyword
+      keyword: query.keyword,
+      subjectType: query.subjectType,
+      subjectId: query.subjectId
     })
   }
 }

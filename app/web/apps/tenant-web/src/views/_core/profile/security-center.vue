@@ -4,7 +4,9 @@ import type { Dayjs } from 'dayjs';
 
 import type { SelfSecurityApi } from '#/api';
 
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue';
+
+import { useUserStore } from '@vben/stores';
 
 import {
   Alert,
@@ -40,25 +42,32 @@ import {
   listSelfLoginHistoryApi,
   listSelfLoginMethodsApi,
   listSelfSessionsApi,
+  listTrustedDevicesApi,
   logoutAllDevicesApi,
   logoutOtherDevicesApi,
   logoutSelfSessionApi,
   regenerateRecoveryCodesApi,
+  revokeOtherTrustedDevicesApi,
+  revokeTrustedDeviceApi,
 } from '#/api';
 import { useAuthStore } from '#/store';
 import { useAuthContextStore } from '#/store/auth-context';
+import { resolveAuthDeviceHints } from '#/utils/auth-device';
 
 import SecurityContactBindingCard from './components/security-contact-binding-card.vue';
+import SecurityStepUpMfaDialog from './components/security-step-up-mfa-dialog.vue';
 import {
   buildLoginMethodGroups,
   getMfaAvailabilityHint,
   getMfaDisplayDestination,
-  getRecoveryCodePanelMeta,
-  getTotpPanelMeta,
+  isMfaEnableActionDisabled,
+  resolveCurrentUserDisplayIdentifier,
+  resolveMfaEnableFlow,
 } from './security-center.helpers';
 
 const authStore = useAuthStore();
 const authContextStore = useAuthContextStore();
+const userStore = useUserStore();
 const { RangePicker } = DatePicker;
 
 const activeTab = ref('login-methods');
@@ -72,7 +81,10 @@ const recoveryCodeLoading = ref(false);
 const loginHistoryLoading = ref(false);
 const loginHistoryLoadingMore = ref(false);
 const mfaBindingsLoading = ref(false);
+const trustedDevicesLoading = ref(false);
+const trustedDeviceMutationLoading = ref(false);
 const sessions = ref<SelfSecurityApi.Session[]>([]);
+const trustedDevices = ref<SelfSecurityApi.TrustedDevice[]>([]);
 const loginHistoryItems = ref<SelfSecurityApi.LoginHistoryItem[]>([]);
 const loginHistoryNextCursor = ref<null | string>(null);
 const loginMethods = ref<SelfSecurityApi.LoginMethod[]>([]);
@@ -80,7 +92,14 @@ const passwordSetupRequired = ref(false);
 const mfaBindings = ref<SelfSecurityApi.MfaBinding[]>([]);
 const totpSetup = ref<null | SelfSecurityApi.InitializeTotpResult>(null);
 const totpCode = ref('');
+const totpSetupModalOpen = ref(false);
 const recoveryCodes = ref<string[]>([]);
+const recoveryCodeModalOpen = ref(false);
+const stepUpMfaDialogRef = ref<null | {
+  beginChallenge: (
+    scenario: SelfSecurityApi.StepUpMfaScenario,
+  ) => Promise<null | string>;
+}>(null);
 const sessionFilters = reactive({
   deviceQuery: '',
   status: '',
@@ -137,6 +156,16 @@ const totpBinding = computed(
 
 const recoveryCodeBinding = computed(
   () => mfaBindings.value.find((binding) => binding.type === 'BACKUP_CODE') ?? null,
+);
+const currentAuthDeviceId = resolveAuthDeviceHints()?.deviceId ?? '';
+const normalizedTrustedDevices = computed(() =>
+  trustedDevices.value.map((device) => ({
+    ...device,
+    isCurrentDevice: device.isCurrentDevice || device.deviceId === currentAuthDeviceId,
+  })),
+);
+const hasOtherTrustedDevices = computed(() =>
+  normalizedTrustedDevices.value.some((device) => !device.isCurrentDevice),
 );
 
 // Applies lightweight local filters so users can quickly narrow their own session list.
@@ -299,11 +328,29 @@ async function loadSessionsSnapshot() {
   sessions.value = sessionResult.sessions ?? [];
 }
 
+// Loads the signed-in user's trusted-device list for the current tenant scope.
+async function loadTrustedDeviceSnapshot(options?: { silent?: boolean }) {
+  const silent = options?.silent ?? false;
+  if (!silent) {
+    trustedDevicesLoading.value = true;
+  }
+
+  try {
+    const trustedDeviceResult = await listTrustedDevicesApi();
+    trustedDevices.value = trustedDeviceResult.devices ?? [];
+  } finally {
+    if (!silent) {
+      trustedDevicesLoading.value = false;
+    }
+  }
+}
+
 // Loads the signed-in user's current login-method snapshot.
 async function loadLoginMethodSnapshot() {
   const loginMethodResult = await listSelfLoginMethodsApi();
   loginMethods.value = loginMethodResult.loginMethods ?? [];
   passwordSetupRequired.value = Boolean(loginMethodResult.passwordSetupRequired);
+  syncCurrentUserDisplayIdentifier();
 }
 
 // Loads the signed-in user's MFA bindings without forcing unrelated sections into loading state.
@@ -329,12 +376,23 @@ async function loadSecuritySnapshot() {
   try {
     await Promise.all([
       loadSessionsSnapshot(),
+      loadTrustedDeviceSnapshot({ silent: true }),
       loadLoginMethodSnapshot(),
       loadMfaBindingsSnapshot({ silent: true }),
     ]);
   } finally {
     loading.value = false;
   }
+}
+
+// Reloads the security read models when the cached page becomes active again.
+async function reloadSecuritySnapshotOnResume() {
+  await Promise.all([
+    loadSessionsSnapshot(),
+    loadTrustedDeviceSnapshot({ silent: true }),
+    loadLoginMethodSnapshot(),
+    loadMfaBindingsSnapshot({ silent: true }),
+  ]);
 }
 
 // Loads the authenticated user's login-attempt history with cursor-based pagination.
@@ -410,6 +468,20 @@ function getSessionDeviceLabel(session: SelfSecurityApi.Session) {
   );
 }
 
+// Displays the most useful device label for one trusted-device card.
+function getTrustedDeviceLabel(device: SelfSecurityApi.TrustedDevice) {
+  return (
+    device.deviceName
+    || [device.browser, device.platform].filter(Boolean).join(' / ')
+    || device.deviceId
+  );
+}
+
+// Displays one compact environment summary for a trusted-device card.
+function getTrustedDeviceEnvironment(device: SelfSecurityApi.TrustedDevice) {
+  return [device.browser, device.platform].filter(Boolean).join(' / ') || '未识别环境';
+}
+
 // Maps backend login method codes to stable user-facing labels.
 function getSessionLoginMethodLabel(session: SelfSecurityApi.Session) {
   return loginMethodLabel[session.loginMethod] || '账号登录';
@@ -423,6 +495,23 @@ function getLoginHistoryMethodLabel(item: SelfSecurityApi.LoginHistoryItem) {
 // Maps login method read-model type codes to concise labels.
 function getLoginMethodTypeLabel(method: SelfSecurityApi.LoginMethod) {
   return loginMethodLabel[method.type] || method.type || '登录方式';
+}
+
+// Keeps the global header user identifier aligned with the latest verified self-service contact binding.
+function syncCurrentUserDisplayIdentifier() {
+  if (!userStore.userInfo) {
+    return;
+  }
+
+  const nextIdentifier = resolveCurrentUserDisplayIdentifier(loginMethods.value);
+  if (!nextIdentifier || nextIdentifier === userStore.userInfo.username) {
+    return;
+  }
+
+  userStore.setUserInfo({
+    ...userStore.userInfo,
+    username: nextIdentifier,
+  });
 }
 
 // Narrows one table row payload back to the expected session shape for template bindings.
@@ -561,6 +650,51 @@ function confirmLogoutOtherDevices() {
   });
 }
 
+// Revokes one trusted device after a user confirms the future-login impact.
+function confirmRevokeTrustedDevice(device: SelfSecurityApi.TrustedDevice) {
+  Modal.confirm({
+    centered: true,
+    content: `撤销 “${getTrustedDeviceLabel(device)}” 后，该设备下次登录当前租户时需要重新完成新设备验证。`,
+    okText: '撤销信任',
+    okType: 'danger',
+    title: '确认撤销此受信设备？',
+    async onOk() {
+      trustedDeviceMutationLoading.value = true;
+      try {
+        await revokeTrustedDeviceApi(device.id);
+        message.success('已撤销 1 台受信设备');
+        await loadTrustedDeviceSnapshot();
+      } finally {
+        trustedDeviceMutationLoading.value = false;
+      }
+    },
+  });
+}
+
+// Revokes every other trusted device and keeps the current browser trust unchanged.
+function confirmRevokeOtherTrustedDevices() {
+  Modal.confirm({
+    centered: true,
+    content: '其他受信设备会被撤销信任，这些设备下次登录当前租户时需要重新完成新设备验证。',
+    okButtonProps: {
+      disabled: !hasOtherTrustedDevices.value,
+    },
+    okText: '撤销其他设备',
+    okType: 'danger',
+    title: '确认撤销其他受信设备？',
+    async onOk() {
+      trustedDeviceMutationLoading.value = true;
+      try {
+        const result = await revokeOtherTrustedDevicesApi();
+        message.success(`已撤销 ${result.deviceCount ?? 0} 台其他受信设备`);
+        await loadTrustedDeviceSnapshot();
+      } finally {
+        trustedDeviceMutationLoading.value = false;
+      }
+    },
+  });
+}
+
 // Revokes all sessions and returns the user to the login page.
 function confirmLogoutAllDevices() {
   Modal.confirm({
@@ -582,8 +716,27 @@ function confirmLogoutAllDevices() {
   });
 }
 
-// Enables or disables one self-service MFA binding.
+// Enables or disables one self-service MFA binding, opening setup modals when a factor requires configuration.
 async function toggleMfaBinding(binding: SelfSecurityApi.MfaBinding) {
+  if (!binding.enabled) {
+    const enableFlow = resolveMfaEnableFlow(binding, totpBinding.value);
+
+    if (enableFlow === 'OPEN_TOTP_SETUP') {
+      await openTotpSetupModal();
+      return;
+    }
+
+    if (enableFlow === 'REQUIRE_TOTP_FIRST') {
+      message.warning('请先绑定并启用认证器 App 后再生成恢复码');
+      return;
+    }
+
+    if (enableFlow === 'OPEN_RECOVERY_CODE_SETUP') {
+      await openRecoveryCodeSetupModal();
+      return;
+    }
+  }
+
   mfaMutationLoading.value = true;
   try {
     if (binding.enabled) {
@@ -625,8 +778,16 @@ async function changeOwnPassword() {
 
   passwordMutationLoading.value = true;
   try {
+    const mfaGrantToken = await stepUpMfaDialogRef.value?.beginChallenge(
+      'CHANGE_PASSWORD',
+    );
+    if (mfaGrantToken === null) {
+      return;
+    }
+
     const result = await changeOwnPasswordApi({
       currentPassword: passwordForm.currentPassword,
+      mfaGrantToken: mfaGrantToken || undefined,
       newPassword: passwordForm.newPassword,
     });
     passwordSetupRequired.value = Boolean(result.passwordSetupRequired);
@@ -673,13 +834,53 @@ function resetPasswordFormErrors() {
   passwordFormErrors.newPassword = '';
 }
 
+// Opens the TOTP setup modal and initializes a fresh enrollment secret when needed.
+async function openTotpSetupModal() {
+  totpSetupModalOpen.value = true;
+  if (!totpSetup.value) {
+    await initializeTotp({ showSuccessMessage: false });
+  }
+}
+
+// Closes the TOTP setup modal and clears pending local input from the screen.
+function closeTotpSetupModal() {
+  totpSetupModalOpen.value = false;
+  totpSetup.value = null;
+  totpCode.value = '';
+}
+
+// Opens the recovery-code modal, enforcing the TOTP prerequisite before generation.
+async function openRecoveryCodeSetupModal() {
+  if (!totpBinding.value?.enabled) {
+    message.warning('请先绑定并启用认证器 App 后再生成恢复码');
+    return;
+  }
+
+  recoveryCodes.value = [];
+  recoveryCodeModalOpen.value = true;
+  await generateRecoveryCodesFromModal();
+}
+
+// Closes the recovery-code modal and clears one-time code display from local state.
+function closeRecoveryCodeModal() {
+  recoveryCodeModalOpen.value = false;
+  recoveryCodes.value = [];
+}
+
+// Generates the first recovery-code set or rotates an existing set from inside the modal.
+async function generateRecoveryCodesFromModal() {
+  await refreshRecoveryCodes(!recoveryCodeBinding.value?.enabled);
+}
+
 // Starts the TOTP enrollment flow and keeps the secret visible until activation.
-async function initializeTotp() {
+async function initializeTotp(options?: { showSuccessMessage?: boolean }) {
   totpMutationLoading.value = true;
   try {
     totpSetup.value = await initializeTotpBindingApi();
     totpCode.value = '';
-    message.success('认证器初始化成功，请扫码并输入验证码完成绑定');
+    if (options?.showSuccessMessage ?? true) {
+      message.success('认证器初始化成功，请扫码并输入验证码完成绑定');
+    }
   } finally {
     totpMutationLoading.value = false;
   }
@@ -700,6 +901,7 @@ async function activateTotp() {
     });
     totpSetup.value = null;
     totpCode.value = '';
+    totpSetupModalOpen.value = false;
     message.success('认证器 App 已绑定');
     await loadMfaBindingsSnapshot({ silent: true });
   } finally {
@@ -747,11 +949,28 @@ function resetLoginHistoryFilters() {
 onMounted(() => {
   void Promise.all([loadSecuritySnapshot(), loadLoginHistory()]).catch(() => {
     sessions.value = [];
+    trustedDevices.value = [];
     loginHistoryItems.value = [];
     loginHistoryNextCursor.value = null;
     loginMethods.value = [];
     passwordSetupRequired.value = false;
     mfaBindings.value = [];
+  });
+});
+
+onActivated(() => {
+  void reloadSecuritySnapshotOnResume().catch(() => {
+    message.error('刷新账户安全信息失败');
+  });
+});
+
+watch(activeTab, (tab) => {
+  if (tab !== 'trusted-devices') {
+    return;
+  }
+
+  void loadTrustedDeviceSnapshot({ silent: true }).catch(() => {
+    message.error('刷新受信设备失败');
   });
 });
 </script>
@@ -1065,6 +1284,95 @@ onMounted(() => {
           </Card>
         </TabPane>
 
+        <TabPane key="trusted-devices" tab="受信设备">
+          <Card :bordered="false" class="section-card">
+            <div class="security-toolbar">
+              <div class="panel-caption">
+                <span class="panel-caption__title">受信设备</span>
+                <span class="panel-caption__meta">
+                  这里管理的是长期信任设备，不等同于当前在线会话；撤销后只影响下次登录时的新设备验证。
+                </span>
+              </div>
+              <div class="security-toolbar__actions">
+                <Button :loading="trustedDevicesLoading" @click="loadTrustedDeviceSnapshot()">
+                  刷新
+                </Button>
+                <Button
+                  danger
+                  :disabled="!hasOtherTrustedDevices"
+                  :loading="trustedDeviceMutationLoading"
+                  @click="confirmRevokeOtherTrustedDevices"
+                >
+                  撤销其他设备
+                </Button>
+              </div>
+            </div>
+
+            <Empty
+              v-if="!trustedDevicesLoading && normalizedTrustedDevices.length === 0"
+              description="暂无受信设备"
+            />
+
+            <div v-else class="trusted-device-grid">
+              <div
+                v-for="device in normalizedTrustedDevices"
+                :key="device.id"
+                class="trusted-device-card"
+              >
+                <div class="trusted-device-card__header">
+                  <div>
+                    <div class="table-cell-title">
+                      {{ getTrustedDeviceLabel(device) }}
+                    </div>
+                    <div class="table-cell-meta">
+                      {{ getTrustedDeviceEnvironment(device) }}
+                    </div>
+                  </div>
+                  <div class="tag-stack">
+                    <Tag v-if="device.isCurrentDevice" color="blue">当前设备</Tag>
+                    <Tag color="green">受信中</Tag>
+                  </div>
+                </div>
+
+                <div class="trusted-device-card__meta-list">
+                  <div class="trusted-device-card__meta-item">
+                    <span class="trusted-device-card__meta-label">首次信任</span>
+                    <span class="trusted-device-card__meta-value">
+                      {{ formatDateTime(device.trustedAt) }}
+                    </span>
+                  </div>
+                  <div class="trusted-device-card__meta-item">
+                    <span class="trusted-device-card__meta-label">最近活跃</span>
+                    <span class="trusted-device-card__meta-value">
+                      {{ formatDateTime(device.lastActiveAt) }}
+                    </span>
+                  </div>
+                  <div class="trusted-device-card__meta-item">
+                    <span class="trusted-device-card__meta-label">到期时间</span>
+                    <span class="trusted-device-card__meta-value">
+                      {{ formatDateTime(device.expiresAt) }}
+                    </span>
+                  </div>
+                </div>
+
+                <div class="trusted-device-card__footer">
+                  <span class="table-cell-meta">
+                    设备 ID：{{ device.deviceId }}
+                  </span>
+                  <Button
+                    danger
+                    size="small"
+                    :loading="trustedDeviceMutationLoading"
+                    @click="confirmRevokeTrustedDevice(device)"
+                  >
+                    撤销信任
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </TabPane>
+
         <TabPane key="login-history" tab="登录历史">
           <Card :bordered="false" class="section-card">
             <div class="security-toolbar">
@@ -1213,7 +1521,7 @@ onMounted(() => {
                   </template>
                   <template v-else-if="column.key === 'action'">
                     <Button
-                      :disabled="!record.available"
+                      :disabled="isMfaEnableActionDisabled(asMfaBinding(record))"
                       :loading="mfaMutationLoading"
                       size="small"
                       @click="toggleMfaBinding(asMfaBinding(record))"
@@ -1224,111 +1532,109 @@ onMounted(() => {
                 </template>
               </Table>
             </Card>
-
-            <div class="tool-grid">
-              <Card :bordered="false" class="section-card side-card">
-                <div class="panel-caption">
-                  <div class="panel-caption__title-row">
-                    <span class="panel-caption__title">认证器 App</span>
-                    <Tooltip title="初始化后会生成二维码和 Secret。使用认证器应用扫码后，再输入一次验证码完成绑定。">
-                      <span class="section-help-dot">?</span>
-                    </Tooltip>
-                  </div>
-                  <span class="panel-caption__meta">
-                    {{ getTotpPanelMeta({ hasPendingSetup: Boolean(totpSetup), totpBinding }) }}
-                  </span>
-                </div>
-                <Space direction="vertical" class="tool-panel" size="middle">
-                  <Button
-                    v-if="!totpBinding?.enabled && !totpSetup"
-                    block
-                    :loading="totpMutationLoading"
-                    type="primary"
-                    @click="initializeTotp"
-                  >
-                    开始绑定认证器
-                  </Button>
-                  <div v-if="totpSetup" class="totp-panel">
-                    <QRCode :value="totpSetup.qrCodeUrl" />
-                    <div class="totp-secret">
-                      Secret：{{ totpSetup.secret }}
-                    </div>
-                    <Input
-                      v-model:value="totpCode"
-                      :maxlength="64"
-                      placeholder="请输入认证器验证码"
-                    />
-                    <Button
-                      block
-                      :loading="totpMutationLoading"
-                      @click="activateTotp"
-                    >
-                      完成绑定
-                    </Button>
-                  </div>
-                  <Alert
-                    v-else-if="totpBinding?.enabled"
-                    message="认证器 App 已绑定，可直接在上方 MFA 列表中启用或停用。"
-                    show-icon
-                    type="success"
-                  />
-                </Space>
-              </Card>
-
-              <Card :bordered="false" class="section-card side-card">
-                <div class="panel-caption">
-                  <div class="panel-caption__title-row">
-                    <span class="panel-caption__title">恢复码</span>
-                    <Tooltip title="恢复码适用于无法使用常规 MFA 方式时的应急登录。重新生成后，旧恢复码会失效。">
-                      <span class="section-help-dot">?</span>
-                    </Tooltip>
-                  </div>
-                  <span class="panel-caption__meta">
-                    {{ getRecoveryCodePanelMeta({ recoveryCodeBinding, recoveryCodes, totpBinding }) }}
-                  </span>
-                </div>
-                <Space direction="vertical" class="tool-panel" size="middle">
-                  <Space wrap>
-                    <Button
-                      :disabled="!totpBinding?.enabled"
-                      :loading="recoveryCodeLoading"
-                      @click="refreshRecoveryCodes(true)"
-                    >
-                      {{ recoveryCodeBinding?.enabled ? '重新生成并展示' : '生成恢复码' }}
-                    </Button>
-                    <Button
-                      danger
-                      :disabled="!totpBinding?.enabled || !recoveryCodeBinding?.enabled"
-                      :loading="recoveryCodeLoading"
-                      @click="refreshRecoveryCodes(false)"
-                    >
-                      重新生成
-                    </Button>
-                  </Space>
-                  <Alert
-                    message="恢复码只在生成后展示，请妥善保存。"
-                    show-icon
-                    type="warning"
-                  />
-                  <div
-                    v-if="recoveryCodes.length > 0"
-                    class="recovery-code-grid"
-                  >
-                    <code
-                      v-for="code in recoveryCodes"
-                      :key="code"
-                      class="recovery-code-item"
-                    >
-                      {{ code }}
-                    </code>
-                  </div>
-                </Space>
-              </Card>
-            </div>
-          </div>
+</div>
         </TabPane>
       </Tabs>
     </Card>
+
+    <Modal
+      v-model:open="totpSetupModalOpen"
+      :footer="null"
+      centered
+      destroy-on-close
+      width="520px"
+      @cancel="closeTotpSetupModal"
+    >
+      <template #title>
+        <div class="modal-title-row">
+          <span>绑定认证器 App</span>
+          <Tooltip title="使用 Google Authenticator 等认证器扫码后，输入一次验证码完成绑定。">
+            <span class="section-help-dot">?</span>
+          </Tooltip>
+        </div>
+      </template>
+
+      <Space direction="vertical" class="tool-panel" size="middle">
+        <div v-if="totpSetup" class="totp-panel">
+          <QRCode :value="totpSetup.qrCodeUrl" />
+          <div class="totp-secret">
+            Secret：{{ totpSetup.secret }}
+          </div>
+          <Input
+            v-model:value="totpCode"
+            :maxlength="64"
+            placeholder="请输入认证器验证码"
+          />
+          <Button
+            block
+            :loading="totpMutationLoading"
+            type="primary"
+            @click="activateTotp"
+          >
+            完成绑定
+          </Button>
+        </div>
+        <Button
+          v-else
+          block
+          :loading="totpMutationLoading"
+          type="primary"
+          @click="initializeTotp()"
+        >
+          初始化认证器
+        </Button>
+      </Space>
+    </Modal>
+
+    <Modal
+      v-model:open="recoveryCodeModalOpen"
+      :footer="null"
+      centered
+      destroy-on-close
+      width="560px"
+      @cancel="closeRecoveryCodeModal"
+    >
+      <template #title>
+        <div class="modal-title-row">
+          <span>生成恢复码</span>
+          <Tooltip title="恢复码用于无法使用常规 MFA 方式时的应急验证；重新生成后旧恢复码会失效。">
+            <span class="section-help-dot">?</span>
+          </Tooltip>
+        </div>
+      </template>
+
+      <Space direction="vertical" class="tool-panel" size="middle">
+        <Alert
+          v-if="recoveryCodes.length > 0"
+          message="恢复码只在本次生成后展示，请妥善保存。"
+          show-icon
+          type="warning"
+        />
+        <div
+          v-if="recoveryCodes.length > 0"
+          class="recovery-code-grid"
+        >
+          <code
+            v-for="code in recoveryCodes"
+            :key="code"
+            class="recovery-code-item"
+          >
+            {{ code }}
+          </code>
+        </div>
+        <Button
+          block
+          danger
+          :disabled="!totpBinding?.enabled"
+          :loading="recoveryCodeLoading"
+          @click="generateRecoveryCodesFromModal"
+        >
+          {{ recoveryCodeBinding?.enabled ? '重新生成恢复码' : '生成恢复码' }}
+        </Button>
+      </Space>
+    </Modal>
+
+    <SecurityStepUpMfaDialog ref="stepUpMfaDialogRef" />
   </div>
 </template>
 
@@ -1455,10 +1761,62 @@ onMounted(() => {
   gap: 16px;
 }
 
-.tool-grid {
+.trusted-device-grid {
   display: grid;
   gap: 16px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.trusted-device-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--security-border);
+  border-radius: 18px;
+  background: var(--security-card-bg-accent);
+}
+
+.trusted-device-card__header,
+.trusted-device-card__footer,
+.trusted-device-card__meta-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.trusted-device-card__header {
+  align-items: flex-start;
+}
+
+.trusted-device-card__meta-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.trusted-device-card__meta-item {
+  padding: 12px 14px;
+  border: 1px solid var(--security-border);
+  border-radius: 14px;
+  background: var(--security-card-bg-soft);
+}
+
+.trusted-device-card__meta-label {
+  font-size: 12px;
+  color: var(--security-muted);
+}
+
+.trusted-device-card__meta-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--security-text);
+  text-align: right;
+}
+
+.trusted-device-card__footer {
+  padding-top: 4px;
 }
 
 .section-alert {
@@ -1488,6 +1846,12 @@ onMounted(() => {
 .panel-caption__meta {
   font-size: 12px;
   color: var(--security-muted);
+}
+
+.modal-title-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .security-toolbar {
@@ -1656,14 +2020,17 @@ onMounted(() => {
 
   .binding-card-grid,
   .login-method-group-grid,
-  .tool-grid {
+  .trusted-device-grid {
     grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 768px) {
   .login-method-group-card__header,
-  .login-method-capability-item {
+  .login-method-capability-item,
+  .trusted-device-card__header,
+  .trusted-device-card__footer,
+  .trusted-device-card__meta-item {
     flex-direction: column;
     align-items: stretch;
   }

@@ -9,11 +9,20 @@ import {
 } from './role-management.helpers';
 
 const DEFAULT_NAVIGATION_TERMINAL = 'DEFAULT';
+const DEFAULT_PREVIEW_TERMINALS = ['WEB', 'MOBILE'];
 
 export interface RoleNavigationEditorModel {
   entries: PermissionManagementApi.NavigationEntry[];
   landingEntryKey: string;
   visibleEntryKeys: string[];
+}
+
+export interface NavigationPreviewEntryRow {
+  entryKey: string;
+  isDefault: boolean;
+  name: string;
+  registryPriority: number;
+  supportedTerminals: string[];
 }
 
 export interface RoleNavigationSavePayloadResult {
@@ -39,6 +48,35 @@ export function collectNavigationSupportedTerminals(
   }
 
   return [...terminals].sort();
+}
+
+// Builds a stable preview/filter terminal list while keeping the common terminals at the front.
+export function buildNavigationTerminalList(
+  entries: PermissionManagementApi.NavigationEntry[],
+) {
+  const terminals = new Set(DEFAULT_PREVIEW_TERMINALS);
+
+  for (const entry of entries) {
+    for (const terminal of entry.supportedTerminals ?? []) {
+      const normalizedTerminal = terminal.trim();
+      if (normalizedTerminal) {
+        terminals.add(normalizedTerminal);
+      }
+    }
+  }
+
+  return [...terminals].sort((left, right) => {
+    const leftIndex = DEFAULT_PREVIEW_TERMINALS.indexOf(left);
+    const rightIndex = DEFAULT_PREVIEW_TERMINALS.indexOf(right);
+
+    if (leftIndex !== -1 || rightIndex !== -1) {
+      if (leftIndex === -1) return 1;
+      if (rightIndex === -1) return -1;
+      return leftIndex - rightIndex;
+    }
+
+    return left.localeCompare(right);
+  });
 }
 
 // Builds the list-based editor state for one role-navigation terminal tab from the persisted role facts.
@@ -207,6 +245,42 @@ export function buildRoleNavigationSavePayload(input: {
   };
 }
 
+// Joins preview visible-entry keys with registry metadata so the UI can render a priority-sorted list.
+export function buildNavigationPreviewEntryRows(input: {
+  entries: PermissionManagementApi.NavigationEntry[];
+  previewResult:
+    | null
+    | Pick<PermissionManagementApi.ResolveNavigationPreviewResult, 'defaultEntry' | 'visibleEntries'>;
+}) {
+  if (!input.previewResult) {
+    return [];
+  }
+
+  const entryMap = new Map(
+    input.entries.map((entry) => [entry.entryKey, entry]),
+  );
+
+  return input.previewResult.visibleEntries
+    .map<NavigationPreviewEntryRow>((entryKey) => {
+      const entry = entryMap.get(entryKey);
+
+      return {
+        entryKey,
+        isDefault: input.previewResult?.defaultEntry === entryKey,
+        name: entry?.name ?? entryKey,
+        registryPriority: entry?.registryPriority ?? -1,
+        supportedTerminals: [...(entry?.supportedTerminals ?? [])],
+      };
+    })
+    .sort((left, right) => {
+      if (right.registryPriority !== left.registryPriority) {
+        return right.registryPriority - left.registryPriority;
+      }
+
+      return left.entryKey.localeCompare(right.entryKey);
+    });
+}
+
 // Infers preview scope from the selected roles so the UI no longer asks administrators to choose a redundant scope.
 export function inferNavigationPreviewScopeLevel(
   roles: RoleManagementApi.Role[],
@@ -218,6 +292,27 @@ export function inferNavigationPreviewScopeLevel(
   )
     ? 'TENANT'
     : 'SYSTEM';
+}
+
+// Builds one stable role selector label and appends tenant context for tenant-scoped roles.
+export function buildRoleOptionLabel(role: RoleManagementApi.Role) {
+  const baseLabel = role.name?.trim() || role.code;
+  const tenantName = role.tenantName?.trim();
+  const roleKind = normalizeRoleKind(role.roleKind);
+
+  if (tenantName && (Boolean(role.tenantId) || roleKind === 'TENANT_INSTANCE')) {
+    return `${baseLabel} · ${tenantName}`;
+  }
+
+  if (
+    role.isSystem ||
+    roleKind === 'SYSTEM_INSTANCE' ||
+    roleKind === 'SYSTEM_TEMPLATE'
+  ) {
+    return `${baseLabel} · 系统`;
+  }
+
+  return baseLabel;
 }
 
 function normalizeRoleKind(roleKind: RoleManagementApi.Role['roleKind']) {

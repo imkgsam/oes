@@ -1,6 +1,6 @@
 # OES 前端规划导航
 
-更新时间：2026-04-13
+更新时间：2026-04-24
 
 ## 1. 目的
 
@@ -17,6 +17,18 @@
 - 统一 Web Shell 内当前按 `/platform/*` 与 `/tenant/*` 区域区分平台侧与租户侧
 - `tenant-web` 当前作为租户业务 Web 主线前端继续推进
 - 平台、租户、终端准入、会话上下文、导航与权限必须显式区分，不能继续混在模板默认用户模型中
+- tenant / org / hr 前端基础入口阶段已在现有边界内收口到当前 plans 文档：
+  - `/admin/tenant-management` 对应平台侧 `Tenant` 管理入口
+  - `/admin/org-management` 与 `/settings/organization-people/departments` 共同承接 `OrgUnit` 管理入口
+  - `/settings/organization-people/members` 对应 `Employee / Employment` 管理入口
+  - `/settings/org-structure` 与 `/settings/employee-employment` 仅保留兼容跳转
+- `tenant-web` 租户侧 `组织与人员 wave-1` 已完成文档层收口：
+  - 统一入口为 `组织与人员`
+  - 固定为 `成员 / 部门` 两个 Tab
+  - 成员详情已收口为五区块，`账号与访问` 与“创建成员允许登录”均只进入第一阶段
+- `tenant.admin` 当前前端基线已收口为租户治理基础入口，而不是平台治理全开：
+  - 已对齐 `workbench.home`、`admin.auth-session-management`、`admin.role-management`、`admin.account-management`、`tenant-settings.organization-people`、`tenant-settings.org-structure`、`tenant-settings.employee-employment`、`tenant-settings.login-mfa`
+  - 未对齐 `admin.tenant-management`、`admin.org-management`、`admin.permission-management`、`admin.policy-governance`、`admin.navigation-management`
 
 这些结论的正式归属位置如下：
 
@@ -60,6 +72,16 @@
 1. [tenant-web-vben-implementation-plan.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-vben-implementation-plan.md)
 2. [tenant-web-frontend-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-frontend-architecture.md)
 
+### 3.5 如果你在做 tenant / org / hr 前端基础入口收口或后续增强
+
+先读：
+
+1. [tenant-web-code-refactor-checklist.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-code-refactor-checklist.md)
+2. [tenant-org-service-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/tenant-org-service-foundation.md)
+3. [hr-service-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/hr-service-foundation.md)
+4. [navigation-entry-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/navigation-entry-management.md)
+5. [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md)
+
 ## 4. 各文档职责
 
 当前前端 plans 文档分工如下：
@@ -72,6 +94,14 @@
   - 当前阶段代码改造与验证状态
 - [tenant-web-vben-implementation-plan.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-vben-implementation-plan.md)
   - `vue-vben-admin` 底座适配与本地化专项说明
+- [tenant-org-service-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/tenant-org-service-foundation.md)
+  - tenant / org 边界主线与平台侧 / 租户侧入口收口口径
+- [hr-service-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/hr-service-foundation.md)
+  - `Employee / Employment` 主线与前端入口边界口径
+- [navigation-entry-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/navigation-entry-management.md)
+  - 导航 entryKey 收口与兼容入口保留口径
+- [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md)
+  - 已确认 deferred 的前端后续项与环境侧收口项
 
 ## 5. 使用约束
 

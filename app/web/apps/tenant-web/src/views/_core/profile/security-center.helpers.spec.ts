@@ -6,9 +6,10 @@ import {
   getContactBindingActionLabel,
   getMfaAvailabilityHint,
   getMfaDisplayDestination,
-  getRecoveryCodePanelMeta,
-  getTotpPanelMeta,
+  isMfaEnableActionDisabled,
+  resolveMfaEnableFlow,
   resolveBoundContact,
+  resolveCurrentUserDisplayIdentifier,
   validateContactBindingOtp,
   validateContactBindingValue,
 } from './security-center.helpers';
@@ -75,6 +76,48 @@ describe('security center contact binding helpers', () => {
   it('returns context-aware action labels for first binding and replacement binding', () => {
     expect(getContactBindingActionLabel(undefined)).toBe('立即绑定');
     expect(getContactBindingActionLabel('u***@example.com')).toBe('更换绑定');
+  });
+
+  it('prefers verified email and then phone for the current user display identifier', () => {
+    expect(
+      resolveCurrentUserDisplayIdentifier([
+        {
+          enabled: true,
+          hasPassword: false,
+          identifier: '+8613811112222',
+          maskedIdentifier: '+86 138****2222',
+          methodId: 'method-phone',
+          type: 'PHONE_OTP',
+          userId: 'user-1',
+          verified: true,
+        },
+        {
+          enabled: true,
+          hasPassword: false,
+          identifier: 'user@example.com',
+          maskedIdentifier: 'u***@example.com',
+          methodId: 'method-email',
+          type: 'EMAIL_PASSWORD',
+          userId: 'user-1',
+          verified: true,
+        },
+      ]),
+    ).toBe('user@example.com');
+
+    expect(
+      resolveCurrentUserDisplayIdentifier([
+        {
+          enabled: true,
+          hasPassword: false,
+          identifier: '+8613811112222',
+          maskedIdentifier: '+86 138****2222',
+          methodId: 'method-phone',
+          type: 'PHONE_OTP',
+          userId: 'user-1',
+          verified: true,
+        },
+      ]),
+    ).toBe('+8613811112222');
   });
 
   it('validates email and phone values before requesting a challenge', () => {
@@ -238,65 +281,86 @@ describe('security center contact binding helpers', () => {
     ).toBe('尚未生成恢复码');
   });
 
-  it('derives stable panel summaries for totp and recovery code cards', () => {
+  it('routes mfa enable actions through the correct setup flow', () => {
     expect(
-      getTotpPanelMeta({
-        hasPendingSetup: false,
-        totpBinding: {
-          available: true,
-          bindingId: 'totp-1',
-          enabled: true,
-          type: 'TOTP',
-        },
+      resolveMfaEnableFlow({
+        available: true,
+        bindingId: 'totp-1',
+        enabled: false,
+        type: 'TOTP',
       }),
-    ).toBe('当前已完成绑定，可直接用于 MFA 验证');
+    ).toBe('OPEN_TOTP_SETUP');
 
     expect(
-      getTotpPanelMeta({
-        hasPendingSetup: true,
-        totpBinding: {
-          available: true,
-          bindingId: 'totp-1',
-          enabled: false,
-          type: 'TOTP',
-        },
-      }),
-    ).toBe('请使用认证器扫码并输入验证码完成绑定');
-
-    expect(
-      getRecoveryCodePanelMeta({
-        recoveryCodeBinding: {
-          available: true,
-          bindingId: 'backup-1',
-          enabled: true,
-          type: 'BACKUP_CODE',
-        },
-        recoveryCodes: [],
-        totpBinding: {
-          available: true,
-          bindingId: 'totp-1',
-          enabled: true,
-          type: 'TOTP',
-        },
-      }),
-    ).toBe('已启用恢复码，可按需重新生成一组新恢复码');
-
-    expect(
-      getRecoveryCodePanelMeta({
-        recoveryCodeBinding: {
+      resolveMfaEnableFlow(
+        {
           available: false,
           bindingId: 'backup-1',
           enabled: false,
           type: 'BACKUP_CODE',
         },
-        recoveryCodes: [],
-        totpBinding: {
+        {
           available: true,
           bindingId: 'totp-1',
           enabled: false,
           type: 'TOTP',
         },
+      ),
+    ).toBe('REQUIRE_TOTP_FIRST');
+
+    expect(
+      resolveMfaEnableFlow(
+        {
+          available: true,
+          bindingId: 'backup-1',
+          enabled: false,
+          type: 'BACKUP_CODE',
+        },
+        {
+          available: true,
+          bindingId: 'totp-1',
+          enabled: true,
+          type: 'TOTP',
+        },
+      ),
+    ).toBe('OPEN_RECOVERY_CODE_SETUP');
+
+    expect(
+      resolveMfaEnableFlow({
+        available: true,
+        bindingId: 'email-1',
+        enabled: false,
+        type: 'EMAIL_OTP',
       }),
-    ).toBe('需要先完成认证器 App 绑定');
+    ).toBe('ENABLE_DIRECT');
+  });
+
+  it('keeps unavailable recovery-code enable actions clickable for prerequisite prompts', () => {
+    expect(
+      isMfaEnableActionDisabled({
+        available: false,
+        bindingId: 'backup-1',
+        enabled: false,
+        type: 'BACKUP_CODE',
+      }),
+    ).toBe(false);
+
+    expect(
+      isMfaEnableActionDisabled({
+        available: false,
+        bindingId: 'email-1',
+        enabled: false,
+        type: 'EMAIL_OTP',
+      }),
+    ).toBe(true);
+
+    expect(
+      isMfaEnableActionDisabled({
+        available: false,
+        bindingId: 'totp-1',
+        enabled: true,
+        type: 'TOTP',
+      }),
+    ).toBe(false);
   });
 });

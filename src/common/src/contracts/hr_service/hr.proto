@@ -1,0 +1,201 @@
+syntax = "proto3";
+
+package hr_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.hr.v1";
+
+service HrQueryService {
+  rpc GetEmployeeById(GetEmployeeByIdRequest) returns (GetEmployeeByIdResponse);
+  rpc GetEmployeeByTenantPartyId(GetEmployeeByTenantPartyIdRequest) returns (GetEmployeeByTenantPartyIdResponse);
+  rpc ListEmployees(ListEmployeesRequest) returns (ListEmployeesResponse);
+  rpc GetActiveEmployment(GetActiveEmploymentRequest) returns (GetActiveEmploymentResponse);
+  rpc ListEmployments(ListEmploymentsRequest) returns (ListEmploymentsResponse);
+  rpc GetLatestOnboardingAccess(GetLatestOnboardingAccessRequest) returns (GetLatestOnboardingAccessResponse);
+}
+
+service HrManagementService {
+  rpc CreateEmployee(CreateEmployeeRequest) returns (CreateEmployeeResponse);
+  rpc CreateEmployment(CreateEmploymentRequest) returns (CreateEmploymentResponse);
+  rpc EndEmployment(EndEmploymentRequest) returns (EndEmploymentResponse);
+  rpc ChangePrimaryEmployment(ChangePrimaryEmploymentRequest) returns (ChangePrimaryEmploymentResponse);
+  rpc CompleteEmployeeAccess(CompleteEmployeeAccessRequest) returns (CompleteEmployeeAccessResponse);
+}
+
+enum EmployeeLifecycleStatus {
+  EMPLOYEE_LIFECYCLE_STATUS_UNSPECIFIED = 0;
+  EMPLOYEE_LIFECYCLE_STATUS_PREBOARDING = 1;
+  EMPLOYEE_LIFECYCLE_STATUS_ACTIVE = 2;
+  EMPLOYEE_LIFECYCLE_STATUS_OFFBOARDED = 3;
+}
+
+enum EmploymentStatus {
+  EMPLOYMENT_STATUS_UNSPECIFIED = 0;
+  EMPLOYMENT_STATUS_ACTIVE = 1;
+  EMPLOYMENT_STATUS_ENDED = 2;
+}
+
+enum OnboardingAccessStatus {
+  ONBOARDING_ACCESS_STATUS_UNSPECIFIED = 0;
+  ONBOARDING_ACCESS_STATUS_ACCOUNT_BINDING_PENDING = 1;
+  ONBOARDING_ACCESS_STATUS_ACCESS_GRANT_PENDING = 2;
+  ONBOARDING_ACCESS_STATUS_COMPLETED = 3;
+}
+
+message EmployeeSummary {
+  string id = 1;
+  string tenant_id = 2;
+  string tenant_party_id = 3;
+  string party_id = 4;
+  string employee_code = 5;
+  EmployeeLifecycleStatus lifecycle_status = 6;
+}
+
+message EmploymentSummary {
+  string id = 1;
+  string tenant_id = 2;
+  string employee_id = 3;
+  string org_unit_id = 4;
+  EmploymentStatus status = 5;
+  string effective_from = 6;
+  string effective_to = 7;
+  string ended_reason = 8;
+}
+
+message GetEmployeeByIdRequest {
+  string employee_id = 1;
+}
+
+message GetEmployeeByIdResponse {
+  EmployeeSummary employee = 1;
+}
+
+message GetEmployeeByTenantPartyIdRequest {
+  string tenant_id = 1;
+  string tenant_party_id = 2;
+}
+
+message GetEmployeeByTenantPartyIdResponse {
+  EmployeeSummary employee = 1;
+}
+
+message ListEmployeesRequest {
+  string tenant_id = 1;
+  string keyword = 2;
+  EmployeeLifecycleStatus lifecycle_status = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message ListEmployeesResponse {
+  repeated EmployeeSummary items = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  int32 total = 4;
+}
+
+message GetActiveEmploymentRequest {
+  string employee_id = 1;
+}
+
+message GetActiveEmploymentResponse {
+  EmploymentSummary employment = 1;
+}
+
+message ListEmploymentsRequest {
+  string employee_id = 1;
+  EmploymentStatus status = 2;
+}
+
+message ListEmploymentsResponse {
+  repeated EmploymentSummary employments = 1;
+}
+
+message OnboardingAccessProcessSummary {
+  string id = 1;
+  string tenant_id = 2;
+  string employee_id = 3;
+  string employment_id = 4;
+  string account_id = 5;
+  OnboardingAccessStatus status = 6;
+  string grant_idempotency_key = 7;
+  string failure_reason = 8;
+}
+
+message GetLatestOnboardingAccessRequest {
+  string tenant_id = 1;
+  string employee_id = 2;
+}
+
+message GetLatestOnboardingAccessResponse {
+  OnboardingAccessProcessSummary process = 1;
+}
+
+message CreateEmployeeRequest {
+  string tenant_id = 1;
+  string tenant_party_id = 2;
+  string party_id = 3;
+  string employee_code = 4;
+}
+
+message CreateEmployeeResponse {
+  EmployeeSummary employee = 1;
+}
+
+message CreateEmploymentRequest {
+  string tenant_id = 1;
+  string employee_id = 2;
+  string org_unit_id = 3;
+  string effective_from = 4;
+}
+
+message CreateEmploymentResponse {
+  EmployeeSummary employee = 1;
+  EmploymentSummary employment = 2;
+}
+
+message EndEmploymentRequest {
+  string employment_id = 1;
+  string effective_to = 2;
+  string ended_reason = 3;
+}
+
+message EndEmploymentResponse {
+  EmployeeSummary employee = 1;
+  EmploymentSummary employment = 2;
+}
+
+message ChangePrimaryEmploymentRequest {
+  string tenant_id = 1;
+  string employee_id = 2;
+  string from_employment_id = 3;
+  string to_org_unit_id = 4;
+  string effective_from = 5;
+  string ended_reason = 6;
+}
+
+message ChangePrimaryEmploymentResponse {
+  EmployeeSummary employee = 1;
+  EmploymentSummary ended_employment = 2;
+  EmploymentSummary new_employment = 3;
+}
+
+message ProvisionEmployeeAccessAccountInput {
+  string display_name = 1;
+  string email = 2;
+  string phone = 3;
+}
+
+message CompleteEmployeeAccessRequest {
+  string tenant_id = 1;
+  string employee_id = 2;
+  string employment_id = 3;
+  repeated string role_ids = 4;
+  string reason = 5;
+  string existing_account_id = 6;
+  ProvisionEmployeeAccessAccountInput create_account = 7;
+}
+
+message CompleteEmployeeAccessResponse {
+  OnboardingAccessProcessSummary process = 1;
+}

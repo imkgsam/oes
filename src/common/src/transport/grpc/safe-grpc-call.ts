@@ -19,13 +19,6 @@ import { RpcExceptionPayload } from '../../core/exceptions/exception.interface'
 
 const DEFAULT_TIMEOUT_MS = 5000
 
-const INFRA_STATUS_CODES = new Set<number>([
-  GrpcStatus.UNAVAILABLE,
-  GrpcStatus.DEADLINE_EXCEEDED,
-  GrpcStatus.ABORTED,
-  GrpcStatus.INTERNAL
-])
-
 export interface SafeGrpcCallOptions {
   timeoutMs?: number
   caller?: string
@@ -128,13 +121,9 @@ function wrapInfrastructureError(
   })
 }
 
-function isInfrastructureGrpcStatus(code: number): boolean {
-  return INFRA_STATUS_CODES.has(code)
-}
-
-// Classifies standardized OES payloads by semantic error code first, not by broad gRPC status.
+// Classifies standardized OES payloads by semantic error code to avoid degrading business payloads.
 function isInfrastructureRpcPayload(payload: RpcExceptionPayload): boolean {
-  return payload.code.startsWith('INFRA_') || isInfrastructureGrpcStatus(payload.grpcStatus)
+  return payload.code.startsWith('INFRA_')
 }
 
 function isRpcExceptionPayload(value: unknown): value is RpcExceptionPayload {

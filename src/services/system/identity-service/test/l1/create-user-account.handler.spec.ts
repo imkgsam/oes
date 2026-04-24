@@ -12,6 +12,12 @@ describe('CreateUserAccountHandler', () => {
   it('creates a tenant account inside the operator tenant boundary', async () => {
     const accountRepository = createAccountRepositoryMock()
     const userRepository = createUserRepositoryMock()
+    const partyRegistrationPort = {
+      registerPersonParty: jest.fn().mockResolvedValue({
+        partyId: 'party-1',
+        tenantPartyId: 'tenant-party-1',
+      }),
+    }
     userRepository.findByEmail.mockResolvedValue(null)
     userRepository.findByPhone.mockResolvedValue(null)
     userRepository.create.mockResolvedValue(
@@ -34,8 +40,9 @@ describe('CreateUserAccountHandler', () => {
     const handler = new CreateUserAccountHandler(
       accountRepository,
       userRepository,
-      new CheckResourceService()
-    )
+      new CheckResourceService(),
+      partyRegistrationPort as any,
+    ) as any
 
     await expect(
       handler.execute(
@@ -63,9 +70,17 @@ describe('CreateUserAccountHandler', () => {
     expect(userRepository.create).toHaveBeenCalledWith({
       email: 'janny@example.com',
       isActive: true,
+      partyId: 'party-1',
       phone: '+8613800138000',
       username: undefined
     })
+    expect(partyRegistrationPort.registerPersonParty).toHaveBeenCalledWith(
+      expect.objectContaining({
+        canonicalName: 'Janny',
+        localDisplayName: 'Janny',
+        tenantId: 'tenant-a',
+      }),
+    )
     expect(accountRepository.createUserAccount).toHaveBeenCalledWith({
       displayName: 'Janny',
       scopeLevel: 'TENANT',
@@ -78,7 +93,8 @@ describe('CreateUserAccountHandler', () => {
     const handler = new CreateUserAccountHandler(
       createAccountRepositoryMock(),
       createUserRepositoryMock(),
-      new CheckResourceService()
+      new CheckResourceService(),
+      { registerPersonParty: jest.fn() } as any,
     )
 
     await expect(
@@ -101,7 +117,8 @@ describe('CreateUserAccountHandler', () => {
     const handler = new CreateUserAccountHandler(
       createAccountRepositoryMock(),
       createUserRepositoryMock(),
-      new CheckResourceService()
+      new CheckResourceService(),
+      { registerPersonParty: jest.fn() } as any,
     )
 
     await expect(
@@ -119,5 +136,74 @@ describe('CreateUserAccountHandler', () => {
         })
       )
     ).rejects.toThrow()
+  })
+
+  it('creates a system account and registers a canonical person party without a tenant binding', async () => {
+    const accountRepository = createAccountRepositoryMock()
+    const userRepository = createUserRepositoryMock()
+    const partyRegistrationPort = {
+      registerPersonParty: jest.fn().mockResolvedValue({
+        partyId: 'party-system-1',
+      }),
+    }
+    userRepository.findByEmail.mockResolvedValue(null)
+    userRepository.findByPhone.mockResolvedValue(null)
+    userRepository.create.mockResolvedValue(
+      createUserSummaryFixture({
+        id: 'user-system-1',
+        personalEmail: 'system@example.com',
+        personalPhone: null,
+      }),
+    )
+    accountRepository.createUserAccount.mockResolvedValue(
+      createAccountSummaryFixture({
+        id: 'account-system-1',
+        userId: 'user-system-1',
+        tenantId: null as any,
+        scopeLevel: 'SYSTEM',
+        displayName: 'Platform Operator',
+      }),
+    )
+
+    const handler = new CreateUserAccountHandler(
+      accountRepository,
+      userRepository,
+      new CheckResourceService(),
+      partyRegistrationPort as any,
+    ) as any
+
+    await expect(
+      handler.execute(
+        new CreateUserAccountCommand({
+          scopeLevel: 'SYSTEM',
+          displayName: 'Platform Operator',
+          email: 'system@example.com',
+          operatorId: 'operator-system',
+          operatorScope: {
+            operatorId: 'operator-system',
+            isSystemScope: true,
+          } as any,
+        }),
+      ),
+    ).resolves.toMatchObject({
+      id: 'account-system-1',
+      userId: 'user-system-1',
+      scopeLevel: 'SYSTEM',
+    })
+
+    expect(partyRegistrationPort.registerPersonParty).toHaveBeenCalledWith(
+      expect.objectContaining({
+        canonicalName: 'Platform Operator',
+        localDisplayName: 'Platform Operator',
+        tenantId: undefined,
+      }),
+    )
+    expect(userRepository.create).toHaveBeenCalledWith({
+      email: 'system@example.com',
+      isActive: true,
+      partyId: 'party-system-1',
+      phone: undefined,
+      username: undefined,
+    })
   })
 })

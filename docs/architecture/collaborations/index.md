@@ -26,6 +26,16 @@
    - 授权判定与查询范围协同蓝图
 3. [account-context-switch.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/account-context-switch.md)
    - 账号上下文切换协同蓝图
+4. [party-identity-and-tenant-org.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/party-identity-and-tenant-org.md)
+   - 主体、身份与租户/组织协同蓝图
+5. [tenant-org-and-identity.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/tenant-org-and-identity.md)
+   - 租户组织与身份边界协同蓝图
+6. [tenant-org-and-hr.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/tenant-org-and-hr.md)
+   - 租户组织与 HR 任职边界协同蓝图
+7. [employee-onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/employee-onboarding.md)
+   - 员工 onboarding 五服务协同蓝图
+8. [mes-wms-erp-fulfillment.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/mes-wms-erp-fulfillment.md)
+   - 制造放行、仓储接手、占用真相与履约协同蓝图
 
 ## 4. 新服务协同准入规则
 

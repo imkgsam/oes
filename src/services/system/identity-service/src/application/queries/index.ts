@@ -1,6 +1,6 @@
 export * from './user'
 export * from './account'
-export * from './tenant'
+export * from './employee-binding'
 export * from './org'
 export * from './contact'
 export * from './service-account'

@@ -1,4 +1,5 @@
 import { MfaBindingType } from '@oes/common/generated/auth_service'
+import { PolicySubjectTypeProto } from '@oes/common/generated/permission_service'
 import { AdminSecurityUseCase } from './admin-security.use-case'
 
 // Verifies the administrator auth-bff use case maps downstream admin session and audit responses into HTTP view models.
@@ -22,7 +23,9 @@ describe('AdminSecurityUseCase', () => {
           personalEmail: 'chen@example.com',
           personalPhone: '+8613800138000'
         }
-      }),
+      })
+    }
+    const tenantOrgAdapter = {
       getTenantById: jest.fn().mockResolvedValue({
         tenant: {
           id: 'tenant-1',
@@ -31,7 +34,13 @@ describe('AdminSecurityUseCase', () => {
       })
     }
 
-    const useCase = new AdminSecurityUseCase(authAdapter as any, identityAdapter as any, {} as any)
+    const useCase = new AdminSecurityUseCase(
+      authAdapter as any,
+      identityAdapter as any,
+      {} as any,
+      undefined,
+      tenantOrgAdapter as any
+    )
     const result = await useCase.getAccountBasicInfo(
       'account-1',
       { user: { sub: 'operator-1', scopeLevel: 'SYSTEM' } } as any
@@ -45,7 +54,7 @@ describe('AdminSecurityUseCase', () => {
       'user-1',
       expect.objectContaining({ user: { sub: 'operator-1', scopeLevel: 'SYSTEM' } })
     )
-    expect(identityAdapter.getTenantById).toHaveBeenCalledWith(
+    expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({ user: { sub: 'operator-1', scopeLevel: 'SYSTEM' } })
     )
@@ -109,12 +118,6 @@ describe('AdminSecurityUseCase', () => {
             personalPhone: '+8613900139000'
           }
         }),
-      getTenantById: jest.fn().mockResolvedValue({
-        tenant: {
-          id: 'tenant-1',
-          name: '达屋科技'
-        }
-      }),
       updateAccountProfile: jest.fn().mockResolvedValue({
         account: {
           id: 'account-1',
@@ -133,8 +136,22 @@ describe('AdminSecurityUseCase', () => {
         }
       })
     }
+    const tenantOrgAdapter = {
+      getTenantById: jest.fn().mockResolvedValue({
+        tenant: {
+          id: 'tenant-1',
+          name: '达屋科技'
+        }
+      })
+    }
 
-    const useCase = new AdminSecurityUseCase(authAdapter as any, identityAdapter as any, {} as any)
+    const useCase = new AdminSecurityUseCase(
+      authAdapter as any,
+      identityAdapter as any,
+      {} as any,
+      undefined,
+      tenantOrgAdapter as any
+    )
     const result = await useCase.updateAccountBasicInfo(
       'account-1',
       {
@@ -202,6 +219,12 @@ describe('AdminSecurityUseCase', () => {
       getTenantMfaPolicy: jest.fn().mockResolvedValue({
         tenantId: 'tenant-1',
         loginRequired: true,
+        scenarioRequirements: [
+          { scenario: 1, required: true },
+          { scenario: 3, required: true },
+          { scenario: 4, required: false },
+          { scenario: 2, required: false }
+        ],
         factors: [
           {
             factor: MfaBindingType.MFA_BINDING_TYPE_SMS_OTP,
@@ -241,6 +264,24 @@ describe('AdminSecurityUseCase', () => {
     expect(result).toEqual({
       tenantId: 'tenant-1',
       loginRequired: true,
+      scenarioRequirements: [
+        {
+          scenario: 'LOGIN',
+          required: true
+        },
+        {
+          scenario: 'CHANGE_PASSWORD',
+          required: true
+        },
+        {
+          scenario: 'CHANGE_CONTACT',
+          required: false
+        },
+        {
+          scenario: 'NEW_DEVICE_LOGIN',
+          required: false
+        }
+      ],
       factors: [
         {
           factor: 'EMAIL_OTP',
@@ -261,6 +302,12 @@ describe('AdminSecurityUseCase', () => {
       updateTenantMfaPolicy: jest.fn().mockResolvedValue({
         tenantId: 'tenant-1',
         loginRequired: true,
+        scenarioRequirements: [
+          { scenario: 1, required: true },
+          { scenario: 3, required: false },
+          { scenario: 4, required: true },
+          { scenario: 2, required: true }
+        ],
         factors: [
           {
             factor: MfaBindingType.MFA_BINDING_TYPE_TOTP,
@@ -285,6 +332,24 @@ describe('AdminSecurityUseCase', () => {
     const result = await useCase.updateTenantMfaPolicy(
       {
         loginRequired: true,
+        scenarioRequirements: [
+          {
+            scenario: 'LOGIN',
+            required: true
+          },
+          {
+            scenario: 'CHANGE_PASSWORD',
+            required: false
+          },
+          {
+            scenario: 'CHANGE_CONTACT',
+            required: true
+          },
+          {
+            scenario: 'NEW_DEVICE_LOGIN',
+            required: true
+          }
+        ],
         factors: [
           {
             factor: 'TOTP',
@@ -316,6 +381,24 @@ describe('AdminSecurityUseCase', () => {
       {
         tenantId: 'tenant-1',
         loginRequired: true,
+        scenarioRequirements: [
+          {
+            scenario: 'LOGIN',
+            required: true
+          },
+          {
+            scenario: 'CHANGE_PASSWORD',
+            required: false
+          },
+          {
+            scenario: 'CHANGE_CONTACT',
+            required: true
+          },
+          {
+            scenario: 'NEW_DEVICE_LOGIN',
+            required: true
+          }
+        ],
         factors: [
           {
             factor: 'TOTP',
@@ -345,6 +428,24 @@ describe('AdminSecurityUseCase', () => {
     expect(result).toEqual({
       tenantId: 'tenant-1',
       loginRequired: true,
+      scenarioRequirements: [
+        {
+          scenario: 'LOGIN',
+          required: true
+        },
+        {
+          scenario: 'CHANGE_PASSWORD',
+          required: false
+        },
+        {
+          scenario: 'CHANGE_CONTACT',
+          required: true
+        },
+        {
+          scenario: 'NEW_DEVICE_LOGIN',
+          required: true
+        }
+      ],
       factors: [
         {
           factor: 'TOTP',
@@ -373,18 +474,18 @@ describe('AdminSecurityUseCase', () => {
           {
             accountId: 'account-1',
             userId: 'user-1',
+            userPartyId: 'party-1',
             tenantId: 'tenant-1',
-            tenantName: 'Alpha Tenant',
             displayName: 'Alpha Admin',
-            userDisplayName: 'Janny',
+            userDisplayName: 'legacy-janny',
             scopeLevel: 'TENANT',
             isEnabled: true
           },
           {
             accountId: 'account-2',
             userId: 'user-2',
+            userPartyId: 'party-2',
             tenantId: 'tenant-1',
-            tenantName: 'Alpha Tenant',
             displayName: 'Legacy Account / Alpha Tenant tenant-1',
             scopeLevel: 'TENANT',
             isEnabled: true
@@ -393,8 +494,28 @@ describe('AdminSecurityUseCase', () => {
         total: 42
       })
     }
+    const partyAdapter = {
+      getPartyById: jest
+        .fn()
+        .mockResolvedValueOnce({ party: { id: 'party-1', displayName: '张三', canonicalName: '张三' } })
+        .mockResolvedValueOnce({ party: { id: 'party-2', displayName: '', canonicalName: '李四' } }),
+    }
+    const tenantOrgAdapter = {
+      getTenantById: jest.fn().mockResolvedValue({
+        tenant: {
+          id: 'tenant-1',
+          name: 'Alpha Tenant'
+        }
+      })
+    }
 
-    const useCase = new AdminSecurityUseCase(authAdapter as any, identityAdapter as any, {} as any)
+    const useCase = new AdminSecurityUseCase(
+      authAdapter as any,
+      identityAdapter as any,
+      {} as any,
+      partyAdapter as any,
+      tenantOrgAdapter as any,
+    )
     const result = await useCase.listAccounts(
       { keyword: '', page: 1, pageSize: 20, scopeLevel: 'TENANT', status: 'ENABLED' } as any,
       { user: { sub: 'operator-1', scopeLevel: 'SYSTEM' } } as any
@@ -410,6 +531,10 @@ describe('AdminSecurityUseCase', () => {
       },
       expect.objectContaining({ user: { sub: 'operator-1', scopeLevel: 'SYSTEM' } })
     )
+    expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({ user: { sub: 'operator-1', scopeLevel: 'SYSTEM' } })
+    )
     expect(result).toEqual({
       items: [
         {
@@ -418,7 +543,7 @@ describe('AdminSecurityUseCase', () => {
           tenantId: 'tenant-1',
           tenantName: 'Alpha Tenant',
           accountDisplayName: 'Alpha Admin',
-          userDisplayName: 'Janny',
+          userDisplayName: '张三',
           scopeLevel: 'TENANT',
           isEnabled: true
         },
@@ -428,7 +553,7 @@ describe('AdminSecurityUseCase', () => {
           tenantId: 'tenant-1',
           tenantName: 'Alpha Tenant',
           accountDisplayName: 'Legacy Account / Alpha Tenant tenant-1',
-          userDisplayName: undefined,
+          userDisplayName: '李四',
           scopeLevel: 'TENANT',
           isEnabled: true
         }
@@ -467,6 +592,7 @@ describe('AdminSecurityUseCase', () => {
       getUserByEmail: jest.fn().mockResolvedValue({
         user: {
           id: 'user-1',
+          partyId: 'party-1',
           username: 'legacy-handle',
           personalEmail: 'victor@example.com',
           personalPhone: '+15550000001',
@@ -483,7 +609,9 @@ describe('AdminSecurityUseCase', () => {
             scopeLevel: 'TENANT'
           }
         ]
-      }),
+      })
+    }
+    const tenantOrgAdapter = {
       getTenantById: jest.fn().mockResolvedValue({
         tenant: {
           id: 'tenant-1',
@@ -491,8 +619,23 @@ describe('AdminSecurityUseCase', () => {
         }
       })
     }
+    const partyAdapter = {
+      getPartyById: jest.fn().mockResolvedValue({
+        party: {
+          id: 'party-1',
+          displayName: '维克多',
+          canonicalName: 'Victor Chen'
+        }
+      })
+    }
 
-    const useCase = new AdminSecurityUseCase(authAdapter as any, identityAdapter as any, {} as any)
+    const useCase = new AdminSecurityUseCase(
+      authAdapter as any,
+      identityAdapter as any,
+      {} as any,
+      partyAdapter as any,
+      tenantOrgAdapter as any
+    )
     const result = await useCase.searchUsers(
       { keyword: 'victor@example.com', limit: 10 } as any,
       { user: { sub: 'operator-1', scopeLevel: 'SYSTEM' } } as any
@@ -506,7 +649,7 @@ describe('AdminSecurityUseCase', () => {
       items: [
         {
           userId: 'user-1',
-          displayName: 'Victor / Tenant',
+          displayName: '维克多',
           emailMasked: 'v***@example.com',
           phoneMasked: '+1*******001',
           accountSummaries: [
@@ -574,7 +717,9 @@ describe('AdminSecurityUseCase', () => {
             scopeLevel: 'TENANT'
           }
         ]
-      }),
+      })
+    }
+    const tenantOrgAdapter = {
       getTenantById: jest
         .fn()
         .mockResolvedValueOnce({
@@ -591,7 +736,13 @@ describe('AdminSecurityUseCase', () => {
         })
     }
 
-    const useCase = new AdminSecurityUseCase(authAdapter as any, identityAdapter as any, {} as any)
+    const useCase = new AdminSecurityUseCase(
+      authAdapter as any,
+      identityAdapter as any,
+      {} as any,
+      undefined,
+      tenantOrgAdapter as any
+    )
     const result = await useCase.searchUsers(
       { keyword: '550e8400-e29b-41d4-a716-446655440000', limit: 10 } as any,
       { user: { sub: 'operator-1', tid: 'tenant-1', scopeLevel: 'TENANT' } } as any
@@ -702,9 +853,12 @@ describe('AdminSecurityUseCase', () => {
       getUserById: jest.fn().mockResolvedValue({
         user: {
           userId: 'user-1',
-          username: 'Vic Chen'
+          partyId: 'party-1',
+          username: 'legacy-vic'
         }
-      }),
+      })
+    }
+    const tenantOrgAdapter = {
       getTenantById: jest
         .fn()
         .mockResolvedValueOnce({
@@ -720,8 +874,23 @@ describe('AdminSecurityUseCase', () => {
           }
         })
     }
+    const partyAdapter = {
+      getPartyById: jest.fn().mockResolvedValue({
+        party: {
+          id: 'party-1',
+          displayName: '陈双鹏',
+          canonicalName: '陈双鹏',
+        },
+      }),
+    }
 
-    const useCase = new AdminSecurityUseCase(authAdapter as any, identityAdapter as any, {} as any)
+    const useCase = new AdminSecurityUseCase(
+      authAdapter as any,
+      identityAdapter as any,
+      {} as any,
+      partyAdapter as any,
+      tenantOrgAdapter as any,
+    )
     const result = await useCase.listOnlineUsers(
       { tenantId: 'tenant-1', query: 'vic', pageSize: 20 },
       { user: { sub: 'operator-1' } }
@@ -735,7 +904,7 @@ describe('AdminSecurityUseCase', () => {
       items: [
         expect.objectContaining({
           userId: 'user-1',
-          displayName: 'Vic Chen',
+          displayName: '陈双鹏',
           activeSessionCount: 3,
           activeAccountCount: 2,
           visibleTenantCount: 2,
@@ -979,12 +1148,6 @@ describe('AdminSecurityUseCase', () => {
             personalPhone: '+8613800138000'
           }
         }),
-      getTenantById: jest.fn().mockResolvedValue({
-        tenant: {
-          id: 'tenant-1',
-          name: 'Tenant A'
-        }
-      }),
       updateAccountProfile: jest.fn().mockResolvedValue({
         account: {
           id: 'account-1',
@@ -996,8 +1159,22 @@ describe('AdminSecurityUseCase', () => {
         }
       })
     }
+    const tenantOrgAdapter = {
+      getTenantById: jest.fn().mockResolvedValue({
+        tenant: {
+          id: 'tenant-1',
+          name: 'Tenant A'
+        }
+      })
+    }
 
-    const useCase = new AdminSecurityUseCase(authAdapter as any, identityAdapter as any, {} as any)
+    const useCase = new AdminSecurityUseCase(
+      authAdapter as any,
+      identityAdapter as any,
+      {} as any,
+      undefined,
+      tenantOrgAdapter as any
+    )
     const source = {
       user: {
         sub: 'operator-1',
@@ -1088,12 +1265,6 @@ describe('AdminSecurityUseCase', () => {
             personalPhone: '+8613800138000'
           }
         }),
-      getTenantById: jest.fn().mockResolvedValue({
-        tenant: {
-          id: 'tenant-1',
-          name: 'Tenant A'
-        }
-      }),
       updateAccountProfile: jest.fn().mockResolvedValue({
         account: {
           id: 'account-1',
@@ -1105,8 +1276,22 @@ describe('AdminSecurityUseCase', () => {
         }
       })
     }
+    const tenantOrgAdapter = {
+      getTenantById: jest.fn().mockResolvedValue({
+        tenant: {
+          id: 'tenant-1',
+          name: 'Tenant A'
+        }
+      })
+    }
 
-    const useCase = new AdminSecurityUseCase(authAdapter as any, identityAdapter as any, {} as any)
+    const useCase = new AdminSecurityUseCase(
+      authAdapter as any,
+      identityAdapter as any,
+      {} as any,
+      undefined,
+      tenantOrgAdapter as any
+    )
 
     await expect(
       useCase.updateAccountBasicInfo(
@@ -1134,7 +1319,7 @@ describe('AdminSecurityUseCase', () => {
   })
 
   it('lists tenant options for system-scope account creation selectors', async () => {
-    const identityAdapter = {
+    const tenantOrgAdapter = {
       listTenants: jest.fn().mockResolvedValue({
         tenants: [
           {
@@ -1147,13 +1332,19 @@ describe('AdminSecurityUseCase', () => {
       })
     }
 
-    const useCase = new AdminSecurityUseCase({} as any, identityAdapter as any, {} as any)
+    const useCase = new AdminSecurityUseCase(
+      {} as any,
+      {} as any,
+      {} as any,
+      undefined,
+      tenantOrgAdapter as any
+    )
     const result = await useCase.listTenantOptions(
       { keyword: 'alpha', pageSize: 10 } as any,
       { user: { sub: 'operator-1', scopeLevel: 'SYSTEM' } } as any
     )
 
-    expect(identityAdapter.listTenants).toHaveBeenCalledWith(
+    expect(tenantOrgAdapter.listTenants).toHaveBeenCalledWith(
       {
         keyword: 'alpha',
         pageSize: 10
@@ -1187,5 +1378,219 @@ describe('AdminSecurityUseCase', () => {
       )
     ).rejects.toThrow('CANNOT_REVOKE_CURRENT_SESSION')
     expect(authAdapter.adminRevokeSession).not.toHaveBeenCalled()
+  })
+
+  it('loads one account deletion impact view through the identity adapter', async () => {
+    const identityAdapter = {
+      getAccountById: jest.fn().mockResolvedValue({
+        account: {
+          id: 'account-1',
+          userId: 'user-1',
+          tenantId: 'tenant-1',
+          scopeLevel: 'TENANT'
+        }
+      }),
+      getAccountDeletionImpact: jest.fn().mockResolvedValue({
+        accountId: 'account-1',
+        canDelete: false,
+        userRetained: true,
+        cleanupPlan: {
+          willDeleteSessions: true,
+          willClearRoles: true,
+          willDeleteOrgMemberships: true,
+          willDeleteContactAssets: true
+        },
+        blockingReasons: [
+          {
+            resourceType: 'sales_order_owner',
+            resourceCount: 4,
+            message: '账号仍有业务归属'
+          }
+        ],
+        orgMembershipCount: 2,
+        contactAssetCount: 1
+      })
+    }
+
+    const useCase = new AdminSecurityUseCase({} as any, identityAdapter as any, {} as any)
+
+    await expect(
+      useCase.getAccountDeletionImpact(
+        'account-1',
+        { user: { sub: 'operator-1', scopeLevel: 'TENANT', tenantId: 'tenant-1' } } as any
+      )
+    ).resolves.toEqual({
+      accountId: 'account-1',
+      canDelete: false,
+      userRetained: true,
+      cleanupPlan: {
+        willDeleteSessions: true,
+        willClearRoles: true,
+        willDeleteOrgMemberships: true,
+        willDeleteContactAssets: true
+      },
+      blockingReasons: [
+        {
+          resourceType: 'sales_order_owner',
+          resourceCount: 4,
+          message: '账号仍有业务归属'
+        }
+      ],
+      orgMembershipCount: 2,
+      contactAssetCount: 1
+    })
+  })
+
+  it('deletes one account by clearing sessions, clearing roles, and deleting identity state in order', async () => {
+    const authAdapter = {
+      adminDeleteAccountSessions: jest.fn().mockResolvedValue({
+        success: true,
+        deletedSessionCount: 3
+      })
+    }
+    const identityAdapter = {
+      getAccountById: jest.fn().mockResolvedValue({
+        account: {
+          id: 'account-1',
+          userId: 'user-1',
+          tenantId: 'tenant-1',
+          scopeLevel: 'TENANT'
+        }
+      }),
+      getAccountDeletionImpact: jest.fn().mockResolvedValue({
+        accountId: 'account-1',
+        canDelete: true,
+        userRetained: true,
+        cleanupPlan: {
+          willDeleteSessions: true,
+          willClearRoles: true,
+          willDeleteOrgMemberships: true,
+          willDeleteContactAssets: true
+        },
+        blockingReasons: [],
+        orgMembershipCount: 1,
+        contactAssetCount: 2
+      }),
+      deleteAccount: jest.fn().mockResolvedValue({
+        accountId: 'account-1',
+        deletedOrgMembershipCount: 1,
+        deletedContactAssetCount: 2,
+        userRetained: true
+      })
+    }
+    const permissionService = {
+      deletePolicy: jest.fn().mockResolvedValue(undefined),
+      listPolicies: jest.fn().mockResolvedValue({
+        policies: [{ id: 'policy-1' }, { id: 'policy-2' }]
+      }),
+      listAccountRoles: jest.fn().mockResolvedValue({
+        roles: [{ id: 'role-1' }, { id: 'role-2' }]
+      }),
+      setAccountRoles: jest.fn().mockResolvedValue({
+        roles: []
+      })
+    }
+
+    const useCase = new AdminSecurityUseCase(
+      authAdapter as any,
+      identityAdapter as any,
+      permissionService as any
+    )
+    const source = {
+      user: {
+        sub: 'operator-1',
+        aid: 'account-admin',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1'
+      }
+    } as any
+
+    await expect(useCase.deleteAccount('account-1', source)).resolves.toEqual({
+      accountId: 'account-1',
+      success: true,
+      deletedSessionCount: 3,
+      clearedRoleCount: 2,
+      deletedPolicyCount: 2,
+      deletedOrgMembershipCount: 1,
+      deletedContactAssetCount: 2,
+      userRetained: true
+    })
+
+    expect(authAdapter.adminDeleteAccountSessions.mock.invocationCallOrder[0]).toBeLessThan(
+      permissionService.setAccountRoles.mock.invocationCallOrder[0]
+    )
+    expect(permissionService.setAccountRoles.mock.invocationCallOrder[0]).toBeLessThan(
+      permissionService.deletePolicy.mock.invocationCallOrder[0]
+    )
+    expect(permissionService.deletePolicy.mock.invocationCallOrder[1]).toBeLessThan(
+      identityAdapter.deleteAccount.mock.invocationCallOrder[0]
+    )
+    expect(permissionService.listPolicies).toHaveBeenCalledWith(
+      {
+        page: 1,
+        pageSize: 100,
+        subjectId: 'account-1',
+        subjectType: PolicySubjectTypeProto.POLICY_SUBJECT_TYPE_PROTO_ACCOUNT
+      },
+      source
+    )
+    expect(permissionService.deletePolicy).toHaveBeenNthCalledWith(
+      1,
+      { id: 'policy-1' },
+      source
+    )
+    expect(permissionService.deletePolicy).toHaveBeenNthCalledWith(
+      2,
+      { id: 'policy-2' },
+      source
+    )
+    expect(identityAdapter.deleteAccount).toHaveBeenCalledWith(
+      {
+        accountId: 'account-1',
+        deletedSessionCount: 3,
+        clearedRoleCount: 2,
+        deletedPolicyCount: 2
+      },
+      source
+    )
+    expect(permissionService.setAccountRoles).toHaveBeenCalledWith(
+      {
+        accountId: 'account-1',
+        accountType: 'USER',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        roleIds: []
+      },
+      source
+    )
+  })
+
+  it('rejects deleting the current login account', async () => {
+    const identityAdapter = {
+      getAccountById: jest.fn().mockResolvedValue({
+        account: {
+          id: 'account-current',
+          userId: 'user-1',
+          tenantId: 'tenant-1',
+          scopeLevel: 'TENANT'
+        }
+      })
+    }
+
+    const useCase = new AdminSecurityUseCase({} as any, identityAdapter as any, {} as any)
+
+    await expect(
+      useCase.deleteAccount(
+        'account-current',
+        {
+          user: {
+            sub: 'operator-1',
+            aid: 'account-current',
+            scopeLevel: 'TENANT',
+            tenantId: 'tenant-1'
+          }
+        } as any
+      )
+    ).rejects.toThrow('Current login account cannot be deleted')
   })
 })

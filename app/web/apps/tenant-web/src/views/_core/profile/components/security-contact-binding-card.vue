@@ -4,7 +4,8 @@ import type { SelfSecurityApi } from '#/api';
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 
 import { SliderCaptcha } from '@vben/common-ui';
-import { Button, Card, Form, Input, Modal, Tooltip, message } from 'ant-design-vue';
+
+import { Alert, Button, Card, Form, Input, message, Modal, Steps } from 'ant-design-vue';
 
 import {
   requestEmailBindingChallengeApi,
@@ -13,13 +14,16 @@ import {
   verifyPhoneBindingApi,
 } from '#/api';
 
+import PhoneNumberInput from '../../authentication/phone-number-input.vue';
 import {
   getContactBindingActionLabel,
+  normalizeContactBindingValue,
   resolveBoundContact,
+  resolveBoundContactIdentifier,
   validateContactBindingOtp,
   validateContactBindingValue,
 } from '../security-center.helpers';
-import PhoneNumberInput from '../../authentication/phone-number-input.vue';
+import SecurityStepUpMfaDialog from './security-step-up-mfa-dialog.vue';
 
 type ContactBindingKind = 'email' | 'phone';
 
@@ -33,7 +37,12 @@ const emit = defineEmits<{
 }>();
 
 const modalOpen = ref(false);
-const captchaModalOpen = ref(false);
+const stepUpMfaDialogRef = ref<null | {
+  beginChallenge: (
+    scenario: SelfSecurityApi.StepUpMfaScenario,
+  ) => Promise<null | string>;
+}>(null);
+const activeStep = ref<'destination' | 'verification'>('destination');
 const challengeLoading = ref(false);
 const resendCountdown = ref(0);
 const resendTimer = ref<ReturnType<typeof setTimeout>>();
@@ -53,8 +62,14 @@ const kindLabel = computed(() => (props.kind === 'email' ? '邮箱' : '手机'))
 const currentBinding = computed(() =>
   resolveBoundContact(props.loginMethods, props.kind),
 );
+const currentBindingIdentifier = computed(() =>
+  resolveBoundContactIdentifier(props.loginMethods, props.kind),
+);
 const actionLabel = computed(() =>
   getContactBindingActionLabel(currentBinding.value),
+);
+const actionTitle = computed(() =>
+  currentBinding.value ? `更换${kindLabel.value}` : `绑定${kindLabel.value}`,
 );
 const valuePlaceholder = computed(() =>
   props.kind === 'email' ? '请输入要绑定的新邮箱' : '请输入要绑定的新手机号',
@@ -63,19 +78,39 @@ const otpPlaceholder = computed(() =>
   props.kind === 'email' ? '请输入邮箱验证码' : '请输入短信验证码',
 );
 const challengeReady = computed(() => Boolean(formState.challengeExpiresAt));
+const normalizedTargetValue = computed(() =>
+  normalizeContactBindingValue(props.kind, formState.value),
+);
 const destinationValid = computed(() =>
   validateContactBindingValue(props.kind, formState.value) === '',
 );
-const sendButtonLabel = computed(() =>
-  resendCountdown.value > 0 ? `${resendCountdown.value} 秒后重发` : challengeReady.value ? '重新发送验证码' : '发送验证码',
+const bindingValueUnchanged = computed(() =>
+  Boolean(normalizedTargetValue.value) &&
+  normalizedTargetValue.value ===
+    normalizeContactBindingValue(props.kind, currentBindingIdentifier.value),
 );
-const sendButtonDisabled = computed(
-  () =>
-    challengeLoading.value ||
-    resendCountdown.value > 0 ||
-    !formState.value.trim() ||
-    !destinationValid.value,
+const sendButtonLabel = computed(() => {
+  if (resendCountdown.value > 0) {
+    return `${resendCountdown.value} 秒后重发`;
+  }
+
+  return challengeReady.value ? '重新发送验证码' : '发送验证码';
+});
+const isDestinationStep = computed(() => activeStep.value === 'destination');
+const canAdvanceToVerification = computed(() =>
+  destinationValid.value &&
+  Boolean(formState.value.trim()) &&
+  !bindingValueUnchanged.value,
 );
+const shouldShowCaptchaPanel = computed(
+  () => !challengeReady.value || resendCountdown.value === 0,
+);
+const shouldShowOtpPanel = computed(() => challengeReady.value);
+const activeStepIndex = computed(() => (isDestinationStep.value ? 0 : 1));
+const stepItems = computed(() => [
+  { title: `填写新${kindLabel.value}` },
+  { title: '验证并确认' },
+]);
 
 watch(
   () => formState.value,
@@ -111,6 +146,7 @@ function resetChallengeState() {
 function resetFormState() {
   formState.value = '';
   formState.valueError = '';
+  activeStep.value = 'destination';
   resetChallengeState();
 }
 
@@ -123,21 +159,23 @@ function openModal() {
 // Closes the binding modal and clears transient challenge state.
 function closeModal() {
   modalOpen.value = false;
-  closeCaptchaModal();
   resetFormState();
 }
 
-// Opens the verification dialog only when the user explicitly requests an OTP.
-function openCaptchaModal() {
-  formState.captchaVerified = false;
-  formState.widgetVersion += 1;
-  captchaModalOpen.value = true;
+// Advances the replacement flow to the security verification step when the target is valid.
+function goToVerificationStep() {
+  formState.valueError = resolveValueValidationError();
+  if (formState.valueError) {
+    return;
+  }
+
+  activeStep.value = 'verification';
 }
 
-// Closes the OTP verification dialog and clears its transient state.
-function closeCaptchaModal() {
-  captchaModalOpen.value = false;
-  formState.captchaVerified = false;
+// Returns to the target entry step and clears pending verification state for a clean retry.
+function goBackToDestinationStep() {
+  activeStep.value = 'destination';
+  resetChallengeState();
 }
 
 // Clears the resend timer so the button can return to its default state.
@@ -168,8 +206,6 @@ function startResendCountdown() {
 // Records that the slider gate has passed and then sends the OTP challenge.
 async function handleCaptchaSuccess() {
   formState.captchaVerified = true;
-  closeCaptchaModal();
-  message.success('滑动验证已通过');
   await sendChallengeRequest();
 }
 
@@ -194,23 +230,17 @@ async function sendChallengeRequest() {
 
     formState.challengeDestination = result.destination;
     formState.challengeExpiresAt = result.expiresAt;
+    formState.captchaVerified = false;
+    formState.widgetVersion += 1;
     startResendCountdown();
     message.success(
       `${kindLabel.value}验证码已发送，请在有效期内完成验证`,
     );
+  } catch (error) {
+    message.error(resolveBindingRequestErrorMessage(error));
   } finally {
     challengeLoading.value = false;
   }
-}
-
-// Validates the destination first, then opens the verification dialog.
-function requestChallenge() {
-  formState.valueError = validateContactBindingValue(props.kind, formState.value);
-  if (formState.valueError) {
-    return;
-  }
-
-  openCaptchaModal();
 }
 
 onBeforeUnmount(() => {
@@ -219,7 +249,7 @@ onBeforeUnmount(() => {
 
 // Verifies the submitted OTP and emits a refresh signal after the binding is replaced.
 async function submitBinding() {
-  formState.valueError = validateContactBindingValue(props.kind, formState.value);
+  formState.valueError = resolveValueValidationError();
   formState.otpError = validateContactBindingOtp(formState.otp);
 
   if (formState.valueError || formState.otpError) {
@@ -233,24 +263,67 @@ async function submitBinding() {
 
   verifyLoading.value = true;
   try {
-    if (props.kind === 'email') {
-      await verifyEmailBindingApi({
-        email: formState.value.trim(),
-        otp: formState.otp.trim(),
-      });
-    } else {
-      await verifyPhoneBindingApi({
-        otp: formState.otp.trim(),
-        phone: formState.value.trim(),
-      });
+    const mfaGrantToken = await stepUpMfaDialogRef.value?.beginChallenge(
+      'CHANGE_CONTACT',
+    );
+    if (mfaGrantToken === null) {
+      return;
     }
+
+    await (
+      props.kind === 'email'
+        ? verifyEmailBindingApi({
+            email: formState.value.trim(),
+            mfaGrantToken: mfaGrantToken || undefined,
+            otp: formState.otp.trim(),
+          })
+        : verifyPhoneBindingApi({
+            mfaGrantToken: mfaGrantToken || undefined,
+            otp: formState.otp.trim(),
+            phone: formState.value.trim(),
+          })
+    );
 
     message.success(`${kindLabel.value}绑定已更新`);
     closeModal();
     emit('refreshed');
+  } catch (error) {
+    message.error(resolveBindingRequestErrorMessage(error));
   } finally {
     verifyLoading.value = false;
   }
+}
+
+function resolveBindingRequestErrorMessage(error: unknown) {
+  const responseData = (error as any)?.response?.data ?? (error as any) ?? {};
+  const detailField = `${responseData?.details?.field ?? ''}`.trim();
+
+  if (detailField === 'email') {
+    return '该邮箱已被其他账号使用，请更换后重试。';
+  }
+
+  if (detailField === 'phone') {
+    return '该手机号已被其他账号使用，请更换后重试。';
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return `${kindLabel.value}绑定更新失败，请稍后重试。`;
+}
+
+function resolveValueValidationError() {
+  const formatError = validateContactBindingValue(props.kind, formState.value);
+  if (formatError) {
+    return formatError;
+  }
+
+  if (bindingValueUnchanged.value) {
+    return `新${kindLabel.value}不能与当前绑定一致`;
+  }
+
+  return '';
 }
 </script>
 
@@ -260,9 +333,6 @@ async function submitBinding() {
       <div>
         <div class="binding-card__title-row">
           <div class="binding-card__title">{{ kindLabel }}绑定</div>
-          <Tooltip :title="`验证通过后会直接替换当前${kindLabel}绑定`">
-            <span class="binding-help-dot">?</span>
-          </Tooltip>
         </div>
       </div>
       <Button type="primary" ghost @click="openModal">
@@ -281,132 +351,139 @@ async function submitBinding() {
       v-model:open="modalOpen"
       :confirm-loading="verifyLoading"
       :footer="null"
-      :title="`${actionLabel}${kindLabel}`"
+      :title="actionTitle"
       centered
       destroy-on-close
-      width="680px"
+      width="640px"
       @cancel="closeModal"
     >
       <template #title>
         <div class="binding-modal__title-row">
-          <span>{{ `${actionLabel}${kindLabel}` }}</span>
-          <Tooltip :title="`验证成功后将直接替换当前${kindLabel}绑定，旧绑定不会保留`">
-            <span class="binding-help-dot">?</span>
-          </Tooltip>
+          <span>{{ actionTitle }}</span>
         </div>
       </template>
 
       <div class="binding-modal">
+        <Steps
+          class="binding-modal__steps"
+          :current="activeStepIndex"
+          :items="stepItems"
+          size="small"
+        />
+
         <Form layout="vertical" class="binding-modal__form">
-          <div class="binding-modal__surface">
-            <div class="binding-modal__surface-header">
-              <div class="binding-modal__surface-title">
-                新{{ kindLabel }}
-              </div>
-              <div class="binding-modal__surface-meta">
-                {{ currentBinding || `当前未绑定${kindLabel}` }}
-              </div>
-            </div>
+          <div class="binding-modal__section">
+            <Alert
+              class="binding-modal__alert"
+              :message="`当前绑定：${currentBinding || `暂未绑定${kindLabel}`}`"
+              show-icon
+              type="info"
+            />
 
-            <Form.Item
-              :help="formState.valueError || undefined"
-              :label="`${kindLabel}地址`"
-              :validate-status="formState.valueError ? 'error' : undefined"
-            >
-              <PhoneNumberInput
-                v-if="props.kind === 'phone'"
-                v-model="formState.value"
-                :placeholder="valuePlaceholder"
-              />
-              <Input
-                v-else
-                v-model:value="formState.value"
-                :placeholder="valuePlaceholder"
-              />
-            </Form.Item>
-          </div>
-
-          <div class="binding-modal__surface">
-            <div class="binding-modal__surface-header">
-              <div class="binding-modal__surface-title">验证码确认</div>
-              <Tooltip title="验证码发送到你填写的新绑定目标，验证成功后才会正式替换">
-                <span class="binding-help-dot binding-help-dot--small">?</span>
-              </Tooltip>
-            </div>
-
-            <div v-if="challengeReady" class="challenge-summary">
-              <div>发送目标：{{ formState.challengeDestination }}</div>
-              <div>失效时间：{{ formatExpiration(formState.challengeExpiresAt) }}</div>
-            </div>
-
-            <div class="otp-row">
+            <template v-if="isDestinationStep">
               <Form.Item
-                class="otp-row__input"
-                :help="formState.otpError || undefined"
-                label="验证码"
-                :validate-status="formState.otpError ? 'error' : undefined"
+                :help="formState.valueError || undefined"
+                :label="`新${kindLabel}`"
+                :validate-status="formState.valueError ? 'error' : undefined"
               >
+                <PhoneNumberInput
+                  v-if="props.kind === 'phone'"
+                  v-model="formState.value"
+                  :placeholder="valuePlaceholder"
+                />
                 <Input
-                  v-model:value="formState.otp"
-                  :maxlength="6"
-                  :placeholder="otpPlaceholder"
+                  v-else
+                  v-model:value="formState.value"
+                  :placeholder="valuePlaceholder"
                 />
               </Form.Item>
-              <Button
-                class="otp-row__button"
-                :disabled="sendButtonDisabled"
-                :loading="challengeLoading"
-                @click="requestChallenge"
+            </template>
+
+            <template v-else>
+              <Alert
+                class="binding-modal__alert"
+                :message="`验证码将发送至 ${formState.value.trim()}`"
+                show-icon
+                type="info"
+              />
+
+              <div
+                v-if="shouldShowCaptchaPanel"
+                class="binding-modal__captcha"
               >
-                {{ sendButtonLabel }}
-              </Button>
-            </div>
+                <div class="binding-modal__caption">
+                  {{ challengeReady ? '重新验证后发送验证码' : '完成安全验证后发送验证码' }}
+                </div>
+                <SliderCaptcha
+                  :key="formState.widgetVersion"
+                  v-model="formState.captchaVerified"
+                  class="binding-modal__captcha-widget"
+                  success-text="验证通过"
+                  text="请按住滑块拖动"
+                  @success="handleCaptchaSuccess"
+                />
+              </div>
+
+              <div v-if="shouldShowOtpPanel" class="binding-modal__verification">
+                <div class="binding-modal__caption binding-modal__caption--muted">
+                  <div>验证码已发送至 {{ formState.challengeDestination }}</div>
+                  <div>有效期至 {{ formatExpiration(formState.challengeExpiresAt) }}</div>
+                </div>
+
+                <div class="otp-row">
+                  <Form.Item
+                    class="otp-row__input"
+                    :help="formState.otpError || undefined"
+                    label="验证码"
+                    :validate-status="formState.otpError ? 'error' : undefined"
+                  >
+                    <Input
+                      v-model:value="formState.otp"
+                      :maxlength="6"
+                      :placeholder="otpPlaceholder"
+                    />
+                  </Form.Item>
+                  <div class="otp-row__side">
+                    <Button
+                      v-if="resendCountdown > 0"
+                      class="otp-row__button"
+                      disabled
+                    >
+                      {{ sendButtonLabel }}
+                    </Button>
+                    <span v-else class="binding-modal__resend-hint">可重新验证后发送</span>
+                  </div>
+                </div>
+              </div>
+            </template>
           </div>
 
           <div class="binding-modal__actions">
-            <Button @click="closeModal">取消</Button>
+            <Button v-if="isDestinationStep" @click="closeModal">取消</Button>
+            <Button v-else @click="goBackToDestinationStep">上一步</Button>
             <Button
+              v-if="isDestinationStep"
               type="primary"
+              :disabled="!canAdvanceToVerification"
+              @click="goToVerificationStep"
+            >
+              下一步
+            </Button>
+            <Button
+              v-else
+              type="primary"
+              :disabled="!challengeReady"
               :loading="verifyLoading"
               @click="submitBinding"
             >
-              确认绑定
+              确认更换
             </Button>
           </div>
         </Form>
       </div>
     </Modal>
 
-    <Modal
-      :footer="null"
-      :open="captchaModalOpen"
-      centered
-      destroy-on-close
-      width="420px"
-      @cancel="closeCaptchaModal"
-    >
-      <template #title>
-        <div class="binding-modal__title-row">
-          <span>发送前验证</span>
-          <Tooltip title="完成一次滑动验证后，才会真正发送验证码">
-            <span class="binding-help-dot">?</span>
-          </Tooltip>
-        </div>
-      </template>
-
-      <div class="captcha-modal">
-        <div class="captcha-modal__meta">
-          {{ kindLabel }}验证码将发送到你填写的新绑定目标
-        </div>
-        <SliderCaptcha
-          :key="formState.widgetVersion"
-          v-model="formState.captchaVerified"
-          success-text="验证通过"
-          text="请按住滑块拖动"
-          @success="handleCaptchaSuccess"
-        />
-      </div>
-    </Modal>
+    <SecurityStepUpMfaDialog ref="stepUpMfaDialogRef" />
   </Card>
 </template>
 
@@ -415,11 +492,7 @@ async function submitBinding() {
   --binding-border: hsl(var(--border));
   --binding-card-bg: hsl(var(--card));
   --binding-card-bg-soft: hsl(var(--muted) / 0.55);
-  --binding-card-bg-strong: hsl(var(--muted) / 0.82);
-  --binding-card-bg-accent:
-    linear-gradient(180deg, hsl(var(--card)), hsl(var(--muted) / 0.72));
   --binding-title: hsl(var(--foreground));
-  --binding-text: hsl(var(--foreground) / 0.92);
   --binding-muted: hsl(var(--muted-foreground));
   border: 1px solid var(--binding-border);
   background: var(--binding-card-bg);
@@ -446,12 +519,10 @@ async function submitBinding() {
 }
 
 .binding-summary {
-  display: grid;
-  gap: 10px;
   margin-top: 16px;
-  padding: 14px;
-  border-radius: 14px;
-  background: var(--binding-card-bg-strong);
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: hsl(var(--muted) / 0.35);
   border: 1px solid var(--binding-border);
 }
 
@@ -471,61 +542,78 @@ async function submitBinding() {
 }
 
 .binding-modal {
-  display: flex;
-  flex-direction: column;
   gap: 16px;
 }
 
+.binding-modal,
+.binding-modal__form {
+  display: flex;
+  flex-direction: column;
+}
+
 .binding-modal__title-row,
-.binding-modal__surface-header {
+.binding-modal__surface-header,
+.binding-target-summary {
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 
 .binding-modal__title-row {
   justify-content: flex-start;
 }
 
+.binding-modal__steps {
+  margin-bottom: 4px;
+}
+
 .binding-modal__form {
-  display: flex;
-  flex-direction: column;
   gap: 16px;
 }
 
-.binding-modal__surface {
+.binding-modal__section {
+  display: grid;
+  gap: 16px;
   padding: 16px;
   border: 1px solid var(--binding-border);
-  border-radius: 16px;
-  background: var(--binding-card-bg-accent);
+  border-radius: 8px;
+  background: var(--binding-card-bg);
 }
 
-.binding-modal__surface-header {
-  justify-content: space-between;
-  margin-bottom: 14px;
+.binding-modal__alert :deep(.ant-alert) {
+  border-color: hsl(var(--border));
+  background: hsl(var(--muted) / 0.3);
 }
 
-.binding-modal__surface-title {
+.binding-modal__captcha,
+.binding-modal__verification {
+  display: grid;
+  gap: 12px;
+}
+
+.binding-modal__captcha {
+  padding: 12px;
+  border: 1px solid var(--binding-border);
+  border-radius: 8px;
+  background: hsl(var(--muted) / 0.18);
+}
+
+.binding-modal__caption {
+  display: grid;
+  gap: 4px;
+  color: var(--binding-title);
   font-size: 13px;
   font-weight: 600;
-  color: var(--binding-title);
 }
 
-.binding-modal__surface-meta {
-  font-size: 12px;
+.binding-modal__caption--muted {
   color: var(--binding-muted);
-  text-align: right;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.6;
 }
 
-.challenge-summary {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 14px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--binding-card-bg-strong);
-  font-size: 12px;
-  color: var(--binding-muted);
+.binding-modal__captcha-widget {
+  width: 100%;
 }
 
 .otp-row {
@@ -543,55 +631,44 @@ async function submitBinding() {
   margin-top: 30px;
 }
 
+.otp-row__side {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  min-height: 100%;
+}
+
+.binding-modal__resend-hint {
+  color: var(--binding-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  text-align: right;
+}
+
 .binding-modal__actions {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
 }
 
-.captcha-modal {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.captcha-modal__meta {
-  font-size: 12px;
-  color: var(--binding-muted);
-  line-height: 1.6;
-}
-
-.binding-help-dot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  border: 1px solid var(--binding-border);
-  border-radius: 9999px;
-  background: var(--binding-card-bg-strong);
-  color: var(--binding-muted);
-  font-size: 11px;
-  line-height: 1;
-  cursor: help;
-}
-
-.binding-help-dot--small {
-  width: 16px;
-  height: 16px;
-  font-size: 10px;
-}
-
 @media (max-width: 768px) {
   .binding-card__header,
-  .binding-summary__row,
-  .binding-modal__surface-header {
+  .binding-summary__row {
     flex-direction: column;
     align-items: stretch;
   }
 
   .otp-row {
     grid-template-columns: 1fr;
+  }
+
+  .otp-row__side {
+    justify-content: flex-start;
+  }
+
+  .binding-modal__actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
   }
 
   .otp-row__button {

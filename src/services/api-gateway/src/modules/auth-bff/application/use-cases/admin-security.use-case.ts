@@ -1,13 +1,17 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { MfaBindingType } from '@oes/common/generated/auth_service'
+import { PolicySubjectTypeProto } from '@oes/common/generated/permission_service'
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 import { AuthGrpcAdapter } from '../../infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { IdentityQueryGrpcAdapter } from '../../infrastructure/downstream/identity-service/identity-query-grpc.adapter'
+import { PartyQueryGrpcAdapter } from '../../infrastructure/downstream/party-service/party-query-grpc.adapter'
+import { TenantOrgQueryGrpcAdapter } from '../../infrastructure/downstream/tenant-org-service/tenant-org-query-grpc.adapter'
 import {
   AdminAccountDirectoryQueryDto,
   AdminAuditEventQueryDto,
   AdminLoginMethodStateMutationDto,
   AdminOnlineUserQueryDto,
+  AdminPlatformMfaPolicyMutationDto,
   AdminRequirePasswordSetupDto,
   AdminTenantMfaPolicyMutationDto,
   CreateAdminAccountDto,
@@ -20,10 +24,13 @@ import {
   AdminAccountDirectoryListViewModel,
   AdminAccountBasicInfoViewModel,
   AdminAccountDirectoryItemViewModel,
+  AdminAccountDeletionImpactViewModel,
+  AdminAccountDeletionResultViewModel,
   AdminAuditEventListViewModel,
   AdminAuditEventViewModel,
   AdminOnlineUserListViewModel,
   AdminOnlineUserViewModel,
+  AdminPlatformMfaPolicyViewModel,
   AdminSessionListViewModel,
   AdminSessionMutationViewModel,
   AdminSessionViewModel,
@@ -39,13 +46,19 @@ import {
 } from '../../interfaces/http/view-models/self-security.view-model'
 import { PermissionProxyService } from '../../../permission-service/permission-service.service'
 
+type HydratedOnlineUserViewModel = AdminOnlineUserViewModel & {
+  searchTerms: string[]
+}
+
 @Injectable()
 // Executes administrator-facing auth session and audit operations through the auth-service contract.
 export class AdminSecurityUseCase {
   constructor(
     private readonly authAdapter: AuthGrpcAdapter,
     private readonly identityAdapter: IdentityQueryGrpcAdapter,
-    private readonly permissionService: PermissionProxyService
+    private readonly permissionService: PermissionProxyService,
+    private readonly partyAdapter?: PartyQueryGrpcAdapter,
+    private readonly tenantOrgAdapter?: TenantOrgQueryGrpcAdapter
   ) {}
 
   async listOnlineUsers(
@@ -155,14 +168,26 @@ export class AdminSecurityUseCase {
       source
     )
 
+    const userPartyNameMap = await this.loadPartyNames(
+      [...new Set((result.accounts ?? []).map((account) => normalize(account.userPartyId)).filter(Boolean))] as string[],
+      source
+    )
+    const tenantNameMap = await this.loadTenantNames(
+      [...new Set((result.accounts ?? []).map((account) => normalize(account.tenantId)).filter(Boolean))] as string[],
+      source
+    )
+
     return {
       items: (result.accounts ?? []).map((account) => ({
         accountId: account.accountId ?? '',
         userId: account.userId ?? '',
         tenantId: normalize(account.tenantId),
-        tenantName: normalize(account.tenantName),
+        tenantName: normalize(account.tenantId)
+          ? tenantNameMap.get(normalize(account.tenantId)!)
+          : undefined,
         accountDisplayName: normalize(account.displayName),
-        userDisplayName: normalize(account.userDisplayName),
+        userDisplayName:
+          userPartyNameMap.get(normalize(account.userPartyId) ?? '') ?? normalize(account.userDisplayName),
         scopeLevel: account.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
         isEnabled: Boolean(account.isEnabled)
       })),
@@ -186,7 +211,7 @@ export class AdminSecurityUseCase {
     const user = userResult.user
     const tenantName =
       account.scopeLevel === 'TENANT' && account.tenantId
-        ? normalize((await this.identityAdapter.getTenantById(account.tenantId, source)).tenant?.name)
+        ? normalize((await this.requireTenantOrgAdapter().getTenantById(account.tenantId, source)).tenant?.name)
         : undefined
 
     return {
@@ -199,6 +224,33 @@ export class AdminSecurityUseCase {
       tenantName,
       scopeLevel: account.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
       isEnabled: Boolean(account.isEnabled)
+    }
+  }
+
+  async getAccountDeletionImpact(
+    accountId: string,
+    source: DownstreamRequestSource
+  ): Promise<AdminAccountDeletionImpactViewModel> {
+    await this.getRequiredAccount(accountId, source)
+    const result = await this.identityAdapter.getAccountDeletionImpact(accountId.trim(), source)
+
+    return {
+      accountId: result.accountId ?? accountId.trim(),
+      canDelete: Boolean(result.canDelete),
+      userRetained: Boolean(result.userRetained),
+      cleanupPlan: {
+        willDeleteSessions: Boolean(result.cleanupPlan?.willDeleteSessions),
+        willClearRoles: Boolean(result.cleanupPlan?.willClearRoles),
+        willDeleteOrgMemberships: Boolean(result.cleanupPlan?.willDeleteOrgMemberships),
+        willDeleteContactAssets: Boolean(result.cleanupPlan?.willDeleteContactAssets)
+      },
+      blockingReasons: (result.blockingReasons ?? []).map((reason) => ({
+        resourceType: reason.resourceType ?? '',
+        resourceCount: Number(reason.resourceCount ?? 0),
+        message: reason.message ?? ''
+      })),
+      orgMembershipCount: Number(result.orgMembershipCount ?? 0),
+      contactAssetCount: Number(result.contactAssetCount ?? 0)
     }
   }
 
@@ -266,6 +318,13 @@ export class AdminSecurityUseCase {
     return toTenantMfaPolicyViewModel(result)
   }
 
+  async getPlatformMfaPolicy(
+    source: DownstreamRequestSource
+  ): Promise<AdminPlatformMfaPolicyViewModel> {
+    const result = await this.authAdapter.getPlatformMfaPolicy(source)
+    return toPlatformMfaPolicyViewModel(result)
+  }
+
   async updateTenantMfaPolicy(
     dto: AdminTenantMfaPolicyMutationDto,
     source: DownstreamRequestSource
@@ -275,6 +334,7 @@ export class AdminSecurityUseCase {
       {
         tenantId,
         loginRequired: dto.loginRequired,
+        scenarioRequirements: dto.scenarioRequirements,
         factors: dto.factors.map((factor) => ({
           factor: factor.factor,
           enabled: factor.enabled,
@@ -285,6 +345,26 @@ export class AdminSecurityUseCase {
     )
 
     return toTenantMfaPolicyViewModel(result)
+  }
+
+  async updatePlatformMfaPolicy(
+    dto: AdminPlatformMfaPolicyMutationDto,
+    source: DownstreamRequestSource
+  ): Promise<AdminPlatformMfaPolicyViewModel> {
+    const result = await this.authAdapter.updatePlatformMfaPolicy(
+      {
+        loginRequired: dto.loginRequired,
+        scenarioRequirements: dto.scenarioRequirements,
+        factors: dto.factors.map((factor) => ({
+          factor: factor.factor,
+          enabled: factor.enabled,
+          priority: factor.priority
+        }))
+      },
+      source
+    )
+
+    return toPlatformMfaPolicyViewModel(result)
   }
 
   async createAccount(
@@ -360,11 +440,102 @@ export class AdminSecurityUseCase {
     }
   }
 
+  async deleteAccount(
+    accountId: string,
+    source: DownstreamRequestSource
+  ): Promise<AdminAccountDeletionResultViewModel> {
+    const currentAccountId = normalize(source.user?.aid)
+    if (currentAccountId && currentAccountId === accountId.trim()) {
+      throw new BadRequestException('Current login account cannot be deleted')
+    }
+
+    const account = await this.getRequiredAccount(accountId, source)
+    const impact = await this.getAccountDeletionImpact(accountId, source)
+    if (!impact.canDelete) {
+      throw new BadRequestException('Account deletion is blocked by business relations')
+    }
+
+    const roleResult = await this.permissionService.listAccountRoles(
+      {
+        accountId: account.id,
+        scopeLevel: account.scopeLevel,
+        tenantId: account.tenantId ?? ''
+      },
+      source
+    )
+    const clearedRoleCount = (roleResult.roles ?? []).length
+
+    const sessionResult = await this.authAdapter.adminDeleteAccountSessions(
+      {
+        userId: account.userId,
+        accountId: account.id,
+        reason: '账号删除时自动清理会话'
+      },
+      source
+    )
+
+    await this.permissionService.setAccountRoles(
+      {
+        accountId: account.id,
+        accountType: 'USER',
+        tenantId: account.tenantId ?? '',
+        scopeLevel: account.scopeLevel,
+        roleIds: []
+      },
+      source
+    )
+    const deletedPolicyCount = await this.clearAccountPolicies(account.id, source)
+
+    const deleteResult = await this.identityAdapter.deleteAccount(
+      {
+        accountId: account.id,
+        deletedSessionCount: Number(sessionResult.deletedSessionCount ?? 0),
+        clearedRoleCount,
+        deletedPolicyCount
+      },
+      source
+    )
+
+    return {
+      accountId: deleteResult.accountId ?? account.id,
+      success: true,
+      deletedSessionCount: Number(sessionResult.deletedSessionCount ?? 0),
+      clearedRoleCount,
+      deletedPolicyCount,
+      deletedOrgMembershipCount: Number(deleteResult.deletedOrgMembershipCount ?? 0),
+      deletedContactAssetCount: Number(deleteResult.deletedContactAssetCount ?? 0),
+      userRetained: Boolean(deleteResult.userRetained)
+    }
+  }
+
+  private async clearAccountPolicies(
+    accountId: string,
+    source: DownstreamRequestSource
+  ): Promise<number> {
+    const result = await this.permissionService.listPolicies(
+      {
+        page: 1,
+        pageSize: 100,
+        subjectId: accountId,
+        subjectType: PolicySubjectTypeProto.POLICY_SUBJECT_TYPE_PROTO_ACCOUNT
+      },
+      source
+    )
+
+    const policyIds = (result.policies ?? [])
+      .map((policy) => policy.id)
+      .filter((policyId): policyId is string => Boolean(policyId))
+
+    await Promise.all(policyIds.map((policyId) => this.permissionService.deletePolicy({ id: policyId }, source)))
+
+    return policyIds.length
+  }
+
   async listTenantOptions(
     query: AdminTenantOptionQueryDto,
     source: DownstreamRequestSource
   ): Promise<AdminTenantOptionListViewModel> {
-    const result = await this.identityAdapter.listTenants(
+    const result = await this.requireTenantOrgAdapter().listTenants(
       {
         keyword: normalize(query.keyword),
         pageSize: Math.min(Math.max(query.pageSize ?? 20, 1), 50)
@@ -544,7 +715,7 @@ export class AdminSecurityUseCase {
       lastActiveAt?: string
     }>,
     source: DownstreamRequestSource
-  ): Promise<AdminOnlineUserViewModel[]> {
+  ): Promise<HydratedOnlineUserViewModel[]> {
     const aggregatedItems = await this.aggregateOnlineUsers(items, source)
     const userIds = aggregatedItems.map((item) => item.userId)
     const tenantIds = [
@@ -554,27 +725,35 @@ export class AdminSecurityUseCase {
       Promise.all(
         userIds.map(async (userId) => {
           const result = await this.identityAdapter.getUserById(userId, source)
-          return [userId, normalize(result.user?.username)] as const
+          return [userId, normalize(result.user?.partyId), normalize(result.user?.username)] as const
         })
       ),
       Promise.all(
         tenantIds.map(async (tenantId) => {
-          const result = await this.identityAdapter.getTenantById(tenantId, source)
+          const result = await this.requireTenantOrgAdapter().getTenantById(tenantId, source)
           return [tenantId, normalize(result.tenant?.name)] as const
         })
       )
     ])
-    const userNameMap = new Map(userEntries)
+    const userNameMap = new Map(
+      await Promise.all(
+        userEntries.map(async ([userId, partyId, username]) => {
+          const partyName = partyId ? await this.loadPartyName(partyId, source) : undefined
+          return [userId, { displayName: partyName ?? username, username }] as const
+        })
+      )
+    )
     const tenantNameMap = new Map(tenantEntries)
 
-    return aggregatedItems.map((item): AdminOnlineUserViewModel => {
+    return aggregatedItems.map((item): HydratedOnlineUserViewModel => {
       const tenantNames = item.tenantIds
         .map((tenantId) => tenantNameMap.get(tenantId))
         .filter(Boolean) as string[]
+      const userInfo = userNameMap.get(item.userId)
 
       return {
         userId: item.userId,
-        displayName: userNameMap.get(item.userId) ?? undefined,
+        displayName: userInfo?.displayName ?? undefined,
         tenantId: item.tenantIds.length === 1 ? item.tenantIds[0] : undefined,
         tenantName:
           item.tenantIds.length === 1
@@ -584,7 +763,10 @@ export class AdminSecurityUseCase {
         visibleTenantCount: item.tenantIds.length,
         activeAccountCount: item.activeAccountCount,
         activeSessionCount: item.activeSessionCount,
-        lastActiveAt: item.lastActiveAt
+        lastActiveAt: item.lastActiveAt,
+        searchTerms: [userInfo?.displayName, userInfo?.username, item.userId, ...tenantNames].filter(
+          Boolean
+        ) as string[]
       }
     })
   }
@@ -690,7 +872,7 @@ export class AdminSecurityUseCase {
   private async getRequiredAccount(
     accountId: string,
     source: DownstreamRequestSource
-  ): Promise<{ id: string; userId: string }> {
+  ): Promise<{ id: string; userId: string; tenantId?: string; scopeLevel: 'SYSTEM' | 'TENANT' }> {
     const accountResult = await this.identityAdapter.getAccountById(accountId.trim(), source)
     const account = accountResult.account
     if (!account?.id || !account.userId) {
@@ -699,7 +881,9 @@ export class AdminSecurityUseCase {
 
     return {
       id: account.id,
-      userId: account.userId
+      userId: account.userId,
+      tenantId: normalize(account.tenantId),
+      scopeLevel: account.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT'
     }
   }
 
@@ -716,11 +900,19 @@ export class AdminSecurityUseCase {
   private async findSearchCandidates(
     keyword: string,
     source: DownstreamRequestSource
-  ): Promise<Array<{ id: string; personalEmail?: string; personalPhone?: string }>> {
-    const candidates: Array<{ id: string; personalEmail?: string; personalPhone?: string }> = []
+  ): Promise<Array<{ id: string; partyId?: string; username?: string; personalEmail?: string; personalPhone?: string }>> {
+    const candidates: Array<{
+      id: string
+      partyId?: string
+      username?: string
+      personalEmail?: string
+      personalPhone?: string
+    }> = []
     const seen = new Set<string>()
     const pushCandidate = (user?: {
       id?: string
+      partyId?: string
+      username?: string
       personalEmail?: string
       personalPhone?: string
     }) => {
@@ -732,6 +924,8 @@ export class AdminSecurityUseCase {
       seen.add(userId)
       candidates.push({
         id: userId,
+        partyId: normalize(user?.partyId),
+        username: normalize(user?.username),
         personalEmail: normalize(user?.personalEmail),
         personalPhone: normalize(user?.personalPhone)
       })
@@ -756,6 +950,8 @@ export class AdminSecurityUseCase {
   private async buildSearchItem(
     user: {
       id: string
+      partyId?: string
+      username?: string
       personalEmail?: string
       personalPhone?: string
     },
@@ -779,11 +975,12 @@ export class AdminSecurityUseCase {
     const tenantIds = [...new Set(accountSummaries.map((account) => normalize(account.tenantId)).filter(Boolean))] as string[]
     const tenantEntries = await Promise.all(
       tenantIds.map(async (tenantId) => {
-        const result = await this.identityAdapter.getTenantById(tenantId, source)
+        const result = await this.requireTenantOrgAdapter().getTenantById(tenantId, source)
         return [tenantId, normalize(result.tenant?.name)] as const
       })
     )
     const tenantNameMap = new Map(tenantEntries)
+    const partyName = user.partyId ? await this.loadPartyName(user.partyId, source) : undefined
     const sessionsResult = await this.authAdapter.adminListUserSessions(user.id, source)
     const activeSessions = (sessionsResult.sessions ?? []).filter((session) => {
       if (Boolean(session.isRevoked) || Boolean(session.isAccessExpired)) {
@@ -799,8 +996,7 @@ export class AdminSecurityUseCase {
 
     return {
       userId: user.id,
-      displayName:
-        normalize(accountSummaries[0]?.displayName) ?? user.id,
+      displayName: partyName ?? normalize(accountSummaries[0]?.displayName) ?? user.username ?? user.id,
       emailMasked: maskEmail(user.personalEmail),
       phoneMasked: maskPhone(user.personalPhone),
       accountSummaries: accountSummaries.map((account) => ({
@@ -815,6 +1011,55 @@ export class AdminSecurityUseCase {
       isOnline: activeSessions.length > 0,
       activeSessionCount: activeSessions.length
     }
+  }
+
+  // Loads one display name per party id so admin-facing user rows no longer rely on legacy identity usernames.
+  private async loadPartyNames(
+    partyIds: string[],
+    source: DownstreamRequestSource
+  ): Promise<Map<string, string>> {
+    const entries = await Promise.all(
+      partyIds.map(async (partyId) => [partyId, await this.loadPartyName(partyId, source)] as const)
+    )
+
+    return new Map(entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])))
+  }
+
+  // Loads tenant names from tenant-org-service so identity account-directory rows stay tenant-truth free.
+  private async loadTenantNames(
+    tenantIds: string[],
+    source: DownstreamRequestSource
+  ): Promise<Map<string, string>> {
+    const entries = await Promise.all(
+      tenantIds.map(async (tenantId) => {
+        const result = await this.requireTenantOrgAdapter().getTenantById(tenantId, source)
+        return [tenantId, normalize(result.tenant?.name)] as const
+      })
+    )
+
+    return new Map(entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])))
+  }
+
+  // Resolves one human-facing party name from party-service, preferring displayName and falling back to canonicalName.
+  private async loadPartyName(
+    partyId: string,
+    source: DownstreamRequestSource
+  ): Promise<string | undefined> {
+    const normalizedPartyId = normalize(partyId)
+    if (!normalizedPartyId || !this.partyAdapter) {
+      return undefined
+    }
+
+    const result = await this.partyAdapter.getPartyById(normalizedPartyId, source)
+    return normalize(result.party?.displayName) ?? normalize(result.party?.canonicalName)
+  }
+
+  private requireTenantOrgAdapter(): TenantOrgQueryGrpcAdapter {
+    if (!this.tenantOrgAdapter) {
+      throw new Error('tenant-org query adapter is unavailable')
+    }
+
+    return this.tenantOrgAdapter
   }
 }
 
@@ -852,11 +1097,29 @@ function normalize(value?: string): string | undefined {
 function toTenantMfaPolicyViewModel(result: {
   factors?: Array<{ enabled?: boolean; factor?: MfaBindingType; priority?: number }>
   loginRequired?: boolean
+  scenarioRequirements?: Array<{ required?: boolean; scenario?: number }>
   tenantId?: string
 }): AdminTenantMfaPolicyViewModel {
   return {
     tenantId: result.tenantId ?? '',
     loginRequired: Boolean(result.loginRequired),
+    scenarioRequirements: (result.scenarioRequirements ?? [])
+      .map((item) => {
+        const scenario = toTenantMfaScenario(item.scenario)
+        if (!scenario) {
+          return null
+        }
+
+        return {
+          scenario,
+          required: Boolean(item.required)
+        }
+      })
+      .filter(
+        (
+          item
+        ): item is AdminTenantMfaPolicyViewModel['scenarioRequirements'][number] => Boolean(item)
+      ),
     factors: (result.factors ?? [])
       .map((factor) => {
         const type = toTenantMfaFactor(factor.factor)
@@ -871,6 +1134,48 @@ function toTenantMfaPolicyViewModel(result: {
         }
       })
       .filter((factor): factor is AdminTenantMfaPolicyViewModel['factors'][number] => Boolean(factor))
+      .sort((left, right) => left.priority - right.priority)
+  }
+}
+
+function toPlatformMfaPolicyViewModel(result: {
+  factors?: Array<{ enabled?: boolean; factor?: MfaBindingType; priority?: number }>
+  loginRequired?: boolean
+  scenarioRequirements?: Array<{ required?: boolean; scenario?: number }>
+}): AdminPlatformMfaPolicyViewModel {
+  return {
+    loginRequired: Boolean(result.loginRequired),
+    scenarioRequirements: (result.scenarioRequirements ?? [])
+      .map((item) => {
+        const scenario = toTenantMfaScenario(item.scenario)
+        if (!scenario) {
+          return null
+        }
+
+        return {
+          scenario,
+          required: Boolean(item.required)
+        }
+      })
+      .filter(
+        (
+          item
+        ): item is AdminPlatformMfaPolicyViewModel['scenarioRequirements'][number] => Boolean(item)
+      ),
+    factors: (result.factors ?? [])
+      .map((factor) => {
+        const type = toTenantMfaFactor(factor.factor)
+        if (!type) {
+          return null
+        }
+
+        return {
+          factor: type,
+          enabled: Boolean(factor.enabled),
+          priority: Number(factor.priority ?? 0)
+        }
+      })
+      .filter((factor): factor is AdminPlatformMfaPolicyViewModel['factors'][number] => Boolean(factor))
       .sort((left, right) => left.priority - right.priority)
   }
 }
@@ -892,26 +1197,55 @@ function toTenantMfaFactor(
   }
 }
 
+function toTenantMfaScenario(
+  scenario?: number
+): 'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'LOGIN' | 'NEW_DEVICE_LOGIN' | undefined {
+  switch (scenario) {
+    case 1:
+      return 'LOGIN'
+    case 2:
+      return 'NEW_DEVICE_LOGIN'
+    case 3:
+      return 'CHANGE_PASSWORD'
+    case 4:
+      return 'CHANGE_CONTACT'
+    default:
+      return undefined
+  }
+}
+
 function parseCursor(cursor?: string): number {
   const parsed = Number.parseInt(cursor ?? '0', 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0
 }
 
 function filterOnlineUsers(
-  items: AdminOnlineUserViewModel[],
+  items: HydratedOnlineUserViewModel[],
   query?: string
 ): AdminOnlineUserViewModel[] {
   const keyword = normalize(query)?.toLowerCase()
 
   if (!keyword) {
-    return items
+    return items.map(stripOnlineUserSearchTerms)
   }
 
-  return items.filter((item) =>
-    [item.userId, item.displayName, item.tenantId, item.tenantName, ...(item.tenantNames ?? [])]
-      .filter(Boolean)
-      .some((value) => value!.toLowerCase().includes(keyword))
-  )
+  return items
+    .filter((item) => item.searchTerms.some((value) => value.toLowerCase().includes(keyword)))
+    .map(stripOnlineUserSearchTerms)
+}
+
+function stripOnlineUserSearchTerms(item: HydratedOnlineUserViewModel): AdminOnlineUserViewModel {
+  return {
+    userId: item.userId,
+    displayName: item.displayName,
+    tenantId: item.tenantId,
+    tenantName: item.tenantName,
+    tenantNames: item.tenantNames,
+    visibleTenantCount: item.visibleTenantCount,
+    activeAccountCount: item.activeAccountCount,
+    activeSessionCount: item.activeSessionCount,
+    lastActiveAt: item.lastActiveAt
+  }
 }
 
 function looksLikeUserId(value: string): boolean {

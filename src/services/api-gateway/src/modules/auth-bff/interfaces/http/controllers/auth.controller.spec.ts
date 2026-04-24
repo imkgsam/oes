@@ -20,12 +20,15 @@ describe('AuthController', () => {
   const completeFirstLoginPasswordSetupUseCase = { execute: jest.fn() }
   const refreshSessionUseCase = { execute: jest.fn() }
   const sessionSelfServiceUseCase = {
+    listTrustedDevices: jest.fn(),
     listLoginMethods: jest.fn(),
     changeOwnPassword: jest.fn(),
     setLoginMethodEnabled: jest.fn(),
     listLoginHistory: jest.fn(),
     listSessions: jest.fn(),
     logout: jest.fn(),
+    revokeTrustedDevice: jest.fn(),
+    revokeOtherTrustedDevices: jest.fn(),
     logoutSession: jest.fn(),
     logoutOtherDevices: jest.fn(),
     logoutAll: jest.fn()
@@ -41,8 +44,10 @@ describe('AuthController', () => {
   }
   const adminSecurityUseCase = {
     listAccounts: jest.fn(),
+    getAccountDeletionImpact: jest.fn(),
     getAccountBasicInfo: jest.fn(),
     createAccount: jest.fn(),
+    deleteAccount: jest.fn(),
     updateAccountBasicInfo: jest.fn(),
     listAccountLoginMethods: jest.fn(),
     requireAccountPasswordSetup: jest.fn(),
@@ -72,11 +77,18 @@ describe('AuthController', () => {
   const accountProfileUseCase = {
     execute: jest.fn()
   }
+  const accountAvatarUploadUseCase = {
+    execute: jest.fn()
+  }
   const selfContactBindingUseCase = {
     requestEmailChallenge: jest.fn(),
     requestPhoneChallenge: jest.fn(),
     verifyEmailBinding: jest.fn(),
     verifyPhoneBinding: jest.fn()
+  }
+  const stepUpMfaUseCase = {
+    startChallenge: jest.fn(),
+    completeChallenge: jest.fn()
   }
 
   const controller = new AuthController(
@@ -98,7 +110,9 @@ describe('AuthController', () => {
     switchContextUseCase as any,
     personalCenterUseCase as any,
     accountProfileUseCase as any,
-    selfContactBindingUseCase as any
+    accountAvatarUploadUseCase as any,
+    selfContactBindingUseCase as any,
+    stepUpMfaUseCase as any
   )
 
   it('marks only the login flow endpoints as public', () => {
@@ -126,10 +140,14 @@ describe('AuthController', () => {
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.listLoginHistory)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.listLoginMethods)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.changeOwnPassword)).toBeUndefined()
+    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.startStepUpMfaChallenge)).toBeUndefined()
+    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.completeStepUpMfaChallenge)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.logout)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.listMfaBindings)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminListOnlineUsers)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminGetAccountBasicInfo)).toBeUndefined()
+    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminGetAccountDeletionImpact)).toBeUndefined()
+    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminDeleteAccount)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminUpdateAccountBasicInfo)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminListAccountLoginMethods)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminRequireAccountPasswordSetup)).toBeUndefined()
@@ -184,6 +202,62 @@ describe('AuthController', () => {
         userAgent: 'Mozilla/5.0 Firefox/149.0',
         ipAddress: '1.1.1.1'
       }
+    )
+  })
+
+  it('forwards trusted-device self-service endpoints to the session self-service use case', async () => {
+    sessionSelfServiceUseCase.listTrustedDevices.mockResolvedValue({
+      devices: [
+        {
+          id: 'trusted-1',
+          deviceId: 'device-1',
+          trustedAt: '2026-04-22T08:00:00.000Z',
+          lastActiveAt: '2026-04-22T09:00:00.000Z',
+          expiresAt: '2026-05-22T08:00:00.000Z',
+          isCurrentDevice: false
+        }
+      ]
+    })
+    sessionSelfServiceUseCase.revokeTrustedDevice.mockResolvedValue({
+      success: true,
+      deviceCount: 1
+    })
+    sessionSelfServiceUseCase.revokeOtherTrustedDevices.mockResolvedValue({
+      success: true,
+      deviceCount: 2
+    })
+
+    await expect(
+      controller.listTrustedDevices({ user: { sub: 'user-1', tid: 'tenant-1' } } as any)
+    ).resolves.toEqual(
+      expect.objectContaining({
+        devices: [expect.objectContaining({ id: 'trusted-1' })]
+      })
+    )
+
+    await expect(
+      controller.revokeTrustedDevice('trusted-1', { user: { sub: 'user-1', tid: 'tenant-1' } } as any)
+    ).resolves.toEqual({
+      success: true,
+      deviceCount: 1
+    })
+
+    await expect(
+      controller.revokeOtherTrustedDevices({ user: { sub: 'user-1', tid: 'tenant-1' } } as any)
+    ).resolves.toEqual({
+      success: true,
+      deviceCount: 2
+    })
+
+    expect(sessionSelfServiceUseCase.listTrustedDevices).toHaveBeenCalledWith(
+      expect.objectContaining({ user: { sub: 'user-1', tid: 'tenant-1' } })
+    )
+    expect(sessionSelfServiceUseCase.revokeTrustedDevice).toHaveBeenCalledWith(
+      'trusted-1',
+      expect.objectContaining({ user: { sub: 'user-1', tid: 'tenant-1' } })
+    )
+    expect(sessionSelfServiceUseCase.revokeOtherTrustedDevices).toHaveBeenCalledWith(
+      expect.objectContaining({ user: { sub: 'user-1', tid: 'tenant-1' } })
     )
   })
 
@@ -735,6 +809,12 @@ describe('AuthController', () => {
       permissions: ['identity.account.list']
     })
     expect(
+      reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminGetAccountDeletionImpact)
+    ).toEqual({
+      type: 'ALL',
+      permissions: ['identity.account.delete']
+    })
+    expect(
       reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminGetAccountBasicInfo)
     ).toEqual({
       type: 'ALL',
@@ -749,6 +829,10 @@ describe('AuthController', () => {
     ).toEqual({
       type: 'ANY',
       permissions: ['identity.account.profile.update', 'identity.account.update_status']
+    })
+    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminDeleteAccount)).toEqual({
+      type: 'ALL',
+      permissions: ['identity.account.delete']
     })
     expect(
       reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminListAccountTenantOptions),
@@ -772,5 +856,68 @@ describe('AuthController', () => {
       type: 'ALL',
       permissions: ['auth.audit.list']
     })
+    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminGetTenantMfaPolicy)).toEqual({
+      type: 'ALL',
+      permissions: ['auth.mfa_policy.manage']
+    })
+    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminUpdateTenantMfaPolicy)).toEqual({
+      type: 'ALL',
+      permissions: ['auth.mfa_policy.manage']
+    })
+  })
+
+  it('forwards admin account deletion endpoints to the admin security use case', async () => {
+    adminSecurityUseCase.getAccountDeletionImpact.mockResolvedValue({
+      accountId: 'account-1',
+      canDelete: true,
+      userRetained: true,
+      cleanupPlan: {
+        willDeleteSessions: true,
+        willClearRoles: true,
+        willDeleteOrgMemberships: true,
+        willDeleteContactAssets: true
+      },
+      blockingReasons: [],
+      orgMembershipCount: 1,
+      contactAssetCount: 2
+    })
+    adminSecurityUseCase.deleteAccount.mockResolvedValue({
+      accountId: 'account-1',
+      success: true,
+      deletedSessionCount: 3,
+      clearedRoleCount: 2,
+      deletedPolicyCount: 2,
+      deletedOrgMembershipCount: 1,
+      deletedContactAssetCount: 2,
+      userRetained: true
+    })
+
+    const source = { user: { sub: 'operator-1', scopeLevel: 'TENANT', tenantId: 'tenant-1' } }
+
+    await expect(
+      controller.adminGetAccountDeletionImpact('account-1', source as any)
+    ).resolves.toEqual(
+      expect.objectContaining({
+        accountId: 'account-1',
+        canDelete: true
+      })
+    )
+
+    await expect(controller.adminDeleteAccount('account-1', source as any)).resolves.toEqual({
+      accountId: 'account-1',
+      success: true,
+      deletedSessionCount: 3,
+      clearedRoleCount: 2,
+      deletedPolicyCount: 2,
+      deletedOrgMembershipCount: 1,
+      deletedContactAssetCount: 2,
+      userRetained: true
+    })
+
+    expect(adminSecurityUseCase.getAccountDeletionImpact).toHaveBeenCalledWith(
+      'account-1',
+      source
+    )
+    expect(adminSecurityUseCase.deleteAccount).toHaveBeenCalledWith('account-1', source)
   })
 })

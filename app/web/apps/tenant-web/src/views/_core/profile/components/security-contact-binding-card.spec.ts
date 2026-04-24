@@ -8,6 +8,7 @@ const requestEmailBindingChallengeApi = vi.fn();
 const requestPhoneBindingChallengeApi = vi.fn();
 const verifyEmailBindingApi = vi.fn();
 const verifyPhoneBindingApi = vi.fn();
+const messageError = vi.fn();
 const messageSuccess = vi.fn();
 const messageWarning = vi.fn();
 
@@ -74,6 +75,11 @@ vi.mock('../../authentication/phone-number-input.vue', () => ({
 }));
 
 vi.mock('ant-design-vue', () => ({
+  Alert: defineComponent({
+    name: 'BindingAlert',
+    props: ['message'],
+    template: '<div class="binding-alert">{{ message }}</div>',
+  }),
   Button: defineComponent({
     name: 'Button',
     props: ['disabled', 'loading', 'type', 'ghost'],
@@ -106,11 +112,27 @@ vi.mock('ant-design-vue', () => ({
       </div>
     `,
   }),
+  Steps: defineComponent({
+    name: 'BindingSteps',
+    props: ['current', 'items'],
+    template: `
+      <div class="binding-steps">
+        <div
+          v-for="(item, index) in items"
+          :key="item.title || index"
+          :data-active="current === index"
+        >
+          {{ item.title }}
+        </div>
+      </div>
+    `,
+  }),
   Tooltip: defineComponent({
     name: 'Tooltip',
     template: '<span><slot /></span>',
   }),
   message: {
+    error: messageError,
     success: messageSuccess,
     warning: messageWarning,
   },
@@ -123,6 +145,7 @@ describe('security contact binding card', () => {
     requestPhoneBindingChallengeApi.mockReset();
     verifyEmailBindingApi.mockReset();
     verifyPhoneBindingApi.mockReset();
+    messageError.mockReset();
     messageSuccess.mockReset();
     messageWarning.mockReset();
 
@@ -139,7 +162,7 @@ describe('security contact binding card', () => {
     document.body.innerHTML = '';
   });
 
-  it('does not render the captcha step until the user requests an otp', async () => {
+  it('enters the verification step only after the user completes the destination step', async () => {
     const view = await import('./security-contact-binding-card.vue');
     const wrapper = mount(view.default, {
       attachTo: document.body,
@@ -163,18 +186,18 @@ describe('security contact binding card', () => {
     await wrapper.find('button').trigger('click');
     await flushPromises();
 
-    expect(document.body.textContent).not.toContain('发送前验证');
-    expect(document.body.textContent).not.toContain('滑动验证');
+    expect(document.body.textContent).not.toContain('完成安全验证后发送验证码');
 
     await wrapper.find('input[placeholder="请输入要绑定的新邮箱"]').setValue('new@example.com');
-    await wrapper.find('.otp-row__button').trigger('click');
+    const nextButton = wrapper.findAll('button').find((item) => item.text() === '下一步');
+    await nextButton?.trigger('click');
     await flushPromises();
 
-    expect(requestEmailBindingChallengeApi).not.toHaveBeenCalled();
-    expect(document.body.textContent).toContain('发送前验证');
+    expect(document.body.textContent).toContain('完成安全验证后发送验证码');
+    expect(document.body.textContent).toContain('验证码将发送至 new@example.com');
   });
 
-  it('requests the otp challenge only after the popup captcha succeeds', async () => {
+  it('requests the otp challenge only after the inline captcha succeeds', async () => {
     const view = await import('./security-contact-binding-card.vue');
     const wrapper = mount(view.default, {
       attachTo: document.body,
@@ -187,7 +210,8 @@ describe('security contact binding card', () => {
     await wrapper.find('button').trigger('click');
     await flushPromises();
     await wrapper.find('input[placeholder="请输入要绑定的新邮箱"]').setValue('new@example.com');
-    await wrapper.find('.otp-row__button').trigger('click');
+    const nextButton = wrapper.findAll('button').find((item) => item.text() === '下一步');
+    await nextButton?.trigger('click');
     await flushPromises();
 
     expect(requestEmailBindingChallengeApi).not.toHaveBeenCalled();
@@ -215,7 +239,8 @@ describe('security contact binding card', () => {
     await wrapper.find('button').trigger('click');
     await flushPromises();
     await wrapper.find('input[placeholder="请输入要绑定的新邮箱"]').setValue('new@example.com');
-    await wrapper.find('.otp-row__button').trigger('click');
+    const nextButton = wrapper.findAll('button').find((item) => item.text() === '下一步');
+    await nextButton?.trigger('click');
     await flushPromises();
 
     const captchaPassButton = document.body.querySelector('.slider-pass') as HTMLButtonElement | null;
@@ -230,10 +255,10 @@ describe('security contact binding card', () => {
     await flushPromises();
     expect(sendButton.text()).toContain('59');
 
-    await vi.advanceTimersByTimeAsync(59_000);
+    await vi.advanceTimersByTimeAsync(60_000);
     await flushPromises();
-    expect(sendButton.text()).toContain('重新发送');
-    expect(sendButton.attributes('disabled')).toBeUndefined();
+    expect(document.body.textContent).toContain('可重新验证后发送');
+    expect(document.body.textContent).toContain('重新验证后发送验证码');
   });
 
   it('keeps the email send button disabled until the destination format is valid', async () => {
@@ -250,18 +275,51 @@ describe('security contact binding card', () => {
     await flushPromises();
 
     const emailInput = wrapper.find('input[placeholder="请输入要绑定的新邮箱"]');
-    const sendButton = wrapper.find('.otp-row__button');
+    const nextButton = wrapper.findAll('button').find((item) => item.text() === '下一步');
 
     await emailInput.setValue('invalid-email');
     await flushPromises();
-    expect(sendButton.attributes('disabled')).toBeDefined();
+    expect(nextButton?.attributes('disabled')).toBeDefined();
 
     await emailInput.setValue('valid@example.com');
     await flushPromises();
-    expect(sendButton.attributes('disabled')).toBeUndefined();
+    expect(nextButton?.attributes('disabled')).toBeUndefined();
   });
 
-  it('uses the shared phone input with country code and keeps the send button disabled for invalid phones', async () => {
+  it('keeps the next button disabled when the new email matches the current binding', async () => {
+    const view = await import('./security-contact-binding-card.vue');
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      props: {
+        kind: 'email',
+        loginMethods: [
+          {
+            enabled: true,
+            hasPassword: true,
+            identifier: 'current@example.com',
+            maskedIdentifier: 'c***@example.com',
+            methodId: 'email-method:PASSWORD',
+            type: 'EMAIL_PASSWORD',
+            userId: 'user-1',
+            verified: true,
+          },
+        ],
+      },
+    });
+
+    await wrapper.find('button').trigger('click');
+    await flushPromises();
+
+    const emailInput = wrapper.find('input[placeholder="请输入要绑定的新邮箱"]');
+    const nextButton = wrapper.findAll('button').find((item) => item.text() === '下一步');
+
+    await emailInput.setValue('current@example.com');
+    await flushPromises();
+
+    expect(nextButton?.attributes('disabled')).toBeDefined();
+  });
+
+  it('uses the shared phone input with country code and keeps the next button disabled for invalid phones', async () => {
     const view = await import('./security-contact-binding-card.vue');
     const wrapper = mount(view.default, {
       attachTo: document.body,
@@ -277,14 +335,14 @@ describe('security contact binding card', () => {
     expect(wrapper.find('.phone-number-input-stub').exists()).toBe(true);
 
     const phoneInput = wrapper.find('.phone-number-input');
-    const sendButton = wrapper.find('.otp-row__button');
+    const nextButton = wrapper.findAll('button').find((item) => item.text() === '下一步');
 
     await phoneInput.setValue('1234');
     await flushPromises();
-    expect(sendButton.attributes('disabled')).toBeDefined();
+    expect(nextButton?.attributes('disabled')).toBeDefined();
 
     await phoneInput.setValue('+8613811112222');
     await flushPromises();
-    expect(sendButton.attributes('disabled')).toBeUndefined();
+    expect(nextButton?.attributes('disabled')).toBeUndefined();
   });
 });

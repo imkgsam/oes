@@ -10,39 +10,47 @@ service AuthService {
   rpc ListLoginHistory(ListLoginHistoryRequest) returns (ListLoginHistoryResponse);
   rpc BootstrapUserLoginMethods(BootstrapUserLoginMethodsRequest) returns (BootstrapUserLoginMethodsResponse);
   rpc CompleteFirstLoginPasswordSetup(CompleteFirstLoginPasswordSetupRequest) returns (CompleteFirstLoginPasswordSetupResponse);
-  rpc LoginWithEmailPassword(EmailPasswordLoginRequest) returns (LoginResponse);
-  rpc RequestEmailOtpLoginChallenge(EmailOtpChallengeRequest) returns (OtpChallengeResponse);
-  rpc RequestEmailBindingChallenge(EmailBindingChallengeRequest) returns (OtpChallengeResponse);
-  rpc LoginWithEmailOtp(EmailOtpLoginRequest) returns (LoginResponse);
-  rpc LoginWithPhonePassword(PhonePasswordLoginRequest) returns (LoginResponse);
-  rpc RequestPhoneOtpLoginChallenge(PhoneOtpChallengeRequest) returns (OtpChallengeResponse);
-  rpc RequestPhoneBindingChallenge(PhoneBindingChallengeRequest) returns (OtpChallengeResponse);
-  rpc LoginWithPhoneOtp(PhoneOtpLoginRequest) returns (LoginResponse);
+  rpc LoginWithEmailPassword(LoginWithEmailPasswordRequest) returns (LoginWithEmailPasswordResponse);
+  rpc RequestEmailOtpLoginChallenge(RequestEmailOtpLoginChallengeRequest) returns (RequestEmailOtpLoginChallengeResponse);
+  rpc RequestEmailBindingChallenge(RequestEmailBindingChallengeRequest) returns (RequestEmailBindingChallengeResponse);
+  rpc LoginWithEmailOtp(LoginWithEmailOtpRequest) returns (LoginWithEmailOtpResponse);
+  rpc LoginWithPhonePassword(LoginWithPhonePasswordRequest) returns (LoginWithPhonePasswordResponse);
+  rpc RequestPhoneOtpLoginChallenge(RequestPhoneOtpLoginChallengeRequest) returns (RequestPhoneOtpLoginChallengeResponse);
+  rpc RequestPhoneBindingChallenge(RequestPhoneBindingChallengeRequest) returns (RequestPhoneBindingChallengeResponse);
+  rpc LoginWithPhoneOtp(LoginWithPhoneOtpRequest) returns (LoginWithPhoneOtpResponse);
   rpc InspectPasswordRecoveryChannels(InspectPasswordRecoveryChannelsRequest) returns (InspectPasswordRecoveryChannelsResponse);
-  rpc RequestPasswordRecoveryChallenge(RequestPasswordRecoveryChallengeRequest) returns (PasswordRecoveryChallengeResponse);
-  rpc VerifyPasswordRecoveryChallenge(VerifyPasswordRecoveryChallengeRequest) returns (PasswordRecoveryVerificationResponse);
-  rpc CompletePasswordRecovery(CompletePasswordRecoveryRequest) returns (PasswordRecoveryCompletionResponse);
+  rpc RequestPasswordRecoveryChallenge(RequestPasswordRecoveryChallengeRequest) returns (RequestPasswordRecoveryChallengeResponse);
+  rpc VerifyPasswordRecoveryChallenge(VerifyPasswordRecoveryChallengeRequest) returns (VerifyPasswordRecoveryChallengeResponse);
+  rpc CompletePasswordRecovery(CompletePasswordRecoveryRequest) returns (CompletePasswordRecoveryResponse);
   rpc ListLoginMethods(ListLoginMethodsRequest) returns (ListLoginMethodsResponse);
-  rpc ChangeOwnPassword(ChangeOwnPasswordRequest) returns (PasswordMutationResponse);
-  rpc VerifyEmailBinding(VerifyEmailBindingRequest) returns (ContactBindingVerificationResponse);
-  rpc VerifyPhoneBinding(VerifyPhoneBindingRequest) returns (ContactBindingVerificationResponse);
-  rpc RequirePasswordSetup(RequirePasswordSetupRequest) returns (PasswordMutationResponse);
-  rpc SetLoginMethodEnabled(SetLoginMethodEnabledRequest) returns (LoginMethodMutationResponse);
+  rpc ChangeOwnPassword(ChangeOwnPasswordRequest) returns (ChangeOwnPasswordResponse);
+  rpc SetOwnLoginMethodEnabled(SetOwnLoginMethodEnabledRequest) returns (SetOwnLoginMethodEnabledResponse);
+  rpc VerifyEmailBinding(VerifyEmailBindingRequest) returns (VerifyEmailBindingResponse);
+  rpc VerifyPhoneBinding(VerifyPhoneBindingRequest) returns (VerifyPhoneBindingResponse);
+  rpc RequirePasswordSetup(RequirePasswordSetupRequest) returns (RequirePasswordSetupResponse);
+  rpc SetLoginMethodEnabled(SetLoginMethodEnabledRequest) returns (SetLoginMethodEnabledResponse);
   rpc ListMfaBindings(ListMfaBindingsRequest) returns (ListMfaBindingsResponse);
-  rpc EnableMfaBinding(EnableMfaBindingRequest) returns (MfaBindingMutationResponse);
-  rpc DisableMfaBinding(DisableMfaBindingRequest) returns (MfaBindingMutationResponse);
+  rpc EnableMfaBinding(EnableMfaBindingRequest) returns (EnableMfaBindingResponse);
+  rpc DisableMfaBinding(DisableMfaBindingRequest) returns (DisableMfaBindingResponse);
   rpc InitializeTotpBinding(InitializeTotpBindingRequest) returns (InitializeTotpBindingResponse);
-  rpc ActivateTotpBinding(ActivateTotpBindingRequest) returns (MfaBindingMutationResponse);
-  rpc InitializeRecoveryCodes(InitializeRecoveryCodesRequest) returns (RecoveryCodesResponse);
-  rpc RegenerateRecoveryCodes(RegenerateRecoveryCodesRequest) returns (RecoveryCodesResponse);
-  rpc RequestLoginMfaFactorChallenge(RequestLoginMfaFactorChallengeRequest) returns (OtpChallengeResponse);
-  rpc SubmitMfaChallenge(SubmitMfaChallengeRequest) returns (LoginResponse);
+  rpc ActivateTotpBinding(ActivateTotpBindingRequest) returns (ActivateTotpBindingResponse);
+  rpc InitializeRecoveryCodes(InitializeRecoveryCodesRequest) returns (InitializeRecoveryCodesResponse);
+  rpc RegenerateRecoveryCodes(RegenerateRecoveryCodesRequest) returns (RegenerateRecoveryCodesResponse);
+  rpc RequestLoginMfaFactorChallenge(RequestLoginMfaFactorChallengeRequest) returns (RequestLoginMfaFactorChallengeResponse);
+  rpc SubmitMfaChallenge(SubmitMfaChallengeRequest) returns (SubmitMfaChallengeResponse);
+  rpc StartStepUpMfaChallenge(StartStepUpMfaChallengeRequest) returns (StartStepUpMfaChallengeResponse);
+  rpc CompleteStepUpMfaChallenge(CompleteStepUpMfaChallengeRequest) returns (CompleteStepUpMfaChallengeResponse);
   rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionResponse);
   rpc ValidateAccessToken(ValidateAccessTokenRequest) returns (ValidateAccessTokenResponse);
   rpc SelectAccount(SelectAccountRequest) returns (SelectAccountResponse);
-  rpc GetTenantMfaPolicy(GetTenantMfaPolicyRequest) returns (TenantMfaPolicyResponse);
-  rpc UpdateTenantMfaPolicy(UpdateTenantMfaPolicyRequest) returns (TenantMfaPolicyResponse);
+  rpc GetTenantMfaPolicy(GetTenantMfaPolicyRequest) returns (GetTenantMfaPolicyResponse);
+  rpc UpdateTenantMfaPolicy(UpdateTenantMfaPolicyRequest) returns (UpdateTenantMfaPolicyResponse);
+  rpc GetPlatformMfaPolicy(GetPlatformMfaPolicyRequest) returns (GetPlatformMfaPolicyResponse);
+  rpc UpdatePlatformMfaPolicy(UpdatePlatformMfaPolicyRequest) returns (UpdatePlatformMfaPolicyResponse);
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
+  rpc ListTrustedDevices(ListTrustedDevicesRequest) returns (ListTrustedDevicesResponse);
+  rpc RevokeTrustedDevice(RevokeTrustedDeviceRequest) returns (RevokeTrustedDeviceResponse);
+  rpc RevokeOtherTrustedDevices(RevokeOtherTrustedDevicesRequest) returns (RevokeOtherTrustedDevicesResponse);
   rpc AdminListOnlineUsers(AdminListOnlineUsersRequest) returns (AdminListOnlineUsersResponse);
   rpc AdminListUserSessions(AdminListUserSessionsRequest) returns (AdminListUserSessionsResponse);
   rpc AdminRevokeSession(AdminRevokeSessionRequest) returns (AdminRevokeSessionResponse);
@@ -53,6 +61,14 @@ service AuthService {
   rpc LogoutAll(LogoutAllRequest) returns (LogoutAllResponse);
 }
 
+message LoginWithEmailPasswordRequest {
+  string email = 1;
+  string password = 2;
+  string device_name = 3;
+  string user_agent = 4;
+  string ip_address = 5;
+}
+
 message EmailPasswordLoginRequest {
   string email = 1;
   string password = 2;
@@ -61,8 +77,17 @@ message EmailPasswordLoginRequest {
   string ip_address = 5;
 }
 
+message RequestEmailOtpLoginChallengeRequest {
+  string email = 1;
+}
+
 message EmailOtpChallengeRequest {
   string email = 1;
+}
+
+message RequestEmailBindingChallengeRequest {
+  string user_id = 1;
+  string email = 2;
 }
 
 message EmailBindingChallengeRequest {
@@ -70,9 +95,22 @@ message EmailBindingChallengeRequest {
   string email = 2;
 }
 
+message LoginWithEmailOtpRequest {
+  string email = 1;
+  string otp = 2;
+}
+
 message EmailOtpLoginRequest {
   string email = 1;
   string otp = 2;
+}
+
+message LoginWithPhonePasswordRequest {
+  string phone = 1;
+  string password = 2;
+  string device_name = 3;
+  string user_agent = 4;
+  string ip_address = 5;
 }
 
 message PhonePasswordLoginRequest {
@@ -83,13 +121,46 @@ message PhonePasswordLoginRequest {
   string ip_address = 5;
 }
 
+message RequestPhoneOtpLoginChallengeRequest {
+  string phone = 1;
+}
+
 message PhoneOtpChallengeRequest {
   string phone = 1;
+}
+
+message RequestPhoneBindingChallengeRequest {
+  string user_id = 1;
+  string phone = 2;
 }
 
 message PhoneBindingChallengeRequest {
   string user_id = 1;
   string phone = 2;
+}
+
+message RequestEmailOtpLoginChallengeResponse {
+  string challenge_id = 1;
+  string expires_at = 2;
+  string destination = 3;
+}
+
+message RequestEmailBindingChallengeResponse {
+  string challenge_id = 1;
+  string expires_at = 2;
+  string destination = 3;
+}
+
+message RequestPhoneOtpLoginChallengeResponse {
+  string challenge_id = 1;
+  string expires_at = 2;
+  string destination = 3;
+}
+
+message RequestPhoneBindingChallengeResponse {
+  string challenge_id = 1;
+  string expires_at = 2;
+  string destination = 3;
 }
 
 message OtpChallengeResponse {
@@ -130,6 +201,13 @@ message PasswordRecoveryChallengeResponse {
   string masked_destination = 4;
 }
 
+message RequestPasswordRecoveryChallengeResponse {
+  bool accepted = 1;
+  string challenge_id = 2;
+  string expires_at = 3;
+  string masked_destination = 4;
+}
+
 message VerifyPasswordRecoveryChallengeRequest {
   string challenge_id = 1;
   string otp = 2;
@@ -140,12 +218,22 @@ message PasswordRecoveryVerificationResponse {
   string reset_token = 2;
 }
 
+message VerifyPasswordRecoveryChallengeResponse {
+  bool verified = 1;
+  string reset_token = 2;
+}
+
 message CompletePasswordRecoveryRequest {
   string reset_token = 1;
   string new_password = 2;
 }
 
 message PasswordRecoveryCompletionResponse {
+  bool success = 1;
+  bool sessions_revoked = 2;
+}
+
+message CompletePasswordRecoveryResponse {
   bool success = 1;
   bool sessions_revoked = 2;
 }
@@ -176,6 +264,10 @@ message ChangeOwnPasswordRequest {
   string user_id = 1;
   string current_password = 2;
   string new_password = 3;
+  string account_id = 4;
+  string tenant_id = 5;
+  string mfa_grant_token = 6;
+  string scope_level = 7;
 }
 
 message RequirePasswordSetupRequest {
@@ -193,7 +285,25 @@ message SetLoginMethodEnabledRequest {
   string reason = 5;
 }
 
+message SetOwnLoginMethodEnabledRequest {
+  string user_id = 1;
+  string method_id = 2;
+  bool enabled = 3;
+  string operator_id = 4;
+  string reason = 5;
+}
+
 message PasswordMutationResponse {
+  bool success = 1;
+  bool password_setup_required = 2;
+}
+
+message ChangeOwnPasswordResponse {
+  bool success = 1;
+  bool password_setup_required = 2;
+}
+
+message RequirePasswordSetupResponse {
   bool success = 1;
   bool password_setup_required = 2;
 }
@@ -202,12 +312,20 @@ message VerifyEmailBindingRequest {
   string user_id = 1;
   string email = 2;
   string otp = 3;
+  string account_id = 4;
+  string tenant_id = 5;
+  string mfa_grant_token = 6;
+  string scope_level = 7;
 }
 
 message VerifyPhoneBindingRequest {
   string user_id = 1;
   string phone = 2;
   string otp = 3;
+  string account_id = 4;
+  string tenant_id = 5;
+  string mfa_grant_token = 6;
+  string scope_level = 7;
 }
 
 message ContactBindingVerificationResponse {
@@ -216,9 +334,36 @@ message ContactBindingVerificationResponse {
   string identifier = 3;
 }
 
+message VerifyEmailBindingResponse {
+  bool success = 1;
+  string type = 2;
+  string identifier = 3;
+}
+
+message VerifyPhoneBindingResponse {
+  bool success = 1;
+  string type = 2;
+  string identifier = 3;
+}
+
 message LoginMethodMutationResponse {
   bool success = 1;
   LoginMethodView login_method = 2;
+}
+
+message SetOwnLoginMethodEnabledResponse {
+  bool success = 1;
+  LoginMethodView login_method = 2;
+}
+
+message SetLoginMethodEnabledResponse {
+  bool success = 1;
+  LoginMethodView login_method = 2;
+}
+
+message LoginWithPhoneOtpRequest {
+  string phone = 1;
+  string otp = 2;
 }
 
 message PhoneOtpLoginRequest {
@@ -237,11 +382,15 @@ enum MfaBindingType {
 enum MfaScenario {
   MFA_SCENARIO_UNSPECIFIED = 0;
   MFA_SCENARIO_LOGIN = 1;
+  MFA_SCENARIO_NEW_DEVICE_LOGIN = 2;
+  MFA_SCENARIO_CHANGE_PASSWORD = 3;
+  MFA_SCENARIO_CHANGE_CONTACT = 4;
 }
 
 message LoginMfaFactorOption {
   MfaBindingType type = 1;
   string label = 2;
+  int32 priority = 3;
 }
 
 message ListMfaBindingsRequest {
@@ -276,6 +425,21 @@ message MfaBindingMutationResponse {
   MfaBindingView binding = 2;
 }
 
+message EnableMfaBindingResponse {
+  bool success = 1;
+  MfaBindingView binding = 2;
+}
+
+message DisableMfaBindingResponse {
+  bool success = 1;
+  MfaBindingView binding = 2;
+}
+
+message ActivateTotpBindingResponse {
+  bool success = 1;
+  MfaBindingView binding = 2;
+}
+
 message InitializeTotpBindingRequest {
   string user_id = 1;
 }
@@ -305,6 +469,16 @@ message RecoveryCodesResponse {
   repeated string recovery_codes = 2;
 }
 
+message InitializeRecoveryCodesResponse {
+  MfaBindingView binding = 1;
+  repeated string recovery_codes = 2;
+}
+
+message RegenerateRecoveryCodesResponse {
+  MfaBindingView binding = 1;
+  repeated string recovery_codes = 2;
+}
+
 enum LoginStatus {
   LOGIN_STATUS_UNSPECIFIED = 0;
   LOGIN_STATUS_SUCCESS = 1;
@@ -318,7 +492,6 @@ message AccountCandidate {
   string tenant_id = 2;
   string display_name = 3;
   string scope_level = 4;
-  string tenant_name = 5;
 }
 
 message SelectAccountRequest {
@@ -338,11 +511,69 @@ message SubmitMfaChallengeRequest {
   string code = 3;
   string login_method = 4;
   string factor_challenge_id = 5;
+  bool trust_current_device = 6;
 }
 
 message RequestLoginMfaFactorChallengeRequest {
   string challenge_id = 1;
   MfaBindingType factor = 2;
+}
+
+message RequestLoginMfaFactorChallengeResponse {
+  string challenge_id = 1;
+  string expires_at = 2;
+  string destination = 3;
+}
+
+message StartStepUpMfaChallengeRequest {
+  string user_id = 1;
+  string account_id = 2;
+  string tenant_id = 3;
+  MfaScenario scenario = 4;
+  string scope_level = 5;
+}
+
+message StepUpMfaChallengeResponse {
+  bool required = 1;
+  string challenge_id = 2;
+  MfaScenario scenario = 3;
+  MfaBindingType default_mfa_factor = 4;
+  repeated LoginMfaFactorOption available_factors = 5;
+  string factor_challenge_id = 6;
+  string challenge_destination = 7;
+  string challenge_expires_at = 8;
+}
+
+message StartStepUpMfaChallengeResponse {
+  bool required = 1;
+  string challenge_id = 2;
+  MfaScenario scenario = 3;
+  MfaBindingType default_mfa_factor = 4;
+  repeated LoginMfaFactorOption available_factors = 5;
+  string factor_challenge_id = 6;
+  string challenge_destination = 7;
+  string challenge_expires_at = 8;
+}
+
+message CompleteStepUpMfaChallengeRequest {
+  string challenge_id = 1;
+  MfaBindingType factor = 2;
+  string code = 3;
+  string factor_challenge_id = 4;
+}
+
+message StepUpMfaGrantResponse {
+  bool success = 1;
+  MfaScenario scenario = 2;
+  string mfa_grant_token = 3;
+  string expires_at = 4;
+}
+
+message CompleteStepUpMfaChallengeResponse {
+  bool success = 1;
+  MfaScenario scenario = 2;
+  string mfa_grant_token = 3;
+  string expires_at = 4;
 }
 
 message RefreshSessionRequest {
@@ -405,6 +636,58 @@ message SessionView {
 
 message ListSessionsResponse {
   repeated SessionView sessions = 1;
+}
+
+message TrustedDeviceView {
+  string id = 1;
+  string device_id = 2;
+  string device_name = 3;
+  string browser = 4;
+  string platform = 5;
+  string trusted_at = 6;
+  string last_active_at = 7;
+  string expires_at = 8;
+  bool is_current_device = 9;
+}
+
+message ListTrustedDevicesRequest {
+  string user_id = 1;
+  string tenant_id = 2;
+  string current_device_id = 3;
+  string scope_level = 4;
+}
+
+message ListTrustedDevicesResponse {
+  repeated TrustedDeviceView devices = 1;
+}
+
+message RevokeTrustedDeviceRequest {
+  string user_id = 1;
+  string tenant_id = 2;
+  string trusted_device_id = 3;
+  string scope_level = 4;
+}
+
+message RevokeOtherTrustedDevicesRequest {
+  string user_id = 1;
+  string tenant_id = 2;
+  string current_device_id = 3;
+  string scope_level = 4;
+}
+
+message TrustedDeviceMutationResponse {
+  bool success = 1;
+  int64 device_count = 2;
+}
+
+message RevokeTrustedDeviceResponse {
+  bool success = 1;
+  int64 device_count = 2;
+}
+
+message RevokeOtherTrustedDevicesResponse {
+  bool success = 1;
+  int64 device_count = 2;
 }
 
 message AdminListOnlineUsersRequest {
@@ -612,23 +895,130 @@ message TenantMfaFactorPolicy {
   int32 priority = 3;
 }
 
+message TenantMfaScenarioRequirement {
+  MfaScenario scenario = 1;
+  bool required = 2;
+}
+
 message GetTenantMfaPolicyRequest {
   string tenant_id = 1;
 }
+
+message GetPlatformMfaPolicyRequest {}
 
 message UpdateTenantMfaPolicyRequest {
   string tenant_id = 1;
   bool login_required = 2;
   repeated TenantMfaFactorPolicy factors = 3;
+  repeated TenantMfaScenarioRequirement scenario_requirements = 4;
+}
+
+message UpdatePlatformMfaPolicyRequest {
+  bool login_required = 1;
+  repeated TenantMfaFactorPolicy factors = 2;
+  repeated TenantMfaScenarioRequirement scenario_requirements = 3;
 }
 
 message TenantMfaPolicyResponse {
   string tenant_id = 1;
   bool login_required = 2;
   repeated TenantMfaFactorPolicy factors = 3;
+  repeated TenantMfaScenarioRequirement scenario_requirements = 4;
+}
+
+message GetTenantMfaPolicyResponse {
+  string tenant_id = 1;
+  bool login_required = 2;
+  repeated TenantMfaFactorPolicy factors = 3;
+  repeated TenantMfaScenarioRequirement scenario_requirements = 4;
+}
+
+message UpdateTenantMfaPolicyResponse {
+  string tenant_id = 1;
+  bool login_required = 2;
+  repeated TenantMfaFactorPolicy factors = 3;
+  repeated TenantMfaScenarioRequirement scenario_requirements = 4;
+}
+
+message PlatformMfaPolicyResponse {
+  bool login_required = 1;
+  repeated TenantMfaFactorPolicy factors = 2;
+  repeated TenantMfaScenarioRequirement scenario_requirements = 3;
+}
+
+message GetPlatformMfaPolicyResponse {
+  bool login_required = 1;
+  repeated TenantMfaFactorPolicy factors = 2;
+  repeated TenantMfaScenarioRequirement scenario_requirements = 3;
+}
+
+message UpdatePlatformMfaPolicyResponse {
+  bool login_required = 1;
+  repeated TenantMfaFactorPolicy factors = 2;
+  repeated TenantMfaScenarioRequirement scenario_requirements = 3;
 }
 
 message LoginResponse {
+  LoginStatus status = 1;
+  string user_id = 2;
+  string challenge_id = 3;
+  string access_token = 4;
+  string refresh_token = 5;
+  int64 expires_in = 6;
+  repeated AccountCandidate accounts = 7;
+  string login_method = 8;
+  bool password_setup_required = 9;
+}
+
+message LoginWithEmailPasswordResponse {
+  LoginStatus status = 1;
+  string user_id = 2;
+  string challenge_id = 3;
+  string access_token = 4;
+  string refresh_token = 5;
+  int64 expires_in = 6;
+  repeated AccountCandidate accounts = 7;
+  string login_method = 8;
+  bool password_setup_required = 9;
+}
+
+message LoginWithEmailOtpResponse {
+  LoginStatus status = 1;
+  string user_id = 2;
+  string challenge_id = 3;
+  string access_token = 4;
+  string refresh_token = 5;
+  int64 expires_in = 6;
+  repeated AccountCandidate accounts = 7;
+  string login_method = 8;
+  bool password_setup_required = 9;
+}
+
+message LoginWithPhonePasswordResponse {
+  LoginStatus status = 1;
+  string user_id = 2;
+  string challenge_id = 3;
+  string access_token = 4;
+  string refresh_token = 5;
+  int64 expires_in = 6;
+  repeated AccountCandidate accounts = 7;
+  string login_method = 8;
+  bool password_setup_required = 9;
+}
+
+message LoginWithPhoneOtpResponse {
+  LoginStatus status = 1;
+  string user_id = 2;
+  string challenge_id = 3;
+  string access_token = 4;
+  string refresh_token = 5;
+  int64 expires_in = 6;
+  repeated AccountCandidate accounts = 7;
+  string login_method = 8;
+  bool password_setup_required = 9;
+}
+
+message SubmitMfaChallengeResponse {
   LoginStatus status = 1;
   string user_id = 2;
   string challenge_id = 3;

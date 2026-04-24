@@ -7,6 +7,10 @@ export namespace SelfSecurityApi {
     | 'EMAIL_OTP'
     | 'SMS_OTP'
     | 'TOTP';
+  export type StepUpMfaScenario =
+    | 'CHANGE_CONTACT'
+    | 'CHANGE_PASSWORD'
+    | 'NEW_DEVICE_LOGIN';
 
   export interface Session {
     accessRemainingSeconds: number;
@@ -41,6 +45,27 @@ export namespace SelfSecurityApi {
 
   export interface SessionMutationResult {
     sessionCount?: number;
+    success: boolean;
+  }
+
+  export interface TrustedDevice {
+    browser?: string;
+    deviceId: string;
+    deviceName?: string;
+    expiresAt: string;
+    id: string;
+    isCurrentDevice: boolean;
+    lastActiveAt: string;
+    platform?: string;
+    trustedAt: string;
+  }
+
+  export interface TrustedDeviceListResult {
+    devices: TrustedDevice[];
+  }
+
+  export interface TrustedDeviceMutationResult {
+    deviceCount?: number;
     success: boolean;
   }
 
@@ -94,6 +119,32 @@ export namespace SelfSecurityApi {
 
   export interface PasswordMutationResult {
     passwordSetupRequired: boolean;
+    success: boolean;
+  }
+
+  export interface StepUpMfaChallenge {
+    availableFactors?: Array<{
+      label: string;
+      priority: number;
+      type: MfaBindingType;
+    }>;
+    challengeId: string;
+    defaultFactor?: MfaBindingType;
+    destination?: string;
+    expiresAt?: string;
+    factorChallengeId?: string;
+    scenario?: StepUpMfaScenario;
+  }
+
+  export interface StepUpMfaChallengeResult {
+    challenge?: null | StepUpMfaChallenge;
+    required: boolean;
+  }
+
+  export interface StepUpMfaGrantResult {
+    expiresAt?: string;
+    mfaGrantToken?: string;
+    scenario?: StepUpMfaScenario;
     success: boolean;
   }
 
@@ -193,6 +244,7 @@ export async function listSelfLoginMethodsApi() {
 // Changes the signed-in user's own password after backend current-password verification.
 export async function changeOwnPasswordApi(data: {
   currentPassword: string;
+  mfaGrantToken?: string;
   newPassword: string;
 }) {
   return requestClient.post<SelfSecurityApi.PasswordMutationResult>(
@@ -215,7 +267,7 @@ export async function requestEmailBindingChallengeApi(
 export async function verifyEmailBindingApi(
   payload: Required<
     Pick<SelfSecurityApi.ContactBindingVerificationPayload, 'email' | 'otp'>
-  >,
+  > & { mfaGrantToken?: string },
 ) {
   return requestClient.post<SelfSecurityApi.ContactBindingVerificationResponse>(
     '/auth/contact-bindings/email/verify',
@@ -236,8 +288,8 @@ export async function requestPhoneBindingChallengeApi(
 // Verifies the submitted phone OTP and persists the signed-in user's phone binding.
 export async function verifyPhoneBindingApi(
   payload: Required<
-    Pick<SelfSecurityApi.ContactBindingVerificationPayload, 'phone' | 'otp'>
-  >,
+    Pick<SelfSecurityApi.ContactBindingVerificationPayload, 'otp' | 'phone'>
+  > & { mfaGrantToken?: string },
 ) {
   return requestClient.post<SelfSecurityApi.ContactBindingVerificationResponse>(
     '/auth/contact-bindings/phone/verify',
@@ -280,6 +332,27 @@ export async function logoutAllDevicesApi() {
   );
 }
 
+// Lists the signed-in user's trusted devices for the current tenant security scope.
+export async function listTrustedDevicesApi() {
+  return requestClient.get<SelfSecurityApi.TrustedDeviceListResult>(
+    '/auth/security/trusted-devices',
+  );
+}
+
+// Revokes one trusted device without changing the current active session set.
+export async function revokeTrustedDeviceApi(trustedDeviceId: string) {
+  return requestClient.delete<SelfSecurityApi.TrustedDeviceMutationResult>(
+    `/auth/security/trusted-devices/${encodeURIComponent(trustedDeviceId)}`,
+  );
+}
+
+// Revokes every other trusted device while keeping the current device trust untouched.
+export async function revokeOtherTrustedDevicesApi() {
+  return requestClient.post<SelfSecurityApi.TrustedDeviceMutationResult>(
+    '/auth/security/trusted-devices/revoke-others',
+  );
+}
+
 // Lists the signed-in user's MFA binding state.
 export async function listMfaBindingsApi() {
   return requestClient.get<SelfSecurityApi.MfaBindingListResult>(
@@ -302,6 +375,29 @@ export async function disableMfaBindingApi(
   return requestClient.post<SelfSecurityApi.MfaBindingMutationResult>(
     '/auth/mfa/bindings/disable',
     { type },
+  );
+}
+
+// Starts one authenticated step-up MFA challenge for a protected self-service scenario.
+export async function startStepUpMfaChallengeApi(
+  data: { scenario: SelfSecurityApi.StepUpMfaScenario },
+) {
+  return requestClient.post<SelfSecurityApi.StepUpMfaChallengeResult>(
+    '/auth/security/mfa/challenges',
+    data,
+  );
+}
+
+// Completes one authenticated step-up MFA challenge and returns a short-lived grant token.
+export async function completeStepUpMfaChallengeApi(data: {
+  challengeId: string;
+  code: string;
+  factor: SelfSecurityApi.MfaBindingType;
+  factorChallengeId?: string;
+}) {
+  return requestClient.post<SelfSecurityApi.StepUpMfaGrantResult>(
+    '/auth/security/mfa/complete',
+    data,
   );
 }
 

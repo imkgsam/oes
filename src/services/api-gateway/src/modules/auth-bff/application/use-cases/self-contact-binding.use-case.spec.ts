@@ -27,11 +27,13 @@ describe('SelfContactBindingUseCase', () => {
       useCase.verifyEmailBinding(
         {
           email: ' Alice@Example.com ',
-          otp: '123456'
+          otp: '123456',
+          mfaGrantToken: 'step-up-grant-1'
         },
         {
           user: {
             aid: 'account-1',
+            tid: 'tenant-1',
             sid: 'session-1',
             sub: 'user-1'
           }
@@ -65,6 +67,23 @@ describe('SelfContactBindingUseCase', () => {
       expect.objectContaining({
         user: expect.objectContaining({
           aid: 'account-1',
+          sub: 'user-1'
+        })
+      })
+    )
+    expect(authAdapter.verifyEmailBinding).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        email: ' Alice@Example.com ',
+        otp: '123456',
+        mfaGrantToken: 'step-up-grant-1'
+      },
+      expect.objectContaining({
+        user: expect.objectContaining({
+          aid: 'account-1',
+          tid: 'tenant-1',
           sub: 'user-1'
         })
       })

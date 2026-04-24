@@ -14,7 +14,9 @@ import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
 import { GatewaySessionAuthGuard } from './common/guards/gateway-session-auth.guard'
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
+import { HrServiceProxyModule } from './modules/hr-service/hr-service.module'
 import { PermissionServiceProxyModule } from './modules/permission-service/permission-service.module'
+import { TenantOrgServiceProxyModule } from './modules/tenant-org-service/tenant-org-service.module'
 import { GatewayExceptionFilter } from './common/filters/gateway-exception.filter'
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
@@ -37,6 +39,15 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
               ? `${process.env.AUTH_SERVICE_HOST}:${process.env.AUTH_SERVICE_PORT}`
               : undefined
         },
+        [SERVICE_NAMES.ASSET]: {
+          serviceName: SERVICE_NAMES.ASSET,
+          protoPath: resolveCommonProtoPath('asset_service/asset.proto'),
+          packageName: 'asset_service',
+          url:
+            process.env.ASSET_SERVICE_HOST && process.env.ASSET_SERVICE_PORT
+              ? `${process.env.ASSET_SERVICE_HOST}:${process.env.ASSET_SERVICE_PORT}`
+              : 'localhost:50056'
+        },
         [SERVICE_NAMES.PERMISSION]: {
           serviceName: SERVICE_NAMES.PERMISSION,
           protoPath: [
@@ -51,6 +62,15 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
               ? `${process.env.PERMISSION_SERVICE_HOST}:${process.env.PERMISSION_SERVICE_PORT}`
               : undefined
         },
+        [SERVICE_NAMES.HR]: {
+          serviceName: SERVICE_NAMES.HR,
+          protoPath: resolveCommonProtoPath('hr_service/hr.proto'),
+          packageName: 'hr_service',
+          url:
+            process.env.HR_SERVICE_HOST && process.env.HR_SERVICE_PORT
+              ? `${process.env.HR_SERVICE_HOST}:${process.env.HR_SERVICE_PORT}`
+              : 'localhost:50055'
+        },
         [SERVICE_NAMES.IDENTITY]: {
           serviceName: SERVICE_NAMES.IDENTITY,
           protoPath: resolveCommonProtoPath('identity_service/identity_query.proto'),
@@ -59,11 +79,33 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
             process.env.IDENTITY_SERVICE_HOST && process.env.IDENTITY_SERVICE_PORT
               ? `${process.env.IDENTITY_SERVICE_HOST}:${process.env.IDENTITY_SERVICE_PORT}`
               : 'localhost:50052'
+        },
+        [SERVICE_NAMES.PARTY]: {
+          serviceName: SERVICE_NAMES.PARTY,
+          protoPath: resolveCommonProtoPath('party_service/party.proto'),
+          packageName: 'party_service',
+          url:
+            process.env.PARTY_SERVICE_HOST && process.env.PARTY_SERVICE_PORT
+              ? `${process.env.PARTY_SERVICE_HOST}:${process.env.PARTY_SERVICE_PORT}`
+              : 'localhost:50053'
+        },
+        [SERVICE_NAMES.TENANT_ORG]: {
+          serviceName: SERVICE_NAMES.TENANT_ORG,
+          protoPath: resolveCommonProtoPath('tenant_org_service/tenant_org.proto'),
+          packageName: 'tenant_org_service',
+          url:
+            process.env.TENANT_ORG_SERVICE_HOST && process.env.TENANT_ORG_SERVICE_PORT
+              ? `${process.env.TENANT_ORG_SERVICE_HOST}:${process.env.TENANT_ORG_SERVICE_PORT}`
+              : 'localhost:50054'
         }
       },
       defaultPoolConfig: { minSize: 3, maxSize: 3 }
     }),
-    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION]),
+    GrpcTransportModule.forFeature([
+      SERVICE_NAMES.PERMISSION,
+      SERVICE_NAMES.PARTY,
+      SERVICE_NAMES.TENANT_ORG
+    ]),
 
     ThrottlerModule.forRoot({
       throttlers: [
@@ -77,7 +119,9 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
 
     HealthModule,
     AuthBffModule,
-    PermissionServiceProxyModule
+    HrServiceProxyModule,
+    PermissionServiceProxyModule,
+    TenantOrgServiceProxyModule
   ],
   providers: [
     GatewayPermissionGuard,

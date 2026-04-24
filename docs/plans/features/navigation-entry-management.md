@@ -54,6 +54,10 @@
   - `Role Detail > Navigation` 负责 visibility、landing policy 与 preview
 - 管理接口继续放在现有 `permission-management` 管理薄代理体系内。
 - `resolver preview` 第一阶段作为正式管理 API 暴露，并支持多 role 组合输入；单 role 页面预览复用同一接口并传单元素 `roleIds[]`。
+- tenant 侧 `组织与人员` 已收口为 dedicated entry：
+  - 统一入口使用 `tenant-settings.organization-people`
+  - 旧 `/settings/org-structure` 与 `/settings/employee-employment` 保留兼容跳转，并继续挂在各自原 entryKey
+  - 路由可见性过滤以 dedicated entry 为准，不能依赖 legacy entryKey 继续保活统一工作台
 
 ## 5. 契约真相位置
 
@@ -132,6 +136,7 @@
 - 当前 `permission-service` 服务职责文档已承认第一阶段 navigation governance ownership。
 - 当前系统已存在 navigation entry registry、role navigation visibility、role landing policy 的持久化与管理 API。
 - tenant-web 已存在第一版 Navigation Management 页面，包含 entry registry、role navigation JSON 编辑与 resolver preview；后续仍可演进为 Role Detail 内嵌 tab。
+- tenant-web 已将租户侧 `组织与人员` 统一入口挂到 dedicated `entryKey`，并保留 legacy route 的兼容跳转，不再把成员页 / 部门页 visibility 直接绑定到旧入口 key。
 
 ## 10. 派生问题 Ledger
 

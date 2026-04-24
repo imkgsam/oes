@@ -66,7 +66,7 @@ OES 的实施路线必须遵循以下原则：
 
 ### 4.1 目标
 
-- 完成 Auth、Identity、Permission、Entity、Tenant / Org 的平台边界定义与能力闭环
+- 完成 Auth、Identity、Permission、Party、Tenant / Org 的平台边界定义与能力闭环
 - 打通 operator context 在系统中的传递方式
 - 建立统一权限判定与租户隔离基线
 - 完成 `auth-service -> notification-service` 的 OTP 通知协作边界

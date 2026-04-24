@@ -6,7 +6,7 @@
 
 ## 2. Owns
 
-- `Party` 主体真相，包括自然人主体与组织主体
+- `Party` canonical 主体真相，包括 `PersonParty` 与 `OrganizationParty`
 - `TenantParty` 租户对主体的拥有 / 引用关系
 - `PartyIdentifier` 证照、税号、注册号、护照号等稳定标识
 - `PartyRelationship` 中少量稳定主体关系，例如母子公司、分支机构、法定代表人、股东或受益所有人
@@ -23,10 +23,11 @@
 
 ## 4. Core Responsibilities
 
-- 提供与业务角色无关的 `Party` 主体主数据
+- 提供与业务角色无关的 `Party` 主体主数据，其中 `PersonParty` 回答“这个自然人是谁”，`OrganizationParty` 回答“这个现实世界组织主体是谁”
 - 通过 `TenantParty` 区分平台 canonical 主体与租户本地拥有 / 引用关系
 - 通过 `PartyIdentifier` 支撑强匹配、候选查重、去重治理与主体解析
 - 通过受控 `PartyRelationship` 表达稳定的法定或主体关系，但不承接 CRM / SRM 联系人关系
+- 为 `hr-service` 提供可被正式员工主档引用的自然人主体真相，但不拥有员工、任职或组织归属语义
 - 为业务域提供稳定主体引用基础；第一阶段业务单据优先引用 `tenantPartyId`
 - 支撑主体停用、租户绑定停用与受控合并，而不是默认物理删除主体
 
@@ -36,6 +37,8 @@
 - 典型上游入口：`api-gateway`、CRM、SRM、订单、合同、会计、`identity-service`、`tenant-org-service`、`hr-service`
 - 项目级边界参考：
   - [02-bounded-contexts.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/02-bounded-contexts.md)
+- 协同蓝图参考：
+  - [party-identity-and-tenant-org.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/party-identity-and-tenant-org.md)
 - 架构决策参考：
   - [ADR 0003: Party Master Service And Tenant Party Binding](/Users/acehood/Documents/GitHub/oes/docs/adr/0003-party-master-service-and-tenant-party-binding.md)
 

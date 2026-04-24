@@ -1,36 +1,30 @@
-import { MfaType } from '../../common/constants'
+import {
+  DEFAULT_MANAGED_MFA_FACTORS,
+  DEFAULT_MANAGED_MFA_SCENARIO_REQUIREMENTS,
+  ManagedMfaFactor,
+  ManagedMfaFactorPolicySnapshot,
+  ManagedMfaScenario,
+  ManagedMfaScenarioRequirementSnapshot
+} from './mfa-policy.shared'
 
-export type TenantMfaScenario = 'LOGIN'
-export type TenantMfaFactor = MfaType.EMAIL_OTP | MfaType.SMS_OTP | MfaType.TOTP | MfaType.BACKUP_CODE
+export type TenantMfaScenario = ManagedMfaScenario
+export type TenantMfaFactor = ManagedMfaFactor
+export type TenantMfaScenarioRequirementSnapshot = ManagedMfaScenarioRequirementSnapshot
+export type TenantMfaFactorPolicySnapshot = ManagedMfaFactorPolicySnapshot
 
-export interface TenantMfaFactorPolicySnapshot {
-  enabled: boolean
-  factor: TenantMfaFactor
-  priority: number
-  updatedAt?: Date
-  updatedBy?: null | string
-}
-
-const DEFAULT_FACTORS: TenantMfaFactor[] = [
-  MfaType.EMAIL_OTP,
-  MfaType.SMS_OTP,
-  MfaType.TOTP,
-  MfaType.BACKUP_CODE
-]
-
-// Represents one tenant-scoped MFA policy surface used by login-scene orchestration.
+// Represents one tenant-scoped MFA policy surface that keeps scenario requirements separate from global factor ordering.
 export class TenantMfaPolicyEntity {
   constructor(
     public readonly tenantId: string,
-    private loginRequired: boolean,
+    private readonly scenarioRequirements: TenantMfaScenarioRequirementSnapshot,
     private readonly factors: TenantMfaFactorPolicySnapshot[]
   ) {}
 
   static defaults(tenantId: string): TenantMfaPolicyEntity {
     return new TenantMfaPolicyEntity(
       tenantId,
-      false,
-      DEFAULT_FACTORS.map((factor, index) => ({
+      { ...DEFAULT_MANAGED_MFA_SCENARIO_REQUIREMENTS },
+      DEFAULT_MANAGED_MFA_FACTORS.map((factor, index) => ({
         factor,
         enabled: true,
         priority: index + 1
@@ -39,19 +33,31 @@ export class TenantMfaPolicyEntity {
   }
 
   isLoginRequired(): boolean {
-    return this.loginRequired
+    return this.isScenarioRequired('LOGIN')
   }
 
   setLoginRequired(required: boolean): void {
-    this.loginRequired = required
+    this.setScenarioRequired('LOGIN', required)
+  }
+
+  isScenarioRequired(scenario: TenantMfaScenario): boolean {
+    return Boolean(this.scenarioRequirements[scenario])
+  }
+
+  setScenarioRequired(scenario: TenantMfaScenario, required: boolean): void {
+    this.scenarioRequirements[scenario] = required
+  }
+
+  getScenarioRequirements(): TenantMfaScenarioRequirementSnapshot {
+    return { ...this.scenarioRequirements }
   }
 
   replaceFactors(factors: TenantMfaFactorPolicySnapshot[]): void {
     const ordered = [...factors].sort((left, right) => left.priority - right.priority)
     const factorKeys = ordered.map((item) => item.factor)
     if (
-      ordered.length !== DEFAULT_FACTORS.length ||
-      DEFAULT_FACTORS.some((factor) => !factorKeys.includes(factor))
+      ordered.length !== DEFAULT_MANAGED_MFA_FACTORS.length ||
+      DEFAULT_MANAGED_MFA_FACTORS.some((factor) => !factorKeys.includes(factor))
     ) {
       throw new Error('Tenant MFA factor policy must cover all managed factors exactly once')
     }

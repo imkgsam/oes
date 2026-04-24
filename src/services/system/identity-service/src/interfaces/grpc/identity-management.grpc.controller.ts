@@ -1,6 +1,6 @@
 import { Controller, Inject, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
 import { ACCESS_DENIED, ExceptionFactory } from '@oes/common/exceptions'
-import { ValidatingCommandBus } from '@oes/common/cqrs'
+import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   AuthenticatedOperatorGuard,
@@ -17,25 +17,39 @@ import {
   RequireAuthenticatedOperator
 } from '@oes/common/authorization'
 import {
-  AccountContactAssetResponse,
-  AccountOrgMembershipResponse,
-  ApiKeyResponse,
+  AddAccountOrgMembershipResponse,
   AssignAccountWorkEmailAssetRequest,
+  AssignAccountWorkEmailAssetResponse,
   AssignAccountWorkPhoneAssetRequest,
-  CreateUserAccountRequest,
+  AssignAccountWorkPhoneAssetResponse,
+  BindAccountToEmployeeRequest,
+  BindAccountToEmployeeResponse,
+  CreateServiceAccountResponse,
+  CreateUserAccountResponse,
+  DeleteAccountRequest,
+  DeleteAccountResponse,
   CreateApiKeyRequest,
   CreateApiKeyResponse,
   CreateServiceAccountRequest,
-  GetAccountByIdResponse,
-  GetUserByIdResponse,
+  CreateUserAccountRequest,
+  GetAccountDeletionImpactRequest,
+  GetAccountDeletionImpactResponse,
+  RevokeApiKeyResponse,
+  RevokeAccountWorkEmailAssetResponse,
+  RevokeAccountWorkPhoneAssetResponse,
   RevokeAccountWorkEmailAssetRequest,
   RevokeAccountWorkPhoneAssetRequest,
-  ServiceAccountResponse,
+  RemoveAccountOrgMembershipResponse,
   SetAccountPrimaryWorkEmailAssetRequest,
   SetAccountPrimaryWorkPhoneAssetRequest,
-  SetServiceAccountEnabledRequest,
+  SetAccountPrimaryWorkEmailAssetResponse,
+  SetAccountPrimaryWorkPhoneAssetResponse,
   SetAccountWorkEmailAssetStatusRequest,
   SetAccountWorkPhoneAssetStatusRequest,
+  SetAccountWorkEmailAssetStatusResponse,
+  SetAccountWorkPhoneAssetStatusResponse,
+  SetServiceAccountEnabledRequest,
+  SetServiceAccountEnabledResponse,
   AddAccountOrgMembershipRequest,
   IdentityManagementServiceController,
   IdentityManagementServiceControllerMethods,
@@ -45,11 +59,19 @@ import {
   RotateApiKeyResponse,
   SetAccountPrimaryOrgRequest,
   SetAccountPrimaryOrgResponse,
+  UnbindAccountFromEmployeeRequest,
+  UnbindAccountFromEmployeeResponse,
+  UpdateAccountProfileResponse,
+  UpdateOwnAccountProfileRequest,
+  UpdateOwnAccountProfileResponse,
   UpdateUserBasicInfoRequest,
+  UpdateUserBasicInfoResponse,
   UpdateAccountProfileRequest
 } from '@oes/common/generated/identity_service'
 import {
+  BindAccountToEmployeeCommand,
   CreateUserAccountCommand,
+  DeleteAccountCommand,
   UpdateAccountProfileCommand,
   UpdateUserBasicInfoCommand,
   AssignAccountWorkEmailAssetCommand,
@@ -67,8 +89,10 @@ import {
   SetAccountWorkPhoneAssetStatusCommand,
   AddAccountOrgMembershipCommand,
   RemoveAccountOrgMembershipCommand,
-  SetAccountPrimaryOrgCommand
+  SetAccountPrimaryOrgCommand,
+  UnbindAccountFromEmployeeCommand
 } from '../../application/commands'
+import { AccountDeletionImpactView, GetAccountDeletionImpactQuery } from '../../application/queries'
 import { IdentityAuditService } from '../../application/services/identity-audit.service'
 import { classifyAuditResult, extractAuditErrorDetails } from './grpc-audit-support'
 import { IdentityGrpcPresenter } from './identity-grpc.presenter'
@@ -83,6 +107,7 @@ import { getOptionalOperatorScope, getRequiredOperatorId } from './grpc-request-
 export class IdentityManagementGrpcController implements IdentityManagementServiceController {
   constructor(
     private readonly commandBus: ValidatingCommandBus,
+    private readonly queryBus: ValidatingQueryBus,
     private readonly identityAuditService: IdentityAuditService,
     @Inject(OPERATOR_PERMISSION_RESOLVER)
     private readonly permissionResolver: OperatorPermissionResolver
@@ -129,7 +154,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   @RequirePermission(IDENTITY_MACHINE_PERMISSION_CODES.CREATE_SERVICE_ACCOUNT)
   async createServiceAccount(
     request: CreateServiceAccountRequest
-  ): Promise<ServiceAccountResponse> {
+  ): Promise<CreateServiceAccountResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -171,8 +196,20 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
+  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT)
+  async getAccountDeletionImpact(
+    request: GetAccountDeletionImpactRequest
+  ): Promise<GetAccountDeletionImpactResponse> {
+    const operatorScope = getOptionalOperatorScope(request)
+    const result = await this.queryBus.execute<GetAccountDeletionImpactQuery, AccountDeletionImpactView>(
+      new GetAccountDeletionImpactQuery(request.accountId!, operatorScope)
+    )
+
+    return IdentityGrpcPresenter.toAccountDeletionImpact(result)
+  }
+
   @RequirePermission(IDENTITY_MACHINE_PERMISSION_CODES.REVOKE_API_KEY)
-  async revokeApiKey(request: RevokeApiKeyRequest): Promise<ApiKeyResponse> {
+  async revokeApiKey(request: RevokeApiKeyRequest): Promise<RevokeApiKeyResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -241,7 +278,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   @RequirePermission(IDENTITY_MACHINE_PERMISSION_CODES.UPDATE_SERVICE_ACCOUNT_STATUS)
   async setServiceAccountEnabled(
     request: SetServiceAccountEnabledRequest
-  ): Promise<ServiceAccountResponse> {
+  ): Promise<SetServiceAccountEnabledResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -280,7 +317,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   }
 
   @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT)
-  async createUserAccount(request: CreateUserAccountRequest): Promise<GetAccountByIdResponse> {
+  async createUserAccount(request: CreateUserAccountRequest): Promise<CreateUserAccountResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     const account = await this.commandBus.execute(
@@ -302,6 +339,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         userId: account.userId,
         tenantId: account.tenantId ?? '',
         avatarUrl: account.avatarUrl ?? '',
+        avatarAssetId: account.avatarAssetId ?? '',
         displayName: account.displayName ?? '',
         bio: account.bio ?? '',
         isEnabled: account.isEnabled,
@@ -312,7 +350,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
 
   async updateAccountProfile(
     request: UpdateAccountProfileRequest
-  ): Promise<GetAccountByIdResponse> {
+  ): Promise<UpdateAccountProfileResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -324,7 +362,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         resource: { resourceType: 'account', resourceId: request.accountId! },
         details: {
           accountId: request.accountId!,
-          avatarUpdated: Boolean(request.avatarUrl),
+          avatarUpdated: Boolean(request.avatarAssetId),
           displayNameUpdated: request.displayName !== undefined,
           bioUpdated: request.bio !== undefined,
           enabledUpdated: request.isEnabled !== undefined
@@ -335,7 +373,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
 
         const account = await this.commandBus.execute(
           new UpdateAccountProfileCommand(request.accountId!, {
-            avatarUrl: request.avatarUrl || undefined,
+            avatarAssetId: request.avatarAssetId || undefined,
             displayName: request.displayName || undefined,
             bio: request.bio || undefined,
             isEnabled: request.isEnabled,
@@ -350,6 +388,108 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
             userId: account.userId,
             tenantId: account.tenantId ?? '',
             avatarUrl: account.avatarUrl ?? '',
+            avatarAssetId: account.avatarAssetId ?? '',
+            displayName: account.displayName ?? '',
+            bio: account.bio ?? '',
+            isEnabled: account.isEnabled,
+            scopeLevel: account.scopeLevel
+          }
+        }
+      }
+    )
+  }
+
+  async bindAccountToEmployee(
+    request: BindAccountToEmployeeRequest
+  ): Promise<BindAccountToEmployeeResponse> {
+    const operatorId = getRequiredOperatorId(request)
+    return this.executeWithAudit(
+      {
+        eventType: 'ACCOUNT_EMPLOYEE_BOUND',
+        module: 'account',
+        operatorId,
+        scope: { tenantId: request.tenantId || null, orgId: null },
+        resource: {
+          resourceType: 'account_employee_binding',
+          resourceId: request.accountId || null
+        },
+        details: {
+          tenantId: request.tenantId!,
+          accountId: request.accountId!,
+          employeeId: request.employeeId!
+        }
+      },
+      async () => {
+        const binding = await this.commandBus.execute(
+          new BindAccountToEmployeeCommand({
+            tenantId: request.tenantId!,
+            accountId: request.accountId!,
+            employeeId: request.employeeId!
+          })
+        )
+
+        return {
+          binding: IdentityGrpcPresenter.toEmployeeBinding({
+            id: binding.id,
+            tenantId: binding.tenantId,
+            accountId: binding.accountId,
+            employeeId: binding.employeeId
+          })
+        }
+      }
+    )
+  }
+
+  // Updates only the authenticated current account profile without reusing admin account-profile permissions.
+  async updateOwnAccountProfile(
+    request: UpdateOwnAccountProfileRequest
+  ): Promise<UpdateOwnAccountProfileResponse> {
+    const operatorId = getRequiredOperatorId(request)
+    const accountId = request.accountId ?? ''
+
+    if (!accountId || accountId !== operatorId) {
+      throw ExceptionFactory.application(ACCESS_DENIED, {
+        accountId,
+        operatorId
+      })
+    }
+
+    const operatorScope = getOptionalOperatorScope(request)
+    return this.executeWithAudit(
+      {
+        eventType: 'ACCOUNT_PROFILE_UPDATED',
+        module: 'account',
+        operatorId,
+        scope: { tenantId: null, orgId: null },
+        resource: { resourceType: 'account', resourceId: accountId },
+        details: {
+          accountId,
+          avatarUpdated: Boolean(request.avatarAssetId),
+          displayNameUpdated: request.displayName !== undefined,
+          bioUpdated: request.bio !== undefined,
+          enabledUpdated: request.isEnabled !== undefined,
+          selfService: true
+        }
+      },
+      async () => {
+        const account = await this.commandBus.execute(
+          new UpdateAccountProfileCommand(accountId, {
+            avatarAssetId: request.avatarAssetId || undefined,
+            displayName: request.displayName || undefined,
+            bio: request.bio || undefined,
+            isEnabled: request.isEnabled,
+            operatorId,
+            operatorScope
+          })
+        )
+
+        return {
+          account: {
+            id: account.id,
+            userId: account.userId,
+            tenantId: account.tenantId ?? '',
+            avatarUrl: account.avatarUrl ?? '',
+            avatarAssetId: account.avatarAssetId ?? '',
             displayName: account.displayName ?? '',
             bio: account.bio ?? '',
             isEnabled: account.isEnabled,
@@ -361,7 +501,9 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   }
 
   @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE)
-  async updateUserBasicInfo(request: UpdateUserBasicInfoRequest): Promise<GetUserByIdResponse> {
+  async updateUserBasicInfo(
+    request: UpdateUserBasicInfoRequest
+  ): Promise<UpdateUserBasicInfoResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -403,10 +545,48 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
+  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT)
+  async deleteAccount(request: DeleteAccountRequest): Promise<DeleteAccountResponse> {
+    const operatorId = getRequiredOperatorId(request)
+    const operatorScope = getOptionalOperatorScope(request)
+
+    return this.executeWithAudit(
+      {
+        eventType: 'ACCOUNT_DELETED',
+        module: 'account',
+        operatorId,
+        scope: { tenantId: null, orgId: null },
+        resource: { resourceType: 'account', resourceId: request.accountId! },
+        details: {
+          accountId: request.accountId!
+        }
+      },
+      async () => {
+        const result = await this.commandBus.execute(
+          new DeleteAccountCommand(request.accountId!, {
+            operatorId,
+            operatorScope
+          })
+        )
+
+        return IdentityGrpcPresenter.toDeleteAccountResponse(result)
+      },
+      (result) => ({
+        accountId: request.accountId!,
+        deletedSessionCount: Number(request.deletedSessionCount ?? 0),
+        clearedRoleCount: Number(request.clearedRoleCount ?? 0),
+        deletedPolicyCount: Number(request.deletedPolicyCount ?? 0),
+        deletedOrgMembershipCount: Number(result.deletedOrgMembershipCount ?? 0),
+        deletedContactAssetCount: Number(result.deletedContactAssetCount ?? 0),
+        userRetained: Boolean(result.userRetained)
+      })
+    )
+  }
+
   @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_WORK_EMAIL)
   async assignAccountWorkEmailAsset(
     request: AssignAccountWorkEmailAssetRequest
-  ): Promise<AccountContactAssetResponse> {
+  ): Promise<AssignAccountWorkEmailAssetResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -450,7 +630,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_WORK_PHONE)
   async assignAccountWorkPhoneAsset(
     request: AssignAccountWorkPhoneAssetRequest
-  ): Promise<AccountContactAssetResponse> {
+  ): Promise<AssignAccountWorkPhoneAssetResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -494,7 +674,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.REVOKE_WORK_EMAIL)
   async revokeAccountWorkEmailAsset(
     request: RevokeAccountWorkEmailAssetRequest
-  ): Promise<AccountContactAssetResponse> {
+  ): Promise<RevokeAccountWorkEmailAssetResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -530,7 +710,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.REVOKE_WORK_PHONE)
   async revokeAccountWorkPhoneAsset(
     request: RevokeAccountWorkPhoneAssetRequest
-  ): Promise<AccountContactAssetResponse> {
+  ): Promise<RevokeAccountWorkPhoneAssetResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -566,7 +746,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_WORK_EMAIL)
   async setAccountPrimaryWorkEmailAsset(
     request: SetAccountPrimaryWorkEmailAssetRequest
-  ): Promise<AccountContactAssetResponse> {
+  ): Promise<SetAccountPrimaryWorkEmailAssetResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -602,7 +782,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_WORK_PHONE)
   async setAccountPrimaryWorkPhoneAsset(
     request: SetAccountPrimaryWorkPhoneAssetRequest
-  ): Promise<AccountContactAssetResponse> {
+  ): Promise<SetAccountPrimaryWorkPhoneAssetResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -638,7 +818,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.SET_WORK_EMAIL_STATUS)
   async setAccountWorkEmailAssetStatus(
     request: SetAccountWorkEmailAssetStatusRequest
-  ): Promise<AccountContactAssetResponse> {
+  ): Promise<SetAccountWorkEmailAssetStatusResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -680,7 +860,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.SET_WORK_PHONE_STATUS)
   async setAccountWorkPhoneAssetStatus(
     request: SetAccountWorkPhoneAssetStatusRequest
-  ): Promise<AccountContactAssetResponse> {
+  ): Promise<SetAccountWorkPhoneAssetStatusResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -722,7 +902,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   @RequirePermission(IDENTITY_ORG_PERMISSION_CODES.ADD_ACCOUNT_MEMBERSHIP)
   async addAccountOrgMembership(
     request: AddAccountOrgMembershipRequest
-  ): Promise<AccountOrgMembershipResponse> {
+  ): Promise<AddAccountOrgMembershipResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -767,7 +947,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   @RequirePermission(IDENTITY_ORG_PERMISSION_CODES.REMOVE_ACCOUNT_MEMBERSHIP)
   async removeAccountOrgMembership(
     request: RemoveAccountOrgMembershipRequest
-  ): Promise<AccountOrgMembershipResponse> {
+  ): Promise<RemoveAccountOrgMembershipResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
     return this.executeWithAudit(
@@ -805,6 +985,43 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         return {
           membership: IdentityGrpcPresenter.toAccountOrgMembership(membership)
         }
+      }
+    )
+  }
+
+  async unbindAccountFromEmployee(
+    request: UnbindAccountFromEmployeeRequest
+  ): Promise<UnbindAccountFromEmployeeResponse> {
+    const operatorId = getRequiredOperatorId(request)
+    return this.executeWithAudit(
+      {
+        eventType: 'ACCOUNT_EMPLOYEE_UNBOUND',
+        module: 'account',
+        operatorId,
+        scope: { tenantId: null, orgId: null },
+        resource: {
+          resourceType: 'account_employee_binding',
+          resourceId: request.accountId || null
+        },
+        details: {
+          accountId: request.accountId!
+        }
+      },
+      async () => {
+        const binding = await this.commandBus.execute(
+          new UnbindAccountFromEmployeeCommand(request.accountId!)
+        )
+
+        return binding
+          ? {
+              binding: IdentityGrpcPresenter.toEmployeeBinding({
+                id: binding.id,
+                tenantId: binding.tenantId,
+                accountId: binding.accountId,
+                employeeId: binding.employeeId
+              })
+            }
+          : {}
       }
     )
   }
@@ -872,10 +1089,27 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
       resource: { resourceType: string; resourceId: string | null }
       details: Record<string, unknown>
     },
-    action: () => Promise<T>
+    action: () => Promise<T>,
+    getSuccessDetails?: (result: T) => Record<string, unknown>
   ): Promise<T> {
     try {
-      return await action()
+      const result = await action()
+      if (getSuccessDetails) {
+        this.identityAuditService.emitEnvelope(context.eventType, context.module, {
+          operator: {
+            operatorId: context.operatorId,
+            operatorType: 'HUMAN'
+          },
+          scope: context.scope,
+          resource: context.resource,
+          result: 'SUCCEEDED',
+          details: {
+            ...context.details,
+            ...getSuccessDetails(result)
+          }
+        })
+      }
+      return result
     } catch (error) {
       this.identityAuditService.emitEnvelope(context.eventType, context.module, {
         operator: {
@@ -898,7 +1132,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   private async enforceAccountProfileUpdatePermissions(
     request: UpdateAccountProfileRequest
   ): Promise<void> {
-    if (request.avatarUrl !== undefined || request.displayName !== undefined || request.bio !== undefined) {
+    if (request.avatarAssetId !== undefined || request.displayName !== undefined || request.bio !== undefined) {
       await this.requireOperatorPermission(
         request,
         IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE

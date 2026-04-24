@@ -29,9 +29,12 @@ export class PartyRegistrationService {
   async registerPersonParty(input: CreatePersonPartyInput) {
     const canonicalName = this.normalizeRequiredName(input.canonicalName)
     const strongMatch = await this.partyIdentifierRepository.findStrongMatch(input.identifiers)
+    const tenantId = this.normalizeOptionalTenantId(input.tenantId)
 
     if (strongMatch) {
-      const tenantParty = await this.createTenantBinding(input.tenantId, strongMatch.id, input.localDisplayName, input.localCode)
+      const tenantParty = tenantId
+        ? await this.createTenantBinding(tenantId, strongMatch.id, input.localDisplayName, input.localCode)
+        : undefined
       return { party: strongMatch, tenantParty, matchResult: 'STRONG_MATCH_REUSED' }
     }
 
@@ -40,21 +43,26 @@ export class PartyRegistrationService {
       displayName: input.localDisplayName ?? canonicalName
     })
     await this.partyIdentifierRepository.createMany(party.id, input.identifiers)
-    const tenantParty = await this.tenantPartyRepository.create({
-      tenantId: input.tenantId,
-      partyId: party.id,
-      localDisplayName: input.localDisplayName,
-      localCode: input.localCode
-    })
+    const tenantParty = tenantId
+      ? await this.tenantPartyRepository.create({
+          tenantId,
+          partyId: party.id,
+          localDisplayName: input.localDisplayName,
+          localCode: input.localCode
+        })
+      : undefined
     return { party, tenantParty, matchResult: 'CREATED' }
   }
 
   async registerOrganizationParty(input: CreateOrganizationPartyInput) {
     const canonicalName = this.normalizeRequiredName(input.canonicalName)
     const strongMatch = await this.partyIdentifierRepository.findStrongMatch(input.identifiers)
+    const tenantId = this.normalizeOptionalTenantId(input.tenantId)
 
     if (strongMatch) {
-      const tenantParty = await this.createTenantBinding(input.tenantId, strongMatch.id, input.localDisplayName, input.localCode)
+      const tenantParty = tenantId
+        ? await this.createTenantBinding(tenantId, strongMatch.id, input.localDisplayName, input.localCode)
+        : undefined
       return { party: strongMatch, tenantParty, matchResult: 'STRONG_MATCH_REUSED' }
     }
 
@@ -64,12 +72,14 @@ export class PartyRegistrationService {
       registeredCountry: input.registeredCountry
     })
     await this.partyIdentifierRepository.createMany(party.id, input.identifiers)
-    const tenantParty = await this.tenantPartyRepository.create({
-      tenantId: input.tenantId,
-      partyId: party.id,
-      localDisplayName: input.localDisplayName,
-      localCode: input.localCode
-    })
+    const tenantParty = tenantId
+      ? await this.tenantPartyRepository.create({
+          tenantId,
+          partyId: party.id,
+          localDisplayName: input.localDisplayName,
+          localCode: input.localCode
+        })
+      : undefined
     return { party, tenantParty, matchResult: 'CREATED' }
   }
 
@@ -105,6 +115,11 @@ export class PartyRegistrationService {
       throw new BadRequestException('canonicalName is required')
     }
     return canonicalName
+  }
+
+  private normalizeOptionalTenantId(value: string): string | undefined {
+    const tenantId = value.trim()
+    return tenantId ? tenantId : undefined
   }
 
   private async createTenantBinding(

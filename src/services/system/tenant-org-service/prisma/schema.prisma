@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum OrgUnitStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum OrgUnitType {
+  ROOT
+  DEPARTMENT
+  TEAM
+  BRANCH
+  OTHER
+}
+
+model Tenant {
+  id        String       @id @default(uuid()) @db.Uuid
+  code      String       @unique @db.VarChar(100)
+  name      String       @db.VarChar(255)
+  status    TenantStatus @default(ACTIVE)
+  rootOrgId String?      @db.Uuid
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  orgUnits  OrgUnit[]
+}
+
+model OrgUnit {
+  id                  String        @id @default(uuid()) @db.Uuid
+  tenantId            String        @db.Uuid
+  parentOrgId         String?       @db.Uuid
+  name                String        @db.VarChar(255)
+  type                OrgUnitType
+  status              OrgUnitStatus @default(ACTIVE)
+  path                String        @db.VarChar(2048)
+  depth               Int
+  sortOrder           Int           @default(0)
+  organizationPartyId String?       @db.Uuid
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parent   OrgUnit?  @relation("OrgUnitTree", fields: [parentOrgId], references: [id])
+  children OrgUnit[] @relation("OrgUnitTree")
+
+  @@unique([tenantId, parentOrgId, name])
+  @@index([tenantId])
+  @@index([parentOrgId])
+  @@index([path])
+}

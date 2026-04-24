@@ -6,6 +6,7 @@ import {
 } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
+  DeletePolicyRequest,
   GetPolicyByIdRequest,
   ListPoliciesByPermissionRequest,
   ListPoliciesResponse,
@@ -62,6 +63,14 @@ export class PolicyManagementGrpcAdapter implements OnModuleInit {
       payload.isEnabled = req.isEnabled
     }
 
+    if (Object.prototype.hasOwnProperty.call(req, 'subjectType')) {
+      payload.subjectType = req.subjectType
+    }
+
+    if (Object.prototype.hasOwnProperty.call(req, 'subjectId')) {
+      payload.subjectId = req.subjectId
+    }
+
     return this.call('listPoliciesPaged', () =>
       this.svc.listPoliciesPaged(
         payload,
@@ -77,6 +86,16 @@ export class PolicyManagementGrpcAdapter implements OnModuleInit {
   ): Promise<PolicyResponse> {
     return this.call('getPolicyById', () =>
       this.svc.getPolicyById(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Deletes one policy governance row by stable id.
+  async deletePolicy(req: DeletePolicyRequest, source: DownstreamRequestSource): Promise<void> {
+    await this.call('deletePolicy', () =>
+      this.svc.deletePolicy(
         req,
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       )

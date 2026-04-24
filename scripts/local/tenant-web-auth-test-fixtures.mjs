@@ -1,6 +1,9 @@
 const COMPANY_1_ID = 'ea06d4a0-6990-4ba0-ae13-fb31485c2001';
 const COMPANY_2_ID = '1c1f7e79-e3d7-476e-9e85-3270d7f52002';
 const COMPANY_3_ID = '6c737f64-5a9c-4381-bd5d-c2c7ab2b3003';
+const COMPANY_1_ROOT_ORG_ID = 'aa06d4a0-6990-4ba0-ae13-fb31485c2001';
+const COMPANY_2_ROOT_ORG_ID = '2c1f7e79-e3d7-476e-9e85-3270d7f52002';
+const COMPANY_3_ROOT_ORG_ID = '7c737f64-5a9c-4381-bd5d-c2c7ab2b3003';
 
 const USER_1_ID = '7df29e8e-f2f4-4ca3-8c17-bfe3bba0f111';
 const USER_2_ID = '93e0b3fa-9e86-4a8d-84f2-40a18bbf1002';
@@ -33,6 +36,8 @@ export const SEEDED_COMPANIES = [
     code: 'meilong-ceramics',
     domain: 'meilong-ceramics.com',
     name: '潮州市美隆陶瓷实业有限公司',
+    rootOrgId: COMPANY_1_ROOT_ORG_ID,
+    rootOrgName: '潮州市美隆陶瓷实业有限公司',
   },
   {
     key: 'company-2',
@@ -40,6 +45,8 @@ export const SEEDED_COMPANIES = [
     code: 'dawu-tech',
     domain: 'dawu-tech.com',
     name: '潮州市达屋科技有限公司',
+    rootOrgId: COMPANY_2_ROOT_ORG_ID,
+    rootOrgName: '潮州市达屋科技有限公司',
   },
   {
     key: 'company-3',
@@ -47,6 +54,8 @@ export const SEEDED_COMPANIES = [
     code: 'wooyun',
     domain: 'wooyun.com',
     name: '深圳市乌云科技有限公司',
+    rootOrgId: COMPANY_3_ROOT_ORG_ID,
+    rootOrgName: '深圳市乌云科技有限公司',
   },
 ];
 
@@ -372,4 +381,31 @@ export function buildSeedAccountRoleBindings() {
       };
     },
   );
+}
+
+// Resolves tenant-org-service tenant rows and root org units for local shared-environment hydration paths.
+export function buildSeedTenantOrgTenants() {
+  return SEEDED_COMPANIES.map((company) => ({
+    id: company.id,
+    code: company.code,
+    name: company.name,
+    rootOrgId: company.rootOrgId,
+    status: 'ACTIVE',
+  }));
+}
+
+// Resolves one active root org unit per managed tenant so tenant-org-service can answer first-phase queries.
+export function buildSeedTenantOrgRootUnits() {
+  return SEEDED_COMPANIES.map((company) => ({
+    id: company.rootOrgId,
+    tenantId: company.id,
+    parentOrgId: null,
+    name: company.rootOrgName,
+    type: 'ROOT',
+    status: 'ACTIVE',
+    path: `/${company.rootOrgId}`,
+    depth: 0,
+    sortOrder: 0,
+    organizationPartyId: null,
+  }));
 }

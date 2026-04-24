@@ -2,7 +2,7 @@
 import type { VbenFormSchema } from '@vben/common-ui';
 import type { Recordable } from '@vben/types';
 
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 import { AuthenticationCodeLogin, SliderCaptcha, z } from '@vben/common-ui';
@@ -32,6 +32,7 @@ const loginMode = computed<LoginMode>(() => {
 
 const isEmailMode = computed(() => loginMode.value === 'email');
 const loginPath = computed(() => `/auth/login?mode=${loginMode.value}`);
+const routeIdentifier = computed(() => `${route.query.identifier ?? ''}`.trim());
 
 // Converts rejected OTP login attempts into user-facing feedback without leaking unhandled promise errors.
 function handleCodeLoginError() {
@@ -145,6 +146,21 @@ function resetSlider() {
   sliderPassed.value = false;
   sliderRef.value?.resume?.();
 }
+
+// syncIdentifierFromRoute carries an identifier handed off from password login into the current OTP mode.
+function syncIdentifierFromRoute() {
+  if (!routeIdentifier.value) {
+    return;
+  }
+
+  formRef.value
+    ?.getFormApi?.()
+    .setFieldValue(isEmailMode.value ? 'email' : 'phoneNumber', routeIdentifier.value);
+}
+
+onMounted(syncIdentifierFromRoute);
+
+watch(() => [loginMode.value, routeIdentifier.value] as const, syncIdentifierFromRoute);
 </script>
 
 <template>

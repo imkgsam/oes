@@ -7,12 +7,15 @@ import {
 } from '@oes/common/authorization'
 import { InjectGrpcClient, safeGrpcCall, SafeGrpcCallOptions } from '@oes/common/transport'
 import {
+  CreateUserAccountResponse,
+  DeleteAccountRequest,
+  DeleteAccountResponse,
   CreateUserAccountRequest,
+  GetEmployeeBindingByAccountIdResponse,
+  GetAccountDeletionImpactResponse,
   ListAccountsResponse,
-  ListTenantsResponse,
   GetAccountsByUserIdResponse,
   GetAccountByIdResponse,
-  GetTenantByIdResponse,
   GetUserByEmailResponse,
   GetUserByIdResponse,
   GetUserByPhoneResponse,
@@ -22,7 +25,11 @@ import {
   IdentityQueryServiceClient,
   ListAccountWorkEmailAssetsResponse,
   ListAccountWorkPhoneAssetsResponse,
+  UpdateOwnAccountProfileRequest,
+  UpdateOwnAccountProfileResponse,
+  UpdateAccountProfileResponse,
   UpdateUserBasicInfoRequest,
+  UpdateUserBasicInfoResponse,
   UpdateAccountProfileRequest
 } from '@oes/common/generated/identity_service'
 import {
@@ -60,6 +67,16 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
     )
   }
 
+  getEmployeeBindingByAccountId(
+    accountId: string,
+    source: DownstreamRequestSource
+  ): Promise<GetEmployeeBindingByAccountIdResponse> {
+    return this.call(
+      'getEmployeeBindingByAccountId',
+      this.svc.getEmployeeBindingByAccountId({ accountId }, this.operatorMetadata(source))
+    )
+  }
+
   getAccountsByUserId(
     userId: string,
     source: DownstreamRequestSource
@@ -89,25 +106,6 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
           pageSize: request.pageSize,
           scopeLevel: request.scopeLevel,
           status: request.status
-        },
-        this.operatorMetadata(source)
-      )
-    )
-  }
-
-  listTenants(
-    request: {
-      keyword?: string
-      pageSize?: number
-    },
-    source: DownstreamRequestSource
-  ): Promise<ListTenantsResponse> {
-    return this.call(
-      'listTenants',
-      this.svc.listTenants(
-        {
-          keyword: request.keyword,
-          pageSize: request.pageSize
         },
         this.operatorMetadata(source)
       )
@@ -155,20 +153,23 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
     )
   }
 
-  getTenantById(tenantId: string, source: DownstreamRequestSource): Promise<GetTenantByIdResponse> {
-    return this.call(
-      'getTenantById',
-      this.svc.getTenantById({ tenantId }, this.metadata(source))
-    )
-  }
-
   updateAccountProfile(
     request: UpdateAccountProfileRequest,
     source: DownstreamRequestSource
-  ): Promise<GetAccountByIdResponse> {
+  ): Promise<UpdateAccountProfileResponse> {
     return this.call(
       'updateAccountProfile',
       this.managementSvc.updateAccountProfile(request, this.operatorMetadata(source))
+    )
+  }
+
+  updateOwnAccountProfile(
+    request: UpdateOwnAccountProfileRequest,
+    source: DownstreamRequestSource
+  ): Promise<UpdateOwnAccountProfileResponse> {
+    return this.call(
+      'updateOwnAccountProfile',
+      this.managementSvc.updateOwnAccountProfile(request, this.operatorMetadata(source))
     )
   }
 
@@ -180,7 +181,7 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
       phone?: string
     },
     source: DownstreamRequestSource
-  ): Promise<GetUserByIdResponse> {
+  ): Promise<UpdateUserBasicInfoResponse> {
     const grpcRequest: UpdateUserBasicInfoRequest = {
       accountId: request.accountId,
       userId: request.userId,
@@ -204,7 +205,7 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
       phone?: string
     },
     source: DownstreamRequestSource
-  ): Promise<GetAccountByIdResponse> {
+  ): Promise<CreateUserAccountResponse> {
     const grpcRequest: CreateUserAccountRequest = {
       scopeLevel: request.scopeLevel,
       tenantId: request.tenantId,
@@ -217,6 +218,38 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
     return this.call(
       'createUserAccount',
       this.managementSvc.createUserAccount(grpcRequest, this.operatorMetadata(source))
+    )
+  }
+
+  getAccountDeletionImpact(
+    accountId: string,
+    source: DownstreamRequestSource
+  ): Promise<GetAccountDeletionImpactResponse> {
+    return this.call(
+      'getAccountDeletionImpact',
+      this.managementSvc.getAccountDeletionImpact({ accountId }, this.operatorMetadata(source))
+    )
+  }
+
+  deleteAccount(
+    request: {
+      accountId: string
+      deletedSessionCount: number
+      clearedRoleCount: number
+      deletedPolicyCount: number
+    },
+    source: DownstreamRequestSource
+  ): Promise<DeleteAccountResponse> {
+    const grpcRequest: DeleteAccountRequest = {
+      accountId: request.accountId,
+      deletedSessionCount: request.deletedSessionCount,
+      clearedRoleCount: request.clearedRoleCount,
+      deletedPolicyCount: request.deletedPolicyCount
+    }
+
+    return this.call(
+      'deleteAccount',
+      this.managementSvc.deleteAccount(grpcRequest, this.operatorMetadata(source))
     )
   }
 

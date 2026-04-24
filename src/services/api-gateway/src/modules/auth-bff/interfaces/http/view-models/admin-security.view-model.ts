@@ -84,6 +84,42 @@ export class AdminAccountBasicInfoViewModel {
   @ApiProperty() isEnabled!: boolean
 }
 
+export class AdminAccountDeletionCleanupPlanViewModel {
+  @ApiProperty() willDeleteSessions!: boolean
+  @ApiProperty() willClearRoles!: boolean
+  @ApiProperty() willDeleteOrgMemberships!: boolean
+  @ApiProperty() willDeleteContactAssets!: boolean
+}
+
+export class AdminAccountDeletionBlockingReasonViewModel {
+  @ApiProperty() resourceType!: string
+  @ApiProperty() resourceCount!: number
+  @ApiProperty() message!: string
+}
+
+export class AdminAccountDeletionImpactViewModel {
+  @ApiProperty() accountId!: string
+  @ApiProperty() canDelete!: boolean
+  @ApiProperty() userRetained!: boolean
+  @ApiProperty({ type: AdminAccountDeletionCleanupPlanViewModel })
+  cleanupPlan!: AdminAccountDeletionCleanupPlanViewModel
+  @ApiProperty({ type: AdminAccountDeletionBlockingReasonViewModel, isArray: true })
+  blockingReasons!: AdminAccountDeletionBlockingReasonViewModel[]
+  @ApiProperty() orgMembershipCount!: number
+  @ApiProperty() contactAssetCount!: number
+}
+
+export class AdminAccountDeletionResultViewModel {
+  @ApiProperty() accountId!: string
+  @ApiProperty() success!: boolean
+  @ApiProperty() deletedSessionCount!: number
+  @ApiProperty() clearedRoleCount!: number
+  @ApiProperty() deletedPolicyCount!: number
+  @ApiProperty() deletedOrgMembershipCount!: number
+  @ApiProperty() deletedContactAssetCount!: number
+  @ApiProperty() userRetained!: boolean
+}
+
 // Defines one tenant option returned to account creation selectors.
 export class AdminTenantOptionViewModel {
   @ApiProperty() id!: string
@@ -180,12 +216,34 @@ export class AdminTenantMfaFactorPolicyViewModel {
   priority!: number
 }
 
+export class AdminTenantMfaScenarioRequirementViewModel {
+  @ApiProperty({ enum: ['LOGIN', 'CHANGE_PASSWORD', 'CHANGE_CONTACT', 'NEW_DEVICE_LOGIN'] })
+  scenario!: 'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'LOGIN' | 'NEW_DEVICE_LOGIN'
+
+  @ApiProperty()
+  required!: boolean
+}
+
 export class AdminTenantMfaPolicyViewModel {
   @ApiProperty()
   tenantId!: string
 
   @ApiProperty()
   loginRequired!: boolean
+
+  @ApiProperty({ type: AdminTenantMfaScenarioRequirementViewModel, isArray: true })
+  scenarioRequirements!: AdminTenantMfaScenarioRequirementViewModel[]
+
+  @ApiProperty({ type: AdminTenantMfaFactorPolicyViewModel, isArray: true })
+  factors!: AdminTenantMfaFactorPolicyViewModel[]
+}
+
+export class AdminPlatformMfaPolicyViewModel {
+  @ApiProperty()
+  loginRequired!: boolean
+
+  @ApiProperty({ type: AdminTenantMfaScenarioRequirementViewModel, isArray: true })
+  scenarioRequirements!: AdminTenantMfaScenarioRequirementViewModel[]
 
   @ApiProperty({ type: AdminTenantMfaFactorPolicyViewModel, isArray: true })
   factors!: AdminTenantMfaFactorPolicyViewModel[]

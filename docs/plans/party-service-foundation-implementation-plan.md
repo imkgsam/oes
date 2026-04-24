@@ -1,8 +1,10 @@
 # Party Service Foundation Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **Historical Note (2026-04-24):** This implementation plan predates the landed phase-1 `party-service` runtime/contract. The current stable owner/service name is `party-service` / `party_service`; references below to deleting `entity-service` capture a historical migration step rather than current live-service truth.
 
-**Goal:** Replace the unused `entity-service` skeleton with a clean first-stage `party-service` implementation that matches the approved architecture, contracts, and service boundaries.
+**Historical Goal:** Replace the then-unused `entity-service` skeleton with a clean first-stage `party-service` implementation that matches the approved architecture, contracts, and service boundaries.
 
 **Architecture:** Build `party-service` as a gRPC system service, aligned with the repo's current `identity-service` runtime shape, but keep the internal implementation lighter than the larger CQRS services for first-stage delivery. The service owns canonical `Party`, tenant-scoped `TenantParty`, stable `PartyIdentifier`, and a minimal `PartyRelationship` set; it does not own contact, org tree, or HR semantics.
 
@@ -82,7 +84,7 @@ Docs:
 
 ### Slice A: Replace Legacy Service Skeleton
 
-**Purpose:** Remove the unused generic entity skeleton and establish the new package root.
+**Purpose:** Remove the then-unused generic entity skeleton and establish the new package root.
 
 - [ ] Delete `src/services/system/entity-service`.
 - [ ] Create `src/services/system/party-service` package metadata and TypeScript / Jest config.

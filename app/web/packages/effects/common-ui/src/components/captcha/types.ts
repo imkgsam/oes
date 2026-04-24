@@ -105,6 +105,12 @@ export interface SliderCaptchaProps {
   isSlot?: boolean;
 
   /**
+   * @description 是否禁用滑块交互
+   * @default false
+   */
+  disabled?: boolean;
+
+  /**
    * @description 验证成功的提示
    * @default '验证通过'
    */

@@ -17,7 +17,10 @@ export enum AuthNextStep {
 }
 
 export enum MfaScenarioViewModel {
-  LOGIN = 'LOGIN'
+  LOGIN = 'LOGIN',
+  NEW_DEVICE_LOGIN = 'NEW_DEVICE_LOGIN',
+  CHANGE_PASSWORD = 'CHANGE_PASSWORD',
+  CHANGE_CONTACT = 'CHANGE_CONTACT'
 }
 
 export enum MfaFactorTypeViewModel {
@@ -71,6 +74,12 @@ export class MfaFactorOptionViewModel {
 
   @ApiProperty({ description: 'User-facing factor label.' })
   label!: string
+
+  @ApiProperty({
+    description:
+      'Priority resolved from the selected account tenant MFA policy; lower numbers are preferred first.'
+  })
+  priority!: number
 }
 
 // Defines the challenge context returned when the next auth step must resume a pending challenge.

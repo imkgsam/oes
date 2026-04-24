@@ -1,4 +1,3 @@
-import { randomUUID } from 'crypto'
 import { Injectable } from '@nestjs/common'
 import { UserRepository } from '../../../domain/repositories/user.repository'
 import { UserSummaryEntity } from '../../../domain/entities/user-summary.entity'
@@ -10,6 +9,7 @@ export class PrismaUserRepository implements UserRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(input: {
+    partyId?: string | null
     username?: string | null
     email?: string | null
     phone?: string | null
@@ -17,7 +17,7 @@ export class PrismaUserRepository implements UserRepository {
   }): Promise<UserSummaryEntity> {
     const record = await this.prisma.user.create({
       data: {
-        entityId: randomUUID(),
+        partyId: input.partyId?.trim() ?? null,
         username: input.username ?? null,
         email: input.email?.trim().toLowerCase() ?? null,
         phone: input.phone?.trim() ?? null,

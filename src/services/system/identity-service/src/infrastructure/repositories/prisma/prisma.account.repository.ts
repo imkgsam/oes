@@ -17,17 +17,18 @@ const ACCOUNT_SUMMARY_SELECT = {
   tenantId: true,
   scopeLevel: true,
   avatarUrl: true,
+  avatarAssetId: true,
   displayName: true,
   bio: true,
   isEnable: true,
   Tenant: {
     select: {
-      isActive: true,
-      name: true
+      isActive: true
     }
   },
   User: {
     select: {
+      partyId: true,
       username: true
     }
   }
@@ -36,6 +37,46 @@ const ACCOUNT_SUMMARY_SELECT = {
 @Injectable()
 export class PrismaAccountRepository implements AccountRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  // Loads deletion preview data for one account so the caller can enforce blockers before cleanup starts.
+  async getDeletionImpact(accountId: string): Promise<{
+    account: AccountSummaryEntity | null
+    orgMembershipCount: number
+    contactAssetCount: number
+    blockingReasons: Array<{
+      resourceType: string
+      resourceCount: number
+      message: string
+    }>
+  }> {
+    const [record, orgMembershipCount, contactAssetCount] = await this.prisma.$transaction([
+      this.prisma.userAccount.findUnique({
+        where: {
+          id: accountId
+        },
+        select: {
+          ...ACCOUNT_SUMMARY_SELECT
+        }
+      }),
+      this.prisma.userAccountOrgMembership.count({
+        where: {
+          accountId
+        }
+      }),
+      this.prisma.accountContactAsset.count({
+        where: {
+          accountId
+        }
+      })
+    ])
+
+    return {
+      account: record ? PrismaAccountSummaryMapper.toDomain(record) : null,
+      orgMembershipCount,
+      contactAssetCount,
+      blockingReasons: []
+    }
+  }
 
   async createUserAccount(input: {
     scopeLevel: 'SYSTEM' | 'TENANT'
@@ -58,6 +99,36 @@ export class PrismaAccountRepository implements AccountRepository {
     })
 
     return PrismaAccountSummaryMapper.toDomain(record)
+  }
+
+  // Permanently deletes one account and reports the number of identity-owned records that cascaded away with it.
+  async delete(accountId: string): Promise<{
+    deletedOrgMembershipCount: number
+    deletedContactAssetCount: number
+  }> {
+    const [deletedOrgMembershipCount, deletedContactAssetCount] = await this.prisma.$transaction([
+      this.prisma.userAccountOrgMembership.count({
+        where: {
+          accountId
+        }
+      }),
+      this.prisma.accountContactAsset.count({
+        where: {
+          accountId
+        }
+      })
+    ])
+
+    await this.prisma.userAccount.delete({
+      where: {
+        id: accountId
+      }
+    })
+
+    return {
+      deletedOrgMembershipCount,
+      deletedContactAssetCount
+    }
   }
 
   async findAvailableByUserId(userId: string): Promise<AccountCandidateEntity[]> {
@@ -87,6 +158,7 @@ export class PrismaAccountRepository implements AccountRepository {
         tenantId: true,
         scopeLevel: true,
         avatarUrl: true,
+        avatarAssetId: true,
         displayName: true,
         bio: true,
         isEnable: true,
@@ -194,16 +266,6 @@ export class PrismaAccountRepository implements AccountRepository {
               }
             }
           }
-        },
-        {
-          Tenant: {
-            is: {
-              name: {
-                contains: keyword,
-                mode: 'insensitive'
-              }
-            }
-          }
         }
       ]
     }
@@ -245,21 +307,21 @@ export class PrismaAccountRepository implements AccountRepository {
   async updateProfile(
     accountId: string,
     input: {
-      avatarUrl?: string | null
+      avatarAssetId?: string | null
       displayName?: string | null
       bio?: string | null
       isEnabled?: boolean
     }
   ): Promise<AccountSummaryEntity> {
     const data: {
-      avatarUrl?: string | null
+      avatarAssetId?: string | null
       displayName?: string | null
       bio?: string | null
       isEnable?: boolean
     } = {}
 
-    if (input.avatarUrl !== undefined) {
-      data.avatarUrl = input.avatarUrl
+    if (input.avatarAssetId !== undefined) {
+      data.avatarAssetId = input.avatarAssetId
     }
 
     if (input.displayName !== undefined) {

@@ -3,6 +3,9 @@ import type { PermissionManagementApi } from '#/api';
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildNavigationPreviewEntryRows,
+  buildNavigationTerminalList,
+  buildRoleOptionLabel,
   buildRoleNavigationEditorModel,
   buildRoleNavigationSavePayload,
   inferNavigationPreviewScopeLevel,
@@ -149,5 +152,106 @@ describe('navigation management helpers', () => {
     ]);
 
     expect(result).toBe('TENANT');
+  });
+
+  it('adds tenant name to tenant-scoped role labels for preview selection', () => {
+    expect(
+      buildRoleOptionLabel({
+        code: 'tenant.admin',
+        id: 'role-1',
+        isEnabled: true,
+        isSystem: false,
+        name: '租户管理员',
+        roleKind: 'TENANT_INSTANCE',
+        tenantId: 'tenant-1',
+        tenantName: '华东事业部',
+      } as any),
+    ).toBe('租户管理员 · 华东事业部');
+
+    expect(
+      buildRoleOptionLabel({
+        code: 'system.admin',
+        id: 'role-2',
+        isEnabled: true,
+        isSystem: true,
+        name: '系统管理员',
+        roleKind: 'SYSTEM_INSTANCE',
+      } as any),
+    ).toBe('系统管理员 · 系统');
+  });
+
+  it('builds terminal options from the full entry registry while keeping web and mobile first', () => {
+    expect(
+      buildNavigationTerminalList([
+        {
+          description: 'A',
+          enabled: true,
+          supportedTerminals: ['DESKTOP', 'WEB'],
+          entryKey: 'desktop.home',
+          entryType: 'page',
+          featureKey: 'desktop',
+          name: '桌面首页',
+          registryPriority: 100,
+        },
+        {
+          description: 'B',
+          enabled: true,
+          supportedTerminals: ['POS'],
+          entryKey: 'pos.home',
+          entryType: 'page',
+          featureKey: 'pos',
+          name: '收银首页',
+          registryPriority: 90,
+        },
+      ]),
+    ).toEqual(['WEB', 'MOBILE', 'DESKTOP', 'POS']);
+  });
+
+  it('builds a priority-sorted preview entry list with default markers', () => {
+    const result = buildNavigationPreviewEntryRows({
+      entries: [
+        {
+          description: 'A',
+          enabled: true,
+          entryKey: 'workbench.home',
+          entryType: 'page',
+          featureKey: 'workbench',
+          name: '工作台首页',
+          registryPriority: 100,
+          supportedTerminals: ['WEB'],
+        },
+        {
+          description: 'B',
+          enabled: true,
+          entryKey: 'mes.work-order-board',
+          entryType: 'page',
+          featureKey: 'mes',
+          name: '工单看板',
+          registryPriority: 200,
+          supportedTerminals: ['WEB', 'MOBILE'],
+        },
+      ],
+      previewResult: {
+        defaultEntry: 'workbench.home',
+        visibleEntries: ['workbench.home', 'mes.work-order-board'],
+      },
+    });
+
+    expect(result).toEqual([
+      {
+        entryKey: 'mes.work-order-board',
+        isDefault: false,
+        name: '工单看板',
+        registryPriority: 200,
+        supportedTerminals: ['WEB', 'MOBILE'],
+      },
+      {
+        entryKey: 'workbench.home',
+        isDefault: true,
+        name: '工作台首页',
+        registryPriority: 100,
+        supportedTerminals: ['WEB'],
+      },
+    ]);
   });
 });

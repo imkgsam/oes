@@ -33,7 +33,7 @@ export class UpdateAccountProfileHandler
     }
 
     return this.accountRepository.updateProfile(command.accountId, {
-      avatarUrl: normalizeOptionalText(command.avatarUrl, 2048),
+      avatarAssetId: normalizeOptionalText(command.avatarAssetId, 64),
       displayName: normalizeOptionalText(command.displayName, 64),
       bio: normalizeOptionalText(command.bio, 280),
       isEnabled: command.isEnabled

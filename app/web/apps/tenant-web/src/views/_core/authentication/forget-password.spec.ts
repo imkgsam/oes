@@ -10,6 +10,9 @@ const requestPasswordRecoveryChallengeApi = vi.fn()
 const verifyPasswordRecoveryChallengeApi = vi.fn()
 const messageError = vi.fn()
 const messageSuccess = vi.fn()
+const routeState = vi.hoisted(() => ({
+  query: {} as Record<string, string | undefined>
+}))
 
 vi.mock('#/api', () => ({
   completePasswordRecoveryApi,
@@ -19,6 +22,7 @@ vi.mock('#/api', () => ({
 }))
 
 vi.mock('vue-router', () => ({
+  useRoute: () => routeState,
   useRouter: () => ({
     push: vi.fn()
   })
@@ -27,15 +31,14 @@ vi.mock('vue-router', () => ({
 vi.mock('@vben/common-ui', () => ({
   SliderCaptcha: defineComponent({
     name: 'SliderCaptcha',
+    props: ['disabled'],
     emits: ['success', 'update:modelValue'],
     template: `
       <button
         class="slider-pass"
+        :disabled="disabled"
         type="button"
-        @click="
-          $emit('update:modelValue', true);
-          $emit('success', { isPassing: true });
-        "
+        @click="!disabled && ($emit('update:modelValue', true), $emit('success', { isPassing: true }))"
       >
         pass
       </button>
@@ -54,6 +57,16 @@ vi.mock('ant-design-vue', () => ({
   Card: defineComponent({
     name: 'Card',
     template: '<section><slot /></section>'
+  }),
+  Step: defineComponent({
+    name: 'Step',
+    props: ['title'],
+    template: '<div><slot />{{ title }}</div>'
+  }),
+  Steps: defineComponent({
+    name: 'Steps',
+    props: ['current', 'direction', 'size'],
+    template: '<div><slot /></div>'
   }),
   Form: defineComponent({
     name: 'Form',
@@ -91,6 +104,7 @@ describe('forget password page', () => {
     verifyPasswordRecoveryChallengeApi.mockReset()
     messageError.mockReset()
     messageSuccess.mockReset()
+    routeState.query = {}
 
     inspectPasswordRecoveryChannelsApi.mockResolvedValue({
       channels: [{ channel: 'EMAIL', maskedDestination: 'u***@example.com' }],
@@ -114,6 +128,38 @@ describe('forget password page', () => {
 
   afterEach(() => {
     document.body.innerHTML = ''
+  })
+
+  it('prefills the identifier from the login page query', async () => {
+    routeState.query = { identifier: 'user@example.com' }
+    const view = await import('./forget-password.vue')
+    const wrapper = mount(view.default, {
+      attachTo: document.body
+    })
+
+    const identifierInput = wrapper.find(
+      'input[placeholder="name@company.com / +8613800138000"]'
+    )
+
+    expect((identifierInput.element as HTMLInputElement).value).toBe('user@example.com')
+  })
+
+  it('keeps the captcha disabled until the identifier input has content', async () => {
+    const view = await import('./forget-password.vue')
+    const wrapper = mount(view.default, {
+      attachTo: document.body
+    })
+
+    const sliderPassButton = document.body.querySelector('.slider-pass') as HTMLButtonElement | null
+    const continueButton = wrapper.findAll('button').find((button) => button.text().includes('继续'))
+
+    expect(sliderPassButton?.disabled).toBe(true)
+    expect((continueButton?.element as HTMLButtonElement | undefined)?.disabled).toBe(true)
+
+    sliderPassButton?.click()
+    await flushPromises()
+
+    expect(inspectPasswordRecoveryChannelsApi).not.toHaveBeenCalled()
   })
 
   it('auto-defaults the only verified recovery channel and progresses into otp verification', async () => {

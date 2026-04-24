@@ -3,21 +3,21 @@ import { SERVICE_NAMES } from '@oes/common/constants'
 import { GrpcTransportModule } from '@oes/common/transport'
 import { PERMISSION_MANAGEMENT_PORT } from '@oes/common/constants'
 import { AuthorizationModule } from '@oes/common/authorization'
-import { IdentityQueryGrpcAdapter } from './identity-query-grpc.adapter'
 import { PolicyManagementGrpcAdapter } from './adapters/policy-management-grpc.adapter'
 import { PermissionManagementGrpcAdapter } from './adapters/permission-management-grpc.adapter'
 import { RoleManagementReadService } from './role-management-read.service'
 import { PermissionProxyService } from './permission-service.service'
+import { TenantOrgQueryGrpcAdapter } from './tenant-org-query-grpc.adapter'
 import { httpControllers } from './interface/http/controllers'
 
 @Module({
   imports: [
     AuthorizationModule,
-    GrpcTransportModule.forFeature([SERVICE_NAMES.IDENTITY, SERVICE_NAMES.PERMISSION])
+    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION, SERVICE_NAMES.TENANT_ORG])
   ],
   controllers: [...httpControllers],
   providers: [
-    IdentityQueryGrpcAdapter,
+    TenantOrgQueryGrpcAdapter,
     PermissionManagementGrpcAdapter,
     PolicyManagementGrpcAdapter,
     RoleManagementReadService,

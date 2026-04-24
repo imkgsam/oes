@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { LoginMethodType } from '@oes/common/constants'
+import { CredentialType } from '../../../prisma/generated/prisma'
 import { REPO } from '../../common/constants'
 import { ILoginMethodRepository } from '../../domain/repositories/loginmethod.repository'
 import { PasswordSetupRequirementRepository } from '../../domain/repositories/password-setup-requirement.repository'
@@ -25,6 +26,9 @@ export class PasswordSetupRequirementService {
       this.loginMethodRepository.findByUserIdAndType(userId, LoginMethodType.EMAIL)
     ])
 
-    return !phoneMethod?.getPasswordCredential() && !emailMethod?.getPasswordCredential()
+    return (
+      !phoneMethod?.getCredentialByType(CredentialType.PASSWORD) &&
+      !emailMethod?.getCredentialByType(CredentialType.PASSWORD)
+    )
   }
 }

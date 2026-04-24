@@ -10,11 +10,11 @@ option java_package = "com.oes.permission.v1";
 // 权限鉴权服务
 service PermissionCheckService {
   // 纯 RBAC 鉴权
-  rpc CheckPermission(CheckPermissionRequest) returns (AuthorizationDecisionResponse);
+  rpc CheckPermission(CheckPermissionRequest) returns (CheckPermissionResponse);
   // 纯 RBAC 批量鉴权
-  rpc BatchCheckPermission(BatchCheckPermissionRequest) returns (BatchAuthorizationDecisionResponse);
+  rpc BatchCheckPermission(BatchCheckPermissionRequest) returns (BatchCheckPermissionResponse);
   // OUTDATED: 历史 RBAC + ABAC 混合鉴权兼容接口；新业务资源授权应使用 application 层 checkResource / buildQueryScope。
-  rpc CheckPermissionWithContext(CheckPermissionWithContextRequest) returns (AuthorizationDecisionResponse);
+  rpc CheckPermissionWithContext(CheckPermissionWithContextRequest) returns (CheckPermissionWithContextResponse);
 }
 
 enum EvaluationModeProto {
@@ -74,8 +74,44 @@ message CheckPermissionWithContextRequest {
   map<string, string> action_attributes = 7;
 }
 
+// CheckPermissionResponse preserves the existing wire shape while satisfying RPC-specific response naming hygiene.
+message CheckPermissionResponse {
+  // 是否允许
+  bool allowed = 1;
+  // 决策评估层级
+  EvaluationModeProto evaluation_mode = 2;
+  // 命中的策略名称
+  string matched_policy = 3;
+  // 决策原因
+  string reason = 4;
+  // 稳定的机器可读解释码
+  string explain_code = 5;
+  // 命中的策略ID
+  string matched_policy_id = 6;
+  // 参与本次评估的策略解释条目
+  repeated PolicyExplainEntry policy_explain_entries = 7;
+}
+
 // 统一鉴权决策响应
 message AuthorizationDecisionResponse {
+  // 是否允许
+  bool allowed = 1;
+  // 决策评估层级
+  EvaluationModeProto evaluation_mode = 2;
+  // 命中的策略名称
+  string matched_policy = 3;
+  // 决策原因
+  string reason = 4;
+  // 稳定的机器可读解释码
+  string explain_code = 5;
+  // 命中的策略ID
+  string matched_policy_id = 6;
+  // 参与本次评估的策略解释条目
+  repeated PolicyExplainEntry policy_explain_entries = 7;
+}
+
+// CheckPermissionWithContextResponse preserves the existing wire shape while satisfying RPC-specific response naming hygiene.
+message CheckPermissionWithContextResponse {
   // 是否允许
   bool allowed = 1;
   // 决策评估层级
@@ -110,6 +146,11 @@ message BatchAuthorizationDecisionItem {
 
 // 批量鉴权响应
 message BatchAuthorizationDecisionResponse {
+  repeated BatchAuthorizationDecisionItem decisions = 1;
+}
+
+// BatchCheckPermissionResponse preserves the existing wire shape while satisfying RPC-specific response naming hygiene.
+message BatchCheckPermissionResponse {
   repeated BatchAuthorizationDecisionItem decisions = 1;
 }
 

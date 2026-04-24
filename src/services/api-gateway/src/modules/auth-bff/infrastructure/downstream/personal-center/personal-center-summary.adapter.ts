@@ -6,6 +6,7 @@ import {
   PersonalCenterSummaryPort
 } from '../../../application/ports/personal-center-summary.port'
 import { AuthGrpcAdapter } from '../auth-service/auth-grpc.adapter'
+import { AssetGrpcAdapter } from '../asset-service/asset-grpc.adapter'
 import { IdentityQueryGrpcAdapter } from '../identity-service/identity-query-grpc.adapter'
 
 @Injectable()
@@ -13,7 +14,8 @@ import { IdentityQueryGrpcAdapter } from '../identity-service/identity-query-grp
 export class PersonalCenterSummaryAdapter implements PersonalCenterSummaryPort {
   constructor(
     private readonly identityAdapter: IdentityQueryGrpcAdapter,
-    private readonly authAdapter: AuthGrpcAdapter
+    private readonly authAdapter: AuthGrpcAdapter,
+    private readonly assetAdapter: AssetGrpcAdapter
   ) {}
 
   async getPersonalCenterSummary(
@@ -31,9 +33,14 @@ export class PersonalCenterSummaryAdapter implements PersonalCenterSummaryPort {
 
     const loginEmail = normalize(userResult.user?.personalEmail)
     const loginPhone = normalize(userResult.user?.personalPhone)
+    const avatar = await this.resolveAccountAvatar(
+      accountResult.account?.avatarAssetId,
+      accountResult.account?.avatarUrl,
+      source
+    )
 
     return {
-      avatar: normalize(accountResult.account?.avatarUrl),
+      avatar,
       displayName: normalize(accountResult.account?.displayName),
       bio: normalize(accountResult.account?.bio),
       loginEmail,
@@ -47,6 +54,21 @@ export class PersonalCenterSummaryAdapter implements PersonalCenterSummaryPort {
       workEmail: pickPrimaryAssetValue(workEmailResult.assets ?? []),
       workPhone: pickPrimaryAssetValue(workPhoneResult.assets ?? [])
     }
+  }
+
+  // resolveAccountAvatar converts the stored asset reference into the public display URL used by BFF read models.
+  private async resolveAccountAvatar(
+    avatarAssetId: string | undefined,
+    legacyAvatarUrl: string | undefined,
+    source: DownstreamRequestSource
+  ): Promise<string | undefined> {
+    const assetId = normalize(avatarAssetId)
+    if (!assetId) {
+      return normalize(legacyAvatarUrl)
+    }
+
+    const result = await this.assetAdapter.resolveAssetPublicUrl({ assetId }, source)
+    return normalize(result.publicUrl) ?? normalize(legacyAvatarUrl)
   }
 }
 

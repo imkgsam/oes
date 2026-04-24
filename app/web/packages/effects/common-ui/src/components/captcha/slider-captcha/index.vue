@@ -21,6 +21,7 @@ const props = withDefaults(defineProps<SliderCaptchaProps>(), {
   actionStyle: () => ({}),
   barStyle: () => ({}),
   contentStyle: () => ({}),
+  disabled: false,
   isSlot: false,
   successText: '',
   text: '',
@@ -72,6 +73,16 @@ watchEffect(() => {
   state.isPassing = !!modelValue.value;
 });
 
+watch(
+  () => props.disabled,
+  (disabled) => {
+    if (!disabled) return;
+
+    modelValue.value = false;
+    resume();
+  },
+);
+
 function getEventPageX(e: MouseEvent | TouchEvent): number {
   if ('pageX' in e) {
     return e.pageX;
@@ -82,7 +93,7 @@ function getEventPageX(e: MouseEvent | TouchEvent): number {
 }
 
 function handleDragStart(e: MouseEvent | TouchEvent) {
-  if (state.isPassing) {
+  if (props.disabled || state.isPassing) {
     return;
   }
   const actionEl = actionRef.value;
@@ -105,6 +116,10 @@ function getOffset(actionEl?: HTMLDivElement | null) {
 }
 
 function handleDragMoving(e: MouseEvent | TouchEvent) {
+  if (props.disabled) {
+    return;
+  }
+
   const { isMoving, moveDistance } = state;
   if (isMoving) {
     const actionEl = unref(actionRef);
@@ -134,6 +149,10 @@ function handleDragMoving(e: MouseEvent | TouchEvent) {
 }
 
 function handleDragOver(e: MouseEvent | TouchEvent) {
+  if (props.disabled) {
+    return;
+  }
+
   const { isMoving, isPassing, moveDistance } = state;
   if (isMoving && !isPassing) {
     emit('end', e);
@@ -211,9 +230,11 @@ function resume() {
     :class="
       cn(
         'relative flex h-10 w-full items-center overflow-hidden rounded-md border border-border bg-background-deep text-center',
+        props.disabled && 'cursor-not-allowed opacity-60',
         props.class,
       )
     "
+    :aria-disabled="props.disabled"
     :style="wrapperStyle"
     @mouseleave="handleDragOver"
     @mousemove="handleDragMoving"

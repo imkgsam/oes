@@ -5,6 +5,7 @@ export class PrismaUserMapper {
   static toDomain(record: User): UserSummaryEntity {
     return new UserSummaryEntity(
       record.id,
+      record.partyId ?? null,
       record.username ?? null,
       record.email ?? null,
       record.phone ?? null,

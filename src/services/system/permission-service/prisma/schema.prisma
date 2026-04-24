@@ -74,6 +74,20 @@ model AccountRole {
   @@index([accountId, scopeLevel, tenantId])
 }
 
+model OnboardingGrantRequest {
+  id             String                @id @default(uuid())
+  idempotencyKey String                @unique
+  tenantId       String
+  accountId      String
+  roleIds        String[]
+  fingerprint    String
+  status         OnboardingGrantStatus @default(PENDING)
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([tenantId, accountId])
+}
+
 // ============================================================
 // Navigation governance model
 // ============================================================
@@ -244,4 +258,9 @@ enum EvaluationMode {
 enum AuthorizationDecision {
   ALLOW
   DENY
+}
+
+enum OnboardingGrantStatus {
+  PENDING
+  SUCCEEDED
 }

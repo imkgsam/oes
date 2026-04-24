@@ -7,6 +7,7 @@ option java_package = "com.oes.identity.v1";
 
 service IdentityQueryService {
   rpc GetAccountById(GetAccountByIdRequest) returns (GetAccountByIdResponse);
+  rpc GetEmployeeBindingByAccountId(GetEmployeeBindingByAccountIdRequest) returns (GetEmployeeBindingByAccountIdResponse);
   rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
   rpc GetApiKeyById(GetApiKeyByIdRequest) returns (GetApiKeyByIdResponse);
   rpc GetServiceAccountById(GetServiceAccountByIdRequest) returns (GetServiceAccountByIdResponse);
@@ -15,9 +16,8 @@ service IdentityQueryService {
   rpc ListAccountWorkEmailAssets(ListAccountWorkEmailAssetsRequest) returns (ListAccountWorkEmailAssetsResponse);
   rpc ListAccountWorkPhoneAssets(ListAccountWorkPhoneAssetsRequest) returns (ListAccountWorkPhoneAssetsResponse);
   rpc ListAccountOrgMemberships(ListAccountOrgMembershipsRequest) returns (ListAccountOrgMembershipsResponse);
+  // Deprecated: org tree truth has moved to tenant-org-service. No new callers should be added here.
   rpc GetOrgTreeByTenantId(GetOrgTreeByTenantIdRequest) returns (GetOrgTreeByTenantIdResponse);
-  rpc GetTenantById(GetTenantByIdRequest) returns (GetTenantByIdResponse);
-  rpc ListTenants(ListTenantsRequest) returns (ListTenantsResponse);
   rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
   rpc GetUserById(GetUserByIdRequest) returns (GetUserByIdResponse);
   rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserByEmailResponse);
@@ -66,22 +66,27 @@ message ListAuditEventsResponse {
 service IdentityManagementService {
   rpc RotateApiKey(RotateApiKeyRequest) returns (RotateApiKeyResponse);
   rpc CreateApiKey(CreateApiKeyRequest) returns (CreateApiKeyResponse);
-  rpc CreateServiceAccount(CreateServiceAccountRequest) returns (ServiceAccountResponse);
-  rpc CreateUserAccount(CreateUserAccountRequest) returns (GetAccountByIdResponse);
-  rpc RevokeApiKey(RevokeApiKeyRequest) returns (ApiKeyResponse);
-  rpc SetServiceAccountEnabled(SetServiceAccountEnabledRequest) returns (ServiceAccountResponse);
-  rpc UpdateAccountProfile(UpdateAccountProfileRequest) returns (GetAccountByIdResponse);
-  rpc UpdateUserBasicInfo(UpdateUserBasicInfoRequest) returns (GetUserByIdResponse);
-  rpc AssignAccountWorkEmailAsset(AssignAccountWorkEmailAssetRequest) returns (AccountContactAssetResponse);
-  rpc AssignAccountWorkPhoneAsset(AssignAccountWorkPhoneAssetRequest) returns (AccountContactAssetResponse);
-  rpc RevokeAccountWorkEmailAsset(RevokeAccountWorkEmailAssetRequest) returns (AccountContactAssetResponse);
-  rpc RevokeAccountWorkPhoneAsset(RevokeAccountWorkPhoneAssetRequest) returns (AccountContactAssetResponse);
-  rpc SetAccountWorkEmailAssetStatus(SetAccountWorkEmailAssetStatusRequest) returns (AccountContactAssetResponse);
-  rpc SetAccountWorkPhoneAssetStatus(SetAccountWorkPhoneAssetStatusRequest) returns (AccountContactAssetResponse);
-  rpc SetAccountPrimaryWorkEmailAsset(SetAccountPrimaryWorkEmailAssetRequest) returns (AccountContactAssetResponse);
-  rpc SetAccountPrimaryWorkPhoneAsset(SetAccountPrimaryWorkPhoneAssetRequest) returns (AccountContactAssetResponse);
-  rpc AddAccountOrgMembership(AddAccountOrgMembershipRequest) returns (AccountOrgMembershipResponse);
-  rpc RemoveAccountOrgMembership(RemoveAccountOrgMembershipRequest) returns (AccountOrgMembershipResponse);
+  rpc CreateServiceAccount(CreateServiceAccountRequest) returns (CreateServiceAccountResponse);
+  rpc CreateUserAccount(CreateUserAccountRequest) returns (CreateUserAccountResponse);
+  rpc GetAccountDeletionImpact(GetAccountDeletionImpactRequest) returns (GetAccountDeletionImpactResponse);
+  rpc DeleteAccount(DeleteAccountRequest) returns (DeleteAccountResponse);
+  rpc RevokeApiKey(RevokeApiKeyRequest) returns (RevokeApiKeyResponse);
+  rpc SetServiceAccountEnabled(SetServiceAccountEnabledRequest) returns (SetServiceAccountEnabledResponse);
+  rpc UpdateOwnAccountProfile(UpdateOwnAccountProfileRequest) returns (UpdateOwnAccountProfileResponse);
+  rpc UpdateAccountProfile(UpdateAccountProfileRequest) returns (UpdateAccountProfileResponse);
+  rpc UpdateUserBasicInfo(UpdateUserBasicInfoRequest) returns (UpdateUserBasicInfoResponse);
+  rpc AssignAccountWorkEmailAsset(AssignAccountWorkEmailAssetRequest) returns (AssignAccountWorkEmailAssetResponse);
+  rpc AssignAccountWorkPhoneAsset(AssignAccountWorkPhoneAssetRequest) returns (AssignAccountWorkPhoneAssetResponse);
+  rpc RevokeAccountWorkEmailAsset(RevokeAccountWorkEmailAssetRequest) returns (RevokeAccountWorkEmailAssetResponse);
+  rpc RevokeAccountWorkPhoneAsset(RevokeAccountWorkPhoneAssetRequest) returns (RevokeAccountWorkPhoneAssetResponse);
+  rpc SetAccountWorkEmailAssetStatus(SetAccountWorkEmailAssetStatusRequest) returns (SetAccountWorkEmailAssetStatusResponse);
+  rpc SetAccountWorkPhoneAssetStatus(SetAccountWorkPhoneAssetStatusRequest) returns (SetAccountWorkPhoneAssetStatusResponse);
+  rpc SetAccountPrimaryWorkEmailAsset(SetAccountPrimaryWorkEmailAssetRequest) returns (SetAccountPrimaryWorkEmailAssetResponse);
+  rpc SetAccountPrimaryWorkPhoneAsset(SetAccountPrimaryWorkPhoneAssetRequest) returns (SetAccountPrimaryWorkPhoneAssetResponse);
+  rpc BindAccountToEmployee(BindAccountToEmployeeRequest) returns (BindAccountToEmployeeResponse);
+  rpc UnbindAccountFromEmployee(UnbindAccountFromEmployeeRequest) returns (UnbindAccountFromEmployeeResponse);
+  rpc AddAccountOrgMembership(AddAccountOrgMembershipRequest) returns (AddAccountOrgMembershipResponse);
+  rpc RemoveAccountOrgMembership(RemoveAccountOrgMembershipRequest) returns (RemoveAccountOrgMembershipResponse);
   rpc SetAccountPrimaryOrg(SetAccountPrimaryOrgRequest) returns (SetAccountPrimaryOrgResponse);
 }
 
@@ -107,6 +112,7 @@ message UserSummary {
   string personal_email = 3;
   string personal_phone = 4;
   bool is_active = 5;
+  string party_id = 6;
 }
 
 message GetUserByEmailResponse {
@@ -121,31 +127,6 @@ message GetUserByPhoneResponse {
   UserSummary user = 1;
 }
 
-message GetTenantByIdRequest {
-  string tenant_id = 1;
-}
-
-message TenantSummary {
-  string id = 1;
-  string code = 2;
-  string name = 3;
-  bool is_active = 4;
-}
-
-message GetTenantByIdResponse {
-  TenantSummary tenant = 1;
-}
-
-message ListTenantsRequest {
-  string keyword = 1;
-  int32 page_size = 2;
-  bool active_only = 3;
-}
-
-message ListTenantsResponse {
-  repeated TenantSummary tenants = 1;
-}
-
 message ListAccountsRequest {
   string keyword = 1;
   string scope_level = 2;
@@ -158,11 +139,11 @@ message AccountDirectoryItem {
   string account_id = 1;
   string user_id = 2;
   string tenant_id = 3;
-  string tenant_name = 4;
-  string scope_level = 5;
-  string display_name = 6;
-  bool is_enabled = 7;
-  string user_display_name = 8;
+  string scope_level = 4;
+  string display_name = 5;
+  bool is_enabled = 6;
+  string user_display_name = 7;
+  string user_party_id = 8;
 }
 
 message ListAccountsResponse {
@@ -177,6 +158,57 @@ message CreateUserAccountRequest {
   string username = 4;
   string email = 5;
   string phone = 6;
+}
+
+message BindAccountToEmployeeRequest {
+  string tenant_id = 1;
+  string account_id = 2;
+  string employee_id = 3;
+}
+
+message UnbindAccountFromEmployeeRequest {
+  string account_id = 1;
+}
+
+message GetAccountDeletionImpactRequest {
+  string account_id = 1;
+}
+
+message AccountDeletionCleanupPlan {
+  bool will_delete_sessions = 1;
+  bool will_clear_roles = 2;
+  bool will_delete_org_memberships = 3;
+  bool will_delete_contact_assets = 4;
+}
+
+message AccountDeletionBlockingReason {
+  string resource_type = 1;
+  int32 resource_count = 2;
+  string message = 3;
+}
+
+message GetAccountDeletionImpactResponse {
+  string account_id = 1;
+  bool can_delete = 2;
+  bool user_retained = 3;
+  AccountDeletionCleanupPlan cleanup_plan = 4;
+  repeated AccountDeletionBlockingReason blocking_reasons = 5;
+  int32 org_membership_count = 6;
+  int32 contact_asset_count = 7;
+}
+
+message DeleteAccountRequest {
+  string account_id = 1;
+  int32 deleted_session_count = 2;
+  int32 cleared_role_count = 3;
+  int32 deleted_policy_count = 4;
+}
+
+message DeleteAccountResponse {
+  string account_id = 1;
+  int32 deleted_org_membership_count = 2;
+  int32 deleted_contact_asset_count = 3;
+  bool user_retained = 4;
 }
 
 message UpdateUserBasicInfoRequest {
@@ -219,6 +251,14 @@ message AccountOrgMembershipResponse {
   AccountOrgMembership membership = 1;
 }
 
+message AddAccountOrgMembershipResponse {
+  AccountOrgMembership membership = 1;
+}
+
+message RemoveAccountOrgMembershipResponse {
+  AccountOrgMembership membership = 1;
+}
+
 message AccountContactAsset {
   string id = 1;
   string tenant_id = 2;
@@ -232,6 +272,38 @@ message AccountContactAsset {
 }
 
 message AccountContactAssetResponse {
+  AccountContactAsset asset = 1;
+}
+
+message AssignAccountWorkEmailAssetResponse {
+  AccountContactAsset asset = 1;
+}
+
+message AssignAccountWorkPhoneAssetResponse {
+  AccountContactAsset asset = 1;
+}
+
+message RevokeAccountWorkEmailAssetResponse {
+  AccountContactAsset asset = 1;
+}
+
+message RevokeAccountWorkPhoneAssetResponse {
+  AccountContactAsset asset = 1;
+}
+
+message SetAccountWorkEmailAssetStatusResponse {
+  AccountContactAsset asset = 1;
+}
+
+message SetAccountWorkPhoneAssetStatusResponse {
+  AccountContactAsset asset = 1;
+}
+
+message SetAccountPrimaryWorkEmailAssetResponse {
+  AccountContactAsset asset = 1;
+}
+
+message SetAccountPrimaryWorkPhoneAssetResponse {
   AccountContactAsset asset = 1;
 }
 
@@ -314,6 +386,16 @@ message UpdateAccountProfileRequest {
   string display_name = 3;
   string bio = 4;
   optional bool is_enabled = 5;
+  string avatar_asset_id = 6;
+}
+
+message UpdateOwnAccountProfileRequest {
+  string account_id = 1;
+  string avatar_url = 2;
+  string display_name = 3;
+  string bio = 4;
+  optional bool is_enabled = 5;
+  string avatar_asset_id = 6;
 }
 
 message ListAccountOrgMembershipsRequest {
@@ -333,7 +415,6 @@ message AccountCandidate {
   string tenant_id = 2;
   string display_name = 3;
   string scope_level = 4;
-  string tenant_name = 5;
 }
 
 message GetAccountsByUserIdResponse {
@@ -353,10 +434,46 @@ message AccountSummary {
   string bio = 6;
   bool is_enabled = 7;
   string scope_level = 8;
+  string avatar_asset_id = 9;
 }
 
 message GetAccountByIdResponse {
   AccountSummary account = 1;
+}
+
+message CreateUserAccountResponse {
+  AccountSummary account = 1;
+}
+
+message UpdateOwnAccountProfileResponse {
+  AccountSummary account = 1;
+}
+
+message UpdateAccountProfileResponse {
+  AccountSummary account = 1;
+}
+
+message EmployeeBinding {
+  string id = 1;
+  string tenant_id = 2;
+  string account_id = 3;
+  string employee_id = 4;
+}
+
+message GetEmployeeBindingByAccountIdRequest {
+  string account_id = 1;
+}
+
+message GetEmployeeBindingByAccountIdResponse {
+  EmployeeBinding binding = 1;
+}
+
+message BindAccountToEmployeeResponse {
+  EmployeeBinding binding = 1;
+}
+
+message UnbindAccountFromEmployeeResponse {
+  EmployeeBinding binding = 1;
 }
 
 message ApiKey {
@@ -374,6 +491,10 @@ message ApiKey {
 }
 
 message ApiKeyResponse {
+  ApiKey api_key = 1;
+}
+
+message RevokeApiKeyResponse {
   ApiKey api_key = 1;
 }
 
@@ -452,12 +573,24 @@ message ServiceAccountResponse {
   ServiceAccount account = 1;
 }
 
+message CreateServiceAccountResponse {
+  ServiceAccount account = 1;
+}
+
+message SetServiceAccountEnabledResponse {
+  ServiceAccount account = 1;
+}
+
 message GetServiceAccountByIdRequest {
   string service_account_id = 1;
 }
 
 message GetServiceAccountByIdResponse {
   ServiceAccount account = 1;
+}
+
+message UpdateUserBasicInfoResponse {
+  UserSummary user = 1;
 }
 
 message ListServiceAccountsRequest {

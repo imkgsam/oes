@@ -21,8 +21,8 @@ describe('list accounts query', () => {
         new AccountDirectoryEntity(
           'account-1',
           'user-1',
+          null,
           'tenant-1',
-          'Alpha Tenant',
           'TENANT',
           'Alpha Admin',
           'Janny',
@@ -59,8 +59,8 @@ describe('list accounts query', () => {
         {
           accountId: 'account-1',
           userId: 'user-1',
+          userPartyId: null,
           tenantId: 'tenant-1',
-          tenantName: 'Alpha Tenant',
           scopeLevel: 'TENANT',
           displayName: 'Alpha Admin',
           userDisplayName: 'Janny',
@@ -96,7 +96,6 @@ describe('list accounts query', () => {
             accountId: 'account-1',
             userId: 'user-1',
             tenantId: 'tenant-1',
-            tenantName: 'Alpha Tenant',
             scopeLevel: 'TENANT',
             displayName: 'Alpha Admin',
             userDisplayName: 'Janny',
@@ -121,8 +120,8 @@ describe('list accounts query', () => {
         {
           accountId: 'account-1',
           userId: 'user-1',
+          userPartyId: '',
           tenantId: 'tenant-1',
-          tenantName: 'Alpha Tenant',
           scopeLevel: 'TENANT',
           displayName: 'Alpha Admin',
           userDisplayName: 'Janny',
@@ -150,5 +149,35 @@ describe('list accounts query', () => {
     ).toBe(true)
     expect(guards).toEqual([InternalServiceGuard, AuthenticatedOperatorGuard])
     expect(interceptors).toEqual([GrpcRequestContextInterceptor])
+  })
+
+  it('grpc controller / getAccountsByUserId 不应继续暴露 tenantName', async () => {
+    const queryBus = {
+      execute: jest.fn().mockResolvedValue([
+        {
+          accountId: 'account-1',
+          tenantId: 'tenant-1',
+          scopeLevel: 'TENANT',
+          displayName: 'Alpha Admin',
+          isEnabled: true
+        }
+      ])
+    } as unknown as QueryBus
+    const controller = new IdentityQueryGrpcController(new ValidatingQueryBus(queryBus))
+
+    await expect(
+      controller.getAccountsByUserId({
+        userId: '11111111-1111-4111-8111-111111111111'
+      } as any)
+    ).resolves.toEqual({
+      accounts: [
+        {
+          accountId: 'account-1',
+          tenantId: 'tenant-1',
+          scopeLevel: 'TENANT',
+          displayName: 'Alpha Admin'
+        }
+      ]
+    })
   })
 })

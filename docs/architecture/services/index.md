@@ -37,6 +37,10 @@
    - 客户关系、销售前置研究、lead draft 与未来 CRM 销售对象职责卡
 8. [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
    - 供应商关系、供应商联系人与供应商分析视图职责卡
+9. [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
+   - 仓储执行、库存真相、占用控制、包装转换与后处理仓储协同职责卡
+10. [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md)
+   - 受控资产元数据、对象存储编排与头像资产生命周期职责卡
 
 ## 4. 新服务准入规则
 

@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package asset_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.asset.v1";
+
+// 头像资产服务负责受控头像上传、绑定和展示地址解析。
+service AssetService {
+  rpc UploadAccountAvatar(UploadAccountAvatarRequest) returns (UploadAccountAvatarResponse);
+  rpc BindAccountAvatar(BindAccountAvatarRequest) returns (BindAccountAvatarResponse);
+  rpc ResolveAssetPublicUrl(ResolveAssetPublicUrlRequest) returns (ResolveAssetPublicUrlResponse);
+}
+
+message UploadAccountAvatarRequest {
+  string scope_level = 1;
+  string tenant_id = 2;
+  string account_id = 3;
+  string operator_id = 4;
+  bytes file = 5;
+  string file_name = 6;
+  string content_type = 7;
+}
+
+message AssetSummary {
+  string asset_id = 1;
+  string scope_level = 2;
+  string tenant_id = 3;
+  string owner_account_id = 4;
+  string category = 5;
+  string storage_key = 6;
+  string mime_type = 7;
+  int64 size = 8;
+  string checksum = 9;
+  string public_url = 10;
+  string status = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+message UploadAccountAvatarResponse {
+  AssetSummary asset = 1;
+}
+
+message BindAccountAvatarRequest {
+  string scope_level = 1;
+  string tenant_id = 2;
+  string account_id = 3;
+  string operator_id = 4;
+  string new_asset_id = 5;
+  string previous_asset_id = 6;
+}
+
+message BindAccountAvatarResponse {
+  AssetSummary active_asset = 1;
+  string replaced_asset_id = 2;
+}
+
+message ResolveAssetPublicUrlRequest {
+  string asset_id = 1;
+}
+
+message ResolveAssetPublicUrlResponse {
+  string asset_id = 1;
+  string public_url = 2;
+  string status = 3;
+}

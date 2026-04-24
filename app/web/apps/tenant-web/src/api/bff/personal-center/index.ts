@@ -36,13 +36,25 @@ export namespace PersonalCenterApi {
   }
 
   export interface UpdateAccountProfilePayload {
-    avatar?: string;
+    avatarAssetId?: string;
     bio?: string;
     displayName?: string;
   }
 
   export interface UpdateAccountProfileResponse {
     accountContext: AccountContext;
+  }
+
+  export interface AvatarAsset {
+    assetId: string;
+    mimeType: string;
+    publicUrl: string;
+    size: number;
+    status: string;
+  }
+
+  export interface UploadAccountAvatarResponse {
+    avatarAsset: AvatarAsset;
   }
 
   export interface SecurityEntry {
@@ -71,5 +83,13 @@ export async function updateAccountProfileApi(payload: PersonalCenterApi.UpdateA
       data: payload,
       method: 'PATCH',
     },
+  );
+}
+
+// Uploads one controlled avatar candidate for the current authenticated account.
+export async function uploadAccountAvatarApi(file: File) {
+  return requestClient.upload<PersonalCenterApi.UploadAccountAvatarResponse>(
+    '/auth/personal-center/avatar',
+    { file },
   );
 }

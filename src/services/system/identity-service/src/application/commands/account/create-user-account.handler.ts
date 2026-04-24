@@ -2,6 +2,7 @@ import { Inject } from '@nestjs/common'
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { ACCESS_DENIED, ExceptionFactory, VALIDATION_FAILED } from '@oes/common/exceptions'
 import { CheckResourceService } from '../../authorization'
+import { PARTY_REGISTRATION_PORT, PartyRegistrationPort } from '../../ports/party-registration.port'
 import { SYMBOLS } from '../../../common/constants'
 import { AccountSummaryEntity } from '../../../domain/entities/account-summary.entity'
 import { AccountRepository } from '../../../domain/repositories/account.repository'
@@ -17,7 +18,9 @@ export class CreateUserAccountHandler
     private readonly accountRepository: AccountRepository,
     @Inject(SYMBOLS.REPO.USER)
     private readonly userRepository: UserRepository,
-    private readonly checkResourceService: CheckResourceService
+    private readonly checkResourceService: CheckResourceService,
+    @Inject(PARTY_REGISTRATION_PORT)
+    private readonly partyRegistrationPort: PartyRegistrationPort
   ) {}
 
   async execute(command: CreateUserAccountCommand): Promise<AccountSummaryEntity> {
@@ -71,7 +74,16 @@ export class CreateUserAccountHandler
       throw ExceptionFactory.application(VALIDATION_FAILED, { field: 'phone', value: phone })
     }
 
+    const registeredParty = await this.partyRegistrationPort.registerPersonParty({
+      canonicalName: displayName ?? username ?? email ?? phone ?? command.operatorId ?? 'Unnamed User',
+      localDisplayName: displayName,
+      operatorId: command.operatorId,
+      operatorScope: command.operatorScope,
+      tenantId
+    })
+
     const user = await this.userRepository.create({
+      partyId: registeredParty.partyId,
       username,
       email,
       phone,

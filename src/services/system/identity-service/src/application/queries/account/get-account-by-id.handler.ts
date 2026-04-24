@@ -39,6 +39,7 @@ function toAccountSummaryView(account: AccountSummaryEntity): AccountSummaryView
     tenantId: account.tenantId,
     scopeLevel: account.scopeLevel,
     avatarUrl: account.avatarUrl,
+    avatarAssetId: account.avatarAssetId,
     displayName: account.displayName,
     bio: account.bio,
     isEnabled: account.isEnabled

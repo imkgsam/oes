@@ -5,6 +5,7 @@ import { ExceptionFactory } from '@oes/common/exceptions'
 import { REPO } from '../../../common/constants'
 import { AUTH_ACCESS_TOKEN_INVALID } from '../../../common/constants/exception-enums'
 import { IUserSessionRepository } from '../../../domain/repositories/user-session.repository'
+import { TrustedDeviceService } from '../../services/trusted-device.service'
 import { ValidateAccessTokenQuery } from './validate-access-token.query'
 
 export interface ValidateAccessTokenResult {
@@ -25,7 +26,8 @@ export class ValidateAccessTokenHandler
   constructor(
     private readonly jwtService: CommonJwtService,
     @Inject(REPO.SESSION)
-    private readonly sessionRepository: IUserSessionRepository
+    private readonly sessionRepository: IUserSessionRepository,
+    private readonly trustedDeviceService: TrustedDeviceService
   ) {}
 
   async execute(query: ValidateAccessTokenQuery): Promise<ValidateAccessTokenResult> {
@@ -71,6 +73,19 @@ export class ValidateAccessTokenHandler
         scopeLevel
       })
     }
+
+    session.touch()
+    await this.sessionRepository.save(session)
+    await this.trustedDeviceService.markTrustedDeviceSeen({
+      userId,
+      scopeLevel: session.getScopeLevel(),
+      tenantId: session.getTenantId(),
+      deviceId: session.getDeviceInfo().deviceId,
+      deviceName: session.getDeviceInfo().deviceName,
+      userAgent: session.getDeviceInfo().userAgent,
+      ipAddress: session.getDeviceInfo().ipAddress,
+      observedAt: session.getLastActiveAt()
+    })
 
     return {
       userId,

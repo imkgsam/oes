@@ -1,0 +1,157 @@
+import { Reflector } from '@nestjs/core'
+import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { OrgManagementController } from './org-management.controller'
+
+// Verifies the org-management gateway controller keeps org tree endpoints aligned with tenant-org management permissions.
+describe('OrgManagementController', () => {
+  const orgManagementService = {
+    archiveOrgUnit: jest.fn(),
+    createOrgUnit: jest.fn(),
+    getOrgTree: jest.fn(),
+    getOrgUnitDetail: jest.fn(),
+    updateOrgUnit: jest.fn()
+  }
+
+  const controller = new OrgManagementController(orgManagementService as any)
+
+  it('declares the expected coarse-grained permissions on org management endpoints', () => {
+    const reflector = new Reflector()
+
+    expect(reflector.get(PERMISSION_CHECK_KEY, OrgManagementController.prototype.getOrgTree)).toEqual({
+      type: 'ALL',
+      permissions: ['tenant_org.org_unit.list_tree']
+    })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, OrgManagementController.prototype.getOrgUnitDetail)
+    ).toEqual({
+      type: 'ALL',
+      permissions: ['tenant_org.org_unit.get_by_id']
+    })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, OrgManagementController.prototype.createOrgUnit)
+    ).toEqual({
+      type: 'ALL',
+      permissions: ['tenant_org.org_unit.create']
+    })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, OrgManagementController.prototype.updateOrgUnit)
+    ).toEqual({
+      type: 'ALL',
+      permissions: ['tenant_org.org_unit.update']
+    })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, OrgManagementController.prototype.archiveOrgUnit)
+    ).toEqual({
+      type: 'ALL',
+      permissions: ['tenant_org.org_unit.archive']
+    })
+  })
+
+  it('forwards read and write requests to the org management service', async () => {
+    const source = { requestId: 'req-1', traceId: 'trace-1', user: { scopeLevel: 'SYSTEM' } }
+    orgManagementService.getOrgTree.mockResolvedValue({
+      scope: 'SYSTEM',
+      tenant: { id: 'tenant-1', name: 'Alpha Tenant' },
+      roots: []
+    })
+    orgManagementService.getOrgUnitDetail.mockResolvedValue({
+      orgUnit: { id: 'org-1', name: 'Alpha Root', type: 'ROOT' }
+    })
+    orgManagementService.createOrgUnit.mockResolvedValue({
+      orgUnit: {
+        id: 'org-2',
+        name: 'Manufacturing',
+        type: 'BRANCH',
+        organizationPartyId: 'party-1'
+      }
+    })
+    orgManagementService.updateOrgUnit.mockResolvedValue({
+      orgUnit: {
+        id: 'org-2',
+        name: 'Manufacturing Updated',
+        type: 'BRANCH',
+        organizationPartyId: null
+      }
+    })
+    orgManagementService.archiveOrgUnit.mockResolvedValue({
+      orgUnit: { id: 'org-2', name: 'Manufacturing Updated', status: 'ARCHIVED' }
+    })
+
+    await expect(controller.getOrgTree('tenant-1', source as any)).resolves.toEqual({
+      scope: 'SYSTEM',
+      tenant: { id: 'tenant-1', name: 'Alpha Tenant' },
+      roots: []
+    })
+    await expect(controller.getOrgUnitDetail('tenant-1', 'org-1', source as any)).resolves.toEqual({
+      orgUnit: { id: 'org-1', name: 'Alpha Root', type: 'ROOT' }
+    })
+    await expect(
+      controller.createOrgUnit(
+        'tenant-1',
+        {
+          name: 'Manufacturing',
+          parentOrgId: 'org-1',
+          organizationPartyId: 'party-1',
+          sortOrder: 10,
+          type: 'BRANCH'
+        } as any,
+        source as any
+      )
+    ).resolves.toEqual({
+      orgUnit: {
+        id: 'org-2',
+        name: 'Manufacturing',
+        type: 'BRANCH',
+        organizationPartyId: 'party-1'
+      }
+    })
+    await expect(
+      controller.updateOrgUnit(
+        'tenant-1',
+        'org-2',
+        {
+          name: 'Manufacturing Updated',
+          organizationPartyId: null,
+          sortOrder: 11
+        } as any,
+        source as any
+      )
+    ).resolves.toEqual({
+      orgUnit: {
+        id: 'org-2',
+        name: 'Manufacturing Updated',
+        type: 'BRANCH',
+        organizationPartyId: null
+      }
+    })
+    await expect(controller.archiveOrgUnit('tenant-1', 'org-2', source as any)).resolves.toEqual({
+      orgUnit: { id: 'org-2', name: 'Manufacturing Updated', status: 'ARCHIVED' }
+    })
+
+    expect(orgManagementService.getOrgTree).toHaveBeenCalledWith('tenant-1', source)
+    expect(orgManagementService.getOrgUnitDetail).toHaveBeenCalledWith('tenant-1', 'org-1', source)
+    expect(orgManagementService.createOrgUnit).toHaveBeenCalledWith(
+      'tenant-1',
+      {
+        name: 'Manufacturing',
+        parentOrgId: 'org-1',
+        organizationPartyId: 'party-1',
+        sortOrder: 10,
+        type: 'BRANCH'
+      },
+      source
+    )
+    expect(orgManagementService.updateOrgUnit).toHaveBeenCalledWith(
+      'tenant-1',
+      'org-2',
+      {
+        name: 'Manufacturing Updated',
+        organizationPartyId: null,
+        sortOrder: 11,
+        type: undefined
+      },
+      source
+    )
+    expect(orgManagementService.archiveOrgUnit).toHaveBeenCalledWith('tenant-1', 'org-2', source)
+  })
+})

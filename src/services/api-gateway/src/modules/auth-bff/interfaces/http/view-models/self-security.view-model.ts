@@ -1,5 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { MfaBindingTypeDto } from '../dtos/self-security.dto'
+import {
+  ChallengeViewModel,
+  MfaScenarioViewModel
+} from './auth-response.view-model'
 
 // Defines one self-service session entry returned to the authenticated user.
 export class SelfSessionViewModel {
@@ -116,6 +120,35 @@ export class SessionMutationViewModel {
   sessionCount?: number
 }
 
+// Defines one trusted-device entry returned by the authenticated user's self-security page.
+export class TrustedDeviceViewModel {
+  @ApiProperty() id!: string
+  @ApiProperty() deviceId!: string
+  @ApiPropertyOptional() deviceName?: string
+  @ApiPropertyOptional() browser?: string
+  @ApiPropertyOptional() platform?: string
+  @ApiProperty() trustedAt!: string
+  @ApiProperty() lastActiveAt!: string
+  @ApiProperty() expiresAt!: string
+  @ApiProperty() isCurrentDevice!: boolean
+}
+
+// Defines the list response for the authenticated user's trusted devices.
+export class TrustedDeviceListViewModel {
+  @ApiProperty({ type: TrustedDeviceViewModel, isArray: true })
+  devices!: TrustedDeviceViewModel[]
+}
+
+// Defines the mutation response returned by trusted-device self-service operations.
+export class TrustedDeviceMutationViewModel {
+  @ApiProperty() success!: boolean
+
+  @ApiPropertyOptional({
+    description: 'Affected trusted-device count when the mutation targets one or more devices.'
+  })
+  deviceCount?: number
+}
+
 // Defines one MFA binding entry returned to the authenticated user.
 export class MfaBindingViewModel {
   @ApiProperty() bindingId!: string
@@ -149,4 +182,29 @@ export class InitializeTotpViewModel {
 export class RecoveryCodesViewModel {
   @ApiProperty({ type: MfaBindingViewModel }) binding!: MfaBindingViewModel
   @ApiProperty({ type: String, isArray: true }) recoveryCodes!: string[]
+}
+
+export class StepUpMfaChallengeViewModel {
+  @ApiProperty()
+  required!: boolean
+
+  @ApiPropertyOptional({ type: ChallengeViewModel, nullable: true })
+  challenge?: ChallengeViewModel | null
+}
+
+export class StepUpMfaGrantViewModel {
+  @ApiProperty()
+  success!: boolean
+
+  @ApiPropertyOptional({
+    enum: MfaScenarioViewModel,
+    enumName: 'MfaScenario'
+  })
+  scenario?: MfaScenarioViewModel
+
+  @ApiPropertyOptional()
+  mfaGrantToken?: string
+
+  @ApiPropertyOptional()
+  expiresAt?: string
 }

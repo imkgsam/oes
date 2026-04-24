@@ -695,6 +695,7 @@
 - 用途：读取 navigation entry registry 列表，并支持基础过滤。
 - 使用人：
   - 系统管理员 / 权限管理员
+  - 具备角色导航配置能力的租户管理员（只读 registry，用于选择 role 可见 entries）
 - 权限控制：
   - `checkPermission(permission.navigation.entry.list)`
 - 支持的过滤参数：

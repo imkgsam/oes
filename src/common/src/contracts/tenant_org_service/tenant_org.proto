@@ -1,0 +1,229 @@
+syntax = "proto3";
+
+package tenant_org_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.tenantorg.v1";
+
+service TenantOrgQueryService {
+  rpc GetTenantById(GetTenantByIdRequest) returns (GetTenantByIdResponse);
+  rpc ListTenants(ListTenantsRequest) returns (ListTenantsResponse);
+  rpc GetOrgTreeByTenantId(GetOrgTreeByTenantIdRequest) returns (GetOrgTreeByTenantIdResponse);
+  rpc GetOrgUnitById(GetOrgUnitByIdRequest) returns (GetOrgUnitByIdResponse);
+  rpc ValidateOrgReference(ValidateOrgReferenceRequest) returns (ValidateOrgReferenceResponse);
+  rpc GetOrgReferenceSummary(GetOrgReferenceSummaryRequest) returns (GetOrgReferenceSummaryResponse);
+  rpc ListAncestorOrgUnits(ListAncestorOrgUnitsRequest) returns (ListAncestorOrgUnitsResponse);
+  rpc ListDescendantOrgUnits(ListDescendantOrgUnitsRequest) returns (ListDescendantOrgUnitsResponse);
+}
+
+service TenantOrgManagementService {
+  rpc CreateTenant(CreateTenantRequest) returns (CreateTenantResponse);
+  rpc UpdateTenantProfile(UpdateTenantProfileRequest) returns (UpdateTenantProfileResponse);
+  rpc SuspendTenant(SuspendTenantRequest) returns (SuspendTenantResponse);
+  rpc ReactivateTenant(ReactivateTenantRequest) returns (ReactivateTenantResponse);
+  rpc ArchiveTenant(ArchiveTenantRequest) returns (ArchiveTenantResponse);
+  rpc CreateOrgUnit(CreateOrgUnitRequest) returns (CreateOrgUnitResponse);
+  rpc UpdateOrgUnit(UpdateOrgUnitRequest) returns (UpdateOrgUnitResponse);
+  rpc MoveOrgUnit(MoveOrgUnitRequest) returns (MoveOrgUnitResponse);
+  rpc ArchiveOrgUnit(ArchiveOrgUnitRequest) returns (ArchiveOrgUnitResponse);
+}
+
+message TenantSummary {
+  string id = 1;
+  string code = 2;
+  string name = 3;
+  string status = 4;
+  string root_org_id = 5;
+}
+
+message OrgUnitSummary {
+  string id = 1;
+  string tenant_id = 2;
+  string parent_org_id = 3;
+  string name = 4;
+  string type = 5;
+  string status = 6;
+  string path = 7;
+  int32 depth = 8;
+  int32 sort_order = 9;
+  string organization_party_id = 10;
+}
+
+message OrgNode {
+  OrgUnitSummary org_unit = 1;
+  repeated OrgNode children = 2;
+}
+
+message ValidationResult {
+  bool valid = 1;
+  string rejection_reason = 2;
+  OrgUnitSummary org_unit_summary = 3;
+}
+
+message GetTenantByIdRequest {
+  string tenant_id = 1;
+}
+
+message GetTenantByIdResponse {
+  TenantSummary tenant = 1;
+}
+
+message ListTenantsRequest {
+  string keyword = 1;
+  string status = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message ListTenantsResponse {
+  repeated TenantSummary tenants = 1;
+  int32 total = 2;
+}
+
+message GetOrgTreeByTenantIdRequest {
+  string tenant_id = 1;
+}
+
+message GetOrgTreeByTenantIdResponse {
+  repeated OrgNode roots = 1;
+}
+
+message GetOrgUnitByIdRequest {
+  string tenant_id = 1;
+  string org_unit_id = 2;
+}
+
+message GetOrgUnitByIdResponse {
+  OrgUnitSummary org_unit = 1;
+}
+
+message ValidateOrgReferenceRequest {
+  string tenant_id = 1;
+  string org_unit_id = 2;
+  string expected_org_type = 3;
+}
+
+message ValidateOrgReferenceResponse {
+  ValidationResult result = 1;
+}
+
+message GetOrgReferenceSummaryRequest {
+  string tenant_id = 1;
+  string org_unit_id = 2;
+}
+
+message GetOrgReferenceSummaryResponse {
+  OrgUnitSummary org_unit = 1;
+}
+
+message ListAncestorOrgUnitsRequest {
+  string tenant_id = 1;
+  string org_unit_id = 2;
+}
+
+message ListAncestorOrgUnitsResponse {
+  repeated OrgUnitSummary ancestors = 1;
+}
+
+message ListDescendantOrgUnitsRequest {
+  string tenant_id = 1;
+  string org_unit_id = 2;
+  int32 max_depth = 3;
+}
+
+message ListDescendantOrgUnitsResponse {
+  repeated OrgUnitSummary descendants = 1;
+}
+
+message CreateTenantRequest {
+  string code = 1;
+  string name = 2;
+  string root_org_name = 3;
+}
+
+message CreateTenantResponse {
+  TenantSummary tenant = 1;
+  OrgUnitSummary root_org_unit = 2;
+}
+
+message UpdateTenantProfileRequest {
+  string tenant_id = 1;
+  string name = 2;
+  string code = 3;
+}
+
+message UpdateTenantProfileResponse {
+  TenantSummary tenant = 1;
+}
+
+message SuspendTenantRequest {
+  string tenant_id = 1;
+  string reason = 2;
+}
+
+message SuspendTenantResponse {
+  TenantSummary tenant = 1;
+}
+
+message ReactivateTenantRequest {
+  string tenant_id = 1;
+}
+
+message ReactivateTenantResponse {
+  TenantSummary tenant = 1;
+}
+
+message ArchiveTenantRequest {
+  string tenant_id = 1;
+  string reason = 2;
+}
+
+message ArchiveTenantResponse {
+  TenantSummary tenant = 1;
+}
+
+message CreateOrgUnitRequest {
+  string tenant_id = 1;
+  string parent_org_id = 2;
+  string name = 3;
+  string type = 4;
+  int32 sort_order = 5;
+  optional string organization_party_id = 6;
+}
+
+message CreateOrgUnitResponse {
+  OrgUnitSummary org_unit = 1;
+}
+
+message UpdateOrgUnitRequest {
+  string tenant_id = 1;
+  string org_unit_id = 2;
+  string name = 3;
+  string type = 4;
+  int32 sort_order = 5;
+  optional string organization_party_id = 6;
+}
+
+message UpdateOrgUnitResponse {
+  OrgUnitSummary org_unit = 1;
+}
+
+message MoveOrgUnitRequest {
+  string tenant_id = 1;
+  string org_unit_id = 2;
+  string new_parent_org_id = 3;
+}
+
+message MoveOrgUnitResponse {
+  OrgUnitSummary org_unit = 1;
+}
+
+message ArchiveOrgUnitRequest {
+  string tenant_id = 1;
+  string org_unit_id = 2;
+  string reason = 3;
+}
+
+message ArchiveOrgUnitResponse {
+  OrgUnitSummary org_unit = 1;
+}

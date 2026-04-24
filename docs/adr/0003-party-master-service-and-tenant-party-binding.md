@@ -74,3 +74,13 @@ During the transition:
 - Design detailed identifier verification and merge governance workflows.
 - Decide how much external registry / public business data integration belongs in future party master capabilities.
 - Define event contracts such as `party.registered`, `tenant_party.bound`, `party.merged`, and `tenant_party.deactivated`.
+
+## Status Note 2026-04-23
+
+This ADR remains the architecture decision record and should not be rewritten as an implementation changelog.
+
+Current repository state has advanced beyond parts of the original deferred list:
+
+- `party-service` phase-1 runtime and proto contracts are available.
+- Registration, tenant binding, query, and merge black-box contract documents exist under `docs/contracts/party-service/`.
+- Detailed merge governance, event contracts, external registry integration, and full repo-wide historical `entity-service` cleanup remain deferred.

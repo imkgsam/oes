@@ -12,7 +12,11 @@ describe('SubmitMfaChallengeHandler', () => {
         scopeLevel: 'TENANT',
         loginMethod: LoginMethodEnum.EmailPassword,
         scenario: 'LOGIN',
-        tokenType: 'mfa_flow'
+        tokenType: 'mfa_flow',
+        deviceId: 'browser-1',
+        deviceName: 'Firefox on macOS',
+        userAgent: 'Mozilla/5.0 Firefox/149.0',
+        ipAddress: '127.0.0.1'
       })
     }
     const identityService = {
@@ -51,7 +55,9 @@ describe('SubmitMfaChallengeHandler', () => {
         'login-mfa-flow-token',
         MfaType.TOTP,
         '123456',
-        LoginMethodEnum.EmailPassword
+        LoginMethodEnum.EmailPassword,
+        undefined,
+        true
       )
     )
 
@@ -73,10 +79,11 @@ describe('SubmitMfaChallengeHandler', () => {
       },
       loginMethod: LoginMethodEnum.EmailPassword,
       currentSessionId: undefined,
-      deviceId: undefined,
-      deviceName: undefined,
-      userAgent: undefined,
-      ipAddress: undefined
+      deviceId: 'browser-1',
+      deviceName: 'Firefox on macOS',
+      userAgent: 'Mozilla/5.0 Firefox/149.0',
+      ipAddress: '127.0.0.1',
+      trustCurrentDevice: true
     })
     expect(result).toEqual(
       expect.objectContaining({

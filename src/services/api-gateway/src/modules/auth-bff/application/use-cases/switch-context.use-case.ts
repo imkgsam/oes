@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { LoginMethodEnum } from '@oes/common/constants'
+import { LoginStatus, SelectAccountResponse } from '@oes/common/generated/auth_service'
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 import { AuthGrpcAdapter } from '../../infrastructure/downstream/auth-service/auth-grpc.adapter'
 import {
@@ -9,6 +10,10 @@ import { getAuthenticatedSelfContext } from './self-security-context'
 
 interface SwitchContextDto {
   accountId: string
+  device?: {
+    deviceId?: string
+    deviceName?: string
+  }
 }
 
 interface SwitchContextClientContext {
@@ -43,11 +48,33 @@ export class SwitchContextUseCase {
         accountId,
         loginMethod: LoginMethodEnum.ContextSwitch,
         currentSessionId: self.sessionId,
+        deviceId: dto.device?.deviceId?.trim(),
+        deviceName: dto.device?.deviceName?.trim(),
         userAgent: clientContext.userAgent?.trim(),
         ipAddress: clientContext.ipAddress?.trim()
       },
       source
     )
+
+    if (result.status !== LoginStatus.LOGIN_STATUS_SUCCESS) {
+      return {
+        status: 'DENIED',
+        context: null,
+        session: null,
+        reasonCode: 'CONTEXT_SWITCH_CONTINUATION_REQUIRED',
+        message: '账号切换需要额外验证，请重新登录后选择该账号。'
+      }
+    }
+
+    if (!hasTokenSession(result)) {
+      return {
+        status: 'DENIED',
+        context: null,
+        session: null,
+        reasonCode: 'CONTEXT_SWITCH_TOKEN_REISSUE_FAILED',
+        message: '账号切换未能签发新的会话，请刷新后重试。'
+      }
+    }
 
     return {
       status: 'SUCCESS',
@@ -57,12 +84,18 @@ export class SwitchContextUseCase {
         tenantId: normalize(result.tenantId) ?? null
       },
       session: {
-        accessToken: result.accessToken ?? '',
-        refreshToken: result.refreshToken ?? '',
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
         expiresIn: Number(result.expiresIn ?? '0')
       }
     }
   }
+}
+
+function hasTokenSession(
+  result: SelectAccountResponse
+): result is SelectAccountResponse & { accessToken: string; refreshToken: string } {
+  return Boolean(result.accessToken?.trim() && result.refreshToken?.trim())
 }
 
 function normalize(value?: string): string | undefined {

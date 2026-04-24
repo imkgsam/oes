@@ -20,6 +20,7 @@ const route = useRoute()
 const router = useRouter()
 const sliderPassed = ref(false)
 const sliderRef = ref<InstanceType<typeof SliderCaptcha>>()
+const loginFormRef = ref<InstanceType<typeof AuthenticationLogin>>()
 
 type PasswordLoginMode = 'email' | 'phone'
 
@@ -116,17 +117,37 @@ async function handleSubmit(values: Record<string, any>) {
   }
 }
 
-function goToGenericCodeLogin() {
+async function goToGenericCodeLogin() {
   resetSlider()
+  const values = await loginFormRef.value?.getFormApi?.().getValues?.()
+  const identifier = `${isPhoneMode.value ? values?.phoneNumber ?? '' : values?.username ?? ''}`.trim()
+
   void router.push({
     name: 'CodeLogin',
-    query: { mode: loginMode.value }
+    query: identifier
+      ? {
+          mode: loginMode.value,
+          identifier
+        }
+      : { mode: loginMode.value }
   })
 }
 
 function goToQrCodeLogin() {
   resetSlider()
   void router.push({ name: 'QrCodeLogin' })
+}
+
+// Carries the current login identifier into password recovery without sharing page-local form state.
+function goToForgetPassword(values: Record<string, any>) {
+  resetSlider()
+
+  const identifier = `${isPhoneMode.value ? values.phoneNumber ?? '' : values.username ?? ''}`.trim()
+
+  void router.push({
+    name: 'ForgetPassword',
+    query: identifier ? { identifier } : {}
+  })
 }
 
 function handleThirdPartyLogin(provider: string) {
@@ -150,6 +171,7 @@ function resetSlider() {
 <template>
   <div class="space-y-4">
     <AuthenticationLogin
+      ref="loginFormRef"
       :form-schema="formSchema"
       :loading="authStore.loginLoading"
       :show-code-login="false"
@@ -163,6 +185,7 @@ function resetSlider() {
           : '使用邮箱和密码登录 OES 租户业务 Web'
       "
       title="欢迎使用 OES"
+      @forget-password="goToForgetPassword"
       @submit="handleSubmit"
     >
       <template #form-prepend>

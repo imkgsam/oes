@@ -1,5 +1,13 @@
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
-import { MfaBindingType } from '@oes/common/generated/auth_service'
+import {
+  GetTenantMfaPolicyResponse,
+  LoginWithEmailPasswordResponse,
+  MfaBindingType,
+  RequestLoginMfaFactorChallengeResponse,
+  RevokeTrustedDeviceResponse,
+  StartStepUpMfaChallengeResponse,
+  SubmitMfaChallengeResponse
+} from '@oes/common/generated/auth_service'
 import { AuthGrpcController } from './auth.grpc.controller'
 
 describe('AuthGrpcController', () => {
@@ -15,10 +23,11 @@ describe('AuthGrpcController', () => {
 
     const controller = new AuthGrpcController(commandBus, queryBus)
 
-    const response = await controller.requestLoginMfaFactorChallenge({
+    const response: RequestLoginMfaFactorChallengeResponse =
+      await controller.requestLoginMfaFactorChallenge({
       challengeId: 'login-mfa-flow-token',
       factor: MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP
-    } as any)
+      } as any)
 
     expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
       expect.objectContaining({
@@ -46,8 +55,8 @@ describe('AuthGrpcController', () => {
         scenario: 'LOGIN',
         defaultFactor: 'TOTP',
         availableFactors: [
-          { type: 'TOTP', label: '认证器 App' },
-          { type: 'EMAIL_OTP', label: '邮箱验证码' }
+          { type: 'TOTP', label: '认证器 App', priority: 1 },
+          { type: 'EMAIL_OTP', label: '邮箱验证码', priority: 2 }
         ],
         factorChallengeId: '',
         destination: '',
@@ -74,8 +83,8 @@ describe('AuthGrpcController', () => {
         challengeId: 'login-mfa-flow-token',
         defaultMfaFactor: 3,
         availableFactors: [
-          { type: 3, label: '认证器 App' },
-          { type: 1, label: '邮箱验证码' }
+          { type: 3, label: '认证器 App', priority: 1 },
+          { type: 1, label: '邮箱验证码', priority: 2 }
         ]
       })
     )
@@ -101,11 +110,12 @@ describe('AuthGrpcController', () => {
 
     const controller = new AuthGrpcController(commandBus, queryBus)
 
-    const response = await controller.submitMfaChallenge({
+    const response: SubmitMfaChallengeResponse = await controller.submitMfaChallenge({
       challengeId: 'login-mfa-flow-token',
       factor: 3,
       code: '123456',
-      loginMethod: 'EMAIL_PASSWORD'
+      loginMethod: 'EMAIL_PASSWORD',
+      trustCurrentDevice: true
     } as any)
 
     expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
@@ -113,7 +123,8 @@ describe('AuthGrpcController', () => {
         challengeId: 'login-mfa-flow-token',
         factor: 'TOTP',
         code: '123456',
-        loginMethod: 'EMAIL_PASSWORD'
+        loginMethod: 'EMAIL_PASSWORD',
+        trustCurrentDevice: true
       })
     )
     expect(response).toEqual(
@@ -124,6 +135,93 @@ describe('AuthGrpcController', () => {
         expiresIn: '900'
       })
     )
+  })
+
+  it('should map trusted-device self-service queries into the trusted-device list response', async () => {
+    const commandBus = {} as ValidatingCommandBus
+    const queryBus = {
+      execute: jest.fn().mockResolvedValue([
+        {
+          id: 'trusted-device-1',
+          userId: 'user-1',
+          tenantId: 'tenant-1',
+          deviceId: 'browser-1',
+          deviceName: 'Firefox on macOS',
+          browser: 'Firefox',
+          platform: 'macOS',
+          trustedAt: new Date('2026-04-22T08:00:00.000Z'),
+          lastSeenAt: new Date('2026-04-22T09:00:00.000Z'),
+          expiresAt: new Date('2026-05-22T08:00:00.000Z'),
+          revokedAt: null,
+          createdAt: new Date('2026-04-22T08:00:00.000Z'),
+          updatedAt: new Date('2026-04-22T09:00:00.000Z')
+        }
+      ])
+    } as unknown as ValidatingQueryBus
+
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    const response = await controller.listTrustedDevices({
+      userId: 'user-1',
+      tenantId: 'tenant-1',
+      currentDeviceId: 'browser-1'
+    } as any)
+
+    expect((queryBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        userId: 'user-1',
+        tenantId: 'tenant-1'
+      })
+    )
+    expect(response).toEqual({
+      devices: [
+        {
+          id: 'trusted-device-1',
+          deviceId: 'browser-1',
+          deviceName: 'Firefox on macOS',
+          browser: 'Firefox',
+          platform: 'macOS',
+          trustedAt: '2026-04-22T08:00:00.000Z',
+          lastActiveAt: '2026-04-22T09:00:00.000Z',
+          expiresAt: '2026-05-22T08:00:00.000Z',
+          isCurrentDevice: true
+        }
+      ]
+    })
+  })
+
+  it('should map trusted-device revocation commands without coupling them to session logout', async () => {
+    const commandBus = {
+      execute: jest
+        .fn()
+        .mockResolvedValueOnce({ success: true, deviceCount: 1 })
+        .mockResolvedValueOnce({ success: true, deviceCount: 3 })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    await expect(
+      (controller.revokeTrustedDevice({
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        trustedDeviceId: 'trusted-device-1'
+      } as any) as Promise<RevokeTrustedDeviceResponse>)
+    ).resolves.toEqual({
+      success: true,
+      deviceCount: '1'
+    })
+
+    await expect(
+      controller.revokeOtherTrustedDevices({
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        currentDeviceId: 'browser-1'
+      } as any)
+    ).resolves.toEqual({
+      success: true,
+      deviceCount: '3'
+    })
   })
 
   it('should map password login device context into LoginWithEmailPasswordCommand', async () => {
@@ -140,7 +238,7 @@ describe('AuthGrpcController', () => {
 
     const controller = new AuthGrpcController(commandBus, queryBus)
 
-    const response = await controller.loginWithEmailPassword({
+    const response: LoginWithEmailPasswordResponse = await controller.loginWithEmailPassword({
       email: 'alice@example.com',
       password: 'secret-1',
       deviceName: 'Alice MacBook Pro',
@@ -208,6 +306,12 @@ describe('AuthGrpcController', () => {
       execute: jest.fn().mockResolvedValue({
         tenantId: 'tenant-1',
         loginRequired: true,
+        scenarioRequirements: {
+          LOGIN: true,
+          CHANGE_PASSWORD: true,
+          CHANGE_CONTACT: false,
+          NEW_DEVICE_LOGIN: false
+        },
         factors: [
           { factor: 'EMAIL_OTP', enabled: true, priority: 1 },
           { factor: 'TOTP', enabled: true, priority: 2 }
@@ -220,7 +324,7 @@ describe('AuthGrpcController', () => {
       .spyOn(controller as any, 'getRequiredOperatorId')
       .mockReturnValue('operator-1')
 
-    const response = await controller.getTenantMfaPolicy({
+    const response: GetTenantMfaPolicyResponse = await controller.getTenantMfaPolicy({
       tenantId: 'tenant-1'
     } as any)
 
@@ -233,6 +337,24 @@ describe('AuthGrpcController', () => {
     expect(response).toEqual({
       tenantId: 'tenant-1',
       loginRequired: true,
+      scenarioRequirements: [
+        {
+          scenario: 1,
+          required: true
+        },
+        {
+          scenario: 3,
+          required: true
+        },
+        {
+          scenario: 4,
+          required: false
+        },
+        {
+          scenario: 2,
+          required: false
+        }
+      ],
       factors: [
         {
           factor: MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP,
@@ -253,6 +375,12 @@ describe('AuthGrpcController', () => {
       execute: jest.fn().mockResolvedValue({
         tenantId: 'tenant-1',
         loginRequired: true,
+        scenarioRequirements: {
+          LOGIN: true,
+          CHANGE_PASSWORD: false,
+          CHANGE_CONTACT: true,
+          NEW_DEVICE_LOGIN: true
+        },
         factors: [
           { factor: 'TOTP', enabled: true, priority: 1 },
           { factor: 'BACKUP_CODE', enabled: false, priority: 2 }
@@ -269,6 +397,12 @@ describe('AuthGrpcController', () => {
     const response = await controller.updateTenantMfaPolicy({
       tenantId: 'tenant-1',
       loginRequired: true,
+      scenarioRequirements: [
+        { scenario: 1, required: true },
+        { scenario: 3, required: false },
+        { scenario: 4, required: true },
+        { scenario: 2, required: true }
+      ],
       factors: [
         {
           factor: MfaBindingType.MFA_BINDING_TYPE_TOTP,
@@ -298,6 +432,24 @@ describe('AuthGrpcController', () => {
     expect(response).toEqual({
       tenantId: 'tenant-1',
       loginRequired: true,
+      scenarioRequirements: [
+        {
+          scenario: 1,
+          required: true
+        },
+        {
+          scenario: 3,
+          required: false
+        },
+        {
+          scenario: 4,
+          required: true
+        },
+        {
+          scenario: 2,
+          required: true
+        }
+      ],
       factors: [
         {
           factor: MfaBindingType.MFA_BINDING_TYPE_TOTP,
@@ -310,6 +462,89 @@ describe('AuthGrpcController', () => {
           priority: 2
         }
       ]
+    })
+  })
+
+  it('should map startStepUpMfaChallenge requests into one challenge payload when the scenario requires MFA', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        required: true,
+        challengeId: 'step-up-flow-token',
+        scenario: 'CHANGE_PASSWORD',
+        defaultFactor: 'TOTP',
+        availableFactors: [
+          { type: 'TOTP', label: '认证器 App', priority: 1 },
+          { type: 'EMAIL_OTP', label: '邮箱验证码', priority: 2 }
+        ]
+      })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    const response: StartStepUpMfaChallengeResponse = await controller.startStepUpMfaChallenge({
+      userId: 'user-1',
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      scenario: 3
+    } as any)
+
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scenario: 'CHANGE_PASSWORD'
+      })
+    )
+    expect(response).toEqual({
+      required: true,
+      challengeId: 'step-up-flow-token',
+      scenario: 3,
+      defaultMfaFactor: 3,
+      availableFactors: [
+        { type: 3, label: '认证器 App', priority: 1 },
+        { type: 1, label: '邮箱验证码', priority: 2 }
+      ],
+      factorChallengeId: '',
+      challengeDestination: '',
+      challengeExpiresAt: ''
+    })
+  })
+
+  it('should map completeStepUpMfaChallenge requests into one step-up grant response', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        success: true,
+        scenario: 'CHANGE_CONTACT',
+        mfaGrantToken: 'step-up-grant-token',
+        expiresAt: '2026-04-22T10:00:00.000Z'
+      })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    const response = await controller.completeStepUpMfaChallenge({
+      challengeId: 'step-up-flow-token',
+      factor: 3,
+      code: '123456',
+      factorChallengeId: 'otp-factor-1'
+    } as any)
+
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        challengeId: 'step-up-flow-token',
+        factor: 'TOTP',
+        code: '123456',
+        factorChallengeId: 'otp-factor-1'
+      })
+    )
+    expect(response).toEqual({
+      success: true,
+      scenario: 4,
+      mfaGrantToken: 'step-up-grant-token',
+      expiresAt: '2026-04-22T10:00:00.000Z'
     })
   })
 
@@ -579,8 +814,11 @@ describe('AuthGrpcController', () => {
 
     const selfResponse = await controller.changeOwnPassword({
       userId: 'user-1',
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
       currentPassword: 'old-password',
-      newPassword: 'new-password'
+      newPassword: 'new-password',
+      mfaGrantToken: 'step-up-grant-1'
     } as any)
     const adminResponse = await controller.requirePasswordSetup({
       userId: 'user-2',
@@ -591,8 +829,11 @@ describe('AuthGrpcController', () => {
     expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
       expect.objectContaining({
         userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
         currentPassword: 'old-password',
-        newPassword: 'new-password'
+        newPassword: 'new-password',
+        mfaGrantToken: 'step-up-grant-1'
       })
     )
     expect(getRequiredOperatorIdSpy).toHaveBeenCalled()
@@ -606,6 +847,108 @@ describe('AuthGrpcController', () => {
     )
     expect(selfResponse).toEqual({ success: true, passwordSetupRequired: false })
     expect(adminResponse).toEqual({ success: true, passwordSetupRequired: true })
+  })
+
+  it('should use the request user id for authenticated self-service user mutations', async () => {
+    const commandBus = {
+      execute: jest
+        .fn()
+        .mockResolvedValueOnce({
+          challengeId: 'email-binding-challenge',
+          expiresAt: new Date('2026-04-21T12:00:00.000Z'),
+          destination: 'a***@example.com'
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          type: 'EMAIL',
+          identifier: 'alice@example.com'
+        })
+        .mockResolvedValueOnce({
+          challengeId: 'phone-binding-challenge',
+          expiresAt: new Date('2026-04-21T12:05:00.000Z'),
+          destination: '+86******0000'
+        })
+        .mockResolvedValueOnce({
+          success: true,
+          type: 'PHONE',
+          identifier: '+8613800138000'
+        })
+        .mockResolvedValueOnce({ completed: true })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+
+    const controller = new AuthGrpcController(commandBus, queryBus)
+    jest.spyOn(controller as any, 'getRequiredOperatorId').mockReturnValue('account-1')
+
+    await controller.requestEmailBindingChallenge({
+      userId: 'user-1',
+      email: 'alice@example.com'
+    } as any)
+    await controller.verifyEmailBinding({
+      userId: 'user-1',
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      email: 'alice@example.com',
+      otp: '123456',
+      mfaGrantToken: 'step-up-grant-1'
+    } as any)
+    await controller.requestPhoneBindingChallenge({
+      userId: 'user-1',
+      phone: '+8613800138000'
+    } as any)
+    await controller.verifyPhoneBinding({
+      userId: 'user-1',
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      phone: '+8613800138000',
+      otp: '654321',
+      mfaGrantToken: 'step-up-grant-2'
+    } as any)
+
+    const response = await controller.completeFirstLoginPasswordSetup({
+      userId: 'user-1',
+      newPassword: 'new-password'
+    } as any)
+
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        userId: 'user-1',
+        email: 'alice@example.com'
+      })
+    )
+    expect((commandBus.execute as jest.Mock).mock.calls[1][0]).toEqual(
+      expect.objectContaining({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        email: 'alice@example.com',
+        otp: '123456',
+        mfaGrantToken: 'step-up-grant-1'
+      })
+    )
+    expect((commandBus.execute as jest.Mock).mock.calls[2][0]).toEqual(
+      expect.objectContaining({
+        userId: 'user-1',
+        phone: '+8613800138000'
+      })
+    )
+    expect((commandBus.execute as jest.Mock).mock.calls[3][0]).toEqual(
+      expect.objectContaining({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        phone: '+8613800138000',
+        otp: '654321',
+        mfaGrantToken: 'step-up-grant-2'
+      })
+    )
+    expect((commandBus.execute as jest.Mock).mock.calls[4][0]).toEqual(
+      expect.objectContaining({
+        userId: 'user-1',
+        newPassword: 'new-password'
+      })
+    )
+    expect(response).toEqual({ completed: true })
   })
 
   it('should map login-method enablement requests into SetLoginMethodEnabledCommand', async () => {
@@ -654,6 +997,63 @@ describe('AuthGrpcController', () => {
       success: true,
       loginMethod: {
         methodId: 'method-email',
+        userId: 'user-1',
+        type: 'EMAIL',
+        identifier: 'alice@example.com',
+        maskedIdentifier: 'a***@example.com',
+        verified: true,
+        enabled: false,
+        hasPassword: true,
+        createdAt: '2026-04-20T00:00:00.000Z',
+        updatedAt: '2026-04-20T00:00:00.000Z'
+      }
+    })
+  })
+
+  it('should map self login-method enablement requests into SetLoginMethodEnabledCommand without admin permission metadata', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        success: true,
+        loginMethod: {
+          methodId: 'method-email:PASSWORD',
+          userId: 'user-1',
+          type: 'EMAIL',
+          identifier: 'alice@example.com',
+          maskedIdentifier: 'a***@example.com',
+          verified: true,
+          enabled: false,
+          hasPassword: true,
+          createdAt: '2026-04-20T00:00:00.000Z',
+          updatedAt: '2026-04-20T00:00:00.000Z'
+        }
+      })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+
+    const controller = new AuthGrpcController(commandBus, queryBus)
+    const getRequiredOperatorIdSpy = jest
+      .spyOn(controller as any, 'getRequiredOperatorId')
+      .mockReturnValue('account-1')
+
+    const response = await (controller as any).setOwnLoginMethodEnabled({
+      userId: 'user-1',
+      methodId: 'method-email:PASSWORD',
+      enabled: false
+    })
+
+    expect(getRequiredOperatorIdSpy).toHaveBeenCalled()
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        userId: 'user-1',
+        methodId: 'method-email:PASSWORD',
+        enabled: false,
+        operatorId: 'account-1'
+      })
+    )
+    expect(response).toEqual({
+      success: true,
+      loginMethod: {
+        methodId: 'method-email:PASSWORD',
         userId: 'user-1',
         type: 'EMAIL',
         identifier: 'alice@example.com',
@@ -769,6 +1169,52 @@ describe('AuthGrpcController', () => {
         }
       ],
       defaultChannel: 0
+    })
+  })
+
+  it('should stop forwarding tenantName in account-selection login responses', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        nextStep: 'ACCOUNT_SELECTION_REQUIRED',
+        userId: 'user-1',
+        method: 'EMAIL_PASSWORD',
+        accounts: [
+          {
+            accountId: 'account-1',
+            tenantId: 'tenant-1',
+            tenantName: 'Tenant One',
+            scopeLevel: 'TENANT',
+            displayName: 'Tenant Account'
+          }
+        ]
+      })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    await expect(
+      controller.loginWithEmailPassword({
+        email: 'user@example.com',
+        password: 'correct-password'
+      } as any)
+    ).resolves.toEqual({
+      status: 3,
+      userId: 'user-1',
+      challengeId: '',
+      accessToken: '',
+      refreshToken: '',
+      expiresIn: '0',
+      loginMethod: 'EMAIL_PASSWORD',
+      accounts: [
+        {
+          accountId: 'account-1',
+          tenantId: 'tenant-1',
+          displayName: 'Tenant Account',
+          scopeLevel: 'TENANT'
+        }
+      ],
+      passwordSetupRequired: false
     })
   })
 })

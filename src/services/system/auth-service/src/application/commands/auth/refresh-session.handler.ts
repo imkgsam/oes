@@ -12,6 +12,7 @@ import {
 import { IPermissionServicePort } from '../../ports'
 import { AuthAuditService } from '../../services/auth-audit.service'
 import { PasswordSetupRequirementService } from '../../services/password-setup-requirement.service'
+import { TrustedDeviceService } from '../../services/trusted-device.service'
 import { IUserSessionRepository } from '../../../domain/repositories/user-session.repository'
 import { RefreshSessionCommand } from './refresh-session.command'
 
@@ -34,7 +35,8 @@ export class RefreshSessionHandler
     private readonly passwordSetupRequirementService: PasswordSetupRequirementService,
     @Inject(REPO.SESSION)
     private readonly sessionRepository: IUserSessionRepository,
-    private readonly authAuditService: AuthAuditService
+    private readonly authAuditService: AuthAuditService,
+    private readonly trustedDeviceService: TrustedDeviceService
   ) {}
 
   async execute(command: RefreshSessionCommand): Promise<RefreshSessionResult> {
@@ -114,6 +116,16 @@ export class RefreshSessionHandler
       tokenConfig.refreshTokenValidity
     )
     await this.sessionRepository.save(session)
+    await this.trustedDeviceService.markTrustedDeviceSeen({
+      userId: session.getUserId(),
+      scopeLevel: session.getScopeLevel(),
+      tenantId: session.getTenantId(),
+      deviceId: session.getDeviceInfo().deviceId,
+      deviceName: session.getDeviceInfo().deviceName,
+      userAgent: session.getDeviceInfo().userAgent,
+      ipAddress: session.getDeviceInfo().ipAddress,
+      observedAt: session.getLastActiveAt()
+    })
 
     const result = {
       sessionId: session.getId(),

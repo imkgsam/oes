@@ -25,7 +25,9 @@
 - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
 - [ADR 0003](/Users/acehood/Documents/GitHub/oes/docs/adr/0003-party-master-service-and-tenant-party-binding.md)
 
-在 proto、generated client 与运行时服务 rename 完成前，当前目录用于先冻结黑盒契约，不代表现有代码中已经完成 `entity-service -> party-service` 迁移。
+当前 proto、generated client 与主服务源码已经采用 `party-service` / `party_service` 命名。
+
+仓库中仍可能残留 `entity-service` 级别的运行配置、工程引用与历史文档；这些属于迁移治理问题，不改变 `party-service` 作为稳定服务边界与黑盒契约入口的结论。
 
 ## 2. 模块划分
 
@@ -36,30 +38,57 @@
 - [merge.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/party-service/merge.md)
   - 主体受控合并接口与 merge 治理边界
 
+说明：
+
+- `merge.md` 已冻结第一阶段 `MergeParties` 黑盒语义。
+- merge 审批流、unmerge、事件契约与更细的治理流程仍后置到 future collaboration / feature。
+
 ## 3. 全局调用约束
 
 - 所有接口均为内部服务接口，不直接对外部客户端开放。
 - 所有调用方都应将 `party-service` 视为 black box，而不是依赖其内部实现结构。
 - 第一阶段业务域默认引用 `tenantPartyId`，而不是直接持有裸 `partyId` 作为业务主体主引用。
-- 管理型写接口要求：
-  - internal service 调用上下文
-  - authenticated operator context
-  - `tenantId`
-  - trace context
-  - 审计元数据
-- 查询接口是否要求 `operator context` 与 permission guard，以具体接口文档为准。
+- 当前调用链约束：
+  - `identity-service`、`api-gateway` 已开始向 `party-service` 传递 `tenantId`、operator / trace metadata
+  - 写接口的业务请求体仍以 `tenant_id` 等显式字段为准
+- 当前 runtime truth：
+  - `party-service` handler 会接收 gRPC metadata，但 phase-1 runtime 尚未在服务内落实 internal-service / operator / permission guard enforcement
+  - 服务已初始化 OTEL，但 handler 级 trace metadata 使用与链路约束尚未冻结为可依赖的业务契约
+  - phase-1 runtime 尚未在 `party-service` 内落实显式 audit event 持久化
+- deferred enforcement：
+  - internal-service / authenticated-operator / permission guard
+  - handler 级 trace context enforcement
+  - 审计事件落库、outbox 或统一 audit 集成
 - 在现有运行时代码仍使用旧 `entity-service` 名称期间，任何调用方不得继续扩展泛化 entity 语义；应按本目录的 `party-service` 边界设计新能力。
 
-## 4. 第一阶段能力范围
+## 4. 与当前 proto 的对齐口径
 
-截至当前，`party-service` 第一阶段只开放以下能力：
+- 当前 `party_service/party.proto` 已覆盖 registration、query、merge 三组第一阶段 RPC。
+- 本目录优先冻结黑盒语义、上下文约束、错误边界与 owner 边界，不要求逐字段复写 proto。
+- 若文档中出现宽于当前 proto 的 future 治理语义，应视为后续扩展方向，不能被调用方当作当前阶段已承诺字段。
 
-- 自然人 / 组织主体注册
-- 租户绑定已有主体
-- 按主体 ID、租户主体 ID、标识与名称候选执行受控查询
-- 查询少量稳定主体关系摘要
-- 受控主体合并
-- 租户主体停用
+## 5. 第一阶段最小 contract surface
+
+截至当前，`party-service` phase-1 真正已承诺的最小 contract surface 以当前 proto/runtime 为准：
+
+- registration / binding
+  - `RegisterPersonParty`
+  - `RegisterOrganizationParty`
+  - `BindExistingPartyToTenant`
+  - `DeactivateTenantParty`
+- query
+  - `GetPartyById`
+  - `GetTenantPartyById`
+  - `ResolvePartyByIdentifier`
+  - `SearchPartyCandidates`
+  - `ListPartyRelationships`
+- merge
+  - `MergeParties`
+
+收口口径：
+
+- 文档默认先 shrink 到当前 proto + runtime 已兑现的响应面、副作用与错误语义。
+- 凡是宽于当前 runtime 的治理、审批、重定向、审计或更强 enforcement，都只以 deferred 标注，不能被调用方当作当前承诺。
 
 当前不包含：
 
@@ -67,3 +96,5 @@
 - org tree 或 org membership 管理
 - 完整主数据治理平台能力
 - 自动外部工商 / 证照数据同步
+- merge redirect、history traceability、downstream repair、unmerge 等完整治理链
+- operator / permission / trace / audit 的完整运行时 enforcement

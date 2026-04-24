@@ -443,24 +443,39 @@ const permissionColumns = computed<TableColumnsType<PermissionManagementApi.Perm
     width: 110,
     customRender: ({ record }) => {
       const permission = record as PermissionManagementApi.Permission;
-      const items = [
-        {
-          disabled: !canListPermissionRoles.value,
+      const items: Array<{
+        danger?: boolean;
+        disabled?: boolean;
+        key: PermissionActionKey;
+        label: string;
+      }> = [];
+
+      if (canListPermissionRoles.value) {
+        items.push({
           key: 'roles',
           label: '引用角色',
-        },
-        {
-          disabled: !canUpdatePermission.value,
+        });
+      }
+
+      if (canUpdatePermission.value) {
+        items.push({
           key: 'edit',
           label: '编辑',
-        },
-        {
+        });
+      }
+
+      if (canDeletePermission.value) {
+        items.push({
           danger: true,
-          disabled: !canDeletePermission.value || deleting.value,
+          disabled: deleting.value,
           key: 'delete',
           label: '删除',
-        },
-      ];
+        });
+      }
+
+      if (items.length === 0) {
+        return null;
+      }
 
       return h(
         Dropdown,

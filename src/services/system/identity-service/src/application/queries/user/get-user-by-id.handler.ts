@@ -22,6 +22,7 @@ export class GetUserByIdHandler implements IQueryHandler<GetUserByIdQuery, UserS
 function toUserSummaryView(user: UserSummaryEntity): UserSummaryView {
   return {
     id: user.id,
+    partyId: user.partyId,
     username: user.username,
     personalEmail: user.personalEmail,
     personalPhone: user.personalPhone,

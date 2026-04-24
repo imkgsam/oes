@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import type { AccountRoleManagementApi, AdminSecurityApi } from '#/api';
-import type { MenuProps, TableColumnsType, TablePaginationConfig } from 'ant-design-vue';
+import type { TableColumnsType } from 'ant-design-vue';
+
 import type {
   AccountManagementRow,
   AccountScopeFilter,
   AccountStatusFilter,
 } from './account-management.helpers';
 
+import type { AccountRoleManagementApi, AdminSecurityApi } from '#/api';
+
 import { computed, h, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
+import { IconifyIcon } from '@vben/icons';
 
 import {
   Button,
@@ -22,6 +25,7 @@ import {
   Form,
   Input,
   Menu,
+  message,
   Modal,
   Row,
   Select,
@@ -29,15 +33,16 @@ import {
   Switch,
   Table,
   Tag,
-  message,
 } from 'ant-design-vue';
 
 import {
   createAdminAccountApi,
+  deleteAdminAccountApi,
   disableAdminAccountLoginMethodApi,
   enableAdminAccountLoginMethodApi,
-  getAdminAccountBasicInfoApi,
   getAccountRoleSelectionApi,
+  getAdminAccountBasicInfoApi,
+  getAdminAccountDeletionImpactApi,
   listAdminAccountLoginMethodsApi,
   listAdminAccountsApi,
   listAdminAccountTenantOptionsApi,
@@ -47,6 +52,7 @@ import {
 } from '#/api';
 import { useAuthContextStore } from '#/store/auth-context';
 
+import PhoneNumberInput from '../_core/authentication/phone-number-input.vue';
 import {
   buildAccountRows,
   getAccountScopeLabel,
@@ -54,13 +60,6 @@ import {
   getRoleKindLabel,
   getSelectedRoleSummary,
 } from './account-management.helpers';
-import PhoneNumberInput from '../_core/authentication/phone-number-input.vue';
-
-interface AccountFilterState {
-  keyword: string;
-  scopeLevel: AccountScopeFilter;
-  status: AccountStatusFilter;
-}
 
 interface CreateAccountFormState {
   displayName: string;
@@ -77,19 +76,26 @@ interface AccountBasicInfoFormState {
   phone: string;
 }
 
-const authContextStore = useAuthContextStore();
+interface AccountFilterState {
+  keyword: string;
+  scopeLevel: AccountScopeFilter;
+  status: AccountStatusFilter;
+}
 
-const accountFilters = reactive<AccountFilterState>({
-  keyword: '',
-  scopeLevel: '',
-  status: '',
-});
+type AccountActionKey = 'basicInfo' | 'delete' | 'loginMethods' | 'roles';
+
+const authContextStore = useAuthContextStore();
 const createAccountForm = reactive<CreateAccountFormState>({
   displayName: '',
   email: '',
   phone: '',
   scopeLevel: 'TENANT',
   tenantId: '',
+});
+const accountFilters = reactive<AccountFilterState>({
+  keyword: '',
+  scopeLevel: '',
+  status: '',
 });
 
 const accountRows = ref<AccountManagementRow[]>([]);
@@ -133,7 +139,7 @@ const showTenantColumn = computed(() => isPlatformScope.value);
 const currentTenantId = computed(
   () => authContextStore.sessionContext?.tenant?.tenantId ?? '',
 );
-const currentTenantName = computed(
+const currentTenantLabel = computed(
   () => authContextStore.tenantName || currentTenantId.value || '-',
 );
 
@@ -152,8 +158,14 @@ const canUpdateAccountStatus = computed(() =>
 const canUpdateAccountProfile = computed(() =>
   authContextStore.actionCodes.includes('identity.account.profile.update'),
 );
+const canDeleteAccount = computed(() =>
+  authContextStore.actionCodes.includes('identity.account.delete'),
+);
 const canManageLoginMethods = computed(() =>
   authContextStore.actionCodes.includes('auth.account_login_methods.manage'),
+);
+const currentAccountId = computed(
+  () => authContextStore.sessionContext?.account?.accountId ?? '',
 );
 
 const filteredRoles = computed(() => {
@@ -182,17 +194,6 @@ const roleSearchSummary = computed(() => {
 
   return `当前显示 ${visibleCount} / ${totalCount} 个角色，已选择 ${selectedRoleIds.value.length} 个角色`;
 });
-const scopeOptions = computed(() => {
-  const options = [
-    { label: '全部 Scope', value: '' },
-    { label: '系统账号', value: 'SYSTEM' },
-    { label: '租户账号', value: 'TENANT' },
-  ];
-
-  return isPlatformScope.value
-    ? options
-    : options.filter((option) => option.value !== 'SYSTEM');
-});
 const createScopeOptions = computed(() => {
   const options = [
     { label: '系统账号', value: 'SYSTEM' },
@@ -203,21 +204,13 @@ const createScopeOptions = computed(() => {
     ? options
     : options.filter((option) => option.value !== 'SYSTEM');
 });
-const statusOptions = [
-  { label: '全部状态', value: '' },
-  { label: '启用', value: 'ENABLED' },
-  { label: '停用', value: 'DISABLED' },
-];
-const accountSummaryMeta = computed(() => [
-  {
-    label: '可见范围',
-    value: isPlatformScope.value ? '系统管理员范围' : currentTenantName.value,
-  },
-  {
-    label: '账号总数',
-    value: String(accountPagination.total),
-  },
-]);
+const accountTablePagination = computed(() => ({
+  current: accountPagination.current,
+  pageSize: accountPagination.pageSize,
+  showSizeChanger: true,
+  showTotal: (total: number) => `共 ${total} 条`,
+  total: accountPagination.total,
+}));
 const basicInfoPreview = computed(() => {
   if (!selectedBasicInfo.value) {
     return [];
@@ -266,7 +259,6 @@ const canSaveBasicInfo = computed(
     && !basicInfoSaving.value
     && (canUpdateAccountProfile.value || canUpdateAccountStatus.value),
 );
-
 const selectedSecurityAccountTitle = computed(() =>
   selectedSecurityAccount.value
     ? selectedSecurityAccount.value.userDisplayName
@@ -274,19 +266,34 @@ const selectedSecurityAccountTitle = computed(() =>
       || selectedSecurityAccount.value.accountId
     : '账号登录方式',
 );
-const tablePagination = computed<TablePaginationConfig>(() => ({
-  current: accountPagination.current,
-  pageSize: accountPagination.pageSize,
-  showQuickJumper: true,
-  showSizeChanger: true,
-  showTotal: (total: number) => `共 ${total} 条`,
-  total: accountPagination.total,
-}));
+const loginMethodSummaryMeta = computed(() => [
+  {
+    label: '密码状态',
+    value: selectedAccountPasswordSetupRequired.value ? '需要重设密码' : '状态正常',
+  },
+  {
+    label: '登录方式数',
+    value: String(selectedAccountLoginMethods.value.length),
+  },
+]);
 
-async function loadAccounts(options?: { page?: number; pageSize?: number }) {
-  const page = options?.page ?? accountPagination.current;
-  const pageSize = options?.pageSize ?? accountPagination.pageSize;
+function getAccountContextTitle(record: AccountManagementRow) {
+  if (record.scopeLevel === 'SYSTEM') {
+    return '系统上下文';
+  }
 
+  return record.tenantName || record.tenantId || '未命名租户';
+}
+
+function getAccountDisplayName(record: AccountManagementRow) {
+  return record.accountDisplayName?.trim() || record.userDisplayName?.trim() || '未命名账号';
+}
+
+// Loads the account directory with the current filter state and pagination.
+async function loadAccountDirectory(
+  page = accountPagination.current,
+  pageSize = accountPagination.pageSize,
+) {
   accountLoading.value = true;
 
   try {
@@ -301,32 +308,62 @@ async function loadAccounts(options?: { page?: number; pageSize?: number }) {
     accountPagination.current = result.page ?? page;
     accountPagination.pageSize = result.pageSize ?? pageSize;
     accountPagination.total = result.total ?? 0;
+    return {
+      itemCount: result.items?.length ?? 0,
+      total: result.total ?? 0,
+    };
   } catch {
     accountRows.value = [];
     accountPagination.total = 0;
     message.error('账号目录加载失败，请稍后重试');
+    return {
+      itemCount: 0,
+      total: 0,
+    };
   } finally {
     accountLoading.value = false;
   }
 }
 
-function queryAccounts() {
-  accountPagination.current = 1;
-  void loadAccounts({ page: 1, pageSize: accountPagination.pageSize });
+// Refreshes the current directory view and optionally falls back to the previous page when the current page becomes empty.
+async function refreshDirectory(options?: { fallbackToPreviousPageOnEmpty?: boolean }) {
+  const result = await loadAccountDirectory();
+
+  if (
+    options?.fallbackToPreviousPageOnEmpty
+    && result.itemCount === 0
+    && result.total > 0
+    && accountPagination.current > 1
+  ) {
+    const previousPage = accountPagination.current - 1;
+    accountPagination.current = previousPage;
+    await loadAccountDirectory(previousPage, accountPagination.pageSize);
+  }
 }
 
+// Applies the current search filters from the first page.
+function searchAccounts() {
+  accountPagination.current = 1;
+  void loadAccountDirectory(1, accountPagination.pageSize);
+}
+
+// Restores the default account directory filters and reloads the first page.
 function resetAccountFilters() {
   accountFilters.keyword = '';
   accountFilters.scopeLevel = '';
   accountFilters.status = '';
-  queryAccounts();
+  accountPagination.current = 1;
+  void loadAccountDirectory(1, accountPagination.pageSize);
 }
 
-function handleTableChange(pagination: TablePaginationConfig) {
-  void loadAccounts({
-    page: pagination.current ?? 1,
-    pageSize: pagination.pageSize ?? accountPagination.pageSize,
-  });
+// Syncs ant-table pagination back into the account directory query state.
+function handleAccountTableChange(pagination: { current?: number; pageSize?: number }) {
+  const nextPage = pagination.current ?? 1;
+  const nextPageSize = pagination.pageSize ?? accountPagination.pageSize;
+
+  accountPagination.current = nextPage;
+  accountPagination.pageSize = nextPageSize;
+  void loadAccountDirectory(nextPage, nextPageSize);
 }
 
 async function openRoleConfig(account: AccountManagementRow) {
@@ -554,7 +591,7 @@ async function submitBasicInfo() {
     selectedBasicInfo.value = updatedBasicInfo;
     message.success(statusChanged ? '账号基本信息与状态已保存' : '账号基本信息已保存');
     basicInfoModalOpen.value = false;
-    await loadAccounts();
+    await refreshDirectory({ fallbackToPreviousPageOnEmpty: true });
   } catch {
     message.error(statusChanged ? '账号信息保存失败，请稍后重试' : '账号基本信息保存失败，请稍后重试');
   } finally {
@@ -684,12 +721,130 @@ async function submitCreateAccount() {
     });
     message.success('账号已创建');
     createModalOpen.value = false;
-    await loadAccounts({ page: 1, pageSize: accountPagination.pageSize });
+    await refreshDirectory();
   } catch {
     message.error('账号创建失败，请稍后重试');
   } finally {
     createSaving.value = false;
   }
+}
+
+function showAccountDeletionBlocked(impact: AdminSecurityApi.AccountDeletionImpact) {
+  Modal.warning({
+    centered: true,
+    okText: '我知道了',
+    title: '当前账号暂时无法删除',
+    content: h(
+      'div',
+      { class: 'account-management__delete-blockers' },
+      impact.blockingReasons.map((reason) =>
+        h('p', { key: `${reason.resourceType}-${reason.resourceCount}` }, reason.message),
+      ),
+    ),
+  });
+}
+
+function buildDeleteAccountImpactLines(impact: AdminSecurityApi.AccountDeletionImpact) {
+  return [
+    '删除后不可恢复。',
+    '将清理当前账号下的会话与角色绑定。',
+    impact.orgMembershipCount > 0
+      ? `将同步删除 ${impact.orgMembershipCount} 条组织成员关系。`
+      : undefined,
+    impact.contactAssetCount > 0
+      ? `将同步删除 ${impact.contactAssetCount} 条工作联系资产。`
+      : undefined,
+    '该操作不会删除底层 user。',
+  ].filter(Boolean) as string[];
+}
+
+function buildDeleteAccountSummary(record: AccountManagementRow) {
+  return [
+    {
+      label: '用户姓名',
+      value: record.userDisplayName || record.userId || '未命名用户',
+    },
+    {
+      label: '账号名称',
+      value: getAccountDisplayName(record),
+    },
+    {
+      label: '账号上下文',
+      value: getAccountContextTitle(record),
+    },
+  ];
+}
+
+function buildDeleteAccountSuccessMessage(result: AdminSecurityApi.AccountDeletionResult) {
+  const parts = [
+    `${result.deletedSessionCount} 个会话`,
+    `${result.clearedRoleCount} 个角色绑定`,
+    `${result.deletedOrgMembershipCount} 条组织成员关系`,
+    `${result.deletedContactAssetCount} 条工作联系资产`,
+  ];
+
+  return `账号已删除，已清理 ${parts.join('、')}`;
+}
+
+function confirmDeleteAccount(
+  record: AccountManagementRow,
+  impact: AdminSecurityApi.AccountDeletionImpact,
+) {
+  Modal.confirm({
+    centered: true,
+    okText: '删除账号',
+    okType: 'danger',
+    title: `确认删除“${record.userDisplayName || record.userId || record.accountId}”账号？`,
+    content: h(
+      'div',
+      { class: 'account-management__delete-impact' },
+      [
+        h(
+          'div',
+          { class: 'account-management__preview-surface' },
+          h(
+            'div',
+            { class: 'account-management__preview-grid' },
+            buildDeleteAccountSummary(record).map((item) =>
+              h('div', { key: item.label, class: 'account-management__preview-item' }, [
+                h('div', { class: 'account-management__preview-label' }, item.label),
+                h('div', { class: 'account-management__preview-value' }, item.value),
+              ]),
+            ),
+          ),
+        ),
+        h(
+          'div',
+          { class: 'account-management__delete-copy' },
+          buildDeleteAccountImpactLines(impact).map((line) => h('p', { key: line }, line)),
+        ),
+      ],
+    ),
+    async onOk() {
+      await deleteAccount(record);
+    },
+  });
+}
+
+async function deleteAccount(record: AccountManagementRow) {
+  const result = await deleteAdminAccountApi(record.accountId);
+  message.success(buildDeleteAccountSuccessMessage(result));
+  await refreshDirectory({ fallbackToPreviousPageOnEmpty: true });
+}
+
+async function openDeleteAccount(record: AccountManagementRow) {
+  if (!canDeleteAccount.value) {
+    message.warning('当前账号没有删除账号的操作权限');
+    return;
+  }
+
+  const impact = await getAdminAccountDeletionImpactApi(record.accountId);
+  if (!impact.canDelete) {
+    showAccountDeletionBlocked(impact);
+    return;
+  }
+
+  confirmDeleteAccount(record, impact);
 }
 
 function handleActionClick(key: string, record: AccountManagementRow) {
@@ -705,133 +860,212 @@ function handleActionClick(key: string, record: AccountManagementRow) {
 
   if (key === 'roles') {
     void openRoleConfig(record);
+    return;
+  }
+
+  if (key === 'delete') {
+    void openDeleteAccount(record);
   }
 }
 
-function buildActionMenu(record: AccountManagementRow) {
-  return h(
-    Menu,
-    {
-      onClick: ({ key }: { key: string }) => {
-        handleActionClick(key, record);
-      },
-    } as MenuProps,
-    () => [
-      h(Menu.Item, { key: 'basicInfo' }, () => '基本信息'),
-      h(
-        Menu.Item,
-        { key: 'loginMethods', disabled: !canManageLoginMethods.value },
-        () => '登录方式',
-      ),
-      h(
-        Menu.Item,
-        { key: 'roles', disabled: !canReadAccountRoles.value },
-        () => '角色配置',
-      ),
-    ],
-  );
-}
-
-const accountColumns = computed<TableColumnsType<AccountManagementRow>>(() => {
-  const columns: TableColumnsType<AccountManagementRow> = [
-    {
-      key: 'account',
-      title: '账号',
-      customRender: ({ record }) =>
-        h('div', { class: 'account-management__identity' }, [
-          h(
-            'strong',
-            record.userDisplayName
-              || record.userId
-              || record.accountId,
-          ),
-        ]),
-    },
-    {
-      dataIndex: 'userId',
-      title: '用户 ID',
-      customRender: ({ record }) => h('span', record.userId),
-    },
-    {
-      dataIndex: 'scopeLevel',
-      title: 'Scope',
-      width: 110,
-      customRender: ({ record }) =>
-        h(
-          Tag,
-          { color: record.scopeLevel === 'SYSTEM' ? 'blue' : 'green' },
-          () => getAccountScopeLabel(record.scopeLevel),
-        ),
-    },
+function renderAccountActionDropdown(record: AccountManagementRow) {
+  const items = [
+    h(Menu.Item, { key: 'basicInfo' satisfies AccountActionKey }, () => '基本信息'),
   ];
 
-  if (showTenantColumn.value) {
-    columns.push({
-      key: 'tenant',
-      title: '租户',
-      customRender: ({ record }) => record.tenantName || record.tenantId || '-',
-    });
+  if (canManageLoginMethods.value) {
+    items.push(
+      h(
+        Menu.Item,
+        { key: 'loginMethods' satisfies AccountActionKey },
+        () => '登录方式',
+      ),
+    );
   }
 
-  columns.push(
+  if (canReadAccountRoles.value) {
+    items.push(
+      h(
+        Menu.Item,
+        { key: 'roles' satisfies AccountActionKey },
+        () => '角色配置',
+      ),
+    );
+  }
+
+  if (canDeleteAccount.value && record.accountId !== currentAccountId.value) {
+    items.push(
+      h(
+        Menu.Item,
+        {
+          danger: true,
+          key: 'delete' satisfies AccountActionKey,
+        },
+        () => '删除账号',
+      ),
+    );
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
     {
-      dataIndex: 'isEnabled',
-      title: '状态',
-      width: 96,
-      customRender: ({ record }) =>
+      default: () =>
         h(
-          Tag,
-          { color: record.isEnabled ? 'green' : 'default' },
-          () => getAccountStatusLabel(record.isEnabled),
-        ),
-    },
-    {
-      key: 'actions',
-      title: '操作',
-      width: 88,
-      customRender: ({ record }) =>
-        h(
-          Dropdown,
-          { trigger: ['click'] },
+          Button,
           {
-            default: () =>
-              h(
-                Button,
-                {
-                  class: 'account-management__action-trigger',
-                  size: 'small',
-                  type: 'text',
-                },
-                {
-                  default: () => h('span', { class: 'account-management__ellipsis' }, '...'),
-                },
-              ),
-            overlay: () => buildActionMenu(record),
+            'aria-label': '账号操作',
+            shape: 'circle',
+            size: 'small',
+            type: 'text',
           },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' }),
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: ({ key }: { key: number | string }) => {
+              handleActionClick(String(key), record);
+            },
+          },
+          () => items,
         ),
     },
   );
+}
 
-  return columns;
-});
+const accountColumns = computed<TableColumnsType<AccountManagementRow>>(() => [
+  {
+    dataIndex: 'userDisplayName',
+    key: 'userDisplayName',
+    title: '用户姓名',
+    customRender: ({ record }) => record.userDisplayName || '未命名用户',
+  },
+  {
+    dataIndex: 'accountDisplayName',
+    key: 'accountDisplayName',
+    sorter: (left, right) =>
+      getAccountDisplayName(left).localeCompare(getAccountDisplayName(right), 'zh-Hans-CN'),
+    title: '账号名称',
+    customRender: ({ record }) => getAccountDisplayName(record),
+  },
+  {
+    dataIndex: 'contextLabel',
+    key: 'contextLabel',
+    title: '账号上下文',
+    customRender: ({ record }) => getAccountContextTitle(record),
+  },
+  {
+    dataIndex: 'scopeLevel',
+    key: 'scopeLevel',
+    title: 'Scope',
+    width: 110,
+    customRender: ({ record }) =>
+      h(Tag, { color: record.scopeLevel === 'SYSTEM' ? 'blue' : 'green' }, () =>
+        getAccountScopeLabel(record.scopeLevel),
+      ),
+  },
+  {
+    dataIndex: 'isEnabled',
+    key: 'isEnabled',
+    title: '状态',
+    width: 90,
+    customRender: ({ record }) =>
+      h(Tag, { color: record.isEnabled ? 'green' : 'default' }, () =>
+        getAccountStatusLabel(record.isEnabled),
+      ),
+  },
+  {
+    key: 'actions',
+    title: '操作',
+    width: 72,
+    customRender: ({ record }) => renderAccountActionDropdown(record),
+  },
+]);
+
+const loginMethodColumns = computed<TableColumnsType<AdminSecurityApi.LoginMethod>>(() => [
+  {
+    dataIndex: 'type',
+    key: 'type',
+    title: '登录方式',
+    width: 120,
+    customRender: ({ record }) => getLoginMethodTypeLabel(record),
+  },
+  {
+    dataIndex: 'identifier',
+    key: 'identifier',
+    title: '标识',
+    customRender: ({ record }) => record.maskedIdentifier || record.identifier || '未提供标识',
+  },
+  {
+    dataIndex: 'enabled',
+    key: 'enabled',
+    title: '状态',
+    width: 96,
+    customRender: ({ record }) =>
+      h(
+        Tag,
+        { color: record.enabled ? 'green' : 'default' },
+        () => (record.enabled ? '已启用' : '已停用'),
+      ),
+  },
+  {
+    dataIndex: 'verified',
+    key: 'verified',
+    title: '验证',
+    width: 96,
+    customRender: ({ record }) =>
+      h(
+        Tag,
+        { color: record.verified ? 'blue' : 'orange' },
+        () => (record.verified ? '已验证' : '未验证'),
+      ),
+  },
+  {
+    dataIndex: 'hasPassword',
+    key: 'hasPassword',
+    title: '密码',
+    width: 108,
+    customRender: ({ record }) =>
+      record.hasPassword
+        ? h(Tag, { color: 'purple' }, () => '支持密码')
+        : h('span', { class: 'account-management__table-muted' }, '不支持'),
+  },
+  {
+    key: 'actions',
+    title: '操作',
+    width: 96,
+    customRender: ({ record }) =>
+      h(
+        Button,
+        {
+          loading: loginMethodSaving.value,
+          size: 'small',
+          onClick: () => {
+            void toggleAccountLoginMethod(record);
+          },
+        },
+        () => (record.enabled ? '停用' : '启用'),
+      ),
+  },
+]);
 
 onMounted(() => {
   resetCreateAccountForm();
-  void loadAccounts({ page: 1, pageSize: accountPagination.pageSize });
+  void loadAccountDirectory();
 });
 </script>
 
 <template>
-  <Page auto-content-height title="账号管理">
-    <div class="account-management-page">
-      <Card :bordered="false" class="account-management__panel">
-        <div class="account-management__header">
-          <div class="account-management__title-row">
-            <div class="account-management__section-title account-management__section-title--primary">
-              账号目录
-            </div>
+  <Page title="账号管理">
+    <div class="account-management">
+      <Card :bordered="false" class="account-management__card">
+        <div class="account-management__toolbar">
+          <div class="account-management__heading">
+            <div class="account-management__title">账号列表</div>
+            <div class="account-management__meta">共 {{ accountPagination.total }} 条</div>
           </div>
-
           <Button
             v-if="canCreateAccount"
             type="primary"
@@ -841,77 +1075,71 @@ onMounted(() => {
           </Button>
         </div>
 
-        <div class="account-management__pane-header">
-          <div class="account-management__section-title">
-            账号列表
-          </div>
-          <div class="account-management__meta">
-            <span
-              v-for="item in accountSummaryMeta"
-              :key="item.label"
-              class="account-management__meta-item"
-            >
-              {{ item.label }} {{ item.value }}
-            </span>
-          </div>
-        </div>
+        <Card :bordered="false" class="account-management__filter-card">
+          <Row :gutter="[12, 12]" class="account-management__filter-row">
+            <Col :lg="8" :md="12" :span="24">
+              <Input
+                v-model:value="accountFilters.keyword"
+                allow-clear
+                placeholder="搜索账号名称、用户姓名或租户名称"
+                @press-enter="searchAccounts"
+              />
+            </Col>
 
-        <Form class="account-management__filter-shell" layout="vertical" @submit.prevent>
-          <Row :gutter="16" class="account-management__filter-row">
-            <Col :lg="10" :md="12" :xs="24">
-              <Form.Item label="关键字">
-                <Input
-                  v-model:value="accountFilters.keyword"
-                  allow-clear
-                  placeholder="账号 ID、用户 ID、邮箱、手机号"
-                  @press-enter="queryAccounts"
-                />
-              </Form.Item>
+            <Col v-if="isPlatformScope" :lg="5" :md="12" :span="24">
+              <Select
+                v-model:value="accountFilters.scopeLevel"
+                :options="[
+                  { label: '全部 Scope', value: '' },
+                  { label: 'SYSTEM', value: 'SYSTEM' },
+                  { label: 'TENANT', value: 'TENANT' },
+                ]"
+              />
             </Col>
-            <Col :lg="5" :md="6" :xs="24">
-              <Form.Item label="Scope">
-                <Select
-                  v-model:value="accountFilters.scopeLevel"
-                  :options="scopeOptions"
-                />
-              </Form.Item>
-            </Col>
-            <Col :lg="5" :md="6" :xs="24">
-              <Form.Item label="状态">
-                <Select
-                  v-model:value="accountFilters.status"
-                  :options="statusOptions"
-                />
-              </Form.Item>
-            </Col>
+
             <Col
-              :lg="4"
-              :md="24"
-              :xs="24"
+              v-else
+              :lg="5"
+              :md="12"
+              :span="24"
+              class="account-management__tenant-filter-col"
+            >
+              <Input :value="currentTenantLabel" disabled />
+            </Col>
+
+            <Col :lg="5" :md="12" :span="24">
+              <Select
+                v-model:value="accountFilters.status"
+                :options="[
+                  { label: '全部状态', value: '' },
+                  { label: '启用', value: 'ENABLED' },
+                  { label: '停用', value: 'DISABLED' },
+                ]"
+              />
+            </Col>
+
+            <Col
+              :lg="6"
+              :md="12"
+              :span="24"
               class="account-management__filter-actions-col"
             >
-              <Form.Item label=" ">
-                <Space wrap class="account-management__filter-actions">
-                  <Button type="primary" :loading="accountLoading" @click="queryAccounts">
-                    查询
-                  </Button>
-                  <Button @click="resetAccountFilters">重置</Button>
-                </Space>
-              </Form.Item>
+              <Space class="account-management__filter-actions">
+                <Button type="primary" @click="searchAccounts">查询</Button>
+                <Button @click="resetAccountFilters">重置</Button>
+              </Space>
             </Col>
           </Row>
-        </Form>
+        </Card>
 
         <div class="account-management__table-shell">
           <Table
             :columns="accountColumns"
             :data-source="accountRows"
             :loading="accountLoading"
-            :locale="{ emptyText: '暂无账号' }"
-            :pagination="tablePagination"
-            row-key="key"
-            size="middle"
-            @change="handleTableChange"
+            :pagination="accountTablePagination"
+            :row-key="(record) => record.accountId"
+            @change="handleAccountTableChange"
           />
         </div>
       </Card>
@@ -940,7 +1168,7 @@ onMounted(() => {
               />
             </div>
 
-            <div v-if="filteredRoles.length" class="account-management__role-list-shell">
+            <div v-if="filteredRoles.length > 0" class="account-management__role-list-shell">
               <Checkbox.Group
                 v-model:value="selectedRoleIds"
                 class="account-management__roles"
@@ -961,9 +1189,9 @@ onMounted(() => {
             </div>
 
             <Empty
-              v-if="!filteredRoles.length && !roleLoading"
+              v-if="filteredRoles.length === 0 && !roleLoading"
               class="account-management__empty"
-              :description="availableRoles.length ? '没有匹配的角色' : '暂无可分配角色'"
+              :description="availableRoles.length > 0 ? '没有匹配的角色' : '暂无可分配角色'"
             />
           </section>
         </div>
@@ -1009,7 +1237,10 @@ onMounted(() => {
                 <Select
                   v-model:value="createAccountForm.scopeLevel"
                   :options="createScopeOptions"
-                  @change="(value) => handleCreateScopeChange((value === 'SYSTEM' ? 'SYSTEM' : 'TENANT'))"
+                  @change="
+                    (value: unknown) =>
+                      handleCreateScopeChange(value === 'SYSTEM' ? 'SYSTEM' : 'TENANT')
+                  "
                 />
               </Form.Item>
             </Col>
@@ -1157,11 +1388,20 @@ onMounted(() => {
           <div class="account-management__login-method-toolbar">
             <div>
               <div class="account-management__section-title">账号登录方式</div>
+              <div class="account-management__meta">
+                <span
+                  v-for="item in loginMethodSummaryMeta"
+                  :key="item.label"
+                  class="account-management__meta-item"
+                >
+                  {{ item.label }} {{ item.value }}
+                </span>
+              </div>
               <div class="account-management__muted">
-                {{ selectedAccountPasswordSetupRequired ? '当前用户需要设置新密码' : '密码状态正常' }}
+                {{ selectedAccountPasswordSetupRequired ? '当前用户下次登录时需要重新设置密码。' : '当前账号密码状态正常。' }}
               </div>
             </div>
-            <Space>
+            <Space class="account-management__login-method-actions">
               <Button :loading="loginMethodLoading" @click="selectedSecurityAccount && loadAccountLoginMethods(selectedSecurityAccount)">
                 刷新
               </Button>
@@ -1175,36 +1415,16 @@ onMounted(() => {
             </Space>
           </div>
 
-          <Empty
-            v-if="!loginMethodLoading && selectedAccountLoginMethods.length === 0"
-            description="暂无登录方式"
-          />
-          <div v-else v-loading="loginMethodLoading" class="account-management__login-method-list">
-            <div
-              v-for="method in selectedAccountLoginMethods"
-              :key="method.methodId"
-              class="account-management__login-method-item"
-            >
-              <div>
-                <div class="account-management__login-method-title">
-                  {{ getLoginMethodTypeLabel(method) }}
-                  <Tag v-if="method.enabled" color="green">已启用</Tag>
-                  <Tag v-else color="default">已停用</Tag>
-                  <Tag v-if="method.verified" color="blue">已验证</Tag>
-                  <Tag v-else color="orange">未验证</Tag>
-                  <Tag v-if="method.hasPassword" color="purple">支持密码</Tag>
-                </div>
-                <div class="account-management__muted">
-                  {{ method.maskedIdentifier || method.identifier || '未提供标识' }}
-                </div>
-              </div>
-              <Button
-                :loading="loginMethodSaving"
-                @click="toggleAccountLoginMethod(method)"
-              >
-                {{ method.enabled ? '停用' : '启用' }}
-              </Button>
-            </div>
+          <div class="account-management__table-shell account-management__login-method-table-shell">
+            <Table
+              :columns="loginMethodColumns"
+              :data-source="selectedAccountLoginMethods"
+              :loading="loginMethodLoading"
+              :locale="{ emptyText: h(Empty, { description: '暂无登录方式' }) }"
+              :pagination="false"
+              row-key="methodId"
+              size="middle"
+            />
           </div>
         </div>
       </Modal>
@@ -1213,10 +1433,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.account-management-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+.account-management {
   --account-border: hsl(var(--border));
   --account-card-bg: hsl(var(--card));
   --account-card-bg-soft: hsl(var(--muted) / 0.55);
@@ -1226,68 +1443,55 @@ onMounted(() => {
   --account-muted: hsl(var(--muted-foreground));
 }
 
-.account-management__panel {
+.account-management__card {
   border: 1px solid var(--account-border);
   background: var(--account-card-bg);
-  box-shadow: 0 18px 40px rgb(15 23 42 / 0.05);
+  box-shadow: 0 10px 30px rgb(15 23 42 / 0.04);
 }
 
-.account-management__panel :deep(.ant-card-body) {
-  padding: 16px;
+.account-management__card :deep(.ant-card-body) {
+  padding: 20px;
 }
 
-.account-management__header,
+.account-management__toolbar,
 .account-management__block-header,
-.account-management__pane-header,
-.account-management__role-toolbar {
+.account-management__role-toolbar,
+.account-management__login-method-toolbar {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
 }
 
-.account-management__header {
-  margin-bottom: 16px;
-}
-
-.account-management__title-row {
-  display: flex;
+.account-management__toolbar {
   align-items: center;
-  gap: 8px;
+  margin-bottom: 12px;
 }
 
-.account-management__section-title {
-  color: var(--account-text);
-  font-size: 14px;
-  font-weight: 600;
+.account-management__heading {
+  align-items: baseline;
+  display: flex;
+  gap: 12px;
 }
 
-.account-management__section-title--primary {
+.account-management__title {
   color: var(--account-title);
-  font-size: 18px;
-}
-
-.account-management__section-description {
-  margin-top: 6px;
-  color: var(--account-muted);
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-.account-management__pane-header {
-  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
 }
 
 .account-management__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  color: var(--account-muted);
+  font-size: 13px;
+  line-height: 20px;
 }
 
 .account-management__meta-item {
   display: inline-flex;
   align-items: center;
   min-height: 30px;
+  margin-right: 8px;
+  margin-bottom: 8px;
   padding: 0 12px;
   border: 1px solid var(--account-border);
   border-radius: 8px;
@@ -1296,21 +1500,23 @@ onMounted(() => {
   font-size: 12px;
 }
 
-.account-management__filter-shell,
-.account-management__table-shell,
-.account-management__editor-block {
-  border: 1px solid var(--account-border);
-  border-radius: 8px;
-  background: var(--account-card-bg-soft);
+.account-management__filter-card,
+.account-management__table-shell {
+  margin-bottom: 12px;
 }
 
-.account-management__filter-shell {
-  margin-bottom: 16px;
-  padding: 16px 16px 0;
+.account-management__filter-card :deep(.ant-card-body) {
+  padding: 12px;
 }
 
 .account-management__filter-row {
   align-items: center;
+}
+
+.account-management__tenant-filter-col :deep(.ant-select),
+.account-management__tenant-filter-col :deep(.ant-input-affix-wrapper),
+.account-management__tenant-filter-col :deep(.ant-input) {
+  width: 100%;
 }
 
 .account-management__filter-actions-col {
@@ -1323,36 +1529,10 @@ onMounted(() => {
   width: 100%;
 }
 
-.account-management__filter-shell :deep(.ant-form-item) {
-  margin-bottom: 16px;
-}
-
-.account-management__table-shell {
-  overflow: hidden;
-}
-
-.account-management__table-shell :deep(.ant-table-wrapper) {
-  background: transparent;
-}
-
-.account-management__identity {
-  display: grid;
-  gap: 2px;
-}
-
-.account-management__identity small,
-.account-management__role-item small {
-  color: var(--account-muted);
-  font-size: 12px;
-}
-
-.account-management__action-trigger {
-  width: 32px;
-}
-
-.account-management__ellipsis {
-  letter-spacing: 0;
-  line-height: 1;
+.account-management__section-title {
+  color: var(--account-text);
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .account-management__drawer {
@@ -1367,6 +1547,9 @@ onMounted(() => {
 
 .account-management__editor-block {
   padding: 16px;
+  border: 1px solid var(--account-border);
+  border-radius: 8px;
+  background: var(--account-card-bg-soft);
 }
 
 .account-management__block-header {
@@ -1374,6 +1557,7 @@ onMounted(() => {
 }
 
 .account-management__role-toolbar {
+  align-items: flex-start;
   margin-bottom: 16px;
 }
 
@@ -1443,6 +1627,11 @@ onMounted(() => {
   gap: 2px;
 }
 
+.account-management__role-item small {
+  color: var(--account-muted);
+  font-size: 12px;
+}
+
 .account-management__field-input:deep(.ant-input) {
   min-height: 40px;
 }
@@ -1471,14 +1660,11 @@ onMounted(() => {
 }
 
 .account-management__login-method-toolbar {
-  display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
   padding: 16px;
   border: 1px solid var(--account-border);
-  border-radius: 12px;
-  background: var(--account-card-bg-strong);
+  border-radius: 8px;
+  background: var(--account-card-bg-soft);
 }
 
 .account-management__muted {
@@ -1487,55 +1673,79 @@ onMounted(() => {
   font-size: 13px;
 }
 
-.account-management__login-method-list {
+.account-management__login-method-actions {
+  justify-content: flex-end;
+}
+
+.account-management__login-method-table-shell {
+  overflow: hidden;
+}
+
+.account-management__table-muted {
+  color: var(--account-muted);
+  font-size: 13px;
+}
+
+.account-management__delete-impact {
   display: grid;
   gap: 12px;
 }
 
-.account-management__login-method-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px;
-  border: 1px solid var(--account-border);
-  border-radius: 12px;
-  background: var(--account-card-bg);
-}
-
-.account-management__login-method-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+.account-management__delete-copy {
+  display: grid;
   gap: 8px;
-  font-weight: 600;
-  color: var(--account-title);
+  padding: 4px 2px 0;
 }
 
-:deep(.account-management__table-shell .ant-table),
-:deep(.account-management__table-shell .ant-table-container) {
+.account-management__delete-copy p,
+.account-management__delete-blockers p {
+  margin: 0;
+  color: var(--account-text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+:deep(.ant-table-wrapper .ant-table),
+:deep(.ant-table-wrapper .ant-table-container) {
   background: transparent;
 }
 
-:deep(.account-management__table-shell .ant-table-thead > tr > th) {
-  background: var(--account-card-bg-strong);
+:deep(.ant-table-wrapper .ant-table-thead > tr > th) {
+  background: rgb(248 250 252 / 0.96);
   color: var(--account-text);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
 }
 
-:deep(.account-management__filter-shell .ant-input),
-:deep(.account-management__filter-shell .ant-input-affix-wrapper),
-:deep(.account-management__filter-shell .ant-select-selector) {
+:deep(.ant-table-wrapper .ant-table-tbody > tr > td) {
+  color: var(--account-text);
+  vertical-align: middle;
+}
+
+:deep(.ant-table-wrapper .ant-table-tbody > tr:hover > td) {
+  background: rgb(248 250 252 / 0.9);
+}
+
+:deep(.account-management__login-method-table-shell .ant-table-tbody > tr > td) {
+  border-bottom-color: rgb(226 232 240 / 0.88);
+}
+
+:deep(.account-management__filter-card .ant-input),
+:deep(.account-management__filter-card .ant-input-affix-wrapper),
+:deep(.account-management__filter-card .ant-select-selector) {
   background: hsl(var(--input-background));
   border-color: hsl(var(--input));
   color: var(--account-text);
+  min-height: 40px;
+  border-radius: 10px;
 }
 
 @media (width <= 768px) {
-  .account-management__header,
+  .account-management__toolbar,
   .account-management__block-header,
-  .account-management__pane-header,
-  .account-management__login-method-toolbar,
-  .account-management__login-method-item {
+  .account-management__login-method-toolbar {
     flex-direction: column;
     align-items: stretch;
   }

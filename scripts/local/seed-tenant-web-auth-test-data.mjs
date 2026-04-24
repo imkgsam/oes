@@ -7,6 +7,8 @@ import {
   buildSeedAccountRoleBindings,
   buildSeedAccounts,
   buildSeedContactAssets,
+  buildSeedTenantOrgRootUnits,
+  buildSeedTenantOrgTenants,
   buildSeedTenantRoles,
   DEFAULT_OTP_CODE,
   DEFAULT_PASSWORD,
@@ -48,6 +50,15 @@ const {
   ROOT,
   'src/services/system/permission-service/prisma/generated/prisma',
 ));
+const {
+  PrismaClient: TenantOrgPrismaClient,
+  OrgUnitStatus,
+  OrgUnitType,
+  TenantStatus,
+} = require(path.join(
+  ROOT,
+  'src/services/system/tenant-org-service/prisma/generated/prisma',
+));
 const bcrypt = require(path.join(
   ROOT,
   'src/services/system/auth-service/node_modules/bcrypt',
@@ -56,9 +67,12 @@ const bcrypt = require(path.join(
 const AUTH_DB_URL = 'postgres://imkgsam:imkgsam@127.0.0.1:5432/authdb';
 const IDENTITY_DB_URL = 'postgres://imkgsam:imkgsam@127.0.0.1:5432/identitydb';
 const PERMISSION_DB_URL = 'postgres://imkgsam:imkgsam@127.0.0.1:5432/permissiondb';
+const TENANT_ORG_DB_URL = 'postgres://imkgsam:imkgsam@127.0.0.1:5432/tenantorgdb';
 
 const SEEDED_ACCOUNTS = buildSeedAccounts();
 const SEEDED_CONTACT_ASSETS = buildSeedContactAssets();
+const SEEDED_TENANT_ORG_ROOT_UNITS = buildSeedTenantOrgRootUnits();
+const SEEDED_TENANT_ORG_TENANTS = buildSeedTenantOrgTenants();
 const SEEDED_TENANT_ROLES = buildSeedTenantRoles();
 const SEEDED_ACCOUNT_ROLE_BINDINGS = buildSeedAccountRoleBindings();
 
@@ -91,14 +105,12 @@ async function seedIdentity(identity) {
         where: { id: company.id },
         update: {
           code: company.code,
-          entityId: `entity:${company.id}`,
           isActive: true,
           name: company.name,
         },
         create: {
           id: company.id,
           code: company.code,
-          entityId: `entity:${company.id}`,
           isActive: true,
           name: company.name,
         },
@@ -110,7 +122,6 @@ async function seedIdentity(identity) {
         where: { id: user.id },
         update: {
           email: user.email,
-          entityId: `entity:${user.id}`,
           isActive: true,
           phone: user.phone,
           username: user.username,
@@ -118,7 +129,6 @@ async function seedIdentity(identity) {
         create: {
           id: user.id,
           email: user.email,
-          entityId: `entity:${user.id}`,
           isActive: true,
           phone: user.phone,
           username: user.username,
@@ -370,11 +380,61 @@ async function seedPermission(permission) {
   });
 }
 
+// Rebuilds tenant-org-service tenant and root org facts so gateway hydration uses the proper tenant truth owner.
+async function seedTenantOrg(tenantOrg) {
+  await tenantOrg.$transaction(async (tx) => {
+    const managedTenantIds = SEEDED_TENANT_ORG_TENANTS.map((tenant) => tenant.id);
+
+    await tx.orgUnit.deleteMany({
+      where: {
+        tenantId: { in: managedTenantIds },
+      },
+    });
+
+    for (const tenant of SEEDED_TENANT_ORG_TENANTS) {
+      await tx.tenant.upsert({
+        where: { id: tenant.id },
+        update: {
+          code: tenant.code,
+          name: tenant.name,
+          rootOrgId: tenant.rootOrgId,
+          status: TenantStatus[tenant.status],
+        },
+        create: {
+          id: tenant.id,
+          code: tenant.code,
+          name: tenant.name,
+          rootOrgId: tenant.rootOrgId,
+          status: TenantStatus[tenant.status],
+        },
+      });
+    }
+
+    for (const orgUnit of SEEDED_TENANT_ORG_ROOT_UNITS) {
+      await tx.orgUnit.create({
+        data: {
+          id: orgUnit.id,
+          tenantId: orgUnit.tenantId,
+          parentOrgId: orgUnit.parentOrgId,
+          name: orgUnit.name,
+          type: OrgUnitType[orgUnit.type],
+          status: OrgUnitStatus[orgUnit.status],
+          path: orgUnit.path,
+          depth: orgUnit.depth,
+          sortOrder: orgUnit.sortOrder,
+          organizationPartyId: orgUnit.organizationPartyId,
+        },
+      });
+    }
+  });
+}
+
 // Prints a compact summary so local operators can immediately see which credentials were seeded.
 function printSummary() {
   console.log('Seeded tenant-web auth test data successfully.');
   console.log(`Companies: ${SEEDED_COMPANIES.map((company) => company.name).join(' / ')}`);
   console.log(`Users: ${SEEDED_USERS.map((user) => `${user.personName}<${user.email}>`).join(' ; ')}`);
+  console.log(`Tenant roots: ${SEEDED_TENANT_ORG_ROOT_UNITS.map((org) => org.name).join(' / ')}`);
   console.log(`Password: ${DEFAULT_PASSWORD}`);
   console.log(`OTP: ${DEFAULT_OTP_CODE}`);
 }
@@ -395,12 +455,18 @@ async function main() {
       db: { url: PERMISSION_DB_URL },
     },
   });
+  const tenantOrg = new TenantOrgPrismaClient({
+    datasources: {
+      db: { url: TENANT_ORG_DB_URL },
+    },
+  });
 
   try {
     const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
 
     await seedIdentity(identity);
     await seedAuth(auth, passwordHash);
+    await seedTenantOrg(tenantOrg);
     syncPermissionFoundationForLocalSystemAccount();
     await seedPermission(permission);
     syncPermissionFoundationForLocalSystemAccount();
@@ -410,6 +476,7 @@ async function main() {
       identity.$disconnect(),
       auth.$disconnect(),
       permission.$disconnect(),
+      tenantOrg.$disconnect(),
     ]);
   }
 }

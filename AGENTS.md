@@ -96,7 +96,7 @@ OES 是一个面向企业经营、制造、供应链与智能协同场景的企�
 - `auth-service`：认证、会话、令牌
 - `identity-service`：账号、身份映射
 - `permission-service`：角色、范围、策略、授权判定
-- `entity-service`：现实世界主体抽象
+- `party-service`：现实世界主体抽象与租户主体引用
 - 租户/组织能力：隔离边界与组织结构
 
 ## 8. AI 使用约束

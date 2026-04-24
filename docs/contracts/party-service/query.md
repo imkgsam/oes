@@ -17,8 +17,9 @@
 - 接口类型：内部服务接口
 - 服务：`PartyQueryService`
 - 调用方：内部服务
-- 权限要求：以具体接口和调用场景为准
-- operator context：涉及租户内主体查询时，调用方应显式传入租户上下文
+- 当前 runtime truth：
+  - phase-1 runtime 未在 `party-service` 查询侧落实显式 permission guard
+  - 调用方如已有 operator / tenant / trace context，应继续传递；但当前查询 handler 不以 metadata enforcement 作为返回前置
 
 ## 2. 主体基础查询
 
@@ -49,9 +50,8 @@
   - `tenant_party.local_display_name`
   - `tenant_party.local_code`
   - `tenant_party.status`
-  - `party_summary`
 - 返回空语义：
-  - 未匹配时返回空响应对象
+  - 未匹配、`tenant_id` 不一致或 `tenant_party_id` 不存在时返回空响应对象
 
 ## 3. 标识解析与候选搜索
 
@@ -65,16 +65,18 @@
 - 响应关键字段：
   - `match_type`
   - `party`
-  - optional `tenant_parties[]`
 - 匹配语义：
-  - 第一阶段按强匹配语义处理
+  - 第一阶段当前只按 identifier strong match 处理
+  - 当前 `match_type` 只冻结：
+    - `STRONG_MATCH`
+    - `NO_MATCH`
   - 名称不是该接口的解析依据
 - 返回空语义：
   - 未匹配时返回空响应对象
 
 ### `SearchPartyCandidates`
 
-- 作用：按名称、地区或组合条件返回候选主体列表
+- 作用：phase-1 当前主要按名称返回候选主体列表；更强过滤与排序能力 deferred
 - 请求关键字段：
   - `tenant_id`
   - optional `keyword`
@@ -87,8 +89,16 @@
   - `candidates[].match_signals[]`
   - `candidates[].confidence`
 - 关键语义：
+  - phase-1 当前 runtime 以名称候选检索为主
+  - 当前实现真正用于候选生成的是：
+    - `keyword` 对 `canonical_name` 的包含匹配
+    - optional `party_type`
+  - `tenant_id`、`registered_country`、`identifiers[]` 目前尚未进入候选排序或过滤主逻辑，应视为 deferred expansion
   - 该接口返回的是候选，不代表自动合并或自动绑定结论
   - 中弱匹配只能作为候选，不能被调用方当作自动复用结果
+  - 当前 `confidence` / `match_signals` 仅体现非常轻量的 runtime 占位语义：
+    - 按名称命中时返回 `confidence = 0.7`、`match_signals = ["name"]`
+    - 未提供名称时返回 `confidence = 0.5`、`match_signals = ["broad"]`
 
 ## 4. 主体关系查询
 
@@ -114,12 +124,12 @@
 
 ## 5. 主要错误与返回约束
 
-- 输入参数非法时：
-  - 返回统一 validation failure
 - 查询对象不存在时：
   - 查询接口优先返回空响应对象，而不是抛业务异常
+- 当前 query runtime 未冻结统一 validation failure 契约
 - 调用方不应依赖内部异常结构推断主体语义
 - 涉及租户主体查询时，调用方不得用错误的 `tenantId` 推断跨租户可见性
+- permission denied、query scope guard、tenant-aware candidate filtering 当前都未冻结为已承诺错误语义
 
 ## 6. 查询使用约束
 

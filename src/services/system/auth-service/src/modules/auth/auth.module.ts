@@ -29,12 +29,14 @@ import { LoginMfaOrchestrationService } from '../../application/services/mfa/log
 import { MfaBindingManagementService } from '../../application/services/mfa/mfa-binding-management.service'
 import { MfaChallengeVerificationService } from '../../application/services/mfa/mfa-challenge-verification.service'
 import { PhoneOtpMfaChallengeService } from '../../application/services/mfa/phone-otp-mfa-challenge.service'
+import { StepUpMfaGrantService } from '../../application/services/mfa/step-up-mfa-grant.service'
 import { TotpMfaChallengeService } from '../../application/services/mfa/totp-mfa-challenge.service'
 import { EmailOtpLoginService } from '../../application/services/email-otp-login.service'
 import { OtpRiskThrottleService } from '../../application/services/otp-risk-throttle.service'
 import { PasswordRecoveryService } from '../../application/services/password-recovery.service'
 import { PasswordSetupRequirementService } from '../../application/services/password-setup-requirement.service'
 import { PhoneOtpLoginService } from '../../application/services/phone-otp-login.service'
+import { TrustedDeviceService } from '../../application/services/trusted-device.service'
 import { AuthCommandHandlers } from '../../application/commands/auth'
 import { AuthQueryHandlers } from '../../application/queries'
 import { AuthStrategyFactory } from '../../domain/services/strategies/auth-strategies.factory'
@@ -47,7 +49,9 @@ import { PrismaMfaBindingRepository } from '../../infrastructure/repositories/pr
 import { PrismaOtpRepository } from '../../infrastructure/repositories/prisma/prisma.otp.repository'
 import { PrismaPasswordRecoveryGrantRepository } from '../../infrastructure/repositories/prisma/prisma.password-recovery-grant.repository'
 import { PrismaPasswordSetupRequirementRepository } from '../../infrastructure/repositories/prisma/prisma.password-setup-requirement.repository'
+import { PrismaPlatformMfaPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.platform-mfa-policy.repository'
 import { PrismaTenantMfaPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.tenant-mfa-policy.repository'
+import { PrismaTrustedDeviceRepository } from '../../infrastructure/repositories/prisma/prisma.trusted-device.repository'
 import { RedisLoginRiskRepository } from '../../infrastructure/repositories/redis/risk/redis-login-risk.repository'
 import { RedisOtpSendThrottleRepository } from '../../infrastructure/repositories/redis/risk/redis-otp-send-throttle.repository'
 import { RedisUserSessionRepository } from '../../infrastructure/repositories/redis/session/redis-user-session.repository'
@@ -75,7 +79,9 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     { provide: REPO.MFA_BINDING, useClass: PrismaMfaBindingRepository },
     { provide: REPO.OTP, useClass: PrismaOtpRepository },
     { provide: REPO.PASSWORD_RECOVERY_GRANT, useClass: PrismaPasswordRecoveryGrantRepository },
+    { provide: REPO.PLATFORM_MFA_POLICY, useClass: PrismaPlatformMfaPolicyRepository },
     { provide: REPO.TENANT_MFA_POLICY, useClass: PrismaTenantMfaPolicyRepository },
+    { provide: REPO.TRUSTED_DEVICE, useClass: PrismaTrustedDeviceRepository },
     {
       provide: REPO.PASSWORD_SETUP_REQUIREMENT,
       useClass: PrismaPasswordSetupRequirementRepository
@@ -135,12 +141,14 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     MfaBindingManagementService,
     MfaChallengeVerificationService,
     PhoneOtpMfaChallengeService,
+    StepUpMfaGrantService,
     TotpMfaChallengeService,
     LoginRiskThrottleService,
     OtpRiskThrottleService,
     PasswordRecoveryService,
     PasswordSetupRequirementService,
     PhoneOtpLoginService,
+    TrustedDeviceService,
     EmailPasswordStrategy,
     PhonePasswordStrategy,
     LocalNotificationDispatchAdaptor,
@@ -150,7 +158,9 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     PrismaAuthAuditRepository,
     PrismaPasswordRecoveryGrantRepository,
     PrismaPasswordSetupRequirementRepository,
+    PrismaPlatformMfaPolicyRepository,
     PrismaTenantMfaPolicyRepository,
+    PrismaTrustedDeviceRepository,
     ...AuthCommandHandlers,
     ...AuthQueryHandlers
   ],

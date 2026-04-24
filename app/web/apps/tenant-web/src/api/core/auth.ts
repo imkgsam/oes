@@ -48,10 +48,11 @@ export namespace AuthApi {
 
   export interface ChallengePayload {
     challengeId: string;
-    scenario?: 'LOGIN';
+    scenario?: 'LOGIN' | 'NEW_DEVICE_LOGIN';
     defaultFactor?: MfaFactor;
     availableFactors?: Array<{
       label: string;
+      priority: number;
       type: MfaFactor;
     }>;
     factorChallengeId?: string;
@@ -78,9 +79,9 @@ export namespace AuthApi {
     challenge?: ChallengePayload | null;
     loginMethod?: string;
     nextStep: AuthNextStep;
-    operator?: OperatorPayload | null;
+    operator?: null | OperatorPayload;
     passwordSetupRequired?: boolean;
-    session?: SessionPayload | null;
+    session?: null | SessionPayload;
     status: AuthResultStatus;
   }
 
@@ -105,6 +106,7 @@ export namespace AuthApi {
     code: string;
     factorChallengeId?: string;
     loginMethod: LoginMethod;
+    trustCurrentDevice?: boolean;
   }
 
   export interface RequestMfaFactorChallengeParams {

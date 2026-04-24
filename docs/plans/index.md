@@ -51,6 +51,14 @@
    - 可观测性与审计基础实施计划
 19. `mfa-login-policy-and-factor-orchestration-implementation-plan.md`
    - 登录场景 MFA 策略、因子优先级与登录续流编排实施计划
+20. `tenant-org-service-foundation-implementation-plan.md`
+   - Tenant-Org Service 第一阶段实现、迁移与验证计划
+21. `tenant-org-service-migration-plan.md`
+   - Tenant 与 org tree 从 `identity-service` 迁入 `tenant-org-service` 的迁移计划
+22. `features/hr-service-foundation.md`
+   - HR Service minimum 第一阶段 feature packet
+23. `hr-service-minimum-implementation-plan.md`
+   - HR Service minimum 第一阶段 contract-realization、服务骨架与实现拆分计划
 
 ## 3. 使用规则
 

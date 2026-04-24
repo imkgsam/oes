@@ -31,4 +31,34 @@ describe('PasswordSetupRequirementService', () => {
 
     await expect(service.userRequiresPasswordSetup('user-1')).resolves.toBe(true)
   })
+
+  it('does not require setup when a disabled password credential still exists on one login method', async () => {
+    const disabledPassword = await Credential.createPasswordCredential('OldSecret123!')
+    disabledPassword.disable()
+    const emailMethod = new LoginMethod(
+      'method-email',
+      'user-1',
+      LoginMethodType.EMAIL,
+      'u@example.com',
+      true,
+      true,
+      new Date(),
+      new Date(),
+      [disabledPassword]
+    )
+    const loginRepository = {
+      findByUserIdAndType: jest.fn().mockImplementation(async (_userId: string, type: LoginMethodType) => {
+        return type === LoginMethodType.EMAIL ? emailMethod : null
+      })
+    }
+    const requirementRepository = {
+      findActiveByUserId: jest.fn().mockResolvedValue(null)
+    }
+    const service = new PasswordSetupRequirementService(
+      loginRepository as any,
+      requirementRepository as any
+    )
+
+    await expect(service.userRequiresPasswordSetup('user-1')).resolves.toBe(false)
+  })
 })

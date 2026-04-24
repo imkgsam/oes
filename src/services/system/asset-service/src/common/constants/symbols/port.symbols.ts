@@ -1,0 +1,3 @@
+export const PORT = {
+  OBJECT_STORAGE: Symbol('ASSET_PORT_OBJECT_STORAGE')
+}

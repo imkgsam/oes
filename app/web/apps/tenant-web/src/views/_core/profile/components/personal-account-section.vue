@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { PersonalCenterApi } from '#/api/bff/personal-center';
+import type { UploadProps } from 'ant-design-vue';
 
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 
-import { Avatar, Button, Card, Form, Input, Tag } from 'ant-design-vue';
+import { Avatar, Button, Card, Form, Input, message, Tag, Upload } from 'ant-design-vue';
 import { Tooltip } from 'ant-design-vue';
+
+import { uploadAccountAvatarApi } from '#/api/bff/personal-center';
 
 const props = withDefaults(
   defineProps<{
@@ -21,10 +24,12 @@ const emit = defineEmits<{
 }>();
 
 const formState = reactive<PersonalCenterApi.UpdateAccountProfilePayload>({
-  avatar: undefined,
+  avatarAssetId: undefined,
   bio: undefined,
   displayName: undefined,
 });
+const avatarPreview = ref<string>();
+const uploadingAvatar = ref(false);
 
 const scopeLabel = computed(() => {
   return props.accountContext.scopeLevel === 'SYSTEM' ? '系统平台' : '租户账号';
@@ -33,7 +38,7 @@ const scopeLabel = computed(() => {
 const roleItems = computed(() => props.accountContext.roles ?? []);
 const roleCount = computed(() => roleItems.value.length);
 const isDirty = computed(() => {
-  return normalize(formState.avatar) !== normalize(props.accountContext.avatar)
+  return Boolean(formState.avatarAssetId)
     || normalize(formState.displayName) !== normalize(props.accountContext.displayName)
     || normalize(formState.bio) !== normalize(props.accountContext.bio);
 });
@@ -41,7 +46,8 @@ const isDirty = computed(() => {
 watch(
   () => props.accountContext,
   (accountContext) => {
-    formState.avatar = accountContext.avatar;
+    formState.avatarAssetId = undefined;
+    avatarPreview.value = accountContext.avatar;
     formState.displayName = accountContext.displayName;
     formState.bio = accountContext.bio;
   },
@@ -49,18 +55,46 @@ watch(
 );
 
 function resetForm() {
-  formState.avatar = props.accountContext.avatar;
+  formState.avatarAssetId = undefined;
+  avatarPreview.value = props.accountContext.avatar;
   formState.displayName = props.accountContext.displayName;
   formState.bio = props.accountContext.bio;
 }
 
 function submitForm() {
   emit('save', {
-    avatar: formState.avatar,
+    avatarAssetId: formState.avatarAssetId,
     bio: formState.bio,
     displayName: formState.displayName,
   });
 }
+
+const beforeAvatarUpload: UploadProps['beforeUpload'] = async (file) => {
+  const rawFile = file as File;
+  const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+  if (!allowedTypes.has(rawFile.type)) {
+    message.error('头像仅支持 JPG、PNG 或 WebP 格式');
+    return Upload.LIST_IGNORE;
+  }
+
+  if (rawFile.size > 2 * 1024 * 1024) {
+    message.error('头像大小不能超过 2MB');
+    return Upload.LIST_IGNORE;
+  }
+
+  uploadingAvatar.value = true;
+  try {
+    const result = await uploadAccountAvatarApi(rawFile);
+    formState.avatarAssetId = result.avatarAsset.assetId;
+    avatarPreview.value = result.avatarAsset.publicUrl;
+    message.success('头像上传成功，保存后生效');
+  } finally {
+    uploadingAvatar.value = false;
+  }
+
+  return false;
+};
 
 function normalize(value?: string) {
   const normalized = value?.trim();
@@ -112,20 +146,24 @@ function normalize(value?: string) {
 
         <div class="mt-5 grid gap-6 lg:grid-cols-[120px_minmax(0,1fr)]">
           <div class="flex flex-col items-center gap-3">
-            <Avatar :size="96" :src="formState.avatar">
+            <Avatar :size="96" :src="avatarPreview">
               {{ (accountContext.displayName || accountContext.accountName || 'A').slice(0, 1) }}
             </Avatar>
+            <Upload
+              :before-upload="beforeAvatarUpload"
+              :disabled="saving || uploadingAvatar"
+              :max-count="1"
+              :show-upload-list="false"
+              accept="image/jpeg,image/png,image/webp"
+            >
+              <Button size="small" :loading="uploadingAvatar">
+                上传头像
+              </Button>
+            </Upload>
           </div>
 
           <Form layout="vertical" @finish="submitForm">
             <div class="grid gap-4 md:grid-cols-2">
-              <Form.Item label="头像地址">
-                <Input
-                  v-model:value="formState.avatar"
-                  :maxlength="2048"
-                  placeholder="https://cdn.example.com/avatar/account-1.png"
-                />
-              </Form.Item>
               <Form.Item label="显示名">
                 <Input
                   v-model:value="formState.displayName"
@@ -147,13 +185,13 @@ function normalize(value?: string) {
             <div class="flex flex-wrap gap-3">
               <Button
                 type="primary"
-                :disabled="!isDirty"
+                :disabled="!isDirty || uploadingAvatar"
                 :loading="saving"
                 @click="submitForm"
               >
                 保存当前账号资料
               </Button>
-              <Button :disabled="saving || !isDirty" @click="resetForm">重置</Button>
+              <Button :disabled="saving || uploadingAvatar || !isDirty" @click="resetForm">重置</Button>
             </div>
           </Form>
         </div>

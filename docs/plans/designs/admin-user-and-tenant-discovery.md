@@ -60,7 +60,7 @@
 | 2026-04-17 | 搜索结果需要展示哪些敏感字段和脱敏规则？ | 邮箱、手机号属于身份信息，管理员展示范围需要治理约束。 | 回写到 contract 的 response 字段与 error / masking semantics。 |
 | 2026-04-17 | 租户选择器何时恢复设计？ | 当前阶段已确认不做，以免牵涉租户目录和跨租户筛选复杂度。 | 放入后置项，待系统管理员排查体验再次成为痛点时单独设计。 |
 | 2026-04-18 | `accountSummaries[]` 是否需要包含角色或权限摘要？ | 角色字段会把用户发现层推向用户目录或权限诊断，增加范围。 | 建议第一阶段不返回角色，只返回 account / tenant / scope 定位信息。 |
-| 2026-04-18 | 真实姓名搜索如何设计？ | 真实姓名不是 identity login handle，且重名风险高，需要与 `entity-service` 的 person/entity 模型协同。 | 后续如需要姓名搜索，单独设计 `identity-service + entity-service + auth-bff` 协同蓝图或 feature。 |
+| 2026-04-18 | 真实姓名搜索如何设计？ | 真实姓名不是 identity login handle，且重名风险高，需要与 `party-service` 的 `PersonParty` / 主体检索模型协同。 | 后续如需要姓名搜索，单独设计 `identity-service + party-service + auth-bff` 协同蓝图或 feature。 |
 
 ## 6. 推荐契约方向草案
 
@@ -101,7 +101,7 @@
 ## 8. 真相源回写计划
 
 - 服务职责：
-  - `identity-service` 职责卡需明确 `username` 不是真实姓名，而是 legacy login handle；真实姓名搜索未来应与 `entity-service` 协同设计。
+  - `identity-service` 职责卡需明确 `username` 不是真实姓名，而是 legacy login handle；真实姓名搜索未来应与 `party-service` 协同设计。
 - 协同蓝图：
   - 如搜索可见范围涉及复杂授权判断，回写 authorization decision flow。
 - contracts：

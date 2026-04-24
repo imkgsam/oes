@@ -5,6 +5,7 @@ import { LoginMethodEnum, SessionStatus } from '@oes/common/constants'
 import { Session } from '../../../domain/aggregates/usersession.aggregate'
 import { AuthAuditService } from '../../services/auth-audit.service'
 import { PasswordSetupRequirementService } from '../../services/password-setup-requirement.service'
+import { TrustedDeviceService } from '../../services/trusted-device.service'
 import { RefreshSessionCommand } from './refresh-session.command'
 import { RefreshSessionHandler } from './refresh-session.handler'
 
@@ -86,6 +87,9 @@ describe('RefreshSessionHandler', () => {
       emit: jest.fn()
     } as unknown as EventEmitter2)
     const emitSessionRefreshedSpy = jest.spyOn(authAuditService, 'emitSessionRefreshed')
+    const trustedDeviceService = {
+      markTrustedDeviceSeen: jest.fn().mockResolvedValue(undefined)
+    } as unknown as TrustedDeviceService
 
     const handler = new RefreshSessionHandler(
       jwtService,
@@ -95,7 +99,8 @@ describe('RefreshSessionHandler', () => {
         userRequiresPasswordSetup: jest.fn().mockResolvedValue(true)
       } as unknown as PasswordSetupRequirementService,
       sessionRepository as any,
-      authAuditService
+      authAuditService,
+      trustedDeviceService
     )
 
     const result = await handler.execute(new RefreshSessionCommand(existingRefreshToken))
@@ -124,6 +129,16 @@ describe('RefreshSessionHandler', () => {
       expect.any(Object)
     )
     expect(sessionRepository.save).toHaveBeenCalledTimes(1)
+    expect(trustedDeviceService.markTrustedDeviceSeen).toHaveBeenCalledWith({
+      userId: 'user-1',
+      scopeLevel: 'SYSTEM',
+      tenantId: undefined,
+      deviceId: 'session-1-device',
+      deviceName: 'session-1-device-name',
+      userAgent: 'Mozilla/5.0 Chrome/123.0',
+      ipAddress: '127.0.0.1',
+      observedAt: session.getLastActiveAt()
+    })
     expect(emitSessionRefreshedSpy).toHaveBeenCalledWith(expect.any(Session))
     expect(result).toEqual({
       sessionId: 'session-1',

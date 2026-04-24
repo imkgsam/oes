@@ -82,6 +82,7 @@ export class PrismaOtpRepository implements IOtpRepository {
     const updated = await this.prismaService.oTP.upsert({
       where: { id: props.id },
       update: {
+        type: data.type,
         usage: data.usage,
         identifier: data.identifier,
         hashedValue: data.hashedValue,

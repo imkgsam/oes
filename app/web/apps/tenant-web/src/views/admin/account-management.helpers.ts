@@ -8,6 +8,15 @@ export interface AccountManagementRow
   key: string;
 }
 
+export interface AccountManagementGroup {
+  key: string;
+  userId: string;
+  userDisplayName?: string;
+  accountCount: number;
+  tenantNames: string[];
+  accounts: AccountManagementRow[];
+}
+
 // Builds stable table rows from the account directory response payload.
 export function buildAccountRows(
   accounts: AdminSecurityApi.AccountDirectoryItem[],
@@ -15,6 +24,38 @@ export function buildAccountRows(
   return accounts.map((account) => ({
     ...account,
     key: account.accountId,
+  }));
+}
+
+// Groups flat account rows by user so the admin directory can present one identity with multiple account contexts.
+export function buildAccountGroups(rows: AccountManagementRow[]): AccountManagementGroup[] {
+  const groups = new Map<string, AccountManagementGroup>();
+
+  for (const row of rows) {
+    const groupKey = row.userId || row.accountId;
+    const group = groups.get(groupKey);
+
+    if (group) {
+      group.accounts.push(row);
+      if (row.tenantName && !group.tenantNames.includes(row.tenantName)) {
+        group.tenantNames.push(row.tenantName);
+      }
+      continue;
+    }
+
+    groups.set(groupKey, {
+      key: groupKey,
+      userId: row.userId,
+      userDisplayName: row.userDisplayName,
+      accountCount: 1,
+      tenantNames: row.tenantName ? [row.tenantName] : [],
+      accounts: [row],
+    });
+  }
+
+  return Array.from(groups.values()).map((group) => ({
+    ...group,
+    accountCount: group.accounts.length,
   }));
 }
 

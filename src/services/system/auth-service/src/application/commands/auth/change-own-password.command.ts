@@ -8,6 +8,15 @@ export class ChangeOwnPasswordCommand implements ICommand {
   readonly userId: string
 
   @IsString()
+  readonly accountId?: string
+
+  @IsString()
+  readonly tenantId?: string
+
+  @IsString()
+  readonly scopeLevel?: 'SYSTEM' | 'TENANT'
+
+  @IsString()
   @MinLength(1)
   readonly currentPassword: string
 
@@ -15,9 +24,24 @@ export class ChangeOwnPasswordCommand implements ICommand {
   @MinLength(8)
   readonly newPassword: string
 
-  constructor(input: { currentPassword: string; newPassword: string; userId: string }) {
+  @IsString()
+  readonly mfaGrantToken?: string
+
+  constructor(input: {
+    accountId?: string
+    currentPassword: string
+    mfaGrantToken?: string
+    newPassword: string
+    scopeLevel?: 'SYSTEM' | 'TENANT'
+    tenantId?: string
+    userId: string
+  }) {
     this.userId = input.userId
+    this.accountId = input.accountId
+    this.tenantId = input.tenantId
+    this.scopeLevel = input.scopeLevel
     this.currentPassword = input.currentPassword
     this.newPassword = input.newPassword
+    this.mfaGrantToken = input.mfaGrantToken
   }
 }

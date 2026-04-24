@@ -9,6 +9,7 @@ contracts/
 ├── buf.yaml              # Buf 模块配置（lint、breaking change 检测）
 ├── buf.gen.yaml          # 代码生成配置
 ├── README.md             # 本文档
+├── asset_service/        # 资产服务
 ├── auth_service/         # 认证服务
 ├── identity_service/     # 身份服务
 ├── party_service/        # 主体服务

@@ -12,5 +12,7 @@
   - 决定 OES 将系统角色模板、系统级真实角色、租户级真实角色分离，并让 `AccountRole` 支持系统/租户 scope。
 - `0003-party-master-service-and-tenant-party-binding.md`
   - 决定 OES 将原 `entity-service` 概念演进为 `party-service`，并采用 `TenantParty` 作为第一阶段业务域主体引用入口。
+- `0004-self-service-and-admin-authorization-boundary.md`
+  - 决定 OES 将“当前主体管理自己”的 self-service 能力与“管理员管理别人”的 admin-management 能力分层建模，禁止继续复用同一条管理员权限门。
 
 若后续涉及 bounded context、共享契约、事件模型、权限语义、租户模型、`src/common` 对外 API 或 AI 工具协议变更，应先在本目录新增 ADR，再进入实现。

@@ -6,8 +6,9 @@ import {
 import {
   NotificationServiceController,
   NotificationServiceControllerMethods,
-  SendDispatchResponse,
   SendEmailRequest,
+  SendEmailResponse,
+  SendSmsResponse,
   SendSmsRequest
 } from '@oes/common/generated/notification_service'
 import { SendEmailCommand, SendSmsCommand } from '../../application/commands'
@@ -18,11 +19,11 @@ import { SendEmailCommand, SendSmsCommand } from '../../application/commands'
 export class NotificationGrpcController implements NotificationServiceController {
   constructor(private readonly commandBus: ValidatingCommandBus) {}
 
-  async sendEmail(request: SendEmailRequest): Promise<SendDispatchResponse> {
+  async sendEmail(request: SendEmailRequest): Promise<SendEmailResponse> {
     return this.commandBus.execute(new SendEmailCommand(request))
   }
 
-  async sendSms(request: SendSmsRequest): Promise<SendDispatchResponse> {
+  async sendSms(request: SendSmsRequest): Promise<SendSmsResponse> {
     return this.commandBus.execute(new SendSmsCommand(request))
   }
 }

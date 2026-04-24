@@ -114,7 +114,6 @@ export async function seedMachineTenant(
   return prisma.tenant.create({
     data: {
       id: `${prefix}_tenant`,
-      entityId: `${prefix}_tenant_entity`,
       name: `${prefix}_tenant_name`,
       code: `${prefix}_tenant_code`
     }

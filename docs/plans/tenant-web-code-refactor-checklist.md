@@ -1,6 +1,6 @@
 # OES Tenant Web 第一批代码级改造清单
 
-更新时间：2026-04-13 18:30:00 +08:00
+更新时间：2026-04-24 18:09:56 +0800
 
 ## 1. 文档目的
 
@@ -187,6 +187,68 @@
   - 手动输入 `userId`
 - 若后续需要按邮箱 / 手机号 / 用户名检索目标用户，必须先补齐新的 BFF 查询契约，而不是让前端绕过 BFF 直接调用下游服务
 
+### 3.11 Tenant / Org / HR 前端基础入口收口
+
+状态：`已完成`
+
+已完成：
+
+- `tenant-web` 已形成平台侧 `Tenant` 管理入口：
+  - 路径：`/admin/tenant-management`
+  - 入口 key：`admin.tenant-management`
+  - 当前口径仅服务 `SYSTEM` scope 的 tenant boundary 治理
+- `tenant-web` 已形成共享 `OrgUnit` 管理入口：
+  - 平台侧路径：`/admin/org-management`
+  - 租户侧主路径：`/settings/organization-people/departments`
+  - 旧入口 `/settings/org-structure` 仅保留兼容跳转，并继续挂在原 `entryKey`
+  - 两个入口复用同一页模型，按当前 session scope 切换“平台先选 tenant / 租户固定当前 tenant”两种模式
+- `tenant-web` 已形成租户侧 `组织与人员` 统一入口：
+  - 主路径：`/settings/organization-people`
+  - 独立入口 key：`tenant-settings.organization-people`
+  - 默认进入 `成员` Tab，`部门` Tab 继续消费 `OrgUnit` 管理面
+- `tenant-web` 已保留历史入口兼容跳转：
+  - `/settings/employee-employment` 继续挂在 `tenant-settings.employee-employment` 并跳转到 `组织与人员 > 成员`
+  - `/settings/org-structure` 继续挂在 `tenant-settings.org-structure` 并跳转到 `组织与人员 > 部门`
+- `tenant.admin` baseline 已与当前基础入口范围对齐：
+  - 包含 `workbench.home`、`admin.auth-session-management`、`admin.role-management`、`admin.account-management`、`tenant-settings.organization-people`、`tenant-settings.org-structure`、`tenant-settings.employee-employment`、`tenant-settings.login-mfa`
+  - 不包含 `admin.tenant-management` 与平台侧 `admin.org-management`
+
+边界约束：
+
+- `Tenant` 管理入口不对租户管理员开放，避免把平台 tenant boundary 治理与租户内自治配置混成一个入口
+- `组织与人员` 统一入口不改变 `tenant-org-service` 与 `hr-service` owner，只是租户侧消费面收口
+- 组织管理入口只消费 `Tenant + OrgUnit` 真相，不在前端把 org tree 扩成 account membership 或 employee owner 视图
+- 成员入口只管理 `Employee / Employment`，不把 account binding、grant compensation、账号目录或账号角色配置并入同页
+- 当前信息架构仍保持 `account-management` 与 `employee-management` 双入口；如后续需要聚合视图，必须另行冻结
+
+### 3.12 组织与人员工作台 wave-1 收口
+
+状态：`已完成`
+
+已完成：
+
+- `组织与人员` 已作为租户侧成员 / 部门统一入口落地，默认进入 `成员` Tab
+- 工作台固定为两个 Tab：
+  - `成员`：承接 `Employee / Employment` 工作区
+  - `部门`：承接 `OrgUnit` 工作区
+- 成员详情已收口为五个区块：
+  - `员工信息`
+  - `当前任职`
+  - `其他任职`
+  - `任职记录`
+  - `账号与访问`
+- `账号与访问` 第一阶段已落地：
+  - 只展示登录接入状态、账号摘要、脱敏登录方式摘要、角色摘要与待处理原因
+  - 当前动作只保留 `开通登录`、`继续完成接入`、`前往账号管理`
+- 创建成员时“允许登录”第一阶段已落地：
+  - 先创建 `Employee`
+  - 再创建首条 `ACTIVE Employment`
+  - 满足条件时触发受控成员登录接入
+- 当前 `routes / views / tests` 已覆盖：
+  - 新入口与旧入口兼容重定向
+  - dedicated `entryKey` 的可见性过滤
+  - 成员详情五区块与 `账号与访问` 一期行为
+
 ## 4. 后续执行项
 
 在第一批完成后，建议进入第二批：
@@ -196,6 +258,19 @@
 3. 根据 BFF 契约成熟情况扩展更多导航 entry 与业务模块入口
 4. 继续完善 action codes 在按钮、动作和页面级守卫中的使用
 5. 等 BFF 能力就绪后，再把扫码登录、找回密码、自助注册从受控状态页切换为真实流程
+
+### 4.1 Tenant / Org / HR 基础入口后置项
+
+状态：`后置`
+
+- `account binding / onboarding access` 查询与补偿管理面仍未进入实现；当前 `员工与任职管理` 不承担该管理面
+- `access channel / entry policy` 独立模型仍未冻结；当前 `账号与访问` 只停留在一期摘要与受控接入动作
+- fully open 的兼任部门 / 多 `ACTIVE Employment` 管理仍未进入实现；当前 `其他任职` 仅保留边界占位
+- 已离任成员独立工作台仍未进入实现；当前离任状态仍在同一成员工作区内查看
+- 成员页内完整账号后台仍未进入实现；当前只保留摘要与跳转 `account-management`
+- `supplier / dealer / customer / external collaborator` 扩展仍未进入当前工作台范围；当前统一入口只承接 `Employee / Employment` 与 `OrgUnit`
+- `account-management` 与 `employee-management` 的长期信息架构仍未冻结；当前只确认双入口并存，不做页面合并
+- 环境侧 `permission baseline sync / seed` 动作仍依赖运行环境执行与 runbook 收口，不属于当前前端基础入口实现范围
 
 ## 5. 当前实施原则
 
@@ -210,6 +285,8 @@
 - 邮箱密码、手机密码、邮箱 OTP、手机 OTP 均已具备前端入口与提交流程
 - 本地联调脚本与 dev 启动链已修复到可继续验证状态
 - 管理员认证与会话管理页已完成代码接入，支持按 scope 呈现不同筛选能力
+- tenant / org / hr 基础入口、`组织与人员` 统一入口与 `tenant.admin` 导航基线已在当前代码层收口
+- `organization-people` 新入口、旧入口兼容跳转、成员详情五区块与 `账号与访问` 一期行为已由当前 routes / views / tests 覆盖
 - 浏览器人工联调仍建议继续覆盖四种登录方式、账户选择、刷新保持会话与登出
 
 ## 7. 后置测试任务

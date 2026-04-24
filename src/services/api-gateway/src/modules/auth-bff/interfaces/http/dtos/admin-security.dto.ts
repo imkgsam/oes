@@ -327,10 +327,28 @@ export class AdminTenantMfaFactorPolicyDto {
   priority!: number
 }
 
+export class AdminTenantMfaScenarioRequirementDto {
+  @ApiProperty({
+    enum: ['LOGIN', 'CHANGE_PASSWORD', 'CHANGE_CONTACT', 'NEW_DEVICE_LOGIN']
+  })
+  @IsIn(['LOGIN', 'CHANGE_PASSWORD', 'CHANGE_CONTACT', 'NEW_DEVICE_LOGIN'])
+  scenario!: 'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'LOGIN' | 'NEW_DEVICE_LOGIN'
+
+  @ApiProperty()
+  @IsBoolean()
+  required!: boolean
+}
+
 export class AdminTenantMfaPolicyMutationDto {
   @ApiProperty()
   @IsBoolean()
   loginRequired!: boolean
+
+  @ApiProperty({ type: AdminTenantMfaScenarioRequirementDto, isArray: true })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AdminTenantMfaScenarioRequirementDto)
+  scenarioRequirements!: AdminTenantMfaScenarioRequirementDto[]
 
   @ApiProperty({ type: AdminTenantMfaFactorPolicyDto, isArray: true })
   @IsArray()
@@ -338,3 +356,5 @@ export class AdminTenantMfaPolicyMutationDto {
   @Type(() => AdminTenantMfaFactorPolicyDto)
   factors!: AdminTenantMfaFactorPolicyDto[]
 }
+
+export class AdminPlatformMfaPolicyMutationDto extends AdminTenantMfaPolicyMutationDto {}

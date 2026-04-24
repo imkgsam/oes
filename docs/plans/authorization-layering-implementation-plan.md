@@ -347,7 +347,7 @@ Updated: 2026-04-12 22:30 +08:00
 - 当前仓库中缺少订单 / 库存等更典型业务域服务时，下一站优先选择 `auth-service`
 - `auth-service` 同时具备列表查询、单资源命令、管理员入口与明确租户上下文，适合继续验证 `buildQueryScope + checkResource`
 - `notification-service` 更偏基础设施发送，不作为下一批授权分层主试点
-- `entity-service` 当前缺少足够的 query / command 面，不作为当前优先候选
+- `party-service` 已是当前稳定 owner；若后续补齐更完整的管理 query / command 面，可再评估是否作为授权分层试点，历史 `entity-service` 残留不再作为当前候选
 
 `auth-service` 首批接口分层建议：
 

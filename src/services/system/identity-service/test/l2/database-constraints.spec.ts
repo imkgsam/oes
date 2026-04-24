@@ -33,7 +33,6 @@ describe('Identity Service Database Constraints L2', () => {
     const tenant = await prisma.tenant.create({
       data: {
         id: `${prefix}_tenant`,
-        entityId: `${prefix}_tenant_entity`,
         name: `${prefix}_tenant_name`,
         code: `${prefix}_tenant_code`
       }
@@ -42,7 +41,6 @@ describe('Identity Service Database Constraints L2', () => {
     const user = await prisma.user.create({
       data: {
         id: `${prefix}_user`,
-        entityId: `${prefix}_user_entity`,
         username: `${prefix}_username`,
         email: `${prefix}@personal.local`
       }
@@ -53,6 +51,7 @@ describe('Identity Service Database Constraints L2', () => {
         id: `${prefix}_account`,
         tenantId: tenant.id,
         userId: user.id,
+        contextKey: tenant.id,
         displayName: `${prefix}_display`
       }
     })

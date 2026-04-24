@@ -80,7 +80,6 @@ describe('PrismaServiceAccountRepository L2', () => {
     const otherTenant = await prisma.tenant.create({
       data: {
         id: `${prefix}_tenant_other`,
-        entityId: `${prefix}_tenant_entity_other`,
         name: `${prefix}_tenant_name_other`,
         code: `${prefix}_tenant_code_other`
       }

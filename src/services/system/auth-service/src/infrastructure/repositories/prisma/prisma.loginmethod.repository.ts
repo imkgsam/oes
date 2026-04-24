@@ -25,7 +25,7 @@ export class PrismaUserRepository implements ILoginMethodRepository {
     const found = await this.prismaService.loginMethod.findFirst({
       where: {
         type: type,
-        identifier,
+        identifier: this.buildIdentifierLookupCondition(type, identifier),
         enabled: true,
         verified: true
       },
@@ -72,7 +72,7 @@ export class PrismaUserRepository implements ILoginMethodRepository {
     const found = await this.prismaService.loginMethod.findFirst({
       where: {
         type: type as any,
-        identifier,
+        identifier: this.buildIdentifierLookupCondition(type as LoginMethodType, identifier),
         enabled: true,
         verified: true
       },
@@ -188,5 +188,29 @@ export class PrismaUserRepository implements ILoginMethodRepository {
       })
     })
     return LoginMethodMapper.toDomain(updated)
+  }
+
+  // Builds tolerant identifier lookup conditions so legacy phone formats still resolve the same login method.
+  private buildIdentifierLookupCondition(type: LoginMethodType, identifier: string) {
+    const normalizedIdentifier = AuthIdentifierNormalizer.normalize(type, identifier)
+
+    if (type !== LoginMethodType.PHONE) {
+      return normalizedIdentifier
+    }
+
+    if (!/^\+?\d{6,20}$/.test(normalizedIdentifier)) {
+      return normalizedIdentifier
+    }
+
+    const digitsOnly = normalizedIdentifier.replace(/^\+/, '')
+    const candidates = Array.from(
+      new Set(
+        normalizedIdentifier.startsWith('+')
+          ? [normalizedIdentifier, digitsOnly]
+          : [normalizedIdentifier, `+${digitsOnly}`]
+      )
+    )
+
+    return candidates.length === 1 ? candidates[0] : { in: candidates }
   }
 }

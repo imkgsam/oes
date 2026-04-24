@@ -12,8 +12,15 @@ describe('navigation foundation seed', () => {
       'workbench.home',
       'platform.home',
       'admin.auth-session-management',
+      'admin.tenant-management',
+      'admin.org-management',
       'admin.role-management',
       'admin.account-management',
+      'tenant-settings.organization-people',
+      'tenant-settings.org-structure',
+      'tenant-settings.employee-employment',
+      'tenant-settings.login-mfa',
+      'admin.platform-mfa',
       'admin.permission-management',
       'admin.policy-governance',
       'admin.navigation-management'
@@ -25,8 +32,15 @@ describe('navigation foundation seed', () => {
       '工作台首页',
       '平台首页',
       '认证与会话管理',
+      '租户管理',
+      '组织架构管理',
       '角色管理',
       '账号管理',
+      '组织与人员',
+      '本租户组织架构',
+      '员工与任职管理',
+      '租户 MFA 配置',
+      '平台 MFA 配置',
       '权限管理',
       '策略治理',
       '导航管理'
@@ -75,6 +89,30 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'role-tenant-admin',
         entryKey: 'admin.account-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'tenant-settings.organization-people',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'tenant-settings.org-structure',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'tenant-settings.employee-employment',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'tenant-settings.login-mfa',
         terminal: 'DEFAULT',
         enabled: true
       }
@@ -130,6 +168,30 @@ describe('navigation foundation seed', () => {
         entryKey: 'admin.account-management',
         terminal: 'DEFAULT',
         enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'tenant-settings.organization-people',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'tenant-settings.org-structure',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'tenant-settings.employee-employment',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'tenant-settings.login-mfa',
+        terminal: 'DEFAULT',
+        enabled: true
       }
     ])
     expect(landing).toEqual([
@@ -174,6 +236,18 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'role-system-admin',
+        entryKey: 'admin.tenant-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-system-admin',
+        entryKey: 'admin.org-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-system-admin',
         entryKey: 'admin.role-management',
         terminal: 'DEFAULT',
         enabled: true
@@ -181,6 +255,12 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'role-system-admin',
         entryKey: 'admin.account-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-system-admin',
+        entryKey: 'admin.platform-mfa',
         terminal: 'DEFAULT',
         enabled: true
       },
@@ -209,6 +289,32 @@ describe('navigation foundation seed', () => {
         terminal: 'DEFAULT',
         defaultEntryKey: 'platform.home',
         priority: 100,
+        enabled: true
+      }
+    ])
+  })
+
+  it('keeps the tenant-management entry reserved for system-scope roles', () => {
+    const visibility = buildNavigationFoundationVisibilitySeeds([
+      {
+        id: 'template-tenant-admin',
+        code: 'tenant.admin',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'role-system-admin',
+        code: 'system.admin',
+        kind: RoleKind.SYSTEM_INSTANCE
+      }
+    ])
+
+    expect(
+      visibility.filter((item) => item.entryKey === 'admin.tenant-management')
+    ).toEqual([
+      {
+        roleId: 'role-system-admin',
+        entryKey: 'admin.tenant-management',
+        terminal: 'DEFAULT',
         enabled: true
       }
     ])

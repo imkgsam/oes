@@ -52,10 +52,25 @@
 - 不让 `api-gateway` 直接拥有认证真相
 - 不让 `auth-service` 复制 `identity-service` 的长期主数据模型
 - 不让 `notification-service` 接管 OTP 或 challenge 业务语义
+- 不让 personal-center 或账户安全 self-service 入口继续复用管理员权限门
 
-## 8. 关联文档
+## 8. Self-service 与 Admin-management 边界
+
+- `api-gateway` 对外必须区分 self-service contract 与 admin-management contract：
+  - self-service contract 只面向当前登录主体
+  - admin-management contract 明确面向目标账号或目标用户治理
+- self-service contract 的 target 必须由后端从当前 session / operator context 解析，不接受前端任意指定他人 target。
+- `auth-service` 与 `identity-service` 可以复用下层 application / domain 逻辑，但接口层必须区分：
+  - self-service 授权路径
+  - admin-management 授权路径
+- 当前账号自己的低风险资料编辑，例如 `avatar / displayName / bio`，属于 `identity-service` 的 self-service 能力，不应默认要求管理员资料修改权限码。
+- 当前用户自己的密码、登录方式、MFA 与会话管理，属于 `auth-service` 的 self-service 能力，不应默认要求管理员安全治理权限码。
+- 管理别人资料、管理别人登录方式、要求别人重设密码、修改组织治理字段，继续属于 admin-management，必须经过 `RBAC + scope` 校验。
+
+## 9. 关联文档
 
 - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
 - [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
 - [08-notification-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/08-notification-architecture.md)
 - [11-gateway-and-bff-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/11-gateway-and-bff-architecture.md)
+- [0004-self-service-and-admin-authorization-boundary.md](/Users/acehood/Documents/GitHub/oes/docs/adr/0004-self-service-and-admin-authorization-boundary.md)

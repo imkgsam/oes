@@ -6,7 +6,7 @@ import {
   RoleResponse
 } from '@oes/common/generated/permission_service'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
-import { IdentityQueryGrpcAdapter } from './identity-query-grpc.adapter'
+import { TenantOrgQueryGrpcAdapter } from './tenant-org-query-grpc.adapter'
 import { PermissionProxyService } from './permission-service.service'
 
 type RoleReadModel = RoleResponse & {
@@ -26,7 +26,7 @@ export interface RoleTenantOption {
 export class RoleManagementReadService {
   constructor(
     private readonly permissionService: PermissionProxyService,
-    private readonly identityAdapter: IdentityQueryGrpcAdapter
+    private readonly tenantOrgAdapter?: TenantOrgQueryGrpcAdapter
   ) {}
 
   async listRoles(
@@ -54,7 +54,7 @@ export class RoleManagementReadService {
     req: { keyword?: string; pageSize?: number },
     source: DownstreamRequestSource
   ): Promise<{ tenants: RoleTenantOption[] }> {
-    const result = await this.identityAdapter.listTenants(
+    const result = await this.requireTenantOrgAdapter().listTenants(
       {
         keyword: normalize(req.keyword),
         pageSize: req.pageSize ?? 20,
@@ -110,12 +110,20 @@ export class RoleManagementReadService {
 
     const entries = await Promise.all(
       tenantIds.map(async (tenantId) => {
-        const result = await this.identityAdapter.getTenantById(tenantId, source)
+        const result = await this.requireTenantOrgAdapter().getTenantById(tenantId, source)
         return [tenantId, normalize(result.tenant?.name) ?? ''] as const
       })
     )
 
     return new Map(entries.filter(([, name]) => Boolean(name)))
+  }
+
+  private requireTenantOrgAdapter(): TenantOrgQueryGrpcAdapter {
+    if (!this.tenantOrgAdapter) {
+      throw new Error('tenant-org query adapter is unavailable')
+    }
+
+    return this.tenantOrgAdapter
   }
 
   private async loadTemplateNames(

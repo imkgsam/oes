@@ -3,12 +3,26 @@ import { AccountDirectoryEntity } from '../entities/account-directory.entity'
 import { AccountSummaryEntity } from '../entities/account-summary.entity'
 
 export interface AccountRepository {
+  getDeletionImpact(accountId: string): Promise<{
+    account: AccountSummaryEntity | null
+    orgMembershipCount: number
+    contactAssetCount: number
+    blockingReasons: Array<{
+      resourceType: string
+      resourceCount: number
+      message: string
+    }>
+  }>
   createUserAccount(input: {
     scopeLevel: 'SYSTEM' | 'TENANT'
     tenantId?: string
     userId: string
     displayName?: string | null
   }): Promise<AccountSummaryEntity>
+  delete(accountId: string): Promise<{
+    deletedOrgMembershipCount: number
+    deletedContactAssetCount: number
+  }>
   findAvailableByUserId(userId: string): Promise<AccountCandidateEntity[]>
   findById(accountId: string): Promise<AccountSummaryEntity | null>
   list(input?: {
@@ -23,7 +37,7 @@ export interface AccountRepository {
   updateProfile(
     accountId: string,
     input: {
-      avatarUrl?: string | null
+      avatarAssetId?: string | null
       displayName?: string | null
       bio?: string | null
       isEnabled?: boolean

@@ -3,6 +3,7 @@ import { OneTimeToken } from '../../domain/aggregates/otp.aggregate'
 
 type PrismaOtpRecord = {
   id: string
+  type: string
   usage: string
   identifier: string
   hashedValue: string
@@ -19,7 +20,7 @@ export class OtpMapper {
   static toDomain(input: PrismaOtpRecord): OneTimeToken {
     return new OneTimeToken({
       id: input.id,
-      type: OTP_TYPES.EMAIL,
+      type: input.type as OTP_TYPES,
       usage: input.usage as any,
       identifier: input.identifier,
       code: input.hashedValue,
@@ -38,6 +39,7 @@ export class OtpMapper {
 
     return {
       id: props.id,
+      type: props.type,
       usage: props.usage,
       identifier: props.identifier,
       hashedValue: props.code,

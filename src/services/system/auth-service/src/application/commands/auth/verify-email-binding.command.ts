@@ -7,6 +7,15 @@ export class VerifyEmailBindingCommand implements ICommand {
   @MinLength(1)
   readonly userId: string
 
+  @IsString()
+  readonly accountId?: string
+
+  @IsString()
+  readonly tenantId?: string
+
+  @IsString()
+  readonly scopeLevel?: 'SYSTEM' | 'TENANT'
+
   @IsEmail()
   readonly email: string
 
@@ -15,9 +24,24 @@ export class VerifyEmailBindingCommand implements ICommand {
   @MaxLength(64)
   readonly otp: string
 
-  constructor(input: { email: string; otp: string; userId: string }) {
+  @IsString()
+  readonly mfaGrantToken?: string
+
+  constructor(input: {
+    accountId?: string
+    email: string
+    mfaGrantToken?: string
+    otp: string
+    scopeLevel?: 'SYSTEM' | 'TENANT'
+    tenantId?: string
+    userId: string
+  }) {
     this.userId = input.userId
+    this.accountId = input.accountId
+    this.tenantId = input.tenantId
+    this.scopeLevel = input.scopeLevel
     this.email = input.email
     this.otp = input.otp
+    this.mfaGrantToken = input.mfaGrantToken
   }
 }

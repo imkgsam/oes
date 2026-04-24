@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Headers, HttpCode, Ip, Param, Patch, Post, Put, Query } from '@nestjs/common'
-import { ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
+import { Body, Controller, Delete, Get, Headers, HttpCode, Ip, Param, Patch, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common'
+import { FileInterceptor } from '@nestjs/platform-express'
+import { ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { Public } from '@oes/common/auth'
 import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
@@ -14,6 +15,7 @@ import {
   AdminAuditEventQueryDto,
   AdminLoginMethodStateMutationDto,
   AdminOnlineUserQueryDto,
+  AdminPlatformMfaPolicyMutationDto,
   AdminRequirePasswordSetupDto,
   AdminTenantMfaPolicyMutationDto,
   AdminTenantOptionQueryDto,
@@ -43,10 +45,12 @@ import {
 import {
   ActivateTotpBindingDto,
   ChangeOwnPasswordDto,
+  CompleteStepUpMfaChallengeDto,
   MfaBindingMutationDto,
   RequestEmailContactBindingChallengeDto,
   RequestPhoneContactBindingChallengeDto,
   SelfLoginHistoryQueryDto,
+  StartStepUpMfaChallengeDto,
   VerifyEmailContactBindingDto,
   VerifyPhoneContactBindingDto
 } from '../dtos/self-security.dto'
@@ -75,6 +79,14 @@ import {
   SelfSessionListViewModel,
   SessionMutationViewModel
 } from '../view-models/self-security.view-model'
+import {
+  StepUpMfaChallengeViewModel,
+  StepUpMfaGrantViewModel
+} from '../view-models/self-security.view-model'
+import {
+  TrustedDeviceListViewModel,
+  TrustedDeviceMutationViewModel
+} from '../view-models/self-security.view-model'
 import { SessionContextViewModel } from '../view-models/session-context.view-model'
 import { SessionAccessSummaryViewModel } from '../view-models/session-access-summary.view-model'
 import {
@@ -84,8 +96,11 @@ import {
 import {
   AdminAccountDirectoryListViewModel,
   AdminAccountBasicInfoViewModel,
+  AdminAccountDeletionImpactViewModel,
+  AdminAccountDeletionResultViewModel,
   AdminAuditEventListViewModel,
   AdminOnlineUserListViewModel,
+  AdminPlatformMfaPolicyViewModel,
   AdminSessionListViewModel,
   AdminSessionMutationViewModel,
   AdminTenantMfaPolicyViewModel,
@@ -110,11 +125,17 @@ import { SessionContextsUseCase } from '../../../application/use-cases/session-c
 import { SwitchContextUseCase } from '../../../application/use-cases/switch-context.use-case'
 import { PersonalCenterUseCase } from '../../../application/use-cases/personal-center.use-case'
 import { AccountProfileUseCase } from '../../../application/use-cases/account-profile.use-case'
+import {
+  AccountAvatarUploadFile,
+  AccountAvatarUploadUseCase
+} from '../../../application/use-cases/account-avatar-upload.use-case'
 import { SelfContactBindingUseCase } from '../../../application/use-cases/self-contact-binding.use-case'
+import { StepUpMfaUseCase } from '../../../application/use-cases/step-up-mfa.use-case'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import {
   AccountProfileMutationViewModel,
+  AvatarAssetUploadViewModel,
   PersonalCenterViewModel
 } from '../view-models/personal-center.view-model'
 
@@ -141,7 +162,9 @@ export class AuthController {
     private readonly switchContextUseCase: SwitchContextUseCase,
     private readonly personalCenterUseCase: PersonalCenterUseCase,
     private readonly accountProfileUseCase: AccountProfileUseCase,
-    private readonly selfContactBindingUseCase: SelfContactBindingUseCase
+    private readonly accountAvatarUploadUseCase: AccountAvatarUploadUseCase,
+    private readonly selfContactBindingUseCase: SelfContactBindingUseCase,
+    private readonly stepUpMfaUseCase: StepUpMfaUseCase
   ) {}
 
   @Post('login')
@@ -459,6 +482,38 @@ export class AuthController {
     return this.personalCenterUseCase.execute(source)
   }
 
+  @Post('personal-center/avatar')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({
+    summary: 'Upload the authenticated current account avatar',
+    description:
+      'Uploads one controlled avatar candidate file for the current authenticated account context.'
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary'
+        }
+      }
+    }
+  })
+  @ApiResponse({
+    status: 201,
+    type: AvatarAssetUploadViewModel,
+    description: 'Returns the controlled avatar asset id and public display URL.'
+  })
+  async uploadAccountAvatar(
+    @UploadedFile() file: AccountAvatarUploadFile | undefined,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<AvatarAssetUploadViewModel> {
+    return this.accountAvatarUploadUseCase.execute(file, source)
+  }
+
   @Patch('personal-center/account-profile')
   @ApiOperation({
     summary: 'Update the authenticated current account profile',
@@ -550,6 +605,22 @@ export class AuthController {
     return this.sessionSelfServiceUseCase.listSessions(source)
   }
 
+  @Get('security/trusted-devices')
+  @ApiOperation({
+    summary: 'List self trusted devices',
+    description:
+      'Returns the authenticated user trusted-device inventory for the current tenant security context without mixing in active session state.'
+  })
+  @ApiResponse({
+    status: 200,
+    type: TrustedDeviceListViewModel
+  })
+  async listTrustedDevices(
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<TrustedDeviceListViewModel> {
+    return this.sessionSelfServiceUseCase.listTrustedDevices(source)
+  }
+
   @Get('login-history')
   @ApiOperation({
     summary: 'List the authenticated user login history',
@@ -598,6 +669,42 @@ export class AuthController {
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<PasswordMutationViewModel> {
     return this.sessionSelfServiceUseCase.changeOwnPassword(dto, source)
+  }
+
+  @Post('security/mfa/challenges')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Start one authenticated step-up MFA challenge',
+    description: 'Creates a reusable MFA challenge for one protected in-session security scenario when tenant policy requires it.'
+  })
+  @ApiBody({ type: StartStepUpMfaChallengeDto })
+  @ApiResponse({
+    status: 200,
+    type: StepUpMfaChallengeViewModel
+  })
+  async startStepUpMfaChallenge(
+    @Body() dto: StartStepUpMfaChallengeDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<StepUpMfaChallengeViewModel> {
+    return this.stepUpMfaUseCase.startChallenge(dto, source)
+  }
+
+  @Post('security/mfa/complete')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Complete one authenticated step-up MFA challenge',
+    description: 'Verifies the selected MFA factor for a protected self-service scenario and returns a short-lived scenario grant token.'
+  })
+  @ApiBody({ type: CompleteStepUpMfaChallengeDto })
+  @ApiResponse({
+    status: 200,
+    type: StepUpMfaGrantViewModel
+  })
+  async completeStepUpMfaChallenge(
+    @Body() dto: CompleteStepUpMfaChallengeDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<StepUpMfaGrantViewModel> {
+    return this.stepUpMfaUseCase.completeChallenge(dto, source)
   }
 
   @Post('contact-bindings/email/challenge')
@@ -719,6 +826,40 @@ export class AuthController {
   })
   async logout(@DownstreamSource() source: DownstreamRequestSource): Promise<SessionMutationViewModel> {
     return this.sessionSelfServiceUseCase.logout(source)
+  }
+
+  @Delete('security/trusted-devices/:trustedDeviceId')
+  @ApiOperation({
+    summary: 'Revoke one trusted device',
+    description:
+      'Revokes one trusted-device entry so the targeted device must pass the new-device MFA challenge again on its next login.'
+  })
+  @ApiParam({ name: 'trustedDeviceId' })
+  @ApiResponse({
+    status: 200,
+    type: TrustedDeviceMutationViewModel
+  })
+  async revokeTrustedDevice(
+    @Param('trustedDeviceId') trustedDeviceId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<TrustedDeviceMutationViewModel> {
+    return this.sessionSelfServiceUseCase.revokeTrustedDevice(trustedDeviceId, source)
+  }
+
+  @Post('security/trusted-devices/revoke-others')
+  @ApiOperation({
+    summary: 'Revoke all other trusted devices',
+    description:
+      'Revokes every other trusted-device entry for the authenticated user in the current tenant while leaving the current device untouched.'
+  })
+  @ApiResponse({
+    status: 200,
+    type: TrustedDeviceMutationViewModel
+  })
+  async revokeOtherTrustedDevices(
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<TrustedDeviceMutationViewModel> {
+    return this.sessionSelfServiceUseCase.revokeOtherTrustedDevices(source)
   }
 
   @Post('sessions/:sessionId/logout')
@@ -947,6 +1088,24 @@ export class AuthController {
     return this.adminSecurityUseCase.getAccountBasicInfo(accountId, source)
   }
 
+  @Get('admin/accounts/:accountId/deletion-impact')
+  @PermissionCheckAll([IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT])
+  @ApiOperation({
+    summary: 'Get one account deletion impact preview',
+    description: 'Returns blockers and cleanup preview data before an administrator permanently deletes one account.'
+  })
+  @ApiParam({ name: 'accountId' })
+  @ApiResponse({
+    status: 200,
+    type: AdminAccountDeletionImpactViewModel
+  })
+  async adminGetAccountDeletionImpact(
+    @Param('accountId') accountId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<AdminAccountDeletionImpactViewModel> {
+    return this.adminSecurityUseCase.getAccountDeletionImpact(accountId, source)
+  }
+
   @Post('admin/accounts')
   @PermissionCheckAll([IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT])
   @ApiOperation({
@@ -985,6 +1144,25 @@ export class AuthController {
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<AdminAccountBasicInfoViewModel> {
     return this.adminSecurityUseCase.updateAccountBasicInfo(accountId, body, source)
+  }
+
+  @Delete('admin/accounts/:accountId')
+  @PermissionCheckAll([IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT])
+  @ApiOperation({
+    summary: 'Delete one account permanently',
+    description:
+      'Deletes one administrator-managed account after deletion blockers pass and downstream system-owned relations are cleaned up.'
+  })
+  @ApiParam({ name: 'accountId' })
+  @ApiResponse({
+    status: 200,
+    type: AdminAccountDeletionResultViewModel
+  })
+  async adminDeleteAccount(
+    @Param('accountId') accountId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<AdminAccountDeletionResultViewModel> {
+    return this.adminSecurityUseCase.deleteAccount(accountId, source)
   }
 
   @Get('admin/accounts/:accountId/login-methods')
@@ -1084,7 +1262,7 @@ export class AuthController {
   }
 
   @Get('admin/tenant-mfa-policy')
-  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS])
+  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_TENANT_MFA_POLICY])
   @ApiOperation({
     summary: 'Get tenant login MFA policy',
     description:
@@ -1100,8 +1278,25 @@ export class AuthController {
     return this.adminSecurityUseCase.getTenantMfaPolicy(source)
   }
 
+  @Get('admin/platform-mfa-policy')
+  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_PLATFORM_MFA_POLICY])
+  @ApiOperation({
+    summary: 'Get platform MFA policy',
+    description:
+      'Returns the platform-scoped MFA requirement and factor priority used by system-level accounts.'
+  })
+  @ApiResponse({
+    status: 200,
+    type: AdminPlatformMfaPolicyViewModel
+  })
+  async adminGetPlatformMfaPolicy(
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<AdminPlatformMfaPolicyViewModel> {
+    return this.adminSecurityUseCase.getPlatformMfaPolicy(source)
+  }
+
   @Put('admin/tenant-mfa-policy')
-  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS])
+  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_TENANT_MFA_POLICY])
   @ApiOperation({
     summary: 'Update tenant login MFA policy',
     description:
@@ -1117,6 +1312,25 @@ export class AuthController {
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<AdminTenantMfaPolicyViewModel> {
     return this.adminSecurityUseCase.updateTenantMfaPolicy(body, source)
+  }
+
+  @Put('admin/platform-mfa-policy')
+  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_PLATFORM_MFA_POLICY])
+  @ApiOperation({
+    summary: 'Update platform MFA policy',
+    description:
+      'Updates the platform-scoped MFA requirement and global factor priority order used by system-level accounts.'
+  })
+  @ApiBody({ type: AdminPlatformMfaPolicyMutationDto })
+  @ApiResponse({
+    status: 200,
+    type: AdminPlatformMfaPolicyViewModel
+  })
+  async adminUpdatePlatformMfaPolicy(
+    @Body() body: AdminPlatformMfaPolicyMutationDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<AdminPlatformMfaPolicyViewModel> {
+    return this.adminSecurityUseCase.updatePlatformMfaPolicy(body, source)
   }
 
   @Get('admin/account-tenant-options')

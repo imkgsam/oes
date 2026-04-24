@@ -16,6 +16,10 @@
 
 OES 的目标状态不是“所有权限控制都通过 guard 完成”，而是采用分层授权模型：
 
+- 自助能力控制：
+  - `self-service capability`
+  - 基于 authenticated operator、self-bound target、字段白名单与安全策略
+  - 用于“当前主体管理自己”，默认不依赖管理员 `RBAC` 权限码
 - 接口前置粗粒度控制：
   - `checkPermission`
   - 基于 `RBAC`
@@ -178,6 +182,37 @@ application/
 - domain service
 - domain specification / state rule
 
+### 3.5 `self-service capability`
+
+用于“当前已认证主体管理自己”的自助操作控制，不等价于管理员侧 `RBAC` 权限。
+
+回答的问题：
+
+- 当前会话主体能不能对自己的目标对象执行这类自助动作
+
+典型输入：
+
+- authenticated `operator context`
+- 由服务端解析并绑定到当前会话主体的 self target
+- capability 类型或字段白名单
+- 可选 tenant / system self-service policy
+
+典型输出：
+
+- `boolean`
+- 或直接抛出 access denied / policy denied
+
+典型落点：
+
+- BFF self-service use case
+- 子服务 self-service command / query 入口
+
+项目级约束：
+
+- `self-service capability` 默认不调用管理员 `checkPermission`
+- 如果平台要限制自助能力，应优先通过 self-service policy / capability 开关表达，而不是复用管理员管理权限码
+- self-service 与 admin-management 可以复用下层 application / domain 逻辑，但不能复用同一个接口层授权语义
+
 ## 4. 分层设计
 
 ### 4.1 Gateway
@@ -210,12 +245,14 @@ Gateway 不负责：
 - `InternalServiceGuard`
 - `AuthenticatedOperatorGuard`
 - `PermissionGuard`
+- 对 self-service 入口做 authenticated operator 校验与 self-bound target 绑定
 - 协议映射与 DTO 校验
 
 子服务接口层不负责：
 
 - 已依赖 resource facts 的细粒度授权
 - 领域业务规则
+- 把 self-service 能力与 admin-management 权限混成同一条接口语义
 
 ### 4.3 application 层
 
@@ -246,6 +283,33 @@ application 层负责：
 - 调用统一 `AuthorizationQueryScopeService`
 - 获取标准化 query scope
 - 将 scope 传给 repository / query adaptor，而不是在 handler 中手工拼装过滤条件
+
+### 4.3.1 自助能力与管理员能力的分层
+
+凡是“当前主体管理自己”的能力，例如个人中心低风险资料编辑、密码修改、登录方式管理、MFA 管理、会话自助管理，默认按 `self-service capability` 建模：
+
+- 先校验 authenticated operator
+- 再由服务端把 target 绑定为当前主体
+- 只允许白名单字段或白名单动作
+- 继续受业务底线规则、内容校验、审计与可选策略控制
+
+凡是“管理员管理别人”或“治理组织资产字段”的能力，继续按 `checkPermission + checkResource / buildQueryScope` 建模：
+
+- 需要显式管理员权限码
+- 需要 operator scope / resource scope 收敛
+- 需要审计与必要的跨服务事实加载
+
+项目级禁止事项：
+
+- 不得让 self-service HTTP / gRPC 入口直接复用管理员入口的权限门
+- 不得因为前后端实现便利，把“我能改我自己”强行建模为普通岗位 `RBAC`
+- 不得把 tenant / system 想关闭某项自助能力的需求，错误实现为“不给所有普通用户分配管理员权限”
+
+推荐完成态：
+
+- 对外 contract 分为 self-service 与 admin-management 两套入口
+- application / domain 可复用底层命令、仓储与校验逻辑
+- 接口层授权语义必须分开冻结
 
 ### 4.4 domain 层
 

@@ -44,14 +44,16 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
         canonicalName: result.party.canonicalName,
         displayName: result.party.displayName ?? ''
       },
-      tenantParty: {
-        id: result.tenantParty.id,
-        tenantId: result.tenantParty.tenantId,
-        partyId: result.tenantParty.partyId,
-        localDisplayName: result.tenantParty.localDisplayName ?? '',
-        localCode: result.tenantParty.localCode ?? '',
-        status: String(result.tenantParty.status)
-      },
+      tenantParty: result.tenantParty
+        ? {
+            id: result.tenantParty.id,
+            tenantId: result.tenantParty.tenantId,
+            partyId: result.tenantParty.partyId,
+            localDisplayName: result.tenantParty.localDisplayName ?? '',
+            localCode: result.tenantParty.localCode ?? '',
+            status: String(result.tenantParty.status)
+          }
+        : undefined,
       matchResult: result.matchResult
     }
   }
@@ -83,14 +85,16 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
         canonicalName: result.party.canonicalName,
         displayName: result.party.displayName ?? ''
       },
-      tenantParty: {
-        id: result.tenantParty.id,
-        tenantId: result.tenantParty.tenantId,
-        partyId: result.tenantParty.partyId,
-        localDisplayName: result.tenantParty.localDisplayName ?? '',
-        localCode: result.tenantParty.localCode ?? '',
-        status: String(result.tenantParty.status)
-      },
+      tenantParty: result.tenantParty
+        ? {
+            id: result.tenantParty.id,
+            tenantId: result.tenantParty.tenantId,
+            partyId: result.tenantParty.partyId,
+            localDisplayName: result.tenantParty.localDisplayName ?? '',
+            localCode: result.tenantParty.localCode ?? '',
+            status: String(result.tenantParty.status)
+          }
+        : undefined,
       matchResult: result.matchResult
     }
   }

@@ -1,5 +1,6 @@
 import { Inject, Injectable, UnauthorizedException } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
+import { AssetGrpcAdapter } from '../../infrastructure/downstream/asset-service/asset-grpc.adapter'
 import { IdentityQueryGrpcAdapter } from '../../infrastructure/downstream/identity-service/identity-query-grpc.adapter'
 import { AccountProfileDto } from '../../interfaces/http/dtos/account-profile.dto'
 import {
@@ -20,6 +21,7 @@ export class AccountProfileUseCase {
     private readonly sessionContextUseCase: SessionContextUseCase,
     private readonly sessionAccessSummaryUseCase: SessionAccessSummaryUseCase,
     private readonly identityAdapter: IdentityQueryGrpcAdapter,
+    private readonly assetAdapter: AssetGrpcAdapter,
     @Inject(PERSONAL_CENTER_SUMMARY_PORT)
     private readonly identitySummaryPort: PersonalCenterSummaryPort
   ) {}
@@ -35,10 +37,10 @@ export class AccountProfileUseCase {
     }
 
     const [updatedAccountResult, sessionContext, accessSummary, identitySummary] = await Promise.all([
-      this.identityAdapter.updateAccountProfile(
+      this.identityAdapter.updateOwnAccountProfile(
         {
           accountId: self.accountId,
-          avatarUrl: dto.avatar,
+          avatarAssetId: dto.avatarAssetId,
           displayName: dto.displayName,
           bio: dto.bio
         },
@@ -49,11 +51,25 @@ export class AccountProfileUseCase {
       this.identitySummaryPort.getPersonalCenterSummary(self.userId, self.accountId, source)
     ])
 
+    const boundAvatar =
+      dto.avatarAssetId
+        ? await this.assetAdapter.bindAccountAvatar(
+            {
+              accountId: self.accountId,
+              newAssetId: dto.avatarAssetId,
+              operatorId: self.accountId,
+              scopeLevel: self.scopeLevel,
+              tenantId: self.tenantId
+            },
+            source
+          )
+        : undefined
+
     return {
       accountContext: {
         accountId: sessionContext.account?.accountId ?? self.accountId,
         accountName: sessionContext.account?.name,
-        avatar: normalize(updatedAccountResult.account?.avatarUrl),
+        avatar: normalize(boundAvatar?.activeAsset?.publicUrl) ?? normalize(updatedAccountResult.account?.avatarUrl),
         displayName: normalize(updatedAccountResult.account?.displayName),
         bio: normalize(updatedAccountResult.account?.bio),
         tenantId: sessionContext.tenant?.tenantId,

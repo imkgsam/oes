@@ -36,6 +36,26 @@ export function toAuthResponseViewModel(result: AuthFlowResult): AuthResponseVie
   }
 }
 
+// Maps one downstream MFA challenge payload into the shared challenge view model used by login and step-up scenes.
+export function mapMfaChallengeViewModel(result: {
+  availableFactors?: Array<{ label?: string; priority?: number; type?: MfaBindingType }>
+  challengeDestination?: string
+  challengeExpiresAt?: string
+  challengeId?: string
+  defaultMfaFactor?: MfaBindingType
+  factorChallengeId?: string
+  mfaScenario?: MfaScenario
+}): ChallengeViewModel | null {
+  return mapChallenge(result)
+}
+
+// Maps one downstream MFA scenario enum into the shared HTTP scenario string.
+export function mapMfaScenarioViewModel(
+  scenario?: MfaScenario
+): MfaScenarioViewModel | undefined {
+  return mapMfaScenario(scenario)
+}
+
 // Maps refresh token responses into the HTTP view model consumed by front-end clients.
 export function toRefreshSessionViewModel(result: RefreshSessionResponse): RefreshSessionViewModel {
   return {
@@ -127,7 +147,7 @@ function mapOperator(result: {
 
 // Maps challenge context required to continue MFA or OTP-driven login flows.
 function mapChallenge(result: {
-  availableFactors?: Array<{ label?: string; type?: MfaBindingType }>
+  availableFactors?: Array<{ label?: string; priority?: number; type?: MfaBindingType }>
   challengeDestination?: string
   challengeExpiresAt?: string
   challengeId?: string
@@ -183,11 +203,18 @@ function normalizeScopeLevel(scopeLevel?: string): 'SYSTEM' | 'TENANT' {
 }
 
 function mapMfaScenario(scenario?: MfaScenario): MfaScenarioViewModel | undefined {
-  if (scenario === MfaScenario.MFA_SCENARIO_LOGIN) {
-    return MfaScenarioViewModel.LOGIN
+  switch (scenario) {
+    case MfaScenario.MFA_SCENARIO_LOGIN:
+      return MfaScenarioViewModel.LOGIN
+    case MfaScenario.MFA_SCENARIO_NEW_DEVICE_LOGIN:
+      return MfaScenarioViewModel.NEW_DEVICE_LOGIN
+    case MfaScenario.MFA_SCENARIO_CHANGE_PASSWORD:
+      return MfaScenarioViewModel.CHANGE_PASSWORD
+    case MfaScenario.MFA_SCENARIO_CHANGE_CONTACT:
+      return MfaScenarioViewModel.CHANGE_CONTACT
+    default:
+      return undefined
   }
-
-  return undefined
 }
 
 function mapMfaFactor(type?: MfaBindingType): MfaFactorTypeViewModel | undefined {
@@ -206,7 +233,7 @@ function mapMfaFactor(type?: MfaBindingType): MfaFactorTypeViewModel | undefined
 }
 
 function mapMfaFactorOptions(
-  factors?: Array<{ label?: string; type?: MfaBindingType }>
+  factors?: Array<{ label?: string; priority?: number; type?: MfaBindingType }>
 ): MfaFactorOptionViewModel[] | undefined {
   const items = (factors ?? [])
     .map((factor) => {
@@ -217,7 +244,8 @@ function mapMfaFactorOptions(
 
       return {
         type,
-        label: factor.label ?? ''
+        label: factor.label ?? '',
+        priority: Number(factor.priority ?? 0)
       }
     })
     .filter((value): value is MfaFactorOptionViewModel => Boolean(value))

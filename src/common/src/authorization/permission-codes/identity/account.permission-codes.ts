@@ -3,6 +3,7 @@ export const IDENTITY_ACCOUNT_PERMISSION_CODES = {
   CREATE_ACCOUNT: 'identity.account.create',
   UPDATE_ACCOUNT_STATUS: 'identity.account.update_status',
   UPDATE_ACCOUNT_PROFILE: 'identity.account.profile.update',
+  DELETE_ACCOUNT: 'identity.account.delete',
   ASSIGN_WORK_EMAIL: 'identity.contact.work_email.assign',
   REVOKE_WORK_EMAIL: 'identity.contact.work_email.revoke',
   SET_PRIMARY_WORK_EMAIL: 'identity.contact.work_email.set_primary',

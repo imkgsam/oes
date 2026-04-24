@@ -3,10 +3,13 @@ syntax = "proto3";
 
 package permission_service;
 
+option java_multiple_files = true;
+option java_package = "com.oes.permission.v1";
+
 // PermissionAccessSummaryService exposes self-context authorization summaries for internal BFF consumers.
 service PermissionAccessSummaryService {
-  rpc GetAccountAccessSummary(GetAccountAccessSummaryRequest) returns (AccountAccessSummaryResponse);
-  rpc ResolveAccountNavigation(ResolveAccountNavigationRequest) returns (AccountNavigationSummaryResponse);
+  rpc GetAccountAccessSummary(GetAccountAccessSummaryRequest) returns (GetAccountAccessSummaryResponse);
+  rpc ResolveAccountNavigation(ResolveAccountNavigationRequest) returns (ResolveAccountNavigationResponse);
 }
 
 // GetAccountAccessSummaryRequest identifies the selected account and tenant context whose effective access should be summarized.
@@ -22,6 +25,12 @@ message AccountAccessSummaryResponse {
   repeated string action_codes = 2;
 }
 
+// GetAccountAccessSummaryResponse preserves the existing wire shape while satisfying RPC-specific response naming hygiene.
+message GetAccountAccessSummaryResponse {
+  repeated AccessRoleSummary roles = 1;
+  repeated string action_codes = 2;
+}
+
 // ResolveAccountNavigationRequest identifies the selected account context and terminal for runtime navigation resolution.
 message ResolveAccountNavigationRequest {
   string account_id = 1;
@@ -32,6 +41,14 @@ message ResolveAccountNavigationRequest {
 
 // AccountNavigationSummaryResponse returns terminal-aware visible entries and the selected default landing entry.
 message AccountNavigationSummaryResponse {
+  repeated string visible_entries = 1;
+  string default_entry = 2;
+  string resolved_by_role_id = 3;
+  string fallback_reason = 4;
+}
+
+// ResolveAccountNavigationResponse preserves the existing wire shape while satisfying RPC-specific response naming hygiene.
+message ResolveAccountNavigationResponse {
   repeated string visible_entries = 1;
   string default_entry = 2;
   string resolved_by_role_id = 3;

@@ -69,10 +69,19 @@ enum PasswordSetupReason {
 
 enum TenantMfaScenario {
   LOGIN
+  NEW_DEVICE_LOGIN
+  CHANGE_PASSWORD
+  CHANGE_CONTACT
+}
+
+enum ScopeLevel {
+  SYSTEM
+  TENANT
 }
 
 model OTP {
   id           String   @id @default(uuid())
+  type         OTPType  @default(EMAIL)
   usage        OTPUsage
   identifier   String
   hashedValue  String
@@ -87,6 +96,11 @@ model OTP {
   updatedAt    DateTime @updatedAt
 
   @@unique([identifier, usage])
+}
+
+enum OTPType {
+  EMAIL
+  PHONE
 }
 
 model PasswordRecoveryGrant {
@@ -174,6 +188,53 @@ model TenantMfaFactorPolicy {
   createdAt  DateTime @default(now())
 
   @@id([tenantId, factor])
+}
+
+model PlatformMfaScenarioPolicy {
+  scopeKey   String
+  scenario   TenantMfaScenario
+  required   Boolean            @default(false)
+  updatedBy  String?
+  updatedAt  DateTime           @updatedAt
+  createdAt  DateTime           @default(now())
+
+  @@id([scopeKey, scenario])
+}
+
+model PlatformMfaFactorPolicy {
+  scopeKey   String
+  factor     MfaType
+  enabled    Boolean  @default(true)
+  priority   Int
+  updatedBy  String?
+  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now())
+
+  @@id([scopeKey, factor])
+}
+
+model TrustedDevice {
+  id            String   @id @default(uuid())
+  userId        String
+  scopeLevel    ScopeLevel @default(TENANT)
+  scopeKey      String     @default("")
+  tenantId      String?
+  deviceId      String
+  deviceName    String?
+  browser       String?
+  platform      String?
+  userAgent     String?
+  lastIpAddress String?
+  trustedAt     DateTime @default(now())
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, scopeKey, deviceId])
+  @@index([scopeKey, userId])
+  @@index([scopeKey, userId, revokedAt])
 }
 
 enum MfaType {

@@ -1,0 +1,45 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Asset {
+  id             String        @id @default(uuid())
+  scopeLevel     AssetScopeLevel
+  tenantId       String?
+  ownerAccountId String
+  category       AssetCategory
+  storageKey     String        @unique
+  mimeType       String
+  size           BigInt
+  checksum       String
+  publicUrl      String
+  status         AssetStatus   @default(PENDING_BIND)
+  createdBy      String
+  updatedBy      String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([scopeLevel, tenantId, ownerAccountId, category, status])
+}
+
+enum AssetScopeLevel {
+  SYSTEM
+  TENANT
+}
+
+enum AssetCategory {
+  ACCOUNT_AVATAR
+}
+
+enum AssetStatus {
+  PENDING_BIND
+  ACTIVE
+  REPLACED
+  DELETED
+}

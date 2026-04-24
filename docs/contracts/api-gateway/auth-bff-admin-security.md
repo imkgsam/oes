@@ -9,6 +9,8 @@
 - 查看当前管理员可见范围内的在线用户总览
 - 搜索当前管理员可见范围内的目标用户摘要
 - 查询当前管理员可见范围内的账号目录
+- 管理当前租户的登录 MFA 策略
+- 管理当前租户的敏感操作 MFA 场景要求
 - 查看指定用户的会话列表
 - 撤销指定单个会话
 - 查询认证域审计事件
@@ -209,6 +211,85 @@
 - 稳定语义：
   - 不得停用目标 user 最后一个可用登录方式
   - 不返回 credential secret、password hash 或 OTP
+
+### `GET /auth/admin/tenant-mfa-policy`
+
+- 作用：读取当前租户的登录 MFA 策略。
+- 使用场景：
+  - 租户管理员打开 `登录 MFA` 租户设置页
+  - 前端需要展示登录保护开关、四种 MFA 因子的启停与 priority
+- 权限模型：
+  - Gateway 入口需要 `checkPermission`
+  - 当前粗粒度 permission code 为 `auth.mfa_policy.manage`
+- 作用域模型：
+  - 仅支持 tenant-bound operator
+  - BFF 从当前 operator context 解析 `tenantId`，前端不传 `tenantId`
+  - 系统管理员平台默认策略 UI 继续后置，不复用本接口绕过租户上下文
+- 响应关键字段：
+  - `tenantId`
+  - `loginRequired`
+  - `scenarioRequirements[].scenario`
+  - `scenarioRequirements[].required`
+  - `factors[].factor`
+  - `factors[].enabled`
+  - `factors[].priority`
+- 语义约束：
+  - 当前租户设置页已支持 `LOGIN / CHANGE_PASSWORD / CHANGE_CONTACT / NEW_DEVICE_LOGIN`
+  - 因子启停与 priority 是当前租户统一设置，场景只决定“是否需要 MFA”，不单独维护每个场景自己的因子表
+  - 前端拖拽排序只改变 `priority`，不改变用户自己的 MFA 绑定资产
+
+### `PUT /auth/admin/tenant-mfa-policy`
+
+- 作用：更新当前租户的登录 MFA 策略。
+- 使用场景：
+  - 租户管理员开启或关闭登录时 MFA
+  - 租户管理员调整四种 MFA 因子的启停与 priority
+- 权限模型：
+  - Gateway 入口需要 `checkPermission`
+  - 当前粗粒度 permission code 为 `auth.mfa_policy.manage`
+- 请求关键字段：
+  - `loginRequired`
+  - `scenarioRequirements[].scenario`
+  - `scenarioRequirements[].required`
+  - `factors[].factor`
+  - `factors[].enabled`
+  - `factors[].priority`
+- 稳定语义：
+  - 请求必须覆盖 `EMAIL_OTP / SMS_OTP / TOTP / BACKUP_CODE` 四个受管因子且每个因子只出现一次
+  - `loginRequired` 仍保留为 `LOGIN` 场景兼容字段；多场景真相以 `scenarioRequirements` 为准
+  - priority 必须被服务端归一为当前租户登录 MFA 的最终排序
+  - 当租户开启登录 MFA 但用户没有任何可用因子时，登录流程不得绕过 MFA 建立 session
+  - `BACKUP_CODE` 可参与普通 priority 排序，但成功使用后当前恢复码集合整体作废并停用该绑定
+
+## 3. 当前用户自助敏感操作 step-up MFA
+
+### `POST /auth/security/mfa/challenges`
+
+- 作用：为当前登录账号的敏感操作创建一个 step-up MFA challenge。
+- 请求关键字段：
+  - `scenario`
+- 响应关键字段：
+  - `required`
+  - `challenge`
+- 稳定语义：
+  - 当前 `scenario` 支持 `CHANGE_PASSWORD / CHANGE_CONTACT / NEW_DEVICE_LOGIN`
+  - 只有命中当前 tenant policy 时才返回 `required=true`
+
+### `POST /auth/security/mfa/complete`
+
+- 作用：完成 step-up MFA challenge，并返回一个短期 `mfaGrantToken`。
+- 请求关键字段：
+  - `challengeId`
+  - `factor`
+  - `code`
+  - `factorChallengeId`
+- 响应关键字段：
+  - `success`
+  - `scenario`
+  - `mfaGrantToken`
+- 稳定语义：
+  - 当前 grant 由修改密码、更换邮箱 / 手机等已登录敏感写接口消费
+  - `NEW_DEVICE_LOGIN` 继续后置到 trusted-device 流程，不在当前 grant 消费范围内
 
 ### `GET /auth/admin/users/:userId/sessions`
 

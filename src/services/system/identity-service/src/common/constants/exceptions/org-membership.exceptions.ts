@@ -42,3 +42,10 @@ export const IDENTITY_PRIMARY_ORG_CANNOT_BE_REMOVED: ExceptionDefinition = {
   rpcStatus: status.INVALID_ARGUMENT,
   messageKey: 'identity.primary.org.cannot.be.removed'
 }
+
+export const IDENTITY_ACCOUNT_DELETE_BLOCKED: ExceptionDefinition = {
+  code: 'IDENTITY_ACCOUNT_DELETE_BLOCKED',
+  message: 'Account deletion is blocked by business relations',
+  rpcStatus: status.INVALID_ARGUMENT,
+  messageKey: 'identity.account.delete.blocked'
+}

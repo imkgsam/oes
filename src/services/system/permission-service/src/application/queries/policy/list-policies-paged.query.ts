@@ -1,6 +1,7 @@
 import { IQuery } from '@nestjs/cqrs'
 import { Type } from 'class-transformer'
-import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
+import { IsBoolean, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
+import { PolicySubjectType } from '../../../domain/enums/policy-subject-type.enum'
 
 export class ListPoliciesPagedQuery implements IQuery {
   @Type(() => Number)
@@ -31,6 +32,14 @@ export class ListPoliciesPagedQuery implements IQuery {
   @IsString()
   readonly keyword?: string
 
+  @IsOptional()
+  @IsEnum(PolicySubjectType)
+  readonly subjectType?: PolicySubjectType
+
+  @IsOptional()
+  @IsString()
+  readonly subjectId?: string
+
   constructor(input: {
     page: number
     pageSize: number
@@ -38,6 +47,8 @@ export class ListPoliciesPagedQuery implements IQuery {
     permissionCode?: string
     isEnabled?: boolean
     keyword?: string
+    subjectType?: PolicySubjectType
+    subjectId?: string
   }) {
     this.page = input.page
     this.pageSize = input.pageSize
@@ -45,5 +56,7 @@ export class ListPoliciesPagedQuery implements IQuery {
     this.permissionCode = input.permissionCode
     this.isEnabled = input.isEnabled
     this.keyword = input.keyword
+    this.subjectType = input.subjectType
+    this.subjectId = input.subjectId
   }
 }

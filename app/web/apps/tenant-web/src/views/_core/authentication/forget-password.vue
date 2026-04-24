@@ -1,9 +1,9 @@
 <script lang="ts" setup>
-import { computed, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 import { SliderCaptcha } from '@vben/common-ui'
-import { Button, Card, Form, FormItem, Input, InputPassword, message } from 'ant-design-vue'
+import { Button, Card, Form, FormItem, Input, InputPassword, message, Step, Steps } from 'ant-design-vue'
 
 import {
   completePasswordRecoveryApi,
@@ -16,6 +16,7 @@ type RecoveryChannel = 'EMAIL' | 'PHONE'
 
 defineOptions({ name: 'ForgetPassword' })
 
+const route = useRoute()
 const router = useRouter()
 const currentStep = ref(0)
 const inspectLoading = ref(false)
@@ -23,6 +24,7 @@ const challengeLoading = ref(false)
 const verifyLoading = ref(false)
 const completionLoading = ref(false)
 const completed = ref(false)
+const viewportWidth = ref(typeof window === 'undefined' ? 1280 : window.innerWidth)
 
 const progressSteps = [
   { title: '验证身份', shortTitle: '身份' },
@@ -31,12 +33,18 @@ const progressSteps = [
   { title: '设置新密码', shortTitle: '重置' }
 ]
 
+// Reads the optional login identifier query as the initial recovery account input.
+function resolveInitialIdentifier(value: unknown) {
+  const rawValue = Array.isArray(value) ? value[0] : value
+  return typeof rawValue === 'string' ? rawValue.trim() : ''
+}
+
 const formState = reactive({
   availableChannels: [] as Array<{ channel: RecoveryChannel; maskedDestination: string }>,
   captchaPassed: false,
   challengeId: '',
   confirmPassword: '',
-  identifier: '',
+  identifier: resolveInitialIdentifier(route.query.identifier),
   maskedDestination: '',
   newPassword: '',
   otp: '',
@@ -64,8 +72,16 @@ const stageNumber = computed(() => {
   return completed.value ? progressSteps.length : currentStep.value + 1
 })
 
+const stepsDirection = computed(() => {
+  return viewportWidth.value <= 900 ? 'vertical' : 'horizontal'
+})
+
 const canInspectChannels = computed(() => {
-  return formState.captchaPassed && isSupportedIdentifier(formState.identifier.trim())
+  return canEnableCaptcha.value && formState.captchaPassed && isSupportedIdentifier(formState.identifier.trim())
+})
+
+const canEnableCaptcha = computed(() => {
+  return Boolean(formState.identifier.trim())
 })
 
 const canRequestChallenge = computed(() => {
@@ -227,6 +243,30 @@ async function completeRecovery() {
     completionLoading.value = false
   }
 }
+
+function stepTitle(step: { shortTitle: string; title: string }) {
+  return viewportWidth.value <= 640 ? step.shortTitle : step.title
+}
+
+function syncViewportWidth() {
+  viewportWidth.value = window.innerWidth
+}
+
+watch(
+  () => formState.identifier,
+  () => {
+    resetCaptcha()
+  }
+)
+
+onMounted(() => {
+  syncViewportWidth()
+  window.addEventListener('resize', syncViewportWidth)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', syncViewportWidth)
+})
 </script>
 
 <template>
@@ -238,27 +278,20 @@ async function completeRecovery() {
         <p class="forget-password-subtitle">完成身份验证后即可重置登录密码。</p>
       </div>
 
-      <ol class="forget-password-progress">
-        <li
-          v-for="(step, index) in progressSteps"
-          :key="step.title"
-          :class="[
-            'forget-password-progress__item',
-            {
-              'is-active': !completed && currentStep === index,
-              'is-complete': completed || currentStep > index
-            }
-          ]"
+      <div class="forget-password-steps-shell">
+        <Steps
+          :current="completed ? progressSteps.length - 1 : currentStep"
+          :direction="stepsDirection"
+          class="forget-password-steps"
+          size="small"
         >
-          <span class="forget-password-progress__index">
-            {{ index + 1 }}
-          </span>
-          <span class="forget-password-progress__label">
-            <span class="forget-password-progress__title">{{ step.title }}</span>
-            <span class="forget-password-progress__short">{{ step.shortTitle }}</span>
-          </span>
-        </li>
-      </ol>
+          <Step
+            v-for="step in progressSteps"
+            :key="step.title"
+            :title="stepTitle(step)"
+          />
+        </Steps>
+      </div>
 
       <div class="forget-password-surface">
         <div class="forget-password-panel">
@@ -281,8 +314,9 @@ async function completeRecovery() {
                 <div class="forget-password-captcha">
                   <SliderCaptcha
                     v-model="formState.captchaPassed"
+                    :disabled="!canEnableCaptcha"
                     success-text="验证通过"
-                    text="请按住滑块拖动"
+                    :text="canEnableCaptcha ? '请按住滑块拖动' : '请先输入登录邮箱或手机号'"
                   />
                 </div>
               </FormItem>
@@ -454,83 +488,35 @@ async function completeRecovery() {
   color: hsl(var(--muted-foreground));
 }
 
-.forget-password-progress {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+.forget-password-steps-shell {
   margin: 28px 0 20px;
-  padding: 0;
-  list-style: none;
-}
-
-.forget-password-progress__item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  min-width: 0;
-  min-height: 72px;
-  padding: 14px 16px;
   border: 1px solid hsl(var(--border));
-  border-radius: 18px;
+  border-radius: 22px;
   background: hsl(var(--card) / 0.86);
-  color: hsl(var(--muted-foreground));
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    color 0.2s ease;
+  padding: 18px 20px;
 }
 
-.forget-password-progress__item.is-active {
-  border-color: hsl(var(--primary));
-  box-shadow: 0 12px 24px hsl(var(--primary) / 0.12);
-  color: hsl(var(--foreground));
+.forget-password-steps {
+  width: 100%;
 }
 
-.forget-password-progress__item.is-complete {
-  border-color: hsl(var(--primary) / 0.32);
-  color: hsl(var(--foreground));
-}
-
-.forget-password-progress__index {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 999px;
-  background: hsl(var(--muted));
-  font-size: 13px;
-  font-weight: 700;
-  color: hsl(var(--foreground));
-}
-
-.forget-password-progress__item.is-active .forget-password-progress__index,
-.forget-password-progress__item.is-complete .forget-password-progress__index {
-  background: hsl(var(--primary));
-  color: hsl(var(--primary-foreground));
-}
-
-.forget-password-progress__label {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  flex: 1;
-}
-
-.forget-password-progress__title {
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.4;
+.forget-password-steps :deep(.ant-steps-item-title) {
   white-space: normal;
   word-break: break-word;
   overflow-wrap: anywhere;
+  line-height: 1.4;
 }
 
-.forget-password-progress__short {
-  display: none;
-  font-size: 13px;
-  font-weight: 600;
+.forget-password-steps :deep(.ant-steps-item-description) {
+  white-space: normal;
+}
+
+.forget-password-steps :deep(.ant-steps-item-process .ant-steps-item-icon) {
+  box-shadow: 0 0 0 6px hsl(var(--primary) / 0.12);
+}
+
+.forget-password-steps :deep(.ant-steps-item-container) {
+  min-width: 0;
 }
 
 .forget-password-surface {
@@ -673,17 +659,8 @@ async function completeRecovery() {
     font-size: 24px;
   }
 
-  .forget-password-progress {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
-  }
-
-  .forget-password-progress__title {
-    display: none;
-  }
-
-  .forget-password-progress__short {
-    display: inline;
+  .forget-password-steps-shell {
+    padding: 16px;
   }
 
   .forget-password-panel__header,

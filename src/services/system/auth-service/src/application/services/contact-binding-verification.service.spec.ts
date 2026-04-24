@@ -3,6 +3,36 @@ import { OneTimeToken } from '../../domain/aggregates/otp.aggregate'
 import { ContactBindingVerificationService } from './contact-binding-verification.service'
 
 describe('ContactBindingVerificationService', () => {
+  it('rejects creating a binding challenge when the same user submits the already-bound email', async () => {
+    const loginMethodRepo = {
+      findByTypeAndIdentifier: jest.fn().mockResolvedValue({
+        identifier: 'alice@example.com',
+        type: LoginMethodType.EMAIL,
+        userId: 'user-1'
+      })
+    }
+
+    const service = new ContactBindingVerificationService(
+      loginMethodRepo as any,
+      {} as any,
+      {} as any,
+      {} as any
+    )
+
+    await expect(
+      service.createEmailChallenge('user-1', 'alice@example.com')
+    ).rejects.toMatchObject({
+      additionalDetails: expect.objectContaining({
+        field: 'email',
+        reason: 'IDENTIFIER_ALREADY_BOUND',
+        value: 'alice@example.com'
+      }),
+      definition: expect.objectContaining({
+        code: 'APP_VALIDATION_001'
+      })
+    })
+  })
+
   it('creates a register-usage email OTP for self-service binding without requiring an existing login method', async () => {
     const loginMethodRepo = {
       findByTypeAndIdentifier: jest.fn().mockResolvedValue(null)

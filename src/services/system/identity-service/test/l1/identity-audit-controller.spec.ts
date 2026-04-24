@@ -1,6 +1,7 @@
 import { CommandBus } from '@nestjs/cqrs'
 import { status } from '@grpc/grpc-js'
 import { ExceptionFactory } from '@oes/common/exceptions'
+import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { IdentityAuditService } from '../../src/application/services/identity-audit.service'
 import { IdentityMachineAuthGrpcController } from '../../src/interfaces/grpc/identity-machine-auth.grpc.controller'
 import { IdentityManagementGrpcController } from '../../src/interfaces/grpc/identity-management.grpc.controller'
@@ -13,16 +14,22 @@ import { createContactAssetFixture } from '../helpers/identity-fixtures'
 
 describe('identity audit controller integration', () => {
   it('management controller / assignAccountWorkEmailAsset 成功后 / 应发出审计事件', async () => {
-    const asset = createContactAssetFixture()
+    const asset = createContactAssetFixture({
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      accountId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+    })
     const commandBus = {
       execute: jest.fn().mockResolvedValue(asset)
     } as unknown as CommandBus
     const auditService = {
-      emitContactAssetEvent: jest.fn()
+      emitContactAssetEvent: jest.fn(),
+      emitEnvelope: jest.fn()
     } as unknown as IdentityAuditService
     const controller = new IdentityManagementGrpcController(
-      commandBus as any,
-      auditService
+      new ValidatingCommandBus(commandBus),
+      new ValidatingQueryBus({ execute: jest.fn() } as any),
+      auditService,
+      { resolvePermissionCodes: jest.fn().mockResolvedValue([]) } as any
     )
 
     const request: Record<string, unknown> = {
@@ -76,12 +83,14 @@ describe('identity audit controller integration', () => {
       emitEnvelope: jest.fn()
     } as unknown as IdentityAuditService
     const controller = new IdentityManagementGrpcController(
-      commandBus as any,
-      auditService
+      new ValidatingCommandBus(commandBus),
+      new ValidatingQueryBus({ execute: jest.fn() } as any),
+      auditService,
+      { resolvePermissionCodes: jest.fn().mockResolvedValue([]) } as any
     )
 
     const request: Record<string, unknown> = {
-      accountId: 'acc-1',
+      accountId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
       email: 'bad-email',
       isPrimary: false,
       __oesOperatorContext: {
@@ -104,10 +113,10 @@ describe('identity audit controller integration', () => {
         result: 'REJECTED',
         operator: {
           operatorId: '11111111-1111-4111-8111-111111111111',
-          operatorType: 'HUMAN'
-        },
+        operatorType: 'HUMAN'
+      },
         details: expect.objectContaining({
-          accountId: 'acc-1',
+          accountId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
           assetType: 'WORK_EMAIL',
           errorCode: 'IDENTITY_INVALID_WORK_EMAIL'
         })
@@ -147,6 +156,132 @@ describe('identity audit controller integration', () => {
           authenticationMethod: 'API_KEY',
           errorCode: 'IDENTITY_INVALID_WORK_EMAIL'
         })
+      })
+    )
+  })
+
+  it('management controller / deleteAccount 成功后 / 应发出包含跨服务清理统计的审计事件', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        accountId: 'acc-1',
+        deletedOrgMembershipCount: 1,
+        deletedContactAssetCount: 2,
+        userRetained: true
+      })
+    } as unknown as CommandBus
+    const auditService = {
+      emitEnvelope: jest.fn()
+    } as unknown as IdentityAuditService
+    const controller = new IdentityManagementGrpcController(
+      new ValidatingCommandBus(commandBus),
+      new ValidatingQueryBus({ execute: jest.fn() } as any),
+      auditService,
+      { resolvePermissionCodes: jest.fn().mockResolvedValue([]) } as any
+    )
+
+    const request: Record<string, unknown> = {
+      accountId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      deletedSessionCount: 3,
+      clearedRoleCount: 2,
+      deletedPolicyCount: 4,
+      __oesOperatorContext: {
+        operatorContext: {
+          operator_id: '11111111-1111-4111-8111-111111111111'
+        }
+      }
+    }
+
+    await expect(controller.deleteAccount(request as any)).resolves.toEqual({
+      accountId: 'acc-1',
+      deletedOrgMembershipCount: 1,
+      deletedContactAssetCount: 2,
+      userRetained: true
+    })
+
+    expect((auditService as any).emitEnvelope).toHaveBeenCalledWith(
+      'ACCOUNT_DELETED',
+      'account',
+      expect.objectContaining({
+        result: 'SUCCEEDED',
+        operator: {
+          operatorId: '11111111-1111-4111-8111-111111111111',
+          operatorType: 'HUMAN'
+        },
+        resource: {
+          resourceType: 'account',
+          resourceId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+        },
+        details: expect.objectContaining({
+          accountId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+          deletedSessionCount: 3,
+          clearedRoleCount: 2,
+          deletedPolicyCount: 4,
+          deletedOrgMembershipCount: 1,
+          deletedContactAssetCount: 2,
+          userRetained: true
+        })
+      })
+    )
+  })
+
+  it('management controller / updateOwnAccountProfile 自助更新当前账号资料时 / 不应要求管理员资料权限', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        id: 'account-1',
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        avatarUrl: 'https://cdn.example.com/avatar/account-1.png',
+        displayName: 'Vic Chen',
+        bio: 'self profile update',
+        isEnabled: true,
+        scopeLevel: 'TENANT'
+      })
+    } as unknown as CommandBus
+    const auditService = {
+      emitEnvelope: jest.fn()
+    } as unknown as IdentityAuditService
+    const permissionResolver = {
+      resolvePermissions: jest.fn().mockResolvedValue([])
+    }
+    const controller = new IdentityManagementGrpcController(
+      new ValidatingCommandBus(commandBus),
+      new ValidatingQueryBus({ execute: jest.fn() } as any),
+      auditService,
+      permissionResolver as any
+    )
+
+    const request: Record<string, unknown> = {
+      accountId: 'account-1',
+      displayName: 'Vic Chen',
+      bio: 'self profile update',
+      __oesOperatorContext: {
+        operatorContext: {
+          operator_id: 'account-1'
+        }
+      }
+    }
+
+    await expect((controller as any).updateOwnAccountProfile(request)).resolves.toEqual({
+      account: {
+        id: 'account-1',
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        avatarUrl: 'https://cdn.example.com/avatar/account-1.png',
+        avatarAssetId: '',
+        displayName: 'Vic Chen',
+        bio: 'self profile update',
+        isEnabled: true,
+        scopeLevel: 'TENANT'
+      }
+    })
+
+    expect(permissionResolver.resolvePermissions).not.toHaveBeenCalled()
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        accountId: 'account-1',
+        displayName: 'Vic Chen',
+        bio: 'self profile update',
+        operatorId: 'account-1'
       })
     )
   })

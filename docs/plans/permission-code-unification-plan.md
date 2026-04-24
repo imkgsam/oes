@@ -41,7 +41,7 @@
 ### SLICE-05 其他服务逐步迁移
 
 - `identity-service`
-- `entity-service`
+- `party-service`
 - 其他管理接口
 
 ## 4. 当前推荐顺序

@@ -194,7 +194,11 @@ export class PolicyManagementGrpcController implements PolicyManagementServiceCo
         tenantId: request.tenantId || undefined,
         permissionCode: request.permissionCode || undefined,
         isEnabled: hasIsEnabled ? request.isEnabled : undefined,
-        keyword: request.keyword || undefined
+        keyword: request.keyword || undefined,
+        subjectType: hasOwnField(request, 'subjectType')
+          ? mapEnum(request.subjectType, SUBJECT_TYPE_MAP)
+          : undefined,
+        subjectId: hasOwnField(request, 'subjectId') ? request.subjectId || undefined : undefined
       })
     )
 

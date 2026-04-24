@@ -7,14 +7,14 @@ describe('RoleManagementReadService', () => {
     listRoles: jest.fn()
   }
 
-  const identityAdapter = {
+  const tenantOrgAdapter = {
     getTenantById: jest.fn(),
     listTenants: jest.fn()
   }
 
   const service = new RoleManagementReadService(
     permissionService as any,
-    identityAdapter as any
+    tenantOrgAdapter as any
   )
 
   beforeEach(() => {
@@ -43,7 +43,7 @@ describe('RoleManagementReadService', () => {
         }
       ]
     })
-    identityAdapter.getTenantById.mockResolvedValue({
+    tenantOrgAdapter.getTenantById.mockResolvedValue({
       tenant: {
         id: 'tenant-1',
         name: '潮州市美隆陶瓷实业有限公司'
@@ -78,12 +78,12 @@ describe('RoleManagementReadService', () => {
       ]
     })
 
-    expect(identityAdapter.getTenantById).toHaveBeenCalledTimes(1)
+    expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledTimes(1)
     expect(permissionService.getRoleTemplateById).toHaveBeenCalledTimes(1)
   })
 
   it('lists tenant selector options for role creation flows', async () => {
-    identityAdapter.listTenants.mockResolvedValue({
+    tenantOrgAdapter.listTenants.mockResolvedValue({
       tenants: [
         {
           id: 'tenant-1',
@@ -113,7 +113,7 @@ describe('RoleManagementReadService', () => {
       ]
     })
 
-    expect(identityAdapter.listTenants).toHaveBeenCalledWith(
+    expect(tenantOrgAdapter.listTenants).toHaveBeenCalledWith(
       {
         keyword: 'alpha',
         pageSize: 10,

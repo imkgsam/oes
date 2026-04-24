@@ -15,6 +15,8 @@ import {
   PermissionManagementServiceController,
   PermissionManagementServiceControllerMethods,
   AssignAccountRoleRequest,
+  GrantInitialAccessForEmployeeAccountRequest,
+  GrantInitialAccessForEmployeeAccountResponse,
   AssignRolePermissionRequest,
   AssignRoleTemplatePermissionRequest,
   BatchCreatePermissionsRequest,
@@ -100,6 +102,7 @@ import { DeleteRoleCommand } from '../../application/commands/role/delete-role.c
 import { AssignRolePermissionCommand } from '../../application/commands/role/assign-role-permission.command'
 import { RevokeRolePermissionCommand } from '../../application/commands/role/revoke-role-permission.command'
 import { AssignAccountRoleCommand } from '../../application/commands/role/assign-account-role.command'
+import { GrantInitialAccessForEmployeeAccountCommand } from '../../application/commands/role/grant-initial-access-for-employee-account.command'
 import { RevokeAccountRoleCommand } from '../../application/commands/role/revoke-account-role.command'
 import { SetAccountRolesCommand } from '../../application/commands/role/set-account-roles.command'
 import { GetRoleByIdQuery } from '../../application/queries/role/get-role-by-id.query'
@@ -721,6 +724,48 @@ export class PermissionManagementGrpcController implements PermissionManagementS
         expiresAt: request.expiresAt || ''
       }
     )
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.ASSIGN_ACCOUNT_ROLE)
+  async grantInitialAccessForEmployeeAccount(
+    request: GrantInitialAccessForEmployeeAccountRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<GrantInitialAccessForEmployeeAccountResponse> {
+    const result = await this.commandBus.execute(
+      new GrantInitialAccessForEmployeeAccountCommand({
+        tenantId: request.tenantId!,
+        accountId: request.accountId!,
+        roleIds: request.roleIds ?? [],
+        idempotencyKey: request.idempotencyKey!,
+        reason: request.reason || undefined,
+        operatorScope: this.getOperatorScope(request)
+      })
+    )
+
+    this.recordMutation(
+      request,
+      'ACCOUNT_ONBOARDING_ACCESS_GRANTED',
+      'ACCOUNT_ROLE',
+      `${request.accountId!}:${request.idempotencyKey!}`,
+      undefined,
+      {
+        accountId: request.accountId!,
+        tenantId: request.tenantId!,
+        roleIds: result.roleIds,
+        idempotencyKey: result.idempotencyKey
+      }
+    )
+
+    return {
+      grant: {
+        id: result.grantId ?? '',
+        tenantId: request.tenantId!,
+        accountId: request.accountId!,
+        roleIds: result.roleIds,
+        idempotencyKey: result.idempotencyKey
+      }
+    }
   }
 
   @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.REVOKE_ACCOUNT_ROLE)

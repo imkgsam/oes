@@ -14,6 +14,7 @@ import { IPermissionServicePort } from '../ports'
 import { AuthAuditService } from './auth-audit.service'
 import { normalizeAuthDeviceContext } from './auth-device-context'
 import { PasswordSetupRequirementService } from './password-setup-requirement.service'
+import { TrustedDeviceService } from './trusted-device.service'
 
 export interface EstablishAccountSessionInput {
   account: IdentityAccountSummary
@@ -22,6 +23,7 @@ export interface EstablishAccountSessionInput {
   deviceName?: string
   ipAddress?: string
   loginMethod: LoginMethodEnum
+  trustCurrentDevice?: boolean
   userAgent?: string
   userId: string
 }
@@ -51,7 +53,8 @@ export class AccountSessionEstablishmentService {
     private readonly configService: ConfigService,
     @Inject(REPO.SESSION)
     private readonly sessionRepository: IUserSessionRepository,
-    private readonly authAuditService: AuthAuditService
+    private readonly authAuditService: AuthAuditService,
+    private readonly trustedDeviceService: TrustedDeviceService
   ) {}
 
   async establish(input: EstablishAccountSessionInput): Promise<EstablishedAccountSession> {
@@ -127,6 +130,19 @@ export class AccountSessionEstablishmentService {
     await this.sessionRepository.save(session)
     if (previousSession && previousSession.getId() !== session.getId()) {
       await this.sessionRepository.delete(previousSession.getId())
+    }
+    if (input.trustCurrentDevice) {
+      await this.trustedDeviceService.rememberTrustedDevice({
+        userId: input.userId,
+        scopeLevel: input.account.scopeLevel,
+        tenantId: input.account.tenantId ?? undefined,
+        deviceId: session.getDeviceInfo().deviceId,
+        deviceName: session.getDeviceInfo().deviceName,
+        browser: session.getDeviceInfo().browser,
+        platform: session.getDeviceInfo().platform,
+        userAgent: session.getDeviceInfo().userAgent,
+        ipAddress: session.getDeviceInfo().ipAddress
+      })
     }
 
     this.authAuditService.emitLoginSucceeded(session, input.loginMethod)

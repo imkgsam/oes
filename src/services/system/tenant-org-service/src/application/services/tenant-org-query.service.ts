@@ -1,0 +1,112 @@
+import { BadRequestException, Inject, Injectable } from '@nestjs/common'
+import {
+  ORG_UNIT_REPOSITORY,
+  OrgUnitRepository,
+  TENANT_REPOSITORY,
+  TenantRepository
+} from '../../domain/repositories'
+import { OrgUnitStatus } from '../../domain/value-objects'
+
+/** TenantOrgQueryService provides read-only tenant, org tree, hierarchy, and org reference lookups. */
+@Injectable()
+export class TenantOrgQueryService {
+  constructor(
+    @Inject(TENANT_REPOSITORY)
+    private readonly tenantRepository: TenantRepository,
+    @Inject(ORG_UNIT_REPOSITORY)
+    private readonly orgUnitRepository: OrgUnitRepository
+  ) {}
+
+  async getTenantById(tenantId: string) {
+    return this.tenantRepository.findById(requireNonBlank(tenantId, 'tenantId'))
+  }
+
+  async listTenants(input: {
+    keyword?: string
+    status?: string
+    page?: number
+    pageSize?: number
+  }) {
+    return this.tenantRepository.list(input)
+  }
+
+  async getOrgTreeByTenantId(tenantId: string) {
+    return this.orgUnitRepository.listTreeByTenant(requireNonBlank(tenantId, 'tenantId'))
+  }
+
+  async getOrgUnitById(tenantId: string, orgUnitId: string) {
+    return this.orgUnitRepository.findById(
+      requireNonBlank(tenantId, 'tenantId'),
+      requireNonBlank(orgUnitId, 'orgUnitId')
+    )
+  }
+
+  async validateOrgReference(input: {
+    tenantId: string
+    orgUnitId: string
+    expectedOrgType?: string
+  }) {
+    const tenantId = requireNonBlank(input.tenantId, 'tenantId')
+    const orgUnitId = requireNonBlank(input.orgUnitId, 'orgUnitId')
+    const orgUnit = await this.orgUnitRepository.findById(tenantId, orgUnitId)
+
+    if (!orgUnit) {
+      return {
+        valid: false,
+        rejectionReason: 'ORG_UNIT_NOT_FOUND',
+        orgUnitSummary: null
+      }
+    }
+
+    if (orgUnit.status !== OrgUnitStatus.ACTIVE) {
+      return {
+        valid: false,
+        rejectionReason: 'ORG_UNIT_ARCHIVED',
+        orgUnitSummary: orgUnit
+      }
+    }
+
+    if (input.expectedOrgType && orgUnit.type !== input.expectedOrgType) {
+      return {
+        valid: false,
+        rejectionReason: 'ORG_TYPE_MISMATCH',
+        orgUnitSummary: orgUnit
+      }
+    }
+
+    return {
+      valid: true,
+      rejectionReason: '',
+      orgUnitSummary: orgUnit
+    }
+  }
+
+  async getOrgReferenceSummary(tenantId: string, orgUnitId: string) {
+    const orgUnit = await this.getOrgUnitById(tenantId, orgUnitId)
+    return orgUnit?.status === OrgUnitStatus.ACTIVE ? orgUnit : null
+  }
+
+  async listAncestorOrgUnits(tenantId: string, orgUnitId: string) {
+    return this.orgUnitRepository.listAncestors(
+      requireNonBlank(tenantId, 'tenantId'),
+      requireNonBlank(orgUnitId, 'orgUnitId')
+    )
+  }
+
+  async listDescendantOrgUnits(tenantId: string, orgUnitId: string, maxDepth?: number) {
+    return this.orgUnitRepository.listDescendants(
+      requireNonBlank(tenantId, 'tenantId'),
+      requireNonBlank(orgUnitId, 'orgUnitId'),
+      maxDepth && maxDepth > 0 ? maxDepth : undefined
+    )
+  }
+}
+
+/** requireNonBlank normalizes required string inputs before application-layer use. */
+function requireNonBlank(value: string, fieldName: string): string {
+  const normalized = value?.trim()
+  if (!normalized) {
+    throw new BadRequestException(`${fieldName} is required`)
+  }
+  return normalized
+}

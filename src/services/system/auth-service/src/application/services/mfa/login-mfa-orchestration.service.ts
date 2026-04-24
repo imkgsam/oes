@@ -2,25 +2,35 @@ import { Inject, Injectable } from '@nestjs/common'
 import { CommonJwtService } from '@oes/common/auth'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { LoginMethodEnum, MfaType, REPO } from '../../../common/constants'
-import { AUTH_MFA_LOGIN_METHOD_UNAVAILABLE } from '../../../common/constants/exception-enums'
+import {
+  AUTH_MFA_INVALID_CODE,
+  AUTH_MFA_LOGIN_METHOD_UNAVAILABLE
+} from '../../../common/constants/exception-enums'
+import {
+  PlatformMfaPolicyEntity
+} from '../../../domain/entities/platform-mfa-policy.entity'
 import {
   TenantMfaFactor,
+  TenantMfaScenario,
   TenantMfaPolicyEntity
 } from '../../../domain/entities/tenant-mfa-policy.entity'
+import { PlatformMfaPolicyRepository } from '../../../domain/repositories/platform-mfa-policy.repository'
 import { TenantMfaPolicyRepository } from '../../../domain/repositories/tenant-mfa-policy.repository'
 import { EmailOtpMfaChallengeService } from './email-otp-mfa-challenge.service'
 import { MfaChallengeVerificationService } from './mfa-challenge-verification.service'
 import { MfaBindingManagementService } from './mfa-binding-management.service'
 import { PhoneOtpMfaChallengeService } from './phone-otp-mfa-challenge.service'
+import { TrustedDeviceService } from '../trusted-device.service'
 
 export interface LoginMfaFactorOption {
   type: TenantMfaFactor
   label: string
+  priority: number
 }
 
 export interface SelectedAccountMfaChallenge {
   challengeId: string
-  scenario: 'LOGIN'
+  scenario: TenantMfaScenario
   defaultFactor: TenantMfaFactor
   availableFactors: LoginMfaFactorOption[]
   factorChallengeId?: string
@@ -28,11 +38,19 @@ export interface SelectedAccountMfaChallenge {
   expiresAt?: string
 }
 
-export interface SelectedAccountMfaInput {
+export interface SelectedAccountLoginFlowChallenge
+  extends Omit<SelectedAccountMfaChallenge, 'scenario'> {
+  scenario: 'LOGIN' | 'NEW_DEVICE_LOGIN'
+}
+
+export interface AccountMfaChallengeInput {
   accountId: string
+  deviceId?: string
+  deviceName?: string
   displayName?: string
   ipAddress?: string
-  loginMethod: LoginMethodEnum
+  loginMethod?: LoginMethodEnum
+  scenario: TenantMfaScenario
   scopeLevel: 'SYSTEM' | 'TENANT'
   tenantId: null | string
   userAgent?: string
@@ -41,11 +59,13 @@ export interface SelectedAccountMfaInput {
 
 export interface LoginMfaFlowPayload {
   aid: string
+  deviceId?: string
+  deviceName?: string
   displayName?: string
   iat?: number
   ipAddress?: string
-  loginMethod: LoginMethodEnum
-  scenario: 'LOGIN'
+  loginMethod?: LoginMethodEnum
+  scenario: TenantMfaScenario
   scopeLevel: 'SYSTEM' | 'TENANT'
   sub: string
   tid?: string
@@ -53,68 +73,64 @@ export interface LoginMfaFlowPayload {
   userAgent?: string
 }
 
-// Orchestrates login-scene MFA after account selection so tenant policy is resolved against one concrete account context.
+// Orchestrates one account-scoped MFA challenge flow so login and step-up scenarios reuse the same factor resolution path.
 @Injectable()
 export class LoginMfaOrchestrationService {
   constructor(
+    @Inject(REPO.PLATFORM_MFA_POLICY)
+    private readonly platformMfaPolicyRepository: PlatformMfaPolicyRepository,
     @Inject(REPO.TENANT_MFA_POLICY)
     private readonly tenantMfaPolicyRepository: TenantMfaPolicyRepository,
     private readonly mfaBindingManagementService: MfaBindingManagementService,
     private readonly emailOtpMfaChallengeService: EmailOtpMfaChallengeService,
     private readonly phoneOtpMfaChallengeService: PhoneOtpMfaChallengeService,
     private readonly mfaChallengeVerificationService: MfaChallengeVerificationService,
-    private readonly jwtService: CommonJwtService
+    private readonly jwtService: CommonJwtService,
+    private readonly trustedDeviceService: TrustedDeviceService
   ) {}
 
   async resolveChallengeForSelectedAccount(
-    input: SelectedAccountMfaInput
-  ): Promise<null | SelectedAccountMfaChallenge> {
-    if (input.scopeLevel !== 'TENANT' || !input.tenantId) {
+    input: Omit<AccountMfaChallengeInput, 'scenario'>
+  ): Promise<null | SelectedAccountLoginFlowChallenge> {
+    if (input.loginMethod === LoginMethodEnum.ContextSwitch) {
       return null
     }
 
-    const policy = await this.tenantMfaPolicyRepository.getTenantPolicy(input.tenantId)
-    if (!policy.isLoginRequired()) {
+    const policy = await this.resolvePolicy(input.scopeLevel, input.tenantId)
+    if (!policy) {
+      return null
+    }
+    const selectedScenario = await this.resolveSelectedAccountScenario(input, policy)
+    if (!selectedScenario) {
       return null
     }
 
-    const availableFactors = await this.resolveAvailableFactors(input.userId, policy)
-    if (availableFactors.length === 0) {
-      throw ExceptionFactory.domain(AUTH_MFA_LOGIN_METHOD_UNAVAILABLE, {
-        userId: input.userId,
-        tenantId: input.tenantId,
-        accountId: input.accountId
-      })
-    }
-
-    const challengeId = this.jwtService.signAccessToken(
+    const challenge = await this.buildChallengeForScenario(
       {
-        sub: input.userId,
-        aid: input.accountId,
-        tid: input.tenantId,
-        scopeLevel: input.scopeLevel,
-        displayName: input.displayName,
-        loginMethod: input.loginMethod,
-        scenario: 'LOGIN',
-        tokenType: 'mfa_flow',
-        userAgent: input.userAgent,
-        ipAddress: input.ipAddress
+        ...input,
+        scenario: selectedScenario
       },
-      { expiresIn: '10m' }
+      policy
     )
 
-    const defaultFactor = availableFactors[0].type
-    const factorChallenge = await this.requestFactorChallenge(challengeId, defaultFactor)
+    if (!challenge) {
+      return null
+    }
 
     return {
-      challengeId,
-      scenario: 'LOGIN',
-      defaultFactor,
-      availableFactors,
-      factorChallengeId: factorChallenge.factorChallengeId,
-      destination: factorChallenge.destination,
-      expiresAt: factorChallenge.expiresAt
+      ...challenge,
+      scenario: selectedScenario
     }
+  }
+
+  async resolveChallengeForAccount(
+    input: AccountMfaChallengeInput
+  ): Promise<null | SelectedAccountMfaChallenge> {
+    const policy = await this.resolvePolicy(input.scopeLevel, input.tenantId)
+    if (!policy) {
+      return null
+    }
+    return this.buildChallengeForScenario(input, policy)
   }
 
   async requestFactorChallenge(
@@ -166,7 +182,7 @@ export class LoginMfaOrchestrationService {
     })
 
     if (!isValid) {
-      throw ExceptionFactory.domain(AUTH_MFA_LOGIN_METHOD_UNAVAILABLE, {
+      throw ExceptionFactory.domain(AUTH_MFA_INVALID_CODE, {
         userId: flow.sub,
         factor: input.factor
       })
@@ -181,7 +197,7 @@ export class LoginMfaOrchestrationService {
 
   private async resolveAvailableFactors(
     userId: string,
-    policy: TenantMfaPolicyEntity
+    policy: ManagedMfaPolicy
   ): Promise<LoginMfaFactorOption[]> {
     const bindings = await this.mfaBindingManagementService.listBindings(userId)
     const bindingMap = new Map(bindings.map((binding) => [binding.type, binding]))
@@ -196,34 +212,118 @@ export class LoginMfaOrchestrationService {
         }
         return {
           type: factorPolicy.factor,
-          label: labelForFactor(factorPolicy.factor)
+          label: labelForFactor(factorPolicy.factor),
+          priority: factorPolicy.priority
         }
       })
       .filter((value): value is LoginMfaFactorOption => Boolean(value))
+  }
+
+  private async resolveSelectedAccountScenario(
+    input: Omit<AccountMfaChallengeInput, 'scenario'>,
+    policy: ManagedMfaPolicy
+  ): Promise<null | 'LOGIN' | 'NEW_DEVICE_LOGIN'> {
+    if (
+      policy.isScenarioRequired('NEW_DEVICE_LOGIN') &&
+      !(await this.trustedDeviceService.isTrustedDevice({
+        userId: input.userId,
+        scopeLevel: input.scopeLevel,
+        tenantId: input.tenantId,
+        deviceId: input.deviceId
+      }))
+    ) {
+      return 'NEW_DEVICE_LOGIN'
+    }
+
+    return policy.isScenarioRequired('LOGIN') ? 'LOGIN' : null
+  }
+
+  private async buildChallengeForScenario(
+    input: AccountMfaChallengeInput,
+    policy: ManagedMfaPolicy
+  ): Promise<null | SelectedAccountMfaChallenge> {
+    if (!policy.isScenarioRequired(input.scenario)) {
+      return null
+    }
+
+    const availableFactors = await this.resolveAvailableFactors(input.userId, policy)
+    if (availableFactors.length === 0) {
+      throw ExceptionFactory.domain(AUTH_MFA_LOGIN_METHOD_UNAVAILABLE, {
+        userId: input.userId,
+        tenantId: input.tenantId,
+        accountId: input.accountId,
+        scenario: input.scenario
+      })
+    }
+
+    const challengeId = this.jwtService.signAccessToken(
+      {
+        sub: input.userId,
+        aid: input.accountId,
+        tid: input.tenantId,
+        scopeLevel: input.scopeLevel,
+        displayName: input.displayName,
+        loginMethod: input.loginMethod,
+        scenario: input.scenario,
+        tokenType: 'mfa_flow',
+        deviceId: input.deviceId,
+        deviceName: input.deviceName,
+        userAgent: input.userAgent,
+        ipAddress: input.ipAddress
+      },
+      { expiresIn: '10m' }
+    )
+
+    return {
+      challengeId,
+      scenario: input.scenario,
+      defaultFactor: availableFactors[0].type,
+      availableFactors
+    }
   }
 
   private async assertFactorAllowed(
     flow: LoginMfaFlowPayload,
     factor: TenantMfaFactor
   ): Promise<void> {
-    if (!flow.tid || flow.scopeLevel !== 'TENANT') {
+    const policy = await this.resolvePolicy(flow.scopeLevel, flow.tid)
+    if (!policy) {
       throw ExceptionFactory.domain(AUTH_MFA_LOGIN_METHOD_UNAVAILABLE, {
         userId: flow.sub,
         factor
       })
     }
-
-    const policy = await this.tenantMfaPolicyRepository.getTenantPolicy(flow.tid)
     const allowedFactors = await this.resolveAvailableFactors(flow.sub, policy)
     if (!allowedFactors.some((item) => item.type === factor)) {
       throw ExceptionFactory.domain(AUTH_MFA_LOGIN_METHOD_UNAVAILABLE, {
         userId: flow.sub,
         factor,
-        tenantId: flow.tid
+        tenantId: flow.tid,
+        scopeLevel: flow.scopeLevel
       })
     }
   }
+
+  private async resolvePolicy(
+    scopeLevel: 'SYSTEM' | 'TENANT',
+    tenantId: null | string
+  ): Promise<ManagedMfaPolicy | null> {
+    if (scopeLevel === 'SYSTEM') {
+      return this.platformMfaPolicyRepository.getPlatformPolicy()
+    }
+
+    if (!tenantId) {
+      return null
+    }
+
+    return this.tenantMfaPolicyRepository.getTenantPolicy(tenantId)
+  }
 }
+
+type ManagedMfaPolicy = Pick<
+  PlatformMfaPolicyEntity | TenantMfaPolicyEntity,
+  'getFactors' | 'isScenarioRequired'
+>
 
 function labelForFactor(factor: TenantMfaFactor): string {
   switch (factor) {

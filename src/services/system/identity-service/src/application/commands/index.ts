@@ -1,4 +1,5 @@
 export * from './account'
+export * from './employee-binding'
 export * from './org'
 export * from './contact'
 export * from './service-account'

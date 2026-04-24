@@ -36,7 +36,7 @@ oes/
 │       │   ├── auth-service       # 认证服务 (TCP)
 │       │   ├── identity-service   # 身份服务 (TCP)
 │       │   ├── permission-service # 权限服务 (TCP + gRPC)
-│       │   └── entity-service     # 实体服务 (TCP)
+│       │   └── party-service      # 主体服务 (gRPC)
 │       ├── business/              # 业务服务层
 │       │   ├── erp-service        # ERP 服务 (骨架)
 │       │   ├── mes-service        # MES 服务 (骨架)
@@ -68,7 +68,7 @@ flowchart TB
         AUTH[Auth Service :9202<br/>TCP]
         IDENT[Identity Service :9402<br/>TCP]
         PERM[Permission Service :9302<br/>TCP + gRPC]
-        ENTITY[Entity Service :9502<br/>TCP]
+        PARTY[Party Service :50053<br/>gRPC]
     end
 
     subgraph Business Services
@@ -99,7 +99,7 @@ flowchart TB
     AUTH --> REDIS
     IDENT --> PG
     PERM --> PG
-    ENTITY --> PG
+    PARTY --> PG
     RES --> PG
 
     GW -.->|OTLP| JAEGER
@@ -291,7 +291,7 @@ flowchart TB
             AUTH_M[Auth Proxy Module]
             PERM_M[Permission Proxy Module]
             IDENT_M[Identity Proxy Module]
-            ENTITY_M[Entity Proxy Module]
+            PARTY_M[Party Proxy Module]
             RES_M[Resource Proxy Module]
         end
     end
@@ -300,14 +300,14 @@ flowchart TB
         AUTH_S[auth-service]
         PERM_S[permission-service]
         IDENT_S[identity-service]
-        ENTITY_S[entity-service]
+        PARTY_S[party-service]
         RES_S[resource-service]
     end
 
     AUTH_M -->|gRPC| AUTH_S
     PERM_M -->|gRPC| PERM_S
     IDENT_M -->|gRPC| IDENT_S
-    ENTITY_M -->|gRPC| ENTITY_S
+    PARTY_M -->|gRPC| PARTY_S
     RES_M -->|gRPC| RES_S
 ```
 
@@ -710,11 +710,11 @@ src/services/system/api-gateway/
 │       │       ├── account.controller.ts
 │       │       └── admin.controller.ts
 │       │
-│       ├── entity-proxy/                   # 实体服务代理 [NEW]
-│       │   ├── entity-proxy.module.ts
-│       │   ├── entity-proxy.service.ts
+│       ├── party-proxy/                    # 主体服务代理 [NEW]
+│       │   ├── party-proxy.module.ts
+│       │   ├── party-proxy.service.ts
 │       │   └── controllers/
-│       │       └── entity.controller.ts
+│       │       └── party.controller.ts
 │       │
 │       └── resource-proxy/                 # 资源服务代理 [NEW]
 │           ├── resource-proxy.module.ts
@@ -769,7 +769,7 @@ flowchart LR
 | 重构 auth-service 模块为 auth-proxy             | 统一命名，切换到 gRPC           | P0     |
 | 重构 permission-service 模块为 permission-proxy | TCP → gRPC                      | P0     |
 | 重构 identity-service 模块为 identity-proxy     | 完善控制器                      | P0     |
-| 新增 entity-proxy 模块                          | 实体服务代理                    | P1     |
+| 新增 party-proxy 模块                           | 主体服务代理                    | P1     |
 | 新增 resource-proxy 模块                        | 资源服务代理                    | P1     |
 | 统一 AppModule 中的 gRPC 配置                   | `GrpcTransportModule.forRoot()` | P0     |
 | 移除 TCP ClientModule 依赖                      | 清理旧代码                      | P1     |

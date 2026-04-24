@@ -5,7 +5,7 @@ import type { VbenFormSchema } from '@vben-core/form-ui';
 
 import type { AuthenticationProps } from './types';
 
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, getCurrentInstance, onMounted, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 import { $t } from '@vben/locales';
@@ -43,6 +43,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<{
+  forgetPassword: [Recordable<any>];
   submit: [Recordable<any>];
 }>();
 
@@ -57,6 +58,7 @@ const [Form, formApi] = useVbenForm(
   }),
 );
 const router = useRouter();
+const instance = getCurrentInstance();
 
 const REMEMBER_ME_KEY = `REMEMBER_ME_USERNAME_${location.hostname}`;
 
@@ -78,6 +80,19 @@ async function handleSubmit() {
 
 function handleGo(path: string) {
   router.push(path);
+}
+
+// Delegates forget-password navigation to consumers that need current form values.
+async function handleForgetPassword() {
+  const values = await formApi.getValues();
+  const listener = instance?.vnode.props?.onForgetPassword;
+
+  if (listener) {
+    emit('forgetPassword', values);
+    return;
+  }
+
+  handleGo(props.forgetPasswordPath);
 }
 
 onMounted(() => {
@@ -129,7 +144,7 @@ defineExpose({
       <span
         v-if="showForgetPassword"
         class="vben-link text-sm font-normal"
-        @click="handleGo(forgetPasswordPath)"
+        @click="handleForgetPassword"
         >
           {{ $t('authentication.forgetPassword') }}
         </span>

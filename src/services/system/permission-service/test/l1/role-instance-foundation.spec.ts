@@ -22,7 +22,9 @@ describe('role instance foundation sync', () => {
       prisma,
       new Map([
         ['permission.role.list', 'perm-view-role'],
-        ['permission.account.get_roles', 'perm-view-account-role']
+        ['permission.account.get_roles', 'perm-view-account-role'],
+        ['hr.employee.list', 'perm-hr-list-employee'],
+        ['hr.employee.get_by_id', 'perm-hr-view-employee-detail']
       ])
     )
 
@@ -47,16 +49,32 @@ describe('role instance foundation sync', () => {
           roleId: 'tenant-admin-role-1'
         },
         {
+          permissionId: 'perm-hr-list-employee',
+          roleId: 'tenant-admin-role-1'
+        },
+        {
+          permissionId: 'perm-hr-view-employee-detail',
+          roleId: 'tenant-admin-role-1'
+        },
+        {
           permissionId: 'perm-view-role',
           roleId: 'tenant-admin-role-2'
         },
         {
           permissionId: 'perm-view-account-role',
           roleId: 'tenant-admin-role-2'
+        },
+        {
+          permissionId: 'perm-hr-list-employee',
+          roleId: 'tenant-admin-role-2'
+        },
+        {
+          permissionId: 'perm-hr-view-employee-detail',
+          roleId: 'tenant-admin-role-2'
         }
       ],
       skipDuplicates: true
     })
-    expect(createdCount).toBe(3)
+    expect(createdCount).toBe(7)
   })
 })

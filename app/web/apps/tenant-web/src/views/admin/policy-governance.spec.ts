@@ -202,6 +202,8 @@ describe('policy governance page', () => {
     expect(helpDot).not.toBeNull();
     expect(document.body.textContent).toContain('策略目录');
     expect(document.body.textContent).toContain('查看详情');
+    expect(document.body.textContent).not.toContain('登录 MFA 策略');
+    expect(document.body.textContent).not.toContain('因子优先级');
 
     expect(document.body.textContent).not.toContain('创建');
     expect(document.body.textContent).not.toContain('编辑');

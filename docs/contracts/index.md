@@ -9,10 +9,13 @@
 | 范围 | 文档入口 |
 |---|---|
 | API Gateway / BFF | [api-gateway/README.md](./api-gateway/README.md) |
+| asset-service | [asset-service/README.md](./asset-service/README.md) |
 | auth-service | [auth-service/README.md](./auth-service/README.md) |
+| hr-service | [hr-service/README.md](./hr-service/README.md) |
 | identity-service | [identity-service/README.md](./identity-service/README.md) |
 | permission-service | [permission-service/README.md](./permission-service/README.md) |
 | party-service | [party-service/README.md](./party-service/README.md) |
+| tenant-org-service | [tenant-org-service/README.md](./tenant-org-service/README.md) |
 
 ## 使用规则
 

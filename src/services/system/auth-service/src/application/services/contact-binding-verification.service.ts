@@ -156,7 +156,19 @@ export class ContactBindingVerificationService {
     identifier: string
   ): Promise<void> {
     const existing = await this.loginMethodRepo.findByTypeAndIdentifier(type, identifier)
-    if (existing && existing.userId !== userId) {
+    if (!existing) {
+      return
+    }
+
+    if (existing.userId === userId) {
+      throw ExceptionFactory.application(VALIDATION_FAILED, {
+        field: type === LoginMethodType.EMAIL ? 'email' : 'phone',
+        reason: 'IDENTIFIER_ALREADY_BOUND',
+        value: identifier
+      })
+    }
+
+    if (existing.userId !== userId) {
       throw ExceptionFactory.application(VALIDATION_FAILED, {
         field: type === LoginMethodType.EMAIL ? 'email' : 'phone',
         value: identifier

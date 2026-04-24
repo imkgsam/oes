@@ -1,13 +1,17 @@
 import { Inject } from '@nestjs/common'
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { REPO } from '../../../common/constants'
-import { TenantMfaFactorPolicySnapshot } from '../../../domain/entities/tenant-mfa-policy.entity'
+import {
+  TenantMfaFactorPolicySnapshot,
+  TenantMfaScenarioRequirementSnapshot
+} from '../../../domain/entities/tenant-mfa-policy.entity'
 import { TenantMfaPolicyRepository } from '../../../domain/repositories/tenant-mfa-policy.repository'
 import { GetTenantMfaPolicyQuery } from './get-tenant-mfa-policy.query'
 
 export interface TenantMfaPolicyQueryResult {
   factors: TenantMfaFactorPolicySnapshot[]
   loginRequired: boolean
+  scenarioRequirements: TenantMfaScenarioRequirementSnapshot
   tenantId: string
 }
 
@@ -26,6 +30,7 @@ export class GetTenantMfaPolicyHandler
     return {
       tenantId: policy.tenantId,
       loginRequired: policy.isLoginRequired(),
+      scenarioRequirements: policy.getScenarioRequirements(),
       factors: policy.getFactors()
     }
   }

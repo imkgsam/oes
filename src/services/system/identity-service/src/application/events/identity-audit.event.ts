@@ -10,6 +10,9 @@ import {
 export type IdentityAuditModule = 'account' | 'contact' | 'org' | 'machine'
 
 export type IdentityAuditEventType =
+  | 'ACCOUNT_DELETED'
+  | 'ACCOUNT_EMPLOYEE_BOUND'
+  | 'ACCOUNT_EMPLOYEE_UNBOUND'
   | 'ACCOUNT_PROFILE_UPDATED'
   | 'ACCOUNT_WORK_EMAIL_ASSIGNED'
   | 'ACCOUNT_WORK_PHONE_ASSIGNED'

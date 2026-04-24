@@ -122,7 +122,6 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       return (response.accounts ?? []).map((account) => ({
         accountId: account.accountId ?? '',
         tenantId: this.normalizeTenantId(account.tenantId),
-        tenantName: this.normalizeOptionalText(account.tenantName),
         scopeLevel: this.normalizeScopeLevel(account.scopeLevel),
         displayName: account.displayName ?? ''
       }))

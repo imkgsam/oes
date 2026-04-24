@@ -97,7 +97,6 @@ describe('PrismaApiKeyRepository L2', () => {
     const tenant = await prisma.tenant.create({
       data: {
         id: `${prefix}_tenant`,
-        entityId: `${prefix}_tenant_entity`,
         name: `${prefix}_tenant_name`,
         code: `${prefix}_tenant_code`
       }
@@ -105,7 +104,6 @@ describe('PrismaApiKeyRepository L2', () => {
     const otherTenant = await prisma.tenant.create({
       data: {
         id: `${prefix}_tenant_other`,
-        entityId: `${prefix}_tenant_entity_other`,
         name: `${prefix}_tenant_name_other`,
         code: `${prefix}_tenant_code_other`
       }

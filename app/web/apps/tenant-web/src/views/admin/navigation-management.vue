@@ -41,9 +41,11 @@ import {
 import { useAuthStore } from '#/store';
 import { useAuthContextStore } from '#/store/auth-context';
 import {
+  buildNavigationPreviewEntryRows,
+  buildNavigationTerminalList,
+  buildRoleOptionLabel,
   buildRoleNavigationEditorModel,
   buildRoleNavigationSavePayload,
-  collectNavigationSupportedTerminals,
   inferNavigationPreviewScopeLevel,
 } from './navigation-management.helpers';
 
@@ -52,7 +54,7 @@ type EntryFormMode = 'create' | 'edit';
 interface EntryFilterState {
   enabled: '' | 'false' | 'true';
   keyword: string;
-  terminal: '' | 'MOBILE' | 'WEB';
+  terminal: string;
 }
 
 interface EntryFormState {
@@ -70,7 +72,7 @@ interface RoleFormState {
   editorTerminal: string;
   previewRoleIds: string[];
   roleId: string;
-  terminal: 'MOBILE' | 'WEB';
+  terminal: string;
 }
 
 interface SelectOption {
@@ -84,14 +86,6 @@ interface RoleSelectOption extends SelectOption {
 
 const authContextStore = useAuthContextStore();
 const authStore = useAuthStore();
-const managedTerminalOptions: SelectOption[] = [
-  { label: 'WEB', value: 'WEB' },
-  { label: 'MOBILE', value: 'MOBILE' },
-];
-const entryTerminalOptions: SelectOption[] = [
-  { label: '全部终端', value: '' },
-  ...managedTerminalOptions,
-];
 const entryStatusOptions: SelectOption[] = [
   { label: '全部状态', value: '' },
   { label: '启用', value: 'true' },
@@ -99,6 +93,7 @@ const entryStatusOptions: SelectOption[] = [
 ];
 const activeTab = ref('entries');
 const entries = ref<PermissionManagementApi.NavigationEntry[]>([]);
+const registryEntries = ref<PermissionManagementApi.NavigationEntry[]>([]);
 const selectedEntry = ref<PermissionManagementApi.NavigationEntry | null>(null);
 const entryFormMode = ref<EntryFormMode>('create');
 const entryDrawerOpen = ref(false);
@@ -108,6 +103,7 @@ const roleLoading = ref(false);
 const roleSaving = ref(false);
 const roleOptionsLoading = ref(false);
 const previewLoading = ref(false);
+const previewRequestVersion = ref(0);
 const roleNavigation = ref<PermissionManagementApi.RoleNavigationConfig | null>(null);
 const previewResult = ref<PermissionManagementApi.ResolveNavigationPreviewResult | null>(null);
 const roleOptions = ref<RoleSelectOption[]>([]);
@@ -170,21 +166,48 @@ const selectedPreviewRoles = computed(() =>
     .filter((option) => roleForm.previewRoleIds.includes(option.value))
     .map((option) => option.role),
 );
+const managedTerminalOptions = computed<SelectOption[]>(() =>
+  buildNavigationTerminalList(registryEntries.value).map((terminal) => ({
+    label: terminal,
+    value: terminal,
+  })),
+);
+const entryTerminalOptions = computed<SelectOption[]>(() => [
+  { label: '全部终端', value: '' },
+  ...managedTerminalOptions.value,
+]);
 const roleEditorTerminalOptions = computed<SelectOption[]>(() => [
   { label: 'DEFAULT', value: 'DEFAULT' },
-  ...collectNavigationSupportedTerminals(entries.value).map((terminal) => ({
+  ...buildNavigationTerminalList(registryEntries.value).map((terminal) => ({
     label: terminal,
     value: terminal,
   })),
 ]);
 const roleEditorEntries = computed(() =>
   buildRoleNavigationEditorModel({
-    entries: entries.value,
+    entries: registryEntries.value,
     landingPolicies: roleNavigation.value?.landingPolicies ?? [],
     terminal: roleForm.editorTerminal,
     visibility: roleNavigation.value?.visibility ?? [],
   }).entries,
 );
+const previewEntryRows = computed(() =>
+  buildNavigationPreviewEntryRows({
+    entries: registryEntries.value,
+    previewResult: previewResult.value,
+  }),
+);
+const previewEmptyHint = computed(() => {
+  if (!previewResult.value) {
+    return '运行预览后，在这里查看默认落点与可见 Entry。';
+  }
+
+  if (previewResult.value.fallbackReason === 'NO_VISIBLE_ENTRIES') {
+    return `当前 ${roleForm.terminal} 没有可见 Entry。DEFAULT 只会作用到支持该前端的 Entry。`;
+  }
+
+  return '当前结果没有可见 Entry';
+});
 
 const entryColumns = computed<TableColumnsType>(() => [
   {
@@ -357,11 +380,6 @@ async function refreshCurrentSessionNavigation() {
   }
 }
 
-// Builds one compact role label for the navigation-role selector.
-function buildRoleOptionLabel(role: RoleManagementApi.Role) {
-  return role.name?.trim() || role.code;
-}
-
 // Merges freshly queried role options without dropping the current selected role.
 function mergeRoleOptions(roles: RoleManagementApi.Role[]) {
   const merged = new Map<string, RoleSelectOption>();
@@ -417,6 +435,32 @@ function handlePreviewRoleSelectionChange(value: unknown) {
   roleForm.previewRoleIds = Array.isArray(value)
     ? value.filter((item): item is string => typeof item === 'string')
     : [];
+}
+
+// Loads the full navigation registry so terminal selectors and previews are not constrained by the paged table slice.
+async function loadRegistryEntries() {
+  const pageSize = 200;
+  const collected: PermissionManagementApi.NavigationEntry[] = [];
+  let currentPage = 1;
+  let total = 0;
+
+  try {
+    do {
+      const result = await listNavigationEntriesApi({
+        page: currentPage,
+        pageSize,
+      });
+
+      collected.push(...(result.entries ?? []));
+      total = result.total ?? collected.length;
+      currentPage += 1;
+    } while (collected.length < total);
+
+    registryEntries.value = collected;
+  } catch (error) {
+    registryEntries.value = [];
+    message.error(getErrorMessage(error, '加载导航终端目录失败'));
+  }
 }
 
 // Loads one page of managed navigation entry registry records.
@@ -529,6 +573,7 @@ async function submitEntryForm() {
     }
 
     entryDrawerOpen.value = false;
+    await loadRegistryEntries();
     await loadEntries();
     await refreshCurrentSessionNavigation();
   } catch (error) {
@@ -578,7 +623,7 @@ function syncRoleNavigationEditor() {
   }
 
   const editorModel = buildRoleNavigationEditorModel({
-    entries: entries.value,
+    entries: registryEntries.value,
     landingPolicies: roleNavigation.value.landingPolicies ?? [],
     terminal: roleForm.editorTerminal,
     visibility: roleNavigation.value.visibility ?? [],
@@ -615,7 +660,7 @@ async function saveRoleNavigationConfig() {
   }
 
   const payload = buildRoleNavigationSavePayload({
-    entries: entries.value,
+    entries: registryEntries.value,
     landingEntryKey: roleEditorLandingEntryKey.value,
     landingPolicies: roleNavigation.value.landingPolicies ?? [],
     terminal: roleForm.editorTerminal,
@@ -656,35 +701,63 @@ async function runResolverPreview() {
     return;
   }
 
+  const requestVersion = previewRequestVersion.value + 1;
+  previewRequestVersion.value = requestVersion;
   previewLoading.value = true;
+  previewResult.value = null;
 
   try {
-    previewResult.value = await resolveNavigationPreviewApi({
+    const result = await resolveNavigationPreviewApi({
       roleIds,
       scopeLevel: inferNavigationPreviewScopeLevel(selectedPreviewRoles.value),
       terminal: roleForm.terminal,
     });
+
+    if (previewRequestVersion.value !== requestVersion) {
+      return;
+    }
+
+    previewResult.value = {
+      ...result,
+      visibleEntries: result.visibleEntries ?? [],
+    };
   } catch (error) {
+    if (previewRequestVersion.value !== requestVersion) {
+      return;
+    }
+
     previewResult.value = null;
     message.error(getErrorMessage(error, 'Resolver Preview 失败'));
   } finally {
-    previewLoading.value = false;
+    if (previewRequestVersion.value === requestVersion) {
+      previewLoading.value = false;
+    }
   }
 }
 
 onMounted(() => {
   void loadRoleOptions();
+  void loadRegistryEntries();
   void loadEntries({ page: 1 });
 });
 
 watch(
-  [() => roleNavigation.value, () => roleForm.editorTerminal, () => entries.value],
+  [() => roleNavigation.value, () => roleForm.editorTerminal, () => registryEntries.value],
   () => {
     if (roleNavigation.value) {
       syncRoleNavigationEditor();
     }
   },
   { deep: true },
+);
+
+watch(
+  [() => roleForm.terminal, () => roleForm.previewRoleIds.join('|')],
+  () => {
+    previewRequestVersion.value += 1;
+    previewLoading.value = false;
+    previewResult.value = null;
+  },
 );
 </script>
 
@@ -969,24 +1042,61 @@ watch(
 
                     <div class="navigation-management__preview-section">
                       <div class="navigation-management__preview-label">可见 Entry</div>
-                      <Space v-if="previewResult.visibleEntries.length > 0" wrap>
-                        <Tag
-                          v-for="entryKey in previewResult.visibleEntries"
-                          :key="entryKey"
-                          color="blue"
+                      <div
+                        v-if="previewEntryRows.length > 0"
+                        class="navigation-management__preview-list"
+                      >
+                        <div class="navigation-management__preview-list-head">
+                          <span>默认</span>
+                          <span>导航入口</span>
+                          <span>优先级</span>
+                          <span>终端</span>
+                        </div>
+                        <div
+                          v-for="entry in previewEntryRows"
+                          :key="entry.entryKey"
+                          class="navigation-management__preview-list-row"
                         >
-                          {{ entryKey }}
-                        </Tag>
-                      </Space>
+                          <div class="navigation-management__preview-list-flag">
+                            <Tag v-if="entry.isDefault" color="blue">默认</Tag>
+                            <span v-else class="navigation-management__preview-list-placeholder">
+                              -
+                            </span>
+                          </div>
+                          <div class="navigation-management__preview-list-main">
+                            <div class="navigation-management__preview-entry-name">
+                              {{ entry.name }}
+                            </div>
+                            <div class="navigation-management__preview-entry-key">
+                              {{ entry.entryKey }}
+                            </div>
+                          </div>
+                          <div class="navigation-management__preview-list-priority">
+                            {{
+                              entry.registryPriority >= 0
+                                ? `Priority ${entry.registryPriority}`
+                                : '-'
+                            }}
+                          </div>
+                          <div class="navigation-management__preview-list-terminals">
+                            <Tag
+                              v-for="terminal in entry.supportedTerminals"
+                              :key="`${entry.entryKey}-${terminal}`"
+                            >
+                              {{ terminal }}
+                            </Tag>
+                          </div>
+                        </div>
+                      </div>
                       <div v-else class="navigation-management__empty-hint">
-                        当前结果没有可见 Entry
+                        {{ previewEmptyHint }}
                       </div>
                     </div>
                   </div>
 
                   <Empty
                     v-else
-                    description="运行预览后，在这里查看默认落点与可见 Entry。"
+                    :description="previewEmptyHint"
                   />
                 </div>
               </Col>
@@ -1264,6 +1374,80 @@ watch(
   gap: 8px;
 }
 
+.navigation-management__preview-list {
+  border: 1px solid var(--navigation-border);
+  border-radius: 8px;
+  background: var(--navigation-card-bg);
+  overflow: hidden;
+}
+
+.navigation-management__preview-list-head,
+.navigation-management__preview-list-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1.8fr) 120px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px 14px;
+}
+
+.navigation-management__preview-list-head {
+  align-items: center;
+  background: var(--navigation-card-bg-strong);
+  color: var(--navigation-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.navigation-management__preview-list-row + .navigation-management__preview-list-row {
+  border-top: 1px solid var(--navigation-border);
+}
+
+.navigation-management__preview-list-row {
+  align-items: flex-start;
+}
+
+.navigation-management__preview-list-flag {
+  display: flex;
+  align-items: center;
+  min-height: 22px;
+}
+
+.navigation-management__preview-list-placeholder {
+  color: var(--navigation-muted);
+  font-size: 12px;
+}
+
+.navigation-management__preview-list-main {
+  min-width: 0;
+}
+
+.navigation-management__preview-entry-name {
+  color: var(--navigation-title);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.navigation-management__preview-entry-key {
+  color: var(--navigation-muted);
+  font-size: 12px;
+  line-height: 18px;
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+.navigation-management__preview-list-priority {
+  color: var(--navigation-title);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.navigation-management__preview-list-terminals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .navigation-management__empty-hint {
   font-size: 13px;
   color: var(--navigation-muted);
@@ -1310,6 +1494,15 @@ watch(
   .navigation-management__filter-actions,
   .navigation-management__action-row {
     justify-content: flex-start;
+  }
+
+  .navigation-management__preview-list-head {
+    display: none;
+  }
+
+  .navigation-management__preview-list-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 }
 </style>

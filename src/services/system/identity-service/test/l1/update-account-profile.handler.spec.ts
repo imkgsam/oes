@@ -33,14 +33,14 @@ describe('更新账户资料', () => {
     )
     const result = await handler.execute(
       new UpdateAccountProfileCommand('acc-1', {
-        avatarUrl: 'updated-avatar',
+        avatarAssetId: 'asset-1',
         displayName: 'updated display',
         bio: 'updated bio'
       })
     )
 
     expect(accountRepository.updateProfile).toHaveBeenCalledWith('acc-1', {
-      avatarUrl: 'updated-avatar',
+      avatarAssetId: 'asset-1',
       displayName: 'updated display',
       bio: 'updated bio'
     })

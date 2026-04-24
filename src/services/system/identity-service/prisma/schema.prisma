@@ -11,7 +11,6 @@ datasource db {
 
 model Tenant {
   id            String                @id @default(uuid())
-  entityId      String                @unique
   name          String
   code          String                @unique
   isActive      Boolean               @default(true)
@@ -47,7 +46,7 @@ enum OrgType {
 
 model User {
   id           String        @id @default(uuid())
-  entityId     String        @unique
+  partyId      String?       @db.Uuid
   username     String?       @unique
   email        String?       @unique
   phone        String?       @unique
@@ -55,6 +54,8 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   userAccounts UserAccount[]
+
+  @@index([partyId])
 }
 
 model UserAccount {
@@ -66,9 +67,11 @@ model UserAccount {
   displayName    String?
   isEnable       Boolean                    @default(true)
   avatarUrl      String?
+  avatarAssetId  String?
   bio            String?
   orgMemberships UserAccountOrgMembership[]
   contactAssets  AccountContactAsset[]
+  employeeBinding UserAccountEmployeeBinding?
   createdAt      DateTime                   @default(now())
   updatedAt      DateTime                   @updatedAt
   User           User                       @relation(fields: [userId], references: [id])
@@ -76,6 +79,18 @@ model UserAccount {
 
   @@unique([userId, scopeLevel, contextKey])
   @@index([scopeLevel])
+  @@index([tenantId])
+}
+
+model UserAccountEmployeeBinding {
+  id         String      @id @default(uuid())
+  tenantId   String
+  accountId  String      @unique
+  employeeId String      @unique
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  account    UserAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
   @@index([tenantId])
 }
 

@@ -30,6 +30,8 @@
   - 管理型写接口
 - [machine-auth.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/machine-auth.md)
   - API Key 机器认证接口
+- [employee-binding.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/identity-service/employee-binding.md)
+  - `UserAccount <-> Employee` 绑定补充契约
 
 ## 3. 全局调用约束
 
@@ -44,8 +46,15 @@
 
 ## 4. 当前能力范围
 
-截至当前，`identity-service` 已开放三类能力：
+截至当前，`identity-service` 已开放四类能力：
 
 - 人类身份与账户查询
-- 组织归属与联系方式资产管理
+- 兼容性组织归属查询 / 管理与联系方式资产管理
 - 机器身份与 API Key 管理 / 认证
+- `UserAccount <-> Employee` 绑定管理
+
+说明：
+
+- 组织归属相关接口当前仅保留为 legacy compatibility / projection 能力
+- 它们不是正式 `Employee -> OrgUnit` 真相源
+- 新的 HR / onboarding 主线不得再把这些接口当作人员归属 owner 使用

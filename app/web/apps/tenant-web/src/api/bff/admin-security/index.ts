@@ -31,6 +31,39 @@ export namespace AdminSecurityApi {
     userId: string;
   }
 
+  export interface AccountDeletionCleanupPlan {
+    willClearRoles: boolean;
+    willDeleteContactAssets: boolean;
+    willDeleteOrgMemberships: boolean;
+    willDeleteSessions: boolean;
+  }
+
+  export interface AccountDeletionBlockingReason {
+    message: string;
+    resourceCount: number;
+    resourceType: string;
+  }
+
+  export interface AccountDeletionImpact {
+    accountId: string;
+    blockingReasons: AccountDeletionBlockingReason[];
+    canDelete: boolean;
+    cleanupPlan: AccountDeletionCleanupPlan;
+    contactAssetCount: number;
+    orgMembershipCount: number;
+    userRetained: boolean;
+  }
+
+  export interface AccountDeletionResult {
+    accountId: string;
+    clearedRoleCount: number;
+    deletedContactAssetCount: number;
+    deletedOrgMembershipCount: number;
+    deletedSessionCount: number;
+    success: boolean;
+    userRetained: boolean;
+  }
+
   export interface TenantOption {
     code: string;
     id: string;
@@ -234,21 +267,40 @@ export namespace AdminSecurityApi {
     | 'SMS_OTP'
     | 'TOTP';
 
+  export type TenantMfaScenario =
+    | 'CHANGE_CONTACT'
+    | 'CHANGE_PASSWORD'
+    | 'LOGIN'
+    | 'NEW_DEVICE_LOGIN';
+
   export interface TenantMfaFactorPolicy {
     enabled: boolean;
     factor: TenantMfaFactor;
     priority: number;
   }
 
+  export interface TenantMfaScenarioRequirement {
+    required: boolean;
+    scenario: TenantMfaScenario;
+  }
+
   export interface TenantMfaPolicy {
     factors: TenantMfaFactorPolicy[];
     loginRequired: boolean;
+    scenarioRequirements: TenantMfaScenarioRequirement[];
     tenantId: string;
+  }
+
+  export interface PlatformMfaPolicy {
+    loginRequired: boolean;
+    scenarioRequirements: TenantMfaScenarioRequirement[];
+    factors: TenantMfaFactorPolicy[];
   }
 
   export interface TenantMfaPolicyMutationPayload {
     factors: TenantMfaFactorPolicy[];
     loginRequired: boolean;
+    scenarioRequirements: TenantMfaScenarioRequirement[];
   }
 }
 
@@ -286,6 +338,13 @@ export async function getAdminAccountBasicInfoApi(accountId: string) {
   );
 }
 
+// Loads one account-deletion impact preview before a destructive admin action is confirmed.
+export async function getAdminAccountDeletionImpactApi(accountId: string) {
+  return requestClient.get<AdminSecurityApi.AccountDeletionImpact>(
+    `/auth/admin/accounts/${encodeURIComponent(accountId)}/deletion-impact`,
+  );
+}
+
 export async function updateAdminAccountBasicInfoApi(
   accountId: string,
   data: AdminSecurityApi.UpdateAccountBasicInfoPayload,
@@ -296,6 +355,13 @@ export async function updateAdminAccountBasicInfoApi(
       data,
       method: 'PATCH',
     },
+  );
+}
+
+// Deletes one selected administrator-visible account permanently.
+export async function deleteAdminAccountApi(accountId: string) {
+  return requestClient.delete<AdminSecurityApi.AccountDeletionResult>(
+    `/auth/admin/accounts/${encodeURIComponent(accountId)}`,
   );
 }
 
@@ -404,6 +470,24 @@ export async function updateAdminTenantMfaPolicyApi(
 ) {
   return requestClient.request<AdminSecurityApi.TenantMfaPolicy>(
     '/auth/admin/tenant-mfa-policy',
+    {
+      data,
+      method: 'PUT',
+    },
+  );
+}
+
+export async function getAdminPlatformMfaPolicyApi() {
+  return requestClient.get<AdminSecurityApi.PlatformMfaPolicy>(
+    '/auth/admin/platform-mfa-policy',
+  );
+}
+
+export async function updateAdminPlatformMfaPolicyApi(
+  data: AdminSecurityApi.TenantMfaPolicyMutationPayload,
+) {
+  return requestClient.request<AdminSecurityApi.PlatformMfaPolicy>(
+    '/auth/admin/platform-mfa-policy',
     {
       data,
       method: 'PUT',

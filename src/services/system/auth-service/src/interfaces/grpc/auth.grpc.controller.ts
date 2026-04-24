@@ -32,30 +32,39 @@ import {
   AuthServiceController,
   AuthServiceControllerMethods,
   ActivateTotpBindingRequest,
+  ActivateTotpBindingResponse,
   BootstrapUserLoginMethodsRequest,
   BootstrapUserLoginMethodsResponse,
   ChangeOwnPasswordRequest,
+  ChangeOwnPasswordResponse,
+  CompletePasswordRecoveryResponse,
+  CompleteStepUpMfaChallengeRequest,
+  CompleteStepUpMfaChallengeResponse,
   CompletePasswordRecoveryRequest,
   InspectPasswordRecoveryChannelsRequest,
   InspectPasswordRecoveryChannelsResponse,
-  PasswordRecoveryChallengeResponse,
+  RequestPasswordRecoveryChallengeResponse,
   PasswordRecoveryChannel,
-  PasswordRecoveryCompletionResponse,
-  PasswordRecoveryVerificationResponse,
-  ContactBindingVerificationResponse,
+  VerifyPasswordRecoveryChallengeResponse,
   CompleteFirstLoginPasswordSetupRequest,
   CompleteFirstLoginPasswordSetupResponse,
   DisableMfaBindingRequest,
-  EmailBindingChallengeRequest,
-  EmailOtpChallengeRequest,
-  EmailPasswordLoginRequest,
-  EmailOtpLoginRequest,
+  DisableMfaBindingResponse,
+  RequestEmailBindingChallengeRequest,
+  RequestEmailBindingChallengeResponse,
+  RequestEmailOtpLoginChallengeRequest,
+  RequestEmailOtpLoginChallengeResponse,
+  LoginWithEmailPasswordRequest,
+  LoginWithEmailPasswordResponse,
+  LoginWithEmailOtpRequest,
+  LoginWithEmailOtpResponse,
   EnableMfaBindingRequest,
+  EnableMfaBindingResponse,
   InitializeRecoveryCodesRequest,
+  InitializeRecoveryCodesResponse,
   InitializeTotpBindingRequest,
   InitializeTotpBindingResponse,
   LoginStatus,
-  LoginResponse,
   ListAuditEventsRequest,
   ListAuditEventsResponse,
   ListLoginHistoryRequest,
@@ -64,17 +73,19 @@ import {
   ListLoginMethodsResponse,
   ListSessionsRequest,
   ListSessionsResponse,
+  ListTrustedDevicesRequest,
+  ListTrustedDevicesResponse,
   ListMfaBindingsRequest,
   ListMfaBindingsResponse,
-  LoginMethodMutationResponse,
-  MfaBindingMutationResponse,
   MfaBindingType,
   MfaScenario,
   GetTenantMfaPolicyRequest,
+  GetTenantMfaPolicyResponse,
+  GetPlatformMfaPolicyRequest,
+  GetPlatformMfaPolicyResponse,
   RequestLoginMfaFactorChallengeRequest,
-  PasswordMutationResponse,
+  RequestLoginMfaFactorChallengeResponse,
   RequestPasswordRecoveryChallengeRequest,
-  RecoveryCodesResponse,
   LogoutAllRequest,
   LogoutAllResponse,
   LogoutSessionRequest,
@@ -83,26 +94,47 @@ import {
   LogoutOtherDevicesResponse,
   LogoutRequest,
   LogoutResponse,
-  OtpChallengeResponse,
-  PhoneBindingChallengeRequest,
-  PhoneOtpChallengeRequest,
-  PhoneOtpLoginRequest,
-  PhonePasswordLoginRequest,
+  RequestPhoneBindingChallengeRequest,
+  RequestPhoneBindingChallengeResponse,
+  RequestPhoneOtpLoginChallengeRequest,
+  RequestPhoneOtpLoginChallengeResponse,
+  LoginWithPhoneOtpRequest,
+  LoginWithPhoneOtpResponse,
+  LoginWithPhonePasswordRequest,
+  LoginWithPhonePasswordResponse,
   RefreshSessionRequest,
   RefreshSessionResponse,
   ValidateAccessTokenRequest,
   ValidateAccessTokenResponse,
   RegenerateRecoveryCodesRequest,
+  RegenerateRecoveryCodesResponse,
+  RevokeOtherTrustedDevicesRequest,
+  RevokeOtherTrustedDevicesResponse,
+  RevokeTrustedDeviceRequest,
+  RevokeTrustedDeviceResponse,
   RequirePasswordSetupRequest,
+  RequirePasswordSetupResponse,
   SelectAccountRequest,
   SelectAccountResponse,
   SetLoginMethodEnabledRequest,
+  SetLoginMethodEnabledResponse,
+  SetOwnLoginMethodEnabledRequest,
+  SetOwnLoginMethodEnabledResponse,
+  StartStepUpMfaChallengeRequest,
+  StartStepUpMfaChallengeResponse,
+  SubmitMfaChallengeResponse,
   SubmitMfaChallengeRequest,
-  TenantMfaPolicyResponse,
   TenantMfaFactorPolicy,
+  TenantMfaScenarioRequirement,
+  TrustedDeviceView,
+  UpdatePlatformMfaPolicyRequest,
+  UpdatePlatformMfaPolicyResponse,
   UpdateTenantMfaPolicyRequest,
+  UpdateTenantMfaPolicyResponse,
   VerifyPasswordRecoveryChallengeRequest,
+  VerifyEmailBindingResponse,
   VerifyEmailBindingRequest,
+  VerifyPhoneBindingResponse,
   VerifyPhoneBindingRequest
 } from '@oes/common/generated/auth_service'
 import {
@@ -121,12 +153,15 @@ import {
   LoginWithPhonePasswordCommand,
   BootstrapUserLoginMethodsCommand,
   CompleteFirstLoginPasswordSetupCommand,
+  CompleteStepUpMfaChallengeCommand,
   LogoutAllCommand,
   LogoutSessionCommand,
   LogoutOtherDevicesCommand,
   LogoutCommand,
   RefreshSessionCommand,
   RegenerateRecoveryCodesCommand,
+  RevokeOtherTrustedDevicesCommand,
+  RevokeTrustedDeviceCommand,
   RequestPasswordRecoveryChallengeCommand,
   RequestLoginMfaFactorChallengeCommand,
   RequestEmailBindingChallengeCommand,
@@ -136,7 +171,9 @@ import {
   RequirePasswordSetupCommand,
   SelectAccountCommand,
   SetLoginMethodEnabledCommand,
+  StartStepUpMfaChallengeCommand,
   SubmitMfaChallengeCommand,
+  UpdatePlatformMfaPolicyCommand,
   UpdateTenantMfaPolicyCommand,
   VerifyPasswordRecoveryChallengeCommand,
   VerifyEmailBindingCommand,
@@ -150,8 +187,10 @@ import {
   InspectPasswordRecoveryChannelsQuery,
   ListLoginMethodsQuery,
   ListMfaBindingsQuery,
+  GetPlatformMfaPolicyQuery,
   GetTenantMfaPolicyQuery,
   ListSessionsQuery,
+  ListTrustedDevicesQuery,
   ValidateAccessTokenQuery
 } from '../../application/queries'
 import {
@@ -209,7 +248,8 @@ export class AuthGrpcController implements AuthServiceController {
   async completeFirstLoginPasswordSetup(
     request: CompleteFirstLoginPasswordSetupRequest
   ): Promise<CompleteFirstLoginPasswordSetupResponse> {
-    const userId = this.getRequiredOperatorId(request)
+    this.getRequiredOperatorId(request)
+    const userId = request.userId ?? ''
     return this.commandBus.execute(
       new CompleteFirstLoginPasswordSetupCommand({
         userId,
@@ -220,7 +260,7 @@ export class AuthGrpcController implements AuthServiceController {
 
   async requestPasswordRecoveryChallenge(
     request: RequestPasswordRecoveryChallengeRequest
-  ): Promise<PasswordRecoveryChallengeResponse> {
+  ): Promise<RequestPasswordRecoveryChallengeResponse> {
     const result = await this.commandBus.execute(
       new RequestPasswordRecoveryChallengeCommand({
         channel:
@@ -265,7 +305,7 @@ export class AuthGrpcController implements AuthServiceController {
 
   async verifyPasswordRecoveryChallenge(
     request: VerifyPasswordRecoveryChallengeRequest
-  ): Promise<PasswordRecoveryVerificationResponse> {
+  ): Promise<VerifyPasswordRecoveryChallengeResponse> {
     const result = await this.commandBus.execute(
       new VerifyPasswordRecoveryChallengeCommand({
         challengeId: request.challengeId ?? '',
@@ -281,7 +321,7 @@ export class AuthGrpcController implements AuthServiceController {
 
   async completePasswordRecovery(
     request: CompletePasswordRecoveryRequest
-  ): Promise<PasswordRecoveryCompletionResponse> {
+  ): Promise<CompletePasswordRecoveryResponse> {
     const result = await this.commandBus.execute(
       new CompletePasswordRecoveryCommand({
         resetToken: request.resetToken ?? '',
@@ -373,12 +413,37 @@ export class AuthGrpcController implements AuthServiceController {
    */
   async changeOwnPassword(
     request: ChangeOwnPasswordRequest
-  ): Promise<PasswordMutationResponse> {
+  ): Promise<ChangeOwnPasswordResponse> {
     return this.commandBus.execute(
       new ChangeOwnPasswordCommand({
         userId: request.userId ?? '',
+        accountId: request.accountId || undefined,
+        tenantId: request.tenantId || undefined,
+        scopeLevel: this.normalizeScopeLevel(request.scopeLevel),
         currentPassword: request.currentPassword ?? '',
-        newPassword: request.newPassword ?? ''
+        newPassword: request.newPassword ?? '',
+        mfaGrantToken: request.mfaGrantToken || undefined
+      })
+    )
+  }
+
+  /**
+   * setOwnLoginMethodEnabled toggles one authenticated user's own login method through the self-service path.
+   */
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  async setOwnLoginMethodEnabled(
+    request: SetOwnLoginMethodEnabledRequest
+  ): Promise<SetOwnLoginMethodEnabledResponse> {
+    const operatorId = this.getRequiredOperatorId(request)
+
+    return this.commandBus.execute(
+      new SetLoginMethodEnabledCommand({
+        userId: request.userId ?? '',
+        methodId: request.methodId ?? '',
+        enabled: Boolean(request.enabled),
+        operatorId,
+        reason: request.reason || undefined
       })
     )
   }
@@ -390,7 +455,7 @@ export class AuthGrpcController implements AuthServiceController {
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async requirePasswordSetup(
     request: RequirePasswordSetupRequest
-  ): Promise<PasswordMutationResponse> {
+  ): Promise<RequirePasswordSetupResponse> {
     const requiredBy = this.getRequiredOperatorId(request)
 
     return this.commandBus.execute(
@@ -410,7 +475,7 @@ export class AuthGrpcController implements AuthServiceController {
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async setLoginMethodEnabled(
     request: SetLoginMethodEnabledRequest
-  ): Promise<LoginMethodMutationResponse> {
+  ): Promise<SetLoginMethodEnabledResponse> {
     const operatorId = this.getRequiredOperatorId(request)
 
     return this.commandBus.execute(
@@ -536,6 +601,71 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
+  async listTrustedDevices(
+    request: ListTrustedDevicesRequest
+  ): Promise<ListTrustedDevicesResponse> {
+    const devices = await this.queryBus.execute(
+      new ListTrustedDevicesQuery(
+        request.userId ?? '',
+        request.tenantId || undefined,
+        this.normalizeScopeLevel(request.scopeLevel)
+      )
+    )
+    const currentDeviceId = request.currentDeviceId ?? ''
+
+    return {
+      devices: devices.map(
+        (device): TrustedDeviceView => ({
+          id: device.id,
+          deviceId: device.deviceId,
+          deviceName: device.deviceName ?? '',
+          browser: device.browser ?? '',
+          platform: device.platform ?? '',
+          trustedAt: device.trustedAt.toISOString(),
+          lastActiveAt: device.lastSeenAt.toISOString(),
+          expiresAt: device.expiresAt.toISOString(),
+          isCurrentDevice: Boolean(currentDeviceId) && device.deviceId === currentDeviceId
+        })
+      )
+    }
+  }
+
+  async revokeTrustedDevice(
+    request: RevokeTrustedDeviceRequest
+  ): Promise<RevokeTrustedDeviceResponse> {
+    const result = await this.commandBus.execute(
+      new RevokeTrustedDeviceCommand(
+        request.userId ?? '',
+        request.tenantId || undefined,
+        this.normalizeScopeLevel(request.scopeLevel),
+        request.trustedDeviceId ?? ''
+      )
+    )
+
+    return {
+      success: result.success,
+      deviceCount: String(result.deviceCount)
+    }
+  }
+
+  async revokeOtherTrustedDevices(
+    request: RevokeOtherTrustedDevicesRequest
+  ): Promise<RevokeOtherTrustedDevicesResponse> {
+    const result = await this.commandBus.execute(
+      new RevokeOtherTrustedDevicesCommand(
+        request.userId ?? '',
+        request.tenantId || undefined,
+        this.normalizeScopeLevel(request.scopeLevel),
+        request.currentDeviceId ?? undefined
+      )
+    )
+
+    return {
+      success: result.success,
+      deviceCount: String(result.deviceCount)
+    }
+  }
+
   @RequirePermission(AUTH_SESSION_PERMISSION_CODES.ADMIN_REVOKE_SESSION)
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async adminRevokeSession(
@@ -649,7 +779,7 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  async enableMfaBinding(request: EnableMfaBindingRequest): Promise<MfaBindingMutationResponse> {
+  async enableMfaBinding(request: EnableMfaBindingRequest): Promise<EnableMfaBindingResponse> {
     const binding = await this.commandBus.execute(
       new EnableMfaBindingCommand(request.userId ?? '', this.toDomainMfaType(request.type))
     )
@@ -667,7 +797,7 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  async disableMfaBinding(request: DisableMfaBindingRequest): Promise<MfaBindingMutationResponse> {
+  async disableMfaBinding(request: DisableMfaBindingRequest): Promise<DisableMfaBindingResponse> {
     const binding = await this.commandBus.execute(
       new DisableMfaBindingCommand(request.userId ?? '', this.toDomainMfaType(request.type))
     )
@@ -708,7 +838,7 @@ export class AuthGrpcController implements AuthServiceController {
 
   async activateTotpBinding(
     request: ActivateTotpBindingRequest
-  ): Promise<MfaBindingMutationResponse> {
+  ): Promise<ActivateTotpBindingResponse> {
     const binding = await this.commandBus.execute(
       new ActivateTotpBindingCommand(
         request.userId ?? '',
@@ -732,7 +862,7 @@ export class AuthGrpcController implements AuthServiceController {
 
   async initializeRecoveryCodes(
     request: InitializeRecoveryCodesRequest
-  ): Promise<RecoveryCodesResponse> {
+  ): Promise<InitializeRecoveryCodesResponse> {
     const result = await this.commandBus.execute(
       new InitializeRecoveryCodesCommand(request.userId ?? '')
     )
@@ -752,7 +882,7 @@ export class AuthGrpcController implements AuthServiceController {
 
   async regenerateRecoveryCodes(
     request: RegenerateRecoveryCodesRequest
-  ): Promise<RecoveryCodesResponse> {
+  ): Promise<RegenerateRecoveryCodesResponse> {
     const result = await this.commandBus.execute(
       new RegenerateRecoveryCodesCommand(request.userId ?? '')
     )
@@ -772,7 +902,7 @@ export class AuthGrpcController implements AuthServiceController {
 
   async requestLoginMfaFactorChallenge(
     request: RequestLoginMfaFactorChallengeRequest
-  ): Promise<OtpChallengeResponse> {
+  ): Promise<RequestLoginMfaFactorChallengeResponse> {
     const result = await this.commandBus.execute(
       new RequestLoginMfaFactorChallengeCommand(
         request.challengeId ?? '',
@@ -787,14 +917,17 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  async submitMfaChallenge(request: SubmitMfaChallengeRequest): Promise<LoginResponse> {
+  async submitMfaChallenge(
+    request: SubmitMfaChallengeRequest
+  ): Promise<SubmitMfaChallengeResponse> {
     const result = await this.commandBus.execute(
       new SubmitMfaChallengeCommand(
         request.challengeId ?? '',
         this.toDomainMfaType(request.factor),
         request.code ?? '',
         (request.loginMethod as any) ?? '',
-        request.factorChallengeId ?? undefined
+        request.factorChallengeId ?? undefined,
+        request.trustCurrentDevice === true
       )
     )
 
@@ -808,6 +941,59 @@ export class AuthGrpcController implements AuthServiceController {
       loginMethod: result.loginMethod,
       accounts: [],
       passwordSetupRequired: result.passwordSetupRequired
+    }
+  }
+
+  async startStepUpMfaChallenge(
+    request: StartStepUpMfaChallengeRequest
+  ): Promise<StartStepUpMfaChallengeResponse> {
+    const result = await this.commandBus.execute(
+      new StartStepUpMfaChallengeCommand(
+        request.userId ?? '',
+        request.accountId ?? '',
+        request.tenantId || undefined,
+        this.normalizeScopeLevel(request.scopeLevel),
+        this.toDomainProtectedMfaScenario(request.scenario)
+      )
+    )
+
+    return {
+      required: Boolean(result.required),
+      challengeId: result.challengeId ?? '',
+      scenario: result.scenario
+        ? this.toProtoMfaScenario(result.scenario)
+        : MfaScenario.MFA_SCENARIO_UNSPECIFIED,
+      defaultMfaFactor: result.defaultFactor
+        ? this.toProtoMfaBindingType(result.defaultFactor)
+        : MfaBindingType.MFA_BINDING_TYPE_UNSPECIFIED,
+      availableFactors: (result.availableFactors ?? []).map((factor) => ({
+        type: this.toProtoMfaBindingType(factor.type),
+        label: factor.label,
+        priority: factor.priority
+      })),
+      factorChallengeId: result.factorChallengeId ?? '',
+      challengeDestination: result.destination ?? '',
+      challengeExpiresAt: result.expiresAt ?? ''
+    }
+  }
+
+  async completeStepUpMfaChallenge(
+    request: CompleteStepUpMfaChallengeRequest
+  ): Promise<CompleteStepUpMfaChallengeResponse> {
+    const result = await this.commandBus.execute(
+      new CompleteStepUpMfaChallengeCommand(
+        request.challengeId ?? '',
+        this.toDomainMfaType(request.factor),
+        request.code ?? '',
+        request.factorChallengeId ?? undefined
+      )
+    )
+
+    return {
+      success: Boolean(result.success),
+      scenario: this.toProtoMfaScenario(result.scenario),
+      mfaGrantToken: result.mfaGrantToken,
+      expiresAt: result.expiresAt ?? ''
     }
   }
 
@@ -878,7 +1064,8 @@ export class AuthGrpcController implements AuthServiceController {
         defaultMfaFactor: this.toProtoMfaBindingType(result.defaultFactor),
         availableFactors: result.availableFactors.map((factor) => ({
           type: this.toProtoMfaBindingType(factor.type),
-          label: factor.label
+          label: factor.label,
+          priority: factor.priority
         })),
         factorChallengeId: result.factorChallengeId ?? '',
         challengeDestination: result.destination ?? '',
@@ -913,7 +1100,7 @@ export class AuthGrpcController implements AuthServiceController {
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async getTenantMfaPolicy(
     request: GetTenantMfaPolicyRequest
-  ): Promise<TenantMfaPolicyResponse> {
+  ): Promise<GetTenantMfaPolicyResponse> {
     this.getRequiredOperatorId(request)
     const result = await this.queryBus.execute(
       new GetTenantMfaPolicyQuery(request.tenantId ?? '')
@@ -922,6 +1109,26 @@ export class AuthGrpcController implements AuthServiceController {
     return {
       tenantId: result.tenantId,
       loginRequired: result.loginRequired,
+      scenarioRequirements: this.toProtoScenarioRequirements(result.scenarioRequirements),
+      factors: result.factors.map((factor): TenantMfaFactorPolicy => ({
+        factor: this.toProtoMfaBindingType(factor.factor),
+        enabled: factor.enabled,
+        priority: factor.priority
+      }))
+    }
+  }
+
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  async getPlatformMfaPolicy(
+    request: GetPlatformMfaPolicyRequest
+  ): Promise<GetPlatformMfaPolicyResponse> {
+    this.getRequiredOperatorId(request)
+    const result = await this.queryBus.execute(new GetPlatformMfaPolicyQuery())
+
+    return {
+      loginRequired: result.loginRequired,
+      scenarioRequirements: this.toProtoScenarioRequirements(result.scenarioRequirements),
       factors: result.factors.map((factor): TenantMfaFactorPolicy => ({
         factor: this.toProtoMfaBindingType(factor.factor),
         enabled: factor.enabled,
@@ -934,12 +1141,16 @@ export class AuthGrpcController implements AuthServiceController {
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async updateTenantMfaPolicy(
     request: UpdateTenantMfaPolicyRequest
-  ): Promise<TenantMfaPolicyResponse> {
+  ): Promise<UpdateTenantMfaPolicyResponse> {
     const operatorId = this.getRequiredOperatorId(request)
     const result = await this.commandBus.execute(
       new UpdateTenantMfaPolicyCommand({
         tenantId: request.tenantId ?? '',
         loginRequired: Boolean(request.loginRequired),
+        scenarioRequirements: this.toDomainScenarioRequirements(
+          request.scenarioRequirements,
+          Boolean(request.loginRequired)
+        ),
         factors: (request.factors ?? []).map((factor) => ({
           factor: this.toDomainMfaType(factor.factor),
           enabled: Boolean(factor.enabled),
@@ -952,6 +1163,7 @@ export class AuthGrpcController implements AuthServiceController {
     return {
       tenantId: result.tenantId,
       loginRequired: result.loginRequired,
+      scenarioRequirements: this.toProtoScenarioRequirements(result.scenarioRequirements),
       factors: result.factors.map((factor): TenantMfaFactorPolicy => ({
         factor: this.toProtoMfaBindingType(factor.factor),
         enabled: factor.enabled,
@@ -960,7 +1172,42 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  async loginWithEmailPassword(request: EmailPasswordLoginRequest): Promise<LoginResponse> {
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  async updatePlatformMfaPolicy(
+    request: UpdatePlatformMfaPolicyRequest
+  ): Promise<UpdatePlatformMfaPolicyResponse> {
+    const operatorId = this.getRequiredOperatorId(request)
+    const result = await this.commandBus.execute(
+      new UpdatePlatformMfaPolicyCommand({
+        loginRequired: Boolean(request.loginRequired),
+        scenarioRequirements: this.toDomainScenarioRequirements(
+          request.scenarioRequirements,
+          Boolean(request.loginRequired)
+        ),
+        factors: (request.factors ?? []).map((factor) => ({
+          factor: this.toDomainMfaType(factor.factor),
+          enabled: Boolean(factor.enabled),
+          priority: Number(factor.priority ?? 0)
+        })),
+        updatedBy: operatorId
+      })
+    )
+
+    return {
+      loginRequired: result.loginRequired,
+      scenarioRequirements: this.toProtoScenarioRequirements(result.scenarioRequirements),
+      factors: result.factors.map((factor): TenantMfaFactorPolicy => ({
+        factor: this.toProtoMfaBindingType(factor.factor),
+        enabled: factor.enabled,
+        priority: factor.priority
+      }))
+    }
+  }
+
+  async loginWithEmailPassword(
+    request: LoginWithEmailPasswordRequest
+  ): Promise<LoginWithEmailPasswordResponse> {
     const result = await this.commandBus.execute(
       new LoginWithEmailPasswordCommand(request.email ?? '', request.password ?? '', {
         deviceName: request.deviceName ?? '',
@@ -995,7 +1242,6 @@ export class AuthGrpcController implements AuthServiceController {
         accounts: result.accounts.map((account) => ({
           accountId: account.accountId,
           tenantId: account.tenantId ?? '',
-          tenantName: account.tenantName ?? '',
           displayName: account.displayName ?? '',
           scopeLevel: account.scopeLevel
         })),
@@ -1007,8 +1253,8 @@ export class AuthGrpcController implements AuthServiceController {
   }
 
   async requestEmailOtpLoginChallenge(
-    request: EmailOtpChallengeRequest
-  ): Promise<OtpChallengeResponse> {
+    request: RequestEmailOtpLoginChallengeRequest
+  ): Promise<RequestEmailOtpLoginChallengeResponse> {
     const result = await this.commandBus.execute(
       new RequestEmailOtpLoginChallengeCommand(request.email ?? '')
     )
@@ -1023,9 +1269,10 @@ export class AuthGrpcController implements AuthServiceController {
   @RequireAuthenticatedOperator()
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async requestEmailBindingChallenge(
-    request: EmailBindingChallengeRequest
-  ): Promise<OtpChallengeResponse> {
-    const userId = this.getRequiredOperatorId(request)
+    request: RequestEmailBindingChallengeRequest
+  ): Promise<RequestEmailBindingChallengeResponse> {
+    this.getRequiredOperatorId(request)
+    const userId = request.userId ?? ''
     const result = await this.commandBus.execute(
       new RequestEmailBindingChallengeCommand({
         userId,
@@ -1044,13 +1291,18 @@ export class AuthGrpcController implements AuthServiceController {
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async verifyEmailBinding(
     request: VerifyEmailBindingRequest
-  ): Promise<ContactBindingVerificationResponse> {
-    const userId = this.getRequiredOperatorId(request)
+  ): Promise<VerifyEmailBindingResponse> {
+    this.getRequiredOperatorId(request)
+    const userId = request.userId ?? ''
     const result = await this.commandBus.execute(
       new VerifyEmailBindingCommand({
         userId,
+        accountId: request.accountId || undefined,
+        tenantId: request.tenantId || undefined,
+        scopeLevel: this.normalizeScopeLevel(request.scopeLevel),
         email: request.email ?? '',
-        otp: request.otp ?? ''
+        otp: request.otp ?? '',
+        mfaGrantToken: request.mfaGrantToken || undefined
       })
     )
 
@@ -1061,7 +1313,7 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  async loginWithEmailOtp(request: EmailOtpLoginRequest): Promise<LoginResponse> {
+  async loginWithEmailOtp(request: LoginWithEmailOtpRequest): Promise<LoginWithEmailOtpResponse> {
     const result = await this.commandBus.execute(
       new LoginWithEmailOtpCommand(request.email ?? '', request.otp ?? '')
     )
@@ -1092,7 +1344,6 @@ export class AuthGrpcController implements AuthServiceController {
         accounts: result.accounts.map((account) => ({
           accountId: account.accountId,
           tenantId: account.tenantId ?? '',
-          tenantName: account.tenantName ?? '',
           displayName: account.displayName ?? '',
           scopeLevel: account.scopeLevel
         })),
@@ -1103,7 +1354,9 @@ export class AuthGrpcController implements AuthServiceController {
     throw ExceptionFactory.application(AUTH_LOGIN_FLOW_RESULT_UNSUPPORTED)
   }
 
-  async loginWithPhonePassword(request: PhonePasswordLoginRequest): Promise<LoginResponse> {
+  async loginWithPhonePassword(
+    request: LoginWithPhonePasswordRequest
+  ): Promise<LoginWithPhonePasswordResponse> {
     const result = await this.commandBus.execute(
       new LoginWithPhonePasswordCommand(request.phone ?? '', request.password ?? '', {
         deviceName: request.deviceName ?? '',
@@ -1138,7 +1391,6 @@ export class AuthGrpcController implements AuthServiceController {
         accounts: result.accounts.map((account) => ({
           accountId: account.accountId,
           tenantId: account.tenantId ?? '',
-          tenantName: account.tenantName ?? '',
           displayName: account.displayName ?? '',
           scopeLevel: account.scopeLevel
         })),
@@ -1150,8 +1402,8 @@ export class AuthGrpcController implements AuthServiceController {
   }
 
   async requestPhoneOtpLoginChallenge(
-    request: PhoneOtpChallengeRequest
-  ): Promise<OtpChallengeResponse> {
+    request: RequestPhoneOtpLoginChallengeRequest
+  ): Promise<RequestPhoneOtpLoginChallengeResponse> {
     const result = await this.commandBus.execute(
       new RequestPhoneOtpLoginChallengeCommand(request.phone ?? '')
     )
@@ -1166,9 +1418,10 @@ export class AuthGrpcController implements AuthServiceController {
   @RequireAuthenticatedOperator()
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async requestPhoneBindingChallenge(
-    request: PhoneBindingChallengeRequest
-  ): Promise<OtpChallengeResponse> {
-    const userId = this.getRequiredOperatorId(request)
+    request: RequestPhoneBindingChallengeRequest
+  ): Promise<RequestPhoneBindingChallengeResponse> {
+    this.getRequiredOperatorId(request)
+    const userId = request.userId ?? ''
     const result = await this.commandBus.execute(
       new RequestPhoneBindingChallengeCommand({
         userId,
@@ -1187,13 +1440,18 @@ export class AuthGrpcController implements AuthServiceController {
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
   async verifyPhoneBinding(
     request: VerifyPhoneBindingRequest
-  ): Promise<ContactBindingVerificationResponse> {
-    const userId = this.getRequiredOperatorId(request)
+  ): Promise<VerifyPhoneBindingResponse> {
+    this.getRequiredOperatorId(request)
+    const userId = request.userId ?? ''
     const result = await this.commandBus.execute(
       new VerifyPhoneBindingCommand({
         userId,
+        accountId: request.accountId || undefined,
+        tenantId: request.tenantId || undefined,
+        scopeLevel: this.normalizeScopeLevel(request.scopeLevel),
         phone: request.phone ?? '',
-        otp: request.otp ?? ''
+        otp: request.otp ?? '',
+        mfaGrantToken: request.mfaGrantToken || undefined
       })
     )
 
@@ -1204,7 +1462,7 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  async loginWithPhoneOtp(request: PhoneOtpLoginRequest): Promise<LoginResponse> {
+  async loginWithPhoneOtp(request: LoginWithPhoneOtpRequest): Promise<LoginWithPhoneOtpResponse> {
     const result = await this.commandBus.execute(
       new LoginWithPhoneOtpCommand(request.phone ?? '', request.otp ?? '')
     )
@@ -1235,7 +1493,6 @@ export class AuthGrpcController implements AuthServiceController {
         accounts: result.accounts.map((account) => ({
           accountId: account.accountId,
           tenantId: account.tenantId ?? '',
-          tenantName: account.tenantName ?? '',
           displayName: account.displayName ?? '',
           scopeLevel: account.scopeLevel
         })),
@@ -1299,11 +1556,91 @@ export class AuthGrpcController implements AuthServiceController {
     return MfaBindingType.MFA_BINDING_TYPE_UNSPECIFIED
   }
 
-  private toProtoMfaScenario(scenario: 'LOGIN'): MfaScenario {
-    if (scenario === 'LOGIN') {
-      return MfaScenario.MFA_SCENARIO_LOGIN
+  private toProtoMfaScenario(
+    scenario: 'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'LOGIN' | 'NEW_DEVICE_LOGIN'
+  ): MfaScenario {
+    switch (scenario) {
+      case 'LOGIN':
+        return MfaScenario.MFA_SCENARIO_LOGIN
+      case 'NEW_DEVICE_LOGIN':
+        return MfaScenario.MFA_SCENARIO_NEW_DEVICE_LOGIN
+      case 'CHANGE_PASSWORD':
+        return MfaScenario.MFA_SCENARIO_CHANGE_PASSWORD
+      case 'CHANGE_CONTACT':
+        return MfaScenario.MFA_SCENARIO_CHANGE_CONTACT
+      default:
+        return MfaScenario.MFA_SCENARIO_UNSPECIFIED
+    }
+  }
+
+  private toDomainMfaScenario(
+    scenario: MfaScenario | undefined,
+    fallback: 'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'NEW_DEVICE_LOGIN' | 'LOGIN' = 'LOGIN'
+  ): 'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'LOGIN' | 'NEW_DEVICE_LOGIN' {
+    switch (scenario) {
+      case MfaScenario.MFA_SCENARIO_LOGIN:
+        return 'LOGIN'
+      case MfaScenario.MFA_SCENARIO_NEW_DEVICE_LOGIN:
+        return 'NEW_DEVICE_LOGIN'
+      case MfaScenario.MFA_SCENARIO_CHANGE_PASSWORD:
+        return 'CHANGE_PASSWORD'
+      case MfaScenario.MFA_SCENARIO_CHANGE_CONTACT:
+        return 'CHANGE_CONTACT'
+      default:
+        return fallback
+    }
+  }
+
+  private toDomainProtectedMfaScenario(
+    scenario: MfaScenario | undefined
+  ): 'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'NEW_DEVICE_LOGIN' {
+    const mapped = this.toDomainMfaScenario(scenario, 'CHANGE_PASSWORD')
+    return mapped === 'LOGIN' ? 'CHANGE_PASSWORD' : mapped
+  }
+
+  private normalizeScopeLevel(scopeLevel?: string): 'SYSTEM' | 'TENANT' {
+    return scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT'
+  }
+
+  private toProtoScenarioRequirements(
+    requirements: Record<'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'LOGIN' | 'NEW_DEVICE_LOGIN', boolean>
+  ): TenantMfaScenarioRequirement[] {
+    return ([
+      'LOGIN',
+      'CHANGE_PASSWORD',
+      'CHANGE_CONTACT',
+      'NEW_DEVICE_LOGIN'
+    ] as const).map((scenario) => ({
+      scenario: this.toProtoMfaScenario(scenario),
+      required: Boolean(requirements[scenario])
+    }))
+  }
+
+  private toDomainScenarioRequirements(
+    requirements: TenantMfaScenarioRequirement[] | undefined,
+    loginRequired: boolean
+  ): Record<'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'LOGIN' | 'NEW_DEVICE_LOGIN', boolean> {
+    const mapped: Record<
+      'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'LOGIN' | 'NEW_DEVICE_LOGIN',
+      boolean
+    > = {
+      LOGIN: loginRequired,
+      CHANGE_PASSWORD: false,
+      CHANGE_CONTACT: false,
+      NEW_DEVICE_LOGIN: false
     }
 
-    return MfaScenario.MFA_SCENARIO_UNSPECIFIED
+    for (const requirement of requirements ?? []) {
+      const scenario = this.toDomainMfaScenario(requirement.scenario, 'LOGIN')
+      mapped[scenario] = Boolean(requirement.required)
+    }
+
+    mapped.LOGIN = Boolean(
+      requirements?.some((requirement) => requirement.scenario === MfaScenario.MFA_SCENARIO_LOGIN)
+        ? mapped.LOGIN
+        : loginRequired
+    )
+
+    return mapped
   }
 }

@@ -110,10 +110,12 @@ export class MfaBindingManagementService {
       await this.mfaBindingRepo.save(binding)
     }
 
+    const accountName = await this.resolveTotpAccountName(userId)
+
     return {
       binding: this.toView(binding, '', true, MfaType.TOTP),
       secret: binding.getSecret(),
-      qrCodeUrl: binding.generateTotpUrl('OES', userId)
+      qrCodeUrl: binding.generateTotpUrl('OES', accountName)
     }
   }
 
@@ -234,6 +236,19 @@ export class MfaBindingManagementService {
     if (!totpBinding?.isEnabled()) {
       throw ExceptionFactory.domain(AUTH_MFA_RECOVERY_CODES_REQUIRE_TOTP, { userId })
     }
+  }
+
+  private async resolveTotpAccountName(userId: string): Promise<string> {
+    const emailLoginMethod = await this.loginMethodRepo.findByUserIdAndType(
+      userId,
+      LoginMethodType.EMAIL
+    )
+
+    if (emailLoginMethod?.isEnabled() && emailLoginMethod.isVerified()) {
+      return emailLoginMethod.identifier
+    }
+
+    return userId
   }
 
   private async getRequiredLoginMethod(

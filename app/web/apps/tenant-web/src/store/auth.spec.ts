@@ -18,9 +18,11 @@ const logoutApiMock = vi.fn()
 const loginApiMock = vi.fn()
 const selectAccountApiMock = vi.fn()
 const completeFirstLoginPasswordSetupApiMock = vi.fn()
+const completeMfaApiMock = vi.fn()
 const getSessionAccessSummaryApiMock = vi.fn()
 const getSessionContextApiMock = vi.fn()
 const generateAccessMock = vi.fn()
+const requestMfaFactorChallengeApiMock = vi.fn()
 const accessStoreMock: {
   accessToken: null | string
   loginExpired: boolean
@@ -100,12 +102,13 @@ vi.mock('@vben/constants', () => ({
 
 vi.mock('#/api', () => ({
   completeFirstLoginPasswordSetupApi: completeFirstLoginPasswordSetupApiMock,
-  completeMfaApi: vi.fn(),
+  completeMfaApi: completeMfaApiMock,
   getSessionAccessSummaryApi: getSessionAccessSummaryApiMock,
   getSessionContextApi: getSessionContextApiMock,
   loginApi: loginApiMock,
   logoutApi: logoutApiMock,
   requestEmailOtpChallengeApi: vi.fn(),
+  requestMfaFactorChallengeApi: requestMfaFactorChallengeApiMock,
   requestPhoneOtpChallengeApi: vi.fn(),
   selectAccountApi: selectAccountApiMock,
   switchSessionContextApi: vi.fn()
@@ -159,9 +162,11 @@ describe('tenant-web auth store logout', () => {
     loginApiMock.mockReset()
     selectAccountApiMock.mockReset()
     completeFirstLoginPasswordSetupApiMock.mockReset()
+    completeMfaApiMock.mockReset()
     getSessionAccessSummaryApiMock.mockReset()
     getSessionContextApiMock.mockReset()
     generateAccessMock.mockReset()
+    requestMfaFactorChallengeApiMock.mockReset()
     accessStoreMock.accessToken = 'access-token'
     accessStoreMock.loginExpired = false
     accessStoreMock.setAccessMenus.mockReset()
@@ -273,6 +278,182 @@ describe('tenant-web auth store logout', () => {
     expect(pushMock).toHaveBeenCalledWith({ name: 'CompleteMfa' })
   })
 
+  it('stores the default MFA factor without treating email OTP as sent before an explicit challenge request', async () => {
+    loginApiMock.mockResolvedValue({
+      status: 'MFA_REQUIRED',
+      nextStep: 'COMPLETE_MFA',
+      challenge: {
+        challengeId: 'challenge-1',
+        defaultFactor: 'EMAIL_OTP',
+        availableFactors: [
+          { type: 'EMAIL_OTP', label: '邮箱验证码', priority: 1 },
+          { type: 'TOTP', label: '认证器 App', priority: 2 },
+          { type: 'BACKUP_CODE', label: '恢复码', priority: 4 }
+        ]
+      }
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    await store.authLogin({
+      username: 'alice@example.com',
+      password: 'secret-1'
+    })
+
+    expect(store.pendingMfaFactor).toBe('EMAIL_OTP')
+    expect(store.pendingMfaAvailableFactors).toEqual([
+      { type: 'EMAIL_OTP', label: '邮箱验证码', priority: 1 },
+      { type: 'TOTP', label: '认证器 App', priority: 2 },
+      { type: 'BACKUP_CODE', label: '恢复码', priority: 4 }
+    ])
+    expect(store.pendingMfaFactorChallengeId).toBe('')
+    expect(store.pendingMfaDestination).toBe('')
+    expect(store.pendingMfaResendCooldown).toBe(0)
+  })
+
+  it('keeps factor order stable when switching to another MFA factor', async () => {
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    store.pendingChallengeId = 'challenge-1'
+    store.pendingMfaFactor = 'EMAIL_OTP'
+    store.pendingMfaAvailableFactors = [
+      { type: 'EMAIL_OTP', label: '邮箱验证码', priority: 1 },
+      { type: 'TOTP', label: '认证器 App', priority: 2 },
+      { type: 'BACKUP_CODE', label: '恢复码', priority: 4 }
+    ]
+    store.pendingMfaFactorChallengeId = 'factor-1'
+    store.pendingMfaDestination = 'a***@example.com'
+
+    await store.switchPendingMfaFactor('TOTP')
+
+    expect(store.pendingMfaFactor).toBe('TOTP')
+    expect(store.pendingMfaAvailableFactors.map((item) => item.type)).toEqual([
+      'EMAIL_OTP',
+      'TOTP',
+      'BACKUP_CODE'
+    ])
+    expect(requestMfaFactorChallengeApiMock).not.toHaveBeenCalled()
+    expect(store.pendingMfaFactorChallengeId).toBe('')
+    expect(store.pendingMfaDestination).toBe('')
+
+    await store.switchPendingMfaFactor('EMAIL_OTP')
+
+    expect(requestMfaFactorChallengeApiMock).not.toHaveBeenCalled()
+    expect(store.pendingMfaFactor).toBe('EMAIL_OTP')
+    expect(store.pendingMfaAvailableFactors.map((item) => item.type)).toEqual([
+      'EMAIL_OTP',
+      'TOTP',
+      'BACKUP_CODE'
+    ])
+    expect(store.pendingMfaFactorChallengeId).toBe('')
+    expect(store.pendingMfaDestination).toBe('')
+  })
+
+  it('cycles MFA factors in policy order and wraps back to the first factor', async () => {
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    store.pendingChallengeId = 'challenge-1'
+    store.pendingMfaFactor = 'EMAIL_OTP'
+    store.pendingMfaAvailableFactors = [
+      { type: 'EMAIL_OTP', label: '邮箱验证码', priority: 1 },
+      { type: 'TOTP', label: '认证器 App', priority: 2 },
+      { type: 'BACKUP_CODE', label: '恢复码', priority: 4 }
+    ]
+    store.pendingMfaFactorChallengeId = 'factor-1'
+    store.pendingMfaDestination = 'a***@example.com'
+
+    await store.cyclePendingMfaFactor()
+    expect(store.pendingMfaFactor).toBe('TOTP')
+    expect(store.pendingMfaFactorChallengeId).toBe('')
+    expect(requestMfaFactorChallengeApiMock).not.toHaveBeenCalled()
+
+    await store.cyclePendingMfaFactor()
+    expect(store.pendingMfaFactor).toBe('BACKUP_CODE')
+
+    await store.cyclePendingMfaFactor()
+    expect(store.pendingMfaFactor).toBe('EMAIL_OTP')
+    expect(requestMfaFactorChallengeApiMock).not.toHaveBeenCalled()
+  })
+
+  it('requests the active email MFA factor challenge only after the explicit send step', async () => {
+    requestMfaFactorChallengeApiMock.mockResolvedValue({
+      challengeId: 'factor-2',
+      destination: 'alice@example.com',
+      expiresAt: '2026-04-22T10:00:00.000Z'
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    store.pendingChallengeId = 'challenge-1'
+    store.pendingMfaFactor = 'EMAIL_OTP'
+    store.pendingMfaAvailableFactors = [
+      { type: 'EMAIL_OTP', label: '邮箱验证码', priority: 1 },
+      { type: 'TOTP', label: '认证器 App', priority: 2 }
+    ]
+
+    await store.requestPendingMfaFactorChallenge()
+
+    expect(requestMfaFactorChallengeApiMock).toHaveBeenCalledWith({
+      challengeId: 'challenge-1',
+      factor: 'EMAIL_OTP'
+    })
+    expect(store.pendingMfaFactorChallengeId).toBe('factor-2')
+    expect(store.pendingMfaDestination).toBe('alice@example.com')
+  })
+
+  it('does not auto-request the sms MFA factor challenge when switching to sms', async () => {
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    store.pendingChallengeId = 'challenge-1'
+    store.pendingMfaFactor = 'EMAIL_OTP'
+    store.pendingMfaAvailableFactors = [
+      { type: 'EMAIL_OTP', label: '邮箱验证码', priority: 1 },
+      { type: 'SMS_OTP', label: '短信验证码', priority: 2 },
+      { type: 'TOTP', label: '认证器 App', priority: 3 }
+    ]
+    store.pendingMfaFactorChallengeId = 'factor-1'
+    store.pendingMfaDestination = 'a***@example.com'
+
+    await store.switchPendingMfaFactor('SMS_OTP')
+
+    expect(requestMfaFactorChallengeApiMock).not.toHaveBeenCalled()
+    expect(store.pendingMfaFactor).toBe('SMS_OTP')
+    expect(store.pendingMfaFactorChallengeId).toBe('')
+    expect(store.pendingMfaDestination).toBe('')
+  })
+
+  it('requests the active sms MFA factor challenge only after the explicit send step', async () => {
+    requestMfaFactorChallengeApiMock.mockResolvedValue({
+      challengeId: 'factor-3',
+      destination: '+8613912345678',
+      expiresAt: '2026-04-22T10:00:00.000Z'
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    store.pendingChallengeId = 'challenge-1'
+    store.pendingMfaFactor = 'SMS_OTP'
+    store.pendingMfaAvailableFactors = [
+      { type: 'SMS_OTP', label: '短信验证码', priority: 1 },
+      { type: 'TOTP', label: '认证器 App', priority: 2 }
+    ]
+
+    await store.requestPendingMfaFactorChallenge()
+
+    expect(requestMfaFactorChallengeApiMock).toHaveBeenCalledWith({
+      challengeId: 'challenge-1',
+      factor: 'SMS_OTP'
+    })
+    expect(store.pendingMfaFactorChallengeId).toBe('factor-3')
+    expect(store.pendingMfaDestination).toBe('+8613912345678')
+  })
+
   it('attaches client device hints when submitting account selection', async () => {
     selectAccountApiMock.mockResolvedValue({
       status: 'ACCOUNT_SELECTION_REQUIRED',
@@ -382,5 +563,18 @@ describe('tenant-web auth store logout', () => {
     await store.refreshCurrentSessionAccess()
 
     expect(replaceMock).toHaveBeenCalledWith('/admin/navigation-management')
+  })
+
+  it('preserves the persisted permission snapshot until the user logs in again', async () => {
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    await store.fetchUserInfo()
+
+    expect(getSessionContextApiMock).not.toHaveBeenCalled()
+    expect(getSessionAccessSummaryApiMock).not.toHaveBeenCalled()
+    expect(accessStoreMock.setAccessCodes).not.toHaveBeenCalled()
+    expect(authContextStoreMock.setAuthContext).not.toHaveBeenCalled()
+    expect(store.fetchUserInfo()).resolves.toEqual(userStoreMock.userInfo)
   })
 })

@@ -9,7 +9,10 @@ import {
   SelfLoginHistoryListViewModel,
   SelfSessionListViewModel,
   SelfSessionViewModel,
-  SessionMutationViewModel
+  SessionMutationViewModel,
+  TrustedDeviceListViewModel,
+  TrustedDeviceMutationViewModel,
+  TrustedDeviceViewModel
 } from '../../interfaces/http/view-models/self-security.view-model'
 import {
   ChangeOwnPasswordDto,
@@ -53,6 +56,33 @@ export class SessionSelfServiceUseCase {
           isRevoked: Boolean(session.isRevoked),
           isCurrent: Boolean(session.isCurrent),
           isAdminControlled: Boolean(session.isAdminControlled)
+        })
+      )
+    }
+  }
+
+  async listTrustedDevices(source: DownstreamRequestSource): Promise<TrustedDeviceListViewModel> {
+    const self = getAuthenticatedSelfContext(source)
+    const result = await this.authAdapter.listTrustedDevices(
+      self.userId,
+      self.scopeLevel,
+      self.tenantId,
+      undefined,
+      source
+    )
+
+    return {
+      devices: (result.devices ?? []).map(
+        (device): TrustedDeviceViewModel => ({
+          id: device.id ?? '',
+          deviceId: device.deviceId ?? '',
+          deviceName: device.deviceName ?? undefined,
+          browser: device.browser ?? undefined,
+          platform: device.platform ?? undefined,
+          trustedAt: device.trustedAt ?? '',
+          lastActiveAt: device.lastActiveAt ?? '',
+          expiresAt: device.expiresAt ?? '',
+          isCurrentDevice: Boolean(device.isCurrentDevice)
         })
       )
     }
@@ -109,8 +139,12 @@ export class SessionSelfServiceUseCase {
     const result = await this.authAdapter.changeOwnPassword(
       {
         userId: self.userId,
+        accountId: self.accountId,
+        tenantId: self.tenantId,
+        scopeLevel: self.scopeLevel,
         currentPassword: dto.currentPassword,
-        newPassword: dto.newPassword
+        newPassword: dto.newPassword,
+        mfaGrantToken: dto.mfaGrantToken
       },
       source
     )
@@ -127,7 +161,7 @@ export class SessionSelfServiceUseCase {
     source: DownstreamRequestSource
   ): Promise<LoginMethodMutationViewModel> {
     const self = getAuthenticatedSelfContext(source)
-    const result = await this.authAdapter.setLoginMethodEnabled(
+    const result = await this.authAdapter.setOwnLoginMethodEnabled(
       {
         userId: self.userId,
         methodId: methodId.trim(),
@@ -178,6 +212,43 @@ export class SessionSelfServiceUseCase {
     return {
       success: Boolean(result.success),
       sessionCount: Number(result.sessionCount ?? '0')
+    }
+  }
+
+  async revokeTrustedDevice(
+    trustedDeviceId: string,
+    source: DownstreamRequestSource
+  ): Promise<TrustedDeviceMutationViewModel> {
+    const self = getAuthenticatedSelfContext(source)
+    const result = await this.authAdapter.revokeTrustedDevice(
+      self.userId,
+      self.scopeLevel,
+      self.tenantId,
+      trustedDeviceId.trim(),
+      source
+    )
+
+    return {
+      success: Boolean(result.success),
+      deviceCount: Number(result.deviceCount ?? '0')
+    }
+  }
+
+  async revokeOtherTrustedDevices(
+    source: DownstreamRequestSource
+  ): Promise<TrustedDeviceMutationViewModel> {
+    const self = getAuthenticatedSelfContext(source)
+    const result = await this.authAdapter.revokeOtherTrustedDevices(
+      self.userId,
+      self.scopeLevel,
+      self.tenantId,
+      undefined,
+      source
+    )
+
+    return {
+      success: Boolean(result.success),
+      deviceCount: Number(result.deviceCount ?? '0')
     }
   }
 

@@ -4,6 +4,10 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Modal, message } from 'ant-design-vue';
 
+const assignRolePermissionApi = vi.fn();
+const assignRoleTemplatePermissionApi = vi.fn();
+const revokeRolePermissionApi = vi.fn();
+const revokeRoleTemplatePermissionApi = vi.fn();
 const listRolePermissionsApi = vi.fn();
 const listNavigationEntriesApi = vi.fn();
 const getRoleNavigationApi = vi.fn();
@@ -14,6 +18,7 @@ const listRoleTemplatesApi = vi.fn();
 const setRoleLandingPoliciesApi = vi.fn();
 const setRoleNavigationVisibilityApi = vi.fn();
 const syncRoleNavigationFromTemplateApi = vi.fn();
+const refreshCurrentSessionAccess = vi.fn();
 const authContextState = {
   actionCodes: [
     'permission.role.create',
@@ -34,8 +39,8 @@ const authContextState = {
 };
 
 vi.mock('#/api', () => ({
-  assignRolePermissionApi: vi.fn(),
-  assignRoleTemplatePermissionApi: vi.fn(),
+  assignRolePermissionApi,
+  assignRoleTemplatePermissionApi,
   createRoleApi: vi.fn(),
   createRoleTemplateApi: vi.fn(),
   deleteRoleApi: vi.fn(),
@@ -51,8 +56,8 @@ vi.mock('#/api', () => ({
   listRolesApi,
   listRoleTemplatePermissionsApi: vi.fn(),
   listRoleTemplatesApi,
-  revokeRolePermissionApi: vi.fn(),
-  revokeRoleTemplatePermissionApi: vi.fn(),
+  revokeRolePermissionApi,
+  revokeRoleTemplatePermissionApi,
   setRoleEnabledApi: vi.fn(),
   setRoleLandingPoliciesApi,
   setRoleNavigationVisibilityApi,
@@ -68,7 +73,7 @@ vi.mock('#/store/auth-context', () => ({
 
 vi.mock('#/store', () => ({
   useAuthStore: () => ({
-    refreshCurrentSessionAccess: vi.fn().mockResolvedValue(undefined),
+    refreshCurrentSessionAccess,
   }),
 }));
 
@@ -114,6 +119,11 @@ describe('role management page', () => {
     listPermissionsApi.mockReset();
     listRolesApi.mockReset();
     listRoleTemplatesApi.mockReset();
+    assignRolePermissionApi.mockReset();
+    assignRoleTemplatePermissionApi.mockReset();
+    revokeRolePermissionApi.mockReset();
+    revokeRoleTemplatePermissionApi.mockReset();
+    refreshCurrentSessionAccess.mockReset();
     setRoleLandingPoliciesApi.mockReset();
     setRoleNavigationVisibilityApi.mockReset();
     syncRoleNavigationFromTemplateApi.mockReset();
@@ -128,12 +138,24 @@ describe('role management page', () => {
     listPermissionsApi.mockResolvedValue({
       page: 1,
       pageSize: 20,
-      permissions: [],
-      total: 0,
+      permissions: [
+        {
+          id: 'perm-delete-account',
+          code: 'identity.account.delete',
+          module: 'IDENTITY_SERVICE',
+          description: '删除账号',
+        },
+      ],
+      total: 1,
     });
     listRolePermissionsApi.mockResolvedValue({
       permissions: [],
     });
+    assignRolePermissionApi.mockResolvedValue(undefined);
+    assignRoleTemplatePermissionApi.mockResolvedValue(undefined);
+    revokeRolePermissionApi.mockResolvedValue(undefined);
+    revokeRoleTemplatePermissionApi.mockResolvedValue(undefined);
+    refreshCurrentSessionAccess.mockResolvedValue(undefined);
     getRoleNavigationApi.mockResolvedValue({
       landingPolicies: [
         {
@@ -245,10 +267,17 @@ describe('role management page', () => {
     expect(listPermissionsApi).not.toHaveBeenCalled();
 
     const createButton = Array.from(document.body.querySelectorAll('button')).find(
-      (button) => button.textContent?.includes('直接创建'),
+      (button) => button.textContent?.includes('创建角色'),
     ) as HTMLButtonElement | undefined;
 
     createButton?.click();
+    await flushPromises();
+
+    const directCreateAction = Array.from(
+      document.body.querySelectorAll('.ant-dropdown-menu-title-content'),
+    ).find((node) => node.textContent?.includes('直接创建')) as HTMLElement | undefined;
+
+    directCreateAction?.click();
     await flushPromises();
 
     expect(document.body.textContent).toContain('创建角色实例');
@@ -385,8 +414,7 @@ describe('role management page', () => {
     await flushPromises();
 
     expect(document.body.textContent).not.toContain('角色模板');
-    expect(document.body.textContent).toContain('从模板创建');
-    expect(document.body.textContent).toContain('直接创建');
+    expect(document.body.textContent).toContain('创建角色');
   });
 
   it('uses tenant selector options instead of a raw tenant id input in the instantiate modal', async () => {
@@ -403,11 +431,18 @@ describe('role management page', () => {
 
     await flushPromises();
 
-    const instantiateButton = Array.from(document.body.querySelectorAll('button')).find(
-      (button) => button.textContent?.includes('从模板创建'),
+    const createButton = Array.from(document.body.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('创建角色'),
     ) as HTMLButtonElement | undefined;
 
-    instantiateButton?.click();
+    createButton?.click();
+    await flushPromises();
+
+    const instantiateAction = Array.from(
+      document.body.querySelectorAll('.ant-dropdown-menu-title-content'),
+    ).find((node) => node.textContent?.includes('从模板创建')) as HTMLElement | undefined;
+
+    instantiateAction?.click();
     await flushPromises();
 
     expect(listRoleTenantOptionsApi).toHaveBeenCalledWith({
@@ -450,15 +485,13 @@ describe('role management page', () => {
 
     expect(getRoleNavigationApi).toHaveBeenCalledWith('role-1');
     expect(document.body.textContent).toContain('默认配置');
-    expect(document.body.textContent).toContain('默认进入');
+    expect(document.body.textContent).toContain('当前前端导航');
     expect(document.body.textContent).not.toContain('前端差异配置');
     expect(document.body.textContent).not.toContain('管理差异');
-    expect(
-      document.body.querySelector('.role-management__navigation-selection-panel'),
-    ).not.toBeNull();
-    expect(document.body.querySelectorAll('.ant-checkbox-group').length).toBeGreaterThan(0);
-    expect(document.body.querySelectorAll('.ant-radio-group').length).toBeGreaterThan(0);
-    expect(document.body.textContent).not.toContain('Priority');
+    expect(document.body.querySelector('.role-management__navigation-list-head')).not.toBeNull();
+    expect(document.body.querySelectorAll('.ant-checkbox').length).toBeGreaterThan(0);
+    expect(document.body.querySelectorAll('.ant-radio').length).toBeGreaterThan(0);
+    expect(document.body.textContent).toContain('Priority');
     expect(document.body.textContent).not.toContain('添加入口');
     expect(document.body.textContent).toContain('保存导航配置');
     expect(document.body.textContent).not.toContain('保存可见入口');
@@ -672,7 +705,97 @@ describe('role management page', () => {
 
     expect(getRoleNavigationApi).toHaveBeenCalledWith('template-1');
     expect(document.body.textContent).toContain('导航配置 · 租户管理员模板');
-    expect(document.body.textContent).toContain('模板导航会在实例化时作为初始配置复制到新角色实例');
+    expect(document.body.textContent).toContain('模板实例化时复制为初始导航');
+  });
+
+  it('renders the navigation drawer as one combined entry list instead of split visibility and landing sections', async () => {
+    const view = await import('./role-management.vue');
+
+    mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const trigger = document.body.querySelector(
+      'button[aria-label="角色操作"]',
+    ) as HTMLButtonElement | null;
+
+    trigger?.click();
+    await flushPromises();
+
+    const navigationAction = Array.from(
+      document.body.querySelectorAll('.ant-dropdown-menu-title-content'),
+    ).find((node) => node.textContent?.includes('导航')) as HTMLElement | undefined;
+
+    navigationAction?.click();
+    await flushPromises();
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('当前前端导航');
+    expect(document.body.textContent).toContain('可见默认导航入口');
+    expect(document.body.textContent).not.toContain('默认进入');
+    expect(document.body.textContent).not.toContain('配置对象');
+    expect(document.body.textContent).not.toContain('生效方式');
+    expect(document.body.textContent).not.toContain('一次提交当前导航配置，并在发送前完成合法性校验');
+
+    const optionTop = document.body.querySelector(
+      '.role-management__navigation-option-top',
+    );
+    const optionBottom = document.body.querySelector(
+      '.role-management__navigation-option-bottom',
+    );
+
+    expect(optionTop?.textContent).toContain('财务驾驶舱');
+    expect(optionTop?.textContent).toContain('Priority 100');
+    expect(optionBottom?.textContent).toContain('finance.dashboard');
+  });
+
+  it('refreshes the current session access summary after assigning a permission to a role instance', async () => {
+    const view = await import('./role-management.vue');
+
+    mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const trigger = document.body.querySelector(
+      'button[aria-label="角色操作"]',
+    ) as HTMLButtonElement | null;
+
+    trigger?.click();
+    await flushPromises();
+
+    const permissionAction = Array.from(
+      document.body.querySelectorAll('.ant-dropdown-menu-title-content'),
+    ).find((node) => node.textContent?.includes('权限')) as HTMLElement | undefined;
+
+    permissionAction?.click();
+    await flushPromises();
+    await flushPromises();
+
+    const addButton = Array.from(document.body.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('添加'),
+    ) as HTMLButtonElement | undefined;
+
+    addButton?.click();
+    await flushPromises();
+
+    expect(assignRolePermissionApi).toHaveBeenCalledWith('role-1', {
+      permissionId: 'perm-delete-account',
+    });
+    expect(refreshCurrentSessionAccess).toHaveBeenCalledTimes(1);
   });
 
   it('closes the template navigation drawer after saving', async () => {
@@ -849,7 +972,6 @@ describe('role management page', () => {
     await flushPromises();
     await flushPromises();
 
-    expect(document.body.textContent).toContain('实例详情');
     expect(document.body.textContent).toContain('来源模板');
     expect(document.body.textContent).toContain('租户管理员模板');
 
@@ -931,7 +1053,9 @@ describe('role management page', () => {
     await flushPromises();
     await flushPromises();
 
-    expect(document.body.textContent).toContain('前端差异配置');
-    expect(document.body.textContent).toContain('管理差异');
+    expect(document.body.textContent).toContain('前端导航配置');
+    expect(document.body.textContent).toContain('DEFAULT');
+    expect(document.body.textContent).toContain('WEB');
+    expect(document.body.textContent).toContain('MOBILE');
   });
 });

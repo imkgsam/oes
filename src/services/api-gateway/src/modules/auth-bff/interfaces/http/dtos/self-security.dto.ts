@@ -19,6 +19,12 @@ export enum MfaBindingTypeDto {
   BACKUP_CODE = 'BACKUP_CODE'
 }
 
+export enum StepUpMfaScenarioDto {
+  CHANGE_PASSWORD = 'CHANGE_PASSWORD',
+  CHANGE_CONTACT = 'CHANGE_CONTACT',
+  NEW_DEVICE_LOGIN = 'NEW_DEVICE_LOGIN'
+}
+
 // Defines the payload used to enable or disable one self-service MFA binding type.
 export class MfaBindingMutationDto {
   @ApiProperty({
@@ -70,6 +76,13 @@ export class ChangeOwnPasswordDto {
   @IsString()
   @MinLength(8)
   newPassword: string
+
+  @ApiPropertyOptional({
+    description: 'Optional short-lived step-up MFA grant required by protected tenant scenarios.'
+  })
+  @IsOptional()
+  @IsString()
+  mfaGrantToken?: string
 }
 
 // Defines the payload used to request one authenticated self-service email binding challenge.
@@ -92,6 +105,13 @@ export class VerifyEmailContactBindingDto extends RequestEmailContactBindingChal
   @MinLength(1)
   @MaxLength(64)
   otp: string
+
+  @ApiPropertyOptional({
+    description: 'Optional short-lived step-up MFA grant required by protected tenant scenarios.'
+  })
+  @IsOptional()
+  @IsString()
+  mfaGrantToken?: string
 }
 
 // Defines the payload used to request one authenticated self-service phone binding challenge.
@@ -114,6 +134,60 @@ export class VerifyPhoneContactBindingDto extends RequestPhoneContactBindingChal
   @MinLength(1)
   @MaxLength(64)
   otp: string
+
+  @ApiPropertyOptional({
+    description: 'Optional short-lived step-up MFA grant required by protected tenant scenarios.'
+  })
+  @IsOptional()
+  @IsString()
+  mfaGrantToken?: string
+}
+
+// Defines the payload used to start one authenticated step-up MFA flow for a protected self-service scenario.
+export class StartStepUpMfaChallengeDto {
+  @ApiProperty({
+    enum: StepUpMfaScenarioDto,
+    enumName: 'StepUpMfaScenario'
+  })
+  @IsEnum(StepUpMfaScenarioDto)
+  scenario!: StepUpMfaScenarioDto
+}
+
+// Defines the payload used to complete one authenticated step-up MFA challenge.
+export class CompleteStepUpMfaChallengeDto {
+  @ApiProperty({
+    description: 'Challenge identifier previously returned by the step-up MFA start endpoint.',
+    maxLength: 4096
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(4096)
+  challengeId!: string
+
+  @ApiProperty({
+    enum: MfaBindingTypeDto,
+    enumName: 'MfaBindingType'
+  })
+  @IsEnum(MfaBindingTypeDto)
+  factor!: MfaBindingTypeDto
+
+  @ApiProperty({
+    description: 'Verification code entered by the user for the selected step-up MFA factor.'
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  code!: string
+
+  @ApiPropertyOptional({
+    description: 'Factor-specific OTP challenge identifier when the selected factor requires a separate OTP challenge.',
+    maxLength: 128
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  factorChallengeId?: string
 }
 
 export enum LoginHistoryResultDto {

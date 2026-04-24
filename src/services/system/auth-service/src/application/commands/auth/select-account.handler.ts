@@ -31,7 +31,7 @@ export interface SelectAccountMfaRequiredResult {
   tenantId: string | null
   scopeLevel: 'SYSTEM' | 'TENANT'
   challengeId: string
-  scenario: 'LOGIN'
+  scenario: 'LOGIN' | 'NEW_DEVICE_LOGIN'
   defaultFactor: TenantMfaFactor
   availableFactors: LoginMfaFactorOption[]
   factorChallengeId?: string
@@ -64,6 +64,8 @@ export class SelectAccountHandler
       scopeLevel: account.scopeLevel,
       displayName: account.displayName,
       loginMethod: command.loginMethod,
+      deviceId: command.deviceId,
+      deviceName: command.deviceName,
       userAgent: command.userAgent,
       ipAddress: command.ipAddress
     })

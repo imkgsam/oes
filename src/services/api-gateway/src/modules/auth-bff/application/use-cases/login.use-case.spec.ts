@@ -51,6 +51,76 @@ describe('LoginUseCase', () => {
     )
   })
 
+  it('hydrates tenant names for account options through tenant-org-service instead of auth-service passthrough', async () => {
+    const authAdapter = {
+      loginWithEmailPassword: jest.fn().mockResolvedValue({
+        status: LoginStatus.LOGIN_STATUS_ACCOUNT_SELECTION_REQUIRED,
+        userId: 'user-1',
+        loginMethod: 'EMAIL_PASSWORD',
+        accounts: [
+          {
+            accountId: 'account-1',
+            tenantId: 'tenant-1',
+            scopeLevel: 'TENANT',
+            displayName: 'Tenant Account'
+          },
+          {
+            accountId: 'account-2',
+            scopeLevel: 'SYSTEM',
+            displayName: 'Platform Account'
+          }
+        ]
+      })
+    }
+    const tenantOrgAdapter = {
+      getTenantById: jest.fn().mockResolvedValue({
+        tenant: {
+          id: 'tenant-1',
+          name: 'Tenant One'
+        }
+      })
+    }
+
+    const useCase = new LoginUseCase(authAdapter as any, tenantOrgAdapter as any)
+
+    const result = await useCase.execute(
+      {
+        method: LoginMethodDto.EMAIL_PASSWORD,
+        identifier: 'alice@example.com',
+        credential: 'secret'
+      },
+      { requestId: 'req-1', traceId: 'trace-1' },
+      {}
+    )
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'ACCOUNT_SELECTION_REQUIRED',
+        nextStep: 'SELECT_ACCOUNT',
+        accountOptions: [
+          {
+            accountId: 'account-1',
+            tenantId: 'tenant-1',
+            tenantName: 'Tenant One',
+            scopeLevel: 'TENANT',
+            displayName: 'Tenant Account'
+          },
+          {
+            accountId: 'account-2',
+            tenantId: undefined,
+            tenantName: undefined,
+            scopeLevel: 'SYSTEM',
+            displayName: 'Platform Account'
+          }
+        ]
+      })
+    )
+    expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
+    )
+  })
+
   it('rejects unsupported login methods', async () => {
     const useCase = new LoginUseCase({} as any)
 
