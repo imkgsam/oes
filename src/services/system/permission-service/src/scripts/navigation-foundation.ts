@@ -152,6 +152,56 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     entryType: 'page'
   },
   {
+    entryKey: 'master-data.item-management',
+    name: 'Item 管理',
+    description: '租户侧 Item 主数据 phase 1 管理入口。',
+    featureKey: 'item-master',
+    supportedTerminals: ['WEB'],
+    registryPriority: 55,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'master-data.supplier-management',
+    name: '供应商管理',
+    description: '租户侧 SRM supplier master phase 1 管理入口。',
+    featureKey: 'srm',
+    supportedTerminals: ['WEB'],
+    registryPriority: 54,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'master-data.customer-management',
+    name: '客户管理',
+    description: '租户侧 CRM customer master phase 1 管理入口。',
+    featureKey: 'crm',
+    supportedTerminals: ['WEB'],
+    registryPriority: 53,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'sales.quote-orders',
+    name: '报价与订单',
+    description: '租户侧 sales quote-order phase 1 最小闭环入口。',
+    featureKey: 'sales',
+    supportedTerminals: ['WEB'],
+    registryPriority: 52,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'procurement.management',
+    name: '采购管理',
+    description: '租户侧 procurement phase 1 PR / PO / receiving 最小闭环入口。',
+    featureKey: 'procurement',
+    supportedTerminals: ['WEB'],
+    registryPriority: 51,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
     entryKey: 'admin.platform-mfa',
     name: '平台 MFA 配置',
     description: '系统账号 MFA 场景、因子优先级与新设备登录保护配置入口。',
@@ -251,6 +301,36 @@ export function buildNavigationFoundationVisibilitySeeds(
         rows.push({
           roleId: role.id,
           entryKey: 'tenant-settings.login-mfa',
+          terminal: DEFAULT_NAVIGATION_TERMINAL,
+          enabled: true
+        })
+        rows.push({
+          roleId: role.id,
+          entryKey: 'master-data.item-management',
+          terminal: DEFAULT_NAVIGATION_TERMINAL,
+          enabled: true
+        })
+        rows.push({
+          roleId: role.id,
+          entryKey: 'master-data.supplier-management',
+          terminal: DEFAULT_NAVIGATION_TERMINAL,
+          enabled: true
+        })
+        rows.push({
+          roleId: role.id,
+          entryKey: 'master-data.customer-management',
+          terminal: DEFAULT_NAVIGATION_TERMINAL,
+          enabled: true
+        })
+        rows.push({
+          roleId: role.id,
+          entryKey: 'sales.quote-orders',
+          terminal: DEFAULT_NAVIGATION_TERMINAL,
+          enabled: true
+        })
+        rows.push({
+          roleId: role.id,
+          entryKey: 'procurement.management',
           terminal: DEFAULT_NAVIGATION_TERMINAL,
           enabled: true
         })

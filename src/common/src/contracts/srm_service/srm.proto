@@ -1,0 +1,308 @@
+syntax = "proto3";
+
+package srm_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.srm.v1";
+
+service SupplierQueryService {
+  rpc GetSupplier(GetSupplierRequest) returns (GetSupplierResponse);
+  rpc SearchSuppliers(SearchSuppliersRequest) returns (SearchSuppliersResponse);
+  rpc ListSupplierContacts(ListSupplierContactsRequest) returns (ListSupplierContactsResponse);
+  rpc ListSupplierAddresses(ListSupplierAddressesRequest) returns (ListSupplierAddressesResponse);
+  rpc ListSupplierOfferingsBySupplier(ListSupplierOfferingsBySupplierRequest) returns (ListSupplierOfferingsBySupplierResponse);
+  rpc ListSupplierOfferingsByItem(ListSupplierOfferingsByItemRequest) returns (ListSupplierOfferingsByItemResponse);
+}
+
+service SupplierManagementService {
+  rpc CreateSupplierProfile(CreateSupplierProfileRequest) returns (CreateSupplierProfileResponse);
+  rpc UpdateSupplierProfileBasics(UpdateSupplierProfileBasicsRequest) returns (UpdateSupplierProfileBasicsResponse);
+  rpc BindSupplierToTenantParty(BindSupplierToTenantPartyRequest) returns (BindSupplierToTenantPartyResponse);
+  rpc UpsertSupplierContact(UpsertSupplierContactRequest) returns (UpsertSupplierContactResponse);
+  rpc UpsertSupplierAddress(UpsertSupplierAddressRequest) returns (UpsertSupplierAddressResponse);
+  rpc UpsertSupplierOffering(UpsertSupplierOfferingRequest) returns (UpsertSupplierOfferingResponse);
+  rpc ChangeSupplierStatus(ChangeSupplierStatusRequest) returns (ChangeSupplierStatusResponse);
+}
+
+enum SupplierStatus {
+  SUPPLIER_STATUS_UNSPECIFIED = 0;
+  SUPPLIER_STATUS_ACTIVE = 1;
+  SUPPLIER_STATUS_INACTIVE = 2;
+}
+
+enum SupplierPartyBindingStatus {
+  SUPPLIER_PARTY_BINDING_STATUS_UNSPECIFIED = 0;
+  SUPPLIER_PARTY_BINDING_STATUS_ACTIVE = 1;
+}
+
+enum SupplierOfferingStatus {
+  SUPPLIER_OFFERING_STATUS_UNSPECIFIED = 0;
+  SUPPLIER_OFFERING_STATUS_ACTIVE = 1;
+  SUPPLIER_OFFERING_STATUS_INACTIVE = 2;
+}
+
+message OperatorContext {
+  string operator_id = 1;
+  string operator_type = 2;
+  string org_id = 3;
+}
+
+message TraceContext {
+  string trace_id = 1;
+  string request_id = 2;
+}
+
+message AuditContext {
+  string audit_id = 1;
+  string reason = 2;
+  string source = 3;
+}
+
+message SupplierPartyBindingSummary {
+  string tenant_party_id = 1;
+  SupplierPartyBindingStatus binding_status = 2;
+  string party_display_name = 3;
+}
+
+message SupplierProfile {
+  string supplier_id = 1;
+  string supplier_no = 2;
+  string tenant_id = 3;
+  string display_name = 4;
+  SupplierStatus status = 5;
+  string supplier_category = 6;
+  repeated string tags = 7;
+  SupplierPartyBindingSummary party_binding = 8;
+}
+
+message SupplierContact {
+  string supplier_contact_id = 1;
+  string supplier_id = 2;
+  string display_name = 3;
+  string role_title = 4;
+  string email = 5;
+  string phone = 6;
+  bool is_primary_contact = 7;
+  bool is_active = 8;
+}
+
+message SupplierAddress {
+  string supplier_address_id = 1;
+  string supplier_id = 2;
+  string label = 3;
+  string country_code = 4;
+  string region = 5;
+  string locality = 6;
+  string address_line_1 = 7;
+  string address_line_2 = 8;
+  string postal_code = 9;
+  bool is_primary_address = 10;
+  bool is_active = 11;
+}
+
+message SupplierOffering {
+  string supplier_offering_id = 1;
+  string supplier_id = 2;
+  string item_id = 3;
+  string item_code = 4;
+  string item_name = 5;
+  SupplierOfferingStatus status = 6;
+}
+
+message GetSupplierRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string supplier_id = 4;
+}
+
+message GetSupplierResponse {
+  SupplierProfile supplier = 1;
+}
+
+message SearchSuppliersRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string keyword = 4;
+  SupplierStatus status = 5;
+  string tenant_party_id = 6;
+  uint32 page = 7;
+  uint32 page_size = 8;
+}
+
+message SearchSuppliersResponse {
+  repeated SupplierProfile suppliers = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message ListSupplierContactsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string supplier_id = 4;
+}
+
+message ListSupplierContactsResponse {
+  repeated SupplierContact contacts = 1;
+}
+
+message ListSupplierAddressesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string supplier_id = 4;
+}
+
+message ListSupplierAddressesResponse {
+  repeated SupplierAddress addresses = 1;
+}
+
+message ListSupplierOfferingsBySupplierRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string supplier_id = 4;
+  SupplierOfferingStatus status = 5;
+  uint32 page = 6;
+  uint32 page_size = 7;
+}
+
+message ListSupplierOfferingsBySupplierResponse {
+  repeated SupplierOffering offerings = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message ListSupplierOfferingsByItemRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string item_id = 4;
+  SupplierOfferingStatus status = 5;
+  uint32 page = 6;
+  uint32 page_size = 7;
+}
+
+message ListSupplierOfferingsByItemResponse {
+  repeated SupplierOffering offerings = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message CreateSupplierProfileRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string display_name = 5;
+  string supplier_no = 6;
+  string supplier_category = 7;
+  repeated string tags = 8;
+}
+
+message CreateSupplierProfileResponse {
+  SupplierProfile supplier = 1;
+}
+
+message UpdateSupplierProfileBasicsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string supplier_id = 5;
+  string display_name = 6;
+  string supplier_no = 7;
+  string supplier_category = 8;
+  repeated string tags = 9;
+}
+
+message UpdateSupplierProfileBasicsResponse {
+  SupplierProfile supplier = 1;
+}
+
+message BindSupplierToTenantPartyRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string supplier_id = 5;
+  string tenant_party_id = 6;
+}
+
+message BindSupplierToTenantPartyResponse {
+  SupplierProfile supplier = 1;
+}
+
+message UpsertSupplierContactRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string supplier_id = 5;
+  string supplier_contact_id = 6;
+  string display_name = 7;
+  string role_title = 8;
+  string email = 9;
+  string phone = 10;
+  optional bool is_primary_contact = 11;
+  optional bool is_active = 12;
+}
+
+message UpsertSupplierContactResponse {
+  SupplierContact contact = 1;
+}
+
+message UpsertSupplierAddressRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string supplier_id = 5;
+  string supplier_address_id = 6;
+  string label = 7;
+  string country_code = 8;
+  string region = 9;
+  string locality = 10;
+  string address_line_1 = 11;
+  string address_line_2 = 12;
+  string postal_code = 13;
+  optional bool is_primary_address = 14;
+  optional bool is_active = 15;
+}
+
+message UpsertSupplierAddressResponse {
+  SupplierAddress address = 1;
+}
+
+message UpsertSupplierOfferingRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string supplier_offering_id = 5;
+  string supplier_id = 6;
+  string item_id = 7;
+  SupplierOfferingStatus target_status = 8;
+}
+
+message UpsertSupplierOfferingResponse {
+  SupplierOffering offering = 1;
+}
+
+message ChangeSupplierStatusRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string supplier_id = 5;
+  SupplierStatus target_status = 6;
+}
+
+message ChangeSupplierStatusResponse {
+  SupplierProfile supplier = 1;
+}

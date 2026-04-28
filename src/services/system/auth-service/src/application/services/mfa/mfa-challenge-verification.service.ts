@@ -44,7 +44,12 @@ export class MfaChallengeVerificationService {
     }
 
     const binding = await this.mfaBindingRepo.findById(tokenId)
-    if (!binding || binding.getType() !== MfaType.TOTP || !binding.isBindingActive()) {
+    if (
+      !binding ||
+      binding.getType() !== MfaType.TOTP ||
+      !binding.isBindingActive() ||
+      binding.isSeededTestBinding()
+    ) {
       return null
     }
 
@@ -153,7 +158,7 @@ export class MfaChallengeVerificationService {
 
   private async verifyTotpFactor(userId: string, code: string): Promise<boolean> {
     const binding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.TOTP)
-    if (!binding || !binding.isBindingActive()) {
+    if (!binding || !binding.isBindingActive() || binding.isSeededTestBinding()) {
       return false
     }
 

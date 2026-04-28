@@ -2,21 +2,30 @@
 
 ## 1. Purpose
 
-`srm-service` 是 OES 的供应商关系与供应侧协同真相服务，负责回答“这个主体作为供应商在当前租户内处于什么合作状态、应由谁协作、当前表现如何、有哪些需要关注的供应商分析结论”。
+`srm-service` 是 OES 的供应商关系主档服务，负责回答“这个租户内有哪些正式供应商档案、它们绑定了哪个正式主体、当前处于什么供应商状态、有哪些联系人/地址/分类/标签、以及它当前可供应哪些可采购 Item”。
 
-当前职责卡冻结的是 SRM 的独立服务边界；完整实施顺序、契约和分析指标口径仍需在后续 design / feature / contract 中继续细化。
+当前职责卡只冻结 `SRM-MINIMAL` 的最小供应商主档闭环，不展开 RFQ、采购价格、MOQ、账期、lead time、供应商绩效或质量整改。
 
 ## 2. Owns
 
-- 供应商业务档案：
-  - `Supplier`
-- 供应商联系人业务语义：
-  - `SupplierContact`
-- 供应商在 SRM 语义下的业务角色、分类、服务范围和合作状态
-- 供应商关系中的协作入口、联系人健康度和主联系人缺失等关系事实
-- 面向供应商分析页的聚合读模型：
-  - `SupplierAnalysisView`
-- SRM 自身的人工风险备注、分析结论摘要与供应商治理辅助事实
+- `SupplierProfile`
+- `SupplierPartyBinding`
+- `SupplierContact`
+- `SupplierAddress`
+- `SupplierStatus`
+- `SupplierCategory`
+- `SupplierTag`
+- `SupplierOffering`
+- 供应商主档层面的唯一性、状态切换与启停规则
+
+补充冻结规则：
+
+- `SupplierProfile` 的正式主体引用是 `tenantPartyId`
+- `ACTIVE SupplierProfile` 必须绑定 `tenantPartyId`
+- 同一 `tenantId + tenantPartyId` 只允许一个正式 `SupplierProfile`
+- `SupplierOffering` 表达 `supplierId + itemId` 的“可供应关系事实”
+- `ACTIVE SupplierOffering` 只允许挂在 `ACTIVE SupplierProfile` 下
+- `ACTIVE SupplierOffering` 只允许指向 `purchasable Item`
 
 ## 3. Does Not Own
 
@@ -25,79 +34,76 @@
   - `TenantParty`
   - `PartyIdentifier`
   - `PartyRelationship`
-- 认证、会话、令牌：
-  - `auth-service`
-- 身份映射与 operator context 真相：
-  - `identity-service`
-- 角色、权限、scope、policy 与授权判定真相：
-  - `permission-service`
-- 组织树、部门、小组、成员归属真相：
-  - `tenant-org-service`
-- 采购申请、采购订单、履约状态与采购执行规则真相：
-  - `procurement-service`
-- 来料检验、批次质量判定、拒收与质量处理真相：
-  - future `quality-service` / `inventory` / `mes-service`
-- 邮件线程、共享邮箱工作台、原始通信归档：
-  - `communication / mailbox`
-- Email / SMS / IM 投递平台：
-  - `notification-service`
-- AI 模型调用、AI agent 编排或 AI 工具协议真相
+- `item-master-service` 的 Item 主数据真相：
+  - `Item`
+  - `ItemCapability`
+  - `SupplierItemMapping`
+- `SupplierItemMapping` 真相
+- 采购单、收货与采购执行真相：
+  - future `procurement-service`
+- RFQ、采购价格、MOQ、账期、lead time
+- 供应商绩效评分真相
+- 来料质量、拒收、整改与质量处理真相
+- 认证、会话、身份映射、权限判定与组织树真相
 
 ## 4. Core Responsibilities
 
-- 管理供应商业务角色语义，而不是复制 `party-service` 主体主数据。
-- 承接供应商在当前租户内的合作关系、基础状态、服务范围与分类治理。
-- 管理供应商联系人在 SRM 语义下的业务角色、联络偏好和可联络状态。
-- 对外提供统一供应商查询入口，供 Procurement、Communication、Workflow 和后续业务域受控引用。
-- 为供应商分析页聚合 SRM 自有事实、人工备注以及其他业务域发布的供应商分析相关事实。
-- 为权限层提供资源 owner、team、协作可见性和供应商状态所需的业务事实。
+- 维护租户内正式供应商业务档案，而不是复制 `party-service` 主体真相。
+- 维护供应商与正式主体的受控绑定关系，并以 `tenantPartyId` 作为正式主体引用。
+- 维护供应商联系人、地址、分类、标签和供应商状态等 SRM 业务语义。
+- 维护 `SupplierOffering` 这一“供应商可供应某个 Item”的关系事实。
+- 对 future `procurement-service` 与其他受控消费者提供统一供应商主档查询口径。
+- 在状态变更时执行最小主档闭环所需的一致性校验，而不是把采购商业条款并入 SRM。
 
 ## 5. External Interfaces
 
 - 典型上游入口：
   - `api-gateway`
-  - future tenant-web SRM pages
-  - future workflow / collaboration entrypoints through BFF or gateway
+  - future tenant-web SRM supplier master pages
+- 典型下游消费者：
+  - future `procurement-service`
+  - `item-master-service`
+  - future workflow / collaboration entrypoints
 - 当前设计工作台：
   - [srm-service-design.md](../../plans/designs/srm-service-design.md)
-- 项目级边界参考：
-  - [02-bounded-contexts.md](../02-bounded-contexts.md)
+- 当前跨服务协同真相：
+  - [srm-procurement-party-item-master.md](../collaborations/srm-procurement-party-item-master.md)
 
 ## 6. Upstream Dependencies
 
 - `party-service`
-  - 提供组织主体、自然人主体及 `tenantPartyId` / `partyId` 引用基础。
-  - SRM 不应复制主体主数据真相。
+  - 提供 `tenantPartyId` 对应的正式主体引用基础。
+  - SRM 不复制注册信息、证照与主体 canonical 真相。
+- `item-master-service`
+  - 提供 `Item` 与 `purchasable` 能力真相。
+  - 继续拥有 `SupplierItemMapping`，SRM 只引用其结果，不接管其真相。
 - `permission-service`
-  - 提供接口权限、资源授权、查询范围与协同可见性判定能力。
-- `identity-service`
-  - 提供 operator account / tenant / team 相关身份上下文事实。
-- `tenant-org-service`
-  - 提供组织树、责任组织与 org scope 基础事实。
-- future business services
-  - `procurement-service`、future `quality-service`、`communication / mailbox`、future ERP/Finance 等可向 SRM 提供供应商分析相关事实或事件。
+  - 提供供应商主档管理与查询的授权判定能力。
+- `identity-service` / `tenant-org-service`
+  - 提供 operator context、owner / team / org scope 所需基础上下文。
 
 ## 7. Downstream / Published Facts
 
-- 供应商业务档案与状态摘要
-- 供应商联系人业务角色、联络状态和主联系人缺失等关系事实
-- 可供 Procurement / Workflow / Communication 查询的供应商合作状态与范围摘要
-- 供应商分析页所需的聚合结果与人工风险备注
-- 供应商侧 owner、team、状态、协作可见性等业务事实
+- `SupplierProfile` 基础摘要与状态
+- `SupplierProfile -> tenantPartyId` 正式主体绑定事实
+- 供应商联系人、地址、分类与标签摘要
+- `SupplierOffering` 可供应关系事实
+- 供下游校验或引用的供应商启停状态摘要
 
 ## 8. Non-goals
 
-- 不作为通用主体主数据服务
-- 不直接拥有采购交易、质量检验、财务结算或通信线程真相
-- 不在第一阶段强行冻结完整准入 / 资质 / 整改闭环模块
-- 不让 AI 直接写正式供应商主数据或越过应用服务执行状态变更
-- 不让前端直接拼接多个下游服务替代 SRM 分析视图
+- 不把 `SupplierItemMapping` 扩成采购商业档
+- 不把 `SupplierOffering` 扩成价格表、MOQ 表或 lead time 表
+- 不复制 `party-service` 的主体注册信息作为 SRM 真相
+- 不冻结 future `procurement-service` 的 PO / RFQ 对象名
+- 不在本阶段承诺供应商绩效、质量整改或资质闭环
 
 ## 9. Current Stage
 
-当前阶段只冻结第一版 SRM 的最小独立服务边界：
+当前阶段只冻结 `SRM-MINIMAL` 的第一阶段规则：
 
-- `Supplier` 和 `SupplierContact` 是第一版优先冻结的核心业务对象。
-- `SupplierAnalysisView` 是第一版优先冻结的分析读模型。
-- `SupplierQualification` 与 `SupplierImprovementPlan` 当前后置，不进入第一版核心范围。
-- 其他业务域事实如何在 SRM 内部落为分析证据模型，目前仍是待定事项；本轮只冻结“原始真相归原服务拥有，SRM 只消费和沉淀面向供应商分析的派生结果”。
+- SRM 的第一优先级是供应商主档闭环，不是采购分析平台。
+- 正式主体引用统一使用 `tenantPartyId`。
+- `SupplierOffering` 只表达“能供应这个 Item”，不表达价格、MOQ、账期、lead time 或供应表现。
+- `SupplierItemMapping` 继续归 `item-master-service`，只表达 `supplierId + supplierItemCode / supplierItemName -> itemId`。
+- 采购交易、质量、绩效、整改、RFQ 与商业条款全部 deferred 到后续独立 contract / feature 线程。

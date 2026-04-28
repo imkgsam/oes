@@ -30,6 +30,7 @@ describe('PasswordSetupRequirementService', () => {
     )
 
     await expect(service.userRequiresPasswordSetup('user-1')).resolves.toBe(true)
+    await expect(service.userNeedsInitialPasswordSetup('user-1')).resolves.toBe(false)
   })
 
   it('does not require setup when a disabled password credential still exists on one login method', async () => {

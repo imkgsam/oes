@@ -78,6 +78,13 @@ export const AUTH_MFA_LOGIN_METHOD_UNAVAILABLE: ExceptionDefinition = {
   rpcStatus: status.FAILED_PRECONDITION
 }
 
+export const AUTH_MFA_FACTOR_UNAVAILABLE: ExceptionDefinition = {
+  code: 'AUTH_MFA_FACTOR_UNAVAILABLE',
+  message: 'No available MFA factor can satisfy the current login challenge',
+  messageKey: 'auth.mfa_factor_unavailable',
+  rpcStatus: status.FAILED_PRECONDITION
+}
+
 export const AUTH_MFA_INVALID_CODE: ExceptionDefinition = {
   code: 'AUTH_MFA_INVALID_CODE',
   message: 'MFA code is invalid',

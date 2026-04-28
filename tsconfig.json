@@ -10,8 +10,13 @@
     { "path": "./src/services/system/permission-service" },
     { "path": "./src/services/system/identity-service" },
     { "path": "./src/services/system/party-service" },
-    { "path": "./src/services/system/notification-service" }
+    { "path": "./src/services/system/notification-service" },
+    { "path": "./src/services/system/item-master-service" },
     // business services
+    { "path": "./src/services/business/sales-service" },
+    { "path": "./src/services/business/crm-service" },
+    { "path": "./src/services/business/srm-service" },
+    { "path": "./src/services/business/procurement-service" }
     // auxiliary services
   ]
 }

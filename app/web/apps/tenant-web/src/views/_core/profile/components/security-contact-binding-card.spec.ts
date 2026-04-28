@@ -226,6 +226,38 @@ describe('security contact binding card', () => {
     expect(document.body.textContent).not.toContain('发送前验证');
   });
 
+  it('uses a neutral confirm action label in the verification step', async () => {
+    const view = await import('./security-contact-binding-card.vue');
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      props: {
+        kind: 'email',
+        loginMethods: [
+          {
+            enabled: true,
+            hasPassword: true,
+            identifier: 'current@example.com',
+            maskedIdentifier: 'c***@example.com',
+            methodId: 'email-method:PASSWORD',
+            type: 'EMAIL_PASSWORD',
+            userId: 'user-1',
+            verified: true,
+          },
+        ],
+      },
+    });
+
+    await wrapper.find('button').trigger('click');
+    await flushPromises();
+    await wrapper.find('input[placeholder="请输入要绑定的新邮箱"]').setValue('new@example.com');
+    const nextButton = wrapper.findAll('button').find((item) => item.text() === '下一步');
+    await nextButton?.trigger('click');
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('确认');
+    expect(document.body.textContent).not.toContain('确认更换');
+  });
+
   it('shows resend countdown state after the otp challenge is sent', async () => {
     const view = await import('./security-contact-binding-card.vue');
     const wrapper = mount(view.default, {

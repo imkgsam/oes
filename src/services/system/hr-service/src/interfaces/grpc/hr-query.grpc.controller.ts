@@ -1,4 +1,5 @@
-import { Controller } from '@nestjs/common'
+import { Controller, UseFilters } from '@nestjs/common'
+import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   EmployeeLifecycleStatus as ProtoEmployeeLifecycleStatus,
   EmploymentStatus as ProtoEmploymentStatus,
@@ -23,6 +24,7 @@ import { EmployeeLifecycleStatus, EmploymentStatus } from '../../domain/value-ob
 import { mapEmployee, mapEmployment } from './hr-management.grpc.controller'
 
 /** HrQueryGrpcController exposes read-only HR Employee and Employment contracts over gRPC. */
+@UseFilters(GrpcExceptionFilter)
 @Controller()
 @HrQueryServiceControllerMethods()
 export class HrQueryGrpcController implements HrQueryServiceController {

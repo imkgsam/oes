@@ -27,6 +27,7 @@
 - 在登录完成或上下文切换后签发新的 token 对
 - 为 Gateway / BFF 提供认证链路与会话相关能力
 - 记录认证、安全与会话操作的审计事实
+- 对账号安全写操作显式区分 self-service 与 admin-management 边界，不允许长期复用同一 gRPC 写接口承载两种权限语义
 
 ## 5. External Interfaces
 

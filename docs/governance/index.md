@@ -35,6 +35,8 @@
    - 当前已完成项与剩余少量维护项速览
 10. [tricky-bug-knowledge-base.md](/Users/acehood/Documents/GitHub/oes/docs/governance/tricky-bug-knowledge-base.md)
    - 跨线程可复用的疑难 bug 根因总结与防复发规则
+11. [service-collaboration-review-checklist.md](/Users/acehood/Documents/GitHub/oes/docs/governance/service-collaboration-review-checklist.md)
+   - 跨服务协同场景下 `gRPC / Event` 选型、反模式识别与升级时机的统一审查清单
 
 ## 3. 推荐阅读顺序
 
@@ -44,6 +46,7 @@
 4. [codex-threading-rules.md](/Users/acehood/Documents/GitHub/oes/docs/governance/codex-threading-rules.md)
 5. [change-boundary-rules.md](/Users/acehood/Documents/GitHub/oes/docs/governance/change-boundary-rules.md)
 6. [tricky-bug-knowledge-base.md](/Users/acehood/Documents/GitHub/oes/docs/governance/tricky-bug-knowledge-base.md)
+7. [service-collaboration-review-checklist.md](/Users/acehood/Documents/GitHub/oes/docs/governance/service-collaboration-review-checklist.md)
 
 ## 4. 使用规则
 

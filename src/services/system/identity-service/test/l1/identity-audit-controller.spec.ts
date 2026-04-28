@@ -1,5 +1,9 @@
 import { CommandBus } from '@nestjs/cqrs'
 import { status } from '@grpc/grpc-js'
+import {
+  IDENTITY_ACCOUNT_PERMISSION_CODES,
+  REQUIRE_PERMISSION_METADATA_KEY
+} from '@oes/common/authorization'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { IdentityAuditService } from '../../src/application/services/identity-audit.service'
@@ -284,5 +288,69 @@ describe('identity audit controller integration', () => {
         operatorId: 'account-1'
       })
     )
+  })
+
+  it('management controller / updateOwnUserBasicInfo 自助更新当前用户联系方式时 / 不应要求管理员资料权限', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        id: 'user-1',
+        username: 'vic',
+        personalEmail: 'vic@example.com',
+        personalPhone: '',
+        isActive: true
+      })
+    } as unknown as CommandBus
+    const auditService = {
+      emitEnvelope: jest.fn()
+    } as unknown as IdentityAuditService
+    const permissionResolver = {
+      resolvePermissions: jest.fn().mockResolvedValue([])
+    }
+    const controller = new IdentityManagementGrpcController(
+      new ValidatingCommandBus(commandBus),
+      new ValidatingQueryBus({ execute: jest.fn() } as any),
+      auditService,
+      permissionResolver as any
+    )
+
+    const request: Record<string, unknown> = {
+      accountId: 'account-1',
+      userId: 'user-1',
+      email: 'vic@example.com',
+      __oesOperatorContext: {
+        operatorContext: {
+          operator_id: 'account-1'
+        }
+      }
+    }
+
+    await expect((controller as any).updateOwnUserBasicInfo(request)).resolves.toEqual({
+      user: {
+        id: 'user-1',
+        username: 'vic',
+        personalEmail: 'vic@example.com',
+        personalPhone: '',
+        isActive: true
+      }
+    })
+
+    expect(permissionResolver.resolvePermissions).not.toHaveBeenCalled()
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        accountId: 'account-1',
+        userId: 'user-1',
+        email: 'vic@example.com',
+        operatorId: 'account-1'
+      })
+    )
+  })
+
+  it('management controller / updateUserBasicInfo 应保留管理员资料权限元数据', () => {
+    expect(
+      Reflect.getMetadata(
+        REQUIRE_PERMISSION_METADATA_KEY,
+        IdentityManagementGrpcController.prototype.updateUserBasicInfo
+      )
+    ).toBe(IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE)
   })
 })

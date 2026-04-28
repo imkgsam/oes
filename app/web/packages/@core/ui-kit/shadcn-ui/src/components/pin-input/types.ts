@@ -16,7 +16,7 @@ interface PinInputProps {
    * 自定义验证码发送逻辑
    * @returns
    */
-  handleSendCode?: () => Promise<void>;
+  handleSendCode?: () => Promise<boolean | void>;
   /**
    * 发送验证码按钮loading
    */

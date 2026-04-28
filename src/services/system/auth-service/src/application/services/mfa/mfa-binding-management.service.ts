@@ -98,17 +98,18 @@ export class MfaBindingManagementService {
 
   async initializeTotpBinding(userId: string): Promise<TotpBindingInitialization> {
     const existing = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.TOTP)
-    if (existing?.isEnabled()) {
+    if (existing?.isEnabled() && !existing.isSeededTestBinding()) {
       throw ExceptionFactory.domain(AUTH_MFA_BINDING_ALREADY_EXISTS, {
         userId,
         type: MfaType.TOTP
       })
     }
 
-    const binding = existing ?? MfaBindingEntity.createTotpBinding(userId)
-    if (!existing) {
-      await this.mfaBindingRepo.save(binding)
+    const binding = MfaBindingEntity.createTotpBinding(userId)
+    if (existing?.isSeededTestBinding()) {
+      await this.mfaBindingRepo.delete(existing.getId())
     }
+    await this.mfaBindingRepo.save(binding)
 
     const accountName = await this.resolveTotpAccountName(userId)
 
@@ -213,14 +214,14 @@ export class MfaBindingManagementService {
   }
 
   private async buildTotpView(userId: string): Promise<MfaBindingView> {
-    const binding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.TOTP)
+    const binding = await this.getManagedTotpBinding(userId)
     return this.toView(binding, '', true, MfaType.TOTP)
   }
 
   private async buildBackupCodeView(userId: string): Promise<MfaBindingView> {
     const [binding, totpBinding] = await Promise.all([
       this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.BACKUP_CODE),
-      this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.TOTP)
+      this.getManagedTotpBinding(userId)
     ])
 
     return this.toView(
@@ -232,10 +233,18 @@ export class MfaBindingManagementService {
   }
 
   private async assertActiveTotpBinding(userId: string): Promise<void> {
-    const totpBinding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.TOTP)
+    const totpBinding = await this.getManagedTotpBinding(userId)
     if (!totpBinding?.isEnabled()) {
       throw ExceptionFactory.domain(AUTH_MFA_RECOVERY_CODES_REQUIRE_TOTP, { userId })
     }
+  }
+
+  private async getManagedTotpBinding(userId: string): Promise<MfaBindingEntity | null> {
+    const binding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.TOTP)
+    if (binding?.isSeededTestBinding()) {
+      return null
+    }
+    return binding
   }
 
   private async resolveTotpAccountName(userId: string): Promise<string> {

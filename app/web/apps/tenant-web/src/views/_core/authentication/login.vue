@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import type { VbenFormSchema } from '@vben/common-ui'
 
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { AuthenticationLogin, SliderCaptcha, VbenButton, z } from '@vben/common-ui'
@@ -11,6 +11,10 @@ import { message } from 'ant-design-vue'
 
 import { useAuthStore } from '#/store'
 
+import {
+  resolveAuthLoginScenePreference,
+  saveAuthLoginScenePreference
+} from './auth-login-preference'
 import PhoneNumberInput from './phone-number-input.vue'
 
 defineOptions({ name: 'Login' })
@@ -24,8 +28,20 @@ const loginFormRef = ref<InstanceType<typeof AuthenticationLogin>>()
 
 type PasswordLoginMode = 'email' | 'phone'
 
+const storedPasswordPreference = computed(() =>
+  resolveAuthLoginScenePreference('password')
+)
+
 const loginMode = computed<PasswordLoginMode>(() => {
-  return route.query.mode === 'phone' ? 'phone' : 'email'
+  if (route.query.mode === 'phone') {
+    return 'phone'
+  }
+
+  if (route.query.mode === 'email') {
+    return 'email'
+  }
+
+  return storedPasswordPreference.value?.mode === 'phone' ? 'phone' : 'email'
 })
 
 const isPhoneMode = computed(() => loginMode.value === 'phone')
@@ -98,6 +114,10 @@ async function handleSubmit(values: Record<string, any>) {
   }
 
   if (isPhoneMode.value) {
+    saveAuthLoginScenePreference('password', {
+      mode: 'phone',
+      phoneNumber: `${values.phoneNumber ?? ''}`.trim()
+    })
     try {
       await authStore.authPhonePasswordLogin({
         password: values.password,
@@ -110,6 +130,10 @@ async function handleSubmit(values: Record<string, any>) {
     return
   }
 
+  saveAuthLoginScenePreference('password', {
+    mode: 'email',
+    email: `${values.username ?? ''}`.trim()
+  })
   try {
     await authStore.authLogin(values)
   } catch {
@@ -121,13 +145,28 @@ async function goToGenericCodeLogin() {
   resetSlider()
   const values = await loginFormRef.value?.getFormApi?.().getValues?.()
   const identifier = `${isPhoneMode.value ? values?.phoneNumber ?? '' : values?.username ?? ''}`.trim()
+  const fallbackIdentifier =
+    loginMode.value === 'phone'
+      ? `${storedPasswordPreference.value?.phoneNumber ?? ''}`.trim()
+      : `${storedPasswordPreference.value?.email ?? ''}`.trim()
+  const effectiveIdentifier = identifier || fallbackIdentifier
+
+  saveAuthLoginScenePreference('password', isPhoneMode.value
+    ? {
+        mode: 'phone',
+        phoneNumber: effectiveIdentifier
+      }
+    : {
+        mode: 'email',
+        email: effectiveIdentifier
+      })
 
   void router.push({
     name: 'CodeLogin',
-    query: identifier
+    query: effectiveIdentifier
       ? {
           mode: loginMode.value,
-          identifier
+          identifier: effectiveIdentifier
         }
       : { mode: loginMode.value }
   })
@@ -166,6 +205,31 @@ function resetSlider() {
   sliderPassed.value = false
   sliderRef.value?.resume?.()
 }
+
+// Restores the remembered identifier for the current password-login mode when the route itself does not override that choice.
+function syncStoredIdentifier() {
+  const preference = storedPasswordPreference.value
+  if (!preference || preference.mode !== loginMode.value) {
+    return
+  }
+
+  const identifier =
+    loginMode.value === 'phone'
+      ? `${preference.phoneNumber ?? ''}`.trim()
+      : `${preference.email ?? ''}`.trim()
+
+  if (!identifier) {
+    return
+  }
+
+  loginFormRef.value
+    ?.getFormApi?.()
+    .setFieldValue(loginMode.value === 'phone' ? 'phoneNumber' : 'username', identifier)
+}
+
+onMounted(syncStoredIdentifier)
+
+watch(() => loginMode.value, syncStoredIdentifier)
 </script>
 
 <template>

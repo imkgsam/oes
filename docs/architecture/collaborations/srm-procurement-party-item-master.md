@@ -1,0 +1,90 @@
+# SRM、Procurement、Party 与 Item Master 协同蓝图
+
+## 1. 目标
+
+定义 OES 中 `srm-service`、future `procurement-service`、`party-service` 与 `item-master-service` 围绕“最小供应商主档闭环”如何协同，并明确哪些事实归 SRM、哪些事实仍归 Party、Item Master 与 Procurement。
+
+## 2. 参与服务
+
+- `srm-service`
+- future `procurement-service`
+- `party-service`
+- `item-master-service`
+
+## 3. 协同分工
+
+- `srm-service`
+  - 负责 `SupplierProfile`、`SupplierPartyBinding`、`SupplierContact`、`SupplierAddress`、`SupplierStatus`、`SupplierCategory`、`SupplierTag`、`SupplierOffering`
+- `party-service`
+  - 负责 `Party`、`TenantParty`、`PartyIdentifier`、`PartyRelationship`
+- `item-master-service`
+  - 负责 `Item`、`ItemCapability`、`SupplierItemMapping`
+- future `procurement-service`
+  - 负责采购单、收货、采购商业条款与采购执行语义
+
+## 4. 稳定协同规则
+
+### 4.1 SRM 与 Party 边界
+
+- `SupplierProfile` 的正式主体引用统一使用 `tenantPartyId`。
+- `ACTIVE SupplierProfile` 必须绑定 `tenantPartyId`。
+- 同一 `tenantId + tenantPartyId` 只允许一个正式 `SupplierProfile`。
+- `party-service` 继续拥有主体注册信息、证照、canonical 名称与主体关系真相。
+- SRM 不复制 Party 注册信息为自己的长期真相，只保存受控引用与供应商业务语义。
+
+### 4.2 SRM 与 Item Master 边界
+
+- `SupplierOffering` 表达 `supplierId + itemId` 的“可供应关系事实”。
+- `ACTIVE SupplierOffering` 只允许挂在 `ACTIVE SupplierProfile` 下。
+- `ACTIVE SupplierOffering` 只允许指向 `purchasable Item`。
+- `item-master-service` 继续拥有 `SupplierItemMapping`，只表达：
+  - `supplierId + supplierItemCode / supplierItemName -> itemId`
+- `SupplierItemMapping` 不是 `SupplierOffering`，也不是采购商业档。
+- `SupplierOffering` 不承载价格、MOQ、账期、lead time、供应表现。
+
+### 4.3 SRM 与 Procurement 边界
+
+- future `procurement-service` 只受控引用 SRM 的正式供应商主档与 `SupplierOffering`。
+- 采购价格、MOQ、账期、lead time、RFQ、采购单、收货与履约继续归 future `procurement-service`。
+- 本蓝图不冻结 procurement 的 PO / RFQ 对象名，只冻结 SRM 应提供的稳定主档边界。
+- 如果 future procurement 需要“某供应商是否可供应某 Item”的正式事实，应优先引用 `SupplierOffering`，而不是反向扩写 `SupplierItemMapping`。
+
+## 5. 同步 / 异步边界
+
+- 第一阶段优先同步校验：
+  - `srm-service -> party-service` 校验 `tenantPartyId`
+  - `srm-service -> item-master-service` 校验 `itemId` 与 `purchasable` 能力
+  - future `procurement-service -> srm-service` 查询供应商主档与 offering 状态
+- 第一阶段不冻结必须事件集：
+  - 如后续需要主档变更事件、offering 变更事件或采购侧缓存同步事件，应在 `SRM-CONTRACT` 阶段单独冻结
+
+## 6. 真相归属
+
+- `SupplierProfile`、联系人、地址、分类、标签、状态、offering：`srm-service`
+- `Party`、`TenantParty`、主体标识与主体关系：`party-service`
+- `Item`、`ItemCapability`、`SupplierItemMapping`：`item-master-service`
+- RFQ、采购价格、MOQ、账期、lead time、采购单、收货：future `procurement-service`
+
+## 7. 明确禁止
+
+- 不把 `SupplierItemMapping` 扩成采购商业档
+- 不把 `SupplierOffering` 扩成价格表
+- 不复制 Party 注册信息为 SRM 真相
+- 不让 future procurement 直接把采购商业条款塞回 SRM 主档
+- 不在本蓝图中冻结 procurement 的 PO / RFQ 对象名
+
+## 8. Deferred
+
+- `SupplierOffering` 的后续事件目录
+- SRM 与 Procurement 的正式 gRPC contract
+- Supplier qualification / onboarding workflow
+- Supplier performance / score / quality remediation
+- 采购价格、MOQ、账期、lead time 的 owner model
+
+## 9. 关联文档
+
+- [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
+- [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
+- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
+- [item-master-sales-mes-wms-srm.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/item-master-sales-mes-wms-srm.md)
+- [docs/contracts/item-master-service/README.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/README.md)

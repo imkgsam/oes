@@ -59,7 +59,10 @@ function handleComplete(e: string[]) {
 async function handleSend(e: Event) {
   try {
     e?.preventDefault();
-    await handleSendCode();
+    const shouldStartCountdown = await handleSendCode();
+    if (shouldStartCountdown === false) {
+      return;
+    }
     countdown.value = maxTime;
     startCountdown();
   } catch (error) {

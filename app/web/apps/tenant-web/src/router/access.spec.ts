@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const generateAccessibleMock = vi.fn();
+const getAllMenusApiMock = vi.fn();
+const authContextStoreMock = {
+  visibleEntries: [] as string[],
+};
+
 vi.mock('@vben/access', () => ({
-  generateAccessible: vi.fn(),
+  generateAccessible: generateAccessibleMock,
 }));
 
 vi.mock('@vben/preferences', () => ({
@@ -19,7 +25,7 @@ vi.mock('ant-design-vue', () => ({
 }));
 
 vi.mock('#/api', () => ({
-  getAllMenusApi: vi.fn(),
+  getAllMenusApi: getAllMenusApiMock,
 }));
 
 vi.mock('#/layouts', () => ({
@@ -32,9 +38,7 @@ vi.mock('#/locales', () => ({
 }));
 
 vi.mock('#/store', () => ({
-  useAuthContextStore: () => ({
-    visibleEntries: [],
-  }),
+  useAuthContextStore: () => authContextStoreMock,
 }));
 
 // Verifies visible-entry filtering removes unauthorized governance parents from both route and menu trees.
@@ -245,6 +249,131 @@ describe('router access visible-entry filtering', () => {
     expect(filtered).toEqual(routes);
   });
 
+  it('removes the master-data parent when none of its children remain visible', async () => {
+    const { filterRoutesByVisibleEntries } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'master-data.item-management',
+            },
+            name: 'TenantItemManagement',
+            path: '/master-data/items',
+          },
+        ],
+        name: 'TenantMasterData',
+        path: '/master-data',
+      },
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'workbench.home',
+            },
+            name: 'TenantWorkbenchHome',
+            path: '/workbench/home',
+          },
+        ],
+        name: 'TenantWorkbench',
+        path: '/workbench',
+      },
+    ];
+
+    const filtered = filterRoutesByVisibleEntries(routes, ['workbench.home']);
+
+    expect(filtered).toEqual([
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'workbench.home',
+            },
+            name: 'TenantWorkbenchHome',
+            path: '/workbench/home',
+          },
+        ],
+        name: 'TenantWorkbench',
+        path: '/workbench',
+      },
+    ]);
+  });
+
+  it('keeps the master-data parent when item management is the only visible child', async () => {
+    const { filterRoutesByVisibleEntries } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'master-data.item-management',
+            },
+            name: 'TenantItemManagement',
+            path: '/master-data/items',
+          },
+        ],
+        name: 'TenantMasterData',
+        path: '/master-data',
+      },
+    ];
+
+    const filtered = filterRoutesByVisibleEntries(routes, [
+      'master-data.item-management',
+    ]);
+
+    expect(filtered).toEqual(routes);
+  });
+
+  it('keeps the master-data parent when customer management is the only visible child', async () => {
+    const { filterRoutesByVisibleEntries } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'master-data.customer-management',
+            },
+            name: 'TenantCustomerManagement',
+            path: '/master-data/customers',
+          },
+        ],
+        name: 'TenantMasterData',
+        path: '/master-data',
+      },
+    ];
+
+    const filtered = filterRoutesByVisibleEntries(routes, [
+      'master-data.customer-management',
+    ]);
+
+    expect(filtered).toEqual(routes);
+  });
+
+  it('keeps the master-data parent when supplier management is the only visible child', async () => {
+    const { filterRoutesByVisibleEntries } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'master-data.supplier-management',
+            },
+            name: 'TenantSupplierManagement',
+            path: '/master-data/suppliers',
+          },
+        ],
+        name: 'TenantMasterData',
+        path: '/master-data',
+      },
+    ];
+
+    const filtered = filterRoutesByVisibleEntries(routes, [
+      'master-data.supplier-management',
+    ]);
+
+    expect(filtered).toEqual(routes);
+  });
+
   it('removes organization-people child routes when the new entry key is absent even if legacy keys remain visible', async () => {
     const { filterRoutesByVisibleEntries } = await import('./access');
     const routes = [
@@ -395,6 +524,166 @@ describe('router access visible-entry filtering', () => {
     const filtered = filterRoutesByVisibleEntries(routes, [
       'admin.org-management',
     ]);
+
+    expect(filtered).toEqual(routes);
+  });
+
+  it('removes the sales parent when the governed sales entry is not visible', async () => {
+    const { filterRoutesByVisibleEntries } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'sales.quote-orders',
+            },
+            name: 'TenantSalesQuoteOrderWorkspace',
+            path: '/sales/quote-orders',
+          },
+        ],
+        name: 'TenantSales',
+        path: '/sales',
+      },
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'workbench.home',
+            },
+            name: 'TenantWorkbenchHome',
+            path: '/workbench/home',
+          },
+        ],
+        name: 'TenantWorkbench',
+        path: '/workbench',
+      },
+    ];
+
+    const filtered = filterRoutesByVisibleEntries(routes, ['workbench.home']);
+
+    expect(filtered).toEqual([
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'workbench.home',
+            },
+            name: 'TenantWorkbenchHome',
+            path: '/workbench/home',
+          },
+        ],
+        name: 'TenantWorkbench',
+        path: '/workbench',
+      },
+    ]);
+  });
+
+  it('falls back to the local filtered routes when the remote menu endpoint is unavailable', async () => {
+    authContextStoreMock.visibleEntries = ['sales.quote-orders'];
+    getAllMenusApiMock.mockRejectedValueOnce(new Error('missing menu endpoint'));
+    generateAccessibleMock.mockImplementationOnce(async (_mode, input) => {
+      return {
+        accessibleMenus: await input.fetchMenuListAsync(),
+        accessibleRoutes: input.routes,
+      };
+    });
+
+    const { generateAccess } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'sales.quote-orders',
+            },
+            name: 'TenantSalesQuoteOrderWorkspace',
+            path: '/sales/quote-orders',
+          },
+        ],
+        name: 'TenantSales',
+        path: '/sales',
+      },
+    ] as any;
+
+    const result = await generateAccess({
+      roles: ['SALES'],
+      router: {} as never,
+      routes,
+    });
+
+    expect(result.accessibleMenus).toEqual(routes);
+    expect(result.accessibleRoutes).toEqual(routes);
+  });
+
+  it('removes the procurement parent when the procurement entry is not visible', async () => {
+    const { filterRoutesByVisibleEntries } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'procurement.management',
+            },
+            name: 'TenantPurchaseRequestWorkspace',
+            path: '/procurement/purchase-requests',
+          },
+        ],
+        name: 'TenantProcurement',
+        path: '/procurement',
+      },
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'workbench.home',
+            },
+            name: 'TenantWorkbenchHome',
+            path: '/workbench/home',
+          },
+        ],
+        name: 'TenantWorkbench',
+        path: '/workbench',
+      },
+    ];
+
+    const filtered = filterRoutesByVisibleEntries(routes, ['workbench.home']);
+
+    expect(filtered).toEqual([
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'workbench.home',
+            },
+            name: 'TenantWorkbenchHome',
+            path: '/workbench/home',
+          },
+        ],
+        name: 'TenantWorkbench',
+        path: '/workbench',
+      },
+    ]);
+  });
+
+  it('keeps the procurement parent when the procurement entry remains visible', async () => {
+    const { filterRoutesByVisibleEntries } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'procurement.management',
+            },
+            name: 'TenantPurchaseRequestWorkspace',
+            path: '/procurement/purchase-requests',
+          },
+        ],
+        name: 'TenantProcurement',
+        path: '/procurement',
+      },
+    ];
+
+    const filtered = filterRoutesByVisibleEntries(routes, ['procurement.management']);
 
     expect(filtered).toEqual(routes);
   });

@@ -9,6 +9,10 @@ export class PrismaTenantPartyRepository implements TenantPartyRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findById(tenantId: string, tenantPartyId: string): Promise<TenantPartySummary | null> {
+    if (!isUuidLike(tenantPartyId)) {
+      return null
+    }
+
     const tenantParty = await this.prisma.tenantParty.findFirst({
       where: {
         id: tenantPartyId,
@@ -90,4 +94,9 @@ function mapTenantParty(tenantParty: {
     localCode: tenantParty.localCode,
     status: tenantParty.status
   }
+}
+
+/** isUuidLike keeps malformed external tenantParty references from leaking Prisma UUID parsing errors. */
+function isUuidLike(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
 }

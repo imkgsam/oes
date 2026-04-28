@@ -8,12 +8,12 @@ describe('SelfContactBindingUseCase', () => {
         type: 'EMAIL',
         identifier: 'alice@example.com'
       }),
-      bootstrapUserLoginMethods: jest.fn().mockResolvedValue({
+      bootstrapOwnLoginMethods: jest.fn().mockResolvedValue({
         success: true
       })
     }
     const identityAdapter = {
-      updateUserBasicInfo: jest.fn().mockResolvedValue({
+      updateOwnUserBasicInfo: jest.fn().mockResolvedValue({
         user: {
           id: 'user-1',
           personalEmail: 'alice@example.com'
@@ -45,7 +45,7 @@ describe('SelfContactBindingUseCase', () => {
       type: 'EMAIL'
     })
 
-    expect(identityAdapter.updateUserBasicInfo).toHaveBeenCalledWith(
+    expect(identityAdapter.updateOwnUserBasicInfo).toHaveBeenCalledWith(
       {
         accountId: 'account-1',
         userId: 'user-1',
@@ -58,7 +58,7 @@ describe('SelfContactBindingUseCase', () => {
         })
       })
     )
-    expect(authAdapter.bootstrapUserLoginMethods).toHaveBeenCalledWith(
+    expect(authAdapter.bootstrapOwnLoginMethods).toHaveBeenCalledWith(
       {
         userId: 'user-1',
         accountId: 'account-1',
@@ -76,6 +76,7 @@ describe('SelfContactBindingUseCase', () => {
         userId: 'user-1',
         accountId: 'account-1',
         tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
         email: ' Alice@Example.com ',
         otp: '123456',
         mfaGrantToken: 'step-up-grant-1'

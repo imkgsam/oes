@@ -11,6 +11,10 @@ import { message } from 'ant-design-vue';
 
 import { useAuthStore } from '#/store';
 
+import {
+  resolveAuthLoginScenePreference,
+  saveAuthLoginScenePreference,
+} from './auth-login-preference';
 import PhoneNumberInput from './phone-number-input.vue';
 
 defineOptions({ name: 'CodeLogin' });
@@ -23,20 +27,47 @@ const route = useRoute();
 const router = useRouter();
 const sliderPassed = ref(false);
 const sliderRef = ref<InstanceType<typeof SliderCaptcha>>();
+const otpChallengeRequested = ref(false);
 
 type LoginMode = 'email' | 'phone';
 
+const storedOtpPreference = computed(() =>
+  resolveAuthLoginScenePreference('otp'),
+);
+
 const loginMode = computed<LoginMode>(() => {
-  return route.query.mode === 'email' ? 'email' : 'phone';
+  if (route.query.mode === 'email') {
+    return 'email';
+  }
+
+  if (route.query.mode === 'phone') {
+    return 'phone';
+  }
+
+  return storedOtpPreference.value?.mode === 'email' ? 'email' : 'phone';
 });
 
 const isEmailMode = computed(() => loginMode.value === 'email');
 const loginPath = computed(() => `/auth/login?mode=${loginMode.value}`);
-const routeIdentifier = computed(() => `${route.query.identifier ?? ''}`.trim());
+const routeIdentifier = computed(() => {
+  const explicitIdentifier = `${route.query.identifier ?? ''}`.trim();
+  if (explicitIdentifier) {
+    return explicitIdentifier;
+  }
+
+  const preference = storedOtpPreference.value;
+  if (!preference || preference.mode !== loginMode.value) {
+    return '';
+  }
+
+  return loginMode.value === 'email'
+    ? `${preference.email ?? ''}`.trim()
+    : `${preference.phoneNumber ?? ''}`.trim();
+});
 
 // Converts rejected OTP login attempts into user-facing feedback without leaking unhandled promise errors.
 function handleCodeLoginError() {
-  resetSlider();
+  return;
 }
 
 const formSchema = computed((): VbenFormSchema[] => {
@@ -55,16 +86,26 @@ const formSchema = computed((): VbenFormSchema[] => {
       handleSendCode: async () => {
         const formApi = formRef.value?.getFormApi();
         const values = await formApi?.getValues?.();
+        if (!sliderPassed.value) {
+          message.warning('请先完成安全验证后再发送验证码。');
+          return false;
+        }
+
         if (isEmailMode.value) {
           const email = `${values?.email ?? ''}`.trim();
           await authStore.requestEmailOtpChallenge(email);
+          otpChallengeRequested.value = true;
+          resetSlider();
           message.success('验证码已发送，请注意查收邮件。');
-          return;
+          return true;
         }
 
         const phone = `${values?.phoneNumber ?? ''}`.trim();
         await authStore.requestPhoneOtpChallenge(phone);
+        otpChallengeRequested.value = true;
+        resetSlider();
         message.success('验证码已发送，请注意查收短信。');
+        return true;
       },
     },
     fieldName: 'code',
@@ -110,11 +151,16 @@ const formSchema = computed((): VbenFormSchema[] => {
 
 // Submits the OTP login form using either the email or phone identifier mode.
 async function handleLogin(values: Recordable<any>) {
-  if (!sliderPassed.value) {
+  if (!otpChallengeRequested.value) {
+    message.warning('请先完成安全验证并发送验证码。');
     return;
   }
 
   if (isEmailMode.value) {
+    saveAuthLoginScenePreference('otp', {
+      mode: 'email',
+      email: `${values.email ?? ''}`.trim(),
+    });
     try {
       await authStore.authEmailCodeLogin(values);
       return;
@@ -124,6 +170,10 @@ async function handleLogin(values: Recordable<any>) {
     return;
   }
 
+  saveAuthLoginScenePreference('otp', {
+    mode: 'phone',
+    phoneNumber: `${values.phoneNumber ?? ''}`.trim(),
+  });
   try {
     await authStore.authCodeLogin({
       code: values.code,
@@ -136,6 +186,7 @@ async function handleLogin(values: Recordable<any>) {
 
 function switchMode(mode: LoginMode) {
   resetSlider();
+  otpChallengeRequested.value = false;
   void router.replace({
     name: 'CodeLogin',
     query: { mode },

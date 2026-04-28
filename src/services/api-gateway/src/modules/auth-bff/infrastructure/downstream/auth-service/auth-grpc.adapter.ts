@@ -17,6 +17,8 @@ import {
   AdminRevokeSessionResponse,
   AuditEventRecord,
   AuthServiceClient,
+  BootstrapOwnLoginMethodsRequest,
+  BootstrapOwnLoginMethodsResponse,
   BootstrapUserLoginMethodsRequest,
   BootstrapUserLoginMethodsResponse,
   ChangeOwnPasswordRequest,
@@ -331,6 +333,28 @@ export class AuthGrpcAdapter implements OnModuleInit {
     return this.call(
       'bootstrapUserLoginMethods',
       this.svc.bootstrapUserLoginMethods(grpcRequest, this.operatorMetadata(source))
+    )
+  }
+
+  bootstrapOwnLoginMethods(
+    request: {
+      userId: string
+      accountId: string
+      email?: string
+      phone?: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<BootstrapOwnLoginMethodsResponse> {
+    const grpcRequest: BootstrapOwnLoginMethodsRequest = {
+      userId: request.userId,
+      accountId: request.accountId,
+      email: request.email,
+      phone: request.phone
+    }
+
+    return this.call(
+      'bootstrapOwnLoginMethods',
+      this.svc.bootstrapOwnLoginMethods(grpcRequest, this.operatorMetadata(source))
     )
   }
 

@@ -1,5 +1,6 @@
-import { BadRequestException, Controller } from '@nestjs/common'
+import { BadRequestException, Controller, UseFilters } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
+import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   ChangePrimaryEmploymentRequest,
   ChangePrimaryEmploymentResponse,
@@ -30,6 +31,7 @@ import {
 import { EmployeeAccessPendingException, HrOnboardingAccessService } from '../../application/services'
 
 /** HrManagementGrpcController exposes HR management contracts over gRPC. */
+@UseFilters(GrpcExceptionFilter)
 @Controller()
 @HrManagementServiceControllerMethods()
 export class HrManagementGrpcController implements HrManagementServiceController {

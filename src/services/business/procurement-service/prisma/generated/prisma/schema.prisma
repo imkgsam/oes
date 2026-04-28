@@ -1,0 +1,307 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProcurementPurchaseRequestType {
+  DEPARTMENTAL
+  SALES_DEDICATED
+  PRODUCTION_PACKAGING
+  MAINTENANCE
+  SAMPLE
+}
+
+enum ProcurementPurchaseRequestStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ProcurementPurchaseRequestLineType {
+  STANDARD_ITEM
+  TEXT
+}
+
+enum ProcurementPurchaseRequestDecision {
+  APPROVED
+  REJECTED
+}
+
+enum ProcurementPurchaseOrderStatus {
+  DRAFT
+  ISSUED
+  ACKNOWLEDGED
+  CANCELLED
+}
+
+enum ProcurementPurchaseOrderLineAllocationType {
+  SALES_ORDER_LINE
+  FULFILLMENT_DEMAND
+  GENERAL_STOCK
+}
+
+enum ProcurementSupplierAcknowledgementStatus {
+  PENDING
+  ACKNOWLEDGED
+}
+
+enum ProcurementPurchaseOrderChangeStatus {
+  APPLIED
+}
+
+enum ProcurementReceivingExpectationStatus {
+  OPEN
+  PARTIALLY_RECEIVED
+  COMPLETED
+  CANCELLED
+}
+
+enum ProcurementReceivingDiscrepancyType {
+  SHORT_RECEIPT
+  OVER_RECEIPT
+  DAMAGED
+  RESTRICTED
+  OTHER
+}
+
+enum ProcurementReceivingDiscrepancyStatus {
+  OPEN
+  RESOLVED
+}
+
+enum ProcurementReceivingResolutionCode {
+  WAIT_REDELIVERY
+  ACCEPT_SHORT_CLOSE
+  RETURN_OR_REJECT_EXCESS
+  MANUAL_FOLLOW_UP
+}
+
+model ProcurementSequenceCounter {
+  tenantId                   String   @id @db.VarChar(128)
+  nextPurchaseRequestNo      Int      @default(1)
+  nextPurchaseOrderNo        Int      @default(1)
+  nextReceivingExpectationNo Int      @default(1)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+}
+
+model PurchaseRequest {
+  id                   String                           @id @db.Uuid
+  requestNo            String                           @unique @db.VarChar(64)
+  tenantId             String                           @db.VarChar(128)
+  orgId                String?                          @db.VarChar(128)
+  requestType          ProcurementPurchaseRequestType
+  status               ProcurementPurchaseRequestStatus
+  requesterOperatorId  String                           @db.VarChar(128)
+  requesterDisplayName String                           @db.VarChar(255)
+  title                String?                          @db.VarChar(255)
+  reason               String?                          @db.VarChar(500)
+  submissionComment    String?                          @db.VarChar(500)
+  cancelReason         String?                          @db.VarChar(500)
+  createdAt            DateTime
+  updatedAt            DateTime
+  submittedAt          DateTime?
+  decidedAt            DateTime?
+  cancelledAt          DateTime?
+  lines                PurchaseRequestLine[]
+  approvalSnapshot     PurchaseRequestApprovalSnapshot?
+
+  @@index([tenantId, requestNo])
+  @@index([tenantId, status, requestType])
+  @@index([tenantId, requesterOperatorId])
+}
+
+model PurchaseRequestLine {
+  id                  String                             @id @db.Uuid
+  tenantId            String                             @db.VarChar(128)
+  purchaseRequestId   String                             @db.Uuid
+  lineNo              Int
+  lineType            ProcurementPurchaseRequestLineType
+  itemId              String?                            @db.VarChar(128)
+  itemCode            String?                            @db.VarChar(128)
+  itemName            String?                            @db.VarChar(255)
+  description         String                             @db.VarChar(500)
+  requestedQuantity   String                             @db.VarChar(64)
+  uom                 String                             @db.VarChar(64)
+  neededByDate        String?                            @db.VarChar(64)
+  demandReferenceType String?                            @db.VarChar(128)
+  demandReferenceId   String?                            @db.VarChar(128)
+
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+
+  @@unique([purchaseRequestId, lineNo])
+  @@index([tenantId, itemId])
+}
+
+model PurchaseRequestApprovalSnapshot {
+  id                   String                             @id @db.Uuid
+  tenantId             String                             @db.VarChar(128)
+  purchaseRequestId    String                             @unique @db.Uuid
+  decision             ProcurementPurchaseRequestDecision
+  decidedByOperatorId  String                             @db.VarChar(128)
+  decidedByDisplayName String                             @db.VarChar(255)
+  decidedAt            DateTime
+  comment              String?                            @db.VarChar(500)
+  approvalReference    String?                            @db.VarChar(255)
+
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, decision])
+}
+
+model PurchaseOrder {
+  id                               String                                   @id @db.Uuid
+  orderNo                          String                                   @unique @db.VarChar(64)
+  tenantId                         String                                   @db.VarChar(128)
+  orgId                            String?                                  @db.VarChar(128)
+  status                           ProcurementPurchaseOrderStatus
+  currencyCode                     String                                   @db.VarChar(32)
+  supplierId                       String                                   @db.VarChar(128)
+  supplierDisplayName              String                                   @db.VarChar(255)
+  supplierStatusAtIssue            String?                                  @db.VarChar(64)
+  sourcePurchaseRequestIds         Json
+  sourcePurchaseRequestNos         Json
+  acknowledgementStatus            ProcurementSupplierAcknowledgementStatus
+  acknowledgedAt                   DateTime?
+  acknowledgementExternalReference String?                                  @db.VarChar(255)
+  acknowledgementComment           String?                                  @db.VarChar(500)
+  issueComment                     String?                                  @db.VarChar(500)
+  cancelReason                     String?                                  @db.VarChar(500)
+  createdAt                        DateTime
+  updatedAt                        DateTime
+  issuedAt                         DateTime?
+  cancelledAt                      DateTime?
+  lines                            PurchaseOrderLine[]
+  changes                          PurchaseOrderChange[]
+  receivingExpectations            ReceivingExpectation[]
+
+  @@index([tenantId, orderNo])
+  @@index([tenantId, status, supplierId])
+}
+
+model PurchaseOrderLine {
+  id                          String                             @id @db.Uuid
+  tenantId                    String                             @db.VarChar(128)
+  purchaseOrderId             String                             @db.Uuid
+  lineNo                      Int
+  lineType                    ProcurementPurchaseRequestLineType
+  itemId                      String?                            @db.VarChar(128)
+  itemCode                    String?                            @db.VarChar(128)
+  itemName                    String?                            @db.VarChar(255)
+  description                 String                             @db.VarChar(500)
+  supplierOfferingId          String?                            @db.VarChar(128)
+  orderedQuantity             String                             @db.VarChar(64)
+  uom                         String                             @db.VarChar(64)
+  orderedUnitPrice            String?                            @db.VarChar(64)
+  sourcePurchaseRequestLineId String?                            @db.VarChar(128)
+  sourceRequestedQuantity     String?                            @db.VarChar(64)
+  generalStockExcessReason    String?                            @db.VarChar(500)
+  allocations                 PurchaseOrderLineAllocation[]
+  receivingExpectations       ReceivingExpectation[]
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([purchaseOrderId, lineNo])
+  @@index([tenantId, itemId])
+  @@index([tenantId, sourcePurchaseRequestLineId])
+}
+
+model PurchaseOrderLineAllocation {
+  id                  String                                     @id @db.Uuid
+  tenantId            String                                     @db.VarChar(128)
+  purchaseOrderLineId String                                     @db.Uuid
+  allocationType      ProcurementPurchaseOrderLineAllocationType
+  referenceId         String?                                    @db.VarChar(128)
+  quantity            String                                     @db.VarChar(64)
+  reason              String?                                    @db.VarChar(500)
+
+  purchaseOrderLine PurchaseOrderLine @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, allocationType, referenceId])
+}
+
+model PurchaseOrderChange {
+  id                   String                               @id @db.Uuid
+  tenantId             String                               @db.VarChar(128)
+  purchaseOrderId      String                               @db.Uuid
+  changeType           String                               @db.VarChar(128)
+  changeSummary        String                               @db.VarChar(500)
+  changeReason         String?                              @db.VarChar(500)
+  appliedByOperatorId  String                               @db.VarChar(128)
+  appliedByDisplayName String                               @db.VarChar(255)
+  appliedAt            DateTime
+  status               ProcurementPurchaseOrderChangeStatus
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, purchaseOrderId, appliedAt])
+}
+
+model ReceivingExpectation {
+  id                      String                                @id @db.Uuid
+  expectationNo           String                                @unique @db.VarChar(64)
+  tenantId                String                                @db.VarChar(128)
+  orgId                   String?                               @db.VarChar(128)
+  purchaseOrderId         String                                @db.Uuid
+  purchaseOrderLineId     String                                @db.Uuid
+  supplierId              String                                @db.VarChar(128)
+  expectedQuantity        String                                @db.VarChar(64)
+  receivedQuantitySummary String                                @db.VarChar(64)
+  openQuantity            String                                @db.VarChar(64)
+  expectedReceiptDate     String?                               @db.VarChar(64)
+  status                  ProcurementReceivingExpectationStatus
+  createdAt               DateTime
+  updatedAt               DateTime
+  discrepancy             ReceivingDiscrepancy?
+  purchaseOrder           PurchaseOrder                         @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  purchaseOrderLine       PurchaseOrderLine                     @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, purchaseOrderLineId])
+  @@index([tenantId, purchaseOrderId, status])
+  @@index([tenantId, supplierId, status])
+}
+
+model ReceivingDiscrepancy {
+  id                     String                                @id @db.Uuid
+  tenantId               String                                @db.VarChar(128)
+  receivingExpectationId String                                @unique @db.Uuid
+  discrepancyType        ProcurementReceivingDiscrepancyType
+  summary                String                                @db.VarChar(500)
+  status                 ProcurementReceivingDiscrepancyStatus
+  resolutionCode         ProcurementReceivingResolutionCode?
+  resolutionNote         String?                               @db.VarChar(500)
+  resolvedAt             DateTime?
+
+  receivingExpectation ReceivingExpectation @relation(fields: [receivingExpectationId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, discrepancyType])
+}
+
+model ProcurementAuditEnvelope {
+  id           String   @id
+  service      String
+  module       String
+  eventType    String
+  occurredAt   DateTime
+  result       String
+  operatorId   String?
+  operatorType String
+  tenantId     String?
+  orgId        String?
+  traceId      String?
+  resourceType String
+  resourceId   String?
+  details      Json
+  createdAt    DateTime @default(now())
+
+  @@index([service, module, eventType, occurredAt])
+  @@index([tenantId, occurredAt])
+  @@index([resourceType, resourceId, occurredAt])
+}

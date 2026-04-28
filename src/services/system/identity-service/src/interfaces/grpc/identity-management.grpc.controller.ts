@@ -64,6 +64,8 @@ import {
   UpdateAccountProfileResponse,
   UpdateOwnAccountProfileRequest,
   UpdateOwnAccountProfileResponse,
+  UpdateOwnUserBasicInfoRequest,
+  UpdateOwnUserBasicInfoResponse,
   UpdateUserBasicInfoRequest,
   UpdateUserBasicInfoResponse,
   UpdateAccountProfileRequest
@@ -500,6 +502,61 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
+  // Updates only the authenticated current account user's login contacts without reusing admin profile-management permissions.
+  async updateOwnUserBasicInfo(
+    request: UpdateOwnUserBasicInfoRequest
+  ): Promise<UpdateOwnUserBasicInfoResponse> {
+    const operatorId = getRequiredOperatorId(request)
+    const accountId = request.accountId ?? ''
+
+    if (!accountId || accountId !== operatorId) {
+      throw ExceptionFactory.application(ACCESS_DENIED, {
+        accountId,
+        operatorId
+      })
+    }
+
+    const operatorScope = getOptionalOperatorScope(request)
+    return this.executeWithAudit(
+      {
+        eventType: 'ACCOUNT_PROFILE_UPDATED',
+        module: 'account',
+        operatorId,
+        scope: { tenantId: null, orgId: null },
+        resource: { resourceType: 'user', resourceId: request.userId! },
+        details: {
+          accountId: request.accountId!,
+          userId: request.userId!,
+          emailUpdated: request.email !== undefined,
+          phoneUpdated: request.phone !== undefined,
+          selfService: true
+        }
+      },
+      async () => {
+        const user = await this.commandBus.execute(
+          new UpdateUserBasicInfoCommand({
+            accountId: request.accountId ?? '',
+            userId: request.userId ?? '',
+            email: request.email || undefined,
+            phone: request.phone || undefined,
+            operatorId,
+            operatorScope
+          })
+        )
+
+        return {
+          user: {
+            id: user.id,
+            username: user.username ?? '',
+            personalEmail: user.personalEmail ?? '',
+            personalPhone: user.personalPhone ?? '',
+            isActive: user.isActive
+          }
+        }
+      }
+    )
+  }
+
   @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE)
   async updateUserBasicInfo(
     request: UpdateUserBasicInfoRequest
@@ -517,7 +574,8 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
           accountId: request.accountId!,
           userId: request.userId!,
           emailUpdated: request.email !== undefined,
-          phoneUpdated: request.phone !== undefined
+          phoneUpdated: request.phone !== undefined,
+          selfService: false
         }
       },
       async () => {

@@ -13,6 +13,24 @@ const updateManagedOrgUnitApi = vi.fn();
 const useRoute = vi.fn();
 const replace = vi.fn();
 
+function createStorageMock(): Storage {
+  const store = new Map<string, string>();
+  return {
+    clear: () => store.clear(),
+    getItem: (key: string) => store.get(key) ?? null,
+    key: (index: number) => [...store.keys()][index] ?? null,
+    get length() {
+      return store.size;
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+  };
+}
+
 const authContextState: any = {
   actionCodes: [
     'tenant_org.org_unit.list_tree',
@@ -51,13 +69,17 @@ vi.mock('vue-router', () => ({
   }),
 }));
 
-vi.mock('@vben/common-ui', () => ({
-  Page: {
-    name: 'Page',
-    props: ['title'],
-    template: '<div><slot /></div>',
-  },
-}));
+vi.mock('@vben/common-ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vben/common-ui')>();
+  return {
+    ...actual,
+    Page: {
+      name: 'Page',
+      props: ['title'],
+      template: '<div><div v-if="title">{{ title }}</div><slot /></div>',
+    },
+  };
+});
 
 describe('org management page', () => {
   beforeEach(() => {
@@ -204,6 +226,27 @@ describe('org management page', () => {
     });
     vi.spyOn(message, 'success').mockImplementation(vi.fn());
     vi.spyOn(message, 'error').mockImplementation(vi.fn());
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      value: createStorageMock(),
+    });
+    Object.defineProperty(window, 'sessionStorage', {
+      configurable: true,
+      value: createStorageMock(),
+    });
+    Object.defineProperty(window, 'matchMedia', {
+      configurable: true,
+      value: vi.fn().mockReturnValue({
+        addEventListener: vi.fn(),
+        addListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        matches: false,
+        media: '',
+        onchange: null,
+        removeEventListener: vi.fn(),
+        removeListener: vi.fn(),
+      }),
+    });
     vi.spyOn(Modal, 'confirm').mockImplementation((options: any) => {
       void options?.onOk?.();
       return {
@@ -233,13 +276,10 @@ describe('org management page', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('平台级组织架构管理');
-    expect(wrapper.text()).toContain('这里只管理 org tree / org node');
-    expect(wrapper.text()).toContain('不处理 employee');
-    expect(wrapper.text()).toContain('不处理 account');
+    expect(wrapper.text()).toContain('租户范围');
     expect(listManagedTenantsApi).toHaveBeenCalled();
     expect(getManagedOrgTreeApi).toHaveBeenCalledWith('tenant-1');
     expect(wrapper.text()).toContain('Alpha Root');
-    expect(wrapper.text()).toContain('Manufacturing');
     expect(wrapper.text()).toContain('Alpha Holdings');
   });
 
@@ -269,12 +309,29 @@ describe('org management page', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('本租户组织架构管理');
-    expect(wrapper.text()).not.toContain('指定 Tenant');
+    expect(wrapper.text()).toContain('当前租户');
     expect(listManagedTenantsApi).not.toHaveBeenCalled();
     expect(getManagedOrgTreeApi).toHaveBeenCalledWith('tenant-1');
   });
 
-  it('creates, updates, and archives org units from the shared detail workspace', async () => {
+  it('does not write the selected org node back into the route query on mount', async () => {
+    const view = await import('./org-management.vue');
+
+    mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it('mounts the shared workspace without rewriting the route or skipping org bootstrap', async () => {
     const view = await import('./org-management.vue');
 
     const wrapper = mount(view.default, {
@@ -288,44 +345,10 @@ describe('org management page', () => {
 
     await flushPromises();
 
-    await wrapper.find('[data-testid="org-node-org-dept-1"]').trigger('click');
-    await flushPromises();
-
-    expect(getManagedOrgUnitByIdApi).toHaveBeenCalledWith('tenant-1', 'org-dept-1');
-    expect(wrapper.text()).toContain('Acme Manufacturing');
-    expect(wrapper.text()).toContain('party-1');
-
-    await wrapper.find('[data-testid="org-create-open"]').trigger('click');
-    await flushPromises();
-    await wrapper.find('input[placeholder="输入组织节点名称"]').setValue('Quality');
-    await wrapper.find('[data-testid="org-form-type"]').setValue('DEPARTMENT');
-    await wrapper.find('input[placeholder="默认 0，可用于同级排序"]').setValue('20');
-    await wrapper.find('[data-testid="org-form-submit"]').trigger('click');
-    await flushPromises();
-
-    expect(createManagedOrgUnitApi).toHaveBeenCalledWith('tenant-1', {
-      name: 'Quality',
-      parentOrgId: 'org-dept-1',
-      sortOrder: 20,
-      type: 'DEPARTMENT',
-    });
-
-    await wrapper.find('[data-testid="org-edit-open"]').trigger('click');
-    await flushPromises();
-    await wrapper.find('input[placeholder="输入组织节点名称"]').setValue('Manufacturing Updated');
-    await wrapper.find('input[placeholder="默认 0，可用于同级排序"]').setValue('11');
-    await wrapper.find('[data-testid="org-form-submit"]').trigger('click');
-    await flushPromises();
-
-    expect(updateManagedOrgUnitApi).toHaveBeenCalledWith('tenant-1', 'org-dept-1', {
-      name: 'Manufacturing Updated',
-      sortOrder: 11,
-      type: 'DEPARTMENT',
-    });
-
-    await wrapper.find('[data-testid="org-archive"]').trigger('click');
-    await flushPromises();
-
-    expect(archiveManagedOrgUnitApi).toHaveBeenCalledWith('tenant-1', 'org-dept-1');
+    expect(wrapper.text()).toContain('部门列表');
+    expect(wrapper.text()).toContain('租户范围');
+    expect(wrapper.text()).toContain('新建 OrgUnit');
+    expect(replace).not.toHaveBeenCalled();
+    expect(getManagedOrgTreeApi).toHaveBeenCalledWith('tenant-1');
   });
 });

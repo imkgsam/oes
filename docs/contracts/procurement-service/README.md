@@ -1,0 +1,235 @@
+# procurement-service Contracts
+
+## 1. 目的
+
+本目录用于冻结 `procurement-service` phase 1 的 `PR + PO` 最小闭环黑盒契约文档。
+
+这些文档面向：
+
+- `api-gateway` / future procurement BFF
+- `sales-service`
+- future production / maintenance 需求入口
+- `wms-service`
+- `finance-service`
+- 后续承担 `procurement-service` proto / runtime 实现的线程
+
+这些文档不是 proto 副本，不展开数据库结构，不承诺运行时实现细节。
+
+本目录只回写已经冻结的 `PROCUREMENT-CONTRACT` 结论。
+
+## 2. Phase 1 Contract Surface
+
+phase 1 只冻结以下内部 gRPC contract 面：
+
+- [purchase-request-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/purchase-request-query.md)
+  - `PurchaseRequestQueryService`
+  - `GetPurchaseRequest`
+  - `SearchPurchaseRequests`
+- [purchase-request-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/purchase-request-management.md)
+  - `PurchaseRequestManagementService`
+  - `CreatePurchaseRequest`
+  - `UpdatePurchaseRequestDraft`
+  - `SubmitPurchaseRequest`
+  - `DecidePurchaseRequest`
+  - `CancelPurchaseRequest`
+  - `ConvertPurchaseRequestToPurchaseOrder`
+- [purchase-order-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/purchase-order-query.md)
+  - `PurchaseOrderQueryService`
+  - `GetPurchaseOrder`
+  - `SearchPurchaseOrders`
+  - `ListPurchaseOrderChanges`
+- [purchase-order-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/purchase-order-management.md)
+  - `PurchaseOrderManagementService`
+  - `CreatePurchaseOrderDraft`
+  - `UpdatePurchaseOrderDraft`
+  - `IssuePurchaseOrder`
+  - `ConfirmSupplierAcknowledgement`
+  - `ApplyPurchaseOrderChange`
+  - `CancelPurchaseOrder`
+- [receiving-expectation.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/procurement-service/receiving-expectation.md)
+  - `ReceivingExpectationQueryService`
+  - `GetReceivingExpectation`
+  - `SearchReceivingExpectations`
+  - `ReceivingExpectationManagementService`
+  - `CreateReceivingExpectation`
+  - `RecordReceivingDiscrepancyResolution`
+
+phase 1 不在本目录中冻结：
+
+- proto message 全量定义
+- 外部 HTTP / BFF surface
+- UI / selector 组件 contract
+- integration event catalog
+- `RFQ`
+- `SupplierQuote`
+- 安全库存
+- 自动补货
+- `AP / supplier invoice / payment`
+- 完整 workflow
+- `Non-PO purchase` 正常化路径
+
+## 3. Owner Boundary
+
+phase 1 contract 明确围绕以下 owner 边界展开：
+
+- `PurchaseRequest`
+- `PurchaseRequestLine`
+- `PurchaseRequestApprovalSnapshot`
+- `PurchaseOrder`
+- `PurchaseOrderLine`
+- `PurchaseOrderLineAllocation`
+- `PurchaseOrderChange`
+- `ReceivingExpectation`
+- `ReceivingDiscrepancy`
+
+补充冻结规则：
+
+- `PurchaseRequest` 是采购需求，不是采购承诺。
+- `PurchaseOrder` 是正式采购承诺。
+- `PurchaseRequestLine` 必须支持：
+  - 标准 `Item`
+  - 非标准 / 文本型采购需求
+- `PurchaseRequest` 统一覆盖：
+  - 部门日常采购
+  - 销售专采
+  - 生产 / 包装需求
+  - 维修需求
+  - 样品采购
+- 采购类支出在 phase 1 的正常路径必须先 `PR / PO`；`Non-PO purchase` 不是正常主线。
+- 标准 `Item` 转 `PO` 时必须校验目标供应商存在 `ACTIVE SupplierOffering`。
+- 日常非标准采购可不强制依赖 `ACTIVE SupplierOffering`，但 `PO` 必须保留 supplier snapshot。
+- `PurchaseOrderLineAllocation` 必须支持同一行同时表达：
+  - dedicated to `SalesOrderLine`
+  - dedicated to `FulfillmentDemand`
+  - general stock
+- `PO line quantity` 可以大于源 `PR demand quantity`，但超出部分必须标记为 `general stock`，并记录 reason。
+- `ReceivingExpectation` 是采购侧预期收货，不是 `WMS receipt` truth。
+- `WMS receipt` 才是实际收货真相。
+- `ReceivingDiscrepancy` 是采购侧差异摘要与处理入口，不是库存调整真相。
+- `PurchaseOrderChange` 在 phase 1 只要求轻量 `APPLIED` 变更记录。
+- 历史采购价格第一阶段归 Procurement 交易事实 owner。
+
+## 4. Does Not Own
+
+`procurement-service` phase 1 contract 明确不承载以下真相：
+
+- `srm-service` 的 `SupplierProfile / SupplierOffering`
+- `item-master-service` 的 `Item / ItemCapability / SupplierItemMapping`
+- `wms-service` 的实际收货、库位、库存、破损 / 受限库存
+- `finance-service` 的 `AP / supplier invoice / payment / payment allocation`
+- `party-service` 的主体主数据
+- `RFQ`
+- `SupplierQuote`
+- 安全库存
+- 自动补货
+- 完整 `workflow-service`
+- `costing-service`
+
+进一步约束：
+
+- 不把采购商业条款塞进 `SRM`
+- 不把库存真相塞进 Procurement
+- 不把付款真相塞进 Procurement
+- 不把 `SupplierOffering` 扩成价格 / `MOQ` / lead time 对象
+- 不把 `Non-PO purchase` 设计成正常路径
+
+## 5. Security / Context Baseline
+
+所有 phase 1 RPC 统一遵循以下基线：
+
+- 全部为内部 gRPC 契约，不直接对外部客户端开放
+- 所有 RPC 显式携带 `tenant_id`
+- 场景适用时必须显式携带 `org_id`
+- 所有 query RPC 都要求：
+  - internal service context
+  - operator context
+  - trace context
+- 所有 management command 都要求：
+  - internal service context
+  - operator context
+  - trace context
+  - audit context
+
+补充说明：
+
+- 本目录只冻结“必须可观察到的上下文与行为边界”，不展开 metadata header、guard、幂等键或 tracing 实现
+- phase 1 只冻结同步 `gRPC` 校验边界，不冻结完整 integration event catalog
+- 未来事件只能作为 deferred candidate 列出，不能在本目录内伪装成已承诺 payload
+
+## 6. 同步 / 异步边界
+
+phase 1 固定采用以下协同规则：
+
+- 写入前强校验走 `gRPC`
+- 本地事务成功后才允许 future event 扩散
+- 不允许依赖 `Event` 完成本地事务
+
+当前明确需要同步 `gRPC` 的校验只有：
+
+- `procurement-service -> srm-service`
+  - 校验目标 `SupplierProfile` 当前是否为 `ACTIVE`
+  - 校验标准 `Item` 对应供应商是否存在 `ACTIVE SupplierOffering`
+- `procurement-service -> item-master-service`
+  - 校验标准 `Item` 是否存在
+  - 校验标准 `Item` 是否具备 `purchasable` 能力
+- `procurement-service -> permission-service`
+  - 校验当前操作是否被授权
+
+future event 只保留为 deferred candidate，例如：
+
+- `PurchaseRequestSubmitted`
+- `PurchaseRequestDecided`
+- `PurchaseOrderIssued`
+- `PurchaseOrderChanged`
+- `ReceivingExpectationCreated`
+- `ReceivingDiscrepancyResolved`
+
+说明：
+
+- 本目录不冻结事件目录、命名全集、payload 字段或 outbox 实现
+- `wms-service -> procurement-service` 的实际收货回流属于 future async collaboration，不在本目录中展开为事件 contract
+
+## 7. Transaction Facts Boundary
+
+phase 1 只冻结以下事实 owner 归 Procurement：
+
+- 已提交 / 已决策 `PurchaseRequest` 事实
+- 已发出 `PurchaseOrder` 与 `PurchaseOrderChange` 事实
+- `ReceivingExpectation / ReceivingDiscrepancy` 采购侧摘要事实
+- 历史采购价格与采购交易事实
+
+说明：
+
+- phase 1 不单独建立 `purchase-price-history` RPC
+- 历史价格事实来源于 `PO line` 交易快照与后续已应用变更
+- future `Finance / BI / Costing` 只消费分析，不拥有原始采购交易事实
+
+## 8. Deferred
+
+以下能力明确 deferred，不得写成 phase 1 已承诺 contract：
+
+- `RFQ`
+- `SupplierQuote`
+- 安全库存
+- 自动补货
+- `Non-PO purchase` 正常化路径
+- 供应商价格主档、`MOQ`、账期、lead time
+- 完整采购审批 workflow
+- 完整采购变更申请 / 审批 / 供应商确认闭环
+- `AP / supplier invoice / payment / payment allocation`
+- 完整事件目录与 payload
+- `costing-service`
+
+## 9. 关联真相源
+
+本目录以上游稳定文档为准：
+
+- [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md)
+- [procurement-srm-item-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/procurement-srm-item-wms-finance.md)
+- [procurement-pr-po-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/procurement-pr-po-foundation.md)
+- [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
+- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
+- [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
+- [finance-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/finance-service.md)
+- [service-collaboration-rules.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/service-collaboration-rules.md)
+- [service-collaboration-review-checklist.md](/Users/acehood/Documents/GitHub/oes/docs/governance/service-collaboration-review-checklist.md)

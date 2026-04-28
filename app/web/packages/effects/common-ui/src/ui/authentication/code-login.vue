@@ -107,25 +107,28 @@ defineExpose({
 
     <slot name="submit-prepend"></slot>
 
-    <VbenButton
-      :class="{
-        'cursor-wait': loading,
-      }"
-      :loading="loading"
-      class="w-full"
-      @click="handleSubmit"
-    >
-      <slot name="submitButtonText">
-        {{ submitButtonText || $t('common.login') }}
-      </slot>
-    </VbenButton>
-    <VbenButton
-      v-if="showBack"
-      class="mt-4 w-full"
-      variant="outline"
-      @click="goToLogin()"
-    >
-      {{ $t('common.back') }}
-    </VbenButton>
+    <div class="auth-code-actions mt-4 flex items-center gap-4">
+      <VbenButton
+        :class="{
+          'cursor-wait': loading,
+          'flex-1': showBack,
+          'w-full': !showBack,
+        }"
+        :loading="loading"
+        @click="handleSubmit"
+      >
+        <slot name="submitButtonText">
+          {{ submitButtonText || $t('common.login') }}
+        </slot>
+      </VbenButton>
+      <VbenButton
+        v-if="showBack"
+        class="flex-1"
+        variant="outline"
+        @click="goToLogin()"
+      >
+        {{ $t('common.back') }}
+      </VbenButton>
+    </div>
   </div>
 </template>

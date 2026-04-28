@@ -1,7 +1,21 @@
-import type { RouteRecordRaw } from 'vue-router';
+import type { LocationQueryRaw, RouteRecordRaw } from 'vue-router';
 
 // Tenant administration exposes platform and tenant governance pages that are backed by explicit BFF visibility entries.
 const ORGANIZATION_PEOPLE_PAGE_KEY = 'tenant-settings.organization-people';
+
+function buildOrganizationPeopleQuery(
+  query: LocationQueryRaw | undefined,
+  tab: 'departments' | 'members'
+): LocationQueryRaw {
+  const { employeeId: _employeeId, orgUnitId: _orgUnitId, pageKey: _pageKey, tab: _tab, ...rest } =
+    query ?? {};
+  return tab === 'departments'
+    ? {
+        ...rest,
+        tab: 'departments',
+      }
+    : rest;
+}
 
 const tenantAdminRoutes: RouteRecordRaw[] = [
   {
@@ -122,11 +136,7 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         path: '/settings/organization-people/members',
         redirect: (to) => ({
           name: 'TenantOrganizationPeople',
-          query: {
-            ...to.query,
-            pageKey: ORGANIZATION_PEOPLE_PAGE_KEY,
-            tab: 'members',
-          },
+          query: buildOrganizationPeopleQuery(to.query, 'members'),
         }),
         meta: {
           activePath: '/settings/organization-people',
@@ -140,11 +150,10 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         path: '/settings/organization-people/departments',
         redirect: (to) => ({
           name: 'TenantOrganizationPeople',
-          query: {
-            ...to.query,
-            pageKey: ORGANIZATION_PEOPLE_PAGE_KEY,
-            tab: 'departments',
-          },
+          query: buildOrganizationPeopleQuery(
+            to.query,
+            'departments'
+          ),
         }),
         meta: {
           activePath: '/settings/organization-people',
@@ -158,11 +167,10 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         path: '/settings/org-structure',
         redirect: (to) => ({
           name: 'TenantOrganizationPeople',
-          query: {
-            ...to.query,
-            pageKey: ORGANIZATION_PEOPLE_PAGE_KEY,
-            tab: 'departments',
-          },
+          query: buildOrganizationPeopleQuery(
+            to.query,
+            'departments'
+          ),
         }),
         meta: {
           entryKey: 'tenant-settings.org-structure',
@@ -176,11 +184,7 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         path: '/settings/employee-employment',
         redirect: (to) => ({
           name: 'TenantOrganizationPeople',
-          query: {
-            ...to.query,
-            pageKey: ORGANIZATION_PEOPLE_PAGE_KEY,
-            tab: 'members',
-          },
+          query: buildOrganizationPeopleQuery(to.query, 'members'),
         }),
         meta: {
           entryKey: 'tenant-settings.employee-employment',
@@ -198,6 +202,258 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
           entryKey: 'tenant-settings.login-mfa',
           icon: 'lucide:shield-check',
           title: '租户 MFA 配置',
+        },
+      },
+    ],
+  },
+  {
+    meta: {
+      icon: 'lucide:boxes',
+      order: 12,
+      title: '主数据',
+    },
+    name: 'TenantMasterData',
+    path: '/master-data',
+    children: [
+      {
+        name: 'TenantItemManagement',
+        path: '/master-data/items',
+        component: () => import('#/views/admin/item-management.vue'),
+        meta: {
+          entryKey: 'master-data.item-management',
+          fullPathKey: false,
+          icon: 'lucide:package-2',
+          title: 'Item 管理',
+        },
+      },
+      {
+        name: 'TenantCustomerManagement',
+        path: '/master-data/customers',
+        component: () => import('#/views/admin/customer-management.vue'),
+        meta: {
+          entryKey: 'master-data.customer-management',
+          fullPathKey: false,
+          icon: 'lucide:users-round',
+          title: '客户管理',
+        },
+      },
+      {
+        name: 'TenantSupplierManagement',
+        path: '/master-data/suppliers',
+        component: () => import('#/views/admin/supplier-management.vue'),
+        meta: {
+          entryKey: 'master-data.supplier-management',
+          fullPathKey: false,
+          icon: 'lucide:truck',
+          title: '供应商管理',
+        },
+      },
+      {
+        name: 'TenantCustomerManagementCreate',
+        path: '/master-data/customers/create',
+        component: () => import('#/views/admin/customer-management-create.vue'),
+        meta: {
+          activePath: '/master-data/customers',
+          entryKey: 'master-data.customer-management',
+          hideInMenu: true,
+          title: '创建客户',
+        },
+      },
+      {
+        name: 'TenantCustomerManagementDetail',
+        path: '/master-data/customers/:customerAccountId',
+        component: () => import('#/views/admin/customer-management-detail.vue'),
+        meta: {
+          activePath: '/master-data/customers',
+          entryKey: 'master-data.customer-management',
+          hideInMenu: true,
+          title: '客户详情',
+        },
+      },
+      {
+        name: 'TenantSupplierManagementCreate',
+        path: '/master-data/suppliers/create',
+        component: () => import('#/views/admin/supplier-management-create.vue'),
+        meta: {
+          activePath: '/master-data/suppliers',
+          entryKey: 'master-data.supplier-management',
+          hideInMenu: true,
+          title: '创建供应商',
+        },
+      },
+      {
+        name: 'TenantSupplierManagementDetail',
+        path: '/master-data/suppliers/:supplierId',
+        component: () => import('#/views/admin/supplier-management-detail.vue'),
+        meta: {
+          activePath: '/master-data/suppliers',
+          entryKey: 'master-data.supplier-management',
+          hideInMenu: true,
+          title: '供应商详情',
+        },
+      },
+      {
+        name: 'TenantItemManagementCreate',
+        path: '/master-data/items/create',
+        component: () => import('#/views/admin/item-management-create.vue'),
+        meta: {
+          activePath: '/master-data/items',
+          entryKey: 'master-data.item-management',
+          hideInMenu: true,
+          title: '创建 Item',
+        },
+      },
+      {
+        name: 'TenantItemManagementDetail',
+        path: '/master-data/items/:itemId',
+        component: () => import('#/views/admin/item-management-detail.vue'),
+        meta: {
+          activePath: '/master-data/items',
+          entryKey: 'master-data.item-management',
+          hideInMenu: true,
+          title: 'Item 详情',
+        },
+      },
+    ],
+  },
+  {
+    meta: {
+      icon: 'lucide:badge-dollar-sign',
+      order: 13,
+      title: '销售',
+    },
+    name: 'TenantSales',
+    path: '/sales',
+    children: [
+      {
+        name: 'TenantSalesQuoteOrderWorkspace',
+        path: '/sales/quote-orders',
+        component: () => import('#/views/admin/sales-quote-order-workspace.vue'),
+        meta: {
+          entryKey: 'sales.quote-orders',
+          icon: 'lucide:file-spreadsheet',
+          title: '报价与订单',
+        },
+      },
+      {
+        name: 'TenantSalesQuoteCreate',
+        path: '/sales/quote-orders/create',
+        component: () => import('#/views/admin/sales-quote-create.vue'),
+        meta: {
+          activePath: '/sales/quote-orders',
+          entryKey: 'sales.quote-orders',
+          hideInMenu: true,
+          title: '创建报价',
+        },
+      },
+      {
+        name: 'TenantSalesQuoteDetail',
+        path: '/sales/quote-orders/quotes/:quoteId',
+        component: () => import('#/views/admin/sales-quote-detail.vue'),
+        meta: {
+          activePath: '/sales/quote-orders',
+          entryKey: 'sales.quote-orders',
+          hideInMenu: true,
+          title: '报价详情',
+        },
+      },
+      {
+        name: 'TenantSalesOrderDetail',
+        path: '/sales/quote-orders/orders/:salesOrderId',
+        component: () => import('#/views/admin/sales-order-detail.vue'),
+        meta: {
+          activePath: '/sales/quote-orders',
+          entryKey: 'sales.quote-orders',
+          hideInMenu: true,
+          title: '订单详情',
+        },
+      },
+    ],
+  },
+  {
+    meta: {
+      icon: 'lucide:shopping-cart',
+      order: 14,
+      title: '采购管理',
+    },
+    name: 'TenantProcurement',
+    path: '/procurement',
+    children: [
+      {
+        name: 'TenantPurchaseRequestWorkspace',
+        path: '/procurement/purchase-requests',
+        component: () => import('#/views/admin/procurement-management.vue'),
+        meta: {
+          entryKey: 'procurement.management',
+          fullPathKey: false,
+          icon: 'lucide:file-text',
+          title: '采购管理',
+        },
+      },
+      {
+        name: 'TenantPurchaseOrderWorkspace',
+        path: '/procurement/purchase-orders',
+        component: () => import('#/views/admin/procurement-management.vue'),
+        meta: {
+          activePath: '/procurement/purchase-requests',
+          entryKey: 'procurement.management',
+          hideInMenu: true,
+          title: '采购订单',
+        },
+      },
+      {
+        name: 'TenantReceivingExpectationWorkspace',
+        path: '/procurement/receiving-expectations',
+        component: () => import('#/views/admin/procurement-management.vue'),
+        meta: {
+          activePath: '/procurement/purchase-requests',
+          entryKey: 'procurement.management',
+          hideInMenu: true,
+          title: '收货预期',
+        },
+      },
+      {
+        name: 'TenantPurchaseRequestCreate',
+        path: '/procurement/purchase-requests/create',
+        component: () => import('#/views/admin/purchase-request-create.vue'),
+        meta: {
+          activePath: '/procurement/purchase-requests',
+          entryKey: 'procurement.management',
+          hideInMenu: true,
+          title: '创建采购申请',
+        },
+      },
+      {
+        name: 'TenantPurchaseRequestDetail',
+        path: '/procurement/purchase-requests/:purchaseRequestId',
+        component: () => import('#/views/admin/purchase-request-detail.vue'),
+        meta: {
+          activePath: '/procurement/purchase-requests',
+          entryKey: 'procurement.management',
+          hideInMenu: true,
+          title: '采购申请详情',
+        },
+      },
+      {
+        name: 'TenantPurchaseOrderDetail',
+        path: '/procurement/purchase-orders/:purchaseOrderId',
+        component: () => import('#/views/admin/purchase-order-detail.vue'),
+        meta: {
+          activePath: '/procurement/purchase-orders',
+          entryKey: 'procurement.management',
+          hideInMenu: true,
+          title: '采购订单详情',
+        },
+      },
+      {
+        name: 'TenantReceivingExpectationDetail',
+        path: '/procurement/receiving-expectations/:receivingExpectationId',
+        component: () => import('#/views/admin/receiving-expectation-detail.vue'),
+        meta: {
+          activePath: '/procurement/receiving-expectations',
+          entryKey: 'procurement.management',
+          hideInMenu: true,
+          title: '收货预期详情',
         },
       },
     ],

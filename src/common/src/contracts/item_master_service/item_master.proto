@@ -1,0 +1,239 @@
+syntax = "proto3";
+
+package item_master_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.itemmaster.v1";
+
+service ItemMasterQueryService {
+  rpc GetItem(GetItemRequest) returns (GetItemResponse);
+  rpc BatchGetItems(BatchGetItemsRequest) returns (BatchGetItemsResponse);
+  rpc SearchItems(SearchItemsRequest) returns (SearchItemsResponse);
+  rpc GetItemComposition(GetItemCompositionRequest) returns (GetItemCompositionResponse);
+  rpc ListSupplierItemMappingsByItem(ListSupplierItemMappingsByItemRequest) returns (ListSupplierItemMappingsByItemResponse);
+  rpc ResolveSupplierItemMapping(ResolveSupplierItemMappingRequest) returns (ResolveSupplierItemMappingResponse);
+}
+
+service ItemMasterManagementService {
+  rpc CreateItem(CreateItemRequest) returns (CreateItemResponse);
+  rpc UpdateItemBasics(UpdateItemBasicsRequest) returns (UpdateItemBasicsResponse);
+  rpc SetItemCapabilities(SetItemCapabilitiesRequest) returns (SetItemCapabilitiesResponse);
+  rpc SetItemComposition(SetItemCompositionRequest) returns (SetItemCompositionResponse);
+  rpc UpsertSupplierItemMapping(UpsertSupplierItemMappingRequest) returns (UpsertSupplierItemMappingResponse);
+  rpc ChangeItemStatus(ChangeItemStatusRequest) returns (ChangeItemStatusResponse);
+}
+
+enum ItemStructureType {
+  ITEM_STRUCTURE_TYPE_UNSPECIFIED = 0;
+  ITEM_STRUCTURE_TYPE_SINGLE = 1;
+  ITEM_STRUCTURE_TYPE_BUNDLE = 2;
+}
+
+enum ItemNatureType {
+  ITEM_NATURE_TYPE_UNSPECIFIED = 0;
+  ITEM_NATURE_TYPE_PHYSICAL = 1;
+  ITEM_NATURE_TYPE_VIRTUAL = 2;
+  ITEM_NATURE_TYPE_SERVICE = 3;
+}
+
+enum ItemStatus {
+  ITEM_STATUS_UNSPECIFIED = 0;
+  ITEM_STATUS_ACTIVE = 1;
+  ITEM_STATUS_INACTIVE = 2;
+}
+
+enum SupplierItemResolutionStatus {
+  SUPPLIER_ITEM_RESOLUTION_STATUS_UNSPECIFIED = 0;
+  SUPPLIER_ITEM_RESOLUTION_STATUS_MATCHED = 1;
+  SUPPLIER_ITEM_RESOLUTION_STATUS_NO_MATCH = 2;
+}
+
+message ItemCapabilities {
+  bool sellable = 1;
+  bool purchasable = 2;
+  bool stockable = 3;
+  bool manufacturable = 4;
+}
+
+message ItemCapabilityFilters {
+  optional bool sellable = 1;
+  optional bool purchasable = 2;
+  optional bool stockable = 3;
+  optional bool manufacturable = 4;
+}
+
+message ItemSummary {
+  string item_id = 1;
+  string item_code = 2;
+  string item_name = 3;
+  ItemStructureType structure_type = 4;
+  ItemNatureType nature_type = 5;
+  ItemStatus status = 6;
+  ItemCapabilities capabilities = 7;
+}
+
+message ItemCompositionComponentInput {
+  string component_item_id = 1;
+}
+
+message ItemCompositionComponent {
+  string component_item_id = 1;
+  string component_item_code = 2;
+  string component_item_name = 3;
+}
+
+message SupplierItemMappingRecord {
+  string supplier_id = 1;
+  string supplier_item_code = 2;
+  string supplier_item_name = 3;
+  string item_id = 4;
+  string item_code = 5;
+  string item_name = 6;
+}
+
+message SupplierItemMappingListEntry {
+  string supplier_id = 1;
+  string supplier_item_code = 2;
+  string supplier_item_name = 3;
+  string item_id = 4;
+}
+
+message GetItemRequest {
+  string tenant_id = 1;
+  string item_id = 2;
+}
+
+message GetItemResponse {
+  ItemSummary item = 1;
+}
+
+message BatchGetItemsRequest {
+  string tenant_id = 1;
+  repeated string item_ids = 2;
+}
+
+message BatchGetItemsResponse {
+  repeated ItemSummary items = 1;
+  repeated string missing_item_ids = 2;
+}
+
+message SearchItemsRequest {
+  string tenant_id = 1;
+  string keyword = 2;
+  ItemStructureType structure_type = 3;
+  ItemNatureType nature_type = 4;
+  ItemCapabilityFilters capability_filters = 5;
+  ItemStatus status = 6;
+  uint32 page = 7;
+  uint32 page_size = 8;
+}
+
+message SearchItemsResponse {
+  repeated ItemSummary items = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetItemCompositionRequest {
+  string tenant_id = 1;
+  string item_id = 2;
+}
+
+message GetItemCompositionResponse {
+  string item_id = 1;
+  repeated ItemCompositionComponent components = 2;
+}
+
+message ListSupplierItemMappingsByItemRequest {
+  string tenant_id = 1;
+  string item_id = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message ListSupplierItemMappingsByItemResponse {
+  repeated SupplierItemMappingListEntry mappings = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message ResolveSupplierItemMappingRequest {
+  string tenant_id = 1;
+  string supplier_id = 2;
+  string supplier_item_code = 3;
+  string supplier_item_name = 4;
+}
+
+message ResolveSupplierItemMappingResponse {
+  SupplierItemResolutionStatus resolution_status = 1;
+  SupplierItemMappingRecord mapping = 2;
+}
+
+message CreateItemRequest {
+  string tenant_id = 1;
+  string item_code = 2;
+  string item_name = 3;
+  ItemStructureType structure_type = 4;
+  ItemNatureType nature_type = 5;
+}
+
+message CreateItemResponse {
+  string item_id = 1;
+  ItemSummary item = 2;
+}
+
+message UpdateItemBasicsRequest {
+  string tenant_id = 1;
+  string item_id = 2;
+  string item_code = 3;
+  string item_name = 4;
+}
+
+message UpdateItemBasicsResponse {
+  ItemSummary item = 1;
+}
+
+message SetItemCapabilitiesRequest {
+  string tenant_id = 1;
+  string item_id = 2;
+  ItemCapabilities capabilities = 3;
+}
+
+message SetItemCapabilitiesResponse {
+  ItemSummary item = 1;
+}
+
+message SetItemCompositionRequest {
+  string tenant_id = 1;
+  string item_id = 2;
+  repeated ItemCompositionComponentInput components = 3;
+}
+
+message SetItemCompositionResponse {
+  string item_id = 1;
+  repeated ItemCompositionComponent components = 2;
+}
+
+message UpsertSupplierItemMappingRequest {
+  string tenant_id = 1;
+  string supplier_id = 2;
+  string supplier_item_code = 3;
+  string supplier_item_name = 4;
+  string item_id = 5;
+}
+
+message UpsertSupplierItemMappingResponse {
+  SupplierItemMappingRecord mapping = 1;
+}
+
+message ChangeItemStatusRequest {
+  string tenant_id = 1;
+  string item_id = 2;
+  ItemStatus target_status = 3;
+}
+
+message ChangeItemStatusResponse {
+  ItemSummary item = 1;
+}

@@ -1,0 +1,8 @@
+/** TOKENS centralizes injectable repository and infrastructure tokens for sales-service phase 1. */
+export const TOKENS = {
+  QUOTE_REPOSITORY: Symbol('SALES_QUOTE_REPOSITORY'),
+  QUOTE_VERSION_REPOSITORY: Symbol('SALES_QUOTE_VERSION_REPOSITORY'),
+  SALES_ORDER_REPOSITORY: Symbol('SALES_SALES_ORDER_REPOSITORY'),
+  SALES_AUDIT_WRITER: Symbol('SALES_AUDIT_WRITER'),
+  SALES_TRANSACTION_RUNNER: Symbol('SALES_TRANSACTION_RUNNER')
+} as const

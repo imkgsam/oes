@@ -91,6 +91,10 @@ const allowedPermissions = new Set<string>()
 @UseFilters(GrpcExceptionFilter)
 @AuthServiceControllerMethods()
 class TestAuthGrpcController implements AuthServiceController {
+  bootstrapOwnLoginMethods(): any {
+    return { emailBootstrapped: true, phoneBootstrapped: true, passwordBootstrapped: false }
+  }
+
   bootstrapUserLoginMethods(): any {
     return { emailBootstrapped: true, phoneBootstrapped: true, passwordBootstrapped: false }
   }

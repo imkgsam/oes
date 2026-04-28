@@ -109,6 +109,19 @@ For login history specifically, the self-service boundary is the current authent
   - Purpose: regenerate recovery codes.
   - Downstream: `RegenerateRecoveryCodes`
 
+### Contact Binding Follow-up
+
+- `POST /auth/contact-bindings/email/verify`
+  - After one verified email binding succeeds, `auth-bff` must call self-service-only downstream write interfaces:
+    - `IdentityManagementService.UpdateOwnUserBasicInfo`
+    - `AuthService.BootstrapOwnLoginMethods`
+- `POST /auth/contact-bindings/phone/verify`
+  - After one verified phone binding succeeds, `auth-bff` must call self-service-only downstream write interfaces:
+    - `IdentityManagementService.UpdateOwnUserBasicInfo`
+    - `AuthService.BootstrapOwnLoginMethods`
+- Stable governance rule:
+  - self-service contact binding must not reuse admin-management downstream mutations
+
 ## Control Model
 
 - All endpoints require an authenticated gateway JWT.

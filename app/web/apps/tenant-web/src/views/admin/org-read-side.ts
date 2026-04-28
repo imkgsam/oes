@@ -15,6 +15,10 @@ export interface FlatManagedOrgUnit {
   type: string
 }
 
+export interface ManagedOrgGridRow extends FlatManagedOrgUnit {
+  children?: ManagedOrgGridRow[]
+}
+
 /** formatManagedOrganizationPartyName chooses the most human-readable organization-party label available for tenant/org read models. */
 export function formatManagedOrganizationPartyName(
   orgUnit?: Pick<TenantManagementApi.ManagedOrgUnit, 'organizationParty' | 'organizationPartyId'> | null
@@ -58,6 +62,27 @@ export function flattenManagedOrgTree(
   }
 
   return rows
+}
+
+/** mapManagedOrgTreeToGridRows preserves the nested org tree shape required by the VXE tree grid. */
+export function mapManagedOrgTreeToGridRows(
+  nodes: TenantManagementApi.ManagedOrgNode[]
+): ManagedOrgGridRow[] {
+  return nodes.map((node) => ({
+    depth: node.orgUnit.depth,
+    id: node.orgUnit.id,
+    label: formatManagedOrgSelectorLabel(node.orgUnit),
+    name: node.orgUnit.name,
+    organizationParty: node.orgUnit.organizationParty,
+    organizationPartyId: node.orgUnit.organizationPartyId,
+    parentOrgId: node.orgUnit.parentOrgId,
+    path: node.orgUnit.path,
+    sortOrder: node.orgUnit.sortOrder,
+    status: node.orgUnit.status,
+    tenantId: node.orgUnit.tenantId,
+    type: node.orgUnit.type,
+    children: mapManagedOrgTreeToGridRows(node.children ?? [])
+  }))
 }
 
 /** findManagedOrgUnitOption resolves one flat org read-side row by orgUnitId for HR and tenant workspace displays. */

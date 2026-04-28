@@ -34,8 +34,20 @@
    - 租户组织与 HR 任职边界协同蓝图
 7. [employee-onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/employee-onboarding.md)
    - 员工 onboarding 五服务协同蓝图
-8. [mes-wms-erp-fulfillment.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/mes-wms-erp-fulfillment.md)
-   - 制造放行、仓储接手、占用真相与履约协同蓝图
+8. [sales-crm-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-crm-party-item-master.md)
+   - Sales 与 CRM、Party、Item Master 的交易引用与快照协同蓝图
+9. [item-master-sales-mes-wms-srm.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/item-master-sales-mes-wms-srm.md)
+   - Item 主数据与销售、采购、制造、仓储、SRM 采用边界协同蓝图
+10. [srm-procurement-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/srm-procurement-party-item-master.md)
+   - SRM 最小供应商主档与 Procurement、Party、Item Master 的协同蓝图
+11. [procurement-srm-item-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/procurement-srm-item-wms-finance.md)
+   - Procurement phase 1 的 PR/PO、收货预期与 SRM、Item Master、WMS、Finance 的协同蓝图
+12. [sales-fulfillment-mes-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
+   - 销售订单 handoff、制造放行、仓储执行与财务边界协同蓝图
+13. [sales-finance-order-to-cash.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-finance-order-to-cash.md)
+   - Sales 与 Finance 的 order-to-cash、finance release、应收与标准汇率协同蓝图
+14. [object-activity-and-timeline.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/object-activity-and-timeline.md)
+   - 平台级 ObjectActivity 与 ObjectTimeline 协同蓝图
 
 ## 4. 新服务协同准入规则
 

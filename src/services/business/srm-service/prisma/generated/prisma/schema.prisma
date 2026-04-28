@@ -1,0 +1,145 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SrmSupplierStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum SrmSupplierPartyBindingStatus {
+  ACTIVE
+}
+
+enum SrmSupplierOfferingStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model SrmSequenceCounter {
+  tenantId              String   @id @db.VarChar(128)
+  nextSupplierProfileNo Int      @default(1)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model SupplierProfile {
+  id               String                @id @db.Uuid
+  supplierNo       String                @unique @db.VarChar(64)
+  tenantId         String                @db.VarChar(128)
+  displayName      String                @db.VarChar(255)
+  status           SrmSupplierStatus
+  supplierCategory String?               @db.VarChar(128)
+  tags             Json
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  partyBinding     SupplierPartyBinding?
+  contacts         SupplierContact[]
+  addresses        SupplierAddress[]
+  offerings        SupplierOffering[]
+
+  @@index([tenantId, status, supplierNo])
+  @@index([tenantId, displayName])
+}
+
+model SupplierPartyBinding {
+  id               String                        @id @db.Uuid
+  tenantId         String                        @db.VarChar(128)
+  supplierId       String                        @unique @db.Uuid
+  tenantPartyId    String                        @db.VarChar(128)
+  bindingStatus    SrmSupplierPartyBindingStatus
+  partyDisplayName String?                       @db.VarChar(255)
+  createdAt        DateTime                      @default(now())
+  updatedAt        DateTime                      @updatedAt
+
+  supplierProfile SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, tenantPartyId])
+  @@index([tenantId, tenantPartyId])
+  @@index([tenantId, bindingStatus])
+}
+
+model SupplierContact {
+  id               String   @id @db.Uuid
+  tenantId         String   @db.VarChar(128)
+  supplierId       String   @db.Uuid
+  displayName      String   @db.VarChar(255)
+  roleTitle        String?  @db.VarChar(255)
+  email            String?  @db.VarChar(255)
+  phone            String?  @db.VarChar(64)
+  isPrimaryContact Boolean
+  isActive         Boolean
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  supplierProfile SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, supplierId, displayName])
+}
+
+model SupplierAddress {
+  id               String   @id @db.Uuid
+  tenantId         String   @db.VarChar(128)
+  supplierId       String   @db.Uuid
+  label            String   @db.VarChar(128)
+  countryCode      String   @db.VarChar(32)
+  region           String?  @db.VarChar(128)
+  locality         String?  @db.VarChar(128)
+  addressLine1     String   @db.VarChar(255)
+  addressLine2     String?  @db.VarChar(255)
+  postalCode       String?  @db.VarChar(64)
+  isPrimaryAddress Boolean
+  isActive         Boolean
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  supplierProfile SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, supplierId, label])
+}
+
+model SupplierOffering {
+  id         String                    @id @db.Uuid
+  tenantId   String                    @db.VarChar(128)
+  supplierId String                    @db.Uuid
+  itemId     String                    @db.Uuid
+  itemCode   String?                   @db.VarChar(128)
+  itemName   String?                   @db.VarChar(255)
+  status     SrmSupplierOfferingStatus
+  createdAt  DateTime                  @default(now())
+  updatedAt  DateTime                  @updatedAt
+
+  supplierProfile SupplierProfile @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, supplierId, itemId])
+  @@index([tenantId, supplierId, status])
+  @@index([tenantId, itemId, status])
+}
+
+model SrmAuditEnvelope {
+  id           String   @id
+  service      String
+  module       String
+  eventType    String
+  occurredAt   DateTime
+  result       String
+  operatorId   String?
+  operatorType String
+  tenantId     String?
+  orgId        String?
+  traceId      String?
+  resourceType String
+  resourceId   String?
+  details      Json
+  createdAt    DateTime @default(now())
+
+  @@index([service, module, eventType, occurredAt])
+  @@index([tenantId, occurredAt])
+  @@index([resourceType, resourceId, occurredAt])
+}

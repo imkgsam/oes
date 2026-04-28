@@ -1,6 +1,7 @@
 import type {
   ComponentRecordType,
   GenerateMenuAndRoutesOptions,
+  RouteRecordStringComponent,
 } from '@vben/types';
 
 import { generateAccessible } from '@vben/access';
@@ -64,10 +65,21 @@ function filterRoutesByVisibleEntries<T>(
   return filterEntryRouteLikes(routes as EntryKeyRouteLike[], visibleEntries) as T[];
 }
 
+// Reuses the local route tree as a last-resort menu source when the legacy remote menu endpoint is unavailable.
+function toMenuRouteFallback(
+  routes: EntryKeyRouteLike[],
+): RouteRecordStringComponent[] {
+  return routes as RouteRecordStringComponent[];
+}
+
 // Generates the accessible route tree from local route definitions and BFF navigation visibility.
 async function generateAccess(options: GenerateMenuAndRoutesOptions) {
   const pageMap: ComponentRecordType = import.meta.glob('../views/**/*.vue');
   const authContextStore = useAuthContextStore();
+  const filteredLocalRoutes = filterRoutesByVisibleEntries(
+    options.routes,
+    authContextStore.visibleEntries,
+  );
 
   const layoutMap: ComponentRecordType = {
     BasicLayout,
@@ -76,16 +88,22 @@ async function generateAccess(options: GenerateMenuAndRoutesOptions) {
 
   return await generateAccessible(preferences.app.accessMode, {
     ...options,
-    routes: filterRoutesByVisibleEntries(options.routes, authContextStore.visibleEntries),
+    routes: filteredLocalRoutes,
     fetchMenuListAsync: async () => {
       message.loading({
         duration: 1500,
         content: `${$t('common.loadingMenu')}...`,
       });
-      return filterRoutesByVisibleEntries(
-        await getAllMenusApi(),
-        authContextStore.visibleEntries,
-      );
+      try {
+        return filterRoutesByVisibleEntries(
+          await getAllMenusApi(),
+          authContextStore.visibleEntries,
+        );
+      } catch {
+        return toMenuRouteFallback(
+          filteredLocalRoutes as unknown as EntryKeyRouteLike[],
+        );
+      }
     },
     // 可以指定没有权限跳转403页面
     forbiddenComponent,

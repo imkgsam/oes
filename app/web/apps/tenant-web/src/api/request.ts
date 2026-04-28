@@ -58,6 +58,10 @@ export function resolveUserFacingErrorMessage(responseData: any, fallbackMessage
     return '登录失败次数过多，请稍后再试。';
   }
 
+  if (/AUTH_MFA_FACTOR_UNAVAILABLE|auth\.mfa_factor_unavailable/i.test(combined)) {
+    return '当前账号没有可用于本次登录验证的独立 MFA 因子，请改用密码登录后完成二次验证，或先配置其他 MFA 因子。';
+  }
+
   return responseData?.error ?? responseData?.message ?? fallbackMessage;
 }
 
@@ -71,11 +75,13 @@ export function shouldSuppressAuthRecoveryError(error: any) {
     code === 'APP_AUTH_001' ||
     code === 'APP_AUTH_003' ||
     code === 'APP_AUTH_004' ||
+    code === 'AUTH_MFA_FACTOR_UNAVAILABLE' ||
     code === 'AUTH_REFRESH_TOKEN_INVALID' ||
     code === 'AUTH_REFRESH_TOKEN_REPLAY_DETECTED' ||
     messageKey === 'app.auth.unauthenticated' ||
     messageKey === 'app.auth.jwt_missing' ||
     messageKey === 'app.auth.jwt_invalid' ||
+    messageKey === 'auth.mfa_factor_unavailable' ||
     messageKey === 'auth.refresh_token_invalid' ||
     messageKey === 'auth.refresh_token_replay_detected'
   );

@@ -8,6 +8,7 @@ option java_package = "com.oes.auth.v1";
 service AuthService {
   rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
   rpc ListLoginHistory(ListLoginHistoryRequest) returns (ListLoginHistoryResponse);
+  rpc BootstrapOwnLoginMethods(BootstrapOwnLoginMethodsRequest) returns (BootstrapOwnLoginMethodsResponse);
   rpc BootstrapUserLoginMethods(BootstrapUserLoginMethodsRequest) returns (BootstrapUserLoginMethodsResponse);
   rpc CompleteFirstLoginPasswordSetup(CompleteFirstLoginPasswordSetupRequest) returns (CompleteFirstLoginPasswordSetupResponse);
   rpc LoginWithEmailPassword(LoginWithEmailPasswordRequest) returns (LoginWithEmailPasswordResponse);
@@ -258,6 +259,19 @@ message ListLoginMethodsRequest {
 message ListLoginMethodsResponse {
   repeated LoginMethodView login_methods = 1;
   bool password_setup_required = 2;
+}
+
+message BootstrapOwnLoginMethodsRequest {
+  string user_id = 1;
+  string account_id = 2;
+  string email = 3;
+  string phone = 4;
+}
+
+message BootstrapOwnLoginMethodsResponse {
+  bool email_bootstrapped = 1;
+  bool phone_bootstrapped = 2;
+  bool password_bootstrapped = 3;
 }
 
 message ChangeOwnPasswordRequest {

@@ -24,7 +24,7 @@ function createLoginMethodFixture(input: {
 }
 
 describe('CompleteFirstLoginPasswordSetupHandler', () => {
-  it('creates the first enabled password credential on every verified bound login method', async () => {
+  it('creates one shared account password across every verified bound login identifier during first-login setup', async () => {
     const phoneMethod = createLoginMethodFixture({
       id: 'login-phone-1',
       identifier: '13800138000',

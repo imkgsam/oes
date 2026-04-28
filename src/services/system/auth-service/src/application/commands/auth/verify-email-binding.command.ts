@@ -1,5 +1,5 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator'
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
 
 // Carries one authenticated self-service email binding verification attempt.
 export class VerifyEmailBindingCommand implements ICommand {
@@ -24,6 +24,7 @@ export class VerifyEmailBindingCommand implements ICommand {
   @MaxLength(64)
   readonly otp: string
 
+  @IsOptional()
   @IsString()
   readonly mfaGrantToken?: string
 

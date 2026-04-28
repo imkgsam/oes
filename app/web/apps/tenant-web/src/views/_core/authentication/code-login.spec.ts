@@ -7,6 +7,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const routerReplace = vi.fn()
 const routerPush = vi.fn()
 const setFieldValue = vi.fn()
+const storageState = vi.hoisted(() => new Map<string, string>())
+const requestEmailOtpChallengeMock = vi.hoisted(() => vi.fn())
+const requestPhoneOtpChallengeMock = vi.hoisted(() => vi.fn())
 const routeState = vi.hoisted(() => ({
   query: {} as Record<string, string | undefined>
 }))
@@ -29,22 +32,48 @@ vi.mock('vue-router', () => ({
 vi.mock('@vben/common-ui', () => ({
   AuthenticationCodeLogin: defineComponent({
     name: 'AuthenticationCodeLogin',
+    props: {
+      formSchema: {
+        type: Array,
+        default: () => []
+      }
+    },
     emits: ['submit'],
-    setup(_, { expose }) {
+    setup(props, { expose }) {
       expose({
         getFormApi: () => ({
-          getValues: vi.fn().mockResolvedValue({}),
+          getValues: vi.fn().mockResolvedValue({
+            email: 'user@example.com',
+            phoneNumber: '+8613800138000'
+          }),
           setFieldValue
         })
       })
 
-      return {}
+      async function triggerSendCode() {
+        const codeField = (props.formSchema as Array<any>).find(
+          (item) => item?.fieldName === 'code'
+        )
+        await codeField?.componentProps?.handleSendCode?.()
+      }
+
+      return {
+        triggerSendCode
+      }
     },
-    template: '<section><slot name="form-prepend" /><slot name="submit-prepend" /></section>'
+    template: `
+      <section>
+        <slot name="form-prepend" />
+        <button class="send-code" type="button" @click="triggerSendCode">send-code</button>
+        <slot name="submit-prepend" />
+      </section>
+    `
   }),
   SliderCaptcha: defineComponent({
     name: 'SliderCaptcha',
-    template: '<div />'
+    emits: ['success', 'update:modelValue'],
+    template:
+      '<button class="slider-pass" type="button" @click="$emit(\'update:modelValue\', true); $emit(\'success\')">slider-pass</button>'
   }),
   z: {
     string: zString
@@ -57,6 +86,7 @@ vi.mock('@vben/locales', () => ({
 
 vi.mock('ant-design-vue', () => ({
   message: {
+    warning: vi.fn(),
     success: vi.fn()
   }
 }))
@@ -66,16 +96,29 @@ vi.mock('#/store', () => ({
     authCodeLogin: vi.fn(),
     authEmailCodeLogin: vi.fn(),
     loginLoading: false,
-    requestEmailOtpChallenge: vi.fn(),
-    requestPhoneOtpChallenge: vi.fn()
+    requestEmailOtpChallenge: requestEmailOtpChallengeMock,
+    requestPhoneOtpChallenge: requestPhoneOtpChallengeMock
   })
 }))
 
+Object.defineProperty(globalThis, 'localStorage', {
+  value: {
+    clear: () => storageState.clear(),
+    getItem: (key: string) => storageState.get(key) ?? null,
+    removeItem: (key: string) => storageState.delete(key),
+    setItem: (key: string, value: string) => storageState.set(key, value)
+  },
+  configurable: true
+})
+
 describe('code login identifier handoff', () => {
   beforeEach(() => {
+    localStorage.clear()
     routerPush.mockReset()
     routerReplace.mockReset()
     setFieldValue.mockReset()
+    requestEmailOtpChallengeMock.mockReset()
+    requestPhoneOtpChallengeMock.mockReset()
     routeState.query = {}
   })
 
@@ -103,5 +146,39 @@ describe('code login identifier handoff', () => {
     await Promise.resolve()
 
     expect(setFieldValue).toHaveBeenCalledWith('phoneNumber', '+8613800138000')
+  })
+
+  it('restores the last used phone otp login mode and identifier when no route query is provided', async () => {
+    localStorage.setItem(
+      'tenant-web.auth.login-preference.v1',
+      JSON.stringify({
+        otp: {
+          mode: 'phone',
+          phoneNumber: '+8613800138000'
+        }
+      })
+    )
+    const view = await import('./code-login.vue')
+
+    mount(view.default)
+    await Promise.resolve()
+
+    expect(setFieldValue).toHaveBeenCalledWith('phoneNumber', '+8613800138000')
+  })
+
+  it('requires captcha verification before sending a phone otp challenge', async () => {
+    routeState.query = {
+      mode: 'phone'
+    }
+    const view = await import('./code-login.vue')
+    const wrapper = mount(view.default)
+
+    await wrapper.get('.send-code').trigger('click')
+    expect(requestPhoneOtpChallengeMock).not.toHaveBeenCalled()
+
+    await wrapper.get('.slider-pass').trigger('click')
+    await wrapper.get('.send-code').trigger('click')
+
+    expect(requestPhoneOtpChallengeMock).toHaveBeenCalledWith('+8613800138000')
   })
 })

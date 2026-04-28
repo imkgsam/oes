@@ -235,6 +235,43 @@
   - 必须消费一次性 reset grant token
   - 成功后必须吊销该 user 的全部现有 session
 
+### `BootstrapOwnLoginMethods`
+
+- 作用：在当前认证用户完成自助邮箱 / 手机绑定后，为该用户补齐对应登录方式
+- 使用场景：
+  - 已登录用户完成联系方式绑定后的自助安全后置流程
+- 适用调用方：
+  - `auth-bff` self-service 链路
+- 请求关键字段：
+  - `user_id`
+  - `account_id`
+  - `email` 或 `phone`
+- 权限与上下文要求：
+  - 必须带 authenticated operator context
+  - 不采用管理员型 permission code
+  - controller 必须校验 `operator_id == account_id`
+- 稳定语义：
+  - 这是 self-service 专用写接口
+  - 仅补齐 OTP-ready login method，不附带管理员开通语义
+
+### `BootstrapUserLoginMethods`
+
+- 作用：为管理员创建 / 修复账号时补齐目标用户登录方式
+- 使用场景：
+  - 管理员开通账号
+  - 管理端修复账号登录入口
+- 适用调用方：
+  - 管理接口编排方
+- 请求关键字段：
+  - `user_id`
+  - `account_id`
+  - `email` 或 `phone`
+- 权限与上下文要求：
+  - 需要 `auth.account_credentials.bootstrap`
+- 稳定语义：
+  - 这是 admin-management 专用写接口
+  - self-service 链路不得再复用该接口
+
 ## 3. MFA 与账户选择桥接
 
 ### `SubmitMfaChallenge`

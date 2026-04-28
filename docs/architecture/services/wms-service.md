@@ -43,7 +43,7 @@
 - 典型上游：
   - `api-gateway`
   - `mes-service`
-  - future `erp-service / fulfillment`
+  - `sales-service / fulfillment boundary`
   - 统一扫码入口 / trace identity
 - 典型下游：
   - future shipping / logistics integration
@@ -55,8 +55,8 @@
 
 - `mes-service`
   - 提供放行后可交仓对象、后处理执行结果与制造侧追溯摘要。
-- future `erp-service / fulfillment`
-  - 提供订单承诺、履约需求、紧急程度与人工审批结果。
+- `sales-service / fulfillment boundary`
+  - 提供订单承诺、商业放行条件、履约需求、紧急程度与人工审批结果。
 - 统一扫码入口 / trace identity
   - 提供编码解析与对象路由能力。
 - future product / SKU master
@@ -74,7 +74,7 @@
 
 - 不把所有实物对象都直接归为 WMS 库存。
 - 不在 WMS 内重建 MES 的工序、质检与返修真相。
-- 不让 ERP 继续维护独立的物理占用真相。
+- 不让 `sales-service / fulfillment boundary` 继续维护独立的物理占用真相。
 - 不假设全仓天然一物一码。
 - 不默认按标准货架仓逻辑反向定义卫浴陶瓷仓储现场。
 

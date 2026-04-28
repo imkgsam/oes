@@ -1,5 +1,9 @@
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import {
+  AUTH_MANAGEMENT_PERMISSION_CODES,
+  REQUIRE_PERMISSION_METADATA_KEY
+} from '@oes/common/authorization'
+import {
   GetTenantMfaPolicyResponse,
   LoginWithEmailPasswordResponse,
   MfaBindingType,
@@ -11,6 +15,80 @@ import {
 import { AuthGrpcController } from './auth.grpc.controller'
 
 describe('AuthGrpcController', () => {
+  it('maps bootstrapOwnLoginMethods into the shared bootstrap command for self-service contact binding follow-up', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        emailBootstrapped: true,
+        phoneBootstrapped: false,
+        passwordBootstrapped: false
+      })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    await expect(
+      controller.bootstrapOwnLoginMethods({
+        accountId: 'account-1',
+        userId: 'user-1',
+        email: 'user@example.com',
+        __oesOperatorContext: {
+          operatorContext: {
+            operator_id: 'account-1'
+          }
+        }
+      } as any)
+    ).resolves.toEqual({
+      emailBootstrapped: true,
+      phoneBootstrapped: false,
+      passwordBootstrapped: false
+    })
+
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        userId: 'user-1',
+        email: 'user@example.com'
+      })
+    )
+  })
+
+  it('rejects bootstrapOwnLoginMethods when the operator is not the authenticated account holder', async () => {
+    const commandBus = {
+      execute: jest.fn()
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    await expect(
+      controller.bootstrapOwnLoginMethods({
+        accountId: 'account-1',
+        userId: 'user-1',
+        email: 'user@example.com',
+        __oesOperatorContext: {
+          operatorContext: {
+            operator_id: 'admin-account-1'
+          }
+        }
+      } as any)
+    ).rejects.toMatchObject({
+      definition: {
+        code: 'APP_AUTH_002'
+      }
+    })
+
+    expect((commandBus.execute as jest.Mock)).not.toHaveBeenCalled()
+  })
+
+  it('keeps bootstrapUserLoginMethods marked with the admin bootstrap permission metadata', () => {
+    expect(
+      Reflect.getMetadata(
+        REQUIRE_PERMISSION_METADATA_KEY,
+        AuthGrpcController.prototype.bootstrapUserLoginMethods
+      )
+    ).toBe(AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS)
+  })
+
   it('should map requestLoginMfaFactorChallenge requests into factor-specific otp responses', async () => {
     const commandBus = {
       execute: jest.fn().mockResolvedValue({

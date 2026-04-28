@@ -1,0 +1,24 @@
+export const PROCUREMENT_MANAGEMENT_PERMISSION_CODES = {
+  LIST_PURCHASE_REQUEST: 'procurement.purchase_request.list',
+  GET_PURCHASE_REQUEST: 'procurement.purchase_request.get_by_id',
+  CREATE_PURCHASE_REQUEST: 'procurement.purchase_request.create',
+  UPDATE_PURCHASE_REQUEST_DRAFT: 'procurement.purchase_request.update_draft',
+  SUBMIT_PURCHASE_REQUEST: 'procurement.purchase_request.submit',
+  DECIDE_PURCHASE_REQUEST: 'procurement.purchase_request.decide',
+  CANCEL_PURCHASE_REQUEST: 'procurement.purchase_request.cancel',
+  CONVERT_PURCHASE_REQUEST_TO_ORDER: 'procurement.purchase_request.convert_to_order',
+  LIST_PURCHASE_ORDER: 'procurement.purchase_order.list',
+  GET_PURCHASE_ORDER: 'procurement.purchase_order.get_by_id',
+  CREATE_PURCHASE_ORDER_DRAFT: 'procurement.purchase_order.create_draft',
+  UPDATE_PURCHASE_ORDER_DRAFT: 'procurement.purchase_order.update_draft',
+  ISSUE_PURCHASE_ORDER: 'procurement.purchase_order.issue',
+  CONFIRM_SUPPLIER_ACKNOWLEDGEMENT: 'procurement.purchase_order.confirm_acknowledgement',
+  APPLY_PURCHASE_ORDER_CHANGE: 'procurement.purchase_order.apply_change',
+  CANCEL_PURCHASE_ORDER: 'procurement.purchase_order.cancel',
+  LIST_PURCHASE_ORDER_CHANGES: 'procurement.purchase_order_change.list',
+  LIST_RECEIVING_EXPECTATION: 'procurement.receiving_expectation.list',
+  GET_RECEIVING_EXPECTATION: 'procurement.receiving_expectation.get_by_id',
+  CREATE_RECEIVING_EXPECTATION: 'procurement.receiving_expectation.create',
+  RECORD_RECEIVING_DISCREPANCY_RESOLUTION:
+    'procurement.receiving_discrepancy.record_resolution'
+} as const

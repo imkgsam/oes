@@ -99,6 +99,15 @@ const coreRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'MfaFactorUnavailable',
+        path: 'mfa-factor-unavailable',
+        component: () =>
+          import('#/views/_core/authentication/mfa-factor-unavailable.vue'),
+        meta: {
+          title: 'MFA Unavailable',
+        },
+      },
+      {
         name: 'AccountSelection',
         path: 'account-selection',
         component: () =>

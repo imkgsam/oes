@@ -1,12 +1,13 @@
 // File: src/common/src/core/filters/grpc-exception.filter.ts
 
-import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common'
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common'
+import { status } from '@grpc/grpc-js'
 import { RpcException } from '@nestjs/microservices'
 import { AppLogger } from '../../logging/app-logger.service'
 import { Observable, throwError } from 'rxjs'
 import { OESExceptionBase } from '../exceptions/oes.exception'
 import { RpcExceptionPayload } from '../exceptions/exception.interface'
-import { ExceptionFactory, UNKNOWN_EXCEPTION } from '../exceptions'
+import { ExceptionFactory, UNKNOWN_EXCEPTION, VALIDATION_FAILED } from '../exceptions'
 import { recordExceptionToActiveSpan } from '../../tracing'
 
 @Catch()
@@ -24,6 +25,16 @@ export class GrpcExceptionFilter implements ExceptionFilter {
     if (exception instanceof RpcException) {
       const payload = this.normalizeRpcPayload(exception.getError())
       this.logger.warn('Downstream rpc exception', {
+        module,
+        operation: methodName,
+        errorCode: payload.code,
+        details: payload.details,
+        traceId: payload.meta?.traceId
+      })
+      return throwError(() => this.toGrpcTransportError(payload))
+    } else if (exception instanceof HttpException) {
+      const payload = this.mapHttpException(exception)
+      this.logger.warn('Http exception', {
         module,
         operation: methodName,
         errorCode: payload.code,
@@ -109,6 +120,106 @@ export class GrpcExceptionFilter implements ExceptionFilter {
       messageKey: candidate.messageKey,
       details: candidate.details,
       meta: candidate.meta
+    }
+  }
+
+  private mapHttpException(exception: HttpException): RpcExceptionPayload {
+    const response = exception.getResponse()
+    const statusCode = exception.getStatus()
+    const responseObject =
+      typeof response === 'object' && response !== null ? (response as Record<string, any>) : undefined
+    const message =
+      typeof response === 'string'
+        ? response
+        : Array.isArray((response as any)?.message)
+          ? (response as any).message.join('; ')
+          : (response as any)?.message ?? exception.message
+
+    if (responseObject?.code && typeof responseObject.code === 'string') {
+      return {
+        grpcStatus: this.httpStatusToGrpcStatus(statusCode),
+        code: responseObject.code,
+        message,
+        messageKey:
+          typeof responseObject.messageKey === 'string'
+            ? responseObject.messageKey
+            : undefined,
+        details: responseObject.details ?? responseObject,
+        meta: {
+          service: process.env.MODULE_NAME || 'unknown-service',
+          timestamp: new Date().toISOString()
+        }
+      }
+    }
+
+    if (statusCode === HttpStatus.BAD_REQUEST) {
+      return {
+        grpcStatus: this.httpStatusToGrpcStatus(statusCode),
+        code: VALIDATION_FAILED.code,
+        message,
+        messageKey: VALIDATION_FAILED.messageKey,
+        details: responseObject,
+        meta: {
+          service: process.env.MODULE_NAME || 'unknown-service',
+          timestamp: new Date().toISOString()
+        }
+      }
+    }
+
+    return {
+      grpcStatus: this.httpStatusToGrpcStatus(statusCode),
+      code: this.defaultHttpExceptionCode(statusCode),
+      message,
+      messageKey: undefined,
+      details: responseObject,
+      meta: {
+        service: process.env.MODULE_NAME || 'unknown-service',
+        timestamp: new Date().toISOString()
+      }
+    }
+  }
+
+  private httpStatusToGrpcStatus(httpStatus: number): status {
+    switch (httpStatus) {
+      case HttpStatus.BAD_REQUEST:
+        return status.INVALID_ARGUMENT
+      case HttpStatus.UNAUTHORIZED:
+        return status.UNAUTHENTICATED
+      case HttpStatus.FORBIDDEN:
+        return status.PERMISSION_DENIED
+      case HttpStatus.NOT_FOUND:
+        return status.NOT_FOUND
+      case HttpStatus.CONFLICT:
+        return status.ALREADY_EXISTS
+      case HttpStatus.PRECONDITION_FAILED:
+        return status.FAILED_PRECONDITION
+      case HttpStatus.TOO_MANY_REQUESTS:
+        return status.RESOURCE_EXHAUSTED
+      case HttpStatus.SERVICE_UNAVAILABLE:
+        return status.UNAVAILABLE
+      default:
+        return status.INTERNAL
+    }
+  }
+
+  private defaultHttpExceptionCode(httpStatus: number): string {
+    switch (httpStatus) {
+      case HttpStatus.UNAUTHORIZED:
+        return 'HTTP_UNAUTHENTICATED'
+      case HttpStatus.FORBIDDEN:
+        return 'HTTP_PERMISSION_DENIED'
+      case HttpStatus.NOT_FOUND:
+        return 'HTTP_NOT_FOUND'
+      case HttpStatus.CONFLICT:
+        return 'HTTP_ALREADY_EXISTS'
+      case HttpStatus.PRECONDITION_FAILED:
+        return 'HTTP_FAILED_PRECONDITION'
+      case HttpStatus.TOO_MANY_REQUESTS:
+        return 'HTTP_RESOURCE_EXHAUSTED'
+      case HttpStatus.SERVICE_UNAVAILABLE:
+        return 'HTTP_UNAVAILABLE'
+      default:
+        return 'HTTP_INTERNAL_ERROR'
     }
   }
 }

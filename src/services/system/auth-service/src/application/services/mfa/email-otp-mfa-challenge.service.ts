@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { ExceptionFactory } from '@oes/common/exceptions'
+import { CredentialType } from '../../../../prisma/generated/prisma'
 import {
   AUTH_MFA_BINDING_NOT_FOUND,
   AUTH_OTP_DELIVERY_REJECTED
@@ -37,15 +38,7 @@ export class EmailOtpMfaChallengeService {
     expiresAt: Date
     destination: string
   }> {
-    const binding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.EMAIL_OTP)
-    if (!binding || !binding.isBindingActive()) {
-      throw ExceptionFactory.domain(AUTH_MFA_BINDING_NOT_FOUND)
-    }
-
-    const emailLoginMethod = await this.loginMethodRepo.findByUserIdAndType(
-      userId,
-      LoginMethodType.EMAIL
-    )
+    const emailLoginMethod = await this.resolveChallengeLoginMethod(userId)
     if (!emailLoginMethod) {
       throw ExceptionFactory.domain(AUTH_MFA_BINDING_NOT_FOUND)
     }
@@ -96,5 +89,24 @@ export class EmailOtpMfaChallengeService {
 
   private generateOtpCode(): string {
     return Math.floor(100000 + Math.random() * 900000).toString()
+  }
+
+  // Reuses the verified email login method as the MFA delivery channel when login-scene policy allows email OTP without an explicit binding.
+  private async resolveChallengeLoginMethod(userId: string) {
+    const emailLoginMethod = await this.loginMethodRepo.findByUserIdAndType(
+      userId,
+      LoginMethodType.EMAIL
+    )
+
+    if (!emailLoginMethod || !emailLoginMethod.isEnabled() || !emailLoginMethod.isVerified()) {
+      return null
+    }
+
+    const otpCredential = emailLoginMethod.getCredentialByType(CredentialType.EMAIL_OTP)
+    if (otpCredential && !otpCredential.isEnabled()) {
+      return null
+    }
+
+    return emailLoginMethod
   }
 }

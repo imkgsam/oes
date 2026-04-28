@@ -14,12 +14,24 @@ import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
 import { GatewaySessionAuthGuard } from './common/guards/gateway-session-auth.guard'
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
+import { CrmServiceProxyModule } from './modules/crm-service/crm-service.module'
 import { HrServiceProxyModule } from './modules/hr-service/hr-service.module'
+import { ItemMasterServiceProxyModule } from './modules/item-master-service/item-master-service.module'
 import { PermissionServiceProxyModule } from './modules/permission-service/permission-service.module'
+import { ProcurementServiceProxyModule } from './modules/procurement-service/procurement-service.module'
+import { SalesServiceProxyModule } from './modules/sales-service/sales-service.module'
+import { SrmServiceProxyModule } from './modules/srm-service/srm-service.module'
 import { TenantOrgServiceProxyModule } from './modules/tenant-org-service/tenant-org-service.module'
 import { GatewayExceptionFilter } from './common/filters/gateway-exception.filter'
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
+
+/** resolveTenantOrgGrpcUrl avoids localhost IPv6 ambiguity for the local tenant-org fallback endpoint. */
+export function resolveTenantOrgGrpcUrl() {
+  return process.env.TENANT_ORG_SERVICE_HOST && process.env.TENANT_ORG_SERVICE_PORT
+    ? `${process.env.TENANT_ORG_SERVICE_HOST}:${process.env.TENANT_ORG_SERVICE_PORT}`
+    : '127.0.0.1:50054'
+}
 
 @Module({
   imports: [
@@ -71,6 +83,15 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
               ? `${process.env.HR_SERVICE_HOST}:${process.env.HR_SERVICE_PORT}`
               : 'localhost:50055'
         },
+        [SERVICE_NAMES.CRM]: {
+          serviceName: SERVICE_NAMES.CRM,
+          protoPath: resolveCommonProtoPath('crm_service/crm.proto'),
+          packageName: 'crm_service',
+          url:
+            process.env.CRM_SERVICE_HOST && process.env.CRM_SERVICE_PORT
+              ? `${process.env.CRM_SERVICE_HOST}:${process.env.CRM_SERVICE_PORT}`
+              : 'localhost:50060'
+        },
         [SERVICE_NAMES.IDENTITY]: {
           serviceName: SERVICE_NAMES.IDENTITY,
           protoPath: resolveCommonProtoPath('identity_service/identity_query.proto'),
@@ -79,6 +100,15 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
             process.env.IDENTITY_SERVICE_HOST && process.env.IDENTITY_SERVICE_PORT
               ? `${process.env.IDENTITY_SERVICE_HOST}:${process.env.IDENTITY_SERVICE_PORT}`
               : 'localhost:50052'
+        },
+        [SERVICE_NAMES.ITEM_MASTER]: {
+          serviceName: SERVICE_NAMES.ITEM_MASTER,
+          protoPath: resolveCommonProtoPath('item_master_service/item_master.proto'),
+          packageName: 'item_master_service',
+          url:
+            process.env.ITEM_MASTER_SERVICE_HOST && process.env.ITEM_MASTER_SERVICE_PORT
+              ? `${process.env.ITEM_MASTER_SERVICE_HOST}:${process.env.ITEM_MASTER_SERVICE_PORT}`
+              : 'localhost:50058'
         },
         [SERVICE_NAMES.PARTY]: {
           serviceName: SERVICE_NAMES.PARTY,
@@ -89,14 +119,38 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
               ? `${process.env.PARTY_SERVICE_HOST}:${process.env.PARTY_SERVICE_PORT}`
               : 'localhost:50053'
         },
+        [SERVICE_NAMES.PROCUREMENT]: {
+          serviceName: SERVICE_NAMES.PROCUREMENT,
+          protoPath: resolveCommonProtoPath('procurement_service/procurement.proto'),
+          packageName: 'procurement_service',
+          url:
+            process.env.PROCUREMENT_SERVICE_HOST && process.env.PROCUREMENT_SERVICE_PORT
+              ? `${process.env.PROCUREMENT_SERVICE_HOST}:${process.env.PROCUREMENT_SERVICE_PORT}`
+              : 'localhost:50062'
+        },
+        [SERVICE_NAMES.SRM]: {
+          serviceName: SERVICE_NAMES.SRM,
+          protoPath: resolveCommonProtoPath('srm_service/srm.proto'),
+          packageName: 'srm_service',
+          url:
+            process.env.SRM_SERVICE_HOST && process.env.SRM_SERVICE_PORT
+              ? `${process.env.SRM_SERVICE_HOST}:${process.env.SRM_SERVICE_PORT}`
+              : 'localhost:50061'
+        },
         [SERVICE_NAMES.TENANT_ORG]: {
           serviceName: SERVICE_NAMES.TENANT_ORG,
           protoPath: resolveCommonProtoPath('tenant_org_service/tenant_org.proto'),
           packageName: 'tenant_org_service',
+          url: resolveTenantOrgGrpcUrl()
+        },
+        'sales-service': {
+          serviceName: 'sales-service',
+          protoPath: resolveCommonProtoPath('sales_service/sales.proto'),
+          packageName: 'sales_service',
           url:
-            process.env.TENANT_ORG_SERVICE_HOST && process.env.TENANT_ORG_SERVICE_PORT
-              ? `${process.env.TENANT_ORG_SERVICE_HOST}:${process.env.TENANT_ORG_SERVICE_PORT}`
-              : 'localhost:50054'
+            process.env.SALES_SERVICE_HOST && process.env.SALES_SERVICE_PORT
+              ? `${process.env.SALES_SERVICE_HOST}:${process.env.SALES_SERVICE_PORT}`
+              : 'localhost:50059'
         }
       },
       defaultPoolConfig: { minSize: 3, maxSize: 3 }
@@ -119,8 +173,13 @@ import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
 
     HealthModule,
     AuthBffModule,
+    CrmServiceProxyModule,
     HrServiceProxyModule,
+    ItemMasterServiceProxyModule,
     PermissionServiceProxyModule,
+    ProcurementServiceProxyModule,
+    SalesServiceProxyModule,
+    SrmServiceProxyModule,
     TenantOrgServiceProxyModule
   ],
   providers: [

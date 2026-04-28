@@ -143,10 +143,10 @@ export class MfaBindingEntity {
     if (this.props.type !== MfaType.TOTP) {
       throw ExceptionFactory.domain(AUTH_MFA_TYPE_MISMATCH)
     }
-    const normalizedCode = normalizeTotpCode(inputCode)
-    if (this.matchesSeededTestCode(normalizedCode)) {
-      return true
+    if (this.isSeededTestBinding()) {
+      return false
     }
+    const normalizedCode = normalizeTotpCode(inputCode)
     return verifyTotpCode(normalizedCode, this.props.secret)
   }
 
@@ -164,16 +164,16 @@ export class MfaBindingEntity {
     if (!this.isEnabled()) {
       throw ExceptionFactory.domain(AUTH_MFA_DISABLED)
     }
-    const normalizedCode = normalizeTotpCode(inputCode)
-    if (this.matchesSeededTestCode(normalizedCode)) {
-      return true
+    if (this.isSeededTestBinding()) {
+      return false
     }
+    const normalizedCode = normalizeTotpCode(inputCode)
     return verifyTotpCode(normalizedCode, this.props.secret)
   }
 
-  private matchesSeededTestCode(inputCode: string): boolean {
+  isSeededTestBinding(): boolean {
     const seededCode = this.props.metadata?.[SEEDED_TEST_TOTP_CODE_KEY]
-    return typeof seededCode === 'string' && seededCode.length > 0 && seededCode === inputCode
+    return this.props.type === MfaType.TOTP && typeof seededCode === 'string' && seededCode.length > 0
   }
 
   async verifyBackupCode(inputCode: string): Promise<boolean> {

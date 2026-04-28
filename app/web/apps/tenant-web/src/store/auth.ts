@@ -64,6 +64,7 @@ export const useAuthStore = defineStore('auth', () => {
   const pendingIdentifier = ref('');
   const pendingLoginMethod = ref<AuthApi.LoginMethod | null>(null);
   const pendingUserId = ref('');
+  const authBlockReason = ref<null | 'MFA_FACTOR_UNAVAILABLE'>(null);
   const requiresPasswordSetup = ref(false);
   let pendingMfaCooldownTimer: null | ReturnType<typeof setInterval> = null;
 
@@ -79,6 +80,7 @@ export const useAuthStore = defineStore('auth', () => {
     let userInfo: null | UserInfo = null;
     try {
       loginLoading.value = true;
+      authBlockReason.value = null;
       pendingIdentifier.value = `${params.username ?? ''}`.trim();
 
       const result = await loginApi({
@@ -98,6 +100,11 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       userInfo = await finalizeSuccessfulAuth(result, pendingIdentifier.value, onSuccess);
+    } catch (error) {
+      if (await handleUnavailableMfaFactorError(error)) {
+        return { userInfo: null };
+      }
+      throw error;
     } finally {
       loginLoading.value = false;
     }
@@ -114,6 +121,7 @@ export const useAuthStore = defineStore('auth', () => {
     let userInfo: null | UserInfo = null;
     try {
       loginLoading.value = true;
+      authBlockReason.value = null;
       pendingIdentifier.value = `${params.phoneNumber ?? ''}`.trim();
 
       const result = await loginApi({
@@ -137,6 +145,11 @@ export const useAuthStore = defineStore('auth', () => {
         pendingIdentifier.value,
         onSuccess,
       );
+    } catch (error) {
+      if (await handleUnavailableMfaFactorError(error)) {
+        return { userInfo: null };
+      }
+      throw error;
     } finally {
       loginLoading.value = false;
     }
@@ -150,6 +163,7 @@ export const useAuthStore = defineStore('auth', () => {
     let userInfo: null | UserInfo = null;
     try {
       loginLoading.value = true;
+      authBlockReason.value = null;
       pendingIdentifier.value = `${params.phoneNumber ?? ''}`.trim();
 
       const result = await loginApi({
@@ -169,6 +183,11 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       userInfo = await finalizeSuccessfulAuth(result, pendingIdentifier.value);
+    } catch (error) {
+      if (await handleUnavailableMfaFactorError(error)) {
+        return { userInfo: null };
+      }
+      throw error;
     } finally {
       loginLoading.value = false;
     }
@@ -180,6 +199,7 @@ export const useAuthStore = defineStore('auth', () => {
     let userInfo: null | UserInfo = null;
     try {
       loginLoading.value = true;
+      authBlockReason.value = null;
       pendingIdentifier.value = `${params.email ?? ''}`.trim();
 
       const result = await loginApi({
@@ -199,6 +219,11 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       userInfo = await finalizeSuccessfulAuth(result, pendingIdentifier.value);
+    } catch (error) {
+      if (await handleUnavailableMfaFactorError(error)) {
+        return { userInfo: null };
+      }
+      throw error;
     } finally {
       loginLoading.value = false;
     }
@@ -351,6 +376,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       loginLoading.value = true;
+      authBlockReason.value = null;
       const result = await selectAccountApi({
         accountId,
         device: resolveAuthDeviceHints(),
@@ -372,6 +398,11 @@ export const useAuthStore = defineStore('auth', () => {
         pendingIdentifier.value,
       );
       return { userInfo };
+    } catch (error) {
+      if (await handleUnavailableMfaFactorError(error)) {
+        return { userInfo: null };
+      }
+      throw error;
     } finally {
       loginLoading.value = false;
     }
@@ -408,7 +439,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function fetchUserInfo(forceRefresh = false) {
-    if (!forceRefresh && userStore.userInfo) {
+    if (!forceRefresh && userStore.userInfo && accessStore.isAccessChecked) {
       return userStore.userInfo as UserInfo;
     }
     if (!accessStore.accessToken) {
@@ -716,7 +747,7 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function resetPendingAuthFlow() {
+  function resetPendingAuthFlow(options?: { preserveAuthBlockReason?: boolean }) {
     accountSelectionOptions.value = [];
     pendingChallengeId.value = '';
     pendingMfaFactor.value = null;
@@ -729,6 +760,31 @@ export const useAuthStore = defineStore('auth', () => {
     pendingIdentifier.value = '';
     pendingLoginMethod.value = null;
     pendingUserId.value = '';
+    if (!options?.preserveAuthBlockReason) {
+      authBlockReason.value = null;
+    }
+  }
+
+  async function handleUnavailableMfaFactorError(error: any) {
+    if (!isUnavailableMfaFactorError(error)) {
+      return false;
+    }
+
+    authBlockReason.value = 'MFA_FACTOR_UNAVAILABLE';
+    requiresPasswordSetup.value = false;
+    await router.replace({ name: 'MfaFactorUnavailable' });
+    resetPendingAuthFlow({ preserveAuthBlockReason: true });
+    return true;
+  }
+
+  function isUnavailableMfaFactorError(error: any) {
+    const responseData = error?.response?.data ?? error ?? {};
+    const combined = `${responseData?.code ?? ''} ${responseData?.messageKey ?? ''}`;
+    return /AUTH_MFA_FACTOR_UNAVAILABLE|auth\.mfa_factor_unavailable/i.test(combined);
+  }
+
+  function clearAuthBlockReason() {
+    authBlockReason.value = null;
   }
 
   function startPendingMfaCooldown() {
@@ -776,6 +832,10 @@ export const useAuthStore = defineStore('auth', () => {
       preferences.app.defaultHomePath;
     await router.replace(targetPath);
     message.success('密码已设置');
+    notification.warning({
+      message: '安全提醒',
+      description: '当前账号仍建议尽快配置 MFA，以便后续新设备登录时完成独立二次验证。'
+    });
   }
 
   function buildUserDesc(
@@ -841,12 +901,14 @@ export const useAuthStore = defineStore('auth', () => {
     pendingIdentifier,
     pendingLoginMethod,
     pendingUserId,
+    authBlockReason,
     requiresPasswordSetup,
     requestEmailOtpChallenge,
     requestPhoneOtpChallenge,
     refreshCurrentSessionAccess,
     requestPendingMfaFactorChallenge,
     resetPendingAuthFlow,
+    clearAuthBlockReason,
     switchPendingMfaFactor,
     submitAccountSelection,
     switchAccountContext,

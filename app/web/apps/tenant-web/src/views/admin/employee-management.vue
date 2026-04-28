@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
 
@@ -11,28 +10,13 @@ import { useAuthContextStore } from '#/store/auth-context'
 import EmployeeManagementWorkspace from './employee-management-workspace.vue'
 
 const authContextStore = useAuthContextStore()
-const route = useRoute()
-const router = useRouter()
 const activeTenantName = computed(
   () => authContextStore.sessionContext?.tenant?.name ?? authContextStore.tenantName ?? '当前租户'
-)
-const selectedEmployeeId = computed(() =>
-  typeof route.query?.employeeId === 'string' ? route.query.employeeId : ''
 )
 const pageDescription = computed(
   () =>
     '这里管理 Employee / Employment。不是租户账号管理，也不是组织成员万能页；正式人 -> org 真相始终来自 Employment -> OrgUnit。'
 )
-
-/** syncSelectedEmployeeId persists the selected employee into the current route query without mixing account ownership into HR. */
-function syncSelectedEmployeeId(employeeId: string) {
-  void router.replace({
-    query: {
-      ...(route.query ?? {}),
-      employeeId: employeeId || undefined,
-    },
-  })
-}
 </script>
 
 <template>
@@ -61,10 +45,7 @@ function syncSelectedEmployeeId(employeeId: string) {
         </div>
       </Card>
 
-      <EmployeeManagementWorkspace
-        :selected-employee-id="selectedEmployeeId"
-        @update:selected-employee-id="syncSelectedEmployeeId"
-      />
+      <EmployeeManagementWorkspace />
     </div>
   </Page>
 </template>

@@ -1,0 +1,695 @@
+syntax = "proto3";
+
+package procurement_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.procurement.v1";
+
+service PurchaseRequestQueryService {
+  rpc GetPurchaseRequest(GetPurchaseRequestRequest) returns (GetPurchaseRequestResponse);
+  rpc SearchPurchaseRequests(SearchPurchaseRequestsRequest) returns (SearchPurchaseRequestsResponse);
+}
+
+service PurchaseRequestManagementService {
+  rpc CreatePurchaseRequest(CreatePurchaseRequestRequest) returns (CreatePurchaseRequestResponse);
+  rpc UpdatePurchaseRequestDraft(UpdatePurchaseRequestDraftRequest) returns (UpdatePurchaseRequestDraftResponse);
+  rpc SubmitPurchaseRequest(SubmitPurchaseRequestRequest) returns (SubmitPurchaseRequestResponse);
+  rpc DecidePurchaseRequest(DecidePurchaseRequestRequest) returns (DecidePurchaseRequestResponse);
+  rpc CancelPurchaseRequest(CancelPurchaseRequestRequest) returns (CancelPurchaseRequestResponse);
+  rpc ConvertPurchaseRequestToPurchaseOrder(ConvertPurchaseRequestToPurchaseOrderRequest) returns (ConvertPurchaseRequestToPurchaseOrderResponse);
+}
+
+service PurchaseOrderQueryService {
+  rpc GetPurchaseOrder(GetPurchaseOrderRequest) returns (GetPurchaseOrderResponse);
+  rpc SearchPurchaseOrders(SearchPurchaseOrdersRequest) returns (SearchPurchaseOrdersResponse);
+  rpc ListPurchaseOrderChanges(ListPurchaseOrderChangesRequest) returns (ListPurchaseOrderChangesResponse);
+}
+
+service PurchaseOrderManagementService {
+  rpc CreatePurchaseOrderDraft(CreatePurchaseOrderDraftRequest) returns (CreatePurchaseOrderDraftResponse);
+  rpc UpdatePurchaseOrderDraft(UpdatePurchaseOrderDraftRequest) returns (UpdatePurchaseOrderDraftResponse);
+  rpc IssuePurchaseOrder(IssuePurchaseOrderRequest) returns (IssuePurchaseOrderResponse);
+  rpc ConfirmSupplierAcknowledgement(ConfirmSupplierAcknowledgementRequest) returns (ConfirmSupplierAcknowledgementResponse);
+  rpc ApplyPurchaseOrderChange(ApplyPurchaseOrderChangeRequest) returns (ApplyPurchaseOrderChangeResponse);
+  rpc CancelPurchaseOrder(CancelPurchaseOrderRequest) returns (CancelPurchaseOrderResponse);
+}
+
+service ReceivingExpectationQueryService {
+  rpc GetReceivingExpectation(GetReceivingExpectationRequest) returns (GetReceivingExpectationResponse);
+  rpc SearchReceivingExpectations(SearchReceivingExpectationsRequest) returns (SearchReceivingExpectationsResponse);
+}
+
+service ReceivingExpectationManagementService {
+  rpc CreateReceivingExpectation(CreateReceivingExpectationRequest) returns (CreateReceivingExpectationResponse);
+  rpc RecordReceivingDiscrepancyResolution(RecordReceivingDiscrepancyResolutionRequest) returns (RecordReceivingDiscrepancyResolutionResponse);
+}
+
+enum PurchaseRequestType {
+  PURCHASE_REQUEST_TYPE_UNSPECIFIED = 0;
+  PURCHASE_REQUEST_TYPE_DEPARTMENTAL = 1;
+  PURCHASE_REQUEST_TYPE_SALES_DEDICATED = 2;
+  PURCHASE_REQUEST_TYPE_PRODUCTION_PACKAGING = 3;
+  PURCHASE_REQUEST_TYPE_MAINTENANCE = 4;
+  PURCHASE_REQUEST_TYPE_SAMPLE = 5;
+}
+
+enum PurchaseRequestStatus {
+  PURCHASE_REQUEST_STATUS_UNSPECIFIED = 0;
+  PURCHASE_REQUEST_STATUS_DRAFT = 1;
+  PURCHASE_REQUEST_STATUS_SUBMITTED = 2;
+  PURCHASE_REQUEST_STATUS_APPROVED = 3;
+  PURCHASE_REQUEST_STATUS_REJECTED = 4;
+  PURCHASE_REQUEST_STATUS_CANCELLED = 5;
+}
+
+enum PurchaseRequestLineType {
+  PURCHASE_REQUEST_LINE_TYPE_UNSPECIFIED = 0;
+  PURCHASE_REQUEST_LINE_TYPE_STANDARD_ITEM = 1;
+  PURCHASE_REQUEST_LINE_TYPE_TEXT = 2;
+}
+
+enum PurchaseRequestDecision {
+  PURCHASE_REQUEST_DECISION_UNSPECIFIED = 0;
+  PURCHASE_REQUEST_DECISION_APPROVED = 1;
+  PURCHASE_REQUEST_DECISION_REJECTED = 2;
+}
+
+enum PurchaseOrderStatus {
+  PURCHASE_ORDER_STATUS_UNSPECIFIED = 0;
+  PURCHASE_ORDER_STATUS_DRAFT = 1;
+  PURCHASE_ORDER_STATUS_ISSUED = 2;
+  PURCHASE_ORDER_STATUS_ACKNOWLEDGED = 3;
+  PURCHASE_ORDER_STATUS_CANCELLED = 4;
+}
+
+enum PurchaseOrderLineAllocationType {
+  PURCHASE_ORDER_LINE_ALLOCATION_TYPE_UNSPECIFIED = 0;
+  PURCHASE_ORDER_LINE_ALLOCATION_TYPE_SALES_ORDER_LINE = 1;
+  PURCHASE_ORDER_LINE_ALLOCATION_TYPE_FULFILLMENT_DEMAND = 2;
+  PURCHASE_ORDER_LINE_ALLOCATION_TYPE_GENERAL_STOCK = 3;
+}
+
+enum PurchaseOrderSupplierAcknowledgementStatus {
+  PURCHASE_ORDER_SUPPLIER_ACKNOWLEDGEMENT_STATUS_UNSPECIFIED = 0;
+  PURCHASE_ORDER_SUPPLIER_ACKNOWLEDGEMENT_STATUS_PENDING = 1;
+  PURCHASE_ORDER_SUPPLIER_ACKNOWLEDGEMENT_STATUS_ACKNOWLEDGED = 2;
+}
+
+enum PurchaseOrderChangeStatus {
+  PURCHASE_ORDER_CHANGE_STATUS_UNSPECIFIED = 0;
+  PURCHASE_ORDER_CHANGE_STATUS_APPLIED = 1;
+}
+
+enum ReceivingExpectationStatus {
+  RECEIVING_EXPECTATION_STATUS_UNSPECIFIED = 0;
+  RECEIVING_EXPECTATION_STATUS_OPEN = 1;
+  RECEIVING_EXPECTATION_STATUS_PARTIALLY_RECEIVED = 2;
+  RECEIVING_EXPECTATION_STATUS_COMPLETED = 3;
+  RECEIVING_EXPECTATION_STATUS_CANCELLED = 4;
+}
+
+enum ReceivingDiscrepancyType {
+  RECEIVING_DISCREPANCY_TYPE_UNSPECIFIED = 0;
+  RECEIVING_DISCREPANCY_TYPE_SHORT_RECEIPT = 1;
+  RECEIVING_DISCREPANCY_TYPE_OVER_RECEIPT = 2;
+  RECEIVING_DISCREPANCY_TYPE_DAMAGED = 3;
+  RECEIVING_DISCREPANCY_TYPE_RESTRICTED = 4;
+  RECEIVING_DISCREPANCY_TYPE_OTHER = 5;
+}
+
+enum ReceivingDiscrepancyStatus {
+  RECEIVING_DISCREPANCY_STATUS_UNSPECIFIED = 0;
+  RECEIVING_DISCREPANCY_STATUS_OPEN = 1;
+  RECEIVING_DISCREPANCY_STATUS_RESOLVED = 2;
+}
+
+enum ReceivingResolutionCode {
+  RECEIVING_RESOLUTION_CODE_UNSPECIFIED = 0;
+  RECEIVING_RESOLUTION_CODE_WAIT_REDELIVERY = 1;
+  RECEIVING_RESOLUTION_CODE_ACCEPT_SHORT_CLOSE = 2;
+  RECEIVING_RESOLUTION_CODE_RETURN_OR_REJECT_EXCESS = 3;
+  RECEIVING_RESOLUTION_CODE_MANUAL_FOLLOW_UP = 4;
+}
+
+message OperatorContext {
+  string operator_id = 1;
+  string operator_type = 2;
+  string org_id = 3;
+}
+
+message TraceContext {
+  string trace_id = 1;
+  string request_id = 2;
+}
+
+message AuditContext {
+  string audit_id = 1;
+  string reason = 2;
+  string source = 3;
+}
+
+message OperatorSummary {
+  string operator_id = 1;
+  string display_name = 2;
+}
+
+message PurchaseRequestApprovalSnapshot {
+  PurchaseRequestDecision decision = 1;
+  OperatorSummary decided_by = 2;
+  string decided_at = 3;
+  string comment = 4;
+  string approval_reference = 5;
+}
+
+message PurchaseRequestLine {
+  string purchase_request_line_id = 1;
+  uint32 line_no = 2;
+  PurchaseRequestLineType line_type = 3;
+  string item_id = 4;
+  string item_code = 5;
+  string item_name = 6;
+  string description = 7;
+  string requested_quantity = 8;
+  string uom = 9;
+  string needed_by_date = 10;
+  string demand_reference_type = 11;
+  string demand_reference_id = 12;
+}
+
+message PurchaseRequestRequesterSummary {
+  string operator_id = 1;
+  string display_name = 2;
+}
+
+message PurchaseRequest {
+  string purchase_request_id = 1;
+  string request_no = 2;
+  string tenant_id = 3;
+  string org_id = 4;
+  PurchaseRequestType request_type = 5;
+  PurchaseRequestStatus status = 6;
+  PurchaseRequestRequesterSummary requester = 7;
+  string title = 8;
+  string reason = 9;
+  PurchaseRequestApprovalSnapshot approval_snapshot = 10;
+  repeated PurchaseRequestLine lines = 11;
+  string created_at = 12;
+  string updated_at = 13;
+  string submitted_at = 14;
+  string decided_at = 15;
+  string cancelled_at = 16;
+}
+
+message PurchaseRequestSummary {
+  string purchase_request_id = 1;
+  string request_no = 2;
+  PurchaseRequestType request_type = 3;
+  PurchaseRequestStatus status = 4;
+  string requester_display_name = 5;
+  uint32 line_count = 6;
+  string created_at = 7;
+  string submitted_at = 8;
+  string decided_at = 9;
+}
+
+message PurchaseRequestLineInput {
+  PurchaseRequestLineType line_type = 1;
+  string item_id = 2;
+  string description = 3;
+  string requested_quantity = 4;
+  string uom = 5;
+  string needed_by_date = 6;
+  string demand_reference_type = 7;
+  string demand_reference_id = 8;
+}
+
+message GetPurchaseRequestRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string purchase_request_id = 4;
+}
+
+message GetPurchaseRequestResponse {
+  PurchaseRequest purchase_request = 1;
+}
+
+message SearchPurchaseRequestsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string keyword = 5;
+  PurchaseRequestType request_type = 6;
+  PurchaseRequestStatus status = 7;
+  string requester_operator_id = 8;
+  string item_id = 9;
+  string needed_by_date_from = 10;
+  string needed_by_date_to = 11;
+  uint32 page = 12;
+  uint32 page_size = 13;
+}
+
+message SearchPurchaseRequestsResponse {
+  repeated PurchaseRequestSummary purchase_requests = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message CreatePurchaseRequestRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string org_id = 5;
+  PurchaseRequestType request_type = 6;
+  string title = 7;
+  string reason = 8;
+  repeated PurchaseRequestLineInput lines = 9;
+}
+
+message CreatePurchaseRequestResponse {
+  PurchaseRequest purchase_request = 1;
+}
+
+message UpdatePurchaseRequestDraftRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string purchase_request_id = 5;
+  string title = 6;
+  string reason = 7;
+  repeated PurchaseRequestLineInput lines = 8;
+}
+
+message UpdatePurchaseRequestDraftResponse {
+  PurchaseRequest purchase_request = 1;
+}
+
+message SubmitPurchaseRequestRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string purchase_request_id = 5;
+  string submission_comment = 6;
+}
+
+message SubmitPurchaseRequestResponse {
+  PurchaseRequest purchase_request = 1;
+}
+
+message DecidePurchaseRequestRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string purchase_request_id = 5;
+  PurchaseRequestDecision decision = 6;
+  string comment = 7;
+  string approval_reference = 8;
+}
+
+message DecidePurchaseRequestResponse {
+  PurchaseRequest purchase_request = 1;
+}
+
+message CancelPurchaseRequestRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string purchase_request_id = 5;
+  string cancel_reason = 6;
+}
+
+message CancelPurchaseRequestResponse {
+  PurchaseRequest purchase_request = 1;
+}
+
+message PurchaseRequestLineSelection {
+  string purchase_request_line_id = 1;
+  string purchase_order_quantity = 2;
+  string ordered_unit_price = 3;
+  string general_stock_excess_reason = 4;
+}
+
+message ConvertPurchaseRequestToPurchaseOrderRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string purchase_request_id = 5;
+  string supplier_id = 6;
+  repeated PurchaseRequestLineSelection selected_lines = 7;
+  string currency_code = 8;
+}
+
+message ConvertPurchaseRequestToPurchaseOrderResponse {
+  PurchaseOrder purchase_order = 1;
+}
+
+message PurchaseOrderSupplierSnapshot {
+  string supplier_id = 1;
+  string supplier_display_name = 2;
+  string supplier_status_at_issue = 3;
+}
+
+message PurchaseOrderLineAllocation {
+  string purchase_order_line_allocation_id = 1;
+  PurchaseOrderLineAllocationType allocation_type = 2;
+  string reference_id = 3;
+  string quantity = 4;
+  string reason = 5;
+}
+
+message PurchaseOrderLine {
+  string purchase_order_line_id = 1;
+  uint32 line_no = 2;
+  PurchaseRequestLineType line_type = 3;
+  string item_id = 4;
+  string item_code = 5;
+  string item_name = 6;
+  string description = 7;
+  string supplier_offering_id = 8;
+  string ordered_quantity = 9;
+  string uom = 10;
+  string ordered_unit_price = 11;
+  string source_purchase_request_line_id = 12;
+  string general_stock_excess_reason = 13;
+  repeated PurchaseOrderLineAllocation allocations = 14;
+}
+
+message PurchaseOrderSupplierAcknowledgement {
+  PurchaseOrderSupplierAcknowledgementStatus acknowledgement_status = 1;
+  string acknowledged_at = 2;
+  string external_reference = 3;
+  string comment = 4;
+}
+
+message PurchaseOrder {
+  string purchase_order_id = 1;
+  string order_no = 2;
+  string tenant_id = 3;
+  string org_id = 4;
+  PurchaseOrderStatus status = 5;
+  string currency_code = 6;
+  string supplier_id = 7;
+  PurchaseOrderSupplierSnapshot supplier_snapshot = 8;
+  repeated string source_purchase_request_ids = 9;
+  repeated PurchaseOrderLine lines = 10;
+  PurchaseOrderSupplierAcknowledgement supplier_acknowledgement = 11;
+  string issued_at = 12;
+  string cancelled_at = 13;
+  string created_at = 14;
+  string updated_at = 15;
+}
+
+message PurchaseOrderSummary {
+  string purchase_order_id = 1;
+  string order_no = 2;
+  PurchaseOrderStatus status = 3;
+  string supplier_id = 4;
+  string supplier_display_name = 5;
+  string currency_code = 6;
+  uint32 line_count = 7;
+  string issued_at = 8;
+  string created_at = 9;
+}
+
+message PurchaseOrderChange {
+  string purchase_order_change_id = 1;
+  string purchase_order_id = 2;
+  string change_type = 3;
+  string change_summary = 4;
+  string change_reason = 5;
+  OperatorSummary applied_by = 6;
+  string applied_at = 7;
+  PurchaseOrderChangeStatus status = 8;
+}
+
+message PurchaseOrderLineAllocationInput {
+  PurchaseOrderLineAllocationType allocation_type = 1;
+  string reference_id = 2;
+  string quantity = 3;
+  string reason = 4;
+}
+
+message PurchaseOrderLineInput {
+  string purchase_order_line_id = 1;
+  PurchaseRequestLineType line_type = 2;
+  string item_id = 3;
+  string description = 4;
+  string ordered_quantity = 5;
+  string uom = 6;
+  string ordered_unit_price = 7;
+  string source_purchase_request_line_id = 8;
+  string general_stock_excess_reason = 9;
+  repeated PurchaseOrderLineAllocationInput allocations = 10;
+}
+
+message GetPurchaseOrderRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string purchase_order_id = 4;
+}
+
+message GetPurchaseOrderResponse {
+  PurchaseOrder purchase_order = 1;
+}
+
+message SearchPurchaseOrdersRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string keyword = 5;
+  PurchaseOrderStatus status = 6;
+  string supplier_id = 7;
+  string item_id = 8;
+  string request_no = 9;
+  string issued_from = 10;
+  string issued_to = 11;
+  uint32 page = 12;
+  uint32 page_size = 13;
+}
+
+message SearchPurchaseOrdersResponse {
+  repeated PurchaseOrderSummary purchase_orders = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message ListPurchaseOrderChangesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string purchase_order_id = 4;
+  uint32 page = 5;
+  uint32 page_size = 6;
+}
+
+message ListPurchaseOrderChangesResponse {
+  repeated PurchaseOrderChange changes = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message CreatePurchaseOrderDraftRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string org_id = 5;
+  string supplier_id = 6;
+  string currency_code = 7;
+  repeated string source_purchase_request_ids = 8;
+  repeated PurchaseOrderLineInput lines = 9;
+}
+
+message CreatePurchaseOrderDraftResponse {
+  PurchaseOrder purchase_order = 1;
+}
+
+message UpdatePurchaseOrderDraftRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string purchase_order_id = 5;
+  string supplier_id = 6;
+  string currency_code = 7;
+  repeated string source_purchase_request_ids = 8;
+  repeated PurchaseOrderLineInput lines = 9;
+}
+
+message UpdatePurchaseOrderDraftResponse {
+  PurchaseOrder purchase_order = 1;
+}
+
+message IssuePurchaseOrderRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string purchase_order_id = 5;
+  string issue_comment = 6;
+}
+
+message IssuePurchaseOrderResponse {
+  PurchaseOrder purchase_order = 1;
+}
+
+message ConfirmSupplierAcknowledgementRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string purchase_order_id = 5;
+  string external_reference = 6;
+  string comment = 7;
+  string acknowledged_at = 8;
+}
+
+message ConfirmSupplierAcknowledgementResponse {
+  PurchaseOrder purchase_order = 1;
+}
+
+message PurchaseOrderChangeTargetState {
+  repeated PurchaseOrderLineInput lines = 1;
+  PurchaseOrderSupplierAcknowledgement supplier_acknowledgement = 2;
+}
+
+message ApplyPurchaseOrderChangeRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string purchase_order_id = 5;
+  string change_type = 6;
+  string change_reason = 7;
+  PurchaseOrderChangeTargetState target_state = 8;
+}
+
+message ApplyPurchaseOrderChangeResponse {
+  PurchaseOrder purchase_order = 1;
+  PurchaseOrderChange change = 2;
+}
+
+message CancelPurchaseOrderRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string purchase_order_id = 5;
+  string cancel_reason = 6;
+}
+
+message CancelPurchaseOrderResponse {
+  PurchaseOrder purchase_order = 1;
+}
+
+message ReceivingDiscrepancy {
+  string receiving_discrepancy_id = 1;
+  ReceivingDiscrepancyType discrepancy_type = 2;
+  string summary = 3;
+  ReceivingDiscrepancyStatus status = 4;
+  ReceivingResolutionCode resolution_code = 5;
+  string resolution_note = 6;
+  string resolved_at = 7;
+}
+
+message ReceivingExpectation {
+  string receiving_expectation_id = 1;
+  string purchase_order_id = 2;
+  string purchase_order_line_id = 3;
+  string supplier_id = 4;
+  string expected_quantity = 5;
+  string received_quantity_summary = 6;
+  string open_quantity = 7;
+  string expected_receipt_date = 8;
+  ReceivingExpectationStatus status = 9;
+  ReceivingDiscrepancy discrepancy = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+
+message ReceivingExpectationSummary {
+  string receiving_expectation_id = 1;
+  string purchase_order_id = 2;
+  string purchase_order_line_id = 3;
+  string supplier_id = 4;
+  string expected_receipt_date = 5;
+  string open_quantity = 6;
+  ReceivingExpectationStatus status = 7;
+  bool has_open_discrepancy = 8;
+}
+
+message GetReceivingExpectationRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string receiving_expectation_id = 4;
+}
+
+message GetReceivingExpectationResponse {
+  ReceivingExpectation receiving_expectation = 1;
+}
+
+message SearchReceivingExpectationsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string purchase_order_id = 5;
+  string supplier_id = 6;
+  ReceivingExpectationStatus status = 7;
+  optional bool has_open_discrepancy = 8;
+  string expected_receipt_date_from = 9;
+  string expected_receipt_date_to = 10;
+  uint32 page = 11;
+  uint32 page_size = 12;
+}
+
+message SearchReceivingExpectationsResponse {
+  repeated ReceivingExpectationSummary receiving_expectations = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message CreateReceivingExpectationRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string purchase_order_id = 5;
+  string purchase_order_line_id = 6;
+  string expected_quantity = 7;
+  string expected_receipt_date = 8;
+}
+
+message CreateReceivingExpectationResponse {
+  ReceivingExpectation receiving_expectation = 1;
+}
+
+message RecordReceivingDiscrepancyResolutionRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string receiving_expectation_id = 5;
+  string receiving_discrepancy_id = 6;
+  ReceivingResolutionCode resolution_code = 7;
+  string resolution_note = 8;
+}
+
+message RecordReceivingDiscrepancyResolutionResponse {
+  ReceivingExpectation receiving_expectation = 1;
+  ReceivingDiscrepancy receiving_discrepancy = 2;
+}

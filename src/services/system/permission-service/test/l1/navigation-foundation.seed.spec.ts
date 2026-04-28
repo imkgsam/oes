@@ -20,6 +20,11 @@ describe('navigation foundation seed', () => {
       'tenant-settings.org-structure',
       'tenant-settings.employee-employment',
       'tenant-settings.login-mfa',
+      'master-data.item-management',
+      'master-data.supplier-management',
+      'master-data.customer-management',
+      'sales.quote-orders',
+      'procurement.management',
       'admin.platform-mfa',
       'admin.permission-management',
       'admin.policy-governance',
@@ -40,6 +45,11 @@ describe('navigation foundation seed', () => {
       '本租户组织架构',
       '员工与任职管理',
       '租户 MFA 配置',
+      'Item 管理',
+      '供应商管理',
+      '客户管理',
+      '报价与订单',
+      '采购管理',
       '平台 MFA 配置',
       '权限管理',
       '策略治理',
@@ -113,6 +123,36 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'role-tenant-admin',
         entryKey: 'tenant-settings.login-mfa',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'master-data.item-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'master-data.supplier-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'master-data.customer-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'sales.quote-orders',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'procurement.management',
         terminal: 'DEFAULT',
         enabled: true
       }
@@ -190,6 +230,36 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'template-tenant-admin',
         entryKey: 'tenant-settings.login-mfa',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'master-data.item-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'master-data.supplier-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'master-data.customer-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'sales.quote-orders',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'procurement.management',
         terminal: 'DEFAULT',
         enabled: true
       }

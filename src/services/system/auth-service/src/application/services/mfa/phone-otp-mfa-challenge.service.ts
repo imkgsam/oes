@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { ExceptionFactory } from '@oes/common/exceptions'
+import { CredentialType } from '../../../../prisma/generated/prisma'
 import {
   AUTH_MFA_BINDING_NOT_FOUND,
   AUTH_OTP_DELIVERY_REJECTED
@@ -37,15 +38,7 @@ export class PhoneOtpMfaChallengeService {
     expiresAt: Date
     destination: string
   }> {
-    const binding = await this.mfaBindingRepo.findByUserIdAndType(userId, MfaType.SMS_OTP)
-    if (!binding || !binding.isBindingActive()) {
-      throw ExceptionFactory.domain(AUTH_MFA_BINDING_NOT_FOUND)
-    }
-
-    const phoneLoginMethod = await this.loginMethodRepo.findByUserIdAndType(
-      userId,
-      LoginMethodType.PHONE
-    )
+    const phoneLoginMethod = await this.resolveChallengeLoginMethod(userId)
     if (!phoneLoginMethod) {
       throw ExceptionFactory.domain(AUTH_MFA_BINDING_NOT_FOUND)
     }
@@ -96,5 +89,24 @@ export class PhoneOtpMfaChallengeService {
 
   private generateOtpCode(): string {
     return Math.floor(100000 + Math.random() * 900000).toString()
+  }
+
+  // Reuses the verified phone login method as the MFA delivery channel when login-scene policy allows SMS OTP without an explicit binding.
+  private async resolveChallengeLoginMethod(userId: string) {
+    const phoneLoginMethod = await this.loginMethodRepo.findByUserIdAndType(
+      userId,
+      LoginMethodType.PHONE
+    )
+
+    if (!phoneLoginMethod || !phoneLoginMethod.isEnabled() || !phoneLoginMethod.isVerified()) {
+      return null
+    }
+
+    const otpCredential = phoneLoginMethod.getCredentialByType(CredentialType.PHONE_OTP)
+    if (otpCredential && !otpCredential.isEnabled()) {
+      return null
+    }
+
+    return phoneLoginMethod
   }
 }

@@ -1,0 +1,267 @@
+syntax = "proto3";
+
+package crm_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.crm.v1";
+
+service CustomerQueryService {
+  rpc SearchSelectableCustomers(SearchSelectableCustomersRequest) returns (SearchSelectableCustomersResponse);
+  rpc GetCustomerAccount(GetCustomerAccountRequest) returns (GetCustomerAccountResponse);
+  rpc SearchCustomerAccounts(SearchCustomerAccountsRequest) returns (SearchCustomerAccountsResponse);
+  rpc ListCustomerContacts(ListCustomerContactsRequest) returns (ListCustomerContactsResponse);
+  rpc ListCustomerAddresses(ListCustomerAddressesRequest) returns (ListCustomerAddressesResponse);
+}
+
+service CustomerManagementService {
+  rpc CreateCustomerAccount(CreateCustomerAccountRequest) returns (CreateCustomerAccountResponse);
+  rpc UpdateCustomerAccountBasics(UpdateCustomerAccountBasicsRequest) returns (UpdateCustomerAccountBasicsResponse);
+  rpc BindCustomerAccountToTenantParty(BindCustomerAccountToTenantPartyRequest) returns (BindCustomerAccountToTenantPartyResponse);
+  rpc UpsertCustomerContact(UpsertCustomerContactRequest) returns (UpsertCustomerContactResponse);
+  rpc UpsertCustomerAddress(UpsertCustomerAddressRequest) returns (UpsertCustomerAddressResponse);
+  rpc ChangeCustomerStatus(ChangeCustomerStatusRequest) returns (ChangeCustomerStatusResponse);
+}
+
+enum CustomerStatus {
+  CUSTOMER_STATUS_UNSPECIFIED = 0;
+  CUSTOMER_STATUS_ACTIVE_CUSTOMER = 1;
+  CUSTOMER_STATUS_BLOCKED = 2;
+  CUSTOMER_STATUS_ARCHIVED = 3;
+}
+
+enum CustomerPartyBindingStatus {
+  CUSTOMER_PARTY_BINDING_STATUS_UNSPECIFIED = 0;
+  CUSTOMER_PARTY_BINDING_STATUS_ACTIVE_PRIMARY = 1;
+}
+
+message OperatorContext {
+  string operator_id = 1;
+  string operator_type = 2;
+  string org_id = 3;
+}
+
+message TraceContext {
+  string trace_id = 1;
+  string request_id = 2;
+}
+
+message AuditContext {
+  string audit_id = 1;
+  string reason = 2;
+  string source = 3;
+}
+
+message CustomerPartyBindingSummary {
+  string customer_party_binding_id = 1;
+  string tenant_party_id = 2;
+  CustomerPartyBindingStatus binding_status = 3;
+  string party_display_name = 4;
+}
+
+message CustomerAccount {
+  string customer_account_id = 1;
+  string customer_account_no = 2;
+  string tenant_id = 3;
+  string display_name = 4;
+  CustomerStatus status = 5;
+  string customer_category = 6;
+  repeated string tags = 7;
+  CustomerPartyBindingSummary primary_binding = 8;
+}
+
+message SelectableCustomer {
+  string customer_account_id = 1;
+  string customer_account_no = 2;
+  string display_name = 3;
+  CustomerStatus status = 4;
+  string primary_tenant_party_id = 5;
+  string primary_party_display_name = 6;
+}
+
+message CustomerContact {
+  string customer_contact_id = 1;
+  string customer_account_id = 2;
+  string display_name = 3;
+  string role_title = 4;
+  string email = 5;
+  string phone = 6;
+  bool is_primary_contact = 7;
+  bool is_active = 8;
+}
+
+message CustomerAddress {
+  string customer_address_id = 1;
+  string customer_account_id = 2;
+  string label = 3;
+  string country_code = 4;
+  string region = 5;
+  string locality = 6;
+  string address_line_1 = 7;
+  string address_line_2 = 8;
+  string postal_code = 9;
+  bool is_primary_address = 10;
+  bool is_active = 11;
+}
+
+message SearchSelectableCustomersRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string keyword = 4;
+  uint32 page = 5;
+  uint32 page_size = 6;
+}
+
+message SearchSelectableCustomersResponse {
+  repeated SelectableCustomer customers = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetCustomerAccountRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string customer_account_id = 4;
+}
+
+message GetCustomerAccountResponse {
+  CustomerAccount customer_account = 1;
+}
+
+message SearchCustomerAccountsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string keyword = 4;
+  CustomerStatus status = 5;
+  string primary_tenant_party_id = 6;
+  uint32 page = 7;
+  uint32 page_size = 8;
+}
+
+message SearchCustomerAccountsResponse {
+  repeated CustomerAccount customer_accounts = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message ListCustomerContactsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string customer_account_id = 4;
+}
+
+message ListCustomerContactsResponse {
+  repeated CustomerContact contacts = 1;
+}
+
+message ListCustomerAddressesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string customer_account_id = 4;
+}
+
+message ListCustomerAddressesResponse {
+  repeated CustomerAddress addresses = 1;
+}
+
+message CreateCustomerAccountRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string display_name = 5;
+  string customer_category = 6;
+  repeated string tags = 7;
+}
+
+message CreateCustomerAccountResponse {
+  CustomerAccount customer_account = 1;
+}
+
+message UpdateCustomerAccountBasicsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string customer_account_id = 5;
+  string display_name = 6;
+  string customer_category = 7;
+  repeated string tags = 8;
+}
+
+message UpdateCustomerAccountBasicsResponse {
+  CustomerAccount customer_account = 1;
+}
+
+message BindCustomerAccountToTenantPartyRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string customer_account_id = 5;
+  string tenant_party_id = 6;
+}
+
+message BindCustomerAccountToTenantPartyResponse {
+  CustomerAccount customer_account = 1;
+}
+
+message UpsertCustomerContactRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string customer_account_id = 5;
+  string customer_contact_id = 6;
+  string display_name = 7;
+  string role_title = 8;
+  string email = 9;
+  string phone = 10;
+  optional bool is_primary_contact = 11;
+  optional bool is_active = 12;
+}
+
+message UpsertCustomerContactResponse {
+  CustomerContact contact = 1;
+}
+
+message UpsertCustomerAddressRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string customer_account_id = 5;
+  string customer_address_id = 6;
+  string label = 7;
+  string country_code = 8;
+  string region = 9;
+  string locality = 10;
+  string address_line_1 = 11;
+  string address_line_2 = 12;
+  string postal_code = 13;
+  optional bool is_primary_address = 14;
+  optional bool is_active = 15;
+}
+
+message UpsertCustomerAddressResponse {
+  CustomerAddress address = 1;
+}
+
+message ChangeCustomerStatusRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string customer_account_id = 5;
+  CustomerStatus target_status = 6;
+}
+
+message ChangeCustomerStatusResponse {
+  CustomerAccount customer_account = 1;
+}

@@ -1,5 +1,5 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsString, Matches, MaxLength, MinLength } from 'class-validator'
+import { IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator'
 
 // Carries one authenticated self-service phone binding verification attempt.
 export class VerifyPhoneBindingCommand implements ICommand {
@@ -25,6 +25,7 @@ export class VerifyPhoneBindingCommand implements ICommand {
   @MaxLength(64)
   readonly otp: string
 
+  @IsOptional()
   @IsString()
   readonly mfaGrantToken?: string
 

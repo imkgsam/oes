@@ -1,0 +1,1 @@
+{"version":3,"file":"tokens.js","sourceRoot":"","sources":["../../../src/common/constants/tokens.ts"],"names":[],"mappings":";;;AAAA,oGAAoG;AACvF,QAAA,MAAM,GAAG;IACpB,gBAAgB,EAAE,MAAM,CAAC,wBAAwB,CAAC;IAClD,wBAAwB,EAAE,MAAM,CAAC,gCAAgC,CAAC;IAClE,sBAAsB,EAAE,MAAM,CAAC,8BAA8B,CAAC;IAC9D,kBAAkB,EAAE,MAAM,CAAC,oBAAoB,CAAC;IAChD,wBAAwB,EAAE,MAAM,CAAC,0BAA0B,CAAC;CACpD,CAAA"}

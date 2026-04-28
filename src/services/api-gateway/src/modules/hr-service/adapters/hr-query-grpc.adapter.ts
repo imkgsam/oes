@@ -1,4 +1,6 @@
 import { Inject, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common'
+import { status as GrpcStatus } from '@grpc/grpc-js'
+import { RpcException } from '@nestjs/microservices'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
   EmployeeLifecycleStatus,
@@ -134,7 +136,12 @@ export class HrQueryGrpcAdapter implements OnModuleInit {
         }
         return mapEmployment(response.employment)
       }
-    )
+    ).catch((error) => {
+      if (isRpcNotFound(error)) {
+        throw new NotFoundException(`Active employment for employee ${employeeId} not found`)
+      }
+      throw error
+    })
   }
 
   listEmployments(
@@ -249,6 +256,19 @@ function mapEmployeeLifecycleStatusToString(status?: EmployeeLifecycleStatus): s
     default:
       return 'UNKNOWN'
   }
+}
+
+function isRpcNotFound(error: unknown): error is RpcException {
+  if (!(error instanceof RpcException)) {
+    return false
+  }
+
+  const payload = error.getError()
+  if (typeof payload !== 'object' || payload === null) {
+    return false
+  }
+
+  return (payload as { grpcStatus?: unknown }).grpcStatus === GrpcStatus.NOT_FOUND
 }
 
 function mapEmploymentStatus(status?: string): EmploymentStatus {

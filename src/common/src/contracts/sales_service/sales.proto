@@ -1,0 +1,350 @@
+syntax = "proto3";
+
+package sales_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.sales.v1";
+
+service SalesQueryService {
+  rpc GetQuote(GetQuoteRequest) returns (GetQuoteResponse);
+  rpc SearchQuotes(SearchQuotesRequest) returns (SearchQuotesResponse);
+  rpc GetQuoteVersion(GetQuoteVersionRequest) returns (GetQuoteVersionResponse);
+  rpc ListQuoteVersions(ListQuoteVersionsRequest) returns (ListQuoteVersionsResponse);
+  rpc GetSalesOrder(GetSalesOrderRequest) returns (GetSalesOrderResponse);
+  rpc SearchSalesOrders(SearchSalesOrdersRequest) returns (SearchSalesOrdersResponse);
+}
+
+service SalesManagementService {
+  rpc CreateQuote(CreateQuoteRequest) returns (CreateQuoteResponse);
+  rpc UpdateQuoteDraft(UpdateQuoteDraftRequest) returns (UpdateQuoteDraftResponse);
+  rpc PublishQuote(PublishQuoteRequest) returns (PublishQuoteResponse);
+  rpc ConvertQuoteVersionToOrder(ConvertQuoteVersionToOrderRequest) returns (ConvertQuoteVersionToOrderResponse);
+  rpc SetOrderCommercialGate(SetOrderCommercialGateRequest) returns (SetOrderCommercialGateResponse);
+  rpc SubmitFulfillmentHandoff(SubmitFulfillmentHandoffRequest) returns (SubmitFulfillmentHandoffResponse);
+}
+
+enum QuoteStatus {
+  QUOTE_STATUS_UNSPECIFIED = 0;
+  QUOTE_STATUS_DRAFT = 1;
+  QUOTE_STATUS_PUBLISHED = 2;
+}
+
+enum CommercialGateName {
+  COMMERCIAL_GATE_NAME_UNSPECIFIED = 0;
+  COMMERCIAL_GATE_NAME_PRODUCTION_GATE = 1;
+  COMMERCIAL_GATE_NAME_STOCKING_GATE = 2;
+  COMMERCIAL_GATE_NAME_SHIPPING_GATE = 3;
+}
+
+enum FulfillmentHandoffStatusCode {
+  FULFILLMENT_HANDOFF_STATUS_CODE_UNSPECIFIED = 0;
+  FULFILLMENT_HANDOFF_STATUS_CODE_NOT_SUBMITTED = 1;
+  FULFILLMENT_HANDOFF_STATUS_CODE_SUBMITTED = 2;
+}
+
+message OperatorContext {
+  string operator_id = 1;
+  string operator_type = 2;
+  string org_id = 3;
+}
+
+message TraceContext {
+  string trace_id = 1;
+  string request_id = 2;
+}
+
+message AuditContext {
+  string audit_id = 1;
+  string reason = 2;
+  string source = 3;
+}
+
+message OpportunityRefSummary {
+  string opportunity_id = 1;
+  string opportunity_no = 2;
+  string opportunity_name = 3;
+}
+
+message ItemSnapshot {
+  string item_code = 1;
+  string item_name = 2;
+}
+
+message SalesConfigSnapshot {
+  string sales_uom = 1;
+  string sales_unit_label = 2;
+  string notes = 3;
+}
+
+message PackagingRequirementSnapshot {
+  string package_mode = 1;
+  string package_label = 2;
+  string special_instructions = 3;
+}
+
+message PriceQuantityDeliverySnapshot {
+  string currency_code = 1;
+  string unit_price = 2;
+  string quantity = 3;
+  string delivery_term = 4;
+  string requested_delivery_date = 5;
+}
+
+message CustomerItemSnapshot {
+  string customer_sku = 1;
+  string customer_model = 2;
+  string customer_display_name = 3;
+}
+
+message QuoteLineInput {
+  uint32 line_no = 1;
+  string item_id = 2;
+  ItemSnapshot item_snapshot = 3;
+  SalesConfigSnapshot sales_config_snapshot = 4;
+  PackagingRequirementSnapshot packaging_requirement_snapshot = 5;
+  PriceQuantityDeliverySnapshot price_quantity_delivery_snapshot = 6;
+  CustomerItemSnapshot customer_item_snapshot = 7;
+}
+
+message QuoteLine {
+  string quote_line_id = 1;
+  uint32 line_no = 2;
+  string item_id = 3;
+  ItemSnapshot item_snapshot = 4;
+  SalesConfigSnapshot sales_config_snapshot = 5;
+  PackagingRequirementSnapshot packaging_requirement_snapshot = 6;
+  PriceQuantityDeliverySnapshot price_quantity_delivery_snapshot = 7;
+  CustomerItemSnapshot customer_item_snapshot = 8;
+}
+
+message Quote {
+  string quote_id = 1;
+  string quote_no = 2;
+  string tenant_id = 3;
+  string customer_tenant_party_id = 4;
+  OpportunityRefSummary opportunity_ref = 5;
+  QuoteStatus status = 6;
+  string latest_published_version_id = 7;
+  repeated QuoteLine lines = 8;
+}
+
+message QuoteVersion {
+  string quote_version_id = 1;
+  string quote_id = 2;
+  string quote_no = 3;
+  uint32 version_no = 4;
+  string tenant_id = 5;
+  string customer_tenant_party_id = 6;
+  string published_at = 7;
+  repeated QuoteLine lines = 8;
+}
+
+message CommercialGateSummary {
+  bool order_established = 1;
+  bool production_gate = 2;
+  bool stocking_gate = 3;
+  bool shipping_gate = 4;
+}
+
+message FulfillmentHandoffSummary {
+  FulfillmentHandoffStatusCode status = 1;
+  string submitted_at = 2;
+}
+
+message SalesOrderLine {
+  string sales_order_line_id = 1;
+  uint32 line_no = 2;
+  string item_id = 3;
+  ItemSnapshot item_snapshot = 4;
+  SalesConfigSnapshot sales_config_snapshot = 5;
+  PackagingRequirementSnapshot packaging_requirement_snapshot = 6;
+  PriceQuantityDeliverySnapshot price_quantity_delivery_snapshot = 7;
+  CustomerItemSnapshot customer_item_snapshot = 8;
+}
+
+message SalesOrder {
+  string sales_order_id = 1;
+  string sales_order_no = 2;
+  string tenant_id = 3;
+  string customer_tenant_party_id = 4;
+  string quote_id = 5;
+  string quote_version_id = 6;
+  CommercialGateSummary commercial_gate_summary = 7;
+  FulfillmentHandoffSummary fulfillment_handoff_status = 8;
+  repeated SalesOrderLine lines = 9;
+}
+
+message QuoteDraftMutation {
+  string customer_tenant_party_id = 1;
+  OpportunityRefSummary opportunity_ref = 2;
+  repeated QuoteLineInput lines = 3;
+}
+
+message GetQuoteRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string quote_id = 4;
+}
+
+message GetQuoteResponse {
+  Quote quote = 1;
+}
+
+message SearchQuotesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string keyword = 4;
+  string customer_tenant_party_id = 5;
+  QuoteStatus status = 6;
+  uint32 page = 7;
+  uint32 page_size = 8;
+}
+
+message SearchQuotesResponse {
+  repeated Quote quotes = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetQuoteVersionRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string quote_version_id = 4;
+}
+
+message GetQuoteVersionResponse {
+  QuoteVersion quote_version = 1;
+}
+
+message ListQuoteVersionsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string quote_id = 4;
+  uint32 page = 5;
+  uint32 page_size = 6;
+}
+
+message ListQuoteVersionsResponse {
+  repeated QuoteVersion quote_versions = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetSalesOrderRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string sales_order_id = 4;
+}
+
+message GetSalesOrderResponse {
+  SalesOrder sales_order = 1;
+}
+
+message SearchSalesOrdersRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string keyword = 4;
+  string customer_tenant_party_id = 5;
+  string quote_version_id = 6;
+  optional bool production_gate = 7;
+  optional bool stocking_gate = 8;
+  optional bool shipping_gate = 9;
+  uint32 page = 10;
+  uint32 page_size = 11;
+}
+
+message SearchSalesOrdersResponse {
+  repeated SalesOrder sales_orders = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message CreateQuoteRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string customer_tenant_party_id = 5;
+  OpportunityRefSummary opportunity_ref = 6;
+  repeated QuoteLineInput draft_lines = 7;
+}
+
+message CreateQuoteResponse {
+  Quote quote = 1;
+}
+
+message UpdateQuoteDraftRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string quote_id = 5;
+  QuoteDraftMutation draft_mutation = 6;
+}
+
+message UpdateQuoteDraftResponse {
+  Quote quote = 1;
+}
+
+message PublishQuoteRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string quote_id = 5;
+}
+
+message PublishQuoteResponse {
+  QuoteVersion quote_version = 1;
+  Quote quote = 2;
+}
+
+message ConvertQuoteVersionToOrderRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string quote_version_id = 5;
+}
+
+message ConvertQuoteVersionToOrderResponse {
+  SalesOrder sales_order = 1;
+}
+
+message SetOrderCommercialGateRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string sales_order_id = 5;
+  CommercialGateName gate_name = 6;
+  bool allowed = 7;
+}
+
+message SetOrderCommercialGateResponse {
+  string sales_order_id = 1;
+  CommercialGateSummary commercial_gate_summary = 2;
+}
+
+message SubmitFulfillmentHandoffRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string sales_order_id = 5;
+}
+
+message SubmitFulfillmentHandoffResponse {
+  string sales_order_id = 1;
+  CommercialGateSummary commercial_gate_summary = 2;
+  FulfillmentHandoffSummary fulfillment_handoff_status = 3;
+}

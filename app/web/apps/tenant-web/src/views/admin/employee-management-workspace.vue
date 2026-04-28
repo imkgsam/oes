@@ -49,6 +49,8 @@ interface EmployeeAccessFormState {
   selectedRoleId: string
 }
 
+type EmployeeLifecyclePreset = 'ACTIVE' | 'ALL' | 'OFFBOARDED'
+
 interface Props {
   selectedEmployeeId?: string
 }
@@ -108,6 +110,8 @@ const createOpen = ref(false)
 const changeOpen = ref(false)
 const accessOpen = ref(false)
 const accessMode = ref<'CONTINUE' | 'ENABLE'>('ENABLE')
+const lifecyclePreset = ref<EmployeeLifecyclePreset>('ALL')
+const selectedOrgFilterId = ref('')
 const createForm = reactive<CreateEmployeeFormState>({
   allowLogin: false,
   effectiveFrom: '',
@@ -133,6 +137,14 @@ const currentActiveEmployment = computed(() => detail.value?.activeEmployment)
 const employmentHistory = computed(() => detail.value?.employments ?? [])
 const sortedRoleOptions = computed(() =>
   roleOptions.value.filter((role) => role.isEnabled !== false)
+)
+const filteredEmployees = computed(() =>
+  employees.value.filter((item) => matchesLifecyclePreset(item) && matchesSelectedOrgFilter(item))
+)
+const selectedOrgFilterLabel = computed(() =>
+  selectedOrgFilterId.value
+    ? findManagedOrgUnitOption(orgOptions.value, selectedOrgFilterId.value)?.name ?? selectedOrgFilterId.value
+    : '全部部门'
 )
 const shouldCollectAccessContacts = computed(() =>
   !accountAccess.value?.account?.accountId
@@ -219,21 +231,39 @@ async function loadEmployeeDetail(employeeId: string) {
   }
 }
 
-/** resolvePreferredEmployeeId keeps either the requested selection or the first available employee stable across refreshes. */
-function resolvePreferredEmployeeId() {
+/** resolvePreferredEmployeeId keeps either the requested selection or the first visible employee stable across refreshes. */
+function resolvePreferredEmployeeId(directoryItems = filteredEmployees.value) {
   const requestedEmployeeId = props.selectedEmployeeId
-  if (requestedEmployeeId && employees.value.some((item) => item.employee.id === requestedEmployeeId)) {
+  if (requestedEmployeeId && directoryItems.some((item) => item.employee.id === requestedEmployeeId)) {
     return requestedEmployeeId
   }
 
   if (
     internalSelectedEmployeeId.value &&
-    employees.value.some((item) => item.employee.id === internalSelectedEmployeeId.value)
+    directoryItems.some((item) => item.employee.id === internalSelectedEmployeeId.value)
   ) {
     return internalSelectedEmployeeId.value
   }
 
-  return employees.value[0]?.employee.id ?? ''
+  return directoryItems[0]?.employee.id ?? ''
+}
+
+/** syncVisibleEmployeeSelection keeps the visible directory selection and the right-side detail panel coherent. */
+async function syncVisibleEmployeeSelection() {
+  const nextEmployeeId = resolvePreferredEmployeeId()
+  if (!nextEmployeeId) {
+    syncSelectedEmployeeId('')
+    detail.value = null
+    accountAccess.value = null
+    return
+  }
+
+  if (nextEmployeeId === internalSelectedEmployeeId.value && detail.value?.employee.id === nextEmployeeId) {
+    return
+  }
+
+  syncSelectedEmployeeId(nextEmployeeId)
+  await loadEmployeeDetail(nextEmployeeId)
 }
 
 /** loadEmployeeDirectory refreshes the tenant-scoped HR list and keeps one coherent selection/detail pair. */
@@ -255,15 +285,7 @@ async function loadEmployeeDirectory() {
       pageSize: 20
     })
     employees.value = result.items ?? []
-
-    const nextEmployeeId = resolvePreferredEmployeeId()
-    if (nextEmployeeId) {
-      syncSelectedEmployeeId(nextEmployeeId)
-      await loadEmployeeDetail(nextEmployeeId)
-    } else {
-      detail.value = null
-      accountAccess.value = null
-    }
+    await syncVisibleEmployeeSelection()
   } catch (error) {
     employees.value = []
     internalSelectedEmployeeId.value = ''
@@ -275,10 +297,54 @@ async function loadEmployeeDirectory() {
   }
 }
 
+/** matchesLifecyclePreset keeps offboarded members inside the main workbench as a directory filter instead of a separate page. */
+function matchesLifecyclePreset(item: HrManagementApi.EmployeeDirectoryItem) {
+  if (lifecyclePreset.value === 'OFFBOARDED') {
+    return item.employee.lifecycleStatus === 'OFFBOARDED'
+  }
+
+  if (lifecyclePreset.value === 'ACTIVE') {
+    return item.employee.lifecycleStatus !== 'OFFBOARDED'
+  }
+
+  return true
+}
+
+/** matchesSelectedOrgFilter scopes the directory to one org subtree using the tenant-org read model path only. */
+function matchesSelectedOrgFilter(item: HrManagementApi.EmployeeDirectoryItem) {
+  if (!selectedOrgFilterId.value) {
+    return true
+  }
+
+  const orgPath = resolveEmploymentOrgUnit(item.activeEmployment)?.path
+  if (!orgPath) {
+    return false
+  }
+
+  return orgPath.split('/').filter(Boolean).includes(selectedOrgFilterId.value)
+}
+
 /** selectEmployee switches the current detail workspace to the chosen employee. */
 async function selectEmployee(employeeId: string) {
   syncSelectedEmployeeId(employeeId)
   await loadEmployeeDetail(employeeId)
+}
+
+/** selectOrgFilter narrows the member directory to one department subtree without redefining employment ownership. */
+function selectOrgFilter(orgUnitId = '') {
+  selectedOrgFilterId.value = orgUnitId
+  void syncVisibleEmployeeSelection()
+}
+
+/** setLifecycleFilter swaps between all, active, and offboarded member presets inside the same workbench. */
+function setLifecycleFilter(nextPreset: EmployeeLifecyclePreset) {
+  lifecyclePreset.value = nextPreset
+  void syncVisibleEmployeeSelection()
+}
+
+/** resolveDefaultEmploymentOrgUnitId prefers the first non-root org node for create and transfer flows. */
+function resolveDefaultEmploymentOrgUnitId() {
+  return orgOptions.value.find((item) => item.type !== 'ROOT')?.id ?? orgOptions.value[0]?.id ?? ''
 }
 
 /** openCreateDrawer resets the create draft for one employee plus its optional login onboarding slice. */
@@ -286,7 +352,7 @@ function openCreateDrawer() {
   createForm.employeeCode = ''
   createForm.tenantPartyId = ''
   createForm.partyId = ''
-  createForm.orgUnitId = orgOptions.value[0]?.id ?? ''
+  createForm.orgUnitId = resolveDefaultEmploymentOrgUnitId()
   createForm.effectiveFrom = ''
   createForm.allowLogin = false
   createForm.loginEmail = ''
@@ -374,7 +440,7 @@ async function submitCreateFlow() {
 
 /** openChangeEmploymentDrawer seeds the change-primary command form from the current detail context. */
 function openChangeEmploymentDrawer() {
-  changeForm.orgUnitId = currentActiveEmployment.value?.orgUnitId ?? orgOptions.value[0]?.id ?? ''
+  changeForm.orgUnitId = currentActiveEmployment.value?.orgUnitId ?? resolveDefaultEmploymentOrgUnitId()
   changeForm.effectiveFrom = ''
   changeOpen.value = true
 }
@@ -620,7 +686,7 @@ watch(
       return
     }
 
-    if (employees.value.some((item) => item.employee.id === employeeId)) {
+    if (filteredEmployees.value.some((item) => item.employee.id === employeeId)) {
       internalSelectedEmployeeId.value = employeeId
       await loadEmployeeDetail(employeeId)
     }
@@ -640,8 +706,51 @@ onMounted(async () => {
 <template>
   <div class="employee-management-workspace">
     <div class="employee-management__grid">
-      <Card :bordered="false" class="employee-management__panel">
-        <template #title>成员列表</template>
+      <Card
+        :bordered="false"
+        class="employee-management__panel"
+        data-testid="employee-org-filter-panel"
+      >
+        <template #title>组织筛选</template>
+        <div class="employee-management__filter-context">
+          <div class="employee-management__filter-title">当前范围</div>
+          <div class="employee-management__filter-subtitle">按部门树筛选成员目录，不新增任职 owner 语义。</div>
+        </div>
+        <div class="employee-management__org-filter-list">
+          <button
+            class="employee-management__filter-button"
+            :class="{ 'employee-management__filter-button--active': !selectedOrgFilterId }"
+            data-testid="employee-org-filter-all"
+            type="button"
+            @click="selectOrgFilter()"
+          >
+            <span class="employee-management__filter-button-title">全部部门</span>
+            <span class="employee-management__filter-button-meta">查看当前租户内全部成员目录</span>
+          </button>
+          <button
+            v-for="orgUnit in orgOptions"
+            :key="orgUnit.id"
+            class="employee-management__filter-button"
+            :class="{ 'employee-management__filter-button--active': selectedOrgFilterId === orgUnit.id }"
+            :data-testid="`employee-org-filter-${orgUnit.id}`"
+            type="button"
+            :style="{ paddingLeft: `${16 + orgUnit.depth * 18}px` }"
+            @click="selectOrgFilter(orgUnit.id)"
+          >
+            <span class="employee-management__filter-button-title">{{ orgUnit.name }}</span>
+            <span class="employee-management__filter-button-meta">
+              {{ [orgUnit.type, formatManagedOrganizationPartyName(orgUnit)].filter(Boolean).join(' · ') || '组织节点' }}
+            </span>
+          </button>
+        </div>
+      </Card>
+
+      <Card
+        :bordered="false"
+        class="employee-management__panel"
+        data-testid="employee-directory-panel"
+      >
+        <template #title>成员目录</template>
         <template #extra>
           <Button
             v-if="canCreateEmployee"
@@ -652,12 +761,52 @@ onMounted(async () => {
             创建员工
           </Button>
         </template>
+        <div class="employee-management__directory-toolbar">
+          <div class="employee-management__filter-context">
+            <div class="employee-management__filter-title">{{ selectedOrgFilterLabel }}</div>
+            <div class="employee-management__filter-subtitle">
+              当前显示 {{ filteredEmployees.length }} / {{ employees.length }} 名成员
+            </div>
+          </div>
+          <div class="employee-management__status-filters">
+            <button
+              class="employee-management__status-filter"
+              :class="{ 'employee-management__status-filter--active': lifecyclePreset === 'ALL' }"
+              data-testid="employee-status-filter-ALL"
+              type="button"
+              @click="setLifecycleFilter('ALL')"
+            >
+              全部成员
+            </button>
+            <button
+              class="employee-management__status-filter"
+              :class="{ 'employee-management__status-filter--active': lifecyclePreset === 'ACTIVE' }"
+              data-testid="employee-status-filter-ACTIVE"
+              type="button"
+              @click="setLifecycleFilter('ACTIVE')"
+            >
+              在职
+            </button>
+            <button
+              class="employee-management__status-filter"
+              :class="{ 'employee-management__status-filter--active': lifecyclePreset === 'OFFBOARDED' }"
+              data-testid="employee-status-filter-OFFBOARDED"
+              type="button"
+              @click="setLifecycleFilter('OFFBOARDED')"
+            >
+              已离职
+            </button>
+          </div>
+        </div>
         <div v-if="employees.length === 0" class="employee-management__empty-shell">
           <Empty description="当前租户暂无成员" />
         </div>
+        <div v-else-if="filteredEmployees.length === 0" class="employee-management__empty-shell">
+          <Empty description="当前筛选下暂无成员" />
+        </div>
         <div v-else class="employee-management__list" v-loading="loading">
           <button
-            v-for="item in employees"
+            v-for="item in filteredEmployees"
             :key="item.employee.id"
             class="employee-management__row"
             :class="{ 'employee-management__row--active': item.employee.id === internalSelectedEmployeeId }"
@@ -683,42 +832,97 @@ onMounted(async () => {
         </div>
       </Card>
 
-      <Card :bordered="false" class="employee-management__panel">
+      <Card
+        :bordered="false"
+        class="employee-management__panel"
+        data-testid="employee-detail-panel"
+      >
         <template #title>成员详情</template>
         <div v-if="!detail" class="employee-management__empty-shell">
           <Empty description="从左侧选择成员查看详情" />
         </div>
         <div v-else class="employee-management__detail" v-loading="detailLoading">
-          <div class="employee-management__detail-head">
-            <div>
-              <div class="employee-management__detail-title">
-                {{ detail.employee.employeeCode }}
-              </div>
-              <div class="employee-management__detail-subtitle">
-                {{ activeTenantName || detail.employee.tenantId }}
-              </div>
-            </div>
-            <div class="employee-management__detail-actions">
-              <Button
-                v-if="canChangeEmployment && currentActiveEmployment"
-                data-testid="change-employment-open"
-                @click="openChangeEmploymentDrawer"
-              >
-                调岗
-              </Button>
-              <Button
-                v-if="canEndEmployment && currentActiveEmployment"
-                danger
-                data-testid="employment-end-button"
-                @click="confirmEndEmployment"
-              >
-                结束任职
-              </Button>
-            </div>
-          </div>
-
           <div class="employee-management__section-grid">
-            <section class="employee-management__section-card">
+            <section
+              class="employee-management__section-card"
+              data-testid="employee-detail-section-summary"
+            >
+              <div class="employee-management__section-head">
+                <div class="employee-management__section-title">概要与动作</div>
+                <div class="employee-management__section-hint">
+                  统一展示成员当前状态与只在成员上下文内允许的动作。
+                </div>
+              </div>
+              <div class="employee-management__detail-grid">
+                <div class="employee-management__detail-item">
+                  <span>成员</span>
+                  <strong>{{ detail.employee.employeeCode }}</strong>
+                </div>
+                <div class="employee-management__detail-item">
+                  <span>当前租户</span>
+                  <strong>{{ activeTenantName || detail.employee.tenantId }}</strong>
+                </div>
+                <div class="employee-management__detail-item">
+                  <span>生命周期</span>
+                  <strong>{{ formatLifecycleStatus(detail.employee.lifecycleStatus) }}</strong>
+                </div>
+                <div class="employee-management__detail-item">
+                  <span>当前部门</span>
+                  <strong>{{ formatEmploymentOrgTitle(currentActiveEmployment) }}</strong>
+                </div>
+                <div class="employee-management__detail-item">
+                  <span>登录接入</span>
+                  <strong>{{ formatAccountAccessStatus(accountAccess?.status) }}</strong>
+                </div>
+              </div>
+              <div class="employee-management__link-actions">
+                <div class="employee-management__detail-actions">
+                  <Button
+                    v-if="canChangeEmployment && currentActiveEmployment"
+                    data-testid="change-employment-open"
+                    @click="openChangeEmploymentDrawer"
+                  >
+                    调岗
+                  </Button>
+                  <Button
+                    v-if="canEndEmployment && currentActiveEmployment"
+                    danger
+                    data-testid="employment-end-button"
+                    @click="confirmEndEmployment"
+                  >
+                    结束任职
+                  </Button>
+                </div>
+                <div class="employee-management__detail-actions">
+                  <Button
+                    v-if="canProvisionLogin && currentActiveEmployment && accountAccess?.status === 'NOT_ENABLED'"
+                    data-testid="employee-enable-access-open"
+                    @click="openEmployeeAccessDrawer('ENABLE')"
+                  >
+                    开通登录
+                  </Button>
+                  <Button
+                    v-if="canProvisionLogin && currentActiveEmployment && accountAccess?.status === 'PENDING'"
+                    data-testid="employee-continue-access-open"
+                    @click="openEmployeeAccessDrawer('CONTINUE')"
+                  >
+                    继续完成接入
+                  </Button>
+                  <Button
+                    v-if="canOpenAccountManagement"
+                    data-testid="employee-account-management-link"
+                    @click="openAccountManagementLink"
+                  >
+                    前往账号管理
+                  </Button>
+                </div>
+              </div>
+            </section>
+
+            <section
+              class="employee-management__section-card"
+              data-testid="employee-detail-section-profile"
+            >
               <div class="employee-management__section-head">
                 <div class="employee-management__section-title">员工信息</div>
                 <div class="employee-management__section-hint">只展示 HR 主档字段，不混入账号 owner。</div>
@@ -739,7 +943,10 @@ onMounted(async () => {
               </div>
             </section>
 
-            <section class="employee-management__section-card">
+            <section
+              class="employee-management__section-card"
+              data-testid="employee-detail-section-employment"
+            >
               <div class="employee-management__section-head">
                 <div class="employee-management__section-title">当前任职</div>
                 <div class="employee-management__section-hint">当前第一阶段只显示唯一 active employment。</div>
@@ -765,40 +972,10 @@ onMounted(async () => {
               <Empty v-else description="当前未建立 active employment" />
             </section>
 
-            <section class="employee-management__section-card">
-              <div class="employee-management__section-head">
-                <div class="employee-management__section-title">其他任职</div>
-                <div class="employee-management__section-hint">第一阶段不开放兼任管理。</div>
-              </div>
-              <Empty description="第一阶段暂不开放兼任管理" />
-            </section>
-
-            <section class="employee-management__section-card">
-              <div class="employee-management__section-head">
-                <div class="employee-management__section-title">任职记录</div>
-                <div class="employee-management__section-hint">展示 current + ended employments。</div>
-              </div>
-              <div v-if="employmentHistory.length > 0" class="employee-management__history">
-                <div
-                  v-for="employment in employmentHistory"
-                  :key="employment.id"
-                  class="employee-management__history-item"
-                >
-                  <div>
-                    <strong>{{ formatEmploymentOrgTitle(employment) }}</strong>
-                    <div class="employee-management__history-meta">
-                      {{ formatEmploymentTimeline(employment) }}
-                    </div>
-                  </div>
-                  <Tag :color="employment.status === 'ENDED' ? 'default' : 'green'">
-                    {{ formatEmploymentStatus(employment.status) }}
-                  </Tag>
-                </div>
-              </div>
-              <Empty v-else description="暂无任职记录" />
-            </section>
-
-            <section class="employee-management__section-card">
+            <section
+              class="employee-management__section-card"
+              data-testid="employee-detail-section-access"
+            >
               <div class="employee-management__section-head">
                 <div class="employee-management__section-title">账号与访问</div>
                 <div class="employee-management__section-hint">
@@ -833,29 +1010,34 @@ onMounted(async () => {
                   <strong>{{ accountAccess.failureReason }}</strong>
                 </div>
               </div>
-              <div class="employee-management__link-actions">
-                <Button
-                  v-if="canProvisionLogin && currentActiveEmployment && accountAccess?.status === 'NOT_ENABLED'"
-                  data-testid="employee-enable-access-open"
-                  @click="openEmployeeAccessDrawer('ENABLE')"
-                >
-                  开通登录
-                </Button>
-                <Button
-                  v-if="canProvisionLogin && currentActiveEmployment && accountAccess?.status === 'PENDING'"
-                  data-testid="employee-continue-access-open"
-                  @click="openEmployeeAccessDrawer('CONTINUE')"
-                >
-                  继续完成接入
-                </Button>
-                <Button
-                  v-if="canOpenAccountManagement"
-                  data-testid="employee-account-management-link"
-                  @click="openAccountManagementLink"
-                >
-                  前往账号管理
-                </Button>
+            </section>
+
+            <section
+              class="employee-management__section-card"
+              data-testid="employee-detail-section-history"
+            >
+              <div class="employee-management__section-head">
+                <div class="employee-management__section-title">任职记录</div>
+                <div class="employee-management__section-hint">展示 current + ended employments。</div>
               </div>
+              <div v-if="employmentHistory.length > 0" class="employee-management__history">
+                <div
+                  v-for="employment in employmentHistory"
+                  :key="employment.id"
+                  class="employee-management__history-item"
+                >
+                  <div>
+                    <strong>{{ formatEmploymentOrgTitle(employment) }}</strong>
+                    <div class="employee-management__history-meta">
+                      {{ formatEmploymentTimeline(employment) }}
+                    </div>
+                  </div>
+                  <Tag :color="employment.status === 'ENDED' ? 'default' : 'green'">
+                    {{ formatEmploymentStatus(employment.status) }}
+                  </Tag>
+                </div>
+              </div>
+              <Empty v-else description="暂无任职记录" />
             </section>
           </div>
         </div>
@@ -1061,7 +1243,6 @@ onMounted(async () => {
   gap: 16px;
 }
 
-.employee-management__detail-head,
 .employee-management__form-actions,
 .employee-management__section-head,
 .employee-management__link-actions {
@@ -1085,7 +1266,8 @@ onMounted(async () => {
 }
 
 .employee-management__grid {
-  grid-template-columns: minmax(280px, 0.95fr) minmax(420px, 1.05fr);
+  align-items: start;
+  grid-template-columns: minmax(220px, 0.82fr) minmax(280px, 0.98fr) minmax(420px, 1.2fr);
 }
 
 .employee-management__panel {
@@ -1093,13 +1275,15 @@ onMounted(async () => {
 }
 
 .employee-management__section-grid {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .employee-management__section-card,
 .employee-management__detail-item,
 .employee-management__field,
-.employee-management__history-item {
+.employee-management__history-item,
+.employee-management__filter-button,
+.employee-management__status-filter {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 14px;
@@ -1114,27 +1298,44 @@ onMounted(async () => {
 }
 
 .employee-management__section-title,
-.employee-management__detail-title {
+.employee-management__filter-title {
   font-size: 16px;
   font-weight: 700;
 }
 
 .employee-management__section-hint,
-.employee-management__detail-subtitle,
 .employee-management__detail-item span,
 .employee-management__history-meta,
 .employee-management__field span,
-.employee-management__row-meta {
+.employee-management__row-meta,
+.employee-management__filter-subtitle,
+.employee-management__filter-button-meta {
   color: #64748b;
   font-size: 12px;
 }
 
 .employee-management__list,
 .employee-management__detail,
-.employee-management__history {
+.employee-management__history,
+.employee-management__org-filter-list {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+.employee-management__directory-toolbar,
+.employee-management__status-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.employee-management__filter-button,
+.employee-management__status-filter {
+  color: #0f172a;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
 }
 
 .employee-management__row {
@@ -1149,11 +1350,14 @@ onMounted(async () => {
   width: 100%;
 }
 
+.employee-management__filter-button--active,
+.employee-management__status-filter--active,
 .employee-management__row--active {
   border-color: #2563eb;
   box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.08);
 }
 
+.employee-management__filter-button-title,
 .employee-management__row-title {
   font-size: 15px;
   font-weight: 700;
@@ -1161,6 +1365,7 @@ onMounted(async () => {
 
 .employee-management__detail-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
@@ -1186,10 +1391,10 @@ onMounted(async () => {
     grid-template-columns: 1fr;
   }
 
-  .employee-management__detail-head,
   .employee-management__form-actions,
   .employee-management__section-head,
-  .employee-management__link-actions {
+  .employee-management__link-actions,
+  .employee-management__status-filters {
     align-items: flex-start;
     flex-direction: column;
   }

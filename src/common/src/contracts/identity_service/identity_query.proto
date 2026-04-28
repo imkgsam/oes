@@ -73,6 +73,7 @@ service IdentityManagementService {
   rpc RevokeApiKey(RevokeApiKeyRequest) returns (RevokeApiKeyResponse);
   rpc SetServiceAccountEnabled(SetServiceAccountEnabledRequest) returns (SetServiceAccountEnabledResponse);
   rpc UpdateOwnAccountProfile(UpdateOwnAccountProfileRequest) returns (UpdateOwnAccountProfileResponse);
+  rpc UpdateOwnUserBasicInfo(UpdateOwnUserBasicInfoRequest) returns (UpdateOwnUserBasicInfoResponse);
   rpc UpdateAccountProfile(UpdateAccountProfileRequest) returns (UpdateAccountProfileResponse);
   rpc UpdateUserBasicInfo(UpdateUserBasicInfoRequest) returns (UpdateUserBasicInfoResponse);
   rpc AssignAccountWorkEmailAsset(AssignAccountWorkEmailAssetRequest) returns (AssignAccountWorkEmailAssetResponse);
@@ -212,6 +213,13 @@ message DeleteAccountResponse {
 }
 
 message UpdateUserBasicInfoRequest {
+  string account_id = 1;
+  string user_id = 2;
+  string email = 3;
+  string phone = 4;
+}
+
+message UpdateOwnUserBasicInfoRequest {
   string account_id = 1;
   string user_id = 2;
   string email = 3;
@@ -590,6 +598,10 @@ message GetServiceAccountByIdResponse {
 }
 
 message UpdateUserBasicInfoResponse {
+  UserSummary user = 1;
+}
+
+message UpdateOwnUserBasicInfoResponse {
   UserSummary user = 1;
 }
 

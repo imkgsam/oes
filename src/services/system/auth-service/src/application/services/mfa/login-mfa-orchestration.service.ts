@@ -1,8 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { CommonJwtService } from '@oes/common/auth'
 import { ExceptionFactory } from '@oes/common/exceptions'
-import { LoginMethodEnum, MfaType, REPO } from '../../../common/constants'
+import { CredentialType } from '../../../../prisma/generated/prisma'
+import { LoginMethodEnum, LoginMethodType, MfaType, REPO } from '../../../common/constants'
 import {
+  AUTH_MFA_FACTOR_UNAVAILABLE,
   AUTH_MFA_INVALID_CODE,
   AUTH_MFA_LOGIN_METHOD_UNAVAILABLE
 } from '../../../common/constants/exception-enums'
@@ -16,11 +18,14 @@ import {
 } from '../../../domain/entities/tenant-mfa-policy.entity'
 import { PlatformMfaPolicyRepository } from '../../../domain/repositories/platform-mfa-policy.repository'
 import { TenantMfaPolicyRepository } from '../../../domain/repositories/tenant-mfa-policy.repository'
+import { ILoginMethodRepository } from '../../../domain/repositories/loginmethod.repository'
+import { LoginMethod } from '../../../domain/aggregates/loginmethod.aggregate'
 import { EmailOtpMfaChallengeService } from './email-otp-mfa-challenge.service'
 import { MfaChallengeVerificationService } from './mfa-challenge-verification.service'
 import { MfaBindingManagementService } from './mfa-binding-management.service'
 import { PhoneOtpMfaChallengeService } from './phone-otp-mfa-challenge.service'
 import { TrustedDeviceService } from '../trusted-device.service'
+import { PasswordSetupRequirementService } from '../password-setup-requirement.service'
 
 export interface LoginMfaFactorOption {
   type: TenantMfaFactor
@@ -73,6 +78,11 @@ export interface LoginMfaFlowPayload {
   userAgent?: string
 }
 
+interface FactorResolutionOptions {
+  loginMethod?: LoginMethodEnum
+  allowBootstrapOtpFactors?: boolean
+}
+
 // Orchestrates one account-scoped MFA challenge flow so login and step-up scenarios reuse the same factor resolution path.
 @Injectable()
 export class LoginMfaOrchestrationService {
@@ -86,13 +96,20 @@ export class LoginMfaOrchestrationService {
     private readonly phoneOtpMfaChallengeService: PhoneOtpMfaChallengeService,
     private readonly mfaChallengeVerificationService: MfaChallengeVerificationService,
     private readonly jwtService: CommonJwtService,
-    private readonly trustedDeviceService: TrustedDeviceService
+    private readonly trustedDeviceService: TrustedDeviceService,
+    @Inject(REPO.LOGIN_METHOD)
+    private readonly loginMethodRepository: ILoginMethodRepository,
+    private readonly passwordSetupRequirementService: PasswordSetupRequirementService
   ) {}
 
   async resolveChallengeForSelectedAccount(
     input: Omit<AccountMfaChallengeInput, 'scenario'>
   ): Promise<null | SelectedAccountLoginFlowChallenge> {
     if (input.loginMethod === LoginMethodEnum.ContextSwitch) {
+      return null
+    }
+
+    if (await this.shouldBypassInitialOtpBootstrapMfa(input)) {
       return null
     }
 
@@ -110,7 +127,11 @@ export class LoginMfaOrchestrationService {
         ...input,
         scenario: selectedScenario
       },
-      policy
+      policy,
+      {
+        loginMethod: input.loginMethod,
+        allowBootstrapOtpFactors: true
+      }
     )
 
     if (!challenge) {
@@ -197,24 +218,48 @@ export class LoginMfaOrchestrationService {
 
   private async resolveAvailableFactors(
     userId: string,
-    policy: ManagedMfaPolicy
+    policy: ManagedMfaPolicy,
+    options?: FactorResolutionOptions
   ): Promise<LoginMfaFactorOption[]> {
     const bindings = await this.mfaBindingManagementService.listBindings(userId)
     const bindingMap = new Map(bindings.map((binding) => [binding.type, binding]))
+    const [emailLoginMethod, phoneLoginMethod] = options?.allowBootstrapOtpFactors
+      ? await Promise.all([
+          this.loginMethodRepository.findByUserIdAndType(userId, LoginMethodType.EMAIL),
+          this.loginMethodRepository.findByUserIdAndType(userId, LoginMethodType.PHONE)
+        ])
+      : [null, null]
 
     return policy
       .getFactors()
       .filter((factorPolicy) => factorPolicy.enabled)
       .map((factorPolicy) => {
         const binding = bindingMap.get(factorPolicy.factor)
-        if (!binding || !binding.enabled || !binding.available) {
-          return null
+        if (binding?.enabled && binding.available) {
+          return {
+            type: factorPolicy.factor,
+            label: labelForFactor(factorPolicy.factor),
+            priority: factorPolicy.priority
+          }
         }
-        return {
-          type: factorPolicy.factor,
-          label: labelForFactor(factorPolicy.factor),
-          priority: factorPolicy.priority
+
+        if (
+          options?.allowBootstrapOtpFactors &&
+          this.canUseLoginMethodOtpAsChallengeFactor({
+            factor: factorPolicy.factor,
+            loginMethod: options.loginMethod,
+            emailLoginMethod,
+            phoneLoginMethod
+          })
+        ) {
+          return {
+            type: factorPolicy.factor,
+            label: labelForFactor(factorPolicy.factor),
+            priority: factorPolicy.priority
+          }
         }
+
+        return null
       })
       .filter((value): value is LoginMfaFactorOption => Boolean(value))
   }
@@ -240,19 +285,21 @@ export class LoginMfaOrchestrationService {
 
   private async buildChallengeForScenario(
     input: AccountMfaChallengeInput,
-    policy: ManagedMfaPolicy
+    policy: ManagedMfaPolicy,
+    options?: FactorResolutionOptions
   ): Promise<null | SelectedAccountMfaChallenge> {
     if (!policy.isScenarioRequired(input.scenario)) {
       return null
     }
 
-    const availableFactors = await this.resolveAvailableFactors(input.userId, policy)
+    const availableFactors = await this.resolveAvailableFactors(input.userId, policy, options)
     if (availableFactors.length === 0) {
-      throw ExceptionFactory.domain(AUTH_MFA_LOGIN_METHOD_UNAVAILABLE, {
+      throw ExceptionFactory.domain(AUTH_MFA_FACTOR_UNAVAILABLE, {
         userId: input.userId,
         tenantId: input.tenantId,
         accountId: input.accountId,
-        scenario: input.scenario
+        scenario: input.scenario,
+        loginMethod: input.loginMethod
       })
     }
 
@@ -293,15 +340,66 @@ export class LoginMfaOrchestrationService {
         factor
       })
     }
-    const allowedFactors = await this.resolveAvailableFactors(flow.sub, policy)
+    const allowedFactors = await this.resolveAvailableFactors(flow.sub, policy, {
+      loginMethod: flow.loginMethod,
+      allowBootstrapOtpFactors: true
+    })
     if (!allowedFactors.some((item) => item.type === factor)) {
-      throw ExceptionFactory.domain(AUTH_MFA_LOGIN_METHOD_UNAVAILABLE, {
+      throw ExceptionFactory.domain(AUTH_MFA_FACTOR_UNAVAILABLE, {
         userId: flow.sub,
         factor,
         tenantId: flow.tid,
-        scopeLevel: flow.scopeLevel
+        scopeLevel: flow.scopeLevel,
+        loginMethod: flow.loginMethod
       })
     }
+  }
+
+  private async shouldBypassInitialOtpBootstrapMfa(
+    input: Omit<AccountMfaChallengeInput, 'scenario'>
+  ): Promise<boolean> {
+    if (
+      input.loginMethod !== LoginMethodEnum.EmailOtp &&
+      input.loginMethod !== LoginMethodEnum.PhoneOtp
+    ) {
+      return false
+    }
+
+    return this.passwordSetupRequirementService.userNeedsInitialPasswordSetup(input.userId)
+  }
+
+  private canUseLoginMethodOtpAsChallengeFactor(input: {
+    factor: TenantMfaFactor
+    loginMethod?: LoginMethodEnum
+    emailLoginMethod: LoginMethod | null
+    phoneLoginMethod: LoginMethod | null
+  }): boolean {
+    switch (input.factor) {
+      case MfaType.EMAIL_OTP:
+        return (
+          input.loginMethod !== LoginMethodEnum.EmailOtp &&
+          this.isLoginMethodOtpAvailable(input.emailLoginMethod, CredentialType.EMAIL_OTP)
+        )
+      case MfaType.SMS_OTP:
+        return (
+          input.loginMethod !== LoginMethodEnum.PhoneOtp &&
+          this.isLoginMethodOtpAvailable(input.phoneLoginMethod, CredentialType.PHONE_OTP)
+        )
+      default:
+        return false
+    }
+  }
+
+  private isLoginMethodOtpAvailable(
+    loginMethod: LoginMethod | null,
+    credentialType: 'EMAIL_OTP' | 'PHONE_OTP'
+  ): boolean {
+    if (!loginMethod || !loginMethod.isEnabled() || !loginMethod.isVerified()) {
+      return false
+    }
+
+    const otpCredential = loginMethod.getCredentialByType(credentialType)
+    return !otpCredential || otpCredential.isEnabled()
   }
 
   private async resolvePolicy(

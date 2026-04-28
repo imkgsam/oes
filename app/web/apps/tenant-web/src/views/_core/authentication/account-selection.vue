@@ -16,7 +16,7 @@ const accountCountText = computed(() => `${options.value.length} 个可用账号
 
 // Returns users to login when the in-memory post-auth account selection state is no longer available.
 watchEffect(() => {
-  if (options.value.length === 0) {
+  if (options.value.length === 0 && authStore.authBlockReason !== 'MFA_FACTOR_UNAVAILABLE') {
     void router.replace({ name: 'Login' });
   }
 });

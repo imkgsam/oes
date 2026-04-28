@@ -221,6 +221,18 @@ describe('tenant-web request auth recovery error suppression', () => {
       shouldSuppressAuthRecoveryError({
         response: {
           data: {
+            code: 'AUTH_MFA_FACTOR_UNAVAILABLE',
+            messageKey: 'auth.mfa_factor_unavailable'
+          },
+          status: 400
+        }
+      })
+    ).toBe(true)
+
+    expect(
+      shouldSuppressAuthRecoveryError({
+        response: {
+          data: {
             code: 'AUTH_REFRESH_TOKEN_INVALID',
             messageKey: 'auth.refresh_token_invalid'
           },
@@ -261,6 +273,20 @@ describe('tenant-web request validation message mapping', () => {
         'fallback'
       )
     ).toBe('请求数据校验失败，请检查输入后重试。')
+  })
+
+  it('maps unavailable login-scene MFA factors to a clear remediation hint', async () => {
+    const { resolveUserFacingErrorMessage } = await import('./request')
+
+    expect(
+      resolveUserFacingErrorMessage(
+        {
+          code: 'AUTH_MFA_FACTOR_UNAVAILABLE',
+          message: 'No available MFA factor can satisfy the current login challenge'
+        },
+        'fallback'
+      )
+    ).toBe('当前账号没有可用于本次登录验证的独立 MFA 因子，请改用密码登录后完成二次验证，或先配置其他 MFA 因子。')
   })
 })
 

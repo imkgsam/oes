@@ -80,7 +80,7 @@ export class SelfContactBindingUseCase {
       source
     )
 
-    await this.identityAdapter.updateUserBasicInfo(
+    await this.identityAdapter.updateOwnUserBasicInfo(
       {
         accountId: self.accountId ?? '',
         userId: self.userId,
@@ -88,7 +88,7 @@ export class SelfContactBindingUseCase {
       },
       source
     )
-    await this.authAdapter.bootstrapUserLoginMethods(
+    await this.authAdapter.bootstrapOwnLoginMethods(
       {
         userId: self.userId,
         accountId: self.accountId ?? '',
@@ -122,7 +122,7 @@ export class SelfContactBindingUseCase {
       source
     )
 
-    await this.identityAdapter.updateUserBasicInfo(
+    await this.identityAdapter.updateOwnUserBasicInfo(
       {
         accountId: self.accountId ?? '',
         userId: self.userId,
@@ -130,7 +130,7 @@ export class SelfContactBindingUseCase {
       },
       source
     )
-    await this.authAdapter.bootstrapUserLoginMethods(
+    await this.authAdapter.bootstrapOwnLoginMethods(
       {
         userId: self.userId,
         accountId: self.accountId ?? '',

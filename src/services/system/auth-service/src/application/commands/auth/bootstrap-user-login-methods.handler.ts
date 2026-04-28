@@ -1,15 +1,13 @@
 import { Inject } from '@nestjs/common'
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
-import { LoginMethodType, MfaType } from '@oes/common/constants'
+import { LoginMethodType } from '@oes/common/constants'
 import { ExceptionFactory, VALIDATION_FAILED } from '@oes/common/exceptions'
 import { randomUUID } from 'crypto'
 import { CredentialType } from '../../../../prisma/generated/prisma'
 import { REPO } from '../../../common/constants'
 import { LoginMethod } from '../../../domain/aggregates/loginmethod.aggregate'
-import { MfaBindingEntity } from '../../../domain/aggregates/mfabinding.aggregate'
 import { Credential } from '../../../domain/entities/credential.entity'
 import { ILoginMethodRepository } from '../../../domain/repositories/loginmethod.repository'
-import { IMfaBindingRepository } from '../../../domain/repositories/mfaBinding.repository'
 import { BootstrapUserLoginMethodsCommand } from './bootstrap-user-login-methods.command'
 
 export interface BootstrapUserLoginMethodsResult {
@@ -19,15 +17,13 @@ export interface BootstrapUserLoginMethodsResult {
 }
 
 @CommandHandler(BootstrapUserLoginMethodsCommand)
-// Bootstraps invite-ready login methods and a seeded test TOTP binding for one newly created user.
+// Bootstraps invite-ready login methods for one newly created or newly rebound user without fabricating MFA bindings.
 export class BootstrapUserLoginMethodsHandler
   implements ICommandHandler<BootstrapUserLoginMethodsCommand, BootstrapUserLoginMethodsResult>
 {
   constructor(
     @Inject(REPO.LOGIN_METHOD)
-    private readonly loginMethodRepository: ILoginMethodRepository,
-    @Inject(REPO.MFA_BINDING)
-    private readonly mfaBindingRepository: IMfaBindingRepository
+    private readonly loginMethodRepository: ILoginMethodRepository
   ) {}
 
   async execute(
@@ -63,16 +59,6 @@ export class BootstrapUserLoginMethodsHandler
         sharedPasswordSecret
       )
       await this.loginMethodRepository.save(loginMethod)
-    }
-
-    const existingTotpBinding = await this.mfaBindingRepository.findByUserIdAndType(
-      command.userId,
-      MfaType.TOTP
-    )
-    if (!existingTotpBinding) {
-      await this.mfaBindingRepository.save(
-        MfaBindingEntity.createSeededTestTotpBinding(command.userId)
-      )
     }
 
     return {

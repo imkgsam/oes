@@ -1,5 +1,5 @@
 import { ICommand } from '@nestjs/cqrs'
-import { IsString, MinLength } from 'class-validator'
+import { IsOptional, IsString, MinLength } from 'class-validator'
 
 // Carries a self-service password change request for the authenticated user.
 export class ChangeOwnPasswordCommand implements ICommand {
@@ -24,6 +24,7 @@ export class ChangeOwnPasswordCommand implements ICommand {
   @MinLength(8)
   readonly newPassword: string
 
+  @IsOptional()
   @IsString()
   readonly mfaGrantToken?: string
 

@@ -48,6 +48,8 @@ function setupCommonGuard(router: Router) {
  * @param router
  */
 function setupAccessGuard(router: Router) {
+  let hasRevalidatedCheckedAccess = false;
+
   router.beforeEach(async (to, from) => {
     const accessStore = useAccessStore();
     const userStore = useUserStore();
@@ -110,8 +112,12 @@ function setupAccessGuard(router: Router) {
       return { name: FIRST_LOGIN_PASSWORD_ROUTE_NAME, replace: true };
     }
 
-    // 是否已经生成过动态路由
+    // 已有访问快照时，本页首次进入仍要刷新一次当前会话，避免持久化的旧导航事实卡住动态路由。
     if (accessStore.isAccessChecked) {
+      if (!hasRevalidatedCheckedAccess) {
+        hasRevalidatedCheckedAccess = true;
+        await authStore.refreshCurrentSessionAccess();
+      }
       return true;
     }
 
@@ -135,6 +141,7 @@ function setupAccessGuard(router: Router) {
     accessStore.setAccessMenus(accessibleMenus);
     accessStore.setAccessRoutes(accessibleRoutes);
     accessStore.setIsAccessChecked(true);
+    hasRevalidatedCheckedAccess = true;
     const redirectPath = (from.query.redirect ??
       (to.path === preferences.app.defaultHomePath
         ? userInfo.homePath || preferences.app.defaultHomePath

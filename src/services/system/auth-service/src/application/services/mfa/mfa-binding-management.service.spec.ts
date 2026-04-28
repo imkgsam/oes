@@ -2,6 +2,7 @@ import { MfaType, LoginMethodType } from '@oes/common/constants'
 import { OESExceptionBase } from '@oes/common/exceptions'
 import { CredentialType } from '../../../../prisma/generated/prisma'
 import { LoginMethod } from '../../../domain/aggregates/loginmethod.aggregate'
+import { MfaBindingEntity } from '../../../domain/aggregates/mfabinding.aggregate'
 import { Credential } from '../../../domain/entities/credential.entity'
 import { MfaBindingManagementService } from './mfa-binding-management.service'
 
@@ -114,5 +115,54 @@ describe('MfaBindingManagementService', () => {
     await service.enableOtpBinding('user-1', MfaType.SMS_OTP).catch((error) => {
       expect((error as OESExceptionBase).getCode()).toBe('AUTH_MFA_LOGIN_METHOD_UNAVAILABLE')
     })
+  })
+
+  it('hides a legacy seeded test totp binding from the managed binding list', async () => {
+    const seededTotp = MfaBindingEntity.createSeededTestTotpBinding('user-1')
+    const service = new MfaBindingManagementService(
+      {
+        findByUserIdAndType: jest.fn().mockImplementation(async (_userId: string, type: MfaType) => {
+          return type === MfaType.TOTP ? seededTotp : null
+        })
+      } as any,
+      {
+        findByUserIdAndType: jest.fn().mockResolvedValue(null)
+      } as any
+    )
+
+    const bindings = await service.listBindings('user-1')
+    const totpBinding = bindings.find((binding) => binding.type === MfaType.TOTP)
+
+    expect(totpBinding).toMatchObject({
+      bindingId: '',
+      type: MfaType.TOTP,
+      enabled: false,
+      available: true
+    })
+  })
+
+  it('allows initializing a real totp binding when only a legacy seeded binding exists', async () => {
+    const seededTotp = MfaBindingEntity.createSeededTestTotpBinding('user-1')
+    const mfaBindingRepo = {
+      delete: jest.fn(),
+      findByUserIdAndType: jest.fn().mockResolvedValue(seededTotp),
+      save: jest.fn()
+    }
+    const service = new MfaBindingManagementService(
+      mfaBindingRepo as any,
+      {
+        findByUserIdAndType: jest.fn().mockResolvedValue(null)
+      } as any
+    )
+
+    const result = await service.initializeTotpBinding('user-1')
+
+    expect(result.binding).toMatchObject({
+      type: MfaType.TOTP,
+      enabled: false,
+      available: true
+    })
+    expect(mfaBindingRepo.save).toHaveBeenCalledTimes(1)
+    expect(mfaBindingRepo.save.mock.calls[0][0]).not.toBe(seededTotp)
   })
 })

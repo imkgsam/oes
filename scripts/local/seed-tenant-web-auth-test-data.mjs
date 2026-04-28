@@ -22,6 +22,10 @@ import {
   SEEDED_USERS,
   SYSTEM_ACCOUNT_IDS,
 } from './tenant-web-auth-test-fixtures.mjs';
+import {
+  buildConflictingIdentityUserIds,
+  resolveTenantWebAuthSeedState,
+} from './tenant-web-auth-seed-resolution.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -98,9 +102,76 @@ function syncPermissionFoundationForLocalSystemAccount() {
 }
 
 // Writes the requested realistic tenant, user, account, and contact fixture rows into identity-service.
-async function seedIdentity(identity) {
+async function seedIdentity(identity, seedState) {
   await identity.$transaction(async (tx) => {
-    for (const company of SEEDED_COMPANIES) {
+    const existingConflictingUsers = await tx.user.findMany({
+      where: {
+        OR: [
+          {
+            username: {
+              in: SEEDED_USERS.map((user) => user.username),
+            },
+          },
+          {
+            email: {
+              in: SEEDED_USERS.map((user) => user.email),
+            },
+          },
+          {
+            phone: {
+              in: SEEDED_USERS.map((user) => user.phone),
+            },
+          },
+        ],
+      },
+      select: {
+        email: true,
+        id: true,
+        phone: true,
+        username: true,
+      },
+    });
+
+    const conflictingUserIds = buildConflictingIdentityUserIds({
+      existingUsers: existingConflictingUsers,
+      managedUserIds: MANAGED_USER_IDS,
+      seededUsers: SEEDED_USERS,
+    });
+
+    if (conflictingUserIds.length > 0) {
+      const conflictingAccountIds = (
+        await tx.userAccount.findMany({
+          where: {
+            userId: { in: conflictingUserIds },
+          },
+          select: {
+            id: true,
+          },
+        })
+      ).map((account) => account.id);
+
+      if (conflictingAccountIds.length > 0) {
+        await tx.accountContactAsset.deleteMany({
+          where: {
+            accountId: { in: conflictingAccountIds },
+          },
+        });
+      }
+
+      await tx.userAccount.deleteMany({
+        where: {
+          userId: { in: conflictingUserIds },
+        },
+      });
+
+      await tx.user.deleteMany({
+        where: {
+          id: { in: conflictingUserIds },
+        },
+      });
+    }
+
+    for (const company of seedState.seededCompanies) {
       await tx.tenant.upsert({
         where: { id: company.id },
         update: {
@@ -143,7 +214,7 @@ async function seedIdentity(identity) {
       },
     });
 
-    for (const account of SEEDED_ACCOUNTS) {
+    for (const account of seedState.seededAccounts) {
       await tx.userAccount.upsert({
         where: { id: account.id },
         update: {
@@ -174,9 +245,9 @@ async function seedIdentity(identity) {
       },
     });
 
-    if (SEEDED_CONTACT_ASSETS.length > 0) {
+    if (seedState.seededContactAssets.length > 0) {
       await tx.accountContactAsset.createMany({
-        data: SEEDED_CONTACT_ASSETS.map((asset) => ({
+        data: seedState.seededContactAssets.map((asset) => ({
           id: asset.id,
           accountId: asset.accountId,
           assignedAt: asset.assignedAt,
@@ -276,9 +347,9 @@ async function seedAuth(auth, passwordHash) {
 }
 
 // Seeds tenant-scoped role instances and account-role bindings while preserving the built-in system admin role flow.
-async function seedPermission(permission) {
+async function seedPermission(permission, seedState) {
   await permission.$transaction(async (tx) => {
-    for (const role of SEEDED_TENANT_ROLES) {
+    for (const role of seedState.seededTenantRoles) {
       await tx.role.upsert({
         where: { id: role.id },
         update: {
@@ -307,13 +378,13 @@ async function seedPermission(permission) {
 
     await tx.rolePermission.deleteMany({
       where: {
-        roleId: { in: SEEDED_TENANT_ROLES.map((role) => role.id) },
+        roleId: { in: seedState.seededTenantRoles.map((role) => role.id) },
       },
     });
 
     const tenantPermissionCodes = [
       ...new Set(
-        SEEDED_TENANT_ROLES.flatMap((role) =>
+        seedState.seededTenantRoles.flatMap((role) =>
           SEEDED_TENANT_ROLE_PERMISSION_CODES.get(role.code) ?? [],
         ),
       ),
@@ -345,7 +416,7 @@ async function seedPermission(permission) {
       );
     }
 
-    const tenantRolePermissionRows = SEEDED_TENANT_ROLES.flatMap((role) =>
+    const tenantRolePermissionRows = seedState.seededTenantRoles.flatMap((role) =>
       (SEEDED_TENANT_ROLE_PERMISSION_CODES.get(role.code) ?? []).map((permissionCode) => ({
         roleId: role.id,
         permissionId: permissionsByCode.get(permissionCode),
@@ -360,13 +431,13 @@ async function seedPermission(permission) {
 
     await tx.accountRole.deleteMany({
       where: {
-        roleId: { in: SEEDED_TENANT_ROLES.map((role) => role.id) },
+        roleId: { in: seedState.seededTenantRoles.map((role) => role.id) },
       },
     });
 
-    if (SEEDED_ACCOUNT_ROLE_BINDINGS.length > 0) {
+    if (seedState.seededAccountRoleBindings.length > 0) {
       await tx.accountRole.createMany({
-        data: SEEDED_ACCOUNT_ROLE_BINDINGS.map((binding) => ({
+        data: seedState.seededAccountRoleBindings.map((binding) => ({
           accountId: binding.accountId,
           accountType: AccountType[binding.accountType],
           effectiveAt: binding.effectiveAt,
@@ -381,9 +452,9 @@ async function seedPermission(permission) {
 }
 
 // Rebuilds tenant-org-service tenant and root org facts so gateway hydration uses the proper tenant truth owner.
-async function seedTenantOrg(tenantOrg) {
+async function seedTenantOrg(tenantOrg, seedState) {
   await tenantOrg.$transaction(async (tx) => {
-    const managedTenantIds = SEEDED_TENANT_ORG_TENANTS.map((tenant) => tenant.id);
+    const managedTenantIds = seedState.seededTenantOrgTenants.map((tenant) => tenant.id);
 
     await tx.orgUnit.deleteMany({
       where: {
@@ -391,7 +462,7 @@ async function seedTenantOrg(tenantOrg) {
       },
     });
 
-    for (const tenant of SEEDED_TENANT_ORG_TENANTS) {
+    for (const tenant of seedState.seededTenantOrgTenants) {
       await tx.tenant.upsert({
         where: { id: tenant.id },
         update: {
@@ -410,7 +481,7 @@ async function seedTenantOrg(tenantOrg) {
       });
     }
 
-    for (const orgUnit of SEEDED_TENANT_ORG_ROOT_UNITS) {
+    for (const orgUnit of seedState.seededTenantOrgRootUnits) {
       await tx.orgUnit.create({
         data: {
           id: orgUnit.id,
@@ -426,6 +497,56 @@ async function seedTenantOrg(tenantOrg) {
         },
       });
     }
+  });
+}
+
+// Loads existing identity and tenant-org tenant rows so the local auth seed can reuse stable business codes across prior fixture revisions.
+async function resolveSeedState(identity, permission, tenantOrg) {
+  const seededCodes = SEEDED_COMPANIES.map((company) => company.code);
+  const [existingIdentityTenants, existingPermissionRoles, existingTenantOrgTenants] = await Promise.all([
+    identity.tenant.findMany({
+      where: {
+        code: { in: seededCodes },
+      },
+      select: {
+        code: true,
+        id: true,
+      },
+    }),
+    permission.role.findMany({
+      where: {
+        code: { in: SEEDED_TENANT_ROLES.map((role) => role.code) },
+      },
+      select: {
+        code: true,
+        id: true,
+        kind: true,
+        scopeKey: true,
+      },
+    }),
+    tenantOrg.tenant.findMany({
+      where: {
+        code: { in: seededCodes },
+      },
+      select: {
+        code: true,
+        id: true,
+        rootOrgId: true,
+      },
+    }),
+  ]);
+
+  return resolveTenantWebAuthSeedState({
+    existingIdentityTenants,
+    existingPermissionRoles,
+    existingTenantOrgTenants,
+    seededAccountRoleBindings: SEEDED_ACCOUNT_ROLE_BINDINGS,
+    seededAccounts: SEEDED_ACCOUNTS,
+    seededCompanies: SEEDED_COMPANIES,
+    seededContactAssets: SEEDED_CONTACT_ASSETS,
+    seededTenantOrgRootUnits: SEEDED_TENANT_ORG_ROOT_UNITS,
+    seededTenantOrgTenants: SEEDED_TENANT_ORG_TENANTS,
+    seededTenantRoles: SEEDED_TENANT_ROLES,
   });
 }
 
@@ -463,12 +584,13 @@ async function main() {
 
   try {
     const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
+    const seedState = await resolveSeedState(identity, permission, tenantOrg);
 
-    await seedIdentity(identity);
+    await seedIdentity(identity, seedState);
     await seedAuth(auth, passwordHash);
-    await seedTenantOrg(tenantOrg);
+    await seedTenantOrg(tenantOrg, seedState);
     syncPermissionFoundationForLocalSystemAccount();
-    await seedPermission(permission);
+    await seedPermission(permission, seedState);
     syncPermissionFoundationForLocalSystemAccount();
     printSummary();
   } finally {

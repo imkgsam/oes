@@ -34,12 +34,20 @@
 6. [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
    - 员工、任职关系与人力基础事实职责卡
 7. [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-   - 客户关系、销售前置研究、lead draft 与未来 CRM 销售对象职责卡
-8. [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
-   - 供应商关系、供应商联系人与供应商分析视图职责卡
-9. [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
+   - 客户关系、最小客户主档、销售前置研究与未来 CRM 销售对象职责卡
+8. [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
+   - 报价、正式报价版本、销售订单、客户承诺与 fulfillment handoff 职责卡
+9. [finance-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/finance-service.md)
+   - 经营财务闭环、AR、发票、回款、信用、finance release 与 future accounting core 边界职责卡
+10. [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
+   - 最小供应商主档、主体绑定、联系人、地址与供应关系职责卡
+11. [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md)
+   - 统一采购需求入口、PR/PO 最小闭环、收货预期与采购差异摘要职责卡
+12. [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
+   - Item、能力、套装组成与供应商型号映射职责卡
+13. [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
    - 仓储执行、库存真相、占用控制、包装转换与后处理仓储协同职责卡
-10. [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md)
+14. [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md)
    - 受控资产元数据、对象存储编排与头像资产生命周期职责卡
 
 ## 4. 新服务准入规则

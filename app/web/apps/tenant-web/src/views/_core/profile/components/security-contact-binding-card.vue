@@ -476,7 +476,7 @@ function resolveValueValidationError() {
               :loading="verifyLoading"
               @click="submitBinding"
             >
-              确认更换
+              确认
             </Button>
           </div>
         </Form>

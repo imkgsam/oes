@@ -35,6 +35,34 @@
 
 ## 3. 联系方式资产管理
 
+### `UpdateOwnUserBasicInfo`
+
+- 作用：更新当前认证账号所属用户的自助登录联系方式
+- 必要上下文：
+  - internal service
+  - authenticated operator
+- 请求关键字段：
+  - `account_id`
+  - `user_id`
+  - `email` 或 `phone`
+- 关键语义：
+  - 这是 self-service 专用边界，不复用管理员资料权限
+  - controller 必须校验 `operator_id == account_id`
+  - handler 仍需校验 `account_id -> user_id` 归属关系与 tenant 资源边界
+
+### `UpdateUserBasicInfo`
+
+- 作用：由管理员更新目标账号所属用户的登录联系方式
+- 必要权限：
+  - `identity.account.profile.update`
+- 请求关键字段：
+  - `account_id`
+  - `user_id`
+  - `email` 或 `phone`
+- 关键语义：
+  - 这是 admin-management 专用边界
+  - self-service 链路不得再复用该接口
+
 ### `AssignAccountWorkEmailAsset`
 
 - 作用：为账户分配工作邮箱资产

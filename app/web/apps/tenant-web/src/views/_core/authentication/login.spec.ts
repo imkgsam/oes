@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const routerPush = vi.fn()
 const routerReplace = vi.fn()
+const setFieldValue = vi.fn()
+const storageState = vi.hoisted(() => new Map<string, string>())
 const loginFormValues = vi.hoisted(() => ({
   values: {} as Record<string, any>
 }))
@@ -35,7 +37,8 @@ vi.mock('@vben/common-ui', () => ({
     setup(_, { expose }) {
       expose({
         getFormApi: () => ({
-          getValues: vi.fn().mockResolvedValue(loginFormValues.values)
+          getValues: vi.fn().mockResolvedValue(loginFormValues.values),
+          setFieldValue
         })
       })
 
@@ -102,11 +105,23 @@ vi.mock('#/store', () => ({
   })
 }))
 
+Object.defineProperty(globalThis, 'localStorage', {
+  value: {
+    clear: () => storageState.clear(),
+    getItem: (key: string) => storageState.get(key) ?? null,
+    removeItem: (key: string) => storageState.delete(key),
+    setItem: (key: string, value: string) => storageState.set(key, value)
+  },
+  configurable: true
+})
+
 // Verifies the login page passes the current identifier into password recovery navigation.
 describe('password login recovery navigation', () => {
   beforeEach(() => {
+    localStorage.clear()
     routerPush.mockReset()
     routerReplace.mockReset()
+    setFieldValue.mockReset()
     routeState.query = {}
     loginFormValues.values = {}
   })
@@ -164,6 +179,37 @@ describe('password login recovery navigation', () => {
     loginFormValues.values = { phoneNumber: '+8613800138000' }
     const view = await import('./login.vue')
     const wrapper = mount(view.default)
+
+    const codeLoginButton = wrapper
+      .findAll('button')
+      .find((button) => button.text().includes('验证码登录'))
+    await codeLoginButton?.trigger('click')
+
+    expect(routerPush).toHaveBeenCalledWith({
+      name: 'CodeLogin',
+      query: {
+        mode: 'phone',
+        identifier: '+8613800138000'
+      }
+    })
+  })
+
+  it('restores the last used phone password login mode and identifier when no route query is provided', async () => {
+    localStorage.setItem(
+      'tenant-web.auth.login-preference.v1',
+      JSON.stringify({
+        password: {
+          mode: 'phone',
+          phoneNumber: '+8613800138000'
+        }
+      })
+    )
+    const view = await import('./login.vue')
+    const wrapper = mount(view.default)
+
+    await Promise.resolve()
+
+    expect(setFieldValue).toHaveBeenCalledWith('phoneNumber', '+8613800138000')
 
     const codeLoginButton = wrapper
       .findAll('button')

@@ -15,7 +15,7 @@
 - 窑炉 / 窑次 / 窑车 / 位置级烧成追溯事实
 - 模具、泥浆、釉料等制造现场使用事实
 - 制造过程中的 WIP stage、WIP location 与关键 buffer 容量事实
-- 面向 planning、quality、WMS、ERP 的制造领域事件
+- 面向 planning、quality、WMS、sales / fulfillment 的制造领域事件
 
 ## 3. Does Not Own
 
@@ -44,8 +44,8 @@
   - 统一扫码入口 / trace identity
 - 典型下游：
   - `quality-service`
-  - `wms`
-  - `erp`
+  - `wms-service`
+  - `sales-service / fulfillment boundary`
 - 典型契约形态：
   - 命令型：工序提交、质检记录、报废确认、仓储移交
   - 查询型：追溯摘要、WIP 汇总、关键缓冲区容量摘要
@@ -76,5 +76,5 @@
 - 不直接替代 APS 或计划工作台
 - 不直接替代 quality-service 的规则中心角色
 - 不直接替代 WMS 的仓储与发运职责
-- 不直接替代 ERP 的订单、财务、工资与经营职责
+- 不直接替代 `sales-service`、future `finance-service` 或其他经营域的订单、财务、工资职责
 - 不把无码过渡对象伪装成完整单件追溯对象

@@ -27,6 +27,8 @@ import {
   ListAccountWorkPhoneAssetsResponse,
   UpdateOwnAccountProfileRequest,
   UpdateOwnAccountProfileResponse,
+  UpdateOwnUserBasicInfoRequest,
+  UpdateOwnUserBasicInfoResponse,
   UpdateAccountProfileResponse,
   UpdateUserBasicInfoRequest,
   UpdateUserBasicInfoResponse,
@@ -170,6 +172,28 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
     return this.call(
       'updateOwnAccountProfile',
       this.managementSvc.updateOwnAccountProfile(request, this.operatorMetadata(source))
+    )
+  }
+
+  updateOwnUserBasicInfo(
+    request: {
+      accountId: string
+      userId: string
+      email?: string
+      phone?: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<UpdateOwnUserBasicInfoResponse> {
+    const grpcRequest: UpdateOwnUserBasicInfoRequest = {
+      accountId: request.accountId,
+      userId: request.userId,
+      email: request.email,
+      phone: request.phone
+    }
+
+    return this.call(
+      'updateOwnUserBasicInfo',
+      this.managementSvc.updateOwnUserBasicInfo(grpcRequest, this.operatorMetadata(source))
     )
   }
 

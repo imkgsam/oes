@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const replaceMock = vi.fn()
 const pushMock = vi.fn()
@@ -25,21 +25,23 @@ const generateAccessMock = vi.fn()
 const requestMfaFactorChallengeApiMock = vi.fn()
 const accessStoreMock: {
   accessToken: null | string
+  isAccessChecked: boolean
   loginExpired: boolean
-  setAccessMenus: ReturnType<typeof vi.fn>
   setAccessCodes: ReturnType<typeof vi.fn>
-  setAccessToken: ReturnType<typeof vi.fn>
+  setAccessMenus: ReturnType<typeof vi.fn>
   setAccessRoutes: ReturnType<typeof vi.fn>
+  setAccessToken: ReturnType<typeof vi.fn>
   setIsAccessChecked: ReturnType<typeof vi.fn>
   setLoginExpired: ReturnType<typeof vi.fn>
   setRefreshToken: ReturnType<typeof vi.fn>
 } = {
   accessToken: 'access-token',
+  isAccessChecked: true,
   loginExpired: false,
-  setAccessMenus: vi.fn(),
   setAccessCodes: vi.fn(),
-  setAccessToken: vi.fn(),
+  setAccessMenus: vi.fn(),
   setAccessRoutes: vi.fn(),
+  setAccessToken: vi.fn(),
   setIsAccessChecked: vi.fn(),
   setLoginExpired: vi.fn(),
   setRefreshToken: vi.fn()
@@ -68,6 +70,7 @@ const authContextStoreMock = {
       defaultHomePath: '/admin/role-management',
       visibleEntries: ['admin.role-management', 'admin.navigation-management']
     },
+    passwordSetupRequired: false,
     scopeLevel: 'SYSTEM'
   },
   setAuthContext: vi.fn()
@@ -143,7 +146,8 @@ vi.mock('ant-design-vue', () => ({
     success: vi.fn()
   },
   notification: {
-    success: vi.fn()
+    success: vi.fn(),
+    warning: vi.fn()
   }
 }))
 
@@ -168,6 +172,7 @@ describe('tenant-web auth store logout', () => {
     generateAccessMock.mockReset()
     requestMfaFactorChallengeApiMock.mockReset()
     accessStoreMock.accessToken = 'access-token'
+    accessStoreMock.isAccessChecked = true
     accessStoreMock.loginExpired = false
     accessStoreMock.setAccessMenus.mockReset()
     accessStoreMock.setAccessCodes.mockReset()
@@ -200,6 +205,7 @@ describe('tenant-web auth store logout', () => {
         defaultHomePath: '/admin/role-management',
         visibleEntries: ['admin.role-management', 'admin.navigation-management']
       },
+      passwordSetupRequired: false,
       scopeLevel: 'SYSTEM'
     }
     authContextStoreMock.setAuthContext.mockReset()
@@ -378,6 +384,38 @@ describe('tenant-web auth store logout', () => {
     expect(requestMfaFactorChallengeApiMock).not.toHaveBeenCalled()
   })
 
+  it('shows a follow-up security reminder after first-login password setup completes', async () => {
+    const { message, notification } = await import('ant-design-vue')
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    completeFirstLoginPasswordSetupApiMock.mockResolvedValue(undefined)
+    userStoreMock.userInfo = {
+      ...userStoreMock.userInfo,
+      homePath: '/tenant/workbench'
+    }
+    authContextStoreMock.sessionContext = {
+      ...authContextStoreMock.sessionContext,
+      passwordSetupRequired: true
+    }
+
+    await store.completeFirstLoginPasswordSetup({
+      newPassword: 'Secret123!',
+      confirmPassword: 'Secret123!'
+    })
+
+    expect(completeFirstLoginPasswordSetupApiMock).toHaveBeenCalledWith({
+      newPassword: 'Secret123!',
+      confirmPassword: 'Secret123!'
+    })
+    expect(replaceMock).toHaveBeenCalledWith('/tenant/workbench')
+    expect(message.success).toHaveBeenCalledWith('密码已设置')
+    expect(notification.warning).toHaveBeenCalledWith({
+      message: '安全提醒',
+      description: '当前账号仍建议尽快配置 MFA，以便后续新设备登录时完成独立二次验证。'
+    })
+  })
+
   it('requests the active email MFA factor challenge only after the explicit send step', async () => {
     requestMfaFactorChallengeApiMock.mockResolvedValue({
       challengeId: 'factor-2',
@@ -480,6 +518,30 @@ describe('tenant-web auth store logout', () => {
     })
   })
 
+  it('redirects to the dedicated unavailable-mfa page when account selection hits no usable MFA factor', async () => {
+    selectAccountApiMock.mockRejectedValue({
+      response: {
+        data: {
+          code: 'AUTH_MFA_FACTOR_UNAVAILABLE',
+          messageKey: 'auth.mfa_factor_unavailable'
+        }
+      }
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+    store.pendingUserId = 'user-1'
+    store.pendingLoginMethod = 'PHONE_OTP'
+
+    await expect(store.submitAccountSelection('account-1')).resolves.toEqual({
+      userInfo: null
+    })
+
+    expect(replaceMock).toHaveBeenCalledWith({ name: 'MfaFactorUnavailable' })
+    expect(store.pendingChallengeId).toBe('')
+    expect(store.pendingMfaFactor).toBe(null)
+  })
+
   it('refreshes the current session navigation and rebuilds access state after governance changes', async () => {
     getSessionContextApiMock.mockResolvedValue({
       account: {
@@ -565,7 +627,43 @@ describe('tenant-web auth store logout', () => {
     expect(replaceMock).toHaveBeenCalledWith('/admin/navigation-management')
   })
 
-  it('preserves the persisted permission snapshot until the user logs in again', async () => {
+  it('rehydrates the current session when cached user info exists but access routes were not rebuilt', async () => {
+    accessStoreMock.isAccessChecked = false
+    getSessionContextApiMock.mockResolvedValue({
+      account: {
+        accountId: 'account-1',
+        name: 'System Admin',
+        scopeLevel: 'SYSTEM'
+      },
+      navigation: {
+        defaultEntry: 'sales.quote-orders',
+        defaultHomePath: '/sales/quote-orders',
+        visibleEntries: ['sales.quote-orders']
+      },
+      operator: {
+        displayName: 'System Admin',
+        userId: 'user-1'
+      },
+      passwordSetupRequired: false,
+      scopeLevel: 'SYSTEM'
+    })
+    getSessionAccessSummaryApiMock.mockResolvedValue({
+      actionCodes: ['sales.quote.create'],
+      roles: [{ code: 'SALES', roleId: 'role-1', name: '销售' }]
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    await store.fetchUserInfo()
+
+    expect(getSessionContextApiMock).toHaveBeenCalledTimes(1)
+    expect(getSessionAccessSummaryApiMock).toHaveBeenCalledTimes(1)
+    expect(accessStoreMock.setAccessCodes).toHaveBeenCalledWith(['sales.quote.create'])
+    expect(authContextStoreMock.setAuthContext).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps using the persisted permission snapshot when access routes are already checked', async () => {
     const { useAuthStore } = await import('./auth')
     const store = useAuthStore()
 

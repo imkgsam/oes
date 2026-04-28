@@ -21,14 +21,22 @@ export class PasswordSetupRequirementService {
       return true
     }
 
+    return !(await this.userHasPasswordCredential(userId))
+  }
+
+  async userNeedsInitialPasswordSetup(userId: string): Promise<boolean> {
+    return !(await this.userHasPasswordCredential(userId))
+  }
+
+  private async userHasPasswordCredential(userId: string): Promise<boolean> {
     const [phoneMethod, emailMethod] = await Promise.all([
       this.loginMethodRepository.findByUserIdAndType(userId, LoginMethodType.PHONE),
       this.loginMethodRepository.findByUserIdAndType(userId, LoginMethodType.EMAIL)
     ])
 
-    return (
-      !phoneMethod?.getCredentialByType(CredentialType.PASSWORD) &&
-      !emailMethod?.getCredentialByType(CredentialType.PASSWORD)
+    return Boolean(
+      phoneMethod?.getCredentialByType(CredentialType.PASSWORD) ||
+      emailMethod?.getCredentialByType(CredentialType.PASSWORD)
     )
   }
 }

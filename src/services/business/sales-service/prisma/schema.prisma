@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SalesQuoteStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum SalesFulfillmentHandoffStatus {
+  NOT_SUBMITTED
+  SUBMITTED
+}
+
+model SalesSequenceCounter {
+  tenantId         String   @id @db.VarChar(128)
+  nextQuoteNo      Int      @default(1)
+  nextSalesOrderNo Int      @default(1)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model SalesQuote {
+  id                       String           @id @db.Uuid
+  quoteNo                  String           @unique @db.VarChar(64)
+  tenantId                 String           @db.VarChar(128)
+  customerTenantPartyId    String           @db.VarChar(128)
+  opportunityId            String?          @db.VarChar(128)
+  opportunityNo            String?          @db.VarChar(128)
+  opportunityName          String?          @db.VarChar(255)
+  status                   SalesQuoteStatus
+  latestPublishedVersionId String?          @db.Uuid
+  createdAt                DateTime         @default(now())
+  updatedAt                DateTime         @updatedAt
+  lines                    SalesQuoteLine[]
+
+  @@index([tenantId, status, quoteNo])
+  @@index([tenantId, customerTenantPartyId, quoteNo])
+}
+
+model SalesQuoteLine {
+  id                          String    @id @db.Uuid
+  tenantId                    String    @db.VarChar(128)
+  quoteId                     String    @db.Uuid
+  lineNo                      Int
+  itemId                      String    @db.VarChar(128)
+  itemSnapshot                Json
+  salesConfigSnapshot         Json
+  packagingRequirementSnapshot Json
+  priceQuantityDeliverySnapshot Json
+  customerItemSnapshot        Json
+  createdAt                   DateTime  @default(now())
+  updatedAt                   DateTime  @updatedAt
+
+  quote SalesQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@unique([quoteId, lineNo])
+  @@index([tenantId, quoteId, lineNo])
+}
+
+model SalesQuoteVersion {
+  id                    String                 @id @db.Uuid
+  quoteId               String                 @db.Uuid
+  quoteNo               String                 @db.VarChar(64)
+  versionNo             Int
+  tenantId              String                 @db.VarChar(128)
+  customerTenantPartyId String                 @db.VarChar(128)
+  publishedAt           DateTime
+  createdAt             DateTime               @default(now())
+  lines                 SalesQuoteVersionLine[]
+
+  @@unique([quoteId, versionNo])
+  @@index([tenantId, quoteId, versionNo])
+  @@index([tenantId, publishedAt])
+}
+
+model SalesQuoteVersionLine {
+  id                           String    @id @db.Uuid
+  tenantId                     String    @db.VarChar(128)
+  quoteVersionId               String    @db.Uuid
+  lineNo                       Int
+  itemId                       String    @db.VarChar(128)
+  itemSnapshot                 Json
+  salesConfigSnapshot          Json
+  packagingRequirementSnapshot Json
+  priceQuantityDeliverySnapshot Json
+  customerItemSnapshot         Json
+  createdAt                    DateTime  @default(now())
+
+  quoteVersion SalesQuoteVersion @relation(fields: [quoteVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([quoteVersionId, lineNo])
+  @@index([tenantId, quoteVersionId, lineNo])
+}
+
+model SalesOrder {
+  id                         String                              @id @db.Uuid
+  salesOrderNo               String                              @unique @db.VarChar(64)
+  tenantId                   String                              @db.VarChar(128)
+  customerTenantPartyId      String                              @db.VarChar(128)
+  quoteId                    String                              @db.Uuid
+  quoteVersionId             String                              @unique @db.Uuid
+  createdAt                  DateTime                            @default(now())
+  updatedAt                  DateTime                            @updatedAt
+  lines                      SalesOrderLine[]
+  commercialGateSummary      SalesOrderCommercialGateSummary?
+  fulfillmentHandoffSummary  SalesOrderFulfillmentHandoffSummary?
+
+  @@index([tenantId, salesOrderNo])
+  @@index([tenantId, customerTenantPartyId, salesOrderNo])
+}
+
+model SalesOrderCommercialGateSummary {
+  salesOrderId      String   @id @db.Uuid
+  tenantId          String   @db.VarChar(128)
+  orderEstablished  Boolean
+  productionGate    Boolean
+  stockingGate      Boolean
+  shippingGate      Boolean
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, productionGate, stockingGate, shippingGate])
+}
+
+model SalesOrderFulfillmentHandoffSummary {
+  salesOrderId String                         @id @db.Uuid
+  tenantId     String                         @db.VarChar(128)
+  status       SalesFulfillmentHandoffStatus
+  submittedAt  DateTime?
+  createdAt    DateTime                       @default(now())
+  updatedAt    DateTime                       @updatedAt
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status, submittedAt])
+}
+
+model SalesOrderLine {
+  id                           String    @id @db.Uuid
+  tenantId                     String    @db.VarChar(128)
+  salesOrderId                 String    @db.Uuid
+  lineNo                       Int
+  itemId                       String    @db.VarChar(128)
+  itemSnapshot                 Json
+  salesConfigSnapshot          Json
+  packagingRequirementSnapshot Json
+  priceQuantityDeliverySnapshot Json
+  customerItemSnapshot         Json
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @updatedAt
+
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([salesOrderId, lineNo])
+  @@index([tenantId, salesOrderId, lineNo])
+}
+
+model SalesAuditEnvelope {
+  id           String   @id
+  service      String
+  module       String
+  eventType    String
+  occurredAt   DateTime
+  result       String
+  operatorId   String?
+  operatorType String
+  tenantId     String?
+  orgId        String?
+  traceId      String?
+  resourceType String
+  resourceId   String?
+  details      Json
+  createdAt    DateTime @default(now())
+
+  @@index([service, module, eventType, occurredAt])
+  @@index([tenantId, occurredAt])
+  @@index([resourceType, resourceId, occurredAt])
+}

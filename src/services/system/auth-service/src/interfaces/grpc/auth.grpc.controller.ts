@@ -15,7 +15,7 @@ import {
   OPERATOR_CONTEXT_MISSING
 } from '@oes/common/authorization'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
-import { ExceptionFactory } from '@oes/common/exceptions'
+import { ACCESS_DENIED, ExceptionFactory } from '@oes/common/exceptions'
 import {
   GrpcExceptionFilter
 } from '../../../../../../common/dist/core/filters'
@@ -33,6 +33,8 @@ import {
   AuthServiceControllerMethods,
   ActivateTotpBindingRequest,
   ActivateTotpBindingResponse,
+  BootstrapOwnLoginMethodsRequest,
+  BootstrapOwnLoginMethodsResponse,
   BootstrapUserLoginMethodsRequest,
   BootstrapUserLoginMethodsResponse,
   ChangeOwnPasswordRequest,
@@ -235,6 +237,36 @@ export class AuthGrpcController implements AuthServiceController {
       email: request.email || undefined,
       phone: request.phone || undefined
     })
+
+    return {
+      emailBootstrapped: result.emailBootstrapped,
+      phoneBootstrapped: result.phoneBootstrapped,
+      passwordBootstrapped: result.passwordBootstrapped
+    }
+  }
+
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  async bootstrapOwnLoginMethods(
+    request: BootstrapOwnLoginMethodsRequest
+  ): Promise<BootstrapOwnLoginMethodsResponse> {
+    const operatorId = this.getRequiredOperatorId(request)
+    const accountId = request.accountId?.trim()
+
+    if (!accountId || accountId !== operatorId) {
+      throw ExceptionFactory.application(ACCESS_DENIED, {
+        accountId,
+        operatorId
+      })
+    }
+
+    const result = await this.commandBus.execute(
+      new BootstrapUserLoginMethodsCommand({
+        userId: request.userId ?? '',
+        email: request.email || undefined,
+        phone: request.phone || undefined
+      })
+    )
 
     return {
       emailBootstrapped: result.emailBootstrapped,

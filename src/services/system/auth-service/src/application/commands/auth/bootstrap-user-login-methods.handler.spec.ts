@@ -1,4 +1,4 @@
-import { LoginMethodType, MfaType } from '@oes/common/constants'
+import { LoginMethodType } from '@oes/common/constants'
 import { CredentialType } from '../../../../prisma/generated/prisma'
 import { LoginMethod } from '../../../domain/aggregates/loginmethod.aggregate'
 import { Credential } from '../../../domain/entities/credential.entity'
@@ -25,7 +25,7 @@ function createLoginMethodFixture(input: {
 }
 
 describe('BootstrapUserLoginMethodsHandler', () => {
-  it('creates phone-first OTP-ready login methods and a seeded test TOTP binding without issuing a password credential', async () => {
+  it('creates phone-first OTP-ready login methods without silently seeding a fake TOTP binding', async () => {
     const loginMethodRepository = {
       findByUserId: jest.fn().mockResolvedValue([]),
       findByUserIdAndType: jest.fn().mockResolvedValue(null),
@@ -54,10 +54,7 @@ describe('BootstrapUserLoginMethodsHandler', () => {
       save: jest.fn().mockImplementation(async (binding) => binding)
     }
 
-    const handler = new BootstrapUserLoginMethodsHandler(
-      loginMethodRepository as any,
-      mfaBindingRepository as any
-    )
+    const handler = new BootstrapUserLoginMethodsHandler(loginMethodRepository as any)
 
     await expect(
       handler.execute(
@@ -73,16 +70,12 @@ describe('BootstrapUserLoginMethodsHandler', () => {
       phoneBootstrapped: true
     })
 
-    expect(mfaBindingRepository.findByUserIdAndType).toHaveBeenCalledWith('user-1', MfaType.TOTP)
-    expect(mfaBindingRepository.save).toHaveBeenCalledTimes(1)
     const savedPhoneMethod = (loginMethodRepository.save as jest.Mock).mock.calls[0][0]
     const savedEmailMethod = (loginMethodRepository.save as jest.Mock).mock.calls[1][0]
     expect(savedPhoneMethod.getCredentialByType(CredentialType.PHONE_OTP)?.isEnabled()).toBe(true)
     expect(savedEmailMethod.getCredentialByType(CredentialType.EMAIL_OTP)?.isEnabled()).toBe(true)
-    const savedBinding = (mfaBindingRepository.save as jest.Mock).mock.calls[0][0]
-    expect(savedBinding.getType()).toBe(MfaType.TOTP)
-    expect(savedBinding.isEnabled()).toBe(true)
-    expect(savedBinding.verifyTotp('123456')).toBe(true)
+    expect(mfaBindingRepository.findByUserIdAndType).not.toHaveBeenCalled()
+    expect(mfaBindingRepository.save).not.toHaveBeenCalled()
   })
 
   it('updates existing phone and email identifiers and inherits the current shared password when refreshing one user login entry point', async () => {
@@ -131,16 +124,11 @@ describe('BootstrapUserLoginMethodsHandler', () => {
       )
     ])
     const mfaBindingRepository = {
-      findByUserIdAndType: jest.fn().mockResolvedValue({
-        getType: () => MfaType.TOTP
-      }),
+      findByUserIdAndType: jest.fn(),
       save: jest.fn()
     }
 
-    const handler = new BootstrapUserLoginMethodsHandler(
-      loginMethodRepository as any,
-      mfaBindingRepository as any
-    )
+    const handler = new BootstrapUserLoginMethodsHandler(loginMethodRepository as any)
 
     await expect(
       handler.execute(

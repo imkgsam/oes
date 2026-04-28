@@ -440,7 +440,7 @@ describe('employee management page', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders the tenant HR entry with five detail sections while keeping Employment -> OrgUnit as the HR truth', async () => {
+  it('renders the tenant HR entry with the phase-1 summary-first detail order while keeping Employment -> OrgUnit as the HR truth', async () => {
     const view = await import('./employee-management.vue')
 
     const wrapper = mount(view.default, {
@@ -458,12 +458,12 @@ describe('employee management page', () => {
     expect(wrapper.text()).toContain('这里管理 Employee / Employment')
     expect(wrapper.text()).toContain('不是租户账号管理')
     expect(wrapper.text()).toContain('不是组织成员万能页')
+    expect(wrapper.text()).toContain('概要与动作')
     expect(wrapper.text()).toContain('员工信息')
     expect(wrapper.text()).toContain('当前任职')
-    expect(wrapper.text()).toContain('其他任职')
-    expect(wrapper.text()).toContain('任职记录')
     expect(wrapper.text()).toContain('账号与访问')
-    expect(wrapper.text()).toContain('第一阶段暂不开放兼任管理')
+    expect(wrapper.text()).toContain('任职记录')
+    expect(wrapper.text()).not.toContain('其他任职')
     expect(wrapper.text()).toContain('待继续完成接入')
     expect(wrapper.text()).toContain('EMP-001')
     expect(wrapper.text()).toContain('m***@example.com')
@@ -486,6 +486,23 @@ describe('employee management page', () => {
     expect(getManagedEmployeeDetailApi).toHaveBeenCalledWith('tenant-1', 'employee-1')
     expect(getManagedEmployeeAccountAccessApi).toHaveBeenCalledWith('tenant-1', 'employee-1')
     expect(getManagedOrgUnitByIdApi).not.toHaveBeenCalled()
+  })
+
+  it('does not write the selected employee id back into the route query on mount', async () => {
+    const view = await import('./employee-management.vue')
+
+    mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {}
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(replace).not.toHaveBeenCalled()
   })
 
   it('keeps account actions bounded to member-context enable/continue plus the account-management cross-link', async () => {
