@@ -72,6 +72,37 @@ export class PrismaSalesOrderRepository implements SalesOrderRepository {
     return record ? PrismaSalesRecordMapper.toSalesOrder(record) : null
   }
 
+  async findLineById(
+    tenantId: string,
+    salesOrderLineId: string
+  ): Promise<{ order: SalesOrderRecord; line: SalesOrderRecord['lines'][number] } | null> {
+    const record = await this.prisma.getExecutionClient().salesOrder.findFirst({
+      where: {
+        tenantId,
+        lines: {
+          some: {
+            id: salesOrderLineId
+          }
+        }
+      },
+      include: PrismaSalesRecordMapper.salesOrderIncludeValue()
+    })
+    if (!record) {
+      return null
+    }
+
+    const order = PrismaSalesRecordMapper.toSalesOrder(record)
+    const line = order.lines.find((candidate) => candidate.salesOrderLineId === salesOrderLineId)
+    if (!line) {
+      return null
+    }
+
+    return {
+      order,
+      line
+    }
+  }
+
   async save(order: SalesOrderRecord): Promise<SalesOrderRecord> {
     return this.prisma.runInTransaction(async () => {
       const client = this.prisma.getExecutionClient()

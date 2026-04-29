@@ -3,6 +3,7 @@ export const SERVICE_NAMES = {
   ASSET: 'asset-service',
   AUTH: 'auth-service',
   CRM: 'crm-service',
+  FINANCE: 'finance-service',
   HR: 'hr-service',
   IDENTITY: 'identity-service',
   ITEM_MASTER: 'item-master-service',

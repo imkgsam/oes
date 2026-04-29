@@ -12,6 +12,7 @@ export class SearchPurchaseRequestsQuery {
     status?: PurchaseRequestStatus
     requesterOperatorId?: string
     itemId?: string
+    purchaseOrderId?: string
     neededByDateFrom?: string
     neededByDateTo?: string
     page?: number

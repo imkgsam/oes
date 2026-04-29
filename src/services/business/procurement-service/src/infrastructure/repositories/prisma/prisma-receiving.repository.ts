@@ -61,19 +61,22 @@ export class PrismaReceivingRepository implements ReceivingRepository {
     return row ? PrismaProcurementRecordMapper.toReceivingExpectation(row) : null
   }
 
-  async findByPurchaseOrderLineId(
+  async listByPurchaseOrderLineId(
     tenantId: string,
     purchaseOrderLineId: string
-  ): Promise<ReceivingExpectationRecord | null> {
-    const row = await this.prisma.getExecutionClient().receivingExpectation.findFirst({
+  ): Promise<ReceivingExpectationRecord[]> {
+    const rows = await this.prisma.getExecutionClient().receivingExpectation.findMany({
       where: {
         tenantId,
         purchaseOrderLineId
       },
-      include: PrismaProcurementRecordMapper.receivingExpectationIncludeValue()
+      include: PrismaProcurementRecordMapper.receivingExpectationIncludeValue(),
+      orderBy: {
+        expectationNo: 'asc'
+      }
     })
 
-    return row ? PrismaProcurementRecordMapper.toReceivingExpectation(row) : null
+    return rows.map((row) => PrismaProcurementRecordMapper.toReceivingExpectation(row))
   }
 
   async save(record: ReceivingExpectationRecord): Promise<ReceivingExpectationRecord> {
@@ -102,6 +105,10 @@ export class PrismaReceivingRepository implements ReceivingRepository {
             purchaseOrderId: record.purchaseOrderId,
             purchaseOrderLineId: record.purchaseOrderLineId,
             supplierId: record.supplierId,
+            allocationGroupingKey: record.allocationGroupingKey,
+            sourceAllocationIds: PrismaProcurementRecordMapper.toInputJson(record.sourceAllocationIds),
+            targetWarehouseId: record.targetWarehouseId ?? null,
+            targetReceivingAddressId: record.targetReceivingAddressId ?? null,
             expectedQuantity: record.expectedQuantity,
             receivedQuantitySummary: record.receivedQuantitySummary,
             openQuantity: record.openQuantity,
@@ -115,6 +122,10 @@ export class PrismaReceivingRepository implements ReceivingRepository {
             purchaseOrderId: record.purchaseOrderId,
             purchaseOrderLineId: record.purchaseOrderLineId,
             supplierId: record.supplierId,
+            allocationGroupingKey: record.allocationGroupingKey,
+            sourceAllocationIds: PrismaProcurementRecordMapper.toInputJson(record.sourceAllocationIds),
+            targetWarehouseId: record.targetWarehouseId ?? null,
+            targetReceivingAddressId: record.targetReceivingAddressId ?? null,
             expectedQuantity: record.expectedQuantity,
             receivedQuantitySummary: record.receivedQuantitySummary,
             openQuantity: record.openQuantity,
@@ -139,6 +150,9 @@ export class PrismaReceivingRepository implements ReceivingRepository {
               status: PrismaProcurementRecordMapper.toPersistedReceivingDiscrepancyStatus(record.discrepancy.status),
               resolutionCode: PrismaProcurementRecordMapper.toPersistedReceivingResolutionCode(record.discrepancy.resolutionCode),
               resolutionNote: record.discrepancy.resolutionNote ?? null,
+              resolutionReferences: PrismaProcurementRecordMapper.toInputJson(
+                record.discrepancy.resolutionReferences ?? []
+              ),
               resolvedAt: record.discrepancy.resolvedAt ? new Date(record.discrepancy.resolvedAt) : null
             },
             update: {
@@ -147,6 +161,9 @@ export class PrismaReceivingRepository implements ReceivingRepository {
               status: PrismaProcurementRecordMapper.toPersistedReceivingDiscrepancyStatus(record.discrepancy.status),
               resolutionCode: PrismaProcurementRecordMapper.toPersistedReceivingResolutionCode(record.discrepancy.resolutionCode),
               resolutionNote: record.discrepancy.resolutionNote ?? null,
+              resolutionReferences: PrismaProcurementRecordMapper.toInputJson(
+                record.discrepancy.resolutionReferences ?? []
+              ),
               resolvedAt: record.discrepancy.resolvedAt ? new Date(record.discrepancy.resolvedAt) : null
             }
           })
@@ -195,6 +212,11 @@ export class PrismaReceivingRepository implements ReceivingRepository {
       .filter((record) => !input.purchaseOrderId || record.purchaseOrderId === input.purchaseOrderId)
       .filter((record) => !input.supplierId || record.supplierId === input.supplierId)
       .filter((record) => !input.status || record.status === input.status)
+      .filter((record) => !input.targetWarehouseId || record.targetWarehouseId === input.targetWarehouseId)
+      .filter(
+        (record) =>
+          !input.targetReceivingAddressId || record.targetReceivingAddressId === input.targetReceivingAddressId
+      )
       .filter((record) => {
         if (input.hasOpenDiscrepancy === undefined) {
           return true

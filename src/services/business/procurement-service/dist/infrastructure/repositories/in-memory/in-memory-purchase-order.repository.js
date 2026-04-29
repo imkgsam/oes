@@ -101,6 +101,11 @@ let InMemoryPurchaseOrderRepository = class InMemoryPurchaseOrderRepository {
     async existsBySourcePurchaseRequestId(tenantId, purchaseRequestId) {
         return [...this.store.purchaseOrders.values()].some((record) => record.tenantId === tenantId && record.sourcePurchaseRequestIds.includes(purchaseRequestId));
     }
+    async findBySourcePurchaseRequestId(tenantId, purchaseRequestId) {
+        return [...this.store.purchaseOrders.values()]
+            .filter((record) => record.tenantId === tenantId && record.sourcePurchaseRequestIds.includes(purchaseRequestId))
+            .map((record) => (0, procurement_records_1.cloneRecord)(record));
+    }
 };
 exports.InMemoryPurchaseOrderRepository = InMemoryPurchaseOrderRepository;
 exports.InMemoryPurchaseOrderRepository = InMemoryPurchaseOrderRepository = __decorate([

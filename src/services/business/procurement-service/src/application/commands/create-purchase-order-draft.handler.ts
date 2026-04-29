@@ -10,6 +10,8 @@ import {
   buildDraftSupplierSnapshot,
   buildSupplierAcknowledgement,
   materializeDraftPurchaseOrderLines,
+  normalizeCommercialTermsSnapshot,
+  normalizePaymentTermsSnapshot,
   nowIso
 } from '../support/procurement-write-support'
 import { CreatePurchaseOrderDraftCommand } from './create-purchase-order-draft.command'
@@ -54,6 +56,11 @@ export class CreatePurchaseOrderDraftHandler
       currencyCode: command.payload.currencyCode.trim(),
       supplierId: command.payload.supplierId.trim(),
       supplierSnapshot: buildDraftSupplierSnapshot(command.payload.supplierId.trim()),
+      paymentTermsSnapshot: normalizePaymentTermsSnapshot(command.payload.paymentTermsSnapshot),
+      supplierCommercialTermsSnapshot: normalizeCommercialTermsSnapshot(
+        command.payload.supplierCommercialTermsSnapshot
+      ),
+      paymentSummary: null,
       sourcePurchaseRequestIds: command.payload.sourcePurchaseRequestIds ?? [],
       sourcePurchaseRequestNos,
       supplierAcknowledgement: buildSupplierAcknowledgement(),

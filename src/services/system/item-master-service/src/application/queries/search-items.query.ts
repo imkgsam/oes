@@ -11,6 +11,8 @@ export class SearchItemsQuery {
     natureType?: number
     capabilityFilters?: Partial<ItemCapabilitiesProps>
     status?: number
+    categoryId?: string
+    includeDescendants?: boolean
     page?: number
     pageSize?: number
   }
@@ -34,6 +36,12 @@ export class SearchItemsQuery {
   public readonly status?: number
 
   @Allow()
+  public readonly categoryId?: string
+
+  @Allow()
+  public readonly includeDescendants?: boolean
+
+  @Allow()
   public readonly page?: number
 
   @Allow()
@@ -46,6 +54,8 @@ export class SearchItemsQuery {
     natureType?: number
     capabilityFilters?: Partial<ItemCapabilitiesProps>
     status?: number
+    categoryId?: string
+    includeDescendants?: boolean
     page?: number
     pageSize?: number
   }) {
@@ -56,6 +66,8 @@ export class SearchItemsQuery {
     this.natureType = input.natureType
     this.capabilityFilters = input.capabilityFilters
     this.status = input.status
+    this.categoryId = input.categoryId
+    this.includeDescendants = input.includeDescendants
     this.page = input.page
     this.pageSize = input.pageSize
   }

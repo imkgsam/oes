@@ -9,7 +9,6 @@ import {
   assertKnownAllocationType,
   assertKnownPurchaseRequestLineType,
   compareQuantity,
-  inferAllocationType,
   normalizeOptionalString,
   normalizeQuantity,
   subtractQuantity,
@@ -19,9 +18,11 @@ import {
   OperatorSummary,
   PurchaseOrderChangeRecord,
   PurchaseOrderChangeStatus,
+  PurchaseOrderCommercialTermsSnapshotRecord,
   PurchaseOrderLineAllocationRecord,
   PurchaseOrderLineAllocationType,
   PurchaseOrderLineRecord,
+  PurchaseOrderPaymentTermsSnapshotRecord,
   PurchaseOrderRecord,
   PurchaseOrderStatus,
   PurchaseOrderSupplierAcknowledgementRecord,
@@ -47,9 +48,11 @@ export interface PurchaseRequestLineInputLike {
 
 export interface PurchaseOrderLineAllocationInputLike {
   allocationType: string
-  referenceId?: string
+  sourceReferenceId?: string
   quantity: string
   reason?: string
+  targetWarehouseId?: string
+  targetReceivingAddressId?: string
 }
 
 export interface PurchaseOrderLineInputLike {
@@ -63,6 +66,36 @@ export interface PurchaseOrderLineInputLike {
   sourcePurchaseRequestLineId?: string
   generalStockExcessReason?: string
   allocations: PurchaseOrderLineAllocationInputLike[]
+}
+
+/** normalizePaymentTermsSnapshot keeps optional PO payment terms as a trimmed transaction snapshot only. */
+export function normalizePaymentTermsSnapshot(input?: {
+  paymentTermsCode?: string
+  paymentTermsText?: string
+}): PurchaseOrderPaymentTermsSnapshotRecord | null {
+  const paymentTermsCode = normalizeOptionalString(input?.paymentTermsCode) ?? null
+  const paymentTermsText = normalizeOptionalString(input?.paymentTermsText) ?? null
+  return paymentTermsCode || paymentTermsText
+    ? {
+        paymentTermsCode,
+        paymentTermsText
+      }
+    : null
+}
+
+/** normalizeCommercialTermsSnapshot keeps optional PO commercial terms as a trimmed transaction snapshot only. */
+export function normalizeCommercialTermsSnapshot(input?: {
+  incotermCode?: string
+  commercialTermsText?: string
+}): PurchaseOrderCommercialTermsSnapshotRecord | null {
+  const incotermCode = normalizeOptionalString(input?.incotermCode) ?? null
+  const commercialTermsText = normalizeOptionalString(input?.commercialTermsText) ?? null
+  return incotermCode || commercialTermsText
+    ? {
+        incotermCode,
+        commercialTermsText
+      }
+    : null
 }
 
 /** nowIso returns the current wall-clock ISO timestamp for phase 1 record mutations. */
@@ -218,9 +251,13 @@ export async function materializeDraftPurchaseOrderLines(input: {
       assertPrecondition(excessReason, 'excess quantity must keep general stock reason', {
         lineIndex: index
       })
-      assertPrecondition(generalStockAllocation >= Number(excess), 'excess quantity must be marked as general stock', {
-        lineIndex: index
-      })
+      assertPrecondition(
+        generalStockAllocation >= Number(excess),
+        'excess quantity must be marked as general stock',
+        {
+          lineIndex: index
+        }
+      )
     }
 
     result.push({
@@ -332,6 +369,7 @@ export async function buildConvertedPurchaseOrderLines(input: {
   supplierId: string
   purchaseRequestLines: PurchaseRequestLineRecord[]
   selections: Array<{
+    purchaseRequestId: string
     purchaseRequestLineId: string
     purchaseOrderQuantity: string
     orderedUnitPrice?: string
@@ -398,36 +436,28 @@ function buildConvertedAllocations(
 ): PurchaseOrderLineAllocationRecord[] {
   const requestedQuantity = normalizeQuantity(sourceLine.requestedQuantity)
   const allocations: PurchaseOrderLineAllocationRecord[] = []
-  const dedicatedType = inferAllocationType(sourceLine.demandReferenceType)
   const baseQuantity =
     compareQuantity(orderedQuantity, requestedQuantity) >= 0 ? requestedQuantity : orderedQuantity
 
-  if (dedicatedType === PurchaseOrderLineAllocationType.GENERAL_STOCK) {
-    allocations.push({
-      purchaseOrderLineAllocationId: randomUUID(),
-      allocationType: PurchaseOrderLineAllocationType.GENERAL_STOCK,
-      referenceId: null,
-      quantity: orderedQuantity,
-      reason: normalizeOptionalString(generalStockExcessReason) ?? null
-    })
-    return allocations
-  }
-
   allocations.push({
     purchaseOrderLineAllocationId: randomUUID(),
-    allocationType: dedicatedType,
-    referenceId: sourceLine.demandReferenceId ?? null,
+    allocationType: PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE,
+    sourceReferenceId: sourceLine.purchaseRequestLineId,
     quantity: baseQuantity,
-    reason: null
+    reason: null,
+    targetWarehouseId: null,
+    targetReceivingAddressId: null
   })
 
   if (compareQuantity(orderedQuantity, requestedQuantity) > 0) {
     allocations.push({
       purchaseOrderLineAllocationId: randomUUID(),
       allocationType: PurchaseOrderLineAllocationType.GENERAL_STOCK,
-      referenceId: null,
+      sourceReferenceId: null,
       quantity: subtractQuantity(orderedQuantity, requestedQuantity),
-      reason: normalizeOptionalString(generalStockExcessReason) ?? null
+      reason: normalizeOptionalString(generalStockExcessReason) ?? null,
+      targetWarehouseId: null,
+      targetReceivingAddressId: null
     })
   }
 
@@ -439,16 +469,30 @@ function materializeAllocations(
   allocations: PurchaseOrderLineAllocationInputLike[],
   lineIndex: number
 ): PurchaseOrderLineAllocationRecord[] {
-  return allocations.map((allocation, allocationIndex) => ({
-    purchaseOrderLineAllocationId: randomUUID(),
-    allocationType: toAllocationType(allocation.allocationType),
-    referenceId: normalizeOptionalString(allocation.referenceId) ?? null,
-    quantity: assertPositiveQuantity(
-      allocation.quantity,
-      `lines[${lineIndex}].allocations[${allocationIndex}].quantity`
-    ),
-    reason: normalizeOptionalString(allocation.reason) ?? null
-  }))
+  return allocations.map((allocation, allocationIndex) => {
+    const allocationType = toAllocationType(allocation.allocationType)
+    const sourceReferenceId = normalizeOptionalString(allocation.sourceReferenceId) ?? null
+    if (allocationType !== PurchaseOrderLineAllocationType.GENERAL_STOCK) {
+      if (!sourceReferenceId) {
+        throw ExceptionFactory.application(PROCUREMENT_INVALID_ARGUMENT, {
+          field: `lines[${lineIndex}].allocations[${allocationIndex}].sourceReferenceId`
+        })
+      }
+    }
+
+    return {
+      purchaseOrderLineAllocationId: randomUUID(),
+      allocationType,
+      sourceReferenceId,
+      quantity: assertPositiveQuantity(
+        allocation.quantity,
+        `lines[${lineIndex}].allocations[${allocationIndex}].quantity`
+      ),
+      reason: normalizeOptionalString(allocation.reason) ?? null,
+      targetWarehouseId: normalizeOptionalString(allocation.targetWarehouseId) ?? null,
+      targetReceivingAddressId: normalizeOptionalString(allocation.targetReceivingAddressId) ?? null
+    }
+  })
 }
 
 /** buildSourcePurchaseRequestLineMap loads source PRs and indexes their lines for PO draft validation. */
@@ -493,6 +537,9 @@ export function toPurchaseRequestLineType(value: string): PurchaseRequestLineTyp
 /** toAllocationType normalizes string inputs into the frozen allocation enum set. */
 export function toAllocationType(value: string): PurchaseOrderLineAllocationType {
   const normalized = (() => {
+    if (value === PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE) {
+      return PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE
+    }
     if (value === PurchaseOrderLineAllocationType.SALES_ORDER_LINE) {
       return PurchaseOrderLineAllocationType.SALES_ORDER_LINE
     }

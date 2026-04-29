@@ -317,11 +317,11 @@ function createConvertRequest(seed, purchaseRequestId, purchaseRequestLineId, co
     operatorContext: seed.operatorContext,
     traceContext: seed.traceContext,
     auditContext: seed.auditContext,
-    purchaseRequestId,
     supplierId: conversionTarget.supplierId,
     currencyCode: seed.conversionCurrencyCode,
-    selectedLines: [
+    sourceLines: [
       {
+        purchaseRequestId,
         purchaseRequestLineId,
         purchaseOrderQuantity: seed.standardItemLine.requestedQuantity
       }

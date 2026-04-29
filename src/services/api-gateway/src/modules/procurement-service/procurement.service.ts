@@ -5,6 +5,7 @@ import {
   PurchaseOrderStatus,
   PurchaseOrderSupplierAcknowledgementStatus,
   PurchaseRequestDecision,
+  PurchaseRequestLineConversionStatus,
   PurchaseRequestLineType,
   PurchaseRequestStatus,
   PurchaseRequestType,
@@ -23,21 +24,48 @@ type PurchaseRequestTypeValue =
   | 'PRODUCTION_PACKAGING'
   | 'SALES_DEDICATED'
   | 'SAMPLE'
-type PurchaseRequestStatusValue = 'APPROVED' | 'CANCELLED' | 'DRAFT' | 'REJECTED' | 'SUBMITTED'
+type PurchaseRequestStatusValue =
+  | 'APPROVED'
+  | 'CANCELLED'
+  | 'CONVERTED'
+  | 'DRAFT'
+  | 'PARTIALLY_CONVERTED'
+  | 'REJECTED'
+  | 'SUBMITTED'
 type PurchaseRequestDecisionValue = 'APPROVED' | 'REJECTED'
 type PurchaseRequestLineTypeValue = 'STANDARD_ITEM' | 'TEXT'
 type PurchaseOrderStatusValue = 'ACKNOWLEDGED' | 'CANCELLED' | 'DRAFT' | 'ISSUED'
-type PurchaseOrderAllocationTypeValue = 'FULFILLMENT_DEMAND' | 'GENERAL_STOCK' | 'SALES_ORDER_LINE'
+type PurchaseOrderAllocationTypeValue =
+  | 'FULFILLMENT_DEMAND'
+  | 'GENERAL_STOCK'
+  | 'PURCHASE_REQUEST_LINE'
+  | 'SALES_ORDER_LINE'
 type SupplierAcknowledgementStatusValue = 'ACKNOWLEDGED' | 'PENDING'
 type PurchaseOrderChangeStatusValue = 'APPLIED'
 type ReceivingExpectationStatusValue = 'CANCELLED' | 'COMPLETED' | 'OPEN' | 'PARTIALLY_RECEIVED'
-type ReceivingDiscrepancyTypeValue = 'DAMAGED' | 'OTHER' | 'OVER_RECEIPT' | 'RESTRICTED' | 'SHORT_RECEIPT'
+type ReceivingDiscrepancyTypeValue =
+  | 'DAMAGED'
+  | 'OVER_RECEIVED'
+  | 'QUALITY_HOLD'
+  | 'SHORT_RECEIVED'
+  | 'WRONG_ITEM'
 type ReceivingDiscrepancyStatusValue = 'OPEN' | 'RESOLVED'
 type ReceivingResolutionCodeValue =
-  | 'ACCEPT_SHORT_CLOSE'
-  | 'MANUAL_FOLLOW_UP'
-  | 'RETURN_OR_REJECT_EXCESS'
+  | 'ACCEPT_WITH_ALLOWANCE'
+  | 'ACCEPT_WITH_CONTROLLED_CHANGE'
+  | 'ACCEPT_WITH_PO_CHANGE'
+  | 'CLAIM'
+  | 'CLOSE_UNRECEIVED'
+  | 'RECEIVE_WITH_RESTRICTION'
+  | 'REJECT_DAMAGED'
+  | 'REJECT_EXCESS'
+  | 'REJECT_WRONG_ITEM'
+  | 'REQUEST_RESEND'
+  | 'RETURN_TO_SUPPLIER'
+  | 'TEMP_HOLD'
+  | 'TEMP_RECEIVE_PENDING_DECISION'
   | 'WAIT_REDELIVERY'
+  | 'WAIT_INSPECTION'
 
 @Injectable()
 // Builds the tenant-scoped procurement phase 1 BFF model without widening the underlying procurement-service contract or ownership boundaries.
@@ -85,7 +113,17 @@ export class ProcurementService {
         createdAt: record.createdAt ?? '',
         decidedAt: record.decidedAt ?? '',
         lineCount: Number(record.lineCount ?? 0),
+        linkedPurchaseOrders: (record.linkedPurchaseOrders ?? []).map((linkedOrder) => ({
+          allocatedQuantity: linkedOrder.allocatedQuantity ?? '',
+          expectedReceiptDate: linkedOrder.expectedReceiptDate ?? '',
+          orderNo: linkedOrder.orderNo ?? '',
+          purchaseOrderId: linkedOrder.purchaseOrderId ?? '',
+          purchaseOrderLineId: linkedOrder.purchaseOrderLineId ?? '',
+          receivingStatusSummary: linkedOrder.receivingStatusSummary ?? ''
+        })),
+        nextExpectedReceiptDate: record.nextExpectedReceiptDate ?? '',
         purchaseRequestId: record.purchaseRequestId ?? '',
+        receivingStatusSummary: record.receivingStatusSummary ?? '',
         requestNo: record.requestNo ?? '',
         requestType: fromGrpcPurchaseRequestType(record.requestType),
         requesterDisplayName: record.requesterDisplayName ?? '',
@@ -268,14 +306,14 @@ export class ProcurementService {
       {
         auditReason: input.auditReason,
         currencyCode: requireNonBlank(input.currencyCode, 'currencyCode'),
-        purchaseRequestId: requireNonBlank(purchaseRequestId, 'purchaseRequestId'),
-        selectedLines: (input.selectedLines ?? []).map((line) => ({
+        sourceLines: (input.selectedLines ?? []).map((line) => ({
           generalStockExcessReason: normalize(line.generalStockExcessReason),
           orderedUnitPrice: normalize(line.orderedUnitPrice),
           purchaseOrderQuantity: requireNonBlank(
             line.purchaseOrderQuantity,
             'selectedLines.purchaseOrderQuantity'
           ),
+          purchaseRequestId: requireNonBlank(purchaseRequestId, 'purchaseRequestId'),
           purchaseRequestLineId: requireNonBlank(
             line.purchaseRequestLineId,
             'selectedLines.purchaseRequestLineId'
@@ -591,7 +629,9 @@ export class ProcurementService {
         purchaseOrderLineId: record.purchaseOrderLineId ?? '',
         receivingExpectationId: record.receivingExpectationId ?? '',
         status: fromGrpcReceivingExpectationStatus(record.status),
-        supplierId: record.supplierId ?? ''
+        supplierId: record.supplierId ?? '',
+        targetReceivingAddressId: record.targetReceivingAddressId ?? '',
+        targetWarehouseId: record.targetWarehouseId ?? ''
       })),
       total: Number(result.total ?? 0)
     }
@@ -716,6 +756,9 @@ type PurchaseOrderLineDraftInput = {
 function mapPurchaseRequest(record?: any) {
   const cancelledAt = normalize(record?.cancelledAt)
   const decidedAt = normalize(record?.decidedAt)
+  const nextExpectedReceiptDate = normalize(record?.nextExpectedReceiptDate)
+  const orgId = normalize(record?.orgId)
+  const receivingStatusSummary = normalize(record?.receivingStatusSummary)
   const submittedAt = normalize(record?.submittedAt)
 
   return {
@@ -735,12 +778,21 @@ function mapPurchaseRequest(record?: any) {
     ...(cancelledAt ? { cancelledAt } : {}),
     ...(decidedAt ? { decidedAt } : {}),
     lines: (record?.lines ?? []).map((line: any) => ({
+      conversionStatus: fromGrpcPurchaseRequestLineConversionStatus(line.conversionStatus),
       demandReferenceId: line.demandReferenceId ?? '',
       demandReferenceType: line.demandReferenceType ?? '',
       description: line.description ?? '',
       itemCode: line.itemCode ?? '',
       itemId: line.itemId ?? '',
       itemName: line.itemName ?? '',
+      linkedPurchaseOrderLines: (line.linkedPurchaseOrderLines ?? []).map((linkedLine: any) => ({
+        allocatedQuantity: linkedLine.allocatedQuantity ?? '',
+        expectedReceiptDate: linkedLine.expectedReceiptDate ?? '',
+        orderNo: linkedLine.orderNo ?? '',
+        purchaseOrderId: linkedLine.purchaseOrderId ?? '',
+        purchaseOrderLineId: linkedLine.purchaseOrderLineId ?? '',
+        receivingStatusSummary: linkedLine.receivingStatusSummary ?? ''
+      })),
       lineNo: Number(line.lineNo ?? 0),
       lineType: fromGrpcPurchaseRequestLineType(line.lineType),
       neededByDate: line.neededByDate ?? '',
@@ -757,6 +809,17 @@ function mapPurchaseRequest(record?: any) {
       operatorId: record?.requester?.operatorId ?? ''
     },
     status: fromGrpcPurchaseRequestStatus(record?.status),
+    ...(orgId ? { orgId } : {}),
+    linkedPurchaseOrders: (record?.linkedPurchaseOrders ?? []).map((linkedOrder: any) => ({
+      allocatedQuantity: linkedOrder.allocatedQuantity ?? '',
+      expectedReceiptDate: linkedOrder.expectedReceiptDate ?? '',
+      orderNo: linkedOrder.orderNo ?? '',
+      purchaseOrderId: linkedOrder.purchaseOrderId ?? '',
+      purchaseOrderLineId: linkedOrder.purchaseOrderLineId ?? '',
+      receivingStatusSummary: linkedOrder.receivingStatusSummary ?? ''
+    })),
+    ...(nextExpectedReceiptDate ? { nextExpectedReceiptDate } : {}),
+    ...(receivingStatusSummary ? { receivingStatusSummary } : {}),
     ...(submittedAt ? { submittedAt } : {}),
     tenantId: record?.tenantId ?? '',
     title: record?.title ?? '',
@@ -767,6 +830,7 @@ function mapPurchaseRequest(record?: any) {
 /** mapPurchaseOrder converts one procurement purchase order aggregate into the tenant-web BFF shape. */
 function mapPurchaseOrder(record?: any) {
   const cancelledAt = normalize(record?.cancelledAt)
+  const orgId = normalize(record?.orgId)
 
   return {
     createdAt: record?.createdAt ?? '',
@@ -775,10 +839,14 @@ function mapPurchaseOrder(record?: any) {
     ...(cancelledAt ? { cancelledAt } : {}),
     lines: (record?.lines ?? []).map((line: any) => ({
       allocations: (line.allocations ?? []).map((allocation: any) => ({
-        allocationType: fromGrpcPurchaseOrderAllocationType(allocation.allocationType),
+        allocationType: fromGrpcPurchaseOrderAllocationType(
+          allocation.allocationSourceType ?? allocation.allocationType
+        ),
         quantity: allocation.quantity ?? '',
         reason: allocation.reason ?? '',
-        referenceId: allocation.referenceId ?? ''
+        referenceId: allocation.sourceReferenceId ?? allocation.referenceId ?? '',
+        targetReceivingAddressId: allocation.targetReceivingAddressId ?? '',
+        targetWarehouseId: allocation.targetWarehouseId ?? ''
       })),
       description: line.description ?? '',
       generalStockExcessReason: line.generalStockExcessReason ?? '',
@@ -795,6 +863,17 @@ function mapPurchaseOrder(record?: any) {
       uom: line.uom ?? ''
     })),
     orderNo: record?.orderNo ?? '',
+    ...(orgId ? { orgId } : {}),
+    paymentSummary: record?.paymentSummary
+      ? {
+          attachmentRefs: (record.paymentSummary.attachmentRefs ?? []).map((ref: string) => ref ?? ''),
+          balancePaidAmount: record.paymentSummary.balancePaidAmount ?? '',
+          currencyCode: record.paymentSummary.currencyCode ?? '',
+          depositPaidAmount: record.paymentSummary.depositPaidAmount ?? '',
+          lastPaymentAt: record.paymentSummary.lastPaymentAt ?? '',
+          paymentStatusSummary: record.paymentSummary.paymentStatusSummary ?? ''
+        }
+      : undefined,
     purchaseOrderId: record?.purchaseOrderId ?? '',
     sourcePurchaseRequestIds: (record?.sourcePurchaseRequestIds ?? []).map((id: string) => id ?? ''),
     status: fromGrpcPurchaseOrderStatus(record?.status),
@@ -840,7 +919,12 @@ function mapPurchaseOrderChange(record?: any) {
 
 /** mapReceivingExpectation converts one procurement receiving expectation aggregate into the tenant-web BFF shape. */
 function mapReceivingExpectation(record?: any) {
+  const allocationGroupingKey = normalize(record?.allocationGroupingKey)
+  const targetReceivingAddressId = normalize(record?.targetReceivingAddressId)
+  const targetWarehouseId = normalize(record?.targetWarehouseId)
+
   return {
+    ...(allocationGroupingKey ? { allocationGroupingKey } : {}),
     createdAt: record?.createdAt ?? '',
     discrepancy: mapReceivingDiscrepancy(record?.discrepancy),
     expectedQuantity: record?.expectedQuantity ?? '',
@@ -850,8 +934,11 @@ function mapReceivingExpectation(record?: any) {
     purchaseOrderLineId: record?.purchaseOrderLineId ?? '',
     receivedQuantitySummary: record?.receivedQuantitySummary ?? '',
     receivingExpectationId: record?.receivingExpectationId ?? '',
+    sourceAllocationIds: (record?.sourceAllocationIds ?? []).map((id: string) => id ?? ''),
     status: fromGrpcReceivingExpectationStatus(record?.status),
     supplierId: record?.supplierId ?? '',
+    ...(targetReceivingAddressId ? { targetReceivingAddressId } : {}),
+    ...(targetWarehouseId ? { targetWarehouseId } : {}),
     updatedAt: record?.updatedAt ?? ''
   }
 }
@@ -867,6 +954,10 @@ function mapReceivingDiscrepancy(record?: any) {
     receivingDiscrepancyId: record.receivingDiscrepancyId ?? '',
     resolutionCode: fromGrpcReceivingResolutionCode(record.resolutionCode),
     resolutionNote: record.resolutionNote ?? '',
+    resolutionReferences: (record.resolutionReferences ?? []).map((reference: any) => ({
+      referenceId: reference.referenceId ?? '',
+      referenceType: reference.referenceType ?? ''
+    })),
     resolvedAt: record.resolvedAt ?? '',
     status: fromGrpcReceivingDiscrepancyStatus(record.status),
     summary: record.summary ?? ''
@@ -891,10 +982,10 @@ function mapPurchaseRequestLineInputs(lines?: Array<any>) {
 function mapPurchaseOrderDraftLines(lines?: PurchaseOrderLineDraftInput[]) {
   return (lines ?? []).map((line) => ({
     allocations: (line.allocations ?? []).map((allocation) => ({
-      allocationType: requireGrpcPurchaseOrderAllocationType(allocation.allocationType),
+      allocationSourceType: requireGrpcPurchaseOrderAllocationType(allocation.allocationType),
       quantity: requireNonBlank(allocation.quantity, 'allocations.quantity'),
       reason: normalize(allocation.reason),
-      referenceId: normalize(allocation.referenceId)
+      sourceReferenceId: normalize(allocation.referenceId)
     })),
     description: requireNonBlank(line.description, 'description'),
     generalStockExcessReason: normalize(line.generalStockExcessReason),
@@ -935,6 +1026,10 @@ function toGrpcPurchaseRequestStatus(value?: string): PurchaseRequestStatus | un
       return PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_SUBMITTED
     case 'APPROVED':
       return PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_APPROVED
+    case 'PARTIALLY_CONVERTED':
+      return PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_PARTIALLY_CONVERTED
+    case 'CONVERTED':
+      return PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_CONVERTED
     case 'REJECTED':
       return PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_REJECTED
     case 'CANCELLED':
@@ -975,6 +1070,8 @@ function toGrpcPurchaseOrderStatus(value?: string): PurchaseOrderStatus | undefi
 
 function requireGrpcPurchaseOrderAllocationType(value?: string): PurchaseOrderLineAllocationType {
   switch (normalize(value)) {
+    case 'PURCHASE_REQUEST_LINE':
+      return PurchaseOrderLineAllocationType.PURCHASE_ORDER_LINE_ALLOCATION_TYPE_PURCHASE_REQUEST_LINE
     case 'SALES_ORDER_LINE':
       return PurchaseOrderLineAllocationType.PURCHASE_ORDER_LINE_ALLOCATION_TYPE_SALES_ORDER_LINE
     case 'FULFILLMENT_DEMAND':
@@ -1001,12 +1098,34 @@ function toGrpcReceivingExpectationStatus(value?: string): ReceivingExpectationS
 
 function requireGrpcReceivingResolutionCode(value?: string): ReceivingResolutionCode {
   switch (normalize(value)) {
-    case 'ACCEPT_SHORT_CLOSE':
-      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_SHORT_CLOSE
-    case 'RETURN_OR_REJECT_EXCESS':
-      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RETURN_OR_REJECT_EXCESS
-    case 'MANUAL_FOLLOW_UP':
-      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_MANUAL_FOLLOW_UP
+    case 'CLOSE_UNRECEIVED':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_CLOSE_UNRECEIVED
+    case 'REQUEST_RESEND':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REQUEST_RESEND
+    case 'ACCEPT_WITH_PO_CHANGE':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_PO_CHANGE
+    case 'REJECT_EXCESS':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_EXCESS
+    case 'TEMP_HOLD':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_TEMP_HOLD
+    case 'REJECT_DAMAGED':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_DAMAGED
+    case 'RECEIVE_WITH_RESTRICTION':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RECEIVE_WITH_RESTRICTION
+    case 'CLAIM':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_CLAIM
+    case 'REJECT_WRONG_ITEM':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_WRONG_ITEM
+    case 'TEMP_RECEIVE_PENDING_DECISION':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_TEMP_RECEIVE_PENDING_DECISION
+    case 'ACCEPT_WITH_CONTROLLED_CHANGE':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_CONTROLLED_CHANGE
+    case 'WAIT_INSPECTION':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_WAIT_INSPECTION
+    case 'ACCEPT_WITH_ALLOWANCE':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_ALLOWANCE
+    case 'RETURN_TO_SUPPLIER':
+      return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RETURN_TO_SUPPLIER
     default:
       return ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_WAIT_REDELIVERY
   }
@@ -1041,6 +1160,10 @@ function fromGrpcPurchaseRequestStatus(
       return 'SUBMITTED'
     case PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_APPROVED:
       return 'APPROVED'
+    case PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_PARTIALLY_CONVERTED:
+      return 'PARTIALLY_CONVERTED'
+    case PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_CONVERTED:
+      return 'CONVERTED'
     case PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_REJECTED:
       return 'REJECTED'
     case PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_CANCELLED:
@@ -1095,6 +1218,8 @@ function fromGrpcPurchaseOrderAllocationType(
     return value
   }
   switch (value) {
+    case PurchaseOrderLineAllocationType.PURCHASE_ORDER_LINE_ALLOCATION_TYPE_PURCHASE_REQUEST_LINE:
+      return 'PURCHASE_REQUEST_LINE'
     case PurchaseOrderLineAllocationType.PURCHASE_ORDER_LINE_ALLOCATION_TYPE_SALES_ORDER_LINE:
       return 'SALES_ORDER_LINE'
     case PurchaseOrderLineAllocationType.PURCHASE_ORDER_LINE_ALLOCATION_TYPE_FULFILLMENT_DEMAND:
@@ -1150,16 +1275,16 @@ function fromGrpcReceivingDiscrepancyType(
     return value
   }
   switch (value) {
-    case ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_OVER_RECEIPT:
-      return 'OVER_RECEIPT'
+    case ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_OVER_RECEIVED:
+      return 'OVER_RECEIVED'
     case ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_DAMAGED:
       return 'DAMAGED'
-    case ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_RESTRICTED:
-      return 'RESTRICTED'
-    case ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_OTHER:
-      return 'OTHER'
+    case ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_WRONG_ITEM:
+      return 'WRONG_ITEM'
+    case ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_QUALITY_HOLD:
+      return 'QUALITY_HOLD'
     default:
-      return 'SHORT_RECEIPT'
+      return 'SHORT_RECEIVED'
   }
 }
 
@@ -1181,14 +1306,52 @@ function fromGrpcReceivingResolutionCode(
     return value
   }
   switch (value) {
-    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_SHORT_CLOSE:
-      return 'ACCEPT_SHORT_CLOSE'
-    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RETURN_OR_REJECT_EXCESS:
-      return 'RETURN_OR_REJECT_EXCESS'
-    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_MANUAL_FOLLOW_UP:
-      return 'MANUAL_FOLLOW_UP'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_CLOSE_UNRECEIVED:
+      return 'CLOSE_UNRECEIVED'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REQUEST_RESEND:
+      return 'REQUEST_RESEND'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_PO_CHANGE:
+      return 'ACCEPT_WITH_PO_CHANGE'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_EXCESS:
+      return 'REJECT_EXCESS'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_TEMP_HOLD:
+      return 'TEMP_HOLD'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_DAMAGED:
+      return 'REJECT_DAMAGED'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RECEIVE_WITH_RESTRICTION:
+      return 'RECEIVE_WITH_RESTRICTION'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_CLAIM:
+      return 'CLAIM'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_WRONG_ITEM:
+      return 'REJECT_WRONG_ITEM'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_TEMP_RECEIVE_PENDING_DECISION:
+      return 'TEMP_RECEIVE_PENDING_DECISION'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_CONTROLLED_CHANGE:
+      return 'ACCEPT_WITH_CONTROLLED_CHANGE'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_WAIT_INSPECTION:
+      return 'WAIT_INSPECTION'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_ALLOWANCE:
+      return 'ACCEPT_WITH_ALLOWANCE'
+    case ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RETURN_TO_SUPPLIER:
+      return 'RETURN_TO_SUPPLIER'
     default:
       return 'WAIT_REDELIVERY'
+  }
+}
+
+function fromGrpcPurchaseRequestLineConversionStatus(
+  value?: PurchaseRequestLineConversionStatus | string
+) {
+  if (typeof value === 'string') {
+    return value
+  }
+  switch (value) {
+    case PurchaseRequestLineConversionStatus.PURCHASE_REQUEST_LINE_CONVERSION_STATUS_PARTIALLY_CONVERTED:
+      return 'PARTIALLY_CONVERTED'
+    case PurchaseRequestLineConversionStatus.PURCHASE_REQUEST_LINE_CONVERSION_STATUS_CONVERTED:
+      return 'CONVERTED'
+    default:
+      return 'NOT_CONVERTED'
   }
 }
 

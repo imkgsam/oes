@@ -61,15 +61,18 @@ let PrismaReceivingRepository = class PrismaReceivingRepository {
         });
         return row ? prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toReceivingExpectation(row) : null;
     }
-    async findByPurchaseOrderLineId(tenantId, purchaseOrderLineId) {
-        const row = await this.prisma.getExecutionClient().receivingExpectation.findFirst({
+    async listByPurchaseOrderLineId(tenantId, purchaseOrderLineId) {
+        const rows = await this.prisma.getExecutionClient().receivingExpectation.findMany({
             where: {
                 tenantId,
                 purchaseOrderLineId
             },
-            include: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.receivingExpectationIncludeValue()
+            include: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.receivingExpectationIncludeValue(),
+            orderBy: {
+                expectationNo: 'asc'
+            }
         });
-        return row ? prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toReceivingExpectation(row) : null;
+        return rows.map((row) => prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toReceivingExpectation(row));
     }
     async save(record) {
         try {
@@ -95,6 +98,10 @@ let PrismaReceivingRepository = class PrismaReceivingRepository {
                         purchaseOrderId: record.purchaseOrderId,
                         purchaseOrderLineId: record.purchaseOrderLineId,
                         supplierId: record.supplierId,
+                        allocationGroupingKey: record.allocationGroupingKey,
+                        sourceAllocationIds: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(record.sourceAllocationIds),
+                        targetWarehouseId: record.targetWarehouseId ?? null,
+                        targetReceivingAddressId: record.targetReceivingAddressId ?? null,
                         expectedQuantity: record.expectedQuantity,
                         receivedQuantitySummary: record.receivedQuantitySummary,
                         openQuantity: record.openQuantity,
@@ -108,6 +115,10 @@ let PrismaReceivingRepository = class PrismaReceivingRepository {
                         purchaseOrderId: record.purchaseOrderId,
                         purchaseOrderLineId: record.purchaseOrderLineId,
                         supplierId: record.supplierId,
+                        allocationGroupingKey: record.allocationGroupingKey,
+                        sourceAllocationIds: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(record.sourceAllocationIds),
+                        targetWarehouseId: record.targetWarehouseId ?? null,
+                        targetReceivingAddressId: record.targetReceivingAddressId ?? null,
                         expectedQuantity: record.expectedQuantity,
                         receivedQuantitySummary: record.receivedQuantitySummary,
                         openQuantity: record.openQuantity,
@@ -131,6 +142,7 @@ let PrismaReceivingRepository = class PrismaReceivingRepository {
                             status: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toPersistedReceivingDiscrepancyStatus(record.discrepancy.status),
                             resolutionCode: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toPersistedReceivingResolutionCode(record.discrepancy.resolutionCode),
                             resolutionNote: record.discrepancy.resolutionNote ?? null,
+                            resolutionReferences: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(record.discrepancy.resolutionReferences ?? []),
                             resolvedAt: record.discrepancy.resolvedAt ? new Date(record.discrepancy.resolvedAt) : null
                         },
                         update: {
@@ -139,6 +151,7 @@ let PrismaReceivingRepository = class PrismaReceivingRepository {
                             status: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toPersistedReceivingDiscrepancyStatus(record.discrepancy.status),
                             resolutionCode: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toPersistedReceivingResolutionCode(record.discrepancy.resolutionCode),
                             resolutionNote: record.discrepancy.resolutionNote ?? null,
+                            resolutionReferences: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(record.discrepancy.resolutionReferences ?? []),
                             resolvedAt: record.discrepancy.resolvedAt ? new Date(record.discrepancy.resolvedAt) : null
                         }
                     });
@@ -186,6 +199,8 @@ let PrismaReceivingRepository = class PrismaReceivingRepository {
             .filter((record) => !input.purchaseOrderId || record.purchaseOrderId === input.purchaseOrderId)
             .filter((record) => !input.supplierId || record.supplierId === input.supplierId)
             .filter((record) => !input.status || record.status === input.status)
+            .filter((record) => !input.targetWarehouseId || record.targetWarehouseId === input.targetWarehouseId)
+            .filter((record) => !input.targetReceivingAddressId || record.targetReceivingAddressId === input.targetReceivingAddressId)
             .filter((record) => {
             if (input.hasOpenDiscrepancy === undefined) {
                 return true;

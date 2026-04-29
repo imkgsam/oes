@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { Prisma } from '../../../../prisma/generated/prisma'
 import { Item } from '../../../domain/aggregates/item.aggregate'
 import { ItemRepository, SearchItemsInput, SearchItemsResult } from '../../../domain/repositories/item.repository'
+import { ItemCategoryStatus } from '../../../domain/value-objects/item-category.value-objects'
 import {
   ItemCapabilities,
   ItemNatureType,
@@ -20,6 +21,9 @@ export class PrismaItemRepository implements ItemRepository {
       where: {
         tenantId,
         id: itemId
+      },
+      include: {
+        primaryCategory: true
       }
     })
 
@@ -37,6 +41,9 @@ export class PrismaItemRepository implements ItemRepository {
         id: {
           in: itemIds
         }
+      },
+      include: {
+        primaryCategory: true
       }
     })
     const itemMap = new Map(records.map((record) => [record.id, toItem(record)]))
@@ -49,6 +56,9 @@ export class PrismaItemRepository implements ItemRepository {
       where: {
         tenantId,
         itemCode
+      },
+      include: {
+        primaryCategory: true
       }
     })
 
@@ -69,6 +79,7 @@ export class PrismaItemRepository implements ItemRepository {
         structureType: state.structureType,
         natureType: state.natureType,
         status: state.status,
+        primaryCategoryId: state.primaryCategory?.categoryId,
         sellable: state.capabilities.sellable,
         purchasable: state.capabilities.purchasable,
         stockable: state.capabilities.stockable,
@@ -78,10 +89,14 @@ export class PrismaItemRepository implements ItemRepository {
         itemCode: state.itemCode,
         itemName: state.itemName,
         status: state.status,
+        primaryCategoryId: state.primaryCategory?.categoryId,
         sellable: state.capabilities.sellable,
         purchasable: state.capabilities.purchasable,
         stockable: state.capabilities.stockable,
         manufacturable: state.capabilities.manufacturable
+      },
+      include: {
+        primaryCategory: true
       }
     })
 
@@ -122,6 +137,14 @@ export class PrismaItemRepository implements ItemRepository {
       where.status = input.status
     }
 
+    if (input.categoryIds && input.categoryIds.length > 0) {
+      where.primaryCategoryId = {
+        in: input.categoryIds
+      }
+    } else if (input.categoryId) {
+      where.primaryCategoryId = input.categoryId
+    }
+
     if (input.capabilityFilters) {
       if (input.capabilityFilters.sellable !== undefined) {
         where.sellable = input.capabilityFilters.sellable
@@ -139,6 +162,9 @@ export class PrismaItemRepository implements ItemRepository {
 
     const queryArgs = {
       where,
+      include: {
+        primaryCategory: true
+      },
       orderBy: [{ itemCode: 'asc' as const }, { id: 'asc' as const }],
       skip: (input.page - 1) * input.pageSize,
       take: input.pageSize
@@ -176,6 +202,12 @@ function toItem(record: {
   purchasable: boolean
   stockable: boolean
   manufacturable: boolean
+  primaryCategory?: {
+    id: string
+    categoryCode: string
+    categoryName: string
+    status: string
+  } | null
 }): Item {
   return Item.reconstitute({
     id: record.id,
@@ -190,6 +222,14 @@ function toItem(record: {
       purchasable: record.purchasable,
       stockable: record.stockable,
       manufacturable: record.manufacturable
-    })
+    }),
+    primaryCategory: record.primaryCategory
+      ? {
+          categoryId: record.primaryCategory.id,
+          categoryCode: record.primaryCategory.categoryCode,
+          categoryName: record.primaryCategory.categoryName,
+          status: record.primaryCategory.status as ItemCategoryStatus
+        }
+      : undefined
   })
 }

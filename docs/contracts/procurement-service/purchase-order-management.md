@@ -29,6 +29,7 @@
 - `CreatePurchaseOrderDraft` 与 `UpdatePurchaseOrderDraft` 只维护未发出的草稿承诺
 - `IssuePurchaseOrder` 是 phase 1 采购交易成立的关键命令
 - phase 1 不把 `CreatePurchaseOrderDraft` 设计成 `Non-PO purchase` 正常入口
+- `PO` header 可保存 `payment_terms_snapshot` 与 supplier commercial terms snapshot，但它们只属于本次采购快照
 
 ### 3.2 Supplier / Item 校验边界
 
@@ -44,19 +45,22 @@
 ### 3.3 Allocation 边界
 
 - 每条 `PO line` 都必须能够表达 mixed allocation
-- 同一行允许同时分配给：
+- allocation 必须支持记录以下 source：
+  - `PurchaseRequestLine`
   - `SalesOrderLine`
   - `FulfillmentDemand`
   - `GeneralStock`
 - 当 `PO line quantity` 超出源 `PR demand quantity` 时：
   - 超出部分必须标记为 `GENERAL_STOCK`
   - 必须记录 `general_stock_excess_reason`
+- allocation 可携带目标仓 / 收货地址；若同一 `PO line` 指向不同目标，则后续必须拆分多个 `ReceivingExpectation`
 
 ### 3.4 Change 边界
 
 - phase 1 `PurchaseOrderChange` 只记录已应用变更事实
 - `ApplyPurchaseOrderChange` 必须返回更新后的 `PO` 与新增的 `APPLIED change`
 - phase 1 不在本命令上冻结完整变更申请 / 审批 / 供应商协商闭环
+- 关闭剩余未收数量必须通过 `ApplyPurchaseOrderChange` 留痕，不得在收货差异 resolution 中隐式修改 `PO` 开放数量
 
 ### 3.5 历史采购价格边界
 
@@ -80,6 +84,8 @@
 | `org_id` | 否 | 适用时的组织边界 |
 | `supplier_id` | 是 | 目标供应商标识 |
 | `currency_code` | 是 | 交易货币摘要 |
+| `payment_terms_snapshot` | 否 | optional 本次采购付款条款快照 |
+| `supplier_commercial_terms_snapshot` | 否 | optional 本次采购商业条款快照 |
 | `source_purchase_request_ids[]` | 否 | 关联的源 PR 摘要 |
 | `lines[]` | 否 | 初始 PO 行集合 |
 
@@ -94,6 +100,7 @@
 - 成功创建后状态必须为 `DRAFT`
 - 本命令允许先建立草稿，再由 `UpdatePurchaseOrderDraft` 补全明细
 - 本命令不是 phase 1 正常 `Non-PO purchase` 入口
+- `payment_terms_snapshot` 与 `supplier_commercial_terms_snapshot` 只保存本次交易快照，不成为 `SRM` 主档写入入口
 
 ### `UpdatePurchaseOrderDraft`
 
@@ -107,6 +114,8 @@
 | `purchase_order_id` | 是 | 目标 PO 标识 |
 | `supplier_id` | 是 | 目标供应商标识 |
 | `currency_code` | 是 | 交易货币摘要 |
+| `payment_terms_snapshot` | 否 | optional 本次采购付款条款快照 |
+| `supplier_commercial_terms_snapshot` | 否 | optional 本次采购商业条款快照 |
 | `source_purchase_request_ids[]` | 否 | 当前关联 PR 摘要 |
 | `lines[]` | 是 | 草稿最终应保存的完整行集合 |
 
@@ -121,7 +130,6 @@
 | `ordered_quantity` | 是 | 采购数量 |
 | `uom` | 是 | 计量单位摘要 |
 | `ordered_unit_price` | 否 | optional 单价摘要 |
-| `source_purchase_request_line_id` | 否 | optional 源 PR 行引用 |
 | `general_stock_excess_reason` | 否 | 超额 general stock 时必须提供 |
 | `allocations[]` | 是 | 完整分配集合 |
 
@@ -129,10 +137,13 @@
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
-| `allocation_type` | 是 | `SALES_ORDER_LINE / FULFILLMENT_DEMAND / GENERAL_STOCK` |
-| `reference_id` | 否 | dedicated allocation 的目标引用 |
+| `purchase_order_line_allocation_id` | 否 | 更新既有 allocation 时填写；新增时为空 |
+| `allocation_source_type` | 是 | `PURCHASE_REQUEST_LINE / SALES_ORDER_LINE / FULFILLMENT_DEMAND / GENERAL_STOCK` |
+| `source_reference_id` | 否 | allocation 对应的来源引用；非 `GENERAL_STOCK` 时必填 |
 | `quantity` | 是 | 分配数量 |
 | `reason` | 否 | general stock 或例外说明 |
+| `target_warehouse_id` | 否 | optional 目标仓摘要 |
+| `target_receiving_address_id` | 否 | optional 目标收货地址标识 |
 
 响应最小 shape：
 
@@ -145,7 +156,10 @@
 - 本命令只允许作用于 `DRAFT`
 - `lines[]` 采用全量替换语义
 - 每行 `allocations[].quantity` 之和必须等于该行 `ordered_quantity`
+- 除 `GENERAL_STOCK` 外，其余 allocation source 都必须携带 `source_reference_id`
+- 若某数量来自 `PR` 转单，必须通过 `allocation_source_type = PURCHASE_REQUEST_LINE` 保留来源 `PR line`
 - 若来源于 `PR` 且数量超出源需求，超出部分必须在 allocation 上表达为 `GENERAL_STOCK`
+- 若同一 `PO line` 的 allocation 指向不同目标仓 / 收货地址，后续 expectation 必须按 grouping 拆分
 
 ### `IssuePurchaseOrder`
 
@@ -169,6 +183,7 @@
 
 - 只允许从 `DRAFT -> ISSUED`
 - 发单成功前必须保留 supplier snapshot
+- 发单成功前必须冻结 `payment_terms_snapshot` 与 supplier commercial terms snapshot（如有）
 - 标准 `Item` 行发单成功前必须同步校验：
   - 目标供应商当前为 `ACTIVE`
   - Item 当前存在
@@ -235,6 +250,7 @@
 
 - 只允许对已发出的 `PO` 应用变更
 - phase 1 只要求服务能够把变更结果与已应用留痕一起保存
+- 若目的是关闭剩余未收数量，必须通过本命令生成 `PurchaseOrderChange`
 - 具体变更 envelope 可在 realization 中细化，但不得突破本文件的边界约束
 
 ### `CancelPurchaseOrder`
@@ -267,12 +283,12 @@ phase 1 management 统一暴露以下错误面：
 
 | 错误码 | 语义 |
 | --- | --- |
-| `INVALID_ARGUMENT` | 请求字段缺失、格式非法、allocation 不完整、数量非法、`TEXT` 行缺少描述，或超额 general stock 缺少 reason |
+| `INVALID_ARGUMENT` | 请求字段缺失、格式非法、allocation 不完整、数量非法、`TEXT` 行缺少描述、allocation source 非法、非 `GENERAL_STOCK` 缺少 `source_reference_id`，或超额 general stock 缺少 reason |
 | `UNAUTHENTICATED` | 缺少有效 internal service context、operator context、trace context 或 audit context |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有在该 tenant / org / PO 上执行命令的权限 |
 | `NOT_FOUND` | 目标 `PurchaseOrder / PurchaseOrderLine / PurchaseRequest / PurchaseRequestLine / Item / SupplierProfile` 不存在 |
 | `ALREADY_EXISTS` | 当前命令违反唯一性约束 |
-| `FAILED_PRECONDITION` | 资源存在，但当前状态或外部真相不满足命令前提，例如对非 `DRAFT` 更新、对非已发 `PO` 变更、目标供应商非 `ACTIVE`、标准 Item 不可采购、目标供应商缺少 `ACTIVE SupplierOffering`，或 allocation 合计不等于行数量 |
+| `FAILED_PRECONDITION` | 资源存在，但当前状态或外部真相不满足命令前提，例如对非 `DRAFT` 更新、对非已发 `PO` 变更、目标供应商非 `ACTIVE`、标准 Item 不可采购、目标供应商缺少 `ACTIVE SupplierOffering`，allocation 合计不等于行数量，或关闭剩余未收数量时未通过 `PurchaseOrderChange` 留痕 |
 | `UNAVAILABLE` | 下游依赖或当前服务暂不可用 |
 | `INTERNAL` | 未归类的服务内部错误 |
 

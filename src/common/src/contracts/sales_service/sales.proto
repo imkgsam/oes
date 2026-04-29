@@ -23,6 +23,27 @@ service SalesManagementService {
   rpc SubmitFulfillmentHandoff(SubmitFulfillmentHandoffRequest) returns (SubmitFulfillmentHandoffResponse);
 }
 
+service PricingQueryService {
+  rpc SearchPriceLists(SearchPriceListsRequest) returns (SearchPriceListsResponse);
+  rpc GetPriceList(GetPriceListRequest) returns (GetPriceListResponse);
+  rpc GetPriceListLines(GetPriceListLinesRequest) returns (GetPriceListLinesResponse);
+  rpc GetActiveCustomerPriceAgreement(GetActiveCustomerPriceAgreementRequest) returns (GetActiveCustomerPriceAgreementResponse);
+  rpc GetCustomerPriceAgreement(GetCustomerPriceAgreementRequest) returns (GetCustomerPriceAgreementResponse);
+  rpc ListCustomerPriceAgreementVersions(ListCustomerPriceAgreementVersionsRequest) returns (ListCustomerPriceAgreementVersionsResponse);
+  rpc PreviewQuoteLinePricing(PreviewQuoteLinePricingRequest) returns (PreviewQuoteLinePricingResponse);
+}
+
+service PricingManagementService {
+  rpc CreatePriceList(CreatePriceListRequest) returns (CreatePriceListResponse);
+  rpc UpdatePriceList(UpdatePriceListRequest) returns (UpdatePriceListResponse);
+  rpc ReplacePriceListLines(ReplacePriceListLinesRequest) returns (ReplacePriceListLinesResponse);
+  rpc ChangePriceListStatus(ChangePriceListStatusRequest) returns (ChangePriceListStatusResponse);
+  rpc CreateCustomerPriceAgreement(CreateCustomerPriceAgreementRequest) returns (CreateCustomerPriceAgreementResponse);
+  rpc UpdateCustomerPriceAgreementDraft(UpdateCustomerPriceAgreementDraftRequest) returns (UpdateCustomerPriceAgreementDraftResponse);
+  rpc PublishCustomerPriceAgreementVersion(PublishCustomerPriceAgreementVersionRequest) returns (PublishCustomerPriceAgreementVersionResponse);
+  rpc CreateCustomerPriceAgreementFromSalesOrderLine(CreateCustomerPriceAgreementFromSalesOrderLineRequest) returns (CreateCustomerPriceAgreementFromSalesOrderLineResponse);
+}
+
 enum QuoteStatus {
   QUOTE_STATUS_UNSPECIFIED = 0;
   QUOTE_STATUS_DRAFT = 1;
@@ -40,6 +61,46 @@ enum FulfillmentHandoffStatusCode {
   FULFILLMENT_HANDOFF_STATUS_CODE_UNSPECIFIED = 0;
   FULFILLMENT_HANDOFF_STATUS_CODE_NOT_SUBMITTED = 1;
   FULFILLMENT_HANDOFF_STATUS_CODE_SUBMITTED = 2;
+}
+
+enum PriceListType {
+  PRICE_LIST_TYPE_UNSPECIFIED = 0;
+  PRICE_LIST_TYPE_STANDARD = 1;
+  PRICE_LIST_TYPE_ACTIVITY = 2;
+  PRICE_LIST_TYPE_EXHIBITION = 3;
+}
+
+enum PriceListStatus {
+  PRICE_LIST_STATUS_UNSPECIFIED = 0;
+  PRICE_LIST_STATUS_DRAFT = 1;
+  PRICE_LIST_STATUS_ACTIVE = 2;
+  PRICE_LIST_STATUS_INACTIVE = 3;
+}
+
+enum PricingSourceType {
+  PRICING_SOURCE_TYPE_UNSPECIFIED = 0;
+  PRICING_SOURCE_TYPE_CUSTOMER_PRICE_AGREEMENT = 1;
+  PRICING_SOURCE_TYPE_PRICE_LIST = 2;
+  PRICING_SOURCE_TYPE_MANUAL = 3;
+}
+
+enum CustomerPriceAgreementStatus {
+  CUSTOMER_PRICE_AGREEMENT_STATUS_UNSPECIFIED = 0;
+  CUSTOMER_PRICE_AGREEMENT_STATUS_DRAFT = 1;
+  CUSTOMER_PRICE_AGREEMENT_STATUS_ACTIVE = 2;
+  CUSTOMER_PRICE_AGREEMENT_STATUS_SUPERSEDED = 3;
+}
+
+enum PricingExceptionType {
+  PRICING_EXCEPTION_TYPE_UNSPECIFIED = 0;
+  PRICING_EXCEPTION_TYPE_LOW_PRICE = 1;
+  PRICING_EXCEPTION_TYPE_LOW_MOQ = 2;
+}
+
+enum PricingExceptionStatus {
+  PRICING_EXCEPTION_STATUS_UNSPECIFIED = 0;
+  PRICING_EXCEPTION_STATUS_NOT_REQUIRED = 1;
+  PRICING_EXCEPTION_STATUS_REQUIRED = 2;
 }
 
 message OperatorContext {
@@ -82,12 +143,56 @@ message PackagingRequirementSnapshot {
   string special_instructions = 3;
 }
 
+message PriceSnapshot {
+  string currency_code = 1;
+  string unit_price_amount = 2;
+  PricingSourceType source_type = 3;
+  string source_ref_id = 4;
+  string source_line_ref_id = 5;
+  uint32 source_version_no = 6;
+  string resolved_at = 7;
+}
+
+message MoqSnapshot {
+  string moq_quantity = 1;
+  string quantity_uom_code = 2;
+  PricingSourceType source_type = 3;
+  string source_ref_id = 4;
+  string source_line_ref_id = 5;
+  uint32 source_version_no = 6;
+  string resolved_at = 7;
+}
+
+message ExchangeRateSnapshot {
+  string from_currency_code = 1;
+  string to_currency_code = 2;
+  string exchange_rate_value = 3;
+  string finance_rate_ref = 4;
+  string effective_at = 5;
+  string snapshotted_at = 6;
+}
+
+message ExceptionPlaceholder {
+  PricingExceptionType exception_type = 1;
+  PricingExceptionStatus status = 2;
+  PricingSourceType baseline_source_type = 3;
+  string baseline_value = 4;
+  string actual_value = 5;
+  string currency_code = 6;
+  string quantity_uom_code = 7;
+  string detected_at = 8;
+}
+
 message PriceQuantityDeliverySnapshot {
   string currency_code = 1;
   string unit_price = 2;
   string quantity = 3;
   string delivery_term = 4;
   string requested_delivery_date = 5;
+  PriceSnapshot price_snapshot = 6;
+  MoqSnapshot moq_snapshot = 7;
+  ExchangeRateSnapshot exchange_rate_snapshot = 8;
+  repeated ExceptionPlaceholder exception_placeholders = 9;
 }
 
 message CustomerItemSnapshot {
@@ -178,6 +283,80 @@ message QuoteDraftMutation {
   string customer_tenant_party_id = 1;
   OpportunityRefSummary opportunity_ref = 2;
   repeated QuoteLineInput lines = 3;
+}
+
+message PriceListLineInput {
+  string item_id = 1;
+  string brand_key = 2;
+  string unit_price_amount = 3;
+  string moq_quantity = 4;
+  string quantity_uom_code = 5;
+}
+
+message PriceListLine {
+  string price_list_line_id = 1;
+  uint32 line_no = 2;
+  string item_id = 3;
+  string brand_key = 4;
+  PriceSnapshot price_snapshot = 5;
+  MoqSnapshot moq_snapshot = 6;
+}
+
+message PriceList {
+  string price_list_id = 1;
+  string tenant_id = 2;
+  string price_list_name = 3;
+  PriceListType price_list_type = 4;
+  PriceListStatus status = 5;
+  string currency_code = 6;
+  string effective_from = 7;
+  string effective_to = 8;
+}
+
+message CustomerPriceAgreementLineInput {
+  string item_id = 1;
+  string brand_key = 2;
+  string unit_price_amount = 3;
+  string moq_quantity = 4;
+  string quantity_uom_code = 5;
+}
+
+message CustomerPriceAgreementLineRemoval {
+  string item_id = 1;
+  string brand_key = 2;
+}
+
+message CustomerPriceAgreementDraftMutation {
+  repeated CustomerPriceAgreementLineInput upserts = 1;
+  repeated CustomerPriceAgreementLineRemoval removals = 2;
+}
+
+message CustomerPriceAgreementLine {
+  string customer_price_agreement_line_id = 1;
+  uint32 line_no = 2;
+  string item_id = 3;
+  string brand_key = 4;
+  PriceSnapshot price_snapshot = 5;
+  MoqSnapshot moq_snapshot = 6;
+}
+
+message CustomerPriceAgreement {
+  string customer_price_agreement_id = 1;
+  string tenant_id = 2;
+  string customer_tenant_party_id = 3;
+  string currency_code = 4;
+  uint32 version_no = 5;
+  CustomerPriceAgreementStatus status = 6;
+  string published_at = 7;
+  repeated CustomerPriceAgreementLine lines = 8;
+}
+
+message CustomerPriceAgreementVersionSummary {
+  string customer_price_agreement_id = 1;
+  uint32 version_no = 2;
+  CustomerPriceAgreementStatus status = 3;
+  string published_at = 4;
+  uint32 line_count = 5;
 }
 
 message GetQuoteRequest {
@@ -347,4 +526,225 @@ message SubmitFulfillmentHandoffResponse {
   string sales_order_id = 1;
   CommercialGateSummary commercial_gate_summary = 2;
   FulfillmentHandoffSummary fulfillment_handoff_status = 3;
+}
+
+message SearchPriceListsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string keyword = 4;
+  PriceListType price_list_type = 5;
+  PriceListStatus status = 6;
+  string currency_code = 7;
+  string effective_at = 8;
+  uint32 page = 9;
+  uint32 page_size = 10;
+}
+
+message SearchPriceListsResponse {
+  repeated PriceList price_lists = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetPriceListRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string price_list_id = 4;
+}
+
+message GetPriceListResponse {
+  PriceList price_list = 1;
+}
+
+message GetPriceListLinesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string price_list_id = 4;
+  string item_id = 5;
+  uint32 page = 6;
+  uint32 page_size = 7;
+}
+
+message GetPriceListLinesResponse {
+  repeated PriceListLine price_list_lines = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetActiveCustomerPriceAgreementRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string customer_tenant_party_id = 4;
+  string currency_code = 5;
+}
+
+message GetActiveCustomerPriceAgreementResponse {
+  CustomerPriceAgreement customer_price_agreement = 1;
+}
+
+message GetCustomerPriceAgreementRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string customer_price_agreement_id = 4;
+  optional uint32 version_no = 5;
+}
+
+message GetCustomerPriceAgreementResponse {
+  CustomerPriceAgreement customer_price_agreement = 1;
+}
+
+message ListCustomerPriceAgreementVersionsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string customer_price_agreement_id = 4;
+  uint32 page = 5;
+  uint32 page_size = 6;
+}
+
+message ListCustomerPriceAgreementVersionsResponse {
+  repeated CustomerPriceAgreementVersionSummary versions = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message PreviewQuoteLinePricingRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string customer_tenant_party_id = 4;
+  string item_id = 5;
+  string brand_key = 6;
+  string currency_code = 7;
+  string requested_quantity = 8;
+  string quantity_uom_code = 9;
+  string selected_price_list_id = 10;
+  string manual_unit_price_amount = 11;
+  string pricing_at = 12;
+  string exchange_rate_target_currency_code = 13;
+}
+
+message PreviewQuoteLinePricingResponse {
+  PriceSnapshot price_snapshot = 1;
+  MoqSnapshot moq_snapshot = 2;
+  ExchangeRateSnapshot exchange_rate_snapshot = 3;
+  repeated ExceptionPlaceholder exception_placeholders = 4;
+}
+
+message CreatePriceListRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string price_list_name = 5;
+  PriceListType price_list_type = 6;
+  string currency_code = 7;
+  string effective_from = 8;
+  string effective_to = 9;
+  repeated PriceListLineInput initial_lines = 10;
+}
+
+message CreatePriceListResponse {
+  PriceList price_list = 1;
+}
+
+message UpdatePriceListRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string price_list_id = 5;
+  string price_list_name = 6;
+  string effective_from = 7;
+  string effective_to = 8;
+}
+
+message UpdatePriceListResponse {
+  PriceList price_list = 1;
+}
+
+message ReplacePriceListLinesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string price_list_id = 5;
+  repeated PriceListLineInput lines = 6;
+}
+
+message ReplacePriceListLinesResponse {
+  PriceList price_list = 1;
+  repeated PriceListLine price_list_lines = 2;
+}
+
+message ChangePriceListStatusRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string price_list_id = 5;
+  PriceListStatus target_status = 6;
+}
+
+message ChangePriceListStatusResponse {
+  PriceList price_list = 1;
+}
+
+message CreateCustomerPriceAgreementRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string customer_tenant_party_id = 5;
+  string currency_code = 6;
+  repeated CustomerPriceAgreementLineInput initial_lines = 7;
+}
+
+message CreateCustomerPriceAgreementResponse {
+  CustomerPriceAgreement customer_price_agreement = 1;
+}
+
+message UpdateCustomerPriceAgreementDraftRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string customer_price_agreement_id = 5;
+  CustomerPriceAgreementDraftMutation draft_mutation = 6;
+}
+
+message UpdateCustomerPriceAgreementDraftResponse {
+  CustomerPriceAgreement customer_price_agreement = 1;
+}
+
+message PublishCustomerPriceAgreementVersionRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string customer_price_agreement_id = 5;
+}
+
+message PublishCustomerPriceAgreementVersionResponse {
+  CustomerPriceAgreement customer_price_agreement = 1;
+}
+
+message CreateCustomerPriceAgreementFromSalesOrderLineRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string sales_order_line_id = 5;
+}
+
+message CreateCustomerPriceAgreementFromSalesOrderLineResponse {
+  CustomerPriceAgreement customer_price_agreement = 1;
 }

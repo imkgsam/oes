@@ -12,12 +12,17 @@ const cqrs_1 = require("@nestjs/cqrs");
 const cqrs_2 = require("@oes/common/cqrs");
 const tokens_1 = require("../../common/constants/tokens");
 const change_item_status_handler_1 = require("../../application/commands/change-item-status.handler");
+const change_item_category_status_handler_1 = require("../../application/commands/change-item-category-status.handler");
 const create_item_handler_1 = require("../../application/commands/create-item.handler");
+const create_item_category_handler_1 = require("../../application/commands/create-item-category.handler");
+const set_item_primary_category_handler_1 = require("../../application/commands/set-item-primary-category.handler");
 const set_item_capabilities_handler_1 = require("../../application/commands/set-item-capabilities.handler");
 const set_item_composition_handler_1 = require("../../application/commands/set-item-composition.handler");
+const update_item_category_basics_handler_1 = require("../../application/commands/update-item-category-basics.handler");
 const update_item_basics_handler_1 = require("../../application/commands/update-item-basics.handler");
 const upsert_supplier_item_mapping_handler_1 = require("../../application/commands/upsert-supplier-item-mapping.handler");
 const item_master_audit_service_1 = require("../../application/services/item-master-audit.service");
+const prisma_item_category_repository_1 = require("../../infrastructure/repositories/prisma/prisma-item-category.repository");
 const prisma_item_composition_repository_1 = require("../../infrastructure/repositories/prisma/prisma-item-composition.repository");
 const prisma_item_repository_1 = require("../../infrastructure/repositories/prisma/prisma-item.repository");
 const prisma_item_master_audit_repository_1 = require("../../infrastructure/repositories/prisma/prisma-item-master-audit.repository");
@@ -37,6 +42,10 @@ exports.ItemMasterManagementModule = ItemMasterManagementModule = __decorate([
             {
                 provide: tokens_1.TOKENS.ITEM_REPOSITORY,
                 useClass: prisma_item_repository_1.PrismaItemRepository
+            },
+            {
+                provide: tokens_1.TOKENS.ITEM_CATEGORY_REPOSITORY,
+                useClass: prisma_item_category_repository_1.PrismaItemCategoryRepository
             },
             {
                 provide: tokens_1.TOKENS.ITEM_COMPOSITION_REPOSITORY,
@@ -62,7 +71,11 @@ exports.ItemMasterManagementModule = ItemMasterManagementModule = __decorate([
             set_item_capabilities_handler_1.SetItemCapabilitiesHandler,
             set_item_composition_handler_1.SetItemCompositionHandler,
             upsert_supplier_item_mapping_handler_1.UpsertSupplierItemMappingHandler,
-            change_item_status_handler_1.ChangeItemStatusHandler
+            change_item_status_handler_1.ChangeItemStatusHandler,
+            create_item_category_handler_1.CreateItemCategoryHandler,
+            update_item_category_basics_handler_1.UpdateItemCategoryBasicsHandler,
+            change_item_category_status_handler_1.ChangeItemCategoryStatusHandler,
+            set_item_primary_category_handler_1.SetItemPrimaryCategoryHandler
         ],
         controllers: [item_master_management_grpc_controller_1.ItemMasterManagementGrpcController]
     })

@@ -2,10 +2,19 @@
 export declare class ConvertPurchaseRequestToPurchaseOrderCommand {
     readonly payload: {
         tenantId: string;
-        purchaseRequestId: string;
-        supplierId: string;
-        currencyCode: string;
-        selectedLines: Array<{
+        targetPurchaseOrderId?: string;
+        supplierId?: string;
+        currencyCode?: string;
+        paymentTermsSnapshot?: {
+            paymentTermsCode?: string;
+            paymentTermsText?: string;
+        };
+        supplierCommercialTermsSnapshot?: {
+            incotermCode?: string;
+            commercialTermsText?: string;
+        };
+        sourceLines: Array<{
+            purchaseRequestId: string;
             purchaseRequestLineId: string;
             purchaseOrderQuantity: string;
             orderedUnitPrice?: string;

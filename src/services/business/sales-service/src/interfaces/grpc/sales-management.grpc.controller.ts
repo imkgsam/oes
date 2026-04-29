@@ -27,6 +27,7 @@ import { SetOrderCommercialGateCommand } from '../../application/commands/set-or
 import { SubmitFulfillmentHandoffCommand } from '../../application/commands/submit-fulfillment-handoff.command'
 import { SalesAuditService } from '../../application/services/sales-audit.service'
 import { SALES_INVALID_ARGUMENT } from '../../common/errors/sales.errors'
+import { PriceQuantityDeliverySnapshot, QuoteLineInput } from '../../domain/models/sales-records'
 import { SalesCommercialGateName } from '../../domain/models/sales-records'
 import { SalesGrpcPresenter } from './sales-grpc.presenter'
 import { SalesRpcContextValidator } from './sales-rpc-context.validator'
@@ -69,36 +70,7 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
                   opportunityName: request.opportunityRef.opportunityName ?? ''
                 }
               : undefined,
-            draftLines: (request.draftLines ?? []).map((line) => ({
-              lineNo: line.lineNo ?? 0,
-              itemId: line.itemId ?? '',
-              itemSnapshot: {
-                itemCode: line.itemSnapshot?.itemCode ?? '',
-                itemName: line.itemSnapshot?.itemName ?? ''
-              },
-              salesConfigSnapshot: {
-                salesUom: line.salesConfigSnapshot?.salesUom ?? '',
-                salesUnitLabel: line.salesConfigSnapshot?.salesUnitLabel ?? '',
-                notes: line.salesConfigSnapshot?.notes ?? ''
-              },
-              packagingRequirementSnapshot: {
-                packageMode: line.packagingRequirementSnapshot?.packageMode ?? '',
-                packageLabel: line.packagingRequirementSnapshot?.packageLabel ?? '',
-                specialInstructions: line.packagingRequirementSnapshot?.specialInstructions ?? ''
-              },
-              priceQuantityDeliverySnapshot: {
-                currencyCode: line.priceQuantityDeliverySnapshot?.currencyCode ?? '',
-                unitPrice: line.priceQuantityDeliverySnapshot?.unitPrice ?? '',
-                quantity: line.priceQuantityDeliverySnapshot?.quantity ?? '',
-                deliveryTerm: line.priceQuantityDeliverySnapshot?.deliveryTerm ?? '',
-                requestedDeliveryDate: line.priceQuantityDeliverySnapshot?.requestedDeliveryDate ?? ''
-              },
-              customerItemSnapshot: {
-                customerSku: line.customerItemSnapshot?.customerSku ?? '',
-                customerModel: line.customerItemSnapshot?.customerModel ?? '',
-                customerDisplayName: line.customerItemSnapshot?.customerDisplayName ?? ''
-              }
-            }))
+            draftLines: (request.draftLines ?? []).map((line) => toDomainQuoteLineInput(line))
           })
         )
 
@@ -137,36 +109,7 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
                     opportunityName: request.draftMutation.opportunityRef.opportunityName ?? ''
                   }
                 : undefined,
-              lines: (request.draftMutation?.lines ?? []).map((line) => ({
-                lineNo: line.lineNo ?? 0,
-                itemId: line.itemId ?? '',
-                itemSnapshot: {
-                  itemCode: line.itemSnapshot?.itemCode ?? '',
-                  itemName: line.itemSnapshot?.itemName ?? ''
-                },
-                salesConfigSnapshot: {
-                  salesUom: line.salesConfigSnapshot?.salesUom ?? '',
-                  salesUnitLabel: line.salesConfigSnapshot?.salesUnitLabel ?? '',
-                  notes: line.salesConfigSnapshot?.notes ?? ''
-                },
-                packagingRequirementSnapshot: {
-                  packageMode: line.packagingRequirementSnapshot?.packageMode ?? '',
-                  packageLabel: line.packagingRequirementSnapshot?.packageLabel ?? '',
-                  specialInstructions: line.packagingRequirementSnapshot?.specialInstructions ?? ''
-                },
-                priceQuantityDeliverySnapshot: {
-                  currencyCode: line.priceQuantityDeliverySnapshot?.currencyCode ?? '',
-                  unitPrice: line.priceQuantityDeliverySnapshot?.unitPrice ?? '',
-                  quantity: line.priceQuantityDeliverySnapshot?.quantity ?? '',
-                  deliveryTerm: line.priceQuantityDeliverySnapshot?.deliveryTerm ?? '',
-                  requestedDeliveryDate: line.priceQuantityDeliverySnapshot?.requestedDeliveryDate ?? ''
-                },
-                customerItemSnapshot: {
-                  customerSku: line.customerItemSnapshot?.customerSku ?? '',
-                  customerModel: line.customerItemSnapshot?.customerModel ?? '',
-                  customerDisplayName: line.customerItemSnapshot?.customerDisplayName ?? ''
-                }
-              }))
+              lines: (request.draftMutation?.lines ?? []).map((line) => toDomainQuoteLineInput(line))
             }
           })
         )
@@ -299,6 +242,103 @@ export class SalesManagementGrpcController implements SalesManagementServiceCont
       }
     )
   }
+}
+
+/** toDomainQuoteLineInput translates one gRPC quote line payload into the shared domain input shape used by draft writes. */
+function toDomainQuoteLineInput(line: NonNullable<CreateQuoteRequest['draftLines']>[number]): QuoteLineInput {
+  return {
+    lineNo: line.lineNo ?? 0,
+    itemId: line.itemId ?? '',
+    itemSnapshot: {
+      itemCode: line.itemSnapshot?.itemCode ?? '',
+      itemName: line.itemSnapshot?.itemName ?? ''
+    },
+    salesConfigSnapshot: {
+      salesUom: line.salesConfigSnapshot?.salesUom ?? '',
+      salesUnitLabel: line.salesConfigSnapshot?.salesUnitLabel ?? '',
+      notes: line.salesConfigSnapshot?.notes ?? ''
+    },
+    packagingRequirementSnapshot: {
+      packageMode: line.packagingRequirementSnapshot?.packageMode ?? '',
+      packageLabel: line.packagingRequirementSnapshot?.packageLabel ?? '',
+      specialInstructions: line.packagingRequirementSnapshot?.specialInstructions ?? ''
+    },
+    priceQuantityDeliverySnapshot: toDomainPriceQuantityDeliverySnapshot(line.priceQuantityDeliverySnapshot),
+    customerItemSnapshot: {
+      customerSku: line.customerItemSnapshot?.customerSku ?? '',
+      customerModel: line.customerItemSnapshot?.customerModel ?? '',
+      customerDisplayName: line.customerItemSnapshot?.customerDisplayName ?? ''
+    }
+  }
+}
+
+/** toDomainPriceQuantityDeliverySnapshot preserves the pricing subtree so publish and convert can keep snapshot copy semantics. */
+function toDomainPriceQuantityDeliverySnapshot(
+  snapshot?: NonNullable<CreateQuoteRequest['draftLines']>[number]['priceQuantityDeliverySnapshot']
+): PriceQuantityDeliverySnapshot {
+  return {
+    currencyCode: snapshot?.currencyCode ?? '',
+    unitPrice: snapshot?.unitPrice ?? '',
+    quantity: snapshot?.quantity ?? '',
+    deliveryTerm: snapshot?.deliveryTerm ?? '',
+    requestedDeliveryDate: snapshot?.requestedDeliveryDate ?? '',
+    priceSnapshot: snapshot?.priceSnapshot
+      ? {
+          currencyCode: snapshot.priceSnapshot.currencyCode as 'USD' | 'CNY',
+          unitPriceAmount: snapshot.priceSnapshot.unitPriceAmount ?? '',
+          sourceType: toDomainPricingSourceType(snapshot.priceSnapshot.sourceType),
+          sourceRefId: snapshot.priceSnapshot.sourceRefId ?? '',
+          sourceLineRefId: snapshot.priceSnapshot.sourceLineRefId ?? '',
+          sourceVersionNo: snapshot.priceSnapshot.sourceVersionNo ?? 0,
+          resolvedAt: snapshot.priceSnapshot.resolvedAt ?? ''
+        }
+      : null,
+    moqSnapshot: snapshot?.moqSnapshot
+      ? {
+          moqQuantity: snapshot.moqSnapshot.moqQuantity ?? '',
+          quantityUomCode: snapshot.moqSnapshot.quantityUomCode ?? '',
+          sourceType: toDomainMoqSourceType(snapshot.moqSnapshot.sourceType),
+          sourceRefId: snapshot.moqSnapshot.sourceRefId ?? '',
+          sourceLineRefId: snapshot.moqSnapshot.sourceLineRefId ?? '',
+          sourceVersionNo: snapshot.moqSnapshot.sourceVersionNo ?? 0,
+          resolvedAt: snapshot.moqSnapshot.resolvedAt ?? ''
+        }
+      : null,
+    exchangeRateSnapshot: snapshot?.exchangeRateSnapshot
+      ? {
+          fromCurrencyCode: snapshot.exchangeRateSnapshot.fromCurrencyCode as 'USD' | 'CNY',
+          toCurrencyCode: snapshot.exchangeRateSnapshot.toCurrencyCode as 'USD' | 'CNY',
+          exchangeRateValue: snapshot.exchangeRateSnapshot.exchangeRateValue ?? '',
+          financeRateRef: snapshot.exchangeRateSnapshot.financeRateRef ?? null,
+          effectiveAt: snapshot.exchangeRateSnapshot.effectiveAt ?? '',
+          snapshottedAt: snapshot.exchangeRateSnapshot.snapshottedAt ?? ''
+        }
+      : null,
+    exceptionPlaceholders: (snapshot?.exceptionPlaceholders ?? []).map((item) => ({
+      exceptionType: item.exceptionType === 2 ? 'LOW_MOQ' : 'LOW_PRICE',
+      status: item.status === 2 ? 'REQUIRED' : 'NOT_REQUIRED',
+      baselineSourceType: item.baselineSourceType === 2 ? 'PRICE_LIST' : 'CUSTOMER_PRICE_AGREEMENT',
+      baselineValue: item.baselineValue ?? '',
+      actualValue: item.actualValue ?? '',
+      currencyCode: item.currencyCode ?? null,
+      quantityUomCode: item.quantityUomCode ?? null,
+      detectedAt: item.detectedAt ?? ''
+    }))
+  }
+}
+
+function toDomainPricingSourceType(value?: number): 'CUSTOMER_PRICE_AGREEMENT' | 'PRICE_LIST' | 'MANUAL' {
+  if (value === 2) {
+    return 'PRICE_LIST'
+  }
+  if (value === 3) {
+    return 'MANUAL'
+  }
+  return 'CUSTOMER_PRICE_AGREEMENT'
+}
+
+function toDomainMoqSourceType(value?: number): 'CUSTOMER_PRICE_AGREEMENT' | 'PRICE_LIST' {
+  return value === 2 ? 'PRICE_LIST' : 'CUSTOMER_PRICE_AGREEMENT'
 }
 
 /** toDomainGateName maps the generated commercial gate enum into the frozen domain gate identifiers. */

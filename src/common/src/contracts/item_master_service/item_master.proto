@@ -9,6 +9,7 @@ service ItemMasterQueryService {
   rpc GetItem(GetItemRequest) returns (GetItemResponse);
   rpc BatchGetItems(BatchGetItemsRequest) returns (BatchGetItemsResponse);
   rpc SearchItems(SearchItemsRequest) returns (SearchItemsResponse);
+  rpc ListItemCategories(ListItemCategoriesRequest) returns (ListItemCategoriesResponse);
   rpc GetItemComposition(GetItemCompositionRequest) returns (GetItemCompositionResponse);
   rpc ListSupplierItemMappingsByItem(ListSupplierItemMappingsByItemRequest) returns (ListSupplierItemMappingsByItemResponse);
   rpc ResolveSupplierItemMapping(ResolveSupplierItemMappingRequest) returns (ResolveSupplierItemMappingResponse);
@@ -21,6 +22,10 @@ service ItemMasterManagementService {
   rpc SetItemComposition(SetItemCompositionRequest) returns (SetItemCompositionResponse);
   rpc UpsertSupplierItemMapping(UpsertSupplierItemMappingRequest) returns (UpsertSupplierItemMappingResponse);
   rpc ChangeItemStatus(ChangeItemStatusRequest) returns (ChangeItemStatusResponse);
+  rpc CreateItemCategory(CreateItemCategoryRequest) returns (CreateItemCategoryResponse);
+  rpc UpdateItemCategoryBasics(UpdateItemCategoryBasicsRequest) returns (UpdateItemCategoryBasicsResponse);
+  rpc ChangeItemCategoryStatus(ChangeItemCategoryStatusRequest) returns (ChangeItemCategoryStatusResponse);
+  rpc SetItemPrimaryCategory(SetItemPrimaryCategoryRequest) returns (SetItemPrimaryCategoryResponse);
 }
 
 enum ItemStructureType {
@@ -40,6 +45,12 @@ enum ItemStatus {
   ITEM_STATUS_UNSPECIFIED = 0;
   ITEM_STATUS_ACTIVE = 1;
   ITEM_STATUS_INACTIVE = 2;
+}
+
+enum ItemCategoryStatus {
+  ITEM_CATEGORY_STATUS_UNSPECIFIED = 0;
+  ITEM_CATEGORY_STATUS_ACTIVE = 1;
+  ITEM_CATEGORY_STATUS_INACTIVE = 2;
 }
 
 enum SupplierItemResolutionStatus {
@@ -70,6 +81,23 @@ message ItemSummary {
   ItemNatureType nature_type = 5;
   ItemStatus status = 6;
   ItemCapabilities capabilities = 7;
+  ItemCategorySummary primary_category_summary = 8;
+}
+
+message ItemCategorySummary {
+  string category_id = 1;
+  string category_code = 2;
+  string category_name = 3;
+  ItemCategoryStatus status = 4;
+}
+
+message ItemCategoryTreeNode {
+  string category_id = 1;
+  string category_code = 2;
+  string category_name = 3;
+  string parent_category_id = 4;
+  ItemCategoryStatus status = 5;
+  bool has_children = 6;
 }
 
 message ItemCompositionComponentInput {
@@ -124,8 +152,10 @@ message SearchItemsRequest {
   ItemNatureType nature_type = 4;
   ItemCapabilityFilters capability_filters = 5;
   ItemStatus status = 6;
-  uint32 page = 7;
-  uint32 page_size = 8;
+  string category_id = 7;
+  bool include_descendants = 8;
+  uint32 page = 9;
+  uint32 page_size = 10;
 }
 
 message SearchItemsResponse {
@@ -133,6 +163,15 @@ message SearchItemsResponse {
   uint32 total = 2;
   uint32 page = 3;
   uint32 page_size = 4;
+}
+
+message ListItemCategoriesRequest {
+  string tenant_id = 1;
+  string parent_category_id = 2;
+}
+
+message ListItemCategoriesResponse {
+  repeated ItemCategoryTreeNode categories = 1;
 }
 
 message GetItemCompositionRequest {
@@ -235,5 +274,47 @@ message ChangeItemStatusRequest {
 }
 
 message ChangeItemStatusResponse {
+  ItemSummary item = 1;
+}
+
+message CreateItemCategoryRequest {
+  string tenant_id = 1;
+  string category_code = 2;
+  string category_name = 3;
+  string parent_category_id = 4;
+}
+
+message CreateItemCategoryResponse {
+  ItemCategorySummary category = 1;
+}
+
+message UpdateItemCategoryBasicsRequest {
+  string tenant_id = 1;
+  string category_id = 2;
+  string category_code = 3;
+  string category_name = 4;
+}
+
+message UpdateItemCategoryBasicsResponse {
+  ItemCategorySummary category = 1;
+}
+
+message ChangeItemCategoryStatusRequest {
+  string tenant_id = 1;
+  string category_id = 2;
+  ItemCategoryStatus target_status = 3;
+}
+
+message ChangeItemCategoryStatusResponse {
+  ItemCategorySummary category = 1;
+}
+
+message SetItemPrimaryCategoryRequest {
+  string tenant_id = 1;
+  string item_id = 2;
+  string category_id = 3;
+}
+
+message SetItemPrimaryCategoryResponse {
   ItemSummary item = 1;
 }

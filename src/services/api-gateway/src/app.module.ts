@@ -15,6 +15,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
 import { GatewaySessionAuthGuard } from './common/guards/gateway-session-auth.guard'
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
 import { CrmServiceProxyModule } from './modules/crm-service/crm-service.module'
+import { FinanceServiceProxyModule } from './modules/finance-service/finance-service.module'
 import { HrServiceProxyModule } from './modules/hr-service/hr-service.module'
 import { ItemMasterServiceProxyModule } from './modules/item-master-service/item-master-service.module'
 import { PermissionServiceProxyModule } from './modules/permission-service/permission-service.module'
@@ -91,6 +92,15 @@ export function resolveTenantOrgGrpcUrl() {
             process.env.CRM_SERVICE_HOST && process.env.CRM_SERVICE_PORT
               ? `${process.env.CRM_SERVICE_HOST}:${process.env.CRM_SERVICE_PORT}`
               : 'localhost:50060'
+        },
+        [SERVICE_NAMES.FINANCE]: {
+          serviceName: SERVICE_NAMES.FINANCE,
+          protoPath: resolveCommonProtoPath('finance_service/finance.proto'),
+          packageName: 'finance_service',
+          url:
+            process.env.FINANCE_SERVICE_HOST && process.env.FINANCE_SERVICE_PORT
+              ? `${process.env.FINANCE_SERVICE_HOST}:${process.env.FINANCE_SERVICE_PORT}`
+              : 'localhost:50063'
         },
         [SERVICE_NAMES.IDENTITY]: {
           serviceName: SERVICE_NAMES.IDENTITY,
@@ -174,6 +184,7 @@ export function resolveTenantOrgGrpcUrl() {
     HealthModule,
     AuthBffModule,
     CrmServiceProxyModule,
+    FinanceServiceProxyModule,
     HrServiceProxyModule,
     ItemMasterServiceProxyModule,
     PermissionServiceProxyModule,

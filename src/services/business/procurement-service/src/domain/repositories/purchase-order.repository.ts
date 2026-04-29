@@ -15,4 +15,5 @@ export interface PurchaseOrderRepository {
   search(input: SearchPurchaseOrdersInput): Promise<PageResult<PurchaseOrderRecord>>
   listChanges(input: ListPurchaseOrderChangesInput): Promise<PageResult<PurchaseOrderChangeRecord>>
   existsBySourcePurchaseRequestId(tenantId: string, purchaseRequestId: string): Promise<boolean>
+  findBySourcePurchaseRequestId(tenantId: string, purchaseRequestId: string): Promise<PurchaseOrderRecord[]>
 }

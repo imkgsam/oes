@@ -59,6 +59,26 @@ export type SalesOrderFulfillmentHandoffSummary = $Result.DefaultSelection<Prism
  */
 export type SalesOrderLine = $Result.DefaultSelection<Prisma.$SalesOrderLinePayload>
 /**
+ * Model SalesPriceList
+ * 
+ */
+export type SalesPriceList = $Result.DefaultSelection<Prisma.$SalesPriceListPayload>
+/**
+ * Model SalesPriceListLine
+ * 
+ */
+export type SalesPriceListLine = $Result.DefaultSelection<Prisma.$SalesPriceListLinePayload>
+/**
+ * Model SalesCustomerPriceAgreementVersion
+ * 
+ */
+export type SalesCustomerPriceAgreementVersion = $Result.DefaultSelection<Prisma.$SalesCustomerPriceAgreementVersionPayload>
+/**
+ * Model SalesCustomerPriceAgreementLine
+ * 
+ */
+export type SalesCustomerPriceAgreementLine = $Result.DefaultSelection<Prisma.$SalesCustomerPriceAgreementLinePayload>
+/**
  * Model SalesAuditEnvelope
  * 
  */
@@ -83,6 +103,33 @@ export const SalesFulfillmentHandoffStatus: {
 
 export type SalesFulfillmentHandoffStatus = (typeof SalesFulfillmentHandoffStatus)[keyof typeof SalesFulfillmentHandoffStatus]
 
+
+export const PriceListType: {
+  STANDARD: 'STANDARD',
+  ACTIVITY: 'ACTIVITY',
+  EXHIBITION: 'EXHIBITION'
+};
+
+export type PriceListType = (typeof PriceListType)[keyof typeof PriceListType]
+
+
+export const PriceListStatus: {
+  DRAFT: 'DRAFT',
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE'
+};
+
+export type PriceListStatus = (typeof PriceListStatus)[keyof typeof PriceListStatus]
+
+
+export const CustomerPriceAgreementStatus: {
+  DRAFT: 'DRAFT',
+  ACTIVE: 'ACTIVE',
+  SUPERSEDED: 'SUPERSEDED'
+};
+
+export type CustomerPriceAgreementStatus = (typeof CustomerPriceAgreementStatus)[keyof typeof CustomerPriceAgreementStatus]
+
 }
 
 export type SalesQuoteStatus = $Enums.SalesQuoteStatus
@@ -92,6 +139,18 @@ export const SalesQuoteStatus: typeof $Enums.SalesQuoteStatus
 export type SalesFulfillmentHandoffStatus = $Enums.SalesFulfillmentHandoffStatus
 
 export const SalesFulfillmentHandoffStatus: typeof $Enums.SalesFulfillmentHandoffStatus
+
+export type PriceListType = $Enums.PriceListType
+
+export const PriceListType: typeof $Enums.PriceListType
+
+export type PriceListStatus = $Enums.PriceListStatus
+
+export const PriceListStatus: typeof $Enums.PriceListStatus
+
+export type CustomerPriceAgreementStatus = $Enums.CustomerPriceAgreementStatus
+
+export const CustomerPriceAgreementStatus: typeof $Enums.CustomerPriceAgreementStatus
 
 /**
  * ##  Prisma Client ʲˢ
@@ -307,6 +366,46 @@ export class PrismaClient<
     * ```
     */
   get salesOrderLine(): Prisma.SalesOrderLineDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.salesPriceList`: Exposes CRUD operations for the **SalesPriceList** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more SalesPriceLists
+    * const salesPriceLists = await prisma.salesPriceList.findMany()
+    * ```
+    */
+  get salesPriceList(): Prisma.SalesPriceListDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.salesPriceListLine`: Exposes CRUD operations for the **SalesPriceListLine** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more SalesPriceListLines
+    * const salesPriceListLines = await prisma.salesPriceListLine.findMany()
+    * ```
+    */
+  get salesPriceListLine(): Prisma.SalesPriceListLineDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.salesCustomerPriceAgreementVersion`: Exposes CRUD operations for the **SalesCustomerPriceAgreementVersion** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more SalesCustomerPriceAgreementVersions
+    * const salesCustomerPriceAgreementVersions = await prisma.salesCustomerPriceAgreementVersion.findMany()
+    * ```
+    */
+  get salesCustomerPriceAgreementVersion(): Prisma.SalesCustomerPriceAgreementVersionDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.salesCustomerPriceAgreementLine`: Exposes CRUD operations for the **SalesCustomerPriceAgreementLine** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more SalesCustomerPriceAgreementLines
+    * const salesCustomerPriceAgreementLines = await prisma.salesCustomerPriceAgreementLine.findMany()
+    * ```
+    */
+  get salesCustomerPriceAgreementLine(): Prisma.SalesCustomerPriceAgreementLineDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.salesAuditEnvelope`: Exposes CRUD operations for the **SalesAuditEnvelope** model.
@@ -766,6 +865,10 @@ export namespace Prisma {
     SalesOrderCommercialGateSummary: 'SalesOrderCommercialGateSummary',
     SalesOrderFulfillmentHandoffSummary: 'SalesOrderFulfillmentHandoffSummary',
     SalesOrderLine: 'SalesOrderLine',
+    SalesPriceList: 'SalesPriceList',
+    SalesPriceListLine: 'SalesPriceListLine',
+    SalesCustomerPriceAgreementVersion: 'SalesCustomerPriceAgreementVersion',
+    SalesCustomerPriceAgreementLine: 'SalesCustomerPriceAgreementLine',
     SalesAuditEnvelope: 'SalesAuditEnvelope'
   };
 
@@ -782,7 +885,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "salesSequenceCounter" | "salesQuote" | "salesQuoteLine" | "salesQuoteVersion" | "salesQuoteVersionLine" | "salesOrder" | "salesOrderCommercialGateSummary" | "salesOrderFulfillmentHandoffSummary" | "salesOrderLine" | "salesAuditEnvelope"
+      modelProps: "salesSequenceCounter" | "salesQuote" | "salesQuoteLine" | "salesQuoteVersion" | "salesQuoteVersionLine" | "salesOrder" | "salesOrderCommercialGateSummary" | "salesOrderFulfillmentHandoffSummary" | "salesOrderLine" | "salesPriceList" | "salesPriceListLine" | "salesCustomerPriceAgreementVersion" | "salesCustomerPriceAgreementLine" | "salesAuditEnvelope"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1452,6 +1555,302 @@ export namespace Prisma {
           }
         }
       }
+      SalesPriceList: {
+        payload: Prisma.$SalesPriceListPayload<ExtArgs>
+        fields: Prisma.SalesPriceListFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.SalesPriceListFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.SalesPriceListFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListPayload>
+          }
+          findFirst: {
+            args: Prisma.SalesPriceListFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.SalesPriceListFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListPayload>
+          }
+          findMany: {
+            args: Prisma.SalesPriceListFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListPayload>[]
+          }
+          create: {
+            args: Prisma.SalesPriceListCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListPayload>
+          }
+          createMany: {
+            args: Prisma.SalesPriceListCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.SalesPriceListCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListPayload>[]
+          }
+          delete: {
+            args: Prisma.SalesPriceListDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListPayload>
+          }
+          update: {
+            args: Prisma.SalesPriceListUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListPayload>
+          }
+          deleteMany: {
+            args: Prisma.SalesPriceListDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.SalesPriceListUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.SalesPriceListUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListPayload>[]
+          }
+          upsert: {
+            args: Prisma.SalesPriceListUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListPayload>
+          }
+          aggregate: {
+            args: Prisma.SalesPriceListAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateSalesPriceList>
+          }
+          groupBy: {
+            args: Prisma.SalesPriceListGroupByArgs<ExtArgs>
+            result: $Utils.Optional<SalesPriceListGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.SalesPriceListCountArgs<ExtArgs>
+            result: $Utils.Optional<SalesPriceListCountAggregateOutputType> | number
+          }
+        }
+      }
+      SalesPriceListLine: {
+        payload: Prisma.$SalesPriceListLinePayload<ExtArgs>
+        fields: Prisma.SalesPriceListLineFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.SalesPriceListLineFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListLinePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.SalesPriceListLineFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListLinePayload>
+          }
+          findFirst: {
+            args: Prisma.SalesPriceListLineFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListLinePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.SalesPriceListLineFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListLinePayload>
+          }
+          findMany: {
+            args: Prisma.SalesPriceListLineFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListLinePayload>[]
+          }
+          create: {
+            args: Prisma.SalesPriceListLineCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListLinePayload>
+          }
+          createMany: {
+            args: Prisma.SalesPriceListLineCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.SalesPriceListLineCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListLinePayload>[]
+          }
+          delete: {
+            args: Prisma.SalesPriceListLineDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListLinePayload>
+          }
+          update: {
+            args: Prisma.SalesPriceListLineUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListLinePayload>
+          }
+          deleteMany: {
+            args: Prisma.SalesPriceListLineDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.SalesPriceListLineUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.SalesPriceListLineUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListLinePayload>[]
+          }
+          upsert: {
+            args: Prisma.SalesPriceListLineUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesPriceListLinePayload>
+          }
+          aggregate: {
+            args: Prisma.SalesPriceListLineAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateSalesPriceListLine>
+          }
+          groupBy: {
+            args: Prisma.SalesPriceListLineGroupByArgs<ExtArgs>
+            result: $Utils.Optional<SalesPriceListLineGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.SalesPriceListLineCountArgs<ExtArgs>
+            result: $Utils.Optional<SalesPriceListLineCountAggregateOutputType> | number
+          }
+        }
+      }
+      SalesCustomerPriceAgreementVersion: {
+        payload: Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>
+        fields: Prisma.SalesCustomerPriceAgreementVersionFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.SalesCustomerPriceAgreementVersionFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementVersionPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.SalesCustomerPriceAgreementVersionFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementVersionPayload>
+          }
+          findFirst: {
+            args: Prisma.SalesCustomerPriceAgreementVersionFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementVersionPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.SalesCustomerPriceAgreementVersionFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementVersionPayload>
+          }
+          findMany: {
+            args: Prisma.SalesCustomerPriceAgreementVersionFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementVersionPayload>[]
+          }
+          create: {
+            args: Prisma.SalesCustomerPriceAgreementVersionCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementVersionPayload>
+          }
+          createMany: {
+            args: Prisma.SalesCustomerPriceAgreementVersionCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.SalesCustomerPriceAgreementVersionCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementVersionPayload>[]
+          }
+          delete: {
+            args: Prisma.SalesCustomerPriceAgreementVersionDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementVersionPayload>
+          }
+          update: {
+            args: Prisma.SalesCustomerPriceAgreementVersionUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementVersionPayload>
+          }
+          deleteMany: {
+            args: Prisma.SalesCustomerPriceAgreementVersionDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.SalesCustomerPriceAgreementVersionUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.SalesCustomerPriceAgreementVersionUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementVersionPayload>[]
+          }
+          upsert: {
+            args: Prisma.SalesCustomerPriceAgreementVersionUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementVersionPayload>
+          }
+          aggregate: {
+            args: Prisma.SalesCustomerPriceAgreementVersionAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateSalesCustomerPriceAgreementVersion>
+          }
+          groupBy: {
+            args: Prisma.SalesCustomerPriceAgreementVersionGroupByArgs<ExtArgs>
+            result: $Utils.Optional<SalesCustomerPriceAgreementVersionGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.SalesCustomerPriceAgreementVersionCountArgs<ExtArgs>
+            result: $Utils.Optional<SalesCustomerPriceAgreementVersionCountAggregateOutputType> | number
+          }
+        }
+      }
+      SalesCustomerPriceAgreementLine: {
+        payload: Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>
+        fields: Prisma.SalesCustomerPriceAgreementLineFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.SalesCustomerPriceAgreementLineFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementLinePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.SalesCustomerPriceAgreementLineFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementLinePayload>
+          }
+          findFirst: {
+            args: Prisma.SalesCustomerPriceAgreementLineFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementLinePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.SalesCustomerPriceAgreementLineFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementLinePayload>
+          }
+          findMany: {
+            args: Prisma.SalesCustomerPriceAgreementLineFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementLinePayload>[]
+          }
+          create: {
+            args: Prisma.SalesCustomerPriceAgreementLineCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementLinePayload>
+          }
+          createMany: {
+            args: Prisma.SalesCustomerPriceAgreementLineCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.SalesCustomerPriceAgreementLineCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementLinePayload>[]
+          }
+          delete: {
+            args: Prisma.SalesCustomerPriceAgreementLineDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementLinePayload>
+          }
+          update: {
+            args: Prisma.SalesCustomerPriceAgreementLineUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementLinePayload>
+          }
+          deleteMany: {
+            args: Prisma.SalesCustomerPriceAgreementLineDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.SalesCustomerPriceAgreementLineUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.SalesCustomerPriceAgreementLineUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementLinePayload>[]
+          }
+          upsert: {
+            args: Prisma.SalesCustomerPriceAgreementLineUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$SalesCustomerPriceAgreementLinePayload>
+          }
+          aggregate: {
+            args: Prisma.SalesCustomerPriceAgreementLineAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateSalesCustomerPriceAgreementLine>
+          }
+          groupBy: {
+            args: Prisma.SalesCustomerPriceAgreementLineGroupByArgs<ExtArgs>
+            result: $Utils.Optional<SalesCustomerPriceAgreementLineGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.SalesCustomerPriceAgreementLineCountArgs<ExtArgs>
+            result: $Utils.Optional<SalesCustomerPriceAgreementLineCountAggregateOutputType> | number
+          }
+        }
+      }
       SalesAuditEnvelope: {
         payload: Prisma.$SalesAuditEnvelopePayload<ExtArgs>
         fields: Prisma.SalesAuditEnvelopeFieldRefs
@@ -1619,6 +2018,10 @@ export namespace Prisma {
     salesOrderCommercialGateSummary?: SalesOrderCommercialGateSummaryOmit
     salesOrderFulfillmentHandoffSummary?: SalesOrderFulfillmentHandoffSummaryOmit
     salesOrderLine?: SalesOrderLineOmit
+    salesPriceList?: SalesPriceListOmit
+    salesPriceListLine?: SalesPriceListLineOmit
+    salesCustomerPriceAgreementVersion?: SalesCustomerPriceAgreementVersionOmit
+    salesCustomerPriceAgreementLine?: SalesCustomerPriceAgreementLineOmit
     salesAuditEnvelope?: SalesAuditEnvelopeOmit
   }
 
@@ -1799,6 +2202,68 @@ export namespace Prisma {
    */
   export type SalesOrderCountOutputTypeCountLinesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: SalesOrderLineWhereInput
+  }
+
+
+  /**
+   * Count Type SalesPriceListCountOutputType
+   */
+
+  export type SalesPriceListCountOutputType = {
+    lines: number
+  }
+
+  export type SalesPriceListCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    lines?: boolean | SalesPriceListCountOutputTypeCountLinesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * SalesPriceListCountOutputType without action
+   */
+  export type SalesPriceListCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListCountOutputType
+     */
+    select?: SalesPriceListCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * SalesPriceListCountOutputType without action
+   */
+  export type SalesPriceListCountOutputTypeCountLinesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SalesPriceListLineWhereInput
+  }
+
+
+  /**
+   * Count Type SalesCustomerPriceAgreementVersionCountOutputType
+   */
+
+  export type SalesCustomerPriceAgreementVersionCountOutputType = {
+    lines: number
+  }
+
+  export type SalesCustomerPriceAgreementVersionCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    lines?: boolean | SalesCustomerPriceAgreementVersionCountOutputTypeCountLinesArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * SalesCustomerPriceAgreementVersionCountOutputType without action
+   */
+  export type SalesCustomerPriceAgreementVersionCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersionCountOutputType
+     */
+    select?: SalesCustomerPriceAgreementVersionCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersionCountOutputType without action
+   */
+  export type SalesCustomerPriceAgreementVersionCountOutputTypeCountLinesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SalesCustomerPriceAgreementLineWhereInput
   }
 
 
@@ -11930,6 +12395,4608 @@ export namespace Prisma {
 
 
   /**
+   * Model SalesPriceList
+   */
+
+  export type AggregateSalesPriceList = {
+    _count: SalesPriceListCountAggregateOutputType | null
+    _min: SalesPriceListMinAggregateOutputType | null
+    _max: SalesPriceListMaxAggregateOutputType | null
+  }
+
+  export type SalesPriceListMinAggregateOutputType = {
+    id: string | null
+    tenantId: string | null
+    priceListName: string | null
+    priceListType: $Enums.PriceListType | null
+    status: $Enums.PriceListStatus | null
+    currencyCode: string | null
+    effectiveFrom: Date | null
+    effectiveTo: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SalesPriceListMaxAggregateOutputType = {
+    id: string | null
+    tenantId: string | null
+    priceListName: string | null
+    priceListType: $Enums.PriceListType | null
+    status: $Enums.PriceListStatus | null
+    currencyCode: string | null
+    effectiveFrom: Date | null
+    effectiveTo: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SalesPriceListCountAggregateOutputType = {
+    id: number
+    tenantId: number
+    priceListName: number
+    priceListType: number
+    status: number
+    currencyCode: number
+    effectiveFrom: number
+    effectiveTo: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type SalesPriceListMinAggregateInputType = {
+    id?: true
+    tenantId?: true
+    priceListName?: true
+    priceListType?: true
+    status?: true
+    currencyCode?: true
+    effectiveFrom?: true
+    effectiveTo?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SalesPriceListMaxAggregateInputType = {
+    id?: true
+    tenantId?: true
+    priceListName?: true
+    priceListType?: true
+    status?: true
+    currencyCode?: true
+    effectiveFrom?: true
+    effectiveTo?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SalesPriceListCountAggregateInputType = {
+    id?: true
+    tenantId?: true
+    priceListName?: true
+    priceListType?: true
+    status?: true
+    currencyCode?: true
+    effectiveFrom?: true
+    effectiveTo?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type SalesPriceListAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SalesPriceList to aggregate.
+     */
+    where?: SalesPriceListWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesPriceLists to fetch.
+     */
+    orderBy?: SalesPriceListOrderByWithRelationInput | SalesPriceListOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: SalesPriceListWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesPriceLists from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesPriceLists.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned SalesPriceLists
+    **/
+    _count?: true | SalesPriceListCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: SalesPriceListMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: SalesPriceListMaxAggregateInputType
+  }
+
+  export type GetSalesPriceListAggregateType<T extends SalesPriceListAggregateArgs> = {
+        [P in keyof T & keyof AggregateSalesPriceList]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateSalesPriceList[P]>
+      : GetScalarType<T[P], AggregateSalesPriceList[P]>
+  }
+
+
+
+
+  export type SalesPriceListGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SalesPriceListWhereInput
+    orderBy?: SalesPriceListOrderByWithAggregationInput | SalesPriceListOrderByWithAggregationInput[]
+    by: SalesPriceListScalarFieldEnum[] | SalesPriceListScalarFieldEnum
+    having?: SalesPriceListScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: SalesPriceListCountAggregateInputType | true
+    _min?: SalesPriceListMinAggregateInputType
+    _max?: SalesPriceListMaxAggregateInputType
+  }
+
+  export type SalesPriceListGroupByOutputType = {
+    id: string
+    tenantId: string
+    priceListName: string
+    priceListType: $Enums.PriceListType
+    status: $Enums.PriceListStatus
+    currencyCode: string
+    effectiveFrom: Date
+    effectiveTo: Date | null
+    createdAt: Date
+    updatedAt: Date
+    _count: SalesPriceListCountAggregateOutputType | null
+    _min: SalesPriceListMinAggregateOutputType | null
+    _max: SalesPriceListMaxAggregateOutputType | null
+  }
+
+  type GetSalesPriceListGroupByPayload<T extends SalesPriceListGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<SalesPriceListGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof SalesPriceListGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], SalesPriceListGroupByOutputType[P]>
+            : GetScalarType<T[P], SalesPriceListGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type SalesPriceListSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    priceListName?: boolean
+    priceListType?: boolean
+    status?: boolean
+    currencyCode?: boolean
+    effectiveFrom?: boolean
+    effectiveTo?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    lines?: boolean | SalesPriceList$linesArgs<ExtArgs>
+    _count?: boolean | SalesPriceListCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["salesPriceList"]>
+
+  export type SalesPriceListSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    priceListName?: boolean
+    priceListType?: boolean
+    status?: boolean
+    currencyCode?: boolean
+    effectiveFrom?: boolean
+    effectiveTo?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["salesPriceList"]>
+
+  export type SalesPriceListSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    priceListName?: boolean
+    priceListType?: boolean
+    status?: boolean
+    currencyCode?: boolean
+    effectiveFrom?: boolean
+    effectiveTo?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["salesPriceList"]>
+
+  export type SalesPriceListSelectScalar = {
+    id?: boolean
+    tenantId?: boolean
+    priceListName?: boolean
+    priceListType?: boolean
+    status?: boolean
+    currencyCode?: boolean
+    effectiveFrom?: boolean
+    effectiveTo?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type SalesPriceListOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "tenantId" | "priceListName" | "priceListType" | "status" | "currencyCode" | "effectiveFrom" | "effectiveTo" | "createdAt" | "updatedAt", ExtArgs["result"]["salesPriceList"]>
+  export type SalesPriceListInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    lines?: boolean | SalesPriceList$linesArgs<ExtArgs>
+    _count?: boolean | SalesPriceListCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type SalesPriceListIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type SalesPriceListIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+
+  export type $SalesPriceListPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "SalesPriceList"
+    objects: {
+      lines: Prisma.$SalesPriceListLinePayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      tenantId: string
+      priceListName: string
+      priceListType: $Enums.PriceListType
+      status: $Enums.PriceListStatus
+      currencyCode: string
+      effectiveFrom: Date
+      effectiveTo: Date | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["salesPriceList"]>
+    composites: {}
+  }
+
+  type SalesPriceListGetPayload<S extends boolean | null | undefined | SalesPriceListDefaultArgs> = $Result.GetResult<Prisma.$SalesPriceListPayload, S>
+
+  type SalesPriceListCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<SalesPriceListFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: SalesPriceListCountAggregateInputType | true
+    }
+
+  export interface SalesPriceListDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['SalesPriceList'], meta: { name: 'SalesPriceList' } }
+    /**
+     * Find zero or one SalesPriceList that matches the filter.
+     * @param {SalesPriceListFindUniqueArgs} args - Arguments to find a SalesPriceList
+     * @example
+     * // Get one SalesPriceList
+     * const salesPriceList = await prisma.salesPriceList.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends SalesPriceListFindUniqueArgs>(args: SelectSubset<T, SalesPriceListFindUniqueArgs<ExtArgs>>): Prisma__SalesPriceListClient<$Result.GetResult<Prisma.$SalesPriceListPayload<ExtArgs>, T, "findUnique", ClientOptions> | null, null, ExtArgs, ClientOptions>
+
+    /**
+     * Find one SalesPriceList that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {SalesPriceListFindUniqueOrThrowArgs} args - Arguments to find a SalesPriceList
+     * @example
+     * // Get one SalesPriceList
+     * const salesPriceList = await prisma.salesPriceList.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends SalesPriceListFindUniqueOrThrowArgs>(args: SelectSubset<T, SalesPriceListFindUniqueOrThrowArgs<ExtArgs>>): Prisma__SalesPriceListClient<$Result.GetResult<Prisma.$SalesPriceListPayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Find the first SalesPriceList that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListFindFirstArgs} args - Arguments to find a SalesPriceList
+     * @example
+     * // Get one SalesPriceList
+     * const salesPriceList = await prisma.salesPriceList.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends SalesPriceListFindFirstArgs>(args?: SelectSubset<T, SalesPriceListFindFirstArgs<ExtArgs>>): Prisma__SalesPriceListClient<$Result.GetResult<Prisma.$SalesPriceListPayload<ExtArgs>, T, "findFirst", ClientOptions> | null, null, ExtArgs, ClientOptions>
+
+    /**
+     * Find the first SalesPriceList that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListFindFirstOrThrowArgs} args - Arguments to find a SalesPriceList
+     * @example
+     * // Get one SalesPriceList
+     * const salesPriceList = await prisma.salesPriceList.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends SalesPriceListFindFirstOrThrowArgs>(args?: SelectSubset<T, SalesPriceListFindFirstOrThrowArgs<ExtArgs>>): Prisma__SalesPriceListClient<$Result.GetResult<Prisma.$SalesPriceListPayload<ExtArgs>, T, "findFirstOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Find zero or more SalesPriceLists that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all SalesPriceLists
+     * const salesPriceLists = await prisma.salesPriceList.findMany()
+     * 
+     * // Get first 10 SalesPriceLists
+     * const salesPriceLists = await prisma.salesPriceList.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const salesPriceListWithIdOnly = await prisma.salesPriceList.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends SalesPriceListFindManyArgs>(args?: SelectSubset<T, SalesPriceListFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesPriceListPayload<ExtArgs>, T, "findMany", ClientOptions>>
+
+    /**
+     * Create a SalesPriceList.
+     * @param {SalesPriceListCreateArgs} args - Arguments to create a SalesPriceList.
+     * @example
+     * // Create one SalesPriceList
+     * const SalesPriceList = await prisma.salesPriceList.create({
+     *   data: {
+     *     // ... data to create a SalesPriceList
+     *   }
+     * })
+     * 
+     */
+    create<T extends SalesPriceListCreateArgs>(args: SelectSubset<T, SalesPriceListCreateArgs<ExtArgs>>): Prisma__SalesPriceListClient<$Result.GetResult<Prisma.$SalesPriceListPayload<ExtArgs>, T, "create", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Create many SalesPriceLists.
+     * @param {SalesPriceListCreateManyArgs} args - Arguments to create many SalesPriceLists.
+     * @example
+     * // Create many SalesPriceLists
+     * const salesPriceList = await prisma.salesPriceList.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends SalesPriceListCreateManyArgs>(args?: SelectSubset<T, SalesPriceListCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many SalesPriceLists and returns the data saved in the database.
+     * @param {SalesPriceListCreateManyAndReturnArgs} args - Arguments to create many SalesPriceLists.
+     * @example
+     * // Create many SalesPriceLists
+     * const salesPriceList = await prisma.salesPriceList.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many SalesPriceLists and only return the `id`
+     * const salesPriceListWithIdOnly = await prisma.salesPriceList.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends SalesPriceListCreateManyAndReturnArgs>(args?: SelectSubset<T, SalesPriceListCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesPriceListPayload<ExtArgs>, T, "createManyAndReturn", ClientOptions>>
+
+    /**
+     * Delete a SalesPriceList.
+     * @param {SalesPriceListDeleteArgs} args - Arguments to delete one SalesPriceList.
+     * @example
+     * // Delete one SalesPriceList
+     * const SalesPriceList = await prisma.salesPriceList.delete({
+     *   where: {
+     *     // ... filter to delete one SalesPriceList
+     *   }
+     * })
+     * 
+     */
+    delete<T extends SalesPriceListDeleteArgs>(args: SelectSubset<T, SalesPriceListDeleteArgs<ExtArgs>>): Prisma__SalesPriceListClient<$Result.GetResult<Prisma.$SalesPriceListPayload<ExtArgs>, T, "delete", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Update one SalesPriceList.
+     * @param {SalesPriceListUpdateArgs} args - Arguments to update one SalesPriceList.
+     * @example
+     * // Update one SalesPriceList
+     * const salesPriceList = await prisma.salesPriceList.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends SalesPriceListUpdateArgs>(args: SelectSubset<T, SalesPriceListUpdateArgs<ExtArgs>>): Prisma__SalesPriceListClient<$Result.GetResult<Prisma.$SalesPriceListPayload<ExtArgs>, T, "update", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Delete zero or more SalesPriceLists.
+     * @param {SalesPriceListDeleteManyArgs} args - Arguments to filter SalesPriceLists to delete.
+     * @example
+     * // Delete a few SalesPriceLists
+     * const { count } = await prisma.salesPriceList.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends SalesPriceListDeleteManyArgs>(args?: SelectSubset<T, SalesPriceListDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SalesPriceLists.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many SalesPriceLists
+     * const salesPriceList = await prisma.salesPriceList.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends SalesPriceListUpdateManyArgs>(args: SelectSubset<T, SalesPriceListUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SalesPriceLists and returns the data updated in the database.
+     * @param {SalesPriceListUpdateManyAndReturnArgs} args - Arguments to update many SalesPriceLists.
+     * @example
+     * // Update many SalesPriceLists
+     * const salesPriceList = await prisma.salesPriceList.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more SalesPriceLists and only return the `id`
+     * const salesPriceListWithIdOnly = await prisma.salesPriceList.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends SalesPriceListUpdateManyAndReturnArgs>(args: SelectSubset<T, SalesPriceListUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesPriceListPayload<ExtArgs>, T, "updateManyAndReturn", ClientOptions>>
+
+    /**
+     * Create or update one SalesPriceList.
+     * @param {SalesPriceListUpsertArgs} args - Arguments to update or create a SalesPriceList.
+     * @example
+     * // Update or create a SalesPriceList
+     * const salesPriceList = await prisma.salesPriceList.upsert({
+     *   create: {
+     *     // ... data to create a SalesPriceList
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the SalesPriceList we want to update
+     *   }
+     * })
+     */
+    upsert<T extends SalesPriceListUpsertArgs>(args: SelectSubset<T, SalesPriceListUpsertArgs<ExtArgs>>): Prisma__SalesPriceListClient<$Result.GetResult<Prisma.$SalesPriceListPayload<ExtArgs>, T, "upsert", ClientOptions>, never, ExtArgs, ClientOptions>
+
+
+    /**
+     * Count the number of SalesPriceLists.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListCountArgs} args - Arguments to filter SalesPriceLists to count.
+     * @example
+     * // Count the number of SalesPriceLists
+     * const count = await prisma.salesPriceList.count({
+     *   where: {
+     *     // ... the filter for the SalesPriceLists we want to count
+     *   }
+     * })
+    **/
+    count<T extends SalesPriceListCountArgs>(
+      args?: Subset<T, SalesPriceListCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], SalesPriceListCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a SalesPriceList.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends SalesPriceListAggregateArgs>(args: Subset<T, SalesPriceListAggregateArgs>): Prisma.PrismaPromise<GetSalesPriceListAggregateType<T>>
+
+    /**
+     * Group by SalesPriceList.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends SalesPriceListGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: SalesPriceListGroupByArgs['orderBy'] }
+        : { orderBy?: SalesPriceListGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, SalesPriceListGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetSalesPriceListGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the SalesPriceList model
+   */
+  readonly fields: SalesPriceListFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for SalesPriceList.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__SalesPriceListClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    lines<T extends SalesPriceList$linesArgs<ExtArgs> = {}>(args?: Subset<T, SalesPriceList$linesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesPriceListLinePayload<ExtArgs>, T, "findMany", ClientOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the SalesPriceList model
+   */ 
+  interface SalesPriceListFieldRefs {
+    readonly id: FieldRef<"SalesPriceList", 'String'>
+    readonly tenantId: FieldRef<"SalesPriceList", 'String'>
+    readonly priceListName: FieldRef<"SalesPriceList", 'String'>
+    readonly priceListType: FieldRef<"SalesPriceList", 'PriceListType'>
+    readonly status: FieldRef<"SalesPriceList", 'PriceListStatus'>
+    readonly currencyCode: FieldRef<"SalesPriceList", 'String'>
+    readonly effectiveFrom: FieldRef<"SalesPriceList", 'DateTime'>
+    readonly effectiveTo: FieldRef<"SalesPriceList", 'DateTime'>
+    readonly createdAt: FieldRef<"SalesPriceList", 'DateTime'>
+    readonly updatedAt: FieldRef<"SalesPriceList", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * SalesPriceList findUnique
+   */
+  export type SalesPriceListFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceList
+     */
+    select?: SalesPriceListSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceList
+     */
+    omit?: SalesPriceListOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesPriceList to fetch.
+     */
+    where: SalesPriceListWhereUniqueInput
+  }
+
+  /**
+   * SalesPriceList findUniqueOrThrow
+   */
+  export type SalesPriceListFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceList
+     */
+    select?: SalesPriceListSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceList
+     */
+    omit?: SalesPriceListOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesPriceList to fetch.
+     */
+    where: SalesPriceListWhereUniqueInput
+  }
+
+  /**
+   * SalesPriceList findFirst
+   */
+  export type SalesPriceListFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceList
+     */
+    select?: SalesPriceListSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceList
+     */
+    omit?: SalesPriceListOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesPriceList to fetch.
+     */
+    where?: SalesPriceListWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesPriceLists to fetch.
+     */
+    orderBy?: SalesPriceListOrderByWithRelationInput | SalesPriceListOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SalesPriceLists.
+     */
+    cursor?: SalesPriceListWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesPriceLists from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesPriceLists.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SalesPriceLists.
+     */
+    distinct?: SalesPriceListScalarFieldEnum | SalesPriceListScalarFieldEnum[]
+  }
+
+  /**
+   * SalesPriceList findFirstOrThrow
+   */
+  export type SalesPriceListFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceList
+     */
+    select?: SalesPriceListSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceList
+     */
+    omit?: SalesPriceListOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesPriceList to fetch.
+     */
+    where?: SalesPriceListWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesPriceLists to fetch.
+     */
+    orderBy?: SalesPriceListOrderByWithRelationInput | SalesPriceListOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SalesPriceLists.
+     */
+    cursor?: SalesPriceListWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesPriceLists from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesPriceLists.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SalesPriceLists.
+     */
+    distinct?: SalesPriceListScalarFieldEnum | SalesPriceListScalarFieldEnum[]
+  }
+
+  /**
+   * SalesPriceList findMany
+   */
+  export type SalesPriceListFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceList
+     */
+    select?: SalesPriceListSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceList
+     */
+    omit?: SalesPriceListOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesPriceLists to fetch.
+     */
+    where?: SalesPriceListWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesPriceLists to fetch.
+     */
+    orderBy?: SalesPriceListOrderByWithRelationInput | SalesPriceListOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing SalesPriceLists.
+     */
+    cursor?: SalesPriceListWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesPriceLists from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesPriceLists.
+     */
+    skip?: number
+    distinct?: SalesPriceListScalarFieldEnum | SalesPriceListScalarFieldEnum[]
+  }
+
+  /**
+   * SalesPriceList create
+   */
+  export type SalesPriceListCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceList
+     */
+    select?: SalesPriceListSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceList
+     */
+    omit?: SalesPriceListOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListInclude<ExtArgs> | null
+    /**
+     * The data needed to create a SalesPriceList.
+     */
+    data: XOR<SalesPriceListCreateInput, SalesPriceListUncheckedCreateInput>
+  }
+
+  /**
+   * SalesPriceList createMany
+   */
+  export type SalesPriceListCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many SalesPriceLists.
+     */
+    data: SalesPriceListCreateManyInput | SalesPriceListCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SalesPriceList createManyAndReturn
+   */
+  export type SalesPriceListCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceList
+     */
+    select?: SalesPriceListSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceList
+     */
+    omit?: SalesPriceListOmit<ExtArgs> | null
+    /**
+     * The data used to create many SalesPriceLists.
+     */
+    data: SalesPriceListCreateManyInput | SalesPriceListCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SalesPriceList update
+   */
+  export type SalesPriceListUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceList
+     */
+    select?: SalesPriceListSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceList
+     */
+    omit?: SalesPriceListOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListInclude<ExtArgs> | null
+    /**
+     * The data needed to update a SalesPriceList.
+     */
+    data: XOR<SalesPriceListUpdateInput, SalesPriceListUncheckedUpdateInput>
+    /**
+     * Choose, which SalesPriceList to update.
+     */
+    where: SalesPriceListWhereUniqueInput
+  }
+
+  /**
+   * SalesPriceList updateMany
+   */
+  export type SalesPriceListUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update SalesPriceLists.
+     */
+    data: XOR<SalesPriceListUpdateManyMutationInput, SalesPriceListUncheckedUpdateManyInput>
+    /**
+     * Filter which SalesPriceLists to update
+     */
+    where?: SalesPriceListWhereInput
+    /**
+     * Limit how many SalesPriceLists to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * SalesPriceList updateManyAndReturn
+   */
+  export type SalesPriceListUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceList
+     */
+    select?: SalesPriceListSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceList
+     */
+    omit?: SalesPriceListOmit<ExtArgs> | null
+    /**
+     * The data used to update SalesPriceLists.
+     */
+    data: XOR<SalesPriceListUpdateManyMutationInput, SalesPriceListUncheckedUpdateManyInput>
+    /**
+     * Filter which SalesPriceLists to update
+     */
+    where?: SalesPriceListWhereInput
+    /**
+     * Limit how many SalesPriceLists to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * SalesPriceList upsert
+   */
+  export type SalesPriceListUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceList
+     */
+    select?: SalesPriceListSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceList
+     */
+    omit?: SalesPriceListOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListInclude<ExtArgs> | null
+    /**
+     * The filter to search for the SalesPriceList to update in case it exists.
+     */
+    where: SalesPriceListWhereUniqueInput
+    /**
+     * In case the SalesPriceList found by the `where` argument doesn't exist, create a new SalesPriceList with this data.
+     */
+    create: XOR<SalesPriceListCreateInput, SalesPriceListUncheckedCreateInput>
+    /**
+     * In case the SalesPriceList was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<SalesPriceListUpdateInput, SalesPriceListUncheckedUpdateInput>
+  }
+
+  /**
+   * SalesPriceList delete
+   */
+  export type SalesPriceListDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceList
+     */
+    select?: SalesPriceListSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceList
+     */
+    omit?: SalesPriceListOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListInclude<ExtArgs> | null
+    /**
+     * Filter which SalesPriceList to delete.
+     */
+    where: SalesPriceListWhereUniqueInput
+  }
+
+  /**
+   * SalesPriceList deleteMany
+   */
+  export type SalesPriceListDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SalesPriceLists to delete
+     */
+    where?: SalesPriceListWhereInput
+    /**
+     * Limit how many SalesPriceLists to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * SalesPriceList.lines
+   */
+  export type SalesPriceList$linesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineInclude<ExtArgs> | null
+    where?: SalesPriceListLineWhereInput
+    orderBy?: SalesPriceListLineOrderByWithRelationInput | SalesPriceListLineOrderByWithRelationInput[]
+    cursor?: SalesPriceListLineWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: SalesPriceListLineScalarFieldEnum | SalesPriceListLineScalarFieldEnum[]
+  }
+
+  /**
+   * SalesPriceList without action
+   */
+  export type SalesPriceListDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceList
+     */
+    select?: SalesPriceListSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceList
+     */
+    omit?: SalesPriceListOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model SalesPriceListLine
+   */
+
+  export type AggregateSalesPriceListLine = {
+    _count: SalesPriceListLineCountAggregateOutputType | null
+    _avg: SalesPriceListLineAvgAggregateOutputType | null
+    _sum: SalesPriceListLineSumAggregateOutputType | null
+    _min: SalesPriceListLineMinAggregateOutputType | null
+    _max: SalesPriceListLineMaxAggregateOutputType | null
+  }
+
+  export type SalesPriceListLineAvgAggregateOutputType = {
+    lineNo: number | null
+  }
+
+  export type SalesPriceListLineSumAggregateOutputType = {
+    lineNo: number | null
+  }
+
+  export type SalesPriceListLineMinAggregateOutputType = {
+    id: string | null
+    tenantId: string | null
+    priceListId: string | null
+    lineNo: number | null
+    itemId: string | null
+    brandKey: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SalesPriceListLineMaxAggregateOutputType = {
+    id: string | null
+    tenantId: string | null
+    priceListId: string | null
+    lineNo: number | null
+    itemId: string | null
+    brandKey: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SalesPriceListLineCountAggregateOutputType = {
+    id: number
+    tenantId: number
+    priceListId: number
+    lineNo: number
+    itemId: number
+    brandKey: number
+    priceSnapshot: number
+    moqSnapshot: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type SalesPriceListLineAvgAggregateInputType = {
+    lineNo?: true
+  }
+
+  export type SalesPriceListLineSumAggregateInputType = {
+    lineNo?: true
+  }
+
+  export type SalesPriceListLineMinAggregateInputType = {
+    id?: true
+    tenantId?: true
+    priceListId?: true
+    lineNo?: true
+    itemId?: true
+    brandKey?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SalesPriceListLineMaxAggregateInputType = {
+    id?: true
+    tenantId?: true
+    priceListId?: true
+    lineNo?: true
+    itemId?: true
+    brandKey?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SalesPriceListLineCountAggregateInputType = {
+    id?: true
+    tenantId?: true
+    priceListId?: true
+    lineNo?: true
+    itemId?: true
+    brandKey?: true
+    priceSnapshot?: true
+    moqSnapshot?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type SalesPriceListLineAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SalesPriceListLine to aggregate.
+     */
+    where?: SalesPriceListLineWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesPriceListLines to fetch.
+     */
+    orderBy?: SalesPriceListLineOrderByWithRelationInput | SalesPriceListLineOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: SalesPriceListLineWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesPriceListLines from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesPriceListLines.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned SalesPriceListLines
+    **/
+    _count?: true | SalesPriceListLineCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: SalesPriceListLineAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: SalesPriceListLineSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: SalesPriceListLineMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: SalesPriceListLineMaxAggregateInputType
+  }
+
+  export type GetSalesPriceListLineAggregateType<T extends SalesPriceListLineAggregateArgs> = {
+        [P in keyof T & keyof AggregateSalesPriceListLine]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateSalesPriceListLine[P]>
+      : GetScalarType<T[P], AggregateSalesPriceListLine[P]>
+  }
+
+
+
+
+  export type SalesPriceListLineGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SalesPriceListLineWhereInput
+    orderBy?: SalesPriceListLineOrderByWithAggregationInput | SalesPriceListLineOrderByWithAggregationInput[]
+    by: SalesPriceListLineScalarFieldEnum[] | SalesPriceListLineScalarFieldEnum
+    having?: SalesPriceListLineScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: SalesPriceListLineCountAggregateInputType | true
+    _avg?: SalesPriceListLineAvgAggregateInputType
+    _sum?: SalesPriceListLineSumAggregateInputType
+    _min?: SalesPriceListLineMinAggregateInputType
+    _max?: SalesPriceListLineMaxAggregateInputType
+  }
+
+  export type SalesPriceListLineGroupByOutputType = {
+    id: string
+    tenantId: string
+    priceListId: string
+    lineNo: number
+    itemId: string
+    brandKey: string | null
+    priceSnapshot: JsonValue
+    moqSnapshot: JsonValue
+    createdAt: Date
+    updatedAt: Date
+    _count: SalesPriceListLineCountAggregateOutputType | null
+    _avg: SalesPriceListLineAvgAggregateOutputType | null
+    _sum: SalesPriceListLineSumAggregateOutputType | null
+    _min: SalesPriceListLineMinAggregateOutputType | null
+    _max: SalesPriceListLineMaxAggregateOutputType | null
+  }
+
+  type GetSalesPriceListLineGroupByPayload<T extends SalesPriceListLineGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<SalesPriceListLineGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof SalesPriceListLineGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], SalesPriceListLineGroupByOutputType[P]>
+            : GetScalarType<T[P], SalesPriceListLineGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type SalesPriceListLineSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    priceListId?: boolean
+    lineNo?: boolean
+    itemId?: boolean
+    brandKey?: boolean
+    priceSnapshot?: boolean
+    moqSnapshot?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    priceList?: boolean | SalesPriceListDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["salesPriceListLine"]>
+
+  export type SalesPriceListLineSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    priceListId?: boolean
+    lineNo?: boolean
+    itemId?: boolean
+    brandKey?: boolean
+    priceSnapshot?: boolean
+    moqSnapshot?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    priceList?: boolean | SalesPriceListDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["salesPriceListLine"]>
+
+  export type SalesPriceListLineSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    priceListId?: boolean
+    lineNo?: boolean
+    itemId?: boolean
+    brandKey?: boolean
+    priceSnapshot?: boolean
+    moqSnapshot?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    priceList?: boolean | SalesPriceListDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["salesPriceListLine"]>
+
+  export type SalesPriceListLineSelectScalar = {
+    id?: boolean
+    tenantId?: boolean
+    priceListId?: boolean
+    lineNo?: boolean
+    itemId?: boolean
+    brandKey?: boolean
+    priceSnapshot?: boolean
+    moqSnapshot?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type SalesPriceListLineOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "tenantId" | "priceListId" | "lineNo" | "itemId" | "brandKey" | "priceSnapshot" | "moqSnapshot" | "createdAt" | "updatedAt", ExtArgs["result"]["salesPriceListLine"]>
+  export type SalesPriceListLineInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    priceList?: boolean | SalesPriceListDefaultArgs<ExtArgs>
+  }
+  export type SalesPriceListLineIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    priceList?: boolean | SalesPriceListDefaultArgs<ExtArgs>
+  }
+  export type SalesPriceListLineIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    priceList?: boolean | SalesPriceListDefaultArgs<ExtArgs>
+  }
+
+  export type $SalesPriceListLinePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "SalesPriceListLine"
+    objects: {
+      priceList: Prisma.$SalesPriceListPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      tenantId: string
+      priceListId: string
+      lineNo: number
+      itemId: string
+      brandKey: string | null
+      priceSnapshot: Prisma.JsonValue
+      moqSnapshot: Prisma.JsonValue
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["salesPriceListLine"]>
+    composites: {}
+  }
+
+  type SalesPriceListLineGetPayload<S extends boolean | null | undefined | SalesPriceListLineDefaultArgs> = $Result.GetResult<Prisma.$SalesPriceListLinePayload, S>
+
+  type SalesPriceListLineCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<SalesPriceListLineFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: SalesPriceListLineCountAggregateInputType | true
+    }
+
+  export interface SalesPriceListLineDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['SalesPriceListLine'], meta: { name: 'SalesPriceListLine' } }
+    /**
+     * Find zero or one SalesPriceListLine that matches the filter.
+     * @param {SalesPriceListLineFindUniqueArgs} args - Arguments to find a SalesPriceListLine
+     * @example
+     * // Get one SalesPriceListLine
+     * const salesPriceListLine = await prisma.salesPriceListLine.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends SalesPriceListLineFindUniqueArgs>(args: SelectSubset<T, SalesPriceListLineFindUniqueArgs<ExtArgs>>): Prisma__SalesPriceListLineClient<$Result.GetResult<Prisma.$SalesPriceListLinePayload<ExtArgs>, T, "findUnique", ClientOptions> | null, null, ExtArgs, ClientOptions>
+
+    /**
+     * Find one SalesPriceListLine that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {SalesPriceListLineFindUniqueOrThrowArgs} args - Arguments to find a SalesPriceListLine
+     * @example
+     * // Get one SalesPriceListLine
+     * const salesPriceListLine = await prisma.salesPriceListLine.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends SalesPriceListLineFindUniqueOrThrowArgs>(args: SelectSubset<T, SalesPriceListLineFindUniqueOrThrowArgs<ExtArgs>>): Prisma__SalesPriceListLineClient<$Result.GetResult<Prisma.$SalesPriceListLinePayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Find the first SalesPriceListLine that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListLineFindFirstArgs} args - Arguments to find a SalesPriceListLine
+     * @example
+     * // Get one SalesPriceListLine
+     * const salesPriceListLine = await prisma.salesPriceListLine.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends SalesPriceListLineFindFirstArgs>(args?: SelectSubset<T, SalesPriceListLineFindFirstArgs<ExtArgs>>): Prisma__SalesPriceListLineClient<$Result.GetResult<Prisma.$SalesPriceListLinePayload<ExtArgs>, T, "findFirst", ClientOptions> | null, null, ExtArgs, ClientOptions>
+
+    /**
+     * Find the first SalesPriceListLine that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListLineFindFirstOrThrowArgs} args - Arguments to find a SalesPriceListLine
+     * @example
+     * // Get one SalesPriceListLine
+     * const salesPriceListLine = await prisma.salesPriceListLine.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends SalesPriceListLineFindFirstOrThrowArgs>(args?: SelectSubset<T, SalesPriceListLineFindFirstOrThrowArgs<ExtArgs>>): Prisma__SalesPriceListLineClient<$Result.GetResult<Prisma.$SalesPriceListLinePayload<ExtArgs>, T, "findFirstOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Find zero or more SalesPriceListLines that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListLineFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all SalesPriceListLines
+     * const salesPriceListLines = await prisma.salesPriceListLine.findMany()
+     * 
+     * // Get first 10 SalesPriceListLines
+     * const salesPriceListLines = await prisma.salesPriceListLine.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const salesPriceListLineWithIdOnly = await prisma.salesPriceListLine.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends SalesPriceListLineFindManyArgs>(args?: SelectSubset<T, SalesPriceListLineFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesPriceListLinePayload<ExtArgs>, T, "findMany", ClientOptions>>
+
+    /**
+     * Create a SalesPriceListLine.
+     * @param {SalesPriceListLineCreateArgs} args - Arguments to create a SalesPriceListLine.
+     * @example
+     * // Create one SalesPriceListLine
+     * const SalesPriceListLine = await prisma.salesPriceListLine.create({
+     *   data: {
+     *     // ... data to create a SalesPriceListLine
+     *   }
+     * })
+     * 
+     */
+    create<T extends SalesPriceListLineCreateArgs>(args: SelectSubset<T, SalesPriceListLineCreateArgs<ExtArgs>>): Prisma__SalesPriceListLineClient<$Result.GetResult<Prisma.$SalesPriceListLinePayload<ExtArgs>, T, "create", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Create many SalesPriceListLines.
+     * @param {SalesPriceListLineCreateManyArgs} args - Arguments to create many SalesPriceListLines.
+     * @example
+     * // Create many SalesPriceListLines
+     * const salesPriceListLine = await prisma.salesPriceListLine.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends SalesPriceListLineCreateManyArgs>(args?: SelectSubset<T, SalesPriceListLineCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many SalesPriceListLines and returns the data saved in the database.
+     * @param {SalesPriceListLineCreateManyAndReturnArgs} args - Arguments to create many SalesPriceListLines.
+     * @example
+     * // Create many SalesPriceListLines
+     * const salesPriceListLine = await prisma.salesPriceListLine.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many SalesPriceListLines and only return the `id`
+     * const salesPriceListLineWithIdOnly = await prisma.salesPriceListLine.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends SalesPriceListLineCreateManyAndReturnArgs>(args?: SelectSubset<T, SalesPriceListLineCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesPriceListLinePayload<ExtArgs>, T, "createManyAndReturn", ClientOptions>>
+
+    /**
+     * Delete a SalesPriceListLine.
+     * @param {SalesPriceListLineDeleteArgs} args - Arguments to delete one SalesPriceListLine.
+     * @example
+     * // Delete one SalesPriceListLine
+     * const SalesPriceListLine = await prisma.salesPriceListLine.delete({
+     *   where: {
+     *     // ... filter to delete one SalesPriceListLine
+     *   }
+     * })
+     * 
+     */
+    delete<T extends SalesPriceListLineDeleteArgs>(args: SelectSubset<T, SalesPriceListLineDeleteArgs<ExtArgs>>): Prisma__SalesPriceListLineClient<$Result.GetResult<Prisma.$SalesPriceListLinePayload<ExtArgs>, T, "delete", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Update one SalesPriceListLine.
+     * @param {SalesPriceListLineUpdateArgs} args - Arguments to update one SalesPriceListLine.
+     * @example
+     * // Update one SalesPriceListLine
+     * const salesPriceListLine = await prisma.salesPriceListLine.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends SalesPriceListLineUpdateArgs>(args: SelectSubset<T, SalesPriceListLineUpdateArgs<ExtArgs>>): Prisma__SalesPriceListLineClient<$Result.GetResult<Prisma.$SalesPriceListLinePayload<ExtArgs>, T, "update", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Delete zero or more SalesPriceListLines.
+     * @param {SalesPriceListLineDeleteManyArgs} args - Arguments to filter SalesPriceListLines to delete.
+     * @example
+     * // Delete a few SalesPriceListLines
+     * const { count } = await prisma.salesPriceListLine.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends SalesPriceListLineDeleteManyArgs>(args?: SelectSubset<T, SalesPriceListLineDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SalesPriceListLines.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListLineUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many SalesPriceListLines
+     * const salesPriceListLine = await prisma.salesPriceListLine.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends SalesPriceListLineUpdateManyArgs>(args: SelectSubset<T, SalesPriceListLineUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SalesPriceListLines and returns the data updated in the database.
+     * @param {SalesPriceListLineUpdateManyAndReturnArgs} args - Arguments to update many SalesPriceListLines.
+     * @example
+     * // Update many SalesPriceListLines
+     * const salesPriceListLine = await prisma.salesPriceListLine.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more SalesPriceListLines and only return the `id`
+     * const salesPriceListLineWithIdOnly = await prisma.salesPriceListLine.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends SalesPriceListLineUpdateManyAndReturnArgs>(args: SelectSubset<T, SalesPriceListLineUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesPriceListLinePayload<ExtArgs>, T, "updateManyAndReturn", ClientOptions>>
+
+    /**
+     * Create or update one SalesPriceListLine.
+     * @param {SalesPriceListLineUpsertArgs} args - Arguments to update or create a SalesPriceListLine.
+     * @example
+     * // Update or create a SalesPriceListLine
+     * const salesPriceListLine = await prisma.salesPriceListLine.upsert({
+     *   create: {
+     *     // ... data to create a SalesPriceListLine
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the SalesPriceListLine we want to update
+     *   }
+     * })
+     */
+    upsert<T extends SalesPriceListLineUpsertArgs>(args: SelectSubset<T, SalesPriceListLineUpsertArgs<ExtArgs>>): Prisma__SalesPriceListLineClient<$Result.GetResult<Prisma.$SalesPriceListLinePayload<ExtArgs>, T, "upsert", ClientOptions>, never, ExtArgs, ClientOptions>
+
+
+    /**
+     * Count the number of SalesPriceListLines.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListLineCountArgs} args - Arguments to filter SalesPriceListLines to count.
+     * @example
+     * // Count the number of SalesPriceListLines
+     * const count = await prisma.salesPriceListLine.count({
+     *   where: {
+     *     // ... the filter for the SalesPriceListLines we want to count
+     *   }
+     * })
+    **/
+    count<T extends SalesPriceListLineCountArgs>(
+      args?: Subset<T, SalesPriceListLineCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], SalesPriceListLineCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a SalesPriceListLine.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListLineAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends SalesPriceListLineAggregateArgs>(args: Subset<T, SalesPriceListLineAggregateArgs>): Prisma.PrismaPromise<GetSalesPriceListLineAggregateType<T>>
+
+    /**
+     * Group by SalesPriceListLine.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesPriceListLineGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends SalesPriceListLineGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: SalesPriceListLineGroupByArgs['orderBy'] }
+        : { orderBy?: SalesPriceListLineGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, SalesPriceListLineGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetSalesPriceListLineGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the SalesPriceListLine model
+   */
+  readonly fields: SalesPriceListLineFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for SalesPriceListLine.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__SalesPriceListLineClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    priceList<T extends SalesPriceListDefaultArgs<ExtArgs> = {}>(args?: Subset<T, SalesPriceListDefaultArgs<ExtArgs>>): Prisma__SalesPriceListClient<$Result.GetResult<Prisma.$SalesPriceListPayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions> | Null, Null, ExtArgs, ClientOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the SalesPriceListLine model
+   */ 
+  interface SalesPriceListLineFieldRefs {
+    readonly id: FieldRef<"SalesPriceListLine", 'String'>
+    readonly tenantId: FieldRef<"SalesPriceListLine", 'String'>
+    readonly priceListId: FieldRef<"SalesPriceListLine", 'String'>
+    readonly lineNo: FieldRef<"SalesPriceListLine", 'Int'>
+    readonly itemId: FieldRef<"SalesPriceListLine", 'String'>
+    readonly brandKey: FieldRef<"SalesPriceListLine", 'String'>
+    readonly priceSnapshot: FieldRef<"SalesPriceListLine", 'Json'>
+    readonly moqSnapshot: FieldRef<"SalesPriceListLine", 'Json'>
+    readonly createdAt: FieldRef<"SalesPriceListLine", 'DateTime'>
+    readonly updatedAt: FieldRef<"SalesPriceListLine", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * SalesPriceListLine findUnique
+   */
+  export type SalesPriceListLineFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesPriceListLine to fetch.
+     */
+    where: SalesPriceListLineWhereUniqueInput
+  }
+
+  /**
+   * SalesPriceListLine findUniqueOrThrow
+   */
+  export type SalesPriceListLineFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesPriceListLine to fetch.
+     */
+    where: SalesPriceListLineWhereUniqueInput
+  }
+
+  /**
+   * SalesPriceListLine findFirst
+   */
+  export type SalesPriceListLineFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesPriceListLine to fetch.
+     */
+    where?: SalesPriceListLineWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesPriceListLines to fetch.
+     */
+    orderBy?: SalesPriceListLineOrderByWithRelationInput | SalesPriceListLineOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SalesPriceListLines.
+     */
+    cursor?: SalesPriceListLineWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesPriceListLines from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesPriceListLines.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SalesPriceListLines.
+     */
+    distinct?: SalesPriceListLineScalarFieldEnum | SalesPriceListLineScalarFieldEnum[]
+  }
+
+  /**
+   * SalesPriceListLine findFirstOrThrow
+   */
+  export type SalesPriceListLineFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesPriceListLine to fetch.
+     */
+    where?: SalesPriceListLineWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesPriceListLines to fetch.
+     */
+    orderBy?: SalesPriceListLineOrderByWithRelationInput | SalesPriceListLineOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SalesPriceListLines.
+     */
+    cursor?: SalesPriceListLineWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesPriceListLines from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesPriceListLines.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SalesPriceListLines.
+     */
+    distinct?: SalesPriceListLineScalarFieldEnum | SalesPriceListLineScalarFieldEnum[]
+  }
+
+  /**
+   * SalesPriceListLine findMany
+   */
+  export type SalesPriceListLineFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesPriceListLines to fetch.
+     */
+    where?: SalesPriceListLineWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesPriceListLines to fetch.
+     */
+    orderBy?: SalesPriceListLineOrderByWithRelationInput | SalesPriceListLineOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing SalesPriceListLines.
+     */
+    cursor?: SalesPriceListLineWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesPriceListLines from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesPriceListLines.
+     */
+    skip?: number
+    distinct?: SalesPriceListLineScalarFieldEnum | SalesPriceListLineScalarFieldEnum[]
+  }
+
+  /**
+   * SalesPriceListLine create
+   */
+  export type SalesPriceListLineCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineInclude<ExtArgs> | null
+    /**
+     * The data needed to create a SalesPriceListLine.
+     */
+    data: XOR<SalesPriceListLineCreateInput, SalesPriceListLineUncheckedCreateInput>
+  }
+
+  /**
+   * SalesPriceListLine createMany
+   */
+  export type SalesPriceListLineCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many SalesPriceListLines.
+     */
+    data: SalesPriceListLineCreateManyInput | SalesPriceListLineCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SalesPriceListLine createManyAndReturn
+   */
+  export type SalesPriceListLineCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * The data used to create many SalesPriceListLines.
+     */
+    data: SalesPriceListLineCreateManyInput | SalesPriceListLineCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * SalesPriceListLine update
+   */
+  export type SalesPriceListLineUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineInclude<ExtArgs> | null
+    /**
+     * The data needed to update a SalesPriceListLine.
+     */
+    data: XOR<SalesPriceListLineUpdateInput, SalesPriceListLineUncheckedUpdateInput>
+    /**
+     * Choose, which SalesPriceListLine to update.
+     */
+    where: SalesPriceListLineWhereUniqueInput
+  }
+
+  /**
+   * SalesPriceListLine updateMany
+   */
+  export type SalesPriceListLineUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update SalesPriceListLines.
+     */
+    data: XOR<SalesPriceListLineUpdateManyMutationInput, SalesPriceListLineUncheckedUpdateManyInput>
+    /**
+     * Filter which SalesPriceListLines to update
+     */
+    where?: SalesPriceListLineWhereInput
+    /**
+     * Limit how many SalesPriceListLines to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * SalesPriceListLine updateManyAndReturn
+   */
+  export type SalesPriceListLineUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * The data used to update SalesPriceListLines.
+     */
+    data: XOR<SalesPriceListLineUpdateManyMutationInput, SalesPriceListLineUncheckedUpdateManyInput>
+    /**
+     * Filter which SalesPriceListLines to update
+     */
+    where?: SalesPriceListLineWhereInput
+    /**
+     * Limit how many SalesPriceListLines to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * SalesPriceListLine upsert
+   */
+  export type SalesPriceListLineUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineInclude<ExtArgs> | null
+    /**
+     * The filter to search for the SalesPriceListLine to update in case it exists.
+     */
+    where: SalesPriceListLineWhereUniqueInput
+    /**
+     * In case the SalesPriceListLine found by the `where` argument doesn't exist, create a new SalesPriceListLine with this data.
+     */
+    create: XOR<SalesPriceListLineCreateInput, SalesPriceListLineUncheckedCreateInput>
+    /**
+     * In case the SalesPriceListLine was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<SalesPriceListLineUpdateInput, SalesPriceListLineUncheckedUpdateInput>
+  }
+
+  /**
+   * SalesPriceListLine delete
+   */
+  export type SalesPriceListLineDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineInclude<ExtArgs> | null
+    /**
+     * Filter which SalesPriceListLine to delete.
+     */
+    where: SalesPriceListLineWhereUniqueInput
+  }
+
+  /**
+   * SalesPriceListLine deleteMany
+   */
+  export type SalesPriceListLineDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SalesPriceListLines to delete
+     */
+    where?: SalesPriceListLineWhereInput
+    /**
+     * Limit how many SalesPriceListLines to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * SalesPriceListLine without action
+   */
+  export type SalesPriceListLineDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesPriceListLine
+     */
+    select?: SalesPriceListLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesPriceListLine
+     */
+    omit?: SalesPriceListLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesPriceListLineInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model SalesCustomerPriceAgreementVersion
+   */
+
+  export type AggregateSalesCustomerPriceAgreementVersion = {
+    _count: SalesCustomerPriceAgreementVersionCountAggregateOutputType | null
+    _avg: SalesCustomerPriceAgreementVersionAvgAggregateOutputType | null
+    _sum: SalesCustomerPriceAgreementVersionSumAggregateOutputType | null
+    _min: SalesCustomerPriceAgreementVersionMinAggregateOutputType | null
+    _max: SalesCustomerPriceAgreementVersionMaxAggregateOutputType | null
+  }
+
+  export type SalesCustomerPriceAgreementVersionAvgAggregateOutputType = {
+    versionNo: number | null
+  }
+
+  export type SalesCustomerPriceAgreementVersionSumAggregateOutputType = {
+    versionNo: number | null
+  }
+
+  export type SalesCustomerPriceAgreementVersionMinAggregateOutputType = {
+    id: string | null
+    customerPriceAgreementId: string | null
+    tenantId: string | null
+    customerTenantPartyId: string | null
+    currencyCode: string | null
+    versionNo: number | null
+    status: $Enums.CustomerPriceAgreementStatus | null
+    publishedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SalesCustomerPriceAgreementVersionMaxAggregateOutputType = {
+    id: string | null
+    customerPriceAgreementId: string | null
+    tenantId: string | null
+    customerTenantPartyId: string | null
+    currencyCode: string | null
+    versionNo: number | null
+    status: $Enums.CustomerPriceAgreementStatus | null
+    publishedAt: Date | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SalesCustomerPriceAgreementVersionCountAggregateOutputType = {
+    id: number
+    customerPriceAgreementId: number
+    tenantId: number
+    customerTenantPartyId: number
+    currencyCode: number
+    versionNo: number
+    status: number
+    publishedAt: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type SalesCustomerPriceAgreementVersionAvgAggregateInputType = {
+    versionNo?: true
+  }
+
+  export type SalesCustomerPriceAgreementVersionSumAggregateInputType = {
+    versionNo?: true
+  }
+
+  export type SalesCustomerPriceAgreementVersionMinAggregateInputType = {
+    id?: true
+    customerPriceAgreementId?: true
+    tenantId?: true
+    customerTenantPartyId?: true
+    currencyCode?: true
+    versionNo?: true
+    status?: true
+    publishedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SalesCustomerPriceAgreementVersionMaxAggregateInputType = {
+    id?: true
+    customerPriceAgreementId?: true
+    tenantId?: true
+    customerTenantPartyId?: true
+    currencyCode?: true
+    versionNo?: true
+    status?: true
+    publishedAt?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SalesCustomerPriceAgreementVersionCountAggregateInputType = {
+    id?: true
+    customerPriceAgreementId?: true
+    tenantId?: true
+    customerTenantPartyId?: true
+    currencyCode?: true
+    versionNo?: true
+    status?: true
+    publishedAt?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type SalesCustomerPriceAgreementVersionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SalesCustomerPriceAgreementVersion to aggregate.
+     */
+    where?: SalesCustomerPriceAgreementVersionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesCustomerPriceAgreementVersions to fetch.
+     */
+    orderBy?: SalesCustomerPriceAgreementVersionOrderByWithRelationInput | SalesCustomerPriceAgreementVersionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: SalesCustomerPriceAgreementVersionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesCustomerPriceAgreementVersions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesCustomerPriceAgreementVersions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned SalesCustomerPriceAgreementVersions
+    **/
+    _count?: true | SalesCustomerPriceAgreementVersionCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: SalesCustomerPriceAgreementVersionAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: SalesCustomerPriceAgreementVersionSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: SalesCustomerPriceAgreementVersionMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: SalesCustomerPriceAgreementVersionMaxAggregateInputType
+  }
+
+  export type GetSalesCustomerPriceAgreementVersionAggregateType<T extends SalesCustomerPriceAgreementVersionAggregateArgs> = {
+        [P in keyof T & keyof AggregateSalesCustomerPriceAgreementVersion]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateSalesCustomerPriceAgreementVersion[P]>
+      : GetScalarType<T[P], AggregateSalesCustomerPriceAgreementVersion[P]>
+  }
+
+
+
+
+  export type SalesCustomerPriceAgreementVersionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SalesCustomerPriceAgreementVersionWhereInput
+    orderBy?: SalesCustomerPriceAgreementVersionOrderByWithAggregationInput | SalesCustomerPriceAgreementVersionOrderByWithAggregationInput[]
+    by: SalesCustomerPriceAgreementVersionScalarFieldEnum[] | SalesCustomerPriceAgreementVersionScalarFieldEnum
+    having?: SalesCustomerPriceAgreementVersionScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: SalesCustomerPriceAgreementVersionCountAggregateInputType | true
+    _avg?: SalesCustomerPriceAgreementVersionAvgAggregateInputType
+    _sum?: SalesCustomerPriceAgreementVersionSumAggregateInputType
+    _min?: SalesCustomerPriceAgreementVersionMinAggregateInputType
+    _max?: SalesCustomerPriceAgreementVersionMaxAggregateInputType
+  }
+
+  export type SalesCustomerPriceAgreementVersionGroupByOutputType = {
+    id: string
+    customerPriceAgreementId: string
+    tenantId: string
+    customerTenantPartyId: string
+    currencyCode: string
+    versionNo: number
+    status: $Enums.CustomerPriceAgreementStatus
+    publishedAt: Date | null
+    createdAt: Date
+    updatedAt: Date
+    _count: SalesCustomerPriceAgreementVersionCountAggregateOutputType | null
+    _avg: SalesCustomerPriceAgreementVersionAvgAggregateOutputType | null
+    _sum: SalesCustomerPriceAgreementVersionSumAggregateOutputType | null
+    _min: SalesCustomerPriceAgreementVersionMinAggregateOutputType | null
+    _max: SalesCustomerPriceAgreementVersionMaxAggregateOutputType | null
+  }
+
+  type GetSalesCustomerPriceAgreementVersionGroupByPayload<T extends SalesCustomerPriceAgreementVersionGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<SalesCustomerPriceAgreementVersionGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof SalesCustomerPriceAgreementVersionGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], SalesCustomerPriceAgreementVersionGroupByOutputType[P]>
+            : GetScalarType<T[P], SalesCustomerPriceAgreementVersionGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type SalesCustomerPriceAgreementVersionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    customerPriceAgreementId?: boolean
+    tenantId?: boolean
+    customerTenantPartyId?: boolean
+    currencyCode?: boolean
+    versionNo?: boolean
+    status?: boolean
+    publishedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    lines?: boolean | SalesCustomerPriceAgreementVersion$linesArgs<ExtArgs>
+    _count?: boolean | SalesCustomerPriceAgreementVersionCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["salesCustomerPriceAgreementVersion"]>
+
+  export type SalesCustomerPriceAgreementVersionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    customerPriceAgreementId?: boolean
+    tenantId?: boolean
+    customerTenantPartyId?: boolean
+    currencyCode?: boolean
+    versionNo?: boolean
+    status?: boolean
+    publishedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["salesCustomerPriceAgreementVersion"]>
+
+  export type SalesCustomerPriceAgreementVersionSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    customerPriceAgreementId?: boolean
+    tenantId?: boolean
+    customerTenantPartyId?: boolean
+    currencyCode?: boolean
+    versionNo?: boolean
+    status?: boolean
+    publishedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["salesCustomerPriceAgreementVersion"]>
+
+  export type SalesCustomerPriceAgreementVersionSelectScalar = {
+    id?: boolean
+    customerPriceAgreementId?: boolean
+    tenantId?: boolean
+    customerTenantPartyId?: boolean
+    currencyCode?: boolean
+    versionNo?: boolean
+    status?: boolean
+    publishedAt?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type SalesCustomerPriceAgreementVersionOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "customerPriceAgreementId" | "tenantId" | "customerTenantPartyId" | "currencyCode" | "versionNo" | "status" | "publishedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["salesCustomerPriceAgreementVersion"]>
+  export type SalesCustomerPriceAgreementVersionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    lines?: boolean | SalesCustomerPriceAgreementVersion$linesArgs<ExtArgs>
+    _count?: boolean | SalesCustomerPriceAgreementVersionCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type SalesCustomerPriceAgreementVersionIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type SalesCustomerPriceAgreementVersionIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+
+  export type $SalesCustomerPriceAgreementVersionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "SalesCustomerPriceAgreementVersion"
+    objects: {
+      lines: Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      customerPriceAgreementId: string
+      tenantId: string
+      customerTenantPartyId: string
+      currencyCode: string
+      versionNo: number
+      status: $Enums.CustomerPriceAgreementStatus
+      publishedAt: Date | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["salesCustomerPriceAgreementVersion"]>
+    composites: {}
+  }
+
+  type SalesCustomerPriceAgreementVersionGetPayload<S extends boolean | null | undefined | SalesCustomerPriceAgreementVersionDefaultArgs> = $Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload, S>
+
+  type SalesCustomerPriceAgreementVersionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<SalesCustomerPriceAgreementVersionFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: SalesCustomerPriceAgreementVersionCountAggregateInputType | true
+    }
+
+  export interface SalesCustomerPriceAgreementVersionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['SalesCustomerPriceAgreementVersion'], meta: { name: 'SalesCustomerPriceAgreementVersion' } }
+    /**
+     * Find zero or one SalesCustomerPriceAgreementVersion that matches the filter.
+     * @param {SalesCustomerPriceAgreementVersionFindUniqueArgs} args - Arguments to find a SalesCustomerPriceAgreementVersion
+     * @example
+     * // Get one SalesCustomerPriceAgreementVersion
+     * const salesCustomerPriceAgreementVersion = await prisma.salesCustomerPriceAgreementVersion.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends SalesCustomerPriceAgreementVersionFindUniqueArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementVersionFindUniqueArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementVersionClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>, T, "findUnique", ClientOptions> | null, null, ExtArgs, ClientOptions>
+
+    /**
+     * Find one SalesCustomerPriceAgreementVersion that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {SalesCustomerPriceAgreementVersionFindUniqueOrThrowArgs} args - Arguments to find a SalesCustomerPriceAgreementVersion
+     * @example
+     * // Get one SalesCustomerPriceAgreementVersion
+     * const salesCustomerPriceAgreementVersion = await prisma.salesCustomerPriceAgreementVersion.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends SalesCustomerPriceAgreementVersionFindUniqueOrThrowArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementVersionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementVersionClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Find the first SalesCustomerPriceAgreementVersion that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementVersionFindFirstArgs} args - Arguments to find a SalesCustomerPriceAgreementVersion
+     * @example
+     * // Get one SalesCustomerPriceAgreementVersion
+     * const salesCustomerPriceAgreementVersion = await prisma.salesCustomerPriceAgreementVersion.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends SalesCustomerPriceAgreementVersionFindFirstArgs>(args?: SelectSubset<T, SalesCustomerPriceAgreementVersionFindFirstArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementVersionClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>, T, "findFirst", ClientOptions> | null, null, ExtArgs, ClientOptions>
+
+    /**
+     * Find the first SalesCustomerPriceAgreementVersion that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementVersionFindFirstOrThrowArgs} args - Arguments to find a SalesCustomerPriceAgreementVersion
+     * @example
+     * // Get one SalesCustomerPriceAgreementVersion
+     * const salesCustomerPriceAgreementVersion = await prisma.salesCustomerPriceAgreementVersion.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends SalesCustomerPriceAgreementVersionFindFirstOrThrowArgs>(args?: SelectSubset<T, SalesCustomerPriceAgreementVersionFindFirstOrThrowArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementVersionClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>, T, "findFirstOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Find zero or more SalesCustomerPriceAgreementVersions that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementVersionFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all SalesCustomerPriceAgreementVersions
+     * const salesCustomerPriceAgreementVersions = await prisma.salesCustomerPriceAgreementVersion.findMany()
+     * 
+     * // Get first 10 SalesCustomerPriceAgreementVersions
+     * const salesCustomerPriceAgreementVersions = await prisma.salesCustomerPriceAgreementVersion.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const salesCustomerPriceAgreementVersionWithIdOnly = await prisma.salesCustomerPriceAgreementVersion.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends SalesCustomerPriceAgreementVersionFindManyArgs>(args?: SelectSubset<T, SalesCustomerPriceAgreementVersionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>, T, "findMany", ClientOptions>>
+
+    /**
+     * Create a SalesCustomerPriceAgreementVersion.
+     * @param {SalesCustomerPriceAgreementVersionCreateArgs} args - Arguments to create a SalesCustomerPriceAgreementVersion.
+     * @example
+     * // Create one SalesCustomerPriceAgreementVersion
+     * const SalesCustomerPriceAgreementVersion = await prisma.salesCustomerPriceAgreementVersion.create({
+     *   data: {
+     *     // ... data to create a SalesCustomerPriceAgreementVersion
+     *   }
+     * })
+     * 
+     */
+    create<T extends SalesCustomerPriceAgreementVersionCreateArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementVersionCreateArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementVersionClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>, T, "create", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Create many SalesCustomerPriceAgreementVersions.
+     * @param {SalesCustomerPriceAgreementVersionCreateManyArgs} args - Arguments to create many SalesCustomerPriceAgreementVersions.
+     * @example
+     * // Create many SalesCustomerPriceAgreementVersions
+     * const salesCustomerPriceAgreementVersion = await prisma.salesCustomerPriceAgreementVersion.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends SalesCustomerPriceAgreementVersionCreateManyArgs>(args?: SelectSubset<T, SalesCustomerPriceAgreementVersionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many SalesCustomerPriceAgreementVersions and returns the data saved in the database.
+     * @param {SalesCustomerPriceAgreementVersionCreateManyAndReturnArgs} args - Arguments to create many SalesCustomerPriceAgreementVersions.
+     * @example
+     * // Create many SalesCustomerPriceAgreementVersions
+     * const salesCustomerPriceAgreementVersion = await prisma.salesCustomerPriceAgreementVersion.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many SalesCustomerPriceAgreementVersions and only return the `id`
+     * const salesCustomerPriceAgreementVersionWithIdOnly = await prisma.salesCustomerPriceAgreementVersion.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends SalesCustomerPriceAgreementVersionCreateManyAndReturnArgs>(args?: SelectSubset<T, SalesCustomerPriceAgreementVersionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>, T, "createManyAndReturn", ClientOptions>>
+
+    /**
+     * Delete a SalesCustomerPriceAgreementVersion.
+     * @param {SalesCustomerPriceAgreementVersionDeleteArgs} args - Arguments to delete one SalesCustomerPriceAgreementVersion.
+     * @example
+     * // Delete one SalesCustomerPriceAgreementVersion
+     * const SalesCustomerPriceAgreementVersion = await prisma.salesCustomerPriceAgreementVersion.delete({
+     *   where: {
+     *     // ... filter to delete one SalesCustomerPriceAgreementVersion
+     *   }
+     * })
+     * 
+     */
+    delete<T extends SalesCustomerPriceAgreementVersionDeleteArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementVersionDeleteArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementVersionClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>, T, "delete", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Update one SalesCustomerPriceAgreementVersion.
+     * @param {SalesCustomerPriceAgreementVersionUpdateArgs} args - Arguments to update one SalesCustomerPriceAgreementVersion.
+     * @example
+     * // Update one SalesCustomerPriceAgreementVersion
+     * const salesCustomerPriceAgreementVersion = await prisma.salesCustomerPriceAgreementVersion.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends SalesCustomerPriceAgreementVersionUpdateArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementVersionUpdateArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementVersionClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>, T, "update", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Delete zero or more SalesCustomerPriceAgreementVersions.
+     * @param {SalesCustomerPriceAgreementVersionDeleteManyArgs} args - Arguments to filter SalesCustomerPriceAgreementVersions to delete.
+     * @example
+     * // Delete a few SalesCustomerPriceAgreementVersions
+     * const { count } = await prisma.salesCustomerPriceAgreementVersion.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends SalesCustomerPriceAgreementVersionDeleteManyArgs>(args?: SelectSubset<T, SalesCustomerPriceAgreementVersionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SalesCustomerPriceAgreementVersions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementVersionUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many SalesCustomerPriceAgreementVersions
+     * const salesCustomerPriceAgreementVersion = await prisma.salesCustomerPriceAgreementVersion.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends SalesCustomerPriceAgreementVersionUpdateManyArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementVersionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SalesCustomerPriceAgreementVersions and returns the data updated in the database.
+     * @param {SalesCustomerPriceAgreementVersionUpdateManyAndReturnArgs} args - Arguments to update many SalesCustomerPriceAgreementVersions.
+     * @example
+     * // Update many SalesCustomerPriceAgreementVersions
+     * const salesCustomerPriceAgreementVersion = await prisma.salesCustomerPriceAgreementVersion.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more SalesCustomerPriceAgreementVersions and only return the `id`
+     * const salesCustomerPriceAgreementVersionWithIdOnly = await prisma.salesCustomerPriceAgreementVersion.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends SalesCustomerPriceAgreementVersionUpdateManyAndReturnArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementVersionUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>, T, "updateManyAndReturn", ClientOptions>>
+
+    /**
+     * Create or update one SalesCustomerPriceAgreementVersion.
+     * @param {SalesCustomerPriceAgreementVersionUpsertArgs} args - Arguments to update or create a SalesCustomerPriceAgreementVersion.
+     * @example
+     * // Update or create a SalesCustomerPriceAgreementVersion
+     * const salesCustomerPriceAgreementVersion = await prisma.salesCustomerPriceAgreementVersion.upsert({
+     *   create: {
+     *     // ... data to create a SalesCustomerPriceAgreementVersion
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the SalesCustomerPriceAgreementVersion we want to update
+     *   }
+     * })
+     */
+    upsert<T extends SalesCustomerPriceAgreementVersionUpsertArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementVersionUpsertArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementVersionClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>, T, "upsert", ClientOptions>, never, ExtArgs, ClientOptions>
+
+
+    /**
+     * Count the number of SalesCustomerPriceAgreementVersions.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementVersionCountArgs} args - Arguments to filter SalesCustomerPriceAgreementVersions to count.
+     * @example
+     * // Count the number of SalesCustomerPriceAgreementVersions
+     * const count = await prisma.salesCustomerPriceAgreementVersion.count({
+     *   where: {
+     *     // ... the filter for the SalesCustomerPriceAgreementVersions we want to count
+     *   }
+     * })
+    **/
+    count<T extends SalesCustomerPriceAgreementVersionCountArgs>(
+      args?: Subset<T, SalesCustomerPriceAgreementVersionCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], SalesCustomerPriceAgreementVersionCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a SalesCustomerPriceAgreementVersion.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementVersionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends SalesCustomerPriceAgreementVersionAggregateArgs>(args: Subset<T, SalesCustomerPriceAgreementVersionAggregateArgs>): Prisma.PrismaPromise<GetSalesCustomerPriceAgreementVersionAggregateType<T>>
+
+    /**
+     * Group by SalesCustomerPriceAgreementVersion.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementVersionGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends SalesCustomerPriceAgreementVersionGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: SalesCustomerPriceAgreementVersionGroupByArgs['orderBy'] }
+        : { orderBy?: SalesCustomerPriceAgreementVersionGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, SalesCustomerPriceAgreementVersionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetSalesCustomerPriceAgreementVersionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the SalesCustomerPriceAgreementVersion model
+   */
+  readonly fields: SalesCustomerPriceAgreementVersionFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for SalesCustomerPriceAgreementVersion.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__SalesCustomerPriceAgreementVersionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    lines<T extends SalesCustomerPriceAgreementVersion$linesArgs<ExtArgs> = {}>(args?: Subset<T, SalesCustomerPriceAgreementVersion$linesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>, T, "findMany", ClientOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the SalesCustomerPriceAgreementVersion model
+   */ 
+  interface SalesCustomerPriceAgreementVersionFieldRefs {
+    readonly id: FieldRef<"SalesCustomerPriceAgreementVersion", 'String'>
+    readonly customerPriceAgreementId: FieldRef<"SalesCustomerPriceAgreementVersion", 'String'>
+    readonly tenantId: FieldRef<"SalesCustomerPriceAgreementVersion", 'String'>
+    readonly customerTenantPartyId: FieldRef<"SalesCustomerPriceAgreementVersion", 'String'>
+    readonly currencyCode: FieldRef<"SalesCustomerPriceAgreementVersion", 'String'>
+    readonly versionNo: FieldRef<"SalesCustomerPriceAgreementVersion", 'Int'>
+    readonly status: FieldRef<"SalesCustomerPriceAgreementVersion", 'CustomerPriceAgreementStatus'>
+    readonly publishedAt: FieldRef<"SalesCustomerPriceAgreementVersion", 'DateTime'>
+    readonly createdAt: FieldRef<"SalesCustomerPriceAgreementVersion", 'DateTime'>
+    readonly updatedAt: FieldRef<"SalesCustomerPriceAgreementVersion", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * SalesCustomerPriceAgreementVersion findUnique
+   */
+  export type SalesCustomerPriceAgreementVersionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersion
+     */
+    select?: SalesCustomerPriceAgreementVersionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementVersion
+     */
+    omit?: SalesCustomerPriceAgreementVersionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementVersionInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesCustomerPriceAgreementVersion to fetch.
+     */
+    where: SalesCustomerPriceAgreementVersionWhereUniqueInput
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion findUniqueOrThrow
+   */
+  export type SalesCustomerPriceAgreementVersionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersion
+     */
+    select?: SalesCustomerPriceAgreementVersionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementVersion
+     */
+    omit?: SalesCustomerPriceAgreementVersionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementVersionInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesCustomerPriceAgreementVersion to fetch.
+     */
+    where: SalesCustomerPriceAgreementVersionWhereUniqueInput
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion findFirst
+   */
+  export type SalesCustomerPriceAgreementVersionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersion
+     */
+    select?: SalesCustomerPriceAgreementVersionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementVersion
+     */
+    omit?: SalesCustomerPriceAgreementVersionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementVersionInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesCustomerPriceAgreementVersion to fetch.
+     */
+    where?: SalesCustomerPriceAgreementVersionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesCustomerPriceAgreementVersions to fetch.
+     */
+    orderBy?: SalesCustomerPriceAgreementVersionOrderByWithRelationInput | SalesCustomerPriceAgreementVersionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SalesCustomerPriceAgreementVersions.
+     */
+    cursor?: SalesCustomerPriceAgreementVersionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesCustomerPriceAgreementVersions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesCustomerPriceAgreementVersions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SalesCustomerPriceAgreementVersions.
+     */
+    distinct?: SalesCustomerPriceAgreementVersionScalarFieldEnum | SalesCustomerPriceAgreementVersionScalarFieldEnum[]
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion findFirstOrThrow
+   */
+  export type SalesCustomerPriceAgreementVersionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersion
+     */
+    select?: SalesCustomerPriceAgreementVersionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementVersion
+     */
+    omit?: SalesCustomerPriceAgreementVersionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementVersionInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesCustomerPriceAgreementVersion to fetch.
+     */
+    where?: SalesCustomerPriceAgreementVersionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesCustomerPriceAgreementVersions to fetch.
+     */
+    orderBy?: SalesCustomerPriceAgreementVersionOrderByWithRelationInput | SalesCustomerPriceAgreementVersionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SalesCustomerPriceAgreementVersions.
+     */
+    cursor?: SalesCustomerPriceAgreementVersionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesCustomerPriceAgreementVersions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesCustomerPriceAgreementVersions.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SalesCustomerPriceAgreementVersions.
+     */
+    distinct?: SalesCustomerPriceAgreementVersionScalarFieldEnum | SalesCustomerPriceAgreementVersionScalarFieldEnum[]
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion findMany
+   */
+  export type SalesCustomerPriceAgreementVersionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersion
+     */
+    select?: SalesCustomerPriceAgreementVersionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementVersion
+     */
+    omit?: SalesCustomerPriceAgreementVersionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementVersionInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesCustomerPriceAgreementVersions to fetch.
+     */
+    where?: SalesCustomerPriceAgreementVersionWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesCustomerPriceAgreementVersions to fetch.
+     */
+    orderBy?: SalesCustomerPriceAgreementVersionOrderByWithRelationInput | SalesCustomerPriceAgreementVersionOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing SalesCustomerPriceAgreementVersions.
+     */
+    cursor?: SalesCustomerPriceAgreementVersionWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesCustomerPriceAgreementVersions from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesCustomerPriceAgreementVersions.
+     */
+    skip?: number
+    distinct?: SalesCustomerPriceAgreementVersionScalarFieldEnum | SalesCustomerPriceAgreementVersionScalarFieldEnum[]
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion create
+   */
+  export type SalesCustomerPriceAgreementVersionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersion
+     */
+    select?: SalesCustomerPriceAgreementVersionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementVersion
+     */
+    omit?: SalesCustomerPriceAgreementVersionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementVersionInclude<ExtArgs> | null
+    /**
+     * The data needed to create a SalesCustomerPriceAgreementVersion.
+     */
+    data: XOR<SalesCustomerPriceAgreementVersionCreateInput, SalesCustomerPriceAgreementVersionUncheckedCreateInput>
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion createMany
+   */
+  export type SalesCustomerPriceAgreementVersionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many SalesCustomerPriceAgreementVersions.
+     */
+    data: SalesCustomerPriceAgreementVersionCreateManyInput | SalesCustomerPriceAgreementVersionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion createManyAndReturn
+   */
+  export type SalesCustomerPriceAgreementVersionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersion
+     */
+    select?: SalesCustomerPriceAgreementVersionSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementVersion
+     */
+    omit?: SalesCustomerPriceAgreementVersionOmit<ExtArgs> | null
+    /**
+     * The data used to create many SalesCustomerPriceAgreementVersions.
+     */
+    data: SalesCustomerPriceAgreementVersionCreateManyInput | SalesCustomerPriceAgreementVersionCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion update
+   */
+  export type SalesCustomerPriceAgreementVersionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersion
+     */
+    select?: SalesCustomerPriceAgreementVersionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementVersion
+     */
+    omit?: SalesCustomerPriceAgreementVersionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementVersionInclude<ExtArgs> | null
+    /**
+     * The data needed to update a SalesCustomerPriceAgreementVersion.
+     */
+    data: XOR<SalesCustomerPriceAgreementVersionUpdateInput, SalesCustomerPriceAgreementVersionUncheckedUpdateInput>
+    /**
+     * Choose, which SalesCustomerPriceAgreementVersion to update.
+     */
+    where: SalesCustomerPriceAgreementVersionWhereUniqueInput
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion updateMany
+   */
+  export type SalesCustomerPriceAgreementVersionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update SalesCustomerPriceAgreementVersions.
+     */
+    data: XOR<SalesCustomerPriceAgreementVersionUpdateManyMutationInput, SalesCustomerPriceAgreementVersionUncheckedUpdateManyInput>
+    /**
+     * Filter which SalesCustomerPriceAgreementVersions to update
+     */
+    where?: SalesCustomerPriceAgreementVersionWhereInput
+    /**
+     * Limit how many SalesCustomerPriceAgreementVersions to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion updateManyAndReturn
+   */
+  export type SalesCustomerPriceAgreementVersionUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersion
+     */
+    select?: SalesCustomerPriceAgreementVersionSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementVersion
+     */
+    omit?: SalesCustomerPriceAgreementVersionOmit<ExtArgs> | null
+    /**
+     * The data used to update SalesCustomerPriceAgreementVersions.
+     */
+    data: XOR<SalesCustomerPriceAgreementVersionUpdateManyMutationInput, SalesCustomerPriceAgreementVersionUncheckedUpdateManyInput>
+    /**
+     * Filter which SalesCustomerPriceAgreementVersions to update
+     */
+    where?: SalesCustomerPriceAgreementVersionWhereInput
+    /**
+     * Limit how many SalesCustomerPriceAgreementVersions to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion upsert
+   */
+  export type SalesCustomerPriceAgreementVersionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersion
+     */
+    select?: SalesCustomerPriceAgreementVersionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementVersion
+     */
+    omit?: SalesCustomerPriceAgreementVersionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementVersionInclude<ExtArgs> | null
+    /**
+     * The filter to search for the SalesCustomerPriceAgreementVersion to update in case it exists.
+     */
+    where: SalesCustomerPriceAgreementVersionWhereUniqueInput
+    /**
+     * In case the SalesCustomerPriceAgreementVersion found by the `where` argument doesn't exist, create a new SalesCustomerPriceAgreementVersion with this data.
+     */
+    create: XOR<SalesCustomerPriceAgreementVersionCreateInput, SalesCustomerPriceAgreementVersionUncheckedCreateInput>
+    /**
+     * In case the SalesCustomerPriceAgreementVersion was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<SalesCustomerPriceAgreementVersionUpdateInput, SalesCustomerPriceAgreementVersionUncheckedUpdateInput>
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion delete
+   */
+  export type SalesCustomerPriceAgreementVersionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersion
+     */
+    select?: SalesCustomerPriceAgreementVersionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementVersion
+     */
+    omit?: SalesCustomerPriceAgreementVersionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementVersionInclude<ExtArgs> | null
+    /**
+     * Filter which SalesCustomerPriceAgreementVersion to delete.
+     */
+    where: SalesCustomerPriceAgreementVersionWhereUniqueInput
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion deleteMany
+   */
+  export type SalesCustomerPriceAgreementVersionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SalesCustomerPriceAgreementVersions to delete
+     */
+    where?: SalesCustomerPriceAgreementVersionWhereInput
+    /**
+     * Limit how many SalesCustomerPriceAgreementVersions to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion.lines
+   */
+  export type SalesCustomerPriceAgreementVersion$linesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineInclude<ExtArgs> | null
+    where?: SalesCustomerPriceAgreementLineWhereInput
+    orderBy?: SalesCustomerPriceAgreementLineOrderByWithRelationInput | SalesCustomerPriceAgreementLineOrderByWithRelationInput[]
+    cursor?: SalesCustomerPriceAgreementLineWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: SalesCustomerPriceAgreementLineScalarFieldEnum | SalesCustomerPriceAgreementLineScalarFieldEnum[]
+  }
+
+  /**
+   * SalesCustomerPriceAgreementVersion without action
+   */
+  export type SalesCustomerPriceAgreementVersionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementVersion
+     */
+    select?: SalesCustomerPriceAgreementVersionSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementVersion
+     */
+    omit?: SalesCustomerPriceAgreementVersionOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementVersionInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model SalesCustomerPriceAgreementLine
+   */
+
+  export type AggregateSalesCustomerPriceAgreementLine = {
+    _count: SalesCustomerPriceAgreementLineCountAggregateOutputType | null
+    _avg: SalesCustomerPriceAgreementLineAvgAggregateOutputType | null
+    _sum: SalesCustomerPriceAgreementLineSumAggregateOutputType | null
+    _min: SalesCustomerPriceAgreementLineMinAggregateOutputType | null
+    _max: SalesCustomerPriceAgreementLineMaxAggregateOutputType | null
+  }
+
+  export type SalesCustomerPriceAgreementLineAvgAggregateOutputType = {
+    lineNo: number | null
+  }
+
+  export type SalesCustomerPriceAgreementLineSumAggregateOutputType = {
+    lineNo: number | null
+  }
+
+  export type SalesCustomerPriceAgreementLineMinAggregateOutputType = {
+    id: string | null
+    tenantId: string | null
+    customerPriceAgreementVersionId: string | null
+    lineNo: number | null
+    itemId: string | null
+    brandKey: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SalesCustomerPriceAgreementLineMaxAggregateOutputType = {
+    id: string | null
+    tenantId: string | null
+    customerPriceAgreementVersionId: string | null
+    lineNo: number | null
+    itemId: string | null
+    brandKey: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type SalesCustomerPriceAgreementLineCountAggregateOutputType = {
+    id: number
+    tenantId: number
+    customerPriceAgreementVersionId: number
+    lineNo: number
+    itemId: number
+    brandKey: number
+    priceSnapshot: number
+    moqSnapshot: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type SalesCustomerPriceAgreementLineAvgAggregateInputType = {
+    lineNo?: true
+  }
+
+  export type SalesCustomerPriceAgreementLineSumAggregateInputType = {
+    lineNo?: true
+  }
+
+  export type SalesCustomerPriceAgreementLineMinAggregateInputType = {
+    id?: true
+    tenantId?: true
+    customerPriceAgreementVersionId?: true
+    lineNo?: true
+    itemId?: true
+    brandKey?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SalesCustomerPriceAgreementLineMaxAggregateInputType = {
+    id?: true
+    tenantId?: true
+    customerPriceAgreementVersionId?: true
+    lineNo?: true
+    itemId?: true
+    brandKey?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type SalesCustomerPriceAgreementLineCountAggregateInputType = {
+    id?: true
+    tenantId?: true
+    customerPriceAgreementVersionId?: true
+    lineNo?: true
+    itemId?: true
+    brandKey?: true
+    priceSnapshot?: true
+    moqSnapshot?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type SalesCustomerPriceAgreementLineAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SalesCustomerPriceAgreementLine to aggregate.
+     */
+    where?: SalesCustomerPriceAgreementLineWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesCustomerPriceAgreementLines to fetch.
+     */
+    orderBy?: SalesCustomerPriceAgreementLineOrderByWithRelationInput | SalesCustomerPriceAgreementLineOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: SalesCustomerPriceAgreementLineWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesCustomerPriceAgreementLines from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesCustomerPriceAgreementLines.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned SalesCustomerPriceAgreementLines
+    **/
+    _count?: true | SalesCustomerPriceAgreementLineCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to average
+    **/
+    _avg?: SalesCustomerPriceAgreementLineAvgAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to sum
+    **/
+    _sum?: SalesCustomerPriceAgreementLineSumAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: SalesCustomerPriceAgreementLineMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: SalesCustomerPriceAgreementLineMaxAggregateInputType
+  }
+
+  export type GetSalesCustomerPriceAgreementLineAggregateType<T extends SalesCustomerPriceAgreementLineAggregateArgs> = {
+        [P in keyof T & keyof AggregateSalesCustomerPriceAgreementLine]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateSalesCustomerPriceAgreementLine[P]>
+      : GetScalarType<T[P], AggregateSalesCustomerPriceAgreementLine[P]>
+  }
+
+
+
+
+  export type SalesCustomerPriceAgreementLineGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: SalesCustomerPriceAgreementLineWhereInput
+    orderBy?: SalesCustomerPriceAgreementLineOrderByWithAggregationInput | SalesCustomerPriceAgreementLineOrderByWithAggregationInput[]
+    by: SalesCustomerPriceAgreementLineScalarFieldEnum[] | SalesCustomerPriceAgreementLineScalarFieldEnum
+    having?: SalesCustomerPriceAgreementLineScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: SalesCustomerPriceAgreementLineCountAggregateInputType | true
+    _avg?: SalesCustomerPriceAgreementLineAvgAggregateInputType
+    _sum?: SalesCustomerPriceAgreementLineSumAggregateInputType
+    _min?: SalesCustomerPriceAgreementLineMinAggregateInputType
+    _max?: SalesCustomerPriceAgreementLineMaxAggregateInputType
+  }
+
+  export type SalesCustomerPriceAgreementLineGroupByOutputType = {
+    id: string
+    tenantId: string
+    customerPriceAgreementVersionId: string
+    lineNo: number
+    itemId: string
+    brandKey: string | null
+    priceSnapshot: JsonValue
+    moqSnapshot: JsonValue
+    createdAt: Date
+    updatedAt: Date
+    _count: SalesCustomerPriceAgreementLineCountAggregateOutputType | null
+    _avg: SalesCustomerPriceAgreementLineAvgAggregateOutputType | null
+    _sum: SalesCustomerPriceAgreementLineSumAggregateOutputType | null
+    _min: SalesCustomerPriceAgreementLineMinAggregateOutputType | null
+    _max: SalesCustomerPriceAgreementLineMaxAggregateOutputType | null
+  }
+
+  type GetSalesCustomerPriceAgreementLineGroupByPayload<T extends SalesCustomerPriceAgreementLineGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<SalesCustomerPriceAgreementLineGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof SalesCustomerPriceAgreementLineGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], SalesCustomerPriceAgreementLineGroupByOutputType[P]>
+            : GetScalarType<T[P], SalesCustomerPriceAgreementLineGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type SalesCustomerPriceAgreementLineSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    customerPriceAgreementVersionId?: boolean
+    lineNo?: boolean
+    itemId?: boolean
+    brandKey?: boolean
+    priceSnapshot?: boolean
+    moqSnapshot?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    customerPriceAgreementVersion?: boolean | SalesCustomerPriceAgreementVersionDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["salesCustomerPriceAgreementLine"]>
+
+  export type SalesCustomerPriceAgreementLineSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    customerPriceAgreementVersionId?: boolean
+    lineNo?: boolean
+    itemId?: boolean
+    brandKey?: boolean
+    priceSnapshot?: boolean
+    moqSnapshot?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    customerPriceAgreementVersion?: boolean | SalesCustomerPriceAgreementVersionDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["salesCustomerPriceAgreementLine"]>
+
+  export type SalesCustomerPriceAgreementLineSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    customerPriceAgreementVersionId?: boolean
+    lineNo?: boolean
+    itemId?: boolean
+    brandKey?: boolean
+    priceSnapshot?: boolean
+    moqSnapshot?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    customerPriceAgreementVersion?: boolean | SalesCustomerPriceAgreementVersionDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["salesCustomerPriceAgreementLine"]>
+
+  export type SalesCustomerPriceAgreementLineSelectScalar = {
+    id?: boolean
+    tenantId?: boolean
+    customerPriceAgreementVersionId?: boolean
+    lineNo?: boolean
+    itemId?: boolean
+    brandKey?: boolean
+    priceSnapshot?: boolean
+    moqSnapshot?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type SalesCustomerPriceAgreementLineOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "tenantId" | "customerPriceAgreementVersionId" | "lineNo" | "itemId" | "brandKey" | "priceSnapshot" | "moqSnapshot" | "createdAt" | "updatedAt", ExtArgs["result"]["salesCustomerPriceAgreementLine"]>
+  export type SalesCustomerPriceAgreementLineInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    customerPriceAgreementVersion?: boolean | SalesCustomerPriceAgreementVersionDefaultArgs<ExtArgs>
+  }
+  export type SalesCustomerPriceAgreementLineIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    customerPriceAgreementVersion?: boolean | SalesCustomerPriceAgreementVersionDefaultArgs<ExtArgs>
+  }
+  export type SalesCustomerPriceAgreementLineIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    customerPriceAgreementVersion?: boolean | SalesCustomerPriceAgreementVersionDefaultArgs<ExtArgs>
+  }
+
+  export type $SalesCustomerPriceAgreementLinePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "SalesCustomerPriceAgreementLine"
+    objects: {
+      customerPriceAgreementVersion: Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      tenantId: string
+      customerPriceAgreementVersionId: string
+      lineNo: number
+      itemId: string
+      brandKey: string | null
+      priceSnapshot: Prisma.JsonValue
+      moqSnapshot: Prisma.JsonValue
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["salesCustomerPriceAgreementLine"]>
+    composites: {}
+  }
+
+  type SalesCustomerPriceAgreementLineGetPayload<S extends boolean | null | undefined | SalesCustomerPriceAgreementLineDefaultArgs> = $Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload, S>
+
+  type SalesCustomerPriceAgreementLineCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<SalesCustomerPriceAgreementLineFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: SalesCustomerPriceAgreementLineCountAggregateInputType | true
+    }
+
+  export interface SalesCustomerPriceAgreementLineDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['SalesCustomerPriceAgreementLine'], meta: { name: 'SalesCustomerPriceAgreementLine' } }
+    /**
+     * Find zero or one SalesCustomerPriceAgreementLine that matches the filter.
+     * @param {SalesCustomerPriceAgreementLineFindUniqueArgs} args - Arguments to find a SalesCustomerPriceAgreementLine
+     * @example
+     * // Get one SalesCustomerPriceAgreementLine
+     * const salesCustomerPriceAgreementLine = await prisma.salesCustomerPriceAgreementLine.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends SalesCustomerPriceAgreementLineFindUniqueArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementLineFindUniqueArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementLineClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>, T, "findUnique", ClientOptions> | null, null, ExtArgs, ClientOptions>
+
+    /**
+     * Find one SalesCustomerPriceAgreementLine that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {SalesCustomerPriceAgreementLineFindUniqueOrThrowArgs} args - Arguments to find a SalesCustomerPriceAgreementLine
+     * @example
+     * // Get one SalesCustomerPriceAgreementLine
+     * const salesCustomerPriceAgreementLine = await prisma.salesCustomerPriceAgreementLine.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends SalesCustomerPriceAgreementLineFindUniqueOrThrowArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementLineFindUniqueOrThrowArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementLineClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Find the first SalesCustomerPriceAgreementLine that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementLineFindFirstArgs} args - Arguments to find a SalesCustomerPriceAgreementLine
+     * @example
+     * // Get one SalesCustomerPriceAgreementLine
+     * const salesCustomerPriceAgreementLine = await prisma.salesCustomerPriceAgreementLine.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends SalesCustomerPriceAgreementLineFindFirstArgs>(args?: SelectSubset<T, SalesCustomerPriceAgreementLineFindFirstArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementLineClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>, T, "findFirst", ClientOptions> | null, null, ExtArgs, ClientOptions>
+
+    /**
+     * Find the first SalesCustomerPriceAgreementLine that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementLineFindFirstOrThrowArgs} args - Arguments to find a SalesCustomerPriceAgreementLine
+     * @example
+     * // Get one SalesCustomerPriceAgreementLine
+     * const salesCustomerPriceAgreementLine = await prisma.salesCustomerPriceAgreementLine.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends SalesCustomerPriceAgreementLineFindFirstOrThrowArgs>(args?: SelectSubset<T, SalesCustomerPriceAgreementLineFindFirstOrThrowArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementLineClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>, T, "findFirstOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Find zero or more SalesCustomerPriceAgreementLines that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementLineFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all SalesCustomerPriceAgreementLines
+     * const salesCustomerPriceAgreementLines = await prisma.salesCustomerPriceAgreementLine.findMany()
+     * 
+     * // Get first 10 SalesCustomerPriceAgreementLines
+     * const salesCustomerPriceAgreementLines = await prisma.salesCustomerPriceAgreementLine.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const salesCustomerPriceAgreementLineWithIdOnly = await prisma.salesCustomerPriceAgreementLine.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends SalesCustomerPriceAgreementLineFindManyArgs>(args?: SelectSubset<T, SalesCustomerPriceAgreementLineFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>, T, "findMany", ClientOptions>>
+
+    /**
+     * Create a SalesCustomerPriceAgreementLine.
+     * @param {SalesCustomerPriceAgreementLineCreateArgs} args - Arguments to create a SalesCustomerPriceAgreementLine.
+     * @example
+     * // Create one SalesCustomerPriceAgreementLine
+     * const SalesCustomerPriceAgreementLine = await prisma.salesCustomerPriceAgreementLine.create({
+     *   data: {
+     *     // ... data to create a SalesCustomerPriceAgreementLine
+     *   }
+     * })
+     * 
+     */
+    create<T extends SalesCustomerPriceAgreementLineCreateArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementLineCreateArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementLineClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>, T, "create", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Create many SalesCustomerPriceAgreementLines.
+     * @param {SalesCustomerPriceAgreementLineCreateManyArgs} args - Arguments to create many SalesCustomerPriceAgreementLines.
+     * @example
+     * // Create many SalesCustomerPriceAgreementLines
+     * const salesCustomerPriceAgreementLine = await prisma.salesCustomerPriceAgreementLine.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends SalesCustomerPriceAgreementLineCreateManyArgs>(args?: SelectSubset<T, SalesCustomerPriceAgreementLineCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many SalesCustomerPriceAgreementLines and returns the data saved in the database.
+     * @param {SalesCustomerPriceAgreementLineCreateManyAndReturnArgs} args - Arguments to create many SalesCustomerPriceAgreementLines.
+     * @example
+     * // Create many SalesCustomerPriceAgreementLines
+     * const salesCustomerPriceAgreementLine = await prisma.salesCustomerPriceAgreementLine.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many SalesCustomerPriceAgreementLines and only return the `id`
+     * const salesCustomerPriceAgreementLineWithIdOnly = await prisma.salesCustomerPriceAgreementLine.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends SalesCustomerPriceAgreementLineCreateManyAndReturnArgs>(args?: SelectSubset<T, SalesCustomerPriceAgreementLineCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>, T, "createManyAndReturn", ClientOptions>>
+
+    /**
+     * Delete a SalesCustomerPriceAgreementLine.
+     * @param {SalesCustomerPriceAgreementLineDeleteArgs} args - Arguments to delete one SalesCustomerPriceAgreementLine.
+     * @example
+     * // Delete one SalesCustomerPriceAgreementLine
+     * const SalesCustomerPriceAgreementLine = await prisma.salesCustomerPriceAgreementLine.delete({
+     *   where: {
+     *     // ... filter to delete one SalesCustomerPriceAgreementLine
+     *   }
+     * })
+     * 
+     */
+    delete<T extends SalesCustomerPriceAgreementLineDeleteArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementLineDeleteArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementLineClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>, T, "delete", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Update one SalesCustomerPriceAgreementLine.
+     * @param {SalesCustomerPriceAgreementLineUpdateArgs} args - Arguments to update one SalesCustomerPriceAgreementLine.
+     * @example
+     * // Update one SalesCustomerPriceAgreementLine
+     * const salesCustomerPriceAgreementLine = await prisma.salesCustomerPriceAgreementLine.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends SalesCustomerPriceAgreementLineUpdateArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementLineUpdateArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementLineClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>, T, "update", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Delete zero or more SalesCustomerPriceAgreementLines.
+     * @param {SalesCustomerPriceAgreementLineDeleteManyArgs} args - Arguments to filter SalesCustomerPriceAgreementLines to delete.
+     * @example
+     * // Delete a few SalesCustomerPriceAgreementLines
+     * const { count } = await prisma.salesCustomerPriceAgreementLine.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends SalesCustomerPriceAgreementLineDeleteManyArgs>(args?: SelectSubset<T, SalesCustomerPriceAgreementLineDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SalesCustomerPriceAgreementLines.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementLineUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many SalesCustomerPriceAgreementLines
+     * const salesCustomerPriceAgreementLine = await prisma.salesCustomerPriceAgreementLine.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends SalesCustomerPriceAgreementLineUpdateManyArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementLineUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more SalesCustomerPriceAgreementLines and returns the data updated in the database.
+     * @param {SalesCustomerPriceAgreementLineUpdateManyAndReturnArgs} args - Arguments to update many SalesCustomerPriceAgreementLines.
+     * @example
+     * // Update many SalesCustomerPriceAgreementLines
+     * const salesCustomerPriceAgreementLine = await prisma.salesCustomerPriceAgreementLine.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more SalesCustomerPriceAgreementLines and only return the `id`
+     * const salesCustomerPriceAgreementLineWithIdOnly = await prisma.salesCustomerPriceAgreementLine.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends SalesCustomerPriceAgreementLineUpdateManyAndReturnArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementLineUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>, T, "updateManyAndReturn", ClientOptions>>
+
+    /**
+     * Create or update one SalesCustomerPriceAgreementLine.
+     * @param {SalesCustomerPriceAgreementLineUpsertArgs} args - Arguments to update or create a SalesCustomerPriceAgreementLine.
+     * @example
+     * // Update or create a SalesCustomerPriceAgreementLine
+     * const salesCustomerPriceAgreementLine = await prisma.salesCustomerPriceAgreementLine.upsert({
+     *   create: {
+     *     // ... data to create a SalesCustomerPriceAgreementLine
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the SalesCustomerPriceAgreementLine we want to update
+     *   }
+     * })
+     */
+    upsert<T extends SalesCustomerPriceAgreementLineUpsertArgs>(args: SelectSubset<T, SalesCustomerPriceAgreementLineUpsertArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementLineClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementLinePayload<ExtArgs>, T, "upsert", ClientOptions>, never, ExtArgs, ClientOptions>
+
+
+    /**
+     * Count the number of SalesCustomerPriceAgreementLines.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementLineCountArgs} args - Arguments to filter SalesCustomerPriceAgreementLines to count.
+     * @example
+     * // Count the number of SalesCustomerPriceAgreementLines
+     * const count = await prisma.salesCustomerPriceAgreementLine.count({
+     *   where: {
+     *     // ... the filter for the SalesCustomerPriceAgreementLines we want to count
+     *   }
+     * })
+    **/
+    count<T extends SalesCustomerPriceAgreementLineCountArgs>(
+      args?: Subset<T, SalesCustomerPriceAgreementLineCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], SalesCustomerPriceAgreementLineCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a SalesCustomerPriceAgreementLine.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementLineAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends SalesCustomerPriceAgreementLineAggregateArgs>(args: Subset<T, SalesCustomerPriceAgreementLineAggregateArgs>): Prisma.PrismaPromise<GetSalesCustomerPriceAgreementLineAggregateType<T>>
+
+    /**
+     * Group by SalesCustomerPriceAgreementLine.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {SalesCustomerPriceAgreementLineGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends SalesCustomerPriceAgreementLineGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: SalesCustomerPriceAgreementLineGroupByArgs['orderBy'] }
+        : { orderBy?: SalesCustomerPriceAgreementLineGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, SalesCustomerPriceAgreementLineGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetSalesCustomerPriceAgreementLineGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the SalesCustomerPriceAgreementLine model
+   */
+  readonly fields: SalesCustomerPriceAgreementLineFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for SalesCustomerPriceAgreementLine.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__SalesCustomerPriceAgreementLineClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    customerPriceAgreementVersion<T extends SalesCustomerPriceAgreementVersionDefaultArgs<ExtArgs> = {}>(args?: Subset<T, SalesCustomerPriceAgreementVersionDefaultArgs<ExtArgs>>): Prisma__SalesCustomerPriceAgreementVersionClient<$Result.GetResult<Prisma.$SalesCustomerPriceAgreementVersionPayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions> | Null, Null, ExtArgs, ClientOptions>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the SalesCustomerPriceAgreementLine model
+   */ 
+  interface SalesCustomerPriceAgreementLineFieldRefs {
+    readonly id: FieldRef<"SalesCustomerPriceAgreementLine", 'String'>
+    readonly tenantId: FieldRef<"SalesCustomerPriceAgreementLine", 'String'>
+    readonly customerPriceAgreementVersionId: FieldRef<"SalesCustomerPriceAgreementLine", 'String'>
+    readonly lineNo: FieldRef<"SalesCustomerPriceAgreementLine", 'Int'>
+    readonly itemId: FieldRef<"SalesCustomerPriceAgreementLine", 'String'>
+    readonly brandKey: FieldRef<"SalesCustomerPriceAgreementLine", 'String'>
+    readonly priceSnapshot: FieldRef<"SalesCustomerPriceAgreementLine", 'Json'>
+    readonly moqSnapshot: FieldRef<"SalesCustomerPriceAgreementLine", 'Json'>
+    readonly createdAt: FieldRef<"SalesCustomerPriceAgreementLine", 'DateTime'>
+    readonly updatedAt: FieldRef<"SalesCustomerPriceAgreementLine", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * SalesCustomerPriceAgreementLine findUnique
+   */
+  export type SalesCustomerPriceAgreementLineFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesCustomerPriceAgreementLine to fetch.
+     */
+    where: SalesCustomerPriceAgreementLineWhereUniqueInput
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine findUniqueOrThrow
+   */
+  export type SalesCustomerPriceAgreementLineFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesCustomerPriceAgreementLine to fetch.
+     */
+    where: SalesCustomerPriceAgreementLineWhereUniqueInput
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine findFirst
+   */
+  export type SalesCustomerPriceAgreementLineFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesCustomerPriceAgreementLine to fetch.
+     */
+    where?: SalesCustomerPriceAgreementLineWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesCustomerPriceAgreementLines to fetch.
+     */
+    orderBy?: SalesCustomerPriceAgreementLineOrderByWithRelationInput | SalesCustomerPriceAgreementLineOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SalesCustomerPriceAgreementLines.
+     */
+    cursor?: SalesCustomerPriceAgreementLineWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesCustomerPriceAgreementLines from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesCustomerPriceAgreementLines.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SalesCustomerPriceAgreementLines.
+     */
+    distinct?: SalesCustomerPriceAgreementLineScalarFieldEnum | SalesCustomerPriceAgreementLineScalarFieldEnum[]
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine findFirstOrThrow
+   */
+  export type SalesCustomerPriceAgreementLineFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesCustomerPriceAgreementLine to fetch.
+     */
+    where?: SalesCustomerPriceAgreementLineWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesCustomerPriceAgreementLines to fetch.
+     */
+    orderBy?: SalesCustomerPriceAgreementLineOrderByWithRelationInput | SalesCustomerPriceAgreementLineOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for SalesCustomerPriceAgreementLines.
+     */
+    cursor?: SalesCustomerPriceAgreementLineWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesCustomerPriceAgreementLines from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesCustomerPriceAgreementLines.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of SalesCustomerPriceAgreementLines.
+     */
+    distinct?: SalesCustomerPriceAgreementLineScalarFieldEnum | SalesCustomerPriceAgreementLineScalarFieldEnum[]
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine findMany
+   */
+  export type SalesCustomerPriceAgreementLineFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineInclude<ExtArgs> | null
+    /**
+     * Filter, which SalesCustomerPriceAgreementLines to fetch.
+     */
+    where?: SalesCustomerPriceAgreementLineWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of SalesCustomerPriceAgreementLines to fetch.
+     */
+    orderBy?: SalesCustomerPriceAgreementLineOrderByWithRelationInput | SalesCustomerPriceAgreementLineOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing SalesCustomerPriceAgreementLines.
+     */
+    cursor?: SalesCustomerPriceAgreementLineWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` SalesCustomerPriceAgreementLines from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` SalesCustomerPriceAgreementLines.
+     */
+    skip?: number
+    distinct?: SalesCustomerPriceAgreementLineScalarFieldEnum | SalesCustomerPriceAgreementLineScalarFieldEnum[]
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine create
+   */
+  export type SalesCustomerPriceAgreementLineCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineInclude<ExtArgs> | null
+    /**
+     * The data needed to create a SalesCustomerPriceAgreementLine.
+     */
+    data: XOR<SalesCustomerPriceAgreementLineCreateInput, SalesCustomerPriceAgreementLineUncheckedCreateInput>
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine createMany
+   */
+  export type SalesCustomerPriceAgreementLineCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many SalesCustomerPriceAgreementLines.
+     */
+    data: SalesCustomerPriceAgreementLineCreateManyInput | SalesCustomerPriceAgreementLineCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine createManyAndReturn
+   */
+  export type SalesCustomerPriceAgreementLineCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * The data used to create many SalesCustomerPriceAgreementLines.
+     */
+    data: SalesCustomerPriceAgreementLineCreateManyInput | SalesCustomerPriceAgreementLineCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine update
+   */
+  export type SalesCustomerPriceAgreementLineUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineInclude<ExtArgs> | null
+    /**
+     * The data needed to update a SalesCustomerPriceAgreementLine.
+     */
+    data: XOR<SalesCustomerPriceAgreementLineUpdateInput, SalesCustomerPriceAgreementLineUncheckedUpdateInput>
+    /**
+     * Choose, which SalesCustomerPriceAgreementLine to update.
+     */
+    where: SalesCustomerPriceAgreementLineWhereUniqueInput
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine updateMany
+   */
+  export type SalesCustomerPriceAgreementLineUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update SalesCustomerPriceAgreementLines.
+     */
+    data: XOR<SalesCustomerPriceAgreementLineUpdateManyMutationInput, SalesCustomerPriceAgreementLineUncheckedUpdateManyInput>
+    /**
+     * Filter which SalesCustomerPriceAgreementLines to update
+     */
+    where?: SalesCustomerPriceAgreementLineWhereInput
+    /**
+     * Limit how many SalesCustomerPriceAgreementLines to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine updateManyAndReturn
+   */
+  export type SalesCustomerPriceAgreementLineUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * The data used to update SalesCustomerPriceAgreementLines.
+     */
+    data: XOR<SalesCustomerPriceAgreementLineUpdateManyMutationInput, SalesCustomerPriceAgreementLineUncheckedUpdateManyInput>
+    /**
+     * Filter which SalesCustomerPriceAgreementLines to update
+     */
+    where?: SalesCustomerPriceAgreementLineWhereInput
+    /**
+     * Limit how many SalesCustomerPriceAgreementLines to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine upsert
+   */
+  export type SalesCustomerPriceAgreementLineUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineInclude<ExtArgs> | null
+    /**
+     * The filter to search for the SalesCustomerPriceAgreementLine to update in case it exists.
+     */
+    where: SalesCustomerPriceAgreementLineWhereUniqueInput
+    /**
+     * In case the SalesCustomerPriceAgreementLine found by the `where` argument doesn't exist, create a new SalesCustomerPriceAgreementLine with this data.
+     */
+    create: XOR<SalesCustomerPriceAgreementLineCreateInput, SalesCustomerPriceAgreementLineUncheckedCreateInput>
+    /**
+     * In case the SalesCustomerPriceAgreementLine was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<SalesCustomerPriceAgreementLineUpdateInput, SalesCustomerPriceAgreementLineUncheckedUpdateInput>
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine delete
+   */
+  export type SalesCustomerPriceAgreementLineDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineInclude<ExtArgs> | null
+    /**
+     * Filter which SalesCustomerPriceAgreementLine to delete.
+     */
+    where: SalesCustomerPriceAgreementLineWhereUniqueInput
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine deleteMany
+   */
+  export type SalesCustomerPriceAgreementLineDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which SalesCustomerPriceAgreementLines to delete
+     */
+    where?: SalesCustomerPriceAgreementLineWhereInput
+    /**
+     * Limit how many SalesCustomerPriceAgreementLines to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * SalesCustomerPriceAgreementLine without action
+   */
+  export type SalesCustomerPriceAgreementLineDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the SalesCustomerPriceAgreementLine
+     */
+    select?: SalesCustomerPriceAgreementLineSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the SalesCustomerPriceAgreementLine
+     */
+    omit?: SalesCustomerPriceAgreementLineOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: SalesCustomerPriceAgreementLineInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Model SalesAuditEnvelope
    */
 
@@ -13199,6 +18266,70 @@ export namespace Prisma {
   export type SalesOrderLineScalarFieldEnum = (typeof SalesOrderLineScalarFieldEnum)[keyof typeof SalesOrderLineScalarFieldEnum]
 
 
+  export const SalesPriceListScalarFieldEnum: {
+    id: 'id',
+    tenantId: 'tenantId',
+    priceListName: 'priceListName',
+    priceListType: 'priceListType',
+    status: 'status',
+    currencyCode: 'currencyCode',
+    effectiveFrom: 'effectiveFrom',
+    effectiveTo: 'effectiveTo',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type SalesPriceListScalarFieldEnum = (typeof SalesPriceListScalarFieldEnum)[keyof typeof SalesPriceListScalarFieldEnum]
+
+
+  export const SalesPriceListLineScalarFieldEnum: {
+    id: 'id',
+    tenantId: 'tenantId',
+    priceListId: 'priceListId',
+    lineNo: 'lineNo',
+    itemId: 'itemId',
+    brandKey: 'brandKey',
+    priceSnapshot: 'priceSnapshot',
+    moqSnapshot: 'moqSnapshot',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type SalesPriceListLineScalarFieldEnum = (typeof SalesPriceListLineScalarFieldEnum)[keyof typeof SalesPriceListLineScalarFieldEnum]
+
+
+  export const SalesCustomerPriceAgreementVersionScalarFieldEnum: {
+    id: 'id',
+    customerPriceAgreementId: 'customerPriceAgreementId',
+    tenantId: 'tenantId',
+    customerTenantPartyId: 'customerTenantPartyId',
+    currencyCode: 'currencyCode',
+    versionNo: 'versionNo',
+    status: 'status',
+    publishedAt: 'publishedAt',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type SalesCustomerPriceAgreementVersionScalarFieldEnum = (typeof SalesCustomerPriceAgreementVersionScalarFieldEnum)[keyof typeof SalesCustomerPriceAgreementVersionScalarFieldEnum]
+
+
+  export const SalesCustomerPriceAgreementLineScalarFieldEnum: {
+    id: 'id',
+    tenantId: 'tenantId',
+    customerPriceAgreementVersionId: 'customerPriceAgreementVersionId',
+    lineNo: 'lineNo',
+    itemId: 'itemId',
+    brandKey: 'brandKey',
+    priceSnapshot: 'priceSnapshot',
+    moqSnapshot: 'moqSnapshot',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type SalesCustomerPriceAgreementLineScalarFieldEnum = (typeof SalesCustomerPriceAgreementLineScalarFieldEnum)[keyof typeof SalesCustomerPriceAgreementLineScalarFieldEnum]
+
+
   export const SalesAuditEnvelopeScalarFieldEnum: {
     id: 'id',
     service: 'service',
@@ -13353,6 +18484,48 @@ export namespace Prisma {
    * Reference to a field of type 'SalesFulfillmentHandoffStatus[]'
    */
   export type ListEnumSalesFulfillmentHandoffStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'SalesFulfillmentHandoffStatus[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'PriceListType'
+   */
+  export type EnumPriceListTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PriceListType'>
+    
+
+
+  /**
+   * Reference to a field of type 'PriceListType[]'
+   */
+  export type ListEnumPriceListTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PriceListType[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'PriceListStatus'
+   */
+  export type EnumPriceListStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PriceListStatus'>
+    
+
+
+  /**
+   * Reference to a field of type 'PriceListStatus[]'
+   */
+  export type ListEnumPriceListStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'PriceListStatus[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'CustomerPriceAgreementStatus'
+   */
+  export type EnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CustomerPriceAgreementStatus'>
+    
+
+
+  /**
+   * Reference to a field of type 'CustomerPriceAgreementStatus[]'
+   */
+  export type ListEnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CustomerPriceAgreementStatus[]'>
     
 
 
@@ -14063,6 +19236,335 @@ export namespace Prisma {
     customerItemSnapshot?: JsonWithAggregatesFilter<"SalesOrderLine">
     createdAt?: DateTimeWithAggregatesFilter<"SalesOrderLine"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"SalesOrderLine"> | Date | string
+  }
+
+  export type SalesPriceListWhereInput = {
+    AND?: SalesPriceListWhereInput | SalesPriceListWhereInput[]
+    OR?: SalesPriceListWhereInput[]
+    NOT?: SalesPriceListWhereInput | SalesPriceListWhereInput[]
+    id?: UuidFilter<"SalesPriceList"> | string
+    tenantId?: StringFilter<"SalesPriceList"> | string
+    priceListName?: StringFilter<"SalesPriceList"> | string
+    priceListType?: EnumPriceListTypeFilter<"SalesPriceList"> | $Enums.PriceListType
+    status?: EnumPriceListStatusFilter<"SalesPriceList"> | $Enums.PriceListStatus
+    currencyCode?: StringFilter<"SalesPriceList"> | string
+    effectiveFrom?: DateTimeFilter<"SalesPriceList"> | Date | string
+    effectiveTo?: DateTimeNullableFilter<"SalesPriceList"> | Date | string | null
+    createdAt?: DateTimeFilter<"SalesPriceList"> | Date | string
+    updatedAt?: DateTimeFilter<"SalesPriceList"> | Date | string
+    lines?: SalesPriceListLineListRelationFilter
+  }
+
+  export type SalesPriceListOrderByWithRelationInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    priceListName?: SortOrder
+    priceListType?: SortOrder
+    status?: SortOrder
+    currencyCode?: SortOrder
+    effectiveFrom?: SortOrder
+    effectiveTo?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    lines?: SalesPriceListLineOrderByRelationAggregateInput
+  }
+
+  export type SalesPriceListWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    AND?: SalesPriceListWhereInput | SalesPriceListWhereInput[]
+    OR?: SalesPriceListWhereInput[]
+    NOT?: SalesPriceListWhereInput | SalesPriceListWhereInput[]
+    tenantId?: StringFilter<"SalesPriceList"> | string
+    priceListName?: StringFilter<"SalesPriceList"> | string
+    priceListType?: EnumPriceListTypeFilter<"SalesPriceList"> | $Enums.PriceListType
+    status?: EnumPriceListStatusFilter<"SalesPriceList"> | $Enums.PriceListStatus
+    currencyCode?: StringFilter<"SalesPriceList"> | string
+    effectiveFrom?: DateTimeFilter<"SalesPriceList"> | Date | string
+    effectiveTo?: DateTimeNullableFilter<"SalesPriceList"> | Date | string | null
+    createdAt?: DateTimeFilter<"SalesPriceList"> | Date | string
+    updatedAt?: DateTimeFilter<"SalesPriceList"> | Date | string
+    lines?: SalesPriceListLineListRelationFilter
+  }, "id">
+
+  export type SalesPriceListOrderByWithAggregationInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    priceListName?: SortOrder
+    priceListType?: SortOrder
+    status?: SortOrder
+    currencyCode?: SortOrder
+    effectiveFrom?: SortOrder
+    effectiveTo?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: SalesPriceListCountOrderByAggregateInput
+    _max?: SalesPriceListMaxOrderByAggregateInput
+    _min?: SalesPriceListMinOrderByAggregateInput
+  }
+
+  export type SalesPriceListScalarWhereWithAggregatesInput = {
+    AND?: SalesPriceListScalarWhereWithAggregatesInput | SalesPriceListScalarWhereWithAggregatesInput[]
+    OR?: SalesPriceListScalarWhereWithAggregatesInput[]
+    NOT?: SalesPriceListScalarWhereWithAggregatesInput | SalesPriceListScalarWhereWithAggregatesInput[]
+    id?: UuidWithAggregatesFilter<"SalesPriceList"> | string
+    tenantId?: StringWithAggregatesFilter<"SalesPriceList"> | string
+    priceListName?: StringWithAggregatesFilter<"SalesPriceList"> | string
+    priceListType?: EnumPriceListTypeWithAggregatesFilter<"SalesPriceList"> | $Enums.PriceListType
+    status?: EnumPriceListStatusWithAggregatesFilter<"SalesPriceList"> | $Enums.PriceListStatus
+    currencyCode?: StringWithAggregatesFilter<"SalesPriceList"> | string
+    effectiveFrom?: DateTimeWithAggregatesFilter<"SalesPriceList"> | Date | string
+    effectiveTo?: DateTimeNullableWithAggregatesFilter<"SalesPriceList"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"SalesPriceList"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"SalesPriceList"> | Date | string
+  }
+
+  export type SalesPriceListLineWhereInput = {
+    AND?: SalesPriceListLineWhereInput | SalesPriceListLineWhereInput[]
+    OR?: SalesPriceListLineWhereInput[]
+    NOT?: SalesPriceListLineWhereInput | SalesPriceListLineWhereInput[]
+    id?: UuidFilter<"SalesPriceListLine"> | string
+    tenantId?: StringFilter<"SalesPriceListLine"> | string
+    priceListId?: UuidFilter<"SalesPriceListLine"> | string
+    lineNo?: IntFilter<"SalesPriceListLine"> | number
+    itemId?: StringFilter<"SalesPriceListLine"> | string
+    brandKey?: StringNullableFilter<"SalesPriceListLine"> | string | null
+    priceSnapshot?: JsonFilter<"SalesPriceListLine">
+    moqSnapshot?: JsonFilter<"SalesPriceListLine">
+    createdAt?: DateTimeFilter<"SalesPriceListLine"> | Date | string
+    updatedAt?: DateTimeFilter<"SalesPriceListLine"> | Date | string
+    priceList?: XOR<SalesPriceListScalarRelationFilter, SalesPriceListWhereInput>
+  }
+
+  export type SalesPriceListLineOrderByWithRelationInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    priceListId?: SortOrder
+    lineNo?: SortOrder
+    itemId?: SortOrder
+    brandKey?: SortOrderInput | SortOrder
+    priceSnapshot?: SortOrder
+    moqSnapshot?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    priceList?: SalesPriceListOrderByWithRelationInput
+  }
+
+  export type SalesPriceListLineWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    priceListId_lineNo?: SalesPriceListLinePriceListIdLineNoCompoundUniqueInput
+    AND?: SalesPriceListLineWhereInput | SalesPriceListLineWhereInput[]
+    OR?: SalesPriceListLineWhereInput[]
+    NOT?: SalesPriceListLineWhereInput | SalesPriceListLineWhereInput[]
+    tenantId?: StringFilter<"SalesPriceListLine"> | string
+    priceListId?: UuidFilter<"SalesPriceListLine"> | string
+    lineNo?: IntFilter<"SalesPriceListLine"> | number
+    itemId?: StringFilter<"SalesPriceListLine"> | string
+    brandKey?: StringNullableFilter<"SalesPriceListLine"> | string | null
+    priceSnapshot?: JsonFilter<"SalesPriceListLine">
+    moqSnapshot?: JsonFilter<"SalesPriceListLine">
+    createdAt?: DateTimeFilter<"SalesPriceListLine"> | Date | string
+    updatedAt?: DateTimeFilter<"SalesPriceListLine"> | Date | string
+    priceList?: XOR<SalesPriceListScalarRelationFilter, SalesPriceListWhereInput>
+  }, "id" | "priceListId_lineNo">
+
+  export type SalesPriceListLineOrderByWithAggregationInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    priceListId?: SortOrder
+    lineNo?: SortOrder
+    itemId?: SortOrder
+    brandKey?: SortOrderInput | SortOrder
+    priceSnapshot?: SortOrder
+    moqSnapshot?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: SalesPriceListLineCountOrderByAggregateInput
+    _avg?: SalesPriceListLineAvgOrderByAggregateInput
+    _max?: SalesPriceListLineMaxOrderByAggregateInput
+    _min?: SalesPriceListLineMinOrderByAggregateInput
+    _sum?: SalesPriceListLineSumOrderByAggregateInput
+  }
+
+  export type SalesPriceListLineScalarWhereWithAggregatesInput = {
+    AND?: SalesPriceListLineScalarWhereWithAggregatesInput | SalesPriceListLineScalarWhereWithAggregatesInput[]
+    OR?: SalesPriceListLineScalarWhereWithAggregatesInput[]
+    NOT?: SalesPriceListLineScalarWhereWithAggregatesInput | SalesPriceListLineScalarWhereWithAggregatesInput[]
+    id?: UuidWithAggregatesFilter<"SalesPriceListLine"> | string
+    tenantId?: StringWithAggregatesFilter<"SalesPriceListLine"> | string
+    priceListId?: UuidWithAggregatesFilter<"SalesPriceListLine"> | string
+    lineNo?: IntWithAggregatesFilter<"SalesPriceListLine"> | number
+    itemId?: StringWithAggregatesFilter<"SalesPriceListLine"> | string
+    brandKey?: StringNullableWithAggregatesFilter<"SalesPriceListLine"> | string | null
+    priceSnapshot?: JsonWithAggregatesFilter<"SalesPriceListLine">
+    moqSnapshot?: JsonWithAggregatesFilter<"SalesPriceListLine">
+    createdAt?: DateTimeWithAggregatesFilter<"SalesPriceListLine"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"SalesPriceListLine"> | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementVersionWhereInput = {
+    AND?: SalesCustomerPriceAgreementVersionWhereInput | SalesCustomerPriceAgreementVersionWhereInput[]
+    OR?: SalesCustomerPriceAgreementVersionWhereInput[]
+    NOT?: SalesCustomerPriceAgreementVersionWhereInput | SalesCustomerPriceAgreementVersionWhereInput[]
+    id?: UuidFilter<"SalesCustomerPriceAgreementVersion"> | string
+    customerPriceAgreementId?: UuidFilter<"SalesCustomerPriceAgreementVersion"> | string
+    tenantId?: StringFilter<"SalesCustomerPriceAgreementVersion"> | string
+    customerTenantPartyId?: StringFilter<"SalesCustomerPriceAgreementVersion"> | string
+    currencyCode?: StringFilter<"SalesCustomerPriceAgreementVersion"> | string
+    versionNo?: IntFilter<"SalesCustomerPriceAgreementVersion"> | number
+    status?: EnumCustomerPriceAgreementStatusFilter<"SalesCustomerPriceAgreementVersion"> | $Enums.CustomerPriceAgreementStatus
+    publishedAt?: DateTimeNullableFilter<"SalesCustomerPriceAgreementVersion"> | Date | string | null
+    createdAt?: DateTimeFilter<"SalesCustomerPriceAgreementVersion"> | Date | string
+    updatedAt?: DateTimeFilter<"SalesCustomerPriceAgreementVersion"> | Date | string
+    lines?: SalesCustomerPriceAgreementLineListRelationFilter
+  }
+
+  export type SalesCustomerPriceAgreementVersionOrderByWithRelationInput = {
+    id?: SortOrder
+    customerPriceAgreementId?: SortOrder
+    tenantId?: SortOrder
+    customerTenantPartyId?: SortOrder
+    currencyCode?: SortOrder
+    versionNo?: SortOrder
+    status?: SortOrder
+    publishedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    lines?: SalesCustomerPriceAgreementLineOrderByRelationAggregateInput
+  }
+
+  export type SalesCustomerPriceAgreementVersionWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    customerPriceAgreementId_versionNo?: SalesCustomerPriceAgreementVersionCustomerPriceAgreementIdVersionNoCompoundUniqueInput
+    AND?: SalesCustomerPriceAgreementVersionWhereInput | SalesCustomerPriceAgreementVersionWhereInput[]
+    OR?: SalesCustomerPriceAgreementVersionWhereInput[]
+    NOT?: SalesCustomerPriceAgreementVersionWhereInput | SalesCustomerPriceAgreementVersionWhereInput[]
+    customerPriceAgreementId?: UuidFilter<"SalesCustomerPriceAgreementVersion"> | string
+    tenantId?: StringFilter<"SalesCustomerPriceAgreementVersion"> | string
+    customerTenantPartyId?: StringFilter<"SalesCustomerPriceAgreementVersion"> | string
+    currencyCode?: StringFilter<"SalesCustomerPriceAgreementVersion"> | string
+    versionNo?: IntFilter<"SalesCustomerPriceAgreementVersion"> | number
+    status?: EnumCustomerPriceAgreementStatusFilter<"SalesCustomerPriceAgreementVersion"> | $Enums.CustomerPriceAgreementStatus
+    publishedAt?: DateTimeNullableFilter<"SalesCustomerPriceAgreementVersion"> | Date | string | null
+    createdAt?: DateTimeFilter<"SalesCustomerPriceAgreementVersion"> | Date | string
+    updatedAt?: DateTimeFilter<"SalesCustomerPriceAgreementVersion"> | Date | string
+    lines?: SalesCustomerPriceAgreementLineListRelationFilter
+  }, "id" | "customerPriceAgreementId_versionNo">
+
+  export type SalesCustomerPriceAgreementVersionOrderByWithAggregationInput = {
+    id?: SortOrder
+    customerPriceAgreementId?: SortOrder
+    tenantId?: SortOrder
+    customerTenantPartyId?: SortOrder
+    currencyCode?: SortOrder
+    versionNo?: SortOrder
+    status?: SortOrder
+    publishedAt?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: SalesCustomerPriceAgreementVersionCountOrderByAggregateInput
+    _avg?: SalesCustomerPriceAgreementVersionAvgOrderByAggregateInput
+    _max?: SalesCustomerPriceAgreementVersionMaxOrderByAggregateInput
+    _min?: SalesCustomerPriceAgreementVersionMinOrderByAggregateInput
+    _sum?: SalesCustomerPriceAgreementVersionSumOrderByAggregateInput
+  }
+
+  export type SalesCustomerPriceAgreementVersionScalarWhereWithAggregatesInput = {
+    AND?: SalesCustomerPriceAgreementVersionScalarWhereWithAggregatesInput | SalesCustomerPriceAgreementVersionScalarWhereWithAggregatesInput[]
+    OR?: SalesCustomerPriceAgreementVersionScalarWhereWithAggregatesInput[]
+    NOT?: SalesCustomerPriceAgreementVersionScalarWhereWithAggregatesInput | SalesCustomerPriceAgreementVersionScalarWhereWithAggregatesInput[]
+    id?: UuidWithAggregatesFilter<"SalesCustomerPriceAgreementVersion"> | string
+    customerPriceAgreementId?: UuidWithAggregatesFilter<"SalesCustomerPriceAgreementVersion"> | string
+    tenantId?: StringWithAggregatesFilter<"SalesCustomerPriceAgreementVersion"> | string
+    customerTenantPartyId?: StringWithAggregatesFilter<"SalesCustomerPriceAgreementVersion"> | string
+    currencyCode?: StringWithAggregatesFilter<"SalesCustomerPriceAgreementVersion"> | string
+    versionNo?: IntWithAggregatesFilter<"SalesCustomerPriceAgreementVersion"> | number
+    status?: EnumCustomerPriceAgreementStatusWithAggregatesFilter<"SalesCustomerPriceAgreementVersion"> | $Enums.CustomerPriceAgreementStatus
+    publishedAt?: DateTimeNullableWithAggregatesFilter<"SalesCustomerPriceAgreementVersion"> | Date | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"SalesCustomerPriceAgreementVersion"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"SalesCustomerPriceAgreementVersion"> | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineWhereInput = {
+    AND?: SalesCustomerPriceAgreementLineWhereInput | SalesCustomerPriceAgreementLineWhereInput[]
+    OR?: SalesCustomerPriceAgreementLineWhereInput[]
+    NOT?: SalesCustomerPriceAgreementLineWhereInput | SalesCustomerPriceAgreementLineWhereInput[]
+    id?: UuidFilter<"SalesCustomerPriceAgreementLine"> | string
+    tenantId?: StringFilter<"SalesCustomerPriceAgreementLine"> | string
+    customerPriceAgreementVersionId?: UuidFilter<"SalesCustomerPriceAgreementLine"> | string
+    lineNo?: IntFilter<"SalesCustomerPriceAgreementLine"> | number
+    itemId?: StringFilter<"SalesCustomerPriceAgreementLine"> | string
+    brandKey?: StringNullableFilter<"SalesCustomerPriceAgreementLine"> | string | null
+    priceSnapshot?: JsonFilter<"SalesCustomerPriceAgreementLine">
+    moqSnapshot?: JsonFilter<"SalesCustomerPriceAgreementLine">
+    createdAt?: DateTimeFilter<"SalesCustomerPriceAgreementLine"> | Date | string
+    updatedAt?: DateTimeFilter<"SalesCustomerPriceAgreementLine"> | Date | string
+    customerPriceAgreementVersion?: XOR<SalesCustomerPriceAgreementVersionScalarRelationFilter, SalesCustomerPriceAgreementVersionWhereInput>
+  }
+
+  export type SalesCustomerPriceAgreementLineOrderByWithRelationInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    customerPriceAgreementVersionId?: SortOrder
+    lineNo?: SortOrder
+    itemId?: SortOrder
+    brandKey?: SortOrderInput | SortOrder
+    priceSnapshot?: SortOrder
+    moqSnapshot?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    customerPriceAgreementVersion?: SalesCustomerPriceAgreementVersionOrderByWithRelationInput
+  }
+
+  export type SalesCustomerPriceAgreementLineWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    customerPriceAgreementVersionId_lineNo?: SalesCustomerPriceAgreementLineCustomerPriceAgreementVersionIdLineNoCompoundUniqueInput
+    AND?: SalesCustomerPriceAgreementLineWhereInput | SalesCustomerPriceAgreementLineWhereInput[]
+    OR?: SalesCustomerPriceAgreementLineWhereInput[]
+    NOT?: SalesCustomerPriceAgreementLineWhereInput | SalesCustomerPriceAgreementLineWhereInput[]
+    tenantId?: StringFilter<"SalesCustomerPriceAgreementLine"> | string
+    customerPriceAgreementVersionId?: UuidFilter<"SalesCustomerPriceAgreementLine"> | string
+    lineNo?: IntFilter<"SalesCustomerPriceAgreementLine"> | number
+    itemId?: StringFilter<"SalesCustomerPriceAgreementLine"> | string
+    brandKey?: StringNullableFilter<"SalesCustomerPriceAgreementLine"> | string | null
+    priceSnapshot?: JsonFilter<"SalesCustomerPriceAgreementLine">
+    moqSnapshot?: JsonFilter<"SalesCustomerPriceAgreementLine">
+    createdAt?: DateTimeFilter<"SalesCustomerPriceAgreementLine"> | Date | string
+    updatedAt?: DateTimeFilter<"SalesCustomerPriceAgreementLine"> | Date | string
+    customerPriceAgreementVersion?: XOR<SalesCustomerPriceAgreementVersionScalarRelationFilter, SalesCustomerPriceAgreementVersionWhereInput>
+  }, "id" | "customerPriceAgreementVersionId_lineNo">
+
+  export type SalesCustomerPriceAgreementLineOrderByWithAggregationInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    customerPriceAgreementVersionId?: SortOrder
+    lineNo?: SortOrder
+    itemId?: SortOrder
+    brandKey?: SortOrderInput | SortOrder
+    priceSnapshot?: SortOrder
+    moqSnapshot?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: SalesCustomerPriceAgreementLineCountOrderByAggregateInput
+    _avg?: SalesCustomerPriceAgreementLineAvgOrderByAggregateInput
+    _max?: SalesCustomerPriceAgreementLineMaxOrderByAggregateInput
+    _min?: SalesCustomerPriceAgreementLineMinOrderByAggregateInput
+    _sum?: SalesCustomerPriceAgreementLineSumOrderByAggregateInput
+  }
+
+  export type SalesCustomerPriceAgreementLineScalarWhereWithAggregatesInput = {
+    AND?: SalesCustomerPriceAgreementLineScalarWhereWithAggregatesInput | SalesCustomerPriceAgreementLineScalarWhereWithAggregatesInput[]
+    OR?: SalesCustomerPriceAgreementLineScalarWhereWithAggregatesInput[]
+    NOT?: SalesCustomerPriceAgreementLineScalarWhereWithAggregatesInput | SalesCustomerPriceAgreementLineScalarWhereWithAggregatesInput[]
+    id?: UuidWithAggregatesFilter<"SalesCustomerPriceAgreementLine"> | string
+    tenantId?: StringWithAggregatesFilter<"SalesCustomerPriceAgreementLine"> | string
+    customerPriceAgreementVersionId?: UuidWithAggregatesFilter<"SalesCustomerPriceAgreementLine"> | string
+    lineNo?: IntWithAggregatesFilter<"SalesCustomerPriceAgreementLine"> | number
+    itemId?: StringWithAggregatesFilter<"SalesCustomerPriceAgreementLine"> | string
+    brandKey?: StringNullableWithAggregatesFilter<"SalesCustomerPriceAgreementLine"> | string | null
+    priceSnapshot?: JsonWithAggregatesFilter<"SalesCustomerPriceAgreementLine">
+    moqSnapshot?: JsonWithAggregatesFilter<"SalesCustomerPriceAgreementLine">
+    createdAt?: DateTimeWithAggregatesFilter<"SalesCustomerPriceAgreementLine"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"SalesCustomerPriceAgreementLine"> | Date | string
   }
 
   export type SalesAuditEnvelopeWhereInput = {
@@ -14938,6 +20440,376 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type SalesPriceListCreateInput = {
+    id: string
+    tenantId: string
+    priceListName: string
+    priceListType: $Enums.PriceListType
+    status: $Enums.PriceListStatus
+    currencyCode: string
+    effectiveFrom: Date | string
+    effectiveTo?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    lines?: SalesPriceListLineCreateNestedManyWithoutPriceListInput
+  }
+
+  export type SalesPriceListUncheckedCreateInput = {
+    id: string
+    tenantId: string
+    priceListName: string
+    priceListType: $Enums.PriceListType
+    status: $Enums.PriceListStatus
+    currencyCode: string
+    effectiveFrom: Date | string
+    effectiveTo?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    lines?: SalesPriceListLineUncheckedCreateNestedManyWithoutPriceListInput
+  }
+
+  export type SalesPriceListUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    priceListName?: StringFieldUpdateOperationsInput | string
+    priceListType?: EnumPriceListTypeFieldUpdateOperationsInput | $Enums.PriceListType
+    status?: EnumPriceListStatusFieldUpdateOperationsInput | $Enums.PriceListStatus
+    currencyCode?: StringFieldUpdateOperationsInput | string
+    effectiveFrom?: DateTimeFieldUpdateOperationsInput | Date | string
+    effectiveTo?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lines?: SalesPriceListLineUpdateManyWithoutPriceListNestedInput
+  }
+
+  export type SalesPriceListUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    priceListName?: StringFieldUpdateOperationsInput | string
+    priceListType?: EnumPriceListTypeFieldUpdateOperationsInput | $Enums.PriceListType
+    status?: EnumPriceListStatusFieldUpdateOperationsInput | $Enums.PriceListStatus
+    currencyCode?: StringFieldUpdateOperationsInput | string
+    effectiveFrom?: DateTimeFieldUpdateOperationsInput | Date | string
+    effectiveTo?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lines?: SalesPriceListLineUncheckedUpdateManyWithoutPriceListNestedInput
+  }
+
+  export type SalesPriceListCreateManyInput = {
+    id: string
+    tenantId: string
+    priceListName: string
+    priceListType: $Enums.PriceListType
+    status: $Enums.PriceListStatus
+    currencyCode: string
+    effectiveFrom: Date | string
+    effectiveTo?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesPriceListUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    priceListName?: StringFieldUpdateOperationsInput | string
+    priceListType?: EnumPriceListTypeFieldUpdateOperationsInput | $Enums.PriceListType
+    status?: EnumPriceListStatusFieldUpdateOperationsInput | $Enums.PriceListStatus
+    currencyCode?: StringFieldUpdateOperationsInput | string
+    effectiveFrom?: DateTimeFieldUpdateOperationsInput | Date | string
+    effectiveTo?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesPriceListUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    priceListName?: StringFieldUpdateOperationsInput | string
+    priceListType?: EnumPriceListTypeFieldUpdateOperationsInput | $Enums.PriceListType
+    status?: EnumPriceListStatusFieldUpdateOperationsInput | $Enums.PriceListStatus
+    currencyCode?: StringFieldUpdateOperationsInput | string
+    effectiveFrom?: DateTimeFieldUpdateOperationsInput | Date | string
+    effectiveTo?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesPriceListLineCreateInput = {
+    id: string
+    tenantId: string
+    lineNo: number
+    itemId: string
+    brandKey?: string | null
+    priceSnapshot: JsonNullValueInput | InputJsonValue
+    moqSnapshot: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    priceList: SalesPriceListCreateNestedOneWithoutLinesInput
+  }
+
+  export type SalesPriceListLineUncheckedCreateInput = {
+    id: string
+    tenantId: string
+    priceListId: string
+    lineNo: number
+    itemId: string
+    brandKey?: string | null
+    priceSnapshot: JsonNullValueInput | InputJsonValue
+    moqSnapshot: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesPriceListLineUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    priceList?: SalesPriceListUpdateOneRequiredWithoutLinesNestedInput
+  }
+
+  export type SalesPriceListLineUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    priceListId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesPriceListLineCreateManyInput = {
+    id: string
+    tenantId: string
+    priceListId: string
+    lineNo: number
+    itemId: string
+    brandKey?: string | null
+    priceSnapshot: JsonNullValueInput | InputJsonValue
+    moqSnapshot: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesPriceListLineUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesPriceListLineUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    priceListId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementVersionCreateInput = {
+    id: string
+    customerPriceAgreementId: string
+    tenantId: string
+    customerTenantPartyId: string
+    currencyCode: string
+    versionNo: number
+    status: $Enums.CustomerPriceAgreementStatus
+    publishedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    lines?: SalesCustomerPriceAgreementLineCreateNestedManyWithoutCustomerPriceAgreementVersionInput
+  }
+
+  export type SalesCustomerPriceAgreementVersionUncheckedCreateInput = {
+    id: string
+    customerPriceAgreementId: string
+    tenantId: string
+    customerTenantPartyId: string
+    currencyCode: string
+    versionNo: number
+    status: $Enums.CustomerPriceAgreementStatus
+    publishedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    lines?: SalesCustomerPriceAgreementLineUncheckedCreateNestedManyWithoutCustomerPriceAgreementVersionInput
+  }
+
+  export type SalesCustomerPriceAgreementVersionUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    customerPriceAgreementId?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    customerTenantPartyId?: StringFieldUpdateOperationsInput | string
+    currencyCode?: StringFieldUpdateOperationsInput | string
+    versionNo?: IntFieldUpdateOperationsInput | number
+    status?: EnumCustomerPriceAgreementStatusFieldUpdateOperationsInput | $Enums.CustomerPriceAgreementStatus
+    publishedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lines?: SalesCustomerPriceAgreementLineUpdateManyWithoutCustomerPriceAgreementVersionNestedInput
+  }
+
+  export type SalesCustomerPriceAgreementVersionUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    customerPriceAgreementId?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    customerTenantPartyId?: StringFieldUpdateOperationsInput | string
+    currencyCode?: StringFieldUpdateOperationsInput | string
+    versionNo?: IntFieldUpdateOperationsInput | number
+    status?: EnumCustomerPriceAgreementStatusFieldUpdateOperationsInput | $Enums.CustomerPriceAgreementStatus
+    publishedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lines?: SalesCustomerPriceAgreementLineUncheckedUpdateManyWithoutCustomerPriceAgreementVersionNestedInput
+  }
+
+  export type SalesCustomerPriceAgreementVersionCreateManyInput = {
+    id: string
+    customerPriceAgreementId: string
+    tenantId: string
+    customerTenantPartyId: string
+    currencyCode: string
+    versionNo: number
+    status: $Enums.CustomerPriceAgreementStatus
+    publishedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesCustomerPriceAgreementVersionUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    customerPriceAgreementId?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    customerTenantPartyId?: StringFieldUpdateOperationsInput | string
+    currencyCode?: StringFieldUpdateOperationsInput | string
+    versionNo?: IntFieldUpdateOperationsInput | number
+    status?: EnumCustomerPriceAgreementStatusFieldUpdateOperationsInput | $Enums.CustomerPriceAgreementStatus
+    publishedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementVersionUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    customerPriceAgreementId?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    customerTenantPartyId?: StringFieldUpdateOperationsInput | string
+    currencyCode?: StringFieldUpdateOperationsInput | string
+    versionNo?: IntFieldUpdateOperationsInput | number
+    status?: EnumCustomerPriceAgreementStatusFieldUpdateOperationsInput | $Enums.CustomerPriceAgreementStatus
+    publishedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineCreateInput = {
+    id: string
+    tenantId: string
+    lineNo: number
+    itemId: string
+    brandKey?: string | null
+    priceSnapshot: JsonNullValueInput | InputJsonValue
+    moqSnapshot: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    customerPriceAgreementVersion: SalesCustomerPriceAgreementVersionCreateNestedOneWithoutLinesInput
+  }
+
+  export type SalesCustomerPriceAgreementLineUncheckedCreateInput = {
+    id: string
+    tenantId: string
+    customerPriceAgreementVersionId: string
+    lineNo: number
+    itemId: string
+    brandKey?: string | null
+    priceSnapshot: JsonNullValueInput | InputJsonValue
+    moqSnapshot: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    customerPriceAgreementVersion?: SalesCustomerPriceAgreementVersionUpdateOneRequiredWithoutLinesNestedInput
+  }
+
+  export type SalesCustomerPriceAgreementLineUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    customerPriceAgreementVersionId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineCreateManyInput = {
+    id: string
+    tenantId: string
+    customerPriceAgreementVersionId: string
+    lineNo: number
+    itemId: string
+    brandKey?: string | null
+    priceSnapshot: JsonNullValueInput | InputJsonValue
+    moqSnapshot: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    customerPriceAgreementVersionId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type SalesAuditEnvelopeCreateInput = {
     id: string
     service: string
@@ -15773,6 +21645,274 @@ export namespace Prisma {
     lineNo?: SortOrder
   }
 
+  export type EnumPriceListTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.PriceListType | EnumPriceListTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.PriceListType[] | ListEnumPriceListTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PriceListType[] | ListEnumPriceListTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumPriceListTypeFilter<$PrismaModel> | $Enums.PriceListType
+  }
+
+  export type EnumPriceListStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.PriceListStatus | EnumPriceListStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.PriceListStatus[] | ListEnumPriceListStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PriceListStatus[] | ListEnumPriceListStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumPriceListStatusFilter<$PrismaModel> | $Enums.PriceListStatus
+  }
+
+  export type SalesPriceListLineListRelationFilter = {
+    every?: SalesPriceListLineWhereInput
+    some?: SalesPriceListLineWhereInput
+    none?: SalesPriceListLineWhereInput
+  }
+
+  export type SalesPriceListLineOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type SalesPriceListCountOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    priceListName?: SortOrder
+    priceListType?: SortOrder
+    status?: SortOrder
+    currencyCode?: SortOrder
+    effectiveFrom?: SortOrder
+    effectiveTo?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SalesPriceListMaxOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    priceListName?: SortOrder
+    priceListType?: SortOrder
+    status?: SortOrder
+    currencyCode?: SortOrder
+    effectiveFrom?: SortOrder
+    effectiveTo?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SalesPriceListMinOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    priceListName?: SortOrder
+    priceListType?: SortOrder
+    status?: SortOrder
+    currencyCode?: SortOrder
+    effectiveFrom?: SortOrder
+    effectiveTo?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type EnumPriceListTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.PriceListType | EnumPriceListTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.PriceListType[] | ListEnumPriceListTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PriceListType[] | ListEnumPriceListTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumPriceListTypeWithAggregatesFilter<$PrismaModel> | $Enums.PriceListType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumPriceListTypeFilter<$PrismaModel>
+    _max?: NestedEnumPriceListTypeFilter<$PrismaModel>
+  }
+
+  export type EnumPriceListStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.PriceListStatus | EnumPriceListStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.PriceListStatus[] | ListEnumPriceListStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PriceListStatus[] | ListEnumPriceListStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumPriceListStatusWithAggregatesFilter<$PrismaModel> | $Enums.PriceListStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumPriceListStatusFilter<$PrismaModel>
+    _max?: NestedEnumPriceListStatusFilter<$PrismaModel>
+  }
+
+  export type SalesPriceListScalarRelationFilter = {
+    is?: SalesPriceListWhereInput
+    isNot?: SalesPriceListWhereInput
+  }
+
+  export type SalesPriceListLinePriceListIdLineNoCompoundUniqueInput = {
+    priceListId: string
+    lineNo: number
+  }
+
+  export type SalesPriceListLineCountOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    priceListId?: SortOrder
+    lineNo?: SortOrder
+    itemId?: SortOrder
+    brandKey?: SortOrder
+    priceSnapshot?: SortOrder
+    moqSnapshot?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SalesPriceListLineAvgOrderByAggregateInput = {
+    lineNo?: SortOrder
+  }
+
+  export type SalesPriceListLineMaxOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    priceListId?: SortOrder
+    lineNo?: SortOrder
+    itemId?: SortOrder
+    brandKey?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SalesPriceListLineMinOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    priceListId?: SortOrder
+    lineNo?: SortOrder
+    itemId?: SortOrder
+    brandKey?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SalesPriceListLineSumOrderByAggregateInput = {
+    lineNo?: SortOrder
+  }
+
+  export type EnumCustomerPriceAgreementStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.CustomerPriceAgreementStatus | EnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.CustomerPriceAgreementStatus[] | ListEnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.CustomerPriceAgreementStatus[] | ListEnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumCustomerPriceAgreementStatusFilter<$PrismaModel> | $Enums.CustomerPriceAgreementStatus
+  }
+
+  export type SalesCustomerPriceAgreementLineListRelationFilter = {
+    every?: SalesCustomerPriceAgreementLineWhereInput
+    some?: SalesCustomerPriceAgreementLineWhereInput
+    none?: SalesCustomerPriceAgreementLineWhereInput
+  }
+
+  export type SalesCustomerPriceAgreementLineOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type SalesCustomerPriceAgreementVersionCustomerPriceAgreementIdVersionNoCompoundUniqueInput = {
+    customerPriceAgreementId: string
+    versionNo: number
+  }
+
+  export type SalesCustomerPriceAgreementVersionCountOrderByAggregateInput = {
+    id?: SortOrder
+    customerPriceAgreementId?: SortOrder
+    tenantId?: SortOrder
+    customerTenantPartyId?: SortOrder
+    currencyCode?: SortOrder
+    versionNo?: SortOrder
+    status?: SortOrder
+    publishedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SalesCustomerPriceAgreementVersionAvgOrderByAggregateInput = {
+    versionNo?: SortOrder
+  }
+
+  export type SalesCustomerPriceAgreementVersionMaxOrderByAggregateInput = {
+    id?: SortOrder
+    customerPriceAgreementId?: SortOrder
+    tenantId?: SortOrder
+    customerTenantPartyId?: SortOrder
+    currencyCode?: SortOrder
+    versionNo?: SortOrder
+    status?: SortOrder
+    publishedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SalesCustomerPriceAgreementVersionMinOrderByAggregateInput = {
+    id?: SortOrder
+    customerPriceAgreementId?: SortOrder
+    tenantId?: SortOrder
+    customerTenantPartyId?: SortOrder
+    currencyCode?: SortOrder
+    versionNo?: SortOrder
+    status?: SortOrder
+    publishedAt?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SalesCustomerPriceAgreementVersionSumOrderByAggregateInput = {
+    versionNo?: SortOrder
+  }
+
+  export type EnumCustomerPriceAgreementStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.CustomerPriceAgreementStatus | EnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.CustomerPriceAgreementStatus[] | ListEnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.CustomerPriceAgreementStatus[] | ListEnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumCustomerPriceAgreementStatusWithAggregatesFilter<$PrismaModel> | $Enums.CustomerPriceAgreementStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumCustomerPriceAgreementStatusFilter<$PrismaModel>
+    _max?: NestedEnumCustomerPriceAgreementStatusFilter<$PrismaModel>
+  }
+
+  export type SalesCustomerPriceAgreementVersionScalarRelationFilter = {
+    is?: SalesCustomerPriceAgreementVersionWhereInput
+    isNot?: SalesCustomerPriceAgreementVersionWhereInput
+  }
+
+  export type SalesCustomerPriceAgreementLineCustomerPriceAgreementVersionIdLineNoCompoundUniqueInput = {
+    customerPriceAgreementVersionId: string
+    lineNo: number
+  }
+
+  export type SalesCustomerPriceAgreementLineCountOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    customerPriceAgreementVersionId?: SortOrder
+    lineNo?: SortOrder
+    itemId?: SortOrder
+    brandKey?: SortOrder
+    priceSnapshot?: SortOrder
+    moqSnapshot?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SalesCustomerPriceAgreementLineAvgOrderByAggregateInput = {
+    lineNo?: SortOrder
+  }
+
+  export type SalesCustomerPriceAgreementLineMaxOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    customerPriceAgreementVersionId?: SortOrder
+    lineNo?: SortOrder
+    itemId?: SortOrder
+    brandKey?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SalesCustomerPriceAgreementLineMinOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    customerPriceAgreementVersionId?: SortOrder
+    lineNo?: SortOrder
+    itemId?: SortOrder
+    brandKey?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type SalesCustomerPriceAgreementLineSumOrderByAggregateInput = {
+    lineNo?: SortOrder
+  }
+
   export type SalesAuditEnvelopeCountOrderByAggregateInput = {
     id?: SortOrder
     service?: SortOrder
@@ -16121,6 +22261,130 @@ export namespace Prisma {
     update?: XOR<XOR<SalesOrderUpdateToOneWithWhereWithoutLinesInput, SalesOrderUpdateWithoutLinesInput>, SalesOrderUncheckedUpdateWithoutLinesInput>
   }
 
+  export type SalesPriceListLineCreateNestedManyWithoutPriceListInput = {
+    create?: XOR<SalesPriceListLineCreateWithoutPriceListInput, SalesPriceListLineUncheckedCreateWithoutPriceListInput> | SalesPriceListLineCreateWithoutPriceListInput[] | SalesPriceListLineUncheckedCreateWithoutPriceListInput[]
+    connectOrCreate?: SalesPriceListLineCreateOrConnectWithoutPriceListInput | SalesPriceListLineCreateOrConnectWithoutPriceListInput[]
+    createMany?: SalesPriceListLineCreateManyPriceListInputEnvelope
+    connect?: SalesPriceListLineWhereUniqueInput | SalesPriceListLineWhereUniqueInput[]
+  }
+
+  export type SalesPriceListLineUncheckedCreateNestedManyWithoutPriceListInput = {
+    create?: XOR<SalesPriceListLineCreateWithoutPriceListInput, SalesPriceListLineUncheckedCreateWithoutPriceListInput> | SalesPriceListLineCreateWithoutPriceListInput[] | SalesPriceListLineUncheckedCreateWithoutPriceListInput[]
+    connectOrCreate?: SalesPriceListLineCreateOrConnectWithoutPriceListInput | SalesPriceListLineCreateOrConnectWithoutPriceListInput[]
+    createMany?: SalesPriceListLineCreateManyPriceListInputEnvelope
+    connect?: SalesPriceListLineWhereUniqueInput | SalesPriceListLineWhereUniqueInput[]
+  }
+
+  export type EnumPriceListTypeFieldUpdateOperationsInput = {
+    set?: $Enums.PriceListType
+  }
+
+  export type EnumPriceListStatusFieldUpdateOperationsInput = {
+    set?: $Enums.PriceListStatus
+  }
+
+  export type SalesPriceListLineUpdateManyWithoutPriceListNestedInput = {
+    create?: XOR<SalesPriceListLineCreateWithoutPriceListInput, SalesPriceListLineUncheckedCreateWithoutPriceListInput> | SalesPriceListLineCreateWithoutPriceListInput[] | SalesPriceListLineUncheckedCreateWithoutPriceListInput[]
+    connectOrCreate?: SalesPriceListLineCreateOrConnectWithoutPriceListInput | SalesPriceListLineCreateOrConnectWithoutPriceListInput[]
+    upsert?: SalesPriceListLineUpsertWithWhereUniqueWithoutPriceListInput | SalesPriceListLineUpsertWithWhereUniqueWithoutPriceListInput[]
+    createMany?: SalesPriceListLineCreateManyPriceListInputEnvelope
+    set?: SalesPriceListLineWhereUniqueInput | SalesPriceListLineWhereUniqueInput[]
+    disconnect?: SalesPriceListLineWhereUniqueInput | SalesPriceListLineWhereUniqueInput[]
+    delete?: SalesPriceListLineWhereUniqueInput | SalesPriceListLineWhereUniqueInput[]
+    connect?: SalesPriceListLineWhereUniqueInput | SalesPriceListLineWhereUniqueInput[]
+    update?: SalesPriceListLineUpdateWithWhereUniqueWithoutPriceListInput | SalesPriceListLineUpdateWithWhereUniqueWithoutPriceListInput[]
+    updateMany?: SalesPriceListLineUpdateManyWithWhereWithoutPriceListInput | SalesPriceListLineUpdateManyWithWhereWithoutPriceListInput[]
+    deleteMany?: SalesPriceListLineScalarWhereInput | SalesPriceListLineScalarWhereInput[]
+  }
+
+  export type SalesPriceListLineUncheckedUpdateManyWithoutPriceListNestedInput = {
+    create?: XOR<SalesPriceListLineCreateWithoutPriceListInput, SalesPriceListLineUncheckedCreateWithoutPriceListInput> | SalesPriceListLineCreateWithoutPriceListInput[] | SalesPriceListLineUncheckedCreateWithoutPriceListInput[]
+    connectOrCreate?: SalesPriceListLineCreateOrConnectWithoutPriceListInput | SalesPriceListLineCreateOrConnectWithoutPriceListInput[]
+    upsert?: SalesPriceListLineUpsertWithWhereUniqueWithoutPriceListInput | SalesPriceListLineUpsertWithWhereUniqueWithoutPriceListInput[]
+    createMany?: SalesPriceListLineCreateManyPriceListInputEnvelope
+    set?: SalesPriceListLineWhereUniqueInput | SalesPriceListLineWhereUniqueInput[]
+    disconnect?: SalesPriceListLineWhereUniqueInput | SalesPriceListLineWhereUniqueInput[]
+    delete?: SalesPriceListLineWhereUniqueInput | SalesPriceListLineWhereUniqueInput[]
+    connect?: SalesPriceListLineWhereUniqueInput | SalesPriceListLineWhereUniqueInput[]
+    update?: SalesPriceListLineUpdateWithWhereUniqueWithoutPriceListInput | SalesPriceListLineUpdateWithWhereUniqueWithoutPriceListInput[]
+    updateMany?: SalesPriceListLineUpdateManyWithWhereWithoutPriceListInput | SalesPriceListLineUpdateManyWithWhereWithoutPriceListInput[]
+    deleteMany?: SalesPriceListLineScalarWhereInput | SalesPriceListLineScalarWhereInput[]
+  }
+
+  export type SalesPriceListCreateNestedOneWithoutLinesInput = {
+    create?: XOR<SalesPriceListCreateWithoutLinesInput, SalesPriceListUncheckedCreateWithoutLinesInput>
+    connectOrCreate?: SalesPriceListCreateOrConnectWithoutLinesInput
+    connect?: SalesPriceListWhereUniqueInput
+  }
+
+  export type SalesPriceListUpdateOneRequiredWithoutLinesNestedInput = {
+    create?: XOR<SalesPriceListCreateWithoutLinesInput, SalesPriceListUncheckedCreateWithoutLinesInput>
+    connectOrCreate?: SalesPriceListCreateOrConnectWithoutLinesInput
+    upsert?: SalesPriceListUpsertWithoutLinesInput
+    connect?: SalesPriceListWhereUniqueInput
+    update?: XOR<XOR<SalesPriceListUpdateToOneWithWhereWithoutLinesInput, SalesPriceListUpdateWithoutLinesInput>, SalesPriceListUncheckedUpdateWithoutLinesInput>
+  }
+
+  export type SalesCustomerPriceAgreementLineCreateNestedManyWithoutCustomerPriceAgreementVersionInput = {
+    create?: XOR<SalesCustomerPriceAgreementLineCreateWithoutCustomerPriceAgreementVersionInput, SalesCustomerPriceAgreementLineUncheckedCreateWithoutCustomerPriceAgreementVersionInput> | SalesCustomerPriceAgreementLineCreateWithoutCustomerPriceAgreementVersionInput[] | SalesCustomerPriceAgreementLineUncheckedCreateWithoutCustomerPriceAgreementVersionInput[]
+    connectOrCreate?: SalesCustomerPriceAgreementLineCreateOrConnectWithoutCustomerPriceAgreementVersionInput | SalesCustomerPriceAgreementLineCreateOrConnectWithoutCustomerPriceAgreementVersionInput[]
+    createMany?: SalesCustomerPriceAgreementLineCreateManyCustomerPriceAgreementVersionInputEnvelope
+    connect?: SalesCustomerPriceAgreementLineWhereUniqueInput | SalesCustomerPriceAgreementLineWhereUniqueInput[]
+  }
+
+  export type SalesCustomerPriceAgreementLineUncheckedCreateNestedManyWithoutCustomerPriceAgreementVersionInput = {
+    create?: XOR<SalesCustomerPriceAgreementLineCreateWithoutCustomerPriceAgreementVersionInput, SalesCustomerPriceAgreementLineUncheckedCreateWithoutCustomerPriceAgreementVersionInput> | SalesCustomerPriceAgreementLineCreateWithoutCustomerPriceAgreementVersionInput[] | SalesCustomerPriceAgreementLineUncheckedCreateWithoutCustomerPriceAgreementVersionInput[]
+    connectOrCreate?: SalesCustomerPriceAgreementLineCreateOrConnectWithoutCustomerPriceAgreementVersionInput | SalesCustomerPriceAgreementLineCreateOrConnectWithoutCustomerPriceAgreementVersionInput[]
+    createMany?: SalesCustomerPriceAgreementLineCreateManyCustomerPriceAgreementVersionInputEnvelope
+    connect?: SalesCustomerPriceAgreementLineWhereUniqueInput | SalesCustomerPriceAgreementLineWhereUniqueInput[]
+  }
+
+  export type EnumCustomerPriceAgreementStatusFieldUpdateOperationsInput = {
+    set?: $Enums.CustomerPriceAgreementStatus
+  }
+
+  export type SalesCustomerPriceAgreementLineUpdateManyWithoutCustomerPriceAgreementVersionNestedInput = {
+    create?: XOR<SalesCustomerPriceAgreementLineCreateWithoutCustomerPriceAgreementVersionInput, SalesCustomerPriceAgreementLineUncheckedCreateWithoutCustomerPriceAgreementVersionInput> | SalesCustomerPriceAgreementLineCreateWithoutCustomerPriceAgreementVersionInput[] | SalesCustomerPriceAgreementLineUncheckedCreateWithoutCustomerPriceAgreementVersionInput[]
+    connectOrCreate?: SalesCustomerPriceAgreementLineCreateOrConnectWithoutCustomerPriceAgreementVersionInput | SalesCustomerPriceAgreementLineCreateOrConnectWithoutCustomerPriceAgreementVersionInput[]
+    upsert?: SalesCustomerPriceAgreementLineUpsertWithWhereUniqueWithoutCustomerPriceAgreementVersionInput | SalesCustomerPriceAgreementLineUpsertWithWhereUniqueWithoutCustomerPriceAgreementVersionInput[]
+    createMany?: SalesCustomerPriceAgreementLineCreateManyCustomerPriceAgreementVersionInputEnvelope
+    set?: SalesCustomerPriceAgreementLineWhereUniqueInput | SalesCustomerPriceAgreementLineWhereUniqueInput[]
+    disconnect?: SalesCustomerPriceAgreementLineWhereUniqueInput | SalesCustomerPriceAgreementLineWhereUniqueInput[]
+    delete?: SalesCustomerPriceAgreementLineWhereUniqueInput | SalesCustomerPriceAgreementLineWhereUniqueInput[]
+    connect?: SalesCustomerPriceAgreementLineWhereUniqueInput | SalesCustomerPriceAgreementLineWhereUniqueInput[]
+    update?: SalesCustomerPriceAgreementLineUpdateWithWhereUniqueWithoutCustomerPriceAgreementVersionInput | SalesCustomerPriceAgreementLineUpdateWithWhereUniqueWithoutCustomerPriceAgreementVersionInput[]
+    updateMany?: SalesCustomerPriceAgreementLineUpdateManyWithWhereWithoutCustomerPriceAgreementVersionInput | SalesCustomerPriceAgreementLineUpdateManyWithWhereWithoutCustomerPriceAgreementVersionInput[]
+    deleteMany?: SalesCustomerPriceAgreementLineScalarWhereInput | SalesCustomerPriceAgreementLineScalarWhereInput[]
+  }
+
+  export type SalesCustomerPriceAgreementLineUncheckedUpdateManyWithoutCustomerPriceAgreementVersionNestedInput = {
+    create?: XOR<SalesCustomerPriceAgreementLineCreateWithoutCustomerPriceAgreementVersionInput, SalesCustomerPriceAgreementLineUncheckedCreateWithoutCustomerPriceAgreementVersionInput> | SalesCustomerPriceAgreementLineCreateWithoutCustomerPriceAgreementVersionInput[] | SalesCustomerPriceAgreementLineUncheckedCreateWithoutCustomerPriceAgreementVersionInput[]
+    connectOrCreate?: SalesCustomerPriceAgreementLineCreateOrConnectWithoutCustomerPriceAgreementVersionInput | SalesCustomerPriceAgreementLineCreateOrConnectWithoutCustomerPriceAgreementVersionInput[]
+    upsert?: SalesCustomerPriceAgreementLineUpsertWithWhereUniqueWithoutCustomerPriceAgreementVersionInput | SalesCustomerPriceAgreementLineUpsertWithWhereUniqueWithoutCustomerPriceAgreementVersionInput[]
+    createMany?: SalesCustomerPriceAgreementLineCreateManyCustomerPriceAgreementVersionInputEnvelope
+    set?: SalesCustomerPriceAgreementLineWhereUniqueInput | SalesCustomerPriceAgreementLineWhereUniqueInput[]
+    disconnect?: SalesCustomerPriceAgreementLineWhereUniqueInput | SalesCustomerPriceAgreementLineWhereUniqueInput[]
+    delete?: SalesCustomerPriceAgreementLineWhereUniqueInput | SalesCustomerPriceAgreementLineWhereUniqueInput[]
+    connect?: SalesCustomerPriceAgreementLineWhereUniqueInput | SalesCustomerPriceAgreementLineWhereUniqueInput[]
+    update?: SalesCustomerPriceAgreementLineUpdateWithWhereUniqueWithoutCustomerPriceAgreementVersionInput | SalesCustomerPriceAgreementLineUpdateWithWhereUniqueWithoutCustomerPriceAgreementVersionInput[]
+    updateMany?: SalesCustomerPriceAgreementLineUpdateManyWithWhereWithoutCustomerPriceAgreementVersionInput | SalesCustomerPriceAgreementLineUpdateManyWithWhereWithoutCustomerPriceAgreementVersionInput[]
+    deleteMany?: SalesCustomerPriceAgreementLineScalarWhereInput | SalesCustomerPriceAgreementLineScalarWhereInput[]
+  }
+
+  export type SalesCustomerPriceAgreementVersionCreateNestedOneWithoutLinesInput = {
+    create?: XOR<SalesCustomerPriceAgreementVersionCreateWithoutLinesInput, SalesCustomerPriceAgreementVersionUncheckedCreateWithoutLinesInput>
+    connectOrCreate?: SalesCustomerPriceAgreementVersionCreateOrConnectWithoutLinesInput
+    connect?: SalesCustomerPriceAgreementVersionWhereUniqueInput
+  }
+
+  export type SalesCustomerPriceAgreementVersionUpdateOneRequiredWithoutLinesNestedInput = {
+    create?: XOR<SalesCustomerPriceAgreementVersionCreateWithoutLinesInput, SalesCustomerPriceAgreementVersionUncheckedCreateWithoutLinesInput>
+    connectOrCreate?: SalesCustomerPriceAgreementVersionCreateOrConnectWithoutLinesInput
+    upsert?: SalesCustomerPriceAgreementVersionUpsertWithoutLinesInput
+    connect?: SalesCustomerPriceAgreementVersionWhereUniqueInput
+    update?: XOR<XOR<SalesCustomerPriceAgreementVersionUpdateToOneWithWhereWithoutLinesInput, SalesCustomerPriceAgreementVersionUpdateWithoutLinesInput>, SalesCustomerPriceAgreementVersionUncheckedUpdateWithoutLinesInput>
+  }
+
   export type NestedStringFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel>
     in?: string[] | ListStringFieldRefInput<$PrismaModel>
@@ -16400,6 +22664,57 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedDateTimeNullableFilter<$PrismaModel>
     _max?: NestedDateTimeNullableFilter<$PrismaModel>
+  }
+
+  export type NestedEnumPriceListTypeFilter<$PrismaModel = never> = {
+    equals?: $Enums.PriceListType | EnumPriceListTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.PriceListType[] | ListEnumPriceListTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PriceListType[] | ListEnumPriceListTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumPriceListTypeFilter<$PrismaModel> | $Enums.PriceListType
+  }
+
+  export type NestedEnumPriceListStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.PriceListStatus | EnumPriceListStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.PriceListStatus[] | ListEnumPriceListStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PriceListStatus[] | ListEnumPriceListStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumPriceListStatusFilter<$PrismaModel> | $Enums.PriceListStatus
+  }
+
+  export type NestedEnumPriceListTypeWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.PriceListType | EnumPriceListTypeFieldRefInput<$PrismaModel>
+    in?: $Enums.PriceListType[] | ListEnumPriceListTypeFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PriceListType[] | ListEnumPriceListTypeFieldRefInput<$PrismaModel>
+    not?: NestedEnumPriceListTypeWithAggregatesFilter<$PrismaModel> | $Enums.PriceListType
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumPriceListTypeFilter<$PrismaModel>
+    _max?: NestedEnumPriceListTypeFilter<$PrismaModel>
+  }
+
+  export type NestedEnumPriceListStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.PriceListStatus | EnumPriceListStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.PriceListStatus[] | ListEnumPriceListStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.PriceListStatus[] | ListEnumPriceListStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumPriceListStatusWithAggregatesFilter<$PrismaModel> | $Enums.PriceListStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumPriceListStatusFilter<$PrismaModel>
+    _max?: NestedEnumPriceListStatusFilter<$PrismaModel>
+  }
+
+  export type NestedEnumCustomerPriceAgreementStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.CustomerPriceAgreementStatus | EnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.CustomerPriceAgreementStatus[] | ListEnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.CustomerPriceAgreementStatus[] | ListEnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumCustomerPriceAgreementStatusFilter<$PrismaModel> | $Enums.CustomerPriceAgreementStatus
+  }
+
+  export type NestedEnumCustomerPriceAgreementStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.CustomerPriceAgreementStatus | EnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.CustomerPriceAgreementStatus[] | ListEnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.CustomerPriceAgreementStatus[] | ListEnumCustomerPriceAgreementStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumCustomerPriceAgreementStatusWithAggregatesFilter<$PrismaModel> | $Enums.CustomerPriceAgreementStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumCustomerPriceAgreementStatusFilter<$PrismaModel>
+    _max?: NestedEnumCustomerPriceAgreementStatusFilter<$PrismaModel>
   }
 
   export type SalesQuoteLineCreateWithoutQuoteInput = {
@@ -17055,6 +23370,274 @@ export namespace Prisma {
     fulfillmentHandoffSummary?: SalesOrderFulfillmentHandoffSummaryUncheckedUpdateOneWithoutSalesOrderNestedInput
   }
 
+  export type SalesPriceListLineCreateWithoutPriceListInput = {
+    id: string
+    tenantId: string
+    lineNo: number
+    itemId: string
+    brandKey?: string | null
+    priceSnapshot: JsonNullValueInput | InputJsonValue
+    moqSnapshot: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesPriceListLineUncheckedCreateWithoutPriceListInput = {
+    id: string
+    tenantId: string
+    lineNo: number
+    itemId: string
+    brandKey?: string | null
+    priceSnapshot: JsonNullValueInput | InputJsonValue
+    moqSnapshot: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesPriceListLineCreateOrConnectWithoutPriceListInput = {
+    where: SalesPriceListLineWhereUniqueInput
+    create: XOR<SalesPriceListLineCreateWithoutPriceListInput, SalesPriceListLineUncheckedCreateWithoutPriceListInput>
+  }
+
+  export type SalesPriceListLineCreateManyPriceListInputEnvelope = {
+    data: SalesPriceListLineCreateManyPriceListInput | SalesPriceListLineCreateManyPriceListInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type SalesPriceListLineUpsertWithWhereUniqueWithoutPriceListInput = {
+    where: SalesPriceListLineWhereUniqueInput
+    update: XOR<SalesPriceListLineUpdateWithoutPriceListInput, SalesPriceListLineUncheckedUpdateWithoutPriceListInput>
+    create: XOR<SalesPriceListLineCreateWithoutPriceListInput, SalesPriceListLineUncheckedCreateWithoutPriceListInput>
+  }
+
+  export type SalesPriceListLineUpdateWithWhereUniqueWithoutPriceListInput = {
+    where: SalesPriceListLineWhereUniqueInput
+    data: XOR<SalesPriceListLineUpdateWithoutPriceListInput, SalesPriceListLineUncheckedUpdateWithoutPriceListInput>
+  }
+
+  export type SalesPriceListLineUpdateManyWithWhereWithoutPriceListInput = {
+    where: SalesPriceListLineScalarWhereInput
+    data: XOR<SalesPriceListLineUpdateManyMutationInput, SalesPriceListLineUncheckedUpdateManyWithoutPriceListInput>
+  }
+
+  export type SalesPriceListLineScalarWhereInput = {
+    AND?: SalesPriceListLineScalarWhereInput | SalesPriceListLineScalarWhereInput[]
+    OR?: SalesPriceListLineScalarWhereInput[]
+    NOT?: SalesPriceListLineScalarWhereInput | SalesPriceListLineScalarWhereInput[]
+    id?: UuidFilter<"SalesPriceListLine"> | string
+    tenantId?: StringFilter<"SalesPriceListLine"> | string
+    priceListId?: UuidFilter<"SalesPriceListLine"> | string
+    lineNo?: IntFilter<"SalesPriceListLine"> | number
+    itemId?: StringFilter<"SalesPriceListLine"> | string
+    brandKey?: StringNullableFilter<"SalesPriceListLine"> | string | null
+    priceSnapshot?: JsonFilter<"SalesPriceListLine">
+    moqSnapshot?: JsonFilter<"SalesPriceListLine">
+    createdAt?: DateTimeFilter<"SalesPriceListLine"> | Date | string
+    updatedAt?: DateTimeFilter<"SalesPriceListLine"> | Date | string
+  }
+
+  export type SalesPriceListCreateWithoutLinesInput = {
+    id: string
+    tenantId: string
+    priceListName: string
+    priceListType: $Enums.PriceListType
+    status: $Enums.PriceListStatus
+    currencyCode: string
+    effectiveFrom: Date | string
+    effectiveTo?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesPriceListUncheckedCreateWithoutLinesInput = {
+    id: string
+    tenantId: string
+    priceListName: string
+    priceListType: $Enums.PriceListType
+    status: $Enums.PriceListStatus
+    currencyCode: string
+    effectiveFrom: Date | string
+    effectiveTo?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesPriceListCreateOrConnectWithoutLinesInput = {
+    where: SalesPriceListWhereUniqueInput
+    create: XOR<SalesPriceListCreateWithoutLinesInput, SalesPriceListUncheckedCreateWithoutLinesInput>
+  }
+
+  export type SalesPriceListUpsertWithoutLinesInput = {
+    update: XOR<SalesPriceListUpdateWithoutLinesInput, SalesPriceListUncheckedUpdateWithoutLinesInput>
+    create: XOR<SalesPriceListCreateWithoutLinesInput, SalesPriceListUncheckedCreateWithoutLinesInput>
+    where?: SalesPriceListWhereInput
+  }
+
+  export type SalesPriceListUpdateToOneWithWhereWithoutLinesInput = {
+    where?: SalesPriceListWhereInput
+    data: XOR<SalesPriceListUpdateWithoutLinesInput, SalesPriceListUncheckedUpdateWithoutLinesInput>
+  }
+
+  export type SalesPriceListUpdateWithoutLinesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    priceListName?: StringFieldUpdateOperationsInput | string
+    priceListType?: EnumPriceListTypeFieldUpdateOperationsInput | $Enums.PriceListType
+    status?: EnumPriceListStatusFieldUpdateOperationsInput | $Enums.PriceListStatus
+    currencyCode?: StringFieldUpdateOperationsInput | string
+    effectiveFrom?: DateTimeFieldUpdateOperationsInput | Date | string
+    effectiveTo?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesPriceListUncheckedUpdateWithoutLinesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    priceListName?: StringFieldUpdateOperationsInput | string
+    priceListType?: EnumPriceListTypeFieldUpdateOperationsInput | $Enums.PriceListType
+    status?: EnumPriceListStatusFieldUpdateOperationsInput | $Enums.PriceListStatus
+    currencyCode?: StringFieldUpdateOperationsInput | string
+    effectiveFrom?: DateTimeFieldUpdateOperationsInput | Date | string
+    effectiveTo?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineCreateWithoutCustomerPriceAgreementVersionInput = {
+    id: string
+    tenantId: string
+    lineNo: number
+    itemId: string
+    brandKey?: string | null
+    priceSnapshot: JsonNullValueInput | InputJsonValue
+    moqSnapshot: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineUncheckedCreateWithoutCustomerPriceAgreementVersionInput = {
+    id: string
+    tenantId: string
+    lineNo: number
+    itemId: string
+    brandKey?: string | null
+    priceSnapshot: JsonNullValueInput | InputJsonValue
+    moqSnapshot: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineCreateOrConnectWithoutCustomerPriceAgreementVersionInput = {
+    where: SalesCustomerPriceAgreementLineWhereUniqueInput
+    create: XOR<SalesCustomerPriceAgreementLineCreateWithoutCustomerPriceAgreementVersionInput, SalesCustomerPriceAgreementLineUncheckedCreateWithoutCustomerPriceAgreementVersionInput>
+  }
+
+  export type SalesCustomerPriceAgreementLineCreateManyCustomerPriceAgreementVersionInputEnvelope = {
+    data: SalesCustomerPriceAgreementLineCreateManyCustomerPriceAgreementVersionInput | SalesCustomerPriceAgreementLineCreateManyCustomerPriceAgreementVersionInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type SalesCustomerPriceAgreementLineUpsertWithWhereUniqueWithoutCustomerPriceAgreementVersionInput = {
+    where: SalesCustomerPriceAgreementLineWhereUniqueInput
+    update: XOR<SalesCustomerPriceAgreementLineUpdateWithoutCustomerPriceAgreementVersionInput, SalesCustomerPriceAgreementLineUncheckedUpdateWithoutCustomerPriceAgreementVersionInput>
+    create: XOR<SalesCustomerPriceAgreementLineCreateWithoutCustomerPriceAgreementVersionInput, SalesCustomerPriceAgreementLineUncheckedCreateWithoutCustomerPriceAgreementVersionInput>
+  }
+
+  export type SalesCustomerPriceAgreementLineUpdateWithWhereUniqueWithoutCustomerPriceAgreementVersionInput = {
+    where: SalesCustomerPriceAgreementLineWhereUniqueInput
+    data: XOR<SalesCustomerPriceAgreementLineUpdateWithoutCustomerPriceAgreementVersionInput, SalesCustomerPriceAgreementLineUncheckedUpdateWithoutCustomerPriceAgreementVersionInput>
+  }
+
+  export type SalesCustomerPriceAgreementLineUpdateManyWithWhereWithoutCustomerPriceAgreementVersionInput = {
+    where: SalesCustomerPriceAgreementLineScalarWhereInput
+    data: XOR<SalesCustomerPriceAgreementLineUpdateManyMutationInput, SalesCustomerPriceAgreementLineUncheckedUpdateManyWithoutCustomerPriceAgreementVersionInput>
+  }
+
+  export type SalesCustomerPriceAgreementLineScalarWhereInput = {
+    AND?: SalesCustomerPriceAgreementLineScalarWhereInput | SalesCustomerPriceAgreementLineScalarWhereInput[]
+    OR?: SalesCustomerPriceAgreementLineScalarWhereInput[]
+    NOT?: SalesCustomerPriceAgreementLineScalarWhereInput | SalesCustomerPriceAgreementLineScalarWhereInput[]
+    id?: UuidFilter<"SalesCustomerPriceAgreementLine"> | string
+    tenantId?: StringFilter<"SalesCustomerPriceAgreementLine"> | string
+    customerPriceAgreementVersionId?: UuidFilter<"SalesCustomerPriceAgreementLine"> | string
+    lineNo?: IntFilter<"SalesCustomerPriceAgreementLine"> | number
+    itemId?: StringFilter<"SalesCustomerPriceAgreementLine"> | string
+    brandKey?: StringNullableFilter<"SalesCustomerPriceAgreementLine"> | string | null
+    priceSnapshot?: JsonFilter<"SalesCustomerPriceAgreementLine">
+    moqSnapshot?: JsonFilter<"SalesCustomerPriceAgreementLine">
+    createdAt?: DateTimeFilter<"SalesCustomerPriceAgreementLine"> | Date | string
+    updatedAt?: DateTimeFilter<"SalesCustomerPriceAgreementLine"> | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementVersionCreateWithoutLinesInput = {
+    id: string
+    customerPriceAgreementId: string
+    tenantId: string
+    customerTenantPartyId: string
+    currencyCode: string
+    versionNo: number
+    status: $Enums.CustomerPriceAgreementStatus
+    publishedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesCustomerPriceAgreementVersionUncheckedCreateWithoutLinesInput = {
+    id: string
+    customerPriceAgreementId: string
+    tenantId: string
+    customerTenantPartyId: string
+    currencyCode: string
+    versionNo: number
+    status: $Enums.CustomerPriceAgreementStatus
+    publishedAt?: Date | string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesCustomerPriceAgreementVersionCreateOrConnectWithoutLinesInput = {
+    where: SalesCustomerPriceAgreementVersionWhereUniqueInput
+    create: XOR<SalesCustomerPriceAgreementVersionCreateWithoutLinesInput, SalesCustomerPriceAgreementVersionUncheckedCreateWithoutLinesInput>
+  }
+
+  export type SalesCustomerPriceAgreementVersionUpsertWithoutLinesInput = {
+    update: XOR<SalesCustomerPriceAgreementVersionUpdateWithoutLinesInput, SalesCustomerPriceAgreementVersionUncheckedUpdateWithoutLinesInput>
+    create: XOR<SalesCustomerPriceAgreementVersionCreateWithoutLinesInput, SalesCustomerPriceAgreementVersionUncheckedCreateWithoutLinesInput>
+    where?: SalesCustomerPriceAgreementVersionWhereInput
+  }
+
+  export type SalesCustomerPriceAgreementVersionUpdateToOneWithWhereWithoutLinesInput = {
+    where?: SalesCustomerPriceAgreementVersionWhereInput
+    data: XOR<SalesCustomerPriceAgreementVersionUpdateWithoutLinesInput, SalesCustomerPriceAgreementVersionUncheckedUpdateWithoutLinesInput>
+  }
+
+  export type SalesCustomerPriceAgreementVersionUpdateWithoutLinesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    customerPriceAgreementId?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    customerTenantPartyId?: StringFieldUpdateOperationsInput | string
+    currencyCode?: StringFieldUpdateOperationsInput | string
+    versionNo?: IntFieldUpdateOperationsInput | number
+    status?: EnumCustomerPriceAgreementStatusFieldUpdateOperationsInput | $Enums.CustomerPriceAgreementStatus
+    publishedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementVersionUncheckedUpdateWithoutLinesInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    customerPriceAgreementId?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    customerTenantPartyId?: StringFieldUpdateOperationsInput | string
+    currencyCode?: StringFieldUpdateOperationsInput | string
+    versionNo?: IntFieldUpdateOperationsInput | number
+    status?: EnumCustomerPriceAgreementStatusFieldUpdateOperationsInput | $Enums.CustomerPriceAgreementStatus
+    publishedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type SalesQuoteLineCreateManyQuoteInput = {
     id: string
     tenantId: string
@@ -17215,6 +23798,102 @@ export namespace Prisma {
     packagingRequirementSnapshot?: JsonNullValueInput | InputJsonValue
     priceQuantityDeliverySnapshot?: JsonNullValueInput | InputJsonValue
     customerItemSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesPriceListLineCreateManyPriceListInput = {
+    id: string
+    tenantId: string
+    lineNo: number
+    itemId: string
+    brandKey?: string | null
+    priceSnapshot: JsonNullValueInput | InputJsonValue
+    moqSnapshot: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesPriceListLineUpdateWithoutPriceListInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesPriceListLineUncheckedUpdateWithoutPriceListInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesPriceListLineUncheckedUpdateManyWithoutPriceListInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineCreateManyCustomerPriceAgreementVersionInput = {
+    id: string
+    tenantId: string
+    lineNo: number
+    itemId: string
+    brandKey?: string | null
+    priceSnapshot: JsonNullValueInput | InputJsonValue
+    moqSnapshot: JsonNullValueInput | InputJsonValue
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineUpdateWithoutCustomerPriceAgreementVersionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineUncheckedUpdateWithoutCustomerPriceAgreementVersionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type SalesCustomerPriceAgreementLineUncheckedUpdateManyWithoutCustomerPriceAgreementVersionInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    lineNo?: IntFieldUpdateOperationsInput | number
+    itemId?: StringFieldUpdateOperationsInput | string
+    brandKey?: NullableStringFieldUpdateOperationsInput | string | null
+    priceSnapshot?: JsonNullValueInput | InputJsonValue
+    moqSnapshot?: JsonNullValueInput | InputJsonValue
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

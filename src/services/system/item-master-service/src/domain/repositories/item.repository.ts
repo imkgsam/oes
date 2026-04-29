@@ -13,6 +13,9 @@ export interface SearchItemsInput {
   natureType?: ItemNatureType
   capabilityFilters?: Partial<ItemCapabilitiesProps>
   status?: ItemStatus
+  categoryId?: string
+  includeDescendants?: boolean
+  categoryIds?: string[]
   page: number
   pageSize: number
 }

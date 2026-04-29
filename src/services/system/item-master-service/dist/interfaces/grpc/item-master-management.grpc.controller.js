@@ -23,9 +23,14 @@ const set_item_capabilities_command_1 = require("../../application/commands/set-
 const set_item_composition_command_1 = require("../../application/commands/set-item-composition.command");
 const upsert_supplier_item_mapping_command_1 = require("../../application/commands/upsert-supplier-item-mapping.command");
 const change_item_status_command_1 = require("../../application/commands/change-item-status.command");
+const create_item_category_command_1 = require("../../application/commands/create-item-category.command");
+const update_item_category_basics_command_1 = require("../../application/commands/update-item-category-basics.command");
+const change_item_category_status_command_1 = require("../../application/commands/change-item-category-status.command");
+const set_item_primary_category_command_1 = require("../../application/commands/set-item-primary-category.command");
 const item_master_audit_service_1 = require("../../application/services/item-master-audit.service");
 const item_master_grpc_presenter_1 = require("./item-master-grpc.presenter");
 const item_master_rpc_context_guard_1 = require("./item-master-rpc-context.guard");
+const item_category_value_objects_1 = require("../../domain/value-objects/item-category.value-objects");
 const item_value_objects_1 = require("../../domain/value-objects/item.value-objects");
 /** ItemMasterManagementGrpcController exposes the phase 1 command gRPC contract with local audit recording. */
 let ItemMasterManagementGrpcController = class ItemMasterManagementGrpcController {
@@ -152,6 +157,82 @@ let ItemMasterManagementGrpcController = class ItemMasterManagementGrpcControlle
             return item_master_grpc_presenter_1.ItemMasterGrpcPresenter.toChangeItemStatusResponse(item);
         });
     }
+    async createItemCategory(request) {
+        return this.auditService.recordCommand({
+            tenantId: request.tenantId ?? '',
+            commandName: 'CreateItemCategory',
+            targetId: null,
+            requestSummary: {
+                categoryCode: request.categoryCode ?? '',
+                categoryName: request.categoryName ?? '',
+                parentCategoryId: request.parentCategoryId ?? ''
+            }
+        }, async () => {
+            const category = await this.commandBus.execute(new create_item_category_command_1.CreateItemCategoryCommand({
+                tenantId: request.tenantId ?? '',
+                categoryCode: request.categoryCode ?? '',
+                categoryName: request.categoryName ?? '',
+                parentCategoryId: normalizeOptionalId(request.parentCategoryId)
+            }));
+            return item_master_grpc_presenter_1.ItemMasterGrpcPresenter.toCreateItemCategoryResponse(category);
+        });
+    }
+    async updateItemCategoryBasics(request) {
+        return this.auditService.recordCommand({
+            tenantId: request.tenantId ?? '',
+            commandName: 'UpdateItemCategoryBasics',
+            targetId: request.categoryId ?? null,
+            requestSummary: {
+                categoryId: request.categoryId ?? '',
+                categoryCode: request.categoryCode ?? '',
+                categoryName: request.categoryName ?? ''
+            }
+        }, async () => {
+            const category = await this.commandBus.execute(new update_item_category_basics_command_1.UpdateItemCategoryBasicsCommand({
+                tenantId: request.tenantId ?? '',
+                categoryId: request.categoryId ?? '',
+                categoryCode: request.categoryCode ?? '',
+                categoryName: request.categoryName ?? ''
+            }));
+            return item_master_grpc_presenter_1.ItemMasterGrpcPresenter.toUpdateItemCategoryBasicsResponse(category);
+        });
+    }
+    async changeItemCategoryStatus(request) {
+        return this.auditService.recordCommand({
+            tenantId: request.tenantId ?? '',
+            commandName: 'ChangeItemCategoryStatus',
+            targetId: request.categoryId ?? null,
+            requestSummary: {
+                categoryId: request.categoryId ?? '',
+                targetStatus: request.targetStatus ?? 0
+            }
+        }, async () => {
+            const category = await this.commandBus.execute(new change_item_category_status_command_1.ChangeItemCategoryStatusCommand({
+                tenantId: request.tenantId ?? '',
+                categoryId: request.categoryId ?? '',
+                targetStatus: toDomainCategoryStatus(request.targetStatus)
+            }));
+            return item_master_grpc_presenter_1.ItemMasterGrpcPresenter.toChangeItemCategoryStatusResponse(category);
+        });
+    }
+    async setItemPrimaryCategory(request) {
+        return this.auditService.recordCommand({
+            tenantId: request.tenantId ?? '',
+            commandName: 'SetItemPrimaryCategory',
+            targetId: request.itemId ?? null,
+            requestSummary: {
+                itemId: request.itemId ?? '',
+                categoryId: request.categoryId ?? ''
+            }
+        }, async () => {
+            const item = await this.commandBus.execute(new set_item_primary_category_command_1.SetItemPrimaryCategoryCommand({
+                tenantId: request.tenantId ?? '',
+                itemId: request.itemId ?? '',
+                categoryId: normalizeOptionalId(request.categoryId)
+            }));
+            return item_master_grpc_presenter_1.ItemMasterGrpcPresenter.toSetItemPrimaryCategoryResponse(item);
+        });
+    }
 };
 exports.ItemMasterManagementGrpcController = ItemMasterManagementGrpcController;
 exports.ItemMasterManagementGrpcController = ItemMasterManagementGrpcController = __decorate([
@@ -210,5 +291,24 @@ function toDomainStatus(value) {
     throw exceptions_1.ExceptionFactory.application(item_master_errors_1.ITEM_MASTER_INVALID_ARGUMENT, {
         field: 'targetStatus'
     });
+}
+/** toDomainCategoryStatus maps generated category status enums into the minimal domain lifecycle enum. */
+function toDomainCategoryStatus(value) {
+    if (value === item_master_service_1.ItemCategoryStatus.ITEM_CATEGORY_STATUS_INACTIVE) {
+        return item_category_value_objects_1.ItemCategoryStatus.INACTIVE;
+    }
+    if (value === item_master_service_1.ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE) {
+        return item_category_value_objects_1.ItemCategoryStatus.ACTIVE;
+    }
+    throw exceptions_1.ExceptionFactory.application(item_master_errors_1.ITEM_MASTER_INVALID_ARGUMENT, {
+        field: 'targetStatus'
+    });
+}
+/** normalizeOptionalId converts blank ids into absent phase 1 optional references. */
+function normalizeOptionalId(value) {
+    if (typeof value !== 'string' || value.trim().length === 0) {
+        return undefined;
+    }
+    return value.trim();
 }
 //# sourceMappingURL=item-master-management.grpc.controller.js.map

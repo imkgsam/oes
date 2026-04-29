@@ -8,6 +8,8 @@ export declare class SearchReceivingExpectationsQuery {
         supplierId?: string;
         status?: ReceivingExpectationStatus;
         hasOpenDiscrepancy?: boolean;
+        targetWarehouseId?: string;
+        targetReceivingAddressId?: string;
         expectedReceiptDateFrom?: string;
         expectedReceiptDateTo?: string;
         page?: number;

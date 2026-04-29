@@ -119,17 +119,21 @@ function buildIssuedPurchaseOrderRecord(tenantId: string, prefix: string, purcha
         allocations: [
           {
             purchaseOrderLineAllocationId: crypto.randomUUID(),
-            allocationType: PurchaseOrderLineAllocationType.FULFILLMENT_DEMAND,
-            referenceId: `${prefix}_fd_1`,
+            allocationType: PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE,
+            sourceReferenceId: purchaseRequestLineId,
             quantity: '10',
-            reason: null
+            reason: null,
+            targetWarehouseId: `${prefix}_wh_a`,
+            targetReceivingAddressId: `${prefix}_addr_a`
           },
           {
             purchaseOrderLineAllocationId: crypto.randomUUID(),
             allocationType: PurchaseOrderLineAllocationType.GENERAL_STOCK,
-            referenceId: null,
+            sourceReferenceId: null,
             quantity: '2',
-            reason: 'buffer stock'
+            reason: 'buffer stock',
+            targetWarehouseId: `${prefix}_wh_b`,
+            targetReceivingAddressId: `${prefix}_addr_b`
           }
         ]
       }
@@ -161,6 +165,10 @@ function buildReceivingExpectationRecord(tenantId: string, prefix: string, purch
     purchaseOrderId,
     purchaseOrderLineId,
     supplierId: `${prefix}_supplier`,
+    allocationGroupingKey: 'group-a',
+    sourceAllocationIds: [],
+    targetWarehouseId: `${prefix}_wh_a`,
+    targetReceivingAddressId: `${prefix}_addr_a`,
     expectedQuantity: '12',
     receivedQuantitySummary: '9',
     openQuantity: '3',
@@ -170,11 +178,12 @@ function buildReceivingExpectationRecord(tenantId: string, prefix: string, purch
     updatedAt: '2026-04-28T12:05:00.000Z',
     discrepancy: {
       receivingDiscrepancyId: crypto.randomUUID(),
-      discrepancyType: ReceivingDiscrepancyType.SHORT_RECEIPT,
+      discrepancyType: ReceivingDiscrepancyType.SHORT_RECEIVED,
       summary: '3 short',
       status: ReceivingDiscrepancyStatus.OPEN,
       resolutionCode: null,
       resolutionNote: null,
+      resolutionReferences: [],
       resolvedAt: null
     }
   }
@@ -269,5 +278,153 @@ describe('Prisma procurement repositories L2', () => {
     expect(orderSearch.items).toEqual([savedOrder])
     expect(changePage.items).toEqual(savedOrder.changes)
     expect(receivingSearch.items).toEqual([savedExpectation])
+  })
+
+  it('repositories / should round-trip converted PR state, source-based allocation targets, payment snapshots, and multiple grouped receiving expectations on one PO line', async () => {
+    const tenantId = `${prefix}_tenant`
+    const purchaseRequest = {
+      ...buildApprovedPurchaseRequestRecord(tenantId, prefix),
+      status: 'PARTIALLY_CONVERTED',
+      linkedPurchaseOrders: [
+        {
+          purchaseOrderId: `${prefix}_po`,
+          orderNo: `${prefix}-PO-0001`,
+          allocatedQuantity: '6',
+          expectedReceiptDate: '2026-05-22',
+          receivingStatusSummary: 'PARTIALLY_RECEIVED'
+        }
+      ],
+      nextExpectedReceiptDate: '2026-05-22',
+      receivingStatusSummary: 'PARTIALLY_RECEIVED',
+      lines: [
+        {
+          ...buildApprovedPurchaseRequestRecord(tenantId, prefix).lines[0],
+          conversionStatus: 'PARTIALLY_CONVERTED',
+          linkedPurchaseOrderLines: [
+            {
+              purchaseOrderId: `${prefix}_po`,
+              orderNo: `${prefix}-PO-0001`,
+              purchaseOrderLineId: `${prefix}_po_line`,
+              allocatedQuantity: '6',
+              expectedReceiptDate: '2026-05-22',
+              receivingStatusSummary: 'PARTIALLY_RECEIVED'
+            }
+          ]
+        }
+      ]
+    } as never
+    const savedRequest = await purchaseRequestRepository.save(purchaseRequest)
+
+    const purchaseOrder = {
+      ...buildIssuedPurchaseOrderRecord(tenantId, prefix, purchaseRequest.lines[0].purchaseRequestLineId),
+      paymentTermsSnapshot: {
+        paymentTermsCode: 'NET30',
+        paymentTermsText: '30 days'
+      },
+      supplierCommercialTermsSnapshot: {
+        incotermCode: 'FOB',
+        commercialTermsText: 'FOB Shanghai'
+      },
+      paymentSummary: {
+        paymentStatusSummary: 'DEPOSIT_PAID',
+        depositPaidAmount: '100.00',
+        balancePaidAmount: '0.00',
+        currencyCode: 'USD',
+        attachmentRefs: ['asset://payment-proof-1'],
+        lastPaymentAt: '2026-04-28T12:00:00.000Z'
+      },
+      lines: [
+        {
+          ...buildIssuedPurchaseOrderRecord(tenantId, prefix, purchaseRequest.lines[0].purchaseRequestLineId).lines[0],
+          allocations: [
+            {
+              purchaseOrderLineAllocationId: crypto.randomUUID(),
+              allocationType: 'PURCHASE_REQUEST_LINE',
+              sourceReferenceId: purchaseRequest.lines[0].purchaseRequestLineId,
+              quantity: '6',
+              reason: null,
+              targetWarehouseId: `${prefix}_wh_a`,
+              targetReceivingAddressId: `${prefix}_addr_a`
+            },
+            {
+              purchaseOrderLineAllocationId: crypto.randomUUID(),
+              allocationType: PurchaseOrderLineAllocationType.GENERAL_STOCK,
+              sourceReferenceId: null,
+              quantity: '6',
+              reason: 'buffer stock',
+              targetWarehouseId: `${prefix}_wh_b`,
+              targetReceivingAddressId: `${prefix}_addr_b`
+            }
+          ]
+        }
+      ]
+    } as never
+    purchaseOrder.sourcePurchaseRequestIds = [savedRequest.purchaseRequestId]
+    purchaseOrder.sourcePurchaseRequestNos = [savedRequest.requestNo]
+    purchaseOrder.changes[0].purchaseOrderId = purchaseOrder.purchaseOrderId
+    const savedOrder = await purchaseOrderRepository.save(purchaseOrder)
+
+    const expectationA = {
+      ...buildReceivingExpectationRecord(
+        tenantId,
+        prefix,
+        savedOrder.purchaseOrderId,
+        savedOrder.lines[0].purchaseOrderLineId
+      ),
+      allocationGroupingKey: 'group-a',
+      sourceAllocationIds: [savedOrder.lines[0].allocations[0].purchaseOrderLineAllocationId],
+      targetWarehouseId: `${prefix}_wh_a`,
+      targetReceivingAddressId: `${prefix}_addr_a`,
+      discrepancy: {
+        receivingDiscrepancyId: crypto.randomUUID(),
+        discrepancyType: 'QUALITY_HOLD',
+        summary: 'awaiting inspection',
+        status: ReceivingDiscrepancyStatus.OPEN,
+        resolutionCode: null,
+        resolutionNote: null,
+        resolutionReferences: [],
+        resolvedAt: null
+      }
+    } as never
+    const expectationB = {
+      ...buildReceivingExpectationRecord(
+        tenantId,
+        prefix,
+        savedOrder.purchaseOrderId,
+        savedOrder.lines[0].purchaseOrderLineId
+      ),
+      receivingExpectationId: crypto.randomUUID(),
+      allocationGroupingKey: 'group-b',
+      sourceAllocationIds: [savedOrder.lines[0].allocations[1].purchaseOrderLineAllocationId],
+      targetWarehouseId: `${prefix}_wh_b`,
+      targetReceivingAddressId: `${prefix}_addr_b`,
+      discrepancy: {
+        receivingDiscrepancyId: crypto.randomUUID(),
+        discrepancyType: 'WRONG_ITEM',
+        summary: 'wrong carton variant',
+        status: 'RESOLVED',
+        resolutionCode: 'REJECT_WRONG_ITEM',
+        resolutionNote: 'supplier collects and replaces',
+        resolutionReferences: [
+          {
+            referenceType: 'RETURN_REFERENCE',
+            referenceId: `${prefix}_return_1`
+          }
+        ],
+        resolvedAt: '2026-04-28T13:00:00.000Z'
+      }
+    } as never
+    const savedExpectationA = await receivingRepository.save(expectationA)
+    const savedExpectationB = await receivingRepository.save(expectationB)
+
+    const foundRequest = await purchaseRequestRepository.findById(tenantId, savedRequest.purchaseRequestId)
+    const foundOrder = await purchaseOrderRepository.findById(tenantId, savedOrder.purchaseOrderId)
+    const foundExpectationA = await receivingRepository.findById(tenantId, savedExpectationA.receivingExpectationId)
+    const foundExpectationB = await receivingRepository.findById(tenantId, savedExpectationB.receivingExpectationId)
+
+    expect(foundRequest).toEqual(savedRequest)
+    expect(foundOrder).toEqual(savedOrder)
+    expect(foundExpectationA).toEqual(savedExpectationA)
+    expect(foundExpectationB).toEqual(savedExpectationB)
   })
 })

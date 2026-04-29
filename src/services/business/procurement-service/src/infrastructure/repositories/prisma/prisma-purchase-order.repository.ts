@@ -83,6 +83,18 @@ export class PrismaPurchaseOrderRepository implements PurchaseOrderRepository {
             supplierId: record.supplierId,
             supplierDisplayName: record.supplierSnapshot.supplierDisplayName,
             supplierStatusAtIssue: record.supplierSnapshot.supplierStatusAtIssue ?? null,
+            paymentTermsCode: record.paymentTermsSnapshot?.paymentTermsCode ?? null,
+            paymentTermsText: record.paymentTermsSnapshot?.paymentTermsText ?? null,
+            incotermCode: record.supplierCommercialTermsSnapshot?.incotermCode ?? null,
+            commercialTermsText: record.supplierCommercialTermsSnapshot?.commercialTermsText ?? null,
+            paymentStatusSummary: record.paymentSummary?.paymentStatusSummary ?? null,
+            depositPaidAmount: record.paymentSummary?.depositPaidAmount ?? null,
+            balancePaidAmount: record.paymentSummary?.balancePaidAmount ?? null,
+            paymentSummaryCurrencyCode: record.paymentSummary?.currencyCode ?? null,
+            attachmentRefs: PrismaProcurementRecordMapper.toInputJson(record.paymentSummary?.attachmentRefs ?? []),
+            lastPaymentAt: record.paymentSummary?.lastPaymentAt
+              ? new Date(record.paymentSummary.lastPaymentAt)
+              : null,
             sourcePurchaseRequestIds: PrismaProcurementRecordMapper.toInputJson(record.sourcePurchaseRequestIds),
             sourcePurchaseRequestNos: PrismaProcurementRecordMapper.toInputJson(record.sourcePurchaseRequestNos ?? []),
             acknowledgementStatus: PrismaProcurementRecordMapper.toPersistedSupplierAcknowledgementStatus(record.supplierAcknowledgement.acknowledgementStatus),
@@ -104,6 +116,18 @@ export class PrismaPurchaseOrderRepository implements PurchaseOrderRepository {
             supplierId: record.supplierId,
             supplierDisplayName: record.supplierSnapshot.supplierDisplayName,
             supplierStatusAtIssue: record.supplierSnapshot.supplierStatusAtIssue ?? null,
+            paymentTermsCode: record.paymentTermsSnapshot?.paymentTermsCode ?? null,
+            paymentTermsText: record.paymentTermsSnapshot?.paymentTermsText ?? null,
+            incotermCode: record.supplierCommercialTermsSnapshot?.incotermCode ?? null,
+            commercialTermsText: record.supplierCommercialTermsSnapshot?.commercialTermsText ?? null,
+            paymentStatusSummary: record.paymentSummary?.paymentStatusSummary ?? null,
+            depositPaidAmount: record.paymentSummary?.depositPaidAmount ?? null,
+            balancePaidAmount: record.paymentSummary?.balancePaidAmount ?? null,
+            paymentSummaryCurrencyCode: record.paymentSummary?.currencyCode ?? null,
+            attachmentRefs: PrismaProcurementRecordMapper.toInputJson(record.paymentSummary?.attachmentRefs ?? []),
+            lastPaymentAt: record.paymentSummary?.lastPaymentAt
+              ? new Date(record.paymentSummary.lastPaymentAt)
+              : null,
             sourcePurchaseRequestIds: PrismaProcurementRecordMapper.toInputJson(record.sourcePurchaseRequestIds),
             sourcePurchaseRequestNos: PrismaProcurementRecordMapper.toInputJson(record.sourcePurchaseRequestNos ?? []),
             acknowledgementStatus: PrismaProcurementRecordMapper.toPersistedSupplierAcknowledgementStatus(record.supplierAcknowledgement.acknowledgementStatus),
@@ -159,14 +183,14 @@ export class PrismaPurchaseOrderRepository implements PurchaseOrderRepository {
               itemCode: line.itemCode ?? null,
               itemName: line.itemName ?? null,
               description: line.description,
-              supplierOfferingId: line.supplierOfferingId ?? null,
-              orderedQuantity: line.orderedQuantity,
-              uom: line.uom,
-              orderedUnitPrice: line.orderedUnitPrice ?? null,
-              sourcePurchaseRequestLineId: line.sourcePurchaseRequestLineId ?? null,
-              sourceRequestedQuantity: line.sourceRequestedQuantity ?? null,
-              generalStockExcessReason: line.generalStockExcessReason ?? null
-            }))
+                supplierOfferingId: line.supplierOfferingId ?? null,
+                orderedQuantity: line.orderedQuantity,
+                uom: line.uom,
+                orderedUnitPrice: line.orderedUnitPrice ?? null,
+                sourcePurchaseRequestLineId: line.sourcePurchaseRequestLineId ?? null,
+                sourceRequestedQuantity: line.sourceRequestedQuantity ?? null,
+                generalStockExcessReason: line.generalStockExcessReason ?? null
+              }))
           })
           await client.purchaseOrderLineAllocation.createMany({
             data: record.lines.flatMap((line) =>
@@ -175,9 +199,11 @@ export class PrismaPurchaseOrderRepository implements PurchaseOrderRepository {
                 tenantId: record.tenantId,
                 purchaseOrderLineId: line.purchaseOrderLineId,
                 allocationType: PrismaProcurementRecordMapper.toPersistedPurchaseOrderAllocationType(allocation.allocationType),
-                referenceId: allocation.referenceId ?? null,
+                sourceReferenceId: allocation.sourceReferenceId ?? null,
                 quantity: allocation.quantity,
-                reason: allocation.reason ?? null
+                reason: allocation.reason ?? null,
+                targetWarehouseId: allocation.targetWarehouseId ?? null,
+                targetReceivingAddressId: allocation.targetReceivingAddressId ?? null
               }))
             )
           })
@@ -307,6 +333,25 @@ export class PrismaPurchaseOrderRepository implements PurchaseOrderRepository {
       }
     })
     return rows.some((row) => PrismaProcurementRecordMapper.fromJson<string[]>(row.sourcePurchaseRequestIds).includes(purchaseRequestId))
+  }
+
+  async findBySourcePurchaseRequestId(
+    tenantId: string,
+    purchaseRequestId: string
+  ): Promise<PurchaseOrderRecord[]> {
+    const rows = await this.prisma.getExecutionClient().purchaseOrder.findMany({
+      where: {
+        tenantId
+      },
+      include: PrismaProcurementRecordMapper.purchaseOrderIncludeValue(),
+      orderBy: {
+        orderNo: 'asc'
+      }
+    })
+
+    return rows
+      .map((row) => PrismaProcurementRecordMapper.toPurchaseOrder(row))
+      .filter((record) => record.sourcePurchaseRequestIds.includes(purchaseRequestId))
   }
 }
 

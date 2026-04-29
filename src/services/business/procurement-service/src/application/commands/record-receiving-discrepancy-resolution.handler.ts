@@ -1,7 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { TOKENS } from '../../common/constants/tokens'
-import { ReceivingExpectationRecord, ReceivingExpectationStatus, ReceivingResolutionCode } from '../../domain/models/procurement-records'
+import {
+  ReceivingDiscrepancyRecord,
+  ReceivingExpectationRecord,
+  ReceivingResolutionCode
+} from '../../domain/models/procurement-records'
 import { ReceivingRepository } from '../../domain/repositories/receiving.repository'
 import {
   assertExists,
@@ -44,6 +48,8 @@ export class RecordReceivingDiscrepancyResolutionHandler
       discrepancy.receivingDiscrepancyId === command.payload.receivingDiscrepancyId,
       'receiving discrepancy does not belong to expectation'
     )
+    assertPrecondition(discrepancy.status === 'OPEN', 'receiving discrepancy must be OPEN before resolution')
+    assertResolutionCompatible(discrepancy, resolutionCode, command.payload.resolutionReferences ?? [])
 
     const resolvedAt = nowIso()
     const updatedDiscrepancy = {
@@ -51,16 +57,15 @@ export class RecordReceivingDiscrepancyResolutionHandler
       status: 'RESOLVED',
       resolutionCode,
       resolutionNote: normalizeOptionalString(command.payload.resolutionNote) ?? null,
+      resolutionReferences: (command.payload.resolutionReferences ?? []).map((reference) => ({
+        referenceType: reference.referenceType.trim(),
+        referenceId: reference.referenceId.trim()
+      })),
       resolvedAt
     } as NonNullable<ReceivingExpectationRecord['discrepancy']>
-    const closesExpectation =
-      resolutionCode === ReceivingResolutionCode.ACCEPT_SHORT_CLOSE ||
-      resolutionCode === ReceivingResolutionCode.RETURN_OR_REJECT_EXCESS
 
     const receivingExpectation = await this.receivingRepository.save({
       ...existing,
-      status: closesExpectation ? ReceivingExpectationStatus.COMPLETED : existing.status,
-      openQuantity: closesExpectation ? '0' : existing.openQuantity,
       updatedAt: resolvedAt,
       discrepancy: updatedDiscrepancy
     })
@@ -69,5 +74,69 @@ export class RecordReceivingDiscrepancyResolutionHandler
       receivingExpectation,
       receivingDiscrepancy: updatedDiscrepancy
     }
+  }
+}
+
+function assertResolutionCompatible(
+  discrepancy: ReceivingDiscrepancyRecord,
+  resolutionCode: ReceivingResolutionCode,
+  resolutionReferences: Array<{ referenceType: string; referenceId: string }>
+): void {
+  const allowed = new Map([
+    [
+      'SHORT_RECEIVED',
+      [
+        ReceivingResolutionCode.WAIT_REDELIVERY,
+        ReceivingResolutionCode.CLOSE_UNRECEIVED,
+        ReceivingResolutionCode.REQUEST_RESEND
+      ]
+    ],
+    [
+      'OVER_RECEIVED',
+      [
+        ReceivingResolutionCode.ACCEPT_WITH_PO_CHANGE,
+        ReceivingResolutionCode.REJECT_EXCESS,
+        ReceivingResolutionCode.TEMP_HOLD
+      ]
+    ],
+    [
+      'DAMAGED',
+      [
+        ReceivingResolutionCode.REJECT_DAMAGED,
+        ReceivingResolutionCode.RECEIVE_WITH_RESTRICTION,
+        ReceivingResolutionCode.CLAIM,
+        ReceivingResolutionCode.REQUEST_RESEND
+      ]
+    ],
+    [
+      'WRONG_ITEM',
+      [
+        ReceivingResolutionCode.REJECT_WRONG_ITEM,
+        ReceivingResolutionCode.TEMP_RECEIVE_PENDING_DECISION,
+        ReceivingResolutionCode.ACCEPT_WITH_CONTROLLED_CHANGE
+      ]
+    ],
+    [
+      'QUALITY_HOLD',
+      [
+        ReceivingResolutionCode.WAIT_INSPECTION,
+        ReceivingResolutionCode.CLAIM,
+        ReceivingResolutionCode.ACCEPT_WITH_ALLOWANCE,
+        ReceivingResolutionCode.RETURN_TO_SUPPLIER
+      ]
+    ]
+  ])
+  assertPrecondition(
+    allowed.get(discrepancy.discrepancyType)?.includes(resolutionCode),
+    'resolution code must match discrepancy type'
+  )
+  if (
+    resolutionCode === ReceivingResolutionCode.CLOSE_UNRECEIVED ||
+    resolutionCode === ReceivingResolutionCode.ACCEPT_WITH_PO_CHANGE
+  ) {
+    assertPrecondition(
+      resolutionReferences.length > 0,
+      'purchase-order-change-backed resolution requires references'
+    )
   }
 }

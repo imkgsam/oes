@@ -54,7 +54,7 @@
 - `SubmitPurchaseRequest` 只允许把 `DRAFT` 提交为 `SUBMITTED`
 - `DecidePurchaseRequest` 只允许决策 `SUBMITTED`
 - `CancelPurchaseRequest` 不得绕过当前生命周期约束关闭已不允许取消的需求
-- `ConvertPurchaseRequestToPurchaseOrder` 只允许基于 `APPROVED` 的 `PR` 建立 `PO` 草稿
+- `ConvertPurchaseRequestToPurchaseOrder` 只允许基于 `APPROVED / PARTIALLY_CONVERTED` 的 `PR` 把新增选中数量并入 `PO` 草稿
 
 ## 4. RPC 语义
 
@@ -201,22 +201,25 @@
 
 ### `ConvertPurchaseRequestToPurchaseOrder`
 
-- 作用：基于已批准 `PR` 建立一个 `PO` 草稿
+- 作用：将已批准的 `PR line` 转入新的或现有的 `DRAFT PO`
 
 请求最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
 | `tenant_id` | 是 | 显式租户边界 |
-| `purchase_request_id` | 是 | 源 PR 标识 |
-| `supplier_id` | 是 | 目标供应商标识 |
-| `selected_lines[]` | 是 | 进入 PO 的 PR 行选择 |
-| `currency_code` | 是 | PO 货币摘要 |
+| `target_purchase_order_id` | 否 | 如传入则并入现有 `DRAFT PO`；不传入则创建新的 `DRAFT PO` |
+| `supplier_id` | 否 | 创建新 `PO` 时必填；并入现有 `PO` 时由目标 `PO` 决定 |
+| `source_lines[]` | 是 | 进入 `PO` 的 PR 行选择，可来自一个或多个 `APPROVED / PARTIALLY_CONVERTED PR` |
+| `currency_code` | 否 | 创建新 `PO` 时必填；并入现有 `PO` 时可省略 |
+| `payment_terms_snapshot` | 否 | optional 本次采购付款条款快照 |
+| `supplier_commercial_terms_snapshot` | 否 | optional 本次采购商业条款快照 |
 
-`selected_lines[]` 最小 shape：
+`source_lines[]` 最小 shape：
 
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
+| `purchase_request_id` | 是 | 源 PR 标识 |
 | `purchase_request_line_id` | 是 | 源 PR 行标识 |
 | `purchase_order_quantity` | 是 | 拟转成 PO 的数量 |
 | `ordered_unit_price` | 否 | optional 拟定单价 |
@@ -226,11 +229,16 @@
 
 | 字段 | 说明 |
 | --- | --- |
-| `purchase_order` | 新建的 `PO` 草稿 |
+| `purchase_order` | 新建或更新后的 `PO` 草稿 |
 
 关键语义：
 
-- 只允许基于 `APPROVED` 的 `PR`
+- 本命令可用于：
+  - 基于选中 `PR line` 创建新的 `DRAFT PO`
+  - 将额外选中 `PR line` 并入现有 `DRAFT PO`，以支持多 `PR` 合并下单
+- 不得因为转单而创建新的 `PR`
+- 不得因为转单而删除旧的 `PR / PR line`
+- 源 `PR / PR line` 必须保留，并在转单后更新为 `PARTIALLY_CONVERTED / CONVERTED`
 - 标准 `Item` 行转为 `PO` 草稿时，必须同步校验：
   - 目标供应商当前为 `ACTIVE`
   - Item 当前存在
@@ -238,6 +246,10 @@
   - 目标供应商当前存在 `ACTIVE SupplierOffering`
 - 文本型 / 非标准采购选择供应商时，仍必须校验目标供应商当前为 `ACTIVE`
 - 文本型 / 非标准采购可不强制依赖 `ACTIVE SupplierOffering`
+- `payment_terms_snapshot` 与 `supplier_commercial_terms_snapshot` 只保存本次采购快照，不改变 `SRM` owner truth
+- 若同一 `PR line` 仅部分数量被并入 `PO`，该行与所属 `PR` 必须进入 `PARTIALLY_CONVERTED`
+- 若同一 `PR line` 的剩余可转数量全部被并入 `PO`，该行必须进入 `CONVERTED`
+- 当源 `PR` 的全部可转行都已完成转单时，源 `PR` 必须进入 `CONVERTED`
 - 当 `purchase_order_quantity > requested_quantity` 时，超出部分必须在后续 `PO allocation` 中标记为 `general stock`，并保留 reason
 
 ## 5. 错误语义
@@ -249,9 +261,9 @@ phase 1 management 统一暴露以下错误面：
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、`TEXT` 行缺少描述、`STANDARD_ITEM` 行缺少 `item_id`，或数量 / 计量单位非法 |
 | `UNAUTHENTICATED` | 缺少有效 internal service context、operator context、trace context 或 audit context |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有在该 tenant / org / PR 上执行命令的权限 |
-| `NOT_FOUND` | 目标 `PurchaseRequest / PurchaseRequestLine / Item / SupplierProfile` 不存在 |
+| `NOT_FOUND` | 目标 `PurchaseRequest / PurchaseRequestLine / PurchaseOrder / Item / SupplierProfile` 不存在 |
 | `ALREADY_EXISTS` | 当前命令违反唯一性约束 |
-| `FAILED_PRECONDITION` | 资源存在，但当前状态或外部真相不满足命令前提，例如对非 `DRAFT` 更新、对非 `SUBMITTED` 决策、目标供应商非 `ACTIVE`、标准 Item 不可采购，或标准 Item 缺少 `ACTIVE SupplierOffering` |
+| `FAILED_PRECONDITION` | 资源存在，但当前状态或外部真相不满足命令前提，例如对非 `DRAFT` 更新、对非 `SUBMITTED` 决策、并入的目标 `PO` 不是 `DRAFT`、目标供应商非 `ACTIVE`、标准 Item 不可采购，或标准 Item 缺少 `ACTIVE SupplierOffering` |
 | `UNAVAILABLE` | 下游依赖或当前服务暂不可用 |
 | `INTERNAL` | 未归类的服务内部错误 |
 

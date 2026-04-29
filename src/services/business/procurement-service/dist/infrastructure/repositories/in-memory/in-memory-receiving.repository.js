@@ -29,9 +29,10 @@ let InMemoryReceivingRepository = class InMemoryReceivingRepository {
         }
         return (0, procurement_records_1.cloneRecord)(record);
     }
-    async findByPurchaseOrderLineId(tenantId, purchaseOrderLineId) {
-        const record = [...this.store.receivingExpectations.values()].find((candidate) => candidate.tenantId === tenantId && candidate.purchaseOrderLineId === purchaseOrderLineId);
-        return record ? (0, procurement_records_1.cloneRecord)(record) : null;
+    async listByPurchaseOrderLineId(tenantId, purchaseOrderLineId) {
+        return [...this.store.receivingExpectations.values()]
+            .filter((candidate) => candidate.tenantId === tenantId && candidate.purchaseOrderLineId === purchaseOrderLineId)
+            .map((record) => (0, procurement_records_1.cloneRecord)(record));
     }
     async save(record) {
         const stored = (0, procurement_records_1.cloneRecord)(record);
@@ -46,6 +47,8 @@ let InMemoryReceivingRepository = class InMemoryReceivingRepository {
             .filter((record) => !input.purchaseOrderId || record.purchaseOrderId === input.purchaseOrderId)
             .filter((record) => !input.supplierId || record.supplierId === input.supplierId)
             .filter((record) => !input.status || record.status === input.status)
+            .filter((record) => !input.targetWarehouseId || record.targetWarehouseId === input.targetWarehouseId)
+            .filter((record) => !input.targetReceivingAddressId || record.targetReceivingAddressId === input.targetReceivingAddressId)
             .filter((record) => {
             if (input.hasOpenDiscrepancy === undefined) {
                 return true;

@@ -72,6 +72,31 @@ let PrismaSalesOrderRepository = class PrismaSalesOrderRepository {
         });
         return record ? prisma_sales_record_mapper_1.PrismaSalesRecordMapper.toSalesOrder(record) : null;
     }
+    async findLineById(tenantId, salesOrderLineId) {
+        const record = await this.prisma.getExecutionClient().salesOrder.findFirst({
+            where: {
+                tenantId,
+                lines: {
+                    some: {
+                        id: salesOrderLineId
+                    }
+                }
+            },
+            include: prisma_sales_record_mapper_1.PrismaSalesRecordMapper.salesOrderIncludeValue()
+        });
+        if (!record) {
+            return null;
+        }
+        const order = prisma_sales_record_mapper_1.PrismaSalesRecordMapper.toSalesOrder(record);
+        const line = order.lines.find((candidate) => candidate.salesOrderLineId === salesOrderLineId);
+        if (!line) {
+            return null;
+        }
+        return {
+            order,
+            line
+        };
+    }
     async save(order) {
         return this.prisma.runInTransaction(async () => {
             const client = this.prisma.getExecutionClient();

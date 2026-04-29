@@ -7,6 +7,8 @@ class SalesInMemoryStore {
         this.quotes = new Map();
         this.quoteVersions = new Map();
         this.salesOrders = new Map();
+        this.priceLists = new Map();
+        this.customerPriceAgreementVersions = new Map();
         this.auditEnvelopes = [];
         this.quoteSequence = 1;
         this.salesOrderSequence = 1;

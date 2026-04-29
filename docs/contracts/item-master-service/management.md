@@ -22,10 +22,13 @@ phase 1 management 只冻结以下写能力：
 - 全量替换 composition
 - 新增或更新 supplier item mapping
 - 变更 Item 生命周期 / enabled 状态
+- 创建 ItemCategory
+- 修改 ItemCategory 基础信息
+- 变更 ItemCategory 生命周期 / enabled 状态
+- 设置 Item 的 `primary category`
 
 phase 1 management 明确不冻结：
 
-- `ItemCategory` 写接口
 - 包装 / 制造 / 仓储 / 销售配置写接口
 - integration event catalog
 
@@ -42,6 +45,11 @@ phase 1 management 明确不冻结：
 - nested bundle deferred，不属于 phase 1 contract
 - `SupplierItemMapping` 只承载 `supplierId + supplierItemCode / supplierItemName -> itemId`
 - `SupplierItemMapping` 不承载价格、MOQ、账期、lead time、供应表现
+- `ItemCategory` 是 tenant-scoped 轻量树
+- `ItemCategory` 只表达目录浏览、搜索收窄、列表展示与轻量统计分组所需的基础分类真相
+- phase 1 + 当前 slice 中，每个 `Item` 只允许 `0..1` 个 `primary category`
+- `SetItemPrimaryCategory` 只维护单值关联，不扩展 multi-category
+- category 不继承权限、定价、采购、库存、包装或制造规则
 
 ## 3. 本地审计要求
 
@@ -249,6 +257,115 @@ phase 1 不冻结 integration events，但所有命令链路都必须落本地 `
 - 本命令只处理状态切换
 - 不借由状态切换顺带改写 code、name、classification、capability、composition 或 supplier mapping
 
+### `CreateItemCategory`
+
+- 作用：创建 tenant 内新的轻量 ItemCategory 节点
+
+请求最小 shape：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `tenant_id` | 是 | 显式租户边界 |
+| `category_code` | 是 | tenant 内 category 编码 |
+| `category_name` | 是 | category 名称 |
+| `parent_category_id` | 否 | 为空时创建根节点；有值时挂到指定父节点下 |
+
+响应最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `category` | 新建后的 category 摘要 |
+
+`category` 最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `category_id` | Category 稳定标识 |
+| `category_code` | tenant 内 category 编码 |
+| `category_name` | category 名称 |
+| `parent_category_id` | 父分类标识；根节点为空 |
+| `status` | 当前 category 生命周期 / enabled 摘要 |
+
+关键语义：
+
+- 本命令只创建轻量分类树节点，不写入品牌、包装、制造、库存类型等其他树语义
+- `parent_category_id` 有值时，目标父分类必须存在
+- category tree 只冻结父子层级关系，不引入 category inheritance 业务规则
+
+### `UpdateItemCategoryBasics`
+
+- 作用：更新 category 的基础可编辑字段
+
+请求最小 shape：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `tenant_id` | 是 | 显式租户边界 |
+| `category_id` | 是 | 目标 category 标识 |
+| `category_code` | 是 | 新 category 编码 |
+| `category_name` | 是 | 新 category 名称 |
+
+响应最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `category` | 更新后的 category 摘要 |
+
+关键语义：
+
+- 本命令只改 `category_code / category_name`
+- 不借由 basics 更新隐式修改父子层级
+- 不借由 basics 更新引入权限、定价、采购、库存、包装或制造语义
+
+### `ChangeItemCategoryStatus`
+
+- 作用：变更 category 生命周期 / enabled 状态
+
+请求最小 shape：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `tenant_id` | 是 | 显式租户边界 |
+| `category_id` | 是 | 目标 category 标识 |
+| `target_status` | 是 | 目标状态 |
+
+响应最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `category` | 变更后的 category 摘要 |
+
+关键语义：
+
+- 本命令只处理 category 自身状态切换
+- 不借由状态切换顺带改写树结构或 Item 绑定关系
+- 若后续需要“停用 category 前必须先迁移 Item / 子分类”的治理规则，应在后续 contract 单独冻结
+
+### `SetItemPrimaryCategory`
+
+- 作用：设置或清空 Item 的单个 `primary category`
+
+请求最小 shape：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `tenant_id` | 是 | 显式租户边界 |
+| `item_id` | 是 | 目标 Item 标识 |
+| `primary_category_id` | 否 | 目标主分类；为空表示清空当前主分类 |
+
+响应最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `item` | 更新后的 Item 摘要，包含 `primary_category_summary?` |
+
+关键语义：
+
+- 本命令是单值设置，不支持一次写入多个 category
+- `primary_category_id` 为空表示显式清空当前主分类，符合 `0..1` 约束
+- 指定 `primary_category_id` 时，目标 category 必须存在
+- 本命令只维护 Item 与 category 的主关联，不引入 category 继承、定价、采购、库存、包装或制造策略
+
 ## 5. 错误语义
 
 phase 1 management 统一暴露以下错误面：
@@ -258,13 +375,12 @@ phase 1 management 统一暴露以下错误面：
 | `INVALID_ARGUMENT` | 请求字段缺失、格式非法、传入了超出 contract 的字段语义，或 `UpsertSupplierItemMapping` 未提供 code / name |
 | `UNAUTHENTICATED` | 缺少有效 internal service context 或 operator context |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有写该 tenant/item 的权限 |
-| `NOT_FOUND` | 目标 Item 或映射所引用的 Item 不存在 |
-| `ALREADY_EXISTS` | 创建或更新时违反唯一性约束，例如 tenant 内 `item_code` 冲突 |
-| `FAILED_PRECONDITION` | 资源存在，但不满足业务前提，例如给非 `PHYSICAL` Item 设置 `stockable / manufacturable`，或给非 `BUNDLE` Item 设置 composition |
-| `UNAVAILABLE` | 下游依赖或当前服务暂不可用 |
-| `INTERNAL` | 未归类的服务内部错误 |
+| `NOT_FOUND` | 目标 Item、Category，或映射所引用的 Item / Category 不存在 |
+| `ALREADY_EXISTS` | 创建或更新时违反唯一性约束，例如 tenant 内 `item_code` 或 `category_code` 冲突 |
+| `FAILED_PRECONDITION` | 资源存在，但不满足业务前提，例如给非 `PHYSICAL` Item 设置 `stockable / manufacturable`，给非 `BUNDLE` Item 设置 composition，或把 Item 绑定到不允许作为当前主分类目标的 category |
 
 补充说明：
 
 - phase 1 不要求冻结 integration event 失败语义
 - 命令成功与失败都必须进入本地 `audit envelope`
+- 当前 slice 不提供 multi-category、category inheritance 或 category-based policy 命令

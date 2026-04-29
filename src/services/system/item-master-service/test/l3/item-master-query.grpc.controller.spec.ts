@@ -1,7 +1,9 @@
 import {
+  ItemCategoryStatus,
   ItemNatureType,
   ItemStatus,
   ItemStructureType,
+  ListItemCategoriesResponse,
   ListSupplierItemMappingsByItemResponse,
   SupplierItemResolutionStatus
 } from '@oes/common/generated/item_master_service'
@@ -89,6 +91,68 @@ describe('ItemMasterQueryGrpcController L3', () => {
       total: 0,
       page: 2,
       pageSize: 10
+    })
+  })
+
+  it('gRPC SearchItems / when category coordinates are provided / should map category_id and include_descendants into query input', async () => {
+    const queryBus = createQueryBus()
+    const controller = new ItemMasterQueryGrpcController(queryBus as unknown as ValidatingQueryBus)
+
+    queryBus.execute.mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 20
+    })
+
+    await controller.searchItems({
+      tenantId: 'tenant-1',
+      categoryId: 'category-root',
+      includeDescendants: true
+    } as never)
+
+    expect(queryBus.execute).toHaveBeenCalledWith(
+      expect.objectContaining<SearchItemsQuery>({
+        tenantId: 'tenant-1',
+        categoryId: 'category-root',
+        includeDescendants: true
+      } as never)
+    )
+  })
+
+  it('gRPC ListItemCategories / when request targets one parent / should map request and preserve empty child list semantics', async () => {
+    const queryBus = createQueryBus()
+    const controller = new ItemMasterQueryGrpcController(queryBus as unknown as ValidatingQueryBus)
+
+    queryBus.execute.mockResolvedValue({
+      categories: [
+        {
+          categoryId: 'category-child',
+          categoryCode: 'CAT-CHILD',
+          categoryName: 'Child Category',
+          parentCategoryId: 'category-root',
+          status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE,
+          hasChildren: false
+        }
+      ]
+    })
+
+    const result = await (controller as any).listItemCategories({
+      tenantId: 'tenant-1',
+      parentCategoryId: 'category-root'
+    })
+
+    expect(result).toEqual<ListItemCategoriesResponse>({
+      categories: [
+        {
+          categoryId: 'category-child',
+          categoryCode: 'CAT-CHILD',
+          categoryName: 'Child Category',
+          parentCategoryId: 'category-root',
+          status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE,
+          hasChildren: false
+        }
+      ]
     })
   })
 

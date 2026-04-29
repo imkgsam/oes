@@ -240,6 +240,6 @@ test('procurement smoke flow / should convert one approved standard-item purchas
 
   const convertCall = calls.find(([name]) => name === 'convertPurchaseRequestToPurchaseOrder');
   assert.ok(convertCall);
-  assert.equal(convertCall[1].purchaseRequestId, 'pr-item-1');
-  assert.equal(convertCall[1].selectedLines[0].purchaseRequestLineId, 'pr-item-line-1');
+  assert.equal(convertCall[1].sourceLines[0].purchaseRequestId, 'pr-item-1');
+  assert.equal(convertCall[1].sourceLines[0].purchaseRequestLineId, 'pr-item-line-1');
 });

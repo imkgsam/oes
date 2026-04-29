@@ -85,8 +85,17 @@
   - 样品采购
 - 标准 `Item` 转 `PO` 时必须校验 `ACTIVE SupplierOffering`；日常非标准采购可不强制。
 - `PO line` 必须支持 allocation，以同时表达 dedicated to `SalesOrderLine / FulfillmentDemand` 与 general stock。
+- `PR` 合并生成 `PO` 时，不创建新 `PR`，也不删除旧 `PR / PR line`；源对象保留并进入 `PARTIALLY_CONVERTED / CONVERTED`。
+- `PO line allocation` 必须记录来源 `PR line / SalesOrderLine / FulfillmentDemand / GENERAL_STOCK`。
+- `PR` 发起人必须能通过 `PR` 查询看到已合并到哪个 `PO`、预计到货与当前到货状态摘要。
+- `PO` header 可保存 `payment_terms_snapshot` 与 supplier commercial terms snapshot，但它们只是本次采购快照，不成为 `SRM` 长期商业主档。
+- Procurement 只消费 `finance-service` 提供的 payment summary 与 `asset-service attachmentRef` 引用，不拥有付款真相或付款凭证文件。
 - `ReceivingExpectation` 不是 `WMS receipt` truth；`WMS receipt` 才是实际收货真相。
+- 当一个 `PO line` 的 allocation 指向不同目标仓 / 收货地址 / allocation grouping 时，必须拆分多个 `ReceivingExpectation`。
 - Odoo 风格“先预期收货，再按差异处理”可参考，但 OES 第一阶段必须拥有 `ReceivingDiscrepancy + resolution options`，不能只支持自动补单。
+- `ReceivingDiscrepancy resolution` 只记录采购侧处置选择，不直接修改库存真相。
+- 取消剩余未收数量必须通过 `PurchaseOrderChange` 留痕。
+- phase 1 的 return / claim 只保留 resolution 类型与引用，不实现完整 `SupplierReturn / claim workflow`。
 - `PurchaseOrderChange` 在 phase 1 只要求轻量 `APPLIED` 变更留痕；后续再升级为完整申请 / 审批 / 供应商确认。
 - 历史采购价格第一阶段归 Procurement 交易事实；future `Costing / BI` 只消费分析，不拥有原始交易事实。
 
@@ -126,11 +135,13 @@
 
 - 表达一次正式采购需求入口。
 - phase 1 统一覆盖部门日常采购、销售专采、生产 / 包装需求、维修需求与样品采购。
+- `PR` 在转单后继续保留自身真相；不会因为合并生成 `PO` 而被删除或重建。
 
 ### 7.2 PurchaseRequestLine
 
 - 表达单行采购诉求。
 - 必须支持标准 `Item` 行与非标准 / 文本型行并存。
+- 转单后必须能保留行级 `PARTIALLY_CONVERTED / CONVERTED` 留痕，并回显关联 `PO`、预计到货与当前到货状态。
 
 ### 7.3 PurchaseRequestApprovalSnapshot
 
@@ -141,6 +152,8 @@
 
 - 表达正式采购承诺与对供应商下达的采购交易对象。
 - 采购类支出在 phase 1 的正常路径应由 `PR` 受控进入 `PO`。
+- `PO` header 可保留 `payment_terms_snapshot` 与 supplier commercial terms snapshot。
+- `PO` query 可展示 Finance 付款摘要与 `attachmentRef` 引用，但 Procurement 不拥有付款真相。
 
 ### 7.5 PurchaseOrderLine
 
@@ -151,6 +164,7 @@
 
 - 表达某条 `PO line` 数量如何分配给具体需求。
 - phase 1 必须支持 dedicated to `SalesOrderLine / FulfillmentDemand` 与 general stock 混合分配。
+- phase 1 还必须保留来源 `PR line` 留痕，并允许 allocation 携带目标仓 / 收货地址用于收货预期 grouping。
 
 ### 7.7 PurchaseOrderChange
 
@@ -161,11 +175,20 @@
 
 - 表达采购侧“应该收到什么、预计什么时候到、还有多少未到”的预期。
 - 它不是 `WMS` 实际收货真相，也不替代仓储库存事实。
+- 当同一 `PO line` 指向不同目标仓 / 收货地址 / allocation grouping 时，必须拆分多个 expectation。
 
 ### 7.9 ReceivingDiscrepancy
 
 - 表达采购侧“预期与实收不一致”的差异摘要与处理入口。
 - phase 1 必须支持 `resolution options`，而不是只提供自动补单单一路径。
+- phase 1 必须覆盖：
+  - `SHORT_RECEIVED`
+  - `OVER_RECEIVED`
+  - `DAMAGED`
+  - `WRONG_ITEM`
+  - `QUALITY_HOLD`
+- resolution 只记录采购侧处置选择与引用，不直接修改库存真相。
+- 如需关闭剩余未收数量，必须通过 `PurchaseOrderChange` 留痕。
 
 ### 7.10 Procurement Transaction Facts
 
@@ -209,8 +232,10 @@
 - supplier invoice
 - payment
 - allocation
+- 付款凭证文件 owner；phase 1 只展示 Finance 摘要与 `attachmentRef`
 - 完整采购变更申请 / 审批 / 供应商确认闭环
 - 完整收货差异事件目录与 resolution policy 细化
+- 完整 `SupplierReturn / claim workflow`
 - `costing-service`
 
 ## 11. PROCUREMENT-CONTRACT 建议

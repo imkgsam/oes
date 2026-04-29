@@ -458,6 +458,50 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
       },
     ],
   },
+  {
+    meta: {
+      icon: 'lucide:wallet-cards',
+      order: 15,
+      title: '财务管理',
+    },
+    name: 'TenantFinance',
+    path: '/finance',
+    children: [
+      {
+        name: 'TenantFinanceDashboard',
+        path: '/finance/dashboard',
+        component: () => import('#/views/admin/finance-management.vue'),
+        meta: {
+          entryKey: 'finance.dashboard',
+          fullPathKey: false,
+          icon: 'lucide:wallet',
+          title: '财务管理',
+        },
+      },
+      {
+        name: 'TenantFinancialAccountDetail',
+        path: '/finance/accounts/:financialAccountId',
+        component: () => import('#/views/admin/finance-account-detail.vue'),
+        meta: {
+          activePath: '/finance/dashboard',
+          entryKey: 'finance.dashboard',
+          hideInMenu: true,
+          title: '资金账户详情',
+        },
+      },
+      {
+        name: 'TenantReceivableScheduleDetail',
+        path: '/finance/receivables/:receivableScheduleId',
+        component: () => import('#/views/admin/finance-receivable-schedule-detail.vue'),
+        meta: {
+          activePath: '/finance/dashboard',
+          entryKey: 'finance.dashboard',
+          hideInMenu: true,
+          title: '应收计划详情',
+        },
+      },
+    ],
+  },
 ];
 
 export { tenantAdminRoutes };

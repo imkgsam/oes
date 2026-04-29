@@ -4,6 +4,7 @@ import { Prisma } from '../../../../prisma/generated/prisma'
 import { PROCUREMENT_ALREADY_EXISTS } from '../../../common/errors/procurement.errors'
 import {
   PageResult,
+  PurchaseRequestLineConversionStatus,
   PurchaseRequestRecord,
   SearchPurchaseRequestsInput
 } from '../../../domain/models/procurement-records'
@@ -82,6 +83,9 @@ export class PrismaPurchaseRequestRepository implements PurchaseRequestRepositor
             reason: record.reason ?? null,
             submissionComment: record.submissionComment ?? null,
             cancelReason: record.cancelReason ?? null,
+            linkedPurchaseOrders: PrismaProcurementRecordMapper.toInputJson(record.linkedPurchaseOrders ?? []),
+            nextExpectedReceiptDate: record.nextExpectedReceiptDate ?? null,
+            receivingStatusSummary: record.receivingStatusSummary ?? null,
             createdAt: new Date(record.createdAt),
             updatedAt: new Date(record.updatedAt),
             submittedAt: record.submittedAt ? new Date(record.submittedAt) : null,
@@ -99,6 +103,9 @@ export class PrismaPurchaseRequestRepository implements PurchaseRequestRepositor
             reason: record.reason ?? null,
             submissionComment: record.submissionComment ?? null,
             cancelReason: record.cancelReason ?? null,
+            linkedPurchaseOrders: PrismaProcurementRecordMapper.toInputJson(record.linkedPurchaseOrders ?? []),
+            nextExpectedReceiptDate: record.nextExpectedReceiptDate ?? null,
+            receivingStatusSummary: record.receivingStatusSummary ?? null,
             createdAt: new Date(record.createdAt),
             updatedAt: new Date(record.updatedAt),
             submittedAt: record.submittedAt ? new Date(record.submittedAt) : null,
@@ -128,7 +135,13 @@ export class PrismaPurchaseRequestRepository implements PurchaseRequestRepositor
               uom: line.uom,
               neededByDate: line.neededByDate ?? null,
               demandReferenceType: line.demandReferenceType ?? null,
-              demandReferenceId: line.demandReferenceId ?? null
+              demandReferenceId: line.demandReferenceId ?? null,
+              conversionStatus: PrismaProcurementRecordMapper.toPersistedPurchaseRequestLineConversionStatus(
+                line.conversionStatus ?? PurchaseRequestLineConversionStatus.NOT_CONVERTED
+              ),
+              linkedPurchaseOrderLines: PrismaProcurementRecordMapper.toInputJson(
+                line.linkedPurchaseOrderLines ?? []
+              )
             }))
           })
         }
@@ -205,6 +218,11 @@ export class PrismaPurchaseRequestRepository implements PurchaseRequestRepositor
       .filter((record) => !input.status || record.status === input.status)
       .filter((record) => !input.requesterOperatorId || record.requester.operatorId === input.requesterOperatorId)
       .filter((record) => !input.itemId || record.lines.some((line) => line.itemId === input.itemId))
+      .filter(
+        (record) =>
+          !input.purchaseOrderId ||
+          (record.linkedPurchaseOrders ?? []).some((link) => link.purchaseOrderId === input.purchaseOrderId)
+      )
       .filter((record) => {
         if (!input.neededByDateFrom && !input.neededByDateTo) {
           return true

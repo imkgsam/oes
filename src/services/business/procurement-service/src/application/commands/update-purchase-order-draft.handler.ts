@@ -5,7 +5,12 @@ import { PurchaseOrderRecord, PurchaseOrderStatus } from '../../domain/models/pr
 import { PurchaseOrderRepository } from '../../domain/repositories/purchase-order.repository'
 import { PurchaseRequestRepository } from '../../domain/repositories/purchase-request.repository'
 import { assertExists, assertPrecondition, assertRequiredString } from '../support/procurement-assertions'
-import { materializeDraftPurchaseOrderLines, nowIso } from '../support/procurement-write-support'
+import {
+  materializeDraftPurchaseOrderLines,
+  normalizeCommercialTermsSnapshot,
+  normalizePaymentTermsSnapshot,
+  nowIso
+} from '../support/procurement-write-support'
 import { UpdatePurchaseOrderDraftCommand } from './update-purchase-order-draft.command'
 
 /** UpdatePurchaseOrderDraftHandler replaces the editable lines and references on one PO draft. */
@@ -59,6 +64,10 @@ export class UpdatePurchaseOrderDraftHandler
         ...existing.supplierSnapshot,
         supplierId: command.payload.supplierId.trim()
       },
+      paymentTermsSnapshot: normalizePaymentTermsSnapshot(command.payload.paymentTermsSnapshot),
+      supplierCommercialTermsSnapshot: normalizeCommercialTermsSnapshot(
+        command.payload.supplierCommercialTermsSnapshot
+      ),
       updatedAt: nowIso(),
       lines
     })

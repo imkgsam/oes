@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-本目录用于冻结 `finance-service` phase 1 经营财务闭环的黑盒契约文档。
+本目录用于冻结 `finance-service` phase 1 / phase 1B 经营财务闭环的黑盒契约文档。
 
 这些文档面向：
 
@@ -16,9 +16,9 @@
 
 本目录只回写已经冻结的 `FINANCE-CONTRACT` 结论。
 
-## 2. Phase 1 Contract Surface
+## 2. Phase 1 / Phase 1B Contract Surface
 
-phase 1 只冻结以下内部 gRPC contract 面：
+phase 1 / phase 1B 只冻结以下内部 `gRPC` contract 面：
 
 - [account-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/account-query.md)
   - `FinancialAccountQueryService`
@@ -44,24 +44,28 @@ phase 1 只冻结以下内部 gRPC contract 面：
   - `ReceivableManagementService`
   - `CreateReceivableScheduleFromSalesOrder`
   - `SetFinanceReleaseSignal`
-- [payment-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/payment-query.md)
+- [payable-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/payable-query.md)
   - `PaymentQueryService`
   - `GetPayableSchedule`
   - `SearchPayableSchedules`
   - `SearchPaymentRequests`
+  - `SearchPaymentExecutions`
   - `SearchPaymentAllocations`
-- [payment-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/payment-management.md)
+- [payable-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/payable-management.md)
   - `PaymentManagementService`
   - `CreatePayableScheduleFromPurchaseOrder`
+  - `ApplyPayableScheduleAdjustmentFromPurchaseOrderChange`
+- [payment-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/payment-management.md)
+  - `PaymentManagementService`
   - `CreatePaymentRequest`
   - `DecidePaymentRequest`
   - `ExecutePaymentRequest`
-  - `AllocatePaymentToReceivable`
   - `AllocatePaymentToPayable`
+  - `AllocatePaymentToReceivable`
 - [finance-integration.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/finance-integration.md)
   - Sales / Procurement 与 Finance 的 integration input/output 语义
 
-phase 1 不在本目录中冻结：
+phase 1 / phase 1B 不在本目录中冻结：
 
 - proto message 全量定义
 - 外部 HTTP / BFF surface
@@ -70,16 +74,32 @@ phase 1 不在本目录中冻结：
 - 完整 double-entry accounting
 - `ChartOfAccount / Journal / JournalEntry / JournalEntryLine`
 - `GL / voucher / statutory reporting / closing`
-- 完整 `AP supplier invoice` lifecycle
+- 完整 `SupplierInvoice` lifecycle
+- `SupplierStatement` reconciliation lifecycle
 - bank API
 - 自动银行对账
 - 完整 `ExpenseClaim` workflow
+- credit / refund / offset formal lifecycle
 - order profitability
 - tax engine
 - treasury / cash forecast
 - `costing-service`
 
-## 3. Owner Boundary
+## 3. Phase 1B Payable / Payment Boundary
+
+phase 1B 在 Finance 内部只冻结最小 AP-compatible 边界：
+
+- `PayableSchedule` 是应付计划真相
+- `PaymentRequest` 是申请付款 / 付款治理入口
+- `PaymentExecution` 是财务实际付款动作
+- `AccountTransaction` 是真实资金流水
+- `PaymentAllocation` 是真实流水核销结果
+- supplier bill / invoice / statement 在 phase 1B 只作为 `PaymentRequest` evidence snapshot
+- `PurchaseOrderChange` 只能追加、取消或 supersede 未执行 schedule line，并保留稳定 `source_ref`
+- Procurement 只消费 Finance payment summary / `attachmentRef`，不拥有付款真相
+- Finance 不直接改 `PO` 状态，Procurement 不直接写付款状态
+
+## 4. Owner Boundary
 
 phase 1 contract 明确围绕以下 owner 边界展开：
 
@@ -92,8 +112,10 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 - `PayableSchedule`
 - `PayableScheduleLine`
 - `PaymentRequest`
+- `PaymentRequestLine`
 - `PaymentExecution`
 - `PaymentAllocation`
+- `SupplierBillEvidenceSnapshot`
 - `FinanceReleaseSignal`
 - `ExchangeRate`
 
@@ -105,17 +127,18 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 - `SupplierFinancialAccount` 表达供应商收款账号，不是 `SupplierProfile`。
 - `ReceivableSchedule` 表达客户应付款计划，不表达实际回款。
 - `PayableSchedule` 表达公司应付款计划，不表达实际付款。
-- `PaymentRequest` 表达付款申请，不等于银行已经扣款。
+- `PaymentRequest` 表达付款申请，不等于银行已经扣款，也不等于 payable truth。
 - `PaymentExecution` 表达财务执行付款动作的记录，不自动等价于银行回单已完成对账。
 - `AccountTransaction` 才是最终账户真实出入账。
 - `PaymentAllocation` 表达真实流水核销到应收 / 应付计划的结果。
+- `SupplierBillEvidenceSnapshot` 只表达付款申请证据快照，不升级为正式 AP lifecycle 对象。
 - `FinanceReleaseSignal` 是 Finance 对外发布的财务放行结果，不转移 `SalesOrder` gate owner。
 - `ExchangeRate` 是 Finance 拥有的标准汇率真相；Sales 只保存自己的 exchange rate snapshot。
 - 采购类支出在 phase 1 正常路径必须关联 `PR / PO`；`Non-PO purchase` 不是正常主线。
 - 员工垫付属于 future `ExpenseClaim`；phase 1 只保留边界，不冻结完整 workflow。
 - phase 2 预留 double-entry accounting core，但 phase 1 不冻结 `JournalEntry` contract。
 
-## 4. Does Not Own
+## 5. Does Not Own
 
 `finance-service` phase 1 contract 明确不承载以下真相：
 
@@ -128,10 +151,13 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 - 完整 double-entry accounting core
 - `ChartOfAccount / Journal / JournalEntry / JournalEntryLine`
 - `GL / voucher / statutory reporting / closing`
-- full supplier invoice lifecycle
+- full `SupplierInvoice` lifecycle
+- `SupplierStatement` reconciliation
+- full `AP matching`
 - bank API
 - automatic bank reconciliation
 - full `ExpenseClaim` workflow
+- credit / refund / offset formal lifecycle
 - order profitability
 - tax engine
 - treasury / cash forecast
@@ -142,9 +168,9 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 - Finance 不直接改写 `SalesOrder` gate，只提供 `FinanceReleaseSignal`。
 - Sales 仍然 owns `SalesOrderEstablished` 与 sales commercial snapshot。
 - Procurement 仍然 owns `PurchaseOrderIssued` 与采购交易事实。
-- `PayableSchedule / PaymentRequest / PaymentExecution / PaymentAllocation` 在 phase 1 只冻结最小付款闭环，不等于完整 `AP supplier invoice` 生命周期。
+- `PayableSchedule / PaymentRequest / PaymentExecution / PaymentAllocation` 在 phase 1B 只冻结最小付款闭环，不等于完整 AP 生命周期。
 
-## 5. Security / Context Baseline
+## 6. Security / Context Baseline
 
 所有 phase 1 RPC 统一遵循以下基线：
 
@@ -167,7 +193,7 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 - management command 必须按 command 语义使用，不得以 query 方式绕过写边界
 - phase 1 只冻结同步 `gRPC` contract 与 integration 语义，不冻结完整事件目录
 
-## 6. 同步 / 异步边界
+## 7. 同步 / 异步边界
 
 phase 1 固定采用以下协同规则：
 
@@ -191,21 +217,23 @@ future async collaboration 只保留为 contract 语义，不在本目录中冻�
 
 - `SalesOrderEstablished` 进入 Finance 应收上下文
 - `PurchaseOrderIssued` 进入 Finance 应付上下文
+- `PurchaseOrderChanged` 进入 Finance 应付计划调整上下文
 - `PaymentAllocated / ReceivablePaid` 摘要回流 Sales / Fulfillment
-- `PaymentRequestApproved / PaymentExecuted` 摘要回流 Procurement
+- `PaymentRequestApproved / PaymentExecuted / PayablePaid` 摘要回流 Procurement
 
 说明：
 
 - 本目录只冻结 integration input/output 语义，不冻结 broker、topic、outbox 或 payload 全量字段
 - `FinanceReleaseSignal` 在 phase 1 以同步读取与受控写入为主；是否追加异步广播属于 future integration catalog
 
-## 7. Accounting Compatibility Boundary
+## 8. Accounting Compatibility Boundary
 
 phase 1 对象必须被视为 future accounting core 的 posting source candidate，而不是提前伪装成会计分录：
 
 - `AccountTransaction`
 - `ReceivableSchedule`
 - `PayableSchedule`
+- `PaymentRequest`
 - `PaymentExecution`
 - `PaymentAllocation`
 - `ExchangeRate`
@@ -215,23 +243,26 @@ phase 1 对象必须被视为 future accounting core 的 posting source candidat
 - 这些对象表达经营财务事实，不表达 `JournalEntry`
 - realization 线程可以为 future posting source 预留引用位，但不得在 phase 1 contract 中偷带 `double-entry` 语义
 
-## 8. Deferred
+## 9. Deferred
 
 以下能力明确 deferred，不得写成 phase 1 已承诺 contract：
 
 - full double-entry accounting
 - `ChartOfAccount / Journal / JournalEntry / JournalEntryLine` implementation
 - `GL / voucher / statutory reporting / closing`
-- full `AP supplier invoice` lifecycle
+- full `SupplierInvoice` lifecycle
+- `SupplierStatement` reconciliation
+- full `AP matching`
 - bank API
 - automatic bank reconciliation
 - full `ExpenseClaim` workflow
+- credit / refund / offset formal lifecycle
 - order profitability
 - tax engine
 - treasury / cash forecast
 - `costing-service`
 
-## 9. 关联真相源
+## 10. 关联真相源
 
 本目录以上游稳定文档为准：
 

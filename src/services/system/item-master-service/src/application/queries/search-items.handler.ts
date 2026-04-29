@@ -2,7 +2,8 @@ import { Inject, Injectable } from '@nestjs/common'
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { TOKENS } from '../../common/constants/tokens'
-import { ITEM_MASTER_INVALID_ARGUMENT } from '../../common/errors/item-master.errors'
+import { ITEM_MASTER_INVALID_ARGUMENT, ITEM_MASTER_NOT_FOUND } from '../../common/errors/item-master.errors'
+import { ItemCategoryRepository } from '../../domain/repositories/item-category.repository'
 import { ItemRepository, SearchItemsResult } from '../../domain/repositories/item.repository'
 import { ItemNatureType, ItemStatus, ItemStructureType } from '../../domain/value-objects/item.value-objects'
 import { SearchItemsQuery } from './search-items.query'
@@ -12,6 +13,8 @@ import { SearchItemsQuery } from './search-items.query'
 @QueryHandler(SearchItemsQuery)
 export class SearchItemsHandler implements IQueryHandler<SearchItemsQuery, SearchItemsResult> {
   constructor(
+    @Inject(TOKENS.ITEM_CATEGORY_REPOSITORY)
+    private readonly itemCategoryRepository: ItemCategoryRepository,
     @Inject(TOKENS.ITEM_REPOSITORY)
     private readonly itemRepository: ItemRepository
   ) {}
@@ -27,6 +30,29 @@ export class SearchItemsHandler implements IQueryHandler<SearchItemsQuery, Searc
       })
     }
 
+    const categoryId = query.categoryId?.trim() || undefined
+
+    if (query.includeDescendants && !categoryId) {
+      throw ExceptionFactory.application(ITEM_MASTER_INVALID_ARGUMENT, {
+        reason: 'include_descendants requires category_id'
+      })
+    }
+
+    let categoryIds: string[] | undefined
+    if (categoryId) {
+      const category = await this.itemCategoryRepository.findById(query.tenantId, categoryId)
+      if (!category) {
+        throw ExceptionFactory.domain(ITEM_MASTER_NOT_FOUND, {
+          categoryId
+        })
+      }
+
+      categoryIds = [category.id]
+      if (query.includeDescendants) {
+        categoryIds.push(...(await this.itemCategoryRepository.listDescendantIds(query.tenantId, category.id)))
+      }
+    }
+
     return this.itemRepository.search({
       tenantId: query.tenantId,
       keyword: query.keyword?.trim() || undefined,
@@ -34,6 +60,9 @@ export class SearchItemsHandler implements IQueryHandler<SearchItemsQuery, Searc
       natureType: toDomainNatureType(query.natureType),
       capabilityFilters: query.capabilityFilters,
       status: toDomainStatus(query.status),
+      categoryId,
+      includeDescendants: query.includeDescendants,
+      categoryIds,
       page,
       pageSize
     })

@@ -42,18 +42,22 @@ phase 1 `PurchaseRequest` 最小读取 shape：
 | `tenant_id` | 显式租户边界 |
 | `org_id` | optional 组织边界摘要 |
 | `request_type` | `DEPARTMENTAL / SALES_DEDICATED / PRODUCTION_PACKAGING / MAINTENANCE / SAMPLE` |
-| `status` | `DRAFT / SUBMITTED / APPROVED / REJECTED / CANCELLED` |
+| `status` | `DRAFT / SUBMITTED / APPROVED / PARTIALLY_CONVERTED / CONVERTED / REJECTED / CANCELLED` |
 | `requester` | 申请人摘要 |
 | `title` | optional 采购主题摘要 |
 | `reason` | optional 申请原因摘要 |
 | `approval_snapshot` | 当前审批结论快照；未决策时为空 |
 | `lines[]` | `PurchaseRequestLine` 列表 |
+| `linked_purchase_orders[]` | 该 PR 当前已并入的 `PO` 摘要 |
+| `next_expected_receipt_date` | optional 当前最近预计到货日摘要 |
+| `receiving_status_summary` | optional 当前到货状态摘要 |
 | `created_at` | 创建时间 |
 | `updated_at` | 最近更新时间 |
 
 说明：
 
 - `PurchaseRequest` 表达采购需求，不表达采购承诺
+- `PARTIALLY_CONVERTED / CONVERTED` 表达源 `PR` 被并入 `PO` 后的保留状态，而不是创建新 `PR`
 - phase 1 不在 query shape 中展开完整 workflow history
 - `approval_snapshot` 只表达冻结结论与审计引用，不代表完整审批引擎
 
@@ -99,6 +103,8 @@ phase 1 `PurchaseRequestLine` 最小读取 shape：
 | `requested_quantity` | 需求数量 |
 | `uom` | 计量单位摘要 |
 | `needed_by_date` | optional 期望到货日期 |
+| `conversion_status` | `NOT_CONVERTED / PARTIALLY_CONVERTED / CONVERTED` |
+| `linked_purchase_order_lines[]` | 该 PR line 当前关联的 `PO line` 摘要 |
 | `demand_reference_type` | optional 归因类型摘要 |
 | `demand_reference_id` | optional 归因对象标识 |
 
@@ -106,9 +112,23 @@ phase 1 `PurchaseRequestLine` 最小读取 shape：
 
 - `STANDARD_ITEM` 行必须指向可采购 Item
 - `TEXT` 行用于非标准 / 文本型采购需求，不强制要求先存在 Item 主数据
+- `linked_purchase_order_lines[]` 用于让 PR 发起人看到该行已经并入哪个 `PO`、预计何时到货、当前收货状态
 - phase 1 不在该读取模型中扩展预算控制、复杂分摊或成本中心矩阵
 
-### 2.5 `PurchaseRequestSummary`
+### 2.5 `PurchaseRequestPurchaseOrderLink`
+
+phase 1 `PR` / `PR line` 回显的最小 `PO` 链接摘要：
+
+| 字段 | 说明 |
+| --- | --- |
+| `purchase_order_id` | 关联 `PO` 标识 |
+| `order_no` | 关联 `PO` 编号摘要 |
+| `purchase_order_line_id` | optional 关联 `PO line` 标识 |
+| `allocated_quantity` | optional 当前分配到该 `PO line` 的数量摘要 |
+| `expected_receipt_date` | optional 当前预计到货日期摘要 |
+| `receiving_status_summary` | optional 当前到货状态摘要 |
+
+### 2.6 `PurchaseRequestSummary`
 
 phase 1 列表读取最小 shape：
 
@@ -120,6 +140,9 @@ phase 1 列表读取最小 shape：
 | `status` | 当前状态 |
 | `requester_display_name` | 发起人摘要 |
 | `line_count` | 行数摘要 |
+| `linked_purchase_orders[]` | optional 已并入 `PO` 的摘要列表 |
+| `next_expected_receipt_date` | optional 当前最近预计到货日摘要 |
+| `receiving_status_summary` | optional 当前到货状态摘要 |
 | `created_at` | 创建时间 |
 | `submitted_at` | optional 提交时间 |
 | `decided_at` | optional 决策时间 |
@@ -163,6 +186,7 @@ phase 1 列表读取最小 shape：
 | `status` | 否 | 按状态过滤 |
 | `requester_operator_id` | 否 | 按申请人过滤 |
 | `item_id` | 否 | 按标准 Item 行过滤 |
+| `purchase_order_id` | 否 | 按已并入的 `PO` 过滤 |
 | `needed_by_date_from` | 否 | 期望到货起始日 |
 | `needed_by_date_to` | 否 | 期望到货截止日 |
 | `page` | 否 | 1-based 页码 |

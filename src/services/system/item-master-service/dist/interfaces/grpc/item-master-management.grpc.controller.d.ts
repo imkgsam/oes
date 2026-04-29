@@ -1,5 +1,5 @@
 import { ValidatingCommandBus } from '@oes/common/cqrs';
-import { ChangeItemStatusRequest, ChangeItemStatusResponse, CreateItemRequest, CreateItemResponse, ItemMasterManagementServiceController, SetItemCapabilitiesRequest, SetItemCapabilitiesResponse, SetItemCompositionRequest, SetItemCompositionResponse, UpdateItemBasicsRequest, UpdateItemBasicsResponse, UpsertSupplierItemMappingRequest, UpsertSupplierItemMappingResponse } from '@oes/common/generated/item_master_service';
+import { ChangeItemCategoryStatusRequest, ChangeItemCategoryStatusResponse, ChangeItemStatusRequest, ChangeItemStatusResponse, CreateItemCategoryRequest, CreateItemCategoryResponse, CreateItemRequest, CreateItemResponse, ItemMasterManagementServiceController, SetItemCapabilitiesRequest, SetItemCapabilitiesResponse, SetItemCompositionRequest, SetItemCompositionResponse, SetItemPrimaryCategoryRequest, SetItemPrimaryCategoryResponse, UpdateItemCategoryBasicsRequest, UpdateItemCategoryBasicsResponse, UpdateItemBasicsRequest, UpdateItemBasicsResponse, UpsertSupplierItemMappingRequest, UpsertSupplierItemMappingResponse } from '@oes/common/generated/item_master_service';
 import { ItemMasterAuditService } from '../../application/services/item-master-audit.service';
 /** ItemMasterManagementGrpcController exposes the phase 1 command gRPC contract with local audit recording. */
 export declare class ItemMasterManagementGrpcController implements ItemMasterManagementServiceController {
@@ -12,4 +12,8 @@ export declare class ItemMasterManagementGrpcController implements ItemMasterMan
     setItemComposition(request: SetItemCompositionRequest): Promise<SetItemCompositionResponse>;
     upsertSupplierItemMapping(request: UpsertSupplierItemMappingRequest): Promise<UpsertSupplierItemMappingResponse>;
     changeItemStatus(request: ChangeItemStatusRequest): Promise<ChangeItemStatusResponse>;
+    createItemCategory(request: CreateItemCategoryRequest): Promise<CreateItemCategoryResponse>;
+    updateItemCategoryBasics(request: UpdateItemCategoryBasicsRequest): Promise<UpdateItemCategoryBasicsResponse>;
+    changeItemCategoryStatus(request: ChangeItemCategoryStatusRequest): Promise<ChangeItemCategoryStatusResponse>;
+    setItemPrimaryCategory(request: SetItemPrimaryCategoryRequest): Promise<SetItemPrimaryCategoryResponse>;
 }

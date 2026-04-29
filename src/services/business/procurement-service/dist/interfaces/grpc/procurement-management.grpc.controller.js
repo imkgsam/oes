@@ -188,18 +188,31 @@ let ProcurementManagementGrpcController = class ProcurementManagementGrpcControl
             auditContext: context.auditContext,
             commandName: 'ConvertPurchaseRequestToPurchaseOrder',
             resourceType: 'purchase_order',
-            targetId: request.purchaseRequestId ?? null,
+            targetId: request.targetPurchaseOrderId ?? request.sourceLines?.[0]?.purchaseRequestId ?? null,
             requestSummary: {
-                purchaseRequestId: request.purchaseRequestId ?? '',
+                purchaseRequestId: request.sourceLines?.[0]?.purchaseRequestId ?? '',
                 supplierId: request.supplierId ?? '',
-                lineCount: request.selectedLines?.length ?? 0
+                lineCount: request.sourceLines?.length ?? 0
             }
         }, async () => procurement_grpc_presenter_1.ProcurementGrpcPresenter.toConvertPurchaseRequestToPurchaseOrderResponse(await this.commandBus.execute(new convert_purchase_request_to_purchase_order_command_1.ConvertPurchaseRequestToPurchaseOrderCommand({
             tenantId: request.tenantId ?? '',
-            purchaseRequestId: request.purchaseRequestId ?? '',
-            supplierId: request.supplierId ?? '',
-            currencyCode: request.currencyCode ?? '',
-            selectedLines: (request.selectedLines ?? []).map((line) => ({
+            targetPurchaseOrderId: request.targetPurchaseOrderId ?? undefined,
+            supplierId: request.supplierId ?? undefined,
+            currencyCode: request.currencyCode ?? undefined,
+            paymentTermsSnapshot: request.paymentTermsSnapshot
+                ? {
+                    paymentTermsCode: request.paymentTermsSnapshot.paymentTermsCode ?? undefined,
+                    paymentTermsText: request.paymentTermsSnapshot.paymentTermsText ?? undefined
+                }
+                : undefined,
+            supplierCommercialTermsSnapshot: request.supplierCommercialTermsSnapshot
+                ? {
+                    incotermCode: request.supplierCommercialTermsSnapshot.incotermCode ?? undefined,
+                    commercialTermsText: request.supplierCommercialTermsSnapshot.commercialTermsText ?? undefined
+                }
+                : undefined,
+            sourceLines: (request.sourceLines ?? []).map((line) => ({
+                purchaseRequestId: line.purchaseRequestId ?? '',
                 purchaseRequestLineId: line.purchaseRequestLineId ?? '',
                 purchaseOrderQuantity: line.purchaseOrderQuantity ?? '',
                 orderedUnitPrice: line.orderedUnitPrice ?? undefined,
@@ -226,6 +239,18 @@ let ProcurementManagementGrpcController = class ProcurementManagementGrpcControl
             orgId: request.orgId ?? undefined,
             supplierId: request.supplierId ?? '',
             currencyCode: request.currencyCode ?? '',
+            paymentTermsSnapshot: request.paymentTermsSnapshot
+                ? {
+                    paymentTermsCode: request.paymentTermsSnapshot.paymentTermsCode ?? undefined,
+                    paymentTermsText: request.paymentTermsSnapshot.paymentTermsText ?? undefined
+                }
+                : undefined,
+            supplierCommercialTermsSnapshot: request.supplierCommercialTermsSnapshot
+                ? {
+                    incotermCode: request.supplierCommercialTermsSnapshot.incotermCode ?? undefined,
+                    commercialTermsText: request.supplierCommercialTermsSnapshot.commercialTermsText ?? undefined
+                }
+                : undefined,
             sourcePurchaseRequestIds: request.sourcePurchaseRequestIds ?? [],
             lines: (request.lines ?? []).map((line) => this.toPurchaseOrderLineInput(line))
         })))));
@@ -249,6 +274,18 @@ let ProcurementManagementGrpcController = class ProcurementManagementGrpcControl
             purchaseOrderId: request.purchaseOrderId ?? '',
             supplierId: request.supplierId ?? '',
             currencyCode: request.currencyCode ?? '',
+            paymentTermsSnapshot: request.paymentTermsSnapshot
+                ? {
+                    paymentTermsCode: request.paymentTermsSnapshot.paymentTermsCode ?? undefined,
+                    paymentTermsText: request.paymentTermsSnapshot.paymentTermsText ?? undefined
+                }
+                : undefined,
+            supplierCommercialTermsSnapshot: request.supplierCommercialTermsSnapshot
+                ? {
+                    incotermCode: request.supplierCommercialTermsSnapshot.incotermCode ?? undefined,
+                    commercialTermsText: request.supplierCommercialTermsSnapshot.commercialTermsText ?? undefined
+                }
+                : undefined,
             sourcePurchaseRequestIds: request.sourcePurchaseRequestIds ?? [],
             lines: (request.lines ?? []).map((line) => this.toPurchaseOrderLineInput(line))
         })))));
@@ -367,6 +404,10 @@ let ProcurementManagementGrpcController = class ProcurementManagementGrpcControl
             tenantId: request.tenantId ?? '',
             purchaseOrderId: request.purchaseOrderId ?? '',
             purchaseOrderLineId: request.purchaseOrderLineId ?? '',
+            allocationGroupingKey: request.allocationGroupingKey ?? '',
+            sourceAllocationIds: request.sourceAllocationIds ?? [],
+            targetWarehouseId: request.targetWarehouseId ?? undefined,
+            targetReceivingAddressId: request.targetReceivingAddressId ?? undefined,
             expectedQuantity: request.expectedQuantity ?? '',
             expectedReceiptDate: request.expectedReceiptDate ?? undefined
         })))));
@@ -390,7 +431,11 @@ let ProcurementManagementGrpcController = class ProcurementManagementGrpcControl
             receivingExpectationId: request.receivingExpectationId ?? '',
             receivingDiscrepancyId: request.receivingDiscrepancyId ?? '',
             resolutionCode: toDomainReceivingResolutionCode(request.resolutionCode),
-            resolutionNote: request.resolutionNote ?? undefined
+            resolutionNote: request.resolutionNote ?? undefined,
+            resolutionReferences: (request.resolutionReferences ?? []).map((reference) => ({
+                referenceType: reference.referenceType ?? '',
+                referenceId: reference.referenceId ?? ''
+            }))
         })))));
     }
     toPurchaseOrderLineInput(line) {
@@ -406,9 +451,11 @@ let ProcurementManagementGrpcController = class ProcurementManagementGrpcControl
             generalStockExcessReason: line.generalStockExcessReason ?? undefined,
             allocations: (line.allocations ?? []).map((allocation) => ({
                 allocationType: toDomainPurchaseOrderAllocationType(allocation.allocationType),
-                referenceId: allocation.referenceId ?? undefined,
+                sourceReferenceId: allocation.sourceReferenceId ?? undefined,
                 quantity: allocation.quantity ?? '',
-                reason: allocation.reason ?? undefined
+                reason: allocation.reason ?? undefined,
+                targetWarehouseId: allocation.targetWarehouseId ?? undefined,
+                targetReceivingAddressId: allocation.targetReceivingAddressId ?? undefined
             }))
         };
     }
@@ -453,21 +500,46 @@ function toDomainPurchaseRequestDecision(value) {
 }
 function toDomainPurchaseOrderAllocationType(value) {
     if (value === 1) {
-        return procurement_records_1.PurchaseOrderLineAllocationType.SALES_ORDER_LINE;
+        return procurement_records_1.PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE;
     }
     if (value === 2) {
+        return procurement_records_1.PurchaseOrderLineAllocationType.SALES_ORDER_LINE;
+    }
+    if (value === 3) {
         return procurement_records_1.PurchaseOrderLineAllocationType.FULFILLMENT_DEMAND;
     }
     return procurement_records_1.PurchaseOrderLineAllocationType.GENERAL_STOCK;
 }
 function toDomainReceivingResolutionCode(value) {
     switch (value) {
-        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_SHORT_CLOSE:
-            return procurement_records_1.ReceivingResolutionCode.ACCEPT_SHORT_CLOSE;
-        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RETURN_OR_REJECT_EXCESS:
-            return procurement_records_1.ReceivingResolutionCode.RETURN_OR_REJECT_EXCESS;
-        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_MANUAL_FOLLOW_UP:
-            return procurement_records_1.ReceivingResolutionCode.MANUAL_FOLLOW_UP;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_CLOSE_UNRECEIVED:
+            return procurement_records_1.ReceivingResolutionCode.CLOSE_UNRECEIVED;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REQUEST_RESEND:
+            return procurement_records_1.ReceivingResolutionCode.REQUEST_RESEND;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_PO_CHANGE:
+            return procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_PO_CHANGE;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_EXCESS:
+            return procurement_records_1.ReceivingResolutionCode.REJECT_EXCESS;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_TEMP_HOLD:
+            return procurement_records_1.ReceivingResolutionCode.TEMP_HOLD;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_DAMAGED:
+            return procurement_records_1.ReceivingResolutionCode.REJECT_DAMAGED;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RECEIVE_WITH_RESTRICTION:
+            return procurement_records_1.ReceivingResolutionCode.RECEIVE_WITH_RESTRICTION;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_CLAIM:
+            return procurement_records_1.ReceivingResolutionCode.CLAIM;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_WRONG_ITEM:
+            return procurement_records_1.ReceivingResolutionCode.REJECT_WRONG_ITEM;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_TEMP_RECEIVE_PENDING_DECISION:
+            return procurement_records_1.ReceivingResolutionCode.TEMP_RECEIVE_PENDING_DECISION;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_CONTROLLED_CHANGE:
+            return procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_CONTROLLED_CHANGE;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_WAIT_INSPECTION:
+            return procurement_records_1.ReceivingResolutionCode.WAIT_INSPECTION;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_ALLOWANCE:
+            return procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_ALLOWANCE;
+        case procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RETURN_TO_SUPPLIER:
+            return procurement_records_1.ReceivingResolutionCode.RETURN_TO_SUPPLIER;
         default:
             return procurement_records_1.ReceivingResolutionCode.WAIT_REDELIVERY;
     }

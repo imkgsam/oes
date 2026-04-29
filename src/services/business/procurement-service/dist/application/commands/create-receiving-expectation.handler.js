@@ -31,10 +31,18 @@ let CreateReceivingExpectationHandler = class CreateReceivingExpectationHandler 
         (0, procurement_assertions_1.assertRequiredString)(command.payload.tenantId, 'tenantId');
         (0, procurement_assertions_1.assertRequiredString)(command.payload.purchaseOrderId, 'purchaseOrderId');
         (0, procurement_assertions_1.assertRequiredString)(command.payload.purchaseOrderLineId, 'purchaseOrderLineId');
+        (0, procurement_assertions_1.assertRequiredString)(command.payload.allocationGroupingKey, 'allocationGroupingKey');
+        (0, procurement_assertions_1.assertPrecondition)(command.payload.sourceAllocationIds.length > 0, 'source allocation ids are required');
         const purchaseOrder = (0, procurement_assertions_1.assertExists)(await this.purchaseOrderRepository.findById(command.payload.tenantId, command.payload.purchaseOrderId), 'purchase_order', command.payload.purchaseOrderId);
         (0, procurement_assertions_1.assertPrecondition)(purchaseOrder.status === procurement_records_1.PurchaseOrderStatus.ISSUED || purchaseOrder.status === procurement_records_1.PurchaseOrderStatus.ACKNOWLEDGED, 'receiving expectation can only be created from an issued purchase order');
         const purchaseOrderLine = (0, procurement_assertions_1.assertExists)(purchaseOrder.lines.find((line) => line.purchaseOrderLineId === command.payload.purchaseOrderLineId) ?? null, 'purchase_order_line', command.payload.purchaseOrderLineId);
-        (0, procurement_assertions_1.assertPrecondition)(!(await this.receivingRepository.findByPurchaseOrderLineId(command.payload.tenantId, command.payload.purchaseOrderLineId)), 'receiving expectation already exists for purchase order line');
+        const sourceAllocationIds = new Set(command.payload.sourceAllocationIds.map((value) => value.trim()));
+        (0, procurement_assertions_1.assertPrecondition)(purchaseOrderLine.allocations.some((allocation) => sourceAllocationIds.has(allocation.purchaseOrderLineAllocationId)), 'source allocations must belong to the purchase order line');
+        const existingExpectations = await this.receivingRepository.listByPurchaseOrderLineId(command.payload.tenantId, command.payload.purchaseOrderLineId);
+        (0, procurement_assertions_1.assertPrecondition)(!existingExpectations.some((expectation) => expectation.allocationGroupingKey === command.payload.allocationGroupingKey.trim() &&
+            expectation.targetWarehouseId === ((0, procurement_assertions_1.normalizeOptionalString)(command.payload.targetWarehouseId) ?? null) &&
+            expectation.targetReceivingAddressId ===
+                ((0, procurement_assertions_1.normalizeOptionalString)(command.payload.targetReceivingAddressId) ?? null)), 'receiving expectation already exists for this allocation grouping');
         const createdAt = (0, procurement_write_support_1.nowIso)();
         return this.receivingRepository.save({
             receivingExpectationId: (0, node_crypto_1.randomUUID)(),
@@ -43,6 +51,10 @@ let CreateReceivingExpectationHandler = class CreateReceivingExpectationHandler 
             purchaseOrderId: purchaseOrder.purchaseOrderId,
             purchaseOrderLineId: purchaseOrderLine.purchaseOrderLineId,
             supplierId: purchaseOrder.supplierId,
+            allocationGroupingKey: command.payload.allocationGroupingKey.trim(),
+            sourceAllocationIds: [...sourceAllocationIds],
+            targetWarehouseId: (0, procurement_assertions_1.normalizeOptionalString)(command.payload.targetWarehouseId) ?? null,
+            targetReceivingAddressId: (0, procurement_assertions_1.normalizeOptionalString)(command.payload.targetReceivingAddressId) ?? null,
             expectedQuantity: (0, procurement_assertions_1.assertPositiveQuantity)(command.payload.expectedQuantity, 'expectedQuantity'),
             receivedQuantitySummary: '0',
             openQuantity: (0, procurement_assertions_1.assertPositiveQuantity)(command.payload.expectedQuantity, 'expectedQuantity'),

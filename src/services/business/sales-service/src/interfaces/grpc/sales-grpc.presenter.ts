@@ -3,13 +3,17 @@ import {
   CommercialGateSummary,
   ConvertQuoteVersionToOrderResponse,
   CreateQuoteResponse,
+  ExceptionPlaceholder as ProtoExceptionPlaceholder,
+  ExchangeRateSnapshot as ProtoExchangeRateSnapshot,
   FulfillmentHandoffStatusCode,
   FulfillmentHandoffSummary,
   GetQuoteResponse,
   GetQuoteVersionResponse,
   GetSalesOrderResponse,
   ListQuoteVersionsResponse,
+  MoqSnapshot as ProtoMoqSnapshot,
   PackagingRequirementSnapshot as ProtoPackagingRequirementSnapshot,
+  PriceSnapshot as ProtoPriceSnapshot,
   PriceQuantityDeliverySnapshot as ProtoPriceQuantityDeliverySnapshot,
   PublishQuoteResponse,
   Quote,
@@ -38,6 +42,12 @@ import {
   SalesOrderRecord,
   SalesQuoteStatus
 } from '../../domain/models/sales-records'
+import {
+  ExceptionPlaceholder,
+  ExchangeRateSnapshot,
+  MoqSnapshot,
+  PriceSnapshot
+} from '../../domain/models/pricing-records'
 import { ListQuoteVersionsResult } from '../../application/queries/list-quote-versions.handler'
 import { PublishQuoteResult } from '../../application/commands/publish-quote.handler'
 import { SearchQuotesResult } from '../../application/queries/search-quotes.handler'
@@ -247,7 +257,15 @@ export class SalesGrpcPresenter {
       unitPrice: snapshot.unitPrice,
       quantity: snapshot.quantity,
       deliveryTerm: snapshot.deliveryTerm,
-      requestedDeliveryDate: snapshot.requestedDeliveryDate
+      requestedDeliveryDate: snapshot.requestedDeliveryDate,
+      priceSnapshot: snapshot.priceSnapshot ? this.toPriceSnapshot(snapshot.priceSnapshot) : undefined,
+      moqSnapshot: snapshot.moqSnapshot ? this.toMoqSnapshot(snapshot.moqSnapshot) : undefined,
+      exchangeRateSnapshot: snapshot.exchangeRateSnapshot
+        ? this.toExchangeRateSnapshot(snapshot.exchangeRateSnapshot)
+        : undefined,
+      exceptionPlaceholders: (snapshot.exceptionPlaceholders ?? []).map((item) =>
+        this.toExceptionPlaceholder(item)
+      )
     }
   }
 
@@ -257,6 +275,58 @@ export class SalesGrpcPresenter {
       customerSku: snapshot.customerSku,
       customerModel: snapshot.customerModel,
       customerDisplayName: snapshot.customerDisplayName
+    }
+  }
+
+  /** toPriceSnapshot renders one resolved pricing baseline snapshot. */
+  private static toPriceSnapshot(snapshot: PriceSnapshot): ProtoPriceSnapshot {
+    return {
+      currencyCode: snapshot.currencyCode,
+      unitPriceAmount: snapshot.unitPriceAmount,
+      sourceType: snapshot.sourceType === 'PRICE_LIST' ? 2 : snapshot.sourceType === 'MANUAL' ? 3 : 1,
+      sourceRefId: snapshot.sourceRefId,
+      sourceLineRefId: snapshot.sourceLineRefId,
+      sourceVersionNo: snapshot.sourceVersionNo,
+      resolvedAt: snapshot.resolvedAt
+    }
+  }
+
+  /** toMoqSnapshot renders one resolved MOQ baseline snapshot. */
+  private static toMoqSnapshot(snapshot: MoqSnapshot): ProtoMoqSnapshot {
+    return {
+      moqQuantity: snapshot.moqQuantity,
+      quantityUomCode: snapshot.quantityUomCode,
+      sourceType: snapshot.sourceType === 'PRICE_LIST' ? 2 : 1,
+      sourceRefId: snapshot.sourceRefId,
+      sourceLineRefId: snapshot.sourceLineRefId,
+      sourceVersionNo: snapshot.sourceVersionNo,
+      resolvedAt: snapshot.resolvedAt
+    }
+  }
+
+  /** toExchangeRateSnapshot renders one finance-owned FX snapshot as frozen on the sales side. */
+  private static toExchangeRateSnapshot(snapshot: ExchangeRateSnapshot): ProtoExchangeRateSnapshot {
+    return {
+      fromCurrencyCode: snapshot.fromCurrencyCode,
+      toCurrencyCode: snapshot.toCurrencyCode,
+      exchangeRateValue: snapshot.exchangeRateValue,
+      financeRateRef: snapshot.financeRateRef ?? '',
+      effectiveAt: snapshot.effectiveAt,
+      snapshottedAt: snapshot.snapshottedAt
+    }
+  }
+
+  /** toExceptionPlaceholder renders a pricing exception placeholder without implying workflow implementation. */
+  private static toExceptionPlaceholder(snapshot: ExceptionPlaceholder): ProtoExceptionPlaceholder {
+    return {
+      exceptionType: snapshot.exceptionType === 'LOW_MOQ' ? 2 : 1,
+      status: snapshot.status === 'REQUIRED' ? 2 : 1,
+      baselineSourceType: snapshot.baselineSourceType === 'PRICE_LIST' ? 2 : 1,
+      baselineValue: snapshot.baselineValue,
+      actualValue: snapshot.actualValue,
+      currencyCode: snapshot.currencyCode ?? '',
+      quantityUomCode: snapshot.quantityUomCode ?? '',
+      detectedAt: snapshot.detectedAt
     }
   }
 

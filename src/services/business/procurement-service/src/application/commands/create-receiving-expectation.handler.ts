@@ -26,6 +26,8 @@ export class CreateReceivingExpectationHandler
     assertRequiredString(command.payload.tenantId, 'tenantId')
     assertRequiredString(command.payload.purchaseOrderId, 'purchaseOrderId')
     assertRequiredString(command.payload.purchaseOrderLineId, 'purchaseOrderLineId')
+    assertRequiredString(command.payload.allocationGroupingKey, 'allocationGroupingKey')
+    assertPrecondition(command.payload.sourceAllocationIds.length > 0, 'source allocation ids are required')
 
     const purchaseOrder = assertExists(
       await this.purchaseOrderRepository.findById(command.payload.tenantId, command.payload.purchaseOrderId),
@@ -41,12 +43,26 @@ export class CreateReceivingExpectationHandler
       'purchase_order_line',
       command.payload.purchaseOrderLineId
     )
+    const sourceAllocationIds = new Set(command.payload.sourceAllocationIds.map((value) => value.trim()))
     assertPrecondition(
-      !(await this.receivingRepository.findByPurchaseOrderLineId(
-        command.payload.tenantId,
-        command.payload.purchaseOrderLineId
-      )),
-      'receiving expectation already exists for purchase order line'
+      purchaseOrderLine.allocations.some((allocation) =>
+        sourceAllocationIds.has(allocation.purchaseOrderLineAllocationId)
+      ),
+      'source allocations must belong to the purchase order line'
+    )
+    const existingExpectations = await this.receivingRepository.listByPurchaseOrderLineId(
+      command.payload.tenantId,
+      command.payload.purchaseOrderLineId
+    )
+    assertPrecondition(
+      !existingExpectations.some(
+        (expectation) =>
+          expectation.allocationGroupingKey === command.payload.allocationGroupingKey.trim() &&
+          expectation.targetWarehouseId === (normalizeOptionalString(command.payload.targetWarehouseId) ?? null) &&
+          expectation.targetReceivingAddressId ===
+            (normalizeOptionalString(command.payload.targetReceivingAddressId) ?? null)
+      ),
+      'receiving expectation already exists for this allocation grouping'
     )
 
     const createdAt = nowIso()
@@ -57,6 +73,11 @@ export class CreateReceivingExpectationHandler
       purchaseOrderId: purchaseOrder.purchaseOrderId,
       purchaseOrderLineId: purchaseOrderLine.purchaseOrderLineId,
       supplierId: purchaseOrder.supplierId,
+      allocationGroupingKey: command.payload.allocationGroupingKey.trim(),
+      sourceAllocationIds: [...sourceAllocationIds],
+      targetWarehouseId: normalizeOptionalString(command.payload.targetWarehouseId) ?? null,
+      targetReceivingAddressId:
+        normalizeOptionalString(command.payload.targetReceivingAddressId) ?? null,
       expectedQuantity: assertPositiveQuantity(command.payload.expectedQuantity, 'expectedQuantity'),
       receivedQuantitySummary: '0',
       openQuantity: assertPositiveQuantity(command.payload.expectedQuantity, 'expectedQuantity'),

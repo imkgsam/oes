@@ -11,6 +11,8 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const logging_1 = require("@oes/common/logging");
 const registry_1 = require("@oes/common/registry");
+const pricing_management_module_1 = require("./modules/pricing-management.module");
+const pricing_query_module_1 = require("./modules/pricing-query.module");
 const sales_infrastructure_module_1 = require("./modules/sales-infrastructure.module");
 const sales_management_module_1 = require("./modules/sales-management.module");
 const sales_query_module_1 = require("./modules/sales-query.module");
@@ -29,7 +31,9 @@ exports.AppModule = AppModule = __decorate([
             registry_1.RegistryModule,
             sales_infrastructure_module_1.SalesInfrastructureModule,
             sales_query_module_1.SalesQueryModule,
-            sales_management_module_1.SalesManagementModule
+            sales_management_module_1.SalesManagementModule,
+            pricing_query_module_1.PricingQueryModule,
+            pricing_management_module_1.PricingManagementModule
         ]
     })
 ], AppModule);

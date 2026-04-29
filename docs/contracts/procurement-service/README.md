@@ -86,6 +86,10 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 
 - `PurchaseRequest` 是采购需求，不是采购承诺。
 - `PurchaseOrder` 是正式采购承诺。
+- `PR` 合并生成 `PO` 时：
+  - 不创建新的 `PR`
+  - 不删除旧的 `PR / PR line`
+  - 源 `PR` 保留并进入 `PARTIALLY_CONVERTED / CONVERTED`
 - `PurchaseRequestLine` 必须支持：
   - 标准 `Item`
   - 非标准 / 文本型采购需求
@@ -99,13 +103,21 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 - 标准 `Item` 转 `PO` 时必须校验目标供应商存在 `ACTIVE SupplierOffering`。
 - 日常非标准采购可不强制依赖 `ACTIVE SupplierOffering`，但 `PO` 必须保留 supplier snapshot。
 - `PurchaseOrderLineAllocation` 必须支持同一行同时表达：
-  - dedicated to `SalesOrderLine`
-  - dedicated to `FulfillmentDemand`
+  - source = `PURCHASE_REQUEST_LINE`
+  - source = `SALES_ORDER_LINE`
+  - source = `FULFILLMENT_DEMAND`
   - general stock
+- `PurchaseOrderLineAllocation` 必须允许携带目标仓 / 收货地址，用于后续 `ReceivingExpectation` grouping。
 - `PO line quantity` 可以大于源 `PR demand quantity`，但超出部分必须标记为 `general stock`，并记录 reason。
+- `PurchaseOrder` header 可保存 `payment_terms_snapshot` 与 supplier commercial terms snapshot，但它们只是本次采购快照，不反向成为 `SRM` 长期商业主档。
+- `PurchaseOrder` query 可展示来自 `finance-service` 的 payment summary 与 attachment refs；Procurement 只消费摘要和引用，不拥有付款真相或付款凭证文件。
 - `ReceivingExpectation` 是采购侧预期收货，不是 `WMS receipt` truth。
+- 当同一 `PO line` 的 allocation 指向不同目标仓 / 收货地址 / allocation grouping 时，必须拆分成多个 `ReceivingExpectation`。
 - `WMS receipt` 才是实际收货真相。
 - `ReceivingDiscrepancy` 是采购侧差异摘要与处理入口，不是库存调整真相。
+- `ReceivingDiscrepancy resolution` 只记录采购侧处置选择与引用，不直接修改库存真相。
+- 关闭剩余未收数量必须通过 `PurchaseOrderChange` 留痕，而不是在 discrepancy resolution 中隐式完成。
+- phase 1 的 return / claim 只保留 resolution 类型与引用，不实现完整 `SupplierReturn / claim workflow`。
 - `PurchaseOrderChange` 在 phase 1 只要求轻量 `APPLIED` 变更记录。
 - 历史采购价格第一阶段归 Procurement 交易事实 owner。
 
@@ -202,6 +214,7 @@ phase 1 只冻结以下事实 owner 归 Procurement：
 
 - phase 1 不单独建立 `purchase-price-history` RPC
 - 历史价格事实来源于 `PO line` 交易快照与后续已应用变更
+- `PO` 级 payment summary 只消费 `finance-service` 已发布的付款摘要与 `asset-service attachmentRef` 引用，不改变付款真相 owner
 - future `Finance / BI / Costing` 只消费分析，不拥有原始采购交易事实
 
 ## 8. Deferred
@@ -217,6 +230,8 @@ phase 1 只冻结以下事实 owner 归 Procurement：
 - 完整采购审批 workflow
 - 完整采购变更申请 / 审批 / 供应商确认闭环
 - `AP / supplier invoice / payment / payment allocation`
+- 完整付款凭证管理；phase 1 只展示 Finance 提供的摘要与引用
+- 完整 `SupplierReturn / claim workflow`
 - 完整事件目录与 payload
 - `costing-service`
 

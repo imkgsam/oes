@@ -189,7 +189,13 @@ class SalesGrpcPresenter {
             unitPrice: snapshot.unitPrice,
             quantity: snapshot.quantity,
             deliveryTerm: snapshot.deliveryTerm,
-            requestedDeliveryDate: snapshot.requestedDeliveryDate
+            requestedDeliveryDate: snapshot.requestedDeliveryDate,
+            priceSnapshot: snapshot.priceSnapshot ? this.toPriceSnapshot(snapshot.priceSnapshot) : undefined,
+            moqSnapshot: snapshot.moqSnapshot ? this.toMoqSnapshot(snapshot.moqSnapshot) : undefined,
+            exchangeRateSnapshot: snapshot.exchangeRateSnapshot
+                ? this.toExchangeRateSnapshot(snapshot.exchangeRateSnapshot)
+                : undefined,
+            exceptionPlaceholders: (snapshot.exceptionPlaceholders ?? []).map((item) => this.toExceptionPlaceholder(item))
         };
     }
     /** toCustomerItemSnapshot renders one customer-facing sku, model, and display summary snapshot. */
@@ -198,6 +204,54 @@ class SalesGrpcPresenter {
             customerSku: snapshot.customerSku,
             customerModel: snapshot.customerModel,
             customerDisplayName: snapshot.customerDisplayName
+        };
+    }
+    /** toPriceSnapshot renders one resolved pricing baseline snapshot. */
+    static toPriceSnapshot(snapshot) {
+        return {
+            currencyCode: snapshot.currencyCode,
+            unitPriceAmount: snapshot.unitPriceAmount,
+            sourceType: snapshot.sourceType === 'PRICE_LIST' ? 2 : snapshot.sourceType === 'MANUAL' ? 3 : 1,
+            sourceRefId: snapshot.sourceRefId,
+            sourceLineRefId: snapshot.sourceLineRefId,
+            sourceVersionNo: snapshot.sourceVersionNo,
+            resolvedAt: snapshot.resolvedAt
+        };
+    }
+    /** toMoqSnapshot renders one resolved MOQ baseline snapshot. */
+    static toMoqSnapshot(snapshot) {
+        return {
+            moqQuantity: snapshot.moqQuantity,
+            quantityUomCode: snapshot.quantityUomCode,
+            sourceType: snapshot.sourceType === 'PRICE_LIST' ? 2 : 1,
+            sourceRefId: snapshot.sourceRefId,
+            sourceLineRefId: snapshot.sourceLineRefId,
+            sourceVersionNo: snapshot.sourceVersionNo,
+            resolvedAt: snapshot.resolvedAt
+        };
+    }
+    /** toExchangeRateSnapshot renders one finance-owned FX snapshot as frozen on the sales side. */
+    static toExchangeRateSnapshot(snapshot) {
+        return {
+            fromCurrencyCode: snapshot.fromCurrencyCode,
+            toCurrencyCode: snapshot.toCurrencyCode,
+            exchangeRateValue: snapshot.exchangeRateValue,
+            financeRateRef: snapshot.financeRateRef ?? '',
+            effectiveAt: snapshot.effectiveAt,
+            snapshottedAt: snapshot.snapshottedAt
+        };
+    }
+    /** toExceptionPlaceholder renders a pricing exception placeholder without implying workflow implementation. */
+    static toExceptionPlaceholder(snapshot) {
+        return {
+            exceptionType: snapshot.exceptionType === 'LOW_MOQ' ? 2 : 1,
+            status: snapshot.status === 'REQUIRED' ? 2 : 1,
+            baselineSourceType: snapshot.baselineSourceType === 'PRICE_LIST' ? 2 : 1,
+            baselineValue: snapshot.baselineValue,
+            actualValue: snapshot.actualValue,
+            currencyCode: snapshot.currencyCode ?? '',
+            quantityUomCode: snapshot.quantityUomCode ?? '',
+            detectedAt: snapshot.detectedAt
         };
     }
     /** toHandoffSummary renders the frozen sales-side handoff summary without implying physical release. */

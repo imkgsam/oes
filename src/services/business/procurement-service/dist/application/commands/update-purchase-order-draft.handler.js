@@ -53,6 +53,8 @@ let UpdatePurchaseOrderDraftHandler = class UpdatePurchaseOrderDraftHandler {
                 ...existing.supplierSnapshot,
                 supplierId: command.payload.supplierId.trim()
             },
+            paymentTermsSnapshot: (0, procurement_write_support_1.normalizePaymentTermsSnapshot)(command.payload.paymentTermsSnapshot),
+            supplierCommercialTermsSnapshot: (0, procurement_write_support_1.normalizeCommercialTermsSnapshot)(command.payload.supplierCommercialTermsSnapshot),
             updatedAt: (0, procurement_write_support_1.nowIso)(),
             lines
         });

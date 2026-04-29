@@ -1,5 +1,6 @@
 import {
   CRM_MANAGEMENT_PERMISSION_CODES,
+  FINANCE_MANAGEMENT_PERMISSION_CODES,
   HR_MANAGEMENT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
   ITEM_MASTER_MANAGEMENT_PERMISSION_CODES,
@@ -241,124 +242,144 @@ describe('permission foundation seed', () => {
     expect(itemByCode.get(SALES_MANAGEMENT_PERMISSION_CODES.VIEW_ORDER_DETAIL)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(SALES_MANAGEMENT_PERMISSION_CODES.SET_ORDER_COMMERCIAL_GATE)
-    ).toMatchObject({
+    expect(itemByCode.get(SALES_MANAGEMENT_PERMISSION_CODES.SET_ORDER_COMMERCIAL_GATE)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(SALES_MANAGEMENT_PERMISSION_CODES.SUBMIT_FULFILLMENT_HANDOFF)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+  })
+
+  it('publishes finance phase 1A permission rows for the tenant finance entry', () => {
+    const itemByCode = new Map(buildPermissionSeedItems().map((item) => [item.code, item]))
+
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_FINANCIAL_ACCOUNT)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.GET_FINANCIAL_ACCOUNT)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_FINANCIAL_ACCOUNT)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
     expect(
-      itemByCode.get(SALES_MANAGEMENT_PERMISSION_CODES.SUBMIT_FULFILLMENT_HANDOFF)
+      itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.UPDATE_FINANCIAL_ACCOUNT_BASICS)
+    ).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_ACCOUNT_TRANSACTION)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.IMPORT_ACCOUNT_TRANSACTION)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.RECORD_ACCOUNT_TRANSACTION)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(
+      itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.REGISTER_CUSTOMER_FINANCIAL_ACCOUNT)
+    ).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.GET_EXCHANGE_RATE)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.SET_EXCHANGE_RATE)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_RECEIVABLE_SCHEDULE)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.GET_RECEIVABLE_SCHEDULE)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(
+      itemByCode.get(
+        FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_RECEIVABLE_SCHEDULE_FROM_SALES_ORDER
+      )
+    ).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.GET_FINANCE_RELEASE_SIGNAL)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.SET_FINANCE_RELEASE_SIGNAL)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_PAYMENT_ALLOCATION)).toMatchObject({
+      module: Modules.EPR_SERVICE
+    })
+    expect(
+      itemByCode.get(FINANCE_MANAGEMENT_PERMISSION_CODES.ALLOCATE_PAYMENT_TO_RECEIVABLE)
     ).toMatchObject({
       module: Modules.EPR_SERVICE
     })
   })
 
-  it('publishes procurement phase 1 permission rows for the tenant procurement entry', () => {
+  it('publishes procurement permission rows for the tenant procurement entry', () => {
     const itemByCode = new Map(buildPermissionSeedItems().map((item) => [item.code, item]))
 
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_REQUEST)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_REQUEST)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_PURCHASE_REQUEST)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_PURCHASE_REQUEST)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_PURCHASE_REQUEST)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_PURCHASE_REQUEST)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.UPDATE_PURCHASE_REQUEST_DRAFT)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.UPDATE_PURCHASE_REQUEST_DRAFT)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.SUBMIT_PURCHASE_REQUEST)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.SUBMIT_PURCHASE_REQUEST)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.DECIDE_PURCHASE_REQUEST)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.DECIDE_PURCHASE_REQUEST)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CANCEL_PURCHASE_REQUEST)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CANCEL_PURCHASE_REQUEST)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CONVERT_PURCHASE_REQUEST_TO_ORDER)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CONVERT_PURCHASE_REQUEST_TO_ORDER)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_ORDER)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_ORDER)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_PURCHASE_ORDER)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_PURCHASE_ORDER)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_PURCHASE_ORDER_DRAFT)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_PURCHASE_ORDER_DRAFT)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.UPDATE_PURCHASE_ORDER_DRAFT)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.UPDATE_PURCHASE_ORDER_DRAFT)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.ISSUE_PURCHASE_ORDER)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.ISSUE_PURCHASE_ORDER)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CONFIRM_SUPPLIER_ACKNOWLEDGEMENT)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CONFIRM_SUPPLIER_ACKNOWLEDGEMENT)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.APPLY_PURCHASE_ORDER_CHANGE)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.APPLY_PURCHASE_ORDER_CHANGE)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CANCEL_PURCHASE_ORDER)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CANCEL_PURCHASE_ORDER)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_ORDER_CHANGES)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_ORDER_CHANGES)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_RECEIVING_EXPECTATION)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_RECEIVING_EXPECTATION)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_RECEIVING_EXPECTATION)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_RECEIVING_EXPECTATION)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_RECEIVING_EXPECTATION)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_RECEIVING_EXPECTATION)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
-    expect(
-      itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.RECORD_RECEIVING_DISCREPANCY_RESOLUTION)
-    ).toMatchObject({
+    expect(itemByCode.get(PROCUREMENT_MANAGEMENT_PERMISSION_CODES.RECORD_RECEIVING_DISCREPANCY_RESOLUTION)).toMatchObject({
       module: Modules.EPR_SERVICE
     })
   })

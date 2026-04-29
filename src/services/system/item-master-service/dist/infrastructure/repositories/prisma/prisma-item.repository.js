@@ -24,6 +24,9 @@ let PrismaItemRepository = class PrismaItemRepository {
             where: {
                 tenantId,
                 id: itemId
+            },
+            include: {
+                primaryCategory: true
             }
         });
         return record ? toItem(record) : null;
@@ -38,6 +41,9 @@ let PrismaItemRepository = class PrismaItemRepository {
                 id: {
                     in: itemIds
                 }
+            },
+            include: {
+                primaryCategory: true
             }
         });
         const itemMap = new Map(records.map((record) => [record.id, toItem(record)]));
@@ -48,6 +54,9 @@ let PrismaItemRepository = class PrismaItemRepository {
             where: {
                 tenantId,
                 itemCode
+            },
+            include: {
+                primaryCategory: true
             }
         });
         return record ? toItem(record) : null;
@@ -66,6 +75,7 @@ let PrismaItemRepository = class PrismaItemRepository {
                 structureType: state.structureType,
                 natureType: state.natureType,
                 status: state.status,
+                primaryCategoryId: state.primaryCategory?.categoryId,
                 sellable: state.capabilities.sellable,
                 purchasable: state.capabilities.purchasable,
                 stockable: state.capabilities.stockable,
@@ -75,10 +85,14 @@ let PrismaItemRepository = class PrismaItemRepository {
                 itemCode: state.itemCode,
                 itemName: state.itemName,
                 status: state.status,
+                primaryCategoryId: state.primaryCategory?.categoryId,
                 sellable: state.capabilities.sellable,
                 purchasable: state.capabilities.purchasable,
                 stockable: state.capabilities.stockable,
                 manufacturable: state.capabilities.manufacturable
+            },
+            include: {
+                primaryCategory: true
             }
         });
         return toItem(record);
@@ -112,6 +126,14 @@ let PrismaItemRepository = class PrismaItemRepository {
         if (input.status) {
             where.status = input.status;
         }
+        if (input.categoryIds && input.categoryIds.length > 0) {
+            where.primaryCategoryId = {
+                in: input.categoryIds
+            };
+        }
+        else if (input.categoryId) {
+            where.primaryCategoryId = input.categoryId;
+        }
         if (input.capabilityFilters) {
             if (input.capabilityFilters.sellable !== undefined) {
                 where.sellable = input.capabilityFilters.sellable;
@@ -128,6 +150,9 @@ let PrismaItemRepository = class PrismaItemRepository {
         }
         const queryArgs = {
             where,
+            include: {
+                primaryCategory: true
+            },
             orderBy: [{ itemCode: 'asc' }, { id: 'asc' }],
             skip: (input.page - 1) * input.pageSize,
             take: input.pageSize
@@ -169,7 +194,15 @@ function toItem(record) {
             purchasable: record.purchasable,
             stockable: record.stockable,
             manufacturable: record.manufacturable
-        })
+        }),
+        primaryCategory: record.primaryCategory
+            ? {
+                categoryId: record.primaryCategory.id,
+                categoryCode: record.primaryCategory.categoryCode,
+                categoryName: record.primaryCategory.categoryName,
+                status: record.primaryCategory.status
+            }
+            : undefined
     });
 }
 //# sourceMappingURL=prisma-item.repository.js.map

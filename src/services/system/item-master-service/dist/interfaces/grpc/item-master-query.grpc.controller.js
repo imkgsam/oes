@@ -20,6 +20,7 @@ const item_master_rpc_context_guard_1 = require("./item-master-rpc-context.guard
 const get_item_query_1 = require("../../application/queries/get-item.query");
 const batch_get_items_query_1 = require("../../application/queries/batch-get-items.query");
 const search_items_query_1 = require("../../application/queries/search-items.query");
+const list_item_categories_query_1 = require("../../application/queries/list-item-categories.query");
 const get_item_composition_query_1 = require("../../application/queries/get-item-composition.query");
 const list_supplier_item_mappings_by_item_query_1 = require("../../application/queries/list-supplier-item-mappings-by-item.query");
 const resolve_supplier_item_mapping_query_1 = require("../../application/queries/resolve-supplier-item-mapping.query");
@@ -54,6 +55,8 @@ let ItemMasterQueryGrpcController = class ItemMasterQueryGrpcController {
                 }
                 : undefined,
             status: request.status ?? undefined,
+            categoryId: request.categoryId ?? undefined,
+            includeDescendants: request.includeDescendants ?? undefined,
             page: request.page ?? undefined,
             pageSize: request.pageSize ?? undefined
         }));
@@ -63,6 +66,13 @@ let ItemMasterQueryGrpcController = class ItemMasterQueryGrpcController {
             page: result.page,
             pageSize: result.pageSize
         };
+    }
+    async listItemCategories(request) {
+        const result = await this.queryBus.execute(new list_item_categories_query_1.ListItemCategoriesQuery({
+            tenantId: request.tenantId ?? '',
+            parentCategoryId: request.parentCategoryId ?? undefined
+        }));
+        return item_master_grpc_presenter_1.ItemMasterGrpcPresenter.toListItemCategoriesResponse(result);
     }
     async getItemComposition(request) {
         const result = await this.queryBus.execute(new get_item_composition_query_1.GetItemCompositionQuery(request.tenantId ?? '', request.itemId ?? ''));

@@ -43,6 +43,7 @@ let ProcurementQueryGrpcController = class ProcurementQueryGrpcController {
             status: toDomainPurchaseRequestStatus(request.status),
             requesterOperatorId: request.requesterOperatorId ?? undefined,
             itemId: request.itemId ?? undefined,
+            purchaseOrderId: request.purchaseOrderId ?? undefined,
             neededByDateFrom: request.neededByDateFrom ?? undefined,
             neededByDateTo: request.neededByDateTo ?? undefined,
             page: request.page ?? undefined,
@@ -91,6 +92,8 @@ let ProcurementQueryGrpcController = class ProcurementQueryGrpcController {
             supplierId: request.supplierId ?? undefined,
             status: toDomainReceivingExpectationStatus(request.status),
             hasOpenDiscrepancy: request.hasOpenDiscrepancy ?? undefined,
+            targetWarehouseId: request.targetWarehouseId ?? undefined,
+            targetReceivingAddressId: request.targetReceivingAddressId ?? undefined,
             expectedReceiptDateFrom: request.expectedReceiptDateFrom ?? undefined,
             expectedReceiptDateTo: request.expectedReceiptDateTo ?? undefined,
             page: request.page ?? undefined,
@@ -133,6 +136,10 @@ function toDomainPurchaseRequestStatus(value) {
             return procurement_records_1.PurchaseRequestStatus.SUBMITTED;
         case procurement_service_1.PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_APPROVED:
             return procurement_records_1.PurchaseRequestStatus.APPROVED;
+        case procurement_service_1.PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_PARTIALLY_CONVERTED:
+            return procurement_records_1.PurchaseRequestStatus.PARTIALLY_CONVERTED;
+        case procurement_service_1.PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_CONVERTED:
+            return procurement_records_1.PurchaseRequestStatus.CONVERTED;
         case procurement_service_1.PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_REJECTED:
             return procurement_records_1.PurchaseRequestStatus.REJECTED;
         case procurement_service_1.PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_CANCELLED:

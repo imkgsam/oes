@@ -24,6 +24,11 @@ enum ItemStatus {
   INACTIVE
 }
 
+enum ItemCategoryStatus {
+  ACTIVE
+  INACTIVE
+}
+
 model Item {
   id               String                @id @default(uuid()) @db.Uuid
   tenantId         String                @db.VarChar(64)
@@ -32,12 +37,14 @@ model Item {
   structureType    ItemStructureType
   natureType       ItemNatureType
   status           ItemStatus            @default(ACTIVE)
+  primaryCategoryId String?              @db.Uuid
   sellable         Boolean               @default(false)
   purchasable      Boolean               @default(false)
   stockable        Boolean               @default(false)
   manufacturable   Boolean               @default(false)
   createdAt        DateTime              @default(now())
   updatedAt        DateTime              @updatedAt
+  primaryCategory  ItemCategory?         @relation("ItemPrimaryCategory", fields: [primaryCategoryId], references: [id], onDelete: SetNull)
   parentLinks      ItemComposition[]     @relation("ItemCompositionParent")
   componentLinks   ItemComposition[]     @relation("ItemCompositionComponent")
   supplierMappings SupplierItemMapping[]
@@ -45,6 +52,26 @@ model Item {
   @@unique([tenantId, itemCode])
   @@index([tenantId, status])
   @@index([tenantId, structureType, natureType])
+  @@index([tenantId, primaryCategoryId])
+}
+
+model ItemCategory {
+  id               String             @id @default(uuid()) @db.Uuid
+  tenantId         String             @db.VarChar(64)
+  categoryCode     String             @db.VarChar(128)
+  categoryName     String             @db.VarChar(255)
+  parentCategoryId String?            @db.Uuid
+  status           ItemCategoryStatus @default(ACTIVE)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  parent   ItemCategory?  @relation("ItemCategoryTree", fields: [parentCategoryId], references: [id], onDelete: Restrict)
+  children ItemCategory[] @relation("ItemCategoryTree")
+  items    Item[]         @relation("ItemPrimaryCategory")
+
+  @@unique([tenantId, categoryCode])
+  @@index([tenantId, parentCategoryId])
+  @@index([tenantId, status])
 }
 
 model ItemComposition {

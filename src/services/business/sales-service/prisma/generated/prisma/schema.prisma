@@ -18,6 +18,24 @@ enum SalesFulfillmentHandoffStatus {
   SUBMITTED
 }
 
+enum PriceListType {
+  STANDARD
+  ACTIVITY
+  EXHIBITION
+}
+
+enum PriceListStatus {
+  DRAFT
+  ACTIVE
+  INACTIVE
+}
+
+enum CustomerPriceAgreementStatus {
+  DRAFT
+  ACTIVE
+  SUPERSEDED
+}
+
 model SalesSequenceCounter {
   tenantId         String   @id @db.VarChar(128)
   nextQuoteNo      Int      @default(1)
@@ -162,6 +180,77 @@ model SalesOrderLine {
 
   @@unique([salesOrderId, lineNo])
   @@index([tenantId, salesOrderId, lineNo])
+}
+
+model SalesPriceList {
+  id            String               @id @db.Uuid
+  tenantId      String               @db.VarChar(128)
+  priceListName String               @db.VarChar(255)
+  priceListType PriceListType
+  status        PriceListStatus
+  currencyCode  String               @db.VarChar(16)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  lines         SalesPriceListLine[]
+
+  @@index([tenantId, status, priceListType, currencyCode, effectiveFrom])
+  @@index([tenantId, priceListName])
+}
+
+model SalesPriceListLine {
+  id            String   @id @db.Uuid
+  tenantId      String   @db.VarChar(128)
+  priceListId   String   @db.Uuid
+  lineNo        Int
+  itemId        String   @db.VarChar(128)
+  brandKey      String?  @db.VarChar(128)
+  priceSnapshot Json
+  moqSnapshot   Json
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  priceList SalesPriceList @relation(fields: [priceListId], references: [id], onDelete: Cascade)
+
+  @@unique([priceListId, lineNo])
+  @@index([tenantId, priceListId, itemId, lineNo])
+}
+
+model SalesCustomerPriceAgreementVersion {
+  id                       String                            @id @db.Uuid
+  customerPriceAgreementId String                            @db.Uuid
+  tenantId                 String                            @db.VarChar(128)
+  customerTenantPartyId    String                            @db.VarChar(128)
+  currencyCode             String                            @db.VarChar(16)
+  versionNo                Int
+  status                   CustomerPriceAgreementStatus
+  publishedAt              DateTime?
+  createdAt                DateTime                          @default(now())
+  updatedAt                DateTime                          @updatedAt
+  lines                    SalesCustomerPriceAgreementLine[]
+
+  @@unique([customerPriceAgreementId, versionNo])
+  @@index([tenantId, customerPriceAgreementId, versionNo])
+  @@index([tenantId, customerTenantPartyId, currencyCode, status])
+}
+
+model SalesCustomerPriceAgreementLine {
+  id                              String   @id @db.Uuid
+  tenantId                        String   @db.VarChar(128)
+  customerPriceAgreementVersionId String   @db.Uuid
+  lineNo                          Int
+  itemId                          String   @db.VarChar(128)
+  brandKey                        String?  @db.VarChar(128)
+  priceSnapshot                   Json
+  moqSnapshot                     Json
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @updatedAt
+
+  customerPriceAgreementVersion SalesCustomerPriceAgreementVersion @relation(fields: [customerPriceAgreementVersionId], references: [id], onDelete: Cascade)
+
+  @@unique([customerPriceAgreementVersionId, lineNo])
+  @@index([tenantId, customerPriceAgreementVersionId, itemId, lineNo])
 }
 
 model SalesAuditEnvelope {

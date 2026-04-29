@@ -14,6 +14,7 @@ const common_1 = require("@nestjs/common");
 const exceptions_1 = require("@oes/common/exceptions");
 const prisma_1 = require("../../../../prisma/generated/prisma");
 const procurement_errors_1 = require("../../../common/errors/procurement.errors");
+const procurement_records_1 = require("../../../domain/models/procurement-records");
 const procurement_assertions_1 = require("../../../application/support/procurement-assertions");
 const prisma_service_1 = require("../../prisma/prisma.service");
 const prisma_procurement_record_mapper_1 = require("./prisma-procurement-record.mapper");
@@ -82,6 +83,9 @@ let PrismaPurchaseRequestRepository = class PrismaPurchaseRequestRepository {
                         reason: record.reason ?? null,
                         submissionComment: record.submissionComment ?? null,
                         cancelReason: record.cancelReason ?? null,
+                        linkedPurchaseOrders: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(record.linkedPurchaseOrders ?? []),
+                        nextExpectedReceiptDate: record.nextExpectedReceiptDate ?? null,
+                        receivingStatusSummary: record.receivingStatusSummary ?? null,
                         createdAt: new Date(record.createdAt),
                         updatedAt: new Date(record.updatedAt),
                         submittedAt: record.submittedAt ? new Date(record.submittedAt) : null,
@@ -99,6 +103,9 @@ let PrismaPurchaseRequestRepository = class PrismaPurchaseRequestRepository {
                         reason: record.reason ?? null,
                         submissionComment: record.submissionComment ?? null,
                         cancelReason: record.cancelReason ?? null,
+                        linkedPurchaseOrders: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(record.linkedPurchaseOrders ?? []),
+                        nextExpectedReceiptDate: record.nextExpectedReceiptDate ?? null,
+                        receivingStatusSummary: record.receivingStatusSummary ?? null,
                         createdAt: new Date(record.createdAt),
                         updatedAt: new Date(record.updatedAt),
                         submittedAt: record.submittedAt ? new Date(record.submittedAt) : null,
@@ -127,7 +134,9 @@ let PrismaPurchaseRequestRepository = class PrismaPurchaseRequestRepository {
                             uom: line.uom,
                             neededByDate: line.neededByDate ?? null,
                             demandReferenceType: line.demandReferenceType ?? null,
-                            demandReferenceId: line.demandReferenceId ?? null
+                            demandReferenceId: line.demandReferenceId ?? null,
+                            conversionStatus: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toPersistedPurchaseRequestLineConversionStatus(line.conversionStatus ?? procurement_records_1.PurchaseRequestLineConversionStatus.NOT_CONVERTED),
+                            linkedPurchaseOrderLines: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(line.linkedPurchaseOrderLines ?? [])
                         }))
                     });
                 }
@@ -202,6 +211,8 @@ let PrismaPurchaseRequestRepository = class PrismaPurchaseRequestRepository {
             .filter((record) => !input.status || record.status === input.status)
             .filter((record) => !input.requesterOperatorId || record.requester.operatorId === input.requesterOperatorId)
             .filter((record) => !input.itemId || record.lines.some((line) => line.itemId === input.itemId))
+            .filter((record) => !input.purchaseOrderId ||
+            (record.linkedPurchaseOrders ?? []).some((link) => link.purchaseOrderId === input.purchaseOrderId))
             .filter((record) => {
             if (!input.neededByDateFrom && !input.neededByDateTo) {
                 return true;

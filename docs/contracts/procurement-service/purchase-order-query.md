@@ -46,6 +46,9 @@ phase 1 `PurchaseOrder` 最小读取 shape：
 | `currency_code` | 交易货币摘要 |
 | `supplier_id` | 目标供应商标识 |
 | `supplier_snapshot` | 当前供应商快照 |
+| `payment_terms_snapshot` | optional 本次采购付款条款快照 |
+| `supplier_commercial_terms_snapshot` | optional 本次采购商业条款快照 |
+| `payment_summary` | optional 来自 `finance-service` 的付款摘要 |
 | `source_purchase_request_ids[]` | 源 PR 摘要列表 |
 | `lines[]` | `PurchaseOrderLine` 列表 |
 | `supplier_acknowledgement` | optional 供应商确认摘要 |
@@ -58,6 +61,8 @@ phase 1 `PurchaseOrder` 最小读取 shape：
 
 - `PurchaseOrder` 表达正式采购承诺
 - `supplier_snapshot` 是 Procurement 交易事实的一部分，不把 owner truth 从 `SRM` 转移到 Procurement
+- `payment_terms_snapshot` 与 `supplier_commercial_terms_snapshot` 只表达本次采购快照，不回写为 `SRM` 长期商业主档
+- `payment_summary` 只消费 `finance-service` 已确认的付款摘要与引用，不把付款真相转移到 Procurement
 - phase 1 不在 query shape 中展开完整 commercial terms matrix
 
 ### 2.2 `PurchaseOrderSupplierSnapshot`
@@ -75,7 +80,51 @@ phase 1 `supplier_snapshot` 最小读取 shape：
 - 对标准 Item 采购，snapshot 不替代 `ACTIVE SupplierOffering` 的 issue-time 校验
 - 对日常非标准采购，snapshot 是必须保留的交易快照
 
-### 2.3 `PurchaseOrderLine`
+### 2.3 `PurchaseOrderPaymentTermsSnapshot`
+
+phase 1 `payment_terms_snapshot` 最小读取 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `payment_terms_code` | optional 付款条款代码摘要 |
+| `payment_terms_text` | optional 付款条款文本快照 |
+
+说明：
+
+- 它只服务于本次 `PO` 的交易留痕，不反向修改 `SRM` 或 `Finance` 主档
+
+### 2.4 `PurchaseOrderCommercialTermsSnapshot`
+
+phase 1 `supplier_commercial_terms_snapshot` 最小读取 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `incoterm_code` | optional 贸易术语摘要 |
+| `commercial_terms_text` | optional 商业条款文本快照 |
+
+说明：
+
+- 它只表达本次采购协商结果快照，不扩成 `SRM` 长期商业真相
+
+### 2.5 `PurchaseOrderPaymentSummary`
+
+phase 1 `payment_summary` 最小读取 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `payment_status_summary` | 当前付款状态摘要 |
+| `deposit_paid_amount` | optional 已支付定金摘要 |
+| `balance_paid_amount` | optional 已支付尾款摘要 |
+| `currency_code` | 付款摘要币种 |
+| `attachment_refs[]` | optional Finance 管理的付款凭证 `attachmentRef` 列表 |
+| `last_payment_at` | optional 最近付款时间摘要 |
+
+说明：
+
+- `payment_summary` 由 `finance-service` 提供，Procurement 只展示摘要与引用
+- `attachment_refs[]` 指向 `asset-service` 管理的凭证附件，Procurement 不拥有附件文件真相
+
+### 2.6 `PurchaseOrderLine`
 
 phase 1 `PurchaseOrderLine` 最小读取 shape：
 
@@ -92,7 +141,6 @@ phase 1 `PurchaseOrderLine` 最小读取 shape：
 | `ordered_quantity` | 采购数量 |
 | `uom` | 计量单位摘要 |
 | `ordered_unit_price` | optional 单价摘要 |
-| `source_purchase_request_line_id` | optional 源 PR 行标识 |
 | `general_stock_excess_reason` | optional 超出 PR 需求时的原因 |
 | `allocations[]` | `PurchaseOrderLineAllocation` 列表 |
 
@@ -102,23 +150,29 @@ phase 1 `PurchaseOrderLine` 最小读取 shape：
 - `TEXT` 行可不依赖 `SupplierOffering`
 - 历史采购价格事实以 `ordered_unit_price + currency_code` 为第一阶段最小交易快照基础
 
-### 2.4 `PurchaseOrderLineAllocation`
+### 2.7 `PurchaseOrderLineAllocation`
 
 phase 1 `PurchaseOrderLineAllocation` 最小读取 shape：
 
 | 字段 | 说明 |
 | --- | --- |
-| `allocation_type` | `SALES_ORDER_LINE / FULFILLMENT_DEMAND / GENERAL_STOCK` |
-| `reference_id` | dedicated allocation 的目标引用；`GENERAL_STOCK` 为空 |
+| `purchase_order_line_allocation_id` | allocation 稳定标识 |
+| `allocation_source_type` | `PURCHASE_REQUEST_LINE / SALES_ORDER_LINE / FULFILLMENT_DEMAND / GENERAL_STOCK` |
+| `source_reference_id` | source 引用；`GENERAL_STOCK` 为空 |
 | `quantity` | 分配数量 |
 | `reason` | optional 分配原因；超额 general stock 时必须存在 |
+| `target_warehouse_id` | optional 目标仓摘要 |
+| `target_receiving_address_id` | optional 目标收货地址标识 |
 
 说明：
 
 - 同一 `PO line` 必须允许 mixed allocation
+- 除 `GENERAL_STOCK` 外，其余 allocation source 都必须携带 `source_reference_id`
+- `PURCHASE_REQUEST_LINE` 用于保留 `PR` 来源留痕，使 PR 发起人可追踪该数量被并入哪个 `PO`
 - `GENERAL_STOCK` 分配不等于库存真相，只表达采购意图归因
+- allocation 上的目标仓 / 收货地址只服务于收货预期分组，不把仓储 owner truth 转移到 Procurement
 
-### 2.5 `PurchaseOrderSupplierAcknowledgement`
+### 2.8 `PurchaseOrderSupplierAcknowledgement`
 
 phase 1 `supplier_acknowledgement` 最小读取 shape：
 
@@ -129,7 +183,7 @@ phase 1 `supplier_acknowledgement` 最小读取 shape：
 | `external_reference` | optional 供应商回执号或确认摘要 |
 | `comment` | optional 备注 |
 
-### 2.6 `PurchaseOrderChange`
+### 2.9 `PurchaseOrderChange`
 
 phase 1 `PurchaseOrderChange` 最小读取 shape：
 
@@ -148,8 +202,9 @@ phase 1 `PurchaseOrderChange` 最小读取 shape：
 
 - phase 1 的 `PurchaseOrderChange` 只要求记录“已应用事实”
 - 不在 query 侧展开变更申请、审批、供应商协商过程
+- 取消剩余未收数量必须通过 `PurchaseOrderChange` 留痕，而不是在 discrepancy resolution 中隐式关闭
 
-### 2.7 `PurchaseOrderSummary`
+### 2.10 `PurchaseOrderSummary`
 
 phase 1 列表读取最小 shape：
 
@@ -162,6 +217,7 @@ phase 1 列表读取最小 shape：
 | `supplier_display_name` | 供应商显示名摘要 |
 | `currency_code` | 货币摘要 |
 | `line_count` | 行数摘要 |
+| `payment_status_summary` | optional Finance 付款状态摘要 |
 | `issued_at` | optional 发单时间 |
 | `created_at` | 创建时间 |
 

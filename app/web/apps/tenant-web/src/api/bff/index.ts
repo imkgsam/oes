@@ -3,6 +3,7 @@ export * from './admin-security';
 export * from './auth';
 export * from './customer-management';
 export * from './context';
+export * from './finance';
 export * from './hr-management';
 export * from './item-management';
 export * from './navigation';

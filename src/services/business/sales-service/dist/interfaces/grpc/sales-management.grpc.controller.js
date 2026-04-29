@@ -56,36 +56,7 @@ let SalesManagementGrpcController = class SalesManagementGrpcController {
                         opportunityName: request.opportunityRef.opportunityName ?? ''
                     }
                     : undefined,
-                draftLines: (request.draftLines ?? []).map((line) => ({
-                    lineNo: line.lineNo ?? 0,
-                    itemId: line.itemId ?? '',
-                    itemSnapshot: {
-                        itemCode: line.itemSnapshot?.itemCode ?? '',
-                        itemName: line.itemSnapshot?.itemName ?? ''
-                    },
-                    salesConfigSnapshot: {
-                        salesUom: line.salesConfigSnapshot?.salesUom ?? '',
-                        salesUnitLabel: line.salesConfigSnapshot?.salesUnitLabel ?? '',
-                        notes: line.salesConfigSnapshot?.notes ?? ''
-                    },
-                    packagingRequirementSnapshot: {
-                        packageMode: line.packagingRequirementSnapshot?.packageMode ?? '',
-                        packageLabel: line.packagingRequirementSnapshot?.packageLabel ?? '',
-                        specialInstructions: line.packagingRequirementSnapshot?.specialInstructions ?? ''
-                    },
-                    priceQuantityDeliverySnapshot: {
-                        currencyCode: line.priceQuantityDeliverySnapshot?.currencyCode ?? '',
-                        unitPrice: line.priceQuantityDeliverySnapshot?.unitPrice ?? '',
-                        quantity: line.priceQuantityDeliverySnapshot?.quantity ?? '',
-                        deliveryTerm: line.priceQuantityDeliverySnapshot?.deliveryTerm ?? '',
-                        requestedDeliveryDate: line.priceQuantityDeliverySnapshot?.requestedDeliveryDate ?? ''
-                    },
-                    customerItemSnapshot: {
-                        customerSku: line.customerItemSnapshot?.customerSku ?? '',
-                        customerModel: line.customerItemSnapshot?.customerModel ?? '',
-                        customerDisplayName: line.customerItemSnapshot?.customerDisplayName ?? ''
-                    }
-                }))
+                draftLines: (request.draftLines ?? []).map((line) => toDomainQuoteLineInput(line))
             }));
             return sales_grpc_presenter_1.SalesGrpcPresenter.toCreateQuoteResponse(quote);
         });
@@ -117,36 +88,7 @@ let SalesManagementGrpcController = class SalesManagementGrpcController {
                             opportunityName: request.draftMutation.opportunityRef.opportunityName ?? ''
                         }
                         : undefined,
-                    lines: (request.draftMutation?.lines ?? []).map((line) => ({
-                        lineNo: line.lineNo ?? 0,
-                        itemId: line.itemId ?? '',
-                        itemSnapshot: {
-                            itemCode: line.itemSnapshot?.itemCode ?? '',
-                            itemName: line.itemSnapshot?.itemName ?? ''
-                        },
-                        salesConfigSnapshot: {
-                            salesUom: line.salesConfigSnapshot?.salesUom ?? '',
-                            salesUnitLabel: line.salesConfigSnapshot?.salesUnitLabel ?? '',
-                            notes: line.salesConfigSnapshot?.notes ?? ''
-                        },
-                        packagingRequirementSnapshot: {
-                            packageMode: line.packagingRequirementSnapshot?.packageMode ?? '',
-                            packageLabel: line.packagingRequirementSnapshot?.packageLabel ?? '',
-                            specialInstructions: line.packagingRequirementSnapshot?.specialInstructions ?? ''
-                        },
-                        priceQuantityDeliverySnapshot: {
-                            currencyCode: line.priceQuantityDeliverySnapshot?.currencyCode ?? '',
-                            unitPrice: line.priceQuantityDeliverySnapshot?.unitPrice ?? '',
-                            quantity: line.priceQuantityDeliverySnapshot?.quantity ?? '',
-                            deliveryTerm: line.priceQuantityDeliverySnapshot?.deliveryTerm ?? '',
-                            requestedDeliveryDate: line.priceQuantityDeliverySnapshot?.requestedDeliveryDate ?? ''
-                        },
-                        customerItemSnapshot: {
-                            customerSku: line.customerItemSnapshot?.customerSku ?? '',
-                            customerModel: line.customerItemSnapshot?.customerModel ?? '',
-                            customerDisplayName: line.customerItemSnapshot?.customerDisplayName ?? ''
-                        }
-                    }))
+                    lines: (request.draftMutation?.lines ?? []).map((line) => toDomainQuoteLineInput(line))
                 }
             }));
             return {
@@ -251,6 +193,97 @@ exports.SalesManagementGrpcController = SalesManagementGrpcController = __decora
     __metadata("design:paramtypes", [cqrs_1.ValidatingCommandBus,
         sales_audit_service_1.SalesAuditService])
 ], SalesManagementGrpcController);
+/** toDomainQuoteLineInput translates one gRPC quote line payload into the shared domain input shape used by draft writes. */
+function toDomainQuoteLineInput(line) {
+    return {
+        lineNo: line.lineNo ?? 0,
+        itemId: line.itemId ?? '',
+        itemSnapshot: {
+            itemCode: line.itemSnapshot?.itemCode ?? '',
+            itemName: line.itemSnapshot?.itemName ?? ''
+        },
+        salesConfigSnapshot: {
+            salesUom: line.salesConfigSnapshot?.salesUom ?? '',
+            salesUnitLabel: line.salesConfigSnapshot?.salesUnitLabel ?? '',
+            notes: line.salesConfigSnapshot?.notes ?? ''
+        },
+        packagingRequirementSnapshot: {
+            packageMode: line.packagingRequirementSnapshot?.packageMode ?? '',
+            packageLabel: line.packagingRequirementSnapshot?.packageLabel ?? '',
+            specialInstructions: line.packagingRequirementSnapshot?.specialInstructions ?? ''
+        },
+        priceQuantityDeliverySnapshot: toDomainPriceQuantityDeliverySnapshot(line.priceQuantityDeliverySnapshot),
+        customerItemSnapshot: {
+            customerSku: line.customerItemSnapshot?.customerSku ?? '',
+            customerModel: line.customerItemSnapshot?.customerModel ?? '',
+            customerDisplayName: line.customerItemSnapshot?.customerDisplayName ?? ''
+        }
+    };
+}
+/** toDomainPriceQuantityDeliverySnapshot preserves the pricing subtree so publish and convert can keep snapshot copy semantics. */
+function toDomainPriceQuantityDeliverySnapshot(snapshot) {
+    return {
+        currencyCode: snapshot?.currencyCode ?? '',
+        unitPrice: snapshot?.unitPrice ?? '',
+        quantity: snapshot?.quantity ?? '',
+        deliveryTerm: snapshot?.deliveryTerm ?? '',
+        requestedDeliveryDate: snapshot?.requestedDeliveryDate ?? '',
+        priceSnapshot: snapshot?.priceSnapshot
+            ? {
+                currencyCode: snapshot.priceSnapshot.currencyCode,
+                unitPriceAmount: snapshot.priceSnapshot.unitPriceAmount ?? '',
+                sourceType: toDomainPricingSourceType(snapshot.priceSnapshot.sourceType),
+                sourceRefId: snapshot.priceSnapshot.sourceRefId ?? '',
+                sourceLineRefId: snapshot.priceSnapshot.sourceLineRefId ?? '',
+                sourceVersionNo: snapshot.priceSnapshot.sourceVersionNo ?? 0,
+                resolvedAt: snapshot.priceSnapshot.resolvedAt ?? ''
+            }
+            : null,
+        moqSnapshot: snapshot?.moqSnapshot
+            ? {
+                moqQuantity: snapshot.moqSnapshot.moqQuantity ?? '',
+                quantityUomCode: snapshot.moqSnapshot.quantityUomCode ?? '',
+                sourceType: toDomainMoqSourceType(snapshot.moqSnapshot.sourceType),
+                sourceRefId: snapshot.moqSnapshot.sourceRefId ?? '',
+                sourceLineRefId: snapshot.moqSnapshot.sourceLineRefId ?? '',
+                sourceVersionNo: snapshot.moqSnapshot.sourceVersionNo ?? 0,
+                resolvedAt: snapshot.moqSnapshot.resolvedAt ?? ''
+            }
+            : null,
+        exchangeRateSnapshot: snapshot?.exchangeRateSnapshot
+            ? {
+                fromCurrencyCode: snapshot.exchangeRateSnapshot.fromCurrencyCode,
+                toCurrencyCode: snapshot.exchangeRateSnapshot.toCurrencyCode,
+                exchangeRateValue: snapshot.exchangeRateSnapshot.exchangeRateValue ?? '',
+                financeRateRef: snapshot.exchangeRateSnapshot.financeRateRef ?? null,
+                effectiveAt: snapshot.exchangeRateSnapshot.effectiveAt ?? '',
+                snapshottedAt: snapshot.exchangeRateSnapshot.snapshottedAt ?? ''
+            }
+            : null,
+        exceptionPlaceholders: (snapshot?.exceptionPlaceholders ?? []).map((item) => ({
+            exceptionType: item.exceptionType === 2 ? 'LOW_MOQ' : 'LOW_PRICE',
+            status: item.status === 2 ? 'REQUIRED' : 'NOT_REQUIRED',
+            baselineSourceType: item.baselineSourceType === 2 ? 'PRICE_LIST' : 'CUSTOMER_PRICE_AGREEMENT',
+            baselineValue: item.baselineValue ?? '',
+            actualValue: item.actualValue ?? '',
+            currencyCode: item.currencyCode ?? null,
+            quantityUomCode: item.quantityUomCode ?? null,
+            detectedAt: item.detectedAt ?? ''
+        }))
+    };
+}
+function toDomainPricingSourceType(value) {
+    if (value === 2) {
+        return 'PRICE_LIST';
+    }
+    if (value === 3) {
+        return 'MANUAL';
+    }
+    return 'CUSTOMER_PRICE_AGREEMENT';
+}
+function toDomainMoqSourceType(value) {
+    return value === 2 ? 'PRICE_LIST' : 'CUSTOMER_PRICE_AGREEMENT';
+}
 /** toDomainGateName maps the generated commercial gate enum into the frozen domain gate identifiers. */
 function toDomainGateName(value) {
     switch (value) {

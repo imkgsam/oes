@@ -27,15 +27,13 @@ export class InMemoryReceivingRepository implements ReceivingRepository {
     return cloneRecord(record)
   }
 
-  async findByPurchaseOrderLineId(
+  async listByPurchaseOrderLineId(
     tenantId: string,
     purchaseOrderLineId: string
-  ): Promise<ReceivingExpectationRecord | null> {
-    const record = [...this.store.receivingExpectations.values()].find(
-      (candidate) => candidate.tenantId === tenantId && candidate.purchaseOrderLineId === purchaseOrderLineId
-    )
-
-    return record ? cloneRecord(record) : null
+  ): Promise<ReceivingExpectationRecord[]> {
+    return [...this.store.receivingExpectations.values()]
+      .filter((candidate) => candidate.tenantId === tenantId && candidate.purchaseOrderLineId === purchaseOrderLineId)
+      .map((record) => cloneRecord(record))
   }
 
   async save(record: ReceivingExpectationRecord): Promise<ReceivingExpectationRecord> {
@@ -52,6 +50,11 @@ export class InMemoryReceivingRepository implements ReceivingRepository {
       .filter((record) => !input.purchaseOrderId || record.purchaseOrderId === input.purchaseOrderId)
       .filter((record) => !input.supplierId || record.supplierId === input.supplierId)
       .filter((record) => !input.status || record.status === input.status)
+      .filter((record) => !input.targetWarehouseId || record.targetWarehouseId === input.targetWarehouseId)
+      .filter(
+        (record) =>
+          !input.targetReceivingAddressId || record.targetReceivingAddressId === input.targetReceivingAddressId
+      )
       .filter((record) => {
         if (input.hasOpenDiscrepancy === undefined) {
           return true

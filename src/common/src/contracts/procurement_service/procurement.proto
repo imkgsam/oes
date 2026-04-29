@@ -58,8 +58,10 @@ enum PurchaseRequestStatus {
   PURCHASE_REQUEST_STATUS_DRAFT = 1;
   PURCHASE_REQUEST_STATUS_SUBMITTED = 2;
   PURCHASE_REQUEST_STATUS_APPROVED = 3;
-  PURCHASE_REQUEST_STATUS_REJECTED = 4;
-  PURCHASE_REQUEST_STATUS_CANCELLED = 5;
+  PURCHASE_REQUEST_STATUS_PARTIALLY_CONVERTED = 4;
+  PURCHASE_REQUEST_STATUS_CONVERTED = 5;
+  PURCHASE_REQUEST_STATUS_REJECTED = 6;
+  PURCHASE_REQUEST_STATUS_CANCELLED = 7;
 }
 
 enum PurchaseRequestLineType {
@@ -84,9 +86,10 @@ enum PurchaseOrderStatus {
 
 enum PurchaseOrderLineAllocationType {
   PURCHASE_ORDER_LINE_ALLOCATION_TYPE_UNSPECIFIED = 0;
-  PURCHASE_ORDER_LINE_ALLOCATION_TYPE_SALES_ORDER_LINE = 1;
-  PURCHASE_ORDER_LINE_ALLOCATION_TYPE_FULFILLMENT_DEMAND = 2;
-  PURCHASE_ORDER_LINE_ALLOCATION_TYPE_GENERAL_STOCK = 3;
+  PURCHASE_ORDER_LINE_ALLOCATION_TYPE_PURCHASE_REQUEST_LINE = 1;
+  PURCHASE_ORDER_LINE_ALLOCATION_TYPE_SALES_ORDER_LINE = 2;
+  PURCHASE_ORDER_LINE_ALLOCATION_TYPE_FULFILLMENT_DEMAND = 3;
+  PURCHASE_ORDER_LINE_ALLOCATION_TYPE_GENERAL_STOCK = 4;
 }
 
 enum PurchaseOrderSupplierAcknowledgementStatus {
@@ -110,11 +113,11 @@ enum ReceivingExpectationStatus {
 
 enum ReceivingDiscrepancyType {
   RECEIVING_DISCREPANCY_TYPE_UNSPECIFIED = 0;
-  RECEIVING_DISCREPANCY_TYPE_SHORT_RECEIPT = 1;
-  RECEIVING_DISCREPANCY_TYPE_OVER_RECEIPT = 2;
+  RECEIVING_DISCREPANCY_TYPE_SHORT_RECEIVED = 1;
+  RECEIVING_DISCREPANCY_TYPE_OVER_RECEIVED = 2;
   RECEIVING_DISCREPANCY_TYPE_DAMAGED = 3;
-  RECEIVING_DISCREPANCY_TYPE_RESTRICTED = 4;
-  RECEIVING_DISCREPANCY_TYPE_OTHER = 5;
+  RECEIVING_DISCREPANCY_TYPE_WRONG_ITEM = 4;
+  RECEIVING_DISCREPANCY_TYPE_QUALITY_HOLD = 5;
 }
 
 enum ReceivingDiscrepancyStatus {
@@ -126,9 +129,27 @@ enum ReceivingDiscrepancyStatus {
 enum ReceivingResolutionCode {
   RECEIVING_RESOLUTION_CODE_UNSPECIFIED = 0;
   RECEIVING_RESOLUTION_CODE_WAIT_REDELIVERY = 1;
-  RECEIVING_RESOLUTION_CODE_ACCEPT_SHORT_CLOSE = 2;
-  RECEIVING_RESOLUTION_CODE_RETURN_OR_REJECT_EXCESS = 3;
-  RECEIVING_RESOLUTION_CODE_MANUAL_FOLLOW_UP = 4;
+  RECEIVING_RESOLUTION_CODE_CLOSE_UNRECEIVED = 2;
+  RECEIVING_RESOLUTION_CODE_REQUEST_RESEND = 3;
+  RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_PO_CHANGE = 4;
+  RECEIVING_RESOLUTION_CODE_REJECT_EXCESS = 5;
+  RECEIVING_RESOLUTION_CODE_TEMP_HOLD = 6;
+  RECEIVING_RESOLUTION_CODE_REJECT_DAMAGED = 7;
+  RECEIVING_RESOLUTION_CODE_RECEIVE_WITH_RESTRICTION = 8;
+  RECEIVING_RESOLUTION_CODE_CLAIM = 9;
+  RECEIVING_RESOLUTION_CODE_REJECT_WRONG_ITEM = 10;
+  RECEIVING_RESOLUTION_CODE_TEMP_RECEIVE_PENDING_DECISION = 11;
+  RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_CONTROLLED_CHANGE = 12;
+  RECEIVING_RESOLUTION_CODE_WAIT_INSPECTION = 13;
+  RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_ALLOWANCE = 14;
+  RECEIVING_RESOLUTION_CODE_RETURN_TO_SUPPLIER = 15;
+}
+
+enum PurchaseRequestLineConversionStatus {
+  PURCHASE_REQUEST_LINE_CONVERSION_STATUS_UNSPECIFIED = 0;
+  PURCHASE_REQUEST_LINE_CONVERSION_STATUS_NOT_CONVERTED = 1;
+  PURCHASE_REQUEST_LINE_CONVERSION_STATUS_PARTIALLY_CONVERTED = 2;
+  PURCHASE_REQUEST_LINE_CONVERSION_STATUS_CONVERTED = 3;
 }
 
 message OperatorContext {
@@ -174,6 +195,8 @@ message PurchaseRequestLine {
   string needed_by_date = 10;
   string demand_reference_type = 11;
   string demand_reference_id = 12;
+  PurchaseRequestLineConversionStatus conversion_status = 13;
+  repeated PurchaseRequestPurchaseOrderLink linked_purchase_order_lines = 14;
 }
 
 message PurchaseRequestRequesterSummary {
@@ -198,6 +221,9 @@ message PurchaseRequest {
   string submitted_at = 14;
   string decided_at = 15;
   string cancelled_at = 16;
+  repeated PurchaseRequestPurchaseOrderLink linked_purchase_orders = 17;
+  string next_expected_receipt_date = 18;
+  string receiving_status_summary = 19;
 }
 
 message PurchaseRequestSummary {
@@ -210,6 +236,18 @@ message PurchaseRequestSummary {
   string created_at = 7;
   string submitted_at = 8;
   string decided_at = 9;
+  repeated PurchaseRequestPurchaseOrderLink linked_purchase_orders = 10;
+  string next_expected_receipt_date = 11;
+  string receiving_status_summary = 12;
+}
+
+message PurchaseRequestPurchaseOrderLink {
+  string purchase_order_id = 1;
+  string order_no = 2;
+  string purchase_order_line_id = 3;
+  string allocated_quantity = 4;
+  string expected_receipt_date = 5;
+  string receiving_status_summary = 6;
 }
 
 message PurchaseRequestLineInput {
@@ -244,10 +282,11 @@ message SearchPurchaseRequestsRequest {
   PurchaseRequestStatus status = 7;
   string requester_operator_id = 8;
   string item_id = 9;
-  string needed_by_date_from = 10;
-  string needed_by_date_to = 11;
-  uint32 page = 12;
-  uint32 page_size = 13;
+  string purchase_order_id = 10;
+  string needed_by_date_from = 11;
+  string needed_by_date_to = 12;
+  uint32 page = 13;
+  uint32 page_size = 14;
 }
 
 message SearchPurchaseRequestsResponse {
@@ -329,6 +368,24 @@ message CancelPurchaseRequestResponse {
   PurchaseRequest purchase_request = 1;
 }
 
+message PurchaseRequestSourceLineSelection {
+  string purchase_request_id = 1;
+  string purchase_request_line_id = 2;
+  string purchase_order_quantity = 3;
+  string ordered_unit_price = 4;
+  string general_stock_excess_reason = 5;
+}
+
+message PurchaseOrderPaymentTermsSnapshot {
+  string payment_terms_code = 1;
+  string payment_terms_text = 2;
+}
+
+message PurchaseOrderCommercialTermsSnapshot {
+  string incoterm_code = 1;
+  string commercial_terms_text = 2;
+}
+
 message PurchaseRequestLineSelection {
   string purchase_request_line_id = 1;
   string purchase_order_quantity = 2;
@@ -341,10 +398,12 @@ message ConvertPurchaseRequestToPurchaseOrderRequest {
   OperatorContext operator_context = 2;
   TraceContext trace_context = 3;
   AuditContext audit_context = 4;
-  string purchase_request_id = 5;
+  string target_purchase_order_id = 5;
   string supplier_id = 6;
-  repeated PurchaseRequestLineSelection selected_lines = 7;
+  repeated PurchaseRequestSourceLineSelection source_lines = 7;
   string currency_code = 8;
+  PurchaseOrderPaymentTermsSnapshot payment_terms_snapshot = 9;
+  PurchaseOrderCommercialTermsSnapshot supplier_commercial_terms_snapshot = 10;
 }
 
 message ConvertPurchaseRequestToPurchaseOrderResponse {
@@ -359,10 +418,12 @@ message PurchaseOrderSupplierSnapshot {
 
 message PurchaseOrderLineAllocation {
   string purchase_order_line_allocation_id = 1;
-  PurchaseOrderLineAllocationType allocation_type = 2;
-  string reference_id = 3;
+  PurchaseOrderLineAllocationType allocation_source_type = 2;
+  string source_reference_id = 3;
   string quantity = 4;
   string reason = 5;
+  string target_warehouse_id = 6;
+  string target_receiving_address_id = 7;
 }
 
 message PurchaseOrderLine {
@@ -389,6 +450,15 @@ message PurchaseOrderSupplierAcknowledgement {
   string comment = 4;
 }
 
+message PurchaseOrderPaymentSummary {
+  string payment_status_summary = 1;
+  string deposit_paid_amount = 2;
+  string balance_paid_amount = 3;
+  string currency_code = 4;
+  repeated string attachment_refs = 5;
+  string last_payment_at = 6;
+}
+
 message PurchaseOrder {
   string purchase_order_id = 1;
   string order_no = 2;
@@ -398,13 +468,16 @@ message PurchaseOrder {
   string currency_code = 6;
   string supplier_id = 7;
   PurchaseOrderSupplierSnapshot supplier_snapshot = 8;
-  repeated string source_purchase_request_ids = 9;
-  repeated PurchaseOrderLine lines = 10;
-  PurchaseOrderSupplierAcknowledgement supplier_acknowledgement = 11;
-  string issued_at = 12;
-  string cancelled_at = 13;
-  string created_at = 14;
-  string updated_at = 15;
+  PurchaseOrderPaymentTermsSnapshot payment_terms_snapshot = 9;
+  PurchaseOrderCommercialTermsSnapshot supplier_commercial_terms_snapshot = 10;
+  PurchaseOrderPaymentSummary payment_summary = 11;
+  repeated string source_purchase_request_ids = 12;
+  repeated PurchaseOrderLine lines = 13;
+  PurchaseOrderSupplierAcknowledgement supplier_acknowledgement = 14;
+  string issued_at = 15;
+  string cancelled_at = 16;
+  string created_at = 17;
+  string updated_at = 18;
 }
 
 message PurchaseOrderSummary {
@@ -415,8 +488,9 @@ message PurchaseOrderSummary {
   string supplier_display_name = 5;
   string currency_code = 6;
   uint32 line_count = 7;
-  string issued_at = 8;
-  string created_at = 9;
+  string payment_status_summary = 8;
+  string issued_at = 9;
+  string created_at = 10;
 }
 
 message PurchaseOrderChange {
@@ -431,10 +505,12 @@ message PurchaseOrderChange {
 }
 
 message PurchaseOrderLineAllocationInput {
-  PurchaseOrderLineAllocationType allocation_type = 1;
-  string reference_id = 2;
+  PurchaseOrderLineAllocationType allocation_source_type = 1;
+  string source_reference_id = 2;
   string quantity = 3;
   string reason = 4;
+  string target_warehouse_id = 5;
+  string target_receiving_address_id = 6;
 }
 
 message PurchaseOrderLineInput {
@@ -508,8 +584,10 @@ message CreatePurchaseOrderDraftRequest {
   string org_id = 5;
   string supplier_id = 6;
   string currency_code = 7;
-  repeated string source_purchase_request_ids = 8;
-  repeated PurchaseOrderLineInput lines = 9;
+  PurchaseOrderPaymentTermsSnapshot payment_terms_snapshot = 8;
+  PurchaseOrderCommercialTermsSnapshot supplier_commercial_terms_snapshot = 9;
+  repeated string source_purchase_request_ids = 10;
+  repeated PurchaseOrderLineInput lines = 11;
 }
 
 message CreatePurchaseOrderDraftResponse {
@@ -524,8 +602,10 @@ message UpdatePurchaseOrderDraftRequest {
   string purchase_order_id = 5;
   string supplier_id = 6;
   string currency_code = 7;
-  repeated string source_purchase_request_ids = 8;
-  repeated PurchaseOrderLineInput lines = 9;
+  PurchaseOrderPaymentTermsSnapshot payment_terms_snapshot = 8;
+  PurchaseOrderCommercialTermsSnapshot supplier_commercial_terms_snapshot = 9;
+  repeated string source_purchase_request_ids = 10;
+  repeated PurchaseOrderLineInput lines = 11;
 }
 
 message UpdatePurchaseOrderDraftResponse {
@@ -601,7 +681,13 @@ message ReceivingDiscrepancy {
   ReceivingDiscrepancyStatus status = 4;
   ReceivingResolutionCode resolution_code = 5;
   string resolution_note = 6;
-  string resolved_at = 7;
+  repeated ReceivingDiscrepancyResolutionReference resolution_references = 7;
+  string resolved_at = 8;
+}
+
+message ReceivingDiscrepancyResolutionReference {
+  string reference_type = 1;
+  string reference_id = 2;
 }
 
 message ReceivingExpectation {
@@ -609,14 +695,18 @@ message ReceivingExpectation {
   string purchase_order_id = 2;
   string purchase_order_line_id = 3;
   string supplier_id = 4;
-  string expected_quantity = 5;
-  string received_quantity_summary = 6;
-  string open_quantity = 7;
-  string expected_receipt_date = 8;
-  ReceivingExpectationStatus status = 9;
-  ReceivingDiscrepancy discrepancy = 10;
-  string created_at = 11;
-  string updated_at = 12;
+  string allocation_grouping_key = 5;
+  repeated string source_allocation_ids = 6;
+  string target_warehouse_id = 7;
+  string target_receiving_address_id = 8;
+  string expected_quantity = 9;
+  string received_quantity_summary = 10;
+  string open_quantity = 11;
+  string expected_receipt_date = 12;
+  ReceivingExpectationStatus status = 13;
+  ReceivingDiscrepancy discrepancy = 14;
+  string created_at = 15;
+  string updated_at = 16;
 }
 
 message ReceivingExpectationSummary {
@@ -624,10 +714,12 @@ message ReceivingExpectationSummary {
   string purchase_order_id = 2;
   string purchase_order_line_id = 3;
   string supplier_id = 4;
-  string expected_receipt_date = 5;
-  string open_quantity = 6;
-  ReceivingExpectationStatus status = 7;
-  bool has_open_discrepancy = 8;
+  string target_warehouse_id = 5;
+  string target_receiving_address_id = 6;
+  string expected_receipt_date = 7;
+  string open_quantity = 8;
+  ReceivingExpectationStatus status = 9;
+  bool has_open_discrepancy = 10;
 }
 
 message GetReceivingExpectationRequest {
@@ -650,10 +742,12 @@ message SearchReceivingExpectationsRequest {
   string supplier_id = 6;
   ReceivingExpectationStatus status = 7;
   optional bool has_open_discrepancy = 8;
-  string expected_receipt_date_from = 9;
-  string expected_receipt_date_to = 10;
-  uint32 page = 11;
-  uint32 page_size = 12;
+  string target_warehouse_id = 9;
+  string target_receiving_address_id = 10;
+  string expected_receipt_date_from = 11;
+  string expected_receipt_date_to = 12;
+  uint32 page = 13;
+  uint32 page_size = 14;
 }
 
 message SearchReceivingExpectationsResponse {
@@ -670,8 +764,12 @@ message CreateReceivingExpectationRequest {
   AuditContext audit_context = 4;
   string purchase_order_id = 5;
   string purchase_order_line_id = 6;
-  string expected_quantity = 7;
-  string expected_receipt_date = 8;
+  string allocation_grouping_key = 7;
+  repeated string source_allocation_ids = 8;
+  string target_warehouse_id = 9;
+  string target_receiving_address_id = 10;
+  string expected_quantity = 11;
+  string expected_receipt_date = 12;
 }
 
 message CreateReceivingExpectationResponse {
@@ -687,6 +785,7 @@ message RecordReceivingDiscrepancyResolutionRequest {
   string receiving_discrepancy_id = 6;
   ReceivingResolutionCode resolution_code = 7;
   string resolution_note = 8;
+  repeated ReceivingDiscrepancyResolutionReference resolution_references = 9;
 }
 
 message RecordReceivingDiscrepancyResolutionResponse {

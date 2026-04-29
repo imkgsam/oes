@@ -14,17 +14,17 @@
   - operator context
   - trace context
 
-phase 1 query 只覆盖：
+phase 1 query + 当前最小 category slice 只覆盖：
 
 - Item 基础查询
-- Item 目录搜索
+- Item 目录搜索与 category-aware 收窄
+- ItemCategory 轻量树读取
 - Bundle 组成读取
 - 按 Item 读取 supplier mapping 列表
 - 供应商型号映射解析
 
 phase 1 query 不覆盖：
 
-- `ItemCategory`
 - 包装主数据
 - `ManufacturingSpec`
 - `StockItemType`
@@ -44,11 +44,22 @@ phase 1 query 返回的 `Item` 读取形状至少应包含以下字段：
 | `nature_type` | `PHYSICAL \| VIRTUAL \| SERVICE` |
 | `status` | phase 1 生命周期 / enabled 摘要 |
 | `capabilities` | `sellable / purchasable / stockable / manufacturable` |
+| `primary_category_summary` | 当前主分类摘要；未设置时为空 |
 
 说明：
 
 - `structure_type / nature_type` 在 phase 1 只读暴露，不通过 query 提供变更入口
-- `ItemCategory` 不在 phase 1 query shape 中出现
+- `primary_category_summary` 是可选摘要，不表示支持 multi-category
+- phase 1 + 当前 slice 仍只允许 `0..1` 个 `primary category`
+
+`primary_category_summary` 最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `category_id` | Category 稳定标识 |
+| `category_code` | tenant 内 category 编码 |
+| `category_name` | category 名称 |
+| `status` | 当前 category 生命周期 / enabled 摘要 |
 
 ## 3. RPC 语义
 
@@ -112,6 +123,8 @@ phase 1 query 返回的 `Item` 读取形状至少应包含以下字段：
 | `nature_type` | 否 | 按 `PHYSICAL / VIRTUAL / SERVICE` 过滤 |
 | `capability_filters` | 否 | 按 `sellable / purchasable / stockable / manufacturable` 过滤 |
 | `status` | 否 | 按生命周期 / enabled 状态过滤 |
+| `category_id` | 否 | 按 `primary category` 过滤 |
+| `include_descendants` | 否 | 仅在提供 `category_id` 时有效；为 `true` 时包含后代分类 |
 | `page` | 否 | 1-based 页码 |
 | `page_size` | 否 | 页大小 |
 
@@ -128,6 +141,57 @@ phase 1 query 返回的 `Item` 读取形状至少应包含以下字段：
 
 - 搜索结果为空时正常返回空页
 - 空页不是异常，不返回 `NOT_FOUND`
+
+补充语义：
+
+- 未提供 `category_id` 时，`include_descendants` 必须省略或为 `false`
+- 提供 `category_id` 且 `include_descendants = false` 时，只匹配该分类下直接挂载为该 `primary category` 的 Item
+- 提供 `category_id` 且 `include_descendants = true` 时，匹配该分类及其所有后代分类下的 Item
+- 指定的 `category_id` 不存在时返回 `NOT_FOUND`
+- 分类存在但当前没有 Item 命中时正常返回空页
+
+### `ListItemCategories`
+
+- 作用：按 tenant 读取轻量 category tree 的某一层级列表
+
+请求最小 shape：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `tenant_id` | 是 | 显式租户边界 |
+| `parent_category_id` | 否 | 为空时读取根节点；有值时读取该节点的直接子节点 |
+
+响应最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `categories[]` | 当前层级的 category 列表 |
+
+`categories[]` 最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `category_id` | Category 稳定标识 |
+| `category_code` | tenant 内 category 编码 |
+| `category_name` | category 名称 |
+| `parent_category_id` | 父分类标识；根节点为空 |
+| `status` | 当前 category 生命周期 / enabled 摘要 |
+| `has_children` | 是否存在直接子分类 |
+
+空语义：
+
+- tenant 当前没有任何 category 时，返回空 `categories[]`
+- `parent_category_id` 对应节点存在但没有直接子节点时，返回空 `categories[]`
+- 空树或空层级不是异常，不返回 `NOT_FOUND`
+
+返回语义：
+
+- 指定 `parent_category_id` 但目标分类不存在时返回 `NOT_FOUND`
+
+说明：
+
+- 本 RPC 只返回轻量树真相，不返回品牌、包装、制造、库存类型等其他树
+- 本 RPC 返回 category 自身状态摘要，但不把状态扩展为权限、定价、采购、库存策略判定
 
 ### `GetItemComposition`
 
@@ -254,15 +318,14 @@ phase 1 query 统一暴露以下错误面：
 
 | 错误码 | 语义 |
 | --- | --- |
-| `INVALID_ARGUMENT` | 请求字段缺失、格式非法、查询条件互相冲突，或 `ResolveSupplierItemMapping` 未提供 code / name |
+| `INVALID_ARGUMENT` | 请求字段缺失、格式非法、查询条件互相冲突，`ResolveSupplierItemMapping` 未提供 code / name，或 `include_descendants` 在缺少 `category_id` 时被设置为 `true` |
 | `UNAUTHENTICATED` | 缺少有效 internal service context 或 operator context |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有读取该 tenant/item 的权限 |
-| `NOT_FOUND` | 单对象读取目标不存在，例如 `GetItem` 的 `item_id` 不存在 |
+| `NOT_FOUND` | 单对象读取目标不存在，例如 `GetItem` 的 `item_id` 不存在，或 `SearchItems` / `ListItemCategories` 引用的 category 不存在 |
+| `ALREADY_EXISTS` | 当前 query RPC 不应返回该错误；该错误码只作为跨 management/query 共享的统一错误词汇保留 |
 | `FAILED_PRECONDITION` | 资源存在，但当前类型或状态不满足读取前提，例如对非 `BUNDLE` Item 调 `GetItemComposition` |
-| `UNAVAILABLE` | 下游依赖或当前服务暂不可用 |
-| `INTERNAL` | 未归类的服务内部错误 |
 
 补充说明：
 
-- `ALREADY_EXISTS` 不是 query RPC 的预期错误
-- `SearchItems` 空页、`BatchGetItems` 缺失项、`ListSupplierItemMappingsByItem` 空页、`ResolveSupplierItemMapping` 未命中，都必须走正常响应语义，而不是错误替代
+- `SearchItems` 空页、`BatchGetItems` 缺失项、`ListItemCategories` 空树或空层级、`ListSupplierItemMappingsByItem` 空页、`ResolveSupplierItemMapping` 未命中，都必须走正常响应语义，而不是错误替代
+- 当前 slice 不新增 `SearchSellableItems`、`SearchPurchasableItems`、`SearchStockableItems` 这类 domain-specific selector RPC；调用方应继续复用 `SearchItems` 并按既有 capability filter 组合

@@ -1,16 +1,23 @@
 import { randomUUID } from 'node:crypto'
 import { Prisma } from '../../prisma/generated/prisma'
+import { SetItemPrimaryCategoryHandler } from '../../src/application/commands/set-item-primary-category.handler'
+import { SetItemPrimaryCategoryCommand } from '../../src/application/commands/set-item-primary-category.command'
 import { SetItemCompositionHandler } from '../../src/application/commands/set-item-composition.handler'
+import { SearchItemsHandler } from '../../src/application/queries/search-items.handler'
+import { SearchItemsQuery } from '../../src/application/queries/search-items.query'
 import { ResolveSupplierItemMappingHandler } from '../../src/application/queries/resolve-supplier-item-mapping.handler'
 import { ResolveSupplierItemMappingQuery } from '../../src/application/queries/resolve-supplier-item-mapping.query'
 import { SupplierItemResolutionView } from '../../src/application/queries/supplier-item-resolution.view'
 import { Item } from '../../src/domain/aggregates/item.aggregate'
+import { ItemCategory } from '../../src/domain/aggregates/item-category.aggregate'
 import {
   ItemCapabilities,
   ItemNatureType,
   ItemStatus,
   ItemStructureType
 } from '../../src/domain/value-objects/item.value-objects'
+import { ItemCategoryStatus } from '../../src/domain/value-objects/item-category.value-objects'
+import { PrismaItemCategoryRepository } from '../../src/infrastructure/repositories/prisma/prisma-item-category.repository'
 import { PrismaItemCompositionRepository } from '../../src/infrastructure/repositories/prisma/prisma-item-composition.repository'
 import { PrismaItemRepository } from '../../src/infrastructure/repositories/prisma/prisma-item.repository'
 import { PrismaSupplierItemMappingRepository } from '../../src/infrastructure/repositories/prisma/prisma-supplier-item-mapping.repository'
@@ -37,9 +44,27 @@ function buildItem(input: {
   })
 }
 
+function buildCategory(input: {
+  id?: string
+  tenantId: string
+  categoryCode: string
+  categoryName: string
+  parentCategoryId?: string
+}): ItemCategory {
+  return ItemCategory.reconstitute({
+    id: input.id ?? randomUUID(),
+    tenantId: input.tenantId,
+    categoryCode: input.categoryCode,
+    categoryName: input.categoryName,
+    parentCategoryId: input.parentCategoryId,
+    status: ItemCategoryStatus.ACTIVE
+  })
+}
+
 describe('Prisma item-master repositories L2', () => {
   let prisma: PrismaService
   let itemRepository: PrismaItemRepository
+  let itemCategoryRepository: PrismaItemCategoryRepository
   let itemCompositionRepository: PrismaItemCompositionRepository
   let supplierItemMappingRepository: PrismaSupplierItemMappingRepository
   let prefix: string
@@ -47,6 +72,7 @@ describe('Prisma item-master repositories L2', () => {
   beforeAll(async () => {
     prisma = await createPrismaForIntegration()
     itemRepository = new PrismaItemRepository(prisma)
+    itemCategoryRepository = new PrismaItemCategoryRepository(prisma)
     itemCompositionRepository = new PrismaItemCompositionRepository(prisma)
     supplierItemMappingRepository = new PrismaSupplierItemMappingRepository(prisma)
   })
@@ -298,5 +324,121 @@ describe('Prisma item-master repositories L2', () => {
         itemId: item.id
       })
     )
+  })
+
+  it('item category repository / when tree has root and child nodes / should list one layer and compute descendant ids', async () => {
+    const tenantId = `${prefix}_tenant`
+    const root = await itemCategoryRepository.save(
+      buildCategory({
+        tenantId,
+        categoryCode: `${prefix}_CAT_ROOT`,
+        categoryName: `${prefix}_Root Category`
+      })
+    )
+    const child = await itemCategoryRepository.save(
+      buildCategory({
+        tenantId,
+        categoryCode: `${prefix}_CAT_CHILD`,
+        categoryName: `${prefix}_Child Category`,
+        parentCategoryId: root.id
+      })
+    )
+    await itemCategoryRepository.save(
+      buildCategory({
+        tenantId,
+        categoryCode: `${prefix}_CAT_GRAND`,
+        categoryName: `${prefix}_Grand Category`,
+        parentCategoryId: child.id
+      })
+    )
+
+    const rootLayer = await itemCategoryRepository.listByParentId(tenantId)
+    const descendants = await itemCategoryRepository.listDescendantIds(tenantId, root.id)
+
+    expect(rootLayer).toEqual([
+      expect.objectContaining({
+        categoryId: root.id,
+        categoryCode: `${prefix}_CAT_ROOT`,
+        hasChildren: true
+      })
+    ])
+    expect(descendants).toEqual([child.id, expect.any(String)])
+  })
+
+  it('item primary category + SearchItems / when include_descendants is true / should persist and filter by primary-category subtree only', async () => {
+    const tenantId = `${prefix}_tenant`
+    const root = await itemCategoryRepository.save(
+      buildCategory({
+        tenantId,
+        categoryCode: `${prefix}_CAT_FILTER_ROOT`,
+        categoryName: `${prefix}_Filter Root`
+      })
+    )
+    const child = await itemCategoryRepository.save(
+      buildCategory({
+        tenantId,
+        categoryCode: `${prefix}_CAT_FILTER_CHILD`,
+        categoryName: `${prefix}_Filter Child`,
+        parentCategoryId: root.id
+      })
+    )
+    const outside = await itemCategoryRepository.save(
+      buildCategory({
+        tenantId,
+        categoryCode: `${prefix}_CAT_FILTER_OUTSIDE`,
+        categoryName: `${prefix}_Filter Outside`
+      })
+    )
+    const childItem = await itemRepository.save(
+      buildItem({
+        tenantId,
+        itemCode: `${prefix}_ITEM_CHILD`,
+        itemName: `${prefix}_Child Item`,
+        structureType: ItemStructureType.SINGLE,
+        natureType: ItemNatureType.PHYSICAL
+      })
+    )
+    const outsideItem = await itemRepository.save(
+      buildItem({
+        tenantId,
+        itemCode: `${prefix}_ITEM_OUTSIDE`,
+        itemName: `${prefix}_Outside Item`,
+        structureType: ItemStructureType.SINGLE,
+        natureType: ItemNatureType.PHYSICAL
+      })
+    )
+
+    const setPrimaryCategoryHandler = new SetItemPrimaryCategoryHandler(itemRepository, itemCategoryRepository)
+    await setPrimaryCategoryHandler.execute(
+      new SetItemPrimaryCategoryCommand({
+        tenantId,
+        itemId: childItem.id,
+        categoryId: child.id
+      })
+    )
+    await setPrimaryCategoryHandler.execute(
+      new SetItemPrimaryCategoryCommand({
+        tenantId,
+        itemId: outsideItem.id,
+        categoryId: outside.id
+      })
+    )
+
+    const searchHandler = new SearchItemsHandler(itemCategoryRepository, itemRepository)
+    const result = await searchHandler.execute(
+      new SearchItemsQuery({
+        tenantId,
+        categoryId: root.id,
+        includeDescendants: true
+      })
+    )
+
+    expect(result.items.map((item) => item.id)).toEqual([childItem.id])
+    expect(result.items[0].primaryCategory).toEqual({
+      categoryId: child.id,
+      categoryCode: `${prefix}_CAT_FILTER_CHILD`,
+      categoryName: `${prefix}_Filter Child`,
+      status: ItemCategoryStatus.ACTIVE
+    })
   })
 })

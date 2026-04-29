@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { LoggingModule } from '@oes/common/logging'
 import { RegistryModule } from '@oes/common/registry'
+import { PricingManagementModule } from './modules/pricing-management.module'
+import { PricingQueryModule } from './modules/pricing-query.module'
 import { SalesInfrastructureModule } from './modules/sales-infrastructure.module'
 import { SalesManagementModule } from './modules/sales-management.module'
 import { SalesQueryModule } from './modules/sales-query.module'
@@ -17,7 +19,9 @@ import { SalesQueryModule } from './modules/sales-query.module'
     RegistryModule,
     SalesInfrastructureModule,
     SalesQueryModule,
-    SalesManagementModule
+    SalesManagementModule,
+    PricingQueryModule,
+    PricingManagementModule
   ]
 })
 export class AppModule {}

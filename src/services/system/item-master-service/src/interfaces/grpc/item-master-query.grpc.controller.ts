@@ -11,6 +11,8 @@ import {
   GetItemResponse,
   ItemMasterQueryServiceController,
   ItemMasterQueryServiceControllerMethods,
+  ListItemCategoriesRequest,
+  ListItemCategoriesResponse,
   ListSupplierItemMappingsByItemRequest,
   ListSupplierItemMappingsByItemResponse,
   ResolveSupplierItemMappingRequest,
@@ -24,6 +26,7 @@ import { GetItemQuery } from '../../application/queries/get-item.query'
 import { BatchGetItemsQuery } from '../../application/queries/batch-get-items.query'
 import { BatchGetItemsResult } from '../../application/queries/batch-get-items.handler'
 import { SearchItemsQuery } from '../../application/queries/search-items.query'
+import { ListItemCategoriesQuery } from '../../application/queries/list-item-categories.query'
 import { GetItemCompositionQuery } from '../../application/queries/get-item-composition.query'
 import {
   ListSupplierItemMappingsByItemQuery
@@ -79,6 +82,8 @@ export class ItemMasterQueryGrpcController implements ItemMasterQueryServiceCont
             }
           : undefined,
         status: request.status ?? undefined,
+        categoryId: request.categoryId ?? undefined,
+        includeDescendants: request.includeDescendants ?? undefined,
         page: request.page ?? undefined,
         pageSize: request.pageSize ?? undefined
       })
@@ -90,6 +95,17 @@ export class ItemMasterQueryGrpcController implements ItemMasterQueryServiceCont
       page: result.page,
       pageSize: result.pageSize
     }
+  }
+
+  async listItemCategories(request: ListItemCategoriesRequest): Promise<ListItemCategoriesResponse> {
+    const result = await this.queryBus.execute(
+      new ListItemCategoriesQuery({
+        tenantId: request.tenantId ?? '',
+        parentCategoryId: request.parentCategoryId ?? undefined
+      })
+    )
+
+    return ItemMasterGrpcPresenter.toListItemCategoriesResponse(result)
   }
 
   async getItemComposition(request: GetItemCompositionRequest): Promise<GetItemCompositionResponse> {

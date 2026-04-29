@@ -141,8 +141,16 @@ function createHarness() {
     cancelPurchaseOrder: new CancelPurchaseOrderHandler(purchaseOrderRepository, receivingRepository),
     createReceivingExpectation: new CreateReceivingExpectationHandler(purchaseOrderRepository, receivingRepository),
     recordReceivingDiscrepancyResolution: new RecordReceivingDiscrepancyResolutionHandler(receivingRepository),
-    getPurchaseRequest: new GetPurchaseRequestHandler(purchaseRequestRepository),
-    searchPurchaseRequests: new SearchPurchaseRequestsHandler(purchaseRequestRepository),
+    getPurchaseRequest: new GetPurchaseRequestHandler(
+      purchaseRequestRepository,
+      purchaseOrderRepository,
+      receivingRepository
+    ),
+    searchPurchaseRequests: new SearchPurchaseRequestsHandler(
+      purchaseRequestRepository,
+      purchaseOrderRepository,
+      receivingRepository
+    ),
     getPurchaseOrder: new GetPurchaseOrderHandler(purchaseOrderRepository),
     searchPurchaseOrders: new SearchPurchaseOrdersHandler(purchaseOrderRepository, purchaseRequestRepository),
     listPurchaseOrderChanges: new ListPurchaseOrderChangesHandler(purchaseOrderRepository),
@@ -251,7 +259,10 @@ describe('procurement-service behavior L1', () => {
     expect(submitted.status).toBe(PurchaseRequestStatus.SUBMITTED)
     expect(decided.status).toBe(PurchaseRequestStatus.APPROVED)
     expect(decided.approvalSnapshot?.decision).toBe(PurchaseRequestDecision.APPROVED)
-    expect(found).toEqual(decided)
+    expect(found).toMatchObject({
+      purchaseRequestId: decided.purchaseRequestId,
+      status: decided.status
+    })
     expect(search.total).toBe(1)
     expect(search.purchaseRequests[0].purchaseRequestId).toBe(created.purchaseRequestId)
   })
@@ -393,17 +404,18 @@ describe('procurement-service behavior L1', () => {
     const converted = await harness.convertPurchaseRequestToPurchaseOrder.execute(
       new ConvertPurchaseRequestToPurchaseOrderCommand({
         tenantId: 'tenant-1',
-        purchaseRequestId: approved.purchaseRequestId,
         supplierId: 'supplier-1',
         currencyCode: 'USD',
-        selectedLines: [
+        sourceLines: [
           {
+            purchaseRequestId: approved.purchaseRequestId,
             purchaseRequestLineId: approved.lines[0].purchaseRequestLineId,
             purchaseOrderQuantity: '13',
             orderedUnitPrice: '9.80',
             generalStockExcessReason: 'buffer for shelf stock'
           },
           {
+            purchaseRequestId: approved.purchaseRequestId,
             purchaseRequestLineId: approved.lines[1].purchaseRequestLineId,
             purchaseOrderQuantity: '4',
             orderedUnitPrice: '2.50'
@@ -419,9 +431,9 @@ describe('procurement-service behavior L1', () => {
     expect(converted.lines[0].allocations).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          allocationType: PurchaseOrderLineAllocationType.FULFILLMENT_DEMAND,
+          allocationType: PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE,
           quantity: '10',
-          referenceId: 'fd-1'
+          sourceReferenceId: approved.lines[0].purchaseRequestLineId
         }),
         expect.objectContaining({
           allocationType: PurchaseOrderLineAllocationType.GENERAL_STOCK,
@@ -432,10 +444,168 @@ describe('procurement-service behavior L1', () => {
     )
     expect(converted.lines[1].allocations).toEqual([
       expect.objectContaining({
-        allocationType: PurchaseOrderLineAllocationType.GENERAL_STOCK,
+        allocationType: PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE,
+        sourceReferenceId: approved.lines[1].purchaseRequestLineId,
         quantity: '4'
       })
     ])
+  })
+
+  it('ConvertPurchaseRequestToPurchaseOrder / should keep source PRs, update converted statuses, and support merging another approved PR into an existing draft PO', async () => {
+    const harness = createHarness()
+    harness.itemLookup.seed({
+      itemId: 'item-1',
+      itemCode: 'RM-001',
+      itemName: 'Standard Resin',
+      status: 'ACTIVE',
+      purchasable: true
+    })
+    harness.supplierLookup.seedSupplier({
+      supplierId: 'supplier-1',
+      supplierDisplayName: 'Acme Supplier',
+      status: 'ACTIVE'
+    })
+    harness.supplierLookup.seedOffering({
+      supplierOfferingId: 'offering-1',
+      supplierId: 'supplier-1',
+      itemId: 'item-1',
+      status: 'ACTIVE'
+    })
+
+    const firstRequest = await harness.createPurchaseRequest.execute(
+      new CreatePurchaseRequestCommand({
+        tenantId: 'tenant-1',
+        requester: {
+          operatorId: 'requester-1',
+          displayName: 'Buyer One'
+        },
+        requestType: PurchaseRequestType.SALES_DEDICATED,
+        title: 'First PR',
+        lines: [buildStandardItemLine({ requestedQuantity: '10', neededByDate: '2026-06-01' })]
+      })
+    )
+    await harness.submitPurchaseRequest.execute(
+      new SubmitPurchaseRequestCommand({
+        tenantId: 'tenant-1',
+        purchaseRequestId: firstRequest.purchaseRequestId
+      })
+    )
+    const approvedFirst = await harness.decidePurchaseRequest.execute(
+      new DecidePurchaseRequestCommand({
+        tenantId: 'tenant-1',
+        purchaseRequestId: firstRequest.purchaseRequestId,
+        decision: PurchaseRequestDecision.APPROVED,
+        decidedBy: {
+          operatorId: 'approver-1',
+          displayName: 'Approver One'
+        }
+      })
+    )
+
+    const secondRequest = await harness.createPurchaseRequest.execute(
+      new CreatePurchaseRequestCommand({
+        tenantId: 'tenant-1',
+        requester: {
+          operatorId: 'requester-2',
+          displayName: 'Buyer Two'
+        },
+        requestType: PurchaseRequestType.PRODUCTION_PACKAGING,
+        title: 'Second PR',
+        lines: [buildStandardItemLine({ requestedQuantity: '10', neededByDate: '2026-06-05', demandReferenceId: 'fd-2' })]
+      })
+    )
+    await harness.submitPurchaseRequest.execute(
+      new SubmitPurchaseRequestCommand({
+        tenantId: 'tenant-1',
+        purchaseRequestId: secondRequest.purchaseRequestId
+      })
+    )
+    const approvedSecond = await harness.decidePurchaseRequest.execute(
+      new DecidePurchaseRequestCommand({
+        tenantId: 'tenant-1',
+        purchaseRequestId: secondRequest.purchaseRequestId,
+        decision: PurchaseRequestDecision.APPROVED,
+        decidedBy: {
+          operatorId: 'approver-2',
+          displayName: 'Approver Two'
+        }
+      })
+    )
+
+    const createdDraft = await harness.convertPurchaseRequestToPurchaseOrder.execute(
+      new ConvertPurchaseRequestToPurchaseOrderCommand({
+        tenantId: 'tenant-1',
+        supplierId: 'supplier-1',
+        currencyCode: 'USD',
+        sourceLines: [
+          {
+            purchaseRequestId: approvedFirst.purchaseRequestId,
+            purchaseRequestLineId: approvedFirst.lines[0].purchaseRequestLineId,
+            purchaseOrderQuantity: '10',
+            orderedUnitPrice: '9.80'
+          }
+        ]
+      })
+    )
+
+    const mergedDraft = await harness.convertPurchaseRequestToPurchaseOrder.execute(
+      new ConvertPurchaseRequestToPurchaseOrderCommand({
+        tenantId: 'tenant-1',
+        targetPurchaseOrderId: createdDraft.purchaseOrderId,
+        sourceLines: [
+          {
+            purchaseRequestId: approvedSecond.purchaseRequestId,
+            purchaseRequestLineId: approvedSecond.lines[0].purchaseRequestLineId,
+            purchaseOrderQuantity: '6',
+            orderedUnitPrice: '9.60'
+          }
+        ]
+      } as never)
+    )
+
+    const firstQuery = await harness.getPurchaseRequest.execute(
+      new GetPurchaseRequestQuery('tenant-1', approvedFirst.purchaseRequestId)
+    )
+    const secondQuery = await harness.getPurchaseRequest.execute(
+      new GetPurchaseRequestQuery('tenant-1', approvedSecond.purchaseRequestId)
+    )
+    const mergedSearch = await harness.searchPurchaseRequests.execute(
+      new SearchPurchaseRequestsQuery({
+        tenantId: 'tenant-1',
+        purchaseOrderId: createdDraft.purchaseOrderId,
+        page: 1,
+        pageSize: 20
+      } as never)
+    )
+
+    expect(mergedDraft.purchaseOrderId).toBe(createdDraft.purchaseOrderId)
+    expect(mergedDraft.sourcePurchaseRequestIds).toEqual(
+      expect.arrayContaining([approvedFirst.purchaseRequestId, approvedSecond.purchaseRequestId])
+    )
+    expect(firstQuery.purchaseRequestId).toBe(approvedFirst.purchaseRequestId)
+    expect(firstQuery.status).toBe('CONVERTED')
+    expect((firstQuery.lines[0] as any).conversionStatus).toBe('CONVERTED')
+    expect((firstQuery as any).linkedPurchaseOrders).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          purchaseOrderId: createdDraft.purchaseOrderId,
+          orderNo: createdDraft.orderNo
+        })
+      ])
+    )
+    expect(secondQuery.purchaseRequestId).toBe(approvedSecond.purchaseRequestId)
+    expect(secondQuery.status).toBe('PARTIALLY_CONVERTED')
+    expect((secondQuery.lines[0] as any).conversionStatus).toBe('PARTIALLY_CONVERTED')
+    expect((secondQuery.lines[0] as any).linkedPurchaseOrderLines).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          purchaseOrderId: createdDraft.purchaseOrderId,
+          allocatedQuantity: '6'
+        })
+      ])
+    )
+    expect((secondQuery as any).nextExpectedReceiptDate).toBe('2026-06-05')
+    expect(mergedSearch.purchaseRequests).toHaveLength(2)
   })
 
   it('ConvertPurchaseRequestToPurchaseOrder / when standard item has no ACTIVE SupplierOffering / should reject with FAILED_PRECONDITION', async () => {
@@ -487,11 +657,11 @@ describe('procurement-service behavior L1', () => {
       harness.convertPurchaseRequestToPurchaseOrder.execute(
         new ConvertPurchaseRequestToPurchaseOrderCommand({
           tenantId: 'tenant-1',
-          purchaseRequestId: request.purchaseRequestId,
           supplierId: 'supplier-1',
           currencyCode: 'USD',
-          selectedLines: [
+          sourceLines: [
             {
+              purchaseRequestId: request.purchaseRequestId,
               purchaseRequestLineId: request.lines[0].purchaseRequestLineId,
               purchaseOrderQuantity: '10'
             }
@@ -540,6 +710,49 @@ describe('procurement-service behavior L1', () => {
             }
           ]
         })
+      )
+    ).rejects.toMatchObject({
+      definition: {
+        rpcStatus: status.INVALID_ARGUMENT
+      }
+    })
+  })
+
+  it('UpdatePurchaseOrderDraft / when non-general allocation omits the source reference / should reject with INVALID_ARGUMENT', async () => {
+    const harness = createHarness()
+
+    const draft = await harness.createPurchaseOrderDraft.execute(
+      new CreatePurchaseOrderDraftCommand({
+        tenantId: 'tenant-1',
+        orgId: 'org-1',
+        supplierId: 'supplier-1',
+        currencyCode: 'USD',
+        lines: []
+      })
+    )
+
+    await expect(
+      harness.updatePurchaseOrderDraft.execute(
+        new UpdatePurchaseOrderDraftCommand({
+          tenantId: 'tenant-1',
+          purchaseOrderId: draft.purchaseOrderId,
+          supplierId: 'supplier-1',
+          currencyCode: 'USD',
+          lines: [
+            {
+              lineType: PurchaseRequestLineType.TEXT,
+              description: 'dedicated text demand',
+              orderedQuantity: '10',
+              uom: 'PCS',
+              allocations: [
+                {
+                  allocationType: 'PURCHASE_REQUEST_LINE',
+                  quantity: '10'
+                }
+              ]
+            }
+          ]
+        } as never)
       )
     ).rejects.toMatchObject({
       definition: {
@@ -741,6 +954,8 @@ describe('procurement-service behavior L1', () => {
           tenantId: 'tenant-1',
           purchaseOrderId: draft.purchaseOrderId,
           purchaseOrderLineId: draft.lines[0].purchaseOrderLineId,
+          allocationGroupingKey: 'draft-line',
+          sourceAllocationIds: [draft.lines[0].allocations[0].purchaseOrderLineAllocationId],
           expectedQuantity: '8',
           expectedReceiptDate: '2026-05-30'
         })
@@ -767,6 +982,8 @@ describe('procurement-service behavior L1', () => {
         tenantId: 'tenant-1',
         purchaseOrderId: issued.purchaseOrderId,
         purchaseOrderLineId: issued.lines[0].purchaseOrderLineId,
+        allocationGroupingKey: 'issued-line',
+        sourceAllocationIds: [issued.lines[0].allocations[0].purchaseOrderLineAllocationId],
         expectedQuantity: '8',
         expectedReceiptDate: '2026-05-30'
       })
@@ -776,7 +993,7 @@ describe('procurement-service behavior L1', () => {
       ...expectation,
       discrepancy: {
         receivingDiscrepancyId: 'discrepancy-1',
-        discrepancyType: ReceivingDiscrepancyType.SHORT_RECEIPT,
+        discrepancyType: ReceivingDiscrepancyType.SHORT_RECEIVED,
         summary: '2 boxes short',
         status: ReceivingDiscrepancyStatus.OPEN
       }
@@ -807,6 +1024,208 @@ describe('procurement-service behavior L1', () => {
     expect(found.receivedQuantitySummary).toBe('0')
     expect(found.openQuantity).toBe('8')
     expect(search.total).toBe(1)
+  })
+
+  it('ReceivingExpectation / should require a PurchaseOrderChange reference before closing remaining unreceived quantity', async () => {
+    const harness = createHarness()
+    harness.supplierLookup.seedSupplier({
+      supplierId: 'supplier-1',
+      supplierDisplayName: 'Acme Supplier',
+      status: 'ACTIVE'
+    })
+
+    const draft = await harness.createPurchaseOrderDraft.execute(
+      new CreatePurchaseOrderDraftCommand({
+        tenantId: 'tenant-1',
+        supplierId: 'supplier-1',
+        currencyCode: 'USD',
+        lines: [
+          {
+            lineType: PurchaseRequestLineType.TEXT,
+            description: 'Close short receipt via PO change',
+            orderedQuantity: '8',
+            uom: 'BOX',
+            allocations: [
+              {
+                allocationType: PurchaseOrderLineAllocationType.GENERAL_STOCK,
+                quantity: '8'
+              }
+            ]
+          }
+        ]
+      })
+    )
+    const issued = await harness.issuePurchaseOrder.execute(
+      new IssuePurchaseOrderCommand({
+        tenantId: 'tenant-1',
+        purchaseOrderId: draft.purchaseOrderId
+      })
+    )
+    const expectation = await harness.createReceivingExpectation.execute(
+      new CreateReceivingExpectationCommand({
+        tenantId: 'tenant-1',
+        purchaseOrderId: issued.purchaseOrderId,
+        purchaseOrderLineId: issued.lines[0].purchaseOrderLineId,
+        allocationGroupingKey: 'issued-line',
+        sourceAllocationIds: [issued.lines[0].allocations[0].purchaseOrderLineAllocationId],
+        expectedQuantity: '8',
+        expectedReceiptDate: '2026-05-30'
+      })
+    )
+    const seeded = await harness.receivingRepository.save({
+      ...expectation,
+      discrepancy: {
+        receivingDiscrepancyId: 'discrepancy-close-1',
+        discrepancyType: ReceivingDiscrepancyType.SHORT_RECEIVED,
+        summary: '2 boxes short',
+        status: ReceivingDiscrepancyStatus.OPEN
+      }
+    })
+
+    await expect(
+      harness.recordReceivingDiscrepancyResolution.execute(
+        new RecordReceivingDiscrepancyResolutionCommand({
+          tenantId: 'tenant-1',
+          receivingExpectationId: seeded.receivingExpectationId,
+          receivingDiscrepancyId: 'discrepancy-close-1',
+          resolutionCode: ReceivingResolutionCode.CLOSE_UNRECEIVED,
+          resolutionNote: 'close without change reference'
+        })
+      )
+    ).rejects.toMatchObject({
+      definition: {
+        rpcStatus: status.FAILED_PRECONDITION
+      }
+    })
+
+    const poChange = await harness.applyPurchaseOrderChange.execute(
+      new ApplyPurchaseOrderChangeCommand({
+        tenantId: 'tenant-1',
+        purchaseOrderId: issued.purchaseOrderId,
+        changeType: 'LINE_QTY_ADJUSTED',
+        changeReason: 'cancel remaining unreceived quantity',
+        appliedBy: {
+          operatorId: 'buyer-1',
+          displayName: 'Buyer One'
+        },
+        targetState: {
+          lines: [
+            {
+              purchaseOrderLineId: issued.lines[0].purchaseOrderLineId,
+              lineType: PurchaseRequestLineType.TEXT,
+              description: 'Close short receipt via PO change',
+              orderedQuantity: '6',
+              uom: 'BOX',
+              allocations: [
+                {
+                  allocationType: PurchaseOrderLineAllocationType.GENERAL_STOCK,
+                  quantity: '6',
+                  reason: 'cancel remaining unreceived quantity'
+                }
+              ]
+            }
+          ]
+        }
+      })
+    )
+    const resolved = await harness.recordReceivingDiscrepancyResolution.execute(
+      new RecordReceivingDiscrepancyResolutionCommand({
+        tenantId: 'tenant-1',
+        receivingExpectationId: seeded.receivingExpectationId,
+        receivingDiscrepancyId: 'discrepancy-close-1',
+        resolutionCode: ReceivingResolutionCode.CLOSE_UNRECEIVED,
+        resolutionNote: 'close the remaining shortfall after PO change',
+        resolutionReferences: [
+          {
+            referenceType: 'PURCHASE_ORDER_CHANGE',
+            referenceId: poChange.change.purchaseOrderChangeId
+          }
+        ]
+      })
+    )
+
+    expect(poChange.change.status).toBe('APPLIED')
+    expect(resolved.receivingDiscrepancy.resolutionCode).toBe(ReceivingResolutionCode.CLOSE_UNRECEIVED)
+    expect(resolved.receivingDiscrepancy.resolutionReferences).toEqual([
+      {
+        referenceType: 'PURCHASE_ORDER_CHANGE',
+        referenceId: poChange.change.purchaseOrderChangeId
+      }
+    ])
+  })
+
+  it('CreateReceivingExpectation / should allow multiple expectations for one PO line when allocation grouping or targets differ', async () => {
+    const harness = createHarness()
+    harness.supplierLookup.seedSupplier({
+      supplierId: 'supplier-1',
+      supplierDisplayName: 'Acme Supplier',
+      status: 'ACTIVE'
+    })
+
+    const draft = await harness.createPurchaseOrderDraft.execute(
+      new CreatePurchaseOrderDraftCommand({
+        tenantId: 'tenant-1',
+        supplierId: 'supplier-1',
+        currencyCode: 'USD',
+        lines: [
+          {
+            lineType: PurchaseRequestLineType.TEXT,
+            description: 'Split receiving carton',
+            orderedQuantity: '8',
+            uom: 'BOX',
+            allocations: [
+              {
+                allocationType: PurchaseOrderLineAllocationType.GENERAL_STOCK,
+                quantity: '4',
+                targetWarehouseId: 'wh-a'
+              },
+              {
+                allocationType: PurchaseOrderLineAllocationType.GENERAL_STOCK,
+                quantity: '4',
+                targetWarehouseId: 'wh-b'
+              }
+            ]
+          }
+        ]
+      } as never)
+    )
+    const issued = await harness.issuePurchaseOrder.execute(
+      new IssuePurchaseOrderCommand({
+        tenantId: 'tenant-1',
+        purchaseOrderId: draft.purchaseOrderId
+      })
+    )
+
+    const firstExpectation = await harness.createReceivingExpectation.execute(
+      new CreateReceivingExpectationCommand({
+        tenantId: 'tenant-1',
+        purchaseOrderId: issued.purchaseOrderId,
+        purchaseOrderLineId: issued.lines[0].purchaseOrderLineId,
+        allocationGroupingKey: 'wh-a',
+        sourceAllocationIds: [issued.lines[0].allocations[0].purchaseOrderLineAllocationId],
+        targetWarehouseId: 'wh-a',
+        expectedQuantity: '4',
+        expectedReceiptDate: '2026-05-30'
+      } as never)
+    )
+
+    const secondExpectation = await harness.createReceivingExpectation.execute(
+      new CreateReceivingExpectationCommand({
+        tenantId: 'tenant-1',
+        purchaseOrderId: issued.purchaseOrderId,
+        purchaseOrderLineId: issued.lines[0].purchaseOrderLineId,
+        allocationGroupingKey: 'wh-b',
+        sourceAllocationIds: [issued.lines[0].allocations[1].purchaseOrderLineAllocationId],
+        targetWarehouseId: 'wh-b',
+        expectedQuantity: '4',
+        expectedReceiptDate: '2026-06-02'
+      } as never)
+    )
+
+    expect(firstExpectation.receivingExpectationId).not.toBe(secondExpectation.receivingExpectationId)
+    expect((firstExpectation as any).allocationGroupingKey).toBe('wh-a')
+    expect((secondExpectation as any).allocationGroupingKey).toBe('wh-b')
+    expect((secondExpectation as any).targetWarehouseId).toBe('wh-b')
   })
 
   it('CancelPurchaseOrder / should cancel orders without receiving expectations after phase 1 acknowledgement', async () => {

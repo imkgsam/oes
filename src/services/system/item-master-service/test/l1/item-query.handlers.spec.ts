@@ -11,13 +11,16 @@ import { ResolveSupplierItemMappingQuery } from '../../src/application/queries/r
 import { ResolveSupplierItemMappingHandler } from '../../src/application/queries/resolve-supplier-item-mapping.handler'
 import { SearchItemsQuery } from '../../src/application/queries/search-items.query'
 import { SearchItemsHandler } from '../../src/application/queries/search-items.handler'
+import { ItemCategoryRepository } from '../../src/domain/repositories/item-category.repository'
 import { Item } from '../../src/domain/aggregates/item.aggregate'
+import { ItemCategory } from '../../src/domain/aggregates/item-category.aggregate'
 import {
   ItemCapabilities,
   ItemNatureType,
   ItemStatus,
   ItemStructureType
 } from '../../src/domain/value-objects/item.value-objects'
+import { ItemCategoryStatus } from '../../src/domain/value-objects/item-category.value-objects'
 import { ItemRepository } from '../../src/domain/repositories/item.repository'
 import {
   SupplierItemMapping,
@@ -32,6 +35,16 @@ function createItemRepositoryMock(): jest.Mocked<ItemRepository> {
     findByCode: jest.fn(),
     save: jest.fn(),
     search: jest.fn()
+  }
+}
+
+function createItemCategoryRepositoryMock(): jest.Mocked<ItemCategoryRepository> {
+  return {
+    findById: jest.fn(),
+    findByCode: jest.fn(),
+    save: jest.fn(),
+    listByParentId: jest.fn(),
+    listDescendantIds: jest.fn()
   }
 }
 
@@ -57,6 +70,20 @@ function buildItem(id: string, overrides: Partial<Parameters<typeof Item.reconst
   })
 }
 
+function buildCategory(
+  id: string,
+  overrides: Partial<Parameters<typeof ItemCategory.reconstitute>[0]> = {}
+): ItemCategory {
+  return ItemCategory.reconstitute({
+    id,
+    tenantId: 'tenant-1',
+    categoryCode: `CAT-${id}`,
+    categoryName: `Category ${id}`,
+    status: ItemCategoryStatus.ACTIVE,
+    ...overrides
+  })
+}
+
 describe('Item query handlers L1', () => {
   it('BatchGetItems / when some item ids are missing / should return items and missing_item_ids separately', async () => {
     const itemRepository = createItemRepositoryMock()
@@ -77,7 +104,8 @@ describe('Item query handlers L1', () => {
 
   it('SearchItems / when capability filters are present / should pass them through to repository search', async () => {
     const itemRepository = createItemRepositoryMock()
-    const handler = new SearchItemsHandler(itemRepository)
+    const itemCategoryRepository = createItemCategoryRepositoryMock()
+    const handler = new SearchItemsHandler(itemCategoryRepository, itemRepository)
 
     itemRepository.search.mockResolvedValue({
       items: [buildItem('item-1')],
@@ -106,6 +134,38 @@ describe('Item query handlers L1', () => {
       })
     )
     expect(result.total).toBe(1)
+  })
+
+  it('SearchItems / when category filter requests descendants / should pass primary-category filter coordinates to repository search', async () => {
+    const itemRepository = createItemRepositoryMock()
+    const itemCategoryRepository = createItemCategoryRepositoryMock()
+    const handler = new SearchItemsHandler(itemCategoryRepository, itemRepository)
+
+    itemRepository.search.mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      pageSize: 20
+    })
+    itemCategoryRepository.findById.mockResolvedValue(buildCategory('category-root'))
+    itemCategoryRepository.listDescendantIds.mockResolvedValue(['category-child'])
+
+    await handler.execute(
+      new SearchItemsQuery({
+        tenantId: 'tenant-1',
+        categoryId: 'category-root',
+        includeDescendants: true
+      } as never)
+    )
+
+    expect(itemRepository.search).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        categoryId: 'category-root',
+        includeDescendants: true,
+        categoryIds: ['category-root', 'category-child']
+      })
+    )
   })
 
   it('ResolveSupplierItemMapping / when mapping exists / should return MATCHED', async () => {

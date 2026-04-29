@@ -21,6 +21,8 @@ class SearchItemsQuery {
         this.natureType = input.natureType;
         this.capabilityFilters = input.capabilityFilters;
         this.status = input.status;
+        this.categoryId = input.categoryId;
+        this.includeDescendants = input.includeDescendants;
         this.page = input.page;
         this.pageSize = input.pageSize;
     }
@@ -54,6 +56,14 @@ __decorate([
     (0, class_validator_1.Allow)(),
     __metadata("design:type", Number)
 ], SearchItemsQuery.prototype, "status", void 0);
+__decorate([
+    (0, class_validator_1.Allow)(),
+    __metadata("design:type", String)
+], SearchItemsQuery.prototype, "categoryId", void 0);
+__decorate([
+    (0, class_validator_1.Allow)(),
+    __metadata("design:type", Boolean)
+], SearchItemsQuery.prototype, "includeDescendants", void 0);
 __decorate([
     (0, class_validator_1.Allow)(),
     __metadata("design:type", Number)

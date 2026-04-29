@@ -7,6 +7,10 @@ export declare class RecordReceivingDiscrepancyResolutionCommand {
         receivingDiscrepancyId: string;
         resolutionCode: ReceivingResolutionCode | string;
         resolutionNote?: string;
+        resolutionReferences?: Array<{
+            referenceType: string;
+            referenceId: string;
+        }>;
     };
     constructor(payload: RecordReceivingDiscrepancyResolutionCommand['payload']);
 }

@@ -1,5 +1,5 @@
-import { Prisma, ProcurementPurchaseOrderChangeStatus as PrismaPurchaseOrderChangeStatus, ProcurementPurchaseOrderLineAllocationType as PrismaPurchaseOrderLineAllocationType, ProcurementPurchaseOrderStatus as PrismaPurchaseOrderStatus, ProcurementPurchaseRequestDecision as PrismaPurchaseRequestDecision, ProcurementPurchaseRequestLineType as PrismaPurchaseRequestLineType, ProcurementPurchaseRequestStatus as PrismaPurchaseRequestStatus, ProcurementPurchaseRequestType as PrismaPurchaseRequestType, ProcurementReceivingDiscrepancyStatus as PrismaReceivingDiscrepancyStatus, ProcurementReceivingDiscrepancyType as PrismaReceivingDiscrepancyType, ProcurementReceivingExpectationStatus as PrismaReceivingExpectationStatus, ProcurementReceivingResolutionCode as PrismaReceivingResolutionCode, ProcurementSupplierAcknowledgementStatus as PrismaSupplierAcknowledgementStatus } from '../../../../prisma/generated/prisma';
-import { PurchaseOrderChangeStatus, PurchaseOrderLineAllocationType, PurchaseOrderRecord, PurchaseOrderStatus, PurchaseOrderSupplierAcknowledgementStatus, PurchaseRequestDecision, PurchaseRequestLineType, PurchaseRequestRecord, PurchaseRequestStatus, PurchaseRequestType, ReceivingDiscrepancyStatus, ReceivingDiscrepancyType, ReceivingExpectationRecord, ReceivingExpectationStatus, ReceivingResolutionCode } from '../../../domain/models/procurement-records';
+import { Prisma, ProcurementPurchaseOrderChangeStatus as PrismaPurchaseOrderChangeStatus, ProcurementPurchaseOrderLineAllocationType as PrismaPurchaseOrderLineAllocationType, ProcurementPurchaseOrderStatus as PrismaPurchaseOrderStatus, ProcurementPurchaseRequestDecision as PrismaPurchaseRequestDecision, ProcurementPurchaseRequestLineConversionStatus as PrismaPurchaseRequestLineConversionStatus, ProcurementPurchaseRequestLineType as PrismaPurchaseRequestLineType, ProcurementPurchaseRequestStatus as PrismaPurchaseRequestStatus, ProcurementPurchaseRequestType as PrismaPurchaseRequestType, ProcurementReceivingDiscrepancyStatus as PrismaReceivingDiscrepancyStatus, ProcurementReceivingDiscrepancyType as PrismaReceivingDiscrepancyType, ProcurementReceivingExpectationStatus as PrismaReceivingExpectationStatus, ProcurementReceivingResolutionCode as PrismaReceivingResolutionCode, ProcurementSupplierAcknowledgementStatus as PrismaSupplierAcknowledgementStatus } from '../../../../prisma/generated/prisma';
+import { PurchaseOrderChangeStatus, PurchaseOrderLineAllocationType, PurchaseOrderRecord, PurchaseOrderStatus, PurchaseOrderSupplierAcknowledgementStatus, PurchaseRequestDecision, PurchaseRequestLineConversionStatus, PurchaseRequestLineType, PurchaseRequestRecord, PurchaseRequestStatus, PurchaseRequestType, ReceivingDiscrepancyStatus, ReceivingDiscrepancyType, ReceivingExpectationRecord, ReceivingExpectationStatus, ReceivingResolutionCode } from '../../../domain/models/procurement-records';
 declare const purchaseRequestInclude: {
     lines: {
         orderBy: {
@@ -57,6 +57,8 @@ export declare class PrismaProcurementRecordMapper {
     static toPersistedPurchaseRequestStatus(value: PurchaseRequestStatus): PrismaPurchaseRequestStatus;
     /** toPersistedPurchaseRequestLineType converts the domain enum into the Prisma enum value. */
     static toPersistedPurchaseRequestLineType(value: PurchaseRequestLineType): PrismaPurchaseRequestLineType;
+    /** toPersistedPurchaseRequestLineConversionStatus converts the domain enum into the Prisma enum value. */
+    static toPersistedPurchaseRequestLineConversionStatus(value: PurchaseRequestLineConversionStatus): PrismaPurchaseRequestLineConversionStatus;
     /** toPersistedPurchaseRequestDecision converts the domain enum into the Prisma enum value. */
     static toPersistedPurchaseRequestDecision(value: PurchaseRequestDecision): PrismaPurchaseRequestDecision;
     /** toPersistedPurchaseOrderStatus converts the domain enum into the Prisma enum value. */
@@ -85,6 +87,7 @@ export declare class PrismaProcurementRecordMapper {
     private static toDomainPurchaseRequestType;
     private static toDomainPurchaseRequestStatus;
     private static toDomainPurchaseRequestLineType;
+    private static toDomainPurchaseRequestLineConversionStatus;
     private static toDomainPurchaseRequestDecision;
     private static toDomainPurchaseOrderStatus;
     private static toDomainPurchaseOrderAllocationType;

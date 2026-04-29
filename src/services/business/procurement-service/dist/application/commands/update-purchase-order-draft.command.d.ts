@@ -5,6 +5,14 @@ export declare class UpdatePurchaseOrderDraftCommand {
         purchaseOrderId: string;
         supplierId: string;
         currencyCode: string;
+        paymentTermsSnapshot?: {
+            paymentTermsCode?: string;
+            paymentTermsText?: string;
+        };
+        supplierCommercialTermsSnapshot?: {
+            incotermCode?: string;
+            commercialTermsText?: string;
+        };
         sourcePurchaseRequestIds?: string[];
         lines: Array<{
             purchaseOrderLineId?: string;
@@ -18,9 +26,11 @@ export declare class UpdatePurchaseOrderDraftCommand {
             generalStockExcessReason?: string;
             allocations: Array<{
                 allocationType: string;
-                referenceId?: string;
+                sourceReferenceId?: string;
                 quantity: string;
                 reason?: string;
+                targetWarehouseId?: string;
+                targetReceivingAddressId?: string;
             }>;
         }>;
     };

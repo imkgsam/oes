@@ -291,11 +291,11 @@ export class ProcurementManagementGrpcController
           auditContext: context.auditContext,
           commandName: 'ConvertPurchaseRequestToPurchaseOrder',
           resourceType: 'purchase_order',
-          targetId: request.purchaseRequestId ?? null,
+          targetId: request.targetPurchaseOrderId ?? request.sourceLines?.[0]?.purchaseRequestId ?? null,
           requestSummary: {
-            purchaseRequestId: request.purchaseRequestId ?? '',
+            purchaseRequestId: request.sourceLines?.[0]?.purchaseRequestId ?? '',
             supplierId: request.supplierId ?? '',
-            lineCount: request.selectedLines?.length ?? 0
+            lineCount: request.sourceLines?.length ?? 0
           }
         },
         async () =>
@@ -303,10 +303,24 @@ export class ProcurementManagementGrpcController
             await this.commandBus.execute(
               new ConvertPurchaseRequestToPurchaseOrderCommand({
                 tenantId: request.tenantId ?? '',
-                purchaseRequestId: request.purchaseRequestId ?? '',
-                supplierId: request.supplierId ?? '',
-                currencyCode: request.currencyCode ?? '',
-                selectedLines: (request.selectedLines ?? []).map((line) => ({
+                targetPurchaseOrderId: request.targetPurchaseOrderId ?? undefined,
+                supplierId: request.supplierId ?? undefined,
+                currencyCode: request.currencyCode ?? undefined,
+                paymentTermsSnapshot: request.paymentTermsSnapshot
+                  ? {
+                      paymentTermsCode: request.paymentTermsSnapshot.paymentTermsCode ?? undefined,
+                      paymentTermsText: request.paymentTermsSnapshot.paymentTermsText ?? undefined
+                    }
+                  : undefined,
+                supplierCommercialTermsSnapshot: request.supplierCommercialTermsSnapshot
+                  ? {
+                      incotermCode: request.supplierCommercialTermsSnapshot.incotermCode ?? undefined,
+                      commercialTermsText:
+                        request.supplierCommercialTermsSnapshot.commercialTermsText ?? undefined
+                    }
+                  : undefined,
+                sourceLines: (request.sourceLines ?? []).map((line) => ({
+                  purchaseRequestId: line.purchaseRequestId ?? '',
                   purchaseRequestLineId: line.purchaseRequestLineId ?? '',
                   purchaseOrderQuantity: line.purchaseOrderQuantity ?? '',
                   orderedUnitPrice: line.orderedUnitPrice ?? undefined,
@@ -344,6 +358,19 @@ export class ProcurementManagementGrpcController
                 orgId: request.orgId ?? undefined,
                 supplierId: request.supplierId ?? '',
                 currencyCode: request.currencyCode ?? '',
+                paymentTermsSnapshot: request.paymentTermsSnapshot
+                  ? {
+                      paymentTermsCode: request.paymentTermsSnapshot.paymentTermsCode ?? undefined,
+                      paymentTermsText: request.paymentTermsSnapshot.paymentTermsText ?? undefined
+                    }
+                  : undefined,
+                supplierCommercialTermsSnapshot: request.supplierCommercialTermsSnapshot
+                  ? {
+                      incotermCode: request.supplierCommercialTermsSnapshot.incotermCode ?? undefined,
+                      commercialTermsText:
+                        request.supplierCommercialTermsSnapshot.commercialTermsText ?? undefined
+                    }
+                  : undefined,
                 sourcePurchaseRequestIds: request.sourcePurchaseRequestIds ?? [],
                 lines: (request.lines ?? []).map((line) => this.toPurchaseOrderLineInput(line))
               })
@@ -378,6 +405,19 @@ export class ProcurementManagementGrpcController
                 purchaseOrderId: request.purchaseOrderId ?? '',
                 supplierId: request.supplierId ?? '',
                 currencyCode: request.currencyCode ?? '',
+                paymentTermsSnapshot: request.paymentTermsSnapshot
+                  ? {
+                      paymentTermsCode: request.paymentTermsSnapshot.paymentTermsCode ?? undefined,
+                      paymentTermsText: request.paymentTermsSnapshot.paymentTermsText ?? undefined
+                    }
+                  : undefined,
+                supplierCommercialTermsSnapshot: request.supplierCommercialTermsSnapshot
+                  ? {
+                      incotermCode: request.supplierCommercialTermsSnapshot.incotermCode ?? undefined,
+                      commercialTermsText:
+                        request.supplierCommercialTermsSnapshot.commercialTermsText ?? undefined
+                    }
+                  : undefined,
                 sourcePurchaseRequestIds: request.sourcePurchaseRequestIds ?? [],
                 lines: (request.lines ?? []).map((line) => this.toPurchaseOrderLineInput(line))
               })
@@ -559,6 +599,10 @@ export class ProcurementManagementGrpcController
                 tenantId: request.tenantId ?? '',
                 purchaseOrderId: request.purchaseOrderId ?? '',
                 purchaseOrderLineId: request.purchaseOrderLineId ?? '',
+                allocationGroupingKey: request.allocationGroupingKey ?? '',
+                sourceAllocationIds: request.sourceAllocationIds ?? [],
+                targetWarehouseId: request.targetWarehouseId ?? undefined,
+                targetReceivingAddressId: request.targetReceivingAddressId ?? undefined,
                 expectedQuantity: request.expectedQuantity ?? '',
                 expectedReceiptDate: request.expectedReceiptDate ?? undefined
               })
@@ -595,7 +639,11 @@ export class ProcurementManagementGrpcController
                 receivingExpectationId: request.receivingExpectationId ?? '',
                 receivingDiscrepancyId: request.receivingDiscrepancyId ?? '',
                 resolutionCode: toDomainReceivingResolutionCode(request.resolutionCode),
-                resolutionNote: request.resolutionNote ?? undefined
+                resolutionNote: request.resolutionNote ?? undefined,
+                resolutionReferences: (request.resolutionReferences ?? []).map((reference) => ({
+                  referenceType: reference.referenceType ?? '',
+                  referenceId: reference.referenceId ?? ''
+                }))
               })
             )
           )
@@ -613,12 +661,14 @@ export class ProcurementManagementGrpcController
     orderedUnitPrice?: string | null
     sourcePurchaseRequestLineId?: string | null
     generalStockExcessReason?: string | null
-    allocations?: Array<{
-      allocationType?: number | undefined
-      referenceId?: string | null
-      quantity?: string | null
-      reason?: string | null
-    }> | null
+      allocations?: Array<{
+        allocationType?: number | undefined
+        sourceReferenceId?: string | null
+        quantity?: string | null
+        reason?: string | null
+        targetWarehouseId?: string | null
+        targetReceivingAddressId?: string | null
+      }> | null
   }) {
     return {
       purchaseOrderLineId: line.purchaseOrderLineId ?? undefined,
@@ -632,9 +682,11 @@ export class ProcurementManagementGrpcController
       generalStockExcessReason: line.generalStockExcessReason ?? undefined,
       allocations: (line.allocations ?? []).map((allocation) => ({
         allocationType: toDomainPurchaseOrderAllocationType(allocation.allocationType),
-        referenceId: allocation.referenceId ?? undefined,
+        sourceReferenceId: allocation.sourceReferenceId ?? undefined,
         quantity: allocation.quantity ?? '',
-        reason: allocation.reason ?? undefined
+        reason: allocation.reason ?? undefined,
+        targetWarehouseId: allocation.targetWarehouseId ?? undefined,
+        targetReceivingAddressId: allocation.targetReceivingAddressId ?? undefined
       }))
     }
   }
@@ -687,9 +739,12 @@ function toDomainPurchaseRequestDecision(value?: ProtoPurchaseRequestDecision): 
 
 function toDomainPurchaseOrderAllocationType(value?: number): PurchaseOrderLineAllocationType {
   if (value === 1) {
-    return PurchaseOrderLineAllocationType.SALES_ORDER_LINE
+    return PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE
   }
   if (value === 2) {
+    return PurchaseOrderLineAllocationType.SALES_ORDER_LINE
+  }
+  if (value === 3) {
     return PurchaseOrderLineAllocationType.FULFILLMENT_DEMAND
   }
   return PurchaseOrderLineAllocationType.GENERAL_STOCK
@@ -697,12 +752,34 @@ function toDomainPurchaseOrderAllocationType(value?: number): PurchaseOrderLineA
 
 function toDomainReceivingResolutionCode(value?: ProtoReceivingResolutionCode): ReceivingResolutionCode {
   switch (value) {
-    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_SHORT_CLOSE:
-      return ReceivingResolutionCode.ACCEPT_SHORT_CLOSE
-    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RETURN_OR_REJECT_EXCESS:
-      return ReceivingResolutionCode.RETURN_OR_REJECT_EXCESS
-    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_MANUAL_FOLLOW_UP:
-      return ReceivingResolutionCode.MANUAL_FOLLOW_UP
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_CLOSE_UNRECEIVED:
+      return ReceivingResolutionCode.CLOSE_UNRECEIVED
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REQUEST_RESEND:
+      return ReceivingResolutionCode.REQUEST_RESEND
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_PO_CHANGE:
+      return ReceivingResolutionCode.ACCEPT_WITH_PO_CHANGE
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_EXCESS:
+      return ReceivingResolutionCode.REJECT_EXCESS
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_TEMP_HOLD:
+      return ReceivingResolutionCode.TEMP_HOLD
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_DAMAGED:
+      return ReceivingResolutionCode.REJECT_DAMAGED
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RECEIVE_WITH_RESTRICTION:
+      return ReceivingResolutionCode.RECEIVE_WITH_RESTRICTION
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_CLAIM:
+      return ReceivingResolutionCode.CLAIM
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_WRONG_ITEM:
+      return ReceivingResolutionCode.REJECT_WRONG_ITEM
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_TEMP_RECEIVE_PENDING_DECISION:
+      return ReceivingResolutionCode.TEMP_RECEIVE_PENDING_DECISION
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_CONTROLLED_CHANGE:
+      return ReceivingResolutionCode.ACCEPT_WITH_CONTROLLED_CHANGE
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_WAIT_INSPECTION:
+      return ReceivingResolutionCode.WAIT_INSPECTION
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_ALLOWANCE:
+      return ReceivingResolutionCode.ACCEPT_WITH_ALLOWANCE
+    case ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RETURN_TO_SUPPLIER:
+      return ReceivingResolutionCode.RETURN_TO_SUPPLIER
     default:
       return ReceivingResolutionCode.WAIT_REDELIVERY
   }

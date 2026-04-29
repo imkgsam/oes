@@ -225,6 +225,58 @@ exports.Prisma.SalesOrderLineScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.SalesPriceListScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  priceListName: 'priceListName',
+  priceListType: 'priceListType',
+  status: 'status',
+  currencyCode: 'currencyCode',
+  effectiveFrom: 'effectiveFrom',
+  effectiveTo: 'effectiveTo',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.SalesPriceListLineScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  priceListId: 'priceListId',
+  lineNo: 'lineNo',
+  itemId: 'itemId',
+  brandKey: 'brandKey',
+  priceSnapshot: 'priceSnapshot',
+  moqSnapshot: 'moqSnapshot',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.SalesCustomerPriceAgreementVersionScalarFieldEnum = {
+  id: 'id',
+  customerPriceAgreementId: 'customerPriceAgreementId',
+  tenantId: 'tenantId',
+  customerTenantPartyId: 'customerTenantPartyId',
+  currencyCode: 'currencyCode',
+  versionNo: 'versionNo',
+  status: 'status',
+  publishedAt: 'publishedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.SalesCustomerPriceAgreementLineScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  customerPriceAgreementVersionId: 'customerPriceAgreementVersionId',
+  lineNo: 'lineNo',
+  itemId: 'itemId',
+  brandKey: 'brandKey',
+  priceSnapshot: 'priceSnapshot',
+  moqSnapshot: 'moqSnapshot',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
 exports.Prisma.SalesAuditEnvelopeScalarFieldEnum = {
   id: 'id',
   service: 'service',
@@ -277,6 +329,24 @@ exports.SalesFulfillmentHandoffStatus = exports.$Enums.SalesFulfillmentHandoffSt
   SUBMITTED: 'SUBMITTED'
 };
 
+exports.PriceListType = exports.$Enums.PriceListType = {
+  STANDARD: 'STANDARD',
+  ACTIVITY: 'ACTIVITY',
+  EXHIBITION: 'EXHIBITION'
+};
+
+exports.PriceListStatus = exports.$Enums.PriceListStatus = {
+  DRAFT: 'DRAFT',
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE'
+};
+
+exports.CustomerPriceAgreementStatus = exports.$Enums.CustomerPriceAgreementStatus = {
+  DRAFT: 'DRAFT',
+  ACTIVE: 'ACTIVE',
+  SUPERSEDED: 'SUPERSEDED'
+};
+
 exports.Prisma.ModelName = {
   SalesSequenceCounter: 'SalesSequenceCounter',
   SalesQuote: 'SalesQuote',
@@ -287,6 +357,10 @@ exports.Prisma.ModelName = {
   SalesOrderCommercialGateSummary: 'SalesOrderCommercialGateSummary',
   SalesOrderFulfillmentHandoffSummary: 'SalesOrderFulfillmentHandoffSummary',
   SalesOrderLine: 'SalesOrderLine',
+  SalesPriceList: 'SalesPriceList',
+  SalesPriceListLine: 'SalesPriceListLine',
+  SalesCustomerPriceAgreementVersion: 'SalesCustomerPriceAgreementVersion',
+  SalesCustomerPriceAgreementLine: 'SalesCustomerPriceAgreementLine',
   SalesAuditEnvelope: 'SalesAuditEnvelope'
 };
 

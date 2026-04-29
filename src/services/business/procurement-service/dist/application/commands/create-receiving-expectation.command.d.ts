@@ -4,6 +4,10 @@ export declare class CreateReceivingExpectationCommand {
         tenantId: string;
         purchaseOrderId: string;
         purchaseOrderLineId: string;
+        allocationGroupingKey: string;
+        sourceAllocationIds: string[];
+        targetWarehouseId?: string;
+        targetReceivingAddressId?: string;
         expectedQuantity: string;
         expectedReceiptDate?: string;
     };

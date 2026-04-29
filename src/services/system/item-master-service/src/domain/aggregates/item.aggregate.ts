@@ -10,6 +10,7 @@ import {
   ItemStatus,
   ItemStructureType
 } from '../value-objects/item.value-objects'
+import { ItemCategoryReference } from '../value-objects/item-category.value-objects'
 
 export interface ItemState {
   id: string
@@ -20,6 +21,7 @@ export interface ItemState {
   natureType: ItemNatureType
   status: ItemStatus
   capabilities: ItemCapabilities
+  primaryCategory?: ItemCategoryReference
 }
 
 /** Item models the tenant-scoped item master aggregate and enforces phase 1 classification and capability rules. */
@@ -47,7 +49,8 @@ export class Item {
       structureType: input.structureType,
       natureType: input.natureType,
       status: ItemStatus.ACTIVE,
-      capabilities: ItemCapabilities.none()
+      capabilities: ItemCapabilities.none(),
+      primaryCategory: undefined
     })
   }
 
@@ -55,7 +58,8 @@ export class Item {
   static reconstitute(state: ItemState): Item {
     return new Item({
       ...state,
-      capabilities: ItemCapabilities.from(state.capabilities.toPrimitives())
+      capabilities: ItemCapabilities.from(state.capabilities.toPrimitives()),
+      primaryCategory: state.primaryCategory ? { ...state.primaryCategory } : undefined
     })
   }
 
@@ -89,6 +93,10 @@ export class Item {
 
   get capabilities(): ItemCapabilities {
     return this.state.capabilities
+  }
+
+  get primaryCategory(): ItemCategoryReference | undefined {
+    return this.state.primaryCategory ? { ...this.state.primaryCategory } : undefined
   }
 
   /** isBundle reports whether the item is the only phase 1 structure type allowed to own composition. */
@@ -128,11 +136,18 @@ export class Item {
     return this
   }
 
+  /** setPrimaryCategory replaces the phase 1 single-value primary-category association or clears it. */
+  setPrimaryCategory(primaryCategory?: ItemCategoryReference): Item {
+    this.state.primaryCategory = primaryCategory ? { ...primaryCategory } : undefined
+    return this
+  }
+
   /** toPrimitives exposes aggregate state for persistence and gRPC presentation. */
   toPrimitives(): Omit<ItemState, 'capabilities'> & { capabilities: ItemCapabilitiesProps } {
     return {
       ...this.state,
-      capabilities: this.state.capabilities.toPrimitives()
+      capabilities: this.state.capabilities.toPrimitives(),
+      primaryCategory: this.state.primaryCategory ? { ...this.state.primaryCategory } : undefined
     }
   }
 }

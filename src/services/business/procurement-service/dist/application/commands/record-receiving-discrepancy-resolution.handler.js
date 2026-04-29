@@ -33,20 +33,22 @@ let RecordReceivingDiscrepancyResolutionHandler = class RecordReceivingDiscrepan
         const existing = (0, procurement_assertions_1.assertExists)(await this.receivingRepository.findById(command.payload.tenantId, command.payload.receivingExpectationId), 'receiving_expectation', command.payload.receivingExpectationId);
         const discrepancy = (0, procurement_assertions_1.assertExists)(existing.discrepancy, 'receiving_discrepancy', command.payload.receivingDiscrepancyId);
         (0, procurement_assertions_1.assertPrecondition)(discrepancy.receivingDiscrepancyId === command.payload.receivingDiscrepancyId, 'receiving discrepancy does not belong to expectation');
+        (0, procurement_assertions_1.assertPrecondition)(discrepancy.status === 'OPEN', 'receiving discrepancy must be OPEN before resolution');
+        assertResolutionCompatible(discrepancy, resolutionCode, command.payload.resolutionReferences ?? []);
         const resolvedAt = (0, procurement_write_support_1.nowIso)();
         const updatedDiscrepancy = {
             ...discrepancy,
             status: 'RESOLVED',
             resolutionCode,
             resolutionNote: (0, procurement_assertions_1.normalizeOptionalString)(command.payload.resolutionNote) ?? null,
+            resolutionReferences: (command.payload.resolutionReferences ?? []).map((reference) => ({
+                referenceType: reference.referenceType.trim(),
+                referenceId: reference.referenceId.trim()
+            })),
             resolvedAt
         };
-        const closesExpectation = resolutionCode === procurement_records_1.ReceivingResolutionCode.ACCEPT_SHORT_CLOSE ||
-            resolutionCode === procurement_records_1.ReceivingResolutionCode.RETURN_OR_REJECT_EXCESS;
         const receivingExpectation = await this.receivingRepository.save({
             ...existing,
-            status: closesExpectation ? procurement_records_1.ReceivingExpectationStatus.COMPLETED : existing.status,
-            openQuantity: closesExpectation ? '0' : existing.openQuantity,
             updatedAt: resolvedAt,
             discrepancy: updatedDiscrepancy
         });
@@ -63,4 +65,55 @@ exports.RecordReceivingDiscrepancyResolutionHandler = RecordReceivingDiscrepancy
     __param(0, (0, common_1.Inject)(tokens_1.TOKENS.RECEIVING_REPOSITORY)),
     __metadata("design:paramtypes", [Object])
 ], RecordReceivingDiscrepancyResolutionHandler);
+function assertResolutionCompatible(discrepancy, resolutionCode, resolutionReferences) {
+    const allowed = new Map([
+        [
+            'SHORT_RECEIVED',
+            [
+                procurement_records_1.ReceivingResolutionCode.WAIT_REDELIVERY,
+                procurement_records_1.ReceivingResolutionCode.CLOSE_UNRECEIVED,
+                procurement_records_1.ReceivingResolutionCode.REQUEST_RESEND
+            ]
+        ],
+        [
+            'OVER_RECEIVED',
+            [
+                procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_PO_CHANGE,
+                procurement_records_1.ReceivingResolutionCode.REJECT_EXCESS,
+                procurement_records_1.ReceivingResolutionCode.TEMP_HOLD
+            ]
+        ],
+        [
+            'DAMAGED',
+            [
+                procurement_records_1.ReceivingResolutionCode.REJECT_DAMAGED,
+                procurement_records_1.ReceivingResolutionCode.RECEIVE_WITH_RESTRICTION,
+                procurement_records_1.ReceivingResolutionCode.CLAIM,
+                procurement_records_1.ReceivingResolutionCode.REQUEST_RESEND
+            ]
+        ],
+        [
+            'WRONG_ITEM',
+            [
+                procurement_records_1.ReceivingResolutionCode.REJECT_WRONG_ITEM,
+                procurement_records_1.ReceivingResolutionCode.TEMP_RECEIVE_PENDING_DECISION,
+                procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_CONTROLLED_CHANGE
+            ]
+        ],
+        [
+            'QUALITY_HOLD',
+            [
+                procurement_records_1.ReceivingResolutionCode.WAIT_INSPECTION,
+                procurement_records_1.ReceivingResolutionCode.CLAIM,
+                procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_ALLOWANCE,
+                procurement_records_1.ReceivingResolutionCode.RETURN_TO_SUPPLIER
+            ]
+        ]
+    ]);
+    (0, procurement_assertions_1.assertPrecondition)(allowed.get(discrepancy.discrepancyType)?.includes(resolutionCode), 'resolution code must match discrepancy type');
+    if (resolutionCode === procurement_records_1.ReceivingResolutionCode.CLOSE_UNRECEIVED ||
+        resolutionCode === procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_PO_CHANGE) {
+        (0, procurement_assertions_1.assertPrecondition)(resolutionReferences.length > 0, 'purchase-order-change-backed resolution requires references');
+    }
+}
 //# sourceMappingURL=record-receiving-discrepancy-resolution.handler.js.map

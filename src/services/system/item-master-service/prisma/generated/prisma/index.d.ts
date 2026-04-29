@@ -19,6 +19,11 @@ export type PrismaPromise<T> = $Public.PrismaPromise<T>
  */
 export type Item = $Result.DefaultSelection<Prisma.$ItemPayload>
 /**
+ * Model ItemCategory
+ * 
+ */
+export type ItemCategory = $Result.DefaultSelection<Prisma.$ItemCategoryPayload>
+/**
  * Model ItemComposition
  * 
  */
@@ -62,6 +67,14 @@ export const ItemStatus: {
 
 export type ItemStatus = (typeof ItemStatus)[keyof typeof ItemStatus]
 
+
+export const ItemCategoryStatus: {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE'
+};
+
+export type ItemCategoryStatus = (typeof ItemCategoryStatus)[keyof typeof ItemCategoryStatus]
+
 }
 
 export type ItemStructureType = $Enums.ItemStructureType
@@ -75,6 +88,10 @@ export const ItemNatureType: typeof $Enums.ItemNatureType
 export type ItemStatus = $Enums.ItemStatus
 
 export const ItemStatus: typeof $Enums.ItemStatus
+
+export type ItemCategoryStatus = $Enums.ItemCategoryStatus
+
+export const ItemCategoryStatus: typeof $Enums.ItemCategoryStatus
 
 /**
  * ##  Prisma Client ʲˢ
@@ -210,6 +227,16 @@ export class PrismaClient<
     * ```
     */
   get item(): Prisma.ItemDelegate<ExtArgs, ClientOptions>;
+
+  /**
+   * `prisma.itemCategory`: Exposes CRUD operations for the **ItemCategory** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more ItemCategories
+    * const itemCategories = await prisma.itemCategory.findMany()
+    * ```
+    */
+  get itemCategory(): Prisma.ItemCategoryDelegate<ExtArgs, ClientOptions>;
 
   /**
    * `prisma.itemComposition`: Exposes CRUD operations for the **ItemComposition** model.
@@ -681,6 +708,7 @@ export namespace Prisma {
 
   export const ModelName: {
     Item: 'Item',
+    ItemCategory: 'ItemCategory',
     ItemComposition: 'ItemComposition',
     SupplierItemMapping: 'SupplierItemMapping',
     AuditEvent: 'AuditEvent'
@@ -699,7 +727,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "item" | "itemComposition" | "supplierItemMapping" | "auditEvent"
+      modelProps: "item" | "itemCategory" | "itemComposition" | "supplierItemMapping" | "auditEvent"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -774,6 +802,80 @@ export namespace Prisma {
           count: {
             args: Prisma.ItemCountArgs<ExtArgs>
             result: $Utils.Optional<ItemCountAggregateOutputType> | number
+          }
+        }
+      }
+      ItemCategory: {
+        payload: Prisma.$ItemCategoryPayload<ExtArgs>
+        fields: Prisma.ItemCategoryFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.ItemCategoryFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ItemCategoryPayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.ItemCategoryFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ItemCategoryPayload>
+          }
+          findFirst: {
+            args: Prisma.ItemCategoryFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ItemCategoryPayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.ItemCategoryFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ItemCategoryPayload>
+          }
+          findMany: {
+            args: Prisma.ItemCategoryFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ItemCategoryPayload>[]
+          }
+          create: {
+            args: Prisma.ItemCategoryCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ItemCategoryPayload>
+          }
+          createMany: {
+            args: Prisma.ItemCategoryCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.ItemCategoryCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ItemCategoryPayload>[]
+          }
+          delete: {
+            args: Prisma.ItemCategoryDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ItemCategoryPayload>
+          }
+          update: {
+            args: Prisma.ItemCategoryUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ItemCategoryPayload>
+          }
+          deleteMany: {
+            args: Prisma.ItemCategoryDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.ItemCategoryUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateManyAndReturn: {
+            args: Prisma.ItemCategoryUpdateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ItemCategoryPayload>[]
+          }
+          upsert: {
+            args: Prisma.ItemCategoryUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$ItemCategoryPayload>
+          }
+          aggregate: {
+            args: Prisma.ItemCategoryAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateItemCategory>
+          }
+          groupBy: {
+            args: Prisma.ItemCategoryGroupByArgs<ExtArgs>
+            result: $Utils.Optional<ItemCategoryGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.ItemCategoryCountArgs<ExtArgs>
+            result: $Utils.Optional<ItemCategoryCountAggregateOutputType> | number
           }
         }
       }
@@ -1084,6 +1186,7 @@ export namespace Prisma {
   }
   export type GlobalOmitConfig = {
     item?: ItemOmit
+    itemCategory?: ItemCategoryOmit
     itemComposition?: ItemCompositionOmit
     supplierItemMapping?: SupplierItemMappingOmit
     auditEvent?: AuditEventOmit
@@ -1226,6 +1329,46 @@ export namespace Prisma {
 
 
   /**
+   * Count Type ItemCategoryCountOutputType
+   */
+
+  export type ItemCategoryCountOutputType = {
+    children: number
+    items: number
+  }
+
+  export type ItemCategoryCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    children?: boolean | ItemCategoryCountOutputTypeCountChildrenArgs
+    items?: boolean | ItemCategoryCountOutputTypeCountItemsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * ItemCategoryCountOutputType without action
+   */
+  export type ItemCategoryCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategoryCountOutputType
+     */
+    select?: ItemCategoryCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * ItemCategoryCountOutputType without action
+   */
+  export type ItemCategoryCountOutputTypeCountChildrenArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ItemCategoryWhereInput
+  }
+
+  /**
+   * ItemCategoryCountOutputType without action
+   */
+  export type ItemCategoryCountOutputTypeCountItemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ItemWhereInput
+  }
+
+
+  /**
    * Models
    */
 
@@ -1247,6 +1390,7 @@ export namespace Prisma {
     structureType: $Enums.ItemStructureType | null
     natureType: $Enums.ItemNatureType | null
     status: $Enums.ItemStatus | null
+    primaryCategoryId: string | null
     sellable: boolean | null
     purchasable: boolean | null
     stockable: boolean | null
@@ -1263,6 +1407,7 @@ export namespace Prisma {
     structureType: $Enums.ItemStructureType | null
     natureType: $Enums.ItemNatureType | null
     status: $Enums.ItemStatus | null
+    primaryCategoryId: string | null
     sellable: boolean | null
     purchasable: boolean | null
     stockable: boolean | null
@@ -1279,6 +1424,7 @@ export namespace Prisma {
     structureType: number
     natureType: number
     status: number
+    primaryCategoryId: number
     sellable: number
     purchasable: number
     stockable: number
@@ -1297,6 +1443,7 @@ export namespace Prisma {
     structureType?: true
     natureType?: true
     status?: true
+    primaryCategoryId?: true
     sellable?: true
     purchasable?: true
     stockable?: true
@@ -1313,6 +1460,7 @@ export namespace Prisma {
     structureType?: true
     natureType?: true
     status?: true
+    primaryCategoryId?: true
     sellable?: true
     purchasable?: true
     stockable?: true
@@ -1329,6 +1477,7 @@ export namespace Prisma {
     structureType?: true
     natureType?: true
     status?: true
+    primaryCategoryId?: true
     sellable?: true
     purchasable?: true
     stockable?: true
@@ -1418,6 +1567,7 @@ export namespace Prisma {
     structureType: $Enums.ItemStructureType
     natureType: $Enums.ItemNatureType
     status: $Enums.ItemStatus
+    primaryCategoryId: string | null
     sellable: boolean
     purchasable: boolean
     stockable: boolean
@@ -1451,12 +1601,14 @@ export namespace Prisma {
     structureType?: boolean
     natureType?: boolean
     status?: boolean
+    primaryCategoryId?: boolean
     sellable?: boolean
     purchasable?: boolean
     stockable?: boolean
     manufacturable?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    primaryCategory?: boolean | Item$primaryCategoryArgs<ExtArgs>
     parentLinks?: boolean | Item$parentLinksArgs<ExtArgs>
     componentLinks?: boolean | Item$componentLinksArgs<ExtArgs>
     supplierMappings?: boolean | Item$supplierMappingsArgs<ExtArgs>
@@ -1471,12 +1623,14 @@ export namespace Prisma {
     structureType?: boolean
     natureType?: boolean
     status?: boolean
+    primaryCategoryId?: boolean
     sellable?: boolean
     purchasable?: boolean
     stockable?: boolean
     manufacturable?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    primaryCategory?: boolean | Item$primaryCategoryArgs<ExtArgs>
   }, ExtArgs["result"]["item"]>
 
   export type ItemSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -1487,12 +1641,14 @@ export namespace Prisma {
     structureType?: boolean
     natureType?: boolean
     status?: boolean
+    primaryCategoryId?: boolean
     sellable?: boolean
     purchasable?: boolean
     stockable?: boolean
     manufacturable?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    primaryCategory?: boolean | Item$primaryCategoryArgs<ExtArgs>
   }, ExtArgs["result"]["item"]>
 
   export type ItemSelectScalar = {
@@ -1503,6 +1659,7 @@ export namespace Prisma {
     structureType?: boolean
     natureType?: boolean
     status?: boolean
+    primaryCategoryId?: boolean
     sellable?: boolean
     purchasable?: boolean
     stockable?: boolean
@@ -1511,19 +1668,25 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type ItemOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "tenantId" | "itemCode" | "itemName" | "structureType" | "natureType" | "status" | "sellable" | "purchasable" | "stockable" | "manufacturable" | "createdAt" | "updatedAt", ExtArgs["result"]["item"]>
+  export type ItemOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "tenantId" | "itemCode" | "itemName" | "structureType" | "natureType" | "status" | "primaryCategoryId" | "sellable" | "purchasable" | "stockable" | "manufacturable" | "createdAt" | "updatedAt", ExtArgs["result"]["item"]>
   export type ItemInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    primaryCategory?: boolean | Item$primaryCategoryArgs<ExtArgs>
     parentLinks?: boolean | Item$parentLinksArgs<ExtArgs>
     componentLinks?: boolean | Item$componentLinksArgs<ExtArgs>
     supplierMappings?: boolean | Item$supplierMappingsArgs<ExtArgs>
     _count?: boolean | ItemCountOutputTypeDefaultArgs<ExtArgs>
   }
-  export type ItemIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
-  export type ItemIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type ItemIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    primaryCategory?: boolean | Item$primaryCategoryArgs<ExtArgs>
+  }
+  export type ItemIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    primaryCategory?: boolean | Item$primaryCategoryArgs<ExtArgs>
+  }
 
   export type $ItemPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Item"
     objects: {
+      primaryCategory: Prisma.$ItemCategoryPayload<ExtArgs> | null
       parentLinks: Prisma.$ItemCompositionPayload<ExtArgs>[]
       componentLinks: Prisma.$ItemCompositionPayload<ExtArgs>[]
       supplierMappings: Prisma.$SupplierItemMappingPayload<ExtArgs>[]
@@ -1536,6 +1699,7 @@ export namespace Prisma {
       structureType: $Enums.ItemStructureType
       natureType: $Enums.ItemNatureType
       status: $Enums.ItemStatus
+      primaryCategoryId: string | null
       sellable: boolean
       purchasable: boolean
       stockable: boolean
@@ -1936,6 +2100,7 @@ export namespace Prisma {
    */
   export interface Prisma__ItemClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    primaryCategory<T extends Item$primaryCategoryArgs<ExtArgs> = {}>(args?: Subset<T, Item$primaryCategoryArgs<ExtArgs>>): Prisma__ItemCategoryClient<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions> | null, null, ExtArgs, ClientOptions>
     parentLinks<T extends Item$parentLinksArgs<ExtArgs> = {}>(args?: Subset<T, Item$parentLinksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ItemCompositionPayload<ExtArgs>, T, "findMany", ClientOptions> | Null>
     componentLinks<T extends Item$componentLinksArgs<ExtArgs> = {}>(args?: Subset<T, Item$componentLinksArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ItemCompositionPayload<ExtArgs>, T, "findMany", ClientOptions> | Null>
     supplierMappings<T extends Item$supplierMappingsArgs<ExtArgs> = {}>(args?: Subset<T, Item$supplierMappingsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$SupplierItemMappingPayload<ExtArgs>, T, "findMany", ClientOptions> | Null>
@@ -1975,6 +2140,7 @@ export namespace Prisma {
     readonly structureType: FieldRef<"Item", 'ItemStructureType'>
     readonly natureType: FieldRef<"Item", 'ItemNatureType'>
     readonly status: FieldRef<"Item", 'ItemStatus'>
+    readonly primaryCategoryId: FieldRef<"Item", 'String'>
     readonly sellable: FieldRef<"Item", 'Boolean'>
     readonly purchasable: FieldRef<"Item", 'Boolean'>
     readonly stockable: FieldRef<"Item", 'Boolean'>
@@ -2230,6 +2396,10 @@ export namespace Prisma {
      */
     data: ItemCreateManyInput | ItemCreateManyInput[]
     skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemIncludeCreateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -2300,6 +2470,10 @@ export namespace Prisma {
      * Limit how many Items to update.
      */
     limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemIncludeUpdateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -2366,6 +2540,25 @@ export namespace Prisma {
      * Limit how many Items to delete.
      */
     limit?: number
+  }
+
+  /**
+   * Item.primaryCategory
+   */
+  export type Item$primaryCategoryArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
+    where?: ItemCategoryWhereInput
   }
 
   /**
@@ -2456,6 +2649,1180 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: ItemInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model ItemCategory
+   */
+
+  export type AggregateItemCategory = {
+    _count: ItemCategoryCountAggregateOutputType | null
+    _min: ItemCategoryMinAggregateOutputType | null
+    _max: ItemCategoryMaxAggregateOutputType | null
+  }
+
+  export type ItemCategoryMinAggregateOutputType = {
+    id: string | null
+    tenantId: string | null
+    categoryCode: string | null
+    categoryName: string | null
+    parentCategoryId: string | null
+    status: $Enums.ItemCategoryStatus | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ItemCategoryMaxAggregateOutputType = {
+    id: string | null
+    tenantId: string | null
+    categoryCode: string | null
+    categoryName: string | null
+    parentCategoryId: string | null
+    status: $Enums.ItemCategoryStatus | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type ItemCategoryCountAggregateOutputType = {
+    id: number
+    tenantId: number
+    categoryCode: number
+    categoryName: number
+    parentCategoryId: number
+    status: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type ItemCategoryMinAggregateInputType = {
+    id?: true
+    tenantId?: true
+    categoryCode?: true
+    categoryName?: true
+    parentCategoryId?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ItemCategoryMaxAggregateInputType = {
+    id?: true
+    tenantId?: true
+    categoryCode?: true
+    categoryName?: true
+    parentCategoryId?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type ItemCategoryCountAggregateInputType = {
+    id?: true
+    tenantId?: true
+    categoryCode?: true
+    categoryName?: true
+    parentCategoryId?: true
+    status?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type ItemCategoryAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ItemCategory to aggregate.
+     */
+    where?: ItemCategoryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ItemCategories to fetch.
+     */
+    orderBy?: ItemCategoryOrderByWithRelationInput | ItemCategoryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: ItemCategoryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ItemCategories from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ItemCategories.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned ItemCategories
+    **/
+    _count?: true | ItemCategoryCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: ItemCategoryMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: ItemCategoryMaxAggregateInputType
+  }
+
+  export type GetItemCategoryAggregateType<T extends ItemCategoryAggregateArgs> = {
+        [P in keyof T & keyof AggregateItemCategory]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateItemCategory[P]>
+      : GetScalarType<T[P], AggregateItemCategory[P]>
+  }
+
+
+
+
+  export type ItemCategoryGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ItemCategoryWhereInput
+    orderBy?: ItemCategoryOrderByWithAggregationInput | ItemCategoryOrderByWithAggregationInput[]
+    by: ItemCategoryScalarFieldEnum[] | ItemCategoryScalarFieldEnum
+    having?: ItemCategoryScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: ItemCategoryCountAggregateInputType | true
+    _min?: ItemCategoryMinAggregateInputType
+    _max?: ItemCategoryMaxAggregateInputType
+  }
+
+  export type ItemCategoryGroupByOutputType = {
+    id: string
+    tenantId: string
+    categoryCode: string
+    categoryName: string
+    parentCategoryId: string | null
+    status: $Enums.ItemCategoryStatus
+    createdAt: Date
+    updatedAt: Date
+    _count: ItemCategoryCountAggregateOutputType | null
+    _min: ItemCategoryMinAggregateOutputType | null
+    _max: ItemCategoryMaxAggregateOutputType | null
+  }
+
+  type GetItemCategoryGroupByPayload<T extends ItemCategoryGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<ItemCategoryGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof ItemCategoryGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], ItemCategoryGroupByOutputType[P]>
+            : GetScalarType<T[P], ItemCategoryGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type ItemCategorySelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    categoryCode?: boolean
+    categoryName?: boolean
+    parentCategoryId?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    parent?: boolean | ItemCategory$parentArgs<ExtArgs>
+    children?: boolean | ItemCategory$childrenArgs<ExtArgs>
+    items?: boolean | ItemCategory$itemsArgs<ExtArgs>
+    _count?: boolean | ItemCategoryCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["itemCategory"]>
+
+  export type ItemCategorySelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    categoryCode?: boolean
+    categoryName?: boolean
+    parentCategoryId?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    parent?: boolean | ItemCategory$parentArgs<ExtArgs>
+  }, ExtArgs["result"]["itemCategory"]>
+
+  export type ItemCategorySelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    tenantId?: boolean
+    categoryCode?: boolean
+    categoryName?: boolean
+    parentCategoryId?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    parent?: boolean | ItemCategory$parentArgs<ExtArgs>
+  }, ExtArgs["result"]["itemCategory"]>
+
+  export type ItemCategorySelectScalar = {
+    id?: boolean
+    tenantId?: boolean
+    categoryCode?: boolean
+    categoryName?: boolean
+    parentCategoryId?: boolean
+    status?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type ItemCategoryOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "tenantId" | "categoryCode" | "categoryName" | "parentCategoryId" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["itemCategory"]>
+  export type ItemCategoryInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    parent?: boolean | ItemCategory$parentArgs<ExtArgs>
+    children?: boolean | ItemCategory$childrenArgs<ExtArgs>
+    items?: boolean | ItemCategory$itemsArgs<ExtArgs>
+    _count?: boolean | ItemCategoryCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type ItemCategoryIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    parent?: boolean | ItemCategory$parentArgs<ExtArgs>
+  }
+  export type ItemCategoryIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    parent?: boolean | ItemCategory$parentArgs<ExtArgs>
+  }
+
+  export type $ItemCategoryPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "ItemCategory"
+    objects: {
+      parent: Prisma.$ItemCategoryPayload<ExtArgs> | null
+      children: Prisma.$ItemCategoryPayload<ExtArgs>[]
+      items: Prisma.$ItemPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      tenantId: string
+      categoryCode: string
+      categoryName: string
+      parentCategoryId: string | null
+      status: $Enums.ItemCategoryStatus
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["itemCategory"]>
+    composites: {}
+  }
+
+  type ItemCategoryGetPayload<S extends boolean | null | undefined | ItemCategoryDefaultArgs> = $Result.GetResult<Prisma.$ItemCategoryPayload, S>
+
+  type ItemCategoryCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> =
+    Omit<ItemCategoryFindManyArgs, 'select' | 'include' | 'distinct' | 'omit'> & {
+      select?: ItemCategoryCountAggregateInputType | true
+    }
+
+  export interface ItemCategoryDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['ItemCategory'], meta: { name: 'ItemCategory' } }
+    /**
+     * Find zero or one ItemCategory that matches the filter.
+     * @param {ItemCategoryFindUniqueArgs} args - Arguments to find a ItemCategory
+     * @example
+     * // Get one ItemCategory
+     * const itemCategory = await prisma.itemCategory.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends ItemCategoryFindUniqueArgs>(args: SelectSubset<T, ItemCategoryFindUniqueArgs<ExtArgs>>): Prisma__ItemCategoryClient<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "findUnique", ClientOptions> | null, null, ExtArgs, ClientOptions>
+
+    /**
+     * Find one ItemCategory that matches the filter or throw an error with `error.code='P2025'`
+     * if no matches were found.
+     * @param {ItemCategoryFindUniqueOrThrowArgs} args - Arguments to find a ItemCategory
+     * @example
+     * // Get one ItemCategory
+     * const itemCategory = await prisma.itemCategory.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends ItemCategoryFindUniqueOrThrowArgs>(args: SelectSubset<T, ItemCategoryFindUniqueOrThrowArgs<ExtArgs>>): Prisma__ItemCategoryClient<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Find the first ItemCategory that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ItemCategoryFindFirstArgs} args - Arguments to find a ItemCategory
+     * @example
+     * // Get one ItemCategory
+     * const itemCategory = await prisma.itemCategory.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends ItemCategoryFindFirstArgs>(args?: SelectSubset<T, ItemCategoryFindFirstArgs<ExtArgs>>): Prisma__ItemCategoryClient<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "findFirst", ClientOptions> | null, null, ExtArgs, ClientOptions>
+
+    /**
+     * Find the first ItemCategory that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ItemCategoryFindFirstOrThrowArgs} args - Arguments to find a ItemCategory
+     * @example
+     * // Get one ItemCategory
+     * const itemCategory = await prisma.itemCategory.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends ItemCategoryFindFirstOrThrowArgs>(args?: SelectSubset<T, ItemCategoryFindFirstOrThrowArgs<ExtArgs>>): Prisma__ItemCategoryClient<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "findFirstOrThrow", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Find zero or more ItemCategories that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ItemCategoryFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all ItemCategories
+     * const itemCategories = await prisma.itemCategory.findMany()
+     * 
+     * // Get first 10 ItemCategories
+     * const itemCategories = await prisma.itemCategory.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const itemCategoryWithIdOnly = await prisma.itemCategory.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends ItemCategoryFindManyArgs>(args?: SelectSubset<T, ItemCategoryFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "findMany", ClientOptions>>
+
+    /**
+     * Create a ItemCategory.
+     * @param {ItemCategoryCreateArgs} args - Arguments to create a ItemCategory.
+     * @example
+     * // Create one ItemCategory
+     * const ItemCategory = await prisma.itemCategory.create({
+     *   data: {
+     *     // ... data to create a ItemCategory
+     *   }
+     * })
+     * 
+     */
+    create<T extends ItemCategoryCreateArgs>(args: SelectSubset<T, ItemCategoryCreateArgs<ExtArgs>>): Prisma__ItemCategoryClient<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "create", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Create many ItemCategories.
+     * @param {ItemCategoryCreateManyArgs} args - Arguments to create many ItemCategories.
+     * @example
+     * // Create many ItemCategories
+     * const itemCategory = await prisma.itemCategory.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends ItemCategoryCreateManyArgs>(args?: SelectSubset<T, ItemCategoryCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many ItemCategories and returns the data saved in the database.
+     * @param {ItemCategoryCreateManyAndReturnArgs} args - Arguments to create many ItemCategories.
+     * @example
+     * // Create many ItemCategories
+     * const itemCategory = await prisma.itemCategory.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many ItemCategories and only return the `id`
+     * const itemCategoryWithIdOnly = await prisma.itemCategory.createManyAndReturn({
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends ItemCategoryCreateManyAndReturnArgs>(args?: SelectSubset<T, ItemCategoryCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "createManyAndReturn", ClientOptions>>
+
+    /**
+     * Delete a ItemCategory.
+     * @param {ItemCategoryDeleteArgs} args - Arguments to delete one ItemCategory.
+     * @example
+     * // Delete one ItemCategory
+     * const ItemCategory = await prisma.itemCategory.delete({
+     *   where: {
+     *     // ... filter to delete one ItemCategory
+     *   }
+     * })
+     * 
+     */
+    delete<T extends ItemCategoryDeleteArgs>(args: SelectSubset<T, ItemCategoryDeleteArgs<ExtArgs>>): Prisma__ItemCategoryClient<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "delete", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Update one ItemCategory.
+     * @param {ItemCategoryUpdateArgs} args - Arguments to update one ItemCategory.
+     * @example
+     * // Update one ItemCategory
+     * const itemCategory = await prisma.itemCategory.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends ItemCategoryUpdateArgs>(args: SelectSubset<T, ItemCategoryUpdateArgs<ExtArgs>>): Prisma__ItemCategoryClient<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "update", ClientOptions>, never, ExtArgs, ClientOptions>
+
+    /**
+     * Delete zero or more ItemCategories.
+     * @param {ItemCategoryDeleteManyArgs} args - Arguments to filter ItemCategories to delete.
+     * @example
+     * // Delete a few ItemCategories
+     * const { count } = await prisma.itemCategory.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends ItemCategoryDeleteManyArgs>(args?: SelectSubset<T, ItemCategoryDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ItemCategories.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ItemCategoryUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many ItemCategories
+     * const itemCategory = await prisma.itemCategory.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends ItemCategoryUpdateManyArgs>(args: SelectSubset<T, ItemCategoryUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more ItemCategories and returns the data updated in the database.
+     * @param {ItemCategoryUpdateManyAndReturnArgs} args - Arguments to update many ItemCategories.
+     * @example
+     * // Update many ItemCategories
+     * const itemCategory = await prisma.itemCategory.updateManyAndReturn({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Update zero or more ItemCategories and only return the `id`
+     * const itemCategoryWithIdOnly = await prisma.itemCategory.updateManyAndReturn({
+     *   select: { id: true },
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    updateManyAndReturn<T extends ItemCategoryUpdateManyAndReturnArgs>(args: SelectSubset<T, ItemCategoryUpdateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "updateManyAndReturn", ClientOptions>>
+
+    /**
+     * Create or update one ItemCategory.
+     * @param {ItemCategoryUpsertArgs} args - Arguments to update or create a ItemCategory.
+     * @example
+     * // Update or create a ItemCategory
+     * const itemCategory = await prisma.itemCategory.upsert({
+     *   create: {
+     *     // ... data to create a ItemCategory
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the ItemCategory we want to update
+     *   }
+     * })
+     */
+    upsert<T extends ItemCategoryUpsertArgs>(args: SelectSubset<T, ItemCategoryUpsertArgs<ExtArgs>>): Prisma__ItemCategoryClient<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "upsert", ClientOptions>, never, ExtArgs, ClientOptions>
+
+
+    /**
+     * Count the number of ItemCategories.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ItemCategoryCountArgs} args - Arguments to filter ItemCategories to count.
+     * @example
+     * // Count the number of ItemCategories
+     * const count = await prisma.itemCategory.count({
+     *   where: {
+     *     // ... the filter for the ItemCategories we want to count
+     *   }
+     * })
+    **/
+    count<T extends ItemCategoryCountArgs>(
+      args?: Subset<T, ItemCategoryCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], ItemCategoryCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a ItemCategory.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ItemCategoryAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends ItemCategoryAggregateArgs>(args: Subset<T, ItemCategoryAggregateArgs>): Prisma.PrismaPromise<GetItemCategoryAggregateType<T>>
+
+    /**
+     * Group by ItemCategory.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {ItemCategoryGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends ItemCategoryGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: ItemCategoryGroupByArgs['orderBy'] }
+        : { orderBy?: ItemCategoryGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, ItemCategoryGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetItemCategoryGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the ItemCategory model
+   */
+  readonly fields: ItemCategoryFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for ItemCategory.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__ItemCategoryClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    parent<T extends ItemCategory$parentArgs<ExtArgs> = {}>(args?: Subset<T, ItemCategory$parentArgs<ExtArgs>>): Prisma__ItemCategoryClient<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "findUniqueOrThrow", ClientOptions> | null, null, ExtArgs, ClientOptions>
+    children<T extends ItemCategory$childrenArgs<ExtArgs> = {}>(args?: Subset<T, ItemCategory$childrenArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ItemCategoryPayload<ExtArgs>, T, "findMany", ClientOptions> | Null>
+    items<T extends ItemCategory$itemsArgs<ExtArgs> = {}>(args?: Subset<T, ItemCategory$itemsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ItemPayload<ExtArgs>, T, "findMany", ClientOptions> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the ItemCategory model
+   */ 
+  interface ItemCategoryFieldRefs {
+    readonly id: FieldRef<"ItemCategory", 'String'>
+    readonly tenantId: FieldRef<"ItemCategory", 'String'>
+    readonly categoryCode: FieldRef<"ItemCategory", 'String'>
+    readonly categoryName: FieldRef<"ItemCategory", 'String'>
+    readonly parentCategoryId: FieldRef<"ItemCategory", 'String'>
+    readonly status: FieldRef<"ItemCategory", 'ItemCategoryStatus'>
+    readonly createdAt: FieldRef<"ItemCategory", 'DateTime'>
+    readonly updatedAt: FieldRef<"ItemCategory", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * ItemCategory findUnique
+   */
+  export type ItemCategoryFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
+    /**
+     * Filter, which ItemCategory to fetch.
+     */
+    where: ItemCategoryWhereUniqueInput
+  }
+
+  /**
+   * ItemCategory findUniqueOrThrow
+   */
+  export type ItemCategoryFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
+    /**
+     * Filter, which ItemCategory to fetch.
+     */
+    where: ItemCategoryWhereUniqueInput
+  }
+
+  /**
+   * ItemCategory findFirst
+   */
+  export type ItemCategoryFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
+    /**
+     * Filter, which ItemCategory to fetch.
+     */
+    where?: ItemCategoryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ItemCategories to fetch.
+     */
+    orderBy?: ItemCategoryOrderByWithRelationInput | ItemCategoryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ItemCategories.
+     */
+    cursor?: ItemCategoryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ItemCategories from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ItemCategories.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ItemCategories.
+     */
+    distinct?: ItemCategoryScalarFieldEnum | ItemCategoryScalarFieldEnum[]
+  }
+
+  /**
+   * ItemCategory findFirstOrThrow
+   */
+  export type ItemCategoryFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
+    /**
+     * Filter, which ItemCategory to fetch.
+     */
+    where?: ItemCategoryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ItemCategories to fetch.
+     */
+    orderBy?: ItemCategoryOrderByWithRelationInput | ItemCategoryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for ItemCategories.
+     */
+    cursor?: ItemCategoryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ItemCategories from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ItemCategories.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of ItemCategories.
+     */
+    distinct?: ItemCategoryScalarFieldEnum | ItemCategoryScalarFieldEnum[]
+  }
+
+  /**
+   * ItemCategory findMany
+   */
+  export type ItemCategoryFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
+    /**
+     * Filter, which ItemCategories to fetch.
+     */
+    where?: ItemCategoryWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of ItemCategories to fetch.
+     */
+    orderBy?: ItemCategoryOrderByWithRelationInput | ItemCategoryOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing ItemCategories.
+     */
+    cursor?: ItemCategoryWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` ItemCategories from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` ItemCategories.
+     */
+    skip?: number
+    distinct?: ItemCategoryScalarFieldEnum | ItemCategoryScalarFieldEnum[]
+  }
+
+  /**
+   * ItemCategory create
+   */
+  export type ItemCategoryCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
+    /**
+     * The data needed to create a ItemCategory.
+     */
+    data: XOR<ItemCategoryCreateInput, ItemCategoryUncheckedCreateInput>
+  }
+
+  /**
+   * ItemCategory createMany
+   */
+  export type ItemCategoryCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many ItemCategories.
+     */
+    data: ItemCategoryCreateManyInput | ItemCategoryCreateManyInput[]
+    skipDuplicates?: boolean
+  }
+
+  /**
+   * ItemCategory createManyAndReturn
+   */
+  export type ItemCategoryCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * The data used to create many ItemCategories.
+     */
+    data: ItemCategoryCreateManyInput | ItemCategoryCreateManyInput[]
+    skipDuplicates?: boolean
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * ItemCategory update
+   */
+  export type ItemCategoryUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
+    /**
+     * The data needed to update a ItemCategory.
+     */
+    data: XOR<ItemCategoryUpdateInput, ItemCategoryUncheckedUpdateInput>
+    /**
+     * Choose, which ItemCategory to update.
+     */
+    where: ItemCategoryWhereUniqueInput
+  }
+
+  /**
+   * ItemCategory updateMany
+   */
+  export type ItemCategoryUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update ItemCategories.
+     */
+    data: XOR<ItemCategoryUpdateManyMutationInput, ItemCategoryUncheckedUpdateManyInput>
+    /**
+     * Filter which ItemCategories to update
+     */
+    where?: ItemCategoryWhereInput
+    /**
+     * Limit how many ItemCategories to update.
+     */
+    limit?: number
+  }
+
+  /**
+   * ItemCategory updateManyAndReturn
+   */
+  export type ItemCategoryUpdateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelectUpdateManyAndReturn<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * The data used to update ItemCategories.
+     */
+    data: XOR<ItemCategoryUpdateManyMutationInput, ItemCategoryUncheckedUpdateManyInput>
+    /**
+     * Filter which ItemCategories to update
+     */
+    where?: ItemCategoryWhereInput
+    /**
+     * Limit how many ItemCategories to update.
+     */
+    limit?: number
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryIncludeUpdateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * ItemCategory upsert
+   */
+  export type ItemCategoryUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
+    /**
+     * The filter to search for the ItemCategory to update in case it exists.
+     */
+    where: ItemCategoryWhereUniqueInput
+    /**
+     * In case the ItemCategory found by the `where` argument doesn't exist, create a new ItemCategory with this data.
+     */
+    create: XOR<ItemCategoryCreateInput, ItemCategoryUncheckedCreateInput>
+    /**
+     * In case the ItemCategory was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<ItemCategoryUpdateInput, ItemCategoryUncheckedUpdateInput>
+  }
+
+  /**
+   * ItemCategory delete
+   */
+  export type ItemCategoryDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
+    /**
+     * Filter which ItemCategory to delete.
+     */
+    where: ItemCategoryWhereUniqueInput
+  }
+
+  /**
+   * ItemCategory deleteMany
+   */
+  export type ItemCategoryDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which ItemCategories to delete
+     */
+    where?: ItemCategoryWhereInput
+    /**
+     * Limit how many ItemCategories to delete.
+     */
+    limit?: number
+  }
+
+  /**
+   * ItemCategory.parent
+   */
+  export type ItemCategory$parentArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
+    where?: ItemCategoryWhereInput
+  }
+
+  /**
+   * ItemCategory.children
+   */
+  export type ItemCategory$childrenArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
+    where?: ItemCategoryWhereInput
+    orderBy?: ItemCategoryOrderByWithRelationInput | ItemCategoryOrderByWithRelationInput[]
+    cursor?: ItemCategoryWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ItemCategoryScalarFieldEnum | ItemCategoryScalarFieldEnum[]
+  }
+
+  /**
+   * ItemCategory.items
+   */
+  export type ItemCategory$itemsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Item
+     */
+    select?: ItemSelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the Item
+     */
+    omit?: ItemOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemInclude<ExtArgs> | null
+    where?: ItemWhereInput
+    orderBy?: ItemOrderByWithRelationInput | ItemOrderByWithRelationInput[]
+    cursor?: ItemWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ItemScalarFieldEnum | ItemScalarFieldEnum[]
+  }
+
+  /**
+   * ItemCategory without action
+   */
+  export type ItemCategoryDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the ItemCategory
+     */
+    select?: ItemCategorySelect<ExtArgs> | null
+    /**
+     * Omit specific fields from the ItemCategory
+     */
+    omit?: ItemCategoryOmit<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ItemCategoryInclude<ExtArgs> | null
   }
 
 
@@ -5838,6 +7205,7 @@ export namespace Prisma {
     structureType: 'structureType',
     natureType: 'natureType',
     status: 'status',
+    primaryCategoryId: 'primaryCategoryId',
     sellable: 'sellable',
     purchasable: 'purchasable',
     stockable: 'stockable',
@@ -5847,6 +7215,20 @@ export namespace Prisma {
   };
 
   export type ItemScalarFieldEnum = (typeof ItemScalarFieldEnum)[keyof typeof ItemScalarFieldEnum]
+
+
+  export const ItemCategoryScalarFieldEnum: {
+    id: 'id',
+    tenantId: 'tenantId',
+    categoryCode: 'categoryCode',
+    categoryName: 'categoryName',
+    parentCategoryId: 'parentCategoryId',
+    status: 'status',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type ItemCategoryScalarFieldEnum = (typeof ItemCategoryScalarFieldEnum)[keyof typeof ItemCategoryScalarFieldEnum]
 
 
   export const ItemCompositionScalarFieldEnum: {
@@ -6021,6 +7403,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'ItemCategoryStatus'
+   */
+  export type EnumItemCategoryStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ItemCategoryStatus'>
+    
+
+
+  /**
+   * Reference to a field of type 'ItemCategoryStatus[]'
+   */
+  export type ListEnumItemCategoryStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ItemCategoryStatus[]'>
+    
+
+
+  /**
    * Reference to a field of type 'Int'
    */
   export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
@@ -6076,12 +7472,14 @@ export namespace Prisma {
     structureType?: EnumItemStructureTypeFilter<"Item"> | $Enums.ItemStructureType
     natureType?: EnumItemNatureTypeFilter<"Item"> | $Enums.ItemNatureType
     status?: EnumItemStatusFilter<"Item"> | $Enums.ItemStatus
+    primaryCategoryId?: UuidNullableFilter<"Item"> | string | null
     sellable?: BoolFilter<"Item"> | boolean
     purchasable?: BoolFilter<"Item"> | boolean
     stockable?: BoolFilter<"Item"> | boolean
     manufacturable?: BoolFilter<"Item"> | boolean
     createdAt?: DateTimeFilter<"Item"> | Date | string
     updatedAt?: DateTimeFilter<"Item"> | Date | string
+    primaryCategory?: XOR<ItemCategoryNullableScalarRelationFilter, ItemCategoryWhereInput> | null
     parentLinks?: ItemCompositionListRelationFilter
     componentLinks?: ItemCompositionListRelationFilter
     supplierMappings?: SupplierItemMappingListRelationFilter
@@ -6095,12 +7493,14 @@ export namespace Prisma {
     structureType?: SortOrder
     natureType?: SortOrder
     status?: SortOrder
+    primaryCategoryId?: SortOrderInput | SortOrder
     sellable?: SortOrder
     purchasable?: SortOrder
     stockable?: SortOrder
     manufacturable?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    primaryCategory?: ItemCategoryOrderByWithRelationInput
     parentLinks?: ItemCompositionOrderByRelationAggregateInput
     componentLinks?: ItemCompositionOrderByRelationAggregateInput
     supplierMappings?: SupplierItemMappingOrderByRelationAggregateInput
@@ -6118,12 +7518,14 @@ export namespace Prisma {
     structureType?: EnumItemStructureTypeFilter<"Item"> | $Enums.ItemStructureType
     natureType?: EnumItemNatureTypeFilter<"Item"> | $Enums.ItemNatureType
     status?: EnumItemStatusFilter<"Item"> | $Enums.ItemStatus
+    primaryCategoryId?: UuidNullableFilter<"Item"> | string | null
     sellable?: BoolFilter<"Item"> | boolean
     purchasable?: BoolFilter<"Item"> | boolean
     stockable?: BoolFilter<"Item"> | boolean
     manufacturable?: BoolFilter<"Item"> | boolean
     createdAt?: DateTimeFilter<"Item"> | Date | string
     updatedAt?: DateTimeFilter<"Item"> | Date | string
+    primaryCategory?: XOR<ItemCategoryNullableScalarRelationFilter, ItemCategoryWhereInput> | null
     parentLinks?: ItemCompositionListRelationFilter
     componentLinks?: ItemCompositionListRelationFilter
     supplierMappings?: SupplierItemMappingListRelationFilter
@@ -6137,6 +7539,7 @@ export namespace Prisma {
     structureType?: SortOrder
     natureType?: SortOrder
     status?: SortOrder
+    primaryCategoryId?: SortOrderInput | SortOrder
     sellable?: SortOrder
     purchasable?: SortOrder
     stockable?: SortOrder
@@ -6159,12 +7562,90 @@ export namespace Prisma {
     structureType?: EnumItemStructureTypeWithAggregatesFilter<"Item"> | $Enums.ItemStructureType
     natureType?: EnumItemNatureTypeWithAggregatesFilter<"Item"> | $Enums.ItemNatureType
     status?: EnumItemStatusWithAggregatesFilter<"Item"> | $Enums.ItemStatus
+    primaryCategoryId?: UuidNullableWithAggregatesFilter<"Item"> | string | null
     sellable?: BoolWithAggregatesFilter<"Item"> | boolean
     purchasable?: BoolWithAggregatesFilter<"Item"> | boolean
     stockable?: BoolWithAggregatesFilter<"Item"> | boolean
     manufacturable?: BoolWithAggregatesFilter<"Item"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"Item"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Item"> | Date | string
+  }
+
+  export type ItemCategoryWhereInput = {
+    AND?: ItemCategoryWhereInput | ItemCategoryWhereInput[]
+    OR?: ItemCategoryWhereInput[]
+    NOT?: ItemCategoryWhereInput | ItemCategoryWhereInput[]
+    id?: UuidFilter<"ItemCategory"> | string
+    tenantId?: StringFilter<"ItemCategory"> | string
+    categoryCode?: StringFilter<"ItemCategory"> | string
+    categoryName?: StringFilter<"ItemCategory"> | string
+    parentCategoryId?: UuidNullableFilter<"ItemCategory"> | string | null
+    status?: EnumItemCategoryStatusFilter<"ItemCategory"> | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFilter<"ItemCategory"> | Date | string
+    updatedAt?: DateTimeFilter<"ItemCategory"> | Date | string
+    parent?: XOR<ItemCategoryNullableScalarRelationFilter, ItemCategoryWhereInput> | null
+    children?: ItemCategoryListRelationFilter
+    items?: ItemListRelationFilter
+  }
+
+  export type ItemCategoryOrderByWithRelationInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    categoryCode?: SortOrder
+    categoryName?: SortOrder
+    parentCategoryId?: SortOrderInput | SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    parent?: ItemCategoryOrderByWithRelationInput
+    children?: ItemCategoryOrderByRelationAggregateInput
+    items?: ItemOrderByRelationAggregateInput
+  }
+
+  export type ItemCategoryWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    tenantId_categoryCode?: ItemCategoryTenantIdCategoryCodeCompoundUniqueInput
+    AND?: ItemCategoryWhereInput | ItemCategoryWhereInput[]
+    OR?: ItemCategoryWhereInput[]
+    NOT?: ItemCategoryWhereInput | ItemCategoryWhereInput[]
+    tenantId?: StringFilter<"ItemCategory"> | string
+    categoryCode?: StringFilter<"ItemCategory"> | string
+    categoryName?: StringFilter<"ItemCategory"> | string
+    parentCategoryId?: UuidNullableFilter<"ItemCategory"> | string | null
+    status?: EnumItemCategoryStatusFilter<"ItemCategory"> | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFilter<"ItemCategory"> | Date | string
+    updatedAt?: DateTimeFilter<"ItemCategory"> | Date | string
+    parent?: XOR<ItemCategoryNullableScalarRelationFilter, ItemCategoryWhereInput> | null
+    children?: ItemCategoryListRelationFilter
+    items?: ItemListRelationFilter
+  }, "id" | "tenantId_categoryCode">
+
+  export type ItemCategoryOrderByWithAggregationInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    categoryCode?: SortOrder
+    categoryName?: SortOrder
+    parentCategoryId?: SortOrderInput | SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: ItemCategoryCountOrderByAggregateInput
+    _max?: ItemCategoryMaxOrderByAggregateInput
+    _min?: ItemCategoryMinOrderByAggregateInput
+  }
+
+  export type ItemCategoryScalarWhereWithAggregatesInput = {
+    AND?: ItemCategoryScalarWhereWithAggregatesInput | ItemCategoryScalarWhereWithAggregatesInput[]
+    OR?: ItemCategoryScalarWhereWithAggregatesInput[]
+    NOT?: ItemCategoryScalarWhereWithAggregatesInput | ItemCategoryScalarWhereWithAggregatesInput[]
+    id?: UuidWithAggregatesFilter<"ItemCategory"> | string
+    tenantId?: StringWithAggregatesFilter<"ItemCategory"> | string
+    categoryCode?: StringWithAggregatesFilter<"ItemCategory"> | string
+    categoryName?: StringWithAggregatesFilter<"ItemCategory"> | string
+    parentCategoryId?: UuidNullableWithAggregatesFilter<"ItemCategory"> | string | null
+    status?: EnumItemCategoryStatusWithAggregatesFilter<"ItemCategory"> | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeWithAggregatesFilter<"ItemCategory"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"ItemCategory"> | Date | string
   }
 
   export type ItemCompositionWhereInput = {
@@ -6431,6 +7912,7 @@ export namespace Prisma {
     manufacturable?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
+    primaryCategory?: ItemCategoryCreateNestedOneWithoutItemsInput
     parentLinks?: ItemCompositionCreateNestedManyWithoutParentItemInput
     componentLinks?: ItemCompositionCreateNestedManyWithoutComponentItemInput
     supplierMappings?: SupplierItemMappingCreateNestedManyWithoutItemInput
@@ -6444,6 +7926,7 @@ export namespace Prisma {
     structureType: $Enums.ItemStructureType
     natureType: $Enums.ItemNatureType
     status?: $Enums.ItemStatus
+    primaryCategoryId?: string | null
     sellable?: boolean
     purchasable?: boolean
     stockable?: boolean
@@ -6469,6 +7952,7 @@ export namespace Prisma {
     manufacturable?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    primaryCategory?: ItemCategoryUpdateOneWithoutItemsNestedInput
     parentLinks?: ItemCompositionUpdateManyWithoutParentItemNestedInput
     componentLinks?: ItemCompositionUpdateManyWithoutComponentItemNestedInput
     supplierMappings?: SupplierItemMappingUpdateManyWithoutItemNestedInput
@@ -6482,6 +7966,7 @@ export namespace Prisma {
     structureType?: EnumItemStructureTypeFieldUpdateOperationsInput | $Enums.ItemStructureType
     natureType?: EnumItemNatureTypeFieldUpdateOperationsInput | $Enums.ItemNatureType
     status?: EnumItemStatusFieldUpdateOperationsInput | $Enums.ItemStatus
+    primaryCategoryId?: NullableStringFieldUpdateOperationsInput | string | null
     sellable?: BoolFieldUpdateOperationsInput | boolean
     purchasable?: BoolFieldUpdateOperationsInput | boolean
     stockable?: BoolFieldUpdateOperationsInput | boolean
@@ -6501,6 +7986,7 @@ export namespace Prisma {
     structureType: $Enums.ItemStructureType
     natureType: $Enums.ItemNatureType
     status?: $Enums.ItemStatus
+    primaryCategoryId?: string | null
     sellable?: boolean
     purchasable?: boolean
     stockable?: boolean
@@ -6533,10 +8019,95 @@ export namespace Prisma {
     structureType?: EnumItemStructureTypeFieldUpdateOperationsInput | $Enums.ItemStructureType
     natureType?: EnumItemNatureTypeFieldUpdateOperationsInput | $Enums.ItemNatureType
     status?: EnumItemStatusFieldUpdateOperationsInput | $Enums.ItemStatus
+    primaryCategoryId?: NullableStringFieldUpdateOperationsInput | string | null
     sellable?: BoolFieldUpdateOperationsInput | boolean
     purchasable?: BoolFieldUpdateOperationsInput | boolean
     stockable?: BoolFieldUpdateOperationsInput | boolean
     manufacturable?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ItemCategoryCreateInput = {
+    id?: string
+    tenantId: string
+    categoryCode: string
+    categoryName: string
+    status?: $Enums.ItemCategoryStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    parent?: ItemCategoryCreateNestedOneWithoutChildrenInput
+    children?: ItemCategoryCreateNestedManyWithoutParentInput
+    items?: ItemCreateNestedManyWithoutPrimaryCategoryInput
+  }
+
+  export type ItemCategoryUncheckedCreateInput = {
+    id?: string
+    tenantId: string
+    categoryCode: string
+    categoryName: string
+    parentCategoryId?: string | null
+    status?: $Enums.ItemCategoryStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    children?: ItemCategoryUncheckedCreateNestedManyWithoutParentInput
+    items?: ItemUncheckedCreateNestedManyWithoutPrimaryCategoryInput
+  }
+
+  export type ItemCategoryUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    categoryCode?: StringFieldUpdateOperationsInput | string
+    categoryName?: StringFieldUpdateOperationsInput | string
+    status?: EnumItemCategoryStatusFieldUpdateOperationsInput | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    parent?: ItemCategoryUpdateOneWithoutChildrenNestedInput
+    children?: ItemCategoryUpdateManyWithoutParentNestedInput
+    items?: ItemUpdateManyWithoutPrimaryCategoryNestedInput
+  }
+
+  export type ItemCategoryUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    categoryCode?: StringFieldUpdateOperationsInput | string
+    categoryName?: StringFieldUpdateOperationsInput | string
+    parentCategoryId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumItemCategoryStatusFieldUpdateOperationsInput | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    children?: ItemCategoryUncheckedUpdateManyWithoutParentNestedInput
+    items?: ItemUncheckedUpdateManyWithoutPrimaryCategoryNestedInput
+  }
+
+  export type ItemCategoryCreateManyInput = {
+    id?: string
+    tenantId: string
+    categoryCode: string
+    categoryName: string
+    parentCategoryId?: string | null
+    status?: $Enums.ItemCategoryStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ItemCategoryUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    categoryCode?: StringFieldUpdateOperationsInput | string
+    categoryName?: StringFieldUpdateOperationsInput | string
+    status?: EnumItemCategoryStatusFieldUpdateOperationsInput | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ItemCategoryUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    categoryCode?: StringFieldUpdateOperationsInput | string
+    categoryName?: StringFieldUpdateOperationsInput | string
+    parentCategoryId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumItemCategoryStatusFieldUpdateOperationsInput | $Enums.ItemCategoryStatus
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -6866,6 +8437,18 @@ export namespace Prisma {
     not?: NestedEnumItemStatusFilter<$PrismaModel> | $Enums.ItemStatus
   }
 
+  export type UuidNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedUuidNullableFilter<$PrismaModel> | string | null
+  }
+
   export type BoolFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolFilter<$PrismaModel> | boolean
@@ -6882,6 +8465,11 @@ export namespace Prisma {
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
+  export type ItemCategoryNullableScalarRelationFilter = {
+    is?: ItemCategoryWhereInput | null
+    isNot?: ItemCategoryWhereInput | null
+  }
+
   export type ItemCompositionListRelationFilter = {
     every?: ItemCompositionWhereInput
     some?: ItemCompositionWhereInput
@@ -6892,6 +8480,11 @@ export namespace Prisma {
     every?: SupplierItemMappingWhereInput
     some?: SupplierItemMappingWhereInput
     none?: SupplierItemMappingWhereInput
+  }
+
+  export type SortOrderInput = {
+    sort: SortOrder
+    nulls?: NullsOrder
   }
 
   export type ItemCompositionOrderByRelationAggregateInput = {
@@ -6915,6 +8508,7 @@ export namespace Prisma {
     structureType?: SortOrder
     natureType?: SortOrder
     status?: SortOrder
+    primaryCategoryId?: SortOrder
     sellable?: SortOrder
     purchasable?: SortOrder
     stockable?: SortOrder
@@ -6931,6 +8525,7 @@ export namespace Prisma {
     structureType?: SortOrder
     natureType?: SortOrder
     status?: SortOrder
+    primaryCategoryId?: SortOrder
     sellable?: SortOrder
     purchasable?: SortOrder
     stockable?: SortOrder
@@ -6947,6 +8542,7 @@ export namespace Prisma {
     structureType?: SortOrder
     natureType?: SortOrder
     status?: SortOrder
+    primaryCategoryId?: SortOrder
     sellable?: SortOrder
     purchasable?: SortOrder
     stockable?: SortOrder
@@ -7018,6 +8614,21 @@ export namespace Prisma {
     _max?: NestedEnumItemStatusFilter<$PrismaModel>
   }
 
+  export type UuidNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    mode?: QueryMode
+    not?: NestedUuidNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
   export type BoolWithAggregatesFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
@@ -7038,6 +8649,81 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
+  }
+
+  export type EnumItemCategoryStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.ItemCategoryStatus | EnumItemCategoryStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.ItemCategoryStatus[] | ListEnumItemCategoryStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.ItemCategoryStatus[] | ListEnumItemCategoryStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumItemCategoryStatusFilter<$PrismaModel> | $Enums.ItemCategoryStatus
+  }
+
+  export type ItemCategoryListRelationFilter = {
+    every?: ItemCategoryWhereInput
+    some?: ItemCategoryWhereInput
+    none?: ItemCategoryWhereInput
+  }
+
+  export type ItemListRelationFilter = {
+    every?: ItemWhereInput
+    some?: ItemWhereInput
+    none?: ItemWhereInput
+  }
+
+  export type ItemCategoryOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type ItemOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
+  export type ItemCategoryTenantIdCategoryCodeCompoundUniqueInput = {
+    tenantId: string
+    categoryCode: string
+  }
+
+  export type ItemCategoryCountOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    categoryCode?: SortOrder
+    categoryName?: SortOrder
+    parentCategoryId?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ItemCategoryMaxOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    categoryCode?: SortOrder
+    categoryName?: SortOrder
+    parentCategoryId?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type ItemCategoryMinOrderByAggregateInput = {
+    id?: SortOrder
+    tenantId?: SortOrder
+    categoryCode?: SortOrder
+    categoryName?: SortOrder
+    parentCategoryId?: SortOrder
+    status?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type EnumItemCategoryStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.ItemCategoryStatus | EnumItemCategoryStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.ItemCategoryStatus[] | ListEnumItemCategoryStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.ItemCategoryStatus[] | ListEnumItemCategoryStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumItemCategoryStatusWithAggregatesFilter<$PrismaModel> | $Enums.ItemCategoryStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumItemCategoryStatusFilter<$PrismaModel>
+    _max?: NestedEnumItemCategoryStatusFilter<$PrismaModel>
   }
 
   export type IntFilter<$PrismaModel = never> = {
@@ -7126,11 +8812,6 @@ export namespace Prisma {
     endsWith?: string | StringFieldRefInput<$PrismaModel>
     mode?: QueryMode
     not?: NestedStringNullableFilter<$PrismaModel> | string | null
-  }
-
-  export type SortOrderInput = {
-    sort: SortOrder
-    nulls?: NullsOrder
   }
 
   export type SupplierItemMappingTenantIdSupplierIdSupplierItemCodeKeyCompoundUniqueInput = {
@@ -7303,6 +8984,12 @@ export namespace Prisma {
     _max?: NestedJsonFilter<$PrismaModel>
   }
 
+  export type ItemCategoryCreateNestedOneWithoutItemsInput = {
+    create?: XOR<ItemCategoryCreateWithoutItemsInput, ItemCategoryUncheckedCreateWithoutItemsInput>
+    connectOrCreate?: ItemCategoryCreateOrConnectWithoutItemsInput
+    connect?: ItemCategoryWhereUniqueInput
+  }
+
   export type ItemCompositionCreateNestedManyWithoutParentItemInput = {
     create?: XOR<ItemCompositionCreateWithoutParentItemInput, ItemCompositionUncheckedCreateWithoutParentItemInput> | ItemCompositionCreateWithoutParentItemInput[] | ItemCompositionUncheckedCreateWithoutParentItemInput[]
     connectOrCreate?: ItemCompositionCreateOrConnectWithoutParentItemInput | ItemCompositionCreateOrConnectWithoutParentItemInput[]
@@ -7369,6 +9056,16 @@ export namespace Prisma {
     set?: Date | string
   }
 
+  export type ItemCategoryUpdateOneWithoutItemsNestedInput = {
+    create?: XOR<ItemCategoryCreateWithoutItemsInput, ItemCategoryUncheckedCreateWithoutItemsInput>
+    connectOrCreate?: ItemCategoryCreateOrConnectWithoutItemsInput
+    upsert?: ItemCategoryUpsertWithoutItemsInput
+    disconnect?: ItemCategoryWhereInput | boolean
+    delete?: ItemCategoryWhereInput | boolean
+    connect?: ItemCategoryWhereUniqueInput
+    update?: XOR<XOR<ItemCategoryUpdateToOneWithWhereWithoutItemsInput, ItemCategoryUpdateWithoutItemsInput>, ItemCategoryUncheckedUpdateWithoutItemsInput>
+  }
+
   export type ItemCompositionUpdateManyWithoutParentItemNestedInput = {
     create?: XOR<ItemCompositionCreateWithoutParentItemInput, ItemCompositionUncheckedCreateWithoutParentItemInput> | ItemCompositionCreateWithoutParentItemInput[] | ItemCompositionUncheckedCreateWithoutParentItemInput[]
     connectOrCreate?: ItemCompositionCreateOrConnectWithoutParentItemInput | ItemCompositionCreateOrConnectWithoutParentItemInput[]
@@ -7409,6 +9106,10 @@ export namespace Prisma {
     update?: SupplierItemMappingUpdateWithWhereUniqueWithoutItemInput | SupplierItemMappingUpdateWithWhereUniqueWithoutItemInput[]
     updateMany?: SupplierItemMappingUpdateManyWithWhereWithoutItemInput | SupplierItemMappingUpdateManyWithWhereWithoutItemInput[]
     deleteMany?: SupplierItemMappingScalarWhereInput | SupplierItemMappingScalarWhereInput[]
+  }
+
+  export type NullableStringFieldUpdateOperationsInput = {
+    set?: string | null
   }
 
   export type ItemCompositionUncheckedUpdateManyWithoutParentItemNestedInput = {
@@ -7453,6 +9154,110 @@ export namespace Prisma {
     deleteMany?: SupplierItemMappingScalarWhereInput | SupplierItemMappingScalarWhereInput[]
   }
 
+  export type ItemCategoryCreateNestedOneWithoutChildrenInput = {
+    create?: XOR<ItemCategoryCreateWithoutChildrenInput, ItemCategoryUncheckedCreateWithoutChildrenInput>
+    connectOrCreate?: ItemCategoryCreateOrConnectWithoutChildrenInput
+    connect?: ItemCategoryWhereUniqueInput
+  }
+
+  export type ItemCategoryCreateNestedManyWithoutParentInput = {
+    create?: XOR<ItemCategoryCreateWithoutParentInput, ItemCategoryUncheckedCreateWithoutParentInput> | ItemCategoryCreateWithoutParentInput[] | ItemCategoryUncheckedCreateWithoutParentInput[]
+    connectOrCreate?: ItemCategoryCreateOrConnectWithoutParentInput | ItemCategoryCreateOrConnectWithoutParentInput[]
+    createMany?: ItemCategoryCreateManyParentInputEnvelope
+    connect?: ItemCategoryWhereUniqueInput | ItemCategoryWhereUniqueInput[]
+  }
+
+  export type ItemCreateNestedManyWithoutPrimaryCategoryInput = {
+    create?: XOR<ItemCreateWithoutPrimaryCategoryInput, ItemUncheckedCreateWithoutPrimaryCategoryInput> | ItemCreateWithoutPrimaryCategoryInput[] | ItemUncheckedCreateWithoutPrimaryCategoryInput[]
+    connectOrCreate?: ItemCreateOrConnectWithoutPrimaryCategoryInput | ItemCreateOrConnectWithoutPrimaryCategoryInput[]
+    createMany?: ItemCreateManyPrimaryCategoryInputEnvelope
+    connect?: ItemWhereUniqueInput | ItemWhereUniqueInput[]
+  }
+
+  export type ItemCategoryUncheckedCreateNestedManyWithoutParentInput = {
+    create?: XOR<ItemCategoryCreateWithoutParentInput, ItemCategoryUncheckedCreateWithoutParentInput> | ItemCategoryCreateWithoutParentInput[] | ItemCategoryUncheckedCreateWithoutParentInput[]
+    connectOrCreate?: ItemCategoryCreateOrConnectWithoutParentInput | ItemCategoryCreateOrConnectWithoutParentInput[]
+    createMany?: ItemCategoryCreateManyParentInputEnvelope
+    connect?: ItemCategoryWhereUniqueInput | ItemCategoryWhereUniqueInput[]
+  }
+
+  export type ItemUncheckedCreateNestedManyWithoutPrimaryCategoryInput = {
+    create?: XOR<ItemCreateWithoutPrimaryCategoryInput, ItemUncheckedCreateWithoutPrimaryCategoryInput> | ItemCreateWithoutPrimaryCategoryInput[] | ItemUncheckedCreateWithoutPrimaryCategoryInput[]
+    connectOrCreate?: ItemCreateOrConnectWithoutPrimaryCategoryInput | ItemCreateOrConnectWithoutPrimaryCategoryInput[]
+    createMany?: ItemCreateManyPrimaryCategoryInputEnvelope
+    connect?: ItemWhereUniqueInput | ItemWhereUniqueInput[]
+  }
+
+  export type EnumItemCategoryStatusFieldUpdateOperationsInput = {
+    set?: $Enums.ItemCategoryStatus
+  }
+
+  export type ItemCategoryUpdateOneWithoutChildrenNestedInput = {
+    create?: XOR<ItemCategoryCreateWithoutChildrenInput, ItemCategoryUncheckedCreateWithoutChildrenInput>
+    connectOrCreate?: ItemCategoryCreateOrConnectWithoutChildrenInput
+    upsert?: ItemCategoryUpsertWithoutChildrenInput
+    disconnect?: ItemCategoryWhereInput | boolean
+    delete?: ItemCategoryWhereInput | boolean
+    connect?: ItemCategoryWhereUniqueInput
+    update?: XOR<XOR<ItemCategoryUpdateToOneWithWhereWithoutChildrenInput, ItemCategoryUpdateWithoutChildrenInput>, ItemCategoryUncheckedUpdateWithoutChildrenInput>
+  }
+
+  export type ItemCategoryUpdateManyWithoutParentNestedInput = {
+    create?: XOR<ItemCategoryCreateWithoutParentInput, ItemCategoryUncheckedCreateWithoutParentInput> | ItemCategoryCreateWithoutParentInput[] | ItemCategoryUncheckedCreateWithoutParentInput[]
+    connectOrCreate?: ItemCategoryCreateOrConnectWithoutParentInput | ItemCategoryCreateOrConnectWithoutParentInput[]
+    upsert?: ItemCategoryUpsertWithWhereUniqueWithoutParentInput | ItemCategoryUpsertWithWhereUniqueWithoutParentInput[]
+    createMany?: ItemCategoryCreateManyParentInputEnvelope
+    set?: ItemCategoryWhereUniqueInput | ItemCategoryWhereUniqueInput[]
+    disconnect?: ItemCategoryWhereUniqueInput | ItemCategoryWhereUniqueInput[]
+    delete?: ItemCategoryWhereUniqueInput | ItemCategoryWhereUniqueInput[]
+    connect?: ItemCategoryWhereUniqueInput | ItemCategoryWhereUniqueInput[]
+    update?: ItemCategoryUpdateWithWhereUniqueWithoutParentInput | ItemCategoryUpdateWithWhereUniqueWithoutParentInput[]
+    updateMany?: ItemCategoryUpdateManyWithWhereWithoutParentInput | ItemCategoryUpdateManyWithWhereWithoutParentInput[]
+    deleteMany?: ItemCategoryScalarWhereInput | ItemCategoryScalarWhereInput[]
+  }
+
+  export type ItemUpdateManyWithoutPrimaryCategoryNestedInput = {
+    create?: XOR<ItemCreateWithoutPrimaryCategoryInput, ItemUncheckedCreateWithoutPrimaryCategoryInput> | ItemCreateWithoutPrimaryCategoryInput[] | ItemUncheckedCreateWithoutPrimaryCategoryInput[]
+    connectOrCreate?: ItemCreateOrConnectWithoutPrimaryCategoryInput | ItemCreateOrConnectWithoutPrimaryCategoryInput[]
+    upsert?: ItemUpsertWithWhereUniqueWithoutPrimaryCategoryInput | ItemUpsertWithWhereUniqueWithoutPrimaryCategoryInput[]
+    createMany?: ItemCreateManyPrimaryCategoryInputEnvelope
+    set?: ItemWhereUniqueInput | ItemWhereUniqueInput[]
+    disconnect?: ItemWhereUniqueInput | ItemWhereUniqueInput[]
+    delete?: ItemWhereUniqueInput | ItemWhereUniqueInput[]
+    connect?: ItemWhereUniqueInput | ItemWhereUniqueInput[]
+    update?: ItemUpdateWithWhereUniqueWithoutPrimaryCategoryInput | ItemUpdateWithWhereUniqueWithoutPrimaryCategoryInput[]
+    updateMany?: ItemUpdateManyWithWhereWithoutPrimaryCategoryInput | ItemUpdateManyWithWhereWithoutPrimaryCategoryInput[]
+    deleteMany?: ItemScalarWhereInput | ItemScalarWhereInput[]
+  }
+
+  export type ItemCategoryUncheckedUpdateManyWithoutParentNestedInput = {
+    create?: XOR<ItemCategoryCreateWithoutParentInput, ItemCategoryUncheckedCreateWithoutParentInput> | ItemCategoryCreateWithoutParentInput[] | ItemCategoryUncheckedCreateWithoutParentInput[]
+    connectOrCreate?: ItemCategoryCreateOrConnectWithoutParentInput | ItemCategoryCreateOrConnectWithoutParentInput[]
+    upsert?: ItemCategoryUpsertWithWhereUniqueWithoutParentInput | ItemCategoryUpsertWithWhereUniqueWithoutParentInput[]
+    createMany?: ItemCategoryCreateManyParentInputEnvelope
+    set?: ItemCategoryWhereUniqueInput | ItemCategoryWhereUniqueInput[]
+    disconnect?: ItemCategoryWhereUniqueInput | ItemCategoryWhereUniqueInput[]
+    delete?: ItemCategoryWhereUniqueInput | ItemCategoryWhereUniqueInput[]
+    connect?: ItemCategoryWhereUniqueInput | ItemCategoryWhereUniqueInput[]
+    update?: ItemCategoryUpdateWithWhereUniqueWithoutParentInput | ItemCategoryUpdateWithWhereUniqueWithoutParentInput[]
+    updateMany?: ItemCategoryUpdateManyWithWhereWithoutParentInput | ItemCategoryUpdateManyWithWhereWithoutParentInput[]
+    deleteMany?: ItemCategoryScalarWhereInput | ItemCategoryScalarWhereInput[]
+  }
+
+  export type ItemUncheckedUpdateManyWithoutPrimaryCategoryNestedInput = {
+    create?: XOR<ItemCreateWithoutPrimaryCategoryInput, ItemUncheckedCreateWithoutPrimaryCategoryInput> | ItemCreateWithoutPrimaryCategoryInput[] | ItemUncheckedCreateWithoutPrimaryCategoryInput[]
+    connectOrCreate?: ItemCreateOrConnectWithoutPrimaryCategoryInput | ItemCreateOrConnectWithoutPrimaryCategoryInput[]
+    upsert?: ItemUpsertWithWhereUniqueWithoutPrimaryCategoryInput | ItemUpsertWithWhereUniqueWithoutPrimaryCategoryInput[]
+    createMany?: ItemCreateManyPrimaryCategoryInputEnvelope
+    set?: ItemWhereUniqueInput | ItemWhereUniqueInput[]
+    disconnect?: ItemWhereUniqueInput | ItemWhereUniqueInput[]
+    delete?: ItemWhereUniqueInput | ItemWhereUniqueInput[]
+    connect?: ItemWhereUniqueInput | ItemWhereUniqueInput[]
+    update?: ItemUpdateWithWhereUniqueWithoutPrimaryCategoryInput | ItemUpdateWithWhereUniqueWithoutPrimaryCategoryInput[]
+    updateMany?: ItemUpdateManyWithWhereWithoutPrimaryCategoryInput | ItemUpdateManyWithWhereWithoutPrimaryCategoryInput[]
+    deleteMany?: ItemScalarWhereInput | ItemScalarWhereInput[]
+  }
+
   export type ItemCreateNestedOneWithoutParentLinksInput = {
     create?: XOR<ItemCreateWithoutParentLinksInput, ItemUncheckedCreateWithoutParentLinksInput>
     connectOrCreate?: ItemCreateOrConnectWithoutParentLinksInput
@@ -7493,10 +9298,6 @@ export namespace Prisma {
     create?: XOR<ItemCreateWithoutSupplierMappingsInput, ItemUncheckedCreateWithoutSupplierMappingsInput>
     connectOrCreate?: ItemCreateOrConnectWithoutSupplierMappingsInput
     connect?: ItemWhereUniqueInput
-  }
-
-  export type NullableStringFieldUpdateOperationsInput = {
-    set?: string | null
   }
 
   export type ItemUpdateOneRequiredWithoutSupplierMappingsNestedInput = {
@@ -7551,6 +9352,17 @@ export namespace Prisma {
     in?: $Enums.ItemStatus[] | ListEnumItemStatusFieldRefInput<$PrismaModel>
     notIn?: $Enums.ItemStatus[] | ListEnumItemStatusFieldRefInput<$PrismaModel>
     not?: NestedEnumItemStatusFilter<$PrismaModel> | $Enums.ItemStatus
+  }
+
+  export type NestedUuidNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedUuidNullableFilter<$PrismaModel> | string | null
   }
 
   export type NestedBoolFilter<$PrismaModel = never> = {
@@ -7641,6 +9453,45 @@ export namespace Prisma {
     _max?: NestedEnumItemStatusFilter<$PrismaModel>
   }
 
+  export type NestedUuidNullableWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedUuidNullableWithAggregatesFilter<$PrismaModel> | string | null
+    _count?: NestedIntNullableFilter<$PrismaModel>
+    _min?: NestedStringNullableFilter<$PrismaModel>
+    _max?: NestedStringNullableFilter<$PrismaModel>
+  }
+
+  export type NestedIntNullableFilter<$PrismaModel = never> = {
+    equals?: number | IntFieldRefInput<$PrismaModel> | null
+    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
+    lt?: number | IntFieldRefInput<$PrismaModel>
+    lte?: number | IntFieldRefInput<$PrismaModel>
+    gt?: number | IntFieldRefInput<$PrismaModel>
+    gte?: number | IntFieldRefInput<$PrismaModel>
+    not?: NestedIntNullableFilter<$PrismaModel> | number | null
+  }
+
+  export type NestedStringNullableFilter<$PrismaModel = never> = {
+    equals?: string | StringFieldRefInput<$PrismaModel> | null
+    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
+    lt?: string | StringFieldRefInput<$PrismaModel>
+    lte?: string | StringFieldRefInput<$PrismaModel>
+    gt?: string | StringFieldRefInput<$PrismaModel>
+    gte?: string | StringFieldRefInput<$PrismaModel>
+    contains?: string | StringFieldRefInput<$PrismaModel>
+    startsWith?: string | StringFieldRefInput<$PrismaModel>
+    endsWith?: string | StringFieldRefInput<$PrismaModel>
+    not?: NestedStringNullableFilter<$PrismaModel> | string | null
+  }
+
   export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
@@ -7661,6 +9512,23 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedDateTimeFilter<$PrismaModel>
     _max?: NestedDateTimeFilter<$PrismaModel>
+  }
+
+  export type NestedEnumItemCategoryStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.ItemCategoryStatus | EnumItemCategoryStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.ItemCategoryStatus[] | ListEnumItemCategoryStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.ItemCategoryStatus[] | ListEnumItemCategoryStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumItemCategoryStatusFilter<$PrismaModel> | $Enums.ItemCategoryStatus
+  }
+
+  export type NestedEnumItemCategoryStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.ItemCategoryStatus | EnumItemCategoryStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.ItemCategoryStatus[] | ListEnumItemCategoryStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.ItemCategoryStatus[] | ListEnumItemCategoryStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumItemCategoryStatusWithAggregatesFilter<$PrismaModel> | $Enums.ItemCategoryStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumItemCategoryStatusFilter<$PrismaModel>
+    _max?: NestedEnumItemCategoryStatusFilter<$PrismaModel>
   }
 
   export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
@@ -7690,20 +9558,6 @@ export namespace Prisma {
     not?: NestedFloatFilter<$PrismaModel> | number
   }
 
-  export type NestedStringNullableFilter<$PrismaModel = never> = {
-    equals?: string | StringFieldRefInput<$PrismaModel> | null
-    in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    notIn?: string[] | ListStringFieldRefInput<$PrismaModel> | null
-    lt?: string | StringFieldRefInput<$PrismaModel>
-    lte?: string | StringFieldRefInput<$PrismaModel>
-    gt?: string | StringFieldRefInput<$PrismaModel>
-    gte?: string | StringFieldRefInput<$PrismaModel>
-    contains?: string | StringFieldRefInput<$PrismaModel>
-    startsWith?: string | StringFieldRefInput<$PrismaModel>
-    endsWith?: string | StringFieldRefInput<$PrismaModel>
-    not?: NestedStringNullableFilter<$PrismaModel> | string | null
-  }
-
   export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
     equals?: string | StringFieldRefInput<$PrismaModel> | null
     in?: string[] | ListStringFieldRefInput<$PrismaModel> | null
@@ -7719,17 +9573,6 @@ export namespace Prisma {
     _count?: NestedIntNullableFilter<$PrismaModel>
     _min?: NestedStringNullableFilter<$PrismaModel>
     _max?: NestedStringNullableFilter<$PrismaModel>
-  }
-
-  export type NestedIntNullableFilter<$PrismaModel = never> = {
-    equals?: number | IntFieldRefInput<$PrismaModel> | null
-    in?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    notIn?: number[] | ListIntFieldRefInput<$PrismaModel> | null
-    lt?: number | IntFieldRefInput<$PrismaModel>
-    lte?: number | IntFieldRefInput<$PrismaModel>
-    gt?: number | IntFieldRefInput<$PrismaModel>
-    gte?: number | IntFieldRefInput<$PrismaModel>
-    not?: NestedIntNullableFilter<$PrismaModel> | number | null
   }
   export type NestedJsonFilter<$PrismaModel = never> = 
     | PatchUndefined<
@@ -7753,6 +9596,35 @@ export namespace Prisma {
     gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
     gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
     not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
+
+  export type ItemCategoryCreateWithoutItemsInput = {
+    id?: string
+    tenantId: string
+    categoryCode: string
+    categoryName: string
+    status?: $Enums.ItemCategoryStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    parent?: ItemCategoryCreateNestedOneWithoutChildrenInput
+    children?: ItemCategoryCreateNestedManyWithoutParentInput
+  }
+
+  export type ItemCategoryUncheckedCreateWithoutItemsInput = {
+    id?: string
+    tenantId: string
+    categoryCode: string
+    categoryName: string
+    parentCategoryId?: string | null
+    status?: $Enums.ItemCategoryStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    children?: ItemCategoryUncheckedCreateNestedManyWithoutParentInput
+  }
+
+  export type ItemCategoryCreateOrConnectWithoutItemsInput = {
+    where: ItemCategoryWhereUniqueInput
+    create: XOR<ItemCategoryCreateWithoutItemsInput, ItemCategoryUncheckedCreateWithoutItemsInput>
   }
 
   export type ItemCompositionCreateWithoutParentItemInput = {
@@ -7841,6 +9713,41 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
+  export type ItemCategoryUpsertWithoutItemsInput = {
+    update: XOR<ItemCategoryUpdateWithoutItemsInput, ItemCategoryUncheckedUpdateWithoutItemsInput>
+    create: XOR<ItemCategoryCreateWithoutItemsInput, ItemCategoryUncheckedCreateWithoutItemsInput>
+    where?: ItemCategoryWhereInput
+  }
+
+  export type ItemCategoryUpdateToOneWithWhereWithoutItemsInput = {
+    where?: ItemCategoryWhereInput
+    data: XOR<ItemCategoryUpdateWithoutItemsInput, ItemCategoryUncheckedUpdateWithoutItemsInput>
+  }
+
+  export type ItemCategoryUpdateWithoutItemsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    categoryCode?: StringFieldUpdateOperationsInput | string
+    categoryName?: StringFieldUpdateOperationsInput | string
+    status?: EnumItemCategoryStatusFieldUpdateOperationsInput | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    parent?: ItemCategoryUpdateOneWithoutChildrenNestedInput
+    children?: ItemCategoryUpdateManyWithoutParentNestedInput
+  }
+
+  export type ItemCategoryUncheckedUpdateWithoutItemsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    categoryCode?: StringFieldUpdateOperationsInput | string
+    categoryName?: StringFieldUpdateOperationsInput | string
+    parentCategoryId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumItemCategoryStatusFieldUpdateOperationsInput | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    children?: ItemCategoryUncheckedUpdateManyWithoutParentNestedInput
+  }
+
   export type ItemCompositionUpsertWithWhereUniqueWithoutParentItemInput = {
     where: ItemCompositionWhereUniqueInput
     update: XOR<ItemCompositionUpdateWithoutParentItemInput, ItemCompositionUncheckedUpdateWithoutParentItemInput>
@@ -7917,6 +9824,218 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"SupplierItemMapping"> | Date | string
   }
 
+  export type ItemCategoryCreateWithoutChildrenInput = {
+    id?: string
+    tenantId: string
+    categoryCode: string
+    categoryName: string
+    status?: $Enums.ItemCategoryStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    parent?: ItemCategoryCreateNestedOneWithoutChildrenInput
+    items?: ItemCreateNestedManyWithoutPrimaryCategoryInput
+  }
+
+  export type ItemCategoryUncheckedCreateWithoutChildrenInput = {
+    id?: string
+    tenantId: string
+    categoryCode: string
+    categoryName: string
+    parentCategoryId?: string | null
+    status?: $Enums.ItemCategoryStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    items?: ItemUncheckedCreateNestedManyWithoutPrimaryCategoryInput
+  }
+
+  export type ItemCategoryCreateOrConnectWithoutChildrenInput = {
+    where: ItemCategoryWhereUniqueInput
+    create: XOR<ItemCategoryCreateWithoutChildrenInput, ItemCategoryUncheckedCreateWithoutChildrenInput>
+  }
+
+  export type ItemCategoryCreateWithoutParentInput = {
+    id?: string
+    tenantId: string
+    categoryCode: string
+    categoryName: string
+    status?: $Enums.ItemCategoryStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    children?: ItemCategoryCreateNestedManyWithoutParentInput
+    items?: ItemCreateNestedManyWithoutPrimaryCategoryInput
+  }
+
+  export type ItemCategoryUncheckedCreateWithoutParentInput = {
+    id?: string
+    tenantId: string
+    categoryCode: string
+    categoryName: string
+    status?: $Enums.ItemCategoryStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    children?: ItemCategoryUncheckedCreateNestedManyWithoutParentInput
+    items?: ItemUncheckedCreateNestedManyWithoutPrimaryCategoryInput
+  }
+
+  export type ItemCategoryCreateOrConnectWithoutParentInput = {
+    where: ItemCategoryWhereUniqueInput
+    create: XOR<ItemCategoryCreateWithoutParentInput, ItemCategoryUncheckedCreateWithoutParentInput>
+  }
+
+  export type ItemCategoryCreateManyParentInputEnvelope = {
+    data: ItemCategoryCreateManyParentInput | ItemCategoryCreateManyParentInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type ItemCreateWithoutPrimaryCategoryInput = {
+    id?: string
+    tenantId: string
+    itemCode: string
+    itemName: string
+    structureType: $Enums.ItemStructureType
+    natureType: $Enums.ItemNatureType
+    status?: $Enums.ItemStatus
+    sellable?: boolean
+    purchasable?: boolean
+    stockable?: boolean
+    manufacturable?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    parentLinks?: ItemCompositionCreateNestedManyWithoutParentItemInput
+    componentLinks?: ItemCompositionCreateNestedManyWithoutComponentItemInput
+    supplierMappings?: SupplierItemMappingCreateNestedManyWithoutItemInput
+  }
+
+  export type ItemUncheckedCreateWithoutPrimaryCategoryInput = {
+    id?: string
+    tenantId: string
+    itemCode: string
+    itemName: string
+    structureType: $Enums.ItemStructureType
+    natureType: $Enums.ItemNatureType
+    status?: $Enums.ItemStatus
+    sellable?: boolean
+    purchasable?: boolean
+    stockable?: boolean
+    manufacturable?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    parentLinks?: ItemCompositionUncheckedCreateNestedManyWithoutParentItemInput
+    componentLinks?: ItemCompositionUncheckedCreateNestedManyWithoutComponentItemInput
+    supplierMappings?: SupplierItemMappingUncheckedCreateNestedManyWithoutItemInput
+  }
+
+  export type ItemCreateOrConnectWithoutPrimaryCategoryInput = {
+    where: ItemWhereUniqueInput
+    create: XOR<ItemCreateWithoutPrimaryCategoryInput, ItemUncheckedCreateWithoutPrimaryCategoryInput>
+  }
+
+  export type ItemCreateManyPrimaryCategoryInputEnvelope = {
+    data: ItemCreateManyPrimaryCategoryInput | ItemCreateManyPrimaryCategoryInput[]
+    skipDuplicates?: boolean
+  }
+
+  export type ItemCategoryUpsertWithoutChildrenInput = {
+    update: XOR<ItemCategoryUpdateWithoutChildrenInput, ItemCategoryUncheckedUpdateWithoutChildrenInput>
+    create: XOR<ItemCategoryCreateWithoutChildrenInput, ItemCategoryUncheckedCreateWithoutChildrenInput>
+    where?: ItemCategoryWhereInput
+  }
+
+  export type ItemCategoryUpdateToOneWithWhereWithoutChildrenInput = {
+    where?: ItemCategoryWhereInput
+    data: XOR<ItemCategoryUpdateWithoutChildrenInput, ItemCategoryUncheckedUpdateWithoutChildrenInput>
+  }
+
+  export type ItemCategoryUpdateWithoutChildrenInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    categoryCode?: StringFieldUpdateOperationsInput | string
+    categoryName?: StringFieldUpdateOperationsInput | string
+    status?: EnumItemCategoryStatusFieldUpdateOperationsInput | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    parent?: ItemCategoryUpdateOneWithoutChildrenNestedInput
+    items?: ItemUpdateManyWithoutPrimaryCategoryNestedInput
+  }
+
+  export type ItemCategoryUncheckedUpdateWithoutChildrenInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    categoryCode?: StringFieldUpdateOperationsInput | string
+    categoryName?: StringFieldUpdateOperationsInput | string
+    parentCategoryId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: EnumItemCategoryStatusFieldUpdateOperationsInput | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    items?: ItemUncheckedUpdateManyWithoutPrimaryCategoryNestedInput
+  }
+
+  export type ItemCategoryUpsertWithWhereUniqueWithoutParentInput = {
+    where: ItemCategoryWhereUniqueInput
+    update: XOR<ItemCategoryUpdateWithoutParentInput, ItemCategoryUncheckedUpdateWithoutParentInput>
+    create: XOR<ItemCategoryCreateWithoutParentInput, ItemCategoryUncheckedCreateWithoutParentInput>
+  }
+
+  export type ItemCategoryUpdateWithWhereUniqueWithoutParentInput = {
+    where: ItemCategoryWhereUniqueInput
+    data: XOR<ItemCategoryUpdateWithoutParentInput, ItemCategoryUncheckedUpdateWithoutParentInput>
+  }
+
+  export type ItemCategoryUpdateManyWithWhereWithoutParentInput = {
+    where: ItemCategoryScalarWhereInput
+    data: XOR<ItemCategoryUpdateManyMutationInput, ItemCategoryUncheckedUpdateManyWithoutParentInput>
+  }
+
+  export type ItemCategoryScalarWhereInput = {
+    AND?: ItemCategoryScalarWhereInput | ItemCategoryScalarWhereInput[]
+    OR?: ItemCategoryScalarWhereInput[]
+    NOT?: ItemCategoryScalarWhereInput | ItemCategoryScalarWhereInput[]
+    id?: UuidFilter<"ItemCategory"> | string
+    tenantId?: StringFilter<"ItemCategory"> | string
+    categoryCode?: StringFilter<"ItemCategory"> | string
+    categoryName?: StringFilter<"ItemCategory"> | string
+    parentCategoryId?: UuidNullableFilter<"ItemCategory"> | string | null
+    status?: EnumItemCategoryStatusFilter<"ItemCategory"> | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFilter<"ItemCategory"> | Date | string
+    updatedAt?: DateTimeFilter<"ItemCategory"> | Date | string
+  }
+
+  export type ItemUpsertWithWhereUniqueWithoutPrimaryCategoryInput = {
+    where: ItemWhereUniqueInput
+    update: XOR<ItemUpdateWithoutPrimaryCategoryInput, ItemUncheckedUpdateWithoutPrimaryCategoryInput>
+    create: XOR<ItemCreateWithoutPrimaryCategoryInput, ItemUncheckedCreateWithoutPrimaryCategoryInput>
+  }
+
+  export type ItemUpdateWithWhereUniqueWithoutPrimaryCategoryInput = {
+    where: ItemWhereUniqueInput
+    data: XOR<ItemUpdateWithoutPrimaryCategoryInput, ItemUncheckedUpdateWithoutPrimaryCategoryInput>
+  }
+
+  export type ItemUpdateManyWithWhereWithoutPrimaryCategoryInput = {
+    where: ItemScalarWhereInput
+    data: XOR<ItemUpdateManyMutationInput, ItemUncheckedUpdateManyWithoutPrimaryCategoryInput>
+  }
+
+  export type ItemScalarWhereInput = {
+    AND?: ItemScalarWhereInput | ItemScalarWhereInput[]
+    OR?: ItemScalarWhereInput[]
+    NOT?: ItemScalarWhereInput | ItemScalarWhereInput[]
+    id?: UuidFilter<"Item"> | string
+    tenantId?: StringFilter<"Item"> | string
+    itemCode?: StringFilter<"Item"> | string
+    itemName?: StringFilter<"Item"> | string
+    structureType?: EnumItemStructureTypeFilter<"Item"> | $Enums.ItemStructureType
+    natureType?: EnumItemNatureTypeFilter<"Item"> | $Enums.ItemNatureType
+    status?: EnumItemStatusFilter<"Item"> | $Enums.ItemStatus
+    primaryCategoryId?: UuidNullableFilter<"Item"> | string | null
+    sellable?: BoolFilter<"Item"> | boolean
+    purchasable?: BoolFilter<"Item"> | boolean
+    stockable?: BoolFilter<"Item"> | boolean
+    manufacturable?: BoolFilter<"Item"> | boolean
+    createdAt?: DateTimeFilter<"Item"> | Date | string
+    updatedAt?: DateTimeFilter<"Item"> | Date | string
+  }
+
   export type ItemCreateWithoutParentLinksInput = {
     id?: string
     tenantId: string
@@ -7931,6 +10050,7 @@ export namespace Prisma {
     manufacturable?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
+    primaryCategory?: ItemCategoryCreateNestedOneWithoutItemsInput
     componentLinks?: ItemCompositionCreateNestedManyWithoutComponentItemInput
     supplierMappings?: SupplierItemMappingCreateNestedManyWithoutItemInput
   }
@@ -7943,6 +10063,7 @@ export namespace Prisma {
     structureType: $Enums.ItemStructureType
     natureType: $Enums.ItemNatureType
     status?: $Enums.ItemStatus
+    primaryCategoryId?: string | null
     sellable?: boolean
     purchasable?: boolean
     stockable?: boolean
@@ -7972,6 +10093,7 @@ export namespace Prisma {
     manufacturable?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
+    primaryCategory?: ItemCategoryCreateNestedOneWithoutItemsInput
     parentLinks?: ItemCompositionCreateNestedManyWithoutParentItemInput
     supplierMappings?: SupplierItemMappingCreateNestedManyWithoutItemInput
   }
@@ -7984,6 +10106,7 @@ export namespace Prisma {
     structureType: $Enums.ItemStructureType
     natureType: $Enums.ItemNatureType
     status?: $Enums.ItemStatus
+    primaryCategoryId?: string | null
     sellable?: boolean
     purchasable?: boolean
     stockable?: boolean
@@ -8024,6 +10147,7 @@ export namespace Prisma {
     manufacturable?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    primaryCategory?: ItemCategoryUpdateOneWithoutItemsNestedInput
     componentLinks?: ItemCompositionUpdateManyWithoutComponentItemNestedInput
     supplierMappings?: SupplierItemMappingUpdateManyWithoutItemNestedInput
   }
@@ -8036,6 +10160,7 @@ export namespace Prisma {
     structureType?: EnumItemStructureTypeFieldUpdateOperationsInput | $Enums.ItemStructureType
     natureType?: EnumItemNatureTypeFieldUpdateOperationsInput | $Enums.ItemNatureType
     status?: EnumItemStatusFieldUpdateOperationsInput | $Enums.ItemStatus
+    primaryCategoryId?: NullableStringFieldUpdateOperationsInput | string | null
     sellable?: BoolFieldUpdateOperationsInput | boolean
     purchasable?: BoolFieldUpdateOperationsInput | boolean
     stockable?: BoolFieldUpdateOperationsInput | boolean
@@ -8071,6 +10196,7 @@ export namespace Prisma {
     manufacturable?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    primaryCategory?: ItemCategoryUpdateOneWithoutItemsNestedInput
     parentLinks?: ItemCompositionUpdateManyWithoutParentItemNestedInput
     supplierMappings?: SupplierItemMappingUpdateManyWithoutItemNestedInput
   }
@@ -8083,6 +10209,7 @@ export namespace Prisma {
     structureType?: EnumItemStructureTypeFieldUpdateOperationsInput | $Enums.ItemStructureType
     natureType?: EnumItemNatureTypeFieldUpdateOperationsInput | $Enums.ItemNatureType
     status?: EnumItemStatusFieldUpdateOperationsInput | $Enums.ItemStatus
+    primaryCategoryId?: NullableStringFieldUpdateOperationsInput | string | null
     sellable?: BoolFieldUpdateOperationsInput | boolean
     purchasable?: BoolFieldUpdateOperationsInput | boolean
     stockable?: BoolFieldUpdateOperationsInput | boolean
@@ -8107,6 +10234,7 @@ export namespace Prisma {
     manufacturable?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
+    primaryCategory?: ItemCategoryCreateNestedOneWithoutItemsInput
     parentLinks?: ItemCompositionCreateNestedManyWithoutParentItemInput
     componentLinks?: ItemCompositionCreateNestedManyWithoutComponentItemInput
   }
@@ -8119,6 +10247,7 @@ export namespace Prisma {
     structureType: $Enums.ItemStructureType
     natureType: $Enums.ItemNatureType
     status?: $Enums.ItemStatus
+    primaryCategoryId?: string | null
     sellable?: boolean
     purchasable?: boolean
     stockable?: boolean
@@ -8159,6 +10288,7 @@ export namespace Prisma {
     manufacturable?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    primaryCategory?: ItemCategoryUpdateOneWithoutItemsNestedInput
     parentLinks?: ItemCompositionUpdateManyWithoutParentItemNestedInput
     componentLinks?: ItemCompositionUpdateManyWithoutComponentItemNestedInput
   }
@@ -8171,6 +10301,7 @@ export namespace Prisma {
     structureType?: EnumItemStructureTypeFieldUpdateOperationsInput | $Enums.ItemStructureType
     natureType?: EnumItemNatureTypeFieldUpdateOperationsInput | $Enums.ItemNatureType
     status?: EnumItemStatusFieldUpdateOperationsInput | $Enums.ItemStatus
+    primaryCategoryId?: NullableStringFieldUpdateOperationsInput | string | null
     sellable?: BoolFieldUpdateOperationsInput | boolean
     purchasable?: BoolFieldUpdateOperationsInput | boolean
     stockable?: BoolFieldUpdateOperationsInput | boolean
@@ -8289,6 +10420,120 @@ export namespace Prisma {
     supplierItemName?: NullableStringFieldUpdateOperationsInput | string | null
     supplierItemCodeKey?: NullableStringFieldUpdateOperationsInput | string | null
     supplierItemNameKey?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ItemCategoryCreateManyParentInput = {
+    id?: string
+    tenantId: string
+    categoryCode: string
+    categoryName: string
+    status?: $Enums.ItemCategoryStatus
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ItemCreateManyPrimaryCategoryInput = {
+    id?: string
+    tenantId: string
+    itemCode: string
+    itemName: string
+    structureType: $Enums.ItemStructureType
+    natureType: $Enums.ItemNatureType
+    status?: $Enums.ItemStatus
+    sellable?: boolean
+    purchasable?: boolean
+    stockable?: boolean
+    manufacturable?: boolean
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ItemCategoryUpdateWithoutParentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    categoryCode?: StringFieldUpdateOperationsInput | string
+    categoryName?: StringFieldUpdateOperationsInput | string
+    status?: EnumItemCategoryStatusFieldUpdateOperationsInput | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    children?: ItemCategoryUpdateManyWithoutParentNestedInput
+    items?: ItemUpdateManyWithoutPrimaryCategoryNestedInput
+  }
+
+  export type ItemCategoryUncheckedUpdateWithoutParentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    categoryCode?: StringFieldUpdateOperationsInput | string
+    categoryName?: StringFieldUpdateOperationsInput | string
+    status?: EnumItemCategoryStatusFieldUpdateOperationsInput | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    children?: ItemCategoryUncheckedUpdateManyWithoutParentNestedInput
+    items?: ItemUncheckedUpdateManyWithoutPrimaryCategoryNestedInput
+  }
+
+  export type ItemCategoryUncheckedUpdateManyWithoutParentInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    categoryCode?: StringFieldUpdateOperationsInput | string
+    categoryName?: StringFieldUpdateOperationsInput | string
+    status?: EnumItemCategoryStatusFieldUpdateOperationsInput | $Enums.ItemCategoryStatus
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ItemUpdateWithoutPrimaryCategoryInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    itemCode?: StringFieldUpdateOperationsInput | string
+    itemName?: StringFieldUpdateOperationsInput | string
+    structureType?: EnumItemStructureTypeFieldUpdateOperationsInput | $Enums.ItemStructureType
+    natureType?: EnumItemNatureTypeFieldUpdateOperationsInput | $Enums.ItemNatureType
+    status?: EnumItemStatusFieldUpdateOperationsInput | $Enums.ItemStatus
+    sellable?: BoolFieldUpdateOperationsInput | boolean
+    purchasable?: BoolFieldUpdateOperationsInput | boolean
+    stockable?: BoolFieldUpdateOperationsInput | boolean
+    manufacturable?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    parentLinks?: ItemCompositionUpdateManyWithoutParentItemNestedInput
+    componentLinks?: ItemCompositionUpdateManyWithoutComponentItemNestedInput
+    supplierMappings?: SupplierItemMappingUpdateManyWithoutItemNestedInput
+  }
+
+  export type ItemUncheckedUpdateWithoutPrimaryCategoryInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    itemCode?: StringFieldUpdateOperationsInput | string
+    itemName?: StringFieldUpdateOperationsInput | string
+    structureType?: EnumItemStructureTypeFieldUpdateOperationsInput | $Enums.ItemStructureType
+    natureType?: EnumItemNatureTypeFieldUpdateOperationsInput | $Enums.ItemNatureType
+    status?: EnumItemStatusFieldUpdateOperationsInput | $Enums.ItemStatus
+    sellable?: BoolFieldUpdateOperationsInput | boolean
+    purchasable?: BoolFieldUpdateOperationsInput | boolean
+    stockable?: BoolFieldUpdateOperationsInput | boolean
+    manufacturable?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    parentLinks?: ItemCompositionUncheckedUpdateManyWithoutParentItemNestedInput
+    componentLinks?: ItemCompositionUncheckedUpdateManyWithoutComponentItemNestedInput
+    supplierMappings?: SupplierItemMappingUncheckedUpdateManyWithoutItemNestedInput
+  }
+
+  export type ItemUncheckedUpdateManyWithoutPrimaryCategoryInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    tenantId?: StringFieldUpdateOperationsInput | string
+    itemCode?: StringFieldUpdateOperationsInput | string
+    itemName?: StringFieldUpdateOperationsInput | string
+    structureType?: EnumItemStructureTypeFieldUpdateOperationsInput | $Enums.ItemStructureType
+    natureType?: EnumItemNatureTypeFieldUpdateOperationsInput | $Enums.ItemNatureType
+    status?: EnumItemStatusFieldUpdateOperationsInput | $Enums.ItemStatus
+    sellable?: BoolFieldUpdateOperationsInput | boolean
+    purchasable?: BoolFieldUpdateOperationsInput | boolean
+    stockable?: BoolFieldUpdateOperationsInput | boolean
+    manufacturable?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

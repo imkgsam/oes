@@ -101,6 +101,31 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     }
   })
 
+  await prisma.item.updateMany({
+    where: {
+      primaryCategory: {
+        is: {
+          tenantId: {
+            startsWith: prefix
+          }
+        }
+      }
+    },
+    data: {
+      primaryCategoryId: null
+    }
+  })
+
+  await prisma.itemCategory.deleteMany({
+    where: {
+      OR: [
+        { tenantId: { startsWith: prefix } },
+        { categoryCode: { startsWith: prefix } },
+        { categoryName: { startsWith: prefix } }
+      ]
+    }
+  })
+
   await prisma.item.deleteMany({
     where: {
       OR: [

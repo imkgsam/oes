@@ -22,7 +22,8 @@ const item_value_objects_1 = require("../../domain/value-objects/item.value-obje
 const search_items_query_1 = require("./search-items.query");
 /** SearchItemsHandler applies filter and pagination validation while preserving empty-page normal responses. */
 let SearchItemsHandler = class SearchItemsHandler {
-    constructor(itemRepository) {
+    constructor(itemCategoryRepository, itemRepository) {
+        this.itemCategoryRepository = itemCategoryRepository;
         this.itemRepository = itemRepository;
     }
     async execute(query) {
@@ -34,6 +35,25 @@ let SearchItemsHandler = class SearchItemsHandler {
                 reason: 'page and page_size must be positive'
             });
         }
+        const categoryId = query.categoryId?.trim() || undefined;
+        if (query.includeDescendants && !categoryId) {
+            throw exceptions_1.ExceptionFactory.application(item_master_errors_1.ITEM_MASTER_INVALID_ARGUMENT, {
+                reason: 'include_descendants requires category_id'
+            });
+        }
+        let categoryIds;
+        if (categoryId) {
+            const category = await this.itemCategoryRepository.findById(query.tenantId, categoryId);
+            if (!category) {
+                throw exceptions_1.ExceptionFactory.domain(item_master_errors_1.ITEM_MASTER_NOT_FOUND, {
+                    categoryId
+                });
+            }
+            categoryIds = [category.id];
+            if (query.includeDescendants) {
+                categoryIds.push(...(await this.itemCategoryRepository.listDescendantIds(query.tenantId, category.id)));
+            }
+        }
         return this.itemRepository.search({
             tenantId: query.tenantId,
             keyword: query.keyword?.trim() || undefined,
@@ -41,6 +61,9 @@ let SearchItemsHandler = class SearchItemsHandler {
             natureType: toDomainNatureType(query.natureType),
             capabilityFilters: query.capabilityFilters,
             status: toDomainStatus(query.status),
+            categoryId,
+            includeDescendants: query.includeDescendants,
+            categoryIds,
             page,
             pageSize
         });
@@ -50,8 +73,9 @@ exports.SearchItemsHandler = SearchItemsHandler;
 exports.SearchItemsHandler = SearchItemsHandler = __decorate([
     (0, common_1.Injectable)(),
     (0, cqrs_1.QueryHandler)(search_items_query_1.SearchItemsQuery),
-    __param(0, (0, common_1.Inject)(tokens_1.TOKENS.ITEM_REPOSITORY)),
-    __metadata("design:paramtypes", [Object])
+    __param(0, (0, common_1.Inject)(tokens_1.TOKENS.ITEM_CATEGORY_REPOSITORY)),
+    __param(1, (0, common_1.Inject)(tokens_1.TOKENS.ITEM_REPOSITORY)),
+    __metadata("design:paramtypes", [Object, Object])
 ], SearchItemsHandler);
 /** assertRequired rejects blank catalog search coordinates before repository access. */
 function assertRequired(value, field) {

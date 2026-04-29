@@ -31,46 +31,95 @@ let ConvertPurchaseRequestToPurchaseOrderHandler = class ConvertPurchaseRequestT
     }
     async execute(command) {
         (0, procurement_assertions_1.assertRequiredString)(command.payload.tenantId, 'tenantId');
-        (0, procurement_assertions_1.assertRequiredString)(command.payload.purchaseRequestId, 'purchaseRequestId');
-        (0, procurement_assertions_1.assertRequiredString)(command.payload.supplierId, 'supplierId');
-        (0, procurement_assertions_1.assertRequiredString)(command.payload.currencyCode, 'currencyCode');
-        (0, procurement_assertions_1.assertPrecondition)(command.payload.selectedLines.length > 0, 'at least one purchase request line must be selected');
-        const purchaseRequest = (0, procurement_assertions_1.assertExists)(await this.purchaseRequestRepository.findById(command.payload.tenantId, command.payload.purchaseRequestId), 'purchase_request', command.payload.purchaseRequestId);
-        assertApprovedPurchaseRequest(purchaseRequest);
-        const selectedLineIds = new Set(command.payload.selectedLines.map((selection) => selection.purchaseRequestLineId));
-        const selectedRequestLines = purchaseRequest.lines.filter((line) => selectedLineIds.has(line.purchaseRequestLineId));
-        (0, procurement_assertions_1.assertPrecondition)(selectedRequestLines.length === command.payload.selectedLines.length, 'selected purchase request line was not found');
-        const supplierSnapshot = await (0, procurement_write_support_1.assertIssuableSupplierSnapshot)(this.supplierLookup, command.payload.tenantId, command.payload.supplierId);
-        const lines = await (0, procurement_write_support_1.buildConvertedPurchaseOrderLines)({
-            tenantId: command.payload.tenantId,
-            supplierId: command.payload.supplierId,
-            purchaseRequestLines: selectedRequestLines,
-            selections: command.payload.selectedLines,
-            itemLookup: this.itemLookup,
-            supplierLookup: this.supplierLookup
-        });
+        (0, procurement_assertions_1.assertPrecondition)(command.payload.sourceLines.length > 0, 'at least one purchase request line must be selected');
+        const existingDraft = command.payload.targetPurchaseOrderId
+            ? (0, procurement_assertions_1.assertExists)(await this.purchaseOrderRepository.findById(command.payload.tenantId, command.payload.targetPurchaseOrderId), 'purchase_order', command.payload.targetPurchaseOrderId)
+            : null;
+        if (existingDraft) {
+            (0, procurement_assertions_1.assertPrecondition)(existingDraft.status === procurement_records_1.PurchaseOrderStatus.DRAFT, 'target purchase order must be DRAFT');
+        }
+        const groupedSelections = new Map();
+        for (const selection of command.payload.sourceLines) {
+            (0, procurement_assertions_1.assertRequiredString)(selection.purchaseRequestId, 'sourceLines.purchaseRequestId');
+            (0, procurement_assertions_1.assertRequiredString)(selection.purchaseRequestLineId, 'sourceLines.purchaseRequestLineId');
+            const current = groupedSelections.get(selection.purchaseRequestId) ?? [];
+            current.push(selection);
+            groupedSelections.set(selection.purchaseRequestId, current);
+        }
+        const sourcePurchaseRequests = [];
+        for (const purchaseRequestId of groupedSelections.keys()) {
+            const purchaseRequest = (0, procurement_assertions_1.assertExists)(await this.purchaseRequestRepository.findById(command.payload.tenantId, purchaseRequestId), 'purchase_request', purchaseRequestId);
+            assertApprovedPurchaseRequest(purchaseRequest);
+            sourcePurchaseRequests.push(purchaseRequest);
+        }
+        const supplierId = existingDraft?.supplierId ?? command.payload.supplierId ?? '';
+        const currencyCode = existingDraft?.currencyCode ?? command.payload.currencyCode ?? '';
+        (0, procurement_assertions_1.assertRequiredString)(supplierId, 'supplierId');
+        (0, procurement_assertions_1.assertRequiredString)(currencyCode, 'currencyCode');
+        const supplierSnapshot = await (0, procurement_write_support_1.assertIssuableSupplierSnapshot)(this.supplierLookup, command.payload.tenantId, supplierId);
+        const convertedLines = (await Promise.all(sourcePurchaseRequests.map(async (purchaseRequest) => {
+            const selections = groupedSelections.get(purchaseRequest.purchaseRequestId) ?? [];
+            const selectedLineIds = new Set(selections.map((selection) => selection.purchaseRequestLineId));
+            const selectedRequestLines = purchaseRequest.lines.filter((line) => selectedLineIds.has(line.purchaseRequestLineId));
+            (0, procurement_assertions_1.assertPrecondition)(selectedRequestLines.length === selections.length, 'selected purchase request line was not found');
+            return (0, procurement_write_support_1.buildConvertedPurchaseOrderLines)({
+                tenantId: command.payload.tenantId,
+                supplierId,
+                purchaseRequestLines: selectedRequestLines,
+                selections,
+                itemLookup: this.itemLookup,
+                supplierLookup: this.supplierLookup
+            });
+        }))).flat();
         const createdAt = (0, procurement_write_support_1.nowIso)();
-        const purchaseOrder = {
-            purchaseOrderId: (0, node_crypto_1.randomUUID)(),
-            orderNo: await this.purchaseOrderRepository.nextOrderNo(command.payload.tenantId),
-            tenantId: command.payload.tenantId,
-            orgId: purchaseRequest.orgId ?? null,
-            status: procurement_records_1.PurchaseOrderStatus.DRAFT,
-            currencyCode: command.payload.currencyCode.trim(),
-            supplierId: command.payload.supplierId.trim(),
-            supplierSnapshot,
-            sourcePurchaseRequestIds: [purchaseRequest.purchaseRequestId],
-            sourcePurchaseRequestNos: [purchaseRequest.requestNo],
-            supplierAcknowledgement: (0, procurement_write_support_1.buildSupplierAcknowledgement)(),
-            issueComment: null,
-            cancelReason: null,
-            createdAt,
-            updatedAt: createdAt,
-            issuedAt: null,
-            cancelledAt: null,
-            lines,
-            changes: []
-        };
+        const existingSourceIds = existingDraft?.sourcePurchaseRequestIds ?? [];
+        const existingSourceNos = existingDraft?.sourcePurchaseRequestNos ?? [];
+        const nextSourceIds = [...new Set([...existingSourceIds, ...sourcePurchaseRequests.map((request) => request.purchaseRequestId)])];
+        const nextSourceNos = [
+            ...new Set([...existingSourceNos, ...sourcePurchaseRequests.map((request) => request.requestNo)])
+        ];
+        const purchaseOrder = existingDraft
+            ? {
+                ...existingDraft,
+                orgId: existingDraft.orgId ?? sourcePurchaseRequests[0]?.orgId ?? null,
+                currencyCode: currencyCode.trim(),
+                supplierId: supplierId.trim(),
+                supplierSnapshot,
+                paymentTermsSnapshot: (0, procurement_write_support_1.normalizePaymentTermsSnapshot)(command.payload.paymentTermsSnapshot) ??
+                    existingDraft.paymentTermsSnapshot ??
+                    null,
+                supplierCommercialTermsSnapshot: (0, procurement_write_support_1.normalizeCommercialTermsSnapshot)(command.payload.supplierCommercialTermsSnapshot) ??
+                    existingDraft.supplierCommercialTermsSnapshot ??
+                    null,
+                sourcePurchaseRequestIds: nextSourceIds,
+                sourcePurchaseRequestNos: nextSourceNos,
+                updatedAt: createdAt,
+                lines: [...existingDraft.lines, ...renumberLines(existingDraft.lines.length, convertedLines)]
+            }
+            : {
+                purchaseOrderId: (0, node_crypto_1.randomUUID)(),
+                orderNo: await this.purchaseOrderRepository.nextOrderNo(command.payload.tenantId),
+                tenantId: command.payload.tenantId,
+                orgId: sourcePurchaseRequests[0]?.orgId ?? null,
+                status: procurement_records_1.PurchaseOrderStatus.DRAFT,
+                currencyCode: currencyCode.trim(),
+                supplierId: supplierId.trim(),
+                supplierSnapshot,
+                paymentTermsSnapshot: (0, procurement_write_support_1.normalizePaymentTermsSnapshot)(command.payload.paymentTermsSnapshot),
+                supplierCommercialTermsSnapshot: (0, procurement_write_support_1.normalizeCommercialTermsSnapshot)(command.payload.supplierCommercialTermsSnapshot),
+                paymentSummary: null,
+                sourcePurchaseRequestIds: nextSourceIds,
+                sourcePurchaseRequestNos: nextSourceNos,
+                supplierAcknowledgement: (0, procurement_write_support_1.buildSupplierAcknowledgement)(),
+                issueComment: null,
+                cancelReason: null,
+                createdAt,
+                updatedAt: createdAt,
+                issuedAt: null,
+                cancelledAt: null,
+                lines: renumberLines(0, convertedLines),
+                changes: []
+            };
         return this.purchaseOrderRepository.save(purchaseOrder);
     }
 };
@@ -85,6 +134,13 @@ exports.ConvertPurchaseRequestToPurchaseOrderHandler = ConvertPurchaseRequestToP
     __metadata("design:paramtypes", [Object, Object, Object, Object])
 ], ConvertPurchaseRequestToPurchaseOrderHandler);
 function assertApprovedPurchaseRequest(purchaseRequest) {
-    (0, procurement_assertions_1.assertPrecondition)(purchaseRequest.status === procurement_records_1.PurchaseRequestStatus.APPROVED, 'purchase request must be APPROVED before conversion');
+    (0, procurement_assertions_1.assertPrecondition)(purchaseRequest.status === procurement_records_1.PurchaseRequestStatus.APPROVED ||
+        purchaseRequest.status === procurement_records_1.PurchaseRequestStatus.PARTIALLY_CONVERTED, 'purchase request must be APPROVED or PARTIALLY_CONVERTED before conversion');
+}
+function renumberLines(startLineNo, lines) {
+    return lines.map((line, index) => ({
+        ...line,
+        lineNo: startLineNo + index + 1
+    }));
 }
 //# sourceMappingURL=convert-purchase-request-to-purchase-order.handler.js.map

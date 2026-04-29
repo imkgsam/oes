@@ -140,6 +140,38 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     }
   })
 
+  await prisma.salesPriceListLine.deleteMany({
+    where: {
+      tenantId: {
+        startsWith: prefix
+      }
+    }
+  })
+
+  await prisma.salesPriceList.deleteMany({
+    where: {
+      tenantId: {
+        startsWith: prefix
+      }
+    }
+  })
+
+  await prisma.salesCustomerPriceAgreementLine.deleteMany({
+    where: {
+      tenantId: {
+        startsWith: prefix
+      }
+    }
+  })
+
+  await prisma.salesCustomerPriceAgreementVersion.deleteMany({
+    where: {
+      tenantId: {
+        startsWith: prefix
+      }
+    }
+  })
+
   await prisma.salesQuote.deleteMany({
     where: {
       tenantId: {

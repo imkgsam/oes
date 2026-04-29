@@ -9,12 +9,19 @@ export declare enum PurchaseRequestStatus {
     DRAFT = "DRAFT",
     SUBMITTED = "SUBMITTED",
     APPROVED = "APPROVED",
+    PARTIALLY_CONVERTED = "PARTIALLY_CONVERTED",
+    CONVERTED = "CONVERTED",
     REJECTED = "REJECTED",
     CANCELLED = "CANCELLED"
 }
 export declare enum PurchaseRequestLineType {
     STANDARD_ITEM = "STANDARD_ITEM",
     TEXT = "TEXT"
+}
+export declare enum PurchaseRequestLineConversionStatus {
+    NOT_CONVERTED = "NOT_CONVERTED",
+    PARTIALLY_CONVERTED = "PARTIALLY_CONVERTED",
+    CONVERTED = "CONVERTED"
 }
 export declare enum PurchaseRequestDecision {
     APPROVED = "APPROVED",
@@ -27,6 +34,7 @@ export declare enum PurchaseOrderStatus {
     CANCELLED = "CANCELLED"
 }
 export declare enum PurchaseOrderLineAllocationType {
+    PURCHASE_REQUEST_LINE = "PURCHASE_REQUEST_LINE",
     SALES_ORDER_LINE = "SALES_ORDER_LINE",
     FULFILLMENT_DEMAND = "FULFILLMENT_DEMAND",
     GENERAL_STOCK = "GENERAL_STOCK"
@@ -45,11 +53,11 @@ export declare enum ReceivingExpectationStatus {
     CANCELLED = "CANCELLED"
 }
 export declare enum ReceivingDiscrepancyType {
-    SHORT_RECEIPT = "SHORT_RECEIPT",
-    OVER_RECEIPT = "OVER_RECEIPT",
+    SHORT_RECEIVED = "SHORT_RECEIVED",
+    OVER_RECEIVED = "OVER_RECEIVED",
     DAMAGED = "DAMAGED",
-    RESTRICTED = "RESTRICTED",
-    OTHER = "OTHER"
+    WRONG_ITEM = "WRONG_ITEM",
+    QUALITY_HOLD = "QUALITY_HOLD"
 }
 export declare enum ReceivingDiscrepancyStatus {
     OPEN = "OPEN",
@@ -57,9 +65,20 @@ export declare enum ReceivingDiscrepancyStatus {
 }
 export declare enum ReceivingResolutionCode {
     WAIT_REDELIVERY = "WAIT_REDELIVERY",
-    ACCEPT_SHORT_CLOSE = "ACCEPT_SHORT_CLOSE",
-    RETURN_OR_REJECT_EXCESS = "RETURN_OR_REJECT_EXCESS",
-    MANUAL_FOLLOW_UP = "MANUAL_FOLLOW_UP"
+    CLOSE_UNRECEIVED = "CLOSE_UNRECEIVED",
+    REQUEST_RESEND = "REQUEST_RESEND",
+    ACCEPT_WITH_PO_CHANGE = "ACCEPT_WITH_PO_CHANGE",
+    REJECT_EXCESS = "REJECT_EXCESS",
+    TEMP_HOLD = "TEMP_HOLD",
+    REJECT_DAMAGED = "REJECT_DAMAGED",
+    RECEIVE_WITH_RESTRICTION = "RECEIVE_WITH_RESTRICTION",
+    CLAIM = "CLAIM",
+    REJECT_WRONG_ITEM = "REJECT_WRONG_ITEM",
+    TEMP_RECEIVE_PENDING_DECISION = "TEMP_RECEIVE_PENDING_DECISION",
+    ACCEPT_WITH_CONTROLLED_CHANGE = "ACCEPT_WITH_CONTROLLED_CHANGE",
+    WAIT_INSPECTION = "WAIT_INSPECTION",
+    ACCEPT_WITH_ALLOWANCE = "ACCEPT_WITH_ALLOWANCE",
+    RETURN_TO_SUPPLIER = "RETURN_TO_SUPPLIER"
 }
 export interface ProcurementOperatorContext {
     operatorId: string;
@@ -87,6 +106,14 @@ export interface PurchaseRequestApprovalSnapshotRecord {
     comment?: string | null;
     approvalReference?: string | null;
 }
+export interface PurchaseRequestPurchaseOrderLinkRecord {
+    purchaseOrderId: string;
+    orderNo: string;
+    purchaseOrderLineId?: string | null;
+    allocatedQuantity?: string | null;
+    expectedReceiptDate?: string | null;
+    receivingStatusSummary?: string | null;
+}
 export interface PurchaseRequestLineRecord {
     purchaseRequestLineId: string;
     lineNo: number;
@@ -100,6 +127,8 @@ export interface PurchaseRequestLineRecord {
     neededByDate?: string | null;
     demandReferenceType?: string | null;
     demandReferenceId?: string | null;
+    conversionStatus?: PurchaseRequestLineConversionStatus | null;
+    linkedPurchaseOrderLines?: PurchaseRequestPurchaseOrderLinkRecord[];
 }
 export interface PurchaseRequestRecord {
     purchaseRequestId: string;
@@ -120,13 +149,18 @@ export interface PurchaseRequestRecord {
     cancelledAt?: string | null;
     approvalSnapshot?: PurchaseRequestApprovalSnapshotRecord | null;
     lines: PurchaseRequestLineRecord[];
+    linkedPurchaseOrders?: PurchaseRequestPurchaseOrderLinkRecord[];
+    nextExpectedReceiptDate?: string | null;
+    receivingStatusSummary?: string | null;
 }
 export interface PurchaseOrderLineAllocationRecord {
     purchaseOrderLineAllocationId: string;
     allocationType: PurchaseOrderLineAllocationType;
-    referenceId?: string | null;
+    sourceReferenceId?: string | null;
     quantity: string;
     reason?: string | null;
+    targetWarehouseId?: string | null;
+    targetReceivingAddressId?: string | null;
 }
 export interface PurchaseOrderLineRecord {
     purchaseOrderLineId: string;
@@ -149,6 +183,22 @@ export interface PurchaseOrderSupplierSnapshotRecord {
     supplierId: string;
     supplierDisplayName: string;
     supplierStatusAtIssue?: string | null;
+}
+export interface PurchaseOrderPaymentTermsSnapshotRecord {
+    paymentTermsCode?: string | null;
+    paymentTermsText?: string | null;
+}
+export interface PurchaseOrderCommercialTermsSnapshotRecord {
+    incotermCode?: string | null;
+    commercialTermsText?: string | null;
+}
+export interface PurchaseOrderPaymentSummaryRecord {
+    paymentStatusSummary: string;
+    depositPaidAmount?: string | null;
+    balancePaidAmount?: string | null;
+    currencyCode: string;
+    attachmentRefs: string[];
+    lastPaymentAt?: string | null;
 }
 export interface PurchaseOrderSupplierAcknowledgementRecord {
     acknowledgementStatus: PurchaseOrderSupplierAcknowledgementStatus;
@@ -175,6 +225,9 @@ export interface PurchaseOrderRecord {
     currencyCode: string;
     supplierId: string;
     supplierSnapshot: PurchaseOrderSupplierSnapshotRecord;
+    paymentTermsSnapshot?: PurchaseOrderPaymentTermsSnapshotRecord | null;
+    supplierCommercialTermsSnapshot?: PurchaseOrderCommercialTermsSnapshotRecord | null;
+    paymentSummary?: PurchaseOrderPaymentSummaryRecord | null;
     sourcePurchaseRequestIds: string[];
     sourcePurchaseRequestNos?: string[];
     supplierAcknowledgement: PurchaseOrderSupplierAcknowledgementRecord;
@@ -187,6 +240,10 @@ export interface PurchaseOrderRecord {
     lines: PurchaseOrderLineRecord[];
     changes: PurchaseOrderChangeRecord[];
 }
+export interface ReceivingDiscrepancyResolutionReferenceRecord {
+    referenceType: string;
+    referenceId: string;
+}
 export interface ReceivingDiscrepancyRecord {
     receivingDiscrepancyId: string;
     discrepancyType: ReceivingDiscrepancyType;
@@ -194,6 +251,7 @@ export interface ReceivingDiscrepancyRecord {
     status: ReceivingDiscrepancyStatus;
     resolutionCode?: ReceivingResolutionCode | null;
     resolutionNote?: string | null;
+    resolutionReferences: ReceivingDiscrepancyResolutionReferenceRecord[];
     resolvedAt?: string | null;
 }
 export interface ReceivingExpectationRecord {
@@ -203,6 +261,10 @@ export interface ReceivingExpectationRecord {
     purchaseOrderId: string;
     purchaseOrderLineId: string;
     supplierId: string;
+    allocationGroupingKey: string;
+    sourceAllocationIds: string[];
+    targetWarehouseId?: string | null;
+    targetReceivingAddressId?: string | null;
     expectedQuantity: string;
     receivedQuantitySummary: string;
     openQuantity: string;
@@ -226,6 +288,7 @@ export interface SearchPurchaseRequestsInput {
     status?: PurchaseRequestStatus;
     requesterOperatorId?: string;
     itemId?: string;
+    purchaseOrderId?: string;
     neededByDateFrom?: string;
     neededByDateTo?: string;
     page?: number;
@@ -251,6 +314,8 @@ export interface SearchReceivingExpectationsInput {
     supplierId?: string;
     status?: ReceivingExpectationStatus;
     hasOpenDiscrepancy?: boolean;
+    targetWarehouseId?: string;
+    targetReceivingAddressId?: string;
     expectedReceiptDateFrom?: string;
     expectedReceiptDateTo?: string;
     page?: number;

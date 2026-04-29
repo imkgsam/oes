@@ -1,0 +1,995 @@
+syntax = "proto3";
+
+package finance_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.finance.v1";
+
+service FinancialAccountQueryService {
+  rpc GetFinancialAccount(GetFinancialAccountRequest) returns (GetFinancialAccountResponse);
+  rpc SearchFinancialAccounts(SearchFinancialAccountsRequest) returns (SearchFinancialAccountsResponse);
+  rpc SearchAccountTransactions(SearchAccountTransactionsRequest) returns (SearchAccountTransactionsResponse);
+  rpc GetExchangeRate(GetExchangeRateRequest) returns (GetExchangeRateResponse);
+}
+
+service FinancialAccountManagementService {
+  rpc CreateFinancialAccount(CreateFinancialAccountRequest) returns (CreateFinancialAccountResponse);
+  rpc UpdateFinancialAccountBasics(UpdateFinancialAccountBasicsRequest) returns (UpdateFinancialAccountBasicsResponse);
+  rpc ImportAccountTransactions(ImportAccountTransactionsRequest) returns (ImportAccountTransactionsResponse);
+  rpc RecordAccountTransaction(RecordAccountTransactionRequest) returns (RecordAccountTransactionResponse);
+  rpc RegisterCustomerFinancialAccount(RegisterCustomerFinancialAccountRequest) returns (RegisterCustomerFinancialAccountResponse);
+  rpc SetExchangeRate(SetExchangeRateRequest) returns (SetExchangeRateResponse);
+}
+
+service ReceivableQueryService {
+  rpc GetReceivableSchedule(GetReceivableScheduleRequest) returns (GetReceivableScheduleResponse);
+  rpc SearchReceivableSchedules(SearchReceivableSchedulesRequest) returns (SearchReceivableSchedulesResponse);
+  rpc GetFinanceReleaseSignal(GetFinanceReleaseSignalRequest) returns (GetFinanceReleaseSignalResponse);
+}
+
+service ReceivableManagementService {
+  rpc CreateReceivableScheduleFromSalesOrder(CreateReceivableScheduleFromSalesOrderRequest) returns (CreateReceivableScheduleFromSalesOrderResponse);
+  rpc SetFinanceReleaseSignal(SetFinanceReleaseSignalRequest) returns (SetFinanceReleaseSignalResponse);
+}
+
+service PaymentQueryService {
+  rpc GetPayableSchedule(GetPayableScheduleRequest) returns (GetPayableScheduleResponse);
+  rpc SearchPayableSchedules(SearchPayableSchedulesRequest) returns (SearchPayableSchedulesResponse);
+  rpc SearchPaymentRequests(SearchPaymentRequestsRequest) returns (SearchPaymentRequestsResponse);
+  rpc SearchPaymentExecutions(SearchPaymentExecutionsRequest) returns (SearchPaymentExecutionsResponse);
+  rpc SearchPaymentAllocations(SearchPaymentAllocationsRequest) returns (SearchPaymentAllocationsResponse);
+}
+
+service PaymentManagementService {
+  rpc CreatePayableScheduleFromPurchaseOrder(CreatePayableScheduleFromPurchaseOrderRequest) returns (CreatePayableScheduleFromPurchaseOrderResponse);
+  rpc ApplyPayableScheduleAdjustmentFromPurchaseOrderChange(ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeRequest) returns (ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeResponse);
+  rpc CreatePaymentRequest(CreatePaymentRequestRequest) returns (CreatePaymentRequestResponse);
+  rpc DecidePaymentRequest(DecidePaymentRequestRequest) returns (DecidePaymentRequestResponse);
+  rpc ExecutePaymentRequest(ExecutePaymentRequestRequest) returns (ExecutePaymentRequestResponse);
+  rpc AllocatePaymentToPayable(AllocatePaymentToPayableRequest) returns (AllocatePaymentToPayableResponse);
+  rpc AllocatePaymentToReceivable(AllocatePaymentToReceivableRequest) returns (AllocatePaymentToReceivableResponse);
+}
+
+enum FinancialAccountType {
+  FINANCIAL_ACCOUNT_TYPE_UNSPECIFIED = 0;
+  FINANCIAL_ACCOUNT_TYPE_BANK = 1;
+  FINANCIAL_ACCOUNT_TYPE_CASH = 2;
+  FINANCIAL_ACCOUNT_TYPE_WECHAT = 3;
+  FINANCIAL_ACCOUNT_TYPE_ALIPAY = 4;
+  FINANCIAL_ACCOUNT_TYPE_PAYPAL = 5;
+  FINANCIAL_ACCOUNT_TYPE_STRIPE = 6;
+  FINANCIAL_ACCOUNT_TYPE_OTHER_PSP = 7;
+}
+
+enum FinancialAccountStatus {
+  FINANCIAL_ACCOUNT_STATUS_UNSPECIFIED = 0;
+  FINANCIAL_ACCOUNT_STATUS_ACTIVE = 1;
+  FINANCIAL_ACCOUNT_STATUS_INACTIVE = 2;
+  FINANCIAL_ACCOUNT_STATUS_CLOSED = 3;
+}
+
+enum AccountTransactionDirection {
+  ACCOUNT_TRANSACTION_DIRECTION_UNSPECIFIED = 0;
+  ACCOUNT_TRANSACTION_DIRECTION_INFLOW = 1;
+  ACCOUNT_TRANSACTION_DIRECTION_OUTFLOW = 2;
+}
+
+enum AccountTransactionSourceType {
+  ACCOUNT_TRANSACTION_SOURCE_TYPE_UNSPECIFIED = 0;
+  ACCOUNT_TRANSACTION_SOURCE_TYPE_MANUAL = 1;
+  ACCOUNT_TRANSACTION_SOURCE_TYPE_CSV_IMPORT = 2;
+  ACCOUNT_TRANSACTION_SOURCE_TYPE_FUTURE_API = 3;
+}
+
+enum AccountTransactionStatus {
+  ACCOUNT_TRANSACTION_STATUS_UNSPECIFIED = 0;
+  ACCOUNT_TRANSACTION_STATUS_DRAFT = 1;
+  ACCOUNT_TRANSACTION_STATUS_CONFIRMED = 2;
+  ACCOUNT_TRANSACTION_STATUS_VOIDED = 3;
+}
+
+enum AccountTransactionAllocationStatus {
+  ACCOUNT_TRANSACTION_ALLOCATION_STATUS_UNSPECIFIED = 0;
+  ACCOUNT_TRANSACTION_ALLOCATION_STATUS_UNALLOCATED = 1;
+  ACCOUNT_TRANSACTION_ALLOCATION_STATUS_PARTIALLY_ALLOCATED = 2;
+  ACCOUNT_TRANSACTION_ALLOCATION_STATUS_FULLY_ALLOCATED = 3;
+}
+
+enum CustomerFinancialAccountProviderType {
+  CUSTOMER_FINANCIAL_ACCOUNT_PROVIDER_TYPE_UNSPECIFIED = 0;
+  CUSTOMER_FINANCIAL_ACCOUNT_PROVIDER_TYPE_BANK = 1;
+  CUSTOMER_FINANCIAL_ACCOUNT_PROVIDER_TYPE_WECHAT = 2;
+  CUSTOMER_FINANCIAL_ACCOUNT_PROVIDER_TYPE_ALIPAY = 3;
+  CUSTOMER_FINANCIAL_ACCOUNT_PROVIDER_TYPE_PAYPAL = 4;
+  CUSTOMER_FINANCIAL_ACCOUNT_PROVIDER_TYPE_STRIPE = 5;
+  CUSTOMER_FINANCIAL_ACCOUNT_PROVIDER_TYPE_OTHER = 6;
+}
+
+enum CustomerFinancialAccountVerifiedStatus {
+  CUSTOMER_FINANCIAL_ACCOUNT_VERIFIED_STATUS_UNSPECIFIED = 0;
+  CUSTOMER_FINANCIAL_ACCOUNT_VERIFIED_STATUS_UNVERIFIED = 1;
+  CUSTOMER_FINANCIAL_ACCOUNT_VERIFIED_STATUS_VERIFIED = 2;
+}
+
+enum ReceivableScheduleStatus {
+  RECEIVABLE_SCHEDULE_STATUS_UNSPECIFIED = 0;
+  RECEIVABLE_SCHEDULE_STATUS_OPEN = 1;
+  RECEIVABLE_SCHEDULE_STATUS_PARTIALLY_PAID = 2;
+  RECEIVABLE_SCHEDULE_STATUS_PAID = 3;
+  RECEIVABLE_SCHEDULE_STATUS_CANCELLED = 4;
+  RECEIVABLE_SCHEDULE_STATUS_ON_HOLD = 5;
+}
+
+enum ReceivableScheduleLineStatus {
+  RECEIVABLE_SCHEDULE_LINE_STATUS_UNSPECIFIED = 0;
+  RECEIVABLE_SCHEDULE_LINE_STATUS_OPEN = 1;
+  RECEIVABLE_SCHEDULE_LINE_STATUS_PARTIALLY_PAID = 2;
+  RECEIVABLE_SCHEDULE_LINE_STATUS_PAID = 3;
+  RECEIVABLE_SCHEDULE_LINE_STATUS_CANCELLED = 4;
+  RECEIVABLE_SCHEDULE_LINE_STATUS_OVERDUE = 5;
+}
+
+enum FinanceReleaseSignalStatus {
+  FINANCE_RELEASE_SIGNAL_STATUS_UNSPECIFIED = 0;
+  FINANCE_RELEASE_SIGNAL_STATUS_RELEASED = 1;
+  FINANCE_RELEASE_SIGNAL_STATUS_HELD = 2;
+  FINANCE_RELEASE_SIGNAL_STATUS_REVIEW_REQUIRED = 3;
+}
+
+message OperatorContext {
+  string operator_id = 1;
+  string operator_type = 2;
+  string org_id = 3;
+}
+
+message TraceContext {
+  string trace_id = 1;
+  string request_id = 2;
+}
+
+message AuditContext {
+  string audit_id = 1;
+  string reason = 2;
+  string source = 3;
+}
+
+message FinancialAccount {
+  string financial_account_id = 1;
+  string account_no = 2;
+  string tenant_id = 3;
+  string org_id = 4;
+  FinancialAccountType account_type = 5;
+  string account_name = 6;
+  string currency_code = 7;
+  string institution_name = 8;
+  string account_identifier_masked = 9;
+  FinancialAccountStatus status = 10;
+  string last_transaction_at = 11;
+  string current_balance = 12;
+  string created_at = 13;
+  string updated_at = 14;
+}
+
+message FinancialAccountSummary {
+  string financial_account_id = 1;
+  string account_no = 2;
+  FinancialAccountType account_type = 3;
+  string account_name = 4;
+  string currency_code = 5;
+  FinancialAccountStatus status = 6;
+  string last_transaction_at = 7;
+  string current_balance = 8;
+}
+
+message AccountTransaction {
+  string account_transaction_id = 1;
+  string financial_account_id = 2;
+  AccountTransactionDirection direction = 3;
+  string amount = 4;
+  string currency_code = 5;
+  string transaction_time = 6;
+  string value_date = 7;
+  AccountTransactionSourceType source_type = 8;
+  AccountTransactionStatus status = 9;
+  string external_reference = 10;
+  string counterparty_name = 11;
+  string counterparty_account_snapshot = 12;
+  string memo = 13;
+  string payment_execution_id = 14;
+  AccountTransactionAllocationStatus allocation_status = 15;
+  string allocated_amount = 16;
+  string unallocated_amount = 17;
+  string file_asset_id = 18;
+  string attachment_ref = 19;
+  string created_at = 20;
+}
+
+message ImportBatchSummary {
+  string account_transaction_import_batch_id = 1;
+  string source_type = 2;
+  string source_batch_reference = 3;
+  string file_asset_id = 4;
+  string attachment_ref = 5;
+  uint32 total_rows = 6;
+  uint32 accepted_count = 7;
+  uint32 duplicate_count = 8;
+  uint32 failed_count = 9;
+}
+
+message CustomerFinancialAccount {
+  string customer_financial_account_id = 1;
+  string customer_tenant_party_id = 2;
+  string account_holder_name = 3;
+  CustomerFinancialAccountProviderType account_provider_type = 4;
+  string account_identifier_masked = 5;
+  string currency_code = 6;
+  bool is_default = 7;
+  CustomerFinancialAccountVerifiedStatus verified_status = 8;
+}
+
+message ExchangeRate {
+  string exchange_rate_id = 1;
+  string tenant_id = 2;
+  string base_currency_code = 3;
+  string quote_currency_code = 4;
+  string rate_value = 5;
+  string effective_at = 6;
+  string set_by = 7;
+  string updated_at = 8;
+}
+
+message ReceivableScheduleLine {
+  string receivable_schedule_line_id = 1;
+  uint32 line_no = 2;
+  string due_date = 3;
+  string scheduled_amount = 4;
+  string allocated_amount = 5;
+  string outstanding_amount = 6;
+  ReceivableScheduleLineStatus status = 7;
+  string source_sales_order_line_id = 8;
+  string memo = 9;
+}
+
+message ReceivableSchedule {
+  string receivable_schedule_id = 1;
+  string schedule_no = 2;
+  string tenant_id = 3;
+  string org_id = 4;
+  string source_sales_order_id = 5;
+  string customer_tenant_party_id = 6;
+  string customer_snapshot = 7;
+  string currency_code = 8;
+  ReceivableScheduleStatus status = 9;
+  string total_scheduled_amount = 10;
+  string total_allocated_amount = 11;
+  string outstanding_amount = 12;
+  repeated ReceivableScheduleLine lines = 13;
+  string sales_exchange_rate_snapshot = 14;
+  string created_at = 15;
+  string updated_at = 16;
+}
+
+message ReceivableScheduleSummary {
+  string receivable_schedule_id = 1;
+  string schedule_no = 2;
+  string source_sales_order_id = 3;
+  string customer_tenant_party_id = 4;
+  string customer_display_name = 5;
+  string currency_code = 6;
+  ReceivableScheduleStatus status = 7;
+  string outstanding_amount = 8;
+  string nearest_due_date = 9;
+  FinanceReleaseSignalStatus finance_release_status = 10;
+}
+
+message FinanceReleaseSignal {
+  string finance_release_signal_id = 1;
+  string tenant_id = 2;
+  string sales_order_id = 3;
+  string customer_tenant_party_id = 4;
+  FinanceReleaseSignalStatus signal_status = 5;
+  string reason_code = 6;
+  string reason_summary = 7;
+  string effective_at = 8;
+  string expires_at = 9;
+  string based_on_summary = 10;
+  string updated_at = 11;
+}
+
+message PaymentAllocation {
+  string payment_allocation_id = 1;
+  string account_transaction_id = 2;
+  string payment_execution_id = 3;
+  string target_type = 4;
+  string target_schedule_id = 5;
+  string target_schedule_line_id = 6;
+  string allocated_amount = 7;
+  string currency_code = 8;
+  string allocated_at = 9;
+  string payment_request_id = 10;
+}
+
+message PayableScheduleLine {
+  string payable_schedule_line_id = 1;
+  uint32 line_no = 2;
+  string line_type = 3;
+  string source_ref = 4;
+  string due_date = 5;
+  string scheduled_amount = 6;
+  string requested_amount = 7;
+  string executed_amount = 8;
+  string allocated_amount = 9;
+  string outstanding_amount = 10;
+  string status = 11;
+  string request_governance_status = 12;
+  string source_purchase_order_line_id = 13;
+  string supersedes_source_ref = 14;
+  string memo = 15;
+}
+
+message PayableSchedule {
+  string payable_schedule_id = 1;
+  string schedule_no = 2;
+  string tenant_id = 3;
+  string org_id = 4;
+  string source_type = 5;
+  string source_purchase_order_id = 6;
+  string source_purchase_order_no = 7;
+  string procurement_snapshot_reference = 8;
+  string supplier_tenant_party_id = 9;
+  string supplier_snapshot = 10;
+  string currency_code = 11;
+  string status = 12;
+  string total_scheduled_amount = 13;
+  string total_requested_amount = 14;
+  string total_executed_amount = 15;
+  string total_allocated_amount = 16;
+  string outstanding_amount = 17;
+  repeated PayableScheduleLine lines = 18;
+  string created_at = 19;
+  string updated_at = 20;
+}
+
+message PayableScheduleSummary {
+  string payable_schedule_id = 1;
+  string schedule_no = 2;
+  string source_purchase_order_id = 3;
+  string source_purchase_order_no = 4;
+  string supplier_tenant_party_id = 5;
+  string supplier_display_name = 6;
+  string currency_code = 7;
+  string status = 8;
+  string request_governance_status_summary = 9;
+  string outstanding_amount = 10;
+  string nearest_due_date = 11;
+}
+
+message PaymentRequestLine {
+  string payment_request_line_id = 1;
+  string payable_schedule_id = 2;
+  string payable_schedule_line_id = 3;
+  string schedule_due_date = 4;
+  string requested_amount = 5;
+  bool is_early_request = 6;
+  string line_status = 7;
+}
+
+message SupplierBillEvidenceSnapshot {
+  string evidence_snapshot_id = 1;
+  string evidence_type = 2;
+  string external_document_no = 3;
+  string document_date = 4;
+  string currency_code = 5;
+  string document_amount = 6;
+  string attachment_ref = 7;
+  string note = 8;
+  string captured_at = 9;
+}
+
+message PaymentRequest {
+  string payment_request_id = 1;
+  string request_no = 2;
+  string tenant_id = 3;
+  string org_id = 4;
+  string request_source = 5;
+  string source_purchase_order_id = 6;
+  string supplier_tenant_party_id = 7;
+  string beneficiary_supplier_financial_account_id = 8;
+  string currency_code = 9;
+  string requested_amount = 10;
+  string status = 11;
+  string reason = 12;
+  repeated PaymentRequestLine lines = 13;
+  repeated SupplierBillEvidenceSnapshot evidence_snapshots = 14;
+  string requested_at = 15;
+  string updated_at = 16;
+}
+
+message PaymentRequestSummary {
+  string payment_request_id = 1;
+  string request_no = 2;
+  string request_source = 3;
+  string supplier_tenant_party_id = 4;
+  string supplier_display_name = 5;
+  string currency_code = 6;
+  string requested_amount = 7;
+  string status = 8;
+  string requested_at = 9;
+}
+
+message PaymentExecution {
+  string payment_execution_id = 1;
+  string payment_request_id = 2;
+  string source_financial_account_id = 3;
+  string beneficiary_supplier_financial_account_id = 4;
+  string beneficiary_account_snapshot = 5;
+  string executed_amount = 6;
+  string currency_code = 7;
+  string executed_at = 8;
+  string execution_reference = 9;
+  repeated string attachment_refs = 10;
+  string linked_account_transaction_id = 11;
+  string status = 12;
+}
+
+message PaymentExecutionSummary {
+  string payment_execution_id = 1;
+  string payment_request_id = 2;
+  string supplier_tenant_party_id = 3;
+  string executed_amount = 4;
+  string currency_code = 5;
+  string status = 6;
+  string executed_at = 7;
+}
+
+message CreateFinancialAccountRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string org_id = 5;
+  FinancialAccountType account_type = 6;
+  string account_name = 7;
+  string currency_code = 8;
+  string institution_name = 9;
+  string account_identifier = 10;
+  string opening_balance = 11;
+  string opening_balance_as_of = 12;
+}
+
+message CreateFinancialAccountResponse {
+  FinancialAccount financial_account = 1;
+}
+
+message UpdateFinancialAccountBasicsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string financial_account_id = 5;
+  string account_name = 6;
+  string institution_name = 7;
+  string account_identifier = 8;
+  FinancialAccountStatus status = 9;
+}
+
+message UpdateFinancialAccountBasicsResponse {
+  FinancialAccount financial_account = 1;
+}
+
+message ImportAccountTransactionInput {
+  AccountTransactionDirection direction = 1;
+  string amount = 2;
+  string currency_code = 3;
+  string transaction_time = 4;
+  string value_date = 5;
+  string external_reference = 6;
+  string counterparty_name = 7;
+  string counterparty_account_snapshot = 8;
+  string memo = 9;
+}
+
+message ImportAccountTransactionsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string financial_account_id = 5;
+  string source_batch_reference = 6;
+  string file_asset_id = 7;
+  string attachment_ref = 8;
+  string imported_by = 9;
+  AccountTransactionSourceType source_type = 10;
+  repeated ImportAccountTransactionInput transactions = 11;
+}
+
+message ImportAccountTransactionsResponse {
+  ImportBatchSummary batch = 1;
+  repeated string account_transaction_ids = 2;
+}
+
+message RecordAccountTransactionRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string financial_account_id = 5;
+  AccountTransactionDirection direction = 6;
+  string amount = 7;
+  string currency_code = 8;
+  string transaction_time = 9;
+  string value_date = 10;
+  AccountTransactionSourceType source_type = 11;
+  AccountTransactionStatus status = 12;
+  string external_reference = 13;
+  string counterparty_name = 14;
+  string counterparty_account_snapshot = 15;
+  string memo = 16;
+  string file_asset_id = 17;
+  string attachment_ref = 18;
+}
+
+message RecordAccountTransactionResponse {
+  AccountTransaction account_transaction = 1;
+}
+
+message RegisterCustomerFinancialAccountRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string customer_tenant_party_id = 5;
+  string account_holder_name = 6;
+  CustomerFinancialAccountProviderType account_provider_type = 7;
+  string account_identifier = 8;
+  string currency_code = 9;
+  bool is_default = 10;
+}
+
+message RegisterCustomerFinancialAccountResponse {
+  CustomerFinancialAccount customer_financial_account = 1;
+}
+
+message SetExchangeRateRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string base_currency_code = 5;
+  string quote_currency_code = 6;
+  string rate_value = 7;
+  string effective_at = 8;
+  string set_by = 9;
+}
+
+message SetExchangeRateResponse {
+  ExchangeRate exchange_rate = 1;
+}
+
+message GetFinancialAccountRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string financial_account_id = 4;
+}
+
+message GetFinancialAccountResponse {
+  FinancialAccount financial_account = 1;
+}
+
+message SearchFinancialAccountsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string keyword = 5;
+  FinancialAccountType account_type = 6;
+  string currency_code = 7;
+  FinancialAccountStatus status = 8;
+  uint32 page = 9;
+  uint32 page_size = 10;
+}
+
+message SearchFinancialAccountsResponse {
+  repeated FinancialAccountSummary financial_accounts = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message SearchAccountTransactionsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string financial_account_id = 5;
+  AccountTransactionDirection direction = 6;
+  AccountTransactionSourceType source_type = 7;
+  AccountTransactionAllocationStatus allocation_status = 8;
+  string external_reference = 9;
+  string occurred_from = 10;
+  string occurred_to = 11;
+  uint32 page = 12;
+  uint32 page_size = 13;
+}
+
+message SearchAccountTransactionsResponse {
+  repeated AccountTransaction account_transactions = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetExchangeRateRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string base_currency_code = 4;
+  string quote_currency_code = 5;
+  string effective_at = 6;
+}
+
+message GetExchangeRateResponse {
+  ExchangeRate exchange_rate = 1;
+}
+
+message CreateReceivableScheduleLineInput {
+  string due_date = 1;
+  string scheduled_amount = 2;
+  string source_sales_order_line_id = 3;
+  string memo = 4;
+}
+
+message CreateReceivableScheduleFromSalesOrderRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string org_id = 5;
+  string sales_order_id = 6;
+  string customer_tenant_party_id = 7;
+  string customer_snapshot = 8;
+  string currency_code = 9;
+  string sales_exchange_rate_snapshot = 10;
+  repeated CreateReceivableScheduleLineInput lines = 11;
+}
+
+message CreateReceivableScheduleFromSalesOrderResponse {
+  ReceivableSchedule receivable_schedule = 1;
+}
+
+message SetFinanceReleaseSignalRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string sales_order_id = 5;
+  string customer_tenant_party_id = 6;
+  FinanceReleaseSignalStatus signal_status = 7;
+  string reason_code = 8;
+  string reason_summary = 9;
+  string effective_at = 10;
+  string expires_at = 11;
+  string based_on_summary = 12;
+}
+
+message SetFinanceReleaseSignalResponse {
+  FinanceReleaseSignal finance_release_signal = 1;
+}
+
+message GetReceivableScheduleRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string receivable_schedule_id = 4;
+}
+
+message GetReceivableScheduleResponse {
+  ReceivableSchedule receivable_schedule = 1;
+}
+
+message SearchReceivableSchedulesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string keyword = 5;
+  string customer_tenant_party_id = 6;
+  string source_sales_order_id = 7;
+  ReceivableScheduleStatus status = 8;
+  FinanceReleaseSignalStatus finance_release_status = 9;
+  bool overdue_only = 10;
+  string due_from = 11;
+  string due_to = 12;
+  uint32 page = 13;
+  uint32 page_size = 14;
+}
+
+message SearchReceivableSchedulesResponse {
+  repeated ReceivableScheduleSummary receivable_schedules = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetFinanceReleaseSignalRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string sales_order_id = 4;
+}
+
+message GetFinanceReleaseSignalResponse {
+  FinanceReleaseSignal finance_release_signal = 1;
+}
+
+message CreatePayableScheduleFromPurchaseOrderLine {
+  string line_type = 1;
+  string source_ref = 2;
+  string due_date = 3;
+  string scheduled_amount = 4;
+  string source_purchase_order_line_id = 5;
+  string memo = 6;
+}
+
+message CreatePayableScheduleFromPurchaseOrderRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string org_id = 5;
+  string purchase_order_id = 6;
+  string purchase_order_no = 7;
+  string procurement_snapshot_reference = 8;
+  string supplier_tenant_party_id = 9;
+  string supplier_snapshot = 10;
+  string currency_code = 11;
+  repeated CreatePayableScheduleFromPurchaseOrderLine lines = 12;
+}
+
+message CreatePayableScheduleFromPurchaseOrderResponse {
+  PayableSchedule payable_schedule = 1;
+}
+
+message ApplyPayableScheduleAdjustmentItem {
+  string action = 1;
+  string target_source_ref = 2;
+  string new_source_ref = 3;
+  string line_type = 4;
+  string due_date = 5;
+  string scheduled_amount = 6;
+  string source_purchase_order_line_id = 7;
+  string memo = 8;
+}
+
+message ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string org_id = 5;
+  string purchase_order_id = 6;
+  string purchase_order_change_id = 7;
+  string procurement_snapshot_reference = 8;
+  string change_reason = 9;
+  repeated ApplyPayableScheduleAdjustmentItem adjustments = 10;
+}
+
+message ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeResponse {
+  PayableSchedule payable_schedule = 1;
+}
+
+message PaymentRequestLineInput {
+  string payable_schedule_id = 1;
+  string payable_schedule_line_id = 2;
+  string requested_amount = 3;
+}
+
+message SupplierBillEvidenceSnapshotInput {
+  string evidence_type = 1;
+  string external_document_no = 2;
+  string document_date = 3;
+  string currency_code = 4;
+  string document_amount = 5;
+  string attachment_ref = 6;
+  string note = 7;
+}
+
+message CreatePaymentRequestRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string org_id = 5;
+  string request_source = 6;
+  string source_purchase_order_id = 7;
+  string supplier_tenant_party_id = 8;
+  string beneficiary_supplier_financial_account_id = 9;
+  string currency_code = 10;
+  string requested_amount = 11;
+  repeated PaymentRequestLineInput requested_lines = 12;
+  repeated SupplierBillEvidenceSnapshotInput evidence_snapshots = 13;
+  string reason = 14;
+}
+
+message CreatePaymentRequestResponse {
+  PaymentRequest payment_request = 1;
+}
+
+message DecidePaymentRequestRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string payment_request_id = 5;
+  string decision = 6;
+  string decision_reason = 7;
+}
+
+message DecidePaymentRequestResponse {
+  PaymentRequest payment_request = 1;
+}
+
+message ExecutePaymentRequestRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string payment_request_id = 5;
+  string source_financial_account_id = 6;
+  string executed_amount = 7;
+  string currency_code = 8;
+  string executed_at = 9;
+  string execution_reference = 10;
+  repeated string attachment_refs = 11;
+  string linked_account_transaction_id = 12;
+}
+
+message ExecutePaymentRequestResponse {
+  PaymentRequest payment_request = 1;
+  PaymentExecution payment_execution = 2;
+}
+
+message AllocatePaymentToPayableItem {
+  string payable_schedule_id = 1;
+  string payable_schedule_line_id = 2;
+  string allocated_amount = 3;
+}
+
+message AllocatePaymentToPayableRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string account_transaction_id = 5;
+  string payment_execution_id = 6;
+  repeated AllocatePaymentToPayableItem allocations = 7;
+}
+
+message AllocatePaymentToPayableResponse {
+  repeated PaymentAllocation payment_allocations = 1;
+}
+
+message GetPayableScheduleRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string payable_schedule_id = 4;
+}
+
+message GetPayableScheduleResponse {
+  PayableSchedule payable_schedule = 1;
+}
+
+message SearchPayableSchedulesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string keyword = 5;
+  string supplier_tenant_party_id = 6;
+  string source_purchase_order_id = 7;
+  string status = 8;
+  string request_governance_status = 9;
+  bool overdue_only = 10;
+  string due_from = 11;
+  string due_to = 12;
+  uint32 page = 13;
+  uint32 page_size = 14;
+}
+
+message SearchPayableSchedulesResponse {
+  repeated PayableScheduleSummary payable_schedules = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message SearchPaymentRequestsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string request_source = 5;
+  string supplier_tenant_party_id = 6;
+  string source_purchase_order_id = 7;
+  string status = 8;
+  string beneficiary_supplier_financial_account_id = 9;
+  string requested_from = 10;
+  string requested_to = 11;
+  uint32 page = 12;
+  uint32 page_size = 13;
+}
+
+message SearchPaymentRequestsResponse {
+  repeated PaymentRequestSummary payment_requests = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message SearchPaymentExecutionsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string payment_request_id = 5;
+  string supplier_tenant_party_id = 6;
+  string source_financial_account_id = 7;
+  string linked_account_transaction_id = 8;
+  string status = 9;
+  string executed_from = 10;
+  string executed_to = 11;
+  uint32 page = 12;
+  uint32 page_size = 13;
+}
+
+message SearchPaymentExecutionsResponse {
+  repeated PaymentExecutionSummary payment_executions = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message AllocatePaymentToReceivableItem {
+  string receivable_schedule_id = 1;
+  string receivable_schedule_line_id = 2;
+  string allocated_amount = 3;
+}
+
+message AllocatePaymentToReceivableRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string account_transaction_id = 5;
+  repeated AllocatePaymentToReceivableItem allocations = 6;
+}
+
+message AllocatePaymentToReceivableResponse {
+  repeated PaymentAllocation payment_allocations = 1;
+}
+
+message SearchPaymentAllocationsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string account_transaction_id = 4;
+  string receivable_schedule_id = 5;
+  string receivable_schedule_line_id = 6;
+  uint32 page = 7;
+  uint32 page_size = 8;
+  string payment_execution_id = 9;
+  string target_type = 10;
+  string target_schedule_id = 11;
+  string target_schedule_line_id = 12;
+  string allocated_from = 13;
+  string allocated_to = 14;
+}
+
+message SearchPaymentAllocationsResponse {
+  repeated PaymentAllocation payment_allocations = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}

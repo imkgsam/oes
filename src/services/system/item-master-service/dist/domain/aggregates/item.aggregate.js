@@ -22,14 +22,16 @@ class Item {
             structureType: input.structureType,
             natureType: input.natureType,
             status: item_value_objects_1.ItemStatus.ACTIVE,
-            capabilities: item_value_objects_1.ItemCapabilities.none()
+            capabilities: item_value_objects_1.ItemCapabilities.none(),
+            primaryCategory: undefined
         });
     }
     /** reconstitute rebuilds an aggregate from already validated persistence state. */
     static reconstitute(state) {
         return new Item({
             ...state,
-            capabilities: item_value_objects_1.ItemCapabilities.from(state.capabilities.toPrimitives())
+            capabilities: item_value_objects_1.ItemCapabilities.from(state.capabilities.toPrimitives()),
+            primaryCategory: state.primaryCategory ? { ...state.primaryCategory } : undefined
         });
     }
     get id() {
@@ -55,6 +57,9 @@ class Item {
     }
     get capabilities() {
         return this.state.capabilities;
+    }
+    get primaryCategory() {
+        return this.state.primaryCategory ? { ...this.state.primaryCategory } : undefined;
     }
     /** isBundle reports whether the item is the only phase 1 structure type allowed to own composition. */
     isBundle() {
@@ -87,11 +92,17 @@ class Item {
         this.state.status = targetStatus;
         return this;
     }
+    /** setPrimaryCategory replaces the phase 1 single-value primary-category association or clears it. */
+    setPrimaryCategory(primaryCategory) {
+        this.state.primaryCategory = primaryCategory ? { ...primaryCategory } : undefined;
+        return this;
+    }
     /** toPrimitives exposes aggregate state for persistence and gRPC presentation. */
     toPrimitives() {
         return {
             ...this.state,
-            capabilities: this.state.capabilities.toPrimitives()
+            capabilities: this.state.capabilities.toPrimitives(),
+            primaryCategory: this.state.primaryCategory ? { ...this.state.primaryCategory } : undefined
         };
     }
 }

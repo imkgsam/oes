@@ -107,7 +107,8 @@ function assertKnownPurchaseRequestDecision(value) {
 }
 /** assertKnownAllocationType rejects unsupported enum values outside the frozen PO allocation type set. */
 function assertKnownAllocationType(value) {
-    if (value !== procurement_records_1.PurchaseOrderLineAllocationType.SALES_ORDER_LINE &&
+    if (value !== procurement_records_1.PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE &&
+        value !== procurement_records_1.PurchaseOrderLineAllocationType.SALES_ORDER_LINE &&
         value !== procurement_records_1.PurchaseOrderLineAllocationType.FULFILLMENT_DEMAND &&
         value !== procurement_records_1.PurchaseOrderLineAllocationType.GENERAL_STOCK) {
         throw exceptions_1.ExceptionFactory.application(procurement_errors_1.PROCUREMENT_INVALID_ARGUMENT, {
@@ -119,9 +120,20 @@ function assertKnownAllocationType(value) {
 /** assertKnownReceivingResolutionCode rejects unsupported discrepancy resolution codes outside the frozen set. */
 function assertKnownReceivingResolutionCode(value) {
     if (value !== procurement_records_1.ReceivingResolutionCode.WAIT_REDELIVERY &&
-        value !== procurement_records_1.ReceivingResolutionCode.ACCEPT_SHORT_CLOSE &&
-        value !== procurement_records_1.ReceivingResolutionCode.RETURN_OR_REJECT_EXCESS &&
-        value !== procurement_records_1.ReceivingResolutionCode.MANUAL_FOLLOW_UP) {
+        value !== procurement_records_1.ReceivingResolutionCode.CLOSE_UNRECEIVED &&
+        value !== procurement_records_1.ReceivingResolutionCode.REQUEST_RESEND &&
+        value !== procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_PO_CHANGE &&
+        value !== procurement_records_1.ReceivingResolutionCode.REJECT_EXCESS &&
+        value !== procurement_records_1.ReceivingResolutionCode.TEMP_HOLD &&
+        value !== procurement_records_1.ReceivingResolutionCode.REJECT_DAMAGED &&
+        value !== procurement_records_1.ReceivingResolutionCode.RECEIVE_WITH_RESTRICTION &&
+        value !== procurement_records_1.ReceivingResolutionCode.CLAIM &&
+        value !== procurement_records_1.ReceivingResolutionCode.REJECT_WRONG_ITEM &&
+        value !== procurement_records_1.ReceivingResolutionCode.TEMP_RECEIVE_PENDING_DECISION &&
+        value !== procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_CONTROLLED_CHANGE &&
+        value !== procurement_records_1.ReceivingResolutionCode.WAIT_INSPECTION &&
+        value !== procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_ALLOWANCE &&
+        value !== procurement_records_1.ReceivingResolutionCode.RETURN_TO_SUPPLIER) {
         throw exceptions_1.ExceptionFactory.application(procurement_errors_1.PROCUREMENT_INVALID_ARGUMENT, {
             field: 'resolutionCode'
         });
@@ -170,8 +182,12 @@ function subtractQuantity(left, right) {
     }
     return Math.max(delta, 0).toString();
 }
-/** inferAllocationType converts frozen PR demand-reference types into the supported allocation enum set. */
+/** inferAllocationType converts frozen upstream demand-reference types into the supported allocation enum set. */
 function inferAllocationType(value) {
+    if (value === procurement_records_1.PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE ||
+        value === 'PURCHASE_REQUEST_LINE') {
+        return procurement_records_1.PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE;
+    }
     if (value === procurement_records_1.PurchaseOrderLineAllocationType.SALES_ORDER_LINE || value === 'SALES_ORDER_LINE') {
         return procurement_records_1.PurchaseOrderLineAllocationType.SALES_ORDER_LINE;
     }

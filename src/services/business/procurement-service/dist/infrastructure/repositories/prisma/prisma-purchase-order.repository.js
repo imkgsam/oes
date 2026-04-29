@@ -79,6 +79,18 @@ let PrismaPurchaseOrderRepository = class PrismaPurchaseOrderRepository {
                         supplierId: record.supplierId,
                         supplierDisplayName: record.supplierSnapshot.supplierDisplayName,
                         supplierStatusAtIssue: record.supplierSnapshot.supplierStatusAtIssue ?? null,
+                        paymentTermsCode: record.paymentTermsSnapshot?.paymentTermsCode ?? null,
+                        paymentTermsText: record.paymentTermsSnapshot?.paymentTermsText ?? null,
+                        incotermCode: record.supplierCommercialTermsSnapshot?.incotermCode ?? null,
+                        commercialTermsText: record.supplierCommercialTermsSnapshot?.commercialTermsText ?? null,
+                        paymentStatusSummary: record.paymentSummary?.paymentStatusSummary ?? null,
+                        depositPaidAmount: record.paymentSummary?.depositPaidAmount ?? null,
+                        balancePaidAmount: record.paymentSummary?.balancePaidAmount ?? null,
+                        paymentSummaryCurrencyCode: record.paymentSummary?.currencyCode ?? null,
+                        attachmentRefs: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(record.paymentSummary?.attachmentRefs ?? []),
+                        lastPaymentAt: record.paymentSummary?.lastPaymentAt
+                            ? new Date(record.paymentSummary.lastPaymentAt)
+                            : null,
                         sourcePurchaseRequestIds: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(record.sourcePurchaseRequestIds),
                         sourcePurchaseRequestNos: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(record.sourcePurchaseRequestNos ?? []),
                         acknowledgementStatus: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toPersistedSupplierAcknowledgementStatus(record.supplierAcknowledgement.acknowledgementStatus),
@@ -100,6 +112,18 @@ let PrismaPurchaseOrderRepository = class PrismaPurchaseOrderRepository {
                         supplierId: record.supplierId,
                         supplierDisplayName: record.supplierSnapshot.supplierDisplayName,
                         supplierStatusAtIssue: record.supplierSnapshot.supplierStatusAtIssue ?? null,
+                        paymentTermsCode: record.paymentTermsSnapshot?.paymentTermsCode ?? null,
+                        paymentTermsText: record.paymentTermsSnapshot?.paymentTermsText ?? null,
+                        incotermCode: record.supplierCommercialTermsSnapshot?.incotermCode ?? null,
+                        commercialTermsText: record.supplierCommercialTermsSnapshot?.commercialTermsText ?? null,
+                        paymentStatusSummary: record.paymentSummary?.paymentStatusSummary ?? null,
+                        depositPaidAmount: record.paymentSummary?.depositPaidAmount ?? null,
+                        balancePaidAmount: record.paymentSummary?.balancePaidAmount ?? null,
+                        paymentSummaryCurrencyCode: record.paymentSummary?.currencyCode ?? null,
+                        attachmentRefs: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(record.paymentSummary?.attachmentRefs ?? []),
+                        lastPaymentAt: record.paymentSummary?.lastPaymentAt
+                            ? new Date(record.paymentSummary.lastPaymentAt)
+                            : null,
                         sourcePurchaseRequestIds: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(record.sourcePurchaseRequestIds),
                         sourcePurchaseRequestNos: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toInputJson(record.sourcePurchaseRequestNos ?? []),
                         acknowledgementStatus: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toPersistedSupplierAcknowledgementStatus(record.supplierAcknowledgement.acknowledgementStatus),
@@ -168,9 +192,11 @@ let PrismaPurchaseOrderRepository = class PrismaPurchaseOrderRepository {
                             tenantId: record.tenantId,
                             purchaseOrderLineId: line.purchaseOrderLineId,
                             allocationType: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toPersistedPurchaseOrderAllocationType(allocation.allocationType),
-                            referenceId: allocation.referenceId ?? null,
+                            sourceReferenceId: allocation.sourceReferenceId ?? null,
                             quantity: allocation.quantity,
-                            reason: allocation.reason ?? null
+                            reason: allocation.reason ?? null,
+                            targetWarehouseId: allocation.targetWarehouseId ?? null,
+                            targetReceivingAddressId: allocation.targetReceivingAddressId ?? null
                         })))
                     });
                 }
@@ -290,6 +316,20 @@ let PrismaPurchaseOrderRepository = class PrismaPurchaseOrderRepository {
             }
         });
         return rows.some((row) => prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.fromJson(row.sourcePurchaseRequestIds).includes(purchaseRequestId));
+    }
+    async findBySourcePurchaseRequestId(tenantId, purchaseRequestId) {
+        const rows = await this.prisma.getExecutionClient().purchaseOrder.findMany({
+            where: {
+                tenantId
+            },
+            include: prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.purchaseOrderIncludeValue(),
+            orderBy: {
+                orderNo: 'asc'
+            }
+        });
+        return rows
+            .map((row) => prisma_procurement_record_mapper_1.PrismaProcurementRecordMapper.toPurchaseOrder(row))
+            .filter((record) => record.sourcePurchaseRequestIds.includes(purchaseRequestId));
     }
 };
 exports.PrismaPurchaseOrderRepository = PrismaPurchaseOrderRepository;

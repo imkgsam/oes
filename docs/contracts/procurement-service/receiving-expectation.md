@@ -51,6 +51,7 @@
   - 采购侧应收什么
   - 预计何时到
   - 当前还有多少未到
+- 同一 `PO line` 可按目标仓 / 收货地址 / allocation grouping 拆分出多个 expectation
 - 它不是 `WMS receipt` truth
 - 它不是库存真相、区位真相或库存状态真相
 
@@ -59,6 +60,7 @@
 - `ReceivingDiscrepancy` 记录采购侧“预期与实收不一致”的摘要
 - 它是采购侧 resolution 入口，不是库存调整真相
 - phase 1 必须允许差异进入受控处理，而不是只支持自动补单
+- resolution 只记录采购侧处置选择与引用，不直接修改库存真相
 
 ### 3.3 Procurement 与 WMS 边界
 
@@ -66,16 +68,36 @@
 - procurement 只消费实际收货结果来更新 expectation / discrepancy 视图
 - phase 1 不冻结 Procurement 直接写 `WMS receipt`
 - phase 1 不冻结 inventory adjustment、restricted stock、damaged stock 的仓储处理 contract
+- 若要关闭剩余未收数量，必须通过 `PurchaseOrderChange` 留痕，再由 Procurement 更新 expectation / discrepancy 摘要
 
 ### 3.4 Resolution 边界
 
 - `RecordReceivingDiscrepancyResolution` 只记录采购侧当前采用的 resolution
-- phase 1 至少允许以下 resolution 方向：
-  - `WAIT_REDELIVERY`
-  - `ACCEPT_SHORT_CLOSE`
-  - `RETURN_OR_REJECT_EXCESS`
-  - `MANUAL_FOLLOW_UP`
+- phase 1 必须覆盖以下差异与 resolution：
+  - `SHORT_RECEIVED`
+    - `WAIT_REDELIVERY`
+    - `CLOSE_UNRECEIVED`
+    - `REQUEST_RESEND`
+  - `OVER_RECEIVED`
+    - `ACCEPT_WITH_PO_CHANGE`
+    - `REJECT_EXCESS`
+    - `TEMP_HOLD`
+  - `DAMAGED`
+    - `REJECT_DAMAGED`
+    - `RECEIVE_WITH_RESTRICTION`
+    - `CLAIM`
+    - `REQUEST_RESEND`
+  - `WRONG_ITEM`
+    - `REJECT_WRONG_ITEM`
+    - `TEMP_RECEIVE_PENDING_DECISION`
+    - `ACCEPT_WITH_CONTROLLED_CHANGE`
+  - `QUALITY_HOLD`
+    - `WAIT_INSPECTION`
+    - `CLAIM`
+    - `ACCEPT_WITH_ALLOWANCE`
+    - `RETURN_TO_SUPPLIER`
 - phase 1 不冻结完整差异 workflow、审批、供应商赔偿或财务冲销语义
+- phase 1 的 `return / claim` 只保留 resolution 类型与引用，不展开完整 `SupplierReturn / claim workflow`
 
 ## 4. 通用读取对象
 
@@ -89,6 +111,10 @@ phase 1 `ReceivingExpectation` 最小读取 shape：
 | `purchase_order_id` | 所属 PO 标识 |
 | `purchase_order_line_id` | 所属 PO 行标识 |
 | `supplier_id` | 供应商标识 |
+| `allocation_grouping_key` | expectation 分组键摘要 |
+| `source_allocation_ids[]` | 构成该 expectation 的 allocation 标识集合 |
+| `target_warehouse_id` | optional 目标仓摘要 |
+| `target_receiving_address_id` | optional 目标收货地址标识 |
 | `expected_quantity` | 预期应收数量 |
 | `received_quantity_summary` | 当前已收数量摘要 |
 | `open_quantity` | 当前未收数量 |
@@ -101,6 +127,7 @@ phase 1 `ReceivingExpectation` 最小读取 shape：
 说明：
 
 - `received_quantity_summary` 是采购侧消费 `WMS` 结果后的摘要，不把 `WMS` owner truth 转移过来
+- `allocation_grouping_key` 只服务于 expectation 拆分与追踪，不改变 `PO allocation` owner
 - `COMPLETED` 只表示 expectation 已闭合，不等于库存调整或财务结算已完成
 
 ### 4.2 `ReceivingDiscrepancy`
@@ -110,18 +137,29 @@ phase 1 `ReceivingDiscrepancy` 最小读取 shape：
 | 字段 | 说明 |
 | --- | --- |
 | `receiving_discrepancy_id` | discrepancy 标识 |
-| `discrepancy_type` | `SHORT_RECEIPT / OVER_RECEIPT / DAMAGED / RESTRICTED / OTHER` |
+| `discrepancy_type` | `SHORT_RECEIVED / OVER_RECEIVED / DAMAGED / WRONG_ITEM / QUALITY_HOLD` |
 | `summary` | 差异摘要说明 |
 | `status` | `OPEN / RESOLVED` |
 | `resolution_code` | optional 当前 resolution 摘要 |
 | `resolution_note` | optional 处理说明 |
+| `resolution_references[]` | optional 当前 resolution 引用摘要 |
 | `resolved_at` | optional 关闭时间 |
 
 说明：
 
-- `DAMAGED / RESTRICTED` 只表达采购侧差异分类摘要，不表达仓储库存状态 owner truth
+- `resolution_references[]` 只保存采购侧处置引用，例如 `PurchaseOrderChange`、return reference、claim reference 或附件引用
+- discrepancy resolution 成功不等于仓储或财务动作已完成
 
-### 4.3 `ReceivingExpectationSummary`
+### 4.3 `ReceivingDiscrepancyResolutionReference`
+
+phase 1 `resolution_references[]` 最小读取 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `reference_type` | `PURCHASE_ORDER_CHANGE / RETURN_REFERENCE / CLAIM_REFERENCE / ATTACHMENT_REF / OTHER` |
+| `reference_id` | 外部引用标识 |
+
+### 4.4 `ReceivingExpectationSummary`
 
 phase 1 列表读取最小 shape：
 
@@ -131,6 +169,8 @@ phase 1 列表读取最小 shape：
 | `purchase_order_id` | PO 标识 |
 | `purchase_order_line_id` | PO 行标识 |
 | `supplier_id` | 供应商标识 |
+| `target_warehouse_id` | optional 目标仓摘要 |
+| `target_receiving_address_id` | optional 目标收货地址标识 |
 | `expected_receipt_date` | optional 预计到货日期 |
 | `open_quantity` | 当前未收数量 |
 | `status` | 当前状态 |
@@ -174,6 +214,8 @@ phase 1 列表读取最小 shape：
 | `supplier_id` | 否 | 按供应商过滤 |
 | `status` | 否 | 按 expectation 状态过滤 |
 | `has_open_discrepancy` | 否 | 是否只看存在未关闭差异的 expectation |
+| `target_warehouse_id` | 否 | 按目标仓过滤 |
+| `target_receiving_address_id` | 否 | 按目标收货地址过滤 |
 | `expected_receipt_date_from` | 否 | 预计到货起始日 |
 | `expected_receipt_date_to` | 否 | 预计到货截止日 |
 | `page` | 否 | 1-based 页码 |
@@ -206,6 +248,10 @@ phase 1 列表读取最小 shape：
 | `tenant_id` | 是 | 显式租户边界 |
 | `purchase_order_id` | 是 | 所属 PO 标识 |
 | `purchase_order_line_id` | 是 | 所属 PO 行标识 |
+| `allocation_grouping_key` | 是 | expectation 分组键 |
+| `source_allocation_ids[]` | 是 | 该 expectation 覆盖的 allocation 集合 |
+| `target_warehouse_id` | 否 | optional 目标仓摘要 |
+| `target_receiving_address_id` | 否 | optional 目标收货地址标识 |
 | `expected_quantity` | 是 | 预期应收数量 |
 | `expected_receipt_date` | 否 | optional 预计到货日期 |
 
@@ -219,6 +265,7 @@ phase 1 列表读取最小 shape：
 
 - 只允许基于已发 `PO line`
 - expectation 是采购侧对象，不得在该命令内伪造 `WMS receipt`
+- 同一 `PO line` 可创建多个 expectation，前提是它们属于不同目标仓 / 收货地址 / allocation grouping
 - phase 1 允许在 `IssuePurchaseOrder` 后由受控流程显式创建 expectation，也允许由 integration adapter 按同一黑盒语义创建
 
 ### `RecordReceivingDiscrepancyResolution`
@@ -232,8 +279,9 @@ phase 1 列表读取最小 shape：
 | `tenant_id` | 是 | 显式租户边界 |
 | `receiving_expectation_id` | 是 | 目标 expectation 标识 |
 | `receiving_discrepancy_id` | 是 | 目标 discrepancy 标识 |
-| `resolution_code` | 是 | `WAIT_REDELIVERY / ACCEPT_SHORT_CLOSE / RETURN_OR_REJECT_EXCESS / MANUAL_FOLLOW_UP` |
+| `resolution_code` | 是 | 必须与 discrepancy type 匹配的 phase 1 resolution code |
 | `resolution_note` | 否 | optional 处理说明 |
+| `resolution_references[]` | 否 | optional 采购侧处置引用 |
 
 响应最小 shape：
 
@@ -246,6 +294,8 @@ phase 1 列表读取最小 shape：
 
 - 本命令只记录采购侧当前 resolution
 - 它不直接创建库存调整、退货单、补货单或财务冲销对象
+- 若 resolution 是 `CLOSE_UNRECEIVED` 或 `ACCEPT_WITH_PO_CHANGE`，必须引用相应 `PurchaseOrderChange`
+- phase 1 的 return / claim 只记录 `resolution_code + resolution_references[]`
 - 若 resolution 导致 expectation 关闭，服务可把 discrepancy 标记为 `RESOLVED`
 
 ## 7. 错误语义
@@ -254,12 +304,12 @@ phase 1 receiving 统一暴露以下错误面：
 
 | 错误码 | 语义 |
 | --- | --- |
-| `INVALID_ARGUMENT` | 请求字段缺失、格式非法、数量非法或 resolution code 非法 |
+| `INVALID_ARGUMENT` | 请求字段缺失、格式非法、数量非法、expectation grouping 非法，或 resolution code 与 discrepancy type 不匹配 |
 | `UNAUTHENTICATED` | 缺少有效 internal service context、operator context、trace context 或 audit context |
 | `PERMISSION_DENIED` | 调用方存在上下文，但没有在该 tenant / org / expectation 上执行命令或读取的权限 |
 | `NOT_FOUND` | 目标 `ReceivingExpectation / ReceivingDiscrepancy / PurchaseOrder / PurchaseOrderLine` 不存在 |
 | `ALREADY_EXISTS` | 当前命令违反唯一性约束，例如重复创建 current expectation |
-| `FAILED_PRECONDITION` | 资源存在，但当前状态不满足命令前提，例如对未发 `PO` 创建 expectation，或对已关闭 discrepancy 再次写 resolution |
+| `FAILED_PRECONDITION` | 资源存在，但当前状态不满足命令前提，例如对未发 `PO` 创建 expectation、对已关闭 discrepancy 再次写 resolution，或需要关闭剩余未收数量但缺少 `PurchaseOrderChange` 引用 |
 | `UNAVAILABLE` | 下游依赖或当前服务暂不可用 |
 | `INTERNAL` | 未归类的服务内部错误 |
 
@@ -276,5 +326,6 @@ phase 1 receiving 统一暴露以下错误面：
 - inventory adjustment contract
 - damaged / restricted 库存处置真相
 - 供应商赔偿 / 索赔 / debit note
+- 完整 `SupplierReturn / claim workflow`
 - 财务对账、发票匹配、付款影响
 - 完整 discrepancy workflow / approval

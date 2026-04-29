@@ -118,6 +118,7 @@ export function assertKnownAllocationType(
   value: PurchaseOrderLineAllocationType
 ): PurchaseOrderLineAllocationType {
   if (
+    value !== PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE &&
     value !== PurchaseOrderLineAllocationType.SALES_ORDER_LINE &&
     value !== PurchaseOrderLineAllocationType.FULFILLMENT_DEMAND &&
     value !== PurchaseOrderLineAllocationType.GENERAL_STOCK
@@ -136,9 +137,20 @@ export function assertKnownReceivingResolutionCode(
 ): ReceivingResolutionCode {
   if (
     value !== ReceivingResolutionCode.WAIT_REDELIVERY &&
-    value !== ReceivingResolutionCode.ACCEPT_SHORT_CLOSE &&
-    value !== ReceivingResolutionCode.RETURN_OR_REJECT_EXCESS &&
-    value !== ReceivingResolutionCode.MANUAL_FOLLOW_UP
+    value !== ReceivingResolutionCode.CLOSE_UNRECEIVED &&
+    value !== ReceivingResolutionCode.REQUEST_RESEND &&
+    value !== ReceivingResolutionCode.ACCEPT_WITH_PO_CHANGE &&
+    value !== ReceivingResolutionCode.REJECT_EXCESS &&
+    value !== ReceivingResolutionCode.TEMP_HOLD &&
+    value !== ReceivingResolutionCode.REJECT_DAMAGED &&
+    value !== ReceivingResolutionCode.RECEIVE_WITH_RESTRICTION &&
+    value !== ReceivingResolutionCode.CLAIM &&
+    value !== ReceivingResolutionCode.REJECT_WRONG_ITEM &&
+    value !== ReceivingResolutionCode.TEMP_RECEIVE_PENDING_DECISION &&
+    value !== ReceivingResolutionCode.ACCEPT_WITH_CONTROLLED_CHANGE &&
+    value !== ReceivingResolutionCode.WAIT_INSPECTION &&
+    value !== ReceivingResolutionCode.ACCEPT_WITH_ALLOWANCE &&
+    value !== ReceivingResolutionCode.RETURN_TO_SUPPLIER
   ) {
     throw ExceptionFactory.application(PROCUREMENT_INVALID_ARGUMENT, {
       field: 'resolutionCode'
@@ -195,8 +207,14 @@ export function subtractQuantity(left: string, right: string): string {
   return Math.max(delta, 0).toString()
 }
 
-/** inferAllocationType converts frozen PR demand-reference types into the supported allocation enum set. */
+/** inferAllocationType converts frozen upstream demand-reference types into the supported allocation enum set. */
 export function inferAllocationType(value?: string | null): PurchaseOrderLineAllocationType {
+  if (
+    value === PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE ||
+    value === 'PURCHASE_REQUEST_LINE'
+  ) {
+    return PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE
+  }
   if (value === PurchaseOrderLineAllocationType.SALES_ORDER_LINE || value === 'SALES_ORDER_LINE') {
     return PurchaseOrderLineAllocationType.SALES_ORDER_LINE
   }

@@ -75,6 +75,7 @@ export class ProcurementQueryGrpcController
           status: toDomainPurchaseRequestStatus(request.status),
           requesterOperatorId: request.requesterOperatorId ?? undefined,
           itemId: request.itemId ?? undefined,
+          purchaseOrderId: request.purchaseOrderId ?? undefined,
           neededByDateFrom: request.neededByDateFrom ?? undefined,
           neededByDateTo: request.neededByDateTo ?? undefined,
           page: request.page ?? undefined,
@@ -154,6 +155,8 @@ export class ProcurementQueryGrpcController
           supplierId: request.supplierId ?? undefined,
           status: toDomainReceivingExpectationStatus(request.status),
           hasOpenDiscrepancy: request.hasOpenDiscrepancy ?? undefined,
+          targetWarehouseId: request.targetWarehouseId ?? undefined,
+          targetReceivingAddressId: request.targetReceivingAddressId ?? undefined,
           expectedReceiptDateFrom: request.expectedReceiptDateFrom ?? undefined,
           expectedReceiptDateTo: request.expectedReceiptDateTo ?? undefined,
           page: request.page ?? undefined,
@@ -191,6 +194,10 @@ function toDomainPurchaseRequestStatus(value?: ProtoPurchaseRequestStatus): Purc
       return PurchaseRequestStatus.SUBMITTED
     case ProtoPurchaseRequestStatus.PURCHASE_REQUEST_STATUS_APPROVED:
       return PurchaseRequestStatus.APPROVED
+    case ProtoPurchaseRequestStatus.PURCHASE_REQUEST_STATUS_PARTIALLY_CONVERTED:
+      return PurchaseRequestStatus.PARTIALLY_CONVERTED
+    case ProtoPurchaseRequestStatus.PURCHASE_REQUEST_STATUS_CONVERTED:
+      return PurchaseRequestStatus.CONVERTED
     case ProtoPurchaseRequestStatus.PURCHASE_REQUEST_STATUS_REJECTED:
       return PurchaseRequestStatus.REJECTED
     case ProtoPurchaseRequestStatus.PURCHASE_REQUEST_STATUS_CANCELLED:

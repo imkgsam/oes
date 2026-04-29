@@ -10,7 +10,10 @@ exports.SalesInfrastructureModule = void 0;
 const common_1 = require("@nestjs/common");
 const tokens_1 = require("../common/constants/tokens");
 const prisma_sales_audit_repository_1 = require("../infrastructure/audit/prisma-sales-audit.repository");
+const fixed_exchange_rate_resolver_1 = require("../infrastructure/pricing/fixed-exchange-rate.resolver");
 const prisma_module_1 = require("../infrastructure/prisma/prisma.module");
+const prisma_customer_price_agreement_repository_1 = require("../infrastructure/repositories/prisma/prisma-customer-price-agreement.repository");
+const prisma_price_list_repository_1 = require("../infrastructure/repositories/prisma/prisma-price-list.repository");
 const prisma_quote_repository_1 = require("../infrastructure/repositories/prisma/prisma-quote.repository");
 const prisma_quote_version_repository_1 = require("../infrastructure/repositories/prisma/prisma-quote-version.repository");
 const prisma_sales_order_repository_1 = require("../infrastructure/repositories/prisma/prisma-sales-order.repository");
@@ -27,8 +30,11 @@ exports.SalesInfrastructureModule = SalesInfrastructureModule = __decorate([
             prisma_quote_repository_1.PrismaQuoteRepository,
             prisma_quote_version_repository_1.PrismaQuoteVersionRepository,
             prisma_sales_order_repository_1.PrismaSalesOrderRepository,
+            prisma_price_list_repository_1.PrismaPriceListRepository,
+            prisma_customer_price_agreement_repository_1.PrismaCustomerPriceAgreementRepository,
             prisma_sales_audit_repository_1.PrismaSalesAuditRepository,
             prisma_sales_transaction_runner_1.PrismaSalesTransactionRunner,
+            fixed_exchange_rate_resolver_1.FixedExchangeRateResolver,
             {
                 provide: tokens_1.TOKENS.QUOTE_REPOSITORY,
                 useExisting: prisma_quote_repository_1.PrismaQuoteRepository
@@ -40,6 +46,18 @@ exports.SalesInfrastructureModule = SalesInfrastructureModule = __decorate([
             {
                 provide: tokens_1.TOKENS.SALES_ORDER_REPOSITORY,
                 useExisting: prisma_sales_order_repository_1.PrismaSalesOrderRepository
+            },
+            {
+                provide: tokens_1.TOKENS.PRICE_LIST_REPOSITORY,
+                useExisting: prisma_price_list_repository_1.PrismaPriceListRepository
+            },
+            {
+                provide: tokens_1.TOKENS.CUSTOMER_PRICE_AGREEMENT_REPOSITORY,
+                useExisting: prisma_customer_price_agreement_repository_1.PrismaCustomerPriceAgreementRepository
+            },
+            {
+                provide: tokens_1.TOKENS.SALES_EXCHANGE_RATE_RESOLVER,
+                useExisting: fixed_exchange_rate_resolver_1.FixedExchangeRateResolver
             },
             {
                 provide: tokens_1.TOKENS.SALES_AUDIT_WRITER,
@@ -55,11 +73,17 @@ exports.SalesInfrastructureModule = SalesInfrastructureModule = __decorate([
             prisma_quote_repository_1.PrismaQuoteRepository,
             prisma_quote_version_repository_1.PrismaQuoteVersionRepository,
             prisma_sales_order_repository_1.PrismaSalesOrderRepository,
+            prisma_price_list_repository_1.PrismaPriceListRepository,
+            prisma_customer_price_agreement_repository_1.PrismaCustomerPriceAgreementRepository,
             prisma_sales_audit_repository_1.PrismaSalesAuditRepository,
             prisma_sales_transaction_runner_1.PrismaSalesTransactionRunner,
+            fixed_exchange_rate_resolver_1.FixedExchangeRateResolver,
             tokens_1.TOKENS.QUOTE_REPOSITORY,
             tokens_1.TOKENS.QUOTE_VERSION_REPOSITORY,
             tokens_1.TOKENS.SALES_ORDER_REPOSITORY,
+            tokens_1.TOKENS.PRICE_LIST_REPOSITORY,
+            tokens_1.TOKENS.CUSTOMER_PRICE_AGREEMENT_REPOSITORY,
+            tokens_1.TOKENS.SALES_EXCHANGE_RATE_RESOLVER,
             tokens_1.TOKENS.SALES_AUDIT_WRITER,
             tokens_1.TOKENS.SALES_TRANSACTION_RUNNER
         ]

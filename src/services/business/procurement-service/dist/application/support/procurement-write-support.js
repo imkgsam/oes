@@ -1,5 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.normalizePaymentTermsSnapshot = normalizePaymentTermsSnapshot;
+exports.normalizeCommercialTermsSnapshot = normalizeCommercialTermsSnapshot;
 exports.nowIso = nowIso;
 exports.cloneOrderForMutation = cloneOrderForMutation;
 exports.buildSupplierAcknowledgement = buildSupplierAcknowledgement;
@@ -18,6 +20,28 @@ const procurement_assertions_1 = require("./procurement-assertions");
 const procurement_records_1 = require("../../domain/models/procurement-records");
 const exceptions_1 = require("@oes/common/exceptions");
 const procurement_errors_1 = require("../../common/errors/procurement.errors");
+/** normalizePaymentTermsSnapshot keeps optional PO payment terms as a trimmed transaction snapshot only. */
+function normalizePaymentTermsSnapshot(input) {
+    const paymentTermsCode = (0, procurement_assertions_1.normalizeOptionalString)(input?.paymentTermsCode) ?? null;
+    const paymentTermsText = (0, procurement_assertions_1.normalizeOptionalString)(input?.paymentTermsText) ?? null;
+    return paymentTermsCode || paymentTermsText
+        ? {
+            paymentTermsCode,
+            paymentTermsText
+        }
+        : null;
+}
+/** normalizeCommercialTermsSnapshot keeps optional PO commercial terms as a trimmed transaction snapshot only. */
+function normalizeCommercialTermsSnapshot(input) {
+    const incotermCode = (0, procurement_assertions_1.normalizeOptionalString)(input?.incotermCode) ?? null;
+    const commercialTermsText = (0, procurement_assertions_1.normalizeOptionalString)(input?.commercialTermsText) ?? null;
+    return incotermCode || commercialTermsText
+        ? {
+            incotermCode,
+            commercialTermsText
+        }
+        : null;
+}
 /** nowIso returns the current wall-clock ISO timestamp for phase 1 record mutations. */
 function nowIso() {
     return new Date().toISOString();
@@ -263,45 +287,51 @@ async function buildConvertedPurchaseOrderLines(input) {
 function buildConvertedAllocations(sourceLine, orderedQuantity, generalStockExcessReason) {
     const requestedQuantity = (0, procurement_assertions_1.normalizeQuantity)(sourceLine.requestedQuantity);
     const allocations = [];
-    const dedicatedType = (0, procurement_assertions_1.inferAllocationType)(sourceLine.demandReferenceType);
     const baseQuantity = (0, procurement_assertions_1.compareQuantity)(orderedQuantity, requestedQuantity) >= 0 ? requestedQuantity : orderedQuantity;
-    if (dedicatedType === procurement_records_1.PurchaseOrderLineAllocationType.GENERAL_STOCK) {
-        allocations.push({
-            purchaseOrderLineAllocationId: (0, node_crypto_1.randomUUID)(),
-            allocationType: procurement_records_1.PurchaseOrderLineAllocationType.GENERAL_STOCK,
-            referenceId: null,
-            quantity: orderedQuantity,
-            reason: (0, procurement_assertions_1.normalizeOptionalString)(generalStockExcessReason) ?? null
-        });
-        return allocations;
-    }
     allocations.push({
         purchaseOrderLineAllocationId: (0, node_crypto_1.randomUUID)(),
-        allocationType: dedicatedType,
-        referenceId: sourceLine.demandReferenceId ?? null,
+        allocationType: procurement_records_1.PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE,
+        sourceReferenceId: sourceLine.purchaseRequestLineId,
         quantity: baseQuantity,
-        reason: null
+        reason: null,
+        targetWarehouseId: null,
+        targetReceivingAddressId: null
     });
     if ((0, procurement_assertions_1.compareQuantity)(orderedQuantity, requestedQuantity) > 0) {
         allocations.push({
             purchaseOrderLineAllocationId: (0, node_crypto_1.randomUUID)(),
             allocationType: procurement_records_1.PurchaseOrderLineAllocationType.GENERAL_STOCK,
-            referenceId: null,
+            sourceReferenceId: null,
             quantity: (0, procurement_assertions_1.subtractQuantity)(orderedQuantity, requestedQuantity),
-            reason: (0, procurement_assertions_1.normalizeOptionalString)(generalStockExcessReason) ?? null
+            reason: (0, procurement_assertions_1.normalizeOptionalString)(generalStockExcessReason) ?? null,
+            targetWarehouseId: null,
+            targetReceivingAddressId: null
         });
     }
     return allocations;
 }
 /** materializeAllocations validates allocation inputs and normalizes them into the persisted phase 1 snapshot shape. */
 function materializeAllocations(allocations, lineIndex) {
-    return allocations.map((allocation, allocationIndex) => ({
-        purchaseOrderLineAllocationId: (0, node_crypto_1.randomUUID)(),
-        allocationType: toAllocationType(allocation.allocationType),
-        referenceId: (0, procurement_assertions_1.normalizeOptionalString)(allocation.referenceId) ?? null,
-        quantity: (0, procurement_assertions_1.assertPositiveQuantity)(allocation.quantity, `lines[${lineIndex}].allocations[${allocationIndex}].quantity`),
-        reason: (0, procurement_assertions_1.normalizeOptionalString)(allocation.reason) ?? null
-    }));
+    return allocations.map((allocation, allocationIndex) => {
+        const allocationType = toAllocationType(allocation.allocationType);
+        const sourceReferenceId = (0, procurement_assertions_1.normalizeOptionalString)(allocation.sourceReferenceId) ?? null;
+        if (allocationType !== procurement_records_1.PurchaseOrderLineAllocationType.GENERAL_STOCK) {
+            if (!sourceReferenceId) {
+                throw exceptions_1.ExceptionFactory.application(procurement_errors_1.PROCUREMENT_INVALID_ARGUMENT, {
+                    field: `lines[${lineIndex}].allocations[${allocationIndex}].sourceReferenceId`
+                });
+            }
+        }
+        return {
+            purchaseOrderLineAllocationId: (0, node_crypto_1.randomUUID)(),
+            allocationType,
+            sourceReferenceId,
+            quantity: (0, procurement_assertions_1.assertPositiveQuantity)(allocation.quantity, `lines[${lineIndex}].allocations[${allocationIndex}].quantity`),
+            reason: (0, procurement_assertions_1.normalizeOptionalString)(allocation.reason) ?? null,
+            targetWarehouseId: (0, procurement_assertions_1.normalizeOptionalString)(allocation.targetWarehouseId) ?? null,
+            targetReceivingAddressId: (0, procurement_assertions_1.normalizeOptionalString)(allocation.targetReceivingAddressId) ?? null
+        };
+    });
 }
 /** buildSourcePurchaseRequestLineMap loads source PRs and indexes their lines for PO draft validation. */
 async function buildSourcePurchaseRequestLineMap(purchaseRequestRepository, tenantId, purchaseRequestIds) {
@@ -333,6 +363,9 @@ function toPurchaseRequestLineType(value) {
 /** toAllocationType normalizes string inputs into the frozen allocation enum set. */
 function toAllocationType(value) {
     const normalized = (() => {
+        if (value === procurement_records_1.PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE) {
+            return procurement_records_1.PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE;
+        }
         if (value === procurement_records_1.PurchaseOrderLineAllocationType.SALES_ORDER_LINE) {
             return procurement_records_1.PurchaseOrderLineAllocationType.SALES_ORDER_LINE;
         }

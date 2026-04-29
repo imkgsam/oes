@@ -1,6 +1,7 @@
 import {
   ApplyPurchaseOrderChangeRequest,
   ConfirmSupplierAcknowledgementRequest,
+  ConvertPurchaseRequestToPurchaseOrderRequest,
   CreatePurchaseOrderDraftRequest,
   CreatePurchaseRequestRequest,
   CreateReceivingExpectationRequest,
@@ -185,7 +186,7 @@ describe('procurement-service grpc surface L3', () => {
               {
                 purchaseOrderLineAllocationId: 'alloc-1',
                 allocationType: 'GENERAL_STOCK',
-                referenceId: null,
+                sourceReferenceId: null,
                 quantity: '12',
                 reason: 'buffer stock'
               }
@@ -259,6 +260,94 @@ describe('procurement-service grpc surface L3', () => {
     )
   })
 
+  it('ConvertPurchaseRequestToPurchaseOrder / should map target draft merge and multi-source PR selections onto the command payload', async () => {
+    const execute = jest.fn().mockResolvedValue({
+      purchaseOrderId: 'po-1',
+      orderNo: 'PO-0001',
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+      status: 'DRAFT',
+      currencyCode: 'USD',
+      supplierId: 'supplier-1',
+      supplierSnapshot: {
+        supplierId: 'supplier-1',
+        supplierDisplayName: 'Acme Supplier',
+        supplierStatusAtIssue: 'ACTIVE'
+      },
+      sourcePurchaseRequestIds: ['pr-1', 'pr-2'],
+      supplierAcknowledgement: {
+        acknowledgementStatus: 'PENDING',
+        acknowledgedAt: null,
+        externalReference: null,
+        comment: null
+      },
+      createdAt: '2026-04-28T11:00:00.000Z',
+      updatedAt: '2026-04-28T11:05:00.000Z',
+      issuedAt: null,
+      cancelledAt: null,
+      lines: [],
+      changes: []
+    })
+    const recordCommand = jest.fn(async (_meta, work) => work())
+    const controller = new ProcurementManagementGrpcController(
+      { execute } as never,
+      { recordCommand } as never,
+      requestContextStore as never
+    )
+
+    await controller.convertPurchaseRequestToPurchaseOrder({
+      ...buildManagementContext(),
+      targetPurchaseOrderId: 'po-1',
+      sourceLines: [
+        {
+          purchaseRequestId: 'pr-1',
+          purchaseRequestLineId: 'pr-line-1',
+          purchaseOrderQuantity: '10',
+          orderedUnitPrice: '9.80'
+        },
+        {
+          purchaseRequestId: 'pr-2',
+          purchaseRequestLineId: 'pr-line-2',
+          purchaseOrderQuantity: '6',
+          orderedUnitPrice: '9.60'
+        }
+      ],
+      paymentTermsSnapshot: {
+        paymentTermsCode: 'NET30',
+        paymentTermsText: '30 days'
+      },
+      supplierCommercialTermsSnapshot: {
+        incotermCode: 'FOB',
+        commercialTermsText: 'FOB Shanghai'
+      }
+    } as never satisfies ConvertPurchaseRequestToPurchaseOrderRequest)
+
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect(execute.mock.calls[0][0].payload).toEqual(
+      expect.objectContaining({
+        targetPurchaseOrderId: 'po-1',
+        sourceLines: [
+          expect.objectContaining({
+            purchaseRequestId: 'pr-1',
+            purchaseRequestLineId: 'pr-line-1'
+          }),
+          expect.objectContaining({
+            purchaseRequestId: 'pr-2',
+            purchaseRequestLineId: 'pr-line-2'
+          })
+        ],
+        paymentTermsSnapshot: {
+          paymentTermsCode: 'NET30',
+          paymentTermsText: '30 days'
+        },
+        supplierCommercialTermsSnapshot: {
+          incotermCode: 'FOB',
+          commercialTermsText: 'FOB Shanghai'
+        }
+      })
+    )
+  })
+
   it('SearchPurchaseOrders / should dispatch the query and present the purchase-order directory page', async () => {
     const execute = jest.fn().mockResolvedValue({
       purchaseOrders: [
@@ -321,6 +410,118 @@ describe('procurement-service grpc surface L3', () => {
     })
   })
 
+  it('GetPurchaseOrder / should present payment snapshots, finance payment summary, and source-based allocation targets without claiming finance truth ownership', async () => {
+    const execute = jest.fn().mockResolvedValue({
+      purchaseOrderId: 'po-1',
+      orderNo: 'PO-0001',
+      tenantId: 'tenant-1',
+      orgId: 'org-1',
+      status: 'ISSUED',
+      currencyCode: 'USD',
+      supplierId: 'supplier-1',
+      supplierSnapshot: {
+        supplierId: 'supplier-1',
+        supplierDisplayName: 'Acme Supplier',
+        supplierStatusAtIssue: 'ACTIVE'
+      },
+      paymentTermsSnapshot: {
+        paymentTermsCode: 'NET30',
+        paymentTermsText: '30 days'
+      },
+      supplierCommercialTermsSnapshot: {
+        incotermCode: 'FOB',
+        commercialTermsText: 'FOB Shanghai'
+      },
+      paymentSummary: {
+        paymentStatusSummary: 'DEPOSIT_PAID',
+        depositPaidAmount: '100.00',
+        balancePaidAmount: '0.00',
+        currencyCode: 'USD',
+        attachmentRefs: ['asset://payment-proof-1'],
+        lastPaymentAt: '2026-04-28T12:00:00.000Z'
+      },
+      sourcePurchaseRequestIds: ['pr-1'],
+      supplierAcknowledgement: {
+        acknowledgementStatus: 'PENDING',
+        acknowledgedAt: null,
+        externalReference: null,
+        comment: null
+      },
+      issueComment: 'issued',
+      cancelReason: null,
+      createdAt: '2026-04-28T11:00:00.000Z',
+      updatedAt: '2026-04-28T11:05:00.000Z',
+      issuedAt: '2026-04-28T11:05:00.000Z',
+      cancelledAt: null,
+      lines: [
+        {
+          purchaseOrderLineId: 'po-line-1',
+          lineNo: 1,
+          lineType: 'STANDARD_ITEM',
+          itemId: 'item-1',
+          itemCode: 'RM-001',
+          itemName: 'Resin',
+          description: 'Resin',
+          supplierOfferingId: 'offering-1',
+          orderedQuantity: '12',
+          uom: 'KG',
+          orderedUnitPrice: '9.80',
+          sourcePurchaseRequestLineId: 'pr-line-1',
+          sourceRequestedQuantity: '10',
+          generalStockExcessReason: 'buffer stock',
+          allocations: [
+            {
+              purchaseOrderLineAllocationId: 'alloc-1',
+              allocationType: 'PURCHASE_REQUEST_LINE',
+              sourceReferenceId: 'pr-line-1',
+              quantity: '10',
+              reason: null,
+              targetWarehouseId: 'wh-a',
+              targetReceivingAddressId: 'addr-a'
+            },
+            {
+              purchaseOrderLineAllocationId: 'alloc-2',
+              allocationType: 'GENERAL_STOCK',
+              sourceReferenceId: null,
+              quantity: '2',
+              reason: 'buffer stock',
+              targetWarehouseId: 'wh-b',
+              targetReceivingAddressId: 'addr-b'
+            }
+          ]
+        }
+      ],
+      changes: []
+    })
+    const controller = new ProcurementQueryGrpcController({ execute } as never)
+
+    const response = await controller.getPurchaseOrder({
+      ...buildQueryContext(),
+      purchaseOrderId: 'po-1'
+    } satisfies GetPurchaseOrderRequest)
+
+    expect(execute).toHaveBeenCalledTimes(1)
+    expect((response.purchaseOrder as any).paymentTermsSnapshot).toEqual({
+      paymentTermsCode: 'NET30',
+      paymentTermsText: '30 days'
+    })
+    expect((response.purchaseOrder as any).supplierCommercialTermsSnapshot).toEqual({
+      incotermCode: 'FOB',
+      commercialTermsText: 'FOB Shanghai'
+    })
+    expect((response.purchaseOrder as any).paymentSummary).toEqual({
+      paymentStatusSummary: 'DEPOSIT_PAID',
+      depositPaidAmount: '100.00',
+      balancePaidAmount: '0.00',
+      currencyCode: 'USD',
+      attachmentRefs: ['asset://payment-proof-1'],
+      lastPaymentAt: '2026-04-28T12:00:00.000Z'
+    })
+    expect((response.purchaseOrder?.lines?.[0]?.allocations?.[0] as any).sourceReferenceId).toBe('pr-line-1')
+    expect((response.purchaseOrder?.lines?.[0]?.allocations?.[0] as any).targetWarehouseId).toBe('wh-a')
+    expect((response.purchaseOrder?.lines?.[0]?.allocations?.[0] as any).targetReceivingAddressId).toBe('addr-a')
+  })
+
   it('GetReceivingExpectation / should dispatch the query and present discrepancy summaries without exposing inventory truth', async () => {
     const execute = jest.fn().mockResolvedValue({
       receivingExpectationId: 'expectation-1',
@@ -338,13 +539,23 @@ describe('procurement-service grpc surface L3', () => {
       updatedAt: '2026-04-28T13:10:00.000Z',
       discrepancy: {
         receivingDiscrepancyId: 'discrepancy-1',
-        discrepancyType: 'SHORT_RECEIPT',
+        discrepancyType: 'SHORT_RECEIVED',
         summary: '3 short',
         status: 'OPEN',
         resolutionCode: 'WAIT_REDELIVERY',
         resolutionNote: 'supplier promised redelivery',
+        resolutionReferences: [
+          {
+            referenceType: 'PURCHASE_ORDER_CHANGE',
+            referenceId: 'po-change-1'
+          }
+        ],
         resolvedAt: null
-      }
+      },
+      allocationGroupingKey: 'wh-a',
+      sourceAllocationIds: ['alloc-1'],
+      targetWarehouseId: 'wh-a',
+      targetReceivingAddressId: 'addr-a'
     })
     const controller = new ProcurementQueryGrpcController({ execute } as never)
 
@@ -360,12 +571,22 @@ describe('procurement-service grpc surface L3', () => {
         status: ProtoReceivingExpectationStatus.RECEIVING_EXPECTATION_STATUS_PARTIALLY_RECEIVED,
         discrepancy: expect.objectContaining({
           receivingDiscrepancyId: 'discrepancy-1',
-          discrepancyType: ProtoReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_SHORT_RECEIPT,
+          discrepancyType: ProtoReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_SHORT_RECEIVED,
           status: ProtoReceivingDiscrepancyStatus.RECEIVING_DISCREPANCY_STATUS_OPEN,
           resolutionCode: ProtoReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_WAIT_REDELIVERY
         })
       })
     )
+    expect((response.receivingExpectation as any).allocationGroupingKey).toBe('wh-a')
+    expect((response.receivingExpectation as any).sourceAllocationIds).toEqual(['alloc-1'])
+    expect((response.receivingExpectation as any).targetWarehouseId).toBe('wh-a')
+    expect((response.receivingExpectation as any).targetReceivingAddressId).toBe('addr-a')
+    expect((response.receivingExpectation?.discrepancy as any).resolutionReferences).toEqual([
+      {
+        referenceType: 'PURCHASE_ORDER_CHANGE',
+        referenceId: 'po-change-1'
+      }
+    ])
   })
 
   it('controller surface / should not expose RFQ SupplierQuote AP or NonPO methods in phase 1', () => {

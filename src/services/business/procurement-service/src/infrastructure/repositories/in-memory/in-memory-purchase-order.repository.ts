@@ -113,4 +113,15 @@ export class InMemoryPurchaseOrderRepository implements PurchaseOrderRepository 
       (record) => record.tenantId === tenantId && record.sourcePurchaseRequestIds.includes(purchaseRequestId)
     )
   }
+
+  async findBySourcePurchaseRequestId(
+    tenantId: string,
+    purchaseRequestId: string
+  ): Promise<PurchaseOrderRecord[]> {
+    return [...this.store.purchaseOrders.values()]
+      .filter(
+        (record) => record.tenantId === tenantId && record.sourcePurchaseRequestIds.includes(purchaseRequestId)
+      )
+      .map((record) => cloneRecord(record))
+  }
 }

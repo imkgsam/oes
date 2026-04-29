@@ -17,15 +17,27 @@
 
 本目录只回写已经冻结的 `IM-CONTRACT` 结论。
 
-## 2. Phase 1 Contract Surface
+## 2. Current Contract Surface
 
-phase 1 只冻结两组内部 gRPC 服务面：
+当前 contract 由两部分组成：
+
+- phase 1 foundation：
+  - `Item`
+  - `ItemCapability`
+  - `ItemComposition`
+  - `SupplierItemMapping`
+- next minimal contract slice：
+  - `ItemCategory`
+  - category-aware `SearchItems`
+
+当前只冻结两组内部 gRPC 服务面：
 
 - [query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/query.md)
   - `ItemMasterQueryService`
   - `GetItem`
   - `BatchGetItems`
   - `SearchItems`
+  - `ListItemCategories`
   - `GetItemComposition`
   - `ListSupplierItemMappingsByItem`
   - `ResolveSupplierItemMapping`
@@ -37,6 +49,10 @@ phase 1 只冻结两组内部 gRPC 服务面：
   - `SetItemComposition`
   - `UpsertSupplierItemMapping`
   - `ChangeItemStatus`
+  - `CreateItemCategory`
+  - `UpdateItemCategoryBasics`
+  - `ChangeItemCategoryStatus`
+  - `SetItemPrimaryCategory`
 
 phase 1 不在本目录中冻结：
 
@@ -53,11 +69,17 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 - `ItemCapability`
 - `ItemComposition`
 - `SupplierItemMapping`
+- `ItemCategory`
 
 说明：
 
-- architecture 真相仍保留 optional `ItemCategory` 作为服务边界候选能力
-- 但 `ItemCategory` 整体 deferred，不进入 phase 1 contract，也不暴露 category RPC
+- `ItemCategory` 仍归 `item-master-service`，不改变现有 item-master phase 1 owner boundary
+- `ItemCategory` 只冻结为 tenant-scoped 轻量树
+- phase 1 + 当前 slice 中，每个 `Item` 只允许 `0..1` 个 `primary category`
+- `ItemCategory` 只用于目录浏览、搜索收窄、列表展示与轻量统计分组
+- `ItemCategory` 不承载权限、定价、采购商业策略、库存策略、包装或制造规则
+- `BFF` / 各业务域可以包装 selector 预设，但 item truth 仍归 `item-master-service` query contract
+- 当前 slice 不新增 `SearchSellableItems`、`SearchPurchasableItems`、`SearchStockableItems` 这类 domain-specific selector RPC
 
 ## 4. Does Not Own
 
@@ -68,6 +90,10 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 - `ManufacturingSpec`、route、WIP、process
 - `StockItemType`、`InventoryItem`、`StockLot`、`PackageUnit`、`FulfillmentSet`
 - `Supplier`、`SupplierContact`
+- brand tree
+- packaging tree
+- manufacturing tree
+- stock type tree
 - `PackagingOption`、`PackageSpec`、`PackagingBOM`
 - `PIM / PLM`
 
@@ -92,11 +118,34 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 
 本目录只冻结“必须可观察到的上下文与行为边界”，不展开具体 metadata header、guard 组件或 tracing 实现。
 
-## 6. Deferred
+## 6. Category Slice Baseline
+
+当前新增的最小 category slice 只承诺以下黑盒行为：
+
+- `ListItemCategories` 提供 tenant 内轻量分类树读取
+- `SearchItems` 支持 `category_id?` 与 `include_descendants?`
+- `Item` 读取 shape 可返回 `primary_category_summary?`
+- `CreateItemCategory` / `UpdateItemCategoryBasics` / `ChangeItemCategoryStatus` 只维护 category 自身基础真相
+- `SetItemPrimaryCategory` 只维护 `Item -> primary category` 的单值关联
+
+当前 slice 明确不承诺：
+
+- category 继承业务规则
+- category 驱动权限、定价、采购、库存、包装、制造策略
+- category 专用外部 API / UI contract
+- 面向销售、采购、库存、制造的 domain-specific selector RPC
+
+## 7. Deferred
 
 以下能力明确 deferred，不得写成 phase 1 已承诺 contract：
 
-- `ItemCategory`
+- multi-category
+- category inheritance
+- category-based permission / pricing / procurement / inventory policy
+- brand tree
+- packaging tree
+- manufacturing tree
+- stock type tree
 - `PackagingOption`
 - `PackageSpec`
 - `PackagingBOM`
@@ -106,7 +155,7 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 - integration events
 - `PIM / PLM`
 
-## 7. 关联真相源
+## 8. 关联真相源
 
 本目录以上游稳定文档为准：
 

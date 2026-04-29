@@ -152,6 +152,9 @@ class ProcurementGrpcPresenter {
                 ? this.toPurchaseRequestApprovalSnapshot(record.approvalSnapshot)
                 : undefined,
             lines: record.lines.map((line) => this.toPurchaseRequestLine(line)),
+            linkedPurchaseOrders: (record.linkedPurchaseOrders ?? []).map((link) => this.toPurchaseRequestPurchaseOrderLink(link)),
+            nextExpectedReceiptDate: record.nextExpectedReceiptDate ?? '',
+            receivingStatusSummary: record.receivingStatusSummary ?? '',
             createdAt: record.createdAt,
             updatedAt: record.updatedAt,
             submittedAt: record.submittedAt ?? '',
@@ -167,6 +170,9 @@ class ProcurementGrpcPresenter {
             status: toProtoPurchaseRequestStatus(record.status),
             requesterDisplayName: record.requester.displayName,
             lineCount: record.lines.length,
+            linkedPurchaseOrders: (record.linkedPurchaseOrders ?? []).map((link) => this.toPurchaseRequestPurchaseOrderLink(link)),
+            nextExpectedReceiptDate: record.nextExpectedReceiptDate ?? '',
+            receivingStatusSummary: record.receivingStatusSummary ?? '',
             createdAt: record.createdAt,
             submittedAt: record.submittedAt ?? '',
             decidedAt: record.decidedAt ?? ''
@@ -197,7 +203,19 @@ class ProcurementGrpcPresenter {
             uom: record.uom,
             neededByDate: record.neededByDate ?? '',
             demandReferenceType: record.demandReferenceType ?? '',
-            demandReferenceId: record.demandReferenceId ?? ''
+            demandReferenceId: record.demandReferenceId ?? '',
+            conversionStatus: toProtoPurchaseRequestLineConversionStatus(record.conversionStatus),
+            linkedPurchaseOrderLines: (record.linkedPurchaseOrderLines ?? []).map((link) => this.toPurchaseRequestPurchaseOrderLink(link))
+        };
+    }
+    static toPurchaseRequestPurchaseOrderLink(record) {
+        return {
+            purchaseOrderId: record.purchaseOrderId,
+            orderNo: record.orderNo,
+            purchaseOrderLineId: record.purchaseOrderLineId ?? '',
+            allocatedQuantity: record.allocatedQuantity ?? '',
+            expectedReceiptDate: record.expectedReceiptDate ?? '',
+            receivingStatusSummary: record.receivingStatusSummary ?? ''
         };
     }
     static toPurchaseOrder(record) {
@@ -214,6 +232,15 @@ class ProcurementGrpcPresenter {
                 supplierDisplayName: record.supplierSnapshot.supplierDisplayName,
                 supplierStatusAtIssue: record.supplierSnapshot.supplierStatusAtIssue ?? ''
             },
+            paymentTermsSnapshot: record.paymentTermsSnapshot
+                ? this.toPurchaseOrderPaymentTermsSnapshot(record.paymentTermsSnapshot)
+                : undefined,
+            supplierCommercialTermsSnapshot: record.supplierCommercialTermsSnapshot
+                ? this.toPurchaseOrderCommercialTermsSnapshot(record.supplierCommercialTermsSnapshot)
+                : undefined,
+            paymentSummary: record.paymentSummary
+                ? this.toPurchaseOrderPaymentSummary(record.paymentSummary)
+                : undefined,
             sourcePurchaseRequestIds: record.sourcePurchaseRequestIds,
             lines: record.lines.map((line) => this.toPurchaseOrderLine(line)),
             supplierAcknowledgement: this.toPurchaseOrderSupplierAcknowledgement(record.supplierAcknowledgement),
@@ -232,6 +259,7 @@ class ProcurementGrpcPresenter {
             supplierDisplayName: record.supplierSnapshot.supplierDisplayName,
             currencyCode: record.currencyCode,
             lineCount: record.lines.length,
+            paymentStatusSummary: record.paymentSummary?.paymentStatusSummary ?? '',
             issuedAt: record.issuedAt ?? '',
             createdAt: record.createdAt
         };
@@ -257,10 +285,34 @@ class ProcurementGrpcPresenter {
     static toPurchaseOrderLineAllocation(record) {
         return {
             purchaseOrderLineAllocationId: record.purchaseOrderLineAllocationId,
-            allocationType: toProtoPurchaseOrderAllocationType(record.allocationType),
-            referenceId: record.referenceId ?? '',
+            allocationSourceType: toProtoPurchaseOrderAllocationType(record.allocationType),
+            sourceReferenceId: record.sourceReferenceId ?? '',
             quantity: record.quantity,
-            reason: record.reason ?? ''
+            reason: record.reason ?? '',
+            targetWarehouseId: record.targetWarehouseId ?? '',
+            targetReceivingAddressId: record.targetReceivingAddressId ?? ''
+        };
+    }
+    static toPurchaseOrderPaymentTermsSnapshot(record) {
+        return {
+            paymentTermsCode: record.paymentTermsCode ?? '',
+            paymentTermsText: record.paymentTermsText ?? ''
+        };
+    }
+    static toPurchaseOrderCommercialTermsSnapshot(record) {
+        return {
+            incotermCode: record.incotermCode ?? '',
+            commercialTermsText: record.commercialTermsText ?? ''
+        };
+    }
+    static toPurchaseOrderPaymentSummary(record) {
+        return {
+            paymentStatusSummary: record.paymentStatusSummary,
+            depositPaidAmount: record.depositPaidAmount ?? '',
+            balancePaidAmount: record.balancePaidAmount ?? '',
+            currencyCode: record.currencyCode,
+            attachmentRefs: record.attachmentRefs ?? [],
+            lastPaymentAt: record.lastPaymentAt ?? ''
         };
     }
     static toPurchaseOrderSupplierAcknowledgement(record) {
@@ -292,6 +344,10 @@ class ProcurementGrpcPresenter {
             purchaseOrderId: record.purchaseOrderId,
             purchaseOrderLineId: record.purchaseOrderLineId,
             supplierId: record.supplierId,
+            allocationGroupingKey: record.allocationGroupingKey,
+            sourceAllocationIds: record.sourceAllocationIds,
+            targetWarehouseId: record.targetWarehouseId ?? '',
+            targetReceivingAddressId: record.targetReceivingAddressId ?? '',
             expectedQuantity: record.expectedQuantity,
             receivedQuantitySummary: record.receivedQuantitySummary,
             openQuantity: record.openQuantity,
@@ -308,6 +364,8 @@ class ProcurementGrpcPresenter {
             purchaseOrderId: record.purchaseOrderId,
             purchaseOrderLineId: record.purchaseOrderLineId,
             supplierId: record.supplierId,
+            targetWarehouseId: record.targetWarehouseId ?? '',
+            targetReceivingAddressId: record.targetReceivingAddressId ?? '',
             expectedReceiptDate: record.expectedReceiptDate ?? '',
             openQuantity: record.openQuantity,
             status: toProtoReceivingExpectationStatus(record.status),
@@ -324,7 +382,14 @@ class ProcurementGrpcPresenter {
                 ? toProtoReceivingResolutionCode(record.resolutionCode)
                 : procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_UNSPECIFIED,
             resolutionNote: record.resolutionNote ?? '',
+            resolutionReferences: (record.resolutionReferences ?? []).map((reference) => this.toReceivingResolutionReference(reference)),
             resolvedAt: record.resolvedAt ?? ''
+        };
+    }
+    static toReceivingResolutionReference(record) {
+        return {
+            referenceType: record.referenceType,
+            referenceId: record.referenceId
         };
     }
 }
@@ -349,12 +414,28 @@ function toProtoPurchaseRequestStatus(value) {
             return procurement_service_1.PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_SUBMITTED;
         case procurement_records_1.PurchaseRequestStatus.APPROVED:
             return procurement_service_1.PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_APPROVED;
+        case procurement_records_1.PurchaseRequestStatus.PARTIALLY_CONVERTED:
+            return procurement_service_1.PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_PARTIALLY_CONVERTED;
+        case procurement_records_1.PurchaseRequestStatus.CONVERTED:
+            return procurement_service_1.PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_CONVERTED;
         case procurement_records_1.PurchaseRequestStatus.REJECTED:
             return procurement_service_1.PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_REJECTED;
         case procurement_records_1.PurchaseRequestStatus.CANCELLED:
             return procurement_service_1.PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_CANCELLED;
         default:
             return procurement_service_1.PurchaseRequestStatus.PURCHASE_REQUEST_STATUS_DRAFT;
+    }
+}
+function toProtoPurchaseRequestLineConversionStatus(value) {
+    switch (value) {
+        case procurement_records_1.PurchaseRequestLineConversionStatus.PARTIALLY_CONVERTED:
+            return procurement_service_1.PurchaseRequestLineConversionStatus.PURCHASE_REQUEST_LINE_CONVERSION_STATUS_PARTIALLY_CONVERTED;
+        case procurement_records_1.PurchaseRequestLineConversionStatus.CONVERTED:
+            return procurement_service_1.PurchaseRequestLineConversionStatus.PURCHASE_REQUEST_LINE_CONVERSION_STATUS_CONVERTED;
+        case procurement_records_1.PurchaseRequestLineConversionStatus.NOT_CONVERTED:
+            return procurement_service_1.PurchaseRequestLineConversionStatus.PURCHASE_REQUEST_LINE_CONVERSION_STATUS_NOT_CONVERTED;
+        default:
+            return procurement_service_1.PurchaseRequestLineConversionStatus.PURCHASE_REQUEST_LINE_CONVERSION_STATUS_UNSPECIFIED;
     }
 }
 function toProtoPurchaseRequestLineType(value) {
@@ -381,6 +462,8 @@ function toProtoPurchaseOrderStatus(value) {
 }
 function toProtoPurchaseOrderAllocationType(value) {
     switch (value) {
+        case procurement_records_1.PurchaseOrderLineAllocationType.PURCHASE_REQUEST_LINE:
+            return procurement_service_1.PurchaseOrderLineAllocationType.PURCHASE_ORDER_LINE_ALLOCATION_TYPE_PURCHASE_REQUEST_LINE;
         case procurement_records_1.PurchaseOrderLineAllocationType.SALES_ORDER_LINE:
             return procurement_service_1.PurchaseOrderLineAllocationType.PURCHASE_ORDER_LINE_ALLOCATION_TYPE_SALES_ORDER_LINE;
         case procurement_records_1.PurchaseOrderLineAllocationType.FULFILLMENT_DEMAND:
@@ -408,16 +491,16 @@ function toProtoReceivingExpectationStatus(value) {
 }
 function toProtoReceivingDiscrepancyType(value) {
     switch (value) {
-        case procurement_records_1.ReceivingDiscrepancyType.OVER_RECEIPT:
-            return procurement_service_1.ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_OVER_RECEIPT;
+        case procurement_records_1.ReceivingDiscrepancyType.OVER_RECEIVED:
+            return procurement_service_1.ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_OVER_RECEIVED;
         case procurement_records_1.ReceivingDiscrepancyType.DAMAGED:
             return procurement_service_1.ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_DAMAGED;
-        case procurement_records_1.ReceivingDiscrepancyType.RESTRICTED:
-            return procurement_service_1.ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_RESTRICTED;
-        case procurement_records_1.ReceivingDiscrepancyType.OTHER:
-            return procurement_service_1.ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_OTHER;
+        case procurement_records_1.ReceivingDiscrepancyType.WRONG_ITEM:
+            return procurement_service_1.ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_WRONG_ITEM;
+        case procurement_records_1.ReceivingDiscrepancyType.QUALITY_HOLD:
+            return procurement_service_1.ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_QUALITY_HOLD;
         default:
-            return procurement_service_1.ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_SHORT_RECEIPT;
+            return procurement_service_1.ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_SHORT_RECEIVED;
     }
 }
 function toProtoReceivingDiscrepancyStatus(value) {
@@ -427,12 +510,34 @@ function toProtoReceivingDiscrepancyStatus(value) {
 }
 function toProtoReceivingResolutionCode(value) {
     switch (value) {
-        case procurement_records_1.ReceivingResolutionCode.ACCEPT_SHORT_CLOSE:
-            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_SHORT_CLOSE;
-        case procurement_records_1.ReceivingResolutionCode.RETURN_OR_REJECT_EXCESS:
-            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RETURN_OR_REJECT_EXCESS;
-        case procurement_records_1.ReceivingResolutionCode.MANUAL_FOLLOW_UP:
-            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_MANUAL_FOLLOW_UP;
+        case procurement_records_1.ReceivingResolutionCode.CLOSE_UNRECEIVED:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_CLOSE_UNRECEIVED;
+        case procurement_records_1.ReceivingResolutionCode.REQUEST_RESEND:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REQUEST_RESEND;
+        case procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_PO_CHANGE:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_PO_CHANGE;
+        case procurement_records_1.ReceivingResolutionCode.REJECT_EXCESS:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_EXCESS;
+        case procurement_records_1.ReceivingResolutionCode.TEMP_HOLD:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_TEMP_HOLD;
+        case procurement_records_1.ReceivingResolutionCode.REJECT_DAMAGED:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_DAMAGED;
+        case procurement_records_1.ReceivingResolutionCode.RECEIVE_WITH_RESTRICTION:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RECEIVE_WITH_RESTRICTION;
+        case procurement_records_1.ReceivingResolutionCode.CLAIM:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_CLAIM;
+        case procurement_records_1.ReceivingResolutionCode.REJECT_WRONG_ITEM:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_REJECT_WRONG_ITEM;
+        case procurement_records_1.ReceivingResolutionCode.TEMP_RECEIVE_PENDING_DECISION:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_TEMP_RECEIVE_PENDING_DECISION;
+        case procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_CONTROLLED_CHANGE:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_CONTROLLED_CHANGE;
+        case procurement_records_1.ReceivingResolutionCode.WAIT_INSPECTION:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_WAIT_INSPECTION;
+        case procurement_records_1.ReceivingResolutionCode.ACCEPT_WITH_ALLOWANCE:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_ALLOWANCE;
+        case procurement_records_1.ReceivingResolutionCode.RETURN_TO_SUPPLIER:
+            return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_RETURN_TO_SUPPLIER;
         default:
             return procurement_service_1.ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_WAIT_REDELIVERY;
     }

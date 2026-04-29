@@ -9,6 +9,7 @@ import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
   CRM_MANAGEMENT_PERMISSION_CODES,
+  FINANCE_MANAGEMENT_PERMISSION_CODES,
   HR_MANAGEMENT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
   ITEM_MASTER_MANAGEMENT_PERMISSION_CODES,
@@ -146,6 +147,23 @@ const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'procurement.receiving_expectation.get_by_id': '查看收货预期详情',
   'procurement.receiving_expectation.create': '创建收货预期',
   'procurement.receiving_discrepancy.record_resolution': '记录收货差异处理摘要',
+  'finance.financial_account.list': '查看资金账户列表',
+  'finance.financial_account.get_by_id': '查看资金账户详情',
+  'finance.financial_account.create': '创建资金账户',
+  'finance.financial_account.update_basics': '更新资金账户基础信息',
+  'finance.account_transaction.list': '查看账户流水列表',
+  'finance.account_transaction.import': '批量导入账户流水',
+  'finance.account_transaction.record': '手工登记账户流水',
+  'finance.customer_financial_account.register': '登记客户付款账号',
+  'finance.exchange_rate.get': '查看标准汇率',
+  'finance.exchange_rate.set': '设置标准汇率',
+  'finance.receivable_schedule.list': '查看应收计划列表',
+  'finance.receivable_schedule.get_by_id': '查看应收计划详情',
+  'finance.receivable_schedule.create_from_sales_order': '从销售订单建立应收计划',
+  'finance.finance_release_signal.get': '查看财务放行信号',
+  'finance.finance_release_signal.set': '设置财务放行信号',
+  'finance.payment_allocation.list': '查看收款核销结果',
+  'finance.payment_allocation.allocate_to_receivable': '将收款流水核销到应收计划',
   'auth.audit.list': '查看认证审计事件',
   'auth.account_credentials.bootstrap': '初始化账号登录凭据',
   'auth.account_login_methods.manage': '管理账号登录方式',
@@ -216,6 +234,11 @@ export function buildPermissionSeedItems(): PermissionSeedItem[] {
       description: getPermissionDescription(code)
     })),
     ...valuesOf(PROCUREMENT_MANAGEMENT_PERMISSION_CODES).map((code) => ({
+      code,
+      module: Modules.EPR_SERVICE,
+      description: getPermissionDescription(code)
+    })),
+    ...valuesOf(FINANCE_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,
       module: Modules.EPR_SERVICE,
       description: getPermissionDescription(code)

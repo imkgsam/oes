@@ -8,6 +8,14 @@ export class CreatePurchaseOrderDraftCommand {
     orgId?: string
     supplierId: string
     currencyCode: string
+    paymentTermsSnapshot?: {
+      paymentTermsCode?: string
+      paymentTermsText?: string
+    }
+    supplierCommercialTermsSnapshot?: {
+      incotermCode?: string
+      commercialTermsText?: string
+    }
     sourcePurchaseRequestIds?: string[]
     lines?: Array<{
       purchaseOrderLineId?: string
@@ -21,9 +29,11 @@ export class CreatePurchaseOrderDraftCommand {
       generalStockExcessReason?: string
       allocations: Array<{
         allocationType: string
-        referenceId?: string
+        sourceReferenceId?: string
         quantity: string
         reason?: string
+        targetWarehouseId?: string
+        targetReceivingAddressId?: string
       }>
     }>
   }

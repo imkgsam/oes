@@ -33,6 +33,21 @@ let InMemorySalesOrderRepository = class InMemorySalesOrderRepository {
         const order = [...this.store.salesOrders.values()].find((candidate) => candidate.tenantId === tenantId && candidate.quoteVersionId === quoteVersionId);
         return order ? (0, sales_records_1.cloneRecord)(order) : null;
     }
+    async findLineById(tenantId, salesOrderLineId) {
+        const order = [...this.store.salesOrders.values()].find((candidate) => candidate.tenantId === tenantId &&
+            candidate.lines.some((line) => line.salesOrderLineId === salesOrderLineId));
+        if (!order) {
+            return null;
+        }
+        const line = order.lines.find((candidate) => candidate.salesOrderLineId === salesOrderLineId);
+        if (!line) {
+            return null;
+        }
+        return {
+            order: (0, sales_records_1.cloneRecord)(order),
+            line: (0, sales_records_1.cloneRecord)(line)
+        };
+    }
     async save(order) {
         const stored = (0, sales_records_1.cloneRecord)(order);
         this.store.salesOrders.set(stored.id, stored);

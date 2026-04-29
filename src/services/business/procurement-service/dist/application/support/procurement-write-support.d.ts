@@ -1,6 +1,6 @@
 import { ItemReferenceLookupPort } from '../ports/item-reference-lookup.port';
 import { SupplierReferenceLookupPort } from '../ports/supplier-reference-lookup.port';
-import { OperatorSummary, PurchaseOrderChangeRecord, PurchaseOrderLineAllocationType, PurchaseOrderLineRecord, PurchaseOrderRecord, PurchaseOrderSupplierAcknowledgementRecord, PurchaseOrderSupplierSnapshotRecord, PurchaseRequestLineRecord, PurchaseRequestLineType } from '../../domain/models/procurement-records';
+import { OperatorSummary, PurchaseOrderChangeRecord, PurchaseOrderCommercialTermsSnapshotRecord, PurchaseOrderLineAllocationType, PurchaseOrderLineRecord, PurchaseOrderPaymentTermsSnapshotRecord, PurchaseOrderRecord, PurchaseOrderSupplierAcknowledgementRecord, PurchaseOrderSupplierSnapshotRecord, PurchaseRequestLineRecord, PurchaseRequestLineType } from '../../domain/models/procurement-records';
 import { PurchaseRequestRepository } from '../../domain/repositories/purchase-request.repository';
 export interface PurchaseRequestLineInputLike {
     lineType: string;
@@ -14,9 +14,11 @@ export interface PurchaseRequestLineInputLike {
 }
 export interface PurchaseOrderLineAllocationInputLike {
     allocationType: string;
-    referenceId?: string;
+    sourceReferenceId?: string;
     quantity: string;
     reason?: string;
+    targetWarehouseId?: string;
+    targetReceivingAddressId?: string;
 }
 export interface PurchaseOrderLineInputLike {
     purchaseOrderLineId?: string;
@@ -30,6 +32,16 @@ export interface PurchaseOrderLineInputLike {
     generalStockExcessReason?: string;
     allocations: PurchaseOrderLineAllocationInputLike[];
 }
+/** normalizePaymentTermsSnapshot keeps optional PO payment terms as a trimmed transaction snapshot only. */
+export declare function normalizePaymentTermsSnapshot(input?: {
+    paymentTermsCode?: string;
+    paymentTermsText?: string;
+}): PurchaseOrderPaymentTermsSnapshotRecord | null;
+/** normalizeCommercialTermsSnapshot keeps optional PO commercial terms as a trimmed transaction snapshot only. */
+export declare function normalizeCommercialTermsSnapshot(input?: {
+    incotermCode?: string;
+    commercialTermsText?: string;
+}): PurchaseOrderCommercialTermsSnapshotRecord | null;
 /** nowIso returns the current wall-clock ISO timestamp for phase 1 record mutations. */
 export declare function nowIso(): string;
 /** cloneOrderForMutation returns a writable deep copy of one PO aggregate. */
@@ -70,6 +82,7 @@ export declare function buildConvertedPurchaseOrderLines(input: {
     supplierId: string;
     purchaseRequestLines: PurchaseRequestLineRecord[];
     selections: Array<{
+        purchaseRequestId: string;
         purchaseRequestLineId: string;
         purchaseOrderQuantity: string;
         orderedUnitPrice?: string;

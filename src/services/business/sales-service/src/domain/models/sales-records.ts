@@ -1,3 +1,10 @@
+import {
+  ExceptionPlaceholder,
+  ExchangeRateSnapshot,
+  MoqSnapshot,
+  PriceSnapshot
+} from './pricing-records'
+
 export enum SalesQuoteStatus {
   DRAFT = 'DRAFT',
   PUBLISHED = 'PUBLISHED'
@@ -56,6 +63,10 @@ export interface PriceQuantityDeliverySnapshot {
   quantity: string
   deliveryTerm: string
   requestedDeliveryDate: string
+  priceSnapshot?: PriceSnapshot | null
+  moqSnapshot?: MoqSnapshot | null
+  exchangeRateSnapshot?: ExchangeRateSnapshot | null
+  exceptionPlaceholders?: ExceptionPlaceholder[]
 }
 
 export interface CustomerItemSnapshot {

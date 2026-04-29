@@ -1,4 +1,9 @@
 import { ForbiddenException } from '@nestjs/common'
+import {
+  PurchaseOrderLineAllocationType,
+  ReceivingDiscrepancyType,
+  ReceivingResolutionCode
+} from '@oes/common/generated/procurement_service'
 import { ProcurementService } from './procurement.service'
 
 const SAMPLE_PURCHASE_REQUEST = {
@@ -15,12 +20,14 @@ const SAMPLE_PURCHASE_REQUEST = {
   createdAt: '2026-04-28T08:00:00.000Z',
   lines: [
     {
+      conversionStatus: 'NOT_CONVERTED',
       demandReferenceId: '',
       demandReferenceType: '',
       description: 'Starter Item',
       itemCode: 'ITEM-001',
       itemId: 'item-1',
       itemName: 'Starter Item',
+      linkedPurchaseOrderLines: [],
       lineNo: 1,
       lineType: 'STANDARD_ITEM',
       neededByDate: '2026-05-01',
@@ -29,6 +36,7 @@ const SAMPLE_PURCHASE_REQUEST = {
       uom: 'PCS'
     }
   ],
+  linkedPurchaseOrders: [],
   purchaseRequestId: 'pr-1',
   reason: 'Need starter inventory',
   requestNo: 'PR-001',
@@ -54,7 +62,9 @@ const SAMPLE_PURCHASE_ORDER = {
           allocationType: 'GENERAL_STOCK',
           quantity: '10',
           reason: 'Starter stock',
-          referenceId: ''
+          referenceId: '',
+          targetReceivingAddressId: '',
+          targetWarehouseId: ''
         }
       ],
       description: 'Starter Item',
@@ -73,6 +83,7 @@ const SAMPLE_PURCHASE_ORDER = {
     }
   ],
   orderNo: 'PO-001',
+  paymentSummary: undefined,
   purchaseOrderId: 'po-1',
   sourcePurchaseRequestIds: ['pr-1'],
   status: 'DRAFT',
@@ -96,9 +107,10 @@ const SAMPLE_RECEIVING_EXPECTATION = {
   createdAt: '2026-04-28T09:00:00.000Z',
   discrepancy: {
     receivingDiscrepancyId: 'rd-1',
-    discrepancyType: 'SHORT_RECEIPT',
+    discrepancyType: 'SHORT_RECEIVED',
     resolutionCode: '',
     resolutionNote: '',
+    resolutionReferences: [],
     resolvedAt: '',
     status: 'OPEN',
     summary: 'received 8 of 10'
@@ -110,6 +122,7 @@ const SAMPLE_RECEIVING_EXPECTATION = {
   purchaseOrderLineId: 'po-line-1',
   receivedQuantitySummary: '8',
   receivingExpectationId: 're-1',
+  sourceAllocationIds: [],
   status: 'PARTIALLY_RECEIVED',
   supplierId: 'supplier-1',
   updatedAt: '2026-04-28T09:30:00.000Z'
@@ -181,7 +194,10 @@ describe('ProcurementService', () => {
           createdAt: SAMPLE_PURCHASE_REQUEST.createdAt,
           decidedAt: '',
           lineCount: 1,
+          linkedPurchaseOrders: [],
+          nextExpectedReceiptDate: '',
           purchaseRequestId: 'pr-1',
+          receivingStatusSummary: '',
           requestNo: 'PR-001',
           requestType: 'DEPARTMENTAL',
           requesterDisplayName: 'Requester One',
@@ -322,7 +338,9 @@ describe('ProcurementService', () => {
           purchaseOrderLineId: 'po-line-1',
           receivingExpectationId: 're-1',
           status: 'PARTIALLY_RECEIVED',
-          supplierId: 'supplier-1'
+          supplierId: 'supplier-1',
+          targetReceivingAddressId: '',
+          targetWarehouseId: ''
         }
       ],
       total: 1
@@ -362,7 +380,10 @@ describe('ProcurementService', () => {
           createdAt: SAMPLE_PURCHASE_REQUEST.createdAt,
           decidedAt: '',
           lineCount: 1,
+          linkedPurchaseOrders: [],
+          nextExpectedReceiptDate: '',
           purchaseRequestId: 'pr-1',
+          receivingStatusSummary: '',
           requestNo: 'PR-001',
           requestType: 'DEPARTMENTAL',
           requesterDisplayName: 'Requester One',
@@ -443,7 +464,9 @@ describe('ProcurementService', () => {
           purchaseOrderLineId: 'po-line-1',
           receivingExpectationId: 're-1',
           status: 'PARTIALLY_RECEIVED',
-          supplierId: 'supplier-1'
+          supplierId: 'supplier-1',
+          targetReceivingAddressId: '',
+          targetWarehouseId: ''
         }
       ],
       total: 1
@@ -468,6 +491,158 @@ describe('ProcurementService', () => {
         resolutionCode: 'WAIT_REDELIVERY',
         resolutionNote: 'supplier promised resend'
       }
+    })
+  })
+
+  it('maps the single-PR conversion route into generated sourceLines without widening the BFF surface', async () => {
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'TENANT', tid: 'tenant-1', typ: 'USER' }
+    }
+
+    procurementManagementAdapter.convertPurchaseRequestToPurchaseOrder.mockResolvedValue({
+      purchaseOrder: SAMPLE_PURCHASE_ORDER
+    })
+
+    await service.convertPurchaseRequestToPurchaseOrder(
+      'tenant-1',
+      'pr-1',
+      {
+        auditReason: 'convert to draft po',
+        currencyCode: 'USD',
+        selectedLines: [
+          {
+            generalStockExcessReason: 'safety stock top-up',
+            orderedUnitPrice: '12.50',
+            purchaseOrderQuantity: '10',
+            purchaseRequestLineId: 'pr-line-1'
+          }
+        ],
+        supplierId: 'supplier-1'
+      },
+      source as any
+    )
+
+    const [input, forwardedSource] =
+      procurementManagementAdapter.convertPurchaseRequestToPurchaseOrder.mock.calls[0]
+
+    expect(forwardedSource).toBe(source)
+    expect(input).toMatchObject({
+      auditReason: 'convert to draft po',
+      currencyCode: 'USD',
+      sourceLines: [
+        {
+          generalStockExcessReason: 'safety stock top-up',
+          orderedUnitPrice: '12.50',
+          purchaseOrderQuantity: '10',
+          purchaseRequestId: 'pr-1',
+          purchaseRequestLineId: 'pr-line-1'
+        }
+      ],
+      supplierId: 'supplier-1',
+      tenantId: 'tenant-1'
+    })
+    expect(input).not.toHaveProperty('purchaseRequestId')
+    expect(input).not.toHaveProperty('selectedLines')
+  })
+
+  it('maps generated allocation and receiving enums back into the gateway response shape', async () => {
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'TENANT', tid: 'tenant-1', typ: 'USER' }
+    }
+
+    procurementQueryAdapter.getPurchaseOrder.mockResolvedValue({
+      purchaseOrder: {
+        ...SAMPLE_PURCHASE_ORDER,
+        lines: [
+          {
+            ...SAMPLE_PURCHASE_ORDER.lines[0],
+            allocations: [
+              {
+                allocationSourceType:
+                  PurchaseOrderLineAllocationType.PURCHASE_ORDER_LINE_ALLOCATION_TYPE_PURCHASE_REQUEST_LINE,
+                quantity: '10',
+                reason: 'PR allocation',
+                sourceReferenceId: 'pr-line-1'
+              }
+            ]
+          }
+        ]
+      }
+    })
+    procurementQueryAdapter.getReceivingExpectation.mockResolvedValue({
+      receivingExpectation: {
+        ...SAMPLE_RECEIVING_EXPECTATION,
+        discrepancy: {
+          ...SAMPLE_RECEIVING_EXPECTATION.discrepancy,
+          discrepancyType: ReceivingDiscrepancyType.RECEIVING_DISCREPANCY_TYPE_WRONG_ITEM,
+          resolutionCode:
+            ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_CONTROLLED_CHANGE
+        }
+      }
+    })
+
+    await expect(service.getPurchaseOrder('tenant-1', 'po-1', source as any)).resolves.toMatchObject({
+      lines: [
+        {
+          allocations: [
+            {
+              allocationType: 'PURCHASE_REQUEST_LINE',
+              quantity: '10',
+              reason: 'PR allocation',
+              referenceId: 'pr-line-1'
+            }
+          ]
+        }
+      ]
+    })
+
+    await expect(
+      service.getReceivingExpectation('tenant-1', 're-1', source as any)
+    ).resolves.toMatchObject({
+      discrepancy: {
+        discrepancyType: 'WRONG_ITEM',
+        resolutionCode: 'ACCEPT_WITH_CONTROLLED_CHANGE'
+      }
+    })
+  })
+
+  it('maps new receiving resolution codes into the generated management enum', async () => {
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'TENANT', tid: 'tenant-1', typ: 'USER' }
+    }
+
+    procurementManagementAdapter.recordReceivingDiscrepancyResolution.mockResolvedValue({
+      receivingDiscrepancy: SAMPLE_RECEIVING_EXPECTATION.discrepancy,
+      receivingExpectation: SAMPLE_RECEIVING_EXPECTATION
+    })
+
+    await service.recordReceivingDiscrepancyResolution(
+      'tenant-1',
+      're-1',
+      'rd-1',
+      {
+        auditReason: 'resolve discrepancy',
+        resolutionCode: 'ACCEPT_WITH_PO_CHANGE',
+        resolutionNote: 'accepted with tracked PO change'
+      },
+      source as any
+    )
+
+    const [input] = procurementManagementAdapter.recordReceivingDiscrepancyResolution.mock.calls[0]
+
+    expect(input).toMatchObject({
+      auditReason: 'resolve discrepancy',
+      receivingDiscrepancyId: 'rd-1',
+      receivingExpectationId: 're-1',
+      resolutionCode: ReceivingResolutionCode.RECEIVING_RESOLUTION_CODE_ACCEPT_WITH_PO_CHANGE,
+      resolutionNote: 'accepted with tracked PO change',
+      tenantId: 'tenant-1'
     })
   })
 })

@@ -25,9 +25,11 @@ export class ApplyPurchaseOrderChangeCommand {
         generalStockExcessReason?: string
         allocations: Array<{
           allocationType: string
-          referenceId?: string
+          sourceReferenceId?: string
           quantity: string
           reason?: string
+          targetWarehouseId?: string
+          targetReceivingAddressId?: string
         }>
       }>
       supplierAcknowledgement?: {

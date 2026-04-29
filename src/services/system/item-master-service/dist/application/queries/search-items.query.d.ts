@@ -8,6 +8,8 @@ export declare class SearchItemsQuery {
         natureType?: number;
         capabilityFilters?: Partial<ItemCapabilitiesProps>;
         status?: number;
+        categoryId?: string;
+        includeDescendants?: boolean;
         page?: number;
         pageSize?: number;
     };
@@ -17,6 +19,8 @@ export declare class SearchItemsQuery {
     readonly natureType?: number;
     readonly capabilityFilters?: Partial<ItemCapabilitiesProps>;
     readonly status?: number;
+    readonly categoryId?: string;
+    readonly includeDescendants?: boolean;
     readonly page?: number;
     readonly pageSize?: number;
     constructor(input: {
@@ -26,6 +30,8 @@ export declare class SearchItemsQuery {
         natureType?: number;
         capabilityFilters?: Partial<ItemCapabilitiesProps>;
         status?: number;
+        categoryId?: string;
+        includeDescendants?: boolean;
         page?: number;
         pageSize?: number;
     });

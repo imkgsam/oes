@@ -143,7 +143,10 @@ exports.Prisma.PurchaseRequestScalarFieldEnum = {
   updatedAt: 'updatedAt',
   submittedAt: 'submittedAt',
   decidedAt: 'decidedAt',
-  cancelledAt: 'cancelledAt'
+  cancelledAt: 'cancelledAt',
+  linkedPurchaseOrders: 'linkedPurchaseOrders',
+  nextExpectedReceiptDate: 'nextExpectedReceiptDate',
+  receivingStatusSummary: 'receivingStatusSummary'
 };
 
 exports.Prisma.PurchaseRequestLineScalarFieldEnum = {
@@ -160,7 +163,9 @@ exports.Prisma.PurchaseRequestLineScalarFieldEnum = {
   uom: 'uom',
   neededByDate: 'neededByDate',
   demandReferenceType: 'demandReferenceType',
-  demandReferenceId: 'demandReferenceId'
+  demandReferenceId: 'demandReferenceId',
+  conversionStatus: 'conversionStatus',
+  linkedPurchaseOrderLines: 'linkedPurchaseOrderLines'
 };
 
 exports.Prisma.PurchaseRequestApprovalSnapshotScalarFieldEnum = {
@@ -185,6 +190,16 @@ exports.Prisma.PurchaseOrderScalarFieldEnum = {
   supplierId: 'supplierId',
   supplierDisplayName: 'supplierDisplayName',
   supplierStatusAtIssue: 'supplierStatusAtIssue',
+  paymentTermsCode: 'paymentTermsCode',
+  paymentTermsText: 'paymentTermsText',
+  incotermCode: 'incotermCode',
+  commercialTermsText: 'commercialTermsText',
+  paymentStatusSummary: 'paymentStatusSummary',
+  depositPaidAmount: 'depositPaidAmount',
+  balancePaidAmount: 'balancePaidAmount',
+  paymentSummaryCurrencyCode: 'paymentSummaryCurrencyCode',
+  attachmentRefs: 'attachmentRefs',
+  lastPaymentAt: 'lastPaymentAt',
   sourcePurchaseRequestIds: 'sourcePurchaseRequestIds',
   sourcePurchaseRequestNos: 'sourcePurchaseRequestNos',
   acknowledgementStatus: 'acknowledgementStatus',
@@ -223,9 +238,11 @@ exports.Prisma.PurchaseOrderLineAllocationScalarFieldEnum = {
   tenantId: 'tenantId',
   purchaseOrderLineId: 'purchaseOrderLineId',
   allocationType: 'allocationType',
-  referenceId: 'referenceId',
+  sourceReferenceId: 'sourceReferenceId',
   quantity: 'quantity',
-  reason: 'reason'
+  reason: 'reason',
+  targetWarehouseId: 'targetWarehouseId',
+  targetReceivingAddressId: 'targetReceivingAddressId'
 };
 
 exports.Prisma.PurchaseOrderChangeScalarFieldEnum = {
@@ -249,6 +266,10 @@ exports.Prisma.ReceivingExpectationScalarFieldEnum = {
   purchaseOrderId: 'purchaseOrderId',
   purchaseOrderLineId: 'purchaseOrderLineId',
   supplierId: 'supplierId',
+  allocationGroupingKey: 'allocationGroupingKey',
+  sourceAllocationIds: 'sourceAllocationIds',
+  targetWarehouseId: 'targetWarehouseId',
+  targetReceivingAddressId: 'targetReceivingAddressId',
   expectedQuantity: 'expectedQuantity',
   receivedQuantitySummary: 'receivedQuantitySummary',
   openQuantity: 'openQuantity',
@@ -267,6 +288,7 @@ exports.Prisma.ReceivingDiscrepancyScalarFieldEnum = {
   status: 'status',
   resolutionCode: 'resolutionCode',
   resolutionNote: 'resolutionNote',
+  resolutionReferences: 'resolutionReferences',
   resolvedAt: 'resolvedAt'
 };
 
@@ -302,15 +324,15 @@ exports.Prisma.QueryMode = {
   insensitive: 'insensitive'
 };
 
-exports.Prisma.NullsOrder = {
-  first: 'first',
-  last: 'last'
-};
-
 exports.Prisma.JsonNullValueFilter = {
   DbNull: Prisma.DbNull,
   JsonNull: Prisma.JsonNull,
   AnyNull: Prisma.AnyNull
+};
+
+exports.Prisma.NullsOrder = {
+  first: 'first',
+  last: 'last'
 };
 exports.ProcurementPurchaseRequestType = exports.$Enums.ProcurementPurchaseRequestType = {
   DEPARTMENTAL: 'DEPARTMENTAL',
@@ -324,6 +346,8 @@ exports.ProcurementPurchaseRequestStatus = exports.$Enums.ProcurementPurchaseReq
   DRAFT: 'DRAFT',
   SUBMITTED: 'SUBMITTED',
   APPROVED: 'APPROVED',
+  PARTIALLY_CONVERTED: 'PARTIALLY_CONVERTED',
+  CONVERTED: 'CONVERTED',
   REJECTED: 'REJECTED',
   CANCELLED: 'CANCELLED'
 };
@@ -331,6 +355,12 @@ exports.ProcurementPurchaseRequestStatus = exports.$Enums.ProcurementPurchaseReq
 exports.ProcurementPurchaseRequestLineType = exports.$Enums.ProcurementPurchaseRequestLineType = {
   STANDARD_ITEM: 'STANDARD_ITEM',
   TEXT: 'TEXT'
+};
+
+exports.ProcurementPurchaseRequestLineConversionStatus = exports.$Enums.ProcurementPurchaseRequestLineConversionStatus = {
+  NOT_CONVERTED: 'NOT_CONVERTED',
+  PARTIALLY_CONVERTED: 'PARTIALLY_CONVERTED',
+  CONVERTED: 'CONVERTED'
 };
 
 exports.ProcurementPurchaseRequestDecision = exports.$Enums.ProcurementPurchaseRequestDecision = {
@@ -351,6 +381,7 @@ exports.ProcurementSupplierAcknowledgementStatus = exports.$Enums.ProcurementSup
 };
 
 exports.ProcurementPurchaseOrderLineAllocationType = exports.$Enums.ProcurementPurchaseOrderLineAllocationType = {
+  PURCHASE_REQUEST_LINE: 'PURCHASE_REQUEST_LINE',
   SALES_ORDER_LINE: 'SALES_ORDER_LINE',
   FULFILLMENT_DEMAND: 'FULFILLMENT_DEMAND',
   GENERAL_STOCK: 'GENERAL_STOCK'
@@ -368,11 +399,11 @@ exports.ProcurementReceivingExpectationStatus = exports.$Enums.ProcurementReceiv
 };
 
 exports.ProcurementReceivingDiscrepancyType = exports.$Enums.ProcurementReceivingDiscrepancyType = {
-  SHORT_RECEIPT: 'SHORT_RECEIPT',
-  OVER_RECEIPT: 'OVER_RECEIPT',
+  SHORT_RECEIVED: 'SHORT_RECEIVED',
+  OVER_RECEIVED: 'OVER_RECEIVED',
   DAMAGED: 'DAMAGED',
-  RESTRICTED: 'RESTRICTED',
-  OTHER: 'OTHER'
+  WRONG_ITEM: 'WRONG_ITEM',
+  QUALITY_HOLD: 'QUALITY_HOLD'
 };
 
 exports.ProcurementReceivingDiscrepancyStatus = exports.$Enums.ProcurementReceivingDiscrepancyStatus = {
@@ -382,9 +413,20 @@ exports.ProcurementReceivingDiscrepancyStatus = exports.$Enums.ProcurementReceiv
 
 exports.ProcurementReceivingResolutionCode = exports.$Enums.ProcurementReceivingResolutionCode = {
   WAIT_REDELIVERY: 'WAIT_REDELIVERY',
-  ACCEPT_SHORT_CLOSE: 'ACCEPT_SHORT_CLOSE',
-  RETURN_OR_REJECT_EXCESS: 'RETURN_OR_REJECT_EXCESS',
-  MANUAL_FOLLOW_UP: 'MANUAL_FOLLOW_UP'
+  CLOSE_UNRECEIVED: 'CLOSE_UNRECEIVED',
+  REQUEST_RESEND: 'REQUEST_RESEND',
+  ACCEPT_WITH_PO_CHANGE: 'ACCEPT_WITH_PO_CHANGE',
+  REJECT_EXCESS: 'REJECT_EXCESS',
+  TEMP_HOLD: 'TEMP_HOLD',
+  REJECT_DAMAGED: 'REJECT_DAMAGED',
+  RECEIVE_WITH_RESTRICTION: 'RECEIVE_WITH_RESTRICTION',
+  CLAIM: 'CLAIM',
+  REJECT_WRONG_ITEM: 'REJECT_WRONG_ITEM',
+  TEMP_RECEIVE_PENDING_DECISION: 'TEMP_RECEIVE_PENDING_DECISION',
+  ACCEPT_WITH_CONTROLLED_CHANGE: 'ACCEPT_WITH_CONTROLLED_CHANGE',
+  WAIT_INSPECTION: 'WAIT_INSPECTION',
+  ACCEPT_WITH_ALLOWANCE: 'ACCEPT_WITH_ALLOWANCE',
+  RETURN_TO_SUPPLIER: 'RETURN_TO_SUPPLIER'
 };
 
 exports.Prisma.ModelName = {

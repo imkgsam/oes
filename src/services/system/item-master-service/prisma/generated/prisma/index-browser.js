@@ -125,10 +125,22 @@ exports.Prisma.ItemScalarFieldEnum = {
   structureType: 'structureType',
   natureType: 'natureType',
   status: 'status',
+  primaryCategoryId: 'primaryCategoryId',
   sellable: 'sellable',
   purchasable: 'purchasable',
   stockable: 'stockable',
   manufacturable: 'manufacturable',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.ItemCategoryScalarFieldEnum = {
+  id: 'id',
+  tenantId: 'tenantId',
+  categoryCode: 'categoryCode',
+  categoryName: 'categoryName',
+  parentCategoryId: 'parentCategoryId',
+  status: 'status',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -213,8 +225,14 @@ exports.ItemStatus = exports.$Enums.ItemStatus = {
   INACTIVE: 'INACTIVE'
 };
 
+exports.ItemCategoryStatus = exports.$Enums.ItemCategoryStatus = {
+  ACTIVE: 'ACTIVE',
+  INACTIVE: 'INACTIVE'
+};
+
 exports.Prisma.ModelName = {
   Item: 'Item',
+  ItemCategory: 'ItemCategory',
   ItemComposition: 'ItemComposition',
   SupplierItemMapping: 'SupplierItemMapping',
   AuditEvent: 'AuditEvent'

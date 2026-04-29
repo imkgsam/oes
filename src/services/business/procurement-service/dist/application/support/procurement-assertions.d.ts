@@ -37,7 +37,7 @@ export declare function sumQuantities(values: string[]): string;
 export declare function compareQuantity(left: string, right: string): number;
 /** subtractQuantity subtracts right from left and returns the normalized non-negative result string. */
 export declare function subtractQuantity(left: string, right: string): string;
-/** inferAllocationType converts frozen PR demand-reference types into the supported allocation enum set. */
+/** inferAllocationType converts frozen upstream demand-reference types into the supported allocation enum set. */
 export declare function inferAllocationType(value?: string | null): PurchaseOrderLineAllocationType;
 /** assertExists rejects missing aggregates or reference data with the frozen NOT_FOUND semantics. */
 export declare function assertExists<T>(value: T | null | undefined, resource: string, identifier?: string): T;

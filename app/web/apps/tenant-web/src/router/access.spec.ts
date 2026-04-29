@@ -174,6 +174,29 @@ describe('router access visible-entry filtering', () => {
     expect(filtered).toEqual(routes);
   });
 
+  it('keeps the finance parent when the finance dashboard entry is visible', async () => {
+    const { filterRoutesByVisibleEntries } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'finance.dashboard',
+            },
+            name: 'TenantFinanceDashboard',
+            path: '/finance/dashboard',
+          },
+        ],
+        name: 'TenantFinance',
+        path: '/finance',
+      },
+    ];
+
+    const filtered = filterRoutesByVisibleEntries(routes, ['finance.dashboard']);
+
+    expect(filtered).toEqual(routes);
+  });
+
   it('keeps the tenant settings parent when login mfa is the only visible settings child', async () => {
     const { filterRoutesByVisibleEntries } = await import('./access');
     const routes = [

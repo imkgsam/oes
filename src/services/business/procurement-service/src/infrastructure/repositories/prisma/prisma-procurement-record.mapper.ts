@@ -4,6 +4,7 @@ import {
   ProcurementPurchaseOrderLineAllocationType as PrismaPurchaseOrderLineAllocationType,
   ProcurementPurchaseOrderStatus as PrismaPurchaseOrderStatus,
   ProcurementPurchaseRequestDecision as PrismaPurchaseRequestDecision,
+  ProcurementPurchaseRequestLineConversionStatus as PrismaPurchaseRequestLineConversionStatus,
   ProcurementPurchaseRequestLineType as PrismaPurchaseRequestLineType,
   ProcurementPurchaseRequestStatus as PrismaPurchaseRequestStatus,
   ProcurementPurchaseRequestType as PrismaPurchaseRequestType,
@@ -24,6 +25,7 @@ import {
   PurchaseOrderSupplierAcknowledgementStatus,
   PurchaseRequestDecision,
   PurchaseRequestLineRecord,
+  PurchaseRequestLineConversionStatus,
   PurchaseRequestLineType,
   PurchaseRequestRecord,
   PurchaseRequestStatus,
@@ -116,6 +118,9 @@ export class PrismaProcurementRecordMapper {
       submittedAt: row.submittedAt?.toISOString() ?? null,
       decidedAt: row.decidedAt?.toISOString() ?? null,
       cancelledAt: row.cancelledAt?.toISOString() ?? null,
+      linkedPurchaseOrders: this.fromJson(row.linkedPurchaseOrders),
+      nextExpectedReceiptDate: row.nextExpectedReceiptDate,
+      receivingStatusSummary: row.receivingStatusSummary,
       approvalSnapshot: row.approvalSnapshot
         ? {
             purchaseRequestApprovalSnapshotId: row.approvalSnapshot.id,
@@ -148,6 +153,31 @@ export class PrismaProcurementRecordMapper {
         supplierDisplayName: row.supplierDisplayName,
         supplierStatusAtIssue: row.supplierStatusAtIssue
       },
+      paymentTermsSnapshot:
+        row.paymentTermsCode || row.paymentTermsText
+          ? {
+              paymentTermsCode: row.paymentTermsCode,
+              paymentTermsText: row.paymentTermsText
+            }
+          : null,
+      supplierCommercialTermsSnapshot:
+        row.incotermCode || row.commercialTermsText
+          ? {
+              incotermCode: row.incotermCode,
+              commercialTermsText: row.commercialTermsText
+            }
+          : null,
+      paymentSummary:
+        row.paymentStatusSummary && row.paymentSummaryCurrencyCode
+          ? {
+              paymentStatusSummary: row.paymentStatusSummary,
+              depositPaidAmount: row.depositPaidAmount,
+              balancePaidAmount: row.balancePaidAmount,
+              currencyCode: row.paymentSummaryCurrencyCode,
+              attachmentRefs: this.fromJson<string[]>(row.attachmentRefs),
+              lastPaymentAt: row.lastPaymentAt?.toISOString() ?? null
+            }
+          : null,
       sourcePurchaseRequestIds: this.fromJson<string[]>(row.sourcePurchaseRequestIds),
       sourcePurchaseRequestNos: this.fromJson<string[]>(row.sourcePurchaseRequestNos),
       supplierAcknowledgement: {
@@ -176,6 +206,10 @@ export class PrismaProcurementRecordMapper {
       purchaseOrderId: row.purchaseOrderId,
       purchaseOrderLineId: row.purchaseOrderLineId,
       supplierId: row.supplierId,
+      allocationGroupingKey: row.allocationGroupingKey,
+      sourceAllocationIds: this.fromJson<string[]>(row.sourceAllocationIds),
+      targetWarehouseId: row.targetWarehouseId,
+      targetReceivingAddressId: row.targetReceivingAddressId,
       expectedQuantity: row.expectedQuantity,
       receivedQuantitySummary: row.receivedQuantitySummary,
       openQuantity: row.openQuantity,
@@ -205,6 +239,13 @@ export class PrismaProcurementRecordMapper {
   /** toPersistedPurchaseRequestLineType converts the domain enum into the Prisma enum value. */
   static toPersistedPurchaseRequestLineType(value: PurchaseRequestLineType): PrismaPurchaseRequestLineType {
     return value as unknown as PrismaPurchaseRequestLineType
+  }
+
+  /** toPersistedPurchaseRequestLineConversionStatus converts the domain enum into the Prisma enum value. */
+  static toPersistedPurchaseRequestLineConversionStatus(
+    value: PurchaseRequestLineConversionStatus
+  ): PrismaPurchaseRequestLineConversionStatus {
+    return value as unknown as PrismaPurchaseRequestLineConversionStatus
   }
 
   /** toPersistedPurchaseRequestDecision converts the domain enum into the Prisma enum value. */
@@ -284,7 +325,9 @@ export class PrismaProcurementRecordMapper {
       uom: row.uom,
       neededByDate: row.neededByDate,
       demandReferenceType: row.demandReferenceType,
-      demandReferenceId: row.demandReferenceId
+      demandReferenceId: row.demandReferenceId,
+      conversionStatus: this.toDomainPurchaseRequestLineConversionStatus(row.conversionStatus),
+      linkedPurchaseOrderLines: this.fromJson(row.linkedPurchaseOrderLines)
     }
   }
 
@@ -314,9 +357,11 @@ export class PrismaProcurementRecordMapper {
     return {
       purchaseOrderLineAllocationId: row.id,
       allocationType: this.toDomainPurchaseOrderAllocationType(row.allocationType),
-      referenceId: row.referenceId,
+      sourceReferenceId: row.sourceReferenceId,
       quantity: row.quantity,
-      reason: row.reason
+      reason: row.reason,
+      targetWarehouseId: row.targetWarehouseId,
+      targetReceivingAddressId: row.targetReceivingAddressId
     }
   }
 
@@ -348,6 +393,7 @@ export class PrismaProcurementRecordMapper {
       status: this.toDomainReceivingDiscrepancyStatus(row.status),
       resolutionCode: row.resolutionCode ? this.toDomainReceivingResolutionCode(row.resolutionCode) : null,
       resolutionNote: row.resolutionNote,
+      resolutionReferences: this.fromJson(row.resolutionReferences),
       resolvedAt: row.resolvedAt?.toISOString() ?? null
     }
   }
@@ -362,6 +408,12 @@ export class PrismaProcurementRecordMapper {
 
   private static toDomainPurchaseRequestLineType(value: PrismaPurchaseRequestLineType): PurchaseRequestLineType {
     return value as unknown as PurchaseRequestLineType
+  }
+
+  private static toDomainPurchaseRequestLineConversionStatus(
+    value: PrismaPurchaseRequestLineConversionStatus
+  ): PurchaseRequestLineConversionStatus {
+    return value as unknown as PurchaseRequestLineConversionStatus
   }
 
   private static toDomainPurchaseRequestDecision(value: PrismaPurchaseRequestDecision): PurchaseRequestDecision {

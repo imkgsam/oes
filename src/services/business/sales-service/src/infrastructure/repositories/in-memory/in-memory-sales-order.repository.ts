@@ -30,6 +30,30 @@ export class InMemorySalesOrderRepository implements SalesOrderRepository {
     return order ? cloneRecord(order) : null
   }
 
+  async findLineById(
+    tenantId: string,
+    salesOrderLineId: string
+  ): Promise<{ order: SalesOrderRecord; line: SalesOrderRecord['lines'][number] } | null> {
+    const order = [...this.store.salesOrders.values()].find(
+      (candidate) =>
+        candidate.tenantId === tenantId &&
+        candidate.lines.some((line) => line.salesOrderLineId === salesOrderLineId)
+    )
+    if (!order) {
+      return null
+    }
+
+    const line = order.lines.find((candidate) => candidate.salesOrderLineId === salesOrderLineId)
+    if (!line) {
+      return null
+    }
+
+    return {
+      order: cloneRecord(order),
+      line: cloneRecord(line)
+    }
+  }
+
   async save(order: SalesOrderRecord): Promise<SalesOrderRecord> {
     const stored = cloneRecord(order)
     this.store.salesOrders.set(stored.id, stored)

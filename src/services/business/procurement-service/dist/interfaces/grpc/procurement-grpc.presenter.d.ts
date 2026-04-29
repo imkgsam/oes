@@ -71,13 +71,18 @@ export declare class ProcurementGrpcPresenter {
     private static toPurchaseRequestSummary;
     private static toPurchaseRequestApprovalSnapshot;
     private static toPurchaseRequestLine;
+    private static toPurchaseRequestPurchaseOrderLink;
     private static toPurchaseOrder;
     private static toPurchaseOrderSummary;
     private static toPurchaseOrderLine;
     private static toPurchaseOrderLineAllocation;
+    private static toPurchaseOrderPaymentTermsSnapshot;
+    private static toPurchaseOrderCommercialTermsSnapshot;
+    private static toPurchaseOrderPaymentSummary;
     private static toPurchaseOrderSupplierAcknowledgement;
     private static toPurchaseOrderChange;
     private static toReceivingExpectation;
     private static toReceivingExpectationSummary;
     private static toReceivingDiscrepancy;
+    private static toReceivingResolutionReference;
 }

@@ -210,6 +210,29 @@ describe('tenant admin routes', () => {
     )
   })
 
+  it('adds the finance workspace with dedicated account and receivable detail routes', () => {
+    const financeRoute = tenantAdminRoutes.find((route) => route.name === 'TenantFinance')
+    const workspaceRoute = financeRoute?.children?.find(
+      (route) => route.name === 'TenantFinanceDashboard'
+    )
+    const accountDetailRoute = financeRoute?.children?.find(
+      (route) => route.name === 'TenantFinancialAccountDetail'
+    )
+    const receivableDetailRoute = financeRoute?.children?.find(
+      (route) => route.name === 'TenantReceivableScheduleDetail'
+    )
+
+    expect(financeRoute?.meta?.title).toBe('财务管理')
+    expect(workspaceRoute?.path).toBe('/finance/dashboard')
+    expect(workspaceRoute?.meta?.entryKey).toBe('finance.dashboard')
+    expect(accountDetailRoute?.meta?.entryKey).toBe('finance.dashboard')
+    expect(accountDetailRoute?.meta?.hideInMenu).toBe(true)
+    expect(accountDetailRoute?.meta?.activePath).toBe('/finance/dashboard')
+    expect(receivableDetailRoute?.meta?.entryKey).toBe('finance.dashboard')
+    expect(receivableDetailRoute?.meta?.hideInMenu).toBe(true)
+    expect(receivableDetailRoute?.meta?.activePath).toBe('/finance/dashboard')
+  })
+
   it('redirects legacy employee and org settings routes into the unified workbench tabs', () => {
     const settingsRoute = tenantAdminRoutes.find((route) => route.name === 'TenantSettings')
     const legacyEmployeeRoute = settingsRoute?.children?.find(

@@ -202,6 +202,16 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     entryType: 'page'
   },
   {
+    entryKey: 'finance.dashboard',
+    name: '财务管理',
+    description: '租户侧 finance phase 1A 资金账户、应收、汇率与收款核销最小入口。',
+    featureKey: 'finance',
+    supportedTerminals: ['WEB'],
+    registryPriority: 50,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
     entryKey: 'admin.platform-mfa',
     name: '平台 MFA 配置',
     description: '系统账号 MFA 场景、因子优先级与新设备登录保护配置入口。',
@@ -331,6 +341,12 @@ export function buildNavigationFoundationVisibilitySeeds(
         rows.push({
           roleId: role.id,
           entryKey: 'procurement.management',
+          terminal: DEFAULT_NAVIGATION_TERMINAL,
+          enabled: true
+        })
+        rows.push({
+          roleId: role.id,
+          entryKey: 'finance.dashboard',
           terminal: DEFAULT_NAVIGATION_TERMINAL,
           enabled: true
         })

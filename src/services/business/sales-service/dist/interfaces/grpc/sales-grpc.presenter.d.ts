@@ -46,6 +46,14 @@ export declare class SalesGrpcPresenter {
     private static toPriceQuantityDeliverySnapshot;
     /** toCustomerItemSnapshot renders one customer-facing sku, model, and display summary snapshot. */
     private static toCustomerItemSnapshot;
+    /** toPriceSnapshot renders one resolved pricing baseline snapshot. */
+    private static toPriceSnapshot;
+    /** toMoqSnapshot renders one resolved MOQ baseline snapshot. */
+    private static toMoqSnapshot;
+    /** toExchangeRateSnapshot renders one finance-owned FX snapshot as frozen on the sales side. */
+    private static toExchangeRateSnapshot;
+    /** toExceptionPlaceholder renders a pricing exception placeholder without implying workflow implementation. */
+    private static toExceptionPlaceholder;
     /** toHandoffSummary renders the frozen sales-side handoff summary without implying physical release. */
     private static toHandoffSummary;
 }

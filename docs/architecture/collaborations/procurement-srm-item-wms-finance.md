@@ -64,25 +64,47 @@
 - `PurchaseRequest` 表达采购需求成立与归因。
 - `PurchaseRequestApprovalSnapshot` 只表达采购侧冻结的审批结论快照与审计引用，不代表 phase 1 已引入完整 workflow engine。
 - `PurchaseOrder` 表达正式采购承诺。
+- 当多个 `PR` 合并生成同一个 `PO` 时：
+  - 不创建新的 `PR`
+  - 不删除旧的 `PR / PR line`
+  - 源 `PR / PR line` 保留，并进入 `PARTIALLY_CONVERTED / CONVERTED`
 - `PurchaseOrderLineAllocation` 必须支持把同一行数量拆分为：
-  - dedicated to `SalesOrderLine` / `FulfillmentDemand`
+  - source = `PurchaseRequestLine`
+  - source = `SalesOrderLine`
+  - source = `FulfillmentDemand`
   - general stock
+- `PR` 发起人应能通过 Procurement query 看到：
+  - 已并入哪个 `PO`
+  - 当前预计到货
+  - 当前到货状态摘要
+- `PurchaseOrder` header 可保留 `payment_terms_snapshot` 与 supplier commercial terms snapshot，但它们只属于本次采购交易快照。
 - `PurchaseOrderChange` 在 phase 1 只要求记录已应用变更事实；后续再升级为变更申请 / 审批 / 供应商确认闭环。
 
 ### 4.5 Procurement 与 WMS 边界
 
 - `ReceivingExpectation` 是采购侧预期，不是 `WMS receipt` truth。
 - `wms-service` 才是实际收货、上架、库存、破损 / 受限库存的唯一真相 owner。
+- 当同一 `PO line` 的 allocation 指向不同目标仓 / 收货地址 / allocation grouping 时，Procurement 必须拆分多个 `ReceivingExpectation`。
 - Procurement 可以参考 Odoo 风格“先有预期收货，再根据差异处理”，但 OES 必须显式拥有：
   - `ReceivingDiscrepancy`
   - resolution options
 - `ReceivingDiscrepancy` 表达的是采购侧“预期与实收不一致”的差异摘要，不替代 `WMS` 的仓储动作真相。
-- 差异处理不能被简化成“自动补单”单一路径；short / over / damaged / restricted 等差异都应能进入受控处理决策。
+- 差异处理不能被简化成“自动补单”单一路径；至少必须覆盖：
+  - `SHORT_RECEIVED`
+  - `OVER_RECEIVED`
+  - `DAMAGED`
+  - `WRONG_ITEM`
+  - `QUALITY_HOLD`
+- `ReceivingDiscrepancy resolution` 只记录采购侧处置选择与引用，不直接修改库存真相。
+- 若要关闭剩余未收数量，必须通过 `PurchaseOrderChange` 留痕，而不是由 discrepancy resolution 隐式修改 open quantity。
+- phase 1 的 return / claim 只保留 resolution 类型与引用，不展开完整 `SupplierReturn / claim workflow`。
 
 ### 4.6 Procurement 与 Finance 边界
 
 - `finance-service` 继续 owns `AP / supplier invoice / payment / allocation`。
 - Procurement 不维护付款真相，也不承担 supplier invoice owner。
+- Finance 已支付定金 / 尾款后，Procurement 只消费 payment summary 与 attachment refs。
+- 付款凭证由 Finance 通过 `asset-service attachmentRef` 管理，Procurement 只展示摘要与引用。
 - phase 1 只要求 Procurement 发布稳定的采购订单、收货预期、收货差异与交易事实口径，为 future `AP` matching / invoice checking 预留输入。
 - 历史采购价格第一阶段归 Procurement 交易事实；future `Costing / BI` 只消费分析，不拥有原始采购交易事实。
 
@@ -129,6 +151,8 @@
 - 自动补货
 - 采购变更申请 / 审批 / 供应商确认完整闭环
 - `AP / supplier invoice / payment / allocation` 的正式采购财务协同 contract
+- 完整付款凭证管理
+- 完整 `SupplierReturn / claim workflow`
 - 完整事件目录、payload 与 proto 契约
 - 完整 workflow / process manager 编排
 

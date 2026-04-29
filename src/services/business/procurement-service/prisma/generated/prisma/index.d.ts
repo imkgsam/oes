@@ -88,6 +88,8 @@ export const ProcurementPurchaseRequestStatus: {
   DRAFT: 'DRAFT',
   SUBMITTED: 'SUBMITTED',
   APPROVED: 'APPROVED',
+  PARTIALLY_CONVERTED: 'PARTIALLY_CONVERTED',
+  CONVERTED: 'CONVERTED',
   REJECTED: 'REJECTED',
   CANCELLED: 'CANCELLED'
 };
@@ -101,6 +103,15 @@ export const ProcurementPurchaseRequestLineType: {
 };
 
 export type ProcurementPurchaseRequestLineType = (typeof ProcurementPurchaseRequestLineType)[keyof typeof ProcurementPurchaseRequestLineType]
+
+
+export const ProcurementPurchaseRequestLineConversionStatus: {
+  NOT_CONVERTED: 'NOT_CONVERTED',
+  PARTIALLY_CONVERTED: 'PARTIALLY_CONVERTED',
+  CONVERTED: 'CONVERTED'
+};
+
+export type ProcurementPurchaseRequestLineConversionStatus = (typeof ProcurementPurchaseRequestLineConversionStatus)[keyof typeof ProcurementPurchaseRequestLineConversionStatus]
 
 
 export const ProcurementPurchaseRequestDecision: {
@@ -122,6 +133,7 @@ export type ProcurementPurchaseOrderStatus = (typeof ProcurementPurchaseOrderSta
 
 
 export const ProcurementPurchaseOrderLineAllocationType: {
+  PURCHASE_REQUEST_LINE: 'PURCHASE_REQUEST_LINE',
   SALES_ORDER_LINE: 'SALES_ORDER_LINE',
   FULFILLMENT_DEMAND: 'FULFILLMENT_DEMAND',
   GENERAL_STOCK: 'GENERAL_STOCK'
@@ -156,11 +168,11 @@ export type ProcurementReceivingExpectationStatus = (typeof ProcurementReceiving
 
 
 export const ProcurementReceivingDiscrepancyType: {
-  SHORT_RECEIPT: 'SHORT_RECEIPT',
-  OVER_RECEIPT: 'OVER_RECEIPT',
+  SHORT_RECEIVED: 'SHORT_RECEIVED',
+  OVER_RECEIVED: 'OVER_RECEIVED',
   DAMAGED: 'DAMAGED',
-  RESTRICTED: 'RESTRICTED',
-  OTHER: 'OTHER'
+  WRONG_ITEM: 'WRONG_ITEM',
+  QUALITY_HOLD: 'QUALITY_HOLD'
 };
 
 export type ProcurementReceivingDiscrepancyType = (typeof ProcurementReceivingDiscrepancyType)[keyof typeof ProcurementReceivingDiscrepancyType]
@@ -176,9 +188,20 @@ export type ProcurementReceivingDiscrepancyStatus = (typeof ProcurementReceiving
 
 export const ProcurementReceivingResolutionCode: {
   WAIT_REDELIVERY: 'WAIT_REDELIVERY',
-  ACCEPT_SHORT_CLOSE: 'ACCEPT_SHORT_CLOSE',
-  RETURN_OR_REJECT_EXCESS: 'RETURN_OR_REJECT_EXCESS',
-  MANUAL_FOLLOW_UP: 'MANUAL_FOLLOW_UP'
+  CLOSE_UNRECEIVED: 'CLOSE_UNRECEIVED',
+  REQUEST_RESEND: 'REQUEST_RESEND',
+  ACCEPT_WITH_PO_CHANGE: 'ACCEPT_WITH_PO_CHANGE',
+  REJECT_EXCESS: 'REJECT_EXCESS',
+  TEMP_HOLD: 'TEMP_HOLD',
+  REJECT_DAMAGED: 'REJECT_DAMAGED',
+  RECEIVE_WITH_RESTRICTION: 'RECEIVE_WITH_RESTRICTION',
+  CLAIM: 'CLAIM',
+  REJECT_WRONG_ITEM: 'REJECT_WRONG_ITEM',
+  TEMP_RECEIVE_PENDING_DECISION: 'TEMP_RECEIVE_PENDING_DECISION',
+  ACCEPT_WITH_CONTROLLED_CHANGE: 'ACCEPT_WITH_CONTROLLED_CHANGE',
+  WAIT_INSPECTION: 'WAIT_INSPECTION',
+  ACCEPT_WITH_ALLOWANCE: 'ACCEPT_WITH_ALLOWANCE',
+  RETURN_TO_SUPPLIER: 'RETURN_TO_SUPPLIER'
 };
 
 export type ProcurementReceivingResolutionCode = (typeof ProcurementReceivingResolutionCode)[keyof typeof ProcurementReceivingResolutionCode]
@@ -196,6 +219,10 @@ export const ProcurementPurchaseRequestStatus: typeof $Enums.ProcurementPurchase
 export type ProcurementPurchaseRequestLineType = $Enums.ProcurementPurchaseRequestLineType
 
 export const ProcurementPurchaseRequestLineType: typeof $Enums.ProcurementPurchaseRequestLineType
+
+export type ProcurementPurchaseRequestLineConversionStatus = $Enums.ProcurementPurchaseRequestLineConversionStatus
+
+export const ProcurementPurchaseRequestLineConversionStatus: typeof $Enums.ProcurementPurchaseRequestLineConversionStatus
 
 export type ProcurementPurchaseRequestDecision = $Enums.ProcurementPurchaseRequestDecision
 
@@ -3137,6 +3164,8 @@ export namespace Prisma {
     submittedAt: Date | null
     decidedAt: Date | null
     cancelledAt: Date | null
+    nextExpectedReceiptDate: string | null
+    receivingStatusSummary: string | null
   }
 
   export type PurchaseRequestMaxAggregateOutputType = {
@@ -3157,6 +3186,8 @@ export namespace Prisma {
     submittedAt: Date | null
     decidedAt: Date | null
     cancelledAt: Date | null
+    nextExpectedReceiptDate: string | null
+    receivingStatusSummary: string | null
   }
 
   export type PurchaseRequestCountAggregateOutputType = {
@@ -3177,6 +3208,9 @@ export namespace Prisma {
     submittedAt: number
     decidedAt: number
     cancelledAt: number
+    linkedPurchaseOrders: number
+    nextExpectedReceiptDate: number
+    receivingStatusSummary: number
     _all: number
   }
 
@@ -3199,6 +3233,8 @@ export namespace Prisma {
     submittedAt?: true
     decidedAt?: true
     cancelledAt?: true
+    nextExpectedReceiptDate?: true
+    receivingStatusSummary?: true
   }
 
   export type PurchaseRequestMaxAggregateInputType = {
@@ -3219,6 +3255,8 @@ export namespace Prisma {
     submittedAt?: true
     decidedAt?: true
     cancelledAt?: true
+    nextExpectedReceiptDate?: true
+    receivingStatusSummary?: true
   }
 
   export type PurchaseRequestCountAggregateInputType = {
@@ -3239,6 +3277,9 @@ export namespace Prisma {
     submittedAt?: true
     decidedAt?: true
     cancelledAt?: true
+    linkedPurchaseOrders?: true
+    nextExpectedReceiptDate?: true
+    receivingStatusSummary?: true
     _all?: true
   }
 
@@ -3332,6 +3373,9 @@ export namespace Prisma {
     submittedAt: Date | null
     decidedAt: Date | null
     cancelledAt: Date | null
+    linkedPurchaseOrders: JsonValue
+    nextExpectedReceiptDate: string | null
+    receivingStatusSummary: string | null
     _count: PurchaseRequestCountAggregateOutputType | null
     _min: PurchaseRequestMinAggregateOutputType | null
     _max: PurchaseRequestMaxAggregateOutputType | null
@@ -3369,6 +3413,9 @@ export namespace Prisma {
     submittedAt?: boolean
     decidedAt?: boolean
     cancelledAt?: boolean
+    linkedPurchaseOrders?: boolean
+    nextExpectedReceiptDate?: boolean
+    receivingStatusSummary?: boolean
     lines?: boolean | PurchaseRequest$linesArgs<ExtArgs>
     approvalSnapshot?: boolean | PurchaseRequest$approvalSnapshotArgs<ExtArgs>
     _count?: boolean | PurchaseRequestCountOutputTypeDefaultArgs<ExtArgs>
@@ -3392,6 +3439,9 @@ export namespace Prisma {
     submittedAt?: boolean
     decidedAt?: boolean
     cancelledAt?: boolean
+    linkedPurchaseOrders?: boolean
+    nextExpectedReceiptDate?: boolean
+    receivingStatusSummary?: boolean
   }, ExtArgs["result"]["purchaseRequest"]>
 
   export type PurchaseRequestSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -3412,6 +3462,9 @@ export namespace Prisma {
     submittedAt?: boolean
     decidedAt?: boolean
     cancelledAt?: boolean
+    linkedPurchaseOrders?: boolean
+    nextExpectedReceiptDate?: boolean
+    receivingStatusSummary?: boolean
   }, ExtArgs["result"]["purchaseRequest"]>
 
   export type PurchaseRequestSelectScalar = {
@@ -3432,9 +3485,12 @@ export namespace Prisma {
     submittedAt?: boolean
     decidedAt?: boolean
     cancelledAt?: boolean
+    linkedPurchaseOrders?: boolean
+    nextExpectedReceiptDate?: boolean
+    receivingStatusSummary?: boolean
   }
 
-  export type PurchaseRequestOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "requestNo" | "tenantId" | "orgId" | "requestType" | "status" | "requesterOperatorId" | "requesterDisplayName" | "title" | "reason" | "submissionComment" | "cancelReason" | "createdAt" | "updatedAt" | "submittedAt" | "decidedAt" | "cancelledAt", ExtArgs["result"]["purchaseRequest"]>
+  export type PurchaseRequestOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "requestNo" | "tenantId" | "orgId" | "requestType" | "status" | "requesterOperatorId" | "requesterDisplayName" | "title" | "reason" | "submissionComment" | "cancelReason" | "createdAt" | "updatedAt" | "submittedAt" | "decidedAt" | "cancelledAt" | "linkedPurchaseOrders" | "nextExpectedReceiptDate" | "receivingStatusSummary", ExtArgs["result"]["purchaseRequest"]>
   export type PurchaseRequestInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     lines?: boolean | PurchaseRequest$linesArgs<ExtArgs>
     approvalSnapshot?: boolean | PurchaseRequest$approvalSnapshotArgs<ExtArgs>
@@ -3467,6 +3523,9 @@ export namespace Prisma {
       submittedAt: Date | null
       decidedAt: Date | null
       cancelledAt: Date | null
+      linkedPurchaseOrders: Prisma.JsonValue
+      nextExpectedReceiptDate: string | null
+      receivingStatusSummary: string | null
     }, ExtArgs["result"]["purchaseRequest"]>
     composites: {}
   }
@@ -3909,6 +3968,9 @@ export namespace Prisma {
     readonly submittedAt: FieldRef<"PurchaseRequest", 'DateTime'>
     readonly decidedAt: FieldRef<"PurchaseRequest", 'DateTime'>
     readonly cancelledAt: FieldRef<"PurchaseRequest", 'DateTime'>
+    readonly linkedPurchaseOrders: FieldRef<"PurchaseRequest", 'Json'>
+    readonly nextExpectedReceiptDate: FieldRef<"PurchaseRequest", 'String'>
+    readonly receivingStatusSummary: FieldRef<"PurchaseRequest", 'String'>
   }
     
 
@@ -4393,6 +4455,7 @@ export namespace Prisma {
     neededByDate: string | null
     demandReferenceType: string | null
     demandReferenceId: string | null
+    conversionStatus: $Enums.ProcurementPurchaseRequestLineConversionStatus | null
   }
 
   export type PurchaseRequestLineMaxAggregateOutputType = {
@@ -4410,6 +4473,7 @@ export namespace Prisma {
     neededByDate: string | null
     demandReferenceType: string | null
     demandReferenceId: string | null
+    conversionStatus: $Enums.ProcurementPurchaseRequestLineConversionStatus | null
   }
 
   export type PurchaseRequestLineCountAggregateOutputType = {
@@ -4427,6 +4491,8 @@ export namespace Prisma {
     neededByDate: number
     demandReferenceType: number
     demandReferenceId: number
+    conversionStatus: number
+    linkedPurchaseOrderLines: number
     _all: number
   }
 
@@ -4454,6 +4520,7 @@ export namespace Prisma {
     neededByDate?: true
     demandReferenceType?: true
     demandReferenceId?: true
+    conversionStatus?: true
   }
 
   export type PurchaseRequestLineMaxAggregateInputType = {
@@ -4471,6 +4538,7 @@ export namespace Prisma {
     neededByDate?: true
     demandReferenceType?: true
     demandReferenceId?: true
+    conversionStatus?: true
   }
 
   export type PurchaseRequestLineCountAggregateInputType = {
@@ -4488,6 +4556,8 @@ export namespace Prisma {
     neededByDate?: true
     demandReferenceType?: true
     demandReferenceId?: true
+    conversionStatus?: true
+    linkedPurchaseOrderLines?: true
     _all?: true
   }
 
@@ -4592,6 +4662,8 @@ export namespace Prisma {
     neededByDate: string | null
     demandReferenceType: string | null
     demandReferenceId: string | null
+    conversionStatus: $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines: JsonValue
     _count: PurchaseRequestLineCountAggregateOutputType | null
     _avg: PurchaseRequestLineAvgAggregateOutputType | null
     _sum: PurchaseRequestLineSumAggregateOutputType | null
@@ -4628,6 +4700,8 @@ export namespace Prisma {
     neededByDate?: boolean
     demandReferenceType?: boolean
     demandReferenceId?: boolean
+    conversionStatus?: boolean
+    linkedPurchaseOrderLines?: boolean
     purchaseRequest?: boolean | PurchaseRequestDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["purchaseRequestLine"]>
 
@@ -4646,6 +4720,8 @@ export namespace Prisma {
     neededByDate?: boolean
     demandReferenceType?: boolean
     demandReferenceId?: boolean
+    conversionStatus?: boolean
+    linkedPurchaseOrderLines?: boolean
     purchaseRequest?: boolean | PurchaseRequestDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["purchaseRequestLine"]>
 
@@ -4664,6 +4740,8 @@ export namespace Prisma {
     neededByDate?: boolean
     demandReferenceType?: boolean
     demandReferenceId?: boolean
+    conversionStatus?: boolean
+    linkedPurchaseOrderLines?: boolean
     purchaseRequest?: boolean | PurchaseRequestDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["purchaseRequestLine"]>
 
@@ -4682,9 +4760,11 @@ export namespace Prisma {
     neededByDate?: boolean
     demandReferenceType?: boolean
     demandReferenceId?: boolean
+    conversionStatus?: boolean
+    linkedPurchaseOrderLines?: boolean
   }
 
-  export type PurchaseRequestLineOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "tenantId" | "purchaseRequestId" | "lineNo" | "lineType" | "itemId" | "itemCode" | "itemName" | "description" | "requestedQuantity" | "uom" | "neededByDate" | "demandReferenceType" | "demandReferenceId", ExtArgs["result"]["purchaseRequestLine"]>
+  export type PurchaseRequestLineOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "tenantId" | "purchaseRequestId" | "lineNo" | "lineType" | "itemId" | "itemCode" | "itemName" | "description" | "requestedQuantity" | "uom" | "neededByDate" | "demandReferenceType" | "demandReferenceId" | "conversionStatus" | "linkedPurchaseOrderLines", ExtArgs["result"]["purchaseRequestLine"]>
   export type PurchaseRequestLineInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     purchaseRequest?: boolean | PurchaseRequestDefaultArgs<ExtArgs>
   }
@@ -4715,6 +4795,8 @@ export namespace Prisma {
       neededByDate: string | null
       demandReferenceType: string | null
       demandReferenceId: string | null
+      conversionStatus: $Enums.ProcurementPurchaseRequestLineConversionStatus
+      linkedPurchaseOrderLines: Prisma.JsonValue
     }, ExtArgs["result"]["purchaseRequestLine"]>
     composites: {}
   }
@@ -5153,6 +5235,8 @@ export namespace Prisma {
     readonly neededByDate: FieldRef<"PurchaseRequestLine", 'String'>
     readonly demandReferenceType: FieldRef<"PurchaseRequestLine", 'String'>
     readonly demandReferenceId: FieldRef<"PurchaseRequestLine", 'String'>
+    readonly conversionStatus: FieldRef<"PurchaseRequestLine", 'ProcurementPurchaseRequestLineConversionStatus'>
+    readonly linkedPurchaseOrderLines: FieldRef<"PurchaseRequestLine", 'Json'>
   }
     
 
@@ -6697,6 +6781,15 @@ export namespace Prisma {
     supplierId: string | null
     supplierDisplayName: string | null
     supplierStatusAtIssue: string | null
+    paymentTermsCode: string | null
+    paymentTermsText: string | null
+    incotermCode: string | null
+    commercialTermsText: string | null
+    paymentStatusSummary: string | null
+    depositPaidAmount: string | null
+    balancePaidAmount: string | null
+    paymentSummaryCurrencyCode: string | null
+    lastPaymentAt: Date | null
     acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus | null
     acknowledgedAt: Date | null
     acknowledgementExternalReference: string | null
@@ -6719,6 +6812,15 @@ export namespace Prisma {
     supplierId: string | null
     supplierDisplayName: string | null
     supplierStatusAtIssue: string | null
+    paymentTermsCode: string | null
+    paymentTermsText: string | null
+    incotermCode: string | null
+    commercialTermsText: string | null
+    paymentStatusSummary: string | null
+    depositPaidAmount: string | null
+    balancePaidAmount: string | null
+    paymentSummaryCurrencyCode: string | null
+    lastPaymentAt: Date | null
     acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus | null
     acknowledgedAt: Date | null
     acknowledgementExternalReference: string | null
@@ -6741,6 +6843,16 @@ export namespace Prisma {
     supplierId: number
     supplierDisplayName: number
     supplierStatusAtIssue: number
+    paymentTermsCode: number
+    paymentTermsText: number
+    incotermCode: number
+    commercialTermsText: number
+    paymentStatusSummary: number
+    depositPaidAmount: number
+    balancePaidAmount: number
+    paymentSummaryCurrencyCode: number
+    attachmentRefs: number
+    lastPaymentAt: number
     sourcePurchaseRequestIds: number
     sourcePurchaseRequestNos: number
     acknowledgementStatus: number
@@ -6767,6 +6879,15 @@ export namespace Prisma {
     supplierId?: true
     supplierDisplayName?: true
     supplierStatusAtIssue?: true
+    paymentTermsCode?: true
+    paymentTermsText?: true
+    incotermCode?: true
+    commercialTermsText?: true
+    paymentStatusSummary?: true
+    depositPaidAmount?: true
+    balancePaidAmount?: true
+    paymentSummaryCurrencyCode?: true
+    lastPaymentAt?: true
     acknowledgementStatus?: true
     acknowledgedAt?: true
     acknowledgementExternalReference?: true
@@ -6789,6 +6910,15 @@ export namespace Prisma {
     supplierId?: true
     supplierDisplayName?: true
     supplierStatusAtIssue?: true
+    paymentTermsCode?: true
+    paymentTermsText?: true
+    incotermCode?: true
+    commercialTermsText?: true
+    paymentStatusSummary?: true
+    depositPaidAmount?: true
+    balancePaidAmount?: true
+    paymentSummaryCurrencyCode?: true
+    lastPaymentAt?: true
     acknowledgementStatus?: true
     acknowledgedAt?: true
     acknowledgementExternalReference?: true
@@ -6811,6 +6941,16 @@ export namespace Prisma {
     supplierId?: true
     supplierDisplayName?: true
     supplierStatusAtIssue?: true
+    paymentTermsCode?: true
+    paymentTermsText?: true
+    incotermCode?: true
+    commercialTermsText?: true
+    paymentStatusSummary?: true
+    depositPaidAmount?: true
+    balancePaidAmount?: true
+    paymentSummaryCurrencyCode?: true
+    attachmentRefs?: true
+    lastPaymentAt?: true
     sourcePurchaseRequestIds?: true
     sourcePurchaseRequestNos?: true
     acknowledgementStatus?: true
@@ -6908,6 +7048,16 @@ export namespace Prisma {
     supplierId: string
     supplierDisplayName: string
     supplierStatusAtIssue: string | null
+    paymentTermsCode: string | null
+    paymentTermsText: string | null
+    incotermCode: string | null
+    commercialTermsText: string | null
+    paymentStatusSummary: string | null
+    depositPaidAmount: string | null
+    balancePaidAmount: string | null
+    paymentSummaryCurrencyCode: string | null
+    attachmentRefs: JsonValue
+    lastPaymentAt: Date | null
     sourcePurchaseRequestIds: JsonValue
     sourcePurchaseRequestNos: JsonValue
     acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus
@@ -6949,6 +7099,16 @@ export namespace Prisma {
     supplierId?: boolean
     supplierDisplayName?: boolean
     supplierStatusAtIssue?: boolean
+    paymentTermsCode?: boolean
+    paymentTermsText?: boolean
+    incotermCode?: boolean
+    commercialTermsText?: boolean
+    paymentStatusSummary?: boolean
+    depositPaidAmount?: boolean
+    balancePaidAmount?: boolean
+    paymentSummaryCurrencyCode?: boolean
+    attachmentRefs?: boolean
+    lastPaymentAt?: boolean
     sourcePurchaseRequestIds?: boolean
     sourcePurchaseRequestNos?: boolean
     acknowledgementStatus?: boolean
@@ -6977,6 +7137,16 @@ export namespace Prisma {
     supplierId?: boolean
     supplierDisplayName?: boolean
     supplierStatusAtIssue?: boolean
+    paymentTermsCode?: boolean
+    paymentTermsText?: boolean
+    incotermCode?: boolean
+    commercialTermsText?: boolean
+    paymentStatusSummary?: boolean
+    depositPaidAmount?: boolean
+    balancePaidAmount?: boolean
+    paymentSummaryCurrencyCode?: boolean
+    attachmentRefs?: boolean
+    lastPaymentAt?: boolean
     sourcePurchaseRequestIds?: boolean
     sourcePurchaseRequestNos?: boolean
     acknowledgementStatus?: boolean
@@ -7001,6 +7171,16 @@ export namespace Prisma {
     supplierId?: boolean
     supplierDisplayName?: boolean
     supplierStatusAtIssue?: boolean
+    paymentTermsCode?: boolean
+    paymentTermsText?: boolean
+    incotermCode?: boolean
+    commercialTermsText?: boolean
+    paymentStatusSummary?: boolean
+    depositPaidAmount?: boolean
+    balancePaidAmount?: boolean
+    paymentSummaryCurrencyCode?: boolean
+    attachmentRefs?: boolean
+    lastPaymentAt?: boolean
     sourcePurchaseRequestIds?: boolean
     sourcePurchaseRequestNos?: boolean
     acknowledgementStatus?: boolean
@@ -7025,6 +7205,16 @@ export namespace Prisma {
     supplierId?: boolean
     supplierDisplayName?: boolean
     supplierStatusAtIssue?: boolean
+    paymentTermsCode?: boolean
+    paymentTermsText?: boolean
+    incotermCode?: boolean
+    commercialTermsText?: boolean
+    paymentStatusSummary?: boolean
+    depositPaidAmount?: boolean
+    balancePaidAmount?: boolean
+    paymentSummaryCurrencyCode?: boolean
+    attachmentRefs?: boolean
+    lastPaymentAt?: boolean
     sourcePurchaseRequestIds?: boolean
     sourcePurchaseRequestNos?: boolean
     acknowledgementStatus?: boolean
@@ -7039,7 +7229,7 @@ export namespace Prisma {
     cancelledAt?: boolean
   }
 
-  export type PurchaseOrderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "orderNo" | "tenantId" | "orgId" | "status" | "currencyCode" | "supplierId" | "supplierDisplayName" | "supplierStatusAtIssue" | "sourcePurchaseRequestIds" | "sourcePurchaseRequestNos" | "acknowledgementStatus" | "acknowledgedAt" | "acknowledgementExternalReference" | "acknowledgementComment" | "issueComment" | "cancelReason" | "createdAt" | "updatedAt" | "issuedAt" | "cancelledAt", ExtArgs["result"]["purchaseOrder"]>
+  export type PurchaseOrderOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "orderNo" | "tenantId" | "orgId" | "status" | "currencyCode" | "supplierId" | "supplierDisplayName" | "supplierStatusAtIssue" | "paymentTermsCode" | "paymentTermsText" | "incotermCode" | "commercialTermsText" | "paymentStatusSummary" | "depositPaidAmount" | "balancePaidAmount" | "paymentSummaryCurrencyCode" | "attachmentRefs" | "lastPaymentAt" | "sourcePurchaseRequestIds" | "sourcePurchaseRequestNos" | "acknowledgementStatus" | "acknowledgedAt" | "acknowledgementExternalReference" | "acknowledgementComment" | "issueComment" | "cancelReason" | "createdAt" | "updatedAt" | "issuedAt" | "cancelledAt", ExtArgs["result"]["purchaseOrder"]>
   export type PurchaseOrderInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     lines?: boolean | PurchaseOrder$linesArgs<ExtArgs>
     changes?: boolean | PurchaseOrder$changesArgs<ExtArgs>
@@ -7066,6 +7256,16 @@ export namespace Prisma {
       supplierId: string
       supplierDisplayName: string
       supplierStatusAtIssue: string | null
+      paymentTermsCode: string | null
+      paymentTermsText: string | null
+      incotermCode: string | null
+      commercialTermsText: string | null
+      paymentStatusSummary: string | null
+      depositPaidAmount: string | null
+      balancePaidAmount: string | null
+      paymentSummaryCurrencyCode: string | null
+      attachmentRefs: Prisma.JsonValue
+      lastPaymentAt: Date | null
       sourcePurchaseRequestIds: Prisma.JsonValue
       sourcePurchaseRequestNos: Prisma.JsonValue
       acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus
@@ -7513,6 +7713,16 @@ export namespace Prisma {
     readonly supplierId: FieldRef<"PurchaseOrder", 'String'>
     readonly supplierDisplayName: FieldRef<"PurchaseOrder", 'String'>
     readonly supplierStatusAtIssue: FieldRef<"PurchaseOrder", 'String'>
+    readonly paymentTermsCode: FieldRef<"PurchaseOrder", 'String'>
+    readonly paymentTermsText: FieldRef<"PurchaseOrder", 'String'>
+    readonly incotermCode: FieldRef<"PurchaseOrder", 'String'>
+    readonly commercialTermsText: FieldRef<"PurchaseOrder", 'String'>
+    readonly paymentStatusSummary: FieldRef<"PurchaseOrder", 'String'>
+    readonly depositPaidAmount: FieldRef<"PurchaseOrder", 'String'>
+    readonly balancePaidAmount: FieldRef<"PurchaseOrder", 'String'>
+    readonly paymentSummaryCurrencyCode: FieldRef<"PurchaseOrder", 'String'>
+    readonly attachmentRefs: FieldRef<"PurchaseOrder", 'Json'>
+    readonly lastPaymentAt: FieldRef<"PurchaseOrder", 'DateTime'>
     readonly sourcePurchaseRequestIds: FieldRef<"PurchaseOrder", 'Json'>
     readonly sourcePurchaseRequestNos: FieldRef<"PurchaseOrder", 'Json'>
     readonly acknowledgementStatus: FieldRef<"PurchaseOrder", 'ProcurementSupplierAcknowledgementStatus'>
@@ -9311,9 +9521,11 @@ export namespace Prisma {
     tenantId: string | null
     purchaseOrderLineId: string | null
     allocationType: $Enums.ProcurementPurchaseOrderLineAllocationType | null
-    referenceId: string | null
+    sourceReferenceId: string | null
     quantity: string | null
     reason: string | null
+    targetWarehouseId: string | null
+    targetReceivingAddressId: string | null
   }
 
   export type PurchaseOrderLineAllocationMaxAggregateOutputType = {
@@ -9321,9 +9533,11 @@ export namespace Prisma {
     tenantId: string | null
     purchaseOrderLineId: string | null
     allocationType: $Enums.ProcurementPurchaseOrderLineAllocationType | null
-    referenceId: string | null
+    sourceReferenceId: string | null
     quantity: string | null
     reason: string | null
+    targetWarehouseId: string | null
+    targetReceivingAddressId: string | null
   }
 
   export type PurchaseOrderLineAllocationCountAggregateOutputType = {
@@ -9331,9 +9545,11 @@ export namespace Prisma {
     tenantId: number
     purchaseOrderLineId: number
     allocationType: number
-    referenceId: number
+    sourceReferenceId: number
     quantity: number
     reason: number
+    targetWarehouseId: number
+    targetReceivingAddressId: number
     _all: number
   }
 
@@ -9343,9 +9559,11 @@ export namespace Prisma {
     tenantId?: true
     purchaseOrderLineId?: true
     allocationType?: true
-    referenceId?: true
+    sourceReferenceId?: true
     quantity?: true
     reason?: true
+    targetWarehouseId?: true
+    targetReceivingAddressId?: true
   }
 
   export type PurchaseOrderLineAllocationMaxAggregateInputType = {
@@ -9353,9 +9571,11 @@ export namespace Prisma {
     tenantId?: true
     purchaseOrderLineId?: true
     allocationType?: true
-    referenceId?: true
+    sourceReferenceId?: true
     quantity?: true
     reason?: true
+    targetWarehouseId?: true
+    targetReceivingAddressId?: true
   }
 
   export type PurchaseOrderLineAllocationCountAggregateInputType = {
@@ -9363,9 +9583,11 @@ export namespace Prisma {
     tenantId?: true
     purchaseOrderLineId?: true
     allocationType?: true
-    referenceId?: true
+    sourceReferenceId?: true
     quantity?: true
     reason?: true
+    targetWarehouseId?: true
+    targetReceivingAddressId?: true
     _all?: true
   }
 
@@ -9446,9 +9668,11 @@ export namespace Prisma {
     tenantId: string
     purchaseOrderLineId: string
     allocationType: $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId: string | null
+    sourceReferenceId: string | null
     quantity: string
     reason: string | null
+    targetWarehouseId: string | null
+    targetReceivingAddressId: string | null
     _count: PurchaseOrderLineAllocationCountAggregateOutputType | null
     _min: PurchaseOrderLineAllocationMinAggregateOutputType | null
     _max: PurchaseOrderLineAllocationMaxAggregateOutputType | null
@@ -9473,9 +9697,11 @@ export namespace Prisma {
     tenantId?: boolean
     purchaseOrderLineId?: boolean
     allocationType?: boolean
-    referenceId?: boolean
+    sourceReferenceId?: boolean
     quantity?: boolean
     reason?: boolean
+    targetWarehouseId?: boolean
+    targetReceivingAddressId?: boolean
     purchaseOrderLine?: boolean | PurchaseOrderLineDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["purchaseOrderLineAllocation"]>
 
@@ -9484,9 +9710,11 @@ export namespace Prisma {
     tenantId?: boolean
     purchaseOrderLineId?: boolean
     allocationType?: boolean
-    referenceId?: boolean
+    sourceReferenceId?: boolean
     quantity?: boolean
     reason?: boolean
+    targetWarehouseId?: boolean
+    targetReceivingAddressId?: boolean
     purchaseOrderLine?: boolean | PurchaseOrderLineDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["purchaseOrderLineAllocation"]>
 
@@ -9495,9 +9723,11 @@ export namespace Prisma {
     tenantId?: boolean
     purchaseOrderLineId?: boolean
     allocationType?: boolean
-    referenceId?: boolean
+    sourceReferenceId?: boolean
     quantity?: boolean
     reason?: boolean
+    targetWarehouseId?: boolean
+    targetReceivingAddressId?: boolean
     purchaseOrderLine?: boolean | PurchaseOrderLineDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["purchaseOrderLineAllocation"]>
 
@@ -9506,12 +9736,14 @@ export namespace Prisma {
     tenantId?: boolean
     purchaseOrderLineId?: boolean
     allocationType?: boolean
-    referenceId?: boolean
+    sourceReferenceId?: boolean
     quantity?: boolean
     reason?: boolean
+    targetWarehouseId?: boolean
+    targetReceivingAddressId?: boolean
   }
 
-  export type PurchaseOrderLineAllocationOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "tenantId" | "purchaseOrderLineId" | "allocationType" | "referenceId" | "quantity" | "reason", ExtArgs["result"]["purchaseOrderLineAllocation"]>
+  export type PurchaseOrderLineAllocationOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "tenantId" | "purchaseOrderLineId" | "allocationType" | "sourceReferenceId" | "quantity" | "reason" | "targetWarehouseId" | "targetReceivingAddressId", ExtArgs["result"]["purchaseOrderLineAllocation"]>
   export type PurchaseOrderLineAllocationInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     purchaseOrderLine?: boolean | PurchaseOrderLineDefaultArgs<ExtArgs>
   }
@@ -9532,9 +9764,11 @@ export namespace Prisma {
       tenantId: string
       purchaseOrderLineId: string
       allocationType: $Enums.ProcurementPurchaseOrderLineAllocationType
-      referenceId: string | null
+      sourceReferenceId: string | null
       quantity: string
       reason: string | null
+      targetWarehouseId: string | null
+      targetReceivingAddressId: string | null
     }, ExtArgs["result"]["purchaseOrderLineAllocation"]>
     composites: {}
   }
@@ -9963,9 +10197,11 @@ export namespace Prisma {
     readonly tenantId: FieldRef<"PurchaseOrderLineAllocation", 'String'>
     readonly purchaseOrderLineId: FieldRef<"PurchaseOrderLineAllocation", 'String'>
     readonly allocationType: FieldRef<"PurchaseOrderLineAllocation", 'ProcurementPurchaseOrderLineAllocationType'>
-    readonly referenceId: FieldRef<"PurchaseOrderLineAllocation", 'String'>
+    readonly sourceReferenceId: FieldRef<"PurchaseOrderLineAllocation", 'String'>
     readonly quantity: FieldRef<"PurchaseOrderLineAllocation", 'String'>
     readonly reason: FieldRef<"PurchaseOrderLineAllocation", 'String'>
+    readonly targetWarehouseId: FieldRef<"PurchaseOrderLineAllocation", 'String'>
+    readonly targetReceivingAddressId: FieldRef<"PurchaseOrderLineAllocation", 'String'>
   }
     
 
@@ -11521,6 +11757,9 @@ export namespace Prisma {
     purchaseOrderId: string | null
     purchaseOrderLineId: string | null
     supplierId: string | null
+    allocationGroupingKey: string | null
+    targetWarehouseId: string | null
+    targetReceivingAddressId: string | null
     expectedQuantity: string | null
     receivedQuantitySummary: string | null
     openQuantity: string | null
@@ -11538,6 +11777,9 @@ export namespace Prisma {
     purchaseOrderId: string | null
     purchaseOrderLineId: string | null
     supplierId: string | null
+    allocationGroupingKey: string | null
+    targetWarehouseId: string | null
+    targetReceivingAddressId: string | null
     expectedQuantity: string | null
     receivedQuantitySummary: string | null
     openQuantity: string | null
@@ -11555,6 +11797,10 @@ export namespace Prisma {
     purchaseOrderId: number
     purchaseOrderLineId: number
     supplierId: number
+    allocationGroupingKey: number
+    sourceAllocationIds: number
+    targetWarehouseId: number
+    targetReceivingAddressId: number
     expectedQuantity: number
     receivedQuantitySummary: number
     openQuantity: number
@@ -11574,6 +11820,9 @@ export namespace Prisma {
     purchaseOrderId?: true
     purchaseOrderLineId?: true
     supplierId?: true
+    allocationGroupingKey?: true
+    targetWarehouseId?: true
+    targetReceivingAddressId?: true
     expectedQuantity?: true
     receivedQuantitySummary?: true
     openQuantity?: true
@@ -11591,6 +11840,9 @@ export namespace Prisma {
     purchaseOrderId?: true
     purchaseOrderLineId?: true
     supplierId?: true
+    allocationGroupingKey?: true
+    targetWarehouseId?: true
+    targetReceivingAddressId?: true
     expectedQuantity?: true
     receivedQuantitySummary?: true
     openQuantity?: true
@@ -11608,6 +11860,10 @@ export namespace Prisma {
     purchaseOrderId?: true
     purchaseOrderLineId?: true
     supplierId?: true
+    allocationGroupingKey?: true
+    sourceAllocationIds?: true
+    targetWarehouseId?: true
+    targetReceivingAddressId?: true
     expectedQuantity?: true
     receivedQuantitySummary?: true
     openQuantity?: true
@@ -11698,6 +11954,10 @@ export namespace Prisma {
     purchaseOrderId: string
     purchaseOrderLineId: string
     supplierId: string
+    allocationGroupingKey: string
+    sourceAllocationIds: JsonValue
+    targetWarehouseId: string | null
+    targetReceivingAddressId: string | null
     expectedQuantity: string
     receivedQuantitySummary: string
     openQuantity: string
@@ -11732,6 +11992,10 @@ export namespace Prisma {
     purchaseOrderId?: boolean
     purchaseOrderLineId?: boolean
     supplierId?: boolean
+    allocationGroupingKey?: boolean
+    sourceAllocationIds?: boolean
+    targetWarehouseId?: boolean
+    targetReceivingAddressId?: boolean
     expectedQuantity?: boolean
     receivedQuantitySummary?: boolean
     openQuantity?: boolean
@@ -11752,6 +12016,10 @@ export namespace Prisma {
     purchaseOrderId?: boolean
     purchaseOrderLineId?: boolean
     supplierId?: boolean
+    allocationGroupingKey?: boolean
+    sourceAllocationIds?: boolean
+    targetWarehouseId?: boolean
+    targetReceivingAddressId?: boolean
     expectedQuantity?: boolean
     receivedQuantitySummary?: boolean
     openQuantity?: boolean
@@ -11771,6 +12039,10 @@ export namespace Prisma {
     purchaseOrderId?: boolean
     purchaseOrderLineId?: boolean
     supplierId?: boolean
+    allocationGroupingKey?: boolean
+    sourceAllocationIds?: boolean
+    targetWarehouseId?: boolean
+    targetReceivingAddressId?: boolean
     expectedQuantity?: boolean
     receivedQuantitySummary?: boolean
     openQuantity?: boolean
@@ -11790,6 +12062,10 @@ export namespace Prisma {
     purchaseOrderId?: boolean
     purchaseOrderLineId?: boolean
     supplierId?: boolean
+    allocationGroupingKey?: boolean
+    sourceAllocationIds?: boolean
+    targetWarehouseId?: boolean
+    targetReceivingAddressId?: boolean
     expectedQuantity?: boolean
     receivedQuantitySummary?: boolean
     openQuantity?: boolean
@@ -11799,7 +12075,7 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type ReceivingExpectationOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "expectationNo" | "tenantId" | "orgId" | "purchaseOrderId" | "purchaseOrderLineId" | "supplierId" | "expectedQuantity" | "receivedQuantitySummary" | "openQuantity" | "expectedReceiptDate" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["receivingExpectation"]>
+  export type ReceivingExpectationOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "expectationNo" | "tenantId" | "orgId" | "purchaseOrderId" | "purchaseOrderLineId" | "supplierId" | "allocationGroupingKey" | "sourceAllocationIds" | "targetWarehouseId" | "targetReceivingAddressId" | "expectedQuantity" | "receivedQuantitySummary" | "openQuantity" | "expectedReceiptDate" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["receivingExpectation"]>
   export type ReceivingExpectationInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     discrepancy?: boolean | ReceivingExpectation$discrepancyArgs<ExtArgs>
     purchaseOrder?: boolean | PurchaseOrderDefaultArgs<ExtArgs>
@@ -11829,6 +12105,10 @@ export namespace Prisma {
       purchaseOrderId: string
       purchaseOrderLineId: string
       supplierId: string
+      allocationGroupingKey: string
+      sourceAllocationIds: Prisma.JsonValue
+      targetWarehouseId: string | null
+      targetReceivingAddressId: string | null
       expectedQuantity: string
       receivedQuantitySummary: string
       openQuantity: string
@@ -12269,6 +12549,10 @@ export namespace Prisma {
     readonly purchaseOrderId: FieldRef<"ReceivingExpectation", 'String'>
     readonly purchaseOrderLineId: FieldRef<"ReceivingExpectation", 'String'>
     readonly supplierId: FieldRef<"ReceivingExpectation", 'String'>
+    readonly allocationGroupingKey: FieldRef<"ReceivingExpectation", 'String'>
+    readonly sourceAllocationIds: FieldRef<"ReceivingExpectation", 'Json'>
+    readonly targetWarehouseId: FieldRef<"ReceivingExpectation", 'String'>
+    readonly targetReceivingAddressId: FieldRef<"ReceivingExpectation", 'String'>
     readonly expectedQuantity: FieldRef<"ReceivingExpectation", 'String'>
     readonly receivedQuantitySummary: FieldRef<"ReceivingExpectation", 'String'>
     readonly openQuantity: FieldRef<"ReceivingExpectation", 'String'>
@@ -12752,6 +13036,7 @@ export namespace Prisma {
     status: number
     resolutionCode: number
     resolutionNote: number
+    resolutionReferences: number
     resolvedAt: number
     _all: number
   }
@@ -12790,6 +13075,7 @@ export namespace Prisma {
     status?: true
     resolutionCode?: true
     resolutionNote?: true
+    resolutionReferences?: true
     resolvedAt?: true
     _all?: true
   }
@@ -12875,6 +13161,7 @@ export namespace Prisma {
     status: $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode: $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote: string | null
+    resolutionReferences: JsonValue
     resolvedAt: Date | null
     _count: ReceivingDiscrepancyCountAggregateOutputType | null
     _min: ReceivingDiscrepancyMinAggregateOutputType | null
@@ -12904,6 +13191,7 @@ export namespace Prisma {
     status?: boolean
     resolutionCode?: boolean
     resolutionNote?: boolean
+    resolutionReferences?: boolean
     resolvedAt?: boolean
     receivingExpectation?: boolean | ReceivingExpectationDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["receivingDiscrepancy"]>
@@ -12917,6 +13205,7 @@ export namespace Prisma {
     status?: boolean
     resolutionCode?: boolean
     resolutionNote?: boolean
+    resolutionReferences?: boolean
     resolvedAt?: boolean
     receivingExpectation?: boolean | ReceivingExpectationDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["receivingDiscrepancy"]>
@@ -12930,6 +13219,7 @@ export namespace Prisma {
     status?: boolean
     resolutionCode?: boolean
     resolutionNote?: boolean
+    resolutionReferences?: boolean
     resolvedAt?: boolean
     receivingExpectation?: boolean | ReceivingExpectationDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["receivingDiscrepancy"]>
@@ -12943,10 +13233,11 @@ export namespace Prisma {
     status?: boolean
     resolutionCode?: boolean
     resolutionNote?: boolean
+    resolutionReferences?: boolean
     resolvedAt?: boolean
   }
 
-  export type ReceivingDiscrepancyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "tenantId" | "receivingExpectationId" | "discrepancyType" | "summary" | "status" | "resolutionCode" | "resolutionNote" | "resolvedAt", ExtArgs["result"]["receivingDiscrepancy"]>
+  export type ReceivingDiscrepancyOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "tenantId" | "receivingExpectationId" | "discrepancyType" | "summary" | "status" | "resolutionCode" | "resolutionNote" | "resolutionReferences" | "resolvedAt", ExtArgs["result"]["receivingDiscrepancy"]>
   export type ReceivingDiscrepancyInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     receivingExpectation?: boolean | ReceivingExpectationDefaultArgs<ExtArgs>
   }
@@ -12971,6 +13262,7 @@ export namespace Prisma {
       status: $Enums.ProcurementReceivingDiscrepancyStatus
       resolutionCode: $Enums.ProcurementReceivingResolutionCode | null
       resolutionNote: string | null
+      resolutionReferences: Prisma.JsonValue
       resolvedAt: Date | null
     }, ExtArgs["result"]["receivingDiscrepancy"]>
     composites: {}
@@ -13404,6 +13696,7 @@ export namespace Prisma {
     readonly status: FieldRef<"ReceivingDiscrepancy", 'ProcurementReceivingDiscrepancyStatus'>
     readonly resolutionCode: FieldRef<"ReceivingDiscrepancy", 'ProcurementReceivingResolutionCode'>
     readonly resolutionNote: FieldRef<"ReceivingDiscrepancy", 'String'>
+    readonly resolutionReferences: FieldRef<"ReceivingDiscrepancy", 'Json'>
     readonly resolvedAt: FieldRef<"ReceivingDiscrepancy", 'DateTime'>
   }
     
@@ -14983,7 +15276,10 @@ export namespace Prisma {
     updatedAt: 'updatedAt',
     submittedAt: 'submittedAt',
     decidedAt: 'decidedAt',
-    cancelledAt: 'cancelledAt'
+    cancelledAt: 'cancelledAt',
+    linkedPurchaseOrders: 'linkedPurchaseOrders',
+    nextExpectedReceiptDate: 'nextExpectedReceiptDate',
+    receivingStatusSummary: 'receivingStatusSummary'
   };
 
   export type PurchaseRequestScalarFieldEnum = (typeof PurchaseRequestScalarFieldEnum)[keyof typeof PurchaseRequestScalarFieldEnum]
@@ -15003,7 +15299,9 @@ export namespace Prisma {
     uom: 'uom',
     neededByDate: 'neededByDate',
     demandReferenceType: 'demandReferenceType',
-    demandReferenceId: 'demandReferenceId'
+    demandReferenceId: 'demandReferenceId',
+    conversionStatus: 'conversionStatus',
+    linkedPurchaseOrderLines: 'linkedPurchaseOrderLines'
   };
 
   export type PurchaseRequestLineScalarFieldEnum = (typeof PurchaseRequestLineScalarFieldEnum)[keyof typeof PurchaseRequestLineScalarFieldEnum]
@@ -15034,6 +15332,16 @@ export namespace Prisma {
     supplierId: 'supplierId',
     supplierDisplayName: 'supplierDisplayName',
     supplierStatusAtIssue: 'supplierStatusAtIssue',
+    paymentTermsCode: 'paymentTermsCode',
+    paymentTermsText: 'paymentTermsText',
+    incotermCode: 'incotermCode',
+    commercialTermsText: 'commercialTermsText',
+    paymentStatusSummary: 'paymentStatusSummary',
+    depositPaidAmount: 'depositPaidAmount',
+    balancePaidAmount: 'balancePaidAmount',
+    paymentSummaryCurrencyCode: 'paymentSummaryCurrencyCode',
+    attachmentRefs: 'attachmentRefs',
+    lastPaymentAt: 'lastPaymentAt',
     sourcePurchaseRequestIds: 'sourcePurchaseRequestIds',
     sourcePurchaseRequestNos: 'sourcePurchaseRequestNos',
     acknowledgementStatus: 'acknowledgementStatus',
@@ -15078,9 +15386,11 @@ export namespace Prisma {
     tenantId: 'tenantId',
     purchaseOrderLineId: 'purchaseOrderLineId',
     allocationType: 'allocationType',
-    referenceId: 'referenceId',
+    sourceReferenceId: 'sourceReferenceId',
     quantity: 'quantity',
-    reason: 'reason'
+    reason: 'reason',
+    targetWarehouseId: 'targetWarehouseId',
+    targetReceivingAddressId: 'targetReceivingAddressId'
   };
 
   export type PurchaseOrderLineAllocationScalarFieldEnum = (typeof PurchaseOrderLineAllocationScalarFieldEnum)[keyof typeof PurchaseOrderLineAllocationScalarFieldEnum]
@@ -15110,6 +15420,10 @@ export namespace Prisma {
     purchaseOrderId: 'purchaseOrderId',
     purchaseOrderLineId: 'purchaseOrderLineId',
     supplierId: 'supplierId',
+    allocationGroupingKey: 'allocationGroupingKey',
+    sourceAllocationIds: 'sourceAllocationIds',
+    targetWarehouseId: 'targetWarehouseId',
+    targetReceivingAddressId: 'targetReceivingAddressId',
     expectedQuantity: 'expectedQuantity',
     receivedQuantitySummary: 'receivedQuantitySummary',
     openQuantity: 'openQuantity',
@@ -15131,6 +15445,7 @@ export namespace Prisma {
     status: 'status',
     resolutionCode: 'resolutionCode',
     resolutionNote: 'resolutionNote',
+    resolutionReferences: 'resolutionReferences',
     resolvedAt: 'resolvedAt'
   };
 
@@ -15181,14 +15496,6 @@ export namespace Prisma {
   export type QueryMode = (typeof QueryMode)[keyof typeof QueryMode]
 
 
-  export const NullsOrder: {
-    first: 'first',
-    last: 'last'
-  };
-
-  export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
-
-
   export const JsonNullValueFilter: {
     DbNull: typeof DbNull,
     JsonNull: typeof JsonNull,
@@ -15196,6 +15503,14 @@ export namespace Prisma {
   };
 
   export type JsonNullValueFilter = (typeof JsonNullValueFilter)[keyof typeof JsonNullValueFilter]
+
+
+  export const NullsOrder: {
+    first: 'first',
+    last: 'last'
+  };
+
+  export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
 
 
   /**
@@ -15274,6 +15589,20 @@ export namespace Prisma {
 
 
   /**
+   * Reference to a field of type 'Json'
+   */
+  export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
+    
+
+
+  /**
+   * Reference to a field of type 'QueryMode'
+   */
+  export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
+    
+
+
+  /**
    * Reference to a field of type 'ProcurementPurchaseRequestLineType'
    */
   export type EnumProcurementPurchaseRequestLineTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ProcurementPurchaseRequestLineType'>
@@ -15284,6 +15613,20 @@ export namespace Prisma {
    * Reference to a field of type 'ProcurementPurchaseRequestLineType[]'
    */
   export type ListEnumProcurementPurchaseRequestLineTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ProcurementPurchaseRequestLineType[]'>
+    
+
+
+  /**
+   * Reference to a field of type 'ProcurementPurchaseRequestLineConversionStatus'
+   */
+  export type EnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ProcurementPurchaseRequestLineConversionStatus'>
+    
+
+
+  /**
+   * Reference to a field of type 'ProcurementPurchaseRequestLineConversionStatus[]'
+   */
+  export type ListEnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ProcurementPurchaseRequestLineConversionStatus[]'>
     
 
 
@@ -15312,20 +15655,6 @@ export namespace Prisma {
    * Reference to a field of type 'ProcurementPurchaseOrderStatus[]'
    */
   export type ListEnumProcurementPurchaseOrderStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ProcurementPurchaseOrderStatus[]'>
-    
-
-
-  /**
-   * Reference to a field of type 'Json'
-   */
-  export type JsonFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Json'>
-    
-
-
-  /**
-   * Reference to a field of type 'QueryMode'
-   */
-  export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'QueryMode'>
     
 
 
@@ -15524,6 +15853,9 @@ export namespace Prisma {
     submittedAt?: DateTimeNullableFilter<"PurchaseRequest"> | Date | string | null
     decidedAt?: DateTimeNullableFilter<"PurchaseRequest"> | Date | string | null
     cancelledAt?: DateTimeNullableFilter<"PurchaseRequest"> | Date | string | null
+    linkedPurchaseOrders?: JsonFilter<"PurchaseRequest">
+    nextExpectedReceiptDate?: StringNullableFilter<"PurchaseRequest"> | string | null
+    receivingStatusSummary?: StringNullableFilter<"PurchaseRequest"> | string | null
     lines?: PurchaseRequestLineListRelationFilter
     approvalSnapshot?: XOR<PurchaseRequestApprovalSnapshotNullableScalarRelationFilter, PurchaseRequestApprovalSnapshotWhereInput> | null
   }
@@ -15546,6 +15878,9 @@ export namespace Prisma {
     submittedAt?: SortOrderInput | SortOrder
     decidedAt?: SortOrderInput | SortOrder
     cancelledAt?: SortOrderInput | SortOrder
+    linkedPurchaseOrders?: SortOrder
+    nextExpectedReceiptDate?: SortOrderInput | SortOrder
+    receivingStatusSummary?: SortOrderInput | SortOrder
     lines?: PurchaseRequestLineOrderByRelationAggregateInput
     approvalSnapshot?: PurchaseRequestApprovalSnapshotOrderByWithRelationInput
   }
@@ -15571,6 +15906,9 @@ export namespace Prisma {
     submittedAt?: DateTimeNullableFilter<"PurchaseRequest"> | Date | string | null
     decidedAt?: DateTimeNullableFilter<"PurchaseRequest"> | Date | string | null
     cancelledAt?: DateTimeNullableFilter<"PurchaseRequest"> | Date | string | null
+    linkedPurchaseOrders?: JsonFilter<"PurchaseRequest">
+    nextExpectedReceiptDate?: StringNullableFilter<"PurchaseRequest"> | string | null
+    receivingStatusSummary?: StringNullableFilter<"PurchaseRequest"> | string | null
     lines?: PurchaseRequestLineListRelationFilter
     approvalSnapshot?: XOR<PurchaseRequestApprovalSnapshotNullableScalarRelationFilter, PurchaseRequestApprovalSnapshotWhereInput> | null
   }, "id" | "requestNo">
@@ -15593,6 +15931,9 @@ export namespace Prisma {
     submittedAt?: SortOrderInput | SortOrder
     decidedAt?: SortOrderInput | SortOrder
     cancelledAt?: SortOrderInput | SortOrder
+    linkedPurchaseOrders?: SortOrder
+    nextExpectedReceiptDate?: SortOrderInput | SortOrder
+    receivingStatusSummary?: SortOrderInput | SortOrder
     _count?: PurchaseRequestCountOrderByAggregateInput
     _max?: PurchaseRequestMaxOrderByAggregateInput
     _min?: PurchaseRequestMinOrderByAggregateInput
@@ -15619,6 +15960,9 @@ export namespace Prisma {
     submittedAt?: DateTimeNullableWithAggregatesFilter<"PurchaseRequest"> | Date | string | null
     decidedAt?: DateTimeNullableWithAggregatesFilter<"PurchaseRequest"> | Date | string | null
     cancelledAt?: DateTimeNullableWithAggregatesFilter<"PurchaseRequest"> | Date | string | null
+    linkedPurchaseOrders?: JsonWithAggregatesFilter<"PurchaseRequest">
+    nextExpectedReceiptDate?: StringNullableWithAggregatesFilter<"PurchaseRequest"> | string | null
+    receivingStatusSummary?: StringNullableWithAggregatesFilter<"PurchaseRequest"> | string | null
   }
 
   export type PurchaseRequestLineWhereInput = {
@@ -15639,6 +15983,8 @@ export namespace Prisma {
     neededByDate?: StringNullableFilter<"PurchaseRequestLine"> | string | null
     demandReferenceType?: StringNullableFilter<"PurchaseRequestLine"> | string | null
     demandReferenceId?: StringNullableFilter<"PurchaseRequestLine"> | string | null
+    conversionStatus?: EnumProcurementPurchaseRequestLineConversionStatusFilter<"PurchaseRequestLine"> | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines?: JsonFilter<"PurchaseRequestLine">
     purchaseRequest?: XOR<PurchaseRequestScalarRelationFilter, PurchaseRequestWhereInput>
   }
 
@@ -15657,6 +16003,8 @@ export namespace Prisma {
     neededByDate?: SortOrderInput | SortOrder
     demandReferenceType?: SortOrderInput | SortOrder
     demandReferenceId?: SortOrderInput | SortOrder
+    conversionStatus?: SortOrder
+    linkedPurchaseOrderLines?: SortOrder
     purchaseRequest?: PurchaseRequestOrderByWithRelationInput
   }
 
@@ -15679,6 +16027,8 @@ export namespace Prisma {
     neededByDate?: StringNullableFilter<"PurchaseRequestLine"> | string | null
     demandReferenceType?: StringNullableFilter<"PurchaseRequestLine"> | string | null
     demandReferenceId?: StringNullableFilter<"PurchaseRequestLine"> | string | null
+    conversionStatus?: EnumProcurementPurchaseRequestLineConversionStatusFilter<"PurchaseRequestLine"> | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines?: JsonFilter<"PurchaseRequestLine">
     purchaseRequest?: XOR<PurchaseRequestScalarRelationFilter, PurchaseRequestWhereInput>
   }, "id" | "purchaseRequestId_lineNo">
 
@@ -15697,6 +16047,8 @@ export namespace Prisma {
     neededByDate?: SortOrderInput | SortOrder
     demandReferenceType?: SortOrderInput | SortOrder
     demandReferenceId?: SortOrderInput | SortOrder
+    conversionStatus?: SortOrder
+    linkedPurchaseOrderLines?: SortOrder
     _count?: PurchaseRequestLineCountOrderByAggregateInput
     _avg?: PurchaseRequestLineAvgOrderByAggregateInput
     _max?: PurchaseRequestLineMaxOrderByAggregateInput
@@ -15722,6 +16074,8 @@ export namespace Prisma {
     neededByDate?: StringNullableWithAggregatesFilter<"PurchaseRequestLine"> | string | null
     demandReferenceType?: StringNullableWithAggregatesFilter<"PurchaseRequestLine"> | string | null
     demandReferenceId?: StringNullableWithAggregatesFilter<"PurchaseRequestLine"> | string | null
+    conversionStatus?: EnumProcurementPurchaseRequestLineConversionStatusWithAggregatesFilter<"PurchaseRequestLine"> | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines?: JsonWithAggregatesFilter<"PurchaseRequestLine">
   }
 
   export type PurchaseRequestApprovalSnapshotWhereInput = {
@@ -15812,6 +16166,16 @@ export namespace Prisma {
     supplierId?: StringFilter<"PurchaseOrder"> | string
     supplierDisplayName?: StringFilter<"PurchaseOrder"> | string
     supplierStatusAtIssue?: StringNullableFilter<"PurchaseOrder"> | string | null
+    paymentTermsCode?: StringNullableFilter<"PurchaseOrder"> | string | null
+    paymentTermsText?: StringNullableFilter<"PurchaseOrder"> | string | null
+    incotermCode?: StringNullableFilter<"PurchaseOrder"> | string | null
+    commercialTermsText?: StringNullableFilter<"PurchaseOrder"> | string | null
+    paymentStatusSummary?: StringNullableFilter<"PurchaseOrder"> | string | null
+    depositPaidAmount?: StringNullableFilter<"PurchaseOrder"> | string | null
+    balancePaidAmount?: StringNullableFilter<"PurchaseOrder"> | string | null
+    paymentSummaryCurrencyCode?: StringNullableFilter<"PurchaseOrder"> | string | null
+    attachmentRefs?: JsonFilter<"PurchaseOrder">
+    lastPaymentAt?: DateTimeNullableFilter<"PurchaseOrder"> | Date | string | null
     sourcePurchaseRequestIds?: JsonFilter<"PurchaseOrder">
     sourcePurchaseRequestNos?: JsonFilter<"PurchaseOrder">
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusFilter<"PurchaseOrder"> | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -15839,6 +16203,16 @@ export namespace Prisma {
     supplierId?: SortOrder
     supplierDisplayName?: SortOrder
     supplierStatusAtIssue?: SortOrderInput | SortOrder
+    paymentTermsCode?: SortOrderInput | SortOrder
+    paymentTermsText?: SortOrderInput | SortOrder
+    incotermCode?: SortOrderInput | SortOrder
+    commercialTermsText?: SortOrderInput | SortOrder
+    paymentStatusSummary?: SortOrderInput | SortOrder
+    depositPaidAmount?: SortOrderInput | SortOrder
+    balancePaidAmount?: SortOrderInput | SortOrder
+    paymentSummaryCurrencyCode?: SortOrderInput | SortOrder
+    attachmentRefs?: SortOrder
+    lastPaymentAt?: SortOrderInput | SortOrder
     sourcePurchaseRequestIds?: SortOrder
     sourcePurchaseRequestNos?: SortOrder
     acknowledgementStatus?: SortOrder
@@ -15869,6 +16243,16 @@ export namespace Prisma {
     supplierId?: StringFilter<"PurchaseOrder"> | string
     supplierDisplayName?: StringFilter<"PurchaseOrder"> | string
     supplierStatusAtIssue?: StringNullableFilter<"PurchaseOrder"> | string | null
+    paymentTermsCode?: StringNullableFilter<"PurchaseOrder"> | string | null
+    paymentTermsText?: StringNullableFilter<"PurchaseOrder"> | string | null
+    incotermCode?: StringNullableFilter<"PurchaseOrder"> | string | null
+    commercialTermsText?: StringNullableFilter<"PurchaseOrder"> | string | null
+    paymentStatusSummary?: StringNullableFilter<"PurchaseOrder"> | string | null
+    depositPaidAmount?: StringNullableFilter<"PurchaseOrder"> | string | null
+    balancePaidAmount?: StringNullableFilter<"PurchaseOrder"> | string | null
+    paymentSummaryCurrencyCode?: StringNullableFilter<"PurchaseOrder"> | string | null
+    attachmentRefs?: JsonFilter<"PurchaseOrder">
+    lastPaymentAt?: DateTimeNullableFilter<"PurchaseOrder"> | Date | string | null
     sourcePurchaseRequestIds?: JsonFilter<"PurchaseOrder">
     sourcePurchaseRequestNos?: JsonFilter<"PurchaseOrder">
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusFilter<"PurchaseOrder"> | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -15896,6 +16280,16 @@ export namespace Prisma {
     supplierId?: SortOrder
     supplierDisplayName?: SortOrder
     supplierStatusAtIssue?: SortOrderInput | SortOrder
+    paymentTermsCode?: SortOrderInput | SortOrder
+    paymentTermsText?: SortOrderInput | SortOrder
+    incotermCode?: SortOrderInput | SortOrder
+    commercialTermsText?: SortOrderInput | SortOrder
+    paymentStatusSummary?: SortOrderInput | SortOrder
+    depositPaidAmount?: SortOrderInput | SortOrder
+    balancePaidAmount?: SortOrderInput | SortOrder
+    paymentSummaryCurrencyCode?: SortOrderInput | SortOrder
+    attachmentRefs?: SortOrder
+    lastPaymentAt?: SortOrderInput | SortOrder
     sourcePurchaseRequestIds?: SortOrder
     sourcePurchaseRequestNos?: SortOrder
     acknowledgementStatus?: SortOrder
@@ -15926,6 +16320,16 @@ export namespace Prisma {
     supplierId?: StringWithAggregatesFilter<"PurchaseOrder"> | string
     supplierDisplayName?: StringWithAggregatesFilter<"PurchaseOrder"> | string
     supplierStatusAtIssue?: StringNullableWithAggregatesFilter<"PurchaseOrder"> | string | null
+    paymentTermsCode?: StringNullableWithAggregatesFilter<"PurchaseOrder"> | string | null
+    paymentTermsText?: StringNullableWithAggregatesFilter<"PurchaseOrder"> | string | null
+    incotermCode?: StringNullableWithAggregatesFilter<"PurchaseOrder"> | string | null
+    commercialTermsText?: StringNullableWithAggregatesFilter<"PurchaseOrder"> | string | null
+    paymentStatusSummary?: StringNullableWithAggregatesFilter<"PurchaseOrder"> | string | null
+    depositPaidAmount?: StringNullableWithAggregatesFilter<"PurchaseOrder"> | string | null
+    balancePaidAmount?: StringNullableWithAggregatesFilter<"PurchaseOrder"> | string | null
+    paymentSummaryCurrencyCode?: StringNullableWithAggregatesFilter<"PurchaseOrder"> | string | null
+    attachmentRefs?: JsonWithAggregatesFilter<"PurchaseOrder">
+    lastPaymentAt?: DateTimeNullableWithAggregatesFilter<"PurchaseOrder"> | Date | string | null
     sourcePurchaseRequestIds?: JsonWithAggregatesFilter<"PurchaseOrder">
     sourcePurchaseRequestNos?: JsonWithAggregatesFilter<"PurchaseOrder">
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusWithAggregatesFilter<"PurchaseOrder"> | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -16067,9 +16471,11 @@ export namespace Prisma {
     tenantId?: StringFilter<"PurchaseOrderLineAllocation"> | string
     purchaseOrderLineId?: UuidFilter<"PurchaseOrderLineAllocation"> | string
     allocationType?: EnumProcurementPurchaseOrderLineAllocationTypeFilter<"PurchaseOrderLineAllocation"> | $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
+    sourceReferenceId?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
     quantity?: StringFilter<"PurchaseOrderLineAllocation"> | string
     reason?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
+    targetWarehouseId?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
+    targetReceivingAddressId?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
     purchaseOrderLine?: XOR<PurchaseOrderLineScalarRelationFilter, PurchaseOrderLineWhereInput>
   }
 
@@ -16078,9 +16484,11 @@ export namespace Prisma {
     tenantId?: SortOrder
     purchaseOrderLineId?: SortOrder
     allocationType?: SortOrder
-    referenceId?: SortOrderInput | SortOrder
+    sourceReferenceId?: SortOrderInput | SortOrder
     quantity?: SortOrder
     reason?: SortOrderInput | SortOrder
+    targetWarehouseId?: SortOrderInput | SortOrder
+    targetReceivingAddressId?: SortOrderInput | SortOrder
     purchaseOrderLine?: PurchaseOrderLineOrderByWithRelationInput
   }
 
@@ -16092,9 +16500,11 @@ export namespace Prisma {
     tenantId?: StringFilter<"PurchaseOrderLineAllocation"> | string
     purchaseOrderLineId?: UuidFilter<"PurchaseOrderLineAllocation"> | string
     allocationType?: EnumProcurementPurchaseOrderLineAllocationTypeFilter<"PurchaseOrderLineAllocation"> | $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
+    sourceReferenceId?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
     quantity?: StringFilter<"PurchaseOrderLineAllocation"> | string
     reason?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
+    targetWarehouseId?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
+    targetReceivingAddressId?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
     purchaseOrderLine?: XOR<PurchaseOrderLineScalarRelationFilter, PurchaseOrderLineWhereInput>
   }, "id">
 
@@ -16103,9 +16513,11 @@ export namespace Prisma {
     tenantId?: SortOrder
     purchaseOrderLineId?: SortOrder
     allocationType?: SortOrder
-    referenceId?: SortOrderInput | SortOrder
+    sourceReferenceId?: SortOrderInput | SortOrder
     quantity?: SortOrder
     reason?: SortOrderInput | SortOrder
+    targetWarehouseId?: SortOrderInput | SortOrder
+    targetReceivingAddressId?: SortOrderInput | SortOrder
     _count?: PurchaseOrderLineAllocationCountOrderByAggregateInput
     _max?: PurchaseOrderLineAllocationMaxOrderByAggregateInput
     _min?: PurchaseOrderLineAllocationMinOrderByAggregateInput
@@ -16119,9 +16531,11 @@ export namespace Prisma {
     tenantId?: StringWithAggregatesFilter<"PurchaseOrderLineAllocation"> | string
     purchaseOrderLineId?: UuidWithAggregatesFilter<"PurchaseOrderLineAllocation"> | string
     allocationType?: EnumProcurementPurchaseOrderLineAllocationTypeWithAggregatesFilter<"PurchaseOrderLineAllocation"> | $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: StringNullableWithAggregatesFilter<"PurchaseOrderLineAllocation"> | string | null
+    sourceReferenceId?: StringNullableWithAggregatesFilter<"PurchaseOrderLineAllocation"> | string | null
     quantity?: StringWithAggregatesFilter<"PurchaseOrderLineAllocation"> | string
     reason?: StringNullableWithAggregatesFilter<"PurchaseOrderLineAllocation"> | string | null
+    targetWarehouseId?: StringNullableWithAggregatesFilter<"PurchaseOrderLineAllocation"> | string | null
+    targetReceivingAddressId?: StringNullableWithAggregatesFilter<"PurchaseOrderLineAllocation"> | string | null
   }
 
   export type PurchaseOrderChangeWhereInput = {
@@ -16215,6 +16629,10 @@ export namespace Prisma {
     purchaseOrderId?: UuidFilter<"ReceivingExpectation"> | string
     purchaseOrderLineId?: UuidFilter<"ReceivingExpectation"> | string
     supplierId?: StringFilter<"ReceivingExpectation"> | string
+    allocationGroupingKey?: StringFilter<"ReceivingExpectation"> | string
+    sourceAllocationIds?: JsonFilter<"ReceivingExpectation">
+    targetWarehouseId?: StringNullableFilter<"ReceivingExpectation"> | string | null
+    targetReceivingAddressId?: StringNullableFilter<"ReceivingExpectation"> | string | null
     expectedQuantity?: StringFilter<"ReceivingExpectation"> | string
     receivedQuantitySummary?: StringFilter<"ReceivingExpectation"> | string
     openQuantity?: StringFilter<"ReceivingExpectation"> | string
@@ -16235,6 +16653,10 @@ export namespace Prisma {
     purchaseOrderId?: SortOrder
     purchaseOrderLineId?: SortOrder
     supplierId?: SortOrder
+    allocationGroupingKey?: SortOrder
+    sourceAllocationIds?: SortOrder
+    targetWarehouseId?: SortOrderInput | SortOrder
+    targetReceivingAddressId?: SortOrderInput | SortOrder
     expectedQuantity?: SortOrder
     receivedQuantitySummary?: SortOrder
     openQuantity?: SortOrder
@@ -16250,7 +16672,6 @@ export namespace Prisma {
   export type ReceivingExpectationWhereUniqueInput = Prisma.AtLeast<{
     id?: string
     expectationNo?: string
-    tenantId_purchaseOrderLineId?: ReceivingExpectationTenantIdPurchaseOrderLineIdCompoundUniqueInput
     AND?: ReceivingExpectationWhereInput | ReceivingExpectationWhereInput[]
     OR?: ReceivingExpectationWhereInput[]
     NOT?: ReceivingExpectationWhereInput | ReceivingExpectationWhereInput[]
@@ -16259,6 +16680,10 @@ export namespace Prisma {
     purchaseOrderId?: UuidFilter<"ReceivingExpectation"> | string
     purchaseOrderLineId?: UuidFilter<"ReceivingExpectation"> | string
     supplierId?: StringFilter<"ReceivingExpectation"> | string
+    allocationGroupingKey?: StringFilter<"ReceivingExpectation"> | string
+    sourceAllocationIds?: JsonFilter<"ReceivingExpectation">
+    targetWarehouseId?: StringNullableFilter<"ReceivingExpectation"> | string | null
+    targetReceivingAddressId?: StringNullableFilter<"ReceivingExpectation"> | string | null
     expectedQuantity?: StringFilter<"ReceivingExpectation"> | string
     receivedQuantitySummary?: StringFilter<"ReceivingExpectation"> | string
     openQuantity?: StringFilter<"ReceivingExpectation"> | string
@@ -16269,7 +16694,7 @@ export namespace Prisma {
     discrepancy?: XOR<ReceivingDiscrepancyNullableScalarRelationFilter, ReceivingDiscrepancyWhereInput> | null
     purchaseOrder?: XOR<PurchaseOrderScalarRelationFilter, PurchaseOrderWhereInput>
     purchaseOrderLine?: XOR<PurchaseOrderLineScalarRelationFilter, PurchaseOrderLineWhereInput>
-  }, "id" | "expectationNo" | "tenantId_purchaseOrderLineId">
+  }, "id" | "expectationNo">
 
   export type ReceivingExpectationOrderByWithAggregationInput = {
     id?: SortOrder
@@ -16279,6 +16704,10 @@ export namespace Prisma {
     purchaseOrderId?: SortOrder
     purchaseOrderLineId?: SortOrder
     supplierId?: SortOrder
+    allocationGroupingKey?: SortOrder
+    sourceAllocationIds?: SortOrder
+    targetWarehouseId?: SortOrderInput | SortOrder
+    targetReceivingAddressId?: SortOrderInput | SortOrder
     expectedQuantity?: SortOrder
     receivedQuantitySummary?: SortOrder
     openQuantity?: SortOrder
@@ -16302,6 +16731,10 @@ export namespace Prisma {
     purchaseOrderId?: UuidWithAggregatesFilter<"ReceivingExpectation"> | string
     purchaseOrderLineId?: UuidWithAggregatesFilter<"ReceivingExpectation"> | string
     supplierId?: StringWithAggregatesFilter<"ReceivingExpectation"> | string
+    allocationGroupingKey?: StringWithAggregatesFilter<"ReceivingExpectation"> | string
+    sourceAllocationIds?: JsonWithAggregatesFilter<"ReceivingExpectation">
+    targetWarehouseId?: StringNullableWithAggregatesFilter<"ReceivingExpectation"> | string | null
+    targetReceivingAddressId?: StringNullableWithAggregatesFilter<"ReceivingExpectation"> | string | null
     expectedQuantity?: StringWithAggregatesFilter<"ReceivingExpectation"> | string
     receivedQuantitySummary?: StringWithAggregatesFilter<"ReceivingExpectation"> | string
     openQuantity?: StringWithAggregatesFilter<"ReceivingExpectation"> | string
@@ -16323,6 +16756,7 @@ export namespace Prisma {
     status?: EnumProcurementReceivingDiscrepancyStatusFilter<"ReceivingDiscrepancy"> | $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: EnumProcurementReceivingResolutionCodeNullableFilter<"ReceivingDiscrepancy"> | $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: StringNullableFilter<"ReceivingDiscrepancy"> | string | null
+    resolutionReferences?: JsonFilter<"ReceivingDiscrepancy">
     resolvedAt?: DateTimeNullableFilter<"ReceivingDiscrepancy"> | Date | string | null
     receivingExpectation?: XOR<ReceivingExpectationScalarRelationFilter, ReceivingExpectationWhereInput>
   }
@@ -16336,6 +16770,7 @@ export namespace Prisma {
     status?: SortOrder
     resolutionCode?: SortOrderInput | SortOrder
     resolutionNote?: SortOrderInput | SortOrder
+    resolutionReferences?: SortOrder
     resolvedAt?: SortOrderInput | SortOrder
     receivingExpectation?: ReceivingExpectationOrderByWithRelationInput
   }
@@ -16352,6 +16787,7 @@ export namespace Prisma {
     status?: EnumProcurementReceivingDiscrepancyStatusFilter<"ReceivingDiscrepancy"> | $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: EnumProcurementReceivingResolutionCodeNullableFilter<"ReceivingDiscrepancy"> | $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: StringNullableFilter<"ReceivingDiscrepancy"> | string | null
+    resolutionReferences?: JsonFilter<"ReceivingDiscrepancy">
     resolvedAt?: DateTimeNullableFilter<"ReceivingDiscrepancy"> | Date | string | null
     receivingExpectation?: XOR<ReceivingExpectationScalarRelationFilter, ReceivingExpectationWhereInput>
   }, "id" | "receivingExpectationId">
@@ -16365,6 +16801,7 @@ export namespace Prisma {
     status?: SortOrder
     resolutionCode?: SortOrderInput | SortOrder
     resolutionNote?: SortOrderInput | SortOrder
+    resolutionReferences?: SortOrder
     resolvedAt?: SortOrderInput | SortOrder
     _count?: ReceivingDiscrepancyCountOrderByAggregateInput
     _max?: ReceivingDiscrepancyMaxOrderByAggregateInput
@@ -16383,6 +16820,7 @@ export namespace Prisma {
     status?: EnumProcurementReceivingDiscrepancyStatusWithAggregatesFilter<"ReceivingDiscrepancy"> | $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: EnumProcurementReceivingResolutionCodeNullableWithAggregatesFilter<"ReceivingDiscrepancy"> | $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: StringNullableWithAggregatesFilter<"ReceivingDiscrepancy"> | string | null
+    resolutionReferences?: JsonWithAggregatesFilter<"ReceivingDiscrepancy">
     resolvedAt?: DateTimeNullableWithAggregatesFilter<"ReceivingDiscrepancy"> | Date | string | null
   }
 
@@ -16569,6 +17007,9 @@ export namespace Prisma {
     submittedAt?: Date | string | null
     decidedAt?: Date | string | null
     cancelledAt?: Date | string | null
+    linkedPurchaseOrders: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: string | null
+    receivingStatusSummary?: string | null
     lines?: PurchaseRequestLineCreateNestedManyWithoutPurchaseRequestInput
     approvalSnapshot?: PurchaseRequestApprovalSnapshotCreateNestedOneWithoutPurchaseRequestInput
   }
@@ -16591,6 +17032,9 @@ export namespace Prisma {
     submittedAt?: Date | string | null
     decidedAt?: Date | string | null
     cancelledAt?: Date | string | null
+    linkedPurchaseOrders: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: string | null
+    receivingStatusSummary?: string | null
     lines?: PurchaseRequestLineUncheckedCreateNestedManyWithoutPurchaseRequestInput
     approvalSnapshot?: PurchaseRequestApprovalSnapshotUncheckedCreateNestedOneWithoutPurchaseRequestInput
   }
@@ -16613,6 +17057,9 @@ export namespace Prisma {
     submittedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     decidedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    linkedPurchaseOrders?: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: NullableStringFieldUpdateOperationsInput | string | null
+    receivingStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
     lines?: PurchaseRequestLineUpdateManyWithoutPurchaseRequestNestedInput
     approvalSnapshot?: PurchaseRequestApprovalSnapshotUpdateOneWithoutPurchaseRequestNestedInput
   }
@@ -16635,6 +17082,9 @@ export namespace Prisma {
     submittedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     decidedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    linkedPurchaseOrders?: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: NullableStringFieldUpdateOperationsInput | string | null
+    receivingStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
     lines?: PurchaseRequestLineUncheckedUpdateManyWithoutPurchaseRequestNestedInput
     approvalSnapshot?: PurchaseRequestApprovalSnapshotUncheckedUpdateOneWithoutPurchaseRequestNestedInput
   }
@@ -16657,6 +17107,9 @@ export namespace Prisma {
     submittedAt?: Date | string | null
     decidedAt?: Date | string | null
     cancelledAt?: Date | string | null
+    linkedPurchaseOrders: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: string | null
+    receivingStatusSummary?: string | null
   }
 
   export type PurchaseRequestUpdateManyMutationInput = {
@@ -16677,6 +17130,9 @@ export namespace Prisma {
     submittedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     decidedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    linkedPurchaseOrders?: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: NullableStringFieldUpdateOperationsInput | string | null
+    receivingStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type PurchaseRequestUncheckedUpdateManyInput = {
@@ -16697,6 +17153,9 @@ export namespace Prisma {
     submittedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     decidedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    linkedPurchaseOrders?: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: NullableStringFieldUpdateOperationsInput | string | null
+    receivingStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type PurchaseRequestLineCreateInput = {
@@ -16713,6 +17172,8 @@ export namespace Prisma {
     neededByDate?: string | null
     demandReferenceType?: string | null
     demandReferenceId?: string | null
+    conversionStatus: $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines: JsonNullValueInput | InputJsonValue
     purchaseRequest: PurchaseRequestCreateNestedOneWithoutLinesInput
   }
 
@@ -16731,6 +17192,8 @@ export namespace Prisma {
     neededByDate?: string | null
     demandReferenceType?: string | null
     demandReferenceId?: string | null
+    conversionStatus: $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines: JsonNullValueInput | InputJsonValue
   }
 
   export type PurchaseRequestLineUpdateInput = {
@@ -16747,6 +17210,8 @@ export namespace Prisma {
     neededByDate?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceType?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    conversionStatus?: EnumProcurementPurchaseRequestLineConversionStatusFieldUpdateOperationsInput | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines?: JsonNullValueInput | InputJsonValue
     purchaseRequest?: PurchaseRequestUpdateOneRequiredWithoutLinesNestedInput
   }
 
@@ -16765,6 +17230,8 @@ export namespace Prisma {
     neededByDate?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceType?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    conversionStatus?: EnumProcurementPurchaseRequestLineConversionStatusFieldUpdateOperationsInput | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines?: JsonNullValueInput | InputJsonValue
   }
 
   export type PurchaseRequestLineCreateManyInput = {
@@ -16782,6 +17249,8 @@ export namespace Prisma {
     neededByDate?: string | null
     demandReferenceType?: string | null
     demandReferenceId?: string | null
+    conversionStatus: $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines: JsonNullValueInput | InputJsonValue
   }
 
   export type PurchaseRequestLineUpdateManyMutationInput = {
@@ -16798,6 +17267,8 @@ export namespace Prisma {
     neededByDate?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceType?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    conversionStatus?: EnumProcurementPurchaseRequestLineConversionStatusFieldUpdateOperationsInput | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines?: JsonNullValueInput | InputJsonValue
   }
 
   export type PurchaseRequestLineUncheckedUpdateManyInput = {
@@ -16815,6 +17286,8 @@ export namespace Prisma {
     neededByDate?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceType?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    conversionStatus?: EnumProcurementPurchaseRequestLineConversionStatusFieldUpdateOperationsInput | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines?: JsonNullValueInput | InputJsonValue
   }
 
   export type PurchaseRequestApprovalSnapshotCreateInput = {
@@ -16910,6 +17383,16 @@ export namespace Prisma {
     supplierId: string
     supplierDisplayName: string
     supplierStatusAtIssue?: string | null
+    paymentTermsCode?: string | null
+    paymentTermsText?: string | null
+    incotermCode?: string | null
+    commercialTermsText?: string | null
+    paymentStatusSummary?: string | null
+    depositPaidAmount?: string | null
+    balancePaidAmount?: string | null
+    paymentSummaryCurrencyCode?: string | null
+    attachmentRefs: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: Date | string | null
     sourcePurchaseRequestIds: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos: JsonNullValueInput | InputJsonValue
     acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus
@@ -16937,6 +17420,16 @@ export namespace Prisma {
     supplierId: string
     supplierDisplayName: string
     supplierStatusAtIssue?: string | null
+    paymentTermsCode?: string | null
+    paymentTermsText?: string | null
+    incotermCode?: string | null
+    commercialTermsText?: string | null
+    paymentStatusSummary?: string | null
+    depositPaidAmount?: string | null
+    balancePaidAmount?: string | null
+    paymentSummaryCurrencyCode?: string | null
+    attachmentRefs: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: Date | string | null
     sourcePurchaseRequestIds: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos: JsonNullValueInput | InputJsonValue
     acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus
@@ -16964,6 +17457,16 @@ export namespace Prisma {
     supplierId?: StringFieldUpdateOperationsInput | string
     supplierDisplayName?: StringFieldUpdateOperationsInput | string
     supplierStatusAtIssue?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsCode?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    incotermCode?: NullableStringFieldUpdateOperationsInput | string | null
+    commercialTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    depositPaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    balancePaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentSummaryCurrencyCode?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentRefs?: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sourcePurchaseRequestIds?: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos?: JsonNullValueInput | InputJsonValue
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusFieldUpdateOperationsInput | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -16991,6 +17494,16 @@ export namespace Prisma {
     supplierId?: StringFieldUpdateOperationsInput | string
     supplierDisplayName?: StringFieldUpdateOperationsInput | string
     supplierStatusAtIssue?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsCode?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    incotermCode?: NullableStringFieldUpdateOperationsInput | string | null
+    commercialTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    depositPaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    balancePaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentSummaryCurrencyCode?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentRefs?: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sourcePurchaseRequestIds?: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos?: JsonNullValueInput | InputJsonValue
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusFieldUpdateOperationsInput | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -17018,6 +17531,16 @@ export namespace Prisma {
     supplierId: string
     supplierDisplayName: string
     supplierStatusAtIssue?: string | null
+    paymentTermsCode?: string | null
+    paymentTermsText?: string | null
+    incotermCode?: string | null
+    commercialTermsText?: string | null
+    paymentStatusSummary?: string | null
+    depositPaidAmount?: string | null
+    balancePaidAmount?: string | null
+    paymentSummaryCurrencyCode?: string | null
+    attachmentRefs: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: Date | string | null
     sourcePurchaseRequestIds: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos: JsonNullValueInput | InputJsonValue
     acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus
@@ -17042,6 +17565,16 @@ export namespace Prisma {
     supplierId?: StringFieldUpdateOperationsInput | string
     supplierDisplayName?: StringFieldUpdateOperationsInput | string
     supplierStatusAtIssue?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsCode?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    incotermCode?: NullableStringFieldUpdateOperationsInput | string | null
+    commercialTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    depositPaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    balancePaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentSummaryCurrencyCode?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentRefs?: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sourcePurchaseRequestIds?: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos?: JsonNullValueInput | InputJsonValue
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusFieldUpdateOperationsInput | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -17066,6 +17599,16 @@ export namespace Prisma {
     supplierId?: StringFieldUpdateOperationsInput | string
     supplierDisplayName?: StringFieldUpdateOperationsInput | string
     supplierStatusAtIssue?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsCode?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    incotermCode?: NullableStringFieldUpdateOperationsInput | string | null
+    commercialTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    depositPaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    balancePaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentSummaryCurrencyCode?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentRefs?: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sourcePurchaseRequestIds?: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos?: JsonNullValueInput | InputJsonValue
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusFieldUpdateOperationsInput | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -17224,9 +17767,11 @@ export namespace Prisma {
     id: string
     tenantId: string
     allocationType: $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: string | null
+    sourceReferenceId?: string | null
     quantity: string
     reason?: string | null
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
     purchaseOrderLine: PurchaseOrderLineCreateNestedOneWithoutAllocationsInput
   }
 
@@ -17235,18 +17780,22 @@ export namespace Prisma {
     tenantId: string
     purchaseOrderLineId: string
     allocationType: $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: string | null
+    sourceReferenceId?: string | null
     quantity: string
     reason?: string | null
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
   }
 
   export type PurchaseOrderLineAllocationUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     tenantId?: StringFieldUpdateOperationsInput | string
     allocationType?: EnumProcurementPurchaseOrderLineAllocationTypeFieldUpdateOperationsInput | $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    sourceReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     quantity?: StringFieldUpdateOperationsInput | string
     reason?: NullableStringFieldUpdateOperationsInput | string | null
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     purchaseOrderLine?: PurchaseOrderLineUpdateOneRequiredWithoutAllocationsNestedInput
   }
 
@@ -17255,9 +17804,11 @@ export namespace Prisma {
     tenantId?: StringFieldUpdateOperationsInput | string
     purchaseOrderLineId?: StringFieldUpdateOperationsInput | string
     allocationType?: EnumProcurementPurchaseOrderLineAllocationTypeFieldUpdateOperationsInput | $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    sourceReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     quantity?: StringFieldUpdateOperationsInput | string
     reason?: NullableStringFieldUpdateOperationsInput | string | null
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type PurchaseOrderLineAllocationCreateManyInput = {
@@ -17265,18 +17816,22 @@ export namespace Prisma {
     tenantId: string
     purchaseOrderLineId: string
     allocationType: $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: string | null
+    sourceReferenceId?: string | null
     quantity: string
     reason?: string | null
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
   }
 
   export type PurchaseOrderLineAllocationUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     tenantId?: StringFieldUpdateOperationsInput | string
     allocationType?: EnumProcurementPurchaseOrderLineAllocationTypeFieldUpdateOperationsInput | $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    sourceReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     quantity?: StringFieldUpdateOperationsInput | string
     reason?: NullableStringFieldUpdateOperationsInput | string | null
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type PurchaseOrderLineAllocationUncheckedUpdateManyInput = {
@@ -17284,9 +17839,11 @@ export namespace Prisma {
     tenantId?: StringFieldUpdateOperationsInput | string
     purchaseOrderLineId?: StringFieldUpdateOperationsInput | string
     allocationType?: EnumProcurementPurchaseOrderLineAllocationTypeFieldUpdateOperationsInput | $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    sourceReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     quantity?: StringFieldUpdateOperationsInput | string
     reason?: NullableStringFieldUpdateOperationsInput | string | null
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type PurchaseOrderChangeCreateInput = {
@@ -17385,6 +17942,10 @@ export namespace Prisma {
     tenantId: string
     orgId?: string | null
     supplierId: string
+    allocationGroupingKey: string
+    sourceAllocationIds: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
     expectedQuantity: string
     receivedQuantitySummary: string
     openQuantity: string
@@ -17405,6 +17966,10 @@ export namespace Prisma {
     purchaseOrderId: string
     purchaseOrderLineId: string
     supplierId: string
+    allocationGroupingKey: string
+    sourceAllocationIds: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
     expectedQuantity: string
     receivedQuantitySummary: string
     openQuantity: string
@@ -17421,6 +17986,10 @@ export namespace Prisma {
     tenantId?: StringFieldUpdateOperationsInput | string
     orgId?: NullableStringFieldUpdateOperationsInput | string | null
     supplierId?: StringFieldUpdateOperationsInput | string
+    allocationGroupingKey?: StringFieldUpdateOperationsInput | string
+    sourceAllocationIds?: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     expectedQuantity?: StringFieldUpdateOperationsInput | string
     receivedQuantitySummary?: StringFieldUpdateOperationsInput | string
     openQuantity?: StringFieldUpdateOperationsInput | string
@@ -17441,6 +18010,10 @@ export namespace Prisma {
     purchaseOrderId?: StringFieldUpdateOperationsInput | string
     purchaseOrderLineId?: StringFieldUpdateOperationsInput | string
     supplierId?: StringFieldUpdateOperationsInput | string
+    allocationGroupingKey?: StringFieldUpdateOperationsInput | string
+    sourceAllocationIds?: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     expectedQuantity?: StringFieldUpdateOperationsInput | string
     receivedQuantitySummary?: StringFieldUpdateOperationsInput | string
     openQuantity?: StringFieldUpdateOperationsInput | string
@@ -17459,6 +18032,10 @@ export namespace Prisma {
     purchaseOrderId: string
     purchaseOrderLineId: string
     supplierId: string
+    allocationGroupingKey: string
+    sourceAllocationIds: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
     expectedQuantity: string
     receivedQuantitySummary: string
     openQuantity: string
@@ -17474,6 +18051,10 @@ export namespace Prisma {
     tenantId?: StringFieldUpdateOperationsInput | string
     orgId?: NullableStringFieldUpdateOperationsInput | string | null
     supplierId?: StringFieldUpdateOperationsInput | string
+    allocationGroupingKey?: StringFieldUpdateOperationsInput | string
+    sourceAllocationIds?: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     expectedQuantity?: StringFieldUpdateOperationsInput | string
     receivedQuantitySummary?: StringFieldUpdateOperationsInput | string
     openQuantity?: StringFieldUpdateOperationsInput | string
@@ -17491,6 +18072,10 @@ export namespace Prisma {
     purchaseOrderId?: StringFieldUpdateOperationsInput | string
     purchaseOrderLineId?: StringFieldUpdateOperationsInput | string
     supplierId?: StringFieldUpdateOperationsInput | string
+    allocationGroupingKey?: StringFieldUpdateOperationsInput | string
+    sourceAllocationIds?: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     expectedQuantity?: StringFieldUpdateOperationsInput | string
     receivedQuantitySummary?: StringFieldUpdateOperationsInput | string
     openQuantity?: StringFieldUpdateOperationsInput | string
@@ -17508,6 +18093,7 @@ export namespace Prisma {
     status: $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: string | null
+    resolutionReferences: JsonNullValueInput | InputJsonValue
     resolvedAt?: Date | string | null
     receivingExpectation: ReceivingExpectationCreateNestedOneWithoutDiscrepancyInput
   }
@@ -17521,6 +18107,7 @@ export namespace Prisma {
     status: $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: string | null
+    resolutionReferences: JsonNullValueInput | InputJsonValue
     resolvedAt?: Date | string | null
   }
 
@@ -17532,6 +18119,7 @@ export namespace Prisma {
     status?: EnumProcurementReceivingDiscrepancyStatusFieldUpdateOperationsInput | $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: NullableEnumProcurementReceivingResolutionCodeFieldUpdateOperationsInput | $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: NullableStringFieldUpdateOperationsInput | string | null
+    resolutionReferences?: JsonNullValueInput | InputJsonValue
     resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     receivingExpectation?: ReceivingExpectationUpdateOneRequiredWithoutDiscrepancyNestedInput
   }
@@ -17545,6 +18133,7 @@ export namespace Prisma {
     status?: EnumProcurementReceivingDiscrepancyStatusFieldUpdateOperationsInput | $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: NullableEnumProcurementReceivingResolutionCodeFieldUpdateOperationsInput | $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: NullableStringFieldUpdateOperationsInput | string | null
+    resolutionReferences?: JsonNullValueInput | InputJsonValue
     resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
@@ -17557,6 +18146,7 @@ export namespace Prisma {
     status: $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: string | null
+    resolutionReferences: JsonNullValueInput | InputJsonValue
     resolvedAt?: Date | string | null
   }
 
@@ -17568,6 +18158,7 @@ export namespace Prisma {
     status?: EnumProcurementReceivingDiscrepancyStatusFieldUpdateOperationsInput | $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: NullableEnumProcurementReceivingResolutionCodeFieldUpdateOperationsInput | $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: NullableStringFieldUpdateOperationsInput | string | null
+    resolutionReferences?: JsonNullValueInput | InputJsonValue
     resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
@@ -17580,6 +18171,7 @@ export namespace Prisma {
     status?: EnumProcurementReceivingDiscrepancyStatusFieldUpdateOperationsInput | $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: NullableEnumProcurementReceivingResolutionCodeFieldUpdateOperationsInput | $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: NullableStringFieldUpdateOperationsInput | string | null
+    resolutionReferences?: JsonNullValueInput | InputJsonValue
     resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
@@ -17884,6 +18476,29 @@ export namespace Prisma {
     gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
     not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
   }
+  export type JsonFilter<$PrismaModel = never> = 
+    | PatchUndefined<
+        Either<Required<JsonFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
 
   export type PurchaseRequestLineListRelationFilter = {
     every?: PurchaseRequestLineWhereInput
@@ -17923,6 +18538,9 @@ export namespace Prisma {
     submittedAt?: SortOrder
     decidedAt?: SortOrder
     cancelledAt?: SortOrder
+    linkedPurchaseOrders?: SortOrder
+    nextExpectedReceiptDate?: SortOrder
+    receivingStatusSummary?: SortOrder
   }
 
   export type PurchaseRequestMaxOrderByAggregateInput = {
@@ -17943,6 +18561,8 @@ export namespace Prisma {
     submittedAt?: SortOrder
     decidedAt?: SortOrder
     cancelledAt?: SortOrder
+    nextExpectedReceiptDate?: SortOrder
+    receivingStatusSummary?: SortOrder
   }
 
   export type PurchaseRequestMinOrderByAggregateInput = {
@@ -17963,6 +18583,8 @@ export namespace Prisma {
     submittedAt?: SortOrder
     decidedAt?: SortOrder
     cancelledAt?: SortOrder
+    nextExpectedReceiptDate?: SortOrder
+    receivingStatusSummary?: SortOrder
   }
 
   export type UuidWithAggregatesFilter<$PrismaModel = never> = {
@@ -18031,12 +18653,45 @@ export namespace Prisma {
     _min?: NestedDateTimeNullableFilter<$PrismaModel>
     _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
+  export type JsonWithAggregatesFilter<$PrismaModel = never> = 
+    | PatchUndefined<
+        Either<Required<JsonWithAggregatesFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonWithAggregatesFilterBase<$PrismaModel>>, 'path'>>,
+        Required<JsonWithAggregatesFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<JsonWithAggregatesFilterBase<$PrismaModel>>, 'path'>>
+
+  export type JsonWithAggregatesFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedJsonFilter<$PrismaModel>
+    _max?: NestedJsonFilter<$PrismaModel>
+  }
 
   export type EnumProcurementPurchaseRequestLineTypeFilter<$PrismaModel = never> = {
     equals?: $Enums.ProcurementPurchaseRequestLineType | EnumProcurementPurchaseRequestLineTypeFieldRefInput<$PrismaModel>
     in?: $Enums.ProcurementPurchaseRequestLineType[] | ListEnumProcurementPurchaseRequestLineTypeFieldRefInput<$PrismaModel>
     notIn?: $Enums.ProcurementPurchaseRequestLineType[] | ListEnumProcurementPurchaseRequestLineTypeFieldRefInput<$PrismaModel>
     not?: NestedEnumProcurementPurchaseRequestLineTypeFilter<$PrismaModel> | $Enums.ProcurementPurchaseRequestLineType
+  }
+
+  export type EnumProcurementPurchaseRequestLineConversionStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.ProcurementPurchaseRequestLineConversionStatus | EnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.ProcurementPurchaseRequestLineConversionStatus[] | ListEnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.ProcurementPurchaseRequestLineConversionStatus[] | ListEnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumProcurementPurchaseRequestLineConversionStatusFilter<$PrismaModel> | $Enums.ProcurementPurchaseRequestLineConversionStatus
   }
 
   export type PurchaseRequestScalarRelationFilter = {
@@ -18064,6 +18719,8 @@ export namespace Prisma {
     neededByDate?: SortOrder
     demandReferenceType?: SortOrder
     demandReferenceId?: SortOrder
+    conversionStatus?: SortOrder
+    linkedPurchaseOrderLines?: SortOrder
   }
 
   export type PurchaseRequestLineAvgOrderByAggregateInput = {
@@ -18085,6 +18742,7 @@ export namespace Prisma {
     neededByDate?: SortOrder
     demandReferenceType?: SortOrder
     demandReferenceId?: SortOrder
+    conversionStatus?: SortOrder
   }
 
   export type PurchaseRequestLineMinOrderByAggregateInput = {
@@ -18102,6 +18760,7 @@ export namespace Prisma {
     neededByDate?: SortOrder
     demandReferenceType?: SortOrder
     demandReferenceId?: SortOrder
+    conversionStatus?: SortOrder
   }
 
   export type PurchaseRequestLineSumOrderByAggregateInput = {
@@ -18116,6 +18775,16 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumProcurementPurchaseRequestLineTypeFilter<$PrismaModel>
     _max?: NestedEnumProcurementPurchaseRequestLineTypeFilter<$PrismaModel>
+  }
+
+  export type EnumProcurementPurchaseRequestLineConversionStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.ProcurementPurchaseRequestLineConversionStatus | EnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.ProcurementPurchaseRequestLineConversionStatus[] | ListEnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.ProcurementPurchaseRequestLineConversionStatus[] | ListEnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumProcurementPurchaseRequestLineConversionStatusWithAggregatesFilter<$PrismaModel> | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumProcurementPurchaseRequestLineConversionStatusFilter<$PrismaModel>
+    _max?: NestedEnumProcurementPurchaseRequestLineConversionStatusFilter<$PrismaModel>
   }
 
   export type EnumProcurementPurchaseRequestDecisionFilter<$PrismaModel = never> = {
@@ -18177,29 +18846,6 @@ export namespace Prisma {
     notIn?: $Enums.ProcurementPurchaseOrderStatus[] | ListEnumProcurementPurchaseOrderStatusFieldRefInput<$PrismaModel>
     not?: NestedEnumProcurementPurchaseOrderStatusFilter<$PrismaModel> | $Enums.ProcurementPurchaseOrderStatus
   }
-  export type JsonFilter<$PrismaModel = never> = 
-    | PatchUndefined<
-        Either<Required<JsonFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonFilterBase<$PrismaModel>>, 'path'>>,
-        Required<JsonFilterBase<$PrismaModel>>
-      >
-    | OptionalFlat<Omit<Required<JsonFilterBase<$PrismaModel>>, 'path'>>
-
-  export type JsonFilterBase<$PrismaModel = never> = {
-    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    path?: string[]
-    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
-    string_contains?: string | StringFieldRefInput<$PrismaModel>
-    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
-    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
-    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-  }
 
   export type EnumProcurementSupplierAcknowledgementStatusFilter<$PrismaModel = never> = {
     equals?: $Enums.ProcurementSupplierAcknowledgementStatus | EnumProcurementSupplierAcknowledgementStatusFieldRefInput<$PrismaModel>
@@ -18248,6 +18894,16 @@ export namespace Prisma {
     supplierId?: SortOrder
     supplierDisplayName?: SortOrder
     supplierStatusAtIssue?: SortOrder
+    paymentTermsCode?: SortOrder
+    paymentTermsText?: SortOrder
+    incotermCode?: SortOrder
+    commercialTermsText?: SortOrder
+    paymentStatusSummary?: SortOrder
+    depositPaidAmount?: SortOrder
+    balancePaidAmount?: SortOrder
+    paymentSummaryCurrencyCode?: SortOrder
+    attachmentRefs?: SortOrder
+    lastPaymentAt?: SortOrder
     sourcePurchaseRequestIds?: SortOrder
     sourcePurchaseRequestNos?: SortOrder
     acknowledgementStatus?: SortOrder
@@ -18272,6 +18928,15 @@ export namespace Prisma {
     supplierId?: SortOrder
     supplierDisplayName?: SortOrder
     supplierStatusAtIssue?: SortOrder
+    paymentTermsCode?: SortOrder
+    paymentTermsText?: SortOrder
+    incotermCode?: SortOrder
+    commercialTermsText?: SortOrder
+    paymentStatusSummary?: SortOrder
+    depositPaidAmount?: SortOrder
+    balancePaidAmount?: SortOrder
+    paymentSummaryCurrencyCode?: SortOrder
+    lastPaymentAt?: SortOrder
     acknowledgementStatus?: SortOrder
     acknowledgedAt?: SortOrder
     acknowledgementExternalReference?: SortOrder
@@ -18294,6 +18959,15 @@ export namespace Prisma {
     supplierId?: SortOrder
     supplierDisplayName?: SortOrder
     supplierStatusAtIssue?: SortOrder
+    paymentTermsCode?: SortOrder
+    paymentTermsText?: SortOrder
+    incotermCode?: SortOrder
+    commercialTermsText?: SortOrder
+    paymentStatusSummary?: SortOrder
+    depositPaidAmount?: SortOrder
+    balancePaidAmount?: SortOrder
+    paymentSummaryCurrencyCode?: SortOrder
+    lastPaymentAt?: SortOrder
     acknowledgementStatus?: SortOrder
     acknowledgedAt?: SortOrder
     acknowledgementExternalReference?: SortOrder
@@ -18314,32 +18988,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumProcurementPurchaseOrderStatusFilter<$PrismaModel>
     _max?: NestedEnumProcurementPurchaseOrderStatusFilter<$PrismaModel>
-  }
-  export type JsonWithAggregatesFilter<$PrismaModel = never> = 
-    | PatchUndefined<
-        Either<Required<JsonWithAggregatesFilterBase<$PrismaModel>>, Exclude<keyof Required<JsonWithAggregatesFilterBase<$PrismaModel>>, 'path'>>,
-        Required<JsonWithAggregatesFilterBase<$PrismaModel>>
-      >
-    | OptionalFlat<Omit<Required<JsonWithAggregatesFilterBase<$PrismaModel>>, 'path'>>
-
-  export type JsonWithAggregatesFilterBase<$PrismaModel = never> = {
-    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    path?: string[]
-    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
-    string_contains?: string | StringFieldRefInput<$PrismaModel>
-    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
-    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
-    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedJsonFilter<$PrismaModel>
-    _max?: NestedJsonFilter<$PrismaModel>
   }
 
   export type EnumProcurementSupplierAcknowledgementStatusWithAggregatesFilter<$PrismaModel = never> = {
@@ -18454,9 +19102,11 @@ export namespace Prisma {
     tenantId?: SortOrder
     purchaseOrderLineId?: SortOrder
     allocationType?: SortOrder
-    referenceId?: SortOrder
+    sourceReferenceId?: SortOrder
     quantity?: SortOrder
     reason?: SortOrder
+    targetWarehouseId?: SortOrder
+    targetReceivingAddressId?: SortOrder
   }
 
   export type PurchaseOrderLineAllocationMaxOrderByAggregateInput = {
@@ -18464,9 +19114,11 @@ export namespace Prisma {
     tenantId?: SortOrder
     purchaseOrderLineId?: SortOrder
     allocationType?: SortOrder
-    referenceId?: SortOrder
+    sourceReferenceId?: SortOrder
     quantity?: SortOrder
     reason?: SortOrder
+    targetWarehouseId?: SortOrder
+    targetReceivingAddressId?: SortOrder
   }
 
   export type PurchaseOrderLineAllocationMinOrderByAggregateInput = {
@@ -18474,9 +19126,11 @@ export namespace Prisma {
     tenantId?: SortOrder
     purchaseOrderLineId?: SortOrder
     allocationType?: SortOrder
-    referenceId?: SortOrder
+    sourceReferenceId?: SortOrder
     quantity?: SortOrder
     reason?: SortOrder
+    targetWarehouseId?: SortOrder
+    targetReceivingAddressId?: SortOrder
   }
 
   export type EnumProcurementPurchaseOrderLineAllocationTypeWithAggregatesFilter<$PrismaModel = never> = {
@@ -18557,11 +19211,6 @@ export namespace Prisma {
     isNot?: ReceivingDiscrepancyWhereInput | null
   }
 
-  export type ReceivingExpectationTenantIdPurchaseOrderLineIdCompoundUniqueInput = {
-    tenantId: string
-    purchaseOrderLineId: string
-  }
-
   export type ReceivingExpectationCountOrderByAggregateInput = {
     id?: SortOrder
     expectationNo?: SortOrder
@@ -18570,6 +19219,10 @@ export namespace Prisma {
     purchaseOrderId?: SortOrder
     purchaseOrderLineId?: SortOrder
     supplierId?: SortOrder
+    allocationGroupingKey?: SortOrder
+    sourceAllocationIds?: SortOrder
+    targetWarehouseId?: SortOrder
+    targetReceivingAddressId?: SortOrder
     expectedQuantity?: SortOrder
     receivedQuantitySummary?: SortOrder
     openQuantity?: SortOrder
@@ -18587,6 +19240,9 @@ export namespace Prisma {
     purchaseOrderId?: SortOrder
     purchaseOrderLineId?: SortOrder
     supplierId?: SortOrder
+    allocationGroupingKey?: SortOrder
+    targetWarehouseId?: SortOrder
+    targetReceivingAddressId?: SortOrder
     expectedQuantity?: SortOrder
     receivedQuantitySummary?: SortOrder
     openQuantity?: SortOrder
@@ -18604,6 +19260,9 @@ export namespace Prisma {
     purchaseOrderId?: SortOrder
     purchaseOrderLineId?: SortOrder
     supplierId?: SortOrder
+    allocationGroupingKey?: SortOrder
+    targetWarehouseId?: SortOrder
+    targetReceivingAddressId?: SortOrder
     expectedQuantity?: SortOrder
     receivedQuantitySummary?: SortOrder
     openQuantity?: SortOrder
@@ -18658,6 +19317,7 @@ export namespace Prisma {
     status?: SortOrder
     resolutionCode?: SortOrder
     resolutionNote?: SortOrder
+    resolutionReferences?: SortOrder
     resolvedAt?: SortOrder
   }
 
@@ -18881,6 +19541,10 @@ export namespace Prisma {
 
   export type EnumProcurementPurchaseRequestLineTypeFieldUpdateOperationsInput = {
     set?: $Enums.ProcurementPurchaseRequestLineType
+  }
+
+  export type EnumProcurementPurchaseRequestLineConversionStatusFieldUpdateOperationsInput = {
+    set?: $Enums.ProcurementPurchaseRequestLineConversionStatus
   }
 
   export type PurchaseRequestUpdateOneRequiredWithoutLinesNestedInput = {
@@ -19486,12 +20150,42 @@ export namespace Prisma {
     _min?: NestedDateTimeNullableFilter<$PrismaModel>
     _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
+  export type NestedJsonFilter<$PrismaModel = never> = 
+    | PatchUndefined<
+        Either<Required<NestedJsonFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonFilterBase<$PrismaModel>>, 'path'>>,
+        Required<NestedJsonFilterBase<$PrismaModel>>
+      >
+    | OptionalFlat<Omit<Required<NestedJsonFilterBase<$PrismaModel>>, 'path'>>
+
+  export type NestedJsonFilterBase<$PrismaModel = never> = {
+    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+    path?: string[]
+    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
+    string_contains?: string | StringFieldRefInput<$PrismaModel>
+    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
+    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
+    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
+    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
+    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
+  }
 
   export type NestedEnumProcurementPurchaseRequestLineTypeFilter<$PrismaModel = never> = {
     equals?: $Enums.ProcurementPurchaseRequestLineType | EnumProcurementPurchaseRequestLineTypeFieldRefInput<$PrismaModel>
     in?: $Enums.ProcurementPurchaseRequestLineType[] | ListEnumProcurementPurchaseRequestLineTypeFieldRefInput<$PrismaModel>
     notIn?: $Enums.ProcurementPurchaseRequestLineType[] | ListEnumProcurementPurchaseRequestLineTypeFieldRefInput<$PrismaModel>
     not?: NestedEnumProcurementPurchaseRequestLineTypeFilter<$PrismaModel> | $Enums.ProcurementPurchaseRequestLineType
+  }
+
+  export type NestedEnumProcurementPurchaseRequestLineConversionStatusFilter<$PrismaModel = never> = {
+    equals?: $Enums.ProcurementPurchaseRequestLineConversionStatus | EnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.ProcurementPurchaseRequestLineConversionStatus[] | ListEnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.ProcurementPurchaseRequestLineConversionStatus[] | ListEnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumProcurementPurchaseRequestLineConversionStatusFilter<$PrismaModel> | $Enums.ProcurementPurchaseRequestLineConversionStatus
   }
 
   export type NestedEnumProcurementPurchaseRequestLineTypeWithAggregatesFilter<$PrismaModel = never> = {
@@ -19502,6 +20196,16 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumProcurementPurchaseRequestLineTypeFilter<$PrismaModel>
     _max?: NestedEnumProcurementPurchaseRequestLineTypeFilter<$PrismaModel>
+  }
+
+  export type NestedEnumProcurementPurchaseRequestLineConversionStatusWithAggregatesFilter<$PrismaModel = never> = {
+    equals?: $Enums.ProcurementPurchaseRequestLineConversionStatus | EnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel>
+    in?: $Enums.ProcurementPurchaseRequestLineConversionStatus[] | ListEnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel>
+    notIn?: $Enums.ProcurementPurchaseRequestLineConversionStatus[] | ListEnumProcurementPurchaseRequestLineConversionStatusFieldRefInput<$PrismaModel>
+    not?: NestedEnumProcurementPurchaseRequestLineConversionStatusWithAggregatesFilter<$PrismaModel> | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    _count?: NestedIntFilter<$PrismaModel>
+    _min?: NestedEnumProcurementPurchaseRequestLineConversionStatusFilter<$PrismaModel>
+    _max?: NestedEnumProcurementPurchaseRequestLineConversionStatusFilter<$PrismaModel>
   }
 
   export type NestedEnumProcurementPurchaseRequestDecisionFilter<$PrismaModel = never> = {
@@ -19543,29 +20247,6 @@ export namespace Prisma {
     _count?: NestedIntFilter<$PrismaModel>
     _min?: NestedEnumProcurementPurchaseOrderStatusFilter<$PrismaModel>
     _max?: NestedEnumProcurementPurchaseOrderStatusFilter<$PrismaModel>
-  }
-  export type NestedJsonFilter<$PrismaModel = never> = 
-    | PatchUndefined<
-        Either<Required<NestedJsonFilterBase<$PrismaModel>>, Exclude<keyof Required<NestedJsonFilterBase<$PrismaModel>>, 'path'>>,
-        Required<NestedJsonFilterBase<$PrismaModel>>
-      >
-    | OptionalFlat<Omit<Required<NestedJsonFilterBase<$PrismaModel>>, 'path'>>
-
-  export type NestedJsonFilterBase<$PrismaModel = never> = {
-    equals?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
-    path?: string[]
-    mode?: QueryMode | EnumQueryModeFieldRefInput<$PrismaModel>
-    string_contains?: string | StringFieldRefInput<$PrismaModel>
-    string_starts_with?: string | StringFieldRefInput<$PrismaModel>
-    string_ends_with?: string | StringFieldRefInput<$PrismaModel>
-    array_starts_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_ends_with?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    array_contains?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | null
-    lt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    lte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gt?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    gte?: InputJsonValue | JsonFieldRefInput<$PrismaModel>
-    not?: InputJsonValue | JsonFieldRefInput<$PrismaModel> | JsonNullValueFilter
   }
 
   export type NestedEnumProcurementSupplierAcknowledgementStatusWithAggregatesFilter<$PrismaModel = never> = {
@@ -19694,6 +20375,8 @@ export namespace Prisma {
     neededByDate?: string | null
     demandReferenceType?: string | null
     demandReferenceId?: string | null
+    conversionStatus: $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines: JsonNullValueInput | InputJsonValue
   }
 
   export type PurchaseRequestLineUncheckedCreateWithoutPurchaseRequestInput = {
@@ -19710,6 +20393,8 @@ export namespace Prisma {
     neededByDate?: string | null
     demandReferenceType?: string | null
     demandReferenceId?: string | null
+    conversionStatus: $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines: JsonNullValueInput | InputJsonValue
   }
 
   export type PurchaseRequestLineCreateOrConnectWithoutPurchaseRequestInput = {
@@ -19783,6 +20468,8 @@ export namespace Prisma {
     neededByDate?: StringNullableFilter<"PurchaseRequestLine"> | string | null
     demandReferenceType?: StringNullableFilter<"PurchaseRequestLine"> | string | null
     demandReferenceId?: StringNullableFilter<"PurchaseRequestLine"> | string | null
+    conversionStatus?: EnumProcurementPurchaseRequestLineConversionStatusFilter<"PurchaseRequestLine"> | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines?: JsonFilter<"PurchaseRequestLine">
   }
 
   export type PurchaseRequestApprovalSnapshotUpsertWithoutPurchaseRequestInput = {
@@ -19836,6 +20523,9 @@ export namespace Prisma {
     submittedAt?: Date | string | null
     decidedAt?: Date | string | null
     cancelledAt?: Date | string | null
+    linkedPurchaseOrders: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: string | null
+    receivingStatusSummary?: string | null
     approvalSnapshot?: PurchaseRequestApprovalSnapshotCreateNestedOneWithoutPurchaseRequestInput
   }
 
@@ -19857,6 +20547,9 @@ export namespace Prisma {
     submittedAt?: Date | string | null
     decidedAt?: Date | string | null
     cancelledAt?: Date | string | null
+    linkedPurchaseOrders: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: string | null
+    receivingStatusSummary?: string | null
     approvalSnapshot?: PurchaseRequestApprovalSnapshotUncheckedCreateNestedOneWithoutPurchaseRequestInput
   }
 
@@ -19894,6 +20587,9 @@ export namespace Prisma {
     submittedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     decidedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    linkedPurchaseOrders?: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: NullableStringFieldUpdateOperationsInput | string | null
+    receivingStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
     approvalSnapshot?: PurchaseRequestApprovalSnapshotUpdateOneWithoutPurchaseRequestNestedInput
   }
 
@@ -19915,6 +20611,9 @@ export namespace Prisma {
     submittedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     decidedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    linkedPurchaseOrders?: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: NullableStringFieldUpdateOperationsInput | string | null
+    receivingStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
     approvalSnapshot?: PurchaseRequestApprovalSnapshotUncheckedUpdateOneWithoutPurchaseRequestNestedInput
   }
 
@@ -19936,6 +20635,9 @@ export namespace Prisma {
     submittedAt?: Date | string | null
     decidedAt?: Date | string | null
     cancelledAt?: Date | string | null
+    linkedPurchaseOrders: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: string | null
+    receivingStatusSummary?: string | null
     lines?: PurchaseRequestLineCreateNestedManyWithoutPurchaseRequestInput
   }
 
@@ -19957,6 +20659,9 @@ export namespace Prisma {
     submittedAt?: Date | string | null
     decidedAt?: Date | string | null
     cancelledAt?: Date | string | null
+    linkedPurchaseOrders: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: string | null
+    receivingStatusSummary?: string | null
     lines?: PurchaseRequestLineUncheckedCreateNestedManyWithoutPurchaseRequestInput
   }
 
@@ -19994,6 +20699,9 @@ export namespace Prisma {
     submittedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     decidedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    linkedPurchaseOrders?: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: NullableStringFieldUpdateOperationsInput | string | null
+    receivingStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
     lines?: PurchaseRequestLineUpdateManyWithoutPurchaseRequestNestedInput
   }
 
@@ -20015,6 +20723,9 @@ export namespace Prisma {
     submittedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     decidedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     cancelledAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    linkedPurchaseOrders?: JsonNullValueInput | InputJsonValue
+    nextExpectedReceiptDate?: NullableStringFieldUpdateOperationsInput | string | null
+    receivingStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
     lines?: PurchaseRequestLineUncheckedUpdateManyWithoutPurchaseRequestNestedInput
   }
 
@@ -20108,6 +20819,10 @@ export namespace Prisma {
     tenantId: string
     orgId?: string | null
     supplierId: string
+    allocationGroupingKey: string
+    sourceAllocationIds: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
     expectedQuantity: string
     receivedQuantitySummary: string
     openQuantity: string
@@ -20126,6 +20841,10 @@ export namespace Prisma {
     orgId?: string | null
     purchaseOrderLineId: string
     supplierId: string
+    allocationGroupingKey: string
+    sourceAllocationIds: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
     expectedQuantity: string
     receivedQuantitySummary: string
     openQuantity: string
@@ -20243,6 +20962,10 @@ export namespace Prisma {
     purchaseOrderId?: UuidFilter<"ReceivingExpectation"> | string
     purchaseOrderLineId?: UuidFilter<"ReceivingExpectation"> | string
     supplierId?: StringFilter<"ReceivingExpectation"> | string
+    allocationGroupingKey?: StringFilter<"ReceivingExpectation"> | string
+    sourceAllocationIds?: JsonFilter<"ReceivingExpectation">
+    targetWarehouseId?: StringNullableFilter<"ReceivingExpectation"> | string | null
+    targetReceivingAddressId?: StringNullableFilter<"ReceivingExpectation"> | string | null
     expectedQuantity?: StringFilter<"ReceivingExpectation"> | string
     receivedQuantitySummary?: StringFilter<"ReceivingExpectation"> | string
     openQuantity?: StringFilter<"ReceivingExpectation"> | string
@@ -20256,18 +20979,22 @@ export namespace Prisma {
     id: string
     tenantId: string
     allocationType: $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: string | null
+    sourceReferenceId?: string | null
     quantity: string
     reason?: string | null
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
   }
 
   export type PurchaseOrderLineAllocationUncheckedCreateWithoutPurchaseOrderLineInput = {
     id: string
     tenantId: string
     allocationType: $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: string | null
+    sourceReferenceId?: string | null
     quantity: string
     reason?: string | null
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
   }
 
   export type PurchaseOrderLineAllocationCreateOrConnectWithoutPurchaseOrderLineInput = {
@@ -20286,6 +21013,10 @@ export namespace Prisma {
     tenantId: string
     orgId?: string | null
     supplierId: string
+    allocationGroupingKey: string
+    sourceAllocationIds: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
     expectedQuantity: string
     receivedQuantitySummary: string
     openQuantity: string
@@ -20304,6 +21035,10 @@ export namespace Prisma {
     orgId?: string | null
     purchaseOrderId: string
     supplierId: string
+    allocationGroupingKey: string
+    sourceAllocationIds: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
     expectedQuantity: string
     receivedQuantitySummary: string
     openQuantity: string
@@ -20334,6 +21069,16 @@ export namespace Prisma {
     supplierId: string
     supplierDisplayName: string
     supplierStatusAtIssue?: string | null
+    paymentTermsCode?: string | null
+    paymentTermsText?: string | null
+    incotermCode?: string | null
+    commercialTermsText?: string | null
+    paymentStatusSummary?: string | null
+    depositPaidAmount?: string | null
+    balancePaidAmount?: string | null
+    paymentSummaryCurrencyCode?: string | null
+    attachmentRefs: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: Date | string | null
     sourcePurchaseRequestIds: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos: JsonNullValueInput | InputJsonValue
     acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus
@@ -20360,6 +21105,16 @@ export namespace Prisma {
     supplierId: string
     supplierDisplayName: string
     supplierStatusAtIssue?: string | null
+    paymentTermsCode?: string | null
+    paymentTermsText?: string | null
+    incotermCode?: string | null
+    commercialTermsText?: string | null
+    paymentStatusSummary?: string | null
+    depositPaidAmount?: string | null
+    balancePaidAmount?: string | null
+    paymentSummaryCurrencyCode?: string | null
+    attachmentRefs: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: Date | string | null
     sourcePurchaseRequestIds: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos: JsonNullValueInput | InputJsonValue
     acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus
@@ -20405,9 +21160,11 @@ export namespace Prisma {
     tenantId?: StringFilter<"PurchaseOrderLineAllocation"> | string
     purchaseOrderLineId?: UuidFilter<"PurchaseOrderLineAllocation"> | string
     allocationType?: EnumProcurementPurchaseOrderLineAllocationTypeFilter<"PurchaseOrderLineAllocation"> | $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
+    sourceReferenceId?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
     quantity?: StringFilter<"PurchaseOrderLineAllocation"> | string
     reason?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
+    targetWarehouseId?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
+    targetReceivingAddressId?: StringNullableFilter<"PurchaseOrderLineAllocation"> | string | null
   }
 
   export type ReceivingExpectationUpsertWithWhereUniqueWithoutPurchaseOrderLineInput = {
@@ -20447,6 +21204,16 @@ export namespace Prisma {
     supplierId?: StringFieldUpdateOperationsInput | string
     supplierDisplayName?: StringFieldUpdateOperationsInput | string
     supplierStatusAtIssue?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsCode?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    incotermCode?: NullableStringFieldUpdateOperationsInput | string | null
+    commercialTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    depositPaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    balancePaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentSummaryCurrencyCode?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentRefs?: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sourcePurchaseRequestIds?: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos?: JsonNullValueInput | InputJsonValue
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusFieldUpdateOperationsInput | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -20473,6 +21240,16 @@ export namespace Prisma {
     supplierId?: StringFieldUpdateOperationsInput | string
     supplierDisplayName?: StringFieldUpdateOperationsInput | string
     supplierStatusAtIssue?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsCode?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    incotermCode?: NullableStringFieldUpdateOperationsInput | string | null
+    commercialTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    depositPaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    balancePaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentSummaryCurrencyCode?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentRefs?: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sourcePurchaseRequestIds?: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos?: JsonNullValueInput | InputJsonValue
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusFieldUpdateOperationsInput | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -20595,6 +21372,16 @@ export namespace Prisma {
     supplierId: string
     supplierDisplayName: string
     supplierStatusAtIssue?: string | null
+    paymentTermsCode?: string | null
+    paymentTermsText?: string | null
+    incotermCode?: string | null
+    commercialTermsText?: string | null
+    paymentStatusSummary?: string | null
+    depositPaidAmount?: string | null
+    balancePaidAmount?: string | null
+    paymentSummaryCurrencyCode?: string | null
+    attachmentRefs: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: Date | string | null
     sourcePurchaseRequestIds: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos: JsonNullValueInput | InputJsonValue
     acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus
@@ -20621,6 +21408,16 @@ export namespace Prisma {
     supplierId: string
     supplierDisplayName: string
     supplierStatusAtIssue?: string | null
+    paymentTermsCode?: string | null
+    paymentTermsText?: string | null
+    incotermCode?: string | null
+    commercialTermsText?: string | null
+    paymentStatusSummary?: string | null
+    depositPaidAmount?: string | null
+    balancePaidAmount?: string | null
+    paymentSummaryCurrencyCode?: string | null
+    attachmentRefs: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: Date | string | null
     sourcePurchaseRequestIds: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos: JsonNullValueInput | InputJsonValue
     acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus
@@ -20663,6 +21460,16 @@ export namespace Prisma {
     supplierId?: StringFieldUpdateOperationsInput | string
     supplierDisplayName?: StringFieldUpdateOperationsInput | string
     supplierStatusAtIssue?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsCode?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    incotermCode?: NullableStringFieldUpdateOperationsInput | string | null
+    commercialTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    depositPaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    balancePaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentSummaryCurrencyCode?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentRefs?: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sourcePurchaseRequestIds?: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos?: JsonNullValueInput | InputJsonValue
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusFieldUpdateOperationsInput | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -20689,6 +21496,16 @@ export namespace Prisma {
     supplierId?: StringFieldUpdateOperationsInput | string
     supplierDisplayName?: StringFieldUpdateOperationsInput | string
     supplierStatusAtIssue?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsCode?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    incotermCode?: NullableStringFieldUpdateOperationsInput | string | null
+    commercialTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    depositPaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    balancePaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentSummaryCurrencyCode?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentRefs?: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sourcePurchaseRequestIds?: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos?: JsonNullValueInput | InputJsonValue
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusFieldUpdateOperationsInput | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -20713,6 +21530,7 @@ export namespace Prisma {
     status: $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: string | null
+    resolutionReferences: JsonNullValueInput | InputJsonValue
     resolvedAt?: Date | string | null
   }
 
@@ -20724,6 +21542,7 @@ export namespace Prisma {
     status: $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: string | null
+    resolutionReferences: JsonNullValueInput | InputJsonValue
     resolvedAt?: Date | string | null
   }
 
@@ -20742,6 +21561,16 @@ export namespace Prisma {
     supplierId: string
     supplierDisplayName: string
     supplierStatusAtIssue?: string | null
+    paymentTermsCode?: string | null
+    paymentTermsText?: string | null
+    incotermCode?: string | null
+    commercialTermsText?: string | null
+    paymentStatusSummary?: string | null
+    depositPaidAmount?: string | null
+    balancePaidAmount?: string | null
+    paymentSummaryCurrencyCode?: string | null
+    attachmentRefs: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: Date | string | null
     sourcePurchaseRequestIds: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos: JsonNullValueInput | InputJsonValue
     acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus
@@ -20768,6 +21597,16 @@ export namespace Prisma {
     supplierId: string
     supplierDisplayName: string
     supplierStatusAtIssue?: string | null
+    paymentTermsCode?: string | null
+    paymentTermsText?: string | null
+    incotermCode?: string | null
+    commercialTermsText?: string | null
+    paymentStatusSummary?: string | null
+    depositPaidAmount?: string | null
+    balancePaidAmount?: string | null
+    paymentSummaryCurrencyCode?: string | null
+    attachmentRefs: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: Date | string | null
     sourcePurchaseRequestIds: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos: JsonNullValueInput | InputJsonValue
     acknowledgementStatus: $Enums.ProcurementSupplierAcknowledgementStatus
@@ -20853,6 +21692,7 @@ export namespace Prisma {
     status?: EnumProcurementReceivingDiscrepancyStatusFieldUpdateOperationsInput | $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: NullableEnumProcurementReceivingResolutionCodeFieldUpdateOperationsInput | $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: NullableStringFieldUpdateOperationsInput | string | null
+    resolutionReferences?: JsonNullValueInput | InputJsonValue
     resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
@@ -20864,6 +21704,7 @@ export namespace Prisma {
     status?: EnumProcurementReceivingDiscrepancyStatusFieldUpdateOperationsInput | $Enums.ProcurementReceivingDiscrepancyStatus
     resolutionCode?: NullableEnumProcurementReceivingResolutionCodeFieldUpdateOperationsInput | $Enums.ProcurementReceivingResolutionCode | null
     resolutionNote?: NullableStringFieldUpdateOperationsInput | string | null
+    resolutionReferences?: JsonNullValueInput | InputJsonValue
     resolvedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   }
 
@@ -20888,6 +21729,16 @@ export namespace Prisma {
     supplierId?: StringFieldUpdateOperationsInput | string
     supplierDisplayName?: StringFieldUpdateOperationsInput | string
     supplierStatusAtIssue?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsCode?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    incotermCode?: NullableStringFieldUpdateOperationsInput | string | null
+    commercialTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    depositPaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    balancePaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentSummaryCurrencyCode?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentRefs?: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sourcePurchaseRequestIds?: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos?: JsonNullValueInput | InputJsonValue
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusFieldUpdateOperationsInput | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -20914,6 +21765,16 @@ export namespace Prisma {
     supplierId?: StringFieldUpdateOperationsInput | string
     supplierDisplayName?: StringFieldUpdateOperationsInput | string
     supplierStatusAtIssue?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsCode?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    incotermCode?: NullableStringFieldUpdateOperationsInput | string | null
+    commercialTermsText?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentStatusSummary?: NullableStringFieldUpdateOperationsInput | string | null
+    depositPaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    balancePaidAmount?: NullableStringFieldUpdateOperationsInput | string | null
+    paymentSummaryCurrencyCode?: NullableStringFieldUpdateOperationsInput | string | null
+    attachmentRefs?: JsonNullValueInput | InputJsonValue
+    lastPaymentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     sourcePurchaseRequestIds?: JsonNullValueInput | InputJsonValue
     sourcePurchaseRequestNos?: JsonNullValueInput | InputJsonValue
     acknowledgementStatus?: EnumProcurementSupplierAcknowledgementStatusFieldUpdateOperationsInput | $Enums.ProcurementSupplierAcknowledgementStatus
@@ -20987,6 +21848,10 @@ export namespace Prisma {
     tenantId: string
     orgId?: string | null
     supplierId: string
+    allocationGroupingKey: string
+    sourceAllocationIds: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
     expectedQuantity: string
     receivedQuantitySummary: string
     openQuantity: string
@@ -21006,6 +21871,10 @@ export namespace Prisma {
     purchaseOrderId: string
     purchaseOrderLineId: string
     supplierId: string
+    allocationGroupingKey: string
+    sourceAllocationIds: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
     expectedQuantity: string
     receivedQuantitySummary: string
     openQuantity: string
@@ -21037,6 +21906,10 @@ export namespace Prisma {
     tenantId?: StringFieldUpdateOperationsInput | string
     orgId?: NullableStringFieldUpdateOperationsInput | string | null
     supplierId?: StringFieldUpdateOperationsInput | string
+    allocationGroupingKey?: StringFieldUpdateOperationsInput | string
+    sourceAllocationIds?: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     expectedQuantity?: StringFieldUpdateOperationsInput | string
     receivedQuantitySummary?: StringFieldUpdateOperationsInput | string
     openQuantity?: StringFieldUpdateOperationsInput | string
@@ -21056,6 +21929,10 @@ export namespace Prisma {
     purchaseOrderId?: StringFieldUpdateOperationsInput | string
     purchaseOrderLineId?: StringFieldUpdateOperationsInput | string
     supplierId?: StringFieldUpdateOperationsInput | string
+    allocationGroupingKey?: StringFieldUpdateOperationsInput | string
+    sourceAllocationIds?: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     expectedQuantity?: StringFieldUpdateOperationsInput | string
     receivedQuantitySummary?: StringFieldUpdateOperationsInput | string
     openQuantity?: StringFieldUpdateOperationsInput | string
@@ -21079,6 +21956,8 @@ export namespace Prisma {
     neededByDate?: string | null
     demandReferenceType?: string | null
     demandReferenceId?: string | null
+    conversionStatus: $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines: JsonNullValueInput | InputJsonValue
   }
 
   export type PurchaseRequestLineUpdateWithoutPurchaseRequestInput = {
@@ -21095,6 +21974,8 @@ export namespace Prisma {
     neededByDate?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceType?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    conversionStatus?: EnumProcurementPurchaseRequestLineConversionStatusFieldUpdateOperationsInput | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines?: JsonNullValueInput | InputJsonValue
   }
 
   export type PurchaseRequestLineUncheckedUpdateWithoutPurchaseRequestInput = {
@@ -21111,6 +21992,8 @@ export namespace Prisma {
     neededByDate?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceType?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    conversionStatus?: EnumProcurementPurchaseRequestLineConversionStatusFieldUpdateOperationsInput | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines?: JsonNullValueInput | InputJsonValue
   }
 
   export type PurchaseRequestLineUncheckedUpdateManyWithoutPurchaseRequestInput = {
@@ -21127,6 +22010,8 @@ export namespace Prisma {
     neededByDate?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceType?: NullableStringFieldUpdateOperationsInput | string | null
     demandReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    conversionStatus?: EnumProcurementPurchaseRequestLineConversionStatusFieldUpdateOperationsInput | $Enums.ProcurementPurchaseRequestLineConversionStatus
+    linkedPurchaseOrderLines?: JsonNullValueInput | InputJsonValue
   }
 
   export type PurchaseOrderLineCreateManyPurchaseOrderInput = {
@@ -21166,6 +22051,10 @@ export namespace Prisma {
     orgId?: string | null
     purchaseOrderLineId: string
     supplierId: string
+    allocationGroupingKey: string
+    sourceAllocationIds: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
     expectedQuantity: string
     receivedQuantitySummary: string
     openQuantity: string
@@ -21275,6 +22164,10 @@ export namespace Prisma {
     tenantId?: StringFieldUpdateOperationsInput | string
     orgId?: NullableStringFieldUpdateOperationsInput | string | null
     supplierId?: StringFieldUpdateOperationsInput | string
+    allocationGroupingKey?: StringFieldUpdateOperationsInput | string
+    sourceAllocationIds?: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     expectedQuantity?: StringFieldUpdateOperationsInput | string
     receivedQuantitySummary?: StringFieldUpdateOperationsInput | string
     openQuantity?: StringFieldUpdateOperationsInput | string
@@ -21293,6 +22186,10 @@ export namespace Prisma {
     orgId?: NullableStringFieldUpdateOperationsInput | string | null
     purchaseOrderLineId?: StringFieldUpdateOperationsInput | string
     supplierId?: StringFieldUpdateOperationsInput | string
+    allocationGroupingKey?: StringFieldUpdateOperationsInput | string
+    sourceAllocationIds?: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     expectedQuantity?: StringFieldUpdateOperationsInput | string
     receivedQuantitySummary?: StringFieldUpdateOperationsInput | string
     openQuantity?: StringFieldUpdateOperationsInput | string
@@ -21310,6 +22207,10 @@ export namespace Prisma {
     orgId?: NullableStringFieldUpdateOperationsInput | string | null
     purchaseOrderLineId?: StringFieldUpdateOperationsInput | string
     supplierId?: StringFieldUpdateOperationsInput | string
+    allocationGroupingKey?: StringFieldUpdateOperationsInput | string
+    sourceAllocationIds?: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     expectedQuantity?: StringFieldUpdateOperationsInput | string
     receivedQuantitySummary?: StringFieldUpdateOperationsInput | string
     openQuantity?: StringFieldUpdateOperationsInput | string
@@ -21323,9 +22224,11 @@ export namespace Prisma {
     id: string
     tenantId: string
     allocationType: $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: string | null
+    sourceReferenceId?: string | null
     quantity: string
     reason?: string | null
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
   }
 
   export type ReceivingExpectationCreateManyPurchaseOrderLineInput = {
@@ -21335,6 +22238,10 @@ export namespace Prisma {
     orgId?: string | null
     purchaseOrderId: string
     supplierId: string
+    allocationGroupingKey: string
+    sourceAllocationIds: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: string | null
+    targetReceivingAddressId?: string | null
     expectedQuantity: string
     receivedQuantitySummary: string
     openQuantity: string
@@ -21348,27 +22255,33 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     tenantId?: StringFieldUpdateOperationsInput | string
     allocationType?: EnumProcurementPurchaseOrderLineAllocationTypeFieldUpdateOperationsInput | $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    sourceReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     quantity?: StringFieldUpdateOperationsInput | string
     reason?: NullableStringFieldUpdateOperationsInput | string | null
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type PurchaseOrderLineAllocationUncheckedUpdateWithoutPurchaseOrderLineInput = {
     id?: StringFieldUpdateOperationsInput | string
     tenantId?: StringFieldUpdateOperationsInput | string
     allocationType?: EnumProcurementPurchaseOrderLineAllocationTypeFieldUpdateOperationsInput | $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    sourceReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     quantity?: StringFieldUpdateOperationsInput | string
     reason?: NullableStringFieldUpdateOperationsInput | string | null
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type PurchaseOrderLineAllocationUncheckedUpdateManyWithoutPurchaseOrderLineInput = {
     id?: StringFieldUpdateOperationsInput | string
     tenantId?: StringFieldUpdateOperationsInput | string
     allocationType?: EnumProcurementPurchaseOrderLineAllocationTypeFieldUpdateOperationsInput | $Enums.ProcurementPurchaseOrderLineAllocationType
-    referenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    sourceReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     quantity?: StringFieldUpdateOperationsInput | string
     reason?: NullableStringFieldUpdateOperationsInput | string | null
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type ReceivingExpectationUpdateWithoutPurchaseOrderLineInput = {
@@ -21377,6 +22290,10 @@ export namespace Prisma {
     tenantId?: StringFieldUpdateOperationsInput | string
     orgId?: NullableStringFieldUpdateOperationsInput | string | null
     supplierId?: StringFieldUpdateOperationsInput | string
+    allocationGroupingKey?: StringFieldUpdateOperationsInput | string
+    sourceAllocationIds?: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     expectedQuantity?: StringFieldUpdateOperationsInput | string
     receivedQuantitySummary?: StringFieldUpdateOperationsInput | string
     openQuantity?: StringFieldUpdateOperationsInput | string
@@ -21395,6 +22312,10 @@ export namespace Prisma {
     orgId?: NullableStringFieldUpdateOperationsInput | string | null
     purchaseOrderId?: StringFieldUpdateOperationsInput | string
     supplierId?: StringFieldUpdateOperationsInput | string
+    allocationGroupingKey?: StringFieldUpdateOperationsInput | string
+    sourceAllocationIds?: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     expectedQuantity?: StringFieldUpdateOperationsInput | string
     receivedQuantitySummary?: StringFieldUpdateOperationsInput | string
     openQuantity?: StringFieldUpdateOperationsInput | string
@@ -21412,6 +22333,10 @@ export namespace Prisma {
     orgId?: NullableStringFieldUpdateOperationsInput | string | null
     purchaseOrderId?: StringFieldUpdateOperationsInput | string
     supplierId?: StringFieldUpdateOperationsInput | string
+    allocationGroupingKey?: StringFieldUpdateOperationsInput | string
+    sourceAllocationIds?: JsonNullValueInput | InputJsonValue
+    targetWarehouseId?: NullableStringFieldUpdateOperationsInput | string | null
+    targetReceivingAddressId?: NullableStringFieldUpdateOperationsInput | string | null
     expectedQuantity?: StringFieldUpdateOperationsInput | string
     receivedQuantitySummary?: StringFieldUpdateOperationsInput | string
     openQuantity?: StringFieldUpdateOperationsInput | string
