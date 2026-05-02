@@ -56,15 +56,18 @@ describe('CreateUserAccountHandler', () => {
           operatorScope: {
             operatorId: 'operator-1',
             tenantId: 'tenant-a'
-          } as any
-        })
+          } as any,
+          idempotencyKey: 'tenant-onboarding-1:first-admin-account'
+        } as any)
       )
     ).resolves.toMatchObject({
       id: 'account-1',
       userId: 'user-1',
       tenantId: 'tenant-a',
       scopeLevel: 'TENANT',
-      isEnabled: true
+      isEnabled: true,
+      userPartyId: 'party-1',
+      userTenantPartyId: 'tenant-party-1'
     })
 
     expect(userRepository.create).toHaveBeenCalledWith({
@@ -77,6 +80,7 @@ describe('CreateUserAccountHandler', () => {
     expect(partyRegistrationPort.registerPersonParty).toHaveBeenCalledWith(
       expect.objectContaining({
         canonicalName: 'Janny',
+        idempotencyKey: 'tenant-onboarding-1:first-admin-account',
         localDisplayName: 'Janny',
         tenantId: 'tenant-a',
       }),

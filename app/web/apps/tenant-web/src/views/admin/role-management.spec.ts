@@ -21,11 +21,11 @@ const syncRoleNavigationFromTemplateApi = vi.fn();
 const refreshCurrentSessionAccess = vi.fn();
 const authContextState = {
   actionCodes: [
-    'permission.role.create',
-    'permission.role.delete_by_id',
-    'permission.role.get_by_id',
-    'permission.role.list',
-    'permission.role.update',
+    'permission.role_instance.create',
+    'permission.role_instance.delete_by_id',
+    'permission.role_instance.get_by_id',
+    'permission.role_instance.list',
+    'permission.role_instance.update',
   ],
   isPlatformScope: true,
   sessionContext: {

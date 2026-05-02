@@ -46,7 +46,8 @@ export class PartyRegistrationGrpcAdaptor implements PartyRegistrationPort, OnMo
           tenantId: input.tenantId ?? '',
           canonicalName: input.canonicalName,
           localDisplayName: input.localDisplayName ?? '',
-          identifiers: []
+          identifiers: [],
+          idempotencyKey: input.idempotencyKey ?? ''
         } as RegisterPersonPartyRequest,
         this.buildMetadata(input)
       ),

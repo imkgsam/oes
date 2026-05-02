@@ -81,7 +81,7 @@ export class PermissionController {
   }
 
   @Get(':id/roles')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_INSTANCE])
   @ApiOperation({ summary: 'List roles that include a permission' })
   // Returns role summaries that reference one global permission.
   async listPermissionRoles(

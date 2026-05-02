@@ -21,7 +21,7 @@ describe('role instance foundation sync', () => {
     const createdCount = await syncBuiltInRoleInstanceBaselines(
       prisma,
       new Map([
-        ['permission.role.list', 'perm-view-role'],
+        ['permission.role_instance.list', 'perm-view-role'],
         ['permission.account.get_roles', 'perm-view-account-role'],
         ['hr.employee.list', 'perm-hr-list-employee'],
         ['hr.employee.get_by_id', 'perm-hr-view-employee-detail']

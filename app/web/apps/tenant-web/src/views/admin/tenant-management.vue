@@ -18,15 +18,16 @@ import {
   Col,
   Select,
   Space,
+  Switch,
   Table,
   Tag,
   message,
 } from 'ant-design-vue';
 
 import {
-  createManagedTenantApi,
   getManagedTenantByIdApi,
   listManagedTenantsApi,
+  startTenantOnboardingApi,
   updateManagedTenantProfileApi,
   updateManagedTenantStatusApi,
 } from '#/api';
@@ -38,8 +39,15 @@ interface TenantFilterState {
 }
 
 interface TenantCreateFormState {
+  adminDisplayName: string;
+  adminEmail: string;
+  adminPhone: string;
   code: string;
+  idempotencyKey: string;
   name: string;
+  organizationLegalName: string;
+  registeredCountry: string;
+  requirePasswordSetup: boolean;
   rootOrgName: string;
 }
 
@@ -65,8 +73,15 @@ const filters = reactive<TenantFilterState>({
   status: '',
 });
 const createForm = reactive<TenantCreateFormState>({
+  adminDisplayName: '',
+  adminEmail: '',
+  adminPhone: '',
   code: '',
+  idempotencyKey: '',
   name: '',
+  organizationLegalName: '',
+  registeredCountry: '',
+  requirePasswordSetup: true,
   rootOrgName: '',
 });
 const detailForm = reactive<TenantDetailFormState>({
@@ -82,6 +97,7 @@ const tenants = ref<TenantManagementApi.TenantSummary[]>([]);
 const loading = ref(false);
 const createOpen = ref(false);
 const createSaving = ref(false);
+const onboardingResult = ref<TenantManagementApi.TenantOnboardingResult | null>(null);
 const detailOpen = ref(false);
 const detailLoading = ref(false);
 const detailSaving = ref(false);
@@ -230,9 +246,17 @@ async function loadTenantList() {
 
 /** resetCreateForm restores the create modal back to an empty tenant draft. */
 function resetCreateForm() {
+  createForm.adminDisplayName = '';
+  createForm.adminEmail = '';
+  createForm.adminPhone = '';
   createForm.code = '';
+  createForm.idempotencyKey = `tenant-onboarding-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   createForm.name = '';
+  createForm.organizationLegalName = '';
+  createForm.registeredCountry = '';
+  createForm.requirePasswordSetup = true;
   createForm.rootOrgName = '';
+  onboardingResult.value = null;
 }
 
 /** openCreateModal prepares a fresh tenant draft for system-admin creation. */
@@ -245,16 +269,36 @@ function openCreateModal() {
 async function submitCreateTenant() {
   createSaving.value = true;
   try {
-    await createManagedTenantApi({
-      code: createForm.code.trim(),
-      name: createForm.name.trim(),
-      rootOrgName: createForm.rootOrgName.trim() || undefined,
+    const result = await startTenantOnboardingApi({
+      idempotencyKey: createForm.idempotencyKey,
+      tenant: {
+        code: createForm.code.trim(),
+        name: createForm.name.trim(),
+      },
+      organizationParty: {
+        legalName: createForm.organizationLegalName.trim(),
+        registeredCountry: createForm.registeredCountry.trim() || undefined,
+        identifiers: [],
+      },
+      rootOrg: {
+        name: createForm.rootOrgName.trim() || createForm.name.trim(),
+      },
+      firstAdmin: {
+        displayName: createForm.adminDisplayName.trim(),
+        email: createForm.adminEmail.trim() || undefined,
+        phone: createForm.adminPhone.trim() || undefined,
+        requirePasswordSetup: createForm.requirePasswordSetup,
+      },
     });
-    createOpen.value = false;
-    message.success('租户已创建');
+    onboardingResult.value = result.onboarding ?? null;
+    if (result.onboarding?.status === 'SUCCEEDED') {
+      message.success('租户开通已完成');
+    } else {
+      message.error(result.onboarding?.failure?.message || '租户开通未完成');
+    }
     await loadTenantList();
   } catch (error) {
-    message.error(resolveErrorMessage(error, '租户创建失败'));
+    message.error(resolveErrorMessage(error, '租户开通失败'));
   } finally {
     createSaving.value = false;
   }
@@ -463,25 +507,105 @@ onMounted(async () => {
 
       <Modal
         v-model:open="createOpen"
-        title="创建 Tenant"
+        title="Tenant Onboarding"
         :get-container="false"
         :confirm-loading="createSaving"
+        :width="760"
         @ok="submitCreateTenant"
       >
         <Form layout="vertical">
-          <Form.Item label="Tenant 编码">
-            <Input v-model:value="createForm.code" placeholder="例如 tenant.alpha" />
-          </Form.Item>
-          <Form.Item label="Tenant 名称">
-            <Input v-model:value="createForm.name" placeholder="例如 Alpha Tenant" />
-          </Form.Item>
-          <Form.Item label="Root Org 名称">
-            <Input
-              v-model:value="createForm.rootOrgName"
-              placeholder="默认与租户名称一致，可按需覆盖"
-            />
-          </Form.Item>
+          <Row :gutter="16">
+            <Col :span="12">
+              <Form.Item label="Tenant 编码">
+                <Input v-model:value="createForm.code" placeholder="例如 tenant.alpha" />
+              </Form.Item>
+            </Col>
+            <Col :span="12">
+              <Form.Item label="Tenant 名称">
+                <Input v-model:value="createForm.name" placeholder="例如 Alpha Tenant" />
+              </Form.Item>
+            </Col>
+            <Col :span="12">
+              <Form.Item label="组织法人名称">
+                <Input v-model:value="createForm.organizationLegalName" placeholder="例如 Alpha Inc." />
+              </Form.Item>
+            </Col>
+            <Col :span="12">
+              <Form.Item label="注册国家/地区">
+                <Input v-model:value="createForm.registeredCountry" placeholder="例如 US" />
+              </Form.Item>
+            </Col>
+            <Col :span="12">
+              <Form.Item label="Root Org 名称">
+                <Input
+                  v-model:value="createForm.rootOrgName"
+                  placeholder="默认与租户名称一致，可按需覆盖"
+                />
+              </Form.Item>
+            </Col>
+            <Col :span="12">
+              <Form.Item label="幂等键">
+                <Input v-model:value="createForm.idempotencyKey" />
+              </Form.Item>
+            </Col>
+            <Col :span="12">
+              <Form.Item label="首管理员姓名">
+                <Input v-model:value="createForm.adminDisplayName" placeholder="例如 Alice Admin" />
+              </Form.Item>
+            </Col>
+            <Col :span="12">
+              <Form.Item label="首管理员邮箱">
+                <Input v-model:value="createForm.adminEmail" placeholder="例如 alice@example.com" />
+              </Form.Item>
+            </Col>
+            <Col :span="12">
+              <Form.Item label="首管理员手机">
+                <Input v-model:value="createForm.adminPhone" placeholder="例如 +14155550100" />
+              </Form.Item>
+            </Col>
+            <Col :span="12">
+              <Form.Item label="要求首次登录设置密码">
+                <Switch v-model:checked="createForm.requirePasswordSetup" />
+              </Form.Item>
+            </Col>
+          </Row>
         </Form>
+
+        <div v-if="onboardingResult" class="tenant-management__onboarding-result">
+          <Tag :color="onboardingResult.status === 'SUCCEEDED' ? 'green' : 'orange'">
+            {{ onboardingResult.status }}
+          </Tag>
+          <dl class="tenant-management__meta-list">
+            <div>
+              <dt>Onboarding ID</dt>
+              <dd>{{ onboardingResult.onboardingId || '-' }}</dd>
+            </div>
+            <div>
+              <dt>Tenant</dt>
+              <dd>{{ onboardingResult.tenant?.id || '-' }}</dd>
+            </div>
+            <div>
+              <dt>Root Org</dt>
+              <dd>{{ onboardingResult.rootOrg?.id || '-' }}</dd>
+            </div>
+            <div>
+              <dt>Organization Party</dt>
+              <dd>{{ onboardingResult.organizationParty?.partyId || '-' }}</dd>
+            </div>
+            <div>
+              <dt>First Admin Account</dt>
+              <dd>{{ onboardingResult.firstAdmin?.accountId || '-' }}</dd>
+            </div>
+            <div>
+              <dt>tenant.admin Grant</dt>
+              <dd>{{ onboardingResult.access?.grantId || '-' }}</dd>
+            </div>
+            <div v-if="onboardingResult.failure?.message">
+              <dt>失败步骤</dt>
+              <dd>{{ onboardingResult.failure.failedStep }} · {{ onboardingResult.failure.message }}</dd>
+            </div>
+          </dl>
+        </div>
 
         <template #footer>
           <Space>
@@ -492,7 +616,7 @@ onMounted(async () => {
               :loading="createSaving"
               @click="submitCreateTenant"
             >
-              创建
+              开通
             </Button>
           </Space>
         </template>
@@ -603,6 +727,14 @@ onMounted(async () => {
 .tenant-management__drawer {
   display: grid;
   gap: 16px;
+}
+
+.tenant-management__onboarding-result {
+  border-top: 1px solid #edf0f5;
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 16px;
 }
 
 .tenant-management__drawer-loading {

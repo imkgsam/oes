@@ -238,20 +238,38 @@ const instantiateForm = reactive<InstantiateFormState>({
   tenantId: '',
 });
 
+const hasAnyActionCode = (codes: string[]) =>
+  codes.some((code) => authContextStore.actionCodes.includes(code));
 const canCreateRole = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.create'),
+  hasAnyActionCode([
+    'permission.role_instance.create',
+    'permission.role_instance.create_from_template',
+    'permission.role_template.create',
+  ]),
 );
 const canDeleteRole = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.delete_by_id'),
+  hasAnyActionCode([
+    'permission.role_instance.delete_by_id',
+    'permission.role_template.delete_by_id',
+  ]),
 );
 const canListRole = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.list'),
+  hasAnyActionCode([
+    'permission.role_instance.list',
+    'permission.role_template.list',
+  ]),
 );
 const canReadRole = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.get_by_id'),
+  hasAnyActionCode([
+    'permission.role_instance.get_by_id',
+    'permission.role_template.get_by_id',
+  ]),
 );
 const canUpdateRole = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.update'),
+  hasAnyActionCode([
+    'permission.role_instance.update',
+    'permission.role_template.update',
+  ]),
 );
 const isPlatformScope = computed(() => authContextStore.isPlatformScope);
 const showTemplateTab = computed(() => isPlatformScope.value);

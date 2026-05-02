@@ -12,7 +12,7 @@ type UserAccountWithTenant = {
   displayName: string | null
   bio: string | null
   isEnable: boolean
-  Tenant: {
+  Tenant?: {
     isActive: boolean
   } | null
   User?: {
@@ -83,5 +83,5 @@ function isAccountEnabled(record: UserAccountWithTenant, scopeLevel: 'SYSTEM' | 
     return record.tenantId === null
   }
 
-  return Boolean(record.tenantId) && record.Tenant?.isActive !== false
+  return Boolean(record.tenantId)
 }

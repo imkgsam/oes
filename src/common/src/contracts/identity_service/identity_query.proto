@@ -159,6 +159,7 @@ message CreateUserAccountRequest {
   string username = 4;
   string email = 5;
   string phone = 6;
+  string idempotency_key = 7;
 }
 
 message BindAccountToEmployeeRequest {
@@ -451,6 +452,8 @@ message GetAccountByIdResponse {
 
 message CreateUserAccountResponse {
   AccountSummary account = 1;
+  string user_party_id = 2;
+  string user_tenant_party_id = 3;
 }
 
 message UpdateOwnAccountProfileResponse {

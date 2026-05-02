@@ -22,7 +22,7 @@ export class RoleTemplateController {
   constructor(private readonly permissionService: PermissionProxyService) {}
 
   @Get()
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_TEMPLATE])
   @ApiOperation({ summary: 'List role templates with pagination and filters' })
   async listRoleTemplates(
     @Query() query: ListRoleTemplatesDto,
@@ -41,7 +41,7 @@ export class RoleTemplateController {
   }
 
   @Post()
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_ROLE_TEMPLATE])
   @ApiOperation({ summary: 'Create a role template' })
   @ApiBody({ type: CreateRoleTemplateDto })
   async createRoleTemplate(
@@ -61,14 +61,14 @@ export class RoleTemplateController {
   }
 
   @Get(':id')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_TEMPLATE_DETAIL])
   @ApiOperation({ summary: 'Find role template by ID' })
   async findById(@Param('id') id: string, @DownstreamSource() source: DownstreamRequestSource) {
     return this.execute(() => this.permissionService.getRoleTemplateById({ id }, source))
   }
 
   @Patch(':id')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE_TEMPLATE])
   @ApiOperation({ summary: 'Update a role template' })
   @ApiBody({ type: UpdateRoleDto })
   async updateRoleTemplate(
@@ -89,7 +89,7 @@ export class RoleTemplateController {
   }
 
   @Patch(':id/enabled')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE_TEMPLATE])
   @ApiOperation({ summary: 'Enable or disable a role template' })
   @ApiBody({ type: SetRoleEnabledDto })
   async setRoleTemplateEnabled(
@@ -109,7 +109,7 @@ export class RoleTemplateController {
   }
 
   @Get(':id/permissions')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_TEMPLATE_DETAIL])
   @ApiOperation({ summary: 'List permissions assigned to a role template' })
   async listRoleTemplatePermissions(
     @Param('id') id: string,
@@ -121,7 +121,7 @@ export class RoleTemplateController {
   }
 
   @Post(':id/permissions')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.ASSIGN_ROLE_PERMISSION])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.ASSIGN_ROLE_TEMPLATE_PERMISSION])
   @ApiOperation({ summary: 'Assign a permission to a role template' })
   @ApiBody({ type: AssignRolePermissionDto })
   async assignRoleTemplatePermission(
@@ -141,7 +141,7 @@ export class RoleTemplateController {
   }
 
   @Delete(':id/permissions/:permissionId')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.REVOKE_ROLE_PERMISSION])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.REVOKE_ROLE_TEMPLATE_PERMISSION])
   @ApiOperation({ summary: 'Revoke a permission from a role template' })
   async revokeRoleTemplatePermission(
     @Param('id') id: string,
@@ -160,7 +160,7 @@ export class RoleTemplateController {
   }
 
   @Post(':id/instantiate')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_ROLE_INSTANCE_FROM_TEMPLATE])
   @ApiOperation({ summary: 'Create a tenant role instance from a role template' })
   @ApiBody({ type: CreateRoleFromTemplateDto })
   async createRoleFromTemplate(
@@ -182,7 +182,7 @@ export class RoleTemplateController {
   }
 
   @Delete(':id')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.DELETE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.DELETE_ROLE_TEMPLATE])
   @ApiOperation({ summary: 'Delete a role template' })
   async deleteRoleTemplate(
     @Param('id') id: string,

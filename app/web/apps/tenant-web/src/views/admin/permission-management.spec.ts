@@ -9,7 +9,7 @@ const authContextState = vi.hoisted(() => ({
     'permission.create',
     'permission.delete',
     'permission.list',
-    'permission.role.list',
+    'permission.role_instance.list',
     'permission.update',
   ],
 }));
@@ -51,7 +51,7 @@ describe('permission management page', () => {
       'permission.create',
       'permission.delete',
       'permission.list',
-      'permission.role.list',
+      'permission.role_instance.list',
       'permission.update',
     ];
     listPermissionsApi.mockReset();
@@ -103,7 +103,7 @@ describe('permission management page', () => {
   });
 
   it('hides edit and delete row actions when the tenant admin lacks matching action permissions', async () => {
-    authContextState.actionCodes = ['permission.list', 'permission.role.list'];
+    authContextState.actionCodes = ['permission.list', 'permission.role_instance.list'];
     const view = await import('./permission-management.vue');
 
     mount(view.default, {

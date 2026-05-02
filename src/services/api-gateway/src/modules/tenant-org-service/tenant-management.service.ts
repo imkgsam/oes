@@ -91,6 +91,65 @@ export class TenantManagementService {
     )
   }
 
+  async startTenantOnboarding(input: {
+    idempotencyKey: string
+    tenant: { code: string; name: string }
+    organizationParty: {
+      legalName: string
+      registeredCountry?: string
+      identifiers?: Array<{
+        identifierType: string
+        rawValue?: string
+        normalizedValue: string
+        issuerCountryOrRegion?: string
+      }>
+    }
+    rootOrg: { name: string }
+    firstAdmin: { displayName: string; email?: string; phone?: string; requirePasswordSetup?: boolean }
+  }, source: DownstreamRequestSource) {
+    this.assertSystemScope(source)
+    return this.tenantOrgManagementAdapter.startTenantOnboarding(
+      {
+        idempotencyKey: requireNonBlank(input.idempotencyKey, 'idempotencyKey'),
+        tenant: {
+          code: requireNonBlank(input.tenant.code, 'tenant.code'),
+          name: requireNonBlank(input.tenant.name, 'tenant.name')
+        },
+        organizationParty: {
+          legalName: requireNonBlank(input.organizationParty.legalName, 'organizationParty.legalName'),
+          registeredCountry: normalize(input.organizationParty.registeredCountry),
+          identifiers: input.organizationParty.identifiers ?? []
+        },
+        rootOrg: {
+          name: requireNonBlank(input.rootOrg.name, 'rootOrg.name')
+        },
+        firstAdmin: {
+          displayName: requireNonBlank(input.firstAdmin.displayName, 'firstAdmin.displayName'),
+          email: normalize(input.firstAdmin.email),
+          phone: normalize(input.firstAdmin.phone),
+          requirePasswordSetup: input.firstAdmin.requirePasswordSetup ?? true
+        }
+      },
+      source
+    )
+  }
+
+  async getTenantOnboarding(onboardingId: string, source: DownstreamRequestSource) {
+    this.assertSystemScope(source)
+    return this.tenantOrgManagementAdapter.getTenantOnboarding(requireNonBlank(onboardingId, 'onboardingId'), source)
+  }
+
+  async retryTenantOnboarding(onboardingId: string, input: { reason?: string }, source: DownstreamRequestSource) {
+    this.assertSystemScope(source)
+    return this.tenantOrgManagementAdapter.retryTenantOnboarding(
+      {
+        onboardingId: requireNonBlank(onboardingId, 'onboardingId'),
+        reason: normalize(input.reason)
+      },
+      source
+    )
+  }
+
   async updateTenantProfile(
     tenantId: string,
     input: { code?: string; name?: string },

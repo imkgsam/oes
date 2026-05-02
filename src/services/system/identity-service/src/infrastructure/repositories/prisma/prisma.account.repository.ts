@@ -21,11 +21,6 @@ const ACCOUNT_SUMMARY_SELECT = {
   displayName: true,
   bio: true,
   isEnable: true,
-  Tenant: {
-    select: {
-      isActive: true
-    }
-  },
   User: {
     select: {
       partyId: true,
@@ -145,9 +140,6 @@ export class PrismaAccountRepository implements AccountRepository {
             scopeLevel: 'TENANT',
             tenantId: {
               not: null
-            },
-            Tenant: {
-              isActive: true
             }
           }
         ]
@@ -161,8 +153,7 @@ export class PrismaAccountRepository implements AccountRepository {
         avatarAssetId: true,
         displayName: true,
         bio: true,
-        isEnable: true,
-        Tenant: ACCOUNT_SUMMARY_SELECT.Tenant
+        isEnable: true
       },
       orderBy: {
         createdAt: 'asc'

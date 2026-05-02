@@ -33,7 +33,8 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
           normalizedValue: identifier.normalizedValue ?? '',
           rawValue: identifier.rawValue ?? '',
           issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? undefined
-        })) ?? []
+        })) ?? [],
+      idempotencyKey: request.idempotencyKey ?? undefined
     })
 
     return {
@@ -74,7 +75,8 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
           normalizedValue: identifier.normalizedValue ?? '',
           rawValue: identifier.rawValue ?? '',
           issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? undefined
-        })) ?? []
+        })) ?? [],
+      idempotencyKey: request.idempotencyKey ?? undefined
     })
 
     return {
@@ -108,7 +110,8 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
       partyId: request.partyId ?? '',
       localDisplayName: request.localDisplayName ?? undefined,
       localCode: request.localCode ?? undefined,
-      tags: request.tags ?? []
+      tags: request.tags ?? [],
+      idempotencyKey: request.idempotencyKey ?? undefined
     })
 
     return {

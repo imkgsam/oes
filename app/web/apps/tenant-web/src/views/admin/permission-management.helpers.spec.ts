@@ -99,7 +99,7 @@ describe('permission-management helpers', () => {
           page: 2,
           pageSize,
           permissions: [
-            { code: 'permission.role.list', id: 'p-3', module: 'TENANT_ADMIN' },
+            { code: 'permission.role_instance.list', id: 'p-3', module: 'TENANT_ADMIN' },
           ],
           total: 120,
         };

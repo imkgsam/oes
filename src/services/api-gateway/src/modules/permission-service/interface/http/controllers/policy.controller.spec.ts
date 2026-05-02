@@ -51,7 +51,7 @@ describe('PolicyController', () => {
           keyword: 'deny',
           page: 2,
           pageSize: 50,
-          permissionCode: 'permission.role.update',
+          permissionCode: 'permission.role_instance.update',
           tenantId: 'tenant-1'
         } as any,
         source as any
@@ -70,7 +70,7 @@ describe('PolicyController', () => {
         keyword: 'deny',
         page: 2,
         pageSize: 50,
-        permissionCode: 'permission.role.update',
+        permissionCode: 'permission.role_instance.update',
         tenantId: 'tenant-1'
       },
       source
@@ -87,7 +87,7 @@ describe('PolicyController', () => {
     })
     await expect(
       controller.listPoliciesByPermission(
-        'permission.role.update',
+        'permission.role_instance.update',
         { tenantId: 'tenant-1' } as any,
         source as any
       )
@@ -96,7 +96,7 @@ describe('PolicyController', () => {
     expect(permissionService.getPolicyById).toHaveBeenCalledWith({ id: 'policy-1' }, source)
     expect(permissionService.listPermissionPolicies).toHaveBeenCalledWith(
       {
-        permissionCode: 'permission.role.update',
+        permissionCode: 'permission.role_instance.update',
         tenantId: 'tenant-1'
       },
       source

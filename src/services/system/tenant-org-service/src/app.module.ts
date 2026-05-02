@@ -32,11 +32,29 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
     }),
     GrpcTransportModule.forRoot({
       services: {
+        [SERVICE_NAMES.AUTH]: {
+          serviceName: SERVICE_NAMES.AUTH,
+          protoPath: [resolveCommonProtoPath('auth_service/auth.proto')],
+          packageName: 'auth_service',
+          url: resolveGrpcUrl('GRPC_SERVICE_AUTH_URL', '127.0.0.1:50050')
+        },
+        [SERVICE_NAMES.IDENTITY]: {
+          serviceName: SERVICE_NAMES.IDENTITY,
+          protoPath: [resolveCommonProtoPath('identity_service/identity_query.proto')],
+          packageName: 'identity_service',
+          url: resolveGrpcUrl('GRPC_SERVICE_IDENTITY_URL', '127.0.0.1:50052')
+        },
         [SERVICE_NAMES.PARTY]: {
           serviceName: SERVICE_NAMES.PARTY,
           protoPath: [resolveCommonProtoPath('party_service/party.proto')],
           packageName: 'party_service',
           url: resolveGrpcUrl('GRPC_SERVICE_PARTY_URL', '127.0.0.1:50053')
+        },
+        [SERVICE_NAMES.PERMISSION]: {
+          serviceName: SERVICE_NAMES.PERMISSION,
+          protoPath: [resolveCommonProtoPath('permission_service/permission_management.proto')],
+          packageName: 'permission_service',
+          url: resolveGrpcUrl('GRPC_SERVICE_PERMISSION_URL', '127.0.0.1:50051')
         }
       }
     }),

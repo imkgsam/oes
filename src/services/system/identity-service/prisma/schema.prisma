@@ -17,7 +17,6 @@ model Tenant {
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
   orgUnits      Org[]
-  userAccounts  UserAccount[]
   contactAssets AccountContactAsset[]
 }
 
@@ -75,7 +74,6 @@ model UserAccount {
   createdAt      DateTime                   @default(now())
   updatedAt      DateTime                   @updatedAt
   User           User                       @relation(fields: [userId], references: [id])
-  Tenant         Tenant?                    @relation(fields: [tenantId], references: [id])
 
   @@unique([userId, scopeLevel, contextKey])
   @@index([scopeLevel])

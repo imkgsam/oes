@@ -4,9 +4,9 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Modal, message } from 'ant-design-vue';
 
-const createManagedTenantApi = vi.fn();
 const getManagedTenantByIdApi = vi.fn();
 const listManagedTenantsApi = vi.fn();
+const startTenantOnboardingApi = vi.fn();
 const updateManagedTenantProfileApi = vi.fn();
 const updateManagedTenantStatusApi = vi.fn();
 
@@ -27,9 +27,9 @@ const authContextState = {
 };
 
 vi.mock('#/api', () => ({
-  createManagedTenantApi,
   getManagedTenantByIdApi,
   listManagedTenantsApi,
+  startTenantOnboardingApi,
   updateManagedTenantProfileApi,
   updateManagedTenantStatusApi,
 }));
@@ -56,9 +56,9 @@ vi.mock('@vben/icons', () => ({
 
 describe('tenant management page', () => {
   beforeEach(() => {
-    createManagedTenantApi.mockReset();
     getManagedTenantByIdApi.mockReset();
     listManagedTenantsApi.mockReset();
+    startTenantOnboardingApi.mockReset();
     updateManagedTenantProfileApi.mockReset();
     updateManagedTenantStatusApi.mockReset();
     authContextState.isPlatformScope = true;
@@ -87,13 +87,21 @@ describe('tenant management page', () => {
         status: 'ACTIVE',
       },
     });
-    createManagedTenantApi.mockResolvedValue({
-      tenant: {
-        code: 'tenant.beta',
-        id: 'tenant-2',
-        name: 'Beta Tenant',
-        rootOrgId: 'org-root-2',
-        status: 'ACTIVE',
+    startTenantOnboardingApi.mockResolvedValue({
+      onboarding: {
+        access: { grantId: 'grant-1', roleCode: 'tenant.admin', roleId: 'role-1' },
+        firstAdmin: { accountId: 'account-1', userId: 'user-1' },
+        onboardingId: 'onboarding-1',
+        organizationParty: { partyId: 'party-1', tenantPartyId: 'tenant-party-1' },
+        rootOrg: { id: 'org-root-2' },
+        status: 'SUCCEEDED',
+        tenant: {
+          code: 'tenant.beta',
+          id: 'tenant-2',
+          name: 'Beta Tenant',
+          rootOrgId: 'org-root-2',
+          status: 'ACTIVE',
+        },
       },
     });
     updateManagedTenantProfileApi.mockResolvedValue({
@@ -182,15 +190,31 @@ describe('tenant management page', () => {
     inputs[0]?.dispatchEvent(new Event('focus'));
     await wrapper.find('input[placeholder="例如 tenant.alpha"]').setValue('tenant.beta');
     await wrapper.find('input[placeholder="例如 Alpha Tenant"]').setValue('Beta Tenant');
+    await wrapper.find('input[placeholder="例如 Alpha Inc."]').setValue('Beta Inc.');
     await wrapper.find('input[placeholder="默认与租户名称一致，可按需覆盖"]').setValue('Beta Root');
+    await wrapper.find('input[placeholder="例如 Alice Admin"]').setValue('Alice Admin');
+    await wrapper.find('input[placeholder="例如 alice@example.com"]').setValue('alice@example.com');
     await wrapper.find('[data-testid="tenant-create-submit"]').trigger('click');
     await flushPromises();
 
-    expect(createManagedTenantApi).toHaveBeenCalledWith({
-      code: 'tenant.beta',
-      name: 'Beta Tenant',
-      rootOrgName: 'Beta Root',
-    });
+    expect(startTenantOnboardingApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        firstAdmin: expect.objectContaining({
+          displayName: 'Alice Admin',
+          email: 'alice@example.com',
+        }),
+        organizationParty: expect.objectContaining({
+          legalName: 'Beta Inc.',
+        }),
+        rootOrg: {
+          name: 'Beta Root',
+        },
+        tenant: {
+          code: 'tenant.beta',
+          name: 'Beta Tenant',
+        },
+      }),
+    );
 
     await wrapper.find('[data-testid="tenant-detail-button-tenant-1"]').trigger('click');
     await flushPromises();

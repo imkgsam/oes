@@ -17,7 +17,7 @@ const authContextState = {
     'permission.navigation.entry.create',
     'permission.navigation.entry.update',
     'permission.navigation.resolve_preview',
-    'permission.role.update',
+    'permission.role_instance.update',
   ],
   isPlatformScope: true,
   sessionContext: {

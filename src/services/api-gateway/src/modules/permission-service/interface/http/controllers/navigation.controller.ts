@@ -91,7 +91,7 @@ export class NavigationController {
   }
 
   @Get('roles/:roleId/navigation')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_INSTANCE_DETAIL])
   @ApiOperation({ summary: 'Get role navigation config' })
   async getRoleNavigation(
     @Param('roleId') roleId: string,
@@ -101,7 +101,7 @@ export class NavigationController {
   }
 
   @Put('roles/:roleId/navigation/visibility')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE_INSTANCE])
   @ApiOperation({ summary: 'Replace role navigation visibility config' })
   @ApiBody({ type: SetRoleNavigationVisibilityDto })
   async setRoleNavigationVisibility(
@@ -121,7 +121,7 @@ export class NavigationController {
   }
 
   @Put('roles/:roleId/navigation/landing-policies')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE_INSTANCE])
   @ApiOperation({ summary: 'Replace role landing policy config' })
   @ApiBody({ type: SetRoleLandingPoliciesDto })
   async setRoleLandingPolicies(
@@ -141,7 +141,7 @@ export class NavigationController {
   }
 
   @Post('roles/:roleId/navigation/sync-template')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE_INSTANCE])
   @ApiOperation({ summary: 'Reset role navigation config to the linked template snapshot' })
   async syncRoleNavigationFromTemplate(
     @Param('roleId') roleId: string,

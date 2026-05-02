@@ -43,19 +43,19 @@ describe('NavigationController', () => {
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.getRoleNavigation)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.get_by_id']
+      permissions: ['permission.role_instance.get_by_id']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.setRoleNavigationVisibility)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.update']
+      permissions: ['permission.role_instance.update']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.setRoleLandingPolicies)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.update']
+      permissions: ['permission.role_instance.update']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.syncRoleNavigationFromTemplate)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.update']
+      permissions: ['permission.role_instance.update']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.resolveNavigationPreview)).toEqual({
       type: 'ALL',

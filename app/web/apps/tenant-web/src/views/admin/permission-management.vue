@@ -101,7 +101,7 @@ const canDeletePermission = computed(() =>
   authContextStore.actionCodes.includes('permission.delete'),
 );
 const canListPermissionRoles = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.list'),
+  authContextStore.actionCodes.includes('permission.role_instance.list'),
 );
 const canUpdatePermission = computed(() =>
   authContextStore.actionCodes.includes('permission.update'),

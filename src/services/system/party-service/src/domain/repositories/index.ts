@@ -69,6 +69,7 @@ export interface CreatePersonPartyInput {
   localDisplayName?: string
   localCode?: string
   identifiers: IdentifierInput[]
+  idempotencyKey?: string
 }
 
 /** CreateOrganizationPartyInput captures the canonical and local inputs required to register an organization party. */
@@ -83,6 +84,7 @@ export interface BindExistingPartyToTenantInput {
   localDisplayName?: string
   localCode?: string
   tags?: string[]
+  idempotencyKey?: string
 }
 
 /** DeactivateTenantPartyInput marks one tenant party inactive without deleting history. */
@@ -140,6 +142,30 @@ export interface PartyIdentifierRepository {
   findStrongMatch(identifiers: IdentifierInput[]): Promise<PartySummary | null>
 }
 
+/** PartyRegistrationIdempotencyRecord rehydrates a completed registration request for safe retries. */
+export interface PartyRegistrationIdempotencyRecord {
+  idempotencyKey: string
+  requestHash: string
+  operation: string
+  party: PartySummary
+  tenantParty?: TenantPartySummary | null
+  matchResult?: string | null
+}
+
+/** PartyRegistrationIdempotencyRepository stores completed party registration outcomes keyed by caller idempotency. */
+export interface PartyRegistrationIdempotencyRepository {
+  findByKey(idempotencyKey: string): Promise<PartyRegistrationIdempotencyRecord | null>
+  saveCompleted(input: {
+    idempotencyKey: string
+    requestHash: string
+    operation: string
+    partyId: string
+    tenantPartyId?: string
+    matchResult?: string
+  }): Promise<PartyRegistrationIdempotencyRecord>
+}
+
 export const PARTY_REPOSITORY = Symbol('PARTY_REPOSITORY')
 export const TENANT_PARTY_REPOSITORY = Symbol('TENANT_PARTY_REPOSITORY')
 export const PARTY_IDENTIFIER_REPOSITORY = Symbol('PARTY_IDENTIFIER_REPOSITORY')
+export const PARTY_REGISTRATION_IDEMPOTENCY_REPOSITORY = Symbol('PARTY_REGISTRATION_IDEMPOTENCY_REPOSITORY')

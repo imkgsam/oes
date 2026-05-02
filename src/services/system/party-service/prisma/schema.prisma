@@ -56,6 +56,7 @@ model Party {
   organizationParty  OrganizationParty?
   tenantParties      TenantParty[]
   identifiers        PartyIdentifier[]
+  registrationIdempotencies PartyRegistrationIdempotency[]
   relationshipsFrom  PartyRelationship[] @relation("PartyRelationshipFrom")
   relationshipsTo    PartyRelationship[] @relation("PartyRelationshipTo")
 
@@ -103,10 +104,30 @@ model TenantParty {
   updatedAt        DateTime          @updatedAt
 
   party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+  registrationIdempotencies PartyRegistrationIdempotency[]
 
   @@unique([tenantId, partyId])
   @@index([tenantId])
   @@index([status])
+}
+
+model PartyRegistrationIdempotency {
+  id             String   @id @default(uuid()) @db.Uuid
+  idempotencyKey String   @unique @db.VarChar(128)
+  operation      String   @db.VarChar(80)
+  requestHash    String   @db.VarChar(128)
+  partyId        String   @db.Uuid
+  tenantPartyId  String?  @db.Uuid
+  matchResult    String?  @db.VarChar(80)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  party       Party        @relation(fields: [partyId], references: [id], onDelete: Restrict)
+  tenantParty TenantParty? @relation(fields: [tenantPartyId], references: [id], onDelete: SetNull)
+
+  @@index([operation])
+  @@index([partyId])
+  @@index([tenantPartyId])
 }
 
 model PartyIdentifier {

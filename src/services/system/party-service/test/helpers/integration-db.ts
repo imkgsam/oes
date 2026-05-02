@@ -105,6 +105,15 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     ])
   )
 
+  await prisma.partyRegistrationIdempotency.deleteMany({
+    where: {
+      OR: [
+        { idempotencyKey: { startsWith: prefix } },
+        prefixedPartyIds.length > 0 ? { partyId: { in: prefixedPartyIds } } : undefined
+      ].filter(Boolean) as any
+    }
+  })
+
   if (prefixedPartyIds.length > 0) {
     await prisma.partyRelationship.deleteMany({
       where: {

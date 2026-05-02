@@ -9,9 +9,14 @@ import { AccountRepository } from '../../../domain/repositories/account.reposito
 import { UserRepository } from '../../../domain/repositories/user.repository'
 import { CreateUserAccountCommand } from './create-user-account.command'
 
+export type CreateUserAccountResult = AccountSummaryEntity & {
+  userPartyId?: string
+  userTenantPartyId?: string
+}
+
 @CommandHandler(CreateUserAccountCommand)
 export class CreateUserAccountHandler
-  implements ICommandHandler<CreateUserAccountCommand, AccountSummaryEntity>
+  implements ICommandHandler<CreateUserAccountCommand, CreateUserAccountResult>
 {
   constructor(
     @Inject(SYMBOLS.REPO.ACCOUNT)
@@ -23,7 +28,7 @@ export class CreateUserAccountHandler
     private readonly partyRegistrationPort: PartyRegistrationPort
   ) {}
 
-  async execute(command: CreateUserAccountCommand): Promise<AccountSummaryEntity> {
+  async execute(command: CreateUserAccountCommand): Promise<CreateUserAccountResult> {
     const email = normalizeOptional(command.email)?.toLowerCase()
     const phone = normalizeOptional(command.phone)
     const username = normalizeOptional(command.username)
@@ -77,6 +82,7 @@ export class CreateUserAccountHandler
     const registeredParty = await this.partyRegistrationPort.registerPersonParty({
       canonicalName: displayName ?? username ?? email ?? phone ?? command.operatorId ?? 'Unnamed User',
       localDisplayName: displayName,
+      idempotencyKey: command.idempotencyKey,
       operatorId: command.operatorId,
       operatorScope: command.operatorScope,
       tenantId
@@ -90,11 +96,16 @@ export class CreateUserAccountHandler
       isActive: true
     })
 
-    return this.accountRepository.createUserAccount({
+    const account = await this.accountRepository.createUserAccount({
       displayName,
       scopeLevel: command.scopeLevel,
       tenantId,
       userId: user.id
+    })
+
+    return Object.assign(account, {
+      userPartyId: registeredParty.partyId,
+      userTenantPartyId: registeredParty.tenantPartyId
     })
   }
 }

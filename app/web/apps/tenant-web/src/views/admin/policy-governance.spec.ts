@@ -44,7 +44,7 @@ describe('policy governance page', () => {
           id: 'policy-1',
           isEnabled: true,
           name: 'Deny Tenant Role Update',
-          permissionCode: 'permission.role.update',
+          permissionCode: 'permission.role_instance.update',
           priority: 10,
           resourceType: 'ROLE',
           subjectId: 'tenant.admin',
@@ -61,7 +61,7 @@ describe('policy governance page', () => {
       id: 'policy-1',
       isEnabled: true,
       name: 'Deny Tenant Role Update',
-      permissionCode: 'permission.role.update',
+      permissionCode: 'permission.role_instance.update',
       priority: 10,
       resourceType: 'ROLE',
       subjectId: 'tenant.admin',
@@ -122,7 +122,7 @@ describe('policy governance page', () => {
 
     await wrapper.find('input[aria-label="策略关键字"]').setValue('deny');
     await wrapper.find('input[aria-label="权限码过滤"]').setValue(
-      'permission.role.update',
+      'permission.role_instance.update',
     );
     await wrapper.find('input[aria-label="租户过滤"]').setValue('tenant-1');
     await wrapper
@@ -139,7 +139,7 @@ describe('policy governance page', () => {
       keyword: 'deny',
       page: 1,
       pageSize: 20,
-      permissionCode: 'permission.role.update',
+      permissionCode: 'permission.role_instance.update',
       tenantId: 'tenant-1',
     });
   });
@@ -165,7 +165,7 @@ describe('policy governance page', () => {
     await flushPromises();
 
     expect(getPolicyByIdApi).toHaveBeenCalledWith('policy-1');
-    expect(listPermissionPoliciesApi).toHaveBeenCalledWith('permission.role.update', {
+    expect(listPermissionPoliciesApi).toHaveBeenCalledWith('permission.role_instance.update', {
       tenantId: undefined,
     });
     expect(document.body.textContent).toContain('策略详情');

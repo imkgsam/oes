@@ -34,6 +34,71 @@ export namespace TenantManagementApi {
     rootOrgName?: string;
   }
 
+  export interface CreateTenantOnboardingPayload {
+    firstAdmin: {
+      displayName: string;
+      email?: string;
+      phone?: string;
+      requirePasswordSetup?: boolean;
+    };
+    idempotencyKey: string;
+    organizationParty: {
+      identifiers?: Array<{
+        identifierType: string;
+        issuerCountryOrRegion?: string;
+        normalizedValue: string;
+        rawValue?: string;
+      }>;
+      legalName: string;
+      registeredCountry?: string;
+    };
+    rootOrg: {
+      name: string;
+    };
+    tenant: {
+      code: string;
+      name: string;
+    };
+  }
+
+  export interface TenantOnboardingResult {
+    access?: {
+      grantId?: string;
+      roleCode?: string;
+      roleId?: string;
+    };
+    failure?: {
+      code?: string;
+      failedStep?: string;
+      message?: string;
+      retryable?: boolean;
+    };
+    firstAdmin?: {
+      accountId?: string;
+      personPartyId?: string;
+      tenantPartyId?: string;
+      userId?: string;
+    };
+    onboardingId?: string;
+    organizationParty?: {
+      partyId?: string;
+      tenantPartyId?: string;
+    };
+    rootOrg?: ManagedOrgUnit;
+    status?: string;
+    steps?: Array<{
+      attemptCount?: number;
+      key?: string;
+      message?: string;
+      status?: string;
+    }>;
+    tenant?: TenantSummary;
+  }
+
+  export interface TenantOnboardingResponse {
+    onboarding?: TenantOnboardingResult;
+  }
+
   export interface UpdateTenantProfilePayload {
     code?: string;
     name?: string;
@@ -125,6 +190,34 @@ export async function createManagedTenantApi(
   return requestClient.post<TenantManagementApi.TenantDetailResult>(
     '/tenant-management/tenants',
     data,
+  );
+}
+
+// Starts the production tenant onboarding flow through tenant-org-service orchestration.
+export async function startTenantOnboardingApi(
+  data: TenantManagementApi.CreateTenantOnboardingPayload,
+) {
+  return requestClient.post<TenantManagementApi.TenantOnboardingResponse>(
+    '/tenant-management/tenants/onboardings',
+    data,
+  );
+}
+
+// Loads the current state of one tenant onboarding run.
+export async function getTenantOnboardingApi(onboardingId: string) {
+  return requestClient.get<TenantManagementApi.TenantOnboardingResponse>(
+    `/tenant-management/tenants/onboardings/${encodeURIComponent(onboardingId)}`,
+  );
+}
+
+// Retries a failed tenant onboarding run from the durable Saga state.
+export async function retryTenantOnboardingApi(
+  onboardingId: string,
+  reason?: string,
+) {
+  return requestClient.post<TenantManagementApi.TenantOnboardingResponse>(
+    `/tenant-management/tenants/onboardings/${encodeURIComponent(onboardingId)}/retry`,
+    { reason },
   );
 }
 

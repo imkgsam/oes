@@ -45,6 +45,7 @@ describe('tenant-web tenant management api', () => {
   it('creates tenants, updates tenant profile metadata, and changes tenant status', async () => {
     const {
       createManagedTenantApi,
+      startTenantOnboardingApi,
       updateManagedTenantProfileApi,
       updateManagedTenantStatusApi,
     } = await import('./index');
@@ -53,6 +54,13 @@ describe('tenant-web tenant management api', () => {
       code: 'tenant.alpha',
       name: 'Alpha Tenant',
       rootOrgName: 'Alpha Root',
+    });
+    await startTenantOnboardingApi({
+      idempotencyKey: 'key-1',
+      tenant: { code: 'tenant.alpha', name: 'Alpha Tenant' },
+      organizationParty: { legalName: 'Alpha Inc.', identifiers: [] },
+      rootOrg: { name: 'Alpha Root' },
+      firstAdmin: { displayName: 'Alice Admin', email: 'alice@example.com' },
     });
     await updateManagedTenantProfileApi('tenant-1', {
       code: 'tenant.alpha.updated',
@@ -67,6 +75,13 @@ describe('tenant-web tenant management api', () => {
       code: 'tenant.alpha',
       name: 'Alpha Tenant',
       rootOrgName: 'Alpha Root',
+    });
+    expect(post).toHaveBeenCalledWith('/tenant-management/tenants/onboardings', {
+      idempotencyKey: 'key-1',
+      tenant: { code: 'tenant.alpha', name: 'Alpha Tenant' },
+      organizationParty: { legalName: 'Alpha Inc.', identifiers: [] },
+      rootOrg: { name: 'Alpha Root' },
+      firstAdmin: { displayName: 'Alice Admin', email: 'alice@example.com' },
     });
     expect(request).toHaveBeenCalledWith('/tenant-management/tenants/tenant-1/profile', {
       data: {

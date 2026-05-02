@@ -27,6 +27,14 @@ enum OrgUnitType {
   OTHER
 }
 
+enum TenantOnboardingRunStatus {
+  PENDING
+  RUNNING
+  FAILED_RETRYABLE
+  FAILED_NEEDS_MANUAL_REVIEW
+  SUCCEEDED
+}
+
 model Tenant {
   id        String       @id @default(uuid()) @db.Uuid
   code      String       @unique @db.VarChar(100)
@@ -60,4 +68,20 @@ model OrgUnit {
   @@index([tenantId])
   @@index([parentOrgId])
   @@index([path])
+}
+
+model TenantOnboardingRun {
+  id             String                    @id @default(uuid()) @db.Uuid
+  idempotencyKey String                    @unique @db.VarChar(128)
+  requestHash    String                    @db.VarChar(128)
+  status         TenantOnboardingRunStatus @default(PENDING)
+  requestPayload Json
+  externalRefs   Json
+  steps          Json
+  failure        Json?
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }

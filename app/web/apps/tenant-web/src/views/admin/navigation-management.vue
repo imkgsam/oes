@@ -144,7 +144,7 @@ const canUpdateEntry = computed(() =>
   authContextStore.actionCodes.includes('permission.navigation.entry.update'),
 );
 const canUpdateRole = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.update'),
+  authContextStore.actionCodes.includes('permission.role_instance.update'),
 );
 const canPreview = computed(() =>
   authContextStore.actionCodes.includes('permission.navigation.resolve_preview'),

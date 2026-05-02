@@ -330,6 +330,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         username: request.username || undefined,
         email: request.email || undefined,
         phone: request.phone || undefined,
+        idempotencyKey: request.idempotencyKey || undefined,
         operatorId,
         operatorScope
       })
@@ -346,7 +347,9 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         bio: account.bio ?? '',
         isEnabled: account.isEnabled,
         scopeLevel: account.scopeLevel
-      }
+      },
+      userPartyId: account.userPartyId ?? '',
+      userTenantPartyId: account.userTenantPartyId ?? ''
     }
   }
 

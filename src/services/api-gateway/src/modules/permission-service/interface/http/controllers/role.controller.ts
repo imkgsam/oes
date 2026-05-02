@@ -26,7 +26,7 @@ export class RoleController {
   ) {}
 
   @Get()
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_INSTANCE])
   @ApiOperation({ summary: 'List role instances with pagination and filters' })
   async listRoles(
     @Query() query: ListRolesDto,
@@ -47,7 +47,7 @@ export class RoleController {
   }
 
   @Get('tenant-options')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_ROLE_INSTANCE])
   @ApiOperation({ summary: 'List tenant options for role creation selectors' })
   async listTenantOptions(
     @Query() query: ListRoleTenantOptionsDto,
@@ -65,7 +65,7 @@ export class RoleController {
   }
 
   @Post()
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_ROLE_INSTANCE])
   @ApiOperation({ summary: 'Create a role instance' })
   @ApiBody({ type: CreateRoleDto })
   async createRole(
@@ -88,14 +88,14 @@ export class RoleController {
   }
 
   @Get(':id')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_INSTANCE_DETAIL])
   @ApiOperation({ summary: 'Find role by ID' })
   async findById(@Param('id') id: string, @DownstreamSource() source: DownstreamRequestSource) {
     return this.execute(() => this.roleManagementReadService.getRoleById({ id }, source))
   }
 
   @Patch(':id')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE_INSTANCE])
   @ApiOperation({ summary: 'Update a role instance' })
   @ApiBody({ type: UpdateRoleDto })
   async updateRole(
@@ -116,7 +116,7 @@ export class RoleController {
   }
 
   @Patch(':id/enabled')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE_INSTANCE])
   @ApiOperation({ summary: 'Enable or disable a role instance' })
   @ApiBody({ type: SetRoleEnabledDto })
   async setRoleEnabled(
@@ -136,7 +136,7 @@ export class RoleController {
   }
 
   @Get(':id/permissions')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_INSTANCE_DETAIL])
   @ApiOperation({ summary: 'List permissions assigned to a role instance' })
   async listRolePermissions(
     @Param('id') id: string,
@@ -146,7 +146,7 @@ export class RoleController {
   }
 
   @Post(':id/permissions')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.ASSIGN_ROLE_PERMISSION])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.ASSIGN_ROLE_INSTANCE_PERMISSION])
   @ApiOperation({ summary: 'Assign a permission to a role instance' })
   @ApiBody({ type: AssignRolePermissionDto })
   async assignRolePermission(
@@ -166,7 +166,7 @@ export class RoleController {
   }
 
   @Delete(':id/permissions/:permissionId')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.REVOKE_ROLE_PERMISSION])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.REVOKE_ROLE_INSTANCE_PERMISSION])
   @ApiOperation({ summary: 'Revoke a permission from a role instance' })
   async revokeRolePermission(
     @Param('id') id: string,
@@ -185,7 +185,7 @@ export class RoleController {
   }
 
   @Delete(':id')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.DELETE_ROLE])
+  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.DELETE_ROLE_INSTANCE])
   @ApiOperation({ summary: 'Delete a role' })
   async deleteRole(@Param('id') id: string, @DownstreamSource() source: DownstreamRequestSource) {
     return this.execute(() => this.permissionService.deleteRole({ id }, source))

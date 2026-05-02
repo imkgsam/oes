@@ -6,6 +6,7 @@ export interface RegisterPersonPartyInput {
   operatorId?: string
   operatorScope?: OperatorScope
   tenantId?: string
+  idempotencyKey?: string
 }
 
 export interface RegisterPersonPartyResult {

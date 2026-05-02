@@ -11,6 +11,7 @@ type CreateUserAccountInput = {
   scopeLevel: 'SYSTEM' | 'TENANT'
   tenantId?: string
   username?: string
+  idempotencyKey?: string
 }
 
 // Carries one admin-driven human account creation request through the identity write path.
@@ -41,6 +42,10 @@ export class CreateUserAccountCommand implements ICommand {
 
   @IsOptional()
   @IsString()
+  readonly idempotencyKey?: string
+
+  @IsOptional()
+  @IsString()
   readonly operatorId?: string
 
   @Allow()
@@ -53,6 +58,7 @@ export class CreateUserAccountCommand implements ICommand {
     this.username = input.username
     this.email = input.email
     this.phone = input.phone
+    this.idempotencyKey = input.idempotencyKey
     this.operatorId = input.operatorId
     this.operatorScope = input.operatorScope
   }

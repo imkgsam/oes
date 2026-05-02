@@ -18,6 +18,9 @@ service TenantOrgQueryService {
 
 service TenantOrgManagementService {
   rpc CreateTenant(CreateTenantRequest) returns (CreateTenantResponse);
+  rpc StartTenantOnboarding(StartTenantOnboardingRequest) returns (StartTenantOnboardingResponse);
+  rpc GetTenantOnboarding(GetTenantOnboardingRequest) returns (GetTenantOnboardingResponse);
+  rpc RetryTenantOnboarding(RetryTenantOnboardingRequest) returns (RetryTenantOnboardingResponse);
   rpc UpdateTenantProfile(UpdateTenantProfileRequest) returns (UpdateTenantProfileResponse);
   rpc SuspendTenant(SuspendTenantRequest) returns (SuspendTenantResponse);
   rpc ReactivateTenant(ReactivateTenantRequest) returns (ReactivateTenantResponse);
@@ -144,6 +147,108 @@ message CreateTenantRequest {
 message CreateTenantResponse {
   TenantSummary tenant = 1;
   OrgUnitSummary root_org_unit = 2;
+}
+
+message TenantOnboardingTenantInput {
+  string code = 1;
+  string name = 2;
+}
+
+message TenantOnboardingIdentifierInput {
+  string identifier_type = 1;
+  string raw_value = 2;
+  string normalized_value = 3;
+  string issuer_country_or_region = 4;
+}
+
+message TenantOnboardingOrganizationPartyInput {
+  string legal_name = 1;
+  string registered_country = 2;
+  repeated TenantOnboardingIdentifierInput identifiers = 3;
+}
+
+message TenantOnboardingRootOrgInput {
+  string name = 1;
+}
+
+message TenantOnboardingFirstAdminInput {
+  string display_name = 1;
+  string email = 2;
+  string phone = 3;
+  bool require_password_setup = 4;
+}
+
+message StartTenantOnboardingRequest {
+  string idempotency_key = 1;
+  TenantOnboardingTenantInput tenant = 2;
+  TenantOnboardingOrganizationPartyInput organization_party = 3;
+  TenantOnboardingRootOrgInput root_org = 4;
+  TenantOnboardingFirstAdminInput first_admin = 5;
+}
+
+message GetTenantOnboardingRequest {
+  string onboarding_id = 1;
+}
+
+message RetryTenantOnboardingRequest {
+  string onboarding_id = 1;
+  string reason = 2;
+}
+
+message StartTenantOnboardingResponse {
+  TenantOnboardingResult onboarding = 1;
+}
+
+message GetTenantOnboardingResponse {
+  TenantOnboardingResult onboarding = 1;
+}
+
+message RetryTenantOnboardingResponse {
+  TenantOnboardingResult onboarding = 1;
+}
+
+message TenantOnboardingStep {
+  string key = 1;
+  string status = 2;
+  string message = 3;
+  int32 attempt_count = 4;
+}
+
+message TenantOnboardingFailure {
+  string code = 1;
+  string message = 2;
+  string failed_step = 3;
+  bool retryable = 4;
+}
+
+message TenantOnboardingOrganizationPartyResult {
+  string party_id = 1;
+  string tenant_party_id = 2;
+}
+
+message TenantOnboardingFirstAdminResult {
+  string user_id = 1;
+  string account_id = 2;
+  string person_party_id = 3;
+  string tenant_party_id = 4;
+}
+
+message TenantOnboardingAccessResult {
+  string role_code = 1;
+  string role_id = 2;
+  string grant_id = 3;
+}
+
+message TenantOnboardingResult {
+  string onboarding_id = 1;
+  string status = 2;
+  TenantSummary tenant = 3;
+  OrgUnitSummary root_org = 4;
+  TenantOnboardingOrganizationPartyResult organization_party = 5;
+  TenantOnboardingFirstAdminResult first_admin = 6;
+  TenantOnboardingAccessResult access = 7;
+  repeated TenantOnboardingStep steps = 8;
+  TenantOnboardingFailure failure = 9;
 }
 
 message UpdateTenantProfileRequest {

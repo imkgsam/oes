@@ -14,6 +14,8 @@ export * from './revoke-role-template-permission.command'
 export * from './revoke-role-template-permission.handler'
 export * from './create-role-instance-from-template.command'
 export * from './create-role-instance-from-template.handler'
+export * from './ensure-tenant-role-instance-from-template.command'
+export * from './ensure-tenant-role-instance-from-template.handler'
 export * from './sync-role-navigation-from-template.command'
 export * from './sync-role-navigation-from-template.handler'
 export * from './update-role.command'
@@ -30,6 +32,8 @@ export * from './assign-account-role.command'
 export * from './assign-account-role.handler'
 export * from './grant-initial-access-for-employee-account.command'
 export * from './grant-initial-access-for-employee-account.handler'
+export * from './grant-initial-access-for-tenant-account.command'
+export * from './grant-initial-access-for-tenant-account.handler'
 export * from './revoke-account-role.command'
 export * from './revoke-account-role.handler'
 export * from './set-account-roles.command'
@@ -43,6 +47,7 @@ import { AssignRoleTemplatePermissionHandler } from './assign-role-template-perm
 import { RevokeRoleTemplatePermissionHandler } from './revoke-role-template-permission.handler'
 import { CreateRoleInstanceHandler } from './create-role-instance.handler'
 import { CreateRoleInstanceFromTemplateHandler } from './create-role-instance-from-template.handler'
+import { EnsureTenantRoleInstanceFromTemplateHandler } from './ensure-tenant-role-instance-from-template.handler'
 import { SyncRoleNavigationFromTemplateHandler } from './sync-role-navigation-from-template.handler'
 import { UpdateRoleHandler } from './update-role.handler'
 import { SetRoleEnabledHandler } from './set-role-enabled.handler'
@@ -51,6 +56,7 @@ import { AssignRolePermissionHandler } from './assign-role-permission.handler'
 import { RevokeRolePermissionHandler } from './revoke-role-permission.handler'
 import { AssignAccountRoleHandler } from './assign-account-role.handler'
 import { GrantInitialAccessForEmployeeAccountHandler } from './grant-initial-access-for-employee-account.handler'
+import { GrantInitialAccessForTenantAccountHandler } from './grant-initial-access-for-tenant-account.handler'
 import { RevokeAccountRoleHandler } from './revoke-account-role.handler'
 import { SetAccountRolesHandler } from './set-account-roles.handler'
 
@@ -66,6 +72,7 @@ export const RoleTemplateCommandHandlers = [
 export const RoleInstanceCommandHandlers = [
   CreateRoleInstanceHandler,
   CreateRoleInstanceFromTemplateHandler,
+  EnsureTenantRoleInstanceFromTemplateHandler,
   SyncRoleNavigationFromTemplateHandler,
   UpdateRoleHandler,
   SetRoleEnabledHandler,
@@ -77,6 +84,7 @@ export const RoleInstanceCommandHandlers = [
 export const AccountRoleCommandHandlers = [
   AssignAccountRoleHandler,
   GrantInitialAccessForEmployeeAccountHandler,
+  GrantInitialAccessForTenantAccountHandler,
   RevokeAccountRoleHandler,
   SetAccountRolesHandler
 ]

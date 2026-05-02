@@ -349,7 +349,7 @@ onMounted(() => {
                   v-model="filters.permissionCode"
                   aria-label="权限码过滤"
                   class="policy-governance__native-input"
-                  placeholder="permission.role.update"
+                  placeholder="permission.role_instance.update"
                 />
               </Form.Item>
               <Form.Item label="租户">

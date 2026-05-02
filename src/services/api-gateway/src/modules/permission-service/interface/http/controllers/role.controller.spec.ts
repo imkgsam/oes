@@ -29,43 +29,43 @@ describe('RoleController', () => {
 
     expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.listRoles)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.list']
+      permissions: ['permission.role_instance.list']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.listTenantOptions)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.create']
+      permissions: ['permission.role_instance.create']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.createRole)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.create']
+      permissions: ['permission.role_instance.create']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.findById)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.get_by_id']
+      permissions: ['permission.role_instance.get_by_id']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.updateRole)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.update']
+      permissions: ['permission.role_instance.update']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.setRoleEnabled)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.update']
+      permissions: ['permission.role_instance.update']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.listRolePermissions)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.get_by_id']
+      permissions: ['permission.role_instance.get_by_id']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.assignRolePermission)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.update']
+      permissions: ['permission.role_instance.permission.assign']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.revokeRolePermission)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.update']
+      permissions: ['permission.role_instance.permission.revoke']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.deleteRole)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.delete_by_id']
+      permissions: ['permission.role_instance.delete_by_id']
     })
   })
 

@@ -37,7 +37,7 @@ describe('PermissionController', () => {
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, PermissionController.prototype.listPermissionRoles)).toEqual({
       type: 'ALL',
-      permissions: ['permission.role.list']
+      permissions: ['permission.role_instance.list']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, PermissionController.prototype.findByCode)).toEqual({
       type: 'ALL',

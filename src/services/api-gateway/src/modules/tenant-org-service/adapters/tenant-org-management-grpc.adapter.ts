@@ -10,7 +10,10 @@ import {
   ArchiveTenantResponse,
   CreateOrgUnitResponse,
   CreateTenantResponse,
+  GetTenantOnboardingResponse,
   ReactivateTenantResponse,
+  RetryTenantOnboardingResponse,
+  StartTenantOnboardingResponse,
   SuspendTenantResponse,
   TENANT_ORG_MANAGEMENT_SERVICE_NAME,
   TenantOrgManagementServiceClient,
@@ -44,6 +47,18 @@ export interface TenantManagementMutationOrgUnit {
   status?: string
   tenantId?: string
   type?: string
+}
+
+export interface TenantOnboardingGatewayResult {
+  onboardingId?: string
+  status?: string
+  tenant?: TenantManagementMutationTenant
+  rootOrg?: TenantManagementMutationOrgUnit
+  organizationParty?: { partyId?: string; tenantPartyId?: string }
+  firstAdmin?: { userId?: string; accountId?: string; personPartyId?: string; tenantPartyId?: string }
+  access?: { roleCode?: string; roleId?: string; grantId?: string }
+  steps?: Array<{ key?: string; status?: string; message?: string; attemptCount?: number }>
+  failure?: { code?: string; message?: string; failedStep?: string; retryable?: boolean }
 }
 
 @Injectable()
@@ -83,6 +98,57 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
             }
           : undefined
       })
+    )
+  }
+
+  startTenantOnboarding(input: any, source: DownstreamRequestSource): Promise<{ onboarding?: TenantOnboardingGatewayResult }> {
+    return this.call(
+      'startTenantOnboarding',
+      this.svc.startTenantOnboarding(
+        {
+          idempotencyKey: input.idempotencyKey,
+          tenant: input.tenant,
+          organizationParty: {
+            legalName: input.organizationParty.legalName,
+            registeredCountry: input.organizationParty.registeredCountry ?? '',
+            identifiers: (input.organizationParty.identifiers ?? []).map((identifier: any) => ({
+              identifierType: identifier.identifierType,
+              rawValue: identifier.rawValue ?? '',
+              normalizedValue: identifier.normalizedValue,
+              issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? ''
+            }))
+          },
+          rootOrg: input.rootOrg,
+          firstAdmin: input.firstAdmin
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      ),
+      (response: StartTenantOnboardingResponse) => ({ onboarding: mapOnboarding(response.onboarding) })
+    )
+  }
+
+  getTenantOnboarding(onboardingId: string, source: DownstreamRequestSource): Promise<{ onboarding?: TenantOnboardingGatewayResult }> {
+    return this.call(
+      'getTenantOnboarding',
+      this.svc.getTenantOnboarding(
+        { onboardingId },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      ),
+      (response: GetTenantOnboardingResponse) => ({ onboarding: mapOnboarding(response.onboarding) })
+    )
+  }
+
+  retryTenantOnboarding(
+    input: { onboardingId: string; reason?: string },
+    source: DownstreamRequestSource
+  ): Promise<{ onboarding?: TenantOnboardingGatewayResult }> {
+    return this.call(
+      'retryTenantOnboarding',
+      this.svc.retryTenantOnboarding(
+        input,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      ),
+      (response: RetryTenantOnboardingResponse) => ({ onboarding: mapOnboarding(response.onboarding) })
     )
   }
 
@@ -269,5 +335,32 @@ function mapOrgUnit(orgUnit: {
     depth: orgUnit.depth,
     sortOrder: orgUnit.sortOrder,
     organizationPartyId: normalize(orgUnit.organizationPartyId)
+  }
+}
+
+function mapOnboarding(onboarding?: any): TenantOnboardingGatewayResult | undefined {
+  if (!onboarding) return undefined
+  return {
+    onboardingId: onboarding.onboardingId,
+    status: onboarding.status,
+    tenant: onboarding.tenant ? mapTenant(onboarding.tenant) : undefined,
+    rootOrg: onboarding.rootOrg ? mapOrgUnit(onboarding.rootOrg) : undefined,
+    organizationParty: {
+      partyId: normalize(onboarding.organizationParty?.partyId),
+      tenantPartyId: normalize(onboarding.organizationParty?.tenantPartyId)
+    },
+    firstAdmin: {
+      userId: normalize(onboarding.firstAdmin?.userId),
+      accountId: normalize(onboarding.firstAdmin?.accountId),
+      personPartyId: normalize(onboarding.firstAdmin?.personPartyId),
+      tenantPartyId: normalize(onboarding.firstAdmin?.tenantPartyId)
+    },
+    access: {
+      roleCode: normalize(onboarding.access?.roleCode),
+      roleId: normalize(onboarding.access?.roleId),
+      grantId: normalize(onboarding.access?.grantId)
+    },
+    steps: onboarding.steps ?? [],
+    failure: onboarding.failure?.code ? onboarding.failure : undefined
   }
 }
