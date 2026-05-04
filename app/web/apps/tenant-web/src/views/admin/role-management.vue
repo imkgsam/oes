@@ -80,6 +80,11 @@ import {
 type ActiveTabKey = 'instances' | 'templates';
 type CreateRoleMenuKey = 'instantiate' | 'role';
 type PermissionOwnerType = 'role' | 'template';
+type RoleOwnerPermissionAction =
+  | 'assign_permissions'
+  | 'delete'
+  | 'get_by_id'
+  | 'update';
 type RoleActionKey = 'delete' | 'edit' | 'navigation' | 'permissions' | 'toggle';
 type TemplateActionKey =
   | 'delete'
@@ -166,6 +171,7 @@ const permissionDrawerOpen = ref(false);
 const instantiateTemplateId = ref('');
 const editTargetType = ref<PermissionOwnerType>('role');
 const permissionOwnerType = ref<PermissionOwnerType>('role');
+const navigationOwnerType = ref<PermissionOwnerType>('role');
 const moduleSearch = ref('');
 
 const instances = ref<RoleManagementApi.Role[]>([]);
@@ -238,20 +244,66 @@ const instantiateForm = reactive<InstantiateFormState>({
   tenantId: '',
 });
 
-const canCreateRole = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.create'),
+// Checks the current session action summary against one permission action code.
+function hasActionCode(code: string) {
+  return authContextStore.actionCodes.includes(code);
+}
+
+const roleOwnerPermissionPrefixes: Record<PermissionOwnerType, string> = {
+  role: 'permission.role_instance',
+  template: 'permission.role_template',
+};
+
+// Resolves owner-specific role permission checks for split instance/template action codes.
+function hasRoleOwnerAction(
+  ownerType: PermissionOwnerType,
+  action: RoleOwnerPermissionAction,
+) {
+  return hasActionCode(`${roleOwnerPermissionPrefixes[ownerType]}.${action}`);
+}
+
+function canReadRoleOwner(ownerType: PermissionOwnerType) {
+  return hasRoleOwnerAction(ownerType, 'get_by_id');
+}
+
+function canUpdateRoleOwner(ownerType: PermissionOwnerType) {
+  return hasRoleOwnerAction(ownerType, 'update');
+}
+
+function canDeleteRoleOwner(ownerType: PermissionOwnerType) {
+  return hasRoleOwnerAction(ownerType, 'delete');
+}
+
+function canAssignRoleOwnerPermissions(ownerType: PermissionOwnerType) {
+  return hasRoleOwnerAction(ownerType, 'assign_permissions');
+}
+
+const canCreateRoleInstance = computed(() =>
+  hasActionCode('permission.role_instance.create'),
 );
-const canDeleteRole = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.delete_by_id'),
+const canCreateRoleFromTemplate = computed(() =>
+  hasActionCode('permission.role_instance.create_from_template'),
 );
-const canListRole = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.list'),
+const canCreateRoleTemplate = computed(() =>
+  hasActionCode('permission.role_template.create'),
 );
-const canReadRole = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.get_by_id'),
+const canCreateRole = computed(
+  () => canCreateRoleInstance.value || canCreateRoleFromTemplate.value,
 );
-const canUpdateRole = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.update'),
+const canListRoleInstances = computed(() =>
+  hasActionCode('permission.role_instance.list'),
+);
+const canListRoleTemplates = computed(() =>
+  hasActionCode('permission.role_template.list'),
+);
+const canAssignSelectedRolePermissions = computed(() =>
+  canAssignRoleOwnerPermissions(permissionOwnerType.value),
+);
+const canUpdateNavigationOwner = computed(() =>
+  canUpdateRoleOwner(navigationOwnerType.value),
+);
+const canSyncRoleInstanceFromTemplate = computed(() =>
+  hasActionCode('permission.role_instance.sync_from_template'),
 );
 const isPlatformScope = computed(() => authContextStore.isPlatformScope);
 const showTemplateTab = computed(() => isPlatformScope.value);
@@ -350,7 +402,7 @@ const canSyncNavigationFromTemplate = computed(
   () =>
     !navigationRoleIsTemplate.value &&
     Boolean(navigationRole.value?.templateRoleId) &&
-    canUpdateRole.value,
+    canSyncRoleInstanceFromTemplate.value,
 );
 const navigationInstanceTemplateLabel = computed(
   () => navigationTemplateSourceName.value || '未绑定模板',
@@ -741,7 +793,7 @@ function validateInstantiateForm() {
 }
 
 async function loadInstances(options?: { page?: number }) {
-  if (!canListRole.value) {
+  if (!canListRoleInstances.value) {
     instances.value = [];
     instancePagination.total = 0;
     return;
@@ -778,7 +830,7 @@ async function loadInstances(options?: { page?: number }) {
 }
 
 async function loadTemplates(options?: { page?: number }) {
-  if (!canListRole.value) {
+  if (!canListRoleTemplates.value) {
     templates.value = [];
     templatePagination.total = 0;
     return;
@@ -965,6 +1017,10 @@ async function handlePermissionTableChange(pager: {
 }
 
 function openRoleCreateModal() {
+  if (!canCreateRoleInstance.value) {
+    return;
+  }
+
   resetRoleCreateForm();
   if (isPlatformScope.value) {
     void loadTenantOptions();
@@ -973,6 +1029,10 @@ function openRoleCreateModal() {
 }
 
 function openTemplateCreateModal() {
+  if (!canCreateRoleTemplate.value) {
+    return;
+  }
+
   resetTemplateCreateForm();
   createTemplateModalOpen.value = true;
 }
@@ -981,6 +1041,10 @@ function openTemplateCreateModal() {
 function handleCreateRoleMenuClick({ key }: { key: number | string }) {
   switch (String(key) as CreateRoleMenuKey) {
     case 'instantiate': {
+      if (!canCreateRoleFromTemplate.value) {
+        return;
+      }
+
       openInstantiateModal();
       return;
     }
@@ -992,6 +1056,10 @@ function handleCreateRoleMenuClick({ key }: { key: number | string }) {
 }
 
 async function submitRoleCreate() {
+  if (!canCreateRoleInstance.value) {
+    return;
+  }
+
   if (!validateRoleCreateForm()) {
     return;
   }
@@ -1022,6 +1090,10 @@ async function submitRoleCreate() {
 }
 
 async function submitTemplateCreate() {
+  if (!canCreateRoleTemplate.value) {
+    return;
+  }
+
   if (!validateTemplateCreateForm()) {
     return;
   }
@@ -1050,7 +1122,7 @@ async function openEditDrawer(
   type: PermissionOwnerType,
   role: RoleManagementApi.Role,
 ) {
-  if (!canReadRole.value && !canUpdateRole.value) {
+  if (!canReadRoleOwner(type) && !canUpdateRoleOwner(type)) {
     return;
   }
 
@@ -1072,6 +1144,10 @@ async function openEditDrawer(
 }
 
 async function submitEdit() {
+  if (!canUpdateRoleOwner(editTargetType.value)) {
+    return;
+  }
+
   if (!selectedRole.value || !validateEditForm()) {
     return;
   }
@@ -1111,6 +1187,10 @@ async function setEnabled(
   role: RoleManagementApi.Role,
   isEnabled: boolean,
 ) {
+  if (!canUpdateRoleOwner(type)) {
+    return;
+  }
+
   try {
     if (type === 'role') {
       await setRoleEnabledApi(role.id, { isEnabled });
@@ -1127,6 +1207,10 @@ async function setEnabled(
 }
 
 function confirmDelete(type: PermissionOwnerType, role: RoleManagementApi.Role) {
+  if (!canDeleteRoleOwner(type)) {
+    return;
+  }
+
   Modal.confirm({
     title: type === 'role' ? '删除角色实例' : '删除角色模板',
     content: `确定删除“${role.name}”吗？`,
@@ -1157,7 +1241,7 @@ async function openPermissionDrawer(
   type: PermissionOwnerType,
   role: RoleManagementApi.Role,
 ) {
-  if (!canReadRole.value) {
+  if (!canReadRoleOwner(type)) {
     return;
   }
 
@@ -1172,11 +1256,15 @@ async function openPermissionDrawer(
   await reloadPermissionDrawerData({ page: 1 });
 }
 
-async function openNavigationDrawer(role: RoleManagementApi.Role) {
-  if (!canReadRole.value) {
+async function openNavigationDrawer(
+  type: PermissionOwnerType,
+  role: RoleManagementApi.Role,
+) {
+  if (!canReadRoleOwner(type)) {
     return;
   }
 
+  navigationOwnerType.value = type;
   navigationRole.value = role;
   roleNavigationConfig.value = null;
   navigationVisibilityBaseEntryKeys.value = [];
@@ -1214,7 +1302,7 @@ function validateNavigationSaveState() {
 }
 
 async function saveNavigationConfig() {
-  if (!navigationRole.value) {
+  if (!navigationRole.value || !canUpdateNavigationOwner.value) {
     return;
   }
 
@@ -1268,7 +1356,11 @@ async function saveNavigationConfig() {
 }
 
 async function syncNavigationFromTemplate() {
-  if (!navigationRole.value?.id || !navigationRole.value.templateRoleId) {
+  if (
+    !navigationRole.value?.id ||
+    !navigationRole.value.templateRoleId ||
+    !canSyncRoleInstanceFromTemplate.value
+  ) {
     return;
   }
 
@@ -1311,7 +1403,7 @@ function confirmSyncNavigationFromTemplate() {
 }
 
 async function assignPermission(permissionId: string) {
-  if (!selectedRole.value) {
+  if (!selectedRole.value || !canAssignSelectedRolePermissions.value) {
     return;
   }
 
@@ -1339,7 +1431,7 @@ async function assignPermission(permissionId: string) {
 }
 
 async function revokePermission(permissionId: string) {
-  if (!selectedRole.value) {
+  if (!selectedRole.value || !canAssignSelectedRolePermissions.value) {
     return;
   }
 
@@ -1392,6 +1484,10 @@ function handleInstantiateTemplateChange(templateId?: unknown) {
 }
 
 function openInstantiateModal(template?: RoleManagementApi.Role) {
+  if (!canCreateRoleFromTemplate.value) {
+    return;
+  }
+
   if (template && !template.isEnabled) {
     message.warning('停用模板不能创建角色实例');
     return;
@@ -1405,6 +1501,10 @@ function openInstantiateModal(template?: RoleManagementApi.Role) {
 }
 
 async function submitInstantiate() {
+  if (!canCreateRoleFromTemplate.value) {
+    return;
+  }
+
   if (!validateInstantiateForm() || !instantiateTemplate.value) {
     return;
   }
@@ -1443,7 +1543,7 @@ async function handleRoleAction(
       return;
     }
     case 'navigation': {
-      await openNavigationDrawer(role);
+      await openNavigationDrawer('role', role);
       return;
     }
     case 'toggle': {
@@ -1471,7 +1571,7 @@ async function handleTemplateAction(
       return;
     }
     case 'navigation': {
-      await openNavigationDrawer(role);
+      await openNavigationDrawer('template', role);
       return;
     }
     case 'toggle': {
@@ -1493,9 +1593,9 @@ function renderRoleActionDropdown(
   role: RoleManagementApi.Role,
   type: PermissionOwnerType,
 ) {
-  const disabledEdit = !canUpdateRole.value;
-  const disabledPermissions = !canReadRole.value;
-  const disabledDelete = !canDeleteRole.value;
+  const disabledEdit = !canUpdateRoleOwner(type);
+  const disabledPermissions = !canReadRoleOwner(type);
+  const disabledDelete = !canDeleteRoleOwner(type);
   const items =
     type === 'role'
       ? [
@@ -1556,7 +1656,7 @@ function renderRoleActionDropdown(
           h(
             Menu.Item,
             {
-              disabled: !canCreateRole.value || !role.isEnabled,
+              disabled: !canCreateRoleFromTemplate.value || !role.isEnabled,
               key: 'instantiate' satisfies TemplateActionKey,
             },
             () => '实例化',
@@ -1730,7 +1830,8 @@ const assignedPermissionColumns = computed<
         Button,
         {
           danger: true,
-          disabled: !canUpdateRole.value || permissionMutating.value,
+          disabled:
+            !canAssignSelectedRolePermissions.value || permissionMutating.value,
           size: 'small',
           type: 'link',
           onClick: () => revokePermission(record.id),
@@ -1766,7 +1867,7 @@ const availablePermissionColumns = computed<
         Button,
         {
           disabled:
-            !canUpdateRole.value ||
+            !canAssignSelectedRolePermissions.value ||
             permissionMutating.value ||
             assignedPermissionIds.value.has(record.id),
           size: 'small',
@@ -1815,7 +1916,14 @@ onBeforeUnmount(() => {
                   共 {{ instancePagination.total }} 条
                 </div>
               </div>
-              <Dropdown v-if="canCreateRole" trigger="click">
+              <Dropdown
+                v-access:code="[
+                  'permission.role_instance.create_from_template',
+                  'permission.role_instance.create',
+                ]"
+                v-if="canCreateRole"
+                trigger="click"
+              >
                 <Button type="primary">
                   创建角色
                   <IconifyIcon icon="ant-design:down-outlined" />
@@ -1823,30 +1931,43 @@ onBeforeUnmount(() => {
                 <template #overlay>
                   <Menu @click="handleCreateRoleMenuClick">
                     <Menu.Item
+                      v-access:code="'permission.role_instance.create_from_template'"
+                      v-if="canCreateRoleFromTemplate"
                       key="instantiate"
-                      :disabled="templatesLoading || templateSelectOptions.length === 0"
+                      :disabled="
+                        templatesLoading ||
+                        templateSelectOptions.length === 0
+                      "
                     >
                       从模板创建
                     </Menu.Item>
-                    <Menu.Item key="role">直接创建</Menu.Item>
+                    <Menu.Item
+                      v-access:code="'permission.role_instance.create'"
+                      v-if="canCreateRoleInstance"
+                      key="role"
+                    >
+                      直接创建
+                    </Menu.Item>
                   </Menu>
                 </template>
               </Dropdown>
             </div>
 
-            <Card :bordered="false" class="role-management__filter-card">
-              <Row :gutter="[12, 12]" class="role-management__filter-row">
-                <Col :lg="8" :md="12" :span="24">
+            <section class="role-management__filter-panel">
+              <Row :gutter="[10, 10]" class="role-management__filter-row">
+                <Col :lg="9" :md="24" :span="24" :xl="10">
                   <Input
                     v-model:value="instanceFilters.keyword"
                     allow-clear
+                    class="role-management__filter-control"
                     placeholder="搜索角色名称或编码"
                     @press-enter="searchInstances"
                   />
                 </Col>
-                <Col v-if="showTemplateTab" :lg="5" :md="12" :span="24">
+                <Col v-if="showTemplateTab" :lg="5" :md="8" :span="24" :xl="4">
                   <Select
                     v-model:value="instanceFilters.scopeLevel"
+                    class="role-management__filter-control"
                     :options="[
                       { label: '全部 Scope', value: '' },
                       { label: 'SYSTEM', value: 'SYSTEM' },
@@ -1856,14 +1977,16 @@ onBeforeUnmount(() => {
                 </Col>
                 <Col
                   v-if="showTemplateTab"
-                  :lg="7"
-                  :md="12"
+                  :lg="6"
+                  :md="8"
                   :span="24"
+                  :xl="5"
                   class="role-management__tenant-filter-col"
                 >
                   <Select
                     v-model:value="instanceFilters.tenantId"
                     allow-clear
+                    class="role-management__filter-control"
                     show-search
                     :filter-option="false"
                     :loading="tenantOptionsLoading"
@@ -1874,26 +1997,32 @@ onBeforeUnmount(() => {
                 </Col>
                 <Col
                   v-else
-                  :lg="7"
-                  :md="12"
+                  :lg="6"
+                  :md="8"
                   :span="24"
+                  :xl="5"
                   class="role-management__tenant-filter-col"
                 >
-                  <Input :value="currentTenantLabel" disabled />
+                  <Input
+                    :value="currentTenantLabel"
+                    class="role-management__filter-control"
+                    disabled
+                  />
                 </Col>
                 <Col
                   :lg="4"
-                  :md="12"
+                  :md="8"
                   :span="24"
+                  :xl="5"
                   class="role-management__filter-actions-col"
                 >
-                  <Space class="role-management__filter-actions">
-                    <Button type="primary" @click="searchInstances">查询</Button>
-                    <Button @click="resetInstanceFilters">重置</Button>
-                  </Space>
+                  <div class="role-management__filter-buttons">
+                    <Button class="role-management__filter-button" type="primary" @click="searchInstances">查询</Button>
+                    <Button class="role-management__filter-button" @click="resetInstanceFilters">重置</Button>
+                  </div>
                 </Col>
               </Row>
-            </Card>
+            </section>
 
             <Table
               :columns="roleColumns"
@@ -1914,7 +2043,8 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <Button
-                v-if="canCreateRole"
+                v-access:code="'permission.role_template.create'"
+                v-if="canCreateRoleTemplate"
                 type="primary"
                 @click="openTemplateCreateModal"
               >
@@ -1922,29 +2052,31 @@ onBeforeUnmount(() => {
               </Button>
             </div>
 
-            <Card :bordered="false" class="role-management__filter-card">
-              <Row :gutter="[12, 12]" class="role-management__filter-row">
-                <Col :lg="10" :md="12" :span="24">
+            <section class="role-management__filter-panel">
+              <Row :gutter="[10, 10]" class="role-management__filter-row">
+                <Col :lg="12" :md="16" :span="24" :xl="14">
                   <Input
                     v-model:value="templateFilters.keyword"
                     allow-clear
+                    class="role-management__filter-control"
                     placeholder="搜索模板名称或编码"
                     @press-enter="searchTemplates"
                   />
                 </Col>
                 <Col
-                  :lg="6"
-                  :md="12"
+                  :lg="5"
+                  :md="8"
                   :span="24"
+                  :xl="5"
                   class="role-management__filter-actions-col"
                 >
-                  <Space class="role-management__filter-actions">
-                    <Button type="primary" @click="searchTemplates">查询</Button>
-                    <Button @click="resetTemplateFilters">重置</Button>
-                  </Space>
+                  <div class="role-management__filter-buttons">
+                    <Button class="role-management__filter-button" type="primary" @click="searchTemplates">查询</Button>
+                    <Button class="role-management__filter-button" @click="resetTemplateFilters">重置</Button>
+                  </div>
                 </Col>
               </Row>
-            </Card>
+            </section>
 
             <Table
               :columns="templateColumns"
@@ -2124,6 +2256,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
               <Button
+                v-access:code="'permission.role_instance.sync_from_template'"
                 v-if="canSyncNavigationFromTemplate"
                 :loading="navigationSaving"
                 size="small"
@@ -2254,7 +2387,11 @@ onBeforeUnmount(() => {
             <Space>
               <Button @click="navigationDrawerOpen = false">关闭</Button>
               <Button
-                :disabled="!canUpdateRole"
+                v-access:code="[
+                  'permission.role_instance.update',
+                  'permission.role_template.update',
+                ]"
+                :disabled="!canUpdateNavigationOwner"
                 :loading="navigationSaving"
                 type="primary"
                 @click="saveNavigationConfig"
@@ -2297,12 +2434,13 @@ onBeforeUnmount(() => {
                 共 {{ permissionPagination.total }} 条
               </div>
             </div>
-            <Card :bordered="false" class="role-management__permission-filter-card">
-              <Row :gutter="[12, 12]">
+            <section class="role-management__permission-filter-panel">
+              <Row :gutter="[10, 10]" class="role-management__filter-row">
                 <Col :md="12" :span="24">
                   <Input
                     v-model:value="permissionFilters.keyword"
                     allow-clear
+                    class="role-management__filter-control"
                     placeholder="搜索权限码或说明"
                     @press-enter="searchPermissions"
                   />
@@ -2310,6 +2448,7 @@ onBeforeUnmount(() => {
                 <Col :md="8" :span="24">
                   <Select
                     v-model:value="permissionFilters.module"
+                    class="role-management__filter-control"
                     show-search
                     :filter-option="false"
                     :options="permissionFilterModuleOptions"
@@ -2317,16 +2456,16 @@ onBeforeUnmount(() => {
                     @search="(value: string) => (moduleSearch = value)"
                   />
                 </Col>
-                <Col :md="4" :span="24">
-                  <Space>
-                    <Button size="small" type="primary" @click="searchPermissions">
+                <Col :md="4" :span="24" class="role-management__filter-actions-col">
+                  <div class="role-management__filter-buttons">
+                    <Button class="role-management__filter-button" type="primary" @click="searchPermissions">
                       查询
                     </Button>
-                    <Button size="small" @click="resetPermissionFilters">重置</Button>
-                  </Space>
+                    <Button class="role-management__filter-button" @click="resetPermissionFilters">重置</Button>
+                  </div>
                 </Col>
               </Row>
-            </Card>
+            </section>
 
             <Table
               :columns="availablePermissionColumns"
@@ -2448,18 +2587,25 @@ onBeforeUnmount(() => {
   line-height: 20px;
 }
 
-.role-management__filter-card,
-.role-management__permission-filter-card {
+.role-management__filter-panel,
+.role-management__permission-filter-panel {
   margin-bottom: 12px;
 }
 
-.role-management__filter-card :deep(.ant-card-body),
-.role-management__permission-filter-card :deep(.ant-card-body) {
+.role-management__filter-panel,
+.role-management__permission-filter-panel {
   padding: 12px;
+  border: 1px solid var(--role-border);
+  border-radius: 10px;
+  background: var(--role-card-bg-strong);
 }
 
 .role-management__filter-row {
   align-items: center;
+}
+
+.role-management__filter-control {
+  width: 100%;
 }
 
 .role-management__tenant-filter-col :deep(.ant-select),
@@ -2473,8 +2619,16 @@ onBeforeUnmount(() => {
   justify-content: flex-end;
 }
 
-.role-management__filter-actions {
-  justify-content: flex-end;
+.role-management__filter-buttons {
+  display: grid;
+  grid-template-columns: minmax(84px, 1fr) minmax(84px, 1fr);
+  gap: 8px;
+  margin-left: auto;
+  width: min(100%, 184px);
+}
+
+.role-management__filter-button {
+  min-width: 0;
   width: 100%;
 }
 
@@ -2753,8 +2907,8 @@ onBeforeUnmount(() => {
 }
 
 :deep(.role-management__card .ant-table-thead > tr > th),
-:deep(.role-management__filter-card .ant-card-body),
-:deep(.role-management__permission-filter-card .ant-card-body) {
+:deep(.role-management__filter-panel),
+:deep(.role-management__permission-filter-panel) {
   background: var(--role-card-bg-strong);
   color: var(--role-text);
 }
@@ -2768,6 +2922,34 @@ onBeforeUnmount(() => {
   color: var(--role-text);
 }
 
+:deep(.role-management__filter-panel .ant-input),
+:deep(.role-management__filter-panel .ant-input-affix-wrapper),
+:deep(.role-management__filter-panel .ant-select-selector),
+:deep(.role-management__permission-filter-panel .ant-input),
+:deep(.role-management__permission-filter-panel .ant-input-affix-wrapper),
+:deep(.role-management__permission-filter-panel .ant-select-selector) {
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+:deep(.role-management__filter-panel .ant-select-selector),
+:deep(.role-management__permission-filter-panel .ant-select-selector) {
+  align-items: center;
+  display: flex;
+}
+
+:deep(.role-management__filter-panel .ant-input-affix-wrapper),
+:deep(.role-management__permission-filter-panel .ant-input-affix-wrapper) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+:deep(.role-management__filter-panel .ant-btn),
+:deep(.role-management__permission-filter-panel .ant-btn) {
+  height: 36px;
+  border-radius: 10px;
+}
+
 .role-management__help-dot--sm {
   height: 16px;
   width: 16px;
@@ -2775,11 +2957,11 @@ onBeforeUnmount(() => {
 
 @media (max-width: 991px) {
   .role-management__filter-actions-col {
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
 
-  .role-management__filter-actions {
-    justify-content: flex-start;
+  .role-management__filter-buttons {
+    width: min(100%, 184px);
   }
 }
 

@@ -40,6 +40,7 @@ export interface HrEmploymentSummary {
   tenantId: string
   employeeId: string
   orgUnitId: string
+  positionName?: string
   status: string
   effectiveFrom: string
   effectiveTo?: string
@@ -213,9 +214,10 @@ function mapEmployee(employee: {
 function mapEmployment(employment: {
   id?: string
   tenantId?: string
-  employeeId?: string
-  orgUnitId?: string
-  status?: EmploymentStatus
+    employeeId?: string
+    orgUnitId?: string
+    positionName?: string
+    status?: EmploymentStatus
   effectiveFrom?: string
   effectiveTo?: string
   endedReason?: string
@@ -225,6 +227,7 @@ function mapEmployment(employment: {
     tenantId: employment.tenantId ?? '',
     employeeId: employment.employeeId ?? '',
     orgUnitId: employment.orgUnitId ?? '',
+    positionName: normalize(employment.positionName),
     status: mapEmploymentStatusToString(employment.status),
     effectiveFrom: employment.effectiveFrom ?? '',
     effectiveTo: normalize(employment.effectiveTo),

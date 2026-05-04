@@ -1,7 +1,6 @@
 export * from './query-scope.types'
 export * from './query-scope-builder.interface'
 export * from './authorization-query-scope.service'
-export * from './builders/account-membership-query-scope.builder'
 export * from './builders/account-query-scope.builder'
 export * from './builders/account-contact-asset-query-scope.builder'
 export * from './builders/api-key-query-scope.builder'

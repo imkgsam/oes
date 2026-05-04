@@ -21,6 +21,7 @@ import { LogoutHandler } from './logout.handler'
 import { RefreshSessionHandler } from './refresh-session.handler'
 import { RegenerateRecoveryCodesHandler } from './regenerate-recovery-codes.handler'
 import { RevokeOtherTrustedDevicesHandler } from './revoke-other-trusted-devices.handler'
+import { RevokeTenantSessionsHandler } from './revoke-tenant-sessions.handler'
 import { RevokeTrustedDeviceHandler } from './revoke-trusted-device.handler'
 import { RequestPasswordRecoveryChallengeHandler } from './request-password-recovery-challenge.handler'
 import { RequestLoginMfaFactorChallengeHandler } from './request-login-mfa-factor-challenge.handler'
@@ -85,6 +86,8 @@ export * from './regenerate-recovery-codes.command'
 export * from './regenerate-recovery-codes.handler'
 export * from './revoke-other-trusted-devices.command'
 export * from './revoke-other-trusted-devices.handler'
+export * from './revoke-tenant-sessions.command'
+export * from './revoke-tenant-sessions.handler'
 export * from './revoke-trusted-device.command'
 export * from './revoke-trusted-device.handler'
 export * from './request-password-recovery-challenge.command'
@@ -144,6 +147,7 @@ export const AuthCommandHandlers = [
   RefreshSessionHandler,
   RegenerateRecoveryCodesHandler,
   RevokeOtherTrustedDevicesHandler,
+  RevokeTenantSessionsHandler,
   RevokeTrustedDeviceHandler,
   RequestPasswordRecoveryChallengeHandler,
   RequestLoginMfaFactorChallengeHandler,

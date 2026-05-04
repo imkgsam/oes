@@ -22,6 +22,12 @@ describe('SessionContextsUseCase', () => {
             tenantId: 'tenant-a',
             displayName: 'Alpha Operator',
             scopeLevel: 'TENANT'
+          },
+          {
+            accountId: 'account-inactive',
+            tenantId: 'tenant-c',
+            displayName: 'Inactive Operator',
+            scopeLevel: 'TENANT'
           }
         ]
       })
@@ -32,7 +38,8 @@ describe('SessionContextsUseCase', () => {
         .mockImplementation(async (tenantId: string) => ({
           tenant: {
             id: tenantId,
-            name: tenantId === 'tenant-a' ? 'Alpha Tenant' : 'Zeta Tenant'
+            name: tenantId === 'tenant-a' ? 'Alpha Tenant' : 'Zeta Tenant',
+            isActive: tenantId !== 'tenant-c'
           }
         }))
     }
@@ -82,13 +89,17 @@ describe('SessionContextsUseCase', () => {
       'user-1',
       expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
     )
-    expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledTimes(2)
+    expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledTimes(3)
     expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledWith(
       'tenant-a',
       expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
     )
     expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledWith(
       'tenant-b',
+      expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
+    )
+    expect(tenantOrgAdapter.getTenantById).toHaveBeenCalledWith(
+      'tenant-c',
       expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
     )
   })

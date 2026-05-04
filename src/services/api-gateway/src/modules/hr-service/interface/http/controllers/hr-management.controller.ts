@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { HR_MANAGEMENT_PERMISSION_CODES, PermissionCheckAll } from '@oes/common/authorization'
+import {
+  HR_MANAGEMENT_PERMISSION_CODES,
+  IDENTITY_ACCOUNT_PERMISSION_CODES,
+  PermissionCheckAll
+} from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { HrManagementService } from '../../../hr-management.service'
@@ -58,6 +62,25 @@ export class HrManagementController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.hrManagementService.getEmployeeAccountAccess(tenantId, employeeId, source)
+  }
+
+  @Get('employee-user-candidates')
+  @PermissionCheckAll([
+    HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE,
+    IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT
+  ])
+  @ApiOperation({ summary: 'Find an existing user candidate for employee account binding' })
+  async searchEmployeeUserCandidates(
+    @Param('tenantId') tenantId: string,
+    @Query('keyword') keyword: string,
+    @Query('countryOrRegion') countryOrRegion: string | undefined,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.hrManagementService.searchEmployeeUserCandidates(
+      tenantId,
+      { countryOrRegion, keyword },
+      source
+    )
   }
 
   @Post('employees')

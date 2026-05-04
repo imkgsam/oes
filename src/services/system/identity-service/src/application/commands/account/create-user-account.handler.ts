@@ -9,9 +9,14 @@ import { AccountRepository } from '../../../domain/repositories/account.reposito
 import { UserRepository } from '../../../domain/repositories/user.repository'
 import { CreateUserAccountCommand } from './create-user-account.command'
 
+export type CreateUserAccountResult = AccountSummaryEntity & {
+  userPartyId?: string
+  userTenantPartyId?: string
+}
+
 @CommandHandler(CreateUserAccountCommand)
 export class CreateUserAccountHandler
-  implements ICommandHandler<CreateUserAccountCommand, AccountSummaryEntity>
+  implements ICommandHandler<CreateUserAccountCommand, CreateUserAccountResult>
 {
   constructor(
     @Inject(SYMBOLS.REPO.ACCOUNT)
@@ -23,13 +28,14 @@ export class CreateUserAccountHandler
     private readonly partyRegistrationPort: PartyRegistrationPort
   ) {}
 
-  async execute(command: CreateUserAccountCommand): Promise<AccountSummaryEntity> {
+  async execute(command: CreateUserAccountCommand): Promise<CreateUserAccountResult> {
     const email = normalizeOptional(command.email)?.toLowerCase()
     const phone = normalizeOptional(command.phone)
     const username = normalizeOptional(command.username)
     const displayName = normalizeOptional(command.displayName)
+    const existingUserId = normalizeOptional(command.existingUserId)
 
-    if (!email && !phone) {
+    if (!existingUserId && !email && !phone) {
       throw ExceptionFactory.application(VALIDATION_FAILED, {
         field: 'email|phone'
       })
@@ -66,6 +72,18 @@ export class CreateUserAccountHandler
       })
     }
 
+    if (existingUserId) {
+      return this.createAccountForExistingUser({
+        displayName,
+        existingUserId,
+        idempotencyKey: command.idempotencyKey,
+        operatorId: command.operatorId,
+        operatorScope: command.operatorScope,
+        scopeLevel: command.scopeLevel,
+        tenantId
+      })
+    }
+
     if (email && (await this.userRepository.findByEmail(email))) {
       throw ExceptionFactory.application(VALIDATION_FAILED, { field: 'email', value: email })
     }
@@ -75,8 +93,9 @@ export class CreateUserAccountHandler
     }
 
     const registeredParty = await this.partyRegistrationPort.registerPersonParty({
-      canonicalName: displayName ?? username ?? email ?? phone ?? command.operatorId ?? 'Unnamed User',
+      legalName: displayName ?? username ?? email ?? phone ?? command.operatorId ?? 'Unnamed User',
       localDisplayName: displayName,
+      idempotencyKey: command.idempotencyKey,
       operatorId: command.operatorId,
       operatorScope: command.operatorScope,
       tenantId
@@ -90,11 +109,85 @@ export class CreateUserAccountHandler
       isActive: true
     })
 
-    return this.accountRepository.createUserAccount({
+    const account = await this.accountRepository.createUserAccount({
       displayName,
       scopeLevel: command.scopeLevel,
       tenantId,
       userId: user.id
+    })
+
+    return Object.assign(account, {
+      userPartyId: registeredParty.partyId,
+      userTenantPartyId: registeredParty.tenantPartyId
+    })
+  }
+
+  /** createAccountForExistingUser binds a known user/person party into one tenant account context. */
+  private async createAccountForExistingUser(input: {
+    displayName?: string
+    existingUserId: string
+    idempotencyKey?: string
+    operatorId?: string
+    operatorScope?: CreateUserAccountCommand['operatorScope']
+    scopeLevel: 'SYSTEM' | 'TENANT'
+    tenantId?: string
+  }): Promise<CreateUserAccountResult> {
+    if (input.scopeLevel !== 'TENANT' || !input.tenantId) {
+      throw ExceptionFactory.application(VALIDATION_FAILED, {
+        field: 'tenantId'
+      })
+    }
+
+    const user = await this.userRepository.findById(input.existingUserId)
+    if (!user) {
+      throw ExceptionFactory.application(VALIDATION_FAILED, {
+        field: 'existingUserId',
+        value: input.existingUserId
+      })
+    }
+    if (!user.isActive) {
+      throw ExceptionFactory.application(VALIDATION_FAILED, {
+        field: 'existingUserId.isActive',
+        value: input.existingUserId
+      })
+    }
+    if (!user.partyId) {
+      throw ExceptionFactory.application(VALIDATION_FAILED, {
+        field: 'existingUserId.partyId',
+        value: input.existingUserId
+      })
+    }
+
+    const tenantParty = await this.partyRegistrationPort.bindExistingPartyToTenant({
+      tenantId: input.tenantId,
+      partyId: user.partyId,
+      localDisplayName: input.displayName,
+      idempotencyKey: input.idempotencyKey,
+      operatorId: input.operatorId,
+      operatorScope: input.operatorScope
+    })
+    const existingAccount = await this.accountRepository.findByUserScope({
+      scopeLevel: 'TENANT',
+      tenantId: input.tenantId,
+      userId: input.existingUserId
+    })
+    if (existingAccount) {
+      return Object.assign(existingAccount, {
+        userPartyId: user.partyId,
+        userTenantPartyId: tenantParty.tenantPartyId
+      })
+    }
+
+    const account = await this.accountRepository.createUserAccount({
+      displayName: input.displayName,
+      scopeLevel: 'TENANT',
+      tenantId: input.tenantId,
+      userId: input.existingUserId
+    })
+
+    return Object.assign(account, {
+      userPartyId: user.partyId,
+      userTenantPartyId: tenantParty.tenantPartyId
     })
   }
 }

@@ -33,10 +33,12 @@ describe('permission guard role resolution', () => {
     })
 
     const reflector = {
-      getAllAndOverride: jest.fn().mockReturnValue('identity.org.membership.add')
+      getAllAndOverride: jest.fn().mockReturnValue('identity.contact.work_email.assign')
     } as unknown as Reflector
     const adaptor = {
-      listPermissionCodesByRoleId: jest.fn().mockResolvedValue(['identity.org.membership.add'])
+      listPermissionCodesByOperatorContext: jest
+        .fn()
+        .mockResolvedValue(['identity.contact.work_email.assign'])
     } as unknown as PermissionServicePermissionReadAdaptor
     const guard = new PermissionGuard(
       reflector,
@@ -61,17 +63,15 @@ describe('permission guard role resolution', () => {
     } as any)
 
     const reflector = {
-      getAllAndOverride: jest.fn().mockReturnValue('identity.org.membership.add')
+      getAllAndOverride: jest.fn().mockReturnValue('identity.contact.work_email.assign')
     } as unknown as Reflector
     const adaptor = {
-      listPermissionCodesByRoleId: jest.fn()
+      listPermissionCodesByOperatorContext: jest.fn().mockResolvedValue([])
     } as unknown as PermissionServicePermissionReadAdaptor
     const guard = new PermissionGuard(
       reflector,
       new RoleBasedOperatorPermissionResolver(adaptor)
     )
-
-    expect(adaptor.listPermissionCodesByRoleId).not.toHaveBeenCalled()
 
     try {
       await guard.canActivate(createExecutionContext(rpcData))
@@ -99,14 +99,16 @@ describe('permission guard role resolution', () => {
     })
 
     const reflector = {
-      getAllAndOverride: jest.fn().mockReturnValue('identity.org.membership.add')
+      getAllAndOverride: jest.fn().mockReturnValue('identity.contact.work_email.assign')
     } as unknown as Reflector
     const adaptor = {
-      listPermissionCodesByRoleId: jest.fn().mockRejectedValue(
-        ExceptionFactory.infrastructure(INTERNAL_SERVICE_UNAVAILABLE, {
-          upstream: 'permission-service'
-        })
-      )
+      listPermissionCodesByOperatorContext: jest
+        .fn()
+        .mockRejectedValue(
+          ExceptionFactory.infrastructure(INTERNAL_SERVICE_UNAVAILABLE, {
+            upstream: 'permission-service'
+          })
+        )
     } as unknown as PermissionServicePermissionReadAdaptor
     const guard = new PermissionGuard(
       reflector,

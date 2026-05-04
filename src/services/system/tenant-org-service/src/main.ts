@@ -9,6 +9,7 @@ import { AppModule } from './app.module'
 async function bootstrap() {
   initOtelSdk(process.env.MODULE_NAME || 'tenant-org-service')
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
+    bufferLogs: true,
     transport: Transport.GRPC,
     options: {
       package: 'tenant_org_service',

@@ -2,7 +2,7 @@
 
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { Modal, message } from 'ant-design-vue'
+import { Checkbox, Modal, Select, TreeSelect, message } from 'ant-design-vue'
 
 const changeManagedPrimaryEmploymentApi = vi.fn()
 const completeManagedEmployeeAccessApi = vi.fn()
@@ -60,6 +60,14 @@ vi.mock('#/store/auth-context', () => ({
   useAuthContextStore: () => authContextState
 }))
 
+vi.mock('@vben/preferences', () => ({
+  preferences: {
+    app: {
+      locale: 'zh-CN'
+    }
+  }
+}))
+
 vi.mock('vue-router', () => ({
   useRoute: () => useRoute(),
   useRouter: () => ({
@@ -75,6 +83,34 @@ vi.mock('@vben/common-ui', () => ({
     template: '<div><slot /></div>'
   }
 }))
+
+function emitSelectValue(wrapper: ReturnType<typeof mount>, testId: string, value: string) {
+  const select = wrapper
+    .findAllComponents(Select)
+    .find((component) => component.attributes('data-testid') === testId)
+  expect(select).toBeTruthy()
+  select?.vm.$emit('update:value', value)
+  select?.vm.$emit('change', value)
+}
+
+function emitTreeSelectValue(wrapper: ReturnType<typeof mount>, testId: string, value: string) {
+  const select = wrapper
+    .findAllComponents(TreeSelect)
+    .find((component) => component.attributes('data-testid') === testId)
+  expect(select).toBeTruthy()
+  select?.vm.$emit('update:value', value)
+  select?.vm.$emit('change', value)
+}
+
+function emitCheckboxValue(wrapper: ReturnType<typeof mount>, testId: string, checked: boolean) {
+  const checkboxByTestId = wrapper
+    .findAllComponents(Checkbox)
+    .find((component) => component.attributes('data-testid') === testId)
+  const checkbox = checkboxByTestId ?? wrapper.findComponent(Checkbox)
+  expect(checkbox).toBeTruthy()
+  checkbox.vm.$emit('update:checked', checked)
+  checkbox.vm.$emit('change', { target: { checked } })
+}
 
 describe('employee management page', () => {
   beforeEach(() => {
@@ -129,9 +165,8 @@ describe('employee management page', () => {
               id: 'org-branch-1',
               name: '华东分公司',
               organizationParty: {
-                canonicalName: '华东制造主体有限公司',
-                displayName: '华东制造主体',
                 id: 'party-branch-1',
+                legalName: '华东制造主体有限公司',
                 status: 'ACTIVE',
                 type: 'ORGANIZATION'
               },
@@ -171,9 +206,8 @@ describe('employee management page', () => {
           id: 'org-branch-1',
           name: '华东分公司',
           organizationParty: {
-            canonicalName: '华东制造主体有限公司',
-            displayName: '华东制造主体',
             id: 'party-branch-1',
+            legalName: '华东制造主体有限公司',
             status: 'ACTIVE',
             type: 'ORGANIZATION'
           },
@@ -199,9 +233,8 @@ describe('employee management page', () => {
             id: 'org-branch-1',
             name: '华东分公司',
             organizationParty: {
-              canonicalName: '华东制造主体有限公司',
-              displayName: '华东制造主体',
               id: 'party-branch-1',
+              legalName: '华东制造主体有限公司',
               status: 'ACTIVE',
               type: 'ORGANIZATION'
             },
@@ -228,9 +261,8 @@ describe('employee management page', () => {
             id: 'org-root-1',
             name: 'Alpha 集团',
             organizationParty: {
-              canonicalName: 'Alpha Holdings Co.',
-              displayName: 'Alpha Holdings',
               id: 'party-root-1',
+              legalName: 'Alpha Holdings Co.',
               status: 'ACTIVE',
               type: 'ORGANIZATION'
             },
@@ -290,9 +322,8 @@ describe('employee management page', () => {
                 id: 'org-branch-1',
                 name: '华东分公司',
                 organizationParty: {
-                  canonicalName: '华东制造主体有限公司',
-                  displayName: '华东制造主体',
                   id: 'party-branch-1',
+                  legalName: '华东制造主体有限公司',
                   status: 'ACTIVE',
                   type: 'ORGANIZATION'
                 },
@@ -311,9 +342,8 @@ describe('employee management page', () => {
             id: 'org-root-1',
             name: 'Alpha 集团',
             organizationParty: {
-              canonicalName: 'Alpha Holdings Co.',
-              displayName: 'Alpha Holdings',
               id: 'party-root-1',
+              legalName: 'Alpha Holdings Co.',
               status: 'ACTIVE',
               type: 'ORGANIZATION'
             },
@@ -334,9 +364,8 @@ describe('employee management page', () => {
         id: 'org-branch-1',
         name: '华东分公司',
         organizationParty: {
-          canonicalName: '华东制造主体有限公司',
-          displayName: '华东制造主体',
           id: 'party-branch-1',
+          legalName: '华东制造主体有限公司',
           status: 'ACTIVE',
           type: 'ORGANIZATION'
         },
@@ -440,7 +469,7 @@ describe('employee management page', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders the tenant HR entry with the phase-1 summary-first detail order while keeping Employment -> OrgUnit as the HR truth', async () => {
+  it('renders the tenant HR entry as the Stitch-style compact employee directory', async () => {
     const view = await import('./employee-management.vue')
 
     const wrapper = mount(view.default, {
@@ -454,26 +483,18 @@ describe('employee management page', () => {
 
     await flushPromises()
 
-    expect(wrapper.text()).toContain('员工与任职管理')
-    expect(wrapper.text()).toContain('这里管理 Employee / Employment')
-    expect(wrapper.text()).toContain('不是租户账号管理')
-    expect(wrapper.text()).toContain('不是组织成员万能页')
-    expect(wrapper.text()).toContain('概要与动作')
-    expect(wrapper.text()).toContain('员工信息')
-    expect(wrapper.text()).toContain('当前任职')
-    expect(wrapper.text()).toContain('账号与访问')
-    expect(wrapper.text()).toContain('任职记录')
-    expect(wrapper.text()).not.toContain('其他任职')
+    expect(wrapper.text()).toContain('员工管理')
+    expect(wrapper.text()).toContain('部门')
+    expect(wrapper.text()).toContain('状态')
+    expect(wrapper.text()).toContain('职位')
+    expect(wrapper.text()).toContain('高级筛选')
+    expect(wrapper.text()).toContain('新增员工')
+    expect(wrapper.find('.employee-management__hero').exists()).toBe(false)
+    expect(wrapper.find('.employee-management__table-card').exists()).toBe(true)
     expect(wrapper.text()).toContain('待继续完成接入')
-    expect(wrapper.text()).toContain('EMP-001')
-    expect(wrapper.text()).toContain('m***@example.com')
-    expect(wrapper.text()).toContain('Tenant Admin')
-    expect(wrapper.text()).toContain('permission-service unavailable')
     expect(wrapper.text()).toContain('EMP-001')
     expect(wrapper.text()).toContain('华东分公司')
     expect(wrapper.text()).toContain('华东制造主体')
-    expect(wrapper.text()).toContain('Alpha Holdings')
-    expect(wrapper.text()).toContain('transfer')
     expect(wrapper.text()).not.toContain('TenantPartyId')
     expect(wrapper.text()).not.toContain('PartyId')
     expect(listManagedEmployeesApi).toHaveBeenCalledWith('tenant-1', {
@@ -483,8 +504,8 @@ describe('employee management page', () => {
       pageSize: 20
     })
     expect(getManagedOrgTreeApi).toHaveBeenCalledWith('tenant-1')
-    expect(getManagedEmployeeDetailApi).toHaveBeenCalledWith('tenant-1', 'employee-1')
     expect(getManagedEmployeeAccountAccessApi).toHaveBeenCalledWith('tenant-1', 'employee-1')
+    expect(getManagedEmployeeDetailApi).not.toHaveBeenCalled()
     expect(getManagedOrgUnitByIdApi).not.toHaveBeenCalled()
   })
 
@@ -505,6 +526,30 @@ describe('employee management page', () => {
     expect(replace).not.toHaveBeenCalled()
   })
 
+  it('routes employee view actions to the independent employee detail page', async () => {
+    const view = await import('./employee-management.vue')
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {}
+        }
+      }
+    })
+
+    await flushPromises()
+    await wrapper.get('[data-testid="employee-open-detail-employee-1"]').trigger('click')
+    await flushPromises()
+
+    expect(push).toHaveBeenCalledWith({
+      name: 'TenantEmployeeDetail',
+      params: {
+        employeeId: 'employee-1'
+      }
+    })
+  })
+
   it('keeps account actions bounded to member-context enable/continue plus the account-management cross-link', async () => {
     const view = await import('./employee-management.vue')
 
@@ -517,6 +562,8 @@ describe('employee management page', () => {
       }
     })
 
+    await flushPromises()
+    await wrapper.get('[data-testid="employee-edit-employee-1"]').trigger('click')
     await flushPromises()
     expect(wrapper.text()).toContain('继续完成接入')
     await wrapper.get('[data-testid="employee-account-management-link"]').trigger('click')
@@ -537,23 +584,43 @@ describe('employee management page', () => {
 
     await flushPromises()
     await wrapper.get('[data-testid="employee-create-open"]').trigger('click')
-    await wrapper.get('[data-testid="employee-code-input"]').setValue('EMP-002')
-    await wrapper.get('[data-testid="employee-tenant-party-input"]').setValue('tenant-party-2')
-    await wrapper.get('[data-testid="employee-party-input"]').setValue('party-2')
-    expect(wrapper.text()).toContain('Alpha Holdings')
+    await wrapper.get('[data-testid="employee-display-name-input"]').setValue('林予安')
+    emitSelectValue(wrapper, 'employee-gender-select', 'FEMALE')
+    emitSelectValue(wrapper, 'employee-identity-type-select', 'NATIONAL_ID')
+    await wrapper.get('[data-testid="employee-identity-number-input"]').setValue('110101199001011234')
     expect(wrapper.text()).toContain('华东制造主体')
-    await wrapper.get('[data-testid="employee-org-select"]').setValue('org-branch-1')
-    await wrapper.get('[data-testid="employee-effective-from-input"]').setValue('2026-04-25T00:00')
-    await wrapper.get('[data-testid="employee-allow-login-toggle"]').setValue(true)
+    emitTreeSelectValue(wrapper, 'employee-org-select', 'org-branch-1')
+    await wrapper.get('[data-testid="employee-primary-position-input"]').setValue('生产主管')
+    await wrapper.get('[data-testid="employee-joined-on-input"]').setValue('2026-04-25')
+    emitCheckboxValue(wrapper, 'employee-allow-login-toggle', true)
+    await flushPromises()
     await wrapper.get('[data-testid="employee-login-email-input"]').setValue('member@example.com')
-    await wrapper.get('[data-testid="employee-login-role-select"]').setValue('role-1')
     await wrapper.get('[data-testid="employee-create-submit"]').trigger('click')
     await flushPromises()
 
     expect(createManagedEmployeeApi).toHaveBeenCalledWith('tenant-1', {
-      employeeCode: 'EMP-002',
-      partyId: 'party-2',
-      tenantPartyId: 'tenant-party-2'
+      account: {
+        displayName: '林予安',
+        email: 'member@example.com',
+        phone: undefined
+      },
+      person: {
+        gender: 'FEMALE',
+        identifiers: [
+          {
+            identifierType: 'NATIONAL_ID',
+            issuerCountryOrRegion: 'CN',
+            normalizedValue: '110101199001011234',
+            rawValue: '110101199001011234'
+          }
+        ],
+        legalName: '林予安'
+      },
+      primaryEmployment: {
+        effectiveFrom: '2026-04-25T00:00:00.000Z',
+        orgUnitId: 'org-branch-1',
+        positionName: '生产主管'
+      }
     })
     expect(createManagedEmploymentApi).toHaveBeenCalledWith('tenant-1', 'employee-2', {
       effectiveFrom: '2026-04-25T00:00:00.000Z',
@@ -564,7 +631,7 @@ describe('employee management page', () => {
       roleIds: ['role-1'],
       reason: 'member_create_allow_login',
       createAccount: {
-        displayName: 'EMP-002',
+        displayName: '林予安',
         email: 'member@example.com',
         phone: undefined
       }
@@ -583,10 +650,12 @@ describe('employee management page', () => {
     })
 
     await flushPromises()
+    await wrapper.get('[data-testid="employee-edit-employee-1"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="employment-end-button"]').trigger('click')
     await flushPromises()
     await wrapper.get('[data-testid="change-employment-open"]').trigger('click')
-    await wrapper.get('[data-testid="change-employment-org-select"]').setValue('org-branch-1')
+    emitSelectValue(wrapper, 'change-employment-org-select', 'org-branch-1')
     await wrapper.get('[data-testid="change-employment-effective-from-input"]').setValue('2026-04-26T00:00')
     await wrapper.get('[data-testid="change-employment-submit"]').trigger('click')
     await flushPromises()
@@ -615,8 +684,10 @@ describe('employee management page', () => {
     })
 
     await flushPromises()
+    await wrapper.get('[data-testid="employee-edit-employee-1"]').trigger('click')
+    await flushPromises()
     await wrapper.get('[data-testid="employee-continue-access-open"]').trigger('click')
-    await wrapper.get('[data-testid="employee-login-role-select"]').setValue('role-1')
+    emitSelectValue(wrapper, 'employee-login-role-select', 'role-1')
     await wrapper.get('[data-testid="employee-access-submit"]').trigger('click')
     await flushPromises()
 

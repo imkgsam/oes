@@ -39,8 +39,11 @@
   - 必须先验证 JWT 本身有效
   - 必须确认 `sid` 指向的 session 仍存在且处于活动状态
   - 必须确认 token 中的 `user/account/tenant/scope` 与 session 真相一致
+  - 对 `TENANT` scope session，必须通过 `tenant-org-service.GetTenantById` 确认 `tenant.status = ACTIVE`
+  - `SYSTEM` scope session 不读取 tenant status
 - 失败语义：
   - 任一校验不成立时返回稳定“access token 无效或已过期”语义
+  - tenant 不存在或不再 `ACTIVE` 时返回 `AUTH_TENANT_NOT_ACTIVE`，不得继续使用该 session；实现可执行惰性 session 清理以关闭并发窗口
 
 ### `ListSessions`
 
@@ -149,6 +152,25 @@
 - 副作用：
   - 删除当前账号的全部 session
 
+### `RefreshSession`
+
+- 作用：使用 refresh token 轮换访问令牌与刷新令牌。
+- 使用场景：
+  - 客户端在 access token 过期前后延续当前登录态
+- 请求关键字段：
+  - `refresh_token`
+- 响应关键字段：
+  - `session_id`
+  - `access_token`
+  - `refresh_token`
+  - `expires_in`
+- tenant lifecycle 准入：
+  - 对 `TENANT` scope session，必须通过 `tenant-org-service.GetTenantById` 确认 `tenant.status = ACTIVE`
+  - 若 tenant 已 `SUSPENDED` 或 `ARCHIVED`，不得签发新的 access / refresh token
+  - tenant 不存在或不再 `ACTIVE` 时返回 `AUTH_TENANT_NOT_ACTIVE`
+  - 不能只依赖租户停用时的主动清理，因为清理可能失败或存在并发窗口
+  - `SYSTEM` scope session 不读取 tenant status
+
 ### 自助账号切换说明
 
 - 当多账号用户执行 `SelectAccount` 切换账号时，当前实现采用“替换当前会话”语义，而不是在同一设备额外保留一条并行自助会话。
@@ -214,6 +236,30 @@
   - 目标 session 被标记为管理员撤销
   - 产生认证审计事件
 
+### `RevokeTenantSessions`
+
+- 作用：撤销某个 tenant 下所有仍 active 的 `TENANT` scope sessions。
+- 使用场景：
+  - `tenant-org-service` 将 tenant status 变更为 `SUSPENDED`
+  - `tenant-org-service` 将 tenant status 变更为 `ARCHIVED`
+- 适用调用方：
+  - `tenant-org-service`
+- 请求关键字段：
+  - `tenant_id`
+  - `reason`
+- 响应关键字段：
+  - `success`
+  - `revoked_session_count`
+- 权限与上下文要求：
+  - 仅允许内部服务调用
+  - 调用方必须传播 trace / request context
+- 作用范围：
+  - 只影响目标 `tenant_id`
+  - 只影响 `scope_level = TENANT` 且 active 的 session
+  - 不影响 `SYSTEM` scope session
+  - 不影响同一用户在其他 tenant 下的 session
+  - tenant 恢复为 `ACTIVE` 后不恢复旧 session，用户需要重新登录
+
 ## 4. 当前不再保留的接口
 
 ### `RenameSessionDevice`
@@ -227,6 +273,8 @@
 
 - access token 指向的 session 已被删除、已失效、已撤销、已过期，或 token claims 与 session 真相不一致时：
   - 返回稳定“access token 无效或已过期”语义
+- tenant-scope session 对应 tenant 已不存在、已停用或已归档时：
+  - 返回 `AUTH_TENANT_NOT_ACTIVE`
 - 自助单会话退出遇到目标会话不存在、已失效或已不再属于当前账号可见范围时：
   - 返回稳定“目标会话不可操作”语义，调用方不应依赖内部异常细节
 - 调用方试图通过自助单会话退出能力操作当前正在使用的会话时：

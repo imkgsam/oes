@@ -2,7 +2,7 @@
 
 import { defineComponent, h } from 'vue';
 
-import { Modal, message } from 'ant-design-vue';
+import { Modal, Select, message } from 'ant-design-vue';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -10,10 +10,14 @@ const listAdminAccountsApi = vi.fn();
 const listAdminAccountTenantOptionsApi = vi.fn();
 const createAdminAccountApi = vi.fn();
 const deleteAdminAccountApi = vi.fn();
+const disableAdminAccountLoginMethodApi = vi.fn();
+const enableAdminAccountLoginMethodApi = vi.fn();
 const getAdminAccountDeletionImpactApi = vi.fn();
 const getAdminAccountBasicInfoApi = vi.fn();
 const updateAdminAccountBasicInfoApi = vi.fn();
 const getAccountRoleSelectionApi = vi.fn();
+const listAdminAccountLoginMethodsApi = vi.fn();
+const requireAdminAccountPasswordSetupApi = vi.fn();
 const setAccountRolesApi = vi.fn();
 
 const authContextState: any = {
@@ -38,11 +42,15 @@ const authContextState: any = {
 vi.mock('#/api', () => ({
   createAdminAccountApi,
   deleteAdminAccountApi,
+  disableAdminAccountLoginMethodApi,
+  enableAdminAccountLoginMethodApi,
   getAdminAccountDeletionImpactApi,
   getAdminAccountBasicInfoApi,
   getAccountRoleSelectionApi,
+  listAdminAccountLoginMethodsApi,
   listAdminAccountsApi,
   listAdminAccountTenantOptionsApi,
+  requireAdminAccountPasswordSetupApi,
   setAccountRolesApi,
   updateAdminAccountBasicInfoApi,
 }));
@@ -228,16 +236,21 @@ describe('account management page', () => {
     listAdminAccountTenantOptionsApi.mockReset();
     createAdminAccountApi.mockReset();
     deleteAdminAccountApi.mockReset();
+    disableAdminAccountLoginMethodApi.mockReset();
+    enableAdminAccountLoginMethodApi.mockReset();
     getAdminAccountDeletionImpactApi.mockReset();
     getAdminAccountBasicInfoApi.mockReset();
     updateAdminAccountBasicInfoApi.mockReset();
     getAccountRoleSelectionApi.mockReset();
+    listAdminAccountLoginMethodsApi.mockReset();
+    requireAdminAccountPasswordSetupApi.mockReset();
     setAccountRolesApi.mockReset();
     authContextState.actionCodes = [
       'identity.account.create',
       'identity.account.delete',
       'identity.account.profile.update',
       'identity.account.update_status',
+      'auth.account_login_methods.manage',
       'permission.account.get_roles',
       'permission.account.assign_roles',
     ];
@@ -301,6 +314,12 @@ describe('account management page', () => {
           name: 'Alpha Tenant',
           isActive: true,
         },
+        {
+          id: 'tenant-2',
+          code: 'beta',
+          name: 'Beta Tenant',
+          isActive: true,
+        },
       ],
     });
     createAdminAccountApi.mockResolvedValue({
@@ -334,6 +353,30 @@ describe('account management page', () => {
       scopeLevel: 'TENANT',
       isEnabled: true,
     });
+    listAdminAccountLoginMethodsApi.mockResolvedValue({
+      passwordSetupRequired: false,
+      loginMethods: [
+        {
+          methodId: 'method-email',
+          type: 'EMAIL',
+          identifier: 'chen@example.com',
+          maskedIdentifier: 'c***@example.com',
+          enabled: true,
+          verified: true,
+          hasPassword: true,
+        },
+        {
+          methodId: 'method-phone',
+          type: 'PHONE',
+          identifier: '+8613800138000',
+          maskedIdentifier: '+86 138****8000',
+          enabled: false,
+          verified: true,
+          hasPassword: false,
+        },
+      ],
+    });
+    requireAdminAccountPasswordSetupApi.mockResolvedValue({});
     getAdminAccountDeletionImpactApi.mockResolvedValue({
       accountId: '9894c123-0f4b-452e-812f-f7cc9eed6006',
       canDelete: true,
@@ -341,11 +384,9 @@ describe('account management page', () => {
       cleanupPlan: {
         willDeleteSessions: true,
         willClearRoles: true,
-        willDeleteOrgMemberships: true,
         willDeleteContactAssets: true,
       },
       blockingReasons: [],
-      orgMembershipCount: 1,
       contactAssetCount: 2,
     });
     deleteAdminAccountApi.mockResolvedValue({
@@ -353,7 +394,6 @@ describe('account management page', () => {
       success: true,
       deletedSessionCount: 3,
       clearedRoleCount: 2,
-      deletedOrgMembershipCount: 1,
       deletedContactAssetCount: 2,
       userRetained: true,
     });
@@ -418,6 +458,14 @@ describe('account management page', () => {
     expect(
       document.body.querySelector('input[placeholder="搜索账号名称、用户姓名或租户名称"]'),
     ).not.toBeNull();
+    expect(document.body.querySelector('.account-management__filter-panel')).not.toBeNull();
+    expect(document.body.querySelector('.account-management__filter-card')).toBeNull();
+    const filterPanel = document.body.querySelector(
+      '.account-management__filter-panel',
+    ) as HTMLElement | null;
+    expect(filterPanel?.textContent).not.toContain('筛选条件');
+    expect(filterPanel?.querySelectorAll('.account-management__filter-control').length).toBeGreaterThanOrEqual(3);
+    expect(filterPanel?.querySelector('.account-management__filter-buttons')).not.toBeNull();
     const pageText = document.body.textContent?.replaceAll(/\s+/g, '') || '';
     expect(pageText).toContain('查询');
     expect(pageText).toContain('重置');
@@ -445,7 +493,7 @@ describe('account management page', () => {
     expect(roleDrawer?.textContent).toContain('租户观察员');
     expect(roleDrawer?.textContent).not.toContain('用户 ID');
     expect(roleDrawer?.textContent).not.toContain('Scope');
-    expect(roleDrawer?.textContent).not.toContain('Alpha Tenant');
+    expect(roleDrawer?.textContent).toContain('Alpha Tenant');
 
     const roleSearchInput = document.body.querySelector(
       'input[placeholder="搜索角色名称或角色码"]',
@@ -471,6 +519,80 @@ describe('account management page', () => {
       scopeLevel: 'TENANT',
       tenantId: 'tenant-1',
     });
+  });
+
+  it('filters the system-admin account directory by selected tenant', async () => {
+    const view = await import('./account-management.vue');
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          access: {},
+        },
+      },
+    });
+    await flushPromises();
+
+    const tenantFilter = wrapper
+      .findAllComponents(Select)
+      .find((select) => select.attributes('data-testid') === 'account-tenant-filter');
+    tenantFilter?.vm.$emit('update:value', 'tenant-2');
+    await flushPromises();
+
+    const searchButton = document.body.querySelector(
+      '.account-management__filter-button',
+    ) as HTMLButtonElement | null;
+    searchButton?.click();
+    await flushPromises();
+
+    expect(listAdminAccountTenantOptionsApi).toHaveBeenCalledWith({
+      keyword: undefined,
+      pageSize: 20,
+    });
+    expect(listAdminAccountsApi).toHaveBeenLastCalledWith({
+      keyword: undefined,
+      page: 1,
+      pageSize: 20,
+      scopeLevel: undefined,
+      status: undefined,
+      tenantId: 'tenant-2',
+    });
+  });
+
+  it('renders the role drawer with an account summary before the role list', async () => {
+    const view = await import('./account-management.vue');
+
+    mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+    await clickAccountAction('角色配置');
+
+    const roleDrawer = Array.from(document.body.querySelectorAll('.ant-drawer')).find((element) =>
+      element.textContent?.includes('保存角色'),
+    ) as HTMLElement | undefined;
+    const roleSummary = roleDrawer?.querySelector('.account-management__role-hero');
+    const roleStats = roleDrawer?.querySelector('.account-management__role-summary-grid');
+    const roleList = roleDrawer?.querySelector('.account-management__role-list-shell');
+
+    expect(roleSummary).not.toBeNull();
+    expect(roleSummary?.textContent).toContain('角色授权');
+    expect(roleSummary?.textContent).toContain('陈双武');
+    expect(roleSummary?.textContent).toContain('Alpha Tenant');
+    expect(roleStats?.textContent).toContain('已选择');
+    expect(roleStats?.textContent).toContain('1');
+    expect(roleStats?.textContent).toContain('可分配');
+    expect(roleStats?.textContent).toContain('2');
+    expect(
+      (roleSummary as HTMLElement).compareDocumentPosition(roleList as HTMLElement)
+      & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('opens the create modal without showing the tenant column to tenant administrators', async () => {
@@ -584,7 +706,6 @@ describe('account management page', () => {
       cleanupPlan: {
         willDeleteSessions: true,
         willClearRoles: true,
-        willDeleteOrgMemberships: true,
         willDeleteContactAssets: true,
       },
       blockingReasons: [
@@ -594,7 +715,6 @@ describe('account management page', () => {
           message: '账号仍有业务归属',
         },
       ],
-      orgMembershipCount: 1,
       contactAssetCount: 2,
     });
 
@@ -641,7 +761,6 @@ describe('account management page', () => {
     expect(deleteCopy).toContain('账号上下文')
     expect(deleteCopy).toContain('Alpha Tenant')
     expect(deleteCopy).toContain('将清理当前账号下的会话与角色绑定')
-    expect(deleteCopy).toContain('同步删除 1 条组织成员关系')
     expect(deleteCopy).toContain('同步删除 2 条工作联系资产')
     expect(deleteCopy).toContain('不会删除底层 user')
     await confirmOptions?.onOk?.();
@@ -670,7 +789,7 @@ describe('account management page', () => {
     await flushPromises();
 
     expect(successSpy).toHaveBeenCalledWith(
-      '账号已删除，已清理 3 个会话、2 个角色绑定、1 条组织成员关系、2 条工作联系资产',
+      '账号已删除，已清理 3 个会话、2 个角色绑定、2 条工作联系资产',
     )
   });
 
@@ -741,11 +860,9 @@ describe('account management page', () => {
       cleanupPlan: {
         willDeleteSessions: true,
         willClearRoles: true,
-        willDeleteOrgMemberships: true,
         willDeleteContactAssets: true,
       },
       blockingReasons: [],
-      orgMembershipCount: 0,
       contactAssetCount: 0,
     });
     deleteAdminAccountApi.mockResolvedValueOnce({
@@ -753,7 +870,6 @@ describe('account management page', () => {
       success: true,
       deletedSessionCount: 1,
       clearedRoleCount: 1,
-      deletedOrgMembershipCount: 0,
       deletedContactAssetCount: 0,
       userRetained: true,
     });
@@ -910,7 +1026,7 @@ describe('account management page', () => {
     expect(document.body.textContent).toContain('Legacy Account / Alpha Tenant tenant-1');
   });
 
-  it('opens the basic-info modal from the action menu and submits account basic-info updates', async () => {
+  it('opens the basic-info modal from the action menu and submits only maintainable profile fields', async () => {
     const view = await import('./account-management.vue');
 
     mount(view.default, {
@@ -936,20 +1052,8 @@ describe('account management page', () => {
     nameInput!.dispatchEvent(new Event('input', { bubbles: true }));
     await flushPromises();
 
-    const phoneInput = document.body.querySelector(
-      'input[placeholder="请输入手机号"]',
-    ) as HTMLInputElement | null;
-    phoneInput!.value = '13900139000';
-    phoneInput!.dispatchEvent(new Event('input', { bubbles: true }));
-    await flushPromises();
-
-    const emailInput = document.body.querySelector(
-      'input[placeholder="请输入邮箱"]',
-    ) as HTMLInputElement | null;
-    expect(emailInput?.closest('.account-management__field-input')).not.toBeNull();
-    emailInput!.value = 'new@example.com';
-    emailInput!.dispatchEvent(new Event('input', { bubbles: true }));
-    await flushPromises();
+    expect(document.body.querySelector('input[placeholder="请输入手机号"]')).toBeNull();
+    expect(document.body.querySelector('input[placeholder="请输入邮箱"]')).toBeNull();
 
     const submitButton = findPrimaryButtonWithinModal('基本信息');
     submitButton?.click();
@@ -959,12 +1063,88 @@ describe('account management page', () => {
       '9894c123-0f4b-452e-812f-f7cc9eed6006',
       {
         displayName: '陈双武（新）',
-        email: 'new@example.com',
         isEnabled: true,
-        phone: '+8613900139000',
       },
     );
     expect(listAdminAccountsApi).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders the basic-info editor with an identity summary before editable fields', async () => {
+    const view = await import('./account-management.vue');
+
+    mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+    await clickAccountAction('基本信息');
+
+    const modal = Array.from(document.body.querySelectorAll('.ant-modal')).find((element) =>
+      element.textContent?.includes('基本信息'),
+    ) as HTMLElement | undefined;
+    const identitySummary = modal?.querySelector('.account-management__basic-hero');
+    const editPanel = modal?.querySelector('.account-management__basic-editor');
+
+    expect(identitySummary).not.toBeNull();
+    expect(identitySummary?.textContent).toContain('身份档案');
+    expect(identitySummary?.textContent).toContain('陈双武');
+    expect(identitySummary?.textContent).toContain('Alpha Tenant');
+    expect(identitySummary?.textContent).toContain('启用');
+    expect(editPanel).not.toBeNull();
+    expect(modal?.textContent).not.toContain('账号 ID');
+    expect(modal?.textContent).not.toContain('用户 ID');
+    expect(modal?.textContent).not.toContain('Scope');
+    expect(modal?.querySelector('.account-management__basic-contact-panel')).not.toBeNull();
+    expect(modal?.textContent).toContain('+8613800138000');
+    expect(modal?.textContent).toContain('chen@example.com');
+    expect(modal?.textContent).toContain('联系方式需通过登录方式或绑定流程维护');
+    expect(
+      (identitySummary as HTMLElement).compareDocumentPosition(editPanel as HTMLElement)
+      & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('renders the login-method modal with a concise security summary before the table', async () => {
+    const view = await import('./account-management.vue');
+
+    mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+    await clickAccountAction('登录方式');
+
+    expect(listAdminAccountLoginMethodsApi).toHaveBeenCalledWith(
+      '9894c123-0f4b-452e-812f-f7cc9eed6006',
+    );
+
+    const modal = Array.from(document.body.querySelectorAll('.ant-modal')).find((element) =>
+      element.textContent?.includes('登录方式'),
+    ) as HTMLElement | undefined;
+    const securitySummary = modal?.querySelector('.account-management__login-hero');
+    const summaryGrid = modal?.querySelector('.account-management__login-summary-grid');
+    const tableShell = modal?.querySelector('.account-management__login-method-table-shell');
+
+    expect(securitySummary).not.toBeNull();
+    expect(securitySummary?.textContent).toContain('登录安全');
+    expect(securitySummary?.textContent).toContain('陈双武');
+    expect(securitySummary?.textContent).toContain('状态正常');
+    expect(summaryGrid?.textContent).toContain('登录方式数');
+    expect(summaryGrid?.textContent).toContain('2');
+    expect(
+      (securitySummary as HTMLElement).compareDocumentPosition(tableShell as HTMLElement)
+      & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it('falls back to the previous page when a status update removes the last row under the current filter', async () => {
@@ -1063,7 +1243,7 @@ describe('account management page', () => {
 
     await flushPromises();
 
-    const statusSelect = document.body.querySelectorAll('.ant-select-selector')[1] as HTMLElement | undefined;
+    const statusSelect = document.body.querySelectorAll('.ant-select-selector')[2] as HTMLElement | undefined;
     statusSelect?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
     await flushPromises();
     const enabledOption = Array.from(

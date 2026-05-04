@@ -16,6 +16,7 @@ service HrQueryService {
 
 service HrManagementService {
   rpc CreateEmployee(CreateEmployeeRequest) returns (CreateEmployeeResponse);
+  rpc CreateEmployeeOnboarding(CreateEmployeeOnboardingRequest) returns (CreateEmployeeOnboardingResponse);
   rpc CreateEmployment(CreateEmploymentRequest) returns (CreateEmploymentResponse);
   rpc EndEmployment(EndEmploymentRequest) returns (EndEmploymentResponse);
   rpc ChangePrimaryEmployment(ChangePrimaryEmploymentRequest) returns (ChangePrimaryEmploymentResponse);
@@ -60,6 +61,7 @@ message EmploymentSummary {
   string effective_from = 6;
   string effective_to = 7;
   string ended_reason = 8;
+  string position_name = 9;
 }
 
 message GetEmployeeByIdRequest {
@@ -142,6 +144,42 @@ message CreateEmployeeResponse {
   EmployeeSummary employee = 1;
 }
 
+message EmployeePartyIdentifierInput {
+  string identifier_type = 1;
+  string normalized_value = 2;
+  string raw_value = 3;
+  string issuer_country_or_region = 4;
+}
+
+message EmployeeOnboardingPersonInput {
+  string legal_name = 1;
+  repeated EmployeePartyIdentifierInput identifiers = 2;
+  string existing_party_id = 3;
+  string existing_tenant_party_id = 4;
+}
+
+message EmployeeOnboardingPrimaryEmploymentInput {
+  string org_unit_id = 1;
+  string effective_from = 2;
+  string position_name = 3;
+}
+
+message CreateEmployeeOnboardingRequest {
+  string tenant_id = 1;
+  string idempotency_key = 2;
+  EmployeeOnboardingPersonInput person = 3;
+  EmployeeOnboardingPrimaryEmploymentInput primary_employment = 4;
+  ProvisionEmployeeAccessAccountInput create_account = 5;
+  string employee_code = 6;
+  string existing_account_id = 7;
+}
+
+message CreateEmployeeOnboardingResponse {
+  EmployeeSummary employee = 1;
+  EmploymentSummary employment = 2;
+  OnboardingAccessProcessSummary access = 3;
+}
+
 message CreateEmploymentRequest {
   string tenant_id = 1;
   string employee_id = 2;
@@ -184,6 +222,7 @@ message ProvisionEmployeeAccessAccountInput {
   string display_name = 1;
   string email = 2;
   string phone = 3;
+  string existing_user_id = 4;
 }
 
 message CompleteEmployeeAccessRequest {

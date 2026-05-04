@@ -520,7 +520,7 @@ describe('SessionContextUseCase', () => {
     expect(result.navigation.visibleEntries).toEqual(['workbench.home'])
   })
 
-  it('supplements the unified organization-people entry only when both legacy tenant settings entries are present', async () => {
+  it('keeps split tenant settings entries without supplementing the removed organization-people entry', async () => {
     const identityAdapter = {
       getAccountById: jest.fn().mockResolvedValue({
         account: {
@@ -577,12 +577,11 @@ describe('SessionContextUseCase', () => {
       'workbench.home',
       'tenant-settings.org-structure',
       'tenant-settings.employee-employment',
-      'tenant-settings.login-mfa',
-      'tenant-settings.organization-people'
+      'tenant-settings.login-mfa'
     ])
   })
 
-  it('does not supplement the unified organization-people entry from a single legacy tenant settings entry', async () => {
+  it('does not add the removed organization-people entry from a single tenant settings entry', async () => {
     const identityAdapter = {
       getAccountById: jest.fn().mockResolvedValue({
         account: {

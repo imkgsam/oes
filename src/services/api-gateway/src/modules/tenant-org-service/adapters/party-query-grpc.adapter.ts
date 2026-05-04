@@ -18,9 +18,8 @@ import {
 const CALLER = 'api-gateway'
 
 export interface OrganizationPartySummary {
-  canonicalName?: string
-  displayName?: string
   id: string
+  legalName?: string
   status: string
   type: string
 }
@@ -61,8 +60,7 @@ export class PartyQueryGrpcAdapter implements OnModuleInit {
       id: party.id,
       type: party.type ?? '',
       status: party.status ?? '',
-      displayName: normalize(party.displayName),
-      canonicalName: normalize(party.canonicalName)
+      legalName: normalize(party.legalName)
     }
   }
 

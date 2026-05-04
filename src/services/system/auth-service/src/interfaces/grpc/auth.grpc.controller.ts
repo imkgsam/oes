@@ -28,6 +28,8 @@ import {
   AdminDeleteAccountSessionsResponse,
   AdminRevokeSessionRequest,
   AdminRevokeSessionResponse,
+  RevokeTenantSessionsRequest,
+  RevokeTenantSessionsResponse,
   AuditEventRecord,
   AuthServiceController,
   AuthServiceControllerMethods,
@@ -163,6 +165,7 @@ import {
   RefreshSessionCommand,
   RegenerateRecoveryCodesCommand,
   RevokeOtherTrustedDevicesCommand,
+  RevokeTenantSessionsCommand,
   RevokeTrustedDeviceCommand,
   RequestPasswordRecoveryChallengeCommand,
   RequestLoginMfaFactorChallengeCommand,
@@ -738,6 +741,20 @@ export class AuthGrpcController implements AuthServiceController {
     return {
       success: result.success,
       deletedSessionCount: result.deletedSessionCount
+    }
+  }
+
+  @UseGuards(InternalServiceGuard)
+  async revokeTenantSessions(
+    request: RevokeTenantSessionsRequest
+  ): Promise<RevokeTenantSessionsResponse> {
+    const result = await this.commandBus.execute(
+      new RevokeTenantSessionsCommand(request.tenantId ?? '', request.reason || undefined)
+    )
+
+    return {
+      success: result.success,
+      revokedSessionCount: result.revokedSessionCount
     }
   }
 

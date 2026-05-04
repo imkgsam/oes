@@ -41,6 +41,54 @@ function createSessionFixture(input: {
 }
 
 describe('ValidateAccessTokenHandler', () => {
+  it('rejects access tokens for tenant-scope sessions when the tenant is no longer active', async () => {
+    const session = createSessionFixture({
+      id: 'session-1',
+      userId: 'user-1',
+      accountId: 'account-1',
+      tenantId: 'tenant-1'
+    })
+    const jwtService = {
+      verifyAsync: jest.fn().mockResolvedValue({
+        sub: 'user-1',
+        aid: 'account-1',
+        tid: 'tenant-1',
+        sid: 'session-1',
+        scopeLevel: 'TENANT',
+        roles: ['role-1'],
+        tokenType: 'access'
+      })
+    } as unknown as CommonJwtService
+    const sessionRepository = {
+      findById: jest.fn().mockResolvedValue(session),
+      save: jest.fn(),
+      delete: jest.fn().mockResolvedValue(undefined)
+    } as any
+    const tenantSessionAccessService = {
+      assertSessionCanContinue: jest.fn().mockRejectedValue(new Error('tenant inactive'))
+    }
+    const handler = new ValidateAccessTokenHandler(
+      jwtService,
+      sessionRepository,
+      {
+        markTrustedDeviceSeen: jest.fn()
+      } as unknown as TrustedDeviceService,
+      tenantSessionAccessService as any
+    )
+
+    await expect(handler.execute(new ValidateAccessTokenQuery('token-1'))).rejects.toThrow(
+      'tenant inactive'
+    )
+
+    expect(tenantSessionAccessService.assertSessionCanContinue).toHaveBeenCalledWith({
+      sessionId: 'session-1',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT'
+    })
+    expect(sessionRepository.delete).toHaveBeenCalledWith('session-1')
+    expect(sessionRepository.save).not.toHaveBeenCalled()
+  })
+
   it('accepts active access tokens that still point at a live session', async () => {
     const session = createSessionFixture({
       id: 'session-1',
@@ -67,7 +115,14 @@ describe('ValidateAccessTokenHandler', () => {
     const trustedDeviceService = {
       markTrustedDeviceSeen: jest.fn().mockResolvedValue(undefined)
     } as unknown as TrustedDeviceService
-    const handler = new ValidateAccessTokenHandler(jwtService, sessionRepository, trustedDeviceService)
+    const handler = new ValidateAccessTokenHandler(
+      jwtService,
+      sessionRepository,
+      trustedDeviceService,
+      {
+        assertSessionCanContinue: jest.fn().mockResolvedValue(undefined)
+      } as any
+    )
 
     await expect(handler.execute(new ValidateAccessTokenQuery('token-1'))).resolves.toEqual({
       userId: 'user-1',
@@ -109,7 +164,14 @@ describe('ValidateAccessTokenHandler', () => {
     const trustedDeviceService = {
       markTrustedDeviceSeen: jest.fn()
     } as unknown as TrustedDeviceService
-    const handler = new ValidateAccessTokenHandler(jwtService, sessionRepository, trustedDeviceService)
+    const handler = new ValidateAccessTokenHandler(
+      jwtService,
+      sessionRepository,
+      trustedDeviceService,
+      {
+        assertSessionCanContinue: jest.fn()
+      } as any
+    )
 
     await expect(handler.execute(new ValidateAccessTokenQuery('token-1'))).rejects.toBeDefined()
     expect(trustedDeviceService.markTrustedDeviceSeen).not.toHaveBeenCalled()

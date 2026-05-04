@@ -5,6 +5,7 @@ import { Role } from '../../src/domain/aggregates/role.aggregate'
 import { PermissionModule } from '../../src/domain/enums/permission-module.enum'
 import { RoleKind } from '../../src/domain/enums/role-kind.enum'
 import { AccountType } from '../../src/domain/enums/account-type.enum'
+import { ScopeLevel } from '../../src/domain/enums/scope-level.enum'
 import { RolePermission } from '../../src/domain/vo/role-permission.value-object'
 import {
   cleanupByPrefix,
@@ -163,6 +164,7 @@ describe('PrismaRoleRepository L2', () => {
       `${prefix}_account_1`,
       role.id,
       'tenant-1',
+      ScopeLevel.TENANT,
       AccountType.USER
     )
 
@@ -202,12 +204,14 @@ describe('PrismaRoleRepository L2', () => {
       `${prefix}_account_2`,
       roleA.id,
       'tenant-1',
+      ScopeLevel.TENANT,
       AccountType.USER
     )
 
     const roles = await repository.replaceAccountRoles(
       `${prefix}_account_2`,
       'tenant-1',
+      ScopeLevel.TENANT,
       AccountType.USER,
       [roleB.id]
     )

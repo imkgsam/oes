@@ -1,5 +1,6 @@
 import { ForbiddenException } from '@nestjs/common'
 import {
+  ItemCategoryStatus,
   ItemNatureType,
   ItemStatus,
   ItemStructureType
@@ -11,14 +12,19 @@ describe('ItemManagementService', () => {
   const itemQueryAdapter = {
     getItem: jest.fn(),
     getItemComposition: jest.fn(),
+    listItemCategories: jest.fn(),
     listSupplierItemMappingsByItem: jest.fn(),
     searchItems: jest.fn()
   }
   const itemManagementAdapter = {
     changeItemStatus: jest.fn(),
+    changeItemCategoryStatus: jest.fn(),
+    createItemCategory: jest.fn(),
     createItem: jest.fn(),
+    setItemPrimaryCategory: jest.fn(),
     setItemCapabilities: jest.fn(),
     setItemComposition: jest.fn(),
+    updateItemCategoryBasics: jest.fn(),
     updateItemBasics: jest.fn(),
     upsertSupplierItemMapping: jest.fn()
   }
@@ -74,6 +80,12 @@ describe('ItemManagementService', () => {
             purchasable: false,
             stockable: false,
             manufacturable: false
+          },
+          primaryCategorySummary: {
+            categoryId: 'category-1',
+            categoryCode: 'FINISHED',
+            categoryName: 'Finished Goods',
+            status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE
           }
         }
       ],
@@ -94,6 +106,12 @@ describe('ItemManagementService', () => {
           purchasable: false,
           stockable: false,
           manufacturable: false
+        },
+        primaryCategorySummary: {
+          categoryId: 'category-1',
+          categoryCode: 'FINISHED',
+          categoryName: 'Finished Goods',
+          status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE
         }
       }
     })
@@ -105,6 +123,8 @@ describe('ItemManagementService', () => {
           capability: 'sellable',
           keyword: 'starter',
           natureType: 'VIRTUAL',
+          categoryId: 'category-1',
+          includeDescendants: true,
           page: 2,
           pageSize: 10,
           status: 'ACTIVE',
@@ -126,6 +146,12 @@ describe('ItemManagementService', () => {
             purchasable: false,
             stockable: false,
             manufacturable: false
+          },
+          primaryCategorySummary: {
+            categoryId: 'category-1',
+            categoryCode: 'FINISHED',
+            categoryName: 'Finished Goods',
+            status: 'ACTIVE'
           }
         }
       ],
@@ -136,17 +162,23 @@ describe('ItemManagementService', () => {
     await expect(service.getItem('tenant-1', 'item-1', source as any)).resolves.toEqual({
       itemId: 'item-1',
       itemCode: 'BUNDLE-001',
-      itemName: 'Starter Bundle',
-      structureType: 'BUNDLE',
-      natureType: 'VIRTUAL',
-      status: 'ACTIVE',
-      capabilities: {
-        sellable: true,
-        purchasable: false,
-        stockable: false,
-        manufacturable: false
-      }
-    })
+        itemName: 'Starter Bundle',
+        structureType: 'BUNDLE',
+        natureType: 'VIRTUAL',
+        status: 'ACTIVE',
+        capabilities: {
+          sellable: true,
+          purchasable: false,
+          stockable: false,
+          manufacturable: false
+        },
+        primaryCategorySummary: {
+          categoryId: 'category-1',
+          categoryCode: 'FINISHED',
+          categoryName: 'Finished Goods',
+          status: 'ACTIVE'
+        }
+      })
 
     expect(itemQueryAdapter.searchItems).toHaveBeenCalledWith(
       {
@@ -158,6 +190,8 @@ describe('ItemManagementService', () => {
           sellable: true
         },
         status: ItemStatus.ITEM_STATUS_ACTIVE,
+        categoryId: 'category-1',
+        includeDescendants: true,
         page: 2,
         pageSize: 10
       },
@@ -482,6 +516,198 @@ describe('ItemManagementService', () => {
         tenantId: 'tenant-1',
         itemId: 'item-1',
         targetStatus: ItemStatus.ITEM_STATUS_INACTIVE
+      },
+      source
+    )
+  })
+
+  it('maps item category read and write operations without widening item-master ownership', async () => {
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
+    }
+
+    itemQueryAdapter.listItemCategories.mockResolvedValue({
+      categories: [
+        {
+          categoryId: 'category-root',
+          categoryCode: 'ROOT',
+          categoryName: 'Root Category',
+          parentCategoryId: '',
+          status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE,
+          hasChildren: true
+        }
+      ]
+    })
+    itemManagementAdapter.createItemCategory.mockResolvedValue({
+      category: {
+        categoryId: 'category-child',
+        categoryCode: 'FINISHED',
+        categoryName: 'Finished Goods',
+        parentCategoryId: 'category-root',
+        status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE
+      }
+    })
+    itemManagementAdapter.updateItemCategoryBasics.mockResolvedValue({
+      category: {
+        categoryId: 'category-child',
+        categoryCode: 'FINISHED-REV',
+        categoryName: 'Finished Goods Rev',
+        parentCategoryId: 'category-root',
+        status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE
+      }
+    })
+    itemManagementAdapter.changeItemCategoryStatus.mockResolvedValue({
+      category: {
+        categoryId: 'category-child',
+        categoryCode: 'FINISHED-REV',
+        categoryName: 'Finished Goods Rev',
+        parentCategoryId: 'category-root',
+        status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_INACTIVE
+      }
+    })
+    itemManagementAdapter.setItemPrimaryCategory.mockResolvedValue({
+      item: {
+        itemId: 'item-1',
+        itemCode: 'ITEM-001',
+        itemName: 'Starter Item',
+        structureType: ItemStructureType.ITEM_STRUCTURE_TYPE_SINGLE,
+        natureType: ItemNatureType.ITEM_NATURE_TYPE_PHYSICAL,
+        status: ItemStatus.ITEM_STATUS_ACTIVE,
+        capabilities: {
+          sellable: true,
+          purchasable: true,
+          stockable: true,
+          manufacturable: false
+        },
+        primaryCategorySummary: {
+          categoryId: 'category-child',
+          categoryCode: 'FINISHED-REV',
+          categoryName: 'Finished Goods Rev',
+          status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE
+        }
+      }
+    })
+
+    await expect(
+      service.listItemCategories('tenant-1', { parentCategoryId: 'category-root' }, source as any)
+    ).resolves.toEqual({
+      categories: [
+        {
+          categoryId: 'category-root',
+          categoryCode: 'ROOT',
+          categoryName: 'Root Category',
+          parentCategoryId: '',
+          status: 'ACTIVE',
+          hasChildren: true
+        }
+      ]
+    })
+    await expect(
+      service.createItemCategory(
+        'tenant-1',
+        {
+          categoryCode: 'FINISHED',
+          categoryName: 'Finished Goods',
+          parentCategoryId: 'category-root'
+        },
+        source as any
+      )
+    ).resolves.toEqual({
+      categoryId: 'category-child',
+      categoryCode: 'FINISHED',
+      categoryName: 'Finished Goods',
+      status: 'ACTIVE'
+    })
+    await expect(
+      service.updateItemCategoryBasics(
+        'tenant-1',
+        'category-child',
+        {
+          categoryCode: 'FINISHED-REV',
+          categoryName: 'Finished Goods Rev'
+        },
+        source as any
+      )
+    ).resolves.toEqual({
+      categoryId: 'category-child',
+      categoryCode: 'FINISHED-REV',
+      categoryName: 'Finished Goods Rev',
+      status: 'ACTIVE'
+    })
+    await expect(
+      service.changeItemCategoryStatus(
+        'tenant-1',
+        'category-child',
+        {
+          status: 'INACTIVE'
+        },
+        source as any
+      )
+    ).resolves.toEqual({
+      categoryId: 'category-child',
+      categoryCode: 'FINISHED-REV',
+      categoryName: 'Finished Goods Rev',
+      status: 'INACTIVE'
+    })
+    await expect(
+      service.setItemPrimaryCategory(
+        'tenant-1',
+        'item-1',
+        {
+          primaryCategoryId: 'category-child'
+        },
+        source as any
+      )
+    ).resolves.toMatchObject({
+      itemId: 'item-1',
+      primaryCategorySummary: {
+        categoryId: 'category-child',
+        categoryCode: 'FINISHED-REV',
+        categoryName: 'Finished Goods Rev',
+        status: 'ACTIVE'
+      }
+    })
+
+    expect(itemQueryAdapter.listItemCategories).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        parentCategoryId: 'category-root'
+      },
+      source
+    )
+    expect(itemManagementAdapter.createItemCategory).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        categoryCode: 'FINISHED',
+        categoryName: 'Finished Goods',
+        parentCategoryId: 'category-root'
+      },
+      source
+    )
+    expect(itemManagementAdapter.updateItemCategoryBasics).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        categoryId: 'category-child',
+        categoryCode: 'FINISHED-REV',
+        categoryName: 'Finished Goods Rev'
+      },
+      source
+    )
+    expect(itemManagementAdapter.changeItemCategoryStatus).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        categoryId: 'category-child',
+        targetStatus: ItemCategoryStatus.ITEM_CATEGORY_STATUS_INACTIVE
+      },
+      source
+    )
+    expect(itemManagementAdapter.setItemPrimaryCategory).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        itemId: 'item-1',
+        categoryId: 'category-child'
       },
       source
     )

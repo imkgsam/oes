@@ -96,6 +96,7 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
       pageSize?: number
       scopeLevel?: string
       status?: string
+      tenantId?: string
     },
     source: DownstreamRequestSource
   ): Promise<ListAccountsResponse> {
@@ -107,7 +108,8 @@ export class IdentityQueryGrpcAdapter implements OnModuleInit {
           page: request.page,
           pageSize: request.pageSize,
           scopeLevel: request.scopeLevel,
-          status: request.status
+          status: request.status,
+          tenantId: request.tenantId
         },
         this.operatorMetadata(source)
       )

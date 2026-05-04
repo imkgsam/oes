@@ -1,6 +1,53 @@
 import { ForbiddenException } from '@nestjs/common'
-import { FulfillmentHandoffStatusCode, QuoteStatus } from '@oes/common/generated/sales_service'
+import {
+  FulfillmentHandoffStatusCode,
+  PriceListStatus,
+  PriceListType,
+  QuoteStatus
+} from '@oes/common/generated/sales_service'
 import { SalesService } from './sales.service'
+
+const SAMPLE_PRICE_SNAPSHOT = {
+  currencyCode: 'USD',
+  resolvedAt: '2026-04-26T10:00:00.000Z',
+  sourceLineRefId: 'agreement-line-1',
+  sourceRefId: 'agreement-1',
+  sourceType: 'CUSTOMER_PRICE_AGREEMENT',
+  sourceVersionNo: 2,
+  unitPriceAmount: '12.50'
+}
+
+const SAMPLE_MOQ_SNAPSHOT = {
+  moqQuantity: '20',
+  quantityUomCode: 'PCS',
+  resolvedAt: '2026-04-26T10:00:00.000Z',
+  sourceLineRefId: 'agreement-line-1',
+  sourceRefId: 'agreement-1',
+  sourceType: 'CUSTOMER_PRICE_AGREEMENT',
+  sourceVersionNo: 2
+}
+
+const SAMPLE_EXCHANGE_RATE_SNAPSHOT = {
+  effectiveAt: '2026-04-26T10:00:00.000Z',
+  exchangeRateValue: '1',
+  financeRateRef: '',
+  fromCurrencyCode: 'USD',
+  snapshottedAt: '2026-04-26T10:00:00.000Z',
+  toCurrencyCode: 'USD'
+}
+
+const SAMPLE_EXCEPTION_PLACEHOLDERS = [
+  {
+    actualValue: '12.50',
+    baselineSourceType: 'CUSTOMER_PRICE_AGREEMENT',
+    baselineValue: '13.00',
+    currencyCode: 'USD',
+    detectedAt: '2026-04-26T10:00:00.000Z',
+    exceptionType: 'LOW_PRICE',
+    quantityUomCode: '',
+    status: 'REQUIRED'
+  }
+]
 
 const SAMPLE_QUOTE = {
   customerTenantPartyId: 'customer-1',
@@ -26,6 +73,10 @@ const SAMPLE_QUOTE = {
       priceQuantityDeliverySnapshot: {
         currencyCode: 'USD',
         deliveryTerm: 'FOB',
+        exceptionPlaceholders: SAMPLE_EXCEPTION_PLACEHOLDERS,
+        exchangeRateSnapshot: SAMPLE_EXCHANGE_RATE_SNAPSHOT,
+        moqSnapshot: SAMPLE_MOQ_SNAPSHOT,
+        priceSnapshot: SAMPLE_PRICE_SNAPSHOT,
         quantity: '10',
         requestedDeliveryDate: '2026-05-01',
         unitPrice: '12.50'
@@ -91,7 +142,82 @@ const SAMPLE_ORDER = {
   tenantId: 'tenant-1'
 }
 
-// Verifies the sales gateway service enforces tenant scope and maps the minimum quote-order slice into the downstream adapters.
+const SAMPLE_PRICE_LIST = {
+  currencyCode: 'USD',
+  effectiveFrom: '2026-04-01',
+  effectiveTo: '2026-12-31',
+  priceListId: 'price-list-1',
+  priceListName: 'North America Standard',
+  priceListType: 'STANDARD',
+  status: 'ACTIVE',
+  tenantId: 'tenant-1'
+}
+
+const SAMPLE_PRICE_LIST_LINES = [
+  {
+    brandKey: 'BRAND-A',
+    itemId: 'item-1',
+    lineNo: 1,
+    moqSnapshot: {
+      moqQuantity: '20',
+      quantityUomCode: 'PCS',
+      resolvedAt: '2026-04-26T10:00:00.000Z',
+      sourceLineRefId: 'price-list-line-1',
+      sourceRefId: 'price-list-1',
+      sourceType: 'PRICE_LIST',
+      sourceVersionNo: 0
+    },
+    priceListLineId: 'price-list-line-1',
+    priceSnapshot: {
+      currencyCode: 'USD',
+      resolvedAt: '2026-04-26T10:00:00.000Z',
+      sourceLineRefId: 'price-list-line-1',
+      sourceRefId: 'price-list-1',
+      sourceType: 'PRICE_LIST',
+      sourceVersionNo: 0,
+      unitPriceAmount: '13.00'
+    }
+  }
+]
+
+const SAMPLE_CUSTOMER_PRICE_AGREEMENT = {
+  currencyCode: 'USD',
+  customerPriceAgreementId: 'agreement-1',
+  customerTenantPartyId: 'customer-1',
+  lines: [
+    {
+      brandKey: 'BRAND-A',
+      customerPriceAgreementLineId: 'agreement-line-1',
+      itemId: 'item-1',
+      lineNo: 1,
+      moqSnapshot: SAMPLE_MOQ_SNAPSHOT,
+      priceSnapshot: SAMPLE_PRICE_SNAPSHOT
+    }
+  ],
+  publishedAt: '2026-04-26T10:00:00.000Z',
+  status: 'ACTIVE',
+  tenantId: 'tenant-1',
+  versionNo: 2
+}
+
+const SAMPLE_CUSTOMER_PRICE_AGREEMENT_VERSIONS = [
+  {
+    customerPriceAgreementId: 'agreement-1',
+    lineCount: 1,
+    publishedAt: '',
+    status: 'DRAFT',
+    versionNo: 3
+  },
+  {
+    customerPriceAgreementId: 'agreement-1',
+    lineCount: 1,
+    publishedAt: '2026-04-26T10:00:00.000Z',
+    status: 'ACTIVE',
+    versionNo: 2
+  }
+]
+
+// Verifies the sales gateway service enforces tenant scope and maps the quote, order, and pricing slices into the downstream adapters.
 describe('SalesService', () => {
   const salesQueryAdapter = {
     getQuote: jest.fn(),
@@ -104,12 +230,36 @@ describe('SalesService', () => {
   const salesManagementAdapter = {
     convertQuoteVersionToOrder: jest.fn(),
     createQuote: jest.fn(),
-    submitFulfillmentHandoff: jest.fn(),
     publishQuote: jest.fn(),
+    submitFulfillmentHandoff: jest.fn(),
     updateQuoteDraft: jest.fn()
   }
+  const pricingQueryAdapter = {
+    getActiveCustomerPriceAgreement: jest.fn(),
+    getCustomerPriceAgreement: jest.fn(),
+    getPriceList: jest.fn(),
+    getPriceListLines: jest.fn(),
+    listCustomerPriceAgreementVersions: jest.fn(),
+    previewQuoteLinePricing: jest.fn(),
+    searchPriceLists: jest.fn()
+  }
+  const pricingManagementAdapter = {
+    changePriceListStatus: jest.fn(),
+    createCustomerPriceAgreement: jest.fn(),
+    createCustomerPriceAgreementFromSalesOrderLine: jest.fn(),
+    createPriceList: jest.fn(),
+    publishCustomerPriceAgreementVersion: jest.fn(),
+    replacePriceListLines: jest.fn(),
+    updateCustomerPriceAgreementDraft: jest.fn(),
+    updatePriceList: jest.fn()
+  }
 
-  const service = new SalesService(salesQueryAdapter as any, salesManagementAdapter as any)
+  const service = new SalesService(
+    salesQueryAdapter as any,
+    salesManagementAdapter as any,
+    pricingQueryAdapter as any,
+    pricingManagementAdapter as any
+  )
 
   beforeEach(() => {
     jest.resetAllMocks()
@@ -459,6 +609,342 @@ describe('SalesService', () => {
         salesOrderId: 'order-1',
         tenantId: 'tenant-1'
       },
+      source
+    )
+  })
+
+  it('maps pricing query and management flows without widening the pricing contract', async () => {
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', orgId: 'org-1', scopeLevel: 'TENANT', tid: 'tenant-1', typ: 'USER' }
+    }
+
+    pricingQueryAdapter.searchPriceLists.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      priceLists: [SAMPLE_PRICE_LIST],
+      total: 1
+    })
+    pricingQueryAdapter.getPriceList.mockResolvedValue({
+      priceList: SAMPLE_PRICE_LIST
+    })
+    pricingQueryAdapter.getPriceListLines.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      priceListLines: SAMPLE_PRICE_LIST_LINES,
+      total: 1
+    })
+    pricingQueryAdapter.getActiveCustomerPriceAgreement.mockResolvedValue({
+      customerPriceAgreement: SAMPLE_CUSTOMER_PRICE_AGREEMENT
+    })
+    pricingQueryAdapter.getCustomerPriceAgreement.mockResolvedValue({
+      customerPriceAgreement: SAMPLE_CUSTOMER_PRICE_AGREEMENT
+    })
+    pricingQueryAdapter.listCustomerPriceAgreementVersions.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      total: 2,
+      versions: SAMPLE_CUSTOMER_PRICE_AGREEMENT_VERSIONS
+    })
+    pricingQueryAdapter.previewQuoteLinePricing.mockResolvedValue({
+      exceptionPlaceholders: SAMPLE_EXCEPTION_PLACEHOLDERS,
+      exchangeRateSnapshot: SAMPLE_EXCHANGE_RATE_SNAPSHOT,
+      moqSnapshot: SAMPLE_MOQ_SNAPSHOT,
+      priceSnapshot: SAMPLE_PRICE_SNAPSHOT
+    })
+    pricingManagementAdapter.createPriceList.mockResolvedValue({
+      priceList: SAMPLE_PRICE_LIST
+    })
+    pricingManagementAdapter.updatePriceList.mockResolvedValue({
+      priceList: {
+        ...SAMPLE_PRICE_LIST,
+        priceListName: 'North America Standard Rev'
+      }
+    })
+    pricingManagementAdapter.replacePriceListLines.mockResolvedValue({
+      priceList: SAMPLE_PRICE_LIST,
+      priceListLines: SAMPLE_PRICE_LIST_LINES
+    })
+    pricingManagementAdapter.changePriceListStatus.mockResolvedValue({
+      priceList: {
+        ...SAMPLE_PRICE_LIST,
+        status: 'INACTIVE'
+      }
+    })
+    pricingManagementAdapter.createCustomerPriceAgreement.mockResolvedValue({
+      customerPriceAgreement: {
+        ...SAMPLE_CUSTOMER_PRICE_AGREEMENT,
+        publishedAt: '',
+        status: 'DRAFT',
+        versionNo: 1
+      }
+    })
+    pricingManagementAdapter.updateCustomerPriceAgreementDraft.mockResolvedValue({
+      customerPriceAgreement: {
+        ...SAMPLE_CUSTOMER_PRICE_AGREEMENT,
+        publishedAt: '',
+        status: 'DRAFT',
+        versionNo: 3
+      }
+    })
+    pricingManagementAdapter.publishCustomerPriceAgreementVersion.mockResolvedValue({
+      customerPriceAgreement: SAMPLE_CUSTOMER_PRICE_AGREEMENT
+    })
+    pricingManagementAdapter.createCustomerPriceAgreementFromSalesOrderLine.mockResolvedValue({
+      customerPriceAgreement: {
+        ...SAMPLE_CUSTOMER_PRICE_AGREEMENT,
+        publishedAt: '',
+        status: 'DRAFT',
+        versionNo: 3
+      }
+    })
+
+    await expect(
+      service.searchPriceLists(
+        'tenant-1',
+        {
+          currencyCode: 'USD',
+          effectiveAt: '2026-04-26T10:00:00.000Z',
+          keyword: 'North',
+          page: 1,
+          pageSize: 20,
+          priceListType: 'STANDARD',
+          status: 'ACTIVE'
+        },
+        source as any
+      )
+    ).resolves.toEqual({
+      page: 1,
+      pageSize: 20,
+      priceLists: [SAMPLE_PRICE_LIST],
+      total: 1
+    })
+    await expect(service.getPriceList('tenant-1', 'price-list-1', source as any)).resolves.toEqual(
+      SAMPLE_PRICE_LIST
+    )
+    await expect(
+      service.getPriceListLines(
+        'tenant-1',
+        'price-list-1',
+        { itemId: 'item-1', page: 1, pageSize: 20 },
+        source as any
+      )
+    ).resolves.toEqual({
+      page: 1,
+      pageSize: 20,
+      priceListLines: SAMPLE_PRICE_LIST_LINES,
+      total: 1
+    })
+    await expect(
+      service.getActiveCustomerPriceAgreement(
+        'tenant-1',
+        { currencyCode: 'USD', customerTenantPartyId: 'customer-1' },
+        source as any
+      )
+    ).resolves.toEqual(SAMPLE_CUSTOMER_PRICE_AGREEMENT)
+    await expect(
+      service.getCustomerPriceAgreement('tenant-1', 'agreement-1', { versionNo: 2 }, source as any)
+    ).resolves.toEqual(SAMPLE_CUSTOMER_PRICE_AGREEMENT)
+    await expect(
+      service.listCustomerPriceAgreementVersions(
+        'tenant-1',
+        'agreement-1',
+        { page: 1, pageSize: 20 },
+        source as any
+      )
+    ).resolves.toEqual({
+      page: 1,
+      pageSize: 20,
+      total: 2,
+      versions: SAMPLE_CUSTOMER_PRICE_AGREEMENT_VERSIONS
+    })
+    await expect(
+      service.previewQuoteLinePricing(
+        'tenant-1',
+        {
+          currencyCode: 'USD',
+          customerTenantPartyId: 'customer-1',
+          exchangeRateTargetCurrencyCode: 'USD',
+          itemId: 'item-1',
+          manualUnitPriceAmount: '12.50',
+          pricingAt: '2026-04-26T10:00:00.000Z',
+          quantityUomCode: 'PCS',
+          requestedQuantity: '10',
+          selectedPriceListId: 'price-list-1'
+        },
+        source as any
+      )
+    ).resolves.toEqual({
+      exceptionPlaceholders: SAMPLE_EXCEPTION_PLACEHOLDERS,
+      exchangeRateSnapshot: SAMPLE_EXCHANGE_RATE_SNAPSHOT,
+      moqSnapshot: SAMPLE_MOQ_SNAPSHOT,
+      priceSnapshot: SAMPLE_PRICE_SNAPSHOT
+    })
+    await expect(
+      service.createPriceList(
+        'tenant-1',
+        {
+          currencyCode: 'USD',
+          effectiveFrom: '2026-04-01',
+          effectiveTo: '2026-12-31',
+          initialLines: [
+            {
+              brandKey: 'BRAND-A',
+              itemId: 'item-1',
+              moqQuantity: '20',
+              quantityUomCode: 'PCS',
+              unitPriceAmount: '13.00'
+            }
+          ],
+          priceListName: 'North America Standard',
+          priceListType: 'STANDARD'
+        },
+        source as any
+      )
+    ).resolves.toEqual(SAMPLE_PRICE_LIST)
+    await expect(
+      service.updatePriceList(
+        'tenant-1',
+        'price-list-1',
+        {
+          effectiveTo: '2026-12-31',
+          priceListName: 'North America Standard Rev'
+        },
+        source as any
+      )
+    ).resolves.toMatchObject({
+      priceListId: 'price-list-1',
+      priceListName: 'North America Standard Rev'
+    })
+    await expect(
+      service.replacePriceListLines(
+        'tenant-1',
+        'price-list-1',
+        {
+          lines: [
+            {
+              brandKey: 'BRAND-A',
+              itemId: 'item-1',
+              moqQuantity: '20',
+              quantityUomCode: 'PCS',
+              unitPriceAmount: '13.00'
+            }
+          ]
+        },
+        source as any
+      )
+    ).resolves.toEqual({
+      priceList: SAMPLE_PRICE_LIST,
+      priceListLines: SAMPLE_PRICE_LIST_LINES
+    })
+    await expect(
+      service.changePriceListStatus(
+        'tenant-1',
+        'price-list-1',
+        { targetStatus: 'INACTIVE' },
+        source as any
+      )
+    ).resolves.toMatchObject({
+      priceListId: 'price-list-1',
+      status: 'INACTIVE'
+    })
+    await expect(
+      service.createCustomerPriceAgreement(
+        'tenant-1',
+        {
+          currencyCode: 'USD',
+          customerTenantPartyId: 'customer-1',
+          initialLines: [
+            {
+              brandKey: 'BRAND-A',
+              itemId: 'item-1',
+              moqQuantity: '20',
+              quantityUomCode: 'PCS',
+              unitPriceAmount: '12.50'
+            }
+          ]
+        },
+        source as any
+      )
+    ).resolves.toMatchObject({
+      customerPriceAgreementId: 'agreement-1',
+      status: 'DRAFT',
+      versionNo: 1
+    })
+    await expect(
+      service.updateCustomerPriceAgreementDraft(
+        'tenant-1',
+        'agreement-1',
+        {
+          draftMutation: {
+            removals: [],
+            upserts: [
+              {
+                brandKey: 'BRAND-A',
+                itemId: 'item-1',
+                moqQuantity: '24',
+                quantityUomCode: 'PCS',
+                unitPriceAmount: '12.40'
+              }
+            ]
+          }
+        },
+        source as any
+      )
+    ).resolves.toMatchObject({
+      customerPriceAgreementId: 'agreement-1',
+      status: 'DRAFT',
+      versionNo: 3
+    })
+    await expect(
+      service.publishCustomerPriceAgreementVersion(
+        'tenant-1',
+        'agreement-1',
+        'publish customer agreement',
+        source as any
+      )
+    ).resolves.toEqual(SAMPLE_CUSTOMER_PRICE_AGREEMENT)
+    await expect(
+      service.createCustomerPriceAgreementFromSalesOrderLine(
+        'tenant-1',
+        'order-line-1',
+        'promote order line into draft agreement',
+        source as any
+      )
+    ).resolves.toMatchObject({
+      customerPriceAgreementId: 'agreement-1',
+      status: 'DRAFT',
+      versionNo: 3
+    })
+
+    expect(pricingQueryAdapter.searchPriceLists).toHaveBeenCalledWith(
+      {
+        currencyCode: 'USD',
+        effectiveAt: '2026-04-26T10:00:00.000Z',
+        keyword: 'North',
+        page: 1,
+        pageSize: 20,
+        priceListType: PriceListType.PRICE_LIST_TYPE_STANDARD,
+        status: PriceListStatus.PRICE_LIST_STATUS_ACTIVE,
+        tenantId: 'tenant-1'
+      },
+      source
+    )
+    expect(pricingManagementAdapter.publishCustomerPriceAgreementVersion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auditReason: 'publish customer agreement',
+        customerPriceAgreementId: 'agreement-1',
+        tenantId: 'tenant-1'
+      }),
+      source
+    )
+    expect(pricingManagementAdapter.createCustomerPriceAgreementFromSalesOrderLine).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auditReason: 'promote order line into draft agreement',
+        salesOrderLineId: 'order-line-1',
+        tenantId: 'tenant-1'
+      }),
       source
     )
   })

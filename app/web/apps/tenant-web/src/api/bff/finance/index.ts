@@ -37,6 +37,29 @@ export namespace FinanceApi {
     | 'OVERDUE'
     | 'PAID'
     | 'PARTIALLY_PAID'
+  export type PayableScheduleStatus =
+    | 'CANCELLED'
+    | 'ON_HOLD'
+    | 'OPEN'
+    | 'PAID'
+    | 'PARTIALLY_PAID'
+  export type PayableLineRequestGovernanceStatus =
+    | 'APPROVED_PENDING_EXECUTION'
+    | 'DUE_NO_REQUEST'
+    | 'EARLY_REQUEST'
+    | 'NONE'
+    | 'PAID'
+    | 'PARTIALLY_PAID'
+    | 'REQUEST_SUBMITTED'
+  export type PaymentRequestStatus =
+    | 'APPROVED'
+    | 'CANCELLED'
+    | 'EXECUTED'
+    | 'PARTIALLY_EXECUTED'
+    | 'REJECTED'
+    | 'SUBMITTED'
+  export type PaymentRequestSource = 'FINANCE_INITIATED' | 'PROCUREMENT_INITIATED'
+  export type PaymentExecutionStatus = 'MATCHED' | 'RECORDED' | 'VOIDED'
 
   export interface FinancialAccountSummary {
     accountName: string
@@ -355,6 +378,7 @@ export namespace FinanceApi {
     currencyCode: string
     paymentAllocationId: string
     paymentExecutionId: string
+    paymentRequestId: string
     targetScheduleId: string
     targetScheduleLineId: string
     targetType: string
@@ -362,10 +386,16 @@ export namespace FinanceApi {
 
   export interface PaymentAllocationListQuery {
     accountTransactionId?: string
+    allocatedFrom?: string
+    allocatedTo?: string
     page?: number
     pageSize?: number
+    paymentExecutionId?: string
     receivableScheduleId?: string
     receivableScheduleLineId?: string
+    targetScheduleId?: string
+    targetScheduleLineId?: string
+    targetType?: string
   }
 
   export interface PaymentAllocationListResult {
@@ -385,6 +415,307 @@ export namespace FinanceApi {
     accountTransactionId: string
     allocations: AllocatePaymentToReceivableItem[]
     auditReason?: string
+  }
+
+  export interface PayableScheduleSummary {
+    currencyCode: string
+    nearestDueDate: string
+    outstandingAmount: string
+    payableScheduleId: string
+    requestGovernanceStatusSummary: PayableLineRequestGovernanceStatus | string
+    scheduleNo: string
+    sourcePurchaseOrderId: string
+    sourcePurchaseOrderNo: string
+    status: PayableScheduleStatus | string
+    supplierDisplayName: string
+    supplierTenantPartyId: string
+  }
+
+  export interface PayableScheduleLine {
+    allocatedAmount: string
+    dueDate: string
+    executedAmount: string
+    lineNo: number
+    lineType: string
+    memo: string
+    outstandingAmount: string
+    payableScheduleLineId: string
+    requestGovernanceStatus: PayableLineRequestGovernanceStatus | string
+    requestedAmount: string
+    scheduledAmount: string
+    sourcePurchaseOrderLineId: string
+    sourceRef: string
+    status: string
+    supersedesSourceRef: string
+  }
+
+  export interface PayableSchedule {
+    createdAt: string
+    currencyCode: string
+    lines: PayableScheduleLine[]
+    orgId: string
+    outstandingAmount: string
+    payableScheduleId: string
+    procurementSnapshotReference: string
+    scheduleNo: string
+    sourcePurchaseOrderId: string
+    sourcePurchaseOrderNo: string
+    sourceType: string
+    status: PayableScheduleStatus | string
+    supplierSnapshot: string
+    supplierTenantPartyId: string
+    tenantId: string
+    totalAllocatedAmount: string
+    totalExecutedAmount: string
+    totalRequestedAmount: string
+    totalScheduledAmount: string
+    updatedAt: string
+  }
+
+  export interface PayableScheduleListQuery {
+    dueFrom?: string
+    dueTo?: string
+    keyword?: string
+    orgId?: string
+    overdueOnly?: boolean
+    page?: number
+    pageSize?: number
+    requestGovernanceStatus?: PayableLineRequestGovernanceStatus
+    sourcePurchaseOrderId?: string
+    status?: PayableScheduleStatus
+    supplierTenantPartyId?: string
+  }
+
+  export interface PayableScheduleListResult {
+    page: number
+    pageSize: number
+    payableSchedules: PayableScheduleSummary[]
+    total: number
+  }
+
+  export interface CreatePayableScheduleFromPurchaseOrderLineInput {
+    dueDate: string
+    lineType: string
+    memo?: string
+    scheduledAmount: string
+    sourcePurchaseOrderLineId?: string
+    sourceRef: string
+  }
+
+  export interface CreatePayableScheduleFromPurchaseOrderPayload {
+    auditReason?: string
+    currencyCode: string
+    lines: CreatePayableScheduleFromPurchaseOrderLineInput[]
+    orgId?: string
+    procurementSnapshotReference?: string
+    purchaseOrderId: string
+    purchaseOrderNo?: string
+    supplierSnapshot: string
+    supplierTenantPartyId: string
+  }
+
+  export interface ApplyPayableScheduleAdjustmentItem {
+    action: string
+    dueDate?: string
+    lineType?: string
+    memo?: string
+    newSourceRef?: string
+    scheduledAmount?: string
+    sourcePurchaseOrderLineId?: string
+    targetSourceRef?: string
+  }
+
+  export interface ApplyPayableScheduleAdjustmentFromPurchaseOrderChangePayload {
+    adjustments: ApplyPayableScheduleAdjustmentItem[]
+    auditReason?: string
+    changeReason?: string
+    orgId?: string
+    procurementSnapshotReference?: string
+    purchaseOrderChangeId: string
+    purchaseOrderId: string
+  }
+
+  export interface PaymentRequestSummary {
+    currencyCode: string
+    paymentRequestId: string
+    requestNo: string
+    requestSource: PaymentRequestSource | string
+    requestedAmount: string
+    requestedAt: string
+    status: PaymentRequestStatus | string
+    supplierDisplayName: string
+    supplierTenantPartyId: string
+  }
+
+  export interface PaymentRequestListQuery {
+    beneficiarySupplierFinancialAccountId?: string
+    orgId?: string
+    page?: number
+    pageSize?: number
+    requestedFrom?: string
+    requestedTo?: string
+    requestSource?: PaymentRequestSource
+    sourcePurchaseOrderId?: string
+    status?: PaymentRequestStatus
+    supplierTenantPartyId?: string
+  }
+
+  export interface PaymentRequestListResult {
+    page: number
+    pageSize: number
+    paymentRequests: PaymentRequestSummary[]
+    total: number
+  }
+
+  export interface PaymentRequestLine {
+    isEarlyRequest: boolean
+    lineStatus: string
+    payableScheduleId: string
+    payableScheduleLineId: string
+    paymentRequestLineId: string
+    requestedAmount: string
+    scheduleDueDate: string
+  }
+
+  export interface SupplierBillEvidenceSnapshot {
+    attachmentRef: string
+    capturedAt: string
+    currencyCode: string
+    documentAmount: string
+    documentDate: string
+    evidenceSnapshotId: string
+    evidenceType: string
+    externalDocumentNo: string
+    note: string
+  }
+
+  export interface PaymentRequest {
+    beneficiarySupplierFinancialAccountId: string
+    currencyCode: string
+    evidenceSnapshots: SupplierBillEvidenceSnapshot[]
+    lines: PaymentRequestLine[]
+    orgId: string
+    paymentRequestId: string
+    reason: string
+    requestNo: string
+    requestSource: PaymentRequestSource | string
+    requestedAmount: string
+    requestedAt: string
+    sourcePurchaseOrderId: string
+    status: PaymentRequestStatus | string
+    supplierTenantPartyId: string
+    tenantId: string
+    updatedAt: string
+  }
+
+  export interface PaymentRequestLineInput {
+    payableScheduleId: string
+    payableScheduleLineId: string
+    requestedAmount: string
+  }
+
+  export interface SupplierBillEvidenceSnapshotInput {
+    attachmentRef?: string
+    currencyCode?: string
+    documentAmount?: string
+    documentDate?: string
+    evidenceType: string
+    externalDocumentNo?: string
+    note?: string
+  }
+
+  export interface CreatePaymentRequestPayload {
+    auditReason?: string
+    beneficiarySupplierFinancialAccountId: string
+    currencyCode: string
+    evidenceSnapshots?: SupplierBillEvidenceSnapshotInput[]
+    orgId?: string
+    reason?: string
+    requestedAmount: string
+    requestedLines: PaymentRequestLineInput[]
+    requestSource: PaymentRequestSource
+    sourcePurchaseOrderId?: string
+    supplierTenantPartyId: string
+  }
+
+  export interface DecidePaymentRequestPayload {
+    auditReason?: string
+    decision: 'APPROVED' | 'REJECTED'
+    decisionReason?: string
+  }
+
+  export interface PaymentExecutionSummary {
+    currencyCode: string
+    executedAmount: string
+    executedAt: string
+    paymentExecutionId: string
+    paymentRequestId: string
+    status: PaymentExecutionStatus | string
+    supplierTenantPartyId: string
+  }
+
+  export interface PaymentExecutionListQuery {
+    executedFrom?: string
+    executedTo?: string
+    linkedAccountTransactionId?: string
+    orgId?: string
+    page?: number
+    pageSize?: number
+    paymentRequestId?: string
+    sourceFinancialAccountId?: string
+    status?: PaymentExecutionStatus
+    supplierTenantPartyId?: string
+  }
+
+  export interface PaymentExecutionListResult {
+    page: number
+    pageSize: number
+    paymentExecutions: PaymentExecutionSummary[]
+    total: number
+  }
+
+  export interface PaymentExecution {
+    attachmentRefs: string[]
+    beneficiaryAccountSnapshot: string
+    beneficiarySupplierFinancialAccountId: string
+    currencyCode: string
+    executedAmount: string
+    executedAt: string
+    executionReference: string
+    linkedAccountTransactionId: string
+    paymentExecutionId: string
+    paymentRequestId: string
+    sourceFinancialAccountId: string
+    status: PaymentExecutionStatus | string
+  }
+
+  export interface ExecutePaymentRequestPayload {
+    attachmentRefs?: string[]
+    auditReason?: string
+    currencyCode: string
+    executedAmount: string
+    executedAt: string
+    executionReference?: string
+    linkedAccountTransactionId?: string
+    sourceFinancialAccountId: string
+  }
+
+  export interface ExecutePaymentRequestResult {
+    paymentExecution: PaymentExecution
+    paymentRequest: PaymentRequest
+  }
+
+  export interface AllocatePaymentToPayableItem {
+    allocatedAmount: string
+    payableScheduleId: string
+    payableScheduleLineId: string
+  }
+
+  export interface AllocatePaymentToPayablePayload {
+    accountTransactionId: string
+    allocations: AllocatePaymentToPayableItem[]
+    auditReason?: string
+    paymentExecutionId?: string
   }
 }
 
@@ -566,6 +897,114 @@ export async function allocatePaymentToReceivableApi(
 ) {
   return requestClient.post<FinanceApi.PaymentAllocation[]>(
     `/finance/tenants/${tenantId}/payment-allocations/allocate-to-receivable`,
+    payload
+  )
+}
+
+// Lists finance payable schedules for the tenant finance workspace.
+export async function listPayableSchedulesApi(
+  tenantId: string,
+  query: FinanceApi.PayableScheduleListQuery
+) {
+  return requestClient.get<FinanceApi.PayableScheduleListResult>(
+    `/finance/tenants/${tenantId}/payable-schedules`,
+    { params: query }
+  )
+}
+
+// Loads one finance payable schedule detail snapshot by id.
+export async function getPayableScheduleByIdApi(tenantId: string, payableScheduleId: string) {
+  return requestClient.get<FinanceApi.PayableSchedule>(
+    `/finance/tenants/${tenantId}/payable-schedules/${payableScheduleId}`
+  )
+}
+
+// Creates one finance payable schedule from a controlled purchase-order summary.
+export async function createPayableScheduleFromPurchaseOrderApi(
+  tenantId: string,
+  payload: FinanceApi.CreatePayableScheduleFromPurchaseOrderPayload
+) {
+  return requestClient.post<FinanceApi.PayableSchedule>(
+    `/finance/tenants/${tenantId}/payable-schedules/from-purchase-order`,
+    payload
+  )
+}
+
+// Applies a controlled purchase-order change to one finance payable schedule.
+export async function applyPayableScheduleAdjustmentFromPurchaseOrderChangeApi(
+  tenantId: string,
+  payload: FinanceApi.ApplyPayableScheduleAdjustmentFromPurchaseOrderChangePayload
+) {
+  return requestClient.post<FinanceApi.PayableSchedule>(
+    `/finance/tenants/${tenantId}/payable-schedules/from-purchase-order-change`,
+    payload
+  )
+}
+
+// Lists finance payment requests for phase 1B payment governance.
+export async function listPaymentRequestsApi(
+  tenantId: string,
+  query: FinanceApi.PaymentRequestListQuery
+) {
+  return requestClient.get<FinanceApi.PaymentRequestListResult>(
+    `/finance/tenants/${tenantId}/payment-requests`,
+    { params: query }
+  )
+}
+
+// Creates one finance payment request without changing payable truth.
+export async function createPaymentRequestApi(
+  tenantId: string,
+  payload: FinanceApi.CreatePaymentRequestPayload
+) {
+  return requestClient.post<FinanceApi.PaymentRequest>(
+    `/finance/tenants/${tenantId}/payment-requests`,
+    payload
+  )
+}
+
+// Approves or rejects one finance payment request.
+export async function decidePaymentRequestApi(
+  tenantId: string,
+  paymentRequestId: string,
+  payload: FinanceApi.DecidePaymentRequestPayload
+) {
+  return requestClient.post<FinanceApi.PaymentRequest>(
+    `/finance/tenants/${tenantId}/payment-requests/${paymentRequestId}/decisions`,
+    payload
+  )
+}
+
+// Lists finance payment execution records without exposing company account balances.
+export async function listPaymentExecutionsApi(
+  tenantId: string,
+  query: FinanceApi.PaymentExecutionListQuery
+) {
+  return requestClient.get<FinanceApi.PaymentExecutionListResult>(
+    `/finance/tenants/${tenantId}/payment-executions`,
+    { params: query }
+  )
+}
+
+// Records one finance payment execution without creating account-transaction truth.
+export async function executePaymentRequestApi(
+  tenantId: string,
+  paymentRequestId: string,
+  payload: FinanceApi.ExecutePaymentRequestPayload
+) {
+  return requestClient.post<FinanceApi.ExecutePaymentRequestResult>(
+    `/finance/tenants/${tenantId}/payment-requests/${paymentRequestId}/executions`,
+    payload
+  )
+}
+
+// Allocates one real outflow transaction to payable schedule lines.
+export async function allocatePaymentToPayableApi(
+  tenantId: string,
+  payload: FinanceApi.AllocatePaymentToPayablePayload
+) {
+  return requestClient.post<FinanceApi.PaymentAllocation[]>(
+    `/finance/tenants/${tenantId}/payment-allocations/allocate-to-payable`,
     payload
   )
 }

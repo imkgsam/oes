@@ -94,20 +94,8 @@ describe('PrismaApiKeyRepository L2', () => {
   })
 
   it('APIKey 仓储 / 当附加 tenant scope 与 service account 所属租户不匹配时 / 应返回空结果', async () => {
-    const tenant = await prisma.tenant.create({
-      data: {
-        id: `${prefix}_tenant`,
-        name: `${prefix}_tenant_name`,
-        code: `${prefix}_tenant_code`
-      }
-    })
-    const otherTenant = await prisma.tenant.create({
-      data: {
-        id: `${prefix}_tenant_other`,
-        name: `${prefix}_tenant_name_other`,
-        code: `${prefix}_tenant_code_other`
-      }
-    })
+    const tenant = { id: `${prefix}_tenant` }
+    const otherTenant = { id: `${prefix}_tenant_other` }
     const serviceAccount = await prisma.serviceAccount.create({
       data: {
         id: `${prefix}_service_account_tenant`,

@@ -359,6 +359,33 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
   }
 
   /**
+   * 删除指定 tenant 下所有 active TENANT scope sessions，用于租户停用/归档后的认证态收敛。
+   */
+  async deleteActiveTenantScopeSessionsByTenantId(tenantId: string): Promise<number> {
+    const normalizedTenantId = tenantId.trim()
+    if (!normalizedTenantId) {
+      return 0
+    }
+
+    const sessionIds = await this.listAllSessionIds()
+    let deletedCount = 0
+
+    for (const sessionId of sessionIds) {
+      const session = await this.findById(sessionId)
+      if (
+        session?.isActive() &&
+        session.getScopeLevel() === 'TENANT' &&
+        session.getTenantId() === normalizedTenantId
+      ) {
+        await this.delete(session.getId())
+        deletedCount++
+      }
+    }
+
+    return deletedCount
+  }
+
+  /**
    * 删除设备的所有 Session
    *
    * 使用场景：

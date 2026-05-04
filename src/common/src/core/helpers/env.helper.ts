@@ -9,7 +9,7 @@
  */
 export const isDevelopment = (): boolean => {
   const nodeEnv = process.env.NODE_ENV
-  return nodeEnv === 'development' || nodeEnv === 'test'
+  return !nodeEnv || nodeEnv === 'development' || nodeEnv === 'test'
 }
 
 /**
@@ -79,15 +79,6 @@ export const envConfig = {
    */
   logLevel: process.env.LOG_LEVEL || (isDevelopment() ? 'debug' : 'info')
 } as const
-
-// 调试信息：在模块加载时打印环境配置
-console.log('🔧 Environment Config:', {
-  NODE_ENV: process.env.NODE_ENV,
-  isDevelopment: isDevelopment(),
-  showDebugInfo: envConfig.showDebugInfo,
-  showRpcPattern: envConfig.showRpcPattern,
-  SHOW_RPC_PATTERN: process.env.SHOW_RPC_PATTERN
-})
 
 /**
  * 根据环境条件执行不同的逻辑

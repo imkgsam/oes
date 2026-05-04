@@ -24,6 +24,9 @@ describe('HrManagementService', () => {
   const authAdapter = {
     listLoginMethods: jest.fn()
   }
+  const partyTenantQueryAdapter = {
+    getTenantPartyById: jest.fn()
+  }
   const permissionService = {
     listAccountRoles: jest.fn()
   }
@@ -36,6 +39,7 @@ describe('HrManagementService', () => {
     hrMutationAdapter as any,
     identityQueryAdapter as any,
     authAdapter as any,
+    partyTenantQueryAdapter as any,
     permissionService as any,
     orgManagementService as any
   )
@@ -54,6 +58,7 @@ describe('HrManagementService', () => {
     identityQueryAdapter.getAccountById.mockReset()
     identityQueryAdapter.getEmployeeBindingByAccountId.mockReset()
     authAdapter.listLoginMethods.mockReset()
+    partyTenantQueryAdapter.getTenantPartyById.mockReset()
     permissionService.listAccountRoles.mockReset()
     orgManagementService.getOrgUnitDetail.mockReset()
   })
@@ -280,8 +285,7 @@ describe('HrManagementService', () => {
             id: 'party-legacy',
             type: 'ORGANIZATION',
             status: 'ACTIVE',
-            displayName: '华东制造主体',
-            canonicalName: '华东制造主体有限公司'
+            legalName: '华东制造主体有限公司'
           }
         }
       })
@@ -343,8 +347,7 @@ describe('HrManagementService', () => {
               id: 'party-legacy',
               type: 'ORGANIZATION',
               status: 'ACTIVE',
-              displayName: '华东制造主体',
-              canonicalName: '华东制造主体有限公司'
+              legalName: '华东制造主体有限公司'
             }
           }
         }

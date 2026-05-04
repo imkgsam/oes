@@ -57,10 +57,20 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
           protoPath: [resolveCommonProtoPath('party_service/party.proto')],
           packageName: 'party_service',
           url: resolveGrpcUrl('GRPC_SERVICE_PARTY_URL', '127.0.0.1:50053')
+        },
+        [SERVICE_NAMES.TENANT_ORG]: {
+          serviceName: SERVICE_NAMES.TENANT_ORG,
+          protoPath: resolveCommonProtoPath('tenant_org_service/tenant_org.proto'),
+          packageName: 'tenant_org_service',
+          url: resolveGrpcUrl('TENANT_ORG_GRPC_URL', '127.0.0.1:50054')
         }
       }
     }),
-    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION, SERVICE_NAMES.PARTY]),
+    GrpcTransportModule.forFeature([
+      SERVICE_NAMES.PERMISSION,
+      SERVICE_NAMES.PARTY,
+      SERVICE_NAMES.TENANT_ORG
+    ]),
     AuthorizationModule,
     IdentityAuditModule,
     IdentityMachineAuthModule,

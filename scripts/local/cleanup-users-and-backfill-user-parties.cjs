@@ -44,7 +44,6 @@ async function loadTargetUsers() {
     include: {
       userAccounts: {
         include: {
-          orgMemberships: true,
           contactAssets: true,
         },
       },
@@ -111,7 +110,6 @@ async function deleteTargetUsers(targets) {
   ]);
 
   await identity.$transaction([
-    identity.userAccountOrgMembership.deleteMany({ where: { accountId: { in: accountIds } } }),
     identity.accountContactAsset.deleteMany({ where: { accountId: { in: accountIds } } }),
     identity.userAccount.deleteMany({ where: { id: { in: accountIds } } }),
     identity.user.deleteMany({ where: { id: { in: userIds } } }),
@@ -141,17 +139,15 @@ async function backfillRemainingUsers() {
       continue;
     }
 
-    const canonicalName = resolveCanonicalName(user);
+    const legalName = resolveLegalName(user);
     const createdParty = await party.party.create({
       data: {
         type: 'PERSON',
         status: 'ACTIVE',
-        canonicalName,
-        displayName: canonicalName,
+        legalName,
         personParty: {
           create: {
-            legalName: canonicalName,
-            preferredName: canonicalName,
+            preferredName: legalName,
           },
         },
       },
@@ -189,7 +185,7 @@ async function backfillRemainingUsers() {
 }
 
 // Picks the least-wrong current human-readable name source until UI and creation flows stop conflating usernames and account display names.
-function resolveCanonicalName(user) {
+function resolveLegalName(user) {
   const accountDisplayName = user.userAccounts
     .map((account) => normalize(account.displayName))
     .find(Boolean);

@@ -48,6 +48,7 @@ export class PrismaEmploymentRepository implements EmploymentRepository {
             tenantId: input.tenantId,
             employeeId: input.employeeId,
             orgUnitId: input.orgUnitId,
+            positionName: input.positionName ?? null,
             status: EmploymentStatus.ACTIVE,
             effectiveFrom: input.effectiveFrom,
             activeSlot: input.employeeId
@@ -215,6 +216,7 @@ export function mapEmployment(employment: {
   tenantId: string
   employeeId: string
   orgUnitId: string
+  positionName: string | null
   status: string
   effectiveFrom: Date
   effectiveTo: Date | null
@@ -225,6 +227,7 @@ export function mapEmployment(employment: {
     tenantId: employment.tenantId,
     employeeId: employment.employeeId,
     orgUnitId: employment.orgUnitId,
+    positionName: employment.positionName,
     status: employment.status as EmploymentStatus,
     effectiveFrom: employment.effectiveFrom,
     effectiveTo: employment.effectiveTo,

@@ -8,6 +8,7 @@ describe('TenantManagementController', () => {
     createTenant: jest.fn(),
     getTenantById: jest.fn(),
     listTenants: jest.fn(),
+    searchFirstAdminExistingUsers: jest.fn(),
     updateTenantProfile: jest.fn(),
     updateTenantStatus: jest.fn()
   }
@@ -26,6 +27,12 @@ describe('TenantManagementController', () => {
       permissions: ['tenant_org.tenant.get_by_id']
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, TenantManagementController.prototype.createTenant)).toEqual({
+      type: 'ALL',
+      permissions: ['tenant_org.tenant.create']
+    })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, TenantManagementController.prototype.searchFirstAdminExistingUsers)
+    ).toEqual({
       type: 'ALL',
       permissions: ['tenant_org.tenant.create']
     })

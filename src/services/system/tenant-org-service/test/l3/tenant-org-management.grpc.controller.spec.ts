@@ -17,11 +17,22 @@ function createTenantOrgManagementServiceMock() {
   }
 }
 
+/** createTenantOnboardingServiceMock builds the tenant onboarding service double for gRPC mapping tests. */
+function createTenantOnboardingServiceMock() {
+  return {
+    start: jest.fn(),
+    get: jest.fn(),
+    retry: jest.fn()
+  }
+}
+
 describe('TenantOrgManagementGrpcController L3', () => {
   it('createTenant / should map root org result to proto response', async () => {
     const service = createTenantOrgManagementServiceMock()
+    const onboardingService = createTenantOnboardingServiceMock()
     const controller = new TenantOrgManagementGrpcController(
-      service as unknown as TenantOrgManagementService
+      service as unknown as TenantOrgManagementService,
+      onboardingService as any
     )
     service.createTenant.mockResolvedValue({
       tenant: {
@@ -57,8 +68,10 @@ describe('TenantOrgManagementGrpcController L3', () => {
 
   it('moveOrgUnit / should surface invalid move errors from the application layer', async () => {
     const service = createTenantOrgManagementServiceMock()
+    const onboardingService = createTenantOnboardingServiceMock()
     const controller = new TenantOrgManagementGrpcController(
-      service as unknown as TenantOrgManagementService
+      service as unknown as TenantOrgManagementService,
+      onboardingService as any
     )
     service.moveOrgUnit.mockRejectedValue(
       new BadRequestException('Cannot move org unit below its descendant')
@@ -75,8 +88,10 @@ describe('TenantOrgManagementGrpcController L3', () => {
 
   it('updateOrgUnit / when organizationPartyId is sent as empty string / should forward explicit clear semantics', async () => {
     const service = createTenantOrgManagementServiceMock()
+    const onboardingService = createTenantOnboardingServiceMock()
     const controller = new TenantOrgManagementGrpcController(
-      service as unknown as TenantOrgManagementService
+      service as unknown as TenantOrgManagementService,
+      onboardingService as any
     )
     service.updateOrgUnit.mockResolvedValue({
       id: 'org-1',
@@ -104,6 +119,58 @@ describe('TenantOrgManagementGrpcController L3', () => {
       type: undefined,
       sortOrder: undefined,
       organizationPartyId: null
+    })
+  })
+
+  it('startTenantOnboarding / should include first-admin employee and account.basic refs in the result contract', async () => {
+    const service = createTenantOrgManagementServiceMock()
+    const onboardingService = createTenantOnboardingServiceMock()
+    onboardingService.start.mockResolvedValue({
+      onboardingId: 'onboarding-1',
+      status: 'SUCCEEDED',
+      firstAdminEmployee: {
+        employeeId: 'employee-first-admin',
+        employmentId: 'employment-first-admin',
+        accessProcessId: 'access-first-admin'
+      },
+      access: {
+        roleCode: 'tenant.admin',
+        roleId: 'role-tenant-admin',
+        grantId: 'grant-tenant-admin',
+        hrAdminRoleCode: 'hr.admin',
+        hrAdminRoleId: 'role-hr-admin',
+        hrAdminGrantId: 'grant-hr-admin',
+        accountBasicRoleCode: 'account.basic',
+        accountBasicRoleId: 'role-account-basic'
+      },
+      steps: [],
+      failure: null
+    })
+    const controller = new TenantOrgManagementGrpcController(
+      service as unknown as TenantOrgManagementService,
+      onboardingService as any
+    )
+
+    const result = await controller.startTenantOnboarding({
+      idempotencyKey: 'onboarding-key-1',
+      tenant: { code: 'acme', name: 'ACME' },
+      organizationParty: {
+        legalName: 'ACME Inc.',
+        registeredCountry: 'US',
+        identifiers: [{ identifierType: 'EIN', rawValue: '12-3456789' }]
+      },
+      rootOrg: { name: 'ACME Inc.' },
+      firstAdmin: { displayName: 'Alice Admin', email: 'alice@example.com' }
+    } as any)
+
+    expect((result.onboarding as any).firstAdminEmployee).toEqual({
+      employeeId: 'employee-first-admin',
+      employmentId: 'employment-first-admin',
+      accessProcessId: 'access-first-admin'
+    })
+    expect(result.onboarding?.access).toMatchObject({
+      accountBasicRoleCode: 'account.basic',
+      accountBasicRoleId: 'role-account-basic'
     })
   })
 })

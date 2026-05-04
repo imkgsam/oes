@@ -169,6 +169,13 @@ export const AUTH_ACCOUNT_DISABLED: ExceptionDefinition = {
   rpcStatus: status.FAILED_PRECONDITION
 }
 
+export const AUTH_TENANT_NOT_ACTIVE: ExceptionDefinition = {
+  code: 'AUTH_TENANT_NOT_ACTIVE',
+  message: 'Tenant is not active for authentication',
+  messageKey: 'auth.tenant_not_active',
+  rpcStatus: status.FAILED_PRECONDITION
+}
+
 export const AUTH_SESSION_NOT_FOUND: ExceptionDefinition = {
   code: 'AUTH_SESSION_NOT_FOUND',
   message: 'Session was not found',

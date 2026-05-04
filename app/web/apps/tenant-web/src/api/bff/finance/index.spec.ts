@@ -12,12 +12,78 @@ vi.mock('#/api/request', () => ({
   }
 }))
 
-// Verifies the tenant-web finance API client stays aligned with the gateway phase 1A finance BFF surface.
+// Verifies the tenant-web finance API client stays aligned with the gateway phase 1A/1B finance BFF surface.
 describe('tenant-web finance api', () => {
   beforeEach(() => {
     get.mockReset()
     post.mockReset()
     put.mockReset()
+  })
+
+  it('lists and loads the phase 1B payable and payment read surface', async () => {
+    const {
+      getPayableScheduleByIdApi,
+      listPayableSchedulesApi,
+      listPaymentAllocationsApi,
+      listPaymentExecutionsApi,
+      listPaymentRequestsApi
+    } = await import('./index')
+
+    await listPayableSchedulesApi('tenant-1', {
+      page: 1,
+      pageSize: 20,
+      requestGovernanceStatus: 'DUE_NO_REQUEST'
+    })
+    await getPayableScheduleByIdApi('tenant-1', 'ps-1')
+    await listPaymentRequestsApi('tenant-1', {
+      page: 1,
+      pageSize: 20,
+      status: 'SUBMITTED'
+    })
+    await listPaymentExecutionsApi('tenant-1', {
+      page: 1,
+      pageSize: 20,
+      paymentRequestId: 'pr-1'
+    })
+    await listPaymentAllocationsApi('tenant-1', {
+      page: 1,
+      pageSize: 20,
+      paymentExecutionId: 'pe-1',
+      targetScheduleId: 'ps-1',
+      targetType: 'PAYABLE_SCHEDULE_LINE'
+    })
+
+    expect(get).toHaveBeenCalledWith('/finance/tenants/tenant-1/payable-schedules', {
+      params: {
+        page: 1,
+        pageSize: 20,
+        requestGovernanceStatus: 'DUE_NO_REQUEST'
+      }
+    })
+    expect(get).toHaveBeenCalledWith('/finance/tenants/tenant-1/payable-schedules/ps-1')
+    expect(get).toHaveBeenCalledWith('/finance/tenants/tenant-1/payment-requests', {
+      params: {
+        page: 1,
+        pageSize: 20,
+        status: 'SUBMITTED'
+      }
+    })
+    expect(get).toHaveBeenCalledWith('/finance/tenants/tenant-1/payment-executions', {
+      params: {
+        page: 1,
+        pageSize: 20,
+        paymentRequestId: 'pr-1'
+      }
+    })
+    expect(get).toHaveBeenCalledWith('/finance/tenants/tenant-1/payment-allocations', {
+      params: {
+        page: 1,
+        pageSize: 20,
+        paymentExecutionId: 'pe-1',
+        targetScheduleId: 'ps-1',
+        targetType: 'PAYABLE_SCHEDULE_LINE'
+      }
+    })
   })
 
   it('lists and loads financial accounts, account transactions, receivable schedules, allocations, exchange rates, and release signals', async () => {
@@ -220,6 +286,90 @@ describe('tenant-web finance api', () => {
     expect(post).toHaveBeenCalledWith('/finance/tenants/tenant-1/payment-allocations/allocate-to-receivable', {
       accountTransactionId: 'txn-1',
       allocations: []
+    })
+  })
+
+  it('creates and mutates the phase 1B payable/payment command surface without expanding full AP', async () => {
+    const {
+      allocatePaymentToPayableApi,
+      applyPayableScheduleAdjustmentFromPurchaseOrderChangeApi,
+      createPayableScheduleFromPurchaseOrderApi,
+      createPaymentRequestApi,
+      decidePaymentRequestApi,
+      executePaymentRequestApi
+    } = await import('./index')
+
+    await createPayableScheduleFromPurchaseOrderApi('tenant-1', {
+      currencyCode: 'USD',
+      lines: [],
+      purchaseOrderId: 'po-1',
+      supplierSnapshot: 'Supplier One',
+      supplierTenantPartyId: 'supplier-1'
+    })
+    await applyPayableScheduleAdjustmentFromPurchaseOrderChangeApi('tenant-1', {
+      adjustments: [],
+      purchaseOrderChangeId: 'po-change-1',
+      purchaseOrderId: 'po-1'
+    })
+    await createPaymentRequestApi('tenant-1', {
+      beneficiarySupplierFinancialAccountId: 'supplier-account-1',
+      currencyCode: 'USD',
+      requestSource: 'FINANCE_INITIATED',
+      requestedAmount: '300.00',
+      requestedLines: [],
+      supplierTenantPartyId: 'supplier-1'
+    })
+    await decidePaymentRequestApi('tenant-1', 'pr-1', {
+      decision: 'APPROVED'
+    })
+    await executePaymentRequestApi('tenant-1', 'pr-1', {
+      currencyCode: 'USD',
+      executedAmount: '300.00',
+      executedAt: '2026-04-28T13:00:00.000Z',
+      sourceFinancialAccountId: 'fa-1'
+    })
+    await allocatePaymentToPayableApi('tenant-1', {
+      accountTransactionId: 'txn-out-1',
+      allocations: [],
+      paymentExecutionId: 'pe-1'
+    })
+
+    expect(post).toHaveBeenCalledWith('/finance/tenants/tenant-1/payable-schedules/from-purchase-order', {
+      currencyCode: 'USD',
+      lines: [],
+      purchaseOrderId: 'po-1',
+      supplierSnapshot: 'Supplier One',
+      supplierTenantPartyId: 'supplier-1'
+    })
+    expect(post).toHaveBeenCalledWith(
+      '/finance/tenants/tenant-1/payable-schedules/from-purchase-order-change',
+      {
+        adjustments: [],
+        purchaseOrderChangeId: 'po-change-1',
+        purchaseOrderId: 'po-1'
+      }
+    )
+    expect(post).toHaveBeenCalledWith('/finance/tenants/tenant-1/payment-requests', {
+      beneficiarySupplierFinancialAccountId: 'supplier-account-1',
+      currencyCode: 'USD',
+      requestSource: 'FINANCE_INITIATED',
+      requestedAmount: '300.00',
+      requestedLines: [],
+      supplierTenantPartyId: 'supplier-1'
+    })
+    expect(post).toHaveBeenCalledWith('/finance/tenants/tenant-1/payment-requests/pr-1/decisions', {
+      decision: 'APPROVED'
+    })
+    expect(post).toHaveBeenCalledWith('/finance/tenants/tenant-1/payment-requests/pr-1/executions', {
+      currencyCode: 'USD',
+      executedAmount: '300.00',
+      executedAt: '2026-04-28T13:00:00.000Z',
+      sourceFinancialAccountId: 'fa-1'
+    })
+    expect(post).toHaveBeenCalledWith('/finance/tenants/tenant-1/payment-allocations/allocate-to-payable', {
+      accountTransactionId: 'txn-out-1',
+      allocations: [],
+      paymentExecutionId: 'pe-1'
     })
   })
 })

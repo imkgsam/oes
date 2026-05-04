@@ -48,7 +48,8 @@ describe('LoginWithEmailPasswordHandler', () => {
       authStrategyFactory as any,
       authAuditService as any,
       loginRiskThrottleService as any,
-      identityService as any
+      identityService as any,
+      { filterActiveAccountCandidates: jest.fn() } as any
     )
 
     await expect(
@@ -112,7 +113,10 @@ describe('LoginWithEmailPasswordHandler', () => {
       authStrategyFactory as any,
       authAuditService as any,
       loginRiskThrottleService as any,
-      identityService as any
+      identityService as any,
+      {
+        filterActiveAccountCandidates: jest.fn(async (accounts) => accounts)
+      } as any
     )
 
     const result = await handler.execute(
@@ -133,5 +137,58 @@ describe('LoginWithEmailPasswordHandler', () => {
       ]
     })
     expect(authAuditService.emitMfaChallengeCreated).not.toHaveBeenCalled()
+  })
+
+  it('filters account selection candidates through tenant-org lifecycle truth', async () => {
+    const strategy = {
+      authenticate: jest.fn().mockResolvedValue('user-1')
+    }
+    const authStrategyFactory = {
+      get: jest.fn().mockReturnValue(strategy)
+    }
+    const authAuditService = {
+      emitLoginBlocked: jest.fn(),
+      emitLoginFailed: jest.fn()
+    }
+    const loginRiskThrottleService = {
+      assertPasswordLoginAllowed: jest.fn().mockResolvedValue(undefined),
+      recordPasswordLoginFailure: jest.fn(),
+      clearPasswordLoginFailures: jest.fn().mockResolvedValue(undefined)
+    }
+    const accounts = [
+      {
+        accountId: 'active-account',
+        tenantId: 'tenant-active',
+        scopeLevel: 'TENANT',
+        displayName: 'Active Tenant'
+      },
+      {
+        accountId: 'suspended-account',
+        tenantId: 'tenant-suspended',
+        scopeLevel: 'TENANT',
+        displayName: 'Suspended Tenant'
+      }
+    ]
+    const identityService = {
+      getUserByEmail: jest.fn(),
+      getAvailableAccountsByUserId: jest.fn().mockResolvedValue(accounts)
+    }
+    const tenantSessionAccessService = {
+      filterActiveAccountCandidates: jest.fn().mockResolvedValue([accounts[0]])
+    }
+    const handler = new LoginWithEmailPasswordHandler(
+      authStrategyFactory as any,
+      authAuditService as any,
+      loginRiskThrottleService as any,
+      identityService as any,
+      tenantSessionAccessService as any
+    )
+
+    const result = await handler.execute(
+      new LoginWithEmailPasswordCommand('user@example.com', 'correct-password')
+    )
+
+    expect(tenantSessionAccessService.filterActiveAccountCandidates).toHaveBeenCalledWith(accounts)
+    expect(result.accounts).toEqual([accounts[0]])
   })
 })

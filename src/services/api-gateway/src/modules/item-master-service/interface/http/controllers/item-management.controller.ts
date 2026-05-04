@@ -5,12 +5,17 @@ import { DownstreamSource } from '../../../../../common/decorators/downstream-so
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { ItemManagementService } from '../../../item-management.service'
 import {
+  ChangeItemCategoryStatusDto,
   ChangeItemStatusDto,
+  CreateItemCategoryDto,
   CreateItemDto,
+  ListItemCategoriesDto,
   ListItemsDto,
   ListSupplierMappingsDto,
+  SetItemPrimaryCategoryDto,
   SetItemCapabilitiesDto,
   SetItemCompositionDto,
+  UpdateItemCategoryBasicsDto,
   UpdateItemBasicsDto,
   UpsertSupplierItemMappingDto
 } from '../dtos/item-management.dto'
@@ -18,9 +23,14 @@ import {
 const ITEM_MANAGEMENT_PERMISSIONS = {
   CREATE_ITEM: 'item_master.item.create',
   LIST_ITEM: 'item_master.item.list',
+  LIST_ITEM_CATEGORIES: 'item_master.item_category.list',
   LIST_SUPPLIER_ITEM_MAPPINGS: 'item_master.supplier_item_mapping.list_by_item',
+  CREATE_ITEM_CATEGORY: 'item_master.item_category.create',
   SET_ITEM_CAPABILITIES: 'item_master.item.set_capabilities',
   SET_ITEM_COMPOSITION: 'item_master.item.set_composition',
+  SET_ITEM_PRIMARY_CATEGORY: 'item_master.item.set_primary_category',
+  UPDATE_ITEM_CATEGORY_BASICS: 'item_master.item_category.update_basics',
+  UPDATE_ITEM_CATEGORY_STATUS: 'item_master.item_category.update_status',
   UPDATE_ITEM_BASICS: 'item_master.item.update_basics',
   UPDATE_ITEM_STATUS: 'item_master.item.update_status',
   UPSERT_SUPPLIER_ITEM_MAPPING: 'item_master.supplier_item_mapping.upsert',
@@ -46,12 +56,31 @@ export class ItemManagementController {
       tenantId,
       {
         capability: query.capability,
+        categoryId: query.categoryId,
+        includeDescendants: query.includeDescendants,
         keyword: query.keyword,
         natureType: query.natureType,
         page: query.page || 1,
         pageSize: query.pageSize || 20,
         status: query.status,
         structureType: query.structureType
+      },
+      source
+    )
+  }
+
+  @Get('categories')
+  @PermissionCheckAll([ITEM_MANAGEMENT_PERMISSIONS.LIST_ITEM_CATEGORIES])
+  @ApiOperation({ summary: 'List one tenant-scoped item category tree layer' })
+  async listItemCategories(
+    @Param('tenantId') tenantId: string,
+    @Query() query: ListItemCategoriesDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.itemManagementService.listItemCategories(
+      tenantId,
+      {
+        parentCategoryId: query.parentCategoryId
       },
       source
     )
@@ -78,6 +107,18 @@ export class ItemManagementController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.itemManagementService.createItem(tenantId, body, source)
+  }
+
+  @Post('categories')
+  @PermissionCheckAll([ITEM_MANAGEMENT_PERMISSIONS.CREATE_ITEM_CATEGORY])
+  @ApiOperation({ summary: 'Create one lightweight item category node' })
+  @ApiBody({ type: CreateItemCategoryDto })
+  async createItemCategory(
+    @Param('tenantId') tenantId: string,
+    @Body() body: CreateItemCategoryDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.itemManagementService.createItemCategory(tenantId, body, source)
   }
 
   @Patch('items/:itemId/basics')
@@ -174,5 +215,54 @@ export class ItemManagementController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.itemManagementService.changeItemStatus(tenantId, itemId, body, source)
+  }
+
+  @Patch('categories/:categoryId/basics')
+  @PermissionCheckAll([ITEM_MANAGEMENT_PERMISSIONS.UPDATE_ITEM_CATEGORY_BASICS])
+  @ApiOperation({ summary: 'Update one lightweight item category code and name' })
+  @ApiBody({ type: UpdateItemCategoryBasicsDto })
+  async updateItemCategoryBasics(
+    @Param('tenantId') tenantId: string,
+    @Param('categoryId') categoryId: string,
+    @Body() body: UpdateItemCategoryBasicsDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.itemManagementService.updateItemCategoryBasics(
+      tenantId,
+      categoryId,
+      body,
+      source
+    )
+  }
+
+  @Patch('categories/:categoryId/status')
+  @PermissionCheckAll([ITEM_MANAGEMENT_PERMISSIONS.UPDATE_ITEM_CATEGORY_STATUS])
+  @ApiOperation({ summary: 'Change one lightweight item category lifecycle status' })
+  @ApiBody({ type: ChangeItemCategoryStatusDto })
+  async changeItemCategoryStatus(
+    @Param('tenantId') tenantId: string,
+    @Param('categoryId') categoryId: string,
+    @Body() body: ChangeItemCategoryStatusDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.itemManagementService.changeItemCategoryStatus(
+      tenantId,
+      categoryId,
+      body,
+      source
+    )
+  }
+
+  @Put('items/:itemId/primary-category')
+  @PermissionCheckAll([ITEM_MANAGEMENT_PERMISSIONS.SET_ITEM_PRIMARY_CATEGORY])
+  @ApiOperation({ summary: 'Set or clear one item primary category' })
+  @ApiBody({ type: SetItemPrimaryCategoryDto })
+  async setItemPrimaryCategory(
+    @Param('tenantId') tenantId: string,
+    @Param('itemId') itemId: string,
+    @Body() body: SetItemPrimaryCategoryDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.itemManagementService.setItemPrimaryCategory(tenantId, itemId, body, source)
   }
 }

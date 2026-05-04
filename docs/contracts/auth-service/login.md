@@ -44,6 +44,7 @@
 - 账户候选语义：
   - `accounts[]` 只携带 `account_id / tenant_id / scope_level / display_name`
   - 若调用方仍需要 tenant 名称，应在 gateway / BFF 通过 `tenant-org-service` 按 `tenant_id` 聚合补水
+  - 候选列表不把 tenant lifecycle 作为本地 truth；最终账号选择必须由 `auth-service` 通过 `tenant-org-service.GetTenantById` 校验 `TENANT` scope account 的 tenant status
 - 权限与上下文要求：
   - 不采用 `checkPermission`
   - 不采用 `buildQueryScope`
@@ -159,6 +160,30 @@
 - 权限与上下文要求：
   - 不采用资源授权模型
   - 依赖 OTP 校验与认证流程状态机
+
+### `SelectAccount`
+
+- 作用：在一个自然人存在多个账号上下文时选择目标账号并建立 session，或进入登录 MFA。
+- 请求关键字段：
+  - `user_id`
+  - `account_id`
+  - `login_method`
+- tenant lifecycle 准入：
+  - `TENANT` scope account 必须通过 `tenant-org-service.GetTenantById` 查询目标 `tenant_id`
+  - 只有 `tenant.status = ACTIVE` 时才允许继续 MFA challenge 或建立 session
+  - `SYSTEM` scope account 不读取也不受 tenant status 影响
+  - 同一用户存在多个 tenant account 时，只阻断被停用或归档 tenant 下的账号，不影响其他 `ACTIVE` tenant account
+
+### `SubmitMfaChallenge`
+
+- 作用：提交登录 MFA 结果并在验证成功后建立 session。
+- 请求关键字段：
+  - `challenge_id`
+  - `factor`
+  - `code`
+- tenant lifecycle 准入：
+  - MFA challenge 发起后，管理员可能停用或归档租户，因此 session 建立前必须再次按 `tenant-org-service.GetTenantById` 校验 `TENANT` scope account
+  - 若 tenant 不再是 `ACTIVE`，不得建立 session；调用方应要求用户重新选择可用账号或重新登录
 
 ### `RequestPasswordRecoveryChallenge`
 

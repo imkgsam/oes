@@ -48,7 +48,8 @@ describe('LoginWithPhonePasswordHandler', () => {
       authStrategyFactory as any,
       authAuditService as any,
       loginRiskThrottleService as any,
-      identityService as any
+      identityService as any,
+      { filterActiveAccountCandidates: jest.fn() } as any
     )
 
     await expect(

@@ -1,28 +1,30 @@
 <script setup lang="ts">
-import type { OnActionClickParams, VxeTableGridOptions } from '#/adapter/vxe-table'
 import type { TenantManagementApi } from '#/api'
+import type { TableColumnsType } from 'ant-design-vue'
 
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-
-import { Plus } from '@vben/icons'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import {
   Button,
   Card,
   Drawer,
+  Dropdown,
   Empty,
   Form,
   Input,
   InputNumber,
+  Menu,
+  message,
   Modal,
   Select,
   Space,
   Tabs,
+  Table,
   Tag,
-  message
+  TreeSelect
 } from 'ant-design-vue'
 
-import { useVbenVxeGrid } from '#/adapter/vxe-table'
 import {
   archiveManagedOrgUnitApi,
   createManagedOrgUnitApi,
@@ -35,7 +37,6 @@ import { useAuthContextStore } from '#/store/auth-context'
 
 import {
   flattenManagedOrgTree,
-  formatManagedOrganizationPartyName,
   mapManagedOrgTreeToGridRows
 } from './org-read-side'
 
@@ -45,8 +46,15 @@ interface OrgFormState {
   type: string
 }
 
-type DrawerMode = 'detail' | 'edit'
+interface OrgTreeSelectOption {
+  children: OrgTreeSelectOption[]
+  key: string
+  title: string
+  value: string
+}
+
 type ManagementMode = 'SYSTEM' | 'TENANT'
+type OrgUnitType = 'BRANCH' | 'DEPARTMENT' | 'ROOT' | 'TEAM'
 
 interface Props {
   managementMode: ManagementMode
@@ -55,7 +63,6 @@ interface Props {
 
 type OrgGridRow = ReturnType<typeof flattenManagedOrgTree>[number] & {
   children?: OrgGridRow[]
-  organizationPartyName: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -67,17 +74,21 @@ const emit = defineEmits<{
 }>()
 
 const authContextStore = useAuthContextStore()
+const router = useRouter()
 const tenantOptions = ref<TenantManagementApi.TenantSummary[]>([])
 const activeTenantId = ref('')
 const activeTenantName = ref('')
 const treeRows = ref<ReturnType<typeof flattenManagedOrgTree>>([])
+const orgTreeData = ref<OrgGridRow[]>([])
+const orgTreeLoading = ref(false)
+const expandedOrgUnitIds = ref<string[]>([])
 const internalSelectedOrgUnitId = ref('')
 const selectedOrgUnit = ref<null | TenantManagementApi.ManagedOrgUnit>(null)
 const detailLoading = ref(false)
 const detailDrawerOpen = ref(false)
 const detailDrawerTab = ref('overview')
-const detailDrawerMode = ref<DrawerMode>('detail')
-const detailDrawerSaving = ref(false)
+const editDrawerOpen = ref(false)
+const editDrawerSaving = ref(false)
 const createDrawerOpen = ref(false)
 const createDrawerSaving = ref(false)
 const createDrawerParentName = ref('')
@@ -87,10 +98,11 @@ const form = reactive<OrgFormState>({
   sortOrder: '0',
   type: 'DEPARTMENT'
 })
-const workspaceElement = ref<HTMLElement | null>(null)
-const gridHeight = ref(640)
-
-const orgTypeOptions = ['ROOT', 'DEPARTMENT', 'TEAM', 'BRANCH', 'OTHER'] as const
+const orgTypeLabels: Record<Exclude<OrgUnitType, 'ROOT'>, string> = {
+  BRANCH: '分支',
+  DEPARTMENT: '部门',
+  TEAM: '小组'
+}
 
 const isSystemEntry = computed(
   () => props.managementMode === 'SYSTEM' && authContextStore.isPlatformScope
@@ -113,21 +125,141 @@ const canArchive = computed(() =>
 const selectedOrgChildren = computed(() =>
   treeRows.value.filter((node) => node.parentOrgId === selectedOrgUnit.value?.id)
 )
-const drawerTitle = computed(() => {
-  if (detailDrawerMode.value === 'edit') {
-    return '编辑 OrgUnit'
-  }
-
-  return '组织详情'
-})
+const drawerTitle = computed(() => '组织详情')
+const editDrawerTitle = computed(() => '编辑 OrgUnit')
 const createDrawerTitle = computed(() => '新建 OrgUnit')
-const isDetailMode = computed(() => detailDrawerMode.value === 'detail')
+const canEditSelectedOrgUnit = computed(
+  () => Boolean(selectedOrgUnit.value) && canUpdate.value && !isRootOrgUnit(selectedOrgUnit.value)
+)
 const detailDrawerSubtitle = computed(() =>
+  isSystemEntry.value ? activeTenantName.value || selectedOrgUnit.value?.tenantId || '' : ''
+)
+const editDrawerSubtitle = computed(() =>
   isSystemEntry.value ? activeTenantName.value || selectedOrgUnit.value?.tenantId || '' : ''
 )
 const createDrawerSubtitle = computed(() =>
   isSystemEntry.value ? activeTenantName.value || createParentOrgUnitId.value || '' : ''
 )
+const createParentTreeOptions = computed(() => buildCreateParentTreeOptions())
+const createOrgTypeOptions = computed(() =>
+  resolveCreateChildTypeOptions(createParentOrgUnitId.value).map((type) => ({
+    label: orgTypeLabels[type],
+    value: type
+  }))
+)
+const editOrgTypeOptions = computed(() => {
+  if (selectedOrgUnit.value?.type === 'BRANCH') {
+    return [{ label: orgTypeLabels.BRANCH, value: 'BRANCH' }]
+  }
+
+  return [
+    { label: orgTypeLabels.DEPARTMENT, value: 'DEPARTMENT' },
+    { label: orgTypeLabels.TEAM, value: 'TEAM' }
+  ]
+})
+const orgTableColumns = computed<TableColumnsType<OrgGridRow>>(() => [
+  {
+    dataIndex: 'name',
+    key: 'name',
+    title: '组织名称',
+    width: 280
+  },
+  {
+    dataIndex: 'type',
+    key: 'type',
+    title: '类型',
+    width: 140
+  },
+  {
+    dataIndex: 'status',
+    key: 'status',
+    title: '状态',
+    width: 140
+  },
+  {
+    key: 'operation',
+    title: '操作',
+    width: 260
+  }
+])
+
+/** isRootOrgUnit identifies immutable tenant root nodes that anchor the org tree. */
+function isRootOrgUnit(orgUnit?: null | Partial<Pick<TenantManagementApi.ManagedOrgUnit, 'depth' | 'type'>>) {
+  return orgUnit?.depth === 0 || orgUnit?.type === 'ROOT'
+}
+
+/** resolveCreateChildTypeOptions enforces the tenant org hierarchy for ordinary child creation. */
+function resolveCreateChildTypeOptions(parentOrgUnitId: string): Array<Exclude<OrgUnitType, 'ROOT'>> {
+  const parentOrgUnit = treeRows.value.find((row) => row.id === parentOrgUnitId)
+
+  switch (parentOrgUnit?.type) {
+    case 'ROOT': {
+      return ['DEPARTMENT', 'TEAM']
+    }
+    case 'BRANCH': {
+      return ['DEPARTMENT']
+    }
+    case 'DEPARTMENT': {
+      return ['DEPARTMENT', 'TEAM']
+    }
+    case 'TEAM': {
+      return ['TEAM']
+    }
+    default: {
+      return []
+    }
+  }
+}
+
+/** canCreateChildOrgUnit hides unsupported append actions such as root child creation until the branch flow exists. */
+function canCreateChildOrgUnit(parentOrgUnit?: null | { id?: string }) {
+  return Boolean(parentOrgUnit?.id && resolveCreateChildTypeOptions(parentOrgUnit.id).length > 0)
+}
+
+/** buildCreateParentTreeOptions exposes the org tree as a single-select parent picker for ordinary org creation. */
+function buildCreateParentTreeOptions() {
+  const nodeMap = new Map<string, OrgTreeSelectOption>()
+  const roots: OrgTreeSelectOption[] = []
+
+  for (const orgUnit of treeRows.value) {
+    if (!canCreateChildOrgUnit(orgUnit)) {
+      continue
+    }
+
+    nodeMap.set(orgUnit.id, {
+      children: [],
+      key: orgUnit.id,
+      title: orgUnit.name,
+      value: orgUnit.id
+    })
+  }
+
+  for (const orgUnit of treeRows.value) {
+    const node = nodeMap.get(orgUnit.id)
+    if (!node) {
+      continue
+    }
+
+    const parent = orgUnit.parentOrgId ? nodeMap.get(orgUnit.parentOrgId) : undefined
+    if (parent) {
+      parent.children.push(node)
+    } else {
+      roots.push(node)
+    }
+  }
+
+  return roots
+}
+
+/** syncCreateFormTypeWithParent keeps the type selector valid when a drawer parent changes. */
+function syncCreateFormTypeWithParent() {
+  const allowedTypes = resolveCreateChildTypeOptions(createParentOrgUnitId.value)
+  if (!allowedTypes.includes(form.type as Exclude<OrgUnitType, 'ROOT'>)) {
+    form.type = allowedTypes[0] ?? 'DEPARTMENT'
+  }
+  const parentOrgUnit = treeRows.value.find((row) => row.id === createParentOrgUnitId.value)
+  createDrawerParentName.value = parentOrgUnit?.name || createParentOrgUnitId.value
+}
 
 /** syncSelectedOrgUnitId keeps the selected org node aligned with the owning page shell when one exists. */
 function syncSelectedOrgUnitId(orgUnitId: string) {
@@ -213,96 +345,184 @@ function resolvePreferredOrgUnitId() {
 async function queryOrgGrid() {
   if (!canReadTree.value || !activeTenantId.value) {
     treeRows.value = []
+    orgTreeData.value = []
+    expandedOrgUnitIds.value = []
     syncSelectedOrgUnitId('')
     selectedOrgUnit.value = null
     detailDrawerOpen.value = false
+    editDrawerOpen.value = false
     createDrawerOpen.value = false
-    return [] as OrgGridRow[]
-  }
-
-  const result = await getManagedOrgTreeApi(activeTenantId.value)
-  treeRows.value = flattenManagedOrgTree(result.roots ?? [])
-  const gridRows = mapManagedOrgTreeToGridRows(result.roots ?? [])
-  if (isSystemEntry.value && result.tenant?.name) {
-    activeTenantName.value = result.tenant.name
-  }
-
-  const nextOrgUnitId = resolvePreferredOrgUnitId()
-  syncSelectedOrgUnitId(nextOrgUnitId)
-
-  return gridRows.map((row) => decorateGridRow(row))
-}
-
-/** expandRootRows opens all root nodes after grid data is mounted so depth=1 rows are visible on first entry. */
-async function expandRootRows() {
-  await nextTick()
-  const currentRows = (orgGridApi.grid?.getData?.() ?? []) as Array<{
-    children?: unknown[]
-    depth: number
-    id: string
-  }>
-  const rootRows = currentRows.filter((row) => row.depth === 0 && (row.children?.length ?? 0) > 0)
-  if (rootRows.length === 0) {
     return
   }
 
-  await orgGridApi.grid?.setTreeExpand(rootRows, true)
+  orgTreeLoading.value = true
+  try {
+    const result = await getManagedOrgTreeApi(activeTenantId.value)
+    treeRows.value = flattenManagedOrgTree(result.roots ?? [])
+    orgTreeData.value = mapManagedOrgTreeToGridRows(result.roots ?? []).map((row) => decorateGridRow(row))
+    expandedOrgUnitIds.value = collectExpandableOrgUnitIds(orgTreeData.value)
+    if (isSystemEntry.value && result.tenant?.name) {
+      activeTenantName.value = result.tenant.name
+    }
+
+    const nextOrgUnitId = resolvePreferredOrgUnitId()
+    syncSelectedOrgUnitId(nextOrgUnitId)
+  } finally {
+    orgTreeLoading.value = false
+  }
 }
 
 /** decorateGridRow adds presentation-only fields without breaking the nested org tree structure. */
 function decorateGridRow(row: ReturnType<typeof mapManagedOrgTreeToGridRows>[number]): OrgGridRow {
-  return {
-    ...row,
-    children: row.children?.map((child) => decorateGridRow(child)),
-    organizationPartyName: formatManagedOrganizationPartyName(row) || '未关联'
+  const children = row.children?.map((child) => decorateGridRow(child)).filter(Boolean) ?? []
+  const { children: _children, ...baseRow } = row
+  const decoratedRow: OrgGridRow = {
+    ...baseRow
   }
+
+  if (children.length > 0) {
+    decoratedRow.children = children
+  }
+
+  return decoratedRow
+}
+
+/** collectExpandableOrgUnitIds returns every org node that has children so tree tables load fully expanded. */
+function collectExpandableOrgUnitIds(rows: OrgGridRow[]): string[] {
+  const ids: string[] = []
+
+  for (const row of rows) {
+    if (row.children?.length) {
+      ids.push(row.id)
+      ids.push(...collectExpandableOrgUnitIds(row.children))
+    }
+  }
+
+  return ids
 }
 
 /** resetOrgForm prepares the org create/edit fields for the drawer form area. */
-function resetOrgForm(orgUnit?: TenantManagementApi.ManagedOrgUnit | null) {
+function resetOrgForm(orgUnit?: null | TenantManagementApi.ManagedOrgUnit) {
   form.name = orgUnit?.name ?? ''
   form.sortOrder = String(orgUnit?.sortOrder ?? 0)
-  form.type = orgUnit?.type ?? 'DEPARTMENT'
+  form.type = orgUnit?.type === 'ROOT' ? 'DEPARTMENT' : (orgUnit?.type ?? 'DEPARTMENT')
 }
 
 /** openDetailDrawer enters the read-first org drawer mode used by grid view actions. */
 async function openDetailDrawer(orgUnitId: string) {
   createDrawerOpen.value = false
+  editDrawerOpen.value = false
   syncSelectedOrgUnitId(orgUnitId)
-  detailDrawerMode.value = 'detail'
   detailDrawerTab.value = 'overview'
   await loadOrgUnitDetail(orgUnitId)
   detailDrawerOpen.value = true
 }
 
-/** openEditDrawer enters the drawer edit mode for the selected org node. */
+/** openOrgUnitDetail routes tenant org reads to the independent department detail page while preserving system mode drawers. */
+async function openOrgUnitDetail(orgUnitId: string) {
+  if (isSystemEntry.value) {
+    await openDetailDrawer(orgUnitId)
+    return
+  }
+
+  syncSelectedOrgUnitId(orgUnitId)
+  await router.push({
+    name: 'TenantOrgUnitDetail',
+    params: {
+      orgUnitId
+    }
+  })
+}
+
+/** openEditDrawer enters the dedicated edit drawer for non-root org nodes only. */
 async function openEditDrawer(orgUnitId: string) {
+  if (!canUpdate.value) {
+    return
+  }
+
+  const gridRow = treeRows.value.find((row) => row.id === orgUnitId)
+  if (gridRow && isRootOrgUnit(gridRow)) {
+    return
+  }
+
+  detailDrawerOpen.value = false
   createDrawerOpen.value = false
   syncSelectedOrgUnitId(orgUnitId)
-  detailDrawerMode.value = 'edit'
-  detailDrawerTab.value = 'form'
   await loadOrgUnitDetail(orgUnitId)
+  if (!selectedOrgUnit.value || isRootOrgUnit(selectedOrgUnit.value)) {
+    return
+  }
+
   resetOrgForm(selectedOrgUnit.value)
-  detailDrawerOpen.value = true
+  editDrawerOpen.value = true
 }
 
 /** openCreateChildDrawer opens the dedicated create drawer under the given parent node. */
 async function openCreateChildDrawer(parentOrgUnitId: string) {
-  const parentOrgUnit = treeRows.value.find((row) => row.id === parentOrgUnitId)
-  createParentOrgUnitId.value = parentOrgUnitId
-  createDrawerParentName.value = parentOrgUnit?.name || parentOrgUnitId
-  detailDrawerOpen.value = false
-  resetOrgForm(null)
-  createDrawerOpen.value = true
-}
-
-/** submitEditDrawerForm persists the current detail drawer edit action through the org BFF. */
-async function submitEditDrawerForm() {
-  if (!activeTenantId.value || !internalSelectedOrgUnitId.value) {
+  if (!canCreate.value) {
     return
   }
 
-  detailDrawerSaving.value = true
+  const parentOrgUnit = treeRows.value.find((row) => row.id === parentOrgUnitId)
+  const allowedTypes = resolveCreateChildTypeOptions(parentOrgUnitId)
+  if (allowedTypes.length === 0) {
+    message.warning('当前节点不能通过普通流程新建下级')
+    return
+  }
+
+  createParentOrgUnitId.value = parentOrgUnitId
+  createDrawerParentName.value = parentOrgUnit?.name || parentOrgUnitId
+  detailDrawerOpen.value = false
+  editDrawerOpen.value = false
+  resetOrgForm(null)
+  form.type = allowedTypes[0] ?? 'DEPARTMENT'
+  createDrawerOpen.value = true
+}
+
+/** openOrdinaryCreateDrawer opens the shared org create drawer from the table toolbar with a selectable parent. */
+function openOrdinaryCreateDrawer() {
+  if (!canCreate.value) {
+    return
+  }
+
+  const defaultParentOrgUnitId =
+    createParentOrgUnitId.value && canCreateChildOrgUnit({ id: createParentOrgUnitId.value })
+      ? createParentOrgUnitId.value
+      : treeRows.value.find((row) => canCreateChildOrgUnit(row))?.id ?? ''
+
+  if (!defaultParentOrgUnitId) {
+    message.warning('当前租户还没有可挂载的组织父节点')
+    return
+  }
+
+  detailDrawerOpen.value = false
+  editDrawerOpen.value = false
+  resetOrgForm(null)
+  createParentOrgUnitId.value = defaultParentOrgUnitId
+  syncCreateFormTypeWithParent()
+  createDrawerOpen.value = true
+}
+
+/** handleCreateDropdownClick routes table-level create actions while leaving branch creation disabled for a later flow. */
+function handleCreateDropdownClick({ key }: { key: number | string }) {
+  if (key === 'ordinary') {
+    openOrdinaryCreateDrawer()
+  }
+}
+
+/** submitEditDrawerForm persists a non-root org edit through the dedicated edit drawer. */
+async function submitEditDrawerForm() {
+  if (
+    !activeTenantId.value ||
+    !internalSelectedOrgUnitId.value ||
+    !canUpdate.value ||
+    !selectedOrgUnit.value ||
+    isRootOrgUnit(selectedOrgUnit.value)
+  ) {
+    return
+  }
+
+  editDrawerSaving.value = true
   try {
     const payload = {
       name: form.name.trim(),
@@ -313,25 +533,30 @@ async function submitEditDrawerForm() {
     await updateManagedOrgUnitApi(activeTenantId.value, internalSelectedOrgUnitId.value, payload)
     message.success('组织节点已更新')
 
-    detailDrawerMode.value = 'detail'
-    detailDrawerTab.value = 'overview'
+    editDrawerOpen.value = false
     await refreshOrgGrid()
     await loadOrgUnitDetail(internalSelectedOrgUnitId.value)
   } catch (error) {
     message.error(resolveErrorMessage(error, '组织节点更新失败'))
   } finally {
-    detailDrawerSaving.value = false
+    editDrawerSaving.value = false
   }
 }
 
 /** submitCreateDrawerForm persists one create request through the dedicated new-org drawer. */
 async function submitCreateDrawerForm() {
-  if (!activeTenantId.value || !createParentOrgUnitId.value) {
+  if (!activeTenantId.value || !createParentOrgUnitId.value || !canCreate.value) {
     return
   }
 
   createDrawerSaving.value = true
   try {
+    const allowedTypes = resolveCreateChildTypeOptions(createParentOrgUnitId.value)
+    if (!allowedTypes.includes(form.type as Exclude<OrgUnitType, 'ROOT'>)) {
+      message.error('当前父节点不允许创建该组织类型')
+      return
+    }
+
     await createManagedOrgUnitApi(activeTenantId.value, {
       name: form.name.trim(),
       parentOrgId: createParentOrgUnitId.value,
@@ -350,7 +575,7 @@ async function submitCreateDrawerForm() {
 
 /** confirmArchive requests confirmation before archiving the currently opened org node from the drawer. */
 function confirmArchive() {
-  if (!activeTenantId.value || !internalSelectedOrgUnitId.value) {
+  if (!activeTenantId.value || !internalSelectedOrgUnitId.value || !canArchive.value) {
     return
   }
 
@@ -372,105 +597,33 @@ function confirmArchive() {
   })
 }
 
-function buildOrgGridColumns() {
-  return [
-    {
-      align: 'left',
-      field: 'name',
-      fixed: 'left',
-      title: '部门名称',
-      treeNode: true,
-      width: 220
-    },
-    {
-      field: 'type',
-      title: '类型',
-      width: 120
-    },
-    {
-      field: 'status',
-      title: '状态',
-      width: 120,
-      cellRender: {
-        name: 'CellTag',
-        options: [
-          { color: 'green', label: '启用中', value: 'ACTIVE' },
-          { color: 'default', label: '已停用', value: 'ARCHIVED' }
-        ]
-      }
-    },
-    {
-      field: 'organizationPartyName',
-      title: 'OrganizationParty',
-      minWidth: 180
-    },
-    {
-      align: 'center',
-      cellRender: {
-        attrs: {
-          nameField: 'name',
-          nameTitle: '组织节点',
-          onClick: onActionClick
-        },
-        name: 'CellOperation',
-        options: [
-          {
-            code: 'view',
-            text: '查看'
-          },
-          {
-            code: 'append',
-            text: '新增下级'
-          },
-          {
-            code: 'edit',
-            text: '编辑'
-          }
-        ]
-      },
-      field: 'operation',
-      fixed: 'right',
-      headerAlign: 'center',
-      showOverflow: false,
-      title: '操作',
-      width: 280
-    },
-  ]
-}
-
-/** onActionClick maps the dept-style operation column into the unified org drawer flows. */
-async function onActionClick({ code, row }: OnActionClickParams<OrgGridRow>) {
-  switch (code) {
-    case 'view': {
-      await openDetailDrawer(row.id)
-      break
-    }
-    case 'append': {
-      await openCreateChildDrawer(row.id)
-      break
-    }
-    case 'edit': {
-      await openEditDrawer(row.id)
-      break
-    }
-  }
-}
-
 /** refreshOrgGrid re-queries the dept-style org tree grid after mutations. */
 async function refreshOrgGrid() {
-  await orgGridApi.query()
-  await expandRootRows()
+  await queryOrgGrid()
 }
 
-/** openCreateAtRoot opens create mode under the tenant root, mirroring dept-list style top-toolbar creation. */
-function openCreateAtRoot() {
-  const rootOrgUnitId = treeRows.value.find((row) => row.depth === 0)?.id
-  if (!rootOrgUnitId) {
-    message.warning('当前租户还没有可挂载的根组织')
-    return
+function formatOrgType(type?: string) {
+  switch (type) {
+    case 'BRANCH': {
+      return '分支'
+    }
+    case 'DEPARTMENT': {
+      return '部门'
+    }
+    case 'ROOT': {
+      return '根组织'
+    }
+    case 'TEAM': {
+      return '小组'
+    }
+    default: {
+      return type || '未知'
+    }
   }
+}
 
-  void openCreateChildDrawer(rootOrgUnitId)
+function formatOrgStatus(status?: string) {
+  return status === 'ARCHIVED' ? '已停用' : '启用中'
 }
 
 function resolveErrorMessage(error: unknown, fallback: string) {
@@ -478,53 +631,6 @@ function resolveErrorMessage(error: unknown, fallback: string) {
     (error as { response?: { data?: { message?: string } } })?.response?.data?.message
   return typeof responseMessage === 'string' && responseMessage.trim() ? responseMessage : fallback
 }
-
-/** updateGridHeight sizes the department grid to the live viewport so the workbench reads like a full page instead of a tiny list. */
-function updateGridHeight() {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  const minHeight = window.innerWidth <= 960 ? 420 : 560
-  const top = workspaceElement.value?.getBoundingClientRect().top ?? 0
-  const measuredHeight = Math.floor(window.innerHeight - top - 32)
-  const nextHeight = Number.isFinite(measuredHeight)
-    ? Math.max(minHeight, measuredHeight)
-    : minHeight
-
-  gridHeight.value = nextHeight
-  orgGridApi.setGridOptions({
-    height: nextHeight
-  })
-}
-
-const [Grid, orgGridApi] = useVbenVxeGrid({
-  gridOptions: {
-    columns: buildOrgGridColumns(),
-    height: gridHeight.value,
-    keepSource: true,
-    pagerConfig: {
-      enabled: false
-    },
-    proxyConfig: {
-      autoLoad: false,
-      ajax: {
-        query: async () => queryOrgGrid()
-      }
-    },
-    toolbarConfig: {
-      custom: true,
-      export: false,
-      refresh: true,
-      zoom: true
-    },
-    treeConfig: {
-      parentField: 'parentOrgId',
-      rowField: 'id',
-      transform: false
-    }
-  } as VxeTableGridOptions<OrgGridRow>
-})
 
 watch(activeTenantId, async (tenantId, previousTenantId) => {
   if (!tenantId || tenantId === previousTenantId) {
@@ -534,10 +640,17 @@ watch(activeTenantId, async (tenantId, previousTenantId) => {
   syncSelectedOrgUnitId('')
   selectedOrgUnit.value = null
   detailDrawerOpen.value = false
+  editDrawerOpen.value = false
   createDrawerOpen.value = false
   activeTenantName.value =
     tenantOptions.value.find((item) => item.id === tenantId)?.name || activeTenantName.value
   await refreshOrgGrid()
+})
+
+watch(createParentOrgUnitId, () => {
+  if (createDrawerOpen.value) {
+    syncCreateFormTypeWithParent()
+  }
 })
 
 watch(
@@ -583,63 +696,135 @@ onMounted(async () => {
     await loadTenantOptions()
     syncActiveTenant()
     await refreshOrgGrid()
-    await nextTick()
-    updateGridHeight()
-    window.addEventListener('resize', updateGridHeight)
   } catch (error) {
     message.error(resolveErrorMessage(error, '组织架构入口初始化失败'))
   }
 })
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateGridHeight)
-})
 </script>
 
 <template>
-  <div ref="workspaceElement" class="org-management-workspace">
+  <div class="org-management-workspace">
     <Card :bordered="false" class="org-management__panel">
       <div data-testid="org-tree-panel" class="org-management__tree-panel">
-        <Grid table-title="部门列表">
-          <template #toolbar-actions>
-            <div v-if="isSystemEntry" class="org-management__toolbar-context">
-              <Select
-                v-model:value="activeTenantId"
-                class="org-management__tenant-select"
-                data-testid="tenant-selector"
-                :options="tenantOptions.map((tenant) => ({ label: tenant.name, value: tenant.id }))"
-                option-filter-prop="label"
-                placeholder="请选择租户"
-                show-search
-              />
-            </div>
-          </template>
-
-          <template #toolbar-tools>
-            <Button
+        <div class="org-management__table-head">
+          <div>
+            <h2>组织列表</h2>
+            <p>按层级维护组织结构</p>
+          </div>
+          <Space wrap>
+            <Select
+              v-if="isSystemEntry"
+              v-model:value="activeTenantId"
+              class="org-management__tenant-select"
+              data-testid="tenant-selector"
+              :options="tenantOptions.map((tenant) => ({ label: tenant.name, value: tenant.id }))"
+              option-filter-prop="label"
+              placeholder="请选择租户"
+              show-search
+            />
+            <Dropdown
               v-if="canCreate"
-              data-testid="org-create-open"
-              type="primary"
-              @click="openCreateAtRoot"
+              trigger="click"
             >
-              <Plus class="size-5" />
-              新建 OrgUnit
-            </Button>
+              <Button data-testid="org-create-dropdown" type="primary">
+                新建
+              </Button>
+              <template #overlay>
+                <Menu @click="handleCreateDropdownClick">
+                  <Menu.Item
+                    key="branch"
+                    aria-disabled="true"
+                    data-testid="org-create-branch-disabled"
+                    disabled
+                  >
+                    创建 Branch
+                  </Menu.Item>
+                  <Menu.Item
+                    key="ordinary"
+                    data-testid="org-create-ordinary"
+                  >
+                    创建普通 Org
+                  </Menu.Item>
+                </Menu>
+              </template>
+            </Dropdown>
+          </Space>
+        </div>
+
+        <Table
+          v-model:expanded-row-keys="expandedOrgUnitIds"
+          class="org-management__ant-table"
+          data-testid="org-ant-tree-table"
+          :columns="orgTableColumns"
+          :data-source="orgTreeData"
+          :loading="orgTreeLoading"
+          :pagination="false"
+          :row-key="(record: OrgGridRow) => record.id"
+          size="middle"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.key === 'name'">
+              <div :data-testid="`org-row-${record.id}`" class="org-management__name-cell">
+                <span class="org-management__name">{{ record.name }}</span>
+              </div>
+            </template>
+            <template v-else-if="column.key === 'type'">
+              {{ formatOrgType(record.type) }}
+            </template>
+            <template v-else-if="column.key === 'status'">
+              <Tag :color="record.status === 'ARCHIVED' ? 'default' : 'green'">
+                {{ formatOrgStatus(record.status) }}
+              </Tag>
+            </template>
+            <template v-else-if="column.key === 'operation'">
+              <Space size="small">
+                <Button
+                  :data-testid="`org-view-${record.id}`"
+                  size="small"
+                  type="link"
+                  @click="openOrgUnitDetail(record.id)"
+                >
+                  查看
+                </Button>
+                <Button
+                  v-access:code="'tenant_org.org_unit.create'"
+                  v-if="canCreate && canCreateChildOrgUnit(record)"
+                  :data-testid="`org-append-${record.id}`"
+                  size="small"
+                  type="link"
+                  @click="openCreateChildDrawer(record.id)"
+                >
+                  新增下级
+                </Button>
+                <Button
+                  v-access:code="'tenant_org.org_unit.update'"
+                  v-if="canUpdate && !isRootOrgUnit(record)"
+                  :data-testid="`org-edit-${record.id}`"
+                  size="small"
+                  type="link"
+                  @click="openEditDrawer(record.id)"
+                >
+                  编辑
+                </Button>
+              </Space>
+            </template>
           </template>
-        </Grid>
+          <template #emptyText>
+            <Empty description="暂无组织数据" />
+          </template>
+        </Table>
       </div>
     </Card>
 
     <Drawer
       v-model:open="detailDrawerOpen"
-      :confirm-loading="detailDrawerSaving"
       :width="680"
       destroy-on-close
       placement="right"
       :title="drawerTitle"
     >
       <div data-testid="org-detail-drawer">
-        <div v-if="!selectedOrgUnit && isDetailMode" class="org-management__empty-shell">
+        <div v-if="!selectedOrgUnit" class="org-management__empty-shell">
           <Empty description="选择组织节点后查看详情" />
         </div>
         <div v-else class="org-management__drawer-shell" v-loading="detailLoading">
@@ -652,16 +837,18 @@ onUnmounted(() => {
                 {{ detailDrawerSubtitle }}
               </div>
             </div>
-            <Space v-if="isDetailMode && selectedOrgUnit" wrap>
+            <Space v-if="selectedOrgUnit" wrap>
               <Button
-                v-if="canUpdate"
+                v-access:code="'tenant_org.org_unit.update'"
+                v-if="canEditSelectedOrgUnit"
                 data-testid="org-edit-open"
                 @click="openEditDrawer(selectedOrgUnit.id)"
               >
                 编辑
               </Button>
               <Button
-                v-if="canArchive && selectedOrgUnit.parentOrgId"
+                v-access:code="'tenant_org.org_unit.archive'"
+                v-if="selectedOrgUnit.parentOrgId"
                 danger
                 data-testid="org-archive"
                 @click="confirmArchive"
@@ -709,52 +896,6 @@ onUnmounted(() => {
               </table>
             </Tabs.TabPane>
 
-            <Tabs.TabPane key="form" tab="编辑信息">
-              <Form
-                layout="vertical"
-                class="org-management__drawer-form"
-              >
-                <Form.Item label="名称">
-                  <Input
-                    v-model:value="form.name"
-                    placeholder="输入组织节点名称"
-                  />
-                </Form.Item>
-                <Form.Item label="类型">
-                  <Select
-                    v-model:value="form.type"
-                    data-testid="org-form-type"
-                    :options="orgTypeOptions.map((option) => ({ label: option, value: option }))"
-                  />
-                </Form.Item>
-                <Form.Item label="排序">
-                  <InputNumber
-                    v-model:value="form.sortOrder"
-                    class="org-management__number-input"
-                    :min="0"
-                    :precision="0"
-                  />
-                </Form.Item>
-                <Form.Item label="挂载父节点">
-                  <Input
-                    :value="selectedOrgUnit?.parentOrgId || 'ROOT'"
-                    disabled
-                  />
-                </Form.Item>
-              </Form>
-              <div class="org-management__form-actions">
-                <Button @click="detailDrawerMode = 'detail'; detailDrawerTab = 'overview'; resetOrgForm(selectedOrgUnit)">
-                  取消
-                </Button>
-                <Button
-                  type="primary"
-                  @click="submitEditDrawerForm"
-                >
-                  保存
-                </Button>
-              </div>
-            </Tabs.TabPane>
-
             <Tabs.TabPane key="members" tab="成员">
               <div class="org-management__section-stack">
                 <ul class="org-management__plain-list">
@@ -800,14 +941,6 @@ onUnmounted(() => {
                     <td>{{ selectedOrgUnit.sortOrder }}</td>
                   </tr>
                   <tr>
-                    <th>OrganizationPartyId</th>
-                    <td>{{ selectedOrgUnit.organizationPartyId || '未关联' }}</td>
-                  </tr>
-                  <tr>
-                    <th>OrganizationParty</th>
-                    <td>{{ formatManagedOrganizationPartyName(selectedOrgUnit) || '未关联' }}</td>
-                  </tr>
-                  <tr>
                     <th>组织路径</th>
                     <td><code>{{ selectedOrgUnit.path }}</code></td>
                   </tr>
@@ -815,6 +948,73 @@ onUnmounted(() => {
               </table>
             </Tabs.TabPane>
           </Tabs>
+        </div>
+      </div>
+    </Drawer>
+
+    <Drawer
+      v-model:open="editDrawerOpen"
+      :confirm-loading="editDrawerSaving"
+      :width="560"
+      destroy-on-close
+      placement="right"
+      :title="editDrawerTitle"
+    >
+      <div data-testid="org-edit-drawer" class="org-management__drawer-shell">
+        <div class="org-management__drawer-head">
+          <div>
+            <div class="org-management__drawer-title">编辑组织节点</div>
+            <div v-if="editDrawerSubtitle" class="org-management__drawer-subtitle">
+              {{ editDrawerSubtitle }}
+            </div>
+          </div>
+        </div>
+
+        <Form
+          layout="vertical"
+          class="org-management__drawer-form"
+        >
+          <Form.Item label="名称">
+            <Input
+              v-model:value="form.name"
+              placeholder="输入组织节点名称"
+            />
+          </Form.Item>
+          <Form.Item label="类型">
+            <Select
+              v-model:value="form.type"
+              data-testid="org-form-type"
+              :options="editOrgTypeOptions"
+            />
+          </Form.Item>
+          <Form.Item label="排序">
+            <InputNumber
+              v-model:value="form.sortOrder"
+              class="org-management__number-input"
+              :min="0"
+              :precision="0"
+            />
+          </Form.Item>
+          <Form.Item label="挂载父节点">
+            <Input
+              :value="selectedOrgUnit?.parentOrgId || 'ROOT'"
+              disabled
+            />
+          </Form.Item>
+        </Form>
+        <div class="org-management__form-actions">
+          <Button @click="editDrawerOpen = false; resetOrgForm(selectedOrgUnit)">
+            取消
+          </Button>
+          <Button
+            v-access:code="'tenant_org.org_unit.update'"
+            v-if="canUpdate"
+            :loading="editDrawerSaving"
+            type="primary"
+            @click="submitEditDrawerForm"
+          >
+            保存
+          </Button>
         </div>
       </div>
     </Drawer>
@@ -851,7 +1051,7 @@ onUnmounted(() => {
             <Select
               v-model:value="form.type"
               data-testid="org-create-form-type"
-              :options="orgTypeOptions.map((option) => ({ label: option, value: option }))"
+              :options="createOrgTypeOptions"
             />
           </Form.Item>
           <Form.Item label="排序">
@@ -863,19 +1063,28 @@ onUnmounted(() => {
             />
           </Form.Item>
           <Form.Item label="挂载父节点">
-            <Input
-              :value="createDrawerParentName || createParentOrgUnitId || 'ROOT'"
-              disabled
+            <TreeSelect
+              v-model:value="createParentOrgUnitId"
+              data-testid="org-create-parent-tree"
+              placeholder="选择父节点"
+              show-search
+              tree-default-expand-all
+              tree-node-filter-prop="title"
+              :tree-data="createParentTreeOptions"
             />
           </Form.Item>
         </Form>
         <div class="org-management__form-actions">
           <Button
+            data-testid="org-create-cancel"
             @click="createDrawerOpen = false; resetOrgForm(null)"
           >
             取消
           </Button>
           <Button
+            v-access:code="'tenant_org.org_unit.create'"
+            v-if="canCreate"
+            :loading="createDrawerSaving"
             type="primary"
             @click="submitCreateDrawerForm"
           >
@@ -911,15 +1120,47 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-.org-management__toolbar-context {
+.org-management__table-head {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.org-management__table-head h2 {
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
+  margin: 0;
+}
+
+.org-management__table-head p {
+  color: #6b7280;
+  font-size: 13px;
+  margin: 2px 0 0;
 }
 
 .org-management__tenant-select {
   min-width: 280px;
+}
+
+.org-management__ant-table {
+  min-width: 0;
+}
+
+.org-management__name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.org-management__name {
+  color: #1f2937;
+  font-weight: 500;
 }
 
 .org-management__drawer-shell,

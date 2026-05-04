@@ -8,6 +8,7 @@ import {
 } from '../../ports/identity-service.port'
 import { AuthAuditService } from '../../services/auth-audit.service'
 import { PhoneOtpLoginService } from '../../services/phone-otp-login.service'
+import { TenantSessionAccessService } from '../../services/tenant-session-access.service'
 import { AUTH_NO_AVAILABLE_ACCOUNT } from '../../../common/constants/exception-enums'
 import { LoginWithPhoneOtpCommand } from './login-with-phone-otp.command'
 
@@ -29,13 +30,16 @@ export class LoginWithPhoneOtpHandler
     private readonly phoneOtpLoginService: PhoneOtpLoginService,
     private readonly authAuditService: AuthAuditService,
     @Inject(IDENTITY_SERVICE)
-    private readonly identityService: IIdentityServicePort
+    private readonly identityService: IIdentityServicePort,
+    private readonly tenantSessionAccessService: TenantSessionAccessService
   ) {}
 
   async execute(command: LoginWithPhoneOtpCommand): Promise<LoginWithPhoneOtpResult> {
     const userId = await this.phoneOtpLoginService.authenticate(command.phone, command.otp)
 
-    const accounts = await this.identityService.getAvailableAccountsByUserId(userId)
+    const accounts = await this.tenantSessionAccessService.filterActiveAccountCandidates(
+      await this.identityService.getAvailableAccountsByUserId(userId)
+    )
     if (accounts.length === 0) {
       throw ExceptionFactory.domain(AUTH_NO_AVAILABLE_ACCOUNT, { userId })
     }

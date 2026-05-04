@@ -21,11 +21,20 @@ const syncRoleNavigationFromTemplateApi = vi.fn();
 const refreshCurrentSessionAccess = vi.fn();
 const authContextState = {
   actionCodes: [
-    'permission.role.create',
-    'permission.role.delete_by_id',
-    'permission.role.get_by_id',
-    'permission.role.list',
-    'permission.role.update',
+    'permission.role_instance.assign_permissions',
+    'permission.role_instance.create',
+    'permission.role_instance.create_from_template',
+    'permission.role_instance.delete',
+    'permission.role_instance.get_by_id',
+    'permission.role_instance.list',
+    'permission.role_instance.sync_from_template',
+    'permission.role_instance.update',
+    'permission.role_template.assign_permissions',
+    'permission.role_template.create',
+    'permission.role_template.delete',
+    'permission.role_template.get_by_id',
+    'permission.role_template.list',
+    'permission.role_template.update',
   ],
   isPlatformScope: true,
   sessionContext: {
@@ -127,6 +136,22 @@ describe('role management page', () => {
     setRoleLandingPoliciesApi.mockReset();
     setRoleNavigationVisibilityApi.mockReset();
     syncRoleNavigationFromTemplateApi.mockReset();
+    authContextState.actionCodes = [
+      'permission.role_instance.assign_permissions',
+      'permission.role_instance.create',
+      'permission.role_instance.create_from_template',
+      'permission.role_instance.delete',
+      'permission.role_instance.get_by_id',
+      'permission.role_instance.list',
+      'permission.role_instance.sync_from_template',
+      'permission.role_instance.update',
+      'permission.role_template.assign_permissions',
+      'permission.role_template.create',
+      'permission.role_template.delete',
+      'permission.role_template.get_by_id',
+      'permission.role_template.list',
+      'permission.role_template.update',
+    ];
     authContextState.isPlatformScope = true;
     authContextState.sessionContext = {
       tenant: {
@@ -287,6 +312,38 @@ describe('role management page', () => {
     });
   });
 
+  it('loads role instances and templates when the session carries split role permissions', async () => {
+    authContextState.actionCodes = [
+      'permission.role_instance.list',
+      'permission.role_template.list',
+    ];
+    const view = await import('./role-management.vue');
+
+    mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+
+    expect(listRolesApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: 1,
+        pageSize: 20,
+      }),
+    );
+    expect(listRoleTemplatesApi).toHaveBeenCalledWith(
+      expect.objectContaining({
+        page: 1,
+        pageSize: 20,
+      }),
+    );
+  });
+
   it('uses a tenant selector instead of a raw tenant id input in the instance filter', async () => {
     const view = await import('./role-management.vue');
 
@@ -301,14 +358,14 @@ describe('role management page', () => {
 
     await flushPromises();
 
-    const filterCard = document.body.querySelector('.role-management__filter-card');
+    const filterPanel = document.body.querySelector('.role-management__filter-panel');
 
     expect(listRoleTenantOptionsApi).toHaveBeenCalledWith({
       keyword: undefined,
       pageSize: 20,
     });
-    expect(filterCard?.querySelectorAll('.ant-select').length).toBe(2);
-    expect(filterCard?.querySelector('input[placeholder=\"Tenant ID\"]')).toBeNull();
+    expect(filterPanel?.querySelectorAll('.ant-select').length).toBe(2);
+    expect(filterPanel?.querySelector('input[placeholder=\"Tenant ID\"]')).toBeNull();
   });
 
   it('opens the instance action dropdown when the trigger button is clicked', async () => {

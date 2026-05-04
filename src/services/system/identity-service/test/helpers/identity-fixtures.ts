@@ -1,11 +1,7 @@
 import { AccountContactAssetEntity } from '../../src/domain/entities/account-contact-asset.entity'
-import { AccountOrgMembershipEntity } from '../../src/domain/entities/account-org-membership.entity'
 import { AccountSummaryEntity } from '../../src/domain/entities/account-summary.entity'
-import { OrgNodeEntity } from '../../src/domain/entities/org-node.entity'
 import { AccountContactAssetRepository } from '../../src/domain/repositories/account-contact-asset.repository'
-import { AccountOrgMembershipRepository } from '../../src/domain/repositories/account-org-membership.repository'
 import { AccountRepository } from '../../src/domain/repositories/account.repository'
-import { OrgRepository } from '../../src/domain/repositories/org.repository'
 import { UserRepository } from '../../src/domain/repositories/user.repository'
 import { UserSummaryEntity } from '../../src/domain/entities/user-summary.entity'
 
@@ -16,8 +12,10 @@ export function createAccountRepositoryMock(): jest.Mocked<AccountRepository> {
     createUserAccount: jest.fn(),
     findAvailableByUserId: jest.fn(),
     findById: jest.fn(),
+    findByUserScope: jest.fn(),
     getDeletionImpact: jest.fn(),
     list: jest.fn(),
+    countByTenantIds: jest.fn(),
     delete: jest.fn(),
     setEnabled: jest.fn(),
     updateProfile: jest.fn()
@@ -44,24 +42,6 @@ export function createAccountContactAssetRepositoryMock(): jest.Mocked<AccountCo
     setStatus: jest.fn(),
     setPrimary: jest.fn()
   } as unknown as jest.Mocked<AccountContactAssetRepository>
-}
-
-export function createOrgRepositoryMock(): jest.Mocked<OrgRepository> {
-  return {
-    findById: jest.fn(),
-    findTreeByTenantId: jest.fn()
-  } as unknown as jest.Mocked<OrgRepository>
-}
-
-export function createAccountOrgMembershipRepositoryMock(): jest.Mocked<AccountOrgMembershipRepository> {
-  return {
-    clearPrimaryByAccountId: jest.fn(),
-    findByAccountAndOrg: jest.fn(),
-    listByAccountId: jest.fn(),
-    addSecondaryMembership: jest.fn(),
-    removeMembership: jest.fn(),
-    setPrimaryOrg: jest.fn()
-  } as unknown as jest.Mocked<AccountOrgMembershipRepository>
 }
 
 export function createAccountSummaryFixture(
@@ -113,50 +93,6 @@ export function createContactAssetFixture(
     overrides.isPrimary ?? false,
     overrides.assignedAt ?? DEFAULT_ASSIGNED_AT,
     Object.prototype.hasOwnProperty.call(overrides, 'revokedAt') ? overrides.revokedAt! : null
-  )
-}
-
-export function createOrgNodeFixture(
-  overrides: Partial<{
-    id: string
-    tenantId: string
-    parentId: string | null
-    name: string
-    code: string | null
-    type: string
-    sortOrder: number
-  }> = {}
-): OrgNodeEntity {
-  return new OrgNodeEntity(
-    overrides.id ?? 'org-1',
-    overrides.tenantId ?? 'tenant-1',
-    Object.prototype.hasOwnProperty.call(overrides, 'parentId') ? overrides.parentId! : null,
-    overrides.name ?? 'HQ',
-    Object.prototype.hasOwnProperty.call(overrides, 'code') ? overrides.code! : null,
-    overrides.type ?? 'DEPARTMENT',
-    overrides.sortOrder ?? 1
-  )
-}
-
-export function createAccountOrgMembershipFixture(
-  overrides: Partial<{
-    id: string
-    accountId: string
-    orgId: string
-    orgName: string | null
-    orgType: string | null
-    relationType: string
-    isPrimary: boolean
-  }> = {}
-): AccountOrgMembershipEntity {
-  return new AccountOrgMembershipEntity(
-    overrides.id ?? 'mem-1',
-    overrides.accountId ?? 'acc-1',
-    overrides.orgId ?? 'org-1',
-    Object.prototype.hasOwnProperty.call(overrides, 'orgName') ? overrides.orgName! : 'HQ',
-    Object.prototype.hasOwnProperty.call(overrides, 'orgType') ? overrides.orgType! : 'DEPARTMENT',
-    overrides.relationType ?? 'SECONDARY',
-    overrides.isPrimary ?? false
   )
 }
 

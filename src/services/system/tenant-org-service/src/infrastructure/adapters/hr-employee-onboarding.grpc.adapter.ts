@@ -1,0 +1,90 @@
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { ClientGrpc } from '@nestjs/microservices'
+import {
+  GRPC_METADATA_PROPAGATION_FACTORY,
+  GrpcMetadataPropagationFactory,
+  GrpcRequestContextStore
+} from '@oes/common/authorization'
+import { SERVICE_NAMES } from '@oes/common/constants'
+import {
+  CreateEmployeeOnboardingResponse,
+  HR_MANAGEMENT_SERVICE_NAME,
+  HrManagementServiceClient
+} from '@oes/common/generated/hr_service'
+import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
+import { HrEmployeeOnboardingPort } from '../../application/ports/hr-employee-onboarding.port'
+import { buildTenantOnboardingMetadata } from './tenant-onboarding-metadata'
+
+/** HrEmployeeOnboardingGrpcAdapter asks hr-service to own first-admin employee creation during tenant onboarding. */
+@Injectable()
+export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort, OnModuleInit {
+  private readonly logger = new Logger(HrEmployeeOnboardingGrpcAdapter.name)
+  private client!: HrManagementServiceClient
+
+  constructor(
+    @InjectGrpcClient(SERVICE_NAMES.HR)
+    private readonly hrClient: ClientGrpc,
+    @Inject(GRPC_METADATA_PROPAGATION_FACTORY)
+    private readonly metadataFactory: GrpcMetadataPropagationFactory,
+    private readonly requestContextStore: GrpcRequestContextStore
+  ) {}
+
+  onModuleInit() {
+    this.client = this.hrClient.getService<HrManagementServiceClient>(HR_MANAGEMENT_SERVICE_NAME)
+  }
+
+  async createEmployeeOnboarding(input: {
+    account: { existingAccountId: string }
+    idempotencyKey: string
+    person: {
+      existingPartyId?: string
+      existingTenantPartyId: string
+      legalName: string
+    }
+    primaryEmployment: {
+      effectiveFrom: Date
+      orgUnitId: string
+      positionName?: string
+    }
+    tenantId: string
+  }) {
+    const response = await safeGrpcCall<CreateEmployeeOnboardingResponse>(
+      this.client.createEmployeeOnboarding(
+        {
+          tenantId: input.tenantId,
+          idempotencyKey: input.idempotencyKey,
+          person: {
+            legalName: input.person.legalName,
+            existingPartyId: input.person.existingPartyId,
+            existingTenantPartyId: input.person.existingTenantPartyId
+          },
+          primaryEmployment: {
+            effectiveFrom: input.primaryEmployment.effectiveFrom.toISOString(),
+            orgUnitId: input.primaryEmployment.orgUnitId,
+            positionName: input.primaryEmployment.positionName
+          },
+          existingAccountId: input.account.existingAccountId
+        },
+        this.buildMetadata()
+      ),
+      { caller: 'tenant-org-service', method: 'HrManagementService.createEmployeeOnboarding' }
+    )
+
+    const employeeId = response.employee?.id?.trim()
+    const employmentId = response.employment?.id?.trim()
+    if (!employeeId || !employmentId) {
+      this.logger.error('hr-service returned empty employee or employment id during tenant onboarding')
+      throw new Error('hr-service did not return employee/employment id')
+    }
+    return {
+      accessProcessId: response.access?.id?.trim() || undefined,
+      employeeId,
+      employmentId
+    }
+  }
+
+  /** buildMetadata propagates tenant-org request context into hr-service calls. */
+  private buildMetadata() {
+    return buildTenantOnboardingMetadata(this.metadataFactory, this.requestContextStore)
+  }
+}

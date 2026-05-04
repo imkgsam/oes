@@ -55,7 +55,7 @@
 - `auth-service` 本地运行时已支持通过静态 gRPC URL 直连 `identity-service / permission-service / notification-service`
 - `MfaBinding` 管理面已覆盖 `EMAIL_OTP / SMS_OTP / TOTP / BACKUP_CODE`
 - `permission-service` 只有最小权限检查接入，`getAccountAuthorizationSummary` 仍未有真实上游契约
-- session 目前运行时主要依赖 Redis repository，Prisma 中的 `UserSession` 模型尚未进入统一持久化主路径
+- session 目前运行时主要依赖 Redis repository，Prisma 中的 `UserSession` 模型尚未进入统一持久化主路径；该模型已标记为待决事项，后续需要明确是删除，还是改造成持久化 session 历史 / 审计存储
 
 ## 建议下一步
 

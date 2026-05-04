@@ -48,6 +48,7 @@ model Employment {
   tenantId      String           @db.VarChar(100)
   employeeId    String           @db.Uuid
   orgUnitId     String           @db.VarChar(100)
+  positionName  String?          @db.VarChar(200)
   status        EmploymentStatus @default(ACTIVE)
   effectiveFrom DateTime
   effectiveTo   DateTime?

@@ -257,6 +257,7 @@ function mapLine(line: QuoteLineFormState, index: number): SalesApi.QuoteLineInp
           <input :data-testid="`sales-line-customer-label-${index}`" v-model="line.customerDisplayName" placeholder="label name" />
         </div>
         <button
+          v-access:code="'sales.quote.create'"
           v-if="canCreateQuote"
           data-testid="sales-create-submit"
           type="button"

@@ -1,0 +1,323 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model MoldDesign {
+  id                    String             @id @db.VarChar(128)
+  tenantId              String             @db.VarChar(128)
+  orgId                 String?            @db.VarChar(128)
+  designCode            String             @db.VarChar(128)
+  name                  String             @db.VarChar(255)
+  revisionCode          String?            @db.VarChar(128)
+  supersedesDesignId    String?            @db.VarChar(128)
+  productFamilyRef      Json
+  manufacturingSpecRefs Json
+  itemRef               Json?
+  materialType          String             @db.VarChar(128)
+  functionRole          String             @db.VarChar(64)
+  productionMethodTags  String[]
+  outputStructureType   String             @db.VarChar(64)
+  defaultLifeLimit      String?            @db.VarChar(64)
+  defaultLifeUnit       String?            @db.VarChar(64)
+  status                String             @db.VarChar(64)
+  createdAt             DateTime
+  updatedAt             DateTime
+  outputs               MoldDesignOutput[]
+
+  @@unique([tenantId, orgId, designCode])
+  @@index([tenantId, orgId, status])
+}
+
+model MoldDesignOutput {
+  id                   String     @id @db.VarChar(128)
+  tenantId             String     @db.VarChar(128)
+  orgId                String?    @db.VarChar(128)
+  moldDesignId         String     @db.VarChar(128)
+  sequenceNo           Int
+  outputCode           String     @db.VarChar(128)
+  outputKind           String     @db.VarChar(64)
+  productFamilyRef     Json?
+  manufacturingSpecRef Json?
+  quantityPerUse       String     @db.VarChar(64)
+  componentRole        String?    @db.VarChar(128)
+  assemblyHint         String?    @db.VarChar(255)
+  isPrimaryOutput      Boolean
+  moldDesign           MoldDesign @relation(fields: [moldDesignId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, moldDesignId])
+}
+
+model MasterMold {
+  id                   String   @id @db.VarChar(128)
+  tenantId             String   @db.VarChar(128)
+  orgId                String?  @db.VarChar(128)
+  masterMoldCode       String   @db.VarChar(128)
+  moldDesignId         String   @db.VarChar(128)
+  supplierRef          Json?
+  purchaseRef          Json?
+  receivedAt           String?  @db.VarChar(64)
+  currentStatus        String   @db.VarChar(64)
+  currentMesLocationId String?  @db.VarChar(128)
+  qualitySummary       String?  @db.VarChar(1000)
+  notes                String?  @db.VarChar(1000)
+  scrappedAt           String?  @db.VarChar(64)
+  createdAt            DateTime
+  updatedAt            DateTime
+
+  @@unique([tenantId, orgId, masterMoldCode])
+  @@index([tenantId, moldDesignId])
+}
+
+model ProductionMoldInstance {
+  id                        String   @id @db.VarChar(128)
+  tenantId                  String   @db.VarChar(128)
+  orgId                     String?  @db.VarChar(128)
+  moldInstanceCode          String   @db.VarChar(128)
+  moldDesignId              String   @db.VarChar(128)
+  masterMoldId              String?  @db.VarChar(128)
+  supplierRef               Json?
+  purchaseRef               Json?
+  receivedAt                String?  @db.VarChar(64)
+  acceptedAt                String?  @db.VarChar(64)
+  currentStatus             String   @db.VarChar(64)
+  currentMesLocationId      String?  @db.VarChar(128)
+  currentWorkCenterId       String?  @db.VarChar(128)
+  currentResourcePositionId String?  @db.VarChar(128)
+  currentInstallationId     String?  @db.VarChar(128)
+  lifeUsedValue             String   @db.VarChar(64)
+  lifeLimitValue            String   @db.VarChar(64)
+  lifeUnit                  String   @db.VarChar(64)
+  warningLevel              String   @db.VarChar(64)
+  scrappedAt                String?  @db.VarChar(64)
+  createdAt                 DateTime
+  updatedAt                 DateTime
+
+  @@unique([tenantId, orgId, moldInstanceCode])
+  @@index([tenantId, moldDesignId, currentStatus])
+}
+
+model MesLocation {
+  id                  String   @id @db.VarChar(128)
+  tenantId            String   @db.VarChar(128)
+  orgId               String?  @db.VarChar(128)
+  locationCode        String   @db.VarChar(128)
+  name                String   @db.VarChar(255)
+  locationType        String   @db.VarChar(128)
+  parentLocationId    String?  @db.VarChar(128)
+  relatedWorkCenterId String?  @db.VarChar(128)
+  capacityProfileId   String?  @db.VarChar(128)
+  status              String   @db.VarChar(64)
+  createdAt           DateTime
+  updatedAt           DateTime
+
+  @@unique([tenantId, orgId, locationCode])
+  @@index([tenantId, orgId, status])
+}
+
+model WorkCenter {
+  id                   String   @id @db.VarChar(128)
+  tenantId             String   @db.VarChar(128)
+  orgId                String?  @db.VarChar(128)
+  workCenterCode       String   @db.VarChar(128)
+  name                 String   @db.VarChar(255)
+  workCenterType       String   @db.VarChar(128)
+  parentWorkCenterId   String?  @db.VarChar(128)
+  relatedMesLocationId String?  @db.VarChar(128)
+  capacityProfileId    String?  @db.VarChar(128)
+  status               String   @db.VarChar(64)
+  createdAt            DateTime
+  updatedAt            DateTime
+
+  @@unique([tenantId, orgId, workCenterCode])
+  @@index([tenantId, orgId, status])
+}
+
+model ResourcePosition {
+  id                       String   @id @db.VarChar(128)
+  tenantId                 String   @db.VarChar(128)
+  orgId                    String?  @db.VarChar(128)
+  workCenterId             String   @db.VarChar(128)
+  positionCode             String   @db.VarChar(128)
+  name                     String   @db.VarChar(255)
+  positionType             String   @db.VarChar(128)
+  compatibleMoldDesignRefs String[]
+  status                   String   @db.VarChar(64)
+  createdAt                DateTime
+  updatedAt                DateTime
+
+  @@unique([tenantId, workCenterId, positionCode])
+  @@index([tenantId, workCenterId, status])
+}
+
+model MoldMovementEvent {
+  id                 String   @id @db.VarChar(128)
+  tenantId           String   @db.VarChar(128)
+  orgId              String?  @db.VarChar(128)
+  moldResourceType   String   @db.VarChar(64)
+  moldResourceId     String   @db.VarChar(128)
+  fromMesLocationId  String?  @db.VarChar(128)
+  toMesLocationId    String   @db.VarChar(128)
+  movementReason     String   @db.VarChar(500)
+  movedAt            DateTime
+  operatorRef        Json
+  sourceCommandId    String   @db.VarChar(128)
+  auditRef           Json
+
+  @@index([tenantId, moldResourceType, moldResourceId, movedAt])
+}
+
+model MoldInstallation {
+  id                       String   @id @db.VarChar(128)
+  tenantId                 String   @db.VarChar(128)
+  orgId                    String?  @db.VarChar(128)
+  productionMoldInstanceId String   @db.VarChar(128)
+  workCenterId             String   @db.VarChar(128)
+  resourcePositionId       String   @db.VarChar(128)
+  installedAt              DateTime
+  unmountedAt              DateTime?
+  installedByRef           Json
+  unmountedByRef           Json?
+  installationStatus       String   @db.VarChar(64)
+  setupSnapshot            String?  @db.VarChar(1000)
+  operationRef             Json?
+  routingRef               Json?
+  workOrderRef             Json?
+  operationTaskRef         Json?
+  auditRef                 Json
+
+  @@index([tenantId, productionMoldInstanceId, installationStatus])
+  @@index([tenantId, resourcePositionId, installationStatus])
+  @@index([tenantId, workCenterId, installationStatus])
+}
+
+model MoldUsageEvent {
+  id                       String   @id @db.VarChar(128)
+  tenantId                 String   @db.VarChar(128)
+  orgId                    String?  @db.VarChar(128)
+  productionMoldInstanceId String   @db.VarChar(128)
+  moldInstallationId       String   @db.VarChar(128)
+  workCenterId             String   @db.VarChar(128)
+  resourcePositionId       String?  @db.VarChar(128)
+  usageMode                String   @db.VarChar(64)
+  usedAt                   DateTime
+  usageQuantity            String   @db.VarChar(64)
+  lifeDelta                String   @db.VarChar(64)
+  lifeUnit                 String   @db.VarChar(64)
+  lifeUsedValueAfter       String   @db.VarChar(64)
+  productFamilyRef         Json?
+  manufacturingSpecRef     Json?
+  wipUnitRef               Json?
+  physicalTraceId          String?  @db.VarChar(128)
+  workOrderRef             Json?
+  operationTaskRef         Json?
+  operatorRef              Json
+  captureSource            String   @db.VarChar(128)
+  auditRef                 Json
+
+  @@index([tenantId, productionMoldInstanceId, usedAt])
+  @@index([tenantId, workCenterId, usedAt])
+}
+
+model MoldLifeCounter {
+  id                       String   @id @db.VarChar(128)
+  tenantId                 String   @db.VarChar(128)
+  orgId                    String?  @db.VarChar(128)
+  productionMoldInstanceId String   @unique @db.VarChar(128)
+  lifeUnit                 String   @db.VarChar(64)
+  usedValue                String   @db.VarChar(64)
+  limitValue               String   @db.VarChar(64)
+  warningThresholdValue    String   @db.VarChar(64)
+  lastUsageEventId         String?  @db.VarChar(128)
+  lastAdjustedAt           DateTime?
+  lastAdjustedByRef        Json?
+  adjustmentReason         String?  @db.VarChar(500)
+  updatedAt                DateTime
+
+  @@index([tenantId, productionMoldInstanceId])
+}
+
+model MoldWarningEvent {
+  id                       String   @id @db.VarChar(128)
+  tenantId                 String   @db.VarChar(128)
+  orgId                    String?  @db.VarChar(128)
+  productionMoldInstanceId String   @db.VarChar(128)
+  warningType              String   @db.VarChar(64)
+  warningLevel             String   @db.VarChar(64)
+  triggeredByEventId       String?  @db.VarChar(128)
+  lifeUsedValue            String   @db.VarChar(64)
+  lifeLimitValue           String   @db.VarChar(64)
+  raisedAt                 DateTime
+  acknowledgedAt           DateTime?
+  acknowledgedByRef        Json?
+  status                   String   @db.VarChar(64)
+  auditRef                 Json
+
+  @@index([tenantId, productionMoldInstanceId, status])
+  @@index([tenantId, warningType, warningLevel, status])
+}
+
+model MesAuditEnvelope {
+  id             String   @id @db.VarChar(128)
+  tenantId       String   @db.VarChar(128)
+  orgId          String?  @db.VarChar(128)
+  service        String   @db.VarChar(128)
+  module         String   @db.VarChar(128)
+  eventType      String   @db.VarChar(128)
+  occurredAt     DateTime
+  result         String   @db.VarChar(64)
+  operatorId     String   @db.VarChar(128)
+  operatorType   String   @db.VarChar(64)
+  traceId        String   @db.VarChar(128)
+  commandId      String   @db.VarChar(128)
+  reason         String   @db.VarChar(500)
+  resourceType   String?  @db.VarChar(128)
+  resourceId     String?  @db.VarChar(128)
+  beforeSnapshot Json?
+  afterSnapshot  Json?
+  details        Json
+  createdAt      DateTime
+
+  @@index([tenantId, occurredAt])
+  @@index([tenantId, commandId])
+}
+
+model MesOutboxEvent {
+  id            String   @id @db.VarChar(128)
+  tenantId      String   @db.VarChar(128)
+  orgId         String?  @db.VarChar(128)
+  eventType     String   @db.VarChar(128)
+  aggregateType String   @db.VarChar(128)
+  aggregateId   String   @db.VarChar(128)
+  payload       Json
+  traceId       String   @db.VarChar(128)
+  commandId     String   @db.VarChar(128)
+  occurredAt    DateTime
+  publishedAt   DateTime?
+  status        String   @db.VarChar(64)
+  createdAt     DateTime
+
+  @@index([tenantId, eventType, status])
+  @@index([tenantId, aggregateType, aggregateId])
+}
+
+model MesCommandIdempotency {
+  id               String   @id @db.VarChar(128)
+  tenantId         String   @db.VarChar(128)
+  orgId            String?  @db.VarChar(128)
+  commandId        String   @db.VarChar(128)
+  commandName      String   @db.VarChar(128)
+  requestHash      String   @db.VarChar(128)
+  status           String   @db.VarChar(64)
+  responseSnapshot Json?
+  createdAt        DateTime
+  updatedAt        DateTime
+
+  @@unique([tenantId, commandId])
+  @@index([tenantId, status, updatedAt])
+}

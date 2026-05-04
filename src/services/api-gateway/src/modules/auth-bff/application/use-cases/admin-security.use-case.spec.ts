@@ -71,13 +71,9 @@ describe('AdminSecurityUseCase', () => {
     })
   })
 
-  it('updates one account basic-info view by syncing account profile, identity contacts, and auth login methods', async () => {
+  it('updates one account basic-info view without mutating identity contacts or login methods', async () => {
     const authAdapter = {
-      bootstrapUserLoginMethods: jest.fn().mockResolvedValue({
-        emailBootstrapped: true,
-        passwordBootstrapped: false,
-        phoneBootstrapped: true
-      })
+      bootstrapUserLoginMethods: jest.fn()
     }
     const identityAdapter = {
       getAccountById: jest
@@ -107,15 +103,15 @@ describe('AdminSecurityUseCase', () => {
         .mockResolvedValueOnce({
           user: {
             id: 'user-1',
-            personalEmail: 'old@example.com',
+            personalEmail: undefined,
             personalPhone: '+8613800138000'
           }
         })
         .mockResolvedValueOnce({
           user: {
             id: 'user-1',
-            personalEmail: 'new@example.com',
-            personalPhone: '+8613900139000'
+            personalEmail: undefined,
+            personalPhone: '+8613800138000'
           }
         }),
       updateAccountProfile: jest.fn().mockResolvedValue({
@@ -128,13 +124,7 @@ describe('AdminSecurityUseCase', () => {
           scopeLevel: 'TENANT'
         }
       }),
-      updateUserBasicInfo: jest.fn().mockResolvedValue({
-        user: {
-          id: 'user-1',
-          personalEmail: 'new@example.com',
-          personalPhone: '+8613900139000'
-        }
-      })
+      updateUserBasicInfo: jest.fn()
     }
     const tenantOrgAdapter = {
       getTenantById: jest.fn().mockResolvedValue({
@@ -156,8 +146,6 @@ describe('AdminSecurityUseCase', () => {
       'account-1',
       {
         displayName: '新名字',
-        email: 'new@example.com',
-        phone: '+8613900139000',
         isEnabled: true
       } as any,
       {
@@ -178,35 +166,14 @@ describe('AdminSecurityUseCase', () => {
         user: expect.objectContaining({ sub: 'operator-1', scopeLevel: 'SYSTEM' })
       })
     )
-    expect(identityAdapter.updateUserBasicInfo).toHaveBeenCalledWith(
-      {
-        accountId: 'account-1',
-        userId: 'user-1',
-        email: 'new@example.com',
-        phone: '+8613900139000'
-      },
-      expect.objectContaining({
-        user: expect.objectContaining({ sub: 'operator-1', scopeLevel: 'SYSTEM' })
-      })
-    )
-    expect(authAdapter.bootstrapUserLoginMethods).toHaveBeenCalledWith(
-      {
-        userId: 'user-1',
-        accountId: 'account-1',
-        displayName: '新名字',
-        email: 'new@example.com',
-        phone: '+8613900139000'
-      },
-      expect.objectContaining({
-        user: expect.objectContaining({ sub: 'operator-1', scopeLevel: 'SYSTEM' })
-      })
-    )
+    expect(identityAdapter.updateUserBasicInfo).not.toHaveBeenCalled()
+    expect(authAdapter.bootstrapUserLoginMethods).not.toHaveBeenCalled()
     expect(result).toEqual({
       accountId: 'account-1',
       userId: 'user-1',
       displayName: '新名字',
-      email: 'new@example.com',
-      phone: '+8613900139000',
+      email: undefined,
+      phone: '+8613800138000',
       tenantId: 'tenant-1',
       tenantName: '达屋科技',
       scopeLevel: 'TENANT',
@@ -497,8 +464,8 @@ describe('AdminSecurityUseCase', () => {
     const partyAdapter = {
       getPartyById: jest
         .fn()
-        .mockResolvedValueOnce({ party: { id: 'party-1', displayName: '张三', canonicalName: '张三' } })
-        .mockResolvedValueOnce({ party: { id: 'party-2', displayName: '', canonicalName: '李四' } }),
+        .mockResolvedValueOnce({ party: { id: 'party-1', legalName: '张三' } })
+        .mockResolvedValueOnce({ party: { id: 'party-2', legalName: '李四' } }),
     }
     const tenantOrgAdapter = {
       getTenantById: jest.fn().mockResolvedValue({
@@ -517,7 +484,7 @@ describe('AdminSecurityUseCase', () => {
       tenantOrgAdapter as any,
     )
     const result = await useCase.listAccounts(
-      { keyword: '', page: 1, pageSize: 20, scopeLevel: 'TENANT', status: 'ENABLED' } as any,
+      { keyword: '', page: 1, pageSize: 20, scopeLevel: 'TENANT', status: 'ENABLED', tenantId: 'tenant-1' } as any,
       { user: { sub: 'operator-1', scopeLevel: 'SYSTEM' } } as any
     )
 
@@ -527,7 +494,8 @@ describe('AdminSecurityUseCase', () => {
         page: 1,
         pageSize: 20,
         scopeLevel: 'TENANT',
-        status: 'ENABLED'
+        status: 'ENABLED',
+        tenantId: 'tenant-1'
       },
       expect.objectContaining({ user: { sub: 'operator-1', scopeLevel: 'SYSTEM' } })
     )
@@ -623,8 +591,7 @@ describe('AdminSecurityUseCase', () => {
       getPartyById: jest.fn().mockResolvedValue({
         party: {
           id: 'party-1',
-          displayName: '维克多',
-          canonicalName: 'Victor Chen'
+          legalName: 'Victor Chen'
         }
       })
     }
@@ -649,7 +616,7 @@ describe('AdminSecurityUseCase', () => {
       items: [
         {
           userId: 'user-1',
-          displayName: '维克多',
+          displayName: 'Victor Chen',
           emailMasked: 'v***@example.com',
           phoneMasked: '+1*******001',
           accountSummaries: [
@@ -878,8 +845,7 @@ describe('AdminSecurityUseCase', () => {
       getPartyById: jest.fn().mockResolvedValue({
         party: {
           id: 'party-1',
-          displayName: '陈双鹏',
-          canonicalName: '陈双鹏',
+          legalName: '陈双鹏',
         },
       }),
     }
@@ -1187,8 +1153,6 @@ describe('AdminSecurityUseCase', () => {
       'account-1',
       {
         displayName: 'Tenant Admin',
-        email: 'tenant@example.com',
-        phone: '+8613800138000',
         isEnabled: false
       } as any,
       source
@@ -1298,8 +1262,6 @@ describe('AdminSecurityUseCase', () => {
         'account-1',
         {
           displayName: 'Tenant Admin',
-          email: 'tenant@example.com',
-          phone: '+8613800138000',
           isEnabled: true
         } as any,
         {
@@ -1397,7 +1359,6 @@ describe('AdminSecurityUseCase', () => {
         cleanupPlan: {
           willDeleteSessions: true,
           willClearRoles: true,
-          willDeleteOrgMemberships: true,
           willDeleteContactAssets: true
         },
         blockingReasons: [
@@ -1407,7 +1368,6 @@ describe('AdminSecurityUseCase', () => {
             message: '账号仍有业务归属'
           }
         ],
-        orgMembershipCount: 2,
         contactAssetCount: 1
       })
     }
@@ -1426,7 +1386,6 @@ describe('AdminSecurityUseCase', () => {
       cleanupPlan: {
         willDeleteSessions: true,
         willClearRoles: true,
-        willDeleteOrgMemberships: true,
         willDeleteContactAssets: true
       },
       blockingReasons: [
@@ -1436,7 +1395,6 @@ describe('AdminSecurityUseCase', () => {
           message: '账号仍有业务归属'
         }
       ],
-      orgMembershipCount: 2,
       contactAssetCount: 1
     })
   })
@@ -1464,16 +1422,13 @@ describe('AdminSecurityUseCase', () => {
         cleanupPlan: {
           willDeleteSessions: true,
           willClearRoles: true,
-          willDeleteOrgMemberships: true,
           willDeleteContactAssets: true
         },
         blockingReasons: [],
-        orgMembershipCount: 1,
         contactAssetCount: 2
       }),
       deleteAccount: jest.fn().mockResolvedValue({
         accountId: 'account-1',
-        deletedOrgMembershipCount: 1,
         deletedContactAssetCount: 2,
         userRetained: true
       })
@@ -1511,7 +1466,6 @@ describe('AdminSecurityUseCase', () => {
       deletedSessionCount: 3,
       clearedRoleCount: 2,
       deletedPolicyCount: 2,
-      deletedOrgMembershipCount: 1,
       deletedContactAssetCount: 2,
       userRetained: true
     })

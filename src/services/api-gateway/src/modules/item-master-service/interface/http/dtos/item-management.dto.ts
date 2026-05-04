@@ -24,6 +24,17 @@ export class ListItemsDto {
   @IsString()
   keyword?: string
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  categoryId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  includeDescendants?: boolean
+
   @ApiPropertyOptional({ enum: ITEM_CAPABILITY_VALUES })
   @IsOptional()
   @IsIn(ITEM_CAPABILITY_VALUES)
@@ -177,4 +188,58 @@ export class ChangeItemStatusDto {
   @ApiProperty({ enum: ITEM_STATUS_VALUES })
   @IsIn(ITEM_STATUS_VALUES)
   status!: string
+}
+
+/** ListItemCategoriesDto defines the optional tree-layer selector accepted by the lightweight category directory entry. */
+export class ListItemCategoriesDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  parentCategoryId?: string
+}
+
+/** CreateItemCategoryDto defines the minimal category creation payload exposed through the item-management entry. */
+export class CreateItemCategoryDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  categoryCode!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  categoryName!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  parentCategoryId?: string
+}
+
+/** UpdateItemCategoryBasicsDto restricts category editing to code and name only. */
+export class UpdateItemCategoryBasicsDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  categoryCode!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  categoryName!: string
+}
+
+/** ChangeItemCategoryStatusDto defines the minimal category lifecycle mutation exposed by the BFF. */
+export class ChangeItemCategoryStatusDto {
+  @ApiProperty({ enum: ITEM_STATUS_VALUES })
+  @IsIn(ITEM_STATUS_VALUES)
+  status!: string
+}
+
+/** SetItemPrimaryCategoryDto defines the single-value primary-category assignment payload for one item. */
+export class SetItemPrimaryCategoryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  primaryCategoryId?: string
 }

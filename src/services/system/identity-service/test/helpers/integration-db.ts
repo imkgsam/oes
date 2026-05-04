@@ -123,23 +123,6 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     }
   })
 
-  await prisma.userAccountOrgMembership.deleteMany({
-    where: {
-      OR: [{ accountId: { startsWith: prefix } }, { orgId: { startsWith: prefix } }]
-    }
-  })
-
-  await prisma.org.deleteMany({
-    where: {
-      OR: [
-        { id: { startsWith: prefix } },
-        { tenantId: { startsWith: prefix } },
-        { name: { startsWith: prefix } },
-        { code: { startsWith: prefix } }
-      ]
-    }
-  })
-
   await prisma.userAccount.deleteMany({
     where: {
       OR: [{ id: { startsWith: prefix } }, { tenantId: { startsWith: prefix } }]
@@ -157,13 +140,4 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     }
   })
 
-  await prisma.tenant.deleteMany({
-    where: {
-      OR: [
-        { id: { startsWith: prefix } },
-        { name: { startsWith: prefix } },
-        { code: { startsWith: prefix } }
-      ]
-    }
-  })
 }

@@ -17,7 +17,9 @@
     { "path": "./src/services/business/crm-service" },
     { "path": "./src/services/business/srm-service" },
     { "path": "./src/services/business/finance-service" },
-    { "path": "./src/services/business/procurement-service" }
+    { "path": "./src/services/business/procurement-service" },
+    { "path": "./src/services/business/wms-service" },
+    { "path": "./src/services/business/mes-service" }
     // auxiliary services
   ]
 }

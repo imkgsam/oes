@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import { existsSync, readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,13 +8,25 @@ import {
   buildSeedAccountRoleBindings,
   buildSeedAccounts,
   buildSeedContactAssets,
-  buildSeedTenantOrgRootUnits,
+  buildSeedEmployments,
+  buildSeedHrEmployees,
+  buildSeedIdentityEmployeeBindings,
+  buildSeedIdentityOrgMemberships,
+  buildSeedIdentityOrgs,
+  buildSeedIdentityTenants,
+  buildSeedOnboardingAccesses,
+  buildSeedOrganizationParties,
+  buildSeedParties,
+  buildSeedPersonParties,
+  buildSeedSummary,
   buildSeedTenantOrgTenants,
+  buildSeedTenantOrgUnits,
+  buildSeedTenantParties,
   buildSeedTenantRoles,
+  buildSeedUsers,
   DEFAULT_OTP_CODE,
   DEFAULT_PASSWORD,
   LEGACY_IDENTIFIERS,
-  MANAGED_ACCOUNT_IDS,
   MANAGED_USER_IDS,
   SEEDED_COMPANIES,
   SEEDED_LOGIN_IDENTIFIERS,
@@ -22,19 +35,19 @@ import {
   SEEDED_USERS,
   SYSTEM_ACCOUNT_IDS,
 } from './tenant-web-auth-test-fixtures.mjs';
-import {
-  buildConflictingIdentityUserIds,
-  resolveTenantWebAuthSeedState,
-} from './tenant-web-auth-seed-resolution.mjs';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..', '..');
+const PRIMARY_WORKSPACE_ROOT = path.resolve(ROOT, '..', '..');
 
 const {
   PrismaClient: IdentityPrismaClient,
   AccountContactAssetStatus,
   AccountContactAssetType,
+  AccountOrgRelationType,
+  OrgType,
+  UserAccountScopeLevel,
 } = require(path.join(
   ROOT,
   'src/services/system/identity-service/prisma/generated/prisma',
@@ -63,28 +76,103 @@ const {
   ROOT,
   'src/services/system/tenant-org-service/prisma/generated/prisma',
 ));
+const {
+  PrismaClient: PartyPrismaClient,
+  PartyStatus,
+  PartyType,
+  TenantPartyStatus,
+} = require(path.join(
+  ROOT,
+  'src/services/system/party-service/prisma/generated/prisma',
+));
+const {
+  PrismaClient: HrPrismaClient,
+  EmployeeLifecycleStatus,
+  EmploymentStatus,
+  OnboardingAccessStatus,
+} = require(path.join(
+  ROOT,
+  'src/services/system/hr-service/prisma/generated/prisma',
+));
 const bcrypt = require(path.join(
   ROOT,
   'src/services/system/auth-service/node_modules/bcrypt',
 ));
 
-const AUTH_DB_URL = 'postgres://imkgsam:imkgsam@127.0.0.1:5432/authdb';
-const IDENTITY_DB_URL = 'postgres://imkgsam:imkgsam@127.0.0.1:5432/identitydb';
-const PERMISSION_DB_URL = 'postgres://imkgsam:imkgsam@127.0.0.1:5432/permissiondb';
-const TENANT_ORG_DB_URL = 'postgres://imkgsam:imkgsam@127.0.0.1:5432/tenantorgdb';
-
 const SEEDED_ACCOUNTS = buildSeedAccounts();
 const SEEDED_CONTACT_ASSETS = buildSeedContactAssets();
-const SEEDED_TENANT_ORG_ROOT_UNITS = buildSeedTenantOrgRootUnits();
+const SEEDED_EMPLOYEES = buildSeedHrEmployees();
+const SEEDED_EMPLOYMENTS = buildSeedEmployments();
+const SEEDED_EMPLOYEE_BINDINGS = buildSeedIdentityEmployeeBindings();
+const SEEDED_IDENTITY_ORG_MEMBERSHIPS = buildSeedIdentityOrgMemberships();
+const SEEDED_IDENTITY_ORGS = buildSeedIdentityOrgs();
+const SEEDED_IDENTITY_TENANTS = buildSeedIdentityTenants();
+const SEEDED_ONBOARDING_ACCESSES = buildSeedOnboardingAccesses();
+const SEEDED_ORGANIZATION_PARTIES = buildSeedOrganizationParties();
+const SEEDED_PARTIES = buildSeedParties();
+const SEEDED_PERSON_PARTIES = buildSeedPersonParties();
 const SEEDED_TENANT_ORG_TENANTS = buildSeedTenantOrgTenants();
+const SEEDED_TENANT_ORG_UNITS = buildSeedTenantOrgUnits();
+const SEEDED_TENANT_PARTIES = buildSeedTenantParties();
 const SEEDED_TENANT_ROLES = buildSeedTenantRoles();
+const SEEDED_USERS_DATA = buildSeedUsers();
 const SEEDED_ACCOUNT_ROLE_BINDINGS = buildSeedAccountRoleBindings();
+const SEEDED_USER_IDENTIFIERS = {
+  usernames: SEEDED_USERS_DATA.map((user) => user.username).filter(Boolean),
+  emails: SEEDED_USERS_DATA.map((user) => user.email).filter(Boolean),
+  phones: SEEDED_USERS_DATA.map((user) => user.phone).filter(Boolean),
+};
 
-// Runs the permission and navigation foundation sync so built-in roles and entries stay authoritative.
+function parseEnvValue(raw) {
+  const trimmed = raw.trim();
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+    (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+// Resolves one service database url from an explicit env var or the service-local .env file.
+function resolveDatabaseUrl(envKey, serviceRelativePath) {
+  const direct = process.env[envKey];
+  if (direct?.trim()) {
+    return direct.trim();
+  }
+
+  const envCandidates = [
+    path.join(ROOT, serviceRelativePath, '.env'),
+    path.join(PRIMARY_WORKSPACE_ROOT, serviceRelativePath, '.env'),
+  ];
+  const envPath = envCandidates.find((candidate) => existsSync(candidate));
+  if (!envPath) {
+    throw new Error(
+      `${envKey} is not set and no service .env file was found in ${envCandidates.join(' or ')}`
+    );
+  }
+
+  const envContent = readFileSync(envPath, 'utf8');
+  const match = envContent.match(/^\s*DATABASE_URL\s*=\s*(.+)\s*$/m);
+  if (!match) {
+    throw new Error(`DATABASE_URL was not found in ${envPath}`);
+  }
+
+  return parseEnvValue(match[1]);
+}
+
+const AUTH_DB_URL = resolveDatabaseUrl('AUTH_DATABASE_URL', 'src/services/system/auth-service');
+const IDENTITY_DB_URL = resolveDatabaseUrl('IDENTITY_DATABASE_URL', 'src/services/system/identity-service');
+const PERMISSION_DB_URL = resolveDatabaseUrl('PERMISSION_DATABASE_URL', 'src/services/system/permission-service');
+const TENANT_ORG_DB_URL = resolveDatabaseUrl('TENANT_ORG_DATABASE_URL', 'src/services/system/tenant-org-service');
+const PARTY_DB_URL = resolveDatabaseUrl('PARTY_DATABASE_URL', 'src/services/system/party-service');
+const HR_DB_URL = resolveDatabaseUrl('HR_DATABASE_URL', 'src/services/system/hr-service');
+
+// Runs the permission and navigation foundation sync so built-in tenant admin instances stay authoritative.
 function syncPermissionFoundationForLocalSystemAccount() {
   const result = spawnSync(
     'pnpm',
-    ['--filter', 'permission-service', 'permission-codes:sync'],
+    ['--filter', 'permission-service', 'seed:apply', '--', '--apply'],
     {
       cwd: ROOT,
       env: {
@@ -101,153 +189,79 @@ function syncPermissionFoundationForLocalSystemAccount() {
   }
 }
 
-// Writes the requested realistic tenant, user, account, and contact fixture rows into identity-service.
-async function seedIdentity(identity, seedState) {
+// Rebuilds tenant, org, account, and employee binding facts in identity-service for the manual tenant entry flows.
+async function seedIdentity(identity) {
   await identity.$transaction(async (tx) => {
-    const existingConflictingUsers = await tx.user.findMany({
+    const staleUsers = await tx.user.findMany({
       where: {
         OR: [
-          {
-            username: {
-              in: SEEDED_USERS.map((user) => user.username),
-            },
-          },
-          {
-            email: {
-              in: SEEDED_USERS.map((user) => user.email),
-            },
-          },
-          {
-            phone: {
-              in: SEEDED_USERS.map((user) => user.phone),
-            },
-          },
+          { id: { in: MANAGED_USER_IDS } },
+          { username: { in: SEEDED_USER_IDENTIFIERS.usernames } },
+          { email: { in: SEEDED_USER_IDENTIFIERS.emails } },
+          { phone: { in: SEEDED_USER_IDENTIFIERS.phones } },
         ],
       },
-      select: {
-        email: true,
-        id: true,
-        phone: true,
-        username: true,
-      },
+      select: { id: true },
     });
+    const staleUserIds = staleUsers.map((user) => user.id);
 
-    const conflictingUserIds = buildConflictingIdentityUserIds({
-      existingUsers: existingConflictingUsers,
-      managedUserIds: MANAGED_USER_IDS,
-      seededUsers: SEEDED_USERS,
-    });
-
-    if (conflictingUserIds.length > 0) {
-      const conflictingAccountIds = (
-        await tx.userAccount.findMany({
-          where: {
-            userId: { in: conflictingUserIds },
-          },
-          select: {
-            id: true,
-          },
-        })
-      ).map((account) => account.id);
-
-      if (conflictingAccountIds.length > 0) {
-        await tx.accountContactAsset.deleteMany({
-          where: {
-            accountId: { in: conflictingAccountIds },
-          },
-        });
-      }
-
-      await tx.userAccount.deleteMany({
-        where: {
-          userId: { in: conflictingUserIds },
-        },
-      });
-
-      await tx.user.deleteMany({
-        where: {
-          id: { in: conflictingUserIds },
-        },
-      });
-    }
-
-    for (const company of seedState.seededCompanies) {
-      await tx.tenant.upsert({
-        where: { id: company.id },
-        update: {
-          code: company.code,
-          isActive: true,
-          name: company.name,
-        },
-        create: {
-          id: company.id,
-          code: company.code,
-          isActive: true,
-          name: company.name,
-        },
-      });
-    }
-
-    for (const user of SEEDED_USERS) {
-      await tx.user.upsert({
-        where: { id: user.id },
-        update: {
-          email: user.email,
-          isActive: true,
-          phone: user.phone,
-          username: user.username,
-        },
-        create: {
-          id: user.id,
-          email: user.email,
-          isActive: true,
-          phone: user.phone,
-          username: user.username,
-        },
-      });
-    }
-
+    await tx.userAccountOrgMembership.deleteMany({});
+    await tx.userAccountEmployeeBinding.deleteMany({});
+    await tx.accountContactAsset.deleteMany({});
     await tx.userAccount.deleteMany({
       where: {
-        userId: { in: MANAGED_USER_IDS },
-        id: { notIn: MANAGED_ACCOUNT_IDS },
+        OR: [
+          { scopeLevel: UserAccountScopeLevel.TENANT },
+          { id: { in: SYSTEM_ACCOUNT_IDS } },
+          staleUserIds.length > 0 ? { userId: { in: staleUserIds } } : undefined,
+        ].filter(Boolean),
       },
     });
-
-    for (const account of seedState.seededAccounts) {
-      await tx.userAccount.upsert({
-        where: { id: account.id },
-        update: {
-          avatarUrl: account.avatarUrl,
-          contextKey: account.contextKey,
-          displayName: account.displayName,
-          isEnable: true,
-          scopeLevel: account.scopeLevel,
-          tenantId: account.tenantId,
-          userId: account.userId,
-        },
-        create: {
-          id: account.id,
-          avatarUrl: account.avatarUrl,
-          contextKey: account.contextKey,
-          displayName: account.displayName,
-          isEnable: true,
-          scopeLevel: account.scopeLevel,
-          tenantId: account.tenantId,
-          userId: account.userId,
-        },
-      });
-    }
-
-    await tx.accountContactAsset.deleteMany({
+    await tx.org.deleteMany({});
+    await tx.tenant.deleteMany({});
+    await tx.user.deleteMany({
       where: {
-        accountId: { in: MANAGED_ACCOUNT_IDS },
+        id: { in: staleUserIds },
       },
     });
 
-    if (seedState.seededContactAssets.length > 0) {
+    await tx.tenant.createMany({
+      data: SEEDED_IDENTITY_TENANTS,
+    });
+
+    await tx.org.createMany({
+      data: SEEDED_IDENTITY_ORGS.map((org) => ({
+        id: org.id,
+        tenantId: org.tenantId,
+        parentId: org.parentId,
+        name: org.name,
+        code: org.code,
+        type: OrgType[org.type],
+        order: org.order,
+        createdBy: 'seed:tenant-web-auth',
+      })),
+    });
+
+    await tx.user.createMany({
+      data: SEEDED_USERS_DATA,
+    });
+
+    await tx.userAccount.createMany({
+      data: SEEDED_ACCOUNTS.map((account) => ({
+        id: account.id,
+        avatarUrl: account.avatarUrl,
+        contextKey: account.contextKey,
+        displayName: account.displayName,
+        isEnable: true,
+        scopeLevel: UserAccountScopeLevel[account.scopeLevel],
+        tenantId: account.tenantId,
+        userId: account.userId,
+      })),
+    });
+
+    if (SEEDED_CONTACT_ASSETS.length > 0) {
       await tx.accountContactAsset.createMany({
-        data: seedState.seededContactAssets.map((asset) => ({
+        data: SEEDED_CONTACT_ASSETS.map((asset) => ({
           id: asset.id,
           accountId: asset.accountId,
           assignedAt: asset.assignedAt,
@@ -257,6 +271,24 @@ async function seedIdentity(identity, seedState) {
           tenantId: asset.tenantId,
           type: AccountContactAssetType[asset.type],
           value: asset.value,
+        })),
+      });
+    }
+
+    if (SEEDED_EMPLOYEE_BINDINGS.length > 0) {
+      await tx.userAccountEmployeeBinding.createMany({
+        data: SEEDED_EMPLOYEE_BINDINGS,
+      });
+    }
+
+    if (SEEDED_IDENTITY_ORG_MEMBERSHIPS.length > 0) {
+      await tx.userAccountOrgMembership.createMany({
+        data: SEEDED_IDENTITY_ORG_MEMBERSHIPS.map((membership) => ({
+          id: membership.id,
+          accountId: membership.accountId,
+          orgId: membership.orgId,
+          relationType: AccountOrgRelationType[membership.relationType],
+          isPrimary: membership.isPrimary,
         })),
       });
     }
@@ -346,27 +378,56 @@ async function seedAuth(auth, passwordHash) {
   });
 }
 
-// Seeds tenant-scoped role instances and account-role bindings while preserving the built-in system admin role flow.
-async function seedPermission(permission, seedState) {
+// Rebuilds tenant-scoped role instances and bindings while leaving system/template roles to the permission foundation.
+async function seedPermission(permission) {
   await permission.$transaction(async (tx) => {
-    for (const role of seedState.seededTenantRoles) {
-      await tx.role.upsert({
-        where: { id: role.id },
-        update: {
-          code: role.code,
-          description: role.description,
-          isEnabled: role.isEnabled,
-          kind: RoleKind[role.kind],
-          name: role.name,
-          scopeKey: role.scopeKey,
-          templateRoleId: role.templateRoleId,
-          tenantId: role.tenantId,
+    const systemAdminRole = await tx.role.findFirst({
+      where: {
+        code: 'system.admin',
+        kind: RoleKind.SYSTEM_INSTANCE,
+        scopeKey: '__SYSTEM__',
+      },
+      select: { id: true },
+    });
+
+    if (!systemAdminRole) {
+      throw new Error('Missing system.admin role. Run permission foundation seed before tenant-web seed.');
+    }
+
+    const existingTenantRoleIds = (
+      await tx.role.findMany({
+        where: {
+          kind: RoleKind.TENANT_INSTANCE,
         },
-        create: {
+        select: { id: true },
+      })
+    ).map((role) => role.id);
+
+    await tx.onboardingGrantRequest.deleteMany({});
+    await tx.accountRole.deleteMany({
+      where: {
+        OR: [
+          { scopeLevel: ScopeLevel.TENANT },
+          existingTenantRoleIds.length > 0 ? { roleId: { in: existingTenantRoleIds } } : undefined,
+        ].filter(Boolean),
+      },
+    });
+    if (existingTenantRoleIds.length > 0) {
+      await tx.rolePermission.deleteMany({ where: { roleId: { in: existingTenantRoleIds } } });
+      await tx.roleNavigationVisibility.deleteMany({ where: { roleId: { in: existingTenantRoleIds } } });
+      await tx.roleLandingPolicy.deleteMany({ where: { roleId: { in: existingTenantRoleIds } } });
+      await tx.role.deleteMany({ where: { id: { in: existingTenantRoleIds } } });
+    }
+
+    for (const role of SEEDED_TENANT_ROLES) {
+      await tx.role.create({
+        data: {
           id: role.id,
           code: role.code,
           description: role.description,
+          allowTenantPermissionOverride: role.allowTenantPermissionOverride,
           isEnabled: role.isEnabled,
+          isProtected: role.isProtected,
           kind: RoleKind[role.kind],
           name: role.name,
           scopeKey: role.scopeKey,
@@ -376,68 +437,52 @@ async function seedPermission(permission, seedState) {
       });
     }
 
-    await tx.rolePermission.deleteMany({
-      where: {
-        roleId: { in: seedState.seededTenantRoles.map((role) => role.id) },
-      },
-    });
-
     const tenantPermissionCodes = [
       ...new Set(
-        seedState.seededTenantRoles.flatMap((role) =>
-          SEEDED_TENANT_ROLE_PERMISSION_CODES.get(role.code) ?? [],
+        SEEDED_TENANT_ROLES.flatMap((role) =>
+          SEEDED_TENANT_ROLE_PERMISSION_CODES.get(role.code) ?? []
         ),
       ),
     ];
-    const permissionsByCode =
-      tenantPermissionCodes.length > 0
-        ? new Map(
-            (
-              await tx.permission.findMany({
-                where: {
-                  code: { in: tenantPermissionCodes },
-                },
-                select: {
-                  id: true,
-                  code: true,
-                },
-              })
-            ).map((permissionRow) => [permissionRow.code, permissionRow.id]),
-          )
-        : new Map();
 
-    const missingTenantPermissionCodes = tenantPermissionCodes.filter(
-      (code) => !permissionsByCode.has(code),
-    );
-
-    if (missingTenantPermissionCodes.length > 0) {
-      throw new Error(
-        `Missing seeded tenant role permissions: ${missingTenantPermissionCodes.join(', ')}`,
+    if (tenantPermissionCodes.length > 0) {
+      const permissionsByCode = new Map(
+        (
+          await tx.permission.findMany({
+            where: {
+              code: { in: tenantPermissionCodes },
+            },
+            select: {
+              id: true,
+              code: true,
+            },
+          })
+        ).map((permissionRow) => [permissionRow.code, permissionRow.id]),
       );
-    }
 
-    const tenantRolePermissionRows = seedState.seededTenantRoles.flatMap((role) =>
-      (SEEDED_TENANT_ROLE_PERMISSION_CODES.get(role.code) ?? []).map((permissionCode) => ({
-        roleId: role.id,
-        permissionId: permissionsByCode.get(permissionCode),
-      })),
-    );
+      const missingTenantPermissionCodes = tenantPermissionCodes.filter(
+        (code) => !permissionsByCode.has(code),
+      );
 
-    if (tenantRolePermissionRows.length > 0) {
+      if (missingTenantPermissionCodes.length > 0) {
+        throw new Error(
+          `Missing seeded tenant role permissions: ${missingTenantPermissionCodes.join(', ')}`
+        );
+      }
+
       await tx.rolePermission.createMany({
-        data: tenantRolePermissionRows,
+        data: SEEDED_TENANT_ROLES.flatMap((role) =>
+          (SEEDED_TENANT_ROLE_PERMISSION_CODES.get(role.code) ?? []).map((permissionCode) => ({
+            roleId: role.id,
+            permissionId: permissionsByCode.get(permissionCode),
+          }))
+        ),
       });
     }
 
-    await tx.accountRole.deleteMany({
-      where: {
-        roleId: { in: seedState.seededTenantRoles.map((role) => role.id) },
-      },
-    });
-
-    if (seedState.seededAccountRoleBindings.length > 0) {
+    if (SEEDED_ACCOUNT_ROLE_BINDINGS.length > 0) {
       await tx.accountRole.createMany({
-        data: seedState.seededAccountRoleBindings.map((binding) => ({
+        data: SEEDED_ACCOUNT_ROLE_BINDINGS.map((binding) => ({
           accountId: binding.accountId,
           accountType: AccountType[binding.accountType],
           effectiveAt: binding.effectiveAt,
@@ -448,114 +493,159 @@ async function seedPermission(permission, seedState) {
         })),
       });
     }
+
+    if (SYSTEM_ACCOUNT_IDS.length > 0) {
+      await tx.accountRole.createMany({
+        data: SYSTEM_ACCOUNT_IDS.map((accountId) => ({
+          accountId,
+          accountType: AccountType.USER,
+          effectiveAt: null,
+          expiresAt: null,
+          roleId: systemAdminRole.id,
+          scopeLevel: ScopeLevel.SYSTEM,
+          tenantId: null,
+        })),
+        skipDuplicates: true,
+      });
+    }
   });
 }
 
-// Rebuilds tenant-org-service tenant and root org facts so gateway hydration uses the proper tenant truth owner.
-async function seedTenantOrg(tenantOrg, seedState) {
+// Rebuilds tenant and org-unit truth in tenant-org-service for the organization workspace tree.
+async function seedTenantOrg(tenantOrg) {
   await tenantOrg.$transaction(async (tx) => {
-    const managedTenantIds = seedState.seededTenantOrgTenants.map((tenant) => tenant.id);
+    await tx.orgUnit.deleteMany({});
+    await tx.tenant.deleteMany({});
 
-    await tx.orgUnit.deleteMany({
-      where: {
-        tenantId: { in: managedTenantIds },
-      },
+    await tx.tenant.createMany({
+      data: SEEDED_TENANT_ORG_TENANTS.map((tenant) => ({
+        id: tenant.id,
+        code: tenant.code,
+        name: tenant.name,
+        rootOrgId: tenant.rootOrgId,
+        status: TenantStatus[tenant.status],
+      })),
     });
 
-    for (const tenant of seedState.seededTenantOrgTenants) {
-      await tx.tenant.upsert({
-        where: { id: tenant.id },
-        update: {
-          code: tenant.code,
-          name: tenant.name,
-          rootOrgId: tenant.rootOrgId,
-          status: TenantStatus[tenant.status],
-        },
-        create: {
-          id: tenant.id,
-          code: tenant.code,
-          name: tenant.name,
-          rootOrgId: tenant.rootOrgId,
-          status: TenantStatus[tenant.status],
-        },
-      });
-    }
+    await tx.orgUnit.createMany({
+      data: SEEDED_TENANT_ORG_UNITS.map((orgUnit) => ({
+        id: orgUnit.id,
+        tenantId: orgUnit.tenantId,
+        parentOrgId: orgUnit.parentOrgId,
+        name: orgUnit.name,
+        type: OrgUnitType[orgUnit.type],
+        status: OrgUnitStatus[orgUnit.status],
+        path: orgUnit.path,
+        depth: orgUnit.depth,
+        sortOrder: orgUnit.sortOrder,
+        organizationPartyId: orgUnit.organizationPartyId,
+      })),
+    });
+  });
+}
 
-    for (const orgUnit of seedState.seededTenantOrgRootUnits) {
-      await tx.orgUnit.create({
-        data: {
-          id: orgUnit.id,
-          tenantId: orgUnit.tenantId,
-          parentOrgId: orgUnit.parentOrgId,
-          name: orgUnit.name,
-          type: OrgUnitType[orgUnit.type],
-          status: OrgUnitStatus[orgUnit.status],
-          path: orgUnit.path,
-          depth: orgUnit.depth,
-          sortOrder: orgUnit.sortOrder,
-          organizationPartyId: orgUnit.organizationPartyId,
-        },
+// Rebuilds party-service person, organization, and tenant-party facts so names come from the proper owner.
+async function seedParty(party) {
+  await party.$transaction(async (tx) => {
+    await tx.partyRelationship.deleteMany({});
+    await tx.partyIdentifier.deleteMany({});
+    await tx.tenantParty.deleteMany({});
+    await tx.personParty.deleteMany({});
+    await tx.organizationParty.deleteMany({});
+    await tx.party.deleteMany({});
+
+    await tx.party.createMany({
+      data: SEEDED_PARTIES.map((seed) => ({
+        id: seed.id,
+        type: PartyType[seed.type],
+        status: PartyStatus[seed.status],
+        canonicalName: seed.canonicalName,
+        displayName: seed.displayName,
+      })),
+    });
+
+    await tx.organizationParty.createMany({
+      data: SEEDED_ORGANIZATION_PARTIES,
+    });
+
+    await tx.personParty.createMany({
+      data: SEEDED_PERSON_PARTIES,
+    });
+
+    await tx.tenantParty.createMany({
+      data: SEEDED_TENANT_PARTIES.map((seed) => ({
+        id: seed.id,
+        tenantId: seed.tenantId,
+        partyId: seed.partyId,
+        localDisplayName: seed.localDisplayName,
+        localCode: seed.localCode,
+        tags: seed.tags,
+        status: TenantPartyStatus[seed.status],
+      })),
+    });
+  });
+}
+
+// Rebuilds employee, employment, and onboarding-access truth in hr-service for member testing scenarios.
+async function seedHr(hr) {
+  await hr.$transaction(async (tx) => {
+    await tx.employeeOnboardingAccess.deleteMany({});
+    await tx.employment.deleteMany({});
+    await tx.employee.deleteMany({});
+
+    await tx.employee.createMany({
+      data: SEEDED_EMPLOYEES.map((employee) => ({
+        id: employee.id,
+        tenantId: employee.tenantId,
+        tenantPartyId: employee.tenantPartyId,
+        partyId: employee.partyId,
+        employeeCode: employee.employeeCode,
+        lifecycleStatus: EmployeeLifecycleStatus[employee.lifecycleStatus],
+      })),
+    });
+
+    await tx.employment.createMany({
+      data: SEEDED_EMPLOYMENTS.map((employment) => ({
+        id: employment.id,
+        tenantId: employment.tenantId,
+        employeeId: employment.employeeId,
+        orgUnitId: employment.orgUnitId,
+        status: EmploymentStatus[employment.status],
+        effectiveFrom: employment.effectiveFrom,
+        effectiveTo: employment.effectiveTo,
+        endedReason: employment.endedReason,
+        positionName: employment.positionName,
+        activeSlot: employment.activeSlot,
+      })),
+    });
+
+    if (SEEDED_ONBOARDING_ACCESSES.length > 0) {
+      await tx.employeeOnboardingAccess.createMany({
+        data: SEEDED_ONBOARDING_ACCESSES.map((access) => ({
+          id: access.id,
+          tenantId: access.tenantId,
+          employeeId: access.employeeId,
+          employmentId: access.employmentId,
+          accountId: access.accountId,
+          status: OnboardingAccessStatus[access.status],
+          grantIdempotencyKey: access.grantIdempotencyKey,
+          failureReason: access.failureReason,
+        })),
       });
     }
   });
 }
 
-// Loads existing identity and tenant-org tenant rows so the local auth seed can reuse stable business codes across prior fixture revisions.
-async function resolveSeedState(identity, permission, tenantOrg) {
-  const seededCodes = SEEDED_COMPANIES.map((company) => company.code);
-  const [existingIdentityTenants, existingPermissionRoles, existingTenantOrgTenants] = await Promise.all([
-    identity.tenant.findMany({
-      where: {
-        code: { in: seededCodes },
-      },
-      select: {
-        code: true,
-        id: true,
-      },
-    }),
-    permission.role.findMany({
-      where: {
-        code: { in: SEEDED_TENANT_ROLES.map((role) => role.code) },
-      },
-      select: {
-        code: true,
-        id: true,
-        kind: true,
-        scopeKey: true,
-      },
-    }),
-    tenantOrg.tenant.findMany({
-      where: {
-        code: { in: seededCodes },
-      },
-      select: {
-        code: true,
-        id: true,
-        rootOrgId: true,
-      },
-    }),
-  ]);
-
-  return resolveTenantWebAuthSeedState({
-    existingIdentityTenants,
-    existingPermissionRoles,
-    existingTenantOrgTenants,
-    seededAccountRoleBindings: SEEDED_ACCOUNT_ROLE_BINDINGS,
-    seededAccounts: SEEDED_ACCOUNTS,
-    seededCompanies: SEEDED_COMPANIES,
-    seededContactAssets: SEEDED_CONTACT_ASSETS,
-    seededTenantOrgRootUnits: SEEDED_TENANT_ORG_ROOT_UNITS,
-    seededTenantOrgTenants: SEEDED_TENANT_ORG_TENANTS,
-    seededTenantRoles: SEEDED_TENANT_ROLES,
-  });
-}
-
-// Prints a compact summary so local operators can immediately see which credentials were seeded.
+// Prints a compact summary so local operators can immediately see which tenants and credentials were rebuilt.
 function printSummary() {
-  console.log('Seeded tenant-web auth test data successfully.');
-  console.log(`Companies: ${SEEDED_COMPANIES.map((company) => company.name).join(' / ')}`);
-  console.log(`Users: ${SEEDED_USERS.map((user) => `${user.personName}<${user.email}>`).join(' ; ')}`);
-  console.log(`Tenant roots: ${SEEDED_TENANT_ORG_ROOT_UNITS.map((org) => org.name).join(' / ')}`);
+  const summary = buildSeedSummary();
+  console.log('Seeded tenant-web org/people test data successfully.');
+  console.log(`Tenants: ${summary.tenants.join(' / ')}`);
+  console.log(`Org units: ${summary.orgUnitCount}`);
+  console.log(`Employees: ${summary.employeeCount}`);
+  console.log(`Lifecycle coverage: ${summary.lifecycleCoverage.join(', ')}`);
+  console.log(`Access coverage: ${summary.accessCoverage.join(', ')}`);
+  console.log(`Login users: ${summary.loginUsers.join(' ; ')}`);
   console.log(`Password: ${DEFAULT_PASSWORD}`);
   console.log(`OTP: ${DEFAULT_OTP_CODE}`);
 }
@@ -581,16 +671,27 @@ async function main() {
       db: { url: TENANT_ORG_DB_URL },
     },
   });
+  const party = new PartyPrismaClient({
+    datasources: {
+      db: { url: PARTY_DB_URL },
+    },
+  });
+  const hr = new HrPrismaClient({
+    datasources: {
+      db: { url: HR_DB_URL },
+    },
+  });
 
   try {
     const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
-    const seedState = await resolveSeedState(identity, permission, tenantOrg);
 
-    await seedIdentity(identity, seedState);
+    await seedParty(party);
+    await seedTenantOrg(tenantOrg);
+    await seedHr(hr);
+    await seedIdentity(identity);
     await seedAuth(auth, passwordHash);
-    await seedTenantOrg(tenantOrg, seedState);
     syncPermissionFoundationForLocalSystemAccount();
-    await seedPermission(permission, seedState);
+    await seedPermission(permission);
     syncPermissionFoundationForLocalSystemAccount();
     printSummary();
   } finally {
@@ -599,12 +700,14 @@ async function main() {
       auth.$disconnect(),
       permission.$disconnect(),
       tenantOrg.$disconnect(),
+      party.$disconnect(),
+      hr.$disconnect(),
     ]);
   }
 }
 
 main().catch((error) => {
-  console.error('Failed to seed tenant-web auth test data.');
+  console.error('Failed to seed tenant-web org/people test data.');
   console.error(error);
   process.exitCode = 1;
 });

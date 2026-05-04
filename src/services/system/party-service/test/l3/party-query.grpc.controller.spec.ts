@@ -22,8 +22,7 @@ describe('PartyQueryGrpcController L3', () => {
           id: 'party-1',
           type: 'ORGANIZATION',
           status: 'ACTIVE',
-          canonicalName: 'Acme Legal',
-          displayName: null
+          legalName: 'Acme Legal'
         },
         confidence: 0.88,
         matchSignals: ['name', 'identifier']
@@ -66,8 +65,7 @@ describe('PartyQueryGrpcController L3', () => {
             id: 'party-1',
             type: 'ORGANIZATION',
             status: 'ACTIVE',
-            canonicalName: 'Acme Legal',
-            displayName: ''
+            legalName: 'Acme Legal'
           },
           confidence: 0.88,
           matchSignals: ['name', 'identifier']
@@ -84,8 +82,7 @@ describe('PartyQueryGrpcController L3', () => {
       id: 'party-2',
       type: 'PERSON',
       status: 'ACTIVE',
-      canonicalName: 'Zhang San',
-      displayName: 'Zhang San'
+      legalName: 'Zhang San'
     })
 
     const result = await controller.resolvePartyByIdentifier({
@@ -106,8 +103,7 @@ describe('PartyQueryGrpcController L3', () => {
         id: 'party-2',
         type: 'PERSON',
         status: 'ACTIVE',
-        canonicalName: 'Zhang San',
-        displayName: 'Zhang San'
+        legalName: 'Zhang San'
       }
     })
   })

@@ -20,8 +20,7 @@ describe('PartyRegistrationGrpcController L3', () => {
         id: 'party-1',
         type: 'ORGANIZATION',
         status: 'ACTIVE',
-        canonicalName: 'Acme Legal',
-        displayName: null
+        legalName: 'Acme Legal'
       },
       tenantParty: {
         id: 'tenant-party-1',
@@ -36,7 +35,7 @@ describe('PartyRegistrationGrpcController L3', () => {
 
     const result = await controller.registerOrganizationParty({
       tenantId: 'tenant-1',
-      canonicalName: 'Acme Legal',
+      legalName: 'Acme Legal',
       localDisplayName: 'Acme Local',
       localCode: 'ACME-001',
       registeredCountry: 'CN',
@@ -52,7 +51,7 @@ describe('PartyRegistrationGrpcController L3', () => {
 
     expect(service.registerOrganizationParty).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
-      canonicalName: 'Acme Legal',
+      legalName: 'Acme Legal',
       registeredCountry: 'CN',
       localDisplayName: 'Acme Local',
       localCode: 'ACME-001',
@@ -70,8 +69,7 @@ describe('PartyRegistrationGrpcController L3', () => {
         id: 'party-1',
         type: 'ORGANIZATION',
         status: 'ACTIVE',
-        canonicalName: 'Acme Legal',
-        displayName: ''
+        legalName: 'Acme Legal'
       },
       tenantParty: {
         id: 'tenant-party-1',
@@ -94,8 +92,7 @@ describe('PartyRegistrationGrpcController L3', () => {
         id: 'party-2',
         type: 'ORGANIZATION',
         status: 'ACTIVE',
-        canonicalName: 'Bound Party',
-        displayName: 'Bound Party'
+        legalName: 'Bound Party'
       },
       tenantParty: {
         id: 'tenant-party-2',

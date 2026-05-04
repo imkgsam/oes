@@ -76,7 +76,7 @@ describe('CreateUserAccountHandler', () => {
     })
     expect(partyRegistrationPort.registerPersonParty).toHaveBeenCalledWith(
       expect.objectContaining({
-        canonicalName: 'Janny',
+        legalName: 'Janny',
         localDisplayName: 'Janny',
         tenantId: 'tenant-a',
       }),
@@ -87,6 +87,144 @@ describe('CreateUserAccountHandler', () => {
       tenantId: 'tenant-a',
       userId: 'user-1'
     })
+  })
+
+  it('creates a tenant account for an existing user without creating another user or person party', async () => {
+    const accountRepository = createAccountRepositoryMock()
+    const userRepository = createUserRepositoryMock()
+    const partyRegistrationPort = {
+      bindExistingPartyToTenant: jest.fn().mockResolvedValue({
+        partyId: 'party-system-admin',
+        tenantPartyId: 'tenant-party-system-admin'
+      }),
+      registerPersonParty: jest.fn()
+    }
+    userRepository.findById.mockResolvedValue(
+      createUserSummaryFixture({
+        id: 'user-system-admin',
+        partyId: 'party-system-admin',
+        personalEmail: 'sysadmin@example.com'
+      })
+    )
+    accountRepository.findByUserScope.mockResolvedValue(null)
+    accountRepository.createUserAccount.mockResolvedValue(
+      createAccountSummaryFixture({
+        id: 'tenant-account-1',
+        userId: 'user-system-admin',
+        tenantId: 'tenant-a',
+        scopeLevel: 'TENANT',
+        displayName: 'System Admin'
+      })
+    )
+
+    const handler = new CreateUserAccountHandler(
+      accountRepository,
+      userRepository,
+      new CheckResourceService(),
+      partyRegistrationPort as any
+    ) as any
+
+    await expect(
+      handler.execute(
+        new CreateUserAccountCommand({
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-a',
+          displayName: 'System Admin',
+          existingUserId: 'user-system-admin',
+          operatorId: 'platform-account-1',
+          operatorScope: {
+            operatorId: 'platform-account-1',
+            isSystemScope: true
+          } as any
+        })
+      )
+    ).resolves.toMatchObject({
+      id: 'tenant-account-1',
+      userId: 'user-system-admin',
+      tenantId: 'tenant-a',
+      scopeLevel: 'TENANT',
+      userPartyId: 'party-system-admin',
+      userTenantPartyId: 'tenant-party-system-admin'
+    })
+
+    expect(userRepository.create).not.toHaveBeenCalled()
+    expect(partyRegistrationPort.registerPersonParty).not.toHaveBeenCalled()
+    expect(partyRegistrationPort.bindExistingPartyToTenant).toHaveBeenCalledWith(
+      expect.objectContaining({
+        partyId: 'party-system-admin',
+        tenantId: 'tenant-a',
+        localDisplayName: 'System Admin'
+      })
+    )
+    expect(accountRepository.createUserAccount).toHaveBeenCalledWith({
+      displayName: 'System Admin',
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-a',
+      userId: 'user-system-admin'
+    })
+  })
+
+  it('reuses an existing tenant account when binding an existing user is retried', async () => {
+    const accountRepository = createAccountRepositoryMock()
+    const userRepository = createUserRepositoryMock()
+    const partyRegistrationPort = {
+      bindExistingPartyToTenant: jest.fn().mockResolvedValue({
+        partyId: 'party-system-admin',
+        tenantPartyId: 'tenant-party-system-admin'
+      }),
+      registerPersonParty: jest.fn()
+    }
+    userRepository.findById.mockResolvedValue(
+      createUserSummaryFixture({
+        id: 'user-system-admin',
+        partyId: 'party-system-admin'
+      })
+    )
+    accountRepository.findByUserScope.mockResolvedValue(
+      createAccountSummaryFixture({
+        id: 'tenant-account-1',
+        userId: 'user-system-admin',
+        tenantId: 'tenant-a',
+        scopeLevel: 'TENANT',
+        displayName: 'System Admin'
+      })
+    )
+
+    const handler = new CreateUserAccountHandler(
+      accountRepository,
+      userRepository,
+      new CheckResourceService(),
+      partyRegistrationPort as any
+    ) as any
+
+    await expect(
+      handler.execute(
+        new CreateUserAccountCommand({
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-a',
+          displayName: 'System Admin',
+          existingUserId: 'user-system-admin',
+          operatorId: 'platform-account-1',
+          operatorScope: {
+            operatorId: 'platform-account-1',
+            isSystemScope: true
+          } as any
+        })
+      )
+    ).resolves.toMatchObject({
+      id: 'tenant-account-1',
+      userId: 'user-system-admin',
+      tenantId: 'tenant-a',
+      userTenantPartyId: 'tenant-party-system-admin'
+    })
+
+    expect(accountRepository.createUserAccount).not.toHaveBeenCalled()
+    expect(partyRegistrationPort.bindExistingPartyToTenant).toHaveBeenCalledWith(
+      expect.objectContaining({
+        partyId: 'party-system-admin',
+        tenantId: 'tenant-a'
+      })
+    )
   })
 
   it('rejects tenant operators attempting to create system-scope accounts', async () => {
@@ -193,7 +331,7 @@ describe('CreateUserAccountHandler', () => {
 
     expect(partyRegistrationPort.registerPersonParty).toHaveBeenCalledWith(
       expect.objectContaining({
-        canonicalName: 'Platform Operator',
+        legalName: 'Platform Operator',
         localDisplayName: 'Platform Operator',
         tenantId: undefined,
       }),

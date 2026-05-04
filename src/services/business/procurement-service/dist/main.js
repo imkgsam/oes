@@ -10,6 +10,7 @@ const app_module_1 = require("./app.module");
 async function bootstrap() {
     (0, tracing_1.initOtelSdk)(process.env.MODULE_NAME || 'procurement-service');
     const app = await core_1.NestFactory.createMicroservice(app_module_1.AppModule, {
+        bufferLogs: true,
         transport: microservices_1.Transport.GRPC,
         options: {
             package: 'procurement_service',

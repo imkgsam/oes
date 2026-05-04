@@ -33,11 +33,37 @@ type NavigationLandingSeed = {
   terminal: string
 }
 
-const ADMIN_ROLE_CODES = new Set(['sys_admin', 'system.admin', 'tenant.admin'])
-const SYSTEM_ADMIN_ROLE_CODES = new Set(['sys_admin', 'system.admin'])
+const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = {
+  'system.admin': [
+    'platform.home',
+    'admin.auth-session-management',
+    'admin.tenant-management',
+    'admin.org-management',
+    'admin.role-management',
+    'admin.account-management',
+    'admin.platform-mfa',
+    'admin.permission-management',
+    'admin.policy-governance',
+    'admin.navigation-management'
+  ],
+  'tenant.admin': [
+    'workbench.home',
+    'admin.auth-session-management',
+    'admin.role-management',
+    'admin.account-management',
+    'tenant-settings.org-structure',
+    'tenant-settings.employee-employment',
+    'tenant-settings.login-mfa'
+  ],
+  'hr.admin': [
+    'workbench.home',
+    'tenant-settings.employee-employment'
+  ],
+  'account.basic': ['workbench.home']
+}
 
-/** DEPRECATED_NAVIGATION_ENTRY_KEYS disables renamed built-in entries during seed sync. */
-export const DEPRECATED_NAVIGATION_ENTRY_KEYS = ['admin.account-role-management'] as const
+/** DEPRECATED_NAVIGATION_ENTRY_KEYS disables removed built-in entries during seed sync. */
+export const DEPRECATED_NAVIGATION_ENTRY_KEYS = ['tenant-settings.organization-people'] as const
 
 /** DEFAULT_NAVIGATION_ENTRIES defines the built-in first-stage navigation registry rows. */
 export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
@@ -47,7 +73,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户工作台默认首页入口。',
     featureKey: 'workbench',
     supportedTerminals: ['WEB'],
-    registryPriority: 100,
+    registryPriority: 0,
     enabled: true,
     entryType: 'page'
   },
@@ -57,7 +83,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '系统平台默认首页入口。',
     featureKey: 'platform',
     supportedTerminals: ['WEB'],
-    registryPriority: 100,
+    registryPriority: 1,
     enabled: true,
     entryType: 'page'
   },
@@ -67,7 +93,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员认证与会话管理入口。',
     featureKey: 'auth',
     supportedTerminals: ['WEB'],
-    registryPriority: 80,
+    registryPriority: 2,
     enabled: true,
     entryType: 'page'
   },
@@ -77,7 +103,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '系统管理员租户创建与基础管理入口。',
     featureKey: 'tenant-org',
     supportedTerminals: ['WEB'],
-    registryPriority: 79,
+    registryPriority: 3,
     enabled: true,
     entryType: 'page'
   },
@@ -87,7 +113,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '系统管理员进入指定 tenant 的组织架构管理入口。',
     featureKey: 'tenant-org',
     supportedTerminals: ['WEB'],
-    registryPriority: 78,
+    registryPriority: 4,
     enabled: true,
     entryType: 'page'
   },
@@ -97,7 +123,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员角色管理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 65,
+    registryPriority: 5,
     enabled: true,
     entryType: 'page'
   },
@@ -107,37 +133,27 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员账号管理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 64,
-    enabled: true,
-    entryType: 'page'
-  },
-  {
-    entryKey: 'tenant-settings.organization-people',
-    name: '组织与人员',
-    description: '租户侧组织与人员统一入口，统一承接成员与部门工作台。',
-    featureKey: 'tenant-admin',
-    supportedTerminals: ['WEB'],
-    registryPriority: 59,
+    registryPriority: 6,
     enabled: true,
     entryType: 'page'
   },
   {
     entryKey: 'tenant-settings.org-structure',
-    name: '本租户组织架构',
+    name: '组织架构',
     description: '租户管理员日常组织树与组织节点管理入口。',
     featureKey: 'tenant-org',
     supportedTerminals: ['WEB'],
-    registryPriority: 58,
+    registryPriority: 7,
     enabled: true,
     entryType: 'page'
   },
   {
     entryKey: 'tenant-settings.employee-employment',
-    name: '员工与任职管理',
+    name: '员工管理',
     description: '租户管理员与 HR 管理员的员工与任职管理入口。',
     featureKey: 'hr',
     supportedTerminals: ['WEB'],
-    registryPriority: 57,
+    registryPriority: 8,
     enabled: true,
     entryType: 'page'
   },
@@ -147,7 +163,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户 MFA 场景、因子优先级与新设备登录保护配置入口。',
     featureKey: 'auth',
     supportedTerminals: ['WEB'],
-    registryPriority: 56,
+    registryPriority: 9,
     enabled: true,
     entryType: 'page'
   },
@@ -157,7 +173,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 Item 主数据 phase 1 管理入口。',
     featureKey: 'item-master',
     supportedTerminals: ['WEB'],
-    registryPriority: 55,
+    registryPriority: 10,
     enabled: true,
     entryType: 'page'
   },
@@ -167,7 +183,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 SRM supplier master phase 1 管理入口。',
     featureKey: 'srm',
     supportedTerminals: ['WEB'],
-    registryPriority: 54,
+    registryPriority: 11,
     enabled: true,
     entryType: 'page'
   },
@@ -177,7 +193,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 CRM customer master phase 1 管理入口。',
     featureKey: 'crm',
     supportedTerminals: ['WEB'],
-    registryPriority: 53,
+    registryPriority: 12,
     enabled: true,
     entryType: 'page'
   },
@@ -187,7 +203,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 sales quote-order phase 1 最小闭环入口。',
     featureKey: 'sales',
     supportedTerminals: ['WEB'],
-    registryPriority: 52,
+    registryPriority: 13,
     enabled: true,
     entryType: 'page'
   },
@@ -197,7 +213,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 procurement phase 1 PR / PO / receiving 最小闭环入口。',
     featureKey: 'procurement',
     supportedTerminals: ['WEB'],
-    registryPriority: 51,
+    registryPriority: 14,
     enabled: true,
     entryType: 'page'
   },
@@ -207,7 +223,17 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '租户侧 finance phase 1A 资金账户、应收、汇率与收款核销最小入口。',
     featureKey: 'finance',
     supportedTerminals: ['WEB'],
-    registryPriority: 50,
+    registryPriority: 15,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'wms.management',
+    name: 'WMS 管理',
+    description: '租户侧 WMS phase 1 仓库、库位、收货与库存查询最小入口。',
+    featureKey: 'wms',
+    supportedTerminals: ['WEB'],
+    registryPriority: 16,
     enabled: true,
     entryType: 'page'
   },
@@ -217,7 +243,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '系统账号 MFA 场景、因子优先级与新设备登录保护配置入口。',
     featureKey: 'auth',
     supportedTerminals: ['WEB'],
-    registryPriority: 59,
+    registryPriority: 17,
     enabled: true,
     entryType: 'page'
   },
@@ -227,7 +253,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员权限管理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 70,
+    registryPriority: 18,
     enabled: true,
     entryType: 'page'
   },
@@ -237,7 +263,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员策略治理只读入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 62,
+    registryPriority: 19,
     enabled: true,
     entryType: 'page'
   },
@@ -247,7 +273,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员导航治理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 60,
+    registryPriority: 20,
     enabled: true,
     entryType: 'page'
   }
@@ -260,145 +286,10 @@ export function buildNavigationFoundationVisibilitySeeds(
   const rows: NavigationVisibilitySeed[] = []
 
   for (const role of roles) {
-    const scopeLevel = role.kind === RoleKind.SYSTEM_INSTANCE ? 'SYSTEM' : 'TENANT'
-    const homeEntry = scopeLevel === 'SYSTEM' ? 'platform.home' : 'workbench.home'
-
-    rows.push({
-      roleId: role.id,
-      entryKey: homeEntry,
-      terminal: DEFAULT_NAVIGATION_TERMINAL,
-      enabled: true
-    })
-
-    if (ADMIN_ROLE_CODES.has(role.code)) {
+    for (const entryKey of NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE[role.code] ?? []) {
       rows.push({
         roleId: role.id,
-        entryKey: 'admin.auth-session-management',
-        terminal: DEFAULT_NAVIGATION_TERMINAL,
-        enabled: true
-      })
-      if (scopeLevel === 'TENANT') {
-        rows.push({
-          roleId: role.id,
-          entryKey: 'admin.role-management',
-          terminal: DEFAULT_NAVIGATION_TERMINAL,
-          enabled: true
-        })
-        rows.push({
-          roleId: role.id,
-          entryKey: 'admin.account-management',
-          terminal: DEFAULT_NAVIGATION_TERMINAL,
-          enabled: true
-        })
-        rows.push({
-          roleId: role.id,
-          entryKey: 'tenant-settings.organization-people',
-          terminal: DEFAULT_NAVIGATION_TERMINAL,
-          enabled: true
-        })
-        rows.push({
-          roleId: role.id,
-          entryKey: 'tenant-settings.org-structure',
-          terminal: DEFAULT_NAVIGATION_TERMINAL,
-          enabled: true
-        })
-        rows.push({
-          roleId: role.id,
-          entryKey: 'tenant-settings.employee-employment',
-          terminal: DEFAULT_NAVIGATION_TERMINAL,
-          enabled: true
-        })
-        rows.push({
-          roleId: role.id,
-          entryKey: 'tenant-settings.login-mfa',
-          terminal: DEFAULT_NAVIGATION_TERMINAL,
-          enabled: true
-        })
-        rows.push({
-          roleId: role.id,
-          entryKey: 'master-data.item-management',
-          terminal: DEFAULT_NAVIGATION_TERMINAL,
-          enabled: true
-        })
-        rows.push({
-          roleId: role.id,
-          entryKey: 'master-data.supplier-management',
-          terminal: DEFAULT_NAVIGATION_TERMINAL,
-          enabled: true
-        })
-        rows.push({
-          roleId: role.id,
-          entryKey: 'master-data.customer-management',
-          terminal: DEFAULT_NAVIGATION_TERMINAL,
-          enabled: true
-        })
-        rows.push({
-          roleId: role.id,
-          entryKey: 'sales.quote-orders',
-          terminal: DEFAULT_NAVIGATION_TERMINAL,
-          enabled: true
-        })
-        rows.push({
-          roleId: role.id,
-          entryKey: 'procurement.management',
-          terminal: DEFAULT_NAVIGATION_TERMINAL,
-          enabled: true
-        })
-        rows.push({
-          roleId: role.id,
-          entryKey: 'finance.dashboard',
-          terminal: DEFAULT_NAVIGATION_TERMINAL,
-          enabled: true
-        })
-      }
-    }
-
-    if (scopeLevel === 'SYSTEM' && SYSTEM_ADMIN_ROLE_CODES.has(role.code)) {
-      rows.push({
-        roleId: role.id,
-        entryKey: 'admin.tenant-management',
-        terminal: DEFAULT_NAVIGATION_TERMINAL,
-        enabled: true
-      })
-      rows.push({
-        roleId: role.id,
-        entryKey: 'admin.org-management',
-        terminal: DEFAULT_NAVIGATION_TERMINAL,
-        enabled: true
-      })
-      rows.push({
-        roleId: role.id,
-        entryKey: 'admin.role-management',
-        terminal: DEFAULT_NAVIGATION_TERMINAL,
-        enabled: true
-      })
-      rows.push({
-        roleId: role.id,
-        entryKey: 'admin.account-management',
-        terminal: DEFAULT_NAVIGATION_TERMINAL,
-        enabled: true
-      })
-      rows.push({
-        roleId: role.id,
-        entryKey: 'admin.platform-mfa',
-        terminal: DEFAULT_NAVIGATION_TERMINAL,
-        enabled: true
-      })
-      rows.push({
-        roleId: role.id,
-        entryKey: 'admin.permission-management',
-        terminal: DEFAULT_NAVIGATION_TERMINAL,
-        enabled: true
-      })
-      rows.push({
-        roleId: role.id,
-        entryKey: 'admin.policy-governance',
-        terminal: DEFAULT_NAVIGATION_TERMINAL,
-        enabled: true
-      })
-      rows.push({
-        roleId: role.id,
-        entryKey: 'admin.navigation-management',
+        entryKey,
         terminal: DEFAULT_NAVIGATION_TERMINAL,
         enabled: true
       })
@@ -417,7 +308,7 @@ export function buildNavigationFoundationLandingSeeds(
     terminal: DEFAULT_NAVIGATION_TERMINAL,
     defaultEntryKey:
       role.kind === RoleKind.SYSTEM_INSTANCE ? 'platform.home' : 'workbench.home',
-    priority: 100,
+    priority: 0,
     enabled: true
   }))
 }

@@ -1,11 +1,12 @@
 import { OperatorScope } from '../authorization'
 
 export interface RegisterPersonPartyInput {
-  canonicalName: string
+  legalName: string
   localDisplayName?: string
   operatorId?: string
   operatorScope?: OperatorScope
   tenantId?: string
+  idempotencyKey?: string
 }
 
 export interface RegisterPersonPartyResult {
@@ -13,8 +14,23 @@ export interface RegisterPersonPartyResult {
   tenantPartyId?: string
 }
 
-// Describes the single party-service write capability identity-service needs when creating a new human user.
+export interface BindExistingPartyToTenantInput {
+  idempotencyKey?: string
+  localDisplayName?: string
+  operatorId?: string
+  operatorScope?: OperatorScope
+  partyId: string
+  tenantId: string
+}
+
+export interface BindExistingPartyToTenantResult {
+  partyId: string
+  tenantPartyId: string
+}
+
+// Describes the party-service write capabilities identity-service needs when provisioning human accounts.
 export interface PartyRegistrationPort {
+  bindExistingPartyToTenant(input: BindExistingPartyToTenantInput): Promise<BindExistingPartyToTenantResult>
   registerPersonParty(input: RegisterPersonPartyInput): Promise<RegisterPersonPartyResult>
 }
 

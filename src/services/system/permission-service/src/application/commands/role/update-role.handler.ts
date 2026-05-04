@@ -2,7 +2,7 @@ import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { SYMBOLS } from '../../../common/constants/symbols'
-import { ROLE_NOT_FOUND } from '../../../common/constants/exception-enums'
+import { ROLE_NOT_ASSIGNABLE, ROLE_NOT_FOUND } from '../../../common/constants/exception-enums'
 import { Role } from '../../../domain/aggregates/role.aggregate'
 import { RoleKind } from '../../../domain/enums/role-kind.enum'
 import { ScopeLevel } from '../../../domain/enums/scope-level.enum'
@@ -21,6 +21,13 @@ export class UpdateRoleHandler implements ICommandHandler<UpdateRoleCommand> {
     const role = await this.roleRepo.findById(command.id)
     if (!role || !role.isAssignable) {
       throw ExceptionFactory.domain(ROLE_NOT_FOUND)
+    }
+    if (role.isProtected) {
+      throw ExceptionFactory.domain(ROLE_NOT_ASSIGNABLE, {
+        roleId: role.id,
+        roleCode: role.code,
+        isProtected: role.isProtected
+      })
     }
 
     assertRoleScopeAccess(

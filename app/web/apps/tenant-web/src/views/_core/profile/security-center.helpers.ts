@@ -4,6 +4,8 @@ export type ContactBindingKind = 'email' | 'phone';
 export type LoginMethodGroupKind = 'email' | 'phone';
 
 export interface LoginMethodCapabilityItem {
+  actionDisabled: boolean;
+  disabledLabel: string;
   enabled: boolean;
   hasPassword: boolean;
   hint: string;
@@ -29,6 +31,7 @@ export type MfaEnableFlow =
   | 'REQUIRE_TOTP_FIRST';
 
 interface LoginMethodGroupDefinition {
+  contactLabel: string;
   supportedTypes: Set<string>;
   kind: LoginMethodGroupKind;
   passwordType: string;
@@ -38,6 +41,7 @@ interface LoginMethodGroupDefinition {
 
 const LOGIN_METHOD_GROUP_DEFINITIONS: LoginMethodGroupDefinition[] = [
   {
+    contactLabel: '邮箱',
     supportedTypes: new Set(['EMAIL', 'EMAIL_OTP', 'EMAIL_PASSWORD']),
     kind: 'email',
     passwordType: 'EMAIL_PASSWORD',
@@ -45,6 +49,7 @@ const LOGIN_METHOD_GROUP_DEFINITIONS: LoginMethodGroupDefinition[] = [
     title: '邮箱登录',
   },
   {
+    contactLabel: '手机号',
     supportedTypes: new Set(['PHONE', 'PHONE_OTP', 'PHONE_PASSWORD']),
     kind: 'phone',
     passwordType: 'PHONE_PASSWORD',
@@ -219,6 +224,7 @@ function buildLoginMethodGroup(
   const otpMethod = loginMethods.find((item) => item.type === definition.otpType);
   const representativeMethod = passwordMethod ?? otpMethod ?? null;
   const verified = Boolean(passwordMethod?.verified || otpMethod?.verified);
+  const missingBindingHint = `需要先绑定并验证${definition.contactLabel}`;
 
   return {
     boundValue:
@@ -227,18 +233,26 @@ function buildLoginMethodGroup(
       '',
     capabilities: [
       {
+        actionDisabled: !passwordMethod?.methodId || !passwordMethod.hasPassword,
+        disabledLabel: passwordMethod?.methodId ? '先设置密码' : `先绑定${definition.contactLabel}`,
         enabled: Boolean(passwordMethod?.enabled),
         hasPassword: Boolean(passwordMethod?.hasPassword),
-        hint: '',
+        hint: !passwordMethod?.methodId
+          ? missingBindingHint
+          : passwordMethod.hasPassword
+            ? ''
+            : '需要先设置密码',
         label: '密码登录',
         methodId: passwordMethod?.methodId ?? '',
         type: definition.passwordType,
         verified: Boolean(passwordMethod?.verified),
       },
       {
+        actionDisabled: !otpMethod?.methodId,
+        disabledLabel: `先绑定${definition.contactLabel}`,
         enabled: Boolean(otpMethod?.enabled),
         hasPassword: false,
-        hint: '',
+        hint: otpMethod?.methodId ? '' : missingBindingHint,
         label: '验证码登录',
         methodId: otpMethod?.methodId ?? '',
         type: definition.otpType,

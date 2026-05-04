@@ -57,9 +57,10 @@ export class HrOnboardingAccessService {
     createAccount?: {
       displayName: string
       email?: string
+      existingUserId?: string
       phone?: string
     }
-    roleIds: string[]
+    roleIds?: string[]
     reason?: string
     operatorContext?: {
       operatorId: string
@@ -74,13 +75,7 @@ export class HrOnboardingAccessService {
     const tenantId = requireNonBlank(input.tenantId, 'tenantId')
     const employeeId = requireNonBlank(input.employeeId, 'employeeId')
     const employmentId = requireNonBlank(input.employmentId, 'employmentId')
-    const roleIds = input.roleIds.map((roleId) => roleId.trim()).filter(Boolean)
-    if (roleIds.length === 0) {
-      throw ExceptionFactory.application(VALIDATION_FAILED, {
-        field: 'roleIds',
-        reason: 'required'
-      })
-    }
+    const roleIds = (input.roleIds ?? []).map((roleId) => roleId.trim()).filter(Boolean)
     await this.assertEmployeeEmploymentScope(tenantId, employeeId, employmentId)
 
     const latestProcess = await this.onboardingAccessRepository.findLatestByEmployeeId(
@@ -194,6 +189,7 @@ export class HrOnboardingAccessService {
     createAccount?: {
       displayName: string
       email?: string
+      existingUserId?: string
       phone?: string
     }
     operatorContext?: {
@@ -217,8 +213,9 @@ export class HrOnboardingAccessService {
     }
 
     const email = createAccount.email?.trim() || undefined
+    const existingUserId = createAccount.existingUserId?.trim() || undefined
     const phone = createAccount.phone?.trim() || undefined
-    if (!email && !phone) {
+    if (!existingUserId && !email && !phone) {
       throw new BadRequestException('At least one login contact is required')
     }
 
@@ -228,6 +225,7 @@ export class HrOnboardingAccessService {
         tenantId: input.tenantId,
         displayName: requireNonBlank(createAccount.displayName, 'createAccount.displayName'),
         email,
+        existingUserId,
         phone,
         username: createAccount.displayName,
         operatorContext: input.operatorContext,
@@ -235,16 +233,18 @@ export class HrOnboardingAccessService {
         traceId: input.traceId
       })
 
-      await this.authLoginBootstrapPort.bootstrapUserLoginMethods({
-        userId: account.userId,
-        accountId: account.accountId,
-        displayName: account.displayName,
-        email,
-        phone,
-        operatorContext: input.operatorContext,
-        requestId: input.requestId,
-        traceId: input.traceId
-      })
+      if (!existingUserId) {
+        await this.authLoginBootstrapPort.bootstrapUserLoginMethods({
+          userId: account.userId,
+          accountId: account.accountId,
+          displayName: account.displayName,
+          email,
+          phone,
+          operatorContext: input.operatorContext,
+          requestId: input.requestId,
+          traceId: input.traceId
+        })
+      }
 
       return requireNonBlank(account.accountId, 'accountId')
     } catch (error) {

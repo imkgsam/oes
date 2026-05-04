@@ -380,7 +380,7 @@ function createItemMasterMetadata(seed) {
 function createPartyRegistrationRequest(seed) {
   return {
     tenantId: seed.tenantId,
-    canonicalName: `Procurement Smoke Supplier ${seed.title}`,
+    legalName: `Procurement Smoke Supplier ${seed.title}`,
     localDisplayName: `Procurement Smoke Party ${seed.title}`,
     localCode: `PROC-SMOKE-${seed.traceContext.requestId.slice(-10).toUpperCase()}`,
     registeredCountry: 'CN',

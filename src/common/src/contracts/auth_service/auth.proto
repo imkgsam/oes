@@ -56,6 +56,7 @@ service AuthService {
   rpc AdminListUserSessions(AdminListUserSessionsRequest) returns (AdminListUserSessionsResponse);
   rpc AdminRevokeSession(AdminRevokeSessionRequest) returns (AdminRevokeSessionResponse);
   rpc AdminDeleteAccountSessions(AdminDeleteAccountSessionsRequest) returns (AdminDeleteAccountSessionsResponse);
+  rpc RevokeTenantSessions(RevokeTenantSessionsRequest) returns (RevokeTenantSessionsResponse);
   rpc Logout(LogoutRequest) returns (LogoutResponse);
   rpc LogoutSession(LogoutSessionRequest) returns (LogoutSessionResponse);
   rpc LogoutOtherDevices(LogoutOtherDevicesRequest) returns (LogoutOtherDevicesResponse);
@@ -777,6 +778,16 @@ message AdminDeleteAccountSessionsRequest {
 message AdminDeleteAccountSessionsResponse {
   bool success = 1;
   int64 deleted_session_count = 2;
+}
+
+message RevokeTenantSessionsRequest {
+  string tenant_id = 1;
+  string reason = 2;
+}
+
+message RevokeTenantSessionsResponse {
+  bool success = 1;
+  int64 revoked_session_count = 2;
 }
 
 message LogoutRequest {

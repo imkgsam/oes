@@ -36,8 +36,7 @@ message PartySummary {
   string id = 1;
   string type = 2;
   string status = 3;
-  string canonical_name = 4;
-  string display_name = 5;
+  string legal_name = 4;
 }
 
 message TenantPartySummary {
@@ -67,10 +66,11 @@ message PartyRelationshipSummary {
 
 message RegisterPersonPartyRequest {
   string tenant_id = 1;
-  string canonical_name = 2;
+  string legal_name = 2;
   string local_display_name = 3;
   string local_code = 4;
   repeated PartyIdentifierInput identifiers = 5;
+  string idempotency_key = 6;
 }
 
 message RegisterPersonPartyResponse {
@@ -81,11 +81,12 @@ message RegisterPersonPartyResponse {
 
 message RegisterOrganizationPartyRequest {
   string tenant_id = 1;
-  string canonical_name = 2;
+  string legal_name = 2;
   string local_display_name = 3;
   string local_code = 4;
   string registered_country = 5;
   repeated PartyIdentifierInput identifiers = 6;
+  string idempotency_key = 7;
 }
 
 message RegisterOrganizationPartyResponse {
@@ -100,6 +101,7 @@ message BindExistingPartyToTenantRequest {
   string local_display_name = 3;
   string local_code = 4;
   repeated string tags = 5;
+  string idempotency_key = 6;
 }
 
 message BindExistingPartyToTenantResponse {

@@ -68,7 +68,7 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
 
   const prefixedParties = await prisma.party.findMany({
     where: {
-      OR: [{ canonicalName: { startsWith: prefix } }, { displayName: { startsWith: prefix } }]
+      legalName: { startsWith: prefix }
     },
     select: {
       id: true
@@ -105,6 +105,15 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     ])
   )
 
+  await prisma.partyRegistrationIdempotency.deleteMany({
+    where: {
+      OR: [
+        { idempotencyKey: { startsWith: prefix } },
+        prefixedPartyIds.length > 0 ? { partyId: { in: prefixedPartyIds } } : undefined
+      ].filter(Boolean) as any
+    }
+  })
+
   if (prefixedPartyIds.length > 0) {
     await prisma.partyRelationship.deleteMany({
       where: {
@@ -138,7 +147,6 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     where: {
       OR: [
         prefixedPartyIds.length > 0 ? { partyId: { in: prefixedPartyIds } } : undefined,
-        { legalName: { startsWith: prefix } },
         { preferredName: { startsWith: prefix } }
       ].filter(Boolean) as any
     }
@@ -148,7 +156,6 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     where: {
       OR: [
         prefixedPartyIds.length > 0 ? { partyId: { in: prefixedPartyIds } } : undefined,
-        { legalName: { startsWith: prefix } },
         { registeredCountry: { startsWith: prefix } },
         { registrationStatus: { startsWith: prefix } }
       ].filter(Boolean) as any
@@ -159,8 +166,7 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     where: {
       OR: [
         prefixedPartyIds.length > 0 ? { id: { in: prefixedPartyIds } } : undefined,
-        { canonicalName: { startsWith: prefix } },
-        { displayName: { startsWith: prefix } }
+        { legalName: { startsWith: prefix } }
       ].filter(Boolean) as any
     }
   })

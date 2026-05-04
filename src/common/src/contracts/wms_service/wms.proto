@@ -1,0 +1,627 @@
+syntax = "proto3";
+
+package wms_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.wms.v1";
+
+service WarehouseQueryService {
+  rpc GetWarehouse(GetWarehouseRequest) returns (GetWarehouseResponse);
+  rpc ListWarehouses(ListWarehousesRequest) returns (ListWarehousesResponse);
+  rpc GetLocation(GetLocationRequest) returns (GetLocationResponse);
+  rpc ListLocations(ListLocationsRequest) returns (ListLocationsResponse);
+}
+
+service ReceiptQueryService {
+  rpc GetReceipt(GetReceiptRequest) returns (GetReceiptResponse);
+  rpc SearchReceipts(SearchReceiptsRequest) returns (SearchReceiptsResponse);
+  rpc GetReceiptLine(GetReceiptLineRequest) returns (GetReceiptLineResponse);
+  rpc SearchReceiptLines(SearchReceiptLinesRequest) returns (SearchReceiptLinesResponse);
+}
+
+service ReceiptManagementService {
+  rpc CreateReceiptDraft(CreateReceiptDraftRequest) returns (CreateReceiptDraftResponse);
+  rpc AddOrReplaceReceiptLines(AddOrReplaceReceiptLinesRequest) returns (AddOrReplaceReceiptLinesResponse);
+  rpc PostReceipt(PostReceiptRequest) returns (PostReceiptResponse);
+  rpc CancelReceiptDraft(CancelReceiptDraftRequest) returns (CancelReceiptDraftResponse);
+}
+
+service InventoryQueryService {
+  rpc SearchStockLedgerEntries(SearchStockLedgerEntriesRequest) returns (SearchStockLedgerEntriesResponse);
+  rpc GetInventoryBalance(GetInventoryBalanceRequest) returns (GetInventoryBalanceResponse);
+  rpc SearchInventoryBalances(SearchInventoryBalancesRequest) returns (SearchInventoryBalancesResponse);
+}
+
+enum WarehouseScope {
+  WAREHOUSE_SCOPE_UNSPECIFIED = 0;
+  WAREHOUSE_SCOPE_INTERNAL = 1;
+}
+
+enum WarehouseStatus {
+  WAREHOUSE_STATUS_UNSPECIFIED = 0;
+  WAREHOUSE_STATUS_ACTIVE = 1;
+  WAREHOUSE_STATUS_INACTIVE = 2;
+}
+
+enum LocationScope {
+  LOCATION_SCOPE_UNSPECIFIED = 0;
+  LOCATION_SCOPE_INTERNAL = 1;
+}
+
+enum LocationType {
+  LOCATION_TYPE_UNSPECIFIED = 0;
+  LOCATION_TYPE_RECEIVING = 1;
+  LOCATION_TYPE_STORAGE = 2;
+  LOCATION_TYPE_STAGING = 3;
+  LOCATION_TYPE_RESTRICTED = 4;
+}
+
+enum LocationStatus {
+  LOCATION_STATUS_UNSPECIFIED = 0;
+  LOCATION_STATUS_ACTIVE = 1;
+  LOCATION_STATUS_INACTIVE = 2;
+}
+
+enum ReceiptStatus {
+  RECEIPT_STATUS_UNSPECIFIED = 0;
+  RECEIPT_STATUS_DRAFT = 1;
+  RECEIPT_STATUS_POSTED = 2;
+  RECEIPT_STATUS_CANCELLED = 3;
+}
+
+enum ReceiptSourceType {
+  RECEIPT_SOURCE_TYPE_UNSPECIFIED = 0;
+  RECEIPT_SOURCE_TYPE_MANUAL = 1;
+  RECEIPT_SOURCE_TYPE_RECEIVING_EXPECTATION_REFERENCE = 2;
+}
+
+enum InventoryStatus {
+  INVENTORY_STATUS_UNSPECIFIED = 0;
+  INVENTORY_STATUS_AVAILABLE = 1;
+  INVENTORY_STATUS_RESTRICTED = 2;
+}
+
+enum RestrictedStatusReasonCode {
+  RESTRICTED_STATUS_REASON_CODE_UNSPECIFIED = 0;
+  RESTRICTED_STATUS_REASON_CODE_DAMAGED = 1;
+  RESTRICTED_STATUS_REASON_CODE_QUALITY_HOLD = 2;
+  RESTRICTED_STATUS_REASON_CODE_PENDING_IDENTIFICATION = 3;
+  RESTRICTED_STATUS_REASON_CODE_PENDING_DECISION = 4;
+  RESTRICTED_STATUS_REASON_CODE_OTHER = 5;
+}
+
+enum ReceiptTrackingRefType {
+  RECEIPT_TRACKING_REF_TYPE_UNSPECIFIED = 0;
+  RECEIPT_TRACKING_REF_TYPE_BOX_CODE = 1;
+  RECEIPT_TRACKING_REF_TYPE_UNIT_CODE = 2;
+  RECEIPT_TRACKING_REF_TYPE_EXTERNAL_CODE = 3;
+  RECEIPT_TRACKING_REF_TYPE_FREE_TEXT = 4;
+}
+
+enum ReceiptPhysicalDiscrepancyType {
+  RECEIPT_PHYSICAL_DISCREPANCY_TYPE_UNSPECIFIED = 0;
+  RECEIPT_PHYSICAL_DISCREPANCY_TYPE_SHORT_RECEIVED = 1;
+  RECEIPT_PHYSICAL_DISCREPANCY_TYPE_OVER_RECEIVED = 2;
+  RECEIPT_PHYSICAL_DISCREPANCY_TYPE_DAMAGED = 3;
+  RECEIPT_PHYSICAL_DISCREPANCY_TYPE_WRONG_ITEM = 4;
+  RECEIPT_PHYSICAL_DISCREPANCY_TYPE_QUALITY_HOLD = 5;
+  RECEIPT_PHYSICAL_DISCREPANCY_TYPE_OTHER = 6;
+}
+
+enum StockLedgerEntryType {
+  STOCK_LEDGER_ENTRY_TYPE_UNSPECIFIED = 0;
+  STOCK_LEDGER_ENTRY_TYPE_RECEIPT_POSTED = 1;
+}
+
+enum StockLedgerDirection {
+  STOCK_LEDGER_DIRECTION_UNSPECIFIED = 0;
+  STOCK_LEDGER_DIRECTION_IN = 1;
+}
+
+enum StockLedgerSourceDocumentType {
+  STOCK_LEDGER_SOURCE_DOCUMENT_TYPE_UNSPECIFIED = 0;
+  STOCK_LEDGER_SOURCE_DOCUMENT_TYPE_RECEIPT = 1;
+}
+
+enum InventoryBalanceStatusFilter {
+  INVENTORY_BALANCE_STATUS_FILTER_UNSPECIFIED = 0;
+  INVENTORY_BALANCE_STATUS_FILTER_ANY = 1;
+  INVENTORY_BALANCE_STATUS_FILTER_AVAILABLE = 2;
+  INVENTORY_BALANCE_STATUS_FILTER_RESTRICTED = 3;
+}
+
+message OperatorContext {
+  string operator_id = 1;
+  string operator_type = 2;
+  string org_id = 3;
+}
+
+message TraceContext {
+  string trace_id = 1;
+  string request_id = 2;
+}
+
+message AuditContext {
+  string audit_id = 1;
+  string reason = 2;
+  string source = 3;
+}
+
+message RestrictedStatusReason {
+  RestrictedStatusReasonCode reason_code = 1;
+  string reason_note = 2;
+}
+
+message ReceiptTrackingRef {
+  ReceiptTrackingRefType tracking_ref_type = 1;
+  string tracking_ref_value = 2;
+}
+
+message ReceiptPhysicalDiscrepancy {
+  ReceiptPhysicalDiscrepancyType discrepancy_type = 1;
+  string discrepancy_quantity = 2;
+  string note = 3;
+}
+
+message Warehouse {
+  string warehouse_id = 1;
+  string warehouse_code = 2;
+  string warehouse_name = 3;
+  string tenant_id = 4;
+  string org_id = 5;
+  WarehouseScope warehouse_scope = 6;
+  WarehouseStatus status = 7;
+  string default_receiving_location_id = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message WarehouseSummary {
+  string warehouse_id = 1;
+  string warehouse_code = 2;
+  string warehouse_name = 3;
+  WarehouseScope warehouse_scope = 4;
+  WarehouseStatus status = 5;
+  string default_receiving_location_id = 6;
+}
+
+message Location {
+  string location_id = 1;
+  string warehouse_id = 2;
+  string parent_location_id = 3;
+  string location_code = 4;
+  string location_name = 5;
+  LocationScope location_scope = 6;
+  LocationType location_type = 7;
+  LocationStatus status = 8;
+  bool supports_receipt = 9;
+  bool supports_storage = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+
+message LocationSummary {
+  string location_id = 1;
+  string warehouse_id = 2;
+  string parent_location_id = 3;
+  string location_code = 4;
+  string location_name = 5;
+  LocationScope location_scope = 6;
+  LocationType location_type = 7;
+  LocationStatus status = 8;
+  bool supports_receipt = 9;
+  bool supports_storage = 10;
+}
+
+message ReceiptLine {
+  string receipt_line_id = 1;
+  string receipt_id = 2;
+  uint32 line_no = 3;
+  string item_id = 4;
+  string item_code = 5;
+  string item_name = 6;
+  string receiving_expectation_id = 7;
+  string target_location_id = 8;
+  string confirmed_quantity = 9;
+  string uom = 10;
+  InventoryStatus inventory_status = 11;
+  RestrictedStatusReason restricted_reason = 12;
+  repeated ReceiptTrackingRef tracking_refs = 13;
+  ReceiptPhysicalDiscrepancy physical_discrepancy = 14;
+  repeated string evidence_attachment_refs = 15;
+  repeated string posted_stock_ledger_entry_ids = 16;
+  string created_at = 17;
+  string updated_at = 18;
+}
+
+message Receipt {
+  string receipt_id = 1;
+  string receipt_no = 2;
+  string tenant_id = 3;
+  string org_id = 4;
+  string warehouse_id = 5;
+  ReceiptStatus status = 6;
+  ReceiptSourceType receipt_source_type = 7;
+  repeated string referenced_receiving_expectation_ids = 8;
+  string receipt_date = 9;
+  string note = 10;
+  repeated string attachment_refs = 11;
+  uint32 line_count = 12;
+  string posted_at = 13;
+  string cancelled_at = 14;
+  string created_at = 15;
+  string updated_at = 16;
+  repeated ReceiptLine lines = 17;
+}
+
+message ReceiptSummary {
+  string receipt_id = 1;
+  string receipt_no = 2;
+  string warehouse_id = 3;
+  ReceiptStatus status = 4;
+  ReceiptSourceType receipt_source_type = 5;
+  string receipt_date = 6;
+  uint32 line_count = 7;
+  string posted_at = 8;
+  bool has_restricted_lines = 9;
+  bool has_physical_discrepancy = 10;
+}
+
+message ReceiptLineSummary {
+  string receipt_line_id = 1;
+  string receipt_id = 2;
+  string receipt_no = 3;
+  uint32 line_no = 4;
+  string warehouse_id = 5;
+  string item_id = 6;
+  string item_code = 7;
+  string item_name = 8;
+  string receiving_expectation_id = 9;
+  string target_location_id = 10;
+  string confirmed_quantity = 11;
+  string uom = 12;
+  InventoryStatus inventory_status = 13;
+  RestrictedStatusReasonCode restricted_reason_code = 14;
+  ReceiptPhysicalDiscrepancyType discrepancy_type = 15;
+  string posted_at = 16;
+}
+
+message StockLedgerEntry {
+  string stock_ledger_entry_id = 1;
+  string tenant_id = 2;
+  string org_id = 3;
+  StockLedgerEntryType entry_type = 4;
+  StockLedgerDirection direction = 5;
+  string warehouse_id = 6;
+  string location_id = 7;
+  string item_id = 8;
+  string item_code = 9;
+  string item_name = 10;
+  string quantity_delta = 11;
+  string uom = 12;
+  InventoryStatus inventory_status = 13;
+  RestrictedStatusReason restricted_reason = 14;
+  StockLedgerSourceDocumentType source_document_type = 15;
+  string source_document_id = 16;
+  string source_document_line_id = 17;
+  string receiving_expectation_id = 18;
+  repeated ReceiptTrackingRef tracking_refs = 19;
+  string posted_at = 20;
+}
+
+message StockLedgerEntrySummary {
+  string stock_ledger_entry_id = 1;
+  StockLedgerEntryType entry_type = 2;
+  string warehouse_id = 3;
+  string location_id = 4;
+  string item_id = 5;
+  string quantity_delta = 6;
+  string uom = 7;
+  InventoryStatus inventory_status = 8;
+  RestrictedStatusReasonCode restricted_reason_code = 9;
+  string source_document_id = 10;
+  string posted_at = 11;
+}
+
+message InventoryBalanceRestrictedQuantity {
+  RestrictedStatusReasonCode reason_code = 1;
+  string quantity = 2;
+}
+
+message InventoryBalance {
+  string tenant_id = 1;
+  string org_id = 2;
+  string warehouse_id = 3;
+  string location_id = 4;
+  string item_id = 5;
+  string item_code = 6;
+  string item_name = 7;
+  string uom = 8;
+  string on_hand_quantity = 9;
+  string available_quantity = 10;
+  string restricted_quantity = 11;
+  repeated InventoryBalanceRestrictedQuantity restricted_quantities = 12;
+  string last_ledger_entry_id = 13;
+  string last_posted_at = 14;
+  string updated_at = 15;
+}
+
+message InventoryBalanceSummary {
+  string warehouse_id = 1;
+  string location_id = 2;
+  string item_id = 3;
+  string item_code = 4;
+  string item_name = 5;
+  string uom = 6;
+  string on_hand_quantity = 7;
+  string available_quantity = 8;
+  string restricted_quantity = 9;
+  string last_posted_at = 10;
+}
+
+message ReceiptLineInput {
+  string receipt_line_id = 1;
+  string item_id = 2;
+  string receiving_expectation_id = 3;
+  string target_location_id = 4;
+  string confirmed_quantity = 5;
+  string uom = 6;
+  InventoryStatus inventory_status = 7;
+  RestrictedStatusReason restricted_reason = 8;
+  repeated ReceiptTrackingRef tracking_refs = 9;
+  ReceiptPhysicalDiscrepancy physical_discrepancy = 10;
+  repeated string evidence_attachment_refs = 11;
+}
+
+message GetWarehouseRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string warehouse_id = 4;
+}
+
+message GetWarehouseResponse {
+  Warehouse warehouse = 1;
+}
+
+message ListWarehousesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string keyword = 5;
+  WarehouseStatus status = 6;
+  uint32 page = 7;
+  uint32 page_size = 8;
+}
+
+message ListWarehousesResponse {
+  repeated WarehouseSummary warehouses = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetLocationRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string location_id = 4;
+}
+
+message GetLocationResponse {
+  Location location = 1;
+}
+
+message ListLocationsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string warehouse_id = 4;
+  string parent_location_id = 5;
+  LocationType location_type = 6;
+  LocationStatus status = 7;
+  optional bool supports_receipt = 8;
+  optional bool supports_storage = 9;
+  uint32 page = 10;
+  uint32 page_size = 11;
+}
+
+message ListLocationsResponse {
+  repeated LocationSummary locations = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetReceiptRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string receipt_id = 4;
+}
+
+message GetReceiptResponse {
+  Receipt receipt = 1;
+}
+
+message SearchReceiptsRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string warehouse_id = 5;
+  ReceiptStatus status = 6;
+  ReceiptSourceType receipt_source_type = 7;
+  string receiving_expectation_id = 8;
+  string keyword = 9;
+  string receipt_date_from = 10;
+  string receipt_date_to = 11;
+  string posted_at_from = 12;
+  string posted_at_to = 13;
+  uint32 page = 14;
+  uint32 page_size = 15;
+}
+
+message SearchReceiptsResponse {
+  repeated ReceiptSummary receipts = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetReceiptLineRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string receipt_line_id = 4;
+}
+
+message GetReceiptLineResponse {
+  ReceiptLine receipt_line = 1;
+}
+
+message SearchReceiptLinesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string receipt_id = 5;
+  string warehouse_id = 6;
+  string target_location_id = 7;
+  string item_id = 8;
+  string receiving_expectation_id = 9;
+  InventoryStatus inventory_status = 10;
+  RestrictedStatusReasonCode restricted_reason_code = 11;
+  ReceiptPhysicalDiscrepancyType discrepancy_type = 12;
+  string posted_at_from = 13;
+  string posted_at_to = 14;
+  uint32 page = 15;
+  uint32 page_size = 16;
+}
+
+message SearchReceiptLinesResponse {
+  repeated ReceiptLineSummary receipt_lines = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message CreateReceiptDraftRequest {
+  string tenant_id = 1;
+  string org_id = 2;
+  OperatorContext operator_context = 3;
+  TraceContext trace_context = 4;
+  AuditContext audit_context = 5;
+  string warehouse_id = 6;
+  ReceiptSourceType receipt_source_type = 7;
+  string receipt_date = 8;
+  repeated string referenced_receiving_expectation_ids = 9;
+  string note = 10;
+  repeated string attachment_refs = 11;
+}
+
+message CreateReceiptDraftResponse {
+  Receipt receipt = 1;
+}
+
+message AddOrReplaceReceiptLinesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string receipt_id = 5;
+  repeated ReceiptLineInput lines = 6;
+}
+
+message AddOrReplaceReceiptLinesResponse {
+  Receipt receipt = 1;
+}
+
+message PostReceiptRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string receipt_id = 5;
+  string post_comment = 6;
+}
+
+message PostReceiptResponse {
+  Receipt receipt = 1;
+  repeated string posted_stock_ledger_entry_ids = 2;
+}
+
+message CancelReceiptDraftRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  AuditContext audit_context = 4;
+  string receipt_id = 5;
+  string cancel_reason = 6;
+}
+
+message CancelReceiptDraftResponse {
+  Receipt receipt = 1;
+}
+
+message SearchStockLedgerEntriesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string warehouse_id = 5;
+  string location_id = 6;
+  string item_id = 7;
+  string receipt_id = 8;
+  string receipt_line_id = 9;
+  string receiving_expectation_id = 10;
+  InventoryStatus inventory_status = 11;
+  RestrictedStatusReasonCode restricted_reason_code = 12;
+  string posted_at_from = 13;
+  string posted_at_to = 14;
+  uint32 page = 15;
+  uint32 page_size = 16;
+}
+
+message SearchStockLedgerEntriesResponse {
+  repeated StockLedgerEntrySummary entries = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetInventoryBalanceRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string warehouse_id = 4;
+  string item_id = 5;
+  string location_id = 6;
+}
+
+message GetInventoryBalanceResponse {
+  InventoryBalance inventory_balance = 1;
+}
+
+message SearchInventoryBalancesRequest {
+  string tenant_id = 1;
+  OperatorContext operator_context = 2;
+  TraceContext trace_context = 3;
+  string org_id = 4;
+  string warehouse_id = 5;
+  string location_id = 6;
+  string item_id = 7;
+  InventoryBalanceStatusFilter inventory_status = 8;
+  RestrictedStatusReasonCode restricted_reason_code = 9;
+  optional bool only_positive_on_hand = 10;
+  uint32 page = 11;
+  uint32 page_size = 12;
+}
+
+message SearchInventoryBalancesResponse {
+  repeated InventoryBalanceSummary inventory_balances = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}

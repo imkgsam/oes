@@ -30,8 +30,7 @@ export class PartyQueryGrpcController implements PartyQueryServiceController {
             id: party.id,
             type: party.type,
             status: party.status,
-            canonicalName: party.canonicalName,
-            displayName: party.displayName ?? ''
+            legalName: party.legalName
           }
         : undefined
     }
@@ -71,8 +70,7 @@ export class PartyQueryGrpcController implements PartyQueryServiceController {
             id: party.id,
             type: party.type,
             status: party.status,
-            canonicalName: party.canonicalName,
-            displayName: party.displayName ?? ''
+            legalName: party.legalName
           }
         : undefined
     }
@@ -102,8 +100,7 @@ export class PartyQueryGrpcController implements PartyQueryServiceController {
           id: candidate.party.id,
           type: candidate.party.type,
           status: candidate.party.status,
-          canonicalName: candidate.party.canonicalName,
-          displayName: candidate.party.displayName ?? ''
+          legalName: candidate.party.legalName
         },
         confidence: candidate.confidence,
         matchSignals: candidate.matchSignals

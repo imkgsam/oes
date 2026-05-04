@@ -58,10 +58,14 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
   }
 
   async onModuleInit(): Promise<void> {
-    this.logger.info('in GRPCCLIENTMANAGER onModuleInit ')
+    this.logger.debug('GrpcClientManager module initializing', {
+      details: {
+        configuredServices: Object.keys(this.options.services)
+      }
+    })
+
     // Subscribe to all configured services via Nacos discovery
     if (this.discovery) {
-      this.logger.info(this.discovery)
       const subscribePromises = Object.values(this.options.services)
         .filter((svc) => !svc.url) // Only subscribe for services without static URL
         .map((svc) => this.discovery!.subscribe(svc.serviceName))
@@ -96,7 +100,10 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
    * @throws Error if the service is not configured or no endpoints are available
    */
   async getClient(serviceName: string): Promise<ClientGrpc> {
-    this.logger.info(`Getting gRPC client for service "${serviceName}"`)
+    this.logger.debug('Getting gRPC client for configured service', {
+      details: { serviceName }
+    })
+
     const config = this.options.services[serviceName]
     if (!config) {
       throw new Error(
@@ -104,11 +111,26 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
           `Available services: ${Object.keys(this.options.services).join(', ')}`
       )
     }
-    this.logger.info('config ', config)
+
+    this.logger.debug('Resolved gRPC service config', {
+      details: {
+        serviceName,
+        targetServiceName: config.serviceName,
+        packageName: config.packageName,
+        protoPath: config.protoPath,
+        usesStaticUrl: Boolean(config.url)
+      }
+    })
 
     const pool = this.getOrCreatePool(serviceName, config)
     const endpoints = this.resolveEndpoints(config)
-    this.logger.info('endpoints ', endpoints)
+    this.logger.debug('Resolved gRPC endpoints', {
+      details: {
+        serviceName,
+        endpointCount: endpoints.length,
+        endpoints
+      }
+    })
 
     return pool.acquire(endpoints)
   }
@@ -170,10 +192,15 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
    * Otherwise, query Nacos discovery for live instances.
    */
   private resolveEndpoints(config: GrpcServiceConfig): ServiceEndpoint[] {
-    this.logger.info('in resolveEndpoints', config)
     // Static URL override (for development or non-Nacos environments)
     if (config.url) {
       const [ip, portStr] = config.url.split(':')
+      this.logger.debug('Resolved static gRPC endpoint', {
+        details: {
+          serviceName: config.serviceName,
+          url: config.url
+        }
+      })
       return [
         {
           ip,
@@ -186,9 +213,13 @@ export class GrpcClientManager implements OnModuleInit, OnModuleDestroy {
 
     // Dynamic discovery via Nacos
     if (this.discovery) {
-      this.logger.info('discovery ', this.discovery)
       const instances = this.discovery.getInstances(config.serviceName)
-      this.logger.info('instance ', instances)
+      this.logger.debug('Resolved discovered gRPC endpoints', {
+        details: {
+          serviceName: config.serviceName,
+          instanceCount: instances.length
+        }
+      })
       return instances.map((inst) => ({
         ip: inst.ip,
         port: inst.port,

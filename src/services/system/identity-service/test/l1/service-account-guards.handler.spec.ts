@@ -16,7 +16,7 @@ import { SetServiceAccountEnabledHandler } from '../../src/application/commands/
 import {
   createServiceAccountFixture,
   createServiceAccountRepositoryMock,
-  createTenantRepositoryMock
+  createTenantReferencePortMock
 } from '../helpers/machine-fixtures'
 
 describe('service account 规则', () => {
@@ -40,10 +40,10 @@ describe('service account 规则', () => {
   })
 
   it('创建 service account / 当 scopeLevel 为 TENANT 且不传 tenantId 时 / 应返回 IDENTITY_SERVICE_ACCOUNT_TENANT_SCOPE_REQUIRES_TENANT', async () => {
-    const tenantRepository = createTenantRepositoryMock()
+    const tenantReferencePort = createTenantReferencePortMock()
     const serviceAccountRepository = createServiceAccountRepositoryMock()
     const handler = new CreateServiceAccountHandler(
-      tenantRepository,
+      tenantReferencePort,
       serviceAccountRepository,
       checkResourceService
     )
@@ -65,10 +65,10 @@ describe('service account 规则', () => {
   })
 
   it('创建 service account / 当 scopeLevel 为 SYSTEM 但传入 tenantId 时 / 应返回 IDENTITY_SERVICE_ACCOUNT_SYSTEM_SCOPE_FORBIDS_TENANT', async () => {
-    const tenantRepository = createTenantRepositoryMock()
+    const tenantReferencePort = createTenantReferencePortMock()
     const serviceAccountRepository = createServiceAccountRepositoryMock()
     const handler = new CreateServiceAccountHandler(
-      tenantRepository,
+      tenantReferencePort,
       serviceAccountRepository,
       checkResourceService
     )
@@ -91,11 +91,11 @@ describe('service account 规则', () => {
   })
 
   it('创建 service account / 当 tenantId 位于租户范围内但租户不存在时 / 应返回 IDENTITY_TENANT_NOT_FOUND', async () => {
-    const tenantRepository = createTenantRepositoryMock()
+    const tenantReferencePort = createTenantReferencePortMock()
     const serviceAccountRepository = createServiceAccountRepositoryMock()
-    tenantRepository.findById.mockResolvedValue(null)
+    tenantReferencePort.findById.mockResolvedValue(null)
     const handler = new CreateServiceAccountHandler(
-      tenantRepository,
+      tenantReferencePort,
       serviceAccountRepository,
       checkResourceService
     )
@@ -118,12 +118,12 @@ describe('service account 规则', () => {
   })
 
   it('创建 service account / 当参数合法时 / 应调用仓储创建并写入 createdBy', async () => {
-    const tenantRepository = createTenantRepositoryMock()
+    const tenantReferencePort = createTenantReferencePortMock()
     const serviceAccountRepository = createServiceAccountRepositoryMock()
-    tenantRepository.findById.mockResolvedValue(tenant as any)
+    tenantReferencePort.findById.mockResolvedValue(tenant as any)
     serviceAccountRepository.create.mockResolvedValue(serviceAccount)
     const handler = new CreateServiceAccountHandler(
-      tenantRepository,
+      tenantReferencePort,
       serviceAccountRepository,
       checkResourceService
     )
@@ -152,14 +152,14 @@ describe('service account 规则', () => {
   })
 
   it('创建 service account / 当 tenant scope 操作者尝试在其他租户下创建时 / 应返回 ACCESS_DENIED', async () => {
-    const tenantRepository = createTenantRepositoryMock()
+    const tenantReferencePort = createTenantReferencePortMock()
     const serviceAccountRepository = createServiceAccountRepositoryMock()
-    tenantRepository.findById.mockResolvedValue({
+    tenantReferencePort.findById.mockResolvedValue({
       ...tenant,
       id: 'tenant-b'
     } as any)
     const handler = new CreateServiceAccountHandler(
-      tenantRepository,
+      tenantReferencePort,
       serviceAccountRepository,
       checkResourceService
     )
@@ -186,10 +186,10 @@ describe('service account 规则', () => {
   })
 
   it('创建 service account / 当 tenant scope 操作者尝试创建 system-scope principal 时 / 应返回 ACCESS_DENIED', async () => {
-    const tenantRepository = createTenantRepositoryMock()
+    const tenantReferencePort = createTenantReferencePortMock()
     const serviceAccountRepository = createServiceAccountRepositoryMock()
     const handler = new CreateServiceAccountHandler(
-      tenantRepository,
+      tenantReferencePort,
       serviceAccountRepository,
       checkResourceService
     )

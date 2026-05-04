@@ -7,6 +7,7 @@ import {
   AccountSessionEstablishmentService,
   EstablishedAccountSession
 } from '../../services/account-session-establishment.service'
+import { TenantSessionAccessService } from '../../services/tenant-session-access.service'
 import { LoginMfaOrchestrationService } from '../../services/mfa/login-mfa-orchestration.service'
 import { AUTH_NO_AVAILABLE_ACCOUNT } from '../../../common/constants/exception-enums'
 import { SubmitMfaChallengeCommand } from './submit-mfa-challenge.command'
@@ -21,7 +22,8 @@ export class SubmitMfaChallengeHandler
     private readonly loginMfaOrchestrationService: LoginMfaOrchestrationService,
     @Inject(IDENTITY_SERVICE)
     private readonly identityService: IIdentityServicePort,
-    private readonly accountSessionEstablishmentService: AccountSessionEstablishmentService
+    private readonly accountSessionEstablishmentService: AccountSessionEstablishmentService,
+    private readonly tenantSessionAccessService: TenantSessionAccessService
   ) {}
 
   async execute(command: SubmitMfaChallengeCommand): Promise<SubmitMfaChallengeResult> {
@@ -34,6 +36,13 @@ export class SubmitMfaChallengeHandler
     const account = await this.identityService.getAccountById(flow.aid)
     if (!account || account.userId !== flow.sub) {
       throw ExceptionFactory.domain(AUTH_NO_AVAILABLE_ACCOUNT, { userId: flow.sub, accountId: flow.aid })
+    }
+    if (account.scopeLevel === 'TENANT') {
+      await this.tenantSessionAccessService.assertAccountCanEstablishSession({
+        accountId: account.accountId,
+        tenantId: account.tenantId,
+        scopeLevel: account.scopeLevel
+      })
     }
 
     return this.accountSessionEstablishmentService.establish({

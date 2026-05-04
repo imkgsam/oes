@@ -56,7 +56,10 @@ export class CreateRoleInstanceHandler implements ICommandHandler<CreateRoleInst
       roleKind,
       true,
       command.description,
-      command.templateRoleId ?? null
+      command.templateRoleId ?? null,
+      [],
+      templateRole?.allowTenantPermissionOverride ?? true,
+      templateRole?.isProtected ?? false
     )
 
     if (templateRole) {

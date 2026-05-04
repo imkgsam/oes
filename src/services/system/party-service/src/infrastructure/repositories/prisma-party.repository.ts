@@ -20,37 +20,29 @@ export class PrismaPartyRepository implements PartyRepository {
     return party ? mapParty(party) : null
   }
 
-  async createPersonParty(data: { canonicalName: string; displayName?: string | undefined }): Promise<PartySummary> {
+  async createPersonParty(data: { legalName: string }): Promise<PartySummary> {
     const party = await this.prisma.party.create({
       data: {
         type: PartyType.PERSON,
         status: PartyStatus.ACTIVE,
-        canonicalName: data.canonicalName,
-        displayName: data.displayName ?? null,
-        personParty: {
-          create: {
-            legalName: data.canonicalName
-          }
-        }
+        legalName: data.legalName,
+        personParty: { create: {} }
       }
     })
     return mapParty(party)
   }
 
   async createOrganizationParty(data: {
-    canonicalName: string
-    displayName?: string | undefined
+    legalName: string
     registeredCountry?: string | undefined
   }): Promise<PartySummary> {
     const party = await this.prisma.party.create({
       data: {
         type: PartyType.ORGANIZATION,
         status: PartyStatus.ACTIVE,
-        canonicalName: data.canonicalName,
-        displayName: data.displayName ?? null,
+        legalName: data.legalName,
         organizationParty: {
           create: {
-            legalName: data.canonicalName,
             registeredCountry: data.registeredCountry ?? null
           }
         }
@@ -63,7 +55,7 @@ export class PrismaPartyRepository implements PartyRepository {
     const parties = await this.prisma.party.findMany({
       where: {
         type: input.partyType ?? undefined,
-        canonicalName: input.keyword
+        legalName: input.keyword
           ? {
               contains: input.keyword,
               mode: 'insensitive'
@@ -72,7 +64,7 @@ export class PrismaPartyRepository implements PartyRepository {
       },
       take: 20,
       orderBy: {
-        canonicalName: 'asc'
+        legalName: 'asc'
       }
     })
 
@@ -176,14 +168,12 @@ function mapParty(party: {
   id: string
   type: string
   status: string
-  canonicalName: string
-  displayName: string | null
+  legalName: string
 }): PartySummary {
   return {
     id: party.id,
     type: party.type as PartyType,
     status: party.status as PartyStatus,
-    canonicalName: party.canonicalName,
-    displayName: party.displayName
+    legalName: party.legalName
   }
 }

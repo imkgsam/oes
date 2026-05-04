@@ -144,7 +144,7 @@ const canUpdateEntry = computed(() =>
   authContextStore.actionCodes.includes('permission.navigation.entry.update'),
 );
 const canUpdateRole = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.update'),
+  authContextStore.actionCodes.includes('permission.role_instance.update'),
 );
 const canPreview = computed(() =>
   authContextStore.actionCodes.includes('permission.navigation.resolve_preview'),
@@ -509,6 +509,13 @@ function openEntryDrawer(
   mode: EntryFormMode,
   entry?: PermissionManagementApi.NavigationEntry,
 ) {
+  if (
+    (mode === 'create' && !canCreateEntry.value) ||
+    (mode === 'edit' && !canUpdateEntry.value)
+  ) {
+    return;
+  }
+
   entryFormMode.value = mode;
   selectedEntry.value = entry ?? null;
   entryForm.description = entry?.description ?? '';
@@ -544,6 +551,13 @@ function validateEntryForm() {
 
 // Persists create or edit changes for one managed navigation entry.
 async function submitEntryForm() {
+  if (
+    (entryFormMode.value === 'create' && !canCreateEntry.value) ||
+    (entryFormMode.value === 'edit' && !canUpdateEntry.value)
+  ) {
+    return;
+  }
+
   if (!validateEntryForm()) {
     return;
   }
@@ -648,6 +662,10 @@ function toggleRoleEditorVisibility(entryKey: string, checked: boolean) {
 
 // Saves the current terminal list editor as one complete role-navigation configuration.
 async function saveRoleNavigationConfig() {
+  if (!canUpdateRole.value) {
+    return;
+  }
+
   const roleId = roleForm.roleId.trim();
   if (!roleId) {
     message.warning('请选择角色');
@@ -694,6 +712,10 @@ async function saveRoleNavigationConfig() {
 
 // Calls the resolver preview endpoint for one or more role ids.
 async function runResolverPreview() {
+  if (!canPreview.value) {
+    return;
+  }
+
   const roleIds = roleForm.previewRoleIds;
 
   if (roleIds.length === 0) {
@@ -784,7 +806,8 @@ watch(
                   Entry 目录
                 </div>
                 <Button
-                  :disabled="!canCreateEntry"
+                  v-access:code="'permission.navigation.entry.create'"
+                  v-if="canCreateEntry"
                   type="primary"
                   @click="openEntryDrawer('create')"
                 >
@@ -793,44 +816,48 @@ watch(
               </div>
 
               <Form layout="vertical" class="navigation-management__filter-shell">
-                <Row :gutter="16" class="navigation-management__filter-row">
-                  <Col :lg="10" :md="12" :xs="24">
+                <Row :gutter="[10, 10]" class="navigation-management__filter-row">
+                  <Col :lg="10" :md="24" :xs="24" :xl="11">
                     <Form.Item label="关键词">
                       <Input
                         v-model:value="entryFilters.keyword"
                         allow-clear
+                        class="navigation-management__filter-control"
                         placeholder="按 Entry Key 或名称搜索"
                         @press-enter="searchEntries"
                       />
                     </Form.Item>
                   </Col>
-                  <Col :lg="5" :md="6" :xs="24">
+                  <Col :lg="4" :md="8" :xs="24" :xl="4">
                     <Form.Item label="终端">
                       <Select
                         v-model:value="entryFilters.terminal"
+                        class="navigation-management__filter-control"
                         :options="entryTerminalOptions"
                       />
                     </Form.Item>
                   </Col>
-                  <Col :lg="5" :md="6" :xs="24">
+                  <Col :lg="4" :md="8" :xs="24" :xl="4">
                     <Form.Item label="状态">
                       <Select
                         v-model:value="entryFilters.enabled"
+                        class="navigation-management__filter-control"
                         :options="entryStatusOptions"
                       />
                     </Form.Item>
                   </Col>
                   <Col
-                    :lg="4"
-                    :md="24"
+                    :lg="6"
+                    :md="8"
                     :xs="24"
+                    :xl="5"
                     class="navigation-management__filter-actions-col"
                   >
                     <Form.Item label=" ">
-                      <Space wrap class="navigation-management__filter-actions">
-                        <Button type="primary" @click="searchEntries">查询</Button>
-                        <Button @click="resetEntryFilters">重置</Button>
-                      </Space>
+                      <div class="navigation-management__filter-buttons">
+                        <Button class="navigation-management__filter-button" type="primary" @click="searchEntries">查询</Button>
+                        <Button class="navigation-management__filter-button" @click="resetEntryFilters">重置</Button>
+                      </div>
                     </Form.Item>
                   </Col>
                 </Row>
@@ -937,7 +964,8 @@ watch(
                         </div>
                         <div class="navigation-management__action-row mt-4">
                           <Button
-                            :disabled="!canUpdateRole"
+                            v-access:code="'permission.role_instance.update'"
+                            v-if="canUpdateRole"
                             :loading="roleSaving"
                             type="primary"
                             @click="saveRoleNavigationConfig"
@@ -1001,7 +1029,8 @@ watch(
                         <Form.Item label=" ">
                           <div class="navigation-management__filter-actions">
                             <Button
-                              :disabled="!canPreview"
+                              v-access:code="'permission.navigation.resolve_preview'"
+                              v-if="canPreview"
                               :loading="previewLoading"
                               type="primary"
                               @click="runResolverPreview"
@@ -1260,11 +1289,19 @@ watch(
 }
 
 .navigation-management__filter-shell {
-  padding: 16px 16px 0;
+  padding: 12px;
 }
 
 .navigation-management__editor-block {
   padding: 16px;
+}
+
+.navigation-management__filter-shell :deep(.ant-form-item) {
+  margin-bottom: 0;
+}
+
+.navigation-management__filter-control {
+  width: 100%;
 }
 
 .navigation-management__filter-actions-col,
@@ -1273,10 +1310,22 @@ watch(
   justify-content: flex-end;
 }
 
-.navigation-management__filter-actions,
 .navigation-management__action-row {
   display: flex;
   justify-content: flex-end;
+  width: 100%;
+}
+
+.navigation-management__filter-buttons {
+  display: grid;
+  grid-template-columns: minmax(84px, 1fr) minmax(84px, 1fr);
+  gap: 8px;
+  margin-left: auto;
+  width: min(100%, 184px);
+}
+
+.navigation-management__filter-button {
+  min-width: 0;
   width: 100%;
 }
 
@@ -1479,6 +1528,28 @@ watch(
   color: var(--navigation-text);
 }
 
+:deep(.navigation-management__filter-shell .ant-input),
+:deep(.navigation-management__filter-shell .ant-input-affix-wrapper),
+:deep(.navigation-management__filter-shell .ant-select-selector) {
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+:deep(.navigation-management__filter-shell .ant-select-selector) {
+  align-items: center;
+  display: flex;
+}
+
+:deep(.navigation-management__filter-shell .ant-input-affix-wrapper) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+:deep(.navigation-management__filter-shell .ant-btn) {
+  height: 36px;
+  border-radius: 10px;
+}
+
 @media (max-width: 768px) {
   .navigation-management__header,
   .navigation-management__block-header,
@@ -1486,14 +1557,16 @@ watch(
     flex-direction: column;
   }
 
-  .navigation-management__filter-actions-col,
+  .navigation-management__filter-actions-col {
+    justify-content: flex-end;
+  }
+
   .navigation-management__drawer-footer {
     justify-content: flex-start;
   }
 
-  .navigation-management__filter-actions,
-  .navigation-management__action-row {
-    justify-content: flex-start;
+  .navigation-management__filter-buttons {
+    width: min(100%, 184px);
   }
 
   .navigation-management__preview-list-head {

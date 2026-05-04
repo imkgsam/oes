@@ -28,13 +28,13 @@ describe('Party Service Database Constraints L2', () => {
     const partyA = await prisma.party.create({
       data: {
         type: 'ORGANIZATION',
-        canonicalName: `${prefix}_legal_a`
+        legalName: `${prefix}_legal_a`
       }
     })
     const partyB = await prisma.party.create({
       data: {
         type: 'ORGANIZATION',
-        canonicalName: `${prefix}_legal_b`
+        legalName: `${prefix}_legal_b`
       }
     })
 
@@ -61,11 +61,11 @@ describe('Party Service Database Constraints L2', () => {
     ).rejects.toBeTruthy()
   })
 
-  it('TenantParty 复合唯一约束 / 当同租户重复绑定同一 canonical party 时 / 应失败', async () => {
+  it('TenantParty 复合唯一约束 / 当同租户重复绑定同一 legal party 时 / 应失败', async () => {
     const party = await prisma.party.create({
       data: {
         type: 'ORGANIZATION',
-        canonicalName: `${prefix}_legal`
+        legalName: `${prefix}_legal`
       }
     })
 

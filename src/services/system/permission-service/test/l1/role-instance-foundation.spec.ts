@@ -5,14 +5,19 @@ describe('role instance foundation sync', () => {
   it('backfills missing baseline permissions onto built-in tenant admin instances', async () => {
     const prisma = {
       role: {
-        findMany: jest.fn().mockResolvedValue([
-          { id: 'tenant-admin-role-1' },
-          { id: 'tenant-admin-role-2' }
-        ])
+        findMany: jest.fn().mockImplementation((args) =>
+          args.where.OR?.some((item: { code?: string }) => item.code === 'tenant.admin')
+            ? Promise.resolve([
+                { id: 'tenant-admin-role-1' },
+                { id: 'tenant-admin-role-2' }
+              ])
+            : Promise.resolve([])
+        ),
+        updateMany: jest.fn().mockResolvedValue({ count: 2 })
       },
       rolePermission: {
         findMany: jest.fn().mockResolvedValue([
-          { roleId: 'tenant-admin-role-1', permissionId: 'perm-view-role' }
+          { roleId: 'tenant-admin-role-1', permissionId: 'perm-view-role-instance' }
         ]),
         createMany: jest.fn().mockResolvedValue({ count: 3 })
       }
@@ -21,10 +26,10 @@ describe('role instance foundation sync', () => {
     const createdCount = await syncBuiltInRoleInstanceBaselines(
       prisma,
       new Map([
-        ['permission.role.list', 'perm-view-role'],
+        ['permission.role_instance.list', 'perm-view-role-instance'],
         ['permission.account.get_roles', 'perm-view-account-role'],
-        ['hr.employee.list', 'perm-hr-list-employee'],
-        ['hr.employee.get_by_id', 'perm-hr-view-employee-detail']
+        ['identity.account.list', 'perm-identity-list-account'],
+        ['tenant_org.org_unit.list_tree', 'perm-list-org-tree']
       ])
     )
 
@@ -42,6 +47,17 @@ describe('role instance foundation sync', () => {
         id: true
       }
     })
+    expect(prisma.role.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: {
+          in: ['tenant-admin-role-1', 'tenant-admin-role-2']
+        }
+      },
+      data: {
+        allowTenantPermissionOverride: false,
+        isProtected: true
+      }
+    })
     expect(prisma.rolePermission.createMany).toHaveBeenCalledWith({
       data: [
         {
@@ -49,15 +65,15 @@ describe('role instance foundation sync', () => {
           roleId: 'tenant-admin-role-1'
         },
         {
-          permissionId: 'perm-hr-list-employee',
+          permissionId: 'perm-identity-list-account',
           roleId: 'tenant-admin-role-1'
         },
         {
-          permissionId: 'perm-hr-view-employee-detail',
+          permissionId: 'perm-list-org-tree',
           roleId: 'tenant-admin-role-1'
         },
         {
-          permissionId: 'perm-view-role',
+          permissionId: 'perm-view-role-instance',
           roleId: 'tenant-admin-role-2'
         },
         {
@@ -65,11 +81,11 @@ describe('role instance foundation sync', () => {
           roleId: 'tenant-admin-role-2'
         },
         {
-          permissionId: 'perm-hr-list-employee',
+          permissionId: 'perm-identity-list-account',
           roleId: 'tenant-admin-role-2'
         },
         {
-          permissionId: 'perm-hr-view-employee-detail',
+          permissionId: 'perm-list-org-tree',
           roleId: 'tenant-admin-role-2'
         }
       ],

@@ -34,7 +34,6 @@
 - `getUserById`
 - `getAccountsByUserId`
 - `getAccountById`
-- 可选 `getTenantById`
 
 用途：
 
@@ -59,8 +58,7 @@
 
 - 用户信息查询
 - 账户信息查询
-- 租户信息查询
-- 组织信息查询
+- 租户上下文引用查询
 
 当前已提供：
 
@@ -69,12 +67,6 @@
 - `getUserById`
 - `getAccountsByUserId`
 - `getAccountById`
-- `getTenantById`
-- `getOrgTreeByTenantId`
-- `listAccountOrgMemberships`
-- `setAccountPrimaryOrg`
-- `addAccountOrgMembership`
-- `removeAccountOrgMembership`
 - `listAccountWorkEmailAssets`
 - `assignAccountWorkEmailAsset`
 - `revokeAccountWorkEmailAsset`
@@ -88,11 +80,11 @@
 
 ## 当前阶段定位
 
-当前阶段已经完成身份查询基线、组织结构最小闭环，以及联系方式资产最小闭环。
+当前阶段已经完成身份查询基线、联系方式资产最小闭环和机器身份分片。租户与组织结构真相已迁移到 `tenant-org-service`，identity-service 仅保留 `tenantId` 作为账号、联系资产、机器身份与审计上下文引用。
 
 - `Phase 1` 查询基线已完成
-- `Phase 2` 组织结构与联系方式资产分片已完成
-- 下一步建议进入机器身份分片
+- `Phase 2` 联系方式资产分片已完成
+- `Phase 3` 机器身份分片已完成
 
 ## 文档分工
 

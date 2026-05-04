@@ -5,7 +5,9 @@ import { AccountType } from '../../src/domain/enums/account-type.enum'
 import { RoleKind } from '../../src/domain/enums/role-kind.enum'
 import { ScopeLevel } from '../../src/domain/enums/scope-level.enum'
 import { RoleRepository } from '../../src/domain/repositories/role.repository'
+import { NavigationRepository } from '../../src/domain/repositories/navigation.repository'
 import { OnboardingGrantRequestRepository } from '../../src/domain/repositories/onboarding-grant-request.repository'
+import { RolePermission } from '../../src/domain/vo/role-permission.value-object'
 import { IdentityAccountReferencePort } from '../../src/application/ports/identity-account-reference.port'
 import { buildTenantBoundQueryScope } from '../../src/application/authorization/operator-scope'
 import { OESExceptionBase } from '@oes/common/exceptions'
@@ -50,6 +52,31 @@ function createIdentityAccountReferencePort(): jest.Mocked<IdentityAccountRefere
   return {
     getAccountById: jest.fn()
   } as unknown as jest.Mocked<IdentityAccountReferencePort>
+}
+
+function createNavigationRepository(): jest.Mocked<NavigationRepository> {
+  return {
+    findEntryByKey: jest.fn(),
+    listEntries: jest.fn(),
+    saveEntry: jest.fn(),
+    findRoleNavigation: jest.fn().mockResolvedValue({
+      roleId: 'template-account-basic',
+      visibility: [],
+      landingPolicies: []
+    }),
+    replaceRoleVisibility: jest.fn().mockResolvedValue({
+      roleId: 'account-basic-role-id',
+      visibility: [],
+      landingPolicies: []
+    }),
+    replaceRoleLandingPolicies: jest.fn().mockResolvedValue({
+      roleId: 'account-basic-role-id',
+      visibility: [],
+      landingPolicies: []
+    }),
+    findVisibleEntriesForRoles: jest.fn(),
+    findLandingPoliciesForRoles: jest.fn()
+  } as unknown as jest.Mocked<NavigationRepository>
 }
 
 function tenantRole(id: string, tenantId = 'tenant-1') {
@@ -103,7 +130,8 @@ describe('GrantInitialAccessForEmployeeAccountHandler', () => {
     const handler = new GrantInitialAccessForEmployeeAccountHandler(
       roleRepository as unknown as RoleRepository,
       requestRepository as unknown as OnboardingGrantRequestRepository,
-      identityAccountReferencePort
+      identityAccountReferencePort,
+      createNavigationRepository()
     )
 
     await expect(
@@ -148,6 +176,226 @@ describe('GrantInitialAccessForEmployeeAccountHandler', () => {
     )
   })
 
+  it('defaults empty onboarding grants to the tenant account.basic role', async () => {
+    const roleRepository = createRoleRepository()
+    const requestRepository = createOnboardingGrantRequestRepository()
+    const identityAccountReferencePort = createIdentityAccountReferencePort()
+
+    identityAccountReferencePort.getAccountById.mockResolvedValue({
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT'
+    })
+    roleRepository.findByScopeKindAndCode.mockResolvedValue(
+      new Role(
+        'account-basic-role-id',
+        'Account Basic',
+        'account.basic',
+        'tenant-1',
+        RoleKind.TENANT_INSTANCE,
+        true
+      )
+    )
+    requestRepository.findByIdempotencyKey.mockResolvedValue(null)
+    requestRepository.createPending.mockResolvedValue({
+      idempotencyKey: 'grant-key-1',
+      tenantId: 'tenant-1',
+      accountId: 'account-1',
+      roleIds: ['account-basic-role-id'],
+      fingerprint: 'fp-1',
+      status: 'PENDING'
+    })
+    roleRepository.findById.mockResolvedValue(tenantRole('account-basic-role-id'))
+    requestRepository.markSucceeded.mockResolvedValue({
+      id: 'grant-request-1',
+      idempotencyKey: 'grant-key-1',
+      tenantId: 'tenant-1',
+      accountId: 'account-1',
+      roleIds: ['account-basic-role-id'],
+      fingerprint: 'fp-1',
+      status: 'SUCCEEDED'
+    })
+
+    const handler = new GrantInitialAccessForEmployeeAccountHandler(
+      roleRepository as unknown as RoleRepository,
+      requestRepository as unknown as OnboardingGrantRequestRepository,
+      identityAccountReferencePort,
+      createNavigationRepository()
+    )
+
+    await expect(
+      handler.execute(
+        new GrantInitialAccessForEmployeeAccountCommand({
+          tenantId: 'tenant-1',
+          accountId: 'account-1',
+          roleIds: [],
+          idempotencyKey: 'grant-key-1',
+          operatorScope: buildTenantBoundQueryScope(
+            {
+              operatorId: 'operator-1',
+              tenantId: 'tenant-1',
+              isSystemScope: false
+            },
+            'tenant-1'
+          )
+        })
+      )
+    ).resolves.toMatchObject({
+      roleIds: ['account-basic-role-id']
+    })
+
+    expect(roleRepository.findByScopeKindAndCode).toHaveBeenCalledWith(
+      'tenant-1',
+      RoleKind.TENANT_INSTANCE,
+      'account.basic'
+    )
+    expect(roleRepository.assignAccountRole).toHaveBeenCalledWith(
+      'account-1',
+      'account-basic-role-id',
+      'tenant-1',
+      ScopeLevel.TENANT,
+      AccountType.USER
+    )
+  })
+
+  it('creates the tenant account.basic role from the system template when the tenant instance is missing', async () => {
+    const roleRepository = createRoleRepository()
+    const requestRepository = createOnboardingGrantRequestRepository()
+    const identityAccountReferencePort = createIdentityAccountReferencePort()
+    const navigationRepository = createNavigationRepository()
+    const accountBasicTemplate = new Role(
+      'template-account-basic',
+      'Account Basic',
+      'account.basic',
+      null,
+      RoleKind.SYSTEM_TEMPLATE,
+      true
+    )
+    accountBasicTemplate.addPermission(
+      new RolePermission('template-account-basic', 'permission-self-read', 'identity.account.self.read')
+    )
+    roleRepository.findByScopeKindAndCode
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(accountBasicTemplate)
+    roleRepository.save.mockImplementation(async (role) => {
+      roleRepository.findById.mockResolvedValue(role)
+      return role
+    })
+    identityAccountReferencePort.getAccountById.mockResolvedValue({
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT'
+    })
+    requestRepository.findByIdempotencyKey.mockResolvedValue(null)
+    requestRepository.createPending.mockImplementation(async (input) => ({
+      ...input,
+      status: 'PENDING'
+    }))
+    requestRepository.markSucceeded.mockImplementation(async (input) => ({
+      id: 'grant-request-1',
+      ...input,
+      status: 'SUCCEEDED'
+    }))
+
+    const handler = new GrantInitialAccessForEmployeeAccountHandler(
+      roleRepository as unknown as RoleRepository,
+      requestRepository as unknown as OnboardingGrantRequestRepository,
+      identityAccountReferencePort,
+      navigationRepository
+    )
+
+    const result = await handler.execute(
+      new GrantInitialAccessForEmployeeAccountCommand({
+        tenantId: 'tenant-1',
+        accountId: 'account-1',
+        roleIds: [],
+        idempotencyKey: 'grant-key-1',
+        operatorScope: buildTenantBoundQueryScope(
+          {
+            operatorId: 'operator-1',
+            tenantId: 'tenant-1',
+            isSystemScope: false
+          },
+          'tenant-1'
+        )
+      })
+    )
+
+    expect(result.roleIds).toHaveLength(1)
+    expect(roleRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: 'account.basic',
+        tenantId: 'tenant-1',
+        kind: RoleKind.TENANT_INSTANCE,
+        templateRoleId: 'template-account-basic'
+      })
+    )
+    expect(navigationRepository.findRoleNavigation).toHaveBeenCalledWith('template-account-basic')
+    expect(roleRepository.assignAccountRole).toHaveBeenCalledWith(
+      'account-1',
+      result.roleIds[0],
+      'tenant-1',
+      ScopeLevel.TENANT,
+      AccountType.USER
+    )
+  })
+
+  it('does not derive account.basic before tenant scope authorization passes', async () => {
+    const roleRepository = createRoleRepository()
+    const requestRepository = createOnboardingGrantRequestRepository()
+    const identityAccountReferencePort = createIdentityAccountReferencePort()
+    const accountBasicTemplate = new Role(
+      'template-account-basic',
+      'Account Basic',
+      'account.basic',
+      null,
+      RoleKind.SYSTEM_TEMPLATE,
+      true
+    )
+
+    roleRepository.findByScopeKindAndCode
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(accountBasicTemplate)
+    roleRepository.save.mockImplementation(async (role) => role)
+
+    const handler = new GrantInitialAccessForEmployeeAccountHandler(
+      roleRepository as unknown as RoleRepository,
+      requestRepository as unknown as OnboardingGrantRequestRepository,
+      identityAccountReferencePort,
+      createNavigationRepository()
+    )
+
+    const error = await handler
+      .execute(
+        new GrantInitialAccessForEmployeeAccountCommand({
+          tenantId: 'tenant-1',
+          accountId: 'account-1',
+          roleIds: [],
+          idempotencyKey: 'grant-key-1',
+          operatorScope: buildTenantBoundQueryScope(
+            {
+              operatorId: 'operator-1',
+              tenantId: 'tenant-2',
+              isSystemScope: false
+            },
+            'tenant-2'
+          )
+        })
+      )
+      .then(
+        () => null,
+        (reason) => reason
+      )
+
+    expect(error).toBeInstanceOf(OESExceptionBase)
+    expect((error as OESExceptionBase).toRpcPayload()).toMatchObject({
+      code: 'AUTHORIZATION_DENIED'
+    })
+    expect(roleRepository.findByScopeKindAndCode).not.toHaveBeenCalled()
+    expect(roleRepository.save).not.toHaveBeenCalled()
+    expect(roleRepository.assignAccountRole).not.toHaveBeenCalled()
+  })
+
   it('returns stored success for a repeated identical idempotency key without granting twice', async () => {
     const roleRepository = createRoleRepository()
     const requestRepository = createOnboardingGrantRequestRepository()
@@ -175,7 +423,8 @@ describe('GrantInitialAccessForEmployeeAccountHandler', () => {
     const handler = new GrantInitialAccessForEmployeeAccountHandler(
       roleRepository as unknown as RoleRepository,
       requestRepository as unknown as OnboardingGrantRequestRepository,
-      identityAccountReferencePort
+      identityAccountReferencePort,
+      createNavigationRepository()
     )
 
     await expect(
@@ -227,7 +476,8 @@ describe('GrantInitialAccessForEmployeeAccountHandler', () => {
     const handler = new GrantInitialAccessForEmployeeAccountHandler(
       roleRepository as unknown as RoleRepository,
       requestRepository as unknown as OnboardingGrantRequestRepository,
-      identityAccountReferencePort
+      identityAccountReferencePort,
+      createNavigationRepository()
     )
 
     const error = await handler
@@ -288,7 +538,8 @@ describe('GrantInitialAccessForEmployeeAccountHandler', () => {
     const handler = new GrantInitialAccessForEmployeeAccountHandler(
       roleRepository as unknown as RoleRepository,
       requestRepository as unknown as OnboardingGrantRequestRepository,
-      identityAccountReferencePort
+      identityAccountReferencePort,
+      createNavigationRepository()
     )
 
     const error = await handler

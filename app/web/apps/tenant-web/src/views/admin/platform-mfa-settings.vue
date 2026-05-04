@@ -360,6 +360,8 @@ onBeforeUnmount(() => {
               保存后，系统账号后续命中的 MFA 流程会按这里的配置执行。
             </div>
             <Button
+              v-access:code="'auth.platform_mfa_policy.manage'"
+              v-if="canManagePlatformMfa"
               :loading="platformMfaSaving"
               size="large"
               type="primary"

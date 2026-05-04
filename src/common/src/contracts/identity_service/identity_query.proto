@@ -15,14 +15,12 @@ service IdentityQueryService {
   rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse);
   rpc ListAccountWorkEmailAssets(ListAccountWorkEmailAssetsRequest) returns (ListAccountWorkEmailAssetsResponse);
   rpc ListAccountWorkPhoneAssets(ListAccountWorkPhoneAssetsRequest) returns (ListAccountWorkPhoneAssetsResponse);
-  rpc ListAccountOrgMemberships(ListAccountOrgMembershipsRequest) returns (ListAccountOrgMembershipsResponse);
-  // Deprecated: org tree truth has moved to tenant-org-service. No new callers should be added here.
-  rpc GetOrgTreeByTenantId(GetOrgTreeByTenantIdRequest) returns (GetOrgTreeByTenantIdResponse);
   rpc ListAccounts(ListAccountsRequest) returns (ListAccountsResponse);
   rpc GetUserById(GetUserByIdRequest) returns (GetUserByIdResponse);
   rpc GetUserByEmail(GetUserByEmailRequest) returns (GetUserByEmailResponse);
   rpc GetUserByPhone(GetUserByPhoneRequest) returns (GetUserByPhoneResponse);
   rpc GetAccountsByUserId(GetAccountsByUserIdRequest) returns (GetAccountsByUserIdResponse);
+  rpc CountTenantAccounts(CountTenantAccountsRequest) returns (CountTenantAccountsResponse);
 }
 
 message ListAuditEventsRequest {
@@ -86,9 +84,6 @@ service IdentityManagementService {
   rpc SetAccountPrimaryWorkPhoneAsset(SetAccountPrimaryWorkPhoneAssetRequest) returns (SetAccountPrimaryWorkPhoneAssetResponse);
   rpc BindAccountToEmployee(BindAccountToEmployeeRequest) returns (BindAccountToEmployeeResponse);
   rpc UnbindAccountFromEmployee(UnbindAccountFromEmployeeRequest) returns (UnbindAccountFromEmployeeResponse);
-  rpc AddAccountOrgMembership(AddAccountOrgMembershipRequest) returns (AddAccountOrgMembershipResponse);
-  rpc RemoveAccountOrgMembership(RemoveAccountOrgMembershipRequest) returns (RemoveAccountOrgMembershipResponse);
-  rpc SetAccountPrimaryOrg(SetAccountPrimaryOrgRequest) returns (SetAccountPrimaryOrgResponse);
 }
 
 service IdentityMachineAuthService {
@@ -134,6 +129,7 @@ message ListAccountsRequest {
   string status = 3;
   int32 page = 4;
   int32 page_size = 5;
+  string tenant_id = 6;
 }
 
 message AccountDirectoryItem {
@@ -152,6 +148,21 @@ message ListAccountsResponse {
   int32 total = 2;
 }
 
+message CountTenantAccountsRequest {
+  repeated string tenant_ids = 1;
+  string scope_level = 2;
+  string status = 3;
+}
+
+message TenantAccountCount {
+  string tenant_id = 1;
+  int32 total = 2;
+}
+
+message CountTenantAccountsResponse {
+  repeated TenantAccountCount counts = 1;
+}
+
 message CreateUserAccountRequest {
   string scope_level = 1;
   string tenant_id = 2;
@@ -159,6 +170,8 @@ message CreateUserAccountRequest {
   string username = 4;
   string email = 5;
   string phone = 6;
+  string idempotency_key = 7;
+  string existing_user_id = 8;
 }
 
 message BindAccountToEmployeeRequest {
@@ -178,8 +191,9 @@ message GetAccountDeletionImpactRequest {
 message AccountDeletionCleanupPlan {
   bool will_delete_sessions = 1;
   bool will_clear_roles = 2;
-  bool will_delete_org_memberships = 3;
   bool will_delete_contact_assets = 4;
+  reserved 3;
+  reserved "will_delete_org_memberships";
 }
 
 message AccountDeletionBlockingReason {
@@ -194,8 +208,9 @@ message GetAccountDeletionImpactResponse {
   bool user_retained = 3;
   AccountDeletionCleanupPlan cleanup_plan = 4;
   repeated AccountDeletionBlockingReason blocking_reasons = 5;
-  int32 org_membership_count = 6;
   int32 contact_asset_count = 7;
+  reserved 6;
+  reserved "org_membership_count";
 }
 
 message DeleteAccountRequest {
@@ -207,9 +222,10 @@ message DeleteAccountRequest {
 
 message DeleteAccountResponse {
   string account_id = 1;
-  int32 deleted_org_membership_count = 2;
   int32 deleted_contact_asset_count = 3;
   bool user_retained = 4;
+  reserved 2;
+  reserved "deleted_org_membership_count";
 }
 
 message UpdateUserBasicInfoRequest {
@@ -224,47 +240,6 @@ message UpdateOwnUserBasicInfoRequest {
   string user_id = 2;
   string email = 3;
   string phone = 4;
-}
-
-message GetOrgTreeByTenantIdRequest {
-  string tenant_id = 1;
-}
-
-message OrgNode {
-  string id = 1;
-  string tenant_id = 2;
-  string parent_id = 3;
-  string name = 4;
-  string code = 5;
-  string type = 6;
-  int32 sort_order = 7;
-  repeated OrgNode children = 8;
-}
-
-message GetOrgTreeByTenantIdResponse {
-  repeated OrgNode roots = 1;
-}
-
-message AccountOrgMembership {
-  string id = 1;
-  string account_id = 2;
-  string org_id = 3;
-  string org_name = 4;
-  string org_type = 5;
-  string relation_type = 6;
-  bool is_primary = 7;
-}
-
-message AccountOrgMembershipResponse {
-  AccountOrgMembership membership = 1;
-}
-
-message AddAccountOrgMembershipResponse {
-  AccountOrgMembership membership = 1;
-}
-
-message RemoveAccountOrgMembershipResponse {
-  AccountOrgMembership membership = 1;
 }
 
 message AccountContactAsset {
@@ -369,25 +344,6 @@ message SetAccountPrimaryWorkPhoneAssetRequest {
   string asset_id = 1;
 }
 
-message AddAccountOrgMembershipRequest {
-  string account_id = 1;
-  string org_id = 2;
-}
-
-message RemoveAccountOrgMembershipRequest {
-  string account_id = 1;
-  string org_id = 2;
-}
-
-message SetAccountPrimaryOrgRequest {
-  string account_id = 1;
-  string org_id = 2;
-}
-
-message SetAccountPrimaryOrgResponse {
-  AccountOrgMembership membership = 1;
-}
-
 message UpdateAccountProfileRequest {
   string account_id = 1;
   string avatar_url = 2;
@@ -404,14 +360,6 @@ message UpdateOwnAccountProfileRequest {
   string bio = 4;
   optional bool is_enabled = 5;
   string avatar_asset_id = 6;
-}
-
-message ListAccountOrgMembershipsRequest {
-  string account_id = 1;
-}
-
-message ListAccountOrgMembershipsResponse {
-  repeated AccountOrgMembership memberships = 1;
 }
 
 message GetAccountsByUserIdRequest {
@@ -451,6 +399,8 @@ message GetAccountByIdResponse {
 
 message CreateUserAccountResponse {
   AccountSummary account = 1;
+  string user_party_id = 2;
+  string user_tenant_party_id = 3;
 }
 
 message UpdateOwnAccountProfileResponse {

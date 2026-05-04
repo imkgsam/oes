@@ -24,6 +24,8 @@
   - tenant 摘要、组织树、组织节点与组织引用校验查询
 - [management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/tenant-org-service/management.md)
   - tenant 与 org tree 管理型写接口
+- [onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/tenant-org-service/onboarding.md)
+  - tenant onboarding 轻量 Saga / Process Manager 目标 contract 草案
 
 ## 3. 全局调用约束
 
@@ -45,6 +47,7 @@
 - 组织节点创建、更新、移动、归档
 - 组织引用合法性校验
 - 祖先 / 子孙等组织层级遍历
+- tenant onboarding 目标 contract 草案，当前尚未表示 runtime 已实现
 
 当前不包含：
 

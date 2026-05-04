@@ -62,17 +62,6 @@ export class CheckResourceService {
     })
   }
 
-  checkAccountOrgMembership(operatorScope: OperatorScope | undefined, input: {
-    resourceId: string
-    tenantId: string
-  }): void {
-    this.ensureTenantBoundAccess(operatorScope, {
-      resourceType: 'account_org_membership',
-      resourceId: input.resourceId,
-      tenantId: input.tenantId
-    })
-  }
-
   // Enforces that tenant-scoped operators can only access resources inside their own tenant boundary.
   private ensureTenantBoundAccess(operatorScope: OperatorScope | undefined, input: {
     resourceType: string

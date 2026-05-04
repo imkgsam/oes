@@ -52,8 +52,7 @@ describe('OrgManagementService', () => {
       id: 'party-1',
       type: 'ORGANIZATION',
       status: 'ACTIVE',
-      displayName: 'Acme Manufacturing',
-      canonicalName: 'Acme Manufacturing Ltd.'
+      legalName: 'Acme Manufacturing Ltd.'
     })
 
     await expect(service.getOrgUnitDetail('tenant-1', 'org-1', source as any)).resolves.toEqual({
@@ -64,8 +63,7 @@ describe('OrgManagementService', () => {
           id: 'party-1',
           type: 'ORGANIZATION',
           status: 'ACTIVE',
-          displayName: 'Acme Manufacturing',
-          canonicalName: 'Acme Manufacturing Ltd.'
+          legalName: 'Acme Manufacturing Ltd.'
         }
       })
     })
@@ -140,15 +138,13 @@ describe('OrgManagementService', () => {
             id: 'party-root-1',
             type: 'ORGANIZATION',
             status: 'ACTIVE',
-            displayName: 'Alpha Holdings',
-            canonicalName: 'Alpha Holdings Co.'
+            legalName: 'Alpha Holdings Co.'
           }
         : {
             id: 'party-branch-1',
             type: 'ORGANIZATION',
             status: 'ACTIVE',
-            displayName: 'Alpha Shenzhen Branch',
-            canonicalName: 'Alpha Shenzhen Branch'
+            legalName: 'Alpha Shenzhen Branch'
           }
     )
 
@@ -163,9 +159,9 @@ describe('OrgManagementService', () => {
           orgUnit: expect.objectContaining({
             id: 'org-root-1',
             organizationPartyId: 'party-root-1',
-            organizationParty: expect.objectContaining({
-              id: 'party-root-1',
-              displayName: 'Alpha Holdings'
+              organizationParty: expect.objectContaining({
+                id: 'party-root-1',
+                legalName: 'Alpha Holdings Co.'
             })
           }),
           children: [
@@ -175,7 +171,7 @@ describe('OrgManagementService', () => {
                 organizationPartyId: 'party-branch-1',
                 organizationParty: expect.objectContaining({
                   id: 'party-branch-1',
-                  displayName: 'Alpha Shenzhen Branch'
+                  legalName: 'Alpha Shenzhen Branch'
                 })
               }),
               children: []

@@ -15,7 +15,7 @@ test('runPartySmokeFlow executes the expected happy path against injected servic
         return {
           party: {
             id: 'party-1',
-            canonicalName: request.canonicalName,
+            legalName: request.legalName,
           },
           tenantParty: {
             id: 'tenant-party-1',

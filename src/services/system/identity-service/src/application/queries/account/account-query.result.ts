@@ -34,6 +34,15 @@ export interface AccountDirectoryPageView {
   total: number
 }
 
+export interface TenantAccountCountView {
+  tenantId: string
+  total: number
+}
+
+export interface TenantAccountCountListView {
+  counts: TenantAccountCountView[]
+}
+
 export interface AccountDeletionBlockingReasonView {
   resourceType: string
   resourceCount: number
@@ -47,10 +56,8 @@ export interface AccountDeletionImpactView {
   cleanupPlan: {
     willDeleteSessions: true
     willClearRoles: true
-    willDeleteOrgMemberships: boolean
     willDeleteContactAssets: boolean
   }
   blockingReasons: AccountDeletionBlockingReasonView[]
-  orgMembershipCount: number
   contactAssetCount: number
 }

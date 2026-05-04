@@ -5,7 +5,9 @@ import { DownstreamSource } from '../../../../../common/decorators/downstream-so
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { TenantManagementService } from '../../../tenant-management.service'
 import { CreateTenantDto } from '../dtos/create-tenant.dto'
+import { CreateTenantOnboardingDto } from '../dtos/create-tenant-onboarding.dto'
 import { ListTenantsDto } from '../dtos/list-tenants.dto'
+import { RetryTenantOnboardingDto } from '../dtos/retry-tenant-onboarding.dto'
 import { UpdateTenantProfileDto } from '../dtos/update-tenant-profile.dto'
 import { UpdateTenantStatusDto } from '../dtos/update-tenant-status.dto'
 
@@ -34,6 +36,17 @@ export class TenantManagementController {
     )
   }
 
+  @Get('first-admin-candidates')
+  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT])
+  @ApiOperation({ summary: 'Find an existing user candidate for tenant first-admin binding' })
+  async searchFirstAdminExistingUsers(
+    @Query('keyword') keyword: string,
+    @Query('countryOrRegion') countryOrRegion: string | undefined,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.tenantManagementService.searchFirstAdminExistingUsers({ countryOrRegion, keyword }, source)
+  }
+
   @Get(':tenantId')
   @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_TENANT_DETAIL])
   @ApiOperation({ summary: 'Get one tenant detail for the system-admin tenant management entry' })
@@ -53,6 +66,39 @@ export class TenantManagementController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.tenantManagementService.createTenant(body, source)
+  }
+
+  @Post('onboardings')
+  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT])
+  @ApiOperation({ summary: 'Start tenant onboarding with party, first admin, login, and role grant' })
+  @ApiBody({ type: CreateTenantOnboardingDto })
+  async startTenantOnboarding(
+    @Body() body: CreateTenantOnboardingDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.tenantManagementService.startTenantOnboarding(body, source)
+  }
+
+  @Get('onboardings/:onboardingId')
+  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_TENANT_DETAIL])
+  @ApiOperation({ summary: 'Get tenant onboarding run status' })
+  async getTenantOnboarding(
+    @Param('onboardingId') onboardingId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.tenantManagementService.getTenantOnboarding(onboardingId, source)
+  }
+
+  @Post('onboardings/:onboardingId/retry')
+  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT])
+  @ApiOperation({ summary: 'Retry a failed tenant onboarding run' })
+  @ApiBody({ type: RetryTenantOnboardingDto })
+  async retryTenantOnboarding(
+    @Param('onboardingId') onboardingId: string,
+    @Body() body: RetryTenantOnboardingDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.tenantManagementService.retryTenantOnboarding(onboardingId, body, source)
   }
 
   @Patch(':tenantId/profile')

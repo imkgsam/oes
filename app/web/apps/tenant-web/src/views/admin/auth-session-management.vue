@@ -857,7 +857,11 @@ onMounted(async () => {
         <Empty description="当前账号没有管理员认证与会话管理权限" />
       </Card>
 
-      <div v-if="canListAuditEvents || canViewUserSessions" class="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+      <div
+        v-access:code="['auth.audit.list', 'auth.session.admin.view']"
+        v-if="canListAuditEvents || canViewUserSessions"
+        class="grid gap-4 xl:grid-cols-[1.4fr_1fr]"
+      >
         <Card :bordered="false" class="summary-hero">
           <div class="summary-hero__eyebrow">Admin Security Console</div>
           <div class="summary-hero__title-row">
@@ -892,11 +896,21 @@ onMounted(async () => {
         </div>
       </div>
 
-      <Card v-if="canListAuditEvents || canViewUserSessions" :bordered="false" class="panel-surface">
+      <Card
+        v-access:code="['auth.audit.list', 'auth.session.admin.view']"
+        v-if="canListAuditEvents || canViewUserSessions"
+        :bordered="false"
+        class="panel-surface"
+      >
         <Tabs v-model:active-key="activeTab">
           <Tabs.TabPane key="sessions" tab="会话管理">
             <div class="space-y-4">
-              <Form v-if="canViewUserSessions" layout="vertical" class="filter-shell">
+              <Form
+                v-access:code="'auth.session.admin.view'"
+                v-if="canViewUserSessions"
+                layout="vertical"
+                class="filter-shell"
+              >
                 <Row :gutter="16">
                   <Col :span="isPlatformScope ? 8 : 12">
                     <Form.Item v-if="isPlatformScope" label="租户 ID">
@@ -946,6 +960,7 @@ onMounted(async () => {
               </div>
 
               <Table
+                v-access:code="'auth.session.admin.view'"
                 v-if="canViewUserSessions"
                 :columns="onlineUserColumns"
                 :data-source="onlineUsers"
@@ -965,7 +980,11 @@ onMounted(async () => {
           </Tabs.TabPane>
 
           <Tabs.TabPane key="audit" tab="审计">
-            <div v-if="canListAuditEvents" class="space-y-4">
+            <div
+              v-access:code="'auth.audit.list'"
+              v-if="canListAuditEvents"
+              class="space-y-4"
+            >
               <div class="audit-toolbar">
                 <div class="section-caption">
                   <span>审计事件</span>
@@ -979,7 +998,7 @@ onMounted(async () => {
               </div>
 
               <Form layout="vertical" class="filter-shell">
-                <Row :gutter="16">
+                <Row :gutter="[10, 10]">
                   <Col :span="isPlatformScope ? 6 : 8">
                     <Form.Item v-if="isPlatformScope" label="租户 ID">
                       <Input v-model:value="filters.tenantId" placeholder="系统管理员可按租户收敛范围" />
@@ -1005,7 +1024,7 @@ onMounted(async () => {
                   </Col>
                 </Row>
 
-                <Row :gutter="16">
+                <Row :gutter="[10, 10]">
                   <Col :span="6">
                     <Form.Item label="服务名">
                       <Input v-model:value="filters.service" placeholder="如 auth-service" />
@@ -1028,12 +1047,12 @@ onMounted(async () => {
                   </Col>
                   <Col :span="4">
                     <Form.Item label=" " :colon="false">
-                      <Space>
-                        <Button type="primary" @click="loadAuditEvents({ resetCursor: true })">
+                      <div class="filter-button-pair">
+                        <Button class="filter-action-button" type="primary" @click="loadAuditEvents({ resetCursor: true })">
                           查询
                         </Button>
-                        <Button @click="resetAuditFilters">重置</Button>
-                      </Space>
+                        <Button class="filter-action-button" @click="resetAuditFilters">重置</Button>
+                      </div>
                     </Form.Item>
                   </Col>
                 </Row>
@@ -1315,10 +1334,14 @@ onMounted(async () => {
 }
 
 .filter-shell {
-  padding: 16px 16px 4px;
+  padding: 12px;
   border: 1px solid var(--session-border);
-  border-radius: 16px;
+  border-radius: 10px;
   background: var(--session-card-bg-soft);
+}
+
+.filter-shell :deep(.ant-form-item) {
+  margin-bottom: 0;
 }
 
 .filter-shell--drawer {
@@ -1501,6 +1524,33 @@ onMounted(async () => {
   background: hsl(var(--input-background));
   border-color: hsl(var(--input));
   color: var(--session-text);
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+:deep(.filter-shell .ant-select-selector) {
+  align-items: center;
+  display: flex;
+}
+
+:deep(.filter-shell .ant-input-affix-wrapper) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.filter-button-pair {
+  display: grid;
+  grid-template-columns: minmax(84px, 1fr) minmax(84px, 1fr);
+  gap: 8px;
+  margin-left: auto;
+  width: min(100%, 184px);
+}
+
+.filter-action-button {
+  height: 36px;
+  min-width: 0;
+  width: 100%;
+  border-radius: 10px;
 }
 
 .session-muted-action {

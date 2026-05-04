@@ -3,6 +3,95 @@ import { SelectAccountCommand } from './select-account.command'
 import { SelectAccountHandler } from './select-account.handler'
 
 describe('SelectAccountHandler', () => {
+  it('rejects tenant-scope account selection when tenant-org reports the tenant is not active', async () => {
+    const identityService = {
+      getAccountById: jest.fn().mockResolvedValue({
+        accountId: 'account-suspended',
+        userId: 'user-1',
+        tenantId: 'tenant-suspended',
+        scopeLevel: 'TENANT',
+        displayName: 'Suspended Tenant Account',
+        isEnabled: true
+      })
+    }
+    const tenantSessionAccessService = {
+      assertAccountCanEstablishSession: jest.fn().mockRejectedValue(new Error('tenant inactive'))
+    }
+    const loginMfaOrchestrationService = {
+      resolveChallengeForSelectedAccount: jest.fn()
+    }
+    const accountSessionEstablishmentService = {
+      establish: jest.fn()
+    }
+    const handler = new SelectAccountHandler(
+      identityService as any,
+      accountSessionEstablishmentService as any,
+      loginMfaOrchestrationService as any,
+      tenantSessionAccessService as any
+    )
+
+    await expect(
+      handler.execute(
+        new SelectAccountCommand('user-1', 'account-suspended', LoginMethodEnum.EmailPassword)
+      )
+    ).rejects.toThrow('tenant inactive')
+
+    expect(tenantSessionAccessService.assertAccountCanEstablishSession).toHaveBeenCalledWith({
+      accountId: 'account-suspended',
+      tenantId: 'tenant-suspended',
+      scopeLevel: 'TENANT'
+    })
+    expect(loginMfaOrchestrationService.resolveChallengeForSelectedAccount).not.toHaveBeenCalled()
+    expect(accountSessionEstablishmentService.establish).not.toHaveBeenCalled()
+  })
+
+  it('does not check tenant lifecycle for SYSTEM account selection', async () => {
+    const identityService = {
+      getAccountById: jest.fn().mockResolvedValue({
+        accountId: 'system-account',
+        userId: 'user-1',
+        tenantId: null,
+        scopeLevel: 'SYSTEM',
+        displayName: 'System Account',
+        isEnabled: true
+      })
+    }
+    const tenantSessionAccessService = {
+      assertAccountCanEstablishSession: jest.fn()
+    }
+    const accountSessionEstablishmentService = {
+      establish: jest.fn().mockResolvedValue({
+        status: 'SUCCESS',
+        userId: 'user-1',
+        accountId: 'system-account',
+        tenantId: null,
+        scopeLevel: 'SYSTEM',
+        sessionId: 'session-system',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        expiresIn: 900,
+        displayName: 'System Account',
+        passwordSetupRequired: false
+      })
+    }
+    const handler = new SelectAccountHandler(
+      identityService as any,
+      accountSessionEstablishmentService as any,
+      {
+        resolveChallengeForSelectedAccount: jest.fn().mockResolvedValue(null)
+      } as any,
+      tenantSessionAccessService as any
+    )
+
+    await expect(
+      handler.execute(
+        new SelectAccountCommand('user-1', 'system-account', LoginMethodEnum.EmailPassword)
+      )
+    ).resolves.toEqual(expect.objectContaining({ scopeLevel: 'SYSTEM' }))
+
+    expect(tenantSessionAccessService.assertAccountCanEstablishSession).not.toHaveBeenCalled()
+  })
+
   it('replaces the previous context-switch session and preserves the original login method', async () => {
     const identityService = {
       getAccountById: jest.fn().mockResolvedValue({
@@ -33,6 +122,9 @@ describe('SelectAccountHandler', () => {
       } as any,
       {
         resolveChallengeForSelectedAccount: jest.fn().mockResolvedValue(null)
+      } as any,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
       } as any
     )
 
@@ -89,6 +181,9 @@ describe('SelectAccountHandler', () => {
       } as any,
       {
         resolveChallengeForSelectedAccount
+      } as any,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
       } as any
     )
 

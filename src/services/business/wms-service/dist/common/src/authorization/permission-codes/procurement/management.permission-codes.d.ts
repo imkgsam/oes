@@ -1,0 +1,23 @@
+export declare const PROCUREMENT_MANAGEMENT_PERMISSION_CODES: {
+    readonly LIST_PURCHASE_REQUEST: "procurement.purchase_request.list";
+    readonly GET_PURCHASE_REQUEST: "procurement.purchase_request.get_by_id";
+    readonly CREATE_PURCHASE_REQUEST: "procurement.purchase_request.create";
+    readonly UPDATE_PURCHASE_REQUEST_DRAFT: "procurement.purchase_request.update_draft";
+    readonly SUBMIT_PURCHASE_REQUEST: "procurement.purchase_request.submit";
+    readonly DECIDE_PURCHASE_REQUEST: "procurement.purchase_request.decide";
+    readonly CANCEL_PURCHASE_REQUEST: "procurement.purchase_request.cancel";
+    readonly CONVERT_PURCHASE_REQUEST_TO_ORDER: "procurement.purchase_request.convert_to_order";
+    readonly LIST_PURCHASE_ORDER: "procurement.purchase_order.list";
+    readonly GET_PURCHASE_ORDER: "procurement.purchase_order.get_by_id";
+    readonly CREATE_PURCHASE_ORDER_DRAFT: "procurement.purchase_order.create_draft";
+    readonly UPDATE_PURCHASE_ORDER_DRAFT: "procurement.purchase_order.update_draft";
+    readonly ISSUE_PURCHASE_ORDER: "procurement.purchase_order.issue";
+    readonly CONFIRM_SUPPLIER_ACKNOWLEDGEMENT: "procurement.purchase_order.confirm_acknowledgement";
+    readonly APPLY_PURCHASE_ORDER_CHANGE: "procurement.purchase_order.apply_change";
+    readonly CANCEL_PURCHASE_ORDER: "procurement.purchase_order.cancel";
+    readonly LIST_PURCHASE_ORDER_CHANGES: "procurement.purchase_order_change.list";
+    readonly LIST_RECEIVING_EXPECTATION: "procurement.receiving_expectation.list";
+    readonly GET_RECEIVING_EXPECTATION: "procurement.receiving_expectation.get_by_id";
+    readonly CREATE_RECEIVING_EXPECTATION: "procurement.receiving_expectation.create";
+    readonly RECORD_RECEIVING_DISCREPANCY_RESOLUTION: "procurement.receiving_discrepancy.record_resolution";
+};

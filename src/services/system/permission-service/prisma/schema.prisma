@@ -22,6 +22,8 @@ model Role {
   description    String?
   kind           RoleKind
   templateRoleId String?
+  allowTenantPermissionOverride Boolean @default(true)
+  isProtected    Boolean  @default(false)
   isEnabled      Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -214,13 +216,22 @@ model DecisionEvent {
 // ============================================================
 
 enum Modules {
-  ENTITY_SERVICE
-  IDENTITY_SERVICE
   PERMISSION_SERVICE
   AUTH_SERVICE
-  EPR_SERVICE
-  MES_SERVICE
+  IDENTITY_SERVICE
+  TENANT_ORG_SERVICE
+  HR_SERVICE
+  ITEM_MASTER_SERVICE
+  CRM_SERVICE
+  SRM_SERVICE
+  SALES_SERVICE
+  PROCUREMENT_SERVICE
+  FINANCE_SERVICE
+  PARTY_SERVICE
   WMS_SERVICE
+  MES_SERVICE
+  ASSET_SERVICE
+  NOTIFICATION_SERVICE
 }
 
 enum AccountType {

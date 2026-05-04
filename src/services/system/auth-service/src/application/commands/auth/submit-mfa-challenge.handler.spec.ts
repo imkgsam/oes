@@ -3,6 +3,60 @@ import { SubmitMfaChallengeCommand } from './submit-mfa-challenge.command'
 import { SubmitMfaChallengeHandler } from './submit-mfa-challenge.handler'
 
 describe('SubmitMfaChallengeHandler', () => {
+  it('checks tenant lifecycle again after MFA succeeds and before session establishment', async () => {
+    const loginMfaOrchestrationService = {
+      verifySelectedFactor: jest.fn().mockResolvedValue({
+        sub: 'user-1',
+        aid: 'account-1',
+        tid: 'tenant-1',
+        scopeLevel: 'TENANT',
+        loginMethod: LoginMethodEnum.EmailPassword,
+        scenario: 'LOGIN',
+        tokenType: 'mfa_flow'
+      })
+    }
+    const identityService = {
+      getAccountById: jest.fn().mockResolvedValue({
+        accountId: 'account-1',
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        displayName: 'Tenant Account',
+        isEnabled: true
+      })
+    }
+    const tenantSessionAccessService = {
+      assertAccountCanEstablishSession: jest.fn().mockRejectedValue(new Error('tenant inactive'))
+    }
+    const accountSessionEstablishmentService = {
+      establish: jest.fn()
+    }
+    const handler = new SubmitMfaChallengeHandler(
+      loginMfaOrchestrationService as any,
+      identityService as any,
+      accountSessionEstablishmentService as any,
+      tenantSessionAccessService as any
+    )
+
+    await expect(
+      handler.execute(
+        new SubmitMfaChallengeCommand(
+          'login-mfa-flow-token',
+          MfaType.TOTP,
+          '123456',
+          LoginMethodEnum.EmailPassword
+        )
+      )
+    ).rejects.toThrow('tenant inactive')
+
+    expect(tenantSessionAccessService.assertAccountCanEstablishSession).toHaveBeenCalledWith({
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT'
+    })
+    expect(accountSessionEstablishmentService.establish).not.toHaveBeenCalled()
+  })
+
   it('establishes the selected account session after MFA succeeds', async () => {
     const loginMfaOrchestrationService = {
       verifySelectedFactor: jest.fn().mockResolvedValue({
@@ -47,7 +101,10 @@ describe('SubmitMfaChallengeHandler', () => {
     const handler = new SubmitMfaChallengeHandler(
       loginMfaOrchestrationService as any,
       identityService as any,
-      accountSessionEstablishmentService as any
+      accountSessionEstablishmentService as any,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
+      } as any
     )
 
     const result = await handler.execute(

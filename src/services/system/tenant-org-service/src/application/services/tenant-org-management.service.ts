@@ -1,5 +1,9 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common'
 import {
+  AUTH_SESSION_REVOCATION_PORT,
+  AuthSessionRevocationPort
+} from '../ports/auth-session-revocation.port'
+import {
   ORGANIZATION_PARTY_READER,
   OrganizationPartyReader
 } from '../ports/organization-party-reader.port'
@@ -20,7 +24,9 @@ export class TenantOrgManagementService {
     @Inject(ORG_UNIT_REPOSITORY)
     private readonly orgUnitRepository: OrgUnitRepository,
     @Inject(ORGANIZATION_PARTY_READER)
-    private readonly organizationPartyReader: OrganizationPartyReader
+    private readonly organizationPartyReader: OrganizationPartyReader,
+    @Inject(AUTH_SESSION_REVOCATION_PORT)
+    private readonly authSessionRevocationPort: AuthSessionRevocationPort
   ) {}
 
   async createTenant(input: { code: string; name: string; rootOrgName?: string }) {
@@ -39,10 +45,15 @@ export class TenantOrgManagementService {
   }
 
   async suspendTenant(input: { tenantId: string; reason?: string }) {
-    return this.tenantRepository.setStatus({
+    const tenant = await this.tenantRepository.setStatus({
       tenantId: requireNonBlank(input.tenantId, 'tenantId'),
       status: TenantStatus.SUSPENDED
     })
+    await this.authSessionRevocationPort.revokeTenantSessions({
+      tenantId: tenant.id,
+      reason: 'TENANT_SUSPENDED'
+    })
+    return tenant
   }
 
   async reactivateTenant(input: { tenantId: string }) {
@@ -53,10 +64,15 @@ export class TenantOrgManagementService {
   }
 
   async archiveTenant(input: { tenantId: string; reason?: string }) {
-    return this.tenantRepository.setStatus({
+    const tenant = await this.tenantRepository.setStatus({
       tenantId: requireNonBlank(input.tenantId, 'tenantId'),
       status: TenantStatus.ARCHIVED
     })
+    await this.authSessionRevocationPort.revokeTenantSessions({
+      tenantId: tenant.id,
+      reason: 'TENANT_ARCHIVED'
+    })
+    return tenant
   }
 
   async createOrgUnit(input: {

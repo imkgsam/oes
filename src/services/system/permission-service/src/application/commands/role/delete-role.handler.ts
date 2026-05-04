@@ -25,6 +25,13 @@ export class DeleteRoleHandler implements ICommandHandler<DeleteRoleCommand> {
     if (!existing || !existing.isAssignable) {
       throw ExceptionFactory.domain(ROLE_NOT_FOUND)
     }
+    if (existing.isProtected) {
+      throw ExceptionFactory.domain(ROLE_DELETE_FORBIDDEN, {
+        roleId: existing.id,
+        roleCode: existing.code,
+        isProtected: existing.isProtected
+      })
+    }
 
     assertRoleScopeAccess(
       command.operatorScope,

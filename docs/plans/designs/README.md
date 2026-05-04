@@ -109,6 +109,7 @@
 
 当前已建立或正在推进的 design workspace 包括：
 
+- [after-sales-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/after-sales-service-design.md)
 - [customer-touchpoint-and-platform-integration-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/customer-touchpoint-and-platform-integration-design.md)
 - [crm-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/crm-service-design.md)
 - [manufacturing-master-data-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/manufacturing-master-data-design.md)

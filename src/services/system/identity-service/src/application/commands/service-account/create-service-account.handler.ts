@@ -11,7 +11,10 @@ import {
 } from '../../../common/constants'
 import { ServiceAccountEntity } from '../../../domain/entities/service-account.entity'
 import { ServiceAccountRepository } from '../../../domain/repositories/service-account.repository'
-import { TenantRepository } from '../../../domain/repositories/tenant.repository'
+import {
+  TENANT_REFERENCE_PORT,
+  TenantReferencePort
+} from '../../ports/tenant-reference.port'
 import { CreateServiceAccountCommand } from './create-service-account.command'
 
 @CommandHandler(CreateServiceAccountCommand)
@@ -19,8 +22,8 @@ export class CreateServiceAccountHandler
   implements ICommandHandler<CreateServiceAccountCommand, ServiceAccountEntity>
 {
   constructor(
-    @Inject(SYMBOLS.REPO.TENANT)
-    private readonly tenantRepository: TenantRepository,
+    @Inject(TENANT_REFERENCE_PORT)
+    private readonly tenantReferencePort: TenantReferencePort,
     @Inject(SYMBOLS.REPO.SERVICE_ACCOUNT)
     private readonly serviceAccountRepository: ServiceAccountRepository,
     private readonly checkResourceService: CheckResourceService
@@ -44,7 +47,7 @@ export class CreateServiceAccountHandler
     }
 
     if (command.tenantId) {
-      const tenant = await this.tenantRepository.findById(command.tenantId)
+      const tenant = await this.tenantReferencePort.findById(command.tenantId)
       if (!tenant) {
         throw ExceptionFactory.domain(IDENTITY_TENANT_NOT_FOUND, {
           tenantId: command.tenantId

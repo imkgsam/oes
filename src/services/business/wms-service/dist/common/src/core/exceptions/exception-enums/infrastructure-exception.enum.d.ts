@@ -1,0 +1,10 @@
+import { ExceptionDefinition } from '../exception.interface';
+export declare const DATABASE_CONNECTION_FAILED: ExceptionDefinition;
+export declare const DATABASE_QUERY_TIMEOUT: ExceptionDefinition;
+export declare const REDIS_CONNECTION_FAILED: ExceptionDefinition;
+export declare const THIRD_PARTY_SERVICE_UNAVAILABLE: ExceptionDefinition;
+export declare const EXTERNAL_HTTP_TIMEOUT: ExceptionDefinition;
+export declare const EXTERNAL_HTTP_UNAVAILABLE: ExceptionDefinition;
+export declare const EXTERNAL_HTTP_ERROR: ExceptionDefinition;
+export declare const INTERNAL_SERVICE_UNAVAILABLE: ExceptionDefinition;
+export declare const UNKNOWN_EXCEPTION: ExceptionDefinition;

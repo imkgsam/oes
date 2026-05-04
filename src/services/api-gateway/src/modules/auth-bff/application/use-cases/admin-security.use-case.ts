@@ -163,7 +163,8 @@ export class AdminSecurityUseCase {
         page,
         pageSize,
         scopeLevel: query.scopeLevel?.trim() || undefined,
-        status: query.status?.trim() || undefined
+        status: query.status?.trim() || undefined,
+        tenantId: normalize(query.tenantId)
       },
       source
     )
@@ -241,7 +242,6 @@ export class AdminSecurityUseCase {
       cleanupPlan: {
         willDeleteSessions: Boolean(result.cleanupPlan?.willDeleteSessions),
         willClearRoles: Boolean(result.cleanupPlan?.willClearRoles),
-        willDeleteOrgMemberships: Boolean(result.cleanupPlan?.willDeleteOrgMemberships),
         willDeleteContactAssets: Boolean(result.cleanupPlan?.willDeleteContactAssets)
       },
       blockingReasons: (result.blockingReasons ?? []).map((reason) => ({
@@ -249,7 +249,6 @@ export class AdminSecurityUseCase {
         resourceCount: Number(reason.resourceCount ?? 0),
         message: reason.message ?? ''
       })),
-      orgMembershipCount: Number(result.orgMembershipCount ?? 0),
       contactAssetCount: Number(result.contactAssetCount ?? 0)
     }
   }
@@ -502,7 +501,6 @@ export class AdminSecurityUseCase {
       deletedSessionCount: Number(sessionResult.deletedSessionCount ?? 0),
       clearedRoleCount,
       deletedPolicyCount,
-      deletedOrgMembershipCount: Number(deleteResult.deletedOrgMembershipCount ?? 0),
       deletedContactAssetCount: Number(deleteResult.deletedContactAssetCount ?? 0),
       userRetained: Boolean(deleteResult.userRetained)
     }
@@ -560,33 +558,14 @@ export class AdminSecurityUseCase {
   ): Promise<AdminAccountBasicInfoViewModel> {
     const current = await this.getAccountBasicInfo(accountId, source)
     const displayName = dto.displayName.trim()
-    const email = normalize(dto.email)?.toLowerCase()
-    const phone = normalize(dto.phone)
     const requestedEnabled = dto.isEnabled ?? current.isEnabled
     const currentDisplayName = normalize(current.displayName) ?? ''
-    const currentEmail = normalize(current.email)?.toLowerCase()
-    const currentPhone = normalize(current.phone)
-    const profileChanged =
-      displayName !== currentDisplayName
-      || email !== currentEmail
-      || phone !== currentPhone
+    const profileChanged = displayName !== currentDisplayName
     const statusChanged = requestedEnabled !== current.isEnabled
 
     if (profileChanged) {
       if (!displayName) {
         throw new BadRequestException('displayName is required')
-      }
-
-      if (!email && !phone) {
-        throw new BadRequestException('email or phone is required')
-      }
-
-      if (current.email && !email) {
-        throw new BadRequestException('Clearing an existing email is not supported yet')
-      }
-
-      if (current.phone && !phone) {
-        throw new BadRequestException('Clearing an existing phone is not supported yet')
       }
     }
 
@@ -602,29 +581,6 @@ export class AdminSecurityUseCase {
       },
       source
     )
-
-    if (profileChanged) {
-      await this.authAdapter.bootstrapUserLoginMethods(
-        {
-          userId: current.userId,
-          accountId: current.accountId,
-          displayName,
-          email,
-          phone
-        },
-        source
-      )
-
-      await this.identityAdapter.updateUserBasicInfo(
-        {
-          accountId: current.accountId,
-          userId: current.userId,
-          email,
-          phone
-        },
-        source
-      )
-    }
 
     if (statusChanged && !requestedEnabled) {
       await this.authAdapter.adminDeleteAccountSessions(
@@ -1040,7 +996,7 @@ export class AdminSecurityUseCase {
     return new Map(entries.filter((entry): entry is readonly [string, string] => Boolean(entry[1])))
   }
 
-  // Resolves one human-facing party name from party-service, preferring displayName and falling back to canonicalName.
+  // Resolves one human-facing party name from party-service without inventing account-display semantics.
   private async loadPartyName(
     partyId: string,
     source: DownstreamRequestSource
@@ -1051,7 +1007,7 @@ export class AdminSecurityUseCase {
     }
 
     const result = await this.partyAdapter.getPartyById(normalizedPartyId, source)
-    return normalize(result.party?.displayName) ?? normalize(result.party?.canonicalName)
+    return normalize(result.party?.legalName)
   }
 
   private requireTenantOrgAdapter(): TenantOrgQueryGrpcAdapter {

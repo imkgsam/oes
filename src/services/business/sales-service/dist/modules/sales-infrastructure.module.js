@@ -34,6 +34,10 @@ exports.SalesInfrastructureModule = SalesInfrastructureModule = __decorate([
             prisma_customer_price_agreement_repository_1.PrismaCustomerPriceAgreementRepository,
             prisma_sales_audit_repository_1.PrismaSalesAuditRepository,
             prisma_sales_transaction_runner_1.PrismaSalesTransactionRunner,
+            {
+                provide: fixed_exchange_rate_resolver_1.FIXED_EXCHANGE_RATE_DEFINITIONS,
+                useValue: []
+            },
             fixed_exchange_rate_resolver_1.FixedExchangeRateResolver,
             {
                 provide: tokens_1.TOKENS.QUOTE_REPOSITORY,
@@ -77,6 +81,7 @@ exports.SalesInfrastructureModule = SalesInfrastructureModule = __decorate([
             prisma_customer_price_agreement_repository_1.PrismaCustomerPriceAgreementRepository,
             prisma_sales_audit_repository_1.PrismaSalesAuditRepository,
             prisma_sales_transaction_runner_1.PrismaSalesTransactionRunner,
+            fixed_exchange_rate_resolver_1.FIXED_EXCHANGE_RATE_DEFINITIONS,
             fixed_exchange_rate_resolver_1.FixedExchangeRateResolver,
             tokens_1.TOKENS.QUOTE_REPOSITORY,
             tokens_1.TOKENS.QUOTE_VERSION_REPOSITORY,

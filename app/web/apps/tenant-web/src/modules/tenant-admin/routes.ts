@@ -1,21 +1,4 @@
-import type { LocationQueryRaw, RouteRecordRaw } from 'vue-router';
-
-// Tenant administration exposes platform and tenant governance pages that are backed by explicit BFF visibility entries.
-const ORGANIZATION_PEOPLE_PAGE_KEY = 'tenant-settings.organization-people';
-
-function buildOrganizationPeopleQuery(
-  query: LocationQueryRaw | undefined,
-  tab: 'departments' | 'members'
-): LocationQueryRaw {
-  const { employeeId: _employeeId, orgUnitId: _orgUnitId, pageKey: _pageKey, tab: _tab, ...rest } =
-    query ?? {};
-  return tab === 'departments'
-    ? {
-        ...rest,
-        tab: 'departments',
-      }
-    : rest;
-}
+import type { RouteRecordRaw } from 'vue-router';
 
 const tenantAdminRoutes: RouteRecordRaw[] = [
   {
@@ -121,76 +104,45 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
     path: '/settings',
     children: [
       {
-        name: 'TenantOrganizationPeople',
-        path: '/settings/organization-people',
-        component: () => import('#/views/admin/organization-people.vue'),
-        meta: {
-          entryKey: ORGANIZATION_PEOPLE_PAGE_KEY,
-          fullPathKey: false,
-          icon: 'lucide:users-round',
-          title: '组织与人员',
-        },
-      },
-      {
-        name: 'TenantOrganizationPeopleMembers',
-        path: '/settings/organization-people/members',
-        redirect: (to) => ({
-          name: 'TenantOrganizationPeople',
-          query: buildOrganizationPeopleQuery(to.query, 'members'),
-        }),
-        meta: {
-          activePath: '/settings/organization-people',
-          entryKey: ORGANIZATION_PEOPLE_PAGE_KEY,
-          hideInMenu: true,
-          title: '组织与人员',
-        },
-      },
-      {
-        name: 'TenantOrganizationPeopleDepartments',
-        path: '/settings/organization-people/departments',
-        redirect: (to) => ({
-          name: 'TenantOrganizationPeople',
-          query: buildOrganizationPeopleQuery(
-            to.query,
-            'departments'
-          ),
-        }),
-        meta: {
-          activePath: '/settings/organization-people',
-          entryKey: ORGANIZATION_PEOPLE_PAGE_KEY,
-          hideInMenu: true,
-          title: '组织与人员',
-        },
-      },
-      {
         name: 'TenantOrgStructureManagement',
         path: '/settings/org-structure',
-        redirect: (to) => ({
-          name: 'TenantOrganizationPeople',
-          query: buildOrganizationPeopleQuery(
-            to.query,
-            'departments'
-          ),
-        }),
+        component: () => import('#/views/admin/org-management.vue'),
         meta: {
           entryKey: 'tenant-settings.org-structure',
-          hideInMenu: true,
           icon: 'lucide:network',
-          title: '本租户组织架构',
+          title: '组织架构',
+        },
+      },
+      {
+        name: 'TenantOrgUnitDetail',
+        path: '/settings/org-structure/:orgUnitId',
+        component: () => import('#/views/admin/org-management-detail.vue'),
+        meta: {
+          activePath: '/settings/org-structure',
+          entryKey: 'tenant-settings.org-structure',
+          hideInMenu: true,
+          title: '部门详情',
         },
       },
       {
         name: 'TenantEmployeeEmploymentManagement',
         path: '/settings/employee-employment',
-        redirect: (to) => ({
-          name: 'TenantOrganizationPeople',
-          query: buildOrganizationPeopleQuery(to.query, 'members'),
-        }),
+        component: () => import('#/views/admin/employee-management.vue'),
         meta: {
           entryKey: 'tenant-settings.employee-employment',
-          hideInMenu: true,
           icon: 'lucide:badge-id-card',
-          title: '员工与任职管理',
+          title: '员工管理',
+        },
+      },
+      {
+        name: 'TenantEmployeeDetail',
+        path: '/settings/employee-employment/:employeeId',
+        component: () => import('#/views/admin/employee-management-detail.vue'),
+        meta: {
+          activePath: '/settings/employee-employment',
+          entryKey: 'tenant-settings.employee-employment',
+          hideInMenu: true,
+          title: '员工详情',
         },
       },
       {
@@ -462,6 +414,50 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
     meta: {
       icon: 'lucide:wallet-cards',
       order: 15,
+      title: 'WMS 管理',
+    },
+    name: 'TenantWms',
+    path: '/wms',
+    children: [
+      {
+        name: 'TenantWmsWorkspace',
+        path: '/wms/receipts',
+        component: () => import('#/views/admin/wms-management.vue'),
+        meta: {
+          entryKey: 'wms.management',
+          fullPathKey: false,
+          icon: 'lucide:warehouse',
+          title: 'WMS 管理',
+        },
+      },
+      {
+        name: 'TenantWmsReceiptCreate',
+        path: '/wms/receipts/create',
+        component: () => import('#/views/admin/wms-receipt-create.vue'),
+        meta: {
+          activePath: '/wms/receipts',
+          entryKey: 'wms.management',
+          hideInMenu: true,
+          title: '创建收货草稿',
+        },
+      },
+      {
+        name: 'TenantWmsReceiptDetail',
+        path: '/wms/receipts/:receiptId',
+        component: () => import('#/views/admin/wms-receipt-detail.vue'),
+        meta: {
+          activePath: '/wms/receipts',
+          entryKey: 'wms.management',
+          hideInMenu: true,
+          title: '收货详情',
+        },
+      },
+    ],
+  },
+  {
+    meta: {
+      icon: 'lucide:wallet-cards',
+      order: 16,
       title: '财务管理',
     },
     name: 'TenantFinance',

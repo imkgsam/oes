@@ -36,8 +36,7 @@ describe('PrismaPartyRepository L2', () => {
 
   it('组织主体仓储 / 当创建组织主体并绑定标识后 / 应能按标识解析并查到租户绑定', async () => {
     const party = await partyRepository.createOrganizationParty({
-      canonicalName: `${prefix}_acme_legal`,
-      displayName: `${prefix}_acme_display`,
+      legalName: `${prefix}_acme_legal`,
       registeredCountry: `${prefix}_CN`
     })
 
@@ -69,7 +68,7 @@ describe('PrismaPartyRepository L2', () => {
     expect(resolved).toEqual(
       expect.objectContaining({
         id: party.id,
-        canonicalName: `${prefix}_acme_legal`
+        legalName: `${prefix}_acme_legal`
       })
     )
     expect(bound).toEqual(
@@ -83,12 +82,10 @@ describe('PrismaPartyRepository L2', () => {
 
   it('主体合并 / 当合并重复 canonical party 时 / 应将 merged parties 标记为 MERGED', async () => {
     const survivor = await partyRepository.createOrganizationParty({
-      canonicalName: `${prefix}_survivor`,
-      displayName: `${prefix}_survivor`
+      legalName: `${prefix}_survivor`
     })
     const duplicate = await partyRepository.createOrganizationParty({
-      canonicalName: `${prefix}_duplicate`,
-      displayName: `${prefix}_duplicate`
+      legalName: `${prefix}_duplicate`
     })
 
     const result = await partyRepository.mergeParties({
@@ -110,12 +107,10 @@ describe('PrismaPartyRepository L2', () => {
 
   it('主体候选与关系查询 / 当存在关键字命中与稳定关系时 / 应返回候选和关系摘要', async () => {
     const parent = await partyRepository.createOrganizationParty({
-      canonicalName: `${prefix}_group_parent`,
-      displayName: `${prefix}_group_parent`
+      legalName: `${prefix}_group_parent`
     })
     const child = await partyRepository.createOrganizationParty({
-      canonicalName: `${prefix}_group_child`,
-      displayName: `${prefix}_group_child`
+      legalName: `${prefix}_group_child`
     })
 
     await prisma.partyRelationship.create({

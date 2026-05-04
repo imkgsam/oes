@@ -97,6 +97,147 @@ export class RegisterCustomerFinancialAccountDto {
   isDefault?: boolean
 }
 
+/** SearchPayableSchedulesDto captures the supported payable directory filters for the phase 1B finance workspace. */
+export class SearchPayableSchedulesDto {
+  dueFrom?: string
+  dueTo?: string
+  keyword?: string
+  orgId?: string
+  overdueOnly?: boolean
+  page?: number
+  pageSize?: number
+  requestGovernanceStatus?: string
+  sourcePurchaseOrderId?: string
+  status?: string
+  supplierTenantPartyId?: string
+}
+
+/** SearchPaymentRequestsDto captures the supported payment-request directory filters for phase 1B payment governance. */
+export class SearchPaymentRequestsDto {
+  beneficiarySupplierFinancialAccountId?: string
+  orgId?: string
+  page?: number
+  pageSize?: number
+  requestedFrom?: string
+  requestedTo?: string
+  requestSource?: string
+  sourcePurchaseOrderId?: string
+  status?: string
+  supplierTenantPartyId?: string
+}
+
+/** SearchPaymentExecutionsDto captures the supported payment-execution directory filters for phase 1B payment records. */
+export class SearchPaymentExecutionsDto {
+  executedFrom?: string
+  executedTo?: string
+  linkedAccountTransactionId?: string
+  orgId?: string
+  page?: number
+  pageSize?: number
+  paymentRequestId?: string
+  sourceFinancialAccountId?: string
+  status?: string
+  supplierTenantPartyId?: string
+}
+
+/** CreatePayableScheduleFromPurchaseOrderLineDto captures one payable schedule line derived from a controlled PO summary. */
+export class CreatePayableScheduleFromPurchaseOrderLineDto {
+  dueDate!: string
+  lineType!: string
+  memo?: string
+  scheduledAmount!: string
+  sourcePurchaseOrderLineId?: string
+  sourceRef!: string
+}
+
+/** CreatePayableScheduleFromPurchaseOrderDto captures the phase 1B payable schedule creation command payload. */
+export class CreatePayableScheduleFromPurchaseOrderDto {
+  auditReason?: string
+  currencyCode!: string
+  lines!: CreatePayableScheduleFromPurchaseOrderLineDto[]
+  orgId?: string
+  procurementSnapshotReference?: string
+  purchaseOrderId!: string
+  purchaseOrderNo?: string
+  supplierSnapshot!: string
+  supplierTenantPartyId!: string
+}
+
+/** ApplyPayableScheduleAdjustmentItemDto captures one PO-change-driven payable adjustment instruction. */
+export class ApplyPayableScheduleAdjustmentItemDto {
+  action!: string
+  dueDate?: string
+  lineType?: string
+  memo?: string
+  newSourceRef?: string
+  scheduledAmount?: string
+  sourcePurchaseOrderLineId?: string
+  targetSourceRef?: string
+}
+
+/** ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeDto captures a controlled PO change adjustment command payload. */
+export class ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeDto {
+  adjustments!: ApplyPayableScheduleAdjustmentItemDto[]
+  auditReason?: string
+  changeReason?: string
+  orgId?: string
+  procurementSnapshotReference?: string
+  purchaseOrderChangeId!: string
+  purchaseOrderId!: string
+}
+
+/** PaymentRequestLineInputDto captures one requested amount against a payable schedule line. */
+export class PaymentRequestLineInputDto {
+  payableScheduleId!: string
+  payableScheduleLineId!: string
+  requestedAmount!: string
+}
+
+/** SupplierBillEvidenceSnapshotInputDto captures a supplier document evidence snapshot without creating full AP lifecycle objects. */
+export class SupplierBillEvidenceSnapshotInputDto {
+  attachmentRef?: string
+  currencyCode?: string
+  documentAmount?: string
+  documentDate?: string
+  evidenceType!: string
+  externalDocumentNo?: string
+  note?: string
+}
+
+/** CreatePaymentRequestDto captures the minimal phase 1B payment-request command payload. */
+export class CreatePaymentRequestDto {
+  auditReason?: string
+  beneficiarySupplierFinancialAccountId!: string
+  currencyCode!: string
+  evidenceSnapshots?: SupplierBillEvidenceSnapshotInputDto[]
+  orgId?: string
+  reason?: string
+  requestedAmount!: string
+  requestedLines!: PaymentRequestLineInputDto[]
+  requestSource!: string
+  sourcePurchaseOrderId?: string
+  supplierTenantPartyId!: string
+}
+
+/** DecidePaymentRequestDto captures one phase 1B approve/reject decision command payload. */
+export class DecidePaymentRequestDto {
+  auditReason?: string
+  decision!: string
+  decisionReason?: string
+}
+
+/** ExecutePaymentRequestDto captures one finance payment execution record command payload. */
+export class ExecutePaymentRequestDto {
+  attachmentRefs?: string[]
+  auditReason?: string
+  currencyCode!: string
+  executedAmount!: string
+  executedAt!: string
+  executionReference?: string
+  linkedAccountTransactionId?: string
+  sourceFinancialAccountId!: string
+}
+
 /** GetExchangeRateDto captures the point lookup key for one finance standard FX record. */
 export class GetExchangeRateDto {
   baseCurrencyCode!: string
@@ -164,10 +305,16 @@ export class SetFinanceReleaseSignalDto {
 /** SearchPaymentAllocationsDto captures the supported receivable-allocation directory filters for the tenant finance workspace. */
 export class SearchPaymentAllocationsDto {
   accountTransactionId?: string
+  allocatedFrom?: string
+  allocatedTo?: string
   page?: number
   pageSize?: number
+  paymentExecutionId?: string
   receivableScheduleId?: string
   receivableScheduleLineId?: string
+  targetScheduleId?: string
+  targetScheduleLineId?: string
+  targetType?: string
 }
 
 /** AllocatePaymentToReceivableItemDto captures one receipt-allocation row against one receivable schedule line. */
@@ -182,4 +329,19 @@ export class AllocatePaymentToReceivableDto {
   accountTransactionId!: string
   allocations!: AllocatePaymentToReceivableItemDto[]
   auditReason?: string
+}
+
+/** AllocatePaymentToPayableItemDto captures one real outflow allocation row against one payable schedule line. */
+export class AllocatePaymentToPayableItemDto {
+  allocatedAmount!: string
+  payableScheduleId!: string
+  payableScheduleLineId!: string
+}
+
+/** AllocatePaymentToPayableDto captures the finance payable allocation payload centered on a real outflow transaction. */
+export class AllocatePaymentToPayableDto {
+  accountTransactionId!: string
+  allocations!: AllocatePaymentToPayableItemDto[]
+  auditReason?: string
+  paymentExecutionId?: string
 }

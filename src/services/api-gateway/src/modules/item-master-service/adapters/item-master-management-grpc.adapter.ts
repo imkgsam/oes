@@ -3,14 +3,22 @@ import { ClientGrpc } from '@nestjs/microservices'
 import {
   ChangeItemStatusRequest,
   ChangeItemStatusResponse,
+  ChangeItemCategoryStatusRequest,
+  ChangeItemCategoryStatusResponse,
+  CreateItemCategoryRequest,
+  CreateItemCategoryResponse,
   CreateItemRequest,
   CreateItemResponse,
   ITEM_MASTER_MANAGEMENT_SERVICE_NAME,
   ItemMasterManagementServiceClient,
+  SetItemPrimaryCategoryRequest,
+  SetItemPrimaryCategoryResponse,
   SetItemCapabilitiesRequest,
   SetItemCapabilitiesResponse,
   SetItemCompositionRequest,
   SetItemCompositionResponse,
+  UpdateItemCategoryBasicsRequest,
+  UpdateItemCategoryBasicsResponse,
   UpdateItemBasicsRequest,
   UpdateItemBasicsResponse,
   UpsertSupplierItemMappingRequest,
@@ -119,6 +127,58 @@ export class ItemMasterManagementGrpcAdapter implements OnModuleInit {
     return this.call(
       'changeItemStatus',
       this.svc.changeItemStatus(
+        input,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  createItemCategory(
+    input: CreateItemCategoryRequest,
+    source: DownstreamRequestSource
+  ): Promise<CreateItemCategoryResponse> {
+    return this.call(
+      'createItemCategory',
+      this.svc.createItemCategory(
+        input,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  updateItemCategoryBasics(
+    input: UpdateItemCategoryBasicsRequest,
+    source: DownstreamRequestSource
+  ): Promise<UpdateItemCategoryBasicsResponse> {
+    return this.call(
+      'updateItemCategoryBasics',
+      this.svc.updateItemCategoryBasics(
+        input,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  changeItemCategoryStatus(
+    input: ChangeItemCategoryStatusRequest,
+    source: DownstreamRequestSource
+  ): Promise<ChangeItemCategoryStatusResponse> {
+    return this.call(
+      'changeItemCategoryStatus',
+      this.svc.changeItemCategoryStatus(
+        input,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  setItemPrimaryCategory(
+    input: SetItemPrimaryCategoryRequest,
+    source: DownstreamRequestSource
+  ): Promise<SetItemPrimaryCategoryResponse> {
+    return this.call(
+      'setItemPrimaryCategory',
+      this.svc.setItemPrimaryCategory(
         input,
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       )

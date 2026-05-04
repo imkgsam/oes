@@ -34,7 +34,6 @@ export namespace AdminSecurityApi {
   export interface AccountDeletionCleanupPlan {
     willClearRoles: boolean;
     willDeleteContactAssets: boolean;
-    willDeleteOrgMemberships: boolean;
     willDeleteSessions: boolean;
   }
 
@@ -50,7 +49,6 @@ export namespace AdminSecurityApi {
     canDelete: boolean;
     cleanupPlan: AccountDeletionCleanupPlan;
     contactAssetCount: number;
-    orgMembershipCount: number;
     userRetained: boolean;
   }
 
@@ -58,7 +56,6 @@ export namespace AdminSecurityApi {
     accountId: string;
     clearedRoleCount: number;
     deletedContactAssetCount: number;
-    deletedOrgMembershipCount: number;
     deletedSessionCount: number;
     success: boolean;
     userRetained: boolean;
@@ -81,6 +78,7 @@ export namespace AdminSecurityApi {
     pageSize?: number;
     scopeLevel?: 'SYSTEM' | 'TENANT';
     status?: 'DISABLED' | 'ENABLED';
+    tenantId?: string;
   }
 
   export interface AccountTenantOptionQuery {
@@ -100,9 +98,7 @@ export namespace AdminSecurityApi {
 
   export interface UpdateAccountBasicInfoPayload {
     displayName: string;
-    email?: string;
     isEnabled?: boolean;
-    phone?: string;
   }
 
   export interface UserSearchAccountSummary {

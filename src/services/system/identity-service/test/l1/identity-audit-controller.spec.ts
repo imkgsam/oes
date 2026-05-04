@@ -168,7 +168,6 @@ describe('identity audit controller integration', () => {
     const commandBus = {
       execute: jest.fn().mockResolvedValue({
         accountId: 'acc-1',
-        deletedOrgMembershipCount: 1,
         deletedContactAssetCount: 2,
         userRetained: true
       })
@@ -197,7 +196,6 @@ describe('identity audit controller integration', () => {
 
     await expect(controller.deleteAccount(request as any)).resolves.toEqual({
       accountId: 'acc-1',
-      deletedOrgMembershipCount: 1,
       deletedContactAssetCount: 2,
       userRetained: true
     })
@@ -220,7 +218,6 @@ describe('identity audit controller integration', () => {
           deletedSessionCount: 3,
           clearedRoleCount: 2,
           deletedPolicyCount: 4,
-          deletedOrgMembershipCount: 1,
           deletedContactAssetCount: 2,
           userRetained: true
         })

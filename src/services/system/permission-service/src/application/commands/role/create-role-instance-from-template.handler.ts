@@ -58,7 +58,10 @@ export class CreateRoleInstanceFromTemplateHandler
       RoleKind.TENANT_INSTANCE,
       true,
       description,
-      command.templateRoleId
+      command.templateRoleId,
+      [],
+      templateRole.allowTenantPermissionOverride,
+      templateRole.isProtected
     )
 
     for (const permission of templateRole.permissions) {

@@ -1,19 +1,27 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import {
   ChangeItemStatusRequest,
+  ChangeItemCategoryStatusRequest,
+  CreateItemCategoryRequest,
   CreateItemRequest,
   GetItemCompositionResponse,
   GetItemResponse,
+  ItemCategoryStatus,
+  ItemCategorySummary,
+  ItemCategoryTreeNode,
   ItemCapabilities,
   ItemCapabilityFilters,
   ItemNatureType,
   ItemStatus,
   ItemStructureType,
+  ListItemCategoriesResponse,
   ListSupplierItemMappingsByItemResponse,
   SearchItemsRequest,
   SearchItemsResponse,
+  SetItemPrimaryCategoryRequest,
   SetItemCapabilitiesRequest,
   SetItemCompositionRequest,
+  UpdateItemCategoryBasicsRequest,
   UpdateItemBasicsRequest,
   UpsertSupplierItemMappingRequest
 } from '@oes/common/generated/item_master_service'
@@ -23,8 +31,21 @@ import { ItemMasterQueryGrpcAdapter } from './adapters/item-master-query-grpc.ad
 
 type ItemCapabilityKey = 'manufacturable' | 'purchasable' | 'sellable' | 'stockable'
 type ItemNatureValue = 'PHYSICAL' | 'SERVICE' | 'VIRTUAL'
+type ItemCategoryStatusValue = 'ACTIVE' | 'INACTIVE'
 type ItemStatusValue = 'ACTIVE' | 'INACTIVE'
 type ItemStructureValue = 'BUNDLE' | 'SINGLE'
+
+type ItemManagementCategorySummary = {
+  categoryId: string
+  categoryCode: string
+  categoryName: string
+  status: ItemCategoryStatusValue
+}
+
+type ItemManagementCategoryNode = ItemManagementCategorySummary & {
+  parentCategoryId: string
+  hasChildren: boolean
+}
 
 type ItemManagementItem = {
   itemId: string
@@ -34,6 +55,7 @@ type ItemManagementItem = {
   natureType: ItemNatureValue
   status: ItemStatusValue
   capabilities: Required<ItemCapabilities>
+  primaryCategorySummary?: ItemManagementCategorySummary
 }
 
 @Injectable()
@@ -48,6 +70,8 @@ export class ItemManagementService {
     tenantId: string,
     query: {
       capability?: string
+      categoryId?: string
+      includeDescendants?: boolean
       keyword?: string
       natureType?: string
       page?: number
@@ -66,6 +90,8 @@ export class ItemManagementService {
         natureType: toGrpcNatureType(query.natureType),
         capabilityFilters: toCapabilityFilters(query.capability),
         status: toGrpcStatus(query.status),
+        categoryId: normalize(query.categoryId),
+        includeDescendants: normalize(query.categoryId) ? Boolean(query.includeDescendants) : undefined,
         page: Math.max(query.page ?? 1, 1),
         pageSize: Math.min(Math.max(query.pageSize ?? 20, 1), 100)
       } satisfies SearchItemsRequest,
@@ -77,6 +103,24 @@ export class ItemManagementService {
       total: result.total ?? 0,
       page: result.page ?? 1,
       pageSize: result.pageSize ?? 20
+    }
+  }
+
+  async listItemCategories(
+    tenantId: string,
+    query: { parentCategoryId?: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemQueryAdapter.listItemCategories(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        parentCategoryId: normalize(query.parentCategoryId)
+      },
+      source
+    )
+
+    return {
+      categories: (result.categories ?? []).map((category) => mapCategoryTreeNode(category))
     }
   }
 
@@ -272,6 +316,83 @@ export class ItemManagementService {
     return mapGetItem(result as GetItemResponse)
   }
 
+  async createItemCategory(
+    tenantId: string,
+    input: {
+      categoryCode: string
+      categoryName: string
+      parentCategoryId?: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.createItemCategory(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        categoryCode: requireNonBlank(input.categoryCode, 'categoryCode'),
+        categoryName: requireNonBlank(input.categoryName, 'categoryName'),
+        parentCategoryId: normalize(input.parentCategoryId)
+      } satisfies CreateItemCategoryRequest,
+      source
+    )
+
+    return mapCategorySummary(result.category)
+  }
+
+  async updateItemCategoryBasics(
+    tenantId: string,
+    categoryId: string,
+    input: { categoryCode: string; categoryName: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.updateItemCategoryBasics(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        categoryId: requireNonBlank(categoryId, 'categoryId'),
+        categoryCode: requireNonBlank(input.categoryCode, 'categoryCode'),
+        categoryName: requireNonBlank(input.categoryName, 'categoryName')
+      } satisfies UpdateItemCategoryBasicsRequest,
+      source
+    )
+
+    return mapCategorySummary(result.category)
+  }
+
+  async changeItemCategoryStatus(
+    tenantId: string,
+    categoryId: string,
+    input: { status: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.changeItemCategoryStatus(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        categoryId: requireNonBlank(categoryId, 'categoryId'),
+        targetStatus: requireGrpcCategoryStatus(input.status)
+      } satisfies ChangeItemCategoryStatusRequest,
+      source
+    )
+
+    return mapCategorySummary(result.category)
+  }
+
+  async setItemPrimaryCategory(
+    tenantId: string,
+    itemId: string,
+    input: { primaryCategoryId?: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.setItemPrimaryCategory(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        itemId: requireNonBlank(itemId, 'itemId'),
+        categoryId: normalize(input.primaryCategoryId)
+      } satisfies SetItemPrimaryCategoryRequest,
+      source
+    )
+
+    return mapGetItem(result as GetItemResponse)
+  }
+
   /** resolveTenantId keeps tenant-scoped item-management requests pinned to the operator tenant. */
   private resolveTenantId(tenantId: string, source: DownstreamRequestSource): string {
     const requestedTenantId = requireNonBlank(tenantId, 'tenantId')
@@ -308,7 +429,29 @@ function mapItemSummary(item?: GetItemResponse['item']): ItemManagementItem {
       purchasable: Boolean(item?.capabilities?.purchasable),
       stockable: Boolean(item?.capabilities?.stockable),
       manufacturable: Boolean(item?.capabilities?.manufacturable)
-    }
+    },
+    primaryCategorySummary: item?.primaryCategorySummary
+      ? mapCategorySummary(item.primaryCategorySummary)
+      : undefined
+  }
+}
+
+/** mapCategorySummary converts the generated category summary into the stable BFF summary shape. */
+function mapCategorySummary(category?: ItemCategorySummary): ItemManagementCategorySummary {
+  return {
+    categoryId: category?.categoryId ?? '',
+    categoryCode: category?.categoryCode ?? '',
+    categoryName: category?.categoryName ?? '',
+    status: fromGrpcCategoryStatus(category?.status)
+  }
+}
+
+/** mapCategoryTreeNode converts one generated category tree row into the BFF list shape. */
+function mapCategoryTreeNode(category?: ItemCategoryTreeNode): ItemManagementCategoryNode {
+  return {
+    ...mapCategorySummary(category),
+    parentCategoryId: category?.parentCategoryId ?? '',
+    hasChildren: Boolean(category?.hasChildren)
   }
 }
 
@@ -437,6 +580,23 @@ function requireGrpcStatus(value?: string): ItemStatus {
 /** fromGrpcStatus converts generated lifecycle enums back into stable BFF strings. */
 function fromGrpcStatus(value?: ItemStatus): ItemStatusValue {
   return value === ItemStatus.ITEM_STATUS_INACTIVE ? 'INACTIVE' : 'ACTIVE'
+}
+
+/** requireGrpcCategoryStatus converts one required category lifecycle enum and rejects unsupported values. */
+function requireGrpcCategoryStatus(value?: string): ItemCategoryStatus {
+  switch (value) {
+    case 'ACTIVE':
+      return ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE
+    case 'INACTIVE':
+      return ItemCategoryStatus.ITEM_CATEGORY_STATUS_INACTIVE
+    default:
+      throw new NotFoundException('status is required')
+  }
+}
+
+/** fromGrpcCategoryStatus converts generated category lifecycle enums back into stable BFF strings. */
+function fromGrpcCategoryStatus(value?: ItemCategoryStatus): ItemCategoryStatusValue {
+  return value === ItemCategoryStatus.ITEM_CATEGORY_STATUS_INACTIVE ? 'INACTIVE' : 'ACTIVE'
 }
 
 /** normalize trims optional strings and collapses blanks to undefined. */

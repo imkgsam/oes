@@ -40,9 +40,12 @@
 ## 5. 协作方式
 
 1. `auth-service` 主认证成功后，通过 `identity-service` 查询可用 account contexts。
+   - `identity-service` 只按账号自身启用状态与 tenantId 引用返回候选。
+   - `auth-service` 必须通过 `tenant-org-service` 过滤非 ACTIVE tenant 的 tenant-scope account candidates。
 2. `api-gateway` 或 `auth-service` 在需要组装 session context 时：
    - 从 `identity-service` 获取 account identity facts
    - 从 `tenant-org-service` 获取 tenant 摘要与组织结构相关事实
+   - `api-gateway` 对 session context 列表展示也应以 `tenant-org-service` 的 tenant 生命周期为准，避免展示不可用 tenant context
 3. 前端消费的是聚合结果，不直接跨越 BFF 同时拼装两个下游。
 
 ## 6. 一次迁移到位规则
@@ -51,6 +54,7 @@
 - `GetTenantById` owner 直接迁入 `tenant-org-service`
 - org tree 相关查询 owner 直接迁入 `tenant-org-service`
 - `identity-service` 仅保留 `tenantId` 作为 `UserAccount` 的上下文引用字段
+- `identity-service` 可在 contact asset、service account、audit event 中保留 `tenantId / orgId` 引用字段
 - 不保留长期双 owner 或长期兼容聚合层
 
 ## 7. 明确禁止

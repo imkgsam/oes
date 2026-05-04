@@ -21,6 +21,7 @@ import {
 } from '../../application/authorization'
 import { AuthAuditService } from '../../application/services/auth-audit.service'
 import { AccountSessionEstablishmentService } from '../../application/services/account-session-establishment.service'
+import { TenantSessionAccessService } from '../../application/services/tenant-session-access.service'
 import { LoginRiskThrottleService } from '../../application/services/login-risk-throttle.service'
 import { AccountInvitationService } from '../../application/services/account-invitation.service'
 import { ContactBindingVerificationService } from '../../application/services/contact-binding-verification.service'
@@ -132,6 +133,7 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     },
     AuthAuditService,
     AccountSessionEstablishmentService,
+    TenantSessionAccessService,
     AuthAuditListener,
     AccountInvitationService,
     ContactBindingVerificationService,

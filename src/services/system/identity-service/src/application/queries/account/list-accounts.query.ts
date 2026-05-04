@@ -20,6 +20,11 @@ export class ListAccountsQuery implements IQuery {
   readonly status?: string
 
   @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  readonly tenantId?: string
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   readonly page?: number
@@ -39,6 +44,7 @@ export class ListAccountsQuery implements IQuery {
     pageSize?: number
     scopeLevel?: string
     status?: string
+    tenantId?: string
     operatorScope?: OperatorScope
   }) {
     this.keyword = input?.keyword
@@ -46,6 +52,7 @@ export class ListAccountsQuery implements IQuery {
     this.pageSize = input?.pageSize
     this.scopeLevel = input?.scopeLevel
     this.status = input?.status
+    this.tenantId = input?.tenantId
     this.operatorScope = input?.operatorScope
   }
 }

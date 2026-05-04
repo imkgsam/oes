@@ -1,7 +1,10 @@
 import { Global, Module } from '@nestjs/common'
 import { TOKENS } from '../common/constants/tokens'
 import { PrismaSalesAuditRepository } from '../infrastructure/audit/prisma-sales-audit.repository'
-import { FixedExchangeRateResolver } from '../infrastructure/pricing/fixed-exchange-rate.resolver'
+import {
+  FIXED_EXCHANGE_RATE_DEFINITIONS,
+  FixedExchangeRateResolver
+} from '../infrastructure/pricing/fixed-exchange-rate.resolver'
 import { PrismaModule } from '../infrastructure/prisma/prisma.module'
 import { PrismaCustomerPriceAgreementRepository } from '../infrastructure/repositories/prisma/prisma-customer-price-agreement.repository'
 import { PrismaPriceListRepository } from '../infrastructure/repositories/prisma/prisma-price-list.repository'
@@ -22,6 +25,10 @@ import { PrismaSalesTransactionRunner } from '../infrastructure/transactions/pri
     PrismaCustomerPriceAgreementRepository,
     PrismaSalesAuditRepository,
     PrismaSalesTransactionRunner,
+    {
+      provide: FIXED_EXCHANGE_RATE_DEFINITIONS,
+      useValue: []
+    },
     FixedExchangeRateResolver,
     {
       provide: TOKENS.QUOTE_REPOSITORY,
@@ -65,6 +72,7 @@ import { PrismaSalesTransactionRunner } from '../infrastructure/transactions/pri
     PrismaCustomerPriceAgreementRepository,
     PrismaSalesAuditRepository,
     PrismaSalesTransactionRunner,
+    FIXED_EXCHANGE_RATE_DEFINITIONS,
     FixedExchangeRateResolver,
     TOKENS.QUOTE_REPOSITORY,
     TOKENS.QUOTE_VERSION_REPOSITORY,

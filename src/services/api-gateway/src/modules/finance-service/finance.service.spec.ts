@@ -120,22 +120,128 @@ const SAMPLE_PAYMENT_ALLOCATION = {
   targetType: 'RECEIVABLE_SCHEDULE_LINE'
 }
 
+const SAMPLE_PAYABLE_SCHEDULE = {
+  createdAt: '2026-04-28T10:30:00.000Z',
+  currencyCode: 'USD',
+  lines: [
+    {
+      allocatedAmount: '0.00',
+      dueDate: '2026-05-10',
+      executedAmount: '0.00',
+      lineNo: 1,
+      lineType: 'TERM_DUE',
+      memo: 'first payable milestone',
+      outstandingAmount: '300.00',
+      payableScheduleLineId: 'payable-line-1',
+      requestGovernanceStatus: 'DUE_NO_REQUEST',
+      requestedAmount: '0.00',
+      scheduledAmount: '300.00',
+      sourcePurchaseOrderLineId: 'po-line-1',
+      sourceRef: 'po-1/term-1',
+      status: 'OPEN'
+    }
+  ],
+  orgId: 'org-1',
+  outstandingAmount: '300.00',
+  payableScheduleId: 'ps-1',
+  procurementSnapshotReference: 'po-1@snapshot',
+  scheduleNo: 'AP-001',
+  sourcePurchaseOrderId: 'po-1',
+  sourcePurchaseOrderNo: 'PO-001',
+  sourceType: 'PURCHASE_ORDER',
+  status: 'OPEN',
+  supplierSnapshot: 'Supplier One',
+  supplierTenantPartyId: 'supplier-1',
+  tenantId: 'tenant-1',
+  totalAllocatedAmount: '0.00',
+  totalExecutedAmount: '0.00',
+  totalRequestedAmount: '0.00',
+  totalScheduledAmount: '300.00',
+  updatedAt: '2026-04-28T11:00:00.000Z'
+}
+
+const SAMPLE_PAYMENT_REQUEST = {
+  beneficiarySupplierFinancialAccountId: 'supplier-account-1',
+  currencyCode: 'USD',
+  evidenceSnapshots: [
+    {
+      attachmentRef: 'asset://supplier-invoice',
+      capturedAt: '2026-04-28T12:00:00.000Z',
+      currencyCode: 'USD',
+      documentAmount: '300.00',
+      documentDate: '2026-04-28',
+      evidenceSnapshotId: 'evidence-1',
+      evidenceType: 'SUPPLIER_INVOICE',
+      externalDocumentNo: 'INV-001',
+      note: 'supplier invoice evidence'
+    }
+  ],
+  lines: [
+    {
+      isEarlyRequest: false,
+      lineStatus: 'OPEN',
+      payableScheduleId: 'ps-1',
+      payableScheduleLineId: 'payable-line-1',
+      paymentRequestLineId: 'pr-line-1',
+      requestedAmount: '300.00',
+      scheduleDueDate: '2026-05-10'
+    }
+  ],
+  orgId: 'org-1',
+  paymentRequestId: 'pr-1',
+  reason: 'due payable',
+  requestNo: 'PAY-REQ-001',
+  requestSource: 'FINANCE_INITIATED',
+  requestedAmount: '300.00',
+  requestedAt: '2026-04-28T12:00:00.000Z',
+  sourcePurchaseOrderId: 'po-1',
+  status: 'SUBMITTED',
+  supplierTenantPartyId: 'supplier-1',
+  tenantId: 'tenant-1',
+  updatedAt: '2026-04-28T12:00:00.000Z'
+}
+
+const SAMPLE_PAYMENT_EXECUTION = {
+  attachmentRefs: ['asset://payment-proof'],
+  beneficiaryAccountSnapshot: '****7788',
+  beneficiarySupplierFinancialAccountId: 'supplier-account-1',
+  currencyCode: 'USD',
+  executedAmount: '300.00',
+  executedAt: '2026-04-28T13:00:00.000Z',
+  executionReference: 'BANK-PAY-001',
+  linkedAccountTransactionId: 'txn-out-1',
+  paymentExecutionId: 'pe-1',
+  paymentRequestId: 'pr-1',
+  sourceFinancialAccountId: 'fa-1',
+  status: 'RECORDED'
+}
+
 // Verifies the finance gateway service keeps tenant scoping and phase 1A DTO mapping aligned with the frozen finance contract.
 describe('FinanceService', () => {
   const financeQueryAdapter = {
     getExchangeRate: jest.fn(),
     getFinanceReleaseSignal: jest.fn(),
     getFinancialAccount: jest.fn(),
+    getPayableSchedule: jest.fn(),
     getReceivableSchedule: jest.fn(),
     searchAccountTransactions: jest.fn(),
     searchFinancialAccounts: jest.fn(),
+    searchPayableSchedules: jest.fn(),
     searchPaymentAllocations: jest.fn(),
+    searchPaymentExecutions: jest.fn(),
+    searchPaymentRequests: jest.fn(),
     searchReceivableSchedules: jest.fn()
   }
   const financeManagementAdapter = {
+    allocatePaymentToPayable: jest.fn(),
     allocatePaymentToReceivable: jest.fn(),
+    applyPayableScheduleAdjustmentFromPurchaseOrderChange: jest.fn(),
     createFinancialAccount: jest.fn(),
+    createPayableScheduleFromPurchaseOrder: jest.fn(),
+    createPaymentRequest: jest.fn(),
     createReceivableScheduleFromSalesOrder: jest.fn(),
+    decidePaymentRequest: jest.fn(),
+    executePaymentRequest: jest.fn(),
     importAccountTransactions: jest.fn(),
     recordAccountTransaction: jest.fn(),
     registerCustomerFinancialAccount: jest.fn(),
@@ -506,5 +612,257 @@ describe('FinanceService', () => {
     expect(savedFinanceRelease.signalStatus).toBe('RELEASED')
     expect(allocationPage.paymentAllocations[0]?.paymentAllocationId).toBe('pa-1')
     expect(createdAllocations[0]?.targetScheduleId).toBe('rs-1')
+  })
+
+  it('maps finance phase 1B payable and payment flows without promoting requests or executions into payable truth', async () => {
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', orgId: 'org-1', scopeLevel: 'TENANT', tid: 'tenant-1', typ: 'USER' }
+    }
+
+    financeQueryAdapter.searchPayableSchedules.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      payableSchedules: [
+        {
+          currencyCode: 'USD',
+          nearestDueDate: '2026-05-10',
+          outstandingAmount: '300.00',
+          payableScheduleId: 'ps-1',
+          requestGovernanceStatusSummary: 'DUE_NO_REQUEST',
+          scheduleNo: 'AP-001',
+          sourcePurchaseOrderId: 'po-1',
+          sourcePurchaseOrderNo: 'PO-001',
+          status: 'OPEN',
+          supplierDisplayName: 'Supplier One',
+          supplierTenantPartyId: 'supplier-1'
+        }
+      ],
+      total: 1
+    })
+    financeQueryAdapter.getPayableSchedule.mockResolvedValue({
+      payableSchedule: SAMPLE_PAYABLE_SCHEDULE
+    })
+    financeQueryAdapter.searchPaymentRequests.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      paymentRequests: [
+        {
+          currencyCode: 'USD',
+          paymentRequestId: 'pr-1',
+          requestNo: 'PAY-REQ-001',
+          requestSource: 'FINANCE_INITIATED',
+          requestedAmount: '300.00',
+          requestedAt: '2026-04-28T12:00:00.000Z',
+          status: 'SUBMITTED',
+          supplierDisplayName: 'Supplier One',
+          supplierTenantPartyId: 'supplier-1'
+        }
+      ],
+      total: 1
+    })
+    financeQueryAdapter.searchPaymentExecutions.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      paymentExecutions: [
+        {
+          currencyCode: 'USD',
+          executedAmount: '300.00',
+          executedAt: '2026-04-28T13:00:00.000Z',
+          paymentExecutionId: 'pe-1',
+          paymentRequestId: 'pr-1',
+          status: 'RECORDED',
+          supplierTenantPartyId: 'supplier-1'
+        }
+      ],
+      total: 1
+    })
+    financeQueryAdapter.searchPaymentAllocations.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      paymentAllocations: [
+        {
+          ...SAMPLE_PAYMENT_ALLOCATION,
+          accountTransactionId: 'txn-out-1',
+          paymentExecutionId: 'pe-1',
+          paymentRequestId: 'pr-1',
+          targetScheduleId: 'ps-1',
+          targetScheduleLineId: 'payable-line-1',
+          targetType: 'PAYABLE_SCHEDULE_LINE'
+        }
+      ],
+      total: 1
+    })
+    financeManagementAdapter.createPayableScheduleFromPurchaseOrder.mockResolvedValue({
+      payableSchedule: SAMPLE_PAYABLE_SCHEDULE
+    })
+    financeManagementAdapter.applyPayableScheduleAdjustmentFromPurchaseOrderChange.mockResolvedValue({
+      payableSchedule: SAMPLE_PAYABLE_SCHEDULE
+    })
+    financeManagementAdapter.createPaymentRequest.mockResolvedValue({
+      paymentRequest: SAMPLE_PAYMENT_REQUEST
+    })
+    financeManagementAdapter.decidePaymentRequest.mockResolvedValue({
+      paymentRequest: { ...SAMPLE_PAYMENT_REQUEST, status: 'APPROVED' }
+    })
+    financeManagementAdapter.executePaymentRequest.mockResolvedValue({
+      paymentExecution: SAMPLE_PAYMENT_EXECUTION,
+      paymentRequest: { ...SAMPLE_PAYMENT_REQUEST, status: 'EXECUTED' }
+    })
+    financeManagementAdapter.allocatePaymentToPayable.mockResolvedValue({
+      paymentAllocations: [
+        {
+          ...SAMPLE_PAYMENT_ALLOCATION,
+          accountTransactionId: 'txn-out-1',
+          paymentExecutionId: 'pe-1',
+          paymentRequestId: 'pr-1',
+          targetScheduleId: 'ps-1',
+          targetScheduleLineId: 'payable-line-1',
+          targetType: 'PAYABLE_SCHEDULE_LINE'
+        }
+      ]
+    })
+
+    const payablePage = await service.searchPayableSchedules(
+      'tenant-1',
+      { keyword: 'PO-001', page: 1, pageSize: 20, requestGovernanceStatus: 'DUE_NO_REQUEST' },
+      source as any
+    )
+    const payableDetail = await service.getPayableSchedule('tenant-1', 'ps-1', source as any)
+    const requestPage = await service.searchPaymentRequests(
+      'tenant-1',
+      { page: 1, pageSize: 20, status: 'SUBMITTED' },
+      source as any
+    )
+    const executionPage = await service.searchPaymentExecutions(
+      'tenant-1',
+      { page: 1, pageSize: 20, paymentRequestId: 'pr-1' },
+      source as any
+    )
+    const allocationPage = await service.searchPaymentAllocations(
+      'tenant-1',
+      {
+        page: 1,
+        pageSize: 20,
+        paymentExecutionId: 'pe-1',
+        targetScheduleId: 'ps-1',
+        targetType: 'PAYABLE_SCHEDULE_LINE'
+      },
+      source as any
+    )
+    const createdPayable = await service.createPayableScheduleFromPurchaseOrder(
+      'tenant-1',
+      {
+        currencyCode: 'USD',
+        lines: [
+          {
+            dueDate: '2026-05-10',
+            lineType: 'TERM_DUE',
+            scheduledAmount: '300.00',
+            sourceRef: 'po-1/term-1'
+          }
+        ],
+        purchaseOrderId: 'po-1',
+        supplierSnapshot: 'Supplier One',
+        supplierTenantPartyId: 'supplier-1'
+      },
+      source as any
+    )
+    const adjustedPayable = await service.applyPayableScheduleAdjustmentFromPurchaseOrderChange(
+      'tenant-1',
+      {
+        adjustments: [{ action: 'ADD', dueDate: '2026-06-10', lineType: 'TERM_DUE', newSourceRef: 'po-1/change-1', scheduledAmount: '50.00' }],
+        purchaseOrderChangeId: 'po-change-1',
+        purchaseOrderId: 'po-1'
+      },
+      source as any
+    )
+    const paymentRequest = await service.createPaymentRequest(
+      'tenant-1',
+      {
+        beneficiarySupplierFinancialAccountId: 'supplier-account-1',
+        currencyCode: 'USD',
+        requestSource: 'FINANCE_INITIATED',
+        requestedAmount: '300.00',
+        requestedLines: [
+          {
+            payableScheduleId: 'ps-1',
+            payableScheduleLineId: 'payable-line-1',
+            requestedAmount: '300.00'
+          }
+        ],
+        supplierTenantPartyId: 'supplier-1'
+      },
+      source as any
+    )
+    const decidedRequest = await service.decidePaymentRequest(
+      'tenant-1',
+      'pr-1',
+      { decision: 'APPROVED', decisionReason: 'approved for payment' },
+      source as any
+    )
+    const executedRequest = await service.executePaymentRequest(
+      'tenant-1',
+      'pr-1',
+      {
+        currencyCode: 'USD',
+        executedAmount: '300.00',
+        executedAt: '2026-04-28T13:00:00.000Z',
+        sourceFinancialAccountId: 'fa-1'
+      },
+      source as any
+    )
+    const payableAllocations = await service.allocatePaymentToPayable(
+      'tenant-1',
+      {
+        accountTransactionId: 'txn-out-1',
+        allocations: [
+          {
+            allocatedAmount: '300.00',
+            payableScheduleId: 'ps-1',
+            payableScheduleLineId: 'payable-line-1'
+          }
+        ],
+        paymentExecutionId: 'pe-1'
+      },
+      source as any
+    )
+
+    expect(financeQueryAdapter.searchPayableSchedules).toHaveBeenCalledWith(
+      expect.objectContaining({
+        requestGovernanceStatus: 'DUE_NO_REQUEST',
+        tenantId: 'tenant-1'
+      }),
+      source
+    )
+    expect(financeManagementAdapter.createPaymentRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        beneficiarySupplierFinancialAccountId: 'supplier-account-1',
+        requestedLines: [expect.objectContaining({ payableScheduleLineId: 'payable-line-1' })],
+        tenantId: 'tenant-1'
+      }),
+      source
+    )
+    expect(financeManagementAdapter.executePaymentRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        paymentRequestId: 'pr-1',
+        sourceFinancialAccountId: 'fa-1',
+        tenantId: 'tenant-1'
+      }),
+      source
+    )
+
+    expect(payablePage.payableSchedules[0]?.requestGovernanceStatusSummary).toBe('DUE_NO_REQUEST')
+    expect(payableDetail.lines[0]?.requestGovernanceStatus).toBe('DUE_NO_REQUEST')
+    expect(requestPage.paymentRequests[0]?.status).toBe('SUBMITTED')
+    expect(executionPage.paymentExecutions[0]?.paymentExecutionId).toBe('pe-1')
+    expect(allocationPage.paymentAllocations[0]?.targetType).toBe('PAYABLE_SCHEDULE_LINE')
+    expect(createdPayable.payableScheduleId).toBe('ps-1')
+    expect(adjustedPayable.payableScheduleId).toBe('ps-1')
+    expect(paymentRequest.paymentRequestId).toBe('pr-1')
+    expect(decidedRequest.status).toBe('APPROVED')
+    expect(executedRequest.paymentExecution.paymentExecutionId).toBe('pe-1')
+    expect(payableAllocations[0]?.targetScheduleId).toBe('ps-1')
   })
 })

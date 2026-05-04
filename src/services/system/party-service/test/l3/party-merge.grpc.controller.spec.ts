@@ -17,16 +17,14 @@ describe('PartyMergeGrpcController L3', () => {
         id: 'party-survivor',
         type: 'ORGANIZATION',
         status: 'ACTIVE',
-        canonicalName: 'Acme Parent',
-        displayName: null
+        legalName: 'Acme Parent'
       },
       mergedParties: [
         {
           id: 'party-duplicate',
           type: 'ORGANIZATION',
           status: 'MERGED',
-          canonicalName: 'Acme Duplicate',
-          displayName: null
+          legalName: 'Acme Duplicate'
         }
       ]
     })
@@ -47,16 +45,14 @@ describe('PartyMergeGrpcController L3', () => {
         id: 'party-survivor',
         type: 'ORGANIZATION',
         status: 'ACTIVE',
-        canonicalName: 'Acme Parent',
-        displayName: ''
+        legalName: 'Acme Parent'
       },
       mergedParties: [
         {
           id: 'party-duplicate',
           type: 'ORGANIZATION',
           status: 'MERGED',
-          canonicalName: 'Acme Duplicate',
-          displayName: ''
+          legalName: 'Acme Duplicate'
         }
       ]
     })

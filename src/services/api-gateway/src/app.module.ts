@@ -23,6 +23,7 @@ import { ProcurementServiceProxyModule } from './modules/procurement-service/pro
 import { SalesServiceProxyModule } from './modules/sales-service/sales-service.module'
 import { SrmServiceProxyModule } from './modules/srm-service/srm-service.module'
 import { TenantOrgServiceProxyModule } from './modules/tenant-org-service/tenant-org-service.module'
+import { WmsServiceProxyModule } from './modules/wms-service/wms-service.module'
 import { GatewayExceptionFilter } from './common/filters/gateway-exception.filter'
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
@@ -153,6 +154,15 @@ export function resolveTenantOrgGrpcUrl() {
           packageName: 'tenant_org_service',
           url: resolveTenantOrgGrpcUrl()
         },
+        [SERVICE_NAMES.WMS]: {
+          serviceName: SERVICE_NAMES.WMS,
+          protoPath: resolveCommonProtoPath('wms_service/wms.proto'),
+          packageName: 'wms_service',
+          url:
+            process.env.WMS_SERVICE_HOST && process.env.WMS_SERVICE_PORT
+              ? `${process.env.WMS_SERVICE_HOST}:${process.env.WMS_SERVICE_PORT}`
+              : 'localhost:50064'
+        },
         'sales-service': {
           serviceName: 'sales-service',
           protoPath: resolveCommonProtoPath('sales_service/sales.proto'),
@@ -191,7 +201,8 @@ export function resolveTenantOrgGrpcUrl() {
     ProcurementServiceProxyModule,
     SalesServiceProxyModule,
     SrmServiceProxyModule,
-    TenantOrgServiceProxyModule
+    TenantOrgServiceProxyModule,
+    WmsServiceProxyModule
   ],
   providers: [
     GatewayPermissionGuard,

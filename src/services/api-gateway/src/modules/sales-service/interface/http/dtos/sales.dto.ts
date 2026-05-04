@@ -177,7 +177,147 @@ export class PackagingRequirementSnapshotDto {
   specialInstructions?: string
 }
 
-/** PriceQuantityDeliverySnapshotDto defines the manual phase 1 price, quantity, and delivery summary typed into one quote line. */
+/** PriceSnapshotDto defines the optional frozen pricing source snapshot carried on quote and order lines. */
+export class PriceSnapshotDto {
+  @ApiProperty()
+  @IsString()
+  currencyCode!: string
+
+  @ApiProperty()
+  @IsString()
+  unitPriceAmount!: string
+
+  @ApiProperty()
+  @IsString()
+  sourceType!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceRefId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceLineRefId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  sourceVersionNo?: number
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  resolvedAt?: string
+}
+
+/** MoqSnapshotDto defines the optional frozen MOQ source snapshot carried on quote and order lines. */
+export class MoqSnapshotDto {
+  @ApiProperty()
+  @IsString()
+  moqQuantity!: string
+
+  @ApiProperty()
+  @IsString()
+  quantityUomCode!: string
+
+  @ApiProperty()
+  @IsString()
+  sourceType!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceRefId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  sourceLineRefId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  sourceVersionNo?: number
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  resolvedAt?: string
+}
+
+/** ExchangeRateSnapshotDto defines the optional finance-owned FX snapshot frozen on the sales side. */
+export class ExchangeRateSnapshotDto {
+  @ApiProperty()
+  @IsString()
+  fromCurrencyCode!: string
+
+  @ApiProperty()
+  @IsString()
+  toCurrencyCode!: string
+
+  @ApiProperty()
+  @IsString()
+  exchangeRateValue!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  financeRateRef?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  effectiveAt?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  snapshottedAt?: string
+}
+
+/** ExceptionPlaceholderDto defines the optional pricing exception placeholder surface displayed by tenant-web. */
+export class ExceptionPlaceholderDto {
+  @ApiProperty()
+  @IsString()
+  exceptionType!: string
+
+  @ApiProperty()
+  @IsString()
+  status!: string
+
+  @ApiProperty()
+  @IsString()
+  baselineSourceType!: string
+
+  @ApiProperty()
+  @IsString()
+  baselineValue!: string
+
+  @ApiProperty()
+  @IsString()
+  actualValue!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  currencyCode?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  quantityUomCode?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  detectedAt?: string
+}
+
+/** PriceQuantityDeliverySnapshotDto defines the manual phase 1 price, quantity, delivery, and pricing preview summary typed into one quote line. */
 export class PriceQuantityDeliverySnapshotDto {
   @ApiProperty()
   @IsString()
@@ -200,6 +340,31 @@ export class PriceQuantityDeliverySnapshotDto {
   @IsOptional()
   @IsString()
   requestedDeliveryDate?: string
+
+  @ApiPropertyOptional({ type: PriceSnapshotDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => PriceSnapshotDto)
+  priceSnapshot?: PriceSnapshotDto
+
+  @ApiPropertyOptional({ type: MoqSnapshotDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MoqSnapshotDto)
+  moqSnapshot?: MoqSnapshotDto
+
+  @ApiPropertyOptional({ type: ExchangeRateSnapshotDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ExchangeRateSnapshotDto)
+  exchangeRateSnapshot?: ExchangeRateSnapshotDto
+
+  @ApiPropertyOptional({ type: [ExceptionPlaceholderDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ExceptionPlaceholderDto)
+  exceptionPlaceholders?: ExceptionPlaceholderDto[]
 }
 
 /** CustomerItemSnapshotDto defines the optional customer-facing sku, model, and label summary typed into one quote line. */
@@ -306,6 +471,320 @@ export class UpdateQuoteDraftDto {
   @ValidateNested()
   @Type(() => QuoteDraftMutationDto)
   draftMutation!: QuoteDraftMutationDto
+}
+
+/** SearchPriceListsDto defines the optional price-list catalog filters exposed through the sales pricing BFF. */
+export class SearchPriceListsDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  keyword?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  priceListType?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  status?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  currencyCode?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  effectiveAt?: string
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number
+}
+
+/** GetPriceListLinesDto defines the optional line paging and item filter inputs for one price list. */
+export class GetPriceListLinesDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  itemId?: string
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number
+}
+
+/** GetActiveCustomerPriceAgreementDto defines the required customer and currency lookup inputs for the active agreement read. */
+export class GetActiveCustomerPriceAgreementDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerTenantPartyId!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  currencyCode!: string
+}
+
+/** GetCustomerPriceAgreementDto defines the optional version selector for one agreement family read. */
+export class GetCustomerPriceAgreementDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  versionNo?: number
+}
+
+/** ListCustomerPriceAgreementVersionsDto defines the paging inputs for one agreement family's version directory. */
+export class ListCustomerPriceAgreementVersionsDto {
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 100 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number
+}
+
+/** PreviewQuoteLinePricingDto defines the non-mutating quote-line pricing preview payload exposed through the sales pricing BFF. */
+export class PreviewQuoteLinePricingDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerTenantPartyId!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  itemId!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  brandKey?: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  currencyCode!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  requestedQuantity!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  quantityUomCode!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  selectedPriceListId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  manualUnitPriceAmount?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  pricingAt?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  exchangeRateTargetCurrencyCode?: string
+}
+
+/** PriceListLineInputDto defines one price-list or agreement line edit row accepted by the sales pricing BFF. */
+export class PriceListLineInputDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  itemId!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  brandKey?: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  unitPriceAmount!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  moqQuantity!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  quantityUomCode!: string
+}
+
+/** CreatePriceListDto defines the price-list creation payload exposed through the sales pricing BFF. */
+export class CreatePriceListDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  priceListName!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  priceListType!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  currencyCode!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  effectiveFrom!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  effectiveTo?: string
+
+  @ApiPropertyOptional({ type: [PriceListLineInputDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PriceListLineInputDto)
+  initialLines?: PriceListLineInputDto[]
+}
+
+/** UpdatePriceListDto defines the mutable header fields accepted by the sales pricing BFF for one price list. */
+export class UpdatePriceListDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  priceListName?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  effectiveFrom?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  effectiveTo?: string
+}
+
+/** ReplacePriceListLinesDto defines the whole-table line replacement payload for one price list. */
+export class ReplacePriceListLinesDto {
+  @ApiProperty({ type: [PriceListLineInputDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PriceListLineInputDto)
+  lines!: PriceListLineInputDto[]
+}
+
+/** ChangePriceListStatusDto defines the target lifecycle status requested for one price list. */
+export class ChangePriceListStatusDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  targetStatus!: string
+}
+
+/** CustomerPriceAgreementLineRemovalDto defines one draft removal selector accepted by the sales pricing BFF. */
+export class CustomerPriceAgreementLineRemovalDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  itemId!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  brandKey?: string
+}
+
+/** CustomerPriceAgreementDraftMutationDto defines the draft mutation envelope for one customer agreement family. */
+export class CustomerPriceAgreementDraftMutationDto {
+  @ApiProperty({ type: [PriceListLineInputDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PriceListLineInputDto)
+  upserts!: PriceListLineInputDto[]
+
+  @ApiProperty({ type: [CustomerPriceAgreementLineRemovalDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CustomerPriceAgreementLineRemovalDto)
+  removals!: CustomerPriceAgreementLineRemovalDto[]
+}
+
+/** CreateCustomerPriceAgreementDto defines the agreement draft creation payload exposed through the sales pricing BFF. */
+export class CreateCustomerPriceAgreementDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  customerTenantPartyId!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  currencyCode!: string
+
+  @ApiPropertyOptional({ type: [PriceListLineInputDto] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PriceListLineInputDto)
+  initialLines?: PriceListLineInputDto[]
+}
+
+/** UpdateCustomerPriceAgreementDraftDto wraps one customer agreement draft mutation payload. */
+export class UpdateCustomerPriceAgreementDraftDto {
+  @ApiProperty({ type: CustomerPriceAgreementDraftMutationDto })
+  @ValidateNested()
+  @Type(() => CustomerPriceAgreementDraftMutationDto)
+  draftMutation!: CustomerPriceAgreementDraftMutationDto
 }
 
 /** AuditReasonDto defines the optional free-form audit reason accepted on explicit management commands. */

@@ -22,6 +22,42 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
   return undefined
 }
 
+/** buildGrpcServiceConfigs declares every downstream gRPC client used by tenant-org modules. */
+export function buildGrpcServiceConfigs() {
+  return {
+    [SERVICE_NAMES.AUTH]: {
+      serviceName: SERVICE_NAMES.AUTH,
+      protoPath: [resolveCommonProtoPath('auth_service/auth.proto')],
+      packageName: 'auth_service',
+      url: resolveGrpcUrl('GRPC_SERVICE_AUTH_URL', '127.0.0.1:50050')
+    },
+    [SERVICE_NAMES.HR]: {
+      serviceName: SERVICE_NAMES.HR,
+      protoPath: [resolveCommonProtoPath('hr_service/hr.proto')],
+      packageName: 'hr_service',
+      url: resolveGrpcUrl('GRPC_SERVICE_HR_URL', '127.0.0.1:50055')
+    },
+    [SERVICE_NAMES.IDENTITY]: {
+      serviceName: SERVICE_NAMES.IDENTITY,
+      protoPath: [resolveCommonProtoPath('identity_service/identity_query.proto')],
+      packageName: 'identity_service',
+      url: resolveGrpcUrl('GRPC_SERVICE_IDENTITY_URL', '127.0.0.1:50052')
+    },
+    [SERVICE_NAMES.PARTY]: {
+      serviceName: SERVICE_NAMES.PARTY,
+      protoPath: [resolveCommonProtoPath('party_service/party.proto')],
+      packageName: 'party_service',
+      url: resolveGrpcUrl('GRPC_SERVICE_PARTY_URL', '127.0.0.1:50053')
+    },
+    [SERVICE_NAMES.PERMISSION]: {
+      serviceName: SERVICE_NAMES.PERMISSION,
+      protoPath: [resolveCommonProtoPath('permission_service/permission_management.proto')],
+      packageName: 'permission_service',
+      url: resolveGrpcUrl('GRPC_SERVICE_PERMISSION_URL', '127.0.0.1:50051')
+    }
+  }
+}
+
 /** AppModule wires tenant-org-service modules and enables service-scoped logging metadata. */
 @Module({
   imports: [
@@ -31,14 +67,7 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
       envFilePath: ['.env']
     }),
     GrpcTransportModule.forRoot({
-      services: {
-        [SERVICE_NAMES.PARTY]: {
-          serviceName: SERVICE_NAMES.PARTY,
-          protoPath: [resolveCommonProtoPath('party_service/party.proto')],
-          packageName: 'party_service',
-          url: resolveGrpcUrl('GRPC_SERVICE_PARTY_URL', '127.0.0.1:50053')
-        }
-      }
+      services: buildGrpcServiceConfigs()
     }),
     AuthorizationModule,
     PrismaModule,

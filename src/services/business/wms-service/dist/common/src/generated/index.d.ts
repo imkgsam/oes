@@ -1,0 +1,15 @@
+export * as asset_service from "./index.asset_service";
+export * as auth_service from "./index.auth_service";
+export * as crm_service from "./index.crm_service";
+export * as finance_service from "./index.finance_service";
+export * as hr_service from "./index.hr_service";
+export * as identity_service from "./index.identity_service";
+export * as item_master_service from "./index.item_master_service";
+export * as notification_service from "./index.notification_service";
+export * as party_service from "./index.party_service";
+export * as permission_service from "./index.permission_service";
+export * as procurement_service from "./index.procurement_service";
+export * as sales_service from "./index.sales_service";
+export * as srm_service from "./index.srm_service";
+export * as tenant_org_service from "./index.tenant_org_service";
+export * as wms_service from "./index.wms_service";

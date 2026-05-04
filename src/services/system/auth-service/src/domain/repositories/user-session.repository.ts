@@ -181,6 +181,19 @@ export interface IUserSessionRepository {
   deleteAllByAccountId(accountId: string): Promise<void>
 
   /**
+   * 删除指定 tenant 下仍处于活动状态的租户范围 Session
+   *
+   * 使用场景：
+   * - tenant 被停用或归档后强制清理该 tenant 的登录态
+   * - 只影响 TENANT scope session
+   * - 不影响 SYSTEM scope session 或其他 tenant session
+   *
+   * @param tenantId 租户 ID
+   * @returns Promise<number> 删除的 Session 数量
+   */
+  deleteActiveTenantScopeSessionsByTenantId(tenantId: string): Promise<number>
+
+  /**
    * 删除设备的所有 Session
    *
    * 使用场景：

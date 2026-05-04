@@ -249,8 +249,8 @@ contract 组织建议：
 
 第一阶段推荐延续现有权限管理接口的风格：
 
-- role 详情相关读取走 `permission.role.get_by_id`
-- role 配置修改走 `permission.role.update`
+- role 详情相关读取走 `permission.role_instance.get_by_id`
+- role 配置修改走 `permission.role_instance.update`
 - 全局 entry registry 读取 / 修改使用新的 navigation management permission codes
 - 全局 preview 若允许输入任意 role 组合，建议使用独立 preview permission code
 
@@ -273,11 +273,11 @@ contract 组织建议：
 - `PATCH /navigation/entries/:entryKey`
   - `checkPermission(permission.navigation.entry.update)`
 - `GET /roles/:roleId/navigation`
-  - `checkPermission(permission.role.get_by_id)`
+  - `checkPermission(permission.role_instance.get_by_id)`
 - `PUT /roles/:roleId/navigation/visibility`
-  - `checkPermission(permission.role.update)`
+  - `checkPermission(permission.role_instance.update)`
 - `PUT /roles/:roleId/navigation/landing-policies`
-  - `checkPermission(permission.role.update)`
+  - `checkPermission(permission.role_instance.update)`
 - `POST /navigation/resolve-preview`
   - `checkPermission(permission.navigation.resolve_preview)`
 

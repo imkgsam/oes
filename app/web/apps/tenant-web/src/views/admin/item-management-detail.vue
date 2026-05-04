@@ -10,9 +10,11 @@ import {
   changeManagedItemStatusApi,
   getManagedItemByIdApi,
   getManagedItemCompositionApi,
+  listManagedItemCategoriesApi,
   listManagedItemsApi,
   listManagedSupplierItemMappingsApi,
   setManagedItemCapabilitiesApi,
+  setManagedItemPrimaryCategoryApi,
   setManagedItemCompositionApi,
   updateManagedItemBasicsApi,
   upsertManagedSupplierItemMappingApi
@@ -33,14 +35,22 @@ interface SupplierFormState {
 const authContextStore = useAuthContextStore()
 const route = useRoute()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
+const canListCategories = computed(() =>
+  authContextStore.actionCodes.includes('item_master.item_category.list')
+)
+const canSetPrimaryCategory = computed(() =>
+  authContextStore.actionCodes.includes('item_master.item.set_primary_category')
+)
 const itemId = computed(() => `${route.params.itemId ?? ''}`)
 const item = ref<null | ItemManagementApi.ItemSummary>(null)
+const categoryChoices = ref<ItemManagementApi.ItemCategoryNode[]>([])
 const composition = ref<ItemManagementApi.ItemComposition>({
   itemId: '',
   components: []
 })
 const supplierMappings = ref<ItemManagementApi.SupplierItemMappingListEntry[]>([])
 const componentChoices = ref<ItemManagementApi.ItemSummary[]>([])
+const primaryCategoryId = ref('')
 const selectedComponentIds = ref<string[]>([])
 const basicForm = reactive<BasicFormState>({
   itemCode: '',
@@ -73,7 +83,37 @@ async function loadItem() {
   capabilityForm.purchasable = result.capabilities.purchasable
   capabilityForm.stockable = result.capabilities.stockable
   capabilityForm.manufacturable = result.capabilities.manufacturable
+  primaryCategoryId.value = result.primaryCategorySummary?.categoryId ?? ''
   statusValue.value = (result.status as ItemManagementApi.ItemStatus) || 'ACTIVE'
+}
+
+/** loadCategoryBranch recursively expands the lightweight category tree used by the primary-category selector. */
+async function loadCategoryBranch(
+  parentCategoryId?: string,
+  bucket: ItemManagementApi.ItemCategoryNode[] = []
+) {
+  const result = await listManagedItemCategoriesApi(activeTenantId.value, {
+    parentCategoryId
+  })
+
+  for (const category of result.categories ?? []) {
+    bucket.push(category)
+    if (category.hasChildren) {
+      await loadCategoryBranch(category.categoryId, bucket)
+    }
+  }
+
+  return bucket
+}
+
+/** loadCategories refreshes the primary-category selector choices without introducing any category business rules. */
+async function loadCategories() {
+  if (!activeTenantId.value || !canListCategories.value) {
+    categoryChoices.value = []
+    return
+  }
+
+  categoryChoices.value = await loadCategoryBranch()
 }
 
 /** loadComposition refreshes the bundle composition section and keeps the selected ids in full-replace form. */
@@ -167,6 +207,32 @@ async function saveStatus() {
   })
 }
 
+/** savePrimaryCategory sends the current single-value primary-category selection through the thin BFF command. */
+async function savePrimaryCategory() {
+  if (!activeTenantId.value || !itemId.value || !canSetPrimaryCategory.value) {
+    return
+  }
+
+  const result = await setManagedItemPrimaryCategoryApi(activeTenantId.value, itemId.value, {
+    primaryCategoryId: primaryCategoryId.value || undefined
+  })
+  item.value = result
+  primaryCategoryId.value = result.primaryCategorySummary?.categoryId ?? ''
+}
+
+/** clearPrimaryCategory removes the current primary-category association while preserving the 0..1 invariant. */
+async function clearPrimaryCategory() {
+  if (!activeTenantId.value || !itemId.value || !canSetPrimaryCategory.value) {
+    return
+  }
+
+  const result = await setManagedItemPrimaryCategoryApi(activeTenantId.value, itemId.value, {
+    primaryCategoryId: undefined
+  })
+  item.value = result
+  primaryCategoryId.value = ''
+}
+
 /** saveComposition sends the currently selected components as the full-replace truth set. */
 async function saveComposition() {
   if (!activeTenantId.value || !itemId.value) {
@@ -196,6 +262,7 @@ async function saveSupplierMapping() {
 
 onMounted(() => {
   void Promise.all([
+    loadCategories(),
     loadItem(),
     loadComposition(),
     loadSupplierMappings(),
@@ -209,7 +276,7 @@ onMounted(() => {
     <section class="item-detail-page">
       <header class="item-detail-card">
         <h1>Item 详情</h1>
-        <p>phase 1 只暴露基础信息、能力、组成关系、供应商型号映射，以及 deferred / 引用说明。</p>
+        <p>phase 1 只暴露基础信息、单值主分类、能力、组成关系和供应商型号映射，不扩展多分类或分类策略。</p>
       </header>
 
       <section class="item-detail-card">
@@ -259,6 +326,48 @@ onMounted(() => {
           </label>
         </div>
         <button data-testid="detail-save-status" type="button" @click="saveStatus">保存状态</button>
+      </section>
+
+      <section class="item-detail-card">
+        <h2>主分类</h2>
+        <p class="item-detail-note">
+          当前主分类：{{ item?.primaryCategorySummary?.categoryName ?? '未设置' }}
+        </p>
+        <div class="item-detail-grid item-detail-grid--compact">
+          <label>
+            <span>Primary Category</span>
+            <select data-testid="detail-primary-category" v-model="primaryCategoryId">
+              <option value="">未设置</option>
+              <option
+                v-for="category in categoryChoices"
+                :key="category.categoryId"
+                :value="category.categoryId"
+              >
+                {{ category.categoryCode }} · {{ category.categoryName }}
+              </option>
+            </select>
+          </label>
+        </div>
+        <div class="item-detail-actions">
+          <button
+            v-access:code="'item_master.item.set_primary_category'"
+            v-if="canSetPrimaryCategory"
+            data-testid="detail-primary-category-save"
+            type="button"
+            @click="savePrimaryCategory"
+          >
+            保存主分类
+          </button>
+          <button
+            v-access:code="'item_master.item.set_primary_category'"
+            v-if="canSetPrimaryCategory"
+            data-testid="detail-primary-category-clear"
+            type="button"
+            @click="clearPrimaryCategory"
+          >
+            清空主分类
+          </button>
+        </div>
       </section>
 
       <section class="item-detail-card">
@@ -313,7 +422,7 @@ onMounted(() => {
       <section class="item-detail-card">
         <h2>Deferred / 引用说明</h2>
         <ul>
-          <li>ItemCategory、Packaging、ManufacturingSpec、StockItemType 继续 deferred。</li>
+          <li>ItemCategory 已接入为单值主分类；multi-category、category inheritance 继续 deferred。</li>
           <li>SalesConfig、PIM / PLM 不在当前页面扩 scope。</li>
           <li>SupplierItemMapping 只表达 supplierId + supplier item code / name 到 itemId 的映射，不承载价格、MOQ、lead time。</li>
         </ul>
@@ -362,6 +471,16 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.item-detail-note {
+  color: #6b7280;
+  margin-bottom: 12px;
+}
+
+.item-detail-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .item-detail-choices {

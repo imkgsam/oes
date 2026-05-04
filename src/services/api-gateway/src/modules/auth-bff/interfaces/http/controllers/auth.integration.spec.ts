@@ -792,8 +792,7 @@ class TestPartyGrpcController {
         id: request.partyId ?? '',
         type: 'PERSON',
         status: 'ACTIVE',
-        canonicalName: 'Vic Chen',
-        displayName: 'Vic Chen'
+        legalName: 'Vic Chen'
       }
     }
   }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Inject, Injectable, Optional } from '@nestjs/common'
 import {
   ResolveSalesExchangeRateInput,
   SalesExchangeRateResolver
@@ -14,10 +14,16 @@ export interface FixedExchangeRateDefinition {
   effectiveAt: string
 }
 
+export const FIXED_EXCHANGE_RATE_DEFINITIONS = Symbol('FIXED_EXCHANGE_RATE_DEFINITIONS')
+
 /** FixedExchangeRateResolver provides same-currency identity snapshots plus optional seeded FX pairs for phase 1 pricing tests and runtime defaults. */
 @Injectable()
 export class FixedExchangeRateResolver implements SalesExchangeRateResolver {
-  constructor(private readonly definitions: FixedExchangeRateDefinition[] = []) {}
+  constructor(
+    @Optional()
+    @Inject(FIXED_EXCHANGE_RATE_DEFINITIONS)
+    private readonly definitions: FixedExchangeRateDefinition[] = []
+  ) {}
 
   async resolve(input: ResolveSalesExchangeRateInput): Promise<ExchangeRateSnapshot> {
     if (input.fromCurrencyCode === input.toCurrencyCode) {

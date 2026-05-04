@@ -55,6 +55,7 @@ export class HrManagementService {
     tenantId: string
     employeeId: string
     orgUnitId: string
+    positionName?: string
     effectiveFrom: Date
   }) {
     const tenantId = requireNonBlank(input.tenantId, 'tenantId')
@@ -81,6 +82,7 @@ export class HrManagementService {
       tenantId,
       employeeId,
       orgUnitId,
+      positionName: input.positionName?.trim() || undefined,
       effectiveFrom
     })
   }

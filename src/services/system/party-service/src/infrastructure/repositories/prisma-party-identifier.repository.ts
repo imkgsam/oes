@@ -46,8 +46,7 @@ export class PrismaPartyIdentifierRepository implements PartyIdentifierRepositor
           id: match.party.id,
           type: match.party.type as PartyType,
           status: match.party.status as PartyStatus,
-          canonicalName: match.party.canonicalName,
-          displayName: match.party.displayName
+          legalName: match.party.legalName
         }
       }
     }

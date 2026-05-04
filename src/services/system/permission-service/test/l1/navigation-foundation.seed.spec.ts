@@ -16,7 +16,6 @@ describe('navigation foundation seed', () => {
       'admin.org-management',
       'admin.role-management',
       'admin.account-management',
-      'tenant-settings.organization-people',
       'tenant-settings.org-structure',
       'tenant-settings.employee-employment',
       'tenant-settings.login-mfa',
@@ -26,6 +25,7 @@ describe('navigation foundation seed', () => {
       'sales.quote-orders',
       'procurement.management',
       'finance.dashboard',
+      'wms.management',
       'admin.platform-mfa',
       'admin.permission-management',
       'admin.policy-governance',
@@ -42,9 +42,8 @@ describe('navigation foundation seed', () => {
       '组织架构管理',
       '角色管理',
       '账号管理',
-      '组织与人员',
-      '本租户组织架构',
-      '员工与任职管理',
+      '组织架构',
+      '员工管理',
       '租户 MFA 配置',
       'Item 管理',
       '供应商管理',
@@ -52,6 +51,7 @@ describe('navigation foundation seed', () => {
       '报价与订单',
       '采购管理',
       '财务管理',
+      'WMS 管理',
       '平台 MFA 配置',
       '权限管理',
       '策略治理',
@@ -59,140 +59,107 @@ describe('navigation foundation seed', () => {
     ])
   })
 
-  it('declares renamed navigation entries that must be disabled during seed sync', () => {
-    expect(DEPRECATED_NAVIGATION_ENTRY_KEYS).toContain('admin.account-role-management')
+  it('marks the removed organization-people entry for navigation cleanup', () => {
+    expect(DEPRECATED_NAVIGATION_ENTRY_KEYS).toEqual(['tenant-settings.organization-people'])
   })
 
-  it('maps tenant admin roles to tenant workbench, auth-session, and business workspace entries', () => {
+  it('publishes unique registry priorities for deterministic ordering', () => {
+    const priorities = DEFAULT_NAVIGATION_ENTRIES.map((item) => item.registryPriority)
+
+    expect(priorities).toEqual([...DEFAULT_NAVIGATION_ENTRIES.keys()])
+    expect(new Set(priorities).size).toBe(DEFAULT_NAVIGATION_ENTRIES.length)
+  })
+
+  it('maps built-in role visibility to the confirmed navigation entries', () => {
     const visibility = buildNavigationFoundationVisibilitySeeds([
       {
-        id: 'role-tenant-admin',
+        id: 'role-system-admin',
+        code: 'system.admin',
+        kind: RoleKind.SYSTEM_INSTANCE
+      },
+      {
+        id: 'template-tenant-admin',
         code: 'tenant.admin',
-        kind: RoleKind.TENANT_INSTANCE
-      }
-    ])
-    const landing = buildNavigationFoundationLandingSeeds([
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
       {
         id: 'role-tenant-admin',
         code: 'tenant.admin',
         kind: RoleKind.TENANT_INSTANCE
+      },
+      {
+        id: 'template-hr-admin',
+        code: 'hr.admin',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'template-account-basic',
+        code: 'account.basic',
+        kind: RoleKind.SYSTEM_TEMPLATE
       }
     ])
 
     expect(visibility).toEqual([
       {
-        roleId: 'role-tenant-admin',
-        entryKey: 'workbench.home',
+        roleId: 'role-system-admin',
+        entryKey: 'platform.home',
         terminal: 'DEFAULT',
         enabled: true
       },
       {
-        roleId: 'role-tenant-admin',
+        roleId: 'role-system-admin',
         entryKey: 'admin.auth-session-management',
         terminal: 'DEFAULT',
         enabled: true
       },
       {
-        roleId: 'role-tenant-admin',
+        roleId: 'role-system-admin',
+        entryKey: 'admin.tenant-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-system-admin',
+        entryKey: 'admin.org-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-system-admin',
         entryKey: 'admin.role-management',
         terminal: 'DEFAULT',
         enabled: true
       },
       {
-        roleId: 'role-tenant-admin',
+        roleId: 'role-system-admin',
         entryKey: 'admin.account-management',
         terminal: 'DEFAULT',
         enabled: true
       },
       {
-        roleId: 'role-tenant-admin',
-        entryKey: 'tenant-settings.organization-people',
+        roleId: 'role-system-admin',
+        entryKey: 'admin.platform-mfa',
         terminal: 'DEFAULT',
         enabled: true
       },
       {
-        roleId: 'role-tenant-admin',
-        entryKey: 'tenant-settings.org-structure',
+        roleId: 'role-system-admin',
+        entryKey: 'admin.permission-management',
         terminal: 'DEFAULT',
         enabled: true
       },
       {
-        roleId: 'role-tenant-admin',
-        entryKey: 'tenant-settings.employee-employment',
+        roleId: 'role-system-admin',
+        entryKey: 'admin.policy-governance',
         terminal: 'DEFAULT',
         enabled: true
       },
       {
-        roleId: 'role-tenant-admin',
-        entryKey: 'tenant-settings.login-mfa',
+        roleId: 'role-system-admin',
+        entryKey: 'admin.navigation-management',
         terminal: 'DEFAULT',
         enabled: true
       },
-      {
-        roleId: 'role-tenant-admin',
-        entryKey: 'master-data.item-management',
-        terminal: 'DEFAULT',
-        enabled: true
-      },
-      {
-        roleId: 'role-tenant-admin',
-        entryKey: 'master-data.supplier-management',
-        terminal: 'DEFAULT',
-        enabled: true
-      },
-      {
-        roleId: 'role-tenant-admin',
-        entryKey: 'master-data.customer-management',
-        terminal: 'DEFAULT',
-        enabled: true
-      },
-      {
-        roleId: 'role-tenant-admin',
-        entryKey: 'sales.quote-orders',
-        terminal: 'DEFAULT',
-        enabled: true
-      },
-      {
-        roleId: 'role-tenant-admin',
-        entryKey: 'procurement.management',
-        terminal: 'DEFAULT',
-        enabled: true
-      },
-      {
-        roleId: 'role-tenant-admin',
-        entryKey: 'finance.dashboard',
-        terminal: 'DEFAULT',
-        enabled: true
-      }
-    ])
-    expect(landing).toEqual([
-      {
-        roleId: 'role-tenant-admin',
-        terminal: 'DEFAULT',
-        defaultEntryKey: 'workbench.home',
-        priority: 100,
-        enabled: true
-      }
-    ])
-  })
-
-  it('maps tenant role templates to tenant default navigation so instances can inherit it', () => {
-    const visibility = buildNavigationFoundationVisibilitySeeds([
-      {
-        id: 'template-tenant-admin',
-        code: 'tenant.admin',
-        kind: RoleKind.SYSTEM_TEMPLATE
-      }
-    ])
-    const landing = buildNavigationFoundationLandingSeeds([
-      {
-        id: 'template-tenant-admin',
-        code: 'tenant.admin',
-        kind: RoleKind.SYSTEM_TEMPLATE
-      }
-    ])
-
-    expect(visibility).toEqual([
       {
         roleId: 'template-tenant-admin',
         entryKey: 'workbench.home',
@@ -219,12 +186,6 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'template-tenant-admin',
-        entryKey: 'tenant-settings.organization-people',
-        terminal: 'DEFAULT',
-        enabled: true
-      },
-      {
-        roleId: 'template-tenant-admin',
         entryKey: 'tenant-settings.org-structure',
         terminal: 'DEFAULT',
         enabled: true
@@ -242,48 +203,119 @@ describe('navigation foundation seed', () => {
         enabled: true
       },
       {
-        roleId: 'template-tenant-admin',
-        entryKey: 'master-data.item-management',
+        roleId: 'role-tenant-admin',
+        entryKey: 'workbench.home',
         terminal: 'DEFAULT',
         enabled: true
       },
       {
-        roleId: 'template-tenant-admin',
-        entryKey: 'master-data.supplier-management',
+        roleId: 'role-tenant-admin',
+        entryKey: 'admin.auth-session-management',
         terminal: 'DEFAULT',
         enabled: true
       },
       {
-        roleId: 'template-tenant-admin',
-        entryKey: 'master-data.customer-management',
+        roleId: 'role-tenant-admin',
+        entryKey: 'admin.role-management',
         terminal: 'DEFAULT',
         enabled: true
       },
       {
-        roleId: 'template-tenant-admin',
-        entryKey: 'sales.quote-orders',
+        roleId: 'role-tenant-admin',
+        entryKey: 'admin.account-management',
         terminal: 'DEFAULT',
         enabled: true
       },
       {
-        roleId: 'template-tenant-admin',
-        entryKey: 'procurement.management',
+        roleId: 'role-tenant-admin',
+        entryKey: 'tenant-settings.org-structure',
         terminal: 'DEFAULT',
         enabled: true
       },
       {
-        roleId: 'template-tenant-admin',
-        entryKey: 'finance.dashboard',
+        roleId: 'role-tenant-admin',
+        entryKey: 'tenant-settings.employee-employment',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'tenant-settings.login-mfa',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-hr-admin',
+        entryKey: 'workbench.home',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-hr-admin',
+        entryKey: 'tenant-settings.employee-employment',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-account-basic',
+        entryKey: 'workbench.home',
         terminal: 'DEFAULT',
         enabled: true
       }
     ])
+  })
+
+  it('maps built-in role landing policies to the current placeholder homes', () => {
+    const landing = buildNavigationFoundationLandingSeeds([
+      {
+        id: 'role-system-admin',
+        code: 'system.admin',
+        kind: RoleKind.SYSTEM_INSTANCE
+      },
+      {
+        id: 'template-tenant-admin',
+        code: 'tenant.admin',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'template-hr-admin',
+        code: 'hr.admin',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'template-account-basic',
+        code: 'account.basic',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      }
+    ])
+
     expect(landing).toEqual([
+      {
+        roleId: 'role-system-admin',
+        terminal: 'DEFAULT',
+        defaultEntryKey: 'platform.home',
+        priority: 0,
+        enabled: true
+      },
       {
         roleId: 'template-tenant-admin',
         terminal: 'DEFAULT',
         defaultEntryKey: 'workbench.home',
-        priority: 100,
+        priority: 0,
+        enabled: true
+      },
+      {
+        roleId: 'template-hr-admin',
+        terminal: 'DEFAULT',
+        defaultEntryKey: 'workbench.home',
+        priority: 0,
+        enabled: true
+      },
+      {
+        roleId: 'template-account-basic',
+        terminal: 'DEFAULT',
+        defaultEntryKey: 'workbench.home',
+        priority: 0,
         enabled: true
       }
     ])

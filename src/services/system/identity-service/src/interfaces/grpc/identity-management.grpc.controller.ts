@@ -8,7 +8,6 @@ import {
   GrpcRequestContextInterceptor,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
   InternalServiceGuard,
-  IDENTITY_ORG_PERMISSION_CODES,
   IDENTITY_MACHINE_PERMISSION_CODES,
   OPERATOR_PERMISSION_RESOLVER,
   OperatorPermissionResolver,
@@ -17,7 +16,6 @@ import {
   RequireAuthenticatedOperator
 } from '@oes/common/authorization'
 import {
-  AddAccountOrgMembershipResponse,
   AssignAccountWorkEmailAssetRequest,
   AssignAccountWorkEmailAssetResponse,
   AssignAccountWorkPhoneAssetRequest,
@@ -39,7 +37,6 @@ import {
   RevokeAccountWorkPhoneAssetResponse,
   RevokeAccountWorkEmailAssetRequest,
   RevokeAccountWorkPhoneAssetRequest,
-  RemoveAccountOrgMembershipResponse,
   SetAccountPrimaryWorkEmailAssetRequest,
   SetAccountPrimaryWorkPhoneAssetRequest,
   SetAccountPrimaryWorkEmailAssetResponse,
@@ -50,15 +47,11 @@ import {
   SetAccountWorkPhoneAssetStatusResponse,
   SetServiceAccountEnabledRequest,
   SetServiceAccountEnabledResponse,
-  AddAccountOrgMembershipRequest,
   IdentityManagementServiceController,
   IdentityManagementServiceControllerMethods,
-  RemoveAccountOrgMembershipRequest,
   RevokeApiKeyRequest,
   RotateApiKeyRequest,
   RotateApiKeyResponse,
-  SetAccountPrimaryOrgRequest,
-  SetAccountPrimaryOrgResponse,
   UnbindAccountFromEmployeeRequest,
   UnbindAccountFromEmployeeResponse,
   UpdateAccountProfileResponse,
@@ -89,9 +82,6 @@ import {
   SetServiceAccountEnabledCommand,
   SetAccountWorkEmailAssetStatusCommand,
   SetAccountWorkPhoneAssetStatusCommand,
-  AddAccountOrgMembershipCommand,
-  RemoveAccountOrgMembershipCommand,
-  SetAccountPrimaryOrgCommand,
   UnbindAccountFromEmployeeCommand
 } from '../../application/commands'
 import { AccountDeletionImpactView, GetAccountDeletionImpactQuery } from '../../application/queries'
@@ -329,7 +319,9 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         displayName: request.displayName || undefined,
         username: request.username || undefined,
         email: request.email || undefined,
+        existingUserId: request.existingUserId || undefined,
         phone: request.phone || undefined,
+        idempotencyKey: request.idempotencyKey || undefined,
         operatorId,
         operatorScope
       })
@@ -346,7 +338,9 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         bio: account.bio ?? '',
         isEnabled: account.isEnabled,
         scopeLevel: account.scopeLevel
-      }
+      },
+      userPartyId: account.userPartyId ?? '',
+      userTenantPartyId: account.userTenantPartyId ?? ''
     }
   }
 
@@ -634,7 +628,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
         deletedSessionCount: Number(request.deletedSessionCount ?? 0),
         clearedRoleCount: Number(request.clearedRoleCount ?? 0),
         deletedPolicyCount: Number(request.deletedPolicyCount ?? 0),
-        deletedOrgMembershipCount: Number(result.deletedOrgMembershipCount ?? 0),
         deletedContactAssetCount: Number(result.deletedContactAssetCount ?? 0),
         userRetained: Boolean(result.userRetained)
       })
@@ -957,96 +950,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ORG_PERMISSION_CODES.ADD_ACCOUNT_MEMBERSHIP)
-  async addAccountOrgMembership(
-    request: AddAccountOrgMembershipRequest
-  ): Promise<AddAccountOrgMembershipResponse> {
-    const operatorId = getRequiredOperatorId(request)
-    const operatorScope = getOptionalOperatorScope(request)
-    return this.executeWithAudit(
-      {
-        eventType: 'ACCOUNT_ORG_MEMBERSHIP_ADDED',
-        module: 'org',
-        operatorId,
-        scope: { tenantId: null, orgId: request.orgId! },
-        resource: { resourceType: 'account_org_membership', resourceId: null },
-        details: {
-          accountId: request.accountId!,
-          orgId: request.orgId!
-        }
-      },
-      async () => {
-        const membership = await this.commandBus.execute(
-          new AddAccountOrgMembershipCommand(
-            request.accountId!,
-            request.orgId!,
-            operatorId,
-            operatorScope
-          )
-        )
-
-        this.identityAuditService.emitOrgMembershipEvent(
-          'ACCOUNT_ORG_MEMBERSHIP_ADDED',
-          operatorId,
-          {
-            accountId: request.accountId!,
-            orgId: request.orgId!,
-            membership
-          }
-        )
-
-        return {
-          membership: IdentityGrpcPresenter.toAccountOrgMembership(membership)
-        }
-      }
-    )
-  }
-
-  @RequirePermission(IDENTITY_ORG_PERMISSION_CODES.REMOVE_ACCOUNT_MEMBERSHIP)
-  async removeAccountOrgMembership(
-    request: RemoveAccountOrgMembershipRequest
-  ): Promise<RemoveAccountOrgMembershipResponse> {
-    const operatorId = getRequiredOperatorId(request)
-    const operatorScope = getOptionalOperatorScope(request)
-    return this.executeWithAudit(
-      {
-        eventType: 'ACCOUNT_ORG_MEMBERSHIP_REMOVED',
-        module: 'org',
-        operatorId,
-        scope: { tenantId: null, orgId: request.orgId! },
-        resource: { resourceType: 'account_org_membership', resourceId: null },
-        details: {
-          accountId: request.accountId!,
-          orgId: request.orgId!
-        }
-      },
-      async () => {
-        const membership = await this.commandBus.execute(
-          new RemoveAccountOrgMembershipCommand(
-            request.accountId!,
-            request.orgId!,
-            operatorId,
-            operatorScope
-          )
-        )
-
-        this.identityAuditService.emitOrgMembershipEvent(
-          'ACCOUNT_ORG_MEMBERSHIP_REMOVED',
-          operatorId,
-          {
-            accountId: request.accountId!,
-            orgId: request.orgId!,
-            membership
-          }
-        )
-
-        return {
-          membership: IdentityGrpcPresenter.toAccountOrgMembership(membership)
-        }
-      }
-    )
-  }
-
   async unbindAccountFromEmployee(
     request: UnbindAccountFromEmployeeRequest
   ): Promise<UnbindAccountFromEmployeeResponse> {
@@ -1080,60 +983,6 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
               })
             }
           : {}
-      }
-    )
-  }
-
-  @RequirePermission(IDENTITY_ORG_PERMISSION_CODES.SET_ACCOUNT_PRIMARY_ORG)
-  async setAccountPrimaryOrg(
-    request: SetAccountPrimaryOrgRequest
-  ): Promise<SetAccountPrimaryOrgResponse> {
-    const operatorId = getRequiredOperatorId(request)
-    const operatorScope = getOptionalOperatorScope(request)
-    return this.executeWithAudit(
-      {
-        eventType: 'ACCOUNT_PRIMARY_ORG_CHANGED',
-        module: 'org',
-        operatorId,
-        scope: {
-          tenantId: null,
-          orgId: Object.prototype.hasOwnProperty.call(request, 'orgId') ? request.orgId! : null
-        },
-        resource: { resourceType: 'account_org_membership', resourceId: null },
-        details: {
-          accountId: request.accountId!,
-          orgId: Object.prototype.hasOwnProperty.call(request, 'orgId') ? request.orgId! : null
-        }
-      },
-      async () => {
-        const membership = await this.commandBus.execute(
-          new SetAccountPrimaryOrgCommand(
-            request.accountId!,
-            Object.prototype.hasOwnProperty.call(request, 'orgId') ? request.orgId : undefined,
-            operatorId,
-            operatorScope
-          )
-        )
-
-        this.identityAuditService.emitOrgMembershipEvent(
-          'ACCOUNT_PRIMARY_ORG_CHANGED',
-          operatorId,
-          {
-            accountId: request.accountId!,
-            orgId: Object.prototype.hasOwnProperty.call(request, 'orgId')
-              ? request.orgId
-              : undefined,
-            membership
-          }
-        )
-
-        if (!membership) {
-          return {}
-        }
-
-        return {
-          membership: IdentityGrpcPresenter.toAccountOrgMembership(membership)
-        }
       }
     )
   }

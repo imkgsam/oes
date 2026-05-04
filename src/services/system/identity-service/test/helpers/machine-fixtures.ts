@@ -6,9 +6,9 @@ import {
 } from '../../src/common/constants'
 import { ApiKeyEntity } from '../../src/domain/entities/api-key.entity'
 import { ServiceAccountEntity } from '../../src/domain/entities/service-account.entity'
+import { TenantReferencePort } from '../../src/application/ports/tenant-reference.port'
 import { ApiKeyRepository } from '../../src/domain/repositories/api-key.repository'
 import { ServiceAccountRepository } from '../../src/domain/repositories/service-account.repository'
-import { TenantRepository } from '../../src/domain/repositories/tenant.repository'
 import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
 
 const DEFAULT_CREATED_AT = new Date('2026-03-28T00:00:00.000Z')
@@ -34,11 +34,10 @@ export function createServiceAccountRepositoryMock(): jest.Mocked<ServiceAccount
   } as unknown as jest.Mocked<ServiceAccountRepository>
 }
 
-export function createTenantRepositoryMock(): jest.Mocked<TenantRepository> {
+export function createTenantReferencePortMock(): jest.Mocked<TenantReferencePort> {
   return {
-    findById: jest.fn(),
-    list: jest.fn()
-  } as unknown as jest.Mocked<TenantRepository>
+    findById: jest.fn()
+  } as unknown as jest.Mocked<TenantReferencePort>
 }
 
 export function createServiceAccountFixture(
@@ -105,19 +104,6 @@ export function createApiKeyFixture(
     Object.prototype.hasOwnProperty.call(overrides, 'revokedAt') ? overrides.revokedAt! : null,
     Object.prototype.hasOwnProperty.call(overrides, 'revokedBy') ? overrides.revokedBy! : null
   )
-}
-
-export async function seedMachineTenant(
-  prisma: PrismaService,
-  prefix: string
-) {
-  return prisma.tenant.create({
-    data: {
-      id: `${prefix}_tenant`,
-      name: `${prefix}_tenant_name`,
-      code: `${prefix}_tenant_code`
-    }
-  })
 }
 
 export async function seedMachineServiceAccount(

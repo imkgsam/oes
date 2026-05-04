@@ -21,12 +21,10 @@ describe('账号删除', () => {
         userId: 'user-1',
         tenantId: 'tenant-1'
       }),
-      orgMembershipCount: 2,
       contactAssetCount: 1,
       blockingReasons: []
     })
     accountRepository.delete.mockResolvedValue({
-      deletedOrgMembershipCount: 2,
       deletedContactAssetCount: 1
     })
 
@@ -66,7 +64,6 @@ describe('账号删除', () => {
     expect(accountRepository.delete).toHaveBeenCalledWith('acc-1')
     expect(result).toEqual({
       accountId: 'acc-1',
-      deletedOrgMembershipCount: 2,
       deletedContactAssetCount: 1,
       userRetained: true
     })
@@ -93,7 +90,6 @@ describe('账号删除', () => {
         userId: 'user-2',
         tenantId: 'tenant-2'
       }),
-      orgMembershipCount: 0,
       contactAssetCount: 0,
       blockingReasons: []
     })

@@ -9,6 +9,7 @@ async function bootstrap() {
   initOtelSdk(process.env.MODULE_NAME || 'auth-service')
 
   const microservice = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
+    bufferLogs: true,
     transport: Transport.GRPC,
     options: {
       package: 'auth_service',

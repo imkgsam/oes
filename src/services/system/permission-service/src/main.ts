@@ -10,6 +10,7 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices'
 async function bootstrap() {
   initOtelSdk(process.env.MODULE_NAME || 'permission-service')
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
+    bufferLogs: true,
     transport: Transport.GRPC,
     options: {
       package: 'permission_service',

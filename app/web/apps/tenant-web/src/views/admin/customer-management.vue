@@ -62,6 +62,10 @@ async function loadCustomerAccounts() {
 
 /** openCreatePage keeps customer creation on the dedicated route instead of overloading the list view. */
 function openCreatePage() {
+  if (!canCreateCustomer.value) {
+    return
+  }
+
   router.push({
     name: 'TenantCustomerManagementCreate'
   })
@@ -69,6 +73,10 @@ function openCreatePage() {
 
 /** openDetailPage keeps phase 1 editing inside the customer detail route. */
 function openDetailPage(customerAccountId: string) {
+  if (!canViewCustomerDetail.value) {
+    return
+  }
+
   router.push({
     name: 'TenantCustomerManagementDetail',
     params: {
@@ -93,6 +101,7 @@ onMounted(() => {
         <div class="customer-page__hero-side">
           <span class="customer-pill">{{ activeTenantName }}</span>
           <button
+            v-access:code="'crm.customer_account.create'"
             v-if="canCreateCustomer"
             data-testid="customer-create-button"
             type="button"
@@ -159,6 +168,7 @@ onMounted(() => {
               </td>
               <td>
                 <button
+                  v-access:code="'crm.customer_account.get_by_id'"
                   v-if="canViewCustomerDetail"
                   :data-testid="`customer-detail-button-${customer.customerAccountId}`"
                   type="button"
@@ -234,8 +244,28 @@ onMounted(() => {
 
 .customer-filters {
   display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-items: center;
+  gap: 10px;
+  grid-template-columns: minmax(260px, 1.4fr) minmax(220px, 1fr) minmax(160px, 0.7fr) minmax(92px, 0.45fr);
+}
+
+.customer-filters input,
+.customer-filters select,
+.customer-filters button {
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+.customer-filters button {
+  justify-self: end;
+  min-width: 84px;
+  width: min(100%, 104px);
+}
+
+@media (max-width: 960px) {
+  .customer-filters {
+    grid-template-columns: 1fr;
+  }
 }
 
 .customer-note {

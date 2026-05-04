@@ -33,13 +33,7 @@ describe('PrismaAccountContactAssetRepository L2', () => {
   })
 
   async function seedAccountContext() {
-    const tenant = await prisma.tenant.create({
-      data: {
-        id: `${prefix}_tenant`,
-        name: `${prefix}_tenant_name`,
-        code: `${prefix}_tenant_code`
-      }
-    })
+    const tenant = { id: `${prefix}_tenant` }
 
     const user = await prisma.user.create({
       data: {
@@ -170,13 +164,7 @@ describe('PrismaAccountContactAssetRepository L2', () => {
 
   it('AccountContactAsset 仓储 / 当附加 tenant scope 与账户所属租户不匹配时 / 应返回空结果', async () => {
     const { tenant, account } = await seedAccountContext()
-    const otherTenant = await prisma.tenant.create({
-      data: {
-        id: `${prefix}_tenant_other`,
-        name: `${prefix}_tenant_name_other`,
-        code: `${prefix}_tenant_code_other`
-      }
-    })
+    const otherTenant = { id: `${prefix}_tenant_other` }
 
     await repository.assign({
       tenantId: tenant.id,

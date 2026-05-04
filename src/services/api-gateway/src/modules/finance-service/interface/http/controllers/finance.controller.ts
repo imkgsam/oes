@@ -9,15 +9,24 @@ import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-down
 import { FinanceService } from '../../../finance.service'
 import {
   AllocatePaymentToReceivableDto,
+  AllocatePaymentToPayableDto,
+  ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeDto,
   CreateFinancialAccountDto,
+  CreatePayableScheduleFromPurchaseOrderDto,
+  CreatePaymentRequestDto,
   CreateReceivableScheduleFromSalesOrderDto,
+  DecidePaymentRequestDto,
+  ExecutePaymentRequestDto,
   GetExchangeRateDto,
   ImportAccountTransactionsDto,
   RecordAccountTransactionDto,
   RegisterCustomerFinancialAccountDto,
   SearchAccountTransactionsDto,
   SearchFinancialAccountsDto,
+  SearchPayableSchedulesDto,
   SearchPaymentAllocationsDto,
+  SearchPaymentExecutionsDto,
+  SearchPaymentRequestsDto,
   SearchReceivableSchedulesDto,
   SetExchangeRateDto,
   SetFinanceReleaseSignalDto,
@@ -27,7 +36,7 @@ import {
 @ApiBearerAuth('JWT')
 @ApiTags('finance')
 @Controller('finance/tenants/:tenantId')
-// Exposes the tenant-scoped finance phase 1A BFF surface without widening the underlying finance-service contract.
+// Exposes the tenant-scoped finance phase 1A/1B BFF surface without widening the underlying finance-service contract.
 export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
@@ -217,7 +226,7 @@ export class FinanceController {
 
   @Get('payment-allocations')
   @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_PAYMENT_ALLOCATION])
-  @ApiOperation({ summary: 'Search finance payment allocations linked to receivable schedules' })
+  @ApiOperation({ summary: 'Search finance payment allocations linked to receivable or payable schedules' })
   async searchPaymentAllocations(
     @Param('tenantId') tenantId: string,
     @Query() query: SearchPaymentAllocationsDto,
@@ -236,5 +245,139 @@ export class FinanceController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.financeService.allocatePaymentToReceivable(tenantId, body, source)
+  }
+
+  @Get('payable-schedules')
+  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.READ_PAYABLE])
+  @ApiOperation({ summary: 'Search finance payable schedules for the phase 1B finance workspace' })
+  // searchPayableSchedules exposes finance-owned payable summaries without leaking finance-service internals.
+  async searchPayableSchedules(
+    @Param('tenantId') tenantId: string,
+    @Query() query: SearchPayableSchedulesDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.financeService.searchPayableSchedules(tenantId, query, source)
+  }
+
+  @Get('payable-schedules/:payableScheduleId')
+  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.READ_PAYABLE])
+  @ApiOperation({ summary: 'Get one finance payable schedule detail snapshot' })
+  // getPayableSchedule exposes one payable schedule detail while preserving payable truth ownership in finance-service.
+  async getPayableSchedule(
+    @Param('tenantId') tenantId: string,
+    @Param('payableScheduleId') payableScheduleId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.financeService.getPayableSchedule(tenantId, payableScheduleId, source)
+  }
+
+  @Get('payment-requests')
+  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.READ_PAYABLE])
+  @ApiOperation({ summary: 'Search finance payment requests for phase 1B payment governance' })
+  // searchPaymentRequests exposes payment request summaries as governance records, not payable truth.
+  async searchPaymentRequests(
+    @Param('tenantId') tenantId: string,
+    @Query() query: SearchPaymentRequestsDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.financeService.searchPaymentRequests(tenantId, query, source)
+  }
+
+  @Get('payment-executions')
+  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.READ_PAYABLE])
+  @ApiOperation({ summary: 'Search finance payment execution records without exposing account balances' })
+  // searchPaymentExecutions exposes payment execution records without turning them into real account transactions.
+  async searchPaymentExecutions(
+    @Param('tenantId') tenantId: string,
+    @Query() query: SearchPaymentExecutionsDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.financeService.searchPaymentExecutions(tenantId, query, source)
+  }
+
+  @Post('payable-schedules/from-purchase-order')
+  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_PAYABLE_FROM_PURCHASE_ORDER])
+  @ApiOperation({ summary: 'Create one finance payable schedule from a controlled purchase-order summary' })
+  @ApiBody({ type: CreatePayableScheduleFromPurchaseOrderDto })
+  // createPayableScheduleFromPurchaseOrder forwards PO-derived payable creation to finance-service without touching Procurement runtime.
+  async createPayableScheduleFromPurchaseOrder(
+    @Param('tenantId') tenantId: string,
+    @Body() body: CreatePayableScheduleFromPurchaseOrderDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.financeService.createPayableScheduleFromPurchaseOrder(tenantId, body, source)
+  }
+
+  @Post('payable-schedules/from-purchase-order-change')
+  @PermissionCheckAll([
+    FINANCE_MANAGEMENT_PERMISSION_CODES.ADJUST_PAYABLE_FROM_PURCHASE_ORDER_CHANGE
+  ])
+  @ApiOperation({ summary: 'Apply one controlled purchase-order change to finance payable schedules' })
+  @ApiBody({ type: ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeDto })
+  // applyPayableScheduleAdjustmentFromPurchaseOrderChange forwards PO-change adjustments without mutating PO owner truth.
+  async applyPayableScheduleAdjustmentFromPurchaseOrderChange(
+    @Param('tenantId') tenantId: string,
+    @Body() body: ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.financeService.applyPayableScheduleAdjustmentFromPurchaseOrderChange(
+      tenantId,
+      body,
+      source
+    )
+  }
+
+  @Post('payment-requests')
+  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_PAYMENT_REQUEST])
+  @ApiOperation({ summary: 'Create one phase 1B payment request without changing payable truth' })
+  @ApiBody({ type: CreatePaymentRequestDto })
+  // createPaymentRequest forwards a payment governance command without making PaymentRequest the payable source of truth.
+  async createPaymentRequest(
+    @Param('tenantId') tenantId: string,
+    @Body() body: CreatePaymentRequestDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.financeService.createPaymentRequest(tenantId, body, source)
+  }
+
+  @Post('payment-requests/:paymentRequestId/decisions')
+  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.DECIDE_PAYMENT_REQUEST])
+  @ApiOperation({ summary: 'Approve or reject one phase 1B payment request' })
+  @ApiBody({ type: DecidePaymentRequestDto })
+  // decidePaymentRequest forwards approval decisions without implying money has moved.
+  async decidePaymentRequest(
+    @Param('tenantId') tenantId: string,
+    @Param('paymentRequestId') paymentRequestId: string,
+    @Body() body: DecidePaymentRequestDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.financeService.decidePaymentRequest(tenantId, paymentRequestId, body, source)
+  }
+
+  @Post('payment-requests/:paymentRequestId/executions')
+  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_PAYMENT_EXECUTION])
+  @ApiOperation({ summary: 'Record one phase 1B payment execution without creating account-transaction truth' })
+  @ApiBody({ type: ExecutePaymentRequestDto })
+  // executePaymentRequest forwards execution records while keeping AccountTransaction as separate funds truth.
+  async executePaymentRequest(
+    @Param('tenantId') tenantId: string,
+    @Param('paymentRequestId') paymentRequestId: string,
+    @Body() body: ExecutePaymentRequestDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.financeService.executePaymentRequest(tenantId, paymentRequestId, body, source)
+  }
+
+  @Post('payment-allocations/allocate-to-payable')
+  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_PAYMENT_ALLOCATION])
+  @ApiOperation({ summary: 'Allocate one real outflow transaction to payable schedule lines' })
+  @ApiBody({ type: AllocatePaymentToPayableDto })
+  // allocatePaymentToPayable forwards real outflow allocations to finance-service payable lines.
+  async allocatePaymentToPayable(
+    @Param('tenantId') tenantId: string,
+    @Body() body: AllocatePaymentToPayableDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.financeService.allocatePaymentToPayable(tenantId, body, source)
   }
 }

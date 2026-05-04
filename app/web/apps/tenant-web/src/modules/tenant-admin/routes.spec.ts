@@ -2,12 +2,6 @@ import { describe, expect, it } from 'vitest'
 
 import tenantAdminRoutes from './routes'
 
-function resolveRedirect(route: { redirect?: unknown }, query: Record<string, string>) {
-  return typeof route.redirect === 'function'
-    ? route.redirect({ query } as any)
-    : route.redirect
-}
-
 describe('tenant admin routes', () => {
   it('keeps the system org-management workbench on one stable tab key even when orgUnitId query changes', () => {
     const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
@@ -19,7 +13,7 @@ describe('tenant admin routes', () => {
     expect(orgManagementRoute?.meta?.fullPathKey).toBe(false)
   })
 
-  it('binds the unified organization-people entry and its child tabs to the dedicated entry key', () => {
+  it('removes the legacy organization-people routes after splitting org and employee settings pages', () => {
     const settingsRoute = tenantAdminRoutes.find((route) => route.name === 'TenantSettings')
     const organizationPeopleRoute = settingsRoute?.children?.find(
       (route) => route.name === 'TenantOrganizationPeople'
@@ -31,17 +25,12 @@ describe('tenant admin routes', () => {
       (route) => route.name === 'TenantOrganizationPeopleDepartments'
     )
 
-    expect(organizationPeopleRoute?.meta?.entryKey).toBe(
-      'tenant-settings.organization-people'
-    )
-    expect(organizationPeopleRoute?.meta?.fullPathKey).toBe(false)
-    expect(membersRoute?.meta?.entryKey).toBe('tenant-settings.organization-people')
-    expect(departmentsRoute?.meta?.entryKey).toBe('tenant-settings.organization-people')
-    expect(membersRoute?.meta?.activePath).toBe('/settings/organization-people')
-    expect(departmentsRoute?.meta?.activePath).toBe('/settings/organization-people')
+    expect(organizationPeopleRoute).toBeUndefined()
+    expect(membersRoute).toBeUndefined()
+    expect(departmentsRoute).toBeUndefined()
   })
 
-  it('keeps the legacy organization and employee jump routes on their original entry keys', () => {
+  it('binds the split organization and employee pages to their dedicated entry keys', () => {
     const settingsRoute = tenantAdminRoutes.find((route) => route.name === 'TenantSettings')
     const legacyEmployeeRoute = settingsRoute?.children?.find(
       (route) => route.name === 'TenantEmployeeEmploymentManagement'
@@ -51,20 +40,34 @@ describe('tenant admin routes', () => {
     )
 
     expect(legacyOrgRoute?.meta?.entryKey).toBe('tenant-settings.org-structure')
+    expect(legacyOrgRoute?.component).toBeTypeOf('function')
+    expect(legacyOrgRoute?.meta?.hideInMenu).toBeUndefined()
+    expect(legacyOrgRoute?.meta?.title).toBe('组织架构')
     expect(legacyEmployeeRoute?.meta?.entryKey).toBe(
       'tenant-settings.employee-employment'
     )
+    expect(legacyEmployeeRoute?.component).toBeTypeOf('function')
+    expect(legacyEmployeeRoute?.meta?.hideInMenu).toBeUndefined()
+    expect(legacyEmployeeRoute?.meta?.title).toBe('员工管理')
   })
 
-  it('uses the organization people root route as the single visible workbench entry', () => {
+  it('adds hidden department and employee detail routes under the split settings pages', () => {
     const settingsRoute = tenantAdminRoutes.find((route) => route.name === 'TenantSettings')
-    const organizationPeopleRoute = settingsRoute?.children?.find(
-      (route) => route.name === 'TenantOrganizationPeople'
+    const orgDetailRoute = settingsRoute?.children?.find(
+      (route) => route.name === 'TenantOrgUnitDetail'
+    )
+    const employeeDetailRoute = settingsRoute?.children?.find(
+      (route) => route.name === 'TenantEmployeeDetail'
     )
 
-    expect(typeof organizationPeopleRoute?.redirect).toBe('undefined')
-    expect(organizationPeopleRoute?.path).toBe('/settings/organization-people')
-    expect(organizationPeopleRoute?.meta?.fullPathKey).toBe(false)
+    expect(orgDetailRoute?.path).toBe('/settings/org-structure/:orgUnitId')
+    expect(orgDetailRoute?.meta?.entryKey).toBe('tenant-settings.org-structure')
+    expect(orgDetailRoute?.meta?.activePath).toBe('/settings/org-structure')
+    expect(orgDetailRoute?.meta?.hideInMenu).toBe(true)
+    expect(employeeDetailRoute?.path).toBe('/settings/employee-employment/:employeeId')
+    expect(employeeDetailRoute?.meta?.entryKey).toBe('tenant-settings.employee-employment')
+    expect(employeeDetailRoute?.meta?.activePath).toBe('/settings/employee-employment')
+    expect(employeeDetailRoute?.meta?.hideInMenu).toBe(true)
   })
 
   it('binds item list, create, and detail routes to the dedicated master-data item entry', () => {
@@ -233,29 +236,4 @@ describe('tenant admin routes', () => {
     expect(receivableDetailRoute?.meta?.activePath).toBe('/finance/dashboard')
   })
 
-  it('redirects legacy employee and org settings routes into the unified workbench tabs', () => {
-    const settingsRoute = tenantAdminRoutes.find((route) => route.name === 'TenantSettings')
-    const legacyEmployeeRoute = settingsRoute?.children?.find(
-      (route) => route.name === 'TenantEmployeeEmploymentManagement'
-    )
-    const legacyOrgRoute = settingsRoute?.children?.find(
-      (route) => route.name === 'TenantOrgStructureManagement'
-    )
-
-    expect(resolveRedirect(legacyEmployeeRoute ?? {}, {
-      employeeId: 'employee-9'
-    })).toEqual({
-      name: 'TenantOrganizationPeople',
-      query: {}
-    })
-
-    expect(resolveRedirect(legacyOrgRoute ?? {}, {
-      orgUnitId: 'org-9'
-    })).toEqual({
-      name: 'TenantOrganizationPeople',
-      query: {
-        tab: 'departments'
-      }
-    })
-  })
 })

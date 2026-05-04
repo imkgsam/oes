@@ -35,6 +35,8 @@
   - 管理员安全管理接口
 - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
   - 权限管理后台接口
+- [tenant-onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/tenant-onboarding.md)
+  - Tenant onboarding BFF 目标契约草案；当前为设计对齐用，尚未实现
 - [browser-prospecting-workspace.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/browser-prospecting-workspace.md)
   - Chrome 插件销售背调工作区 BFF 契约草案；当前为设计对齐用，尚未实现
 

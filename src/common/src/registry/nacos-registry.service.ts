@@ -27,7 +27,8 @@ export class NacosRegistryService implements ServiceRegistry, OnModuleInit, OnMo
   }
 
   async onModuleInit(): Promise<void> {
-    console.log('in onModuleInit')
+    this.logger.debug('Nacos registry module initializing')
+
     if (!this.namingClientProvider.isReady()) {
       this.logger.warn('Nacos naming client not initialized. Skipping registration.')
       return

@@ -2,7 +2,6 @@ import {
   AccountContactAsset,
   AccountDeletionBlockingReason,
   AccountDeletionCleanupPlan,
-  AccountOrgMembership,
   AuditEventRecord,
   ApiKey,
   DeleteAccountResponse,
@@ -13,7 +12,6 @@ import {
 import {
   AccountContactAssetView,
   AccountDeletionImpactView,
-  AccountOrgMembershipView,
   AuditEventView,
   ApiKeyView,
   EmployeeBindingSummaryView,
@@ -28,7 +26,6 @@ export class IdentityGrpcPresenter {
     return {
       willDeleteSessions: plan.willDeleteSessions,
       willClearRoles: plan.willClearRoles,
-      willDeleteOrgMemberships: plan.willDeleteOrgMemberships,
       willDeleteContactAssets: plan.willDeleteContactAssets
     }
   }
@@ -54,7 +51,6 @@ export class IdentityGrpcPresenter {
       blockingReasons: impact.blockingReasons.map((reason) =>
         this.toAccountDeletionBlockingReason(reason)
       ),
-      orgMembershipCount: impact.orgMembershipCount,
       contactAssetCount: impact.contactAssetCount
     }
   }
@@ -70,18 +66,6 @@ export class IdentityGrpcPresenter {
       isPrimary: asset.isPrimary,
       assignedAt: asset.assignedAt.toISOString(),
       revokedAt: asset.revokedAt?.toISOString() ?? ''
-    }
-  }
-
-  static toAccountOrgMembership(membership: AccountOrgMembershipView): AccountOrgMembership {
-    return {
-      id: membership.id,
-      accountId: membership.accountId,
-      orgId: membership.orgId,
-      orgName: membership.orgName ?? '',
-      orgType: membership.orgType ?? '',
-      relationType: membership.relationType,
-      isPrimary: membership.isPrimary
     }
   }
 
@@ -149,7 +133,6 @@ export class IdentityGrpcPresenter {
   static toDeleteAccountResponse(result: DeleteAccountResult): DeleteAccountResponse {
     return {
       accountId: result.accountId,
-      deletedOrgMembershipCount: result.deletedOrgMembershipCount,
       deletedContactAssetCount: result.deletedContactAssetCount,
       userRetained: result.userRetained
     }

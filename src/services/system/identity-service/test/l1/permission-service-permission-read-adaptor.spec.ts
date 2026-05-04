@@ -10,8 +10,8 @@ describe('permission service permission read adaptor', () => {
     const listRolePermissions = jest.fn().mockReturnValue(
       of({
         permissions: [
-          { code: 'identity.org.membership.add' },
-          { code: 'identity.org.membership.add' },
+          { code: 'identity.contact.work_email.assign' },
+          { code: 'identity.contact.work_email.assign' },
           { code: 'identity.contact.work_email.assign' }
         ]
       })
@@ -38,7 +38,6 @@ describe('permission service permission read adaptor', () => {
 
     expect(listRolePermissions).toHaveBeenCalledTimes(1)
     expect(first).toEqual([
-      'identity.org.membership.add',
       'identity.contact.work_email.assign'
     ])
     expect(second).toEqual(first)
@@ -49,8 +48,8 @@ describe('permission service permission read adaptor', () => {
       of({
         permissions:
           request.roleId === 'role-a'
-            ? [{ code: 'identity.org.membership.add' }]
-            : [{ code: 'identity.org.membership.remove' }]
+            ? [{ code: 'identity.contact.work_email.assign' }]
+            : [{ code: 'identity.contact.work_phone.assign' }]
       })
     )
     const client = {
@@ -74,11 +73,11 @@ describe('permission service permission read adaptor', () => {
     const permissionsB = await adaptor.listPermissionCodesByRoleId('role-b')
 
     expect(listRolePermissions).toHaveBeenCalledTimes(2)
-    expect(permissionsA).toEqual(['identity.org.membership.add'])
-    expect(permissionsB).toEqual(['identity.org.membership.remove'])
+    expect(permissionsA).toEqual(['identity.contact.work_email.assign'])
+    expect(permissionsB).toEqual(['identity.contact.work_phone.assign'])
   })
 
-  it('应在存在 operator context 时透传 operator-scoped metadata', async () => {
+  it('应在存在 request context 时透传 internal metadata', async () => {
     const listRolePermissions = jest.fn().mockReturnValue(
       of({
         permissions: [{ code: 'identity.contact.work_email.assign' }]
@@ -122,31 +121,22 @@ describe('permission service permission read adaptor', () => {
     )
 
     expect(permissions).toEqual(['identity.contact.work_email.assign'])
-    expect(metadataFactory.createOperatorScopedMetadata).toHaveBeenCalledWith({
-      callerServiceName: 'unknown-service',
+    expect(metadataFactory.createInternalCallMetadata).toHaveBeenCalledWith({
+      callerServiceName: 'identity-service',
       requestId: 'request-1',
-      traceId: 'trace-1',
-      operatorContext: {
-        operatorId: 'account-1',
-        operatorType: 'USER',
-        tenantId: undefined,
-        orgId: undefined,
-        operatorRoles: ['role-1'],
-        requestId: 'request-1',
-        traceId: 'trace-1'
-      }
+      traceId: 'trace-1'
     })
   })
 
-  it('应在 guard 阶段显式传入 operator context 时透传 operator-scoped metadata', async () => {
-    const listRolePermissions = jest.fn().mockReturnValue(
+  it('应按 operator context 读取 account access summary', async () => {
+    const getAccountAccessSummary = jest.fn().mockReturnValue(
       of({
-        permissions: [{ code: 'identity.org.membership.add' }]
+        actionCodes: ['identity.contact.work_email.assign']
       })
     )
     const client = {
       getService: jest.fn().mockReturnValue({
-        listRolePermissions
+        getAccountAccessSummary
       })
     } as any
     const metadataFactory: GrpcMetadataPropagationFactory = {
@@ -159,11 +149,10 @@ describe('permission service permission read adaptor', () => {
       new GrpcRequestContextStore()
     )
 
-    adaptor.onModuleInit()
-
-    const permissions = await adaptor.listPermissionCodesByRoleId('role-guard', {
+    const permissions = await adaptor.listPermissionCodesByOperatorContext({
       operator_id: 'account-guard',
       operator_type: 'USER',
+      tenant_id: 'tenant-guard',
       operator_roles: ['role-guard'],
       request_id: 'request-guard',
       trace_id: 'trace-guard',
@@ -173,20 +162,19 @@ describe('permission service permission read adaptor', () => {
       signature: 'signed'
     })
 
-    expect(permissions).toEqual(['identity.org.membership.add'])
-    expect(metadataFactory.createOperatorScopedMetadata).toHaveBeenCalledWith({
-      callerServiceName: 'unknown-service',
+    expect(permissions).toEqual(['identity.contact.work_email.assign'])
+    expect(getAccountAccessSummary).toHaveBeenCalledWith(
+      {
+        accountId: 'account-guard',
+        tenantId: 'tenant-guard',
+        scopeLevel: 'TENANT'
+      },
+      { kind: 'internal' }
+    )
+    expect(metadataFactory.createInternalCallMetadata).toHaveBeenCalledWith({
+      callerServiceName: 'identity-service',
       requestId: undefined,
-      traceId: undefined,
-      operatorContext: {
-        operatorId: 'account-guard',
-        operatorType: 'USER',
-        tenantId: undefined,
-        orgId: undefined,
-        operatorRoles: ['role-guard'],
-        requestId: 'request-guard',
-        traceId: 'trace-guard'
-      }
+      traceId: undefined
     })
   })
 })

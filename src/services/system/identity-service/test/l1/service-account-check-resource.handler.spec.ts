@@ -2,17 +2,13 @@ import { ACCESS_DENIED } from '@oes/common/exceptions'
 import { CheckResourceService } from '../../src/application/authorization'
 import { GetAccountByIdHandler } from '../../src/application/queries/account/get-account-by-id.handler'
 import { GetAccountByIdQuery } from '../../src/application/queries/account/get-account-by-id.query'
-import { GetOrgTreeByTenantIdHandler } from '../../src/application/queries/org/get-org-tree-by-tenant-id.handler'
-import { GetOrgTreeByTenantIdQuery } from '../../src/application/queries/org/get-org-tree-by-tenant-id.query'
 import { GetApiKeyByIdHandler } from '../../src/application/queries/service-account/get-api-key-by-id.handler'
 import { GetApiKeyByIdQuery } from '../../src/application/queries/service-account/get-api-key-by-id.query'
 import { GetServiceAccountByIdHandler } from '../../src/application/queries/service-account/get-service-account-by-id.handler'
 import { GetServiceAccountByIdQuery } from '../../src/application/queries/service-account/get-service-account-by-id.query'
 import {
   createAccountRepositoryMock,
-  createAccountSummaryFixture,
-  createOrgNodeFixture,
-  createOrgRepositoryMock
+  createAccountSummaryFixture
 } from '../helpers/identity-fixtures'
 import {
   createApiKeyFixture,
@@ -67,32 +63,6 @@ describe('service-account detail checkResource handlers', () => {
       handler.execute(
         new GetServiceAccountByIdQuery('11111111-1111-1111-1111-111111111111', {
           operatorId: 'operator-1',
-          tenantId: 'tenant-a',
-          isSystemScope: false
-        })
-      )
-    ).rejects.toMatchObject({
-      definition: expect.objectContaining({
-        code: ACCESS_DENIED.code
-      })
-    })
-  })
-
-  it('getOrgTreeByTenantId / 应拒绝 tenant scope 读取其他 tenant 的组织树', async () => {
-    const orgRepository = createOrgRepositoryMock()
-    orgRepository.findTreeByTenantId.mockResolvedValue([
-      createOrgNodeFixture({
-        id: 'org-1',
-        tenantId: 'tenant-b'
-      })
-    ])
-
-    const handler = new GetOrgTreeByTenantIdHandler(orgRepository, new CheckResourceService())
-
-    await expect(
-      handler.execute(
-        new GetOrgTreeByTenantIdQuery('55555555-5555-5555-5555-555555555555', {
-          operatorId: 'operator-5',
           tenantId: 'tenant-a',
           isSystemScope: false
         })

@@ -1077,11 +1077,11 @@ watch(activeTab, (tab) => {
                         </div>
 
                         <Button
-                          v-if="capability.type.endsWith('PASSWORD') && !capability.hasPassword"
+                          v-if="capability.actionDisabled"
                           disabled
                           size="small"
                         >
-                          先设置密码
+                          {{ capability.disabledLabel }}
                         </Button>
                         <Button
                           v-else

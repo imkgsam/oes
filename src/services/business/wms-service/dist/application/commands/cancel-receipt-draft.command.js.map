@@ -1,0 +1,1 @@
+{"version":3,"file":"cancel-receipt-draft.command.js","sourceRoot":"","sources":["../../../src/application/commands/cancel-receipt-draft.command.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,qDAAuC;AAQvC,mGAAmG;AACnG,MAAa,yBAAyB;IAIpC,YAAY,OAAkC;QAC5C,IAAI,CAAC,OAAO,GAAG,OAAO,CAAA;IACxB,CAAC;CACF;AAPD,8DAOC;AALiB;IADf,IAAA,uBAAK,GAAE;;0DAC0C"}

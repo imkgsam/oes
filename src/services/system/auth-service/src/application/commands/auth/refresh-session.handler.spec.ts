@@ -43,6 +43,63 @@ function createSessionFixture(input: {
 }
 
 describe('RefreshSessionHandler', () => {
+  it('rejects refresh for a tenant-scope session when the tenant is no longer active', async () => {
+    const existingRefreshToken = 'refresh-token-tenant'
+    const session = createSessionFixture({
+      id: 'session-tenant',
+      userId: 'user-1',
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      refreshToken: existingRefreshToken
+    })
+    const jwtService = {
+      verifyAsync: jest.fn().mockResolvedValue({
+        sid: 'session-tenant',
+        tokenType: 'refresh'
+      }),
+      signAccessToken: jest.fn(),
+      signRefreshToken: jest.fn()
+    } as unknown as CommonJwtService
+    const sessionRepository = {
+      findById: jest.fn().mockResolvedValue(session),
+      findByRefreshToken: jest.fn().mockResolvedValue(session),
+      save: jest.fn(),
+      delete: jest.fn().mockResolvedValue(undefined)
+    }
+    const tenantSessionAccessService = {
+      assertSessionCanContinue: jest.fn().mockRejectedValue(new Error('tenant inactive'))
+    }
+    const handler = new RefreshSessionHandler(
+      jwtService,
+      { get: jest.fn().mockReturnValue({}) } as unknown as ConfigService,
+      {
+        getAccountAuthorizationSummary: jest.fn()
+      } as any,
+      {
+        userRequiresPasswordSetup: jest.fn()
+      } as unknown as PasswordSetupRequirementService,
+      sessionRepository as any,
+      new AuthAuditService({ emit: jest.fn() } as unknown as EventEmitter2),
+      {
+        markTrustedDeviceSeen: jest.fn()
+      } as unknown as TrustedDeviceService,
+      tenantSessionAccessService as any
+    )
+
+    await expect(handler.execute(new RefreshSessionCommand(existingRefreshToken))).rejects.toThrow(
+      'tenant inactive'
+    )
+
+    expect(tenantSessionAccessService.assertSessionCanContinue).toHaveBeenCalledWith({
+      sessionId: 'session-tenant',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT'
+    })
+    expect(sessionRepository.delete).toHaveBeenCalledWith('session-tenant')
+    expect(sessionRepository.save).not.toHaveBeenCalled()
+    expect((jwtService as any).signAccessToken).not.toHaveBeenCalled()
+  })
+
   it('reissues access and refresh tokens with role ids resolved from permission-service', async () => {
     const existingRefreshToken = 'refresh-token-1'
     const session = createSessionFixture({
@@ -100,7 +157,10 @@ describe('RefreshSessionHandler', () => {
       } as unknown as PasswordSetupRequirementService,
       sessionRepository as any,
       authAuditService,
-      trustedDeviceService
+      trustedDeviceService,
+      {
+        assertSessionCanContinue: jest.fn().mockResolvedValue(undefined)
+      } as any
     )
 
     const result = await handler.execute(new RefreshSessionCommand(existingRefreshToken))

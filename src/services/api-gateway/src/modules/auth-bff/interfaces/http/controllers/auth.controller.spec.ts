@@ -624,7 +624,7 @@ describe('AuthController', () => {
     completeFirstLoginPasswordSetupUseCase.execute.mockResolvedValue({ completed: true })
     await expect(
       controller.adminListAccounts(
-        { page: 1, pageSize: 20, scopeLevel: 'TENANT', status: 'ENABLED' } as any,
+        { page: 1, pageSize: 20, scopeLevel: 'TENANT', status: 'ENABLED', tenantId: 'tenant-1' } as any,
         source as any
       )
     ).resolves.toEqual({
@@ -765,7 +765,7 @@ describe('AuthController', () => {
       source
     )
     expect(adminSecurityUseCase.listAccounts).toHaveBeenCalledWith(
-      { page: 1, pageSize: 20, scopeLevel: 'TENANT', status: 'ENABLED' },
+      { page: 1, pageSize: 20, scopeLevel: 'TENANT', status: 'ENABLED', tenantId: 'tenant-1' },
       source
     )
     expect(adminSecurityUseCase.createAccount).toHaveBeenCalledWith(
@@ -874,11 +874,9 @@ describe('AuthController', () => {
       cleanupPlan: {
         willDeleteSessions: true,
         willClearRoles: true,
-        willDeleteOrgMemberships: true,
         willDeleteContactAssets: true
       },
       blockingReasons: [],
-      orgMembershipCount: 1,
       contactAssetCount: 2
     })
     adminSecurityUseCase.deleteAccount.mockResolvedValue({
@@ -887,7 +885,6 @@ describe('AuthController', () => {
       deletedSessionCount: 3,
       clearedRoleCount: 2,
       deletedPolicyCount: 2,
-      deletedOrgMembershipCount: 1,
       deletedContactAssetCount: 2,
       userRetained: true
     })
@@ -909,7 +906,6 @@ describe('AuthController', () => {
       deletedSessionCount: 3,
       clearedRoleCount: 2,
       deletedPolicyCount: 2,
-      deletedOrgMembershipCount: 1,
       deletedContactAssetCount: 2,
       userRetained: true
     })

@@ -12,7 +12,9 @@ export class Role {
     public isEnabled: boolean,
     public description?: string,
     public templateRoleId: string | null = null,
-    private _permissions: RolePermission[] = []
+    private _permissions: RolePermission[] = [],
+    public allowTenantPermissionOverride: boolean = true,
+    public isProtected: boolean = false
   ) {}
 
   get isSystem(): boolean {

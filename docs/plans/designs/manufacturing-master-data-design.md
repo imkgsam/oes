@@ -2,6 +2,8 @@
 
 > 来源：`mes-service` 设计线程派生草稿。本文不是稳定真相源，用于给后续主数据线程提供恢复入口。
 
+> 2026-05-04 收口：当前阶段不建立独立 `product-service`。`ManufacturingSpec` 归 `mes-service`，`item-master-service` 只提供 `manufacturable` 且 `PHYSICAL` 的 `Item` 准入边界。
+
 ## 1. 目标
 
 - 冻结 `mes-service` 所依赖的最小产品/制造主数据边界。
@@ -10,9 +12,10 @@
 
 ## 2. 当前判断
 
-- 不应直接把“独立产品主数据服务”视为默认正确答案。
-- 更合理的当前表述是：OES 需要冻结 `product + manufacturing master data` 边界，但服务化形态仍可后定。
-- `mes-service` 第一阶段不能自己长期拥有产品主数据真相，否则后续会在模具、工艺、质量、销售协同处失控。
+- 不建立独立 `product-service`。
+- `item-master-service` 继续承担 Item 基础主数据、能力、套装组成与供应商型号映射真相。
+- `ManufacturingSpec` 在当前阶段归 `mes-service`，因为它直接服务模具适配、工艺路线、WIP 属性锁定与制造现场执行。
+- `mes-service` 不能反向接管 Item code/name/category/composition 等 Item 主数据真相。
 
 ## 3. 推荐对象分层
 
@@ -28,6 +31,7 @@
 ### 3.2 `Manufacturing Spec`
 
 - 表达“会影响制造路线、模具适配、工序参数、质检规则”的制造规格。
+- 当前 owner 为 `mes-service`。
 - 它不应直接等同销售 SKU。
 - 典型属性包括：
   - 洗手盆：单孔 / 三孔、三孔四寸 / 三孔八寸
@@ -177,24 +181,23 @@
 ## 7. 对 `mes-service` 的直接影响
 
 - `mes-service` 需要消费：
-  - `Product Family`
-  - `Manufacturing Spec`
-  - `Mold Definition`
-  - `Route Template`
-  - `Step Definition`
+  - `item-master-service` 的 `manufacturable + PHYSICAL Item` 准入边界
 - `mes-service` 自己长期拥有的是：
+  - `ManufacturingSpec`
+  - `MoldDesign`
+  - `Routing` / `Operation` 等制造路线与工序定义
   - `Wip Attribute Snapshot`
   - 模具/泥浆/釉料/窑次的使用事实
 - `mes-service` 不应成为：
   - 产品目录真相服务
   - 销售 SKU 真相服务
-  - 完整工艺主数据真相服务
+  - PIM / PLM 或跨域 Item 主数据真相服务
 
 ## 8. 当前推荐结论
 
-- 不要先假定“独立产品主数据服务”一定正确。
-- 先冻结 `product + manufacturing master data` 领域边界。
-- 在实现上可先由一个较粗粒度主数据模块或服务承载，再根据证据拆分。
+- 不建立独立 `product-service`。
+- `ManufacturingSpec` 归 `mes-service`，并通过 `manufacturable + PHYSICAL Item` 引用 `item-master-service` 的 Item 准入边界。
+- `item-master-service` 不承载制造规格、路线、工序参数、模具适配或 WIP 语义。
 
 ## 9. 建议后续线程要回答的问题
 

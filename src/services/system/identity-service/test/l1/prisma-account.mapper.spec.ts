@@ -18,8 +18,30 @@ describe('PrismaAccountDirectoryMapper', () => {
       User: {
         username: 'chen.shuangwu'
       }
-    })
+    } as any)
 
-    expect(result.userDisplayName).toBe('陈双武')
+    expect(result.displayName).toBe('陈双武')
+  })
+
+  it('does not use legacy local tenant active state when mapping account enabled state', () => {
+    const result = PrismaAccountDirectoryMapper.toDomain({
+      id: 'account-1',
+      userId: 'user-1',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT',
+      avatarUrl: null,
+      displayName: 'Tenant Account',
+      bio: null,
+      isEnable: true,
+      Tenant: {
+        isActive: false,
+        name: 'Legacy Local Tenant'
+      },
+      User: {
+        username: 'tenant.account'
+      }
+    } as any)
+
+    expect(result.isEnabled).toBe(true)
   })
 })

@@ -7,6 +7,8 @@ import {
 } from '@oes/common/authorization'
 import { QueryBus } from '@nestjs/cqrs'
 import { ValidatingQueryBus } from '@oes/common/cqrs'
+import { CountTenantAccountsHandler } from '../../src/application/queries/account/count-tenant-accounts.handler'
+import { CountTenantAccountsQuery } from '../../src/application/queries/account/count-tenant-accounts.query'
 import { ListAccountsHandler } from '../../src/application/queries/account/list-accounts.handler'
 import { ListAccountsQuery } from '../../src/application/queries/account/list-accounts.query'
 import { AccountDirectoryEntity } from '../../src/domain/entities/account-directory.entity'
@@ -88,6 +90,88 @@ describe('list accounts query', () => {
     })
   })
 
+  it('listAccounts / system scope 可显式限定来源租户查询账号目录', async () => {
+    const accountRepository = createAccountRepositoryMock()
+    accountRepository.list.mockResolvedValue({ items: [], total: 0 })
+    const authorizationQueryScopeService = {
+      build: jest.fn().mockReturnValue({ tenantId: undefined })
+    }
+    const handler = new ListAccountsHandler(
+      accountRepository,
+      authorizationQueryScopeService as never
+    )
+
+    await handler.execute(
+      new ListAccountsQuery({
+        keyword: 'existing',
+        page: 1,
+        pageSize: 10,
+        scopeLevel: 'TENANT',
+        status: 'ENABLED',
+        tenantId: 'tenant-source-1',
+        operatorScope: {
+          operatorId: 'operator-1',
+          isSystemScope: true
+        }
+      })
+    )
+
+    expect(accountRepository.list).toHaveBeenCalledWith({
+      keyword: 'existing',
+      page: 1,
+      pageSize: 10,
+      scopeLevel: 'TENANT',
+      status: 'ENABLED',
+      tenantId: 'tenant-source-1'
+    })
+  })
+
+  it('countTenantAccounts / system scope 应按租户批量返回启用租户账号数', async () => {
+    const accountRepository = createAccountRepositoryMock()
+    accountRepository.countByTenantIds.mockResolvedValue([{ tenantId: 'tenant-1', total: 3 }])
+    const authorizationQueryScopeService = {
+      build: jest.fn().mockReturnValue({ tenantId: undefined })
+    }
+
+    const handler = new CountTenantAccountsHandler(
+      accountRepository,
+      authorizationQueryScopeService as never
+    )
+
+    await expect(
+      handler.execute(
+        new CountTenantAccountsQuery({
+          tenantIds: ['tenant-1', 'tenant-2', 'tenant-1'],
+          scopeLevel: 'TENANT',
+          status: 'ENABLED',
+          operatorScope: {
+            operatorId: 'operator-1',
+            isSystemScope: true
+          }
+        })
+      )
+    ).resolves.toEqual({
+      counts: [
+        { tenantId: 'tenant-1', total: 3 },
+        { tenantId: 'tenant-2', total: 0 }
+      ]
+    })
+
+    expect(authorizationQueryScopeService.build).toHaveBeenCalledWith({
+      resource: 'account',
+      action: 'list',
+      operatorScope: {
+        operatorId: 'operator-1',
+        isSystemScope: true
+      }
+    })
+    expect(accountRepository.countByTenantIds).toHaveBeenCalledWith({
+      tenantIds: ['tenant-1', 'tenant-2'],
+      scopeLevel: 'TENANT',
+      status: 'ENABLED'
+    })
+  })
+
   it('grpc controller / listAccounts 应返回账号目录分页结果', async () => {
     const queryBus = {
       execute: jest.fn().mockResolvedValue({
@@ -113,7 +197,8 @@ describe('list accounts query', () => {
         page: 1,
         pageSize: 20,
         scopeLevel: 'TENANT',
-        status: 'ENABLED'
+        status: 'ENABLED',
+        tenantId: 'tenant-1'
       } as any)
     ).resolves.toEqual({
       accounts: [
@@ -130,6 +215,40 @@ describe('list accounts query', () => {
       ],
       total: 1
     })
+    expect(queryBus.execute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1'
+      })
+    )
+  })
+
+  it('grpc controller / countTenantAccounts 应返回租户账号数', async () => {
+    const queryBus = {
+      execute: jest.fn().mockResolvedValue({
+        counts: [
+          {
+            tenantId: 'tenant-1',
+            total: 3
+          }
+        ]
+      })
+    } as unknown as QueryBus
+    const controller = new IdentityQueryGrpcController(new ValidatingQueryBus(queryBus))
+
+    await expect(
+      controller.countTenantAccounts({
+        tenantIds: ['tenant-1'],
+        scopeLevel: 'TENANT',
+        status: 'ENABLED'
+      } as any)
+    ).resolves.toEqual({
+      counts: [
+        {
+          tenantId: 'tenant-1',
+          total: 3
+        }
+      ]
+    })
   })
 
   it('grpc controller / listAccounts 应要求 authenticated operator context', () => {
@@ -145,6 +264,25 @@ describe('list accounts query', () => {
       Reflect.getMetadata(
         REQUIRE_AUTHENTICATED_OPERATOR_METADATA_KEY,
         IdentityQueryGrpcController.prototype.listAccounts
+      )
+    ).toBe(true)
+    expect(guards).toEqual([InternalServiceGuard, AuthenticatedOperatorGuard])
+    expect(interceptors).toEqual([GrpcRequestContextInterceptor])
+  })
+
+  it('grpc controller / countTenantAccounts 应要求 authenticated operator context', () => {
+    const guards =
+      Reflect.getMetadata(GUARDS_METADATA, IdentityQueryGrpcController.prototype.countTenantAccounts) ?? []
+    const interceptors =
+      Reflect.getMetadata(
+        INTERCEPTORS_METADATA,
+        IdentityQueryGrpcController.prototype.countTenantAccounts
+      ) ?? []
+
+    expect(
+      Reflect.getMetadata(
+        REQUIRE_AUTHENTICATED_OPERATOR_METADATA_KEY,
+        IdentityQueryGrpcController.prototype.countTenantAccounts
       )
     ).toBe(true)
     expect(guards).toEqual([InternalServiceGuard, AuthenticatedOperatorGuard])

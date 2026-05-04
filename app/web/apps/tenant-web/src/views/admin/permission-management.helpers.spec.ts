@@ -99,7 +99,7 @@ describe('permission-management helpers', () => {
           page: 2,
           pageSize,
           permissions: [
-            { code: 'permission.role.list', id: 'p-3', module: 'TENANT_ADMIN' },
+            { code: 'permission.role_instance.list', id: 'p-3', module: 'PERMISSION_SERVICE' },
           ],
           total: 120,
         };
@@ -115,7 +115,6 @@ describe('permission-management helpers', () => {
       { label: 'AUTH_SERVICE', value: 'AUTH_SERVICE' },
       { label: 'LEGACY_MODULE', value: 'LEGACY_MODULE' },
       { label: 'PERMISSION_SERVICE', value: 'PERMISSION_SERVICE' },
-      { label: 'TENANT_ADMIN', value: 'TENANT_ADMIN' },
     ]);
   });
 

@@ -6,7 +6,6 @@ import {
   createPrismaForIntegration,
   createTestPrefix
 } from '../helpers/integration-db'
-import { seedMachineTenant } from '../helpers/machine-fixtures'
 
 describe('PrismaServiceAccountRepository L2', () => {
   let prisma: PrismaService
@@ -34,7 +33,7 @@ describe('PrismaServiceAccountRepository L2', () => {
   })
 
   it('ServiceAccount 仓储 / 当创建 tenant-scope service account 时 / 应能写入并按 id 查到', async () => {
-    const tenant = await seedMachineTenant(prisma, prefix)
+    const tenant = { id: `${prefix}_tenant` }
 
     const created = await repository.create({
       tenantId: tenant.id,
@@ -76,14 +75,8 @@ describe('PrismaServiceAccountRepository L2', () => {
   })
 
   it('ServiceAccount 仓储 / 当按 tenantId 和 status 列出时 / 应只返回匹配记录', async () => {
-    const tenant = await seedMachineTenant(prisma, prefix)
-    const otherTenant = await prisma.tenant.create({
-      data: {
-        id: `${prefix}_tenant_other`,
-        name: `${prefix}_tenant_name_other`,
-        code: `${prefix}_tenant_code_other`
-      }
-    })
+    const tenant = { id: `${prefix}_tenant` }
+    const otherTenant = { id: `${prefix}_tenant_other` }
 
     const target = await repository.create({
       tenantId: tenant.id,

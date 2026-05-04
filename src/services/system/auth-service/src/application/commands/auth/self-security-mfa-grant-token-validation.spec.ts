@@ -66,4 +66,56 @@ describe('Self-service MFA grant token validation', () => {
 
     expect(errors).toEqual([])
   })
+
+  it('allows omitted tenantId for system-scope self-service security commands', async () => {
+    const options = {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      forbidUnknownValues: false,
+      skipMissingProperties: false
+    }
+
+    const [emailErrors, phoneErrors, passwordErrors] = await Promise.all([
+      validate(
+        new VerifyEmailBindingCommand({
+          userId: 'user-1',
+          accountId: 'account-1',
+          tenantId: undefined,
+          scopeLevel: 'SYSTEM',
+          email: 'user@example.com',
+          otp: '123456',
+          mfaGrantToken: undefined
+        }),
+        options
+      ),
+      validate(
+        new VerifyPhoneBindingCommand({
+          userId: 'user-1',
+          accountId: 'account-1',
+          tenantId: undefined,
+          scopeLevel: 'SYSTEM',
+          phone: '+8613800138000',
+          otp: '123456',
+          mfaGrantToken: undefined
+        }),
+        options
+      ),
+      validate(
+        new ChangeOwnPasswordCommand({
+          userId: 'user-1',
+          accountId: 'account-1',
+          tenantId: undefined,
+          scopeLevel: 'SYSTEM',
+          currentPassword: 'current-password',
+          newPassword: 'new-password-1',
+          mfaGrantToken: undefined
+        }),
+        options
+      )
+    ])
+
+    expect(emailErrors).toEqual([])
+    expect(phoneErrors).toEqual([])
+    expect(passwordErrors).toEqual([])
+  })
 })

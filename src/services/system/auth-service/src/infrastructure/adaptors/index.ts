@@ -13,3 +13,6 @@ export { PermissionServiceAdaptor } from './permission-service.adaptor'
 
 // Notification Service 适配器
 export { NotificationServiceGrpcAdaptor } from './notification-service.grpc.adaptor'
+
+// Tenant Org lifecycle 适配器
+export { TenantOrgLifecycleGrpcAdaptor } from './tenant-org-lifecycle.grpc.adaptor'

@@ -6,8 +6,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const convertQuoteVersionToOrderApi = vi.fn()
 const getQuoteByIdApi = vi.fn()
 const listManagedCustomerAccountsApi = vi.fn()
-const listSelectableCustomersApi = vi.fn()
+const listPriceListsApi = vi.fn()
 const listQuoteVersionsApi = vi.fn()
+const listSelectableCustomersApi = vi.fn()
+const previewQuoteLinePricingApi = vi.fn()
 const publishQuoteApi = vi.fn()
 const push = vi.fn()
 const updateQuoteDraftApi = vi.fn()
@@ -29,8 +31,10 @@ vi.mock('#/api', () => ({
   convertQuoteVersionToOrderApi,
   getQuoteByIdApi,
   listManagedCustomerAccountsApi,
-  listSelectableCustomersApi,
+  listPriceListsApi,
   listQuoteVersionsApi,
+  listSelectableCustomersApi,
+  previewQuoteLinePricingApi,
   publishQuoteApi,
   updateQuoteDraftApi
 }))
@@ -53,22 +57,27 @@ vi.mock('@vben/common-ui', () => ({
   }
 }))
 
-// Verifies the sales quote detail page loads the current draft and version history, then supports save, publish, and convert-to-order actions.
+// Verifies the sales quote detail page loads pricing snapshots, supports preview, then persists the enriched snapshot.
 describe('sales quote detail page', () => {
   beforeEach(() => {
     convertQuoteVersionToOrderApi.mockReset()
     getQuoteByIdApi.mockReset()
     listManagedCustomerAccountsApi.mockReset()
-    listSelectableCustomersApi.mockReset()
+    listPriceListsApi.mockReset()
     listQuoteVersionsApi.mockReset()
+    listSelectableCustomersApi.mockReset()
+    previewQuoteLinePricingApi.mockReset()
     publishQuoteApi.mockReset()
     push.mockReset()
     updateQuoteDraftApi.mockReset()
+
     authContextState.actionCodes = [
       'sales.quote.get_by_id',
       'sales.quote.update_draft',
       'sales.quote.publish',
-      'sales.quote.convert_to_order'
+      'sales.quote.convert_to_order',
+      'sales.pricing.preview_quote_line',
+      'sales.pricing.price_list.read'
     ]
 
     useRoute.mockReturnValue({
@@ -101,6 +110,28 @@ describe('sales quote detail page', () => {
           priceQuantityDeliverySnapshot: {
             currencyCode: 'USD',
             deliveryTerm: 'FOB',
+            exceptionPlaceholders: [
+              {
+                actualValue: '12.50',
+                baselineSourceType: 'CUSTOMER_PRICE_AGREEMENT',
+                baselineValue: '13.00',
+                currencyCode: 'USD',
+                detectedAt: '2026-04-26T10:00:00.000Z',
+                exceptionType: 'LOW_PRICE',
+                quantityUomCode: '',
+                status: 'REQUIRED'
+              }
+            ],
+            moqSnapshot: {
+              moqQuantity: '20',
+              quantityUomCode: 'PCS',
+              sourceType: 'CUSTOMER_PRICE_AGREEMENT'
+            },
+            priceSnapshot: {
+              currencyCode: 'USD',
+              sourceType: 'CUSTOMER_PRICE_AGREEMENT',
+              unitPriceAmount: '12.50'
+            },
             quantity: '10',
             requestedDeliveryDate: '2026-05-01',
             unitPrice: '12.50'
@@ -171,6 +202,71 @@ describe('sales quote detail page', () => {
       pageSize: 10,
       total: 1
     })
+    listPriceListsApi.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      priceLists: [
+        {
+          currencyCode: 'USD',
+          effectiveFrom: '2026-04-01',
+          effectiveTo: '2026-12-31',
+          priceListId: 'price-list-1',
+          priceListName: 'North America Standard',
+          priceListType: 'STANDARD',
+          status: 'ACTIVE',
+          tenantId: 'tenant-1'
+        }
+      ],
+      total: 1
+    })
+    previewQuoteLinePricingApi.mockResolvedValue({
+      exceptionPlaceholders: [
+        {
+          actualValue: '12.40',
+          baselineSourceType: 'CUSTOMER_PRICE_AGREEMENT',
+          baselineValue: '13.00',
+          currencyCode: 'USD',
+          detectedAt: '2026-04-27T10:00:00.000Z',
+          exceptionType: 'LOW_PRICE',
+          quantityUomCode: '',
+          status: 'REQUIRED'
+        },
+        {
+          actualValue: '15',
+          baselineSourceType: 'CUSTOMER_PRICE_AGREEMENT',
+          baselineValue: '20',
+          currencyCode: '',
+          detectedAt: '2026-04-27T10:00:00.000Z',
+          exceptionType: 'LOW_MOQ',
+          quantityUomCode: 'PCS',
+          status: 'REQUIRED'
+        }
+      ],
+      exchangeRateSnapshot: {
+        effectiveAt: '2026-04-27T10:00:00.000Z',
+        exchangeRateValue: '1',
+        financeRateRef: '',
+        fromCurrencyCode: 'USD',
+        snapshottedAt: '2026-04-27T10:00:00.000Z',
+        toCurrencyCode: 'USD'
+      },
+      moqSnapshot: {
+        moqQuantity: '20',
+        quantityUomCode: 'PCS',
+        sourceLineRefId: 'agreement-line-1',
+        sourceRefId: 'agreement-1',
+        sourceType: 'CUSTOMER_PRICE_AGREEMENT',
+        sourceVersionNo: 2
+      },
+      priceSnapshot: {
+        currencyCode: 'USD',
+        sourceLineRefId: 'agreement-line-1',
+        sourceRefId: 'agreement-1',
+        sourceType: 'MANUAL',
+        sourceVersionNo: 2,
+        unitPriceAmount: '12.40'
+      }
+    })
     updateQuoteDraftApi.mockResolvedValue({})
     publishQuoteApi.mockResolvedValue({})
     convertQuoteVersionToOrderApi.mockResolvedValue({
@@ -178,7 +274,7 @@ describe('sales quote detail page', () => {
     })
   })
 
-  it('loads the draft and current customer summary, then replaces the customer through the CRM selector before saving, publishing, and converting', async () => {
+  it('loads the draft, previews one quote line pricing snapshot, then saves, publishes, and converts', async () => {
     const page = (await import('./sales-quote-detail.vue')).default
     const wrapper = mount(page)
 
@@ -194,13 +290,17 @@ describe('sales quote detail page', () => {
       pageSize: 1,
       primaryTenantPartyId: 'customer-1'
     })
-    expect(wrapper.text()).toContain('Q-001')
-    expect(wrapper.get('[data-testid="sales-detail-current-customer-summary"]').text()).toContain(
-      'Legacy Customer'
-    )
-    expect(wrapper.get('[data-testid="sales-detail-current-customer-summary"]').text()).toContain(
-      'BLOCKED'
-    )
+    expect(listPriceListsApi).toHaveBeenCalledWith('tenant-1', {
+      currencyCode: 'USD',
+      effectiveAt: undefined,
+      keyword: undefined,
+      page: 1,
+      pageSize: 20,
+      priceListType: undefined,
+      status: 'ACTIVE'
+    })
+    expect(wrapper.text()).toContain('LOW_PRICE')
+    expect(wrapper.text()).toContain('CUSTOMER_PRICE_AGREEMENT')
 
     await wrapper.get('[data-testid="sales-detail-customer-search-input"]').setValue('replacement')
     await wrapper.get('[data-testid="sales-detail-customer-search-button"]').trigger('click')
@@ -213,12 +313,26 @@ describe('sales quote detail page', () => {
     })
 
     await wrapper.get('[data-testid="sales-detail-customer-option-customer-2"]').trigger('click')
-    expect(wrapper.get('[data-testid="sales-detail-selected-customer-summary"]').text()).toContain(
-      'Replacement Customer'
-    )
-
     await wrapper.get('[data-testid="sales-detail-item-name-0"]').setValue('Starter Item Rev')
     await wrapper.get('[data-testid="sales-detail-quantity-0"]').setValue('15')
+    await wrapper.get('[data-testid="sales-detail-unit-price-0"]').setValue('12.40')
+    await wrapper.get('[data-testid="sales-detail-price-list-0"]').setValue('price-list-1')
+    await wrapper.get('[data-testid="sales-detail-preview-0"]').trigger('click')
+    await flushPromises()
+
+    expect(previewQuoteLinePricingApi).toHaveBeenCalledWith('tenant-1', {
+      currencyCode: 'USD',
+      customerTenantPartyId: 'party-2',
+      exchangeRateTargetCurrencyCode: 'USD',
+      itemId: 'item-1',
+      manualUnitPriceAmount: '12.40',
+      pricingAt: undefined,
+      quantityUomCode: 'PCS',
+      requestedQuantity: '15',
+      selectedPriceListId: 'price-list-1'
+    })
+    expect(wrapper.text()).toContain('LOW_MOQ')
+
     await wrapper.get('[data-testid="sales-detail-save"]').trigger('click')
     await wrapper.get('[data-testid="sales-detail-publish"]').trigger('click')
     await wrapper.get('[data-testid="sales-detail-convert-version-1"]').trigger('click')
@@ -249,9 +363,55 @@ describe('sales quote detail page', () => {
             priceQuantityDeliverySnapshot: {
               currencyCode: 'USD',
               deliveryTerm: 'FOB',
+              exceptionPlaceholders: [
+                {
+                  actualValue: '12.40',
+                  baselineSourceType: 'CUSTOMER_PRICE_AGREEMENT',
+                  baselineValue: '13.00',
+                  currencyCode: 'USD',
+                  detectedAt: '2026-04-27T10:00:00.000Z',
+                  exceptionType: 'LOW_PRICE',
+                  quantityUomCode: '',
+                  status: 'REQUIRED'
+                },
+                {
+                  actualValue: '15',
+                  baselineSourceType: 'CUSTOMER_PRICE_AGREEMENT',
+                  baselineValue: '20',
+                  currencyCode: '',
+                  detectedAt: '2026-04-27T10:00:00.000Z',
+                  exceptionType: 'LOW_MOQ',
+                  quantityUomCode: 'PCS',
+                  status: 'REQUIRED'
+                }
+              ],
+              exchangeRateSnapshot: {
+                effectiveAt: '2026-04-27T10:00:00.000Z',
+                exchangeRateValue: '1',
+                financeRateRef: '',
+                fromCurrencyCode: 'USD',
+                snapshottedAt: '2026-04-27T10:00:00.000Z',
+                toCurrencyCode: 'USD'
+              },
+              moqSnapshot: {
+                moqQuantity: '20',
+                quantityUomCode: 'PCS',
+                sourceLineRefId: 'agreement-line-1',
+                sourceRefId: 'agreement-1',
+                sourceType: 'CUSTOMER_PRICE_AGREEMENT',
+                sourceVersionNo: 2
+              },
+              priceSnapshot: {
+                currencyCode: 'USD',
+                sourceLineRefId: 'agreement-line-1',
+                sourceRefId: 'agreement-1',
+                sourceType: 'MANUAL',
+                sourceVersionNo: 2,
+                unitPriceAmount: '12.40'
+              },
               quantity: '15',
               requestedDeliveryDate: '2026-05-01',
-              unitPrice: '12.50'
+              unitPrice: '12.40'
             },
             salesConfigSnapshot: {
               notes: 'Manual config',
@@ -286,5 +446,6 @@ describe('sales quote detail page', () => {
 
     expect(getQuoteByIdApi).not.toHaveBeenCalled()
     expect(listQuoteVersionsApi).not.toHaveBeenCalled()
+    expect(listPriceListsApi).not.toHaveBeenCalled()
   })
 })

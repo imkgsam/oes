@@ -349,7 +349,7 @@ onMounted(() => {
                   v-model="filters.permissionCode"
                   aria-label="权限码过滤"
                   class="policy-governance__native-input"
-                  placeholder="permission.role.update"
+                  placeholder="permission.role_instance.update"
                 />
               </Form.Item>
               <Form.Item label="租户">
@@ -605,13 +605,16 @@ onMounted(() => {
 }
 
 .policy-governance__filter-grid {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 12px;
+  grid-template-columns: minmax(240px, 1.4fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(140px, 0.7fr);
+  gap: 10px;
 }
 
 .policy-governance__button-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(84px, 1fr) minmax(84px, 1fr);
   gap: 8px;
+  margin-left: auto;
+  width: min(100%, 184px);
 }
 
 .policy-governance__filter-actions {
@@ -627,12 +630,20 @@ onMounted(() => {
 
 .policy-governance__native-select,
 .policy-governance__native-input {
-  min-height: 32px;
+  min-height: 36px;
   padding: 4px 11px;
   border: 1px solid hsl(var(--input));
-  border-radius: 6px;
+  border-radius: 10px;
   background: hsl(var(--input-background));
   color: var(--policy-text);
+}
+
+.policy-governance__search-button,
+.policy-governance__reset-button {
+  height: 36px;
+  min-width: 0;
+  width: 100%;
+  border-radius: 10px;
 }
 
 .policy-governance__error {
@@ -686,8 +697,12 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
+  .policy-governance__filter-grid {
+    grid-template-columns: 1fr;
+  }
+
   .policy-governance__filter-actions {
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
 
   .policy-governance__detail-grid {

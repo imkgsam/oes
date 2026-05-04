@@ -7,12 +7,15 @@ export class VerifyEmailBindingCommand implements ICommand {
   @MinLength(1)
   readonly userId: string
 
+  @IsOptional()
   @IsString()
   readonly accountId?: string
 
+  @IsOptional()
   @IsString()
   readonly tenantId?: string
 
+  @IsOptional()
   @IsString()
   readonly scopeLevel?: 'SYSTEM' | 'TENANT'
 

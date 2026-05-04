@@ -68,6 +68,13 @@
   - 本地 shared env 已补齐 `tenantorgdb` seed 与默认 runbook
 - 当前迁移主线已满足 foundation close 条件；剩余 `GetOrgTreeByTenantId` compatibility 收尾转入后续治理项，不再阻塞本迁移主线。
 
+### Cleanup Note (2026-05-02)
+
+- `identity-service.GetOrgTreeByTenantId` compatibility 入口已清理，org tree 查询仅保留在 `tenant-org-service`。
+- `identity-service` legacy account org membership 查询与管理契约已清理，未迁入 `tenant-org-service`。
+- `identity-service` 本地 `Tenant / Org / UserAccountOrgMembership` Prisma 模型与仓储已从目标 schema 移除；`tenantId / orgId` 仅保留为身份上下文、引用或审计字段。
+- tenant-scope service account 创建改为通过 `tenant-org-service` gRPC 校验 tenant 引用存在。
+
 ## 5. 风险护栏
 
 - 不在迁移过程中扩张范围到人员归属、HR 任职或 account-org membership

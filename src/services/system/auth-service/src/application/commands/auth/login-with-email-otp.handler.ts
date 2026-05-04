@@ -8,6 +8,7 @@ import {
 } from '../../ports/identity-service.port'
 import { AuthAuditService } from '../../services/auth-audit.service'
 import { EmailOtpLoginService } from '../../services/email-otp-login.service'
+import { TenantSessionAccessService } from '../../services/tenant-session-access.service'
 import { AUTH_NO_AVAILABLE_ACCOUNT } from '../../../common/constants/exception-enums'
 import { LoginWithEmailOtpCommand } from './login-with-email-otp.command'
 
@@ -29,13 +30,16 @@ export class LoginWithEmailOtpHandler
     private readonly emailOtpLoginService: EmailOtpLoginService,
     private readonly authAuditService: AuthAuditService,
     @Inject(IDENTITY_SERVICE)
-    private readonly identityService: IIdentityServicePort
+    private readonly identityService: IIdentityServicePort,
+    private readonly tenantSessionAccessService: TenantSessionAccessService
   ) {}
 
   async execute(command: LoginWithEmailOtpCommand): Promise<LoginWithEmailOtpResult> {
     const userId = await this.emailOtpLoginService.authenticate(command.email, command.otp)
 
-    const accounts = await this.identityService.getAvailableAccountsByUserId(userId)
+    const accounts = await this.tenantSessionAccessService.filterActiveAccountCandidates(
+      await this.identityService.getAvailableAccountsByUserId(userId)
+    )
     if (accounts.length === 0) {
       throw ExceptionFactory.domain(AUTH_NO_AVAILABLE_ACCOUNT, { userId })
     }

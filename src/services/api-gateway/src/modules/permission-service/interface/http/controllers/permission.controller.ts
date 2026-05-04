@@ -2,7 +2,9 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestj
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
 import { PermissionCheckAll } from '@oes/common/authorization'
 import {
-  PERMISSION_MANAGEMENT_PERMISSION_CODES
+  PERMISSION_MANAGEMENT_PERMISSION_CODES,
+  ROLE_INSTANCE_PERMISSION_CODES,
+  ROLE_TEMPLATE_PERMISSION_CODES
 } from '@oes/common/authorization'
 import { PermissionProxyService } from '../../../permission-service.service'
 import { CreatePermissionDto } from '../dtos/create-permission.dto'
@@ -81,7 +83,7 @@ export class PermissionController {
   }
 
   @Get(':id/roles')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ROLE])
+  @PermissionCheckAll([ROLE_TEMPLATE_PERMISSION_CODES.LIST, ROLE_INSTANCE_PERMISSION_CODES.LIST])
   @ApiOperation({ summary: 'List roles that include a permission' })
   // Returns role summaries that reference one global permission.
   async listPermissionRoles(

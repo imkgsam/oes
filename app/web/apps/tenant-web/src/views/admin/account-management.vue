@@ -71,15 +71,14 @@ interface CreateAccountFormState {
 
 interface AccountBasicInfoFormState {
   displayName: string;
-  email: string;
   isEnabled: boolean;
-  phone: string;
 }
 
 interface AccountFilterState {
   keyword: string;
   scopeLevel: AccountScopeFilter;
   status: AccountStatusFilter;
+  tenantId: string;
 }
 
 type AccountActionKey = 'basicInfo' | 'delete' | 'loginMethods' | 'roles';
@@ -96,6 +95,7 @@ const accountFilters = reactive<AccountFilterState>({
   keyword: '',
   scopeLevel: '',
   status: '',
+  tenantId: '',
 });
 
 const accountRows = ref<AccountManagementRow[]>([]);
@@ -123,9 +123,7 @@ const selectedAccountLoginMethods = ref<AdminSecurityApi.LoginMethod[]>([]);
 const selectedAccountPasswordSetupRequired = ref(false);
 const basicInfoForm = reactive<AccountBasicInfoFormState>({
   displayName: '',
-  email: '',
   isEnabled: true,
-  phone: '',
 });
 
 const accountPagination = reactive({
@@ -135,7 +133,6 @@ const accountPagination = reactive({
 });
 
 const isPlatformScope = computed(() => authContextStore.isPlatformScope);
-const showTenantColumn = computed(() => isPlatformScope.value);
 const currentTenantId = computed(
   () => authContextStore.sessionContext?.tenant?.tenantId ?? '',
 );
@@ -194,6 +191,38 @@ const roleSearchSummary = computed(() => {
 
   return `当前显示 ${visibleCount} / ${totalCount} 个角色，已选择 ${selectedRoleIds.value.length} 个角色`;
 });
+const selectedRoleAccountTitle = computed(() => {
+  const account = selectedAccount.value;
+
+  if (!account) {
+    return '未命名账号';
+  }
+
+  return account.userDisplayName || getAccountDisplayName(account);
+});
+const selectedRoleAccountSubtitle = computed(() => {
+  const account = selectedAccount.value;
+
+  if (!account) {
+    return '';
+  }
+
+  return `${getAccountContextTitle(account)} · ${getAccountScopeLabel(account.scopeLevel)}`;
+});
+const roleSummaryMeta = computed(() => [
+  {
+    label: '已选择',
+    value: String(selectedRoleIds.value.length),
+  },
+  {
+    label: '可分配',
+    value: String(availableRoles.value.length),
+  },
+  {
+    label: '当前显示',
+    value: String(filteredRoles.value.length),
+  },
+]);
 const createScopeOptions = computed(() => {
   const options = [
     { label: '系统账号', value: 'SYSTEM' },
@@ -211,41 +240,56 @@ const accountTablePagination = computed(() => ({
   showTotal: (total: number) => `共 ${total} 条`,
   total: accountPagination.total,
 }));
-const basicInfoPreview = computed(() => {
+const accountTenantFilterOptions = computed(() => [
+  { label: '全部租户', value: '' },
+  ...tenantOptions.value.map((tenant) => ({
+    label: `${tenant.name} · ${tenant.code}`,
+    value: tenant.id,
+  })),
+]);
+// Builds the read-only contact rows shown beside maintainable account fields.
+const basicInfoContactRows = computed(() => {
   if (!selectedBasicInfo.value) {
     return [];
   }
 
   return [
     {
-      label: '账号 ID',
-      value: selectedBasicInfo.value.accountId,
+      label: '手机号',
+      value: selectedBasicInfo.value.phone || '未绑定',
     },
     {
-      label: '用户 ID',
-      value: selectedBasicInfo.value.userId,
+      label: '邮箱',
+      value: selectedBasicInfo.value.email || '未绑定',
     },
-    {
-      label: 'Scope',
-      value: getAccountScopeLabel(selectedBasicInfo.value.scopeLevel),
-    },
-    {
-      label: '状态',
-      value: getAccountStatusLabel(basicInfoForm.isEnabled),
-    },
-    ...(showTenantColumn.value && selectedBasicInfo.value.scopeLevel === 'TENANT'
-      ? [
-          {
-            label: '租户',
-            value:
-              selectedBasicInfo.value.tenantName
-              || selectedBasicInfo.value.tenantId
-              || '-',
-          },
-        ]
-      : []),
   ];
 });
+const basicInfoIdentityTitle = computed(() => {
+  const basicInfo = selectedBasicInfo.value;
+
+  if (!basicInfo) {
+    return '未命名账号';
+  }
+
+  return basicInfo.displayName || basicInfo.userId || basicInfo.accountId || '未命名账号';
+});
+const basicInfoIdentitySubtitle = computed(() => {
+  const basicInfo = selectedBasicInfo.value;
+
+  if (!basicInfo) {
+    return '';
+  }
+
+  const contextLabel =
+    basicInfo.scopeLevel === 'TENANT'
+      ? basicInfo.tenantName || basicInfo.tenantId || '未命名租户'
+      : '系统上下文';
+
+  return `${contextLabel} · ${getAccountScopeLabel(basicInfo.scopeLevel)}`;
+});
+const basicInfoAvatarText = computed(() =>
+  basicInfoIdentityTitle.value.slice(0, 1).toUpperCase(),
+);
 const canSaveRoles = computed(
   () =>
     Boolean(selectedAccount.value)
@@ -266,10 +310,22 @@ const selectedSecurityAccountTitle = computed(() =>
       || selectedSecurityAccount.value.accountId
     : '账号登录方式',
 );
+const selectedSecurityAccountSubtitle = computed(() => {
+  const account = selectedSecurityAccount.value;
+
+  if (!account) {
+    return '';
+  }
+
+  return `${getAccountContextTitle(account)} · ${getAccountScopeLabel(account.scopeLevel)}`;
+});
+const loginMethodPasswordStatusLabel = computed(() =>
+  selectedAccountPasswordSetupRequired.value ? '需要重设密码' : '状态正常',
+);
 const loginMethodSummaryMeta = computed(() => [
   {
     label: '密码状态',
-    value: selectedAccountPasswordSetupRequired.value ? '需要重设密码' : '状态正常',
+    value: loginMethodPasswordStatusLabel.value,
   },
   {
     label: '登录方式数',
@@ -297,13 +353,18 @@ async function loadAccountDirectory(
   accountLoading.value = true;
 
   try {
-    const result = await listAdminAccountsApi({
+    const query: AdminSecurityApi.AccountDirectoryQuery = {
       keyword: accountFilters.keyword.trim() || undefined,
       page,
       pageSize,
       scopeLevel: accountFilters.scopeLevel || undefined,
       status: accountFilters.status || undefined,
-    });
+    };
+    if (accountFilters.tenantId) {
+      query.tenantId = accountFilters.tenantId;
+    }
+
+    const result = await listAdminAccountsApi(query);
     accountRows.value = buildAccountRows(result.items ?? []);
     accountPagination.current = result.page ?? page;
     accountPagination.pageSize = result.pageSize ?? pageSize;
@@ -352,6 +413,7 @@ function resetAccountFilters() {
   accountFilters.keyword = '';
   accountFilters.scopeLevel = '';
   accountFilters.status = '';
+  accountFilters.tenantId = '';
   accountPagination.current = 1;
   void loadAccountDirectory(1, accountPagination.pageSize);
 }
@@ -395,9 +457,7 @@ async function openRoleConfig(account: AccountManagementRow) {
 
 function resetBasicInfoForm() {
   basicInfoForm.displayName = '';
-  basicInfoForm.email = '';
   basicInfoForm.isEnabled = true;
-  basicInfoForm.phone = '';
 }
 
 // Normalizes editable account fields before comparing or submitting changes.
@@ -415,9 +475,7 @@ async function openBasicInfoModal(account: AccountManagementRow) {
     const result = await getAdminAccountBasicInfoApi(account.accountId);
     selectedBasicInfo.value = result;
     basicInfoForm.displayName = result.displayName || '';
-    basicInfoForm.email = result.email || '';
     basicInfoForm.isEnabled = result.isEnabled;
-    basicInfoForm.phone = result.phone || '';
   } catch {
     basicInfoModalOpen.value = false;
     message.error('账号基本信息加载失败，请稍后重试');
@@ -520,12 +578,8 @@ async function submitBasicInfo() {
   }
 
   const displayName = normalizeBasicInfoValue(basicInfoForm.displayName);
-  const email = normalizeBasicInfoValue(basicInfoForm.email);
-  const phone = normalizeBasicInfoValue(basicInfoForm.phone);
   const profileChanged
-    = displayName !== normalizeBasicInfoValue(selectedBasicInfo.value.displayName)
-      || email !== normalizeBasicInfoValue(selectedBasicInfo.value.email)
-      || phone !== normalizeBasicInfoValue(selectedBasicInfo.value.phone);
+    = displayName !== normalizeBasicInfoValue(selectedBasicInfo.value.displayName);
   const statusChanged = basicInfoForm.isEnabled !== selectedBasicInfo.value.isEnabled;
 
   if (profileChanged) {
@@ -539,20 +593,6 @@ async function submitBasicInfo() {
       return;
     }
 
-    if (!phone && !email) {
-      message.warning('请至少保留手机号或邮箱');
-      return;
-    }
-
-    if (selectedBasicInfo.value.phone && !phone) {
-      message.warning('当前阶段暂不支持清空已绑定手机号');
-      return;
-    }
-
-    if (selectedBasicInfo.value.email && !email) {
-      message.warning('当前阶段暂不支持清空已绑定邮箱');
-      return;
-    }
   }
 
   if (statusChanged && !canUpdateAccountStatus.value) {
@@ -571,9 +611,7 @@ async function submitBasicInfo() {
     let updatedBasicInfo = selectedBasicInfo.value;
     const updatePayload = {
       displayName,
-      email: email || undefined,
       isEnabled: basicInfoForm.isEnabled,
-      phone: phone || undefined,
     };
 
     updatedBasicInfo = await updateAdminAccountBasicInfoApi(
@@ -589,11 +627,19 @@ async function submitBasicInfo() {
     }
 
     selectedBasicInfo.value = updatedBasicInfo;
-    message.success(statusChanged ? '账号基本信息与状态已保存' : '账号基本信息已保存');
+    message.success(
+      profileChanged && statusChanged
+        ? '账号基本信息与状态已保存'
+        : statusChanged
+          ? '账号状态已保存'
+          : '账号基本信息已保存',
+    );
     basicInfoModalOpen.value = false;
     await refreshDirectory({ fallbackToPreviousPageOnEmpty: true });
   } catch {
-    message.error(statusChanged ? '账号信息保存失败，请稍后重试' : '账号基本信息保存失败，请稍后重试');
+    message.error(
+      statusChanged ? '账号信息保存失败，请稍后重试' : '账号基本信息保存失败，请稍后重试',
+    );
   } finally {
     basicInfoSaving.value = false;
   }
@@ -748,9 +794,6 @@ function buildDeleteAccountImpactLines(impact: AdminSecurityApi.AccountDeletionI
   return [
     '删除后不可恢复。',
     '将清理当前账号下的会话与角色绑定。',
-    impact.orgMembershipCount > 0
-      ? `将同步删除 ${impact.orgMembershipCount} 条组织成员关系。`
-      : undefined,
     impact.contactAssetCount > 0
       ? `将同步删除 ${impact.contactAssetCount} 条工作联系资产。`
       : undefined,
@@ -779,7 +822,6 @@ function buildDeleteAccountSuccessMessage(result: AdminSecurityApi.AccountDeleti
   const parts = [
     `${result.deletedSessionCount} 个会话`,
     `${result.clearedRoleCount} 个角色绑定`,
-    `${result.deletedOrgMembershipCount} 条组织成员关系`,
     `${result.deletedContactAssetCount} 条工作联系资产`,
   ];
 
@@ -1054,6 +1096,9 @@ const loginMethodColumns = computed<TableColumnsType<AdminSecurityApi.LoginMetho
 onMounted(() => {
   resetCreateAccountForm();
   void loadAccountDirectory();
+  if (isPlatformScope.value) {
+    void loadTenantOptions();
+  }
 });
 </script>
 
@@ -1067,6 +1112,7 @@ onMounted(() => {
             <div class="account-management__meta">共 {{ accountPagination.total }} 条</div>
           </div>
           <Button
+            v-access:code="'identity.account.create'"
             v-if="canCreateAccount"
             type="primary"
             @click="openCreateAccountModal"
@@ -1075,20 +1121,41 @@ onMounted(() => {
           </Button>
         </div>
 
-        <Card :bordered="false" class="account-management__filter-card">
-          <Row :gutter="[12, 12]" class="account-management__filter-row">
-            <Col :lg="8" :md="12" :span="24">
+        <section class="account-management__filter-panel">
+          <Row :gutter="[10, 10]" class="account-management__filter-row">
+            <Col :lg="8" :md="24" :span="24" :xl="7">
               <Input
                 v-model:value="accountFilters.keyword"
                 allow-clear
+                class="account-management__filter-control account-management__filter-search"
                 placeholder="搜索账号名称、用户姓名或租户名称"
                 @press-enter="searchAccounts"
+              >
+                <template #prefix>
+                  <IconifyIcon icon="ant-design:search-outlined" />
+                </template>
+              </Input>
+            </Col>
+
+            <Col v-if="isPlatformScope" :lg="5" :md="8" :span="24" :xl="5">
+              <Select
+                v-model:value="accountFilters.tenantId"
+                allow-clear
+                class="account-management__filter-control"
+                data-testid="account-tenant-filter"
+                :filter-option="false"
+                :loading="tenantOptionLoading"
+                :options="accountTenantFilterOptions"
+                placeholder="筛选租户"
+                show-search
+                @search="loadTenantOptions"
               />
             </Col>
 
-            <Col v-if="isPlatformScope" :lg="5" :md="12" :span="24">
+            <Col v-if="isPlatformScope" :lg="4" :md="8" :span="24" :xl="4">
               <Select
                 v-model:value="accountFilters.scopeLevel"
+                class="account-management__filter-control"
                 :options="[
                   { label: '全部 Scope', value: '' },
                   { label: 'SYSTEM', value: 'SYSTEM' },
@@ -1100,16 +1167,22 @@ onMounted(() => {
             <Col
               v-else
               :lg="5"
-              :md="12"
+              :md="8"
               :span="24"
+              :xl="4"
               class="account-management__tenant-filter-col"
             >
-              <Input :value="currentTenantLabel" disabled />
+              <Input
+                :value="currentTenantLabel"
+                class="account-management__filter-control"
+                disabled
+              />
             </Col>
 
-            <Col :lg="5" :md="12" :span="24">
+            <Col :lg="3" :md="8" :span="24" :xl="3">
               <Select
                 v-model:value="accountFilters.status"
+                class="account-management__filter-control"
                 :options="[
                   { label: '全部状态', value: '' },
                   { label: '启用', value: 'ENABLED' },
@@ -1119,18 +1192,30 @@ onMounted(() => {
             </Col>
 
             <Col
-              :lg="6"
-              :md="12"
+              :lg="4"
+              :md="8"
               :span="24"
+              :xl="5"
               class="account-management__filter-actions-col"
             >
-              <Space class="account-management__filter-actions">
-                <Button type="primary" @click="searchAccounts">查询</Button>
-                <Button @click="resetAccountFilters">重置</Button>
-              </Space>
+              <div class="account-management__filter-buttons">
+                <Button
+                  class="account-management__filter-button"
+                  type="primary"
+                  @click="searchAccounts"
+                >
+                  查询
+                </Button>
+                <Button
+                  class="account-management__filter-button"
+                  @click="resetAccountFilters"
+                >
+                  重置
+                </Button>
+              </div>
             </Col>
           </Row>
-        </Card>
+        </section>
 
         <div class="account-management__table-shell">
           <Table
@@ -1151,10 +1236,39 @@ onMounted(() => {
         width="720"
       >
         <div v-if="selectedAccount" class="account-management__drawer">
-          <section v-loading="roleLoading" class="account-management__editor-block">
+          <section class="account-management__role-hero">
+            <div class="account-management__role-icon">
+              <IconifyIcon icon="ant-design:team-outlined" />
+            </div>
+            <div class="account-management__role-identity">
+              <div class="account-management__eyebrow">角色授权</div>
+              <div class="account-management__basic-title">
+                {{ selectedRoleAccountTitle }}
+              </div>
+              <div class="account-management__basic-subtitle">
+                {{ selectedRoleAccountSubtitle }}
+              </div>
+            </div>
+            <span class="account-management__status-pill account-management__status-pill--enabled">
+              {{ roleSummary }}
+            </span>
+          </section>
+
+          <section class="account-management__role-summary-grid">
+            <div
+              v-for="item in roleSummaryMeta"
+              :key="item.label"
+              class="account-management__role-summary-item"
+            >
+              <div class="account-management__preview-label">{{ item.label }}</div>
+              <div class="account-management__preview-value">{{ item.value }}</div>
+            </div>
+          </section>
+
+          <section v-loading="roleLoading" class="account-management__editor-block account-management__role-editor">
             <div class="account-management__role-toolbar">
               <div>
-                <div class="account-management__section-title">角色配置</div>
+                <div class="account-management__section-title">角色列表</div>
                 <div class="account-management__section-description">
                   {{ roleSearchSummary }}
                 </div>
@@ -1200,6 +1314,8 @@ onMounted(() => {
           <div class="account-management__drawer-footer">
             <Button @click="roleDrawerOpen = false">取消</Button>
             <Button
+              v-access:code="'permission.account.assign_roles'"
+              v-if="canSetAccountRoles"
               type="primary"
               :disabled="!canSaveRoles"
               :loading="roleSaving"
@@ -1296,83 +1412,99 @@ onMounted(() => {
         destroy-on-close
         :ok-button-props="{ disabled: !canSaveBasicInfo }"
         title="基本信息"
-        :width="640"
+        :width="720"
         @ok="submitBasicInfo"
       >
         <div v-if="selectedBasicInfo" class="account-management__basic-info">
-          <section class="account-management__preview-surface">
-            <div class="account-management__preview-grid">
-              <div
-                v-for="item in basicInfoPreview"
-                :key="item.label"
-                class="account-management__preview-item"
-              >
-                <div class="account-management__preview-label">{{ item.label }}</div>
-                <div class="account-management__preview-value">{{ item.value }}</div>
+          <section class="account-management__basic-hero">
+            <div class="account-management__basic-avatar">
+              {{ basicInfoAvatarText }}
+            </div>
+            <div class="account-management__basic-identity">
+              <div class="account-management__eyebrow">身份档案</div>
+              <div class="account-management__basic-title">
+                {{ basicInfoIdentityTitle }}
+              </div>
+              <div class="account-management__basic-subtitle">
+                {{ basicInfoIdentitySubtitle }}
               </div>
             </div>
+            <span
+              :class="[
+                'account-management__status-pill',
+                basicInfoForm.isEnabled
+                  ? 'account-management__status-pill--enabled'
+                  : 'account-management__status-pill--disabled',
+              ]"
+            >
+              {{ getAccountStatusLabel(basicInfoForm.isEnabled) }}
+            </span>
           </section>
 
-          <section v-loading="basicInfoLoading" class="account-management__editor-block">
-            <div class="account-management__block-header">
-              <div class="account-management__section-title">可维护字段</div>
-            </div>
+          <section class="account-management__basic-layout">
+            <section
+              v-loading="basicInfoLoading"
+              class="account-management__editor-block account-management__basic-editor"
+            >
+              <div class="account-management__block-header">
+                <div>
+                  <div class="account-management__section-title">可维护字段</div>
+                  <div class="account-management__section-description">
+                    更新姓名与账号启停状态
+                  </div>
+                </div>
+              </div>
 
-            <Form layout="vertical">
-              <Row :gutter="16">
-                <Col :span="24">
-                  <Form.Item label="用户姓名" required>
-                    <Input
-                      v-model:value="basicInfoForm.displayName"
-                      allow-clear
-                      :disabled="!canUpdateAccountProfile"
-                      :maxlength="64"
-                      placeholder="请输入用户姓名"
-                    />
-                  </Form.Item>
-                </Col>
-
-                <Col :span="12">
-                  <Form.Item label="状态">
-                    <div class="account-management__status-field">
-                      <Switch
-                        v-model:checked="basicInfoForm.isEnabled"
-                        :disabled="!canUpdateAccountStatus"
-                        checked-children="启用"
-                        un-checked-children="停用"
-                      />
-                      <span class="account-management__status-text">
-                        {{ basicInfoForm.isEnabled ? '账号当前为启用状态，保存后继续允许登录与授权。' : '账号当前为停用状态，保存后将停止登录与授权。' }}
-                      </span>
-                    </div>
-                  </Form.Item>
-                </Col>
-
-                <Col :span="12">
-                  <Form.Item label="手机号">
-                    <PhoneNumberInput
-                      v-model="basicInfoForm.phone"
-                      :disabled="!canUpdateAccountProfile"
-                      placeholder="请输入手机号"
-                    />
-                  </Form.Item>
-                </Col>
-
-                <Col :span="24">
-                  <Form.Item label="邮箱">
-                    <div class="account-management__field-input">
+              <Form layout="vertical">
+                <Row :gutter="[16, 8]">
+                  <Col :span="24">
+                    <Form.Item label="用户姓名" required>
                       <Input
-                        v-model:value="basicInfoForm.email"
+                        v-model:value="basicInfoForm.displayName"
                         allow-clear
                         :disabled="!canUpdateAccountProfile"
-                        :maxlength="256"
-                        placeholder="请输入邮箱"
+                        :maxlength="64"
+                        placeholder="请输入用户姓名"
                       />
-                    </div>
-                  </Form.Item>
-                </Col>
-              </Row>
-            </Form>
+                    </Form.Item>
+                  </Col>
+
+                  <Col :span="24">
+                    <Form.Item label="状态">
+                      <div class="account-management__status-field">
+                        <Switch
+                          v-model:checked="basicInfoForm.isEnabled"
+                          :disabled="!canUpdateAccountStatus"
+                          checked-children="启用"
+                          un-checked-children="停用"
+                        />
+                        <span class="account-management__status-text">
+                          {{ basicInfoForm.isEnabled ? '账号当前为启用状态，保存后继续允许登录与授权。' : '账号当前为停用状态，保存后将停止登录与授权。' }}
+                        </span>
+                      </div>
+                    </Form.Item>
+                  </Col>
+                </Row>
+              </Form>
+            </section>
+
+            <aside class="account-management__basic-contact-panel">
+              <div class="account-management__section-title">联系方式</div>
+              <div class="account-management__section-description">
+                联系方式需通过登录方式或绑定流程维护
+              </div>
+
+              <div class="account-management__basic-contact-list">
+                <div
+                  v-for="item in basicInfoContactRows"
+                  :key="item.label"
+                  class="account-management__basic-contact-row"
+                >
+                  <span>{{ item.label }}</span>
+                  <strong>{{ item.value }}</strong>
+                </div>
+              </div>
+            </aside>
           </section>
         </div>
       </Modal>
@@ -1385,27 +1517,56 @@ onMounted(() => {
         :width="720"
       >
         <div class="account-management__login-methods">
-          <div class="account-management__login-method-toolbar">
-            <div>
-              <div class="account-management__section-title">账号登录方式</div>
-              <div class="account-management__meta">
-                <span
-                  v-for="item in loginMethodSummaryMeta"
-                  :key="item.label"
-                  class="account-management__meta-item"
-                >
-                  {{ item.label }} {{ item.value }}
-                </span>
+          <section class="account-management__login-hero">
+            <div class="account-management__login-icon">
+              <IconifyIcon icon="ant-design:safety-certificate-outlined" />
+            </div>
+            <div class="account-management__login-identity">
+              <div class="account-management__eyebrow">登录安全</div>
+              <div class="account-management__basic-title">
+                {{ selectedSecurityAccountTitle }}
               </div>
-              <div class="account-management__muted">
-                {{ selectedAccountPasswordSetupRequired ? '当前用户下次登录时需要重新设置密码。' : '当前账号密码状态正常。' }}
+              <div class="account-management__basic-subtitle">
+                {{ selectedSecurityAccountSubtitle }}
               </div>
             </div>
+            <span
+              :class="[
+                'account-management__status-pill',
+                selectedAccountPasswordSetupRequired
+                  ? 'account-management__status-pill--warning'
+                  : 'account-management__status-pill--enabled',
+              ]"
+            >
+              {{ loginMethodPasswordStatusLabel }}
+            </span>
+          </section>
+
+          <section class="account-management__login-summary-grid">
+            <div
+              v-for="item in loginMethodSummaryMeta"
+              :key="item.label"
+              class="account-management__login-summary-item"
+            >
+              <div class="account-management__preview-label">{{ item.label }}</div>
+              <div class="account-management__preview-value">{{ item.value }}</div>
+            </div>
+          </section>
+
+          <div class="account-management__login-action-row">
+            <div class="account-management__muted">
+              {{ selectedAccountPasswordSetupRequired ? '当前用户下次登录时需要重新设置密码。' : '当前账号密码状态正常。' }}
+            </div>
             <Space class="account-management__login-method-actions">
-              <Button :loading="loginMethodLoading" @click="selectedSecurityAccount && loadAccountLoginMethods(selectedSecurityAccount)">
+              <Button
+                :loading="loginMethodLoading"
+                @click="selectedSecurityAccount && loadAccountLoginMethods(selectedSecurityAccount)"
+              >
                 刷新
               </Button>
               <Button
+                v-access:code="'auth.account_login_methods.manage'"
+                v-if="canManageLoginMethods"
                 danger
                 :loading="loginMethodSaving"
                 @click="requirePasswordSetup"
@@ -1500,17 +1661,28 @@ onMounted(() => {
   font-size: 12px;
 }
 
-.account-management__filter-card,
+.account-management__filter-panel,
 .account-management__table-shell {
   margin-bottom: 12px;
 }
 
-.account-management__filter-card :deep(.ant-card-body) {
+.account-management__filter-panel {
   padding: 12px;
+  border: 1px solid var(--account-border);
+  border-radius: 10px;
+  background: hsl(var(--muted) / 0.34);
 }
 
 .account-management__filter-row {
   align-items: center;
+}
+
+.account-management__filter-control {
+  width: 100%;
+}
+
+.account-management__filter-search:deep(.ant-input-prefix) {
+  color: var(--account-muted);
 }
 
 .account-management__tenant-filter-col :deep(.ant-select),
@@ -1524,8 +1696,16 @@ onMounted(() => {
   justify-content: flex-end;
 }
 
-.account-management__filter-actions {
-  justify-content: flex-end;
+.account-management__filter-buttons {
+  display: grid;
+  grid-template-columns: minmax(84px, 1fr) minmax(84px, 1fr);
+  gap: 8px;
+  margin-left: auto;
+  width: min(100%, 184px);
+}
+
+.account-management__filter-button {
+  min-width: 0;
   width: 100%;
 }
 
@@ -1535,6 +1715,13 @@ onMounted(() => {
   font-weight: 600;
 }
 
+.account-management__section-description {
+  margin-top: 4px;
+  color: var(--account-muted);
+  font-size: 12px;
+  line-height: 20px;
+}
+
 .account-management__drawer {
   display: grid;
   gap: 16px;
@@ -1542,7 +1729,88 @@ onMounted(() => {
 
 .account-management__basic-info {
   display: grid;
-  gap: 16px;
+  gap: 14px;
+}
+
+.account-management__basic-hero {
+  display: grid;
+  align-items: center;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--account-border);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.62) 100%);
+}
+
+.account-management__basic-avatar {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid hsl(var(--primary) / 0.24);
+  border-radius: 12px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.account-management__basic-identity {
+  min-width: 0;
+}
+
+.account-management__eyebrow {
+  color: var(--account-muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.account-management__basic-title {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--account-title);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-management__basic-subtitle {
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--account-muted);
+  font-size: 13px;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-management__status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--account-border);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.account-management__status-pill--enabled {
+  border-color: rgb(22 163 74 / 0.22);
+  background: rgb(22 163 74 / 0.08);
+  color: rgb(21 128 61);
+}
+
+.account-management__status-pill--disabled {
+  border-color: rgb(100 116 139 / 0.22);
+  background: rgb(100 116 139 / 0.08);
+  color: rgb(71 85 105);
 }
 
 .account-management__editor-block {
@@ -1559,6 +1827,51 @@ onMounted(() => {
 .account-management__role-toolbar {
   align-items: flex-start;
   margin-bottom: 16px;
+}
+
+.account-management__role-hero {
+  display: grid;
+  align-items: center;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--account-border);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.62) 100%);
+}
+
+.account-management__role-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid hsl(var(--primary) / 0.24);
+  border-radius: 12px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-size: 24px;
+}
+
+.account-management__role-identity {
+  min-width: 0;
+}
+
+.account-management__role-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.account-management__role-summary-item {
+  padding: 12px 14px;
+  border: 1px solid var(--account-border);
+  border-radius: 8px;
+  background: hsl(var(--card));
+}
+
+.account-management__role-editor {
+  background: hsl(var(--muted) / 0.38);
 }
 
 .account-management__role-search {
@@ -1580,10 +1893,8 @@ onMounted(() => {
 }
 
 .account-management__preview-item {
-  padding: 12px;
-  border: 1px solid var(--account-border);
-  border-radius: 8px;
-  background: var(--account-card-bg);
+  padding: 4px 6px;
+  border-left: 1px solid var(--account-border);
 }
 
 .account-management__preview-label {
@@ -1599,6 +1910,51 @@ onMounted(() => {
   word-break: break-word;
 }
 
+.account-management__basic-editor {
+  background: hsl(var(--muted) / 0.38);
+}
+
+.account-management__basic-layout {
+  display: grid;
+  align-items: start;
+  grid-template-columns: minmax(0, 1.55fr) minmax(220px, 0.85fr);
+  gap: 14px;
+}
+
+.account-management__basic-contact-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--account-border);
+  border-radius: 8px;
+  background: hsl(var(--card));
+}
+
+.account-management__basic-contact-list {
+  display: grid;
+  gap: 10px;
+}
+
+.account-management__basic-contact-row {
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--account-border);
+}
+
+.account-management__basic-contact-row span {
+  color: var(--account-muted);
+  font-size: 12px;
+}
+
+.account-management__basic-contact-row strong {
+  color: var(--account-title);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
 .account-management__roles {
   display: grid;
   gap: 8px;
@@ -1608,7 +1964,7 @@ onMounted(() => {
 .account-management__role-list-shell {
   max-height: 460px;
   overflow: auto;
-  padding-right: 4px;
+  padding: 2px 4px 2px 0;
 }
 
 .account-management__role-item {
@@ -1616,7 +1972,7 @@ onMounted(() => {
   align-items: center;
   grid-template-columns: auto 1fr auto;
   gap: 10px;
-  padding: 12px;
+  padding: 10px 12px;
   border: 1px solid var(--account-border);
   border-radius: 8px;
   background: var(--account-card-bg);
@@ -1656,15 +2012,62 @@ onMounted(() => {
 
 .account-management__login-methods {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
-.account-management__login-method-toolbar {
-  align-items: flex-start;
-  padding: 16px;
+.account-management__login-hero {
+  display: grid;
+  align-items: center;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid var(--account-border);
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.62) 100%);
+}
+
+.account-management__login-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid hsl(var(--primary) / 0.24);
+  border-radius: 12px;
+  background: hsl(var(--primary) / 0.1);
+  color: hsl(var(--primary));
+  font-size: 24px;
+}
+
+.account-management__login-identity {
+  min-width: 0;
+}
+
+.account-management__login-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.account-management__login-summary-item {
+  padding: 12px 14px;
   border: 1px solid var(--account-border);
   border-radius: 8px;
-  background: var(--account-card-bg-soft);
+  background: hsl(var(--card));
+}
+
+.account-management__login-action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 2px 0;
+}
+
+.account-management__status-pill--warning {
+  border-color: rgb(217 119 6 / 0.24);
+  background: rgb(217 119 6 / 0.08);
+  color: rgb(180 83 9);
 }
 
 .account-management__muted {
@@ -1732,30 +2135,85 @@ onMounted(() => {
   border-bottom-color: rgb(226 232 240 / 0.88);
 }
 
-:deep(.account-management__filter-card .ant-input),
-:deep(.account-management__filter-card .ant-input-affix-wrapper),
-:deep(.account-management__filter-card .ant-select-selector) {
+:deep(.account-management__filter-panel .ant-input),
+:deep(.account-management__filter-panel .ant-input-affix-wrapper),
+:deep(.account-management__filter-panel .ant-select-selector) {
   background: hsl(var(--input-background));
   border-color: hsl(var(--input));
   color: var(--account-text);
-  min-height: 40px;
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+:deep(.account-management__filter-panel .ant-select-selector) {
+  align-items: center;
+  display: flex;
+}
+
+:deep(.account-management__filter-panel .ant-input-affix-wrapper) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+:deep(.account-management__filter-panel .ant-btn) {
+  height: 36px;
   border-radius: 10px;
 }
 
 @media (width <= 768px) {
   .account-management__toolbar,
   .account-management__block-header,
-  .account-management__login-method-toolbar {
+  .account-management__role-toolbar,
+  .account-management__login-action-row {
     flex-direction: column;
     align-items: stretch;
   }
 
   .account-management__filter-actions-col {
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
 
-  .account-management__filter-actions {
+  .account-management__filter-buttons {
+    width: min(100%, 184px);
+  }
+
+  .account-management__basic-hero {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .account-management__login-hero {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .account-management__role-hero {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .account-management__status-pill {
+    grid-column: 1 / -1;
     justify-content: flex-start;
+    width: fit-content;
+  }
+
+  .account-management__login-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-management__role-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .account-management__basic-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .account-management__role-search {
+    width: 100%;
+  }
+
+  .account-management__basic-title,
+  .account-management__basic-subtitle {
+    white-space: normal;
   }
 }
 </style>

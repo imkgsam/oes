@@ -9,6 +9,8 @@ import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   AccountContactAsset,
+  CountTenantAccountsRequest,
+  CountTenantAccountsResponse,
   ListAccountsRequest,
   ListAccountsResponse,
   GetAccountByIdRequest,
@@ -23,8 +25,6 @@ import {
   GetAccountsByUserIdResponse,
   ListAuditEventsRequest,
   ListAuditEventsResponse,
-  ListAccountOrgMembershipsRequest,
-  ListAccountOrgMembershipsResponse,
   ListApiKeysByServiceAccountIdRequest,
   ListApiKeysByServiceAccountIdResponse,
   ListServiceAccountsRequest,
@@ -33,8 +33,6 @@ import {
   ListAccountWorkEmailAssetsResponse,
   ListAccountWorkPhoneAssetsRequest,
   ListAccountWorkPhoneAssetsResponse,
-  GetOrgTreeByTenantIdRequest,
-  GetOrgTreeByTenantIdResponse,
   GetUserByIdRequest,
   GetUserByIdResponse,
   GetUserByEmailRequest,
@@ -49,8 +47,8 @@ import {
   AccountCandidateView,
   AccountDirectoryPageView,
   AccountContactAssetView,
-  AccountOrgMembershipView,
   AccountSummaryView,
+  CountTenantAccountsQuery,
   EmployeeBindingSummaryView,
   ListAuditEventsQuery,
   ListAuditEventsView,
@@ -61,18 +59,16 @@ import {
   ListAccountsQuery,
   GetApiKeyByIdQuery,
   GetServiceAccountByIdQuery,
-  ListAccountOrgMembershipsQuery,
   ListApiKeysByServiceAccountIdQuery,
   ListServiceAccountsQuery,
   ListAccountWorkEmailAssetsQuery,
   ListAccountWorkPhoneAssetsQuery,
-  GetOrgTreeByTenantIdQuery,
-  OrgNodeView,
   ServiceAccountView,
   GetUserByIdQuery,
   UserSummaryView,
   GetUserByPhoneQuery,
-  GetUserByEmailQuery
+  GetUserByEmailQuery,
+  TenantAccountCountListView
 } from '../../application/queries'
 import { IdentityGrpcPresenter } from './identity-grpc.presenter'
 import { getOptionalOperatorScope } from './grpc-request-context'
@@ -247,39 +243,6 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     }
   }
 
-  async getOrgTreeByTenantId(
-    request: GetOrgTreeByTenantIdRequest
-  ): Promise<GetOrgTreeByTenantIdResponse> {
-    // Deprecated compatibility entry: org tree truth has moved to tenant-org-service, so no new callers should use this path.
-    const operatorScope = getOptionalOperatorScope(request)
-    const roots = await this.queryBus.execute<GetOrgTreeByTenantIdQuery, OrgNodeView[]>(
-      new GetOrgTreeByTenantIdQuery(request.tenantId!, operatorScope)
-    )
-
-    return {
-      roots: roots.map((node) => this.toOrgNode(node))
-    }
-  }
-
-  @RequireAuthenticatedOperator()
-  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
-  @UseInterceptors(GrpcRequestContextInterceptor)
-  async listAccountOrgMemberships(
-    request: ListAccountOrgMembershipsRequest
-  ): Promise<ListAccountOrgMembershipsResponse> {
-    const operatorScope = getOptionalOperatorScope(request)
-    const memberships = await this.queryBus.execute<
-      ListAccountOrgMembershipsQuery,
-      AccountOrgMembershipView[]
-    >(new ListAccountOrgMembershipsQuery(request.accountId!, operatorScope))
-
-    return {
-      memberships: memberships.map((membership) =>
-        IdentityGrpcPresenter.toAccountOrgMembership(membership)
-      )
-    }
-  }
-
   async getAccountsByUserId(
     request: GetAccountsByUserIdRequest
   ): Promise<GetAccountsByUserIdResponse> {
@@ -309,6 +272,7 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
         pageSize: request.pageSize || undefined,
         scopeLevel: request.scopeLevel || undefined,
         status: request.status || undefined,
+        tenantId: request.tenantId || undefined,
         operatorScope
       })
     )
@@ -325,6 +289,30 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
         isEnabled: account.isEnabled
       })),
       total: result.total
+    }
+  }
+
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  @UseInterceptors(GrpcRequestContextInterceptor)
+  async countTenantAccounts(
+    request: CountTenantAccountsRequest
+  ): Promise<CountTenantAccountsResponse> {
+    const operatorScope = getOptionalOperatorScope(request)
+    const result = await this.queryBus.execute<CountTenantAccountsQuery, TenantAccountCountListView>(
+      new CountTenantAccountsQuery({
+        tenantIds: request.tenantIds ?? [],
+        scopeLevel: request.scopeLevel || undefined,
+        status: request.status || undefined,
+        operatorScope
+      })
+    )
+
+    return {
+      counts: result.counts.map((count) => ({
+        tenantId: count.tenantId,
+        total: count.total
+      }))
     }
   }
 
@@ -391,16 +379,4 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
     }
   }
 
-  private toOrgNode(node: OrgNodeView) {
-    return {
-      id: node.id,
-      tenantId: node.tenantId,
-      parentId: node.parentId ?? '',
-      name: node.name,
-      code: node.code ?? '',
-      type: node.type,
-      sortOrder: node.sortOrder,
-      children: node.children.map((child) => this.toOrgNode(child))
-    }
-  }
 }

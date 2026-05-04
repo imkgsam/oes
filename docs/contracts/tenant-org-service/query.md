@@ -34,6 +34,11 @@
   - `tenant.root_org_id`
 - 返回空语义：
   - 未匹配时返回空响应对象
+- 认证准入语义：
+  - `auth-service` 是该接口的正式消费者之一，用于判断 `TENANT` scope account/session 是否允许建立或继续使用
+  - `tenant.status = ACTIVE` 是认证与会话准入的唯一允许状态
+  - `SUSPENDED` 与 `ARCHIVED` 都必须被认证链路拒绝
+  - `identity-service` 本地 account 或历史 tenant 字段不得替代该状态真相
 
 ### `ListTenants`
 

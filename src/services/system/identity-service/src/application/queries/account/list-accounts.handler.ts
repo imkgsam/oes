@@ -32,7 +32,7 @@ export class ListAccountsHandler
       pageSize: query.pageSize,
       scopeLevel: query.scopeLevel,
       status: query.status,
-      tenantId: queryScope.tenantId
+      tenantId: queryScope.tenantId ?? query.tenantId
     })
 
     return {

@@ -21,7 +21,6 @@ import {
   Modal,
   Row,
   Select,
-  Space,
   Table,
   Tag,
   Tooltip,
@@ -101,7 +100,8 @@ const canDeletePermission = computed(() =>
   authContextStore.actionCodes.includes('permission.delete'),
 );
 const canListPermissionRoles = computed(() =>
-  authContextStore.actionCodes.includes('permission.role.list'),
+  authContextStore.actionCodes.includes('permission.role_template.list') &&
+  authContextStore.actionCodes.includes('permission.role_instance.list'),
 );
 const canUpdatePermission = computed(() =>
   authContextStore.actionCodes.includes('permission.update'),
@@ -253,6 +253,10 @@ async function handleTableChange(
 
 // Opens the create modal with an empty permission form.
 function openCreateModal() {
+  if (!canCreatePermission.value) {
+    return;
+  }
+
   formMode.value = 'create';
   selectedPermission.value = null;
   resetForm();
@@ -281,6 +285,13 @@ function handleFormModuleSearch(value: string) {
 
 // Persists either a new permission or editable metadata for an existing permission.
 async function submitPermissionForm() {
+  if (
+    (formMode.value === 'create' && !canCreatePermission.value) ||
+    (formMode.value === 'edit' && !canUpdatePermission.value)
+  ) {
+    return;
+  }
+
   if (!validateForm()) {
     return;
   }
@@ -596,7 +607,8 @@ onMounted(() => {
             </Tooltip>
           </div>
           <Button
-            :disabled="!canCreatePermission"
+            v-access:code="'permission.create'"
+            v-if="canCreatePermission"
             type="primary"
             @click="openCreateModal"
           >
@@ -604,23 +616,25 @@ onMounted(() => {
           </Button>
         </div>
 
-        <Form layout="vertical">
-          <Row :gutter="16" class="permission-management__filter-row">
-            <Col :lg="10" :md="12" :xs="24">
+        <Form layout="vertical" class="permission-management__filter-panel">
+          <Row :gutter="[10, 10]" class="permission-management__filter-row">
+            <Col :lg="10" :md="24" :xs="24" :xl="11">
               <Form.Item label="关键词">
                 <Input
                   v-model:value="filters.keyword"
                   allow-clear
+                  class="permission-management__filter-control"
                   placeholder="搜索权限码或说明"
                   @press-enter="searchPermissions"
                 />
               </Form.Item>
             </Col>
-            <Col :lg="8" :md="12" :xs="24">
+            <Col :lg="8" :md="12" :xs="24" :xl="8">
               <Form.Item label="模块">
                 <Select
                   v-model:value="filters.module"
                   allow-clear
+                  class="permission-management__filter-control"
                   :options="moduleOptions"
                   option-filter-prop="label"
                   placeholder="选择模块"
@@ -630,17 +644,18 @@ onMounted(() => {
             </Col>
             <Col
               :lg="6"
-              :md="24"
+              :md="12"
               :xs="24"
+              :xl="5"
               class="permission-management__filter-actions-col"
             >
               <Form.Item label=" " :colon="false">
-                <Space wrap class="permission-management__filter-actions">
-                  <Button type="primary" @click="searchPermissions">
+                <div class="permission-management__filter-buttons">
+                  <Button class="permission-management__filter-button" type="primary" @click="searchPermissions">
                     查询
                   </Button>
-                  <Button @click="resetFilters">重置</Button>
-                </Space>
+                  <Button class="permission-management__filter-button" @click="resetFilters">重置</Button>
+                </div>
               </Form.Item>
             </Col>
           </Row>
@@ -840,14 +855,60 @@ onMounted(() => {
   align-items: center;
 }
 
+.permission-management__filter-panel {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid var(--permission-border);
+  border-radius: 10px;
+  background: hsl(var(--muted) / 0.34);
+}
+
+.permission-management__filter-panel :deep(.ant-form-item) {
+  margin-bottom: 0;
+}
+
+.permission-management__filter-control {
+  width: 100%;
+}
+
 .permission-management__filter-actions-col {
   display: flex;
   justify-content: flex-end;
 }
 
-.permission-management__filter-actions {
-  justify-content: flex-end;
+.permission-management__filter-buttons {
+  display: grid;
+  grid-template-columns: minmax(84px, 1fr) minmax(84px, 1fr);
+  gap: 8px;
+  margin-left: auto;
+  width: min(100%, 184px);
+}
+
+.permission-management__filter-button {
+  min-width: 0;
   width: 100%;
+}
+
+:deep(.permission-management__filter-panel .ant-input),
+:deep(.permission-management__filter-panel .ant-input-affix-wrapper),
+:deep(.permission-management__filter-panel .ant-select-selector) {
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+:deep(.permission-management__filter-panel .ant-select-selector) {
+  align-items: center;
+  display: flex;
+}
+
+:deep(.permission-management__filter-panel .ant-input-affix-wrapper) {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+:deep(.permission-management__filter-panel .ant-btn) {
+  height: 36px;
+  border-radius: 10px;
 }
 
 .permission-management__section-title {
@@ -926,11 +987,11 @@ onMounted(() => {
 
 @media (max-width: 991px) {
   .permission-management__filter-actions-col {
-    justify-content: flex-start;
+    justify-content: flex-end;
   }
 
-  .permission-management__filter-actions {
-    justify-content: flex-start;
+  .permission-management__filter-buttons {
+    width: min(100%, 184px);
   }
 }
 

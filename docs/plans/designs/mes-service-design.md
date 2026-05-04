@@ -3,7 +3,7 @@
 ## 1. 目标
 
 - 冻结卫浴陶瓷场景下 `mes-service` 的第一阶段边界与最小能力范围。
-- 记录 `mes-service` 对制造规格主数据、计划工作台、质量规则服务的依赖草稿。
+- 记录 `mes-service` 对制造规格主数据、计划工作台、质量规则服务的边界草稿。
 - 为后续不同线程并行推进关联设计提供恢复入口与来源标记。
 
 ## 2. 当前范围
@@ -26,7 +26,8 @@
   - `mes-service`
   - `quality-service`（来源于 MES 的依赖草稿）
   - `planning-workbench`（来源于 MES 的依赖草稿）
-  - `product / manufacturing master data`（来源于 MES 的依赖草稿）
+  - `ManufacturingSpec`（MES 内部 manufacturing master object）
+  - `item-master-service`（提供 `manufacturable` Item 准入边界）
 - features:
   - 单件二维码追溯
   - 工序执行与巡检
@@ -38,7 +39,7 @@
   - `mes-service <-> quality-service`
   - `mes-service <-> planning-workbench`
   - `mes-service <-> ERP`
-  - `mes-service <-> product/manufacturing master data`
+  - `mes-service <-> item-master-service`
 
 ## 4. 已冻结决定
 
@@ -56,6 +57,8 @@
 | 2026-04-18 | MES WIP 管理采用“阶段推导 + 关键库区/中转区容量 + 可配置移动采集”的低负担模型，不对所有暂存点强制扫码。 | WIP 管理、planning 约束、瓶颈分析 | 本 workspace；未来 `docs/architecture/services/mes-service.md` |
 | 2026-04-18 | 窑车是载具/承载单元，不是 WIP 库区；待装窑区是 WIP location，窑车容量由载具模型表达。 | 烧成追溯、WIP location 建模 | 本 workspace；未来 `docs/architecture/services/mes-service.md` |
 | 2026-04-18 | 未来自动化流水线通过不同 `CaptureSource` 接入同一套工序、位置、流转事件模型，不把人工扫码写死为唯一采集方式。 | MES 自动化演进 | 本 workspace；未来 `docs/architecture/services/mes-service.md` |
+| 2026-05-04 | MES 制造资源与执行建模冻结为：工序路线看 `Operation` / `Routing`；实际执行看 `WorkCenter`；实物位置看 `MesLocation`；空间瓶颈看 `MesLocation` + `CapacityProfile`；执行瓶颈看 `WorkCenter` / `Equipment` + `CapacityProfile`。 | MES 资源模型、WIP 流转、模具流转、APS 约束输入 | `docs/architecture/services/mes-service.md` |
+| 2026-05-04 | 当前阶段不建立独立 `product-service`；`ManufacturingSpec` 归 `mes-service`，`item-master-service` 只提供 `manufacturable` 且 `PHYSICAL` 的 `Item` 准入边界。 | MES、Item Master、模具管理、制造规格 owner 边界 | `docs/architecture/services/mes-service.md`; `docs/contracts/mes-service/**` |
 
 ## 5. 开放问题
 
@@ -63,7 +66,6 @@
 | --- | --- | --- | --- |
 | 2026-04-17 | `mes-service` 是否应在第一阶段同时新增正式服务职责卡 | 已有结论接近冻结，但仍需把关联主数据和 planning 依赖再看一轮 | 完成本轮 design draft 后再回写服务职责卡 |
 | 2026-04-17 | `quality-service` 是独立服务还是先作为质量规则子域 | 当前只冻结了边界方向，未冻结服务化时机 | 在独立质量设计线程中收敛 |
-| 2026-04-17 | `product / manufacturing master data` 是否独立成服务 | 当前只明确“必须并行冻结边界”，未冻结最终服务形态 | 在主数据设计线程中收敛 |
 | 2026-04-18 | 第一阶段 feature slice 如何拆分 | 这属于 plan 阶段，不应在 design 阶段提前写成实施步骤 | design 收口后进入 plan |
 | 2026-04-18 | 字段级 contract 与 proto 如何定义 | 当前只冻结黑盒契约边界，字段级契约应在 contracts 阶段细化 | 回写 `docs/contracts/mes-service/**` |
 
@@ -2114,7 +2116,8 @@ MES 应提供：
 
 - 完整 `quality-service` 设计
 - 完整 `planning-workbench` / APS 设计
-- 完整 `product / manufacturing master data` 设计
+- 完整 Item Master 设计
+- `ManufacturingSpec` 之外的包装、营销展示、客户专属组合等产品对象设计
 - 完整 `WMS` 设计
 - 完整 `ERP` 设计
 - PDA 页面与具体交互稿
@@ -2125,7 +2128,6 @@ MES 应提供：
 ### 28.3 尚未冻结但不阻塞本 design 收口的事项
 
 - `quality-service` 的服务化时机
-- `product / manufacturing master data` 是否独立服务化
 - `scan identity / scan router` 的正式平台归属
 - 字段级 proto / contract
 - 第一阶段 feature slice 顺序

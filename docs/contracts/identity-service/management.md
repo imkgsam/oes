@@ -140,46 +140,12 @@
 - 关键语义：
   - 仅允许对工作手机号资产生效
 
-## 4. 组织归属管理
+## 4. 租户与组织边界
 
-### `AddAccountOrgMembership`
-
-- 作用：为账户增加 legacy 组织归属 projection
-- 必要权限：
-  - `identity.org.membership.add`
-- 请求关键字段：
-  - `account_id`
-  - `org_id`
-- 关键语义：
-  - 当前基于 membership 模型表达兼容性 account 组织投影
-  - 它不是正式 `Employee -> OrgUnit` 真相写入
-  - 新的 HR / onboarding 主线不得继续依赖该接口建立正式人员归属
-
-### `RemoveAccountOrgMembership`
-
-- 作用：移除账户 legacy 组织归属 projection
-- 必要权限：
-  - `identity.org.membership.remove`
-- 请求关键字段：
-  - `account_id`
-  - `org_id`
-- 关键语义：
-  - 该操作只维护兼容性 account 投影
-  - 不得被解释为正式员工任职变更
-
-### `SetAccountPrimaryOrg`
-
-- 作用：设置或清空账户 legacy 主组织 projection
-- 必要权限：
-  - `identity.org.membership.set_primary`
-- 请求关键字段：
-  - `account_id`
-  - `org_id`
-- 关键语义：
-  - `org_id` 为空时表示清空主组织
-  - 当前模型允许多组织归属，但每个账户最多一个 primary
-  - 该 `primary` 只代表兼容性 account 视角默认组织，不代表正式 primary employment org
-  - 正式 primary org 应来自 `hr-service` 的 active employment
+- `identity-service` 不再提供 `AddAccountOrgMembership`、`RemoveAccountOrgMembership`、`SetAccountPrimaryOrg`
+- `identity-service` 创建 tenant-scope service account 时，只通过 `tenant-org-service` gRPC 校验 tenant 引用存在
+- `tenant_id` / `org_id` 可继续作为账号、联系资产、机器身份、审计记录的上下文引用字段
+- 任何 tenant / org 真相读取必须走 `tenant-org-service`，不得通过共享数据库或 identity 本地模型解决
 
 ## 5. 机器身份管理
 

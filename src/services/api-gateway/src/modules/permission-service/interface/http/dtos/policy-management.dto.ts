@@ -33,7 +33,7 @@ export class ListPoliciesDto {
 
   @ApiPropertyOptional({
     description: 'Permission code filter.',
-    example: 'permission.role.update'
+    example: 'permission.role_instance.update'
   })
   @IsOptional()
   @IsString()

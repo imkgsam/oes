@@ -7,7 +7,7 @@ import {
   AuditTrace
 } from '@oes/common'
 
-export type IdentityAuditModule = 'account' | 'contact' | 'org' | 'machine'
+export type IdentityAuditModule = 'account' | 'contact' | 'machine'
 
 export type IdentityAuditEventType =
   | 'ACCOUNT_DELETED'
@@ -22,9 +22,6 @@ export type IdentityAuditEventType =
   | 'ACCOUNT_WORK_PHONE_STATUS_CHANGED'
   | 'ACCOUNT_PRIMARY_WORK_EMAIL_CHANGED'
   | 'ACCOUNT_PRIMARY_WORK_PHONE_CHANGED'
-  | 'ACCOUNT_ORG_MEMBERSHIP_ADDED'
-  | 'ACCOUNT_ORG_MEMBERSHIP_REMOVED'
-  | 'ACCOUNT_PRIMARY_ORG_CHANGED'
   | 'SERVICE_ACCOUNT_CREATED'
   | 'SERVICE_ACCOUNT_STATUS_CHANGED'
   | 'API_KEY_CREATED'

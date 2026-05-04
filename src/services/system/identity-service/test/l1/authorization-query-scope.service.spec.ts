@@ -1,6 +1,5 @@
 import {
   AccountContactAssetQueryScopeBuilder,
-  AccountMembershipQueryScopeBuilder,
   ApiKeyQueryScopeBuilder,
   AuditEventQueryScopeBuilder,
   AuthorizationQueryScopeService,
@@ -10,31 +9,12 @@ import {
 describe('Identity AuthorizationQueryScopeService', () => {
   function createService() {
     return new AuthorizationQueryScopeService([
-      new AccountMembershipQueryScopeBuilder(),
       new AccountContactAssetQueryScopeBuilder(),
       new ApiKeyQueryScopeBuilder(),
       new AuditEventQueryScopeBuilder(),
       new ServiceAccountQueryScopeBuilder()
     ])
   }
-
-  it('应将 tenant operator 收口为 account org membership list 的 tenant scope', () => {
-    const service = createService()
-
-    const scope = service.build<{ tenantId?: string }>({
-      resource: 'account_org_membership',
-      action: 'list',
-      operatorScope: {
-        operatorId: 'user-1',
-        tenantId: 'tenant-1',
-        isSystemScope: false
-      }
-    })
-
-    expect(scope).toEqual({
-      tenantId: 'tenant-1'
-    })
-  })
 
   it('应将 system operator 放行为 account contact asset list 的空 tenant scope', () => {
     const service = createService()

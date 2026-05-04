@@ -21,7 +21,6 @@ describe('账号删除影响预检', () => {
         userId: 'user-1',
         tenantId: 'tenant-1'
       }),
-      orgMembershipCount: 1,
       contactAssetCount: 2,
       blockingReasons: []
     })
@@ -65,11 +64,9 @@ describe('账号删除影响预检', () => {
       cleanupPlan: {
         willDeleteSessions: true,
         willClearRoles: true,
-        willDeleteOrgMemberships: true,
         willDeleteContactAssets: true
       },
       blockingReasons: [],
-      orgMembershipCount: 1,
       contactAssetCount: 2
     })
   })
@@ -94,7 +91,6 @@ describe('账号删除影响预检', () => {
         id: 'acc-2',
         tenantId: 'tenant-2'
       }),
-      orgMembershipCount: 0,
       contactAssetCount: 1,
       blockingReasons: []
     })

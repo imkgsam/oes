@@ -62,12 +62,19 @@
 - 请求关键字段：
   - `tenant_id`
   - optional `reason`
+- 跨服务副作用：
+  - tenant status 成功变更为 `SUSPENDED` 后，必须调用 `auth-service.RevokeTenantSessions`
+  - 撤销范围只包含该 `tenant_id` 下 `TENANT` scope active sessions
+  - 不撤销 `SYSTEM` scope session，也不撤销其他 tenant session
 
 ### `ReactivateTenant`
 
 - 作用：重新启用 tenant
 - 请求关键字段：
   - `tenant_id`
+- 跨服务副作用：
+  - 不恢复历史 session
+  - 用户如需进入该 tenant，必须重新登录或重新选择账号建立新 session
 
 ### `ArchiveTenant`
 
@@ -75,6 +82,10 @@
 - 请求关键字段：
   - `tenant_id`
   - optional `reason`
+- 跨服务副作用：
+  - tenant status 成功变更为 `ARCHIVED` 后，必须调用 `auth-service.RevokeTenantSessions`
+  - 撤销范围只包含该 `tenant_id` 下 `TENANT` scope active sessions
+  - 不撤销 `SYSTEM` scope session，也不撤销其他 tenant session
 
 ## 4. OrgUnit 管理
 

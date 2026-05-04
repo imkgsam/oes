@@ -22,6 +22,14 @@ export class RevokeRolePermissionHandler implements ICommandHandler<RevokeRolePe
     if (!role.isAssignable) {
       throw ExceptionFactory.domain(ROLE_NOT_ASSIGNABLE)
     }
+    if (!role.allowTenantPermissionOverride || role.isProtected) {
+      throw ExceptionFactory.domain(ROLE_NOT_ASSIGNABLE, {
+        roleId: role.id,
+        roleCode: role.code,
+        allowTenantPermissionOverride: role.allowTenantPermissionOverride,
+        isProtected: role.isProtected
+      })
+    }
 
     assertRoleScopeAccess(
       command.operatorScope,

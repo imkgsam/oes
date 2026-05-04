@@ -135,9 +135,8 @@ describe('org management page', () => {
             id: 'org-root-1',
             name: 'Alpha Root',
             organizationParty: {
-              canonicalName: 'Alpha Holdings Co.',
-              displayName: 'Alpha Holdings',
               id: 'party-root-1',
+              legalName: 'Alpha Holdings Co.',
               status: 'ACTIVE',
               type: 'ORGANIZATION',
             },
@@ -165,9 +164,8 @@ describe('org management page', () => {
         id: 'org-dept-1',
         name: 'Manufacturing',
         organizationParty: {
-          canonicalName: 'Acme Manufacturing Ltd.',
-          displayName: 'Acme Manufacturing',
           id: 'party-1',
+          legalName: 'Acme Manufacturing Ltd.',
           status: 'ACTIVE',
           type: 'ORGANIZATION',
         },
@@ -276,11 +274,12 @@ describe('org management page', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('平台级组织架构管理');
-    expect(wrapper.text()).toContain('租户范围');
+    expect(wrapper.text()).toContain('Alpha Tenant');
     expect(listManagedTenantsApi).toHaveBeenCalled();
     expect(getManagedOrgTreeApi).toHaveBeenCalledWith('tenant-1');
     expect(wrapper.text()).toContain('Alpha Root');
-    expect(wrapper.text()).toContain('Alpha Holdings');
+    expect(wrapper.text()).not.toContain('Alpha Holdings');
+    expect(wrapper.text()).not.toContain('OrganizationParty');
   });
 
   it('reuses the same page for tenant entry and reads the current tenant without a platform selector', async () => {
@@ -309,7 +308,6 @@ describe('org management page', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('本租户组织架构管理');
-    expect(wrapper.text()).toContain('当前租户');
     expect(listManagedTenantsApi).not.toHaveBeenCalled();
     expect(getManagedOrgTreeApi).toHaveBeenCalledWith('tenant-1');
   });
@@ -345,9 +343,9 @@ describe('org management page', () => {
 
     await flushPromises();
 
-    expect(wrapper.text()).toContain('部门列表');
-    expect(wrapper.text()).toContain('租户范围');
-    expect(wrapper.text()).toContain('新建 OrgUnit');
+    expect(wrapper.text()).toContain('组织列表');
+    expect(wrapper.text()).toContain('Alpha Tenant');
+    expect(wrapper.text()).not.toContain('新建 OrgUnit');
     expect(replace).not.toHaveBeenCalled();
     expect(getManagedOrgTreeApi).toHaveBeenCalledWith('tenant-1');
   });

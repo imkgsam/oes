@@ -52,11 +52,9 @@ export class GetAccountDeletionImpactHandler
       cleanupPlan: {
         willDeleteSessions: true,
         willClearRoles: true,
-        willDeleteOrgMemberships: result.orgMembershipCount > 0,
         willDeleteContactAssets: result.contactAssetCount > 0
       },
       blockingReasons,
-      orgMembershipCount: result.orgMembershipCount,
       contactAssetCount: result.contactAssetCount
     }
   }

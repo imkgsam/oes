@@ -7,12 +7,19 @@ import { useRouter } from 'vue-router'
 import { Page } from '@vben/common-ui'
 
 import {
+  allocatePaymentToPayableApi,
   allocatePaymentToReceivableApi,
+  createPaymentRequestApi,
   createFinancialAccountApi,
   createReceivableScheduleFromSalesOrderApi,
+  decidePaymentRequestApi,
+  executePaymentRequestApi,
   getExchangeRateApi,
   getFinanceReleaseSignalApi,
   listFinancialAccountsApi,
+  listPayableSchedulesApi,
+  listPaymentExecutionsApi,
+  listPaymentRequestsApi,
   listReceivableSchedulesApi,
   registerCustomerFinancialAccountApi,
   setExchangeRateApi,
@@ -23,6 +30,9 @@ import { useAuthContextStore } from '#/store/auth-context'
 interface FinanceFilterState {
   accountKeyword: string
   accountStatus: '' | FinanceApi.FinancialAccountStatus
+  payableKeyword: string
+  payableGovernanceStatus: '' | FinanceApi.PayableLineRequestGovernanceStatus
+  paymentRequestStatus: '' | FinanceApi.PaymentRequestStatus
   receivableKeyword: string
   receivableStatus: '' | FinanceApi.ReceivableScheduleStatus
 }
@@ -63,10 +73,28 @@ const canCreateReceivableSchedule = computed(() =>
 const canAllocatePayment = computed(() =>
   authContextStore.actionCodes.includes('finance.payment_allocation.allocate_to_receivable')
 )
+const canAllocatePayablePayment = computed(() =>
+  authContextStore.actionCodes.includes('finance.payment_allocation.create')
+)
+const canReadPayables = computed(() =>
+  authContextStore.actionCodes.includes('finance.payable.read')
+)
+const canCreatePaymentRequest = computed(() =>
+  authContextStore.actionCodes.includes('finance.payment_request.create')
+)
+const canDecidePaymentRequest = computed(() =>
+  authContextStore.actionCodes.includes('finance.payment_request.decide')
+)
+const canCreatePaymentExecution = computed(() =>
+  authContextStore.actionCodes.includes('finance.payment_execution.create')
+)
 
 const filters = reactive<FinanceFilterState>({
   accountKeyword: '',
   accountStatus: '',
+  payableKeyword: '',
+  payableGovernanceStatus: '',
+  paymentRequestStatus: '',
   receivableKeyword: '',
   receivableStatus: ''
 })
@@ -133,26 +161,76 @@ const allocationForm = reactive<FinanceApi.AllocatePaymentToReceivablePayload>({
     }
   ]
 })
+const paymentRequestForm = reactive<FinanceApi.CreatePaymentRequestPayload>({
+  beneficiarySupplierFinancialAccountId: 'supplier-account-1',
+  currencyCode: 'USD',
+  reason: 'due payable from finance workspace',
+  requestedAmount: '300.00',
+  requestedLines: [
+    {
+      payableScheduleId: 'ps-1',
+      payableScheduleLineId: 'payable-line-1',
+      requestedAmount: '300.00'
+    }
+  ],
+  requestSource: 'FINANCE_INITIATED',
+  sourcePurchaseOrderId: 'po-1',
+  supplierTenantPartyId: 'supplier-1'
+})
+const paymentExecutionForm = reactive<FinanceApi.ExecutePaymentRequestPayload>({
+  currencyCode: 'USD',
+  executedAmount: '300.00',
+  executedAt: '2026-04-28T13:00:00.000Z',
+  executionReference: 'BANK-PAY-001',
+  sourceFinancialAccountId: 'fa-1'
+})
+const payableAllocationForm = reactive<FinanceApi.AllocatePaymentToPayablePayload>({
+  accountTransactionId: 'txn-out-1',
+  allocations: [
+    {
+      allocatedAmount: '300.00',
+      payableScheduleId: 'ps-1',
+      payableScheduleLineId: 'payable-line-1'
+    }
+  ],
+  paymentExecutionId: 'pe-1'
+})
 
 const loading = ref(false)
 const financialAccounts = ref<FinanceApi.FinancialAccountSummary[]>([])
 const receivableSchedules = ref<FinanceApi.ReceivableScheduleSummary[]>([])
+const payableSchedules = ref<FinanceApi.PayableScheduleSummary[]>([])
+const paymentRequests = ref<FinanceApi.PaymentRequestSummary[]>([])
+const paymentExecutions = ref<FinanceApi.PaymentExecutionSummary[]>([])
 const exchangeRate = ref<FinanceApi.ExchangeRate | null>(null)
 const financeReleaseSignal = ref<FinanceApi.FinanceReleaseSignal | null>(null)
 const lastCustomerAccountId = ref('')
 const lastAllocationCount = ref(0)
+const lastPaymentRequestId = ref('')
+const lastPaymentDecision = ref('')
+const lastPaymentExecutionId = ref('')
+const lastPayableAllocationCount = ref(0)
 
 /** loadWorkspace refreshes the finance account and receivable directories for the current tenant workspace. */
 async function loadWorkspace() {
   if (!activeTenantId.value) {
     financialAccounts.value = []
     receivableSchedules.value = []
+    payableSchedules.value = []
+    paymentRequests.value = []
+    paymentExecutions.value = []
     return
   }
 
   loading.value = true
   try {
-    const [accountResult, receivableResult] = await Promise.all([
+    const [
+      accountResult,
+      receivableResult,
+      payableResult,
+      requestResult,
+      executionResult
+    ] = await Promise.all([
       canListFinancialAccounts.value
         ? listFinancialAccountsApi(activeTenantId.value, {
             keyword: filters.accountKeyword.trim() || undefined,
@@ -168,11 +246,36 @@ async function loadWorkspace() {
             pageSize: 20,
             status: filters.receivableStatus || undefined
           })
-        : Promise.resolve({ receivableSchedules: [] as FinanceApi.ReceivableScheduleSummary[] })
+        : Promise.resolve({ receivableSchedules: [] as FinanceApi.ReceivableScheduleSummary[] }),
+      canReadPayables.value
+        ? listPayableSchedulesApi(activeTenantId.value, {
+            keyword: filters.payableKeyword.trim() || undefined,
+            page: 1,
+            pageSize: 20,
+            requestGovernanceStatus: filters.payableGovernanceStatus || undefined,
+            status: undefined
+          })
+        : Promise.resolve({ payableSchedules: [] as FinanceApi.PayableScheduleSummary[] }),
+      canReadPayables.value
+        ? listPaymentRequestsApi(activeTenantId.value, {
+            page: 1,
+            pageSize: 20,
+            status: filters.paymentRequestStatus || undefined
+          })
+        : Promise.resolve({ paymentRequests: [] as FinanceApi.PaymentRequestSummary[] }),
+      canReadPayables.value
+        ? listPaymentExecutionsApi(activeTenantId.value, {
+            page: 1,
+            pageSize: 20
+          })
+        : Promise.resolve({ paymentExecutions: [] as FinanceApi.PaymentExecutionSummary[] })
     ])
 
     financialAccounts.value = accountResult.financialAccounts ?? []
     receivableSchedules.value = receivableResult.receivableSchedules ?? []
+    payableSchedules.value = payableResult.payableSchedules ?? []
+    paymentRequests.value = requestResult.paymentRequests ?? []
+    paymentExecutions.value = executionResult.paymentExecutions ?? []
 
     const firstSchedule = receivableSchedules.value[0]
     if (firstSchedule) {
@@ -187,6 +290,31 @@ async function loadWorkspace() {
         firstSchedule.customerDisplayName || receivableScheduleForm.customerSnapshot
       allocationForm.allocations[0]!.receivableScheduleId =
         firstSchedule.receivableScheduleId || allocationForm.allocations[0]!.receivableScheduleId
+    }
+
+    const firstPayable = payableSchedules.value[0]
+    if (firstPayable) {
+      paymentRequestForm.sourcePurchaseOrderId =
+        firstPayable.sourcePurchaseOrderId || paymentRequestForm.sourcePurchaseOrderId
+      paymentRequestForm.supplierTenantPartyId =
+        firstPayable.supplierTenantPartyId || paymentRequestForm.supplierTenantPartyId
+      paymentRequestForm.currencyCode = firstPayable.currencyCode || paymentRequestForm.currencyCode
+      paymentRequestForm.requestedAmount =
+        firstPayable.outstandingAmount || paymentRequestForm.requestedAmount
+      paymentRequestForm.requestedLines[0]!.payableScheduleId =
+        firstPayable.payableScheduleId || paymentRequestForm.requestedLines[0]!.payableScheduleId
+      payableAllocationForm.allocations[0]!.payableScheduleId =
+        firstPayable.payableScheduleId || payableAllocationForm.allocations[0]!.payableScheduleId
+      paymentRequestForm.requestedLines[0]!.requestedAmount =
+        firstPayable.outstandingAmount || paymentRequestForm.requestedLines[0]!.requestedAmount
+      payableAllocationForm.allocations[0]!.allocatedAmount =
+        firstPayable.outstandingAmount || payableAllocationForm.allocations[0]!.allocatedAmount
+    }
+
+    const firstAccount = financialAccounts.value[0]
+    if (firstAccount) {
+      paymentExecutionForm.sourceFinancialAccountId = firstAccount.financialAccountId
+      paymentExecutionForm.currencyCode = firstAccount.currencyCode || paymentExecutionForm.currencyCode
     }
   } finally {
     loading.value = false
@@ -215,7 +343,7 @@ function openReceivableScheduleDetail(receivableScheduleId: string) {
 
 /** createFinancialAccount submits one minimal company-account creation command and refreshes the directory. */
 async function createFinancialAccount() {
-  if (!activeTenantId.value) {
+  if (!activeTenantId.value || !canCreateFinancialAccount.value) {
     return
   }
 
@@ -225,7 +353,7 @@ async function createFinancialAccount() {
 
 /** registerCustomerAccount submits one minimal customer remittance-account registration command. */
 async function registerCustomerAccount() {
-  if (!activeTenantId.value) {
+  if (!activeTenantId.value || !canRegisterCustomerAccount.value) {
     return
   }
 
@@ -238,7 +366,7 @@ async function registerCustomerAccount() {
 
 /** loadExchangeRate refreshes the current exchange-rate lookup result for the workspace form. */
 async function loadExchangeRate() {
-  if (!activeTenantId.value) {
+  if (!activeTenantId.value || !canGetExchangeRate.value) {
     return
   }
 
@@ -247,7 +375,7 @@ async function loadExchangeRate() {
 
 /** saveExchangeRate submits one standard FX write command and keeps the saved result visible. */
 async function saveExchangeRate() {
-  if (!activeTenantId.value) {
+  if (!activeTenantId.value || !canSetExchangeRate.value) {
     return
   }
 
@@ -256,7 +384,11 @@ async function saveExchangeRate() {
 
 /** loadFinanceReleaseSignal refreshes the finance release signal for the current sales-order input. */
 async function loadFinanceReleaseSignal() {
-  if (!activeTenantId.value || !releaseSignalSalesOrderId.value.trim()) {
+  if (
+    !activeTenantId.value ||
+    !releaseSignalSalesOrderId.value.trim() ||
+    !canGetFinanceReleaseSignal.value
+  ) {
     return
   }
 
@@ -268,7 +400,11 @@ async function loadFinanceReleaseSignal() {
 
 /** saveFinanceReleaseSignal submits one finance release signal command and keeps the saved result visible. */
 async function saveFinanceReleaseSignal() {
-  if (!activeTenantId.value || !releaseSignalSalesOrderId.value.trim()) {
+  if (
+    !activeTenantId.value ||
+    !releaseSignalSalesOrderId.value.trim() ||
+    !canSetFinanceReleaseSignal.value
+  ) {
     return
   }
 
@@ -281,7 +417,7 @@ async function saveFinanceReleaseSignal() {
 
 /** createReceivableSchedule submits one minimal receivable schedule creation command from a sales-order summary. */
 async function createReceivableSchedule() {
-  if (!activeTenantId.value) {
+  if (!activeTenantId.value || !canCreateReceivableSchedule.value) {
     return
   }
 
@@ -291,12 +427,66 @@ async function createReceivableSchedule() {
 
 /** allocatePayment submits one minimal receipt-allocation command against receivable lines. */
 async function allocatePayment() {
-  if (!activeTenantId.value) {
+  if (!activeTenantId.value || !canAllocatePayment.value) {
     return
   }
 
   const result = await allocatePaymentToReceivableApi(activeTenantId.value, allocationForm)
   lastAllocationCount.value = result.length
+}
+
+/** createPaymentRequest submits one minimal payable-linked payment request without changing payable truth. */
+async function createPaymentRequest() {
+  if (!activeTenantId.value || !canCreatePaymentRequest.value) {
+    return
+  }
+
+  const result = await createPaymentRequestApi(activeTenantId.value, paymentRequestForm)
+  lastPaymentRequestId.value = result.paymentRequestId
+  await loadWorkspace()
+}
+
+/** decidePaymentRequest submits an approve/reject command while keeping execution as a separate step. */
+async function decidePaymentRequest(decision: 'APPROVED' | 'REJECTED') {
+  if (!activeTenantId.value || !canDecidePaymentRequest.value) {
+    return
+  }
+
+  const targetRequestId = paymentRequests.value[0]?.paymentRequestId || lastPaymentRequestId.value || 'pr-1'
+  const result = await decidePaymentRequestApi(activeTenantId.value, targetRequestId, {
+    decision,
+    decisionReason: decision === 'APPROVED' ? 'approved from finance workspace' : 'rejected from finance workspace'
+  })
+  lastPaymentDecision.value = result.status
+  await loadWorkspace()
+}
+
+/** executePaymentRequest records one payment execution without creating or mutating real account-transaction truth. */
+async function executePaymentRequest() {
+  if (!activeTenantId.value || !canCreatePaymentExecution.value) {
+    return
+  }
+
+  const targetRequestId = paymentRequests.value[0]?.paymentRequestId || lastPaymentRequestId.value || 'pr-1'
+  const result = await executePaymentRequestApi(
+    activeTenantId.value,
+    targetRequestId,
+    paymentExecutionForm
+  )
+  lastPaymentExecutionId.value = result.paymentExecution.paymentExecutionId
+  payableAllocationForm.paymentExecutionId =
+    result.paymentExecution.paymentExecutionId || payableAllocationForm.paymentExecutionId
+  await loadWorkspace()
+}
+
+/** allocatePayablePayment submits one payable allocation command against real outflow transaction truth. */
+async function allocatePayablePayment() {
+  if (!activeTenantId.value || !canAllocatePayablePayment.value) {
+    return
+  }
+
+  const result = await allocatePaymentToPayableApi(activeTenantId.value, payableAllocationForm)
+  lastPayableAllocationCount.value = result.length
 }
 
 onMounted(() => {
@@ -331,6 +521,22 @@ onMounted(() => {
             <option value="OPEN">OPEN</option>
             <option value="PARTIALLY_PAID">PARTIALLY_PAID</option>
             <option value="PAID">PAID</option>
+          </select>
+          <input v-model="filters.payableKeyword" placeholder="应付 / PO / 供应商关键词" />
+          <select v-model="filters.payableGovernanceStatus">
+            <option value="">全部应付治理状态</option>
+            <option value="DUE_NO_REQUEST">DUE_NO_REQUEST</option>
+            <option value="EARLY_REQUEST">EARLY_REQUEST</option>
+            <option value="REQUEST_SUBMITTED">REQUEST_SUBMITTED</option>
+            <option value="APPROVED_PENDING_EXECUTION">APPROVED_PENDING_EXECUTION</option>
+          </select>
+          <select v-model="filters.paymentRequestStatus">
+            <option value="">全部付款申请状态</option>
+            <option value="SUBMITTED">SUBMITTED</option>
+            <option value="APPROVED">APPROVED</option>
+            <option value="REJECTED">REJECTED</option>
+            <option value="PARTIALLY_EXECUTED">PARTIALLY_EXECUTED</option>
+            <option value="EXECUTED">EXECUTED</option>
           </select>
           <button type="button" @click="loadWorkspace">
             {{ loading ? '刷新中...' : '刷新目录' }}
@@ -415,17 +621,110 @@ onMounted(() => {
         </table>
       </section>
 
+      <section class="finance-card">
+        <h2>应付计划</h2>
+        <table class="finance-table">
+          <thead>
+            <tr>
+              <th>计划编号</th>
+              <th>来源 PO</th>
+              <th>供应商</th>
+              <th>治理状态</th>
+              <th>未付金额</th>
+              <th>最近到期</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="schedule in payableSchedules" :key="schedule.payableScheduleId">
+              <td>{{ schedule.scheduleNo }}</td>
+              <td>{{ schedule.sourcePurchaseOrderNo || schedule.sourcePurchaseOrderId }}</td>
+              <td>{{ schedule.supplierDisplayName }}</td>
+              <td>{{ schedule.requestGovernanceStatusSummary }}</td>
+              <td>{{ schedule.outstandingAmount }}</td>
+              <td>{{ schedule.nearestDueDate }}</td>
+            </tr>
+            <tr v-if="!payableSchedules.length">
+              <td colspan="6">暂无应付计划</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="finance-card">
+        <h2>付款申请</h2>
+        <table class="finance-table">
+          <thead>
+            <tr>
+              <th>申请编号</th>
+              <th>供应商</th>
+              <th>来源</th>
+              <th>金额</th>
+              <th>状态</th>
+              <th>申请时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="request in paymentRequests" :key="request.paymentRequestId">
+              <td>{{ request.requestNo }}</td>
+              <td>{{ request.supplierDisplayName }}</td>
+              <td>{{ request.requestSource }}</td>
+              <td>{{ request.requestedAmount }} {{ request.currencyCode }}</td>
+              <td>{{ request.status }}</td>
+              <td>{{ request.requestedAt }}</td>
+            </tr>
+            <tr v-if="!paymentRequests.length">
+              <td colspan="6">暂无付款申请</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="finance-card">
+        <h2>付款执行记录</h2>
+        <table class="finance-table">
+          <thead>
+            <tr>
+              <th>执行号</th>
+              <th>申请号</th>
+              <th>金额</th>
+              <th>状态</th>
+              <th>执行时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="execution in paymentExecutions" :key="execution.paymentExecutionId">
+              <td>{{ execution.paymentExecutionId }}</td>
+              <td>{{ execution.paymentRequestId }}</td>
+              <td>{{ execution.executedAmount }} {{ execution.currencyCode }}</td>
+              <td>{{ execution.status }}</td>
+              <td>{{ execution.executedAt }}</td>
+            </tr>
+            <tr v-if="!paymentExecutions.length">
+              <td colspan="5">暂无付款执行记录</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
       <section class="finance-card finance-card--actions">
         <h2>最小操作入口</h2>
         <div class="finance-grid">
-          <div v-if="canCreateFinancialAccount" class="finance-panel">
+          <div
+            v-access:code="'finance.financial_account.create'"
+            v-if="canCreateFinancialAccount"
+            class="finance-panel"
+          >
             <h3>创建资金账户</h3>
             <button data-testid="finance-create-account" type="button" @click="createFinancialAccount">
               创建账户
             </button>
           </div>
 
-          <div v-if="canRegisterCustomerAccount" class="finance-panel">
+          <div
+            v-access:code="'finance.customer_financial_account.register'"
+            v-if="canRegisterCustomerAccount"
+            class="finance-panel"
+          >
             <h3>登记客户付款账号</h3>
             <button
               data-testid="finance-register-customer-account"
@@ -437,10 +736,18 @@ onMounted(() => {
             <p v-if="lastCustomerAccountId">最新登记: {{ lastCustomerAccountId }}</p>
           </div>
 
-          <div v-if="canGetExchangeRate || canSetExchangeRate" class="finance-panel">
+          <div
+            v-access:code="[
+              'finance.exchange_rate.get',
+              'finance.exchange_rate.set',
+            ]"
+            v-if="canGetExchangeRate || canSetExchangeRate"
+            class="finance-panel"
+          >
             <h3>汇率管理</h3>
             <div class="finance-inline-actions">
               <button
+                v-access:code="'finance.exchange_rate.get'"
                 v-if="canGetExchangeRate"
                 data-testid="finance-get-exchange-rate"
                 type="button"
@@ -449,6 +756,7 @@ onMounted(() => {
                 查询汇率
               </button>
               <button
+                v-access:code="'finance.exchange_rate.set'"
                 v-if="canSetExchangeRate"
                 data-testid="finance-set-exchange-rate"
                 type="button"
@@ -462,10 +770,18 @@ onMounted(() => {
             </p>
           </div>
 
-          <div v-if="canGetFinanceReleaseSignal || canSetFinanceReleaseSignal" class="finance-panel">
+          <div
+            v-access:code="[
+              'finance.finance_release_signal.get',
+              'finance.finance_release_signal.set',
+            ]"
+            v-if="canGetFinanceReleaseSignal || canSetFinanceReleaseSignal"
+            class="finance-panel"
+          >
             <h3>财务放行信号</h3>
             <div class="finance-inline-actions">
               <button
+                v-access:code="'finance.finance_release_signal.get'"
                 v-if="canGetFinanceReleaseSignal"
                 data-testid="finance-get-release-signal"
                 type="button"
@@ -474,6 +790,7 @@ onMounted(() => {
                 查看信号
               </button>
               <button
+                v-access:code="'finance.finance_release_signal.set'"
                 v-if="canSetFinanceReleaseSignal"
                 data-testid="finance-set-release-signal"
                 type="button"
@@ -485,7 +802,11 @@ onMounted(() => {
             <p v-if="financeReleaseSignal">{{ financeReleaseSignal.signalStatus }}</p>
           </div>
 
-          <div v-if="canCreateReceivableSchedule" class="finance-panel">
+          <div
+            v-access:code="'finance.receivable_schedule.create_from_sales_order'"
+            v-if="canCreateReceivableSchedule"
+            class="finance-panel"
+          >
             <h3>建立应收计划</h3>
             <button
               data-testid="finance-create-receivable-schedule"
@@ -496,12 +817,97 @@ onMounted(() => {
             </button>
           </div>
 
-          <div v-if="canAllocatePayment" class="finance-panel">
+          <div
+            v-access:code="'finance.payment_allocation.allocate_to_receivable'"
+            v-if="canAllocatePayment"
+            class="finance-panel"
+          >
             <h3>收款核销</h3>
             <button data-testid="finance-allocate-payment" type="button" @click="allocatePayment">
               核销收款
             </button>
             <p v-if="lastAllocationCount">新增核销条数: {{ lastAllocationCount }}</p>
+          </div>
+
+          <div
+            v-access:code="'finance.payment_request.create'"
+            v-if="canCreatePaymentRequest"
+            class="finance-panel"
+          >
+            <h3>创建付款申请</h3>
+            <button
+              data-testid="finance-create-payment-request"
+              type="button"
+              @click="createPaymentRequest"
+            >
+              创建付款申请
+            </button>
+            <p v-if="lastPaymentRequestId">最新申请: {{ lastPaymentRequestId }}</p>
+          </div>
+
+          <div
+            v-access:code="'finance.payment_request.decide'"
+            v-if="canDecidePaymentRequest"
+            class="finance-panel"
+          >
+            <h3>审核付款申请</h3>
+            <div class="finance-inline-actions">
+              <button
+                data-testid="finance-approve-payment-request"
+                type="button"
+                @click="decidePaymentRequest('APPROVED')"
+              >
+                审核通过
+              </button>
+              <button
+                data-testid="finance-reject-payment-request"
+                type="button"
+                @click="decidePaymentRequest('REJECTED')"
+              >
+                驳回
+              </button>
+            </div>
+            <p v-if="lastPaymentDecision">最新决策: {{ lastPaymentDecision }}</p>
+          </div>
+
+          <div
+            v-access:code="'finance.payment_execution.create'"
+            v-if="canCreatePaymentExecution"
+            class="finance-panel"
+          >
+            <h3>付款执行记录入口</h3>
+            <button
+              data-testid="finance-execute-payment-request"
+              type="button"
+              @click="executePaymentRequest"
+            >
+              记录付款执行
+            </button>
+            <p v-if="lastPaymentExecutionId">最新执行: {{ lastPaymentExecutionId }}</p>
+          </div>
+
+          <div
+            v-access:code="'finance.payment_allocation.create'"
+            v-if="canAllocatePayablePayment"
+            class="finance-panel"
+          >
+            <h3>付款核销入口</h3>
+            <button
+              data-testid="finance-allocate-payable-payment"
+              type="button"
+              @click="allocatePayablePayment"
+            >
+              核销付款
+            </button>
+            <p v-if="lastPayableAllocationCount">新增付款核销条数: {{ lastPayableAllocationCount }}</p>
+          </div>
+
+          <div class="finance-panel finance-panel--blocker">
+            <h3>供应商收款账号维护 blocker</h3>
+            <p>
+              当前 generated finance gRPC surface 未暴露 SupplierFinancialAccount 公开注册/维护 RPC；
+              页面只能填写 beneficiarySupplierFinancialAccountId，不能私自新增 contract。
+            </p>
           </div>
         </div>
       </section>
@@ -547,7 +953,42 @@ onMounted(() => {
 }
 
 .finance-grid--filters {
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  align-items: center;
+  gap: 10px;
+  grid-template-columns:
+    minmax(200px, 1.2fr)
+    minmax(150px, 0.75fr)
+    minmax(200px, 1.2fr)
+    minmax(150px, 0.75fr)
+    minmax(240px, 1.4fr)
+    minmax(190px, 1fr)
+    minmax(180px, 0.9fr)
+    minmax(96px, 0.45fr);
+}
+
+.finance-grid--filters input,
+.finance-grid--filters select,
+.finance-grid--filters button {
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+.finance-grid--filters button {
+  justify-self: end;
+  min-width: 84px;
+  width: min(100%, 104px);
+}
+
+@media (max-width: 1200px) {
+  .finance-grid--filters {
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .finance-grid--filters {
+    grid-template-columns: 1fr;
+  }
 }
 
 .finance-panel {

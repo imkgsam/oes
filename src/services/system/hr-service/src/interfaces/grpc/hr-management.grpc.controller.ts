@@ -1,5 +1,16 @@
-import { BadRequestException, Controller, UseFilters } from '@nestjs/common'
+import { BadRequestException, Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
+import {
+  AuthenticatedOperatorGuard,
+  getAuthenticatedGrpcRequestContext,
+  getGrpcMetadataValue,
+  GrpcRequestContextInterceptor,
+  InternalServiceGuard,
+  OPERATOR_CONTEXT_METADATA_KEY,
+  REQUEST_ID_METADATA_KEY,
+  RequireAuthenticatedOperator,
+  TRACE_ID_METADATA_KEY
+} from '@oes/common/authorization'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   ChangePrimaryEmploymentRequest,
@@ -7,6 +18,8 @@ import {
   CompleteEmployeeAccessRequest,
   CompleteEmployeeAccessResponse,
   CreateEmployeeRequest,
+  CreateEmployeeOnboardingRequest,
+  CreateEmployeeOnboardingResponse,
   CreateEmployeeResponse,
   CreateEmploymentRequest,
   CreateEmploymentResponse,
@@ -18,6 +31,7 @@ import {
   HrManagementServiceControllerMethods
 } from '@oes/common/generated/hr_service'
 import { HrManagementService } from '../../application/services'
+import { HrEmployeeOnboardingService } from '../../application/services/hr-employee-onboarding.service'
 import {
   OnboardingAccessProcessSummary,
   EmployeeSummary,
@@ -32,11 +46,15 @@ import { EmployeeAccessPendingException, HrOnboardingAccessService } from '../..
 
 /** HrManagementGrpcController exposes HR management contracts over gRPC. */
 @UseFilters(GrpcExceptionFilter)
+@RequireAuthenticatedOperator()
+@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+@UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @HrManagementServiceControllerMethods()
 export class HrManagementGrpcController implements HrManagementServiceController {
   constructor(
     private readonly hrManagementService: HrManagementService,
+    private readonly hrEmployeeOnboardingService: HrEmployeeOnboardingService,
     private readonly hrOnboardingAccessService: HrOnboardingAccessService
   ) {}
 
@@ -52,6 +70,56 @@ export class HrManagementGrpcController implements HrManagementServiceController
       employeeCode: request.employeeCode ?? ''
     })
     return { employee: mapEmployee(employee) }
+  }
+
+  async createEmployeeOnboarding(
+    request: CreateEmployeeOnboardingRequest,
+    metadata?: Metadata
+  ): Promise<CreateEmployeeOnboardingResponse> {
+    requireOperatorMetadata(metadata)
+    const downstreamContext = buildDownstreamRequestContext(request, metadata)
+    const result = await this.hrEmployeeOnboardingService.startEmployeeOnboarding({
+      tenantId: request.tenantId ?? '',
+      idempotencyKey: request.idempotencyKey ?? '',
+      employeeCode: request.employeeCode || undefined,
+      person: {
+        legalName: request.person?.legalName ?? '',
+        existingPartyId: request.person?.existingPartyId || undefined,
+        existingTenantPartyId: request.person?.existingTenantPartyId || undefined,
+        identifiers: (request.person?.identifiers ?? []).map((identifier) => ({
+          identifierType: identifier.identifierType ?? '',
+          normalizedValue: identifier.normalizedValue ?? '',
+          rawValue: identifier.rawValue || undefined,
+          issuerCountryOrRegion: identifier.issuerCountryOrRegion || undefined
+        }))
+      },
+      primaryEmployment: request.primaryEmployment
+        ? {
+            orgUnitId: request.primaryEmployment.orgUnitId || undefined,
+            effectiveFrom: parseProtoDate(request.primaryEmployment.effectiveFrom, 'primaryEmployment.effectiveFrom'),
+            positionName: request.primaryEmployment.positionName || undefined
+          }
+        : undefined,
+      account: request.createAccount
+        ? {
+            displayName: request.createAccount.displayName ?? '',
+            email: request.createAccount.email || undefined,
+            existingUserId: request.createAccount.existingUserId || undefined,
+            phone: request.createAccount.phone || undefined
+          }
+        : request.existingAccountId
+          ? {
+              displayName: request.person?.legalName ?? '',
+              existingAccountId: request.existingAccountId
+            }
+          : undefined,
+      ...downstreamContext
+    })
+    return {
+      employee: mapEmployee(result.employee),
+      employment: result.employment ? mapEmployment(result.employment) : undefined,
+      access: result.access ? mapOnboardingAccessProcess(result.access) : undefined
+    }
   }
 
   async createEmployment(
@@ -112,6 +180,7 @@ export class HrManagementGrpcController implements HrManagementServiceController
     metadata?: Metadata
   ): Promise<CompleteEmployeeAccessResponse> {
     requireOperatorMetadata(metadata)
+    const downstreamContext = buildDownstreamRequestContext(request, metadata)
 
     try {
       const process = await this.hrOnboardingAccessService.completeAccess({
@@ -125,9 +194,11 @@ export class HrManagementGrpcController implements HrManagementServiceController
           ? {
               displayName: request.createAccount.displayName ?? '',
               email: request.createAccount.email || undefined,
+              existingUserId: request.createAccount.existingUserId || undefined,
               phone: request.createAccount.phone || undefined
             }
-          : undefined
+          : undefined,
+        ...downstreamContext
       })
 
       return {
@@ -147,10 +218,29 @@ export class HrManagementGrpcController implements HrManagementServiceController
 
 /** requireOperatorMetadata enforces operator and trace context on HR write RPCs. */
 function requireOperatorMetadata(metadata?: Metadata): void {
-  const operatorId = metadata?.get('operator-id')[0]
-  const traceId = metadata?.get('trace-id')[0]
-  if (!operatorId || !traceId) {
+  const operatorContext = getGrpcMetadataValue(metadata, OPERATOR_CONTEXT_METADATA_KEY)
+  const traceId = getGrpcMetadataValue(metadata, TRACE_ID_METADATA_KEY)
+  if (!operatorContext || !traceId) {
     throw new BadRequestException('operator context and trace context are required')
+  }
+}
+
+/** buildDownstreamRequestContext forwards the authenticated operator context into HR-owned downstream orchestration. */
+function buildDownstreamRequestContext(request: unknown, metadata?: Metadata) {
+  const operatorContext = getAuthenticatedGrpcRequestContext(request)?.operatorContext
+
+  return {
+    operatorContext: operatorContext
+      ? {
+          operatorId: operatorContext.operator_id,
+          operatorType: operatorContext.operator_type,
+          tenantId: operatorContext.tenant_id,
+          orgId: operatorContext.org_id,
+          operatorRoles: operatorContext.operator_roles
+        }
+      : undefined,
+    requestId: getGrpcMetadataValue(metadata, REQUEST_ID_METADATA_KEY),
+    traceId: getGrpcMetadataValue(metadata, TRACE_ID_METADATA_KEY)
   }
 }
 
@@ -186,6 +276,7 @@ export function mapEmployment(employment: EmploymentSummary) {
     tenantId: employment.tenantId,
     employeeId: employment.employeeId,
     orgUnitId: employment.orgUnitId,
+    positionName: employment.positionName ?? '',
     status: mapEmploymentStatus(employment.status),
     effectiveFrom: employment.effectiveFrom.toISOString(),
     effectiveTo: employment.effectiveTo?.toISOString() ?? '',

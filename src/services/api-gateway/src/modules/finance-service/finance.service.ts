@@ -575,20 +575,32 @@ export class FinanceService {
     tenantId: string,
     query: {
       accountTransactionId?: string
+      allocatedFrom?: string
+      allocatedTo?: string
       page?: number
       pageSize?: number
+      paymentExecutionId?: string
       receivableScheduleId?: string
       receivableScheduleLineId?: string
+      targetScheduleId?: string
+      targetScheduleLineId?: string
+      targetType?: string
     },
     source: DownstreamRequestSource
   ) {
     const result = await this.financeQueryAdapter.searchPaymentAllocations(
       {
         accountTransactionId: normalize(query.accountTransactionId),
+        allocatedFrom: normalize(query.allocatedFrom),
+        allocatedTo: normalize(query.allocatedTo),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
+        paymentExecutionId: normalize(query.paymentExecutionId),
         receivableScheduleId: normalize(query.receivableScheduleId),
         receivableScheduleLineId: normalize(query.receivableScheduleLineId),
+        targetScheduleId: normalize(query.targetScheduleId),
+        targetScheduleLineId: normalize(query.targetScheduleLineId),
+        targetType: normalize(query.targetType),
         tenantId: this.resolveTenantId(tenantId, source)
       },
       source
@@ -632,6 +644,444 @@ export class FinanceService {
           )
         })),
         auditReason: normalize(input.auditReason),
+        tenantId: this.resolveTenantId(tenantId, source)
+      },
+      source
+    )
+
+    return (result.paymentAllocations ?? []).map((allocation) => mapPaymentAllocation(allocation))
+  }
+
+  /** searchPayableSchedules returns payable schedule summaries with governance status visible to the finance workspace. */
+  async searchPayableSchedules(
+    tenantId: string,
+    query: {
+      dueFrom?: string
+      dueTo?: string
+      keyword?: string
+      orgId?: string
+      overdueOnly?: boolean
+      page?: number
+      pageSize?: number
+      requestGovernanceStatus?: string
+      sourcePurchaseOrderId?: string
+      status?: string
+      supplierTenantPartyId?: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.financeQueryAdapter.searchPayableSchedules(
+      {
+        dueFrom: normalize(query.dueFrom),
+        dueTo: normalize(query.dueTo),
+        keyword: normalize(query.keyword),
+        orgId: normalize(query.orgId),
+        overdueOnly: Boolean(query.overdueOnly),
+        page: clampPage(query.page),
+        pageSize: clampPageSize(query.pageSize),
+        requestGovernanceStatus: normalize(query.requestGovernanceStatus),
+        sourcePurchaseOrderId: normalize(query.sourcePurchaseOrderId),
+        status: normalize(query.status),
+        supplierTenantPartyId: normalize(query.supplierTenantPartyId),
+        tenantId: this.resolveTenantId(tenantId, source)
+      },
+      source
+    )
+
+    return {
+      page: Number(result.page ?? 1),
+      pageSize: Number(result.pageSize ?? 20),
+      payableSchedules: (result.payableSchedules ?? []).map((schedule) =>
+        mapPayableScheduleSummary(schedule)
+      ),
+      total: Number(result.total ?? 0)
+    }
+  }
+
+  /** getPayableSchedule returns one payable schedule detail without treating payment requests as payable truth. */
+  async getPayableSchedule(
+    tenantId: string,
+    payableScheduleId: string,
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.financeQueryAdapter.getPayableSchedule(
+      {
+        payableScheduleId: requireNonBlank(payableScheduleId, 'payableScheduleId'),
+        tenantId: this.resolveTenantId(tenantId, source)
+      },
+      source
+    )
+
+    return mapPayableSchedule(result.payableSchedule)
+  }
+
+  /** searchPaymentRequests returns payment governance summaries without implying actual payment execution. */
+  async searchPaymentRequests(
+    tenantId: string,
+    query: {
+      beneficiarySupplierFinancialAccountId?: string
+      orgId?: string
+      page?: number
+      pageSize?: number
+      requestedFrom?: string
+      requestedTo?: string
+      requestSource?: string
+      sourcePurchaseOrderId?: string
+      status?: string
+      supplierTenantPartyId?: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.financeQueryAdapter.searchPaymentRequests(
+      {
+        beneficiarySupplierFinancialAccountId: normalize(
+          query.beneficiarySupplierFinancialAccountId
+        ),
+        orgId: normalize(query.orgId),
+        page: clampPage(query.page),
+        pageSize: clampPageSize(query.pageSize),
+        requestedFrom: normalize(query.requestedFrom),
+        requestedTo: normalize(query.requestedTo),
+        requestSource: normalize(query.requestSource),
+        sourcePurchaseOrderId: normalize(query.sourcePurchaseOrderId),
+        status: normalize(query.status),
+        supplierTenantPartyId: normalize(query.supplierTenantPartyId),
+        tenantId: this.resolveTenantId(tenantId, source)
+      },
+      source
+    )
+
+    return {
+      page: Number(result.page ?? 1),
+      pageSize: Number(result.pageSize ?? 20),
+      paymentRequests: (result.paymentRequests ?? []).map((request) =>
+        mapPaymentRequestSummary(request)
+      ),
+      total: Number(result.total ?? 0)
+    }
+  }
+
+  /** searchPaymentExecutions returns payment execution summaries while keeping real account transactions separate. */
+  async searchPaymentExecutions(
+    tenantId: string,
+    query: {
+      executedFrom?: string
+      executedTo?: string
+      linkedAccountTransactionId?: string
+      orgId?: string
+      page?: number
+      pageSize?: number
+      paymentRequestId?: string
+      sourceFinancialAccountId?: string
+      status?: string
+      supplierTenantPartyId?: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.financeQueryAdapter.searchPaymentExecutions(
+      {
+        executedFrom: normalize(query.executedFrom),
+        executedTo: normalize(query.executedTo),
+        linkedAccountTransactionId: normalize(query.linkedAccountTransactionId),
+        orgId: normalize(query.orgId),
+        page: clampPage(query.page),
+        pageSize: clampPageSize(query.pageSize),
+        paymentRequestId: normalize(query.paymentRequestId),
+        sourceFinancialAccountId: normalize(query.sourceFinancialAccountId),
+        status: normalize(query.status),
+        supplierTenantPartyId: normalize(query.supplierTenantPartyId),
+        tenantId: this.resolveTenantId(tenantId, source)
+      },
+      source
+    )
+
+    return {
+      page: Number(result.page ?? 1),
+      pageSize: Number(result.pageSize ?? 20),
+      paymentExecutions: (result.paymentExecutions ?? []).map((execution) =>
+        mapPaymentExecutionSummary(execution)
+      ),
+      total: Number(result.total ?? 0)
+    }
+  }
+
+  /** createPayableScheduleFromPurchaseOrder maps a controlled PO summary into the finance payable creation command. */
+  async createPayableScheduleFromPurchaseOrder(
+    tenantId: string,
+    input: {
+      auditReason?: string
+      currencyCode: string
+      lines: Array<{
+        dueDate: string
+        lineType: string
+        memo?: string
+        scheduledAmount: string
+        sourcePurchaseOrderLineId?: string
+        sourceRef: string
+      }>
+      orgId?: string
+      procurementSnapshotReference?: string
+      purchaseOrderId: string
+      purchaseOrderNo?: string
+      supplierSnapshot: string
+      supplierTenantPartyId: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.financeManagementAdapter.createPayableScheduleFromPurchaseOrder(
+      {
+        auditReason: normalize(input.auditReason),
+        currencyCode: requireNonBlank(input.currencyCode, 'currencyCode'),
+        lines: (input.lines ?? []).map((line) => ({
+          dueDate: requireNonBlank(line.dueDate, 'lines.dueDate'),
+          lineType: requireNonBlank(line.lineType, 'lines.lineType'),
+          memo: normalize(line.memo),
+          scheduledAmount: requireNonBlank(line.scheduledAmount, 'lines.scheduledAmount'),
+          sourcePurchaseOrderLineId: normalize(line.sourcePurchaseOrderLineId),
+          sourceRef: requireNonBlank(line.sourceRef, 'lines.sourceRef')
+        })),
+        orgId: normalize(input.orgId),
+        procurementSnapshotReference: normalize(input.procurementSnapshotReference),
+        purchaseOrderId: requireNonBlank(input.purchaseOrderId, 'purchaseOrderId'),
+        purchaseOrderNo: normalize(input.purchaseOrderNo),
+        supplierSnapshot: requireNonBlank(input.supplierSnapshot, 'supplierSnapshot'),
+        supplierTenantPartyId: requireNonBlank(
+          input.supplierTenantPartyId,
+          'supplierTenantPartyId'
+        ),
+        tenantId: this.resolveTenantId(tenantId, source)
+      },
+      source
+    )
+
+    return mapPayableSchedule(result.payableSchedule)
+  }
+
+  /** applyPayableScheduleAdjustmentFromPurchaseOrderChange maps a controlled PO change into payable schedule adjustments. */
+  async applyPayableScheduleAdjustmentFromPurchaseOrderChange(
+    tenantId: string,
+    input: {
+      adjustments: Array<{
+        action: string
+        dueDate?: string
+        lineType?: string
+        memo?: string
+        newSourceRef?: string
+        scheduledAmount?: string
+        sourcePurchaseOrderLineId?: string
+        targetSourceRef?: string
+      }>
+      auditReason?: string
+      changeReason?: string
+      orgId?: string
+      procurementSnapshotReference?: string
+      purchaseOrderChangeId: string
+      purchaseOrderId: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result =
+      await this.financeManagementAdapter.applyPayableScheduleAdjustmentFromPurchaseOrderChange(
+        {
+          adjustments: (input.adjustments ?? []).map((adjustment) => ({
+            action: requireNonBlank(adjustment.action, 'adjustments.action'),
+            dueDate: normalize(adjustment.dueDate),
+            lineType: normalize(adjustment.lineType),
+            memo: normalize(adjustment.memo),
+            newSourceRef: normalize(adjustment.newSourceRef),
+            scheduledAmount: normalize(adjustment.scheduledAmount),
+            sourcePurchaseOrderLineId: normalize(adjustment.sourcePurchaseOrderLineId),
+            targetSourceRef: normalize(adjustment.targetSourceRef)
+          })),
+          auditReason: normalize(input.auditReason),
+          changeReason: normalize(input.changeReason),
+          orgId: normalize(input.orgId),
+          procurementSnapshotReference: normalize(input.procurementSnapshotReference),
+          purchaseOrderChangeId: requireNonBlank(
+            input.purchaseOrderChangeId,
+            'purchaseOrderChangeId'
+          ),
+          purchaseOrderId: requireNonBlank(input.purchaseOrderId, 'purchaseOrderId'),
+          tenantId: this.resolveTenantId(tenantId, source)
+        },
+        source
+      )
+
+    return mapPayableSchedule(result.payableSchedule)
+  }
+
+  /** createPaymentRequest maps one payable-linked payment request without changing payable schedule truth. */
+  async createPaymentRequest(
+    tenantId: string,
+    input: {
+      auditReason?: string
+      beneficiarySupplierFinancialAccountId: string
+      currencyCode: string
+      evidenceSnapshots?: Array<{
+        attachmentRef?: string
+        currencyCode?: string
+        documentAmount?: string
+        documentDate?: string
+        evidenceType: string
+        externalDocumentNo?: string
+        note?: string
+      }>
+      orgId?: string
+      reason?: string
+      requestedAmount: string
+      requestedLines: Array<{
+        payableScheduleId: string
+        payableScheduleLineId: string
+        requestedAmount: string
+      }>
+      requestSource: string
+      sourcePurchaseOrderId?: string
+      supplierTenantPartyId: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.financeManagementAdapter.createPaymentRequest(
+      {
+        auditReason: normalize(input.auditReason),
+        beneficiarySupplierFinancialAccountId: requireNonBlank(
+          input.beneficiarySupplierFinancialAccountId,
+          'beneficiarySupplierFinancialAccountId'
+        ),
+        currencyCode: requireNonBlank(input.currencyCode, 'currencyCode'),
+        evidenceSnapshots: (input.evidenceSnapshots ?? []).map((evidence) => ({
+          attachmentRef: normalize(evidence.attachmentRef),
+          currencyCode: normalize(evidence.currencyCode),
+          documentAmount: normalize(evidence.documentAmount),
+          documentDate: normalize(evidence.documentDate),
+          evidenceType: requireNonBlank(evidence.evidenceType, 'evidenceSnapshots.evidenceType'),
+          externalDocumentNo: normalize(evidence.externalDocumentNo),
+          note: normalize(evidence.note)
+        })),
+        orgId: normalize(input.orgId),
+        reason: normalize(input.reason),
+        requestedAmount: requireNonBlank(input.requestedAmount, 'requestedAmount'),
+        requestedLines: (input.requestedLines ?? []).map((line) => ({
+          payableScheduleId: requireNonBlank(
+            line.payableScheduleId,
+            'requestedLines.payableScheduleId'
+          ),
+          payableScheduleLineId: requireNonBlank(
+            line.payableScheduleLineId,
+            'requestedLines.payableScheduleLineId'
+          ),
+          requestedAmount: requireNonBlank(line.requestedAmount, 'requestedLines.requestedAmount')
+        })),
+        requestSource: requireNonBlank(input.requestSource, 'requestSource'),
+        sourcePurchaseOrderId: normalize(input.sourcePurchaseOrderId),
+        supplierTenantPartyId: requireNonBlank(
+          input.supplierTenantPartyId,
+          'supplierTenantPartyId'
+        ),
+        tenantId: this.resolveTenantId(tenantId, source)
+      },
+      source
+    )
+
+    return mapPaymentRequest(result.paymentRequest)
+  }
+
+  /** decidePaymentRequest maps an approve/reject decision without conflating approval with execution. */
+  async decidePaymentRequest(
+    tenantId: string,
+    paymentRequestId: string,
+    input: {
+      auditReason?: string
+      decision: string
+      decisionReason?: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.financeManagementAdapter.decidePaymentRequest(
+      {
+        auditReason: normalize(input.auditReason),
+        decision: requireNonBlank(input.decision, 'decision'),
+        decisionReason: normalize(input.decisionReason),
+        paymentRequestId: requireNonBlank(paymentRequestId, 'paymentRequestId'),
+        tenantId: this.resolveTenantId(tenantId, source)
+      },
+      source
+    )
+
+    return mapPaymentRequest(result.paymentRequest)
+  }
+
+  /** executePaymentRequest records a payment execution without creating account-transaction truth. */
+  async executePaymentRequest(
+    tenantId: string,
+    paymentRequestId: string,
+    input: {
+      attachmentRefs?: string[]
+      auditReason?: string
+      currencyCode: string
+      executedAmount: string
+      executedAt: string
+      executionReference?: string
+      linkedAccountTransactionId?: string
+      sourceFinancialAccountId: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.financeManagementAdapter.executePaymentRequest(
+      {
+        attachmentRefs: input.attachmentRefs ?? [],
+        auditReason: normalize(input.auditReason),
+        currencyCode: requireNonBlank(input.currencyCode, 'currencyCode'),
+        executedAmount: requireNonBlank(input.executedAmount, 'executedAmount'),
+        executedAt: requireNonBlank(input.executedAt, 'executedAt'),
+        executionReference: normalize(input.executionReference),
+        linkedAccountTransactionId: normalize(input.linkedAccountTransactionId),
+        paymentRequestId: requireNonBlank(paymentRequestId, 'paymentRequestId'),
+        sourceFinancialAccountId: requireNonBlank(
+          input.sourceFinancialAccountId,
+          'sourceFinancialAccountId'
+        ),
+        tenantId: this.resolveTenantId(tenantId, source)
+      },
+      source
+    )
+
+    return {
+      paymentExecution: mapPaymentExecution(result.paymentExecution),
+      paymentRequest: mapPaymentRequest(result.paymentRequest)
+    }
+  }
+
+  /** allocatePaymentToPayable maps a real outflow allocation command against payable schedule lines. */
+  async allocatePaymentToPayable(
+    tenantId: string,
+    input: {
+      accountTransactionId: string
+      allocations: Array<{
+        allocatedAmount: string
+        payableScheduleId: string
+        payableScheduleLineId: string
+      }>
+      auditReason?: string
+      paymentExecutionId?: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.financeManagementAdapter.allocatePaymentToPayable(
+      {
+        accountTransactionId: requireNonBlank(input.accountTransactionId, 'accountTransactionId'),
+        allocations: (input.allocations ?? []).map((allocation) => ({
+          allocatedAmount: requireNonBlank(allocation.allocatedAmount, 'allocations.allocatedAmount'),
+          payableScheduleId: requireNonBlank(
+            allocation.payableScheduleId,
+            'allocations.payableScheduleId'
+          ),
+          payableScheduleLineId: requireNonBlank(
+            allocation.payableScheduleLineId,
+            'allocations.payableScheduleLineId'
+          )
+        })),
+        auditReason: normalize(input.auditReason),
+        paymentExecutionId: normalize(input.paymentExecutionId),
         tenantId: this.resolveTenantId(tenantId, source)
       },
       source
@@ -793,9 +1243,157 @@ function mapPaymentAllocation(allocation?: any) {
     currencyCode: allocation?.currencyCode ?? '',
     paymentAllocationId: allocation?.paymentAllocationId ?? '',
     paymentExecutionId: allocation?.paymentExecutionId ?? '',
+    paymentRequestId: allocation?.paymentRequestId ?? '',
     targetScheduleId: allocation?.targetScheduleId ?? '',
     targetScheduleLineId: allocation?.targetScheduleLineId ?? '',
     targetType: allocation?.targetType ?? ''
+  }
+}
+
+/** mapPayableScheduleSummary converts one finance payable schedule summary into the stable tenant-web BFF shape. */
+function mapPayableScheduleSummary(schedule?: any) {
+  return {
+    currencyCode: schedule?.currencyCode ?? '',
+    nearestDueDate: schedule?.nearestDueDate ?? '',
+    outstandingAmount: schedule?.outstandingAmount ?? '',
+    payableScheduleId: schedule?.payableScheduleId ?? '',
+    requestGovernanceStatusSummary: schedule?.requestGovernanceStatusSummary ?? '',
+    scheduleNo: schedule?.scheduleNo ?? '',
+    sourcePurchaseOrderId: schedule?.sourcePurchaseOrderId ?? '',
+    sourcePurchaseOrderNo: schedule?.sourcePurchaseOrderNo ?? '',
+    status: schedule?.status ?? '',
+    supplierDisplayName: schedule?.supplierDisplayName ?? '',
+    supplierTenantPartyId: schedule?.supplierTenantPartyId ?? ''
+  }
+}
+
+/** mapPayableSchedule converts one finance payable schedule aggregate without promoting requests into payable truth. */
+function mapPayableSchedule(schedule?: any) {
+  return {
+    createdAt: schedule?.createdAt ?? '',
+    currencyCode: schedule?.currencyCode ?? '',
+    lines: (schedule?.lines ?? []).map((line: any) => ({
+      allocatedAmount: line?.allocatedAmount ?? '',
+      dueDate: line?.dueDate ?? '',
+      executedAmount: line?.executedAmount ?? '',
+      lineNo: Number(line?.lineNo ?? 0),
+      lineType: line?.lineType ?? '',
+      memo: line?.memo ?? '',
+      outstandingAmount: line?.outstandingAmount ?? '',
+      payableScheduleLineId: line?.payableScheduleLineId ?? '',
+      requestGovernanceStatus: line?.requestGovernanceStatus ?? '',
+      requestedAmount: line?.requestedAmount ?? '',
+      scheduledAmount: line?.scheduledAmount ?? '',
+      sourcePurchaseOrderLineId: line?.sourcePurchaseOrderLineId ?? '',
+      sourceRef: line?.sourceRef ?? '',
+      status: line?.status ?? '',
+      supersedesSourceRef: line?.supersedesSourceRef ?? ''
+    })),
+    orgId: schedule?.orgId ?? '',
+    outstandingAmount: schedule?.outstandingAmount ?? '',
+    payableScheduleId: schedule?.payableScheduleId ?? '',
+    procurementSnapshotReference: schedule?.procurementSnapshotReference ?? '',
+    scheduleNo: schedule?.scheduleNo ?? '',
+    sourcePurchaseOrderId: schedule?.sourcePurchaseOrderId ?? '',
+    sourcePurchaseOrderNo: schedule?.sourcePurchaseOrderNo ?? '',
+    sourceType: schedule?.sourceType ?? '',
+    status: schedule?.status ?? '',
+    supplierSnapshot: schedule?.supplierSnapshot ?? '',
+    supplierTenantPartyId: schedule?.supplierTenantPartyId ?? '',
+    tenantId: schedule?.tenantId ?? '',
+    totalAllocatedAmount: schedule?.totalAllocatedAmount ?? '',
+    totalExecutedAmount: schedule?.totalExecutedAmount ?? '',
+    totalRequestedAmount: schedule?.totalRequestedAmount ?? '',
+    totalScheduledAmount: schedule?.totalScheduledAmount ?? '',
+    updatedAt: schedule?.updatedAt ?? ''
+  }
+}
+
+/** mapPaymentRequestSummary converts one payment request summary into the tenant-web BFF governance shape. */
+function mapPaymentRequestSummary(request?: any) {
+  return {
+    currencyCode: request?.currencyCode ?? '',
+    paymentRequestId: request?.paymentRequestId ?? '',
+    requestNo: request?.requestNo ?? '',
+    requestSource: request?.requestSource ?? '',
+    requestedAmount: request?.requestedAmount ?? '',
+    requestedAt: request?.requestedAt ?? '',
+    status: request?.status ?? '',
+    supplierDisplayName: request?.supplierDisplayName ?? '',
+    supplierTenantPartyId: request?.supplierTenantPartyId ?? ''
+  }
+}
+
+/** mapPaymentRequest converts one payment request aggregate without treating it as payable schedule truth. */
+function mapPaymentRequest(request?: any) {
+  return {
+    beneficiarySupplierFinancialAccountId:
+      request?.beneficiarySupplierFinancialAccountId ?? '',
+    currencyCode: request?.currencyCode ?? '',
+    evidenceSnapshots: (request?.evidenceSnapshots ?? []).map((evidence: any) => ({
+      attachmentRef: evidence?.attachmentRef ?? '',
+      capturedAt: evidence?.capturedAt ?? '',
+      currencyCode: evidence?.currencyCode ?? '',
+      documentAmount: evidence?.documentAmount ?? '',
+      documentDate: evidence?.documentDate ?? '',
+      evidenceSnapshotId: evidence?.evidenceSnapshotId ?? '',
+      evidenceType: evidence?.evidenceType ?? '',
+      externalDocumentNo: evidence?.externalDocumentNo ?? '',
+      note: evidence?.note ?? ''
+    })),
+    lines: (request?.lines ?? []).map((line: any) => ({
+      isEarlyRequest: Boolean(line?.isEarlyRequest),
+      lineStatus: line?.lineStatus ?? '',
+      payableScheduleId: line?.payableScheduleId ?? '',
+      payableScheduleLineId: line?.payableScheduleLineId ?? '',
+      paymentRequestLineId: line?.paymentRequestLineId ?? '',
+      requestedAmount: line?.requestedAmount ?? '',
+      scheduleDueDate: line?.scheduleDueDate ?? ''
+    })),
+    orgId: request?.orgId ?? '',
+    paymentRequestId: request?.paymentRequestId ?? '',
+    reason: request?.reason ?? '',
+    requestNo: request?.requestNo ?? '',
+    requestSource: request?.requestSource ?? '',
+    requestedAmount: request?.requestedAmount ?? '',
+    requestedAt: request?.requestedAt ?? '',
+    sourcePurchaseOrderId: request?.sourcePurchaseOrderId ?? '',
+    status: request?.status ?? '',
+    supplierTenantPartyId: request?.supplierTenantPartyId ?? '',
+    tenantId: request?.tenantId ?? '',
+    updatedAt: request?.updatedAt ?? ''
+  }
+}
+
+/** mapPaymentExecutionSummary converts one payment execution summary while keeping account transactions separate. */
+function mapPaymentExecutionSummary(execution?: any) {
+  return {
+    currencyCode: execution?.currencyCode ?? '',
+    executedAmount: execution?.executedAmount ?? '',
+    executedAt: execution?.executedAt ?? '',
+    paymentExecutionId: execution?.paymentExecutionId ?? '',
+    paymentRequestId: execution?.paymentRequestId ?? '',
+    status: execution?.status ?? '',
+    supplierTenantPartyId: execution?.supplierTenantPartyId ?? ''
+  }
+}
+
+/** mapPaymentExecution converts one payment execution record without creating real account-transaction truth. */
+function mapPaymentExecution(execution?: any) {
+  return {
+    attachmentRefs: execution?.attachmentRefs ?? [],
+    beneficiaryAccountSnapshot: execution?.beneficiaryAccountSnapshot ?? '',
+    beneficiarySupplierFinancialAccountId:
+      execution?.beneficiarySupplierFinancialAccountId ?? '',
+    currencyCode: execution?.currencyCode ?? '',
+    executedAmount: execution?.executedAmount ?? '',
+    executedAt: execution?.executedAt ?? '',
+    executionReference: execution?.executionReference ?? '',
+    linkedAccountTransactionId: execution?.linkedAccountTransactionId ?? '',
+    paymentExecutionId: execution?.paymentExecutionId ?? '',
+    paymentRequestId: execution?.paymentRequestId ?? '',
+    sourceFinancialAccountId: execution?.sourceFinancialAccountId ?? '',
+    status: execution?.status ?? ''
   }
 }
 

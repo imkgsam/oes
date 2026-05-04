@@ -5,19 +5,29 @@ import { FinanceController } from './finance.controller'
 // Verifies the finance gateway controller keeps permissions and phase 1A request forwarding aligned with the frozen finance BFF surface.
 describe('FinanceController', () => {
   const financeService = {
+    allocatePaymentToPayable: jest.fn(),
     allocatePaymentToReceivable: jest.fn(),
+    applyPayableScheduleAdjustmentFromPurchaseOrderChange: jest.fn(),
     createFinancialAccount: jest.fn(),
+    createPayableScheduleFromPurchaseOrder: jest.fn(),
+    createPaymentRequest: jest.fn(),
     createReceivableScheduleFromSalesOrder: jest.fn(),
+    decidePaymentRequest: jest.fn(),
+    executePaymentRequest: jest.fn(),
     getExchangeRate: jest.fn(),
     getFinanceReleaseSignal: jest.fn(),
     getFinancialAccount: jest.fn(),
+    getPayableSchedule: jest.fn(),
     getReceivableSchedule: jest.fn(),
     importAccountTransactions: jest.fn(),
     recordAccountTransaction: jest.fn(),
     registerCustomerFinancialAccount: jest.fn(),
     searchAccountTransactions: jest.fn(),
     searchFinancialAccounts: jest.fn(),
+    searchPayableSchedules: jest.fn(),
     searchPaymentAllocations: jest.fn(),
+    searchPaymentExecutions: jest.fn(),
+    searchPaymentRequests: jest.fn(),
     searchReceivableSchedules: jest.fn(),
     setExchangeRate: jest.fn(),
     setFinanceReleaseSignal: jest.fn(),
@@ -144,6 +154,72 @@ describe('FinanceController', () => {
       permissions: ['finance.payment_allocation.allocate_to_receivable'],
       type: 'ALL'
     })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.searchPayableSchedules)
+    ).toEqual({
+      permissions: ['finance.payable.read'],
+      type: 'ALL'
+    })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.getPayableSchedule)
+    ).toEqual({
+      permissions: ['finance.payable.read'],
+      type: 'ALL'
+    })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.searchPaymentRequests)
+    ).toEqual({
+      permissions: ['finance.payable.read'],
+      type: 'ALL'
+    })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.searchPaymentExecutions)
+    ).toEqual({
+      permissions: ['finance.payable.read'],
+      type: 'ALL'
+    })
+    expect(
+      reflector.get(
+        PERMISSION_CHECK_KEY,
+        FinanceController.prototype.createPayableScheduleFromPurchaseOrder
+      )
+    ).toEqual({
+      permissions: ['finance.payable.create_from_purchase_order'],
+      type: 'ALL'
+    })
+    expect(
+      reflector.get(
+        PERMISSION_CHECK_KEY,
+        FinanceController.prototype.applyPayableScheduleAdjustmentFromPurchaseOrderChange
+      )
+    ).toEqual({
+      permissions: ['finance.payable.adjust_from_purchase_order_change'],
+      type: 'ALL'
+    })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.createPaymentRequest)
+    ).toEqual({
+      permissions: ['finance.payment_request.create'],
+      type: 'ALL'
+    })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.decidePaymentRequest)
+    ).toEqual({
+      permissions: ['finance.payment_request.decide'],
+      type: 'ALL'
+    })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.executePaymentRequest)
+    ).toEqual({
+      permissions: ['finance.payment_execution.create'],
+      type: 'ALL'
+    })
+    expect(
+      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.allocatePaymentToPayable)
+    ).toEqual({
+      permissions: ['finance.payment_allocation.create'],
+      type: 'ALL'
+    })
   })
 
   it('forwards the minimum finance phase 1A BFF surface to the proxy service', async () => {
@@ -193,6 +269,38 @@ describe('FinanceController', () => {
       total: 0
     })
     financeService.allocatePaymentToReceivable.mockResolvedValue([{ paymentAllocationId: 'pa-1' }])
+    financeService.searchPayableSchedules.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      payableSchedules: [],
+      total: 0
+    })
+    financeService.getPayableSchedule.mockResolvedValue({ payableScheduleId: 'ps-1' })
+    financeService.searchPaymentRequests.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      paymentRequests: [],
+      total: 0
+    })
+    financeService.searchPaymentExecutions.mockResolvedValue({
+      page: 1,
+      pageSize: 20,
+      paymentExecutions: [],
+      total: 0
+    })
+    financeService.createPayableScheduleFromPurchaseOrder.mockResolvedValue({
+      payableScheduleId: 'ps-1'
+    })
+    financeService.applyPayableScheduleAdjustmentFromPurchaseOrderChange.mockResolvedValue({
+      payableScheduleId: 'ps-1'
+    })
+    financeService.createPaymentRequest.mockResolvedValue({ paymentRequestId: 'pr-1' })
+    financeService.decidePaymentRequest.mockResolvedValue({ paymentRequestId: 'pr-1', status: 'APPROVED' })
+    financeService.executePaymentRequest.mockResolvedValue({
+      paymentExecution: { paymentExecutionId: 'pe-1' },
+      paymentRequest: { paymentRequestId: 'pr-1' }
+    })
+    financeService.allocatePaymentToPayable.mockResolvedValue([{ paymentAllocationId: 'pa-payable-1' }])
 
     await controller.searchFinancialAccounts(
       'tenant-1',
@@ -271,6 +379,54 @@ describe('FinanceController', () => {
       { accountTransactionId: 'txn-1', allocations: [] } as any,
       source as any
     )
+    await controller.searchPayableSchedules(
+      'tenant-1',
+      { page: 1, pageSize: 20, requestGovernanceStatus: 'DUE_NO_REQUEST' } as any,
+      source as any
+    )
+    await controller.getPayableSchedule('tenant-1', 'ps-1', source as any)
+    await controller.searchPaymentRequests(
+      'tenant-1',
+      { page: 1, pageSize: 20, status: 'SUBMITTED' } as any,
+      source as any
+    )
+    await controller.searchPaymentExecutions(
+      'tenant-1',
+      { page: 1, pageSize: 20, paymentRequestId: 'pr-1' } as any,
+      source as any
+    )
+    await controller.createPayableScheduleFromPurchaseOrder(
+      'tenant-1',
+      { currencyCode: 'USD', lines: [], purchaseOrderId: 'po-1', supplierSnapshot: 'Supplier One', supplierTenantPartyId: 'supplier-1' } as any,
+      source as any
+    )
+    await controller.applyPayableScheduleAdjustmentFromPurchaseOrderChange(
+      'tenant-1',
+      { adjustments: [], purchaseOrderChangeId: 'po-change-1', purchaseOrderId: 'po-1' } as any,
+      source as any
+    )
+    await controller.createPaymentRequest(
+      'tenant-1',
+      { beneficiarySupplierFinancialAccountId: 'supplier-account-1', currencyCode: 'USD', requestSource: 'FINANCE_INITIATED', requestedAmount: '300.00', requestedLines: [], supplierTenantPartyId: 'supplier-1' } as any,
+      source as any
+    )
+    await controller.decidePaymentRequest(
+      'tenant-1',
+      'pr-1',
+      { decision: 'APPROVED' } as any,
+      source as any
+    )
+    await controller.executePaymentRequest(
+      'tenant-1',
+      'pr-1',
+      { currencyCode: 'USD', executedAmount: '300.00', executedAt: '2026-04-28T13:00:00.000Z', sourceFinancialAccountId: 'fa-1' } as any,
+      source as any
+    )
+    await controller.allocatePaymentToPayable(
+      'tenant-1',
+      { accountTransactionId: 'txn-out-1', allocations: [], paymentExecutionId: 'pe-1' } as any,
+      source as any
+    )
 
     expect(financeService.searchFinancialAccounts).toHaveBeenCalledWith(
       'tenant-1',
@@ -286,6 +442,21 @@ describe('FinanceController', () => {
     expect(financeService.allocatePaymentToReceivable).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({ accountTransactionId: 'txn-1' }),
+      source
+    )
+    expect(financeService.searchPayableSchedules).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({ requestGovernanceStatus: 'DUE_NO_REQUEST' }),
+      source
+    )
+    expect(financeService.createPaymentRequest).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({ beneficiarySupplierFinancialAccountId: 'supplier-account-1' }),
+      source
+    )
+    expect(financeService.allocatePaymentToPayable).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({ accountTransactionId: 'txn-out-1' }),
       source
     )
   })

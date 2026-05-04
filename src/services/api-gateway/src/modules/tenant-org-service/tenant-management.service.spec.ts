@@ -13,13 +13,24 @@ describe('TenantManagementService', () => {
     archiveTenant: jest.fn(),
     createTenant: jest.fn(),
     reactivateTenant: jest.fn(),
+    retryTenantOnboarding: jest.fn(),
+    startTenantOnboarding: jest.fn(),
     suspendTenant: jest.fn(),
     updateTenantProfile: jest.fn()
+  }
+  const identityUserLookupAdapter = {
+    getUserByEmail: jest.fn(),
+    getUserByPhone: jest.fn()
+  }
+  const identityTenantAccountStatsAdapter = {
+    countTenantAccounts: jest.fn()
   }
 
   const service = new TenantManagementService(
     tenantOrgQueryAdapter as any,
-    tenantOrgManagementAdapter as any
+    tenantOrgManagementAdapter as any,
+    identityUserLookupAdapter as any,
+    identityTenantAccountStatsAdapter as any
   )
 
   beforeEach(() => {
@@ -29,8 +40,13 @@ describe('TenantManagementService', () => {
     tenantOrgManagementAdapter.archiveTenant.mockReset()
     tenantOrgManagementAdapter.createTenant.mockReset()
     tenantOrgManagementAdapter.reactivateTenant.mockReset()
+    tenantOrgManagementAdapter.retryTenantOnboarding.mockReset()
+    tenantOrgManagementAdapter.startTenantOnboarding.mockReset()
     tenantOrgManagementAdapter.suspendTenant.mockReset()
     tenantOrgManagementAdapter.updateTenantProfile.mockReset()
+    identityUserLookupAdapter.getUserByEmail.mockReset()
+    identityUserLookupAdapter.getUserByPhone.mockReset()
+    identityTenantAccountStatsAdapter.countTenantAccounts.mockReset()
   })
 
   it('rejects tenant-scoped operators before calling downstream tenant management contracts', async () => {
@@ -57,6 +73,9 @@ describe('TenantManagementService', () => {
       tenants: [{ id: 'tenant-1', code: 'alpha', name: 'Alpha Tenant', isActive: true, rootOrgId: 'org-root-1' }],
       total: 1
     })
+    identityTenantAccountStatsAdapter.countTenantAccounts.mockResolvedValue({
+      counts: [{ tenantId: 'tenant-1', total: 3 }]
+    })
 
     await expect(
       service.listTenants(
@@ -74,7 +93,7 @@ describe('TenantManagementService', () => {
           id: 'tenant-1',
           code: 'alpha',
           name: 'Alpha Tenant',
-          rootOrgId: 'org-root-1',
+          userCount: 3,
           status: 'ACTIVE'
         }
       ],
@@ -89,6 +108,14 @@ describe('TenantManagementService', () => {
         page: 2,
         pageSize: 20,
         status: 'ACTIVE'
+      },
+      source
+    )
+    expect(identityTenantAccountStatsAdapter.countTenantAccounts).toHaveBeenCalledWith(
+      {
+        scopeLevel: 'TENANT',
+        status: 'ENABLED',
+        tenantIds: ['tenant-1']
       },
       source
     )
@@ -111,6 +138,9 @@ describe('TenantManagementService', () => {
         name: 'Alpha Root'
       }
     })
+    identityTenantAccountStatsAdapter.countTenantAccounts.mockResolvedValue({
+      counts: [{ tenantId: 'tenant-1', total: 3 }]
+    })
 
     await expect(service.getTenantById('tenant-1', source as any)).resolves.toEqual({
       tenant: {
@@ -119,7 +149,8 @@ describe('TenantManagementService', () => {
         name: 'Alpha Tenant',
         rootOrgId: 'org-root-1',
         rootOrgName: 'Alpha Root',
-        status: 'SUSPENDED'
+        status: 'SUSPENDED',
+        userCount: 3
       }
     })
 
@@ -128,6 +159,14 @@ describe('TenantManagementService', () => {
       {
         orgUnitId: 'org-root-1',
         tenantId: 'tenant-1'
+      },
+      source
+    )
+    expect(identityTenantAccountStatsAdapter.countTenantAccounts).toHaveBeenCalledWith(
+      {
+        scopeLevel: 'TENANT',
+        status: 'ENABLED',
+        tenantIds: ['tenant-1']
       },
       source
     )
@@ -263,6 +302,256 @@ describe('TenantManagementService', () => {
       source
     )
   })
+
+  it('normalizes organization identifiers before starting tenant onboarding', async () => {
+    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    tenantOrgManagementAdapter.startTenantOnboarding.mockResolvedValue({
+      onboarding: { onboardingId: 'onboarding-1', status: 'SUCCEEDED' }
+    })
+
+    await expect(
+      service.startTenantOnboarding(
+        {
+          idempotencyKey: 'onboarding-key-1',
+          tenant: { code: 'tenant.beta', name: 'Beta Inc.' },
+          organizationParty: {
+            legalName: 'Beta Inc.',
+            registeredCountry: 'US',
+            identifiers: [
+              {
+                identifierType: 'EIN',
+                rawValue: '12-3456789',
+                normalizedValue: '',
+                issuerCountryOrRegion: ''
+              }
+            ]
+          },
+          rootOrg: { name: 'Beta Inc.' },
+          firstAdmin: { displayName: 'Alice Admin', email: 'alice@example.com' }
+        },
+        source as any
+      )
+    ).resolves.toEqual({
+      onboarding: { onboardingId: 'onboarding-1', status: 'SUCCEEDED' }
+    })
+
+    expect(tenantOrgManagementAdapter.startTenantOnboarding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationParty: expect.objectContaining({
+          identifiers: [
+            {
+              identifierType: 'EIN',
+              issuerCountryOrRegion: 'US',
+              normalizedValue: '123456789',
+              rawValue: '12-3456789'
+            }
+          ]
+        })
+      }),
+      source
+    )
+  })
+
+  it('surfaces failed retryable tenant onboardings as HTTP 503 with retry details', async () => {
+    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    tenantOrgManagementAdapter.startTenantOnboarding.mockResolvedValue({
+      onboarding: {
+        onboardingId: 'onboarding-1',
+        status: 'FAILED_RETRYABLE',
+        failure: {
+          code: 'TENANT_ONBOARDING_STEP_FAILED',
+          message: 'Internal service is unavailable',
+          failedStep: 'REGISTER_ORGANIZATION_PARTY',
+          retryable: true
+        }
+      }
+    })
+
+    await expect(
+      service.startTenantOnboarding(
+        {
+          idempotencyKey: 'onboarding-key-1',
+          tenant: { code: 'tenant.beta', name: 'Beta Inc.' },
+          organizationParty: {
+            legalName: 'Beta Inc.',
+            registeredCountry: 'US',
+            identifiers: [{ identifierType: 'EIN', rawValue: '12-3456789', normalizedValue: '', issuerCountryOrRegion: '' }]
+          },
+          rootOrg: { name: 'Beta Inc.' },
+          firstAdmin: { displayName: 'Alice Admin', email: 'alice@example.com' }
+        },
+        source as any
+      )
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: 'TENANT_ONBOARDING_STEP_FAILED',
+        details: expect.objectContaining({
+          onboarding: expect.objectContaining({
+            onboardingId: 'onboarding-1',
+            status: 'FAILED_RETRYABLE'
+          })
+        })
+      }),
+      status: 503
+    })
+  })
+
+  it('surfaces failed retry attempts as HTTP errors instead of success envelopes', async () => {
+    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    tenantOrgManagementAdapter.retryTenantOnboarding.mockResolvedValue({
+      onboarding: {
+        onboardingId: 'onboarding-1',
+        status: 'FAILED_RETRYABLE',
+        failure: {
+          code: 'TENANT_ONBOARDING_STEP_FAILED',
+          message: 'Internal service is unavailable',
+          failedStep: 'REGISTER_ORGANIZATION_PARTY',
+          retryable: true
+        }
+      }
+    })
+
+    await expect(
+      service.retryTenantOnboarding('onboarding-1', { reason: 'retry after party-service restart' }, source as any)
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: 'TENANT_ONBOARDING_STEP_FAILED'
+      }),
+      status: 503
+    })
+  })
+
+  it('finds an existing first-admin candidate by exact email without listing all users', async () => {
+    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    identityUserLookupAdapter.getUserByEmail.mockResolvedValue({
+      user: {
+        id: 'user-existing-1',
+        username: 'Existing Admin',
+        personalEmail: 'existing@example.com',
+        personalPhone: '+14155550100',
+        isActive: true,
+        partyId: 'party-1'
+      }
+    })
+
+    await expect(
+      service.searchFirstAdminExistingUsers({ keyword: 'existing@example.com' }, source as any)
+    ).resolves.toEqual({
+      items: [
+        {
+          userId: 'user-existing-1',
+          displayName: 'Existing Admin',
+          maskedEmail: 'ex***@example.com',
+          maskedPhone: '+14***0100',
+          isActive: true
+        }
+      ]
+    })
+
+    expect(identityUserLookupAdapter.getUserByEmail).toHaveBeenCalledWith('existing@example.com', source)
+    expect(identityUserLookupAdapter.getUserByPhone).not.toHaveBeenCalled()
+  })
+
+  it('ignores partial first-admin email and phone search input without calling identity', async () => {
+    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+
+    await expect(
+      service.searchFirstAdminExistingUsers({ keyword: 'existing@' }, source as any)
+    ).resolves.toEqual({ items: [] })
+    await expect(
+      service.searchFirstAdminExistingUsers({ keyword: 'existing@example.' }, source as any)
+    ).resolves.toEqual({ items: [] })
+    await expect(
+      service.searchFirstAdminExistingUsers({ keyword: 'existing@example.c' }, source as any)
+    ).resolves.toEqual({ items: [] })
+    await expect(
+      service.searchFirstAdminExistingUsers({ keyword: '415', countryOrRegion: 'US' }, source as any)
+    ).resolves.toEqual({ items: [] })
+
+    expect(identityUserLookupAdapter.getUserByEmail).not.toHaveBeenCalled()
+    expect(identityUserLookupAdapter.getUserByPhone).not.toHaveBeenCalled()
+  })
+
+  it('finds an existing first-admin candidate by a country-local phone input', async () => {
+    const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
+    identityUserLookupAdapter.getUserByPhone.mockResolvedValue({
+      user: {
+        id: 'user-existing-1',
+        username: 'Existing Admin',
+        personalEmail: 'existing@example.com',
+        personalPhone: '+14155550100',
+        isActive: true,
+        partyId: 'party-1'
+      }
+    })
+
+    await expect(
+      service.searchFirstAdminExistingUsers(
+        { keyword: '(415) 555-0100', countryOrRegion: 'US' },
+        source as any
+      )
+    ).resolves.toEqual({
+      items: [
+        {
+          userId: 'user-existing-1',
+          displayName: 'Existing Admin',
+          maskedEmail: 'ex***@example.com',
+          maskedPhone: '+14***0100',
+          isActive: true
+        }
+      ]
+    })
+
+    expect(identityUserLookupAdapter.getUserByPhone).toHaveBeenCalledWith('+14155550100', source)
+    expect(identityUserLookupAdapter.getUserByEmail).not.toHaveBeenCalled()
+  })
+
+  it('forwards selected existing users as tenant first admins by user id', async () => {
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'platform-account-1', scopeLevel: 'SYSTEM', sub: 'user-system-admin' }
+    }
+    tenantOrgManagementAdapter.startTenantOnboarding.mockResolvedValue({
+      onboarding: { onboardingId: 'onboarding-1', status: 'SUCCEEDED' }
+    })
+
+    await expect(
+      service.startTenantOnboarding(
+        {
+          idempotencyKey: 'onboarding-key-1',
+          tenant: { code: 'tenant.beta', name: 'Beta Inc.' },
+          organizationParty: {
+            legalName: 'Beta Inc.',
+            registeredCountry: 'US',
+            identifiers: [{ identifierType: 'EIN', rawValue: '12-3456789', normalizedValue: '', issuerCountryOrRegion: '' }]
+          },
+          rootOrg: { name: 'Beta Inc.' },
+          firstAdmin: {
+            displayName: 'System Admin',
+            existingUserId: 'user-existing-1',
+            provisioningMode: 'EXISTING_USER'
+          }
+        },
+        source as any
+      )
+    ).resolves.toEqual({
+      onboarding: { onboardingId: 'onboarding-1', status: 'SUCCEEDED' }
+    })
+
+    expect(tenantOrgManagementAdapter.startTenantOnboarding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        firstAdmin: expect.objectContaining({
+          displayName: 'System Admin',
+          existingUserId: 'user-existing-1',
+          provisioningMode: 'EXISTING_USER',
+          requirePasswordSetup: false
+        })
+      }),
+      source
+    )
+  })
+
 })
 
 // Verifies the org management gateway service keeps org tree operations scope-aware while reusing tenant-org-service contracts.

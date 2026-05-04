@@ -622,12 +622,12 @@ OES 当前处于框架搭建期，logging 应分两层推进：
     "traceId": "trace-id"
   },
   "resource": {
-    "resourceType": "account_org_membership",
-    "resourceId": "membership-id"
+    "resourceType": "account_contact_asset",
+    "resourceId": "contact-asset-id"
   },
   "details": {
     "accountId": "account-id",
-    "relationType": "PRIMARY"
+    "assetType": "WORK_EMAIL"
   }
 }
 ```

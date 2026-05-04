@@ -324,7 +324,7 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
 - Downstream:
   - JWT current-session context
   - `identity-service.GetAccountById`
-  - `identity-service.GetTenantById`
+  - `tenant-org-service.GetTenantById`
 - Stage-one delivery:
   - `operator / account / tenant` return real authenticated context
   - `org` is optional and may be `null`

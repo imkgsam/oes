@@ -7,6 +7,7 @@
 ## 2. Owns
 
 - MES 执行主单与制造现场执行真相
+- `ManufacturingSpec` 与制造现场可执行规格真相
 - 单件在制品 / 成瓷追溯对象与 `physicalTraceId`
 - 工艺路线实例、工序前置约束与放行结果
 - 工序执行记录与关键工艺参数采集摘要
@@ -14,7 +15,7 @@
 - 修补、返工、复检、报废控制事实
 - 窑炉 / 窑次 / 窑车 / 位置级烧成追溯事实
 - 模具、泥浆、釉料等制造现场使用事实
-- 制造过程中的 WIP stage、WIP location 与关键 buffer 容量事实
+- 制造过程中的 WIP stage、`MesLocation` 与关键 buffer / 资源容量事实
 - 面向 planning、quality、WMS、sales / fulfillment 的制造领域事件
 
 ## 3. Does Not Own
@@ -23,7 +24,7 @@
 - 企业级质量标准、客户质量接受策略与完整质量治理真相
 - 成品仓储库存、库位、配货、出库与发货真相
 - 销售订单、经营单据、财务与工资结算真相
-- 产品目录、销售 SKU、完整制造主数据真相
+- 产品目录、销售 SKU、Item 主数据、PIM / PLM 与跨域产品主数据真相
 - 设备控制系统、PLC、SCADA 本身的控制真相
 
 ## 4. Core Responsibilities
@@ -34,10 +35,37 @@
 - 管理一检、成品检、功能检、修补后二检等生产内质检闭环
 - 管理修补、返工、后置处理与报废的制造侧处置事实
 - 管理模具寿命、模具使用、材料批次使用与烧成位置追溯
-- 管理粗胚库、精胚库、釉胚库、待检区、待修补区等制造缓冲区
+- 管理粗胚库、精胚库、釉胚库、待检区、待修补区等制造缓冲区、`MesLocation` 与容量约束
 - 发布已完成、可审计的制造事实，供下游服务消费
 
-## 5. External Interfaces
+## 5. Resource And Execution Modeling Baseline
+
+MES 的制造资源、物理位置、工序路线与容量约束必须分层建模，避免把“做什么”“在哪里执行”“实物在哪里”“资源够不够”混成同一个对象。
+
+冻结规则：
+
+- 工序路线看 `Operation` / `Routing`。
+- 实际执行看 `WorkCenter`。
+- 实物位置看 `MesLocation`。
+- 空间瓶颈看 `MesLocation` + `CapacityProfile`。
+- 执行瓶颈看 `WorkCenter` / `Equipment` + `CapacityProfile`。
+
+对象职责：
+
+- `Operation` / `Routing` 表达产品理论上经过哪些工序与前后约束，不表达现场资源占用。
+- `WorkCenter` 表达逻辑制造单元 / 执行单元，支持 nested，可表示车间、产线、区域、工位组、设备组或具体可执行单元。
+- `MesLocation` 表达物理空间与实物所在位置，支持 WIP、模具、载具、物料在制造现场内移动与暂存追踪。
+- `CapacityProfile` 统一表达空间容量、执行能力、设备能力、载具容量等可被 MES 看板与未来 APS 使用的约束。
+
+建模约束：
+
+- `WorkCenter` 是逻辑制造单元，`MesLocation` 是物理空间；两者可通过引用关系关联，但不得假设一一对应。
+- WIP、模具、载具、制造物料的移动事实记录到 `MesLocation`。
+- 工序执行、派工、资源能力、瓶颈分析记录到 `WorkCenter` / `Equipment`。
+- 存胚区、待检区、待修补区等只承担暂存或缓冲职责的区域优先建模为 `MesLocation`。
+- 烘干房、窑炉区、一检区等既有物理空间又承担执行能力的对象，应同时具备 `MesLocation` 视角与 `WorkCenter` / `Equipment` 执行视角，并通过显式关系连接。
+
+## 6. External Interfaces
 
 - 典型上游：
   - `planning-workbench`
@@ -51,18 +79,18 @@
   - 查询型：追溯摘要、WIP 汇总、关键缓冲区容量摘要
   - 事件型：在制品创建、工序完成、瑕疵记录、质量重判、模具/材料使用、烧成事件、仓储移交
 
-## 6. Upstream Dependencies
+## 7. Upstream Dependencies
 
 - `planning-workbench`
   - 提供 demand、投产建议、派工与放行建议
-- `product / manufacturing master data`
-  - 提供产品族、制造规格、路线、工序、模具适配等主数据引用
+- `item-master-service`
+  - 提供 `manufacturable` 且 `PHYSICAL` 的 `Item` 准入边界；`mes-service` 不复制 Item 主数据真相
 - `quality-service`
   - 长期提供缺陷字典、内部分类规则、归责规则模板等质量规则引用
 - 统一扫码入口 / trace identity
   - 提供扫码解析与对象路由能力
 
-## 7. Downstream / Published Facts
+## 8. Downstream / Published Facts
 
 - 在制品创建与属性锁定事实
 - 工序完成与位置变化事实
@@ -71,7 +99,7 @@
 - 模具、泥浆、釉料、窑次、窑车、位置追溯事实
 - 成品可移交仓储与正式移交仓储事实
 
-## 8. Non-goals
+## 9. Non-goals
 
 - 不直接替代 APS 或计划工作台
 - 不直接替代 quality-service 的规则中心角色

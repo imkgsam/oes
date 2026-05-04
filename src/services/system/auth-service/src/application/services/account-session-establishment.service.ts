@@ -14,6 +14,7 @@ import { IPermissionServicePort } from '../ports'
 import { AuthAuditService } from './auth-audit.service'
 import { normalizeAuthDeviceContext } from './auth-device-context'
 import { PasswordSetupRequirementService } from './password-setup-requirement.service'
+import { TenantSessionAccessService } from './tenant-session-access.service'
 import { TrustedDeviceService } from './trusted-device.service'
 
 export interface EstablishAccountSessionInput {
@@ -54,10 +55,19 @@ export class AccountSessionEstablishmentService {
     @Inject(REPO.SESSION)
     private readonly sessionRepository: IUserSessionRepository,
     private readonly authAuditService: AuthAuditService,
-    private readonly trustedDeviceService: TrustedDeviceService
+    private readonly trustedDeviceService: TrustedDeviceService,
+    private readonly tenantSessionAccessService: TenantSessionAccessService
   ) {}
 
   async establish(input: EstablishAccountSessionInput): Promise<EstablishedAccountSession> {
+    if (input.account.scopeLevel === 'TENANT') {
+      await this.tenantSessionAccessService.assertAccountCanEstablishSession({
+        accountId: input.account.accountId,
+        tenantId: input.account.tenantId,
+        scopeLevel: input.account.scopeLevel
+      })
+    }
+
     const previousSession =
       input.currentSessionId && input.loginMethod === LoginMethodEnum.ContextSwitch
         ? await this.sessionRepository.findById(input.currentSessionId)

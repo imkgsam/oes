@@ -87,7 +87,6 @@ export class AdminAccountBasicInfoViewModel {
 export class AdminAccountDeletionCleanupPlanViewModel {
   @ApiProperty() willDeleteSessions!: boolean
   @ApiProperty() willClearRoles!: boolean
-  @ApiProperty() willDeleteOrgMemberships!: boolean
   @ApiProperty() willDeleteContactAssets!: boolean
 }
 
@@ -105,7 +104,6 @@ export class AdminAccountDeletionImpactViewModel {
   cleanupPlan!: AdminAccountDeletionCleanupPlanViewModel
   @ApiProperty({ type: AdminAccountDeletionBlockingReasonViewModel, isArray: true })
   blockingReasons!: AdminAccountDeletionBlockingReasonViewModel[]
-  @ApiProperty() orgMembershipCount!: number
   @ApiProperty() contactAssetCount!: number
 }
 
@@ -115,7 +113,6 @@ export class AdminAccountDeletionResultViewModel {
   @ApiProperty() deletedSessionCount!: number
   @ApiProperty() clearedRoleCount!: number
   @ApiProperty() deletedPolicyCount!: number
-  @ApiProperty() deletedOrgMembershipCount!: number
   @ApiProperty() deletedContactAssetCount!: number
   @ApiProperty() userRetained!: boolean
 }

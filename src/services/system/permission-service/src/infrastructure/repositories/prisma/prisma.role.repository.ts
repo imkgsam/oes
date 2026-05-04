@@ -175,6 +175,8 @@ export class PrismaRoleRepository implements RoleRepository {
           scopeKey: data.scopeKey,
           kind: data.kind,
           templateRoleId: data.templateRoleId,
+          allowTenantPermissionOverride: data.allowTenantPermissionOverride,
+          isProtected: data.isProtected,
           isEnabled: data.isEnabled,
           description: data.description
         } as any,

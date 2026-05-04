@@ -34,7 +34,98 @@ function createOrganizationPartyReaderMock() {
   }
 }
 
+/** createAuthSessionRevocationPortMock builds the downstream auth session revocation double for tenant lifecycle tests. */
+function createAuthSessionRevocationPortMock() {
+  return {
+    revokeTenantSessions: jest.fn()
+  }
+}
+
 describe('TenantOrgManagementService', () => {
+  it('suspendTenant / should revoke tenant-scope sessions through auth-service after status changes', async () => {
+    const tenantRepository = createTenantRepositoryMock()
+    const orgUnitRepository = createOrgUnitRepositoryMock()
+    const organizationPartyReader = createOrganizationPartyReaderMock()
+    const authSessionRevocationPort = createAuthSessionRevocationPortMock()
+    tenantRepository.setStatus.mockResolvedValue({
+      id: 'tenant-1',
+      code: 'acme',
+      name: 'Acme',
+      status: TenantStatus.SUSPENDED,
+      rootOrgId: 'root-1'
+    })
+    const service = new TenantOrgManagementService(
+      tenantRepository as never,
+      orgUnitRepository as never,
+      organizationPartyReader as never,
+      authSessionRevocationPort as never
+    )
+
+    await expect(service.suspendTenant({ tenantId: 'tenant-1' })).resolves.toMatchObject({
+      status: TenantStatus.SUSPENDED
+    })
+
+    expect(authSessionRevocationPort.revokeTenantSessions).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      reason: 'TENANT_SUSPENDED'
+    })
+  })
+
+  it('archiveTenant / should revoke tenant-scope sessions through auth-service after status changes', async () => {
+    const tenantRepository = createTenantRepositoryMock()
+    const orgUnitRepository = createOrgUnitRepositoryMock()
+    const organizationPartyReader = createOrganizationPartyReaderMock()
+    const authSessionRevocationPort = createAuthSessionRevocationPortMock()
+    tenantRepository.setStatus.mockResolvedValue({
+      id: 'tenant-1',
+      code: 'acme',
+      name: 'Acme',
+      status: TenantStatus.ARCHIVED,
+      rootOrgId: 'root-1'
+    })
+    const service = new TenantOrgManagementService(
+      tenantRepository as never,
+      orgUnitRepository as never,
+      organizationPartyReader as never,
+      authSessionRevocationPort as never
+    )
+
+    await expect(service.archiveTenant({ tenantId: 'tenant-1' })).resolves.toMatchObject({
+      status: TenantStatus.ARCHIVED
+    })
+
+    expect(authSessionRevocationPort.revokeTenantSessions).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      reason: 'TENANT_ARCHIVED'
+    })
+  })
+
+  it('reactivateTenant / should not restore or revoke existing sessions', async () => {
+    const tenantRepository = createTenantRepositoryMock()
+    const orgUnitRepository = createOrgUnitRepositoryMock()
+    const organizationPartyReader = createOrganizationPartyReaderMock()
+    const authSessionRevocationPort = createAuthSessionRevocationPortMock()
+    tenantRepository.setStatus.mockResolvedValue({
+      id: 'tenant-1',
+      code: 'acme',
+      name: 'Acme',
+      status: TenantStatus.ACTIVE,
+      rootOrgId: 'root-1'
+    })
+    const service = new TenantOrgManagementService(
+      tenantRepository as never,
+      orgUnitRepository as never,
+      organizationPartyReader as never,
+      authSessionRevocationPort as never
+    )
+
+    await expect(service.reactivateTenant({ tenantId: 'tenant-1' })).resolves.toMatchObject({
+      status: TenantStatus.ACTIVE
+    })
+
+    expect(authSessionRevocationPort.revokeTenantSessions).not.toHaveBeenCalled()
+  })
+
   it('createTenant / should return tenant and root org from the transactional repository', async () => {
     const tenantRepository = createTenantRepositoryMock()
     const orgUnitRepository = createOrgUnitRepositoryMock()
@@ -63,7 +154,8 @@ describe('TenantOrgManagementService', () => {
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never
+      organizationPartyReader as never,
+      createAuthSessionRevocationPortMock() as never
     )
 
     const result = await service.createTenant({ code: 'acme', name: 'Acme' })
@@ -90,7 +182,8 @@ describe('TenantOrgManagementService', () => {
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never
+      organizationPartyReader as never,
+      createAuthSessionRevocationPortMock() as never
     )
 
     await expect(
@@ -114,7 +207,8 @@ describe('TenantOrgManagementService', () => {
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never
+      organizationPartyReader as never,
+      createAuthSessionRevocationPortMock() as never
     )
 
     await expect(
@@ -140,7 +234,8 @@ describe('TenantOrgManagementService', () => {
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never
+      organizationPartyReader as never,
+      createAuthSessionRevocationPortMock() as never
     )
 
     await expect(
@@ -188,7 +283,8 @@ describe('TenantOrgManagementService', () => {
     const service = new TenantOrgManagementService(
       tenantRepository as never,
       orgUnitRepository as never,
-      organizationPartyReader as never
+      organizationPartyReader as never,
+      createAuthSessionRevocationPortMock() as never
     )
 
     await expect(

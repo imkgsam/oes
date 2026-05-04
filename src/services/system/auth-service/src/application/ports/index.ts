@@ -9,3 +9,6 @@ export { IIdentityServicePort } from './identity-service.port'
 
 // Permission Service 端口
 export { IPermissionServicePort } from './permission-service.port'
+
+// Tenant lifecycle 端口
+export { TenantLifecycleAccessPort, TenantLifecycleStatus } from './tenant-lifecycle-access.port'

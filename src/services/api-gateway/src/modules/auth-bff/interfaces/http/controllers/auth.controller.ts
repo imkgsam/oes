@@ -1051,6 +1051,7 @@ export class AuthController {
       'Returns the scope-aware administrative account directory used by the account-management page.'
   })
   @ApiQuery({ name: 'keyword', required: false })
+  @ApiQuery({ name: 'tenantId', required: false })
   @ApiQuery({ name: 'scopeLevel', required: false })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'page', required: false, type: Number })
@@ -1127,7 +1128,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Update one account basic-info profile',
     description:
-      'Updates the account-management basic-info fields used for display name, primary login contacts, and enabled status.'
+      'Updates the account-management basic-info fields used for display name and enabled status.'
   })
   @ApiParam({
     name: 'accountId',

@@ -24,8 +24,7 @@ export function formatManagedOrganizationPartyName(
   orgUnit?: Pick<TenantManagementApi.ManagedOrgUnit, 'organizationParty' | 'organizationPartyId'> | null
 ) {
   return (
-    orgUnit?.organizationParty?.displayName ||
-    orgUnit?.organizationParty?.canonicalName ||
+    orgUnit?.organizationParty?.legalName ||
     orgUnit?.organizationPartyId ||
     ''
   )

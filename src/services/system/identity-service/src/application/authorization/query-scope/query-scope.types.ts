@@ -6,7 +6,6 @@ export const AUTHORIZATION_QUERY_SCOPE_BUILDERS = Symbol(
 
 export type IdentityQueryScopeResource =
   | 'account'
-  | 'account_org_membership'
   | 'account_contact_asset'
   | 'api_key'
   | 'audit_event'

@@ -19,6 +19,7 @@ import {
   LoginMfaFactorOption,
   LoginMfaOrchestrationService
 } from '../../services/mfa/login-mfa-orchestration.service'
+import { TenantSessionAccessService } from '../../services/tenant-session-access.service'
 import { TenantMfaFactor } from '../../../domain/entities/tenant-mfa-policy.entity'
 import { SelectAccountCommand } from './select-account.command'
 
@@ -51,12 +52,14 @@ export class SelectAccountHandler
     @Inject(IDENTITY_SERVICE)
     private readonly identityService: IIdentityServicePort,
     private readonly accountSessionEstablishmentService: AccountSessionEstablishmentService,
-    private readonly loginMfaOrchestrationService: LoginMfaOrchestrationService
+    private readonly loginMfaOrchestrationService: LoginMfaOrchestrationService,
+    private readonly tenantSessionAccessService: TenantSessionAccessService
   ) {}
 
   async execute(command: SelectAccountCommand): Promise<SelectAccountResult> {
     const account = await this.identityService.getAccountById(command.accountId)
     this.ensureAccountIsUsable(command.userId, command.accountId, account)
+    await this.ensureTenantScopeCanStartSession(account)
     const challenge = await this.loginMfaOrchestrationService.resolveChallengeForSelectedAccount({
       userId: command.userId,
       accountId: account.accountId,
@@ -139,5 +142,18 @@ export class SelectAccountHandler
         reason: 'tenant account must bind tenant'
       })
     }
+  }
+
+  /** ensureTenantScopeCanStartSession blocks inactive tenant accounts before MFA or session creation starts. */
+  private async ensureTenantScopeCanStartSession(account: IdentityAccountSummary): Promise<void> {
+    if (account.scopeLevel === 'SYSTEM') {
+      return
+    }
+
+    await this.tenantSessionAccessService.assertAccountCanEstablishSession({
+      accountId: account.accountId,
+      tenantId: account.tenantId,
+      scopeLevel: account.scopeLevel
+    })
   }
 }

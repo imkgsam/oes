@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
@@ -8,7 +9,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SERVICE_ROOT = path.resolve(__dirname, '..');
 const WORKSPACE_ROOT = path.resolve(SERVICE_ROOT, '../../../..');
 
-const { ClientProxyFactory, Transport } = require('@nestjs/microservices');
 const { firstValueFrom } = require('rxjs');
 const { resolveCommonProtoPath } = require('@oes/common/contracts');
 const {
@@ -20,8 +20,10 @@ const {
   FINANCIAL_ACCOUNT_MANAGEMENT_SERVICE_NAME,
   FINANCIAL_ACCOUNT_QUERY_SERVICE_NAME,
   PAYMENT_MANAGEMENT_SERVICE_NAME,
+  PAYMENT_QUERY_SERVICE_NAME,
   RECEIVABLE_MANAGEMENT_SERVICE_NAME
 } = require(path.join(WORKSPACE_ROOT, 'src/common/dist/generated/finance_service/finance.js'));
+const { PrismaClient } = require(path.join(SERVICE_ROOT, 'prisma/generated/prisma'));
 
 /** disableProxyForLocalGrpc clears proxy-related env vars so grpc-js can reach localhost directly during smoke verification. */
 function disableProxyForLocalGrpc() {
@@ -83,6 +85,7 @@ function normalizeGrpcClientHost(host) {
 
 /** createGrpcClient binds one direct gRPC client to the running local finance-service endpoint. */
 function createGrpcClient() {
+  const { ClientProxyFactory, Transport } = require('@nestjs/microservices');
   const host = normalizeGrpcClientHost(
     process.env.FINANCE_SERVICE_GRPC_HOST || process.env.GRPC_LISTEN_HOST || '127.0.0.1'
   );
@@ -101,8 +104,15 @@ function createGrpcClient() {
 /** createSmokeSeed builds one isolated tenant-scoped seed so the live finance smoke can assert empty-first behavior safely. */
 function createSmokeSeed(now = Date.now()) {
   const suffix = `${now}-${Math.random().toString(36).slice(2, 8)}`;
-  const transactionTime = new Date(now).toISOString();
-  const dueDate = new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const inflowTransactionTime = new Date(now).toISOString();
+  const receivableDueDate = new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const payableDueDate = new Date(now - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const paymentExecutedAt = new Date(now + 5 * 60 * 1000).toISOString();
+  const outflowTransactionTime = new Date(now + 10 * 60 * 1000).toISOString();
+  const supplierAccountIdentifier = `622203000000${suffix
+    .replace(/[^0-9]/g, '')
+    .slice(-8)
+    .padStart(8, '0')}`;
 
   return {
     tenantId: process.env.FINANCE_SMOKE_TENANT_ID || `finance-smoke-tenant-${suffix}`,
@@ -129,9 +139,27 @@ function createSmokeSeed(now = Date.now()) {
     customerSnapshot:
       process.env.FINANCE_SMOKE_CUSTOMER_SNAPSHOT || `Finance Smoke Customer ${suffix}`,
     salesOrderId: process.env.FINANCE_SMOKE_SALES_ORDER_ID || `finance-smoke-sales-order-${suffix}`,
+    purchaseOrderId:
+      process.env.FINANCE_SMOKE_PURCHASE_ORDER_ID || `finance-smoke-purchase-order-${suffix}`,
+    purchaseOrderNo:
+      process.env.FINANCE_SMOKE_PURCHASE_ORDER_NO || `FIN-SMOKE-PO-${suffix.slice(-6).toUpperCase()}`,
+    supplierTenantPartyId:
+      process.env.FINANCE_SMOKE_SUPPLIER_TENANT_PARTY_ID || `finance-smoke-supplier-${suffix}`,
+    supplierSnapshot:
+      process.env.FINANCE_SMOKE_SUPPLIER_SNAPSHOT || `Finance Smoke Supplier ${suffix}`,
+    supplierFinancialAccountId:
+      process.env.FINANCE_SMOKE_SUPPLIER_FINANCIAL_ACCOUNT_ID || randomUUID(),
+    supplierAccountHolderName:
+      process.env.FINANCE_SMOKE_SUPPLIER_ACCOUNT_HOLDER_NAME ||
+      `Finance Smoke Supplier Account ${suffix}`,
+    supplierAccountIdentifier:
+      process.env.FINANCE_SMOKE_SUPPLIER_ACCOUNT_IDENTIFIER || supplierAccountIdentifier,
     currencyCode: process.env.FINANCE_SMOKE_CURRENCY_CODE || 'CNY',
-    transactionTime,
-    dueDate
+    inflowTransactionTime,
+    receivableDueDate,
+    payableDueDate,
+    paymentExecutedAt,
+    outflowTransactionTime
   };
 }
 
@@ -141,6 +169,7 @@ function createFinanceServices(client) {
   const accountManagement = client.getService(FINANCIAL_ACCOUNT_MANAGEMENT_SERVICE_NAME);
   const receivableManagement = client.getService(RECEIVABLE_MANAGEMENT_SERVICE_NAME);
   const paymentManagement = client.getService(PAYMENT_MANAGEMENT_SERVICE_NAME);
+  const paymentQuery = client.getService(PAYMENT_QUERY_SERVICE_NAME);
 
   return {
     query: {
@@ -160,8 +189,28 @@ function createFinanceServices(client) {
         firstValueFrom(receivableManagement.createReceivableScheduleFromSalesOrder(request))
     },
     paymentManagement: {
+      createPayableScheduleFromPurchaseOrder: async (request) =>
+        firstValueFrom(paymentManagement.createPayableScheduleFromPurchaseOrder(request)),
+      createPaymentRequest: async (request) =>
+        firstValueFrom(paymentManagement.createPaymentRequest(request)),
+      decidePaymentRequest: async (request) =>
+        firstValueFrom(paymentManagement.decidePaymentRequest(request)),
+      executePaymentRequest: async (request) =>
+        firstValueFrom(paymentManagement.executePaymentRequest(request)),
+      allocatePaymentToPayable: async (request) =>
+        firstValueFrom(paymentManagement.allocatePaymentToPayable(request)),
       allocatePaymentToReceivable: async (request) =>
         firstValueFrom(paymentManagement.allocatePaymentToReceivable(request))
+    },
+    paymentQuery: {
+      searchPayableSchedules: async (request) =>
+        firstValueFrom(paymentQuery.searchPayableSchedules(request)),
+      searchPaymentRequests: async (request) =>
+        firstValueFrom(paymentQuery.searchPaymentRequests(request)),
+      searchPaymentExecutions: async (request) =>
+        firstValueFrom(paymentQuery.searchPaymentExecutions(request)),
+      searchPaymentAllocations: async (request) =>
+        firstValueFrom(paymentQuery.searchPaymentAllocations(request))
     }
   };
 }
@@ -186,8 +235,33 @@ function createManagementContext(seed) {
   };
 }
 
-/** runFinanceSmokeFlow executes the required phase 1A live gRPC smoke against one running finance-service instance. */
-async function runFinanceSmokeFlow(services, seed, log = () => {}) {
+/** maskAccountIdentifier returns one stable masked account snapshot for smoke fixtures and downstream assertions. */
+function maskAccountIdentifier(accountIdentifier) {
+  const suffix = accountIdentifier.slice(-4);
+  return `***${suffix}`;
+}
+
+/** seedSupplierFinancialAccount inserts one supplier beneficiary account fixture because phase 1B payment smoke depends on a valid supplier account id. */
+async function seedSupplierFinancialAccount(prisma, seed, log = () => {}) {
+  await prisma.supplierFinancialAccount.create({
+    data: {
+      id: seed.supplierFinancialAccountId,
+      tenantId: seed.tenantId,
+      supplierTenantPartyId: seed.supplierTenantPartyId,
+      accountHolderName: seed.supplierAccountHolderName,
+      accountProviderType: 'BANK',
+      accountIdentifierMasked: maskAccountIdentifier(seed.supplierAccountIdentifier),
+      currencyCode: seed.currencyCode,
+      isDefault: true,
+      verifiedStatus: 'UNVERIFIED'
+    }
+  });
+
+  log(`seedSupplierFinancialAccount supplierAccount=${seed.supplierFinancialAccountId}`);
+}
+
+/** runFinanceSmokeFlow executes the required phase 1A and phase 1B live gRPC smoke against one running finance-service instance. */
+async function runFinanceSmokeFlow(services, prisma, seed, log = () => {}) {
   const initialPage = await services.query.searchFinancialAccounts({
     ...createQueryContext(seed),
     keyword: seed.accountName,
@@ -225,7 +299,7 @@ async function runFinanceSmokeFlow(services, seed, log = () => {}) {
     direction: AccountTransactionDirection.ACCOUNT_TRANSACTION_DIRECTION_INFLOW,
     amount: '1200.00',
     currencyCode: seed.currencyCode,
-    transactionTime: seed.transactionTime,
+    transactionTime: seed.inflowTransactionTime,
     sourceType: AccountTransactionSourceType.ACCOUNT_TRANSACTION_SOURCE_TYPE_MANUAL,
     status: AccountTransactionStatus.ACCOUNT_TRANSACTION_STATUS_CONFIRMED,
     externalReference: `finance-smoke-ref-${seed.traceContext.requestId}`,
@@ -269,7 +343,7 @@ async function runFinanceSmokeFlow(services, seed, log = () => {}) {
     salesExchangeRateSnapshot: '7.200000',
     lines: [
       {
-        dueDate: seed.dueDate,
+        dueDate: seed.receivableDueDate,
         scheduledAmount: '1200.00',
         sourceSalesOrderLineId: `${seed.salesOrderId}-line-1`,
         memo: 'finance smoke receivable line'
@@ -308,6 +382,218 @@ async function runFinanceSmokeFlow(services, seed, log = () => {}) {
 
   log(`allocatePaymentToReceivable allocation=${paymentAllocation.paymentAllocationId}`);
 
+  await seedSupplierFinancialAccount(prisma, seed, log);
+
+  const payableResponse = await services.paymentManagement.createPayableScheduleFromPurchaseOrder({
+    ...createManagementContext(seed),
+    purchaseOrderId: seed.purchaseOrderId,
+    purchaseOrderNo: seed.purchaseOrderNo,
+    procurementSnapshotReference: `${seed.purchaseOrderId}-snapshot`,
+    supplierTenantPartyId: seed.supplierTenantPartyId,
+    supplierSnapshot: seed.supplierSnapshot,
+    currencyCode: seed.currencyCode,
+    lines: [
+      {
+        lineType: 'TERM_DUE',
+        sourceRef: `${seed.purchaseOrderId}/term-1`,
+        dueDate: seed.payableDueDate,
+        scheduledAmount: '300.00',
+        sourcePurchaseOrderLineId: `${seed.purchaseOrderId}-line-1`,
+        memo: 'finance smoke payable line'
+      }
+    ]
+  });
+
+  const payableSchedule = payableResponse?.payableSchedule;
+  const payableLine = payableSchedule?.lines?.[0];
+  if (!payableSchedule?.payableScheduleId || !payableLine?.payableScheduleLineId) {
+    throw new Error(
+      'finance-service smoke failed: CreatePayableScheduleFromPurchaseOrder did not return the persisted schedule and line ids'
+    );
+  }
+
+  log(`createPayableScheduleFromPurchaseOrder schedule=${payableSchedule.payableScheduleId}`);
+
+  const paymentRequestResponse = await services.paymentManagement.createPaymentRequest({
+    ...createManagementContext(seed),
+    requestSource: 'FINANCE_INITIATED',
+    supplierTenantPartyId: seed.supplierTenantPartyId,
+    beneficiarySupplierFinancialAccountId: seed.supplierFinancialAccountId,
+    currencyCode: seed.currencyCode,
+    requestedAmount: '300.00',
+    requestedLines: [
+      {
+        payableScheduleId: payableSchedule.payableScheduleId,
+        payableScheduleLineId: payableLine.payableScheduleLineId,
+        requestedAmount: '300.00'
+      }
+    ],
+    evidenceSnapshots: [
+      {
+        evidenceType: 'SUPPLIER_INVOICE',
+        externalDocumentNo: `${seed.purchaseOrderNo}-invoice`,
+        documentDate: seed.payableDueDate,
+        currencyCode: seed.currencyCode,
+        documentAmount: '300.00',
+        attachmentRef: 'asset://finance-smoke-supplier-invoice',
+        note: 'finance smoke supplier invoice snapshot'
+      }
+    ]
+  });
+
+  const paymentRequest = paymentRequestResponse?.paymentRequest;
+  if (!paymentRequest?.paymentRequestId) {
+    throw new Error('finance-service smoke failed: CreatePaymentRequest did not return a payment request id');
+  }
+
+  log(`createPaymentRequest request=${paymentRequest.paymentRequestId}`);
+
+  const decidedResponse = await services.paymentManagement.decidePaymentRequest({
+    ...createManagementContext(seed),
+    paymentRequestId: paymentRequest.paymentRequestId,
+    decision: 'APPROVED'
+  });
+
+  const approvedRequest = decidedResponse?.paymentRequest;
+  if (!approvedRequest?.paymentRequestId || approvedRequest.status !== 'APPROVED') {
+    throw new Error('finance-service smoke failed: DecidePaymentRequest did not approve the payment request');
+  }
+
+  log(`decidePaymentRequest request=${approvedRequest.paymentRequestId}`);
+
+  const executeResponse = await services.paymentManagement.executePaymentRequest({
+    ...createManagementContext(seed),
+    paymentRequestId: paymentRequest.paymentRequestId,
+    sourceFinancialAccountId: financialAccount.financialAccountId,
+    executedAmount: '300.00',
+    currencyCode: seed.currencyCode,
+    executedAt: seed.paymentExecutedAt,
+    executionReference: `${seed.purchaseOrderNo}-execution`,
+    attachmentRefs: ['asset://finance-smoke-payment-proof']
+  });
+
+  const paymentExecution = executeResponse?.paymentExecution;
+  if (!paymentExecution?.paymentExecutionId) {
+    throw new Error('finance-service smoke failed: ExecutePaymentRequest did not return a payment execution id');
+  }
+
+  log(`executePaymentRequest execution=${paymentExecution.paymentExecutionId}`);
+
+  const outflowResponse = await services.accountManagement.recordAccountTransaction({
+    ...createManagementContext(seed),
+    financialAccountId: financialAccount.financialAccountId,
+    direction: AccountTransactionDirection.ACCOUNT_TRANSACTION_DIRECTION_OUTFLOW,
+    amount: '300.00',
+    currencyCode: seed.currencyCode,
+    transactionTime: seed.outflowTransactionTime,
+    sourceType: AccountTransactionSourceType.ACCOUNT_TRANSACTION_SOURCE_TYPE_MANUAL,
+    status: AccountTransactionStatus.ACCOUNT_TRANSACTION_STATUS_CONFIRMED,
+    externalReference: `${seed.purchaseOrderNo}-execution`,
+    counterpartyName: seed.supplierSnapshot,
+    counterpartyAccountSnapshot: maskAccountIdentifier(seed.supplierAccountIdentifier),
+    memo: 'finance smoke outflow payment transaction'
+  });
+
+  const outflowTransaction = outflowResponse?.accountTransaction;
+  if (!outflowTransaction?.accountTransactionId) {
+    throw new Error(
+      'finance-service smoke failed: RecordAccountTransaction did not return an outflow account transaction id'
+    );
+  }
+
+  log(`recordAccountTransaction outflow=${outflowTransaction.accountTransactionId}`);
+
+  const payableAllocationResponse = await services.paymentManagement.allocatePaymentToPayable({
+    ...createManagementContext(seed),
+    accountTransactionId: outflowTransaction.accountTransactionId,
+    paymentExecutionId: paymentExecution.paymentExecutionId,
+    allocations: [
+      {
+        payableScheduleId: payableSchedule.payableScheduleId,
+        payableScheduleLineId: payableLine.payableScheduleLineId,
+        allocatedAmount: '300.00'
+      }
+    ]
+  });
+
+  const payableAllocation = payableAllocationResponse?.paymentAllocations?.[0];
+  if (!payableAllocation?.paymentAllocationId) {
+    throw new Error(
+      'finance-service smoke failed: AllocatePaymentToPayable did not return a payment allocation id'
+    );
+  }
+
+  log(`allocatePaymentToPayable allocation=${payableAllocation.paymentAllocationId}`);
+
+  const payableSchedules = await services.paymentQuery.searchPayableSchedules({
+    ...createQueryContext(seed),
+    sourcePurchaseOrderId: seed.purchaseOrderId,
+    page: 1,
+    pageSize: 20
+  });
+  if ((payableSchedules?.total ?? 0) !== 1 || payableSchedules?.payableSchedules?.[0]?.status !== 'PAID') {
+    throw new Error(
+      'finance-service smoke failed: SearchPayableSchedules did not surface the paid payable schedule'
+    );
+  }
+
+  log(`searchPayableSchedules total=${payableSchedules.total}`);
+
+  const paymentRequests = await services.paymentQuery.searchPaymentRequests({
+    ...createQueryContext(seed),
+    supplierTenantPartyId: seed.supplierTenantPartyId,
+    page: 1,
+    pageSize: 20
+  });
+  if (
+    (paymentRequests?.total ?? 0) !== 1 ||
+    paymentRequests?.paymentRequests?.[0]?.paymentRequestId !== paymentRequest.paymentRequestId
+  ) {
+    throw new Error(
+      'finance-service smoke failed: SearchPaymentRequests did not surface the created payment request'
+    );
+  }
+
+  log(`searchPaymentRequests total=${paymentRequests.total}`);
+
+  const paymentExecutions = await services.paymentQuery.searchPaymentExecutions({
+    ...createQueryContext(seed),
+    paymentRequestId: paymentRequest.paymentRequestId,
+    page: 1,
+    pageSize: 20
+  });
+  if (
+    (paymentExecutions?.total ?? 0) !== 1 ||
+    paymentExecutions?.paymentExecutions?.[0]?.paymentExecutionId !==
+      paymentExecution.paymentExecutionId
+  ) {
+    throw new Error(
+      'finance-service smoke failed: SearchPaymentExecutions did not surface the recorded payment execution'
+    );
+  }
+
+  log(`searchPaymentExecutions total=${paymentExecutions.total}`);
+
+  const paymentAllocations = await services.paymentQuery.searchPaymentAllocations({
+    ...createQueryContext(seed),
+    paymentExecutionId: paymentExecution.paymentExecutionId,
+    targetType: 'PAYABLE_SCHEDULE_LINE',
+    targetScheduleId: payableSchedule.payableScheduleId,
+    page: 1,
+    pageSize: 20
+  });
+  if (
+    (paymentAllocations?.total ?? 0) !== 1 ||
+    paymentAllocations?.paymentAllocations?.[0]?.paymentAllocationId !==
+      payableAllocation.paymentAllocationId
+  ) {
+    throw new Error(
+      'finance-service smoke failed: SearchPaymentAllocations did not surface the payable allocation'
+    );
+  }
+
+  log(`searchPaymentAllocations total=${paymentAllocations.total}`);
+
   return {
     tenantId: seed.tenantId,
     financialAccountId: financialAccount.financialAccountId,
@@ -315,7 +601,14 @@ async function runFinanceSmokeFlow(services, seed, log = () => {}) {
     customerFinancialAccountId: customerFinancialAccount.customerFinancialAccountId,
     receivableScheduleId: receivableSchedule.receivableScheduleId,
     receivableScheduleLineId: receivableLine.receivableScheduleLineId,
-    paymentAllocationId: paymentAllocation.paymentAllocationId
+    receivablePaymentAllocationId: paymentAllocation.paymentAllocationId,
+    supplierFinancialAccountId: seed.supplierFinancialAccountId,
+    payableScheduleId: payableSchedule.payableScheduleId,
+    payableScheduleLineId: payableLine.payableScheduleLineId,
+    paymentRequestId: paymentRequest.paymentRequestId,
+    paymentExecutionId: paymentExecution.paymentExecutionId,
+    outflowAccountTransactionId: outflowTransaction.accountTransactionId,
+    payablePaymentAllocationId: payableAllocation.paymentAllocationId
   };
 }
 
@@ -326,10 +619,11 @@ async function main() {
 
   const client = createGrpcClient();
   const services = createFinanceServices(client);
+  const prisma = new PrismaClient();
   const seed = createSmokeSeed();
 
   try {
-    const result = await runFinanceSmokeFlow(services, seed, (message) =>
+    const result = await runFinanceSmokeFlow(services, prisma, seed, (message) =>
       console.log(`[finance-smoke] ${message}`)
     );
 
@@ -345,6 +639,7 @@ async function main() {
     if (close) {
       await Promise.resolve(close()).catch(() => undefined);
     }
+    await prisma.$disconnect().catch(() => undefined);
   }
 }
 

@@ -10,6 +10,7 @@ import {
   HrOnboardingAccessProcessSummary,
   HrQueryGrpcAdapter
 } from './adapters/hr-query-grpc.adapter'
+import { PartyTenantQueryGrpcAdapter } from './adapters/party-tenant-query-grpc.adapter'
 
 @Injectable()
 // Builds the tenant-scoped employee and employment management model for the gateway HR entry.
@@ -19,6 +20,7 @@ export class HrManagementService {
     private readonly hrManagementAdapter: HrManagementGrpcAdapter,
     private readonly identityQueryAdapter: IdentityQueryGrpcAdapter,
     private readonly authAdapter: AuthGrpcAdapter,
+    private readonly partyTenantQueryAdapter: PartyTenantQueryGrpcAdapter,
     private readonly permissionService: PermissionProxyService,
     private readonly orgManagementService: OrgManagementService
   ) {}
@@ -46,15 +48,18 @@ export class HrManagementService {
         activeEmployment: await this.loadOptionalActiveEmployment(employee.id, source)
       }))
     )
-    const orgUnitMap = await this.loadOrgUnitMap(
-      resolvedTenantId,
-      items.map((item) => item.activeEmployment?.orgUnitId),
-      source
-    )
+    const [employeeDisplayNameMap, orgUnitMap] = await Promise.all([
+      this.loadEmployeeDisplayNameMap(resolvedTenantId, items.map((item) => item.employee), source),
+      this.loadOrgUnitMap(
+        resolvedTenantId,
+        items.map((item) => item.activeEmployment?.orgUnitId),
+        source
+      )
+    ])
 
     return {
       items: items.map((item) => ({
-        ...item,
+        employee: this.attachEmployeeDisplayName(item.employee, employeeDisplayNameMap),
         activeEmployment: this.attachOrgUnitSummary(item.activeEmployment, orgUnitMap)
       })),
       page: result.page,
@@ -70,14 +75,17 @@ export class HrManagementService {
       this.loadOptionalActiveEmployment(employee.id, source),
       this.hrQueryAdapter.listEmployments({ employeeId: employee.id }, source)
     ])
-    const orgUnitMap = await this.loadOrgUnitMap(
-      resolvedTenantId,
-      [activeEmployment?.orgUnitId, ...employments.map((employment) => employment.orgUnitId)],
-      source
-    )
+    const [employeeDisplayNameMap, orgUnitMap] = await Promise.all([
+      this.loadEmployeeDisplayNameMap(resolvedTenantId, [employee], source),
+      this.loadOrgUnitMap(
+        resolvedTenantId,
+        [activeEmployment?.orgUnitId, ...employments.map((employment) => employment.orgUnitId)],
+        source
+      )
+    ])
 
     return {
-      employee,
+      employee: this.attachEmployeeDisplayName(employee, employeeDisplayNameMap),
       activeEmployment: this.attachOrgUnitSummary(activeEmployment, orgUnitMap),
       employments: employments.map((employment) => this.attachOrgUnitSummary(employment, orgUnitMap))
     }
@@ -120,17 +128,102 @@ export class HrManagementService {
     })
   }
 
-  async createEmployee(
+  async searchEmployeeUserCandidates(
     tenantId: string,
-    input: { tenantPartyId: string; partyId?: string; employeeCode: string },
+    query: { countryOrRegion?: string; keyword?: string },
     source: DownstreamRequestSource
   ) {
-    return this.hrManagementAdapter.createEmployee(
+    this.resolveTenantId(tenantId, source)
+    const keyword = requireNonBlank(query.keyword ?? '', 'keyword')
+    if (keyword.includes('@')) {
+      if (!isCompleteEmailLookupKeyword(keyword)) {
+        return { items: [] }
+      }
+      const result = await this.identityQueryAdapter.getUserByEmail(keyword.toLowerCase(), source)
+      return toEmployeeUserCandidateResult(result.user)
+    }
+
+    const phoneCandidates = buildPhoneLookupCandidates(keyword, query.countryOrRegion)
+    for (const phone of phoneCandidates) {
+      const result = await this.identityQueryAdapter.getUserByPhone(phone, source)
+      if (result.user?.id) {
+        return toEmployeeUserCandidateResult(result.user)
+      }
+    }
+    return { items: [] }
+  }
+
+  async createEmployee(
+    tenantId: string,
+    input: {
+      account?: {
+        displayName: string
+        email?: string
+        existingUserId?: string
+        phone?: string
+      }
+      employeeCode?: string
+      idempotencyKey?: string
+      partyId?: string
+      person?: {
+        gender?: string
+        identifiers?: Array<{
+          identifierType: string
+          issuerCountryOrRegion?: string
+          normalizedValue: string
+          rawValue?: string
+        }>
+        legalName: string
+      }
+      primaryEmployment?: {
+        effectiveFrom: string
+        orgUnitId: string
+        positionName?: string
+      }
+      tenantPartyId?: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const resolvedTenantId = this.resolveTenantId(tenantId, source)
+
+    if (!input.person) {
+      return this.hrManagementAdapter.createEmployee(
+        {
+          tenantId: resolvedTenantId,
+          tenantPartyId: requireNonBlank(input.tenantPartyId, 'tenantPartyId'),
+          partyId: normalize(input.partyId),
+          employeeCode: requireNonBlank(input.employeeCode, 'employeeCode')
+        },
+        source
+      )
+    }
+
+    return this.hrManagementAdapter.createEmployeeOnboarding(
       {
-        tenantId: this.resolveTenantId(tenantId, source),
-        tenantPartyId: requireNonBlank(input.tenantPartyId, 'tenantPartyId'),
-        partyId: normalize(input.partyId),
-        employeeCode: requireNonBlank(input.employeeCode, 'employeeCode')
+        tenantId: resolvedTenantId,
+        idempotencyKey:
+          normalize(input.idempotencyKey) ||
+          buildEmployeeOnboardingIdempotencyKey(resolvedTenantId, input.person),
+        employeeCode: normalize(input.employeeCode),
+        person: {
+          legalName: requireNonBlank(input.person.legalName, 'person.legalName'),
+          identifiers: normalizePersonIdentifiers(input.person.identifiers)
+        },
+        primaryEmployment: input.primaryEmployment
+          ? {
+              effectiveFrom: requireNonBlank(input.primaryEmployment.effectiveFrom, 'primaryEmployment.effectiveFrom'),
+              orgUnitId: normalize(input.primaryEmployment.orgUnitId),
+              positionName: normalize(input.primaryEmployment.positionName)
+            }
+          : undefined,
+        createAccount: input.account
+          ? {
+              displayName: requireNonBlank(input.account.displayName, 'account.displayName'),
+              email: normalize(input.account.email),
+              existingUserId: normalize(input.account.existingUserId),
+              phone: normalize(input.account.phone)
+            }
+          : undefined
       },
       source
     )
@@ -388,6 +481,38 @@ export class HrManagementService {
     }
   }
 
+  /** loadEmployeeDisplayNameMap hydrates employee display names from tenant-party truth without changing HR ownership. */
+  private async loadEmployeeDisplayNameMap(
+    tenantId: string,
+    employees: HrEmployeeSummary[],
+    source: DownstreamRequestSource
+  ) {
+    const uniqueTenantPartyIds = [
+      ...new Set(employees.map((employee) => normalize(employee.tenantPartyId)).filter(Boolean))
+    ]
+    const entries = await Promise.all(
+      uniqueTenantPartyIds.map(async (tenantPartyId) => {
+        try {
+          const tenantParty = await this.partyTenantQueryAdapter.getTenantPartyById(
+            tenantId,
+            tenantPartyId!,
+            source
+          )
+          return tenantParty?.localDisplayName
+            ? ([tenantPartyId!, tenantParty.localDisplayName] as const)
+            : undefined
+        } catch (error) {
+          if (error instanceof NotFoundException) {
+            return undefined
+          }
+          throw error
+        }
+      })
+    )
+
+    return new Map(entries.filter(Boolean) as Array<readonly [string, string]>)
+  }
+
   /** loadOrgUnitMap reuses tenant-org read models to attach optional org summaries without changing HR ownership. */
   private async loadOrgUnitMap(
     tenantId: string,
@@ -428,6 +553,18 @@ export class HrManagementService {
     }
   }
 
+  /** attachEmployeeDisplayName decorates one HR employee summary with an optional tenant-party display name. */
+  private attachEmployeeDisplayName<TEmployee extends { tenantPartyId?: string }>(
+    employee: TEmployee,
+    employeeDisplayNameMap: Map<string, string>
+  ) {
+    const tenantPartyId = normalize(employee.tenantPartyId)
+    return {
+      ...employee,
+      displayName: tenantPartyId ? employeeDisplayNameMap.get(tenantPartyId) : undefined
+    }
+  }
+
   private resolveTenantId(tenantId: string, source: DownstreamRequestSource): string {
     const requestedTenantId = requireNonBlank(tenantId, 'tenantId')
     const operatorTenantId = normalize(source.user?.tenantId) ?? normalize(source.user?.tid)
@@ -454,7 +591,122 @@ function normalizeUpper(value?: string): string | undefined {
   return normalized ? normalized.toUpperCase() : undefined
 }
 
-function requireNonBlank(value: string, fieldName: string): string {
+function maskEmail(value?: string): string | undefined {
+  const email = normalize(value)
+  if (!email) return undefined
+  const [name, domain] = email.split('@')
+  if (!name || !domain) return email
+  return `${name.slice(0, 2)}***@${domain}`
+}
+
+function maskPhone(value?: string): string | undefined {
+  const phone = normalize(value)
+  if (!phone) return undefined
+  return phone.length > 6 ? `${phone.slice(0, 3)}***${phone.slice(-4)}` : phone
+}
+
+function isCompleteEmailLookupKeyword(keyword: string): boolean {
+  return /^[^\s@]+@(?:[^\s@.]+\.)+[A-Za-z]{2,}$/.test(keyword.trim())
+}
+
+// buildPhoneLookupCandidates maps common phone input formats to canonical identity login phones.
+function buildPhoneLookupCandidates(keyword: string, countryOrRegion?: string): string[] {
+  const compact = keyword.trim().replace(/[\s().-]/g, '')
+  const digits = compact.replace(/\D/g, '')
+  if (!digits) return []
+
+  const candidates: string[] = []
+  const country = normalize(countryOrRegion)?.toUpperCase()
+  if (compact.startsWith('+')) {
+    const candidate = `+${digits}`
+    if (isCanonicalLookupPhone(candidate)) candidates.push(candidate)
+  } else if (compact.startsWith('00') && digits.length > 2) {
+    const candidate = `+${digits.slice(2)}`
+    if (isCanonicalLookupPhone(candidate)) candidates.push(candidate)
+  } else {
+    if ((country === 'US' || country === 'CA') && digits.length === 10) {
+      candidates.push(`+1${digits}`)
+    }
+    if ((country === 'US' || country === 'CA') && digits.length === 11 && digits.startsWith('1')) {
+      candidates.push(`+${digits}`)
+    }
+    if (country === 'CN' && digits.length === 11 && digits.startsWith('1')) {
+      candidates.push(`+86${digits}`)
+    }
+    if (country === 'SG' && digits.length === 8) {
+      candidates.push(`+65${digits}`)
+    }
+  }
+
+  return [...new Set(candidates)]
+}
+
+function isCanonicalLookupPhone(phone: string): boolean {
+  return /^\+[1-9]\d{5,19}$/.test(phone)
+}
+
+function toEmployeeUserCandidateResult(user: {
+  id?: string
+  username?: string
+  personalEmail?: string
+  personalPhone?: string
+  isActive?: boolean
+}) {
+  if (!user?.id) return { items: [] }
+  return {
+    items: [
+      {
+        userId: user.id,
+        displayName: normalize(user.username) ?? normalize(user.personalEmail) ?? normalize(user.personalPhone) ?? user.id,
+        maskedEmail: maskEmail(user.personalEmail),
+        maskedPhone: maskPhone(user.personalPhone),
+        isActive: user.isActive !== false
+      }
+    ]
+  }
+}
+
+function normalizePersonIdentifiers(
+  identifiers?: Array<{
+    identifierType: string
+    issuerCountryOrRegion?: string
+    normalizedValue: string
+    rawValue?: string
+  }>
+) {
+  return (identifiers ?? [])
+    .map((identifier) => ({
+      identifierType: requireNonBlank(identifier.identifierType, 'person.identifiers.identifierType'),
+      issuerCountryOrRegion: normalize(identifier.issuerCountryOrRegion),
+      normalizedValue: requireNonBlank(identifier.normalizedValue, 'person.identifiers.normalizedValue'),
+      rawValue: normalize(identifier.rawValue)
+    }))
+}
+
+function buildEmployeeOnboardingIdempotencyKey(
+  tenantId: string,
+  person: {
+    identifiers?: Array<{
+      identifierType: string
+      issuerCountryOrRegion?: string
+      normalizedValue: string
+    }>
+    legalName: string
+  }
+) {
+  const identifier = person.identifiers?.[0]
+  const stableKey = identifier
+    ? [
+        identifier.identifierType,
+        identifier.issuerCountryOrRegion ?? '',
+        identifier.normalizedValue
+      ].join(':')
+    : person.legalName
+
+  return `hr:create-employee-person:${tenantId}:${stableKey}`
+}
+
+function requireNonBlank(value: string | undefined, fieldName: string): string {
   const normalized = value?.trim()
   if (!normalized) {
     throw new NotFoundException(`${fieldName} is required`)

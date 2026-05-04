@@ -94,6 +94,7 @@ async function submitPurchaseRequestDraft() {
         <input data-testid="purchase-request-line-uom-0" v-model="form.line.uom" placeholder="UOM" />
       </div>
       <button
+        v-access:code="'procurement.purchase_request.create'"
         v-if="canCreatePurchaseRequest"
         data-testid="purchase-request-create-submit"
         type="button"

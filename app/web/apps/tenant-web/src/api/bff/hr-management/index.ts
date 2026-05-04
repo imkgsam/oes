@@ -7,6 +7,7 @@ export namespace HrManagementApi {
   export type EmploymentStatus = 'ACTIVE' | 'ENDED'
 
   export interface EmployeeSummary {
+    displayName?: string
     employeeCode: string
     id: string
     lifecycleStatus: EmployeeLifecycleStatus | string
@@ -23,6 +24,7 @@ export namespace HrManagementApi {
     id: string
     orgUnitId: string
     orgUnit?: TenantManagementApi.ManagedOrgUnit
+    positionName?: string
     status: EmploymentStatus | string
     tenantId: string
   }
@@ -82,7 +84,7 @@ export namespace HrManagementApi {
     canContinue: boolean
     failureReason?: string
     loginMethods: EmployeeAccessLoginMethodSummary[]
-    onboardingStatus?: 'ACCOUNT_BINDING_PENDING' | 'ACCESS_GRANT_PENDING' | 'COMPLETED'
+    onboardingStatus?: 'ACCESS_GRANT_PENDING' | 'ACCOUNT_BINDING_PENDING' | 'COMPLETED'
     passwordSetupRequired: boolean
     roles: EmployeeAccessRoleSummary[]
     status: 'ACTIVE' | 'NOT_ENABLED' | 'PENDING' | string
@@ -91,7 +93,20 @@ export namespace HrManagementApi {
   export interface ProvisionEmployeeAccessAccountPayload {
     displayName: string
     email?: string
+    existingUserId?: string
     phone?: string
+  }
+
+  export interface EmployeeUserCandidate {
+    displayName?: string
+    isActive: boolean
+    maskedEmail?: string
+    maskedPhone?: string
+    userId: string
+  }
+
+  export interface EmployeeUserCandidateResult {
+    items: EmployeeUserCandidate[]
   }
 
   export interface CompleteEmployeeAccessPayload {
@@ -102,10 +117,28 @@ export namespace HrManagementApi {
     roleIds: string[]
   }
 
+  export interface EmployeePartyIdentifierPayload {
+    identifierType: string
+    issuerCountryOrRegion?: string
+    normalizedValue: string
+    rawValue?: string
+  }
+
   export interface CreateEmployeePayload {
-    employeeCode: string
+    account?: ProvisionEmployeeAccessAccountPayload
+    employeeCode?: string
     partyId?: string
-    tenantPartyId: string
+    person?: {
+      gender?: string
+      identifiers?: EmployeePartyIdentifierPayload[]
+      legalName: string
+    }
+    primaryEmployment?: {
+      effectiveFrom: string
+      orgUnitId: string
+      positionName?: string
+    }
+    tenantPartyId?: string
   }
 
   export interface CreateEmploymentPayload {
@@ -161,6 +194,20 @@ export async function createManagedEmployeeApi(
   return requestClient.post(
     `/hr-management/tenants/${encodeURIComponent(tenantId)}/employees`,
     data
+  )
+}
+
+// Finds one existing identity user candidate for binding while creating an employee account.
+export async function searchManagedEmployeeUserCandidatesApi(
+  tenantId: string,
+  keyword: string,
+  countryOrRegion?: string
+) {
+  return requestClient.get<HrManagementApi.EmployeeUserCandidateResult>(
+    `/hr-management/tenants/${encodeURIComponent(tenantId)}/employee-user-candidates`,
+    {
+      params: { countryOrRegion, keyword }
+    }
   )
 }
 

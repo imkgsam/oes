@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common'
 import { ClientsModule, Transport } from '@nestjs/microservices'
+import type { ClientProviderOptions } from '@nestjs/microservices/module/interfaces'
 import { AuthorizationModule } from '@oes/common/authorization'
 import { resolveCommonProtoPath } from '@oes/common/contracts'
 import {
@@ -32,40 +33,68 @@ import { PrismaEmployeeRepository } from '../../infrastructure/repositories/pris
 import { PrismaEmploymentRepository } from '../../infrastructure/repositories/prisma-employment.repository'
 import { PrismaOnboardingAccessRepository } from '../../infrastructure/repositories/prisma-onboarding-access.repository'
 
+/** resolveDownstreamGrpcUrl resolves standard service URLs first while preserving legacy local env names. */
+function resolveDownstreamGrpcUrl(
+  standardEnvKey: string,
+  legacyEnvKey: string,
+  fallbackUrl: string
+): string | undefined {
+  const standardUrl = process.env[standardEnvKey]?.trim()
+  if (standardUrl) {
+    return standardUrl
+  }
+
+  const legacyUrl = process.env[legacyEnvKey]?.trim()
+  if (legacyUrl) {
+    return legacyUrl
+  }
+
+  if ((process.env.NODE_ENV ?? 'development') !== 'production') {
+    return fallbackUrl
+  }
+
+  return undefined
+}
+
+/** buildHrOnboardingGrpcClients declares account bootstrap downstream clients with canonical local ports. */
+export function buildHrOnboardingGrpcClients(): ClientProviderOptions[] {
+  return [
+    {
+      name: AUTH_GRPC_CLIENT,
+      transport: Transport.GRPC,
+      options: {
+        package: 'auth_service',
+        protoPath: [resolveCommonProtoPath('auth_service/auth.proto')],
+        url: resolveDownstreamGrpcUrl('GRPC_SERVICE_AUTH_URL', 'AUTH_GRPC_URL', '127.0.0.1:50050')
+      }
+    },
+    {
+      name: IDENTITY_GRPC_CLIENT,
+      transport: Transport.GRPC,
+      options: {
+        package: 'identity_service',
+        protoPath: [resolveCommonProtoPath('identity_service/identity_query.proto')],
+        url: resolveDownstreamGrpcUrl('GRPC_SERVICE_IDENTITY_URL', 'IDENTITY_GRPC_URL', '127.0.0.1:50052')
+      }
+    },
+    {
+      name: PERMISSION_GRPC_CLIENT,
+      transport: Transport.GRPC,
+      options: {
+        package: 'permission_service',
+        protoPath: [resolveCommonProtoPath('permission_service/permission_management.proto')],
+        url: resolveDownstreamGrpcUrl('GRPC_SERVICE_PERMISSION_URL', 'PERMISSION_GRPC_URL', '127.0.0.1:50051')
+      }
+    }
+  ]
+}
+
 /** HrOnboardingModule wires internal onboarding access compensation ports without exposing public RPCs. */
 @Module({
   imports: [
     AuthorizationModule,
     PrismaModule,
-    ClientsModule.register([
-      {
-        name: AUTH_GRPC_CLIENT,
-        transport: Transport.GRPC,
-        options: {
-          package: 'auth_service',
-          protoPath: [resolveCommonProtoPath('auth_service/auth.proto')],
-          url: process.env.AUTH_GRPC_URL || 'localhost:50053'
-        }
-      },
-      {
-        name: IDENTITY_GRPC_CLIENT,
-        transport: Transport.GRPC,
-        options: {
-          package: 'identity_service',
-          protoPath: [resolveCommonProtoPath('identity_service/identity_query.proto')],
-          url: process.env.IDENTITY_GRPC_URL || 'localhost:50052'
-        }
-      },
-      {
-        name: PERMISSION_GRPC_CLIENT,
-        transport: Transport.GRPC,
-        options: {
-          package: 'permission_service',
-          protoPath: [resolveCommonProtoPath('permission_service/permission_management.proto')],
-          url: process.env.PERMISSION_GRPC_URL || 'localhost:50051'
-        }
-      }
-    ])
+    ClientsModule.register(buildHrOnboardingGrpcClients())
   ],
   providers: [
     {

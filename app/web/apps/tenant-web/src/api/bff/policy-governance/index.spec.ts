@@ -22,7 +22,7 @@ describe('tenant-web policy governance api', () => {
       keyword: 'deny',
       page: 2,
       pageSize: 50,
-      permissionCode: 'permission.role.update',
+      permissionCode: 'permission.role_instance.update',
       tenantId: 'tenant-1'
     })
 
@@ -32,7 +32,7 @@ describe('tenant-web policy governance api', () => {
         keyword: 'deny',
         page: 2,
         pageSize: 50,
-        permissionCode: 'permission.role.update',
+        permissionCode: 'permission.role_instance.update',
         tenantId: 'tenant-1'
       }
     })
@@ -49,11 +49,11 @@ describe('tenant-web policy governance api', () => {
   it('loads policies linked to one permission code with an optional tenant filter', async () => {
     const { listPermissionPoliciesApi } = await import('./index')
 
-    await listPermissionPoliciesApi('permission.role.update', {
+    await listPermissionPoliciesApi('permission.role_instance.update', {
       tenantId: 'tenant-1'
     })
 
-    expect(get).toHaveBeenCalledWith('/permission/permission.role.update/policies', {
+    expect(get).toHaveBeenCalledWith('/permission/permission.role_instance.update/policies', {
       params: {
         tenantId: 'tenant-1'
       }

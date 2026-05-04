@@ -10,8 +10,10 @@ import {
   convertQuoteVersionToOrderApi,
   getQuoteByIdApi,
   listManagedCustomerAccountsApi,
+  listPriceListsApi,
   listSelectableCustomersApi,
   listQuoteVersionsApi,
+  previewQuoteLinePricingApi,
   publishQuoteApi,
   updateQuoteDraftApi
 } from '#/api'
@@ -30,6 +32,12 @@ const canPublishQuote = computed(() => authContextStore.actionCodes.includes('sa
 const canConvertQuote = computed(() =>
   authContextStore.actionCodes.includes('sales.quote.convert_to_order')
 )
+const canPreviewQuoteLinePricing = computed(() =>
+  authContextStore.actionCodes.includes('sales.pricing.preview_quote_line')
+)
+const canReadPriceLists = computed(() =>
+  authContextStore.actionCodes.includes('sales.pricing.price_list.read')
+)
 const quote = ref<SalesApi.Quote | null>(null)
 const quoteVersions = ref<SalesApi.QuoteVersion[]>([])
 const currentCustomerAccount = ref<CustomerManagementApi.CustomerAccount | null>(null)
@@ -38,6 +46,8 @@ const customerSearchLoading = ref(false)
 const customerSearchRan = ref(false)
 const selectableCustomers = ref<CustomerManagementApi.SelectableCustomer[]>([])
 const selectedCustomer = ref<CustomerManagementApi.SelectableCustomer | null>(null)
+const availablePriceLists = ref<SalesApi.PriceList[]>([])
+const lineSelectedPriceLists = ref<string[]>([])
 const saving = ref(false)
 const publishing = ref(false)
 const form = reactive({
@@ -45,19 +55,38 @@ const form = reactive({
   lines: [] as SalesApi.QuoteLine[]
 })
 
-/** loadQuoteWorkspace refreshes the editable draft carrier and its published version history. */
+/** loadQuoteWorkspace refreshes the editable draft carrier, version history, and active price-list catalog used by pricing preview. */
 async function loadQuoteWorkspace() {
   if (!activeTenantId.value || !quoteId.value || !canGetQuote.value) {
     return
   }
 
-  const [quoteResult, versionResult] = await Promise.all([
+  const tasks = [
     getQuoteByIdApi(activeTenantId.value, quoteId.value),
     listQuoteVersionsApi(activeTenantId.value, quoteId.value, {
       page: 1,
       pageSize: 20
     })
-  ])
+  ]
+  if (canReadPriceLists.value) {
+    tasks.push(
+      listPriceListsApi(activeTenantId.value, {
+        currencyCode: 'USD',
+        effectiveAt: undefined,
+        keyword: undefined,
+        page: 1,
+        pageSize: 20,
+        priceListType: undefined,
+        status: 'ACTIVE'
+      }) as any
+    )
+  }
+
+  const [quoteResult, versionResult, priceListResult] = (await Promise.all(tasks)) as [
+    SalesApi.Quote,
+    SalesApi.QuoteVersionListResult,
+    SalesApi.PriceListListResult | undefined
+  ]
 
   quote.value = quoteResult
   selectedCustomer.value = null
@@ -67,10 +96,26 @@ async function loadQuoteWorkspace() {
     customerItemSnapshot: { ...line.customerItemSnapshot },
     itemSnapshot: { ...line.itemSnapshot },
     packagingRequirementSnapshot: { ...line.packagingRequirementSnapshot },
-    priceQuantityDeliverySnapshot: { ...line.priceQuantityDeliverySnapshot },
+    priceQuantityDeliverySnapshot: {
+      ...line.priceQuantityDeliverySnapshot,
+      exceptionPlaceholders: [...(line.priceQuantityDeliverySnapshot.exceptionPlaceholders ?? [])],
+      exchangeRateSnapshot: line.priceQuantityDeliverySnapshot.exchangeRateSnapshot
+        ? { ...line.priceQuantityDeliverySnapshot.exchangeRateSnapshot }
+        : undefined,
+      moqSnapshot: line.priceQuantityDeliverySnapshot.moqSnapshot
+        ? { ...line.priceQuantityDeliverySnapshot.moqSnapshot }
+        : undefined,
+      priceSnapshot: line.priceQuantityDeliverySnapshot.priceSnapshot
+        ? { ...line.priceQuantityDeliverySnapshot.priceSnapshot }
+        : undefined
+    },
     salesConfigSnapshot: { ...line.salesConfigSnapshot }
   }))
+  lineSelectedPriceLists.value = form.lines.map(
+    (line) => line.priceQuantityDeliverySnapshot.priceSnapshot?.sourceRefId || ''
+  )
   quoteVersions.value = versionResult.quoteVersions ?? []
+  availablePriceLists.value = priceListResult?.priceLists ?? []
   await loadCurrentCustomerSummary(quoteResult.customerTenantPartyId)
 }
 
@@ -115,6 +160,30 @@ function selectCustomer(customer: CustomerManagementApi.SelectableCustomer) {
   form.customerTenantPartyId = customer.primaryTenantPartyId
 }
 
+/** previewQuoteLinePricing refreshes one line's pricing snapshots and exception placeholders without mutating server state. */
+async function previewQuoteLinePricing(line: SalesApi.QuoteLine, index: number) {
+  if (!activeTenantId.value || !canPreviewQuoteLinePricing.value) {
+    return
+  }
+
+  const preview = await previewQuoteLinePricingApi(activeTenantId.value, {
+    currencyCode: line.priceQuantityDeliverySnapshot.currencyCode,
+    customerTenantPartyId: form.customerTenantPartyId.trim(),
+    exchangeRateTargetCurrencyCode: line.priceQuantityDeliverySnapshot.currencyCode,
+    itemId: line.itemId,
+    manualUnitPriceAmount: line.priceQuantityDeliverySnapshot.unitPrice || undefined,
+    pricingAt: undefined,
+    quantityUomCode: line.salesConfigSnapshot.salesUom,
+    requestedQuantity: line.priceQuantityDeliverySnapshot.quantity,
+    selectedPriceListId: lineSelectedPriceLists.value[index] || undefined
+  })
+
+  line.priceQuantityDeliverySnapshot.priceSnapshot = preview.priceSnapshot
+  line.priceQuantityDeliverySnapshot.moqSnapshot = preview.moqSnapshot
+  line.priceQuantityDeliverySnapshot.exchangeRateSnapshot = preview.exchangeRateSnapshot
+  line.priceQuantityDeliverySnapshot.exceptionPlaceholders = preview.exceptionPlaceholders ?? []
+}
+
 /** saveDraft replaces the current quote draft snapshot using the editable line state. */
 async function saveDraft() {
   if (!activeTenantId.value || !quoteId.value || !canUpdateQuoteDraft.value) {
@@ -146,6 +215,10 @@ async function saveDraft() {
           priceQuantityDeliverySnapshot: {
             currencyCode: line.priceQuantityDeliverySnapshot.currencyCode,
             deliveryTerm: line.priceQuantityDeliverySnapshot.deliveryTerm,
+            exceptionPlaceholders: line.priceQuantityDeliverySnapshot.exceptionPlaceholders ?? [],
+            exchangeRateSnapshot: line.priceQuantityDeliverySnapshot.exchangeRateSnapshot,
+            moqSnapshot: line.priceQuantityDeliverySnapshot.moqSnapshot,
+            priceSnapshot: line.priceQuantityDeliverySnapshot.priceSnapshot,
             quantity: line.priceQuantityDeliverySnapshot.quantity,
             requestedDeliveryDate: line.priceQuantityDeliverySnapshot.requestedDeliveryDate,
             unitPrice: line.priceQuantityDeliverySnapshot.unitPrice
@@ -236,8 +309,8 @@ onMounted(() => {
           <label class="sales-detail-field">
             <span>Replace By CRM Selector</span>
             <input
-              data-testid="sales-detail-customer-search-input"
               v-model="customerSearchKeyword"
+              data-testid="sales-detail-customer-search-input"
               placeholder="search selectable CRM customers"
             />
           </label>
@@ -280,13 +353,75 @@ onMounted(() => {
           CRM selector 不返回 BLOCKED、ARCHIVED 或未绑定客户。
         </p>
 
-        <div v-for="(line, index) in form.lines" :key="line.quoteLineId || index" class="sales-line-grid">
-          <input :data-testid="`sales-detail-item-name-${index}`" v-model="line.itemSnapshot.itemName" placeholder="item snapshot name" />
-          <input :data-testid="`sales-detail-quantity-${index}`" v-model="line.priceQuantityDeliverySnapshot.quantity" placeholder="quantity" />
+        <div
+          v-for="(line, index) in form.lines"
+          :key="line.quoteLineId || index"
+          class="sales-line-editor"
+        >
+          <div class="sales-line-grid">
+            <input
+              v-model="line.itemSnapshot.itemName"
+              :data-testid="`sales-detail-item-name-${index}`"
+              placeholder="item snapshot name"
+            />
+            <input
+              v-model="line.priceQuantityDeliverySnapshot.quantity"
+              :data-testid="`sales-detail-quantity-${index}`"
+              placeholder="quantity"
+            />
+            <input
+              v-model="line.priceQuantityDeliverySnapshot.unitPrice"
+              :data-testid="`sales-detail-unit-price-${index}`"
+              placeholder="unit price"
+            />
+            <input
+              v-model="lineSelectedPriceLists[index]"
+              :data-testid="`sales-detail-price-list-${index}`"
+              list="sales-price-list-options"
+              placeholder="selected price list"
+            />
+            <button
+              v-access:code="'sales.pricing.preview_quote_line'"
+              v-if="canPreviewQuoteLinePricing"
+              :data-testid="`sales-detail-preview-${index}`"
+              type="button"
+              @click="previewQuoteLinePricing(line, index)"
+            >
+              PreviewQuoteLinePricing
+            </button>
+          </div>
+
+          <div class="sales-pricing-preview">
+            <p v-if="line.priceQuantityDeliverySnapshot.priceSnapshot">
+              priceSnapshot: {{ line.priceQuantityDeliverySnapshot.priceSnapshot.sourceType }} /
+              {{ line.priceQuantityDeliverySnapshot.priceSnapshot.unitPriceAmount }}
+            </p>
+            <p v-if="line.priceQuantityDeliverySnapshot.moqSnapshot">
+              moqSnapshot: {{ line.priceQuantityDeliverySnapshot.moqSnapshot.sourceType }} /
+              {{ line.priceQuantityDeliverySnapshot.moqSnapshot.moqQuantity }}
+              {{ line.priceQuantityDeliverySnapshot.moqSnapshot.quantityUomCode }}
+            </p>
+            <ul class="sales-exception-list">
+              <li
+                v-for="(placeholder, placeholderIndex) in line.priceQuantityDeliverySnapshot.exceptionPlaceholders ?? []"
+                :key="`${index}-${placeholderIndex}`"
+              >
+                {{ placeholder.exceptionType }} / {{ placeholder.status }} /
+                {{ placeholder.baselineSourceType }}
+              </li>
+            </ul>
+          </div>
         </div>
+
+        <datalist id="sales-price-list-options">
+          <option v-for="priceList in availablePriceLists" :key="priceList.priceListId" :value="priceList.priceListId">
+            {{ priceList.priceListName }}
+          </option>
+        </datalist>
 
         <div class="sales-detail-actions">
           <button
+            v-access:code="'sales.quote.update_draft'"
             v-if="canUpdateQuoteDraft"
             data-testid="sales-detail-save"
             type="button"
@@ -295,6 +430,7 @@ onMounted(() => {
             {{ saving ? '保存中...' : '保存草稿' }}
           </button>
           <button
+            v-access:code="'sales.quote.publish'"
             v-if="canPublishQuote"
             data-testid="sales-detail-publish"
             type="button"
@@ -311,6 +447,7 @@ onMounted(() => {
           <li v-for="version in quoteVersions" :key="version.quoteVersionId">
             <span>V{{ version.versionNo }} / {{ version.quoteVersionId }}</span>
             <button
+              v-access:code="'sales.quote.convert_to_order'"
               v-if="canConvertQuote"
               :data-testid="`sales-detail-convert-${version.quoteVersionId}`"
               type="button"
@@ -353,11 +490,31 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
+.sales-line-editor {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  padding: 12px;
+}
+
 .sales-line-grid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   margin-bottom: 12px;
+}
+
+.sales-pricing-preview,
+.sales-customer-summary,
+.sales-selector-empty {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 12px;
 }
 
 .sales-customer-selector,
@@ -372,13 +529,22 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
-.sales-customer-results {
+.sales-customer-results,
+.sales-version-list,
+.sales-exception-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
   list-style: none;
   margin: 0 0 12px;
   padding: 0;
+}
+
+.sales-customer-results button,
+.sales-detail-actions,
+.sales-version-list li {
+  display: flex;
+  gap: 12px;
 }
 
 .sales-customer-results button {
@@ -388,33 +554,6 @@ onMounted(() => {
   flex-wrap: wrap;
   justify-content: space-between;
   width: 100%;
-}
-
-.sales-customer-summary,
-.sales-selector-empty {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 12px;
-  padding: 12px;
-}
-
-.sales-detail-actions,
-.sales-version-list li {
-  display: flex;
-  gap: 12px;
-}
-
-.sales-version-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  list-style: none;
-  margin: 0;
-  padding: 0;
 }
 
 button,

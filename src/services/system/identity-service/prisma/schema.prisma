@@ -9,41 +9,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Tenant {
-  id            String                @id @default(uuid())
-  name          String
-  code          String                @unique
-  isActive      Boolean               @default(true)
-  createdAt     DateTime              @default(now())
-  updatedAt     DateTime              @updatedAt
-  orgUnits      Org[]
-  userAccounts  UserAccount[]
-  contactAssets AccountContactAsset[]
-}
-
-model Org {
-  id                 String                     @id @default(uuid())
-  tenantId           String
-  parentId           String?
-  name               String
-  code               String?
-  type               OrgType
-  order              Int                        @default(0)
-  parent             Org?                       @relation("OrgToParent", fields: [parentId], references: [id])
-  children           Org[]                      @relation("OrgToParent")
-  tenant             Tenant                     @relation(fields: [tenantId], references: [id])
-  accountMemberships UserAccountOrgMembership[]
-  createdAt          DateTime                   @default(now())
-  updatedAt          DateTime                   @updatedAt
-  createdBy          String
-}
-
-enum OrgType {
-  DEPARTMENT
-  BRANCH
-  TEAM
-}
-
 model User {
   id           String        @id @default(uuid())
   partyId      String?       @db.Uuid
@@ -69,13 +34,11 @@ model UserAccount {
   avatarUrl      String?
   avatarAssetId  String?
   bio            String?
-  orgMemberships UserAccountOrgMembership[]
   contactAssets  AccountContactAsset[]
   employeeBinding UserAccountEmployeeBinding?
   createdAt      DateTime                   @default(now())
   updatedAt      DateTime                   @updatedAt
   User           User                       @relation(fields: [userId], references: [id])
-  Tenant         Tenant?                    @relation(fields: [tenantId], references: [id])
 
   @@unique([userId, scopeLevel, contextKey])
   @@index([scopeLevel])
@@ -114,7 +77,6 @@ model AccountContactAsset {
   createdAt  DateTime                  @default(now())
   updatedAt  DateTime                  @updatedAt
   account    UserAccount               @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  tenant     Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([accountId, type, status])
   @@index([tenantId, type, value])
@@ -130,27 +92,6 @@ enum AccountContactAssetStatus {
   ACTIVE
   DISABLED
   REVOKED
-}
-
-model UserAccountOrgMembership {
-  id           String                  @id @default(uuid())
-  accountId    String
-  orgId        String
-  relationType AccountOrgRelationType
-  isPrimary    Boolean                 @default(false)
-  createdAt    DateTime                @default(now())
-  updatedAt    DateTime                @updatedAt
-  account      UserAccount             @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  org          Org                     @relation(fields: [orgId], references: [id], onDelete: Cascade)
-
-  @@unique([accountId, orgId])
-  @@index([orgId])
-  @@index([accountId, isPrimary])
-}
-
-enum AccountOrgRelationType {
-  PRIMARY
-  SECONDARY
 }
 
 model ServiceAccount {

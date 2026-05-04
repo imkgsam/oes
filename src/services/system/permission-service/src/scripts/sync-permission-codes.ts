@@ -47,11 +47,21 @@ const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'permission.navigation.entry.create': '创建导航项',
   'permission.navigation.entry.update': '更新导航项',
   'permission.navigation.resolve_preview': '预览导航解析结果',
-  'permission.role.create': '创建角色',
-  'permission.role.update': '更新角色或维护角色权限关系',
-  'permission.role.delete_by_id': '删除角色',
-  'permission.role.list': '查看角色列表',
-  'permission.role.get_by_id': '查看角色详情',
+  'permission.role_template.create': '创建角色模板',
+  'permission.role_template.update': '更新角色模板',
+  'permission.role_template.delete_by_id': '删除角色模板',
+  'permission.role_template.list': '查看角色模板列表',
+  'permission.role_template.get_by_id': '查看角色模板详情',
+  'permission.role_template.permission.assign': '为角色模板分配权限',
+  'permission.role_template.permission.revoke': '从角色模板撤销权限',
+  'permission.role_instance.create': '创建角色实例',
+  'permission.role_instance.create_from_template': '从角色模板创建角色实例',
+  'permission.role_instance.update': '更新角色实例',
+  'permission.role_instance.delete_by_id': '删除角色实例',
+  'permission.role_instance.list': '查看角色实例列表',
+  'permission.role_instance.get_by_id': '查看角色实例详情',
+  'permission.role_instance.permission.assign': '为角色实例分配权限',
+  'permission.role_instance.permission.revoke': '从角色实例撤销权限',
   'permission.account.assign_roles': '为账号分配或调整角色',
   'permission.account.get_roles': '查看账号角色',
   'permission.policy.create': '创建权限策略',
@@ -205,42 +215,42 @@ export function buildPermissionSeedItems(): PermissionSeedItem[] {
     })),
     ...valuesOf(TENANT_ORG_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,
-      module: Modules.IDENTITY_SERVICE,
+      module: Modules.TENANT_ORG_SERVICE,
       description: getPermissionDescription(code)
     })),
     ...valuesOf(HR_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,
-      module: Modules.IDENTITY_SERVICE,
+      module: Modules.HR_SERVICE,
       description: getPermissionDescription(code)
     })),
     ...valuesOf(ITEM_MASTER_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,
-      module: Modules.ENTITY_SERVICE,
+      module: Modules.ITEM_MASTER_SERVICE,
       description: getPermissionDescription(code)
     })),
     ...valuesOf(CRM_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,
-      module: Modules.EPR_SERVICE,
+      module: Modules.CRM_SERVICE,
       description: getPermissionDescription(code)
     })),
     ...valuesOf(SRM_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,
-      module: Modules.EPR_SERVICE,
+      module: Modules.SRM_SERVICE,
       description: getPermissionDescription(code)
     })),
     ...valuesOf(SALES_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,
-      module: Modules.EPR_SERVICE,
+      module: Modules.SALES_SERVICE,
       description: getPermissionDescription(code)
     })),
     ...valuesOf(PROCUREMENT_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,
-      module: Modules.EPR_SERVICE,
+      module: Modules.PROCUREMENT_SERVICE,
       description: getPermissionDescription(code)
     })),
     ...valuesOf(FINANCE_MANAGEMENT_PERMISSION_CODES).map((code) => ({
       code,
-      module: Modules.EPR_SERVICE,
+      module: Modules.FINANCE_SERVICE,
       description: getPermissionDescription(code)
     })),
     ...valuesOf(AUTH_MANAGEMENT_PERMISSION_CODES).map((code) => ({

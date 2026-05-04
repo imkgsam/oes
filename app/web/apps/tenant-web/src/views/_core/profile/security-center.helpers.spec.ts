@@ -220,16 +220,52 @@ describe('security center contact binding helpers', () => {
 
     expect(groups[0]?.capabilities).toEqual([
       expect.objectContaining({
+        actionDisabled: false,
         enabled: true,
         hint: '',
         label: '密码登录',
       }),
       expect.objectContaining({
+        actionDisabled: false,
         enabled: false,
         hint: '',
         label: '验证码登录',
       }),
     ]);
+  });
+
+  it('disables uncreated login capabilities until the contact channel is bound', () => {
+    const groups = buildLoginMethodGroups([
+      {
+        enabled: true,
+        hasPassword: false,
+        identifier: '+8613811112222',
+        maskedIdentifier: '+86 138****2222',
+        methodId: 'phone-method:OTP',
+        type: 'PHONE_OTP',
+        userId: 'user-1',
+        verified: true,
+      },
+    ]);
+
+    const emailGroup = groups.find((group) => group.kind === 'email');
+    const emailOtpCapability = emailGroup?.capabilities.find(
+      (capability) => capability.type === 'EMAIL_OTP',
+    );
+
+    expect(emailGroup).toEqual(
+      expect.objectContaining({
+        boundValue: '',
+        statusText: '未绑定',
+      }),
+    );
+    expect(emailOtpCapability).toEqual(
+      expect.objectContaining({
+        actionDisabled: true,
+        hint: '需要先绑定并验证邮箱',
+        methodId: '',
+      }),
+    );
   });
 
   it('explains why some mfa methods are currently unavailable', () => {

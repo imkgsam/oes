@@ -3,7 +3,7 @@ export function createSmokeSeed(now = Date.now()) {
   const suffix = `${now}-${Math.random().toString(36).slice(2, 8)}`;
   return {
     tenantId: `smoke-tenant-${suffix}`,
-    canonicalName: `Smoke Organization ${suffix}`,
+    legalName: `Smoke Organization ${suffix}`,
     localDisplayName: `Smoke Local ${suffix}`,
     localCode: `SMOKE-${suffix}`,
     registeredCountry: 'CN',
@@ -16,7 +16,7 @@ export function createSmokeSeed(now = Date.now()) {
 export async function runPartySmokeFlow(services, seed, log = () => {}) {
   const registerResponse = await services.registration.registerOrganizationParty({
     tenantId: seed.tenantId,
-    canonicalName: seed.canonicalName,
+    legalName: seed.legalName,
     localDisplayName: seed.localDisplayName,
     localCode: seed.localCode,
     registeredCountry: seed.registeredCountry,
@@ -41,7 +41,7 @@ export async function runPartySmokeFlow(services, seed, log = () => {}) {
 
   const candidateResponse = await services.query.searchPartyCandidates({
     tenantId: seed.tenantId,
-    keyword: seed.canonicalName,
+    keyword: seed.legalName,
     partyType: 'ORGANIZATION',
     registeredCountry: seed.registeredCountry,
     identifiers: [

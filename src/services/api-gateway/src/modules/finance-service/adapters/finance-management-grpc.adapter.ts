@@ -3,10 +3,22 @@ import { ClientGrpc } from '@nestjs/microservices'
 import {
   AllocatePaymentToReceivableRequest,
   AllocatePaymentToReceivableResponse,
+  AllocatePaymentToPayableRequest,
+  AllocatePaymentToPayableResponse,
+  ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeRequest,
+  ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeResponse,
   CreateFinancialAccountRequest,
   CreateFinancialAccountResponse,
+  CreatePayableScheduleFromPurchaseOrderRequest,
+  CreatePayableScheduleFromPurchaseOrderResponse,
+  CreatePaymentRequestRequest,
+  CreatePaymentRequestResponse,
   CreateReceivableScheduleFromSalesOrderRequest,
   CreateReceivableScheduleFromSalesOrderResponse,
+  DecidePaymentRequestRequest,
+  DecidePaymentRequestResponse,
+  ExecutePaymentRequestRequest,
+  ExecutePaymentRequestResponse,
   FINANCIAL_ACCOUNT_MANAGEMENT_SERVICE_NAME,
   FinancialAccountManagementServiceClient,
   ImportAccountTransactionsRequest,
@@ -48,7 +60,7 @@ interface ManagementInputBase {
   auditReason?: string
 }
 
-/** FinanceManagementGrpcAdapter proxies the frozen phase 1A finance command RPCs from api-gateway into finance-service. */
+/** FinanceManagementGrpcAdapter proxies the frozen phase 1A/1B finance command RPCs from api-gateway into finance-service. */
 @Injectable()
 export class FinanceManagementGrpcAdapter implements OnModuleInit {
   private financialAccountSvc!: FinancialAccountManagementServiceClient
@@ -251,6 +263,126 @@ export class FinanceManagementGrpcAdapter implements OnModuleInit {
           input,
           source,
           input.auditReason ?? 'allocate payment to receivable from api-gateway'
+        ),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** createPayableScheduleFromPurchaseOrder forwards one PO-derived payable schedule creation command. */
+  createPayableScheduleFromPurchaseOrder(
+    input: Omit<
+      CreatePayableScheduleFromPurchaseOrderRequest,
+      'auditContext' | 'operatorContext' | 'traceContext'
+    > &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<CreatePayableScheduleFromPurchaseOrderResponse> {
+    return this.call(
+      'createPayableScheduleFromPurchaseOrder',
+      this.paymentSvc.createPayableScheduleFromPurchaseOrder(
+        this.attachManagementContext(
+          input,
+          source,
+          input.auditReason ?? 'create payable schedule from api-gateway'
+        ),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** applyPayableScheduleAdjustmentFromPurchaseOrderChange forwards one controlled PO-change payable adjustment command. */
+  applyPayableScheduleAdjustmentFromPurchaseOrderChange(
+    input: Omit<
+      ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeRequest,
+      'auditContext' | 'operatorContext' | 'traceContext'
+    > &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeResponse> {
+    return this.call(
+      'applyPayableScheduleAdjustmentFromPurchaseOrderChange',
+      this.paymentSvc.applyPayableScheduleAdjustmentFromPurchaseOrderChange(
+        this.attachManagementContext(
+          input,
+          source,
+          input.auditReason ?? 'adjust payable schedule from api-gateway'
+        ),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** createPaymentRequest forwards one phase 1B payment governance request command. */
+  createPaymentRequest(
+    input: Omit<CreatePaymentRequestRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<CreatePaymentRequestResponse> {
+    return this.call(
+      'createPaymentRequest',
+      this.paymentSvc.createPaymentRequest(
+        this.attachManagementContext(
+          input,
+          source,
+          input.auditReason ?? 'create payment request from api-gateway'
+        ),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** decidePaymentRequest forwards one approve/reject command without treating approval as payment execution. */
+  decidePaymentRequest(
+    input: Omit<DecidePaymentRequestRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<DecidePaymentRequestResponse> {
+    return this.call(
+      'decidePaymentRequest',
+      this.paymentSvc.decidePaymentRequest(
+        this.attachManagementContext(
+          input,
+          source,
+          input.auditReason ?? 'decide payment request from api-gateway'
+        ),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** executePaymentRequest forwards one payment execution record command without creating account-transaction truth. */
+  executePaymentRequest(
+    input: Omit<ExecutePaymentRequestRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<ExecutePaymentRequestResponse> {
+    return this.call(
+      'executePaymentRequest',
+      this.paymentSvc.executePaymentRequest(
+        this.attachManagementContext(
+          input,
+          source,
+          input.auditReason ?? 'execute payment request from api-gateway'
+        ),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** allocatePaymentToPayable forwards one real outflow allocation command against payable lines. */
+  allocatePaymentToPayable(
+    input: Omit<AllocatePaymentToPayableRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<AllocatePaymentToPayableResponse> {
+    return this.call(
+      'allocatePaymentToPayable',
+      this.paymentSvc.allocatePaymentToPayable(
+        this.attachManagementContext(
+          input,
+          source,
+          input.auditReason ?? 'allocate payment to payable from api-gateway'
         ),
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       )

@@ -7,6 +7,7 @@ import { IdentityQueryGrpcAdapter } from '../auth-bff/infrastructure/downstream/
 import { PermissionServiceProxyModule } from '../permission-service/permission-service.module'
 import { TenantOrgServiceProxyModule } from '../tenant-org-service/tenant-org-service.module'
 import { HrManagementGrpcAdapter } from './adapters/hr-management-grpc.adapter'
+import { PartyTenantQueryGrpcAdapter } from './adapters/party-tenant-query-grpc.adapter'
 import { HrQueryGrpcAdapter } from './adapters/hr-query-grpc.adapter'
 import { HrManagementService } from './hr-management.service'
 import { HrManagementController } from './interface/http/controllers/hr-management.controller'
@@ -15,7 +16,12 @@ import { HrManagementController } from './interface/http/controllers/hr-manageme
   imports: [
     AuthorizationModule,
     PermissionServiceProxyModule,
-    GrpcTransportModule.forFeature([SERVICE_NAMES.HR, SERVICE_NAMES.AUTH, SERVICE_NAMES.IDENTITY]),
+    GrpcTransportModule.forFeature([
+      SERVICE_NAMES.HR,
+      SERVICE_NAMES.AUTH,
+      SERVICE_NAMES.IDENTITY,
+      SERVICE_NAMES.PARTY
+    ]),
     TenantOrgServiceProxyModule
   ],
   controllers: [HrManagementController],
@@ -24,6 +30,7 @@ import { HrManagementController } from './interface/http/controllers/hr-manageme
     HrManagementGrpcAdapter,
     IdentityQueryGrpcAdapter,
     AuthGrpcAdapter,
+    PartyTenantQueryGrpcAdapter,
     HrManagementService
   ]
 })

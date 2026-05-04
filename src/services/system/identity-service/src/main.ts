@@ -8,6 +8,7 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices'
 async function bootstrap() {
   initOtelSdk(process.env.MODULE_NAME || 'identity-service')
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
+    bufferLogs: true,
     transport: Transport.GRPC,
     options: {
       package: 'identity_service',

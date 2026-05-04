@@ -1,5 +1,6 @@
 import {
   PERMISSION_NOT_FOUND,
+  ROLE_NOT_ASSIGNABLE,
   ROLE_NOT_FOUND
 } from '../../src/common/constants/exception-enums'
 import { AssignRolePermissionCommand } from '../../src/application/commands/role/assign-role-permission.command'
@@ -91,6 +92,36 @@ describe('Role Permission Handlers', () => {
     })
   })
 
+  it('分配角色权限 / 当角色不允许租户覆盖权限时 / 应拒绝修改', async () => {
+    const roleRepo = createRoleRepository()
+    const permissionRepo = createPermissionRepository()
+    const handler = new AssignRolePermissionHandler(roleRepo, permissionRepo)
+    const role = new Role(
+      'role-id',
+      'Tenant Admin',
+      'tenant.admin',
+      'tenant-1',
+      RoleKind.TENANT_INSTANCE,
+      true,
+      undefined,
+      null,
+      [],
+      false,
+      true
+    )
+
+    roleRepo.findById.mockResolvedValue(role)
+
+    await expect(
+      handler.execute(new AssignRolePermissionCommand('role-id', 'permission-id'))
+    ).rejects.toMatchObject({
+      definition: {
+        code: ROLE_NOT_ASSIGNABLE.code
+      }
+    })
+    expect(permissionRepo.findById).not.toHaveBeenCalled()
+  })
+
   it('分配角色权限 / 当角色与权限都存在时 / 应保存角色权限关系', async () => {
     const roleRepo = createRoleRepository()
     const permissionRepo = createPermissionRepository()
@@ -151,5 +182,34 @@ describe('Role Permission Handlers', () => {
 
     expect(role.permissions).toHaveLength(0)
     expect(roleRepo.save).toHaveBeenCalledWith(role)
+  })
+
+  it('撤销角色权限 / 当角色不允许租户覆盖权限时 / 应拒绝修改', async () => {
+    const roleRepo = createRoleRepository()
+    const handler = new RevokeRolePermissionHandler(roleRepo)
+    const role = new Role(
+      'role-id',
+      'Account Basic',
+      'account.basic',
+      'tenant-1',
+      RoleKind.TENANT_INSTANCE,
+      true,
+      undefined,
+      null,
+      [new RolePermission('role-id', 'permission-id', 'permission.read')],
+      false,
+      true
+    )
+
+    roleRepo.findById.mockResolvedValue(role)
+
+    await expect(
+      handler.execute(new RevokeRolePermissionCommand('role-id', 'permission-id'))
+    ).rejects.toMatchObject({
+      definition: {
+        code: ROLE_NOT_ASSIGNABLE.code
+      }
+    })
+    expect(roleRepo.save).not.toHaveBeenCalled()
   })
 })

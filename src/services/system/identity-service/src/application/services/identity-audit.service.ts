@@ -4,7 +4,6 @@ import { EventEmitter2 } from '@nestjs/event-emitter'
 import { buildAuditEnvelope } from '@oes/common'
 import { captureEventTraceContext } from '@oes/common/tracing'
 import { AccountContactAssetEntity } from '../../domain/entities/account-contact-asset.entity'
-import { AccountOrgMembershipEntity } from '../../domain/entities/account-org-membership.entity'
 import { ApiKeyEntity } from '../../domain/entities/api-key.entity'
 import { ServiceAccountEntity } from '../../domain/entities/service-account.entity'
 import {
@@ -58,43 +57,6 @@ export class IdentityAuditService {
       assetValue: asset.value,
       assetStatus: asset.status,
       isPrimary: asset.isPrimary
-      }
-    })
-  }
-
-  /**
-   * emitOrgMembershipEvent records organization membership mutations as identity audit events.
-   */
-  emitOrgMembershipEvent(
-    type:
-      | 'ACCOUNT_ORG_MEMBERSHIP_ADDED'
-      | 'ACCOUNT_ORG_MEMBERSHIP_REMOVED'
-      | 'ACCOUNT_PRIMARY_ORG_CHANGED',
-    operatorId: string,
-    details: {
-      accountId: string
-      orgId?: string
-      membership?: AccountOrgMembershipEntity | null
-    }
-  ): void {
-    const orgId = details.membership?.orgId ?? details.orgId ?? null
-    this.emit(type, 'org', {
-      operator: this.humanOperator(operatorId),
-      scope: {
-        tenantId: null,
-        orgId
-      },
-      resource: {
-        resourceType: 'account_org_membership',
-        resourceId: details.membership?.id ?? null
-      },
-      details: {
-        accountId: details.accountId,
-        orgId,
-        orgName: details.membership?.orgName ?? null,
-        orgType: details.membership?.orgType ?? null,
-        relationType: details.membership?.relationType ?? null,
-        isPrimary: details.membership?.isPrimary ?? false
       }
     })
   }

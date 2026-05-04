@@ -13,6 +13,8 @@ The proto files remain the machine-readable source of truth. These documents exp
   - Returns role summaries for display and effective permission codes for front-end action control.
 - [onboarding-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/onboarding-grant.md)
   - Employee onboarding initial role / grant handoff contract.
+- [tenant-onboarding-grant.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/permission-service/tenant-onboarding-grant.md)
+  - Tenant onboarding first-admin role instance and initial grant target contract.
 
 ## 3. Machine Contract Sources
 

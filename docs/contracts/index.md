@@ -1,6 +1,6 @@
 # OES 契约文档索引
 
-更新时间：2026-04-19
+更新时间：2026-05-04
 
 本目录用于沉淀黑盒接口契约，描述调用方可依赖的请求、响应、错误语义与边界，不承载服务内部实现设计。
 
@@ -13,9 +13,11 @@
 | auth-service | [auth-service/README.md](./auth-service/README.md) |
 | hr-service | [hr-service/README.md](./hr-service/README.md) |
 | identity-service | [identity-service/README.md](./identity-service/README.md) |
+| mes-service | [mes-service/README.md](./mes-service/README.md) |
 | permission-service | [permission-service/README.md](./permission-service/README.md) |
 | party-service | [party-service/README.md](./party-service/README.md) |
 | tenant-org-service | [tenant-org-service/README.md](./tenant-org-service/README.md) |
+| wms-service | [wms-service/README.md](./wms-service/README.md) |
 
 ## 使用规则
 

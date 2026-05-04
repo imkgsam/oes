@@ -9,7 +9,6 @@
 - 登录后账户候选查询
 - 按邮箱 / 手机 / 用户 ID 查询自然人身份
 - 按账户 ID 查询账号摘要
-- 查询 legacy 组织树兼容面、账户组织归属投影
 - 查询联系方式资产
 - 查询机器身份与 API Key 摘要
 
@@ -135,39 +134,12 @@
   - `accounts[].user_party_id` 用于调用方继续联动 `party-service` 获取 user 级人名真相
   - `accounts[].user_display_name` 当前仅作为 legacy fallback，不应再被当作长期真实姓名来源
 
-## 3. 组织查询
+## 3. 租户与组织边界
 
-### `GetOrgTreeByTenantId`
-
-- 状态：deprecated compatibility only，禁止新增调用；tenant / org tree 真相已迁往 `tenant-org-service`
-
-- 作用：查询租户组织树
-- 请求关键字段：
-  - `tenant_id`
-- 响应关键字段：
-  - `roots[]`
-  - `OrgNode.children[]`
-- 排序语义：
-  - 当前实现按稳定树结构返回
-
-### `ListAccountOrgMemberships`
-
-- 作用：列出账户当前可见的 legacy 组织归属投影
-- 请求关键字段：
-  - `account_id`
-- 响应关键字段：
-  - `memberships[].id`
-  - `memberships[].account_id`
-  - `memberships[].org_id`
-  - `memberships[].org_name`
-  - `memberships[].org_type`
-  - `memberships[].relation_type`
-  - `memberships[].is_primary`
-- 关键语义：
-  - 当前返回的是 account 侧兼容性 projection
-  - 它不是正式 `Employee -> OrgUnit` 任职真相
-  - HR 上线后的新 onboarding / employee 场景不得继续把该接口当正式 owner 使用
-  - 如需正式人员组织归属，应联动 `hr-service` 的 `Employment` 真相
+- `identity-service` 不再暴露 `GetOrgTreeByTenantId` 或 `ListAccountOrgMemberships`
+- tenant / org tree 真相由 `tenant-org-service` 提供
+- 人员正式组织归属应由 `hr-service` 的 employment 语义承接，不在 identity account projection 中继续维护
+- `tenant_id` / `org_id` 在 identity 查询中只作为上下文、审计或外部 owner 引用字段出现
 
 ## 4. 联系方式资产查询
 

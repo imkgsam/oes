@@ -3,6 +3,7 @@ import { ClientGrpc } from '@nestjs/microservices'
 import {
   ChangePrimaryEmploymentResponse,
   CompleteEmployeeAccessResponse,
+  CreateEmployeeOnboardingResponse,
   CreateEmployeeResponse,
   CreateEmploymentResponse,
   EndEmploymentResponse,
@@ -64,6 +65,82 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
               lifecycleStatus: mapEmployeeLifecycleStatus(response.employee.lifecycleStatus)
             }
           : undefined
+      })
+    )
+  }
+
+  createEmployeeOnboarding(
+    input: {
+      tenantId: string
+      idempotencyKey: string
+      person: {
+        existingPartyId?: string
+        existingTenantPartyId?: string
+        legalName: string
+        identifiers?: Array<{
+          identifierType: string
+          issuerCountryOrRegion?: string
+          normalizedValue: string
+          rawValue?: string
+        }>
+      }
+      primaryEmployment?: {
+        effectiveFrom: string
+        orgUnitId?: string
+        positionName?: string
+      }
+      createAccount?: {
+        displayName: string
+        email?: string
+        existingUserId?: string
+        phone?: string
+      }
+      existingAccountId?: string
+      employeeCode?: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<{
+    employee?: HrEmployeeSummary
+    employment?: HrEmploymentSummary
+    access?: HrOnboardingAccessProcessSummary
+  }> {
+    return this.call(
+      'createEmployeeOnboarding',
+      this.svc.createEmployeeOnboarding(
+        {
+          tenantId: input.tenantId,
+          idempotencyKey: input.idempotencyKey,
+          person: {
+            legalName: input.person.legalName,
+            existingPartyId: input.person.existingPartyId,
+            existingTenantPartyId: input.person.existingTenantPartyId,
+            identifiers: (input.person.identifiers ?? []).map((identifier) => ({
+              identifierType: identifier.identifierType,
+              issuerCountryOrRegion: identifier.issuerCountryOrRegion,
+              normalizedValue: identifier.normalizedValue,
+              rawValue: identifier.rawValue
+            }))
+          },
+          primaryEmployment: input.primaryEmployment,
+          createAccount: input.createAccount,
+          employeeCode: input.employeeCode,
+          existingAccountId: input.existingAccountId
+        },
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      ),
+      (response: CreateEmployeeOnboardingResponse) => ({
+        employee: response.employee
+          ? {
+              id: response.employee.id ?? '',
+              tenantId: response.employee.tenantId ?? '',
+              tenantPartyId: response.employee.tenantPartyId ?? '',
+              partyId: response.employee.partyId?.trim() || undefined,
+              employeeCode: response.employee.employeeCode ?? '',
+              lifecycleStatus: mapEmployeeLifecycleStatus(response.employee.lifecycleStatus)
+            }
+          : undefined,
+        employment: response.employment ? mapEmployment(response.employment) : undefined,
+        access: response.access ? mapOnboardingAccessProcess(response.access) : undefined
       })
     )
   }
@@ -171,6 +248,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
       createAccount?: {
         displayName: string
         email?: string
+        existingUserId?: string
         phone?: string
       }
     },
@@ -191,19 +269,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       ),
       (response: CompleteEmployeeAccessResponse) => ({
-        process: response.process
-          ? {
-              id: response.process.id?.trim() || undefined,
-              tenantId: response.process.tenantId ?? '',
-              employeeId: response.process.employeeId ?? '',
-              employmentId: response.process.employmentId ?? '',
-              accountId: response.process.accountId?.trim() || undefined,
-              status: mapOnboardingAccessStatus(response.process.status),
-              grantIdempotencyKey:
-                response.process.grantIdempotencyKey?.trim() || undefined,
-              failureReason: response.process.failureReason?.trim() || undefined
-            }
-          : undefined
+        process: response.process ? mapOnboardingAccessProcess(response.process) : undefined
       })
     )
   }
@@ -224,9 +290,10 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
 function mapEmployment(employment: {
   id?: string
   tenantId?: string
-  employeeId?: string
-  orgUnitId?: string
-  status?: number
+    employeeId?: string
+    orgUnitId?: string
+    positionName?: string
+    status?: number
   effectiveFrom?: string
   effectiveTo?: string
   endedReason?: string
@@ -236,10 +303,33 @@ function mapEmployment(employment: {
     tenantId: employment.tenantId ?? '',
     employeeId: employment.employeeId ?? '',
     orgUnitId: employment.orgUnitId ?? '',
+    positionName: employment.positionName?.trim() || undefined,
     status: employment.status === 2 ? 'ENDED' : 'ACTIVE',
     effectiveFrom: employment.effectiveFrom ?? '',
     effectiveTo: employment.effectiveTo?.trim() || undefined,
     endedReason: employment.endedReason?.trim() || undefined
+  }
+}
+
+function mapOnboardingAccessProcess(process: {
+  id?: string
+  tenantId?: string
+  employeeId?: string
+  employmentId?: string
+  accountId?: string
+  status?: number
+  grantIdempotencyKey?: string
+  failureReason?: string
+}): HrOnboardingAccessProcessSummary {
+  return {
+    id: process.id?.trim() || undefined,
+    tenantId: process.tenantId ?? '',
+    employeeId: process.employeeId ?? '',
+    employmentId: process.employmentId ?? '',
+    accountId: process.accountId?.trim() || undefined,
+    status: mapOnboardingAccessStatus(process.status),
+    grantIdempotencyKey: process.grantIdempotencyKey?.trim() || undefined,
+    failureReason: process.failureReason?.trim() || undefined
   }
 }
 

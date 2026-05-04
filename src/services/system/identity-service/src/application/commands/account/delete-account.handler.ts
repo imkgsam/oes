@@ -13,7 +13,6 @@ import { DeleteAccountCommand } from './delete-account.command'
 
 export interface DeleteAccountResult {
   accountId: string
-  deletedOrgMembershipCount: number
   deletedContactAssetCount: number
   userRetained: true
 }
@@ -65,7 +64,6 @@ export class DeleteAccountHandler
 
     return {
       accountId: command.accountId,
-      deletedOrgMembershipCount: result.deletedOrgMembershipCount,
       deletedContactAssetCount: result.deletedContactAssetCount,
       userRetained: true
     }

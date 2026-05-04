@@ -15,8 +15,12 @@ import {
   PermissionManagementServiceController,
   PermissionManagementServiceControllerMethods,
   AssignAccountRoleRequest,
+  EnsureTenantRoleInstanceFromTemplateRequest,
+  EnsureTenantRoleInstanceFromTemplateResponse,
   GrantInitialAccessForEmployeeAccountRequest,
   GrantInitialAccessForEmployeeAccountResponse,
+  GrantInitialAccessForTenantAccountRequest,
+  GrantInitialAccessForTenantAccountResponse,
   AssignRolePermissionRequest,
   AssignRoleTemplatePermissionRequest,
   BatchCreatePermissionsRequest,
@@ -75,7 +79,11 @@ import {
 } from '@oes/common/generated/permission_service'
 import { ManagementAuthorizationGuard } from '../guards'
 import { RequireManagementPermission } from '../decorators'
-import { MANAGEMENT_PERMISSION_CODES } from '../../common/constants/authorization'
+import {
+  MANAGEMENT_PERMISSION_CODES,
+  ROLE_INSTANCE_PERMISSION_CODES,
+  ROLE_TEMPLATE_PERMISSION_CODES
+} from '../../common/constants/authorization'
 import { CreatePermissionCommand } from '../../application/commands/permission/create-permission.command'
 import {
   BatchCreatePermissionItemInput,
@@ -95,6 +103,7 @@ import { SetRoleTemplateEnabledCommand } from '../../application/commands/role/s
 import { AssignRoleTemplatePermissionCommand } from '../../application/commands/role/assign-role-template-permission.command'
 import { RevokeRoleTemplatePermissionCommand } from '../../application/commands/role/revoke-role-template-permission.command'
 import { CreateRoleInstanceFromTemplateCommand } from '../../application/commands/role/create-role-instance-from-template.command'
+import { EnsureTenantRoleInstanceFromTemplateCommand } from '../../application/commands/role/ensure-tenant-role-instance-from-template.command'
 import { SyncRoleNavigationFromTemplateCommand } from '../../application/commands/role/sync-role-navigation-from-template.command'
 import { UpdateRoleCommand } from '../../application/commands/role/update-role.command'
 import { SetRoleEnabledCommand } from '../../application/commands/role/set-role-enabled.command'
@@ -103,6 +112,7 @@ import { AssignRolePermissionCommand } from '../../application/commands/role/ass
 import { RevokeRolePermissionCommand } from '../../application/commands/role/revoke-role-permission.command'
 import { AssignAccountRoleCommand } from '../../application/commands/role/assign-account-role.command'
 import { GrantInitialAccessForEmployeeAccountCommand } from '../../application/commands/role/grant-initial-access-for-employee-account.command'
+import { GrantInitialAccessForTenantAccountCommand } from '../../application/commands/role/grant-initial-access-for-tenant-account.command'
 import { RevokeAccountRoleCommand } from '../../application/commands/role/revoke-account-role.command'
 import { SetAccountRolesCommand } from '../../application/commands/role/set-account-roles.command'
 import { GetRoleByIdQuery } from '../../application/queries/role/get-role-by-id.query'
@@ -306,7 +316,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ROLE)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.LIST)
   async listPermissionRoles(
     request: ListPermissionRolesRequest,
     metadata?: Metadata,
@@ -318,7 +328,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return { roles: roles.map(toRoleResponse) }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_ROLE)
+  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.CREATE)
   async createRoleTemplate(
     request: CreateRoleTemplateRequest,
     metadata?: Metadata,
@@ -344,7 +354,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_ROLE)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.CREATE)
   async createRoleInstance(
     request: CreateRoleInstanceRequest,
     metadata?: Metadata,
@@ -373,7 +383,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL)
+  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.GET_BY_ID)
   async getRoleTemplateById(
     request: GetRoleTemplateByIdRequest,
     metadata?: Metadata,
@@ -385,7 +395,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return toRoleResponse(role)
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
+  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.UPDATE)
   async updateRoleTemplate(
     request: UpdateRoleTemplateRequest,
     metadata?: Metadata,
@@ -413,7 +423,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.DELETE_ROLE)
+  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.DELETE)
   async deleteRoleTemplate(
     request: DeleteRoleTemplateRequest,
     metadata?: Metadata,
@@ -425,7 +435,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     this.recordMutation(request, 'ROLE_TEMPLATE_DELETED', 'ROLE', request.id!)
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
+  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.UPDATE)
   async setRoleTemplateEnabled(
     request: SetRoleTemplateEnabledRequest,
     metadata?: Metadata,
@@ -446,7 +456,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.UPDATE)
   async updateRole(
     request: UpdateRoleRequest,
     metadata?: Metadata,
@@ -474,7 +484,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.UPDATE)
   async setRoleEnabled(
     request: SetRoleEnabledRequest,
     metadata?: Metadata,
@@ -495,13 +505,13 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.DELETE_ROLE)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.DELETE)
   async deleteRole(request: DeleteRoleRequest, metadata?: Metadata, ...rest: any): Promise<void> {
     await this.commandBus.execute(new DeleteRoleCommand(request.id!, this.getOperatorScope(request)))
     this.recordMutation(request, 'ROLE_DELETED', 'ROLE', request.id!)
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID)
   async getRoleById(
     request: GetRoleByIdRequest,
     metadata?: Metadata,
@@ -513,7 +523,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return toRoleResponse(role)
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ROLE)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.LIST)
   async listRoleInstances(
     request: ListRoleInstancesRequest,
     metadata?: Metadata,
@@ -539,7 +549,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ROLE)
+  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.LIST)
   async listRoleTemplates(
     request: ListRoleTemplatesRequest,
     metadata?: Metadata,
@@ -563,7 +573,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID)
   async listRolePermissions(
     request: ListRolePermissionsRequest,
     metadata?: Metadata,
@@ -575,7 +585,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return { permissions: permissions.map(toPermissionResponse) }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL)
+  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.GET_BY_ID)
   async listRoleTemplatePermissions(
     request: ListRoleTemplatePermissionsRequest,
     metadata?: Metadata,
@@ -587,7 +597,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return { permissions: permissions.map(toPermissionResponse) }
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.ASSIGN_ROLE_PERMISSION)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.ASSIGN_PERMISSIONS)
   async assignRolePermission(
     request: AssignRolePermissionRequest,
     metadata?: Metadata,
@@ -604,7 +614,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     )
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.ASSIGN_ROLE_PERMISSION)
+  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.ASSIGN_PERMISSIONS)
   async assignRoleTemplatePermission(
     request: AssignRoleTemplatePermissionRequest,
     metadata?: Metadata,
@@ -625,7 +635,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     )
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.REVOKE_ROLE_PERMISSION)
+  @RequireManagementPermission(ROLE_TEMPLATE_PERMISSION_CODES.ASSIGN_PERMISSIONS)
   async revokeRoleTemplatePermission(
     request: RevokeRoleTemplatePermissionRequest,
     metadata?: Metadata,
@@ -646,7 +656,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     )
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.CREATE_ROLE)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.CREATE_FROM_TEMPLATE)
   async createRoleInstanceFromTemplate(
     request: CreateRoleInstanceFromTemplateRequest,
     metadata?: Metadata,
@@ -673,7 +683,41 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.REVOKE_ROLE_PERMISSION)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.CREATE_FROM_TEMPLATE)
+  async ensureTenantRoleInstanceFromTemplate(
+    request: EnsureTenantRoleInstanceFromTemplateRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<EnsureTenantRoleInstanceFromTemplateResponse> {
+    const result = await this.commandBus.execute(
+      new EnsureTenantRoleInstanceFromTemplateCommand({
+        tenantId: request.tenantId!,
+        templateRoleCode: request.templateRoleCode!,
+        idempotencyKey: request.idempotencyKey!,
+        name: request.name || undefined,
+        description: request.description || undefined,
+        reason: request.reason || undefined,
+        operatorScope: this.getOperatorScope(request)
+      })
+    )
+    const role = toRoleResponse(result.role)
+    this.recordMutation(
+      request,
+      result.created ? 'TENANT_ROLE_INSTANCE_CREATED_FROM_TEMPLATE' : 'TENANT_ROLE_INSTANCE_REUSED',
+      'ROLE',
+      result.role.id,
+      result.role.code,
+      {
+        role,
+        created: result.created,
+        idempotencyKey: request.idempotencyKey!,
+        templateRoleCode: request.templateRoleCode!
+      }
+    )
+    return { role, created: result.created }
+  }
+
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.ASSIGN_PERMISSIONS)
   async revokeRolePermission(
     request: RevokeRolePermissionRequest,
     metadata?: Metadata,
@@ -746,6 +790,48 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     this.recordMutation(
       request,
       'ACCOUNT_ONBOARDING_ACCESS_GRANTED',
+      'ACCOUNT_ROLE',
+      `${request.accountId!}:${request.idempotencyKey!}`,
+      undefined,
+      {
+        accountId: request.accountId!,
+        tenantId: request.tenantId!,
+        roleIds: result.roleIds,
+        idempotencyKey: result.idempotencyKey
+      }
+    )
+
+    return {
+      grant: {
+        id: result.grantId ?? '',
+        tenantId: request.tenantId!,
+        accountId: request.accountId!,
+        roleIds: result.roleIds,
+        idempotencyKey: result.idempotencyKey
+      }
+    }
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.ASSIGN_ACCOUNT_ROLE)
+  async grantInitialAccessForTenantAccount(
+    request: GrantInitialAccessForTenantAccountRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<GrantInitialAccessForTenantAccountResponse> {
+    const result = await this.commandBus.execute(
+      new GrantInitialAccessForTenantAccountCommand({
+        tenantId: request.tenantId!,
+        accountId: request.accountId!,
+        roleIds: request.roleIds ?? [],
+        idempotencyKey: request.idempotencyKey!,
+        reason: request.reason || undefined,
+        operatorScope: this.getOperatorScope(request)
+      })
+    )
+
+    this.recordMutation(
+      request,
+      'TENANT_ONBOARDING_ACCESS_GRANTED',
       'ACCOUNT_ROLE',
       `${request.accountId!}:${request.idempotencyKey!}`,
       undefined,
@@ -1001,7 +1087,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_ROLE_DETAIL)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID)
   // This method returns the role-scoped navigation visibility and landing config.
   async getRoleNavigation(
     request: GetRoleNavigationRequest,
@@ -1014,7 +1100,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return toRoleNavigationResponse(config)
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.UPDATE)
   // This method replaces a role's navigation visibility config as a full set.
   async setRoleNavigationVisibility(
     request: SetRoleNavigationVisibilityRequest,
@@ -1045,7 +1131,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.UPDATE)
   // This method replaces a role's landing policy config as a full set.
   async setRoleLandingPolicies(
     request: SetRoleLandingPoliciesRequest,
@@ -1077,7 +1163,7 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return response
   }
 
-  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.UPDATE_ROLE)
+  @RequireManagementPermission(ROLE_INSTANCE_PERMISSION_CODES.SYNC_FROM_TEMPLATE)
   // This method resets one role instance navigation to the linked template snapshot.
   async syncRoleNavigationFromTemplate(
     request: SyncRoleNavigationFromTemplateRequest,

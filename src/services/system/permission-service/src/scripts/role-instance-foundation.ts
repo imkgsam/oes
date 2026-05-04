@@ -36,6 +36,18 @@ export async function syncBuiltInRoleInstanceBaselines(
     }
 
     const roleIds = managedInstances.map((role) => role.id)
+    await prisma.role.updateMany({
+      where: {
+        id: {
+          in: roleIds
+        }
+      },
+      data: {
+        allowTenantPermissionOverride: template.allowTenantPermissionOverride,
+        isProtected: template.isProtected
+      } as any
+    })
+
     const existingPermissions = await prisma.rolePermission.findMany({
       where: {
         roleId: { in: roleIds },

@@ -26,15 +26,13 @@ export class PartyMergeGrpcController implements PartyMergeServiceController {
         id: result.survivorParty.id,
         type: result.survivorParty.type,
         status: result.survivorParty.status,
-        canonicalName: result.survivorParty.canonicalName,
-        displayName: result.survivorParty.displayName ?? ''
+        legalName: result.survivorParty.legalName
       },
       mergedParties: result.mergedParties.map((party) => ({
         id: party.id,
         type: party.type,
         status: String(party.status),
-        canonicalName: party.canonicalName,
-        displayName: party.displayName ?? ''
+        legalName: party.legalName
       }))
     }
   }

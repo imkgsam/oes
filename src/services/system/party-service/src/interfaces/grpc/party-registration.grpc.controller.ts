@@ -24,7 +24,7 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
   async registerPersonParty(request: RegisterPersonPartyRequest, _metadata?: Metadata): Promise<RegisterPersonPartyResponse> {
     const result = await this.partyRegistrationService.registerPersonParty({
       tenantId: request.tenantId ?? '',
-      canonicalName: request.canonicalName ?? '',
+      legalName: request.legalName ?? '',
       localDisplayName: request.localDisplayName ?? undefined,
       localCode: request.localCode ?? undefined,
       identifiers:
@@ -33,7 +33,8 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
           normalizedValue: identifier.normalizedValue ?? '',
           rawValue: identifier.rawValue ?? '',
           issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? undefined
-        })) ?? []
+        })) ?? [],
+      idempotencyKey: request.idempotencyKey ?? undefined
     })
 
     return {
@@ -41,8 +42,7 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
         id: result.party.id,
         type: result.party.type,
         status: result.party.status,
-        canonicalName: result.party.canonicalName,
-        displayName: result.party.displayName ?? ''
+        legalName: result.party.legalName
       },
       tenantParty: result.tenantParty
         ? {
@@ -64,7 +64,7 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
   ): Promise<RegisterOrganizationPartyResponse> {
     const result = await this.partyRegistrationService.registerOrganizationParty({
       tenantId: request.tenantId ?? '',
-      canonicalName: request.canonicalName ?? '',
+      legalName: request.legalName ?? '',
       registeredCountry: request.registeredCountry ?? undefined,
       localDisplayName: request.localDisplayName ?? undefined,
       localCode: request.localCode ?? undefined,
@@ -74,7 +74,8 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
           normalizedValue: identifier.normalizedValue ?? '',
           rawValue: identifier.rawValue ?? '',
           issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? undefined
-        })) ?? []
+        })) ?? [],
+      idempotencyKey: request.idempotencyKey ?? undefined
     })
 
     return {
@@ -82,8 +83,7 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
         id: result.party.id,
         type: result.party.type,
         status: result.party.status,
-        canonicalName: result.party.canonicalName,
-        displayName: result.party.displayName ?? ''
+        legalName: result.party.legalName
       },
       tenantParty: result.tenantParty
         ? {
@@ -108,7 +108,8 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
       partyId: request.partyId ?? '',
       localDisplayName: request.localDisplayName ?? undefined,
       localCode: request.localCode ?? undefined,
-      tags: request.tags ?? []
+      tags: request.tags ?? [],
+      idempotencyKey: request.idempotencyKey ?? undefined
     })
 
     return {
@@ -116,8 +117,7 @@ export class PartyRegistrationGrpcController implements PartyRegistrationService
         id: result.party.id,
         type: result.party.type,
         status: result.party.status,
-        canonicalName: result.party.canonicalName,
-        displayName: result.party.displayName ?? ''
+        legalName: result.party.legalName
       },
       tenantParty: {
         id: result.tenantParty.id,

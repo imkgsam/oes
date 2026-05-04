@@ -1,5 +1,11 @@
-import { Controller } from '@nestjs/common'
+import { Controller, UseGuards, UseInterceptors } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
+import {
+  AuthenticatedOperatorGuard,
+  GrpcRequestContextInterceptor,
+  InternalServiceGuard,
+  RequireAuthenticatedOperator
+} from '@oes/common/authorization'
 import {
   ArchiveOrgUnitRequest,
   ArchiveOrgUnitResponse,
@@ -9,10 +15,16 @@ import {
   CreateOrgUnitResponse,
   CreateTenantRequest,
   CreateTenantResponse,
+  GetTenantOnboardingRequest,
+  GetTenantOnboardingResponse,
   MoveOrgUnitRequest,
   MoveOrgUnitResponse,
   ReactivateTenantRequest,
   ReactivateTenantResponse,
+  RetryTenantOnboardingRequest,
+  RetryTenantOnboardingResponse,
+  StartTenantOnboardingRequest,
+  StartTenantOnboardingResponse,
   SuspendTenantRequest,
   SuspendTenantResponse,
   TenantOrgManagementServiceController,
@@ -22,13 +34,19 @@ import {
   UpdateTenantProfileRequest,
   UpdateTenantProfileResponse
 } from '@oes/common/generated/tenant_org_service'
-import { TenantOrgManagementService } from '../../application/services'
+import { TenantOnboardingResult, TenantOnboardingService, TenantOrgManagementService } from '../../application/services'
 
 /** TenantOrgManagementGrpcController exposes tenant/org management contracts over gRPC. */
 @Controller()
+@RequireAuthenticatedOperator()
+@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+@UseInterceptors(GrpcRequestContextInterceptor)
 @TenantOrgManagementServiceControllerMethods()
 export class TenantOrgManagementGrpcController implements TenantOrgManagementServiceController {
-  constructor(private readonly tenantOrgManagementService: TenantOrgManagementService) {}
+  constructor(
+    private readonly tenantOrgManagementService: TenantOrgManagementService,
+    private readonly tenantOnboardingService: TenantOnboardingService
+  ) {}
 
   async createTenant(
     _request: CreateTenantRequest,
@@ -43,6 +61,56 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
       tenant: mapTenant(result.tenant),
       rootOrgUnit: mapOrgUnit(result.rootOrgUnit)
     }
+  }
+
+  async startTenantOnboarding(
+    request: StartTenantOnboardingRequest,
+    _metadata?: Metadata
+  ): Promise<StartTenantOnboardingResponse> {
+    const onboarding = await this.tenantOnboardingService.start({
+      idempotencyKey: request.idempotencyKey ?? '',
+      tenant: {
+        code: request.tenant?.code ?? '',
+        name: request.tenant?.name ?? ''
+      },
+      organizationParty: {
+        legalName: request.organizationParty?.legalName ?? '',
+        registeredCountry: request.organizationParty?.registeredCountry || undefined,
+        identifiers:
+          request.organizationParty?.identifiers?.map((identifier) => ({
+            identifierType: identifier.identifierType ?? '',
+            rawValue: identifier.rawValue || undefined,
+            normalizedValue: identifier.normalizedValue ?? '',
+            issuerCountryOrRegion: identifier.issuerCountryOrRegion || undefined
+          })) ?? []
+      },
+      rootOrg: {
+        name: request.rootOrg?.name ?? ''
+      },
+      firstAdmin: {
+        displayName: request.firstAdmin?.displayName ?? '',
+        email: request.firstAdmin?.email || undefined,
+        existingUserId: request.firstAdmin?.existingUserId || undefined,
+        phone: request.firstAdmin?.phone || undefined,
+        provisioningMode: request.firstAdmin?.provisioningMode === 'EXISTING_USER' ? 'EXISTING_USER' : 'CREATE_NEW_USER',
+        requirePasswordSetup: request.firstAdmin?.requirePasswordSetup ?? true
+      }
+    })
+    return { onboarding: mapOnboarding(onboarding) }
+  }
+
+  async getTenantOnboarding(
+    request: GetTenantOnboardingRequest,
+    _metadata?: Metadata
+  ): Promise<GetTenantOnboardingResponse> {
+    return { onboarding: mapOnboarding(await this.tenantOnboardingService.get(request.onboardingId ?? '')) }
+  }
+
+  async retryTenantOnboarding(
+    request: RetryTenantOnboardingRequest,
+    _metadata?: Metadata
+  ): Promise<RetryTenantOnboardingResponse> {
+    return { onboarding: mapOnboarding(await this.tenantOnboardingService.retry(request.onboardingId ?? '')) }
   }
 
   async updateTenantProfile(
@@ -191,5 +259,54 @@ function mapOrgUnit(orgUnit: {
     depth: orgUnit.depth,
     sortOrder: orgUnit.sortOrder,
     organizationPartyId: orgUnit.organizationPartyId ?? ''
+  }
+}
+
+/** mapOnboarding converts application onboarding Saga state to the gRPC response contract. */
+function mapOnboarding(result: TenantOnboardingResult) {
+  return {
+    onboardingId: result.onboardingId,
+    status: result.status,
+    tenant: result.tenant ? mapTenant(result.tenant) : undefined,
+    rootOrg: result.rootOrg ? mapOrgUnit(result.rootOrg) : undefined,
+    organizationParty: {
+      partyId: result.organizationParty?.partyId ?? '',
+      tenantPartyId: result.organizationParty?.tenantPartyId ?? ''
+    },
+    firstAdmin: {
+      userId: result.firstAdmin?.userId ?? '',
+      accountId: result.firstAdmin?.accountId ?? '',
+      personPartyId: result.firstAdmin?.personPartyId ?? '',
+      tenantPartyId: result.firstAdmin?.tenantPartyId ?? ''
+    },
+    firstAdminEmployee: {
+      employeeId: result.firstAdminEmployee?.employeeId ?? '',
+      employmentId: result.firstAdminEmployee?.employmentId ?? '',
+      accessProcessId: result.firstAdminEmployee?.accessProcessId ?? ''
+    },
+    access: {
+      roleCode: result.access?.roleCode ?? '',
+      roleId: result.access?.roleId ?? '',
+      grantId: result.access?.grantId ?? '',
+      hrAdminRoleCode: result.access?.hrAdminRoleCode ?? '',
+      hrAdminRoleId: result.access?.hrAdminRoleId ?? '',
+      hrAdminGrantId: result.access?.hrAdminGrantId ?? '',
+      accountBasicRoleCode: result.access?.accountBasicRoleCode ?? '',
+      accountBasicRoleId: result.access?.accountBasicRoleId ?? ''
+    },
+    steps: result.steps.map((step) => ({
+      key: String(step.key),
+      status: String(step.status),
+      message: step.message ?? '',
+      attemptCount: step.attemptCount
+    })),
+    failure: result.failure
+      ? {
+          code: result.failure.code,
+          message: result.failure.message,
+          failedStep: result.failure.failedStep,
+          retryable: result.failure.retryable
+        }
+      : undefined
   }
 }

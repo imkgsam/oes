@@ -9,6 +9,7 @@ import {
 } from '../../ports/identity-service.port'
 import { AuthAuditService } from '../../services/auth-audit.service'
 import { LoginRiskThrottleService } from '../../services/login-risk-throttle.service'
+import { TenantSessionAccessService } from '../../services/tenant-session-access.service'
 import {
   AUTH_LOGIN_TEMPORARILY_LOCKED,
   AUTH_NO_AVAILABLE_ACCOUNT
@@ -36,7 +37,8 @@ export class LoginWithPhonePasswordHandler
     private readonly authAuditService: AuthAuditService,
     private readonly loginRiskThrottleService: LoginRiskThrottleService,
     @Inject(IDENTITY_SERVICE)
-    private readonly identityService: IIdentityServicePort
+    private readonly identityService: IIdentityServicePort,
+    private readonly tenantSessionAccessService: TenantSessionAccessService
   ) {}
 
   async execute(command: LoginWithPhonePasswordCommand): Promise<LoginWithPhonePasswordResult> {
@@ -93,7 +95,9 @@ export class LoginWithPhonePasswordHandler
       command.phone
     )
 
-    const accounts = await this.identityService.getAvailableAccountsByUserId(userId)
+    const accounts = await this.tenantSessionAccessService.filterActiveAccountCandidates(
+      await this.identityService.getAvailableAccountsByUserId(userId)
+    )
     if (accounts.length === 0) {
       throw ExceptionFactory.domain(AUTH_NO_AVAILABLE_ACCOUNT, { userId })
     }

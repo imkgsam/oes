@@ -6,7 +6,29 @@ import { OnboardingAccessStatus } from '../../src/domain/value-objects'
 /** createOnboardingRepositoryMock builds the compensation process repository double. */
 function createOnboardingRepositoryMock() {
   return {
+    findLatestByEmployeeId: jest.fn().mockResolvedValue(null),
     recordAccessStatus: jest.fn()
+  }
+}
+
+/** createEmployeeRepositoryMock builds the HR employee ownership guard double. */
+function createEmployeeRepositoryMock() {
+  return {
+    findById: jest.fn().mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1'
+    })
+  }
+}
+
+/** createEmploymentRepositoryMock builds the HR employment ownership guard double. */
+function createEmploymentRepositoryMock() {
+  return {
+    findById: jest.fn().mockResolvedValue({
+      id: 'employment-1',
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1'
+    })
   }
 }
 
@@ -14,6 +36,24 @@ function createOnboardingRepositoryMock() {
 function createIdentityBindingPortMock() {
   return {
     bindAccountToEmployee: jest.fn().mockResolvedValue({ accountId: 'account-1' })
+  }
+}
+
+/** createIdentityAccountProvisioningPortMock builds the identity account provisioning double. */
+function createIdentityAccountProvisioningPortMock() {
+  return {
+    createUserAccount: jest.fn().mockResolvedValue({
+      accountId: 'account-from-existing-user',
+      userId: 'user-existing-1',
+      displayName: 'Existing User'
+    })
+  }
+}
+
+/** createAuthLoginBootstrapPortMock builds the auth login bootstrap double. */
+function createAuthLoginBootstrapPortMock() {
+  return {
+    bootstrapUserLoginMethods: jest.fn().mockResolvedValue(undefined)
   }
 }
 
@@ -31,6 +71,48 @@ function createLoggerMock() {
   } as unknown as jest.Mocked<AppLogger>
 }
 
+/** createService wires HrOnboardingAccessService with current constructor dependencies. */
+function createService(overrides: {
+  authLoginBootstrapPort?: ReturnType<typeof createAuthLoginBootstrapPortMock>
+  employeeRepository?: ReturnType<typeof createEmployeeRepositoryMock>
+  employmentRepository?: ReturnType<typeof createEmploymentRepositoryMock>
+  identityAccountProvisioningPort?: ReturnType<typeof createIdentityAccountProvisioningPortMock>
+  identityBindingPort?: ReturnType<typeof createIdentityBindingPortMock>
+  logger?: jest.Mocked<AppLogger>
+  onboardingRepository?: ReturnType<typeof createOnboardingRepositoryMock>
+  permissionPort?: ReturnType<typeof createPermissionGrantPortMock>
+} = {}) {
+  const employeeRepository = overrides.employeeRepository ?? createEmployeeRepositoryMock()
+  const employmentRepository = overrides.employmentRepository ?? createEmploymentRepositoryMock()
+  const onboardingRepository = overrides.onboardingRepository ?? createOnboardingRepositoryMock()
+  const identityAccountProvisioningPort =
+    overrides.identityAccountProvisioningPort ?? createIdentityAccountProvisioningPortMock()
+  const authLoginBootstrapPort = overrides.authLoginBootstrapPort ?? createAuthLoginBootstrapPortMock()
+  const identityBindingPort = overrides.identityBindingPort ?? createIdentityBindingPortMock()
+  const permissionPort = overrides.permissionPort ?? createPermissionGrantPortMock()
+  const logger = overrides.logger ?? createLoggerMock()
+  return {
+    authLoginBootstrapPort,
+    employeeRepository,
+    employmentRepository,
+    identityAccountProvisioningPort,
+    identityBindingPort,
+    logger,
+    onboardingRepository,
+    permissionPort,
+    service: new HrOnboardingAccessService(
+      employeeRepository as never,
+      employmentRepository as never,
+      onboardingRepository as never,
+      identityAccountProvisioningPort as never,
+      authLoginBootstrapPort as never,
+      identityBindingPort as never,
+      permissionPort as never,
+      logger as never
+    )
+  }
+}
+
 describe('HrOnboardingAccessService L1', () => {
   it('completeAccess / binding failure should enter ACCOUNT_BINDING_PENDING without calling permission', async () => {
     const repository = createOnboardingRepositoryMock()
@@ -39,20 +121,20 @@ describe('HrOnboardingAccessService L1', () => {
     const logger = createLoggerMock()
     identityPort.bindAccountToEmployee.mockRejectedValue(new Error('identity unavailable'))
     repository.recordAccessStatus.mockImplementation(async (input) => input)
-    const service = new HrOnboardingAccessService(
-      repository as never,
-      identityPort as never,
-      permissionPort as never,
-      logger as never
-    )
+    const { service } = createService({
+      identityBindingPort: identityPort,
+      logger,
+      onboardingRepository: repository,
+      permissionPort
+    })
 
     const result = await service.completeAccess({
       tenantId: 'tenant-1',
       employeeId: 'employee-1',
       employmentId: 'employment-1',
-      accountId: 'account-1',
+      existingAccountId: 'account-1',
       roleIds: ['role-1'],
-      idempotencyKey: 'hr-onboarding-1'
+      reason: 'hr-onboarding-1'
     })
 
     expect(result.status).toBe(OnboardingAccessStatus.ACCOUNT_BINDING_PENDING)
@@ -91,20 +173,20 @@ describe('HrOnboardingAccessService L1', () => {
       })
     )
     repository.recordAccessStatus.mockImplementation(async (input) => input)
-    const service = new HrOnboardingAccessService(
-      repository as never,
-      identityPort as never,
-      permissionPort as never,
-      logger as never
-    )
+    const { service } = createService({
+      identityBindingPort: identityPort,
+      logger,
+      onboardingRepository: repository,
+      permissionPort
+    })
 
     const result = await service.completeAccess({
       tenantId: 'tenant-1',
       employeeId: 'employee-1',
       employmentId: 'employment-1',
-      accountId: 'account-1',
+      existingAccountId: 'account-1',
       roleIds: ['role-1'],
-      idempotencyKey: 'hr-onboarding-1'
+      reason: 'hr-onboarding-1'
     })
 
     expect(identityPort.bindAccountToEmployee).toHaveBeenCalledWith({
@@ -142,23 +224,69 @@ describe('HrOnboardingAccessService L1', () => {
       addAccountOrgMembership: jest.fn(),
       setAccountPrimaryOrg: jest.fn()
     }
-    const service = new HrOnboardingAccessService(
-      repository as never,
-      identityPort as never,
-      permissionPort as never,
-      logger as never
-    )
+    const { service } = createService({
+      identityBindingPort: identityPort,
+      logger,
+      onboardingRepository: repository,
+      permissionPort
+    })
 
     await service.completeAccess({
       tenantId: 'tenant-1',
       employeeId: 'employee-1',
       employmentId: 'employment-1',
-      accountId: 'account-1',
+      existingAccountId: 'account-1',
       roleIds: ['role-1'],
-      idempotencyKey: 'hr-onboarding-1'
+      reason: 'hr-onboarding-1'
     })
 
     expect(legacyMembershipPort.addAccountOrgMembership).not.toHaveBeenCalled()
     expect(legacyMembershipPort.setAccountPrimaryOrg).not.toHaveBeenCalled()
+  })
+
+  it('completeAccess / existing user should create a tenant account without bootstrapping login methods', async () => {
+    const repository = createOnboardingRepositoryMock()
+    repository.recordAccessStatus.mockImplementation(async (input) => input)
+    const identityAccountProvisioningPort = createIdentityAccountProvisioningPortMock()
+    const authLoginBootstrapPort = createAuthLoginBootstrapPortMock()
+    const { identityBindingPort, permissionPort, service } = createService({
+      authLoginBootstrapPort,
+      identityAccountProvisioningPort,
+      onboardingRepository: repository
+    })
+
+    const result = await service.completeAccess({
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1',
+      employmentId: 'employment-1',
+      createAccount: {
+        displayName: 'Existing User',
+        existingUserId: 'user-existing-1'
+      } as never,
+      roleIds: []
+    })
+
+    expect(result.status).toBe(OnboardingAccessStatus.COMPLETED)
+    expect(identityAccountProvisioningPort.createUserAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        displayName: 'Existing User',
+        existingUserId: 'user-existing-1'
+      })
+    )
+    expect(authLoginBootstrapPort.bootstrapUserLoginMethods).not.toHaveBeenCalled()
+    expect(identityBindingPort.bindAccountToEmployee).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId: 'account-from-existing-user',
+        employeeId: 'employee-1',
+        tenantId: 'tenant-1'
+      })
+    )
+    expect(permissionPort.grantInitialAccessForEmployeeAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId: 'account-from-existing-user',
+        roleIds: []
+      })
+    )
   })
 })

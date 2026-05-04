@@ -12,8 +12,10 @@ import {
 import { IPermissionServicePort } from '../../ports'
 import { AuthAuditService } from '../../services/auth-audit.service'
 import { PasswordSetupRequirementService } from '../../services/password-setup-requirement.service'
+import { TenantSessionAccessService } from '../../services/tenant-session-access.service'
 import { TrustedDeviceService } from '../../services/trusted-device.service'
 import { IUserSessionRepository } from '../../../domain/repositories/user-session.repository'
+import { Session } from '../../../domain/aggregates/usersession.aggregate'
 import { RefreshSessionCommand } from './refresh-session.command'
 
 export interface RefreshSessionResult {
@@ -36,7 +38,8 @@ export class RefreshSessionHandler
     @Inject(REPO.SESSION)
     private readonly sessionRepository: IUserSessionRepository,
     private readonly authAuditService: AuthAuditService,
-    private readonly trustedDeviceService: TrustedDeviceService
+    private readonly trustedDeviceService: TrustedDeviceService,
+    private readonly tenantSessionAccessService: TenantSessionAccessService
   ) {}
 
   async execute(command: RefreshSessionCommand): Promise<RefreshSessionResult> {
@@ -72,6 +75,8 @@ export class RefreshSessionHandler
         sessionId
       })
     }
+
+    await this.assertTenantSessionCanContinue(session)
 
     const signOptions = {
       ...(tokenConfig.issuer ? { issuer: tokenConfig.issuer } : {}),
@@ -136,6 +141,24 @@ export class RefreshSessionHandler
 
     this.authAuditService.emitSessionRefreshed(session)
     return result
+  }
+
+  /** assertTenantSessionCanContinue blocks refresh token rotation when tenant lifecycle no longer allows session use. */
+  private async assertTenantSessionCanContinue(session: Session): Promise<void> {
+    if (session.getScopeLevel() === 'SYSTEM') {
+      return
+    }
+
+    try {
+      await this.tenantSessionAccessService.assertSessionCanContinue({
+        sessionId: session.getId(),
+        tenantId: session.getTenantId(),
+        scopeLevel: session.getScopeLevel()
+      })
+    } catch (error) {
+      await this.sessionRepository.delete(session.getId())
+      throw error
+    }
   }
 
   private getTokenConfig(): ITokenConfig {

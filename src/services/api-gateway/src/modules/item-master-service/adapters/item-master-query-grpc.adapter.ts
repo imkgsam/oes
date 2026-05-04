@@ -7,6 +7,8 @@ import {
   GetItemCompositionResponse,
   ITEM_MASTER_QUERY_SERVICE_NAME,
   ItemMasterQueryServiceClient,
+  ListItemCategoriesRequest,
+  ListItemCategoriesResponse,
   ListSupplierItemMappingsByItemRequest,
   ListSupplierItemMappingsByItemResponse,
   SearchItemsRequest,
@@ -74,6 +76,19 @@ export class ItemMasterQueryGrpcAdapter implements OnModuleInit {
     return this.call(
       'getItemComposition',
       this.svc.getItemComposition(
+        input,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  listItemCategories(
+    input: ListItemCategoriesRequest,
+    source: DownstreamRequestSource
+  ): Promise<ListItemCategoriesResponse> {
+    return this.call(
+      'listItemCategories',
+      this.svc.listItemCategories(
         input,
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       )

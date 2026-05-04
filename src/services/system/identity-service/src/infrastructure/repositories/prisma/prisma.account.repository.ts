@@ -21,11 +21,6 @@ const ACCOUNT_SUMMARY_SELECT = {
   displayName: true,
   bio: true,
   isEnable: true,
-  Tenant: {
-    select: {
-      isActive: true
-    }
-  },
   User: {
     select: {
       partyId: true,
@@ -41,7 +36,6 @@ export class PrismaAccountRepository implements AccountRepository {
   // Loads deletion preview data for one account so the caller can enforce blockers before cleanup starts.
   async getDeletionImpact(accountId: string): Promise<{
     account: AccountSummaryEntity | null
-    orgMembershipCount: number
     contactAssetCount: number
     blockingReasons: Array<{
       resourceType: string
@@ -49,18 +43,13 @@ export class PrismaAccountRepository implements AccountRepository {
       message: string
     }>
   }> {
-    const [record, orgMembershipCount, contactAssetCount] = await this.prisma.$transaction([
+    const [record, contactAssetCount] = await this.prisma.$transaction([
       this.prisma.userAccount.findUnique({
         where: {
           id: accountId
         },
         select: {
           ...ACCOUNT_SUMMARY_SELECT
-        }
-      }),
-      this.prisma.userAccountOrgMembership.count({
-        where: {
-          accountId
         }
       }),
       this.prisma.accountContactAsset.count({
@@ -72,7 +61,6 @@ export class PrismaAccountRepository implements AccountRepository {
 
     return {
       account: record ? PrismaAccountSummaryMapper.toDomain(record) : null,
-      orgMembershipCount,
       contactAssetCount,
       blockingReasons: []
     }
@@ -103,21 +91,13 @@ export class PrismaAccountRepository implements AccountRepository {
 
   // Permanently deletes one account and reports the number of identity-owned records that cascaded away with it.
   async delete(accountId: string): Promise<{
-    deletedOrgMembershipCount: number
     deletedContactAssetCount: number
   }> {
-    const [deletedOrgMembershipCount, deletedContactAssetCount] = await this.prisma.$transaction([
-      this.prisma.userAccountOrgMembership.count({
-        where: {
-          accountId
-        }
-      }),
-      this.prisma.accountContactAsset.count({
-        where: {
-          accountId
-        }
-      })
-    ])
+    const deletedContactAssetCount = await this.prisma.accountContactAsset.count({
+      where: {
+        accountId
+      }
+    })
 
     await this.prisma.userAccount.delete({
       where: {
@@ -126,7 +106,6 @@ export class PrismaAccountRepository implements AccountRepository {
     })
 
     return {
-      deletedOrgMembershipCount,
       deletedContactAssetCount
     }
   }
@@ -145,9 +124,6 @@ export class PrismaAccountRepository implements AccountRepository {
             scopeLevel: 'TENANT',
             tenantId: {
               not: null
-            },
-            Tenant: {
-              isActive: true
             }
           }
         ]
@@ -161,8 +137,7 @@ export class PrismaAccountRepository implements AccountRepository {
         avatarAssetId: true,
         displayName: true,
         bio: true,
-        isEnable: true,
-        Tenant: ACCOUNT_SUMMARY_SELECT.Tenant
+        isEnable: true
       },
       orderBy: {
         createdAt: 'asc'
@@ -187,6 +162,29 @@ export class PrismaAccountRepository implements AccountRepository {
     }
 
     return PrismaAccountSummaryMapper.toDomain(record)
+  }
+
+  // Finds the scoped account for one user so onboarding retries can reuse it instead of duplicating accounts.
+  async findByUserScope(input: {
+    scopeLevel: 'SYSTEM' | 'TENANT'
+    tenantId?: string
+    userId: string
+  }): Promise<AccountSummaryEntity | null> {
+    const contextKey = input.scopeLevel === 'SYSTEM' ? 'SYSTEM' : input.tenantId ?? ''
+    const record = await this.prisma.userAccount.findUnique({
+      where: {
+        userId_scopeLevel_contextKey: {
+          userId: input.userId,
+          scopeLevel: input.scopeLevel as UserAccountScopeLevel,
+          contextKey
+        }
+      },
+      select: {
+        ...ACCOUNT_SUMMARY_SELECT
+      }
+    })
+
+    return record ? PrismaAccountSummaryMapper.toDomain(record) : null
   }
 
   async list(input?: {
@@ -285,6 +283,50 @@ export class PrismaAccountRepository implements AccountRepository {
       items: records.map((record) => PrismaAccountDirectoryMapper.toDomain(record)),
       total
     }
+  }
+
+  // Counts tenant-scoped user accounts for tenant management read models without exposing account rows.
+  async countByTenantIds(input: {
+    tenantIds: string[]
+    scopeLevel?: string
+    status?: string
+  }): Promise<Array<{ tenantId: string; total: number }>> {
+    const tenantIds = Array.from(new Set(input.tenantIds.map((tenantId) => tenantId.trim()).filter(Boolean)))
+    if (tenantIds.length === 0) {
+      return []
+    }
+
+    const where: Prisma.UserAccountWhereInput = {
+      tenantId: {
+        in: tenantIds
+      }
+    }
+
+    if (input.scopeLevel) {
+      where.scopeLevel =
+        UserAccountScopeLevel[input.scopeLevel as keyof typeof UserAccountScopeLevel]
+    }
+
+    if (input.status === 'ENABLED') {
+      where.isEnable = true
+    } else if (input.status === 'DISABLED') {
+      where.isEnable = false
+    }
+
+    const groups = await this.prisma.userAccount.groupBy({
+      by: ['tenantId'],
+      where,
+      _count: {
+        _all: true
+      }
+    })
+
+    return groups
+      .filter((group) => group.tenantId)
+      .map((group) => ({
+        tenantId: group.tenantId!,
+        total: group._count._all
+      }))
   }
 
   async setEnabled(accountId: string, isEnabled: boolean): Promise<AccountSummaryEntity> {

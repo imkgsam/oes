@@ -261,7 +261,7 @@ function createCreateRequest(seed) {
 function createPartyRegistrationRequest(seed) {
   return {
     tenantId: seed.tenantId,
-    canonicalName: seed.partyCanonicalName,
+    legalName: seed.partyCanonicalName,
     localDisplayName: seed.partyLocalDisplayName,
     localCode: seed.partyLocalCode,
     registeredCountry: seed.partyRegisteredCountry,

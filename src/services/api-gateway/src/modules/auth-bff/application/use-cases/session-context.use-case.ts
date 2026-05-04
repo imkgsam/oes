@@ -78,7 +78,7 @@ export class SessionContextUseCase {
       org: null,
       navigation: {
         defaultEntry: navigation.defaultEntry,
-        visibleEntries: supplementOrganizationPeopleEntry(navigation.visibleEntries),
+        visibleEntries: navigation.visibleEntries,
         defaultHomePath: accountScope === 'SYSTEM' ? SYSTEM_HOME_PATH : DEFAULT_HOME_PATH,
         menus: []
       },
@@ -165,20 +165,4 @@ function useManagedNavigation(
       navigation.visibleEntries.length > 0 &&
       navigation.visibleEntries.includes(navigation.defaultEntry)
   )
-}
-
-// Adds the unified organization-and-people navigation entry only when the session already carries both legacy compatibility entries.
-function supplementOrganizationPeopleEntry(visibleEntries: string[]): string[] {
-  const hasOrgStructure = visibleEntries.includes('tenant-settings.org-structure')
-  const hasEmployeeEmployment = visibleEntries.includes('tenant-settings.employee-employment')
-
-  if (
-    !hasOrgStructure ||
-    !hasEmployeeEmployment ||
-    visibleEntries.includes('tenant-settings.organization-people')
-  ) {
-    return visibleEntries
-  }
-
-  return [...visibleEntries, 'tenant-settings.organization-people']
 }

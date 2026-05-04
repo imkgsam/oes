@@ -34,7 +34,10 @@ describe('AccountSessionEstablishmentService', () => {
       {
         emitLoginSucceeded: jest.fn()
       } as any,
-      trustedDeviceService as any
+      trustedDeviceService as any,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
+      } as any
     )
 
     await service.establish({
@@ -99,7 +102,10 @@ describe('AccountSessionEstablishmentService', () => {
       {
         emitLoginSucceeded: jest.fn()
       } as any,
-      trustedDeviceService as any
+      trustedDeviceService as any,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
+      } as any
     )
 
     await service.establish({

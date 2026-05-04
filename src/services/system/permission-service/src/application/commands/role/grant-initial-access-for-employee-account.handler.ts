@@ -1,26 +1,34 @@
 import { Inject } from '@nestjs/common'
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { ExceptionFactory, VALIDATION_FAILED } from '@oes/common/exceptions'
+import { randomUUID } from 'crypto'
 import { AccountType } from '../../../domain/enums/account-type.enum'
 import { RoleKind } from '../../../domain/enums/role-kind.enum'
 import { ScopeLevel } from '../../../domain/enums/scope-level.enum'
+import { Role } from '../../../domain/aggregates/role.aggregate'
 import { OnboardingGrantRequestEntity } from '../../../domain/entities/onboarding-grant-request.entity'
 import { RoleRepository } from '../../../domain/repositories/role.repository'
+import { NavigationRepository } from '../../../domain/repositories/navigation.repository'
 import { OnboardingGrantRequestRepository } from '../../../domain/repositories/onboarding-grant-request.repository'
+import { RolePermission } from '../../../domain/vo/role-permission.value-object'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import {
   ONBOARDING_GRANT_ACCOUNT_NOT_FOUND,
   ONBOARDING_GRANT_ACCOUNT_TENANT_MISMATCH,
   ONBOARDING_GRANT_IDEMPOTENCY_CONFLICT,
   ROLE_NOT_ASSIGNABLE,
-  ROLE_NOT_FOUND
+  ROLE_NOT_FOUND,
+  ROLE_TEMPLATE_NOT_FOUND
 } from '../../../common/constants/exception-enums'
 import {
   IDENTITY_ACCOUNT_REFERENCE_PORT,
   IdentityAccountReferencePort
 } from '../../ports/identity-account-reference.port'
 import { assertRoleScopeAccess } from '../../authorization/operator-scope'
+import { syncTemplateNavigationToRole } from './template-navigation.sync'
 import { GrantInitialAccessForEmployeeAccountCommand } from './grant-initial-access-for-employee-account.command'
+
+const ACCOUNT_BASIC_ROLE_CODE = 'account.basic'
 
 /** GrantInitialAccessForEmployeeAccountHandler validates onboarding grant inputs and persists idempotent role grants. */
 @CommandHandler(GrantInitialAccessForEmployeeAccountCommand)
@@ -42,20 +50,15 @@ export class GrantInitialAccessForEmployeeAccountHandler
     @Inject(SYMBOLS.REPO.ONBOARDING_GRANT_REQUEST)
     private readonly onboardingGrantRequestRepository: OnboardingGrantRequestRepository,
     @Inject(IDENTITY_ACCOUNT_REFERENCE_PORT)
-    private readonly identityAccountReferencePort: IdentityAccountReferencePort
+    private readonly identityAccountReferencePort: IdentityAccountReferencePort,
+    @Inject(SYMBOLS.REPO.NAVIGATION)
+    private readonly navigationRepository: NavigationRepository
   ) {}
 
   async execute(command: GrantInitialAccessForEmployeeAccountCommand) {
     const tenantId = requireNonBlank(command.tenantId, 'tenantId')
     const accountId = requireNonBlank(command.accountId, 'accountId')
     const idempotencyKey = requireNonBlank(command.idempotencyKey, 'idempotencyKey')
-    const roleIds = normalizeRoleIds(command.roleIds)
-    if (roleIds.length === 0) {
-      throw ExceptionFactory.application(VALIDATION_FAILED, {
-        field: 'roleIds',
-        reason: 'required'
-      })
-    }
 
     assertRoleScopeAccess(command.operatorScope, ScopeLevel.TENANT, tenantId, {
       requestedTenantId: tenantId
@@ -76,6 +79,7 @@ export class GrantInitialAccessForEmployeeAccountHandler
       })
     }
 
+    const roleIds = await this.resolveOnboardingRoleIds(tenantId, command.roleIds)
     const fingerprint = JSON.stringify({
       tenantId,
       accountId,
@@ -163,6 +167,63 @@ export class GrantInitialAccessForEmployeeAccountHandler
       accountId: existing.accountId,
       roleIds: existing.roleIds
     }
+  }
+
+  /** resolveOnboardingRoleIds defaults employee account onboarding to the tenant account.basic role. */
+  private async resolveOnboardingRoleIds(tenantId: string, roleIds: string[]): Promise<string[]> {
+    const normalizedRoleIds = normalizeRoleIds(roleIds)
+    if (normalizedRoleIds.length > 0) {
+      return normalizedRoleIds
+    }
+
+    const accountBasicRole = await this.ensureTenantAccountBasicRole(tenantId)
+    return [accountBasicRole.id]
+  }
+
+  /** ensureTenantAccountBasicRole lazily derives the protected tenant account.basic role for recoverable employee onboarding. */
+  private async ensureTenantAccountBasicRole(tenantId: string): Promise<Role> {
+    const existing = await this.roleRepository.findByScopeKindAndCode(
+      tenantId,
+      RoleKind.TENANT_INSTANCE,
+      ACCOUNT_BASIC_ROLE_CODE
+    )
+    if (existing) {
+      return existing
+    }
+
+    const templateRole = await this.roleRepository.findByScopeKindAndCode(
+      '__SYSTEM_TEMPLATE__',
+      RoleKind.SYSTEM_TEMPLATE,
+      ACCOUNT_BASIC_ROLE_CODE
+    )
+    if (!templateRole || !templateRole.isEnabled) {
+      throw ExceptionFactory.domain(ROLE_TEMPLATE_NOT_FOUND, {
+        templateRoleCode: ACCOUNT_BASIC_ROLE_CODE,
+        tenantId
+      })
+    }
+
+    const role = new Role(
+      randomUUID(),
+      templateRole.name,
+      templateRole.code,
+      tenantId,
+      RoleKind.TENANT_INSTANCE,
+      true,
+      templateRole.description,
+      templateRole.id,
+      [],
+      templateRole.allowTenantPermissionOverride,
+      templateRole.isProtected
+    )
+
+    for (const permission of templateRole.permissions) {
+      role.addPermission(new RolePermission(role.id, permission.permissionId, permission.permissionCode))
+    }
+
+    const savedRole = await this.roleRepository.save(role)
+    await syncTemplateNavigationToRole(this.navigationRepository, templateRole.id, savedRole.id)
+    return savedRole
   }
 }
 

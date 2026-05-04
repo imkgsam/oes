@@ -9,6 +9,8 @@ import {
   GetFinanceReleaseSignalResponse,
   GetFinancialAccountRequest,
   GetFinancialAccountResponse,
+  GetPayableScheduleRequest,
+  GetPayableScheduleResponse,
   GetReceivableScheduleRequest,
   GetReceivableScheduleResponse,
   PAYMENT_QUERY_SERVICE_NAME,
@@ -19,8 +21,14 @@ import {
   SearchAccountTransactionsResponse,
   SearchFinancialAccountsRequest,
   SearchFinancialAccountsResponse,
+  SearchPayableSchedulesRequest,
+  SearchPayableSchedulesResponse,
   SearchPaymentAllocationsRequest,
   SearchPaymentAllocationsResponse,
+  SearchPaymentExecutionsRequest,
+  SearchPaymentExecutionsResponse,
+  SearchPaymentRequestsRequest,
+  SearchPaymentRequestsResponse,
   SearchReceivableSchedulesRequest,
   SearchReceivableSchedulesResponse
 } from '@oes/common/generated/finance_service'
@@ -41,7 +49,7 @@ import {
 
 const CALLER = 'api-gateway'
 
-/** FinanceQueryGrpcAdapter proxies the frozen phase 1A finance query RPCs from api-gateway into finance-service. */
+/** FinanceQueryGrpcAdapter proxies the frozen phase 1A/1B finance query RPCs from api-gateway into finance-service. */
 @Injectable()
 export class FinanceQueryGrpcAdapter implements OnModuleInit {
   private financialAccountSvc!: FinancialAccountQueryServiceClient
@@ -173,6 +181,62 @@ export class FinanceQueryGrpcAdapter implements OnModuleInit {
     return this.call(
       'searchPaymentAllocations',
       this.paymentSvc.searchPaymentAllocations(
+        this.attachQueryContext(input, source),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** getPayableSchedule forwards one payable schedule detail read without treating payment requests as payable truth. */
+  getPayableSchedule(
+    input: Omit<GetPayableScheduleRequest, 'operatorContext' | 'traceContext'>,
+    source: DownstreamRequestSource
+  ): Promise<GetPayableScheduleResponse> {
+    return this.call(
+      'getPayableSchedule',
+      this.paymentSvc.getPayableSchedule(
+        this.attachQueryContext(input, source),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** searchPayableSchedules forwards one payable schedule directory query. */
+  searchPayableSchedules(
+    input: Omit<SearchPayableSchedulesRequest, 'operatorContext' | 'traceContext'>,
+    source: DownstreamRequestSource
+  ): Promise<SearchPayableSchedulesResponse> {
+    return this.call(
+      'searchPayableSchedules',
+      this.paymentSvc.searchPayableSchedules(
+        this.attachQueryContext(input, source),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** searchPaymentRequests forwards one payment-request governance directory query. */
+  searchPaymentRequests(
+    input: Omit<SearchPaymentRequestsRequest, 'operatorContext' | 'traceContext'>,
+    source: DownstreamRequestSource
+  ): Promise<SearchPaymentRequestsResponse> {
+    return this.call(
+      'searchPaymentRequests',
+      this.paymentSvc.searchPaymentRequests(
+        this.attachQueryContext(input, source),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** searchPaymentExecutions forwards one payment-execution directory query without mixing it with account transactions. */
+  searchPaymentExecutions(
+    input: Omit<SearchPaymentExecutionsRequest, 'operatorContext' | 'traceContext'>,
+    source: DownstreamRequestSource
+  ): Promise<SearchPaymentExecutionsResponse> {
+    return this.call(
+      'searchPaymentExecutions',
+      this.paymentSvc.searchPaymentExecutions(
         this.attachQueryContext(input, source),
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       )

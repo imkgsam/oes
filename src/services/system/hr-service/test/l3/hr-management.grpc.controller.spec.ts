@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
+import { attachOperatorContext } from '@oes/common/authorization'
 import { HrManagementService } from '../../src/application/services'
 import { HrManagementGrpcController } from '../../src/interfaces/grpc/hr-management.grpc.controller'
 
@@ -21,18 +22,43 @@ function createHrOnboardingAccessServiceMock() {
   }
 }
 
+/** createHrEmployeeOnboardingServiceMock builds the full employee onboarding service double for gRPC mapping tests. */
+function createHrEmployeeOnboardingServiceMock() {
+  return {
+    startEmployeeOnboarding: jest.fn()
+  }
+}
+
 /** createOperatorMetadata builds the minimum write metadata required by HR management controllers. */
 function createOperatorMetadata() {
   const metadata = new Metadata()
-  metadata.set('operator-id', 'operator-1')
-  metadata.set('trace-id', 'trace-1')
+  metadata.set('x-operator-context', 'signed-operator-context')
+  metadata.set('x-request-id', 'request-1')
+  metadata.set('x-trace-id', 'trace-1')
   return metadata
+}
+
+/** attachTestOperatorContext simulates the authenticated operator guard in direct controller tests. */
+function attachTestOperatorContext(request: object) {
+  attachOperatorContext(request, {
+    operator_id: 'operator-1',
+    operator_type: 'HUMAN',
+    tenant_id: 'tenant-1',
+    org_id: 'org-root-1',
+    operator_roles: ['hr.admin'],
+    issued_at: '2026-05-04T00:00:00.000Z',
+    expires_at: '2026-05-04T00:05:00.000Z',
+    issuer: 'api-gateway',
+    signature: 'test-signature'
+  })
+  return request
 }
 
 describe('HrManagementGrpcController L3', () => {
   it('CreateEmployee / should map application PREBOARDING status to proto enum', async () => {
     const service = createHrManagementServiceMock()
     const onboardingService = createHrOnboardingAccessServiceMock()
+    const employeeOnboardingService = createHrEmployeeOnboardingServiceMock()
     service.createEmployee.mockResolvedValue({
       id: 'employee-1',
       tenantId: 'tenant-1',
@@ -43,6 +69,7 @@ describe('HrManagementGrpcController L3', () => {
     })
     const controller = new HrManagementGrpcController(
       service as unknown as HrManagementService,
+      employeeOnboardingService as any,
       onboardingService as any
     )
 
@@ -69,9 +96,11 @@ describe('HrManagementGrpcController L3', () => {
   it('CreateEmployment / should surface invalid org references from the application layer', async () => {
     const service = createHrManagementServiceMock()
     const onboardingService = createHrOnboardingAccessServiceMock()
+    const employeeOnboardingService = createHrEmployeeOnboardingServiceMock()
     service.createEmployment.mockRejectedValue(new BadRequestException('Invalid org reference'))
     const controller = new HrManagementGrpcController(
       service as unknown as HrManagementService,
+      employeeOnboardingService as any,
       onboardingService as any
     )
 
@@ -88,11 +117,119 @@ describe('HrManagementGrpcController L3', () => {
     ).rejects.toBeInstanceOf(BadRequestException)
   })
 
+  it('CreateEmployeeOnboarding / should map employee onboarding to HR-owned saga input', async () => {
+    const service = createHrManagementServiceMock()
+    const onboardingService = createHrOnboardingAccessServiceMock()
+    const employeeOnboardingService = createHrEmployeeOnboardingServiceMock()
+    employeeOnboardingService.startEmployeeOnboarding.mockResolvedValue({
+      employee: {
+        id: 'employee-1',
+        tenantId: 'tenant-1',
+        tenantPartyId: 'tenant-party-1',
+        partyId: 'party-1',
+        employeeCode: 'EMP-0001',
+        lifecycleStatus: 'ACTIVE'
+      },
+      employment: {
+        id: 'employment-1',
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        orgUnitId: 'org-root-1',
+        status: 'ACTIVE',
+        effectiveFrom: new Date('2026-05-04T00:00:00.000Z'),
+        effectiveTo: null,
+        endedReason: null
+      },
+      access: {
+        id: 'process-1',
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        employmentId: 'employment-1',
+        accountId: 'account-1',
+        status: 'COMPLETED',
+        grantIdempotencyKey: 'grant-key-1',
+        failureReason: null
+      }
+    })
+    const controller = new HrManagementGrpcController(
+      service as unknown as HrManagementService,
+      employeeOnboardingService as any,
+      onboardingService as any
+    )
+
+    const result = await controller.createEmployeeOnboarding(
+      attachTestOperatorContext({
+        tenantId: 'tenant-1',
+        idempotencyKey: 'employee-onboarding-1',
+        person: {
+          legalName: '林予安',
+          identifiers: [
+            {
+              identifierType: 'NATIONAL_ID',
+              normalizedValue: '110101199001011234',
+              rawValue: '110101199001011234',
+              issuerCountryOrRegion: 'CN'
+            }
+          ]
+        },
+        primaryEmployment: {
+          orgUnitId: 'org-root-1',
+          effectiveFrom: '2026-05-04T00:00:00.000Z',
+          positionName: '租户管理员'
+        },
+        createAccount: {
+          displayName: '林予安',
+          email: 'lin@example.com',
+          phone: ''
+        },
+        employeeCode: ''
+      }),
+      createOperatorMetadata()
+    )
+
+    expect(employeeOnboardingService.startEmployeeOnboarding).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        idempotencyKey: 'employee-onboarding-1',
+        person: {
+          legalName: '林予安',
+          identifiers: [
+            {
+              identifierType: 'NATIONAL_ID',
+              normalizedValue: '110101199001011234',
+              rawValue: '110101199001011234',
+              issuerCountryOrRegion: 'CN'
+            }
+          ]
+        },
+        account: {
+          displayName: '林予安',
+          email: 'lin@example.com',
+          phone: undefined
+        },
+        operatorContext: {
+          operatorId: 'operator-1',
+          operatorType: 'HUMAN',
+          tenantId: 'tenant-1',
+          orgId: 'org-root-1',
+          operatorRoles: ['hr.admin']
+        },
+        requestId: 'request-1',
+        traceId: 'trace-1'
+      })
+    )
+    expect(result.employee?.id).toBe('employee-1')
+    expect(result.employment?.id).toBe('employment-1')
+    expect(result.access?.status).toBe(3)
+  })
+
   it('CreateEmployee / should reject missing operator context metadata for management writes', async () => {
     const service = createHrManagementServiceMock()
     const onboardingService = createHrOnboardingAccessServiceMock()
+    const employeeOnboardingService = createHrEmployeeOnboardingServiceMock()
     const controller = new HrManagementGrpcController(
       service as unknown as HrManagementService,
+      employeeOnboardingService as any,
       onboardingService as any
     )
 
@@ -109,6 +246,7 @@ describe('HrManagementGrpcController L3', () => {
   it('CompleteEmployeeAccess / should accept either a new account payload or an existing account id and map pending status', async () => {
     const service = createHrManagementServiceMock()
     const onboardingService = createHrOnboardingAccessServiceMock()
+    const employeeOnboardingService = createHrEmployeeOnboardingServiceMock()
     onboardingService.completeAccess.mockResolvedValue({
       id: 'process-1',
       tenantId: 'tenant-1',
@@ -121,11 +259,12 @@ describe('HrManagementGrpcController L3', () => {
     })
     const controller = new HrManagementGrpcController(
       service as unknown as HrManagementService,
+      employeeOnboardingService as any,
       onboardingService as any
     )
 
     const result = await controller.completeEmployeeAccess(
-      {
+      attachTestOperatorContext({
         tenantId: 'tenant-1',
         employeeId: 'employee-1',
         employmentId: 'employment-1',
@@ -137,23 +276,35 @@ describe('HrManagementGrpcController L3', () => {
           email: 'member@example.com',
           phone: ''
         }
-      },
+      }),
       createOperatorMetadata()
     )
 
-    expect(onboardingService.completeAccess).toHaveBeenCalledWith({
-      tenantId: 'tenant-1',
-      employeeId: 'employee-1',
-      employmentId: 'employment-1',
-      existingAccountId: undefined,
-      roleIds: ['role-1'],
-      reason: 'member_access_enable',
-      createAccount: {
-        displayName: 'EMP-001',
-        email: 'member@example.com',
-        phone: undefined
-      }
-    })
+    expect(onboardingService.completeAccess).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        employmentId: 'employment-1',
+        existingAccountId: undefined,
+        roleIds: ['role-1'],
+        reason: 'member_access_enable',
+        createAccount: {
+          displayName: 'EMP-001',
+          email: 'member@example.com',
+          existingUserId: undefined,
+          phone: undefined
+        },
+        operatorContext: {
+          operatorId: 'operator-1',
+          operatorType: 'HUMAN',
+          tenantId: 'tenant-1',
+          orgId: 'org-root-1',
+          operatorRoles: ['hr.admin']
+        },
+        requestId: 'request-1',
+        traceId: 'trace-1'
+      })
+    )
     expect(result.process?.status).toBe(1)
     expect(result.process?.failureReason).toBe('identity unavailable')
   })

@@ -101,7 +101,8 @@
   - 系统管理员
   - 租户管理员（只读）
 - 权限控制：
-  - `checkPermission(permission.role.list)`
+  - `checkPermission(permission.role_template.list)`
+  - `checkPermission(permission.role_instance.list)`
 - 说明：
   - 这是权限详情页的辅助信息，真相来自 `permission-service.ListPermissionRoles`
   - 当前不在 Gateway 层做额外 `buildQueryScope`，角色可见性由下游 permission-service 管理语义约束
@@ -123,7 +124,7 @@
   - 系统管理员
   - 租户管理员（仅租户范围 role instance）
 - 权限控制：
-  - `checkPermission(permission.role.list)`
+  - `checkPermission(permission.role_instance.list)`
 - 支持的过滤参数：
   - `page`
   - `pageSize`
@@ -143,7 +144,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.create)`
+  - `checkPermission(permission.role_instance.create)`
 - 请求字段：
   - `name`
   - `code`
@@ -164,7 +165,7 @@
   - 系统管理员
   - 租户管理员（仅其租户范围）
 - 权限控制：
-  - `checkPermission(permission.role.get_by_id)`
+  - `checkPermission(permission.role_instance.get_by_id)`
 - 响应语义：
   - 返回单个标准 `RoleResponse`
   - 适合作为详情页、编辑页、权限页的基础初始化接口
@@ -175,7 +176,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.update)`
+  - `checkPermission(permission.role_instance.update)`
 - 可修改字段：
   - `name`
   - `description`
@@ -193,7 +194,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.update)`
+  - `checkPermission(permission.role_instance.update)`
 - 请求字段：
   - `isEnabled`
 - 使用建议：
@@ -207,7 +208,7 @@
   - 系统管理员
   - 租户管理员（仅其租户范围）
 - 权限控制：
-  - `checkPermission(permission.role.get_by_id)`
+  - `checkPermission(permission.role_instance.get_by_id)`
 - 响应语义：
   - 返回结构：`permissions[]`
   - 当前返回的是全局 permission 摘要，不带分页
@@ -219,7 +220,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.update)`
+  - `checkPermission(permission.role_instance.assign_permissions)`
 - 请求字段：
   - `permissionId`
 - 使用建议：
@@ -232,7 +233,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.update)`
+  - `checkPermission(permission.role_instance.assign_permissions)`
 - 使用建议：
   - 适合单条撤销
   - 当前不承接批量撤销或整页全量替换
@@ -243,7 +244,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.delete_by_id)`
+  - `checkPermission(permission.role_instance.delete)`
 - 使用建议：
   - 删除前前端可先用 `GET /role/:id/permissions` 和 `GET /role/:id/accounts` 做影响面提示
 
@@ -255,7 +256,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.list)`
+  - `checkPermission(permission.role_template.list)`
 - 支持的过滤参数：
   - `page`
   - `pageSize`
@@ -272,7 +273,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.create)`
+  - `checkPermission(permission.role_template.create)`
 - 使用建议：
   - 模板创建页直接使用该接口
   - 这是“全局模板”入口，不应传 `tenantId`
@@ -283,7 +284,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.get_by_id)`
+  - `checkPermission(permission.role_template.get_by_id)`
 - 响应语义：
   - 返回单个标准 `RoleResponse`
   - 适合作为模板详情页、编辑页、模板权限页的初始化接口
@@ -294,7 +295,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.update)`
+  - `checkPermission(permission.role_template.update)`
 - 可修改字段：
   - `name`
   - `description`
@@ -308,7 +309,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.update)`
+  - `checkPermission(permission.role_template.update)`
 - 使用建议：
   - 这是模板列表页和模板详情页的启停专用入口
 
@@ -318,7 +319,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.get_by_id)`
+  - `checkPermission(permission.role_template.get_by_id)`
 - 响应语义：
   - 返回结构：`permissions[]`
   - 当前返回的是模板当前继承给实例化角色的 permission 集合
@@ -329,7 +330,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.update)`
+  - `checkPermission(permission.role_template.assign_permissions)`
 - 使用建议：
   - 适合模板权限详情页中的单条分配动作
 
@@ -339,7 +340,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.update)`
+  - `checkPermission(permission.role_template.assign_permissions)`
 - 使用建议：
   - 适合模板权限详情页中的单条撤销动作
 
@@ -349,7 +350,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.create)`
+  - `checkPermission(permission.role_instance.create_from_template)`
 - 说明：
   - 当前实例化目标是 tenant role instance，因此 `tenantId` 必填
   - 模板上的 permissions 会复制到新建的 role instance
@@ -361,7 +362,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.delete_by_id)`
+  - `checkPermission(permission.role_template.delete)`
 - 使用建议：
   - 删除前前端可先用 `GET /role-template/:id/permissions` 做影响面提示
 
@@ -760,7 +761,7 @@
   - 系统管理员
   - 租户管理员（仅其租户范围）
 - 权限控制：
-  - `checkPermission(permission.role.get_by_id)`
+  - `checkPermission(permission.role_instance.get_by_id)`
 - 响应语义：
   - 返回该 role 当前可见 entries。
   - 返回该 role 当前 landing policies。
@@ -772,7 +773,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.update)`
+  - `checkPermission(permission.role_instance.update)`
 - 请求语义：
   - 采用“整组覆盖”而不是单条 add / remove patch。
   - 每项 visibility 至少应带：
@@ -791,7 +792,7 @@
 - 使用人：
   - 系统管理员 / 权限管理员
 - 权限控制：
-  - `checkPermission(permission.role.update)`
+  - `checkPermission(permission.role_instance.update)`
 - 请求语义：
   - 以 `scopeLevel + terminal` 为键提交整组 landing policy。
   - 每项 policy 至少应带：

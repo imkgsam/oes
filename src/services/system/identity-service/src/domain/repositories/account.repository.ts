@@ -5,7 +5,6 @@ import { AccountSummaryEntity } from '../entities/account-summary.entity'
 export interface AccountRepository {
   getDeletionImpact(accountId: string): Promise<{
     account: AccountSummaryEntity | null
-    orgMembershipCount: number
     contactAssetCount: number
     blockingReasons: Array<{
       resourceType: string
@@ -20,11 +19,15 @@ export interface AccountRepository {
     displayName?: string | null
   }): Promise<AccountSummaryEntity>
   delete(accountId: string): Promise<{
-    deletedOrgMembershipCount: number
     deletedContactAssetCount: number
   }>
   findAvailableByUserId(userId: string): Promise<AccountCandidateEntity[]>
   findById(accountId: string): Promise<AccountSummaryEntity | null>
+  findByUserScope(input: {
+    scopeLevel: 'SYSTEM' | 'TENANT'
+    tenantId?: string
+    userId: string
+  }): Promise<AccountSummaryEntity | null>
   list(input?: {
     keyword?: string
     page?: number
@@ -33,6 +36,11 @@ export interface AccountRepository {
     status?: string
     tenantId?: string
   }): Promise<{ items: AccountDirectoryEntity[]; total: number }>
+  countByTenantIds(input: {
+    tenantIds: string[]
+    scopeLevel?: string
+    status?: string
+  }): Promise<Array<{ tenantId: string; total: number }>>
   setEnabled(accountId: string, isEnabled: boolean): Promise<AccountSummaryEntity>
   updateProfile(
     accountId: string,

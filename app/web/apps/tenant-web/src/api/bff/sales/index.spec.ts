@@ -12,7 +12,7 @@ vi.mock('#/api/request', () => ({
   }
 }))
 
-// Verifies the tenant-web sales API client stays aligned with the minimum sales quote-order BFF surface.
+// Verifies the tenant-web sales API client stays aligned with the quote, order, and pricing BFF surfaces.
 describe('tenant-web sales api', () => {
   beforeEach(() => {
     get.mockReset()
@@ -114,6 +114,7 @@ describe('tenant-web sales api', () => {
         priceQuantityDeliverySnapshot: {
           currencyCode: 'USD',
           deliveryTerm: 'FOB',
+          exceptionPlaceholders: [],
           quantity: '10',
           requestedDeliveryDate: '2026-05-01',
           unitPrice: '12.50'
@@ -170,6 +171,210 @@ describe('tenant-web sales api', () => {
       '/sales/tenants/tenant-1/quote-versions/version-1/convert-to-order',
       {
         auditReason: 'customer approved published quote'
+      }
+    )
+  })
+
+  it('loads pricing read paths from the tenant-scoped sales workspace entry', async () => {
+    const {
+      getActiveCustomerPriceAgreementApi,
+      getCustomerPriceAgreementApi,
+      getPriceListApi,
+      getPriceListLinesApi,
+      listCustomerPriceAgreementVersionsApi,
+      listPriceListsApi
+    } = await import('./index')
+
+    await listPriceListsApi('tenant-1', {
+      currencyCode: 'USD',
+      effectiveAt: '2026-04-26T10:00:00.000Z',
+      keyword: 'North',
+      page: 2,
+      pageSize: 10,
+      priceListType: 'STANDARD',
+      status: 'ACTIVE'
+    })
+    await getPriceListApi('tenant-1', 'price-list-1')
+    await getPriceListLinesApi('tenant-1', 'price-list-1', {
+      itemId: 'item-1',
+      page: 3,
+      pageSize: 5
+    })
+    await getActiveCustomerPriceAgreementApi('tenant-1', {
+      currencyCode: 'USD',
+      customerTenantPartyId: 'customer-1'
+    })
+    await getCustomerPriceAgreementApi('tenant-1', 'agreement-1', {
+      versionNo: 2
+    })
+    await listCustomerPriceAgreementVersionsApi('tenant-1', 'agreement-1', {
+      page: 4,
+      pageSize: 8
+    })
+
+    expect(get).toHaveBeenCalledWith('/sales/tenants/tenant-1/pricing/price-lists', {
+      params: {
+        currencyCode: 'USD',
+        effectiveAt: '2026-04-26T10:00:00.000Z',
+        keyword: 'North',
+        page: 2,
+        pageSize: 10,
+        priceListType: 'STANDARD',
+        status: 'ACTIVE'
+      }
+    })
+    expect(get).toHaveBeenCalledWith('/sales/tenants/tenant-1/pricing/price-lists/price-list-1')
+    expect(get).toHaveBeenCalledWith(
+      '/sales/tenants/tenant-1/pricing/price-lists/price-list-1/lines',
+      {
+        params: {
+          itemId: 'item-1',
+          page: 3,
+          pageSize: 5
+        }
+      }
+    )
+    expect(get).toHaveBeenCalledWith('/sales/tenants/tenant-1/pricing/customer-price-agreements/active', {
+      params: {
+        currencyCode: 'USD',
+        customerTenantPartyId: 'customer-1'
+      }
+    })
+    expect(get).toHaveBeenCalledWith('/sales/tenants/tenant-1/pricing/customer-price-agreements/agreement-1', {
+      params: {
+        versionNo: 2
+      }
+    })
+    expect(get).toHaveBeenCalledWith(
+      '/sales/tenants/tenant-1/pricing/customer-price-agreements/agreement-1/versions',
+      {
+        params: {
+          page: 4,
+          pageSize: 8
+        }
+      }
+    )
+  })
+
+  it('submits pricing preview and management commands to the gateway pricing entry', async () => {
+    const {
+      changePriceListStatusApi,
+      createCustomerPriceAgreementApi,
+      createCustomerPriceAgreementFromSalesOrderLineApi,
+      createPriceListApi,
+      previewQuoteLinePricingApi,
+      publishCustomerPriceAgreementVersionApi,
+      replacePriceListLinesApi,
+      updateCustomerPriceAgreementDraftApi,
+      updatePriceListApi
+    } = await import('./index')
+
+    await previewQuoteLinePricingApi('tenant-1', {
+      currencyCode: 'USD',
+      customerTenantPartyId: 'customer-1',
+      exchangeRateTargetCurrencyCode: 'USD',
+      itemId: 'item-1',
+      manualUnitPriceAmount: '12.50',
+      pricingAt: '2026-04-26T10:00:00.000Z',
+      quantityUomCode: 'PCS',
+      requestedQuantity: '10',
+      selectedPriceListId: 'price-list-1'
+    })
+    await createPriceListApi('tenant-1', {
+      currencyCode: 'USD',
+      effectiveFrom: '2026-04-01',
+      effectiveTo: '2026-12-31',
+      initialLines: [],
+      priceListName: 'North America Standard',
+      priceListType: 'STANDARD'
+    })
+    await updatePriceListApi('tenant-1', 'price-list-1', {
+      effectiveTo: '2026-12-31',
+      priceListName: 'North America Standard Rev'
+    })
+    await replacePriceListLinesApi('tenant-1', 'price-list-1', {
+      lines: []
+    })
+    await changePriceListStatusApi('tenant-1', 'price-list-1', {
+      targetStatus: 'ACTIVE'
+    })
+    await createCustomerPriceAgreementApi('tenant-1', {
+      currencyCode: 'USD',
+      customerTenantPartyId: 'customer-1',
+      initialLines: []
+    })
+    await updateCustomerPriceAgreementDraftApi('tenant-1', 'agreement-1', {
+      draftMutation: {
+        removals: [],
+        upserts: []
+      }
+    })
+    await publishCustomerPriceAgreementVersionApi('tenant-1', 'agreement-1', {
+      auditReason: 'publish customer agreement'
+    })
+    await createCustomerPriceAgreementFromSalesOrderLineApi('tenant-1', 'order-line-1', {
+      auditReason: 'promote order line into draft agreement'
+    })
+
+    expect(post).toHaveBeenCalledWith('/sales/tenants/tenant-1/pricing/quote-line-preview', {
+      currencyCode: 'USD',
+      customerTenantPartyId: 'customer-1',
+      exchangeRateTargetCurrencyCode: 'USD',
+      itemId: 'item-1',
+      manualUnitPriceAmount: '12.50',
+      pricingAt: '2026-04-26T10:00:00.000Z',
+      quantityUomCode: 'PCS',
+      requestedQuantity: '10',
+      selectedPriceListId: 'price-list-1'
+    })
+    expect(post).toHaveBeenCalledWith('/sales/tenants/tenant-1/pricing/price-lists', {
+      currencyCode: 'USD',
+      effectiveFrom: '2026-04-01',
+      effectiveTo: '2026-12-31',
+      initialLines: [],
+      priceListName: 'North America Standard',
+      priceListType: 'STANDARD'
+    })
+    expect(put).toHaveBeenCalledWith('/sales/tenants/tenant-1/pricing/price-lists/price-list-1', {
+      effectiveTo: '2026-12-31',
+      priceListName: 'North America Standard Rev'
+    })
+    expect(put).toHaveBeenCalledWith(
+      '/sales/tenants/tenant-1/pricing/price-lists/price-list-1/lines',
+      {
+        lines: []
+      }
+    )
+    expect(post).toHaveBeenCalledWith(
+      '/sales/tenants/tenant-1/pricing/price-lists/price-list-1/status',
+      {
+        targetStatus: 'ACTIVE'
+      }
+    )
+    expect(post).toHaveBeenCalledWith('/sales/tenants/tenant-1/pricing/customer-price-agreements', {
+      currencyCode: 'USD',
+      customerTenantPartyId: 'customer-1',
+      initialLines: []
+    })
+    expect(put).toHaveBeenCalledWith(
+      '/sales/tenants/tenant-1/pricing/customer-price-agreements/agreement-1/draft',
+      {
+        draftMutation: {
+          removals: [],
+          upserts: []
+        }
+      }
+    )
+    expect(post).toHaveBeenCalledWith(
+      '/sales/tenants/tenant-1/pricing/customer-price-agreements/agreement-1/publish',
+      {
+        auditReason: 'publish customer agreement'
+      }
+    )
+    expect(post).toHaveBeenCalledWith(
+      '/sales/tenants/tenant-1/pricing/customer-price-agreements/from-sales-order-lines/order-line-1',
+      {
+        auditReason: 'promote order line into draft agreement'
       }
     )
   })

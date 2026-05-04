@@ -1,5 +1,7 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
+import { IdentityTenantAccountStatsGrpcAdapter } from './adapters/identity-tenant-account-stats-grpc.adapter'
+import { IdentityUserLookupGrpcAdapter } from './adapters/identity-user-lookup-grpc.adapter'
 import { TenantOrgManagementGrpcAdapter } from './adapters/tenant-org-management-grpc.adapter'
 import { TenantOrgQueryGrpcAdapter } from './adapters/tenant-org-query-grpc.adapter'
 
@@ -8,7 +10,9 @@ import { TenantOrgQueryGrpcAdapter } from './adapters/tenant-org-query-grpc.adap
 export class TenantManagementService {
   constructor(
     private readonly tenantOrgQueryAdapter: TenantOrgQueryGrpcAdapter,
-    private readonly tenantOrgManagementAdapter: TenantOrgManagementGrpcAdapter
+    private readonly tenantOrgManagementAdapter: TenantOrgManagementGrpcAdapter,
+    private readonly identityUserLookupAdapter: IdentityUserLookupGrpcAdapter,
+    private readonly identityTenantAccountStatsAdapter: IdentityTenantAccountStatsGrpcAdapter
   ) {}
 
   async listTenants(
@@ -28,13 +32,32 @@ export class TenantManagementService {
       source
     )
 
+    const tenantItems = (result.tenants ?? []).map((tenant) => ({
+      id: tenant.id ?? '',
+      code: tenant.code ?? '',
+      name: tenant.name ?? '',
+      status: normalizeTenantStatus(tenant)
+    }))
+    const tenantIds = tenantItems.map((tenant) => tenant.id).filter(Boolean)
+    const accountCounts =
+      tenantIds.length > 0
+        ? await this.identityTenantAccountStatsAdapter.countTenantAccounts(
+            {
+              scopeLevel: 'TENANT',
+              status: 'ENABLED',
+              tenantIds
+            },
+            source
+          )
+        : { counts: [] }
+    const accountCountMap = new Map(
+      (accountCounts.counts ?? []).map((count) => [count.tenantId ?? '', Number(count.total ?? 0)])
+    )
+
     return {
-      items: (result.tenants ?? []).map((tenant) => ({
-        id: tenant.id ?? '',
-        code: tenant.code ?? '',
-        name: tenant.name ?? '',
-        rootOrgId: normalize(tenant.rootOrgId),
-        status: normalizeTenantStatus(tenant)
+      items: tenantItems.map((tenant) => ({
+        ...tenant,
+        userCount: accountCountMap.get(tenant.id) ?? 0
       })),
       page,
       pageSize,
@@ -63,6 +86,15 @@ export class TenantManagementService {
             source
           )
         : undefined
+    const accountCounts = await this.identityTenantAccountStatsAdapter.countTenantAccounts(
+      {
+        scopeLevel: 'TENANT',
+        status: 'ENABLED',
+        tenantIds: [tenant.id]
+      },
+      source
+    )
+    const userCount = Number(accountCounts.counts?.[0]?.total ?? 0)
 
     return {
       tenant: {
@@ -71,7 +103,8 @@ export class TenantManagementService {
         name: tenant.name ?? '',
         rootOrgId,
         rootOrgName: normalize(rootOrg?.orgUnit?.name),
-        status: normalizeTenantStatus(tenant)
+        status: normalizeTenantStatus(tenant),
+        userCount
       }
     }
   }
@@ -89,6 +122,120 @@ export class TenantManagementService {
       },
       source
     )
+  }
+
+  async searchFirstAdminExistingUsers(
+    query: { countryOrRegion?: string; keyword?: string },
+    source: DownstreamRequestSource
+  ) {
+    this.assertSystemScope(source)
+    const keyword = requireNonBlank(query.keyword ?? '', 'keyword')
+    if (keyword.includes('@')) {
+      if (!isCompleteEmailLookupKeyword(keyword)) {
+        return { items: [] }
+      }
+      const result = await this.identityUserLookupAdapter.getUserByEmail(keyword.toLowerCase(), source)
+      const user = result.user
+
+      if (!user?.id) {
+        return { items: [] }
+      }
+
+      return toFirstAdminUserCandidateResult(user)
+    }
+
+    const phoneCandidates = buildPhoneLookupCandidates(keyword, query.countryOrRegion)
+    for (const phone of phoneCandidates) {
+      const result = await this.identityUserLookupAdapter.getUserByPhone(phone, source)
+      if (result.user?.id) {
+        return toFirstAdminUserCandidateResult(result.user)
+      }
+    }
+    return { items: [] }
+  }
+
+  async startTenantOnboarding(input: {
+    idempotencyKey: string
+    tenant: { code: string; name: string }
+    organizationParty: {
+      legalName: string
+      registeredCountry?: string
+      identifiers?: Array<{
+        identifierType: string
+        rawValue?: string
+        normalizedValue?: string
+        issuerCountryOrRegion?: string
+      }>
+    }
+    rootOrg: { name: string }
+    firstAdmin: {
+      displayName: string
+      email?: string
+      existingUserId?: string
+      phone?: string
+      provisioningMode?: string
+      requirePasswordSetup?: boolean
+    }
+  }, source: DownstreamRequestSource) {
+    this.assertSystemScope(source)
+    const firstAdminProvisioningMode =
+      input.firstAdmin.provisioningMode === 'EXISTING_USER' ? 'EXISTING_USER' : 'CREATE_NEW_USER'
+    const existingUserId =
+      firstAdminProvisioningMode === 'EXISTING_USER'
+        ? requireNonBlank(input.firstAdmin.existingUserId ?? '', 'firstAdmin.existingUserId')
+        : undefined
+    const result = await this.tenantOrgManagementAdapter.startTenantOnboarding(
+      {
+        idempotencyKey: requireNonBlank(input.idempotencyKey, 'idempotencyKey'),
+        tenant: {
+          code: requireNonBlank(input.tenant.code, 'tenant.code'),
+          name: requireNonBlank(input.tenant.name, 'tenant.name')
+        },
+        organizationParty: {
+          legalName: requireNonBlank(input.organizationParty.legalName, 'organizationParty.legalName'),
+          registeredCountry: normalize(input.organizationParty.registeredCountry),
+          identifiers: normalizeOrganizationIdentifiers(
+            input.organizationParty.identifiers,
+            input.organizationParty.registeredCountry
+          )
+        },
+        rootOrg: {
+          name: requireNonBlank(input.rootOrg.name, 'rootOrg.name')
+        },
+        firstAdmin: {
+          displayName: requireNonBlank(input.firstAdmin.displayName, 'firstAdmin.displayName'),
+          email: firstAdminProvisioningMode === 'EXISTING_USER' ? undefined : normalize(input.firstAdmin.email),
+          existingUserId,
+          phone: firstAdminProvisioningMode === 'EXISTING_USER' ? undefined : normalize(input.firstAdmin.phone),
+          provisioningMode: firstAdminProvisioningMode,
+          requirePasswordSetup:
+            firstAdminProvisioningMode === 'EXISTING_USER'
+              ? false
+              : input.firstAdmin.requirePasswordSetup ?? true
+        }
+      },
+      source
+    )
+    assertTenantOnboardingAccepted(result.onboarding)
+    return result
+  }
+
+  async getTenantOnboarding(onboardingId: string, source: DownstreamRequestSource) {
+    this.assertSystemScope(source)
+    return this.tenantOrgManagementAdapter.getTenantOnboarding(requireNonBlank(onboardingId, 'onboardingId'), source)
+  }
+
+  async retryTenantOnboarding(onboardingId: string, input: { reason?: string }, source: DownstreamRequestSource) {
+    this.assertSystemScope(source)
+    const result = await this.tenantOrgManagementAdapter.retryTenantOnboarding(
+      {
+        onboardingId: requireNonBlank(onboardingId, 'onboardingId'),
+        reason: normalize(input.reason)
+      },
+      source
+    )
+    assertTenantOnboardingAccepted(result.onboarding)
+    return result
   }
 
   async updateTenantProfile(
@@ -162,10 +309,151 @@ function requireNonBlank(value: string, fieldName: string): string {
   return normalized
 }
 
+// normalizeOrganizationIdentifiers validates party-owned legal identifiers before forwarding to tenant-org-service.
+function normalizeOrganizationIdentifiers(
+  identifiers: Array<{
+    identifierType: string
+    rawValue?: string
+    normalizedValue?: string
+    issuerCountryOrRegion?: string
+  }> | undefined,
+  registeredCountry?: string
+) {
+  if (!identifiers?.length) {
+    throw new BadRequestException('organizationParty.identifiers is required')
+  }
+
+  return identifiers.map((identifier, index) => {
+    const rawValue = normalize(identifier.rawValue) ?? normalize(identifier.normalizedValue)
+    const normalizedValue = normalizeIdentifierValue(rawValue, `organizationParty.identifiers[${index}].rawValue`)
+    const issuerCountryOrRegion = requireNonBlank(
+      normalize(identifier.issuerCountryOrRegion) ?? normalize(registeredCountry) ?? '',
+      `organizationParty.identifiers[${index}].issuerCountryOrRegion`
+    )
+
+    return {
+      identifierType: requireNonBlank(identifier.identifierType, `organizationParty.identifiers[${index}].identifierType`),
+      issuerCountryOrRegion,
+      normalizedValue,
+      rawValue
+    }
+  })
+}
+
+// normalizeIdentifierValue creates the stable value used by party-service uniqueness checks.
+function normalizeIdentifierValue(value: string | undefined, fieldName: string): string {
+  const normalized = requireNonBlank(value ?? '', fieldName).toUpperCase().replace(/[^A-Z0-9]/g, '')
+  if (!normalized) {
+    throw new BadRequestException(`${fieldName} is required`)
+  }
+  return normalized
+}
+
 function normalizeTenantStatus(input: { isActive?: boolean; status?: string }): string {
   const explicitStatus = normalize(input.status)?.toUpperCase()
   if (explicitStatus) {
     return explicitStatus
   }
   return input.isActive === false ? 'SUSPENDED' : 'ACTIVE'
+}
+
+// assertTenantOnboardingAccepted maps immediately failed Saga runs to HTTP errors while preserving retry handles.
+function assertTenantOnboardingAccepted(onboarding?: {
+  failure?: { code?: string; failedStep?: string; message?: string; retryable?: boolean }
+  onboardingId?: string
+  status?: string
+}) {
+  const status = normalize(onboarding?.status)
+  if (!status?.startsWith('FAILED')) {
+    return
+  }
+
+  const failure = onboarding?.failure
+  const retryable = failure?.retryable !== false
+  throw new HttpException(
+    {
+      code: failure?.code || 'TENANT_ONBOARDING_FAILED',
+      message: failure?.message || 'Tenant onboarding failed',
+      messageKey: 'tenant.onboarding.failed',
+      details: {
+        onboarding
+      }
+    },
+    retryable ? HttpStatus.SERVICE_UNAVAILABLE : HttpStatus.FAILED_DEPENDENCY
+  )
+}
+
+function maskEmail(value?: string): string | undefined {
+  const email = normalize(value)
+  if (!email) return undefined
+  const [name, domain] = email.split('@')
+  if (!name || !domain) return email
+  return `${name.slice(0, 2)}***@${domain}`
+}
+
+function maskPhone(value?: string): string | undefined {
+  const phone = normalize(value)
+  if (!phone) return undefined
+  return phone.length > 6 ? `${phone.slice(0, 3)}***${phone.slice(-4)}` : phone
+}
+
+function isCompleteEmailLookupKeyword(keyword: string): boolean {
+  return /^[^\s@]+@(?:[^\s@.]+\.)+[A-Za-z]{2,}$/.test(keyword.trim())
+}
+
+// buildPhoneLookupCandidates maps common phone input formats to canonical identity login phones.
+function buildPhoneLookupCandidates(keyword: string, countryOrRegion?: string): string[] {
+  const compact = keyword.trim().replace(/[\s().-]/g, '')
+  const digits = compact.replace(/\D/g, '')
+  if (!digits) return []
+
+  const candidates: string[] = []
+  const country = normalize(countryOrRegion)?.toUpperCase()
+  if (compact.startsWith('+')) {
+    const candidate = `+${digits}`
+    if (isCanonicalLookupPhone(candidate)) candidates.push(candidate)
+  } else if (compact.startsWith('00') && digits.length > 2) {
+    const candidate = `+${digits.slice(2)}`
+    if (isCanonicalLookupPhone(candidate)) candidates.push(candidate)
+  } else {
+    if ((country === 'US' || country === 'CA') && digits.length === 10) {
+      candidates.push(`+1${digits}`)
+    }
+    if ((country === 'US' || country === 'CA') && digits.length === 11 && digits.startsWith('1')) {
+      candidates.push(`+${digits}`)
+    }
+    if (country === 'CN' && digits.length === 11 && digits.startsWith('1')) {
+      candidates.push(`+86${digits}`)
+    }
+    if (country === 'SG' && digits.length === 8) {
+      candidates.push(`+65${digits}`)
+    }
+  }
+
+  return [...new Set(candidates)]
+}
+
+function isCanonicalLookupPhone(phone: string): boolean {
+  return /^\+[1-9]\d{5,19}$/.test(phone)
+}
+
+function toFirstAdminUserCandidateResult(user: {
+  id?: string
+  username?: string
+  personalEmail?: string
+  personalPhone?: string
+  isActive?: boolean
+}) {
+  if (!user.id) return { items: [] }
+  return {
+    items: [
+      {
+        userId: user.id,
+        displayName: normalize(user.username) ?? normalize(user.personalEmail) ?? normalize(user.personalPhone) ?? user.id,
+        maskedEmail: maskEmail(user.personalEmail),
+        maskedPhone: maskPhone(user.personalPhone),
+        isActive: user.isActive !== false
+      }
+    ]
+  }
 }

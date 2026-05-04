@@ -81,6 +81,12 @@ export class AdminAccountDirectoryQueryDto {
   @IsIn(['ENABLED', 'DISABLED'])
   status?: string
 
+  @ApiPropertyOptional({ description: 'Optional tenant filter for system administrators.', maxLength: 128 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  tenantId?: string
+
   @ApiPropertyOptional({ description: 'Optional 1-based page number.', minimum: 1, example: 1 })
   @IsOptional()
   @Type(() => Number)
@@ -164,18 +170,6 @@ export class UpdateAdminAccountBasicInfoDto {
   @MinLength(1)
   @MaxLength(64)
   displayName!: string
-
-  @ApiPropertyOptional({ maxLength: 256 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(256)
-  email?: string
-
-  @ApiPropertyOptional({ maxLength: 64 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(64)
-  phone?: string
 
   @ApiPropertyOptional({ description: 'Optional enabled-state mutation merged into the admin profile update flow.' })
   @IsOptional()

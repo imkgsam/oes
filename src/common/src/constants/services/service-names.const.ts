@@ -13,7 +13,8 @@ export const SERVICE_NAMES = {
   PROCUREMENT: 'procurement-service',
   SRM: 'srm-service',
   TENANT_ORG: 'tenant-org-service',
-  RESOURCE: 'resource-service'
+  RESOURCE: 'resource-service',
+  WMS: 'wms-service'
 } as const
 
 export type ServiceName = (typeof SERVICE_NAMES)[keyof typeof SERVICE_NAMES]

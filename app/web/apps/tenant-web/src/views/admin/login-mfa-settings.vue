@@ -361,6 +361,8 @@ onBeforeUnmount(() => {
               保存后，当前租户后续命中的 MFA 流程会按这里的配置执行。
             </div>
             <Button
+              v-access:code="'auth.mfa_policy.manage'"
+              v-if="canManageLoginMfa"
               :loading="tenantMfaSaving"
               size="large"
               type="primary"

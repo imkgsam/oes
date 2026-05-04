@@ -63,7 +63,9 @@ describe('CreateRoleInstanceFromTemplateHandler', () => {
       true,
       'Tenant administrator baseline',
       null,
-      [new RolePermission('template-role-id', 'permission-id', 'permission.read')]
+      [new RolePermission('template-role-id', 'permission-id', 'permission.read')],
+      false,
+      true
     )
 
     roleRepo.findRoleTemplateById.mockResolvedValue(templateRole)
@@ -95,6 +97,8 @@ describe('CreateRoleInstanceFromTemplateHandler', () => {
     )
     expect(created.code).toBe('tenant.admin')
     expect(created.templateRoleId).toBe('template-role-id')
+    expect(created.allowTenantPermissionOverride).toBe(false)
+    expect(created.isProtected).toBe(true)
     expect(created.permissions.map((permission) => permission.permissionCode)).toEqual(['permission.read'])
   })
 

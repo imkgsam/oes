@@ -679,6 +679,28 @@ describe('AuthGrpcController', () => {
     expect(response).toEqual({ success: true, deletedSessionCount: 2 })
   })
 
+  it('should map revokeTenantSessions requests into RevokeTenantSessionsCommand', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({ success: true, revokedSessionCount: 3 })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    const response = await controller.revokeTenantSessions({
+      tenantId: 'tenant-1',
+      reason: 'TENANT_SUSPENDED'
+    } as any)
+
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        reason: 'TENANT_SUSPENDED'
+      })
+    )
+    expect(response).toEqual({ success: true, revokedSessionCount: 3 })
+  })
+
   it('should map listAuditEvents filters and response records', async () => {
     const commandBus = {} as ValidatingCommandBus
     const queryBus = {

@@ -80,7 +80,7 @@ OES 应采用“传输状态与业务错误码分离”的统一异常模型。
   - 已补针对性单测验证二跳 `requestId / traceId` 续传，以及 notification source context 写入
 - `identity-service`
   - 已确认 query handler 采用 optional result 风格
-  - 已补定向测试锁定 `getUserById / getAccountById / getTenantById` 查不到时返回空对象
+  - 已补定向测试锁定 `getUserById / getAccountById` 查不到时返回空对象
   - 已接入 gRPC request context interceptor，用于承接管理入口的多跳传播上下文
   - 已将 `identity-service -> permission-service` 这条共享权限解析二跳链路接到 propagation factory
   - 已补定向测试验证共享 `permission-service` 读取 adaptor 的行为未回归
@@ -385,7 +385,6 @@ adaptor 默认应：
 - `GetUserByEmail`
 - `GetUserByPhone`
 - `GetAccountById`
-- `GetTenantById`
 
 原因如下：
 

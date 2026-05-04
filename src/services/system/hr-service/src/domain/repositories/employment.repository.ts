@@ -8,6 +8,7 @@ export interface EmploymentSummary {
   tenantId: string
   employeeId: string
   orgUnitId: string
+  positionName?: string | null
   status: EmploymentStatus | string
   effectiveFrom: Date
   effectiveTo: Date | null
@@ -18,6 +19,7 @@ export interface CreateActiveEmploymentInput {
   tenantId: string
   employeeId: string
   orgUnitId: string
+  positionName?: string
   effectiveFrom: Date
 }
 

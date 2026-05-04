@@ -115,6 +115,10 @@ async function loadWorkspace() {
 
 /** openCreatePurchaseRequest keeps PR creation on the dedicated route instead of overloading the workspace list. */
 function openCreatePurchaseRequest() {
+  if (!canCreatePurchaseRequest.value) {
+    return
+  }
+
   router.push({
     name: 'TenantPurchaseRequestCreate'
   })
@@ -122,6 +126,10 @@ function openCreatePurchaseRequest() {
 
 /** openPurchaseRequestDetail keeps PR actions inside the dedicated detail route. */
 function openPurchaseRequestDetail(purchaseRequestId: string) {
+  if (!canViewPurchaseRequest.value) {
+    return
+  }
+
   router.push({
     name: 'TenantPurchaseRequestDetail',
     params: {
@@ -132,6 +140,10 @@ function openPurchaseRequestDetail(purchaseRequestId: string) {
 
 /** openPurchaseOrderDetail keeps PO actions inside the dedicated detail route. */
 function openPurchaseOrderDetail(purchaseOrderId: string) {
+  if (!canViewPurchaseOrder.value) {
+    return
+  }
+
   router.push({
     name: 'TenantPurchaseOrderDetail',
     params: {
@@ -142,6 +154,10 @@ function openPurchaseOrderDetail(purchaseOrderId: string) {
 
 /** openReceivingExpectationDetail keeps discrepancy summaries inside the dedicated detail route. */
 function openReceivingExpectationDetail(receivingExpectationId: string) {
+  if (!canViewReceivingExpectation.value) {
+    return
+  }
+
   router.push({
     name: 'TenantReceivingExpectationDetail',
     params: {
@@ -166,6 +182,7 @@ onMounted(() => {
         <div class="procurement-page__hero-side">
           <span class="procurement-pill">{{ activeTenantName }}</span>
           <button
+            v-access:code="'procurement.purchase_request.create'"
             v-if="canCreatePurchaseRequest"
             data-testid="procurement-open-create-pr"
             type="button"
@@ -234,6 +251,7 @@ onMounted(() => {
               <td>{{ purchaseRequest.requesterDisplayName }}</td>
               <td>
                 <button
+                  v-access:code="'procurement.purchase_request.get_by_id'"
                   v-if="canViewPurchaseRequest"
                   :data-testid="`procurement-open-pr-${purchaseRequest.purchaseRequestId}`"
                   type="button"
@@ -270,6 +288,7 @@ onMounted(() => {
               <td>{{ purchaseOrder.currencyCode }}</td>
               <td>
                 <button
+                  v-access:code="'procurement.purchase_order.get_by_id'"
                   v-if="canViewPurchaseOrder"
                   :data-testid="`procurement-open-po-${purchaseOrder.purchaseOrderId}`"
                   type="button"
@@ -311,6 +330,7 @@ onMounted(() => {
               <td>{{ receivingExpectation.hasOpenDiscrepancy ? 'OPEN' : 'NONE' }}</td>
               <td>
                 <button
+                  v-access:code="'procurement.receiving_expectation.get_by_id'"
                   v-if="canViewReceivingExpectation"
                   :data-testid="`procurement-open-re-${receivingExpectation.receivingExpectationId}`"
                   type="button"
@@ -386,8 +406,40 @@ onMounted(() => {
 
 .procurement-filters {
   display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-items: center;
+  gap: 10px;
+  grid-template-columns:
+    minmax(200px, 1.2fr)
+    repeat(2, minmax(150px, 0.8fr))
+    minmax(200px, 1.2fr)
+    repeat(2, minmax(150px, 0.8fr))
+    minmax(144px, 0.7fr)
+    minmax(96px, 0.45fr);
+}
+
+.procurement-filters input,
+.procurement-filters select,
+.procurement-filters button {
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+.procurement-filters button {
+  justify-self: end;
+  min-width: 84px;
+  width: min(100%, 104px);
+}
+
+@media (max-width: 1200px) {
+  .procurement-filters {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .procurement-filters {
+    grid-template-columns: 1fr;
+  }
 }
 
 .procurement-checkbox {

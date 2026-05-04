@@ -254,10 +254,10 @@ describe('router access visible-entry filtering', () => {
         children: [
           {
             meta: {
-              entryKey: 'tenant-settings.organization-people',
+              entryKey: 'tenant-settings.employee-employment',
             },
-            name: 'TenantOrganizationPeople',
-            path: '/settings/organization-people',
+            name: 'TenantEmployeeEmploymentManagement',
+            path: '/settings/employee-employment',
           },
         ],
         name: 'TenantSettings',
@@ -266,7 +266,7 @@ describe('router access visible-entry filtering', () => {
     ];
 
     const filtered = filterRoutesByVisibleEntries(routes, [
-      'tenant-settings.organization-people',
+      'tenant-settings.employee-employment',
     ]);
 
     expect(filtered).toEqual(routes);
@@ -397,36 +397,14 @@ describe('router access visible-entry filtering', () => {
     expect(filtered).toEqual(routes);
   });
 
-  it('removes organization-people child routes when the new entry key is absent even if legacy keys remain visible', async () => {
+  it('keeps split organization and employee settings routes as sibling tenant settings entries', async () => {
     const { filterRoutesByVisibleEntries } = await import('./access');
     const routes = [
       {
         children: [
           {
             meta: {
-              entryKey: 'tenant-settings.organization-people',
-            },
-            name: 'TenantOrganizationPeople',
-            path: '/settings/organization-people',
-          },
-          {
-            meta: {
-              entryKey: 'tenant-settings.organization-people',
-            },
-            name: 'TenantOrganizationPeopleMembers',
-            path: '/settings/organization-people/members',
-          },
-          {
-            meta: {
-              entryKey: 'tenant-settings.organization-people',
-            },
-            name: 'TenantOrganizationPeopleDepartments',
-            path: '/settings/organization-people/departments',
-          },
-          {
-            meta: {
               entryKey: 'tenant-settings.org-structure',
-              hideInMenu: true,
             },
             name: 'TenantOrgStructureManagement',
             path: '/settings/org-structure',
@@ -434,7 +412,6 @@ describe('router access visible-entry filtering', () => {
           {
             meta: {
               entryKey: 'tenant-settings.employee-employment',
-              hideInMenu: true,
             },
             name: 'TenantEmployeeEmploymentManagement',
             path: '/settings/employee-employment',
@@ -456,7 +433,6 @@ describe('router access visible-entry filtering', () => {
           {
             meta: {
               entryKey: 'tenant-settings.org-structure',
-              hideInMenu: true,
             },
             name: 'TenantOrgStructureManagement',
             path: '/settings/org-structure',
@@ -464,7 +440,6 @@ describe('router access visible-entry filtering', () => {
           {
             meta: {
               entryKey: 'tenant-settings.employee-employment',
-              hideInMenu: true,
             },
             name: 'TenantEmployeeEmploymentManagement',
             path: '/settings/employee-employment',

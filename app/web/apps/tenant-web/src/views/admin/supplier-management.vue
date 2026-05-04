@@ -62,6 +62,10 @@ async function loadSuppliers() {
 
 /** openCreatePage keeps supplier creation on the dedicated route instead of overloading the list view. */
 function openCreatePage() {
+  if (!canCreateSupplier.value) {
+    return
+  }
+
   router.push({
     name: 'TenantSupplierManagementCreate'
   })
@@ -69,6 +73,10 @@ function openCreatePage() {
 
 /** openDetailPage keeps phase 1 editing inside the supplier detail route. */
 function openDetailPage(supplierId: string) {
+  if (!canViewSupplierDetail.value) {
+    return
+  }
+
   router.push({
     name: 'TenantSupplierManagementDetail',
     params: {
@@ -93,6 +101,7 @@ onMounted(() => {
         <div class="supplier-page__hero-side">
           <span class="supplier-pill">{{ activeTenantName }}</span>
           <button
+            v-access:code="'srm.supplier_profile.create'"
             v-if="canCreateSupplier"
             data-testid="supplier-create-button"
             type="button"
@@ -158,6 +167,7 @@ onMounted(() => {
               </td>
               <td>
                 <button
+                  v-access:code="'srm.supplier_profile.get_by_id'"
                   v-if="canViewSupplierDetail"
                   :data-testid="`supplier-detail-button-${supplier.supplierId}`"
                   type="button"
@@ -233,8 +243,28 @@ onMounted(() => {
 
 .supplier-filters {
   display: grid;
-  gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-items: center;
+  gap: 10px;
+  grid-template-columns: minmax(260px, 1.4fr) minmax(220px, 1fr) minmax(160px, 0.7fr) minmax(92px, 0.45fr);
+}
+
+.supplier-filters input,
+.supplier-filters select,
+.supplier-filters button {
+  min-height: 36px;
+  border-radius: 10px;
+}
+
+.supplier-filters button {
+  justify-self: end;
+  min-width: 84px;
+  width: min(100%, 104px);
+}
+
+@media (max-width: 960px) {
+  .supplier-filters {
+    grid-template-columns: 1fr;
+  }
 }
 
 .supplier-note {

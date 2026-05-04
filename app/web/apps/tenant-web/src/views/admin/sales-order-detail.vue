@@ -4,7 +4,12 @@ import { useRoute } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
 
-import { getSalesOrderByIdApi, submitFulfillmentHandoffApi, type SalesApi } from '#/api'
+import {
+  createCustomerPriceAgreementFromSalesOrderLineApi,
+  getSalesOrderByIdApi,
+  submitFulfillmentHandoffApi,
+  type SalesApi
+} from '#/api'
 import { useAuthContextStore } from '#/store/auth-context'
 
 const authContextStore = useAuthContextStore()
@@ -15,8 +20,12 @@ const canGetSalesOrder = computed(() => authContextStore.actionCodes.includes('s
 const canSubmitFulfillmentHandoff = computed(() =>
   authContextStore.actionCodes.includes('sales.order.submit_fulfillment_handoff')
 )
+const canCreateCustomerAgreement = computed(() =>
+  authContextStore.actionCodes.includes('sales.pricing.customer_agreement.manage')
+)
 const order = ref<SalesApi.SalesOrder | null>(null)
 const submittingHandoff = ref(false)
+const createdAgreementId = ref('')
 
 /** loadOrder loads one established sales order detail together with its current sales-side handoff summary. */
 async function loadOrder() {
@@ -43,6 +52,22 @@ async function submitFulfillmentHandoff() {
   }
 }
 
+/** createAgreementFromOrderLine promotes one frozen order line into a customer agreement draft without mutating the order snapshot. */
+async function createAgreementFromOrderLine(salesOrderLineId: string) {
+  if (!activeTenantId.value || !canCreateCustomerAgreement.value) {
+    return
+  }
+
+  const result = await createCustomerPriceAgreementFromSalesOrderLineApi(
+    activeTenantId.value,
+    salesOrderLineId,
+    {
+      auditReason: 'create customer agreement draft from tenant-web sales order detail'
+    }
+  )
+  createdAgreementId.value = result.customerPriceAgreementId
+}
+
 onMounted(() => {
   void loadOrder()
 })
@@ -63,7 +88,9 @@ onMounted(() => {
         <p>Stocking Gate: {{ order?.commercialGateSummary.stockingGate ? 'YES' : 'NO' }}</p>
         <p>Shipping Gate: {{ order?.commercialGateSummary.shippingGate ? 'YES' : 'NO' }}</p>
         <p>Fulfillment Handoff: {{ order?.fulfillmentHandoffStatus.status || 'NOT_SUBMITTED' }}</p>
+        <p v-if="createdAgreementId">created agreement draft: {{ createdAgreementId }}</p>
         <button
+          v-access:code="'sales.order.submit_fulfillment_handoff'"
           v-if="
             canSubmitFulfillmentHandoff &&
             order?.fulfillmentHandoffStatus.status !== 'SUBMITTED'
@@ -78,25 +105,36 @@ onMounted(() => {
 
       <section class="sales-order-card">
         <h2>订单行</h2>
-        <table class="sales-order-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Quantity</th>
-              <th>Unit Price</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="line in order?.lines ?? []" :key="line.salesOrderLineId">
-              <td>{{ line.itemSnapshot.itemName }}</td>
-              <td>{{ line.priceQuantityDeliverySnapshot.quantity }}</td>
-              <td>{{ line.priceQuantityDeliverySnapshot.unitPrice }}</td>
-            </tr>
-            <tr v-if="!(order?.lines?.length)">
-              <td colspan="3">暂无订单行</td>
-            </tr>
-          </tbody>
-        </table>
+        <div
+          v-for="line in order?.lines ?? []"
+          :key="line.salesOrderLineId"
+          class="sales-order-line"
+        >
+          <p>{{ line.itemSnapshot.itemName }}</p>
+          <p>{{ line.priceQuantityDeliverySnapshot.quantity }}</p>
+          <p>{{ line.priceQuantityDeliverySnapshot.unitPrice }}</p>
+          <p v-if="line.priceQuantityDeliverySnapshot.priceSnapshot">
+            {{ line.priceQuantityDeliverySnapshot.priceSnapshot.sourceType }}
+          </p>
+          <ul class="sales-order-line__exceptions">
+            <li
+              v-for="(placeholder, index) in line.priceQuantityDeliverySnapshot.exceptionPlaceholders ?? []"
+              :key="`${line.salesOrderLineId}-${index}`"
+            >
+              {{ placeholder.exceptionType }}
+            </li>
+          </ul>
+          <button
+            v-access:code="'sales.pricing.customer_agreement.manage'"
+            v-if="canCreateCustomerAgreement"
+            :data-testid="`sales-create-agreement-from-order-line-${line.salesOrderLineId}`"
+            type="button"
+            @click="createAgreementFromOrderLine(line.salesOrderLineId)"
+          >
+            从订单行建协议草稿
+          </button>
+        </div>
+        <p v-if="!(order?.lines?.length)">暂无订单行</p>
       </section>
     </section>
   </Page>
@@ -110,7 +148,8 @@ onMounted(() => {
   padding: 20px;
 }
 
-.sales-order-card {
+.sales-order-card,
+.sales-order-line {
   background: #fff;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
@@ -123,16 +162,14 @@ onMounted(() => {
   margin: 0 0 12px;
 }
 
-.sales-order-table {
-  border-collapse: collapse;
-  width: 100%;
+.sales-order-line {
+  margin-bottom: 12px;
 }
 
-.sales-order-table th,
-.sales-order-table td {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 10px 8px;
-  text-align: left;
+.sales-order-line__exceptions {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
 }
 
 button {

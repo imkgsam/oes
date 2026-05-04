@@ -5,6 +5,8 @@ import { ExceptionFactory } from '@oes/common/exceptions'
 import { REPO } from '../../../common/constants'
 import { AUTH_ACCESS_TOKEN_INVALID } from '../../../common/constants/exception-enums'
 import { IUserSessionRepository } from '../../../domain/repositories/user-session.repository'
+import { Session } from '../../../domain/aggregates/usersession.aggregate'
+import { TenantSessionAccessService } from '../../services/tenant-session-access.service'
 import { TrustedDeviceService } from '../../services/trusted-device.service'
 import { ValidateAccessTokenQuery } from './validate-access-token.query'
 
@@ -27,7 +29,8 @@ export class ValidateAccessTokenHandler
     private readonly jwtService: CommonJwtService,
     @Inject(REPO.SESSION)
     private readonly sessionRepository: IUserSessionRepository,
-    private readonly trustedDeviceService: TrustedDeviceService
+    private readonly trustedDeviceService: TrustedDeviceService,
+    private readonly tenantSessionAccessService: TenantSessionAccessService
   ) {}
 
   async execute(query: ValidateAccessTokenQuery): Promise<ValidateAccessTokenResult> {
@@ -73,6 +76,8 @@ export class ValidateAccessTokenHandler
         scopeLevel
       })
     }
+
+    await this.assertTenantSessionCanContinue(session)
 
     session.touch()
     await this.sessionRepository.save(session)
@@ -131,5 +136,23 @@ export class ValidateAccessTokenHandler
     return value
       .map((item) => (typeof item === 'string' ? item.trim() : ''))
       .filter(Boolean)
+  }
+
+  /** assertTenantSessionCanContinue blocks access-token validation when tenant lifecycle no longer allows session use. */
+  private async assertTenantSessionCanContinue(session: Session): Promise<void> {
+    if (session.getScopeLevel() === 'SYSTEM') {
+      return
+    }
+
+    try {
+      await this.tenantSessionAccessService.assertSessionCanContinue({
+        sessionId: session.getId(),
+        tenantId: session.getTenantId(),
+        scopeLevel: session.getScopeLevel()
+      })
+    } catch (error) {
+      await this.sessionRepository.delete(session.getId())
+      throw error
+    }
   }
 }

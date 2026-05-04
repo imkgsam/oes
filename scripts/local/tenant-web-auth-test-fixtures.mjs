@@ -1,18 +1,12 @@
-const COMPANY_1_ID = 'ea06d4a0-6990-4ba0-ae13-fb31485c2001';
-const COMPANY_2_ID = '1c1f7e79-e3d7-476e-9e85-3270d7f52002';
-const COMPANY_3_ID = '6c737f64-5a9c-4381-bd5d-c2c7ab2b3003';
-const COMPANY_1_ROOT_ORG_ID = 'aa06d4a0-6990-4ba0-ae13-fb31485c2001';
-const COMPANY_2_ROOT_ORG_ID = '2c1f7e79-e3d7-476e-9e85-3270d7f52002';
-const COMPANY_3_ROOT_ORG_ID = '7c737f64-5a9c-4381-bd5d-c2c7ab2b3003';
-
-const USER_1_ID = '7df29e8e-f2f4-4ca3-8c17-bfe3bba0f111';
-const USER_2_ID = '93e0b3fa-9e86-4a8d-84f2-40a18bbf1002';
-const USER_3_ID = '08b688f0-e8c8-4d58-9e97-f8a9d3941003';
-const USER_4_ID = 'b769bb64-69de-4273-909f-61307a111004';
-
 export const DEFAULT_PASSWORD = 'Passw0rd!123';
 export const DEFAULT_OTP_CODE = '123456';
 export const LEGACY_IDENTIFIERS = ['ui.tester@oes.local', '+8613800000001'];
+
+const ROOT_CREATED_BY = 'seed:tenant-web-auth';
+
+function makeUuid(sequence) {
+  return `00000000-0000-4000-8000-${String(sequence).padStart(12, '0')}`;
+}
 
 // Builds a compact SVG avatar so each seeded demo user has a stable visual identity.
 function buildSeedAvatar({ accent, label, textColor = '#ffffff' }) {
@@ -28,305 +22,743 @@ function buildSeedAvatar({ accent, label, textColor = '#ffffff' }) {
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-// Defines the realistic local tenant fixtures used by tenant-web auth demos and local integration checks.
+// Declares the three tenant personas used by the local org-and-people hardening seed.
 export const SEEDED_COMPANIES = [
   {
-    key: 'company-1',
-    id: COMPANY_1_ID,
+    key: 'meilong',
+    id: makeUuid(1),
     code: 'meilong-ceramics',
-    domain: 'meilong-ceramics.com',
-    name: '潮州市美隆陶瓷实业有限公司',
-    rootOrgId: COMPANY_1_ROOT_ORG_ID,
-    rootOrgName: '潮州市美隆陶瓷实业有限公司',
+    domain: 'meilong.local',
+    name: '广东美隆陶瓷有限公司',
+    rootOrgId: makeUuid(101),
+    rootOrgName: '广东美隆陶瓷有限公司',
+    organizationPartyId: makeUuid(201),
   },
   {
-    key: 'company-2',
-    id: COMPANY_2_ID,
-    code: 'dawu-tech',
-    domain: 'dawu-tech.com',
-    name: '潮州市达屋科技有限公司',
-    rootOrgId: COMPANY_2_ROOT_ORG_ID,
-    rootOrgName: '潮州市达屋科技有限公司',
+    key: 'haisheng',
+    id: makeUuid(2),
+    code: 'haisheng-trade',
+    domain: 'haisheng.local',
+    name: '海晟国际贸易有限公司',
+    rootOrgId: makeUuid(102),
+    rootOrgName: '海晟国际贸易有限公司',
+    organizationPartyId: makeUuid(202),
   },
   {
-    key: 'company-3',
-    id: COMPANY_3_ID,
-    code: 'wooyun',
-    domain: 'wooyun.com',
-    name: '深圳市乌云科技有限公司',
-    rootOrgId: COMPANY_3_ROOT_ORG_ID,
-    rootOrgName: '深圳市乌云科技有限公司',
+    key: 'beichen',
+    id: makeUuid(3),
+    code: 'beichen-retail',
+    domain: 'beichen.local',
+    name: '北辰零售运营有限公司',
+    rootOrgId: makeUuid(103),
+    rootOrgName: '北辰零售运营有限公司',
+    organizationPartyId: makeUuid(203),
   },
 ];
 
 const companyByKey = new Map(SEEDED_COMPANIES.map((company) => [company.key, company]));
 
-// Captures the managed user identities and their account contexts for the local auth seed.
+const ORG_UNIT_FIXTURES = [
+  { key: 'meilong.root', tenantKey: 'meilong', id: makeUuid(101), parentKey: null, name: '广东美隆陶瓷有限公司', type: 'ROOT', sortOrder: 0, organizationPartyId: makeUuid(201) },
+  { key: 'meilong.office', tenantKey: 'meilong', id: makeUuid(111), parentKey: 'meilong.root', name: '总经办', type: 'DEPARTMENT', sortOrder: 10 },
+  { key: 'meilong.hr-admin', tenantKey: 'meilong', id: makeUuid(112), parentKey: 'meilong.root', name: '人力行政部', type: 'DEPARTMENT', sortOrder: 20 },
+  { key: 'meilong.finance', tenantKey: 'meilong', id: makeUuid(113), parentKey: 'meilong.root', name: '财务部', type: 'DEPARTMENT', sortOrder: 30 },
+  { key: 'meilong.foreign-trade', tenantKey: 'meilong', id: makeUuid(114), parentKey: 'meilong.root', name: '外贸销售部', type: 'DEPARTMENT', sortOrder: 40 },
+  { key: 'meilong.domestic-sales', tenantKey: 'meilong', id: makeUuid(115), parentKey: 'meilong.root', name: '国内销售部', type: 'DEPARTMENT', sortOrder: 50 },
+  { key: 'meilong.procurement', tenantKey: 'meilong', id: makeUuid(116), parentKey: 'meilong.root', name: '采购部', type: 'DEPARTMENT', sortOrder: 60 },
+  { key: 'meilong.warehouse', tenantKey: 'meilong', id: makeUuid(117), parentKey: 'meilong.root', name: '仓储部', type: 'DEPARTMENT', sortOrder: 70 },
+  { key: 'meilong.manufacturing', tenantKey: 'meilong', id: makeUuid(118), parentKey: 'meilong.root', name: '制造中心', type: 'DEPARTMENT', sortOrder: 80 },
+  { key: 'meilong.forming', tenantKey: 'meilong', id: makeUuid(119), parentKey: 'meilong.manufacturing', name: '成型车间', type: 'TEAM', sortOrder: 10 },
+  { key: 'meilong.firing', tenantKey: 'meilong', id: makeUuid(120), parentKey: 'meilong.manufacturing', name: '烧成车间', type: 'TEAM', sortOrder: 20 },
+  { key: 'meilong.quality', tenantKey: 'meilong', id: makeUuid(121), parentKey: 'meilong.root', name: '品质部', type: 'DEPARTMENT', sortOrder: 90 },
+
+  { key: 'haisheng.root', tenantKey: 'haisheng', id: makeUuid(102), parentKey: null, name: '海晟国际贸易有限公司', type: 'ROOT', sortOrder: 0, organizationPartyId: makeUuid(202) },
+  { key: 'haisheng.gm', tenantKey: 'haisheng', id: makeUuid(131), parentKey: 'haisheng.root', name: '总经理办公室', type: 'DEPARTMENT', sortOrder: 10 },
+  { key: 'haisheng.trade-1', tenantKey: 'haisheng', id: makeUuid(132), parentKey: 'haisheng.root', name: '外贸一部', type: 'DEPARTMENT', sortOrder: 20 },
+  { key: 'haisheng.trade-2', tenantKey: 'haisheng', id: makeUuid(133), parentKey: 'haisheng.root', name: '外贸二部', type: 'DEPARTMENT', sortOrder: 30 },
+  { key: 'haisheng.customer-service', tenantKey: 'haisheng', id: makeUuid(134), parentKey: 'haisheng.root', name: '单证客服部', type: 'DEPARTMENT', sortOrder: 40 },
+  { key: 'haisheng.finance', tenantKey: 'haisheng', id: makeUuid(135), parentKey: 'haisheng.root', name: '财务结算部', type: 'DEPARTMENT', sortOrder: 50 },
+
+  { key: 'beichen.root', tenantKey: 'beichen', id: makeUuid(103), parentKey: null, name: '北辰零售运营有限公司', type: 'ROOT', sortOrder: 0, organizationPartyId: makeUuid(203) },
+  { key: 'beichen.headquarters', tenantKey: 'beichen', id: makeUuid(141), parentKey: 'beichen.root', name: '总部', type: 'DEPARTMENT', sortOrder: 10 },
+  { key: 'beichen.south-region', tenantKey: 'beichen', id: makeUuid(142), parentKey: 'beichen.root', name: '华南大区', type: 'BRANCH', sortOrder: 20 },
+  { key: 'beichen.east-region', tenantKey: 'beichen', id: makeUuid(143), parentKey: 'beichen.root', name: '华东大区', type: 'BRANCH', sortOrder: 30 },
+  { key: 'beichen.shenzhen-store', tenantKey: 'beichen', id: makeUuid(144), parentKey: 'beichen.south-region', name: '深圳门店', type: 'BRANCH', sortOrder: 10 },
+  { key: 'beichen.guangzhou-store', tenantKey: 'beichen', id: makeUuid(145), parentKey: 'beichen.south-region', name: '广州门店', type: 'BRANCH', sortOrder: 20 },
+  { key: 'beichen.hangzhou-store', tenantKey: 'beichen', id: makeUuid(146), parentKey: 'beichen.east-region', name: '杭州门店', type: 'BRANCH', sortOrder: 10 },
+  { key: 'beichen.ecommerce', tenantKey: 'beichen', id: makeUuid(147), parentKey: 'beichen.root', name: '电商运营部', type: 'DEPARTMENT', sortOrder: 40 },
+];
+
+const orgUnitByKey = new Map(ORG_UNIT_FIXTURES.map((orgUnit) => [orgUnit.key, orgUnit]));
+
+function buildOrgPath(orgKey) {
+  const segments = [];
+  let current = orgUnitByKey.get(orgKey);
+
+  while (current) {
+    segments.unshift(current.id);
+    current = current.parentKey ? orgUnitByKey.get(current.parentKey) : null;
+  }
+
+  return `/${segments.join('/')}`;
+}
+
+function buildOrgDepth(orgKey) {
+  let depth = 0;
+  let current = orgUnitByKey.get(orgKey);
+
+  while (current?.parentKey) {
+    depth += 1;
+    current = orgUnitByKey.get(current.parentKey);
+  }
+
+  return depth;
+}
+
+const EMPLOYEE_FIXTURES = [
+  {
+    key: 'meilong.chen-shuangpeng',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(301),
+    partyId: makeUuid(401),
+    tenantPartyId: makeUuid(501),
+    employeeCode: 'ML-001',
+    personName: '陈双鹏',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(601), orgKey: 'meilong.office', status: 'ACTIVE', effectiveFrom: '2025-01-06T09:00:00.000Z' }],
+    access: { onboardingId: makeUuid(701), status: 'COMPLETED', accountKey: 'account.chen-shuangpeng.meilong' },
+  },
+  {
+    key: 'meilong.lin-xiaowen',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(302),
+    partyId: makeUuid(402),
+    tenantPartyId: makeUuid(502),
+    employeeCode: 'ML-002',
+    personName: '林晓雯',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(602), orgKey: 'meilong.hr-admin', status: 'ACTIVE', effectiveFrom: '2025-02-03T09:00:00.000Z' }],
+    access: { onboardingId: makeUuid(702), status: 'COMPLETED', accountKey: 'account.lin-xiaowen.meilong' },
+  },
+  {
+    key: 'meilong.zhao-mingjie',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(303),
+    partyId: makeUuid(403),
+    tenantPartyId: makeUuid(503),
+    employeeCode: 'ML-003',
+    personName: '赵明杰',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(603), orgKey: 'meilong.finance', status: 'ACTIVE', effectiveFrom: '2025-02-10T09:00:00.000Z' }],
+  },
+  {
+    key: 'meilong.xu-jiahao',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(304),
+    partyId: makeUuid(404),
+    tenantPartyId: makeUuid(504),
+    employeeCode: 'ML-004',
+    personName: '许嘉豪',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(604), orgKey: 'meilong.foreign-trade', status: 'ACTIVE', effectiveFrom: '2025-02-10T09:00:00.000Z' }],
+    access: { onboardingId: makeUuid(703), status: 'COMPLETED', accountKey: 'account.xu-jiahao.meilong' },
+  },
+  {
+    key: 'meilong.cai-yilin',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(305),
+    partyId: makeUuid(405),
+    tenantPartyId: makeUuid(505),
+    employeeCode: 'ML-005',
+    personName: '蔡依琳',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(605), orgKey: 'meilong.foreign-trade', status: 'ACTIVE', effectiveFrom: '2025-03-03T09:00:00.000Z' }],
+  },
+  {
+    key: 'meilong.peng-rui',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(306),
+    partyId: makeUuid(406),
+    tenantPartyId: makeUuid(506),
+    employeeCode: 'ML-006',
+    personName: '彭锐',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(606), orgKey: 'meilong.domestic-sales', status: 'ACTIVE', effectiveFrom: '2025-03-17T09:00:00.000Z' }],
+    access: { onboardingId: makeUuid(704), status: 'ACCOUNT_BINDING_PENDING', failureReason: '等待补充联系方式' },
+  },
+  {
+    key: 'meilong.tang-siqi',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(307),
+    partyId: makeUuid(407),
+    tenantPartyId: makeUuid(507),
+    employeeCode: 'ML-007',
+    personName: '唐思齐',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(607), orgKey: 'meilong.procurement', status: 'ACTIVE', effectiveFrom: '2025-03-24T09:00:00.000Z' }],
+  },
+  {
+    key: 'meilong.gao-wentao',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(308),
+    partyId: makeUuid(408),
+    tenantPartyId: makeUuid(508),
+    employeeCode: 'ML-008',
+    personName: '高文涛',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(608), orgKey: 'meilong.warehouse', status: 'ACTIVE', effectiveFrom: '2025-03-31T09:00:00.000Z' }],
+  },
+  {
+    key: 'meilong.xie-cheng',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(309),
+    partyId: makeUuid(409),
+    tenantPartyId: makeUuid(509),
+    employeeCode: 'ML-009',
+    personName: '谢成',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(609), orgKey: 'meilong.forming', status: 'ACTIVE', effectiveFrom: '2025-04-07T09:00:00.000Z' }],
+  },
+  {
+    key: 'meilong.luo-zhiyuan',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(310),
+    partyId: makeUuid(410),
+    tenantPartyId: makeUuid(510),
+    employeeCode: 'ML-010',
+    personName: '罗志远',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(610), orgKey: 'meilong.firing', status: 'ACTIVE', effectiveFrom: '2025-04-14T09:00:00.000Z' }],
+  },
+  {
+    key: 'meilong.zhou-yaqing',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(311),
+    partyId: makeUuid(411),
+    tenantPartyId: makeUuid(511),
+    employeeCode: 'ML-011',
+    personName: '周雅晴',
+    lifecycleStatus: 'ACTIVE',
+    employments: [
+      { id: makeUuid(611), orgKey: 'meilong.foreign-trade', status: 'ENDED', effectiveFrom: '2025-02-03T09:00:00.000Z', effectiveTo: '2025-06-30T09:00:00.000Z', endedReason: 'transfer_to_quality' },
+      { id: makeUuid(612), orgKey: 'meilong.quality', status: 'ACTIVE', effectiveFrom: '2025-07-01T09:00:00.000Z' },
+    ],
+  },
+  {
+    key: 'meilong.ou-jiamin',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(312),
+    partyId: makeUuid(412),
+    tenantPartyId: makeUuid(512),
+    employeeCode: 'ML-012',
+    personName: '欧嘉敏',
+    lifecycleStatus: 'OFFBOARDED',
+    employments: [{ id: makeUuid(613), orgKey: 'meilong.hr-admin', status: 'ENDED', effectiveFrom: '2024-11-04T09:00:00.000Z', effectiveTo: '2025-05-30T09:00:00.000Z', endedReason: 'resigned' }],
+  },
+  {
+    key: 'meilong.han-zhuoran',
+    tenantKey: 'meilong',
+    employeeId: makeUuid(313),
+    partyId: makeUuid(413),
+    tenantPartyId: makeUuid(513),
+    employeeCode: 'ML-013',
+    personName: '韩卓然',
+    lifecycleStatus: 'PREBOARDING',
+    employments: [],
+  },
+
+  {
+    key: 'haisheng.he-yuchen',
+    tenantKey: 'haisheng',
+    employeeId: makeUuid(321),
+    partyId: makeUuid(421),
+    tenantPartyId: makeUuid(521),
+    employeeCode: 'HS-001',
+    personName: '何宇辰',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(621), orgKey: 'haisheng.gm', status: 'ACTIVE', effectiveFrom: '2025-01-08T09:00:00.000Z' }],
+    access: { onboardingId: makeUuid(721), status: 'COMPLETED', accountKey: 'account.he-yuchen.haisheng' },
+  },
+  {
+    key: 'haisheng.su-manli',
+    tenantKey: 'haisheng',
+    employeeId: makeUuid(322),
+    partyId: makeUuid(422),
+    tenantPartyId: makeUuid(522),
+    employeeCode: 'HS-002',
+    personName: '苏曼丽',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(622), orgKey: 'haisheng.trade-1', status: 'ACTIVE', effectiveFrom: '2025-02-10T09:00:00.000Z' }],
+    access: { onboardingId: makeUuid(722), status: 'COMPLETED', accountKey: 'account.su-manli.haisheng' },
+  },
+  {
+    key: 'haisheng.ye-jiacheng',
+    tenantKey: 'haisheng',
+    employeeId: makeUuid(323),
+    partyId: makeUuid(423),
+    tenantPartyId: makeUuid(523),
+    employeeCode: 'HS-003',
+    personName: '叶嘉诚',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(623), orgKey: 'haisheng.trade-1', status: 'ACTIVE', effectiveFrom: '2025-02-17T09:00:00.000Z' }],
+  },
+  {
+    key: 'haisheng.fang-qing',
+    tenantKey: 'haisheng',
+    employeeId: makeUuid(324),
+    partyId: makeUuid(424),
+    tenantPartyId: makeUuid(524),
+    employeeCode: 'HS-004',
+    personName: '方晴',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(624), orgKey: 'haisheng.trade-2', status: 'ACTIVE', effectiveFrom: '2025-03-03T09:00:00.000Z' }],
+    access: { onboardingId: makeUuid(723), status: 'ACCOUNT_BINDING_PENDING', failureReason: '等待业务负责人确认邮箱' },
+  },
+  {
+    key: 'haisheng.zhang-yufei',
+    tenantKey: 'haisheng',
+    employeeId: makeUuid(325),
+    partyId: makeUuid(425),
+    tenantPartyId: makeUuid(525),
+    employeeCode: 'HS-005',
+    personName: '张语菲',
+    lifecycleStatus: 'ACTIVE',
+    employments: [
+      { id: makeUuid(625), orgKey: 'haisheng.trade-2', status: 'ENDED', effectiveFrom: '2025-01-13T09:00:00.000Z', effectiveTo: '2025-04-30T09:00:00.000Z', endedReason: 'transfer_to_customer_service' },
+      { id: makeUuid(626), orgKey: 'haisheng.customer-service', status: 'ACTIVE', effectiveFrom: '2025-05-01T09:00:00.000Z' },
+    ],
+  },
+  {
+    key: 'haisheng.ma-rui',
+    tenantKey: 'haisheng',
+    employeeId: makeUuid(326),
+    partyId: makeUuid(426),
+    tenantPartyId: makeUuid(526),
+    employeeCode: 'HS-006',
+    personName: '马芮',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(627), orgKey: 'haisheng.finance', status: 'ACTIVE', effectiveFrom: '2025-03-10T09:00:00.000Z' }],
+  },
+  {
+    key: 'haisheng.li-yuanhang',
+    tenantKey: 'haisheng',
+    employeeId: makeUuid(327),
+    partyId: makeUuid(427),
+    tenantPartyId: makeUuid(527),
+    employeeCode: 'HS-007',
+    personName: '黎远航',
+    lifecycleStatus: 'OFFBOARDED',
+    employments: [{ id: makeUuid(628), orgKey: 'haisheng.trade-2', status: 'ENDED', effectiveFrom: '2024-12-02T09:00:00.000Z', effectiveTo: '2025-05-15T09:00:00.000Z', endedReason: 'resigned' }],
+  },
+
+  {
+    key: 'beichen.qin-hao',
+    tenantKey: 'beichen',
+    employeeId: makeUuid(331),
+    partyId: makeUuid(431),
+    tenantPartyId: makeUuid(531),
+    employeeCode: 'BC-001',
+    personName: '秦浩',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(631), orgKey: 'beichen.headquarters', status: 'ACTIVE', effectiveFrom: '2025-01-06T09:00:00.000Z' }],
+    access: { onboardingId: makeUuid(731), status: 'COMPLETED', accountKey: 'account.qin-hao.beichen' },
+  },
+  {
+    key: 'beichen.xu-lin',
+    tenantKey: 'beichen',
+    employeeId: makeUuid(332),
+    partyId: makeUuid(432),
+    tenantPartyId: makeUuid(532),
+    employeeCode: 'BC-002',
+    personName: '许琳',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(632), orgKey: 'beichen.south-region', status: 'ACTIVE', effectiveFrom: '2025-02-03T09:00:00.000Z' }],
+  },
+  {
+    key: 'beichen.liang-siyuan',
+    tenantKey: 'beichen',
+    employeeId: makeUuid(333),
+    partyId: makeUuid(433),
+    tenantPartyId: makeUuid(533),
+    employeeCode: 'BC-003',
+    personName: '梁思源',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(633), orgKey: 'beichen.east-region', status: 'ACTIVE', effectiveFrom: '2025-02-10T09:00:00.000Z' }],
+  },
+  {
+    key: 'beichen.chen-yinuo',
+    tenantKey: 'beichen',
+    employeeId: makeUuid(334),
+    partyId: makeUuid(434),
+    tenantPartyId: makeUuid(534),
+    employeeCode: 'BC-004',
+    personName: '陈一诺',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(634), orgKey: 'beichen.shenzhen-store', status: 'ACTIVE', effectiveFrom: '2025-02-17T09:00:00.000Z' }],
+  },
+  {
+    key: 'beichen.huang-kexin',
+    tenantKey: 'beichen',
+    employeeId: makeUuid(335),
+    partyId: makeUuid(435),
+    tenantPartyId: makeUuid(535),
+    employeeCode: 'BC-005',
+    personName: '黄可欣',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(635), orgKey: 'beichen.guangzhou-store', status: 'ACTIVE', effectiveFrom: '2025-03-03T09:00:00.000Z' }],
+    access: { onboardingId: makeUuid(732), status: 'ACCESS_GRANT_PENDING', accountKey: 'account.huang-kexin.beichen', failureReason: '待补齐访问角色授权' },
+  },
+  {
+    key: 'beichen.tang-jiahe',
+    tenantKey: 'beichen',
+    employeeId: makeUuid(336),
+    partyId: makeUuid(436),
+    tenantPartyId: makeUuid(536),
+    employeeCode: 'BC-006',
+    personName: '唐嘉禾',
+    lifecycleStatus: 'ACTIVE',
+    employments: [{ id: makeUuid(636), orgKey: 'beichen.ecommerce', status: 'ACTIVE', effectiveFrom: '2025-03-10T09:00:00.000Z' }],
+    access: { onboardingId: makeUuid(733), status: 'COMPLETED', accountKey: 'account.tang-jiahe.beichen' },
+  },
+  {
+    key: 'beichen.wu-chengze',
+    tenantKey: 'beichen',
+    employeeId: makeUuid(337),
+    partyId: makeUuid(437),
+    tenantPartyId: makeUuid(537),
+    employeeCode: 'BC-007',
+    personName: '吴承泽',
+    lifecycleStatus: 'ACTIVE',
+    employments: [
+      { id: makeUuid(637), orgKey: 'beichen.headquarters', status: 'ENDED', effectiveFrom: '2025-01-06T09:00:00.000Z', effectiveTo: '2025-04-30T09:00:00.000Z', endedReason: 'transfer_to_region' },
+      { id: makeUuid(638), orgKey: 'beichen.south-region', status: 'ACTIVE', effectiveFrom: '2025-05-01T09:00:00.000Z' },
+    ],
+    access: { onboardingId: makeUuid(734), status: 'COMPLETED', accountKey: 'account.wu-chengze.beichen' },
+  },
+  {
+    key: 'beichen.he-zhixia',
+    tenantKey: 'beichen',
+    employeeId: makeUuid(338),
+    partyId: makeUuid(438),
+    tenantPartyId: makeUuid(538),
+    employeeCode: 'BC-008',
+    personName: '何知夏',
+    lifecycleStatus: 'OFFBOARDED',
+    employments: [{ id: makeUuid(639), orgKey: 'beichen.guangzhou-store', status: 'ENDED', effectiveFrom: '2024-12-09T09:00:00.000Z', effectiveTo: '2025-05-20T09:00:00.000Z', endedReason: 'resigned' }],
+  },
+];
+
+const employeeByKey = new Map(EMPLOYEE_FIXTURES.map((employee) => [employee.key, employee]));
+
+// Captures the managed user identities and account contexts used for manual login and access-summary tests.
 export const SEEDED_USERS = [
   {
-    key: 'user-1',
-    id: USER_1_ID,
+    key: 'chen-shuangpeng',
+    id: makeUuid(801),
+    partyId: employeeByKey.get('meilong.chen-shuangpeng').partyId,
     personName: '陈双鹏',
     username: 'chen.shuangpeng',
-    email: 'chen.shuangpeng@meilong-ceramics.com',
-    phone: '+8613900000001',
-    avatarUrl: buildSeedAvatar({
-      accent: '#0f766e',
-      label: 'SP',
-    }),
+    email: 'chen.shuangpeng@meilong.local',
+    phone: '+8613900000101',
+    avatarUrl: buildSeedAvatar({ accent: '#0f766e', label: 'SP' }),
     accounts: [
-      {
-        id: 'cb3f1d5d-1406-4fb0-8d53-75a144093001',
-        scopeLevel: 'TENANT',
-        companyKey: 'company-1',
-        displayName: '陈双鹏',
-        workEmail: 'chen.shuangpeng@meilong-ceramics.com',
-      },
-      {
-        id: '3d1545a0-2f9f-4130-89ea-0e0bd8e45002',
-        scopeLevel: 'TENANT',
-        companyKey: 'company-3',
-        displayName: '陈双鹏',
-        workEmail: 'chen.shuangpeng@wooyun.com',
-      },
-      {
-        id: '911a28e9-0d30-4dc8-a391-60bed62f5003',
-        scopeLevel: 'SYSTEM',
-        contextKey: 'SYSTEM',
-        displayName: '陈双鹏',
-      },
+      { key: 'account.chen-shuangpeng.meilong', id: makeUuid(901), scopeLevel: 'TENANT', companyKey: 'meilong', displayName: '陈双鹏', workEmail: 'chen.shuangpeng@meilong.local', bindEmployeeKey: 'meilong.chen-shuangpeng', primaryOrgKey: 'meilong.office', roleCodes: ['tenant.admin'] },
+      { key: 'account.chen-shuangpeng.system', id: makeUuid(902), scopeLevel: 'SYSTEM', contextKey: 'SYSTEM', displayName: '陈双鹏', roleCodes: ['system.admin'] },
     ],
   },
   {
-    key: 'user-2',
-    id: USER_2_ID,
-    personName: '詹佳妮',
-    username: 'zhan.jiani',
-    email: 'zhan.jiani@meilong-ceramics.com',
-    phone: '+8613900000002',
-    avatarUrl: buildSeedAvatar({
-      accent: '#b45309',
-      label: 'JN',
-    }),
+    key: 'lin-xiaowen',
+    id: makeUuid(802),
+    partyId: employeeByKey.get('meilong.lin-xiaowen').partyId,
+    personName: '林晓雯',
+    username: 'lin.xiaowen',
+    email: 'lin.xiaowen@meilong.local',
+    phone: '+8613900000102',
+    avatarUrl: buildSeedAvatar({ accent: '#b45309', label: 'XW' }),
     accounts: [
-      {
-        id: '5e9774b0-cd66-4658-b2b8-74558ceab004',
-        scopeLevel: 'TENANT',
-        companyKey: 'company-1',
-        displayName: '詹佳妮',
-        workEmail: 'zhan.jiani@meilong-ceramics.com',
-      },
+      { key: 'account.lin-xiaowen.meilong', id: makeUuid(903), scopeLevel: 'TENANT', companyKey: 'meilong', displayName: '林晓雯', workEmail: 'lin.xiaowen@meilong.local', bindEmployeeKey: 'meilong.lin-xiaowen', primaryOrgKey: 'meilong.hr-admin', roleCodes: [] },
     ],
   },
   {
-    key: 'user-3',
-    id: USER_3_ID,
-    personName: '吴浩权',
-    username: 'wu.haoquan',
-    email: 'wu.haoquan@dawu-tech.com',
-    phone: '+8613900000003',
-    avatarUrl: buildSeedAvatar({
-      accent: '#1d4ed8',
-      label: 'HQ',
-    }),
+    key: 'xu-jiahao',
+    id: makeUuid(803),
+    partyId: employeeByKey.get('meilong.xu-jiahao').partyId,
+    personName: '许嘉豪',
+    username: 'xu.jiahao',
+    email: 'xu.jiahao@meilong.local',
+    phone: '+8613900000103',
+    avatarUrl: buildSeedAvatar({ accent: '#1d4ed8', label: 'JH' }),
     accounts: [
-      {
-        id: '0ec31c5c-b3d3-461b-a6e8-e99d2abdd005',
-        scopeLevel: 'TENANT',
-        companyKey: 'company-2',
-        displayName: '吴浩权',
-        workEmail: 'wu.haoquan@dawu-tech.com',
-      },
+      { key: 'account.xu-jiahao.meilong', id: makeUuid(904), scopeLevel: 'TENANT', companyKey: 'meilong', displayName: '许嘉豪', workEmail: 'xu.jiahao@meilong.local', bindEmployeeKey: 'meilong.xu-jiahao', primaryOrgKey: 'meilong.foreign-trade', roleCodes: [] },
     ],
   },
   {
-    key: 'user-4',
-    id: USER_4_ID,
-    personName: '陈双武',
-    username: 'chen.shuangwu',
-    email: 'chen.shuangwu@dawu-tech.com',
-    phone: '+8613900000004',
-    avatarUrl: buildSeedAvatar({
-      accent: '#7c3aed',
-      label: 'SW',
-    }),
+    key: 'he-yuchen',
+    id: makeUuid(804),
+    partyId: employeeByKey.get('haisheng.he-yuchen').partyId,
+    personName: '何宇辰',
+    username: 'he.yuchen',
+    email: 'he.yuchen@haisheng.local',
+    phone: '+8613900000104',
+    avatarUrl: buildSeedAvatar({ accent: '#4338ca', label: 'YC' }),
     accounts: [
-      {
-        id: '9894c123-0f4b-452e-812f-f7cc9eed6006',
-        scopeLevel: 'TENANT',
-        companyKey: 'company-2',
-        displayName: '陈双武',
-        workEmail: 'chen.shuangwu@dawu-tech.com',
-      },
+      { key: 'account.he-yuchen.haisheng', id: makeUuid(905), scopeLevel: 'TENANT', companyKey: 'haisheng', displayName: '何宇辰', workEmail: 'he.yuchen@haisheng.local', bindEmployeeKey: 'haisheng.he-yuchen', primaryOrgKey: 'haisheng.gm', roleCodes: ['tenant.admin'] },
+    ],
+  },
+  {
+    key: 'su-manli',
+    id: makeUuid(805),
+    partyId: employeeByKey.get('haisheng.su-manli').partyId,
+    personName: '苏曼丽',
+    username: 'su.manli',
+    email: 'su.manli@haisheng.local',
+    phone: '+8613900000105',
+    avatarUrl: buildSeedAvatar({ accent: '#be185d', label: 'ML' }),
+    accounts: [
+      { key: 'account.su-manli.haisheng', id: makeUuid(906), scopeLevel: 'TENANT', companyKey: 'haisheng', displayName: '苏曼丽', workEmail: 'su.manli@haisheng.local', bindEmployeeKey: 'haisheng.su-manli', primaryOrgKey: 'haisheng.trade-1', roleCodes: [] },
+    ],
+  },
+  {
+    key: 'qin-hao',
+    id: makeUuid(806),
+    partyId: employeeByKey.get('beichen.qin-hao').partyId,
+    personName: '秦浩',
+    username: 'qin.hao',
+    email: 'qin.hao@beichen.local',
+    phone: '+8613900000106',
+    avatarUrl: buildSeedAvatar({ accent: '#0f766e', label: 'QH' }),
+    accounts: [
+      { key: 'account.qin-hao.beichen', id: makeUuid(907), scopeLevel: 'TENANT', companyKey: 'beichen', displayName: '秦浩', workEmail: 'qin.hao@beichen.local', bindEmployeeKey: 'beichen.qin-hao', primaryOrgKey: 'beichen.headquarters', roleCodes: ['tenant.admin'] },
+    ],
+  },
+  {
+    key: 'huang-kexin',
+    id: makeUuid(807),
+    partyId: employeeByKey.get('beichen.huang-kexin').partyId,
+    personName: '黄可欣',
+    username: 'huang.kexin',
+    email: 'huang.kexin@beichen.local',
+    phone: '+8613900000107',
+    avatarUrl: buildSeedAvatar({ accent: '#ea580c', label: 'KX' }),
+    accounts: [
+      { key: 'account.huang-kexin.beichen', id: makeUuid(908), scopeLevel: 'TENANT', companyKey: 'beichen', displayName: '黄可欣', workEmail: 'huang.kexin@beichen.local', bindEmployeeKey: 'beichen.huang-kexin', primaryOrgKey: 'beichen.guangzhou-store', roleCodes: [] },
+    ],
+  },
+  {
+    key: 'tang-jiahe',
+    id: makeUuid(808),
+    partyId: employeeByKey.get('beichen.tang-jiahe').partyId,
+    personName: '唐嘉禾',
+    username: 'tang.jiahe',
+    email: 'tang.jiahe@beichen.local',
+    phone: '+8613900000108',
+    avatarUrl: buildSeedAvatar({ accent: '#334155', label: 'JH' }),
+    accounts: [
+      { key: 'account.tang-jiahe.beichen', id: makeUuid(909), scopeLevel: 'TENANT', companyKey: 'beichen', displayName: '唐嘉禾', workEmail: 'tang.jiahe@beichen.local', bindEmployeeKey: 'beichen.tang-jiahe', primaryOrgKey: 'beichen.ecommerce', roleCodes: [] },
+    ],
+  },
+  {
+    key: 'wu-chengze',
+    id: makeUuid(809),
+    partyId: employeeByKey.get('beichen.wu-chengze').partyId,
+    personName: '吴承泽',
+    username: 'wu.chengze',
+    email: 'wu.chengze@beichen.local',
+    phone: '+8613900000109',
+    avatarUrl: buildSeedAvatar({ accent: '#7c3aed', label: 'CZ' }),
+    accounts: [
+      { key: 'account.wu-chengze.beichen', id: makeUuid(910), scopeLevel: 'TENANT', companyKey: 'beichen', displayName: '吴承泽', workEmail: 'wu.chengze@beichen.local', bindEmployeeKey: 'beichen.wu-chengze', primaryOrgKey: 'beichen.south-region', roleCodes: [] },
     ],
   },
 ];
 
-// Declares the tenant role instances needed to reflect the requested user responsibilities.
-export const SEEDED_TENANT_ROLES = [
+const userByKey = new Map(SEEDED_USERS.map((user) => [user.key, user]));
+const accountByKey = new Map(
+  SEEDED_USERS.flatMap((user) => user.accounts.map((account) => [account.key, { ...account, userId: user.id }]))
+);
+
+const SEEDED_TENANT_ROLE_TEMPLATES = [
   {
-    id: '46be7eb3-cd06-48c7-bc7f-4e2c853c7001',
-    companyKey: 'company-1',
+    templateRoleId: '2cf72f72-e04a-4946-b8c0-22f120f82001',
     code: 'tenant.admin',
     name: '租户管理员',
-    description: '本地联调用的租户管理员角色。',
+    description: '本地租户管理员角色实例。',
+    allowTenantPermissionOverride: false,
+    isProtected: true,
   },
   {
-    id: '46be7eb3-cd06-48c7-bc7f-4e2c853c7002',
-    companyKey: 'company-1',
-    code: 'foreign-trade.manager',
-    name: '外贸主管',
-    description: '本地联调用的外贸主管角色。',
+    templateRoleId: '2cf72f72-e04a-4946-b8c0-22f120f82002',
+    code: 'hr.admin',
+    name: 'HR 管理员',
+    description: '本地 HR 管理员角色实例。',
+    allowTenantPermissionOverride: true,
+    isProtected: false,
   },
   {
-    id: '46be7eb3-cd06-48c7-bc7f-4e2c853c7003',
-    companyKey: 'company-1',
-    code: 'foreign-trade.sales',
-    name: '外贸业务员',
-    description: '本地联调用的外贸业务员角色。',
-  },
-  {
-    id: '46be7eb3-cd06-48c7-bc7f-4e2c853c7004',
-    companyKey: 'company-2',
-    code: 'domestic.sales',
-    name: '国内业务员',
-    description: '本地联调用的国内业务员角色。',
-  },
-  {
-    id: '46be7eb3-cd06-48c7-bc7f-4e2c853c7005',
-    companyKey: 'company-2',
-    code: 'tenant.admin',
-    name: '租户管理员',
-    description: '本地联调用的租户管理员角色。',
-  },
-  {
-    id: '46be7eb3-cd06-48c7-bc7f-4e2c853c7006',
-    companyKey: 'company-3',
-    code: 'cfo',
-    name: 'CFO',
-    description: '本地联调用的财务负责人角色。',
+    templateRoleId: '2cf72f72-e04a-4946-b8c0-22f120f82003',
+    code: 'account.basic',
+    name: '基础账号',
+    description: '本地租户账号基础访问角色实例。',
+    allowTenantPermissionOverride: false,
+    isProtected: true,
   },
 ];
 
-// Declares which permission codes should be granted to the local tenant role instances.
+export const SEEDED_TENANT_ROLES = SEEDED_COMPANIES.flatMap((company, companyIndex) =>
+  SEEDED_TENANT_ROLE_TEMPLATES.map((role, roleIndex) => ({
+    id: makeUuid(1001 + companyIndex * SEEDED_TENANT_ROLE_TEMPLATES.length + roleIndex),
+    companyKey: company.key,
+    ...role,
+  }))
+);
+
+const TENANT_ADMIN_PERMISSION_CODES = [
+  'permission.role_template.list',
+  'permission.role_template.get_by_id',
+  'permission.role_instance.create',
+  'permission.role_instance.create_from_template',
+  'permission.role_instance.update',
+  'permission.role_instance.delete',
+  'permission.role_instance.assign_permissions',
+  'permission.role_instance.sync_from_template',
+  'permission.role_instance.list',
+  'permission.role_instance.get_by_id',
+  'permission.account.get_roles',
+  'permission.account.assign_roles',
+  'identity.account.list',
+  'identity.account.create',
+  'identity.account.profile.update',
+  'identity.account.update_status',
+  'auth.session.admin.view',
+  'auth.session.admin.revoke',
+  'auth.account_credentials.bootstrap',
+  'auth.account_login_methods.manage',
+  'auth.mfa_policy.manage',
+  'tenant_org.org_unit.list_tree',
+  'tenant_org.org_unit.get_by_id',
+  'tenant_org.org_unit.create',
+  'tenant_org.org_unit.update',
+  'tenant_org.org_unit.archive',
+];
+
+const HR_ADMIN_PERMISSION_CODES = [
+  'hr.employee.list',
+  'hr.employee.get_by_id',
+  'hr.employee.create',
+  'hr.employment.create',
+  'hr.employment.end',
+  'hr.employment.change_primary',
+  'identity.account.list',
+  'identity.account.create',
+  'identity.account.profile.update',
+  'identity.account.update_status',
+  'identity.contact.work_email.assign',
+  'identity.contact.work_email.revoke',
+  'identity.contact.work_email.set_primary',
+  'identity.contact.work_email.set_status',
+  'identity.contact.work_phone.assign',
+  'identity.contact.work_phone.revoke',
+  'identity.contact.work_phone.set_primary',
+  'identity.contact.work_phone.set_status',
+  'auth.account_credentials.bootstrap',
+  'auth.account_login_methods.manage',
+  'auth.session.admin.revoke',
+  'permission.account.get_roles',
+];
+
+const ACCOUNT_BASIC_PERMISSION_CODES = [
+  'identity.account.self.read',
+  'identity.account.self.update_profile',
+  'auth.login_method.self.list',
+  'auth.login_method.self.manage',
+  'auth.session.self.list',
+  'auth.session.self.revoke',
+  'permission.account.self.get_roles',
+  'tenant_org.org_unit.list_tree',
+  'tenant_org.org_unit.get_by_id',
+];
+
 export const SEEDED_TENANT_ROLE_PERMISSION_CODES = new Map([
-  [
-    'tenant.admin',
-    [
-      'auth.session.admin.view',
-      'auth.session.admin.revoke',
-      'auth.audit.list',
-    ],
-  ],
+  ['tenant.admin', TENANT_ADMIN_PERMISSION_CODES],
+  ['hr.admin', HR_ADMIN_PERMISSION_CODES],
+  ['account.basic', ACCOUNT_BASIC_PERMISSION_CODES],
 ]);
 
-const accountById = new Map(
-  SEEDED_USERS.flatMap((user) =>
-    user.accounts.map((account) => [
-      account.id,
-      {
-        ...account,
-        userId: user.id,
-        personName: user.personName,
-      },
-    ]),
-  ),
+function resolveSeedAccountRoleCodes(account) {
+  if (account.scopeLevel !== 'TENANT') {
+    return account.roleCodes ?? [];
+  }
+
+  const roleCodes = new Set(account.roleCodes ?? []);
+  roleCodes.add('account.basic');
+  if (roleCodes.has('tenant.admin')) {
+    roleCodes.add('hr.admin');
+  }
+  return [...roleCodes];
+}
+
+export const SEEDED_ROLE_BINDINGS = SEEDED_USERS.flatMap((user) =>
+  user.accounts.flatMap((account) =>
+    resolveSeedAccountRoleCodes(account).map((roleCode) => ({
+      accountId: account.id,
+      roleCode,
+      companyKey: account.companyKey,
+    }))
+  )
 );
 
-// Maps each managed account to the role instances that should be bound after seeding.
-export const SEEDED_ROLE_BINDINGS = [
-  {
-    accountId: '911a28e9-0d30-4dc8-a391-60bed62f5003',
-    roleCode: 'system.admin',
-  },
-  {
-    accountId: 'cb3f1d5d-1406-4fb0-8d53-75a144093001',
-    roleCode: 'tenant.admin',
-    companyKey: 'company-1',
-  },
-  {
-    accountId: 'cb3f1d5d-1406-4fb0-8d53-75a144093001',
-    roleCode: 'foreign-trade.manager',
-    companyKey: 'company-1',
-  },
-  {
-    accountId: '5e9774b0-cd66-4658-b2b8-74558ceab004',
-    roleCode: 'foreign-trade.sales',
-    companyKey: 'company-1',
-  },
-  {
-    accountId: '0ec31c5c-b3d3-461b-a6e8-e99d2abdd005',
-    roleCode: 'domestic.sales',
-    companyKey: 'company-2',
-  },
-  {
-    accountId: '9894c123-0f4b-452e-812f-f7cc9eed6006',
-    roleCode: 'tenant.admin',
-    companyKey: 'company-2',
-  },
-  {
-    accountId: '3d1545a0-2f9f-4130-89ea-0e0bd8e45002',
-    roleCode: 'cfo',
-    companyKey: 'company-3',
-  },
-];
+export const EXPECTED_ROLE_CODES = new Set(['system.admin', 'tenant.admin', 'hr.admin', 'account.basic']);
 
-export const EXPECTED_ROLE_CODES = new Set([
-  'system.admin',
-  ...SEEDED_TENANT_ROLES.map((role) => role.code),
-]);
-
+export const MANAGED_TENANT_IDS = SEEDED_COMPANIES.map((company) => company.id);
 export const MANAGED_USER_IDS = SEEDED_USERS.map((user) => user.id);
-export const MANAGED_ACCOUNT_IDS = SEEDED_USERS.flatMap((user) =>
-  user.accounts.map((account) => account.id),
-);
+export const MANAGED_ACCOUNT_IDS = SEEDED_USERS.flatMap((user) => user.accounts.map((account) => account.id));
 export const SYSTEM_ACCOUNT_IDS = SEEDED_USERS.flatMap((user) =>
-  user.accounts
-    .filter((account) => account.scopeLevel === 'SYSTEM')
-    .map((account) => account.id),
+  user.accounts.filter((account) => account.scopeLevel === 'SYSTEM').map((account) => account.id)
+);
+export const MANAGED_PARTY_IDS = [
+  ...SEEDED_COMPANIES.map((company) => company.organizationPartyId),
+  ...EMPLOYEE_FIXTURES.map((employee) => employee.partyId),
+];
+export const MANAGED_TENANT_PARTY_IDS = EMPLOYEE_FIXTURES.map((employee) => employee.tenantPartyId);
+export const MANAGED_EMPLOYEE_IDS = EMPLOYEE_FIXTURES.map((employee) => employee.employeeId);
+export const MANAGED_EMPLOYMENT_IDS = EMPLOYEE_FIXTURES.flatMap((employee) =>
+  employee.employments.map((employment) => employment.id)
 );
 
-export const SEEDED_LOGIN_IDENTIFIERS = SEEDED_USERS.flatMap((user) => [
-  user.email,
-  user.phone,
-]);
+export const SEEDED_LOGIN_IDENTIFIERS = SEEDED_USERS.flatMap((user) => [user.email, user.phone]);
+export const SEEDED_OTP_IDENTIFIERS = [...new Set([...SEEDED_LOGIN_IDENTIFIERS, ...LEGACY_IDENTIFIERS])];
 
-export const SEEDED_OTP_IDENTIFIERS = [
-  ...new Set([...SEEDED_LOGIN_IDENTIFIERS, ...LEGACY_IDENTIFIERS]),
-];
-
-// Summarizes the requested role ownership per person for lightweight tests and CLI reporting.
+// Summarizes the seeded memberships per person so local operators can quickly choose a login context.
 export const SEEDED_USER_MEMBERSHIPS = new Map(
   SEEDED_USERS.map((user) => {
-    const memberships = SEEDED_ROLE_BINDINGS.filter((binding) => {
-      const account = accountById.get(binding.accountId);
-      return account?.userId === user.id;
-    }).map((binding) =>
-      binding.companyKey ? `${binding.roleCode}@${binding.companyKey}` : binding.roleCode,
+    const memberships = user.accounts.flatMap((account) =>
+      resolveSeedAccountRoleCodes(account).map((roleCode) =>
+        account.companyKey ? `${roleCode}@${account.companyKey}` : roleCode
+      )
     );
-
     return [user.personName, memberships];
-  }),
+  })
 );
 
-// Resolves the account rows expected by identity-service from the human-oriented fixture declarations.
 export function buildSeedAccounts() {
   return SEEDED_USERS.flatMap((user) =>
     user.accounts.map((account) => {
       const company = account.companyKey ? companyByKey.get(account.companyKey) : null;
 
       return {
-        ...account,
+        id: account.id,
         avatarUrl: user.avatarUrl,
-        contextKey: account.scopeLevel === 'SYSTEM' ? 'SYSTEM' : company.id,
+        contextKey: account.scopeLevel === 'SYSTEM' ? account.contextKey ?? 'SYSTEM' : company.id,
+        displayName: account.displayName,
+        scopeLevel: account.scopeLevel,
         tenantId: account.scopeLevel === 'SYSTEM' ? null : company.id,
         userId: user.id,
+        workEmail: account.workEmail ?? null,
       };
-    }),
+    })
   );
 }
 
-// Resolves work email contact assets for tenant-scoped accounts so the seeded data looks realistic inside identity-service.
 export function buildSeedContactAssets() {
   return buildSeedAccounts()
     .filter((account) => account.scopeLevel === 'TENANT' && account.workEmail)
@@ -339,11 +771,10 @@ export function buildSeedContactAssets() {
       status: 'ACTIVE',
       isPrimary: true,
       assignedAt: new Date('2026-04-14T09:00:00.000Z'),
-      assignedBy: 'seed:tenant-web-auth',
+      assignedBy: ROOT_CREATED_BY,
     }));
 }
 
-// Resolves tenant role rows with concrete tenant ids and scope keys for permission-service seeding.
 export function buildSeedTenantRoles() {
   return SEEDED_TENANT_ROLES.map((role) => {
     const company = companyByKey.get(role.companyKey);
@@ -352,38 +783,36 @@ export function buildSeedTenantRoles() {
       kind: 'TENANT_INSTANCE',
       scopeKey: company.id,
       tenantId: company.id,
-      templateRoleId: null,
+      templateRoleId: role.templateRoleId,
       isEnabled: true,
+      isProtected: role.isProtected,
+      allowTenantPermissionOverride: role.allowTenantPermissionOverride,
     };
   });
 }
 
-// Resolves account-role bindings using the tenant role ids managed by the local auth seed.
 export function buildSeedAccountRoleBindings() {
   const roleByScopedCode = new Map(
-    buildSeedTenantRoles().map((role) => [`${role.code}@${role.tenantId}`, role]),
+    buildSeedTenantRoles().map((role) => [`${role.code}@${role.tenantId}`, role])
   );
 
-  return SEEDED_ROLE_BINDINGS.filter((binding) => binding.roleCode !== 'system.admin').map(
-    (binding) => {
-      const account = accountById.get(binding.accountId);
-      const company = companyByKey.get(binding.companyKey);
-      const role = roleByScopedCode.get(`${binding.roleCode}@${company.id}`);
+  return SEEDED_ROLE_BINDINGS.filter((binding) => binding.roleCode !== 'system.admin').map((binding) => {
+    const account = SEEDED_USERS.flatMap((user) => user.accounts).find((candidate) => candidate.id === binding.accountId);
+    const company = companyByKey.get(binding.companyKey);
+    const role = roleByScopedCode.get(`${binding.roleCode}@${company.id}`);
 
-      return {
-        accountId: binding.accountId,
-        accountType: 'USER',
-        effectiveAt: null,
-        expiresAt: null,
-        roleId: role.id,
-        scopeLevel: account.scopeLevel,
-        tenantId: company.id,
-      };
-    },
-  );
+    return {
+      accountId: binding.accountId,
+      accountType: 'USER',
+      effectiveAt: null,
+      expiresAt: null,
+      roleId: role.id,
+      scopeLevel: account.scopeLevel,
+      tenantId: company.id,
+    };
+  });
 }
 
-// Resolves tenant-org-service tenant rows and root org units for local shared-environment hydration paths.
 export function buildSeedTenantOrgTenants() {
   return SEEDED_COMPANIES.map((company) => ({
     id: company.id,
@@ -394,18 +823,206 @@ export function buildSeedTenantOrgTenants() {
   }));
 }
 
-// Resolves one active root org unit per managed tenant so tenant-org-service can answer first-phase queries.
 export function buildSeedTenantOrgRootUnits() {
+  return buildSeedTenantOrgUnits().filter((orgUnit) => orgUnit.depth === 0);
+}
+
+export function buildSeedTenantOrgUnits() {
+  return ORG_UNIT_FIXTURES.map((orgUnit) => {
+    const company = companyByKey.get(orgUnit.tenantKey);
+    return {
+      id: orgUnit.id,
+      tenantId: company.id,
+      parentOrgId: orgUnit.parentKey ? orgUnitByKey.get(orgUnit.parentKey).id : null,
+      name: orgUnit.name,
+      type: orgUnit.type,
+      status: 'ACTIVE',
+      path: buildOrgPath(orgUnit.key),
+      depth: buildOrgDepth(orgUnit.key),
+      sortOrder: orgUnit.sortOrder,
+      organizationPartyId: orgUnit.organizationPartyId ?? null,
+    };
+  });
+}
+
+export function buildSeedIdentityTenants() {
   return SEEDED_COMPANIES.map((company) => ({
-    id: company.rootOrgId,
-    tenantId: company.id,
-    parentOrgId: null,
-    name: company.rootOrgName,
-    type: 'ROOT',
-    status: 'ACTIVE',
-    path: `/${company.rootOrgId}`,
-    depth: 0,
-    sortOrder: 0,
-    organizationPartyId: null,
+    id: company.id,
+    code: company.code,
+    name: company.name,
+    isActive: true,
   }));
+}
+
+export function buildSeedIdentityOrgs() {
+  return ORG_UNIT_FIXTURES.filter((orgUnit) => orgUnit.type !== 'ROOT').map((orgUnit) => {
+    const company = companyByKey.get(orgUnit.tenantKey);
+    const parent = orgUnit.parentKey ? orgUnitByKey.get(orgUnit.parentKey) : null;
+
+    return {
+      id: orgUnit.id,
+      tenantId: company.id,
+      parentId: parent?.type === 'ROOT' ? null : parent?.id ?? null,
+      name: orgUnit.name,
+      code: orgUnit.key.replaceAll('.', '_'),
+      type: orgUnit.type === 'TEAM' ? 'TEAM' : orgUnit.type === 'BRANCH' ? 'BRANCH' : 'DEPARTMENT',
+      order: orgUnit.sortOrder,
+      createdBy: ROOT_CREATED_BY,
+    };
+  });
+}
+
+export function buildSeedIdentityEmployeeBindings() {
+  return SEEDED_USERS.flatMap((user) =>
+    user.accounts
+      .filter((account) => account.scopeLevel === 'TENANT' && account.bindEmployeeKey)
+      .map((account) => ({
+        id: `binding-${account.id}`,
+        tenantId: companyByKey.get(account.companyKey).id,
+        accountId: account.id,
+        employeeId: employeeByKey.get(account.bindEmployeeKey).employeeId,
+      }))
+  );
+}
+
+export function buildSeedIdentityOrgMemberships() {
+  return SEEDED_USERS.flatMap((user) =>
+    user.accounts
+      .filter((account) => account.scopeLevel === 'TENANT' && account.primaryOrgKey)
+      .map((account) => ({
+        id: `membership-${account.id}`,
+        accountId: account.id,
+        orgId: orgUnitByKey.get(account.primaryOrgKey).id,
+        relationType: 'PRIMARY',
+        isPrimary: true,
+      }))
+  );
+}
+
+export function buildSeedParties() {
+  const companyParties = SEEDED_COMPANIES.map((company) => ({
+    id: company.organizationPartyId,
+    type: 'ORGANIZATION',
+    status: 'ACTIVE',
+    canonicalName: company.name,
+    displayName: company.rootOrgName,
+  }));
+
+  const personParties = EMPLOYEE_FIXTURES.map((employee) => ({
+    id: employee.partyId,
+    type: 'PERSON',
+    status: 'ACTIVE',
+    canonicalName: employee.personName,
+    displayName: employee.personName,
+  }));
+
+  return [...companyParties, ...personParties];
+}
+
+export function buildSeedOrganizationParties() {
+  return SEEDED_COMPANIES.map((company) => ({
+    id: makeUuid(Number(company.organizationPartyId.slice(-3)) + 900),
+    partyId: company.organizationPartyId,
+    legalName: company.name,
+    registeredCountry: 'CN',
+    registrationStatus: 'ACTIVE',
+    incorporationDate: new Date('2020-01-01T00:00:00.000Z'),
+  }));
+}
+
+export function buildSeedPersonParties() {
+  return EMPLOYEE_FIXTURES.map((employee, index) => ({
+    id: makeUuid(1201 + index),
+    partyId: employee.partyId,
+    legalName: employee.personName,
+    preferredName: employee.personName,
+    dateOfBirth: null,
+    gender: null,
+    nationality: 'CN',
+  }));
+}
+
+export function buildSeedTenantParties() {
+  return EMPLOYEE_FIXTURES.map((employee) => ({
+    id: employee.tenantPartyId,
+    tenantId: companyByKey.get(employee.tenantKey).id,
+    partyId: employee.partyId,
+    localDisplayName: employee.personName,
+    localCode: employee.employeeCode,
+    tags: null,
+    status: 'ACTIVE',
+  }));
+}
+
+export function buildSeedHrEmployees() {
+  return EMPLOYEE_FIXTURES.map((employee) => ({
+    id: employee.employeeId,
+    tenantId: companyByKey.get(employee.tenantKey).id,
+    tenantPartyId: employee.tenantPartyId,
+    partyId: employee.partyId,
+    employeeCode: employee.employeeCode,
+    lifecycleStatus: employee.lifecycleStatus,
+  }));
+}
+
+export function buildSeedEmployments() {
+  return EMPLOYEE_FIXTURES.flatMap((employee) =>
+    employee.employments.map((employment) => ({
+      id: employment.id,
+      tenantId: companyByKey.get(employee.tenantKey).id,
+      employeeId: employee.employeeId,
+      orgUnitId: orgUnitByKey.get(employment.orgKey).id,
+      positionName: employment.positionName ?? null,
+      status: employment.status,
+      effectiveFrom: new Date(employment.effectiveFrom),
+      effectiveTo: employment.effectiveTo ? new Date(employment.effectiveTo) : null,
+      endedReason: employment.endedReason ?? null,
+      activeSlot: employment.status === 'ACTIVE' ? employment.id : null,
+    }))
+  );
+}
+
+export function buildSeedOnboardingAccesses() {
+  return EMPLOYEE_FIXTURES.filter((employee) => employee.access).map((employee) => {
+    const activeEmployment = employee.employments.find((employment) => employment.status === 'ACTIVE');
+    const access = employee.access;
+    const account = access.accountKey ? accountByKey.get(access.accountKey) : null;
+
+    return {
+      id: access.onboardingId,
+      tenantId: companyByKey.get(employee.tenantKey).id,
+      employeeId: employee.employeeId,
+      employmentId: activeEmployment?.id ?? employee.employments.at(-1)?.id ?? null,
+      accountId: account?.id ?? null,
+      status: access.status,
+      grantIdempotencyKey: `seed:${employee.key}`,
+      failureReason: access.failureReason ?? null,
+    };
+  });
+}
+
+export function buildSeedUsers() {
+  return SEEDED_USERS.map((user) => ({
+    id: user.id,
+    partyId: user.partyId,
+    username: user.username,
+    email: user.email,
+    phone: user.phone,
+    isActive: true,
+  }));
+}
+
+export function buildSeedSummary() {
+  return {
+    tenants: SEEDED_COMPANIES.map((company) => company.name),
+    employeeCount: EMPLOYEE_FIXTURES.length,
+    orgUnitCount: ORG_UNIT_FIXTURES.length,
+    loginUsers: SEEDED_USERS.map((user) => `${user.personName}<${user.email}>`),
+    lifecycleCoverage: Array.from(new Set(EMPLOYEE_FIXTURES.map((employee) => employee.lifecycleStatus))).sort(),
+    accessCoverage: Array.from(
+      new Set(
+        EMPLOYEE_FIXTURES.map((employee) => employee.access?.status ?? 'NOT_ENABLED')
+      )
+    ).sort(),
+  };
 }

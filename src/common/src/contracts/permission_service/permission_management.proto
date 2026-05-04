@@ -37,7 +37,9 @@ service PermissionManagementService {
   rpc RevokeRolePermission(RevokeRolePermissionRequest) returns (RevokeRolePermissionResponse);
 
   rpc AssignAccountRole(AssignAccountRoleRequest) returns (AssignAccountRoleResponse);
+  rpc EnsureTenantRoleInstanceFromTemplate(EnsureTenantRoleInstanceFromTemplateRequest) returns (EnsureTenantRoleInstanceFromTemplateResponse);
   rpc GrantInitialAccessForEmployeeAccount(GrantInitialAccessForEmployeeAccountRequest) returns (GrantInitialAccessForEmployeeAccountResponse);
+  rpc GrantInitialAccessForTenantAccount(GrantInitialAccessForTenantAccountRequest) returns (GrantInitialAccessForTenantAccountResponse);
   rpc RevokeAccountRole(RevokeAccountRoleRequest) returns (RevokeAccountRoleResponse);
   rpc ListAccountRoles(ListAccountRolesRequest) returns (ListAccountRolesResponse);
   rpc ListRoleAccounts(ListRoleAccountsRequest) returns (ListRoleAccountsResponse);
@@ -453,6 +455,20 @@ message AssignAccountRoleRequest {
 
 message AssignAccountRoleResponse {}
 
+message EnsureTenantRoleInstanceFromTemplateRequest {
+  string tenant_id = 1;
+  string template_role_code = 2;
+  string idempotency_key = 3;
+  string name = 4;
+  string description = 5;
+  string reason = 6;
+}
+
+message EnsureTenantRoleInstanceFromTemplateResponse {
+  RoleResponse role = 1;
+  bool created = 2;
+}
+
 message GrantInitialAccessForEmployeeAccountRequest {
   string tenant_id = 1;
   string account_id = 2;
@@ -470,6 +486,18 @@ message OnboardingGrantResponse {
 }
 
 message GrantInitialAccessForEmployeeAccountResponse {
+  OnboardingGrantResponse grant = 1;
+}
+
+message GrantInitialAccessForTenantAccountRequest {
+  string tenant_id = 1;
+  string account_id = 2;
+  repeated string role_ids = 3;
+  string idempotency_key = 4;
+  string reason = 5;
+}
+
+message GrantInitialAccessForTenantAccountResponse {
   OnboardingGrantResponse grant = 1;
 }
 

@@ -19,10 +19,15 @@ export class SessionContextsUseCase {
   async execute(source: DownstreamRequestSource): Promise<SessionContextListViewModel> {
     const self = getAuthenticatedSelfContext(source)
     const result = await this.identityAdapter.getAccountsByUserId(self.userId, source)
-    const tenantNameMap = await this.loadTenantNames(result.accounts ?? [], source)
+    const tenantMap = await this.loadTenants(result.accounts ?? [], source)
 
     const items = (result.accounts ?? [])
       .filter((account) => normalize(account.accountId))
+      .filter((account) => {
+        const scopeLevel = normalizeScopeLevel(account.scopeLevel)
+        const tenantId = normalize(account.tenantId)
+        return scopeLevel === 'SYSTEM' || (tenantId ? tenantMap.get(tenantId)?.isActive === true : false)
+      })
       .map<SessionContextOptionViewModel>((account) => {
         const accountId = normalize(account.accountId)!
         const tenantId = normalize(account.tenantId) ?? null
@@ -33,7 +38,7 @@ export class SessionContextsUseCase {
           scopeLevel,
           displayName: normalize(account.displayName),
           tenantId,
-          tenantName: tenantId ? tenantNameMap.get(tenantId) ?? null : null,
+          tenantName: tenantId ? tenantMap.get(tenantId)?.name ?? null : null,
           isCurrent: accountId === self.accountId
         }
       })
@@ -42,19 +47,25 @@ export class SessionContextsUseCase {
     return { items }
   }
 
-  private async loadTenantNames(
+  private async loadTenants(
     accounts: Array<{ tenantId?: string | undefined }>,
     source: DownstreamRequestSource
-  ): Promise<Map<string, string>> {
+  ): Promise<Map<string, { isActive: boolean; name: string | null }>> {
     const tenantIds = [...new Set(accounts.map((account) => normalize(account.tenantId)).filter(Boolean))] as string[]
     const tenantEntries = await Promise.all(
       tenantIds.map(async (tenantId) => {
         const result = await this.requireTenantOrgAdapter().getTenantById(tenantId, source)
-        return [tenantId, normalize(result.tenant?.name) ?? ''] as const
+        return [
+          tenantId,
+          {
+            isActive: result.tenant?.isActive === true,
+            name: normalize(result.tenant?.name) ?? null
+          }
+        ] as const
       })
     )
 
-    return new Map(tenantEntries.filter(([, name]) => Boolean(name)))
+    return new Map(tenantEntries)
   }
 
   private requireTenantOrgAdapter(): TenantOrgQueryGrpcAdapter {

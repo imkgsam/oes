@@ -1,4 +1,0 @@
-export const ACCOUNT_ORG_RELATION_TYPES = {
-  PRIMARY: 'PRIMARY',
-  SECONDARY: 'SECONDARY'
-} as const

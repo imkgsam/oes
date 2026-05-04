@@ -31,7 +31,7 @@ describe('PartyQueryService', () => {
     const tenantPartyRepository = createTenantPartyRepositoryMock()
     partyRepository.findCandidates.mockResolvedValue([
       {
-        party: { id: 'party-1', canonicalName: 'Acme' },
+        party: { id: 'party-1', legalName: 'Acme' },
         confidence: 0.84,
         matchSignals: ['name']
       }

@@ -18,7 +18,9 @@ export class RoleMapper {
       record.isEnabled ?? true,
       record.description ?? undefined,
       record.templateRoleId ?? null,
-      permissions
+      permissions,
+      record.allowTenantPermissionOverride ?? true,
+      record.isProtected ?? false
     )
   }
 
@@ -38,6 +40,8 @@ export class RoleMapper {
       scopeKey,
       kind: role.kind,
       templateRoleId: role.templateRoleId,
+      allowTenantPermissionOverride: role.allowTenantPermissionOverride,
+      isProtected: role.isProtected,
       isEnabled: role.isEnabled,
       description: role.description
     }

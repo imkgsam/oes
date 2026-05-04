@@ -1,6 +1,7 @@
 /* @vitest-environment happy-dom */
 
 import { flushPromises, mount } from '@vue/test-utils'
+import { Checkbox, TreeSelect } from 'ant-design-vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const changeManagedPrimaryEmploymentApi = vi.fn()
@@ -19,6 +20,7 @@ const authContextState: any = {
   actionCodes: [
     'hr.employee.list',
     'hr.employee.get_by_id',
+    'hr.employee.create',
     'identity.account.create'
   ],
   sessionContext: {
@@ -264,7 +266,7 @@ describe('employee management workspace', () => {
     })
   })
 
-  it('renders the members workbench as org filter + directory + detail without a separate offboarded workspace', async () => {
+  it('renders the members workbench as an Ant Design directory matching the Stitch employee page', async () => {
     const view = await import('./employee-management-workspace.vue')
 
     const wrapper = mount(view.default, {
@@ -284,28 +286,117 @@ describe('employee management workspace', () => {
       page: 1,
       pageSize: 20
     })
-    expect(wrapper.get('[data-testid="employee-org-filter-panel"]').text()).toContain('组织筛选')
-    expect(wrapper.get('[data-testid="employee-directory-panel"]').text()).toContain('成员目录')
-    expect(wrapper.get('[data-testid="employee-detail-panel"]').text()).toContain('成员详情')
-    expect(wrapper.text()).toContain('全部成员')
+    expect(wrapper.find('.employee-management__table-card').exists()).toBe(true)
+    expect(wrapper.text()).toContain('部门')
+    expect(wrapper.text()).toContain('状态')
+    expect(wrapper.text()).toContain('职位')
+    expect(wrapper.text()).toContain('高级筛选')
+    expect(wrapper.text()).toContain('新增员工')
     expect(wrapper.text()).toContain('在职')
     expect(wrapper.text()).toContain('已离职')
-
-    const sectionTitles = wrapper
-      .findAll('[data-testid^="employee-detail-section-"] .employee-management__section-title')
-      .map((node) => node.text())
-
-    expect(sectionTitles).toEqual([
-      '概要与动作',
-      '员工信息',
-      '当前任职',
-      '账号与访问',
-      '任职记录'
-    ])
+    expect(wrapper.find('[data-testid="employee-open-detail-employee-1"]').exists()).toBe(true)
     expect(wrapper.text()).not.toContain('其他任职')
     expect(wrapper.text()).toContain('EMP-001')
     expect(wrapper.text()).toContain('制造中心')
-    expect(wrapper.text()).toContain('Tenant Admin')
-    expect(wrapper.text()).toContain('permission-service unavailable')
+    expect(wrapper.text()).toContain('待继续完成接入')
+  })
+
+  it('routes employee detail reads to the independent detail page', async () => {
+    const view = await import('./employee-management-workspace.vue')
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {}
+        }
+      }
+    })
+
+    await flushPromises()
+    await wrapper.get('[data-testid="employee-open-detail-employee-1"]').trigger('click')
+    await flushPromises()
+
+    expect(push).toHaveBeenCalledWith({
+      name: 'TenantEmployeeDetail',
+      params: {
+        employeeId: 'employee-1'
+      }
+    })
+    expect(getManagedEmployeeDetailApi).not.toHaveBeenCalled()
+  })
+
+  it('filters employees with a checkable department tree selector', async () => {
+    const view = await import('./employee-management-workspace.vue')
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {}
+        }
+      }
+    })
+
+    await flushPromises()
+
+    const departmentTree = wrapper.findComponent(TreeSelect)
+    expect(departmentTree.exists()).toBe(true)
+    expect(departmentTree.props('treeCheckable')).toBe(true)
+    expect(departmentTree.props('treeData')).toEqual([
+      {
+        children: [
+          {
+            children: [],
+            key: 'org-dept-1',
+            title: '制造中心',
+            value: 'org-dept-1'
+          }
+        ],
+        key: 'org-root-1',
+        title: 'Alpha 集团',
+        value: 'org-root-1'
+      }
+    ])
+
+    departmentTree.vm.$emit('update:value', ['org-dept-1'])
+    departmentTree.vm.$emit('change', ['org-dept-1'])
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('EMP-001')
+    expect(wrapper.text()).not.toContain('EMP-002')
+  })
+
+  it('renders employee creation as party-by-identifier onboarding without internal ids or editable employee code', async () => {
+    const view = await import('./employee-management-workspace.vue')
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {}
+        }
+      }
+    })
+
+    await flushPromises()
+    await wrapper.get('[data-testid="employee-create-open"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('员工编号由系统生成')
+    expect(wrapper.text()).toContain('姓名')
+    expect(wrapper.text()).toContain('性别')
+    expect(wrapper.text()).toContain('证件类型')
+    expect(wrapper.text()).toContain('证件号码')
+    expect(wrapper.text()).toContain('主任职部门')
+    expect(wrapper.text()).toContain('主任职职务')
+    expect(wrapper.text()).toContain('入职日期')
+    expect(wrapper.text()).toContain('同时创建登录账号')
+    wrapper.findComponent(Checkbox).vm.$emit('update:checked', true)
+    await flushPromises()
+    expect(wrapper.find('[data-testid="employee-code-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="employee-tenant-party-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="employee-party-input"]').exists()).toBe(false)
+    expect(wrapper.findComponent({ name: 'PhoneNumberInput' }).exists()).toBe(true)
   })
 })

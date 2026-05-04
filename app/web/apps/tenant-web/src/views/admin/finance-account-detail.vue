@@ -161,6 +161,7 @@ onMounted(() => {
         <h2>最小操作</h2>
         <div class="finance-detail-actions">
           <button
+            v-access:code="'finance.financial_account.update_basics'"
             v-if="canUpdateAccount"
             data-testid="finance-update-account"
             type="button"
@@ -169,6 +170,7 @@ onMounted(() => {
             更新账户基础信息
           </button>
           <button
+            v-access:code="'finance.account_transaction.record'"
             v-if="canRecordTransaction"
             data-testid="finance-record-transaction"
             type="button"

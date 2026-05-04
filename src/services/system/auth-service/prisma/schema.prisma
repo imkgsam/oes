@@ -133,6 +133,8 @@ enum DeviceType {
   PDA
 }
 
+/// TODO(auth-session-storage): UserSession is not used by the current runtime session repository.
+/// Pending decision: remove this model or convert it into durable session-history/audit storage.
 model UserSession {
   id               String     @id @default(uuid())
   userId           String //关联identity-service中的user

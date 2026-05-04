@@ -7,6 +7,7 @@ export namespace ItemManagementApi {
     | 'sellable'
     | 'stockable'
   export type ItemNatureType = 'PHYSICAL' | 'SERVICE' | 'VIRTUAL'
+  export type ItemCategoryStatus = 'ACTIVE' | 'INACTIVE'
   export type ItemStatus = 'ACTIVE' | 'INACTIVE'
   export type ItemStructureType = 'BUNDLE' | 'SINGLE'
 
@@ -25,10 +26,25 @@ export namespace ItemManagementApi {
     natureType: ItemNatureType | string
     status: ItemStatus | string
     capabilities: ItemCapabilities
+    primaryCategorySummary?: ItemCategorySummary
+  }
+
+  export interface ItemCategorySummary {
+    categoryId: string
+    categoryCode: string
+    categoryName: string
+    status: ItemCategoryStatus | string
+  }
+
+  export interface ItemCategoryNode extends ItemCategorySummary {
+    hasChildren: boolean
+    parentCategoryId: string
   }
 
   export interface ItemListQuery {
     capability?: ItemCapabilityKey
+    categoryId?: string
+    includeDescendants?: boolean
     keyword?: string
     natureType?: ItemNatureType
     page?: number
@@ -42,6 +58,33 @@ export namespace ItemManagementApi {
     page: number
     pageSize: number
     total: number
+  }
+
+  export interface ItemCategoryListQuery {
+    parentCategoryId?: string
+  }
+
+  export interface ItemCategoryListResult {
+    categories: ItemCategoryNode[]
+  }
+
+  export interface CreateItemCategoryPayload {
+    categoryCode: string
+    categoryName: string
+    parentCategoryId?: string
+  }
+
+  export interface UpdateItemCategoryBasicsPayload {
+    categoryCode: string
+    categoryName: string
+  }
+
+  export interface ChangeItemCategoryStatusPayload {
+    status: ItemCategoryStatus
+  }
+
+  export interface SetItemPrimaryCategoryPayload {
+    primaryCategoryId?: string
   }
 
   export interface CreateItemPayload {
@@ -133,6 +176,19 @@ export async function getManagedItemByIdApi(tenantId: string, itemId: string) {
   )
 }
 
+// Lists one tenant-scoped item category tree layer for filter and management use.
+export async function listManagedItemCategoriesApi(
+  tenantId: string,
+  params: ItemManagementApi.ItemCategoryListQuery
+) {
+  return requestClient.get<ItemManagementApi.ItemCategoryListResult>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/categories`,
+    {
+      params
+    }
+  )
+}
+
 // Creates one phase 1 item without widening the immutable classification inputs.
 export async function createManagedItemApi(
   tenantId: string,
@@ -142,6 +198,17 @@ export async function createManagedItemApi(
     itemId: string
     item?: ItemManagementApi.ItemSummary
   }>(`/item-management/tenants/${encodeURIComponent(tenantId)}/items`, data)
+}
+
+// Creates one lightweight item category node inside the item-management entry.
+export async function createManagedItemCategoryApi(
+  tenantId: string,
+  data: ItemManagementApi.CreateItemCategoryPayload
+) {
+  return requestClient.post<ItemManagementApi.ItemCategorySummary>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/categories`,
+    data
+  )
 }
 
 // Updates one phase 1 item code and name only.
@@ -159,6 +226,21 @@ export async function updateManagedItemBasicsApi(
   )
 }
 
+// Updates one lightweight item category code and name only.
+export async function updateManagedItemCategoryBasicsApi(
+  tenantId: string,
+  categoryId: string,
+  data: ItemManagementApi.UpdateItemCategoryBasicsPayload
+) {
+  return requestClient.request<ItemManagementApi.ItemCategorySummary>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/categories/${encodeURIComponent(categoryId)}/basics`,
+    {
+      data,
+      method: 'PATCH'
+    }
+  )
+}
+
 // Full-replaces one phase 1 capability set.
 export async function setManagedItemCapabilitiesApi(
   tenantId: string,
@@ -167,6 +249,18 @@ export async function setManagedItemCapabilitiesApi(
 ) {
   return requestClient.put<ItemManagementApi.ItemSummary>(
     `/item-management/tenants/${encodeURIComponent(tenantId)}/items/${encodeURIComponent(itemId)}/capabilities`,
+    data
+  )
+}
+
+// Sets or clears one item primary category assignment.
+export async function setManagedItemPrimaryCategoryApi(
+  tenantId: string,
+  itemId: string,
+  data: ItemManagementApi.SetItemPrimaryCategoryPayload
+) {
+  return requestClient.put<ItemManagementApi.ItemSummary>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/items/${encodeURIComponent(itemId)}/primary-category`,
     data
   )
 }
@@ -224,6 +318,21 @@ export async function changeManagedItemStatusApi(
 ) {
   return requestClient.request<ItemManagementApi.ItemSummary>(
     `/item-management/tenants/${encodeURIComponent(tenantId)}/items/${encodeURIComponent(itemId)}/status`,
+    {
+      data,
+      method: 'PATCH'
+    }
+  )
+}
+
+// Changes one lightweight item category lifecycle status.
+export async function changeManagedItemCategoryStatusApi(
+  tenantId: string,
+  categoryId: string,
+  data: ItemManagementApi.ChangeItemCategoryStatusPayload
+) {
+  return requestClient.request<ItemManagementApi.ItemCategorySummary>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/categories/${encodeURIComponent(categoryId)}/status`,
     {
       data,
       method: 'PATCH'

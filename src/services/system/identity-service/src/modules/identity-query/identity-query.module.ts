@@ -7,13 +7,11 @@ import {
   AuditQueryHandlers,
   ContactQueryHandlers,
   EmployeeBindingQueryHandlers,
-  OrgQueryHandlers,
   ServiceAccountQueryHandlers,
   UserQueryHandlers
 } from '../../application/queries'
 import {
   AccountContactAssetQueryScopeBuilder,
-  AccountMembershipQueryScopeBuilder,
   AccountQueryScopeBuilder,
   ApiKeyQueryScopeBuilder,
   AuditEventQueryScopeBuilder,
@@ -28,13 +26,10 @@ import {
   AccountDeletionBlockerService
 } from '../../application/services/account-deletion-blocker.service'
 import { PrismaAccountContactAssetRepository } from '../../infrastructure/repositories/prisma/prisma.account-contact-asset.repository'
-import { PrismaAccountOrgMembershipRepository } from '../../infrastructure/repositories/prisma/prisma.account-org-membership.repository'
 import { PrismaApiKeyRepository } from '../../infrastructure/repositories/prisma/prisma.api-key.repository'
 import { PrismaAccountRepository } from '../../infrastructure/repositories/prisma/prisma.account.repository'
 import { PrismaEmployeeBindingRepository } from '../../infrastructure/repositories/prisma/prisma.employee-binding.repository'
-import { PrismaOrgRepository } from '../../infrastructure/repositories/prisma/prisma.org.repository'
 import { PrismaServiceAccountRepository } from '../../infrastructure/repositories/prisma/prisma.service-account.repository'
-import { PrismaTenantRepository } from '../../infrastructure/repositories/prisma/prisma.tenant.repository'
 import { PrismaUserRepository } from '../../infrastructure/repositories/prisma/prisma.user.repository'
 import { PrismaIdentityAuditRepository } from '../../infrastructure/repositories/prisma/prisma.identity-audit.repository'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
@@ -56,24 +51,12 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
       useClass: PrismaEmployeeBindingRepository
     },
     {
-      provide: SYMBOLS.REPO.TENANT,
-      useClass: PrismaTenantRepository
-    },
-    {
-      provide: SYMBOLS.REPO.ORG,
-      useClass: PrismaOrgRepository
-    },
-    {
       provide: SYMBOLS.REPO.ACCOUNT_CONTACT_ASSET,
       useClass: PrismaAccountContactAssetRepository
     },
     {
       provide: SYMBOLS.REPO.API_KEY,
       useClass: PrismaApiKeyRepository
-    },
-    {
-      provide: SYMBOLS.REPO.ACCOUNT_ORG_MEMBERSHIP,
-      useClass: PrismaAccountOrgMembershipRepository
     },
     {
       provide: SYMBOLS.REPO.AUDIT_EVENT,
@@ -89,7 +72,6 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
     CheckResourceService,
     AccountDeletionBlockerService,
     AccountQueryScopeBuilder,
-    AccountMembershipQueryScopeBuilder,
     AccountContactAssetQueryScopeBuilder,
     ApiKeyQueryScopeBuilder,
     AuditEventQueryScopeBuilder,
@@ -97,7 +79,6 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
     {
       provide: AUTHORIZATION_QUERY_SCOPE_BUILDERS,
       useFactory: (
-        membershipBuilder: AccountMembershipQueryScopeBuilder,
         accountBuilder: AccountQueryScopeBuilder,
         contactAssetBuilder: AccountContactAssetQueryScopeBuilder,
         apiKeyBuilder: ApiKeyQueryScopeBuilder,
@@ -105,7 +86,6 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
         serviceAccountBuilder: ServiceAccountQueryScopeBuilder
       ): QueryScopeBuilder[] => [
         accountBuilder,
-        membershipBuilder,
         contactAssetBuilder,
         apiKeyBuilder,
         auditEventBuilder,
@@ -113,7 +93,6 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
       ],
       inject: [
         AccountQueryScopeBuilder,
-        AccountMembershipQueryScopeBuilder,
         AccountContactAssetQueryScopeBuilder,
         ApiKeyQueryScopeBuilder,
         AuditEventQueryScopeBuilder,
@@ -127,7 +106,6 @@ import { IdentityQueryGrpcController } from '../../interfaces/grpc/identity-quer
     ...UserQueryHandlers,
     ...AccountQueryHandlers,
     ...EmployeeBindingQueryHandlers,
-    ...OrgQueryHandlers,
     ...ContactQueryHandlers,
     ...ServiceAccountQueryHandlers,
     ...AuditQueryHandlers
