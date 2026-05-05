@@ -14,6 +14,7 @@ const PRISMA_BIN = path.join(WORKSPACE_ROOT, 'node_modules/.bin/prisma');
 const SMOKE_SCHEMA = process.env.MES_SMOKE_SCHEMA || 'mes_service_smoke';
 
 const grpc = require('@grpc/grpc-js');
+const protoLoader = require('@grpc/proto-loader');
 const { NestFactory } = require('@nestjs/core');
 const { ClientProxyFactory, Transport } = require('@nestjs/microservices');
 const { firstValueFrom } = require('rxjs');
@@ -21,6 +22,7 @@ const { resolveCommonProtoPath } = require('@oes/common/contracts');
 const { AppModule } = require(path.join(SERVICE_ROOT, 'dist/app.module.js'));
 const { PrismaClient } = require(path.join(SERVICE_ROOT, 'prisma/generated/prisma/index.js'));
 const {
+  MANUFACTURING_SPEC_MANAGEMENT_SERVICE_NAME,
   MOLD_MANAGEMENT_SERVICE_NAME,
   MOLD_QUERY_SERVICE_NAME
 } = require(path.join(WORKSPACE_ROOT, 'src/common/dist/generated/mes_service/mes.js'));
@@ -81,6 +83,21 @@ function normalizeGrpcClientHost(host) {
   }
 
   return host;
+}
+
+// resolveGrpcTarget returns one explicit host:port pair from a service URL env var or a fallback endpoint.
+function resolveGrpcTarget(explicitUrl, fallbackHost, fallbackPort) {
+  const value = explicitUrl?.trim();
+  if (!value) {
+    return { host: fallbackHost, port: fallbackPort };
+  }
+
+  const withoutScheme = value.replace(/^grpc:\/\//, '').replace(/^http:\/\//, '').replace(/^https:\/\//, '');
+  const [host, port] = withoutScheme.split(':');
+  return {
+    host: normalizeGrpcClientHost(host || fallbackHost),
+    port: port || fallbackPort
+  };
 }
 
 // applySmokeDatabaseUrl rewrites DATABASE_URL to a dedicated smoke schema so live verification stays isolated from the default service schema.
@@ -158,6 +175,7 @@ async function cleanupSmokeFixture(prisma, seed) {
   await prisma.masterMold.deleteMany({ where });
   await prisma.moldDesignOutput.deleteMany({ where });
   await prisma.moldDesign.deleteMany({ where });
+  await prisma.manufacturingSpec.deleteMany({ where });
   await prisma.resourcePosition.deleteMany({ where });
   await prisma.workCenter.deleteMany({ where });
   await prisma.mesLocation.deleteMany({ where });
@@ -234,6 +252,64 @@ async function seedMesSmokeFixture(prisma, seed) {
   });
 }
 
+// loadGrpcPackage loads one grpc-js package descriptor from the shared contract directory.
+function loadGrpcPackage(relativeProtoPath) {
+  const definition = protoLoader.loadSync(resolveCommonProtoPath(relativeProtoPath), {
+    keepCase: false,
+    longs: String,
+    enums: Number,
+    defaults: true,
+    oneofs: true
+  });
+
+  return grpc.loadPackageDefinition(definition);
+}
+
+// startItemMasterStub starts one local gRPC query stub that returns a manufacturable physical item for spec validation.
+async function startItemMasterStub(seed) {
+  const pkg = loadGrpcPackage('item_master_service/item_master.proto');
+  const target = resolveGrpcTarget(process.env.GRPC_SERVICE_ITEM_MASTER_URL, '127.0.0.1', '50058');
+  const server = new grpc.Server();
+
+  server.addService(pkg.item_master_service.ItemMasterQueryService.service, {
+    GetItem(call, callback) {
+      callback(null, {
+        item: {
+          itemId: call.request.itemId,
+          itemCode: 'MES-SMOKE-ITEM',
+          itemName: 'MES Smoke Item',
+          natureType: 1,
+          status: 1,
+          capabilities: {
+            manufacturable: true
+          }
+        }
+      });
+    }
+  });
+
+  await bindGrpcServer(server, target);
+  return {
+    server,
+    target: `${target.host}:${target.port}`
+  };
+}
+
+// bindGrpcServer binds and starts one raw grpc-js server on the requested host:port endpoint.
+async function bindGrpcServer(server, target) {
+  await new Promise((resolve, reject) => {
+    server.bindAsync(`${target.host}:${target.port}`, grpc.ServerCredentials.createInsecure(), (error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      server.start();
+      resolve();
+    });
+  });
+}
+
 // startMesRuntime boots the compiled Nest microservice with the same gRPC transport contract used by the real service entrypoint.
 async function startMesRuntime() {
   const app = await NestFactory.createMicroservice(AppModule, {
@@ -268,10 +344,15 @@ function createMesGrpcClient() {
 
 // createMesServices wraps the generated MES observable clients into promise-returning helpers for smoke verification.
 function createMesServices(client, prisma, seed) {
+  const specManagement = client.getService(MANUFACTURING_SPEC_MANAGEMENT_SERVICE_NAME);
   const management = client.getService(MOLD_MANAGEMENT_SERVICE_NAME);
   const query = client.getService(MOLD_QUERY_SERVICE_NAME);
 
   return {
+    specManagement: {
+      createManufacturingSpec: async (request) => firstValueFrom(specManagement.createManufacturingSpec(request)),
+      activateManufacturingSpec: async (request) => firstValueFrom(specManagement.activateManufacturingSpec(request))
+    },
     management: {
       registerMoldDesign: async (request) => firstValueFrom(management.registerMoldDesign(request)),
       registerProductionMoldInstance: async (request) =>
@@ -337,6 +418,15 @@ async function closeClient(client) {
   await client.close();
 }
 
+// forceShutdownServer terminates one raw grpc-js stub server without surfacing shutdown noise into the smoke result.
+async function forceShutdownServer(server) {
+  if (!server) {
+    return;
+  }
+
+  await new Promise((resolve) => server.tryShutdown(() => resolve()));
+}
+
 // main runs the MES live smoke against the local service endpoint and emits one JSON summary for terminal consumers.
 async function main() {
   disableProxyForLocalGrpc();
@@ -348,6 +438,7 @@ async function main() {
   const seed = createSmokeSeed();
   const prisma = createPrismaClient(databaseUrl);
 
+  let itemMasterStub;
   let mesApp;
   let mesClient;
 
@@ -356,6 +447,7 @@ async function main() {
     await cleanupSmokeFixture(prisma, seed);
     await seedMesSmokeFixture(prisma, seed);
 
+    itemMasterStub = await startItemMasterStub(seed);
     mesApp = await startMesRuntime();
     mesClient = createMesGrpcClient();
 
@@ -376,6 +468,9 @@ async function main() {
           idempotency: result.idempotency,
           outbox: result.outbox,
           grpcTarget: `${normalizeGrpcClientHost(process.env.GRPC_LISTEN_HOST || '127.0.0.1')}:${process.env.GRPC_LISTEN_PORT || '50065'}`,
+          downstreamTargets: {
+            itemMaster: itemMasterStub.target
+          },
           smokeSchema: SMOKE_SCHEMA
         },
         null,
@@ -385,6 +480,7 @@ async function main() {
   } finally {
     await closeClient(mesClient).catch(() => undefined);
     await mesApp?.close().catch(() => undefined);
+    await forceShutdownServer(itemMasterStub?.server).catch(() => undefined);
     await cleanupSmokeFixture(prisma, seed).catch(() => undefined);
     await prisma.$disconnect().catch(() => undefined);
   }

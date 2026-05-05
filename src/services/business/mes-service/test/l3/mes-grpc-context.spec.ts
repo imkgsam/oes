@@ -2,10 +2,20 @@ import { status } from '@grpc/grpc-js'
 import { MesManagementGrpcController } from '../../src/interfaces/grpc/mes-management.grpc.controller'
 import { MesQueryGrpcController } from '../../src/interfaces/grpc/mes-query.grpc.controller'
 
+/** createRequestContextStore returns a minimal downstream context store stub for direct controller validation tests. */
+function createRequestContextStore() {
+  return {
+    run: jest.fn((_context, work: () => Promise<unknown>) => work())
+  }
+}
+
 function createManagementController() {
-  return new MesManagementGrpcController({
-    registerMoldDesign: jest.fn()
-  } as never)
+  return new MesManagementGrpcController(
+    {
+      registerMoldDesign: jest.fn()
+    } as never,
+    createRequestContextStore() as never
+  )
 }
 
 function createQueryController() {

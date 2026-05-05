@@ -26,7 +26,8 @@ import {
   MesMoldRepository,
   SearchMoldDesignsInput,
   SearchMoldWarningsInput,
-  SearchProductionMoldInstancesInput
+  SearchProductionMoldInstancesInput,
+  SearchWorkCentersInput
 } from '../../../domain/repositories/mes-mold.repository'
 import { PrismaExecutionClient, PrismaService } from '../../prisma/prisma.service'
 
@@ -218,14 +219,85 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
     return row ? fromPrismaMesLocation(row) : null
   }
 
+  async saveWorkCenter(record: WorkCenterRecord): Promise<WorkCenterRecord> {
+    const saved = await this.client().workCenter.upsert({
+      where: { id: record.workCenterId },
+      create: toPrismaWorkCenter(record),
+      update: toPrismaWorkCenter(record)
+    })
+    return fromPrismaWorkCenter(saved)
+  }
+
   async findWorkCenterById(tenantId: string, workCenterId: string): Promise<WorkCenterRecord | null> {
     const row = await this.client().workCenter.findFirst({ where: { id: workCenterId, tenantId } })
     return row ? fromPrismaWorkCenter(row) : null
   }
 
+  async findWorkCenterByCode(
+    tenantId: string,
+    orgId: string | null | undefined,
+    workCenterCode: string
+  ): Promise<WorkCenterRecord | null> {
+    const row = await this.client().workCenter.findFirst({
+      where: { tenantId, orgId: orgId ?? null, workCenterCode }
+    })
+    return row ? fromPrismaWorkCenter(row) : null
+  }
+
+  async searchWorkCenters(input: SearchWorkCentersInput): Promise<PageResult<WorkCenterRecord>> {
+    const keyword = input.keyword?.trim()
+    const where: Prisma.WorkCenterWhereInput = {
+      tenantId: input.tenantId,
+      ...(input.orgId ? { orgId: input.orgId } : {}),
+      ...(input.parentWorkCenterId !== undefined ? { parentWorkCenterId: input.parentWorkCenterId } : {}),
+      ...(input.status ? { status: input.status } : {}),
+      ...(input.workCenterType ? { workCenterType: input.workCenterType } : {}),
+      ...(keyword
+        ? {
+            OR: [
+              { workCenterCode: { contains: keyword, mode: 'insensitive' } },
+              { name: { contains: keyword, mode: 'insensitive' } }
+            ]
+          }
+        : {})
+    }
+    const [total, rows] = await Promise.all([
+      this.client().workCenter.count({ where }),
+      this.client().workCenter.findMany({
+        where,
+        orderBy: { workCenterCode: 'asc' },
+        skip: (input.page - 1) * input.pageSize,
+        take: input.pageSize
+      })
+    ])
+    return {
+      items: rows.map(fromPrismaWorkCenter),
+      total,
+      page: input.page,
+      pageSize: input.pageSize
+    }
+  }
+
+  async saveResourcePosition(record: ResourcePositionRecord): Promise<ResourcePositionRecord> {
+    const saved = await this.client().resourcePosition.upsert({
+      where: { id: record.resourcePositionId },
+      create: toPrismaResourcePosition(record),
+      update: toPrismaResourcePosition(record)
+    })
+    return fromPrismaResourcePosition(saved)
+  }
+
   async findResourcePositionById(tenantId: string, resourcePositionId: string): Promise<ResourcePositionRecord | null> {
     const row = await this.client().resourcePosition.findFirst({ where: { id: resourcePositionId, tenantId } })
     return row ? fromPrismaResourcePosition(row) : null
+  }
+
+  async listResourcePositionsByWorkCenter(tenantId: string, workCenterId: string): Promise<ResourcePositionRecord[]> {
+    const rows = await this.client().resourcePosition.findMany({
+      where: { tenantId, workCenterId },
+      orderBy: { positionCode: 'asc' }
+    })
+    return rows.map(fromPrismaResourcePosition)
   }
 
   async appendMovementEvent(record: MoldMovementEventRecord): Promise<MoldMovementEventRecord> {
@@ -516,6 +588,7 @@ function toPrismaMoldDesignOutput(record: MoldDesignOutputRecord): Prisma.MoldDe
     outputKind: record.outputKind,
     productFamilyRef: nullableJson(record.productFamilyRef),
     manufacturingSpecRef: nullableJson(record.manufacturingSpecRef),
+    options: toJson(record.options),
     quantityPerUse: record.quantityPerUse,
     componentRole: record.componentRole ?? null,
     assemblyHint: record.assemblyHint ?? null,
@@ -549,6 +622,7 @@ function fromPrismaMoldDesign(row: MoldDesignWithOutputs): MoldDesignRecord {
       outputKind: output.outputKind as MoldDesignOutputRecord['outputKind'],
       productFamilyRef: fromNullableJson<MoldDesignOutputRecord['productFamilyRef']>(output.productFamilyRef),
       manufacturingSpecRef: fromNullableJson<MoldDesignOutputRecord['manufacturingSpecRef']>(output.manufacturingSpecRef),
+      options: fromJson<MoldDesignOutputRecord['options']>(output.options),
       quantityPerUse: output.quantityPerUse,
       componentRole: output.componentRole,
       assemblyHint: output.assemblyHint,
@@ -673,6 +747,23 @@ function fromPrismaMesLocation(row: Prisma.MesLocationGetPayload<object>): MesLo
   }
 }
 
+function toPrismaWorkCenter(record: WorkCenterRecord): Prisma.WorkCenterUncheckedCreateInput {
+  return {
+    id: record.workCenterId,
+    tenantId: record.tenantId,
+    orgId: record.orgId ?? null,
+    workCenterCode: record.workCenterCode,
+    name: record.name,
+    workCenterType: record.workCenterType,
+    parentWorkCenterId: record.parentWorkCenterId ?? null,
+    relatedMesLocationId: record.relatedMesLocationId ?? null,
+    capacityProfileId: record.capacityProfileId ?? null,
+    status: record.status,
+    createdAt: new Date(record.createdAt),
+    updatedAt: new Date(record.updatedAt)
+  }
+}
+
 function fromPrismaWorkCenter(row: Prisma.WorkCenterGetPayload<object>): WorkCenterRecord {
   return {
     workCenterId: row.id,
@@ -687,6 +778,22 @@ function fromPrismaWorkCenter(row: Prisma.WorkCenterGetPayload<object>): WorkCen
     status: row.status,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
+  }
+}
+
+function toPrismaResourcePosition(record: ResourcePositionRecord): Prisma.ResourcePositionUncheckedCreateInput {
+  return {
+    id: record.resourcePositionId,
+    tenantId: record.tenantId,
+    orgId: record.orgId ?? null,
+    workCenterId: record.workCenterId,
+    positionCode: record.positionCode,
+    name: record.name,
+    positionType: record.positionType,
+    compatibleMoldDesignRefs: record.compatibleMoldDesignRefs,
+    status: record.status,
+    createdAt: new Date(record.createdAt),
+    updatedAt: new Date(record.updatedAt)
   }
 }
 
@@ -801,6 +908,8 @@ function toPrismaMoldUsageEvent(record: MoldUsageEventRecord): Prisma.MoldUsageE
     lifeUsedValueAfter: record.lifeUsedValueAfter,
     productFamilyRef: nullableJson(record.productFamilyRef),
     manufacturingSpecRef: nullableJson(record.manufacturingSpecRef),
+    moldDesignOutputId: record.moldDesignOutputId ?? null,
+    moldDesignOutputOptionId: record.moldDesignOutputOptionId ?? null,
     wipUnitRef: nullableJson(record.wipUnitRef),
     physicalTraceId: record.physicalTraceId ?? null,
     workOrderRef: nullableJson(record.workOrderRef),
@@ -828,6 +937,8 @@ function fromPrismaMoldUsageEvent(row: Prisma.MoldUsageEventGetPayload<object>):
     lifeUsedValueAfter: row.lifeUsedValueAfter,
     productFamilyRef: fromNullableJson<MoldUsageEventRecord['productFamilyRef']>(row.productFamilyRef),
     manufacturingSpecRef: fromNullableJson<MoldUsageEventRecord['manufacturingSpecRef']>(row.manufacturingSpecRef),
+    moldDesignOutputId: row.moldDesignOutputId,
+    moldDesignOutputOptionId: row.moldDesignOutputOptionId,
     wipUnitRef: fromNullableJson<MoldUsageEventRecord['wipUnitRef']>(row.wipUnitRef),
     physicalTraceId: row.physicalTraceId,
     workOrderRef: fromNullableJson<MoldUsageEventRecord['workOrderRef']>(row.workOrderRef),

@@ -7,6 +7,7 @@ export const SERVICE_NAMES = {
   HR: 'hr-service',
   IDENTITY: 'identity-service',
   ITEM_MASTER: 'item-master-service',
+  MES: 'mes-service',
   PERMISSION: 'permission-service',
   NOTIFICATION: 'notification-service',
   PARTY: 'party-service',

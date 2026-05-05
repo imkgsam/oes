@@ -4,7 +4,7 @@
 
 定义 tenant onboarding 的内部服务 contract，让“创建租户 + 创建第一个租户管理员”成为可幂等、可恢复、可审计的生产级流程。
 
-当前文档冻结目标 contract 语义，尚未表示 proto / runtime 已实现。
+当前文档冻结目标 contract 语义；截至 2026-05-05，proto / runtime 已支持当前 onboarding 主线，本次文档收口不重跑 Jest / Vitest。
 
 ## 2. Owner 边界
 
@@ -18,8 +18,10 @@
   - 拥有 `User` 与 `UserAccount` 真相。
 - `auth-service`
   - 拥有 login method、credential、password setup gate 与 session 真相。
+- `hr-service`
+  - 拥有首租户管理员对应的 employee 与 employment 真相。
 - `permission-service`
-  - 拥有 `tenant.admin` / `hr.admin` role instance 与 account role grant 真相。
+  - 拥有 `tenant.admin` / `hr.admin` / `account.basic` role instance 与 account role grant 真相。
 - `api-gateway`
   - 只做 HTTP contract、鉴权、DTO 转换与展示适配。
 
@@ -83,8 +85,14 @@
 - `first_admin.account_id`
 - `first_admin.person_party_id`
 - `first_admin.person_tenant_party_id`
+- `first_admin_employee.employee_id`
+- `first_admin_employee.employment_id`
+- optional `first_admin_employee.access_process_id`
 - `access.tenant_admin_role_id`
 - `access.grant_id`
+- optional `access.hr_admin_role_id`
+- optional `access.hr_admin_grant_id`
+- optional `access.account_basic_role_id`
 - `steps[]`
 - optional `failure`
 
@@ -96,10 +104,11 @@
 - root org 存在，且可引用 organization party。
 - organization party 与 organization tenant-party 存在。
 - first admin user/account 存在。
+- first admin employee / employment 存在，且由 hr-service 拥有。
 - first admin login method 已 bootstrap。
 - 若请求要求 password setup，则 auth-service 中存在 password setup gate。
-- permission-service 中存在 tenant scoped `tenant.admin` 与 `hr.admin` role instance。
-- first admin account 已被授予 `tenant.admin` 与 `hr.admin`。
+- permission-service 中存在 tenant scoped `tenant.admin`、`hr.admin` 与 onboarding 所需基础账号角色。
+- first admin account 已被授予 `tenant.admin` 与 `hr.admin`；`account.basic` 默认访问由 HR employee onboarding access 段通过 permission 边界完成。
 
 ## 5. `GetTenantOnboarding`
 
@@ -153,12 +162,14 @@ Step keys:
 - `CREATE_TENANT_WITH_ROOT_ORG`
 - `BIND_ORGANIZATION_TENANT_PARTY`
 - `CREATE_FIRST_ADMIN_ACCOUNT`
+- `CREATE_FIRST_ADMIN_EMPLOYEE`
 - `BOOTSTRAP_FIRST_ADMIN_LOGIN_METHODS`
 - `REQUIRE_FIRST_LOGIN_PASSWORD_SETUP`
 - `ENSURE_TENANT_ADMIN_ROLE`
 - `GRANT_TENANT_ADMIN_ROLE`
 - `ENSURE_HR_ADMIN_ROLE`
 - `GRANT_HR_ADMIN_ROLE`
+- `ENSURE_ACCOUNT_BASIC_ROLE`
 
 ## 9. 幂等语义
 
@@ -180,6 +191,6 @@ Step keys:
 ## 11. 第一阶段暂不冻结
 
 - 是否新增 `TenantStatus.PROVISIONING`。
-- 是否由 onboarding 自动创建 employee / employment。
+- 更完整的 employee onboarding 补偿管理面；当前仅支持首租户管理员员工化主链。
 - 是否使用完整 `workflow-service`。
 - 是否把 onboarding run 暴露为通用 workflow instance。

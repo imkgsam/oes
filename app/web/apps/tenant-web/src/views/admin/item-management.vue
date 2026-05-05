@@ -5,6 +5,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { IconifyIcon } from '@vben/icons'
 
 import {
   changeManagedItemCategoryStatusApi,
@@ -92,6 +93,29 @@ const categoryOptions = computed(() => categoryNodes.value)
 const editingCategory = computed(
   () => categoryNodes.value.find((category) => category.categoryId === editingCategoryId.value) ?? null
 )
+const activeItemCount = computed(() => items.value.filter((item) => item.status === 'ACTIVE').length)
+const manufacturableItemCount = computed(() =>
+  items.value.filter((item) => item.capabilities.manufacturable).length
+)
+const physicalItemCount = computed(() => items.value.filter((item) => item.natureType === 'PHYSICAL').length)
+const bundleItemCount = computed(() => items.value.filter((item) => item.structureType === 'BUNDLE').length)
+
+/** getCapabilityLabels returns the enabled capability chips for one item row. */
+function getCapabilityLabels(item: ItemManagementApi.ItemSummary) {
+  return (Object.keys(item.capabilities) as ItemManagementApi.ItemCapabilityKey[]).filter(
+    (capability) => item.capabilities[capability]
+  )
+}
+
+/** canConfigureMoldScheme marks items that can become the parent of MES ManufacturingSpec and MoldDesign records. */
+function canConfigureMoldScheme(item: ItemManagementApi.ItemSummary) {
+  return item.natureType === 'PHYSICAL' && item.capabilities.manufacturable
+}
+
+/** getMoldSchemeLabel keeps the Stitch mold-scheme column grounded in real phase 1 Item data. */
+function getMoldSchemeLabel(item: ItemManagementApi.ItemSummary) {
+  return canConfigureMoldScheme(item) ? '可建模具方案' : '不适用'
+}
 
 /** loadItems refreshes the tenant-scoped phase 1 item directory using the current filter state. */
 async function loadItems() {
@@ -248,46 +272,105 @@ onMounted(() => {
 <template>
   <Page>
     <section class="item-page">
-      <header class="item-page__hero">
+      <header class="item-page__header">
         <div>
+          <nav class="item-page__breadcrumb">
+            <span>主数据</span>
+            <IconifyIcon icon="lucide:chevron-right" />
+            <span>Item 管理</span>
+          </nav>
           <h1>Item 管理</h1>
-          <p>tenant-web 的 phase 1 Item 管理入口，只接入 Item、单值主分类与轻量分类管理，不扩展多分类或分类策略。</p>
+          <p>管理卫浴陶瓷产品和物料身份，为可生产 Item 建立后续 ManufacturingSpec 与模具方案入口。</p>
         </div>
-        <div class="item-page__hero-side">
-          <span class="item-pill">{{ activeTenantName }}</span>
+        <div class="item-page__header-actions">
+          <span class="item-tenant-pill">{{ activeTenantName }}</span>
           <button
             v-access:code="'item_master.item.create'"
             v-if="canCreateItem"
+            class="item-primary-button"
             data-testid="item-create-button"
             type="button"
             @click="openCreatePage"
           >
+            <IconifyIcon icon="lucide:plus" />
             创建 Item
           </button>
         </div>
       </header>
 
-      <section class="item-card">
-        <h2>筛选</h2>
-        <div class="item-filters">
-          <input
-            data-testid="item-filter-keyword"
-            v-model="filters.keyword"
-            placeholder="编码 / 名称关键词"
-          />
-          <select data-testid="item-filter-capability" v-model="filters.capability">
-            <option value="">全部能力</option>
-            <option value="sellable">sellable</option>
-            <option value="purchasable">purchasable</option>
-            <option value="stockable">stockable</option>
-            <option value="manufacturable">manufacturable</option>
-          </select>
-          <select data-testid="item-filter-category" v-model="filters.categoryId">
-            <option value="">全部主分类</option>
-            <option v-for="category in categoryOptions" :key="category.categoryId" :value="category.categoryId">
-              {{ category.categoryCode }} · {{ category.categoryName }}
-            </option>
-          </select>
+      <section class="item-metric-strip">
+        <div>
+          <span>当前页 Item</span>
+          <strong>{{ items.length }}</strong>
+        </div>
+        <div>
+          <span>可生产</span>
+          <strong>{{ manufacturableItemCount }}</strong>
+        </div>
+        <div>
+          <span>实体物料</span>
+          <strong>{{ physicalItemCount }}</strong>
+        </div>
+        <div>
+          <span>套装</span>
+          <strong>{{ bundleItemCount }}</strong>
+        </div>
+      </section>
+
+      <section class="item-card item-card--flush">
+        <div class="item-filter-grid">
+          <label class="item-field item-field--wide">
+            <span>Keywords</span>
+            <input
+              data-testid="item-filter-keyword"
+              v-model="filters.keyword"
+              placeholder="编码 / 名称..."
+            />
+          </label>
+          <label class="item-field">
+            <span>Capabilities</span>
+            <select data-testid="item-filter-capability" v-model="filters.capability">
+              <option value="">全部能力</option>
+              <option value="sellable">sellable</option>
+              <option value="purchasable">purchasable</option>
+              <option value="stockable">stockable</option>
+              <option value="manufacturable">manufacturable</option>
+            </select>
+          </label>
+          <label class="item-field">
+            <span>Structure</span>
+            <select data-testid="item-filter-structure" v-model="filters.structureType">
+              <option value="">全部结构</option>
+              <option value="SINGLE">SINGLE</option>
+              <option value="BUNDLE">BUNDLE</option>
+            </select>
+          </label>
+          <label class="item-field">
+            <span>Nature</span>
+            <select data-testid="item-filter-nature" v-model="filters.natureType">
+              <option value="">全部性质</option>
+              <option value="PHYSICAL">PHYSICAL</option>
+              <option value="VIRTUAL">VIRTUAL</option>
+              <option value="SERVICE">SERVICE</option>
+            </select>
+          </label>
+          <label class="item-field">
+            <span>Status</span>
+            <select data-testid="item-filter-status" v-model="filters.status">
+              <option value="">全部状态</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="INACTIVE">INACTIVE</option>
+            </select>
+          </label>
+          <label class="item-field">
+            <span>Primary Category</span>
+            <select data-testid="item-filter-category" v-model="filters.categoryId">
+              <option value="">全部主分类</option>
+              <option v-for="category in categoryOptions" :key="category.categoryId" :value="category.categoryId">
+                {{ category.categoryCode }} · {{ category.categoryName }}
+              </option>
+            </select>
+          </label>
           <label class="item-checkbox">
             <input
               data-testid="item-filter-include-descendants"
@@ -296,75 +379,93 @@ onMounted(() => {
             />
             包含子分类
           </label>
-          <select data-testid="item-filter-structure" v-model="filters.structureType">
-            <option value="">全部结构</option>
-            <option value="SINGLE">SINGLE</option>
-            <option value="BUNDLE">BUNDLE</option>
-          </select>
-          <select data-testid="item-filter-nature" v-model="filters.natureType">
-            <option value="">全部性质</option>
-            <option value="PHYSICAL">PHYSICAL</option>
-            <option value="VIRTUAL">VIRTUAL</option>
-            <option value="SERVICE">SERVICE</option>
-          </select>
-          <select data-testid="item-filter-status" v-model="filters.status">
-            <option value="">全部状态</option>
-            <option value="ACTIVE">ACTIVE</option>
-            <option value="INACTIVE">INACTIVE</option>
-          </select>
-          <button data-testid="item-filter-search" type="button" @click="loadItems">
-            {{ loading ? '加载中...' : '查询' }}
+          <button class="item-secondary-button" data-testid="item-filter-search" type="button" @click="loadItems">
+            <IconifyIcon icon="lucide:search" />
+            {{ loading ? '加载中' : '查询' }}
           </button>
         </div>
       </section>
 
-      <section class="item-card">
-        <h2>Item 列表</h2>
-        <p class="item-note">phase 1 只展示单个主分类摘要，不扩展多分类、分类继承、定价/采购/库存/制造策略。</p>
-        <table class="item-table">
-          <thead>
-            <tr>
-              <th>编码</th>
-              <th>名称</th>
-              <th>结构</th>
-              <th>性质</th>
-              <th>状态</th>
-              <th>能力</th>
-              <th>主分类</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in items" :key="item.itemId">
-              <td>{{ item.itemCode }}</td>
-              <td>{{ item.itemName }}</td>
-              <td>{{ item.structureType }}</td>
-              <td>{{ item.natureType }}</td>
-              <td>{{ item.status }}</td>
-              <td>
-                <span v-if="item.capabilities.sellable">sellable </span>
-                <span v-if="item.capabilities.purchasable">purchasable </span>
-                <span v-if="item.capabilities.stockable">stockable </span>
-                <span v-if="item.capabilities.manufacturable">manufacturable</span>
-              </td>
-              <td>{{ item.primaryCategorySummary?.categoryName ?? '未设置' }}</td>
-              <td>
-                <button
-                  v-access:code="'item_master.item.get_by_id'"
-                  v-if="canViewItemDetail"
-                  :data-testid="`item-detail-button-${item.itemId}`"
-                  type="button"
-                  @click="openDetailPage(item.itemId)"
-                >
-                  详情
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!items.length">
-              <td colspan="8">暂无 Item</td>
-            </tr>
-          </tbody>
-        </table>
+      <section class="item-card item-card--table">
+        <div class="item-section-heading">
+          <div>
+            <h2>Item 列表</h2>
+            <p>只展示 Item 主数据真相；模具方案数量不在本页伪造统计。</p>
+          </div>
+          <span>{{ activeItemCount }} active</span>
+        </div>
+        <div class="item-table-wrap">
+          <table class="item-table">
+            <thead>
+              <tr>
+                <th>Item Code</th>
+                <th>Item Name</th>
+                <th>Structure</th>
+                <th>Nature</th>
+                <th>Capabilities</th>
+                <th>模具方案状态</th>
+                <th>Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in items" :key="item.itemId">
+                <td class="item-code">{{ item.itemCode }}</td>
+                <td>{{ item.itemName }}</td>
+                <td><span class="item-tag">{{ item.structureType }}</span></td>
+                <td><span class="item-tag">{{ item.natureType }}</span></td>
+                <td>
+                  <div class="item-chip-row">
+                    <span
+                      v-for="capability in getCapabilityLabels(item)"
+                      :key="capability"
+                      :class="['item-chip', { 'item-chip--primary': capability === 'manufacturable' }]"
+                    >
+                      {{ capability }}
+                    </span>
+                    <span v-if="!getCapabilityLabels(item).length" class="item-muted">未配置</span>
+                  </div>
+                </td>
+                <td>
+                  <span
+                    :class="[
+                      'item-scheme-state',
+                      { 'item-scheme-state--ready': canConfigureMoldScheme(item) },
+                    ]"
+                  >
+                    {{ getMoldSchemeLabel(item) }}
+                  </span>
+                </td>
+                <td>
+                  <span :class="['item-status', { 'item-status--inactive': item.status !== 'ACTIVE' }]">
+                    <i></i>
+                    {{ item.status }}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    v-access:code="'item_master.item.get_by_id'"
+                    v-if="canViewItemDetail"
+                    class="item-link-button"
+                    :data-testid="`item-detail-button-${item.itemId}`"
+                    type="button"
+                    @click="openDetailPage(item.itemId)"
+                  >
+                    详情
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="!items.length">
+                <td colspan="8">
+                  <div class="item-empty">
+                    <IconifyIcon icon="lucide:package-open" />
+                    <span>暂无 Item</span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section
@@ -372,14 +473,18 @@ onMounted(() => {
         v-if="canListCategories"
         class="item-card"
       >
-        <h2>分类管理</h2>
-        <p class="item-note">轻量分类管理只维护分类树基础真相与生命周期，不承载多分类、继承或策略规则。</p>
+        <div class="item-section-heading">
+          <div>
+            <h2>分类管理</h2>
+            <p>维护单值主分类目录，不承载多分类、继承或策略规则。</p>
+          </div>
+          <span>{{ categoryLoading ? 'loading' : `${categoryNodes.length} nodes` }}</span>
+        </div>
 
         <div class="item-category-grid">
           <div class="item-category-panel">
             <h3>分类目录</h3>
-            <p class="item-note">{{ categoryLoading ? '分类加载中...' : `当前共 ${categoryNodes.length} 个分类节点` }}</p>
-            <table class="item-table">
+            <table class="item-table item-table--compact">
               <thead>
                 <tr>
                   <th>编码</th>
@@ -414,15 +519,15 @@ onMounted(() => {
               class="item-category-form"
             >
               <h3>新建分类</h3>
-              <label>
+              <label class="item-field">
                 <span>Category Code</span>
                 <input data-testid="category-create-code" v-model="categoryCreateForm.categoryCode" />
               </label>
-              <label>
+              <label class="item-field">
                 <span>Category Name</span>
                 <input data-testid="category-create-name" v-model="categoryCreateForm.categoryName" />
               </label>
-              <label>
+              <label class="item-field">
                 <span>Parent Category</span>
                 <select data-testid="category-create-parent" v-model="categoryCreateForm.parentCategoryId">
                   <option value="">ROOT</option>
@@ -431,7 +536,7 @@ onMounted(() => {
                   </option>
                 </select>
               </label>
-              <button data-testid="category-create-submit" type="button" @click="saveCategory">
+              <button class="item-secondary-button" data-testid="category-create-submit" type="button" @click="saveCategory">
                 创建分类
               </button>
             </section>
@@ -445,7 +550,7 @@ onMounted(() => {
               class="item-category-form"
             >
               <h3>编辑分类</h3>
-              <label>
+              <label class="item-field">
                 <span>选择分类</span>
                 <select
                   data-testid="category-edit-select"
@@ -458,24 +563,25 @@ onMounted(() => {
                   </option>
                 </select>
               </label>
-              <label>
+              <label class="item-field">
                 <span>Category Code</span>
                 <input data-testid="category-edit-code" v-model="categoryEditForm.categoryCode" />
               </label>
-              <label>
+              <label class="item-field">
                 <span>Category Name</span>
                 <input data-testid="category-edit-name" v-model="categoryEditForm.categoryName" />
               </label>
               <button
                 v-access:code="'item_master.item_category.update_basics'"
                 v-if="canUpdateCategoryBasics"
+                class="item-secondary-button"
                 data-testid="category-edit-save-basics"
                 type="button"
                 @click="saveCategoryBasics"
               >
                 保存分类基础信息
               </button>
-              <label>
+              <label class="item-field">
                 <span>Status</span>
                 <select data-testid="category-edit-status" v-model="categoryEditForm.status">
                   <option value="ACTIVE">ACTIVE</option>
@@ -485,6 +591,7 @@ onMounted(() => {
               <button
                 v-access:code="'item_master.item_category.update_status'"
                 v-if="canUpdateCategoryStatus"
+                class="item-secondary-button"
                 data-testid="category-edit-save-status"
                 type="button"
                 @click="saveCategoryStatus"
@@ -498,58 +605,199 @@ onMounted(() => {
           </div>
         </div>
       </section>
+
+      <section class="item-insight-grid">
+        <div class="item-insight-card">
+          <h3>模具方案衔接</h3>
+          <p>本页只判断 Item 是否具备后续建模条件，实际 MoldDesign 和 ManufacturingSpec 在下一层页面闭环中维护。</p>
+          <div class="item-insight-metrics">
+            <span><strong>{{ manufacturableItemCount }}</strong> 可生产</span>
+            <span><strong>{{ items.length - manufacturableItemCount }}</strong> 暂不适用</span>
+          </div>
+        </div>
+        <div class="item-insight-card item-insight-card--blue">
+          <h3>下一步依赖</h3>
+          <p>完成 Item 详情页后，再推进 ManufacturingSpec 与 MoldDesign 页面。</p>
+        </div>
+      </section>
     </section>
   </Page>
 </template>
 
 <style scoped>
 .item-page {
+  --item-primary: #005daa;
+  --item-bg: #f0f2f5;
+  --item-border: #d9dee8;
+  --item-text: #181c22;
+  --item-muted: #69717f;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 20px;
+  padding: 16px;
+  color: var(--item-text);
 }
 
-.item-page__hero {
+.item-page__header {
   align-items: flex-start;
-  background: linear-gradient(180deg, #ffffff 0%, #f3f7ff 100%);
-  border: 1px solid #dbe5f4;
-  border-radius: 16px;
   display: flex;
   gap: 16px;
   justify-content: space-between;
-  padding: 20px;
 }
 
-.item-page__hero h1 {
+.item-page__breadcrumb {
+  align-items: center;
+  color: var(--item-muted);
+  display: flex;
+  font-size: 12px;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.item-page__breadcrumb span:last-child {
+  color: var(--item-text);
+}
+
+.item-page__header h1 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
   margin: 0;
 }
 
-.item-page__hero p {
-  color: #516074;
-  margin: 8px 0 0;
+.item-page__header p {
+  color: var(--item-muted);
+  font-size: 13px;
+  line-height: 20px;
+  margin: 4px 0 0;
 }
 
-.item-page__hero-side {
+.item-page__header-actions {
   align-items: flex-end;
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
-.item-pill {
-  background: #eff6ff;
-  border-radius: 999px;
-  color: #1d4ed8;
+.item-tenant-pill {
+  background: #eef4fb;
+  border: 1px solid #d6e4f5;
+  border-radius: 4px;
+  color: #315a82;
   font-size: 12px;
-  padding: 6px 10px;
+  height: 32px;
+  line-height: 30px;
+  padding: 0 10px;
+}
+
+.item-primary-button,
+.item-secondary-button,
+.item-link-button {
+  align-items: center;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 6px;
+  justify-content: center;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+}
+
+.item-primary-button:active,
+.item-secondary-button:active,
+.item-link-button:active {
+  transform: translateY(1px);
+}
+
+.item-primary-button {
+  background: var(--item-primary);
+  border: 1px solid var(--item-primary);
+  color: #fff;
+  height: 32px;
+  padding: 0 14px;
+}
+
+.item-secondary-button {
+  background: #fff;
+  border: 1px solid #cbd2df;
+  color: #263241;
+  min-height: 32px;
+  padding: 0 12px;
+}
+
+.item-link-button {
+  background: transparent;
+  border: 0;
+  color: var(--item-primary);
+  min-height: 28px;
+  padding: 0 4px;
+}
+
+.item-metric-strip {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+}
+
+.item-metric-strip > div {
+  background: #fff;
+  border: 1px solid var(--item-border);
+  border-left: 4px solid var(--item-primary);
+  border-radius: 4px;
+  padding: 12px;
+}
+
+.item-metric-strip span {
+  color: var(--item-muted);
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.item-metric-strip strong {
+  display: block;
+  font-size: 22px;
+  line-height: 28px;
+  margin-top: 2px;
 }
 
 .item-card {
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border: 1px solid var(--item-border);
+  border-radius: 4px;
   padding: 16px;
+}
+
+.item-card--flush,
+.item-card--table {
+  padding: 0;
+}
+
+.item-section-heading {
+  align-items: flex-start;
+  border-bottom: 1px solid #edf0f5;
+  display: flex;
+  justify-content: space-between;
+  padding: 14px 16px;
+}
+
+.item-section-heading h2 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+  margin: 0;
+}
+
+.item-section-heading p {
+  color: var(--item-muted);
+  font-size: 13px;
+  line-height: 20px;
+  margin: 2px 0 0;
+}
+
+.item-section-heading > span {
+  color: var(--item-muted);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .item-card h2 {
@@ -560,39 +808,22 @@ onMounted(() => {
   margin: 0 0 12px;
 }
 
-.item-filters {
+.item-filter-grid {
   display: grid;
-  align-items: center;
-  gap: 10px;
-  grid-template-columns:
-    minmax(240px, 1.5fr)
-    repeat(2, minmax(150px, 0.85fr))
-    minmax(132px, 0.7fr)
-    repeat(3, minmax(140px, 0.75fr))
-    minmax(92px, 0.45fr);
-}
-
-.item-filters input,
-.item-filters select,
-.item-filters button {
-  min-height: 36px;
-  border-radius: 10px;
-}
-
-.item-filters button {
-  justify-self: end;
-  min-width: 84px;
-  width: min(100%, 104px);
+  gap: 12px;
+  grid-template-columns: minmax(220px, 1.4fr) repeat(5, minmax(120px, 1fr)) auto auto;
+  padding: 14px;
 }
 
 @media (max-width: 1200px) {
-  .item-filters {
+  .item-filter-grid {
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   }
 }
 
 @media (max-width: 720px) {
-  .item-filters {
+  .item-filter-grid,
+  .item-metric-strip {
     grid-template-columns: 1fr;
   }
 }
@@ -606,6 +837,8 @@ onMounted(() => {
   align-items: center;
   display: flex;
   gap: 8px;
+  min-height: 32px;
+  white-space: nowrap;
 }
 
 .item-checkbox input {
@@ -620,9 +853,124 @@ onMounted(() => {
 
 .item-table th,
 .item-table td {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 10px 8px;
+  border-bottom: 1px solid #edf0f5;
+  font-size: 13px;
+  line-height: 18px;
+  padding: 8px 12px;
   text-align: left;
+  white-space: nowrap;
+}
+
+.item-table th {
+  background: #f6f8fb;
+  color: var(--item-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.item-table tbody tr:hover {
+  background: #f8fbff;
+}
+
+.item-table-wrap {
+  overflow-x: auto;
+}
+
+.item-table--compact th,
+.item-table--compact td {
+  padding: 8px;
+}
+
+.item-code {
+  color: var(--item-primary);
+  font-weight: 600;
+}
+
+.item-tag,
+.item-chip,
+.item-scheme-state,
+.item-status {
+  align-items: center;
+  border-radius: 4px;
+  display: inline-flex;
+  font-size: 11px;
+  gap: 6px;
+  line-height: 18px;
+  padding: 1px 7px;
+}
+
+.item-tag {
+  background: #f7f8fa;
+  border: 1px solid #dde2eb;
+  color: #4b5563;
+}
+
+.item-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.item-chip {
+  background: #f7f8fa;
+  border: 1px solid #e3e7ee;
+  color: #647082;
+}
+
+.item-chip--primary {
+  background: #eef6ff;
+  border-color: #cfe4fb;
+  color: #005daa;
+}
+
+.item-scheme-state {
+  background: #f4f6f8;
+  border: 1px solid #e2e6ee;
+  color: #6b7280;
+}
+
+.item-scheme-state--ready {
+  background: #eaf4ff;
+  border-color: #bfdafa;
+  color: #005daa;
+}
+
+.item-status {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  color: #237804;
+}
+
+.item-status i {
+  background: #52c41a;
+  border-radius: 999px;
+  height: 6px;
+  width: 6px;
+}
+
+.item-status--inactive {
+  background: #f5f5f5;
+  border-color: #d9d9d9;
+  color: #6b7280;
+}
+
+.item-status--inactive i {
+  background: #9ca3af;
+}
+
+.item-muted {
+  color: #8c95a3;
+  font-size: 12px;
+}
+
+.item-empty {
+  align-items: center;
+  color: var(--item-muted);
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  min-height: 96px;
 }
 
 .item-table__row--active {
@@ -636,8 +984,8 @@ onMounted(() => {
 }
 
 .item-category-panel {
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
+  border: 1px solid #edf0f5;
+  border-radius: 4px;
   padding: 14px;
 }
 
@@ -659,27 +1007,96 @@ onMounted(() => {
   gap: 6px;
 }
 
-button,
-input,
-select {
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  min-height: 36px;
-  padding: 8px 10px;
+.item-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-button {
-  background: #0f172a;
+.item-field span {
+  color: var(--item-muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
+.item-field input,
+.item-field select,
+.item-filter-grid input,
+.item-filter-grid select {
+  background: #fff;
+  border: 1px solid #cbd2df;
+  border-radius: 4px;
+  color: var(--item-text);
+  min-height: 32px;
+  padding: 5px 8px;
+}
+
+.item-insight-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+}
+
+.item-insight-card {
+  background: #fff;
+  border: 1px solid var(--item-border);
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.item-insight-card h3 {
+  font-size: 16px;
+  margin: 0 0 6px;
+}
+
+.item-insight-card p {
+  color: var(--item-muted);
+  font-size: 13px;
+  line-height: 20px;
+  margin: 0;
+}
+
+.item-insight-card--blue {
+  background: var(--item-primary);
+  border-color: var(--item-primary);
   color: #fff;
-  cursor: pointer;
+}
+
+.item-insight-card--blue p {
+  color: rgb(255 255 255 / 78%);
+}
+
+.item-insight-metrics {
+  display: flex;
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.item-insight-metrics span {
+  border-left: 3px solid var(--item-primary);
+  color: var(--item-muted);
+  font-size: 12px;
+  padding-left: 10px;
+}
+
+.item-insight-metrics strong {
+  color: var(--item-text);
+  display: block;
+  font-size: 20px;
 }
 
 @media (max-width: 960px) {
-  .item-page__hero {
+  .item-page__header,
+  .item-insight-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .item-page__header {
     flex-direction: column;
   }
 
-  .item-page__hero-side {
+  .item-page__header-actions {
     align-items: flex-start;
   }
 }

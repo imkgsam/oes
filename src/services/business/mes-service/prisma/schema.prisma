@@ -8,6 +8,32 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model ManufacturingSpec {
+  id                       String   @id @db.VarChar(128)
+  tenantId                 String   @db.VarChar(128)
+  orgId                    String?  @db.VarChar(128)
+  specCode                 String   @db.VarChar(128)
+  name                     String   @db.VarChar(255)
+  revisionCode             String?  @db.VarChar(128)
+  supersedesSpecId         String?  @db.VarChar(128)
+  productFamilyRef         Json
+  itemRef                  Json
+  manufacturingAttributes  Json
+  routeIntentRef           Json?
+  status                   String   @db.VarChar(64)
+  effectiveFrom            String?  @db.VarChar(64)
+  effectiveTo              String?  @db.VarChar(64)
+  retiredAt                String?  @db.VarChar(64)
+  replacementSpecId        String?  @db.VarChar(128)
+  createdAt                DateTime
+  updatedAt                DateTime
+  version                  Int
+
+  @@unique([tenantId, orgId, specCode])
+  @@index([tenantId, orgId, status])
+  @@index([tenantId, specCode])
+}
+
 model MoldDesign {
   id                    String             @id @db.VarChar(128)
   tenantId              String             @db.VarChar(128)
@@ -44,6 +70,7 @@ model MoldDesignOutput {
   outputKind           String     @db.VarChar(64)
   productFamilyRef     Json?
   manufacturingSpecRef Json?
+  options              Json
   quantityPerUse       String     @db.VarChar(64)
   componentRole        String?    @db.VarChar(128)
   assemblyHint         String?    @db.VarChar(255)
@@ -212,6 +239,8 @@ model MoldUsageEvent {
   lifeUsedValueAfter       String   @db.VarChar(64)
   productFamilyRef         Json?
   manufacturingSpecRef     Json?
+  moldDesignOutputId       String?  @db.VarChar(128)
+  moldDesignOutputOptionId String?  @db.VarChar(128)
   wipUnitRef               Json?
   physicalTraceId          String?  @db.VarChar(128)
   workOrderRef             Json?

@@ -37,6 +37,8 @@
   - 权限管理后台接口
 - [tenant-onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/tenant-onboarding.md)
   - Tenant onboarding BFF 目标契约草案；当前为设计对齐用，尚未实现
+- [mes-mold-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/mes-mold-management.md)
+  - MES 模具管理第一阶段 web 手工闭环 BFF 契约
 - [browser-prospecting-workspace.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/browser-prospecting-workspace.md)
   - Chrome 插件销售背调工作区 BFF 契约草案；当前为设计对齐用，尚未实现
 

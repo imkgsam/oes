@@ -17,8 +17,9 @@
 
 phase 1 query 只覆盖：
 
+- WorkCenter 目录读取
 - 模具设计读取与目录列表
-- 生产模具实例读取与按设计列表
+- 生产模具实例读取、tenant-wide 目录列表与按设计列表
 - 当前 MES 位置与安装摘要
 - 使用历史
 - work center 当前安装清单
@@ -86,6 +87,25 @@ phase 1 `MoldDesignOutput` 最小读取 shape：
 | `component_role` | optional 组件角色摘要 |
 | `assembly_hint` | optional 拼接或组装提示 |
 | `is_primary_output` | 是否主产出 |
+| `options[]` | 可选产出选项列表 |
+
+`MoldDesignOutputOption` 最小读取 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `mold_design_output_option_id` | option 标识 |
+| `mold_design_output_id` | 所属产出 |
+| `option_code` | option 编码摘要 |
+| `label` | option 展示名称 |
+| `manufacturing_spec_ref` | option 对应制造规格 ref |
+| `product_family_ref` | optional 产品族 ref |
+| `quantity_per_use` | option 选择后的单次产出数量 |
+| `is_default` | 是否默认选项 |
+
+说明：
+
+- 多个 `outputs[]` 表达一次使用同时产出的多个对象。
+- `options[]` 表达单个 output 的互斥选择，例如连体马桶主体注浆前选择 300 / 400 坑距。
 
 ### 2.3 `ProductionMoldInstance`
 
@@ -185,6 +205,8 @@ phase 1 使用历史条目最小读取 shape：
 | `life_used_value_after` | optional 事件后寿命值 |
 | `product_family_ref` | optional 产品族 ref + snapshot |
 | `manufacturing_spec_ref` | optional 制造规格 ref + snapshot |
+| `mold_design_output_id` | optional 本次使用对应的设计产出 |
+| `mold_design_output_option_id` | optional 本次使用选择的产出选项 |
 | `wip_unit_ref` | optional WIP 引用 |
 | `physical_trace_id` | optional 单件追溯码 |
 | `operator_ref` | 操作人引用摘要 |
@@ -208,6 +230,37 @@ phase 1 `MoldLifeWarning` 最小读取 shape：
 | `status` | `OPEN / ACKNOWLEDGED / CLOSED` |
 
 ## 3. RPC 语义
+
+### `ListWorkCenters`
+
+- 作用：分页查询第一阶段模具管理可用的制造执行单元。
+
+请求最小 shape：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `tenant_id` | 是 | 显式租户边界 |
+| `org_id` | 否 | 组织范围过滤 |
+| `keyword` | 否 | 按 code / name 检索 |
+| `parent_work_center_id` | 否 | 按 nested 父级过滤 |
+| `status` | 否 | 按状态过滤 |
+| `work_center_type` | 否 | 按执行单元类型过滤 |
+| `page` | 否 | 1-based 页码 |
+| `page_size` | 否 | 页大小 |
+
+响应最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `work_centers[]` | 当前页 WorkCenter 摘要 |
+| `total` | 总条数 |
+| `page` | 当前页码 |
+| `page_size` | 当前页大小 |
+
+读取语义：
+
+- 第一阶段 UI 默认面向实际可生产单位，nested parent WorkCenter 只作为组织与过滤关系。
+- 空结果正常返回空页。
 
 ### `GetMoldDesign`
 
@@ -321,6 +374,36 @@ phase 1 `MoldLifeWarning` 最小读取 shape：
 
 - 目标 `MoldDesign` 不存在时返回 `NOT_FOUND`。
 - 目标存在但没有生产模具实例时，正常返回空页。
+
+### `ListProductionMoldInstances`
+
+- 作用：分页查询 tenant / org 范围内所有生产模具实例。
+
+请求最小 shape：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `tenant_id` | 是 | 显式租户边界 |
+| `org_id` | 否 | 组织范围过滤 |
+| `mold_design_id` | 否 | 按模具设计过滤 |
+| `status` | 否 | 按实例生命周期过滤 |
+| `warning_level` | 否 | 按当前预警等级过滤 |
+| `supplier_id` | 否 | 按供应商引用过滤 |
+| `page` | 否 | 1-based 页码 |
+| `page_size` | 否 | 页大小 |
+
+响应最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `instances[]` | 当前页 `ProductionMoldInstance` 列表 |
+| `total` | 总条数 |
+| `page` | 当前页码 |
+| `page_size` | 当前页大小 |
+
+空语义：
+
+- 搜索结果为空时正常返回空页。
 
 ### `GetMoldCurrentLocation`
 

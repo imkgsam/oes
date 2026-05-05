@@ -1,19 +1,45 @@
 import { Module } from '@nestjs/common'
 import { ConfigModule } from '@nestjs/config'
 import { AuthorizationModule } from '@oes/common/authorization'
+import { SERVICE_NAMES } from '@oes/common/constants'
+import { resolveCommonProtoPath } from '@oes/common/contracts'
 import { LoggingModule } from '@oes/common/logging'
 import { RegistryModule } from '@oes/common/registry'
+import { GrpcTransportModule } from '@oes/common/transport'
 import { MesInfrastructureModule } from './modules/mes-infrastructure.module'
 import { MesManagementModule } from './modules/mes-management.module'
 import { MesQueryModule } from './modules/mes-query.module'
 
-/** AppModule wires the mes-service phase 1 mold runtime modules. */
+function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined {
+  const explicitUrl = process.env[envKey]?.trim()
+  if (explicitUrl) {
+    return explicitUrl
+  }
+
+  if ((process.env.NODE_ENV ?? 'development') !== 'production') {
+    return fallbackUrl
+  }
+
+  return undefined
+}
+
+/** AppModule wires the mes-service phase 1 mold and ManufacturingSpec runtime modules. */
 @Module({
   imports: [
     LoggingModule.forRoot({ serviceName: 'mes-service' }),
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env']
+    }),
+    GrpcTransportModule.forRoot({
+      services: {
+        [SERVICE_NAMES.ITEM_MASTER]: {
+          serviceName: SERVICE_NAMES.ITEM_MASTER,
+          protoPath: [resolveCommonProtoPath('item_master_service/item_master.proto')],
+          packageName: 'item_master_service',
+          url: resolveGrpcUrl('GRPC_SERVICE_ITEM_MASTER_URL', '127.0.0.1:50058')
+        }
+      }
     }),
     AuthorizationModule,
     RegistryModule,

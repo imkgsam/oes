@@ -39,6 +39,13 @@ vi.mock('@vben/common-ui', () => ({
   }
 }))
 
+vi.mock('@vben/icons', () => ({
+  IconifyIcon: {
+    name: 'IconifyIcon',
+    template: '<span data-testid="iconify-icon" />'
+  }
+}))
+
 // Verifies the phase 1 item create page only submits the frozen creation fields and returns to the detail route.
 describe('item management create page', () => {
   beforeEach(() => {
@@ -76,6 +83,8 @@ describe('item management create page', () => {
         itemId: 'item-1'
       }
     })
+    expect(wrapper.text()).toContain('Item → 详情 → 模具方案')
+    expect(wrapper.text()).toContain('创建后进入详情补齐能力、分类和模具方案')
     expect(wrapper.text()).toContain('Deferred')
   })
 })

@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-本目录用于冻结 `mes-service` phase 1 模具管理最小 contract，作为后续 proto 与 service implementation 的输入。
+本目录用于冻结 `mes-service` phase 1 模具管理与制造规格最小 contract，并记录当前内部 gRPC / runtime 支持状态。
 
 这些文档面向：
 
@@ -10,18 +10,31 @@
 - `item-master-service`
 - `procurement-service` / SRM / Party boundary
 - `permission-service`
-- 后续承担 `mes-service` mold module proto / runtime 实现的线程
+- 后续承担 `mes-service` mold / manufacturing spec module proto、runtime、BFF 或 UI 对接的线程
 
-这些文档不是 proto 副本，不展开数据库结构，不承诺 UI、事件 payload 全量字段或运行时实现细节。
+这些文档不是 proto 副本，不展开数据库结构，不承诺 UI、事件 payload 全量字段或未冻结运行时细节。
 
-本目录只回写已经冻结的 `MES Mold Foundation` phase 1 结论。
+本目录只回写已经冻结的 `MES Mold Foundation` 与 `MES Manufacturing Spec Foundation` phase 1 结论。
 
 ## 2. Phase 1 Contract Surface
 
 phase 1 只冻结以下内部 gRPC contract 面：
 
+- [manufacturing-spec-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/manufacturing-spec-management.md)
+  - `ManufacturingSpecManagementService`
+  - `CreateManufacturingSpec`
+  - `UpdateManufacturingSpec`
+  - `ActivateManufacturingSpec`
+  - `RetireManufacturingSpec`
+- [manufacturing-spec-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/manufacturing-spec-query.md)
+  - `ManufacturingSpecQueryService`
+  - `GetManufacturingSpec`
+  - `ListManufacturingSpecs`
+  - `ResolveManufacturingSpecsForMold`
 - [mold-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/mold-management.md)
   - `MoldManagementService`
+  - `CreateWorkCenter`
+  - `DeactivateWorkCenter`
   - `RegisterMoldDesign`
   - `RegisterMasterMold`
   - `RegisterProductionMoldInstance`
@@ -34,9 +47,11 @@ phase 1 只冻结以下内部 gRPC contract 面：
   - `ScrapMold`
 - [mold-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/mes-service/mold-query.md)
   - `MoldQueryService`
+  - `ListWorkCenters`
   - `GetMoldDesign`
   - `ListMoldDesigns`
   - `GetProductionMoldInstance`
+  - `ListProductionMoldInstances`
   - `ListMoldInstancesByDesign`
   - `GetMoldCurrentLocation`
   - `GetMoldUsageHistory`
@@ -56,7 +71,21 @@ phase 1 不在本目录中冻结：
 - 模具部件级或套组级建模
 - 完整采购、SRM、质量或资产会计流程
 
-## 3. Owner Boundary
+## 3. Runtime Status
+
+截至 2026-05-05：
+
+- `MoldManagementService` 与 `MoldQueryService` phase 1 内部 gRPC runtime 已支持。
+- `ManufacturingSpecManagementService` 与 `ManufacturingSpecQueryService` phase 1 内部 gRPC runtime 已支持。
+- `MoldDesign` 注册时已校验 `manufacturing_spec_refs` 与 output-level `manufacturing_spec_ref` 必须解析到同 tenant / org 下 `ACTIVE` ManufacturingSpec。
+- `MoldDesignOutput` 已支持 `options[]`，用于表达注浆前必须选择的互斥制造规格 / 数量选项。
+- `RecordMoldUsage` 已支持 `mold_design_output_id` 与 `mold_design_output_option_id`，用于每日注浆记录绑定实际产出选择。
+- `WorkCenter` create / deactivate / list 已支持；`ResourcePosition` 第一阶段仍是安装域内部对象，不暴露 standalone CRUD，安装时可自动创建或复用模位。
+- `api-gateway` 已提供 MES mold management BFF surface，`tenant-web` 已接入 `/mes/mold-management` 内容区工作台。
+- runtime 支持范围仍不包含完整 Routing / Operation、quality rule、WIP runtime、Sales SKU 映射、PDA 扫码端或 standalone ResourcePosition 管理。
+- 最近验证矩阵：`pnpm --filter mes-service prisma:generate`、`pnpm --filter mes-service test:l1 -- test/l1/mes-mold-foundation.behavior.spec.ts`、`pnpm --filter mes-service test:l3 -- test/l3/mes-grpc-surface.spec.ts`、`pnpm common:build`、`pnpm --dir src/services/api-gateway exec jest src/modules/mes-service --runInBand`、`pnpm --dir app/web/apps/tenant-web exec vitest run src/api/bff/mes/index.spec.ts src/modules/mes/routes.spec.ts src/router/access.spec.ts src/views/admin/mes-mold-management.spec.ts`、`pnpm --dir app/web/apps/tenant-web typecheck`。
+
+## 4. Owner Boundary
 
 phase 1 contract 明确围绕以下 owner truth 展开：
 
@@ -74,6 +103,7 @@ phase 1 contract 明确围绕以下 owner truth 展开：
 
 - 模具已冻结为 MES tooling resource，不属于 WMS 库存，不属于 `Equipment`，也不是普通 `Location`。
 - `ManufacturingSpec` 归 `mes-service`，用于表达制造现场可执行规格；`MoldDesign` 只是引用它的 tooling design record，不替代 `ManufacturingSpec` truth。
+- `MoldDesignOutput.options[]` 表达同一产出的互斥制造规格 / 数量选择；多个 `MoldDesignOutput` 表达一次使用同时产出的多个对象。
 - `MoldDesign` 不替代 PLM 图纸 truth、Item truth 或完整 PIM / PLM 产品主数据 truth。
 - `item-master-service` 只提供 `manufacturable` 且 `PHYSICAL` 的 `Item` 准入边界，不拥有 `ManufacturingSpec`。
 - `MasterMold` 与 `ProductionMoldInstance` 都是可追踪 tooling resource；phase 1 只有 `ProductionMoldInstance` 进入安装、使用、寿命与预警主闭环。
@@ -82,9 +112,9 @@ phase 1 contract 明确围绕以下 owner truth 展开：
 - `ProductionMoldInstance.current_status` 不使用长期 `IN_USE` 生命周期状态；是否正在使用由有效安装和使用事件读模型推导。
 - `WorkCenter` 是逻辑制造执行单元，`MesLocation` 是物理空间；二者可以有关联，但不得假设一一对应。
 
-## 4. Reference Boundary
+## 5. Reference Boundary
 
-### 4.1 Item Master 与 MES ManufacturingSpec 边界
+### 5.1 Item Master 与 MES ManufacturingSpec 边界
 
 - `ManufacturingSpec` 是 MES 内部 manufacturing master object，不是 `item-master-service` truth。
 - `ManufacturingSpec` 必须引用当前 `manufacturable` 且 `PHYSICAL` 的 `Item`，但不复制 Item 主数据真相。
@@ -93,20 +123,21 @@ phase 1 contract 明确围绕以下 owner truth 展开：
 - display snapshot 不是 Item truth，不得被实现线程当作反向修正 Item Master 的依据。
 - `Item` ref 只能作为 optional 辅助引用，不能成为 `MoldDesign` 主绑定关系。
 
-### 4.2 Procurement / SRM / Party
+### 5.2 Procurement / SRM / Party
 
 - `supplier_ref` 只指向供应商身份边界，不复制供应商主档、联系人、评级、商业条款或供应表现 truth。
 - `purchase_ref` 只指向采购交易对象或外部采购凭证，不复制 `PO`、收货、价格、付款、商业条款或 discrepancy resolution truth。
 - MES 可以按模具沉淀质量表现、寿命表现与使用事实，供采购分析消费；采购决策、追偿、重下单不归 MES。
 
-### 4.3 MES Resource References
+### 5.3 MES Resource References
 
 - `MesLocation` 表达 MES 现场物理空间，不使用 WMS location。
 - `WorkCenter` 表达制造执行单元，不承担实物位置 truth。
 - `ResourcePosition` 表达 `WorkCenter` 下可安装 tooling resource 的具体槽位、机台位、模位或工位位置。
+- `ResourcePosition` 第一阶段由安装 / 卸下流程维护，不要求人工手动建模和维护模位目录。
 - `ResourcePosition` 兼容性校验属于 MES mold domain rule，不得放入 gateway、DTO 或 `src/common`。
 
-## 5. Security / Context Baseline
+## 6. Security / Context Baseline
 
 所有 phase 1 RPC 统一遵循以下基线：
 
@@ -128,7 +159,7 @@ phase 1 contract 明确围绕以下 owner truth 展开：
 - 本目录只冻结必须可观察到的上下文与行为边界，不展开 metadata header、guard、幂等键或 tracing 实现。
 - command 的业务规则必须位于 `mes-service` domain / application 层，不得放入 gateway、DTO、Prisma schema 或 `src/common`。
 
-## 6. State Machine Baseline
+## 7. State Machine Baseline
 
 `ProductionMoldInstance.current_status` phase 1 固定使用以下生命周期状态：
 
@@ -151,7 +182,7 @@ phase 1 contract 明确围绕以下 owner truth 展开：
 - `RecordMoldUsage` 不改变生命周期到长期 `IN_USE`；使用事实只写 `MoldUsageEvent`，当前使用摘要由读模型推导。
 - 如 future UI 需要展示 `IN_USE`，只能作为 transient derived usage state，不得写入 `ProductionMoldInstance.current_status`。
 
-## 7. Audit / Event Transaction Boundary
+## 8. Audit / Event Transaction Boundary
 
 所有成功 management command 必须写审计。
 
@@ -173,7 +204,7 @@ phase 1 冻结事件：
 - `MoldLifeWarningRaised`
 - `MoldScrapped`
 
-## 8. Deferred
+## 9. Deferred
 
 以下能力明确 deferred，不得写成 phase 1 已承诺 contract：
 
@@ -185,9 +216,10 @@ phase 1 冻结事件：
 - 模具采购、索赔、供应商评分和重采决策
 - 完整质量健康评分
 - WMS 模具库存管理
-- 外部 HTTP / BFF contract
+- PDA 扫码采集端
+- standalone ResourcePosition 管理
 
-## 9. 关联真相源
+## 10. 关联真相源
 
 本目录以上游稳定文档为准：
 

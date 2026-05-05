@@ -14,7 +14,8 @@ import {
   MoldWarningType,
   PageResult,
   ProductionMoldInstanceStatus,
-  ProductionMoldInstanceView
+  ProductionMoldInstanceView,
+  WorkCenterSummaryRecord
 } from '../../domain/models/mes-mold-records'
 import { MesMoldRepository } from '../../domain/repositories/mes-mold.repository'
 import {
@@ -59,6 +60,28 @@ export interface ListMoldInstancesByDesignInput {
   status?: ProductionMoldInstanceStatus
   warningLevel?: MoldWarningLevel
   supplierId?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface ListProductionMoldInstancesInput {
+  tenantId: string
+  orgId?: string | null
+  moldDesignId?: string
+  status?: ProductionMoldInstanceStatus
+  warningLevel?: MoldWarningLevel
+  supplierId?: string
+  page?: number
+  pageSize?: number
+}
+
+export interface ListWorkCentersInput {
+  tenantId: string
+  orgId?: string | null
+  keyword?: string
+  parentWorkCenterId?: string | null
+  status?: string
+  workCenterType?: string
   page?: number
   pageSize?: number
 }
@@ -205,6 +228,50 @@ export class MesMoldQueryService {
         revisionCode: design.revisionCode ?? null,
         productFamilyRef: design.productFamilyRef
       }
+    }
+  }
+
+  /** listProductionMoldInstances returns the tenant-wide production mold directory used by the web workspace. */
+  async listProductionMoldInstances(
+    input: ListProductionMoldInstancesInput
+  ): Promise<PageResult<ProductionMoldInstanceView>> {
+    assertRequiredString(input.tenantId, 'tenantId')
+    const page = normalizePageInput(input.page, input.pageSize)
+    const records = await this.repository.searchProductionMoldInstances({
+      tenantId: input.tenantId,
+      orgId: input.orgId ?? null,
+      moldDesignId: input.moldDesignId,
+      status: input.status,
+      warningLevel: input.warningLevel,
+      supplierId: input.supplierId,
+      ...page
+    })
+    return {
+      items: await Promise.all(records.items.map((record) => this.readModel.buildProductionMoldInstanceView(record))),
+      total: records.total,
+      page: records.page,
+      pageSize: records.pageSize
+    }
+  }
+
+  /** listWorkCenters returns production units that can be shown by the web mold-management workspace. */
+  async listWorkCenters(input: ListWorkCentersInput): Promise<PageResult<WorkCenterSummaryRecord>> {
+    assertRequiredString(input.tenantId, 'tenantId')
+    const page = normalizePageInput(input.page, input.pageSize)
+    const records = await this.repository.searchWorkCenters({
+      tenantId: input.tenantId,
+      orgId: input.orgId ?? null,
+      keyword: input.keyword,
+      parentWorkCenterId: input.parentWorkCenterId,
+      status: input.status,
+      workCenterType: input.workCenterType,
+      ...page
+    })
+    return {
+      items: records.items.map(toWorkCenterSummary),
+      total: records.total,
+      page: records.page,
+      pageSize: records.pageSize
     }
   }
 

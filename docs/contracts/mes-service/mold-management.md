@@ -6,6 +6,7 @@
 
 命令范围只覆盖：
 
+- 模具管理用 WorkCenter 创建与停用
 - 模具设计建档
 - 母模建档
 - 生产模具实例建档
@@ -116,6 +117,62 @@
 
 ## 4. RPC 语义
 
+### `CreateWorkCenter`
+
+- 作用：创建第一阶段模具管理可用的制造执行单元。
+
+请求最小 shape：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `tenant_id` | 是 | 显式租户边界 |
+| `org_id` | 否 | 适用时的组织边界 |
+| `work_center_code` | 是 | tenant + org 范围内唯一执行单元编码 |
+| `name` | 是 | 执行单元名称 |
+| `work_center_type` | 是 | `CASTING_LINE / FLOOR_CASTING_AREA / VERTICAL_HIGH_PRESSURE_MACHINE / HORIZONTAL_HIGH_PRESSURE_MACHINE` 等 |
+| `parent_work_center_id` | 否 | nested WorkCenter 父级 |
+| `related_mes_location_id` | 否 | optional 关联 MES 物理空间 |
+| `capacity_profile_id` | 否 | optional 产能摘要 |
+| `reason` | 是 | 创建原因 |
+
+响应最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `work_center_summary` | 新建后的 WorkCenter 摘要 |
+
+关键语义：
+
+- `WorkCenter` 是逻辑制造执行单元，不替代 `MesLocation`。
+- 第一阶段 tenant-web 面向实际可生产单位展示；nested parent 只作为组织 / 过滤关系，不要求主管先维护完整树。
+- 能挂载模具的第一阶段类型为 `CASTING_LINE`、`FLOOR_CASTING_AREA`、`VERTICAL_HIGH_PRESSURE_MACHINE`、`HORIZONTAL_HIGH_PRESSURE_MACHINE`。
+- 成功后必须写审计。
+
+### `DeactivateWorkCenter`
+
+- 作用：停用第一阶段模具管理可用的制造执行单元。
+
+请求最小 shape：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `tenant_id` | 是 | 显式租户边界 |
+| `org_id` | 否 | 适用时的组织边界 |
+| `work_center_id` | 是 | 目标执行单元 |
+| `reason` | 是 | 停用原因 |
+
+响应最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| `work_center_summary` | 停用后的 WorkCenter 摘要 |
+
+关键语义：
+
+- 存在有效未关闭模具安装时不得停用。
+- 停用不删除历史安装、使用或寿命事实。
+- 成功后必须写审计。
+
 ### `RegisterMoldDesign`
 
 - 作用：登记一类模具设计 / 定义。
@@ -155,6 +212,18 @@
 | `component_role` | 否 | 组件角色摘要 |
 | `assembly_hint` | 否 | 后续拼接或组装提示 |
 | `is_primary_output` | 是 | 是否主产出 |
+| `options[]` | 否 | 同一产出的互斥制造规格 / 数量选择 |
+
+`outputs[].options[]` 最小 shape：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `option_code` | 是 | option 编码摘要 |
+| `label` | 是 | 展示名称，例如 `300 坑距` |
+| `manufacturing_spec_ref` | 是 | option 对应制造规格 ref |
+| `product_family_ref` | 否 | option 对应产品族 ref |
+| `quantity_per_use` | 否 | option 选择后的单次产出数量；未传时继承 output |
+| `is_default` | 否 | 是否默认选项 |
 
 响应最小 shape：
 
@@ -166,6 +235,7 @@
 
 - `design_code` 必须在 tenant + org 范围内唯一。
 - `outputs[]` 至少包含一个主产出。
+- 多个 `outputs[]` 表达一次模具使用同时产出的多个对象；`options[]` 表达单个 output 的互斥选择，例如注浆前选择 300 / 400 坑距。
 - `product_family_ref` 是主适配边界；`item_ref` 不得替代产品族 / 制造规格绑定。
 - 成功后必须写审计，并写入 `MoldRegistered` outbox event，`mold_resource_type = MOLD_DESIGN`。
 
@@ -286,7 +356,7 @@
 | `org_id` | 否 | 适用时的组织边界 |
 | `production_mold_instance_id` | 是 | 目标生产模具实例 |
 | `work_center_id` | 是 | 安装目标执行单元 |
-| `resource_position_id` | 是 | 安装目标资源位置 |
+| `resource_position_id` | 否 | 安装目标资源位置；未传时服务自动创建或复用可用模位 |
 | `installed_at` | 否 | 安装时间；未传由服务记录当前时间 |
 | `setup_snapshot` | 否 | 本次安装设置摘要 |
 | `operation_ref` | 否 | optional 工序引用摘要 |
@@ -305,10 +375,10 @@
 关键语义：
 
 - 只允许 `PENDING_INSTALLATION` 状态安装。
-- `work_center_id` 与 `resource_position_id` 必须属于当前 tenant / org 可见范围。
-- `resource_position_id` 必须属于目标 `work_center_id`。
-- `ResourcePosition` 必须兼容目标模具设计。
-- `ResourcePosition` 当前不得存在有效未关闭安装。
+- `work_center_id` 必须属于当前 tenant / org 可见范围。
+- 若传入 `resource_position_id`，它必须属于目标 `work_center_id`，必须兼容目标模具设计，且当前不得存在有效未关闭安装。
+- 若未传入 `resource_position_id`，服务在目标 `WorkCenter` 下自动创建或复用兼容且空闲的 `ResourcePosition`。
+- 第一阶段不要求人工手动维护模位 CRUD；`ResourcePosition` 由安装 / 卸下流程维护。
 - 同一生产模具实例当前不得已有有效未关闭安装。
 - 成功后创建 `MoldInstallation`，实例状态更新为 `INSTALLED`。
 - 成功后必须写审计，并写入 `MoldInstalled` outbox event。
@@ -367,6 +437,8 @@
 | `life_unit` | 是 | 寿命单位 |
 | `product_family_ref` | 否 | 本次生产产品族 ref |
 | `manufacturing_spec_ref` | 否 | 本次生产制造规格 ref |
+| `mold_design_output_id` | 否 | 本次使用对应的设计产出 |
+| `mold_design_output_option_id` | 否 | 本次使用选择的产出选项 |
 | `wip_unit_ref` | 否 | optional WIP 引用 |
 | `physical_trace_id` | 否 | optional 单件追溯码 |
 | `work_order_ref` | 否 | optional 工单引用 |
@@ -388,6 +460,8 @@
 - 必须存在有效未关闭 `MoldInstallation`。
 - 若传入 `mold_installation_id`，必须匹配当前有效安装。
 - `work_center_id` / `resource_position_id` 必须与当前安装一致或可由当前安装验证。
+- 若目标 MoldDesignOutput 存在 options，`mold_design_output_option_id` 必须指向该 output 下可用 option；若调用方省略，服务可按唯一默认 option 解析，否则返回前置条件错误。
+- `manufacturing_spec_ref` 可以由 `mold_design_output_id` / `mold_design_output_option_id` 推导；调用方显式传入时必须与所选产出一致。
 - `SCRAPPED` 模具不得记录使用。
 - `life_delta` 必须大于 `0`；寿命单位必须与 `MoldLifeCounter` 一致或可被服务明确换算。
 - 成功后创建 `MoldUsageEvent`，累加 `MoldLifeCounter`。

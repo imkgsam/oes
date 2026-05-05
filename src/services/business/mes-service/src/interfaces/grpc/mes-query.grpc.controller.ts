@@ -17,6 +17,10 @@ import {
   ListMoldInstancesByDesignResponse,
   ListMoldLifeWarningsRequest,
   ListMoldLifeWarningsResponse,
+  ListProductionMoldInstancesRequest,
+  ListProductionMoldInstancesResponse,
+  ListWorkCentersRequest,
+  ListWorkCentersResponse,
   MoldQueryServiceController,
   MoldQueryServiceControllerMethods,
   PrintDailyMoldChecklistRequest,
@@ -40,6 +44,21 @@ import { MesRpcContextValidator } from './mes-rpc-context.validator'
 @MoldQueryServiceControllerMethods()
 export class MesQueryGrpcController implements MoldQueryServiceController {
   constructor(private readonly queryService: MesMoldQueryService) {}
+
+  async listWorkCenters(request: ListWorkCentersRequest): Promise<ListWorkCentersResponse> {
+    const context = MesRpcContextValidator.assertQueryContext(request)
+    return MesGrpcPresenter.toListWorkCentersResponse(
+      await this.queryService.listWorkCenters({
+        ...context,
+        keyword: request.keyword ?? undefined,
+        parentWorkCenterId: request.parentWorkCenterId ?? undefined,
+        status: request.status ?? undefined,
+        workCenterType: request.workCenterType ?? undefined,
+        page: request.page ?? undefined,
+        pageSize: request.pageSize ?? undefined
+      })
+    )
+  }
 
   async getMoldDesign(request: GetMoldDesignRequest): Promise<GetMoldDesignResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
@@ -78,6 +97,23 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
       await this.queryService.getProductionMoldInstance({
         ...context,
         productionMoldInstanceId: request.productionMoldInstanceId ?? ''
+      })
+    )
+  }
+
+  async listProductionMoldInstances(
+    request: ListProductionMoldInstancesRequest
+  ): Promise<ListProductionMoldInstancesResponse> {
+    const context = MesRpcContextValidator.assertQueryContext(request)
+    return MesGrpcPresenter.toListProductionMoldInstancesResponse(
+      await this.queryService.listProductionMoldInstances({
+        ...context,
+        moldDesignId: request.moldDesignId ?? undefined,
+        status: toDomainProductionMoldInstanceStatus(request.status),
+        warningLevel: toDomainMoldWarningLevel(request.warningLevel),
+        supplierId: request.supplierId ?? undefined,
+        page: request.page ?? undefined,
+        pageSize: request.pageSize ?? undefined
       })
     )
   }

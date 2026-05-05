@@ -57,6 +57,13 @@ vi.mock('@vben/common-ui', () => ({
   }
 }))
 
+vi.mock('@vben/icons', () => ({
+  IconifyIcon: {
+    name: 'IconifyIcon',
+    template: '<span data-testid="iconify-icon" />'
+  }
+}))
+
 // Verifies the item management list page keeps filters, navigation, and tenant-scoped directory loading aligned with the BFF.
 describe('item management list page', () => {
   beforeEach(() => {
@@ -92,11 +99,31 @@ describe('item management list page', () => {
             categoryName: 'Finished Goods',
             status: 'ACTIVE'
           }
+        },
+        {
+          itemId: 'item-2',
+          itemCode: 'WC-ONE-300',
+          itemName: '连体马桶坐头 300坑距',
+          structureType: 'SINGLE',
+          natureType: 'PHYSICAL',
+          status: 'ACTIVE',
+          capabilities: {
+            sellable: true,
+            purchasable: false,
+            stockable: false,
+            manufacturable: true
+          },
+          primaryCategorySummary: {
+            categoryId: 'category-1',
+            categoryCode: 'FINISHED',
+            categoryName: 'Finished Goods',
+            status: 'ACTIVE'
+          }
         }
       ],
       page: 1,
       pageSize: 20,
-      total: 1
+      total: 2
     })
     listManagedItemCategoriesApi.mockImplementation(async (_tenantId, params) => {
       if (params.parentCategoryId === 'category-root') {
@@ -171,7 +198,11 @@ describe('item management list page', () => {
       parentCategoryId: 'category-root'
     })
     expect(wrapper.text()).toContain('Starter Bundle')
+    expect(wrapper.text()).toContain('连体马桶坐头 300坑距')
     expect(wrapper.text()).toContain('Finished Goods')
+    expect(wrapper.text()).toContain('模具方案状态')
+    expect(wrapper.text()).toContain('可建模具方案')
+    expect(wrapper.text()).toContain('不适用')
 
     await wrapper.get('[data-testid="item-filter-keyword"]').setValue('starter')
     await wrapper.get('[data-testid="item-filter-capability"]').setValue('sellable')

@@ -9,6 +9,7 @@ const getManagedItemCompositionApi = vi.fn()
 const listManagedItemCategoriesApi = vi.fn()
 const listManagedItemsApi = vi.fn()
 const listManagedSupplierItemMappingsApi = vi.fn()
+const listMoldDesignsApi = vi.fn()
 const setManagedItemCapabilitiesApi = vi.fn()
 const setManagedItemPrimaryCategoryApi = vi.fn()
 const setManagedItemCompositionApi = vi.fn()
@@ -45,6 +46,7 @@ vi.mock('#/api', () => ({
   listManagedItemCategoriesApi,
   listManagedItemsApi,
   listManagedSupplierItemMappingsApi,
+  listMoldDesignsApi,
   setManagedItemCapabilitiesApi,
   setManagedItemPrimaryCategoryApi,
   setManagedItemCompositionApi,
@@ -67,6 +69,13 @@ vi.mock('@vben/common-ui', () => ({
   }
 }))
 
+vi.mock('@vben/icons', () => ({
+  IconifyIcon: {
+    name: 'IconifyIcon',
+    template: '<span data-testid="iconify-icon" />'
+  }
+}))
+
 // Verifies the phase 1 detail page wires basics, capabilities, composition full-replace, and supplier mapping upsert to the thin BFF contract.
 describe('item management detail page', () => {
   beforeEach(() => {
@@ -76,6 +85,7 @@ describe('item management detail page', () => {
     listManagedItemCategoriesApi.mockReset()
     listManagedItemsApi.mockReset()
     listManagedSupplierItemMappingsApi.mockReset()
+    listMoldDesignsApi.mockReset()
     setManagedItemCapabilitiesApi.mockReset()
     setManagedItemPrimaryCategoryApi.mockReset()
     setManagedItemCompositionApi.mockReset()
@@ -125,6 +135,34 @@ describe('item management detail page', () => {
           supplierItemCode: 'SUP-001',
           supplierItemName: 'Supplier Item 1',
           itemId: 'item-1'
+        }
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20
+    })
+    listMoldDesignsApi.mockResolvedValue({
+      moldDesigns: [
+        {
+          moldDesignId: 'design-1',
+          designCode: 'MS-DT-001',
+          name: '常规石膏模方案 A',
+          revisionCode: 'R2',
+          materialType: 'GYPSUM',
+          functionRole: 'PRODUCTION',
+          productionMethodTags: ['FLOOR_CASTING'],
+          status: 'ACTIVE',
+          defaultLifeLimit: '120',
+          defaultLifeUnit: 'USE',
+          outputs: [
+            {
+              moldDesignOutputId: 'output-1',
+              outputCode: 'BODY',
+              componentRole: '主体',
+              quantityPerUse: '1',
+              sequenceNo: 1
+            }
+          ]
         }
       ],
       total: 1,
@@ -240,6 +278,11 @@ describe('item management detail page', () => {
       page: 1,
       pageSize: 20
     })
+    expect(listMoldDesignsApi).toHaveBeenCalledWith('tenant-1', {
+      itemId: 'item-1',
+      page: 1,
+      pageSize: 20
+    })
     expect(listManagedItemsApi).toHaveBeenCalledWith('tenant-1', {
       capability: undefined,
       keyword: undefined,
@@ -251,6 +294,9 @@ describe('item management detail page', () => {
     })
     expect(wrapper.text()).toContain('Supplier Item 1')
     expect(wrapper.text()).toContain('Finished Goods')
+    expect(wrapper.text()).toContain('Item → 模具方案 → 生产模具 → 产线')
+    expect(wrapper.text()).toContain('常规石膏模方案 A')
+    expect(wrapper.text()).toContain('主体 x 1')
 
     await wrapper.get('[data-testid="detail-item-code"]').setValue('BUNDLE-001-REV')
     await wrapper.get('[data-testid="detail-item-name"]').setValue('Starter Bundle Rev')

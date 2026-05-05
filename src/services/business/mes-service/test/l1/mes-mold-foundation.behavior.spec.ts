@@ -292,6 +292,207 @@ describe('mes-service mold foundation behavior L1', () => {
     })
   })
 
+  it('work center management / should create list and deactivate production units without exposing resource position CRUD', async () => {
+    const { management, query } = createHarness()
+
+    const created = await management.createWorkCenter({
+      ...commandContext('cmd-create-wc-1', 'create casting line'),
+      workCenterId: 'wc-line-a',
+      workCenterCode: 'line-a',
+      name: '连体马桶上线 A',
+      workCenterType: 'CASTING_LINE',
+      relatedMesLocationId: 'loc-ready',
+      reason: 'create casting line'
+    })
+    expect(created).toMatchObject({
+      workCenterCode: 'LINE-A',
+      name: '连体马桶上线 A',
+      status: 'ACTIVE'
+    })
+
+    const listed = await query.listWorkCenters({
+      ...queryContext(),
+      keyword: 'line',
+      workCenterType: 'CASTING_LINE',
+      page: 1,
+      pageSize: 20
+    })
+    expect(listed.items.map((item) => item.workCenterId)).toContain('wc-line-a')
+
+    const deactivated = await management.deactivateWorkCenter({
+      ...commandContext('cmd-deactivate-wc-1', 'line retired'),
+      workCenterId: 'wc-line-a',
+      reason: 'line retired'
+    })
+    expect(deactivated.status).toBe('INACTIVE')
+  })
+
+  it('output options and auto positions / should keep selectable manufacturing specs and allocate mold slots during install', async () => {
+    const { management, query, store } = createHarness()
+    const design = await management.registerMoldDesign({
+      ...commandContext('cmd-design-options', 'register selectable design'),
+      moldDesignId: 'design-options',
+      designCode: 'toilet-body-hp',
+      name: '连体马桶主体高压模具方案',
+      revisionCode: 'R1',
+      productFamilyRef: {
+        refType: 'PRODUCT_FAMILY',
+        refId: 'pf-toilet',
+        refCodeSnapshot: 'TOILET',
+        displayNameSnapshot: '连体马桶'
+      },
+      manufacturingSpecRefs: [
+        {
+          refType: 'MANUFACTURING_SPEC',
+          refId: 'spec-300',
+          refCodeSnapshot: 'BODY-300',
+          displayNameSnapshot: '主体 300 坑距'
+        },
+        {
+          refType: 'MANUFACTURING_SPEC',
+          refId: 'spec-400',
+          refCodeSnapshot: 'BODY-400',
+          displayNameSnapshot: '主体 400 坑距'
+        }
+      ],
+      itemRef: {
+        itemId: 'item-toilet-body',
+        itemCodeSnapshot: 'TOILET-BODY',
+        itemNameSnapshot: '连体马桶坐头'
+      },
+      materialType: 'HIGH_PRESSURE',
+      functionRole: MoldFunctionRole.PRODUCTION,
+      productionMethodTags: ['HIGH_PRESSURE'],
+      outputStructureType: MoldOutputStructureType.SINGLE,
+      outputs: [
+        {
+          sequenceNo: 1,
+          outputCode: 'BODY',
+          outputKind: MoldDesignOutputKind.PRODUCT,
+          productFamilyRef: {
+            refType: 'PRODUCT_FAMILY',
+            refId: 'pf-toilet',
+            refCodeSnapshot: 'TOILET',
+            displayNameSnapshot: '连体马桶'
+          },
+          quantityPerUse: '1',
+          isPrimaryOutput: true,
+          options: [
+            {
+              optionCode: 'P300',
+              label: '300 坑距',
+              manufacturingSpecRef: {
+                refType: 'MANUFACTURING_SPEC',
+                refId: 'spec-300',
+                refCodeSnapshot: 'BODY-300',
+                displayNameSnapshot: '主体 300 坑距'
+              },
+              isDefault: true
+            },
+            {
+              optionCode: 'P400',
+              label: '400 坑距',
+              manufacturingSpecRef: {
+                refType: 'MANUFACTURING_SPEC',
+                refId: 'spec-400',
+                refCodeSnapshot: 'BODY-400',
+                displayNameSnapshot: '主体 400 坑距'
+              }
+            }
+          ]
+        }
+      ],
+      defaultLifeLimit: '12000',
+      defaultLifeUnit: 'USE',
+      reason: 'register selectable design'
+    })
+    expect(design.outputs[0]?.options?.map((option) => option.optionCode)).toEqual(['P300', 'P400'])
+
+    await management.registerProductionMoldInstance({
+      ...commandContext('cmd-options-mold-1', 'register high pressure mold'),
+      productionMoldInstanceId: 'mold-options-1',
+      moldInstanceCode: 'hp-toilet-body-0001',
+      moldDesignId: 'design-options',
+      initialStatus: ProductionMoldInstanceStatus.PENDING_INSTALLATION,
+      initialMesLocationId: 'loc-ready',
+      reason: 'register high pressure mold'
+    })
+    const installed = await management.installMold({
+      ...commandContext('cmd-options-install-1', 'install without manual slot'),
+      productionMoldInstanceId: 'mold-options-1',
+      workCenterId: 'wc-press-1',
+      reason: 'install without manual slot'
+    })
+    expect(installed.moldInstallation.resourcePositionId).toMatch(/^auto-pos-/)
+    expect(store.resourcePositions.get(installed.moldInstallation.resourcePositionId)?.positionType).toBe('AUTO_MOLD_SLOT')
+
+    const used = await management.recordMoldUsage({
+      ...commandContext('cmd-options-usage-1', 'record selected output option'),
+      productionMoldInstanceId: 'mold-options-1',
+      moldInstallationId: installed.moldInstallation.moldInstallationId,
+      workCenterId: 'wc-press-1',
+      resourcePositionId: installed.moldInstallation.resourcePositionId,
+      usageMode: MoldUsageMode.MANUAL_CHECKLIST,
+      usageQuantity: '1',
+      lifeDelta: '1',
+      lifeUnit: 'USE',
+      moldDesignOutputId: design.outputs[0]?.moldDesignOutputId,
+      moldDesignOutputOptionId: design.outputs[0]?.options[1]?.moldDesignOutputOptionId,
+      manufacturingSpecRef: design.outputs[0]?.options[1]?.manufacturingSpecRef,
+      captureSource: 'WEB_CHECKLIST',
+      reason: 'record selected output option'
+    })
+    expect(used.usageEvent.moldDesignOutputOptionId).toBe(design.outputs[0]?.options[1]?.moldDesignOutputOptionId)
+    expect(used.usageEvent.manufacturingSpecRef?.refId).toBe('spec-400')
+
+    const derivedSpecUsage = await management.recordMoldUsage({
+      ...commandContext('cmd-options-usage-2', 'derive selected output option spec'),
+      productionMoldInstanceId: 'mold-options-1',
+      moldInstallationId: installed.moldInstallation.moldInstallationId,
+      workCenterId: 'wc-press-1',
+      resourcePositionId: installed.moldInstallation.resourcePositionId,
+      usageMode: MoldUsageMode.MANUAL_CHECKLIST,
+      usageQuantity: '1',
+      lifeDelta: '1',
+      lifeUnit: 'USE',
+      moldDesignOutputId: design.outputs[0]?.moldDesignOutputId,
+      moldDesignOutputOptionId: design.outputs[0]?.options[0]?.moldDesignOutputOptionId,
+      captureSource: 'WEB_CHECKLIST',
+      reason: 'derive selected output option spec'
+    })
+    expect(derivedSpecUsage.usageEvent.manufacturingSpecRef?.refId).toBe('spec-300')
+
+    await expect(
+      management.recordMoldUsage({
+        ...commandContext('cmd-options-usage-mismatch', 'reject mismatched selected option'),
+        productionMoldInstanceId: 'mold-options-1',
+        moldInstallationId: installed.moldInstallation.moldInstallationId,
+        workCenterId: 'wc-press-1',
+        resourcePositionId: installed.moldInstallation.resourcePositionId,
+        usageMode: MoldUsageMode.MANUAL_CHECKLIST,
+        usageQuantity: '1',
+        lifeDelta: '1',
+        lifeUnit: 'USE',
+        moldDesignOutputId: design.outputs[0]?.moldDesignOutputId,
+        moldDesignOutputOptionId: design.outputs[0]?.options[1]?.moldDesignOutputOptionId,
+        manufacturingSpecRef: design.outputs[0]?.options[0]?.manufacturingSpecRef,
+        captureSource: 'WEB_CHECKLIST',
+        reason: 'reject mismatched selected option'
+      })
+    ).rejects.toMatchObject({
+      definition: {
+        rpcStatus: status.FAILED_PRECONDITION
+      }
+    })
+
+    const listed = await query.listProductionMoldInstances({
+      ...queryContext(),
+      page: 1,
+      pageSize: 20
+    })
+    expect(listed.items.map((item) => item.productionMoldInstanceId)).toContain('mold-options-1')
+  })
+
   it('movement installation usage and query / should keep append-only facts, current projections, position occupancy, and warning de-duplication aligned', async () => {
     const { management, query, store } = createHarness()
     await registerDesign(management)

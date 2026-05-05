@@ -26,6 +26,7 @@ describe('navigation foundation seed', () => {
       'procurement.management',
       'finance.dashboard',
       'wms.management',
+      'mes.mold-management',
       'admin.platform-mfa',
       'admin.permission-management',
       'admin.policy-governance',
@@ -52,6 +53,7 @@ describe('navigation foundation seed', () => {
       '采购管理',
       '财务管理',
       'WMS 管理',
+      '模具管理',
       '平台 MFA 配置',
       '权限管理',
       '策略治理',
@@ -95,6 +97,11 @@ describe('navigation foundation seed', () => {
       {
         id: 'template-account-basic',
         code: 'account.basic',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'template-mes-supervisor',
+        code: 'mes.forming_workshop.supervisor',
         kind: RoleKind.SYSTEM_TEMPLATE
       }
     ])
@@ -261,6 +268,18 @@ describe('navigation foundation seed', () => {
         entryKey: 'workbench.home',
         terminal: 'DEFAULT',
         enabled: true
+      },
+      {
+        roleId: 'template-mes-supervisor',
+        entryKey: 'workbench.home',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-mes-supervisor',
+        entryKey: 'mes.mold-management',
+        terminal: 'DEFAULT',
+        enabled: true
       }
     ])
   })
@@ -285,6 +304,11 @@ describe('navigation foundation seed', () => {
       {
         id: 'template-account-basic',
         code: 'account.basic',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'template-mes-supervisor',
+        code: 'mes.forming_workshop.supervisor',
         kind: RoleKind.SYSTEM_TEMPLATE
       }
     ])
@@ -313,6 +337,13 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'template-account-basic',
+        terminal: 'DEFAULT',
+        defaultEntryKey: 'workbench.home',
+        priority: 0,
+        enabled: true
+      },
+      {
+        roleId: 'template-mes-supervisor',
         terminal: 'DEFAULT',
         defaultEntryKey: 'workbench.home',
         priority: 0,

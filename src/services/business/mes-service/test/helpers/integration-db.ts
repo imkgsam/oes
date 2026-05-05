@@ -105,6 +105,7 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
   await prisma.masterMold.deleteMany({ where })
   await prisma.moldDesignOutput.deleteMany({ where })
   await prisma.moldDesign.deleteMany({ where })
+  await prisma.manufacturingSpec.deleteMany({ where })
   await prisma.resourcePosition.deleteMany({ where })
   await prisma.workCenter.deleteMany({ where })
   await prisma.mesLocation.deleteMany({ where })

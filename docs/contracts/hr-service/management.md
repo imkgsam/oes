@@ -4,6 +4,8 @@
 
 `HrManagementService` 负责 minimum 第一阶段的员工与任职管理写接口。
 
+截至 2026-05-05，runtime 已支持通过 `CreateEmployeeOnboarding` 为首租户管理员建立 HR 员工、首条任职与默认账号访问接入；本次文档收口不重跑 Jest / Vitest。
+
 ## 2. 通用上下文要求
 
 当前 runtime 已落地的管理接口上下文校验为：
@@ -22,6 +24,33 @@
 若后续需要将 internal service gate、完整 operator context、metadata tenant 或审计元数据升级为强 contract，应先补充架构 / ADR 或 contract 决策，再修改 runtime 与测试。
 
 ## 3. 最小写接口
+
+### `CreateEmployeeOnboarding`
+
+- 作用：通过 HR-owned saga 建立或复用员工相关主体、员工主档、首条任职，并在需要时完成账号绑定与 `account.basic` 默认访问接入。
+- 请求关键字段：
+  - `tenant_id`
+  - `idempotency_key`
+  - `person.legal_name`
+  - optional `person.existing_party_id`
+  - optional `person.existing_tenant_party_id`
+  - optional `person.identifiers[]`
+  - optional `primary_employment.org_unit_id`
+  - optional `primary_employment.effective_from`
+  - optional `primary_employment.position_name`
+  - optional `create_account`
+  - optional `existing_account_id`
+  - optional `employee_code`
+- 响应关键字段：
+  - `employee`
+  - optional `employment`
+  - optional `access`
+- 关键语义：
+  - Employee / Employment 真相只属于 `hr-service`。
+  - PersonParty / TenantParty 真相仍属于 `party-service`，HR 只通过显式端口建立或复用引用。
+  - Account 真相仍属于 `identity-service`，角色 / grant 真相仍属于 `permission-service`。
+  - 当请求同时提供账号接入与首条任职时，HR onboarding access 段负责通过 permission 边界完成 `account.basic` 默认 grant。
+  - 下游账号绑定或权限 grant 失败时，不回滚已成立的 Party / Employee / Employment 真相；失败接入段应可查询、可重试。
 
 ### `CreateEmployee`
 

@@ -12,6 +12,7 @@ import {
   IDENTITY_MACHINE_PERMISSION_CODES,
   IDENTITY_TENANT_PERMISSION_CODES,
   ITEM_MASTER_MANAGEMENT_PERMISSION_CODES,
+  MES_MANAGEMENT_PERMISSION_CODES,
   PERMISSION_ACCOUNT_SELF_PERMISSION_CODES,
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
   PROCUREMENT_MANAGEMENT_PERMISSION_CODES,
@@ -57,6 +58,7 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
       './hr',
       './identity',
       './item-master',
+      './mes',
       './procurement',
       './permission',
       './sales',
@@ -128,7 +130,6 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
       './account.permission-codes',
       './account-self.permission-codes',
       './machine.permission-codes',
-      './org.permission-codes',
       './tenant.permission-codes'
     ]
   },
@@ -166,6 +167,17 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
     relativePath: 'item-master/management.permission-codes.ts',
     constName: 'ITEM_MASTER_MANAGEMENT_PERMISSION_CODES',
     records: ITEM_MASTER_MANAGEMENT_PERMISSION_CODES
+  },
+  {
+    kind: 'index',
+    relativePath: 'mes/index.ts',
+    exports: ['./management.permission-codes']
+  },
+  {
+    kind: 'const',
+    relativePath: 'mes/management.permission-codes.ts',
+    constName: 'MES_MANAGEMENT_PERMISSION_CODES',
+    records: MES_MANAGEMENT_PERMISSION_CODES
   },
   {
     kind: 'index',

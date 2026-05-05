@@ -6,6 +6,7 @@ export * from './context';
 export * from './finance';
 export * from './hr-management';
 export * from './item-management';
+export * from './mes';
 export * from './navigation';
 export * from './permission-management';
 export * from './personal-center';

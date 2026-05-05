@@ -226,6 +226,21 @@ export interface PageResult<T> {
   pageSize: number
 }
 
+/** MoldDesignOutputOptionRecord captures one selectable output variant chosen before a mold usage is recorded. */
+export interface MoldDesignOutputOptionRecord {
+  moldDesignOutputOptionId: string
+  tenantId: string
+  orgId?: string | null
+  moldDesignId: string
+  moldDesignOutputId: string
+  optionCode: string
+  label: string
+  manufacturingSpecRef: ManufacturingMasterDataRefRecord
+  productFamilyRef?: ManufacturingMasterDataRefRecord | null
+  quantityPerUse?: string | null
+  isDefault: boolean
+}
+
 /** MoldDesignOutputRecord captures one theoretical output row owned by a mold design. */
 export interface MoldDesignOutputRecord {
   moldDesignOutputId: string
@@ -241,6 +256,7 @@ export interface MoldDesignOutputRecord {
   componentRole?: string | null
   assemblyHint?: string | null
   isPrimaryOutput: boolean
+  options: MoldDesignOutputOptionRecord[]
 }
 
 /** MoldDesignRecord captures the MES tooling design record without owning external product truth. */
@@ -413,6 +429,8 @@ export interface MoldUsageEventRecord {
   lifeUsedValueAfter: string
   productFamilyRef?: ManufacturingMasterDataRefRecord | null
   manufacturingSpecRef?: ManufacturingMasterDataRefRecord | null
+  moldDesignOutputId?: string | null
+  moldDesignOutputOptionId?: string | null
   wipUnitRef?: ExternalRefRecord | null
   physicalTraceId?: string | null
   workOrderRef?: ExternalRefRecord | null
@@ -620,6 +638,8 @@ export interface MoldUsageHistoryEntryRecord {
   lifeUsedValueAfter?: string | null
   productFamilyRef?: ManufacturingMasterDataRefRecord | null
   manufacturingSpecRef?: ManufacturingMasterDataRefRecord | null
+  moldDesignOutputId?: string | null
+  moldDesignOutputOptionId?: string | null
   wipUnitRef?: ExternalRefRecord | null
   physicalTraceId?: string | null
   operatorRef?: OperatorRefRecord | null

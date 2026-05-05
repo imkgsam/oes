@@ -10,6 +10,13 @@
 
 ---
 
+## 0. Current Status
+
+- Status: runtime-supported as of 2026-05-05.
+- This implementation now supports creating the first tenant admin as an HR employee with an initial employment through `hr-service`.
+- `tenant-org-service` still owns only onboarding Saga state and external refs; it does not own employee, employment, party, identity, auth, or permission truth.
+- Current document closeout does not rerun Jest / Vitest per master-thread direction.
+
 ## 1. Required Reading
 
 - [Tenant onboarding feature packet](/Users/acehood/Documents/GitHub/oes/docs/plans/features/tenant-onboarding-flow-hardening.md)
@@ -27,7 +34,8 @@
 - Do not call other services' Prisma clients from `tenant-org-service`.
 - Do not put onboarding step state in Gateway.
 - Do not reuse `GrantInitialAccessForEmployeeAccount` for tenant first-admin onboarding.
-- Do not create employee, employment, or account-org membership in this flow.
+- Do not create account-org membership in this flow.
+- First-admin employee / employment support must call `hr-service`; do not persist HR truth in `tenant-org-service`.
 - Do not introduce full `workflow-service` in this feature.
 - Every new or rewritten class/function/handler/repository must have a one-sentence summary comment per AGENTS.md.
 

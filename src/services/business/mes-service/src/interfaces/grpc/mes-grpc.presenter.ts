@@ -1,9 +1,11 @@
 import {
   AcknowledgeMoldWarningResponse,
   AdjustMoldLifeResponse,
+  CreateWorkCenterResponse,
   CurrentInstalledMold,
   DailyMoldChecklist,
   DailyMoldChecklistWorkCenter,
+  DeactivateWorkCenterResponse,
   GetMoldCurrentLocationResponse,
   GetMoldDesignResponse,
   GetMoldUsageHistoryResponse,
@@ -12,11 +14,14 @@ import {
   ListMoldDesignsResponse,
   ListMoldInstancesByDesignResponse,
   ListMoldLifeWarningsResponse,
+  ListProductionMoldInstancesResponse,
+  ListWorkCentersResponse,
   MasterMold,
   MoldCurrentLocation,
   MoldDerivedUsageState as ProtoMoldDerivedUsageState,
   MoldDesign,
   MoldDesignOutput,
+  MoldDesignOutputOption,
   MoldDesignOutputKind as ProtoMoldDesignOutputKind,
   MoldDesignStatus as ProtoMoldDesignStatus,
   MoldDesignSummary,
@@ -97,11 +102,22 @@ import {
   ProductionMoldInstanceStatus,
   ProductionMoldInstanceView,
   ResourcePositionSummaryRecord,
+  WorkCenterRecord,
   WorkCenterSummaryRecord
 } from '../../domain/models/mes-mold-records'
 
 /** MesGrpcPresenter translates MES mold domain records into the generated gRPC response surface. */
 export class MesGrpcPresenter {
+  /** toCreateWorkCenterResponse presents one newly created work center summary. */
+  static toCreateWorkCenterResponse(record: WorkCenterRecord): CreateWorkCenterResponse {
+    return { workCenterSummary: this.toWorkCenterSummary(record) }
+  }
+
+  /** toDeactivateWorkCenterResponse presents one deactivated work center summary. */
+  static toDeactivateWorkCenterResponse(record: WorkCenterRecord): DeactivateWorkCenterResponse {
+    return { workCenterSummary: this.toWorkCenterSummary(record) }
+  }
+
   /** toRegisterMoldDesignResponse presents one newly created mold design. */
   static toRegisterMoldDesignResponse(record: MoldDesignRecord): RegisterMoldDesignResponse {
     return { moldDesign: this.toMoldDesign(record) }
@@ -226,9 +242,31 @@ export class MesGrpcPresenter {
     }
   }
 
+  /** toListWorkCentersResponse presents one page of production-unit work centers. */
+  static toListWorkCentersResponse(input: PageResult<WorkCenterSummaryRecord>): ListWorkCentersResponse {
+    return {
+      workCenters: input.items.map((record) => this.toWorkCenterSummary(record)),
+      total: input.total,
+      page: input.page,
+      pageSize: input.pageSize
+    }
+  }
+
   /** toGetProductionMoldInstanceResponse presents one production mold query result. */
   static toGetProductionMoldInstanceResponse(record: ProductionMoldInstanceView): GetProductionMoldInstanceResponse {
     return { productionMoldInstance: this.toProductionMoldInstance(record) }
+  }
+
+  /** toListProductionMoldInstancesResponse presents the tenant-wide production mold directory page. */
+  static toListProductionMoldInstancesResponse(
+    input: PageResult<ProductionMoldInstanceView>
+  ): ListProductionMoldInstancesResponse {
+    return {
+      instances: input.items.map((record) => this.toProductionMoldInstance(record)),
+      total: input.total,
+      page: input.page,
+      pageSize: input.pageSize
+    }
   }
 
   /** toListMoldInstancesByDesignResponse presents one production mold page grouped by design. */
@@ -357,7 +395,25 @@ export class MesGrpcPresenter {
       quantityPerUse: record.quantityPerUse,
       componentRole: record.componentRole ?? undefined,
       assemblyHint: record.assemblyHint ?? undefined,
-      isPrimaryOutput: record.isPrimaryOutput
+      isPrimaryOutput: record.isPrimaryOutput,
+      options: record.options.map((option) => this.toMoldDesignOutputOption(option))
+    }
+  }
+
+  /** toMoldDesignOutputOption converts one casting-time output choice into the generated shape. */
+  static toMoldDesignOutputOption(record: MoldDesignRecord['outputs'][number]['options'][number]): MoldDesignOutputOption {
+    return {
+      moldDesignOutputOptionId: record.moldDesignOutputOptionId,
+      tenantId: record.tenantId,
+      orgId: record.orgId ?? undefined,
+      moldDesignId: record.moldDesignId,
+      moldDesignOutputId: record.moldDesignOutputId,
+      optionCode: record.optionCode,
+      label: record.label,
+      manufacturingSpecRef: this.toManufacturingMasterDataRef(record.manufacturingSpecRef),
+      productFamilyRef: record.productFamilyRef ? this.toManufacturingMasterDataRef(record.productFamilyRef) : undefined,
+      quantityPerUse: record.quantityPerUse ?? undefined,
+      isDefault: record.isDefault
     }
   }
 
@@ -594,7 +650,9 @@ export class MesGrpcPresenter {
       operationTaskRef: record.operationTaskRef ?? undefined,
       operatorRef: record.operatorRef,
       captureSource: record.captureSource,
-      auditRef: record.auditRef
+      auditRef: record.auditRef,
+      moldDesignOutputId: record.moldDesignOutputId ?? undefined,
+      moldDesignOutputOptionId: record.moldDesignOutputOptionId ?? undefined
     }
   }
 
@@ -639,7 +697,9 @@ export class MesGrpcPresenter {
       wipUnitRef: record.wipUnitRef ?? undefined,
       physicalTraceId: record.physicalTraceId ?? undefined,
       operatorRef: record.operatorRef ?? undefined,
-      auditRef: record.auditRef ?? undefined
+      auditRef: record.auditRef ?? undefined,
+      moldDesignOutputId: record.moldDesignOutputId ?? undefined,
+      moldDesignOutputOptionId: record.moldDesignOutputOptionId ?? undefined
     }
   }
 

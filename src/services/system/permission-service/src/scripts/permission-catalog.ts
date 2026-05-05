@@ -643,6 +643,45 @@ const wmsManagement = definePermissionGroup(Modules.WMS_SERVICE, {
   }
 })
 
+const mesManagement = definePermissionGroup(Modules.MES_SERVICE, {
+  READ_MANUFACTURING_SPEC: {
+    code: 'mes.manufacturing_spec.read',
+    description: '查看 MES 制造规格目录、详情与模具适配解析'
+  },
+  MANAGE_MANUFACTURING_SPEC: {
+    code: 'mes.manufacturing_spec.manage',
+    description: '创建、更新、启用与退役 MES 制造规格'
+  },
+  READ_MOLD_DESIGN: {
+    code: 'mes.mold_design.read',
+    description: '查看模具设计目录与详情'
+  },
+  MANAGE_MOLD_DESIGN: {
+    code: 'mes.mold_design.manage',
+    description: '登记和维护模具设计'
+  },
+  READ_PRODUCTION_MOLD_INSTANCE: {
+    code: 'mes.production_mold_instance.read',
+    description: '查看生产模具实例、位置、安装、寿命与预警摘要'
+  },
+  MANAGE_PRODUCTION_MOLD_INSTANCE: {
+    code: 'mes.production_mold_instance.manage',
+    description: '登记、转移、安装、卸下、报废生产模具实例'
+  },
+  READ_WORK_CENTER_MOLD_STATUS: {
+    code: 'mes.work_center_mold_status.read',
+    description: '查看产线当前模具安装情况与日模具清单'
+  },
+  RECORD_MOLD_USAGE: {
+    code: 'mes.mold_usage.record',
+    description: '记录产线当日模具注浆或其他模具使用事实'
+  },
+  MANAGE_MOLD_LIFE: {
+    code: 'mes.mold_life.manage',
+    description: '调整模具寿命计数并确认寿命预警'
+  }
+})
+
 const authManagement = definePermissionGroup(Modules.AUTH_SERVICE, {
   VIEW_AUDIT_EVENT: { code: 'auth.audit.list', description: '查看认证审计事件' },
   BOOTSTRAP_ACCOUNT_CREDENTIALS: {
@@ -705,6 +744,7 @@ export const SALES_PRICING_PERMISSION_CODES = salesPricingManagement.codes
 export const PROCUREMENT_MANAGEMENT_PERMISSION_CODES = procurementManagement.codes
 export const FINANCE_MANAGEMENT_PERMISSION_CODES = financeManagement.codes
 export const WMS_MANAGEMENT_PERMISSION_CODES = wmsManagement.codes
+export const MES_MANAGEMENT_PERMISSION_CODES = mesManagement.codes
 export const AUTH_MANAGEMENT_PERMISSION_CODES = authManagement.codes
 export const AUTH_SELF_PERMISSION_CODES = authSelfManagement.codes
 export const AUTH_SESSION_PERMISSION_CODES = authSessionManagement.codes
@@ -746,6 +786,7 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...procurementManagement.items,
   ...financeManagement.items,
   ...wmsManagement.items,
+  ...mesManagement.items,
   ...authManagement.items,
   ...authSelfManagement.items,
   ...authSessionManagement.items

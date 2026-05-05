@@ -1,5 +1,6 @@
 const REF_PRODUCT_FAMILY = 1;
 const REF_MANUFACTURING_SPEC = 2;
+const MANUFACTURING_SPEC_ACTIVE = 2;
 const MOLD_FUNCTION_PRODUCTION = 2;
 const MOLD_OUTPUT_SINGLE = 1;
 const MOLD_OUTPUT_PRODUCT = 1;
@@ -26,6 +27,8 @@ export function createSmokeSeed(now = Date.now()) {
       requestId: `mes-smoke-request-${suffix}`
     },
     auditSource: 'mes-smoke',
+    specCreateCommandId: `mes-smoke-cmd-spec-create-${suffix}`,
+    specActivateCommandId: `mes-smoke-cmd-spec-activate-${suffix}`,
     designCommandId: `mes-smoke-cmd-design-${suffix}`,
     instanceCommandId: `mes-smoke-cmd-instance-${suffix}`,
     moveCommandId: `mes-smoke-cmd-move-${suffix}`,
@@ -46,6 +49,8 @@ export function createSmokeSeed(now = Date.now()) {
     resourcePositionId: `mes-smoke-pos-${suffix}`,
     productFamilyRefId: `mes-smoke-pf-${suffix}`,
     manufacturingSpecRefId: `mes-smoke-spec-${suffix}`,
+    manufacturingSpecCode: `MES-SMOKE-SPEC-${shortSuffix}`,
+    itemId: `mes-smoke-item-${suffix}`,
     lifeLimitValue: '10',
     warningThresholdValue: '5',
     usageQuantity: '6',
@@ -57,6 +62,23 @@ export function createSmokeSeed(now = Date.now()) {
 /** runMesSmokeFlow executes the minimum phase 1 mold command, query, idempotency, and outbox path expected from MES. */
 export async function runMesSmokeFlow(services, seed, report = () => undefined) {
   assertMesServices(services);
+
+  const spec = requireManufacturingSpec(
+    await services.specManagement.createManufacturingSpec(buildCreateManufacturingSpecRequest(seed)),
+    'CreateManufacturingSpec'
+  );
+  const activatedSpec = requireManufacturingSpec(
+    await services.specManagement.activateManufacturingSpec(
+      buildActivateManufacturingSpecRequest(seed, spec.manufacturingSpecId, spec.version)
+    ),
+    'ActivateManufacturingSpec'
+  );
+  if (activatedSpec.status !== MANUFACTURING_SPEC_ACTIVE) {
+    throw new Error('mes-service smoke failed: ActivateManufacturingSpec did not activate the spec');
+  }
+  seed.manufacturingSpecRefId = activatedSpec.manufacturingSpecId;
+  seed.manufacturingSpecCode = activatedSpec.specCode || seed.manufacturingSpecCode;
+  report(`manufacturing spec active: ${activatedSpec.manufacturingSpecId}`);
 
   const designRequest = buildRegisterMoldDesignRequest(seed);
   const design = requireMoldDesign(
@@ -153,6 +175,8 @@ export async function runMesSmokeFlow(services, seed, report = () => undefined) 
 
   const outbox = await services.diagnostics.verifyOutbox();
   for (const expectedEventType of [
+    'ManufacturingSpecCreated',
+    'ManufacturingSpecActivated',
     'MoldRegistered',
     'MoldMoved',
     'MoldInstalled',
@@ -163,12 +187,13 @@ export async function runMesSmokeFlow(services, seed, report = () => undefined) 
       throw new Error(`mes-service smoke failed: outbox did not persist ${expectedEventType}`);
     }
   }
-  if (outbox.pendingCount < 6) {
+  if (outbox.pendingCount < 8) {
     throw new Error('mes-service smoke failed: outbox did not persist the minimum pending event rows');
   }
   report(`outbox pending events verified: ${outbox.pendingCount}`);
 
   return {
+    spec: activatedSpec,
     design,
     instance,
     moved,
@@ -178,6 +203,46 @@ export async function runMesSmokeFlow(services, seed, report = () => undefined) 
     warnings,
     idempotency,
     outbox
+  };
+}
+
+/** buildCreateManufacturingSpecRequest creates the ManufacturingSpec command required before registering a MoldDesign. */
+function buildCreateManufacturingSpecRequest(seed) {
+  return {
+    ...buildManagementContext(seed, seed.specCreateCommandId, 'create manufacturing spec'),
+    specCode: seed.manufacturingSpecCode,
+    name: 'MES Smoke Manufacturing Spec',
+    revisionCode: 'R1',
+    productFamilyRef: {
+      refType: REF_PRODUCT_FAMILY,
+      refId: seed.productFamilyRefId,
+      refCodeSnapshot: 'MES-SMOKE-PF',
+      displayNameSnapshot: 'MES Smoke Product Family'
+    },
+    itemRef: {
+      itemId: seed.itemId,
+      itemCodeSnapshot: 'MES-SMOKE-ITEM',
+      itemNameSnapshot: 'MES Smoke Item'
+    },
+    manufacturingAttributes: [
+      {
+        attributeKey: 'formingMethod',
+        attributeValue: 'HIGH_PRESSURE',
+        displayNameSnapshot: 'Forming method',
+        valueDisplaySnapshot: 'High pressure'
+      }
+    ],
+    reason: 'create manufacturing spec'
+  };
+}
+
+/** buildActivateManufacturingSpecRequest creates the activation command that makes the spec usable by MoldDesign. */
+function buildActivateManufacturingSpecRequest(seed, manufacturingSpecId, expectedVersion) {
+  return {
+    ...buildManagementContext(seed, seed.specActivateCommandId, 'activate manufacturing spec'),
+    manufacturingSpecId,
+    expectedVersion,
+    reason: 'activate manufacturing spec'
   };
 }
 
@@ -236,7 +301,7 @@ function buildRegisterMoldDesignRequest(seed) {
       {
         refType: REF_MANUFACTURING_SPEC,
         refId: seed.manufacturingSpecRefId,
-        refCodeSnapshot: 'MES-SMOKE-SPEC',
+        refCodeSnapshot: seed.manufacturingSpecCode,
         displayNameSnapshot: 'MES Smoke Manufacturing Spec'
       }
     ],
@@ -258,7 +323,7 @@ function buildRegisterMoldDesignRequest(seed) {
         manufacturingSpecRef: {
           refType: REF_MANUFACTURING_SPEC,
           refId: seed.manufacturingSpecRefId,
-          refCodeSnapshot: 'MES-SMOKE-SPEC',
+          refCodeSnapshot: seed.manufacturingSpecCode,
           displayNameSnapshot: 'MES Smoke Manufacturing Spec'
         },
         quantityPerUse: '1',
@@ -315,7 +380,7 @@ function buildRecordMoldUsageRequest(seed, productionMoldInstanceId, moldInstall
     manufacturingSpecRef: {
       refType: REF_MANUFACTURING_SPEC,
       refId: seed.manufacturingSpecRefId,
-      refCodeSnapshot: 'MES-SMOKE-SPEC',
+      refCodeSnapshot: seed.manufacturingSpecCode,
       displayNameSnapshot: 'MES Smoke Manufacturing Spec'
     },
     captureSource: 'MES_SMOKE',
@@ -326,6 +391,8 @@ function buildRecordMoldUsageRequest(seed, productionMoldInstanceId, moldInstall
 /** assertMesServices verifies the smoke received every RPC wrapper and diagnostic hook it needs. */
 function assertMesServices(services) {
   if (
+    !services?.specManagement?.createManufacturingSpec ||
+    !services?.specManagement?.activateManufacturingSpec ||
     !services?.management?.registerMoldDesign ||
     !services?.management?.registerProductionMoldInstance ||
     !services?.management?.moveMold ||
@@ -339,6 +406,15 @@ function assertMesServices(services) {
   ) {
     throw new Error('mes-service smoke failed: management, query, or diagnostic clients are not fully configured');
   }
+}
+
+/** requireManufacturingSpec unwraps one ManufacturingSpec payload or raises a targeted smoke failure. */
+function requireManufacturingSpec(response, step) {
+  const manufacturingSpec = response?.manufacturingSpec;
+  if (!manufacturingSpec?.manufacturingSpecId) {
+    throw new Error(`mes-service smoke failed: ${step} did not return a manufacturing spec payload`);
+  }
+  return manufacturingSpec;
 }
 
 /** requireMoldDesign unwraps one design payload or raises a targeted smoke failure. */

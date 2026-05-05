@@ -12,7 +12,7 @@
 
 ## 2. 不做什么
 
-- 不在本 packet 中进入代码实现、proto 字段设计或数据库结构设计。
+- 不在当前 phase 1 backend slice 中实现 PDA 扫码采集端。
 - 不实现 APS、完整 `WorkOrder`、完整 `OperationTask`、完整 WIP 条码闭环。
 - 不实现完整 `quality-service`、质量标准治理或复杂健康评分。
 - 不实现完整采购联调、`RFQ / PO / receiving` 流程或供应商商业 truth。
@@ -20,6 +20,8 @@
 - 不实现独立 `MoldDesignRevision`；第一阶段由 `MoldDesign.revisionCode` 与 `supersedesDesignId` 表达设计变更。
 - 不引入 `MoldFamily`；模具适配通过 `ProductFamily` / `ManufacturingSpec` 引用表达。
 - 不做成本摊销、财务折旧或资产会计真相。
+- 不暴露 standalone ResourcePosition / 模位 CRUD；模位由安装 / 卸下流程自动创建、复用和关闭。
+- 不修改 tenant-web shell、菜单框架、主题或全局布局；第一阶段只接入内容区工作台。
 
 ## 3. 上游依据
 
@@ -50,7 +52,7 @@
 - slice:
   - `mes-service` mold foundation
 - status:
-  - ready-for-mes-mold-contract
+  - runtime-supported-phase-1-web-closed-loop
 - scope:
   - `MoldDesign`
   - `MoldDesignOutput`
@@ -66,8 +68,10 @@
   - `MoldWarningEvent`
 - ready definition:
   - owner 边界已冻结
-  - phase 1 对象、状态机、命令、查询、事件草案已给出
-  - 后续 contract 线程可以在不重新讨论“模具是否属于 MES / WMS / Equipment”的前提下继续推进
+  - phase 1 对象、状态机、命令、查询、事件已落地到 `mes_service` proto 与 `mes-service` runtime
+  - permission-service 已提供成型车间主管角色模板、MES mold / manufacturing spec 权限码与导航入口
+  - api-gateway 已提供第一阶段 web 手工闭环 BFF surface
+  - tenant-web 已接入 `/mes/mold-management` 内容区工作台，不改 shell / 菜单框架 / 主题
 
 ## 6. 第一阶段对象清单与职责
 
@@ -114,6 +118,25 @@
   - `componentRole`
   - `assemblyHint`
   - `isPrimaryOutput`
+  - `options`
+
+### 6.2.1 MoldDesignOutputOption
+
+- 表达同一个 `MoldDesignOutput` 的互斥产出选项，用于注浆前选择制造规格或数量差异。
+- 示例：连体马桶主体 output 可在一次注浆前选择 300 坑距、400 坑距或 250 坑距 option。
+- 多个 `MoldDesignOutput` 表达一次注浆同时产出的多个对象；`MoldDesignOutputOption` 表达单个 output 的互斥选择。
+- 最小字段草案：
+  - `moldDesignOutputOptionId`
+  - `tenantId`
+  - `orgId`
+  - `moldDesignId`
+  - `moldDesignOutputId`
+  - `optionCode`
+  - `label`
+  - `manufacturingSpecRef`
+  - `productFamilyRef`
+  - `quantityPerUse`
+  - `isDefault`
 
 ### 6.3 MasterMold
 
@@ -199,6 +222,7 @@
 
 - 表达 `WorkCenter` 下可安装 tooling resource 的具体槽位、机台位、模位或工位位置。
 - 用于避免只记录“安装到产线”但无法区分具体模位。
+- 第一阶段不要求主管手动创建模位；安装模具时由 `mes-service` 自动创建或复用可用模位，卸下时关闭安装事实并释放模位。
 - 最小字段草案：
   - `resourcePositionId`
   - `tenantId`
@@ -270,6 +294,8 @@
   - `lifeUnit`
   - `productFamilyRef`
   - `manufacturingSpecRef`
+  - `moldDesignOutputId`
+  - `moldDesignOutputOptionId`
   - `wipUnitRef`
   - `physicalTraceId`
   - `workOrderRef`
@@ -612,8 +638,10 @@
 
 ### 16.2 gateway / ui
 
-- 提供文员登记、主管每日清单、当前安装模具查询、使用勾选、寿命预警确认与历史查询入口。
-- API Gateway / BFF 只做协议映射与权限校验，不承载模具状态机和寿命规则。
+- API Gateway / BFF 已提供 ManufacturingSpec create / update / activate / retire、MoldDesign register / read、ProductionMoldInstance register / read / tenant-wide list / by-design list / move / install / unmount / scrap、WorkCenter create / deactivate / list、产线当前模具、每日 checklist 与 checkbox usage batch 的第一阶段 HTTP surface。
+- API Gateway / BFF 只做协议映射、权限校验与轻量批量提交编排，不承载模具状态机和寿命规则。
+- tenant-web 已提供 `/mes/mold-management` 内容区工作台，覆盖产线列表、产线当前模具、创建产线、创建生产模具、安装 / 卸下 / 报废、每日 checkbox 注浆记录。
+- 每日注浆记录支持提交 `moldDesignOutputId` 与 `moldDesignOutputOptionId`，用于绑定本次实际产出选择。
 
 ### 16.3 smoke / hardening
 
@@ -637,11 +665,6 @@
 
 ## 18. 下一步 contract / proto 设计输入
 
-- `MES-MOLD-CONTRACT` 应优先冻结 command / query 边界和状态迁移错误语义，而不是先画数据库。
-- 必须先回答的 contract 输入：
-  - 每个命令的 request / response / error code。
-  - `MoldDesign` 与 `ManufacturingSpec` 引用校验方式。
-  - `MesLocation`、`WorkCenter`、`ResourcePosition` 的查询与兼容性校验方式。
-  - `MoldLifeCounter` 阈值触发和重复预警去重语义。
-  - 审计记录与事件发布的事务边界。
-  - gateway / UI 每个页面需要的 summary query。
+- 如需补齐 standalone 模位主数据创建、删除、停用，应先冻结 `ResourcePosition` management contract，再扩展 proto、runtime 与 BFF。
+- 如需进一步贴合 Stitch 设计细节，应只优化 tenant-web 内容区页面，不修改 shell、菜单框架、主题或全局布局。
+- 后续仍不得把 APS、完整 WorkOrder、完整 WIP、质量治理或采购决策混入当前 mold foundation slice。

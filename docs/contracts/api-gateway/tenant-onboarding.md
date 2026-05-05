@@ -6,7 +6,7 @@
 
 Gateway 只负责客户端入口、鉴权、DTO 校验、下游调用与展示适配，不拥有 onboarding step 状态。
 
-当前文档冻结目标 HTTP contract 语义，尚未表示 runtime 已实现。
+当前文档冻结目标 HTTP contract 语义；截至 2026-05-05，Gateway runtime 已支持当前 onboarding 主线，本次文档收口不重跑 Jest / Vitest。
 
 ## 2. 下游 owner
 
@@ -89,10 +89,20 @@ Gateway 不直接调用：
     "personPartyId": "person-party-id",
     "tenantPartyId": "person-tenant-party-id"
   },
+  "firstAdminEmployee": {
+    "employeeId": "employee-id",
+    "employmentId": "employment-id",
+    "accessProcessId": "optional-access-process-id"
+  },
   "access": {
     "roleCode": "tenant.admin",
     "roleId": "role-id",
-    "grantId": "grant-id"
+    "grantId": "grant-id",
+    "hrAdminRoleCode": "hr.admin",
+    "hrAdminRoleId": "hr-role-id",
+    "hrAdminGrantId": "hr-grant-id",
+    "accountBasicRoleCode": "account.basic",
+    "accountBasicRoleId": "account-basic-role-id"
   },
   "steps": [
     {
@@ -141,6 +151,7 @@ tenant-web 应采用 wizard / result 形态：
 - 组织主体
 - root org
 - 第一个管理员
+- 首管理员员工化结果
 - review
 - result / retry
 

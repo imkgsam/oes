@@ -1,4 +1,7 @@
 import {
+  ManufacturingSpecRecord,
+} from '../../domain/models/manufacturing-spec-records'
+import {
   MasterMoldRecord,
   MesAuditEnvelopeRecord,
   MesCommandIdempotencyRecord,
@@ -17,6 +20,7 @@ import {
 
 /** MesInMemoryStore holds isolated MES mold records for L1 tests without crossing service boundaries. */
 export class MesInMemoryStore {
+  readonly manufacturingSpecs = new Map<string, ManufacturingSpecRecord>()
   readonly moldDesigns = new Map<string, MoldDesignRecord>()
   readonly masterMolds = new Map<string, MasterMoldRecord>()
   readonly productionMoldInstances = new Map<string, ProductionMoldInstanceRecord>()

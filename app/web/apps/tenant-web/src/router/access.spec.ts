@@ -397,6 +397,79 @@ describe('router access visible-entry filtering', () => {
     expect(filtered).toEqual(routes);
   });
 
+  it('removes the MES parent when mold management is not visible', async () => {
+    const { filterRoutesByVisibleEntries } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'mes.mold-management',
+            },
+            name: 'TenantMesMoldManagement',
+            path: '/mes/mold-management',
+          },
+        ],
+        name: 'TenantMes',
+        path: '/mes',
+      },
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'workbench.home',
+            },
+            name: 'TenantWorkbenchHome',
+            path: '/workbench/home',
+          },
+        ],
+        name: 'TenantWorkbench',
+        path: '/workbench',
+      },
+    ];
+
+    const filtered = filterRoutesByVisibleEntries(routes, ['workbench.home']);
+
+    expect(filtered).toEqual([
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'workbench.home',
+            },
+            name: 'TenantWorkbenchHome',
+            path: '/workbench/home',
+          },
+        ],
+        name: 'TenantWorkbench',
+        path: '/workbench',
+      },
+    ]);
+  });
+
+  it('keeps the MES parent when mold management is visible', async () => {
+    const { filterRoutesByVisibleEntries } = await import('./access');
+    const routes = [
+      {
+        children: [
+          {
+            meta: {
+              entryKey: 'mes.mold-management',
+            },
+            name: 'TenantMesMoldManagement',
+            path: '/mes/mold-management',
+          },
+        ],
+        name: 'TenantMes',
+        path: '/mes',
+      },
+    ];
+
+    const filtered = filterRoutesByVisibleEntries(routes, ['mes.mold-management']);
+
+    expect(filtered).toEqual(routes);
+  });
+
   it('keeps split organization and employee settings routes as sibling tenant settings entries', async () => {
     const { filterRoutesByVisibleEntries } = await import('./access');
     const routes = [

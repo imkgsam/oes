@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, Optional } from '@nestjs/common'
 import { TOKENS } from '../../common/constants/tokens'
+import { ManufacturingSpecStatus } from '../../domain/models/manufacturing-spec-records'
 import {
   AuditRefRecord,
   ExternalRefRecord,
@@ -35,8 +36,11 @@ import {
   ProductionMoldInstanceStatus,
   ProductionMoldInstanceView,
   PurchaseRefRecord,
-  SupplierRefRecord
+  ResourcePositionRecord,
+  SupplierRefRecord,
+  WorkCenterRecord
 } from '../../domain/models/mes-mold-records'
+import { ManufacturingSpecRepository } from '../../domain/repositories/manufacturing-spec.repository'
 import { MesMoldRepository } from '../../domain/repositories/mes-mold.repository'
 import {
   assertAlreadyAbsent,
@@ -77,6 +81,15 @@ export interface RegisterMoldDesignInput extends MesCommandContext {
     componentRole?: string | null
     assemblyHint?: string | null
     isPrimaryOutput: boolean
+    options?: Array<{
+      moldDesignOutputOptionId?: string
+      optionCode: string
+      label: string
+      manufacturingSpecRef: ManufacturingMasterDataRefRecord
+      productFamilyRef?: ManufacturingMasterDataRefRecord | null
+      quantityPerUse?: string | null
+      isDefault?: boolean
+    }>
   }>
   defaultLifeLimit?: string | null
   defaultLifeUnit?: string | null
@@ -125,13 +138,29 @@ export interface MoveMoldInput extends MesCommandContext {
 export interface InstallMoldInput extends MesCommandContext {
   productionMoldInstanceId: string
   workCenterId: string
-  resourcePositionId: string
+  resourcePositionId?: string | null
   installedAt?: string | null
   setupSnapshot?: string | null
   operationRef?: ExternalRefRecord | null
   routingRef?: ExternalRefRecord | null
   workOrderRef?: ExternalRefRecord | null
   operationTaskRef?: ExternalRefRecord | null
+  reason: string
+}
+
+export interface CreateWorkCenterInput extends MesCommandContext {
+  workCenterId?: string
+  workCenterCode: string
+  name: string
+  workCenterType: string
+  parentWorkCenterId?: string | null
+  relatedMesLocationId?: string | null
+  capacityProfileId?: string | null
+  reason: string
+}
+
+export interface DeactivateWorkCenterInput extends MesCommandContext {
+  workCenterId: string
   reason: string
 }
 
@@ -156,6 +185,8 @@ export interface RecordMoldUsageInput extends MesCommandContext {
   lifeUnit: string
   productFamilyRef?: ManufacturingMasterDataRefRecord | null
   manufacturingSpecRef?: ManufacturingMasterDataRefRecord | null
+  moldDesignOutputId?: string | null
+  moldDesignOutputOptionId?: string | null
   wipUnitRef?: ExternalRefRecord | null
   physicalTraceId?: string | null
   workOrderRef?: ExternalRefRecord | null
@@ -189,6 +220,13 @@ export interface ScrapMoldInput extends MesCommandContext {
   toMesLocationId?: string | null
 }
 
+interface ResolvedUsageOutputSelection {
+  manufacturingSpecRef?: ManufacturingMasterDataRefRecord | null
+  moldDesignOutputId?: string | null
+  moldDesignOutputOptionId?: string | null
+  productFamilyRef?: ManufacturingMasterDataRefRecord | null
+}
+
 /** MesMoldManagementService owns phase 1 mold command rules, local transactions, audit, and outbox recording. */
 @Injectable()
 export class MesMoldManagementService {
@@ -196,9 +234,95 @@ export class MesMoldManagementService {
 
   constructor(
     @Inject(TOKENS.MES_MOLD_REPOSITORY)
-    private readonly repository: MesMoldRepository
+    private readonly repository: MesMoldRepository,
+    @Optional()
+    @Inject(TOKENS.MANUFACTURING_SPEC_REPOSITORY)
+    private readonly manufacturingSpecRepository?: ManufacturingSpecRepository
   ) {
     this.readModel = new MesMoldReadModel(repository)
+  }
+
+  /** createWorkCenter creates one production unit for mold installation without exposing position maintenance. */
+  async createWorkCenter(input: CreateWorkCenterInput): Promise<WorkCenterRecord> {
+    return this.executeIdempotent(input, 'CreateWorkCenter', async () => {
+      this.assertCommandContext(input)
+      const workCenterCode = normalizeCode(input.workCenterCode, 'workCenterCode')
+      assertRequiredString(input.name, 'name')
+      assertRequiredString(input.workCenterType, 'workCenterType')
+      assertRequiredString(input.reason, 'reason')
+      assertAlreadyAbsent(
+        !(await this.repository.findWorkCenterByCode(input.tenantId, input.orgId, workCenterCode)),
+        'duplicate work center code',
+        { workCenterCode }
+      )
+      if (input.parentWorkCenterId) {
+        const parent = assertExists(
+          await this.repository.findWorkCenterById(input.tenantId, input.parentWorkCenterId),
+          'WorkCenter',
+          input.parentWorkCenterId
+        )
+        assertPrecondition(parent.status === 'ACTIVE', 'parent work center is not active')
+      }
+      if (input.relatedMesLocationId) {
+        await this.assertActiveMesLocation(input.tenantId, input.relatedMesLocationId)
+      }
+
+      const timestamp = nowIso()
+      const record: WorkCenterRecord = {
+        workCenterId: normalizeOptionalString(input.workCenterId) ?? randomUUID(),
+        tenantId: input.tenantId,
+        orgId: input.orgId ?? null,
+        workCenterCode,
+        name: input.name.trim(),
+        workCenterType: normalizeCode(input.workCenterType, 'workCenterType'),
+        parentWorkCenterId: normalizeOptionalString(input.parentWorkCenterId) ?? null,
+        relatedMesLocationId: normalizeOptionalString(input.relatedMesLocationId) ?? null,
+        capacityProfileId: normalizeOptionalString(input.capacityProfileId) ?? null,
+        status: 'ACTIVE',
+        createdAt: timestamp,
+        updatedAt: timestamp
+      }
+      const saved = await this.repository.saveWorkCenter(record)
+      await this.appendAudit(input, 'CreateWorkCenter', 'WORK_CENTER', saved.workCenterId, null, saved)
+      await this.appendOutbox(input, 'WorkCenterCreated', 'WORK_CENTER', saved.workCenterId, {
+        workCenterId: saved.workCenterId,
+        workCenterCode: saved.workCenterCode,
+        workCenterType: saved.workCenterType,
+        createdAt: timestamp
+      })
+      return saved
+    })
+  }
+
+  /** deactivateWorkCenter retires one production unit only when no mold is actively installed on it. */
+  async deactivateWorkCenter(input: DeactivateWorkCenterInput): Promise<WorkCenterRecord> {
+    return this.executeIdempotent(input, 'DeactivateWorkCenter', async () => {
+      this.assertCommandContext(input)
+      assertRequiredString(input.workCenterId, 'workCenterId')
+      assertRequiredString(input.reason, 'reason')
+      const current = assertExists(
+        await this.repository.findWorkCenterById(input.tenantId, input.workCenterId),
+        'WorkCenter',
+        input.workCenterId
+      )
+      const activeInstallations = await this.repository.listActiveInstallationsByWorkCenter(
+        input.tenantId,
+        input.workCenterId
+      )
+      assertPrecondition(activeInstallations.length === 0, 'work center has active mold installations')
+      const timestamp = nowIso()
+      const saved = await this.repository.saveWorkCenter({
+        ...current,
+        status: 'INACTIVE',
+        updatedAt: timestamp
+      })
+      await this.appendAudit(input, 'DeactivateWorkCenter', 'WORK_CENTER', saved.workCenterId, current, saved)
+      await this.appendOutbox(input, 'WorkCenterDeactivated', 'WORK_CENTER', saved.workCenterId, {
+        workCenterId: saved.workCenterId,
+        deactivatedAt: timestamp
+      })
+      return saved
+    })
   }
 
   /** registerMoldDesign creates a MES tooling design with at least one primary output and a local outbox event. */
@@ -223,27 +347,13 @@ export class MesMoldManagementService {
 
       const timestamp = nowIso()
       const moldDesignId = normalizeOptionalString(input.moldDesignId) ?? randomUUID()
-      const record: MoldDesignRecord = {
-        moldDesignId,
-        tenantId: input.tenantId,
-        orgId: input.orgId ?? null,
-        designCode,
-        name: input.name.trim(),
-        revisionCode: normalizeOptionalString(input.revisionCode) ?? null,
-        supersedesDesignId: normalizeOptionalString(input.supersedesDesignId) ?? null,
-        productFamilyRef: normalizeMasterDataRef(input.productFamilyRef, 'productFamilyRef', 'PRODUCT_FAMILY'),
-        manufacturingSpecRefs: (input.manufacturingSpecRefs ?? []).map((ref, index) =>
-          normalizeMasterDataRef(ref, `manufacturingSpecRefs.${index}`, 'MANUFACTURING_SPEC')
-        ),
-        itemRef: input.itemRef ? normalizeItemRef(input.itemRef) : null,
-        materialType: input.materialType.trim().toUpperCase(),
-        functionRole: input.functionRole,
-        productionMethodTags: Array.from(
-          new Set((input.productionMethodTags ?? []).map((value) => value.trim().toUpperCase()).filter(Boolean))
-        ),
-        outputStructureType: input.outputStructureType,
-        outputs: input.outputs.map((output): MoldDesignOutputRecord => ({
-          moldDesignOutputId: normalizeOptionalString(output.moldDesignOutputId) ?? randomUUID(),
+      const manufacturingSpecRefs = (input.manufacturingSpecRefs ?? []).map((ref, index) =>
+        normalizeMasterDataRef(ref, `manufacturingSpecRefs.${index}`, 'MANUFACTURING_SPEC')
+      )
+      const outputs = input.outputs.map((output): MoldDesignOutputRecord => {
+        const moldDesignOutputId = normalizeOptionalString(output.moldDesignOutputId) ?? randomUUID()
+        return {
+          moldDesignOutputId,
           tenantId: input.tenantId,
           orgId: input.orgId ?? null,
           moldDesignId,
@@ -259,8 +369,40 @@ export class MesMoldManagementService {
           quantityPerUse: assertPositiveQuantity(output.quantityPerUse, 'outputs.quantityPerUse'),
           componentRole: normalizeOptionalString(output.componentRole) ?? null,
           assemblyHint: normalizeOptionalString(output.assemblyHint) ?? null,
-          isPrimaryOutput: output.isPrimaryOutput
-        })),
+          isPrimaryOutput: output.isPrimaryOutput,
+          options: normalizeOutputOptions({
+            options: output.options ?? [],
+            tenantId: input.tenantId,
+            orgId: input.orgId ?? null,
+            moldDesignId,
+            moldDesignOutputId,
+            defaultQuantityPerUse: output.quantityPerUse
+          })
+        }
+      })
+      await this.assertActiveManufacturingSpecRefs(input.tenantId, input.orgId, [
+        ...manufacturingSpecRefs,
+        ...outputs.map((output) => output.manufacturingSpecRef).filter((ref): ref is ManufacturingMasterDataRefRecord => !!ref),
+        ...outputs.flatMap((output) => output.options.map((option) => option.manufacturingSpecRef))
+      ])
+      const record: MoldDesignRecord = {
+        moldDesignId,
+        tenantId: input.tenantId,
+        orgId: input.orgId ?? null,
+        designCode,
+        name: input.name.trim(),
+        revisionCode: normalizeOptionalString(input.revisionCode) ?? null,
+        supersedesDesignId: normalizeOptionalString(input.supersedesDesignId) ?? null,
+        productFamilyRef: normalizeMasterDataRef(input.productFamilyRef, 'productFamilyRef', 'PRODUCT_FAMILY'),
+        manufacturingSpecRefs,
+        itemRef: input.itemRef ? normalizeItemRef(input.itemRef) : null,
+        materialType: input.materialType.trim().toUpperCase(),
+        functionRole: input.functionRole,
+        productionMethodTags: Array.from(
+          new Set((input.productionMethodTags ?? []).map((value) => value.trim().toUpperCase()).filter(Boolean))
+        ),
+        outputStructureType: input.outputStructureType,
+        outputs,
         defaultLifeLimit: input.defaultLifeLimit
           ? assertPositiveQuantity(input.defaultLifeLimit, 'defaultLifeLimit')
           : null,
@@ -552,7 +694,6 @@ export class MesMoldManagementService {
       this.assertCommandContext(input)
       assertRequiredString(input.productionMoldInstanceId, 'productionMoldInstanceId')
       assertRequiredString(input.workCenterId, 'workCenterId')
-      assertRequiredString(input.resourcePositionId, 'resourcePositionId')
       assertRequiredString(input.reason, 'reason')
       const instance = assertExists(
         await this.repository.findProductionMoldInstanceById(input.tenantId, input.productionMoldInstanceId),
@@ -567,12 +708,8 @@ export class MesMoldManagementService {
         'WorkCenter',
         input.workCenterId
       )
-      const position = assertExists(
-        await this.repository.findResourcePositionById(input.tenantId, input.resourcePositionId),
-        'ResourcePosition',
-        input.resourcePositionId
-      )
       assertPrecondition(workCenter.status === 'ACTIVE', 'work center is not active')
+      const position = await this.resolveInstallationPosition(input, instance, workCenter)
       assertPrecondition(position.status === 'ACTIVE', 'resource position is not active')
       assertPrecondition(position.workCenterId === workCenter.workCenterId, 'resource position does not belong to work center')
       assertPrecondition(
@@ -745,6 +882,23 @@ export class MesMoldManagementService {
         instance.productionMoldInstanceId
       )
       assertPrecondition(counter.lifeUnit === input.lifeUnit.toUpperCase(), 'life unit does not match counter')
+      const outputSelection = await this.resolveUsageOutputSelection(input, instance)
+      const explicitProductFamilyRef = input.productFamilyRef
+        ? normalizeMasterDataRef(input.productFamilyRef, 'productFamilyRef')
+        : null
+      const explicitManufacturingSpecRef = input.manufacturingSpecRef
+        ? normalizeMasterDataRef(input.manufacturingSpecRef, 'manufacturingSpecRef')
+        : null
+      this.assertSelectedMasterDataRefMatches(
+        explicitProductFamilyRef,
+        outputSelection.productFamilyRef ?? null,
+        'productFamilyRef'
+      )
+      this.assertSelectedMasterDataRefMatches(
+        explicitManufacturingSpecRef,
+        outputSelection.manufacturingSpecRef ?? null,
+        'manufacturingSpecRef'
+      )
 
       const timestamp = normalizeOptionalString(input.usedAt) ?? nowIso()
       const usedValueAfter = (Number(counter.usedValue) + Number(lifeDelta)).toString()
@@ -762,10 +916,10 @@ export class MesMoldManagementService {
         lifeDelta,
         lifeUnit: counter.lifeUnit,
         lifeUsedValueAfter: usedValueAfter,
-        productFamilyRef: input.productFamilyRef ? normalizeMasterDataRef(input.productFamilyRef, 'productFamilyRef') : null,
-        manufacturingSpecRef: input.manufacturingSpecRef
-          ? normalizeMasterDataRef(input.manufacturingSpecRef, 'manufacturingSpecRef')
-          : null,
+        productFamilyRef: explicitProductFamilyRef ?? outputSelection.productFamilyRef ?? null,
+        manufacturingSpecRef: explicitManufacturingSpecRef ?? outputSelection.manufacturingSpecRef ?? null,
+        moldDesignOutputId: outputSelection.moldDesignOutputId ?? null,
+        moldDesignOutputOptionId: outputSelection.moldDesignOutputOptionId ?? null,
         wipUnitRef: input.wipUnitRef ? normalizeExternalRef(input.wipUnitRef, 'wipUnitRef') : null,
         physicalTraceId: normalizeOptionalString(input.physicalTraceId) ?? null,
         workOrderRef: input.workOrderRef ? normalizeExternalRef(input.workOrderRef, 'workOrderRef') : null,
@@ -799,6 +953,8 @@ export class MesMoldManagementService {
         lifeUnit: counter.lifeUnit,
         productFamilyRef: usageEvent.productFamilyRef,
         manufacturingSpecRef: usageEvent.manufacturingSpecRef,
+        moldDesignOutputId: usageEvent.moldDesignOutputId,
+        moldDesignOutputOptionId: usageEvent.moldDesignOutputOptionId,
         wipUnitRef: usageEvent.wipUnitRef,
         physicalTraceId: usageEvent.physicalTraceId,
         usedAt: timestamp,
@@ -1122,6 +1278,32 @@ export class MesMoldManagementService {
     assertRequiredString(input.auditContext?.auditId, 'auditContext.auditId')
   }
 
+  /** assertActiveManufacturingSpecRefs enforces that new MoldDesign references only active ManufacturingSpec records. */
+  private async assertActiveManufacturingSpecRefs(
+    tenantId: string,
+    orgId: string | null | undefined,
+    refs: ManufacturingMasterDataRefRecord[]
+  ): Promise<void> {
+    if (!this.manufacturingSpecRepository || refs.length === 0) {
+      return
+    }
+    const uniqueRefs = Array.from(new Set(refs.map((ref) => ref.refId)))
+    for (const manufacturingSpecId of uniqueRefs) {
+      const record = assertVisibleManufacturingSpec(
+        assertExists(
+          await this.manufacturingSpecRepository.findManufacturingSpecById(tenantId, manufacturingSpecId),
+          'ManufacturingSpec',
+          manufacturingSpecId
+        ),
+        orgId
+      )
+      assertPrecondition(record.status === ManufacturingSpecStatus.ACTIVE, 'manufacturing spec is not active', {
+        manufacturingSpecId,
+        currentStatus: record.status
+      })
+    }
+  }
+
   /** assertActiveMesLocation loads an active MES physical location and rejects missing or inactive references. */
   private async assertActiveMesLocation(tenantId: string, mesLocationId: string): Promise<MesLocationRecord> {
     const location = assertExists(
@@ -1131,6 +1313,123 @@ export class MesMoldManagementService {
     )
     assertPrecondition(location.status === 'ACTIVE', 'MES location is not active')
     return location
+  }
+
+  /** resolveUsageOutputSelection validates and derives the selected MoldDesign output for one usage record. */
+  private async resolveUsageOutputSelection(
+    input: RecordMoldUsageInput,
+    instance: ProductionMoldInstanceRecord
+  ): Promise<ResolvedUsageOutputSelection> {
+    const requestedOutputId = normalizeOptionalString(input.moldDesignOutputId)
+    const requestedOptionId = normalizeOptionalString(input.moldDesignOutputOptionId)
+    if (!requestedOutputId && !requestedOptionId) {
+      return {
+        manufacturingSpecRef: null,
+        moldDesignOutputId: null,
+        moldDesignOutputOptionId: null,
+        productFamilyRef: null
+      }
+    }
+
+    const design = assertExists(
+      await this.repository.findMoldDesignById(input.tenantId, instance.moldDesignId),
+      'MoldDesign',
+      instance.moldDesignId
+    )
+    const output = requestedOutputId
+      ? design.outputs.find((candidate) => candidate.moldDesignOutputId === requestedOutputId)
+      : design.outputs.find((candidate) =>
+          candidate.options.some((option) => option.moldDesignOutputOptionId === requestedOptionId)
+        )
+    assertPrecondition(!!output, 'mold design output does not belong to production mold design', {
+      moldDesignId: design.moldDesignId,
+      moldDesignOutputId: requestedOutputId,
+      moldDesignOutputOptionId: requestedOptionId
+    })
+
+    const option = requestedOptionId
+      ? output.options.find((candidate) => candidate.moldDesignOutputOptionId === requestedOptionId)
+      : output.options.find((candidate) => candidate.isDefault) ?? output.options[0] ?? null
+    assertPrecondition(
+      !requestedOptionId || !!option,
+      'mold design output option does not belong to selected output',
+      {
+        moldDesignOutputId: output.moldDesignOutputId,
+        moldDesignOutputOptionId: requestedOptionId
+      }
+    )
+
+    return {
+      manufacturingSpecRef: option?.manufacturingSpecRef ?? output.manufacturingSpecRef ?? null,
+      moldDesignOutputId: output.moldDesignOutputId,
+      moldDesignOutputOptionId: option?.moldDesignOutputOptionId ?? null,
+      productFamilyRef: option?.productFamilyRef ?? output.productFamilyRef ?? null
+    }
+  }
+
+  /** assertSelectedMasterDataRefMatches rejects explicit usage refs that contradict the selected output option. */
+  private assertSelectedMasterDataRefMatches(
+    explicitRef: ManufacturingMasterDataRefRecord | null,
+    selectedRef: ManufacturingMasterDataRefRecord | null,
+    fieldName: string
+  ): void {
+    if (!explicitRef || !selectedRef) {
+      return
+    }
+    assertPrecondition(
+      explicitRef.refType === selectedRef.refType && explicitRef.refId === selectedRef.refId,
+      `${fieldName} does not match selected mold design output`,
+      {
+        actualRefId: explicitRef.refId,
+        expectedRefId: selectedRef.refId
+      }
+    )
+  }
+
+  /** resolveInstallationPosition preserves the no-manual-slot workflow by reusing or creating an available mold slot. */
+  private async resolveInstallationPosition(
+    input: InstallMoldInput,
+    instance: ProductionMoldInstanceRecord,
+    workCenter: WorkCenterRecord
+  ): Promise<ResourcePositionRecord> {
+    const requestedPositionId = normalizeOptionalString(input.resourcePositionId)
+    if (requestedPositionId) {
+      return assertExists(
+        await this.repository.findResourcePositionById(input.tenantId, requestedPositionId),
+        'ResourcePosition',
+        requestedPositionId
+      )
+    }
+
+    const existingPositions = await this.repository.listResourcePositionsByWorkCenter(
+      input.tenantId,
+      workCenter.workCenterId
+    )
+    for (const position of existingPositions) {
+      const compatible =
+        position.compatibleMoldDesignRefs.length === 0 || position.compatibleMoldDesignRefs.includes(instance.moldDesignId)
+      const occupied = await this.repository.findActiveInstallationByPosition(input.tenantId, position.resourcePositionId)
+      if (position.status === 'ACTIVE' && compatible && !occupied) {
+        return position
+      }
+    }
+
+    const timestamp = nowIso()
+    const sequence = existingPositions.length + 1
+    const resourcePositionId = `auto-pos-${workCenter.workCenterId}-${sequence}`
+    return this.repository.saveResourcePosition({
+      resourcePositionId,
+      tenantId: input.tenantId,
+      orgId: input.orgId ?? null,
+      workCenterId: workCenter.workCenterId,
+      positionCode: `AUTO-${sequence}`,
+      name: `${workCenter.name} 自动模位 ${sequence}`,
+      positionType: 'AUTO_MOLD_SLOT',
+      compatibleMoldDesignRefs: [instance.moldDesignId],
+      status: 'ACTIVE',
+      createdAt: timestamp,
+      updatedAt: timestamp
+    })
   }
 
   /** raiseWarningIfNeeded creates a warning fact only when the threshold or limit crosses without an open duplicate. */
@@ -1279,6 +1578,69 @@ function normalizeMasterDataRef(
     refCodeSnapshot: normalizeOptionalString(ref.refCodeSnapshot) ?? null,
     displayNameSnapshot: normalizeOptionalString(ref.displayNameSnapshot) ?? null
   }
+}
+
+/** normalizeOutputOptions normalizes selectable output variants under a single mold output. */
+function normalizeOutputOptions(input: {
+  defaultQuantityPerUse: string
+  moldDesignId: string
+  moldDesignOutputId: string
+  options: Array<{
+    moldDesignOutputOptionId?: string
+    optionCode: string
+    label: string
+    manufacturingSpecRef: ManufacturingMasterDataRefRecord
+    productFamilyRef?: ManufacturingMasterDataRefRecord | null
+    quantityPerUse?: string | null
+    isDefault?: boolean
+  }>
+  orgId?: string | null
+  tenantId: string
+}): MoldDesignOutputRecord['options'] {
+  const seenCodes = new Set<string>()
+  let defaultSeen = false
+  return input.options.map((option, index) => {
+    const optionCode = normalizeCode(option.optionCode, `outputs.options.${index}.optionCode`)
+    assertAlreadyAbsent(!seenCodes.has(optionCode), 'duplicate output option code', { optionCode })
+    seenCodes.add(optionCode)
+    assertRequiredString(option.label, `outputs.options.${index}.label`)
+    const isDefault = option.isDefault === true || (!defaultSeen && !input.options.some((entry) => entry.isDefault === true) && index === 0)
+    assertPrecondition(!isDefault || !defaultSeen, 'mold output can only have one default option')
+    defaultSeen = defaultSeen || isDefault
+    return {
+      moldDesignOutputOptionId: normalizeOptionalString(option.moldDesignOutputOptionId) ?? randomUUID(),
+      tenantId: input.tenantId,
+      orgId: input.orgId ?? null,
+      moldDesignId: input.moldDesignId,
+      moldDesignOutputId: input.moldDesignOutputId,
+      optionCode,
+      label: option.label.trim(),
+      manufacturingSpecRef: normalizeMasterDataRef(
+        option.manufacturingSpecRef,
+        `outputs.options.${index}.manufacturingSpecRef`,
+        'MANUFACTURING_SPEC'
+      ),
+      productFamilyRef: option.productFamilyRef
+        ? normalizeMasterDataRef(option.productFamilyRef, `outputs.options.${index}.productFamilyRef`, 'PRODUCT_FAMILY')
+        : null,
+      quantityPerUse: option.quantityPerUse
+        ? assertPositiveQuantity(option.quantityPerUse, `outputs.options.${index}.quantityPerUse`)
+        : assertPositiveQuantity(input.defaultQuantityPerUse, 'outputs.quantityPerUse'),
+      isDefault
+    }
+  })
+}
+
+/** assertVisibleManufacturingSpec hides cross-org ManufacturingSpec records behind NOT_FOUND semantics. */
+function assertVisibleManufacturingSpec<T extends { manufacturingSpecId: string; orgId?: string | null }>(
+  record: T,
+  orgId: string | null | undefined
+): T {
+  return assertExists(
+    (record.orgId ?? null) === (orgId ?? null) ? record : null,
+    'ManufacturingSpec',
+    record.manufacturingSpecId
+  )
 }
 
 function normalizeItemRef(ref: ItemRefRecord): ItemRefRecord {

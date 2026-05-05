@@ -24,7 +24,8 @@ import {
   MesMoldRepository,
   SearchMoldDesignsInput,
   SearchMoldWarningsInput,
-  SearchProductionMoldInstancesInput
+  SearchProductionMoldInstancesInput,
+  SearchWorkCentersInput
 } from '../../../domain/repositories/mes-mold.repository'
 import { paginate } from '../../../application/support/mes-assertions'
 import { MesInMemoryStore } from '../../store/mes-in-memory-store'
@@ -163,12 +164,58 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
     return cloneOrNull(matchTenant(this.store.mesLocations.get(mesLocationId), tenantId))
   }
 
+  async saveWorkCenter(record: WorkCenterRecord): Promise<WorkCenterRecord> {
+    this.store.workCenters.set(record.workCenterId, clone(record))
+    return clone(record)
+  }
+
   async findWorkCenterById(tenantId: string, workCenterId: string): Promise<WorkCenterRecord | null> {
     return cloneOrNull(matchTenant(this.store.workCenters.get(workCenterId), tenantId))
   }
 
+  async findWorkCenterByCode(
+    tenantId: string,
+    orgId: string | null | undefined,
+    workCenterCode: string
+  ): Promise<WorkCenterRecord | null> {
+    return cloneOrNull(
+      Array.from(this.store.workCenters.values()).find(
+        (record) =>
+          record.tenantId === tenantId && sameOrg(record.orgId, orgId) && record.workCenterCode === workCenterCode
+      )
+    )
+  }
+
+  async searchWorkCenters(input: SearchWorkCentersInput): Promise<PageResult<WorkCenterRecord>> {
+    const keyword = input.keyword?.trim().toUpperCase()
+    const records = Array.from(this.store.workCenters.values())
+      .filter((record) => record.tenantId === input.tenantId && (!input.orgId || sameOrg(record.orgId, input.orgId)))
+      .filter(
+        (record) =>
+          !keyword || record.workCenterCode.includes(keyword) || record.name.toUpperCase().includes(keyword)
+      )
+      .filter((record) => input.parentWorkCenterId === undefined || record.parentWorkCenterId === input.parentWorkCenterId)
+      .filter((record) => !input.status || record.status === input.status)
+      .filter((record) => !input.workCenterType || record.workCenterType === input.workCenterType)
+      .sort((left, right) => left.workCenterCode.localeCompare(right.workCenterCode))
+    return clone(paginate(records, input.page, input.pageSize))
+  }
+
+  async saveResourcePosition(record: ResourcePositionRecord): Promise<ResourcePositionRecord> {
+    this.store.resourcePositions.set(record.resourcePositionId, clone(record))
+    return clone(record)
+  }
+
   async findResourcePositionById(tenantId: string, resourcePositionId: string): Promise<ResourcePositionRecord | null> {
     return cloneOrNull(matchTenant(this.store.resourcePositions.get(resourcePositionId), tenantId))
+  }
+
+  async listResourcePositionsByWorkCenter(tenantId: string, workCenterId: string): Promise<ResourcePositionRecord[]> {
+    return clone(
+      Array.from(this.store.resourcePositions.values())
+        .filter((record) => record.tenantId === tenantId && record.workCenterId === workCenterId)
+        .sort((left, right) => left.positionCode.localeCompare(right.positionCode))
+    )
   }
 
   async appendMovementEvent(record: MoldMovementEventRecord): Promise<MoldMovementEventRecord> {

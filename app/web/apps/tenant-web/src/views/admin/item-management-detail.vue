@@ -5,6 +5,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { IconifyIcon } from '@vben/icons'
 
 import {
   changeManagedItemStatusApi,
@@ -13,6 +14,7 @@ import {
   listManagedItemCategoriesApi,
   listManagedItemsApi,
   listManagedSupplierItemMappingsApi,
+  listMoldDesignsApi,
   setManagedItemCapabilitiesApi,
   setManagedItemPrimaryCategoryApi,
   setManagedItemCompositionApi,
@@ -50,6 +52,7 @@ const composition = ref<ItemManagementApi.ItemComposition>({
 })
 const supplierMappings = ref<ItemManagementApi.SupplierItemMappingListEntry[]>([])
 const componentChoices = ref<ItemManagementApi.ItemSummary[]>([])
+const moldDesigns = ref<any[]>([])
 const primaryCategoryId = ref('')
 const selectedComponentIds = ref<string[]>([])
 const basicForm = reactive<BasicFormState>({
@@ -138,6 +141,21 @@ async function loadSupplierMappings() {
     pageSize: 20
   })
   supplierMappings.value = result.mappings ?? []
+}
+
+/** loadMoldDesigns refreshes the MES MoldDesign cards associated with this Item without owning MES truth. */
+async function loadMoldDesigns() {
+  if (!activeTenantId.value || !itemId.value) {
+    moldDesigns.value = []
+    return
+  }
+
+  const result = await listMoldDesignsApi(activeTenantId.value, {
+    itemId: itemId.value,
+    page: 1,
+    pageSize: 20
+  })
+  moldDesigns.value = result.moldDesigns ?? []
 }
 
 /** loadComponentChoices loads the candidate component directory used by the full-replace composition editor. */
@@ -260,13 +278,31 @@ async function saveSupplierMapping() {
   await loadSupplierMappings()
 }
 
+/** getMoldDesignOutputSummary builds a compact output label for the Item detail mold-scheme cards. */
+function getMoldDesignOutputSummary(design: any) {
+  const outputs = design.outputs ?? []
+  if (!outputs.length) {
+    return '未配置产出'
+  }
+
+  return outputs
+    .map((output: any) => `${output.componentRole || output.outputCode} x ${output.quantityPerUse ?? '1'}`)
+    .join(' / ')
+}
+
+/** getMoldDesignMethodLabel keeps production method tags compact and readable in the card grid. */
+function getMoldDesignMethodLabel(design: any) {
+  return (design.productionMethodTags ?? []).join(' / ') || '未标注'
+}
+
 onMounted(() => {
   void Promise.all([
     loadCategories(),
     loadItem(),
     loadComposition(),
     loadSupplierMappings(),
-    loadComponentChoices()
+    loadComponentChoices(),
+    loadMoldDesigns()
   ])
 })
 </script>
@@ -274,10 +310,95 @@ onMounted(() => {
 <template>
   <Page>
     <section class="item-detail-page">
-      <header class="item-detail-card">
-        <h1>Item 详情</h1>
-        <p>phase 1 只暴露基础信息、单值主分类、能力、组成关系和供应商型号映射，不扩展多分类或分类策略。</p>
+      <header class="item-detail-header">
+        <div class="item-detail-title">
+          <div class="item-detail-icon">
+            <IconifyIcon icon="lucide:package-2" />
+          </div>
+          <div>
+            <div class="item-detail-breadcrumb">
+              <span>主数据</span>
+              <IconifyIcon icon="lucide:chevron-right" />
+              <span>Item 详情</span>
+            </div>
+            <h1>{{ item?.itemName ?? 'Item 详情' }}</h1>
+            <div class="item-detail-meta">
+              <span>{{ item?.itemCode ?? itemId }}</span>
+              <span>结构: {{ item?.structureType ?? '-' }}</span>
+              <span>性质: {{ item?.natureType ?? '-' }}</span>
+            </div>
+          </div>
+        </div>
+        <span :class="['item-detail-status', { 'item-detail-status--inactive': statusValue !== 'ACTIVE' }]">
+          <i></i>
+          {{ statusValue }}
+        </span>
       </header>
+
+      <section class="item-detail-flow item-detail-card">
+        <div class="item-detail-flow__line">Item → 模具方案 → 生产模具 → 产线</div>
+        <div class="item-detail-flow__steps">
+          <span class="item-detail-flow__step item-detail-flow__step--active">
+            <IconifyIcon icon="lucide:package" />
+            物品
+          </span>
+          <span class="item-detail-flow__step item-detail-flow__step--active">
+            <IconifyIcon icon="lucide:drafting-compass" />
+            模具方案
+          </span>
+          <span class="item-detail-flow__step">
+            <IconifyIcon icon="lucide:factory" />
+            生产模具
+          </span>
+          <span class="item-detail-flow__step">
+            <IconifyIcon icon="lucide:scan-line" />
+            产线
+          </span>
+        </div>
+      </section>
+
+      <section class="item-detail-card">
+        <div class="item-detail-section-title">
+          <div>
+            <h2>模具方案</h2>
+            <p>只读取 MES MoldDesign 关联，不在 Item 页面复制模具方案 truth。</p>
+          </div>
+          <span>{{ moldDesigns.length }} 方案</span>
+        </div>
+        <div v-if="moldDesigns.length" class="item-mold-design-grid">
+          <article v-for="design in moldDesigns" :key="design.moldDesignId" class="item-mold-design-card">
+            <div class="item-mold-design-card__head">
+              <div>
+                <h3>{{ design.name }}</h3>
+                <p>{{ design.designCode }} · {{ design.revisionCode ?? '未标版本' }}</p>
+              </div>
+              <span>{{ design.status ?? 'ACTIVE' }}</span>
+            </div>
+            <dl>
+              <div>
+                <dt>成型方式</dt>
+                <dd>{{ getMoldDesignMethodLabel(design) }}</dd>
+              </div>
+              <div>
+                <dt>模具类型</dt>
+                <dd>{{ design.materialType ?? '-' }}</dd>
+              </div>
+              <div>
+                <dt>产出概要</dt>
+                <dd>{{ getMoldDesignOutputSummary(design) }}</dd>
+              </div>
+              <div>
+                <dt>默认寿命</dt>
+                <dd>{{ design.defaultLifeLimit ?? '-' }} {{ design.defaultLifeUnit ?? '' }}</dd>
+              </div>
+            </dl>
+          </article>
+        </div>
+        <div v-else class="item-detail-empty">
+          <IconifyIcon icon="lucide:drafting-compass" />
+          <span>当前 Item 尚未关联模具方案</span>
+        </div>
+      </section>
 
       <section class="item-detail-card">
         <h2>基础信息</h2>
@@ -433,27 +554,237 @@ onMounted(() => {
 
 <style scoped>
 .item-detail-page {
+  --item-primary: #005daa;
+  --item-border: #d9dee8;
+  --item-muted: #69717f;
+  --item-text: #181c22;
+  color: var(--item-text);
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 20px;
+  padding: 16px;
+}
+
+.item-detail-header {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.item-detail-title {
+  display: flex;
+  gap: 14px;
+}
+
+.item-detail-icon {
+  align-items: center;
+  background: #eef4fb;
+  border: 1px solid #d6e4f5;
+  border-radius: 6px;
+  color: var(--item-primary);
+  display: flex;
+  flex: 0 0 56px;
+  font-size: 28px;
+  height: 56px;
+  justify-content: center;
+}
+
+.item-detail-breadcrumb {
+  align-items: center;
+  color: var(--item-muted);
+  display: flex;
+  font-size: 12px;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.item-detail-header h1 {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+  margin: 0 0 6px;
+}
+
+.item-detail-meta {
+  color: var(--item-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 13px;
+  gap: 8px;
+}
+
+.item-detail-meta span {
+  background: #eef1f6;
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.item-detail-status {
+  align-items: center;
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 4px;
+  color: #237804;
+  display: inline-flex;
+  font-size: 12px;
+  gap: 6px;
+  min-height: 28px;
+  padding: 0 10px;
+}
+
+.item-detail-status i {
+  background: #52c41a;
+  border-radius: 999px;
+  height: 6px;
+  width: 6px;
+}
+
+.item-detail-status--inactive {
+  background: #f5f5f5;
+  border-color: #d9d9d9;
+  color: #6b7280;
 }
 
 .item-detail-card {
   background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 16px;
-  padding: 18px;
+  border: 1px solid var(--item-border);
+  border-radius: 4px;
+  padding: 16px;
 }
 
-.item-detail-card h1,
 .item-detail-card h2 {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
   margin: 0 0 12px;
 }
 
 .item-detail-card p,
 .item-detail-card ul {
   margin: 0;
+}
+
+.item-detail-flow {
+  display: grid;
+  gap: 12px;
+}
+
+.item-detail-flow__line {
+  color: var(--item-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.item-detail-flow__steps {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+}
+
+.item-detail-flow__step {
+  align-items: center;
+  background: #fff;
+  border: 1px dashed #cbd2df;
+  border-radius: 4px;
+  color: var(--item-muted);
+  display: flex;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.item-detail-flow__step--active {
+  border-color: var(--item-primary);
+  color: var(--item-primary);
+}
+
+.item-detail-section-title {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.item-detail-section-title h2 {
+  margin-bottom: 2px;
+}
+
+.item-detail-section-title p,
+.item-detail-section-title span {
+  color: var(--item-muted);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.item-mold-design-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.item-mold-design-card {
+  border: 1px solid #e5eaf2;
+  border-left: 4px solid var(--item-primary);
+  border-radius: 4px;
+  padding: 14px;
+}
+
+.item-mold-design-card__head {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.item-mold-design-card h3 {
+  font-size: 14px;
+  margin: 0 0 2px;
+}
+
+.item-mold-design-card p {
+  color: var(--item-muted);
+  font-size: 12px;
+}
+
+.item-mold-design-card__head > span {
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 4px;
+  color: #237804;
+  font-size: 11px;
+  padding: 1px 7px;
+}
+
+.item-mold-design-card dl {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.item-mold-design-card dt {
+  color: var(--item-muted);
+  font-size: 11px;
+}
+
+.item-mold-design-card dd {
+  font-size: 13px;
+  font-weight: 500;
+  margin: 2px 0 0;
+}
+
+.item-detail-empty {
+  align-items: center;
+  border: 1px dashed #cbd2df;
+  border-radius: 4px;
+  color: var(--item-muted);
+  display: flex;
+  gap: 8px;
+  min-height: 72px;
+  justify-content: center;
 }
 
 .item-detail-grid {
@@ -470,11 +801,17 @@ onMounted(() => {
 .item-detail-grid label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
+}
+
+.item-detail-grid label span {
+  color: var(--item-muted);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .item-detail-note {
-  color: #6b7280;
+  color: var(--item-muted);
   margin-bottom: 12px;
 }
 
@@ -503,15 +840,28 @@ onMounted(() => {
 button,
 input,
 select {
-  border: 1px solid #cbd5e1;
-  border-radius: 10px;
-  min-height: 36px;
-  padding: 8px 10px;
+  border: 1px solid #cbd2df;
+  border-radius: 4px;
+  min-height: 32px;
+  padding: 5px 8px;
 }
 
 button {
-  background: #0f172a;
+  background: var(--item-primary);
+  border-color: var(--item-primary);
   color: #fff;
   cursor: pointer;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+@media (max-width: 860px) {
+  .item-detail-header {
+    flex-direction: column;
+  }
+
+  .item-detail-flow__steps {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

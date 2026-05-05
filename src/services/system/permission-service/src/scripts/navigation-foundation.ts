@@ -59,7 +59,8 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = 
     'workbench.home',
     'tenant-settings.employee-employment'
   ],
-  'account.basic': ['workbench.home']
+  'account.basic': ['workbench.home'],
+  'mes.forming_workshop.supervisor': ['workbench.home', 'mes.mold-management']
 }
 
 /** DEPRECATED_NAVIGATION_ENTRY_KEYS disables removed built-in entries during seed sync. */
@@ -238,12 +239,22 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     entryType: 'page'
   },
   {
+    entryKey: 'mes.mold-management',
+    name: '模具管理',
+    description: '租户侧 MES 模具管理、产线模具现况与注浆记录最小闭环入口。',
+    featureKey: 'mes',
+    supportedTerminals: ['WEB'],
+    registryPriority: 17,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
     entryKey: 'admin.platform-mfa',
     name: '平台 MFA 配置',
     description: '系统账号 MFA 场景、因子优先级与新设备登录保护配置入口。',
     featureKey: 'auth',
     supportedTerminals: ['WEB'],
-    registryPriority: 17,
+    registryPriority: 18,
     enabled: true,
     entryType: 'page'
   },
@@ -253,7 +264,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员权限管理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 18,
+    registryPriority: 19,
     enabled: true,
     entryType: 'page'
   },
@@ -263,7 +274,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员策略治理只读入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 19,
+    registryPriority: 20,
     enabled: true,
     entryType: 'page'
   },
@@ -273,7 +284,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员导航治理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 20,
+    registryPriority: 21,
     enabled: true,
     entryType: 'page'
   }

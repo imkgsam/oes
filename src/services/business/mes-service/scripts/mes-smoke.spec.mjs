@@ -10,6 +10,30 @@ test('mes smoke flow / should execute the phase 1 mold runtime path with idempot
 
   const result = await runMesSmokeFlow(
     {
+      specManagement: {
+        createManufacturingSpec: async (request) => {
+          calls.push(['createManufacturingSpec', request]);
+          return {
+            manufacturingSpec: {
+              manufacturingSpecId: seed.manufacturingSpecRefId,
+              specCode: seed.manufacturingSpecCode,
+              status: 1,
+              version: 1
+            }
+          };
+        },
+        activateManufacturingSpec: async (request) => {
+          calls.push(['activateManufacturingSpec', request]);
+          return {
+            manufacturingSpec: {
+              manufacturingSpecId: request.manufacturingSpecId,
+              specCode: seed.manufacturingSpecCode,
+              status: 2,
+              version: 2
+            }
+          };
+        }
+      },
       management: {
         registerMoldDesign: async (request) => {
           calls.push(['registerMoldDesign', request]);
@@ -139,8 +163,10 @@ test('mes smoke flow / should execute the phase 1 mold runtime path with idempot
         verifyOutbox: async () => {
           calls.push(['verifyOutbox']);
           return {
-            pendingCount: 6,
+            pendingCount: 8,
             eventTypes: [
+              'ManufacturingSpecCreated',
+              'ManufacturingSpecActivated',
               'MoldRegistered',
               'MoldRegistered',
               'MoldMoved',
@@ -155,15 +181,18 @@ test('mes smoke flow / should execute the phase 1 mold runtime path with idempot
     seed
   );
 
+  assert.equal(result.spec.manufacturingSpecId, seed.manufacturingSpecRefId);
   assert.equal(result.design.moldDesignId, seed.moldDesignId);
   assert.equal(result.instance.productionMoldInstanceId, seed.productionMoldInstanceId);
   assert.equal(result.currentMolds.total, 1);
   assert.equal(result.warnings.total, 1);
   assert.equal(result.idempotency.productionMoldInstanceCount, 1);
-  assert.equal(result.outbox.pendingCount, 6);
+  assert.equal(result.outbox.pendingCount, 8);
   assert.deepEqual(
     calls.map(([name]) => name),
     [
+      'createManufacturingSpec',
+      'activateManufacturingSpec',
       'registerMoldDesign',
       'registerProductionMoldInstance',
       'moveMold',

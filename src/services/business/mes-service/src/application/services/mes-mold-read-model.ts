@@ -265,6 +265,8 @@ export class MesMoldReadModel {
         lifeUsedValueAfter: usage.lifeUsedValueAfter,
         productFamilyRef: usage.productFamilyRef ?? null,
         manufacturingSpecRef: usage.manufacturingSpecRef ?? null,
+        moldDesignOutputId: usage.moldDesignOutputId ?? null,
+        moldDesignOutputOptionId: usage.moldDesignOutputOptionId ?? null,
         wipUnitRef: usage.wipUnitRef ?? null,
         physicalTraceId: usage.physicalTraceId ?? null,
         operatorRef: usage.operatorRef,

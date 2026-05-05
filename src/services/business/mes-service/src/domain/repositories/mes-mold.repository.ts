@@ -47,6 +47,17 @@ export interface SearchProductionMoldInstancesInput {
   pageSize: number
 }
 
+export interface SearchWorkCentersInput {
+  tenantId: string
+  orgId?: string | null
+  keyword?: string
+  parentWorkCenterId?: string | null
+  status?: string
+  workCenterType?: string
+  page: number
+  pageSize: number
+}
+
 export interface SearchMoldWarningsInput {
   tenantId: string
   orgId?: string | null
@@ -83,8 +94,13 @@ export interface MesMoldRepository {
   findMoldLifeCounterByInstanceId(tenantId: string, productionMoldInstanceId: string): Promise<MoldLifeCounterRecord | null>
 
   findMesLocationById(tenantId: string, mesLocationId: string): Promise<MesLocationRecord | null>
+  saveWorkCenter(record: WorkCenterRecord): Promise<WorkCenterRecord>
   findWorkCenterById(tenantId: string, workCenterId: string): Promise<WorkCenterRecord | null>
+  findWorkCenterByCode(tenantId: string, orgId: string | null | undefined, workCenterCode: string): Promise<WorkCenterRecord | null>
+  searchWorkCenters(input: SearchWorkCentersInput): Promise<PageResult<WorkCenterRecord>>
+  saveResourcePosition(record: ResourcePositionRecord): Promise<ResourcePositionRecord>
   findResourcePositionById(tenantId: string, resourcePositionId: string): Promise<ResourcePositionRecord | null>
+  listResourcePositionsByWorkCenter(tenantId: string, workCenterId: string): Promise<ResourcePositionRecord[]>
 
   appendMovementEvent(record: MoldMovementEventRecord): Promise<MoldMovementEventRecord>
   findLastMovementEvent(tenantId: string, moldResourceType: MoldResourceType, moldResourceId: string): Promise<MoldMovementEventRecord | null>

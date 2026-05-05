@@ -18,6 +18,7 @@ import { CrmServiceProxyModule } from './modules/crm-service/crm-service.module'
 import { FinanceServiceProxyModule } from './modules/finance-service/finance-service.module'
 import { HrServiceProxyModule } from './modules/hr-service/hr-service.module'
 import { ItemMasterServiceProxyModule } from './modules/item-master-service/item-master-service.module'
+import { MesServiceProxyModule } from './modules/mes-service/mes-service.module'
 import { PermissionServiceProxyModule } from './modules/permission-service/permission-service.module'
 import { ProcurementServiceProxyModule } from './modules/procurement-service/procurement-service.module'
 import { SalesServiceProxyModule } from './modules/sales-service/sales-service.module'
@@ -33,6 +34,13 @@ export function resolveTenantOrgGrpcUrl() {
   return process.env.TENANT_ORG_SERVICE_HOST && process.env.TENANT_ORG_SERVICE_PORT
     ? `${process.env.TENANT_ORG_SERVICE_HOST}:${process.env.TENANT_ORG_SERVICE_PORT}`
     : '127.0.0.1:50054'
+}
+
+/** resolveMesGrpcUrl centralizes the local MES fallback endpoint used by api-gateway. */
+export function resolveMesGrpcUrl() {
+  return process.env.MES_SERVICE_HOST && process.env.MES_SERVICE_PORT
+    ? `${process.env.MES_SERVICE_HOST}:${process.env.MES_SERVICE_PORT}`
+    : 'localhost:50065'
 }
 
 @Module({
@@ -121,6 +129,12 @@ export function resolveTenantOrgGrpcUrl() {
               ? `${process.env.ITEM_MASTER_SERVICE_HOST}:${process.env.ITEM_MASTER_SERVICE_PORT}`
               : 'localhost:50058'
         },
+        [SERVICE_NAMES.MES]: {
+          serviceName: SERVICE_NAMES.MES,
+          protoPath: resolveCommonProtoPath('mes_service/mes.proto'),
+          packageName: 'mes_service',
+          url: resolveMesGrpcUrl()
+        },
         [SERVICE_NAMES.PARTY]: {
           serviceName: SERVICE_NAMES.PARTY,
           protoPath: resolveCommonProtoPath('party_service/party.proto'),
@@ -197,6 +211,7 @@ export function resolveTenantOrgGrpcUrl() {
     FinanceServiceProxyModule,
     HrServiceProxyModule,
     ItemMasterServiceProxyModule,
+    MesServiceProxyModule,
     PermissionServiceProxyModule,
     ProcurementServiceProxyModule,
     SalesServiceProxyModule,
