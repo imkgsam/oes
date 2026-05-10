@@ -6,51 +6,89 @@ option java_multiple_files = true;
 option java_package = "com.oes.itemmaster.v1";
 
 service ItemMasterQueryService {
+  rpc GetItemModel(GetItemModelRequest) returns (GetItemModelResponse);
+  rpc BatchGetItemModels(BatchGetItemModelsRequest) returns (BatchGetItemModelsResponse);
+  rpc SearchItemModels(SearchItemModelsRequest) returns (SearchItemModelsResponse);
+  rpc ListAttributeDefinitions(ListAttributeDefinitionsRequest) returns (ListAttributeDefinitionsResponse);
+  rpc ListAttributeOptions(ListAttributeOptionsRequest) returns (ListAttributeOptionsResponse);
+  rpc GetItemModelAttributeRules(GetItemModelAttributeRulesRequest) returns (GetItemModelAttributeRulesResponse);
   rpc GetItem(GetItemRequest) returns (GetItemResponse);
   rpc BatchGetItems(BatchGetItemsRequest) returns (BatchGetItemsResponse);
   rpc SearchItems(SearchItemsRequest) returns (SearchItemsResponse);
+  rpc ResolveItemVariant(ResolveItemVariantRequest) returns (ResolveItemVariantResponse);
   rpc ListItemCategories(ListItemCategoriesRequest) returns (ListItemCategoriesResponse);
-  rpc GetItemComposition(GetItemCompositionRequest) returns (GetItemCompositionResponse);
+  rpc ListPackagingMethods(ListPackagingMethodsRequest) returns (ListPackagingMethodsResponse);
+  rpc GetPackagingSpec(GetPackagingSpecRequest) returns (GetPackagingSpecResponse);
+  rpc SearchPackagingSpecs(SearchPackagingSpecsRequest) returns (SearchPackagingSpecsResponse);
+  rpc GetBom(GetBomRequest) returns (GetBomResponse);
+  rpc SearchBoms(SearchBomsRequest) returns (SearchBomsResponse);
+  rpc GetBomByOutputItem(GetBomByOutputItemRequest) returns (GetBomByOutputItemResponse);
   rpc ListSupplierItemMappingsByItem(ListSupplierItemMappingsByItemRequest) returns (ListSupplierItemMappingsByItemResponse);
   rpc ResolveSupplierItemMapping(ResolveSupplierItemMappingRequest) returns (ResolveSupplierItemMappingResponse);
 }
 
 service ItemMasterManagementService {
+  rpc CreateItemModel(CreateItemModelRequest) returns (CreateItemModelResponse);
+  rpc UpdateItemModelBasics(UpdateItemModelBasicsRequest) returns (UpdateItemModelBasicsResponse);
+  rpc SetItemModelCapabilities(SetItemModelCapabilitiesRequest) returns (SetItemModelCapabilitiesResponse);
+  rpc ChangeItemModelStatus(ChangeItemModelStatusRequest) returns (ChangeItemModelStatusResponse);
+  rpc SetItemModelPrimaryCategory(SetItemModelPrimaryCategoryRequest) returns (SetItemModelPrimaryCategoryResponse);
+  rpc CreateAttributeDefinition(CreateAttributeDefinitionRequest) returns (CreateAttributeDefinitionResponse);
+  rpc UpdateAttributeDefinition(UpdateAttributeDefinitionRequest) returns (UpdateAttributeDefinitionResponse);
+  rpc CreateAttributeOption(CreateAttributeOptionRequest) returns (CreateAttributeOptionResponse);
+  rpc UpdateAttributeOption(UpdateAttributeOptionRequest) returns (UpdateAttributeOptionResponse);
+  rpc SetItemModelAttributeRules(SetItemModelAttributeRulesRequest) returns (SetItemModelAttributeRulesResponse);
   rpc CreateItem(CreateItemRequest) returns (CreateItemResponse);
   rpc UpdateItemBasics(UpdateItemBasicsRequest) returns (UpdateItemBasicsResponse);
   rpc SetItemCapabilities(SetItemCapabilitiesRequest) returns (SetItemCapabilitiesResponse);
-  rpc SetItemComposition(SetItemCompositionRequest) returns (SetItemCompositionResponse);
-  rpc UpsertSupplierItemMapping(UpsertSupplierItemMappingRequest) returns (UpsertSupplierItemMappingResponse);
   rpc ChangeItemStatus(ChangeItemStatusRequest) returns (ChangeItemStatusResponse);
   rpc CreateItemCategory(CreateItemCategoryRequest) returns (CreateItemCategoryResponse);
   rpc UpdateItemCategoryBasics(UpdateItemCategoryBasicsRequest) returns (UpdateItemCategoryBasicsResponse);
   rpc ChangeItemCategoryStatus(ChangeItemCategoryStatusRequest) returns (ChangeItemCategoryStatusResponse);
-  rpc SetItemPrimaryCategory(SetItemPrimaryCategoryRequest) returns (SetItemPrimaryCategoryResponse);
+  rpc CreatePackagingMethod(CreatePackagingMethodRequest) returns (CreatePackagingMethodResponse);
+  rpc UpdatePackagingMethod(UpdatePackagingMethodRequest) returns (UpdatePackagingMethodResponse);
+  rpc ChangePackagingMethodStatus(ChangePackagingMethodStatusRequest) returns (ChangePackagingMethodStatusResponse);
+  rpc CreatePackagingSpec(CreatePackagingSpecRequest) returns (CreatePackagingSpecResponse);
+  rpc UpdatePackagingSpec(UpdatePackagingSpecRequest) returns (UpdatePackagingSpecResponse);
+  rpc ChangePackagingSpecStatus(ChangePackagingSpecStatusRequest) returns (ChangePackagingSpecStatusResponse);
+  rpc CreateBom(CreateBomRequest) returns (CreateBomResponse);
+  rpc UpdateBomBasics(UpdateBomBasicsRequest) returns (UpdateBomBasicsResponse);
+  rpc ReplaceBomLines(ReplaceBomLinesRequest) returns (ReplaceBomLinesResponse);
+  rpc ChangeBomStatus(ChangeBomStatusRequest) returns (ChangeBomStatusResponse);
+  rpc UpsertSupplierItemMapping(UpsertSupplierItemMappingRequest) returns (UpsertSupplierItemMappingResponse);
 }
 
-enum ItemStructureType {
-  ITEM_STRUCTURE_TYPE_UNSPECIFIED = 0;
-  ITEM_STRUCTURE_TYPE_SINGLE = 1;
-  ITEM_STRUCTURE_TYPE_BUNDLE = 2;
+enum ItemModelKind {
+  ITEM_MODEL_KIND_UNSPECIFIED = 0;
+  ITEM_MODEL_KIND_PHYSICAL = 1;
+  ITEM_MODEL_KIND_SERVICE = 2;
+  ITEM_MODEL_KIND_DIGITAL = 3;
+  ITEM_MODEL_KIND_VIRTUAL = 4;
 }
 
-enum ItemNatureType {
-  ITEM_NATURE_TYPE_UNSPECIFIED = 0;
-  ITEM_NATURE_TYPE_PHYSICAL = 1;
-  ITEM_NATURE_TYPE_VIRTUAL = 2;
-  ITEM_NATURE_TYPE_SERVICE = 3;
+enum ItemModelType {
+  ITEM_MODEL_TYPE_UNSPECIFIED = 0;
+  ITEM_MODEL_TYPE_FINISHED_PRODUCT = 1;
+  ITEM_MODEL_TYPE_SEMI_FINISHED_PRODUCT = 2;
+  ITEM_MODEL_TYPE_ACCESSORY = 3;
+  ITEM_MODEL_TYPE_PART = 4;
+  ITEM_MODEL_TYPE_SUB_ASSEMBLY = 5;
+  ITEM_MODEL_TYPE_RAW_MATERIAL = 6;
+  ITEM_MODEL_TYPE_PACKAGING_MATERIAL = 7;
+  ITEM_MODEL_TYPE_SERVICE = 8;
+  ITEM_MODEL_TYPE_VIRTUAL_KIT = 9;
 }
 
-enum ItemStatus {
-  ITEM_STATUS_UNSPECIFIED = 0;
-  ITEM_STATUS_ACTIVE = 1;
-  ITEM_STATUS_INACTIVE = 2;
+enum ItemType {
+  ITEM_TYPE_UNSPECIFIED = 0;
+  ITEM_TYPE_STANDARD = 1;
+  ITEM_TYPE_PACKAGED_FINISHED_GOOD = 2;
 }
 
-enum ItemCategoryStatus {
-  ITEM_CATEGORY_STATUS_UNSPECIFIED = 0;
-  ITEM_CATEGORY_STATUS_ACTIVE = 1;
-  ITEM_CATEGORY_STATUS_INACTIVE = 2;
+enum VariantResolutionStatus {
+  VARIANT_RESOLUTION_STATUS_UNSPECIFIED = 0;
+  VARIANT_RESOLUTION_STATUS_MATCHED = 1;
+  VARIANT_RESOLUTION_STATUS_NO_MATCH = 2;
 }
 
 enum SupplierItemResolutionStatus {
@@ -59,11 +97,35 @@ enum SupplierItemResolutionStatus {
   SUPPLIER_ITEM_RESOLUTION_STATUS_NO_MATCH = 2;
 }
 
+enum BomType {
+  BOM_TYPE_UNSPECIFIED = 0;
+  BOM_TYPE_COMPOSITION = 1;
+  BOM_TYPE_TRANSFORMATION = 2;
+  BOM_TYPE_PACKAGING = 3;
+}
+
+enum BomLineRole {
+  BOM_LINE_ROLE_UNSPECIFIED = 0;
+  BOM_LINE_ROLE_PRIMARY_INPUT = 1;
+  BOM_LINE_ROLE_COMPONENT = 2;
+  BOM_LINE_ROLE_PACKAGING_MATERIAL = 3;
+}
+
+enum BomResolutionStatus {
+  BOM_RESOLUTION_STATUS_UNSPECIFIED = 0;
+  BOM_RESOLUTION_STATUS_MATCHED = 1;
+  BOM_RESOLUTION_STATUS_NO_MATCH = 2;
+}
+
 message ItemCapabilities {
   bool sellable = 1;
   bool purchasable = 2;
   bool stockable = 3;
   bool manufacturable = 4;
+  bool assemblable = 5;
+  bool transformable = 6;
+  bool packable = 7;
+  bool packaged = 8;
 }
 
 message ItemCapabilityFilters {
@@ -71,24 +133,17 @@ message ItemCapabilityFilters {
   optional bool purchasable = 2;
   optional bool stockable = 3;
   optional bool manufacturable = 4;
-}
-
-message ItemSummary {
-  string item_id = 1;
-  string item_code = 2;
-  string item_name = 3;
-  ItemStructureType structure_type = 4;
-  ItemNatureType nature_type = 5;
-  ItemStatus status = 6;
-  ItemCapabilities capabilities = 7;
-  ItemCategorySummary primary_category_summary = 8;
+  optional bool assemblable = 5;
+  optional bool transformable = 6;
+  optional bool packable = 7;
+  optional bool packaged = 8;
 }
 
 message ItemCategorySummary {
   string category_id = 1;
   string category_code = 2;
   string category_name = 3;
-  ItemCategoryStatus status = 4;
+  bool active = 4;
 }
 
 message ItemCategoryTreeNode {
@@ -96,34 +151,207 @@ message ItemCategoryTreeNode {
   string category_code = 2;
   string category_name = 3;
   string parent_category_id = 4;
-  ItemCategoryStatus status = 5;
+  bool active = 5;
   bool has_children = 6;
 }
 
-message ItemCompositionComponentInput {
-  string component_item_id = 1;
+message ItemModelSummary {
+  string item_model_id = 1;
+  string model_code = 2;
+  string model_name = 3;
+  ItemModelKind model_kind = 4;
+  ItemModelType model_type = 5;
+  bool active = 6;
 }
 
-message ItemCompositionComponent {
+message ItemModelRecord {
+  string item_model_id = 1;
+  string model_code = 2;
+  string model_name = 3;
+  ItemModelKind model_kind = 4;
+  ItemModelType model_type = 5;
+  bool active = 6;
+  ItemCapabilities capabilities = 7;
+  ItemCategorySummary primary_category_summary = 8;
+  string created_at = 9;
+  string updated_at = 10;
+}
+
+message AttributeDefinitionRecord {
+  string attribute_definition_id = 1;
+  string attribute_code = 2;
+  string attribute_name = 3;
+  bool active = 4;
+}
+
+message AttributeOptionRecord {
+  string attribute_option_id = 1;
+  string attribute_definition_id = 2;
+  string option_code = 3;
+  string option_name = 4;
+  bool active = 5;
+}
+
+message ItemModelAttributeRuleRecord {
+  string item_model_id = 1;
+  string attribute_definition_id = 2;
+  bool required = 3;
+  repeated string allowed_option_ids = 4;
+}
+
+message ItemSummary {
+  string item_id = 1;
+  string item_model_id = 2;
+  string item_code = 3;
+  string item_name = 4;
+  ItemType item_type = 5;
+  repeated string locked_attribute_option_ids = 6;
+  string packaging_spec_id = 7;
+  bool active = 8;
+  ItemCapabilities capabilities = 9;
+  ItemModelSummary item_model_summary = 10;
+  ItemCategorySummary primary_category_summary = 11;
+  string created_at = 12;
+  string updated_at = 13;
+}
+
+message PackagingMethodRecord {
+  string packaging_method_id = 1;
+  string method_code = 2;
+  string method_name = 3;
+  bool active = 4;
+}
+
+message PackagingSpecRecord {
+  string packaging_spec_id = 1;
+  string item_model_id = 2;
+  string packaging_method_id = 3;
+  string customer_id = 4;
+  string spec_code = 5;
+  string spec_name = 6;
+  string gross_weight = 7;
+  string volume = 8;
+  string outer_length = 9;
+  string outer_width = 10;
+  string outer_height = 11;
+  string work_instruction = 12;
+  string version = 13;
+  string effective_from = 14;
+  string effective_to = 15;
+  bool active = 16;
+}
+
+message BomLineInput {
   string component_item_id = 1;
-  string component_item_code = 2;
-  string component_item_name = 3;
+  BomLineRole line_role = 2;
+  string quantity = 3;
+  string uom_code = 4;
+  string line_note = 5;
+}
+
+message BomLineRecord {
+  string bom_line_id = 1;
+  string component_item_id = 2;
+  BomLineRole line_role = 3;
+  string quantity = 4;
+  string uom_code = 5;
+  string line_note = 6;
+  ItemSummary component_item = 7;
+}
+
+message BomRecord {
+  string bom_id = 1;
+  string bom_code = 2;
+  string bom_name = 3;
+  BomType bom_type = 4;
+  string output_item_id = 5;
+  bool active = 6;
+  repeated BomLineRecord lines = 7;
+  string created_at = 8;
+  string updated_at = 9;
 }
 
 message SupplierItemMappingRecord {
-  string supplier_id = 1;
-  string supplier_item_code = 2;
-  string supplier_item_name = 3;
-  string item_id = 4;
-  string item_code = 5;
-  string item_name = 6;
+  string supplier_item_mapping_id = 1;
+  string supplier_id = 2;
+  string supplier_item_code = 3;
+  string supplier_item_name = 4;
+  string item_id = 5;
+  ItemSummary item_summary = 6;
+  bool active = 7;
 }
 
-message SupplierItemMappingListEntry {
-  string supplier_id = 1;
-  string supplier_item_code = 2;
-  string supplier_item_name = 3;
-  string item_id = 4;
+message GetItemModelRequest {
+  string tenant_id = 1;
+  string item_model_id = 2;
+}
+
+message GetItemModelResponse {
+  ItemModelRecord item_model = 1;
+}
+
+message BatchGetItemModelsRequest {
+  string tenant_id = 1;
+  repeated string item_model_ids = 2;
+}
+
+message BatchGetItemModelsResponse {
+  repeated ItemModelRecord item_models = 1;
+  repeated string missing_item_model_ids = 2;
+}
+
+message SearchItemModelsRequest {
+  string tenant_id = 1;
+  string keyword = 2;
+  ItemModelKind model_kind = 3;
+  ItemModelType model_type = 4;
+  ItemCapabilityFilters capability_filters = 5;
+  optional bool active = 6;
+  string category_id = 7;
+  bool include_descendants = 8;
+  uint32 page = 9;
+  uint32 page_size = 10;
+}
+
+message SearchItemModelsResponse {
+  repeated ItemModelRecord item_models = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message ListAttributeDefinitionsRequest {
+  string tenant_id = 1;
+  string keyword = 2;
+  optional bool active = 3;
+  uint32 page = 4;
+  uint32 page_size = 5;
+}
+
+message ListAttributeDefinitionsResponse {
+  repeated AttributeDefinitionRecord attribute_definitions = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message ListAttributeOptionsRequest {
+  string tenant_id = 1;
+  string attribute_definition_id = 2;
+  optional bool active = 3;
+}
+
+message ListAttributeOptionsResponse {
+  repeated AttributeOptionRecord attribute_options = 1;
+}
+
+message GetItemModelAttributeRulesRequest {
+  string tenant_id = 1;
+  string item_model_id = 2;
+}
+
+message GetItemModelAttributeRulesResponse {
+  repeated ItemModelAttributeRuleRecord rules = 1;
 }
 
 message GetItemRequest {
@@ -148,14 +376,16 @@ message BatchGetItemsResponse {
 message SearchItemsRequest {
   string tenant_id = 1;
   string keyword = 2;
-  ItemStructureType structure_type = 3;
-  ItemNatureType nature_type = 4;
-  ItemCapabilityFilters capability_filters = 5;
-  ItemStatus status = 6;
-  string category_id = 7;
-  bool include_descendants = 8;
-  uint32 page = 9;
-  uint32 page_size = 10;
+  string item_model_id = 3;
+  ItemType item_type = 4;
+  string packaging_spec_id = 5;
+  repeated string locked_attribute_option_ids = 6;
+  ItemCapabilityFilters capability_filters = 7;
+  optional bool active = 8;
+  string category_id = 9;
+  bool include_descendants = 10;
+  uint32 page = 11;
+  uint32 page_size = 12;
 }
 
 message SearchItemsResponse {
@@ -165,34 +395,113 @@ message SearchItemsResponse {
   uint32 page_size = 4;
 }
 
+message ResolveItemVariantRequest {
+  string tenant_id = 1;
+  string item_model_id = 2;
+  repeated string locked_attribute_option_ids = 3;
+  string packaging_spec_id = 4;
+}
+
+message ResolveItemVariantResponse {
+  VariantResolutionStatus resolution_status = 1;
+  ItemSummary item = 2;
+}
+
 message ListItemCategoriesRequest {
   string tenant_id = 1;
   string parent_category_id = 2;
+  optional bool active = 3;
 }
 
 message ListItemCategoriesResponse {
   repeated ItemCategoryTreeNode categories = 1;
 }
 
-message GetItemCompositionRequest {
+message ListPackagingMethodsRequest {
   string tenant_id = 1;
-  string item_id = 2;
+  string keyword = 2;
+  optional bool active = 3;
 }
 
-message GetItemCompositionResponse {
-  string item_id = 1;
-  repeated ItemCompositionComponent components = 2;
+message ListPackagingMethodsResponse {
+  repeated PackagingMethodRecord packaging_methods = 1;
+}
+
+message GetPackagingSpecRequest {
+  string tenant_id = 1;
+  string packaging_spec_id = 2;
+}
+
+message GetPackagingSpecResponse {
+  PackagingSpecRecord packaging_spec = 1;
+}
+
+message SearchPackagingSpecsRequest {
+  string tenant_id = 1;
+  string keyword = 2;
+  string item_model_id = 3;
+  string packaging_method_id = 4;
+  string customer_id = 5;
+  optional bool active = 6;
+  uint32 page = 7;
+  uint32 page_size = 8;
+}
+
+message SearchPackagingSpecsResponse {
+  repeated PackagingSpecRecord packaging_specs = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetBomRequest {
+  string tenant_id = 1;
+  string bom_id = 2;
+}
+
+message GetBomResponse {
+  BomRecord bom = 1;
+}
+
+message SearchBomsRequest {
+  string tenant_id = 1;
+  string keyword = 2;
+  BomType bom_type = 3;
+  string output_item_id = 4;
+  string component_item_id = 5;
+  optional bool active = 6;
+  uint32 page = 7;
+  uint32 page_size = 8;
+}
+
+message SearchBomsResponse {
+  repeated BomRecord boms = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
+}
+
+message GetBomByOutputItemRequest {
+  string tenant_id = 1;
+  string output_item_id = 2;
+  BomType bom_type = 3;
+}
+
+message GetBomByOutputItemResponse {
+  BomResolutionStatus resolution_status = 1;
+  BomRecord bom = 2;
 }
 
 message ListSupplierItemMappingsByItemRequest {
   string tenant_id = 1;
   string item_id = 2;
-  uint32 page = 3;
-  uint32 page_size = 4;
+  optional bool active = 3;
+  uint32 page = 4;
+  uint32 page_size = 5;
 }
 
 message ListSupplierItemMappingsByItemResponse {
-  repeated SupplierItemMappingListEntry mappings = 1;
+  repeated SupplierItemMappingRecord mappings = 1;
   uint32 total = 2;
   uint32 page = 3;
   uint32 page_size = 4;
@@ -210,12 +519,126 @@ message ResolveSupplierItemMappingResponse {
   SupplierItemMappingRecord mapping = 2;
 }
 
+message CreateItemModelRequest {
+  string tenant_id = 1;
+  string model_code = 2;
+  string model_name = 3;
+  ItemModelKind model_kind = 4;
+  ItemModelType model_type = 5;
+  ItemCapabilities capabilities = 6;
+  string primary_category_id = 7;
+}
+
+message CreateItemModelResponse {
+  string item_model_id = 1;
+  ItemModelRecord item_model = 2;
+}
+
+message UpdateItemModelBasicsRequest {
+  string tenant_id = 1;
+  string item_model_id = 2;
+  string model_code = 3;
+  string model_name = 4;
+}
+
+message UpdateItemModelBasicsResponse {
+  ItemModelRecord item_model = 1;
+}
+
+message SetItemModelCapabilitiesRequest {
+  string tenant_id = 1;
+  string item_model_id = 2;
+  ItemCapabilities capabilities = 3;
+}
+
+message SetItemModelCapabilitiesResponse {
+  ItemModelRecord item_model = 1;
+}
+
+message ChangeItemModelStatusRequest {
+  string tenant_id = 1;
+  string item_model_id = 2;
+  bool active = 3;
+}
+
+message ChangeItemModelStatusResponse {
+  ItemModelRecord item_model = 1;
+}
+
+message SetItemModelPrimaryCategoryRequest {
+  string tenant_id = 1;
+  string item_model_id = 2;
+  string primary_category_id = 3;
+}
+
+message SetItemModelPrimaryCategoryResponse {
+  ItemModelRecord item_model = 1;
+}
+
+message CreateAttributeDefinitionRequest {
+  string tenant_id = 1;
+  string attribute_code = 2;
+  string attribute_name = 3;
+}
+
+message CreateAttributeDefinitionResponse {
+  AttributeDefinitionRecord attribute_definition = 1;
+}
+
+message UpdateAttributeDefinitionRequest {
+  string tenant_id = 1;
+  string attribute_definition_id = 2;
+  string attribute_code = 3;
+  string attribute_name = 4;
+  bool active = 5;
+}
+
+message UpdateAttributeDefinitionResponse {
+  AttributeDefinitionRecord attribute_definition = 1;
+}
+
+message CreateAttributeOptionRequest {
+  string tenant_id = 1;
+  string attribute_definition_id = 2;
+  string option_code = 3;
+  string option_name = 4;
+}
+
+message CreateAttributeOptionResponse {
+  AttributeOptionRecord attribute_option = 1;
+}
+
+message UpdateAttributeOptionRequest {
+  string tenant_id = 1;
+  string attribute_option_id = 2;
+  string option_code = 3;
+  string option_name = 4;
+  bool active = 5;
+}
+
+message UpdateAttributeOptionResponse {
+  AttributeOptionRecord attribute_option = 1;
+}
+
+message SetItemModelAttributeRulesRequest {
+  string tenant_id = 1;
+  string item_model_id = 2;
+  repeated ItemModelAttributeRuleRecord rules = 3;
+}
+
+message SetItemModelAttributeRulesResponse {
+  repeated ItemModelAttributeRuleRecord rules = 1;
+}
+
 message CreateItemRequest {
   string tenant_id = 1;
-  string item_code = 2;
-  string item_name = 3;
-  ItemStructureType structure_type = 4;
-  ItemNatureType nature_type = 5;
+  string item_model_id = 2;
+  string item_code = 3;
+  string item_name = 4;
+  ItemType item_type = 5;
+  repeated string locked_attribute_option_ids = 6;
+  string packaging_spec_id = 7;
+  ItemCapabilities capabilities = 8;
 }
 
 message CreateItemResponse {
@@ -244,33 +667,10 @@ message SetItemCapabilitiesResponse {
   ItemSummary item = 1;
 }
 
-message SetItemCompositionRequest {
-  string tenant_id = 1;
-  string item_id = 2;
-  repeated ItemCompositionComponentInput components = 3;
-}
-
-message SetItemCompositionResponse {
-  string item_id = 1;
-  repeated ItemCompositionComponent components = 2;
-}
-
-message UpsertSupplierItemMappingRequest {
-  string tenant_id = 1;
-  string supplier_id = 2;
-  string supplier_item_code = 3;
-  string supplier_item_name = 4;
-  string item_id = 5;
-}
-
-message UpsertSupplierItemMappingResponse {
-  SupplierItemMappingRecord mapping = 1;
-}
-
 message ChangeItemStatusRequest {
   string tenant_id = 1;
   string item_id = 2;
-  ItemStatus target_status = 3;
+  bool active = 3;
 }
 
 message ChangeItemStatusResponse {
@@ -285,7 +685,7 @@ message CreateItemCategoryRequest {
 }
 
 message CreateItemCategoryResponse {
-  ItemCategorySummary category = 1;
+  ItemCategoryTreeNode category = 1;
 }
 
 message UpdateItemCategoryBasicsRequest {
@@ -296,25 +696,159 @@ message UpdateItemCategoryBasicsRequest {
 }
 
 message UpdateItemCategoryBasicsResponse {
-  ItemCategorySummary category = 1;
+  ItemCategoryTreeNode category = 1;
 }
 
 message ChangeItemCategoryStatusRequest {
   string tenant_id = 1;
   string category_id = 2;
-  ItemCategoryStatus target_status = 3;
+  bool active = 3;
 }
 
 message ChangeItemCategoryStatusResponse {
-  ItemCategorySummary category = 1;
+  ItemCategoryTreeNode category = 1;
 }
 
-message SetItemPrimaryCategoryRequest {
+message CreatePackagingMethodRequest {
   string tenant_id = 1;
-  string item_id = 2;
-  string category_id = 3;
+  string method_code = 2;
+  string method_name = 3;
 }
 
-message SetItemPrimaryCategoryResponse {
-  ItemSummary item = 1;
+message CreatePackagingMethodResponse {
+  PackagingMethodRecord packaging_method = 1;
+}
+
+message UpdatePackagingMethodRequest {
+  string tenant_id = 1;
+  string packaging_method_id = 2;
+  string method_code = 3;
+  string method_name = 4;
+}
+
+message UpdatePackagingMethodResponse {
+  PackagingMethodRecord packaging_method = 1;
+}
+
+message ChangePackagingMethodStatusRequest {
+  string tenant_id = 1;
+  string packaging_method_id = 2;
+  bool active = 3;
+}
+
+message ChangePackagingMethodStatusResponse {
+  PackagingMethodRecord packaging_method = 1;
+}
+
+message CreatePackagingSpecRequest {
+  string tenant_id = 1;
+  string item_model_id = 2;
+  string packaging_method_id = 3;
+  string customer_id = 4;
+  string spec_code = 5;
+  string spec_name = 6;
+  string gross_weight = 7;
+  string volume = 8;
+  string outer_length = 9;
+  string outer_width = 10;
+  string outer_height = 11;
+  string work_instruction = 12;
+  string version = 13;
+  string effective_from = 14;
+  string effective_to = 15;
+}
+
+message CreatePackagingSpecResponse {
+  PackagingSpecRecord packaging_spec = 1;
+}
+
+message UpdatePackagingSpecRequest {
+  string tenant_id = 1;
+  string packaging_spec_id = 2;
+  string item_model_id = 3;
+  string packaging_method_id = 4;
+  string customer_id = 5;
+  string spec_code = 6;
+  string spec_name = 7;
+  string gross_weight = 8;
+  string volume = 9;
+  string outer_length = 10;
+  string outer_width = 11;
+  string outer_height = 12;
+  string work_instruction = 13;
+  string version = 14;
+  string effective_from = 15;
+  string effective_to = 16;
+}
+
+message UpdatePackagingSpecResponse {
+  PackagingSpecRecord packaging_spec = 1;
+}
+
+message ChangePackagingSpecStatusRequest {
+  string tenant_id = 1;
+  string packaging_spec_id = 2;
+  bool active = 3;
+}
+
+message ChangePackagingSpecStatusResponse {
+  PackagingSpecRecord packaging_spec = 1;
+}
+
+message CreateBomRequest {
+  string tenant_id = 1;
+  string bom_code = 2;
+  string bom_name = 3;
+  BomType bom_type = 4;
+  string output_item_id = 5;
+  repeated BomLineInput lines = 6;
+}
+
+message CreateBomResponse {
+  string bom_id = 1;
+  BomRecord bom = 2;
+}
+
+message UpdateBomBasicsRequest {
+  string tenant_id = 1;
+  string bom_id = 2;
+  string bom_code = 3;
+  string bom_name = 4;
+}
+
+message UpdateBomBasicsResponse {
+  BomRecord bom = 1;
+}
+
+message ReplaceBomLinesRequest {
+  string tenant_id = 1;
+  string bom_id = 2;
+  repeated BomLineInput lines = 3;
+}
+
+message ReplaceBomLinesResponse {
+  BomRecord bom = 1;
+}
+
+message ChangeBomStatusRequest {
+  string tenant_id = 1;
+  string bom_id = 2;
+  bool active = 3;
+}
+
+message ChangeBomStatusResponse {
+  BomRecord bom = 1;
+}
+
+message UpsertSupplierItemMappingRequest {
+  string tenant_id = 1;
+  string supplier_id = 2;
+  string supplier_item_code = 3;
+  string supplier_item_name = 4;
+  string item_id = 5;
+  optional bool active = 6;
+}
+
+message UpsertSupplierItemMappingResponse {
+  SupplierItemMappingRecord mapping = 1;
 }

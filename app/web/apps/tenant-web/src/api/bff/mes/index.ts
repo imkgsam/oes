@@ -1,22 +1,20 @@
 import { requestClient } from '#/api/request'
 
 export namespace MesApi {
-  export type ProductionMoldInstanceStatus =
+  export type ProductionMoldStatus =
+    | 'AVAILABLE'
     | 'DISABLED'
     | 'INSTALLED'
-    | 'PENDING_DRYING'
-    | 'PENDING_INSTALLATION'
-    | 'PENDING_REPAIR'
+    | 'MAINTENANCE'
+    | 'PREPARING'
     | 'RECEIVED'
     | 'SCRAPPED'
-    | 'UNDER_REPAIR'
   export type WorkCenterStatus = 'ACTIVE' | 'INACTIVE'
 
-  export interface ManufacturingMasterDataRef {
+  export interface ProductionSpecRef {
     displayNameSnapshot?: string
-    refCodeSnapshot?: string
-    refId: string
-    refType?: string | number
+    productionSpecId: string
+    specCodeSnapshot?: string
   }
 
   export interface ItemRef {
@@ -25,56 +23,26 @@ export namespace MesApi {
     itemNameSnapshot?: string
   }
 
-  export interface WorkCenterSummary {
-    capacityProfileId?: string
-    name: string
-    parentWorkCenterId?: string
-    relatedMesLocationId?: string
-    status: WorkCenterStatus | string
-    workCenterCode: string
-    workCenterId: string
-    workCenterType: string
-  }
-
-  export interface ListWorkCentersQuery {
-    keyword?: string
-    page?: number
-    pageSize?: number
-    parentWorkCenterId?: string
-    status?: WorkCenterStatus | string
-    workCenterType?: string
-  }
-
-  export interface ListWorkCentersResult {
-    page: number
-    pageSize: number
-    total: number
-    workCenters: WorkCenterSummary[]
-  }
-
-  export interface CreateWorkCenterPayload {
-    name: string
-    reason?: string
-    workCenterCode: string
-    workCenterType: string
+  export interface StorageResourceRef {
+    displayNameSnapshot?: string
+    resourceCodeSnapshot?: string
+    storageResourceId: string
   }
 
   export interface MoldDesignSummary {
     designCode: string
     moldDesignId: string
     name: string
-    productFamilyRef?: ManufacturingMasterDataRef
     revisionCode?: string
   }
 
   export interface MoldDesignOutputOption {
     isDefault?: boolean
     label: string
-    manufacturingSpecRef: ManufacturingMasterDataRef
+    productionSpecRef: ProductionSpecRef
     moldDesignOutputId?: string
     moldDesignOutputOptionId?: string
     optionCode: string
-    productFamilyRef?: ManufacturingMasterDataRef
     quantityPerUse?: string
   }
 
@@ -82,7 +50,7 @@ export namespace MesApi {
     assemblyHint?: string
     componentRole?: string
     isPrimaryOutput?: boolean
-    manufacturingSpecRef?: ManufacturingMasterDataRef
+    productionSpecRef?: ProductionSpecRef
     moldDesignOutputId: string
     optionCode?: string
     options?: MoldDesignOutputOption[]
@@ -92,42 +60,45 @@ export namespace MesApi {
     sequenceNo: number
   }
 
-  export interface ManufacturingSpecSummary {
+  export interface ProductionSpecSummary {
     itemRef?: ItemRef
-    manufacturingSpecId: string
+    productionSpecId: string
     name: string
-    productFamilyRef?: ManufacturingMasterDataRef
     revisionCode?: string
     specCode: string
     status: string | number
   }
 
-  export interface ListManufacturingSpecsQuery {
+  export interface ListProductionSpecsQuery {
     includeRetired?: boolean
     itemId?: string
     keyword?: string
     page?: number
     pageSize?: number
-    productFamilyRefId?: string
     status?: string
   }
 
-  export interface ListManufacturingSpecsResult {
-    manufacturingSpecs: ManufacturingSpecSummary[]
+  export interface ListProductionSpecsResult {
+    productionSpecs: ProductionSpecSummary[]
     page: number
     pageSize: number
     total: number
   }
 
   export interface MoldDesign extends MoldDesignSummary {
+    createdAt?: string
     defaultLifeLimit?: string
     defaultLifeUnit?: string
     functionRole?: string | number
     itemRef?: ItemRef
+    productionSpecRefs?: ProductionSpecRef[]
     materialType?: string
+    outputStructureType?: string | number
     outputs?: MoldDesignOutput[]
     productionMethodTags?: string[]
     status?: string | number
+    supersedesDesignId?: string
+    updatedAt?: string
   }
 
   export interface ListMoldDesignsQuery {
@@ -152,7 +123,7 @@ export namespace MesApi {
     designCode: string
     functionRole: string
     itemRef?: ItemRef
-    manufacturingSpecRefs?: ManufacturingMasterDataRef[]
+    productionSpecRefs?: ProductionSpecRef[]
     materialType: string
     name: string
     outputStructureType: string
@@ -160,33 +131,33 @@ export namespace MesApi {
       assemblyHint?: string
       componentRole?: string
       isPrimaryOutput: boolean
-      manufacturingSpecRef?: ManufacturingMasterDataRef
+      productionSpecRef?: ProductionSpecRef
       optionCode?: string
       options?: MoldDesignOutputOption[]
       outputCode: string
       outputKind: string
-      productFamilyRef?: ManufacturingMasterDataRef
       quantityPerUse: string
       sequenceNo: number
     }>
-    productFamilyRef: ManufacturingMasterDataRef
     productionMethodTags?: string[]
     reason?: string
     revisionCode?: string
   }
 
-  export interface ProductionMoldInstance {
+  export interface ProductionMold {
     currentInstallationSummary?: {
       installedAt?: string
-      moldInstallationId: string
-      positionCode?: string
-      resourcePositionId?: string
-      workCenterCode?: string
-      workCenterId?: string
-      workCenterName?: string
+      moldDetail?: MoldInstallationDetail
+      status?: string | number
+      toolingInstallationId: string
+      workCenterRef?: WorkCenterRef
+      workUnitRef?: WorkUnitRef
     }
-    currentStatus: ProductionMoldInstanceStatus | string | number
-    lifeSummary?: {
+    currentCarrierResourceRef?: CarrierResourceRef
+    currentStorageResourceRef?: StorageResourceRef
+    currentStatus: ProductionMoldStatus | string | number
+    createdAt?: string
+    lifeCounterSummary?: {
       lifeUnit?: string
       limitValue?: string
       remainingValue?: string
@@ -194,48 +165,66 @@ export namespace MesApi {
       warningLevel?: string | number
       warningThresholdValue?: string
     }
-    moldDesignSummary: MoldDesignSummary
-    moldInstanceCode: string
-    productionMoldInstanceId: string
+    currentPlacementSummary?: ToolingPlacementSummary
+    moldCode: string
+    moldDesignId?: string
+    moldDesignSummary?: MoldDesignSummary
+    productionMoldId: string
     supplierRef?: unknown
-    warningSummary?: unknown
+    updatedAt?: string
   }
 
-  export interface ListProductionMoldInstancesQuery {
+  export interface ListProductionMoldsQuery {
     moldDesignId?: string
     page?: number
     pageSize?: number
-    status?: ProductionMoldInstanceStatus | string
+    status?: ProductionMoldStatus | string
+    carrierResourceId?: string
+    storageResourceId?: string
     warningLevel?: string
   }
 
-  export interface ListProductionMoldInstancesResult {
-    instances: ProductionMoldInstance[]
+  export interface ListProductionMoldsResult {
+    productionMolds: ProductionMold[]
     page: number
     pageSize: number
     total: number
   }
 
-  export interface RegisterProductionMoldInstancePayload {
-    initialStatus?: ProductionMoldInstanceStatus | string
-    lifeLimitValue?: string
-    lifeUnit?: string
+  export interface ListProductionMoldsByDesignResult extends ListProductionMoldsResult {
+    moldDesignSummary?: MoldDesignSummary
+  }
+
+  export interface SupplierRef {
+    supplierCodeSnapshot?: string
+    supplierDisplayNameSnapshot?: string
+    supplierId?: string
+  }
+
+  export interface PurchaseRef {
+    purchaseNoSnapshot?: string
+    purchaseSourceId?: string
+    purchaseSourceType?: string | number
+  }
+
+  export interface RegisterProductionMoldPayload {
+    acceptedAt?: string
+    initialCarrierResourceRef?: CarrierResourceRef
+    initialStorageResourceRef?: StorageResourceRef
     moldDesignId: string
-    moldInstanceCode: string
+    moldCode: string
+    purchaseRef?: PurchaseRef
     reason?: string
-    warningThresholdValue?: string
+    receivedAt?: string
+    sourceMasterMoldId?: string
+    supplierRef?: SupplierRef
   }
 
   export interface CurrentMoldsResult {
-    installedMolds: Array<{
-      moldInstallation?: unknown
-      productionMoldInstance: ProductionMoldInstance
-      resourcePositionSummary?: unknown
+    items: Array<{
+      productionMold: ProductionMold
+      toolingInstallation: ToolingInstallation
     }>
-    page: number
-    pageSize: number
-    total: number
-    workCenterSummary?: WorkCenterSummary
   }
 
   export interface DailyMoldUsageBatchPayload {
@@ -246,45 +235,74 @@ export namespace MesApi {
       lifeUnit?: string
       moldDesignOutputId?: string
       moldDesignOutputOptionId?: string
-      moldInstallationId: string
-      productionMoldInstanceId: string
-      resourcePositionId?: string
+      toolingInstallationId: string
+      productionMoldId: string
+      moldPosition?: string
       usageQuantity?: string
-      workCenterId?: string
+      workCenterRef?: WorkCenterRef
+      workUnitRef?: WorkUnitRef
     }>
     reason?: string
     usedAt?: string
+    workCenterRef: WorkCenterRef
+  }
+
+  export interface WorkCenterRef {
+    displayNameSnapshot?: string
+    workCenterCodeSnapshot?: string
     workCenterId: string
+  }
+
+  export interface WorkUnitRef {
+    displayNameSnapshot?: string
+    workUnitCodeSnapshot?: string
+    workUnitId: string
+  }
+
+  export interface CarrierResourceRef {
+    carrierResourceId: string
+    displayNameSnapshot?: string
+    resourceCodeSnapshot?: string
+  }
+
+  export interface MoldInstallationDetail {
+    cavityMapping?: string
+    cavityPosition?: string
+    moldPosition?: string
+    setupParameters?: string
+    toolingInstallationId?: string
+  }
+
+  export interface ToolingInstallation {
+    installedAt?: string
+    moldDetail?: MoldInstallationDetail
+    status?: string | number
+    toolingId: string
+    toolingInstallationId: string
+    toolingType?: string | number
+    unmountedAt?: string
+    workCenterRef?: WorkCenterRef
+    workUnitRef?: WorkUnitRef
+  }
+
+  export interface ToolingPlacementSummary {
+    carrierResourceRef?: CarrierResourceRef
+    moldInstallationDetail?: MoldInstallationDetail
+    placementType?: string | number
+    storageResourceRef?: StorageResourceRef
+    toolingInstallationId?: string
+    workCenterRef?: WorkCenterRef
+    workUnitRef?: WorkUnitRef
   }
 }
 
-/** listWorkCentersApi loads mold-management production units for the active tenant. */
-export async function listWorkCentersApi(tenantId: string, params: MesApi.ListWorkCentersQuery) {
-  return requestClient.get<MesApi.ListWorkCentersResult>(`/mes/tenants/${tenantId}/work-centers`, {
-    params
-  })
-}
-
-/** createWorkCenterApi creates one mold-management production unit. */
-export async function createWorkCenterApi(tenantId: string, payload: MesApi.CreateWorkCenterPayload) {
-  return requestClient.post<MesApi.WorkCenterSummary>(`/mes/tenants/${tenantId}/work-centers`, payload)
-}
-
-/** deactivateWorkCenterApi deactivates one production unit after backend occupancy checks. */
-export async function deactivateWorkCenterApi(tenantId: string, workCenterId: string, payload: { reason?: string }) {
-  return requestClient.post<MesApi.WorkCenterSummary>(
-    `/mes/tenants/${tenantId}/work-centers/${workCenterId}/deactivate`,
-    payload
-  )
-}
-
-/** listManufacturingSpecsApi loads ACTIVE manufacturing specs used by MoldDesign output binding. */
-export async function listManufacturingSpecsApi(
+/** listProductionSpecsApi loads ACTIVE production specs used by MoldDesign output binding. */
+export async function listProductionSpecsApi(
   tenantId: string,
-  params: MesApi.ListManufacturingSpecsQuery
+  params: MesApi.ListProductionSpecsQuery
 ) {
-  return requestClient.get<MesApi.ListManufacturingSpecsResult>(
-    `/mes/tenants/${tenantId}/manufacturing-specs`,
+  return requestClient.get<MesApi.ListProductionSpecsResult>(
+    `/mes/tenants/${tenantId}/production-specs`,
     { params }
   )
 }
@@ -309,67 +327,87 @@ export async function registerMoldDesignApi(
   return requestClient.post<MesApi.MoldDesign>(`/mes/tenants/${tenantId}/mold-designs`, payload)
 }
 
-/** listProductionMoldInstancesApi loads the tenant-wide production mold directory. */
-export async function listProductionMoldInstancesApi(
+/** listProductionMoldsApi loads the tenant-wide production mold directory. */
+export async function listProductionMoldsApi(
   tenantId: string,
-  params: MesApi.ListProductionMoldInstancesQuery
+  params: MesApi.ListProductionMoldsQuery
 ) {
-  return requestClient.get<MesApi.ListProductionMoldInstancesResult>(
-    `/mes/tenants/${tenantId}/mold-instances`,
+  return requestClient.get<MesApi.ListProductionMoldsResult>(
+    `/mes/tenants/${tenantId}/production-molds`,
     { params }
   )
 }
 
-/** getProductionMoldInstanceApi loads one production mold detail snapshot. */
-export async function getProductionMoldInstanceApi(tenantId: string, productionMoldInstanceId: string) {
-  return requestClient.get<MesApi.ProductionMoldInstance>(
-    `/mes/tenants/${tenantId}/mold-instances/${productionMoldInstanceId}`
+/** listProductionMoldsByDesignApi loads production molds that belong to one mold design. */
+export async function listProductionMoldsByDesignApi(
+  tenantId: string,
+  moldDesignId: string,
+  params: Omit<MesApi.ListProductionMoldsQuery, 'moldDesignId'>
+) {
+  return requestClient.get<MesApi.ListProductionMoldsByDesignResult>(
+    `/mes/tenants/${tenantId}/mold-designs/${moldDesignId}/production-molds`,
+    { params }
   )
 }
 
-/** registerProductionMoldInstanceApi registers one production mold instance. */
-export async function registerProductionMoldInstanceApi(
+/** getProductionMoldApi loads one production mold detail snapshot. */
+export async function getProductionMoldApi(tenantId: string, productionMoldId: string) {
+  return requestClient.get<MesApi.ProductionMold>(
+    `/mes/tenants/${tenantId}/production-molds/${productionMoldId}`
+  )
+}
+
+/** registerProductionMoldApi registers one production mold. */
+export async function registerProductionMoldApi(
   tenantId: string,
-  payload: MesApi.RegisterProductionMoldInstancePayload
+  payload: MesApi.RegisterProductionMoldPayload
 ) {
-  return requestClient.post<MesApi.ProductionMoldInstance>(
-    `/mes/tenants/${tenantId}/mold-instances`,
+  return requestClient.post<MesApi.ProductionMold>(
+    `/mes/tenants/${tenantId}/production-molds`,
     payload
   )
 }
 
-/** installProductionMoldInstanceApi installs one mold and lets MES auto-create or reuse a mold position. */
-export async function installProductionMoldInstanceApi(
+/** getToolingCurrentPlacementApi reads the current storage, carrier, work-center, or work-unit placement for tooling. */
+export async function getToolingCurrentPlacementApi(tenantId: string, toolingId: string) {
+  return requestClient.get<{ placement?: MesApi.ToolingPlacementSummary }>(
+    `/mes/tenants/${tenantId}/tooling/${toolingId}/current-placement`,
+    { params: { toolingType: 'MOLD' } }
+  )
+}
+
+/** installProductionMoldApi installs one production mold as Tooling(type=MOLD). */
+export async function installProductionMoldApi(
   tenantId: string,
-  productionMoldInstanceId: string,
-  payload: { reason?: string; resourcePositionId?: string; workCenterId: string }
+  productionMoldId: string,
+  payload: { moldPosition?: string; reason?: string; workCenterRef: MesApi.WorkCenterRef; workUnitRef?: MesApi.WorkUnitRef }
 ) {
-  return requestClient.post<MesApi.ProductionMoldInstance>(
-    `/mes/tenants/${tenantId}/mold-instances/${productionMoldInstanceId}/install`,
+  return requestClient.post<{ toolingInstallation: MesApi.ToolingInstallation }>(
+    `/mes/tenants/${tenantId}/tooling/${productionMoldId}/install`,
     payload
   )
 }
 
-/** unmountProductionMoldInstanceApi unmounts one production mold from its current line. */
-export async function unmountProductionMoldInstanceApi(
+/** unmountProductionMoldApi unmounts one production mold tooling installation. */
+export async function unmountProductionMoldApi(
   tenantId: string,
-  productionMoldInstanceId: string,
-  payload: { moldInstallationId: string; nextStatus?: string; reason?: string }
+  toolingInstallationId: string,
+  payload: { reason?: string }
 ) {
-  return requestClient.post<MesApi.ProductionMoldInstance>(
-    `/mes/tenants/${tenantId}/mold-instances/${productionMoldInstanceId}/unmount`,
+  return requestClient.post<{ toolingInstallation: MesApi.ToolingInstallation }>(
+    `/mes/tenants/${tenantId}/tooling-installations/${toolingInstallationId}/unmount`,
     payload
   )
 }
 
-/** scrapProductionMoldInstanceApi scraps one production mold instance. */
-export async function scrapProductionMoldInstanceApi(
+/** scrapProductionMoldApi scraps one production mold. */
+export async function scrapProductionMoldApi(
   tenantId: string,
-  productionMoldInstanceId: string,
-  payload: { closeCurrentInstallation?: boolean; scrapReason: string }
+  productionMoldId: string,
+  payload: { reason?: string; scrappedAt?: string }
 ) {
   return requestClient.post(
-    `/mes/tenants/${tenantId}/mold-instances/${productionMoldInstanceId}/scrap`,
+    `/mes/tenants/${tenantId}/production-molds/${productionMoldId}/scrap`,
     payload
   )
 }

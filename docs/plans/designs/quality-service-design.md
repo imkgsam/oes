@@ -2,6 +2,17 @@
 
 > 来源：质量服务设计线程的阶段性沉淀。本文不是稳定真相源，用于承载 `quality-service` 的持续设计、开放问题与后续回写计划。
 
+## 0. 文档控制
+
+```text
+designKey: quality-service-design
+designStatus: ACTIVE_DESIGN_WORKSPACE
+lastUpdatedAt: 2026-05-09 23:58:07 CST
+lastUpdatedBy: Codex design thread
+supersedes: older quality rule / inspection boundary discussion where applicable
+conflictResolution: 当本文与更早的 quality、inspection、defect、grade、penalty 讨论冲突时，以本文 lastUpdatedAt 之后的冻结结论为准；稳定 architecture / ADR 明确覆盖本文时，以 architecture / ADR 为准。
+```
+
 ## 1. 目标
 
 - 冻结 `quality-service` 在 OES 中的长期定位与第一阶段最小能力范围。
@@ -58,6 +69,10 @@
 | 2026-04-19 | 若在外部验货或内部质检中发现严重问题，后续排查范围应表达为更泛化的 `ContainmentScope`，`inventory batch` 只是其中一种常见范围。 | 围堵与复检设计 | 本 workspace；未来 contracts / architecture |
 | 2026-04-19 | 内部质检应采用强流程模式，流程由产品、制造规格、工序与检验重点驱动；外部验货应采用灵活流程模式，允许按客户/第三方要求动态调整检查项与测量项。 | 检验流程模型 | 本 workspace；未来 `contracts/quality-service/**` |
 | 2026-04-19 | 第一阶段优先落地基础能力，不追求一次性覆盖完整质量平台；`CAPA`、`8D`、客户偏好沉淀、风险驱动检验、跨域追溯总览等作为后续增强能力。 | 范围管理 | `docs/plans/features/quality-service-foundation.md`（未来） |
+| 2026-05-09 | 客观瑕疵事实、内部质量等级、客户接受性必须分开；内部等级不是 Item Attribute。 | 质量规则、MES/WMS/Sales 协同 | 本 workspace；未来 quality contracts |
+| 2026-05-09 | `QualityGradeDefinition / QualityGradeRule` 归 `quality-service / rule`；MES 记录检查执行结果和等级判定事实。 | 质量规则边界 | 本 workspace；未来 quality contracts |
+| 2026-05-09 | 内部质量等级与返修状态拆开：等级表达质量档位，返修状态表达是否需要/适合修补。 | 质量判定、WMS 库存分区 | 本 workspace；MES/WMS 设计 |
+| 2026-05-09 | `DefectResponsibilityRule` 方向确认：定义可检测起点、源头工序、负责检查点及不同责任权重；具体模型后续单独冻结。 | 责任归因、奖罚输入 | 本 workspace；未来 quality contracts |
 
 ## 5. 开放问题
 
@@ -88,8 +103,7 @@
 ## 7. 恢复入口
 
 - 下次继续前先读：
-  - [mes-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/mes-service-design.md)
-  - [manufacturing-master-data-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/manufacturing-master-data-design.md)
+  - [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)
 - 当前推荐下一步：
   - 收敛 `quality-service` 核心对象与聚合草图
   - 收敛 `WMS / MES / CRM` 到 `quality-service` 的最小协作契约
@@ -100,6 +114,7 @@
 ### 8.1 长期定位
 
 - `quality-service` 负责质量标准、检验判定、质量事件、围堵与质量分析。
+- 涉及 MES 生产规格、生产实物、现场资源或追溯主体时，本文只引用 [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)，不重新定义 MES 对象。
 - 它不直接替代：
   - `WMS` 的收货、库存、发运
   - `procurement` 的采购单与供应商商务协同
@@ -112,6 +127,10 @@
 
 - 基础字典与规则：
   - 缺陷字典与严重度体系
+  - 内部质量等级定义
+  - 内部质量等级判定规则
+  - 返修处置规则
+  - 责任归因与扣罚规则模板
   - 面向供应商/场景的基础质量策略配置
 - 核心执行：
   - 来料质检 `IQC`
@@ -219,7 +238,7 @@
     - 收货单 / 收货明细
     - 订单 / 出货批次 / 柜次
     - 工单 / 工序 / 在制品集合
-    - 指定 `physicalTraceId / unico`
+    - 指定 MES `TraceSubject` 或由 MES 真相源确认的生产追溯引用
 - `InspectionRecord`
   - 一次检验实际录入的结构化结果。
   - 负责记录：
@@ -233,7 +252,7 @@
   - 单个问题项。
   - 必须能落到具体对象或明确范围。
   - 可关联：
-    - `physicalTraceId / unico`
+    - MES `TraceSubject` 或由 MES 真相源确认的生产追溯引用
     - 缺陷字典项
     - 严重度
     - 是否为漏检 / 漏点
@@ -392,7 +411,125 @@
 - 当前判断：
   - 第一阶段只输出可审计输入，不直接承担结算逻辑
 
-### 8.10 第一阶段建议角色草稿
+### 8.10 内部质量等级与返修处置
+
+内部质量等级、返修状态、客户接受性必须分开。
+
+冻结结论：
+
+- `InternalQualityGrade` 是工厂内部质量档位 / 可售档位。
+- `RepairDisposition` 是是否需要修补、什么时候修补、是否可修补。
+- `CustomerAcceptance` 是客户是否接受某种瑕疵、等级或修补状态。
+- 内部质量等级不应作为 Item Attribute，也不进入 Item variant。
+
+建议 `QualityGradeDefinition`：
+
+```text
+QualityGradeDefinition {
+  gradeCode
+  gradeName
+  rank
+  stockPolicy
+  salesPolicy
+  defaultLocationPolicy
+}
+```
+
+建议等级示例：
+
+```text
+PREMIUM
+STANDARD
+ECONOMY
+LOW_GRADE
+SCRAP_GRADE
+```
+
+建议返修状态：
+
+```text
+NONE_REQUIRED
+REPAIR_RECOMMENDED
+REPAIR_REQUIRED_BEFORE_STOCK
+REPAIR_REQUIRED_BEFORE_SHIPMENT
+NOT_REPAIRABLE
+```
+
+用途：
+
+- WMS 按内部等级分区、汇总和隔离。
+- Sales 后续通过质量策略选择可用等级。
+- MES 根据返修状态决定是否进入返修、等待出货前修补或待报废确认。
+- Quality 用等级、瑕疵、工序、模具、窑次、班组等维度做分析。
+
+“总货”不是质量等级，而是销售/分配策略：
+
+```text
+MIXED_GENERAL_GOODS:
+  allowedInternalGrades = [PREMIUM, STANDARD]
+```
+
+### 8.11 InspectionCheckpoint 与记录深度
+
+检查点在 MES Route 中执行，质量规则由 `quality-service / rule` 提供。
+
+检查点包括：
+
+- Route 必经检查点，例如一检、二检、烧后外观检、功能检查。
+- Optional checkpoint，例如客户 QC、第三方 QC、巡检/抽检。
+
+`recordingMode` 表示检查记录详细程度：
+
+```text
+RESULT_ONLY
+REJECT_REASON
+DEFECT_REQUIRED
+MEASUREMENT_REQUIRED
+FULL_INSPECTION
+```
+
+烧后外观检应作为重检查点：
+
+- 必须支持瑕疵记录。
+- 必须支持面别、位置、数量、严重度。
+- 后续应支持拍照存底。
+- 应输出内部质量等级和返修处置建议。
+
+### 8.12 责任与扣罚规则边界
+
+`quality-service / rule` 长期负责：
+
+- `DefectDefinition`
+- `QualityGradeRule`
+- `RepairDispositionRule`
+- `DefectResponsibilityRule`
+- `PenaltyRuleTemplate`
+
+MES 负责：
+
+- `DefectRecord`
+- `InspectionExecution`
+- `ResponsibilityAttribution`
+- `PenaltyInputRecord`
+
+Payroll / Finance 负责：
+
+- 最终工资结算。
+- 最终扣款或奖励入账。
+
+连责规则方向：
+
+```text
+DefectResponsibilityRule:
+  defectCode
+  originOperationCandidates
+  detectableFromCheckpoint
+  checkpointResponsibilities[]
+```
+
+每个 checkpoint 可以配置不同责任角色与权重。具体字段后续单独冻结。
+
+### 8.13 第一阶段建议角色草稿
 
 - `QualityOwner`
   - 质量负责人

@@ -8,8 +8,8 @@ describe('role instance foundation sync', () => {
         findMany: jest.fn().mockImplementation((args) =>
           args.where.OR?.some((item: { code?: string }) => item.code === 'tenant.admin')
             ? Promise.resolve([
-                { id: 'tenant-admin-role-1' },
-                { id: 'tenant-admin-role-2' }
+                { id: 'tenant-admin-role-1', kind: RoleKind.TENANT_INSTANCE },
+                { id: 'tenant-admin-role-2', kind: RoleKind.TENANT_INSTANCE }
               ])
             : Promise.resolve([])
         ),
@@ -20,6 +20,14 @@ describe('role instance foundation sync', () => {
           { roleId: 'tenant-admin-role-1', permissionId: 'perm-view-role-instance' }
         ]),
         createMany: jest.fn().mockResolvedValue({ count: 3 })
+      },
+      roleNavigationVisibility: {
+        findMany: jest.fn().mockResolvedValue([]),
+        createMany: jest.fn().mockResolvedValue({ count: 0 })
+      },
+      roleLandingPolicy: {
+        findMany: jest.fn().mockResolvedValue([]),
+        createMany: jest.fn().mockResolvedValue({ count: 0 })
       }
     } as any
 
@@ -44,7 +52,8 @@ describe('role instance foundation sync', () => {
         ]
       },
       select: {
-        id: true
+        id: true,
+        kind: true
       }
     })
     expect(prisma.role.updateMany).toHaveBeenCalledWith({
@@ -92,5 +101,79 @@ describe('role instance foundation sync', () => {
       skipDuplicates: true
     })
     expect(createdCount).toBe(7)
+  })
+
+  it('backfills missing baseline navigation onto built-in tenant role instances without removing custom entries', async () => {
+    const prisma = {
+      role: {
+        findMany: jest.fn().mockImplementation((args) =>
+          args.where.OR?.some((item: { code?: string }) => item.code === 'item_master.product_data_manager')
+            ? Promise.resolve([
+                {
+                  id: 'item-role-1',
+                  kind: RoleKind.TENANT_INSTANCE
+                }
+              ])
+            : Promise.resolve([])
+        ),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 })
+      },
+      rolePermission: {
+        findMany: jest.fn().mockResolvedValue([]),
+        createMany: jest.fn().mockResolvedValue({ count: 0 })
+      },
+      roleNavigationVisibility: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            entryKey: 'master-data.item-management',
+            roleId: 'item-role-1',
+            terminal: 'DEFAULT'
+          },
+          {
+            entryKey: 'custom.local-dashboard',
+            roleId: 'item-role-1',
+            terminal: 'DEFAULT'
+          }
+        ]),
+        createMany: jest.fn().mockResolvedValue({ count: 1 })
+      },
+      roleLandingPolicy: {
+        findMany: jest.fn().mockResolvedValue([
+          {
+            defaultEntryKey: 'workbench.home',
+            roleId: 'item-role-1',
+            terminal: 'DEFAULT'
+          }
+        ]),
+        createMany: jest.fn().mockResolvedValue({ count: 0 })
+      }
+    } as any
+
+    await syncBuiltInRoleInstanceBaselines(
+      prisma,
+      new Map([
+        ['item_master.item.list', 'perm-list-item'],
+        ['item_master.item_category.list', 'perm-list-item-category']
+      ])
+    )
+
+    expect(prisma.roleNavigationVisibility.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          enabled: true,
+          entryKey: 'workbench.home',
+          roleId: 'item-role-1',
+          terminal: 'DEFAULT'
+        },
+        {
+          enabled: true,
+          entryKey: 'master-data.item-category-management',
+          roleId: 'item-role-1',
+          terminal: 'DEFAULT'
+        }
+      ],
+      skipDuplicates: true
+    })
+    expect(prisma.roleLandingPolicy.createMany).not.toHaveBeenCalled()
   })
 })

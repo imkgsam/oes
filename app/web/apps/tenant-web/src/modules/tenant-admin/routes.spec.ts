@@ -70,10 +70,13 @@ describe('tenant admin routes', () => {
     expect(employeeDetailRoute?.meta?.hideInMenu).toBe(true)
   })
 
-  it('binds item list, create, and detail routes to the dedicated master-data item entry', () => {
+  it('binds item list, category, create, and detail routes to the dedicated master-data item entries', () => {
     const masterDataRoute = tenantAdminRoutes.find((route) => route.name === 'TenantMasterData')
     const itemListRoute = masterDataRoute?.children?.find(
       (route) => route.name === 'TenantItemManagement'
+    )
+    const itemCategoryRoute = masterDataRoute?.children?.find(
+      (route) => route.name === 'TenantItemCategoryManagement'
     )
     const itemCreateRoute = masterDataRoute?.children?.find(
       (route) => route.name === 'TenantItemManagementCreate'
@@ -84,6 +87,10 @@ describe('tenant admin routes', () => {
 
     expect(itemListRoute?.meta?.entryKey).toBe('master-data.item-management')
     expect(itemListRoute?.path).toBe('/master-data/items')
+    expect(itemCategoryRoute?.meta?.entryKey).toBe('master-data.item-category-management')
+    expect(itemCategoryRoute?.path).toBe('/master-data/item-categories')
+    expect(itemCategoryRoute?.meta?.hideInMenu).toBeUndefined()
+    expect(itemCategoryRoute?.meta?.title).toBe('Item 分类管理')
     expect(itemCreateRoute?.meta?.entryKey).toBe('master-data.item-management')
     expect(itemCreateRoute?.meta?.hideInMenu).toBe(true)
     expect(itemCreateRoute?.meta?.activePath).toBe('/master-data/items')

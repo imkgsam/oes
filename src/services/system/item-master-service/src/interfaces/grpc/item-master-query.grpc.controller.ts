@@ -1,154 +1,139 @@
 import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
 import { GrpcRequestContextInterceptor } from '@oes/common/authorization'
-import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
+  BatchGetItemModelsRequest,
+  BatchGetItemModelsResponse,
   BatchGetItemsRequest,
   BatchGetItemsResponse,
-  GetItemCompositionRequest,
-  GetItemCompositionResponse,
+  GetBomByOutputItemRequest,
+  GetBomByOutputItemResponse,
+  GetBomRequest,
+  GetBomResponse,
+  GetItemModelAttributeRulesRequest,
+  GetItemModelAttributeRulesResponse,
+  GetItemModelRequest,
+  GetItemModelResponse,
   GetItemRequest,
   GetItemResponse,
+  GetPackagingSpecRequest,
+  GetPackagingSpecResponse,
   ItemMasterQueryServiceController,
   ItemMasterQueryServiceControllerMethods,
+  ListAttributeDefinitionsRequest,
+  ListAttributeDefinitionsResponse,
+  ListAttributeOptionsRequest,
+  ListAttributeOptionsResponse,
   ListItemCategoriesRequest,
   ListItemCategoriesResponse,
+  ListPackagingMethodsRequest,
+  ListPackagingMethodsResponse,
   ListSupplierItemMappingsByItemRequest,
   ListSupplierItemMappingsByItemResponse,
+  ResolveItemVariantRequest,
+  ResolveItemVariantResponse,
   ResolveSupplierItemMappingRequest,
   ResolveSupplierItemMappingResponse,
+  SearchBomsRequest,
+  SearchBomsResponse,
+  SearchItemModelsRequest,
+  SearchItemModelsResponse,
   SearchItemsRequest,
-  SearchItemsResponse
+  SearchItemsResponse,
+  SearchPackagingSpecsRequest,
+  SearchPackagingSpecsResponse
 } from '@oes/common/generated/item_master_service'
-import { ItemMasterGrpcPresenter } from './item-master-grpc.presenter'
+import { ItemMasterQueryV2Service } from '../../application/item-master-v2.service'
 import { ItemMasterRpcContextGuard } from './item-master-rpc-context.guard'
-import { GetItemQuery } from '../../application/queries/get-item.query'
-import { BatchGetItemsQuery } from '../../application/queries/batch-get-items.query'
-import { BatchGetItemsResult } from '../../application/queries/batch-get-items.handler'
-import { SearchItemsQuery } from '../../application/queries/search-items.query'
-import { ListItemCategoriesQuery } from '../../application/queries/list-item-categories.query'
-import { GetItemCompositionQuery } from '../../application/queries/get-item-composition.query'
-import {
-  ListSupplierItemMappingsByItemQuery
-} from '../../application/queries/list-supplier-item-mappings-by-item.query'
-import {
-  ResolveSupplierItemMappingResult
-} from '../../application/queries/supplier-item-resolution.view'
-import { ResolveSupplierItemMappingQuery } from '../../application/queries/resolve-supplier-item-mapping.query'
-import { Item } from '../../domain/aggregates/item.aggregate'
-import { ListSupplierItemMappingsByItemResult } from '../../domain/repositories/supplier-item-mapping.repository'
 
-/** ItemMasterQueryGrpcController exposes the phase 1 read-only item-master gRPC contract. */
+/** ItemMasterQueryGrpcController exposes Contract V2 item-master read-only RPCs. */
 @UseFilters(GrpcExceptionFilter)
 @UseGuards(ItemMasterRpcContextGuard)
 @UseInterceptors(GrpcRequestContextInterceptor)
 @Controller()
 @ItemMasterQueryServiceControllerMethods()
 export class ItemMasterQueryGrpcController implements ItemMasterQueryServiceController {
-  constructor(private readonly queryBus: ValidatingQueryBus) {}
+  constructor(private readonly queries: ItemMasterQueryV2Service) {}
 
-  async getItem(request: GetItemRequest): Promise<GetItemResponse> {
-    const item = await this.queryBus.execute<GetItemQuery, Item>(
-      new GetItemQuery(request.tenantId ?? '', request.itemId ?? '')
-    )
-
-    return ItemMasterGrpcPresenter.toGetItemResponse(item)
+  getItemModel(request: GetItemModelRequest): Promise<GetItemModelResponse> {
+    return this.queries.getItemModel(request)
   }
 
-  async batchGetItems(request: BatchGetItemsRequest): Promise<BatchGetItemsResponse> {
-    const result = await this.queryBus.execute<BatchGetItemsQuery, BatchGetItemsResult>(
-      new BatchGetItemsQuery(request.tenantId ?? '', request.itemIds ?? [])
-    )
-
-    return {
-      items: result.items.map((item) => ItemMasterGrpcPresenter.toItemSummary(item)),
-      missingItemIds: result.missingItemIds
-    }
+  batchGetItemModels(request: BatchGetItemModelsRequest): Promise<BatchGetItemModelsResponse> {
+    return this.queries.batchGetItemModels(request)
   }
 
-  async searchItems(request: SearchItemsRequest): Promise<SearchItemsResponse> {
-    const result = await this.queryBus.execute(
-      new SearchItemsQuery({
-        tenantId: request.tenantId ?? '',
-        keyword: request.keyword ?? undefined,
-        structureType: request.structureType ?? undefined,
-        natureType: request.natureType ?? undefined,
-        capabilityFilters: request.capabilityFilters
-          ? {
-              sellable: request.capabilityFilters.sellable,
-              purchasable: request.capabilityFilters.purchasable,
-              stockable: request.capabilityFilters.stockable,
-              manufacturable: request.capabilityFilters.manufacturable
-            }
-          : undefined,
-        status: request.status ?? undefined,
-        categoryId: request.categoryId ?? undefined,
-        includeDescendants: request.includeDescendants ?? undefined,
-        page: request.page ?? undefined,
-        pageSize: request.pageSize ?? undefined
-      })
-    )
-
-    return {
-      items: result.items.map((item: Item) => ItemMasterGrpcPresenter.toItemSummary(item)),
-      total: result.total,
-      page: result.page,
-      pageSize: result.pageSize
-    }
+  searchItemModels(request: SearchItemModelsRequest): Promise<SearchItemModelsResponse> {
+    return this.queries.searchItemModels(request)
   }
 
-  async listItemCategories(request: ListItemCategoriesRequest): Promise<ListItemCategoriesResponse> {
-    const result = await this.queryBus.execute(
-      new ListItemCategoriesQuery({
-        tenantId: request.tenantId ?? '',
-        parentCategoryId: request.parentCategoryId ?? undefined
-      })
-    )
-
-    return ItemMasterGrpcPresenter.toListItemCategoriesResponse(result)
+  listAttributeDefinitions(request: ListAttributeDefinitionsRequest): Promise<ListAttributeDefinitionsResponse> {
+    return this.queries.listAttributeDefinitions(request)
   }
 
-  async getItemComposition(request: GetItemCompositionRequest): Promise<GetItemCompositionResponse> {
-    const result = await this.queryBus.execute(
-      new GetItemCompositionQuery(request.tenantId ?? '', request.itemId ?? '')
-    )
-
-    return ItemMasterGrpcPresenter.toGetItemCompositionResponse(result)
+  listAttributeOptions(request: ListAttributeOptionsRequest): Promise<ListAttributeOptionsResponse> {
+    return this.queries.listAttributeOptions(request)
   }
 
-  async listSupplierItemMappingsByItem(
+  getItemModelAttributeRules(
+    request: GetItemModelAttributeRulesRequest
+  ): Promise<GetItemModelAttributeRulesResponse> {
+    return this.queries.getItemModelAttributeRules(request)
+  }
+
+  getItem(request: GetItemRequest): Promise<GetItemResponse> {
+    return this.queries.getItem(request)
+  }
+
+  batchGetItems(request: BatchGetItemsRequest): Promise<BatchGetItemsResponse> {
+    return this.queries.batchGetItems(request)
+  }
+
+  searchItems(request: SearchItemsRequest): Promise<SearchItemsResponse> {
+    return this.queries.searchItems(request)
+  }
+
+  resolveItemVariant(request: ResolveItemVariantRequest): Promise<ResolveItemVariantResponse> {
+    return this.queries.resolveItemVariant(request)
+  }
+
+  listItemCategories(request: ListItemCategoriesRequest): Promise<ListItemCategoriesResponse> {
+    return this.queries.listItemCategories(request)
+  }
+
+  listPackagingMethods(request: ListPackagingMethodsRequest): Promise<ListPackagingMethodsResponse> {
+    return this.queries.listPackagingMethods(request)
+  }
+
+  getPackagingSpec(request: GetPackagingSpecRequest): Promise<GetPackagingSpecResponse> {
+    return this.queries.getPackagingSpec(request)
+  }
+
+  searchPackagingSpecs(request: SearchPackagingSpecsRequest): Promise<SearchPackagingSpecsResponse> {
+    return this.queries.searchPackagingSpecs(request)
+  }
+
+  getBom(request: GetBomRequest): Promise<GetBomResponse> {
+    return this.queries.getBom(request)
+  }
+
+  searchBoms(request: SearchBomsRequest): Promise<SearchBomsResponse> {
+    return this.queries.searchBoms(request)
+  }
+
+  getBomByOutputItem(request: GetBomByOutputItemRequest): Promise<GetBomByOutputItemResponse> {
+    return this.queries.getBomByOutputItem(request)
+  }
+
+  listSupplierItemMappingsByItem(
     request: ListSupplierItemMappingsByItemRequest
   ): Promise<ListSupplierItemMappingsByItemResponse> {
-    const result = await this.queryBus.execute<
-      ListSupplierItemMappingsByItemQuery,
-      ListSupplierItemMappingsByItemResult
-    >(
-      new ListSupplierItemMappingsByItemQuery({
-        tenantId: request.tenantId ?? '',
-        itemId: request.itemId ?? '',
-        page: request.page ?? undefined,
-        pageSize: request.pageSize ?? undefined
-      })
-    )
-
-    return ItemMasterGrpcPresenter.toListSupplierItemMappingsByItemResponse(result)
+    return this.queries.listSupplierItemMappingsByItem(request)
   }
 
-  async resolveSupplierItemMapping(
+  resolveSupplierItemMapping(
     request: ResolveSupplierItemMappingRequest
   ): Promise<ResolveSupplierItemMappingResponse> {
-    const result = await this.queryBus.execute<
-      ResolveSupplierItemMappingQuery,
-      ResolveSupplierItemMappingResult
-    >(
-      new ResolveSupplierItemMappingQuery({
-        tenantId: request.tenantId ?? '',
-        supplierId: request.supplierId ?? '',
-        supplierItemCode: request.supplierItemCode ?? undefined,
-        supplierItemName: request.supplierItemName ?? undefined
-      })
-    )
-
-    return ItemMasterGrpcPresenter.toResolveSupplierItemMappingResponse(result)
+    return this.queries.resolveSupplierItemMapping(request)
   }
 }

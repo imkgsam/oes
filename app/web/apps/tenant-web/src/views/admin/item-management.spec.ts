@@ -3,40 +3,32 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const changeManagedItemCategoryStatusApi = vi.fn()
-const createManagedItemCategoryApi = vi.fn()
-const listManagedItemCategoriesApi = vi.fn()
+const createManagedItemApi = vi.fn()
+const createManagedItemModelApi = vi.fn()
+const listManagedItemModelsApi = vi.fn()
 const listManagedItemsApi = vi.fn()
 const push = vi.fn()
-const updateManagedItemCategoryBasicsApi = vi.fn()
-const useRoute = vi.fn()
 
 const authContextState: any = {
   actionCodes: [
     'item_master.item.list',
     'item_master.item.get_by_id',
     'item_master.item.create',
-    'item_master.item_category.list',
-    'item_master.item_category.create',
-    'item_master.item_category.update_basics',
-    'item_master.item_category.update_status'
+    'item_master.item_model.list',
+    'item_master.item_model.create'
   ],
   sessionContext: {
     tenant: {
-      tenantId: 'tenant-1',
-      name: 'Alpha Tenant'
+      tenantId: 'tenant-1'
     }
-  },
-  tenantName: 'Alpha Tenant',
-  visibleEntries: ['master-data.item-management']
+  }
 }
 
 vi.mock('#/api', () => ({
-  changeManagedItemCategoryStatusApi,
-  createManagedItemCategoryApi,
-  listManagedItemCategoriesApi,
-  listManagedItemsApi,
-  updateManagedItemCategoryBasicsApi
+  createManagedItemApi,
+  createManagedItemModelApi,
+  listManagedItemModelsApi,
+  listManagedItemsApi
 }))
 
 vi.mock('#/store/auth-context', () => ({
@@ -44,10 +36,7 @@ vi.mock('#/store/auth-context', () => ({
 }))
 
 vi.mock('vue-router', () => ({
-  useRoute: () => useRoute(),
-  useRouter: () => ({
-    push
-  })
+  useRouter: () => ({ push })
 }))
 
 vi.mock('@vben/common-ui', () => ({
@@ -57,212 +46,100 @@ vi.mock('@vben/common-ui', () => ({
   }
 }))
 
-vi.mock('@vben/icons', () => ({
-  IconifyIcon: {
-    name: 'IconifyIcon',
-    template: '<span data-testid="iconify-icon" />'
-  }
-}))
+vi.mock('ant-design-vue', async () => await import('./__tests__/ant-design-vue-mock'))
 
-// Verifies the item management list page keeps filters, navigation, and tenant-scoped directory loading aligned with the BFF.
-describe('item management list page', () => {
+describe('item management V2 list page', () => {
   beforeEach(() => {
-    changeManagedItemCategoryStatusApi.mockReset()
-    createManagedItemCategoryApi.mockReset()
-    listManagedItemCategoriesApi.mockReset()
+    createManagedItemApi.mockReset()
+    createManagedItemModelApi.mockReset()
+    listManagedItemModelsApi.mockReset()
     listManagedItemsApi.mockReset()
     push.mockReset()
-    updateManagedItemCategoryBasicsApi.mockReset()
-    useRoute.mockReturnValue({
-      meta: {
-        entryKey: 'master-data.item-management'
-      }
+    listManagedItemModelsApi.mockResolvedValue({
+      itemModels: [
+        {
+          itemModelId: 'model-1',
+          modelCode: 'MODEL-1',
+          modelKind: 'PHYSICAL',
+          modelName: 'Model 1',
+          modelType: 'FINISHED_PRODUCT',
+          status: 'ACTIVE',
+          capabilities: {
+            assemblable: false,
+            manufacturable: true,
+            packable: false,
+            packaged: false,
+            purchasable: false,
+            sellable: true,
+            stockable: true,
+            transformable: false
+          }
+        }
+      ],
+      total: 1
     })
     listManagedItemsApi.mockResolvedValue({
       items: [
         {
           itemId: 'item-1',
-          itemCode: 'BUNDLE-001',
-          itemName: 'Starter Bundle',
-          structureType: 'BUNDLE',
-          natureType: 'VIRTUAL',
+          itemModelId: 'model-1',
+          itemCode: 'SKU-1',
+          itemName: 'SKU 1',
+          itemType: 'STANDARD',
+          lockedAttributeOptionIds: [],
           status: 'ACTIVE',
           capabilities: {
-            sellable: true,
+            assemblable: false,
+            manufacturable: true,
+            packable: true,
+            packaged: false,
             purchasable: false,
-            stockable: false,
-            manufacturable: false
-          },
-          primaryCategorySummary: {
-            categoryId: 'category-1',
-            categoryCode: 'FINISHED',
-            categoryName: 'Finished Goods',
-            status: 'ACTIVE'
-          }
-        },
-        {
-          itemId: 'item-2',
-          itemCode: 'WC-ONE-300',
-          itemName: '连体马桶坐头 300坑距',
-          structureType: 'SINGLE',
-          natureType: 'PHYSICAL',
-          status: 'ACTIVE',
-          capabilities: {
             sellable: true,
-            purchasable: false,
-            stockable: false,
-            manufacturable: true
+            stockable: true,
+            transformable: false
           },
-          primaryCategorySummary: {
-            categoryId: 'category-1',
-            categoryCode: 'FINISHED',
-            categoryName: 'Finished Goods',
+          itemModelSummary: {
+            itemModelId: 'model-1',
+            modelCode: 'MODEL-1',
+            modelKind: 'PHYSICAL',
+            modelName: 'Model 1',
+            modelType: 'FINISHED_PRODUCT',
             status: 'ACTIVE'
           }
         }
       ],
-      page: 1,
-      pageSize: 20,
-      total: 2
-    })
-    listManagedItemCategoriesApi.mockImplementation(async (_tenantId, params) => {
-      if (params.parentCategoryId === 'category-root') {
-        return {
-          categories: [
-            {
-              categoryId: 'category-1',
-              categoryCode: 'FINISHED',
-              categoryName: 'Finished Goods',
-              parentCategoryId: 'category-root',
-              status: 'ACTIVE',
-              hasChildren: false
-            }
-          ]
-        }
-      }
-
-      return {
-        categories: [
-          {
-            categoryId: 'category-root',
-            categoryCode: 'ROOT',
-            categoryName: 'Root Category',
-            parentCategoryId: '',
-            status: 'ACTIVE',
-            hasChildren: true
-          }
-        ]
-      }
-    })
-    createManagedItemCategoryApi.mockResolvedValue({
-      categoryId: 'category-2',
-      categoryCode: 'RAW',
-      categoryName: 'Raw Material',
-      status: 'ACTIVE'
-    })
-    updateManagedItemCategoryBasicsApi.mockResolvedValue({
-      categoryId: 'category-1',
-      categoryCode: 'FINISHED-REV',
-      categoryName: 'Finished Goods Rev',
-      status: 'ACTIVE'
-    })
-    changeManagedItemCategoryStatusApi.mockResolvedValue({
-      categoryId: 'category-1',
-      categoryCode: 'FINISHED-REV',
-      categoryName: 'Finished Goods Rev',
-      status: 'INACTIVE'
+      total: 1
     })
   })
 
-  it('loads the tenant item directory, applies category-aware filters, manages categories, and navigates to create/detail routes', async () => {
+  it('loads ItemModels and executable Items with V2 filters', async () => {
+    const page = (await import('./item-management.vue')).default
+    mount(page)
+    await flushPromises()
+
+    expect(listManagedItemModelsApi).toHaveBeenCalledWith('tenant-1', expect.objectContaining({ status: 'ACTIVE' }))
+    expect(listManagedItemsApi).toHaveBeenCalledWith('tenant-1', expect.objectContaining({ page: 1, pageSize: 20 }))
+  })
+
+  it('creates executable Items from selected ItemModel ids', async () => {
+    createManagedItemApi.mockResolvedValue({ itemId: 'item-2' })
     const page = (await import('./item-management.vue')).default
     const wrapper = mount(page)
-
     await flushPromises()
-
-    expect(listManagedItemsApi).toHaveBeenCalledWith('tenant-1', {
-      capability: undefined,
-      categoryId: undefined,
-      includeDescendants: undefined,
-      keyword: undefined,
-      natureType: undefined,
-      page: 1,
-      pageSize: 20,
-      status: undefined,
-      structureType: undefined
-    })
-    expect(listManagedItemCategoriesApi).toHaveBeenCalledWith('tenant-1', {
-      parentCategoryId: undefined
-    })
-    expect(listManagedItemCategoriesApi).toHaveBeenCalledWith('tenant-1', {
-      parentCategoryId: 'category-root'
-    })
-    expect(wrapper.text()).toContain('Starter Bundle')
-    expect(wrapper.text()).toContain('连体马桶坐头 300坑距')
-    expect(wrapper.text()).toContain('Finished Goods')
-    expect(wrapper.text()).toContain('模具方案状态')
-    expect(wrapper.text()).toContain('可建模具方案')
-    expect(wrapper.text()).toContain('不适用')
-
-    await wrapper.get('[data-testid="item-filter-keyword"]').setValue('starter')
-    await wrapper.get('[data-testid="item-filter-capability"]').setValue('sellable')
-    await wrapper.get('[data-testid="item-filter-category"]').setValue('category-root')
-    await wrapper.get('[data-testid="item-filter-include-descendants"]').setValue(true)
-    await wrapper.get('[data-testid="item-filter-structure"]').setValue('BUNDLE')
-    await wrapper.get('[data-testid="item-filter-nature"]').setValue('VIRTUAL')
-    await wrapper.get('[data-testid="item-filter-status"]').setValue('ACTIVE')
-    await wrapper.get('[data-testid="item-filter-search"]').trigger('click')
-
-    expect(listManagedItemsApi).toHaveBeenLastCalledWith('tenant-1', {
-      capability: 'sellable',
-      categoryId: 'category-root',
-      includeDescendants: true,
-      keyword: 'starter',
-      natureType: 'VIRTUAL',
-      page: 1,
-      pageSize: 20,
-      status: 'ACTIVE',
-      structureType: 'BUNDLE'
-    })
-
-    await wrapper.get('[data-testid="category-create-code"]').setValue('RAW')
-    await wrapper.get('[data-testid="category-create-name"]').setValue('Raw Material')
-    await wrapper.get('[data-testid="category-create-parent"]').setValue('category-root')
-    await wrapper.get('[data-testid="category-create-submit"]').trigger('click')
-
-    expect(createManagedItemCategoryApi).toHaveBeenCalledWith('tenant-1', {
-      categoryCode: 'RAW',
-      categoryName: 'Raw Material',
-      parentCategoryId: 'category-root'
-    })
-
-    await wrapper.get('[data-testid="category-edit-select"]').setValue('category-1')
-    await wrapper.get('[data-testid="category-edit-code"]').setValue('FINISHED-REV')
-    await wrapper.get('[data-testid="category-edit-name"]').setValue('Finished Goods Rev')
-    await wrapper.get('[data-testid="category-edit-save-basics"]').trigger('click')
-    await flushPromises()
-    await wrapper.get('[data-testid="category-edit-status"]').setValue('INACTIVE')
-    await wrapper.get('[data-testid="category-edit-save-status"]').trigger('click')
-
-    expect(updateManagedItemCategoryBasicsApi).toHaveBeenCalledWith('tenant-1', 'category-1', {
-      categoryCode: 'FINISHED-REV',
-      categoryName: 'Finished Goods Rev'
-    })
-    expect(changeManagedItemCategoryStatusApi).toHaveBeenCalledWith('tenant-1', 'category-1', {
-      status: 'INACTIVE'
-    })
 
     await wrapper.get('[data-testid="item-create-button"]').trigger('click')
-    await wrapper.get('[data-testid="item-detail-button-item-1"]').trigger('click')
+    await wrapper.get('[data-testid="create-modal-item-code"]').setValue('SKU-2')
+    await wrapper.get('[data-testid="create-modal-item-name"]').setValue('SKU 2')
+    await wrapper.get('[data-testid="create-modal-submit"]').trigger('click')
+    await flushPromises()
 
-    expect(push).toHaveBeenNthCalledWith(1, {
-      name: 'TenantItemManagementCreate'
-    })
-    expect(push).toHaveBeenNthCalledWith(2, {
-      name: 'TenantItemManagementDetail',
-      params: {
-        itemId: 'item-1'
-      }
-    })
+    expect(createManagedItemApi).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        itemModelId: 'model-1',
+        itemType: 'STANDARD'
+      })
+    )
+    expect(push).toHaveBeenCalledWith({ name: 'TenantItemManagementDetail', params: { itemId: 'item-2' } })
   })
 })

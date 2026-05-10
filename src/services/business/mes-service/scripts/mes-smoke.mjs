@@ -22,7 +22,7 @@ const { resolveCommonProtoPath } = require('@oes/common/contracts');
 const { AppModule } = require(path.join(SERVICE_ROOT, 'dist/app.module.js'));
 const { PrismaClient } = require(path.join(SERVICE_ROOT, 'prisma/generated/prisma/index.js'));
 const {
-  MANUFACTURING_SPEC_MANAGEMENT_SERVICE_NAME,
+  PRODUCTION_SPEC_MANAGEMENT_SERVICE_NAME,
   MOLD_MANAGEMENT_SERVICE_NAME,
   MOLD_QUERY_SERVICE_NAME
 } = require(path.join(WORKSPACE_ROOT, 'src/common/dist/generated/mes_service/mes.js'));
@@ -166,51 +166,45 @@ async function cleanupSmokeFixture(prisma, seed) {
   await prisma.mesCommandIdempotency.deleteMany({ where });
   await prisma.mesOutboxEvent.deleteMany({ where });
   await prisma.mesAuditEnvelope.deleteMany({ where });
-  await prisma.moldWarningEvent.deleteMany({ where });
-  await prisma.moldUsageEvent.deleteMany({ where });
-  await prisma.moldInstallation.deleteMany({ where });
-  await prisma.moldMovementEvent.deleteMany({ where });
+  await prisma.moldUsageRecord.deleteMany({ where });
+  await prisma.toolingInstallation.deleteMany({ where });
+  await prisma.moldMovement.deleteMany({ where });
   await prisma.moldLifeCounter.deleteMany({ where });
-  await prisma.productionMoldInstance.deleteMany({ where });
+  await prisma.productionMold.deleteMany({ where });
   await prisma.masterMold.deleteMany({ where });
   await prisma.moldDesignOutput.deleteMany({ where });
   await prisma.moldDesign.deleteMany({ where });
-  await prisma.manufacturingSpec.deleteMany({ where });
-  await prisma.resourcePosition.deleteMany({ where });
+  await prisma.productionSpec.deleteMany({ where });
+  await prisma.workUnit.deleteMany({ where });
   await prisma.workCenter.deleteMany({ where });
-  await prisma.mesLocation.deleteMany({ where });
+  await prisma.carrierResource.deleteMany({ where });
+  await prisma.storageResource.deleteMany({ where });
 }
 
-// seedMesSmokeFixture inserts the minimal MES physical location, work center, and resource position needed for the mold flow.
+// seedMesSmokeFixture inserts the minimal MES storage, carrier, work center, and work unit references needed for the mold flow.
 async function seedMesSmokeFixture(prisma, seed) {
   const createdAt = new Date('2026-05-04T10:00:00.000Z');
 
-  await prisma.mesLocation.createMany({
+  await prisma.storageResource.createMany({
     data: [
       {
-        id: seed.dryingLocationId,
+        id: seed.initialStorageResourceId,
         tenantId: seed.tenantId,
         orgId: seed.orgId,
-        locationCode: `DRY-${seed.designCode.slice(-6)}`,
-        name: 'MES Smoke Drying Area',
-        locationType: 'DRYING',
-        parentLocationId: null,
-        relatedWorkCenterId: null,
-        capacityProfileId: null,
+        orgScope: seed.orgId,
+        resourceCode: `DRY-${seed.designCode.slice(-6)}`,
+        name: 'MES Smoke Drying Storage',
         status: 'ACTIVE',
         createdAt,
         updatedAt: createdAt
       },
       {
-        id: seed.readyLocationId,
+        id: seed.readyStorageResourceId,
         tenantId: seed.tenantId,
         orgId: seed.orgId,
-        locationCode: `READY-${seed.designCode.slice(-6)}`,
-        name: 'MES Smoke Ready Rack',
-        locationType: 'AVAILABLE',
-        parentLocationId: null,
-        relatedWorkCenterId: seed.workCenterId,
-        capacityProfileId: null,
+        orgScope: seed.orgId,
+        resourceCode: `READY-${seed.designCode.slice(-6)}`,
+        name: 'MES Smoke Ready Storage',
         status: 'ACTIVE',
         createdAt,
         updatedAt: createdAt
@@ -218,33 +212,44 @@ async function seedMesSmokeFixture(prisma, seed) {
     ]
   });
 
-  await prisma.workCenter.create({
+  await prisma.carrierResource.create({
     data: {
-      id: seed.workCenterId,
+      id: seed.carrierResourceId,
       tenantId: seed.tenantId,
       orgId: seed.orgId,
-      workCenterCode: `WC-${seed.designCode.slice(-6)}`,
-      name: 'MES Smoke Work Center',
-      workCenterType: 'CASTING_LINE',
-      parentWorkCenterId: null,
-      relatedMesLocationId: seed.readyLocationId,
-      capacityProfileId: null,
+      orgScope: seed.orgId,
+      resourceCode: `CARRIER-${seed.designCode.slice(-6)}`,
+      name: 'MES Smoke Carrier',
       status: 'ACTIVE',
       createdAt,
       updatedAt: createdAt
     }
   });
 
-  await prisma.resourcePosition.create({
+  await prisma.workCenter.create({
     data: {
-      id: seed.resourcePositionId,
+      id: seed.workCenterId,
+      tenantId: seed.tenantId,
+      orgId: seed.orgId,
+      orgScope: seed.orgId,
+      workCenterCode: `WC-${seed.designCode.slice(-6)}`,
+      name: 'MES Smoke Work Center',
+      workCenterType: 'CASTING_LINE',
+      areaId: null,
+      status: 'ACTIVE',
+      createdAt,
+      updatedAt: createdAt
+    }
+  });
+
+  await prisma.workUnit.create({
+    data: {
+      id: seed.workUnitId,
       tenantId: seed.tenantId,
       orgId: seed.orgId,
       workCenterId: seed.workCenterId,
-      positionCode: 'A',
-      name: 'MES Smoke Mold Position A',
-      positionType: 'MOLD_SLOT',
-      compatibleMoldDesignRefs: [],
+      workUnitCode: 'WU-A',
+      name: 'MES Smoke Work Unit A',
       status: 'ACTIVE',
       createdAt,
       updatedAt: createdAt
@@ -344,49 +349,48 @@ function createMesGrpcClient() {
 
 // createMesServices wraps the generated MES observable clients into promise-returning helpers for smoke verification.
 function createMesServices(client, prisma, seed) {
-  const specManagement = client.getService(MANUFACTURING_SPEC_MANAGEMENT_SERVICE_NAME);
+  const specManagement = client.getService(PRODUCTION_SPEC_MANAGEMENT_SERVICE_NAME);
   const management = client.getService(MOLD_MANAGEMENT_SERVICE_NAME);
   const query = client.getService(MOLD_QUERY_SERVICE_NAME);
 
   return {
     specManagement: {
-      createManufacturingSpec: async (request) => firstValueFrom(specManagement.createManufacturingSpec(request)),
-      activateManufacturingSpec: async (request) => firstValueFrom(specManagement.activateManufacturingSpec(request))
+      createProductionSpec: async (request) => firstValueFrom(specManagement.createProductionSpec(request)),
+      activateProductionSpec: async (request) => firstValueFrom(specManagement.activateProductionSpec(request))
     },
     management: {
       registerMoldDesign: async (request) => firstValueFrom(management.registerMoldDesign(request)),
-      registerProductionMoldInstance: async (request) =>
-        firstValueFrom(management.registerProductionMoldInstance(request)),
-      moveMold: async (request) => firstValueFrom(management.moveMold(request)),
-      installMold: async (request) => firstValueFrom(management.installMold(request)),
+      registerProductionMold: async (request) => firstValueFrom(management.registerProductionMold(request)),
+      moveTooling: async (request) => firstValueFrom(management.moveTooling(request)),
+      installTooling: async (request) => firstValueFrom(management.installTooling(request)),
       recordMoldUsage: async (request) => firstValueFrom(management.recordMoldUsage(request))
     },
     query: {
       listCurrentMoldsByWorkCenter: async (request) =>
         firstValueFrom(query.listCurrentMoldsByWorkCenter(request)),
-      listMoldLifeWarnings: async (request) => firstValueFrom(query.listMoldLifeWarnings(request))
+      listMoldLifeCounters: async (request) => firstValueFrom(query.listMoldLifeCounters(request))
     },
     diagnostics: {
       replaySameCommand: async (request) => {
         await Promise.all([
-          firstValueFrom(management.registerProductionMoldInstance(request)),
-          firstValueFrom(management.registerProductionMoldInstance(request))
+          firstValueFrom(management.registerProductionMold(request)),
+          firstValueFrom(management.registerProductionMold(request))
         ]);
 
         const where = { tenantId: seed.tenantId };
         return {
-          productionMoldInstanceCount: await prisma.productionMoldInstance.count({ where }),
+          productionMoldCount: await prisma.productionMold.count({ where }),
           commandOutboxCount: await prisma.mesOutboxEvent.count({
-            where: { ...where, commandId: seed.instanceCommandId }
+            where: { ...where, commandId: seed.moldCommandId }
           }),
           commandAuditCount: await prisma.mesAuditEnvelope.count({
-            where: { ...where, commandId: seed.instanceCommandId }
+            where: { ...where, commandId: seed.moldCommandId }
           })
         };
       },
       conflictSameCommandDifferentPayload: async (request) => {
         try {
-          await firstValueFrom(management.registerProductionMoldInstance(request));
+          await firstValueFrom(management.registerProductionMold(request));
           return { conflicted: false };
         } catch (error) {
           if (error?.code === grpc.status.ALREADY_EXISTS) {
@@ -460,11 +464,11 @@ async function main() {
           tenantId: seed.tenantId,
           orgId: seed.orgId,
           moldDesignId: result.design.moldDesignId,
-          productionMoldInstanceId: result.instance.productionMoldInstanceId,
+          productionMoldId: result.mold.productionMoldId,
           workCenterId: seed.workCenterId,
-          resourcePositionId: seed.resourcePositionId,
-          warningTotal: result.warnings.total,
-          installedMoldTotal: result.currentMolds.total,
+          workUnitId: seed.workUnitId,
+          lifeCounterTotal: result.counters.total,
+          installedMoldTotal: result.currentMolds.items.length,
           idempotency: result.idempotency,
           outbox: result.outbox,
           grpcTarget: `${normalizeGrpcClientHost(process.env.GRPC_LISTEN_HOST || '127.0.0.1')}:${process.env.GRPC_LISTEN_PORT || '50065'}`,

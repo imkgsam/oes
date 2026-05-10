@@ -13,44 +13,59 @@
 
 ## 2. 使用规则
 
-- 每个服务只有一份职责文档。
+- 每个服务只有一份职责文档；该文件就是该服务唯一稳定设计真相源。
+- 本索引是所有服务职责真相源的总入口；涉及服务职责、边界、对象命名或服务级契约前，必须先查看本索引。
+- 本索引只记录职责卡位置与状态提示，不承载服务职责正文。
 - 服务职责文档应保持短小，优先回答边界问题，而不是展开实现细节。
 - 同一条服务职责不应同时散落在 feature packet、plan 与 contract 文档中。
 - 若一个 feature 需要说明某服务长期负责什么，应直接引用本目录下对应文档。
 - 若一个服务职责变化影响项目级边界，应同步回写 `docs/architecture/**` 或 ADR。
+- 任何线程发现其他文档重新定义了某服务的核心对象、边界或对象命名时，应把该内容改成对本目录对应文件的引用；不能保留并列设计。
+- 新建服务前必须先确定该服务的 `<service-name>.md` 真相源文件名，避免后续出现多个命名相近的设计入口。
 
-## 3. 当前服务职责文档
+## 3. 状态口径
 
-1. [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
-   - 认证、会话、挑战与认证审计职责卡
-2. [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)
-   - 用户、账号、租户展示查询与身份映射职责卡
-3. [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
-   - 角色、权限、scope、policy 与授权判定职责卡
-4. [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-   - 交易与法律主体主数据、租户主体绑定职责卡
-5. [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
-   - 租户边界、组织树、组织上下文与 org scope 基础职责卡
-6. [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
-   - 员工、任职关系与人力基础事实职责卡
-7. [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-   - 客户关系、最小客户主档、销售前置研究与未来 CRM 销售对象职责卡
-8. [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-   - 报价、正式报价版本、销售订单、客户承诺与 fulfillment handoff 职责卡
-9. [finance-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/finance-service.md)
-   - 经营财务闭环、AR、发票、回款、信用、finance release 与 future accounting core 边界职责卡
-10. [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
-   - 最小供应商主档、主体绑定、联系人、地址与供应关系职责卡
-11. [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md)
-   - 统一采购需求入口、PR/PO 最小闭环、收货预期与采购差异摘要职责卡
-12. [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-   - Item、能力、套装组成与供应商型号映射职责卡
-13. [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
-   - 仓储执行、库存真相、占用控制、包装转换与后处理仓储协同职责卡
-14. [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md)
-   - 受控资产元数据、对象存储编排与头像资产生命周期职责卡
+| Status | 含义 |
+| --- | --- |
+| `OK` | 已完成唯一真相元整理；服务长期设计只以本目录对应职责卡为准。 |
+| `MISSING` | 服务已实现、已进入主架构讨论，或被多个服务引用，但还没有职责卡。 |
+| `DUPLICATED` | 已有职责卡或设计草案，但服务设计仍分散在多个文档中，尚未完成唯一真相元整理。 |
+| `DESIGNING` | 仍处于 design workspace / future service 讨论阶段，不能作为稳定服务引用。 |
+| `MIGRATING` | 已完成唯一真相元整理，但历史命名、旧 contract 或 runtime 仍在迁移。 |
 
-## 4. 新服务准入规则
+`OK` 只表示服务设计真相源已唯一化，不表示 runtime、contract 或 UI 已全部实现。
+
+## 4. 当前服务职责索引
+
+| Service | Truth Source | Status | Note |
+| --- | --- | --- | --- |
+| `auth-service` | [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) | `DUPLICATED` | 已有职责卡，但认证、会话、OTP、notification 协同等设计仍分散在 contracts、collaborations、plans 与服务内文档中。 |
+| `identity-service` | [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) | `DUPLICATED` | 已有职责卡，但 user、account、employee binding、username 语义等设计仍分散在 contracts、plans 与协同文档中。 |
+| `permission-service` | [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) | `DUPLICATED` | 已有职责卡，但 role、scope、policy、access summary 与授权流设计仍分散在 contracts、collaborations 与 feature packet 中。 |
+| `party-service` | [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) | `DUPLICATED` | 已有目标职责卡，但 party / tenant party 设计仍有 design workspace、ADR、contracts 与旧 `entity-service` 迁移残留需要收敛。 |
+| `tenant-org-service` | [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) | `DUPLICATED` | 已有职责卡，但 tenant、org tree、org scope 与 HR / identity 协同设计仍分散在 design workspace、contracts 与 collaborations 中。 |
+| `hr-service` | [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) | `DUPLICATED` | 已有职责卡，但 Employee / Employment、onboarding、party / identity / permission 协同设计仍分散在 design workspace、contracts 与 collaborations 中。 |
+| `crm-service` | [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) | `DUPLICATED` | 已有职责卡，但 customer master、prospecting、contact、lead / activity 等设计仍分散在 design workspace、contracts 与 feature packet 中。 |
+| `sales-service` | [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md) | `DUPLICATED` | 已有职责卡，但 quote、order、pricing、fulfillment handoff 与 finance 协同设计仍分散在 feature packet、contracts 与 collaborations 中。 |
+| `finance-service` | [finance-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/finance-service.md) | `DUPLICATED` | 已有职责卡，但 AR、invoice、collection、credit、AP / payment 与 accounting core 边界仍分散在 feature packet、contracts 与旧 ERP design 中。 |
+| `srm-service` | [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md) | `DUPLICATED` | 已有职责卡，但 supplier master、supplier offering、party / item / procurement 协同仍分散在 design workspace、contracts 与 collaborations 中。 |
+| `procurement-service` | [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md) | `DUPLICATED` | 已有职责卡，但 PR / PO、receiving expectation、discrepancy、SRM / WMS / Finance 协同仍分散在 contracts、feature packet 与 collaborations 中。 |
+| `item-master-service` | [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md) | `OK` | ItemModel、Item、BOM、Packaging、capability 与 SupplierItemMapping 的唯一稳定设计入口。 |
+| `wms-service` | [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md) | `DUPLICATED` | 已有职责卡，但 inventory、receipt、warehouse、packaging、MES / procurement 协同仍分散在 design workspace、contracts 与 collaborations 中。 |
+| `mes-service` | [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md) | `OK` | 当前新设计已收敛到唯一架构化入口；旧 design workspace、contract 与 runtime 后续按本文重写对齐。 |
+| `asset-service` | [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md) | `DUPLICATED` | 已有职责卡，但头像资产、通用资产平台与对象存储编排设计仍分散在 design workspace、contracts 与实现讨论中。 |
+| `notification-service` | 待建 | `MISSING` | runtime 已存在且被 `auth-service` 与架构文档引用；需从 notification architecture / plans 抽取职责卡。 |
+
+## 5. Future / Designing 服务
+
+| Service | Truth Source | Status | Note |
+| --- | --- | --- | --- |
+| `quality-service` | 待建 | `DESIGNING` | 当前只在 [quality-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/quality-service-design.md) 中讨论，不能作为稳定服务引用。 |
+| `after-sales-service` | 待建 | `DESIGNING` | 当前只在 [after-sales-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/after-sales-service-design.md) 中讨论。 |
+| `erp-service` | 待建 | `DESIGNING` | 当前只在 [erp-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/erp-service-design.md) 中讨论；销售、采购、财务边界已部分回写到独立服务。 |
+| `planning-workbench` | 待定 | `DESIGNING` | 当前只在 [planning-workbench-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/planning-workbench-design.md) 中讨论，尚未冻结为服务职责卡。 |
+
+## 6. 新服务准入规则
 
 新增 `erp-service` 这类服务时，默认顺序应为：
 

@@ -21,9 +21,9 @@ phase 1 只冻结报价与订单核心交易边界，不展开 proto、运行时
 
 - `crm-service` 的 lead、account、contact、opportunity 与销售前置跟进真相
 - `party-service` 的 `Party`、`TenantParty` 与主体主数据真相
-- `item-master-service` 的 `Item`、`ItemCapability` 与 Item 主数据真相
+- `item-master-service` 的 `ItemModel`、`Item`、attribute、BOM、Packaging、`ItemCategory`、`SupplierItemMapping` 与 Item 主数据真相
 - `wms-service` 的库存、占用、包装转换与发运执行真相
-- `mes-service` 的制造执行、WIP、工序与放行执行真相
+- `mes-service` 的制造执行、`ProductionUnit` / WIP、工序与放行执行真相
 - future `finance-service` 或外部财务系统的 `AR / AP / invoice / payment` 真相
 - `Contract / CLM` 生命周期真相
 - 完整 pricing engine、包装主数据或客户产品目录真相
@@ -64,7 +64,7 @@ phase 1 只冻结报价与订单核心交易边界，不展开 proto、运行时
   - 提供交易主体与 `tenantPartyId` 引用真相。
   - `sales-service` 不自建客户主体主档。
 - `item-master-service`
-  - 提供 `sellable Item` 稳定引用与基础能力口径。
+  - 提供 `ItemModel`、attribute、`PackagingSpec` 到 active + sellable `Item` 的解析与稳定引用口径。
   - `sales-service` 在自身域内冻结销售配置、包装要求与客户承诺快照。
 - `permission-service`
   - 提供报价发布、订单成立与放行动作所需的授权判定能力。
@@ -83,7 +83,7 @@ phase 1 只冻结报价与订单核心交易边界，不展开 proto、运行时
 - 不把 CRM opportunity、Party truth、Item truth、WMS 库存、MES 执行或 Finance 真相复制进销售域。
 - 不把 `CustomerItemMapping` 放进 `item-master-service`。
 - 不把 `Contract / CLM` 作为 phase 1 的固定必经步骤。
-- 不在 phase 1 展开完整 pricing engine、包装主数据或客户产品目录。
+- 不在 phase 1 展开完整 pricing engine 或客户产品目录；长期包装主数据归 `item-master-service`，销售只保存交易快照与客户承诺。
 
 ## 9. Current Stage
 
@@ -92,4 +92,4 @@ phase 1 只冻结报价与订单核心交易边界，不展开 proto、运行时
 - 已确认 `sales-service` 取代“大 erp-service”承担销售交易主链。
 - phase 1 聚焦 `Quote -> QuoteVersion -> SalesOrder -> SalesOrderLine -> fulfillment handoff`。
 - 长期 `CustomerItemMapping` 只作为 `Sales / CRM` 协同候选能力存在；phase 1 只承诺 line-level `customerItemSnapshot`。
-- `Contract / CLM`、完整 finance integration、完整 fulfillment service 形态、pricing engine 与 packaging master 均 deferred。
+- `Contract / CLM`、完整 finance integration、完整 fulfillment service 形态、pricing engine 与客户产品目录均 deferred。

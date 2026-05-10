@@ -20,6 +20,7 @@ describe('navigation foundation seed', () => {
       'tenant-settings.employee-employment',
       'tenant-settings.login-mfa',
       'master-data.item-management',
+      'master-data.item-category-management',
       'master-data.supplier-management',
       'master-data.customer-management',
       'sales.quote-orders',
@@ -47,6 +48,7 @@ describe('navigation foundation seed', () => {
       '员工管理',
       '租户 MFA 配置',
       'Item 管理',
+      'Item 分类管理',
       '供应商管理',
       '客户管理',
       '报价与订单',
@@ -97,6 +99,11 @@ describe('navigation foundation seed', () => {
       {
         id: 'template-account-basic',
         code: 'account.basic',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'template-item-product-data-manager',
+        code: 'item_master.product_data_manager',
         kind: RoleKind.SYSTEM_TEMPLATE
       },
       {
@@ -270,6 +277,24 @@ describe('navigation foundation seed', () => {
         enabled: true
       },
       {
+        roleId: 'template-item-product-data-manager',
+        entryKey: 'workbench.home',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-item-product-data-manager',
+        entryKey: 'master-data.item-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-item-product-data-manager',
+        entryKey: 'master-data.item-category-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
         roleId: 'template-mes-supervisor',
         entryKey: 'workbench.home',
         terminal: 'DEFAULT',
@@ -307,6 +332,11 @@ describe('navigation foundation seed', () => {
         kind: RoleKind.SYSTEM_TEMPLATE
       },
       {
+        id: 'template-item-product-data-manager',
+        code: 'item_master.product_data_manager',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
         id: 'template-mes-supervisor',
         code: 'mes.forming_workshop.supervisor',
         kind: RoleKind.SYSTEM_TEMPLATE
@@ -337,6 +367,13 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'template-account-basic',
+        terminal: 'DEFAULT',
+        defaultEntryKey: 'workbench.home',
+        priority: 0,
+        enabled: true
+      },
+      {
+        roleId: 'template-item-product-data-manager',
         terminal: 'DEFAULT',
         defaultEntryKey: 'workbench.home',
         priority: 0,

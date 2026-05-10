@@ -9,6 +9,7 @@
 ## 2. Owns
 
 - 正式仓储责任下的库存对象、库存余额与库存状态真相。
+- `InventoryUnit`、`InventoryLot`、`InventoryBalance`、`PackageUnit`、`InventoryGenealogy` 等仓储对象与库存转换追溯事实。
 - 仓库、仓区、区位、缓冲区、待处理区、待发区等仓储拓扑。
 - 入库、上架、区位记录、库内移位、跨仓调拨与回仓。
 - 占用 / 预留 / 分配真相，以及紧急订单重分配前的仓储侧判断基础。
@@ -23,7 +24,7 @@
 
 ## 3. Does Not Own
 
-- 胚体与制造过程中的 WIP 真相；该事实归属 `mes-service`。
+- 胚体、`ProductionUnit` 与制造过程中的 WIP 真相；该事实归属 `mes-service`。
 - 打孔、laser logo、修补、试水等后处理工序执行真相；该事实归属 `mes-service`。
 - 质检规则、质量放行结论与质量治理真相。
 - 销售订单、交期承诺、经营单据与财务结算真相。
@@ -59,14 +60,16 @@
   - 提供订单承诺、商业放行条件、履约需求、紧急程度与人工审批结果。
 - 统一扫码入口 / trace identity
   - 提供编码解析与对象路由能力。
-- future product / SKU master
-  - 提供 SPU / SKU、包装规格与基础换算引用。
+- `item-master-service`
+  - 提供 `ItemModel`、active + stockable `Item`、`PackagingSpec` 与 `PACKAGING_BOM` 引用基础。
+  - WMS 不复制 Item 主数据，也不建立 `StockItemType` 替代 Item truth。
 
 ## 7. Downstream / Published Facts
 
 - 仓储库存位置、数量、状态与可用性摘要。
 - 占用 / 释放 / 重分配结果。
 - 包装转换引起的库存变化事实。
+- 库存转换、包装、装配、拆解与追溯关系事实。
 - 送后处理、跨仓调拨、外发与回仓的仓储动作事实。
 - 盘点差异与库存动作历史摘要。
 
@@ -86,3 +89,4 @@
 - 空瓷是否归 WMS 由是否完成放行并进入正式库存区决定，不由名称决定。
 - 包装作业系统上归 WMS，人员组织归属暂不冻结。
 - 打孔、修补、试水等后处理执行真相归 `mes-service`，WMS 只负责仓储侧送返与状态控制。
+- 所有正式库存都按 `Item` 汇总，`StockItemType` 不作为新稳定设计概念。

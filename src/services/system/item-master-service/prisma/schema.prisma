@@ -8,85 +8,262 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum ItemStructureType {
-  SINGLE
-  BUNDLE
-}
-
-enum ItemNatureType {
+enum ItemModelKind {
   PHYSICAL
-  VIRTUAL
   SERVICE
+  DIGITAL
+  VIRTUAL
 }
 
-enum ItemStatus {
-  ACTIVE
-  INACTIVE
+enum ItemModelType {
+  FINISHED_PRODUCT
+  SEMI_FINISHED_PRODUCT
+  ACCESSORY
+  PART
+  SUB_ASSEMBLY
+  RAW_MATERIAL
+  PACKAGING_MATERIAL
+  SERVICE
+  VIRTUAL_KIT
 }
 
-enum ItemCategoryStatus {
-  ACTIVE
-  INACTIVE
+enum ItemType {
+  STANDARD
+  PACKAGED_FINISHED_GOOD
 }
 
-model Item {
-  id               String                @id @default(uuid()) @db.Uuid
-  tenantId         String                @db.VarChar(64)
-  itemCode         String                @db.VarChar(128)
-  itemName         String                @db.VarChar(255)
-  structureType    ItemStructureType
-  natureType       ItemNatureType
-  status           ItemStatus            @default(ACTIVE)
-  primaryCategoryId String?              @db.Uuid
-  sellable         Boolean               @default(false)
-  purchasable      Boolean               @default(false)
-  stockable        Boolean               @default(false)
-  manufacturable   Boolean               @default(false)
-  createdAt        DateTime              @default(now())
-  updatedAt        DateTime              @updatedAt
-  primaryCategory  ItemCategory?         @relation("ItemPrimaryCategory", fields: [primaryCategoryId], references: [id], onDelete: SetNull)
-  parentLinks      ItemComposition[]     @relation("ItemCompositionParent")
-  componentLinks   ItemComposition[]     @relation("ItemCompositionComponent")
-  supplierMappings SupplierItemMapping[]
+enum BomType {
+  COMPOSITION
+  TRANSFORMATION
+  PACKAGING
+}
 
-  @@unique([tenantId, itemCode])
-  @@index([tenantId, status])
-  @@index([tenantId, structureType, natureType])
+enum BomLineRole {
+  PRIMARY_INPUT
+  COMPONENT
+  PACKAGING_MATERIAL
+}
+
+model ItemModel {
+  id                String         @id @default(uuid()) @db.Uuid
+  tenantId          String         @db.VarChar(64)
+  modelCode         String         @db.VarChar(128)
+  modelName         String         @db.VarChar(255)
+  modelKind         ItemModelKind
+  modelType         ItemModelType
+  active            Boolean        @default(true)
+  sellable          Boolean        @default(false)
+  purchasable       Boolean        @default(false)
+  stockable         Boolean        @default(false)
+  manufacturable    Boolean        @default(false)
+  assemblable       Boolean        @default(false)
+  transformable     Boolean        @default(false)
+  packable          Boolean        @default(false)
+  packaged          Boolean        @default(false)
+  primaryCategoryId String?        @db.Uuid
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  primaryCategory ItemCategory?            @relation("ItemModelPrimaryCategory", fields: [primaryCategoryId], references: [id], onDelete: SetNull)
+  items           Item[]
+  attributeRules  ItemModelAttributeRule[]
+  packagingSpecs  PackagingSpec[]
+
+  @@unique([tenantId, modelCode])
+  @@index([tenantId, active])
+  @@index([tenantId, modelKind, modelType])
   @@index([tenantId, primaryCategoryId])
 }
 
-model ItemCategory {
-  id               String             @id @default(uuid()) @db.Uuid
-  tenantId         String             @db.VarChar(64)
-  categoryCode     String             @db.VarChar(128)
-  categoryName     String             @db.VarChar(255)
-  parentCategoryId String?            @db.Uuid
-  status           ItemCategoryStatus @default(ACTIVE)
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+model AttributeDefinition {
+  id            String            @id @default(uuid()) @db.Uuid
+  tenantId      String            @db.VarChar(64)
+  attributeCode String            @db.VarChar(128)
+  attributeName String            @db.VarChar(255)
+  active        Boolean           @default(true)
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
-  parent   ItemCategory?  @relation("ItemCategoryTree", fields: [parentCategoryId], references: [id], onDelete: Restrict)
-  children ItemCategory[] @relation("ItemCategoryTree")
-  items    Item[]         @relation("ItemPrimaryCategory")
+  options AttributeOption[]
+  rules   ItemModelAttributeRule[]
+
+  @@unique([tenantId, attributeCode])
+  @@index([tenantId, active])
+}
+
+model AttributeOption {
+  id                    String              @id @default(uuid()) @db.Uuid
+  tenantId              String              @db.VarChar(64)
+  attributeDefinitionId String              @db.Uuid
+  optionCode            String              @db.VarChar(128)
+  optionName            String              @db.VarChar(255)
+  active                Boolean             @default(true)
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  attributeDefinition AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, attributeDefinitionId, optionCode])
+  @@index([tenantId, active])
+}
+
+model ItemModelAttributeRule {
+  id                    String   @id @default(uuid()) @db.Uuid
+  tenantId              String   @db.VarChar(64)
+  itemModelId           String   @db.Uuid
+  attributeDefinitionId String   @db.Uuid
+  required              Boolean  @default(false)
+  allowedOptionIds      String[]
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  itemModel           ItemModel           @relation(fields: [itemModelId], references: [id], onDelete: Cascade)
+  attributeDefinition AttributeDefinition @relation(fields: [attributeDefinitionId], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, itemModelId, attributeDefinitionId])
+  @@index([tenantId, itemModelId])
+}
+
+model Item {
+  id                       String       @id @default(uuid()) @db.Uuid
+  tenantId                 String       @db.VarChar(64)
+  itemModelId              String       @db.Uuid
+  itemCode                 String       @db.VarChar(128)
+  itemName                 String       @db.VarChar(255)
+  itemType                 ItemType
+  lockedAttributeOptionIds String[]
+  variantKey               String       @db.VarChar(1024)
+  packagingSpecId          String?      @db.Uuid
+  active                   Boolean      @default(true)
+  sellable                 Boolean      @default(false)
+  purchasable              Boolean      @default(false)
+  stockable                Boolean      @default(false)
+  manufacturable           Boolean      @default(false)
+  assemblable              Boolean      @default(false)
+  transformable            Boolean      @default(false)
+  packable                 Boolean      @default(false)
+  packaged                 Boolean      @default(false)
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+
+  itemModel        ItemModel             @relation(fields: [itemModelId], references: [id], onDelete: Restrict)
+  packagingSpec    PackagingSpec?        @relation(fields: [packagingSpecId], references: [id], onDelete: Restrict)
+  outputBoms       Bom[]                 @relation("BomOutputItem")
+  componentBomLines BomLine[]            @relation("BomLineComponentItem")
+  supplierMappings SupplierItemMapping[]
+
+  @@unique([tenantId, itemCode])
+  @@unique([tenantId, itemModelId, variantKey])
+  @@index([tenantId, active])
+  @@index([tenantId, itemModelId])
+  @@index([tenantId, itemType])
+  @@index([tenantId, packagingSpecId])
+}
+
+model ItemCategory {
+  id               String         @id @default(uuid()) @db.Uuid
+  tenantId         String         @db.VarChar(64)
+  categoryCode     String         @db.VarChar(128)
+  categoryName     String         @db.VarChar(255)
+  parentCategoryId String?        @db.Uuid
+  active           Boolean        @default(true)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  parent     ItemCategory?  @relation("ItemCategoryTree", fields: [parentCategoryId], references: [id], onDelete: Restrict)
+  children   ItemCategory[] @relation("ItemCategoryTree")
+  itemModels ItemModel[]    @relation("ItemModelPrimaryCategory")
 
   @@unique([tenantId, categoryCode])
   @@index([tenantId, parentCategoryId])
-  @@index([tenantId, status])
+  @@index([tenantId, active])
 }
 
-model ItemComposition {
-  id              String   @id @default(uuid()) @db.Uuid
-  tenantId        String   @db.VarChar(64)
-  parentItemId    String   @db.Uuid
-  componentItemId String   @db.Uuid
+model PackagingMethod {
+  id         String   @id @default(uuid()) @db.Uuid
+  tenantId   String   @db.VarChar(64)
+  methodCode String   @db.VarChar(128)
+  methodName String   @db.VarChar(255)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  packagingSpecs PackagingSpec[]
+
+  @@unique([tenantId, methodCode])
+  @@index([tenantId, active])
+}
+
+model PackagingSpec {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @db.VarChar(64)
+  itemModelId       String    @db.Uuid
+  packagingMethodId String    @db.Uuid
+  customerId        String?   @db.VarChar(64)
+  specCode          String    @db.VarChar(128)
+  specName          String    @db.VarChar(255)
+  grossWeight       String?   @db.VarChar(64)
+  volume            String?   @db.VarChar(64)
+  outerLength       String?   @db.VarChar(64)
+  outerWidth        String?   @db.VarChar(64)
+  outerHeight       String?   @db.VarChar(64)
+  workInstruction   String?
+  version           String?   @db.VarChar(64)
+  effectiveFrom     DateTime?
+  effectiveTo       DateTime?
+  active            Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  itemModel       ItemModel       @relation(fields: [itemModelId], references: [id], onDelete: Restrict)
+  packagingMethod PackagingMethod @relation(fields: [packagingMethodId], references: [id], onDelete: Restrict)
+  items           Item[]
+
+  @@unique([tenantId, specCode])
+  @@index([tenantId, itemModelId])
+  @@index([tenantId, packagingMethodId])
+  @@index([tenantId, customerId])
+  @@index([tenantId, active])
+}
+
+model Bom {
+  id           String   @id @default(uuid()) @db.Uuid
+  tenantId     String   @db.VarChar(64)
+  bomCode      String   @db.VarChar(128)
+  bomName      String   @db.VarChar(255)
+  bomType      BomType
+  outputItemId String   @db.Uuid
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  outputItem Item      @relation("BomOutputItem", fields: [outputItemId], references: [id], onDelete: Restrict)
+  lines      BomLine[]
+
+  @@unique([tenantId, bomCode])
+  @@index([tenantId, bomType])
+  @@index([tenantId, outputItemId])
+  @@index([tenantId, active])
+}
+
+model BomLine {
+  id              String      @id @default(uuid()) @db.Uuid
+  tenantId        String      @db.VarChar(64)
+  bomId           String      @db.Uuid
+  componentItemId String      @db.Uuid
+  lineRole        BomLineRole
+  quantity        String      @db.VarChar(64)
+  uomCode         String      @db.VarChar(64)
+  lineNote        String?
   sortOrder       Int
-  createdAt       DateTime @default(now())
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
-  parentItem    Item @relation("ItemCompositionParent", fields: [parentItemId], references: [id], onDelete: Cascade)
-  componentItem Item @relation("ItemCompositionComponent", fields: [componentItemId], references: [id], onDelete: Restrict)
+  bom           Bom  @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  componentItem Item @relation("BomLineComponentItem", fields: [componentItemId], references: [id], onDelete: Restrict)
 
-  @@unique([tenantId, parentItemId, componentItemId])
-  @@index([tenantId, parentItemId, sortOrder])
+  @@index([tenantId, bomId, sortOrder])
+  @@index([tenantId, componentItemId])
 }
 
 model SupplierItemMapping {
@@ -98,6 +275,7 @@ model SupplierItemMapping {
   supplierItemCodeKey String?  @db.VarChar(255)
   supplierItemNameKey String?  @db.VarChar(255)
   itemId              String   @db.Uuid
+  active              Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -106,6 +284,8 @@ model SupplierItemMapping {
   @@unique([tenantId, supplierId, supplierItemCodeKey])
   @@unique([tenantId, supplierId, supplierItemNameKey])
   @@index([tenantId, supplierId])
+  @@index([tenantId, itemId])
+  @@index([tenantId, active])
 }
 
 model AuditEvent {

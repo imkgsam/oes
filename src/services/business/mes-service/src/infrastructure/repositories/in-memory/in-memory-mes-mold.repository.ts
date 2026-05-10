@@ -1,36 +1,43 @@
 import { Injectable } from '@nestjs/common'
+import { ExceptionFactory } from '@oes/common/exceptions'
 import {
+  CurrentMoldByWorkCenterRecord,
+  DailyMoldChecklistRecord,
   MasterMoldRecord,
   MesAuditEnvelopeRecord,
   MesCommandIdempotencyRecord,
-  MesLocationRecord,
   MesOutboxEventRecord,
   MoldDesignRecord,
-  MoldInstallationRecord,
-  MoldInstallationStatus,
+  MoldDesignSummaryRecord,
   MoldLifeCounterRecord,
-  MoldMovementEventRecord,
-  MoldResourceType,
-  MoldUsageEventRecord,
-  MoldWarningEventRecord,
-  MoldWarningStatus,
-  MoldWarningType,
-  PageResult,
-  ProductionMoldInstanceRecord,
-  ResourcePositionRecord,
-  WorkCenterRecord
+  MoldMovementRecord,
+  MoldUsageHistoryEntryRecord,
+  MoldUsageHistoryEntryType,
+  MoldUsageRecord,
+  MoldWarningLevel,
+  ProductionMoldRecord,
+  ProductionMoldStatus,
+  ProductionMoldSummaryRecord,
+  ToolingInstallationRecord,
+  ToolingInstallationStatus,
+  ToolingPlacementSummaryRecord,
+  ToolingPlacementType,
+  ToolingType
 } from '../../../domain/models/mes-mold-records'
 import {
+  GetMoldUsageHistoryInput,
+  ListCurrentMoldsByWorkCenterInput,
+  ListMoldLifeCountersInput,
+  ListProductionMoldsByDesignInput,
   MesMoldRepository,
+  PrintDailyMoldChecklistInput,
   SearchMoldDesignsInput,
-  SearchMoldWarningsInput,
-  SearchProductionMoldInstancesInput,
-  SearchWorkCentersInput
+  SearchProductionMoldsInput
 } from '../../../domain/repositories/mes-mold.repository'
-import { paginate } from '../../../application/support/mes-assertions'
+import { MES_NOT_FOUND } from '../../../common/errors/mes.errors'
 import { MesInMemoryStore } from '../../store/mes-in-memory-store'
 
-/** InMemoryMesMoldRepository keeps MES mold behavior tests deterministic without external infrastructure. */
+/** InMemoryMesMoldRepository keeps Mold / Tooling repository behavior deterministic without external infrastructure. */
 @Injectable()
 export class InMemoryMesMoldRepository implements MesMoldRepository {
   constructor(private readonly store: MesInMemoryStore = new MesInMemoryStore()) {}
@@ -54,11 +61,7 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
     return cloneOrNull(matchTenant(this.store.moldDesigns.get(moldDesignId), tenantId))
   }
 
-  async findMoldDesignByCode(
-    tenantId: string,
-    orgId: string | null | undefined,
-    designCode: string
-  ): Promise<MoldDesignRecord | null> {
+  async findMoldDesignByCode(tenantId: string, orgId: string | null | undefined, designCode: string) {
     return cloneOrNull(
       Array.from(this.store.moldDesigns.values()).find(
         (record) => record.tenantId === tenantId && sameOrg(record.orgId, orgId) && record.designCode === designCode
@@ -66,26 +69,17 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
     )
   }
 
-  async searchMoldDesigns(input: SearchMoldDesignsInput): Promise<PageResult<MoldDesignRecord>> {
+  async searchMoldDesigns(input: SearchMoldDesignsInput) {
     const keyword = input.keyword?.trim().toUpperCase()
     const records = Array.from(this.store.moldDesigns.values())
       .filter((record) => record.tenantId === input.tenantId && (!input.orgId || sameOrg(record.orgId, input.orgId)))
-      .filter((record) => !keyword || record.designCode.includes(keyword) || record.name.toUpperCase().includes(keyword))
-      .filter((record) => !input.productFamilyRefId || record.productFamilyRef.refId === input.productFamilyRefId)
-      .filter(
-        (record) =>
-          !input.manufacturingSpecRefId ||
-          record.manufacturingSpecRefs.some((ref) => ref.refId === input.manufacturingSpecRefId)
-      )
+      .filter((record) => !keyword || record.designCode.toUpperCase().includes(keyword) || record.name.toUpperCase().includes(keyword))
+      .filter((record) => !input.productionSpecId || record.productionSpecRefs.some((ref) => ref.productionSpecId === input.productionSpecId))
       .filter((record) => !input.itemId || record.itemRef?.itemId === input.itemId)
-      .filter((record) => !input.materialType || record.materialType === input.materialType)
-      .filter((record) => !input.functionRole || record.functionRole === input.functionRole)
-      .filter(
-        (record) => !input.productionMethodTag || record.productionMethodTags.includes(input.productionMethodTag)
-      )
       .filter((record) => !input.status || record.status === input.status)
       .sort((left, right) => left.designCode.localeCompare(right.designCode))
-    return clone(paginate(records, input.page, input.pageSize))
+    const page = paginate(records.map(toMoldDesignSummary), input.page, input.pageSize)
+    return { moldDesigns: page.items, total: page.total, page: page.page, pageSize: page.pageSize }
   }
 
   async saveMasterMold(record: MasterMoldRecord): Promise<MasterMoldRecord> {
@@ -97,327 +91,283 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
     return cloneOrNull(matchTenant(this.store.masterMolds.get(masterMoldId), tenantId))
   }
 
-  async findMasterMoldByCode(
-    tenantId: string,
-    orgId: string | null | undefined,
-    masterMoldCode: string
-  ): Promise<MasterMoldRecord | null> {
+  async findMasterMoldByCode(tenantId: string, orgId: string | null | undefined, masterMoldCode: string) {
     return cloneOrNull(
       Array.from(this.store.masterMolds.values()).find(
-        (record) =>
-          record.tenantId === tenantId && sameOrg(record.orgId, orgId) && record.masterMoldCode === masterMoldCode
+        (record) => record.tenantId === tenantId && sameOrg(record.orgId, orgId) && record.masterMoldCode === masterMoldCode
       )
     )
   }
 
-  async saveProductionMoldInstance(record: ProductionMoldInstanceRecord): Promise<ProductionMoldInstanceRecord> {
-    this.store.productionMoldInstances.set(record.productionMoldInstanceId, clone(record))
+  async saveProductionMold(record: ProductionMoldRecord): Promise<ProductionMoldRecord> {
+    this.store.productionMolds.set(record.productionMoldId, clone(record))
     return clone(record)
   }
 
-  async findProductionMoldInstanceById(
-    tenantId: string,
-    productionMoldInstanceId: string
-  ): Promise<ProductionMoldInstanceRecord | null> {
-    return cloneOrNull(matchTenant(this.store.productionMoldInstances.get(productionMoldInstanceId), tenantId))
+  async findProductionMoldById(tenantId: string, productionMoldId: string): Promise<ProductionMoldRecord | null> {
+    return cloneOrNull(matchTenant(this.store.productionMolds.get(productionMoldId), tenantId))
   }
 
-  async findProductionMoldInstanceByCode(
-    tenantId: string,
-    orgId: string | null | undefined,
-    moldInstanceCode: string
-  ): Promise<ProductionMoldInstanceRecord | null> {
+  async findProductionMoldByCode(tenantId: string, orgId: string | null | undefined, moldCode: string) {
     return cloneOrNull(
-      Array.from(this.store.productionMoldInstances.values()).find(
-        (record) =>
-          record.tenantId === tenantId && sameOrg(record.orgId, orgId) && record.moldInstanceCode === moldInstanceCode
+      Array.from(this.store.productionMolds.values()).find(
+        (record) => record.tenantId === tenantId && sameOrg(record.orgId, orgId) && record.moldCode === moldCode
       )
     )
   }
 
-  async searchProductionMoldInstances(
-    input: SearchProductionMoldInstancesInput
-  ): Promise<PageResult<ProductionMoldInstanceRecord>> {
-    const records = Array.from(this.store.productionMoldInstances.values())
+  async searchProductionMolds(input: SearchProductionMoldsInput) {
+    const records = Array.from(this.store.productionMolds.values())
       .filter((record) => record.tenantId === input.tenantId && (!input.orgId || sameOrg(record.orgId, input.orgId)))
       .filter((record) => !input.moldDesignId || record.moldDesignId === input.moldDesignId)
       .filter((record) => !input.status || record.currentStatus === input.status)
-      .filter((record) => !input.warningLevel || record.warningLevel === input.warningLevel)
-      .filter((record) => !input.supplierId || record.supplierRef?.supplierId === input.supplierId)
-      .sort((left, right) => left.moldInstanceCode.localeCompare(right.moldInstanceCode))
-    return clone(paginate(records, input.page, input.pageSize))
+      .filter((record) => !input.storageResourceId || record.currentStorageResourceRef?.storageResourceId === input.storageResourceId)
+      .filter((record) => !input.carrierResourceId || record.currentCarrierResourceRef?.carrierResourceId === input.carrierResourceId)
+      .sort((left, right) => left.moldCode.localeCompare(right.moldCode))
+    const summaries = records.map((record) => this.toProductionMoldSummary(record))
+    const filtered = input.warningLevel
+      ? summaries.filter((summary) => summary.lifeCounterSummary?.warningLevel === input.warningLevel)
+      : summaries
+    const page = paginate(filtered, input.page, input.pageSize)
+    return { productionMolds: page.items, total: page.total, page: page.page, pageSize: page.pageSize }
   }
 
-  async saveMoldLifeCounter(record: MoldLifeCounterRecord): Promise<MoldLifeCounterRecord> {
-    this.store.lifeCounters.set(record.productionMoldInstanceId, clone(record))
+  async listProductionMoldsByDesign(input: ListProductionMoldsByDesignInput) {
+    const design = this.store.moldDesigns.get(input.moldDesignId)
+    if (!design || design.tenantId !== input.tenantId || !sameOrg(design.orgId, input.orgId)) {
+      throw ExceptionFactory.application(MES_NOT_FOUND, { resource: 'MoldDesign', identifier: input.moldDesignId })
+    }
+    const page = await this.searchProductionMolds({
+      tenantId: input.tenantId,
+      orgId: input.orgId,
+      moldDesignId: input.moldDesignId,
+      status: input.status,
+      page: input.page,
+      pageSize: input.pageSize
+    })
+    return {
+      moldDesignSummary: toMoldDesignSummary(design),
+      productionMolds: page.productionMolds,
+      total: page.total,
+      page: page.page,
+      pageSize: page.pageSize
+    }
+  }
+
+  async getToolingCurrentPlacement(tenantId: string, toolingType: ToolingType, toolingId: string): Promise<ToolingPlacementSummaryRecord | null> {
+    if (toolingType !== ToolingType.MOLD) {
+      return null
+    }
+    const mold = this.store.productionMolds.get(toolingId)
+    if (!mold || mold.tenantId !== tenantId) {
+      return null
+    }
+    if (mold.currentInstallationSummary) {
+      return {
+        placementType: mold.currentInstallationSummary.workUnitRef ? ToolingPlacementType.WORK_UNIT : ToolingPlacementType.WORK_CENTER,
+        workCenterRef: mold.currentInstallationSummary.workCenterRef,
+        workUnitRef: mold.currentInstallationSummary.workUnitRef ?? null,
+        toolingInstallationId: mold.currentInstallationSummary.toolingInstallationId,
+        moldInstallationDetail: mold.currentInstallationSummary.moldDetail ?? null
+      }
+    }
+    if (mold.currentCarrierResourceRef) {
+      return { placementType: ToolingPlacementType.CARRIER_RESOURCE, carrierResourceRef: clone(mold.currentCarrierResourceRef) }
+    }
+    return { placementType: ToolingPlacementType.STORAGE_RESOURCE, storageResourceRef: clone(mold.currentStorageResourceRef ?? null) }
+  }
+
+  async appendMoldMovement(record: MoldMovementRecord): Promise<MoldMovementRecord> {
+    this.store.movements.push(clone(record))
     return clone(record)
   }
 
-  async findMoldLifeCounterByInstanceId(
-    tenantId: string,
-    productionMoldInstanceId: string
-  ): Promise<MoldLifeCounterRecord | null> {
-    return cloneOrNull(matchTenant(this.store.lifeCounters.get(productionMoldInstanceId), tenantId))
-  }
-
-  async findMesLocationById(tenantId: string, mesLocationId: string): Promise<MesLocationRecord | null> {
-    return cloneOrNull(matchTenant(this.store.mesLocations.get(mesLocationId), tenantId))
-  }
-
-  async saveWorkCenter(record: WorkCenterRecord): Promise<WorkCenterRecord> {
-    this.store.workCenters.set(record.workCenterId, clone(record))
-    return clone(record)
-  }
-
-  async findWorkCenterById(tenantId: string, workCenterId: string): Promise<WorkCenterRecord | null> {
-    return cloneOrNull(matchTenant(this.store.workCenters.get(workCenterId), tenantId))
-  }
-
-  async findWorkCenterByCode(
-    tenantId: string,
-    orgId: string | null | undefined,
-    workCenterCode: string
-  ): Promise<WorkCenterRecord | null> {
+  async findLastMoldMovement(tenantId: string, toolingType: ToolingType, toolingId: string) {
     return cloneOrNull(
-      Array.from(this.store.workCenters.values()).find(
-        (record) =>
-          record.tenantId === tenantId && sameOrg(record.orgId, orgId) && record.workCenterCode === workCenterCode
-      )
-    )
-  }
-
-  async searchWorkCenters(input: SearchWorkCentersInput): Promise<PageResult<WorkCenterRecord>> {
-    const keyword = input.keyword?.trim().toUpperCase()
-    const records = Array.from(this.store.workCenters.values())
-      .filter((record) => record.tenantId === input.tenantId && (!input.orgId || sameOrg(record.orgId, input.orgId)))
-      .filter(
-        (record) =>
-          !keyword || record.workCenterCode.includes(keyword) || record.name.toUpperCase().includes(keyword)
-      )
-      .filter((record) => input.parentWorkCenterId === undefined || record.parentWorkCenterId === input.parentWorkCenterId)
-      .filter((record) => !input.status || record.status === input.status)
-      .filter((record) => !input.workCenterType || record.workCenterType === input.workCenterType)
-      .sort((left, right) => left.workCenterCode.localeCompare(right.workCenterCode))
-    return clone(paginate(records, input.page, input.pageSize))
-  }
-
-  async saveResourcePosition(record: ResourcePositionRecord): Promise<ResourcePositionRecord> {
-    this.store.resourcePositions.set(record.resourcePositionId, clone(record))
-    return clone(record)
-  }
-
-  async findResourcePositionById(tenantId: string, resourcePositionId: string): Promise<ResourcePositionRecord | null> {
-    return cloneOrNull(matchTenant(this.store.resourcePositions.get(resourcePositionId), tenantId))
-  }
-
-  async listResourcePositionsByWorkCenter(tenantId: string, workCenterId: string): Promise<ResourcePositionRecord[]> {
-    return clone(
-      Array.from(this.store.resourcePositions.values())
-        .filter((record) => record.tenantId === tenantId && record.workCenterId === workCenterId)
-        .sort((left, right) => left.positionCode.localeCompare(right.positionCode))
-    )
-  }
-
-  async appendMovementEvent(record: MoldMovementEventRecord): Promise<MoldMovementEventRecord> {
-    this.store.movementEvents.push(clone(record))
-    return clone(record)
-  }
-
-  async findLastMovementEvent(
-    tenantId: string,
-    moldResourceType: MoldResourceType,
-    moldResourceId: string
-  ): Promise<MoldMovementEventRecord | null> {
-    return cloneOrNull(
-      this.store.movementEvents
-        .filter(
-          (record) =>
-            record.tenantId === tenantId &&
-            record.moldResourceType === moldResourceType &&
-            record.moldResourceId === moldResourceId
-        )
+      this.store.movements
+        .filter((record) => record.tenantId === tenantId && record.toolingType === toolingType && record.toolingId === toolingId)
         .sort((left, right) => right.movedAt.localeCompare(left.movedAt))[0]
     )
   }
 
-  async listMovementEventsByResource(
-    tenantId: string,
-    moldResourceType: MoldResourceType,
-    moldResourceId: string
-  ): Promise<MoldMovementEventRecord[]> {
+  async listMoldMovementsByTooling(tenantId: string, toolingType: ToolingType, toolingId: string): Promise<MoldMovementRecord[]> {
     return clone(
-      this.store.movementEvents.filter(
-        (record) =>
-          record.tenantId === tenantId &&
-          record.moldResourceType === moldResourceType &&
-          record.moldResourceId === moldResourceId
-      )
+      this.store.movements.filter((record) => record.tenantId === tenantId && record.toolingType === toolingType && record.toolingId === toolingId)
     )
   }
 
-  async saveMoldInstallation(record: MoldInstallationRecord): Promise<MoldInstallationRecord> {
-    this.store.installations.set(record.moldInstallationId, clone(record))
+  async saveToolingInstallation(record: ToolingInstallationRecord): Promise<ToolingInstallationRecord> {
+    this.store.toolingInstallations.set(record.toolingInstallationId, clone(record))
     return clone(record)
   }
 
-  async findMoldInstallationById(tenantId: string, moldInstallationId: string): Promise<MoldInstallationRecord | null> {
-    return cloneOrNull(matchTenant(this.store.installations.get(moldInstallationId), tenantId))
+  async findToolingInstallationById(tenantId: string, toolingInstallationId: string) {
+    return cloneOrNull(matchTenant(this.store.toolingInstallations.get(toolingInstallationId), tenantId))
   }
 
-  async findActiveInstallationByMold(
-    tenantId: string,
-    productionMoldInstanceId: string
-  ): Promise<MoldInstallationRecord | null> {
+  async findActiveToolingInstallationByMold(tenantId: string, productionMoldId: string) {
     return cloneOrNull(
-      Array.from(this.store.installations.values()).find(
+      Array.from(this.store.toolingInstallations.values()).find(
         (record) =>
           record.tenantId === tenantId &&
-          record.productionMoldInstanceId === productionMoldInstanceId &&
-          record.installationStatus === MoldInstallationStatus.ACTIVE &&
+          record.toolingType === ToolingType.MOLD &&
+          record.toolingId === productionMoldId &&
+          record.status === ToolingInstallationStatus.ACTIVE &&
           !record.unmountedAt
       )
     )
   }
 
-  async findActiveInstallationByPosition(
-    tenantId: string,
-    resourcePositionId: string
-  ): Promise<MoldInstallationRecord | null> {
-    return cloneOrNull(
-      Array.from(this.store.installations.values()).find(
-        (record) =>
-          record.tenantId === tenantId &&
-          record.resourcePositionId === resourcePositionId &&
-          record.installationStatus === MoldInstallationStatus.ACTIVE &&
-          !record.unmountedAt
-      )
-    )
-  }
-
-  async listActiveInstallationsByWorkCenter(tenantId: string, workCenterId: string): Promise<MoldInstallationRecord[]> {
+  async listToolingInstallationsByMold(tenantId: string, productionMoldId: string): Promise<ToolingInstallationRecord[]> {
     return clone(
-      Array.from(this.store.installations.values()).filter(
-        (record) =>
-          record.tenantId === tenantId &&
-          record.workCenterId === workCenterId &&
-          record.installationStatus === MoldInstallationStatus.ACTIVE &&
-          !record.unmountedAt
+      Array.from(this.store.toolingInstallations.values()).filter(
+        (record) => record.tenantId === tenantId && record.toolingType === ToolingType.MOLD && record.toolingId === productionMoldId
       )
     )
   }
 
-  async listInstallationsByMold(tenantId: string, productionMoldInstanceId: string): Promise<MoldInstallationRecord[]> {
-    return clone(
-      Array.from(this.store.installations.values()).filter(
-        (record) => record.tenantId === tenantId && record.productionMoldInstanceId === productionMoldInstanceId
-      )
-    )
+  async listCurrentMoldsByWorkCenter(input: ListCurrentMoldsByWorkCenterInput) {
+    const items: CurrentMoldByWorkCenterRecord[] = []
+    for (const installation of this.store.toolingInstallations.values()) {
+      if (
+        installation.tenantId !== input.tenantId ||
+        installation.status !== ToolingInstallationStatus.ACTIVE ||
+        installation.workCenterRef.workCenterId !== input.workCenterId ||
+        (input.orgId && !sameOrg(installation.orgId, input.orgId)) ||
+        (input.workUnitId && installation.workUnitRef?.workUnitId !== input.workUnitId)
+      ) {
+        continue
+      }
+      const mold = this.store.productionMolds.get(installation.toolingId)
+      if (mold) {
+        items.push({ productionMold: this.toProductionMoldSummary(mold), toolingInstallation: clone(installation) })
+      }
+    }
+    return { items }
   }
 
-  async appendUsageEvent(record: MoldUsageEventRecord): Promise<MoldUsageEventRecord> {
-    this.store.usageEvents.push(clone(record))
+  async appendMoldUsageRecord(record: MoldUsageRecord): Promise<MoldUsageRecord> {
+    this.store.usageRecords.push(clone(record))
     return clone(record)
   }
 
-  async listUsageEventsByMold(tenantId: string, productionMoldInstanceId: string): Promise<MoldUsageEventRecord[]> {
-    return clone(
-      this.store.usageEvents.filter(
-        (record) => record.tenantId === tenantId && record.productionMoldInstanceId === productionMoldInstanceId
-      )
-    )
+  async listMoldUsageRecordsByMold(tenantId: string, productionMoldId: string): Promise<MoldUsageRecord[]> {
+    return clone(this.store.usageRecords.filter((record) => record.tenantId === tenantId && record.productionMoldId === productionMoldId))
   }
 
-  async findLastUsageEventByMold(
-    tenantId: string,
-    productionMoldInstanceId: string
-  ): Promise<MoldUsageEventRecord | null> {
+  async findLastMoldUsageRecordByMold(tenantId: string, productionMoldId: string) {
     return cloneOrNull(
-      this.store.usageEvents
-        .filter((record) => record.tenantId === tenantId && record.productionMoldInstanceId === productionMoldInstanceId)
+      this.store.usageRecords
+        .filter((record) => record.tenantId === tenantId && record.productionMoldId === productionMoldId)
         .sort((left, right) => right.usedAt.localeCompare(left.usedAt))[0]
     )
   }
 
-  async saveMoldWarningEvent(record: MoldWarningEventRecord): Promise<MoldWarningEventRecord> {
-    const existingIndex = this.store.warningEvents.findIndex(
-      (candidate) => candidate.moldWarningEventId === record.moldWarningEventId
-    )
-    if (existingIndex >= 0) {
-      this.store.warningEvents[existingIndex] = clone(record)
-    } else {
-      this.store.warningEvents.push(clone(record))
-    }
+  async getMoldUsageHistory(input: GetMoldUsageHistoryInput) {
+    const entries = [
+      ...Array.from(this.store.toolingInstallations.values())
+        .filter((record) => record.tenantId === input.tenantId && record.toolingType === ToolingType.MOLD && record.toolingId === input.productionMoldId)
+        .filter((record) => (!input.orgId || sameOrg(record.orgId, input.orgId)))
+        .flatMap<MoldUsageHistoryEntryRecord>((record) => [
+          {
+            entryType: MoldUsageHistoryEntryType.INSTALL,
+            happenedAt: record.installedAt,
+            productionMoldId: record.toolingId,
+            summary: `Tooling installed at ${record.workCenterRef.workCenterId}`,
+            auditRef: record.auditRef
+          },
+          ...(record.unmountedAt
+            ? [
+                {
+                  entryType: MoldUsageHistoryEntryType.UNMOUNT,
+                  happenedAt: record.unmountedAt,
+                  productionMoldId: record.toolingId,
+                  summary: 'Tooling unmounted',
+                  auditRef: record.auditRef
+                }
+              ]
+            : [])
+        ]),
+      ...this.store.movements
+        .filter((record) => record.tenantId === input.tenantId && record.toolingType === ToolingType.MOLD && record.toolingId === input.productionMoldId)
+        .filter((record) => (!input.orgId || sameOrg(record.orgId, input.orgId)))
+        .map<MoldUsageHistoryEntryRecord>((record) => ({
+          entryType: MoldUsageHistoryEntryType.MOVE,
+          happenedAt: record.movedAt,
+          productionMoldId: record.toolingId,
+          summary: 'Tooling moved',
+          auditRef: record.auditRef
+        })),
+      ...Array.from(this.store.lifeCounters.values())
+        .filter((record) => record.tenantId === input.tenantId && record.productionMoldId === input.productionMoldId && !!record.lastAdjustedAt)
+        .filter((record) => (!input.orgId || sameOrg(record.orgId, input.orgId)))
+        .map<MoldUsageHistoryEntryRecord>((record) => ({
+          entryType: MoldUsageHistoryEntryType.LIFE_ADJUSTMENT,
+          happenedAt: record.lastAdjustedAt!,
+          productionMoldId: record.productionMoldId,
+          summary: 'Mold life counter adjusted',
+          auditRef: null
+        })),
+      ...Array.from(this.store.productionMolds.values())
+        .filter((record) => record.tenantId === input.tenantId && record.productionMoldId === input.productionMoldId && !!record.scrappedAt)
+        .filter((record) => (!input.orgId || sameOrg(record.orgId, input.orgId)))
+        .map<MoldUsageHistoryEntryRecord>((record) => ({
+          entryType: MoldUsageHistoryEntryType.SCRAP,
+          happenedAt: record.scrappedAt!,
+          productionMoldId: record.productionMoldId,
+          summary: 'Production mold scrapped',
+          auditRef: null
+        })),
+      ...this.store.usageRecords
+      .filter((record) => record.tenantId === input.tenantId && record.productionMoldId === input.productionMoldId)
+      .filter((record) => (!input.orgId || sameOrg(record.orgId, input.orgId)))
+      .map<MoldUsageHistoryEntryRecord>((record) => ({
+        entryType: MoldUsageHistoryEntryType.USAGE,
+        happenedAt: record.usedAt,
+        productionMoldId: record.productionMoldId,
+        summary: `Mold usage ${record.usageQuantity} ${record.lifeUnit}`,
+        auditRef: record.auditRef
+      }))
+    ]
+      .filter((entry) => (!input.from || entry.happenedAt >= input.from) && (!input.to || entry.happenedAt <= input.to))
+      .sort((left, right) => left.happenedAt.localeCompare(right.happenedAt))
+    const page = paginate(entries, input.page, input.pageSize)
+    return { entries: page.items, total: page.total, page: page.page, pageSize: page.pageSize }
+  }
+
+  async saveMoldLifeCounter(record: MoldLifeCounterRecord): Promise<MoldLifeCounterRecord> {
+    this.store.lifeCounters.set(record.moldLifeCounterId, clone(record))
     return clone(record)
   }
 
-  async findMoldWarningEventById(tenantId: string, moldWarningEventId: string): Promise<MoldWarningEventRecord | null> {
+  async findMoldLifeCounterById(tenantId: string, moldLifeCounterId: string) {
+    return cloneOrNull(matchTenant(this.store.lifeCounters.get(moldLifeCounterId), tenantId))
+  }
+
+  async findMoldLifeCounterByProductionMold(tenantId: string, productionMoldId: string) {
     return cloneOrNull(
-      this.store.warningEvents.find(
-        (record) => record.tenantId === tenantId && record.moldWarningEventId === moldWarningEventId
+      Array.from(this.store.lifeCounters.values()).find(
+        (record) => record.tenantId === tenantId && record.productionMoldId === productionMoldId
       )
     )
   }
 
-  async findOpenWarningByMoldAndType(
-    tenantId: string,
-    productionMoldInstanceId: string,
-    warningType: MoldWarningType
-  ): Promise<MoldWarningEventRecord | null> {
-    return cloneOrNull(
-      this.store.warningEvents.find(
-        (record) =>
-          record.tenantId === tenantId &&
-          record.productionMoldInstanceId === productionMoldInstanceId &&
-          record.warningType === warningType &&
-          record.status === MoldWarningStatus.OPEN
-      )
-    )
-  }
-
-  async findCurrentWarningByMold(
-    tenantId: string,
-    productionMoldInstanceId: string
-  ): Promise<MoldWarningEventRecord | null> {
-    return cloneOrNull(
-      this.store.warningEvents
-        .filter(
-          (record) =>
-            record.tenantId === tenantId &&
-            record.productionMoldInstanceId === productionMoldInstanceId &&
-            record.status === MoldWarningStatus.OPEN
-        )
-        .sort((left, right) => severityRank(right.warningLevel) - severityRank(left.warningLevel))[0]
-    )
-  }
-
-  async searchMoldWarnings(input: SearchMoldWarningsInput): Promise<PageResult<MoldWarningEventRecord>> {
-    const records = this.store.warningEvents
+  async listMoldLifeCounters(input: ListMoldLifeCountersInput) {
+    const records = Array.from(this.store.lifeCounters.values())
       .filter((record) => record.tenantId === input.tenantId && (!input.orgId || sameOrg(record.orgId, input.orgId)))
-      .filter((record) => !input.status || record.status === input.status)
-      .filter((record) => !input.warningType || record.warningType === input.warningType)
-      .filter((record) => !input.warningLevel || record.warningLevel === input.warningLevel)
-      .filter((record) => !input.raisedFrom || record.raisedAt >= input.raisedFrom)
-      .filter((record) => !input.raisedTo || record.raisedAt <= input.raisedTo)
-      .filter((record) => {
-        if (!input.moldDesignId && !input.workCenterId) {
-          return true
-        }
-        const instance = this.store.productionMoldInstances.get(record.productionMoldInstanceId)
-        return (
-          (!input.moldDesignId || instance?.moldDesignId === input.moldDesignId) &&
-          (!input.workCenterId || instance?.currentWorkCenterId === input.workCenterId)
-        )
-      })
-      .sort((left, right) => right.raisedAt.localeCompare(left.raisedAt))
-    return clone(paginate(records, input.page, input.pageSize))
+      .filter((record) => !input.productionMoldId || record.productionMoldId === input.productionMoldId)
+      .filter((record) => !input.warningLevel || deriveWarningLevel(record) === input.warningLevel)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    const page = paginate(records, input.page, input.pageSize)
+    return { counters: page.items, total: page.total, page: page.page, pageSize: page.pageSize }
   }
 
-  async listWarningsByMold(tenantId: string, productionMoldInstanceId: string): Promise<MoldWarningEventRecord[]> {
-    return clone(
-      this.store.warningEvents.filter(
-        (record) => record.tenantId === tenantId && record.productionMoldInstanceId === productionMoldInstanceId
-      )
-    )
+  async printDailyMoldChecklist(input: PrintDailyMoldChecklistInput): Promise<DailyMoldChecklistRecord> {
+    return {
+      checklistDate: input.checklistDate,
+      workCenterId: input.workCenterId,
+      items: (await this.listCurrentMoldsByWorkCenter(input)).items
+    }
   }
 
   async appendAuditEnvelope(record: MesAuditEnvelopeRecord): Promise<MesAuditEnvelopeRecord> {
@@ -430,9 +380,7 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
     return clone(record)
   }
 
-  async saveCommandIdempotencyRecord(
-    record: MesCommandIdempotencyRecord
-  ): Promise<MesCommandIdempotencyRecord> {
+  async saveCommandIdempotencyRecord(record: MesCommandIdempotencyRecord): Promise<MesCommandIdempotencyRecord> {
     const key = idempotencyKey(record.tenantId, record.commandId)
     const existing = this.store.commandIdempotencyRecords.get(key)
     const saved = existing && existing.mesCommandIdempotencyId !== record.mesCommandIdempotencyId ? existing : record
@@ -440,54 +388,116 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
     return clone(saved)
   }
 
-  async findCommandIdempotencyRecord(
-    tenantId: string,
-    commandId: string
-  ): Promise<MesCommandIdempotencyRecord | null> {
+  async findCommandIdempotencyRecord(tenantId: string, commandId: string): Promise<MesCommandIdempotencyRecord | null> {
     return cloneOrNull(this.store.commandIdempotencyRecords.get(idempotencyKey(tenantId, commandId)))
+  }
+
+  /** toProductionMoldSummary enriches one production mold with design and counter summaries. */
+  private toProductionMoldSummary(record: ProductionMoldRecord): ProductionMoldSummaryRecord {
+    const design = this.store.moldDesigns.get(record.moldDesignId)
+    const counter = Array.from(this.store.lifeCounters.values()).find((candidate) => candidate.productionMoldId === record.productionMoldId)
+    return {
+      productionMoldId: record.productionMoldId,
+      moldCode: record.moldCode,
+      moldDesignSummary: design ? toMoldDesignSummary(design) : {
+        moldDesignId: record.moldDesignId,
+        designCode: '',
+        name: '',
+        revisionCode: null,
+        status: 'INACTIVE' as MoldDesignSummaryRecord['status']
+      },
+      currentStatus: record.currentStatus as ProductionMoldStatus,
+      currentPlacementSummary: record.currentInstallationSummary
+        ? {
+            placementType: record.currentInstallationSummary.workUnitRef ? ToolingPlacementType.WORK_UNIT : ToolingPlacementType.WORK_CENTER,
+            workCenterRef: record.currentInstallationSummary.workCenterRef,
+            workUnitRef: record.currentInstallationSummary.workUnitRef ?? null,
+            toolingInstallationId: record.currentInstallationSummary.toolingInstallationId,
+            moldInstallationDetail: record.currentInstallationSummary.moldDetail ?? null
+          }
+        : record.currentCarrierResourceRef
+          ? { placementType: ToolingPlacementType.CARRIER_RESOURCE, carrierResourceRef: record.currentCarrierResourceRef }
+          : { placementType: ToolingPlacementType.STORAGE_RESOURCE, storageResourceRef: record.currentStorageResourceRef ?? null },
+      lifeCounterSummary: counter ? toMoldLifeCounterSummary(counter) : record.lifeCounterSummary ?? null
+    }
   }
 }
 
-function idempotencyKey(tenantId: string, commandId: string): string {
-  return `${tenantId}:${commandId}`
+/** toMoldDesignSummary projects one design into a list/query summary row. */
+function toMoldDesignSummary(record: MoldDesignRecord): MoldDesignSummaryRecord {
+  return {
+    moldDesignId: record.moldDesignId,
+    designCode: record.designCode,
+    name: record.name,
+    revisionCode: record.revisionCode ?? null,
+    status: record.status
+  }
 }
 
+/** toMoldLifeCounterSummary projects one counter into a mold summary shape. */
+function toMoldLifeCounterSummary(record: MoldLifeCounterRecord) {
+  const remainingValue =
+    record.limitValue === null || record.limitValue === undefined
+      ? null
+      : (Number(record.limitValue) - Number(record.usedValue)).toString()
+  return {
+    moldLifeCounterId: record.moldLifeCounterId,
+    lifeUnit: record.lifeUnit,
+    usedValue: record.usedValue,
+    limitValue: record.limitValue ?? null,
+    warningThresholdValue: record.warningThresholdValue ?? null,
+    remainingValue,
+    warningLevel: deriveWarningLevel(record),
+    lastUsageRecordId: record.lastUsageRecordId ?? null,
+    lastAdjustedAt: record.lastAdjustedAt ?? null
+  }
+}
+
+/** deriveWarningLevel computes the read-side warning bucket from the counter thresholds. */
+function deriveWarningLevel(record: MoldLifeCounterRecord): MoldWarningLevel {
+  const used = Number(record.usedValue)
+  const limit = record.limitValue === null || record.limitValue === undefined ? Number.NaN : Number(record.limitValue)
+  const threshold = record.warningThresholdValue === null || record.warningThresholdValue === undefined ? Number.NaN : Number(record.warningThresholdValue)
+  if (Number.isFinite(limit) && used >= limit) {
+    return MoldWarningLevel.CRITICAL
+  }
+  if (Number.isFinite(threshold) && used >= threshold) {
+    return MoldWarningLevel.WARNING
+  }
+  return MoldWarningLevel.INFO
+}
+
+/** snapshotStore copies the in-memory store so command transactions can roll back failed writes. */
 function snapshotStore(store: MesInMemoryStore): MesInMemoryStoreSnapshot {
   return {
     moldDesigns: clone(Array.from(store.moldDesigns.entries())),
     masterMolds: clone(Array.from(store.masterMolds.entries())),
-    productionMoldInstances: clone(Array.from(store.productionMoldInstances.entries())),
-    mesLocations: clone(Array.from(store.mesLocations.entries())),
-    workCenters: clone(Array.from(store.workCenters.entries())),
-    resourcePositions: clone(Array.from(store.resourcePositions.entries())),
+    productionMolds: clone(Array.from(store.productionMolds.entries())),
     lifeCounters: clone(Array.from(store.lifeCounters.entries())),
-    movementEvents: clone(store.movementEvents),
-    installations: clone(Array.from(store.installations.entries())),
-    usageEvents: clone(store.usageEvents),
-    warningEvents: clone(store.warningEvents),
+    movements: clone(store.movements),
+    toolingInstallations: clone(Array.from(store.toolingInstallations.entries())),
+    usageRecords: clone(store.usageRecords),
     auditEnvelopes: clone(store.auditEnvelopes),
     outboxEvents: clone(store.outboxEvents),
     commandIdempotencyRecords: clone(Array.from(store.commandIdempotencyRecords.entries()))
   }
 }
 
+/** restoreStore restores a transaction snapshot after an in-memory command failure. */
 function restoreStore(store: MesInMemoryStore, snapshot: MesInMemoryStoreSnapshot): void {
   restoreMap(store.moldDesigns, snapshot.moldDesigns)
   restoreMap(store.masterMolds, snapshot.masterMolds)
-  restoreMap(store.productionMoldInstances, snapshot.productionMoldInstances)
-  restoreMap(store.mesLocations, snapshot.mesLocations)
-  restoreMap(store.workCenters, snapshot.workCenters)
-  restoreMap(store.resourcePositions, snapshot.resourcePositions)
+  restoreMap(store.productionMolds, snapshot.productionMolds)
   restoreMap(store.lifeCounters, snapshot.lifeCounters)
-  restoreArray(store.movementEvents, snapshot.movementEvents)
-  restoreMap(store.installations, snapshot.installations)
-  restoreArray(store.usageEvents, snapshot.usageEvents)
-  restoreArray(store.warningEvents, snapshot.warningEvents)
+  restoreArray(store.movements, snapshot.movements)
+  restoreMap(store.toolingInstallations, snapshot.toolingInstallations)
+  restoreArray(store.usageRecords, snapshot.usageRecords)
   restoreArray(store.auditEnvelopes, snapshot.auditEnvelopes)
   restoreArray(store.outboxEvents, snapshot.outboxEvents)
   restoreMap(store.commandIdempotencyRecords, snapshot.commandIdempotencyRecords)
 }
 
+/** restoreMap replaces a target map with cloned snapshot entries. */
 function restoreMap<K, V>(target: Map<K, V>, entries: Array<[K, V]>): void {
   target.clear()
   for (const [key, value] of entries) {
@@ -495,26 +505,38 @@ function restoreMap<K, V>(target: Map<K, V>, entries: Array<[K, V]>): void {
   }
 }
 
+/** restoreArray replaces a target array with cloned snapshot values. */
 function restoreArray<T>(target: T[], values: T[]): void {
   target.splice(0, target.length, ...clone(values))
 }
 
+/** idempotencyKey scopes command replay records to one tenant boundary. */
+function idempotencyKey(tenantId: string, commandId: string): string {
+  return `${tenantId}:${commandId}`
+}
+
+/** sameOrg compares optional organization scopes using null as the canonical empty scope. */
 function sameOrg(recordOrgId: string | null | undefined, orgId: string | null | undefined): boolean {
   return (recordOrgId ?? null) === (orgId ?? null)
 }
 
+/** matchTenant returns a record only when it belongs to the requested tenant. */
 function matchTenant<T extends { tenantId: string }>(record: T | undefined, tenantId: string): T | null {
   return record && record.tenantId === tenantId ? record : null
 }
 
-function severityRank(level: string): number {
-  return level === 'CRITICAL' ? 3 : level === 'WARNING' ? 2 : level === 'INFO' ? 1 : 0
+/** paginate slices an already sorted in-memory result set. */
+function paginate<T>(items: T[], page: number, pageSize: number) {
+  const start = (page - 1) * pageSize
+  return { items: items.slice(start, start + pageSize), total: items.length, page, pageSize }
 }
 
+/** clone creates a JSON-safe copy of an in-memory record. */
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
+/** cloneOrNull creates a JSON-safe copy while preserving null empty results. */
 function cloneOrNull<T>(value: T | null | undefined): T | null {
   return value ? clone(value) : null
 }
@@ -522,15 +544,11 @@ function cloneOrNull<T>(value: T | null | undefined): T | null {
 interface MesInMemoryStoreSnapshot {
   moldDesigns: Array<[string, MoldDesignRecord]>
   masterMolds: Array<[string, MasterMoldRecord]>
-  productionMoldInstances: Array<[string, ProductionMoldInstanceRecord]>
-  mesLocations: Array<[string, MesLocationRecord]>
-  workCenters: Array<[string, WorkCenterRecord]>
-  resourcePositions: Array<[string, ResourcePositionRecord]>
+  productionMolds: Array<[string, ProductionMoldRecord]>
   lifeCounters: Array<[string, MoldLifeCounterRecord]>
-  movementEvents: MoldMovementEventRecord[]
-  installations: Array<[string, MoldInstallationRecord]>
-  usageEvents: MoldUsageEventRecord[]
-  warningEvents: MoldWarningEventRecord[]
+  movements: MoldMovementRecord[]
+  toolingInstallations: Array<[string, ToolingInstallationRecord]>
+  usageRecords: MoldUsageRecord[]
   auditEnvelopes: MesAuditEnvelopeRecord[]
   outboxEvents: MesOutboxEventRecord[]
   commandIdempotencyRecords: Array<[string, MesCommandIdempotencyRecord]>

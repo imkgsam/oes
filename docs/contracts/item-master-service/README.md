@@ -1,164 +1,107 @@
-# item-master-service Contracts
+# item-master-service Contract V2
 
-## 1. 目的
+## 1. Purpose
 
-本目录用于冻结 `item-master-service` phase 1 的黑盒契约文档。
+本目录冻结 `item-master-service` Contract V2 的黑盒契约语义。
 
-这些文档面向：
+Contract V2 以上游稳定真相源为准：
 
-- `sales-service`
-- future `procurement-service`
-- `mes-service`
-- `wms-service`
-- `srm-service`
-- 后续承担 `item-master-service` proto / runtime 实现的线程
+- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
 
-这些文档不是 proto 副本，不展开数据库结构，不承诺运行时实现细节。
+本目录只定义 `item-master-service` 自身 contract，不定义 Sales、MES、WMS、SRM、Procurement 的领域对象、contract 或 runtime 行为。
 
-本目录只回写已经冻结的 `IM-CONTRACT` 结论。
+## 2. Contract Boundary
 
-## 2. Current Contract Surface
+Contract V2 覆盖以下 item-master 主数据：
 
-当前 contract 由两部分组成：
-
-- phase 1 foundation：
-  - `Item`
-  - `ItemCapability`
-  - `ItemComposition`
-  - `SupplierItemMapping`
-- next minimal contract slice：
-  - `ItemCategory`
-  - category-aware `SearchItems`
-
-当前只冻结两组内部 gRPC 服务面：
-
-- [query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/query.md)
-  - `ItemMasterQueryService`
-  - `GetItem`
-  - `BatchGetItems`
-  - `SearchItems`
-  - `ListItemCategories`
-  - `GetItemComposition`
-  - `ListSupplierItemMappingsByItem`
-  - `ResolveSupplierItemMapping`
-- [management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/management.md)
-  - `ItemMasterManagementService`
-  - `CreateItem`
-  - `UpdateItemBasics`
-  - `SetItemCapabilities`
-  - `SetItemComposition`
-  - `UpsertSupplierItemMapping`
-  - `ChangeItemStatus`
-  - `CreateItemCategory`
-  - `UpdateItemCategoryBasics`
-  - `ChangeItemCategoryStatus`
-  - `SetItemPrimaryCategory`
-
-phase 1 不在本目录中冻结：
-
-- proto message 全量定义
-- integration events
-- 外部 API surface
-- UI / BFF contract
-
-## 3. Owner Boundary
-
-phase 1 contract 明确围绕以下 owner 边界展开：
-
+- `ItemModel`
+- `AttributeDefinition`
+- `AttributeOption`
+- `ItemModelAttributeRule`
 - `Item`
-- `ItemCapability`
-- `ItemComposition`
-- `SupplierItemMapping`
+- `Item.capabilities`
 - `ItemCategory`
+- `PackagingMethod`
+- `PackagingSpec`
+- `BOM`
+- `BOMLine`
+- `SupplierItemMapping`
 
-说明：
+Contract V2 只承载当前稳定对象与字段语义，不在本目录保留历史 contract 对照。
 
-- `ItemCategory` 仍归 `item-master-service`，不改变现有 item-master phase 1 owner boundary
-- `ItemCategory` 只冻结为 tenant-scoped 轻量树
-- phase 1 + 当前 slice 中，每个 `Item` 只允许 `0..1` 个 `primary category`
-- `ItemCategory` 只用于目录浏览、搜索收窄、列表展示与轻量统计分组
-- `ItemCategory` 不承载权限、定价、采购商业策略、库存策略、包装或制造规则
-- `BFF` / 各业务域可以包装 selector 预设，但 item truth 仍归 `item-master-service` query contract
-- 当前 slice 不新增 `SearchSellableItems`、`SearchPurchasableItems`、`SearchStockableItems` 这类 domain-specific selector RPC
+## 3. Service Surface
 
-## 4. Does Not Own
+Contract V2 仍使用两个内部 gRPC service 作为服务面分组：
 
-`item-master-service` phase 1 contract 明确不承载以下真相：
+- `ItemMasterQueryService`
+- `ItemMasterManagementService`
 
-- 销售价格、销售配置、报价、订单
-- 采购价格、MOQ、账期、lead time、供应表现
-- `ManufacturingSpec`、route、WIP、process
-- `StockItemType`、`InventoryItem`、`StockLot`、`PackageUnit`、`FulfillmentSet`
-- `Supplier`、`SupplierContact`
-- brand tree
-- packaging tree
-- manufacturing tree
-- stock type tree
-- `PackagingOption`、`PackageSpec`、`PackagingBOM`
-- `PIM / PLM`
+## 4. Documents
 
-`SupplierItemMapping` 只表达：
+- [item-model.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/item-model.md)
+- [attribute.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/attribute.md)
+- [item.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/item.md)
+- [category.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/category.md)
+- [packaging.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/packaging.md)
+- [bom.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/bom.md)
+- [supplier-item-mapping.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/item-master-service/supplier-item-mapping.md)
 
-- `supplierId + supplierItemCode / supplierItemName -> itemId`
+## 5. Security And Context Baseline
 
-它不是采购主档、SRM 关系档案或供应表现载体。
+所有 V2 RPC 统一遵循以下基线：
 
-## 5. Security / Context Baseline
-
-所有 phase 1 RPC 统一遵循以下基线：
-
-- 全部为内部 gRPC 契约，不直接对外部客户端开放
-- 所有 RPC 显式携带 `tenant_id`
+- 全部为内部 gRPC 契约，不直接对外部客户端开放。
+- 所有 RPC 显式携带 `tenant_id`。
 - 所有 RPC 都要求：
   - internal service context
   - operator context
   - trace context
-- management RPC 必须走 command 语义，不得按 query 方式滥用
-- phase 1 不冻结 integration events，只要求命令链路具备本地 `audit envelope`
+- management RPC 必须走 command 语义，不得按 query 方式滥用。
+- query RPC 不修改状态。
+- management RPC 必须进入本地 audit envelope。
 
-本目录只冻结“必须可观察到的上下文与行为边界”，不展开具体 metadata header、guard 组件或 tracing 实现。
+本目录不展开 metadata header、guard、tracing、审计表结构或 event bridge 实现。
 
-## 6. Category Slice Baseline
+## 6. Shared Lifecycle
 
-当前新增的最小 category slice 只承诺以下黑盒行为：
+第一阶段统一使用简单 active / archived 语义：
 
-- `ListItemCategories` 提供 tenant 内轻量分类树读取
-- `SearchItems` 支持 `category_id?` 与 `include_descendants?`
-- `Item` 读取 shape 可返回 `primary_category_summary?`
-- `CreateItemCategory` / `UpdateItemCategoryBasics` / `ChangeItemCategoryStatus` 只维护 category 自身基础真相
-- `SetItemPrimaryCategory` 只维护 `Item -> primary category` 的单值关联
+- `active = true` 表示可用于新业务。
+- `active = false` 表示归档，不再用于新业务。
+- 归档不删除历史，不影响已有订单、库存历史、生产历史、采购历史或审计记录。
+- 停用 `ItemModel` 不自动停用其下所有 `Item`。
 
-当前 slice 明确不承诺：
+执行入口至少校验：
 
-- category 继承业务规则
-- category 驱动权限、定价、采购、库存、包装、制造策略
-- category 专用外部 API / UI contract
-- 面向销售、采购、库存、制造的 domain-specific selector RPC
+```text
+Item.active = true
++ required Item.capability = true
+```
 
-## 7. Deferred
+## 7. Shared Error Semantics
 
-以下能力明确 deferred，不得写成 phase 1 已承诺 contract：
+| 错误码 | 语义 |
+| --- | --- |
+| `INVALID_ARGUMENT` | 请求字段缺失、格式非法、查询条件互相冲突，或传入超出当前 contract 的字段语义。 |
+| `UNAUTHENTICATED` | 缺少有效 internal service context 或 operator context。 |
+| `PERMISSION_DENIED` | 调用方存在上下文，但没有读写该 tenant 下目标资源的权限。 |
+| `NOT_FOUND` | 单对象读取目标不存在，或命令引用的目标资源不存在。 |
+| `ALREADY_EXISTS` | 创建或更新时违反 tenant 内唯一性约束。 |
+| `FAILED_PRECONDITION` | 资源存在，但当前状态、active 标记、capability、BOM 类型或引用关系不满足业务前提。 |
 
-- multi-category
-- category inheritance
-- category-based permission / pricing / procurement / inventory policy
-- brand tree
-- packaging tree
-- manufacturing tree
-- stock type tree
-- `PackagingOption`
-- `PackageSpec`
-- `PackagingBOM`
-- `ManufacturingSpec`
-- `StockItemType`
-- `SalesConfig`
-- integration events
-- `PIM / PLM`
+空搜索、空列表、批量读取的部分缺失、供应商型号未命中，必须走正常响应语义，不能用错误码替代。
 
-## 8. 关联真相源
+## 8. Deferred
 
-本目录以上游稳定文档为准：
+以下能力已识别，但不进入 Contract V2 第一阶段：
 
-- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
-- [item-master-service-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/item-master-service-foundation.md)
-- [item-master-sales-mes-wms-srm.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/item-master-sales-mes-wms-srm.md)
+- `traceable` capability
+- `kittable` capability
+- `consumable` capability
+- `AttributeCombinationRule`
+- 虚拟套装 / kit 销售展开
+- 复杂替代料
+- 可选 BOM 行
+- `Item` 级 category override / secondary category
+- integration event catalog
+- 外部 HTTP / BFF / UI contract

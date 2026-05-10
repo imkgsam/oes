@@ -314,7 +314,6 @@ WMS 在这些场景中负责：
 - 下次继续前先读：
   - `docs/architecture/02-bounded-contexts.md`
   - `docs/architecture/services/mes-service.md`
-  - `docs/plans/designs/mes-service-design.md`
   - `docs/plans/designs/scan-identity-design.md`
   - 本文档
 - 当前推荐下一步：

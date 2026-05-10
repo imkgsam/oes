@@ -85,4 +85,31 @@ describe('RequestLoggerMiddleware', () => {
     expect(logger.warn).toHaveBeenCalled()
     expect(logger.error).toHaveBeenCalled()
   })
+
+  it('should attach a generated request id to the request when the client omits one', () => {
+    const logger = {
+      info: jest.fn(),
+      warn: jest.fn(),
+      error: jest.fn()
+    } as any
+    const middleware = new RequestLoggerMiddleware(logger)
+    const next = jest.fn()
+    const response = new EventEmitter() as EventEmitter & { statusCode: number }
+    response.statusCode = 200
+    const request = {
+      method: 'GET',
+      originalUrl: '/api/v1/item-management/tenants/tenant-1/items',
+      ip: '127.0.0.1',
+      headers: {} as Record<string, string>,
+      get(name: string) {
+        return this.headers[name.toLowerCase()]
+      }
+    }
+
+    middleware.use(request as any, response as any, next)
+
+    expect(request.headers['x-request-id']).toEqual(expect.any(String))
+    expect(request.headers['x-request-id']).not.toHaveLength(0)
+    expect(next).toHaveBeenCalled()
+  })
 })

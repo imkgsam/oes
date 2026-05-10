@@ -1,1 +1,0 @@
-{"version":3,"file":"list-warehouses.query.js","sourceRoot":"","sources":["../../../src/application/queries/list-warehouses.query.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,qDAAuC;AAGvC,mFAAmF;AACnF,MAAa,mBAAmB;IAI9B,YAAY,OAA8B;QACxC,IAAI,CAAC,OAAO,GAAG,OAAO,CAAA;IACxB,CAAC;CACF;AAPD,kDAOC;AALiB;IADf,IAAA,uBAAK,GAAE;;oDACsC"}

@@ -8,287 +8,271 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model ManufacturingSpec {
-  id                       String   @id @db.VarChar(128)
-  tenantId                 String   @db.VarChar(128)
-  orgId                    String?  @db.VarChar(128)
-  specCode                 String   @db.VarChar(128)
-  name                     String   @db.VarChar(255)
-  revisionCode             String?  @db.VarChar(128)
-  supersedesSpecId         String?  @db.VarChar(128)
-  productFamilyRef         Json
-  itemRef                  Json
-  manufacturingAttributes  Json
-  routeIntentRef           Json?
-  status                   String   @db.VarChar(64)
-  effectiveFrom            String?  @db.VarChar(64)
-  effectiveTo              String?  @db.VarChar(64)
-  retiredAt                String?  @db.VarChar(64)
-  replacementSpecId        String?  @db.VarChar(128)
-  createdAt                DateTime
-  updatedAt                DateTime
-  version                  Int
+model ProductionSpec {
+  id                            String   @id @db.VarChar(128)
+  tenantId                      String   @db.VarChar(128)
+  orgId                         String?  @db.VarChar(128)
+  orgScope                      String   @default("") @db.VarChar(128)
+  specCode                      String   @db.VarChar(128)
+  name                          String   @db.VarChar(255)
+  revisionCode                  String?  @db.VarChar(128)
+  supersedesProductionSpecId    String?  @db.VarChar(128)
+  itemRef                       Json
+  status                        String   @db.VarChar(64)
+  effectiveFrom                 String?  @db.VarChar(64)
+  effectiveTo                   String?  @db.VarChar(64)
+  retiredAt                     String?  @db.VarChar(64)
+  replacementProductionSpecId   String?  @db.VarChar(128)
+  createdAt                     DateTime
+  updatedAt                     DateTime
+  version                       Int
 
-  @@unique([tenantId, orgId, specCode])
+  @@unique([tenantId, orgScope, specCode])
   @@index([tenantId, orgId, status])
   @@index([tenantId, specCode])
 }
 
 model MoldDesign {
-  id                    String             @id @db.VarChar(128)
-  tenantId              String             @db.VarChar(128)
-  orgId                 String?            @db.VarChar(128)
-  designCode            String             @db.VarChar(128)
-  name                  String             @db.VarChar(255)
-  revisionCode          String?            @db.VarChar(128)
-  supersedesDesignId    String?            @db.VarChar(128)
-  productFamilyRef      Json
-  manufacturingSpecRefs Json
-  itemRef               Json?
-  materialType          String             @db.VarChar(128)
-  functionRole          String             @db.VarChar(64)
-  productionMethodTags  String[]
-  outputStructureType   String             @db.VarChar(64)
-  defaultLifeLimit      String?            @db.VarChar(64)
-  defaultLifeUnit       String?            @db.VarChar(64)
-  status                String             @db.VarChar(64)
-  createdAt             DateTime
-  updatedAt             DateTime
-  outputs               MoldDesignOutput[]
+  id                       String             @id @db.VarChar(128)
+  tenantId                 String             @db.VarChar(128)
+  orgId                    String?            @db.VarChar(128)
+  orgScope                 String             @default("") @db.VarChar(128)
+  designCode               String             @db.VarChar(128)
+  name                     String             @db.VarChar(255)
+  revisionCode             String?            @db.VarChar(128)
+  supersedesMoldDesignId   String?            @db.VarChar(128)
+  itemRef                  Json?
+  productionSpecRefs       Json
+  materialType             String             @db.VarChar(128)
+  functionRole             String             @db.VarChar(64)
+  productionMethodTags     String[]
+  outputStructureType      String             @db.VarChar(64)
+  defaultLifeLimit         String?            @db.VarChar(64)
+  defaultLifeUnit          String?            @db.VarChar(64)
+  status                   String             @db.VarChar(64)
+  createdAt                DateTime
+  updatedAt                DateTime
+  outputs                  MoldDesignOutput[]
 
-  @@unique([tenantId, orgId, designCode])
+  @@unique([tenantId, orgScope, designCode])
   @@index([tenantId, orgId, status])
 }
 
 model MoldDesignOutput {
-  id                   String     @id @db.VarChar(128)
-  tenantId             String     @db.VarChar(128)
-  orgId                String?    @db.VarChar(128)
-  moldDesignId         String     @db.VarChar(128)
-  sequenceNo           Int
-  outputCode           String     @db.VarChar(128)
-  outputKind           String     @db.VarChar(64)
-  productFamilyRef     Json?
-  manufacturingSpecRef Json?
-  options              Json
-  quantityPerUse       String     @db.VarChar(64)
-  componentRole        String?    @db.VarChar(128)
-  assemblyHint         String?    @db.VarChar(255)
-  isPrimaryOutput      Boolean
-  moldDesign           MoldDesign @relation(fields: [moldDesignId], references: [id], onDelete: Cascade)
+  id             String     @id @db.VarChar(128)
+  tenantId       String     @db.VarChar(128)
+  orgId          String?    @db.VarChar(128)
+  moldDesignId   String     @db.VarChar(128)
+  sequenceNo     Int
+  outputCode     String     @db.VarChar(128)
+  outputKind     String     @db.VarChar(64)
+  productionSpecRef Json?
+  quantityPerUse String     @db.VarChar(64)
+  componentRole  String?    @db.VarChar(128)
+  assemblyHint   String?    @db.VarChar(255)
+  isPrimaryOutput Boolean
+  options        Json
+  moldDesign     MoldDesign @relation(fields: [moldDesignId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, moldDesignId])
 }
 
 model MasterMold {
-  id                   String   @id @db.VarChar(128)
-  tenantId             String   @db.VarChar(128)
-  orgId                String?  @db.VarChar(128)
-  masterMoldCode       String   @db.VarChar(128)
-  moldDesignId         String   @db.VarChar(128)
-  supplierRef          Json?
-  purchaseRef          Json?
-  receivedAt           String?  @db.VarChar(64)
-  currentStatus        String   @db.VarChar(64)
-  currentMesLocationId String?  @db.VarChar(128)
-  qualitySummary       String?  @db.VarChar(1000)
-  notes                String?  @db.VarChar(1000)
-  scrappedAt           String?  @db.VarChar(64)
-  createdAt            DateTime
-  updatedAt            DateTime
-
-  @@unique([tenantId, orgId, masterMoldCode])
-  @@index([tenantId, moldDesignId])
-}
-
-model ProductionMoldInstance {
   id                        String   @id @db.VarChar(128)
   tenantId                  String   @db.VarChar(128)
   orgId                     String?  @db.VarChar(128)
-  moldInstanceCode          String   @db.VarChar(128)
+  orgScope                  String   @default("") @db.VarChar(128)
+  masterMoldCode            String   @db.VarChar(128)
   moldDesignId              String   @db.VarChar(128)
-  masterMoldId              String?  @db.VarChar(128)
   supplierRef               Json?
   purchaseRef               Json?
   receivedAt                String?  @db.VarChar(64)
-  acceptedAt                String?  @db.VarChar(64)
   currentStatus             String   @db.VarChar(64)
-  currentMesLocationId      String?  @db.VarChar(128)
-  currentWorkCenterId       String?  @db.VarChar(128)
-  currentResourcePositionId String?  @db.VarChar(128)
-  currentInstallationId     String?  @db.VarChar(128)
-  lifeUsedValue             String   @db.VarChar(64)
-  lifeLimitValue            String   @db.VarChar(64)
-  lifeUnit                  String   @db.VarChar(64)
-  warningLevel              String   @db.VarChar(64)
-  scrappedAt                String?  @db.VarChar(64)
+  currentStorageResourceRef Json?
+  currentCarrierResourceRef Json?
+  qualitySummary            String?  @db.VarChar(1000)
+  notes                     String?  @db.VarChar(1000)
   createdAt                 DateTime
   updatedAt                 DateTime
 
-  @@unique([tenantId, orgId, moldInstanceCode])
+  @@unique([tenantId, orgScope, masterMoldCode])
+  @@index([tenantId, moldDesignId])
+}
+
+model ProductionMold {
+  id                         String   @id @db.VarChar(128)
+  tenantId                   String   @db.VarChar(128)
+  orgId                      String?  @db.VarChar(128)
+  orgScope                   String   @default("") @db.VarChar(128)
+  moldCode                   String   @db.VarChar(128)
+  moldDesignId               String   @db.VarChar(128)
+  sourceMasterMoldId         String?  @db.VarChar(128)
+  supplierRef                Json?
+  purchaseRef                Json?
+  receivedAt                 String?  @db.VarChar(64)
+  acceptedAt                 String?  @db.VarChar(64)
+  currentStatus              String   @db.VarChar(64)
+  currentStorageResourceRef  Json?
+  currentCarrierResourceRef  Json?
+  currentInstallationSummary Json?
+  lifeCounterSummary         Json?
+  scrappedAt                 String?  @db.VarChar(64)
+  createdAt                  DateTime
+  updatedAt                  DateTime
+
+  @@unique([tenantId, orgScope, moldCode])
   @@index([tenantId, moldDesignId, currentStatus])
 }
 
-model MesLocation {
-  id                  String   @id @db.VarChar(128)
-  tenantId            String   @db.VarChar(128)
-  orgId               String?  @db.VarChar(128)
-  locationCode        String   @db.VarChar(128)
-  name                String   @db.VarChar(255)
-  locationType        String   @db.VarChar(128)
-  parentLocationId    String?  @db.VarChar(128)
-  relatedWorkCenterId String?  @db.VarChar(128)
-  capacityProfileId   String?  @db.VarChar(128)
-  status              String   @db.VarChar(64)
-  createdAt           DateTime
-  updatedAt           DateTime
+model StorageResource {
+  id           String   @id @db.VarChar(128)
+  tenantId     String   @db.VarChar(128)
+  orgId        String?  @db.VarChar(128)
+  orgScope     String   @default("") @db.VarChar(128)
+  resourceCode String   @db.VarChar(128)
+  name         String   @db.VarChar(255)
+  status       String   @db.VarChar(64)
+  createdAt    DateTime
+  updatedAt    DateTime
 
-  @@unique([tenantId, orgId, locationCode])
+  @@unique([tenantId, orgScope, resourceCode])
+  @@index([tenantId, orgId, status])
+}
+
+model CarrierResource {
+  id           String   @id @db.VarChar(128)
+  tenantId     String   @db.VarChar(128)
+  orgId        String?  @db.VarChar(128)
+  orgScope     String   @default("") @db.VarChar(128)
+  resourceCode String   @db.VarChar(128)
+  name         String   @db.VarChar(255)
+  status       String   @db.VarChar(64)
+  createdAt    DateTime
+  updatedAt    DateTime
+
+  @@unique([tenantId, orgScope, resourceCode])
   @@index([tenantId, orgId, status])
 }
 
 model WorkCenter {
-  id                   String   @id @db.VarChar(128)
-  tenantId             String   @db.VarChar(128)
-  orgId                String?  @db.VarChar(128)
-  workCenterCode       String   @db.VarChar(128)
-  name                 String   @db.VarChar(255)
-  workCenterType       String   @db.VarChar(128)
-  parentWorkCenterId   String?  @db.VarChar(128)
-  relatedMesLocationId String?  @db.VarChar(128)
-  capacityProfileId    String?  @db.VarChar(128)
-  status               String   @db.VarChar(64)
-  createdAt            DateTime
-  updatedAt            DateTime
+  id             String   @id @db.VarChar(128)
+  tenantId       String   @db.VarChar(128)
+  orgId          String?  @db.VarChar(128)
+  orgScope       String   @default("") @db.VarChar(128)
+  workCenterCode String   @db.VarChar(128)
+  name           String   @db.VarChar(255)
+  workCenterType String?  @db.VarChar(128)
+  areaId         String?  @db.VarChar(128)
+  status         String   @db.VarChar(64)
+  createdAt      DateTime
+  updatedAt      DateTime
 
-  @@unique([tenantId, orgId, workCenterCode])
+  @@unique([tenantId, orgScope, workCenterCode])
   @@index([tenantId, orgId, status])
 }
 
-model ResourcePosition {
-  id                       String   @id @db.VarChar(128)
-  tenantId                 String   @db.VarChar(128)
-  orgId                    String?  @db.VarChar(128)
-  workCenterId             String   @db.VarChar(128)
-  positionCode             String   @db.VarChar(128)
-  name                     String   @db.VarChar(255)
-  positionType             String   @db.VarChar(128)
-  compatibleMoldDesignRefs String[]
-  status                   String   @db.VarChar(64)
-  createdAt                DateTime
-  updatedAt                DateTime
+model WorkUnit {
+  id           String   @id @db.VarChar(128)
+  tenantId     String   @db.VarChar(128)
+  orgId        String?  @db.VarChar(128)
+  workCenterId String   @db.VarChar(128)
+  workUnitCode String   @db.VarChar(128)
+  name         String   @db.VarChar(255)
+  status       String   @db.VarChar(64)
+  createdAt    DateTime
+  updatedAt    DateTime
 
-  @@unique([tenantId, workCenterId, positionCode])
+  @@unique([tenantId, workCenterId, workUnitCode])
   @@index([tenantId, workCenterId, status])
 }
 
-model MoldMovementEvent {
-  id                 String   @id @db.VarChar(128)
-  tenantId           String   @db.VarChar(128)
-  orgId              String?  @db.VarChar(128)
-  moldResourceType   String   @db.VarChar(64)
-  moldResourceId     String   @db.VarChar(128)
-  fromMesLocationId  String?  @db.VarChar(128)
-  toMesLocationId    String   @db.VarChar(128)
-  movementReason     String   @db.VarChar(500)
-  movedAt            DateTime
-  operatorRef        Json
-  sourceCommandId    String   @db.VarChar(128)
-  auditRef           Json
+model MoldMovement {
+  id                     String   @id @db.VarChar(128)
+  tenantId               String   @db.VarChar(128)
+  orgId                  String?  @db.VarChar(128)
+  toolingType            String   @db.VarChar(64)
+  toolingId              String   @db.VarChar(128)
+  fromStorageResourceRef Json?
+  fromCarrierResourceRef Json?
+  toStorageResourceRef   Json?
+  toCarrierResourceRef   Json?
+  movementReason         String?  @db.VarChar(500)
+  movedAt                DateTime
+  operatorRef            Json
+  auditRef               Json
 
-  @@index([tenantId, moldResourceType, moldResourceId, movedAt])
+  @@index([tenantId, toolingType, toolingId, movedAt])
 }
 
-model MoldInstallation {
+model ToolingInstallation {
+  id              String   @id @db.VarChar(128)
+  tenantId        String   @db.VarChar(128)
+  orgId           String?  @db.VarChar(128)
+  toolingType     String   @db.VarChar(64)
+  toolingId       String   @db.VarChar(128)
+  workCenterRef   Json
+  workUnitRef     Json?
+  installedAt     DateTime
+  unmountedAt     DateTime?
+  installedByRef  Json?
+  unmountedByRef  Json?
+  status          String   @db.VarChar(64)
+  auditRef        Json
+  moldDetail      MoldInstallationDetail?
+
+  @@index([tenantId, toolingType, toolingId, status])
+  @@index([tenantId, status])
+}
+
+model MoldInstallationDetail {
+  toolingInstallationId String              @id @db.VarChar(128)
+  moldPosition          String?             @db.VarChar(128)
+  cavityPosition        String?             @db.VarChar(128)
+  cavityMapping         String?             @db.VarChar(1000)
+  setupParameters       String?             @db.VarChar(1000)
+  toolingInstallation   ToolingInstallation @relation(fields: [toolingInstallationId], references: [id], onDelete: Cascade)
+}
+
+model MoldUsageRecord {
   id                       String   @id @db.VarChar(128)
   tenantId                 String   @db.VarChar(128)
   orgId                    String?  @db.VarChar(128)
-  productionMoldInstanceId String   @db.VarChar(128)
-  workCenterId             String   @db.VarChar(128)
-  resourcePositionId       String   @db.VarChar(128)
-  installedAt              DateTime
-  unmountedAt              DateTime?
-  installedByRef           Json
-  unmountedByRef           Json?
-  installationStatus       String   @db.VarChar(64)
-  setupSnapshot            String?  @db.VarChar(1000)
-  operationRef             Json?
-  routingRef               Json?
-  workOrderRef             Json?
-  operationTaskRef         Json?
-  auditRef                 Json
-
-  @@index([tenantId, productionMoldInstanceId, installationStatus])
-  @@index([tenantId, resourcePositionId, installationStatus])
-  @@index([tenantId, workCenterId, installationStatus])
-}
-
-model MoldUsageEvent {
-  id                       String   @id @db.VarChar(128)
-  tenantId                 String   @db.VarChar(128)
-  orgId                    String?  @db.VarChar(128)
-  productionMoldInstanceId String   @db.VarChar(128)
-  moldInstallationId       String   @db.VarChar(128)
-  workCenterId             String   @db.VarChar(128)
-  resourcePositionId       String?  @db.VarChar(128)
-  usageMode                String   @db.VarChar(64)
+  productionMoldId         String   @db.VarChar(128)
+  toolingInstallationId    String?  @db.VarChar(128)
+  workCenterRef            Json
+  workUnitRef              Json?
   usedAt                   DateTime
   usageQuantity            String   @db.VarChar(64)
   lifeDelta                String   @db.VarChar(64)
   lifeUnit                 String   @db.VarChar(64)
-  lifeUsedValueAfter       String   @db.VarChar(64)
-  productFamilyRef         Json?
-  manufacturingSpecRef     Json?
+  productionSpecRef        Json?
+  productionUnitRef        Json?
+  traceSubjectRef          Json?
+  operatorRef              Json
+  captureSource            String?  @db.VarChar(128)
+  auditRef                 Json
   moldDesignOutputId       String?  @db.VarChar(128)
   moldDesignOutputOptionId String?  @db.VarChar(128)
-  wipUnitRef               Json?
-  physicalTraceId          String?  @db.VarChar(128)
-  workOrderRef             Json?
-  operationTaskRef         Json?
-  operatorRef              Json
-  captureSource            String   @db.VarChar(128)
-  auditRef                 Json
 
-  @@index([tenantId, productionMoldInstanceId, usedAt])
-  @@index([tenantId, workCenterId, usedAt])
+  @@index([tenantId, productionMoldId, usedAt])
 }
 
 model MoldLifeCounter {
-  id                       String   @id @db.VarChar(128)
-  tenantId                 String   @db.VarChar(128)
-  orgId                    String?  @db.VarChar(128)
-  productionMoldInstanceId String   @unique @db.VarChar(128)
-  lifeUnit                 String   @db.VarChar(64)
-  usedValue                String   @db.VarChar(64)
-  limitValue               String   @db.VarChar(64)
-  warningThresholdValue    String   @db.VarChar(64)
-  lastUsageEventId         String?  @db.VarChar(128)
-  lastAdjustedAt           DateTime?
-  lastAdjustedByRef        Json?
-  adjustmentReason         String?  @db.VarChar(500)
-  updatedAt                DateTime
+  id                    String   @id @db.VarChar(128)
+  tenantId              String   @db.VarChar(128)
+  orgId                 String?  @db.VarChar(128)
+  productionMoldId      String   @unique @db.VarChar(128)
+  lifeUnit              String   @db.VarChar(64)
+  usedValue             String   @db.VarChar(64)
+  limitValue            String?  @db.VarChar(64)
+  warningThresholdValue String?  @db.VarChar(64)
+  lastUsageRecordId     String?  @db.VarChar(128)
+  lastAdjustedAt        DateTime?
+  lastAdjustedByRef     Json?
+  adjustmentReason      String?  @db.VarChar(500)
+  updatedAt             DateTime
 
-  @@index([tenantId, productionMoldInstanceId])
-}
-
-model MoldWarningEvent {
-  id                       String   @id @db.VarChar(128)
-  tenantId                 String   @db.VarChar(128)
-  orgId                    String?  @db.VarChar(128)
-  productionMoldInstanceId String   @db.VarChar(128)
-  warningType              String   @db.VarChar(64)
-  warningLevel             String   @db.VarChar(64)
-  triggeredByEventId       String?  @db.VarChar(128)
-  lifeUsedValue            String   @db.VarChar(64)
-  lifeLimitValue           String   @db.VarChar(64)
-  raisedAt                 DateTime
-  acknowledgedAt           DateTime?
-  acknowledgedByRef        Json?
-  status                   String   @db.VarChar(64)
-  auditRef                 Json
-
-  @@index([tenantId, productionMoldInstanceId, status])
-  @@index([tenantId, warningType, warningLevel, status])
+  @@index([tenantId, productionMoldId])
 }
 
 model MesAuditEnvelope {

@@ -1,229 +1,168 @@
 import {
-  AcknowledgeMoldWarningResponse,
-  AdjustMoldLifeResponse,
-  CreateWorkCenterResponse,
-  CurrentInstalledMold,
-  DailyMoldChecklist,
-  DailyMoldChecklistWorkCenter,
-  DeactivateWorkCenterResponse,
-  GetMoldCurrentLocationResponse,
+  AdjustMoldLifeCounterResponse,
+  AuditRef,
+  CarrierResourceRef,
+  CurrentMoldByWorkCenterItem,
+  DailyMoldChecklistItem,
   GetMoldDesignResponse,
   GetMoldUsageHistoryResponse,
-  GetProductionMoldInstanceResponse,
+  GetProductionMoldResponse,
+  GetToolingCurrentPlacementResponse,
+  InstallToolingResponse,
   ListCurrentMoldsByWorkCenterResponse,
   ListMoldDesignsResponse,
-  ListMoldInstancesByDesignResponse,
-  ListMoldLifeWarningsResponse,
-  ListProductionMoldInstancesResponse,
-  ListWorkCentersResponse,
+  ListMoldLifeCountersResponse,
+  ListProductionMoldsByDesignResponse,
+  ListProductionMoldsResponse,
   MasterMold,
-  MoldCurrentLocation,
-  MoldDerivedUsageState as ProtoMoldDerivedUsageState,
   MoldDesign,
   MoldDesignOutput,
-  MoldDesignOutputOption,
   MoldDesignOutputKind as ProtoMoldDesignOutputKind,
+  MoldDesignOutputOption,
   MoldDesignStatus as ProtoMoldDesignStatus,
-  MoldDesignSummary,
   MoldFunctionRole as ProtoMoldFunctionRole,
-  MoldInstallation,
-  MoldInstallationStatus as ProtoMoldInstallationStatus,
+  MoldInstallationDetail,
   MoldLifeAdjustmentType as ProtoMoldLifeAdjustmentType,
   MoldLifeCounter,
-  MoldLifeSummary,
-  MoldLifeWarning,
-  MoldMovementEvent,
+  MoldLifeCounterSummary,
   MoldOutputStructureType as ProtoMoldOutputStructureType,
-  MoldRecentUsageSummary,
-  MoldResourceSummary,
-  MoldResourceType as ProtoMoldResourceType,
-  MoldUsageEvent,
   MoldUsageHistoryEntry,
   MoldUsageHistoryEntryType as ProtoMoldUsageHistoryEntryType,
-  MoldUsageMode as ProtoMoldUsageMode,
-  MoldWarningAcknowledgementAction as ProtoMoldWarningAcknowledgementAction,
-  MoldWarningEvent,
+  MoldUsageRecord as ProtoMoldUsageRecord,
   MoldWarningLevel as ProtoMoldWarningLevel,
-  MoldWarningStatus as ProtoMoldWarningStatus,
-  MoldWarningSummary,
-  MoldWarningType as ProtoMoldWarningType,
+  MoveToolingResponse,
+  OperatorRef,
   PrintDailyMoldChecklistResponse,
-  ProductionMoldInstance,
-  ProductionMoldInstanceStatus as ProtoProductionMoldInstanceStatus,
-  ProductionMoldInstanceSummary,
+  ProductionMold,
+  ProductionMoldStatus as ProtoProductionMoldStatus,
+  ProductionMoldSummary,
+  ProductionSpecRef,
+  PurchaseRef,
+  PurchaseSourceType as ProtoPurchaseSourceType,
   RecordMoldUsageResponse,
   RegisterMasterMoldResponse,
   RegisterMoldDesignResponse,
-  RegisterProductionMoldInstanceResponse,
-  ScrapMoldResponse,
-  UnmountMoldResponse,
-  InstallMoldResponse,
-  MoveMoldResponse,
-  ManufacturingMasterDataRefType as ProtoManufacturingMasterDataRefType,
-  ManufacturingMasterDataRef,
-  MesLocationSummary,
-  WorkCenterSummary,
-  ResourcePositionSummary
+  RegisterProductionMoldResponse,
+  ScrapProductionMoldResponse,
+  StorageResourceRef,
+  SupplierRef,
+  ToolingInstallation,
+  ToolingInstallationStatus as ProtoToolingInstallationStatus,
+  ToolingPlacementSummary,
+  ToolingPlacementType as ProtoToolingPlacementType,
+  ToolingType as ProtoToolingType,
+  TraceSubjectRef,
+  UnmountToolingResponse,
+  WorkCenterRef,
+  WorkUnitRef
 } from '@oes/common/generated/mes_service'
 import {
-  CurrentInstalledMoldView,
+  AuditRefRecord,
+  CarrierResourceRefRecord,
+  CurrentMoldByWorkCenterRecord,
   DailyMoldChecklistRecord,
-  ExternalRefRecord,
-  ManufacturingMasterDataRefRecord,
+  ItemRefRecord,
   MasterMoldRecord,
-  MesLocationSummaryRecord,
-  MoldCurrentLocationView,
-  MoldDerivedUsageState,
   MoldDesignOutputKind,
   MoldDesignRecord,
   MoldDesignStatus,
   MoldDesignSummaryRecord,
   MoldFunctionRole,
-  MoldInstallationRecord,
-  MoldInstallationStatus,
-  MoldLifeCounterRecord,
+  MoldInstallationDetailRecord,
   MoldLifeAdjustmentType,
-  MoldLifeSummaryRecord,
-  MoldLifeWarningView,
-  MoldMovementEventRecord,
+  MoldLifeCounterRecord,
+  MoldLifeCounterSummaryRecord,
   MoldOutputStructureType,
-  MoldResourceType,
-  MoldUsageEventRecord,
   MoldUsageHistoryEntryRecord,
   MoldUsageHistoryEntryType,
-  MoldUsageMode,
-  MoldWarningAcknowledgementAction,
-  MoldWarningEventRecord,
+  MoldUsageRecord,
   MoldWarningLevel,
-  MoldWarningStatus,
-  MoldWarningSummaryRecord,
-  MoldWarningType,
-  PageResult,
-  ProductionMoldInstanceStatus,
-  ProductionMoldInstanceView,
-  ResourcePositionSummaryRecord,
-  WorkCenterRecord,
-  WorkCenterSummaryRecord
+  OperatorRefRecord,
+  ProductionMoldRecord,
+  ProductionMoldStatus,
+  ProductionMoldSummaryRecord,
+  ProductionSpecRefRecord,
+  PurchaseRefRecord,
+  StorageResourceRefRecord,
+  SupplierRefRecord,
+  ToolingInstallationRecord,
+  ToolingInstallationStatus,
+  ToolingPlacementSummaryRecord,
+  ToolingPlacementType,
+  ToolingType,
+  TraceSubjectRefRecord,
+  WorkCenterRefRecord,
+  WorkUnitRefRecord
 } from '../../domain/models/mes-mold-records'
+import {
+  ListCurrentMoldsByWorkCenterResult,
+  ListProductionMoldsByDesignResult,
+  MoldDesignSummaryPageResult,
+  MoldLifeCounterPageResult,
+  MoldUsageHistoryResult,
+  ProductionMoldSummaryPageResult
+} from '../../domain/repositories/mes-mold.repository'
 
-/** MesGrpcPresenter translates MES mold domain records into the generated gRPC response surface. */
+/** MesGrpcPresenter translates current Mold / Tooling records into the generated gRPC response surface. */
 export class MesGrpcPresenter {
-  /** toCreateWorkCenterResponse presents one newly created work center summary. */
-  static toCreateWorkCenterResponse(record: WorkCenterRecord): CreateWorkCenterResponse {
-    return { workCenterSummary: this.toWorkCenterSummary(record) }
-  }
-
-  /** toDeactivateWorkCenterResponse presents one deactivated work center summary. */
-  static toDeactivateWorkCenterResponse(record: WorkCenterRecord): DeactivateWorkCenterResponse {
-    return { workCenterSummary: this.toWorkCenterSummary(record) }
-  }
-
-  /** toRegisterMoldDesignResponse presents one newly created mold design. */
+  /** toRegisterMoldDesignResponse presents one newly registered mold design. */
   static toRegisterMoldDesignResponse(record: MoldDesignRecord): RegisterMoldDesignResponse {
     return { moldDesign: this.toMoldDesign(record) }
   }
 
-  /** toRegisterMasterMoldResponse presents one newly created master mold. */
+  /** toRegisterMasterMoldResponse presents one newly registered master mold. */
   static toRegisterMasterMoldResponse(record: MasterMoldRecord): RegisterMasterMoldResponse {
     return { masterMold: this.toMasterMold(record) }
   }
 
-  /** toRegisterProductionMoldInstanceResponse presents one production mold and its initial life counter. */
-  static toRegisterProductionMoldInstanceResponse(input: {
-    productionMoldInstance: ProductionMoldInstanceView
+  /** toRegisterProductionMoldResponse presents one newly registered production mold. */
+  static toRegisterProductionMoldResponse(record: ProductionMoldRecord): RegisterProductionMoldResponse {
+    return { productionMold: this.toProductionMold(record) }
+  }
+
+  /** toMoveToolingResponse presents the new current tooling placement. */
+  static toMoveToolingResponse(input: { placement: ToolingPlacementSummaryRecord }): MoveToolingResponse {
+    return { placement: this.toToolingPlacementSummary(input.placement) }
+  }
+
+  /** toInstallToolingResponse presents one active tooling installation fact. */
+  static toInstallToolingResponse(input: { toolingInstallation: ToolingInstallationRecord }): InstallToolingResponse {
+    return { toolingInstallation: this.toToolingInstallation(input.toolingInstallation) }
+  }
+
+  /** toUnmountToolingResponse presents one closed tooling installation fact. */
+  static toUnmountToolingResponse(input: { toolingInstallation: ToolingInstallationRecord }): UnmountToolingResponse {
+    return { toolingInstallation: this.toToolingInstallation(input.toolingInstallation) }
+  }
+
+  /** toRecordMoldUsageResponse presents usage and life counter facts. */
+  static toRecordMoldUsageResponse(input: {
+    moldUsageRecord: MoldUsageRecord
     moldLifeCounter: MoldLifeCounterRecord
-  }): RegisterProductionMoldInstanceResponse {
+  }): RecordMoldUsageResponse {
     return {
-      productionMoldInstance: this.toProductionMoldInstance(input.productionMoldInstance),
+      moldUsageRecord: this.toMoldUsageRecord(input.moldUsageRecord),
       moldLifeCounter: this.toMoldLifeCounter(input.moldLifeCounter)
     }
   }
 
-  /** toMoveMoldResponse presents one movement fact plus the current location read model. */
-  static toMoveMoldResponse(input: {
-    movementEvent: MoldMovementEventRecord
-    moldCurrentLocation: MoldCurrentLocationView
-  }): MoveMoldResponse {
-    return {
-      movementEvent: this.toMoldMovementEvent(input.movementEvent),
-      moldCurrentLocation: this.toMoldCurrentLocation(input.moldCurrentLocation)
-    }
-  }
-
-  /** toInstallMoldResponse presents one new installation and the updated production mold projection. */
-  static toInstallMoldResponse(input: {
-    moldInstallation: MoldInstallationRecord
-    productionMoldInstance: ProductionMoldInstanceView
-  }): InstallMoldResponse {
-    return {
-      moldInstallation: this.toMoldInstallation(input.moldInstallation),
-      productionMoldInstance: this.toProductionMoldInstance(input.productionMoldInstance)
-    }
-  }
-
-  /** toUnmountMoldResponse presents one closed installation and the updated production mold projection. */
-  static toUnmountMoldResponse(input: {
-    moldInstallation: MoldInstallationRecord
-    productionMoldInstance: ProductionMoldInstanceView
-  }): UnmountMoldResponse {
-    return this.toInstallMoldResponse(input)
-  }
-
-  /** toRecordMoldUsageResponse presents usage, counter, and optional warning facts. */
-  static toRecordMoldUsageResponse(input: {
-    usageEvent: MoldUsageEventRecord
+  /** toAdjustMoldLifeCounterResponse presents the adjusted independent life counter. */
+  static toAdjustMoldLifeCounterResponse(input: {
     moldLifeCounter: MoldLifeCounterRecord
-    raisedWarning: MoldWarningEventRecord | null
-  }): RecordMoldUsageResponse {
-    return {
-      usageEvent: this.toMoldUsageEvent(input.usageEvent),
-      moldLifeCounter: this.toMoldLifeCounter(input.moldLifeCounter),
-      raisedWarning: input.raisedWarning ? this.toMoldWarningEvent(input.raisedWarning) : undefined
-    }
+  }): AdjustMoldLifeCounterResponse {
+    return { moldLifeCounter: this.toMoldLifeCounter(input.moldLifeCounter) }
   }
 
-  /** toAdjustMoldLifeResponse presents a corrected counter and optional warning. */
-  static toAdjustMoldLifeResponse(input: {
-    moldLifeCounter: MoldLifeCounterRecord
-    raisedWarning: MoldWarningEventRecord | null
-  }): AdjustMoldLifeResponse {
+  /** toScrapProductionMoldResponse presents the terminal production mold and optional closed installation. */
+  static toScrapProductionMoldResponse(input: {
+    productionMold: ProductionMoldRecord
+    closedToolingInstallation: ToolingInstallationRecord | null
+  }): ScrapProductionMoldResponse {
     return {
-      moldLifeCounter: this.toMoldLifeCounter(input.moldLifeCounter),
-      raisedWarning: input.raisedWarning ? this.toMoldWarningEvent(input.raisedWarning) : undefined
-    }
-  }
-
-  /** toAcknowledgeMoldWarningResponse presents an acknowledged warning and affected instance. */
-  static toAcknowledgeMoldWarningResponse(input: {
-    moldWarningEvent: MoldWarningEventRecord
-    productionMoldInstance: ProductionMoldInstanceView
-  }): AcknowledgeMoldWarningResponse {
-    return {
-      moldWarningEvent: this.toMoldWarningEvent(input.moldWarningEvent),
-      productionMoldInstance: this.toProductionMoldInstance(input.productionMoldInstance)
-    }
-  }
-
-  /** toScrapMoldResponse presents the terminal mold resource and optional closed installation fact. */
-  static toScrapMoldResponse(input: {
-    moldResource: {
-      moldResourceType: MoldResourceType
-      moldResourceId: string
-      moldCode: string
-      currentStatus: string
-      scrappedAt?: string | null
-    }
-    closedInstallation?: MoldInstallationRecord | null
-  }): ScrapMoldResponse {
-    return {
-      moldResource: {
-        moldResourceType: toProtoMoldResourceType(input.moldResource.moldResourceType),
-        moldResourceId: input.moldResource.moldResourceId,
-        moldCode: input.moldResource.moldCode,
-        currentStatus: input.moldResource.currentStatus,
-        scrappedAt: input.moldResource.scrappedAt ?? undefined
-      } satisfies MoldResourceSummary,
-      closedInstallation: input.closedInstallation ? this.toMoldInstallation(input.closedInstallation) : undefined
+      productionMold: this.toProductionMold(input.productionMold),
+      closedToolingInstallation: input.closedToolingInstallation
+        ? this.toToolingInstallation(input.closedToolingInstallation)
+        : undefined
     }
   }
 
@@ -232,127 +171,96 @@ export class MesGrpcPresenter {
     return { moldDesign: this.toMoldDesign(record) }
   }
 
-  /** toListMoldDesignsResponse presents one design page. */
-  static toListMoldDesignsResponse(input: PageResult<MoldDesignRecord>): ListMoldDesignsResponse {
+  /** toListMoldDesignsResponse presents one mold design summary page. */
+  static toListMoldDesignsResponse(input: MoldDesignSummaryPageResult): ListMoldDesignsResponse {
     return {
-      moldDesigns: input.items.map((record) => this.toMoldDesign(record)),
+      moldDesigns: input.moldDesigns.map((record) => this.toMoldDesignSummary(record)),
       total: input.total,
       page: input.page,
       pageSize: input.pageSize
     }
   }
 
-  /** toListWorkCentersResponse presents one page of production-unit work centers. */
-  static toListWorkCentersResponse(input: PageResult<WorkCenterSummaryRecord>): ListWorkCentersResponse {
+  /** toGetProductionMoldResponse presents one production mold query result. */
+  static toGetProductionMoldResponse(record: ProductionMoldRecord): GetProductionMoldResponse {
+    return { productionMold: this.toProductionMold(record) }
+  }
+
+  /** toListProductionMoldsResponse presents one production mold summary page. */
+  static toListProductionMoldsResponse(input: ProductionMoldSummaryPageResult): ListProductionMoldsResponse {
     return {
-      workCenters: input.items.map((record) => this.toWorkCenterSummary(record)),
+      productionMolds: input.productionMolds.map((record) => this.toProductionMoldSummary(record)),
       total: input.total,
       page: input.page,
       pageSize: input.pageSize
     }
   }
 
-  /** toGetProductionMoldInstanceResponse presents one production mold query result. */
-  static toGetProductionMoldInstanceResponse(record: ProductionMoldInstanceView): GetProductionMoldInstanceResponse {
-    return { productionMoldInstance: this.toProductionMoldInstance(record) }
-  }
-
-  /** toListProductionMoldInstancesResponse presents the tenant-wide production mold directory page. */
-  static toListProductionMoldInstancesResponse(
-    input: PageResult<ProductionMoldInstanceView>
-  ): ListProductionMoldInstancesResponse {
-    return {
-      instances: input.items.map((record) => this.toProductionMoldInstance(record)),
-      total: input.total,
-      page: input.page,
-      pageSize: input.pageSize
-    }
-  }
-
-  /** toListMoldInstancesByDesignResponse presents one production mold page grouped by design. */
-  static toListMoldInstancesByDesignResponse(
-    input: PageResult<ProductionMoldInstanceView> & { moldDesignSummary: MoldDesignSummaryRecord }
-  ): ListMoldInstancesByDesignResponse {
+  /** toListProductionMoldsByDesignResponse presents production molds grouped under one design. */
+  static toListProductionMoldsByDesignResponse(
+    input: ListProductionMoldsByDesignResult
+  ): ListProductionMoldsByDesignResponse {
     return {
       moldDesignSummary: this.toMoldDesignSummary(input.moldDesignSummary),
-      instances: input.items.map((record) => this.toProductionMoldInstance(record)),
+      productionMolds: input.productionMolds.map((record) => this.toProductionMoldSummary(record)),
       total: input.total,
       page: input.page,
       pageSize: input.pageSize
     }
   }
 
-  /** toGetMoldCurrentLocationResponse presents current physical location and installation summary. */
-  static toGetMoldCurrentLocationResponse(record: MoldCurrentLocationView): GetMoldCurrentLocationResponse {
-    return { currentLocation: this.toMoldCurrentLocation(record) }
+  /** toGetToolingCurrentPlacementResponse presents the current storage, carrier, or installation placement. */
+  static toGetToolingCurrentPlacementResponse(input: {
+    placement: ToolingPlacementSummaryRecord
+  }): GetToolingCurrentPlacementResponse {
+    return { placement: this.toToolingPlacementSummary(input.placement) }
   }
 
-  /** toGetMoldUsageHistoryResponse presents one mold history page. */
-  static toGetMoldUsageHistoryResponse(
-    input: PageResult<MoldUsageHistoryEntryRecord> & { productionMoldInstanceSummary: ProductionMoldInstanceView }
-  ): GetMoldUsageHistoryResponse {
+  /** toGetMoldUsageHistoryResponse presents one flattened mold history page. */
+  static toGetMoldUsageHistoryResponse(input: MoldUsageHistoryResult): GetMoldUsageHistoryResponse {
     return {
-      productionMoldInstanceSummary: this.toProductionMoldInstanceSummary(input.productionMoldInstanceSummary),
-      entries: input.items.map((record) => this.toMoldUsageHistoryEntry(record)),
+      entries: input.entries.map((record) => this.toMoldUsageHistoryEntry(record)),
       total: input.total,
       page: input.page,
       pageSize: input.pageSize
     }
   }
 
-  /** toListCurrentMoldsByWorkCenterResponse presents active installations for one work center. */
+  /** toListCurrentMoldsByWorkCenterResponse presents active mold installations for one work center. */
   static toListCurrentMoldsByWorkCenterResponse(
-    input: PageResult<CurrentInstalledMoldView> & { workCenterSummary: WorkCenterSummaryRecord }
+    input: ListCurrentMoldsByWorkCenterResult
   ): ListCurrentMoldsByWorkCenterResponse {
     return {
-      workCenterSummary: this.toWorkCenterSummary(input.workCenterSummary),
-      installedMolds: input.items.map((record) => this.toCurrentInstalledMold(record)),
-      total: input.total,
-      page: input.page,
-      pageSize: input.pageSize
+      items: input.items.map((record): CurrentMoldByWorkCenterItem => ({
+        productionMold: this.toProductionMoldSummary(record.productionMold),
+        toolingInstallation: this.toToolingInstallation(record.toolingInstallation)
+      }))
     }
   }
 
-  /** toListMoldLifeWarningsResponse presents one warning page. */
-  static toListMoldLifeWarningsResponse(input: PageResult<MoldLifeWarningView>): ListMoldLifeWarningsResponse {
+  /** toListMoldLifeCountersResponse presents one life-counter page. */
+  static toListMoldLifeCountersResponse(input: MoldLifeCounterPageResult): ListMoldLifeCountersResponse {
     return {
-      warnings: input.items.map((record) => this.toMoldLifeWarning(record)),
+      counters: input.counters.map((record) => this.toMoldLifeCounter(record)),
       total: input.total,
       page: input.page,
       pageSize: input.pageSize
     }
   }
 
-  /** toPrintDailyMoldChecklistResponse presents the printable checklist read model. */
+  /** toPrintDailyMoldChecklistResponse presents a printable current mold checklist. */
   static toPrintDailyMoldChecklistResponse(record: DailyMoldChecklistRecord): PrintDailyMoldChecklistResponse {
     return {
-      checklist: {
-        checklistDate: record.checklistDate,
-        workCenters: record.workCenters.map((workCenter): DailyMoldChecklistWorkCenter => ({
-          workCenterSummary: this.toWorkCenterSummary(workCenter.workCenterSummary),
-          installedMolds: workCenter.installedMolds.map((installed) => this.toCurrentInstalledMold(installed)),
-          lifeWarnings: workCenter.lifeWarnings.map((warning) => this.toMoldLifeWarning(warning)),
-          recentUsageSummary: workCenter.recentUsageSummary.map((usage): MoldRecentUsageSummary => ({
-            moldUsageEventId: usage.moldUsageEventId,
-            productionMoldInstanceId: usage.productionMoldInstanceId,
-            moldInstanceCode: usage.moldInstanceCode,
-            usedAt: usage.usedAt,
-            usageQuantity: usage.usageQuantity,
-            lifeDelta: usage.lifeDelta,
-            lifeUnit: usage.lifeUnit
-          })),
-          exceptionNotes: workCenter.exceptionNotes
-        })),
-        generatedAt: record.generatedAt,
-        generatedByRef: {
-          operatorId: record.generatedByRef.operatorId,
-          displayNameSnapshot: record.generatedByRef.displayNameSnapshot ?? undefined
-        }
-      } satisfies DailyMoldChecklist
+      checklistDate: record.checklistDate,
+      workCenterId: record.workCenterId,
+      items: record.items.map((item): DailyMoldChecklistItem => ({
+        productionMold: this.toProductionMoldSummary(item.productionMold),
+        toolingInstallation: this.toToolingInstallation(item.toolingInstallation)
+      }))
     }
   }
 
-  /** toMoldDesign converts one mold design record into the generated gRPC read shape. */
+  /** toMoldDesign converts one mold design record into generated shape. */
   static toMoldDesign(record: MoldDesignRecord): MoldDesign {
     return {
       moldDesignId: record.moldDesignId,
@@ -361,10 +269,9 @@ export class MesGrpcPresenter {
       designCode: record.designCode,
       name: record.name,
       revisionCode: record.revisionCode ?? undefined,
-      supersedesDesignId: record.supersedesDesignId ?? undefined,
-      productFamilyRef: this.toManufacturingMasterDataRef(record.productFamilyRef),
-      manufacturingSpecRefs: record.manufacturingSpecRefs.map((ref) => this.toManufacturingMasterDataRef(ref)),
-      itemRef: record.itemRef ?? undefined,
+      supersedesMoldDesignId: record.supersedesMoldDesignId ?? undefined,
+      itemRef: record.itemRef ? toProtoItemRef(record.itemRef) : undefined,
+      productionSpecRefs: record.productionSpecRefs.map((ref) => toProtoProductionSpecRef(ref)),
       materialType: record.materialType,
       functionRole: toProtoMoldFunctionRole(record.functionRole),
       productionMethodTags: record.productionMethodTags,
@@ -378,7 +285,7 @@ export class MesGrpcPresenter {
     }
   }
 
-  /** toMoldDesignOutput converts one design output row into the generated shape. */
+  /** toMoldDesignOutput converts one theoretical output row into generated shape. */
   static toMoldDesignOutput(record: MoldDesignRecord['outputs'][number]): MoldDesignOutput {
     return {
       moldDesignOutputId: record.moldDesignOutputId,
@@ -388,10 +295,7 @@ export class MesGrpcPresenter {
       sequenceNo: record.sequenceNo,
       outputCode: record.outputCode,
       outputKind: toProtoMoldDesignOutputKind(record.outputKind),
-      productFamilyRef: record.productFamilyRef ? this.toManufacturingMasterDataRef(record.productFamilyRef) : undefined,
-      manufacturingSpecRef: record.manufacturingSpecRef
-        ? this.toManufacturingMasterDataRef(record.manufacturingSpecRef)
-        : undefined,
+      productionSpecRef: record.productionSpecRef ? toProtoProductionSpecRef(record.productionSpecRef) : undefined,
       quantityPerUse: record.quantityPerUse,
       componentRole: record.componentRole ?? undefined,
       assemblyHint: record.assemblyHint ?? undefined,
@@ -400,8 +304,10 @@ export class MesGrpcPresenter {
     }
   }
 
-  /** toMoldDesignOutputOption converts one casting-time output choice into the generated shape. */
-  static toMoldDesignOutputOption(record: MoldDesignRecord['outputs'][number]['options'][number]): MoldDesignOutputOption {
+  /** toMoldDesignOutputOption converts one selectable output variant into generated shape. */
+  static toMoldDesignOutputOption(
+    record: MoldDesignRecord['outputs'][number]['options'][number]
+  ): MoldDesignOutputOption {
     return {
       moldDesignOutputOptionId: record.moldDesignOutputOptionId,
       tenantId: record.tenantId,
@@ -410,14 +316,24 @@ export class MesGrpcPresenter {
       moldDesignOutputId: record.moldDesignOutputId,
       optionCode: record.optionCode,
       label: record.label,
-      manufacturingSpecRef: this.toManufacturingMasterDataRef(record.manufacturingSpecRef),
-      productFamilyRef: record.productFamilyRef ? this.toManufacturingMasterDataRef(record.productFamilyRef) : undefined,
+      productionSpecRef: record.productionSpecRef ? toProtoProductionSpecRef(record.productionSpecRef) : undefined,
       quantityPerUse: record.quantityPerUse ?? undefined,
       isDefault: record.isDefault
     }
   }
 
-  /** toMasterMold converts one master mold into the generated command response shape. */
+  /** toMoldDesignSummary converts one design summary into generated shape. */
+  static toMoldDesignSummary(record: MoldDesignSummaryRecord) {
+    return {
+      moldDesignId: record.moldDesignId,
+      designCode: record.designCode,
+      name: record.name,
+      revisionCode: record.revisionCode ?? undefined,
+      status: toProtoMoldDesignStatus(record.status)
+    }
+  }
+
+  /** toMasterMold converts one master mold record into generated shape. */
   static toMasterMold(record: MasterMoldRecord): MasterMold {
     return {
       masterMoldId: record.masterMoldId,
@@ -425,11 +341,16 @@ export class MesGrpcPresenter {
       orgId: record.orgId ?? undefined,
       masterMoldCode: record.masterMoldCode,
       moldDesignId: record.moldDesignId,
-      supplierRef: record.supplierRef ?? undefined,
-      purchaseRef: record.purchaseRef ? { ...record.purchaseRef, purchaseSourceType: 4 } : undefined,
+      supplierRef: record.supplierRef ? toProtoSupplierRef(record.supplierRef) : undefined,
+      purchaseRef: record.purchaseRef ? toProtoPurchaseRef(record.purchaseRef) : undefined,
       receivedAt: record.receivedAt ?? undefined,
       currentStatus: record.currentStatus,
-      currentMesLocationId: record.currentMesLocationId ?? undefined,
+      currentStorageResourceRef: record.currentStorageResourceRef
+        ? toProtoStorageResourceRef(record.currentStorageResourceRef)
+        : undefined,
+      currentCarrierResourceRef: record.currentCarrierResourceRef
+        ? toProtoCarrierResourceRef(record.currentCarrierResourceRef)
+        : undefined,
       qualitySummary: record.qualitySummary ?? undefined,
       notes: record.notes ?? undefined,
       createdAt: record.createdAt,
@@ -437,242 +358,151 @@ export class MesGrpcPresenter {
     }
   }
 
-  /** toProductionMoldInstance converts one production mold view into the generated query shape. */
-  static toProductionMoldInstance(record: ProductionMoldInstanceView): ProductionMoldInstance {
+  /** toProductionMold converts one production mold record into generated shape. */
+  static toProductionMold(record: ProductionMoldRecord): ProductionMold {
     return {
-      productionMoldInstanceId: record.productionMoldInstanceId,
+      productionMoldId: record.productionMoldId,
       tenantId: record.tenantId,
       orgId: record.orgId ?? undefined,
-      moldInstanceCode: record.moldInstanceCode,
-      moldDesignSummary: this.toMoldDesignSummary(record.moldDesignSummary),
-      masterMoldSummary: record.masterMoldSummary ?? undefined,
-      supplierRef: record.supplierRef ?? undefined,
-      purchaseRef: record.purchaseRef ? { ...record.purchaseRef, purchaseSourceType: 4 } : undefined,
+      moldCode: record.moldCode,
+      moldDesignId: record.moldDesignId,
+      sourceMasterMoldId: record.sourceMasterMoldId ?? undefined,
+      supplierRef: record.supplierRef ? toProtoSupplierRef(record.supplierRef) : undefined,
+      purchaseRef: record.purchaseRef ? toProtoPurchaseRef(record.purchaseRef) : undefined,
       receivedAt: record.receivedAt ?? undefined,
       acceptedAt: record.acceptedAt ?? undefined,
-      currentStatus: toProtoProductionMoldInstanceStatus(record.currentStatus),
-      currentMesLocationSummary: record.currentMesLocationSummary
-        ? this.toMesLocationSummary(record.currentMesLocationSummary)
+      currentStatus: toProtoProductionMoldStatus(record.currentStatus),
+      currentStorageResourceRef: record.currentStorageResourceRef
+        ? toProtoStorageResourceRef(record.currentStorageResourceRef)
+        : undefined,
+      currentCarrierResourceRef: record.currentCarrierResourceRef
+        ? toProtoCarrierResourceRef(record.currentCarrierResourceRef)
         : undefined,
       currentInstallationSummary: record.currentInstallationSummary
-        ? {
-            moldInstallationId: record.currentInstallationSummary.moldInstallationId,
-            workCenterId: record.currentInstallationSummary.workCenterId,
-            workCenterCode: record.currentInstallationSummary.workCenterCode ?? undefined,
-            workCenterName: record.currentInstallationSummary.workCenterName ?? undefined,
-            resourcePositionId: record.currentInstallationSummary.resourcePositionId,
-            positionCode: record.currentInstallationSummary.positionCode ?? undefined,
-            installedAt: record.currentInstallationSummary.installedAt,
-            usageState: toProtoMoldDerivedUsageState(record.currentInstallationSummary.usageState)
-          }
+        ? this.toToolingInstallation(record.currentInstallationSummary)
         : undefined,
-      lifeSummary: record.lifeSummary ? this.toMoldLifeSummary(record.lifeSummary) : undefined,
-      warningSummary: record.warningSummary ? this.toMoldWarningSummary(record.warningSummary) : undefined,
+      lifeCounterSummary: record.lifeCounterSummary
+        ? this.toMoldLifeCounterSummary(record.lifeCounterSummary)
+        : undefined,
       scrappedAt: record.scrappedAt ?? undefined,
       createdAt: record.createdAt,
       updatedAt: record.updatedAt
     }
   }
 
-  /** toProductionMoldInstanceSummary converts one production mold view into a compact summary. */
-  static toProductionMoldInstanceSummary(record: ProductionMoldInstanceView): ProductionMoldInstanceSummary {
+  /** toProductionMoldSummary converts one production mold summary into generated shape. */
+  static toProductionMoldSummary(record: ProductionMoldSummaryRecord): ProductionMoldSummary {
     return {
-      productionMoldInstanceId: record.productionMoldInstanceId,
-      moldInstanceCode: record.moldInstanceCode,
-      moldDesignSummary: this.toMoldDesignSummary(record.moldDesignSummary),
-      currentStatus: toProtoProductionMoldInstanceStatus(record.currentStatus),
-      currentMesLocationSummary: record.currentMesLocationSummary
-        ? this.toMesLocationSummary(record.currentMesLocationSummary)
-        : undefined,
-      currentInstallationSummary: record.currentInstallationSummary
-        ? {
-            moldInstallationId: record.currentInstallationSummary.moldInstallationId,
-            workCenterId: record.currentInstallationSummary.workCenterId,
-            workCenterCode: record.currentInstallationSummary.workCenterCode ?? undefined,
-            workCenterName: record.currentInstallationSummary.workCenterName ?? undefined,
-            resourcePositionId: record.currentInstallationSummary.resourcePositionId,
-            positionCode: record.currentInstallationSummary.positionCode ?? undefined,
-            installedAt: record.currentInstallationSummary.installedAt,
-            usageState: toProtoMoldDerivedUsageState(record.currentInstallationSummary.usageState)
-          }
-        : undefined,
-      lifeSummary: record.lifeSummary ? this.toMoldLifeSummary(record.lifeSummary) : undefined,
-      warningSummary: record.warningSummary ? this.toMoldWarningSummary(record.warningSummary) : undefined
-    }
-  }
-
-  /** toMoldDesignSummary converts one design summary into generated shape. */
-  static toMoldDesignSummary(record: MoldDesignSummaryRecord): MoldDesignSummary {
-    return {
-      moldDesignId: record.moldDesignId,
-      designCode: record.designCode,
-      name: record.name,
-      revisionCode: record.revisionCode ?? undefined,
-      productFamilyRef: record.productFamilyRef ? this.toManufacturingMasterDataRef(record.productFamilyRef) : undefined
-    }
-  }
-
-  /** toMoldLifeCounter converts the current counter projection into generated shape. */
-  static toMoldLifeCounter(record: MoldLifeCounterRecord): MoldLifeCounter {
-    return {
-      moldLifeCounterId: record.moldLifeCounterId,
-      tenantId: record.tenantId,
-      orgId: record.orgId ?? undefined,
-      productionMoldInstanceId: record.productionMoldInstanceId,
-      lifeUnit: record.lifeUnit,
-      usedValue: record.usedValue,
-      limitValue: record.limitValue,
-      warningThresholdValue: record.warningThresholdValue,
-      lastUsageEventId: record.lastUsageEventId ?? undefined,
-      lastAdjustedAt: record.lastAdjustedAt ?? undefined,
-      lastAdjustedByRef: record.lastAdjustedByRef ?? undefined,
-      adjustmentReason: record.adjustmentReason ?? undefined,
-      updatedAt: record.updatedAt
-    }
-  }
-
-  /** toMoldLifeSummary converts one life summary into generated shape. */
-  static toMoldLifeSummary(record: MoldLifeSummaryRecord): MoldLifeSummary {
-    return {
-      lifeUnit: record.lifeUnit,
-      usedValue: record.usedValue,
-      limitValue: record.limitValue,
-      warningThresholdValue: record.warningThresholdValue,
-      remainingValue: record.remainingValue,
-      warningLevel: toProtoMoldWarningLevel(record.warningLevel),
-      lastUsageEventId: record.lastUsageEventId ?? undefined,
-      lastAdjustedAt: record.lastAdjustedAt ?? undefined
-    }
-  }
-
-  /** toMoldWarningSummary converts one warning summary into generated shape. */
-  static toMoldWarningSummary(record: MoldWarningSummaryRecord): MoldWarningSummary {
-    return {
-      moldWarningEventId: record.moldWarningEventId,
-      warningType: toProtoMoldWarningType(record.warningType),
-      warningLevel: toProtoMoldWarningLevel(record.warningLevel),
-      status: toProtoMoldWarningStatus(record.status),
-      raisedAt: record.raisedAt,
-      acknowledgedAt: record.acknowledgedAt ?? undefined
-    }
-  }
-
-  /** toMoldCurrentLocation converts the current location view into generated shape. */
-  static toMoldCurrentLocation(record: MoldCurrentLocationView): MoldCurrentLocation {
-    return {
-      moldResourceType: toProtoMoldResourceType(record.moldResourceType),
-      moldResourceId: record.moldResourceId,
+      productionMoldId: record.productionMoldId,
       moldCode: record.moldCode,
-      currentStatus: record.currentStatus,
-      currentMesLocationSummary: record.currentMesLocationSummary
-        ? this.toMesLocationSummary(record.currentMesLocationSummary)
+      moldDesignSummary: this.toMoldDesignSummary(record.moldDesignSummary),
+      currentStatus: toProtoProductionMoldStatus(record.currentStatus),
+      currentPlacementSummary: record.currentPlacementSummary
+        ? this.toToolingPlacementSummary(record.currentPlacementSummary)
         : undefined,
-      currentInstallationSummary: record.currentInstallationSummary
-        ? {
-            moldInstallationId: record.currentInstallationSummary.moldInstallationId,
-            workCenterId: record.currentInstallationSummary.workCenterId,
-            workCenterCode: record.currentInstallationSummary.workCenterCode ?? undefined,
-            workCenterName: record.currentInstallationSummary.workCenterName ?? undefined,
-            resourcePositionId: record.currentInstallationSummary.resourcePositionId,
-            positionCode: record.currentInstallationSummary.positionCode ?? undefined,
-            installedAt: record.currentInstallationSummary.installedAt,
-            usageState: toProtoMoldDerivedUsageState(record.currentInstallationSummary.usageState)
-          }
-        : undefined,
-      lastMovementEventId: record.lastMovementEventId ?? undefined,
-      lastMovedAt: record.lastMovedAt ?? undefined
+      lifeCounterSummary: record.lifeCounterSummary
+        ? this.toMoldLifeCounterSummary(record.lifeCounterSummary)
+        : undefined
     }
   }
 
-  /** toMoldMovementEvent converts one movement fact into generated shape. */
-  static toMoldMovementEvent(record: MoldMovementEventRecord): MoldMovementEvent {
+  /** toToolingInstallation converts one installation interval fact into generated shape. */
+  static toToolingInstallation(record: ToolingInstallationRecord): ToolingInstallation {
     return {
-      moldMovementEventId: record.moldMovementEventId,
+      toolingInstallationId: record.toolingInstallationId,
       tenantId: record.tenantId,
       orgId: record.orgId ?? undefined,
-      moldResourceType: toProtoMoldResourceType(record.moldResourceType),
-      moldResourceId: record.moldResourceId,
-      fromMesLocationId: record.fromMesLocationId ?? undefined,
-      toMesLocationId: record.toMesLocationId,
-      movementReason: record.movementReason,
-      movedAt: record.movedAt,
-      operatorRef: record.operatorRef,
-      sourceCommandId: record.sourceCommandId,
-      auditRef: record.auditRef
-    }
-  }
-
-  /** toMoldInstallation converts one installation fact into generated shape. */
-  static toMoldInstallation(record: MoldInstallationRecord): MoldInstallation {
-    return {
-      moldInstallationId: record.moldInstallationId,
-      tenantId: record.tenantId,
-      orgId: record.orgId ?? undefined,
-      productionMoldInstanceId: record.productionMoldInstanceId,
-      workCenterId: record.workCenterId,
-      resourcePositionId: record.resourcePositionId,
+      toolingType: toProtoToolingType(record.toolingType),
+      toolingId: record.toolingId,
+      workCenterRef: toProtoWorkCenterRef(record.workCenterRef),
+      workUnitRef: record.workUnitRef ? toProtoWorkUnitRef(record.workUnitRef) : undefined,
       installedAt: record.installedAt,
       unmountedAt: record.unmountedAt ?? undefined,
-      installedByRef: record.installedByRef,
-      unmountedByRef: record.unmountedByRef ?? undefined,
-      installationStatus: toProtoMoldInstallationStatus(record.installationStatus),
-      setupSnapshot: record.setupSnapshot ?? undefined,
-      operationRef: record.operationRef ?? undefined,
-      routingRef: record.routingRef ?? undefined,
-      workOrderRef: record.workOrderRef ?? undefined,
-      operationTaskRef: record.operationTaskRef ?? undefined,
-      auditRef: record.auditRef
+      installedByRef: record.installedByRef ? toProtoOperatorRef(record.installedByRef) : undefined,
+      unmountedByRef: record.unmountedByRef ? toProtoOperatorRef(record.unmountedByRef) : undefined,
+      status: toProtoToolingInstallationStatus(record.status),
+      moldDetail: record.moldDetail ? toProtoMoldInstallationDetail(record.moldDetail) : undefined,
+      auditRef: toProtoAuditRef(record.auditRef)
     }
   }
 
-  /** toMoldUsageEvent converts one usage fact into generated shape. */
-  static toMoldUsageEvent(record: MoldUsageEventRecord): MoldUsageEvent {
+  /** toToolingPlacementSummary converts current placement projections into generated shape. */
+  static toToolingPlacementSummary(record: ToolingPlacementSummaryRecord): ToolingPlacementSummary {
     return {
-      moldUsageEventId: record.moldUsageEventId,
+      placementType: toProtoToolingPlacementType(record.placementType),
+      storageResourceRef: record.storageResourceRef ? toProtoStorageResourceRef(record.storageResourceRef) : undefined,
+      carrierResourceRef: record.carrierResourceRef ? toProtoCarrierResourceRef(record.carrierResourceRef) : undefined,
+      workCenterRef: record.workCenterRef ? toProtoWorkCenterRef(record.workCenterRef) : undefined,
+      workUnitRef: record.workUnitRef ? toProtoWorkUnitRef(record.workUnitRef) : undefined,
+      toolingInstallationId: record.toolingInstallationId ?? undefined,
+      moldInstallationDetail: record.moldInstallationDetail
+        ? toProtoMoldInstallationDetail(record.moldInstallationDetail)
+        : undefined
+    }
+  }
+
+  /** toMoldUsageRecord converts one append-only usage fact into generated shape. */
+  static toMoldUsageRecord(record: MoldUsageRecord): ProtoMoldUsageRecord {
+    return {
+      moldUsageRecordId: record.moldUsageRecordId,
       tenantId: record.tenantId,
       orgId: record.orgId ?? undefined,
-      productionMoldInstanceId: record.productionMoldInstanceId,
-      moldInstallationId: record.moldInstallationId,
-      workCenterId: record.workCenterId,
-      resourcePositionId: record.resourcePositionId ?? undefined,
-      usageMode: toProtoMoldUsageMode(record.usageMode),
+      productionMoldId: record.productionMoldId,
+      toolingInstallationId: record.toolingInstallationId ?? undefined,
+      workCenterRef: toProtoWorkCenterRef(record.workCenterRef),
+      workUnitRef: record.workUnitRef ? toProtoWorkUnitRef(record.workUnitRef) : undefined,
       usedAt: record.usedAt,
       usageQuantity: record.usageQuantity,
       lifeDelta: record.lifeDelta,
       lifeUnit: record.lifeUnit,
-      productFamilyRef: record.productFamilyRef ? this.toManufacturingMasterDataRef(record.productFamilyRef) : undefined,
-      manufacturingSpecRef: record.manufacturingSpecRef
-        ? this.toManufacturingMasterDataRef(record.manufacturingSpecRef)
+      productionSpecRef: record.productionSpecRef ? toProtoProductionSpecRef(record.productionSpecRef) : undefined,
+      productionUnitRef: record.productionUnitRef
+        ? {
+            productionUnitId: record.productionUnitRef.productionUnitId,
+            unitCodeSnapshot: record.productionUnitRef.unitCodeSnapshot ?? undefined,
+            displayNameSnapshot: record.productionUnitRef.displayNameSnapshot ?? undefined
+          }
         : undefined,
-      wipUnitRef: record.wipUnitRef ?? undefined,
-      physicalTraceId: record.physicalTraceId ?? undefined,
-      workOrderRef: record.workOrderRef ?? undefined,
-      operationTaskRef: record.operationTaskRef ?? undefined,
-      operatorRef: record.operatorRef,
-      captureSource: record.captureSource,
-      auditRef: record.auditRef,
+      traceSubjectRef: record.traceSubjectRef ? toProtoTraceSubjectRef(record.traceSubjectRef) : undefined,
+      operatorRef: toProtoOperatorRef(record.operatorRef),
+      captureSource: record.captureSource ?? undefined,
+      auditRef: toProtoAuditRef(record.auditRef),
       moldDesignOutputId: record.moldDesignOutputId ?? undefined,
       moldDesignOutputOptionId: record.moldDesignOutputOptionId ?? undefined
     }
   }
 
-  /** toMoldWarningEvent converts one warning fact into generated shape. */
-  static toMoldWarningEvent(record: MoldWarningEventRecord): MoldWarningEvent {
+  /** toMoldLifeCounter converts an independent life counter into generated shape. */
+  static toMoldLifeCounter(record: MoldLifeCounterRecord): MoldLifeCounter {
     return {
-      moldWarningEventId: record.moldWarningEventId,
+      moldLifeCounterId: record.moldLifeCounterId,
       tenantId: record.tenantId,
       orgId: record.orgId ?? undefined,
-      productionMoldInstanceId: record.productionMoldInstanceId,
-      warningType: toProtoMoldWarningType(record.warningType),
-      warningLevel: toProtoMoldWarningLevel(record.warningLevel),
-      triggeredByEventId: record.triggeredByEventId ?? undefined,
-      lifeUsedValue: record.lifeUsedValue,
-      lifeLimitValue: record.lifeLimitValue,
-      raisedAt: record.raisedAt,
-      acknowledgedAt: record.acknowledgedAt ?? undefined,
-      acknowledgedByRef: record.acknowledgedByRef ?? undefined,
-      status: toProtoMoldWarningStatus(record.status),
-      auditRef: record.auditRef
+      productionMoldId: record.productionMoldId,
+      lifeUnit: record.lifeUnit,
+      usedValue: record.usedValue,
+      limitValue: record.limitValue ?? undefined,
+      warningThresholdValue: record.warningThresholdValue ?? undefined,
+      lastUsageRecordId: record.lastUsageRecordId ?? undefined,
+      lastAdjustedAt: record.lastAdjustedAt ?? undefined,
+      lastAdjustedByRef: record.lastAdjustedByRef ? toProtoOperatorRef(record.lastAdjustedByRef) : undefined,
+      adjustmentReason: record.adjustmentReason ?? undefined,
+      updatedAt: record.updatedAt
+    }
+  }
+
+  /** toMoldLifeCounterSummary converts current counter projection into generated shape. */
+  static toMoldLifeCounterSummary(record: MoldLifeCounterSummaryRecord): MoldLifeCounterSummary {
+    return {
+      moldLifeCounterId: record.moldLifeCounterId,
+      lifeUnit: record.lifeUnit,
+      usedValue: record.usedValue,
+      limitValue: record.limitValue ?? undefined,
+      warningThresholdValue: record.warningThresholdValue ?? undefined,
+      remainingValue: record.remainingValue ?? undefined,
+      warningLevel: record.warningLevel ? toProtoMoldWarningLevel(record.warningLevel) : undefined,
+      lastUsageRecordId: record.lastUsageRecordId ?? undefined,
+      lastAdjustedAt: record.lastAdjustedAt ?? undefined
     }
   }
 
@@ -680,121 +510,20 @@ export class MesGrpcPresenter {
   static toMoldUsageHistoryEntry(record: MoldUsageHistoryEntryRecord): MoldUsageHistoryEntry {
     return {
       entryType: toProtoMoldUsageHistoryEntryType(record.entryType),
-      entryId: record.entryId,
-      occurredAt: record.occurredAt,
-      workCenterSummary: record.workCenterSummary ? this.toWorkCenterSummary(record.workCenterSummary) : undefined,
-      resourcePositionSummary: record.resourcePositionSummary
-        ? this.toResourcePositionSummary(record.resourcePositionSummary)
-        : undefined,
-      mesLocationSummary: record.mesLocationSummary ? this.toMesLocationSummary(record.mesLocationSummary) : undefined,
-      usageQuantity: record.usageQuantity ?? undefined,
-      lifeDelta: record.lifeDelta ?? undefined,
-      lifeUsedValueAfter: record.lifeUsedValueAfter ?? undefined,
-      productFamilyRef: record.productFamilyRef ? this.toManufacturingMasterDataRef(record.productFamilyRef) : undefined,
-      manufacturingSpecRef: record.manufacturingSpecRef
-        ? this.toManufacturingMasterDataRef(record.manufacturingSpecRef)
-        : undefined,
-      wipUnitRef: record.wipUnitRef ?? undefined,
-      physicalTraceId: record.physicalTraceId ?? undefined,
-      operatorRef: record.operatorRef ?? undefined,
-      auditRef: record.auditRef ?? undefined,
-      moldDesignOutputId: record.moldDesignOutputId ?? undefined,
-      moldDesignOutputOptionId: record.moldDesignOutputOptionId ?? undefined
-    }
-  }
-
-  /** toCurrentInstalledMold converts one active installation row into generated shape. */
-  static toCurrentInstalledMold(record: CurrentInstalledMoldView): CurrentInstalledMold {
-    return {
-      productionMoldInstance: this.toProductionMoldInstance(record.productionMoldInstance),
-      moldInstallation: this.toMoldInstallation(record.moldInstallation),
-      resourcePositionSummary: record.resourcePositionSummary
-        ? this.toResourcePositionSummary(record.resourcePositionSummary)
-        : undefined,
-      lifeSummary: record.lifeSummary ? this.toMoldLifeSummary(record.lifeSummary) : undefined,
-      warningSummary: record.warningSummary ? this.toMoldWarningSummary(record.warningSummary) : undefined
-    }
-  }
-
-  /** toMoldLifeWarning converts one warning view into generated shape. */
-  static toMoldLifeWarning(record: MoldLifeWarningView): MoldLifeWarning {
-    return {
-      moldWarningEventId: record.moldWarningEventId,
-      productionMoldInstanceSummary: {
-        productionMoldInstanceId: record.productionMoldInstanceSummary.productionMoldInstanceId,
-        moldInstanceCode: record.productionMoldInstanceSummary.moldInstanceCode,
-        moldDesignSummary: this.toMoldDesignSummary(record.productionMoldInstanceSummary.moldDesignSummary),
-        currentStatus: toProtoProductionMoldInstanceStatus(record.productionMoldInstanceSummary.currentStatus)
-      },
-      warningType: toProtoMoldWarningType(record.warningType),
-      warningLevel: toProtoMoldWarningLevel(record.warningLevel),
-      lifeUsedValue: record.lifeUsedValue,
-      lifeLimitValue: record.lifeLimitValue,
-      raisedAt: record.raisedAt,
-      acknowledgedAt: record.acknowledgedAt ?? undefined,
-      acknowledgedByRef: record.acknowledgedByRef ?? undefined,
-      status: toProtoMoldWarningStatus(record.status)
-    }
-  }
-
-  /** toMesLocationSummary converts one MES physical location summary into generated shape. */
-  static toMesLocationSummary(record: MesLocationSummaryRecord): MesLocationSummary {
-    return {
-      mesLocationId: record.mesLocationId,
-      locationCode: record.locationCode,
-      name: record.name,
-      locationType: record.locationType,
-      parentMesLocationId: record.parentMesLocationId ?? undefined,
-      relatedWorkCenterId: record.relatedWorkCenterId ?? undefined,
-      capacityProfileId: record.capacityProfileId ?? undefined,
-      status: record.status
-    }
-  }
-
-  /** toWorkCenterSummary converts one work center summary into generated shape. */
-  static toWorkCenterSummary(record: WorkCenterSummaryRecord): WorkCenterSummary {
-    return {
-      workCenterId: record.workCenterId,
-      workCenterCode: record.workCenterCode,
-      name: record.name,
-      workCenterType: record.workCenterType,
-      parentWorkCenterId: record.parentWorkCenterId ?? undefined,
-      relatedMesLocationId: record.relatedMesLocationId ?? undefined,
-      capacityProfileId: record.capacityProfileId ?? undefined,
-      status: record.status
-    }
-  }
-
-  /** toResourcePositionSummary converts one resource position summary into generated shape. */
-  static toResourcePositionSummary(record: ResourcePositionSummaryRecord): ResourcePositionSummary {
-    return {
-      resourcePositionId: record.resourcePositionId,
-      workCenterId: record.workCenterId,
-      positionCode: record.positionCode,
-      name: record.name,
-      positionType: record.positionType,
-      status: record.status
-    }
-  }
-
-  /** toManufacturingMasterDataRef converts one opaque reference into generated shape. */
-  static toManufacturingMasterDataRef(record: ManufacturingMasterDataRefRecord): ManufacturingMasterDataRef {
-    return {
-      refType:
-        record.refType === 'MANUFACTURING_SPEC'
-          ? ProtoManufacturingMasterDataRefType.MANUFACTURING_MASTER_DATA_REF_TYPE_MANUFACTURING_SPEC
-          : ProtoManufacturingMasterDataRefType.MANUFACTURING_MASTER_DATA_REF_TYPE_PRODUCT_FAMILY,
-      refId: record.refId,
-      refCodeSnapshot: record.refCodeSnapshot ?? undefined,
-      displayNameSnapshot: record.displayNameSnapshot ?? undefined
+      happenedAt: record.happenedAt,
+      productionMoldId: record.productionMoldId,
+      summary: record.summary,
+      auditRef: record.auditRef ? toProtoAuditRef(record.auditRef) : undefined
     }
   }
 }
 
+/** toDomainMoldFunctionRole maps generated enum values into domain enum values. */
 export function toDomainMoldFunctionRole(value?: ProtoMoldFunctionRole): MoldFunctionRole {
   return value === ProtoMoldFunctionRole.MOLD_FUNCTION_ROLE_MASTER ? MoldFunctionRole.MASTER : MoldFunctionRole.PRODUCTION
 }
 
+/** toDomainMoldOutputStructureType maps generated output structure filters into domain enum values. */
 export function toDomainMoldOutputStructureType(value?: ProtoMoldOutputStructureType): MoldOutputStructureType {
   switch (value) {
     case ProtoMoldOutputStructureType.MOLD_OUTPUT_STRUCTURE_TYPE_TWIN:
@@ -808,63 +537,60 @@ export function toDomainMoldOutputStructureType(value?: ProtoMoldOutputStructure
   }
 }
 
+/** toDomainMoldDesignOutputKind maps generated output ownership into domain enum values. */
 export function toDomainMoldDesignOutputKind(value?: ProtoMoldDesignOutputKind): MoldDesignOutputKind {
   switch (value) {
+    case ProtoMoldDesignOutputKind.MOLD_DESIGN_OUTPUT_KIND_PRODUCT:
+      return MoldDesignOutputKind.PRODUCT
     case ProtoMoldDesignOutputKind.MOLD_DESIGN_OUTPUT_KIND_COMPONENT:
       return MoldDesignOutputKind.COMPONENT
-    case ProtoMoldDesignOutputKind.MOLD_DESIGN_OUTPUT_KIND_MANUFACTURING_SPEC:
-      return MoldDesignOutputKind.MANUFACTURING_SPEC
     default:
-      return MoldDesignOutputKind.PRODUCT
+      return MoldDesignOutputKind.PRODUCTION_SPEC
   }
 }
 
-export function toDomainProductionMoldInstanceStatus(
-  value?: ProtoProductionMoldInstanceStatus
-): ProductionMoldInstanceStatus | undefined {
+/** toDomainMoldDesignStatus maps generated design status filters into domain values. */
+export function toDomainMoldDesignStatus(value?: ProtoMoldDesignStatus): MoldDesignStatus | undefined {
   switch (value) {
-    case ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_RECEIVED:
-      return ProductionMoldInstanceStatus.RECEIVED
-    case ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_PENDING_DRYING:
-      return ProductionMoldInstanceStatus.PENDING_DRYING
-    case ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_PENDING_INSTALLATION:
-      return ProductionMoldInstanceStatus.PENDING_INSTALLATION
-    case ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_INSTALLED:
-      return ProductionMoldInstanceStatus.INSTALLED
-    case ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_PENDING_REPAIR:
-      return ProductionMoldInstanceStatus.PENDING_REPAIR
-    case ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_UNDER_REPAIR:
-      return ProductionMoldInstanceStatus.UNDER_REPAIR
-    case ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_DISABLED:
-      return ProductionMoldInstanceStatus.DISABLED
-    case ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_SCRAPPED:
-      return ProductionMoldInstanceStatus.SCRAPPED
+    case ProtoMoldDesignStatus.MOLD_DESIGN_STATUS_ACTIVE:
+      return MoldDesignStatus.ACTIVE
+    case ProtoMoldDesignStatus.MOLD_DESIGN_STATUS_INACTIVE:
+      return MoldDesignStatus.INACTIVE
+    case ProtoMoldDesignStatus.MOLD_DESIGN_STATUS_SUPERSEDED:
+      return MoldDesignStatus.SUPERSEDED
     default:
       return undefined
   }
 }
 
-export function toDomainMoldResourceType(value?: ProtoMoldResourceType): MoldResourceType {
-  return value === ProtoMoldResourceType.MOLD_RESOURCE_TYPE_MASTER_MOLD
-    ? MoldResourceType.MASTER_MOLD
-    : MoldResourceType.PRODUCTION_MOLD_INSTANCE
-}
-
-export function toDomainMoldUsageMode(value?: ProtoMoldUsageMode): MoldUsageMode {
+/** toDomainProductionMoldStatus maps generated production mold status filters into domain values. */
+export function toDomainProductionMoldStatus(value?: ProtoProductionMoldStatus): ProductionMoldStatus | undefined {
   switch (value) {
-    case ProtoMoldUsageMode.MOLD_USAGE_MODE_PDA_SCAN:
-      return MoldUsageMode.PDA_SCAN
-    case ProtoMoldUsageMode.MOLD_USAGE_MODE_BATCH_CONFIRM:
-      return MoldUsageMode.BATCH_CONFIRM
-    case ProtoMoldUsageMode.MOLD_USAGE_MODE_BACK_OFFICE_ENTRY:
-      return MoldUsageMode.BACK_OFFICE_ENTRY
-    case ProtoMoldUsageMode.MOLD_USAGE_MODE_AUTOMATED_CAPTURE:
-      return MoldUsageMode.AUTOMATED_CAPTURE
+    case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_RECEIVED:
+      return ProductionMoldStatus.RECEIVED
+    case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_PREPARING:
+      return ProductionMoldStatus.PREPARING
+    case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_AVAILABLE:
+      return ProductionMoldStatus.AVAILABLE
+    case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_INSTALLED:
+      return ProductionMoldStatus.INSTALLED
+    case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_MAINTENANCE:
+      return ProductionMoldStatus.MAINTENANCE
+    case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_DISABLED:
+      return ProductionMoldStatus.DISABLED
+    case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_SCRAPPED:
+      return ProductionMoldStatus.SCRAPPED
     default:
-      return MoldUsageMode.MANUAL_CHECKLIST
+      return undefined
   }
 }
 
+/** toDomainToolingType maps generated tooling type into the current domain enum. */
+export function toDomainToolingType(value?: ProtoToolingType): ToolingType {
+  return value === ProtoToolingType.TOOLING_TYPE_MOLD ? ToolingType.MOLD : ToolingType.MOLD
+}
+
+/** toDomainMoldLifeAdjustmentType maps generated adjustment types into domain values. */
 export function toDomainMoldLifeAdjustmentType(value?: ProtoMoldLifeAdjustmentType): MoldLifeAdjustmentType {
   switch (value) {
     case ProtoMoldLifeAdjustmentType.MOLD_LIFE_ADJUSTMENT_TYPE_ADD_USED_VALUE:
@@ -878,45 +604,7 @@ export function toDomainMoldLifeAdjustmentType(value?: ProtoMoldLifeAdjustmentTy
   }
 }
 
-export function toDomainMoldWarningAcknowledgementAction(
-  value?: ProtoMoldWarningAcknowledgementAction
-): MoldWarningAcknowledgementAction {
-  switch (value) {
-    case ProtoMoldWarningAcknowledgementAction.MOLD_WARNING_ACKNOWLEDGEMENT_ACTION_ACKNOWLEDGE_AND_MARK_REPAIR:
-      return MoldWarningAcknowledgementAction.ACKNOWLEDGE_AND_MARK_REPAIR
-    case ProtoMoldWarningAcknowledgementAction.MOLD_WARNING_ACKNOWLEDGEMENT_ACTION_ACKNOWLEDGE_AND_DISABLE:
-      return MoldWarningAcknowledgementAction.ACKNOWLEDGE_AND_DISABLE
-    default:
-      return MoldWarningAcknowledgementAction.ACKNOWLEDGE
-  }
-}
-
-export function toDomainMoldWarningStatus(value?: ProtoMoldWarningStatus): MoldWarningStatus | undefined {
-  switch (value) {
-    case ProtoMoldWarningStatus.MOLD_WARNING_STATUS_OPEN:
-      return MoldWarningStatus.OPEN
-    case ProtoMoldWarningStatus.MOLD_WARNING_STATUS_ACKNOWLEDGED:
-      return MoldWarningStatus.ACKNOWLEDGED
-    case ProtoMoldWarningStatus.MOLD_WARNING_STATUS_CLOSED:
-      return MoldWarningStatus.CLOSED
-    default:
-      return undefined
-  }
-}
-
-export function toDomainMoldWarningType(value?: ProtoMoldWarningType): MoldWarningType | undefined {
-  switch (value) {
-    case ProtoMoldWarningType.MOLD_WARNING_TYPE_LIFE_THRESHOLD:
-      return MoldWarningType.LIFE_THRESHOLD
-    case ProtoMoldWarningType.MOLD_WARNING_TYPE_LIFE_EXCEEDED:
-      return MoldWarningType.LIFE_EXCEEDED
-    case ProtoMoldWarningType.MOLD_WARNING_TYPE_STATUS_EXCEPTION:
-      return MoldWarningType.STATUS_EXCEPTION
-    default:
-      return undefined
-  }
-}
-
+/** toDomainMoldWarningLevel maps generated warning filters into domain values. */
 export function toDomainMoldWarningLevel(value?: ProtoMoldWarningLevel): MoldWarningLevel | undefined {
   switch (value) {
     case ProtoMoldWarningLevel.MOLD_WARNING_LEVEL_INFO:
@@ -930,42 +618,106 @@ export function toDomainMoldWarningLevel(value?: ProtoMoldWarningLevel): MoldWar
   }
 }
 
-export function toDomainMoldUsageHistoryEntryType(value: ProtoMoldUsageHistoryEntryType): MoldUsageHistoryEntryType {
-  switch (value) {
-    case ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_INSTALLATION:
-      return MoldUsageHistoryEntryType.INSTALLATION
-    case ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_UNMOUNT:
-      return MoldUsageHistoryEntryType.UNMOUNT
-    case ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_USAGE:
-      return MoldUsageHistoryEntryType.USAGE
-    case ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_LIFE_ADJUSTMENT:
-      return MoldUsageHistoryEntryType.LIFE_ADJUSTMENT
-    case ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_WARNING:
-      return MoldUsageHistoryEntryType.WARNING
-    case ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_MOVE:
-      return MoldUsageHistoryEntryType.MOVE
-    case ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_SCRAP:
-      return MoldUsageHistoryEntryType.SCRAP
-    default:
-      return MoldUsageHistoryEntryType.USAGE
-  }
-}
-
-export function toDomainManufacturingMasterDataRef(
-  value: ManufacturingMasterDataRef | undefined,
-  fallbackType: ManufacturingMasterDataRefRecord['refType']
-): ManufacturingMasterDataRefRecord | undefined {
-  if (!value?.refId) {
+/** toDomainProductionSpecRef maps generated spec refs into MES display reference records. */
+export function toDomainProductionSpecRef(value?: ProductionSpecRef): ProductionSpecRefRecord | undefined {
+  if (!value?.productionSpecId) {
     return undefined
   }
   return {
-    refType:
-      value.refType === ProtoManufacturingMasterDataRefType.MANUFACTURING_MASTER_DATA_REF_TYPE_MANUFACTURING_SPEC
-        ? 'MANUFACTURING_SPEC'
-        : fallbackType,
-    refId: value.refId,
-    refCodeSnapshot: value.refCodeSnapshot,
+    productionSpecId: value.productionSpecId,
+    specCodeSnapshot: value.specCodeSnapshot,
     displayNameSnapshot: value.displayNameSnapshot
+  }
+}
+
+/** toDomainStorageResourceRef maps generated storage refs into MES display reference records. */
+export function toDomainStorageResourceRef(value?: StorageResourceRef): StorageResourceRefRecord | undefined {
+  if (!value?.storageResourceId) {
+    return undefined
+  }
+  return {
+    storageResourceId: value.storageResourceId,
+    resourceCodeSnapshot: value.resourceCodeSnapshot,
+    displayNameSnapshot: value.displayNameSnapshot
+  }
+}
+
+/** toDomainCarrierResourceRef maps generated carrier refs into MES display reference records. */
+export function toDomainCarrierResourceRef(value?: CarrierResourceRef): CarrierResourceRefRecord | undefined {
+  if (!value?.carrierResourceId) {
+    return undefined
+  }
+  return {
+    carrierResourceId: value.carrierResourceId,
+    resourceCodeSnapshot: value.resourceCodeSnapshot,
+    displayNameSnapshot: value.displayNameSnapshot
+  }
+}
+
+/** toDomainWorkCenterRef maps generated work center refs into MES display reference records. */
+export function toDomainWorkCenterRef(value?: WorkCenterRef): WorkCenterRefRecord | undefined {
+  if (!value?.workCenterId) {
+    return undefined
+  }
+  return {
+    workCenterId: value.workCenterId,
+    workCenterCodeSnapshot: value.workCenterCodeSnapshot,
+    displayNameSnapshot: value.displayNameSnapshot
+  }
+}
+
+/** toDomainWorkUnitRef maps generated work unit refs into MES display reference records. */
+export function toDomainWorkUnitRef(value?: WorkUnitRef): WorkUnitRefRecord | undefined {
+  if (!value?.workUnitId) {
+    return undefined
+  }
+  return {
+    workUnitId: value.workUnitId,
+    workUnitCodeSnapshot: value.workUnitCodeSnapshot,
+    displayNameSnapshot: value.displayNameSnapshot
+  }
+}
+
+/** toDomainTraceSubjectRef maps generated trace subject refs into MES display reference records. */
+export function toDomainTraceSubjectRef(value?: TraceSubjectRef): TraceSubjectRefRecord | undefined {
+  if (!value?.traceSubjectId) {
+    return undefined
+  }
+  return {
+    traceSubjectId: value.traceSubjectId,
+    traceCodeSnapshot: value.traceCodeSnapshot,
+    displayNameSnapshot: value.displayNameSnapshot
+  }
+}
+
+/** toDomainSupplierRef maps generated supplier refs into MES display reference records. */
+export function toDomainSupplierRef(value?: SupplierRef): SupplierRefRecord | undefined {
+  if (!value?.supplierId) {
+    return undefined
+  }
+  return {
+    supplierId: value.supplierId,
+    supplierCodeSnapshot: value.supplierCodeSnapshot,
+    supplierDisplayNameSnapshot: value.supplierDisplayNameSnapshot
+  }
+}
+
+/** toDomainPurchaseRef maps generated purchase refs into MES display reference records. */
+export function toDomainPurchaseRef(value?: PurchaseRef): PurchaseRefRecord | undefined {
+  if (!value || value.purchaseSourceType === ProtoPurchaseSourceType.PURCHASE_SOURCE_TYPE_UNSPECIFIED) {
+    return undefined
+  }
+  return {
+    purchaseSourceType:
+      value.purchaseSourceType === ProtoPurchaseSourceType.PURCHASE_SOURCE_TYPE_PURCHASE_ORDER
+        ? 'PURCHASE_ORDER'
+        : value.purchaseSourceType === ProtoPurchaseSourceType.PURCHASE_SOURCE_TYPE_PURCHASE_RECEIPT
+          ? 'PURCHASE_RECEIPT'
+          : value.purchaseSourceType === ProtoPurchaseSourceType.PURCHASE_SOURCE_TYPE_EXTERNAL_DOCUMENT
+            ? 'EXTERNAL_DOCUMENT'
+            : 'MANUAL',
+    purchaseSourceId: value.purchaseSourceId,
+    purchaseNoSnapshot: value.purchaseNoSnapshot
   }
 }
 
@@ -990,12 +742,12 @@ function toProtoMoldOutputStructureType(value: MoldOutputStructureType): ProtoMo
 
 function toProtoMoldDesignOutputKind(value: MoldDesignOutputKind): ProtoMoldDesignOutputKind {
   switch (value) {
+    case MoldDesignOutputKind.PRODUCT:
+      return ProtoMoldDesignOutputKind.MOLD_DESIGN_OUTPUT_KIND_PRODUCT
     case MoldDesignOutputKind.COMPONENT:
       return ProtoMoldDesignOutputKind.MOLD_DESIGN_OUTPUT_KIND_COMPONENT
-    case MoldDesignOutputKind.MANUFACTURING_SPEC:
-      return ProtoMoldDesignOutputKind.MOLD_DESIGN_OUTPUT_KIND_MANUFACTURING_SPEC
     default:
-      return ProtoMoldDesignOutputKind.MOLD_DESIGN_OUTPUT_KIND_PRODUCT
+      return ProtoMoldDesignOutputKind.MOLD_DESIGN_OUTPUT_KIND_PRODUCTION_SPEC
   }
 }
 
@@ -1010,118 +762,182 @@ function toProtoMoldDesignStatus(value: MoldDesignStatus): ProtoMoldDesignStatus
   }
 }
 
-function toProtoProductionMoldInstanceStatus(value: ProductionMoldInstanceStatus): ProtoProductionMoldInstanceStatus {
+function toProtoProductionMoldStatus(value: ProductionMoldStatus): ProtoProductionMoldStatus {
   switch (value) {
-    case ProductionMoldInstanceStatus.RECEIVED:
-      return ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_RECEIVED
-    case ProductionMoldInstanceStatus.PENDING_DRYING:
-      return ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_PENDING_DRYING
-    case ProductionMoldInstanceStatus.PENDING_INSTALLATION:
-      return ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_PENDING_INSTALLATION
-    case ProductionMoldInstanceStatus.INSTALLED:
-      return ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_INSTALLED
-    case ProductionMoldInstanceStatus.PENDING_REPAIR:
-      return ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_PENDING_REPAIR
-    case ProductionMoldInstanceStatus.UNDER_REPAIR:
-      return ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_UNDER_REPAIR
-    case ProductionMoldInstanceStatus.DISABLED:
-      return ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_DISABLED
-    case ProductionMoldInstanceStatus.SCRAPPED:
-      return ProtoProductionMoldInstanceStatus.PRODUCTION_MOLD_INSTANCE_STATUS_SCRAPPED
+    case ProductionMoldStatus.RECEIVED:
+      return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_RECEIVED
+    case ProductionMoldStatus.PREPARING:
+      return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_PREPARING
+    case ProductionMoldStatus.INSTALLED:
+      return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_INSTALLED
+    case ProductionMoldStatus.MAINTENANCE:
+      return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_MAINTENANCE
+    case ProductionMoldStatus.DISABLED:
+      return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_DISABLED
+    case ProductionMoldStatus.SCRAPPED:
+      return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_SCRAPPED
+    default:
+      return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_AVAILABLE
   }
 }
 
-function toProtoMoldResourceType(value: MoldResourceType): ProtoMoldResourceType {
-  return value === MoldResourceType.MASTER_MOLD
-    ? ProtoMoldResourceType.MOLD_RESOURCE_TYPE_MASTER_MOLD
-    : ProtoMoldResourceType.MOLD_RESOURCE_TYPE_PRODUCTION_MOLD_INSTANCE
+function toProtoToolingType(value: ToolingType): ProtoToolingType {
+  return value === ToolingType.MOLD ? ProtoToolingType.TOOLING_TYPE_MOLD : ProtoToolingType.TOOLING_TYPE_MOLD
 }
 
-function toProtoMoldInstallationStatus(value: MoldInstallationStatus): ProtoMoldInstallationStatus {
+function toProtoToolingInstallationStatus(value: ToolingInstallationStatus): ProtoToolingInstallationStatus {
   switch (value) {
-    case MoldInstallationStatus.UNMOUNTED:
-      return ProtoMoldInstallationStatus.MOLD_INSTALLATION_STATUS_UNMOUNTED
-    case MoldInstallationStatus.CLOSED_BY_SCRAP:
-      return ProtoMoldInstallationStatus.MOLD_INSTALLATION_STATUS_CLOSED_BY_SCRAP
+    case ToolingInstallationStatus.UNMOUNTED:
+      return ProtoToolingInstallationStatus.TOOLING_INSTALLATION_STATUS_UNMOUNTED
+    case ToolingInstallationStatus.CLOSED_BY_SCRAP:
+      return ProtoToolingInstallationStatus.TOOLING_INSTALLATION_STATUS_CLOSED_BY_SCRAP
     default:
-      return ProtoMoldInstallationStatus.MOLD_INSTALLATION_STATUS_ACTIVE
+      return ProtoToolingInstallationStatus.TOOLING_INSTALLATION_STATUS_ACTIVE
   }
 }
 
-function toProtoMoldUsageMode(value: MoldUsageMode): ProtoMoldUsageMode {
+function toProtoToolingPlacementType(value: ToolingPlacementType): ProtoToolingPlacementType {
   switch (value) {
-    case MoldUsageMode.PDA_SCAN:
-      return ProtoMoldUsageMode.MOLD_USAGE_MODE_PDA_SCAN
-    case MoldUsageMode.BATCH_CONFIRM:
-      return ProtoMoldUsageMode.MOLD_USAGE_MODE_BATCH_CONFIRM
-    case MoldUsageMode.BACK_OFFICE_ENTRY:
-      return ProtoMoldUsageMode.MOLD_USAGE_MODE_BACK_OFFICE_ENTRY
-    case MoldUsageMode.AUTOMATED_CAPTURE:
-      return ProtoMoldUsageMode.MOLD_USAGE_MODE_AUTOMATED_CAPTURE
+    case ToolingPlacementType.CARRIER_RESOURCE:
+      return ProtoToolingPlacementType.TOOLING_PLACEMENT_TYPE_CARRIER_RESOURCE
+    case ToolingPlacementType.WORK_CENTER:
+      return ProtoToolingPlacementType.TOOLING_PLACEMENT_TYPE_WORK_CENTER
+    case ToolingPlacementType.WORK_UNIT:
+      return ProtoToolingPlacementType.TOOLING_PLACEMENT_TYPE_WORK_UNIT
     default:
-      return ProtoMoldUsageMode.MOLD_USAGE_MODE_MANUAL_CHECKLIST
-  }
-}
-
-function toProtoMoldWarningType(value: MoldWarningType): ProtoMoldWarningType {
-  switch (value) {
-    case MoldWarningType.LIFE_EXCEEDED:
-      return ProtoMoldWarningType.MOLD_WARNING_TYPE_LIFE_EXCEEDED
-    case MoldWarningType.STATUS_EXCEPTION:
-      return ProtoMoldWarningType.MOLD_WARNING_TYPE_STATUS_EXCEPTION
-    default:
-      return ProtoMoldWarningType.MOLD_WARNING_TYPE_LIFE_THRESHOLD
+      return ProtoToolingPlacementType.TOOLING_PLACEMENT_TYPE_STORAGE_RESOURCE
   }
 }
 
 function toProtoMoldWarningLevel(value: MoldWarningLevel): ProtoMoldWarningLevel {
   switch (value) {
-    case MoldWarningLevel.CRITICAL:
-      return ProtoMoldWarningLevel.MOLD_WARNING_LEVEL_CRITICAL
     case MoldWarningLevel.WARNING:
       return ProtoMoldWarningLevel.MOLD_WARNING_LEVEL_WARNING
+    case MoldWarningLevel.CRITICAL:
+      return ProtoMoldWarningLevel.MOLD_WARNING_LEVEL_CRITICAL
     default:
       return ProtoMoldWarningLevel.MOLD_WARNING_LEVEL_INFO
   }
 }
 
-function toProtoMoldWarningStatus(value: MoldWarningStatus): ProtoMoldWarningStatus {
-  switch (value) {
-    case MoldWarningStatus.ACKNOWLEDGED:
-      return ProtoMoldWarningStatus.MOLD_WARNING_STATUS_ACKNOWLEDGED
-    case MoldWarningStatus.CLOSED:
-      return ProtoMoldWarningStatus.MOLD_WARNING_STATUS_CLOSED
-    default:
-      return ProtoMoldWarningStatus.MOLD_WARNING_STATUS_OPEN
-  }
-}
-
-function toProtoMoldDerivedUsageState(value: MoldDerivedUsageState): ProtoMoldDerivedUsageState {
-  switch (value) {
-    case MoldDerivedUsageState.RECENTLY_USED:
-      return ProtoMoldDerivedUsageState.MOLD_DERIVED_USAGE_STATE_RECENTLY_USED
-    case MoldDerivedUsageState.IN_USE_WINDOW:
-      return ProtoMoldDerivedUsageState.MOLD_DERIVED_USAGE_STATE_IN_USE_WINDOW
-    default:
-      return ProtoMoldDerivedUsageState.MOLD_DERIVED_USAGE_STATE_IDLE
-  }
-}
-
 function toProtoMoldUsageHistoryEntryType(value: MoldUsageHistoryEntryType): ProtoMoldUsageHistoryEntryType {
   switch (value) {
-    case MoldUsageHistoryEntryType.INSTALLATION:
-      return ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_INSTALLATION
     case MoldUsageHistoryEntryType.UNMOUNT:
       return ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_UNMOUNT
+    case MoldUsageHistoryEntryType.USAGE:
+      return ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_USAGE
     case MoldUsageHistoryEntryType.LIFE_ADJUSTMENT:
       return ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_LIFE_ADJUSTMENT
-    case MoldUsageHistoryEntryType.WARNING:
-      return ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_WARNING
     case MoldUsageHistoryEntryType.MOVE:
       return ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_MOVE
     case MoldUsageHistoryEntryType.SCRAP:
       return ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_SCRAP
     default:
-      return ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_USAGE
+      return ProtoMoldUsageHistoryEntryType.MOLD_USAGE_HISTORY_ENTRY_TYPE_INSTALL
+  }
+}
+
+function toProtoProductionSpecRef(record: ProductionSpecRefRecord): ProductionSpecRef {
+  return {
+    productionSpecId: record.productionSpecId,
+    specCodeSnapshot: record.specCodeSnapshot ?? undefined,
+    displayNameSnapshot: record.displayNameSnapshot ?? undefined
+  }
+}
+
+function toProtoItemRef(record: ItemRefRecord) {
+  return {
+    itemId: record.itemId,
+    itemCodeSnapshot: record.itemCodeSnapshot ?? undefined,
+    itemNameSnapshot: record.itemNameSnapshot ?? undefined
+  }
+}
+
+function toProtoSupplierRef(record: SupplierRefRecord): SupplierRef {
+  return {
+    supplierId: record.supplierId,
+    supplierCodeSnapshot: record.supplierCodeSnapshot ?? undefined,
+    supplierDisplayNameSnapshot: record.supplierDisplayNameSnapshot ?? undefined
+  }
+}
+
+function toProtoPurchaseRef(record: PurchaseRefRecord): PurchaseRef {
+  const purchaseSourceType =
+    record.purchaseSourceType === 'PURCHASE_ORDER'
+      ? ProtoPurchaseSourceType.PURCHASE_SOURCE_TYPE_PURCHASE_ORDER
+      : record.purchaseSourceType === 'PURCHASE_RECEIPT'
+        ? ProtoPurchaseSourceType.PURCHASE_SOURCE_TYPE_PURCHASE_RECEIPT
+        : record.purchaseSourceType === 'EXTERNAL_DOCUMENT'
+          ? ProtoPurchaseSourceType.PURCHASE_SOURCE_TYPE_EXTERNAL_DOCUMENT
+          : ProtoPurchaseSourceType.PURCHASE_SOURCE_TYPE_MANUAL
+  return {
+    purchaseSourceType,
+    purchaseSourceId: record.purchaseSourceId ?? undefined,
+    purchaseNoSnapshot: record.purchaseNoSnapshot ?? undefined
+  }
+}
+
+function toProtoStorageResourceRef(record: StorageResourceRefRecord): StorageResourceRef {
+  return {
+    storageResourceId: record.storageResourceId,
+    resourceCodeSnapshot: record.resourceCodeSnapshot ?? undefined,
+    displayNameSnapshot: record.displayNameSnapshot ?? undefined
+  }
+}
+
+function toProtoCarrierResourceRef(record: CarrierResourceRefRecord): CarrierResourceRef {
+  return {
+    carrierResourceId: record.carrierResourceId,
+    resourceCodeSnapshot: record.resourceCodeSnapshot ?? undefined,
+    displayNameSnapshot: record.displayNameSnapshot ?? undefined
+  }
+}
+
+function toProtoWorkCenterRef(record: WorkCenterRefRecord): WorkCenterRef {
+  return {
+    workCenterId: record.workCenterId,
+    workCenterCodeSnapshot: record.workCenterCodeSnapshot ?? undefined,
+    displayNameSnapshot: record.displayNameSnapshot ?? undefined
+  }
+}
+
+function toProtoWorkUnitRef(record: WorkUnitRefRecord): WorkUnitRef {
+  return {
+    workUnitId: record.workUnitId,
+    workUnitCodeSnapshot: record.workUnitCodeSnapshot ?? undefined,
+    displayNameSnapshot: record.displayNameSnapshot ?? undefined
+  }
+}
+
+function toProtoOperatorRef(record: OperatorRefRecord): OperatorRef {
+  return {
+    operatorId: record.operatorId,
+    displayNameSnapshot: record.displayNameSnapshot ?? undefined
+  }
+}
+
+function toProtoAuditRef(record: AuditRefRecord): AuditRef {
+  return {
+    auditId: record.auditId,
+    commandId: record.commandId,
+    reason: record.reason
+  }
+}
+
+function toProtoMoldInstallationDetail(record: MoldInstallationDetailRecord): MoldInstallationDetail {
+  return {
+    toolingInstallationId: record.toolingInstallationId,
+    moldPosition: record.moldPosition ?? undefined,
+    cavityPosition: record.cavityPosition ?? undefined,
+    cavityMapping: record.cavityMapping ?? undefined,
+    setupParameters: record.setupParameters ?? undefined
+  }
+}
+
+function toProtoTraceSubjectRef(record: TraceSubjectRefRecord): TraceSubjectRef {
+  return {
+    traceSubjectId: record.traceSubjectId,
+    traceCodeSnapshot: record.traceCodeSnapshot ?? undefined,
+    displayNameSnapshot: record.displayNameSnapshot ?? undefined
   }
 }

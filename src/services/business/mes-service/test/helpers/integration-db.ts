@@ -96,17 +96,22 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
   await prisma.mesCommandIdempotency.deleteMany({ where })
   await prisma.mesOutboxEvent.deleteMany({ where })
   await prisma.mesAuditEnvelope.deleteMany({ where })
-  await prisma.moldWarningEvent.deleteMany({ where })
-  await prisma.moldUsageEvent.deleteMany({ where })
-  await prisma.moldInstallation.deleteMany({ where })
-  await prisma.moldMovementEvent.deleteMany({ where })
+  await prisma.moldUsageRecord.deleteMany({ where })
+  await prisma.moldInstallationDetail.deleteMany({
+    where: {
+      toolingInstallation: where
+    }
+  })
+  await prisma.toolingInstallation.deleteMany({ where })
+  await prisma.moldMovement.deleteMany({ where })
   await prisma.moldLifeCounter.deleteMany({ where })
-  await prisma.productionMoldInstance.deleteMany({ where })
+  await prisma.productionMold.deleteMany({ where })
   await prisma.masterMold.deleteMany({ where })
   await prisma.moldDesignOutput.deleteMany({ where })
   await prisma.moldDesign.deleteMany({ where })
-  await prisma.manufacturingSpec.deleteMany({ where })
-  await prisma.resourcePosition.deleteMany({ where })
+  await prisma.productionSpec.deleteMany({ where })
+  await prisma.workUnit.deleteMany({ where })
   await prisma.workCenter.deleteMany({ where })
-  await prisma.mesLocation.deleteMany({ where })
+  await prisma.carrierResource.deleteMany({ where })
+  await prisma.storageResource.deleteMany({ where })
 }

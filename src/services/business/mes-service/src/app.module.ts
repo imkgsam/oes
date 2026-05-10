@@ -23,7 +23,7 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
   return undefined
 }
 
-/** AppModule wires the mes-service phase 1 mold and ManufacturingSpec runtime modules. */
+/** AppModule wires the mes-service ProductionSpec and Mold / Tooling runtime modules. */
 @Module({
   imports: [
     LoggingModule.forRoot({ serviceName: 'mes-service' }),

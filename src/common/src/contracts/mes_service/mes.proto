@@ -5,52 +5,49 @@ package mes_service;
 option java_multiple_files = true;
 option java_package = "com.oes.mes.v1";
 
+service ProductionSpecManagementService {
+  rpc CreateProductionSpec(CreateProductionSpecRequest) returns (CreateProductionSpecResponse);
+  rpc UpdateProductionSpec(UpdateProductionSpecRequest) returns (UpdateProductionSpecResponse);
+  rpc ActivateProductionSpec(ActivateProductionSpecRequest) returns (ActivateProductionSpecResponse);
+  rpc RetireProductionSpec(RetireProductionSpecRequest) returns (RetireProductionSpecResponse);
+}
+
+service ProductionSpecQueryService {
+  rpc GetProductionSpec(GetProductionSpecRequest) returns (GetProductionSpecResponse);
+  rpc ListProductionSpecs(ListProductionSpecsRequest) returns (ListProductionSpecsResponse);
+  rpc ResolveProductionSpecsForMold(ResolveProductionSpecsForMoldRequest) returns (ResolveProductionSpecsForMoldResponse);
+}
+
 service MoldManagementService {
-  rpc CreateWorkCenter(CreateWorkCenterRequest) returns (CreateWorkCenterResponse);
-  rpc DeactivateWorkCenter(DeactivateWorkCenterRequest) returns (DeactivateWorkCenterResponse);
   rpc RegisterMoldDesign(RegisterMoldDesignRequest) returns (RegisterMoldDesignResponse);
   rpc RegisterMasterMold(RegisterMasterMoldRequest) returns (RegisterMasterMoldResponse);
-  rpc RegisterProductionMoldInstance(RegisterProductionMoldInstanceRequest) returns (RegisterProductionMoldInstanceResponse);
-  rpc MoveMold(MoveMoldRequest) returns (MoveMoldResponse);
-  rpc InstallMold(InstallMoldRequest) returns (InstallMoldResponse);
-  rpc UnmountMold(UnmountMoldRequest) returns (UnmountMoldResponse);
+  rpc RegisterProductionMold(RegisterProductionMoldRequest) returns (RegisterProductionMoldResponse);
+  rpc MoveTooling(MoveToolingRequest) returns (MoveToolingResponse);
+  rpc InstallTooling(InstallToolingRequest) returns (InstallToolingResponse);
+  rpc UnmountTooling(UnmountToolingRequest) returns (UnmountToolingResponse);
   rpc RecordMoldUsage(RecordMoldUsageRequest) returns (RecordMoldUsageResponse);
-  rpc AdjustMoldLife(AdjustMoldLifeRequest) returns (AdjustMoldLifeResponse);
-  rpc AcknowledgeMoldWarning(AcknowledgeMoldWarningRequest) returns (AcknowledgeMoldWarningResponse);
-  rpc ScrapMold(ScrapMoldRequest) returns (ScrapMoldResponse);
+  rpc AdjustMoldLifeCounter(AdjustMoldLifeCounterRequest) returns (AdjustMoldLifeCounterResponse);
+  rpc ScrapProductionMold(ScrapProductionMoldRequest) returns (ScrapProductionMoldResponse);
 }
 
 service MoldQueryService {
-  rpc ListWorkCenters(ListWorkCentersRequest) returns (ListWorkCentersResponse);
   rpc GetMoldDesign(GetMoldDesignRequest) returns (GetMoldDesignResponse);
   rpc ListMoldDesigns(ListMoldDesignsRequest) returns (ListMoldDesignsResponse);
-  rpc GetProductionMoldInstance(GetProductionMoldInstanceRequest) returns (GetProductionMoldInstanceResponse);
-  rpc ListProductionMoldInstances(ListProductionMoldInstancesRequest) returns (ListProductionMoldInstancesResponse);
-  rpc ListMoldInstancesByDesign(ListMoldInstancesByDesignRequest) returns (ListMoldInstancesByDesignResponse);
-  rpc GetMoldCurrentLocation(GetMoldCurrentLocationRequest) returns (GetMoldCurrentLocationResponse);
+  rpc GetProductionMold(GetProductionMoldRequest) returns (GetProductionMoldResponse);
+  rpc ListProductionMolds(ListProductionMoldsRequest) returns (ListProductionMoldsResponse);
+  rpc ListProductionMoldsByDesign(ListProductionMoldsByDesignRequest) returns (ListProductionMoldsByDesignResponse);
+  rpc GetToolingCurrentPlacement(GetToolingCurrentPlacementRequest) returns (GetToolingCurrentPlacementResponse);
   rpc GetMoldUsageHistory(GetMoldUsageHistoryRequest) returns (GetMoldUsageHistoryResponse);
   rpc ListCurrentMoldsByWorkCenter(ListCurrentMoldsByWorkCenterRequest) returns (ListCurrentMoldsByWorkCenterResponse);
-  rpc ListMoldLifeWarnings(ListMoldLifeWarningsRequest) returns (ListMoldLifeWarningsResponse);
+  rpc ListMoldLifeCounters(ListMoldLifeCountersRequest) returns (ListMoldLifeCountersResponse);
   rpc PrintDailyMoldChecklist(PrintDailyMoldChecklistRequest) returns (PrintDailyMoldChecklistResponse);
 }
 
-service ManufacturingSpecManagementService {
-  rpc CreateManufacturingSpec(CreateManufacturingSpecRequest) returns (CreateManufacturingSpecResponse);
-  rpc UpdateManufacturingSpec(UpdateManufacturingSpecRequest) returns (UpdateManufacturingSpecResponse);
-  rpc ActivateManufacturingSpec(ActivateManufacturingSpecRequest) returns (ActivateManufacturingSpecResponse);
-  rpc RetireManufacturingSpec(RetireManufacturingSpecRequest) returns (RetireManufacturingSpecResponse);
-}
-
-service ManufacturingSpecQueryService {
-  rpc GetManufacturingSpec(GetManufacturingSpecRequest) returns (GetManufacturingSpecResponse);
-  rpc ListManufacturingSpecs(ListManufacturingSpecsRequest) returns (ListManufacturingSpecsResponse);
-  rpc ResolveManufacturingSpecsForMold(ResolveManufacturingSpecsForMoldRequest) returns (ResolveManufacturingSpecsForMoldResponse);
-}
-
-enum ManufacturingMasterDataRefType {
-  MANUFACTURING_MASTER_DATA_REF_TYPE_UNSPECIFIED = 0;
-  MANUFACTURING_MASTER_DATA_REF_TYPE_PRODUCT_FAMILY = 1;
-  MANUFACTURING_MASTER_DATA_REF_TYPE_MANUFACTURING_SPEC = 2;
+enum ProductionSpecStatus {
+  PRODUCTION_SPEC_STATUS_UNSPECIFIED = 0;
+  PRODUCTION_SPEC_STATUS_DRAFT = 1;
+  PRODUCTION_SPEC_STATUS_ACTIVE = 2;
+  PRODUCTION_SPEC_STATUS_RETIRED = 3;
 }
 
 enum PurchaseSourceType {
@@ -79,7 +76,7 @@ enum MoldDesignOutputKind {
   MOLD_DESIGN_OUTPUT_KIND_UNSPECIFIED = 0;
   MOLD_DESIGN_OUTPUT_KIND_PRODUCT = 1;
   MOLD_DESIGN_OUTPUT_KIND_COMPONENT = 2;
-  MOLD_DESIGN_OUTPUT_KIND_MANUFACTURING_SPEC = 3;
+  MOLD_DESIGN_OUTPUT_KIND_PRODUCTION_SPEC = 3;
 }
 
 enum MoldDesignStatus {
@@ -89,38 +86,35 @@ enum MoldDesignStatus {
   MOLD_DESIGN_STATUS_SUPERSEDED = 3;
 }
 
-enum ProductionMoldInstanceStatus {
-  PRODUCTION_MOLD_INSTANCE_STATUS_UNSPECIFIED = 0;
-  PRODUCTION_MOLD_INSTANCE_STATUS_RECEIVED = 1;
-  PRODUCTION_MOLD_INSTANCE_STATUS_PENDING_DRYING = 2;
-  PRODUCTION_MOLD_INSTANCE_STATUS_PENDING_INSTALLATION = 3;
-  PRODUCTION_MOLD_INSTANCE_STATUS_INSTALLED = 4;
-  PRODUCTION_MOLD_INSTANCE_STATUS_PENDING_REPAIR = 5;
-  PRODUCTION_MOLD_INSTANCE_STATUS_UNDER_REPAIR = 6;
-  PRODUCTION_MOLD_INSTANCE_STATUS_DISABLED = 7;
-  PRODUCTION_MOLD_INSTANCE_STATUS_SCRAPPED = 8;
+enum ProductionMoldStatus {
+  PRODUCTION_MOLD_STATUS_UNSPECIFIED = 0;
+  PRODUCTION_MOLD_STATUS_RECEIVED = 1;
+  PRODUCTION_MOLD_STATUS_PREPARING = 2;
+  PRODUCTION_MOLD_STATUS_AVAILABLE = 3;
+  PRODUCTION_MOLD_STATUS_INSTALLED = 4;
+  PRODUCTION_MOLD_STATUS_MAINTENANCE = 5;
+  PRODUCTION_MOLD_STATUS_DISABLED = 6;
+  PRODUCTION_MOLD_STATUS_SCRAPPED = 7;
 }
 
-enum MoldResourceType {
-  MOLD_RESOURCE_TYPE_UNSPECIFIED = 0;
-  MOLD_RESOURCE_TYPE_MASTER_MOLD = 1;
-  MOLD_RESOURCE_TYPE_PRODUCTION_MOLD_INSTANCE = 2;
+enum ToolingType {
+  TOOLING_TYPE_UNSPECIFIED = 0;
+  TOOLING_TYPE_MOLD = 1;
 }
 
-enum MoldInstallationStatus {
-  MOLD_INSTALLATION_STATUS_UNSPECIFIED = 0;
-  MOLD_INSTALLATION_STATUS_ACTIVE = 1;
-  MOLD_INSTALLATION_STATUS_UNMOUNTED = 2;
-  MOLD_INSTALLATION_STATUS_CLOSED_BY_SCRAP = 3;
+enum ToolingInstallationStatus {
+  TOOLING_INSTALLATION_STATUS_UNSPECIFIED = 0;
+  TOOLING_INSTALLATION_STATUS_ACTIVE = 1;
+  TOOLING_INSTALLATION_STATUS_UNMOUNTED = 2;
+  TOOLING_INSTALLATION_STATUS_CLOSED_BY_SCRAP = 3;
 }
 
-enum MoldUsageMode {
-  MOLD_USAGE_MODE_UNSPECIFIED = 0;
-  MOLD_USAGE_MODE_MANUAL_CHECKLIST = 1;
-  MOLD_USAGE_MODE_PDA_SCAN = 2;
-  MOLD_USAGE_MODE_BATCH_CONFIRM = 3;
-  MOLD_USAGE_MODE_BACK_OFFICE_ENTRY = 4;
-  MOLD_USAGE_MODE_AUTOMATED_CAPTURE = 5;
+enum ToolingPlacementType {
+  TOOLING_PLACEMENT_TYPE_UNSPECIFIED = 0;
+  TOOLING_PLACEMENT_TYPE_STORAGE_RESOURCE = 1;
+  TOOLING_PLACEMENT_TYPE_CARRIER_RESOURCE = 2;
+  TOOLING_PLACEMENT_TYPE_WORK_CENTER = 3;
+  TOOLING_PLACEMENT_TYPE_WORK_UNIT = 4;
 }
 
 enum MoldLifeAdjustmentType {
@@ -131,13 +125,6 @@ enum MoldLifeAdjustmentType {
   MOLD_LIFE_ADJUSTMENT_TYPE_SET_WARNING_THRESHOLD = 4;
 }
 
-enum MoldWarningType {
-  MOLD_WARNING_TYPE_UNSPECIFIED = 0;
-  MOLD_WARNING_TYPE_LIFE_THRESHOLD = 1;
-  MOLD_WARNING_TYPE_LIFE_EXCEEDED = 2;
-  MOLD_WARNING_TYPE_STATUS_EXCEPTION = 3;
-}
-
 enum MoldWarningLevel {
   MOLD_WARNING_LEVEL_UNSPECIFIED = 0;
   MOLD_WARNING_LEVEL_INFO = 1;
@@ -145,43 +132,14 @@ enum MoldWarningLevel {
   MOLD_WARNING_LEVEL_CRITICAL = 3;
 }
 
-enum MoldWarningStatus {
-  MOLD_WARNING_STATUS_UNSPECIFIED = 0;
-  MOLD_WARNING_STATUS_OPEN = 1;
-  MOLD_WARNING_STATUS_ACKNOWLEDGED = 2;
-  MOLD_WARNING_STATUS_CLOSED = 3;
-}
-
-enum MoldWarningAcknowledgementAction {
-  MOLD_WARNING_ACKNOWLEDGEMENT_ACTION_UNSPECIFIED = 0;
-  MOLD_WARNING_ACKNOWLEDGEMENT_ACTION_ACKNOWLEDGE = 1;
-  MOLD_WARNING_ACKNOWLEDGEMENT_ACTION_ACKNOWLEDGE_AND_MARK_REPAIR = 2;
-  MOLD_WARNING_ACKNOWLEDGEMENT_ACTION_ACKNOWLEDGE_AND_DISABLE = 3;
-}
-
-enum MoldDerivedUsageState {
-  MOLD_DERIVED_USAGE_STATE_UNSPECIFIED = 0;
-  MOLD_DERIVED_USAGE_STATE_IDLE = 1;
-  MOLD_DERIVED_USAGE_STATE_RECENTLY_USED = 2;
-  MOLD_DERIVED_USAGE_STATE_IN_USE_WINDOW = 3;
-}
-
 enum MoldUsageHistoryEntryType {
   MOLD_USAGE_HISTORY_ENTRY_TYPE_UNSPECIFIED = 0;
-  MOLD_USAGE_HISTORY_ENTRY_TYPE_INSTALLATION = 1;
+  MOLD_USAGE_HISTORY_ENTRY_TYPE_INSTALL = 1;
   MOLD_USAGE_HISTORY_ENTRY_TYPE_UNMOUNT = 2;
   MOLD_USAGE_HISTORY_ENTRY_TYPE_USAGE = 3;
   MOLD_USAGE_HISTORY_ENTRY_TYPE_LIFE_ADJUSTMENT = 4;
-  MOLD_USAGE_HISTORY_ENTRY_TYPE_WARNING = 5;
-  MOLD_USAGE_HISTORY_ENTRY_TYPE_MOVE = 6;
-  MOLD_USAGE_HISTORY_ENTRY_TYPE_SCRAP = 7;
-}
-
-enum ManufacturingSpecStatus {
-  MANUFACTURING_SPEC_STATUS_UNSPECIFIED = 0;
-  MANUFACTURING_SPEC_STATUS_DRAFT = 1;
-  MANUFACTURING_SPEC_STATUS_ACTIVE = 2;
-  MANUFACTURING_SPEC_STATUS_RETIRED = 3;
+  MOLD_USAGE_HISTORY_ENTRY_TYPE_MOVE = 5;
+  MOLD_USAGE_HISTORY_ENTRY_TYPE_SCRAP = 6;
 }
 
 message OperatorContext {
@@ -212,80 +170,10 @@ message AuditRef {
   string reason = 3;
 }
 
-message ExternalRef {
-  string ref_type = 1;
-  string ref_id = 2;
-  string ref_code_snapshot = 3;
-  string display_name_snapshot = 4;
-}
-
-message ManufacturingMasterDataRef {
-  ManufacturingMasterDataRefType ref_type = 1;
-  string ref_id = 2;
-  string ref_code_snapshot = 3;
-  string display_name_snapshot = 4;
-}
-
 message ItemRef {
   string item_id = 1;
   string item_code_snapshot = 2;
   string item_name_snapshot = 3;
-}
-
-message RouteIntentRef {
-  string route_ref_id = 1;
-  string route_code_snapshot = 2;
-  string display_name_snapshot = 3;
-}
-
-message ManufacturingAttribute {
-  string attribute_key = 1;
-  string attribute_value = 2;
-  string display_name_snapshot = 3;
-  string value_display_snapshot = 4;
-}
-
-message ManufacturingAttributeFilter {
-  string attribute_key = 1;
-  string attribute_value = 2;
-}
-
-message ManufacturingSpec {
-  string manufacturing_spec_id = 1;
-  string tenant_id = 2;
-  string org_id = 3;
-  string spec_code = 4;
-  string name = 5;
-  string revision_code = 6;
-  string supersedes_spec_id = 7;
-  ManufacturingMasterDataRef product_family_ref = 8;
-  ItemRef item_ref = 9;
-  repeated ManufacturingAttribute manufacturing_attributes = 10;
-  RouteIntentRef route_intent_ref = 11;
-  ManufacturingSpecStatus status = 12;
-  string effective_from = 13;
-  string effective_to = 14;
-  string retired_at = 15;
-  string replacement_spec_id = 16;
-  string created_at = 17;
-  string updated_at = 18;
-  uint32 version = 19;
-}
-
-message ManufacturingSpecSummary {
-  string manufacturing_spec_id = 1;
-  string spec_code = 2;
-  string name = 3;
-  string revision_code = 4;
-  ManufacturingMasterDataRef product_family_ref = 5;
-  ItemRef item_ref = 6;
-  ManufacturingSpecStatus status = 7;
-}
-
-message UnavailableManufacturingSpecRef {
-  string ref_type = 1;
-  string ref_id = 2;
-  string reason_code = 3;
 }
 
 message SupplierRef {
@@ -300,45 +188,88 @@ message PurchaseRef {
   string purchase_no_snapshot = 3;
 }
 
-message MesLocationSummary {
-  string mes_location_id = 1;
-  string location_code = 2;
-  string name = 3;
-  string location_type = 4;
-  string parent_mes_location_id = 5;
-  string related_work_center_id = 6;
-  string capacity_profile_id = 7;
-  string status = 8;
+message ProductionSpecRef {
+  string production_spec_id = 1;
+  string spec_code_snapshot = 2;
+  string display_name_snapshot = 3;
 }
 
-message WorkCenterSummary {
+message StorageResourceRef {
+  string storage_resource_id = 1;
+  string resource_code_snapshot = 2;
+  string display_name_snapshot = 3;
+}
+
+message CarrierResourceRef {
+  string carrier_resource_id = 1;
+  string resource_code_snapshot = 2;
+  string display_name_snapshot = 3;
+}
+
+message WorkCenterRef {
   string work_center_id = 1;
-  string work_center_code = 2;
-  string name = 3;
-  string work_center_type = 4;
-  string parent_work_center_id = 5;
-  string related_mes_location_id = 6;
-  string capacity_profile_id = 7;
-  string status = 8;
+  string work_center_code_snapshot = 2;
+  string display_name_snapshot = 3;
 }
 
-message ResourcePositionSummary {
-  string resource_position_id = 1;
-  string work_center_id = 2;
-  string position_code = 3;
-  string name = 4;
-  string position_type = 5;
-  string status = 6;
+message WorkUnitRef {
+  string work_unit_id = 1;
+  string work_unit_code_snapshot = 2;
+  string display_name_snapshot = 3;
+}
+
+message ProductionUnitRef {
+  string production_unit_id = 1;
+  string unit_code_snapshot = 2;
+  string display_name_snapshot = 3;
+}
+
+message TraceSubjectRef {
+  string trace_subject_id = 1;
+  string trace_code_snapshot = 2;
+  string display_name_snapshot = 3;
+}
+
+message ProductionSpec {
+  string production_spec_id = 1;
+  string tenant_id = 2;
+  string org_id = 3;
+  string spec_code = 4;
+  string name = 5;
+  string revision_code = 6;
+  string supersedes_production_spec_id = 7;
+  ItemRef item_ref = 8;
+  ProductionSpecStatus status = 9;
+  string effective_from = 10;
+  string effective_to = 11;
+  string retired_at = 12;
+  string replacement_production_spec_id = 13;
+  string created_at = 14;
+  string updated_at = 15;
+  uint32 version = 16;
+}
+
+message ProductionSpecSummary {
+  string production_spec_id = 1;
+  string spec_code = 2;
+  string name = 3;
+  string revision_code = 4;
+  ItemRef item_ref = 5;
+  ProductionSpecStatus status = 6;
+}
+
+message UnavailableProductionSpecRef {
+  string ref_id = 1;
+  string reason_code = 2;
 }
 
 message MoldDesignOutputOptionInput {
   string mold_design_output_option_id = 1;
   string option_code = 2;
   string label = 3;
-  ManufacturingMasterDataRef manufacturing_spec_ref = 4;
-  ManufacturingMasterDataRef product_family_ref = 5;
-  string quantity_per_use = 6;
-  bool is_default = 7;
+  ProductionSpecRef production_spec_ref = 4;
+  string quantity_per_use = 5;
+  bool is_default = 6;
 }
 
 message MoldDesignOutputOption {
@@ -349,23 +280,21 @@ message MoldDesignOutputOption {
   string mold_design_output_id = 5;
   string option_code = 6;
   string label = 7;
-  ManufacturingMasterDataRef manufacturing_spec_ref = 8;
-  ManufacturingMasterDataRef product_family_ref = 9;
-  string quantity_per_use = 10;
-  bool is_default = 11;
+  ProductionSpecRef production_spec_ref = 8;
+  string quantity_per_use = 9;
+  bool is_default = 10;
 }
 
 message MoldDesignOutputInput {
   uint32 sequence_no = 1;
   string output_code = 2;
   MoldDesignOutputKind output_kind = 3;
-  ManufacturingMasterDataRef product_family_ref = 4;
-  ManufacturingMasterDataRef manufacturing_spec_ref = 5;
-  string quantity_per_use = 6;
-  string component_role = 7;
-  string assembly_hint = 8;
-  bool is_primary_output = 9;
-  repeated MoldDesignOutputOptionInput options = 10;
+  ProductionSpecRef production_spec_ref = 4;
+  string quantity_per_use = 5;
+  string component_role = 6;
+  string assembly_hint = 7;
+  bool is_primary_output = 8;
+  repeated MoldDesignOutputOptionInput options = 9;
 }
 
 message MoldDesignOutput {
@@ -376,13 +305,12 @@ message MoldDesignOutput {
   uint32 sequence_no = 5;
   string output_code = 6;
   MoldDesignOutputKind output_kind = 7;
-  ManufacturingMasterDataRef product_family_ref = 8;
-  ManufacturingMasterDataRef manufacturing_spec_ref = 9;
-  string quantity_per_use = 10;
-  string component_role = 11;
-  string assembly_hint = 12;
-  bool is_primary_output = 13;
-  repeated MoldDesignOutputOption options = 14;
+  ProductionSpecRef production_spec_ref = 8;
+  string quantity_per_use = 9;
+  string component_role = 10;
+  string assembly_hint = 11;
+  bool is_primary_output = 12;
+  repeated MoldDesignOutputOption options = 13;
 }
 
 message MoldDesignSummary {
@@ -390,7 +318,7 @@ message MoldDesignSummary {
   string design_code = 2;
   string name = 3;
   string revision_code = 4;
-  ManufacturingMasterDataRef product_family_ref = 5;
+  MoldDesignStatus status = 5;
 }
 
 message MoldDesign {
@@ -400,20 +328,19 @@ message MoldDesign {
   string design_code = 4;
   string name = 5;
   string revision_code = 6;
-  string supersedes_design_id = 7;
-  ManufacturingMasterDataRef product_family_ref = 8;
-  repeated ManufacturingMasterDataRef manufacturing_spec_refs = 9;
-  ItemRef item_ref = 10;
-  string material_type = 11;
-  MoldFunctionRole function_role = 12;
-  repeated string production_method_tags = 13;
-  MoldOutputStructureType output_structure_type = 14;
-  repeated MoldDesignOutput outputs = 15;
-  string default_life_limit = 16;
-  string default_life_unit = 17;
-  MoldDesignStatus status = 18;
-  string created_at = 19;
-  string updated_at = 20;
+  string supersedes_mold_design_id = 7;
+  ItemRef item_ref = 8;
+  repeated ProductionSpecRef production_spec_refs = 9;
+  string material_type = 10;
+  MoldFunctionRole function_role = 11;
+  repeated string production_method_tags = 12;
+  MoldOutputStructureType output_structure_type = 13;
+  repeated MoldDesignOutput outputs = 14;
+  string default_life_limit = 15;
+  string default_life_unit = 16;
+  MoldDesignStatus status = 17;
+  string created_at = 18;
+  string updated_at = 19;
 }
 
 message MasterMoldSummary {
@@ -433,256 +360,138 @@ message MasterMold {
   PurchaseRef purchase_ref = 7;
   string received_at = 8;
   string current_status = 9;
-  string current_mes_location_id = 10;
-  string quality_summary = 11;
-  string notes = 12;
-  string created_at = 13;
-  string updated_at = 14;
+  StorageResourceRef current_storage_resource_ref = 10;
+  CarrierResourceRef current_carrier_resource_ref = 11;
+  string quality_summary = 12;
+  string notes = 13;
+  string created_at = 14;
+  string updated_at = 15;
 }
 
-message MoldInstallationSummary {
-  string mold_installation_id = 1;
-  string work_center_id = 2;
-  string work_center_code = 3;
-  string work_center_name = 4;
-  string resource_position_id = 5;
-  string position_code = 6;
-  string installed_at = 7;
-  MoldDerivedUsageState usage_state = 8;
+message MoldInstallationDetail {
+  string tooling_installation_id = 1;
+  string mold_position = 2;
+  string cavity_position = 3;
+  string cavity_mapping = 4;
+  string setup_parameters = 5;
 }
 
-message MoldLifeSummary {
-  string life_unit = 1;
-  string used_value = 2;
-  string limit_value = 3;
-  string warning_threshold_value = 4;
-  string remaining_value = 5;
-  MoldWarningLevel warning_level = 6;
-  string last_usage_event_id = 7;
-  string last_adjusted_at = 8;
-}
-
-message MoldWarningSummary {
-  string mold_warning_event_id = 1;
-  MoldWarningType warning_type = 2;
-  MoldWarningLevel warning_level = 3;
-  MoldWarningStatus status = 4;
-  string raised_at = 5;
-  string acknowledged_at = 6;
-}
-
-message ProductionMoldInstanceSummary {
-  string production_mold_instance_id = 1;
-  string mold_instance_code = 2;
-  MoldDesignSummary mold_design_summary = 3;
-  ProductionMoldInstanceStatus current_status = 4;
-  MesLocationSummary current_mes_location_summary = 5;
-  MoldInstallationSummary current_installation_summary = 6;
-  MoldLifeSummary life_summary = 7;
-  MoldWarningSummary warning_summary = 8;
-}
-
-message ProductionMoldInstance {
-  string production_mold_instance_id = 1;
+message ToolingInstallation {
+  string tooling_installation_id = 1;
   string tenant_id = 2;
   string org_id = 3;
-  string mold_instance_code = 4;
-  MoldDesignSummary mold_design_summary = 5;
-  MasterMoldSummary master_mold_summary = 6;
+  ToolingType tooling_type = 4;
+  string tooling_id = 5;
+  WorkCenterRef work_center_ref = 6;
+  WorkUnitRef work_unit_ref = 7;
+  string installed_at = 8;
+  string unmounted_at = 9;
+  OperatorRef installed_by_ref = 10;
+  OperatorRef unmounted_by_ref = 11;
+  ToolingInstallationStatus status = 12;
+  MoldInstallationDetail mold_detail = 13;
+  AuditRef audit_ref = 14;
+}
+
+message MoldLifeCounterSummary {
+  string mold_life_counter_id = 1;
+  string life_unit = 2;
+  string used_value = 3;
+  string limit_value = 4;
+  string warning_threshold_value = 5;
+  string remaining_value = 6;
+  MoldWarningLevel warning_level = 7;
+  string last_usage_record_id = 8;
+  string last_adjusted_at = 9;
+}
+
+message ProductionMoldSummary {
+  string production_mold_id = 1;
+  string mold_code = 2;
+  MoldDesignSummary mold_design_summary = 3;
+  ProductionMoldStatus current_status = 4;
+  ToolingPlacementSummary current_placement_summary = 5;
+  MoldLifeCounterSummary life_counter_summary = 6;
+}
+
+message ProductionMold {
+  string production_mold_id = 1;
+  string tenant_id = 2;
+  string org_id = 3;
+  string mold_code = 4;
+  string mold_design_id = 5;
+  string source_master_mold_id = 6;
   SupplierRef supplier_ref = 7;
   PurchaseRef purchase_ref = 8;
   string received_at = 9;
   string accepted_at = 10;
-  ProductionMoldInstanceStatus current_status = 11;
-  MesLocationSummary current_mes_location_summary = 12;
-  MoldInstallationSummary current_installation_summary = 13;
-  MoldLifeSummary life_summary = 14;
-  MoldWarningSummary warning_summary = 15;
+  ProductionMoldStatus current_status = 11;
+  StorageResourceRef current_storage_resource_ref = 12;
+  CarrierResourceRef current_carrier_resource_ref = 13;
+  ToolingInstallation current_installation_summary = 14;
+  MoldLifeCounterSummary life_counter_summary = 15;
   string scrapped_at = 16;
   string created_at = 17;
   string updated_at = 18;
 }
 
-message MoldMovementEvent {
-  string mold_movement_event_id = 1;
-  string tenant_id = 2;
-  string org_id = 3;
-  MoldResourceType mold_resource_type = 4;
-  string mold_resource_id = 5;
-  string from_mes_location_id = 6;
-  string to_mes_location_id = 7;
-  string movement_reason = 8;
-  string moved_at = 9;
-  OperatorRef operator_ref = 10;
-  string source_command_id = 11;
-  AuditRef audit_ref = 12;
+message ToolingPlacementSummary {
+  ToolingPlacementType placement_type = 1;
+  StorageResourceRef storage_resource_ref = 2;
+  CarrierResourceRef carrier_resource_ref = 3;
+  WorkCenterRef work_center_ref = 4;
+  WorkUnitRef work_unit_ref = 5;
+  string tooling_installation_id = 6;
+  MoldInstallationDetail mold_installation_detail = 7;
 }
 
-message MoldInstallation {
-  string mold_installation_id = 1;
+message MoldUsageRecord {
+  string mold_usage_record_id = 1;
   string tenant_id = 2;
   string org_id = 3;
-  string production_mold_instance_id = 4;
-  string work_center_id = 5;
-  string resource_position_id = 6;
-  string installed_at = 7;
-  string unmounted_at = 8;
-  OperatorRef installed_by_ref = 9;
-  OperatorRef unmounted_by_ref = 10;
-  MoldInstallationStatus installation_status = 11;
-  string setup_snapshot = 12;
-  ExternalRef operation_ref = 13;
-  ExternalRef routing_ref = 14;
-  ExternalRef work_order_ref = 15;
-  ExternalRef operation_task_ref = 16;
+  string production_mold_id = 4;
+  string tooling_installation_id = 5;
+  WorkCenterRef work_center_ref = 6;
+  WorkUnitRef work_unit_ref = 7;
+  string used_at = 8;
+  string usage_quantity = 9;
+  string life_delta = 10;
+  string life_unit = 11;
+  ProductionSpecRef production_spec_ref = 12;
+  ProductionUnitRef production_unit_ref = 13;
+  TraceSubjectRef trace_subject_ref = 14;
+  OperatorRef operator_ref = 15;
+  string capture_source = 16;
   AuditRef audit_ref = 17;
-}
-
-message MoldUsageEvent {
-  string mold_usage_event_id = 1;
-  string tenant_id = 2;
-  string org_id = 3;
-  string production_mold_instance_id = 4;
-  string mold_installation_id = 5;
-  string work_center_id = 6;
-  string resource_position_id = 7;
-  MoldUsageMode usage_mode = 8;
-  string used_at = 9;
-  string usage_quantity = 10;
-  string life_delta = 11;
-  string life_unit = 12;
-  ManufacturingMasterDataRef product_family_ref = 13;
-  ManufacturingMasterDataRef manufacturing_spec_ref = 14;
-  ExternalRef wip_unit_ref = 15;
-  string physical_trace_id = 16;
-  ExternalRef work_order_ref = 17;
-  ExternalRef operation_task_ref = 18;
-  OperatorRef operator_ref = 19;
-  string capture_source = 20;
-  AuditRef audit_ref = 21;
-  string mold_design_output_id = 22;
-  string mold_design_output_option_id = 23;
+  string mold_design_output_id = 18;
+  string mold_design_output_option_id = 19;
 }
 
 message MoldLifeCounter {
   string mold_life_counter_id = 1;
   string tenant_id = 2;
   string org_id = 3;
-  string production_mold_instance_id = 4;
+  string production_mold_id = 4;
   string life_unit = 5;
   string used_value = 6;
   string limit_value = 7;
   string warning_threshold_value = 8;
-  string last_usage_event_id = 9;
+  string last_usage_record_id = 9;
   string last_adjusted_at = 10;
   OperatorRef last_adjusted_by_ref = 11;
   string adjustment_reason = 12;
   string updated_at = 13;
 }
 
-message MoldWarningEvent {
-  string mold_warning_event_id = 1;
-  string tenant_id = 2;
-  string org_id = 3;
-  string production_mold_instance_id = 4;
-  MoldWarningType warning_type = 5;
-  MoldWarningLevel warning_level = 6;
-  string triggered_by_event_id = 7;
-  string life_used_value = 8;
-  string life_limit_value = 9;
-  string raised_at = 10;
-  string acknowledged_at = 11;
-  OperatorRef acknowledged_by_ref = 12;
-  MoldWarningStatus status = 13;
-  AuditRef audit_ref = 14;
-}
-
-message MoldResourceSummary {
-  MoldResourceType mold_resource_type = 1;
-  string mold_resource_id = 2;
-  string mold_code = 3;
-  string current_status = 4;
-  string scrapped_at = 5;
-}
-
-message MoldCurrentLocation {
-  MoldResourceType mold_resource_type = 1;
-  string mold_resource_id = 2;
-  string mold_code = 3;
-  string current_status = 4;
-  MesLocationSummary current_mes_location_summary = 5;
-  MoldInstallationSummary current_installation_summary = 6;
-  string last_movement_event_id = 7;
-  string last_moved_at = 8;
-}
-
 message MoldUsageHistoryEntry {
   MoldUsageHistoryEntryType entry_type = 1;
-  string entry_id = 2;
-  string occurred_at = 3;
-  WorkCenterSummary work_center_summary = 4;
-  ResourcePositionSummary resource_position_summary = 5;
-  MesLocationSummary mes_location_summary = 6;
-  string usage_quantity = 7;
-  string life_delta = 8;
-  string life_used_value_after = 9;
-  ManufacturingMasterDataRef product_family_ref = 10;
-  ManufacturingMasterDataRef manufacturing_spec_ref = 11;
-  ExternalRef wip_unit_ref = 12;
-  string physical_trace_id = 13;
-  OperatorRef operator_ref = 14;
-  AuditRef audit_ref = 15;
-  string mold_design_output_id = 16;
-  string mold_design_output_option_id = 17;
+  string happened_at = 2;
+  string production_mold_id = 3;
+  string summary = 4;
+  AuditRef audit_ref = 5;
 }
 
-message MoldLifeWarning {
-  string mold_warning_event_id = 1;
-  ProductionMoldInstanceSummary production_mold_instance_summary = 2;
-  MoldWarningType warning_type = 3;
-  MoldWarningLevel warning_level = 4;
-  string life_used_value = 5;
-  string life_limit_value = 6;
-  string raised_at = 7;
-  string acknowledged_at = 8;
-  OperatorRef acknowledged_by_ref = 9;
-  MoldWarningStatus status = 10;
-}
-
-message CurrentInstalledMold {
-  ProductionMoldInstance production_mold_instance = 1;
-  MoldInstallation mold_installation = 2;
-  ResourcePositionSummary resource_position_summary = 3;
-  MoldLifeSummary life_summary = 4;
-  MoldWarningSummary warning_summary = 5;
-}
-
-message MoldRecentUsageSummary {
-  string mold_usage_event_id = 1;
-  string production_mold_instance_id = 2;
-  string mold_instance_code = 3;
-  string used_at = 4;
-  string usage_quantity = 5;
-  string life_delta = 6;
-  string life_unit = 7;
-}
-
-message DailyMoldChecklistWorkCenter {
-  WorkCenterSummary work_center_summary = 1;
-  repeated CurrentInstalledMold installed_molds = 2;
-  repeated MoldLifeWarning life_warnings = 3;
-  repeated MoldRecentUsageSummary recent_usage_summary = 4;
-  repeated string exception_notes = 5;
-}
-
-message DailyMoldChecklist {
-  string checklist_date = 1;
-  repeated DailyMoldChecklistWorkCenter work_centers = 2;
-  string generated_at = 3;
-  OperatorRef generated_by_ref = 4;
-}
-
-message CreateManufacturingSpecRequest {
+message CreateProductionSpecRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
@@ -692,163 +501,112 @@ message CreateManufacturingSpecRequest {
   string spec_code = 7;
   string name = 8;
   string revision_code = 9;
-  string supersedes_spec_id = 10;
-  ManufacturingMasterDataRef product_family_ref = 11;
-  ItemRef item_ref = 12;
-  repeated ManufacturingAttribute manufacturing_attributes = 13;
-  RouteIntentRef route_intent_ref = 14;
-  string effective_from = 15;
-  string effective_to = 16;
-  string reason = 17;
+  string supersedes_production_spec_id = 10;
+  ItemRef item_ref = 11;
+  string effective_from = 12;
+  string effective_to = 13;
 }
 
-message CreateManufacturingSpecResponse {
-  ManufacturingSpec manufacturing_spec = 1;
+message CreateProductionSpecResponse {
+  ProductionSpec production_spec = 1;
 }
 
-message UpdateManufacturingSpecRequest {
+message UpdateProductionSpecRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   AuditContext audit_context = 5;
   string command_id = 6;
-  string manufacturing_spec_id = 7;
+  string production_spec_id = 7;
   uint32 expected_version = 8;
   string name = 9;
-  ManufacturingMasterDataRef product_family_ref = 10;
-  ItemRef item_ref = 11;
-  repeated ManufacturingAttribute manufacturing_attributes = 12;
-  RouteIntentRef route_intent_ref = 13;
-  string effective_from = 14;
-  string effective_to = 15;
-  string reason = 16;
+  ItemRef item_ref = 10;
+  string effective_from = 11;
+  string effective_to = 12;
 }
 
-message UpdateManufacturingSpecResponse {
-  ManufacturingSpec manufacturing_spec = 1;
+message UpdateProductionSpecResponse {
+  ProductionSpec production_spec = 1;
 }
 
-message ActivateManufacturingSpecRequest {
+message ActivateProductionSpecRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   AuditContext audit_context = 5;
   string command_id = 6;
-  string manufacturing_spec_id = 7;
+  string production_spec_id = 7;
   uint32 expected_version = 8;
   string activated_at = 9;
-  string reason = 10;
 }
 
-message ActivateManufacturingSpecResponse {
-  ManufacturingSpec manufacturing_spec = 1;
+message ActivateProductionSpecResponse {
+  ProductionSpec production_spec = 1;
 }
 
-message RetireManufacturingSpecRequest {
+message RetireProductionSpecRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   AuditContext audit_context = 5;
   string command_id = 6;
-  string manufacturing_spec_id = 7;
+  string production_spec_id = 7;
   uint32 expected_version = 8;
   string retired_at = 9;
-  string replacement_spec_id = 10;
-  string reason = 11;
+  string replacement_production_spec_id = 10;
 }
 
-message RetireManufacturingSpecResponse {
-  ManufacturingSpec manufacturing_spec = 1;
-  ManufacturingSpecSummary replacement_spec_summary = 2;
+message RetireProductionSpecResponse {
+  ProductionSpec production_spec = 1;
 }
 
-message GetManufacturingSpecRequest {
+message GetProductionSpecRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
-  string manufacturing_spec_id = 5;
+  string production_spec_id = 5;
 }
 
-message GetManufacturingSpecResponse {
-  ManufacturingSpec manufacturing_spec = 1;
+message GetProductionSpecResponse {
+  ProductionSpec production_spec = 1;
 }
 
-message ListManufacturingSpecsRequest {
+message ListProductionSpecsRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
-  string keyword = 5;
-  string product_family_ref_id = 6;
-  string item_id = 7;
-  repeated ManufacturingAttributeFilter attribute_filters = 8;
-  ManufacturingSpecStatus status = 9;
-  bool include_retired = 10;
-  uint32 page = 11;
-  uint32 page_size = 12;
+  ProductionSpecStatus status = 5;
+  string item_id = 6;
+  string keyword = 7;
+  bool include_retired = 8;
+  uint32 page = 9;
+  uint32 page_size = 10;
 }
 
-message ListManufacturingSpecsResponse {
-  repeated ManufacturingSpecSummary manufacturing_specs = 1;
+message ListProductionSpecsResponse {
+  repeated ProductionSpecSummary production_specs = 1;
   uint32 total = 2;
   uint32 page = 3;
   uint32 page_size = 4;
 }
 
-message ResolveManufacturingSpecsForMoldRequest {
+message ResolveProductionSpecsForMoldRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
-  string mold_design_id = 5;
-  string product_family_ref_id = 6;
-  string item_id = 7;
-  repeated string manufacturing_spec_ids = 8;
-  bool include_retired = 9;
+  repeated string production_spec_ids = 5;
+  string mold_design_id = 6;
 }
 
-message ResolveManufacturingSpecsForMoldResponse {
-  repeated ManufacturingSpecSummary resolved_specs = 1;
-  repeated UnavailableManufacturingSpecRef unavailable_refs = 2;
-}
-
-message CreateWorkCenterRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
-  string command_id = 6;
-  string work_center_code = 7;
-  string name = 8;
-  string work_center_type = 9;
-  string parent_work_center_id = 10;
-  string related_mes_location_id = 11;
-  string capacity_profile_id = 12;
-  string reason = 13;
-}
-
-message CreateWorkCenterResponse {
-  WorkCenterSummary work_center_summary = 1;
-}
-
-message DeactivateWorkCenterRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
-  string command_id = 6;
-  string work_center_id = 7;
-  string reason = 8;
-}
-
-message DeactivateWorkCenterResponse {
-  WorkCenterSummary work_center_summary = 1;
+message ResolveProductionSpecsForMoldResponse {
+  repeated ProductionSpecSummary resolved_specs = 1;
+  repeated UnavailableProductionSpecRef unavailable_refs = 2;
 }
 
 message RegisterMoldDesignRequest {
@@ -861,18 +619,16 @@ message RegisterMoldDesignRequest {
   string design_code = 7;
   string name = 8;
   string revision_code = 9;
-  string supersedes_design_id = 10;
-  ManufacturingMasterDataRef product_family_ref = 11;
-  repeated ManufacturingMasterDataRef manufacturing_spec_refs = 12;
-  ItemRef item_ref = 13;
-  string material_type = 14;
-  MoldFunctionRole function_role = 15;
-  repeated string production_method_tags = 16;
-  MoldOutputStructureType output_structure_type = 17;
-  repeated MoldDesignOutputInput outputs = 18;
-  string default_life_limit = 19;
-  string default_life_unit = 20;
-  string reason = 21;
+  string supersedes_mold_design_id = 10;
+  ItemRef item_ref = 11;
+  repeated ProductionSpecRef production_spec_refs = 12;
+  string material_type = 13;
+  MoldFunctionRole function_role = 14;
+  repeated string production_method_tags = 15;
+  MoldOutputStructureType output_structure_type = 16;
+  repeated MoldDesignOutputInput outputs = 17;
+  string default_life_limit = 18;
+  string default_life_unit = 19;
 }
 
 message RegisterMoldDesignResponse {
@@ -891,105 +647,92 @@ message RegisterMasterMoldRequest {
   SupplierRef supplier_ref = 9;
   PurchaseRef purchase_ref = 10;
   string received_at = 11;
-  string initial_mes_location_id = 12;
-  string quality_summary = 13;
-  string notes = 14;
-  string reason = 15;
+  StorageResourceRef initial_storage_resource_ref = 12;
+  CarrierResourceRef initial_carrier_resource_ref = 13;
+  string quality_summary = 14;
+  string notes = 15;
 }
 
 message RegisterMasterMoldResponse {
   MasterMold master_mold = 1;
 }
 
-message RegisterProductionMoldInstanceRequest {
+message RegisterProductionMoldRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   AuditContext audit_context = 5;
   string command_id = 6;
-  string mold_instance_code = 7;
+  string mold_code = 7;
   string mold_design_id = 8;
-  string master_mold_id = 9;
+  string source_master_mold_id = 9;
   SupplierRef supplier_ref = 10;
   PurchaseRef purchase_ref = 11;
   string received_at = 12;
   string accepted_at = 13;
-  ProductionMoldInstanceStatus initial_status = 14;
-  string initial_mes_location_id = 15;
-  string life_limit_value = 16;
-  string life_unit = 17;
-  string warning_threshold_value = 18;
-  string reason = 19;
+  StorageResourceRef initial_storage_resource_ref = 14;
+  CarrierResourceRef initial_carrier_resource_ref = 15;
 }
 
-message RegisterProductionMoldInstanceResponse {
-  ProductionMoldInstance production_mold_instance = 1;
-  MoldLifeCounter mold_life_counter = 2;
+message RegisterProductionMoldResponse {
+  ProductionMold production_mold = 1;
 }
 
-message MoveMoldRequest {
+message MoveToolingRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   AuditContext audit_context = 5;
   string command_id = 6;
-  MoldResourceType mold_resource_type = 7;
-  string mold_resource_id = 8;
-  string from_mes_location_id = 9;
-  string to_mes_location_id = 10;
+  ToolingType tooling_type = 7;
+  string tooling_id = 8;
+  StorageResourceRef to_storage_resource_ref = 9;
+  CarrierResourceRef to_carrier_resource_ref = 10;
   string movement_reason = 11;
   string moved_at = 12;
 }
 
-message MoveMoldResponse {
-  MoldMovementEvent movement_event = 1;
-  MoldCurrentLocation mold_current_location = 2;
+message MoveToolingResponse {
+  ToolingPlacementSummary placement = 1;
 }
 
-message InstallMoldRequest {
+message InstallToolingRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   AuditContext audit_context = 5;
   string command_id = 6;
-  string production_mold_instance_id = 7;
-  string work_center_id = 8;
-  string resource_position_id = 9;
-  string installed_at = 10;
-  string setup_snapshot = 11;
-  ExternalRef operation_ref = 12;
-  ExternalRef routing_ref = 13;
-  ExternalRef work_order_ref = 14;
-  ExternalRef operation_task_ref = 15;
-  string reason = 16;
+  ToolingType tooling_type = 7;
+  string tooling_id = 8;
+  WorkCenterRef work_center_ref = 9;
+  WorkUnitRef work_unit_ref = 10;
+  string installed_at = 11;
+  string mold_position = 12;
+  string cavity_position = 13;
+  string cavity_mapping = 14;
+  string setup_parameters = 15;
 }
 
-message InstallMoldResponse {
-  MoldInstallation mold_installation = 1;
-  ProductionMoldInstance production_mold_instance = 2;
+message InstallToolingResponse {
+  ToolingInstallation tooling_installation = 1;
 }
 
-message UnmountMoldRequest {
+message UnmountToolingRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   AuditContext audit_context = 5;
   string command_id = 6;
-  string production_mold_instance_id = 7;
-  string mold_installation_id = 8;
-  string unmounted_at = 9;
-  ProductionMoldInstanceStatus next_status = 10;
-  string to_mes_location_id = 11;
-  string reason = 12;
+  string tooling_installation_id = 7;
+  string unmounted_at = 8;
 }
 
-message UnmountMoldResponse {
-  MoldInstallation mold_installation = 1;
-  ProductionMoldInstance production_mold_instance = 2;
+message UnmountToolingResponse {
+  ToolingInstallation tooling_installation = 1;
 }
 
 message RecordMoldUsageRequest {
@@ -999,89 +742,57 @@ message RecordMoldUsageRequest {
   TraceContext trace_context = 4;
   AuditContext audit_context = 5;
   string command_id = 6;
-  string production_mold_instance_id = 7;
-  string mold_installation_id = 8;
-  string work_center_id = 9;
-  string resource_position_id = 10;
-  MoldUsageMode usage_mode = 11;
-  string used_at = 12;
-  string usage_quantity = 13;
-  string life_delta = 14;
-  string life_unit = 15;
-  ManufacturingMasterDataRef product_family_ref = 16;
-  ManufacturingMasterDataRef manufacturing_spec_ref = 17;
-  ExternalRef wip_unit_ref = 18;
-  string physical_trace_id = 19;
-  ExternalRef work_order_ref = 20;
-  ExternalRef operation_task_ref = 21;
-  string capture_source = 22;
-  string reason = 23;
-  string mold_design_output_id = 24;
-  string mold_design_output_option_id = 25;
+  string production_mold_id = 7;
+  string tooling_installation_id = 8;
+  WorkCenterRef work_center_ref = 9;
+  WorkUnitRef work_unit_ref = 10;
+  string used_at = 11;
+  string usage_quantity = 12;
+  string life_delta = 13;
+  string life_unit = 14;
+  ProductionSpecRef production_spec_ref = 15;
+  ProductionUnitRef production_unit_ref = 16;
+  TraceSubjectRef trace_subject_ref = 17;
+  string capture_source = 18;
+  string mold_design_output_id = 19;
+  string mold_design_output_option_id = 20;
 }
 
 message RecordMoldUsageResponse {
-  MoldUsageEvent usage_event = 1;
+  MoldUsageRecord mold_usage_record = 1;
   MoldLifeCounter mold_life_counter = 2;
-  MoldWarningEvent raised_warning = 3;
 }
 
-message AdjustMoldLifeRequest {
+message AdjustMoldLifeCounterRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   AuditContext audit_context = 5;
   string command_id = 6;
-  string production_mold_instance_id = 7;
+  string mold_life_counter_id = 7;
   MoldLifeAdjustmentType adjustment_type = 8;
-  string adjustment_value = 9;
-  string life_unit = 10;
-  ExternalRef authorization_ref = 11;
-  string reason = 12;
+  string value = 9;
 }
 
-message AdjustMoldLifeResponse {
+message AdjustMoldLifeCounterResponse {
   MoldLifeCounter mold_life_counter = 1;
-  MoldWarningEvent raised_warning = 2;
 }
 
-message AcknowledgeMoldWarningRequest {
+message ScrapProductionMoldRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   AuditContext audit_context = 5;
   string command_id = 6;
-  string mold_warning_event_id = 7;
-  MoldWarningAcknowledgementAction acknowledgement_action = 8;
-  string comment = 9;
-  string reason = 10;
+  string production_mold_id = 7;
+  string scrapped_at = 8;
 }
 
-message AcknowledgeMoldWarningResponse {
-  MoldWarningEvent mold_warning_event = 1;
-  ProductionMoldInstance production_mold_instance = 2;
-}
-
-message ScrapMoldRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  AuditContext audit_context = 5;
-  string command_id = 6;
-  MoldResourceType mold_resource_type = 7;
-  string mold_resource_id = 8;
-  string scrap_reason = 9;
-  string scrapped_at = 10;
-  bool close_current_installation = 11;
-  string to_mes_location_id = 12;
-}
-
-message ScrapMoldResponse {
-  MoldResourceSummary mold_resource = 1;
-  MoldInstallation closed_installation = 2;
+message ScrapProductionMoldResponse {
+  ProductionMold production_mold = 1;
+  ToolingInstallation closed_tooling_installation = 2;
 }
 
 message GetMoldDesignRequest {
@@ -1102,108 +813,83 @@ message ListMoldDesignsRequest {
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   string keyword = 5;
-  string product_family_ref_id = 6;
-  string manufacturing_spec_ref_id = 7;
+  MoldDesignStatus status = 6;
+  string production_spec_id = 7;
   string item_id = 8;
-  string material_type = 9;
-  MoldFunctionRole function_role = 10;
-  string production_method_tag = 11;
-  MoldDesignStatus status = 12;
-  uint32 page = 13;
-  uint32 page_size = 14;
+  uint32 page = 9;
+  uint32 page_size = 10;
 }
 
 message ListMoldDesignsResponse {
-  repeated MoldDesign mold_designs = 1;
+  repeated MoldDesignSummary mold_designs = 1;
   uint32 total = 2;
   uint32 page = 3;
   uint32 page_size = 4;
 }
 
-message ListWorkCentersRequest {
+message GetProductionMoldRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
-  string keyword = 5;
-  string parent_work_center_id = 6;
-  string status = 7;
-  string work_center_type = 8;
-  uint32 page = 9;
-  uint32 page_size = 10;
+  string production_mold_id = 5;
 }
 
-message ListWorkCentersResponse {
-  repeated WorkCenterSummary work_centers = 1;
-  uint32 total = 2;
-  uint32 page = 3;
-  uint32 page_size = 4;
+message GetProductionMoldResponse {
+  ProductionMold production_mold = 1;
 }
 
-message GetProductionMoldInstanceRequest {
-  string tenant_id = 1;
-  string org_id = 2;
-  OperatorContext operator_context = 3;
-  TraceContext trace_context = 4;
-  string production_mold_instance_id = 5;
-}
-
-message GetProductionMoldInstanceResponse {
-  ProductionMoldInstance production_mold_instance = 1;
-}
-
-message ListProductionMoldInstancesRequest {
+message ListProductionMoldsRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   string mold_design_id = 5;
-  ProductionMoldInstanceStatus status = 6;
-  MoldWarningLevel warning_level = 7;
-  string supplier_id = 8;
-  uint32 page = 9;
-  uint32 page_size = 10;
+  ProductionMoldStatus status = 6;
+  string storage_resource_id = 7;
+  string carrier_resource_id = 8;
+  MoldWarningLevel warning_level = 9;
+  uint32 page = 10;
+  uint32 page_size = 11;
 }
 
-message ListProductionMoldInstancesResponse {
-  repeated ProductionMoldInstance instances = 1;
+message ListProductionMoldsResponse {
+  repeated ProductionMoldSummary production_molds = 1;
   uint32 total = 2;
   uint32 page = 3;
   uint32 page_size = 4;
 }
 
-message ListMoldInstancesByDesignRequest {
+message ListProductionMoldsByDesignRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   string mold_design_id = 5;
-  ProductionMoldInstanceStatus status = 6;
-  MoldWarningLevel warning_level = 7;
-  string supplier_id = 8;
-  uint32 page = 9;
-  uint32 page_size = 10;
+  ProductionMoldStatus status = 6;
+  uint32 page = 7;
+  uint32 page_size = 8;
 }
 
-message ListMoldInstancesByDesignResponse {
+message ListProductionMoldsByDesignResponse {
   MoldDesignSummary mold_design_summary = 1;
-  repeated ProductionMoldInstance instances = 2;
+  repeated ProductionMoldSummary production_molds = 2;
   uint32 total = 3;
   uint32 page = 4;
   uint32 page_size = 5;
 }
 
-message GetMoldCurrentLocationRequest {
+message GetToolingCurrentPlacementRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
-  MoldResourceType mold_resource_type = 5;
-  string mold_resource_id = 6;
+  ToolingType tooling_type = 5;
+  string tooling_id = 6;
 }
 
-message GetMoldCurrentLocationResponse {
-  MoldCurrentLocation current_location = 1;
+message GetToolingCurrentPlacementResponse {
+  ToolingPlacementSummary placement = 1;
 }
 
 message GetMoldUsageHistoryRequest {
@@ -1211,20 +897,18 @@ message GetMoldUsageHistoryRequest {
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
-  string production_mold_instance_id = 5;
-  repeated MoldUsageHistoryEntryType entry_types = 6;
-  string occurred_from = 7;
-  string occurred_to = 8;
-  uint32 page = 9;
-  uint32 page_size = 10;
+  string production_mold_id = 5;
+  string from = 6;
+  string to = 7;
+  uint32 page = 8;
+  uint32 page_size = 9;
 }
 
 message GetMoldUsageHistoryResponse {
-  ProductionMoldInstanceSummary production_mold_instance_summary = 1;
-  repeated MoldUsageHistoryEntry entries = 2;
-  uint32 total = 3;
-  uint32 page = 4;
-  uint32 page_size = 5;
+  repeated MoldUsageHistoryEntry entries = 1;
+  uint32 total = 2;
+  uint32 page = 3;
+  uint32 page_size = 4;
 }
 
 message ListCurrentMoldsByWorkCenterRequest {
@@ -1233,38 +917,31 @@ message ListCurrentMoldsByWorkCenterRequest {
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
   string work_center_id = 5;
-  bool include_child_work_centers = 6;
-  MoldWarningLevel warning_level = 7;
-  uint32 page = 8;
-  uint32 page_size = 9;
+  string work_unit_id = 6;
+}
+
+message CurrentMoldByWorkCenterItem {
+  ProductionMoldSummary production_mold = 1;
+  ToolingInstallation tooling_installation = 2;
 }
 
 message ListCurrentMoldsByWorkCenterResponse {
-  WorkCenterSummary work_center_summary = 1;
-  repeated CurrentInstalledMold installed_molds = 2;
-  uint32 total = 3;
-  uint32 page = 4;
-  uint32 page_size = 5;
+  repeated CurrentMoldByWorkCenterItem items = 1;
 }
 
-message ListMoldLifeWarningsRequest {
+message ListMoldLifeCountersRequest {
   string tenant_id = 1;
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
-  MoldWarningStatus status = 5;
-  MoldWarningType warning_type = 6;
-  MoldWarningLevel warning_level = 7;
-  string work_center_id = 8;
-  string mold_design_id = 9;
-  string raised_from = 10;
-  string raised_to = 11;
-  uint32 page = 12;
-  uint32 page_size = 13;
+  string production_mold_id = 5;
+  MoldWarningLevel warning_level = 6;
+  uint32 page = 7;
+  uint32 page_size = 8;
 }
 
-message ListMoldLifeWarningsResponse {
-  repeated MoldLifeWarning warnings = 1;
+message ListMoldLifeCountersResponse {
+  repeated MoldLifeCounter counters = 1;
   uint32 total = 2;
   uint32 page = 3;
   uint32 page_size = 4;
@@ -1275,13 +952,17 @@ message PrintDailyMoldChecklistRequest {
   string org_id = 2;
   OperatorContext operator_context = 3;
   TraceContext trace_context = 4;
-  repeated string work_center_ids = 5;
+  string work_center_id = 5;
   string checklist_date = 6;
-  bool include_child_work_centers = 7;
-  bool include_warnings = 8;
-  bool include_recent_usage = 9;
+}
+
+message DailyMoldChecklistItem {
+  ProductionMoldSummary production_mold = 1;
+  ToolingInstallation tooling_installation = 2;
 }
 
 message PrintDailyMoldChecklistResponse {
-  DailyMoldChecklist checklist = 1;
+  repeated DailyMoldChecklistItem items = 1;
+  string checklist_date = 2;
+  string work_center_id = 3;
 }

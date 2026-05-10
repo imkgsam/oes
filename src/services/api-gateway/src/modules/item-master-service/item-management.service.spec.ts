@@ -1,323 +1,146 @@
-import { ForbiddenException } from '@nestjs/common'
 import {
-  ItemCategoryStatus,
-  ItemNatureType,
-  ItemStatus,
-  ItemStructureType
+  BomLineRole,
+  BomType,
+  ItemModelKind,
+  ItemModelType,
+  ItemType
 } from '@oes/common/generated/item_master_service'
 import { ItemManagementService } from './item-management.service'
 
-// Verifies the gateway item-management service keeps tenant scope enforcement and phase 1 request mapping aligned with item-master contracts.
-describe('ItemManagementService', () => {
+const source = {
+  user: {
+    scopeLevel: 'TENANT',
+    tenantId: 'tenant-1'
+  }
+}
+
+/** item-management service specs protect the API Gateway mapping layer against item-master Contract V2 drift. */
+describe('ItemManagementService V2 BFF mapping', () => {
   const itemQueryAdapter = {
+    getBomByOutputItem: jest.fn(),
     getItem: jest.fn(),
-    getItemComposition: jest.fn(),
+    getItemModel: jest.fn(),
     listItemCategories: jest.fn(),
     listSupplierItemMappingsByItem: jest.fn(),
+    searchBoms: jest.fn(),
+    searchItemModels: jest.fn(),
     searchItems: jest.fn()
   }
   const itemManagementAdapter = {
-    changeItemStatus: jest.fn(),
+    changeBomStatus: jest.fn(),
     changeItemCategoryStatus: jest.fn(),
-    createItemCategory: jest.fn(),
+    changeItemModelStatus: jest.fn(),
+    changeItemStatus: jest.fn(),
+    createBom: jest.fn(),
     createItem: jest.fn(),
-    setItemPrimaryCategory: jest.fn(),
+    createItemCategory: jest.fn(),
+    createItemModel: jest.fn(),
+    replaceBomLines: jest.fn(),
     setItemCapabilities: jest.fn(),
-    setItemComposition: jest.fn(),
-    updateItemCategoryBasics: jest.fn(),
+    setItemModelCapabilities: jest.fn(),
+    setItemModelPrimaryCategory: jest.fn(),
+    updateBomBasics: jest.fn(),
     updateItemBasics: jest.fn(),
+    updateItemCategoryBasics: jest.fn(),
+    updateItemModelBasics: jest.fn(),
     upsertSupplierItemMapping: jest.fn()
   }
-
-  const service = new ItemManagementService(
-    itemQueryAdapter as any,
-    itemManagementAdapter as any
-  )
+  let service: ItemManagementService
 
   beforeEach(() => {
-    jest.clearAllMocks()
+    jest.resetAllMocks()
+    service = new ItemManagementService(itemQueryAdapter as never, itemManagementAdapter as never)
   })
 
-  it('rejects tenant-scoped operators when they request another tenant item directory', async () => {
-    const source = {
-      requestId: 'req-1',
-      traceId: 'trace-1',
-      user: { aid: 'account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
-    }
-
-    await expect(
-      service.listItems(
-        'tenant-2',
+  it('lists ItemModels with V2 model kind, model type, active status, and eight capability filters', async () => {
+    itemQueryAdapter.searchItemModels.mockResolvedValue({
+      itemModels: [
         {
-          page: 1,
-          pageSize: 20
-        },
-        source as any
-      )
-    ).rejects.toBeInstanceOf(ForbiddenException)
-
-    expect(itemQueryAdapter.searchItems).not.toHaveBeenCalled()
-  })
-
-  it('maps list and detail queries into the item-master phase 1 gateway read model', async () => {
-    const source = {
-      requestId: 'req-1',
-      traceId: 'trace-1',
-      user: { aid: 'account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
-    }
-
-    itemQueryAdapter.searchItems.mockResolvedValue({
-      items: [
-        {
-          itemId: 'item-1',
-          itemCode: 'BUNDLE-001',
-          itemName: 'Starter Bundle',
-          structureType: ItemStructureType.ITEM_STRUCTURE_TYPE_BUNDLE,
-          natureType: ItemNatureType.ITEM_NATURE_TYPE_VIRTUAL,
-          status: ItemStatus.ITEM_STATUS_ACTIVE,
+          itemModelId: 'model-1',
+          modelCode: 'TOILET-100',
+          modelName: 'Toilet 100',
+          modelKind: ItemModelKind.ITEM_MODEL_KIND_PHYSICAL,
+          modelType: ItemModelType.ITEM_MODEL_TYPE_FINISHED_PRODUCT,
+          active: true,
           capabilities: {
             sellable: true,
             purchasable: false,
-            stockable: false,
-            manufacturable: false
-          },
-          primaryCategorySummary: {
-            categoryId: 'category-1',
-            categoryCode: 'FINISHED',
-            categoryName: 'Finished Goods',
-            status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE
+            stockable: true,
+            manufacturable: true,
+            assemblable: false,
+            transformable: false,
+            packable: true,
+            packaged: false
           }
-        }
-      ],
-      total: 1,
-      page: 2,
-      pageSize: 10
-    })
-    itemQueryAdapter.getItem.mockResolvedValue({
-      item: {
-        itemId: 'item-1',
-        itemCode: 'BUNDLE-001',
-        itemName: 'Starter Bundle',
-        structureType: ItemStructureType.ITEM_STRUCTURE_TYPE_BUNDLE,
-        natureType: ItemNatureType.ITEM_NATURE_TYPE_VIRTUAL,
-        status: ItemStatus.ITEM_STATUS_ACTIVE,
-        capabilities: {
-          sellable: true,
-          purchasable: false,
-          stockable: false,
-          manufacturable: false
-        },
-        primaryCategorySummary: {
-          categoryId: 'category-1',
-          categoryCode: 'FINISHED',
-          categoryName: 'Finished Goods',
-          status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE
-        }
-      }
-    })
-
-    await expect(
-      service.listItems(
-        'tenant-1',
-        {
-          capability: 'sellable',
-          keyword: 'starter',
-          natureType: 'VIRTUAL',
-          categoryId: 'category-1',
-          includeDescendants: true,
-          page: 2,
-          pageSize: 10,
-          status: 'ACTIVE',
-          structureType: 'BUNDLE'
-        },
-        source as any
-      )
-    ).resolves.toEqual({
-      items: [
-        {
-          itemId: 'item-1',
-          itemCode: 'BUNDLE-001',
-          itemName: 'Starter Bundle',
-          structureType: 'BUNDLE',
-          natureType: 'VIRTUAL',
-          status: 'ACTIVE',
-          capabilities: {
-            sellable: true,
-            purchasable: false,
-            stockable: false,
-            manufacturable: false
-          },
-          primaryCategorySummary: {
-            categoryId: 'category-1',
-            categoryCode: 'FINISHED',
-            categoryName: 'Finished Goods',
-            status: 'ACTIVE'
-          }
-        }
-      ],
-      total: 1,
-      page: 2,
-      pageSize: 10
-    })
-    await expect(service.getItem('tenant-1', 'item-1', source as any)).resolves.toEqual({
-      itemId: 'item-1',
-      itemCode: 'BUNDLE-001',
-        itemName: 'Starter Bundle',
-        structureType: 'BUNDLE',
-        natureType: 'VIRTUAL',
-        status: 'ACTIVE',
-        capabilities: {
-          sellable: true,
-          purchasable: false,
-          stockable: false,
-          manufacturable: false
-        },
-        primaryCategorySummary: {
-          categoryId: 'category-1',
-          categoryCode: 'FINISHED',
-          categoryName: 'Finished Goods',
-          status: 'ACTIVE'
-        }
-      })
-
-    expect(itemQueryAdapter.searchItems).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        keyword: 'starter',
-        structureType: ItemStructureType.ITEM_STRUCTURE_TYPE_BUNDLE,
-        natureType: ItemNatureType.ITEM_NATURE_TYPE_VIRTUAL,
-        capabilityFilters: {
-          sellable: true
-        },
-        status: ItemStatus.ITEM_STATUS_ACTIVE,
-        categoryId: 'category-1',
-        includeDescendants: true,
-        page: 2,
-        pageSize: 10
-      },
-      source
-    )
-    expect(itemQueryAdapter.getItem).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        itemId: 'item-1'
-      },
-      source
-    )
-  })
-
-  it('maps phase 1 create, update, composition, supplier mapping, and status operations without widening the contract', async () => {
-    const source = {
-      requestId: 'req-1',
-      traceId: 'trace-1',
-      user: { aid: 'account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
-    }
-
-    itemManagementAdapter.createItem.mockResolvedValue({
-      itemId: 'item-1',
-      item: {
-        itemId: 'item-1',
-        itemCode: 'ITEM-001',
-        itemName: 'Starter Item',
-        structureType: ItemStructureType.ITEM_STRUCTURE_TYPE_SINGLE,
-        natureType: ItemNatureType.ITEM_NATURE_TYPE_PHYSICAL,
-        status: ItemStatus.ITEM_STATUS_ACTIVE,
-        capabilities: {
-          sellable: false,
-          purchasable: false,
-          stockable: false,
-          manufacturable: false
-        }
-      }
-    })
-    itemManagementAdapter.updateItemBasics.mockResolvedValue({
-      item: {
-        itemId: 'item-1',
-        itemCode: 'ITEM-001-REV',
-        itemName: 'Starter Item Rev',
-        structureType: ItemStructureType.ITEM_STRUCTURE_TYPE_SINGLE,
-        natureType: ItemNatureType.ITEM_NATURE_TYPE_PHYSICAL,
-        status: ItemStatus.ITEM_STATUS_ACTIVE,
-        capabilities: {
-          sellable: true,
-          purchasable: true,
-          stockable: true,
-          manufacturable: false
-        }
-      }
-    })
-    itemManagementAdapter.setItemCapabilities.mockResolvedValue({
-      item: {
-        itemId: 'item-1',
-        itemCode: 'ITEM-001-REV',
-        itemName: 'Starter Item Rev',
-        structureType: ItemStructureType.ITEM_STRUCTURE_TYPE_SINGLE,
-        natureType: ItemNatureType.ITEM_NATURE_TYPE_PHYSICAL,
-        status: ItemStatus.ITEM_STATUS_ACTIVE,
-        capabilities: {
-          sellable: true,
-          purchasable: true,
-          stockable: true,
-          manufacturable: false
-        }
-      }
-    })
-    itemQueryAdapter.getItemComposition.mockResolvedValue({
-      itemId: 'item-1',
-      components: [
-        {
-          componentItemId: 'component-1',
-          componentItemCode: 'COMP-001',
-          componentItemName: 'Component 1'
-        }
-      ]
-    })
-    itemManagementAdapter.setItemComposition.mockResolvedValue({
-      itemId: 'item-1',
-      components: [
-        {
-          componentItemId: 'component-2',
-          componentItemCode: 'COMP-002',
-          componentItemName: 'Component 2'
-        }
-      ]
-    })
-    itemQueryAdapter.listSupplierItemMappingsByItem.mockResolvedValue({
-      mappings: [
-        {
-          supplierId: 'supplier-1',
-          supplierItemCode: 'SUP-001',
-          supplierItemName: 'Supplier Item 1',
-          itemId: 'item-1'
         }
       ],
       total: 1,
       page: 1,
       pageSize: 20
     })
-    itemManagementAdapter.upsertSupplierItemMapping.mockResolvedValue({
-      mapping: {
-        supplierId: 'supplier-2',
-        supplierItemCode: 'SUP-002',
-        supplierItemName: 'Supplier Item 2',
-        itemId: 'item-1',
-        itemCode: 'ITEM-001-REV',
-        itemName: 'Starter Item Rev'
-      }
+
+    await expect(
+      service.listItemModels(
+        'tenant-1',
+        {
+          capabilities: ['sellable', 'packable'],
+          modelKind: 'PHYSICAL',
+          modelType: 'FINISHED_PRODUCT',
+          status: 'ACTIVE'
+        },
+        source as never
+      )
+    ).resolves.toMatchObject({
+      itemModels: [
+        {
+          itemModelId: 'model-1',
+          modelKind: 'PHYSICAL',
+          modelType: 'FINISHED_PRODUCT',
+          status: 'ACTIVE',
+          capabilities: {
+            sellable: true,
+            stockable: true,
+            manufacturable: true,
+            packable: true,
+            packaged: false
+          }
+        }
+      ]
     })
-    itemManagementAdapter.changeItemStatus.mockResolvedValue({
+
+    expect(itemQueryAdapter.searchItemModels).toHaveBeenCalledWith(
+      expect.objectContaining({
+        active: true,
+        capabilityFilters: expect.objectContaining({
+          sellable: true,
+          packable: true
+        }),
+        modelKind: ItemModelKind.ITEM_MODEL_KIND_PHYSICAL,
+        modelType: ItemModelType.ITEM_MODEL_TYPE_FINISHED_PRODUCT
+      }),
+      source
+    )
+  })
+
+  it('creates executable Items against an ItemModel and passes all V2 capabilities', async () => {
+    itemManagementAdapter.createItem.mockResolvedValue({
+      itemId: 'item-1',
       item: {
         itemId: 'item-1',
-        itemCode: 'ITEM-001-REV',
-        itemName: 'Starter Item Rev',
-        structureType: ItemStructureType.ITEM_STRUCTURE_TYPE_SINGLE,
-        natureType: ItemNatureType.ITEM_NATURE_TYPE_PHYSICAL,
-        status: ItemStatus.ITEM_STATUS_INACTIVE,
+        itemModelId: 'model-1',
+        itemCode: 'SKU-1',
+        itemName: 'SKU 1',
+        itemType: ItemType.ITEM_TYPE_STANDARD,
+        active: true,
         capabilities: {
           sellable: true,
-          purchasable: true,
+          purchasable: false,
           stockable: true,
-          manufacturable: false
+          manufacturable: true,
+          assemblable: true,
+          transformable: false,
+          packable: true,
+          packaged: false
         }
       }
     })
@@ -326,389 +149,116 @@ describe('ItemManagementService', () => {
       service.createItem(
         'tenant-1',
         {
-          itemCode: 'ITEM-001',
-          itemName: 'Starter Item',
-          structureType: 'SINGLE',
-          natureType: 'PHYSICAL'
+          itemModelId: 'model-1',
+          itemCode: 'SKU-1',
+          itemName: 'SKU 1',
+          itemType: 'STANDARD',
+          lockedAttributeOptionIds: ['opt-1'],
+          capabilities: {
+            sellable: true,
+            purchasable: false,
+            stockable: true,
+            manufacturable: true,
+            assemblable: true,
+            transformable: false,
+            packable: true,
+            packaged: false
+          }
         },
-        source as any
+        source as never
       )
     ).resolves.toMatchObject({
       itemId: 'item-1',
       item: {
-        structureType: 'SINGLE',
-        natureType: 'PHYSICAL',
-        status: 'ACTIVE'
+        itemModelId: 'model-1',
+        itemType: 'STANDARD',
+        capabilities: {
+          assemblable: true,
+          packable: true
+        }
       }
-    })
-    await expect(
-      service.updateItemBasics(
-        'tenant-1',
-        'item-1',
-        {
-          itemCode: 'ITEM-001-REV',
-          itemName: 'Starter Item Rev'
-        },
-        source as any
-      )
-    ).resolves.toMatchObject({
-      itemId: 'item-1',
-      itemCode: 'ITEM-001-REV'
-    })
-    await expect(
-      service.setItemCapabilities(
-        'tenant-1',
-        'item-1',
-        {
-          capabilities: {
-            sellable: true,
-            purchasable: true,
-            stockable: true,
-            manufacturable: false
-          }
-        },
-        source as any
-      )
-    ).resolves.toMatchObject({
-      capabilities: {
-        sellable: true,
-        purchasable: true,
-        stockable: true,
-        manufacturable: false
-      }
-    })
-    await expect(
-      service.getItemComposition('tenant-1', 'item-1', source as any)
-    ).resolves.toEqual({
-      itemId: 'item-1',
-      components: [
-        {
-          componentItemId: 'component-1',
-          componentItemCode: 'COMP-001',
-          componentItemName: 'Component 1'
-        }
-      ]
-    })
-    await expect(
-      service.setItemComposition(
-        'tenant-1',
-        'item-1',
-        {
-          components: [{ componentItemId: 'component-2' }]
-        },
-        source as any
-      )
-    ).resolves.toEqual({
-      itemId: 'item-1',
-      components: [
-        {
-          componentItemId: 'component-2',
-          componentItemCode: 'COMP-002',
-          componentItemName: 'Component 2'
-        }
-      ]
-    })
-    await expect(
-      service.listSupplierMappings(
-        'tenant-1',
-        'item-1',
-        { page: 1, pageSize: 20 },
-        source as any
-      )
-    ).resolves.toEqual({
-      mappings: [
-        {
-          supplierId: 'supplier-1',
-          supplierItemCode: 'SUP-001',
-          supplierItemName: 'Supplier Item 1',
-          itemId: 'item-1'
-        }
-      ],
-      total: 1,
-      page: 1,
-      pageSize: 20
-    })
-    await expect(
-      service.upsertSupplierMapping(
-        'tenant-1',
-        'item-1',
-        {
-          supplierId: 'supplier-2',
-          supplierItemCode: 'SUP-002',
-          supplierItemName: 'Supplier Item 2'
-        },
-        source as any
-      )
-    ).resolves.toEqual({
-      supplierId: 'supplier-2',
-      supplierItemCode: 'SUP-002',
-      supplierItemName: 'Supplier Item 2',
-      itemId: 'item-1',
-      itemCode: 'ITEM-001-REV',
-      itemName: 'Starter Item Rev'
-    })
-    await expect(
-      service.changeItemStatus(
-        'tenant-1',
-        'item-1',
-        {
-          status: 'INACTIVE'
-        },
-        source as any
-      )
-    ).resolves.toMatchObject({
-      itemId: 'item-1',
-      status: 'INACTIVE'
     })
 
     expect(itemManagementAdapter.createItem).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        itemCode: 'ITEM-001',
-        itemName: 'Starter Item',
-        structureType: ItemStructureType.ITEM_STRUCTURE_TYPE_SINGLE,
-        natureType: ItemNatureType.ITEM_NATURE_TYPE_PHYSICAL
-      },
-      source
-    )
-    expect(itemManagementAdapter.updateItemBasics).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        itemId: 'item-1',
-        itemCode: 'ITEM-001-REV',
-        itemName: 'Starter Item Rev'
-      },
-      source
-    )
-    expect(itemManagementAdapter.setItemCapabilities).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        itemId: 'item-1',
-        capabilities: {
-          sellable: true,
-          purchasable: true,
-          stockable: true,
-          manufacturable: false
-        }
-      },
-      source
-    )
-    expect(itemManagementAdapter.setItemComposition).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        itemId: 'item-1',
-        components: [{ componentItemId: 'component-2' }]
-      },
-      source
-    )
-    expect(itemManagementAdapter.upsertSupplierItemMapping).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        supplierId: 'supplier-2',
-        supplierItemCode: 'SUP-002',
-        supplierItemName: 'Supplier Item 2',
-        itemId: 'item-1'
-      },
-      source
-    )
-    expect(itemManagementAdapter.changeItemStatus).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        itemId: 'item-1',
-        targetStatus: ItemStatus.ITEM_STATUS_INACTIVE
-      },
+      expect.objectContaining({
+        itemModelId: 'model-1',
+        itemType: ItemType.ITEM_TYPE_STANDARD,
+        lockedAttributeOptionIds: ['opt-1'],
+        capabilities: expect.objectContaining({
+          assemblable: true,
+          transformable: false,
+          packable: true,
+          packaged: false
+        })
+      }),
       source
     )
   })
 
-  it('maps item category read and write operations without widening item-master ownership', async () => {
-    const source = {
-      requestId: 'req-1',
-      traceId: 'trace-1',
-      user: { aid: 'account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
-    }
-
-    itemQueryAdapter.listItemCategories.mockResolvedValue({
-      categories: [
-        {
-          categoryId: 'category-root',
-          categoryCode: 'ROOT',
-          categoryName: 'Root Category',
-          parentCategoryId: '',
-          status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE,
-          hasChildren: true
-        }
-      ]
-    })
-    itemManagementAdapter.createItemCategory.mockResolvedValue({
-      category: {
-        categoryId: 'category-child',
-        categoryCode: 'FINISHED',
-        categoryName: 'Finished Goods',
-        parentCategoryId: 'category-root',
-        status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE
-      }
-    })
-    itemManagementAdapter.updateItemCategoryBasics.mockResolvedValue({
-      category: {
-        categoryId: 'category-child',
-        categoryCode: 'FINISHED-REV',
-        categoryName: 'Finished Goods Rev',
-        parentCategoryId: 'category-root',
-        status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE
-      }
-    })
-    itemManagementAdapter.changeItemCategoryStatus.mockResolvedValue({
-      category: {
-        categoryId: 'category-child',
-        categoryCode: 'FINISHED-REV',
-        categoryName: 'Finished Goods Rev',
-        parentCategoryId: 'category-root',
-        status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_INACTIVE
-      }
-    })
-    itemManagementAdapter.setItemPrimaryCategory.mockResolvedValue({
-      item: {
-        itemId: 'item-1',
-        itemCode: 'ITEM-001',
-        itemName: 'Starter Item',
-        structureType: ItemStructureType.ITEM_STRUCTURE_TYPE_SINGLE,
-        natureType: ItemNatureType.ITEM_NATURE_TYPE_PHYSICAL,
-        status: ItemStatus.ITEM_STATUS_ACTIVE,
-        capabilities: {
-          sellable: true,
-          purchasable: true,
-          stockable: true,
-          manufacturable: false
-        },
-        primaryCategorySummary: {
-          categoryId: 'category-child',
-          categoryCode: 'FINISHED-REV',
-          categoryName: 'Finished Goods Rev',
-          status: ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE
-        }
+  it('creates BOMs with typed output and component lines', async () => {
+    itemManagementAdapter.createBom.mockResolvedValue({
+      bomId: 'bom-1',
+      bom: {
+        bomId: 'bom-1',
+        bomCode: 'BOM-1',
+        bomName: 'Composition BOM',
+        bomType: BomType.BOM_TYPE_COMPOSITION,
+        outputItemId: 'item-out',
+        active: true,
+        lines: [
+          {
+            bomLineId: 'line-1',
+            componentItemId: 'item-in',
+            lineRole: BomLineRole.BOM_LINE_ROLE_COMPONENT,
+            quantity: '1',
+            uomCode: 'PCS'
+          }
+        ]
       }
     })
 
     await expect(
-      service.listItemCategories('tenant-1', { parentCategoryId: 'category-root' }, source as any)
-    ).resolves.toEqual({
-      categories: [
-        {
-          categoryId: 'category-root',
-          categoryCode: 'ROOT',
-          categoryName: 'Root Category',
-          parentCategoryId: '',
-          status: 'ACTIVE',
-          hasChildren: true
-        }
-      ]
-    })
-    await expect(
-      service.createItemCategory(
+      service.createBom(
         'tenant-1',
         {
-          categoryCode: 'FINISHED',
-          categoryName: 'Finished Goods',
-          parentCategoryId: 'category-root'
+          bomCode: 'BOM-1',
+          bomName: 'Composition BOM',
+          bomType: 'COMPOSITION',
+          outputItemId: 'item-out',
+          lines: [
+            {
+              componentItemId: 'item-in',
+              lineRole: 'COMPONENT',
+              quantity: '1',
+              uomCode: 'PCS'
+            }
+          ]
         },
-        source as any
-      )
-    ).resolves.toEqual({
-      categoryId: 'category-child',
-      categoryCode: 'FINISHED',
-      categoryName: 'Finished Goods',
-      status: 'ACTIVE'
-    })
-    await expect(
-      service.updateItemCategoryBasics(
-        'tenant-1',
-        'category-child',
-        {
-          categoryCode: 'FINISHED-REV',
-          categoryName: 'Finished Goods Rev'
-        },
-        source as any
-      )
-    ).resolves.toEqual({
-      categoryId: 'category-child',
-      categoryCode: 'FINISHED-REV',
-      categoryName: 'Finished Goods Rev',
-      status: 'ACTIVE'
-    })
-    await expect(
-      service.changeItemCategoryStatus(
-        'tenant-1',
-        'category-child',
-        {
-          status: 'INACTIVE'
-        },
-        source as any
-      )
-    ).resolves.toEqual({
-      categoryId: 'category-child',
-      categoryCode: 'FINISHED-REV',
-      categoryName: 'Finished Goods Rev',
-      status: 'INACTIVE'
-    })
-    await expect(
-      service.setItemPrimaryCategory(
-        'tenant-1',
-        'item-1',
-        {
-          primaryCategoryId: 'category-child'
-        },
-        source as any
+        source as never
       )
     ).resolves.toMatchObject({
-      itemId: 'item-1',
-      primaryCategorySummary: {
-        categoryId: 'category-child',
-        categoryCode: 'FINISHED-REV',
-        categoryName: 'Finished Goods Rev',
-        status: 'ACTIVE'
+      bomId: 'bom-1',
+      bom: {
+        bomType: 'COMPOSITION',
+        lines: [
+          {
+            componentItemId: 'item-in',
+            lineRole: 'COMPONENT'
+          }
+        ]
       }
     })
 
-    expect(itemQueryAdapter.listItemCategories).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        parentCategoryId: 'category-root'
-      },
-      source
-    )
-    expect(itemManagementAdapter.createItemCategory).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        categoryCode: 'FINISHED',
-        categoryName: 'Finished Goods',
-        parentCategoryId: 'category-root'
-      },
-      source
-    )
-    expect(itemManagementAdapter.updateItemCategoryBasics).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        categoryId: 'category-child',
-        categoryCode: 'FINISHED-REV',
-        categoryName: 'Finished Goods Rev'
-      },
-      source
-    )
-    expect(itemManagementAdapter.changeItemCategoryStatus).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        categoryId: 'category-child',
-        targetStatus: ItemCategoryStatus.ITEM_CATEGORY_STATUS_INACTIVE
-      },
-      source
-    )
-    expect(itemManagementAdapter.setItemPrimaryCategory).toHaveBeenCalledWith(
-      {
-        tenantId: 'tenant-1',
-        itemId: 'item-1',
-        categoryId: 'category-child'
-      },
+    expect(itemManagementAdapter.createBom).toHaveBeenCalledWith(
+      expect.objectContaining({
+        bomType: BomType.BOM_TYPE_COMPOSITION,
+        lines: [
+          expect.objectContaining({
+            componentItemId: 'item-in',
+            lineRole: BomLineRole.BOM_LINE_ROLE_COMPONENT
+          })
+        ]
+      }),
       source
     )
   })

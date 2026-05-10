@@ -228,7 +228,7 @@ phase 1 统一冻结以下活动类型：
 
 ### 11.4 后置对象
 
-- `WipUnit`
+- MES `ProductionUnit`
 - `PackageUnit`
 
 ## 12. Timeline 读取口径

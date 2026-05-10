@@ -154,7 +154,7 @@ phase 1 必须冻结以下字段：
 
 ### 10.4 后置
 
-- `WipUnit`
+- MES `ProductionUnit`
 - `PackageUnit`
 
 ## 11. 采用规则
@@ -162,7 +162,7 @@ phase 1 必须冻结以下字段：
 ### 11.1 Item
 
 - `item-master-service` 负责围绕 `Item` 的创建、更新、能力变化与状态变化生成 activity fact。
-- `ObjectActivity` 不拥有 `ItemCapability` 真相，只负责表达可读活动。
+- `ObjectActivity` 不拥有 Item execution capability 真相，只负责表达可读活动。
 
 ### 11.2 Quote / SalesOrder
 
@@ -183,7 +183,7 @@ phase 1 必须冻结以下字段：
 - attachment 版本与预览协同规则
 - workflow / approval 的完整 timeline 投影模型
 - `FulfillmentDemand` 接入口径，直到 fulfillment boundary 冻结
-- `WipUnit`
+- MES `ProductionUnit`
 - `PackageUnit`
 - timeline 跨对象聚合 feed、订阅、关注与 inbox 语义
 - AI 基于 timeline 的主动建议、预测或自动动作

@@ -4,6 +4,7 @@ import { AppLogger } from '@oes/common/logging'
 import { getTraceId } from '@oes/common/tracing'
 import { randomUUID } from 'crypto'
 
+/** RequestLoggerMiddleware records gateway HTTP access logs and exposes a request id for downstream propagation. */
 @Injectable()
 export class RequestLoggerMiddleware implements NestMiddleware {
   constructor(private readonly logger: AppLogger) {}
@@ -12,6 +13,9 @@ export class RequestLoggerMiddleware implements NestMiddleware {
     const start = Date.now()
     const { method, originalUrl, ip } = req
     const requestId = req.get('x-request-id')?.trim() || randomUUID()
+    if (req.headers) {
+      req.headers['x-request-id'] = requestId
+    }
 
     res.on('finish', () => {
       const durationMs = Date.now() - start

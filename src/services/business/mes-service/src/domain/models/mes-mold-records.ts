@@ -1,16 +1,10 @@
-/** MesLocationStatus describes the phase 1 MES physical location lifecycle. */
-export enum MesLocationStatus {
-  ACTIVE = 'ACTIVE',
-  INACTIVE = 'INACTIVE'
-}
-
 /** MoldFunctionRole captures whether a design is intended for master or production tooling. */
 export enum MoldFunctionRole {
   MASTER = 'MASTER',
   PRODUCTION = 'PRODUCTION'
 }
 
-/** MoldOutputStructureType captures the frozen phase 1 mold output shape. */
+/** MoldOutputStructureType captures the frozen first-slice mold output shape. */
 export enum MoldOutputStructureType {
   SINGLE = 'SINGLE',
   TWIN = 'TWIN',
@@ -22,51 +16,48 @@ export enum MoldOutputStructureType {
 export enum MoldDesignOutputKind {
   PRODUCT = 'PRODUCT',
   COMPONENT = 'COMPONENT',
-  MANUFACTURING_SPEC = 'MANUFACTURING_SPEC'
+  PRODUCTION_SPEC = 'PRODUCTION_SPEC'
 }
 
-/** MoldDesignStatus captures the small design lifecycle exposed by the query surface. */
+/** MoldDesignStatus captures the small design lifecycle exposed by the contract. */
 export enum MoldDesignStatus {
   ACTIVE = 'ACTIVE',
   INACTIVE = 'INACTIVE',
   SUPERSEDED = 'SUPERSEDED'
 }
 
-/** ProductionMoldInstanceStatus is the lifecycle truth and intentionally excludes long-lived IN_USE. */
-export enum ProductionMoldInstanceStatus {
+/** ProductionMoldStatus captures the current lifecycle for a production mold. */
+export enum ProductionMoldStatus {
   RECEIVED = 'RECEIVED',
-  PENDING_DRYING = 'PENDING_DRYING',
-  PENDING_INSTALLATION = 'PENDING_INSTALLATION',
+  PREPARING = 'PREPARING',
+  AVAILABLE = 'AVAILABLE',
   INSTALLED = 'INSTALLED',
-  PENDING_REPAIR = 'PENDING_REPAIR',
-  UNDER_REPAIR = 'UNDER_REPAIR',
+  MAINTENANCE = 'MAINTENANCE',
   DISABLED = 'DISABLED',
   SCRAPPED = 'SCRAPPED'
 }
 
-/** MoldResourceType distinguishes master molds from production mold instances on shared commands. */
-export enum MoldResourceType {
-  MASTER_MOLD = 'MASTER_MOLD',
-  PRODUCTION_MOLD_INSTANCE = 'PRODUCTION_MOLD_INSTANCE'
+/** ToolingType distinguishes tooling families while this slice only supports molds. */
+export enum ToolingType {
+  MOLD = 'MOLD'
 }
 
-/** MoldInstallationStatus captures active and closed installation facts. */
-export enum MoldInstallationStatus {
+/** ToolingInstallationStatus captures active and closed tooling installation facts. */
+export enum ToolingInstallationStatus {
   ACTIVE = 'ACTIVE',
   UNMOUNTED = 'UNMOUNTED',
   CLOSED_BY_SCRAP = 'CLOSED_BY_SCRAP'
 }
 
-/** MoldUsageMode captures the allowed phase 1 usage capture channels. */
-export enum MoldUsageMode {
-  MANUAL_CHECKLIST = 'MANUAL_CHECKLIST',
-  PDA_SCAN = 'PDA_SCAN',
-  BATCH_CONFIRM = 'BATCH_CONFIRM',
-  BACK_OFFICE_ENTRY = 'BACK_OFFICE_ENTRY',
-  AUTOMATED_CAPTURE = 'AUTOMATED_CAPTURE'
+/** ToolingPlacementType names the current placement projection for a tooling object. */
+export enum ToolingPlacementType {
+  STORAGE_RESOURCE = 'STORAGE_RESOURCE',
+  CARRIER_RESOURCE = 'CARRIER_RESOURCE',
+  WORK_CENTER = 'WORK_CENTER',
+  WORK_UNIT = 'WORK_UNIT'
 }
 
-/** MoldLifeAdjustmentType captures authorized counter correction operations. */
+/** MoldLifeAdjustmentType captures authorized life counter correction operations. */
 export enum MoldLifeAdjustmentType {
   SET_USED_VALUE = 'SET_USED_VALUE',
   ADD_USED_VALUE = 'ADD_USED_VALUE',
@@ -74,66 +65,37 @@ export enum MoldLifeAdjustmentType {
   SET_WARNING_THRESHOLD = 'SET_WARNING_THRESHOLD'
 }
 
-/** MoldWarningType identifies the warning invariant that was crossed. */
-export enum MoldWarningType {
-  LIFE_THRESHOLD = 'LIFE_THRESHOLD',
-  LIFE_EXCEEDED = 'LIFE_EXCEEDED',
-  STATUS_EXCEPTION = 'STATUS_EXCEPTION'
-}
-
-/** MoldWarningLevel captures the readable warning severity. */
+/** MoldWarningLevel captures the readable life counter warning severity. */
 export enum MoldWarningLevel {
   INFO = 'INFO',
   WARNING = 'WARNING',
   CRITICAL = 'CRITICAL'
 }
 
-/** MoldWarningStatus captures human acknowledgement state for warning facts. */
-export enum MoldWarningStatus {
-  OPEN = 'OPEN',
-  ACKNOWLEDGED = 'ACKNOWLEDGED',
-  CLOSED = 'CLOSED'
-}
-
-/** MoldWarningAcknowledgementAction captures the small phase 1 remediation actions. */
-export enum MoldWarningAcknowledgementAction {
-  ACKNOWLEDGE = 'ACKNOWLEDGE',
-  ACKNOWLEDGE_AND_MARK_REPAIR = 'ACKNOWLEDGE_AND_MARK_REPAIR',
-  ACKNOWLEDGE_AND_DISABLE = 'ACKNOWLEDGE_AND_DISABLE'
-}
-
-/** MoldDerivedUsageState is a read-model-only usage state and never a lifecycle status. */
-export enum MoldDerivedUsageState {
-  IDLE = 'IDLE',
-  RECENTLY_USED = 'RECENTLY_USED',
-  IN_USE_WINDOW = 'IN_USE_WINDOW'
-}
-
-/** MoldUsageHistoryEntryType classifies append-only mold facts for history queries. */
+/** MoldUsageHistoryEntryType classifies flattened mold facts for history queries. */
 export enum MoldUsageHistoryEntryType {
-  INSTALLATION = 'INSTALLATION',
+  INSTALL = 'INSTALL',
   UNMOUNT = 'UNMOUNT',
   USAGE = 'USAGE',
   LIFE_ADJUSTMENT = 'LIFE_ADJUSTMENT',
-  WARNING = 'WARNING',
   MOVE = 'MOVE',
   SCRAP = 'SCRAP'
 }
 
-/** MesOperatorContext carries the explicit operator context required by the MES contracts. */
+/** MesOperatorContext carries the explicit operator context required by MES contracts. */
 export interface MesOperatorContext {
   operatorId: string
   operatorType: string
   orgId?: string | null
 }
 
-/** MesTraceContext carries the explicit trace context required by the MES contracts. */
+/** MesTraceContext carries the explicit trace context required by MES contracts. */
 export interface MesTraceContext {
   traceId: string
   requestId: string
 }
 
-/** MesAuditContext carries the explicit audit context required by every MES management command. */
+/** MesAuditContext carries the explicit audit context required by every MES command. */
 export interface MesAuditContext {
   auditId: string
   reason: string
@@ -154,7 +116,7 @@ export interface MesCommandContext extends MesQueryContext {
   commandId: string
 }
 
-/** MesCommandIdempotencyRecord stores completed command payload fingerprints and reusable command results. */
+/** MesCommandIdempotencyRecord stores command fingerprints and reusable command results. */
 export interface MesCommandIdempotencyRecord {
   mesCommandIdempotencyId: string
   tenantId: string
@@ -168,15 +130,20 @@ export interface MesCommandIdempotencyRecord {
   updatedAt: string
 }
 
-/** ManufacturingMasterDataRefRecord stores opaque master-data references plus display snapshots. */
-export interface ManufacturingMasterDataRefRecord {
-  refType: 'PRODUCT_FAMILY' | 'MANUFACTURING_SPEC'
-  refId: string
-  refCodeSnapshot?: string | null
+/** OperatorRefRecord stores the actor snapshot attached to append-only facts. */
+export interface OperatorRefRecord {
+  operatorId: string
   displayNameSnapshot?: string | null
 }
 
-/** ItemRefRecord stores the optional item-master display snapshot without becoming the design binding. */
+/** AuditRefRecord links one fact back to the local audit envelope and command id. */
+export interface AuditRefRecord {
+  auditId: string
+  commandId: string
+  reason: string
+}
+
+/** ItemRefRecord stores an item-master reference and optional display snapshots. */
 export interface ItemRefRecord {
   itemId: string
   itemCodeSnapshot?: string | null
@@ -197,36 +164,56 @@ export interface PurchaseRefRecord {
   purchaseNoSnapshot?: string | null
 }
 
-/** ExternalRefRecord stores optional opaque references to future MES or upstream execution objects. */
-export interface ExternalRefRecord {
-  refType: string
-  refId: string
-  refCodeSnapshot?: string | null
+/** ProductionSpecRefRecord stores a production spec reference and display snapshots. */
+export interface ProductionSpecRefRecord {
+  productionSpecId: string
+  specCodeSnapshot?: string | null
   displayNameSnapshot?: string | null
 }
 
-/** OperatorRefRecord stores the actor snapshot attached to append-only facts. */
-export interface OperatorRefRecord {
-  operatorId: string
+/** StorageResourceRefRecord stores a fixed or semi-fixed storage resource reference. */
+export interface StorageResourceRefRecord {
+  storageResourceId: string
+  resourceCodeSnapshot?: string | null
   displayNameSnapshot?: string | null
 }
 
-/** AuditRefRecord links one fact back to the local audit envelope and command id. */
-export interface AuditRefRecord {
-  auditId: string
-  commandId: string
-  reason: string
+/** CarrierResourceRefRecord stores a movable carrier resource reference. */
+export interface CarrierResourceRefRecord {
+  carrierResourceId: string
+  resourceCodeSnapshot?: string | null
+  displayNameSnapshot?: string | null
 }
 
-/** PageResult wraps one phase 1 page envelope shared by repository search surfaces. */
-export interface PageResult<T> {
-  items: T[]
-  total: number
-  page: number
-  pageSize: number
+/** WorkCenterRefRecord stores an execution-unit reference and display snapshots. */
+export interface WorkCenterRefRecord {
+  workCenterId: string
+  workCenterCodeSnapshot?: string | null
+  displayNameSnapshot?: string | null
 }
 
-/** MoldDesignOutputOptionRecord captures one selectable output variant chosen before a mold usage is recorded. */
+/** WorkUnitRefRecord stores a work point reference and display snapshots. */
+export interface WorkUnitRefRecord {
+  workUnitId: string
+  workUnitCodeSnapshot?: string | null
+  displayNameSnapshot?: string | null
+}
+
+/** ProductionUnitRefRecord stores an optional production unit reference for usage facts. */
+export interface ProductionUnitRefRecord {
+  productionUnitId: string
+  unitCodeSnapshot?: string | null
+  displayNameSnapshot?: string | null
+}
+
+/** TraceSubjectRefRecord stores an optional trace identity reference for usage facts. */
+export interface TraceSubjectRefRecord {
+  traceSubjectId: string
+  traceCodeSnapshot?: string | null
+  displayNameSnapshot?: string | null
+}
+
+/** MoldDesignOutputOptionRecord captures one selectable output variant for mold usage. */
 export interface MoldDesignOutputOptionRecord {
   moldDesignOutputOptionId: string
   tenantId: string
@@ -235,8 +222,7 @@ export interface MoldDesignOutputOptionRecord {
   moldDesignOutputId: string
   optionCode: string
   label: string
-  manufacturingSpecRef: ManufacturingMasterDataRefRecord
-  productFamilyRef?: ManufacturingMasterDataRefRecord | null
+  productionSpecRef?: ProductionSpecRefRecord | null
   quantityPerUse?: string | null
   isDefault: boolean
 }
@@ -250,8 +236,7 @@ export interface MoldDesignOutputRecord {
   sequenceNo: number
   outputCode: string
   outputKind: MoldDesignOutputKind
-  productFamilyRef?: ManufacturingMasterDataRefRecord | null
-  manufacturingSpecRef?: ManufacturingMasterDataRefRecord | null
+  productionSpecRef?: ProductionSpecRefRecord | null
   quantityPerUse: string
   componentRole?: string | null
   assemblyHint?: string | null
@@ -259,7 +244,16 @@ export interface MoldDesignOutputRecord {
   options: MoldDesignOutputOptionRecord[]
 }
 
-/** MoldDesignRecord captures the MES tooling design record without owning external product truth. */
+/** MoldDesignSummaryRecord is the compact read model for a mold design. */
+export interface MoldDesignSummaryRecord {
+  moldDesignId: string
+  designCode: string
+  name: string
+  revisionCode?: string | null
+  status: MoldDesignStatus
+}
+
+/** MoldDesignRecord captures the MES tooling design record without owning external item truth. */
 export interface MoldDesignRecord {
   moldDesignId: string
   tenantId: string
@@ -267,10 +261,9 @@ export interface MoldDesignRecord {
   designCode: string
   name: string
   revisionCode?: string | null
-  supersedesDesignId?: string | null
-  productFamilyRef: ManufacturingMasterDataRefRecord
-  manufacturingSpecRefs: ManufacturingMasterDataRefRecord[]
+  supersedesMoldDesignId?: string | null
   itemRef?: ItemRefRecord | null
+  productionSpecRefs: ProductionSpecRefRecord[]
   materialType: string
   functionRole: MoldFunctionRole
   productionMethodTags: string[]
@@ -283,54 +276,15 @@ export interface MoldDesignRecord {
   updatedAt: string
 }
 
-/** MesLocationRecord captures MES-owned physical location truth and never WMS location truth. */
-export interface MesLocationRecord {
-  mesLocationId: string
-  tenantId: string
-  orgId?: string | null
-  locationCode: string
-  name: string
-  locationType: string
-  parentMesLocationId?: string | null
-  relatedWorkCenterId?: string | null
-  capacityProfileId?: string | null
-  status: MesLocationStatus
-  createdAt: string
-  updatedAt: string
+/** MasterMoldSummaryRecord is the compact read model for a master mold. */
+export interface MasterMoldSummaryRecord {
+  masterMoldId: string
+  masterMoldCode: string
+  moldDesignId: string
+  currentStatus: string
 }
 
-/** WorkCenterRecord captures a logical execution unit without becoming physical location truth. */
-export interface WorkCenterRecord {
-  workCenterId: string
-  tenantId: string
-  orgId?: string | null
-  workCenterCode: string
-  name: string
-  workCenterType: string
-  parentWorkCenterId?: string | null
-  relatedMesLocationId?: string | null
-  capacityProfileId?: string | null
-  status: string
-  createdAt: string
-  updatedAt: string
-}
-
-/** ResourcePositionRecord captures a concrete mold slot under a work center. */
-export interface ResourcePositionRecord {
-  resourcePositionId: string
-  tenantId: string
-  orgId?: string | null
-  workCenterId: string
-  positionCode: string
-  name: string
-  positionType: string
-  compatibleMoldDesignRefs: string[]
-  status: string
-  createdAt: string
-  updatedAt: string
-}
-
-/** MasterMoldRecord captures master mold asset tracking without entering the production usage loop. */
+/** MasterMoldRecord captures master mold asset tracking outside production usage. */
 export interface MasterMoldRecord {
   masterMoldId: string
   tenantId: string
@@ -341,141 +295,177 @@ export interface MasterMoldRecord {
   purchaseRef?: PurchaseRefRecord | null
   receivedAt?: string | null
   currentStatus: string
-  currentMesLocationId?: string | null
+  currentStorageResourceRef?: StorageResourceRefRecord | null
+  currentCarrierResourceRef?: CarrierResourceRefRecord | null
   qualitySummary?: string | null
   notes?: string | null
-  scrappedAt?: string | null
   createdAt: string
   updatedAt: string
 }
 
-/** ProductionMoldInstanceRecord captures one production mold and its current projection fields. */
-export interface ProductionMoldInstanceRecord {
-  productionMoldInstanceId: string
+/** MoldInstallationDetailRecord captures mold-specific fields under a tooling installation. */
+export interface MoldInstallationDetailRecord {
+  toolingInstallationId: string
+  moldPosition?: string | null
+  cavityPosition?: string | null
+  cavityMapping?: string | null
+  setupParameters?: string | null
+}
+
+/** ToolingInstallationRecord captures a tooling installation interval fact. */
+export interface ToolingInstallationRecord {
+  toolingInstallationId: string
   tenantId: string
   orgId?: string | null
-  moldInstanceCode: string
+  toolingType: ToolingType
+  toolingId: string
+  workCenterRef: WorkCenterRefRecord
+  workUnitRef?: WorkUnitRefRecord | null
+  installedAt: string
+  unmountedAt?: string | null
+  installedByRef?: OperatorRefRecord | null
+  unmountedByRef?: OperatorRefRecord | null
+  status: ToolingInstallationStatus
+  moldDetail?: MoldInstallationDetailRecord | null
+  auditRef: AuditRefRecord
+}
+
+/** MoldLifeCounterSummaryRecord is the current life counter projection used by mold queries. */
+export interface MoldLifeCounterSummaryRecord {
+  moldLifeCounterId: string
+  lifeUnit: string
+  usedValue: string
+  limitValue?: string | null
+  warningThresholdValue?: string | null
+  remainingValue?: string | null
+  warningLevel?: MoldWarningLevel | null
+  lastUsageRecordId?: string | null
+  lastAdjustedAt?: string | null
+}
+
+/** ToolingPlacementSummaryRecord describes the current storage, carrier, or installation placement. */
+export interface ToolingPlacementSummaryRecord {
+  placementType: ToolingPlacementType
+  storageResourceRef?: StorageResourceRefRecord | null
+  carrierResourceRef?: CarrierResourceRefRecord | null
+  workCenterRef?: WorkCenterRefRecord | null
+  workUnitRef?: WorkUnitRefRecord | null
+  toolingInstallationId?: string | null
+  moldInstallationDetail?: MoldInstallationDetailRecord | null
+}
+
+/** ProductionMoldSummaryRecord is the compact read model for a production mold. */
+export interface ProductionMoldSummaryRecord {
+  productionMoldId: string
+  moldCode: string
+  moldDesignSummary: MoldDesignSummaryRecord
+  currentStatus: ProductionMoldStatus
+  currentPlacementSummary?: ToolingPlacementSummaryRecord | null
+  lifeCounterSummary?: MoldLifeCounterSummaryRecord | null
+}
+
+/** ProductionMoldRecord captures one production mold and its current projection fields. */
+export interface ProductionMoldRecord {
+  productionMoldId: string
+  tenantId: string
+  orgId?: string | null
+  moldCode: string
   moldDesignId: string
-  masterMoldId?: string | null
+  sourceMasterMoldId?: string | null
   supplierRef?: SupplierRefRecord | null
   purchaseRef?: PurchaseRefRecord | null
   receivedAt?: string | null
   acceptedAt?: string | null
-  currentStatus: ProductionMoldInstanceStatus
-  currentMesLocationId?: string | null
-  currentWorkCenterId?: string | null
-  currentResourcePositionId?: string | null
-  currentInstallationId?: string | null
-  lifeUsedValue: string
-  lifeLimitValue: string
-  lifeUnit: string
-  warningLevel: MoldWarningLevel
+  currentStatus: ProductionMoldStatus
+  currentStorageResourceRef?: StorageResourceRefRecord | null
+  currentCarrierResourceRef?: CarrierResourceRefRecord | null
+  currentInstallationSummary?: ToolingInstallationRecord | null
+  lifeCounterSummary?: MoldLifeCounterSummaryRecord | null
   scrappedAt?: string | null
   createdAt: string
   updatedAt: string
 }
 
-/** MoldMovementEventRecord captures one append-only movement fact. */
-export interface MoldMovementEventRecord {
-  moldMovementEventId: string
+/** MoldMovementRecord captures one append-only tooling movement fact. */
+export interface MoldMovementRecord {
+  moldMovementId: string
   tenantId: string
   orgId?: string | null
-  moldResourceType: MoldResourceType
-  moldResourceId: string
-  fromMesLocationId?: string | null
-  toMesLocationId: string
-  movementReason: string
+  toolingType: ToolingType
+  toolingId: string
+  fromStorageResourceRef?: StorageResourceRefRecord | null
+  fromCarrierResourceRef?: CarrierResourceRefRecord | null
+  toStorageResourceRef?: StorageResourceRefRecord | null
+  toCarrierResourceRef?: CarrierResourceRefRecord | null
+  movementReason?: string | null
   movedAt: string
   operatorRef: OperatorRefRecord
-  sourceCommandId: string
   auditRef: AuditRefRecord
 }
 
-/** MoldInstallationRecord captures one append-only installation interval fact. */
-export interface MoldInstallationRecord {
-  moldInstallationId: string
+/** MoldUsageRecord captures one append-only mold usage and life counter fact. */
+export interface MoldUsageRecord {
+  moldUsageRecordId: string
   tenantId: string
   orgId?: string | null
-  productionMoldInstanceId: string
-  workCenterId: string
-  resourcePositionId: string
-  installedAt: string
-  unmountedAt?: string | null
-  installedByRef: OperatorRefRecord
-  unmountedByRef?: OperatorRefRecord | null
-  installationStatus: MoldInstallationStatus
-  setupSnapshot?: string | null
-  operationRef?: ExternalRefRecord | null
-  routingRef?: ExternalRefRecord | null
-  workOrderRef?: ExternalRefRecord | null
-  operationTaskRef?: ExternalRefRecord | null
-  auditRef: AuditRefRecord
-}
-
-/** MoldUsageEventRecord captures one append-only production usage fact. */
-export interface MoldUsageEventRecord {
-  moldUsageEventId: string
-  tenantId: string
-  orgId?: string | null
-  productionMoldInstanceId: string
-  moldInstallationId: string
-  workCenterId: string
-  resourcePositionId?: string | null
-  usageMode: MoldUsageMode
+  productionMoldId: string
+  toolingInstallationId?: string | null
+  workCenterRef: WorkCenterRefRecord
+  workUnitRef?: WorkUnitRefRecord | null
   usedAt: string
   usageQuantity: string
   lifeDelta: string
   lifeUnit: string
-  lifeUsedValueAfter: string
-  productFamilyRef?: ManufacturingMasterDataRefRecord | null
-  manufacturingSpecRef?: ManufacturingMasterDataRefRecord | null
+  productionSpecRef?: ProductionSpecRefRecord | null
+  productionUnitRef?: ProductionUnitRefRecord | null
+  traceSubjectRef?: TraceSubjectRefRecord | null
+  operatorRef: OperatorRefRecord
+  captureSource?: string | null
+  auditRef: AuditRefRecord
   moldDesignOutputId?: string | null
   moldDesignOutputOptionId?: string | null
-  wipUnitRef?: ExternalRefRecord | null
-  physicalTraceId?: string | null
-  workOrderRef?: ExternalRefRecord | null
-  operationTaskRef?: ExternalRefRecord | null
-  operatorRef: OperatorRefRecord
-  captureSource: string
-  auditRef: AuditRefRecord
 }
 
-/** MoldLifeCounterRecord captures the production mold's current lifetime counter projection. */
+/** MoldLifeCounterRecord captures an independent production mold life counter. */
 export interface MoldLifeCounterRecord {
   moldLifeCounterId: string
   tenantId: string
   orgId?: string | null
-  productionMoldInstanceId: string
+  productionMoldId: string
   lifeUnit: string
   usedValue: string
-  limitValue: string
-  warningThresholdValue: string
-  lastUsageEventId?: string | null
+  limitValue?: string | null
+  warningThresholdValue?: string | null
+  lastUsageRecordId?: string | null
   lastAdjustedAt?: string | null
   lastAdjustedByRef?: OperatorRefRecord | null
   adjustmentReason?: string | null
   updatedAt: string
 }
 
-/** MoldWarningEventRecord captures one append-only warning fact with acknowledgement projection fields. */
-export interface MoldWarningEventRecord {
-  moldWarningEventId: string
-  tenantId: string
-  orgId?: string | null
-  productionMoldInstanceId: string
-  warningType: MoldWarningType
-  warningLevel: MoldWarningLevel
-  triggeredByEventId?: string | null
-  lifeUsedValue: string
-  lifeLimitValue: string
-  raisedAt: string
-  acknowledgedAt?: string | null
-  acknowledgedByRef?: OperatorRefRecord | null
-  status: MoldWarningStatus
-  auditRef: AuditRefRecord
+/** MoldUsageHistoryEntryRecord is the flattened chronological read model for mold facts. */
+export interface MoldUsageHistoryEntryRecord {
+  entryType: MoldUsageHistoryEntryType
+  happenedAt: string
+  productionMoldId: string
+  summary: string
+  auditRef?: AuditRefRecord | null
 }
 
-/** MesAuditEnvelopeRecord captures the local audit envelope persisted with successful management commands. */
+/** CurrentMoldByWorkCenterRecord groups one active installation with mold and counter summaries. */
+export interface CurrentMoldByWorkCenterRecord {
+  productionMold: ProductionMoldSummaryRecord
+  toolingInstallation: ToolingInstallationRecord
+}
+
+/** DailyMoldChecklistRecord is the printable daily read model for selected work centers. */
+export interface DailyMoldChecklistRecord {
+  checklistDate: string
+  workCenterId: string
+  items: CurrentMoldByWorkCenterRecord[]
+}
+
+/** MesAuditEnvelopeRecord captures the local audit envelope persisted with successful commands. */
 export interface MesAuditEnvelopeRecord {
   mesAuditEnvelopeId: string
   tenantId: string
@@ -513,157 +503,4 @@ export interface MesOutboxEventRecord {
   publishedAt?: string | null
   status: 'PENDING' | 'PUBLISHED' | 'FAILED'
   createdAt: string
-}
-
-/** MoldDesignSummaryRecord is the query summary for a mold design. */
-export interface MoldDesignSummaryRecord {
-  moldDesignId: string
-  designCode: string
-  name: string
-  revisionCode?: string | null
-  productFamilyRef?: ManufacturingMasterDataRefRecord | null
-}
-
-/** MesLocationSummaryRecord is the query summary for current MES physical location. */
-export type MesLocationSummaryRecord = Omit<MesLocationRecord, 'tenantId' | 'orgId' | 'createdAt' | 'updatedAt'>
-
-/** WorkCenterSummaryRecord is the query summary for logical execution units. */
-export type WorkCenterSummaryRecord = Omit<WorkCenterRecord, 'tenantId' | 'orgId' | 'createdAt' | 'updatedAt'>
-
-/** ResourcePositionSummaryRecord is the query summary for mold slots. */
-export type ResourcePositionSummaryRecord = Omit<ResourcePositionRecord, 'tenantId' | 'orgId' | 'createdAt' | 'updatedAt' | 'compatibleMoldDesignRefs'>
-
-/** MoldInstallationSummaryRecord is the query projection for the currently active installation. */
-export interface MoldInstallationSummaryRecord {
-  moldInstallationId: string
-  workCenterId: string
-  workCenterCode?: string | null
-  workCenterName?: string | null
-  resourcePositionId: string
-  positionCode?: string | null
-  installedAt: string
-  usageState: MoldDerivedUsageState
-}
-
-/** MoldLifeSummaryRecord is the query projection for the current lifetime counter. */
-export interface MoldLifeSummaryRecord {
-  lifeUnit: string
-  usedValue: string
-  limitValue: string
-  warningThresholdValue: string
-  remainingValue: string
-  warningLevel: MoldWarningLevel
-  lastUsageEventId?: string | null
-  lastAdjustedAt?: string | null
-}
-
-/** MoldWarningSummaryRecord is the current warning summary embedded on instance queries. */
-export interface MoldWarningSummaryRecord {
-  moldWarningEventId: string
-  warningType: MoldWarningType
-  warningLevel: MoldWarningLevel
-  status: MoldWarningStatus
-  raisedAt: string
-  acknowledgedAt?: string | null
-}
-
-/** ProductionMoldInstanceView is the primary query view for one production mold instance. */
-export interface ProductionMoldInstanceView {
-  productionMoldInstanceId: string
-  tenantId: string
-  orgId?: string | null
-  moldInstanceCode: string
-  moldDesignSummary: MoldDesignSummaryRecord
-  masterMoldSummary?: {
-    masterMoldId: string
-    masterMoldCode: string
-    moldDesignId: string
-    currentStatus: string
-  } | null
-  supplierRef?: SupplierRefRecord | null
-  purchaseRef?: PurchaseRefRecord | null
-  receivedAt?: string | null
-  acceptedAt?: string | null
-  currentStatus: ProductionMoldInstanceStatus
-  currentMesLocationSummary?: MesLocationSummaryRecord | null
-  currentInstallationSummary?: MoldInstallationSummaryRecord | null
-  lifeSummary?: MoldLifeSummaryRecord | null
-  warningSummary?: MoldWarningSummaryRecord | null
-  scrappedAt?: string | null
-  createdAt: string
-  updatedAt: string
-}
-
-/** MoldCurrentLocationView is the query view for physical location plus active installation summary. */
-export interface MoldCurrentLocationView {
-  moldResourceType: MoldResourceType
-  moldResourceId: string
-  moldCode: string
-  currentStatus: string
-  currentMesLocationSummary?: MesLocationSummaryRecord | null
-  currentInstallationSummary?: MoldInstallationSummaryRecord | null
-  lastMovementEventId?: string | null
-  lastMovedAt?: string | null
-}
-
-/** CurrentInstalledMoldView groups one active installation with instance, position, life, and warning summaries. */
-export interface CurrentInstalledMoldView {
-  productionMoldInstance: ProductionMoldInstanceView
-  moldInstallation: MoldInstallationRecord
-  resourcePositionSummary?: ResourcePositionSummaryRecord | null
-  lifeSummary?: MoldLifeSummaryRecord | null
-  warningSummary?: MoldWarningSummaryRecord | null
-}
-
-/** MoldLifeWarningView is the query view for one warning row. */
-export interface MoldLifeWarningView extends MoldWarningEventRecord {
-  productionMoldInstanceSummary: {
-    productionMoldInstanceId: string
-    moldInstanceCode: string
-    moldDesignSummary: MoldDesignSummaryRecord
-    currentStatus: ProductionMoldInstanceStatus
-  }
-}
-
-/** MoldUsageHistoryEntryRecord is the flattened chronological read model for mold facts. */
-export interface MoldUsageHistoryEntryRecord {
-  entryType: MoldUsageHistoryEntryType
-  entryId: string
-  occurredAt: string
-  workCenterSummary?: WorkCenterSummaryRecord | null
-  resourcePositionSummary?: ResourcePositionSummaryRecord | null
-  mesLocationSummary?: MesLocationSummaryRecord | null
-  usageQuantity?: string | null
-  lifeDelta?: string | null
-  lifeUsedValueAfter?: string | null
-  productFamilyRef?: ManufacturingMasterDataRefRecord | null
-  manufacturingSpecRef?: ManufacturingMasterDataRefRecord | null
-  moldDesignOutputId?: string | null
-  moldDesignOutputOptionId?: string | null
-  wipUnitRef?: ExternalRefRecord | null
-  physicalTraceId?: string | null
-  operatorRef?: OperatorRefRecord | null
-  auditRef?: AuditRefRecord | null
-}
-
-/** DailyMoldChecklistRecord is the printable daily read model for selected work centers. */
-export interface DailyMoldChecklistRecord {
-  checklistDate: string
-  workCenters: Array<{
-    workCenterSummary: WorkCenterSummaryRecord
-    installedMolds: CurrentInstalledMoldView[]
-    lifeWarnings: MoldLifeWarningView[]
-    recentUsageSummary: Array<{
-      moldUsageEventId: string
-      productionMoldInstanceId: string
-      moldInstanceCode: string
-      usedAt: string
-      usageQuantity: string
-      lifeDelta: string
-      lifeUnit: string
-    }>
-    exceptionNotes: string[]
-  }>
-  generatedAt: string
-  generatedByRef: OperatorRefRecord
 }

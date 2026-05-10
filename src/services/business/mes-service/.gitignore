@@ -1,9 +1,10 @@
 # compiled output
-/dist
+/dist/
 /node_modules
 /build
 /dict
 /tsconfig.tsbuildinfo
+/*.tsbuildinfo
 # Logs
 logs
 *.log
@@ -55,4 +56,7 @@ pids
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-/prisma/generated/prisma
+# Generated artifacts
+/generated/
+/src/generated/
+/prisma/generated/

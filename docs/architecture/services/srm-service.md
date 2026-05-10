@@ -25,7 +25,7 @@
 - 同一 `tenantId + tenantPartyId` 只允许一个正式 `SupplierProfile`
 - `SupplierOffering` 表达 `supplierId + itemId` 的“可供应关系事实”
 - `ACTIVE SupplierOffering` 只允许挂在 `ACTIVE SupplierProfile` 下
-- `ACTIVE SupplierOffering` 只允许指向 `purchasable Item`
+- `ACTIVE SupplierOffering` 只允许指向 active + purchasable `Item`
 
 ## 3. Does Not Own
 
@@ -35,8 +35,9 @@
   - `PartyIdentifier`
   - `PartyRelationship`
 - `item-master-service` 的 Item 主数据真相：
+  - `ItemModel`
   - `Item`
-  - `ItemCapability`
+  - Item execution capability
   - `SupplierItemMapping`
 - `SupplierItemMapping` 真相
 - 采购单、收货与采购执行真相：
@@ -75,7 +76,7 @@
   - 提供 `tenantPartyId` 对应的正式主体引用基础。
   - SRM 不复制注册信息、证照与主体 canonical 真相。
 - `item-master-service`
-  - 提供 `Item` 与 `purchasable` 能力真相。
+  - 提供 `ItemModel`、`Item` 与 purchasable 能力真相。
   - 继续拥有 `SupplierItemMapping`，SRM 只引用其结果，不接管其真相。
 - `permission-service`
   - 提供供应商主档管理与查询的授权判定能力。

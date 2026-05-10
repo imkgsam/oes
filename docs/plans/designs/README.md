@@ -27,6 +27,9 @@
 ## 3. 使用规则
 
 - design workspace 不是默认必建。
+- 每个 design workspace 必须在正文开头维护 `0. 文档控制`，明确 `designKey`、`designStatus`、`lastUpdatedAt`、`lastUpdatedBy`、`supersedes` 与 `conflictResolution`。
+- 每次写入已冻结或后置结论时，必须更新 `lastUpdatedAt`，避免下次读取时无法判断新旧设计优先级。
+- 若 workspace 与旧讨论、旧 workspace 或旧草稿冲突，优先看 `lastUpdatedAt` 与 `conflictResolution`；若稳定 `architecture / ADR / contracts` 明确覆盖 workspace，则以稳定真相源为准。
 - 如果一个设计已经足够清晰，可以直接转成 `feature packet` 并进入执行，则应直接进入 `docs/plans/features/*.md`，不额外建立 workspace。
 - 一个 design workspace 只服务一个设计主题。
 - 一个设计主题可以是：
@@ -56,8 +59,19 @@
 
 ## 5. 推荐模板
 
-```md
+````md
 # <Design Topic>
+
+## 0. 文档控制
+
+```text
+designKey: <design-key>
+designStatus: ACTIVE_DESIGN_WORKSPACE
+lastUpdatedAt: YYYY-MM-DD HH:mm:ss TZ
+lastUpdatedBy: <human-or-thread>
+supersedes: <older-design-or-discussion-it-replaces>
+conflictResolution: 当本文与更早讨论冲突时，以本文 lastUpdatedAt 之后的冻结结论为准；稳定 architecture / ADR / contracts 明确覆盖本文时，以稳定真相源为准。
+```
 
 ## 1. 目标
 
@@ -101,7 +115,7 @@
   - 
 - 当前推荐下一步：
   - 
-```
+````
 
 ## 6. 当前状态
 
@@ -112,8 +126,11 @@
 - [after-sales-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/after-sales-service-design.md)
 - [customer-touchpoint-and-platform-integration-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/customer-touchpoint-and-platform-integration-design.md)
 - [crm-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/crm-service-design.md)
-- [manufacturing-master-data-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/manufacturing-master-data-design.md)
-- [mes-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/mes-service-design.md)
+- [item-master-model-item-bom-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/item-master-model-item-bom-design.md)
+- [packaging-master-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/packaging-master-design.md)
+- [wms-inventory-package-unit-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/wms-inventory-package-unit-design.md)
 - [planning-workbench-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/planning-workbench-design.md)
 - [scan-identity-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/scan-identity-design.md)
 - [wms-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/wms-service-design.md)
+
+MES 当前新设计不再维护 design workspace，统一沉淀到 [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)。

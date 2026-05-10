@@ -179,6 +179,17 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'TenantItemCategoryManagement',
+        path: '/master-data/item-categories',
+        component: () => import('#/views/admin/item-category-management.vue'),
+        meta: {
+          entryKey: 'master-data.item-category-management',
+          fullPathKey: false,
+          icon: 'lucide:folder-tree',
+          title: 'Item 分类管理',
+        },
+      },
+      {
         name: 'TenantCustomerManagement',
         path: '/master-data/customers',
         component: () => import('#/views/admin/customer-management.vue'),

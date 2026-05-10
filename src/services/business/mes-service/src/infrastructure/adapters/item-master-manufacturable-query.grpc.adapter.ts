@@ -9,8 +9,7 @@ import { SERVICE_NAMES } from '@oes/common/constants'
 import {
   ITEM_MASTER_QUERY_SERVICE_NAME,
   ItemMasterQueryServiceClient,
-  ItemNatureType,
-  ItemStatus
+  ItemType
 } from '@oes/common/generated/item_master_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import {
@@ -20,7 +19,7 @@ import {
 
 const MES_SERVICE_NAME = 'mes-service'
 
-/** ItemMasterManufacturableQueryGrpcAdapter validates ManufacturingSpec items through item-master-service query truth. */
+/** ItemMasterManufacturableQueryGrpcAdapter validates ProductionSpec items through item-master-service query truth. */
 @Injectable()
 export class ItemMasterManufacturableQueryGrpcAdapter implements ManufacturableItemLookupPort, OnModuleInit {
   private itemMasterQueryService!: ItemMasterQueryServiceClient
@@ -64,9 +63,9 @@ export class ItemMasterManufacturableQueryGrpcAdapter implements ManufacturableI
         itemId: item.itemId,
         itemCode: item.itemCode ?? '',
         itemName: item.itemName ?? '',
+        active: item.active ?? false,
         manufacturable: item.capabilities?.manufacturable ?? false,
-        physical: item.natureType === ItemNatureType.ITEM_NATURE_TYPE_PHYSICAL &&
-          item.status === ItemStatus.ITEM_STATUS_ACTIVE
+        physical: item.itemType === ItemType.ITEM_TYPE_STANDARD || item.itemType === ItemType.ITEM_TYPE_PACKAGED_FINISHED_GOOD
       }
     } catch (error) {
       if (isNotFoundRpc(error)) {

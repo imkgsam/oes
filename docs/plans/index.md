@@ -57,19 +57,17 @@
    - Tenant 与 org tree 从 `identity-service` 迁入 `tenant-org-service` 的迁移计划
 22. `features/hr-service-foundation.md`
    - HR Service minimum 第一阶段 feature packet
-23. `features/item-master-service-foundation.md`
-   - Item Master Service 第一阶段 foundation feature packet
-24. `hr-service-minimum-implementation-plan.md`
+23. `hr-service-minimum-implementation-plan.md`
    - HR Service minimum 第一阶段 contract-realization、服务骨架与实现拆分计划
-25. `features/sales-quote-order-core.md`
+24. `features/sales-quote-order-core.md`
     - Sales Service 第一阶段报价、正式版本、订单成立与 fulfillment handoff feature packet
-26. `features/finance-ar-credit-core.md`
+25. `features/finance-ar-credit-core.md`
     - Finance Service 第一阶段 AR、invoice、collection、allocation、credit、finance release 与 standard FX feature packet
-27. `features/object-activity-foundation.md`
+26. `features/object-activity-foundation.md`
     - 平台级 ObjectActivity / ObjectTimeline 第一阶段 foundation feature packet
-28. `features/crm-customer-master-foundation.md`
+27. `features/crm-customer-master-foundation.md`
     - CRM Service 最小客户主档闭环与 Sales selector 边界 feature packet
-29. `features/procurement-pr-po-foundation.md`
+28. `features/procurement-pr-po-foundation.md`
     - Procurement Service 第一阶段 PR、PO、allocation、收货预期与采购差异摘要 feature packet
 
 ## 3. 使用规则

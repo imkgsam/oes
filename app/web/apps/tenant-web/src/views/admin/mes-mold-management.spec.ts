@@ -1,19 +1,21 @@
 /* @vitest-environment happy-dom */
 
 import { flushPromises, mount } from '@vue/test-utils'
+import { Select } from 'ant-design-vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const createWorkCenterApi = vi.fn()
-const installProductionMoldInstanceApi = vi.fn()
+const installProductionMoldApi = vi.fn()
 const listCurrentMoldsByWorkCenterApi = vi.fn()
 const listManagedItemsApi = vi.fn()
-const listManufacturingSpecsApi = vi.fn()
 const listMoldDesignsApi = vi.fn()
-const listProductionMoldInstancesApi = vi.fn()
-const listWorkCentersApi = vi.fn()
+const listProductionMoldsApi = vi.fn()
+const listProductionSpecsApi = vi.fn()
 const recordDailyMoldUsageBatchApi = vi.fn()
 const registerMoldDesignApi = vi.fn()
-const registerProductionMoldInstanceApi = vi.fn()
+const registerProductionMoldApi = vi.fn()
+const scrapProductionMoldApi = vi.fn()
+const unmountProductionMoldApi = vi.fn()
+const push = vi.fn()
 
 const authContextState: any = {
   actionCodes: [],
@@ -28,21 +30,27 @@ const authContextState: any = {
 }
 
 vi.mock('#/api', () => ({
-  createWorkCenterApi,
-  installProductionMoldInstanceApi,
+  installProductionMoldApi,
   listCurrentMoldsByWorkCenterApi,
   listManagedItemsApi,
-  listManufacturingSpecsApi,
   listMoldDesignsApi,
-  listProductionMoldInstancesApi,
-  listWorkCentersApi,
+  listProductionMoldsApi,
+  listProductionSpecsApi,
   recordDailyMoldUsageBatchApi,
   registerMoldDesignApi,
-  registerProductionMoldInstanceApi
+  registerProductionMoldApi,
+  scrapProductionMoldApi,
+  unmountProductionMoldApi
 }))
 
 vi.mock('#/store/auth-context', () => ({
   useAuthContextStore: () => authContextState
+}))
+
+vi.mock('vue-router', () => ({
+  useRouter: () => ({
+    push
+  })
 }))
 
 vi.mock('@vben/common-ui', () => ({
@@ -52,370 +60,245 @@ vi.mock('@vben/common-ui', () => ({
   }
 }))
 
-// Verifies the MES mold workspace loads the minimum loop and records daily output-option usage.
+vi.mock('ant-design-vue', async () => await import('./__tests__/ant-design-vue-mock'))
+
+async function setAntSelectValue(wrapper: ReturnType<typeof mount>, testId: string, value: string) {
+  const select = wrapper.findAllComponents(Select).find((candidate) => candidate.attributes('data-testid') === testId)
+  if (!select) {
+    throw new Error(`Ant Select not found: ${testId}`)
+  }
+
+  select.vm.$emit('update:value', value)
+  select.vm.$emit('change', value)
+  await flushPromises()
+}
+
+const productionSpec = {
+  itemRef: {
+    itemCodeSnapshot: 'WC-ONE-300',
+    itemId: 'item-1',
+    itemNameSnapshot: '连体马桶 300/400 坑距'
+  },
+  name: '连体马桶 300 坑距注浆规格',
+  productionSpecId: 'spec-300',
+  specCode: 'SPEC-LT-300',
+  status: 'ACTIVE'
+}
+
+const moldDesign = {
+  defaultLifeLimit: '1200',
+  defaultLifeUnit: 'USE',
+  designCode: 'MD-LT-HP-01',
+  moldDesignId: 'design-1',
+  name: '连体马桶高压模具方案',
+  outputs: [
+    {
+      componentRole: '主体',
+      isPrimaryOutput: true,
+      moldDesignOutputId: 'output-body',
+      options: [
+        {
+          isDefault: true,
+          moldDesignOutputId: 'output-body',
+          moldDesignOutputOptionId: 'option-300',
+          optionCode: 'PIT-300',
+          productionSpecRef: {
+            productionSpecId: 'spec-300',
+            specCodeSnapshot: 'SPEC-LT-300'
+          },
+          quantityPerUse: '1'
+        }
+      ],
+      outputCode: 'BODY',
+      outputKind: 'PRODUCT',
+      quantityPerUse: '1',
+      sequenceNo: 1
+    }
+  ]
+}
+
+const productionMold = {
+  currentInstallationSummary: {
+    moldDetail: {
+      moldPosition: 'A01'
+    },
+    toolingInstallationId: 'install-1',
+    workCenterRef: {
+      displayNameSnapshot: '连体马桶上线一线',
+      workCenterCodeSnapshot: 'LINE-LT-01',
+      workCenterId: 'wc-1'
+    }
+  },
+  currentStatus: 'INSTALLED',
+  lifeCounterSummary: {
+    lifeUnit: 'USE',
+    limitValue: '1200',
+    usedValue: '340'
+  },
+  moldCode: 'PM-LT-001',
+  moldDesignId: 'design-1',
+  moldDesignSummary: {
+    designCode: 'MD-LT-HP-01',
+    moldDesignId: 'design-1',
+    name: '连体马桶高压模具方案'
+  },
+  productionMoldId: 'mold-1'
+}
+
+// Verifies the MES mold workspace uses the current ProductionSpec / ProductionMold / ToolingInstallation BFF contract.
 describe('MES mold management workspace page', () => {
   beforeEach(() => {
-    createWorkCenterApi.mockReset()
-    installProductionMoldInstanceApi.mockReset()
+    installProductionMoldApi.mockReset()
     listCurrentMoldsByWorkCenterApi.mockReset()
     listManagedItemsApi.mockReset()
-    listManufacturingSpecsApi.mockReset()
     listMoldDesignsApi.mockReset()
-    listProductionMoldInstancesApi.mockReset()
-    listWorkCentersApi.mockReset()
+    listProductionMoldsApi.mockReset()
+    listProductionSpecsApi.mockReset()
     recordDailyMoldUsageBatchApi.mockReset()
     registerMoldDesignApi.mockReset()
-    registerProductionMoldInstanceApi.mockReset()
+    registerProductionMoldApi.mockReset()
+    scrapProductionMoldApi.mockReset()
+    unmountProductionMoldApi.mockReset()
+    push.mockReset()
     authContextState.actionCodes = [
       'mes.mold_design.read',
       'mes.mold_design.manage',
-      'mes.production_mold_instance.read',
-      'mes.production_mold_instance.manage',
-      'mes.work_center_mold_status.read',
+      'mes.production_mold.read',
+      'mes.production_mold.manage',
+      'mes.tooling_installation.read',
+      'mes.tooling_installation.manage',
       'mes.mold_usage.record'
     ]
 
-    listWorkCentersApi.mockResolvedValue({
-      page: 1,
-      pageSize: 20,
-      total: 1,
-      workCenters: [
+    listMoldDesignsApi.mockResolvedValue({ moldDesigns: [moldDesign], page: 1, pageSize: 50, total: 1 })
+    listProductionMoldsApi.mockResolvedValue({ productionMolds: [productionMold], page: 1, pageSize: 50, total: 1 })
+    listCurrentMoldsByWorkCenterApi.mockResolvedValue({
+      items: [
         {
-          name: '连体马桶上线一线',
-          status: 'ACTIVE',
-          workCenterCode: 'LINE-LT-01',
-          workCenterId: 'wc-1',
-          workCenterType: 'CASTING_LINE'
+          productionMold,
+          toolingInstallation: productionMold.currentInstallationSummary
         }
       ]
-    })
-    listMoldDesignsApi.mockResolvedValue({
-      moldDesigns: [
-        {
-          defaultLifeLimit: '1200',
-          defaultLifeUnit: 'USE',
-          designCode: 'MD-LT-HP-01',
-          moldDesignId: 'design-1',
-          name: '连体马桶高压模具方案',
-          outputs: [
-            {
-              componentRole: '主体',
-              moldDesignOutputId: 'output-body',
-              options: [
-                {
-                  isDefault: true,
-                  label: '300坑距',
-                  manufacturingSpecRef: { refId: 'spec-300' },
-                  moldDesignOutputOptionId: 'option-300',
-                  optionCode: 'PIT-300'
-                }
-              ],
-              outputCode: 'BODY',
-              quantityPerUse: '1',
-              sequenceNo: 1
-            }
-          ],
-          revisionCode: 'R1'
-        }
-      ],
-      page: 1,
-      pageSize: 20,
-      total: 1
     })
     listManagedItemsApi.mockResolvedValue({
       items: [
         {
-          capabilities: {
-            manufacturable: true,
-            purchasable: false,
-            sellable: true,
-            stockable: true
-          },
           itemCode: 'WC-ONE-300',
           itemId: 'item-1',
-          itemName: '连体马桶 300/400 坑距',
-          natureType: 'PHYSICAL',
-          status: 'ACTIVE',
-          structureType: 'SINGLE'
+          itemName: '连体马桶 300/400 坑距'
         }
-      ],
-      page: 1,
-      pageSize: 100,
-      total: 1
+      ]
     })
-    listManufacturingSpecsApi.mockResolvedValue({
-      manufacturingSpecs: [
-        {
-          itemRef: {
-            itemCodeSnapshot: 'WC-ONE-300',
-            itemId: 'item-1',
-            itemNameSnapshot: '连体马桶 300/400 坑距'
-          },
-          manufacturingSpecId: 'spec-300',
-          name: '连体马桶 300 坑距注浆规格',
-          productFamilyRef: {
-            displayNameSnapshot: '连体马桶系列',
-            refCodeSnapshot: 'LT',
-            refId: 'pf-1',
-            refType: 'PRODUCT_FAMILY'
-          },
-          revisionCode: 'R1',
-          specCode: 'MS-LT-300',
-          status: 'ACTIVE'
-        }
-      ],
-      page: 1,
-      pageSize: 50,
-      total: 1
-    })
-    listProductionMoldInstancesApi.mockResolvedValue({
-      instances: [
-        {
-          currentInstallationSummary: {
-            moldInstallationId: 'install-1',
-            resourcePositionId: 'pos-1',
-            workCenterId: 'wc-1'
-          },
-          currentStatus: 'INSTALLED',
-          lifeSummary: {
-            lifeUnit: 'USE',
-            limitValue: '1200',
-            remainingValue: '860',
-            usedValue: '340'
-          },
-          moldDesignSummary: {
-            designCode: 'MD-LT-HP-01',
-            moldDesignId: 'design-1',
-            name: '连体马桶高压模具方案'
-          },
-          moldInstanceCode: 'PM-LT-001',
-          productionMoldInstanceId: 'mold-1'
-        }
-      ],
-      page: 1,
-      pageSize: 20,
-      total: 1
-    })
-    listCurrentMoldsByWorkCenterApi.mockResolvedValue({
-      installedMolds: [
-        {
-          productionMoldInstance: {
-            currentInstallationSummary: {
-              moldInstallationId: 'install-1',
-              resourcePositionId: 'pos-1',
-              workCenterId: 'wc-1'
-            },
-            currentStatus: 'INSTALLED',
-            moldDesignSummary: {
-              designCode: 'MD-LT-HP-01',
-              moldDesignId: 'design-1',
-              name: '连体马桶高压模具方案'
-            },
-            moldInstanceCode: 'PM-LT-001',
-            productionMoldInstanceId: 'mold-1'
-          }
-        }
-      ],
-      page: 1,
-      pageSize: 100,
-      total: 1,
-      workCenterSummary: {
-        name: '连体马桶上线一线',
-        workCenterCode: 'LINE-LT-01',
-        workCenterId: 'wc-1',
-        workCenterType: 'CASTING_LINE'
-      }
-    })
-    createWorkCenterApi.mockResolvedValue({ workCenterId: 'wc-new' })
-    registerMoldDesignApi.mockResolvedValue({ moldDesignId: 'design-new' })
-    registerProductionMoldInstanceApi.mockResolvedValue({ productionMoldInstanceId: 'mold-new' })
-    installProductionMoldInstanceApi.mockResolvedValue({ productionMoldInstanceId: 'mold-1' })
-    recordDailyMoldUsageBatchApi.mockResolvedValue({ acceptedItems: [{ productionMoldInstanceId: 'mold-1' }] })
+    listProductionSpecsApi.mockResolvedValue({ productionSpecs: [productionSpec], page: 1, pageSize: 50, total: 1 })
+    registerMoldDesignApi.mockResolvedValue(moldDesign)
+    registerProductionMoldApi.mockResolvedValue({ ...productionMold, productionMoldId: 'mold-new' })
+    installProductionMoldApi.mockResolvedValue({ toolingInstallation: productionMold.currentInstallationSummary })
+    unmountProductionMoldApi.mockResolvedValue({ toolingInstallation: productionMold.currentInstallationSummary })
+    scrapProductionMoldApi.mockResolvedValue({ productionMold })
+    recordDailyMoldUsageBatchApi.mockResolvedValue({ acceptedItems: [], skippedItems: [] })
   })
 
-  it('loads directories and submits daily mold usage with the selected output option', async () => {
+  it('loads MoldDesign and ProductionMold directories without querying old work-center APIs', async () => {
     const page = (await import('./mes-mold-management.vue')).default
     const wrapper = mount(page)
 
     await flushPromises()
 
-    expect(listWorkCentersApi).toHaveBeenCalledWith('tenant-1', {
-      page: 1,
-      pageSize: 50,
-      status: 'ACTIVE'
-    })
-    expect(listMoldDesignsApi).toHaveBeenCalledWith('tenant-1', {
-      page: 1,
-      pageSize: 50,
-      status: 'ACTIVE'
-    })
-    expect(listProductionMoldInstancesApi).toHaveBeenCalledWith('tenant-1', {
-      page: 1,
-      pageSize: 50
-    })
-    expect(listCurrentMoldsByWorkCenterApi).toHaveBeenCalledWith('tenant-1', 'wc-1')
-    expect(wrapper.text()).toContain('连体马桶上线一线')
+    expect(listMoldDesignsApi).toHaveBeenCalledWith('tenant-1', { page: 1, pageSize: 50, status: 'ACTIVE' })
+    expect(listProductionMoldsApi).toHaveBeenCalledWith('tenant-1', { page: 1, pageSize: 50 })
     expect(wrapper.text()).toContain('MD-LT-HP-01')
-    expect(wrapper.text()).toContain('PM-LT-001')
-
-    await wrapper.get('[data-testid="mes-open-daily-usage"]').trigger('click')
-    await wrapper.get('[data-testid="mes-submit-daily-usage"]').trigger('click')
-
-    expect(recordDailyMoldUsageBatchApi).toHaveBeenCalledWith('tenant-1', expect.any(String), {
-      batchCommandId: expect.stringContaining('wc-1'),
-      items: [
-        expect.objectContaining({
-          checked: true,
-          moldDesignOutputId: 'output-body',
-          moldDesignOutputOptionId: 'option-300',
-          moldInstallationId: 'install-1',
-          productionMoldInstanceId: 'mold-1',
-          resourcePositionId: 'pos-1',
-          workCenterId: 'wc-1'
-        })
-      ],
-      reason: 'web daily mold usage checklist',
-      workCenterId: 'wc-1'
-    })
+    expect(wrapper.find('[data-testid="mes-open-create-work-center"]').exists()).toBe(false)
   })
 
-  it('opens create dialogs and forwards production unit, mold instance, and install commands', async () => {
-    listProductionMoldInstancesApi.mockResolvedValue({
-      instances: [
-        {
-          currentStatus: 'PENDING_INSTALLATION',
-          lifeSummary: {
-            lifeUnit: 'USE',
-            limitValue: '1200',
-            remainingValue: '1200',
-            usedValue: '0'
-          },
-          moldDesignSummary: {
-            designCode: 'MD-LT-HP-01',
-            moldDesignId: 'design-1',
-            name: '连体马桶高压模具方案'
-          },
-          moldInstanceCode: 'PM-LT-001',
-          productionMoldInstanceId: 'mold-1'
-        }
-      ],
-      page: 1,
-      pageSize: 20,
-      total: 1
-    })
+  it('loads current tooling installations by manual WorkCenterRef and records checked usage', async () => {
     const page = (await import('./mes-mold-management.vue')).default
     const wrapper = mount(page)
 
     await flushPromises()
-    await wrapper.get('[data-testid="mes-open-create-work-center"]').trigger('click')
-    await wrapper.get('[data-testid="mes-submit-create-work-center"]').trigger('click')
-    await wrapper.get('[data-testid="mes-open-create-mold"]').trigger('click')
-    await wrapper.get('[data-testid="mes-submit-create-mold"]').trigger('click')
-    await wrapper.get('[data-testid="mes-open-install-mold-mold-1"]').trigger('click')
-    await wrapper.get('[data-testid="mes-submit-install-mold"]').trigger('click')
+    await wrapper.get('[data-testid="mes-current-work-center-id"]').setValue('wc-1')
+    await wrapper.get('[data-testid="mes-current-work-center-code"]').setValue('LINE-LT-01')
+    await wrapper.get('[data-testid="mes-current-work-center-name"]').setValue('连体马桶上线一线')
+    await wrapper.get('[data-testid="mes-load-current-molds"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="mes-open-daily-usage"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="mes-submit-daily-usage"]').trigger('click')
+    await flushPromises()
 
-    expect(createWorkCenterApi).toHaveBeenCalledWith('tenant-1', {
-      name: '连体马桶上线二线',
-      reason: 'web create work center',
-      workCenterCode: expect.stringContaining('LINE-'),
-      workCenterType: 'CASTING_LINE'
-    })
-    expect(registerProductionMoldInstanceApi).toHaveBeenCalledWith('tenant-1', {
-      initialStatus: 'PENDING_INSTALLATION',
-      lifeLimitValue: '1200',
-      lifeUnit: 'USE',
-      moldDesignId: 'design-1',
-      moldInstanceCode: expect.stringContaining('PM-'),
-      reason: 'web create production mold',
-      warningThresholdValue: '960'
-    })
-    expect(installProductionMoldInstanceApi).toHaveBeenCalledWith('tenant-1', 'mold-1', {
-      reason: 'web install mold',
-      workCenterId: 'wc-1'
-    })
+    expect(listCurrentMoldsByWorkCenterApi).toHaveBeenCalledWith('tenant-1', 'wc-1')
+    expect(recordDailyMoldUsageBatchApi).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.any(String),
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            moldDesignOutputOptionId: 'option-300',
+            productionMoldId: 'mold-1',
+            toolingInstallationId: 'install-1',
+            workCenterRef: expect.objectContaining({ workCenterId: 'wc-1' })
+          })
+        ],
+        workCenterRef: expect.objectContaining({ workCenterId: 'wc-1' })
+      })
+    )
   })
 
-  it('opens the create MoldDesign side panel and registers output options against an active ManufacturingSpec', async () => {
+  it('creates mold designs, production molds, and tooling installation commands with current names', async () => {
+    listProductionMoldsApi.mockResolvedValue({
+      productionMolds: [{ ...productionMold, currentInstallationSummary: undefined, currentStatus: 'AVAILABLE' }],
+      page: 1,
+      pageSize: 50,
+      total: 1
+    })
     const page = (await import('./mes-mold-management.vue')).default
     const wrapper = mount(page)
 
     await flushPromises()
     await wrapper.get('[data-testid="mes-open-create-mold-design"]').trigger('click')
     await flushPromises()
-
-    expect(listManagedItemsApi).toHaveBeenCalledWith('tenant-1', {
-      capability: 'manufacturable',
-      keyword: undefined,
-      natureType: 'PHYSICAL',
-      page: 1,
-      pageSize: 100,
-      status: 'ACTIVE',
-      structureType: undefined
-    })
-    expect(listManufacturingSpecsApi).toHaveBeenCalledWith('tenant-1', {
-      itemId: 'item-1',
-      page: 1,
-      pageSize: 50,
-      status: 'ACTIVE'
-    })
-    expect(wrapper.text()).toContain('创建模具方案')
-    expect(wrapper.text()).toContain('连体马桶 300/400 坑距')
-    expect(wrapper.text()).toContain('连体马桶 300 坑距注浆规格')
-
-    await wrapper.get('[data-testid="mes-mold-design-code"]').setValue('MD-LT-HP-02')
-    await wrapper.get('[data-testid="mes-mold-design-name"]').setValue('连体马桶高压模具方案二版')
-    await wrapper.get('[data-testid="mes-mold-design-material"]').setValue('RESIN')
-    await wrapper.get('[data-testid="mes-mold-design-method"]').setValue('HIGH_PRESSURE')
-    await wrapper.get('[data-testid="mes-mold-design-output-code"]').setValue('BODY')
-    await wrapper.get('[data-testid="mes-mold-design-component-role"]').setValue('主体')
-    await wrapper.get('[data-testid="mes-mold-design-option-code"]').setValue('PIT-300')
-    await wrapper.get('[data-testid="mes-mold-design-option-label"]').setValue('300 坑距')
+    await setAntSelectValue(wrapper, 'mes-mold-design-item', 'item-1')
+    await flushPromises()
     await wrapper.get('[data-testid="mes-submit-create-mold-design"]').trigger('click')
+    await flushPromises()
 
+    expect(listManagedItemsApi).toHaveBeenCalledWith('tenant-1', expect.objectContaining({
+      capabilities: ['manufacturable']
+    }))
     expect(registerMoldDesignApi).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({
-        defaultLifeLimit: '1200',
-        defaultLifeUnit: 'USE',
-        designCode: 'MD-LT-HP-02',
-        functionRole: 'PRODUCTION',
-        itemRef: {
-          itemCodeSnapshot: 'WC-ONE-300',
-          itemId: 'item-1',
-          itemNameSnapshot: '连体马桶 300/400 坑距'
-        },
-        materialType: 'RESIN',
-        name: '连体马桶高压模具方案二版',
-        outputStructureType: 'SINGLE',
-        productionMethodTags: ['HIGH_PRESSURE'],
-        reason: 'web register mold design'
+        productionSpecRefs: [
+          expect.objectContaining({
+            productionSpecId: 'spec-300',
+            specCodeSnapshot: 'SPEC-LT-300'
+          })
+        ]
       })
     )
-    const [, registerPayload] = registerMoldDesignApi.mock.calls[0]!
-    expect(registerPayload.manufacturingSpecRefs).toEqual([
-      {
-        displayNameSnapshot: '连体马桶 300 坑距注浆规格',
-        refCodeSnapshot: 'MS-LT-300',
-        refId: 'spec-300',
-        refType: 'MANUFACTURING_SPEC'
-      }
-    ])
-    expect(registerPayload.outputs).toEqual([
+
+    await wrapper.get('[data-testid="mes-open-create-mold"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="mes-submit-create-mold"]').trigger('click')
+    await flushPromises()
+
+    expect(registerProductionMoldApi).toHaveBeenCalledWith('tenant-1', {
+      moldCode: expect.stringContaining('PM-'),
+      moldDesignId: 'design-1',
+      reason: 'web create production mold'
+    })
+
+    await wrapper.get('[data-testid="mes-current-work-center-id"]').setValue('wc-1')
+    await wrapper.get('[data-testid="mes-open-install-mold-mold-1"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="mes-submit-install-mold"]').trigger('click')
+    await flushPromises()
+
+    expect(installProductionMoldApi).toHaveBeenCalledWith(
+      'tenant-1',
+      'mold-1',
       expect.objectContaining({
-        componentRole: '主体',
-        isPrimaryOutput: true,
-        options: [
-          expect.objectContaining({
-            isDefault: true,
-            label: '300 坑距',
-            optionCode: 'PIT-300'
-          })
-        ],
-        outputCode: 'BODY',
-        outputKind: 'PRODUCT',
-        quantityPerUse: '1',
-        sequenceNo: 1
+        workCenterRef: expect.objectContaining({ workCenterId: 'wc-1' })
       })
-    ])
+    )
   })
 })

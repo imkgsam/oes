@@ -2,7 +2,13 @@
 
 ## 1. 目标
 
-定义 OES 中 `item-master-service` 如何作为独立基础主数据服务，为销售、制造、仓储与供应商协同提供统一 Item 引用真相，同时避免把销售、采购、制造、仓储运行事实错误并入 Item 主数据。
+定义 `item-master-service` 与 Sales、Procurement、MES、WMS、SRM 围绕统一物料主数据的协同边界，确保各业务域引用同一个 `ItemModel / Item / BOM / PackagingSpec / capability` 语义，而不是各自维护一套产品、SKU、包装或库存物料真相。
+
+`item-master-service` 的唯一概念真相源是：
+
+- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
+
+本文只记录跨服务采用规则，不重复定义 item-master 内部模型。
 
 ## 2. 参与服务
 
@@ -16,101 +22,103 @@
 ## 3. 协同分工
 
 - `item-master-service`
-  - 负责 `Item`、`ItemCapability`、`ItemComposition`、`SupplierItemMapping` 与 optional `ItemCategory`
+  - 负责 `ItemModel`、`Item`、attribute、BOM、Packaging、`ItemCategory` 与 `SupplierItemMapping` 真相。
 - `sales-service`
-  - 负责报价、订单、销售配置、价格与客户侧销售语义
+  - 负责报价、订单、销售配置、价格、客户承诺与销售交易 snapshot。
 - future `procurement-service`
-  - 负责采购订单、收货、商业条款、MOQ、账期与采购执行语义
+  - 负责采购申请、采购订单、收货预期、商业条款与采购执行语义。
 - `mes-service`
-  - 负责 `ManufacturingSpec`、工艺路线、WIP 与制造执行真相
+  - 负责 `ProductionSpec`、`ProductionUnit`、Route、Operation、WorkCenter、质量结果与制造执行事实。
 - `wms-service`
-  - 负责 `StockItemType`、库存对象、lot、包装单元、履约集与仓储执行真相
+  - 负责 `InventoryUnit`、`InventoryBalance`、`InventoryLot`、`PackageUnit`、`InventoryGenealogy`、库位、库存状态与仓储执行事实。
 - `srm-service`
-  - 负责 `Supplier`、`SupplierContact` 与供应商关系真相
+  - 负责 `SupplierProfile`、`SupplierOffering`、联系人、供应商状态与供应商关系事实。
 
 ## 4. 稳定协同规则
 
-### 4.1 Item 主数据边界
+### 4.1 Item Master 主数据边界
 
-- 各业务域应统一引用 `item-master-service` 的 `Item` 身份与能力口径。
-- `item-master-service` 只负责“这个 Item 是什么、具备什么基础能力、和哪些组件有关联”，不负责销售、采购、制造、仓储运行事实。
-- 第一阶段冻结的 `Item` 分类只有：
-  - `structureType = SINGLE | BUNDLE`
-  - `natureType = PHYSICAL | VIRTUAL | SERVICE`
+- 各业务域必须统一引用 `item-master-service` 的 `ItemModel`、`Item`、capability、BOM 与包装规格口径。
+- 采购、销售、库存、生产、BOM 消耗与产出的执行落点必须是 `Item`。
+- 其他服务不得自行定义 `ProductModel`、`ItemComposition`、`StockItemType` 或脱离 item-master truth 的产品 / SKU 主数据。
+- `structureType / natureType` 不再作为新协同口径；类型分类看 `ItemModel.modelKind / modelType`，执行准入看 `Item.active + Item.capabilities`。
 
-### 4.2 Sales / CRM 侧采用口径
+### 4.2 Sales 侧采用口径
 
-- `sales-service` 只消费 `sellable Item`，并在自己的域内维护报价、订单、配置、价格与客户承诺。
-- `BUNDLE + VIRTUAL` 可以作为可销售套装存在，但不因此自动成为库存对象。
-- 客户机会、询盘、客户产品兴趣真相继续归 `crm-service` 或 `sales-service`，不回写到 `item-master-service`。
-- `SalesOrderLine` 必须在销售域内同时保存稳定 `itemId` 与冻结快照，包括：
-  - `itemSnapshot`
-  - `salesConfigSnapshot`
-  - `packagingRequirementSnapshot`
-  - `priceQuantityDeliverySnapshot`
-  - `customerItemSnapshot`
-- `customerItemSnapshot` 用于客户自己的 `SKU / 型号 / 标签显示名`，不进入 `item-master-service` 主数据。
+- `sales-service` 最终只下单 active + sellable `Item`。
+- Sales 可以从 `ItemModel + AttributeOption + optional PackagingSpec` 解析到 sellable `Item`。
+- `SalesOrderLine` 保存稳定 `itemId` 与销售交易 snapshot。
+- 客户自己的 SKU、型号、标签显示名、出口显示语义不进入 `item-master-service`。
+- 临时或一次性的包装要求可以保留在 sales snapshot；长期包装配置应沉淀为 `PackagingSpec` 与必要的 PackagedItem。
 
 ### 4.3 Procurement / SRM 侧采用口径
 
-- `SupplierItemMapping` 只表达“某供应商如何标识这个 Item”。
-- 供应商真实性、联系人、合作状态与关系治理继续归 `srm-service`。
-- 采购价格、MOQ、账期、交付表现与采购履约继续归 future `procurement-service`，不写入 `SupplierItemMapping`。
+- future `procurement-service` 的标准采购最终引用 active + purchasable `Item`。
+- Procurement 可以从 `ItemModel + AttributeOption` 解析到 purchasable `Item`，也可以直接选择 `Item`。
+- `SupplierItemMapping` 归 `item-master-service`，只表达供应商侧编码 / 名称如何映射到执行层 `Item`。
+- `SupplierOffering` 归 `srm-service`，表达某供应商可供应某个 `Item`。
+- 采购价格、MOQ、账期、lead time、RFQ、PO、收货与履约继续归 procurement，不写入 `SupplierItemMapping`。
 
 ### 4.4 MES 侧采用口径
 
-- `ManufacturingSpec` 必须由 `mes-service` 拥有，不得回流到 `item-master-service`。
-- `ManufacturingSpec` 必须引用 `manufacturable` 且 `PHYSICAL` 的 `Item`。
-- `WipUnit` 引用 `ManufacturingSpec`，而不是直接把 Item 当作制造执行对象。
+- `ProductionSpec.targetItemId` 必须引用 active + manufacturable `Item`。
+- `ProductionUnit.currentItemId` 表达生产实物当前事实状态对应的 `Item`。
+- `mes-service` 不复制 Item 主数据真相，不拥有 `ItemModel`、`Item`、BOM 或 Packaging truth。
+- 工序、人员、WorkCenter、质量结果、资源使用与生产历史由 MES 执行对象记录。
+- 新设计主名使用 `ProductionSpec / ProductionUnit`；旧 `ManufacturingSpec / WipUnit` 不作为新协同真相。
 
 ### 4.5 WMS 侧采用口径
 
-- `StockItemType`、`InventoryItem`、`StockLot`、`PackageUnit`、`FulfillmentSet` 继续归 `wms-service`。
-- `wms-service` 只引用 `Item`，不把 Item 主数据复制成另一套真相。
-- 虚拟套装不直接成为库存对象；如后续存在仓储可管理套装，应由 WMS 在自己的对象模型中单独定义。
+- `wms-service` 为 active + stockable `Item` 创建 `InventoryUnit`。
+- `InventoryBalance` 按 `Item + location + lot / quality / status` 等维度汇总库存。
+- PackagedItem 仍然是 `Item`，所以包装成品库存进入通用库存余额。
+- `PackageUnit` 是箱、托、包裹、搬运层级对象，不进入 `InventoryBalance`。
+- 包装作业如果产出 PackagedItem，应按 `PACKAGING_BOM` 扣减输入 Item / 耗材库存，增加 PackagedItem 库存，并创建 `PackageUnit` 承载包装层级。
+- `InventoryGenealogy` 由 WMS 记录库存转换、包装、装配、拆解与追溯关系。
+- 新设计不使用 `StockItemType`。
 
-### 4.6 套装建模口径
+### 4.6 BOM 与执行边界
 
-- `ItemComposition.parent` 必须是 `BUNDLE`。
-- 第一阶段只承诺单层套装组成关系，nested bundle deferred。
-- 分体立柱盆案例采用统一口径：
-  - 套装 Item：`BUNDLE + VIRTUAL + sellable`
-  - 洗手盆 Item：`SINGLE + PHYSICAL`
-  - 立柱 Item：`SINGLE + PHYSICAL`
-  - 套装与组件通过 `ItemComposition` 关联
+- BOM 主数据归 `item-master-service` / BOM 子域。
+- BOM 只定义输入、输出、组成、转换与消耗关系。
+- BOM 不等于工序；具体如何执行由 MES 或 WMS 的任务执行对象负责。
+- 第一阶段 BOM 类型为：
+  - `COMPOSITION_BOM`
+  - `TRANSFORMATION_BOM`
+  - `PACKAGING_BOM`
 
 ## 5. 同步 / 异步边界
 
 - 第一阶段优先同步：
-  - `sales-service / future procurement-service / mes-service / wms-service -> item-master-service` 的 Item 引用查询与校验
-  - `item-master-service -> srm-service` 的供应商引用校验
+  - `sales-service / procurement-service / mes-service / wms-service / srm-service -> item-master-service` 的 Item 引用查询、解析与 capability 校验。
+  - `item-master-service -> srm-service` 的供应商引用校验。
 - 第一阶段暂不冻结必须事件集：
-  - 如后续需要为搜索、缓存、BI 或下游读模型发布事件，应在 `IM-CONTRACT` 阶段单独冻结
+  - 如后续需要为搜索、缓存、BI、AI 或下游读模型发布事件，应在 `CONTRACT-V2` 阶段单独冻结。
 
 ## 6. 真相归属
 
-- `Item`、能力、套装组成、供应商型号映射：`item-master-service`
-- 报价、订单、价格、客户配置：`sales-service`
-- 采购订单、收货、商业条款：future `procurement-service`
-- 制造规格、路线、WIP、工序：`mes-service`
-- 仓储对象、库存、包装单元、履约集：`wms-service`
-- 供应商主档、联系人、供应商关系：`srm-service`
+- `ItemModel`、`Item`、attribute、BOM、Packaging、`ItemCategory`、`SupplierItemMapping`：`item-master-service`
+- 报价、订单、价格、客户配置、交易 snapshot：`sales-service`
+- 采购申请、采购订单、收货预期、采购商业条款：future `procurement-service`
+- `ProductionSpec`、`ProductionUnit`、路线、工序、质量结果、制造资源使用：`mes-service`
+- `InventoryUnit`、`InventoryBalance`、`InventoryLot`、`PackageUnit`、`InventoryGenealogy`、仓储执行：`wms-service`
+- `SupplierProfile`、`SupplierOffering`、联系人、供应商关系：`srm-service`
 - 商机、询盘、客户产品兴趣：`crm-service`
 
 ## 7. 明确禁止
 
-- 不让 `item-master-service` 接管 `ManufacturingSpec` 或 `StockItemType`
-- 不让 `SupplierItemMapping` 承载价格、MOQ、账期、供应表现
-- 不让 `wms-service` 把虚拟套装直接当成正式库存对象
-- 不让销售、采购、MES、WMS 各自维护一套脱离 `item-master-service` 的 Item 主数据真相
-- 不把 `PIM / PLM / PackagingOption / PackageSpec / PackagingBOM` 提前承诺为 `item-master-service` 第一阶段能力
+- 不让销售、采购、MES、WMS、SRM 各自维护脱离 `item-master-service` 的 Item 主数据真相。
+- 不让 `item-master-service` 接管销售、采购、制造、仓储或供应商关系执行事实。
+- 不把 `SupplierItemMapping` 扩成价格、MOQ、账期、lead time 或供应表现。
+- 不把客户自己的 SKU / 型号 / 标签显示名写回 item-master。
+- 不在 WMS 重新建立 `StockItemType` 作为 Item 的替代真相。
+- 不把 BOM 写成 MES Route / Operation。
 
 ## 8. 关联文档
 
 - [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
+- [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
 - [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md)
 - [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md)
 - [srm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/srm-service.md)
-- [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-- [product-master-data-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/product-master-data-design.md)
-- [manufacturing-master-data-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/manufacturing-master-data-design.md)
+- [procurement-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/procurement-service.md)

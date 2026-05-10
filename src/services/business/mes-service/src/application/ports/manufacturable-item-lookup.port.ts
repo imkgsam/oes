@@ -3,11 +3,12 @@ export interface ManufacturableItemLookupResult {
   itemId: string
   itemCode: string
   itemName: string
+  active: boolean
   manufacturable: boolean
   physical: boolean
 }
 
-/** ManufacturableItemLookupPort validates that ManufacturingSpec items come from item-master query truth. */
+/** ManufacturableItemLookupPort validates that ProductionSpec items come from item-master query truth. */
 export interface ManufacturableItemLookupPort {
   getManufacturableItem(tenantId: string, itemId: string): Promise<ManufacturableItemLookupResult | null>
 }

@@ -1,1 +1,0 @@
-{"version":3,"file":"create-receipt-draft.command.js","sourceRoot":"","sources":["../../../src/application/commands/create-receipt-draft.command.ts"],"names":[],"mappings":";;;;;;;;;;;;AAAA,qDAAuC;AAcvC,iGAAiG;AACjG,MAAa,yBAAyB;IAIpC,YAAY,OAAkC;QAC5C,IAAI,CAAC,OAAO,GAAG,OAAO,CAAA;IACxB,CAAC;CACF;AAPD,8DAOC;AALiB;IADf,IAAA,uBAAK,GAAE;;0DAC0C"}

@@ -1,14 +1,13 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common'
 import {
-  ManufacturingSpecStatus,
   MoldDesignOutputKind,
   MoldDesignStatus,
   MoldFunctionRole,
   MoldOutputStructureType,
-  MoldResourceType,
-  MoldUsageMode,
   MoldWarningLevel,
-  ProductionMoldInstanceStatus
+  ProductionMoldStatus,
+  ProductionSpecStatus,
+  ToolingType
 } from '@oes/common/generated/mes_service'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
 import { MesManagementGrpcAdapter } from './adapters/mes-management-grpc.adapter'
@@ -24,177 +23,91 @@ export class MesService {
     private readonly mesManagementAdapter: MesManagementGrpcAdapter
   ) {}
 
-  /** listManufacturingSpecs returns the ManufacturingSpec directory needed by mold design setup. */
-  async listManufacturingSpecs(tenantId: string, query: any, source: DownstreamRequestSource) {
-    return this.mesQueryAdapter.listManufacturingSpecs(
+  /** listProductionSpecs returns the ProductionSpec selector needed by mold design setup. */
+  async listProductionSpecs(tenantId: string, query: any, source: DownstreamRequestSource) {
+    return this.mesQueryAdapter.listProductionSpecs(
       {
-        attributeFilters: query.attributeFilters ?? [],
         includeRetired: query.includeRetired,
         itemId: normalize(query.itemId),
         keyword: normalize(query.keyword),
         orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
-        productFamilyRefId: normalize(query.productFamilyRefId),
-        status: toEnum(ManufacturingSpecStatus, 'MANUFACTURING_SPEC_STATUS_', query.status),
+        status: toEnum(ProductionSpecStatus, 'PRODUCTION_SPEC_STATUS_', query.status),
         tenantId: this.resolveTenantId(tenantId, source)
       },
       source
     )
   }
 
-  /** getManufacturingSpec returns one ManufacturingSpec detail snapshot. */
-  async getManufacturingSpec(tenantId: string, manufacturingSpecId: string, source: DownstreamRequestSource) {
-    const result = await this.mesQueryAdapter.getManufacturingSpec(
+  /** getProductionSpec returns one ProductionSpec detail snapshot. */
+  async getProductionSpec(tenantId: string, productionSpecId: string, source: DownstreamRequestSource) {
+    const result = await this.mesQueryAdapter.getProductionSpec(
       {
-        manufacturingSpecId: requireNonBlank(manufacturingSpecId, 'manufacturingSpecId'),
         orgId: this.resolveOrgId(undefined, source),
+        productionSpecId: requireNonBlank(productionSpecId, 'productionSpecId'),
         tenantId: this.resolveTenantId(tenantId, source)
       },
       source
     )
-    return result.manufacturingSpec
+    return result.productionSpec
   }
 
-  /** createManufacturingSpec forwards one ManufacturingSpec creation command. */
-  async createManufacturingSpec(tenantId: string, input: any, source: DownstreamRequestSource) {
-    const result = await this.mesManagementAdapter.createManufacturingSpec(
+  /** createProductionSpec forwards one ProductionSpec creation command. */
+  async createProductionSpec(tenantId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.createProductionSpec(
+      this.withCommandEnvelope(tenantId, input, source),
+      source
+    )
+    return result.productionSpec
+  }
+
+  /** activateProductionSpec forwards one ProductionSpec activation command. */
+  async activateProductionSpec(tenantId: string, productionSpecId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.activateProductionSpec(
       {
-        ...input,
-        commandId: normalize(input.commandId) ?? normalize(source.requestId),
-        orgId: this.resolveOrgId(input.orgId, source),
-        tenantId: this.resolveTenantId(tenantId, source)
+        ...this.withCommandEnvelope(tenantId, input, source),
+        productionSpecId: requireNonBlank(productionSpecId, 'productionSpecId')
       },
       source
     )
-    return result.manufacturingSpec
+    return result.productionSpec
   }
 
-  /** activateManufacturingSpec forwards one ManufacturingSpec activation command. */
-  async activateManufacturingSpec(
-    tenantId: string,
-    manufacturingSpecId: string,
-    input: any,
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.mesManagementAdapter.activateManufacturingSpec(
+  /** updateProductionSpec forwards one ProductionSpec update command. */
+  async updateProductionSpec(tenantId: string, productionSpecId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.updateProductionSpec(
       {
-        ...input,
-        commandId: normalize(input.commandId) ?? normalize(source.requestId),
-        manufacturingSpecId: requireNonBlank(manufacturingSpecId, 'manufacturingSpecId'),
-        orgId: this.resolveOrgId(input.orgId, source),
-        tenantId: this.resolveTenantId(tenantId, source)
+        ...this.withCommandEnvelope(tenantId, input, source),
+        productionSpecId: requireNonBlank(productionSpecId, 'productionSpecId')
       },
       source
     )
-    return result.manufacturingSpec
+    return result.productionSpec
   }
 
-  /** updateManufacturingSpec forwards one ManufacturingSpec update command. */
-  async updateManufacturingSpec(
-    tenantId: string,
-    manufacturingSpecId: string,
-    input: any,
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.mesManagementAdapter.updateManufacturingSpec(
+  /** retireProductionSpec forwards one ProductionSpec retirement command. */
+  async retireProductionSpec(tenantId: string, productionSpecId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.retireProductionSpec(
       {
-        ...input,
-        commandId: normalize(input.commandId) ?? normalize(source.requestId),
-        manufacturingSpecId: requireNonBlank(manufacturingSpecId, 'manufacturingSpecId'),
-        orgId: this.resolveOrgId(input.orgId, source),
-        tenantId: this.resolveTenantId(tenantId, source)
+        ...this.withCommandEnvelope(tenantId, input, source),
+        productionSpecId: requireNonBlank(productionSpecId, 'productionSpecId')
       },
       source
     )
-    return result.manufacturingSpec
+    return result.productionSpec
   }
 
-  /** retireManufacturingSpec forwards one ManufacturingSpec retirement command. */
-  async retireManufacturingSpec(
-    tenantId: string,
-    manufacturingSpecId: string,
-    input: any,
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.mesManagementAdapter.retireManufacturingSpec(
-      {
-        ...input,
-        commandId: normalize(input.commandId) ?? normalize(source.requestId),
-        manufacturingSpecId: requireNonBlank(manufacturingSpecId, 'manufacturingSpecId'),
-        orgId: this.resolveOrgId(input.orgId, source),
-        tenantId: this.resolveTenantId(tenantId, source)
-      },
-      source
-    )
-    return result.manufacturingSpec
-  }
-
-  /** createWorkCenter forwards one production-unit creation command for the mold workspace. */
-  async createWorkCenter(tenantId: string, input: any, source: DownstreamRequestSource) {
-    const result = await this.mesManagementAdapter.createWorkCenter(
-      {
-        ...input,
-        commandId: normalize(input.commandId) ?? normalize(source.requestId),
-        orgId: this.resolveOrgId(input.orgId, source),
-        tenantId: this.resolveTenantId(tenantId, source)
-      },
-      source
-    )
-    return result.workCenterSummary
-  }
-
-  /** deactivateWorkCenter forwards one production-unit deactivation command after MES checks occupancy. */
-  async deactivateWorkCenter(
-    tenantId: string,
-    workCenterId: string,
-    input: any,
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.mesManagementAdapter.deactivateWorkCenter(
-      {
-        ...input,
-        commandId: normalize(input.commandId) ?? normalize(source.requestId),
-        orgId: this.resolveOrgId(input.orgId, source),
-        tenantId: this.resolveTenantId(tenantId, source),
-        workCenterId: requireNonBlank(workCenterId, 'workCenterId')
-      },
-      source
-    )
-    return result.workCenterSummary
-  }
-
-  /** listWorkCenters returns production units shown in the mold-management workspace. */
-  async listWorkCenters(tenantId: string, query: any, source: DownstreamRequestSource) {
-    return this.mesQueryAdapter.listWorkCenters(
-      {
-        keyword: normalize(query.keyword),
-        orgId: this.resolveOrgId(query.orgId, source),
-        page: clampPage(query.page),
-        pageSize: clampPageSize(query.pageSize),
-        parentWorkCenterId: normalize(query.parentWorkCenterId),
-        status: normalize(query.status),
-        tenantId: this.resolveTenantId(tenantId, source),
-        workCenterType: normalize(query.workCenterType)
-      },
-      source
-    )
-  }
-
-  /** listMoldDesigns returns the MoldDesign directory for mold instance setup. */
+  /** listMoldDesigns returns the MoldDesign directory for mold setup. */
   async listMoldDesigns(tenantId: string, query: any, source: DownstreamRequestSource) {
     return this.mesQueryAdapter.listMoldDesigns(
       {
-        functionRole: toEnum(MoldFunctionRole, 'MOLD_FUNCTION_ROLE_', query.functionRole),
         itemId: normalize(query.itemId),
         keyword: normalize(query.keyword),
-        manufacturingSpecRefId: normalize(query.manufacturingSpecRefId),
-        materialType: normalize(query.materialType),
         orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
-        productFamilyRefId: normalize(query.productFamilyRefId),
-        productionMethodTag: normalize(query.productionMethodTag),
+        productionSpecId: normalize(query.productionSpecId),
         status: toEnum(MoldDesignStatus, 'MOLD_DESIGN_STATUS_', query.status),
         tenantId: this.resolveTenantId(tenantId, source)
       },
@@ -219,76 +132,62 @@ export class MesService {
   async registerMoldDesign(tenantId: string, input: any, source: DownstreamRequestSource) {
     const result = await this.mesManagementAdapter.registerMoldDesign(
       {
-        ...input,
-        commandId: normalize(input.commandId) ?? normalize(source.requestId),
+        ...this.withCommandEnvelope(tenantId, input, source),
         functionRole: toEnum(MoldFunctionRole, 'MOLD_FUNCTION_ROLE_', input.functionRole),
-        orgId: this.resolveOrgId(input.orgId, source),
-        outputStructureType: toEnum(
-          MoldOutputStructureType,
-          'MOLD_OUTPUT_STRUCTURE_TYPE_',
-          input.outputStructureType
-        ),
+        outputStructureType: toEnum(MoldOutputStructureType, 'MOLD_OUTPUT_STRUCTURE_TYPE_', input.outputStructureType),
         outputs: (input.outputs ?? []).map((output: any) => ({
           ...output,
-          outputKind: toEnum(MoldDesignOutputKind, 'MOLD_DESIGN_OUTPUT_KIND_', output.outputKind)
-        })),
-        tenantId: this.resolveTenantId(tenantId, source)
+          outputKind: toEnum(MoldDesignOutputKind, 'MOLD_DESIGN_OUTPUT_KIND_', output.outputKind),
+          options: (output.options ?? []).map((option: any) => ({ ...option }))
+        }))
       },
       source
     )
     return result.moldDesign
   }
 
-  /** registerProductionMoldInstance forwards one production mold instance registration command. */
-  async registerProductionMoldInstance(tenantId: string, input: any, source: DownstreamRequestSource) {
-    const result = await this.mesManagementAdapter.registerProductionMoldInstance(
-      {
-        ...input,
-        commandId: normalize(input.commandId) ?? normalize(source.requestId),
-        initialStatus: toEnum(
-          ProductionMoldInstanceStatus,
-          'PRODUCTION_MOLD_INSTANCE_STATUS_',
-          input.initialStatus
-        ),
-        orgId: this.resolveOrgId(input.orgId, source),
-        tenantId: this.resolveTenantId(tenantId, source)
-      },
+  /** registerMasterMold forwards one MasterMold registration command. */
+  async registerMasterMold(tenantId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.registerMasterMold(
+      this.withCommandEnvelope(tenantId, input, source),
       source
     )
-    return result.productionMoldInstance
+    return result.masterMold
   }
 
-  /** getProductionMoldInstance returns one production mold detail snapshot. */
-  async getProductionMoldInstance(
-    tenantId: string,
-    productionMoldInstanceId: string,
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.mesQueryAdapter.getProductionMoldInstance(
+  /** registerProductionMold forwards one ProductionMold registration command. */
+  async registerProductionMold(tenantId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.registerProductionMold(
+      this.withCommandEnvelope(tenantId, input, source),
+      source
+    )
+    return result.productionMold
+  }
+
+  /** getProductionMold returns one ProductionMold detail snapshot. */
+  async getProductionMold(tenantId: string, productionMoldId: string, source: DownstreamRequestSource) {
+    const result = await this.mesQueryAdapter.getProductionMold(
       {
         orgId: this.resolveOrgId(undefined, source),
-        productionMoldInstanceId: requireNonBlank(productionMoldInstanceId, 'productionMoldInstanceId'),
+        productionMoldId: requireNonBlank(productionMoldId, 'productionMoldId'),
         tenantId: this.resolveTenantId(tenantId, source)
       },
       source
     )
-    return result.productionMoldInstance
+    return result.productionMold
   }
 
-  /** listProductionMoldInstances returns the tenant-wide production mold directory for the workspace. */
-  async listProductionMoldInstances(tenantId: string, query: any, source: DownstreamRequestSource) {
-    return this.mesQueryAdapter.listProductionMoldInstances(
+  /** listProductionMolds returns the tenant-wide ProductionMold directory for the workspace. */
+  async listProductionMolds(tenantId: string, query: any, source: DownstreamRequestSource) {
+    return this.mesQueryAdapter.listProductionMolds(
       {
+        carrierResourceId: normalize(query.carrierResourceId),
         moldDesignId: normalize(query.moldDesignId),
         orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
-        status: toEnum(
-          ProductionMoldInstanceStatus,
-          'PRODUCTION_MOLD_INSTANCE_STATUS_',
-          query.status
-        ),
-        supplierId: normalize(query.supplierId),
+        status: toEnum(ProductionMoldStatus, 'PRODUCTION_MOLD_STATUS_', query.status),
+        storageResourceId: normalize(query.storageResourceId),
         tenantId: this.resolveTenantId(tenantId, source),
         warningLevel: toEnum(MoldWarningLevel, 'MOLD_WARNING_LEVEL_', query.warningLevel)
       },
@@ -296,25 +195,106 @@ export class MesService {
     )
   }
 
-  /** listProductionMoldInstancesByDesign returns production mold instances under one MoldDesign. */
-  async listProductionMoldInstancesByDesign(
-    tenantId: string,
-    moldDesignId: string,
-    query: any,
-    source: DownstreamRequestSource
-  ) {
-    return this.mesQueryAdapter.listMoldInstancesByDesign(
+  /** listProductionMoldsByDesign returns ProductionMolds under one MoldDesign. */
+  async listProductionMoldsByDesign(tenantId: string, moldDesignId: string, query: any, source: DownstreamRequestSource) {
+    return this.mesQueryAdapter.listProductionMoldsByDesign(
       {
         moldDesignId: requireNonBlank(moldDesignId, 'moldDesignId'),
         orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
-        status: toEnum(
-          ProductionMoldInstanceStatus,
-          'PRODUCTION_MOLD_INSTANCE_STATUS_',
-          query.status
-        ),
-        supplierId: normalize(query.supplierId),
+        status: toEnum(ProductionMoldStatus, 'PRODUCTION_MOLD_STATUS_', query.status),
+        tenantId: this.resolveTenantId(tenantId, source)
+      },
+      source
+    )
+  }
+
+  /** moveTooling forwards one current placement change for a tooling object. */
+  async moveTooling(tenantId: string, toolingId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.moveTooling(
+      {
+        ...this.withCommandEnvelope(tenantId, input, source),
+        toolingId: requireNonBlank(toolingId, 'toolingId'),
+        toolingType: toEnum(ToolingType, 'TOOLING_TYPE_', input.toolingType ?? 'MOLD')
+      },
+      source
+    )
+    return result.placement
+  }
+
+  /** getToolingCurrentPlacement returns one current placement projection for a tooling object. */
+  async getToolingCurrentPlacement(tenantId: string, toolingId: string, query: any, source: DownstreamRequestSource) {
+    const result = await this.mesQueryAdapter.getToolingCurrentPlacement(
+      {
+        orgId: this.resolveOrgId(query.orgId, source),
+        tenantId: this.resolveTenantId(tenantId, source),
+        toolingId: requireNonBlank(toolingId, 'toolingId'),
+        toolingType: toEnum(ToolingType, 'TOOLING_TYPE_', query.toolingType ?? 'MOLD')
+      },
+      source
+    )
+    return result.placement
+  }
+
+  /** installTooling forwards one tooling installation command. */
+  async installTooling(tenantId: string, toolingId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.installTooling(
+      {
+        ...this.withCommandEnvelope(tenantId, input, source),
+        toolingId: requireNonBlank(toolingId, 'toolingId'),
+        toolingType: toEnum(ToolingType, 'TOOLING_TYPE_', input.toolingType ?? 'MOLD')
+      },
+      source
+    )
+    return result.toolingInstallation
+  }
+
+  /** unmountTooling forwards one tooling unmount command. */
+  async unmountTooling(tenantId: string, toolingInstallationId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.unmountTooling(
+      {
+        ...this.withCommandEnvelope(tenantId, input, source),
+        toolingInstallationId: requireNonBlank(toolingInstallationId, 'toolingInstallationId')
+      },
+      source
+    )
+    return result.toolingInstallation
+  }
+
+  /** scrapProductionMold forwards one terminal ProductionMold command. */
+  async scrapProductionMold(tenantId: string, productionMoldId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.scrapProductionMold(
+      {
+        ...this.withCommandEnvelope(tenantId, input, source),
+        productionMoldId: requireNonBlank(productionMoldId, 'productionMoldId')
+      },
+      source
+    )
+    return result.productionMold
+  }
+
+  /** listCurrentMoldsByWorkCenter returns the web visualization data for one production line. */
+  async listCurrentMoldsByWorkCenter(tenantId: string, workCenterId: string, query: any, source: DownstreamRequestSource) {
+    return this.mesQueryAdapter.listCurrentMoldsByWorkCenter(
+      {
+        orgId: this.resolveOrgId(query.orgId, source),
+        tenantId: this.resolveTenantId(tenantId, source),
+        workCenterId: requireNonBlank(workCenterId, 'workCenterId'),
+        workUnitId: normalize(query.workUnitId)
+      },
+      source
+    )
+  }
+
+  /** listMoldLifeCounters returns independent MoldLifeCounter rows. */
+  async listMoldLifeCounters(tenantId: string, query: any, source: DownstreamRequestSource) {
+    return this.mesQueryAdapter.listMoldLifeCounters(
+      {
+        orgId: this.resolveOrgId(query.orgId, source),
+        page: clampPage(query.page),
+        pageSize: clampPageSize(query.pageSize),
+        productionMoldId: normalize(query.productionMoldId),
         tenantId: this.resolveTenantId(tenantId, source),
         warningLevel: toEnum(MoldWarningLevel, 'MOLD_WARNING_LEVEL_', query.warningLevel)
       },
@@ -322,109 +302,17 @@ export class MesService {
     )
   }
 
-  /** moveProductionMoldInstance forwards one production mold instance location transfer command. */
-  async moveProductionMoldInstance(
-    tenantId: string,
-    productionMoldInstanceId: string,
-    input: any,
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.mesManagementAdapter.moveMold(
+  /** getMoldUsageHistory returns flattened mold facts for one ProductionMold. */
+  async getMoldUsageHistory(tenantId: string, productionMoldId: string, query: any, source: DownstreamRequestSource) {
+    return this.mesQueryAdapter.getMoldUsageHistory(
       {
-        ...input,
-        commandId: normalize(input.commandId) ?? normalize(source.requestId),
-        moldResourceId: requireNonBlank(productionMoldInstanceId, 'productionMoldInstanceId'),
-        moldResourceType: MoldResourceType.MOLD_RESOURCE_TYPE_PRODUCTION_MOLD_INSTANCE,
-        orgId: this.resolveOrgId(input.orgId, source),
-        tenantId: this.resolveTenantId(tenantId, source)
-      },
-      source
-    )
-    return result.moldCurrentLocation
-  }
-
-  /** installProductionMoldInstance forwards one production mold installation command. */
-  async installProductionMoldInstance(
-    tenantId: string,
-    productionMoldInstanceId: string,
-    input: any,
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.mesManagementAdapter.installMold(
-      {
-        ...input,
-        commandId: normalize(input.commandId) ?? normalize(source.requestId),
-        orgId: this.resolveOrgId(input.orgId, source),
-        productionMoldInstanceId: requireNonBlank(productionMoldInstanceId, 'productionMoldInstanceId'),
-        tenantId: this.resolveTenantId(tenantId, source)
-      },
-      source
-    )
-    return result.productionMoldInstance
-  }
-
-  /** unmountProductionMoldInstance forwards one production mold unmount command. */
-  async unmountProductionMoldInstance(
-    tenantId: string,
-    productionMoldInstanceId: string,
-    input: any,
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.mesManagementAdapter.unmountMold(
-      {
-        ...input,
-        commandId: normalize(input.commandId) ?? normalize(source.requestId),
-        nextStatus: toEnum(
-          ProductionMoldInstanceStatus,
-          'PRODUCTION_MOLD_INSTANCE_STATUS_',
-          input.nextStatus
-        ),
-        orgId: this.resolveOrgId(input.orgId, source),
-        productionMoldInstanceId: requireNonBlank(productionMoldInstanceId, 'productionMoldInstanceId'),
-        tenantId: this.resolveTenantId(tenantId, source)
-      },
-      source
-    )
-    return result.productionMoldInstance
-  }
-
-  /** scrapProductionMoldInstance forwards one terminal production mold scrap command. */
-  async scrapProductionMoldInstance(
-    tenantId: string,
-    productionMoldInstanceId: string,
-    input: any,
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.mesManagementAdapter.scrapMold(
-      {
-        ...input,
-        commandId: normalize(input.commandId) ?? normalize(source.requestId),
-        moldResourceId: requireNonBlank(productionMoldInstanceId, 'productionMoldInstanceId'),
-        moldResourceType: MoldResourceType.MOLD_RESOURCE_TYPE_PRODUCTION_MOLD_INSTANCE,
-        orgId: this.resolveOrgId(input.orgId, source),
-        tenantId: this.resolveTenantId(tenantId, source)
-      },
-      source
-    )
-    return result.moldResource
-  }
-
-  /** listCurrentMoldsByWorkCenter returns the web visualization data for one production line. */
-  async listCurrentMoldsByWorkCenter(
-    tenantId: string,
-    workCenterId: string,
-    query: any,
-    source: DownstreamRequestSource
-  ) {
-    return this.mesQueryAdapter.listCurrentMoldsByWorkCenter(
-      {
-        includeChildWorkCenters: query.includeChildWorkCenters,
+        from: normalize(query.from),
         orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
         pageSize: clampPageSize(query.pageSize),
+        productionMoldId: requireNonBlank(productionMoldId, 'productionMoldId'),
         tenantId: this.resolveTenantId(tenantId, source),
-        warningLevel: toEnum(MoldWarningLevel, 'MOLD_WARNING_LEVEL_', query.warningLevel),
-        workCenterId: requireNonBlank(workCenterId, 'workCenterId')
+        to: normalize(query.to)
       },
       source
     )
@@ -432,28 +320,19 @@ export class MesService {
 
   /** printDailyMoldChecklist returns the daily web checklist for manual casting usage capture. */
   async printDailyMoldChecklist(tenantId: string, query: any, source: DownstreamRequestSource) {
-    const result = await this.mesQueryAdapter.printDailyMoldChecklist(
+    return this.mesQueryAdapter.printDailyMoldChecklist(
       {
-        checklistDate: normalize(query.checklistDate),
-        includeChildWorkCenters: query.includeChildWorkCenters,
-        includeRecentUsage: query.includeRecentUsage,
-        includeWarnings: query.includeWarnings,
+        checklistDate: requireNonBlank(query.checklistDate, 'checklistDate'),
         orgId: this.resolveOrgId(query.orgId, source),
         tenantId: this.resolveTenantId(tenantId, source),
-        workCenterIds: normalizeArray(query.workCenterIds)
+        workCenterId: requireNonBlank(query.workCenterId, 'workCenterId')
       },
       source
     )
-    return result.checklist
   }
 
-  /** recordDailyMoldUsageBatch turns checked web checklist rows into idempotent MES MoldUsageEvent commands. */
-  async recordDailyMoldUsageBatch(
-    tenantId: string,
-    checklistDate: string,
-    input: any,
-    source: DownstreamRequestSource
-  ) {
+  /** recordDailyMoldUsageBatch turns checked web checklist rows into idempotent MES MoldUsageRecord commands. */
+  async recordDailyMoldUsageBatch(tenantId: string, checklistDate: string, input: any, source: DownstreamRequestSource) {
     const batchCommandId = requireNonBlank(input.batchCommandId, 'batchCommandId')
     const resolvedTenantId = this.resolveTenantId(tenantId, source)
     const orgId = this.resolveOrgId(input.orgId, source)
@@ -461,44 +340,41 @@ export class MesService {
     const skippedItems: any[] = []
 
     for (const item of input.items ?? []) {
-      const productionMoldInstanceId = requireNonBlank(
-        item.productionMoldInstanceId,
-        'productionMoldInstanceId'
-      )
+      const productionMoldId = requireNonBlank(item.productionMoldId, 'productionMoldId')
       if (!item.checked) {
-        skippedItems.push({ productionMoldInstanceId, reason: 'unchecked' })
+        skippedItems.push({ productionMoldId, reason: 'unchecked' })
         continue
       }
 
-      const moldInstallationId = requireNonBlank(item.moldInstallationId, 'moldInstallationId')
+      const toolingInstallationId = requireNonBlank(item.toolingInstallationId, 'toolingInstallationId')
       const response = await this.mesManagementAdapter.recordMoldUsage(
         {
           captureSource: normalize(item.captureSource) ?? 'WEB_CHECKLIST',
-          commandId: `${batchCommandId}:${productionMoldInstanceId}:${moldInstallationId}`,
+          commandId: `${batchCommandId}:${productionMoldId}:${toolingInstallationId}`,
           lifeDelta: normalize(item.lifeDelta) ?? '1',
-          lifeUnit: normalize(item.lifeUnit) ?? 'USE',
-          manufacturingSpecRef: item.manufacturingSpecRef,
+          lifeUnit: normalize(item.lifeUnit) ?? 'CASTING_CYCLE',
           moldDesignOutputId: normalize(item.moldDesignOutputId),
           moldDesignOutputOptionId: normalize(item.moldDesignOutputOptionId),
-          moldInstallationId,
           orgId,
-          productFamilyRef: item.productFamilyRef,
-          productionMoldInstanceId,
-          reason: normalize(item.reason) ?? normalize(input.reason) ?? 'daily mold usage checklist',
-          resourcePositionId: requireNonBlank(item.resourcePositionId, 'resourcePositionId'),
+          productionMoldId,
+          productionSpecRef: item.productionSpecRef,
+          productionUnitRef: item.productionUnitRef,
+          auditReason: normalize(item.reason) ?? normalize(input.reason) ?? 'daily mold usage checklist',
           tenantId: resolvedTenantId,
-          usageMode: MoldUsageMode.MOLD_USAGE_MODE_MANUAL_CHECKLIST,
+          toolingInstallationId,
+          traceSubjectRef: item.traceSubjectRef,
           usageQuantity: normalize(item.usageQuantity) ?? '1',
           usedAt: normalize(input.usedAt) ?? requireNonBlank(checklistDate, 'checklistDate'),
-          workCenterId: requireNonBlank(item.workCenterId ?? input.workCenterId, 'workCenterId')
+          workCenterRef: item.workCenterRef ?? input.workCenterRef,
+          workUnitRef: item.workUnitRef
         },
         source
       )
 
       acceptedItems.push({
         moldLifeCounter: response.moldLifeCounter,
-        productionMoldInstanceId,
-        usageEventId: response.usageEvent?.moldUsageEventId
+        productionMoldId,
+        usageRecordId: response.moldUsageRecord?.moldUsageRecordId
       })
     }
 
@@ -506,7 +382,18 @@ export class MesService {
       acceptedItems,
       checklistDate: requireNonBlank(checklistDate, 'checklistDate'),
       skippedItems,
-      workCenterId: input.workCenterId
+      workCenterRef: input.workCenterRef
+    }
+  }
+
+  /** withCommandEnvelope adds tenant, org, command id, and audit reason fields before a management adapter call. */
+  private withCommandEnvelope(tenantId: string, input: any, source: DownstreamRequestSource) {
+    return {
+      ...input,
+      auditReason: normalize(input.reason),
+      commandId: normalize(input.commandId) ?? normalize(source.requestId),
+      orgId: this.resolveOrgId(input.orgId, source),
+      tenantId: this.resolveTenantId(tenantId, source)
     }
   }
 
@@ -541,17 +428,6 @@ function normalize(value?: string): string | undefined {
   return normalized ? normalized : undefined
 }
 
-/** normalizeArray accepts either repeated query params or a comma-separated list. */
-function normalizeArray(value?: string | string[]): string[] {
-  if (Array.isArray(value)) {
-    return value.map((item) => item.trim()).filter(Boolean)
-  }
-  return normalize(value)
-    ?.split(',')
-    .map((item) => item.trim())
-    .filter(Boolean) ?? []
-}
-
 /** clampPage normalizes BFF page inputs to the service contract's 1-based pagination. */
 function clampPage(page: unknown): number {
   const parsed = Number(page ?? 1)
@@ -582,9 +458,4 @@ function toEnum<TEnum extends EnumLike>(enumType: TEnum, prefix: string, value: 
   const fullKey = upper.startsWith(prefix) ? upper : `${prefix}${upper}`
   const resolved = enumType[fullKey] ?? enumType[upper]
   return typeof resolved === 'number' ? resolved : 0
-}
-
-/** toMoldResourceType maps optional mold resource type inputs for future controller methods. */
-export function toMoldResourceType(value: unknown): number {
-  return toEnum(MoldResourceType, 'MOLD_RESOURCE_TYPE_', value)
 }

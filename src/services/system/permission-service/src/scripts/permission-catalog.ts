@@ -644,13 +644,13 @@ const wmsManagement = definePermissionGroup(Modules.WMS_SERVICE, {
 })
 
 const mesManagement = definePermissionGroup(Modules.MES_SERVICE, {
-  READ_MANUFACTURING_SPEC: {
-    code: 'mes.manufacturing_spec.read',
-    description: '查看 MES 制造规格目录、详情与模具适配解析'
+  READ_PRODUCTION_SPEC: {
+    code: 'mes.production_spec.read',
+    description: '查看 MES 生产规格目录、详情与模具适配解析'
   },
-  MANAGE_MANUFACTURING_SPEC: {
-    code: 'mes.manufacturing_spec.manage',
-    description: '创建、更新、启用与退役 MES 制造规格'
+  MANAGE_PRODUCTION_SPEC: {
+    code: 'mes.production_spec.manage',
+    description: '创建、更新、启用与退役 MES 生产规格'
   },
   READ_MOLD_DESIGN: {
     code: 'mes.mold_design.read',
@@ -660,17 +660,21 @@ const mesManagement = definePermissionGroup(Modules.MES_SERVICE, {
     code: 'mes.mold_design.manage',
     description: '登记和维护模具设计'
   },
-  READ_PRODUCTION_MOLD_INSTANCE: {
-    code: 'mes.production_mold_instance.read',
-    description: '查看生产模具实例、位置、安装、寿命与预警摘要'
+  READ_PRODUCTION_MOLD: {
+    code: 'mes.production_mold.read',
+    description: '查看生产模具、当前位置、安装、寿命与预警摘要'
   },
-  MANAGE_PRODUCTION_MOLD_INSTANCE: {
-    code: 'mes.production_mold_instance.manage',
-    description: '登记、转移、安装、卸下、报废生产模具实例'
+  MANAGE_PRODUCTION_MOLD: {
+    code: 'mes.production_mold.manage',
+    description: '登记、转移、安装、卸下、报废生产模具'
   },
-  READ_WORK_CENTER_MOLD_STATUS: {
-    code: 'mes.work_center_mold_status.read',
-    description: '查看产线当前模具安装情况与日模具清单'
+  READ_TOOLING_INSTALLATION: {
+    code: 'mes.tooling_installation.read',
+    description: '查看工装安装、当前位置、安装历史与日模具清单'
+  },
+  MANAGE_TOOLING_INSTALLATION: {
+    code: 'mes.tooling_installation.manage',
+    description: '维护工装安装、卸下、移动与安装位置'
   },
   RECORD_MOLD_USAGE: {
     code: 'mes.mold_usage.record',

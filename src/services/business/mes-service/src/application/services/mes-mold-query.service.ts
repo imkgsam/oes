@@ -1,378 +1,289 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { TOKENS } from '../../common/constants/tokens'
 import {
-  CurrentInstalledMoldView,
   DailyMoldChecklistRecord,
-  MoldCurrentLocationView,
+  MasterMoldRecord,
+  MesQueryContext,
   MoldDesignRecord,
-  MoldLifeWarningView,
-  MoldResourceType,
+  MoldDesignStatus,
+  MoldLifeCounterRecord,
   MoldUsageHistoryEntryRecord,
-  MoldUsageHistoryEntryType,
   MoldWarningLevel,
-  MoldWarningStatus,
-  MoldWarningType,
-  PageResult,
-  ProductionMoldInstanceStatus,
-  ProductionMoldInstanceView,
-  WorkCenterSummaryRecord
+  ProductionMoldRecord,
+  ProductionMoldStatus,
+  ToolingPlacementSummaryRecord,
+  ToolingPlacementType,
+  ToolingType
 } from '../../domain/models/mes-mold-records'
-import { MesMoldRepository } from '../../domain/repositories/mes-mold.repository'
+import {
+  ListCurrentMoldsByWorkCenterResult,
+  ListProductionMoldsByDesignResult,
+  MesMoldRepository,
+  MoldDesignSummaryPageResult,
+  MoldLifeCounterPageResult,
+  MoldUsageHistoryResult,
+  ProductionMoldSummaryPageResult
+} from '../../domain/repositories/mes-mold.repository'
 import {
   assertDateRange,
   assertExists,
+  assertQueryContext,
   assertRequiredString,
-  normalizePageInput
+  normalizeOptionalString,
+  normalizePageInput,
+  resolveContextOrgId
 } from '../support/mes-assertions'
-import { MesMoldReadModel, toWorkCenterSummary } from './mes-mold-read-model'
 
-export interface GetMoldDesignInput {
-  tenantId: string
-  orgId?: string | null
+export interface GetMoldDesignInput extends MesQueryContext {
   moldDesignId: string
 }
 
-export interface ListMoldDesignsInput {
-  tenantId: string
-  orgId?: string | null
+export interface ListMoldDesignsInput extends MesQueryContext {
   keyword?: string
-  productFamilyRefId?: string
-  manufacturingSpecRefId?: string
+  status?: MoldDesignStatus
+  productionSpecId?: string
   itemId?: string
-  materialType?: string
-  functionRole?: string
-  productionMethodTag?: string
-  status?: string
   page?: number
   pageSize?: number
 }
 
-export interface GetProductionMoldInstanceInput {
-  tenantId: string
-  orgId?: string | null
-  productionMoldInstanceId: string
+export interface GetProductionMoldInput extends MesQueryContext {
+  productionMoldId: string
 }
 
-export interface ListMoldInstancesByDesignInput {
-  tenantId: string
-  orgId?: string | null
+export interface ListProductionMoldsInput extends MesQueryContext {
+  moldDesignId?: string
+  status?: ProductionMoldStatus
+  storageResourceId?: string
+  carrierResourceId?: string
+  warningLevel?: MoldWarningLevel
+  page?: number
+  pageSize?: number
+}
+
+export interface ListProductionMoldsByDesignInput extends MesQueryContext {
   moldDesignId: string
-  status?: ProductionMoldInstanceStatus
-  warningLevel?: MoldWarningLevel
-  supplierId?: string
+  status?: ProductionMoldStatus
   page?: number
   pageSize?: number
 }
 
-export interface ListProductionMoldInstancesInput {
-  tenantId: string
-  orgId?: string | null
-  moldDesignId?: string
-  status?: ProductionMoldInstanceStatus
-  warningLevel?: MoldWarningLevel
-  supplierId?: string
+export interface GetToolingCurrentPlacementInput extends MesQueryContext {
+  toolingType: ToolingType
+  toolingId: string
+}
+
+export interface GetMoldUsageHistoryInput extends MesQueryContext {
+  productionMoldId: string
+  from?: string
+  to?: string
   page?: number
   pageSize?: number
 }
 
-export interface ListWorkCentersInput {
-  tenantId: string
-  orgId?: string | null
-  keyword?: string
-  parentWorkCenterId?: string | null
-  status?: string
-  workCenterType?: string
-  page?: number
-  pageSize?: number
-}
-
-export interface GetMoldCurrentLocationInput {
-  tenantId: string
-  orgId?: string | null
-  moldResourceType: MoldResourceType
-  moldResourceId: string
-}
-
-export interface GetMoldUsageHistoryInput {
-  tenantId: string
-  orgId?: string | null
-  productionMoldInstanceId: string
-  entryTypes?: MoldUsageHistoryEntryType[]
-  occurredFrom?: string
-  occurredTo?: string
-  page?: number
-  pageSize?: number
-}
-
-export interface ListCurrentMoldsByWorkCenterInput {
-  tenantId: string
-  orgId?: string | null
+export interface ListCurrentMoldsByWorkCenterInput extends MesQueryContext {
   workCenterId: string
-  includeChildWorkCenters?: boolean
+  workUnitId?: string
+}
+
+export interface ListMoldLifeCountersInput extends MesQueryContext {
+  productionMoldId?: string
   warningLevel?: MoldWarningLevel
   page?: number
   pageSize?: number
 }
 
-export interface ListMoldLifeWarningsInput {
-  tenantId: string
-  orgId?: string | null
-  status?: MoldWarningStatus
-  warningType?: MoldWarningType
-  warningLevel?: MoldWarningLevel
-  workCenterId?: string
-  moldDesignId?: string
-  raisedFrom?: string
-  raisedTo?: string
-  page?: number
-  pageSize?: number
-}
-
-export interface PrintDailyMoldChecklistInput {
-  tenantId: string
-  orgId?: string | null
-  workCenterIds: string[]
+export interface PrintDailyMoldChecklistInput extends MesQueryContext {
+  workCenterId: string
   checklistDate: string
-  includeChildWorkCenters?: boolean
-  includeWarnings?: boolean
-  includeRecentUsage?: boolean
-  operatorId: string
 }
 
-/** MesMoldQueryService serves the frozen read-only mold query surface without mutating MES truth. */
+/** MesMoldQueryService exposes the current Mold / Tooling read surface without mutating MES truth. */
 @Injectable()
 export class MesMoldQueryService {
-  private readonly readModel: MesMoldReadModel
-
   constructor(
     @Inject(TOKENS.MES_MOLD_REPOSITORY)
     private readonly repository: MesMoldRepository
-  ) {
-    this.readModel = new MesMoldReadModel(repository)
-  }
+  ) {}
 
-  /** getMoldDesign returns one mold design by id or NOT_FOUND when it is not visible. */
+  /** getMoldDesign returns one visible mold design or NOT_FOUND. */
   async getMoldDesign(input: GetMoldDesignInput): Promise<MoldDesignRecord> {
-    assertRequiredString(input.tenantId, 'tenantId')
+    assertQueryContext(input)
     assertRequiredString(input.moldDesignId, 'moldDesignId')
-    return assertExists(
-      await this.repository.findMoldDesignById(input.tenantId, input.moldDesignId),
-      'MoldDesign',
-      input.moldDesignId
+    return assertVisibleByOrg(
+      assertExists(await this.repository.findMoldDesignById(input.tenantId, input.moldDesignId), 'MoldDesign', input.moldDesignId),
+      resolveContextOrgId(input),
+      input.moldDesignId,
+      'MoldDesign'
     )
   }
 
-  /** listMoldDesigns returns one filtered design page and treats empty result sets as normal responses. */
-  async listMoldDesigns(input: ListMoldDesignsInput): Promise<PageResult<MoldDesignRecord>> {
-    assertRequiredString(input.tenantId, 'tenantId')
+  /** listMoldDesigns returns contract-shaped mold design summary pages. */
+  async listMoldDesigns(input: ListMoldDesignsInput): Promise<MoldDesignSummaryPageResult> {
+    assertQueryContext(input)
     const page = normalizePageInput(input.page, input.pageSize)
     return this.repository.searchMoldDesigns({
       tenantId: input.tenantId,
-      orgId: input.orgId ?? null,
-      keyword: input.keyword,
-      productFamilyRefId: input.productFamilyRefId,
-      manufacturingSpecRefId: input.manufacturingSpecRefId,
-      itemId: input.itemId,
-      materialType: input.materialType,
-      functionRole: input.functionRole,
-      productionMethodTag: input.productionMethodTag,
+      orgId: resolveContextOrgId(input),
+      keyword: normalizeOptionalString(input.keyword),
       status: input.status,
-      ...page
-    })
-  }
-
-  /** getProductionMoldInstance returns the current production mold projection with installation and life summaries. */
-  async getProductionMoldInstance(input: GetProductionMoldInstanceInput): Promise<ProductionMoldInstanceView> {
-    assertRequiredString(input.tenantId, 'tenantId')
-    assertRequiredString(input.productionMoldInstanceId, 'productionMoldInstanceId')
-    const instance = assertExists(
-      await this.repository.findProductionMoldInstanceById(input.tenantId, input.productionMoldInstanceId),
-      'ProductionMoldInstance',
-      input.productionMoldInstanceId
-    )
-    return this.readModel.buildProductionMoldInstanceView(instance)
-  }
-
-  /** listMoldInstancesByDesign returns production mold instances for one design after confirming the design exists. */
-  async listMoldInstancesByDesign(input: ListMoldInstancesByDesignInput): Promise<
-    PageResult<ProductionMoldInstanceView> & {
-      moldDesignSummary: Awaited<ReturnType<MesMoldReadModel['buildProductionMoldInstanceView']>>['moldDesignSummary']
-    }
-  > {
-    assertRequiredString(input.tenantId, 'tenantId')
-    assertRequiredString(input.moldDesignId, 'moldDesignId')
-    const design = assertExists(
-      await this.repository.findMoldDesignById(input.tenantId, input.moldDesignId),
-      'MoldDesign',
-      input.moldDesignId
-    )
-    const page = normalizePageInput(input.page, input.pageSize)
-    const records = await this.repository.searchProductionMoldInstances({
-      tenantId: input.tenantId,
-      orgId: input.orgId ?? null,
-      moldDesignId: input.moldDesignId,
-      status: input.status,
-      warningLevel: input.warningLevel,
-      supplierId: input.supplierId,
-      ...page
-    })
-    return {
-      items: await Promise.all(records.items.map((record) => this.readModel.buildProductionMoldInstanceView(record))),
-      total: records.total,
-      page: records.page,
-      pageSize: records.pageSize,
-      moldDesignSummary: {
-        moldDesignId: design.moldDesignId,
-        designCode: design.designCode,
-        name: design.name,
-        revisionCode: design.revisionCode ?? null,
-        productFamilyRef: design.productFamilyRef
-      }
-    }
-  }
-
-  /** listProductionMoldInstances returns the tenant-wide production mold directory used by the web workspace. */
-  async listProductionMoldInstances(
-    input: ListProductionMoldInstancesInput
-  ): Promise<PageResult<ProductionMoldInstanceView>> {
-    assertRequiredString(input.tenantId, 'tenantId')
-    const page = normalizePageInput(input.page, input.pageSize)
-    const records = await this.repository.searchProductionMoldInstances({
-      tenantId: input.tenantId,
-      orgId: input.orgId ?? null,
-      moldDesignId: input.moldDesignId,
-      status: input.status,
-      warningLevel: input.warningLevel,
-      supplierId: input.supplierId,
-      ...page
-    })
-    return {
-      items: await Promise.all(records.items.map((record) => this.readModel.buildProductionMoldInstanceView(record))),
-      total: records.total,
-      page: records.page,
-      pageSize: records.pageSize
-    }
-  }
-
-  /** listWorkCenters returns production units that can be shown by the web mold-management workspace. */
-  async listWorkCenters(input: ListWorkCentersInput): Promise<PageResult<WorkCenterSummaryRecord>> {
-    assertRequiredString(input.tenantId, 'tenantId')
-    const page = normalizePageInput(input.page, input.pageSize)
-    const records = await this.repository.searchWorkCenters({
-      tenantId: input.tenantId,
-      orgId: input.orgId ?? null,
-      keyword: input.keyword,
-      parentWorkCenterId: input.parentWorkCenterId,
-      status: input.status,
-      workCenterType: input.workCenterType,
-      ...page
-    })
-    return {
-      items: records.items.map(toWorkCenterSummary),
-      total: records.total,
-      page: records.page,
-      pageSize: records.pageSize
-    }
-  }
-
-  /** getMoldCurrentLocation returns the current MES physical location for master or production mold resources. */
-  async getMoldCurrentLocation(input: GetMoldCurrentLocationInput): Promise<MoldCurrentLocationView> {
-    assertRequiredString(input.tenantId, 'tenantId')
-    assertRequiredString(input.moldResourceId, 'moldResourceId')
-    return this.readModel.buildCurrentLocation({
-      tenantId: input.tenantId,
-      moldResourceType: input.moldResourceType,
-      moldResourceId: input.moldResourceId
-    })
-  }
-
-  /** getMoldUsageHistory returns a chronological page from append-only movement, installation, usage, and warning facts. */
-  async getMoldUsageHistory(input: GetMoldUsageHistoryInput): Promise<
-    PageResult<MoldUsageHistoryEntryRecord> & {
-      productionMoldInstanceSummary: ProductionMoldInstanceView
-    }
-  > {
-    assertRequiredString(input.tenantId, 'tenantId')
-    assertRequiredString(input.productionMoldInstanceId, 'productionMoldInstanceId')
-    assertDateRange(input.occurredFrom, input.occurredTo, 'occurredAt')
-    const productionMoldInstanceSummary = await this.getProductionMoldInstance(input)
-    const page = await this.readModel.buildUsageHistory(input)
-    return {
-      ...page,
-      productionMoldInstanceSummary
-    }
-  }
-
-  /** listCurrentMoldsByWorkCenter reads active installation facts without treating WorkCenter as MesLocation. */
-  async listCurrentMoldsByWorkCenter(
-    input: ListCurrentMoldsByWorkCenterInput
-  ): Promise<PageResult<CurrentInstalledMoldView> & { workCenterSummary: ReturnType<typeof toWorkCenterSummary> }> {
-    assertRequiredString(input.tenantId, 'tenantId')
-    assertRequiredString(input.workCenterId, 'workCenterId')
-    const workCenter = assertExists(
-      await this.repository.findWorkCenterById(input.tenantId, input.workCenterId),
-      'WorkCenter',
-      input.workCenterId
-    )
-    const page = normalizePageInput(input.page, input.pageSize)
-    const activeInstallations = await this.repository.listActiveInstallationsByWorkCenter(
-      input.tenantId,
-      input.workCenterId
-    )
-    const records = (
-      await Promise.all(activeInstallations.map((installation) => this.readModel.buildCurrentInstalledMold(installation)))
-    ).filter((record) => !input.warningLevel || record.warningSummary?.warningLevel === input.warningLevel)
-    const paged = {
-      items: records.slice((page.page - 1) * page.pageSize, page.page * page.pageSize),
-      total: records.length,
+      productionSpecId: normalizeOptionalString(input.productionSpecId),
+      itemId: normalizeOptionalString(input.itemId),
       page: page.page,
       pageSize: page.pageSize
-    }
-    return {
-      ...paged,
-      workCenterSummary: toWorkCenterSummary(workCenter)
-    }
+    })
   }
 
-  /** listMoldLifeWarnings returns warning rows and treats empty pages as normal query responses. */
-  async listMoldLifeWarnings(input: ListMoldLifeWarningsInput): Promise<PageResult<MoldLifeWarningView>> {
-    assertRequiredString(input.tenantId, 'tenantId')
-    assertDateRange(input.raisedFrom, input.raisedTo, 'raisedAt')
+  /** getProductionMold returns one visible production mold or NOT_FOUND. */
+  async getProductionMold(input: GetProductionMoldInput): Promise<ProductionMoldRecord> {
+    assertQueryContext(input)
+    assertRequiredString(input.productionMoldId, 'productionMoldId')
+    return assertVisibleByOrg(
+      assertExists(
+        await this.repository.findProductionMoldById(input.tenantId, input.productionMoldId),
+        'ProductionMold',
+        input.productionMoldId
+      ),
+      resolveContextOrgId(input),
+      input.productionMoldId,
+      'ProductionMold'
+    )
+  }
+
+  /** listProductionMolds returns contract-shaped production mold summary pages. */
+  async listProductionMolds(input: ListProductionMoldsInput): Promise<ProductionMoldSummaryPageResult> {
+    assertQueryContext(input)
     const page = normalizePageInput(input.page, input.pageSize)
-    const records = await this.repository.searchMoldWarnings({
+    return this.repository.searchProductionMolds({
       tenantId: input.tenantId,
-      orgId: input.orgId ?? null,
+      orgId: resolveContextOrgId(input),
+      moldDesignId: normalizeOptionalString(input.moldDesignId),
       status: input.status,
-      warningType: input.warningType,
+      storageResourceId: normalizeOptionalString(input.storageResourceId),
+      carrierResourceId: normalizeOptionalString(input.carrierResourceId),
       warningLevel: input.warningLevel,
-      workCenterId: input.workCenterId,
-      moldDesignId: input.moldDesignId,
-      raisedFrom: input.raisedFrom,
-      raisedTo: input.raisedTo,
-      ...page
+      page: page.page,
+      pageSize: page.pageSize
     })
-    return {
-      items: await Promise.all(records.items.map((record) => this.readModel.buildWarningView(record))),
-      total: records.total,
-      page: records.page,
-      pageSize: records.pageSize
-    }
   }
 
-  /** printDailyMoldChecklist builds the printable checklist read model without creating a paper-list fact. */
-  async printDailyMoldChecklist(input: PrintDailyMoldChecklistInput): Promise<DailyMoldChecklistRecord> {
-    assertRequiredString(input.tenantId, 'tenantId')
-    if (!input.workCenterIds.length) {
-      assertRequiredString('', 'workCenterIds')
-    }
-    assertRequiredString(input.checklistDate, 'checklistDate')
-    return this.readModel.buildDailyChecklist({
+  /** listProductionMoldsByDesign returns production molds grouped under one design summary. */
+  async listProductionMoldsByDesign(input: ListProductionMoldsByDesignInput): Promise<ListProductionMoldsByDesignResult> {
+    assertQueryContext(input)
+    assertRequiredString(input.moldDesignId, 'moldDesignId')
+    const page = normalizePageInput(input.page, input.pageSize)
+    return this.repository.listProductionMoldsByDesign({
       tenantId: input.tenantId,
-      workCenterIds: input.workCenterIds,
-      checklistDate: input.checklistDate,
-      includeWarnings: input.includeWarnings,
-      includeRecentUsage: input.includeRecentUsage,
-      generatedBy: input.operatorId
+      orgId: resolveContextOrgId(input),
+      moldDesignId: input.moldDesignId,
+      status: input.status,
+      page: page.page,
+      pageSize: page.pageSize
     })
+  }
+
+  /** getToolingCurrentPlacement returns the current storage, carrier, work center, or work unit placement. */
+  async getToolingCurrentPlacement(input: GetToolingCurrentPlacementInput): Promise<{ placement: ToolingPlacementSummaryRecord }> {
+    assertQueryContext(input)
+    assertRequiredString(input.toolingId, 'toolingId')
+    const orgId = resolveContextOrgId(input)
+    const productionMold = await this.repository.findProductionMoldById(input.tenantId, input.toolingId)
+    if (productionMold) {
+      assertVisibleByOrg(productionMold, orgId, input.toolingId, 'ProductionMold')
+      return {
+        placement: assertExists(
+          await this.repository.getToolingCurrentPlacement(input.tenantId, input.toolingType, input.toolingId),
+          'ToolingPlacement',
+          input.toolingId
+        )
+      }
+    }
+    const masterMold = assertVisibleByOrg(
+      assertExists(await this.repository.findMasterMoldById(input.tenantId, input.toolingId), 'MasterMold', input.toolingId),
+      orgId,
+      input.toolingId,
+      'MasterMold'
+    )
+    return { placement: toStorageCarrierPlacement(masterMold) }
+  }
+
+  /** getMoldUsageHistory returns contract-shaped chronological mold history entries. */
+  async getMoldUsageHistory(input: GetMoldUsageHistoryInput): Promise<MoldUsageHistoryResult> {
+    assertQueryContext(input)
+    assertRequiredString(input.productionMoldId, 'productionMoldId')
+    assertDateRange(input.from, input.to, 'usageHistory')
+    const page = normalizePageInput(input.page, input.pageSize)
+    return this.repository.getMoldUsageHistory({
+      tenantId: input.tenantId,
+      orgId: resolveContextOrgId(input),
+      productionMoldId: input.productionMoldId,
+      from: normalizeOptionalString(input.from),
+      to: normalizeOptionalString(input.to),
+      page: page.page,
+      pageSize: page.pageSize
+    })
+  }
+
+  /** listCurrentMoldsByWorkCenter returns active mold installation rows for one work center. */
+  async listCurrentMoldsByWorkCenter(input: ListCurrentMoldsByWorkCenterInput): Promise<ListCurrentMoldsByWorkCenterResult> {
+    assertQueryContext(input)
+    assertRequiredString(input.workCenterId, 'workCenterId')
+    return this.repository.listCurrentMoldsByWorkCenter({
+      tenantId: input.tenantId,
+      orgId: resolveContextOrgId(input),
+      workCenterId: input.workCenterId,
+      workUnitId: normalizeOptionalString(input.workUnitId)
+    })
+  }
+
+  /** listMoldLifeCounters returns contract-shaped mold life counter pages. */
+  async listMoldLifeCounters(input: ListMoldLifeCountersInput): Promise<MoldLifeCounterPageResult> {
+    assertQueryContext(input)
+    const page = normalizePageInput(input.page, input.pageSize)
+    return this.repository.listMoldLifeCounters({
+      tenantId: input.tenantId,
+      orgId: resolveContextOrgId(input),
+      productionMoldId: normalizeOptionalString(input.productionMoldId),
+      warningLevel: input.warningLevel,
+      page: page.page,
+      pageSize: page.pageSize
+    })
+  }
+
+  /** printDailyMoldChecklist returns the printable current mold checklist without creating a domain fact. */
+  async printDailyMoldChecklist(input: PrintDailyMoldChecklistInput): Promise<DailyMoldChecklistRecord> {
+    assertQueryContext(input)
+    assertRequiredString(input.workCenterId, 'workCenterId')
+    assertRequiredString(input.checklistDate, 'checklistDate')
+    return this.repository.printDailyMoldChecklist({
+      tenantId: input.tenantId,
+      orgId: resolveContextOrgId(input),
+      workCenterId: input.workCenterId,
+      checklistDate: input.checklistDate
+    })
+  }
+}
+
+/** assertVisibleByOrg hides cross-org records behind NOT_FOUND semantics. */
+function assertVisibleByOrg<T extends { orgId?: string | null }>(
+  record: T,
+  orgId: string | null,
+  identifier: string,
+  resource: string
+): T {
+  return assertExists((record.orgId ?? null) === orgId ? record : null, resource, identifier)
+}
+
+/** toStorageCarrierPlacement converts a master mold placement projection into the current placement summary. */
+function toStorageCarrierPlacement(record: MasterMoldRecord): ToolingPlacementSummaryRecord {
+  if (record.currentCarrierResourceRef) {
+    return {
+      placementType: ToolingPlacementType.CARRIER_RESOURCE,
+      carrierResourceRef: record.currentCarrierResourceRef
+    }
+  }
+  return {
+    placementType: ToolingPlacementType.STORAGE_RESOURCE,
+    storageResourceRef: record.currentStorageResourceRef ?? null
   }
 }

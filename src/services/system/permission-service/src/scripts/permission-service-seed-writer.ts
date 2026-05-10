@@ -6,6 +6,7 @@ import {
   renderPermissionServiceSeedDryRunSummary,
   validatePermissionServiceSeed
 } from './permission-service-seed'
+import { syncBuiltInRoleInstanceBaselines } from './role-instance-foundation'
 
 export type PermissionServiceSeedWriterOptions = {
   apply: boolean
@@ -175,6 +176,8 @@ export async function applyPermissionServiceSeed(
       skipDuplicates: true
     })
   }
+
+  await syncBuiltInRoleInstanceBaselines(prisma, permissionIdByCode)
 
   return renderPermissionServiceSeedDryRunSummary(seed)
 }

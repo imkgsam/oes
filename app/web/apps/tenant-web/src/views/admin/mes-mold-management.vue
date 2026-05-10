@@ -1,24 +1,43 @@
 <script setup lang="ts">
 import type { ItemManagementApi, MesApi } from '#/api'
+import type { TableColumnsType } from 'ant-design-vue'
 
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import {
+  Alert as AAlert,
+  Button as AButton,
+  Card as ACard,
+  Checkbox as ACheckbox,
+  Drawer as ADrawer,
+  Empty as AEmpty,
+  Form as AForm,
+  FormItem as AFormItem,
+  Input as AInput,
+  Popconfirm as APopconfirm,
+  Select as ASelect,
+  SelectOption as ASelectOption,
+  Space as ASpace,
+  Spin as ASpin,
+  Statistic as AStatistic,
+  Table as ATable,
+  Tag as ATag
+} from 'ant-design-vue'
 
 import {
-  createWorkCenterApi,
-  installProductionMoldInstanceApi,
+  installProductionMoldApi,
   listCurrentMoldsByWorkCenterApi,
   listManagedItemsApi,
-  listManufacturingSpecsApi,
+  listProductionSpecsApi,
   listMoldDesignsApi,
-  listProductionMoldInstancesApi,
-  listWorkCentersApi,
+  listProductionMoldsApi,
   recordDailyMoldUsageBatchApi,
   registerMoldDesignApi,
-  registerProductionMoldInstanceApi,
-  scrapProductionMoldInstanceApi,
-  unmountProductionMoldInstanceApi
+  registerProductionMoldApi,
+  scrapProductionMoldApi,
+  unmountProductionMoldApi
 } from '#/api'
 import { useAuthContextStore } from '#/store/auth-context'
 
@@ -26,45 +45,45 @@ interface DailyUsageRow {
   checked: boolean
   moldDesignOutputId?: string
   moldDesignOutputOptionId?: string
-  moldInstallationId: string
-  moldInstanceCode: string
-  productionMoldInstanceId: string
-  resourcePositionId?: string
-  workCenterId: string
+  toolingInstallationId: string
+  moldCode: string
+  productionMoldId: string
+  moldPosition?: string
+  workCenterRef: MesApi.WorkCenterRef
 }
 
 const authContextStore = useAuthContextStore()
+const router = useRouter()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
 const activeTenantName = computed(
   () => authContextStore.sessionContext?.tenant?.name ?? authContextStore.tenantName ?? '当前租户'
 )
 const canReadDesign = computed(() => authContextStore.actionCodes.includes('mes.mold_design.read'))
 const canManageDesign = computed(() => authContextStore.actionCodes.includes('mes.mold_design.manage'))
-const canReadMold = computed(() => authContextStore.actionCodes.includes('mes.production_mold_instance.read'))
-const canManageMold = computed(() => authContextStore.actionCodes.includes('mes.production_mold_instance.manage'))
-const canReadWorkCenter = computed(() => authContextStore.actionCodes.includes('mes.work_center_mold_status.read'))
+const canReadMold = computed(() => authContextStore.actionCodes.includes('mes.production_mold.read'))
+const canManageMold = computed(() => authContextStore.actionCodes.includes('mes.production_mold.manage'))
+const canReadWorkCenter = computed(() => authContextStore.actionCodes.includes('mes.tooling_installation.read'))
 const canRecordUsage = computed(() => authContextStore.actionCodes.includes('mes.mold_usage.record'))
 const loading = ref(false)
-const workCenters = ref<MesApi.WorkCenterSummary[]>([])
 const moldDesigns = ref<MesApi.MoldDesign[]>([])
 const manufacturableItems = ref<ItemManagementApi.ItemSummary[]>([])
-const manufacturingSpecs = ref<MesApi.ManufacturingSpecSummary[]>([])
-const productionMolds = ref<MesApi.ProductionMoldInstance[]>([])
-const installedMolds = ref<MesApi.CurrentMoldsResult['installedMolds']>([])
+const productionSpecs = ref<MesApi.ProductionSpecSummary[]>([])
+const productionMolds = ref<MesApi.ProductionMold[]>([])
+const installedMolds = ref<MesApi.CurrentMoldsResult['items']>([])
 const selectedWorkCenterId = ref('')
-const activeDialog = ref<'' | 'createMold' | 'createMoldDesign' | 'createWorkCenter' | 'dailyUsage' | 'installMold'>('')
-const selectedMold = ref<MesApi.ProductionMoldInstance | null>(null)
+const selectedWorkCenterCode = ref('')
+const selectedWorkCenterName = ref('')
+const installMoldPosition = ref('')
+const activeDialog = ref<'' | 'createMold' | 'createMoldDesign' | 'dailyUsage' | 'installMold'>('')
+const selectedMold = ref<MesApi.ProductionMold | null>(null)
 const dailyRows = ref<DailyUsageRow[]>([])
+const loadError = ref('')
+const submitError = ref('')
 const submitting = ref(false)
 
-const workCenterForm = reactive({
-  name: '连体马桶上线二线',
-  workCenterCode: `LINE-${Date.now().toString().slice(-4)}`,
-  workCenterType: 'CASTING_LINE'
-})
 const productionMoldForm = reactive({
   moldDesignId: '',
-  moldInstanceCode: `PM-${Date.now().toString().slice(-4)}`
+  moldCode: `PM-${Date.now().toString().slice(-4)}`
 })
 const moldDesignForm = reactive({
   componentRole: '主体',
@@ -73,7 +92,7 @@ const moldDesignForm = reactive({
   designCode: `MD-${Date.now().toString().slice(-4)}`,
   hasOutputOption: true,
   itemId: '',
-  manufacturingSpecId: '',
+  productionSpecId: '',
   materialType: 'GYPSUM',
   name: '连体马桶上线模具方案',
   optionCode: 'PIT-300',
@@ -85,25 +104,102 @@ const moldDesignForm = reactive({
   revisionCode: 'R1'
 })
 
-const selectedWorkCenter = computed(() =>
-  workCenters.value.find((workCenter) => workCenter.workCenterId === selectedWorkCenterId.value)
-)
 const installedCount = computed(
   () => productionMolds.value.filter((mold) => normalizeStatus(mold.currentStatus) === 'INSTALLED').length
 )
-const warningCount = computed(() => productionMolds.value.filter((mold) => mold.warningSummary).length)
+const warningCount = computed(() => productionMolds.value.filter((mold) => mold.lifeCounterSummary?.warningLevel).length)
 const defaultMoldDesign = computed(() => moldDesigns.value[0])
 const selectedMoldDesignItem = computed(() =>
   manufacturableItems.value.find((candidate) => candidate.itemId === moldDesignForm.itemId)
 )
-const selectedManufacturingSpec = computed(() =>
-  manufacturingSpecs.value.find((spec) => spec.manufacturingSpecId === moldDesignForm.manufacturingSpecId)
+const selectedProductionSpec = computed(() =>
+  productionSpecs.value.find((spec) => spec.productionSpecId === moldDesignForm.productionSpecId)
 )
+const dialogTitle = computed(() => {
+  const titles: Record<typeof activeDialog.value, string> = {
+    createMold: '新建生产模具',
+    createMoldDesign: '创建模具方案',
+    dailyUsage: '录入今日注浆',
+    installMold: '安装模具',
+    '': ''
+  }
+  return titles[activeDialog.value]
+})
+const installedMoldColumns: TableColumnsType<MesApi.CurrentMoldsResult['items'][number]> = [
+  {
+    key: 'moldCode',
+    title: '模具编码',
+    width: 160
+  },
+  {
+    key: 'moldDesign',
+    title: '模具方案'
+  }
+]
+const moldDesignColumns: TableColumnsType<MesApi.MoldDesign> = [
+  {
+    dataIndex: 'designCode',
+    key: 'designCode',
+    title: '方案编码',
+    width: 150
+  },
+  {
+    dataIndex: 'name',
+    key: 'name',
+    title: '名称'
+  },
+  {
+    key: 'defaultLife',
+    title: '默认寿命',
+    width: 140
+  },
+  {
+    key: 'outputs',
+    title: '一次注浆产出',
+    width: 260
+  },
+  {
+    key: 'action',
+    title: '操作',
+    width: 100
+  }
+]
+const productionMoldColumns: TableColumnsType<MesApi.ProductionMold> = [
+  {
+    dataIndex: 'moldCode',
+    key: 'moldCode',
+    title: '模具编码',
+    width: 150
+  },
+  {
+    key: 'moldDesign',
+    title: '模具方案'
+  },
+  {
+    key: 'status',
+    title: '状态',
+    width: 130
+  },
+  {
+    key: 'life',
+    title: '寿命',
+    width: 140
+  },
+  {
+    key: 'workCenter',
+    title: '产线',
+    width: 170
+  },
+  {
+    key: 'action',
+    title: '操作',
+    width: 190
+  }
+]
 
 /** loadWorkspace refreshes the MES mold directories needed by the minimum closed loop. */
 async function loadWorkspace() {
   if (!activeTenantId.value) {
-    workCenters.value = []
     moldDesigns.value = []
     productionMolds.value = []
     installedMolds.value = []
@@ -111,26 +207,24 @@ async function loadWorkspace() {
   }
 
   loading.value = true
+  loadError.value = ''
   try {
-    const [workCenterResult, designResult, moldResult] = await Promise.all([
-      canReadWorkCenter.value
-        ? listWorkCentersApi(activeTenantId.value, { page: 1, pageSize: 50, status: 'ACTIVE' })
-        : Promise.resolve({ workCenters: [] as MesApi.WorkCenterSummary[] }),
+    const [designResult, moldResult] = await Promise.all([
       canReadDesign.value
         ? listMoldDesignsApi(activeTenantId.value, { page: 1, pageSize: 50, status: 'ACTIVE' })
         : Promise.resolve({ moldDesigns: [] as MesApi.MoldDesign[] }),
       canReadMold.value
-        ? listProductionMoldInstancesApi(activeTenantId.value, { page: 1, pageSize: 50 })
-        : Promise.resolve({ instances: [] as MesApi.ProductionMoldInstance[] })
+        ? listProductionMoldsApi(activeTenantId.value, { page: 1, pageSize: 50 })
+        : Promise.resolve({ productionMolds: [] as MesApi.ProductionMold[] })
     ])
-    workCenters.value = workCenterResult.workCenters ?? []
     moldDesigns.value = designResult.moldDesigns ?? []
-    productionMolds.value = moldResult.instances ?? []
+    productionMolds.value = moldResult.productionMolds ?? []
     productionMoldForm.moldDesignId = productionMoldForm.moldDesignId || moldDesigns.value[0]?.moldDesignId || ''
-    selectedWorkCenterId.value = selectedWorkCenterId.value || workCenters.value[0]?.workCenterId || ''
     if (selectedWorkCenterId.value) {
       await loadCurrentMolds(selectedWorkCenterId.value)
     }
+  } catch (error) {
+    loadError.value = formatErrorMessage(error, '加载模具工作台失败，请稍后重试。')
   } finally {
     loading.value = false
   }
@@ -143,8 +237,14 @@ async function loadCurrentMolds(workCenterId: string) {
     installedMolds.value = []
     return
   }
-  const result = await listCurrentMoldsByWorkCenterApi(activeTenantId.value, workCenterId)
-  installedMolds.value = result.installedMolds ?? []
+  loadError.value = ''
+  try {
+    const result = await listCurrentMoldsByWorkCenterApi(activeTenantId.value, workCenterId)
+    installedMolds.value = result.items ?? []
+  } catch (error) {
+    installedMolds.value = []
+    loadError.value = formatErrorMessage(error, '加载产线当前模具失败，请稍后重试。')
+  }
 }
 
 /** openDialog switches the workspace between compact modal-like panels. */
@@ -152,17 +252,42 @@ function openDialog(dialog: typeof activeDialog.value) {
   activeDialog.value = dialog
 }
 
-/** openCreateMoldDesignDialog loads the Item and ManufacturingSpec selectors used by the MoldDesign drawer. */
+/** openMoldDesignDetail keeps MoldDesign inspection on its dedicated hidden route under the mold-management entry. */
+function openMoldDesignDetail(moldDesignId: string) {
+  if (!canReadDesign.value) {
+    return
+  }
+
+  router.push({
+    name: 'TenantMesMoldDesignDetail',
+    params: {
+      moldDesignId
+    }
+  })
+}
+
+/** openProductionMoldManagement opens the hidden production mold directory under the mold-management entry. */
+function openProductionMoldManagement() {
+  if (!canReadMold.value) {
+    return
+  }
+
+  router.push({
+    name: 'TenantMesProductionMoldManagement'
+  })
+}
+
+/** openCreateMoldDesignDialog loads the Item and ProductionSpec selectors used by the MoldDesign drawer. */
 async function openCreateMoldDesignDialog() {
   activeDialog.value = 'createMoldDesign'
   await loadManufacturableItems()
   if (moldDesignForm.itemId) {
-    await loadManufacturingSpecsForItem()
+    await loadProductionSpecsForItem()
   }
 }
 
 /** openInstallDialog prepares one production mold installation panel. */
-function openInstallDialog(mold: MesApi.ProductionMoldInstance) {
+function openInstallDialog(mold: MesApi.ProductionMold) {
   selectedMold.value = mold
   activeDialog.value = 'installMold'
 }
@@ -174,75 +299,70 @@ async function loadManufacturableItems() {
     return
   }
 
-  const result = await listManagedItemsApi(activeTenantId.value, {
-    capability: 'manufacturable',
-    keyword: undefined,
-    natureType: 'PHYSICAL',
-    page: 1,
-    pageSize: 100,
-    status: 'ACTIVE',
-    structureType: undefined
-  })
-  manufacturableItems.value = result.items ?? []
-  moldDesignForm.itemId = moldDesignForm.itemId || manufacturableItems.value[0]?.itemId || ''
+  submitError.value = ''
+  try {
+    const result = await listManagedItemsApi(activeTenantId.value, {
+      capabilities: ['manufacturable'],
+      keyword: undefined,
+      page: 1,
+      pageSize: 100,
+      status: 'ACTIVE'
+    })
+    manufacturableItems.value = result.items ?? []
+    moldDesignForm.itemId = moldDesignForm.itemId || manufacturableItems.value[0]?.itemId || ''
+  } catch (error) {
+    manufacturableItems.value = []
+    moldDesignForm.itemId = ''
+    submitError.value = formatErrorMessage(error, '加载可制造 Item 失败，请稍后重试。')
+  }
 }
 
-/** loadManufacturingSpecsForItem loads active MES specs eligible for the selected Item. */
-async function loadManufacturingSpecsForItem() {
+/** loadProductionSpecsForItem loads active MES specs eligible for the selected Item. */
+async function loadProductionSpecsForItem() {
   if (!activeTenantId.value || !moldDesignForm.itemId) {
-    manufacturingSpecs.value = []
-    moldDesignForm.manufacturingSpecId = ''
+    productionSpecs.value = []
+    moldDesignForm.productionSpecId = ''
     return
   }
 
-  const result = await listManufacturingSpecsApi(activeTenantId.value, {
-    itemId: moldDesignForm.itemId,
-    page: 1,
-    pageSize: 50,
-    status: 'ACTIVE'
-  })
-  manufacturingSpecs.value = result.manufacturingSpecs ?? []
-  moldDesignForm.manufacturingSpecId = manufacturingSpecs.value[0]?.manufacturingSpecId || ''
-}
-
-/** submitCreateWorkCenter creates one production unit and reloads the workspace. */
-async function submitCreateWorkCenter() {
-  submitting.value = true
+  submitError.value = ''
   try {
-    await createWorkCenterApi(activeTenantId.value, {
-      name: workCenterForm.name,
-      reason: 'web create work center',
-      workCenterCode: workCenterForm.workCenterCode,
-      workCenterType: workCenterForm.workCenterType
+    const result = await listProductionSpecsApi(activeTenantId.value, {
+      itemId: moldDesignForm.itemId,
+      page: 1,
+      pageSize: 50,
+      status: 'ACTIVE'
     })
-    activeDialog.value = ''
-    await loadWorkspace()
-  } finally {
-    submitting.value = false
+    productionSpecs.value = result.productionSpecs ?? []
+    moldDesignForm.productionSpecId = productionSpecs.value[0]?.productionSpecId || ''
+  } catch (error) {
+    productionSpecs.value = []
+    moldDesignForm.productionSpecId = ''
+    submitError.value = formatErrorMessage(error, '加载 ProductionSpec 失败，请稍后重试。')
   }
 }
 
 /** submitCreateMoldDesign registers a MoldDesign with one primary output and optional selectable output option. */
 async function submitCreateMoldDesign() {
   const item = selectedMoldDesignItem.value
-  const spec = selectedManufacturingSpec.value
+  const spec = selectedProductionSpec.value
   if (!item || !spec) {
+    submitError.value = '请选择有效的 Item 与 ProductionSpec。'
     return
   }
 
-  const productFamilyRef = buildProductFamilyRef(item, spec)
-  const manufacturingSpecRef = buildManufacturingSpecRef(spec)
+  const productionSpecRef = buildProductionSpecRef(spec)
   const outputBase = {
     componentRole: moldDesignForm.componentRole.trim() || undefined,
     isPrimaryOutput: true,
     outputCode: moldDesignForm.outputCode.trim(),
     outputKind: moldDesignForm.outputKind,
-    productFamilyRef,
     quantityPerUse: moldDesignForm.quantityPerUse.trim() || '1',
     sequenceNo: 1
   }
 
   submitting.value = true
+  submitError.value = ''
   try {
     await registerMoldDesignApi(activeTenantId.value, {
       defaultLifeLimit: moldDesignForm.defaultLifeLimit.trim() || undefined,
@@ -254,7 +374,7 @@ async function submitCreateMoldDesign() {
         itemId: item.itemId,
         itemNameSnapshot: item.itemName
       },
-      manufacturingSpecRefs: [manufacturingSpecRef],
+      productionSpecRefs: [productionSpecRef],
       materialType: moldDesignForm.materialType.trim(),
       name: moldDesignForm.name.trim(),
       outputStructureType: 'SINGLE',
@@ -266,49 +386,51 @@ async function submitCreateMoldDesign() {
                 {
                   isDefault: true,
                   label: moldDesignForm.optionLabel.trim(),
-                  manufacturingSpecRef,
+                  productionSpecRef,
                   optionCode: moldDesignForm.optionCode.trim(),
-                  productFamilyRef,
                   quantityPerUse: moldDesignForm.quantityPerUse.trim() || '1'
                 }
               ]
             }
           : {
               ...outputBase,
-              manufacturingSpecRef
+              productionSpecRef
             }
       ],
-      productFamilyRef,
       productionMethodTags: [moldDesignForm.productionMethodTag],
       reason: 'web register mold design',
       revisionCode: moldDesignForm.revisionCode.trim() || undefined
     })
     activeDialog.value = ''
     await loadWorkspace()
+  } catch (error) {
+    submitError.value = formatErrorMessage(error, '创建模具方案失败，请检查输入后重试。')
   } finally {
     submitting.value = false
   }
 }
 
-/** submitCreateProductionMold registers one production mold instance from the selected mold design. */
+/** submitCreateProductionMold registers one production mold from the selected mold design. */
 async function submitCreateProductionMold() {
   const design = moldDesigns.value.find((item) => item.moldDesignId === productionMoldForm.moldDesignId) ?? defaultMoldDesign.value
   if (!design) {
+    submitError.value = '请选择有效的模具方案。'
     return
   }
+  const payload: MesApi.RegisterProductionMoldPayload = {
+    moldDesignId: design.moldDesignId,
+    moldCode: productionMoldForm.moldCode,
+    reason: 'web create production mold'
+  }
+
   submitting.value = true
+  submitError.value = ''
   try {
-    await registerProductionMoldInstanceApi(activeTenantId.value, {
-      initialStatus: 'PENDING_INSTALLATION',
-      lifeLimitValue: design.defaultLifeLimit ?? '1200',
-      lifeUnit: design.defaultLifeUnit ?? 'USE',
-      moldDesignId: design.moldDesignId,
-      moldInstanceCode: productionMoldForm.moldInstanceCode,
-      reason: 'web create production mold',
-      warningThresholdValue: calculateWarningThreshold(design.defaultLifeLimit ?? '1200')
-    })
+    await registerProductionMoldApi(activeTenantId.value, payload)
     activeDialog.value = ''
     await loadWorkspace()
+  } catch (error) {
+    submitError.value = formatErrorMessage(error, '创建生产模具失败，请检查输入后重试。')
   } finally {
     submitting.value = false
   }
@@ -320,65 +442,84 @@ async function submitInstallMold() {
     return
   }
   submitting.value = true
+  submitError.value = ''
   try {
-    await installProductionMoldInstanceApi(activeTenantId.value, selectedMold.value.productionMoldInstanceId, {
+    await installProductionMoldApi(activeTenantId.value, selectedMold.value.productionMoldId, {
+      moldPosition: installMoldPosition.value.trim() || undefined,
       reason: 'web install mold',
-      workCenterId: selectedWorkCenterId.value
+      workCenterRef: buildSelectedWorkCenterRef()
     })
     activeDialog.value = ''
     await loadWorkspace()
+  } catch (error) {
+    submitError.value = formatErrorMessage(error, '安装生产模具失败，请稍后重试。')
   } finally {
     submitting.value = false
   }
 }
 
 /** submitUnmountMold unmounts one installed mold from its active installation. */
-async function submitUnmountMold(mold: MesApi.ProductionMoldInstance) {
-  const installationId = mold.currentInstallationSummary?.moldInstallationId
+async function submitUnmountMold(mold: MesApi.ProductionMold) {
+  const installationId = mold.currentInstallationSummary?.toolingInstallationId
   if (!installationId) {
+    submitError.value = '当前生产模具缺少安装记录，不能卸下。'
     return
   }
-  await unmountProductionMoldInstanceApi(activeTenantId.value, mold.productionMoldInstanceId, {
-    moldInstallationId: installationId,
-    nextStatus: 'PENDING_INSTALLATION',
-    reason: 'web unmount mold'
-  })
-  await loadWorkspace()
+  submitting.value = true
+  submitError.value = ''
+  try {
+    await unmountProductionMoldApi(activeTenantId.value, installationId, {
+      reason: 'web unmount mold'
+    })
+    await loadWorkspace()
+  } catch (error) {
+    submitError.value = formatErrorMessage(error, '卸下生产模具失败，请稍后重试。')
+  } finally {
+    submitting.value = false
+  }
 }
 
 /** submitScrapMold scraps one production mold and closes installation when needed. */
-async function submitScrapMold(mold: MesApi.ProductionMoldInstance) {
-  await scrapProductionMoldInstanceApi(activeTenantId.value, mold.productionMoldInstanceId, {
-    closeCurrentInstallation: normalizeStatus(mold.currentStatus) === 'INSTALLED',
-    scrapReason: 'web scrap mold'
-  })
-  await loadWorkspace()
+async function submitScrapMold(mold: MesApi.ProductionMold) {
+  submitting.value = true
+  submitError.value = ''
+  try {
+    await scrapProductionMoldApi(activeTenantId.value, mold.productionMoldId, {
+      reason: 'web scrap mold'
+    })
+    await loadWorkspace()
+  } catch (error) {
+    submitError.value = formatErrorMessage(error, '报废生产模具失败，请稍后重试。')
+  } finally {
+    submitting.value = false
+  }
 }
 
 /** openDailyUsageDialog builds checkbox rows from current line molds and their design output options. */
 function openDailyUsageDialog() {
   dailyRows.value = installedMolds.value
-    .map((row) => row.productionMoldInstance)
+    .map((row) => row.productionMold)
     .map((mold) => {
-      const selection = findDefaultOutputSelection(mold.moldDesignSummary.moldDesignId)
+      const selection = findDefaultOutputSelection(mold.moldDesignSummary?.moldDesignId ?? mold.moldDesignId ?? '')
       return {
         checked: true,
         moldDesignOutputId: selection.moldDesignOutputId,
         moldDesignOutputOptionId: selection.moldDesignOutputOptionId,
-        moldInstallationId: mold.currentInstallationSummary?.moldInstallationId ?? '',
-        moldInstanceCode: mold.moldInstanceCode,
-        productionMoldInstanceId: mold.productionMoldInstanceId,
-        resourcePositionId: mold.currentInstallationSummary?.resourcePositionId,
-        workCenterId: mold.currentInstallationSummary?.workCenterId ?? selectedWorkCenterId.value
+        toolingInstallationId: mold.currentInstallationSummary?.toolingInstallationId ?? '',
+        moldCode: mold.moldCode,
+        productionMoldId: mold.productionMoldId,
+        moldPosition: mold.currentInstallationSummary?.moldDetail?.moldPosition,
+        workCenterRef: mold.currentInstallationSummary?.workCenterRef ?? buildSelectedWorkCenterRef()
       }
     })
-    .filter((row) => row.moldInstallationId)
+    .filter((row) => row.toolingInstallationId)
   activeDialog.value = 'dailyUsage'
 }
 
 /** submitDailyUsage records the selected web checklist rows as MES mold usage facts. */
 async function submitDailyUsage() {
   submitting.value = true
+  submitError.value = ''
   try {
     const today = new Date().toISOString().slice(0, 10)
     await recordDailyMoldUsageBatchApi(activeTenantId.value, today, {
@@ -389,17 +530,19 @@ async function submitDailyUsage() {
         lifeUnit: 'USE',
         moldDesignOutputId: row.moldDesignOutputId,
         moldDesignOutputOptionId: row.moldDesignOutputOptionId,
-        moldInstallationId: row.moldInstallationId,
-        productionMoldInstanceId: row.productionMoldInstanceId,
-        resourcePositionId: row.resourcePositionId,
+        toolingInstallationId: row.toolingInstallationId,
+        productionMoldId: row.productionMoldId,
+        moldPosition: row.moldPosition,
         usageQuantity: '1',
-        workCenterId: row.workCenterId
+        workCenterRef: row.workCenterRef
       })),
       reason: 'web daily mold usage checklist',
-      workCenterId: selectedWorkCenterId.value
+      workCenterRef: buildSelectedWorkCenterRef()
     })
     activeDialog.value = ''
     await loadWorkspace()
+  } catch (error) {
+    submitError.value = formatErrorMessage(error, '录入今日注浆失败，请稍后重试。')
   } finally {
     submitting.value = false
   }
@@ -417,49 +560,83 @@ function findDefaultOutputSelection(moldDesignId: string) {
 }
 
 /** normalizeStatus converts generated numeric enum values and strings into displayable mold statuses. */
-function normalizeStatus(status: MesApi.ProductionMoldInstance['currentStatus']) {
+function normalizeStatus(status: MesApi.ProductionMold['currentStatus']) {
   const generatedStatusMap: Record<number, string> = {
     1: 'RECEIVED',
-    2: 'PENDING_DRYING',
-    3: 'PENDING_INSTALLATION',
+    2: 'PREPARING',
+    3: 'AVAILABLE',
     4: 'INSTALLED',
-    5: 'PENDING_REPAIR',
-    6: 'UNDER_REPAIR',
+    5: 'MAINTENANCE',
+    6: 'DISABLED',
     7: 'DISABLED',
     8: 'SCRAPPED'
   }
   return typeof status === 'number' ? generatedStatusMap[status] ?? 'UNKNOWN' : status
 }
 
-/** calculateWarningThreshold derives the default warning threshold displayed in the create-mold panel. */
-function calculateWarningThreshold(lifeLimit: string) {
-  const parsed = Number(lifeLimit)
-  return Number.isFinite(parsed) && parsed > 0 ? String(Math.floor(parsed * 0.8)) : '0'
-}
-
-/** buildProductFamilyRef keeps phase 1 product-family display anchored to the chosen spec or item snapshot. */
-function buildProductFamilyRef(
-  item: ItemManagementApi.ItemSummary,
-  spec: MesApi.ManufacturingSpecSummary
-): MesApi.ManufacturingMasterDataRef {
-  return (
-    spec.productFamilyRef ?? {
-      displayNameSnapshot: item.itemName,
-      refCodeSnapshot: item.itemCode,
-      refId: item.itemId,
-      refType: 'PRODUCT_FAMILY'
+/** resolveStatusTagColor maps mold lifecycle states to compact Ant Design tag colors. */
+function resolveStatusTagColor(status: MesApi.ProductionMold['currentStatus']) {
+  switch (normalizeStatus(status)) {
+    case 'INSTALLED': {
+      return 'green'
     }
-  )
+    case 'MAINTENANCE': {
+      return 'gold'
+    }
+    case 'DISABLED':
+    case 'SCRAPPED': {
+      return 'default'
+    }
+    default: {
+      return 'blue'
+    }
+  }
 }
 
-/** buildManufacturingSpecRef creates the opaque MES ManufacturingSpec ref required by MoldDesign outputs. */
-function buildManufacturingSpecRef(spec: MesApi.ManufacturingSpecSummary): MesApi.ManufacturingMasterDataRef {
+/** formatProductionMoldLife renders backend life snapshots without inventing missing counters. */
+function formatProductionMoldLife(mold: MesApi.ProductionMold) {
+  const used = mold.lifeCounterSummary?.usedValue ?? '未记录'
+  const limit = mold.lifeCounterSummary?.limitValue ?? '-'
+  const unit = mold.lifeCounterSummary?.lifeUnit ?? ''
+  return `${used}/${limit} ${unit}`.trim()
+}
+
+/** formatProductionMoldWorkCenter presents the installation line snapshot or keeps the unknown state explicit. */
+function formatProductionMoldWorkCenter(mold: MesApi.ProductionMold) {
+  const ref = mold.currentInstallationSummary?.workCenterRef ?? mold.currentPlacementSummary?.workCenterRef
+  return ref?.displayNameSnapshot || ref?.workCenterCodeSnapshot || ref?.workCenterId || '-'
+}
+
+/** readProductionMold restores Ant Table slot records to the page's production mold type. */
+function readProductionMold(record: Record<string, any>) {
+  return record as MesApi.ProductionMold
+}
+
+/** buildSelectedWorkCenterRef maps the manually selected production unit into the MES WorkCenterRef contract. */
+function buildSelectedWorkCenterRef(): MesApi.WorkCenterRef {
+  return {
+    displayNameSnapshot: selectedWorkCenterName.value.trim() || selectedWorkCenterId.value,
+    workCenterCodeSnapshot: selectedWorkCenterCode.value.trim() || undefined,
+    workCenterId: selectedWorkCenterId.value
+  }
+}
+
+/** buildProductionSpecRef creates the opaque MES ProductionSpec ref required by MoldDesign outputs. */
+function buildProductionSpecRef(spec: MesApi.ProductionSpecSummary): MesApi.ProductionSpecRef {
   return {
     displayNameSnapshot: spec.name,
-    refCodeSnapshot: spec.specCode,
-    refId: spec.manufacturingSpecId,
-    refType: 'MANUFACTURING_SPEC'
+    productionSpecId: spec.productionSpecId,
+    specCodeSnapshot: spec.specCode
   }
+}
+
+/** formatErrorMessage normalizes unknown API failures for compact Ant Design alerts. */
+function formatErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.message) {
+    return error.message
+  }
+
+  return fallback
 }
 
 onMounted(() => {
@@ -469,383 +646,409 @@ onMounted(() => {
 
 <template>
   <Page>
-    <section class="mes-mold-page">
-      <header class="mes-mold-page__header">
-        <div>
-          <p class="mes-mold-page__eyebrow">{{ activeTenantName }}</p>
-          <h1>模具管理</h1>
-        </div>
-        <div class="mes-mold-page__actions">
-          <button type="button" @click="loadWorkspace">
-            {{ loading ? '刷新中' : '刷新' }}
-          </button>
-          <button
-            v-if="canManageMold"
-            data-testid="mes-open-create-work-center"
-            type="button"
-            @click="openDialog('createWorkCenter')"
-          >
-            新建产线
-          </button>
-          <button
-            v-if="canManageMold"
-            data-testid="mes-open-create-mold"
-            type="button"
-            @click="openDialog('createMold')"
-          >
-            新建生产模具
-          </button>
-        </div>
-      </header>
-
-      <section class="mes-mold-metrics">
-        <article>
-          <span>产线</span>
-          <strong>{{ workCenters.length }}</strong>
-        </article>
-        <article>
-          <span>生产模具</span>
-          <strong>{{ productionMolds.length }}</strong>
-        </article>
-        <article>
-          <span>已安装</span>
-          <strong>{{ installedCount }}</strong>
-        </article>
-        <article>
-          <span>提醒</span>
-          <strong>{{ warningCount }}</strong>
-        </article>
-      </section>
-
-      <main class="mes-mold-layout">
-        <section class="mes-mold-card mes-mold-card--lines">
-          <div class="mes-mold-card__title">
-            <h2>产线</h2>
-            <button
-              v-if="canRecordUsage && selectedWorkCenterId"
-              data-testid="mes-open-daily-usage"
-              type="button"
-              @click="openDailyUsageDialog"
-            >
-              录入今日注浆
-            </button>
+    <a-spin :spinning="loading">
+      <section class="mes-mold-page">
+        <header class="mes-mold-header">
+          <div>
+            <p class="mes-mold-header__eyebrow">{{ activeTenantName }} / MES</p>
+            <h1>模具管理</h1>
           </div>
-          <div class="mes-line-list">
-            <button
-              v-for="workCenter in workCenters"
-              :key="workCenter.workCenterId"
-              :class="{ 'is-active': workCenter.workCenterId === selectedWorkCenterId }"
-              type="button"
-              @click="loadCurrentMolds(workCenter.workCenterId)"
+          <a-space wrap>
+            <a-button type="default" @click="loadWorkspace">
+              {{ loading ? '刷新中' : '刷新' }}
+            </a-button>
+            <a-button
+              v-if="canManageMold"
+              data-testid="mes-open-create-mold"
+              type="primary"
+              @click="openDialog('createMold')"
             >
-              <strong>{{ workCenter.workCenterCode }}</strong>
-              <span>{{ workCenter.name }}</span>
-              <small>{{ workCenter.workCenterType }}</small>
-            </button>
-            <p v-if="!workCenters.length" class="mes-empty">暂无产线</p>
-          </div>
+              新建生产模具
+            </a-button>
+          </a-space>
+        </header>
+
+        <a-alert
+          v-if="!canReadWorkCenter || !canReadDesign || !canReadMold"
+          message="当前账号权限会限制部分目录读取。"
+          show-icon
+          type="warning"
+        />
+        <a-alert v-if="loadError" :message="loadError" show-icon type="error" />
+        <a-alert v-if="submitError" :message="submitError" show-icon type="error" />
+
+        <section class="mes-mold-metrics">
+          <a-card size="small">
+            <a-statistic title="当前产线" :value="selectedWorkCenterId ? 1 : 0" />
+          </a-card>
+          <a-card size="small">
+            <a-statistic title="生产模具" :value="productionMolds.length" />
+          </a-card>
+          <a-card size="small">
+            <a-statistic title="已安装" :value="installedCount" />
+          </a-card>
+          <a-card size="small">
+            <a-statistic title="提醒" :value="warningCount" />
+          </a-card>
         </section>
 
-        <section class="mes-mold-card">
-          <div class="mes-mold-card__title">
-            <h2>{{ selectedWorkCenter?.name || '产线详情' }}</h2>
-            <span>{{ installedMolds.length }} 套模具</span>
-          </div>
-          <div class="mes-installed-grid">
-            <article v-for="row in installedMolds" :key="row.productionMoldInstance.productionMoldInstanceId">
-              <strong>{{ row.productionMoldInstance.moldInstanceCode }}</strong>
-              <span>{{ row.productionMoldInstance.moldDesignSummary.name }}</span>
-            </article>
-            <p v-if="!installedMolds.length" class="mes-empty">暂无已安装模具</p>
-          </div>
-        </section>
-      </main>
-
-      <section class="mes-mold-card">
-        <div class="mes-mold-card__title">
-          <h2>模具方案</h2>
-          <div class="mes-mold-card__actions">
-            <span>{{ moldDesigns.length }} 个方案</span>
-            <button
-              v-if="canManageDesign"
-              data-testid="mes-open-create-mold-design"
-              type="button"
-              @click="openCreateMoldDesignDialog"
-            >
-              创建模具方案
-            </button>
-          </div>
-        </div>
-        <table class="mes-table">
-          <thead>
-            <tr>
-              <th>方案编码</th>
-              <th>名称</th>
-              <th>默认寿命</th>
-              <th>一次注浆产出</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="design in moldDesigns" :key="design.moldDesignId">
-              <td>{{ design.designCode }}</td>
-              <td>{{ design.name }}</td>
-              <td>{{ design.defaultLifeLimit || '-' }} {{ design.defaultLifeUnit || '' }}</td>
-              <td>
-                <span v-for="output in design.outputs" :key="output.moldDesignOutputId" class="mes-tag">
-                  {{ output.componentRole || output.outputCode }} x {{ output.quantityPerUse }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      <section class="mes-mold-card">
-        <div class="mes-mold-card__title">
-          <h2>生产模具</h2>
-          <span>{{ productionMolds.length }} 套</span>
-        </div>
-        <table class="mes-table">
-          <thead>
-            <tr>
-              <th>模具编码</th>
-              <th>模具方案</th>
-              <th>状态</th>
-              <th>寿命</th>
-              <th>产线</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="mold in productionMolds" :key="mold.productionMoldInstanceId">
-              <td>{{ mold.moldInstanceCode }}</td>
-              <td>{{ mold.moldDesignSummary.designCode }}</td>
-              <td>
-                <span class="mes-status">{{ normalizeStatus(mold.currentStatus) }}</span>
-              </td>
-              <td>
-                {{ mold.lifeSummary?.usedValue || '0' }}/{{ mold.lifeSummary?.limitValue || '-' }}
-                {{ mold.lifeSummary?.lifeUnit || '' }}
-              </td>
-              <td>{{ mold.currentInstallationSummary?.workCenterCode || mold.currentInstallationSummary?.workCenterId || '-' }}</td>
-              <td>
-                <button
-                  v-if="canManageMold && normalizeStatus(mold.currentStatus) !== 'INSTALLED'"
-                  :data-testid="`mes-open-install-mold-${mold.productionMoldInstanceId}`"
-                  type="button"
-                  @click="openInstallDialog(mold)"
-                >
-                  安装
-                </button>
-                <button
-                  v-if="canManageMold && normalizeStatus(mold.currentStatus) === 'INSTALLED'"
-                  type="button"
-                  @click="submitUnmountMold(mold)"
-                >
-                  卸下
-                </button>
-                <button v-if="canManageMold" type="button" @click="submitScrapMold(mold)">
-                  报废
-                </button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      <div v-if="activeDialog" class="mes-dialog">
-        <div class="mes-dialog__panel">
-          <header>
-            <h2>
-              {{
-                activeDialog === 'createWorkCenter'
-                  ? '新建产线'
-                  : activeDialog === 'createMoldDesign'
-                    ? '创建模具方案'
-                  : activeDialog === 'createMold'
-                    ? '新建生产模具'
-                    : activeDialog === 'installMold'
-                      ? '安装模具'
-                      : '录入今日注浆'
-              }}
-            </h2>
-            <button type="button" @click="openDialog('')">关闭</button>
-          </header>
-
-          <div v-if="activeDialog === 'createMoldDesign'" class="mes-form mes-form--mold-design">
-            <div class="mes-form__summary">
-              <strong>Item → ManufacturingSpec → MoldDesign</strong>
-              <span>侧滑面板只登记模具方案和一次注浆产出，不创建生产模具实例。</span>
-            </div>
-            <label>
-              关联 Item
-              <select
-                data-testid="mes-mold-design-item"
-                v-model="moldDesignForm.itemId"
-                @change="loadManufacturingSpecsForItem"
+        <main class="mes-mold-layout">
+          <a-card size="small">
+            <template #title>产线查询</template>
+            <template #extra>
+              <a-button
+                v-if="canReadWorkCenter && selectedWorkCenterId"
+                data-testid="mes-load-current-molds"
+                size="small"
+                type="default"
+                @click="loadCurrentMolds(selectedWorkCenterId)"
               >
-                <option v-for="itemChoice in manufacturableItems" :key="itemChoice.itemId" :value="itemChoice.itemId">
-                  {{ itemChoice.itemCode }} - {{ itemChoice.itemName }}
-                </option>
-              </select>
-            </label>
-            <label>
-              ManufacturingSpec
-              <select data-testid="mes-mold-design-spec" v-model="moldDesignForm.manufacturingSpecId">
-                <option
-                  v-for="spec in manufacturingSpecs"
-                  :key="spec.manufacturingSpecId"
-                  :value="spec.manufacturingSpecId"
-                >
-                  {{ spec.specCode }} - {{ spec.name }}
-                </option>
-              </select>
-            </label>
-            <div class="mes-form__grid">
-              <label>
-                方案编码
-                <input data-testid="mes-mold-design-code" v-model="moldDesignForm.designCode" />
-              </label>
-              <label>
-                方案名称
-                <input data-testid="mes-mold-design-name" v-model="moldDesignForm.name" />
-              </label>
-              <label>
-                版本
-                <input v-model="moldDesignForm.revisionCode" />
-              </label>
-              <label>
-                模具材料
-                <select data-testid="mes-mold-design-material" v-model="moldDesignForm.materialType">
-                  <option value="GYPSUM">石膏模</option>
-                  <option value="RESIN">树脂 / 高压模</option>
-                </select>
-              </label>
-              <label>
-                使用产线类型
-                <select data-testid="mes-mold-design-method" v-model="moldDesignForm.productionMethodTag">
-                  <option value="CASTING_LINE">上线注浆</option>
-                  <option value="FLOOR_CASTING">地摊注浆</option>
-                  <option value="HIGH_PRESSURE">高压机</option>
-                </select>
-              </label>
-              <label>
-                默认寿命
-                <input v-model="moldDesignForm.defaultLifeLimit" />
-              </label>
-            </div>
-            <div class="mes-form__subsection">
-              <strong>一次注浆产出</strong>
-              <div class="mes-form__grid">
-                <label>
-                  产出编码
-                  <input data-testid="mes-mold-design-output-code" v-model="moldDesignForm.outputCode" />
-                </label>
-                <label>
-                  组件角色
-                  <input data-testid="mes-mold-design-component-role" v-model="moldDesignForm.componentRole" />
-                </label>
-                <label>
-                  数量
-                  <input v-model="moldDesignForm.quantityPerUse" />
-                </label>
-              </div>
-              <label class="mes-check-row mes-check-row--option">
-                <input v-model="moldDesignForm.hasOutputOption" type="checkbox" />
-                <span>该产出有注浆前选项</span>
-                <small>例如 300 / 400 坑距</small>
-              </label>
-              <div v-if="moldDesignForm.hasOutputOption" class="mes-form__grid">
-                <label>
-                  选项编码
-                  <input data-testid="mes-mold-design-option-code" v-model="moldDesignForm.optionCode" />
-                </label>
-                <label>
-                  选项名称
-                  <input data-testid="mes-mold-design-option-label" v-model="moldDesignForm.optionLabel" />
-                </label>
-              </div>
-            </div>
-            <p v-if="!manufacturingSpecs.length" class="mes-empty">当前 Item 尚无 ACTIVE ManufacturingSpec，不能创建模具方案。</p>
-            <button
-              data-testid="mes-submit-create-mold-design"
-              type="button"
-              :disabled="!manufacturingSpecs.length"
-              @click="submitCreateMoldDesign"
+                查看
+              </a-button>
+              <a-button
+                v-if="canRecordUsage && selectedWorkCenterId"
+                data-testid="mes-open-daily-usage"
+                size="small"
+                type="primary"
+                @click="openDailyUsageDialog"
+              >
+                录入今日注浆
+              </a-button>
+            </template>
+            <a-form layout="vertical">
+              <a-form-item label="WorkCenter ID">
+                <a-input
+                  data-testid="mes-current-work-center-id"
+                  placeholder="输入 workCenterId 后查看当前安装模具"
+                  v-model:value="selectedWorkCenterId"
+                />
+              </a-form-item>
+              <a-form-item label="产线编码快照">
+                <a-input data-testid="mes-current-work-center-code" v-model:value="selectedWorkCenterCode" />
+              </a-form-item>
+              <a-form-item label="产线名称快照">
+                <a-input data-testid="mes-current-work-center-name" v-model:value="selectedWorkCenterName" />
+              </a-form-item>
+            </a-form>
+          </a-card>
+
+          <a-card size="small">
+            <template #title>{{ selectedWorkCenterName || selectedWorkCenterId || '产线详情' }}</template>
+            <template #extra>
+              <a-tag>{{ installedMolds.length }} 套模具</a-tag>
+            </template>
+            <a-table
+              v-if="installedMolds.length"
+              :columns="installedMoldColumns"
+              :data-source="installedMolds"
+              :pagination="false"
+              :row-key="(row) => row.productionMold.productionMoldId"
+              size="small"
             >
-              {{ submitting ? '提交中' : '提交模具方案' }}
-            </button>
-          </div>
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.key === 'moldCode'">
+                  {{ record.productionMold.moldCode }}
+                </template>
+                <template v-if="column.key === 'moldDesign'">
+                  {{ record.productionMold.moldDesignSummary?.name || record.productionMold.moldDesignId }}
+                </template>
+              </template>
+            </a-table>
+            <a-empty v-else description="暂无已安装模具" />
+          </a-card>
+        </main>
 
-          <div v-if="activeDialog === 'createWorkCenter'" class="mes-form">
-            <label>
-              产线编码
-              <input v-model="workCenterForm.workCenterCode" />
-            </label>
-            <label>
-              产线名称
-              <input v-model="workCenterForm.name" />
-            </label>
-            <label>
-              类型
-              <select v-model="workCenterForm.workCenterType">
-                <option value="CASTING_LINE">普通上线产线</option>
-                <option value="FLOOR_CASTING_AREA">地摊生产区域</option>
-                <option value="VERTICAL_HIGH_PRESSURE_MACHINE">立式高压机</option>
-                <option value="HORIZONTAL_HIGH_PRESSURE_MACHINE">卧式高压机</option>
-              </select>
-            </label>
-            <button data-testid="mes-submit-create-work-center" type="button" @click="submitCreateWorkCenter">
-              {{ submitting ? '提交中' : '提交' }}
-            </button>
-          </div>
+        <a-card size="small">
+          <template #title>模具方案</template>
+          <template #extra>
+            <a-space>
+              <a-tag>{{ moldDesigns.length }} 个方案</a-tag>
+              <a-button
+                v-if="canManageDesign"
+                data-testid="mes-open-create-mold-design"
+                size="small"
+                type="primary"
+                @click="openCreateMoldDesignDialog"
+              >
+                创建模具方案
+              </a-button>
+            </a-space>
+          </template>
+          <a-table
+            v-if="moldDesigns.length"
+            :columns="moldDesignColumns"
+            :data-source="moldDesigns"
+            :pagination="false"
+            :row-key="(row) => row.moldDesignId"
+            size="small"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'defaultLife'">
+                {{ record.defaultLifeLimit || '-' }} {{ record.defaultLifeUnit || '' }}
+              </template>
+              <template v-if="column.key === 'outputs'">
+                <a-space wrap>
+                  <a-tag v-for="output in record.outputs" :key="output.moldDesignOutputId">
+                    {{ output.componentRole || output.outputCode }} x {{ output.quantityPerUse }}
+                  </a-tag>
+                </a-space>
+              </template>
+              <template v-if="column.key === 'action'">
+                <a-button
+                  v-if="canReadDesign"
+                  :data-testid="`mes-mold-design-detail-${record.moldDesignId}`"
+                  size="small"
+                  type="link"
+                  @click="openMoldDesignDetail(record.moldDesignId)"
+                >
+                  详情
+                </a-button>
+              </template>
+            </template>
+          </a-table>
+          <a-empty v-else description="暂无模具方案" />
+        </a-card>
 
-          <div v-if="activeDialog === 'createMold'" class="mes-form">
-            <label>
-              模具方案
-              <select v-model="productionMoldForm.moldDesignId">
-                <option v-for="design in moldDesigns" :key="design.moldDesignId" :value="design.moldDesignId">
-                  {{ design.designCode }} - {{ design.name }}
-                </option>
-              </select>
-            </label>
-            <label>
-              生产模具编码
-              <input v-model="productionMoldForm.moldInstanceCode" />
-            </label>
-            <button data-testid="mes-submit-create-mold" type="button" @click="submitCreateProductionMold">
-              {{ submitting ? '提交中' : '提交' }}
-            </button>
-          </div>
+        <a-card size="small">
+          <template #title>生产模具</template>
+          <template #extra>
+            <a-space>
+              <a-tag>{{ productionMolds.length }} 套</a-tag>
+              <a-button
+                v-if="canReadMold"
+                data-testid="mes-open-production-mold-management"
+                size="small"
+                type="link"
+                @click="openProductionMoldManagement"
+              >
+                查看全部
+              </a-button>
+            </a-space>
+          </template>
+          <a-table
+            v-if="productionMolds.length"
+            :columns="productionMoldColumns"
+            :data-source="productionMolds"
+            :pagination="false"
+            :row-key="(row) => row.productionMoldId"
+            size="small"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'moldDesign'">
+                {{ record.moldDesignSummary?.designCode || record.moldDesignId }}
+              </template>
+              <template v-if="column.key === 'status'">
+                <a-tag :color="resolveStatusTagColor(record.currentStatus)">
+                  {{ normalizeStatus(record.currentStatus) }}
+                </a-tag>
+              </template>
+              <template v-if="column.key === 'life'">
+                {{ formatProductionMoldLife(readProductionMold(record)) }}
+              </template>
+              <template v-if="column.key === 'workCenter'">
+                {{ formatProductionMoldWorkCenter(readProductionMold(record)) }}
+              </template>
+              <template v-if="column.key === 'action'">
+                <a-space size="small">
+                  <a-button
+                    v-if="canManageMold && normalizeStatus(record.currentStatus) !== 'INSTALLED'"
+                    :data-testid="`mes-open-install-mold-${record.productionMoldId}`"
+                    size="small"
+                    type="link"
+                    @click="openInstallDialog(readProductionMold(record))"
+                  >
+                    安装
+                  </a-button>
+                  <a-popconfirm
+                    v-if="canManageMold && normalizeStatus(record.currentStatus) === 'INSTALLED'"
+                    title="确认卸下该生产模具？"
+                    @confirm="submitUnmountMold(readProductionMold(record))"
+                  >
+                    <a-button size="small" type="link">卸下</a-button>
+                  </a-popconfirm>
+                  <a-popconfirm
+                    v-if="canManageMold"
+                    title="确认报废该生产模具？"
+                    @confirm="submitScrapMold(readProductionMold(record))"
+                  >
+                    <a-button danger size="small" type="link">报废</a-button>
+                  </a-popconfirm>
+                </a-space>
+              </template>
+            </template>
+          </a-table>
+          <a-empty v-else description="暂无生产模具" />
+        </a-card>
+      </section>
+    </a-spin>
 
-          <div v-if="activeDialog === 'installMold'" class="mes-form">
-            <p>{{ selectedMold?.moldInstanceCode }}</p>
-            <label>
-              安装产线
-              <select v-model="selectedWorkCenterId">
-                <option v-for="workCenter in workCenters" :key="workCenter.workCenterId" :value="workCenter.workCenterId">
-                  {{ workCenter.workCenterCode }} - {{ workCenter.name }}
-                </option>
-              </select>
-            </label>
-            <button data-testid="mes-submit-install-mold" type="button" @click="submitInstallMold">
-              {{ submitting ? '提交中' : '提交' }}
-            </button>
-          </div>
-
-          <div v-if="activeDialog === 'dailyUsage'" class="mes-form">
-            <label v-for="row in dailyRows" :key="row.productionMoldInstanceId" class="mes-check-row">
-              <input v-model="row.checked" type="checkbox" />
-              <span>{{ row.moldInstanceCode }}</span>
-              <small>{{ row.moldDesignOutputOptionId || '默认产出' }}</small>
-            </label>
-            <button data-testid="mes-submit-daily-usage" type="button" @click="submitDailyUsage">
-              {{ submitting ? '提交中' : '提交今日注浆' }}
-            </button>
-          </div>
+    <a-drawer
+      :get-container="false"
+      :open="Boolean(activeDialog)"
+      :title="dialogTitle"
+      :width="activeDialog === 'createMoldDesign' ? 760 : 520"
+      destroy-on-close
+      placement="right"
+      @close="openDialog('')"
+    >
+      <a-form v-if="activeDialog === 'createMoldDesign'" layout="vertical">
+        <a-alert
+          message="Item -> ProductionSpec -> MoldDesign。这里只登记模具方案和一次注浆产出。"
+          show-icon
+          type="info"
+        />
+        <div class="mes-form-grid mes-form-grid--full">
+          <a-form-item label="关联 Item">
+            <a-select
+              data-testid="mes-mold-design-item"
+              v-model:value="moldDesignForm.itemId"
+              @change="loadProductionSpecsForItem"
+            >
+              <a-select-option v-for="itemChoice in manufacturableItems" :key="itemChoice.itemId" :value="itemChoice.itemId">
+                {{ itemChoice.itemCode }} - {{ itemChoice.itemName }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="ProductionSpec">
+            <a-select data-testid="mes-mold-design-spec" v-model:value="moldDesignForm.productionSpecId">
+              <a-select-option
+                v-for="spec in productionSpecs"
+                :key="spec.productionSpecId"
+                :value="spec.productionSpecId"
+              >
+                {{ spec.specCode }} - {{ spec.name }}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
         </div>
-      </div>
-    </section>
+        <div class="mes-form-grid">
+          <a-form-item label="方案编码">
+            <a-input data-testid="mes-mold-design-code" v-model:value="moldDesignForm.designCode" />
+          </a-form-item>
+          <a-form-item label="方案名称">
+            <a-input data-testid="mes-mold-design-name" v-model:value="moldDesignForm.name" />
+          </a-form-item>
+          <a-form-item label="版本">
+            <a-input v-model:value="moldDesignForm.revisionCode" />
+          </a-form-item>
+          <a-form-item label="模具材料">
+            <a-select data-testid="mes-mold-design-material" v-model:value="moldDesignForm.materialType">
+              <a-select-option value="GYPSUM">石膏模</a-select-option>
+              <a-select-option value="RESIN">树脂 / 高压模</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="使用产线类型">
+            <a-select data-testid="mes-mold-design-method" v-model:value="moldDesignForm.productionMethodTag">
+              <a-select-option value="CASTING_LINE">上线注浆</a-select-option>
+              <a-select-option value="FLOOR_CASTING">地摊注浆</a-select-option>
+              <a-select-option value="HIGH_PRESSURE">高压机</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="默认寿命">
+            <a-input v-model:value="moldDesignForm.defaultLifeLimit" />
+          </a-form-item>
+        </div>
+        <a-card class="mes-drawer-section" size="small" title="一次注浆产出">
+          <div class="mes-form-grid">
+            <a-form-item label="产出编码">
+              <a-input data-testid="mes-mold-design-output-code" v-model:value="moldDesignForm.outputCode" />
+            </a-form-item>
+            <a-form-item label="组件角色">
+              <a-input data-testid="mes-mold-design-component-role" v-model:value="moldDesignForm.componentRole" />
+            </a-form-item>
+            <a-form-item label="数量">
+              <a-input v-model:value="moldDesignForm.quantityPerUse" />
+            </a-form-item>
+          </div>
+          <a-form-item class="mes-checkbox-item">
+            <a-checkbox v-model:checked="moldDesignForm.hasOutputOption">该产出有注浆前选项</a-checkbox>
+          </a-form-item>
+          <div v-if="moldDesignForm.hasOutputOption" class="mes-form-grid">
+            <a-form-item label="选项编码">
+              <a-input data-testid="mes-mold-design-option-code" v-model:value="moldDesignForm.optionCode" />
+            </a-form-item>
+            <a-form-item label="选项名称">
+              <a-input data-testid="mes-mold-design-option-label" v-model:value="moldDesignForm.optionLabel" />
+            </a-form-item>
+          </div>
+        </a-card>
+        <a-alert
+          v-if="!productionSpecs.length"
+          message="当前 Item 尚无 ACTIVE ProductionSpec，不能创建模具方案。"
+          show-icon
+          type="warning"
+        />
+        <a-button
+          block
+          data-testid="mes-submit-create-mold-design"
+          :disabled="!productionSpecs.length"
+          :loading="submitting"
+          type="primary"
+          @click="submitCreateMoldDesign"
+        >
+          提交模具方案
+        </a-button>
+      </a-form>
+
+      <a-form v-if="activeDialog === 'createMold'" layout="vertical">
+        <a-form-item label="模具方案">
+          <a-select v-model:value="productionMoldForm.moldDesignId">
+            <a-select-option v-for="design in moldDesigns" :key="design.moldDesignId" :value="design.moldDesignId">
+              {{ design.designCode }} - {{ design.name }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="生产模具编码">
+          <a-input v-model:value="productionMoldForm.moldCode" />
+        </a-form-item>
+        <a-button
+          block
+          data-testid="mes-submit-create-mold"
+          :loading="submitting"
+          type="primary"
+          @click="submitCreateProductionMold"
+        >
+          提交
+        </a-button>
+      </a-form>
+
+      <a-form v-if="activeDialog === 'installMold'" layout="vertical">
+        <a-alert :message="selectedMold?.moldCode || '未选择生产模具'" show-icon type="info" />
+        <a-form-item label="WorkCenter ID">
+          <a-input data-testid="mes-install-work-center-id" v-model:value="selectedWorkCenterId" />
+        </a-form-item>
+        <a-form-item label="安装位置">
+          <a-input data-testid="mes-install-mold-position" v-model:value="installMoldPosition" />
+        </a-form-item>
+        <a-button
+          block
+          data-testid="mes-submit-install-mold"
+          :loading="submitting"
+          type="primary"
+          @click="submitInstallMold"
+        >
+          提交
+        </a-button>
+      </a-form>
+
+      <a-form v-if="activeDialog === 'dailyUsage'" layout="vertical">
+        <a-space class="mes-daily-list" direction="vertical" size="small">
+          <a-checkbox v-for="row in dailyRows" :key="row.productionMoldId" v-model:checked="row.checked">
+            {{ row.moldCode }} / {{ row.moldDesignOutputOptionId || '默认产出' }}
+          </a-checkbox>
+        </a-space>
+        <a-empty v-if="!dailyRows.length" description="暂无可录入的已安装模具" />
+        <a-button
+          block
+          data-testid="mes-submit-daily-usage"
+          :loading="submitting"
+          type="primary"
+          @click="submitDailyUsage"
+        >
+          提交今日注浆
+        </a-button>
+      </a-form>
+    </a-drawer>
   </Page>
 </template>
 
@@ -858,67 +1061,24 @@ onMounted(() => {
   color: #1f2937;
 }
 
-.mes-mold-page__header,
-.mes-mold-card__title {
+.mes-mold-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
 }
 
-.mes-mold-page__header h1,
-.mes-mold-card__title h2 {
+.mes-mold-header h1 {
   margin: 0;
-  font-size: 20px;
-  line-height: 28px;
+  font-size: 22px;
+  line-height: 30px;
   font-weight: 600;
 }
 
-.mes-mold-page__eyebrow {
+.mes-mold-header__eyebrow {
   margin: 0 0 4px;
   color: #6b7280;
   font-size: 12px;
-}
-
-.mes-mold-page__actions,
-.mes-mold-card__title,
-.mes-mold-card__actions,
-.mes-line-list,
-.mes-form {
-  display: flex;
-  gap: 8px;
-}
-
-.mes-mold-page__actions button,
-.mes-mold-card__actions button,
-.mes-mold-card__title button,
-.mes-table button,
-.mes-form button,
-.mes-dialog header button {
-  border: 1px solid #d7dae3;
-  border-radius: 4px;
-  background: #fff;
-  padding: 6px 12px;
-  color: #1f2937;
-  cursor: pointer;
-}
-
-.mes-mold-page__actions button:last-child,
-.mes-form button {
-  border-color: #005daa;
-  background: #005daa;
-  color: #fff;
-}
-
-.mes-form button:disabled {
-  border-color: #d7dae3;
-  background: #eef0f4;
-  color: #8b95a5;
-  cursor: not-allowed;
-}
-
-.mes-mold-card__actions {
-  align-items: center;
 }
 
 .mes-mold-metrics {
@@ -927,191 +1087,37 @@ onMounted(() => {
   gap: 12px;
 }
 
-.mes-mold-metrics article,
-.mes-mold-card,
-.mes-dialog__panel {
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #fff;
-}
-
-.mes-mold-metrics article {
-  padding: 12px 14px;
-}
-
-.mes-mold-metrics span,
-.mes-mold-card__title span,
-.mes-line-list small,
-.mes-check-row small {
-  color: #6b7280;
-  font-size: 12px;
-}
-
-.mes-mold-metrics strong {
-  display: block;
-  margin-top: 6px;
-  font-size: 24px;
-  line-height: 32px;
-  font-weight: 600;
-}
-
 .mes-mold-layout {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
+  grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.1fr);
   gap: 16px;
 }
 
-.mes-mold-card {
-  padding: 14px;
-}
-
-.mes-line-list {
-  flex-direction: column;
-  margin-top: 12px;
-}
-
-.mes-line-list button {
-  display: grid;
-  gap: 2px;
-  width: 100%;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  background: #fff;
-  padding: 10px;
-  text-align: left;
-}
-
-.mes-line-list button.is-active {
-  border-color: #005daa;
-  background: #f1f7ff;
-}
-
-.mes-installed-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.mes-installed-grid article {
-  display: grid;
-  gap: 4px;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  padding: 10px;
-}
-
-.mes-table {
-  width: 100%;
-  margin-top: 12px;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.mes-table th,
-.mes-table td {
-  border-bottom: 1px solid #edf0f5;
-  padding: 9px 10px;
-  text-align: left;
-  vertical-align: middle;
-}
-
-.mes-table th {
-  background: #f8fafc;
-  color: #4b5563;
-  font-weight: 600;
-}
-
-.mes-tag,
-.mes-status {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid #c0c7d6;
-  border-radius: 4px;
-  padding: 2px 6px;
-  background: #f8fafc;
-  font-size: 12px;
-}
-
-.mes-empty {
-  margin: 12px 0 0;
-  color: #6b7280;
-}
-
-.mes-dialog {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-end;
-  background: rgb(15 23 42 / 18%);
-  padding: 64px 24px;
-}
-
-.mes-dialog__panel {
-  width: min(680px, 100%);
-  padding: 16px;
-  box-shadow: 0 8px 24px rgb(15 23 42 / 12%);
-}
-
-.mes-dialog header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-
-.mes-dialog header h2 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.mes-form {
-  flex-direction: column;
-}
-
-.mes-form__summary,
-.mes-form__subsection {
-  display: grid;
-  gap: 8px;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
-  background: #f8fafc;
-  padding: 10px;
-}
-
-.mes-form__summary span {
-  color: #6b7280;
-  font-size: 12px;
-}
-
-.mes-form__grid {
+.mes-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 0 12px;
 }
 
-.mes-form label {
-  display: grid;
-  gap: 6px;
-  font-size: 13px;
+.mes-form-grid__full {
+  grid-column: 1 / -1;
 }
 
-.mes-form input,
-.mes-form select {
-  border: 1px solid #d7dae3;
-  border-radius: 4px;
-  padding: 7px 8px;
+.mes-form-grid--full {
+  margin-top: 16px;
 }
 
-.mes-check-row {
-  grid-template-columns: 16px minmax(0, 1fr) auto;
-  align-items: center;
+.mes-drawer-section,
+.mes-daily-list {
+  margin-bottom: 16px;
 }
 
-.mes-check-row--option {
-  grid-template-columns: 16px minmax(0, 1fr) auto;
+.mes-checkbox-item {
+  margin-bottom: 8px;
+}
+
+:deep(.mes-row-selected td) {
+  background: #eef6ff;
 }
 
 @media (max-width: 900px) {
@@ -1120,12 +1126,12 @@ onMounted(() => {
     grid-template-columns: 1fr;
   }
 
-  .mes-mold-page__header {
+  .mes-mold-header {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .mes-form__grid {
+  .mes-form-grid {
     grid-template-columns: 1fr;
   }
 }

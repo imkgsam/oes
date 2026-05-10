@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 const get = vi.fn()
 const post = vi.fn()
@@ -14,220 +14,95 @@ vi.mock('#/api/request', () => ({
   }
 }))
 
-// Verifies the tenant-web item-management API client stays aligned with the gateway phase 1 BFF surface.
-describe('tenant-web item management api', () => {
-  beforeEach(() => {
-    get.mockReset()
-    post.mockReset()
-    put.mockReset()
-    request.mockReset()
-  })
+describe('item-management V2 BFF API client', async () => {
+  const {
+    createManagedBomApi,
+    createManagedItemApi,
+    createManagedItemModelApi,
+    getManagedBomByOutputItemApi,
+    listManagedItemModelsApi,
+    replaceManagedBomLinesApi
+  } = await import('./index')
 
-  it('lists items, loads detail, composition, and supplier mapping sections from the tenant-scoped item-management entry', async () => {
-    const {
-      getManagedItemByIdApi,
-      listManagedItemCategoriesApi,
-      getManagedItemCompositionApi,
-      listManagedItemsApi,
-      listManagedSupplierItemMappingsApi
-    } = await import('./index')
-
-    await listManagedItemsApi('tenant-1', {
-      capability: 'sellable',
-      categoryId: 'category-1',
-      includeDescendants: true,
-      keyword: 'starter',
-      natureType: 'VIRTUAL',
-      page: 2,
-      pageSize: 10,
-      status: 'ACTIVE',
-      structureType: 'BUNDLE'
+  it('uses ItemModel endpoints for model-level master data', async () => {
+    await listManagedItemModelsApi('tenant-1', {
+      modelKind: 'PHYSICAL',
+      modelType: 'FINISHED_PRODUCT'
     })
-    await getManagedItemByIdApi('tenant-1', 'item-1')
-    await listManagedItemCategoriesApi('tenant-1', {
-      parentCategoryId: 'category-root'
-    })
-    await getManagedItemCompositionApi('tenant-1', 'item-1')
-    await listManagedSupplierItemMappingsApi('tenant-1', 'item-1', {
-      page: 3,
-      pageSize: 25
+    await createManagedItemModelApi('tenant-1', {
+      modelCode: 'MODEL-1',
+      modelKind: 'PHYSICAL',
+      modelName: 'Model 1',
+      modelType: 'FINISHED_PRODUCT'
     })
 
-    expect(get).toHaveBeenCalledWith('/item-management/tenants/tenant-1/items', {
+    expect(get).toHaveBeenCalledWith('/item-management/tenants/tenant-1/item-models', {
       params: {
-        capability: 'sellable',
-        categoryId: 'category-1',
-        includeDescendants: true,
-        keyword: 'starter',
-        natureType: 'VIRTUAL',
-        page: 2,
-        pageSize: 10,
-        status: 'ACTIVE',
-        structureType: 'BUNDLE'
+        modelKind: 'PHYSICAL',
+        modelType: 'FINISHED_PRODUCT'
       }
     })
-    expect(get).toHaveBeenCalledWith('/item-management/tenants/tenant-1/items/item-1')
-    expect(get).toHaveBeenCalledWith('/item-management/tenants/tenant-1/categories', {
-      params: {
-        parentCategoryId: 'category-root'
-      }
-    })
-    expect(get).toHaveBeenCalledWith('/item-management/tenants/tenant-1/items/item-1/composition')
-    expect(get).toHaveBeenCalledWith(
-      '/item-management/tenants/tenant-1/items/item-1/supplier-mappings',
-      {
-        params: {
-          page: 3,
-          pageSize: 25
-        }
-      }
+    expect(post).toHaveBeenCalledWith(
+      '/item-management/tenants/tenant-1/item-models',
+      expect.objectContaining({
+        modelCode: 'MODEL-1',
+        modelKind: 'PHYSICAL'
+      })
     )
   })
 
-  it('creates and mutates phase 1 items without widening the contract surface', async () => {
-    const {
-      changeManagedItemStatusApi,
-      changeManagedItemCategoryStatusApi,
-      createManagedItemApi,
-      createManagedItemCategoryApi,
-      setManagedItemCapabilitiesApi,
-      setManagedItemPrimaryCategoryApi,
-      setManagedItemCompositionApi,
-      updateManagedItemCategoryBasicsApi,
-      updateManagedItemBasicsApi,
-      upsertManagedSupplierItemMappingApi
-    } = await import('./index')
-
+  it('creates executable Items from ItemModel ids', async () => {
     await createManagedItemApi('tenant-1', {
-      itemCode: 'ITEM-001',
-      itemName: 'Starter Item',
-      structureType: 'SINGLE',
-      natureType: 'PHYSICAL'
+      itemCode: 'SKU-1',
+      itemModelId: 'model-1',
+      itemName: 'SKU 1',
+      itemType: 'STANDARD'
     })
-    await updateManagedItemBasicsApi('tenant-1', 'item-1', {
-      itemCode: 'ITEM-001-REV',
-      itemName: 'Starter Item Rev'
+
+    expect(post).toHaveBeenCalledWith(
+      '/item-management/tenants/tenant-1/items',
+      expect.objectContaining({
+        itemModelId: 'model-1',
+        itemType: 'STANDARD'
+      })
+    )
+  })
+
+  it('uses BOM endpoints for composition and packaging structures', async () => {
+    await getManagedBomByOutputItemApi('tenant-1', 'item-out', {
+      bomType: 'COMPOSITION'
     })
-    await setManagedItemCapabilitiesApi('tenant-1', 'item-1', {
-      capabilities: {
-        sellable: true,
-        purchasable: true,
-        stockable: true,
-        manufacturable: false
-      }
-    })
-    await setManagedItemCompositionApi('tenant-1', 'item-1', {
-      components: [
-        { componentItemId: 'component-1' },
-        { componentItemId: 'component-2' }
+    await createManagedBomApi('tenant-1', {
+      bomCode: 'BOM-1',
+      bomName: 'BOM 1',
+      bomType: 'COMPOSITION',
+      outputItemId: 'item-out',
+      lines: [
+        {
+          componentItemId: 'item-in',
+          lineRole: 'COMPONENT',
+          quantity: '1',
+          uomCode: 'PCS'
+        }
       ]
     })
-    await upsertManagedSupplierItemMappingApi('tenant-1', 'item-1', {
-      supplierId: 'supplier-1',
-      supplierItemCode: 'SUP-001',
-      supplierItemName: 'Supplier Item 1'
-    })
-    await createManagedItemCategoryApi('tenant-1', {
-      categoryCode: 'FINISHED',
-      categoryName: 'Finished Goods',
-      parentCategoryId: 'category-root'
-    })
-    await updateManagedItemCategoryBasicsApi('tenant-1', 'category-1', {
-      categoryCode: 'FINISHED-REV',
-      categoryName: 'Finished Goods Rev'
-    })
-    await changeManagedItemCategoryStatusApi('tenant-1', 'category-1', {
-      status: 'INACTIVE'
-    })
-    await setManagedItemPrimaryCategoryApi('tenant-1', 'item-1', {
-      primaryCategoryId: 'category-1'
-    })
-    await changeManagedItemStatusApi('tenant-1', 'item-1', {
-      status: 'INACTIVE'
+    await replaceManagedBomLinesApi('tenant-1', 'bom-1', {
+      lines: [
+        {
+          componentItemId: 'item-in',
+          lineRole: 'COMPONENT',
+          quantity: '1',
+          uomCode: 'PCS'
+        }
+      ]
     })
 
-    expect(post).toHaveBeenCalledWith('/item-management/tenants/tenant-1/items', {
-      itemCode: 'ITEM-001',
-      itemName: 'Starter Item',
-      structureType: 'SINGLE',
-      natureType: 'PHYSICAL'
+    expect(get).toHaveBeenCalledWith('/item-management/tenants/tenant-1/items/item-out/bom', {
+      params: {
+        bomType: 'COMPOSITION'
+      }
     })
-    expect(request).toHaveBeenCalledWith(
-      '/item-management/tenants/tenant-1/items/item-1/basics',
-      {
-        data: {
-          itemCode: 'ITEM-001-REV',
-          itemName: 'Starter Item Rev'
-        },
-        method: 'PATCH'
-      }
-    )
-    expect(put).toHaveBeenCalledWith(
-      '/item-management/tenants/tenant-1/items/item-1/capabilities',
-      {
-        capabilities: {
-          sellable: true,
-          purchasable: true,
-          stockable: true,
-          manufacturable: false
-        }
-      }
-    )
-    expect(put).toHaveBeenCalledWith(
-      '/item-management/tenants/tenant-1/items/item-1/composition',
-      {
-        components: [
-          { componentItemId: 'component-1' },
-          { componentItemId: 'component-2' }
-        ]
-      }
-    )
-    expect(post).toHaveBeenCalledWith(
-      '/item-management/tenants/tenant-1/items/item-1/supplier-mappings',
-      {
-        supplierId: 'supplier-1',
-        supplierItemCode: 'SUP-001',
-        supplierItemName: 'Supplier Item 1'
-      }
-    )
-    expect(post).toHaveBeenCalledWith('/item-management/tenants/tenant-1/categories', {
-      categoryCode: 'FINISHED',
-      categoryName: 'Finished Goods',
-      parentCategoryId: 'category-root'
-    })
-    expect(request).toHaveBeenCalledWith(
-      '/item-management/tenants/tenant-1/categories/category-1/basics',
-      {
-        data: {
-          categoryCode: 'FINISHED-REV',
-          categoryName: 'Finished Goods Rev'
-        },
-        method: 'PATCH'
-      }
-    )
-    expect(request).toHaveBeenCalledWith(
-      '/item-management/tenants/tenant-1/categories/category-1/status',
-      {
-        data: {
-          status: 'INACTIVE'
-        },
-        method: 'PATCH'
-      }
-    )
-    expect(put).toHaveBeenCalledWith(
-      '/item-management/tenants/tenant-1/items/item-1/primary-category',
-      {
-        primaryCategoryId: 'category-1'
-      }
-    )
-    expect(request).toHaveBeenCalledWith(
-      '/item-management/tenants/tenant-1/items/item-1/status',
-      {
-        data: {
-          status: 'INACTIVE'
-        },
-        method: 'PATCH'
-      }
-    )
+    expect(post).toHaveBeenCalledWith('/item-management/tenants/tenant-1/boms', expect.any(Object))
+    expect(put).toHaveBeenCalledWith('/item-management/tenants/tenant-1/boms/bom-1/lines', expect.any(Object))
   })
 })

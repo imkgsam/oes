@@ -5,26 +5,26 @@ import { DownstreamSource } from '../../../../../common/decorators/downstream-so
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { MesService } from '../../../mes.service'
 import {
-  ActivateManufacturingSpecDto,
-  CreateManufacturingSpecDto,
-  CreateWorkCenterDto,
-  DeactivateWorkCenterDto,
-  InstallProductionMoldInstanceDto,
+  ActivateProductionSpecDto,
+  CreateProductionSpecDto,
+  GetMoldUsageHistoryDto,
+  InstallToolingDto,
   ListCurrentMoldsByWorkCenterDto,
-  ListManufacturingSpecsDto,
   ListMoldDesignsDto,
-  ListProductionMoldInstancesDto,
-  ListProductionMoldInstancesByDesignDto,
-  ListWorkCentersDto,
-  MoveProductionMoldInstanceDto,
+  ListMoldLifeCountersDto,
+  ListProductionMoldsByDesignDto,
+  ListProductionMoldsDto,
+  ListProductionSpecsDto,
+  MoveToolingDto,
   PrintDailyMoldChecklistDto,
   RecordDailyMoldUsageBatchDto,
-  RetireManufacturingSpecDto,
+  RegisterMasterMoldDto,
   RegisterMoldDesignDto,
-  RegisterProductionMoldInstanceDto,
-  ScrapProductionMoldInstanceDto,
-  UpdateManufacturingSpecDto,
-  UnmountProductionMoldInstanceDto
+  RegisterProductionMoldDto,
+  RetireProductionSpecDto,
+  ScrapProductionMoldDto,
+  UnmountToolingDto,
+  UpdateProductionSpecDto
 } from '../dtos/mes.dto'
 
 @ApiBearerAuth('JWT')
@@ -34,113 +34,77 @@ import {
 export class MesController {
   constructor(private readonly mesService: MesService) {}
 
-  @Get('manufacturing-specs')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_MANUFACTURING_SPEC])
-  @ApiOperation({ summary: 'List MES manufacturing specs for mold setup' })
-  async listManufacturingSpecs(
+  @Get('production-specs')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_SPEC])
+  @ApiOperation({ summary: 'List MES production specs for mold setup' })
+  async listProductionSpecs(
     @Param('tenantId') tenantId: string,
-    @Query() query: ListManufacturingSpecsDto,
+    @Query() query: ListProductionSpecsDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.listManufacturingSpecs(tenantId, query, source)
+    return this.mesService.listProductionSpecs(tenantId, query, source)
   }
 
-  @Get('manufacturing-specs/:manufacturingSpecId')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_MANUFACTURING_SPEC])
-  @ApiOperation({ summary: 'Get one MES manufacturing spec detail snapshot' })
-  async getManufacturingSpec(
+  @Get('production-specs/:productionSpecId')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_SPEC])
+  @ApiOperation({ summary: 'Get one MES production spec detail snapshot' })
+  async getProductionSpec(
     @Param('tenantId') tenantId: string,
-    @Param('manufacturingSpecId') manufacturingSpecId: string,
+    @Param('productionSpecId') productionSpecId: string,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.getManufacturingSpec(tenantId, manufacturingSpecId, source)
+    return this.mesService.getProductionSpec(tenantId, productionSpecId, source)
   }
 
-  @Post('manufacturing-specs')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MANUFACTURING_SPEC])
-  @ApiOperation({ summary: 'Create one MES manufacturing spec draft' })
-  @ApiBody({ type: CreateManufacturingSpecDto })
-  async createManufacturingSpec(
+  @Post('production-specs')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC])
+  @ApiOperation({ summary: 'Create one MES production spec draft' })
+  @ApiBody({ type: CreateProductionSpecDto })
+  async createProductionSpec(
     @Param('tenantId') tenantId: string,
-    @Body() body: CreateManufacturingSpecDto,
+    @Body() body: CreateProductionSpecDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.createManufacturingSpec(tenantId, body, source)
+    return this.mesService.createProductionSpec(tenantId, body, source)
   }
 
-  @Post('manufacturing-specs/:manufacturingSpecId/activate')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MANUFACTURING_SPEC])
-  @ApiOperation({ summary: 'Activate one MES manufacturing spec' })
-  @ApiBody({ type: ActivateManufacturingSpecDto })
-  async activateManufacturingSpec(
+  @Post('production-specs/:productionSpecId/activate')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC])
+  @ApiOperation({ summary: 'Activate one MES production spec' })
+  @ApiBody({ type: ActivateProductionSpecDto })
+  async activateProductionSpec(
     @Param('tenantId') tenantId: string,
-    @Param('manufacturingSpecId') manufacturingSpecId: string,
-    @Body() body: ActivateManufacturingSpecDto,
+    @Param('productionSpecId') productionSpecId: string,
+    @Body() body: ActivateProductionSpecDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.activateManufacturingSpec(tenantId, manufacturingSpecId, body, source)
+    return this.mesService.activateProductionSpec(tenantId, productionSpecId, body, source)
   }
 
-  @Post('manufacturing-specs/:manufacturingSpecId/update')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MANUFACTURING_SPEC])
-  @ApiOperation({ summary: 'Update one MES manufacturing spec' })
-  @ApiBody({ type: UpdateManufacturingSpecDto })
-  async updateManufacturingSpec(
+  @Post('production-specs/:productionSpecId/update')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC])
+  @ApiOperation({ summary: 'Update one MES production spec' })
+  @ApiBody({ type: UpdateProductionSpecDto })
+  async updateProductionSpec(
     @Param('tenantId') tenantId: string,
-    @Param('manufacturingSpecId') manufacturingSpecId: string,
-    @Body() body: UpdateManufacturingSpecDto,
+    @Param('productionSpecId') productionSpecId: string,
+    @Body() body: UpdateProductionSpecDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.updateManufacturingSpec(tenantId, manufacturingSpecId, body, source)
+    return this.mesService.updateProductionSpec(tenantId, productionSpecId, body, source)
   }
 
-  @Post('manufacturing-specs/:manufacturingSpecId/retire')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MANUFACTURING_SPEC])
-  @ApiOperation({ summary: 'Retire one MES manufacturing spec' })
-  @ApiBody({ type: RetireManufacturingSpecDto })
-  async retireManufacturingSpec(
+  @Post('production-specs/:productionSpecId/retire')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC])
+  @ApiOperation({ summary: 'Retire one MES production spec' })
+  @ApiBody({ type: RetireProductionSpecDto })
+  async retireProductionSpec(
     @Param('tenantId') tenantId: string,
-    @Param('manufacturingSpecId') manufacturingSpecId: string,
-    @Body() body: RetireManufacturingSpecDto,
+    @Param('productionSpecId') productionSpecId: string,
+    @Body() body: RetireProductionSpecDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.retireManufacturingSpec(tenantId, manufacturingSpecId, body, source)
-  }
-
-  @Get('work-centers')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_WORK_CENTER_MOLD_STATUS])
-  @ApiOperation({ summary: 'List MES work centers used by mold management' })
-  async listWorkCenters(
-    @Param('tenantId') tenantId: string,
-    @Query() query: ListWorkCentersDto,
-    @DownstreamSource() source: DownstreamRequestSource
-  ) {
-    return this.mesService.listWorkCenters(tenantId, query, source)
-  }
-
-  @Post('work-centers')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE])
-  @ApiOperation({ summary: 'Create one MES work center used by mold management' })
-  @ApiBody({ type: CreateWorkCenterDto })
-  async createWorkCenter(
-    @Param('tenantId') tenantId: string,
-    @Body() body: CreateWorkCenterDto,
-    @DownstreamSource() source: DownstreamRequestSource
-  ) {
-    return this.mesService.createWorkCenter(tenantId, body, source)
-  }
-
-  @Post('work-centers/:workCenterId/deactivate')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE])
-  @ApiOperation({ summary: 'Deactivate one MES work center after occupancy checks' })
-  @ApiBody({ type: DeactivateWorkCenterDto })
-  async deactivateWorkCenter(
-    @Param('tenantId') tenantId: string,
-    @Param('workCenterId') workCenterId: string,
-    @Body() body: DeactivateWorkCenterDto,
-    @DownstreamSource() source: DownstreamRequestSource
-  ) {
-    return this.mesService.deactivateWorkCenter(tenantId, workCenterId, body, source)
+    return this.mesService.retireProductionSpec(tenantId, productionSpecId, body, source)
   }
 
   @Get('mold-designs')
@@ -177,106 +141,130 @@ export class MesController {
     return this.mesService.registerMoldDesign(tenantId, body, source)
   }
 
-  @Post('mold-instances')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE])
-  @ApiOperation({ summary: 'Register one MES production mold instance' })
-  @ApiBody({ type: RegisterProductionMoldInstanceDto })
-  async registerProductionMoldInstance(
+  @Post('master-molds')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD])
+  @ApiOperation({ summary: 'Register one MES master mold' })
+  @ApiBody({ type: RegisterMasterMoldDto })
+  async registerMasterMold(
     @Param('tenantId') tenantId: string,
-    @Body() body: RegisterProductionMoldInstanceDto,
+    @Body() body: RegisterMasterMoldDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.registerProductionMoldInstance(tenantId, body, source)
+    return this.mesService.registerMasterMold(tenantId, body, source)
   }
 
-  @Get('mold-instances')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD_INSTANCE])
-  @ApiOperation({ summary: 'List MES production mold instances' })
-  async listProductionMoldInstances(
+  @Post('production-molds')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD])
+  @ApiOperation({ summary: 'Register one MES production mold' })
+  @ApiBody({ type: RegisterProductionMoldDto })
+  async registerProductionMold(
     @Param('tenantId') tenantId: string,
-    @Query() query: ListProductionMoldInstancesDto,
+    @Body() body: RegisterProductionMoldDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.listProductionMoldInstances(tenantId, query, source)
+    return this.mesService.registerProductionMold(tenantId, body, source)
   }
 
-  @Get('mold-designs/:moldDesignId/mold-instances')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD_INSTANCE])
-  @ApiOperation({ summary: 'List MES production mold instances by mold design' })
-  async listProductionMoldInstancesByDesign(
+  @Get('production-molds')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD])
+  @ApiOperation({ summary: 'List MES production molds' })
+  async listProductionMolds(
+    @Param('tenantId') tenantId: string,
+    @Query() query: ListProductionMoldsDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.mesService.listProductionMolds(tenantId, query, source)
+  }
+
+  @Get('mold-designs/:moldDesignId/production-molds')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD])
+  @ApiOperation({ summary: 'List MES production molds by mold design' })
+  async listProductionMoldsByDesign(
     @Param('tenantId') tenantId: string,
     @Param('moldDesignId') moldDesignId: string,
-    @Query() query: ListProductionMoldInstancesByDesignDto,
+    @Query() query: ListProductionMoldsByDesignDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.listProductionMoldInstancesByDesign(tenantId, moldDesignId, query, source)
+    return this.mesService.listProductionMoldsByDesign(tenantId, moldDesignId, query, source)
   }
 
-  @Get('mold-instances/:productionMoldInstanceId')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD_INSTANCE])
-  @ApiOperation({ summary: 'Get one MES production mold instance detail snapshot' })
-  async getProductionMoldInstance(
+  @Get('production-molds/:productionMoldId')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD])
+  @ApiOperation({ summary: 'Get one MES production mold detail snapshot' })
+  async getProductionMold(
     @Param('tenantId') tenantId: string,
-    @Param('productionMoldInstanceId') productionMoldInstanceId: string,
+    @Param('productionMoldId') productionMoldId: string,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.getProductionMoldInstance(tenantId, productionMoldInstanceId, source)
+    return this.mesService.getProductionMold(tenantId, productionMoldId, source)
   }
 
-  @Post('mold-instances/:productionMoldInstanceId/move')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE])
-  @ApiOperation({ summary: 'Move one MES production mold instance to another MES location' })
-  @ApiBody({ type: MoveProductionMoldInstanceDto })
-  async moveProductionMoldInstance(
+  @Get('tooling/:toolingId/current-placement')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_TOOLING_INSTALLATION])
+  @ApiOperation({ summary: 'Get one MES tooling current placement' })
+  async getToolingCurrentPlacement(
     @Param('tenantId') tenantId: string,
-    @Param('productionMoldInstanceId') productionMoldInstanceId: string,
-    @Body() body: MoveProductionMoldInstanceDto,
+    @Param('toolingId') toolingId: string,
+    @Query() query: MoveToolingDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.moveProductionMoldInstance(tenantId, productionMoldInstanceId, body, source)
+    return this.mesService.getToolingCurrentPlacement(tenantId, toolingId, query, source)
   }
 
-  @Post('mold-instances/:productionMoldInstanceId/install')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE])
-  @ApiOperation({ summary: 'Install one MES production mold instance on a work center position' })
-  @ApiBody({ type: InstallProductionMoldInstanceDto })
-  async installProductionMoldInstance(
+  @Post('tooling/:toolingId/move')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_TOOLING_INSTALLATION])
+  @ApiOperation({ summary: 'Move one MES tooling object to storage or carrier resource' })
+  @ApiBody({ type: MoveToolingDto })
+  async moveTooling(
     @Param('tenantId') tenantId: string,
-    @Param('productionMoldInstanceId') productionMoldInstanceId: string,
-    @Body() body: InstallProductionMoldInstanceDto,
+    @Param('toolingId') toolingId: string,
+    @Body() body: MoveToolingDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.installProductionMoldInstance(tenantId, productionMoldInstanceId, body, source)
+    return this.mesService.moveTooling(tenantId, toolingId, body, source)
   }
 
-  @Post('mold-instances/:productionMoldInstanceId/unmount')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE])
-  @ApiOperation({ summary: 'Unmount one MES production mold instance from its current position' })
-  @ApiBody({ type: UnmountProductionMoldInstanceDto })
-  async unmountProductionMoldInstance(
+  @Post('tooling/:toolingId/install')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_TOOLING_INSTALLATION])
+  @ApiOperation({ summary: 'Install one MES tooling object on a work center or work unit' })
+  @ApiBody({ type: InstallToolingDto })
+  async installTooling(
     @Param('tenantId') tenantId: string,
-    @Param('productionMoldInstanceId') productionMoldInstanceId: string,
-    @Body() body: UnmountProductionMoldInstanceDto,
+    @Param('toolingId') toolingId: string,
+    @Body() body: InstallToolingDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.unmountProductionMoldInstance(tenantId, productionMoldInstanceId, body, source)
+    return this.mesService.installTooling(tenantId, toolingId, body, source)
   }
 
-  @Post('mold-instances/:productionMoldInstanceId/scrap')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE])
-  @ApiOperation({ summary: 'Scrap one MES production mold instance' })
-  @ApiBody({ type: ScrapProductionMoldInstanceDto })
-  async scrapProductionMoldInstance(
+  @Post('tooling-installations/:toolingInstallationId/unmount')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_TOOLING_INSTALLATION])
+  @ApiOperation({ summary: 'Unmount one MES tooling installation' })
+  @ApiBody({ type: UnmountToolingDto })
+  async unmountTooling(
     @Param('tenantId') tenantId: string,
-    @Param('productionMoldInstanceId') productionMoldInstanceId: string,
-    @Body() body: ScrapProductionMoldInstanceDto,
+    @Param('toolingInstallationId') toolingInstallationId: string,
+    @Body() body: UnmountToolingDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.scrapProductionMoldInstance(tenantId, productionMoldInstanceId, body, source)
+    return this.mesService.unmountTooling(tenantId, toolingInstallationId, body, source)
+  }
+
+  @Post('production-molds/:productionMoldId/scrap')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD])
+  @ApiOperation({ summary: 'Scrap one MES production mold' })
+  @ApiBody({ type: ScrapProductionMoldDto })
+  async scrapProductionMold(
+    @Param('tenantId') tenantId: string,
+    @Param('productionMoldId') productionMoldId: string,
+    @Body() body: ScrapProductionMoldDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.mesService.scrapProductionMold(tenantId, productionMoldId, body, source)
   }
 
   @Get('work-centers/:workCenterId/current-molds')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_WORK_CENTER_MOLD_STATUS])
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_TOOLING_INSTALLATION])
   @ApiOperation({ summary: 'List current molds installed on one MES work center' })
   async listCurrentMoldsByWorkCenter(
     @Param('tenantId') tenantId: string,
@@ -287,8 +275,31 @@ export class MesController {
     return this.mesService.listCurrentMoldsByWorkCenter(tenantId, workCenterId, query, source)
   }
 
+  @Get('mold-life-counters')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MOLD_LIFE])
+  @ApiOperation({ summary: 'List MES mold life counters' })
+  async listMoldLifeCounters(
+    @Param('tenantId') tenantId: string,
+    @Query() query: ListMoldLifeCountersDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.mesService.listMoldLifeCounters(tenantId, query, source)
+  }
+
+  @Get('production-molds/:productionMoldId/usage-history')
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD])
+  @ApiOperation({ summary: 'Get one production mold usage history' })
+  async getMoldUsageHistory(
+    @Param('tenantId') tenantId: string,
+    @Param('productionMoldId') productionMoldId: string,
+    @Query() query: GetMoldUsageHistoryDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.mesService.getMoldUsageHistory(tenantId, productionMoldId, query, source)
+  }
+
   @Get('daily-mold-checklists')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_WORK_CENTER_MOLD_STATUS])
+  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_TOOLING_INSTALLATION])
   @ApiOperation({ summary: 'Print the daily MES mold checklist for web-stage manual usage capture' })
   async printDailyMoldChecklist(
     @Param('tenantId') tenantId: string,

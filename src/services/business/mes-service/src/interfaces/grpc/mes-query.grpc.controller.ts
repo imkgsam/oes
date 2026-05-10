@@ -1,26 +1,24 @@
 import { Controller, UseFilters } from '@nestjs/common'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
-  GetMoldCurrentLocationRequest,
-  GetMoldCurrentLocationResponse,
   GetMoldDesignRequest,
   GetMoldDesignResponse,
   GetMoldUsageHistoryRequest,
   GetMoldUsageHistoryResponse,
-  GetProductionMoldInstanceRequest,
-  GetProductionMoldInstanceResponse,
+  GetProductionMoldRequest,
+  GetProductionMoldResponse,
+  GetToolingCurrentPlacementRequest,
+  GetToolingCurrentPlacementResponse,
   ListCurrentMoldsByWorkCenterRequest,
   ListCurrentMoldsByWorkCenterResponse,
   ListMoldDesignsRequest,
   ListMoldDesignsResponse,
-  ListMoldInstancesByDesignRequest,
-  ListMoldInstancesByDesignResponse,
-  ListMoldLifeWarningsRequest,
-  ListMoldLifeWarningsResponse,
-  ListProductionMoldInstancesRequest,
-  ListProductionMoldInstancesResponse,
-  ListWorkCentersRequest,
-  ListWorkCentersResponse,
+  ListMoldLifeCountersRequest,
+  ListMoldLifeCountersResponse,
+  ListProductionMoldsByDesignRequest,
+  ListProductionMoldsByDesignResponse,
+  ListProductionMoldsRequest,
+  ListProductionMoldsResponse,
   MoldQueryServiceController,
   MoldQueryServiceControllerMethods,
   PrintDailyMoldChecklistRequest,
@@ -29,37 +27,21 @@ import {
 import { MesMoldQueryService } from '../../application/services/mes-mold-query.service'
 import {
   MesGrpcPresenter,
-  toDomainMoldResourceType,
-  toDomainMoldUsageHistoryEntryType,
+  toDomainMoldDesignStatus,
   toDomainMoldWarningLevel,
-  toDomainMoldWarningStatus,
-  toDomainMoldWarningType,
-  toDomainProductionMoldInstanceStatus
+  toDomainProductionMoldStatus,
+  toDomainToolingType
 } from './mes-grpc.presenter'
 import { MesRpcContextValidator } from './mes-rpc-context.validator'
 
-/** MesQueryGrpcController exposes the phase 1 read-only MES mold query contract. */
+/** MesQueryGrpcController maps current Mold / Tooling query RPCs into application read use cases. */
 @UseFilters(GrpcExceptionFilter)
 @Controller()
 @MoldQueryServiceControllerMethods()
 export class MesQueryGrpcController implements MoldQueryServiceController {
   constructor(private readonly queryService: MesMoldQueryService) {}
 
-  async listWorkCenters(request: ListWorkCentersRequest): Promise<ListWorkCentersResponse> {
-    const context = MesRpcContextValidator.assertQueryContext(request)
-    return MesGrpcPresenter.toListWorkCentersResponse(
-      await this.queryService.listWorkCenters({
-        ...context,
-        keyword: request.keyword ?? undefined,
-        parentWorkCenterId: request.parentWorkCenterId ?? undefined,
-        status: request.status ?? undefined,
-        workCenterType: request.workCenterType ?? undefined,
-        page: request.page ?? undefined,
-        pageSize: request.pageSize ?? undefined
-      })
-    )
-  }
-
+  /** getMoldDesign validates the RPC envelope and delegates one mold design lookup. */
   async getMoldDesign(request: GetMoldDesignRequest): Promise<GetMoldDesignResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return MesGrpcPresenter.toGetMoldDesignResponse(
@@ -70,97 +52,96 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
     )
   }
 
+  /** listMoldDesigns delegates the design selector query with current first-slice filters. */
   async listMoldDesigns(request: ListMoldDesignsRequest): Promise<ListMoldDesignsResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return MesGrpcPresenter.toListMoldDesignsResponse(
       await this.queryService.listMoldDesigns({
         ...context,
         keyword: request.keyword ?? undefined,
-        productFamilyRefId: request.productFamilyRefId ?? undefined,
-        manufacturingSpecRefId: request.manufacturingSpecRefId ?? undefined,
+        status: toDomainMoldDesignStatus(request.status),
+        productionSpecId: request.productionSpecId ?? undefined,
         itemId: request.itemId ?? undefined,
-        materialType: request.materialType ?? undefined,
-        functionRole: request.functionRole ? String(request.functionRole) : undefined,
-        productionMethodTag: request.productionMethodTag ?? undefined,
-        status: request.status ? String(request.status) : undefined,
         page: request.page ?? undefined,
         pageSize: request.pageSize ?? undefined
       })
     )
   }
 
-  async getProductionMoldInstance(
-    request: GetProductionMoldInstanceRequest
-  ): Promise<GetProductionMoldInstanceResponse> {
+  /** getProductionMold delegates one production mold lookup. */
+  async getProductionMold(request: GetProductionMoldRequest): Promise<GetProductionMoldResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
-    return MesGrpcPresenter.toGetProductionMoldInstanceResponse(
-      await this.queryService.getProductionMoldInstance({
+    return MesGrpcPresenter.toGetProductionMoldResponse(
+      await this.queryService.getProductionMold({
         ...context,
-        productionMoldInstanceId: request.productionMoldInstanceId ?? ''
+        productionMoldId: request.productionMoldId ?? ''
       })
     )
   }
 
-  async listProductionMoldInstances(
-    request: ListProductionMoldInstancesRequest
-  ): Promise<ListProductionMoldInstancesResponse> {
+  /** listProductionMolds delegates the production mold directory query. */
+  async listProductionMolds(request: ListProductionMoldsRequest): Promise<ListProductionMoldsResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
-    return MesGrpcPresenter.toListProductionMoldInstancesResponse(
-      await this.queryService.listProductionMoldInstances({
+    return MesGrpcPresenter.toListProductionMoldsResponse(
+      await this.queryService.listProductionMolds({
         ...context,
         moldDesignId: request.moldDesignId ?? undefined,
-        status: toDomainProductionMoldInstanceStatus(request.status),
+        status: toDomainProductionMoldStatus(request.status),
+        storageResourceId: request.storageResourceId ?? undefined,
+        carrierResourceId: request.carrierResourceId ?? undefined,
         warningLevel: toDomainMoldWarningLevel(request.warningLevel),
-        supplierId: request.supplierId ?? undefined,
         page: request.page ?? undefined,
         pageSize: request.pageSize ?? undefined
       })
     )
   }
 
-  async listMoldInstancesByDesign(
-    request: ListMoldInstancesByDesignRequest
-  ): Promise<ListMoldInstancesByDesignResponse> {
+  /** listProductionMoldsByDesign delegates one design-scoped production mold query. */
+  async listProductionMoldsByDesign(
+    request: ListProductionMoldsByDesignRequest
+  ): Promise<ListProductionMoldsByDesignResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
-    return MesGrpcPresenter.toListMoldInstancesByDesignResponse(
-      await this.queryService.listMoldInstancesByDesign({
+    return MesGrpcPresenter.toListProductionMoldsByDesignResponse(
+      await this.queryService.listProductionMoldsByDesign({
         ...context,
         moldDesignId: request.moldDesignId ?? '',
-        status: toDomainProductionMoldInstanceStatus(request.status),
-        warningLevel: toDomainMoldWarningLevel(request.warningLevel),
-        supplierId: request.supplierId ?? undefined,
+        status: toDomainProductionMoldStatus(request.status),
         page: request.page ?? undefined,
         pageSize: request.pageSize ?? undefined
       })
     )
   }
 
-  async getMoldCurrentLocation(request: GetMoldCurrentLocationRequest): Promise<GetMoldCurrentLocationResponse> {
+  /** getToolingCurrentPlacement delegates the current placement projection lookup. */
+  async getToolingCurrentPlacement(
+    request: GetToolingCurrentPlacementRequest
+  ): Promise<GetToolingCurrentPlacementResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
-    return MesGrpcPresenter.toGetMoldCurrentLocationResponse(
-      await this.queryService.getMoldCurrentLocation({
+    return MesGrpcPresenter.toGetToolingCurrentPlacementResponse(
+      await this.queryService.getToolingCurrentPlacement({
         ...context,
-        moldResourceType: toDomainMoldResourceType(request.moldResourceType),
-        moldResourceId: request.moldResourceId ?? ''
+        toolingType: toDomainToolingType(request.toolingType),
+        toolingId: request.toolingId ?? ''
       })
     )
   }
 
+  /** getMoldUsageHistory delegates the flattened chronological mold history query. */
   async getMoldUsageHistory(request: GetMoldUsageHistoryRequest): Promise<GetMoldUsageHistoryResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
     return MesGrpcPresenter.toGetMoldUsageHistoryResponse(
       await this.queryService.getMoldUsageHistory({
         ...context,
-        productionMoldInstanceId: request.productionMoldInstanceId ?? '',
-        entryTypes: (request.entryTypes ?? []).map(toDomainMoldUsageHistoryEntryType),
-        occurredFrom: request.occurredFrom ?? undefined,
-        occurredTo: request.occurredTo ?? undefined,
+        productionMoldId: request.productionMoldId ?? '',
+        from: request.from ?? undefined,
+        to: request.to ?? undefined,
         page: request.page ?? undefined,
         pageSize: request.pageSize ?? undefined
       })
     )
   }
 
+  /** listCurrentMoldsByWorkCenter delegates active tooling installations by work center. */
   async listCurrentMoldsByWorkCenter(
     request: ListCurrentMoldsByWorkCenterRequest
   ): Promise<ListCurrentMoldsByWorkCenterResponse> {
@@ -169,32 +150,26 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
       await this.queryService.listCurrentMoldsByWorkCenter({
         ...context,
         workCenterId: request.workCenterId ?? '',
-        includeChildWorkCenters: request.includeChildWorkCenters ?? false,
-        warningLevel: toDomainMoldWarningLevel(request.warningLevel),
-        page: request.page ?? undefined,
-        pageSize: request.pageSize ?? undefined
+        workUnitId: request.workUnitId ?? undefined
       })
     )
   }
 
-  async listMoldLifeWarnings(request: ListMoldLifeWarningsRequest): Promise<ListMoldLifeWarningsResponse> {
+  /** listMoldLifeCounters delegates independent life counter pages. */
+  async listMoldLifeCounters(request: ListMoldLifeCountersRequest): Promise<ListMoldLifeCountersResponse> {
     const context = MesRpcContextValidator.assertQueryContext(request)
-    return MesGrpcPresenter.toListMoldLifeWarningsResponse(
-      await this.queryService.listMoldLifeWarnings({
+    return MesGrpcPresenter.toListMoldLifeCountersResponse(
+      await this.queryService.listMoldLifeCounters({
         ...context,
-        status: toDomainMoldWarningStatus(request.status),
-        warningType: toDomainMoldWarningType(request.warningType),
+        productionMoldId: request.productionMoldId ?? undefined,
         warningLevel: toDomainMoldWarningLevel(request.warningLevel),
-        workCenterId: request.workCenterId ?? undefined,
-        moldDesignId: request.moldDesignId ?? undefined,
-        raisedFrom: request.raisedFrom ?? undefined,
-        raisedTo: request.raisedTo ?? undefined,
         page: request.page ?? undefined,
         pageSize: request.pageSize ?? undefined
       })
     )
   }
 
+  /** printDailyMoldChecklist delegates a read-only printable checklist query. */
   async printDailyMoldChecklist(
     request: PrintDailyMoldChecklistRequest
   ): Promise<PrintDailyMoldChecklistResponse> {
@@ -202,12 +177,8 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
     return MesGrpcPresenter.toPrintDailyMoldChecklistResponse(
       await this.queryService.printDailyMoldChecklist({
         ...context,
-        workCenterIds: request.workCenterIds ?? [],
-        checklistDate: request.checklistDate ?? '',
-        includeChildWorkCenters: request.includeChildWorkCenters ?? false,
-        includeWarnings: request.includeWarnings ?? false,
-        includeRecentUsage: request.includeRecentUsage ?? false,
-        operatorId: context.operatorContext.operatorId
+        workCenterId: request.workCenterId ?? '',
+        checklistDate: request.checklistDate ?? ''
       })
     )
   }

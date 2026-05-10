@@ -5,15 +5,9 @@ import {
   MES_FAILED_PRECONDITION,
   MES_INVALID_ARGUMENT,
   MES_NOT_FOUND,
-  MES_PERMISSION_DENIED,
   MES_UNAUTHENTICATED
 } from '../../common/errors/mes.errors'
-import {
-  MesAuditContext,
-  MesOperatorContext,
-  MesTraceContext,
-  PageResult
-} from '../../domain/models/mes-mold-records'
+import { MesAuditContext, MesCommandContext, MesOperatorContext, MesQueryContext, MesTraceContext } from '../../domain/models/mes-mold-records'
 
 /** assertRequiredString rejects blank scalar fields before handlers touch repositories. */
 export function assertRequiredString(value: string | null | undefined, field: string): void {
@@ -22,17 +16,16 @@ export function assertRequiredString(value: string | null | undefined, field: st
   }
 }
 
-/** normalizeOptionalString collapses empty strings into undefined so controllers can map gRPC defaults safely. */
+/** normalizeOptionalString collapses empty strings into undefined so controllers can map transport defaults safely. */
 export function normalizeOptionalString(value?: string | null): string | undefined {
   if (typeof value !== 'string') {
     return undefined
   }
-
   const normalized = value.trim()
   return normalized.length > 0 ? normalized : undefined
 }
 
-/** normalizeCode standardizes mold-facing codes while rejecting invisible or full-width whitespace noise. */
+/** normalizeCode standardizes MES-facing codes while rejecting invisible or full-width whitespace noise. */
 export function normalizeCode(value: string, field: string): string {
   assertRequiredString(value, field)
   if (/[\u0000-\u001f\u007f\u3000]/u.test(value)) {
@@ -51,7 +44,7 @@ export function normalizeQuantity(value: string, field: string): string {
   return numeric.toString()
 }
 
-/** assertPositiveQuantity keeps quantity and life deltas away from zero and negative values. */
+/** assertPositiveQuantity keeps business quantities and life deltas away from zero and negative values. */
 export function assertPositiveQuantity(value: string, field: string): string {
   const normalized = normalizeQuantity(value, field)
   if (Number(normalized) <= 0) {
@@ -69,7 +62,7 @@ export function assertNonNegativeQuantity(value: string, field: string): string 
   return normalized
 }
 
-/** normalizePageInput applies the shared 1-based paging default used by the frozen MES query surface. */
+/** normalizePageInput applies the shared 1-based paging default used by the MES query surface. */
 export function normalizePageInput(page?: number, pageSize?: number): { page: number; pageSize: number } {
   return {
     page: page && page > 0 ? page : 1,
@@ -77,27 +70,15 @@ export function normalizePageInput(page?: number, pageSize?: number): { page: nu
   }
 }
 
-/** paginate slices a fully filtered record list into the standard phase 1 page envelope. */
-export function paginate<T>(items: T[], page: number, pageSize: number): PageResult<T> {
-  const start = (page - 1) * pageSize
-  return {
-    items: items.slice(start, start + pageSize),
-    total: items.length,
-    page,
-    pageSize
-  }
-}
-
-/** assertExists rejects missing aggregates or reference data with the frozen NOT_FOUND semantics. */
+/** assertExists rejects missing aggregates or reference data with frozen NOT_FOUND semantics. */
 export function assertExists<T>(value: T | null | undefined, resource: string, identifier?: string): T {
   if (value === null || value === undefined) {
     throw ExceptionFactory.application(MES_NOT_FOUND, { resource, identifier })
   }
-
   return value
 }
 
-/** assertPrecondition enforces frozen business gates without leaking local implementation detail. */
+/** assertPrecondition enforces business gates without leaking local implementation detail. */
 export function assertPrecondition(condition: unknown, reason: string, details?: Record<string, unknown>): void {
   if (!condition) {
     throw ExceptionFactory.application(MES_FAILED_PRECONDITION, { reason, ...details })
@@ -111,58 +92,76 @@ export function assertAlreadyAbsent(condition: unknown, reason: string, details?
   }
 }
 
-/** assertStaleGuard enforces caller-provided current projection guards with ABORTED semantics. */
+/** assertStaleGuard enforces caller-provided current projection and idempotency guards with ABORTED semantics. */
 export function assertStaleGuard(condition: unknown, reason: string, details?: Record<string, unknown>): void {
   if (!condition) {
     throw ExceptionFactory.application(MES_ABORTED, { reason, ...details })
   }
 }
 
-/** assertPermission enforces authorization-only checks that cannot be represented as validation. */
-export function assertPermission(condition: unknown, reason: string, details?: Record<string, unknown>): void {
-  if (!condition) {
-    throw ExceptionFactory.application(MES_PERMISSION_DENIED, { reason, ...details })
-  }
-}
-
-/** assertOperatorContext enforces the explicit query and command operator context contract frozen for MES. */
+/** assertOperatorContext enforces the explicit query and command operator context contract. */
 export function assertOperatorContext(value?: MesOperatorContext | null): MesOperatorContext {
   if (!value) {
     throw ExceptionFactory.application(MES_UNAUTHENTICATED, { reason: 'operator context is required' })
   }
-
   assertNonEmptyContextField(value.operatorId, 'operatorContext.operatorId')
   assertNonEmptyContextField(value.operatorType, 'operatorContext.operatorType')
   return value
 }
 
-/** assertTraceContext enforces the explicit trace context contract frozen for MES. */
+/** assertTraceContext enforces the explicit trace context contract. */
 export function assertTraceContext(value?: MesTraceContext | null): MesTraceContext {
   if (!value) {
     throw ExceptionFactory.application(MES_UNAUTHENTICATED, { reason: 'trace context is required' })
   }
-
   assertNonEmptyContextField(value.traceId, 'traceContext.traceId')
   assertNonEmptyContextField(value.requestId, 'traceContext.requestId')
   return value
 }
 
-/** assertAuditContext enforces the explicit audit context required by every MES management command. */
+/** assertAuditContext enforces the explicit audit context required by every management command. */
 export function assertAuditContext(value?: MesAuditContext | null): MesAuditContext {
   if (!value) {
     throw ExceptionFactory.application(MES_UNAUTHENTICATED, { reason: 'audit context is required' })
   }
-
   assertNonEmptyContextField(value.auditId, 'auditContext.auditId')
   assertNonEmptyContextField(value.reason, 'auditContext.reason')
   assertNonEmptyContextField(value.source, 'auditContext.source')
   return value
 }
 
-/** assertDateRange ensures query date filters remain ordered in the frozen phase 1 surface. */
+/** assertCommandContext enforces the complete command context envelope before state-changing use cases run. */
+export function assertCommandContext(value: MesCommandContext): void {
+  assertRequiredString(value.tenantId, 'tenantId')
+  assertRequiredString(value.commandId, 'commandId')
+  assertOperatorContext(value.operatorContext)
+  assertTraceContext(value.traceContext)
+  assertAuditContext(value.auditContext)
+}
+
+/** assertQueryContext enforces the complete query context envelope before read-side use cases run. */
+export function assertQueryContext(value: MesQueryContext): void {
+  assertRequiredString(value.tenantId, 'tenantId')
+  assertOperatorContext(value.operatorContext)
+  assertTraceContext(value.traceContext)
+}
+
+/** resolveContextOrgId derives the effective org scope consistently from explicit context or operator context. */
+export function resolveContextOrgId(value: MesQueryContext): string | null {
+  return normalizeOptionalString(value.orgId) ?? normalizeOptionalString(value.operatorContext.orgId) ?? null
+}
+
+/** assertDateRange ensures query date filters remain ordered in the phase 1 surface. */
 export function assertDateRange(from: string | undefined, to: string | undefined, field: string): void {
   if (from && to && from > to) {
     throw ExceptionFactory.application(MES_INVALID_ARGUMENT, { field, reason: 'date range is invalid' })
+  }
+}
+
+/** assertInvalidArgument maps complex invalid inputs to the shared INVALID_ARGUMENT contract. */
+export function assertInvalidArgument(condition: unknown, reason: string, details?: Record<string, unknown>): void {
+  if (!condition) {
+    throw ExceptionFactory.application(MES_INVALID_ARGUMENT, { reason, ...details })
   }
 }
 

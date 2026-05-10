@@ -2,7 +2,11 @@
 
 ## 1. 目标
 
-定义 OES 中 `srm-service`、future `procurement-service`、`party-service` 与 `item-master-service` 围绕“最小供应商主档闭环”如何协同，并明确哪些事实归 SRM、哪些事实仍归 Party、Item Master 与 Procurement。
+定义 `srm-service`、future `procurement-service`、`party-service` 与 `item-master-service` 围绕供应商主档、可供应关系、标准 Item 与采购执行如何协同，并明确哪些事实归 SRM、Party、Item Master 与 Procurement。
+
+Item Master 概念以以下文件为唯一真相源：
+
+- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
 
 ## 2. 参与服务
 
@@ -14,13 +18,13 @@
 ## 3. 协同分工
 
 - `srm-service`
-  - 负责 `SupplierProfile`、`SupplierPartyBinding`、`SupplierContact`、`SupplierAddress`、`SupplierStatus`、`SupplierCategory`、`SupplierTag`、`SupplierOffering`
+  - 负责 `SupplierProfile`、`SupplierPartyBinding`、`SupplierContact`、`SupplierAddress`、`SupplierStatus`、`SupplierCategory`、`SupplierTag`、`SupplierOffering`。
 - `party-service`
-  - 负责 `Party`、`TenantParty`、`PartyIdentifier`、`PartyRelationship`
+  - 负责 `Party`、`TenantParty`、`PartyIdentifier`、`PartyRelationship`。
 - `item-master-service`
-  - 负责 `Item`、`ItemCapability`、`SupplierItemMapping`
+  - 负责 `ItemModel`、`Item`、capability、`SupplierItemMapping` 与基础分类真相。
 - future `procurement-service`
-  - 负责采购单、收货、采购商业条款与采购执行语义
+  - 负责采购申请、采购订单、收货预期、采购商业条款与采购执行语义。
 
 ## 4. 稳定协同规则
 
@@ -36,15 +40,18 @@
 
 - `SupplierOffering` 表达 `supplierId + itemId` 的“可供应关系事实”。
 - `ACTIVE SupplierOffering` 只允许挂在 `ACTIVE SupplierProfile` 下。
-- `ACTIVE SupplierOffering` 只允许指向 `purchasable Item`。
+- `ACTIVE SupplierOffering` 只允许指向 active + purchasable `Item`。
 - `item-master-service` 继续拥有 `SupplierItemMapping`，只表达：
   - `supplierId + supplierItemCode / supplierItemName -> itemId`
+- `SupplierItemMapping` 指向执行层 `Item`，不指向 `ItemModel`。
 - `SupplierItemMapping` 不是 `SupplierOffering`，也不是采购商业档。
 - `SupplierOffering` 不承载价格、MOQ、账期、lead time、供应表现。
 
 ### 4.3 SRM 与 Procurement 边界
 
 - future `procurement-service` 只受控引用 SRM 的正式供应商主档与 `SupplierOffering`。
+- Procurement 标准采购最终引用 active + purchasable `Item`。
+- Procurement 可以从 `ItemModel + AttributeOption` 解析到 purchasable `Item`，也可以直接选择 `Item`。
 - 采购价格、MOQ、账期、lead time、RFQ、采购单、收货与履约继续归 future `procurement-service`。
 - 本蓝图不冻结 procurement 的 PO / RFQ 对象名，只冻结 SRM 应提供的稳定主档边界。
 - 如果 future procurement 需要“某供应商是否可供应某 Item”的正式事实，应优先引用 `SupplierOffering`，而不是反向扩写 `SupplierItemMapping`。
@@ -52,34 +59,36 @@
 ## 5. 同步 / 异步边界
 
 - 第一阶段优先同步校验：
-  - `srm-service -> party-service` 校验 `tenantPartyId`
-  - `srm-service -> item-master-service` 校验 `itemId` 与 `purchasable` 能力
-  - future `procurement-service -> srm-service` 查询供应商主档与 offering 状态
+  - `srm-service -> party-service` 校验 `tenantPartyId`。
+  - `srm-service -> item-master-service` 校验 `itemId` 与 purchasable 能力。
+  - future `procurement-service -> item-master-service` 查询或解析采购 Item。
+  - future `procurement-service -> srm-service` 查询供应商主档与 offering 状态。
 - 第一阶段不冻结必须事件集：
-  - 如后续需要主档变更事件、offering 变更事件或采购侧缓存同步事件，应在 `SRM-CONTRACT` 阶段单独冻结
+  - 如后续需要主档变更事件、offering 变更事件或采购侧缓存同步事件，应在 `SRM-CONTRACT` / `PROCUREMENT-CONTRACT` 阶段单独冻结。
 
 ## 6. 真相归属
 
-- `SupplierProfile`、联系人、地址、分类、标签、状态、offering：`srm-service`
+- `SupplierProfile`、联系人、地址、分类、标签、状态、`SupplierOffering`：`srm-service`
 - `Party`、`TenantParty`、主体标识与主体关系：`party-service`
-- `Item`、`ItemCapability`、`SupplierItemMapping`：`item-master-service`
+- `ItemModel`、`Item`、capability、`SupplierItemMapping`：`item-master-service`
 - RFQ、采购价格、MOQ、账期、lead time、采购单、收货：future `procurement-service`
 
 ## 7. 明确禁止
 
-- 不把 `SupplierItemMapping` 扩成采购商业档
-- 不把 `SupplierOffering` 扩成价格表
-- 不复制 Party 注册信息为 SRM 真相
-- 不让 future procurement 直接把采购商业条款塞回 SRM 主档
-- 不在本蓝图中冻结 procurement 的 PO / RFQ 对象名
+- 不把 `SupplierItemMapping` 扩成采购商业档。
+- 不把 `SupplierOffering` 扩成价格表。
+- 不复制 Party 注册信息为 SRM 真相。
+- 不让 future procurement 直接把采购商业条款塞回 SRM 主档。
+- 不在本蓝图中冻结 procurement 的 PO / RFQ 对象名。
+- 不让 SRM 或 Procurement 自行定义 Item 主数据概念。
 
 ## 8. Deferred
 
-- `SupplierOffering` 的后续事件目录
-- SRM 与 Procurement 的正式 gRPC contract
-- Supplier qualification / onboarding workflow
-- Supplier performance / score / quality remediation
-- 采购价格、MOQ、账期、lead time 的 owner model
+- `SupplierOffering` 的后续事件目录。
+- SRM 与 Procurement 的正式 gRPC contract。
+- Supplier qualification / onboarding workflow。
+- Supplier performance / score / quality remediation。
+- 采购价格、MOQ、账期、lead time 的 owner model。
 
 ## 9. 关联文档
 

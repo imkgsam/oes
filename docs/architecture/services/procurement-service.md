@@ -48,8 +48,9 @@
   - `SupplierProfile`
   - `SupplierOffering`
 - `item-master-service` 的 Item 主数据与供应商型号映射真相：
+  - `ItemModel`
   - `Item`
-  - `ItemCapability`
+  - Item execution capability
   - `SupplierItemMapping`
 - `wms-service` 的实际收货、区位、库存、破损库存、受限库存真相
 - `finance-service` 的 `AP`、supplier invoice、payment、payment allocation 真相
@@ -91,7 +92,7 @@
   - 提供正式供应商主档与 `SupplierOffering` 可供应关系。
   - Procurement 不把采购商业条款塞回 `SRM`。
 - `item-master-service`
-  - 提供 `Item`、`purchasable` 能力与 `SupplierItemMapping` 引用基础。
+  - 提供 `ItemModel`、attribute 到 active + purchasable `Item` 的解析能力，以及 `SupplierItemMapping` 引用基础。
   - Procurement 不复制 Item 主数据或接管供应商型号映射真相。
 - `wms-service`
   - 提供实际收货结果、收货数量、破损 / 受限库存结果与仓储侧收货事实。
@@ -136,7 +137,7 @@
 - `WMS` owns 实际收货、区位、库存、破损 / 受限库存。
 - `Finance` owns `AP / supplier invoice / payment / allocation`。
 - `SRM` owns `SupplierProfile / SupplierOffering`。
-- `Item Master` owns `Item / SupplierItemMapping`。
+- `Item Master` owns `ItemModel / Item / SupplierItemMapping`。
 - phase 1 正常支出路径必须先 `PR / PO`；`Non-PO purchase` 不作为正常路径。
 - `PR` 同时支持标准 `Item` 与非标准 / 文本型采购需求。
 - 标准 `Item` 转 `PO` 时必须校验 `ACTIVE SupplierOffering`；日常非标准采购可不强制。

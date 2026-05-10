@@ -25,7 +25,7 @@
 - `srm-service`
   - 负责 `SupplierProfile` 与 `SupplierOffering`
 - `item-master-service`
-  - 负责 `Item`、`ItemCapability` 与 `SupplierItemMapping`
+  - 负责 `ItemModel`、`Item`、执行层 capability 与 `SupplierItemMapping`
 - `wms-service`
   - 负责实际收货、库位、库存、破损 / 受限库存真相
 - `finance-service`
@@ -54,8 +54,9 @@
 
 ### 4.3 Procurement 与 Item Master 边界
 
-- `item-master-service` 继续 owns `Item` 与 `SupplierItemMapping`。
-- 标准采购需求必须引用 `purchasable Item`，并通过受控查询完成存在性 / 状态校验。
+- `item-master-service` 继续 owns `ItemModel`、`Item`、执行层 capability 与 `SupplierItemMapping`。
+- 标准采购需求最终必须引用 active + purchasable `Item`，并通过受控查询完成存在性 / 状态 / capability 校验。
+- Procurement 可以直接选择 `Item`，也可以从 `ItemModel + AttributeOption` 解析到 purchasable `Item`。
 - `SupplierItemMapping` 只表达供应商如何标识某个 `Item`，不等于 `PO` 行、不等于供应关系、不等于采购商业档。
 - 非标准 / 文本型采购需求可以不要求先建标准 `Item`，但不能因此把文本采购反向沉淀成 Item 主数据真相。
 
@@ -112,7 +113,7 @@
 
 - 同步：
   - `procurement-service -> srm-service` 查询 `SupplierProfile / SupplierOffering` 当前状态
-  - `procurement-service -> item-master-service` 查询 `Item`、`purchasable` 能力与 `SupplierItemMapping`
+  - `procurement-service -> item-master-service` 查询或解析 `Item`、校验 `purchasable` capability，并读取 `SupplierItemMapping`
   - `api-gateway -> procurement-service` 查询 `PR / PO / discrepancy` 当前摘要
   - `procurement-service -> permission-service` 的权限、scope 与操作校验
 - 异步：
@@ -129,7 +130,7 @@
 - `PurchaseOrderChange`：`procurement-service`
 - `ReceivingExpectation`、`ReceivingDiscrepancy`：`procurement-service`
 - `SupplierProfile`、`SupplierOffering`：`srm-service`
-- `Item`、`ItemCapability`、`SupplierItemMapping`：`item-master-service`
+- `ItemModel`、`Item`、执行层 capability、`SupplierItemMapping`：`item-master-service`
 - 实际收货、区位、库存、破损 / 受限库存：`wms-service`
 - `AP`、supplier invoice、payment、allocation：`finance-service`
 

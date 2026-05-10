@@ -1,126 +1,265 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import {
-  ChangeItemStatusRequest,
+  BomLineInput,
+  BomLineRole,
+  BomRecord,
+  BomType,
+  ChangeBomStatusRequest,
   ChangeItemCategoryStatusRequest,
+  ChangeItemModelStatusRequest,
+  ChangeItemStatusRequest,
+  CreateBomRequest,
   CreateItemCategoryRequest,
+  CreateItemModelRequest,
   CreateItemRequest,
-  GetItemCompositionResponse,
+  GetItemModelResponse,
   GetItemResponse,
-  ItemCategoryStatus,
-  ItemCategorySummary,
-  ItemCategoryTreeNode,
   ItemCapabilities,
   ItemCapabilityFilters,
-  ItemNatureType,
-  ItemStatus,
-  ItemStructureType,
-  ListItemCategoriesResponse,
+  ItemCategorySummary,
+  ItemCategoryTreeNode,
+  ItemModelKind,
+  ItemModelRecord,
+  ItemModelType,
+  ItemSummary,
+  ItemType,
   ListSupplierItemMappingsByItemResponse,
+  ReplaceBomLinesRequest,
+  SearchBomsRequest,
+  SearchItemModelsRequest,
   SearchItemsRequest,
-  SearchItemsResponse,
-  SetItemPrimaryCategoryRequest,
   SetItemCapabilitiesRequest,
-  SetItemCompositionRequest,
-  UpdateItemCategoryBasicsRequest,
+  SetItemModelCapabilitiesRequest,
+  SetItemModelPrimaryCategoryRequest,
+  UpdateBomBasicsRequest,
   UpdateItemBasicsRequest,
+  UpdateItemCategoryBasicsRequest,
+  UpdateItemModelBasicsRequest,
   UpsertSupplierItemMappingRequest
 } from '@oes/common/generated/item_master_service'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
 import { ItemMasterManagementGrpcAdapter } from './adapters/item-master-management-grpc.adapter'
 import { ItemMasterQueryGrpcAdapter } from './adapters/item-master-query-grpc.adapter'
 
-type ItemCapabilityKey = 'manufacturable' | 'purchasable' | 'sellable' | 'stockable'
-type ItemNatureValue = 'PHYSICAL' | 'SERVICE' | 'VIRTUAL'
-type ItemCategoryStatusValue = 'ACTIVE' | 'INACTIVE'
-type ItemStatusValue = 'ACTIVE' | 'INACTIVE'
-type ItemStructureValue = 'BUNDLE' | 'SINGLE'
-
-type ItemManagementCategorySummary = {
-  categoryId: string
-  categoryCode: string
-  categoryName: string
-  status: ItemCategoryStatusValue
-}
-
-type ItemManagementCategoryNode = ItemManagementCategorySummary & {
-  parentCategoryId: string
-  hasChildren: boolean
-}
-
-type ItemManagementItem = {
-  itemId: string
-  itemCode: string
-  itemName: string
-  structureType: ItemStructureValue
-  natureType: ItemNatureValue
-  status: ItemStatusValue
-  capabilities: Required<ItemCapabilities>
-  primaryCategorySummary?: ItemManagementCategorySummary
+type CapabilityKey =
+  | 'sellable'
+  | 'purchasable'
+  | 'stockable'
+  | 'manufacturable'
+  | 'assemblable'
+  | 'transformable'
+  | 'packable'
+  | 'packaged'
+type StatusValue = 'ACTIVE' | 'INACTIVE'
+type BffBomLineInput = {
+  componentItemId?: string
+  lineRole?: string
+  lineNote?: string
+  quantity?: string
+  uomCode?: string
 }
 
 @Injectable()
-// Builds the tenant-scoped phase 1 item-management BFF model without widening item-master ownership boundaries.
+// Builds the tenant-scoped item-management BFF model on top of item-master Contract V2.
 export class ItemManagementService {
   constructor(
     private readonly itemQueryAdapter: ItemMasterQueryGrpcAdapter,
     private readonly itemManagementAdapter: ItemMasterManagementGrpcAdapter
   ) {}
 
-  async listItems(
+  async listItemModels(
     tenantId: string,
     query: {
-      capability?: string
+      capabilities?: string[]
       categoryId?: string
       includeDescendants?: boolean
       keyword?: string
-      natureType?: string
+      modelKind?: string
+      modelType?: string
       page?: number
       pageSize?: number
       status?: string
-      structureType?: string
     },
     source: DownstreamRequestSource
   ) {
-    const resolvedTenantId = this.resolveTenantId(tenantId, source)
-    const result = await this.itemQueryAdapter.searchItems(
+    const result = await this.itemQueryAdapter.searchItemModels(
       {
-        tenantId: resolvedTenantId,
+        tenantId: this.resolveTenantId(tenantId, source),
         keyword: normalize(query.keyword),
-        structureType: toGrpcStructureType(query.structureType),
-        natureType: toGrpcNatureType(query.natureType),
-        capabilityFilters: toCapabilityFilters(query.capability),
-        status: toGrpcStatus(query.status),
+        modelKind: toGrpcItemModelKind(query.modelKind),
+        modelType: toGrpcItemModelType(query.modelType),
+        capabilityFilters: toCapabilityFilters(query.capabilities),
+        active: toActiveFilter(query.status),
         categoryId: normalize(query.categoryId),
         includeDescendants: normalize(query.categoryId) ? Boolean(query.includeDescendants) : undefined,
-        page: Math.max(query.page ?? 1, 1),
-        pageSize: Math.min(Math.max(query.pageSize ?? 20, 1), 100)
-      } satisfies SearchItemsRequest,
+        page: page(query.page),
+        pageSize: pageSize(query.pageSize)
+      } satisfies SearchItemModelsRequest,
       source
     )
 
     return {
-      items: (result.items ?? []).map((item) => mapItemSummary(item)),
+      itemModels: (result.itemModels ?? []).map((itemModel) => mapItemModel(itemModel)),
       total: result.total ?? 0,
       page: result.page ?? 1,
       pageSize: result.pageSize ?? 20
     }
   }
 
-  async listItemCategories(
-    tenantId: string,
-    query: { parentCategoryId?: string },
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.itemQueryAdapter.listItemCategories(
+  async getItemModel(tenantId: string, itemModelId: string, source: DownstreamRequestSource) {
+    const result = await this.itemQueryAdapter.getItemModel(
       {
         tenantId: this.resolveTenantId(tenantId, source),
-        parentCategoryId: normalize(query.parentCategoryId)
+        itemModelId: requireNonBlank(itemModelId, 'itemModelId')
       },
       source
     )
 
+    return mapGetItemModel(result)
+  }
+
+  async createItemModel(
+    tenantId: string,
+    input: {
+      capabilities?: ItemCapabilities
+      modelCode: string
+      modelKind: string
+      modelName: string
+      modelType: string
+      primaryCategoryId?: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.createItemModel(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        modelCode: requireNonBlank(input.modelCode, 'modelCode'),
+        modelName: requireNonBlank(input.modelName, 'modelName'),
+        modelKind: requireGrpcItemModelKind(input.modelKind),
+        modelType: requireGrpcItemModelType(input.modelType),
+        capabilities: normalizeCapabilities(input.capabilities),
+        primaryCategoryId: normalize(input.primaryCategoryId)
+      } satisfies CreateItemModelRequest,
+      source
+    )
+
     return {
-      categories: (result.categories ?? []).map((category) => mapCategoryTreeNode(category))
+      itemModelId: result.itemModelId ?? '',
+      itemModel: mapItemModel(result.itemModel)
+    }
+  }
+
+  async updateItemModelBasics(
+    tenantId: string,
+    itemModelId: string,
+    input: { modelCode: string; modelName: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.updateItemModelBasics(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        itemModelId: requireNonBlank(itemModelId, 'itemModelId'),
+        modelCode: requireNonBlank(input.modelCode, 'modelCode'),
+        modelName: requireNonBlank(input.modelName, 'modelName')
+      } satisfies UpdateItemModelBasicsRequest,
+      source
+    )
+
+    return mapItemModel(result.itemModel)
+  }
+
+  async setItemModelCapabilities(
+    tenantId: string,
+    itemModelId: string,
+    input: { capabilities: ItemCapabilities },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.setItemModelCapabilities(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        itemModelId: requireNonBlank(itemModelId, 'itemModelId'),
+        capabilities: normalizeCapabilities(input.capabilities)
+      } satisfies SetItemModelCapabilitiesRequest,
+      source
+    )
+
+    return mapItemModel(result.itemModel)
+  }
+
+  async changeItemModelStatus(
+    tenantId: string,
+    itemModelId: string,
+    input: { status: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.changeItemModelStatus(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        itemModelId: requireNonBlank(itemModelId, 'itemModelId'),
+        active: requireActive(input.status)
+      } satisfies ChangeItemModelStatusRequest,
+      source
+    )
+
+    return mapItemModel(result.itemModel)
+  }
+
+  async setItemModelPrimaryCategory(
+    tenantId: string,
+    itemModelId: string,
+    input: { primaryCategoryId?: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.setItemModelPrimaryCategory(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        itemModelId: requireNonBlank(itemModelId, 'itemModelId'),
+        primaryCategoryId: normalize(input.primaryCategoryId)
+      } satisfies SetItemModelPrimaryCategoryRequest,
+      source
+    )
+
+    return mapItemModel(result.itemModel)
+  }
+
+  async listItems(
+    tenantId: string,
+    query: {
+      capabilities?: string[]
+      categoryId?: string
+      includeDescendants?: boolean
+      itemModelId?: string
+      itemType?: string
+      keyword?: string
+      packagingSpecId?: string
+      page?: number
+      pageSize?: number
+      status?: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemQueryAdapter.searchItems(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        keyword: normalize(query.keyword),
+        itemModelId: normalize(query.itemModelId),
+        itemType: toGrpcItemType(query.itemType),
+        packagingSpecId: normalize(query.packagingSpecId),
+        capabilityFilters: toCapabilityFilters(query.capabilities),
+        active: toActiveFilter(query.status),
+        categoryId: normalize(query.categoryId),
+        includeDescendants: normalize(query.categoryId) ? Boolean(query.includeDescendants) : undefined,
+        page: page(query.page),
+        pageSize: pageSize(query.pageSize)
+      } satisfies SearchItemsRequest,
+      source
+    )
+
+    return {
+      items: (result.items ?? []).map((item) => mapItem(item)),
+      total: result.total ?? 0,
+      page: result.page ?? 1,
+      pageSize: result.pageSize ?? 20
     }
   }
 
@@ -139,37 +278,40 @@ export class ItemManagementService {
   async createItem(
     tenantId: string,
     input: {
+      capabilities?: ItemCapabilities
       itemCode: string
+      itemModelId: string
       itemName: string
-      structureType: string
-      natureType: string
+      itemType: string
+      lockedAttributeOptionIds?: string[]
+      packagingSpecId?: string
     },
     source: DownstreamRequestSource
   ) {
     const result = await this.itemManagementAdapter.createItem(
       {
         tenantId: this.resolveTenantId(tenantId, source),
+        itemModelId: requireNonBlank(input.itemModelId, 'itemModelId'),
         itemCode: requireNonBlank(input.itemCode, 'itemCode'),
         itemName: requireNonBlank(input.itemName, 'itemName'),
-        structureType: requireGrpcStructureType(input.structureType),
-        natureType: requireGrpcNatureType(input.natureType)
+        itemType: requireGrpcItemType(input.itemType),
+        lockedAttributeOptionIds: input.lockedAttributeOptionIds ?? [],
+        packagingSpecId: normalize(input.packagingSpecId),
+        capabilities: normalizeCapabilities(input.capabilities)
       } satisfies CreateItemRequest,
       source
     )
 
     return {
       itemId: result.itemId ?? '',
-      item: result.item ? mapItemSummary(result.item) : undefined
+      item: mapItem(result.item)
     }
   }
 
   async updateItemBasics(
     tenantId: string,
     itemId: string,
-    input: {
-      itemCode: string
-      itemName: string
-    },
+    input: { itemCode: string; itemName: string },
     source: DownstreamRequestSource
   ) {
     const result = await this.itemManagementAdapter.updateItemBasics(
@@ -188,114 +330,19 @@ export class ItemManagementService {
   async setItemCapabilities(
     tenantId: string,
     itemId: string,
-    input: {
-      capabilities: Required<ItemCapabilities>
-    },
+    input: { capabilities: ItemCapabilities },
     source: DownstreamRequestSource
   ) {
     const result = await this.itemManagementAdapter.setItemCapabilities(
       {
         tenantId: this.resolveTenantId(tenantId, source),
         itemId: requireNonBlank(itemId, 'itemId'),
-        capabilities: {
-          sellable: Boolean(input.capabilities.sellable),
-          purchasable: Boolean(input.capabilities.purchasable),
-          stockable: Boolean(input.capabilities.stockable),
-          manufacturable: Boolean(input.capabilities.manufacturable)
-        }
+        capabilities: normalizeCapabilities(input.capabilities)
       } satisfies SetItemCapabilitiesRequest,
       source
     )
 
     return mapGetItem(result as GetItemResponse)
-  }
-
-  async getItemComposition(
-    tenantId: string,
-    itemId: string,
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.itemQueryAdapter.getItemComposition(
-      {
-        tenantId: this.resolveTenantId(tenantId, source),
-        itemId: requireNonBlank(itemId, 'itemId')
-      },
-      source
-    )
-
-    return mapComposition(result)
-  }
-
-  async setItemComposition(
-    tenantId: string,
-    itemId: string,
-    input: {
-      components: Array<{ componentItemId: string }>
-    },
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.itemManagementAdapter.setItemComposition(
-      {
-        tenantId: this.resolveTenantId(tenantId, source),
-        itemId: requireNonBlank(itemId, 'itemId'),
-        components: (input.components ?? []).map((component) => ({
-          componentItemId: requireNonBlank(component.componentItemId, 'componentItemId')
-        }))
-      } satisfies SetItemCompositionRequest,
-      source
-    )
-
-    return mapComposition(result)
-  }
-
-  async listSupplierMappings(
-    tenantId: string,
-    itemId: string,
-    query: { page?: number; pageSize?: number },
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.itemQueryAdapter.listSupplierItemMappingsByItem(
-      {
-        tenantId: this.resolveTenantId(tenantId, source),
-        itemId: requireNonBlank(itemId, 'itemId'),
-        page: Math.max(query.page ?? 1, 1),
-        pageSize: Math.min(Math.max(query.pageSize ?? 20, 1), 100)
-      },
-      source
-    )
-
-    return mapSupplierMappings(result)
-  }
-
-  async upsertSupplierMapping(
-    tenantId: string,
-    itemId: string,
-    input: {
-      supplierId: string
-      supplierItemCode?: string
-      supplierItemName?: string
-    },
-    source: DownstreamRequestSource
-  ) {
-    const result = await this.itemManagementAdapter.upsertSupplierItemMapping(
-      {
-        tenantId: this.resolveTenantId(tenantId, source),
-        supplierId: requireNonBlank(input.supplierId, 'supplierId'),
-        supplierItemCode: normalize(input.supplierItemCode),
-        supplierItemName: normalize(input.supplierItemName),
-        itemId: requireNonBlank(itemId, 'itemId')
-      } satisfies UpsertSupplierItemMappingRequest,
-      source
-    )
-
-    return {
-      supplierId: result.mapping?.supplierId ?? '',
-      supplierItemCode: result.mapping?.supplierItemCode ?? '',
-      supplierItemName: result.mapping?.supplierItemName ?? '',
-      itemId: result.mapping?.itemId ?? '',
-      itemCode: result.mapping?.itemCode ?? '',
-      itemName: result.mapping?.itemName ?? ''
-    }
   }
 
   async changeItemStatus(
@@ -308,7 +355,7 @@ export class ItemManagementService {
       {
         tenantId: this.resolveTenantId(tenantId, source),
         itemId: requireNonBlank(itemId, 'itemId'),
-        targetStatus: requireGrpcStatus(input.status)
+        active: requireActive(input.status)
       } satisfies ChangeItemStatusRequest,
       source
     )
@@ -316,13 +363,23 @@ export class ItemManagementService {
     return mapGetItem(result as GetItemResponse)
   }
 
+  async listItemCategories(tenantId: string, query: { parentCategoryId?: string }, source: DownstreamRequestSource) {
+    const result = await this.itemQueryAdapter.listItemCategories(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        parentCategoryId: normalize(query.parentCategoryId)
+      },
+      source
+    )
+
+    return {
+      categories: (result.categories ?? []).map((category) => mapCategoryTreeNode(category))
+    }
+  }
+
   async createItemCategory(
     tenantId: string,
-    input: {
-      categoryCode: string
-      categoryName: string
-      parentCategoryId?: string
-    },
+    input: { categoryCode: string; categoryName: string; parentCategoryId?: string },
     source: DownstreamRequestSource
   ) {
     const result = await this.itemManagementAdapter.createItemCategory(
@@ -335,7 +392,7 @@ export class ItemManagementService {
       source
     )
 
-    return mapCategorySummary(result.category)
+    return mapCategoryTreeNode(result.category)
   }
 
   async updateItemCategoryBasics(
@@ -354,7 +411,7 @@ export class ItemManagementService {
       source
     )
 
-    return mapCategorySummary(result.category)
+    return mapCategoryTreeNode(result.category)
   }
 
   async changeItemCategoryStatus(
@@ -367,30 +424,208 @@ export class ItemManagementService {
       {
         tenantId: this.resolveTenantId(tenantId, source),
         categoryId: requireNonBlank(categoryId, 'categoryId'),
-        targetStatus: requireGrpcCategoryStatus(input.status)
+        active: requireActive(input.status)
       } satisfies ChangeItemCategoryStatusRequest,
       source
     )
 
-    return mapCategorySummary(result.category)
+    return mapCategoryTreeNode(result.category)
   }
 
-  async setItemPrimaryCategory(
+  async listBoms(
     tenantId: string,
-    itemId: string,
-    input: { primaryCategoryId?: string },
+    query: {
+      bomType?: string
+      componentItemId?: string
+      keyword?: string
+      outputItemId?: string
+      page?: number
+      pageSize?: number
+      status?: string
+    },
     source: DownstreamRequestSource
   ) {
-    const result = await this.itemManagementAdapter.setItemPrimaryCategory(
+    const result = await this.itemQueryAdapter.searchBoms(
       {
         tenantId: this.resolveTenantId(tenantId, source),
-        itemId: requireNonBlank(itemId, 'itemId'),
-        categoryId: normalize(input.primaryCategoryId)
-      } satisfies SetItemPrimaryCategoryRequest,
+        keyword: normalize(query.keyword),
+        bomType: toGrpcBomType(query.bomType),
+        outputItemId: normalize(query.outputItemId),
+        componentItemId: normalize(query.componentItemId),
+        active: toActiveFilter(query.status),
+        page: page(query.page),
+        pageSize: pageSize(query.pageSize)
+      } satisfies SearchBomsRequest,
       source
     )
 
-    return mapGetItem(result as GetItemResponse)
+    return {
+      boms: (result.boms ?? []).map((bom) => mapBom(bom)),
+      total: result.total ?? 0,
+      page: result.page ?? 1,
+      pageSize: result.pageSize ?? 20
+    }
+  }
+
+  async getBom(tenantId: string, bomId: string, source: DownstreamRequestSource) {
+    const result = await this.itemQueryAdapter.getBom(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        bomId: requireNonBlank(bomId, 'bomId')
+      },
+      source
+    )
+
+    return mapBom(result.bom)
+  }
+
+  async getBomByOutputItem(
+    tenantId: string,
+    outputItemId: string,
+    query: { bomType?: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemQueryAdapter.getBomByOutputItem(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        outputItemId: requireNonBlank(outputItemId, 'outputItemId'),
+        bomType: toGrpcBomType(query.bomType)
+      },
+      source
+    )
+
+    return {
+      resolutionStatus: result.resolutionStatus ?? 0,
+      bom: result.bom ? mapBom(result.bom) : undefined
+    }
+  }
+
+  async createBom(
+    tenantId: string,
+    input: { bomCode: string; bomName: string; bomType: string; outputItemId: string; lines: BffBomLineInput[] },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.createBom(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        bomCode: requireNonBlank(input.bomCode, 'bomCode'),
+        bomName: requireNonBlank(input.bomName, 'bomName'),
+        bomType: requireGrpcBomType(input.bomType),
+        outputItemId: requireNonBlank(input.outputItemId, 'outputItemId'),
+        lines: mapBomLineInputs(input.lines)
+      } satisfies CreateBomRequest,
+      source
+    )
+
+    return {
+      bomId: result.bomId ?? '',
+      bom: mapBom(result.bom)
+    }
+  }
+
+  async updateBomBasics(
+    tenantId: string,
+    bomId: string,
+    input: { bomCode: string; bomName: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.updateBomBasics(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        bomId: requireNonBlank(bomId, 'bomId'),
+        bomCode: requireNonBlank(input.bomCode, 'bomCode'),
+        bomName: requireNonBlank(input.bomName, 'bomName')
+      } satisfies UpdateBomBasicsRequest,
+      source
+    )
+
+    return mapBom(result.bom)
+  }
+
+  async replaceBomLines(
+    tenantId: string,
+    bomId: string,
+    input: { lines: BffBomLineInput[] },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.replaceBomLines(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        bomId: requireNonBlank(bomId, 'bomId'),
+        lines: mapBomLineInputs(input.lines)
+      } satisfies ReplaceBomLinesRequest,
+      source
+    )
+
+    return mapBom(result.bom)
+  }
+
+  async changeBomStatus(
+    tenantId: string,
+    bomId: string,
+    input: { status: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.changeBomStatus(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        bomId: requireNonBlank(bomId, 'bomId'),
+        active: requireActive(input.status)
+      } satisfies ChangeBomStatusRequest,
+      source
+    )
+
+    return mapBom(result.bom)
+  }
+
+  async listSupplierMappings(
+    tenantId: string,
+    itemId: string,
+    query: { page?: number; pageSize?: number },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemQueryAdapter.listSupplierItemMappingsByItem(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        itemId: requireNonBlank(itemId, 'itemId'),
+        page: page(query.page),
+        pageSize: pageSize(query.pageSize)
+      },
+      source
+    )
+
+    return mapSupplierMappings(result)
+  }
+
+  async upsertSupplierMapping(
+    tenantId: string,
+    itemId: string,
+    input: { active?: boolean; supplierId: string; supplierItemCode?: string; supplierItemName?: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.upsertSupplierItemMapping(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        supplierId: requireNonBlank(input.supplierId, 'supplierId'),
+        supplierItemCode: normalize(input.supplierItemCode),
+        supplierItemName: normalize(input.supplierItemName),
+        itemId: requireNonBlank(itemId, 'itemId'),
+        active: input.active
+      } satisfies UpsertSupplierItemMappingRequest,
+      source
+    )
+
+    const mapping = result.mapping
+    return {
+      supplierItemMappingId: mapping?.supplierItemMappingId ?? '',
+      supplierId: mapping?.supplierId ?? '',
+      supplierItemCode: mapping?.supplierItemCode ?? '',
+      supplierItemName: mapping?.supplierItemName ?? '',
+      itemId: mapping?.itemId ?? '',
+      itemCode: mapping?.itemSummary?.itemCode ?? '',
+      itemName: mapping?.itemSummary?.itemName ?? '',
+      active: Boolean(mapping?.active)
+    }
   }
 
   /** resolveTenantId keeps tenant-scoped item-management requests pinned to the operator tenant. */
@@ -410,71 +645,121 @@ export class ItemManagementService {
   }
 }
 
-/** mapGetItem flattens one item-master get/update response into the tenant-web item detail shape. */
-function mapGetItem(result: GetItemResponse): ItemManagementItem {
-  return mapItemSummary(result.item)
+/** mapGetItemModel flattens one item model get/update response into the BFF shape. */
+function mapGetItemModel(result: GetItemModelResponse) {
+  return mapItemModel(result.itemModel)
 }
 
-/** mapItemSummary converts the generated item-master summary into stable string enums for the BFF. */
-function mapItemSummary(item?: GetItemResponse['item']): ItemManagementItem {
+/** mapItemModel converts item-master model records into stable BFF strings. */
+function mapItemModel(itemModel?: ItemModelRecord) {
   return {
-    itemId: item?.itemId ?? '',
-    itemCode: item?.itemCode ?? '',
-    itemName: item?.itemName ?? '',
-    structureType: fromGrpcStructureType(item?.structureType),
-    natureType: fromGrpcNatureType(item?.natureType),
-    status: fromGrpcStatus(item?.status),
-    capabilities: {
-      sellable: Boolean(item?.capabilities?.sellable),
-      purchasable: Boolean(item?.capabilities?.purchasable),
-      stockable: Boolean(item?.capabilities?.stockable),
-      manufacturable: Boolean(item?.capabilities?.manufacturable)
-    },
-    primaryCategorySummary: item?.primaryCategorySummary
-      ? mapCategorySummary(item.primaryCategorySummary)
-      : undefined
+    itemModelId: itemModel?.itemModelId ?? '',
+    modelCode: itemModel?.modelCode ?? '',
+    modelName: itemModel?.modelName ?? '',
+    modelKind: fromGrpcItemModelKind(itemModel?.modelKind),
+    modelType: fromGrpcItemModelType(itemModel?.modelType),
+    status: fromActive(itemModel?.active),
+    capabilities: normalizeCapabilities(itemModel?.capabilities),
+    primaryCategorySummary: itemModel?.primaryCategorySummary
+      ? mapCategorySummary(itemModel.primaryCategorySummary)
+      : undefined,
+    createdAt: itemModel?.createdAt ?? '',
+    updatedAt: itemModel?.updatedAt ?? ''
   }
 }
 
-/** mapCategorySummary converts the generated category summary into the stable BFF summary shape. */
-function mapCategorySummary(category?: ItemCategorySummary): ItemManagementCategorySummary {
+/** mapGetItem flattens one item-master get/update response into the BFF item shape. */
+function mapGetItem(result: GetItemResponse) {
+  return mapItem(result.item)
+}
+
+/** mapItem converts executable Item summaries into stable BFF strings. */
+function mapItem(item?: ItemSummary) {
+  return {
+    itemId: item?.itemId ?? '',
+    itemModelId: item?.itemModelId ?? '',
+    itemCode: item?.itemCode ?? '',
+    itemName: item?.itemName ?? '',
+    itemType: fromGrpcItemType(item?.itemType),
+    lockedAttributeOptionIds: item?.lockedAttributeOptionIds ?? [],
+    packagingSpecId: item?.packagingSpecId ?? '',
+    status: fromActive(item?.active),
+    capabilities: normalizeCapabilities(item?.capabilities),
+    itemModelSummary: item?.itemModelSummary
+      ? {
+          itemModelId: item.itemModelSummary.itemModelId ?? '',
+          modelCode: item.itemModelSummary.modelCode ?? '',
+          modelName: item.itemModelSummary.modelName ?? '',
+          modelKind: fromGrpcItemModelKind(item.itemModelSummary.modelKind),
+          modelType: fromGrpcItemModelType(item.itemModelSummary.modelType),
+          status: fromActive(item.itemModelSummary.active)
+        }
+      : undefined,
+    primaryCategorySummary: item?.primaryCategorySummary
+      ? mapCategorySummary(item.primaryCategorySummary)
+      : undefined,
+    createdAt: item?.createdAt ?? '',
+    updatedAt: item?.updatedAt ?? ''
+  }
+}
+
+/** mapCategorySummary converts generated category summaries into the stable BFF summary shape. */
+function mapCategorySummary(category?: ItemCategorySummary) {
   return {
     categoryId: category?.categoryId ?? '',
     categoryCode: category?.categoryCode ?? '',
     categoryName: category?.categoryName ?? '',
-    status: fromGrpcCategoryStatus(category?.status)
+    status: fromActive(category?.active)
   }
 }
 
 /** mapCategoryTreeNode converts one generated category tree row into the BFF list shape. */
-function mapCategoryTreeNode(category?: ItemCategoryTreeNode): ItemManagementCategoryNode {
+function mapCategoryTreeNode(category?: ItemCategoryTreeNode) {
   return {
-    ...mapCategorySummary(category),
+    categoryId: category?.categoryId ?? '',
+    categoryCode: category?.categoryCode ?? '',
+    categoryName: category?.categoryName ?? '',
     parentCategoryId: category?.parentCategoryId ?? '',
+    status: fromActive(category?.active),
     hasChildren: Boolean(category?.hasChildren)
   }
 }
 
-/** mapComposition converts the generated item-master composition response into the phase 1 bundle section shape. */
-function mapComposition(result: GetItemCompositionResponse) {
+/** mapBom converts generated BOM records into the BFF BOM shape. */
+function mapBom(bom?: BomRecord) {
   return {
-    itemId: result.itemId ?? '',
-    components: (result.components ?? []).map((component) => ({
-      componentItemId: component.componentItemId ?? '',
-      componentItemCode: component.componentItemCode ?? '',
-      componentItemName: component.componentItemName ?? ''
-    }))
+    bomId: bom?.bomId ?? '',
+    bomCode: bom?.bomCode ?? '',
+    bomName: bom?.bomName ?? '',
+    bomType: fromGrpcBomType(bom?.bomType),
+    outputItemId: bom?.outputItemId ?? '',
+    status: fromActive(bom?.active),
+    lines: (bom?.lines ?? []).map((line) => ({
+      bomLineId: line.bomLineId ?? '',
+      componentItemId: line.componentItemId ?? '',
+      lineRole: fromGrpcBomLineRole(line.lineRole),
+      quantity: line.quantity ?? '',
+      uomCode: line.uomCode ?? '',
+      lineNote: line.lineNote ?? '',
+      componentItem: line.componentItem ? mapItem(line.componentItem) : undefined
+    })),
+    createdAt: bom?.createdAt ?? '',
+    updatedAt: bom?.updatedAt ?? ''
   }
 }
 
-/** mapSupplierMappings converts the generated supplier mapping list into the detail section paging shape. */
+/** mapSupplierMappings converts supplier mapping list responses into the detail section paging shape. */
 function mapSupplierMappings(result: ListSupplierItemMappingsByItemResponse) {
   return {
     mappings: (result.mappings ?? []).map((mapping) => ({
+      supplierItemMappingId: mapping.supplierItemMappingId ?? '',
       supplierId: mapping.supplierId ?? '',
       supplierItemCode: mapping.supplierItemCode ?? '',
       supplierItemName: mapping.supplierItemName ?? '',
-      itemId: mapping.itemId ?? ''
+      itemId: mapping.itemId ?? '',
+      itemCode: mapping.itemSummary?.itemCode ?? '',
+      itemName: mapping.itemSummary?.itemName ?? '',
+      active: Boolean(mapping.active)
     })),
     total: result.total ?? 0,
     page: result.page ?? 1,
@@ -482,121 +767,249 @@ function mapSupplierMappings(result: ListSupplierItemMappingsByItemResponse) {
   }
 }
 
-/** toCapabilityFilters maps the single UI capability filter into the generated full filter message. */
-function toCapabilityFilters(capability?: string): ItemCapabilityFilters | undefined {
-  switch (capability) {
-    case 'sellable':
-      return { sellable: true }
-    case 'purchasable':
-      return { purchasable: true }
-    case 'stockable':
-      return { stockable: true }
-    case 'manufacturable':
-      return { manufacturable: true }
-    default:
-      return undefined
-  }
-}
-
-/** toGrpcStructureType converts an optional BFF filter enum into the generated structure enum. */
-function toGrpcStructureType(value?: string): ItemStructureType | undefined {
-  if (!value) {
+/** toCapabilityFilters maps UI capability selections into the generated full filter message. */
+function toCapabilityFilters(capabilities?: string[]): ItemCapabilityFilters | undefined {
+  const selected = new Set((capabilities ?? []).map((capability) => capability.trim()).filter(Boolean))
+  if (selected.size === 0) {
     return undefined
   }
-  return requireGrpcStructureType(value)
-}
 
-/** requireGrpcStructureType converts one required structure enum and rejects unsupported values. */
-function requireGrpcStructureType(value?: string): ItemStructureType {
-  switch (value) {
-    case 'BUNDLE':
-      return ItemStructureType.ITEM_STRUCTURE_TYPE_BUNDLE
-    case 'SINGLE':
-      return ItemStructureType.ITEM_STRUCTURE_TYPE_SINGLE
-    default:
-      throw new NotFoundException('structureType is required')
+  return {
+    sellable: selected.has('sellable') ? true : undefined,
+    purchasable: selected.has('purchasable') ? true : undefined,
+    stockable: selected.has('stockable') ? true : undefined,
+    manufacturable: selected.has('manufacturable') ? true : undefined,
+    assemblable: selected.has('assemblable') ? true : undefined,
+    transformable: selected.has('transformable') ? true : undefined,
+    packable: selected.has('packable') ? true : undefined,
+    packaged: selected.has('packaged') ? true : undefined
   }
 }
 
-/** fromGrpcStructureType converts generated structure enums back into stable BFF strings. */
-function fromGrpcStructureType(value?: ItemStructureType): ItemStructureValue {
-  return value === ItemStructureType.ITEM_STRUCTURE_TYPE_BUNDLE ? 'BUNDLE' : 'SINGLE'
-}
-
-/** toGrpcNatureType converts an optional BFF filter enum into the generated nature enum. */
-function toGrpcNatureType(value?: string): ItemNatureType | undefined {
-  if (!value) {
-    return undefined
+/** normalizeCapabilities guarantees all eight V2 capabilities are present in BFF output and commands. */
+function normalizeCapabilities(capabilities?: ItemCapabilities): Required<ItemCapabilities> {
+  return {
+    sellable: Boolean(capabilities?.sellable),
+    purchasable: Boolean(capabilities?.purchasable),
+    stockable: Boolean(capabilities?.stockable),
+    manufacturable: Boolean(capabilities?.manufacturable),
+    assemblable: Boolean(capabilities?.assemblable),
+    transformable: Boolean(capabilities?.transformable),
+    packable: Boolean(capabilities?.packable),
+    packaged: Boolean(capabilities?.packaged)
   }
-  return requireGrpcNatureType(value)
 }
 
-/** requireGrpcNatureType converts one required nature enum and rejects unsupported values. */
-function requireGrpcNatureType(value?: string): ItemNatureType {
+/** mapBomLineInputs validates and converts BOM line payloads into generated gRPC input messages. */
+function mapBomLineInputs(lines?: BffBomLineInput[]): BomLineInput[] {
+  return (lines ?? []).map((line) => ({
+    componentItemId: requireNonBlank(line.componentItemId ?? '', 'componentItemId'),
+    lineRole: requireGrpcBomLineRole(`${line.lineRole ?? ''}`),
+    quantity: requireNonBlank(line.quantity ?? '', 'quantity'),
+    uomCode: requireNonBlank(line.uomCode ?? '', 'uomCode'),
+    lineNote: normalize(line.lineNote)
+  }))
+}
+
+/** toGrpcItemModelKind converts optional model kind filters into generated enums. */
+function toGrpcItemModelKind(value?: string): ItemModelKind | undefined {
+  return value ? requireGrpcItemModelKind(value) : undefined
+}
+
+/** requireGrpcItemModelKind converts required model kind values into generated enums. */
+function requireGrpcItemModelKind(value?: string): ItemModelKind {
   switch (value) {
     case 'PHYSICAL':
-      return ItemNatureType.ITEM_NATURE_TYPE_PHYSICAL
+      return ItemModelKind.ITEM_MODEL_KIND_PHYSICAL
     case 'SERVICE':
-      return ItemNatureType.ITEM_NATURE_TYPE_SERVICE
+      return ItemModelKind.ITEM_MODEL_KIND_SERVICE
+    case 'DIGITAL':
+      return ItemModelKind.ITEM_MODEL_KIND_DIGITAL
     case 'VIRTUAL':
-      return ItemNatureType.ITEM_NATURE_TYPE_VIRTUAL
+      return ItemModelKind.ITEM_MODEL_KIND_VIRTUAL
     default:
-      throw new NotFoundException('natureType is required')
+      throw new NotFoundException('modelKind is required')
   }
 }
 
-/** fromGrpcNatureType converts generated nature enums back into stable BFF strings. */
-function fromGrpcNatureType(value?: ItemNatureType): ItemNatureValue {
+/** fromGrpcItemModelKind converts generated model kind enums back into stable BFF strings. */
+function fromGrpcItemModelKind(value?: ItemModelKind) {
   switch (value) {
-    case ItemNatureType.ITEM_NATURE_TYPE_SERVICE:
+    case ItemModelKind.ITEM_MODEL_KIND_SERVICE:
       return 'SERVICE'
-    case ItemNatureType.ITEM_NATURE_TYPE_VIRTUAL:
+    case ItemModelKind.ITEM_MODEL_KIND_DIGITAL:
+      return 'DIGITAL'
+    case ItemModelKind.ITEM_MODEL_KIND_VIRTUAL:
       return 'VIRTUAL'
     default:
       return 'PHYSICAL'
   }
 }
 
-/** toGrpcStatus converts an optional BFF status filter into the generated lifecycle enum. */
-function toGrpcStatus(value?: string): ItemStatus | undefined {
-  if (!value) {
-    return undefined
-  }
-  return requireGrpcStatus(value)
+/** toGrpcItemModelType converts optional model type filters into generated enums. */
+function toGrpcItemModelType(value?: string): ItemModelType | undefined {
+  return value ? requireGrpcItemModelType(value) : undefined
 }
 
-/** requireGrpcStatus converts one required lifecycle enum and rejects unsupported values. */
-function requireGrpcStatus(value?: string): ItemStatus {
+/** requireGrpcItemModelType converts required model type values into generated enums. */
+function requireGrpcItemModelType(value?: string): ItemModelType {
+  switch (value) {
+    case 'FINISHED_PRODUCT':
+      return ItemModelType.ITEM_MODEL_TYPE_FINISHED_PRODUCT
+    case 'SEMI_FINISHED_PRODUCT':
+      return ItemModelType.ITEM_MODEL_TYPE_SEMI_FINISHED_PRODUCT
+    case 'ACCESSORY':
+      return ItemModelType.ITEM_MODEL_TYPE_ACCESSORY
+    case 'PART':
+      return ItemModelType.ITEM_MODEL_TYPE_PART
+    case 'SUB_ASSEMBLY':
+      return ItemModelType.ITEM_MODEL_TYPE_SUB_ASSEMBLY
+    case 'RAW_MATERIAL':
+      return ItemModelType.ITEM_MODEL_TYPE_RAW_MATERIAL
+    case 'PACKAGING_MATERIAL':
+      return ItemModelType.ITEM_MODEL_TYPE_PACKAGING_MATERIAL
+    case 'SERVICE':
+      return ItemModelType.ITEM_MODEL_TYPE_SERVICE
+    case 'VIRTUAL_KIT':
+      return ItemModelType.ITEM_MODEL_TYPE_VIRTUAL_KIT
+    default:
+      throw new NotFoundException('modelType is required')
+  }
+}
+
+/** fromGrpcItemModelType converts generated model type enums back into stable BFF strings. */
+function fromGrpcItemModelType(value?: ItemModelType) {
+  switch (value) {
+    case ItemModelType.ITEM_MODEL_TYPE_SEMI_FINISHED_PRODUCT:
+      return 'SEMI_FINISHED_PRODUCT'
+    case ItemModelType.ITEM_MODEL_TYPE_ACCESSORY:
+      return 'ACCESSORY'
+    case ItemModelType.ITEM_MODEL_TYPE_PART:
+      return 'PART'
+    case ItemModelType.ITEM_MODEL_TYPE_SUB_ASSEMBLY:
+      return 'SUB_ASSEMBLY'
+    case ItemModelType.ITEM_MODEL_TYPE_RAW_MATERIAL:
+      return 'RAW_MATERIAL'
+    case ItemModelType.ITEM_MODEL_TYPE_PACKAGING_MATERIAL:
+      return 'PACKAGING_MATERIAL'
+    case ItemModelType.ITEM_MODEL_TYPE_SERVICE:
+      return 'SERVICE'
+    case ItemModelType.ITEM_MODEL_TYPE_VIRTUAL_KIT:
+      return 'VIRTUAL_KIT'
+    default:
+      return 'FINISHED_PRODUCT'
+  }
+}
+
+/** toGrpcItemType converts optional item type filters into generated enums. */
+function toGrpcItemType(value?: string): ItemType | undefined {
+  return value ? requireGrpcItemType(value) : undefined
+}
+
+/** requireGrpcItemType converts required item type values into generated enums. */
+function requireGrpcItemType(value?: string): ItemType {
+  switch (value) {
+    case 'STANDARD':
+      return ItemType.ITEM_TYPE_STANDARD
+    case 'PACKAGED_FINISHED_GOOD':
+      return ItemType.ITEM_TYPE_PACKAGED_FINISHED_GOOD
+    default:
+      throw new NotFoundException('itemType is required')
+  }
+}
+
+/** fromGrpcItemType converts generated item type enums back into stable BFF strings. */
+function fromGrpcItemType(value?: ItemType) {
+  return value === ItemType.ITEM_TYPE_PACKAGED_FINISHED_GOOD ? 'PACKAGED_FINISHED_GOOD' : 'STANDARD'
+}
+
+/** toGrpcBomType converts optional BOM type filters into generated enums. */
+function toGrpcBomType(value?: string): BomType | undefined {
+  return value ? requireGrpcBomType(value) : undefined
+}
+
+/** requireGrpcBomType converts required BOM type values into generated enums. */
+function requireGrpcBomType(value?: string): BomType {
+  switch (value) {
+    case 'COMPOSITION':
+      return BomType.BOM_TYPE_COMPOSITION
+    case 'TRANSFORMATION':
+      return BomType.BOM_TYPE_TRANSFORMATION
+    case 'PACKAGING':
+      return BomType.BOM_TYPE_PACKAGING
+    default:
+      throw new NotFoundException('bomType is required')
+  }
+}
+
+/** fromGrpcBomType converts generated BOM type enums back into stable BFF strings. */
+function fromGrpcBomType(value?: BomType) {
+  switch (value) {
+    case BomType.BOM_TYPE_TRANSFORMATION:
+      return 'TRANSFORMATION'
+    case BomType.BOM_TYPE_PACKAGING:
+      return 'PACKAGING'
+    default:
+      return 'COMPOSITION'
+  }
+}
+
+/** requireGrpcBomLineRole converts required BOM line role values into generated enums. */
+function requireGrpcBomLineRole(value?: string): BomLineRole {
+  switch (value) {
+    case 'PRIMARY_INPUT':
+      return BomLineRole.BOM_LINE_ROLE_PRIMARY_INPUT
+    case 'COMPONENT':
+      return BomLineRole.BOM_LINE_ROLE_COMPONENT
+    case 'PACKAGING_MATERIAL':
+      return BomLineRole.BOM_LINE_ROLE_PACKAGING_MATERIAL
+    default:
+      throw new NotFoundException('lineRole is required')
+  }
+}
+
+/** fromGrpcBomLineRole converts generated BOM line role enums back into stable BFF strings. */
+function fromGrpcBomLineRole(value?: BomLineRole) {
+  switch (value) {
+    case BomLineRole.BOM_LINE_ROLE_PRIMARY_INPUT:
+      return 'PRIMARY_INPUT'
+    case BomLineRole.BOM_LINE_ROLE_PACKAGING_MATERIAL:
+      return 'PACKAGING_MATERIAL'
+    default:
+      return 'COMPONENT'
+  }
+}
+
+/** requireActive converts required BFF lifecycle values into Contract V2 active booleans. */
+function requireActive(value?: string): boolean {
   switch (value) {
     case 'ACTIVE':
-      return ItemStatus.ITEM_STATUS_ACTIVE
+      return true
     case 'INACTIVE':
-      return ItemStatus.ITEM_STATUS_INACTIVE
+      return false
     default:
       throw new NotFoundException('status is required')
   }
 }
 
-/** fromGrpcStatus converts generated lifecycle enums back into stable BFF strings. */
-function fromGrpcStatus(value?: ItemStatus): ItemStatusValue {
-  return value === ItemStatus.ITEM_STATUS_INACTIVE ? 'INACTIVE' : 'ACTIVE'
+/** toActiveFilter converts optional BFF lifecycle filters into Contract V2 active filters. */
+function toActiveFilter(value?: string): boolean | undefined {
+  return value ? requireActive(value) : undefined
 }
 
-/** requireGrpcCategoryStatus converts one required category lifecycle enum and rejects unsupported values. */
-function requireGrpcCategoryStatus(value?: string): ItemCategoryStatus {
-  switch (value) {
-    case 'ACTIVE':
-      return ItemCategoryStatus.ITEM_CATEGORY_STATUS_ACTIVE
-    case 'INACTIVE':
-      return ItemCategoryStatus.ITEM_CATEGORY_STATUS_INACTIVE
-    default:
-      throw new NotFoundException('status is required')
-  }
+/** fromActive converts Contract V2 active booleans into BFF lifecycle strings. */
+function fromActive(active?: boolean): StatusValue {
+  return active === false ? 'INACTIVE' : 'ACTIVE'
 }
 
-/** fromGrpcCategoryStatus converts generated category lifecycle enums back into stable BFF strings. */
-function fromGrpcCategoryStatus(value?: ItemCategoryStatus): ItemCategoryStatusValue {
-  return value === ItemCategoryStatus.ITEM_CATEGORY_STATUS_INACTIVE ? 'INACTIVE' : 'ACTIVE'
+/** page normalizes 1-based page inputs. */
+function page(value?: number): number {
+  return Math.max(value ?? 1, 1)
+}
+
+/** pageSize clamps page size inputs to the API Gateway limit. */
+function pageSize(value?: number): number {
+  return Math.min(Math.max(value ?? 20, 1), 100)
 }
 
 /** normalize trims optional strings and collapses blanks to undefined. */

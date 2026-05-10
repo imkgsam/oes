@@ -2,31 +2,33 @@ import { Reflector } from '@nestjs/core'
 import { MES_MANAGEMENT_PERMISSION_CODES, PERMISSION_CHECK_KEY } from '@oes/common/authorization'
 import { MesController } from './mes.controller'
 
-// Verifies the MES gateway controller binds forming-workshop endpoints to the minimum MES permission codes and forwards request shapes unchanged.
+// Verifies the MES gateway controller binds current BFF endpoints to MES permissions and forwards request shapes unchanged.
 describe('MesController', () => {
   const mesService = {
-    activateManufacturingSpec: jest.fn(),
-    createManufacturingSpec: jest.fn(),
-    createWorkCenter: jest.fn(),
-    deactivateWorkCenter: jest.fn(),
+    activateProductionSpec: jest.fn(),
+    createProductionSpec: jest.fn(),
     getMoldDesign: jest.fn(),
-    getProductionMoldInstance: jest.fn(),
-    installProductionMoldInstance: jest.fn(),
+    getMoldUsageHistory: jest.fn(),
+    getProductionMold: jest.fn(),
+    getProductionSpec: jest.fn(),
+    getToolingCurrentPlacement: jest.fn(),
+    installTooling: jest.fn(),
     listCurrentMoldsByWorkCenter: jest.fn(),
-    listManufacturingSpecs: jest.fn(),
     listMoldDesigns: jest.fn(),
-    listProductionMoldInstances: jest.fn(),
-    listProductionMoldInstancesByDesign: jest.fn(),
-    listWorkCenters: jest.fn(),
-    moveProductionMoldInstance: jest.fn(),
+    listMoldLifeCounters: jest.fn(),
+    listProductionMolds: jest.fn(),
+    listProductionMoldsByDesign: jest.fn(),
+    listProductionSpecs: jest.fn(),
+    moveTooling: jest.fn(),
     printDailyMoldChecklist: jest.fn(),
     recordDailyMoldUsageBatch: jest.fn(),
+    registerMasterMold: jest.fn(),
     registerMoldDesign: jest.fn(),
-    registerProductionMoldInstance: jest.fn(),
-    retireManufacturingSpec: jest.fn(),
-    scrapProductionMoldInstance: jest.fn(),
-    updateManufacturingSpec: jest.fn(),
-    unmountProductionMoldInstance: jest.fn()
+    registerProductionMold: jest.fn(),
+    retireProductionSpec: jest.fn(),
+    scrapProductionMold: jest.fn(),
+    updateProductionSpec: jest.fn(),
+    unmountTooling: jest.fn()
   }
   const controller = new MesController(mesService as any)
 
@@ -34,83 +36,39 @@ describe('MesController', () => {
     jest.clearAllMocks()
   })
 
-  it('declares the expected MES permissions on the first-stage gateway endpoints', () => {
+  it('declares the expected MES permissions on current gateway endpoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.listManufacturingSpecs)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.READ_MANUFACTURING_SPEC],
+    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.listProductionSpecs)).toEqual({
+      permissions: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_SPEC],
       type: 'ALL'
     })
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.createManufacturingSpec)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MANUFACTURING_SPEC],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.updateManufacturingSpec)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MANUFACTURING_SPEC],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.retireManufacturingSpec)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MANUFACTURING_SPEC],
+    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.createProductionSpec)).toEqual({
+      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC],
       type: 'ALL'
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.listMoldDesigns)).toEqual({
       permissions: [MES_MANAGEMENT_PERMISSION_CODES.READ_MOLD_DESIGN],
       type: 'ALL'
     })
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.listWorkCenters)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.READ_WORK_CENTER_MOLD_STATUS],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.createWorkCenter)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.deactivateWorkCenter)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE],
-      type: 'ALL'
-    })
     expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.registerMoldDesign)).toEqual({
       permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MOLD_DESIGN],
       type: 'ALL'
     })
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.getProductionMoldInstance)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD_INSTANCE],
+    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.listProductionMolds)).toEqual({
+      permissions: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD],
       type: 'ALL'
     })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.listProductionMoldInstancesByDesign)
-    ).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD_INSTANCE],
+    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.registerProductionMold)).toEqual({
+      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD],
       type: 'ALL'
     })
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.listProductionMoldInstances)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD_INSTANCE],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.registerProductionMoldInstance)
-    ).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.moveProductionMoldInstance)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.installProductionMoldInstance)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.unmountProductionMoldInstance)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.scrapProductionMoldInstance)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD_INSTANCE],
+    expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.moveTooling)).toEqual({
+      permissions: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_TOOLING_INSTALLATION],
       type: 'ALL'
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.listCurrentMoldsByWorkCenter)).toEqual({
-      permissions: [MES_MANAGEMENT_PERMISSION_CODES.READ_WORK_CENTER_MOLD_STATUS],
+      permissions: [MES_MANAGEMENT_PERMISSION_CODES.READ_TOOLING_INSTALLATION],
       type: 'ALL'
     })
     expect(reflector.get(PERMISSION_CHECK_KEY, MesController.prototype.recordDailyMoldUsageBatch)).toEqual({
@@ -119,170 +77,67 @@ describe('MesController', () => {
     })
   })
 
-  it('forwards the minimum MES mold loop BFF surface to the proxy service', async () => {
+  it('forwards the current MES mold loop BFF surface to the proxy service', async () => {
     const source = { requestId: 'req-1', traceId: 'trace-1' }
 
-    mesService.listManufacturingSpecs.mockResolvedValue({ manufacturingSpecs: [] })
-    mesService.createManufacturingSpec.mockResolvedValue({ manufacturingSpecId: 'spec-1' })
-    mesService.createWorkCenter.mockResolvedValue({ workCenterId: 'wc-1' })
-    mesService.deactivateWorkCenter.mockResolvedValue({ workCenterId: 'wc-1', status: 'INACTIVE' })
-    mesService.activateManufacturingSpec.mockResolvedValue({ manufacturingSpecId: 'spec-1' })
-    mesService.updateManufacturingSpec.mockResolvedValue({ manufacturingSpecId: 'spec-1' })
-    mesService.retireManufacturingSpec.mockResolvedValue({ manufacturingSpecId: 'spec-1' })
+    mesService.listProductionSpecs.mockResolvedValue({ productionSpecs: [] })
+    mesService.createProductionSpec.mockResolvedValue({ productionSpecId: 'spec-1' })
+    mesService.activateProductionSpec.mockResolvedValue({ productionSpecId: 'spec-1' })
+    mesService.updateProductionSpec.mockResolvedValue({ productionSpecId: 'spec-1' })
+    mesService.retireProductionSpec.mockResolvedValue({ productionSpecId: 'spec-1' })
     mesService.listMoldDesigns.mockResolvedValue({ moldDesigns: [] })
-    mesService.listWorkCenters.mockResolvedValue({ workCenters: [] })
     mesService.getMoldDesign.mockResolvedValue({ moldDesignId: 'design-1' })
     mesService.registerMoldDesign.mockResolvedValue({ moldDesignId: 'design-1' })
-    mesService.listProductionMoldInstances.mockResolvedValue({ instances: [] })
-    mesService.listProductionMoldInstancesByDesign.mockResolvedValue({ instances: [] })
-    mesService.registerProductionMoldInstance.mockResolvedValue({ productionMoldInstanceId: 'mold-1' })
-    mesService.getProductionMoldInstance.mockResolvedValue({ productionMoldInstanceId: 'mold-1' })
-    mesService.moveProductionMoldInstance.mockResolvedValue({ moldResourceId: 'mold-1' })
-    mesService.installProductionMoldInstance.mockResolvedValue({ productionMoldInstanceId: 'mold-1' })
-    mesService.unmountProductionMoldInstance.mockResolvedValue({ productionMoldInstanceId: 'mold-1' })
-    mesService.scrapProductionMoldInstance.mockResolvedValue({ moldResourceId: 'mold-1' })
-    mesService.listCurrentMoldsByWorkCenter.mockResolvedValue({ installedMolds: [] })
-    mesService.printDailyMoldChecklist.mockResolvedValue({ workCenters: [] })
+    mesService.listProductionMolds.mockResolvedValue({ productionMolds: [] })
+    mesService.listProductionMoldsByDesign.mockResolvedValue({ productionMolds: [] })
+    mesService.registerProductionMold.mockResolvedValue({ productionMoldId: 'mold-1' })
+    mesService.getProductionMold.mockResolvedValue({ productionMoldId: 'mold-1' })
+    mesService.moveTooling.mockResolvedValue({ toolingId: 'mold-1' })
+    mesService.installTooling.mockResolvedValue({ toolingInstallationId: 'install-1' })
+    mesService.unmountTooling.mockResolvedValue({ toolingInstallationId: 'install-1' })
+    mesService.scrapProductionMold.mockResolvedValue({ productionMoldId: 'mold-1' })
+    mesService.listCurrentMoldsByWorkCenter.mockResolvedValue({ items: [] })
+    mesService.printDailyMoldChecklist.mockResolvedValue({ items: [] })
     mesService.recordDailyMoldUsageBatch.mockResolvedValue({ acceptedItems: [], skippedItems: [] })
 
-    await controller.listManufacturingSpecs('tenant-1', { status: 'ACTIVE' } as any, source as any)
-    await controller.createManufacturingSpec('tenant-1', { specCode: 'SPEC-001' } as any, source as any)
-    await controller.activateManufacturingSpec('tenant-1', 'spec-1', { commandId: 'cmd-1' } as any, source as any)
-    await controller.updateManufacturingSpec('tenant-1', 'spec-1', { name: 'Spec A2' } as any, source as any)
-    await controller.retireManufacturingSpec('tenant-1', 'spec-1', { reason: 'obsolete' } as any, source as any)
-    await controller.listWorkCenters('tenant-1', { keyword: '连体' } as any, source as any)
-    await controller.createWorkCenter('tenant-1', { workCenterCode: 'LINE-LT-01' } as any, source as any)
-    await controller.deactivateWorkCenter('tenant-1', 'wc-1', { reason: 'retire line' } as any, source as any)
+    await controller.listProductionSpecs('tenant-1', { status: 'ACTIVE' } as any, source as any)
+    await controller.createProductionSpec('tenant-1', { specCode: 'SPEC-001' } as any, source as any)
+    await controller.activateProductionSpec('tenant-1', 'spec-1', { commandId: 'cmd-1' } as any, source as any)
+    await controller.updateProductionSpec('tenant-1', 'spec-1', { name: 'Spec A2' } as any, source as any)
+    await controller.retireProductionSpec('tenant-1', 'spec-1', { reason: 'obsolete' } as any, source as any)
     await controller.listMoldDesigns('tenant-1', { keyword: 'bowl' } as any, source as any)
     await controller.getMoldDesign('tenant-1', 'design-1', source as any)
     await controller.registerMoldDesign('tenant-1', { designCode: 'MD-001' } as any, source as any)
-    await controller.listProductionMoldInstancesByDesign(
-      'tenant-1',
-      'design-1',
-      { status: 'PENDING_INSTALLATION' } as any,
-      source as any
-    )
-    await controller.listProductionMoldInstances(
-      'tenant-1',
-      { status: 'INSTALLED', moldDesignId: 'design-1' } as any,
-      source as any
-    )
-    await controller.registerProductionMoldInstance('tenant-1', { moldInstanceCode: 'PM-001' } as any, source as any)
-    await controller.getProductionMoldInstance('tenant-1', 'mold-1', source as any)
-    await controller.moveProductionMoldInstance(
-      'tenant-1',
-      'mold-1',
-      { commandId: 'cmd-move', toMesLocationId: 'loc-ready' } as any,
-      source as any
-    )
-    await controller.installProductionMoldInstance(
-      'tenant-1',
-      'mold-1',
-      { commandId: 'cmd-install', resourcePositionId: 'pos-1', workCenterId: 'wc-1' } as any,
-      source as any
-    )
-    await controller.unmountProductionMoldInstance(
-      'tenant-1',
-      'mold-1',
-      { commandId: 'cmd-unmount', moldInstallationId: 'install-1' } as any,
-      source as any
-    )
-    await controller.scrapProductionMoldInstance(
-      'tenant-1',
-      'mold-1',
-      { commandId: 'cmd-scrap', scrapReason: 'broken' } as any,
-      source as any
-    )
-    await controller.listCurrentMoldsByWorkCenter('tenant-1', 'wc-1', { page: 1 } as any, source as any)
-    await controller.printDailyMoldChecklist('tenant-1', { checklistDate: '2026-05-05' } as any, source as any)
+    await controller.listProductionMoldsByDesign('tenant-1', 'design-1', { status: 'INSTALLED' } as any, source as any)
+    await controller.listProductionMolds('tenant-1', { status: 'INSTALLED', moldDesignId: 'design-1' } as any, source as any)
+    await controller.registerProductionMold('tenant-1', { moldCode: 'PM-001' } as any, source as any)
+    await controller.getProductionMold('tenant-1', 'mold-1', source as any)
+    await controller.moveTooling('tenant-1', 'mold-1', { commandId: 'cmd-move' } as any, source as any)
+    await controller.installTooling('tenant-1', 'mold-1', { commandId: 'cmd-install' } as any, source as any)
+    await controller.unmountTooling('tenant-1', 'install-1', { commandId: 'cmd-unmount' } as any, source as any)
+    await controller.scrapProductionMold('tenant-1', 'mold-1', { commandId: 'cmd-scrap' } as any, source as any)
+    await controller.listCurrentMoldsByWorkCenter('tenant-1', 'wc-1', { workUnitId: 'wu-1' } as any, source as any)
+    await controller.printDailyMoldChecklist('tenant-1', { checklistDate: '2026-05-05', workCenterId: 'wc-1' } as any, source as any)
     await controller.recordDailyMoldUsageBatch(
       'tenant-1',
       '2026-05-05',
-      { batchCommandId: 'batch-1', items: [], workCenterId: 'wc-1' } as any,
+      { batchCommandId: 'batch-1', items: [], workCenterRef: { workCenterId: 'wc-1' } } as any,
       source as any
     )
 
-    expect(mesService.listManufacturingSpecs).toHaveBeenCalledWith('tenant-1', { status: 'ACTIVE' }, source)
-    expect(mesService.createManufacturingSpec).toHaveBeenCalledWith(
-      'tenant-1',
-      { specCode: 'SPEC-001' },
-      source
-    )
-    expect(mesService.activateManufacturingSpec).toHaveBeenCalledWith(
-      'tenant-1',
-      'spec-1',
-      { commandId: 'cmd-1' },
-      source
-    )
-    expect(mesService.updateManufacturingSpec).toHaveBeenCalledWith(
-      'tenant-1',
-      'spec-1',
-      { name: 'Spec A2' },
-      source
-    )
-    expect(mesService.retireManufacturingSpec).toHaveBeenCalledWith(
-      'tenant-1',
-      'spec-1',
-      { reason: 'obsolete' },
-      source
-    )
-    expect(mesService.listProductionMoldInstancesByDesign).toHaveBeenCalledWith(
+    expect(mesService.listProductionSpecs).toHaveBeenCalledWith('tenant-1', { status: 'ACTIVE' }, source)
+    expect(mesService.createProductionSpec).toHaveBeenCalledWith('tenant-1', { specCode: 'SPEC-001' }, source)
+    expect(mesService.listProductionMoldsByDesign).toHaveBeenCalledWith(
       'tenant-1',
       'design-1',
-      { status: 'PENDING_INSTALLATION' },
+      { status: 'INSTALLED' },
       source
     )
-    expect(mesService.listProductionMoldInstances).toHaveBeenCalledWith(
-      'tenant-1',
-      { status: 'INSTALLED', moldDesignId: 'design-1' },
-      source
-    )
-    expect(mesService.listWorkCenters).toHaveBeenCalledWith('tenant-1', { keyword: '连体' }, source)
-    expect(mesService.createWorkCenter).toHaveBeenCalledWith(
-      'tenant-1',
-      { workCenterCode: 'LINE-LT-01' },
-      source
-    )
-    expect(mesService.deactivateWorkCenter).toHaveBeenCalledWith(
-      'tenant-1',
-      'wc-1',
-      { reason: 'retire line' },
-      source
-    )
-    expect(mesService.listCurrentMoldsByWorkCenter).toHaveBeenCalledWith(
-      'tenant-1',
-      'wc-1',
-      { page: 1 },
-      source
-    )
-    expect(mesService.moveProductionMoldInstance).toHaveBeenCalledWith(
-      'tenant-1',
-      'mold-1',
-      { commandId: 'cmd-move', toMesLocationId: 'loc-ready' },
-      source
-    )
-    expect(mesService.installProductionMoldInstance).toHaveBeenCalledWith(
-      'tenant-1',
-      'mold-1',
-      { commandId: 'cmd-install', resourcePositionId: 'pos-1', workCenterId: 'wc-1' },
-      source
-    )
-    expect(mesService.unmountProductionMoldInstance).toHaveBeenCalledWith(
-      'tenant-1',
-      'mold-1',
-      { commandId: 'cmd-unmount', moldInstallationId: 'install-1' },
-      source
-    )
-    expect(mesService.scrapProductionMoldInstance).toHaveBeenCalledWith(
-      'tenant-1',
-      'mold-1',
-      { commandId: 'cmd-scrap', scrapReason: 'broken' },
-      source
-    )
+    expect(mesService.moveTooling).toHaveBeenCalledWith('tenant-1', 'mold-1', { commandId: 'cmd-move' }, source)
     expect(mesService.recordDailyMoldUsageBatch).toHaveBeenCalledWith(
       'tenant-1',
       '2026-05-05',
-      { batchCommandId: 'batch-1', items: [], workCenterId: 'wc-1' },
+      { batchCommandId: 'batch-1', items: [], workCenterRef: { workCenterId: 'wc-1' } },
       source
     )
   })

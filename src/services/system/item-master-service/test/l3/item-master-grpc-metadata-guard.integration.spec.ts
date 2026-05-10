@@ -9,9 +9,9 @@ import {
   INTERNAL_SERVICE_AUTHENTICATOR,
   OPERATOR_CONTEXT_VERIFIER
 } from '@oes/common/authorization'
-import { ValidatingQueryBus } from '@oes/common/cqrs'
 import { DefaultInternalServiceAuthenticator } from '@oes/common/authorization'
 import { AppLogger } from '@oes/common/logging'
+import { ItemMasterQueryV2Service } from '../../src/application/item-master-v2.service'
 import { ItemMasterQueryGrpcController } from '../../src/interfaces/grpc/item-master-query.grpc.controller'
 import { ItemMasterRpcContextGuard } from '../../src/interfaces/grpc/item-master-rpc-context.guard'
 
@@ -61,8 +61,8 @@ describe('Item master gRPC metadata guard integration L3', () => {
     trustedServices?: string
     operatorVerifyResult?: { valid: boolean; payload?: Record<string, unknown>; reason?: string }
   }) {
-    const queryBus = {
-      execute: jest.fn().mockResolvedValue({
+    const queryService = {
+      searchItems: jest.fn().mockResolvedValue({
         items: [],
         total: 0,
         page: 1,
@@ -78,8 +78,8 @@ describe('Item master gRPC metadata guard integration L3', () => {
         GrpcRequestContextInterceptor,
         DefaultInternalServiceAuthenticator,
         {
-          provide: ValidatingQueryBus,
-          useValue: queryBus
+          provide: ItemMasterQueryV2Service,
+          useValue: queryService
         },
         {
           provide: AppLogger,
@@ -136,7 +136,7 @@ describe('Item master gRPC metadata guard integration L3', () => {
       controller: moduleRef.get(ItemMasterQueryGrpcController),
       guard: moduleRef.get(ItemMasterRpcContextGuard),
       interceptor: moduleRef.get(GrpcRequestContextInterceptor),
-      queryBus
+      queryService
     }
   }
 

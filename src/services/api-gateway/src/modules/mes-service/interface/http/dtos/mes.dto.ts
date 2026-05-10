@@ -1,34 +1,92 @@
-/** ListManufacturingSpecsDto captures the supported ManufacturingSpec directory filters for the MES mold workspace. */
-export class ListManufacturingSpecsDto {
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { Transform, Type } from 'class-transformer'
+import { Allow, IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator'
+
+/** toOptionalBoolean converts common query-string boolean values while leaving absent values untouched. */
+function toOptionalBoolean({ value }: { value: unknown }) {
+  if (value === undefined || value === null || value === '') {
+    return undefined
+  }
+  if (value === true || value === 'true') {
+    return true
+  }
+  if (value === false || value === 'false') {
+    return false
+  }
+  return value
+}
+
+/** toOptionalStringArray accepts repeated query params or comma-separated lists. */
+function toOptionalStringArray({ value }: { value: unknown }) {
+  if (Array.isArray(value)) {
+    return value
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return value.split(',').map((item) => item.trim()).filter(Boolean)
+  }
+  return undefined
+}
+
+/** ListProductionSpecsDto captures the supported ProductionSpec directory filters for the MES mold workspace. */
+export class ListProductionSpecsDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Transform(toOptionalBoolean)
+  @IsBoolean()
   includeRetired?: boolean
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   itemId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   keyword?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   orgId?: string
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   page?: number
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   pageSize?: number
-  productFamilyRefId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   status?: string
 }
 
-/** CreateManufacturingSpecDto captures the first-stage ManufacturingSpec creation payload. */
-export class CreateManufacturingSpecDto {
+/** CreateProductionSpecDto captures the current ProductionSpec creation payload. */
+export class CreateProductionSpecDto {
   commandId?: string
   effectiveFrom?: string
   effectiveTo?: string
+  @Allow()
   itemRef!: unknown
-  manufacturingAttributes!: unknown[]
   name!: string
   orgId?: string
-  productFamilyRef!: unknown
   reason?: string
   revisionCode?: string
-  routeIntentRef?: unknown
   specCode!: string
-  supersedesSpecId?: string
+  supersedesProductionSpecId?: string
 }
 
-/** ActivateManufacturingSpecDto captures the explicit ManufacturingSpec activation payload. */
-export class ActivateManufacturingSpecDto {
+/** ActivateProductionSpecDto captures the explicit ProductionSpec activation payload. */
+export class ActivateProductionSpecDto {
   activatedAt?: string
   commandId?: string
   expectedVersion?: number
@@ -36,78 +94,72 @@ export class ActivateManufacturingSpecDto {
   reason?: string
 }
 
-/** UpdateManufacturingSpecDto captures the first-stage ManufacturingSpec update payload. */
-export class UpdateManufacturingSpecDto {
+/** UpdateProductionSpecDto captures the current ProductionSpec update payload. */
+export class UpdateProductionSpecDto {
   commandId?: string
   effectiveFrom?: string
   effectiveTo?: string
   expectedVersion?: number
+  @Allow()
   itemRef?: unknown
-  manufacturingAttributes?: unknown[]
   name?: string
   orgId?: string
-  productFamilyRef?: unknown
   reason?: string
-  routeIntentRef?: unknown
 }
 
-/** RetireManufacturingSpecDto captures the first-stage ManufacturingSpec retirement payload. */
-export class RetireManufacturingSpecDto {
+/** RetireProductionSpecDto captures the current ProductionSpec retirement payload. */
+export class RetireProductionSpecDto {
   commandId?: string
   expectedVersion?: number
   orgId?: string
   reason?: string
-  replacementSpecId?: string
+  replacementProductionSpecId?: string
   retiredAt?: string
-}
-
-/** ListWorkCentersDto captures the production-unit directory filters for the mold workspace. */
-export class ListWorkCentersDto {
-  keyword?: string
-  orgId?: string
-  page?: number
-  pageSize?: number
-  parentWorkCenterId?: string
-  status?: string
-  workCenterType?: string
-}
-
-/** CreateWorkCenterDto captures one production-unit creation command without exposing mold-position CRUD. */
-export class CreateWorkCenterDto {
-  capacityProfileId?: string
-  commandId?: string
-  name!: string
-  orgId?: string
-  parentWorkCenterId?: string
-  reason?: string
-  relatedMesLocationId?: string
-  workCenterCode!: string
-  workCenterType!: string
-}
-
-/** DeactivateWorkCenterDto captures one production-unit deactivation command. */
-export class DeactivateWorkCenterDto {
-  commandId?: string
-  orgId?: string
-  reason?: string
 }
 
 /** ListMoldDesignsDto captures the supported MoldDesign directory filters for the MES mold workspace. */
 export class ListMoldDesignsDto {
-  functionRole?: string
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   itemId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   keyword?: string
-  manufacturingSpecRefId?: string
-  materialType?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   orgId?: string
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   page?: number
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   pageSize?: number
-  productFamilyRefId?: string
-  productionMethodTag?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  productionSpecId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   status?: string
 }
 
-/** RegisterMoldDesignDto captures the first-stage MoldDesign registration payload. */
+/** RegisterMoldDesignDto captures the current MoldDesign registration payload. */
 export class RegisterMoldDesignDto {
   commandId?: string
   defaultLifeLimit?: string
@@ -115,122 +167,239 @@ export class RegisterMoldDesignDto {
   designCode!: string
   functionRole!: string
   itemRef?: unknown
-  manufacturingSpecRefs?: unknown[]
   materialType!: string
   name!: string
   orgId?: string
   outputStructureType!: string
+  @Allow()
   outputs!: unknown[]
-  productFamilyRef!: unknown
   productionMethodTags?: string[]
+  @Allow()
+  productionSpecRefs?: unknown[]
   reason?: string
   revisionCode?: string
-  supersedesDesignId?: string
+  supersedesMoldDesignId?: string
 }
 
-/** RegisterProductionMoldInstanceDto captures the first-stage production mold registration payload. */
-export class RegisterProductionMoldInstanceDto {
+/** RegisterMasterMoldDto captures the current MasterMold registration payload. */
+export class RegisterMasterMoldDto {
+  commandId?: string
+  @Allow()
+  initialCarrierResourceRef?: unknown
+  @Allow()
+  initialStorageResourceRef?: unknown
+  masterMoldCode!: string
+  moldDesignId!: string
+  notes?: string
+  orgId?: string
+  @Allow()
+  purchaseRef?: unknown
+  qualitySummary?: string
+  reason?: string
+  receivedAt?: string
+  @Allow()
+  supplierRef?: unknown
+}
+
+/** RegisterProductionMoldDto captures the current ProductionMold registration payload. */
+export class RegisterProductionMoldDto {
   acceptedAt?: string
   commandId?: string
-  initialMesLocationId?: string
-  initialStatus?: string
-  lifeLimitValue?: string
-  lifeUnit?: string
-  masterMoldId?: string
+  @Allow()
+  initialCarrierResourceRef?: unknown
+  @Allow()
+  initialStorageResourceRef?: unknown
+  moldCode!: string
   moldDesignId!: string
-  moldInstanceCode!: string
   orgId?: string
+  @Allow()
   purchaseRef?: unknown
   reason?: string
   receivedAt?: string
+  sourceMasterMoldId?: string
+  @Allow()
   supplierRef?: unknown
-  warningThresholdValue?: string
 }
 
-/** ListProductionMoldInstancesByDesignDto captures production mold directory filters for one MoldDesign. */
-export class ListProductionMoldInstancesByDesignDto {
+/** ListProductionMoldsByDesignDto captures production mold directory filters for one MoldDesign. */
+export class ListProductionMoldsByDesignDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   orgId?: string
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   page?: number
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
   pageSize?: number
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   status?: string
-  supplierId?: string
-  warningLevel?: string
 }
 
-/** ListProductionMoldInstancesDto captures tenant-wide production mold directory filters. */
-export class ListProductionMoldInstancesDto {
+/** ListProductionMoldsDto captures tenant-wide production mold directory filters. */
+export class ListProductionMoldsDto extends ListProductionMoldsByDesignDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  carrierResourceId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   moldDesignId?: string
-  orgId?: string
-  page?: number
-  pageSize?: number
-  status?: string
-  supplierId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  storageResourceId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   warningLevel?: string
 }
 
-/** MoveProductionMoldInstanceDto captures one production mold transfer payload. */
-export class MoveProductionMoldInstanceDto {
+/** MoveToolingDto captures one storage or carrier placement command. */
+export class MoveToolingDto {
   commandId?: string
-  fromMesLocationId?: string
   movedAt?: string
   movementReason?: string
   orgId?: string
-  toMesLocationId!: string
+  @Allow()
+  toCarrierResourceRef?: unknown
+  @Allow()
+  toStorageResourceRef?: unknown
+  toolingType?: string
 }
 
-/** InstallProductionMoldInstanceDto captures one production mold installation payload. */
-export class InstallProductionMoldInstanceDto {
+/** InstallToolingDto captures one tooling installation payload. */
+export class InstallToolingDto {
+  @Allow()
+  cavityMapping?: string
+  @Allow()
+  cavityPosition?: string
+  @Allow()
   commandId?: string
+  @Allow()
   installedAt?: string
-  operationRef?: unknown
-  operationTaskRef?: unknown
+  @Allow()
+  moldPosition?: string
+  @Allow()
   orgId?: string
+  @Allow()
   reason?: string
-  resourcePositionId?: string
-  routingRef?: unknown
-  setupSnapshot?: string
-  workCenterId!: string
-  workOrderRef?: unknown
+  @Allow()
+  setupParameters?: string
+  @Allow()
+  toolingType?: string
+  @Allow()
+  workCenterRef!: unknown
+  @Allow()
+  workUnitRef?: unknown
 }
 
-/** UnmountProductionMoldInstanceDto captures one production mold unmount payload. */
-export class UnmountProductionMoldInstanceDto {
+/** UnmountToolingDto captures one tooling unmount payload. */
+export class UnmountToolingDto {
   commandId?: string
-  moldInstallationId!: string
-  nextStatus?: string
   orgId?: string
   reason?: string
-  toMesLocationId?: string
   unmountedAt?: string
 }
 
-/** ScrapProductionMoldInstanceDto captures one production mold scrap command payload. */
-export class ScrapProductionMoldInstanceDto {
-  closeCurrentInstallation?: boolean
+/** ScrapProductionMoldDto captures one production mold scrap command payload. */
+export class ScrapProductionMoldDto {
   commandId?: string
   orgId?: string
-  scrapReason!: string
+  reason?: string
   scrappedAt?: string
-  toMesLocationId?: string
 }
 
-/** ListCurrentMoldsByWorkCenterDto captures current line mold visualization filters. */
+/** ListCurrentMoldsByWorkCenterDto captures current work-center mold visualization filters. */
 export class ListCurrentMoldsByWorkCenterDto {
-  includeChildWorkCenters?: boolean
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   orgId?: string
-  page?: number
-  pageSize?: number
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  workUnitId?: string
+}
+
+/** ListMoldLifeCountersDto captures life counter directory filters. */
+export class ListMoldLifeCountersDto extends ListProductionMoldsByDesignDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  productionMoldId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   warningLevel?: string
+}
+
+/** GetMoldUsageHistoryDto captures chronological mold history filters. */
+export class GetMoldUsageHistoryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  from?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  orgId?: string
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  pageSize?: number
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  to?: string
 }
 
 /** PrintDailyMoldChecklistDto captures the web-stage daily mold checklist query. */
 export class PrintDailyMoldChecklistDto {
-  checklistDate?: string
-  includeChildWorkCenters?: boolean
-  includeRecentUsage?: boolean
-  includeWarnings?: boolean
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  checklistDate!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   orgId?: string
-  workCenterIds?: string[] | string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  workCenterId!: string
 }
 
 /** DailyMoldUsageBatchItemDto captures one checkbox row selected for manual usage recording. */
@@ -239,24 +408,27 @@ export class DailyMoldUsageBatchItemDto {
   checked?: boolean
   lifeDelta?: string
   lifeUnit?: string
-  manufacturingSpecRef?: unknown
   moldDesignOutputId?: string
   moldDesignOutputOptionId?: string
-  moldInstallationId!: string
-  productFamilyRef?: unknown
-  productionMoldInstanceId!: string
+  productionMoldId!: string
+  productionSpecRef?: unknown
+  productionUnitRef?: unknown
   reason?: string
-  resourcePositionId!: string
+  toolingInstallationId!: string
+  traceSubjectRef?: unknown
   usageQuantity?: string
-  workCenterId?: string
+  workCenterRef?: unknown
+  workUnitRef?: unknown
 }
 
 /** RecordDailyMoldUsageBatchDto captures one idempotent web-stage checkbox batch submission. */
 export class RecordDailyMoldUsageBatchDto {
   batchCommandId!: string
+  @Allow()
   items!: DailyMoldUsageBatchItemDto[]
   orgId?: string
   reason?: string
   usedAt?: string
-  workCenterId!: string
+  @Allow()
+  workCenterRef!: unknown
 }

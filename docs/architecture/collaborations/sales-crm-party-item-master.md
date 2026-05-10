@@ -2,7 +2,11 @@
 
 ## 1. 目标
 
-定义 OES 中 `sales-service` 如何与 `crm-service`、`party-service`、`item-master-service` 协作，支撑报价与订单主链，同时避免把客户主数据、商机真相或 Item 真相错误并入销售交易边界。
+定义 `sales-service` 如何与 `crm-service`、`party-service`、`item-master-service` 协作，支撑报价与订单主链，同时避免把客户主数据、商机真相或 Item 主数据真相错误并入销售交易边界。
+
+Item Master 概念以以下文件为唯一真相源：
+
+- [item-master-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/item-master-service.md)
 
 ## 2. 参与服务
 
@@ -14,13 +18,13 @@
 ## 3. 协同分工
 
 - `sales-service`
-  - 负责 `Quote`、`QuoteVersion`、`SalesOrder`、`SalesOrderLine`、transaction snapshot 与 customer commitment
+  - 负责 `Quote`、`QuoteVersion`、`SalesOrder`、`SalesOrderLine`、transaction snapshot 与 customer commitment。
 - `crm-service`
-  - 负责 `CustomerAccount`、`CustomerContact`、`CustomerAddress`、`CustomerPartyBinding` 与销售前置交互过程
+  - 负责 `CustomerAccount`、`CustomerContact`、`CustomerAddress`、`CustomerPartyBinding` 与销售前置交互过程。
 - `party-service`
-  - 负责 `Party`、`TenantParty`、主体标识与交易 / 法律主体真相
+  - 负责 `Party`、`TenantParty`、主体标识与交易 / 法律主体真相。
 - `item-master-service`
-  - 负责 `Item`、`ItemCapability`、`ItemComposition` 与 `SupplierItemMapping`
+  - 负责 `ItemModel`、`Item`、attribute、BOM、Packaging、`ItemCategory` 与 `SupplierItemMapping` 真相。
 
 ## 4. 稳定协同规则
 
@@ -59,7 +63,8 @@
 
 ### 4.5 Sales 与 Item Master 的 Item 采用口径
 
-- `sales-service` 只消费 `sellable Item`，不拥有 `Item` 主数据真相。
+- `sales-service` 最终只消费 active + sellable `Item`，不拥有 `Item` 主数据真相。
+- Sales 可以从 `ItemModel + AttributeOption + optional PackagingSpec` 解析到 sellable `Item`。
 - `SalesOrderLine` 必须保存稳定引用与冻结快照，phase 1 最小集合为：
   - `itemId`
   - `itemSnapshot`
@@ -68,7 +73,8 @@
   - `priceQuantityDeliverySnapshot`
   - `customerItemSnapshot`
 - `itemSnapshot` 解决“当时卖的是什么”，但不把销售价格、包装要求、客户显示名反写到 `item-master-service`。
-- `customerItemSnapshot` 用于出口等场景下客户自有 `SKU / 型号 / 标签显示名`。
+- `customerItemSnapshot` 用于出口等场景下客户自有 `SKU / 型号 / 标签显示名`，不进入 item-master。
+- 一次性临时包装要求可以保留在 `packagingRequirementSnapshot`；长期包装配置应沉淀为 `PackagingSpec` 与必要的 PackagedItem。
 
 ### 4.6 Customer Item 口径
 
@@ -86,31 +92,31 @@
 ## 5. 同步 / 异步边界
 
 - 同步：
-  - `sales-service -> crm-service` 的 customer selector、account / contact 上下文读取
-  - 基于 CRM 已确认 `customer_tenant_party_id` 的受控主体摘要读取
-  - `sales-service -> item-master-service` 的 `sellable Item` 引用查询与校验
+  - `sales-service -> crm-service` 的 customer selector、account / contact 上下文读取。
+  - 基于 CRM 已确认 `customer_tenant_party_id` 的受控主体摘要读取。
+  - `sales-service -> item-master-service` 的 Item 配置解析、sellable 引用查询与校验。
 - 异步：
-  - phase 1 不强制冻结 `Sales -> CRM` 事件集
-  - 如后续需要同步报价发布、订单成立或客户产品映射更新事件，应在 `sales-service` contract 阶段单独冻结
+  - phase 1 不强制冻结 `Sales -> CRM` 事件集。
+  - 如后续需要同步报价发布、订单成立或客户产品映射更新事件，应在 `sales-service` contract 阶段单独冻结。
 
 ## 6. 真相归属
 
 - `Quote`、`QuoteVersion`、`SalesOrder`、`SalesOrderLine`、customer commitment：`sales-service`
 - `CustomerAccount`、`CustomerContact`、`CustomerAddress`、`CustomerStatus`、`CustomerCategory`、tags、`CustomerPartyBinding`：`crm-service`
 - `Party`、`TenantParty`、主体标识：`party-service`
-- `Item`、`ItemCapability`、`ItemComposition`、`SupplierItemMapping`：`item-master-service`
+- `ItemModel`、`Item`、attribute、BOM、Packaging、`ItemCategory`、`SupplierItemMapping`：`item-master-service`
 - 长期 `CustomerItemMapping`：future `sales-service / crm-service` 协同候选
 
 ## 7. 明确禁止
 
-- 不让 `sales-service` 接管 opportunity 真相或 Party 主数据真相
-- 不让 Sales 长期绕过 CRM selector 直接把 Party 当成 customer entry
-- 不把 Party 主体信息复制成 CRM customer truth
-- 不让 `item-master-service` 承载客户自己的 SKU / 型号目录
-- 不让报价下载、预览、打印隐式生成 `QuoteVersion`
-- 不让“有报价”自动等于“有正式订单”
-- 不让 `ConvertQuoteVersionToOrder` 重新回源改写已冻结的 customer snapshot
-- 不在 phase 1 把完整客户产品目录、CLM 或 pricing engine 展开成必经依赖
+- 不让 `sales-service` 接管 opportunity 真相或 Party 主数据真相。
+- 不让 Sales 长期绕过 CRM selector 直接把 Party 当成 customer entry。
+- 不把 Party 主体信息复制成 CRM customer truth。
+- 不让 `item-master-service` 承载客户自己的 SKU / 型号目录。
+- 不让报价下载、预览、打印隐式生成 `QuoteVersion`。
+- 不让“有报价”自动等于“有正式订单”。
+- 不让 `ConvertQuoteVersionToOrder` 重新回源改写已冻结的 customer snapshot。
+- 不在 phase 1 把完整客户产品目录、CLM 或 pricing engine 展开成必经依赖。
 
 ## 8. 关联文档
 

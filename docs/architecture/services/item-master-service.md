@@ -2,96 +2,470 @@
 
 ## 1. Purpose
 
-`item-master-service` 是 OES 的独立基础主数据服务，负责回答“这个 Item 是什么、它属于什么结构与性质、具备哪些基础能力、如果它是套装由哪些 Item 组成、供应商侧如何把自己的型号映射到它”。
+`item-master-service` 是 OES 的物料主数据真相服务，负责维护可被采购、销售、库存、生产、包装、BOM 与供应商映射稳定引用的 `ItemModel`、`Item`、attribute、BOM、包装规格、轻量分类与供应商物料标识映射。
 
-当前职责卡只冻结第一阶段最小稳定边界，用于支撑销售、采购、MES、WMS 与 SRM 后续 contract 设计，不展开实现、proto 或表结构。
+本文件是 `item-master-service` 的唯一稳定设计真相源。其他服务文档可以引用本文定义的概念与边界，但不得自行创建或改写 `ItemModel`、`Item`、BOM、Packaging、capability 或 `SupplierItemMapping` 的主语义。
 
-## 2. Owns
+本文不展开 proto、数据库表结构、运行时代码或 UI 设计；contract 与代码改造应在本文冻结后进入 `CONTRACT-V2` 与后续迁移阶段。
 
+## 2. Canonical Concepts
+
+- `ItemModel`
 - `Item`
-- `ItemCapability`
-- `ItemComposition`
+- `AttributeDefinition`
+- `AttributeOption`
+- `ItemModelAttributeRule`
+- `Item.capabilities`
+- `BOM`
+- `BOMLine`
+- `PackagingMethod`
+- `PackagingSpec`
+- `ItemCategory`
 - `SupplierItemMapping`
-- optional `ItemCategory`
-- `Item` 的基础分类真相：
-  - `structureType = SINGLE | BUNDLE`
-  - `natureType = PHYSICAL | VIRTUAL | SERVICE`
-- `Item` 能力真相：
-  - `sellable`
-  - `purchasable`
-  - `stockable`
-  - `manufacturable`
 
-## 3. Does Not Own
+已废弃主语义：
 
-- 销售报价、销售订单、销售配置、销售价格真相
-- 采购订单、收货、商业条款、账期、MOQ 真相
-- `mes-service` 的 `ManufacturingSpec`、route、WIP、process 真相
-- `wms-service` 的 `StockItemType`、`InventoryItem`、`StockLot`、`PackageUnit`、`FulfillmentSet` 真相
-- `srm-service` 的 `Supplier`、`SupplierContact` 真相
-- `crm-service` 的商机、询盘、客户产品兴趣真相
-- `PIM / PLM / PackagingOption / PackageSpec / PackagingBOM` 真相
+- `ProductModel`
+- `ItemComposition`
+- `structureType = SINGLE | BUNDLE`
+- `natureType = PHYSICAL | VIRTUAL | SERVICE`
+- `StockItemType`
 
-## 4. Core Responsibilities
+`ProductModel` 不再作为别名使用；模型层对象统一称为 `ItemModel`。
 
-- 维护可被多个业务域稳定引用的 `Item` 身份与最小分类边界。
-- 维护 `Item` 的 sellable / purchasable / stockable / manufacturable 能力，并保证基础约束一致。
-- 维护套装与组件的静态组成关系，但第一阶段只支持单层 `BUNDLE -> component`，不承诺 nested bundle。
-- 维护供应商型号到 `Item` 的映射关系，但只表达“这个供应商如何标识该 Item”，不承载价格、MOQ、账期或供应表现。
-- 为销售、采购、MES、WMS 提供统一 Item 引用口径，避免各域各自复制一套 Item 主数据真相。
+## 3. Owns
 
-## 5. External Interfaces
+- `ItemModel` 的基础身份、类型、生命周期与模型级 capability 默认规则。
+- `Item` 的基础身份、生命周期、locked attributes、包装规格引用与执行层 capability 真相。
+- attribute 简版主数据：
+  - `AttributeDefinition`
+  - `AttributeOption`
+  - `ItemModelAttributeRule`
+- BOM 主数据：
+  - `COMPOSITION_BOM`
+  - `TRANSFORMATION_BOM`
+  - `PACKAGING_BOM`
+- 包装主数据：
+  - `PackagingMethod`
+  - `PackagingSpec`
+- `ItemCategory` 轻量分类树。
+- `SupplierItemMapping`，只表达供应商侧编码 / 名称如何映射到 OES 执行层 `Item`。
 
-- 典型上游入口：
-  - `api-gateway`
-  - future item master admin / setup workspace
-- 典型下游消费者：
-  - `sales-service`
-  - future `procurement-service`
-  - `mes-service`
-  - `wms-service`
-  - `srm-service`
-- 当前设计输入：
-  - [product-master-data-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/product-master-data-design.md)
-  - [manufacturing-master-data-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/manufacturing-master-data-design.md)
+## 4. Does Not Own
 
-## 6. Upstream Dependencies
+- 销售报价、销售订单、销售配置、销售价格、客户承诺与客户侧 item snapshot 真相。
+- 采购申请、采购订单、采购价格、MOQ、账期、lead time、采购收货与采购履约真相。
+- `srm-service` 的 `SupplierProfile`、`SupplierOffering`、联系人、关系治理与供应商状态真相。
+- `mes-service` 的 `ProductionSpec`、`ProductionUnit`、Route、Operation、WorkCenter、工序执行、质量结果、资源使用与生产事实。
+- `wms-service` 的 `InventoryUnit`、`InventoryLot`、`InventoryBalance`、`PackageUnit`、`InventoryGenealogy`、库位、库存状态、占用、收货、出库与仓储执行事实。
+- `crm-service` 的商机、询盘、客户产品兴趣与客户关系真相。
+- `PIM / PLM`、营销展示、网站发布、图纸工程、研发流程与完整产品生命周期管理真相。
 
-- `srm-service`
-  - 提供 `Supplier` 与 `SupplierContact` 真相；`item-master-service` 只引用供应商身份，不复制 SRM 主档。
-- `sales-service` / future `procurement-service` / `mes-service` / `wms-service`
-  - 提供实际消费场景反馈，但不反向成为 Item 主数据 owner。
+说明：
 
-## 7. Downstream / Published Facts
+- `PackagingSpec`、`PackagingMethod` 与 `PACKAGING_BOM` 属于 `item-master-service`，不再被归入 `PIM / PLM` deferred 范围。
+- `SupplierItemMapping` 不是 `SupplierOffering`，也不是采购商业档案。
+- 所有正式库存都是 `Item` 的库存；`StockItemType` 不再作为新 architecture truth。
 
-- `Item` 基础身份、编码、名称与生命周期摘要
-- `Item` 的 `structureType`、`natureType`
-- `ItemCapability` 能力摘要与约束结果
-- `ItemComposition` 套装组成关系
-- `SupplierItemMapping` 供应商型号映射关系
-- optional `ItemCategory` 分类引用
+## 5. ItemModel
 
-## 8. Non-goals
+`ItemModel` 是唯一模型层对象，可理解为可配置物料模型、款式模型、规格族、SPU 或 template。
 
-- 不把 `item-master-service` 扩成销售、采购、制造或仓储运行事实中心。
-- 不在第一阶段引入报价、价格、采购商业条款、库存对象、制造规格或包装主数据。
-- 不让 `SupplierItemMapping` 退化成采购主数据、供应表现或 SRM 分析的承载点。
-- 不让虚拟套装直接变成 WMS 库存对象。
-- 不让 `item-master-service` 接管 `ManufacturingSpec` 或 `StockItemType`。
+冻结规则：
 
-## 9. Current Stage
+- 所有 `Item` 必须关联一个 `ItemModel`。
+- 一次性物料、简单采购件、无规格族管理的物料，也应创建轻量 `ItemModel` 后再创建 `Item`。
+- `ItemModel` 是全局主数据入口，不是单纯销售对象。
+- 凡是需要长期维护规格族、款式族、可配置族或基础物料族的对象，都应使用 `ItemModel`。
+- `ItemModel` 不参与采购、销售、库存、生产、BOM、包装执行的最终落地；执行最终落到 `Item`。
+- `ItemModel.capabilities` 表达模型级允许范围和默认值，不是执行真相。
 
-当前阶段冻结以下第一阶段规则：
+`ItemModel.modelKind` 表达本质类型：
 
-- `item-master-service` 是独立基础服务，不作为 `MES`、`WMS`、`SRM` 的内部子模块存在。
-- `stockable` 仅允许 `PHYSICAL Item`。
-- `manufacturable` 仅允许 `PHYSICAL Item`。
-- `ItemComposition.parent` 必须是 `BUNDLE`。
-- nested bundle deferred，不在第一阶段承诺。
-- 分体立柱盆场景按以下口径建模：
-  - 套装 Item：`BUNDLE + VIRTUAL + sellable`
-  - 洗手盆 Item：`SINGLE + PHYSICAL`
-  - 立柱 Item：`SINGLE + PHYSICAL`
-  - 通过 `ItemComposition` 关联
-- `mes-service` 的 `ManufacturingSpec` 必须引用 `manufacturable` 的 `PHYSICAL Item`。
-- `wms-service` 的 `StockItemType` 归 `WMS` 拥有，只引用 `Item`；虚拟套装不直接成为库存。
+```text
+PHYSICAL
+SERVICE
+DIGITAL
+VIRTUAL
+```
+
+`ItemModel.modelType` 表达业务分类：
+
+```text
+FINISHED_PRODUCT
+SEMI_FINISHED_PRODUCT
+ACCESSORY
+PART
+SUB_ASSEMBLY
+RAW_MATERIAL
+PACKAGING_MATERIAL
+SERVICE
+VIRTUAL_KIT
+```
+
+类型使用规则：
+
+- 连体马桶、智能马桶、浴缸、洗手盆等实体产品：`modelKind = PHYSICAL`。
+- 纸箱、泡沫、蜂窝板、标签、说明书等长期库存化管理的包材或随箱物料：`modelKind = PHYSICAL`，`modelType = PACKAGING_MATERIAL` 或更合适的业务类型。
+- 安装到产品功能结构上的零件或组件：`modelType = PART`、`SUB_ASSEMBLY` 或 `ACCESSORY`，具体关系由 `COMPOSITION_BOM` 表达。
+- 服务：`modelKind = SERVICE`，通常不具备 `stockable`、`manufacturable`、`packable` 或 `packaged` 执行能力。
+- 虚拟套装 / kit：第一阶段只记录为后置能力，不进入核心执行模型。
+
+## 6. Item
+
+`Item` 是固定属性后的具体 SKU / 可执行物料身份 / variant。
+
+冻结规则：
+
+- `Item = ItemModel + locked AttributeOption combination + optional PackagingSpec`。
+- `Item.modelId` 必填。
+- `Item` 是采购、销售、库存、生产投产、生产交仓、BOM 消耗与产出、包装成品、成本核算的执行层对象。
+- 所有采购、销售、库存、生产、BOM 与包装执行最终以 `Item.active` 和 `Item.capabilities` 为准。
+- `Item` 本身不 nested；组成、装配、转换、包装消耗关系通过 BOM 表达。
+- `Item` 不自动穷举生成，可按需手动创建、批量创建或由配置流程创建。
+- 同一个 `ItemModel + lockedAttributes + optional packagingSpecId` 必须唯一。
+
+`Item` 不使用旧的 `structureType / natureType` 作为核心字段或执行判定依据。服务、实物、虚拟、数字等类型由 `ItemModel.modelKind / modelType` 表达；执行准入由 `Item.capabilities` 表达。
+
+## 7. Item Capabilities
+
+`capabilities` 同时存在于 `ItemModel` 和 `Item`，但语义不同：
+
+- `ItemModel.capabilities`：模型级允许范围和默认值。
+- `Item.capabilities`：执行真相。
+
+第一阶段冻结 `Item.capabilities`：
+
+| Capability | 执行规则 |
+| --- | --- |
+| `sellable` | 可在报价、销售订单、销售配置结果中作为销售执行 Item。 |
+| `purchasable` | 可在采购申请、采购订单中作为采购执行 Item。 |
+| `stockable` | 可被 WMS 创建 `InventoryUnit`，可进入 `InventoryBalance`。 |
+| `manufacturable` | 可作为 MES `ProductionSpec / WorkOrder` 的目标 Item。 |
+| `assemblable` | 可作为 `COMPOSITION_BOM` 的输出 Item。 |
+| `transformable` | 可作为 `TRANSFORMATION_BOM` 的输出 Item。 |
+| `packable` | 可作为 `PACKAGING_BOM` 的基础输入 Item。 |
+| `packaged` | 表示该 Item 是包装成品，即 `Item(type = PACKAGED_FINISHED_GOOD)`。 |
+
+Deferred capabilities：
+
+- `traceable`
+- `kittable`
+- `consumable`
+
+说明：
+
+- Deferred capability 是已识别候选能力，但第一阶段不进入执行真相。
+- BOM line 第一阶段默认允许引用 active Item，不使用 `consumable` 限制。
+- `manufacturable` 的设置必须受治理约束，避免服务、数字物、明显不可生产对象被误设为可制造；MES 准入仍只消费 `active + manufacturable Item`。
+
+## 8. Active / Archive
+
+第一阶段使用简单 active/archive 规则：
+
+- `ItemModel.active = false` 表示该模型归档，不再用于新建业务。
+- `Item.active = false` 表示该 SKU / 执行物料身份归档，不再用于新建业务。
+- 归档不删除历史，不影响已有订单、库存历史、生产历史、采购历史或审计记录。
+- 停用 `ItemModel` 不自动停用其下所有 `Item`；是否停用由业务操作显式决定。
+
+所有执行入口至少校验：
+
+```text
+Item.active = true
++ required capability = true
+```
+
+## 9. Attribute
+
+第一阶段只冻结 attribute 简版：
+
+| 对象 | 定义 |
+| --- | --- |
+| `AttributeDefinition` | 属性定义，例如颜色、孔位、坑距、密度、长度。 |
+| `AttributeOption` | 枚举属性值，例如无孔、单孔、centerset、widespread。 |
+| `ItemModelAttributeRule` | 某个 `ItemModel` 允许哪些 Attribute / AttributeOption。 |
+
+冻结规则：
+
+- Attribute 用于表达物料本体或规格识别属性。
+- 包装方式、客户包装、随箱配件、客户说明书、客户标签等不塞进 attribute。
+- 包装泡沫密度如果是包装规格的一部分，属于 `PackagingSpec / PACKAGING_BOM` 语义。
+- 如果泡沫密度是泡沫材料自身规格，属于泡沫这个 `ItemModel / Item` 的 attribute。
+- 第一阶段不引入复杂 `AttributeCombinationRule`。
+
+## 10. BOM
+
+`BOM` 统一表达 `Item` 与 `Item` 之间的输入、输出、组成、转换与消耗关系。
+
+冻结规则：
+
+- 当前阶段不采用模型层 composition 对象。
+- `ItemComposition` 不再作为主模型；历史 `ItemComposition` 应迁移到 BOM。
+- 所有实际组成、半成品、配件包、包装、后加工转换、拆解关系优先通过 BOM 或 BOM 相关规则表达。
+- BOM 主数据归属 `item-master-service` / BOM 子域。
+- BOM 类型必须表达执行语义，不只是 UI 标签。
+- BOM 不等于工序。工序、人员、WorkCenter、质量结果由 MES 或 WMS 的任务执行对象记录。
+
+第一阶段 BOM 类型：
+
+| 类型 | 语义 | 例子 |
+| --- | --- | --- |
+| `COMPOSITION_BOM` | 功能组成 / 装配 / 实体 Item 构建。 | 空瓷 + 水件 -> 安装水件半成品；陶瓷体 + 智能盖板 + 电控模块 -> 智能马桶基础成品。 |
+| `TRANSFORMATION_BOM` | 经过工序把输入转成输出。 | 无孔洗手盆 -> 单孔洗手盆；无 logo 产品 -> 有 logo 产品；返修；泥浆 / 釉料配制。 |
+| `PACKAGING_BOM` | 包装执行消耗。 | 产品 + 纸箱 + 泡沫 + 说明书 + 随箱配件。 |
+
+基础规则：
+
+- `outputItemId` 必须指向 active Item。
+- `componentItemId` 必须指向 active Item。
+- 必须禁止 BOM 循环，包括直接循环和多层循环。
+- 第一阶段不使用 `consumable` capability 限制 BOM line。
+
+Deferred：
+
+- 虚拟套装 / kit 销售展开。
+- 复杂替代料。
+- 可选 BOM 行。
+
+## 11. Packaging
+
+包装主数据归属 `item-master-service`。
+
+冻结对象：
+
+- `PackagingMethod`
+- `PackagingSpec`
+- `BOM(type = PACKAGING_BOM)`
+
+`PackagingMethod` 表示包装方式分类，例如普通包装、加强包装、电商包装。它是轻量可维护字典，不建议写死成 enum。
+
+`PackagingSpec` 是具体包装规格：
+
+```text
+PackagingSpec =
+  ItemModel
+  + PackagingMethod
+  + optional Customer
+```
+
+`PackagingSpec` 记录：
+
+- 包装规格说明。
+- 外箱尺寸。
+- 毛重。
+- 体积。
+- 简单作业要求，例如标签位置、封箱方式、包装备注。
+- 状态、版本、生效期。
+
+具体纸箱、泡沫、蜂窝板、说明书、标签、随箱配件等消耗不直接塞进 `PackagingSpec`，而是通过 `PACKAGING_BOM` 表达。
+
+客户长期专属包装应创建 customer-specific `PackagingSpec`。一次性临时客户包装要求可以留在 sales transaction snapshot 中，不强制沉淀为长期包装主数据。
+
+## 12. PackagedItem
+
+`PackagedItem` 不是独立对象。
+
+冻结规则：
+
+```text
+PackagedItem = Item(type = PACKAGED_FINISHED_GOOD)
+```
+
+包装成品 Item 必须满足：
+
+- `packagingSpecId != null`
+- `Item.capabilities.packaged = true`
+
+不冻结 `baseItemId` 字段。包装成品的输入来源、消耗和组成统一由 `PACKAGING_BOM` 表达。
+
+单品包装示例：
+
+```text
+output: MA3124 300坑距 白色 普通包装成品
+inputs:
+  MA3124 300坑距 白色 基础成品 x1
+  MA3124 普通纸箱 x1
+  MA3124 普通泡沫 x1
+  MA3124 说明书 x1
+```
+
+多品合并包装示例：
+
+```text
+output: P100 洗手盆 + 立柱 合并包装成品
+inputs:
+  P100 洗手盆 白色 单孔 x1
+  P100 立柱 白色 x1
+  P100 合并纸箱 x1
+  P100 合并泡沫 x1
+  说明书 x1
+```
+
+## 13. ItemCategory
+
+`ItemCategory` 属于 `item-master-service`，是第一阶段应优先实现的基础信息。
+
+冻结规则：
+
+- `ItemCategory` 是 tenant-scoped 轻量分类树。
+- `ItemCategory` 用于分类、浏览、搜索收窄、列表展示与基础统计分组。
+- `ItemCategory` 不承载权限、定价、采购策略、库存策略、包装策略或制造策略。
+- 第一阶段主挂 `ItemModel`，即 `ItemModel.primaryCategoryId`。
+- `Item` 通过所属 `ItemModel` 获得分类上下文。
+- 是否支持 `Item` 级 override / secondary category 后置。
+
+## 14. SupplierItemMapping
+
+`SupplierItemMapping` 归属 `item-master-service`。
+
+冻结规则：
+
+- `SupplierItemMapping` 只表达：
+
+```text
+supplierId + supplierItemCode / supplierItemName -> itemId
+```
+
+- `itemId` 必须指向执行层 `Item`，不映射到 `ItemModel`。
+- `SupplierItemMapping` 不承载价格、MOQ、账期、lead time、供应表现或供应商合作状态。
+- `SupplierItemMapping` 不是 `SupplierOffering`。
+- `SupplierOffering` 归 `srm-service`，表达“某供应商可供应某个 Item”的关系事实。
+
+## 15. Cross-Service Adoption
+
+### 15.1 Sales
+
+- `sales-service` 可以从 `ItemModel + AttributeOption + optional PackagingSpec` 解析到 active + sellable `Item`。
+- `SalesOrderLine` 最终必须引用稳定 `itemId`，并保存销售交易所需 snapshot。
+- 客户自己的 SKU、型号、标签显示名、出口显示语义不进入 `item-master-service`，应留在 sales snapshot 或后续 Sales / CRM customer item 设计中。
+- 一次性临时包装要求可以留在 sales snapshot；长期包装配置应沉淀为 `PackagingSpec` 与必要的 PackagedItem。
+
+### 15.2 Procurement
+
+- 标准采购最终引用 active + purchasable `Item`。
+- Procurement 可以从 `ItemModel + AttributeOption` 解析到 purchasable `Item`，也可以直接选择 `Item`。
+- 非标准 / 文本型采购需求可以留在 procurement 自身单据中，不强制进入 item-master。
+- 采购价格、MOQ、账期、lead time、RFQ、PO、收货与采购履约不归 `item-master-service`。
+
+### 15.3 MES
+
+- `ProductionSpec.targetItemId` 引用 active + manufacturable `Item`。
+- `ProductionUnit.currentItemId` 表达生产实物当前事实状态对应的 `Item`。
+- `item-master-service` 不拥有 `ProductionSpec`、`ProductionUnit`、Route、Operation、WorkCenter、工序执行、质量结果或生产历史。
+- 新 truth 只使用 `ProductionSpec` 与 `ProductionUnit`，不在本文保留旧名兼容。
+
+### 15.4 WMS
+
+- WMS 为 active + stockable `Item` 创建 `InventoryUnit`。
+- `InventoryBalance` 按 `Item + location + lot / quality / status` 等维度汇总库存。
+- `PackageUnit` 是箱、托、包裹、搬运层级对象，不进入 `InventoryBalance`。
+- PackagedItem 仍然是 `Item`，因此包装成品库存自然进入通用库存余额。
+- WMS 库存转换、包装、装配、拆解、追溯关系由 `InventoryGenealogy` 等 WMS 对象承载。
+- 新 truth 不再使用 `StockItemType`。
+
+### 15.5 SRM
+
+- SRM 拥有 `SupplierProfile` 与 `SupplierOffering`。
+- `SupplierOffering` 表达某供应商可供应某个 Item。
+- `SupplierItemMapping` 继续归 `item-master-service`，只表达供应商侧标识到标准 `Item` 的映射。
+
+## 16. Examples
+
+### 16.1 连体马桶
+
+```text
+ItemModel:
+  MA3124 连体马桶
+  modelKind = PHYSICAL
+  modelType = FINISHED_PRODUCT
+
+Item:
+  MA3124 300坑距 白色 顶按 基础成品
+  MA3124 300坑距 白色 顶按 普通包装成品
+
+PackagingSpec:
+  MA3124 普通包装规格
+
+PACKAGING_BOM:
+  output: MA3124 300坑距 白色 顶按 普通包装成品
+  inputs:
+    MA3124 300坑距 白色 顶按 基础成品 x1
+    MA3124 普通纸箱 x1
+    MA3124 普通泡沫 x1
+    MA3124 说明书 x1
+```
+
+### 16.2 智能马桶
+
+```text
+ItemModel:
+  S900 智能马桶整机 -> PHYSICAL / FINISHED_PRODUCT
+  S900 陶瓷体 -> PHYSICAL / SEMI_FINISHED_PRODUCT
+  S900 智能盖板 -> PHYSICAL / SUB_ASSEMBLY
+  电控模块 -> PHYSICAL / PART
+
+COMPOSITION_BOM:
+  output: S900 智能马桶整机 基础成品
+  inputs:
+    S900 陶瓷体 x1
+    S900 智能盖板 x1
+    电控模块 x1
+
+PACKAGING_BOM:
+  output: S900 智能马桶整机 包装成品
+  inputs:
+    S900 智能马桶整机 基础成品 x1
+    纸箱 x1
+    泡沫 x1
+    说明书 x1
+```
+
+### 16.3 分体立柱盆合并包装
+
+```text
+ItemModel:
+  P100 洗手盆 -> PHYSICAL / FINISHED_PRODUCT
+  P100 立柱 -> PHYSICAL / FINISHED_PRODUCT 或 ACCESSORY
+  P100 洗手盆 + 立柱 合并包装族 -> PHYSICAL / FINISHED_PRODUCT
+
+Item:
+  P100 洗手盆 白色 单孔
+  P100 立柱 白色
+  P100 洗手盆 + 立柱 合并包装成品
+
+PACKAGING_BOM:
+  output: P100 洗手盆 + 立柱 合并包装成品
+  inputs:
+    P100 洗手盆 白色 单孔 x1
+    P100 立柱 白色 x1
+    P100 合并纸箱 x1
+    P100 合并泡沫 x1
+```
+
+### 16.4 bathtub coaster
+
+`bathtub coaster` 按实际业务含义分类：
+
+- 如果是浴缸安装或使用所需功能配件：`modelType = ACCESSORY` 或 `PART`。
+- 如果是包装保护垫：`modelType = PACKAGING_MATERIAL`，进入 `PACKAGING_BOM`。
+- 如果可单独销售或采购：对应 `Item` 开启 `sellable` 或 `purchasable`。
+- 如果进入库存或 BOM：仍必须有 `ItemModel + Item`。
+
+## 17. Deferred
+
+- `traceable` capability。
+- `kittable` capability。
+- `consumable` capability。
+- `AttributeCombinationRule`。
+- 虚拟套装 / kit 销售展开。
+- 复杂替代料。
+- 可选 BOM 行。
+- `Item` 级 category override / secondary category。
+- `PIM / PLM`、营销展示、图纸工程与完整产品生命周期管理。
+- proto 与 runtime migration。
+
+## 18. Contract And Migration Notes
+
+- `docs/contracts/item-master-service/**` 已回写 Contract V2，后续 proto 与 runtime migration 必须以本文和 Contract V2 为准。
+- 旧 feature packet `docs/plans/features/item-master-service-foundation.md` 已不再作为设计或实现输入。
+- 其他服务文档应引用本文定义的概念，不得重新定义 item-master 主数据语义。

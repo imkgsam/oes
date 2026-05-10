@@ -1,37 +1,51 @@
 import { Injectable } from '@nestjs/common'
+import { ExceptionFactory } from '@oes/common/exceptions'
 import { Prisma } from '../../../../prisma/generated/prisma'
 import {
+  CurrentMoldByWorkCenterRecord,
+  DailyMoldChecklistRecord,
   MasterMoldRecord,
   MesAuditEnvelopeRecord,
   MesCommandIdempotencyRecord,
-  MesLocationRecord,
   MesOutboxEventRecord,
   MoldDesignOutputRecord,
   MoldDesignRecord,
-  MoldInstallationRecord,
-  MoldInstallationStatus,
+  MoldDesignSummaryRecord,
   MoldLifeCounterRecord,
-  MoldMovementEventRecord,
-  MoldResourceType,
-  MoldUsageEventRecord,
-  MoldWarningEventRecord,
-  MoldWarningStatus,
-  MoldWarningType,
-  PageResult,
-  ProductionMoldInstanceRecord,
-  ResourcePositionRecord,
-  WorkCenterRecord
+  MoldMovementRecord,
+  MoldUsageHistoryEntryRecord,
+  MoldUsageHistoryEntryType,
+  MoldUsageRecord,
+  MoldWarningLevel,
+  ProductionMoldRecord,
+  ProductionMoldStatus,
+  ProductionMoldSummaryRecord,
+  ToolingInstallationRecord,
+  ToolingInstallationStatus,
+  ToolingPlacementSummaryRecord,
+  ToolingPlacementType,
+  ToolingType
 } from '../../../domain/models/mes-mold-records'
+import { MES_NOT_FOUND } from '../../../common/errors/mes.errors'
 import {
+  GetMoldUsageHistoryInput,
+  ListCurrentMoldsByWorkCenterInput,
+  ListCurrentMoldsByWorkCenterResult,
+  ListMoldLifeCountersInput,
+  ListProductionMoldsByDesignInput,
+  ListProductionMoldsByDesignResult,
   MesMoldRepository,
+  MoldDesignSummaryPageResult,
+  MoldLifeCounterPageResult,
+  MoldUsageHistoryResult,
+  PrintDailyMoldChecklistInput,
   SearchMoldDesignsInput,
-  SearchMoldWarningsInput,
-  SearchProductionMoldInstancesInput,
-  SearchWorkCentersInput
+  SearchProductionMoldsInput,
+  ProductionMoldSummaryPageResult
 } from '../../../domain/repositories/mes-mold.repository'
 import { PrismaExecutionClient, PrismaService } from '../../prisma/prisma.service'
 
-/** PrismaMesMoldRepository persists MES mold current projections, append-only facts, audit, and outbox records. */
+/** PrismaMesMoldRepository persists current Mold / Tooling records and append-only MES facts. */
 @Injectable()
 export class PrismaMesMoldRepository implements MesMoldRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -49,11 +63,9 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
     })
     await client.moldDesignOutput.deleteMany({ where: { moldDesignId: record.moldDesignId } })
     if (record.outputs.length) {
-      await client.moldDesignOutput.createMany({
-        data: record.outputs.map(toPrismaMoldDesignOutput)
-      })
+      await client.moldDesignOutput.createMany({ data: record.outputs.map(toPrismaMoldDesignOutput) })
     }
-    return this.findMoldDesignById(record.tenantId, record.moldDesignId).then((found) => found ?? record)
+    return (await this.findMoldDesignById(record.tenantId, record.moldDesignId)) ?? record
   }
 
   async findMoldDesignById(tenantId: string, moldDesignId: string): Promise<MoldDesignRecord | null> {
@@ -76,21 +88,18 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
     return row ? fromPrismaMoldDesign(row) : null
   }
 
-  async searchMoldDesigns(input: SearchMoldDesignsInput): Promise<PageResult<MoldDesignRecord>> {
+  async searchMoldDesigns(input: SearchMoldDesignsInput): Promise<MoldDesignSummaryPageResult> {
+    const keyword = input.keyword?.trim()
     const where: Prisma.MoldDesignWhereInput = {
       tenantId: input.tenantId,
       ...(input.orgId ? { orgId: input.orgId } : {}),
-      ...(input.materialType ? { materialType: input.materialType } : {}),
-      ...(input.functionRole ? { functionRole: input.functionRole } : {}),
       ...(input.status ? { status: input.status } : {}),
       ...(input.itemId ? { itemRef: { path: ['itemId'], equals: input.itemId } } : {}),
-      ...(input.productFamilyRefId ? { productFamilyRef: { path: ['refId'], equals: input.productFamilyRefId } } : {}),
-      ...(input.productionMethodTag ? { productionMethodTags: { has: input.productionMethodTag } } : {}),
-      ...(input.keyword
+      ...(keyword
         ? {
             OR: [
-              { designCode: { contains: input.keyword.toUpperCase() } },
-              { name: { contains: input.keyword, mode: 'insensitive' } }
+              { designCode: { contains: keyword, mode: 'insensitive' } },
+              { name: { contains: keyword, mode: 'insensitive' } }
             ]
           }
         : {})
@@ -100,20 +109,15 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
       include: { outputs: { orderBy: { sequenceNo: 'asc' } } },
       orderBy: { designCode: 'asc' }
     })
-    const filtered = input.manufacturingSpecRefId
+    const filtered = input.productionSpecId
       ? rows.filter((row) =>
-          fromJson<Array<{ refId?: string }>>(row.manufacturingSpecRefs).some(
-            (ref) => ref.refId === input.manufacturingSpecRefId
+          fromJson<Array<{ productionSpecId?: string }>>(row.productionSpecRefs).some(
+            (ref) => ref.productionSpecId === input.productionSpecId
           )
         )
       : rows
-    const start = (input.page - 1) * input.pageSize
-    return {
-      items: filtered.slice(start, start + input.pageSize).map(fromPrismaMoldDesign),
-      total: filtered.length,
-      page: input.page,
-      pageSize: input.pageSize
-    }
+    const page = paginate(filtered.map(fromPrismaMoldDesign).map(toMoldDesignSummary), input.page, input.pageSize)
+    return { moldDesigns: page.items, total: page.total, page: page.page, pageSize: page.pageSize }
   }
 
   async saveMasterMold(record: MasterMoldRecord): Promise<MasterMoldRecord> {
@@ -139,365 +143,341 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
     return row ? fromPrismaMasterMold(row) : null
   }
 
-  async saveProductionMoldInstance(record: ProductionMoldInstanceRecord): Promise<ProductionMoldInstanceRecord> {
-    const saved = await this.client().productionMoldInstance.upsert({
-      where: { id: record.productionMoldInstanceId },
-      create: toPrismaProductionMoldInstance(record),
-      update: toPrismaProductionMoldInstance(record)
+  async saveProductionMold(record: ProductionMoldRecord): Promise<ProductionMoldRecord> {
+    const saved = await this.client().productionMold.upsert({
+      where: { id: record.productionMoldId },
+      create: toPrismaProductionMold(record),
+      update: toPrismaProductionMold(record)
     })
-    return fromPrismaProductionMoldInstance(saved)
+    return fromPrismaProductionMold(saved)
   }
 
-  async findProductionMoldInstanceById(
-    tenantId: string,
-    productionMoldInstanceId: string
-  ): Promise<ProductionMoldInstanceRecord | null> {
-    const row = await this.client().productionMoldInstance.findFirst({
-      where: { id: productionMoldInstanceId, tenantId }
-    })
-    return row ? fromPrismaProductionMoldInstance(row) : null
+  async findProductionMoldById(tenantId: string, productionMoldId: string): Promise<ProductionMoldRecord | null> {
+    const row = await this.client().productionMold.findFirst({ where: { id: productionMoldId, tenantId } })
+    return row ? fromPrismaProductionMold(row) : null
   }
 
-  async findProductionMoldInstanceByCode(
+  async findProductionMoldByCode(
     tenantId: string,
     orgId: string | null | undefined,
-    moldInstanceCode: string
-  ): Promise<ProductionMoldInstanceRecord | null> {
-    const row = await this.client().productionMoldInstance.findFirst({
-      where: { tenantId, orgId: orgId ?? null, moldInstanceCode }
-    })
-    return row ? fromPrismaProductionMoldInstance(row) : null
+    moldCode: string
+  ): Promise<ProductionMoldRecord | null> {
+    const row = await this.client().productionMold.findFirst({ where: { tenantId, orgId: orgId ?? null, moldCode } })
+    return row ? fromPrismaProductionMold(row) : null
   }
 
-  async searchProductionMoldInstances(
-    input: SearchProductionMoldInstancesInput
-  ): Promise<PageResult<ProductionMoldInstanceRecord>> {
-    const where: Prisma.ProductionMoldInstanceWhereInput = {
+  async searchProductionMolds(input: SearchProductionMoldsInput): Promise<ProductionMoldSummaryPageResult> {
+    const where: Prisma.ProductionMoldWhereInput = {
       tenantId: input.tenantId,
       ...(input.orgId ? { orgId: input.orgId } : {}),
       ...(input.moldDesignId ? { moldDesignId: input.moldDesignId } : {}),
       ...(input.status ? { currentStatus: input.status } : {}),
-      ...(input.warningLevel ? { warningLevel: input.warningLevel } : {}),
-      ...(input.supplierId ? { supplierRef: { path: ['supplierId'], equals: input.supplierId } } : {})
+      ...(input.storageResourceId ? { currentStorageResourceRef: { path: ['storageResourceId'], equals: input.storageResourceId } } : {}),
+      ...(input.carrierResourceId ? { currentCarrierResourceRef: { path: ['carrierResourceId'], equals: input.carrierResourceId } } : {})
     }
-    const [total, rows] = await Promise.all([
-      this.client().productionMoldInstance.count({ where }),
-      this.client().productionMoldInstance.findMany({
-        where,
-        orderBy: { moldInstanceCode: 'asc' },
-        skip: (input.page - 1) * input.pageSize,
-        take: input.pageSize
-      })
-    ])
-    return {
-      items: rows.map(fromPrismaProductionMoldInstance),
-      total,
+    const rows = await this.client().productionMold.findMany({ where, orderBy: { moldCode: 'asc' } })
+    const records = rows.map(fromPrismaProductionMold)
+    const summaries = await Promise.all(records.map((record) => this.toProductionMoldSummary(record)))
+    const filtered = input.warningLevel
+      ? summaries.filter((summary) => summary.lifeCounterSummary?.warningLevel === input.warningLevel)
+      : summaries
+    const page = paginate(filtered, input.page, input.pageSize)
+    return { productionMolds: page.items, total: page.total, page: page.page, pageSize: page.pageSize }
+  }
+
+  async listProductionMoldsByDesign(input: ListProductionMoldsByDesignInput): Promise<ListProductionMoldsByDesignResult> {
+    const design = await this.findMoldDesignById(input.tenantId, input.moldDesignId)
+    if (!design || (design.orgId ?? null) !== (input.orgId ?? null)) {
+      throw ExceptionFactory.application(MES_NOT_FOUND, { resource: 'MoldDesign', identifier: input.moldDesignId })
+    }
+    const page = await this.searchProductionMolds({
+      tenantId: input.tenantId,
+      orgId: input.orgId,
+      moldDesignId: input.moldDesignId,
+      status: input.status,
       page: input.page,
       pageSize: input.pageSize
+    })
+    return {
+      moldDesignSummary: toMoldDesignSummary(design),
+      productionMolds: page.productionMolds,
+      total: page.total,
+      page: page.page,
+      pageSize: page.pageSize
     }
+  }
+
+  async getToolingCurrentPlacement(
+    tenantId: string,
+    toolingType: ToolingType,
+    toolingId: string
+  ): Promise<ToolingPlacementSummaryRecord | null> {
+    if (toolingType !== ToolingType.MOLD) {
+      return null
+    }
+    const mold = await this.findProductionMoldById(tenantId, toolingId)
+    if (!mold) {
+      return null
+    }
+    if (mold.currentInstallationSummary) {
+      return {
+        placementType: mold.currentInstallationSummary.workUnitRef
+          ? ToolingPlacementType.WORK_UNIT
+          : ToolingPlacementType.WORK_CENTER,
+        workCenterRef: mold.currentInstallationSummary.workCenterRef,
+        workUnitRef: mold.currentInstallationSummary.workUnitRef ?? null,
+        toolingInstallationId: mold.currentInstallationSummary.toolingInstallationId,
+        moldInstallationDetail: mold.currentInstallationSummary.moldDetail ?? null
+      }
+    }
+    if (mold.currentCarrierResourceRef) {
+      return { placementType: ToolingPlacementType.CARRIER_RESOURCE, carrierResourceRef: mold.currentCarrierResourceRef }
+    }
+    return { placementType: ToolingPlacementType.STORAGE_RESOURCE, storageResourceRef: mold.currentStorageResourceRef ?? null }
+  }
+
+  async appendMoldMovement(record: MoldMovementRecord): Promise<MoldMovementRecord> {
+    const saved = await this.client().moldMovement.create({ data: toPrismaMoldMovement(record) })
+    return fromPrismaMoldMovement(saved)
+  }
+
+  async findLastMoldMovement(tenantId: string, toolingType: ToolingType, toolingId: string): Promise<MoldMovementRecord | null> {
+    const row = await this.client().moldMovement.findFirst({
+      where: { tenantId, toolingType, toolingId },
+      orderBy: { movedAt: 'desc' }
+    })
+    return row ? fromPrismaMoldMovement(row) : null
+  }
+
+  async listMoldMovementsByTooling(tenantId: string, toolingType: ToolingType, toolingId: string): Promise<MoldMovementRecord[]> {
+    const rows = await this.client().moldMovement.findMany({
+      where: { tenantId, toolingType, toolingId },
+      orderBy: { movedAt: 'asc' }
+    })
+    return rows.map(fromPrismaMoldMovement)
+  }
+
+  async saveToolingInstallation(record: ToolingInstallationRecord): Promise<ToolingInstallationRecord> {
+    const client = this.client()
+    await client.toolingInstallation.upsert({
+      where: { id: record.toolingInstallationId },
+      create: toPrismaToolingInstallation(record),
+      update: toPrismaToolingInstallation(record)
+    })
+    await client.moldInstallationDetail.deleteMany({ where: { toolingInstallationId: record.toolingInstallationId } })
+    if (record.moldDetail) {
+      await client.moldInstallationDetail.create({ data: toPrismaMoldInstallationDetail(record.moldDetail) })
+    }
+    return (await this.findToolingInstallationById(record.tenantId, record.toolingInstallationId)) ?? record
+  }
+
+  async findToolingInstallationById(tenantId: string, toolingInstallationId: string): Promise<ToolingInstallationRecord | null> {
+    const row = await this.client().toolingInstallation.findFirst({
+      where: { id: toolingInstallationId, tenantId },
+      include: { moldDetail: true }
+    })
+    return row ? fromPrismaToolingInstallation(row) : null
+  }
+
+  async findActiveToolingInstallationByMold(tenantId: string, productionMoldId: string): Promise<ToolingInstallationRecord | null> {
+    const row = await this.client().toolingInstallation.findFirst({
+      where: {
+        tenantId,
+        toolingType: ToolingType.MOLD,
+        toolingId: productionMoldId,
+        status: ToolingInstallationStatus.ACTIVE,
+        unmountedAt: null
+      },
+      include: { moldDetail: true }
+    })
+    return row ? fromPrismaToolingInstallation(row) : null
+  }
+
+  async listToolingInstallationsByMold(tenantId: string, productionMoldId: string): Promise<ToolingInstallationRecord[]> {
+    const rows = await this.client().toolingInstallation.findMany({
+      where: { tenantId, toolingType: ToolingType.MOLD, toolingId: productionMoldId },
+      include: { moldDetail: true },
+      orderBy: { installedAt: 'asc' }
+    })
+    return rows.map(fromPrismaToolingInstallation)
+  }
+
+  async listCurrentMoldsByWorkCenter(input: ListCurrentMoldsByWorkCenterInput): Promise<ListCurrentMoldsByWorkCenterResult> {
+    const rows = await this.client().toolingInstallation.findMany({
+      where: { tenantId: input.tenantId, status: ToolingInstallationStatus.ACTIVE, unmountedAt: null },
+      include: { moldDetail: true },
+      orderBy: { installedAt: 'asc' }
+    })
+    const filtered = rows.map(fromPrismaToolingInstallation).filter((installation) => {
+      return (
+        (!input.orgId || (installation.orgId ?? null) === input.orgId) &&
+        installation.workCenterRef.workCenterId === input.workCenterId &&
+        (!input.workUnitId || installation.workUnitRef?.workUnitId === input.workUnitId)
+      )
+    })
+    const items = []
+    for (const toolingInstallation of filtered) {
+      const mold = await this.findProductionMoldById(input.tenantId, toolingInstallation.toolingId)
+      if (mold) {
+        items.push({ productionMold: await this.toProductionMoldSummary(mold), toolingInstallation })
+      }
+    }
+    return { items }
+  }
+
+  async appendMoldUsageRecord(record: MoldUsageRecord): Promise<MoldUsageRecord> {
+    const saved = await this.client().moldUsageRecord.create({ data: toPrismaMoldUsageRecord(record) })
+    return fromPrismaMoldUsageRecord(saved)
+  }
+
+  async listMoldUsageRecordsByMold(tenantId: string, productionMoldId: string): Promise<MoldUsageRecord[]> {
+    const rows = await this.client().moldUsageRecord.findMany({
+      where: { tenantId, productionMoldId },
+      orderBy: { usedAt: 'asc' }
+    })
+    return rows.map(fromPrismaMoldUsageRecord)
+  }
+
+  async findLastMoldUsageRecordByMold(tenantId: string, productionMoldId: string): Promise<MoldUsageRecord | null> {
+    const row = await this.client().moldUsageRecord.findFirst({
+      where: { tenantId, productionMoldId },
+      orderBy: { usedAt: 'desc' }
+    })
+    return row ? fromPrismaMoldUsageRecord(row) : null
+  }
+
+  async getMoldUsageHistory(input: GetMoldUsageHistoryInput): Promise<MoldUsageHistoryResult> {
+    const [usageRows, installationRows, movementRows, mold, counter] = await Promise.all([
+      this.client().moldUsageRecord.findMany({
+      where: { tenantId: input.tenantId, productionMoldId: input.productionMoldId },
+      orderBy: { usedAt: 'asc' }
+      }),
+      this.client().toolingInstallation.findMany({
+        where: { tenantId: input.tenantId, toolingType: ToolingType.MOLD, toolingId: input.productionMoldId },
+        include: { moldDetail: true },
+        orderBy: { installedAt: 'asc' }
+      }),
+      this.client().moldMovement.findMany({
+        where: { tenantId: input.tenantId, toolingType: ToolingType.MOLD, toolingId: input.productionMoldId },
+        orderBy: { movedAt: 'asc' }
+      }),
+      this.findProductionMoldById(input.tenantId, input.productionMoldId),
+      this.findMoldLifeCounterByProductionMold(input.tenantId, input.productionMoldId)
+    ])
+    const entries = [
+      ...installationRows
+        .map(fromPrismaToolingInstallation)
+        .filter((record) => (!input.orgId || (record.orgId ?? null) === input.orgId))
+        .flatMap<MoldUsageHistoryEntryRecord>((record) => [
+          {
+            entryType: MoldUsageHistoryEntryType.INSTALL,
+            happenedAt: record.installedAt,
+            productionMoldId: record.toolingId,
+            summary: `Tooling installed at ${record.workCenterRef.workCenterId}`,
+            auditRef: record.auditRef
+          },
+          ...(record.unmountedAt
+            ? [
+                {
+                  entryType: MoldUsageHistoryEntryType.UNMOUNT,
+                  happenedAt: record.unmountedAt,
+                  productionMoldId: record.toolingId,
+                  summary: 'Tooling unmounted',
+                  auditRef: record.auditRef
+                }
+              ]
+            : [])
+        ]),
+      ...movementRows
+        .map(fromPrismaMoldMovement)
+        .filter((record) => (!input.orgId || (record.orgId ?? null) === input.orgId))
+        .map<MoldUsageHistoryEntryRecord>((record) => ({
+          entryType: MoldUsageHistoryEntryType.MOVE,
+          happenedAt: record.movedAt,
+          productionMoldId: record.toolingId,
+          summary: 'Tooling moved',
+          auditRef: record.auditRef
+        })),
+      ...(counter?.lastAdjustedAt
+        ? [
+            {
+              entryType: MoldUsageHistoryEntryType.LIFE_ADJUSTMENT,
+              happenedAt: counter.lastAdjustedAt,
+              productionMoldId: counter.productionMoldId,
+              summary: 'Mold life counter adjusted',
+              auditRef: null
+            }
+          ]
+        : []),
+      ...(mold?.scrappedAt
+        ? [
+            {
+              entryType: MoldUsageHistoryEntryType.SCRAP,
+              happenedAt: mold.scrappedAt,
+              productionMoldId: mold.productionMoldId,
+              summary: 'Production mold scrapped',
+              auditRef: null
+            }
+          ]
+        : []),
+      ...usageRows
+      .map(fromPrismaMoldUsageRecord)
+      .filter((record) => (!input.orgId || (record.orgId ?? null) === input.orgId))
+      .map<MoldUsageHistoryEntryRecord>((record) => ({
+        entryType: MoldUsageHistoryEntryType.USAGE,
+        happenedAt: record.usedAt,
+        productionMoldId: record.productionMoldId,
+        summary: `Mold usage ${record.usageQuantity} ${record.lifeUnit}`,
+        auditRef: record.auditRef
+      }))
+    ]
+      .filter((entry) => (!input.from || entry.happenedAt >= input.from) && (!input.to || entry.happenedAt <= input.to))
+      .sort((left, right) => left.happenedAt.localeCompare(right.happenedAt))
+    const page = paginate(entries, input.page, input.pageSize)
+    return { entries: page.items, total: page.total, page: page.page, pageSize: page.pageSize }
   }
 
   async saveMoldLifeCounter(record: MoldLifeCounterRecord): Promise<MoldLifeCounterRecord> {
     const saved = await this.client().moldLifeCounter.upsert({
-      where: { productionMoldInstanceId: record.productionMoldInstanceId },
+      where: { productionMoldId: record.productionMoldId },
       create: toPrismaMoldLifeCounter(record),
       update: toPrismaMoldLifeCounter(record)
     })
     return fromPrismaMoldLifeCounter(saved)
   }
 
-  async findMoldLifeCounterByInstanceId(
-    tenantId: string,
-    productionMoldInstanceId: string
-  ): Promise<MoldLifeCounterRecord | null> {
-    const row = await this.client().moldLifeCounter.findFirst({ where: { tenantId, productionMoldInstanceId } })
+  async findMoldLifeCounterById(tenantId: string, moldLifeCounterId: string): Promise<MoldLifeCounterRecord | null> {
+    const row = await this.client().moldLifeCounter.findFirst({ where: { id: moldLifeCounterId, tenantId } })
     return row ? fromPrismaMoldLifeCounter(row) : null
   }
 
-  async findMesLocationById(tenantId: string, mesLocationId: string): Promise<MesLocationRecord | null> {
-    const row = await this.client().mesLocation.findFirst({ where: { id: mesLocationId, tenantId } })
-    return row ? fromPrismaMesLocation(row) : null
+  async findMoldLifeCounterByProductionMold(tenantId: string, productionMoldId: string): Promise<MoldLifeCounterRecord | null> {
+    const row = await this.client().moldLifeCounter.findFirst({ where: { tenantId, productionMoldId } })
+    return row ? fromPrismaMoldLifeCounter(row) : null
   }
 
-  async saveWorkCenter(record: WorkCenterRecord): Promise<WorkCenterRecord> {
-    const saved = await this.client().workCenter.upsert({
-      where: { id: record.workCenterId },
-      create: toPrismaWorkCenter(record),
-      update: toPrismaWorkCenter(record)
-    })
-    return fromPrismaWorkCenter(saved)
-  }
-
-  async findWorkCenterById(tenantId: string, workCenterId: string): Promise<WorkCenterRecord | null> {
-    const row = await this.client().workCenter.findFirst({ where: { id: workCenterId, tenantId } })
-    return row ? fromPrismaWorkCenter(row) : null
-  }
-
-  async findWorkCenterByCode(
-    tenantId: string,
-    orgId: string | null | undefined,
-    workCenterCode: string
-  ): Promise<WorkCenterRecord | null> {
-    const row = await this.client().workCenter.findFirst({
-      where: { tenantId, orgId: orgId ?? null, workCenterCode }
-    })
-    return row ? fromPrismaWorkCenter(row) : null
-  }
-
-  async searchWorkCenters(input: SearchWorkCentersInput): Promise<PageResult<WorkCenterRecord>> {
-    const keyword = input.keyword?.trim()
-    const where: Prisma.WorkCenterWhereInput = {
-      tenantId: input.tenantId,
-      ...(input.orgId ? { orgId: input.orgId } : {}),
-      ...(input.parentWorkCenterId !== undefined ? { parentWorkCenterId: input.parentWorkCenterId } : {}),
-      ...(input.status ? { status: input.status } : {}),
-      ...(input.workCenterType ? { workCenterType: input.workCenterType } : {}),
-      ...(keyword
-        ? {
-            OR: [
-              { workCenterCode: { contains: keyword, mode: 'insensitive' } },
-              { name: { contains: keyword, mode: 'insensitive' } }
-            ]
-          }
-        : {})
-    }
-    const [total, rows] = await Promise.all([
-      this.client().workCenter.count({ where }),
-      this.client().workCenter.findMany({
-        where,
-        orderBy: { workCenterCode: 'asc' },
-        skip: (input.page - 1) * input.pageSize,
-        take: input.pageSize
-      })
-    ])
-    return {
-      items: rows.map(fromPrismaWorkCenter),
-      total,
-      page: input.page,
-      pageSize: input.pageSize
-    }
-  }
-
-  async saveResourcePosition(record: ResourcePositionRecord): Promise<ResourcePositionRecord> {
-    const saved = await this.client().resourcePosition.upsert({
-      where: { id: record.resourcePositionId },
-      create: toPrismaResourcePosition(record),
-      update: toPrismaResourcePosition(record)
-    })
-    return fromPrismaResourcePosition(saved)
-  }
-
-  async findResourcePositionById(tenantId: string, resourcePositionId: string): Promise<ResourcePositionRecord | null> {
-    const row = await this.client().resourcePosition.findFirst({ where: { id: resourcePositionId, tenantId } })
-    return row ? fromPrismaResourcePosition(row) : null
-  }
-
-  async listResourcePositionsByWorkCenter(tenantId: string, workCenterId: string): Promise<ResourcePositionRecord[]> {
-    const rows = await this.client().resourcePosition.findMany({
-      where: { tenantId, workCenterId },
-      orderBy: { positionCode: 'asc' }
-    })
-    return rows.map(fromPrismaResourcePosition)
-  }
-
-  async appendMovementEvent(record: MoldMovementEventRecord): Promise<MoldMovementEventRecord> {
-    const saved = await this.client().moldMovementEvent.create({ data: toPrismaMoldMovementEvent(record) })
-    return fromPrismaMoldMovementEvent(saved)
-  }
-
-  async findLastMovementEvent(
-    tenantId: string,
-    moldResourceType: MoldResourceType,
-    moldResourceId: string
-  ): Promise<MoldMovementEventRecord | null> {
-    const row = await this.client().moldMovementEvent.findFirst({
-      where: { tenantId, moldResourceType, moldResourceId },
-      orderBy: { movedAt: 'desc' }
-    })
-    return row ? fromPrismaMoldMovementEvent(row) : null
-  }
-
-  async listMovementEventsByResource(
-    tenantId: string,
-    moldResourceType: MoldResourceType,
-    moldResourceId: string
-  ): Promise<MoldMovementEventRecord[]> {
-    const rows = await this.client().moldMovementEvent.findMany({
-      where: { tenantId, moldResourceType, moldResourceId },
-      orderBy: { movedAt: 'asc' }
-    })
-    return rows.map(fromPrismaMoldMovementEvent)
-  }
-
-  async saveMoldInstallation(record: MoldInstallationRecord): Promise<MoldInstallationRecord> {
-    const saved = await this.client().moldInstallation.upsert({
-      where: { id: record.moldInstallationId },
-      create: toPrismaMoldInstallation(record),
-      update: toPrismaMoldInstallation(record)
-    })
-    return fromPrismaMoldInstallation(saved)
-  }
-
-  async findMoldInstallationById(tenantId: string, moldInstallationId: string): Promise<MoldInstallationRecord | null> {
-    const row = await this.client().moldInstallation.findFirst({ where: { id: moldInstallationId, tenantId } })
-    return row ? fromPrismaMoldInstallation(row) : null
-  }
-
-  async findActiveInstallationByMold(
-    tenantId: string,
-    productionMoldInstanceId: string
-  ): Promise<MoldInstallationRecord | null> {
-    const row = await this.client().moldInstallation.findFirst({
+  async listMoldLifeCounters(input: ListMoldLifeCountersInput): Promise<MoldLifeCounterPageResult> {
+    const rows = await this.client().moldLifeCounter.findMany({
       where: {
-        tenantId,
-        productionMoldInstanceId,
-        installationStatus: MoldInstallationStatus.ACTIVE,
-        unmountedAt: null
-      }
+        tenantId: input.tenantId,
+        ...(input.orgId ? { orgId: input.orgId } : {}),
+        ...(input.productionMoldId ? { productionMoldId: input.productionMoldId } : {})
+      },
+      orderBy: { updatedAt: 'desc' }
     })
-    return row ? fromPrismaMoldInstallation(row) : null
-  }
-
-  async findActiveInstallationByPosition(
-    tenantId: string,
-    resourcePositionId: string
-  ): Promise<MoldInstallationRecord | null> {
-    const row = await this.client().moldInstallation.findFirst({
-      where: {
-        tenantId,
-        resourcePositionId,
-        installationStatus: MoldInstallationStatus.ACTIVE,
-        unmountedAt: null
-      }
+    const filtered = rows.map(fromPrismaMoldLifeCounter).filter((counter) => {
+      return !input.warningLevel || deriveWarningLevel(counter) === input.warningLevel
     })
-    return row ? fromPrismaMoldInstallation(row) : null
+    const page = paginate(filtered, input.page, input.pageSize)
+    return { counters: page.items, total: page.total, page: page.page, pageSize: page.pageSize }
   }
 
-  async listActiveInstallationsByWorkCenter(tenantId: string, workCenterId: string): Promise<MoldInstallationRecord[]> {
-    const rows = await this.client().moldInstallation.findMany({
-      where: { tenantId, workCenterId, installationStatus: MoldInstallationStatus.ACTIVE, unmountedAt: null },
-      orderBy: { installedAt: 'asc' }
-    })
-    return rows.map(fromPrismaMoldInstallation)
-  }
-
-  async listInstallationsByMold(tenantId: string, productionMoldInstanceId: string): Promise<MoldInstallationRecord[]> {
-    const rows = await this.client().moldInstallation.findMany({
-      where: { tenantId, productionMoldInstanceId },
-      orderBy: { installedAt: 'asc' }
-    })
-    return rows.map(fromPrismaMoldInstallation)
-  }
-
-  async appendUsageEvent(record: MoldUsageEventRecord): Promise<MoldUsageEventRecord> {
-    const saved = await this.client().moldUsageEvent.create({ data: toPrismaMoldUsageEvent(record) })
-    return fromPrismaMoldUsageEvent(saved)
-  }
-
-  async listUsageEventsByMold(tenantId: string, productionMoldInstanceId: string): Promise<MoldUsageEventRecord[]> {
-    const rows = await this.client().moldUsageEvent.findMany({
-      where: { tenantId, productionMoldInstanceId },
-      orderBy: { usedAt: 'asc' }
-    })
-    return rows.map(fromPrismaMoldUsageEvent)
-  }
-
-  async findLastUsageEventByMold(
-    tenantId: string,
-    productionMoldInstanceId: string
-  ): Promise<MoldUsageEventRecord | null> {
-    const row = await this.client().moldUsageEvent.findFirst({
-      where: { tenantId, productionMoldInstanceId },
-      orderBy: { usedAt: 'desc' }
-    })
-    return row ? fromPrismaMoldUsageEvent(row) : null
-  }
-
-  async saveMoldWarningEvent(record: MoldWarningEventRecord): Promise<MoldWarningEventRecord> {
-    const saved = await this.client().moldWarningEvent.upsert({
-      where: { id: record.moldWarningEventId },
-      create: toPrismaMoldWarningEvent(record),
-      update: toPrismaMoldWarningEvent(record)
-    })
-    return fromPrismaMoldWarningEvent(saved)
-  }
-
-  async findMoldWarningEventById(tenantId: string, moldWarningEventId: string): Promise<MoldWarningEventRecord | null> {
-    const row = await this.client().moldWarningEvent.findFirst({ where: { id: moldWarningEventId, tenantId } })
-    return row ? fromPrismaMoldWarningEvent(row) : null
-  }
-
-  async findOpenWarningByMoldAndType(
-    tenantId: string,
-    productionMoldInstanceId: string,
-    warningType: MoldWarningType
-  ): Promise<MoldWarningEventRecord | null> {
-    const row = await this.client().moldWarningEvent.findFirst({
-      where: { tenantId, productionMoldInstanceId, warningType, status: MoldWarningStatus.OPEN }
-    })
-    return row ? fromPrismaMoldWarningEvent(row) : null
-  }
-
-  async findCurrentWarningByMold(
-    tenantId: string,
-    productionMoldInstanceId: string
-  ): Promise<MoldWarningEventRecord | null> {
-    const rows = await this.client().moldWarningEvent.findMany({
-      where: { tenantId, productionMoldInstanceId, status: MoldWarningStatus.OPEN },
-      orderBy: { raisedAt: 'desc' }
-    })
-    return rows.map(fromPrismaMoldWarningEvent).sort((left, right) => severityRank(right.warningLevel) - severityRank(left.warningLevel))[0] ?? null
-  }
-
-  async searchMoldWarnings(input: SearchMoldWarningsInput): Promise<PageResult<MoldWarningEventRecord>> {
-    const where: Prisma.MoldWarningEventWhereInput = {
-      tenantId: input.tenantId,
-      ...(input.orgId ? { orgId: input.orgId } : {}),
-      ...(input.status ? { status: input.status } : {}),
-      ...(input.warningType ? { warningType: input.warningType } : {}),
-      ...(input.warningLevel ? { warningLevel: input.warningLevel } : {}),
-      ...(input.raisedFrom || input.raisedTo
-        ? {
-            raisedAt: {
-              ...(input.raisedFrom ? { gte: new Date(input.raisedFrom) } : {}),
-              ...(input.raisedTo ? { lte: new Date(input.raisedTo) } : {})
-            }
-          }
-        : {})
-    }
-    const rows = await this.client().moldWarningEvent.findMany({
-      where,
-      orderBy: { raisedAt: 'desc' }
-    })
-    const filtered = []
-    for (const row of rows.map(fromPrismaMoldWarningEvent)) {
-      if (!input.workCenterId && !input.moldDesignId) {
-        filtered.push(row)
-        continue
-      }
-      const instance = await this.findProductionMoldInstanceById(input.tenantId, row.productionMoldInstanceId)
-      if (
-        (!input.workCenterId || instance?.currentWorkCenterId === input.workCenterId) &&
-        (!input.moldDesignId || instance?.moldDesignId === input.moldDesignId)
-      ) {
-        filtered.push(row)
-      }
-    }
-    const start = (input.page - 1) * input.pageSize
+  async printDailyMoldChecklist(input: PrintDailyMoldChecklistInput): Promise<DailyMoldChecklistRecord> {
     return {
-      items: filtered.slice(start, start + input.pageSize),
-      total: filtered.length,
-      page: input.page,
-      pageSize: input.pageSize
+      checklistDate: input.checklistDate,
+      workCenterId: input.workCenterId,
+      items: (await this.listCurrentMoldsByWorkCenter(input)).items
     }
-  }
-
-  async listWarningsByMold(tenantId: string, productionMoldInstanceId: string): Promise<MoldWarningEventRecord[]> {
-    const rows = await this.client().moldWarningEvent.findMany({
-      where: { tenantId, productionMoldInstanceId },
-      orderBy: { raisedAt: 'asc' }
-    })
-    return rows.map(fromPrismaMoldWarningEvent)
   }
 
   async appendAuditEnvelope(record: MesAuditEnvelopeRecord): Promise<MesAuditEnvelopeRecord> {
@@ -510,9 +490,7 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
     return fromPrismaMesOutboxEvent(saved)
   }
 
-  async saveCommandIdempotencyRecord(
-    record: MesCommandIdempotencyRecord
-  ): Promise<MesCommandIdempotencyRecord> {
+  async saveCommandIdempotencyRecord(record: MesCommandIdempotencyRecord): Promise<MesCommandIdempotencyRecord> {
     const client = this.client()
     if (record.status === 'IN_PROGRESS') {
       await client.mesCommandIdempotency.createMany({
@@ -536,35 +514,55 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
     return fromPrismaMesCommandIdempotency(saved)
   }
 
-  async findCommandIdempotencyRecord(
-    tenantId: string,
-    commandId: string
-  ): Promise<MesCommandIdempotencyRecord | null> {
+  async findCommandIdempotencyRecord(tenantId: string, commandId: string): Promise<MesCommandIdempotencyRecord | null> {
     const row = await this.client().mesCommandIdempotency.findUnique({
       where: { tenantId_commandId: { tenantId, commandId } }
     })
     return row ? fromPrismaMesCommandIdempotency(row) : null
   }
 
+  /** toProductionMoldSummary enriches mold projections with design and counter summaries. */
+  private async toProductionMoldSummary(record: ProductionMoldRecord): Promise<ProductionMoldSummaryRecord> {
+    const design = await this.findMoldDesignById(record.tenantId, record.moldDesignId)
+    const counter = await this.findMoldLifeCounterByProductionMold(record.tenantId, record.productionMoldId)
+    return {
+      productionMoldId: record.productionMoldId,
+      moldCode: record.moldCode,
+      moldDesignSummary: design ? toMoldDesignSummary(design) : {
+        moldDesignId: record.moldDesignId,
+        designCode: '',
+        name: '',
+        revisionCode: null,
+        status: 'INACTIVE' as MoldDesignSummaryRecord['status']
+      },
+      currentStatus: record.currentStatus,
+      currentPlacementSummary: await this.getToolingCurrentPlacement(record.tenantId, ToolingType.MOLD, record.productionMoldId),
+      lifeCounterSummary: counter ? toMoldLifeCounterSummary(counter) : record.lifeCounterSummary ?? null
+    }
+  }
+
+  /** client returns the ambient Prisma transaction client when one is active. */
   private client(): PrismaExecutionClient {
     return this.prisma.getExecutionClient()
   }
 }
 
 type MoldDesignWithOutputs = Prisma.MoldDesignGetPayload<{ include: { outputs: true } }>
+type ToolingInstallationWithDetail = Prisma.ToolingInstallationGetPayload<{ include: { moldDetail: true } }>
 
+/** toPrismaMoldDesign maps one MoldDesign record into Prisma create/update data. */
 function toPrismaMoldDesign(record: MoldDesignRecord): Prisma.MoldDesignUncheckedCreateInput {
   return {
     id: record.moldDesignId,
     tenantId: record.tenantId,
     orgId: record.orgId ?? null,
+    orgScope: orgScope(record.orgId),
     designCode: record.designCode,
     name: record.name,
     revisionCode: record.revisionCode ?? null,
-    supersedesDesignId: record.supersedesDesignId ?? null,
-    productFamilyRef: toJson(record.productFamilyRef),
-    manufacturingSpecRefs: toJson(record.manufacturingSpecRefs),
+    supersedesMoldDesignId: record.supersedesMoldDesignId ?? null,
     itemRef: nullableJson(record.itemRef),
+    productionSpecRefs: toJson(record.productionSpecRefs),
     materialType: record.materialType,
     functionRole: record.functionRole,
     productionMethodTags: record.productionMethodTags,
@@ -577,6 +575,7 @@ function toPrismaMoldDesign(record: MoldDesignRecord): Prisma.MoldDesignUnchecke
   }
 }
 
+/** toPrismaMoldDesignOutput maps one design output row into Prisma create data. */
 function toPrismaMoldDesignOutput(record: MoldDesignOutputRecord): Prisma.MoldDesignOutputCreateManyInput {
   return {
     id: record.moldDesignOutputId,
@@ -586,16 +585,16 @@ function toPrismaMoldDesignOutput(record: MoldDesignOutputRecord): Prisma.MoldDe
     sequenceNo: record.sequenceNo,
     outputCode: record.outputCode,
     outputKind: record.outputKind,
-    productFamilyRef: nullableJson(record.productFamilyRef),
-    manufacturingSpecRef: nullableJson(record.manufacturingSpecRef),
-    options: toJson(record.options),
+    productionSpecRef: nullableJson(record.productionSpecRef),
     quantityPerUse: record.quantityPerUse,
     componentRole: record.componentRole ?? null,
     assemblyHint: record.assemblyHint ?? null,
-    isPrimaryOutput: record.isPrimaryOutput
+    isPrimaryOutput: record.isPrimaryOutput,
+    options: toJson(record.options)
   }
 }
 
+/** fromPrismaMoldDesign maps one Prisma design row into the domain record. */
 function fromPrismaMoldDesign(row: MoldDesignWithOutputs): MoldDesignRecord {
   return {
     moldDesignId: row.id,
@@ -604,10 +603,9 @@ function fromPrismaMoldDesign(row: MoldDesignWithOutputs): MoldDesignRecord {
     designCode: row.designCode,
     name: row.name,
     revisionCode: row.revisionCode,
-    supersedesDesignId: row.supersedesDesignId,
-    productFamilyRef: fromJson<MoldDesignRecord['productFamilyRef']>(row.productFamilyRef),
-    manufacturingSpecRefs: fromJson<MoldDesignRecord['manufacturingSpecRefs']>(row.manufacturingSpecRefs),
+    supersedesMoldDesignId: row.supersedesMoldDesignId,
     itemRef: fromNullableJson<MoldDesignRecord['itemRef']>(row.itemRef),
+    productionSpecRefs: fromJson<MoldDesignRecord['productionSpecRefs']>(row.productionSpecRefs),
     materialType: row.materialType,
     functionRole: row.functionRole as MoldDesignRecord['functionRole'],
     productionMethodTags: row.productionMethodTags,
@@ -620,13 +618,12 @@ function fromPrismaMoldDesign(row: MoldDesignWithOutputs): MoldDesignRecord {
       sequenceNo: output.sequenceNo,
       outputCode: output.outputCode,
       outputKind: output.outputKind as MoldDesignOutputRecord['outputKind'],
-      productFamilyRef: fromNullableJson<MoldDesignOutputRecord['productFamilyRef']>(output.productFamilyRef),
-      manufacturingSpecRef: fromNullableJson<MoldDesignOutputRecord['manufacturingSpecRef']>(output.manufacturingSpecRef),
-      options: fromJson<MoldDesignOutputRecord['options']>(output.options),
+      productionSpecRef: fromNullableJson<MoldDesignOutputRecord['productionSpecRef']>(output.productionSpecRef),
       quantityPerUse: output.quantityPerUse,
       componentRole: output.componentRole,
       assemblyHint: output.assemblyHint,
-      isPrimaryOutput: output.isPrimaryOutput
+      isPrimaryOutput: output.isPrimaryOutput,
+      options: fromJson<MoldDesignOutputRecord['options']>(output.options)
     })),
     defaultLifeLimit: row.defaultLifeLimit,
     defaultLifeUnit: row.defaultLifeUnit,
@@ -636,26 +633,40 @@ function fromPrismaMoldDesign(row: MoldDesignWithOutputs): MoldDesignRecord {
   }
 }
 
+/** toMoldDesignSummary projects one design into a list/query summary row. */
+function toMoldDesignSummary(record: MoldDesignRecord): MoldDesignSummaryRecord {
+  return {
+    moldDesignId: record.moldDesignId,
+    designCode: record.designCode,
+    name: record.name,
+    revisionCode: record.revisionCode ?? null,
+    status: record.status
+  }
+}
+
+/** toPrismaMasterMold maps one MasterMold record into Prisma create/update data. */
 function toPrismaMasterMold(record: MasterMoldRecord): Prisma.MasterMoldUncheckedCreateInput {
   return {
     id: record.masterMoldId,
     tenantId: record.tenantId,
     orgId: record.orgId ?? null,
+    orgScope: orgScope(record.orgId),
     masterMoldCode: record.masterMoldCode,
     moldDesignId: record.moldDesignId,
     supplierRef: nullableJson(record.supplierRef),
     purchaseRef: nullableJson(record.purchaseRef),
     receivedAt: record.receivedAt ?? null,
     currentStatus: record.currentStatus,
-    currentMesLocationId: record.currentMesLocationId ?? null,
+    currentStorageResourceRef: nullableJson(record.currentStorageResourceRef),
+    currentCarrierResourceRef: nullableJson(record.currentCarrierResourceRef),
     qualitySummary: record.qualitySummary ?? null,
     notes: record.notes ?? null,
-    scrappedAt: record.scrappedAt ?? null,
     createdAt: new Date(record.createdAt),
     updatedAt: new Date(record.updatedAt)
   }
 }
 
+/** fromPrismaMasterMold maps one Prisma master mold row into the domain record. */
 function fromPrismaMasterMold(row: Prisma.MasterMoldGetPayload<object>): MasterMoldRecord {
   return {
     masterMoldId: row.id,
@@ -667,299 +678,222 @@ function fromPrismaMasterMold(row: Prisma.MasterMoldGetPayload<object>): MasterM
     purchaseRef: fromNullableJson<MasterMoldRecord['purchaseRef']>(row.purchaseRef),
     receivedAt: row.receivedAt,
     currentStatus: row.currentStatus,
-    currentMesLocationId: row.currentMesLocationId,
+    currentStorageResourceRef: fromNullableJson<MasterMoldRecord['currentStorageResourceRef']>(row.currentStorageResourceRef),
+    currentCarrierResourceRef: fromNullableJson<MasterMoldRecord['currentCarrierResourceRef']>(row.currentCarrierResourceRef),
     qualitySummary: row.qualitySummary,
     notes: row.notes,
-    scrappedAt: row.scrappedAt,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
   }
 }
 
-function toPrismaProductionMoldInstance(record: ProductionMoldInstanceRecord): Prisma.ProductionMoldInstanceUncheckedCreateInput {
+/** toPrismaProductionMold maps one ProductionMold record into Prisma create/update data. */
+function toPrismaProductionMold(record: ProductionMoldRecord): Prisma.ProductionMoldUncheckedCreateInput {
   return {
-    id: record.productionMoldInstanceId,
+    id: record.productionMoldId,
     tenantId: record.tenantId,
     orgId: record.orgId ?? null,
-    moldInstanceCode: record.moldInstanceCode,
+    orgScope: orgScope(record.orgId),
+    moldCode: record.moldCode,
     moldDesignId: record.moldDesignId,
-    masterMoldId: record.masterMoldId ?? null,
+    sourceMasterMoldId: record.sourceMasterMoldId ?? null,
     supplierRef: nullableJson(record.supplierRef),
     purchaseRef: nullableJson(record.purchaseRef),
     receivedAt: record.receivedAt ?? null,
     acceptedAt: record.acceptedAt ?? null,
     currentStatus: record.currentStatus,
-    currentMesLocationId: record.currentMesLocationId ?? null,
-    currentWorkCenterId: record.currentWorkCenterId ?? null,
-    currentResourcePositionId: record.currentResourcePositionId ?? null,
-    currentInstallationId: record.currentInstallationId ?? null,
-    lifeUsedValue: record.lifeUsedValue,
-    lifeLimitValue: record.lifeLimitValue,
-    lifeUnit: record.lifeUnit,
-    warningLevel: record.warningLevel,
+    currentStorageResourceRef: nullableJson(record.currentStorageResourceRef),
+    currentCarrierResourceRef: nullableJson(record.currentCarrierResourceRef),
+    currentInstallationSummary: nullableJson(record.currentInstallationSummary),
+    lifeCounterSummary: nullableJson(record.lifeCounterSummary),
     scrappedAt: record.scrappedAt ?? null,
     createdAt: new Date(record.createdAt),
     updatedAt: new Date(record.updatedAt)
   }
 }
 
-function fromPrismaProductionMoldInstance(row: Prisma.ProductionMoldInstanceGetPayload<object>): ProductionMoldInstanceRecord {
+/** fromPrismaProductionMold maps one Prisma production mold row into the domain record. */
+function fromPrismaProductionMold(row: Prisma.ProductionMoldGetPayload<object>): ProductionMoldRecord {
   return {
-    productionMoldInstanceId: row.id,
+    productionMoldId: row.id,
     tenantId: row.tenantId,
     orgId: row.orgId,
-    moldInstanceCode: row.moldInstanceCode,
+    moldCode: row.moldCode,
     moldDesignId: row.moldDesignId,
-    masterMoldId: row.masterMoldId,
-    supplierRef: fromNullableJson<ProductionMoldInstanceRecord['supplierRef']>(row.supplierRef),
-    purchaseRef: fromNullableJson<ProductionMoldInstanceRecord['purchaseRef']>(row.purchaseRef),
+    sourceMasterMoldId: row.sourceMasterMoldId,
+    supplierRef: fromNullableJson<ProductionMoldRecord['supplierRef']>(row.supplierRef),
+    purchaseRef: fromNullableJson<ProductionMoldRecord['purchaseRef']>(row.purchaseRef),
     receivedAt: row.receivedAt,
     acceptedAt: row.acceptedAt,
-    currentStatus: row.currentStatus as ProductionMoldInstanceRecord['currentStatus'],
-    currentMesLocationId: row.currentMesLocationId,
-    currentWorkCenterId: row.currentWorkCenterId,
-    currentResourcePositionId: row.currentResourcePositionId,
-    currentInstallationId: row.currentInstallationId,
-    lifeUsedValue: row.lifeUsedValue,
-    lifeLimitValue: row.lifeLimitValue,
-    lifeUnit: row.lifeUnit,
-    warningLevel: row.warningLevel as ProductionMoldInstanceRecord['warningLevel'],
+    currentStatus: row.currentStatus as ProductionMoldStatus,
+    currentStorageResourceRef: fromNullableJson<ProductionMoldRecord['currentStorageResourceRef']>(row.currentStorageResourceRef),
+    currentCarrierResourceRef: fromNullableJson<ProductionMoldRecord['currentCarrierResourceRef']>(row.currentCarrierResourceRef),
+    currentInstallationSummary: fromNullableJson<ProductionMoldRecord['currentInstallationSummary']>(row.currentInstallationSummary),
+    lifeCounterSummary: fromNullableJson<ProductionMoldRecord['lifeCounterSummary']>(row.lifeCounterSummary),
     scrappedAt: row.scrappedAt,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString()
   }
 }
 
-function fromPrismaMesLocation(row: Prisma.MesLocationGetPayload<object>): MesLocationRecord {
+/** toPrismaMoldMovement maps one movement fact into Prisma create data. */
+function toPrismaMoldMovement(record: MoldMovementRecord): Prisma.MoldMovementUncheckedCreateInput {
   return {
-    mesLocationId: row.id,
-    tenantId: row.tenantId,
-    orgId: row.orgId,
-    locationCode: row.locationCode,
-    name: row.name,
-    locationType: row.locationType,
-    parentMesLocationId: row.parentLocationId,
-    relatedWorkCenterId: row.relatedWorkCenterId,
-    capacityProfileId: row.capacityProfileId,
-    status: row.status as MesLocationRecord['status'],
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString()
-  }
-}
-
-function toPrismaWorkCenter(record: WorkCenterRecord): Prisma.WorkCenterUncheckedCreateInput {
-  return {
-    id: record.workCenterId,
+    id: record.moldMovementId,
     tenantId: record.tenantId,
     orgId: record.orgId ?? null,
-    workCenterCode: record.workCenterCode,
-    name: record.name,
-    workCenterType: record.workCenterType,
-    parentWorkCenterId: record.parentWorkCenterId ?? null,
-    relatedMesLocationId: record.relatedMesLocationId ?? null,
-    capacityProfileId: record.capacityProfileId ?? null,
-    status: record.status,
-    createdAt: new Date(record.createdAt),
-    updatedAt: new Date(record.updatedAt)
-  }
-}
-
-function fromPrismaWorkCenter(row: Prisma.WorkCenterGetPayload<object>): WorkCenterRecord {
-  return {
-    workCenterId: row.id,
-    tenantId: row.tenantId,
-    orgId: row.orgId,
-    workCenterCode: row.workCenterCode,
-    name: row.name,
-    workCenterType: row.workCenterType,
-    parentWorkCenterId: row.parentWorkCenterId,
-    relatedMesLocationId: row.relatedMesLocationId,
-    capacityProfileId: row.capacityProfileId,
-    status: row.status,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString()
-  }
-}
-
-function toPrismaResourcePosition(record: ResourcePositionRecord): Prisma.ResourcePositionUncheckedCreateInput {
-  return {
-    id: record.resourcePositionId,
-    tenantId: record.tenantId,
-    orgId: record.orgId ?? null,
-    workCenterId: record.workCenterId,
-    positionCode: record.positionCode,
-    name: record.name,
-    positionType: record.positionType,
-    compatibleMoldDesignRefs: record.compatibleMoldDesignRefs,
-    status: record.status,
-    createdAt: new Date(record.createdAt),
-    updatedAt: new Date(record.updatedAt)
-  }
-}
-
-function fromPrismaResourcePosition(row: Prisma.ResourcePositionGetPayload<object>): ResourcePositionRecord {
-  return {
-    resourcePositionId: row.id,
-    tenantId: row.tenantId,
-    orgId: row.orgId,
-    workCenterId: row.workCenterId,
-    positionCode: row.positionCode,
-    name: row.name,
-    positionType: row.positionType,
-    compatibleMoldDesignRefs: row.compatibleMoldDesignRefs,
-    status: row.status,
-    createdAt: row.createdAt.toISOString(),
-    updatedAt: row.updatedAt.toISOString()
-  }
-}
-
-function toPrismaMoldMovementEvent(record: MoldMovementEventRecord): Prisma.MoldMovementEventUncheckedCreateInput {
-  return {
-    id: record.moldMovementEventId,
-    tenantId: record.tenantId,
-    orgId: record.orgId ?? null,
-    moldResourceType: record.moldResourceType,
-    moldResourceId: record.moldResourceId,
-    fromMesLocationId: record.fromMesLocationId ?? null,
-    toMesLocationId: record.toMesLocationId,
-    movementReason: record.movementReason,
+    toolingType: record.toolingType,
+    toolingId: record.toolingId,
+    fromStorageResourceRef: nullableJson(record.fromStorageResourceRef),
+    fromCarrierResourceRef: nullableJson(record.fromCarrierResourceRef),
+    toStorageResourceRef: nullableJson(record.toStorageResourceRef),
+    toCarrierResourceRef: nullableJson(record.toCarrierResourceRef),
+    movementReason: record.movementReason ?? null,
     movedAt: new Date(record.movedAt),
     operatorRef: toJson(record.operatorRef),
-    sourceCommandId: record.sourceCommandId,
     auditRef: toJson(record.auditRef)
   }
 }
 
-function fromPrismaMoldMovementEvent(row: Prisma.MoldMovementEventGetPayload<object>): MoldMovementEventRecord {
+/** fromPrismaMoldMovement maps one Prisma movement row into the domain fact. */
+function fromPrismaMoldMovement(row: Prisma.MoldMovementGetPayload<object>): MoldMovementRecord {
   return {
-    moldMovementEventId: row.id,
+    moldMovementId: row.id,
     tenantId: row.tenantId,
     orgId: row.orgId,
-    moldResourceType: row.moldResourceType as MoldMovementEventRecord['moldResourceType'],
-    moldResourceId: row.moldResourceId,
-    fromMesLocationId: row.fromMesLocationId,
-    toMesLocationId: row.toMesLocationId,
+    toolingType: row.toolingType as ToolingType,
+    toolingId: row.toolingId,
+    fromStorageResourceRef: fromNullableJson<MoldMovementRecord['fromStorageResourceRef']>(row.fromStorageResourceRef),
+    fromCarrierResourceRef: fromNullableJson<MoldMovementRecord['fromCarrierResourceRef']>(row.fromCarrierResourceRef),
+    toStorageResourceRef: fromNullableJson<MoldMovementRecord['toStorageResourceRef']>(row.toStorageResourceRef),
+    toCarrierResourceRef: fromNullableJson<MoldMovementRecord['toCarrierResourceRef']>(row.toCarrierResourceRef),
     movementReason: row.movementReason,
     movedAt: row.movedAt.toISOString(),
-    operatorRef: fromJson<MoldMovementEventRecord['operatorRef']>(row.operatorRef),
-    sourceCommandId: row.sourceCommandId,
-    auditRef: fromJson<MoldMovementEventRecord['auditRef']>(row.auditRef)
+    operatorRef: fromJson<MoldMovementRecord['operatorRef']>(row.operatorRef),
+    auditRef: fromJson<MoldMovementRecord['auditRef']>(row.auditRef)
   }
 }
 
-function toPrismaMoldInstallation(record: MoldInstallationRecord): Prisma.MoldInstallationUncheckedCreateInput {
+/** toPrismaToolingInstallation maps one installation interval into Prisma data. */
+function toPrismaToolingInstallation(record: ToolingInstallationRecord): Prisma.ToolingInstallationUncheckedCreateInput {
   return {
-    id: record.moldInstallationId,
+    id: record.toolingInstallationId,
     tenantId: record.tenantId,
     orgId: record.orgId ?? null,
-    productionMoldInstanceId: record.productionMoldInstanceId,
-    workCenterId: record.workCenterId,
-    resourcePositionId: record.resourcePositionId,
+    toolingType: record.toolingType,
+    toolingId: record.toolingId,
+    workCenterRef: toJson(record.workCenterRef),
+    workUnitRef: nullableJson(record.workUnitRef),
     installedAt: new Date(record.installedAt),
     unmountedAt: record.unmountedAt ? new Date(record.unmountedAt) : null,
-    installedByRef: toJson(record.installedByRef),
+    installedByRef: nullableJson(record.installedByRef),
     unmountedByRef: nullableJson(record.unmountedByRef),
-    installationStatus: record.installationStatus,
-    setupSnapshot: record.setupSnapshot ?? null,
-    operationRef: nullableJson(record.operationRef),
-    routingRef: nullableJson(record.routingRef),
-    workOrderRef: nullableJson(record.workOrderRef),
-    operationTaskRef: nullableJson(record.operationTaskRef),
+    status: record.status,
     auditRef: toJson(record.auditRef)
   }
 }
 
-function fromPrismaMoldInstallation(row: Prisma.MoldInstallationGetPayload<object>): MoldInstallationRecord {
+/** toPrismaMoldInstallationDetail maps mold-specific installation detail into Prisma data. */
+function toPrismaMoldInstallationDetail(record: NonNullable<ToolingInstallationRecord['moldDetail']>): Prisma.MoldInstallationDetailUncheckedCreateInput {
   return {
-    moldInstallationId: row.id,
-    tenantId: row.tenantId,
-    orgId: row.orgId,
-    productionMoldInstanceId: row.productionMoldInstanceId,
-    workCenterId: row.workCenterId,
-    resourcePositionId: row.resourcePositionId,
-    installedAt: row.installedAt.toISOString(),
-    unmountedAt: row.unmountedAt?.toISOString() ?? null,
-    installedByRef: fromJson<MoldInstallationRecord['installedByRef']>(row.installedByRef),
-    unmountedByRef: fromNullableJson<MoldInstallationRecord['unmountedByRef']>(row.unmountedByRef),
-    installationStatus: row.installationStatus as MoldInstallationRecord['installationStatus'],
-    setupSnapshot: row.setupSnapshot,
-    operationRef: fromNullableJson<MoldInstallationRecord['operationRef']>(row.operationRef),
-    routingRef: fromNullableJson<MoldInstallationRecord['routingRef']>(row.routingRef),
-    workOrderRef: fromNullableJson<MoldInstallationRecord['workOrderRef']>(row.workOrderRef),
-    operationTaskRef: fromNullableJson<MoldInstallationRecord['operationTaskRef']>(row.operationTaskRef),
-    auditRef: fromJson<MoldInstallationRecord['auditRef']>(row.auditRef)
+    toolingInstallationId: record.toolingInstallationId,
+    moldPosition: record.moldPosition ?? null,
+    cavityPosition: record.cavityPosition ?? null,
+    cavityMapping: record.cavityMapping ?? null,
+    setupParameters: record.setupParameters ?? null
   }
 }
 
-function toPrismaMoldUsageEvent(record: MoldUsageEventRecord): Prisma.MoldUsageEventUncheckedCreateInput {
+/** fromPrismaToolingInstallation maps one Prisma installation row into the domain interval fact. */
+function fromPrismaToolingInstallation(row: ToolingInstallationWithDetail): ToolingInstallationRecord {
   return {
-    id: record.moldUsageEventId,
+    toolingInstallationId: row.id,
+    tenantId: row.tenantId,
+    orgId: row.orgId,
+    toolingType: row.toolingType as ToolingType,
+    toolingId: row.toolingId,
+    workCenterRef: fromJson<ToolingInstallationRecord['workCenterRef']>(row.workCenterRef),
+    workUnitRef: fromNullableJson<ToolingInstallationRecord['workUnitRef']>(row.workUnitRef),
+    installedAt: row.installedAt.toISOString(),
+    unmountedAt: row.unmountedAt?.toISOString() ?? null,
+    installedByRef: fromNullableJson<ToolingInstallationRecord['installedByRef']>(row.installedByRef),
+    unmountedByRef: fromNullableJson<ToolingInstallationRecord['unmountedByRef']>(row.unmountedByRef),
+    status: row.status as ToolingInstallationStatus,
+    moldDetail: row.moldDetail
+      ? {
+          toolingInstallationId: row.moldDetail.toolingInstallationId,
+          moldPosition: row.moldDetail.moldPosition,
+          cavityPosition: row.moldDetail.cavityPosition,
+          cavityMapping: row.moldDetail.cavityMapping,
+          setupParameters: row.moldDetail.setupParameters
+        }
+      : null,
+    auditRef: fromJson<ToolingInstallationRecord['auditRef']>(row.auditRef)
+  }
+}
+
+/** toPrismaMoldUsageRecord maps one usage fact into Prisma create data. */
+function toPrismaMoldUsageRecord(record: MoldUsageRecord): Prisma.MoldUsageRecordUncheckedCreateInput {
+  return {
+    id: record.moldUsageRecordId,
     tenantId: record.tenantId,
     orgId: record.orgId ?? null,
-    productionMoldInstanceId: record.productionMoldInstanceId,
-    moldInstallationId: record.moldInstallationId,
-    workCenterId: record.workCenterId,
-    resourcePositionId: record.resourcePositionId ?? null,
-    usageMode: record.usageMode,
+    productionMoldId: record.productionMoldId,
+    toolingInstallationId: record.toolingInstallationId ?? null,
+    workCenterRef: toJson(record.workCenterRef),
+    workUnitRef: nullableJson(record.workUnitRef),
     usedAt: new Date(record.usedAt),
     usageQuantity: record.usageQuantity,
     lifeDelta: record.lifeDelta,
     lifeUnit: record.lifeUnit,
-    lifeUsedValueAfter: record.lifeUsedValueAfter,
-    productFamilyRef: nullableJson(record.productFamilyRef),
-    manufacturingSpecRef: nullableJson(record.manufacturingSpecRef),
-    moldDesignOutputId: record.moldDesignOutputId ?? null,
-    moldDesignOutputOptionId: record.moldDesignOutputOptionId ?? null,
-    wipUnitRef: nullableJson(record.wipUnitRef),
-    physicalTraceId: record.physicalTraceId ?? null,
-    workOrderRef: nullableJson(record.workOrderRef),
-    operationTaskRef: nullableJson(record.operationTaskRef),
+    productionSpecRef: nullableJson(record.productionSpecRef),
+    productionUnitRef: nullableJson(record.productionUnitRef),
+    traceSubjectRef: nullableJson(record.traceSubjectRef),
     operatorRef: toJson(record.operatorRef),
-    captureSource: record.captureSource,
-    auditRef: toJson(record.auditRef)
+    captureSource: record.captureSource ?? null,
+    auditRef: toJson(record.auditRef),
+    moldDesignOutputId: record.moldDesignOutputId ?? null,
+    moldDesignOutputOptionId: record.moldDesignOutputOptionId ?? null
   }
 }
 
-function fromPrismaMoldUsageEvent(row: Prisma.MoldUsageEventGetPayload<object>): MoldUsageEventRecord {
+/** fromPrismaMoldUsageRecord maps one Prisma usage row into the domain fact. */
+function fromPrismaMoldUsageRecord(row: Prisma.MoldUsageRecordGetPayload<object>): MoldUsageRecord {
   return {
-    moldUsageEventId: row.id,
+    moldUsageRecordId: row.id,
     tenantId: row.tenantId,
     orgId: row.orgId,
-    productionMoldInstanceId: row.productionMoldInstanceId,
-    moldInstallationId: row.moldInstallationId,
-    workCenterId: row.workCenterId,
-    resourcePositionId: row.resourcePositionId,
-    usageMode: row.usageMode as MoldUsageEventRecord['usageMode'],
+    productionMoldId: row.productionMoldId,
+    toolingInstallationId: row.toolingInstallationId,
+    workCenterRef: fromJson<MoldUsageRecord['workCenterRef']>(row.workCenterRef),
+    workUnitRef: fromNullableJson<MoldUsageRecord['workUnitRef']>(row.workUnitRef),
     usedAt: row.usedAt.toISOString(),
     usageQuantity: row.usageQuantity,
     lifeDelta: row.lifeDelta,
     lifeUnit: row.lifeUnit,
-    lifeUsedValueAfter: row.lifeUsedValueAfter,
-    productFamilyRef: fromNullableJson<MoldUsageEventRecord['productFamilyRef']>(row.productFamilyRef),
-    manufacturingSpecRef: fromNullableJson<MoldUsageEventRecord['manufacturingSpecRef']>(row.manufacturingSpecRef),
-    moldDesignOutputId: row.moldDesignOutputId,
-    moldDesignOutputOptionId: row.moldDesignOutputOptionId,
-    wipUnitRef: fromNullableJson<MoldUsageEventRecord['wipUnitRef']>(row.wipUnitRef),
-    physicalTraceId: row.physicalTraceId,
-    workOrderRef: fromNullableJson<MoldUsageEventRecord['workOrderRef']>(row.workOrderRef),
-    operationTaskRef: fromNullableJson<MoldUsageEventRecord['operationTaskRef']>(row.operationTaskRef),
-    operatorRef: fromJson<MoldUsageEventRecord['operatorRef']>(row.operatorRef),
+    productionSpecRef: fromNullableJson<MoldUsageRecord['productionSpecRef']>(row.productionSpecRef),
+    productionUnitRef: fromNullableJson<MoldUsageRecord['productionUnitRef']>(row.productionUnitRef),
+    traceSubjectRef: fromNullableJson<MoldUsageRecord['traceSubjectRef']>(row.traceSubjectRef),
+    operatorRef: fromJson<MoldUsageRecord['operatorRef']>(row.operatorRef),
     captureSource: row.captureSource,
-    auditRef: fromJson<MoldUsageEventRecord['auditRef']>(row.auditRef)
+    auditRef: fromJson<MoldUsageRecord['auditRef']>(row.auditRef),
+    moldDesignOutputId: row.moldDesignOutputId,
+    moldDesignOutputOptionId: row.moldDesignOutputOptionId
   }
 }
 
+/** toPrismaMoldLifeCounter maps one life counter into Prisma create/update data. */
 function toPrismaMoldLifeCounter(record: MoldLifeCounterRecord): Prisma.MoldLifeCounterUncheckedCreateInput {
   return {
     id: record.moldLifeCounterId,
     tenantId: record.tenantId,
     orgId: record.orgId ?? null,
-    productionMoldInstanceId: record.productionMoldInstanceId,
+    productionMoldId: record.productionMoldId,
     lifeUnit: record.lifeUnit,
     usedValue: record.usedValue,
-    limitValue: record.limitValue,
-    warningThresholdValue: record.warningThresholdValue,
-    lastUsageEventId: record.lastUsageEventId ?? null,
+    limitValue: record.limitValue ?? null,
+    warningThresholdValue: record.warningThresholdValue ?? null,
+    lastUsageRecordId: record.lastUsageRecordId ?? null,
     lastAdjustedAt: record.lastAdjustedAt ? new Date(record.lastAdjustedAt) : null,
     lastAdjustedByRef: nullableJson(record.lastAdjustedByRef),
     adjustmentReason: record.adjustmentReason ?? null,
@@ -967,17 +901,18 @@ function toPrismaMoldLifeCounter(record: MoldLifeCounterRecord): Prisma.MoldLife
   }
 }
 
+/** fromPrismaMoldLifeCounter maps one Prisma counter row into the domain record. */
 function fromPrismaMoldLifeCounter(row: Prisma.MoldLifeCounterGetPayload<object>): MoldLifeCounterRecord {
   return {
     moldLifeCounterId: row.id,
     tenantId: row.tenantId,
     orgId: row.orgId,
-    productionMoldInstanceId: row.productionMoldInstanceId,
+    productionMoldId: row.productionMoldId,
     lifeUnit: row.lifeUnit,
     usedValue: row.usedValue,
     limitValue: row.limitValue,
     warningThresholdValue: row.warningThresholdValue,
-    lastUsageEventId: row.lastUsageEventId,
+    lastUsageRecordId: row.lastUsageRecordId,
     lastAdjustedAt: row.lastAdjustedAt?.toISOString() ?? null,
     lastAdjustedByRef: fromNullableJson<MoldLifeCounterRecord['lastAdjustedByRef']>(row.lastAdjustedByRef),
     adjustmentReason: row.adjustmentReason,
@@ -985,44 +920,46 @@ function fromPrismaMoldLifeCounter(row: Prisma.MoldLifeCounterGetPayload<object>
   }
 }
 
-function toPrismaMoldWarningEvent(record: MoldWarningEventRecord): Prisma.MoldWarningEventUncheckedCreateInput {
+/** toMoldLifeCounterSummary projects one counter into a mold summary shape. */
+function toMoldLifeCounterSummary(record: MoldLifeCounterRecord) {
+  const remainingValue =
+    record.limitValue === null || record.limitValue === undefined
+      ? null
+      : (Number(record.limitValue) - Number(record.usedValue)).toString()
   return {
-    id: record.moldWarningEventId,
-    tenantId: record.tenantId,
-    orgId: record.orgId ?? null,
-    productionMoldInstanceId: record.productionMoldInstanceId,
-    warningType: record.warningType,
-    warningLevel: record.warningLevel,
-    triggeredByEventId: record.triggeredByEventId ?? null,
-    lifeUsedValue: record.lifeUsedValue,
-    lifeLimitValue: record.lifeLimitValue,
-    raisedAt: new Date(record.raisedAt),
-    acknowledgedAt: record.acknowledgedAt ? new Date(record.acknowledgedAt) : null,
-    acknowledgedByRef: nullableJson(record.acknowledgedByRef),
-    status: record.status,
-    auditRef: toJson(record.auditRef)
+    moldLifeCounterId: record.moldLifeCounterId,
+    lifeUnit: record.lifeUnit,
+    usedValue: record.usedValue,
+    limitValue: record.limitValue ?? null,
+    warningThresholdValue: record.warningThresholdValue ?? null,
+    remainingValue,
+    warningLevel: deriveWarningLevel(record),
+    lastUsageRecordId: record.lastUsageRecordId ?? null,
+    lastAdjustedAt: record.lastAdjustedAt ?? null
   }
 }
 
-function fromPrismaMoldWarningEvent(row: Prisma.MoldWarningEventGetPayload<object>): MoldWarningEventRecord {
-  return {
-    moldWarningEventId: row.id,
-    tenantId: row.tenantId,
-    orgId: row.orgId,
-    productionMoldInstanceId: row.productionMoldInstanceId,
-    warningType: row.warningType as MoldWarningEventRecord['warningType'],
-    warningLevel: row.warningLevel as MoldWarningEventRecord['warningLevel'],
-    triggeredByEventId: row.triggeredByEventId,
-    lifeUsedValue: row.lifeUsedValue,
-    lifeLimitValue: row.lifeLimitValue,
-    raisedAt: row.raisedAt.toISOString(),
-    acknowledgedAt: row.acknowledgedAt?.toISOString() ?? null,
-    acknowledgedByRef: fromNullableJson<MoldWarningEventRecord['acknowledgedByRef']>(row.acknowledgedByRef),
-    status: row.status as MoldWarningEventRecord['status'],
-    auditRef: fromJson<MoldWarningEventRecord['auditRef']>(row.auditRef)
+/** deriveWarningLevel computes the read-side warning bucket from the counter thresholds. */
+function deriveWarningLevel(record: MoldLifeCounterRecord): MoldWarningLevel {
+  const used = Number(record.usedValue)
+  const limit = record.limitValue === null || record.limitValue === undefined ? Number.NaN : Number(record.limitValue)
+  const threshold = record.warningThresholdValue === null || record.warningThresholdValue === undefined ? Number.NaN : Number(record.warningThresholdValue)
+  if (Number.isFinite(limit) && used >= limit) {
+    return MoldWarningLevel.CRITICAL
   }
+  if (Number.isFinite(threshold) && used >= threshold) {
+    return MoldWarningLevel.WARNING
+  }
+  return MoldWarningLevel.INFO
 }
 
+/** paginate slices an already ordered in-memory result set into a contract page. */
+function paginate<T>(items: T[], page: number, pageSize: number) {
+  const start = (page - 1) * pageSize
+  return { items: items.slice(start, start + pageSize), total: items.length, page, pageSize }
+}
+
+/** toPrismaMesAuditEnvelope maps one audit envelope into Prisma create data. */
 function toPrismaMesAuditEnvelope(record: MesAuditEnvelopeRecord): Prisma.MesAuditEnvelopeUncheckedCreateInput {
   return {
     id: record.mesAuditEnvelopeId,
@@ -1047,6 +984,7 @@ function toPrismaMesAuditEnvelope(record: MesAuditEnvelopeRecord): Prisma.MesAud
   }
 }
 
+/** fromPrismaMesAuditEnvelope maps one Prisma audit row into the shared MES audit shape. */
 function fromPrismaMesAuditEnvelope(row: Prisma.MesAuditEnvelopeGetPayload<object>): MesAuditEnvelopeRecord {
   return {
     mesAuditEnvelopeId: row.id,
@@ -1071,6 +1009,7 @@ function fromPrismaMesAuditEnvelope(row: Prisma.MesAuditEnvelopeGetPayload<objec
   }
 }
 
+/** toPrismaMesOutboxEvent maps one outbox event into Prisma create data. */
 function toPrismaMesOutboxEvent(record: MesOutboxEventRecord): Prisma.MesOutboxEventUncheckedCreateInput {
   return {
     id: record.mesOutboxEventId,
@@ -1089,6 +1028,7 @@ function toPrismaMesOutboxEvent(record: MesOutboxEventRecord): Prisma.MesOutboxE
   }
 }
 
+/** fromPrismaMesOutboxEvent maps one Prisma outbox row into the shared MES outbox shape. */
 function fromPrismaMesOutboxEvent(row: Prisma.MesOutboxEventGetPayload<object>): MesOutboxEventRecord {
   return {
     mesOutboxEventId: row.id,
@@ -1107,9 +1047,8 @@ function fromPrismaMesOutboxEvent(row: Prisma.MesOutboxEventGetPayload<object>):
   }
 }
 
-function toPrismaMesCommandIdempotency(
-  record: MesCommandIdempotencyRecord
-): Prisma.MesCommandIdempotencyUncheckedCreateInput {
+/** toPrismaMesCommandIdempotency maps one idempotency record into Prisma create data. */
+function toPrismaMesCommandIdempotency(record: MesCommandIdempotencyRecord): Prisma.MesCommandIdempotencyUncheckedCreateInput {
   return {
     id: record.mesCommandIdempotencyId,
     tenantId: record.tenantId,
@@ -1124,9 +1063,8 @@ function toPrismaMesCommandIdempotency(
   }
 }
 
-function fromPrismaMesCommandIdempotency(
-  row: Prisma.MesCommandIdempotencyGetPayload<object>
-): MesCommandIdempotencyRecord {
+/** fromPrismaMesCommandIdempotency maps one Prisma idempotency row into the domain replay record. */
+function fromPrismaMesCommandIdempotency(row: Prisma.MesCommandIdempotencyGetPayload<object>): MesCommandIdempotencyRecord {
   return {
     mesCommandIdempotencyId: row.id,
     tenantId: row.tenantId,
@@ -1141,18 +1079,22 @@ function fromPrismaMesCommandIdempotency(
   }
 }
 
+/** nullableJson preserves domain nulls while satisfying Prisma JSON input constraints. */
 function nullableJson(value: unknown): Prisma.InputJsonValue | typeof Prisma.JsonNull {
   return value === null || value === undefined ? Prisma.JsonNull : toJson(value)
 }
 
+/** toJson converts JSON-safe domain snapshots into Prisma JSON input values. */
 function toJson(value: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue
 }
 
+/** fromJson restores a typed domain value from a Prisma JSON column. */
 function fromJson<T>(value: unknown): T {
   return value as unknown as T
 }
 
+/** fromNullableJson restores nullable domain values from Prisma JSON columns. */
 function fromNullableJson<T>(value: unknown): T | null {
   if (value === null || value === undefined || value === Prisma.JsonNull) {
     return null
@@ -1160,6 +1102,7 @@ function fromNullableJson<T>(value: unknown): T | null {
   return value as unknown as T
 }
 
-function severityRank(level: string): number {
-  return level === 'CRITICAL' ? 3 : level === 'WARNING' ? 2 : level === 'INFO' ? 1 : 0
+/** orgScope converts nullable org ownership into a deterministic uniqueness key. */
+function orgScope(orgId: string | null | undefined): string {
+  return orgId ?? ''
 }

@@ -144,6 +144,18 @@ OES 是一个面向企业经营、制造、供应链与智能协同场景的企�
 - `docs/architecture/collaborations/*.md`：跨服务协同真相
 - `docs/plans/designs/*.md`：长周期设计过程工作台，只在大服务、长设计、多轮切换或尚不能直接进入 feature packet 时使用；只记录未冻结设计过程、开放问题、决策日志与回写目标，不替代稳定真相源
 
+### 9.1 服务真相源唯一性
+
+每个服务只能有一个稳定设计真相源文件：
+
+- 位置固定为 `docs/architecture/services/<service-name>.md`
+- 该文件负责定义服务长期边界、核心对象、对象命名、拥有与不拥有的真相、主要协同引用
+- 其他 architecture、collaboration、plan、feature packet、design workspace、contract 或实现文档只能引用该服务真相源，不得重新定义该服务的核心对象、边界或命名
+- 若其他文档需要描述“如何使用某服务能力”，必须写成引用关系，例如“以 `docs/architecture/services/<service-name>.md` 为准”
+- 若发现其他文档与服务真相源冲突，默认以服务真相源为准，并应清理冲突文档或改成引用
+- 若服务设计需要变更，必须先更新对应服务真相源；涉及跨服务协同或关键架构取舍时，再同步更新 collaboration 或 ADR
+- design workspace 只能记录未冻结讨论、开放问题与回写目标；结论一旦冻结，必须回写到服务真相源，不能长期滞留为第二份设计
+
 旧的根目录 `doc/` 不再作为项目级设计入口；新的项目级设计、治理与契约必须沉淀到 `docs/`。
 
 ## 10. 编码与语言规范
@@ -250,6 +262,7 @@ design workspace 明确不负责：
 - 替代 `docs/architecture/collaborations/*.md` 记录协同真相
 - 替代 `docs/contracts/**` 记录契约正文
 - 替代 `docs/plans/features/*.md` 记录 feature 执行状态
+- 替代任意服务的唯一稳定设计真相源；每个服务的稳定设计只能回写到 `docs/architecture/services/<service-name>.md`
 
 设计线程的执行要求：
 

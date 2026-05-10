@@ -4,7 +4,7 @@ import { GrpcTransportModule } from '@oes/common/transport'
 import { TOKENS } from '../common/constants/tokens'
 import { ItemMasterManufacturableQueryGrpcAdapter } from '../infrastructure/adapters/item-master-manufacturable-query.grpc.adapter'
 import { PrismaModule } from '../infrastructure/prisma/prisma.module'
-import { PrismaManufacturingSpecRepository } from '../infrastructure/repositories/prisma/prisma-manufacturing-spec.repository'
+import { PrismaProductionSpecRepository } from '../infrastructure/repositories/prisma/prisma-production-spec.repository'
 import { PrismaMesMoldRepository } from '../infrastructure/repositories/prisma/prisma-mes-mold.repository'
 
 /** MesInfrastructureModule wires the Prisma-backed MES persistence graph and downstream item-master lookup adapter. */
@@ -13,15 +13,15 @@ import { PrismaMesMoldRepository } from '../infrastructure/repositories/prisma/p
   imports: [PrismaModule, GrpcTransportModule.forFeature([SERVICE_NAMES.ITEM_MASTER])],
   providers: [
     PrismaMesMoldRepository,
-    PrismaManufacturingSpecRepository,
+    PrismaProductionSpecRepository,
     ItemMasterManufacturableQueryGrpcAdapter,
     {
       provide: TOKENS.MES_MOLD_REPOSITORY,
       useExisting: PrismaMesMoldRepository
     },
     {
-      provide: TOKENS.MANUFACTURING_SPEC_REPOSITORY,
-      useExisting: PrismaManufacturingSpecRepository
+      provide: TOKENS.PRODUCTION_SPEC_REPOSITORY,
+      useExisting: PrismaProductionSpecRepository
     },
     {
       provide: TOKENS.MANUFACTURABLE_ITEM_LOOKUP_PORT,
@@ -31,10 +31,10 @@ import { PrismaMesMoldRepository } from '../infrastructure/repositories/prisma/p
   exports: [
     PrismaModule,
     PrismaMesMoldRepository,
-    PrismaManufacturingSpecRepository,
+    PrismaProductionSpecRepository,
     ItemMasterManufacturableQueryGrpcAdapter,
     TOKENS.MES_MOLD_REPOSITORY,
-    TOKENS.MANUFACTURING_SPEC_REPOSITORY,
+    TOKENS.PRODUCTION_SPEC_REPOSITORY,
     TOKENS.MANUFACTURABLE_ITEM_LOOKUP_PORT
   ]
 })

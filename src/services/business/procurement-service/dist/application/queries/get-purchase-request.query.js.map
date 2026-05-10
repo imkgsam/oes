@@ -1,1 +1,0 @@
-{"version":3,"file":"get-purchase-request.query.js","sourceRoot":"","sources":["../../../src/application/queries/get-purchase-request.query.ts"],"names":[],"mappings":";;;AAAA,uEAAuE;AACvE,MAAa,uBAAuB;IAClC,YACkB,QAAgB,EAChB,iBAAyB;QADzB,aAAQ,GAAR,QAAQ,CAAQ;QAChB,sBAAiB,GAAjB,iBAAiB,CAAQ;IACxC,CAAC;CACL;AALD,0DAKC"}

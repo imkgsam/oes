@@ -44,9 +44,12 @@ describe('permission service seed writer', () => {
         }))
       },
       role: {
-        upsert: jest.fn(async () => ({}))
+        upsert: jest.fn(async () => ({})),
+        findMany: jest.fn(async () => []),
+        updateMany: jest.fn(async () => ({}))
       },
       rolePermission: {
+        findMany: jest.fn(async () => []),
         deleteMany: jest.fn(async () => ({})),
         createMany: jest.fn(async () => ({}))
       },
@@ -55,6 +58,7 @@ describe('permission service seed writer', () => {
         updateMany: jest.fn(async () => ({}))
       },
       roleNavigationVisibility: {
+        findMany: jest.fn(async () => []),
         deleteMany: jest.fn(async () => {
           calls.push('roleNavigationVisibility.deleteMany')
           return {}
@@ -93,5 +97,78 @@ describe('permission service seed writer', () => {
     expect(calls.indexOf('roleLandingPolicy.deleteMany')).toBeLessThan(
       calls.indexOf('roleLandingPolicy.createMany')
     )
+  })
+
+  it('backfills built-in tenant role instance navigation during seed apply', async () => {
+    const seed = buildPermissionServiceSeed()
+    const permissionIdByCode = new Map(seed.permissionCodes.map((permission) => [permission.code, `perm:${permission.code}`]))
+    const prisma = {
+      permission: {
+        upsert: jest.fn(async ({ create }: any) => ({
+          id: permissionIdByCode.get(create.code),
+          code: create.code
+        }))
+      },
+      role: {
+        upsert: jest.fn(async () => ({})),
+        findMany: jest.fn(async (args: any) =>
+          args.where.OR?.some((item: { code?: string }) => item.code === 'item_master.product_data_manager')
+            ? [
+                {
+                  id: 'item-role-1',
+                  kind: 'TENANT_INSTANCE'
+                }
+              ]
+            : []
+        ),
+        updateMany: jest.fn(async () => ({}))
+      },
+      rolePermission: {
+        deleteMany: jest.fn(async () => ({})),
+        findMany: jest.fn(async () => []),
+        createMany: jest.fn(async () => ({}))
+      },
+      navigationEntry: {
+        upsert: jest.fn(async () => ({})),
+        updateMany: jest.fn(async () => ({}))
+      },
+      roleNavigationVisibility: {
+        deleteMany: jest.fn(async () => ({})),
+        findMany: jest.fn(async () => [
+          {
+            entryKey: 'master-data.item-management',
+            roleId: 'item-role-1',
+            terminal: 'DEFAULT'
+          }
+        ]),
+        createMany: jest.fn(async () => ({})),
+        updateMany: jest.fn(async () => ({}))
+      },
+      roleLandingPolicy: {
+        deleteMany: jest.fn(async () => ({})),
+        findMany: jest.fn(async () => [
+          {
+            defaultEntryKey: 'workbench.home',
+            roleId: 'item-role-1',
+            terminal: 'DEFAULT'
+          }
+        ]),
+        createMany: jest.fn(async () => ({})),
+        updateMany: jest.fn(async () => ({}))
+      }
+    }
+
+    await applyPermissionServiceSeed(prisma as any, seed)
+
+    expect(prisma.roleNavigationVisibility.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          entryKey: 'master-data.item-category-management',
+          roleId: 'item-role-1',
+          terminal: 'DEFAULT'
+        })
+      ]),
+      skipDuplicates: true
+    })
   })
 })

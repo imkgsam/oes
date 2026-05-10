@@ -1,13 +1,8 @@
-const REF_PRODUCT_FAMILY = 1;
-const REF_MANUFACTURING_SPEC = 2;
-const MANUFACTURING_SPEC_ACTIVE = 2;
+const PRODUCTION_SPEC_ACTIVE = 2;
 const MOLD_FUNCTION_PRODUCTION = 2;
 const MOLD_OUTPUT_SINGLE = 1;
 const MOLD_OUTPUT_PRODUCT = 1;
-const PRODUCTION_MOLD_PENDING_INSTALLATION = 3;
-const MOLD_RESOURCE_PRODUCTION_INSTANCE = 2;
-const MOLD_USAGE_MANUAL_CHECKLIST = 1;
-const MOLD_WARNING_STATUS_OPEN = 1;
+const TOOLING_TYPE_MOLD = 1;
 
 /** createSmokeSeed builds one deterministic MES smoke tenant, fixture, command, and request context bundle. */
 export function createSmokeSeed(now = Date.now()) {
@@ -30,164 +25,141 @@ export function createSmokeSeed(now = Date.now()) {
     specCreateCommandId: `mes-smoke-cmd-spec-create-${suffix}`,
     specActivateCommandId: `mes-smoke-cmd-spec-activate-${suffix}`,
     designCommandId: `mes-smoke-cmd-design-${suffix}`,
-    instanceCommandId: `mes-smoke-cmd-instance-${suffix}`,
+    moldCommandId: `mes-smoke-cmd-mold-${suffix}`,
     moveCommandId: `mes-smoke-cmd-move-${suffix}`,
     installCommandId: `mes-smoke-cmd-install-${suffix}`,
     usageCommandId: `mes-smoke-cmd-usage-${suffix}`,
-    moldDesignId: `mes-smoke-design-${suffix}`,
-    productionMoldInstanceId: `mes-smoke-mold-${suffix}`,
-    movementEventId: `mes-smoke-move-${suffix}`,
-    moldInstallationId: `mes-smoke-install-${suffix}`,
-    moldUsageEventId: `mes-smoke-usage-${suffix}`,
-    moldWarningEventId: `mes-smoke-warning-${suffix}`,
     designCode: `MES-SMOKE-${shortSuffix}`,
-    moldInstanceCode: `PM-MES-SMOKE-${shortSuffix}`,
-    conflictMoldInstanceCode: `PM-MES-SMOKE-CONFLICT-${shortSuffix}`,
-    dryingLocationId: `mes-smoke-drying-${suffix}`,
-    readyLocationId: `mes-smoke-ready-${suffix}`,
+    moldCode: `PM-MES-SMOKE-${shortSuffix}`,
+    conflictMoldCode: `PM-MES-SMOKE-CONFLICT-${shortSuffix}`,
+    initialStorageResourceId: `mes-smoke-storage-drying-${suffix}`,
+    readyStorageResourceId: `mes-smoke-storage-ready-${suffix}`,
+    carrierResourceId: `mes-smoke-carrier-${suffix}`,
     workCenterId: `mes-smoke-wc-${suffix}`,
-    resourcePositionId: `mes-smoke-pos-${suffix}`,
-    productFamilyRefId: `mes-smoke-pf-${suffix}`,
-    manufacturingSpecRefId: `mes-smoke-spec-${suffix}`,
-    manufacturingSpecCode: `MES-SMOKE-SPEC-${shortSuffix}`,
+    workUnitId: `mes-smoke-wu-${suffix}`,
     itemId: `mes-smoke-item-${suffix}`,
+    productionSpecCode: `MES-SMOKE-SPEC-${shortSuffix}`,
     lifeLimitValue: '10',
-    warningThresholdValue: '5',
     usageQuantity: '6',
     lifeDelta: '6',
     lifeUnit: 'USE'
   };
 }
 
-/** runMesSmokeFlow executes the minimum phase 1 mold command, query, idempotency, and outbox path expected from MES. */
+/** runMesSmokeFlow executes the minimum ProductionSpec, Mold, Tooling, usage, idempotency, and outbox path expected from MES. */
 export async function runMesSmokeFlow(services, seed, report = () => undefined) {
   assertMesServices(services);
 
-  const spec = requireManufacturingSpec(
-    await services.specManagement.createManufacturingSpec(buildCreateManufacturingSpecRequest(seed)),
-    'CreateManufacturingSpec'
+  const spec = requireProductionSpec(
+    await services.specManagement.createProductionSpec(buildCreateProductionSpecRequest(seed)),
+    'CreateProductionSpec'
   );
-  const activatedSpec = requireManufacturingSpec(
-    await services.specManagement.activateManufacturingSpec(
-      buildActivateManufacturingSpecRequest(seed, spec.manufacturingSpecId, spec.version)
+  const activatedSpec = requireProductionSpec(
+    await services.specManagement.activateProductionSpec(
+      buildActivateProductionSpecRequest(seed, spec.productionSpecId, spec.version)
     ),
-    'ActivateManufacturingSpec'
+    'ActivateProductionSpec'
   );
-  if (activatedSpec.status !== MANUFACTURING_SPEC_ACTIVE) {
-    throw new Error('mes-service smoke failed: ActivateManufacturingSpec did not activate the spec');
+  if (activatedSpec.status !== PRODUCTION_SPEC_ACTIVE) {
+    throw new Error('mes-service smoke failed: ActivateProductionSpec did not activate the spec');
   }
-  seed.manufacturingSpecRefId = activatedSpec.manufacturingSpecId;
-  seed.manufacturingSpecCode = activatedSpec.specCode || seed.manufacturingSpecCode;
-  report(`manufacturing spec active: ${activatedSpec.manufacturingSpecId}`);
+  report(`production spec active: ${activatedSpec.productionSpecId}`);
 
-  const designRequest = buildRegisterMoldDesignRequest(seed);
-  const design = requireMoldDesign(
-    await services.management.registerMoldDesign(designRequest),
-    'RegisterMoldDesign'
-  );
+  const designRequest = buildRegisterMoldDesignRequest(seed, activatedSpec);
+  const design = requireMoldDesign(await services.management.registerMoldDesign(designRequest), 'RegisterMoldDesign');
   report(`design registered: ${design.moldDesignId}`);
 
-  const instanceRequest = buildRegisterProductionMoldInstanceRequest(seed, design.moldDesignId);
-  const instance = requireProductionMoldInstance(
-    await services.management.registerProductionMoldInstance(instanceRequest),
-    'RegisterProductionMoldInstance'
-  );
-  report(`production mold registered: ${instance.productionMoldInstanceId}`);
+  const moldRequest = buildRegisterProductionMoldRequest(seed, design.moldDesignId);
+  const mold = requireProductionMold(await services.management.registerProductionMold(moldRequest), 'RegisterProductionMold');
+  report(`production mold registered: ${mold.productionMoldId}`);
 
-  const moved = requireMovement(
-    await services.management.moveMold(buildMoveMoldRequest(seed, instance.productionMoldInstanceId)),
-    'MoveMold'
+  const moved = requirePlacement(
+    await services.management.moveTooling(buildMoveToolingRequest(seed, mold.productionMoldId)),
+    'MoveTooling'
   );
-  report(`mold moved: ${moved.movementEvent.moldMovementEventId}`);
+  report(`tooling moved: ${mold.productionMoldId}`);
 
-  const installed = requireInstallation(
-    await services.management.installMold(buildInstallMoldRequest(seed, instance.productionMoldInstanceId)),
-    'InstallMold'
+  const installed = requireToolingInstallation(
+    await services.management.installTooling(buildInstallToolingRequest(seed, mold.productionMoldId)),
+    'InstallTooling'
   );
-  report(`mold installed: ${installed.moldInstallation.moldInstallationId}`);
+  report(`tooling installed: ${installed.toolingInstallation.toolingInstallationId}`);
 
   const usage = requireUsage(
     await services.management.recordMoldUsage(
-      buildRecordMoldUsageRequest(seed, instance.productionMoldInstanceId, installed.moldInstallation.moldInstallationId)
+      buildRecordMoldUsageRequest(seed, activatedSpec, mold.productionMoldId, installed.toolingInstallation.toolingInstallationId)
     ),
     'RecordMoldUsage'
   );
-  if (!usage.raisedWarning?.moldWarningEventId) {
-    throw new Error('mes-service smoke failed: RecordMoldUsage did not raise the expected life warning');
-  }
-  report(`usage recorded: ${usage.usageEvent.moldUsageEventId}`);
+  report(`usage recorded: ${usage.moldUsageRecord.moldUsageRecordId}`);
 
-  const currentMolds = requirePage(
+  const currentMolds = requireList(
     await services.query.listCurrentMoldsByWorkCenter({
       ...buildQueryContext(seed),
       workCenterId: seed.workCenterId,
-      page: 1,
-      pageSize: 20
+      workUnitId: seed.workUnitId
     }),
-    'installedMolds',
+    'items',
     'ListCurrentMoldsByWorkCenter'
   );
-  const installedMold = currentMolds.installedMolds.find(
-    (item) => item?.productionMoldInstance?.productionMoldInstanceId === instance.productionMoldInstanceId
+  const installedMold = currentMolds.items.find(
+    (item) => item?.productionMold?.productionMoldId === mold.productionMoldId
   );
   if (!installedMold) {
     throw new Error('mes-service smoke failed: ListCurrentMoldsByWorkCenter did not return the installed mold');
   }
   report(`current work center mold visible: ${seed.workCenterId}`);
 
-  const warnings = requirePage(
-    await services.query.listMoldLifeWarnings({
+  const counters = requireList(
+    await services.query.listMoldLifeCounters({
       ...buildQueryContext(seed),
-      status: MOLD_WARNING_STATUS_OPEN,
-      workCenterId: seed.workCenterId,
+      productionMoldId: mold.productionMoldId,
       page: 1,
       pageSize: 20
     }),
-    'warnings',
-    'ListMoldLifeWarnings'
+    'counters',
+    'ListMoldLifeCounters'
   );
-  const warning = warnings.warnings.find(
-    (item) => item?.productionMoldInstanceSummary?.productionMoldInstanceId === instance.productionMoldInstanceId
-  );
-  if (!warning) {
-    throw new Error('mes-service smoke failed: ListMoldLifeWarnings did not return the raised life warning');
+  const counter = counters.counters.find((item) => item?.productionMoldId === mold.productionMoldId);
+  if (!counter || counter.usedValue !== seed.lifeDelta) {
+    throw new Error('mes-service smoke failed: ListMoldLifeCounters did not return the updated life counter');
   }
-  report(`life warning visible: ${warning.moldWarningEventId}`);
+  report(`life counter visible: ${counter.moldLifeCounterId}`);
 
-  const idempotency = await services.diagnostics.replaySameCommand(instanceRequest);
+  const idempotency = await services.diagnostics.replaySameCommand(moldRequest);
   if (
-    idempotency.productionMoldInstanceCount !== 1 ||
+    idempotency.productionMoldCount !== 1 ||
     idempotency.commandOutboxCount !== 1 ||
     idempotency.commandAuditCount !== 1
   ) {
     throw new Error('mes-service smoke failed: same command replay duplicated mold facts, audit, or outbox rows');
   }
-  report(`idempotent replay verified: ${seed.instanceCommandId}`);
+  report(`idempotent replay verified: ${seed.moldCommandId}`);
 
   const conflict = await services.diagnostics.conflictSameCommandDifferentPayload({
-    ...instanceRequest,
-    moldInstanceCode: seed.conflictMoldInstanceCode
+    ...moldRequest,
+    moldCode: seed.conflictMoldCode
   });
   if (!conflict?.conflicted) {
     throw new Error('mes-service smoke failed: same command id with a different payload did not return conflict');
   }
-  report(`idempotency conflict verified: ${seed.instanceCommandId}`);
+  report(`idempotency conflict verified: ${seed.moldCommandId}`);
 
   const outbox = await services.diagnostics.verifyOutbox();
   for (const expectedEventType of [
-    'ManufacturingSpecCreated',
-    'ManufacturingSpecActivated',
-    'MoldRegistered',
-    'MoldMoved',
-    'MoldInstalled',
-    'MoldUsageRecorded',
-    'MoldLifeWarningRaised'
+    'ProductionSpecCreated',
+    'ProductionSpecActivated',
+    'MoldDesignRegistered',
+    'ProductionMoldRegistered',
+    'ToolingMoved',
+    'ToolingInstalled',
+    'MoldUsageRecorded'
   ]) {
     if (!outbox.eventTypes.includes(expectedEventType)) {
       throw new Error(`mes-service smoke failed: outbox did not persist ${expectedEventType}`);
     }
   }
-  if (outbox.pendingCount < 8) {
+  if (outbox.pendingCount < 7) {
     throw new Error('mes-service smoke failed: outbox did not persist the minimum pending event rows');
   }
   report(`outbox pending events verified: ${outbox.pendingCount}`);
@@ -195,69 +167,48 @@ export async function runMesSmokeFlow(services, seed, report = () => undefined) 
   return {
     spec: activatedSpec,
     design,
-    instance,
+    mold,
     moved,
     installed,
     usage,
     currentMolds,
-    warnings,
+    counters,
     idempotency,
     outbox
   };
 }
 
-/** buildCreateManufacturingSpecRequest creates the ManufacturingSpec command required before registering a MoldDesign. */
-function buildCreateManufacturingSpecRequest(seed) {
+/** buildCreateProductionSpecRequest creates the ProductionSpec command required before registering a MoldDesign. */
+function buildCreateProductionSpecRequest(seed) {
   return {
-    ...buildManagementContext(seed, seed.specCreateCommandId, 'create manufacturing spec'),
-    specCode: seed.manufacturingSpecCode,
-    name: 'MES Smoke Manufacturing Spec',
+    ...buildManagementContext(seed, seed.specCreateCommandId, 'create production spec'),
+    specCode: seed.productionSpecCode,
+    name: 'MES Smoke Production Spec',
     revisionCode: 'R1',
-    productFamilyRef: {
-      refType: REF_PRODUCT_FAMILY,
-      refId: seed.productFamilyRefId,
-      refCodeSnapshot: 'MES-SMOKE-PF',
-      displayNameSnapshot: 'MES Smoke Product Family'
-    },
     itemRef: {
       itemId: seed.itemId,
       itemCodeSnapshot: 'MES-SMOKE-ITEM',
       itemNameSnapshot: 'MES Smoke Item'
-    },
-    manufacturingAttributes: [
-      {
-        attributeKey: 'formingMethod',
-        attributeValue: 'HIGH_PRESSURE',
-        displayNameSnapshot: 'Forming method',
-        valueDisplaySnapshot: 'High pressure'
-      }
-    ],
-    reason: 'create manufacturing spec'
+    }
   };
 }
 
-/** buildActivateManufacturingSpecRequest creates the activation command that makes the spec usable by MoldDesign. */
-function buildActivateManufacturingSpecRequest(seed, manufacturingSpecId, expectedVersion) {
+/** buildActivateProductionSpecRequest creates the activation command that makes the spec usable by MoldDesign. */
+function buildActivateProductionSpecRequest(seed, productionSpecId, expectedVersion) {
   return {
-    ...buildManagementContext(seed, seed.specActivateCommandId, 'activate manufacturing spec'),
-    manufacturingSpecId,
-    expectedVersion,
-    reason: 'activate manufacturing spec'
+    ...buildManagementContext(seed, seed.specActivateCommandId, 'activate production spec'),
+    productionSpecId,
+    expectedVersion
   };
 }
 
-/** buildRegisterProductionMoldInstanceRequest creates the stable production mold command payload reused by idempotency checks. */
-export function buildRegisterProductionMoldInstanceRequest(seed, moldDesignId) {
+/** buildRegisterProductionMoldRequest creates the stable production mold command payload reused by idempotency checks. */
+export function buildRegisterProductionMoldRequest(seed, moldDesignId) {
   return {
-    ...buildManagementContext(seed, seed.instanceCommandId, 'register production mold'),
-    moldInstanceCode: seed.moldInstanceCode,
+    ...buildManagementContext(seed, seed.moldCommandId, 'register production mold'),
+    moldCode: seed.moldCode,
     moldDesignId,
-    initialStatus: PRODUCTION_MOLD_PENDING_INSTALLATION,
-    initialMesLocationId: seed.dryingLocationId,
-    lifeLimitValue: seed.lifeLimitValue,
-    lifeUnit: seed.lifeUnit,
-    warningThresholdValue: seed.warningThresholdValue,
-    reason: 'register production mold'
+    initialStorageResourceRef: buildStorageResourceRef(seed.initialStorageResourceId, 'DRY')
   };
 }
 
@@ -284,27 +235,25 @@ function buildManagementContext(seed, commandId, reason) {
   };
 }
 
-/** buildRegisterMoldDesignRequest creates the stable phase 1 mold design command used by smoke verification. */
-function buildRegisterMoldDesignRequest(seed) {
+/** buildRegisterMoldDesignRequest creates the stable mold design command used by smoke verification. */
+function buildRegisterMoldDesignRequest(seed, productionSpec) {
+  const productionSpecRef = {
+    productionSpecId: productionSpec.productionSpecId,
+    specCodeSnapshot: productionSpec.specCode || seed.productionSpecCode,
+    displayNameSnapshot: productionSpec.name || 'MES Smoke Production Spec'
+  };
+
   return {
     ...buildManagementContext(seed, seed.designCommandId, 'register mold design'),
     designCode: seed.designCode,
     name: 'MES Smoke Mold Design',
     revisionCode: 'R1',
-    productFamilyRef: {
-      refType: REF_PRODUCT_FAMILY,
-      refId: seed.productFamilyRefId,
-      refCodeSnapshot: 'MES-SMOKE-PF',
-      displayNameSnapshot: 'MES Smoke Product Family'
+    itemRef: {
+      itemId: seed.itemId,
+      itemCodeSnapshot: 'MES-SMOKE-ITEM',
+      itemNameSnapshot: 'MES Smoke Item'
     },
-    manufacturingSpecRefs: [
-      {
-        refType: REF_MANUFACTURING_SPEC,
-        refId: seed.manufacturingSpecRefId,
-        refCodeSnapshot: seed.manufacturingSpecCode,
-        displayNameSnapshot: 'MES Smoke Manufacturing Spec'
-      }
-    ],
+    productionSpecRefs: [productionSpecRef],
     materialType: 'GYPSUM',
     functionRole: MOLD_FUNCTION_PRODUCTION,
     productionMethodTags: ['HIGH_PRESSURE'],
@@ -314,92 +263,100 @@ function buildRegisterMoldDesignRequest(seed) {
         sequenceNo: 1,
         outputCode: 'MES-SMOKE-OUT',
         outputKind: MOLD_OUTPUT_PRODUCT,
-        productFamilyRef: {
-          refType: REF_PRODUCT_FAMILY,
-          refId: seed.productFamilyRefId,
-          refCodeSnapshot: 'MES-SMOKE-PF',
-          displayNameSnapshot: 'MES Smoke Product Family'
-        },
-        manufacturingSpecRef: {
-          refType: REF_MANUFACTURING_SPEC,
-          refId: seed.manufacturingSpecRefId,
-          refCodeSnapshot: seed.manufacturingSpecCode,
-          displayNameSnapshot: 'MES Smoke Manufacturing Spec'
-        },
+        productionSpecRef,
         quantityPerUse: '1',
         isPrimaryOutput: true
       }
     ],
     defaultLifeLimit: seed.lifeLimitValue,
-    defaultLifeUnit: seed.lifeUnit,
-    reason: 'register mold design'
+    defaultLifeUnit: seed.lifeUnit
   };
 }
 
-/** buildMoveMoldRequest creates the ready-rack movement command after the production mold is registered. */
-function buildMoveMoldRequest(seed, productionMoldInstanceId) {
+/** buildMoveToolingRequest creates the ready-storage movement command after the production mold is registered. */
+function buildMoveToolingRequest(seed, productionMoldId) {
   return {
-    ...buildManagementContext(seed, seed.moveCommandId, 'move mold to ready rack'),
-    moldResourceType: MOLD_RESOURCE_PRODUCTION_INSTANCE,
-    moldResourceId: productionMoldInstanceId,
-    fromMesLocationId: seed.dryingLocationId,
-    toMesLocationId: seed.readyLocationId,
+    ...buildManagementContext(seed, seed.moveCommandId, 'move tooling to ready storage'),
+    toolingType: TOOLING_TYPE_MOLD,
+    toolingId: productionMoldId,
+    toStorageResourceRef: buildStorageResourceRef(seed.readyStorageResourceId, 'READY'),
     movementReason: 'drying complete'
   };
 }
 
-/** buildInstallMoldRequest creates the work-center installation command for the smoke mold. */
-function buildInstallMoldRequest(seed, productionMoldInstanceId) {
+/** buildInstallToolingRequest creates the work-center installation command for the smoke mold. */
+function buildInstallToolingRequest(seed, productionMoldId) {
   return {
-    ...buildManagementContext(seed, seed.installCommandId, 'install smoke mold'),
-    productionMoldInstanceId,
-    workCenterId: seed.workCenterId,
-    resourcePositionId: seed.resourcePositionId,
-    reason: 'install smoke mold'
+    ...buildManagementContext(seed, seed.installCommandId, 'install smoke tooling'),
+    toolingType: TOOLING_TYPE_MOLD,
+    toolingId: productionMoldId,
+    workCenterRef: buildWorkCenterRef(seed),
+    workUnitRef: buildWorkUnitRef(seed),
+    moldPosition: 'A',
+    cavityPosition: '1',
+    setupParameters: 'smoke setup'
   };
 }
 
-/** buildRecordMoldUsageRequest creates one usage command that crosses the configured warning threshold. */
-function buildRecordMoldUsageRequest(seed, productionMoldInstanceId, moldInstallationId) {
+/** buildRecordMoldUsageRequest creates one usage command that increments the independent life counter. */
+function buildRecordMoldUsageRequest(seed, productionSpec, productionMoldId, toolingInstallationId) {
   return {
     ...buildManagementContext(seed, seed.usageCommandId, 'record smoke mold usage'),
-    productionMoldInstanceId,
-    moldInstallationId,
-    workCenterId: seed.workCenterId,
-    resourcePositionId: seed.resourcePositionId,
-    usageMode: MOLD_USAGE_MANUAL_CHECKLIST,
+    productionMoldId,
+    toolingInstallationId,
+    workCenterRef: buildWorkCenterRef(seed),
+    workUnitRef: buildWorkUnitRef(seed),
     usageQuantity: seed.usageQuantity,
     lifeDelta: seed.lifeDelta,
     lifeUnit: seed.lifeUnit,
-    productFamilyRef: {
-      refType: REF_PRODUCT_FAMILY,
-      refId: seed.productFamilyRefId,
-      refCodeSnapshot: 'MES-SMOKE-PF',
-      displayNameSnapshot: 'MES Smoke Product Family'
+    productionSpecRef: {
+      productionSpecId: productionSpec.productionSpecId,
+      specCodeSnapshot: productionSpec.specCode || seed.productionSpecCode,
+      displayNameSnapshot: productionSpec.name || 'MES Smoke Production Spec'
     },
-    manufacturingSpecRef: {
-      refType: REF_MANUFACTURING_SPEC,
-      refId: seed.manufacturingSpecRefId,
-      refCodeSnapshot: seed.manufacturingSpecCode,
-      displayNameSnapshot: 'MES Smoke Manufacturing Spec'
-    },
-    captureSource: 'MES_SMOKE',
-    reason: 'record smoke mold usage'
+    captureSource: 'MES_SMOKE'
+  };
+}
+
+/** buildStorageResourceRef creates a stable resource snapshot for storage placement commands. */
+function buildStorageResourceRef(storageResourceId, codePrefix) {
+  return {
+    storageResourceId,
+    resourceCodeSnapshot: `${codePrefix}-${storageResourceId.slice(-6)}`,
+    displayNameSnapshot: `MES Smoke ${codePrefix} Storage`
+  };
+}
+
+/** buildWorkCenterRef creates the work center snapshot used by install and usage facts. */
+function buildWorkCenterRef(seed) {
+  return {
+    workCenterId: seed.workCenterId,
+    workCenterCodeSnapshot: `WC-${seed.designCode.slice(-6)}`,
+    displayNameSnapshot: 'MES Smoke Work Center'
+  };
+}
+
+/** buildWorkUnitRef creates the work unit snapshot used by install and usage facts. */
+function buildWorkUnitRef(seed) {
+  return {
+    workUnitId: seed.workUnitId,
+    workUnitCodeSnapshot: 'WU-A',
+    displayNameSnapshot: 'MES Smoke Work Unit A'
   };
 }
 
 /** assertMesServices verifies the smoke received every RPC wrapper and diagnostic hook it needs. */
 function assertMesServices(services) {
   if (
-    !services?.specManagement?.createManufacturingSpec ||
-    !services?.specManagement?.activateManufacturingSpec ||
+    !services?.specManagement?.createProductionSpec ||
+    !services?.specManagement?.activateProductionSpec ||
     !services?.management?.registerMoldDesign ||
-    !services?.management?.registerProductionMoldInstance ||
-    !services?.management?.moveMold ||
-    !services?.management?.installMold ||
+    !services?.management?.registerProductionMold ||
+    !services?.management?.moveTooling ||
+    !services?.management?.installTooling ||
     !services?.management?.recordMoldUsage ||
     !services?.query?.listCurrentMoldsByWorkCenter ||
-    !services?.query?.listMoldLifeWarnings ||
+    !services?.query?.listMoldLifeCounters ||
     !services?.diagnostics?.replaySameCommand ||
     !services?.diagnostics?.conflictSameCommandDifferentPayload ||
     !services?.diagnostics?.verifyOutbox
@@ -408,13 +365,13 @@ function assertMesServices(services) {
   }
 }
 
-/** requireManufacturingSpec unwraps one ManufacturingSpec payload or raises a targeted smoke failure. */
-function requireManufacturingSpec(response, step) {
-  const manufacturingSpec = response?.manufacturingSpec;
-  if (!manufacturingSpec?.manufacturingSpecId) {
-    throw new Error(`mes-service smoke failed: ${step} did not return a manufacturing spec payload`);
+/** requireProductionSpec unwraps one ProductionSpec payload or raises a targeted smoke failure. */
+function requireProductionSpec(response, step) {
+  const productionSpec = response?.productionSpec;
+  if (!productionSpec?.productionSpecId) {
+    throw new Error(`mes-service smoke failed: ${step} did not return a production spec payload`);
   }
-  return manufacturingSpec;
+  return productionSpec;
 }
 
 /** requireMoldDesign unwraps one design payload or raises a targeted smoke failure. */
@@ -426,44 +383,44 @@ function requireMoldDesign(response, step) {
   return moldDesign;
 }
 
-/** requireProductionMoldInstance unwraps one production mold payload or raises a targeted smoke failure. */
-function requireProductionMoldInstance(response, step) {
-  const productionMoldInstance = response?.productionMoldInstance;
-  if (!productionMoldInstance?.productionMoldInstanceId) {
+/** requireProductionMold unwraps one production mold payload or raises a targeted smoke failure. */
+function requireProductionMold(response, step) {
+  const productionMold = response?.productionMold;
+  if (!productionMold?.productionMoldId) {
     throw new Error(`mes-service smoke failed: ${step} did not return a production mold payload`);
   }
-  return productionMoldInstance;
+  return productionMold;
 }
 
-/** requireMovement unwraps one movement response or raises a targeted smoke failure. */
-function requireMovement(response, step) {
-  if (!response?.movementEvent?.moldMovementEventId || !response?.moldCurrentLocation?.moldResourceId) {
-    throw new Error(`mes-service smoke failed: ${step} did not return movement and current location payloads`);
+/** requirePlacement unwraps one tooling placement response or raises a targeted smoke failure. */
+function requirePlacement(response, step) {
+  if (!response?.placement?.placementType) {
+    throw new Error(`mes-service smoke failed: ${step} did not return placement payload`);
   }
   return response;
 }
 
-/** requireInstallation unwraps one installation response or raises a targeted smoke failure. */
-function requireInstallation(response, step) {
-  if (!response?.moldInstallation?.moldInstallationId || !response?.productionMoldInstance?.productionMoldInstanceId) {
-    throw new Error(`mes-service smoke failed: ${step} did not return installation and production mold payloads`);
+/** requireToolingInstallation unwraps one installation response or raises a targeted smoke failure. */
+function requireToolingInstallation(response, step) {
+  if (!response?.toolingInstallation?.toolingInstallationId) {
+    throw new Error(`mes-service smoke failed: ${step} did not return tooling installation payload`);
   }
   return response;
 }
 
 /** requireUsage unwraps one usage response or raises a targeted smoke failure. */
 function requireUsage(response, step) {
-  if (!response?.usageEvent?.moldUsageEventId || !response?.moldLifeCounter?.productionMoldInstanceId) {
+  if (!response?.moldUsageRecord?.moldUsageRecordId || !response?.moldLifeCounter?.productionMoldId) {
     throw new Error(`mes-service smoke failed: ${step} did not return usage and life counter payloads`);
   }
   return response;
 }
 
-/** requirePage unwraps one page payload and ensures the expected list field is present for smoke assertions. */
-function requirePage(response, field, step) {
+/** requireList unwraps one list payload and ensures the expected list field is present for smoke assertions. */
+function requireList(response, field, step) {
   const items = response?.[field];
   if (!Array.isArray(items)) {
-    throw new Error(`mes-service smoke failed: ${step} did not return the expected page payload`);
+    throw new Error(`mes-service smoke failed: ${step} did not return the expected list payload`);
   }
   return response;
 }

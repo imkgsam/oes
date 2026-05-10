@@ -2,17 +2,20 @@ import { status } from '@grpc/grpc-js'
 import { MesMoldManagementService } from '../../src/application/services/mes-mold-management.service'
 import { MesMoldQueryService } from '../../src/application/services/mes-mold-query.service'
 import {
-  MesLocationStatus,
   MoldDesignOutputKind,
   MoldFunctionRole,
   MoldOutputStructureType,
-  MoldUsageMode,
-  ProductionMoldInstanceStatus
+  MoldLifeAdjustmentType,
+  ProductionMoldStatus,
+  ToolingType
 } from '../../src/domain/models/mes-mold-records'
+import { ProductionSpecStatus } from '../../src/domain/models/production-spec-records'
 import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
+import { PrismaProductionSpecRepository } from '../../src/infrastructure/repositories/prisma/prisma-production-spec.repository'
 import { PrismaMesMoldRepository } from '../../src/infrastructure/repositories/prisma/prisma-mes-mold.repository'
 import { cleanupByPrefix, createPrismaForIntegration, createTestPrefix } from '../helpers/integration-db'
 
+/** commandContext builds the shared MES command context required by mold L2 calls. */
 function commandContext(prefix: string, commandId: string) {
   return {
     tenantId: `${prefix}_tenant`,
@@ -35,9 +38,27 @@ function commandContext(prefix: string, commandId: string) {
   }
 }
 
+/** queryContext builds the shared MES query context required by mold L2 calls. */
+function queryContext(prefix: string) {
+  return {
+    tenantId: `${prefix}_tenant`,
+    orgId: `${prefix}_org`,
+    operatorContext: {
+      operatorId: `${prefix}_operator`,
+      operatorType: 'HUMAN',
+      orgId: `${prefix}_org`
+    },
+    traceContext: {
+      traceId: `${prefix}_trace`,
+      requestId: `${prefix}_query`
+    }
+  }
+}
+
 describe('Prisma MES mold repository L2', () => {
   let prisma: PrismaService
   let repository: PrismaMesMoldRepository
+  let productionSpecRepository: PrismaProductionSpecRepository
   let management: MesMoldManagementService
   let query: MesMoldQueryService
   let prefix: string
@@ -45,60 +66,14 @@ describe('Prisma MES mold repository L2', () => {
   beforeAll(async () => {
     prisma = await createPrismaForIntegration()
     repository = new PrismaMesMoldRepository(prisma)
-    management = new MesMoldManagementService(repository)
+    productionSpecRepository = new PrismaProductionSpecRepository(prisma)
+    management = new MesMoldManagementService(repository, productionSpecRepository)
     query = new MesMoldQueryService(repository)
   })
 
   beforeEach(async () => {
     prefix = createTestPrefix()
     await cleanupByPrefix(prisma, prefix)
-    await prisma.mesLocation.create({
-      data: {
-        id: `${prefix}_loc_ready`,
-        tenantId: `${prefix}_tenant`,
-        orgId: `${prefix}_org`,
-        locationCode: `${prefix}_READY`,
-        name: 'Ready Rack',
-        locationType: 'AVAILABLE',
-        parentLocationId: null,
-        relatedWorkCenterId: null,
-        capacityProfileId: null,
-        status: MesLocationStatus.ACTIVE,
-        createdAt: new Date('2026-05-04T09:00:00.000Z'),
-        updatedAt: new Date('2026-05-04T09:00:00.000Z')
-      }
-    })
-    await prisma.workCenter.create({
-      data: {
-        id: `${prefix}_wc`,
-        tenantId: `${prefix}_tenant`,
-        orgId: `${prefix}_org`,
-        workCenterCode: `${prefix}_WC`,
-        name: 'Casting Line',
-        workCenterType: 'CASTING_LINE',
-        parentWorkCenterId: null,
-        relatedMesLocationId: `${prefix}_loc_ready`,
-        capacityProfileId: null,
-        status: 'ACTIVE',
-        createdAt: new Date('2026-05-04T09:00:00.000Z'),
-        updatedAt: new Date('2026-05-04T09:00:00.000Z')
-      }
-    })
-    await prisma.resourcePosition.create({
-      data: {
-        id: `${prefix}_pos`,
-        tenantId: `${prefix}_tenant`,
-        orgId: `${prefix}_org`,
-        workCenterId: `${prefix}_wc`,
-        positionCode: 'A',
-        name: 'Position A',
-        positionType: 'MOLD_SLOT',
-        compatibleMoldDesignRefs: [`${prefix}_design`],
-        status: 'ACTIVE',
-        createdAt: new Date('2026-05-04T09:00:00.000Z'),
-        updatedAt: new Date('2026-05-04T09:00:00.000Z')
-      }
-    })
   })
 
   afterEach(async () => {
@@ -111,16 +86,12 @@ describe('Prisma MES mold repository L2', () => {
     }
   })
 
-  it('service transaction / should persist current projections plus append-only usage warning audit and outbox facts', async () => {
+  it('service transaction / should persist production mold, tooling installation, usage, life counter, audit, and outbox facts', async () => {
     const design = await management.registerMoldDesign({
       ...commandContext(prefix, `${prefix}_cmd_design`),
       moldDesignId: `${prefix}_design`,
       designCode: `${prefix}_design_code`,
       name: 'L2 Mold Design',
-      productFamilyRef: {
-        refType: 'PRODUCT_FAMILY',
-        refId: `${prefix}_pf`
-      },
       materialType: 'GYPSUM',
       functionRole: MoldFunctionRole.PRODUCTION,
       outputStructureType: MoldOutputStructureType.SINGLE,
@@ -134,86 +105,82 @@ describe('Prisma MES mold repository L2', () => {
         }
       ],
       defaultLifeLimit: '10',
-      defaultLifeUnit: 'USE',
-      reason: 'L2 design'
+      defaultLifeUnit: 'USE'
     })
 
-    const registered = await management.registerProductionMoldInstance({
-      ...commandContext(prefix, `${prefix}_cmd_instance`),
-      productionMoldInstanceId: `${prefix}_mold`,
-      moldInstanceCode: `${prefix}_PM_001`,
+    const productionMold = await management.registerProductionMold({
+      ...commandContext(prefix, `${prefix}_cmd_mold`),
+      productionMoldId: `${prefix}_mold`,
+      moldCode: `${prefix}_PM_001`,
       moldDesignId: design.moldDesignId,
-      initialStatus: ProductionMoldInstanceStatus.PENDING_INSTALLATION,
-      initialMesLocationId: `${prefix}_loc_ready`,
-      lifeLimitValue: '10',
-      lifeUnit: 'USE',
-      warningThresholdValue: '5',
-      reason: 'L2 instance'
+      initialStorageResourceRef: {
+        storageResourceId: `${prefix}_storage_ready`,
+        resourceCodeSnapshot: `${prefix}_READY`,
+        displayNameSnapshot: 'Ready Rack'
+      }
     })
 
-    await management.installMold({
+    const installed = await management.installTooling({
       ...commandContext(prefix, `${prefix}_cmd_install`),
-      productionMoldInstanceId: registered.productionMoldInstance.productionMoldInstanceId,
-      workCenterId: `${prefix}_wc`,
-      resourcePositionId: `${prefix}_pos`,
-      reason: 'L2 install'
+      toolingType: ToolingType.MOLD,
+      toolingId: productionMold.productionMoldId,
+      workCenterRef: {
+        workCenterId: `${prefix}_wc`,
+        workCenterCodeSnapshot: `${prefix}_WC`,
+        displayNameSnapshot: 'Casting Line'
+      },
+      workUnitRef: {
+        workUnitId: `${prefix}_wu_a`,
+        workUnitCodeSnapshot: 'A',
+        displayNameSnapshot: 'Position A'
+      },
+      moldPosition: 'A'
     })
     const usage = await management.recordMoldUsage({
       ...commandContext(prefix, `${prefix}_cmd_usage`),
-      productionMoldInstanceId: registered.productionMoldInstance.productionMoldInstanceId,
-      workCenterId: `${prefix}_wc`,
-      resourcePositionId: `${prefix}_pos`,
-      usageMode: MoldUsageMode.MANUAL_CHECKLIST,
+      productionMoldId: productionMold.productionMoldId,
+      toolingInstallationId: installed.toolingInstallation.toolingInstallationId,
+      workCenterRef: {
+        workCenterId: `${prefix}_wc`
+      },
+      workUnitRef: {
+        workUnitId: `${prefix}_wu_a`
+      },
       usageQuantity: '6',
       lifeDelta: '6',
       lifeUnit: 'USE',
-      captureSource: 'CHECKLIST',
-      reason: 'L2 usage'
+      captureSource: 'CHECKLIST'
     })
 
-    const instance = await query.getProductionMoldInstance({
-      tenantId: `${prefix}_tenant`,
-      orgId: `${prefix}_org`,
-      operatorContext: {
-        operatorId: `${prefix}_operator`,
-        operatorType: 'HUMAN',
-        orgId: `${prefix}_org`
-      },
-      traceContext: {
-        traceId: `${prefix}_trace`,
-        requestId: `${prefix}_query`
-      },
-      productionMoldInstanceId: registered.productionMoldInstance.productionMoldInstanceId
+    const persisted = await query.getProductionMold({
+      ...queryContext(prefix),
+      productionMoldId: productionMold.productionMoldId
     })
 
-    expect(usage.raisedWarning?.warningLevel).toBe('WARNING')
-    expect(instance.currentStatus).toBe(ProductionMoldInstanceStatus.INSTALLED)
-    expect(instance.lifeSummary?.usedValue).toBe('6')
-    expect(await prisma.moldUsageEvent.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
-    expect(await prisma.moldWarningEvent.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
+    expect(persisted.currentStatus).toBe(ProductionMoldStatus.INSTALLED)
+    expect(usage.moldLifeCounter.usedValue).toBe('6')
+    expect(await prisma.moldUsageRecord.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
+    expect(await prisma.toolingInstallation.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
+    expect(await prisma.moldLifeCounter.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
     expect(await prisma.mesAuditEnvelope.count({ where: { tenantId: `${prefix}_tenant` } })).toBeGreaterThanOrEqual(4)
     expect(
       await prisma.mesOutboxEvent.count({
         where: {
           tenantId: `${prefix}_tenant`,
           eventType: {
-            in: ['MoldUsageRecorded', 'MoldLifeWarningRaised']
+            in: ['MoldUsageRecorded', 'ToolingInstalled']
           }
         }
       })
     ).toBe(2)
   })
 
-  it('command idempotency / should replay completed production registration and reject command id conflicts', async () => {
+  it('command idempotency / should replay completed production mold registration and reject command id conflicts', async () => {
     const design = await management.registerMoldDesign({
       ...commandContext(prefix, `${prefix}_cmd_design_idem`),
       moldDesignId: `${prefix}_design`,
       designCode: `${prefix}_design_code`,
       name: 'L2 Mold Design',
-      productFamilyRef: {
-        refType: 'PRODUCT_FAMILY',
-        refId: `${prefix}_pf`
-      },
       materialType: 'GYPSUM',
       functionRole: MoldFunctionRole.PRODUCTION,
       outputStructureType: MoldOutputStructureType.SINGLE,
@@ -227,68 +194,73 @@ describe('Prisma MES mold repository L2', () => {
         }
       ],
       defaultLifeLimit: '10',
-      defaultLifeUnit: 'USE',
-      reason: 'L2 design'
+      defaultLifeUnit: 'USE'
     })
 
     const input = {
-      ...commandContext(prefix, `${prefix}_cmd_instance_idem`),
-      productionMoldInstanceId: `${prefix}_mold`,
-      moldInstanceCode: `${prefix}_PM_001`,
+      ...commandContext(prefix, `${prefix}_cmd_mold_idem`),
+      productionMoldId: `${prefix}_mold`,
+      moldCode: `${prefix}_PM_001`,
       moldDesignId: design.moldDesignId,
-      initialStatus: ProductionMoldInstanceStatus.PENDING_INSTALLATION,
-      initialMesLocationId: `${prefix}_loc_ready`,
-      lifeLimitValue: '10',
-      lifeUnit: 'USE',
-      warningThresholdValue: '5',
-      reason: 'L2 instance'
+      initialStorageResourceRef: {
+        storageResourceId: `${prefix}_storage_ready`
+      }
     }
-    const registered = await management.registerProductionMoldInstance(input)
-    const replayed = await management.registerProductionMoldInstance(input)
+    const registered = await management.registerProductionMold(input)
+    const replayed = await management.registerProductionMold(input)
 
     expect(replayed).toEqual(registered)
-    expect(await prisma.productionMoldInstance.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
+    expect(await prisma.productionMold.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
     expect(await prisma.moldLifeCounter.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
     expect(
-      await prisma.mesAuditEnvelope.count({
-        where: { tenantId: `${prefix}_tenant`, commandId: `${prefix}_cmd_instance_idem` }
-      })
-    ).toBe(1)
-    expect(
-      await prisma.mesOutboxEvent.count({
-        where: { tenantId: `${prefix}_tenant`, commandId: `${prefix}_cmd_instance_idem` }
-      })
-    ).toBe(1)
-    expect(
       await prisma.mesCommandIdempotency.count({
-        where: { tenantId: `${prefix}_tenant`, commandId: `${prefix}_cmd_instance_idem` }
+        where: { tenantId: `${prefix}_tenant`, commandId: `${prefix}_cmd_mold_idem` }
       })
     ).toBe(1)
 
     await expect(
-      management.registerProductionMoldInstance({
+      management.registerProductionMold({
         ...input,
-        productionMoldInstanceId: `${prefix}_mold_other`,
-        moldInstanceCode: `${prefix}_PM_002`
+        productionMoldId: `${prefix}_mold_other`,
+        moldCode: `${prefix}_PM_002`
       })
     ).rejects.toMatchObject({
       definition: {
         rpcStatus: status.ALREADY_EXISTS
       }
     })
-    expect(await prisma.productionMoldInstance.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
+    expect(await prisma.productionMold.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
   })
 
-  it('command idempotency / should allow concurrent same-payload production registration without duplicating facts or outbox', async () => {
+  it('life counter / should adjust counters through direct id lookup instead of paginated scans', async () => {
+    await prisma.productionSpec.create({
+      data: {
+        id: `${prefix}_spec`,
+        tenantId: `${prefix}_tenant`,
+        orgId: `${prefix}_org`,
+        orgScope: `${prefix}_org`,
+        specCode: `${prefix}_SPEC`,
+        name: 'Spec',
+        revisionCode: null,
+        supersedesProductionSpecId: null,
+        itemRef: {
+          itemId: `${prefix}_item`
+        },
+        status: ProductionSpecStatus.ACTIVE,
+        effectiveFrom: null,
+        effectiveTo: null,
+        retiredAt: null,
+        replacementProductionSpecId: null,
+        createdAt: new Date('2026-05-05T00:00:00.000Z'),
+        updatedAt: new Date('2026-05-05T00:00:00.000Z'),
+        version: 1
+      }
+    })
     const design = await management.registerMoldDesign({
-      ...commandContext(prefix, `${prefix}_cmd_design_concurrent`),
-      moldDesignId: `${prefix}_design`,
-      designCode: `${prefix}_design_code`,
-      name: 'L2 Concurrent Mold Design',
-      productFamilyRef: {
-        refType: 'PRODUCT_FAMILY',
-        refId: `${prefix}_pf`
-      },
+      ...commandContext(prefix, `${prefix}_cmd_design_counter`),
+      designCode: `${prefix}_design_counter`,
+      name: 'L2 Counter Mold Design',
+      productionSpecRefs: [{ productionSpecId: `${prefix}_spec` }],
       materialType: 'GYPSUM',
       functionRole: MoldFunctionRole.PRODUCTION,
       outputStructureType: MoldOutputStructureType.SINGLE,
@@ -296,61 +268,33 @@ describe('Prisma MES mold repository L2', () => {
         {
           sequenceNo: 1,
           outputCode: `${prefix}_OUT`,
-          outputKind: MoldDesignOutputKind.PRODUCT,
+          outputKind: MoldDesignOutputKind.PRODUCTION_SPEC,
+          productionSpecRef: { productionSpecId: `${prefix}_spec` },
           quantityPerUse: '1',
           isPrimaryOutput: true
         }
       ],
       defaultLifeLimit: '10',
-      defaultLifeUnit: 'USE',
-      reason: 'L2 concurrent design'
+      defaultLifeUnit: 'USE'
+    })
+    const productionMold = await management.registerProductionMold({
+      ...commandContext(prefix, `${prefix}_cmd_mold_counter`),
+      moldCode: `${prefix}_PM_COUNTER`,
+      moldDesignId: design.moldDesignId,
+      initialStorageResourceRef: {
+        storageResourceId: `${prefix}_storage_counter`
+      }
+    })
+    const counter = await repository.findMoldLifeCounterByProductionMold(`${prefix}_tenant`, productionMold.productionMoldId)
+
+    const adjusted = await management.adjustMoldLifeCounter({
+      ...commandContext(prefix, `${prefix}_cmd_adjust_counter`),
+      moldLifeCounterId: counter!.moldLifeCounterId,
+      adjustmentType: MoldLifeAdjustmentType.ADD_USED_VALUE,
+      value: '2'
     })
 
-    const input = {
-      ...commandContext(prefix, `${prefix}_cmd_instance_concurrent`),
-      productionMoldInstanceId: `${prefix}_mold`,
-      moldInstanceCode: `${prefix}_PM_001`,
-      moldDesignId: design.moldDesignId,
-      initialStatus: ProductionMoldInstanceStatus.PENDING_INSTALLATION,
-      initialMesLocationId: `${prefix}_loc_ready`,
-      lifeLimitValue: '10',
-      lifeUnit: 'USE',
-      warningThresholdValue: '5',
-      reason: 'L2 concurrent instance'
-    }
-
-    const results = await Promise.allSettled([
-      management.registerProductionMoldInstance(input),
-      management.registerProductionMoldInstance(input)
-    ])
-    const fulfilled = results.filter(
-      (result): result is PromiseFulfilledResult<Awaited<ReturnType<MesMoldManagementService['registerProductionMoldInstance']>>> =>
-        result.status === 'fulfilled'
-    )
-    const rejected = results.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
-
-    expect(fulfilled.length).toBeGreaterThanOrEqual(1)
-    if (fulfilled.length === 2) {
-      expect(fulfilled[0]?.value).toEqual(fulfilled[1]?.value)
-    }
-    for (const result of rejected) {
-      expect(result.reason).toMatchObject({
-        definition: {
-          rpcStatus: status.ABORTED
-        }
-      })
-    }
-    expect(await prisma.productionMoldInstance.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
-    expect(await prisma.moldLifeCounter.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
-    expect(
-      await prisma.mesAuditEnvelope.count({
-        where: { tenantId: `${prefix}_tenant`, commandId: `${prefix}_cmd_instance_concurrent` }
-      })
-    ).toBe(1)
-    expect(
-      await prisma.mesOutboxEvent.count({
-        where: { tenantId: `${prefix}_tenant`, commandId: `${prefix}_cmd_instance_concurrent` }
-      })
-    ).toBe(1)
+    expect(adjusted.moldLifeCounter.usedValue).toBe('2')
+    expect(adjusted.moldLifeCounter.moldLifeCounterId).toBe(counter!.moldLifeCounterId)
   })
 })

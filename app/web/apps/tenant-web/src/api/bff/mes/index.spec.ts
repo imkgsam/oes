@@ -10,39 +10,39 @@ vi.mock('#/api/request', () => ({
   }
 }))
 
-// Verifies the tenant-web MES API client stays aligned with the mold-management BFF surface.
+// Verifies the tenant-web MES API client stays aligned with the current mold-management BFF surface.
 describe('tenant-web MES api', () => {
   beforeEach(() => {
     get.mockReset()
     post.mockReset()
   })
 
-  it('loads mold workspace directories and single-object reads', async () => {
+  it('loads production specs, mold designs, production molds, tooling placement, and current installations', async () => {
     const {
       getMoldDesignApi,
-      listManufacturingSpecsApi,
-      getProductionMoldInstanceApi,
+      getProductionMoldApi,
+      getToolingCurrentPlacementApi,
       listCurrentMoldsByWorkCenterApi,
       listMoldDesignsApi,
-      listProductionMoldInstancesApi,
-      listWorkCentersApi
+      listProductionMoldsApi,
+      listProductionMoldsByDesignApi,
+      listProductionSpecsApi
     } = await import('./index')
 
-    await listWorkCentersApi('tenant-1', { keyword: '连体', status: 'ACTIVE' })
-    await listManufacturingSpecsApi('tenant-1', { itemId: 'item-1', status: 'ACTIVE' })
+    await listProductionSpecsApi('tenant-1', { itemId: 'item-1', status: 'ACTIVE' })
     await listMoldDesignsApi('tenant-1', { itemId: 'item-1', keyword: '高压' })
     await getMoldDesignApi('tenant-1', 'design-1')
-    await listProductionMoldInstancesApi('tenant-1', { moldDesignId: 'design-1', status: 'INSTALLED' })
-    await getProductionMoldInstanceApi('tenant-1', 'mold-1')
+    await listProductionMoldsApi('tenant-1', {
+      carrierResourceId: 'carrier-1',
+      moldDesignId: 'design-1',
+      status: 'INSTALLED'
+    })
+    await listProductionMoldsByDesignApi('tenant-1', 'design-1', { page: 1, pageSize: 20 })
+    await getProductionMoldApi('tenant-1', 'mold-1')
+    await getToolingCurrentPlacementApi('tenant-1', 'mold-1')
     await listCurrentMoldsByWorkCenterApi('tenant-1', 'wc-1')
 
-    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/work-centers', {
-      params: {
-        keyword: '连体',
-        status: 'ACTIVE'
-      }
-    })
-    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/manufacturing-specs', {
+    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-specs', {
       params: {
         itemId: 'item-1',
         status: 'ACTIVE'
@@ -55,13 +55,25 @@ describe('tenant-web MES api', () => {
       }
     })
     expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-designs/design-1')
-    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-instances', {
+    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds', {
       params: {
+        carrierResourceId: 'carrier-1',
         moldDesignId: 'design-1',
         status: 'INSTALLED'
       }
     })
-    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-instances/mold-1')
+    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-designs/design-1/production-molds', {
+      params: {
+        page: 1,
+        pageSize: 20
+      }
+    })
+    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds/mold-1')
+    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/tooling/mold-1/current-placement', {
+      params: {
+        toolingType: 'MOLD'
+      }
+    })
     expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/work-centers/wc-1/current-molds', {
       params: {
         page: 1,
@@ -70,24 +82,16 @@ describe('tenant-web MES api', () => {
     })
   })
 
-  it('forwards production-unit and production-mold commands including output option usage', async () => {
+  it('forwards mold design, production mold, tooling, and usage commands through current BFF endpoints', async () => {
     const {
-      createWorkCenterApi,
-      deactivateWorkCenterApi,
-      installProductionMoldInstanceApi,
+      installProductionMoldApi,
       recordDailyMoldUsageBatchApi,
       registerMoldDesignApi,
-      registerProductionMoldInstanceApi,
-      scrapProductionMoldInstanceApi,
-      unmountProductionMoldInstanceApi
+      registerProductionMoldApi,
+      scrapProductionMoldApi,
+      unmountProductionMoldApi
     } = await import('./index')
 
-    await createWorkCenterApi('tenant-1', {
-      name: '连体马桶上线一线',
-      workCenterCode: 'LINE-LT-01',
-      workCenterType: 'CASTING_LINE'
-    })
-    await deactivateWorkCenterApi('tenant-1', 'wc-1', { reason: '停用产线' })
     await registerMoldDesignApi('tenant-1', {
       defaultLifeLimit: '1200',
       defaultLifeUnit: 'USE',
@@ -103,26 +107,40 @@ describe('tenant-web MES api', () => {
           optionCode: 'BODY',
           outputCode: 'BODY',
           outputKind: 'PRODUCT',
+          productionSpecRef: {
+            productionSpecId: 'spec-1',
+            specCodeSnapshot: 'SPEC-01'
+          },
           quantityPerUse: '1',
           sequenceNo: 1
         }
       ],
-      productFamilyRef: {
-        refId: 'item-1',
-        refType: 'PRODUCT_FAMILY'
-      },
+      productionSpecRefs: [
+        {
+          productionSpecId: 'spec-1',
+          specCodeSnapshot: 'SPEC-01'
+        }
+      ],
       reason: '创建模具方案'
     })
-    await registerProductionMoldInstanceApi('tenant-1', {
+    await registerProductionMoldApi('tenant-1', {
+      acceptedAt: '2026-05-05T08:00:00.000Z',
+      moldCode: 'PM-LT-001',
       moldDesignId: 'design-1',
-      moldInstanceCode: 'PM-LT-001'
+      supplierRef: {
+        supplierCodeSnapshot: 'SUP-01',
+        supplierDisplayNameSnapshot: '精工模具厂',
+        supplierId: 'supplier-1'
+      }
     })
-    await installProductionMoldInstanceApi('tenant-1', 'mold-1', { workCenterId: 'wc-1' })
-    await unmountProductionMoldInstanceApi('tenant-1', 'mold-1', {
-      moldInstallationId: 'install-1',
-      nextStatus: 'PENDING_INSTALLATION'
+    await installProductionMoldApi('tenant-1', 'mold-1', {
+      moldPosition: 'A1',
+      workCenterRef: {
+        workCenterId: 'wc-1'
+      }
     })
-    await scrapProductionMoldInstanceApi('tenant-1', 'mold-1', { scrapReason: '破损' })
+    await unmountProductionMoldApi('tenant-1', 'install-1', { reason: '换模' })
+    await scrapProductionMoldApi('tenant-1', 'mold-1', { reason: '破损' })
     await recordDailyMoldUsageBatchApi('tenant-1', '2026-05-05', {
       batchCommandId: 'batch-1',
       items: [
@@ -130,22 +148,16 @@ describe('tenant-web MES api', () => {
           checked: true,
           moldDesignOutputId: 'output-body',
           moldDesignOutputOptionId: 'option-300',
-          moldInstallationId: 'install-1',
-          productionMoldInstanceId: 'mold-1',
-          resourcePositionId: 'pos-1'
+          moldPosition: 'A1',
+          productionMoldId: 'mold-1',
+          toolingInstallationId: 'install-1'
         }
       ],
-      workCenterId: 'wc-1'
+      workCenterRef: {
+        workCenterId: 'wc-1'
+      }
     })
 
-    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/work-centers', {
-      name: '连体马桶上线一线',
-      workCenterCode: 'LINE-LT-01',
-      workCenterType: 'CASTING_LINE'
-    })
-    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/work-centers/wc-1/deactivate', {
-      reason: '停用产线'
-    })
     expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-designs', {
       defaultLifeLimit: '1200',
       defaultLifeUnit: 'USE',
@@ -161,29 +173,43 @@ describe('tenant-web MES api', () => {
           optionCode: 'BODY',
           outputCode: 'BODY',
           outputKind: 'PRODUCT',
+          productionSpecRef: {
+            productionSpecId: 'spec-1',
+            specCodeSnapshot: 'SPEC-01'
+          },
           quantityPerUse: '1',
           sequenceNo: 1
         }
       ],
-      productFamilyRef: {
-        refId: 'item-1',
-        refType: 'PRODUCT_FAMILY'
-      },
+      productionSpecRefs: [
+        {
+          productionSpecId: 'spec-1',
+          specCodeSnapshot: 'SPEC-01'
+        }
+      ],
       reason: '创建模具方案'
     })
-    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-instances', {
+    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds', {
+      acceptedAt: '2026-05-05T08:00:00.000Z',
+      moldCode: 'PM-LT-001',
       moldDesignId: 'design-1',
-      moldInstanceCode: 'PM-LT-001'
+      supplierRef: {
+        supplierCodeSnapshot: 'SUP-01',
+        supplierDisplayNameSnapshot: '精工模具厂',
+        supplierId: 'supplier-1'
+      }
     })
-    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-instances/mold-1/install', {
-      workCenterId: 'wc-1'
+    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/tooling/mold-1/install', {
+      moldPosition: 'A1',
+      workCenterRef: {
+        workCenterId: 'wc-1'
+      }
     })
-    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-instances/mold-1/unmount', {
-      moldInstallationId: 'install-1',
-      nextStatus: 'PENDING_INSTALLATION'
+    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/tooling-installations/install-1/unmount', {
+      reason: '换模'
     })
-    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-instances/mold-1/scrap', {
-      scrapReason: '破损'
+    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds/mold-1/scrap', {
+      reason: '破损'
     })
     expect(post).toHaveBeenCalledWith(
       '/mes/tenants/tenant-1/daily-mold-checklists/2026-05-05/usage-batch',
@@ -194,12 +220,14 @@ describe('tenant-web MES api', () => {
             checked: true,
             moldDesignOutputId: 'output-body',
             moldDesignOutputOptionId: 'option-300',
-            moldInstallationId: 'install-1',
-            productionMoldInstanceId: 'mold-1',
-            resourcePositionId: 'pos-1'
+            moldPosition: 'A1',
+            productionMoldId: 'mold-1',
+            toolingInstallationId: 'install-1'
           }
         ],
-        workCenterId: 'wc-1'
+        workCenterRef: {
+          workCenterId: 'wc-1'
+        }
       }
     )
   })
