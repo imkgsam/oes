@@ -17,6 +17,7 @@ import {
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
   SALES_MANAGEMENT_PERMISSION_CODES,
   SRM_MANAGEMENT_PERMISSION_CODES,
+  TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES,
   TENANT_ORG_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
 import {
@@ -180,7 +181,17 @@ const PERMISSION_DESCRIPTION_BY_CODE: Readonly<Record<string, string>> = {
   'auth.mfa_policy.manage': '管理租户 MFA 策略',
   'auth.platform_mfa_policy.manage': '管理平台 MFA 策略',
   'auth.session.admin.view': '查看用户会话',
-  'auth.session.admin.revoke': '撤销用户会话'
+  'auth.session.admin.revoke': '撤销用户会话',
+  'terminal-device.enrollment.create': '创建受管终端设备 enrollment',
+  'terminal-device.enrollment.revoke': '撤销未使用的受管终端设备 enrollment',
+  'terminal-device.read': '查看受管终端设备列表与基础详情',
+  'terminal-device.sensitive.read': '查看受管终端设备敏感诊断标识与运行详情',
+  'terminal-device.status.disable': '禁用受管终端设备',
+  'terminal-device.status.mark-lost': '标记受管终端设备丢失',
+  'terminal-device.status.mark-maintenance': '标记受管终端设备维修中',
+  'terminal-device.status.restore-active': '将受管终端设备恢复为可用状态',
+  'terminal-device.version-policy.manage': '维护受管终端设备版本策略',
+  'terminal-device.audit.read': '查看受管终端设备治理审计'
 } as const
 
 const SYSTEM_ADMIN_ROLE = {
@@ -261,6 +272,11 @@ export function buildPermissionSeedItems(): PermissionSeedItem[] {
     ...valuesOf(AUTH_SESSION_PERMISSION_CODES).map((code) => ({
       code,
       module: Modules.AUTH_SERVICE,
+      description: getPermissionDescription(code)
+    })),
+    ...valuesOf(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES).map((code) => ({
+      code,
+      module: Modules.TERMINAL_DEVICE_SERVICE,
       description: getPermissionDescription(code)
     }))
   ]

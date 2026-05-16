@@ -778,6 +778,49 @@ const authSessionManagement = definePermissionGroup(Modules.AUTH_SERVICE, {
   }
 })
 
+const terminalDeviceManagement = definePermissionGroup(Modules.TERMINAL_DEVICE_SERVICE, {
+  CREATE_ENROLLMENT: {
+    code: 'terminal-device.enrollment.create',
+    description: '创建受管终端设备 enrollment'
+  },
+  REVOKE_ENROLLMENT: {
+    code: 'terminal-device.enrollment.revoke',
+    description: '撤销未使用的受管终端设备 enrollment'
+  },
+  READ_DEVICE: {
+    code: 'terminal-device.read',
+    description: '查看受管终端设备列表与基础详情'
+  },
+  READ_SENSITIVE_DEVICE: {
+    code: 'terminal-device.sensitive.read',
+    description: '查看受管终端设备敏感诊断标识与运行详情'
+  },
+  DISABLE_DEVICE: {
+    code: 'terminal-device.status.disable',
+    description: '禁用受管终端设备'
+  },
+  MARK_LOST_DEVICE: {
+    code: 'terminal-device.status.mark-lost',
+    description: '标记受管终端设备丢失'
+  },
+  MARK_MAINTENANCE_DEVICE: {
+    code: 'terminal-device.status.mark-maintenance',
+    description: '标记受管终端设备维修中'
+  },
+  RESTORE_ACTIVE_DEVICE: {
+    code: 'terminal-device.status.restore-active',
+    description: '将受管终端设备恢复为可用状态'
+  },
+  MANAGE_VERSION_POLICY: {
+    code: 'terminal-device.version-policy.manage',
+    description: '维护受管终端设备版本策略'
+  },
+  READ_AUDIT: {
+    code: 'terminal-device.audit.read',
+    description: '查看受管终端设备治理审计'
+  }
+})
+
 export const PERMISSION_MANAGEMENT_PERMISSION_CODES = permissionManagement.codes
 export const ROLE_TEMPLATE_PERMISSION_CODES = roleTemplateManagement.codes
 export const ROLE_INSTANCE_PERMISSION_CODES = roleInstanceManagement.codes
@@ -800,6 +843,7 @@ export const MES_MANAGEMENT_PERMISSION_CODES = mesManagement.codes
 export const AUTH_MANAGEMENT_PERMISSION_CODES = authManagement.codes
 export const AUTH_SELF_PERMISSION_CODES = authSelfManagement.codes
 export const AUTH_SESSION_PERMISSION_CODES = authSessionManagement.codes
+export const TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES = terminalDeviceManagement.codes
 
 /** DEPRECATED_PERMISSION_CODES tracks legacy permission rows that should be cleaned from local/dev seed data. */
 export const DEPRECATED_PERMISSION_CODES = [
@@ -841,5 +885,6 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...mesManagement.items,
   ...authManagement.items,
   ...authSelfManagement.items,
-  ...authSessionManagement.items
+  ...authSessionManagement.items,
+  ...terminalDeviceManagement.items
 ]

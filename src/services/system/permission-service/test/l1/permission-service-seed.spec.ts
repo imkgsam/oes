@@ -3,6 +3,21 @@ import {
   renderPermissionServiceSeedDryRunSummary,
   validatePermissionServiceSeed
 } from '../../src/scripts/permission-service-seed'
+import { TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES } from '../../src/scripts/permission-catalog'
+import { Modules } from '../../prisma/generated/prisma'
+
+const EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES = [
+  'terminal-device.enrollment.create',
+  'terminal-device.enrollment.revoke',
+  'terminal-device.read',
+  'terminal-device.sensitive.read',
+  'terminal-device.status.disable',
+  'terminal-device.status.mark-lost',
+  'terminal-device.status.mark-maintenance',
+  'terminal-device.status.restore-active',
+  'terminal-device.version-policy.manage',
+  'terminal-device.audit.read'
+] as const
 
 // Verifies the consolidated permission-service seed source is complete and DB-write free.
 describe('permission service seed source', () => {
@@ -10,7 +25,20 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(201)
+    expect(seed.permissionCodes).toHaveLength(211)
+    expect(Object.values(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES)).toEqual([
+      ...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES
+    ])
+    expect(seed.permissionCodes.map((permission) => permission.code)).toEqual(
+      expect.arrayContaining([...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES])
+    )
+    expect(
+      seed.permissionCodes
+        .filter((permission) =>
+          (EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES as readonly string[]).includes(permission.code)
+        )
+        .map((permission) => permission.module)
+    ).toEqual(EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES.map(() => Modules.TERMINAL_DEVICE_SERVICE))
     expect(seed.deprecatedPermissionCodes).toEqual([
       'permission.role.create',
       'permission.role.update',
@@ -35,7 +63,7 @@ describe('permission service seed source', () => {
       'mes.forming_workshop.supervisor',
       'item_master.product_data_manager'
     ])
-    expect(seed.rolePermissions).toHaveLength(153)
+    expect(seed.rolePermissions).toHaveLength(173)
     expect(seed.navigationEntries).toHaveLength(28)
     expect(seed.roleNavigationVisibility).toHaveLength(28)
     expect(seed.roleLandingPolicies).toHaveLength(6)
@@ -44,10 +72,10 @@ describe('permission service seed source', () => {
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 201,
+      permissionCodeCount: 211,
       deprecatedPermissionCodeCount: 14,
       roleCount: 6,
-      rolePermissionCount: 153,
+      rolePermissionCount: 173,
       navigationEntryCount: 28,
       deprecatedNavigationEntryCount: 1,
       roleNavigationVisibilityCount: 28,

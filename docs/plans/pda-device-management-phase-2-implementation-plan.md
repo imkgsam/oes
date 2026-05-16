@@ -424,7 +424,7 @@ Expected: gRPC surface tests pass.
 - Modify existing permission code catalog and seed files
 - Modify permission-service tests
 
-- [ ] **Step 1: Add terminal device management permission codes**
+- [x] **Step 1: Add terminal device management permission codes**
 
 Add:
 
@@ -439,11 +439,11 @@ Add:
 - `terminal-device.version-policy.manage`
 - `terminal-device.audit.read`
 
-- [ ] **Step 2: Add seed/sync tests**
+- [x] **Step 2: Add seed/sync tests**
 
 Assert all new permission codes are registered in runtime catalog.
 
-- [ ] **Step 3: Run permission tests**
+- [x] **Step 3: Run permission tests**
 
 Run:
 
