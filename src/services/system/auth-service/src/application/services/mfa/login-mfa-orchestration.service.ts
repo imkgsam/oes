@@ -26,6 +26,7 @@ import { MfaBindingManagementService } from './mfa-binding-management.service'
 import { PhoneOtpMfaChallengeService } from './phone-otp-mfa-challenge.service'
 import { TrustedDeviceService } from '../trusted-device.service'
 import { PasswordSetupRequirementService } from '../password-setup-requirement.service'
+import { TerminalMfaPolicyService } from '../terminal-mfa-policy.service'
 
 export interface LoginMfaFactorOption {
   type: TenantMfaFactor
@@ -55,26 +56,34 @@ export interface AccountMfaChallengeInput {
   displayName?: string
   ipAddress?: string
   loginMethod?: LoginMethodEnum
+  loginFlow?: string
   scenario: TenantMfaScenario
   scopeLevel: 'SYSTEM' | 'TENANT'
   tenantId: null | string
   terminal?: string
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
   userAgent?: string
   userId: string
 }
 
 export interface LoginMfaFlowPayload {
   aid: string
+  allowBootstrapOtpFactors?: boolean
   deviceId?: string
   deviceName?: string
   displayName?: string
   iat?: number
   ipAddress?: string
   loginMethod?: LoginMethodEnum
+  loginFlow?: string
+  policyFamily?: MfaPolicyFamily
   scenario: TenantMfaScenario
   scopeLevel: 'SYSTEM' | 'TENANT'
   sub: string
   terminal?: string
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
   tid?: string
   tokenType: 'mfa_flow'
   userAgent?: string
@@ -84,6 +93,13 @@ interface FactorResolutionOptions {
   loginMethod?: LoginMethodEnum
   allowBootstrapOtpFactors?: boolean
 }
+
+interface ChallengeBuildOptions extends FactorResolutionOptions {
+  policyFamily: MfaPolicyFamily
+  scenarioAlreadyRequired?: boolean
+}
+
+type MfaPolicyFamily = 'TERMINAL_MFA' | 'SCENARIO_MFA'
 
 // Orchestrates one account-scoped MFA challenge flow so login and step-up scenarios reuse the same factor resolution path.
 @Injectable()
@@ -101,7 +117,8 @@ export class LoginMfaOrchestrationService {
     private readonly trustedDeviceService: TrustedDeviceService,
     @Inject(REPO.LOGIN_METHOD)
     private readonly loginMethodRepository: ILoginMethodRepository,
-    private readonly passwordSetupRequirementService: PasswordSetupRequirementService
+    private readonly passwordSetupRequirementService: PasswordSetupRequirementService,
+    private readonly terminalMfaPolicyService: TerminalMfaPolicyService
   ) {}
 
   async resolveChallengeForSelectedAccount(
@@ -115,12 +132,12 @@ export class LoginMfaOrchestrationService {
       return null
     }
 
-    const policy = await this.resolvePolicy(input.scopeLevel, input.tenantId)
-    if (!policy) {
+    const selectedScenario = await this.resolveSelectedAccountScenario(input)
+    if (!selectedScenario) {
       return null
     }
-    const selectedScenario = await this.resolveSelectedAccountScenario(input, policy)
-    if (!selectedScenario) {
+    const factorPolicy = await this.resolvePolicy(input.scopeLevel, input.tenantId)
+    if (!factorPolicy) {
       return null
     }
 
@@ -129,10 +146,12 @@ export class LoginMfaOrchestrationService {
         ...input,
         scenario: selectedScenario
       },
-      policy,
+      factorPolicy,
       {
         loginMethod: input.loginMethod,
-        allowBootstrapOtpFactors: true
+        allowBootstrapOtpFactors: true,
+        policyFamily: 'TERMINAL_MFA',
+        scenarioAlreadyRequired: true
       }
     )
 
@@ -153,7 +172,9 @@ export class LoginMfaOrchestrationService {
     if (!policy) {
       return null
     }
-    return this.buildChallengeForScenario(input, policy)
+    return this.buildChallengeForScenario(input, policy, {
+      policyFamily: 'SCENARIO_MFA'
+    })
   }
 
   async requestFactorChallenge(
@@ -267,11 +288,15 @@ export class LoginMfaOrchestrationService {
   }
 
   private async resolveSelectedAccountScenario(
-    input: Omit<AccountMfaChallengeInput, 'scenario'>,
-    policy: ManagedMfaPolicy
+    input: Omit<AccountMfaChallengeInput, 'scenario'>
   ): Promise<null | 'LOGIN' | 'NEW_DEVICE_LOGIN'> {
+    const policy = await this.terminalMfaPolicyService.resolve({
+      ...(input.scopeLevel === 'TENANT' && input.tenantId ? { tenantId: input.tenantId } : {}),
+      terminal: input.terminal || 'WEB'
+    })
+
     if (
-      policy.isScenarioRequired('NEW_DEVICE_LOGIN') &&
+      policy.newDeviceMfaRequired &&
       !(await this.trustedDeviceService.isTrustedDevice({
         userId: input.userId,
         scopeLevel: input.scopeLevel,
@@ -282,15 +307,15 @@ export class LoginMfaOrchestrationService {
       return 'NEW_DEVICE_LOGIN'
     }
 
-    return policy.isScenarioRequired('LOGIN') ? 'LOGIN' : null
+    return policy.loginMfaRequired ? 'LOGIN' : null
   }
 
   private async buildChallengeForScenario(
     input: AccountMfaChallengeInput,
     policy: ManagedMfaPolicy,
-    options?: FactorResolutionOptions
+    options?: ChallengeBuildOptions
   ): Promise<null | SelectedAccountMfaChallenge> {
-    if (!policy.isScenarioRequired(input.scenario)) {
+    if (!options?.scenarioAlreadyRequired && !policy.isScenarioRequired(input.scenario)) {
       return null
     }
 
@@ -309,12 +334,17 @@ export class LoginMfaOrchestrationService {
       {
         sub: input.userId,
         aid: input.accountId,
+        allowBootstrapOtpFactors: Boolean(options?.allowBootstrapOtpFactors),
         tid: input.tenantId,
         scopeLevel: input.scopeLevel,
         displayName: input.displayName,
         loginMethod: input.loginMethod,
+        policyFamily: options?.policyFamily ?? 'SCENARIO_MFA',
         scenario: input.scenario,
         terminal: input.terminal,
+        terminalDeviceId: input.terminalDeviceId,
+        deviceBoundTenantId: input.deviceBoundTenantId,
+        loginFlow: input.loginFlow,
         tokenType: 'mfa_flow',
         deviceId: input.deviceId,
         deviceName: input.deviceName,
@@ -336,7 +366,10 @@ export class LoginMfaOrchestrationService {
     flow: LoginMfaFlowPayload,
     factor: TenantMfaFactor
   ): Promise<void> {
-    const policy = await this.resolvePolicy(flow.scopeLevel, flow.tid)
+    const policy = await this.resolveFactorPolicyForFamily(
+      flow,
+      this.resolveFlowPolicyFamily(flow)
+    )
     if (!policy) {
       throw ExceptionFactory.domain(AUTH_MFA_LOGIN_METHOD_UNAVAILABLE, {
         userId: flow.sub,
@@ -345,7 +378,7 @@ export class LoginMfaOrchestrationService {
     }
     const allowedFactors = await this.resolveAvailableFactors(flow.sub, policy, {
       loginMethod: flow.loginMethod,
-      allowBootstrapOtpFactors: true
+      allowBootstrapOtpFactors: Boolean(flow.allowBootstrapOtpFactors)
     })
     if (!allowedFactors.some((item) => item.type === factor)) {
       throw ExceptionFactory.domain(AUTH_MFA_FACTOR_UNAVAILABLE, {
@@ -418,6 +451,22 @@ export class LoginMfaOrchestrationService {
     }
 
     return this.tenantMfaPolicyRepository.getTenantPolicy(tenantId)
+  }
+
+  private resolveFlowPolicyFamily(flow: LoginMfaFlowPayload): MfaPolicyFamily {
+    return flow.policyFamily ?? 'SCENARIO_MFA'
+  }
+
+  // Resolves the factor policy for a flow without letting terminal MFA policy change factor availability.
+  private async resolveFactorPolicyForFamily(
+    flow: LoginMfaFlowPayload,
+    policyFamily: MfaPolicyFamily
+  ): Promise<ManagedMfaPolicy | null> {
+    switch (policyFamily) {
+      case 'TERMINAL_MFA':
+      case 'SCENARIO_MFA':
+        return this.resolvePolicy(flow.scopeLevel, flow.tid ?? null)
+    }
   }
 }
 

@@ -14,6 +14,10 @@ function createSessionFixture(input: {
   scopeLevel?: 'SYSTEM' | 'TENANT'
   status?: SessionStatus
   expiresAt?: string
+  terminal?: string
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
+  loginFlow?: string
 }): Session {
   return Session.fromRedis({
     id: input.id,
@@ -21,6 +25,10 @@ function createSessionFixture(input: {
     accountId: input.accountId,
     scopeLevel: input.scopeLevel ?? 'TENANT',
     tenantId: input.tenantId,
+    terminal: input.terminal,
+    terminalDeviceId: input.terminalDeviceId,
+    deviceBoundTenantId: input.deviceBoundTenantId,
+    loginFlow: input.loginFlow,
     refreshToken: `${input.id}-refresh`,
     status: input.status ?? SessionStatus.ACTIVE,
     deviceInfo: {
@@ -34,7 +42,11 @@ function createSessionFixture(input: {
     expiresAt: input.expiresAt ?? '2099-04-10T00:00:00.000Z',
     refreshExpiresAt: '2099-04-11T00:00:00.000Z',
     metadata: {
-      loginMethod: 'email-password'
+      loginMethod: 'email-password',
+      loginFlow: input.loginFlow,
+      terminal: input.terminal,
+      terminalDeviceId: input.terminalDeviceId,
+      deviceBoundTenantId: input.deviceBoundTenantId
     },
     isAdminControlled: false
   })
@@ -130,8 +142,11 @@ describe('ValidateAccessTokenHandler', () => {
       tenantId: 'tenant-1',
       sessionId: 'session-1',
       scopeLevel: 'TENANT',
+      terminal: 'WEB',
+      allowedTerminals: [],
       passwordSetupRequired: true,
-      roleIds: ['role-1']
+      roleIds: ['role-1'],
+      loginFlow: 'email-password'
     })
     expect(sessionRepository.save).toHaveBeenCalledWith(session)
     expect(trustedDeviceService.markTrustedDeviceSeen).toHaveBeenCalledWith({
@@ -144,6 +159,50 @@ describe('ValidateAccessTokenHandler', () => {
       ipAddress: '127.0.0.1',
       observedAt: session.getLastActiveAt()
     })
+  })
+
+  it('returns PDA terminal device context from persisted session truth', async () => {
+    const session = createSessionFixture({
+      id: 'session-1',
+      userId: 'user-1',
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      terminal: 'PDA',
+      terminalDeviceId: 'terminal-device-1',
+      deviceBoundTenantId: 'tenant-1',
+      loginFlow: 'EMAIL_PASSWORD'
+    })
+    const jwtService = {
+      verifyAsync: jest.fn().mockResolvedValue({
+        sub: 'user-1',
+        aid: 'account-1',
+        tid: 'tenant-1',
+        sid: 'session-1',
+        scopeLevel: 'TENANT',
+        terminal: 'PDA',
+        allowedTerminals: ['PDA'],
+        tokenType: 'access'
+      })
+    } as unknown as CommonJwtService
+    const handler = new ValidateAccessTokenHandler(
+      jwtService,
+      {
+        findById: jest.fn().mockResolvedValue(session),
+        save: jest.fn().mockResolvedValue(session)
+      } as any,
+      { markTrustedDeviceSeen: jest.fn().mockResolvedValue(undefined) } as any,
+      { assertSessionCanContinue: jest.fn().mockResolvedValue(undefined) } as any
+    )
+
+    await expect(handler.execute(new ValidateAccessTokenQuery('token-1'))).resolves.toEqual(
+      expect.objectContaining({
+        terminal: 'PDA',
+        allowedTerminals: ['PDA'],
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-1',
+        loginFlow: 'EMAIL_PASSWORD'
+      })
+    )
   })
 
   it('rejects tokens whose session has already been removed', async () => {

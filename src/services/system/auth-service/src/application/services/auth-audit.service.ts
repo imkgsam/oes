@@ -21,6 +21,9 @@ type SessionAuditContext = {
   tenantId: string
   terminal: string
   loginMethod: string
+  loginFlow: string
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
   deviceId: string
   deviceName: string
   userAgent: string
@@ -495,6 +498,43 @@ export class AuthAuditService {
   }
 
   /**
+   * emitTerminalDeviceSessionsRevoked records auth session cleanup after a managed terminal device becomes unavailable.
+   */
+  emitTerminalDeviceSessionsRevoked(input: {
+    terminalDeviceId: string
+    tenantId?: string | null
+    previousStatus?: string
+    newStatus: string
+    sessionIds: string[]
+    reason?: string | null
+    traceId?: string | null
+  }): void {
+    this.emit('TERMINAL_DEVICE_SESSIONS_REVOKED', 'session', {
+      operator: this.systemOperator(),
+      scope: {
+        tenantId: input.tenantId ?? null,
+        orgId: null
+      },
+      resource: {
+        resourceType: 'terminal_device_session_batch',
+        resourceId: input.terminalDeviceId
+      },
+      details: {
+        terminalDeviceId: input.terminalDeviceId,
+        tenantId: input.tenantId ?? '',
+        previousStatus: input.previousStatus ?? '',
+        newStatus: input.newStatus,
+        reason: input.reason ?? '',
+        sessionCount: input.sessionIds.length,
+        sessionIds: input.sessionIds
+      },
+      trace: {
+        traceId: input.traceId ?? undefined
+      }
+    })
+  }
+
+  /**
    * buildSessionContext extracts stable session details that are shared across auth audit events.
    */
   private buildSessionContext(session: Session): SessionAuditContext {
@@ -507,6 +547,9 @@ export class AuthAuditService {
       tenantId: session.getTenantId() ?? '',
       terminal: session.getTerminal(),
       loginMethod: session.getLoginMethod(),
+      loginFlow: session.getLoginFlow(),
+      terminalDeviceId: session.getTerminalDeviceId(),
+      deviceBoundTenantId: session.getDeviceBoundTenantId(),
       deviceId: deviceInfo.deviceId,
       deviceName: deviceInfo.deviceName,
       userAgent: deviceInfo.userAgent,
@@ -528,6 +571,10 @@ export class AuthAuditService {
       resource: AuthAuditResource
       details: Record<string, unknown>
       result?: AuthAuditResult
+      trace?: {
+        traceId?: string
+        spanId?: string
+      }
     }
   ): void {
     const traceContext = captureEventTraceContext()
@@ -542,8 +589,8 @@ export class AuthAuditService {
         payload.operator,
         payload.scope,
         {
-          traceId: traceContext.traceId,
-          spanId: traceContext.spanId
+          traceId: payload.trace?.traceId ?? traceContext.traceId,
+          spanId: payload.trace?.spanId ?? traceContext.spanId
         },
         payload.resource,
         payload.details

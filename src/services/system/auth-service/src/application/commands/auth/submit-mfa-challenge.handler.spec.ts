@@ -150,4 +150,68 @@ describe('SubmitMfaChallengeHandler', () => {
       })
     )
   })
+
+  it('establishes the selected account session with the terminal carried by the MFA flow token', async () => {
+    const loginMfaOrchestrationService = {
+      verifySelectedFactor: jest.fn().mockResolvedValue({
+        sub: 'user-1',
+        aid: 'account-1',
+        tid: 'tenant-1',
+        scopeLevel: 'TENANT',
+        loginMethod: LoginMethodEnum.EmailPassword,
+        scenario: 'LOGIN',
+        tokenType: 'mfa_flow',
+        terminal: 'PDA'
+      })
+    }
+    const identityService = {
+      getAccountById: jest.fn().mockResolvedValue({
+        accountId: 'account-1',
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        displayName: 'Tenant Account',
+        isEnabled: true
+      })
+    }
+    const accountSessionEstablishmentService = {
+      establish: jest.fn().mockResolvedValue({
+        status: 'SUCCESS',
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        sessionId: 'session-pda',
+        terminal: 'PDA',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        expiresIn: 900,
+        displayName: 'Tenant Account',
+        passwordSetupRequired: false
+      })
+    }
+    const handler = new SubmitMfaChallengeHandler(
+      loginMfaOrchestrationService as any,
+      identityService as any,
+      accountSessionEstablishmentService as any,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
+      } as any
+    )
+
+    await handler.execute(
+      new SubmitMfaChallengeCommand(
+        'login-mfa-flow-token',
+        MfaType.EMAIL_OTP,
+        '123456',
+        LoginMethodEnum.EmailPassword
+      )
+    )
+
+    expect(accountSessionEstablishmentService.establish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terminal: 'PDA'
+      })
+    )
+  })
 })

@@ -1,5 +1,6 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
+import { TerminalLoginFlow } from '@oes/common/auth'
 import { IDENTITY_SERVICE, LoginMethodEnum, LoginMethodType } from '@oes/common/constants'
 import { ExceptionFactory, OESExceptionBase } from '@oes/common/exceptions'
 import { EmailPasswordLoginRequestDto } from '@oes/common/dtos'
@@ -9,6 +10,11 @@ import {
 } from '../../ports/identity-service.port'
 import { AuthAuditService } from '../../services/auth-audit.service'
 import { LoginRiskThrottleService } from '../../services/login-risk-throttle.service'
+import {
+  PdaPrimaryLoginCompletionResult,
+  PdaPrimaryLoginCompletionService
+} from '../../services/pda-primary-login-completion.service'
+import { TerminalLoginPolicyService } from '../../services/terminal-login-policy.service'
 import { TenantSessionAccessService } from '../../services/tenant-session-access.service'
 import {
   AUTH_LOGIN_TEMPORARILY_LOCKED,
@@ -20,15 +26,19 @@ import { LoginWithEmailPasswordCommand } from './login-with-email-password.comma
 
 export type LoginWithEmailPasswordNextStep = 'ACCOUNT_SELECTION_REQUIRED' | 'MFA_REQUIRED'
 
-export interface LoginWithEmailPasswordResult {
+export interface LoginWithEmailPasswordAccountSelectionResult {
   userId: string
   method: LoginMethodEnum
-  nextStep: LoginWithEmailPasswordNextStep
+  nextStep: 'ACCOUNT_SELECTION_REQUIRED'
   accounts: AccountCandidateSummary[]
-  challengeId?: string
 }
 
+export type LoginWithEmailPasswordResult =
+  | LoginWithEmailPasswordAccountSelectionResult
+  | PdaPrimaryLoginCompletionResult
+
 @CommandHandler(LoginWithEmailPasswordCommand)
+// Orchestrates email-password login after enforcing terminal-level login flow policy.
 export class LoginWithEmailPasswordHandler
   implements ICommandHandler<LoginWithEmailPasswordCommand, LoginWithEmailPasswordResult>
 {
@@ -38,12 +48,19 @@ export class LoginWithEmailPasswordHandler
     private readonly loginRiskThrottleService: LoginRiskThrottleService,
     @Inject(IDENTITY_SERVICE)
     private readonly identityService: IIdentityServicePort,
-    private readonly tenantSessionAccessService: TenantSessionAccessService
+    private readonly tenantSessionAccessService: TenantSessionAccessService,
+    private readonly terminalLoginPolicyService: TerminalLoginPolicyService,
+    private readonly pdaPrimaryLoginCompletionService?: PdaPrimaryLoginCompletionService
   ) {}
 
   async execute(
     command: LoginWithEmailPasswordCommand
   ): Promise<LoginWithEmailPasswordResult> {
+    await this.terminalLoginPolicyService.assertFlowAllowed(
+      command.terminal || 'WEB',
+      TerminalLoginFlow.EmailPassword
+    )
+
     try {
       await this.loginRiskThrottleService.assertPasswordLoginAllowed(
         LoginMethodType.EMAIL,
@@ -97,6 +114,19 @@ export class LoginWithEmailPasswordHandler
       command.email
     )
 
+    if (this.isPdaLogin(command.terminal)) {
+      return this.pdaPrimaryLoginCompletionService!.complete({
+        userId,
+        loginMethod: LoginMethodEnum.EmailPassword,
+        deviceName: command.deviceName,
+        userAgent: command.userAgent,
+        ipAddress: command.ipAddress,
+        terminalDeviceId: command.terminalDeviceId,
+        deviceBoundTenantId: command.deviceBoundTenantId,
+        loginFlow: command.loginFlow
+      })
+    }
+
     const accounts = await this.tenantSessionAccessService.filterActiveAccountCandidates(
       await this.identityService.getAvailableAccountsByUserId(userId)
     )
@@ -118,5 +148,9 @@ export class LoginWithEmailPasswordHandler
 
   private isLoginTemporarilyLockedError(error: unknown): boolean {
     return error instanceof OESExceptionBase && error.getCode() === AUTH_LOGIN_TEMPORARILY_LOCKED.code
+  }
+
+  private isPdaLogin(terminal?: string): boolean {
+    return (terminal || 'WEB').toUpperCase() === 'PDA'
   }
 }

@@ -5,6 +5,10 @@ type LoginWithPhonePasswordDeviceContext = {
   deviceName?: string
   userAgent?: string
   ipAddress?: string
+  terminal?: string
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
+  loginFlow?: string
 }
 
 // Carries the phone-password login attempt together with optional client device context.
@@ -32,6 +36,26 @@ export class LoginWithPhonePasswordCommand implements ICommand {
   @MaxLength(128)
   readonly ipAddress?: string
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  readonly terminal?: string
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  readonly terminalDeviceId?: string
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  readonly deviceBoundTenantId?: string
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  readonly loginFlow?: string
+
   constructor(
     phone: string,
     password: string,
@@ -42,5 +66,9 @@ export class LoginWithPhonePasswordCommand implements ICommand {
     this.deviceName = deviceContext?.deviceName
     this.userAgent = deviceContext?.userAgent
     this.ipAddress = deviceContext?.ipAddress
+    this.terminal = deviceContext?.terminal
+    this.terminalDeviceId = deviceContext?.terminalDeviceId
+    this.deviceBoundTenantId = deviceContext?.deviceBoundTenantId
+    this.loginFlow = deviceContext?.loginFlow
   }
 }

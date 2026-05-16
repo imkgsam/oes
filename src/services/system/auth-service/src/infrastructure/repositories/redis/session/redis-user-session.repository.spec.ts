@@ -6,6 +6,7 @@ const execMock = jest.fn().mockResolvedValue([])
 const expireMock = jest.fn().mockReturnThis()
 const saddMock = jest.fn().mockReturnThis()
 const setMock = jest.fn().mockReturnThis()
+const smembersMock = jest.fn().mockResolvedValue([])
 const sremMock = jest.fn().mockReturnThis()
 const delMock = jest.fn().mockReturnThis()
 const multiMock = jest.fn(() => ({
@@ -23,7 +24,8 @@ jest.mock('ioredis', () => {
   return jest.fn().mockImplementation(() => ({
     get: getMock,
     multi: multiMock,
-    scan: scanMock
+    scan: scanMock,
+    smembers: smembersMock
   }))
 })
 
@@ -33,12 +35,20 @@ function createSessionFixture(input?: {
   tenantId?: string | null
   scopeLevel?: 'SYSTEM' | 'TENANT'
   status?: SessionStatus
+  terminal?: string
+  loginFlow?: string
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
 }) {
   return Session.fromRedis({
     id: input?.id ?? 'session-1',
     userId: 'user-1',
     accountId: 'account-1',
     tenantId: input?.tenantId,
+    terminal: input?.terminal,
+    loginFlow: input?.loginFlow,
+    terminalDeviceId: input?.terminalDeviceId,
+    deviceBoundTenantId: input?.deviceBoundTenantId,
     refreshToken: 'refresh-token-1',
     status: input?.status ?? SessionStatus.ACTIVE,
     deviceInfo: {
@@ -70,6 +80,7 @@ describe('RedisUserSessionRepository', () => {
     saddMock.mockClear()
     scanMock.mockReset().mockResolvedValue(['0', []])
     setMock.mockClear()
+    smembersMock.mockReset().mockResolvedValue([])
     sremMock.mockClear()
   })
 
@@ -85,6 +96,32 @@ describe('RedisUserSessionRepository', () => {
 
     expect(expireMock).toHaveBeenCalledWith('session:session-1', 600)
     expect(expireMock).toHaveBeenCalledWith('refresh_token:refresh-token-1', 600)
+  })
+
+  it('serializes terminal-aware session metadata into Redis', async () => {
+    const repository = new RedisUserSessionRepository()
+    const session = createSessionFixture({
+      terminal: 'PDA',
+      loginFlow: 'EMPLOYEE_CODE_PIN',
+      terminalDeviceId: 'terminal-device-1',
+      deviceBoundTenantId: 'tenant-1'
+    })
+
+    await repository.save(session)
+
+    const persisted = JSON.parse(setMock.mock.calls[0][1])
+    expect(persisted).toEqual(
+      expect.objectContaining({
+        terminal: 'PDA',
+        loginFlow: 'EMPLOYEE_CODE_PIN',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-1'
+      })
+    )
+    expect(saddMock).toHaveBeenCalledWith(
+      'terminal_device_sessions:terminal-device-1',
+      'session-1'
+    )
   })
 
   it('deletes only active tenant-scope sessions for one tenant', async () => {
@@ -133,5 +170,52 @@ describe('RedisUserSessionRepository', () => {
     expect(delMock).not.toHaveBeenCalledWith('session:session-other-tenant')
     expect(delMock).not.toHaveBeenCalledWith('session:session-system')
     expect(delMock).not.toHaveBeenCalledWith('session:session-suspended')
+  })
+
+  it('finds only active sessions for one managed terminal device id', async () => {
+    const repository = new RedisUserSessionRepository()
+    const targetSession = createSessionFixture({
+      id: 'session-target',
+      terminalDeviceId: 'terminal-device-1'
+    })
+    const otherDeviceSession = createSessionFixture({
+      id: 'session-other-device',
+      terminalDeviceId: 'terminal-device-2'
+    })
+    const suspendedTargetSession = createSessionFixture({
+      id: 'session-suspended-target',
+      terminalDeviceId: 'terminal-device-1',
+      status: SessionStatus.SUSPENDED
+    })
+    const dataByKey = new Map<string, string>([
+      ['session:session-target', JSON.stringify(targetSession.toRedis())],
+      ['session:session-other-device', JSON.stringify(otherDeviceSession.toRedis())],
+      ['session:session-suspended-target', JSON.stringify(suspendedTargetSession.toRedis())]
+    ])
+    smembersMock.mockResolvedValue([
+      'session-target',
+      'session-other-device',
+      'session-suspended-target'
+    ])
+    getMock.mockImplementation(async (key: string) => dataByKey.get(key) ?? null)
+
+    await expect(repository.findActiveByTerminalDeviceId('terminal-device-1')).resolves.toEqual([
+      targetSession
+    ])
+    expect(smembersMock).toHaveBeenCalledWith('terminal_device_sessions:terminal-device-1')
+    expect(scanMock).not.toHaveBeenCalled()
+  })
+
+  it('removes managed terminal device session index entries when deleting a session', async () => {
+    const repository = new RedisUserSessionRepository()
+    const session = createSessionFixture({
+      id: 'session-1',
+      terminalDeviceId: 'terminal-device-1'
+    })
+    getMock.mockResolvedValue(JSON.stringify(session.toRedis()))
+
+    await repository.delete('session-1')
+
+    expect(sremMock).toHaveBeenCalledWith('terminal_device_sessions:terminal-device-1', 'session-1')
   })
 })

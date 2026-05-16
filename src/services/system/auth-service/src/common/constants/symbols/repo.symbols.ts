@@ -5,6 +5,8 @@ export const REPO = {
   OTP: Symbol('OtpRepository'),
   OTP_SEND_THROTTLE: Symbol('OtpSendThrottleRepository'),
   LOGIN_METHOD: Symbol('LoginMethodRepository'),
+  TERMINAL_LOGIN_POLICY: Symbol('TerminalLoginPolicyRepository'),
+  TERMINAL_MFA_POLICY: Symbol('TerminalMfaPolicyRepository'),
   PLATFORM_MFA_POLICY: Symbol('PlatformMfaPolicyRepository'),
   TENANT_MFA_POLICY: Symbol('TenantMfaPolicyRepository'),
   TRUSTED_DEVICE: Symbol('TrustedDeviceRepository'),

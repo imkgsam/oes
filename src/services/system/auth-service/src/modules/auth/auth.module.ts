@@ -36,7 +36,11 @@ import { EmailOtpLoginService } from '../../application/services/email-otp-login
 import { OtpRiskThrottleService } from '../../application/services/otp-risk-throttle.service'
 import { PasswordRecoveryService } from '../../application/services/password-recovery.service'
 import { PasswordSetupRequirementService } from '../../application/services/password-setup-requirement.service'
+import { PdaAccountResolutionService } from '../../application/services/pda-account-resolution.service'
+import { PdaPrimaryLoginCompletionService } from '../../application/services/pda-primary-login-completion.service'
 import { PhoneOtpLoginService } from '../../application/services/phone-otp-login.service'
+import { TerminalLoginPolicyService } from '../../application/services/terminal-login-policy.service'
+import { TerminalMfaPolicyService } from '../../application/services/terminal-mfa-policy.service'
 import { TrustedDeviceService } from '../../application/services/trusted-device.service'
 import { AuthCommandHandlers } from '../../application/commands/auth'
 import { AuthQueryHandlers } from '../../application/queries'
@@ -52,12 +56,15 @@ import { PrismaPasswordRecoveryGrantRepository } from '../../infrastructure/repo
 import { PrismaPasswordSetupRequirementRepository } from '../../infrastructure/repositories/prisma/prisma.password-setup-requirement.repository'
 import { PrismaPlatformMfaPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.platform-mfa-policy.repository'
 import { PrismaTenantMfaPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.tenant-mfa-policy.repository'
+import { PrismaTerminalLoginPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.terminal-login-policy.repository'
+import { PrismaTerminalMfaPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.terminal-mfa-policy.repository'
 import { PrismaTrustedDeviceRepository } from '../../infrastructure/repositories/prisma/prisma.trusted-device.repository'
 import { RedisLoginRiskRepository } from '../../infrastructure/repositories/redis/risk/redis-login-risk.repository'
 import { RedisOtpSendThrottleRepository } from '../../infrastructure/repositories/redis/risk/redis-otp-send-throttle.repository'
 import { RedisUserSessionRepository } from '../../infrastructure/repositories/redis/session/redis-user-session.repository'
 import { NotificationServiceGrpcAdaptor } from '../../infrastructure/adaptors/notification-service.grpc.adaptor'
 import { AuthAuditListener } from '../../infrastructure/listeners/auth-audit.listener'
+import { TerminalDeviceUnavailableSubscriber } from '../../infrastructure/listeners/terminal-device-unavailable.subscriber'
 import { ExternalServicesModule } from '../../infrastructure/modules/external-services.module'
 import { LocalNotificationDispatchAdaptor } from '../../infrastructure/adaptors/local-notification-dispatch.adaptor'
 import { EmailService } from '../../infrastructure/services/email.service'
@@ -82,6 +89,8 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     { provide: REPO.PASSWORD_RECOVERY_GRANT, useClass: PrismaPasswordRecoveryGrantRepository },
     { provide: REPO.PLATFORM_MFA_POLICY, useClass: PrismaPlatformMfaPolicyRepository },
     { provide: REPO.TENANT_MFA_POLICY, useClass: PrismaTenantMfaPolicyRepository },
+    { provide: REPO.TERMINAL_LOGIN_POLICY, useClass: PrismaTerminalLoginPolicyRepository },
+    { provide: REPO.TERMINAL_MFA_POLICY, useClass: PrismaTerminalMfaPolicyRepository },
     { provide: REPO.TRUSTED_DEVICE, useClass: PrismaTrustedDeviceRepository },
     {
       provide: REPO.PASSWORD_SETUP_REQUIREMENT,
@@ -135,6 +144,7 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     AccountSessionEstablishmentService,
     TenantSessionAccessService,
     AuthAuditListener,
+    TerminalDeviceUnavailableSubscriber,
     AccountInvitationService,
     ContactBindingVerificationService,
     EmailOtpLoginService,
@@ -149,7 +159,11 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     OtpRiskThrottleService,
     PasswordRecoveryService,
     PasswordSetupRequirementService,
+    PdaAccountResolutionService,
+    PdaPrimaryLoginCompletionService,
     PhoneOtpLoginService,
+    TerminalLoginPolicyService,
+    TerminalMfaPolicyService,
     TrustedDeviceService,
     EmailPasswordStrategy,
     PhonePasswordStrategy,
@@ -162,6 +176,8 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     PrismaPasswordSetupRequirementRepository,
     PrismaPlatformMfaPolicyRepository,
     PrismaTenantMfaPolicyRepository,
+    PrismaTerminalLoginPolicyRepository,
+    PrismaTerminalMfaPolicyRepository,
     PrismaTrustedDeviceRepository,
     ...AuthCommandHandlers,
     ...AuthQueryHandlers

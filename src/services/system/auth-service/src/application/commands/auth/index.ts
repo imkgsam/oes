@@ -10,6 +10,7 @@ import { DisableMfaBindingHandler } from './disable-mfa-binding.handler'
 import { EnableMfaBindingHandler } from './enable-mfa-binding.handler'
 import { InitializeRecoveryCodesHandler } from './initialize-recovery-codes.handler'
 import { InitializeTotpBindingHandler } from './initialize-totp-binding.handler'
+import { HandleTerminalDeviceUnavailableHandler } from './handle-terminal-device-unavailable.handler'
 import { LoginWithEmailPasswordHandler } from './login-with-email-password.handler'
 import { LoginWithEmailOtpHandler } from './login-with-email-otp.handler'
 import { LoginWithPhoneOtpHandler } from './login-with-phone-otp.handler'
@@ -64,6 +65,8 @@ export * from './initialize-recovery-codes.command'
 export * from './initialize-recovery-codes.handler'
 export * from './initialize-totp-binding.command'
 export * from './initialize-totp-binding.handler'
+export * from './handle-terminal-device-unavailable.command'
+export * from './handle-terminal-device-unavailable.handler'
 export * from './login-with-email-password.command'
 export * from './login-with-email-password.handler'
 export * from './login-with-email-otp.command'
@@ -134,6 +137,7 @@ export const AuthCommandHandlers = [
   CompleteFirstLoginPasswordSetupHandler,
   DisableMfaBindingHandler,
   EnableMfaBindingHandler,
+  HandleTerminalDeviceUnavailableHandler,
   InitializeRecoveryCodesHandler,
   InitializeTotpBindingHandler,
   LoginWithEmailPasswordHandler,

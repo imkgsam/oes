@@ -54,6 +54,9 @@ export class SubmitMfaChallengeHandler
       userAgent: flow.userAgent,
       ipAddress: flow.ipAddress,
       terminal: flow.terminal || 'WEB',
+      terminalDeviceId: flow.terminalDeviceId,
+      deviceBoundTenantId: flow.deviceBoundTenantId,
+      loginFlow: flow.loginFlow,
       trustCurrentDevice: command.trustCurrentDevice
     })
   }

@@ -10,6 +10,10 @@ function createSessionFixture(input: {
   accountId: string
   tenantId: string
   loginMethod?: string
+  terminal?: string
+  loginFlow?: string
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
   lastActiveAt: string
 }): Session {
   return Session.fromRedis({
@@ -17,6 +21,10 @@ function createSessionFixture(input: {
     userId: input.userId,
     accountId: input.accountId,
     tenantId: input.tenantId,
+    terminal: input.terminal,
+    loginFlow: input.loginFlow,
+    terminalDeviceId: input.terminalDeviceId,
+    deviceBoundTenantId: input.deviceBoundTenantId,
     refreshToken: `${input.id}-refresh`,
     status: SessionStatus.ACTIVE,
     deviceInfo: {
@@ -75,5 +83,36 @@ describe('ListSessionsHandler', () => {
     expect(result).toHaveLength(2)
     expect(result.map((session) => session.accountId)).toEqual(['account-1', 'account-1'])
     expect(result.some((session) => session.sessionId === 'session-other-account')).toBe(false)
+  })
+
+  it('projects terminal-aware session fields for self-service display', async () => {
+    const currentSession = createSessionFixture({
+      id: 'session-current',
+      userId: 'user-1',
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      terminal: 'PDA',
+      loginFlow: 'EMPLOYEE_CODE_PIN',
+      terminalDeviceId: 'terminal-device-1',
+      deviceBoundTenantId: 'tenant-1',
+      lastActiveAt: '2026-04-08T12:10:00.000Z'
+    })
+    const sessionRepository = {
+      findAllByUserId: jest.fn().mockResolvedValue([currentSession]),
+      findById: jest.fn().mockResolvedValue(currentSession)
+    } as any
+
+    const handler = new ListSessionsHandler(sessionRepository)
+
+    const result = await handler.execute(new ListSessionsQuery('user-1', 'session-current'))
+
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        terminal: 'PDA',
+        loginFlow: 'EMPLOYEE_CODE_PIN',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-1'
+      })
+    )
   })
 })

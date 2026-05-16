@@ -40,6 +40,18 @@ export class SelectAccountCommand implements ICommand {
   @IsString()
   public readonly terminal?: string
 
+  @IsOptional()
+  @IsString()
+  public readonly terminalDeviceId?: string
+
+  @IsOptional()
+  @IsString()
+  public readonly deviceBoundTenantId?: string
+
+  @IsOptional()
+  @IsString()
+  public readonly loginFlow?: string
+
   constructor(
     userId: string,
     accountId: string,
@@ -51,6 +63,9 @@ export class SelectAccountCommand implements ICommand {
       userAgent?: string
       ipAddress?: string
       terminal?: string
+      terminalDeviceId?: string
+      deviceBoundTenantId?: string
+      loginFlow?: string
     }
   ) {
     this.userId = userId
@@ -62,5 +77,8 @@ export class SelectAccountCommand implements ICommand {
     this.ipAddress = deviceContext?.ipAddress
     this.currentSessionId = deviceContext?.currentSessionId
     this.terminal = deviceContext?.terminal
+    this.terminalDeviceId = deviceContext?.terminalDeviceId
+    this.deviceBoundTenantId = deviceContext?.deviceBoundTenantId
+    this.loginFlow = deviceContext?.loginFlow
   }
 }

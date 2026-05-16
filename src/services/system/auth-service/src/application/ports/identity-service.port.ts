@@ -12,6 +12,8 @@ export interface AccountCandidateSummary {
   displayName?: string
 }
 
+export type PdaAccountCandidateSummary = AccountCandidateSummary
+
 export interface IdentityAccountSummary extends AccountCandidateSummary {
   userId: string
   isEnabled: boolean

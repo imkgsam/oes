@@ -1,5 +1,6 @@
 import { CommandHandler, ICommandHandler } from '@nestjs/cqrs'
 import { Inject } from '@nestjs/common'
+import { TerminalLoginFlow } from '@oes/common/auth'
 import { PhonePasswordLoginRequestDto } from '@oes/common/dtos'
 import { IDENTITY_SERVICE, LoginMethodEnum, LoginMethodType } from '@oes/common/constants'
 import { ExceptionFactory, OESExceptionBase } from '@oes/common/exceptions'
@@ -9,6 +10,11 @@ import {
 } from '../../ports/identity-service.port'
 import { AuthAuditService } from '../../services/auth-audit.service'
 import { LoginRiskThrottleService } from '../../services/login-risk-throttle.service'
+import {
+  PdaPrimaryLoginCompletionResult,
+  PdaPrimaryLoginCompletionService
+} from '../../services/pda-primary-login-completion.service'
+import { TerminalLoginPolicyService } from '../../services/terminal-login-policy.service'
 import { TenantSessionAccessService } from '../../services/tenant-session-access.service'
 import {
   AUTH_LOGIN_TEMPORARILY_LOCKED,
@@ -20,15 +26,19 @@ import { LoginWithPhonePasswordCommand } from './login-with-phone-password.comma
 
 export type LoginWithPhonePasswordNextStep = 'ACCOUNT_SELECTION_REQUIRED' | 'MFA_REQUIRED'
 
-export interface LoginWithPhonePasswordResult {
+export interface LoginWithPhonePasswordAccountSelectionResult {
   userId: string
   method: LoginMethodEnum
-  nextStep: LoginWithPhonePasswordNextStep
+  nextStep: 'ACCOUNT_SELECTION_REQUIRED'
   accounts: AccountCandidateSummary[]
-  challengeId?: string
 }
 
+export type LoginWithPhonePasswordResult =
+  | LoginWithPhonePasswordAccountSelectionResult
+  | PdaPrimaryLoginCompletionResult
+
 @CommandHandler(LoginWithPhonePasswordCommand)
+// Orchestrates phone-password login after enforcing terminal-level login flow policy.
 export class LoginWithPhonePasswordHandler
   implements ICommandHandler<LoginWithPhonePasswordCommand, LoginWithPhonePasswordResult>
 {
@@ -38,10 +48,17 @@ export class LoginWithPhonePasswordHandler
     private readonly loginRiskThrottleService: LoginRiskThrottleService,
     @Inject(IDENTITY_SERVICE)
     private readonly identityService: IIdentityServicePort,
-    private readonly tenantSessionAccessService: TenantSessionAccessService
+    private readonly tenantSessionAccessService: TenantSessionAccessService,
+    private readonly terminalLoginPolicyService: TerminalLoginPolicyService,
+    private readonly pdaPrimaryLoginCompletionService?: PdaPrimaryLoginCompletionService
   ) {}
 
   async execute(command: LoginWithPhonePasswordCommand): Promise<LoginWithPhonePasswordResult> {
+    await this.terminalLoginPolicyService.assertFlowAllowed(
+      command.terminal || 'WEB',
+      TerminalLoginFlow.PhonePassword
+    )
+
     try {
       await this.loginRiskThrottleService.assertPasswordLoginAllowed(
         LoginMethodType.PHONE,
@@ -95,6 +112,19 @@ export class LoginWithPhonePasswordHandler
       command.phone
     )
 
+    if (this.isPdaLogin(command.terminal)) {
+      return this.pdaPrimaryLoginCompletionService!.complete({
+        userId,
+        loginMethod: LoginMethodEnum.PhonePassword,
+        deviceName: command.deviceName,
+        userAgent: command.userAgent,
+        ipAddress: command.ipAddress,
+        terminalDeviceId: command.terminalDeviceId,
+        deviceBoundTenantId: command.deviceBoundTenantId,
+        loginFlow: command.loginFlow
+      })
+    }
+
     const accounts = await this.tenantSessionAccessService.filterActiveAccountCandidates(
       await this.identityService.getAvailableAccountsByUserId(userId)
     )
@@ -116,5 +146,9 @@ export class LoginWithPhonePasswordHandler
 
   private isLoginTemporarilyLockedError(error: unknown): boolean {
     return error instanceof OESExceptionBase && error.getCode() === AUTH_LOGIN_TEMPORARILY_LOCKED.code
+  }
+
+  private isPdaLogin(terminal?: string): boolean {
+    return (terminal || 'WEB').toUpperCase() === 'PDA'
   }
 }

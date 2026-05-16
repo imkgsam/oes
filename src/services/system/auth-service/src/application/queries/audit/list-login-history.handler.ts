@@ -23,7 +23,7 @@ export class ListLoginHistoryHandler
   async execute(query: ListLoginHistoryQuery): Promise<ListLoginHistoryView> {
     const repositoryResult = await this.auditRepository.list({
       operatorId: query.userId,
-      eventTypes: ['LOGIN_SUCCEEDED', 'LOGIN_FAILED'],
+      eventTypes: ['LOGIN_SUCCEEDED', 'LOGIN_FAILED', 'TERMINAL_ACCESS_DENIED'],
       result: this.toAuditResult(query.result),
       occurredAtFrom: query.occurredAtFrom ? new Date(query.occurredAtFrom) : undefined,
       occurredAtTo: query.occurredAtTo ? new Date(query.occurredAtTo) : undefined,

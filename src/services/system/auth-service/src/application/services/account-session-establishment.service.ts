@@ -26,7 +26,10 @@ export interface EstablishAccountSessionInput {
   deviceName?: string
   ipAddress?: string
   loginMethod: LoginMethodEnum
+  loginFlow?: string
   terminal?: string
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
   trustCurrentDevice?: boolean
   userAgent?: string
   userId: string
@@ -46,6 +49,10 @@ export interface EstablishedAccountSession {
   expiresIn: number
   displayName?: string
   passwordSetupRequired: boolean
+  loginMethod?: LoginMethodEnum
+  loginFlow?: string
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
 }
 
 // Establishes one authenticated session for a selected account after login or MFA completion.
@@ -116,6 +123,12 @@ export class AccountSessionEstablishmentService {
       input.loginMethod === LoginMethodEnum.ContextSwitch
         ? (previousSession?.getLoginMethod() as LoginMethodEnum | undefined) ?? input.loginMethod
         : input.loginMethod
+    const sessionLoginFlow =
+      input.loginFlow ??
+      (input.loginMethod === LoginMethodEnum.ContextSwitch
+        ? previousSession?.getLoginFlow()
+        : undefined) ??
+      this.deriveLoginFlow(sessionLoginMethod)
 
     const session = Session.createSession({
       userId: input.userId,
@@ -123,12 +136,18 @@ export class AccountSessionEstablishmentService {
       scopeLevel: input.account.scopeLevel,
       tenantId: input.account.tenantId,
       terminal,
+      loginFlow: sessionLoginFlow,
+      terminalDeviceId: input.terminalDeviceId,
+      deviceBoundTenantId: input.deviceBoundTenantId,
       deviceInfo: this.buildDeviceInfo(input),
       config: sessionConfig,
       metadata: {
         loginMethod: sessionLoginMethod,
+        loginFlow: sessionLoginFlow,
         scopeLevel: input.account.scopeLevel,
-        terminal
+        terminal,
+        terminalDeviceId: input.terminalDeviceId,
+        deviceBoundTenantId: input.deviceBoundTenantId
       }
     })
 
@@ -207,7 +226,11 @@ export class AccountSessionEstablishmentService {
       refreshToken,
       expiresIn: tokenConfig.accessTokenValidity,
       displayName: input.account.displayName,
-      passwordSetupRequired
+      passwordSetupRequired,
+      loginMethod: sessionLoginMethod,
+      loginFlow: session.getLoginFlow(),
+      terminalDeviceId: session.getTerminalDeviceId(),
+      deviceBoundTenantId: session.getDeviceBoundTenantId()
     }
   }
 
@@ -265,5 +288,26 @@ export class AccountSessionEstablishmentService {
       userAgent: input.userAgent,
       ipAddress: input.ipAddress
     })
+  }
+
+  // deriveLoginFlow provides a stable bridge until Task 7 passes terminal-specific PDA login flows explicitly.
+  private deriveLoginFlow(loginMethod: LoginMethodEnum): string {
+    switch (loginMethod) {
+      case LoginMethodEnum.EmailPassword:
+        return 'EMAIL_PASSWORD'
+      case LoginMethodEnum.EmailOtp:
+        return 'EMAIL_OTP'
+      case LoginMethodEnum.PhonePassword:
+        return 'PHONE_PASSWORD'
+      case LoginMethodEnum.PhoneOtp:
+        return 'PHONE_OTP'
+      case LoginMethodEnum.Google:
+        return 'SSO'
+      case LoginMethodEnum.Wechat:
+        return 'SSO'
+      case LoginMethodEnum.ContextSwitch:
+      default:
+        return String(loginMethod)
+    }
   }
 }

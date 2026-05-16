@@ -9,6 +9,10 @@ export interface SessionViewResult {
   userId: string
   accountId: string
   tenantId: string
+  terminal: string
+  loginFlow: string
+  terminalDeviceId: string
+  deviceBoundTenantId: string
   status: string
   loginMethod: string
   deviceId: string
@@ -58,6 +62,10 @@ export class ListSessionsHandler
         userId: session.getUserId(),
         accountId: session.getAccountId(),
         tenantId: session.getTenantId() ?? '',
+        terminal: session.getTerminal(),
+        loginFlow: session.getLoginFlow(),
+        terminalDeviceId: session.getTerminalDeviceId() ?? '',
+        deviceBoundTenantId: session.getDeviceBoundTenantId() ?? '',
         status: String(session.getStatus()),
         loginMethod: session.getLoginMethod(),
         deviceId: session.getDeviceInfo().deviceId,

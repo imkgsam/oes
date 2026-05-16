@@ -103,7 +103,10 @@ export class SelectAccountHandler
       deviceName: command.deviceName,
       userAgent: command.userAgent,
       ipAddress: command.ipAddress,
-      terminal: command.terminal || 'WEB'
+      terminal: command.terminal || 'WEB',
+      terminalDeviceId: command.terminalDeviceId,
+      deviceBoundTenantId: command.deviceBoundTenantId,
+      loginFlow: command.loginFlow
     })
     if (challenge) {
       return {
@@ -135,7 +138,10 @@ export class SelectAccountHandler
       deviceName: command.deviceName,
       userAgent: command.userAgent,
       ipAddress: command.ipAddress,
-      terminal: command.terminal || 'WEB'
+      terminal: command.terminal || 'WEB',
+      terminalDeviceId: command.terminalDeviceId,
+      deviceBoundTenantId: command.deviceBoundTenantId,
+      loginFlow: command.loginFlow
     })
   }
 

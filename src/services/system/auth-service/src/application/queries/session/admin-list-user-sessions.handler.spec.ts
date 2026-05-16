@@ -11,12 +11,21 @@ function createSessionFixture(input: {
   userId: string
   accountId: string
   tenantId: string
+  terminal?: string
+  loginFlow?: string
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
   lastActiveAt: string
 }): Session {
   return Session.fromRedis({
     id: input.id,
     userId: input.userId,
     accountId: input.accountId,
+    tenantId: input.tenantId,
+    terminal: input.terminal,
+    loginFlow: input.loginFlow,
+    terminalDeviceId: input.terminalDeviceId,
+    deviceBoundTenantId: input.deviceBoundTenantId,
     refreshToken: `${input.id}-refresh`,
     status: SessionStatus.ACTIVE,
     deviceInfo: {
@@ -71,6 +80,45 @@ describe('AdminListUserSessionsHandler', () => {
       expect.objectContaining({
         sessionId: 'session-a',
         tenantId: 'tenant-a'
+      })
+    )
+  })
+
+  it('projects terminal-aware session fields for admin display', async () => {
+    const sessionRepository = {
+      findAllByUserId: jest.fn().mockResolvedValue([
+        createSessionFixture({
+          id: 'session-a',
+          userId: 'user-1',
+          accountId: 'account-a',
+          tenantId: 'tenant-a',
+          terminal: 'PDA',
+          loginFlow: 'EMPLOYEE_CODE_PIN',
+          terminalDeviceId: 'terminal-device-1',
+          deviceBoundTenantId: 'tenant-a',
+          lastActiveAt: '2026-04-08T12:00:00.000Z'
+        })
+      ])
+    } as any
+    const handler = new AdminListUserSessionsHandler(
+      sessionRepository,
+      new AuthorizationQueryScopeService([new AdminUserSessionQueryScopeBuilder()])
+    )
+
+    const result = await handler.execute(
+      new AdminListUserSessionsQuery('user-1', {
+        operatorId: 'operator-1',
+        tenantId: 'tenant-a',
+        isSystemScope: false
+      })
+    )
+
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        terminal: 'PDA',
+        loginFlow: 'EMPLOYEE_CODE_PIN',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-a'
       })
     )
   })

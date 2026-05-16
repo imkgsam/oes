@@ -212,4 +212,75 @@ describe('AccountSessionEstablishmentService', () => {
 
     expect(trustedDeviceService.rememberTrustedDevice).not.toHaveBeenCalled()
   })
+
+  it('persists terminal-aware session metadata when establishing a PDA session', async () => {
+    const sessionRepository = {
+      save: jest.fn().mockImplementation(async (session) => session),
+      findById: jest.fn().mockResolvedValue(null)
+    }
+    const service = new AccountSessionEstablishmentService(
+      {
+        getAccountAuthorizationSummary: jest.fn().mockResolvedValue({
+          roleIds: ['role-1']
+        }),
+        resolveAccountTerminalAccess: jest.fn().mockResolvedValue({
+          allowed: true,
+          reasonCode: 'ALLOWED',
+          effectiveAllowedTerminals: ['PDA'],
+          resolutionSource: 'ROLE_UNION',
+          matchedRoleIds: ['role-1']
+        })
+      } as any,
+      {
+        userRequiresPasswordSetup: jest.fn().mockResolvedValue(false)
+      } as any,
+      {
+        signAccessToken: jest.fn().mockReturnValue('access-token'),
+        signRefreshToken: jest.fn().mockReturnValue('refresh-token')
+      } as any,
+      {
+        get: jest.fn().mockReturnValue({
+          accessTokenValidity: 900,
+          refreshTokenValidity: 604800,
+          issuer: '',
+          audience: ''
+        })
+      } as any,
+      sessionRepository as any,
+      {
+        emitLoginSucceeded: jest.fn()
+      } as any,
+      {
+        rememberTrustedDevice: jest.fn()
+      } as any,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
+      } as any
+    )
+
+    await service.establish({
+      userId: 'user-1',
+      account: {
+        accountId: 'account-1',
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        displayName: 'Tenant Account'
+      },
+      loginMethod: LoginMethodEnum.PhonePassword,
+      terminal: 'PDA',
+      terminalDeviceId: 'terminal-device-1',
+      deviceBoundTenantId: 'tenant-1',
+      deviceId: 'pda-browser-1',
+      deviceName: 'Warehouse PDA',
+      userAgent: 'OES-PDA/1.0',
+      ipAddress: '127.0.0.1'
+    } as any)
+
+    const savedSession = sessionRepository.save.mock.calls[0][0]
+    expect(savedSession.getTerminal()).toBe('PDA')
+    expect(savedSession.getLoginFlow()).toBe('PHONE_PASSWORD')
+    expect(savedSession.getTerminalDeviceId()).toBe('terminal-device-1')
+    expect(savedSession.getDeviceBoundTenantId()).toBe('tenant-1')
+  })
 })

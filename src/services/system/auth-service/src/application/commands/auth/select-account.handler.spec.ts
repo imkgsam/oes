@@ -1,6 +1,71 @@
-import { LoginMethodEnum } from '@oes/common/constants'
+import { LoginMethodEnum, MfaType } from '@oes/common/constants'
 import { SelectAccountCommand } from './select-account.command'
 import { SelectAccountHandler } from './select-account.handler'
+import { LoginMfaOrchestrationService } from '../../services/mfa/login-mfa-orchestration.service'
+import { TenantMfaPolicyEntity } from '../../../domain/entities/tenant-mfa-policy.entity'
+
+const createTerminalAwareLoginMfaService = (input: {
+  loginMfaRequired: boolean
+  newDeviceMfaRequired?: boolean
+  terminal?: string
+}) => {
+  const terminalMfaPolicyService = {
+    resolve: jest.fn().mockResolvedValue({
+      terminal: input.terminal ?? 'WEB',
+      tenantId: 'tenant-2',
+      source: input.terminal === 'PDA' && !input.loginMfaRequired ? 'PLATFORM_DEFAULT' : 'TENANT_OVERRIDE',
+      loginMfaRequired: input.loginMfaRequired,
+      newDeviceMfaRequired: input.newDeviceMfaRequired ?? false,
+      allowedFactors: [MfaType.EMAIL_OTP],
+      factorPriority: [MfaType.EMAIL_OTP]
+    })
+  }
+  const service = new LoginMfaOrchestrationService(
+    {
+      getPlatformPolicy: jest.fn(),
+      savePlatformPolicy: jest.fn()
+    } as any,
+    {
+      getTenantPolicy: jest.fn().mockResolvedValue(TenantMfaPolicyEntity.defaults('tenant-2')),
+      saveTenantPolicy: jest.fn()
+    } as any,
+    {
+      listBindings: jest.fn().mockResolvedValue([
+        {
+          bindingId: 'email-binding',
+          type: MfaType.EMAIL_OTP,
+          enabled: true,
+          available: true,
+          destination: 'user@example.com'
+        }
+      ])
+    } as any,
+    {
+      createChallenge: jest.fn()
+    } as any,
+    {
+      createChallenge: jest.fn()
+    } as any,
+    {
+      verifySelectedFactor: jest.fn()
+    } as any,
+    {
+      signAccessToken: jest.fn().mockReturnValue('login-mfa-flow-token')
+    } as any,
+    {
+      isTrustedDevice: jest.fn().mockResolvedValue(false)
+    } as any,
+    {
+      findByUserIdAndType: jest.fn().mockResolvedValue(null)
+    } as any,
+    {
+      userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
+    } as any,
+    terminalMfaPolicyService as any
+  )
+
+  return { service, terminalMfaPolicyService }
+}
 
 describe('SelectAccountHandler', () => {
   const allowPermissionService = () => ({
@@ -244,6 +309,171 @@ describe('SelectAccountHandler', () => {
       allowedTerminals: ['WEB'],
       passwordSetupRequired: false
     })
+  })
+
+  it('returns MFA_REQUIRED for WEB when tenant terminal MFA override requires login MFA', async () => {
+    const { service, terminalMfaPolicyService } = createTerminalAwareLoginMfaService({
+      loginMfaRequired: true,
+      terminal: 'WEB'
+    })
+    const identityService = {
+      getAccountById: jest.fn().mockResolvedValue({
+        accountId: 'account-2',
+        userId: 'user-1',
+        tenantId: 'tenant-2',
+        scopeLevel: 'TENANT',
+        displayName: 'Target Account',
+        isEnabled: true
+      })
+    }
+    const handler = new SelectAccountHandler(
+      identityService as any,
+      {
+        establish: jest.fn()
+      } as any,
+      service,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
+      } as any,
+      allowPermissionService() as any
+    )
+
+    await expect(
+      handler.execute(
+        new SelectAccountCommand('user-1', 'account-2', LoginMethodEnum.EmailPassword, {
+          terminal: 'WEB'
+        })
+      )
+    ).resolves.toEqual(
+      expect.objectContaining({
+        status: 'MFA_REQUIRED',
+        accountId: 'account-2',
+        tenantId: 'tenant-2',
+        terminal: 'WEB',
+        scenario: 'LOGIN',
+        defaultFactor: MfaType.EMAIL_OTP
+      })
+    )
+    expect(terminalMfaPolicyService.resolve).toHaveBeenCalledWith({
+      tenantId: 'tenant-2',
+      terminal: 'WEB'
+    })
+  })
+
+  it('establishes a PDA session when the effective terminal MFA policy does not require login MFA', async () => {
+    const { service, terminalMfaPolicyService } = createTerminalAwareLoginMfaService({
+      loginMfaRequired: false,
+      terminal: 'PDA'
+    })
+    const establish = jest.fn().mockResolvedValue({
+      status: 'SUCCESS',
+      userId: 'user-1',
+      accountId: 'account-2',
+      tenantId: 'tenant-2',
+      scopeLevel: 'TENANT',
+      sessionId: 'session-pda',
+      terminal: 'PDA',
+      allowedTerminals: ['PDA'],
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+      expiresIn: 900,
+      displayName: 'Target Account',
+      passwordSetupRequired: false
+    })
+    const identityService = {
+      getAccountById: jest.fn().mockResolvedValue({
+        accountId: 'account-2',
+        userId: 'user-1',
+        tenantId: 'tenant-2',
+        scopeLevel: 'TENANT',
+        displayName: 'Target Account',
+        isEnabled: true
+      })
+    }
+    const handler = new SelectAccountHandler(
+      identityService as any,
+      { establish } as any,
+      service,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
+      } as any,
+      {
+        resolveAccountTerminalAccess: jest.fn().mockResolvedValue({
+          allowed: true,
+          reasonCode: 'ALLOWED',
+          effectiveAllowedTerminals: ['PDA'],
+          resolutionSource: 'ROLE_UNION',
+          matchedRoleIds: ['role-1']
+        })
+      } as any
+    )
+
+    await expect(
+      handler.execute(
+        new SelectAccountCommand('user-1', 'account-2', LoginMethodEnum.EmailPassword, {
+          terminal: 'PDA'
+        })
+      )
+    ).resolves.toEqual(expect.objectContaining({ status: 'SUCCESS', terminal: 'PDA' }))
+    expect(terminalMfaPolicyService.resolve).toHaveBeenCalledWith({
+      tenantId: 'tenant-2',
+      terminal: 'PDA'
+    })
+    expect(establish).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terminal: 'PDA'
+      })
+    )
+  })
+
+  it('returns MFA_REQUIRED for PDA when tenant terminal MFA override explicitly requires login MFA', async () => {
+    const { service } = createTerminalAwareLoginMfaService({
+      loginMfaRequired: true,
+      terminal: 'PDA'
+    })
+    const identityService = {
+      getAccountById: jest.fn().mockResolvedValue({
+        accountId: 'account-2',
+        userId: 'user-1',
+        tenantId: 'tenant-2',
+        scopeLevel: 'TENANT',
+        displayName: 'Target Account',
+        isEnabled: true
+      })
+    }
+    const handler = new SelectAccountHandler(
+      identityService as any,
+      {
+        establish: jest.fn()
+      } as any,
+      service,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
+      } as any,
+      {
+        resolveAccountTerminalAccess: jest.fn().mockResolvedValue({
+          allowed: true,
+          reasonCode: 'ALLOWED',
+          effectiveAllowedTerminals: ['PDA'],
+          resolutionSource: 'ROLE_UNION',
+          matchedRoleIds: ['role-1']
+        })
+      } as any
+    )
+
+    await expect(
+      handler.execute(
+        new SelectAccountCommand('user-1', 'account-2', LoginMethodEnum.EmailPassword, {
+          terminal: 'PDA'
+        })
+      )
+    ).resolves.toEqual(
+      expect.objectContaining({
+        status: 'MFA_REQUIRED',
+        terminal: 'PDA',
+        scenario: 'LOGIN'
+      })
+    )
   })
 
   it('denies terminal access after tenant lifecycle and before MFA or session creation', async () => {

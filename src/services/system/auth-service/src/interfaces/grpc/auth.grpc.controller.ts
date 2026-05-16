@@ -126,9 +126,25 @@ import {
   SubmitMfaChallengeRequest,
   TenantMfaFactorPolicy,
   TenantMfaScenarioRequirement,
+  TerminalLoginPolicyEntry,
+  TerminalMfaPolicyEntry,
   TrustedDeviceView,
+  GetPlatformDefaultTerminalMfaPolicyRequest,
+  GetPlatformDefaultTerminalMfaPolicyResponse,
   UpdatePlatformMfaPolicyRequest,
   UpdatePlatformMfaPolicyResponse,
+  UpdatePlatformDefaultTerminalMfaPolicyRequest,
+  UpdatePlatformDefaultTerminalMfaPolicyResponse,
+  GetPlatformTerminalLoginPolicyRequest,
+  GetPlatformTerminalLoginPolicyResponse,
+  UpdatePlatformTerminalLoginPolicyRequest,
+  UpdatePlatformTerminalLoginPolicyResponse,
+  GetTenantTerminalMfaPolicyRequest,
+  GetTenantTerminalMfaPolicyResponse,
+  UpdateTenantTerminalMfaPolicyRequest,
+  UpdateTenantTerminalMfaPolicyResponse,
+  HandleTerminalDeviceUnavailableRequest,
+  HandleTerminalDeviceUnavailableResponse,
   UpdateTenantMfaPolicyRequest,
   UpdateTenantMfaPolicyResponse,
   VerifyPasswordRecoveryChallengeRequest,
@@ -145,6 +161,7 @@ import {
   CompletePasswordRecoveryCommand,
   DisableMfaBindingCommand,
   EnableMfaBindingCommand,
+  HandleTerminalDeviceUnavailableCommand,
   InitializeRecoveryCodesCommand,
   InitializeTotpBindingCommand,
   LoginWithEmailPasswordCommand,
@@ -194,12 +211,23 @@ import {
   ListTrustedDevicesQuery,
   ValidateAccessTokenQuery
 } from '../../application/queries'
+import { TerminalLoginFlow } from '@oes/common/auth'
 import {
   AUTH_LOGIN_FLOW_RESULT_UNSUPPORTED,
   AUTH_MFA_TYPE_NOT_SUPPORTED
 } from '../../common/constants/exception-enums'
-import { MfaType } from '../../common/constants'
+import { LoginMethodEnum, MfaType } from '../../common/constants'
 import { AccountInvitationService } from '../../application/services/account-invitation.service'
+import { TerminalLoginPolicyService } from '../../application/services/terminal-login-policy.service'
+import {
+  TerminalMfaPolicyResolution,
+  TerminalMfaPolicyService
+} from '../../application/services/terminal-mfa-policy.service'
+import { TerminalLoginPolicyEntity } from '../../domain/entities/terminal-login-policy.entity'
+import {
+  TerminalMfaPolicyEntity,
+  MfaBindingType as DomainTerminalMfaBindingType
+} from '../../domain/entities/terminal-mfa-policy.entity'
 import { TenantMfaFactor } from '../../domain/entities/tenant-mfa-policy.entity'
 import { AuthGrpcPresenter } from './auth-grpc.presenter'
 import { getOptionalOperatorScope } from './grpc-request-context'
@@ -212,6 +240,8 @@ export class AuthGrpcController implements AuthServiceController {
   constructor(
     private readonly commandBus: ValidatingCommandBus,
     private readonly queryBus: ValidatingQueryBus,
+    private readonly terminalLoginPolicyService?: TerminalLoginPolicyService,
+    private readonly terminalMfaPolicyService?: TerminalMfaPolicyService,
     private readonly accountInvitationService?: AccountInvitationService
   ) {}
 
@@ -562,6 +592,10 @@ export class AuthGrpcController implements AuthServiceController {
         userId: session.userId,
         accountId: session.accountId,
         tenantId: session.tenantId,
+        terminal: session.terminal,
+        terminalDeviceId: session.terminalDeviceId,
+        deviceBoundTenantId: session.deviceBoundTenantId,
+        loginFlow: session.loginFlow,
         status: session.status,
         loginMethod: session.loginMethod,
         deviceId: session.deviceId,
@@ -600,6 +634,10 @@ export class AuthGrpcController implements AuthServiceController {
         userId: session.userId,
         accountId: session.accountId,
         tenantId: session.tenantId,
+        terminal: session.terminal,
+        terminalDeviceId: session.terminalDeviceId,
+        deviceBoundTenantId: session.deviceBoundTenantId,
+        loginFlow: session.loginFlow,
         status: session.status,
         loginMethod: session.loginMethod,
         deviceId: session.deviceId,
@@ -972,7 +1010,10 @@ export class AuthGrpcController implements AuthServiceController {
       allowedTerminals: result.allowedTerminals,
       loginMethod: result.loginMethod,
       accounts: [],
-      passwordSetupRequired: result.passwordSetupRequired
+      passwordSetupRequired: result.passwordSetupRequired,
+      terminalDeviceId: result.terminalDeviceId ?? '',
+      deviceBoundTenantId: result.deviceBoundTenantId ?? '',
+      loginFlow: result.loginFlow ?? ''
     }
   }
 
@@ -1061,7 +1102,10 @@ export class AuthGrpcController implements AuthServiceController {
       terminal: result.terminal,
       allowedTerminals: result.allowedTerminals,
       passwordSetupRequired: result.passwordSetupRequired,
-      roleIds: result.roleIds
+      roleIds: result.roleIds,
+      terminalDeviceId: result.terminalDeviceId ?? '',
+      deviceBoundTenantId: result.deviceBoundTenantId ?? '',
+      loginFlow: result.loginFlow ?? ''
     } as ValidateAccessTokenResponse
   }
 
@@ -1077,7 +1121,10 @@ export class AuthGrpcController implements AuthServiceController {
           deviceName: request.deviceName ?? '',
           userAgent: request.userAgent ?? '',
           ipAddress: request.ipAddress ?? '',
-          terminal: request.terminal ?? 'WEB'
+          terminal: request.terminal ?? 'WEB',
+          terminalDeviceId: request.terminalDeviceId || undefined,
+          deviceBoundTenantId: request.deviceBoundTenantId || undefined,
+          loginFlow: request.loginFlow || undefined
         }
       )
     )
@@ -1108,7 +1155,10 @@ export class AuthGrpcController implements AuthServiceController {
         challengeDestination: result.destination ?? '',
         challengeExpiresAt: result.expiresAt ?? '',
         terminal: result.terminal,
-        allowedTerminals: result.allowedTerminals
+        allowedTerminals: result.allowedTerminals,
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        deviceBoundTenantId: request.deviceBoundTenantId ?? '',
+        loginFlow: request.loginFlow ?? ''
       }
     }
 
@@ -1133,7 +1183,10 @@ export class AuthGrpcController implements AuthServiceController {
       challengeDestination: '',
       challengeExpiresAt: '',
       terminal: result.terminal,
-      allowedTerminals: result.allowedTerminals
+      allowedTerminals: result.allowedTerminals,
+      terminalDeviceId: request.terminalDeviceId ?? '',
+      deviceBoundTenantId: request.deviceBoundTenantId ?? '',
+      loginFlow: request.loginFlow ?? ''
     }
   }
 
@@ -1252,6 +1305,144 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  async getPlatformTerminalLoginPolicy(
+    request: GetPlatformTerminalLoginPolicyRequest
+  ): Promise<GetPlatformTerminalLoginPolicyResponse> {
+    this.getRequiredOperatorId(request)
+    const policies = await this.requireTerminalLoginPolicyService().getPlatformPolicy()
+
+    return {
+      entries: policies.map((policy) => this.toProtoTerminalLoginPolicyEntry(policy))
+    }
+  }
+
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  async updatePlatformTerminalLoginPolicy(
+    request: UpdatePlatformTerminalLoginPolicyRequest
+  ): Promise<UpdatePlatformTerminalLoginPolicyResponse> {
+    const operatorId = this.getRequiredOperatorId(request)
+    const service = this.requireTerminalLoginPolicyService()
+
+    for (const entry of request.entries ?? []) {
+      await service.updatePlatformPolicy({
+        terminal: entry.terminal ?? '',
+        enabledLoginFlows: entry.enabledLoginFlows ?? [],
+        supportedLoginFlows: this.supportedTerminalLoginFlows(entry.terminal ?? ''),
+        updatedBy: request.operatorId || operatorId
+      })
+    }
+
+    const policies = await service.getPlatformPolicy()
+    return {
+      entries: policies.map((policy) => this.toProtoTerminalLoginPolicyEntry(policy))
+    }
+  }
+
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  async getPlatformDefaultTerminalMfaPolicy(
+    request: GetPlatformDefaultTerminalMfaPolicyRequest
+  ): Promise<GetPlatformDefaultTerminalMfaPolicyResponse> {
+    this.getRequiredOperatorId(request)
+    const policies = await this.requireTerminalMfaPolicyService().getPlatformDefaults()
+
+    return {
+      entries: policies.map((policy) => this.toProtoTerminalMfaPolicyEntry(policy, 'PLATFORM_DEFAULT'))
+    }
+  }
+
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  async updatePlatformDefaultTerminalMfaPolicy(
+    request: UpdatePlatformDefaultTerminalMfaPolicyRequest
+  ): Promise<UpdatePlatformDefaultTerminalMfaPolicyResponse> {
+    const operatorId = this.getRequiredOperatorId(request)
+    const service = this.requireTerminalMfaPolicyService()
+
+    for (const entry of request.entries ?? []) {
+      await service.updatePlatformDefault({
+        terminal: entry.terminal ?? '',
+        loginMfaRequired: Boolean(entry.loginMfaRequired),
+        newDeviceMfaRequired: Boolean(entry.newDeviceMfaRequired),
+        allowedFactors: this.toDomainTerminalMfaFactors(entry.allowedFactors),
+        factorPriority: this.toDomainTerminalMfaFactors(entry.factorPriority),
+        updatedBy: request.operatorId || operatorId
+      })
+    }
+
+    const policies = await service.getPlatformDefaults()
+    return {
+      entries: policies.map((policy) => this.toProtoTerminalMfaPolicyEntry(policy, 'PLATFORM_DEFAULT'))
+    }
+  }
+
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  async getTenantTerminalMfaPolicy(
+    request: GetTenantTerminalMfaPolicyRequest
+  ): Promise<GetTenantTerminalMfaPolicyResponse> {
+    this.getRequiredOperatorId(request)
+    const tenantId = request.tenantId ?? ''
+    const policies = await this.requireTerminalMfaPolicyService().getTenantPolicy(tenantId)
+
+    return {
+      tenantId,
+      entries: policies.map((policy) => this.toProtoTerminalMfaPolicyResolution(policy))
+    }
+  }
+
+  @RequireAuthenticatedOperator()
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+  async updateTenantTerminalMfaPolicy(
+    request: UpdateTenantTerminalMfaPolicyRequest
+  ): Promise<UpdateTenantTerminalMfaPolicyResponse> {
+    const operatorId = this.getRequiredOperatorId(request)
+    const tenantId = request.tenantId ?? ''
+    const service = this.requireTerminalMfaPolicyService()
+
+    for (const entry of request.entries ?? []) {
+      await service.updateTenantPolicy({
+        tenantId,
+        terminal: entry.terminal ?? '',
+        loginMfaRequired: Boolean(entry.loginMfaRequired),
+        newDeviceMfaRequired: Boolean(entry.newDeviceMfaRequired),
+        allowedFactors: this.toDomainTerminalMfaFactors(entry.allowedFactors),
+        factorPriority: this.toDomainTerminalMfaFactors(entry.factorPriority),
+        updatedBy: request.operatorId || operatorId
+      })
+    }
+
+    const policies = await service.getTenantPolicy(tenantId)
+    return {
+      tenantId,
+      entries: policies.map((policy) => this.toProtoTerminalMfaPolicyResolution(policy))
+    }
+  }
+
+  @UseGuards(InternalServiceGuard)
+  async handleTerminalDeviceUnavailable(
+    request: HandleTerminalDeviceUnavailableRequest
+  ): Promise<HandleTerminalDeviceUnavailableResponse> {
+    const result = await this.commandBus.execute(
+      new HandleTerminalDeviceUnavailableCommand({
+        tenantId: request.deviceBoundTenantId ?? '',
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        previousStatus: '',
+        newStatus: request.reasonCode || 'UNAVAILABLE',
+        reason: request.reasonCode || undefined
+      })
+    )
+
+    return {
+      handled: true,
+      action: 'SESSIONS_REVOKED',
+      message: `Revoked ${result.revokedCount ?? 0} session(s) for terminal device`
+    }
+  }
+
   async loginWithEmailPassword(
     request: LoginWithEmailPasswordRequest
   ): Promise<LoginWithEmailPasswordResponse> {
@@ -1259,9 +1450,32 @@ export class AuthGrpcController implements AuthServiceController {
       new LoginWithEmailPasswordCommand(request.email ?? '', request.password ?? '', {
         deviceName: request.deviceName ?? '',
         userAgent: request.userAgent ?? '',
-        ipAddress: request.ipAddress ?? ''
+        ipAddress: request.ipAddress ?? '',
+        terminal: request.terminal || undefined,
+        terminalDeviceId: request.terminalDeviceId || undefined,
+        deviceBoundTenantId: request.deviceBoundTenantId || undefined,
+        loginFlow: request.loginFlow || undefined
       })
     )
+
+    if ('status' in result && result.status === 'SUCCESS') {
+      return {
+        status: LoginStatus.LOGIN_STATUS_SUCCESS,
+        userId: result.userId,
+        challengeId: '',
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+        loginMethod: LoginMethodEnum.EmailPassword,
+        accounts: [],
+        passwordSetupRequired: result.passwordSetupRequired,
+        terminal: result.terminal,
+        allowedTerminals: result.allowedTerminals,
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        deviceBoundTenantId: request.deviceBoundTenantId ?? '',
+        loginFlow: request.loginFlow ?? ''
+      }
+    }
 
     if (result.nextStep === 'MFA_REQUIRED') {
       return {
@@ -1273,7 +1487,12 @@ export class AuthGrpcController implements AuthServiceController {
         expiresIn: '0',
         loginMethod: result.method,
         accounts: [],
-        passwordSetupRequired: false
+        passwordSetupRequired: false,
+        terminal: result.terminal ?? request.terminal ?? '',
+        allowedTerminals: result.allowedTerminals ?? [],
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        deviceBoundTenantId: request.deviceBoundTenantId ?? '',
+        loginFlow: request.loginFlow ?? ''
       }
     }
 
@@ -1303,7 +1522,7 @@ export class AuthGrpcController implements AuthServiceController {
     request: RequestEmailOtpLoginChallengeRequest
   ): Promise<RequestEmailOtpLoginChallengeResponse> {
     const result = await this.commandBus.execute(
-      new RequestEmailOtpLoginChallengeCommand(request.email ?? '')
+      new RequestEmailOtpLoginChallengeCommand(request.email ?? '', request.terminal || undefined)
     )
 
     return {
@@ -1362,8 +1581,36 @@ export class AuthGrpcController implements AuthServiceController {
 
   async loginWithEmailOtp(request: LoginWithEmailOtpRequest): Promise<LoginWithEmailOtpResponse> {
     const result = await this.commandBus.execute(
-      new LoginWithEmailOtpCommand(request.email ?? '', request.otp ?? '')
+      new LoginWithEmailOtpCommand(
+        request.email ?? '',
+        request.otp ?? '',
+        {
+          terminal: request.terminal || undefined,
+          terminalDeviceId: request.terminalDeviceId || undefined,
+          deviceBoundTenantId: request.deviceBoundTenantId || undefined,
+          loginFlow: request.loginFlow || undefined
+        }
+      )
     )
+
+    if ('status' in result && result.status === 'SUCCESS') {
+      return {
+        status: LoginStatus.LOGIN_STATUS_SUCCESS,
+        userId: result.userId,
+        challengeId: '',
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+        loginMethod: LoginMethodEnum.EmailOtp,
+        accounts: [],
+        passwordSetupRequired: result.passwordSetupRequired,
+        terminal: result.terminal,
+        allowedTerminals: result.allowedTerminals,
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        deviceBoundTenantId: request.deviceBoundTenantId ?? '',
+        loginFlow: request.loginFlow ?? ''
+      }
+    }
 
     if (result.nextStep === 'MFA_REQUIRED') {
       return {
@@ -1375,7 +1622,12 @@ export class AuthGrpcController implements AuthServiceController {
         expiresIn: '0',
         loginMethod: result.method,
         accounts: [],
-        passwordSetupRequired: false
+        passwordSetupRequired: false,
+        terminal: result.terminal ?? request.terminal ?? '',
+        allowedTerminals: result.allowedTerminals ?? [],
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        deviceBoundTenantId: request.deviceBoundTenantId ?? '',
+        loginFlow: request.loginFlow ?? ''
       }
     }
 
@@ -1408,9 +1660,32 @@ export class AuthGrpcController implements AuthServiceController {
       new LoginWithPhonePasswordCommand(request.phone ?? '', request.password ?? '', {
         deviceName: request.deviceName ?? '',
         userAgent: request.userAgent ?? '',
-        ipAddress: request.ipAddress ?? ''
+        ipAddress: request.ipAddress ?? '',
+        terminal: request.terminal || undefined,
+        terminalDeviceId: request.terminalDeviceId || undefined,
+        deviceBoundTenantId: request.deviceBoundTenantId || undefined,
+        loginFlow: request.loginFlow || undefined
       })
     )
+
+    if ('status' in result && result.status === 'SUCCESS') {
+      return {
+        status: LoginStatus.LOGIN_STATUS_SUCCESS,
+        userId: result.userId,
+        challengeId: '',
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+        loginMethod: LoginMethodEnum.PhonePassword,
+        accounts: [],
+        passwordSetupRequired: result.passwordSetupRequired,
+        terminal: result.terminal,
+        allowedTerminals: result.allowedTerminals,
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        deviceBoundTenantId: request.deviceBoundTenantId ?? '',
+        loginFlow: request.loginFlow ?? ''
+      }
+    }
 
     if (result.nextStep === 'MFA_REQUIRED') {
       return {
@@ -1422,7 +1697,12 @@ export class AuthGrpcController implements AuthServiceController {
         expiresIn: '0',
         loginMethod: result.method,
         accounts: [],
-        passwordSetupRequired: false
+        passwordSetupRequired: false,
+        terminal: result.terminal ?? request.terminal ?? '',
+        allowedTerminals: result.allowedTerminals ?? [],
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        deviceBoundTenantId: request.deviceBoundTenantId ?? '',
+        loginFlow: request.loginFlow ?? ''
       }
     }
 
@@ -1452,7 +1732,7 @@ export class AuthGrpcController implements AuthServiceController {
     request: RequestPhoneOtpLoginChallengeRequest
   ): Promise<RequestPhoneOtpLoginChallengeResponse> {
     const result = await this.commandBus.execute(
-      new RequestPhoneOtpLoginChallengeCommand(request.phone ?? '')
+      new RequestPhoneOtpLoginChallengeCommand(request.phone ?? '', request.terminal || undefined)
     )
 
     return {
@@ -1511,8 +1791,36 @@ export class AuthGrpcController implements AuthServiceController {
 
   async loginWithPhoneOtp(request: LoginWithPhoneOtpRequest): Promise<LoginWithPhoneOtpResponse> {
     const result = await this.commandBus.execute(
-      new LoginWithPhoneOtpCommand(request.phone ?? '', request.otp ?? '')
+      new LoginWithPhoneOtpCommand(
+        request.phone ?? '',
+        request.otp ?? '',
+        {
+          terminal: request.terminal || undefined,
+          terminalDeviceId: request.terminalDeviceId || undefined,
+          deviceBoundTenantId: request.deviceBoundTenantId || undefined,
+          loginFlow: request.loginFlow || undefined
+        }
+      )
     )
+
+    if ('status' in result && result.status === 'SUCCESS') {
+      return {
+        status: LoginStatus.LOGIN_STATUS_SUCCESS,
+        userId: result.userId,
+        challengeId: '',
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+        loginMethod: LoginMethodEnum.PhoneOtp,
+        accounts: [],
+        passwordSetupRequired: result.passwordSetupRequired,
+        terminal: result.terminal,
+        allowedTerminals: result.allowedTerminals,
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        deviceBoundTenantId: request.deviceBoundTenantId ?? '',
+        loginFlow: request.loginFlow ?? ''
+      }
+    }
 
     if (result.nextStep === 'MFA_REQUIRED') {
       return {
@@ -1524,7 +1832,12 @@ export class AuthGrpcController implements AuthServiceController {
         expiresIn: '0',
         loginMethod: result.method,
         accounts: [],
-        passwordSetupRequired: false
+        passwordSetupRequired: false,
+        terminal: result.terminal ?? request.terminal ?? '',
+        allowedTerminals: result.allowedTerminals ?? [],
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        deviceBoundTenantId: request.deviceBoundTenantId ?? '',
+        loginFlow: request.loginFlow ?? ''
       }
     }
 
@@ -1548,6 +1861,87 @@ export class AuthGrpcController implements AuthServiceController {
     }
 
     throw ExceptionFactory.application(AUTH_LOGIN_FLOW_RESULT_UNSUPPORTED)
+  }
+
+  private requireTerminalLoginPolicyService(): TerminalLoginPolicyService {
+    if (!this.terminalLoginPolicyService) {
+      throw new Error('TerminalLoginPolicyService is not configured')
+    }
+
+    return this.terminalLoginPolicyService
+  }
+
+  private requireTerminalMfaPolicyService(): TerminalMfaPolicyService {
+    if (!this.terminalMfaPolicyService) {
+      throw new Error('TerminalMfaPolicyService is not configured')
+    }
+
+    return this.terminalMfaPolicyService
+  }
+
+  private toProtoTerminalLoginPolicyEntry(
+    policy: TerminalLoginPolicyEntity
+  ): TerminalLoginPolicyEntry {
+    return {
+      terminal: policy.terminal,
+      enabledLoginFlows: policy.getEnabledFlows(),
+      supportedLoginFlows: this.supportedTerminalLoginFlows(policy.terminal),
+      updatedAt: '',
+      updatedBy: ''
+    }
+  }
+
+  private supportedTerminalLoginFlows(terminal: string): TerminalLoginFlow[] {
+    switch (terminal.trim().toUpperCase()) {
+      case 'WEB':
+      case 'TENANT_WEB':
+        return [
+          TerminalLoginFlow.EmailPassword,
+          TerminalLoginFlow.EmailOtp,
+          TerminalLoginFlow.PhonePassword,
+          TerminalLoginFlow.PhoneOtp
+        ]
+      case 'PDA':
+        return [TerminalLoginFlow.Password]
+      case 'KIOSK':
+        return []
+      default:
+        return []
+    }
+  }
+
+  private toProtoTerminalMfaPolicyEntry(
+    policy: TerminalMfaPolicyEntity,
+    source: string
+  ): TerminalMfaPolicyEntry {
+    const snapshot = policy.toSnapshot()
+    return {
+      terminal: snapshot.terminal,
+      loginMfaRequired: snapshot.loginMfaRequired,
+      newDeviceMfaRequired: snapshot.newDeviceMfaRequired,
+      allowedFactors: snapshot.allowedFactors.map((factor) => this.toProtoMfaBindingType(factor)),
+      factorPriority: snapshot.factorPriority.map((factor) => this.toProtoMfaBindingType(factor)),
+      source
+    }
+  }
+
+  private toProtoTerminalMfaPolicyResolution(
+    policy: TerminalMfaPolicyResolution
+  ): TerminalMfaPolicyEntry {
+    return {
+      terminal: policy.terminal,
+      loginMfaRequired: policy.loginMfaRequired,
+      newDeviceMfaRequired: policy.newDeviceMfaRequired,
+      allowedFactors: policy.allowedFactors.map((factor) => this.toProtoMfaBindingType(factor)),
+      factorPriority: policy.factorPriority.map((factor) => this.toProtoMfaBindingType(factor)),
+      source: policy.source
+    }
+  }
+
+  private toDomainTerminalMfaFactors(
+    factors: MfaBindingType[] | undefined
+  ): DomainTerminalMfaBindingType[] {
+    return (factors ?? []).map((factor) => this.toDomainMfaType(factor))
   }
 
   private getRequiredOperatorId(rpcData: unknown): string {

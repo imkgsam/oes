@@ -69,7 +69,11 @@ describe('AuthAuditService', () => {
       getAccountId: () => 'account-1',
       getTenantId: () => 'tenant-1',
       getOrgId: () => null,
+      getTerminal: () => 'PDA',
       getLoginMethod: () => 'EMAIL_PASSWORD',
+      getLoginFlow: () => 'EMPLOYEE_CODE_PIN',
+      getTerminalDeviceId: () => 'terminal-device-1',
+      getDeviceBoundTenantId: () => 'tenant-1',
       getDeviceInfo: () => ({
         deviceId: 'device-1',
         deviceName: 'MacBook Pro',
@@ -95,7 +99,11 @@ describe('AuthAuditService', () => {
         details: expect.objectContaining({
           userId: 'user-1',
           accountId: 'account-1',
-          method: 'EMAIL_PASSWORD'
+          method: 'EMAIL_PASSWORD',
+          terminal: 'PDA',
+          loginFlow: 'EMPLOYEE_CODE_PIN',
+          terminalDeviceId: 'terminal-device-1',
+          deviceBoundTenantId: 'tenant-1'
         })
       })
     )
@@ -137,6 +145,41 @@ describe('AuthAuditService', () => {
           ipAddress: '127.0.0.1',
           platform: 'macOS',
           browser: 'Firefox'
+        })
+      })
+    )
+  })
+
+  it('should preserve terminal-device unavailable trace context in cleanup audit events', () => {
+    const eventEmitter = {
+      emit: jest.fn()
+    } as any
+    const service = new AuthAuditService(eventEmitter)
+
+    withMockedActiveSpan(() => {
+      service.emitTerminalDeviceSessionsRevoked({
+        tenantId: 'tenant-1',
+        terminalDeviceId: 'terminal-device-1',
+        previousStatus: 'ACTIVE',
+        newStatus: 'LOST',
+        reason: 'lost device',
+        sessionIds: ['session-1'],
+        traceId: 'trace-terminal-device'
+      })
+    })
+
+    expect(eventEmitter.emit).toHaveBeenCalledWith(
+      'auth.audit',
+      expect.objectContaining({
+        eventType: 'TERMINAL_DEVICE_SESSIONS_REVOKED',
+        trace: {
+          traceId: 'trace-terminal-device',
+          spanId: 'span-auth-audit'
+        },
+        details: expect.objectContaining({
+          terminalDeviceId: 'terminal-device-1',
+          newStatus: 'LOST',
+          sessionIds: ['session-1']
         })
       })
     )

@@ -67,6 +67,19 @@ export interface IUserSessionRepository {
   findActiveByUserId(userId: string): Promise<Session[]>
 
   /**
+   * 查找某个受管终端设备关联的活跃 Session
+   *
+   * 使用场景：
+   * - terminal-device-service 发出设备不可用事实后清理登录态
+   * - 不反查 terminal-device registry
+   * - 仅使用 auth-service 自己持有的 session 元数据
+   *
+   * @param terminalDeviceId 受管终端设备 ID
+   * @returns Promise<Session[]>
+   */
+  findActiveByTerminalDeviceId(terminalDeviceId: string): Promise<Session[]>
+
+  /**
    * 查找当前范围内的所有活跃 Session
    *
    * 使用场景：

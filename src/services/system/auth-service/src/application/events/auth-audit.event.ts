@@ -32,6 +32,7 @@ export type AuthAuditEventType =
   | 'LOGOUT_SUCCEEDED'
   | 'LOGOUT_OTHER_DEVICES_SUCCEEDED'
   | 'LOGOUT_ALL_SUCCEEDED'
+  | 'TERMINAL_DEVICE_SESSIONS_REVOKED'
 
 export type AuthAuditModule = 'auth' | 'session' | 'mfa'
 export type AuthAuditResult = AuditResult

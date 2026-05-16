@@ -215,6 +215,43 @@ model PlatformMfaFactorPolicy {
   @@id([scopeKey, factor])
 }
 
+model TerminalLoginPolicy {
+  id                String   @id @default(uuid())
+  terminal          String   @unique
+  enabledLoginFlows Json
+  updatedBy         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model PlatformTerminalMfaPolicy {
+  id                   String   @id @default(uuid())
+  terminal             String   @unique
+  loginMfaRequired     Boolean  @default(false)
+  newDeviceMfaRequired Boolean  @default(false)
+  allowedFactors       Json
+  factorPriority       Json
+  updatedBy            String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model TenantTerminalMfaPolicy {
+  id                   String   @id @default(uuid())
+  tenantId             String
+  terminal             String
+  loginMfaRequired     Boolean  @default(false)
+  newDeviceMfaRequired Boolean  @default(false)
+  allowedFactors       Json
+  factorPriority       Json
+  updatedBy            String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([tenantId, terminal])
+  @@index([tenantId])
+}
+
 model TrustedDevice {
   id            String   @id @default(uuid())
   userId        String

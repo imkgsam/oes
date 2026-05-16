@@ -2,6 +2,8 @@ export interface LoginHistoryItemView {
   occurredAt: Date
   outcome: 'FAILED' | 'SUCCESS'
   loginMethod?: string
+  terminal?: string
+  loginFlow?: string
   ipAddress?: string
   deviceName?: string
   platform?: string
@@ -26,8 +28,10 @@ export function toLoginHistoryItemView(event: {
 }): LoginHistoryItemView {
   return {
     occurredAt: event.occurredAt,
-    outcome: event.eventType === 'LOGIN_FAILED' ? 'FAILED' : 'SUCCESS',
-    loginMethod: readString(event.details, 'method'),
+    outcome: isFailedLoginHistoryEvent(event.eventType) ? 'FAILED' : 'SUCCESS',
+    loginMethod: readString(event.details, 'method') ?? readString(event.details, 'loginMethod'),
+    terminal: readString(event.details, 'terminal'),
+    loginFlow: readString(event.details, 'loginFlow'),
     ipAddress: readString(event.details, 'ipAddress'),
     deviceName: readString(event.details, 'deviceName'),
     platform: readString(event.details, 'platform'),
@@ -35,6 +39,13 @@ export function toLoginHistoryItemView(event: {
     failureReason: readString(event.details, 'reason'),
     traceId: event.traceId
   }
+}
+
+/**
+ * isFailedLoginHistoryEvent keeps denied login attempts out of the successful login-history bucket.
+ */
+function isFailedLoginHistoryEvent(eventType: string): boolean {
+  return eventType === 'LOGIN_FAILED' || eventType === 'TERMINAL_ACCESS_DENIED'
 }
 
 /**

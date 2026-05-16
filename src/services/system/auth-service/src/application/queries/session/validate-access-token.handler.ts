@@ -20,6 +20,9 @@ export interface ValidateAccessTokenResult {
   allowedTerminals: string[]
   passwordSetupRequired: boolean
   roleIds: string[]
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
+  loginFlow?: string
 }
 
 // Validates an access token against the persisted session truth before gateway requests continue.
@@ -103,7 +106,10 @@ export class ValidateAccessTokenHandler
       terminal: session.getTerminal(),
       allowedTerminals: this.normalizeStringArray(payload.allowedTerminals),
       passwordSetupRequired: Boolean(payload.passwordSetupRequired),
-      roleIds: this.normalizeRoleIds(payload.roles)
+      roleIds: this.normalizeRoleIds(payload.roles),
+      terminalDeviceId: session.getTerminalDeviceId(),
+      deviceBoundTenantId: session.getDeviceBoundTenantId(),
+      loginFlow: session.getLoginFlow()
     }
   }
 

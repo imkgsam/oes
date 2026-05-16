@@ -4,7 +4,10 @@ import {
   REQUIRE_PERMISSIONS_METADATA_KEY
 } from '@oes/common/authorization'
 import {
+  GetPlatformTerminalLoginPolicyResponse,
+  GetTenantTerminalMfaPolicyResponse,
   GetTenantMfaPolicyResponse,
+  HandleTerminalDeviceUnavailableResponse,
   LoginWithEmailPasswordResponse,
   MfaBindingType,
   RequestLoginMfaFactorChallengeResponse,
@@ -12,6 +15,11 @@ import {
   StartStepUpMfaChallengeResponse,
   SubmitMfaChallengeResponse
 } from '@oes/common/generated/auth_service'
+import { TerminalLoginFlow } from '@oes/common/auth'
+import { HandleTerminalDeviceUnavailableCommand } from '../../application/commands/auth'
+import { MfaType } from '../../common/constants'
+import { TerminalLoginPolicyEntity } from '../../domain/entities/terminal-login-policy.entity'
+import { TerminalMfaPolicyEntity } from '../../domain/entities/terminal-mfa-policy.entity'
 import { AuthGrpcController } from './auth.grpc.controller'
 
 describe('AuthGrpcController', () => {
@@ -268,6 +276,118 @@ describe('AuthGrpcController', () => {
     })
   })
 
+  it('should expose terminal-aware fields in self-service session list responses', async () => {
+    const commandBus = {} as ValidatingCommandBus
+    const queryBus = {
+      execute: jest.fn().mockResolvedValue([
+        {
+          sessionId: 'session-1',
+          userId: 'user-1',
+          accountId: 'account-1',
+          tenantId: 'tenant-1',
+          terminal: 'PDA',
+          terminalDeviceId: 'terminal-device-1',
+          deviceBoundTenantId: 'tenant-1',
+          loginFlow: 'EMPLOYEE_CODE_PIN',
+          status: 'ACTIVE',
+          loginMethod: 'phone-password',
+          deviceId: 'device-1',
+          deviceName: 'Warehouse PDA',
+          userAgent: 'OES-PDA/1.0',
+          ipAddress: '127.0.0.1',
+          platform: '',
+          browser: '',
+          createdAt: new Date('2026-04-22T08:00:00.000Z'),
+          lastActiveAt: new Date('2026-04-22T09:00:00.000Z'),
+          expiresAt: new Date('2026-04-22T09:15:00.000Z'),
+          refreshExpiresAt: new Date('2026-04-29T08:00:00.000Z'),
+          accessRemainingSeconds: 900,
+          refreshRemainingSeconds: 604800,
+          sessionAgeSeconds: 3600,
+          idleSeconds: 60,
+          isAccessExpired: false,
+          isRefreshExpired: false,
+          isRevoked: false,
+          isCurrent: true,
+          isAdminControlled: false
+        }
+      ])
+    } as unknown as ValidatingQueryBus
+
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    const response = await controller.listSessions({
+      userId: 'user-1',
+      currentSessionId: 'session-1'
+    } as any)
+
+    expect(response.sessions?.[0]).toEqual(
+      expect.objectContaining({
+        terminal: 'PDA',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-1',
+        loginFlow: 'EMPLOYEE_CODE_PIN'
+      })
+    )
+  })
+
+  it('should expose terminal-aware fields in admin session list responses', async () => {
+    const commandBus = {} as ValidatingCommandBus
+    const queryBus = {
+      execute: jest.fn().mockResolvedValue([
+        {
+          sessionId: 'session-1',
+          userId: 'user-1',
+          accountId: 'account-1',
+          tenantId: 'tenant-1',
+          terminal: 'PDA',
+          terminalDeviceId: 'terminal-device-1',
+          deviceBoundTenantId: 'tenant-1',
+          loginFlow: 'EMPLOYEE_CODE_PIN',
+          status: 'ACTIVE',
+          loginMethod: 'phone-password',
+          deviceId: 'device-1',
+          deviceName: 'Warehouse PDA',
+          userAgent: 'OES-PDA/1.0',
+          ipAddress: '127.0.0.1',
+          platform: '',
+          browser: '',
+          createdAt: new Date('2026-04-22T08:00:00.000Z'),
+          lastActiveAt: new Date('2026-04-22T09:00:00.000Z'),
+          expiresAt: new Date('2026-04-22T09:15:00.000Z'),
+          refreshExpiresAt: new Date('2026-04-29T08:00:00.000Z'),
+          accessRemainingSeconds: 900,
+          refreshRemainingSeconds: 604800,
+          sessionAgeSeconds: 3600,
+          idleSeconds: 60,
+          isAccessExpired: false,
+          isRefreshExpired: false,
+          isRevoked: false,
+          isAdminControlled: false,
+          adminRevokeReason: '',
+          adminRevokeAt: null,
+          adminRevokeBy: ''
+        }
+      ])
+    } as unknown as ValidatingQueryBus
+
+    const controller = new AuthGrpcController(commandBus, queryBus)
+    jest.spyOn(controller as any, 'getRequiredOperatorId').mockReturnValue('operator-1')
+
+    const response = await controller.adminListUserSessions({
+      userId: 'user-1'
+    } as any)
+
+    expect(response.sessions?.[0]).toEqual(
+      expect.objectContaining({
+        terminal: 'PDA',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-1',
+        loginFlow: 'EMPLOYEE_CODE_PIN'
+      })
+    )
+  })
+
   it('should map trusted-device revocation commands without coupling them to session logout', async () => {
     const commandBus = {
       execute: jest
@@ -342,6 +462,152 @@ describe('AuthGrpcController', () => {
     )
   })
 
+  it('should thread terminal from email password login requests into the command', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        userId: 'user-1',
+        method: 'EMAIL_PASSWORD',
+        nextStep: 'ACCOUNT_SELECTION_REQUIRED',
+        accounts: []
+      })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    await controller.loginWithEmailPassword({
+      email: 'alice@example.com',
+      password: 'secret-1',
+      terminal: 'PDA'
+    } as any)
+
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        terminal: 'PDA'
+      })
+    )
+  })
+
+  it('should thread terminal from phone password login requests into the command', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        userId: 'user-1',
+        method: 'PHONE_PASSWORD',
+        nextStep: 'ACCOUNT_SELECTION_REQUIRED',
+        accounts: []
+      })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    await controller.loginWithPhonePassword({
+      phone: '+8613800138000',
+      password: 'secret-1',
+      terminal: 'PDA'
+    } as any)
+
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        terminal: 'PDA'
+      })
+    )
+  })
+
+  it('should thread terminal from email OTP login requests into the command', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        userId: 'user-1',
+        method: 'EMAIL_OTP',
+        nextStep: 'ACCOUNT_SELECTION_REQUIRED',
+        accounts: []
+      })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    await controller.loginWithEmailOtp({
+      email: 'alice@example.com',
+      otp: '123456',
+      terminal: 'PDA'
+    } as any)
+
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        terminal: 'PDA'
+      })
+    )
+  })
+
+  it('should thread terminal from phone OTP login requests into the command', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        userId: 'user-1',
+        method: 'PHONE_OTP',
+        nextStep: 'ACCOUNT_SELECTION_REQUIRED',
+        accounts: []
+      })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    await controller.loginWithPhoneOtp({
+      phone: '+8613800138000',
+      otp: '123456',
+      terminal: 'PDA'
+    } as any)
+
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        terminal: 'PDA'
+      })
+    )
+  })
+
+  it('should thread terminal from email OTP challenge requests into the command', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        challengeId: 'challenge-1',
+        expiresAt: new Date('2026-05-16T00:05:00.000Z'),
+        destination: 'alice@example.com'
+      })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    await controller.requestEmailOtpLoginChallenge({
+      email: 'alice@example.com',
+      terminal: 'PDA'
+    } as any)
+
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        terminal: 'PDA'
+      })
+    )
+  })
+
+  it('should thread terminal from phone OTP challenge requests into the command', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        challengeId: 'challenge-1',
+        expiresAt: new Date('2026-05-16T00:05:00.000Z'),
+        destination: '+8613800138000'
+      })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    await controller.requestPhoneOtpLoginChallenge({
+      phone: '+8613800138000',
+      terminal: 'PDA'
+    } as any)
+
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        terminal: 'PDA'
+      })
+    )
+  })
+
   it('should map validateAccessToken requests into ValidateAccessTokenQuery', async () => {
     const commandBus = {} as ValidatingCommandBus
     const queryBus = {
@@ -377,6 +643,9 @@ describe('AuthGrpcController', () => {
       scopeLevel: 'TENANT',
       terminal: 'WEB',
       allowedTerminals: ['WEB', 'PDA'],
+      terminalDeviceId: '',
+      deviceBoundTenantId: '',
+      loginFlow: '',
       passwordSetupRequired: true,
       roleIds: ['role-1']
     })
@@ -544,6 +813,202 @@ describe('AuthGrpcController', () => {
           priority: 2
         }
       ]
+    })
+  })
+
+  it('should map platform terminal login policy reads and updates through the application service', async () => {
+    const commandBus = {} as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+    const terminalLoginPolicyService = {
+      getPlatformPolicy: jest.fn().mockResolvedValue([
+        new TerminalLoginPolicyEntity('WEB', [TerminalLoginFlow.EmailPassword])
+      ]),
+      updatePlatformPolicy: jest.fn().mockResolvedValue(
+        new TerminalLoginPolicyEntity('WEB', [TerminalLoginFlow.EmailPassword])
+      )
+    }
+    const controller = new AuthGrpcController(
+      commandBus,
+      queryBus,
+      terminalLoginPolicyService as any
+    )
+    jest.spyOn(controller as any, 'getRequiredOperatorId').mockReturnValue('operator-1')
+
+    const getResponse: GetPlatformTerminalLoginPolicyResponse =
+      await controller.getPlatformTerminalLoginPolicy({} as any)
+    expect(getResponse.entries?.[0]).toEqual(
+      expect.objectContaining({
+        terminal: 'WEB',
+        enabledLoginFlows: [TerminalLoginFlow.EmailPassword],
+        supportedLoginFlows: [
+          TerminalLoginFlow.EmailPassword,
+          TerminalLoginFlow.EmailOtp,
+          TerminalLoginFlow.PhonePassword,
+          TerminalLoginFlow.PhoneOtp
+        ]
+      })
+    )
+
+    await controller.updatePlatformTerminalLoginPolicy({
+      entries: [
+        {
+          terminal: 'WEB',
+          enabledLoginFlows: [TerminalLoginFlow.EmailPassword]
+        }
+      ]
+    } as any)
+
+    expect(terminalLoginPolicyService.updatePlatformPolicy).toHaveBeenCalledWith({
+      terminal: 'WEB',
+      enabledLoginFlows: [TerminalLoginFlow.EmailPassword],
+      supportedLoginFlows: [
+        TerminalLoginFlow.EmailPassword,
+        TerminalLoginFlow.EmailOtp,
+        TerminalLoginFlow.PhonePassword,
+        TerminalLoginFlow.PhoneOtp
+      ],
+      updatedBy: 'operator-1'
+    })
+  })
+
+  it('should map terminal MFA platform and tenant policies through the application service', async () => {
+    const commandBus = {} as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+    const terminalMfaPolicyService = {
+      getPlatformDefaults: jest.fn().mockResolvedValue([
+        new TerminalMfaPolicyEntity({
+          terminal: 'WEB',
+          loginMfaRequired: true,
+          newDeviceMfaRequired: false,
+          allowedFactors: [MfaType.TOTP],
+          factorPriority: [MfaType.TOTP]
+        })
+      ]),
+      updatePlatformDefault: jest.fn().mockResolvedValue(undefined),
+      getTenantPolicy: jest.fn().mockResolvedValue([
+        {
+          terminal: 'PDA',
+          tenantId: 'tenant-1',
+          source: 'TENANT_OVERRIDE',
+          loginMfaRequired: false,
+          newDeviceMfaRequired: false,
+          allowedFactors: ['EMAIL_OTP'],
+          factorPriority: ['EMAIL_OTP']
+        }
+      ]),
+      updateTenantPolicy: jest.fn().mockResolvedValue(undefined)
+    }
+    const controller = new AuthGrpcController(
+      commandBus,
+      queryBus,
+      undefined,
+      terminalMfaPolicyService as any
+    )
+    jest.spyOn(controller as any, 'getRequiredOperatorId').mockReturnValue('operator-1')
+
+    const platformResponse = await controller.getPlatformDefaultTerminalMfaPolicy({} as any)
+    expect(platformResponse.entries?.[0]).toEqual({
+      terminal: 'WEB',
+      loginMfaRequired: true,
+      newDeviceMfaRequired: false,
+      allowedFactors: [MfaBindingType.MFA_BINDING_TYPE_TOTP],
+      factorPriority: [MfaBindingType.MFA_BINDING_TYPE_TOTP],
+      source: 'PLATFORM_DEFAULT'
+    })
+
+    await controller.updatePlatformDefaultTerminalMfaPolicy({
+      entries: [
+        {
+          terminal: 'WEB',
+          loginMfaRequired: true,
+          newDeviceMfaRequired: true,
+          allowedFactors: [MfaBindingType.MFA_BINDING_TYPE_TOTP],
+          factorPriority: [MfaBindingType.MFA_BINDING_TYPE_TOTP]
+        }
+      ]
+    } as any)
+    expect(terminalMfaPolicyService.updatePlatformDefault).toHaveBeenCalledWith({
+      terminal: 'WEB',
+      loginMfaRequired: true,
+      newDeviceMfaRequired: true,
+      allowedFactors: ['TOTP'],
+      factorPriority: ['TOTP'],
+      updatedBy: 'operator-1'
+    })
+
+    const tenantResponse: GetTenantTerminalMfaPolicyResponse =
+      await controller.getTenantTerminalMfaPolicy({ tenantId: 'tenant-1' } as any)
+    expect(tenantResponse).toEqual({
+      tenantId: 'tenant-1',
+      entries: [
+        {
+          terminal: 'PDA',
+          loginMfaRequired: false,
+          newDeviceMfaRequired: false,
+          allowedFactors: [MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP],
+          factorPriority: [MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP],
+          source: 'TENANT_OVERRIDE'
+        }
+      ]
+    })
+
+    await controller.updateTenantTerminalMfaPolicy({
+      tenantId: 'tenant-1',
+      entries: [
+        {
+          terminal: 'PDA',
+          loginMfaRequired: false,
+          newDeviceMfaRequired: false,
+          allowedFactors: [MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP],
+          factorPriority: [MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP]
+        }
+      ]
+    } as any)
+    expect(terminalMfaPolicyService.updateTenantPolicy).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      terminal: 'PDA',
+      loginMfaRequired: false,
+      newDeviceMfaRequired: false,
+      allowedFactors: ['EMAIL_OTP'],
+      factorPriority: ['EMAIL_OTP'],
+      updatedBy: 'operator-1'
+    })
+  })
+
+  it('should map terminal-device unavailable RPC requests into the auth cleanup command', async () => {
+    const commandBus = {
+      execute: jest.fn().mockResolvedValue({
+        terminalDeviceId: 'terminal-device-1',
+        revokedSessionIds: ['session-1'],
+        revokedCount: 1
+      })
+    } as unknown as ValidatingCommandBus
+    const queryBus = {} as ValidatingQueryBus
+    const controller = new AuthGrpcController(commandBus, queryBus)
+
+    const response: HandleTerminalDeviceUnavailableResponse =
+      await controller.handleTerminalDeviceUnavailable({
+        terminal: 'PDA',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-1',
+        reasonCode: 'LOST'
+      } as any)
+
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        terminalDeviceId: 'terminal-device-1',
+        newStatus: 'LOST',
+        reason: 'LOST'
+      })
+    )
+    expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toBeInstanceOf(
+      HandleTerminalDeviceUnavailableCommand
+    )
+    expect(response).toEqual({
+      handled: true,
+      action: 'SESSIONS_REVOKED',
+      message: 'Revoked 1 session(s) for terminal device'
     })
   })
 

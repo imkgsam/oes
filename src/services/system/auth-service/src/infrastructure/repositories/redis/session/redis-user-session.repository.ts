@@ -26,6 +26,7 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
   private readonly SESSION_PREFIX = 'session:'
   private readonly USER_SESSIONS_PREFIX = 'user_sessions:'
   private readonly DEVICE_SESSIONS_PREFIX = 'device_sessions:'
+  private readonly TERMINAL_DEVICE_SESSIONS_PREFIX = 'terminal_device_sessions:'
   private readonly IP_SESSIONS_PREFIX = 'ip_sessions:'
   private readonly REFRESH_TOKEN_PREFIX = 'refresh_token:'
   private readonly redis: Redis
@@ -97,6 +98,34 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     for (const sessionId of sessionIds) {
       const session = await this.findById(sessionId)
       if (session && session.isActive()) {
+        sessions.push(session)
+      }
+    }
+
+    return sessions
+  }
+
+  /**
+   * 查找某个受管终端设备关联的活跃 Session，用于设备不可用事件的登录态清理。
+   */
+  async findActiveByTerminalDeviceId(terminalDeviceId: string): Promise<Session[]> {
+    const normalizedTerminalDeviceId = terminalDeviceId.trim()
+    if (!normalizedTerminalDeviceId) {
+      return []
+    }
+
+    const sessionIds = await this.redis.smembers(
+      `${this.TERMINAL_DEVICE_SESSIONS_PREFIX}${normalizedTerminalDeviceId}`
+    )
+    const sessions: Session[] = []
+
+    for (const sessionId of sessionIds) {
+      const session = await this.findById(sessionId)
+      if (
+        session &&
+        session.isActive() &&
+        session.getTerminalDeviceId() === normalizedTerminalDeviceId
+      ) {
         sessions.push(session)
       }
     }
@@ -223,11 +252,12 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
    * @returns Promise<Session>
    */
   async save(session: Session): Promise<Session> {
-    const sessionData = session.toRedis()
+    const sessionData = this.serializeSession(session)
     const sessionKey = `${this.SESSION_PREFIX}${session.getId()}`
     const userId = session.getUserId()
     const deviceId = session.getDeviceInfo().deviceId
     const ipAddress = session.getDeviceInfo().ipAddress
+    const terminalDeviceId = session.getTerminalDeviceId()
     const existingSession = await this.findById(session.getId())
 
     // 使用 Redis 事务确保数据一致性
@@ -238,6 +268,7 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
       const previousRefreshToken = existingSession.getRefreshToken()
       const previousDeviceId = existingSession.getDeviceInfo().deviceId
       const previousIpAddress = existingSession.getDeviceInfo().ipAddress
+      const previousTerminalDeviceId = existingSession.getTerminalDeviceId()
 
       if (previousRefreshToken && previousRefreshToken !== session.getRefreshToken()) {
         multi.del(`${this.REFRESH_TOKEN_PREFIX}${previousRefreshToken}`)
@@ -249,6 +280,13 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
 
       if (previousIpAddress && previousIpAddress !== ipAddress) {
         multi.srem(`${this.IP_SESSIONS_PREFIX}${previousIpAddress}`, session.getId())
+      }
+
+      if (previousTerminalDeviceId && previousTerminalDeviceId !== terminalDeviceId) {
+        multi.srem(
+          `${this.TERMINAL_DEVICE_SESSIONS_PREFIX}${previousTerminalDeviceId}`,
+          session.getId()
+        )
       }
     }
 
@@ -271,9 +309,21 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     // 添加到 IP Session 集合
     multi.sadd(`${this.IP_SESSIONS_PREFIX}${ipAddress}`, session.getId())
 
+    // 添加到受管终端设备 Session 集合
+    if (terminalDeviceId) {
+      multi.sadd(`${this.TERMINAL_DEVICE_SESSIONS_PREFIX}${terminalDeviceId}`, session.getId())
+    }
+
     await multi.exec()
 
     return session
+  }
+
+  /**
+   * serializeSession keeps Redis persistence aligned with the aggregate-owned session metadata shape.
+   */
+  private serializeSession(session: Session): Record<string, any> {
+    return session.toRedis()
   }
 
   // ==================== 删除方法 ====================
@@ -297,6 +347,7 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     const userId = session.getUserId()
     const deviceId = session.getDeviceInfo().deviceId
     const ipAddress = session.getDeviceInfo().ipAddress
+    const terminalDeviceId = session.getTerminalDeviceId()
 
     const multi = this.redis.multi()
 
@@ -310,6 +361,9 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     multi.srem(`${this.USER_SESSIONS_PREFIX}${userId}`, sessionId)
     multi.srem(`${this.DEVICE_SESSIONS_PREFIX}${deviceId}`, sessionId)
     multi.srem(`${this.IP_SESSIONS_PREFIX}${ipAddress}`, sessionId)
+    if (terminalDeviceId) {
+      multi.srem(`${this.TERMINAL_DEVICE_SESSIONS_PREFIX}${terminalDeviceId}`, sessionId)
+    }
 
     await multi.exec()
   }
@@ -333,11 +387,15 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     for (const session of sessions) {
       const deviceId = session.getDeviceInfo().deviceId
       const ipAddress = session.getDeviceInfo().ipAddress
+      const terminalDeviceId = session.getTerminalDeviceId()
 
       multi.del(`${this.SESSION_PREFIX}${session.getId()}`)
       multi.del(`${this.REFRESH_TOKEN_PREFIX}${session.getRefreshToken()}`)
       multi.srem(`${this.DEVICE_SESSIONS_PREFIX}${deviceId}`, session.getId())
       multi.srem(`${this.IP_SESSIONS_PREFIX}${ipAddress}`, session.getId())
+      if (terminalDeviceId) {
+        multi.srem(`${this.TERMINAL_DEVICE_SESSIONS_PREFIX}${terminalDeviceId}`, session.getId())
+      }
     }
 
     multi.del(`${this.USER_SESSIONS_PREFIX}${userId}`)
@@ -404,11 +462,15 @@ export class RedisUserSessionRepository implements IUserSessionRepository {
     for (const session of sessions) {
       const userId = session.getUserId()
       const ipAddress = session.getDeviceInfo().ipAddress
+      const terminalDeviceId = session.getTerminalDeviceId()
 
       multi.del(`${this.SESSION_PREFIX}${session.getId()}`)
       multi.del(`${this.REFRESH_TOKEN_PREFIX}${session.getRefreshToken()}`)
       multi.srem(`${this.USER_SESSIONS_PREFIX}${userId}`, session.getId())
       multi.srem(`${this.IP_SESSIONS_PREFIX}${ipAddress}`, session.getId())
+      if (terminalDeviceId) {
+        multi.srem(`${this.TERMINAL_DEVICE_SESSIONS_PREFIX}${terminalDeviceId}`, session.getId())
+      }
     }
 
     multi.del(`${this.DEVICE_SESSIONS_PREFIX}${deviceId}`)

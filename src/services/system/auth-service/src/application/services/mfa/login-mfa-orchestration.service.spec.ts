@@ -6,6 +6,34 @@ import { TenantMfaPolicyEntity } from '../../../domain/entities/tenant-mfa-polic
 import { LoginMethod } from '../../../domain/aggregates/loginmethod.aggregate'
 import { LoginMfaOrchestrationService } from './login-mfa-orchestration.service'
 
+const terminalMfaRequired = (input?: {
+  loginMfaRequired?: boolean
+  newDeviceMfaRequired?: boolean
+  allowedFactors?: MfaType[]
+  factorPriority?: MfaType[]
+  source?: 'PLATFORM_DEFAULT' | 'TENANT_OVERRIDE'
+}) => ({
+  resolve: jest.fn().mockResolvedValue({
+    terminal: 'WEB',
+    tenantId: 'tenant-1',
+    source: input?.source ?? 'TENANT_OVERRIDE',
+    loginMfaRequired: input?.loginMfaRequired ?? true,
+    newDeviceMfaRequired: input?.newDeviceMfaRequired ?? false,
+    allowedFactors: input?.allowedFactors ?? [
+      MfaType.EMAIL_OTP,
+      MfaType.SMS_OTP,
+      MfaType.TOTP,
+      MfaType.BACKUP_CODE
+    ],
+    factorPriority: input?.factorPriority ?? [
+      MfaType.EMAIL_OTP,
+      MfaType.SMS_OTP,
+      MfaType.TOTP,
+      MfaType.BACKUP_CODE
+    ]
+  })
+})
+
 function createLoginMethodFixture(input: {
   identifier: string
   type: LoginMethodType
@@ -80,7 +108,8 @@ describe('LoginMfaOrchestrationService', () => {
       } as any,
       {
         userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
-      } as any
+      } as any,
+      terminalMfaRequired({ loginMfaRequired: true }) as any
     )
 
     await expect(
@@ -187,7 +216,22 @@ describe('LoginMfaOrchestrationService', () => {
       } as any,
       {
         userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
-      } as any
+      } as any,
+      terminalMfaRequired({
+        loginMfaRequired: true,
+        allowedFactors: [
+          MfaType.TOTP,
+          MfaType.EMAIL_OTP,
+          MfaType.SMS_OTP,
+          MfaType.BACKUP_CODE
+        ],
+        factorPriority: [
+          MfaType.TOTP,
+          MfaType.EMAIL_OTP,
+          MfaType.SMS_OTP,
+          MfaType.BACKUP_CODE
+        ]
+      }) as any
     )
 
     const result = await service.resolveChallengeForSelectedAccount({
@@ -217,10 +261,270 @@ describe('LoginMfaOrchestrationService', () => {
         sub: 'user-1',
         aid: 'account-1',
         tid: 'tenant-1',
+        allowBootstrapOtpFactors: true,
+        policyFamily: 'TERMINAL_MFA',
         scenario: 'LOGIN',
         tokenType: 'mfa_flow'
       }),
       expect.objectContaining({ expiresIn: '10m' })
+    )
+  })
+
+  it('uses terminal MFA tenant override to require WEB login MFA after account selection', async () => {
+    const signAccessToken = jest.fn().mockReturnValue('web-login-mfa-token')
+    const emailChallengeService = {
+      createChallenge: jest.fn().mockResolvedValue({
+        challengeId: 'email-factor-1',
+        destination: 'user@example.com',
+        expiresAt: new Date('2026-04-24T12:00:00.000Z')
+      })
+    }
+    const terminalMfaPolicyService = terminalMfaRequired({
+      loginMfaRequired: true,
+      newDeviceMfaRequired: false,
+      allowedFactors: [MfaType.TOTP],
+      factorPriority: [MfaType.TOTP]
+    })
+    const service = new LoginMfaOrchestrationService(
+      {
+        getPlatformPolicy: jest.fn(),
+        savePlatformPolicy: jest.fn()
+      } as any,
+      {
+        getTenantPolicy: jest.fn().mockResolvedValue(
+          (() => {
+            const policy = TenantMfaPolicyEntity.defaults('tenant-1')
+            policy.setLoginRequired(false)
+            return policy
+          })()
+        ),
+        saveTenantPolicy: jest.fn()
+      } as any,
+      {
+        listBindings: jest.fn().mockResolvedValue([
+          {
+            bindingId: 'totp-binding',
+            type: MfaType.TOTP,
+            enabled: true,
+            available: true,
+            destination: ''
+          },
+          {
+            bindingId: 'email-binding',
+            type: MfaType.EMAIL_OTP,
+            enabled: true,
+            available: true,
+            destination: 'user@example.com'
+          }
+        ])
+      } as any,
+      emailChallengeService as any,
+      {
+        createChallenge: jest.fn()
+      } as any,
+      {
+        verifySelectedFactor: jest.fn()
+      } as any,
+      {
+        signAccessToken,
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-1',
+          aid: 'account-1',
+          tid: 'tenant-1',
+          scopeLevel: 'TENANT',
+          loginMethod: LoginMethodEnum.EmailPassword,
+          policyFamily: 'TERMINAL_MFA',
+          scenario: 'LOGIN',
+          tokenType: 'mfa_flow',
+          terminal: 'WEB'
+        })
+      } as unknown as CommonJwtService,
+      {
+        isTrustedDevice: jest.fn().mockResolvedValue(false)
+      } as any,
+      {
+        findByUserIdAndType: jest.fn().mockResolvedValue(null)
+      } as any,
+      {
+        userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
+      } as any,
+      terminalMfaPolicyService as any
+    )
+
+    await expect(
+      service.resolveChallengeForSelectedAccount({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        loginMethod: LoginMethodEnum.EmailPassword,
+        terminal: 'WEB'
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        challengeId: 'web-login-mfa-token',
+        scenario: 'LOGIN',
+        defaultFactor: MfaType.EMAIL_OTP,
+        availableFactors: [
+          { type: MfaType.EMAIL_OTP, label: '邮箱验证码', priority: 1 },
+          { type: MfaType.TOTP, label: '认证器 App', priority: 3 }
+        ]
+      })
+    )
+    expect(terminalMfaPolicyService.resolve).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      terminal: 'WEB'
+    })
+    expect(signAccessToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        policyFamily: 'TERMINAL_MFA',
+        allowBootstrapOtpFactors: true,
+        scenario: 'LOGIN'
+      }),
+      expect.objectContaining({ expiresIn: '10m' })
+    )
+    await expect(
+      service.requestFactorChallenge('web-login-mfa-token', MfaType.EMAIL_OTP)
+    ).resolves.toEqual({
+      factorChallengeId: 'email-factor-1',
+      destination: 'user@example.com',
+      expiresAt: '2026-04-24T12:00:00.000Z'
+    })
+  })
+
+  it('does not require PDA login MFA when the effective terminal policy default disables it', async () => {
+    const terminalMfaPolicyService = terminalMfaRequired({
+      loginMfaRequired: false,
+      newDeviceMfaRequired: false,
+      source: 'PLATFORM_DEFAULT'
+    })
+    const signAccessToken = jest.fn().mockReturnValue('unexpected-token')
+    const service = new LoginMfaOrchestrationService(
+      {
+        getPlatformPolicy: jest.fn(),
+        savePlatformPolicy: jest.fn()
+      } as any,
+      {
+        getTenantPolicy: jest.fn().mockResolvedValue(
+          (() => {
+            const policy = TenantMfaPolicyEntity.defaults('tenant-1')
+            policy.setLoginRequired(true)
+            return policy
+          })()
+        ),
+        saveTenantPolicy: jest.fn()
+      } as any,
+      {
+        listBindings: jest.fn().mockResolvedValue([])
+      } as any,
+      {
+        createChallenge: jest.fn()
+      } as any,
+      {
+        createChallenge: jest.fn()
+      } as any,
+      {
+        verifySelectedFactor: jest.fn()
+      } as any,
+      {
+        signAccessToken
+      } as unknown as CommonJwtService,
+      {
+        isTrustedDevice: jest.fn().mockResolvedValue(false)
+      } as any,
+      {
+        findByUserIdAndType: jest.fn().mockResolvedValue(null)
+      } as any,
+      {
+        userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
+      } as any,
+      terminalMfaPolicyService as any
+    )
+
+    await expect(
+      service.resolveChallengeForSelectedAccount({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        loginMethod: LoginMethodEnum.EmailPassword,
+        terminal: 'PDA'
+      })
+    ).resolves.toBeNull()
+    expect(terminalMfaPolicyService.resolve).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      terminal: 'PDA'
+    })
+    expect(signAccessToken).not.toHaveBeenCalled()
+  })
+
+  it('uses a stricter PDA tenant override to require login MFA', async () => {
+    const signAccessToken = jest.fn().mockReturnValue('pda-login-mfa-token')
+    const terminalMfaPolicyService = terminalMfaRequired({
+      loginMfaRequired: true,
+      newDeviceMfaRequired: false,
+      allowedFactors: [MfaType.EMAIL_OTP],
+      factorPriority: [MfaType.EMAIL_OTP]
+    })
+    const service = new LoginMfaOrchestrationService(
+      {
+        getPlatformPolicy: jest.fn(),
+        savePlatformPolicy: jest.fn()
+      } as any,
+      {
+        getTenantPolicy: jest.fn().mockResolvedValue(TenantMfaPolicyEntity.defaults('tenant-1')),
+        saveTenantPolicy: jest.fn()
+      } as any,
+      {
+        listBindings: jest.fn().mockResolvedValue([
+          {
+            bindingId: 'email-binding',
+            type: MfaType.EMAIL_OTP,
+            enabled: true,
+            available: true,
+            destination: 'user@example.com'
+          }
+        ])
+      } as any,
+      {
+        createChallenge: jest.fn()
+      } as any,
+      {
+        createChallenge: jest.fn()
+      } as any,
+      {
+        verifySelectedFactor: jest.fn()
+      } as any,
+      {
+        signAccessToken
+      } as unknown as CommonJwtService,
+      {
+        isTrustedDevice: jest.fn().mockResolvedValue(false)
+      } as any,
+      {
+        findByUserIdAndType: jest.fn().mockResolvedValue(null)
+      } as any,
+      {
+        userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
+      } as any,
+      terminalMfaPolicyService as any
+    )
+
+    await expect(
+      service.resolveChallengeForSelectedAccount({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        loginMethod: LoginMethodEnum.EmailPassword,
+        terminal: 'PDA'
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        challengeId: 'pda-login-mfa-token',
+        scenario: 'LOGIN',
+        defaultFactor: MfaType.EMAIL_OTP
+      })
     )
   })
 
@@ -299,7 +603,12 @@ describe('LoginMfaOrchestrationService', () => {
       } as any,
       {
         userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
-      } as any
+      } as any,
+      terminalMfaRequired({
+        loginMfaRequired: true,
+        allowedFactors: [MfaType.EMAIL_OTP, MfaType.TOTP],
+        factorPriority: [MfaType.EMAIL_OTP, MfaType.TOTP]
+      }) as any
     )
 
     const result = await service.resolveChallengeForSelectedAccount({
@@ -378,7 +687,8 @@ describe('LoginMfaOrchestrationService', () => {
       } as any,
       {
         userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
-      } as any
+      } as any,
+      terminalMfaRequired({ loginMfaRequired: true, newDeviceMfaRequired: true }) as any
     )
 
     await expect(
@@ -461,7 +771,13 @@ describe('LoginMfaOrchestrationService', () => {
       } as any,
       {
         userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
-      } as any
+      } as any,
+      terminalMfaRequired({
+        loginMfaRequired: false,
+        newDeviceMfaRequired: true,
+        allowedFactors: [MfaType.EMAIL_OTP, MfaType.TOTP],
+        factorPriority: [MfaType.EMAIL_OTP, MfaType.TOTP]
+      }) as any
     )
 
     const result = await service.resolveChallengeForSelectedAccount({
@@ -561,7 +877,13 @@ describe('LoginMfaOrchestrationService', () => {
       } as any,
       {
         userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
-      } as any
+      } as any,
+      terminalMfaRequired({
+        loginMfaRequired: false,
+        newDeviceMfaRequired: true,
+        allowedFactors: [MfaType.EMAIL_OTP, MfaType.SMS_OTP, MfaType.TOTP],
+        factorPriority: [MfaType.EMAIL_OTP, MfaType.SMS_OTP, MfaType.TOTP]
+      }) as any
     )
 
     try {
@@ -618,7 +940,8 @@ describe('LoginMfaOrchestrationService', () => {
       } as any,
       {
         userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(true)
-      } as any
+      } as any,
+      terminalMfaRequired({ loginMfaRequired: true, newDeviceMfaRequired: true }) as any
     )
 
     await expect(
@@ -723,7 +1046,13 @@ describe('LoginMfaOrchestrationService', () => {
       loginMethodRepository as any,
       {
         userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
-      } as any
+      } as any,
+      terminalMfaRequired({
+        loginMfaRequired: false,
+        newDeviceMfaRequired: true,
+        allowedFactors: [MfaType.EMAIL_OTP, MfaType.SMS_OTP, MfaType.TOTP],
+        factorPriority: [MfaType.EMAIL_OTP, MfaType.SMS_OTP, MfaType.TOTP]
+      }) as any
     )
 
     await expect(
@@ -746,6 +1075,240 @@ describe('LoginMfaOrchestrationService', () => {
         ]
       })
     )
+  })
+
+  it('keeps step-up NEW_DEVICE_LOGIN factor verification on scenario MFA policy even when terminal policy disallows the factor', async () => {
+    const signAccessToken = jest.fn().mockReturnValue('scenario-new-device-token')
+    const emailChallengeService = {
+      createChallenge: jest.fn().mockResolvedValue({
+        challengeId: 'email-factor-1',
+        destination: 'user@example.com',
+        expiresAt: new Date('2026-04-24T12:00:00.000Z')
+      })
+    }
+    const service = new LoginMfaOrchestrationService(
+      {
+        getPlatformPolicy: jest.fn(),
+        savePlatformPolicy: jest.fn()
+      } as any,
+      {
+        getTenantPolicy: jest.fn().mockResolvedValue(
+          (() => {
+            const policy = TenantMfaPolicyEntity.defaults('tenant-1')
+            policy.setScenarioRequired('NEW_DEVICE_LOGIN', true)
+            policy.replaceFactors([
+              { factor: MfaType.EMAIL_OTP, enabled: true, priority: 1 },
+              { factor: MfaType.TOTP, enabled: false, priority: 2 },
+              { factor: MfaType.SMS_OTP, enabled: false, priority: 3 },
+              { factor: MfaType.BACKUP_CODE, enabled: false, priority: 4 }
+            ])
+            return policy
+          })()
+        ),
+        saveTenantPolicy: jest.fn()
+      } as any,
+      {
+        listBindings: jest.fn().mockResolvedValue([
+          {
+            bindingId: 'email-binding',
+            type: MfaType.EMAIL_OTP,
+            enabled: true,
+            available: true,
+            destination: 'user@example.com'
+          },
+          {
+            bindingId: 'totp-binding',
+            type: MfaType.TOTP,
+            enabled: true,
+            available: true,
+            destination: ''
+          }
+        ])
+      } as any,
+      emailChallengeService as any,
+      {
+        createChallenge: jest.fn()
+      } as any,
+      {
+        verifySelectedFactor: jest.fn()
+      } as any,
+      {
+        signAccessToken,
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-1',
+          aid: 'account-1',
+          tid: 'tenant-1',
+          scopeLevel: 'TENANT',
+          scenario: 'NEW_DEVICE_LOGIN',
+          policyFamily: 'SCENARIO_MFA',
+          tokenType: 'mfa_flow'
+        })
+      } as unknown as CommonJwtService,
+      {
+        isTrustedDevice: jest.fn().mockResolvedValue(false)
+      } as any,
+      {
+        findByUserIdAndType: jest.fn().mockResolvedValue(null)
+      } as any,
+      {
+        userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
+      } as any,
+      terminalMfaRequired({
+        loginMfaRequired: false,
+        newDeviceMfaRequired: true,
+        allowedFactors: [MfaType.TOTP],
+        factorPriority: [MfaType.TOTP]
+      }) as any
+    )
+
+    await expect(
+      service.resolveChallengeForAccount({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        scenario: 'NEW_DEVICE_LOGIN'
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        challengeId: 'scenario-new-device-token',
+        scenario: 'NEW_DEVICE_LOGIN',
+        defaultFactor: MfaType.EMAIL_OTP
+      })
+    )
+    expect(signAccessToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowBootstrapOtpFactors: false,
+        scenario: 'NEW_DEVICE_LOGIN',
+        policyFamily: 'SCENARIO_MFA'
+      }),
+      expect.objectContaining({ expiresIn: '10m' })
+    )
+    await expect(
+      service.requestFactorChallenge('scenario-new-device-token', MfaType.EMAIL_OTP)
+    ).resolves.toEqual({
+      factorChallengeId: 'email-factor-1',
+      destination: 'user@example.com',
+      expiresAt: '2026-04-24T12:00:00.000Z'
+    })
+  })
+
+  it('rejects step-up bootstrap email OTP when it was not included in the original scenario MFA factor list', async () => {
+    const loginMethodRepository = {
+      findByUserIdAndType: jest
+        .fn()
+        .mockImplementation(async (_userId: string, type: LoginMethodType) => {
+          if (type === LoginMethodType.EMAIL) {
+            return createLoginMethodFixture({
+              userId: 'user-1',
+              type,
+              identifier: 'user@example.com'
+            })
+          }
+
+          return null
+        })
+    }
+    const service = new LoginMfaOrchestrationService(
+      {
+        getPlatformPolicy: jest.fn(),
+        savePlatformPolicy: jest.fn()
+      } as any,
+      {
+        getTenantPolicy: jest.fn().mockResolvedValue(
+          (() => {
+            const policy = TenantMfaPolicyEntity.defaults('tenant-1')
+            policy.setScenarioRequired('CHANGE_PASSWORD', true)
+            policy.replaceFactors([
+              { factor: MfaType.TOTP, enabled: true, priority: 1 },
+              { factor: MfaType.EMAIL_OTP, enabled: true, priority: 2 },
+              { factor: MfaType.SMS_OTP, enabled: false, priority: 3 },
+              { factor: MfaType.BACKUP_CODE, enabled: false, priority: 4 }
+            ])
+            return policy
+          })()
+        ),
+        saveTenantPolicy: jest.fn()
+      } as any,
+      {
+        listBindings: jest.fn().mockResolvedValue([
+          {
+            bindingId: 'totp-binding',
+            type: MfaType.TOTP,
+            enabled: true,
+            available: true,
+            destination: ''
+          },
+          {
+            bindingId: '',
+            type: MfaType.EMAIL_OTP,
+            enabled: false,
+            available: true,
+            destination: 'user@example.com'
+          }
+        ])
+      } as any,
+      {
+        createChallenge: jest.fn()
+      } as any,
+      {
+        createChallenge: jest.fn()
+      } as any,
+      {
+        verifySelectedFactor: jest.fn()
+      } as any,
+      {
+        signAccessToken: jest.fn().mockReturnValue('step-up-token'),
+        verify: jest.fn().mockReturnValue({
+          sub: 'user-1',
+          aid: 'account-1',
+          tid: 'tenant-1',
+          scopeLevel: 'TENANT',
+          scenario: 'CHANGE_PASSWORD',
+          policyFamily: 'SCENARIO_MFA',
+          tokenType: 'mfa_flow'
+        })
+      } as unknown as CommonJwtService,
+      {
+        isTrustedDevice: jest.fn().mockResolvedValue(false)
+      } as any,
+      loginMethodRepository as any,
+      {
+        userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
+      } as any,
+      terminalMfaRequired() as any
+    )
+
+    await expect(
+      service.resolveChallengeForAccount({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        scenario: 'CHANGE_PASSWORD'
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        challengeId: 'step-up-token',
+        defaultFactor: MfaType.TOTP,
+        availableFactors: [{ type: MfaType.TOTP, label: '认证器 App', priority: 1 }]
+      })
+    )
+    expect((service as any).jwtService.signAccessToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        allowBootstrapOtpFactors: false,
+        policyFamily: 'SCENARIO_MFA',
+        scenario: 'CHANGE_PASSWORD'
+      }),
+      expect.objectContaining({ expiresIn: '10m' })
+    )
+
+    try {
+      await service.requestFactorChallenge('step-up-token', MfaType.EMAIL_OTP)
+      fail('expected requestFactorChallenge to throw AUTH_MFA_FACTOR_UNAVAILABLE')
+    } catch (error) {
+      expect((error as OESExceptionBase).getCode()).toBe('AUTH_MFA_FACTOR_UNAVAILABLE')
+    }
   })
 
   it('requests an sms factor challenge for password login when the phone login method is available but no sms mfa binding exists yet', async () => {
@@ -817,7 +1380,9 @@ describe('LoginMfaOrchestrationService', () => {
           aid: 'account-1',
           tid: 'tenant-1',
           scopeLevel: 'TENANT',
+          allowBootstrapOtpFactors: true,
           loginMethod: LoginMethodEnum.PhonePassword,
+          policyFamily: 'TERMINAL_MFA',
           scenario: 'NEW_DEVICE_LOGIN',
           tokenType: 'mfa_flow'
         })
@@ -828,7 +1393,13 @@ describe('LoginMfaOrchestrationService', () => {
       loginMethodRepository as any,
       {
         userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
-      } as any
+      } as any,
+      terminalMfaRequired({
+        loginMfaRequired: false,
+        newDeviceMfaRequired: true,
+        allowedFactors: [MfaType.SMS_OTP, MfaType.TOTP],
+        factorPriority: [MfaType.SMS_OTP, MfaType.TOTP]
+      }) as any
     )
 
     await expect(
@@ -914,7 +1485,13 @@ describe('LoginMfaOrchestrationService', () => {
       } as any,
       {
         userNeedsInitialPasswordSetup: jest.fn().mockResolvedValue(false)
-      } as any
+      } as any,
+      terminalMfaRequired({
+        loginMfaRequired: false,
+        newDeviceMfaRequired: true,
+        allowedFactors: [MfaType.SMS_OTP, MfaType.TOTP],
+        factorPriority: [MfaType.SMS_OTP, MfaType.TOTP]
+      }) as any
     )
 
     try {

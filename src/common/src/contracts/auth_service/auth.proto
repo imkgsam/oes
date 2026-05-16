@@ -48,6 +48,13 @@ service AuthService {
   rpc UpdateTenantMfaPolicy(UpdateTenantMfaPolicyRequest) returns (UpdateTenantMfaPolicyResponse);
   rpc GetPlatformMfaPolicy(GetPlatformMfaPolicyRequest) returns (GetPlatformMfaPolicyResponse);
   rpc UpdatePlatformMfaPolicy(UpdatePlatformMfaPolicyRequest) returns (UpdatePlatformMfaPolicyResponse);
+  rpc GetPlatformTerminalLoginPolicy(GetPlatformTerminalLoginPolicyRequest) returns (GetPlatformTerminalLoginPolicyResponse);
+  rpc UpdatePlatformTerminalLoginPolicy(UpdatePlatformTerminalLoginPolicyRequest) returns (UpdatePlatformTerminalLoginPolicyResponse);
+  rpc GetPlatformDefaultTerminalMfaPolicy(GetPlatformDefaultTerminalMfaPolicyRequest) returns (GetPlatformDefaultTerminalMfaPolicyResponse);
+  rpc UpdatePlatformDefaultTerminalMfaPolicy(UpdatePlatformDefaultTerminalMfaPolicyRequest) returns (UpdatePlatformDefaultTerminalMfaPolicyResponse);
+  rpc GetTenantTerminalMfaPolicy(GetTenantTerminalMfaPolicyRequest) returns (GetTenantTerminalMfaPolicyResponse);
+  rpc UpdateTenantTerminalMfaPolicy(UpdateTenantTerminalMfaPolicyRequest) returns (UpdateTenantTerminalMfaPolicyResponse);
+  rpc HandleTerminalDeviceUnavailable(HandleTerminalDeviceUnavailableRequest) returns (HandleTerminalDeviceUnavailableResponse);
   rpc ListSessions(ListSessionsRequest) returns (ListSessionsResponse);
   rpc ListTrustedDevices(ListTrustedDevicesRequest) returns (ListTrustedDevicesResponse);
   rpc RevokeTrustedDevice(RevokeTrustedDeviceRequest) returns (RevokeTrustedDeviceResponse);
@@ -70,6 +77,9 @@ message LoginWithEmailPasswordRequest {
   string user_agent = 4;
   string ip_address = 5;
   string terminal = 6;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message EmailPasswordLoginRequest {
@@ -79,14 +89,19 @@ message EmailPasswordLoginRequest {
   string user_agent = 4;
   string ip_address = 5;
   string terminal = 6;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message RequestEmailOtpLoginChallengeRequest {
   string email = 1;
+  string terminal = 3;
 }
 
 message EmailOtpChallengeRequest {
   string email = 1;
+  string terminal = 3;
 }
 
 message RequestEmailBindingChallengeRequest {
@@ -103,12 +118,18 @@ message LoginWithEmailOtpRequest {
   string email = 1;
   string otp = 2;
   string terminal = 3;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message EmailOtpLoginRequest {
   string email = 1;
   string otp = 2;
   string terminal = 3;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message LoginWithPhonePasswordRequest {
@@ -118,6 +139,9 @@ message LoginWithPhonePasswordRequest {
   string user_agent = 4;
   string ip_address = 5;
   string terminal = 6;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message PhonePasswordLoginRequest {
@@ -127,14 +151,19 @@ message PhonePasswordLoginRequest {
   string user_agent = 4;
   string ip_address = 5;
   string terminal = 6;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message RequestPhoneOtpLoginChallengeRequest {
   string phone = 1;
+  string terminal = 3;
 }
 
 message PhoneOtpChallengeRequest {
   string phone = 1;
+  string terminal = 3;
 }
 
 message RequestPhoneBindingChallengeRequest {
@@ -386,12 +415,18 @@ message LoginWithPhoneOtpRequest {
   string phone = 1;
   string otp = 2;
   string terminal = 3;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message PhoneOtpLoginRequest {
   string phone = 1;
   string otp = 2;
   string terminal = 3;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 enum MfaBindingType {
@@ -527,6 +562,9 @@ message SelectAccountRequest {
   string ip_address = 7;
   string current_session_id = 8;
   string terminal = 9;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message SubmitMfaChallengeRequest {
@@ -613,6 +651,9 @@ message RefreshSessionResponse {
   repeated string allowed_terminals = 6;
   string reason_code = 7;
   string message = 8;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message ValidateAccessTokenRequest {
@@ -629,6 +670,9 @@ message ValidateAccessTokenResponse {
   bool password_setup_required = 7;
   string terminal = 8;
   repeated string allowed_terminals = 9;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message ListSessionsRequest {
@@ -663,6 +707,9 @@ message SessionView {
   bool is_refresh_expired = 24;
   bool is_revoked = 25;
   string terminal = 26;
+  string terminal_device_id = 27;
+  string device_bound_tenant_id = 28;
+  string login_flow = 29;
 }
 
 message ListSessionsResponse {
@@ -770,6 +817,9 @@ message AdminSessionView {
   bool is_refresh_expired = 26;
   bool is_revoked = 27;
   string terminal = 28;
+  string terminal_device_id = 29;
+  string device_bound_tenant_id = 30;
+  string login_flow = 31;
 }
 
 message AdminListUserSessionsResponse {
@@ -933,6 +983,89 @@ message SelectAccountResponse {
   repeated string allowed_terminals = 21;
   string reason_code = 22;
   string message = 23;
+  string terminal_device_id = 24;
+  string device_bound_tenant_id = 25;
+  string login_flow = 26;
+}
+
+message TerminalLoginPolicyEntry {
+  string terminal = 1;
+  repeated string enabled_login_flows = 2;
+  repeated string supported_login_flows = 3;
+  string updated_at = 4;
+  string updated_by = 5;
+}
+
+message TerminalMfaPolicyEntry {
+  string terminal = 1;
+  bool login_mfa_required = 2;
+  bool new_device_mfa_required = 3;
+  repeated MfaBindingType allowed_factors = 4;
+  repeated MfaBindingType factor_priority = 5;
+  string source = 6;
+}
+
+message GetPlatformTerminalLoginPolicyRequest {}
+
+message GetPlatformTerminalLoginPolicyResponse {
+  repeated TerminalLoginPolicyEntry entries = 1;
+}
+
+message UpdatePlatformTerminalLoginPolicyRequest {
+  repeated TerminalLoginPolicyEntry entries = 1;
+  string operator_id = 2;
+}
+
+message UpdatePlatformTerminalLoginPolicyResponse {
+  repeated TerminalLoginPolicyEntry entries = 1;
+}
+
+message GetPlatformDefaultTerminalMfaPolicyRequest {}
+
+message GetPlatformDefaultTerminalMfaPolicyResponse {
+  repeated TerminalMfaPolicyEntry entries = 1;
+}
+
+message UpdatePlatformDefaultTerminalMfaPolicyRequest {
+  repeated TerminalMfaPolicyEntry entries = 1;
+  string operator_id = 2;
+}
+
+message UpdatePlatformDefaultTerminalMfaPolicyResponse {
+  repeated TerminalMfaPolicyEntry entries = 1;
+}
+
+message GetTenantTerminalMfaPolicyRequest {
+  string tenant_id = 1;
+}
+
+message GetTenantTerminalMfaPolicyResponse {
+  string tenant_id = 1;
+  repeated TerminalMfaPolicyEntry entries = 2;
+}
+
+message UpdateTenantTerminalMfaPolicyRequest {
+  string tenant_id = 1;
+  repeated TerminalMfaPolicyEntry entries = 2;
+  string operator_id = 3;
+}
+
+message UpdateTenantTerminalMfaPolicyResponse {
+  string tenant_id = 1;
+  repeated TerminalMfaPolicyEntry entries = 2;
+}
+
+message HandleTerminalDeviceUnavailableRequest {
+  string terminal = 1;
+  string terminal_device_id = 2;
+  string device_bound_tenant_id = 3;
+  string reason_code = 4;
+}
+
+message HandleTerminalDeviceUnavailableResponse {
+  bool handled = 1;
+  string action = 2;
+  string message = 3;
 }
 
 message TenantMfaFactorPolicy {
@@ -1018,6 +1151,9 @@ message LoginResponse {
   repeated string allowed_terminals = 11;
   string reason_code = 12;
   string message = 13;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message LoginWithEmailPasswordResponse {
@@ -1034,6 +1170,9 @@ message LoginWithEmailPasswordResponse {
   repeated string allowed_terminals = 11;
   string reason_code = 12;
   string message = 13;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message LoginWithEmailOtpResponse {
@@ -1050,6 +1189,9 @@ message LoginWithEmailOtpResponse {
   repeated string allowed_terminals = 11;
   string reason_code = 12;
   string message = 13;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message LoginWithPhonePasswordResponse {
@@ -1066,6 +1208,9 @@ message LoginWithPhonePasswordResponse {
   repeated string allowed_terminals = 11;
   string reason_code = 12;
   string message = 13;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message LoginWithPhoneOtpResponse {
@@ -1082,6 +1227,9 @@ message LoginWithPhoneOtpResponse {
   repeated string allowed_terminals = 11;
   string reason_code = 12;
   string message = 13;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message SubmitMfaChallengeResponse {
@@ -1098,6 +1246,9 @@ message SubmitMfaChallengeResponse {
   repeated string allowed_terminals = 11;
   string reason_code = 12;
   string message = 13;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
 }
 
 message BootstrapUserLoginMethodsRequest {

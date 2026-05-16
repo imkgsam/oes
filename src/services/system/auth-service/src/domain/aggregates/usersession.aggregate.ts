@@ -26,6 +26,9 @@ type SessionProps = {
   scopeLevel?: 'SYSTEM' | 'TENANT'
   tenantId?: string
   terminal?: string
+  loginFlow?: string
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
   orgId?: string
   refreshToken: string
   status: SessionStatus
@@ -56,6 +59,9 @@ export class Session {
     scopeLevel?: 'SYSTEM' | 'TENANT'
     tenantId?: string
     terminal?: string
+    loginFlow?: string
+    terminalDeviceId?: string
+    deviceBoundTenantId?: string
     orgId?: string
     deviceInfo: DeviceInfo
     config: SessionConfig
@@ -70,6 +76,9 @@ export class Session {
       scopeLevel: params.scopeLevel,
       tenantId: params.tenantId,
       terminal: Session.normalizeTerminal(params.terminal),
+      loginFlow: Session.normalizeLoginFlow(params.loginFlow ?? params.metadata?.loginFlow),
+      terminalDeviceId: Session.normalizeOptionalText(params.terminalDeviceId),
+      deviceBoundTenantId: Session.normalizeOptionalText(params.deviceBoundTenantId),
       orgId: params.orgId,
       refreshToken: randomUUID(),
       status: SessionStatus.ACTIVE,
@@ -91,6 +100,9 @@ export class Session {
       scopeLevel: data.scopeLevel ?? data.metadata?.scopeLevel,
       tenantId: data.tenantId ?? data.metadata?.tenantId,
       terminal: data.terminal ?? data.metadata?.terminal,
+      loginFlow: data.loginFlow ?? data.metadata?.loginFlow ?? data.metadata?.loginMethod,
+      terminalDeviceId: data.terminalDeviceId ?? data.metadata?.terminalDeviceId,
+      deviceBoundTenantId: data.deviceBoundTenantId ?? data.metadata?.deviceBoundTenantId,
       orgId: data.orgId ?? data.metadata?.orgId,
       refreshToken: data.refreshToken,
       status: data.status as SessionStatus,
@@ -134,6 +146,11 @@ export class Session {
     return typeof value === 'string' && value.trim().length > 0 ? value.trim().toUpperCase() : 'WEB'
   }
 
+  // normalizeLoginFlow keeps the stored login flow stable while preserving legacy login-method fallbacks.
+  private static normalizeLoginFlow(value: unknown): string {
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim() : ''
+  }
+
   toRedis(): Record<string, any> {
     return {
       id: this.props.id,
@@ -142,6 +159,9 @@ export class Session {
       scopeLevel: this.props.scopeLevel,
       tenantId: this.props.tenantId,
       terminal: this.props.terminal,
+      loginFlow: this.props.loginFlow,
+      terminalDeviceId: this.props.terminalDeviceId,
+      deviceBoundTenantId: this.props.deviceBoundTenantId,
       orgId: this.props.orgId,
       refreshToken: this.props.refreshToken,
       status: this.props.status,
@@ -311,6 +331,23 @@ export class Session {
 
   getLoginMethod(): string {
     return String(this.props.metadata?.loginMethod ?? '')
+  }
+
+  // Returns the terminal login flow recorded at session establishment for audit and display.
+  getLoginFlow(): string {
+    return Session.normalizeLoginFlow(
+      this.props.loginFlow ?? this.props.metadata?.loginFlow ?? this.props.metadata?.loginMethod
+    )
+  }
+
+  // Returns the terminal-device registry identifier captured at login without querying registry truth.
+  getTerminalDeviceId(): string | undefined {
+    return this.props.terminalDeviceId
+  }
+
+  // Returns the tenant binding captured for a terminal device at login time.
+  getDeviceBoundTenantId(): string | undefined {
+    return this.props.deviceBoundTenantId
   }
 
   isActive(): boolean {

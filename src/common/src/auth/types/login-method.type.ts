@@ -19,3 +19,18 @@ export enum LoginMethodEnum {
   Google = 'google',
   Wechat = 'wechat'
 }
+
+/**
+ * 终端入口登录流程枚举
+ */
+export enum TerminalLoginFlow {
+  EmailPassword = 'EMAIL_PASSWORD',
+  EmailOtp = 'EMAIL_OTP',
+  PhonePassword = 'PHONE_PASSWORD',
+  PhoneOtp = 'PHONE_OTP',
+  Password = 'PASSWORD',
+  EmployeeCodePin = 'EMPLOYEE_CODE_PIN',
+  BadgePin = 'BADGE_PIN',
+  Sso = 'SSO',
+  Passkey = 'PASSKEY'
+}
