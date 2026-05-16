@@ -25,6 +25,10 @@
   - 登录主流程与登录后初始化上下文
 - [pda-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/pda-auth-bff-login.md)
   - PDA 专用登录闭环与 session context 契约
+- [pda-device-management-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/pda-device-management-bff.md)
+  - PDA 设备入网、heartbeat、bootstrap 设备治理与诊断日志契约
+- [admin-terminal-device-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/admin-terminal-device-bff.md)
+  - tenant-web 后台 terminal device enrollment、设备列表/详情、状态操作、版本策略与审计查询契约
 - [kiosk-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/kiosk-auth-bff-login.md)
   - KIOSK 专用登录闭环与 session context 契约
 - [auth-bff-extension-connect.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-extension-connect.md)

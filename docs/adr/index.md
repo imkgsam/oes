@@ -1,6 +1,6 @@
 # OES ADR 索引
 
-更新时间：2026-05-11
+更新时间：2026-05-16
 
 > 涉及 permission-service 的当前服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；ADR 索引只导航历史架构决策。
 
@@ -18,5 +18,7 @@
   - 决定 OES 将“当前主体管理自己”的 self-service 能力与“管理员管理别人”的 admin-management 能力分层建模，禁止继续复用同一条管理员权限门。
 - `0005-terminal-access-policy.md`
   - 决定 OES 的终端准入策略真相归 `permission-service`，由 `auth-service` 在登录 / refresh 链路消费判定，并由 Web / PDA / KIOSK BFF 固定可信 terminal。
+- `0006-terminal-device-service.md`
+  - 决定 OES 新增 `terminal-device-service` 作为企业受管现场交互终端设备治理真相源，承接 PDA 设备入网、生命周期、禁用、运行快照、版本策略与设备治理审计。
 
 若后续涉及 bounded context、共享契约、事件模型、权限语义、租户模型、`src/common` 对外 API 或 AI 工具协议变更，应先在本目录新增 ADR，再进入实现。
