@@ -1,6 +1,4 @@
-import { status as GrpcStatus } from '@grpc/grpc-js'
 import { Controller, Optional } from '@nestjs/common'
-import { RpcException } from '@nestjs/microservices'
 import {
   ActivateEnrollmentRequest,
   ActivateEnrollmentResponse,
@@ -49,15 +47,24 @@ import {
   RevokeEnrollmentCommand,
   RevokeEnrollmentHandler
 } from '../../application/commands/enrollment'
-import { ChangeTerminalDeviceStatusCommand, ChangeTerminalDeviceStatusHandler } from '../../application/commands/device'
+import {
+  ChangeTerminalDeviceStatusCommand,
+  ChangeTerminalDeviceStatusHandler,
+  UpdateTerminalDeviceCommand,
+  UpdateTerminalDeviceHandler
+} from '../../application/commands/device'
 import { RecordHeartbeatCommand, RecordHeartbeatHandler } from '../../application/commands/runtime'
 import { UpsertVersionPolicyCommand, UpsertVersionPolicyHandler } from '../../application/commands/version-policy'
 import {
   GetTerminalDeviceHandler,
   GetTerminalDeviceQuery,
+  ListTerminalDeviceAuditEventsHandler,
+  ListTerminalDeviceAuditEventsQuery,
   ListTerminalDevicesHandler,
   ListTerminalDevicesQuery
 } from '../../application/queries/device'
+import { ListEnrollmentsHandler, ListEnrollmentsQuery } from '../../application/queries/enrollment'
+import { GetRuntimeSnapshotHandler, GetRuntimeSnapshotQuery } from '../../application/queries/runtime'
 import { GetVersionPolicyHandler, GetVersionPolicyQuery } from '../../application/queries/version-policy'
 import { DeviceAccessDecisionService } from '../../application/services'
 import { TerminalDeviceError } from '../../domain/errors/terminal-device.error'
@@ -88,6 +95,10 @@ export class TerminalDeviceGrpcController
     private readonly listTerminalDevicesHandler: ListTerminalDevicesHandler,
     private readonly getTerminalDeviceHandler: GetTerminalDeviceHandler,
     private readonly changeTerminalDeviceStatusHandler: ChangeTerminalDeviceStatusHandler,
+    private readonly updateTerminalDeviceHandler: UpdateTerminalDeviceHandler,
+    private readonly listEnrollmentsHandler: ListEnrollmentsHandler,
+    private readonly listTerminalDeviceAuditEventsHandler: ListTerminalDeviceAuditEventsHandler,
+    private readonly getRuntimeSnapshotHandler: GetRuntimeSnapshotHandler,
     @Optional()
     private readonly revokeEnrollmentHandler?: RevokeEnrollmentHandler
   ) {}
@@ -112,9 +123,19 @@ export class TerminalDeviceGrpcController
     }
   }
 
-  // Rejects enrollment list requests until a backed query contract is implemented.
-  listEnrollments(_request: ListEnrollmentsRequest): ListEnrollmentsResponse {
-    throwUnimplemented('ListEnrollments')
+  // Handles enrollment listing by mapping tenant and lifecycle filters into the application query.
+  async listEnrollments(request: ListEnrollmentsRequest): Promise<ListEnrollmentsResponse> {
+    const result = await this.listEnrollmentsHandler.execute(
+      new ListEnrollmentsQuery({
+        tenantId: request.tenantId ?? '',
+        terminalDeviceType: TerminalDeviceGrpcPresenter.fromOptionalProtoTerminalDeviceType(request.terminalDeviceType),
+        status: TerminalDeviceGrpcPresenter.fromOptionalProtoEnrollmentStatus(request.status),
+        page: request.pagination?.page,
+        pageSize: request.pagination?.pageSize
+      })
+    )
+
+    return TerminalDeviceGrpcPresenter.toListEnrollments(result)
   }
 
   // Handles enrollment revocation by delegating to the existing application command when available.
@@ -218,9 +239,19 @@ export class TerminalDeviceGrpcController
     }
   }
 
-  // Rejects non-lifecycle update requests until a backed command contract is implemented.
-  updateTerminalDevice(_request: UpdateTerminalDeviceRequest): UpdateTerminalDeviceResponse {
-    throwUnimplemented('UpdateTerminalDevice')
+  // Handles non-lifecycle device updates by delegating field ownership to the application command.
+  async updateTerminalDevice(request: UpdateTerminalDeviceRequest): Promise<UpdateTerminalDeviceResponse> {
+    const result = await this.updateTerminalDeviceHandler.execute(
+      new UpdateTerminalDeviceCommand({
+        tenantId: request.tenantId ?? '',
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        displayName: emptyToNull(request.displayName),
+        notes: request.notes ?? null,
+        operatorContext: toOperatorContext(request.operatorContext)
+      })
+    )
+
+    return TerminalDeviceGrpcPresenter.toUpdateTerminalDeviceResult(result)
   }
 
   // Handles lifecycle status changes by delegating transition rules to the application command.
@@ -240,9 +271,20 @@ export class TerminalDeviceGrpcController
     return TerminalDeviceGrpcPresenter.toChangeStatusResult(result)
   }
 
-  // Rejects audit event list requests until a backed query contract is implemented.
-  listTerminalDeviceAuditEvents(_request: ListTerminalDeviceAuditEventsRequest): ListTerminalDeviceAuditEventsResponse {
-    throwUnimplemented('ListTerminalDeviceAuditEvents')
+  // Handles device governance audit listing by mapping tenant scope and pagination into the query handler.
+  async listTerminalDeviceAuditEvents(
+    request: ListTerminalDeviceAuditEventsRequest
+  ): Promise<ListTerminalDeviceAuditEventsResponse> {
+    const result = await this.listTerminalDeviceAuditEventsHandler.execute(
+      new ListTerminalDeviceAuditEventsQuery({
+        tenantId: request.tenantId ?? '',
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        page: request.pagination?.page,
+        pageSize: request.pagination?.pageSize
+      })
+    )
+
+    return TerminalDeviceGrpcPresenter.toListTerminalDeviceAuditEvents(result)
   }
 
   // Handles runtime heartbeat recording by mapping diagnostics into the application command.
@@ -273,9 +315,18 @@ export class TerminalDeviceGrpcController
     return TerminalDeviceGrpcPresenter.toHeartbeatResult(result)
   }
 
-  // Rejects runtime snapshot lookup until a backed query contract is implemented.
-  getRuntimeSnapshot(_request: GetRuntimeSnapshotRequest): GetRuntimeSnapshotResponse {
-    throwUnimplemented('GetRuntimeSnapshot')
+  // Handles current runtime snapshot lookups without treating heartbeat as login truth.
+  async getRuntimeSnapshot(request: GetRuntimeSnapshotRequest): Promise<GetRuntimeSnapshotResponse> {
+    const snapshot = await this.getRuntimeSnapshotHandler.execute(
+      new GetRuntimeSnapshotQuery({
+        tenantId: request.tenantId ?? '',
+        terminalDeviceId: request.terminalDeviceId ?? ''
+      })
+    )
+
+    return {
+      snapshot: TerminalDeviceGrpcPresenter.toRuntimeSnapshot(snapshot)
+    }
   }
 
   // Handles version policy reads by mapping tenant and device type into the application query.
@@ -341,17 +392,4 @@ function toOperatorContext(context?: {
     operatorOrgId: emptyToNull(context?.operatorOrgId),
     traceId: emptyToNull(context?.traceId)
   }
-}
-
-// throwUnimplemented rejects generated-but-not-yet-supported RPCs without returning fake success.
-function throwUnimplemented(methodName: string): never {
-  throw new RpcException({
-    grpcStatus: GrpcStatus.UNIMPLEMENTED,
-    code: 'TERMINAL_DEVICE_RPC_UNIMPLEMENTED',
-    message: `${methodName} is not implemented in this phase`,
-    messageKey: 'terminal_device.rpc.unimplemented',
-    details: {
-      methodName
-    }
-  })
 }

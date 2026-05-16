@@ -5,6 +5,8 @@ import { EnrollmentCommandHandlers } from '../../application/commands/enrollment
 import { RuntimeCommandHandlers } from '../../application/commands/runtime'
 import { VersionPolicyCommandHandlers } from '../../application/commands/version-policy'
 import { DeviceQueryHandlers } from '../../application/queries/device'
+import { EnrollmentQueryHandlers } from '../../application/queries/enrollment'
+import { RuntimeQueryHandlers } from '../../application/queries/runtime'
 import { VersionPolicyQueryHandlers } from '../../application/queries/version-policy'
 import { ApplicationServices } from '../../application/services'
 import { RedisTerminalDeviceUnavailablePublisher } from '../../infrastructure/events'
@@ -61,6 +63,8 @@ import { TerminalDeviceGrpcController } from '../../interfaces/grpc/terminal-dev
     ...RuntimeCommandHandlers,
     ...VersionPolicyCommandHandlers,
     ...DeviceQueryHandlers,
+    ...EnrollmentQueryHandlers,
+    ...RuntimeQueryHandlers,
     ...VersionPolicyQueryHandlers,
     ...ApplicationServices
   ],
@@ -77,6 +81,8 @@ import { TerminalDeviceGrpcController } from '../../interfaces/grpc/terminal-dev
     ...RuntimeCommandHandlers,
     ...VersionPolicyCommandHandlers,
     ...DeviceQueryHandlers,
+    ...EnrollmentQueryHandlers,
+    ...RuntimeQueryHandlers,
     ...VersionPolicyQueryHandlers,
     ...ApplicationServices
   ]

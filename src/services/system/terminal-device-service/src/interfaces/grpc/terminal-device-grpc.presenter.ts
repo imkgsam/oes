@@ -19,8 +19,13 @@ import {
 } from '@oes/common/generated/terminal_device_service'
 import { ActivateEnrollmentResult } from '../../application/commands/enrollment'
 import { RecordHeartbeatResult } from '../../application/commands/runtime'
-import { ChangeTerminalDeviceStatusResult } from '../../application/commands/device'
-import { ListTerminalDevicesResult, TerminalDeviceSummaryProjection } from '../../application/queries/device'
+import { ChangeTerminalDeviceStatusResult, UpdateTerminalDeviceResult } from '../../application/commands/device'
+import {
+  ListTerminalDeviceAuditEventsResult,
+  ListTerminalDevicesResult,
+  TerminalDeviceSummaryProjection
+} from '../../application/queries/device'
+import { ListEnrollmentsResult } from '../../application/queries/enrollment'
 import {
   DeviceAccessDecision,
   DeviceAccessRequestPurpose,
@@ -30,6 +35,7 @@ import { TerminalDeviceEnrollmentEntity } from '../../domain/entities/terminal-d
 import { TerminalDeviceRuntimeSnapshotEntity } from '../../domain/entities/terminal-device-runtime-snapshot.entity'
 import { TerminalDeviceVersionPolicyEntity } from '../../domain/entities/terminal-device-version-policy.entity'
 import { TerminalDeviceEntity } from '../../domain/entities/terminal-device.entity'
+import { TerminalDeviceAuditEventEntity } from '../../domain/entities/terminal-device-audit-event.entity'
 import {
   AppState,
   EnrollmentStatus,
@@ -119,6 +125,25 @@ export class TerminalDeviceGrpcPresenter {
         return 'UNKNOWN'
       default:
         throwInvalidProtoEnum('presenceStatus')
+    }
+  }
+
+  // Converts optional proto enrollment status filters into nullable domain values.
+  static fromOptionalProtoEnrollmentStatus(value?: ProtoEnrollmentStatus): EnrollmentStatus | null {
+    switch (value) {
+      case undefined:
+      case ProtoEnrollmentStatus.ENROLLMENT_STATUS_UNSPECIFIED:
+        return null
+      case ProtoEnrollmentStatus.ENROLLMENT_STATUS_ISSUED:
+        return 'ISSUED'
+      case ProtoEnrollmentStatus.ENROLLMENT_STATUS_USED:
+        return 'USED'
+      case ProtoEnrollmentStatus.ENROLLMENT_STATUS_EXPIRED:
+        return 'EXPIRED'
+      case ProtoEnrollmentStatus.ENROLLMENT_STATUS_REVOKED:
+        return 'REVOKED'
+      default:
+        throwInvalidProtoEnum('enrollmentStatus')
     }
   }
 
@@ -219,6 +244,21 @@ export class TerminalDeviceGrpcPresenter {
       createdBy: input.createdBy ?? '',
       createdAt: toIsoString(input.createdAt),
       notes: input.notes ?? ''
+    }
+  }
+
+  // Presents an enrollment list page without exposing enrollment code secrets.
+  static toListEnrollments(result: ListEnrollmentsResult): {
+    items: TerminalDeviceEnrollment[]
+    pagination: { page: number; pageSize: number; total: number }
+  } {
+    return {
+      items: result.items.map((item) => this.toEnrollment(item)),
+      pagination: {
+        page: result.page,
+        pageSize: result.pageSize,
+        total: result.total
+      }
     }
   }
 
@@ -360,6 +400,21 @@ export class TerminalDeviceGrpcPresenter {
     }
   }
 
+  // Presents a non-lifecycle update command result in the generated gRPC response shape.
+  static toUpdateTerminalDeviceResult(result: UpdateTerminalDeviceResult): {
+    terminalDeviceId: string
+    displayName: string
+    notes: string
+    updatedAt: string
+  } {
+    return {
+      terminalDeviceId: result.terminalDeviceId,
+      displayName: result.displayName,
+      notes: result.notes ?? '',
+      updatedAt: result.updatedAt.toISOString()
+    }
+  }
+
   // Presents terminal device identity signals with sensitive fields masked unless explicitly included.
   static toTerminalDeviceIdentity(device: TerminalDeviceEntity, includeSensitiveIdentity: boolean): TerminalDeviceIdentity {
     return {
@@ -393,6 +448,50 @@ export class TerminalDeviceGrpcPresenter {
       appState: toProtoAppState(snapshot.appState),
       lastReportedAccountId: snapshot.lastReportedAccountId ?? '',
       lastReportedSessionId: snapshot.lastReportedSessionId ?? ''
+    }
+  }
+
+  // Presents a terminal device governance audit page as generated gRPC output.
+  static toListTerminalDeviceAuditEvents(result: ListTerminalDeviceAuditEventsResult): {
+    items: ReturnType<typeof TerminalDeviceGrpcPresenter.toAuditEvent>[]
+    pagination: { page: number; pageSize: number; total: number }
+  } {
+    return {
+      items: result.items.map((item) => this.toAuditEvent(item)),
+      pagination: {
+        page: result.page,
+        pageSize: result.pageSize,
+        total: result.total
+      }
+    }
+  }
+
+  // Presents one governance audit event with JSON payloads serialized for gRPC clients.
+  static toAuditEvent(event: TerminalDeviceAuditEventEntity): {
+    auditEventId: string
+    tenantId: string
+    operatorAccountId: string
+    operatorOrgId: string
+    action: string
+    targetTerminalDeviceId: string
+    beforeJson: string
+    afterJson: string
+    reason: string
+    traceId: string
+    occurredAt: string
+  } {
+    return {
+      auditEventId: event.auditEventId,
+      tenantId: event.tenantId,
+      operatorAccountId: event.operatorAccountId,
+      operatorOrgId: event.operatorOrgId ?? '',
+      action: event.action,
+      targetTerminalDeviceId: event.targetTerminalDeviceId ?? '',
+      beforeJson: event.beforeJson ? JSON.stringify(event.beforeJson) : '',
+      afterJson: event.afterJson ? JSON.stringify(event.afterJson) : '',
+      reason: event.reason ?? '',
+      traceId: event.traceId ?? '',
+      occurredAt: event.occurredAt.toISOString()
     }
   }
 

@@ -6,4 +6,5 @@ export interface TerminalDeviceEnrollmentRepository {
   update(entity: TerminalDeviceEnrollmentEntity): Promise<TerminalDeviceEnrollmentEntity>
   findById(enrollmentId: string): Promise<TerminalDeviceEnrollmentEntity | null>
   findByCodeHash(codeHash: string): Promise<TerminalDeviceEnrollmentEntity | null>
+  listByTenant(tenantId: string): Promise<TerminalDeviceEnrollmentEntity[]>
 }

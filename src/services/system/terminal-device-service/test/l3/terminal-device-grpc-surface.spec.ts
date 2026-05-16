@@ -12,12 +12,17 @@ import {
   TerminalDeviceStatus as ProtoDeviceStatus,
   TerminalDeviceType as ProtoDeviceType
 } from '@oes/common/generated/terminal_device_service'
-import { RpcException } from '@nestjs/microservices'
-import { ChangeTerminalDeviceStatusCommand } from '../../src/application/commands/device'
+import { ChangeTerminalDeviceStatusCommand, UpdateTerminalDeviceCommand } from '../../src/application/commands/device'
 import { ActivateEnrollmentCommand, CreateEnrollmentCommand } from '../../src/application/commands/enrollment'
 import { RecordHeartbeatCommand } from '../../src/application/commands/runtime'
 import { UpsertVersionPolicyCommand } from '../../src/application/commands/version-policy'
-import { GetTerminalDeviceQuery, ListTerminalDevicesQuery } from '../../src/application/queries/device'
+import {
+  GetTerminalDeviceQuery,
+  ListTerminalDeviceAuditEventsQuery,
+  ListTerminalDevicesQuery
+} from '../../src/application/queries/device'
+import { ListEnrollmentsQuery } from '../../src/application/queries/enrollment'
+import { GetRuntimeSnapshotQuery } from '../../src/application/queries/runtime'
 import { GetVersionPolicyQuery } from '../../src/application/queries/version-policy'
 import { DeviceAccessDecisionService } from '../../src/application/services'
 import { TerminalDeviceGrpcController } from '../../src/interfaces/grpc/terminal-device.grpc.controller'
@@ -37,6 +42,10 @@ function buildController(overrides: Partial<ControllerDeps> = {}): {
     listTerminalDevicesHandler: { execute: jest.fn() },
     getTerminalDeviceHandler: { execute: jest.fn() },
     changeTerminalDeviceStatusHandler: { execute: jest.fn() },
+    updateTerminalDeviceHandler: { execute: jest.fn() },
+    listEnrollmentsHandler: { execute: jest.fn() },
+    listTerminalDeviceAuditEventsHandler: { execute: jest.fn() },
+    getRuntimeSnapshotHandler: { execute: jest.fn() },
     ...overrides
   }
 
@@ -51,7 +60,11 @@ function buildController(overrides: Partial<ControllerDeps> = {}): {
       deps.upsertVersionPolicyHandler as never,
       deps.listTerminalDevicesHandler as never,
       deps.getTerminalDeviceHandler as never,
-      deps.changeTerminalDeviceStatusHandler as never
+      deps.changeTerminalDeviceStatusHandler as never,
+      deps.updateTerminalDeviceHandler as never,
+      deps.listEnrollmentsHandler as never,
+      deps.listTerminalDeviceAuditEventsHandler as never,
+      deps.getRuntimeSnapshotHandler as never
     )
   }
 }
@@ -66,6 +79,10 @@ interface ControllerDeps {
   listTerminalDevicesHandler: { execute: jest.Mock }
   getTerminalDeviceHandler: { execute: jest.Mock }
   changeTerminalDeviceStatusHandler: { execute: jest.Mock }
+  updateTerminalDeviceHandler: { execute: jest.Mock }
+  listEnrollmentsHandler: { execute: jest.Mock }
+  listTerminalDeviceAuditEventsHandler: { execute: jest.Mock }
+  getRuntimeSnapshotHandler: { execute: jest.Mock }
 }
 
 describe('terminal-device-service grpc surface L3', () => {
@@ -632,20 +649,175 @@ describe('terminal-device-service grpc surface L3', () => {
     })
   })
 
-  it.each([
-    ['ListEnrollments', () => buildController().controller.listEnrollments({})],
-    ['UpdateTerminalDevice', () => buildController().controller.updateTerminalDevice({})],
-    ['ListTerminalDeviceAuditEvents', () => buildController().controller.listTerminalDeviceAuditEvents({})],
-    ['GetRuntimeSnapshot', () => buildController().controller.getRuntimeSnapshot({})]
-  ])('%s fails explicitly instead of returning fake success', (_methodName, invoke) => {
-    expect(invoke).toThrow(RpcException)
-    try {
-      invoke()
-    } catch (error) {
-      expect((error as RpcException).getError()).toMatchObject({
-        grpcStatus: 12,
-        code: 'TERMINAL_DEVICE_RPC_UNIMPLEMENTED'
+  it('ListEnrollments maps filters and presents paged enrollment summaries', async () => {
+    const { controller, deps } = buildController()
+    deps.listEnrollmentsHandler.execute.mockResolvedValue({
+      items: [
+        {
+          enrollmentId: 'enrollment-1',
+          tenantId: 'tenant-1',
+          terminalDeviceType: 'PDA',
+          displayName: 'Dock PDA',
+          status: 'ISSUED',
+          expectedManufacturerSerial: 'SER-1',
+          expiresAt: new Date('2026-06-01T00:00:00.000Z'),
+          createdBy: 'operator-1',
+          createdAt: new Date('2026-05-16T00:00:00.000Z')
+        }
+      ],
+      page: 2,
+      pageSize: 10,
+      total: 21
+    })
+
+    const response = await controller.listEnrollments({
+      tenantId: 'tenant-1',
+      terminalDeviceType: ProtoDeviceType.TERMINAL_DEVICE_TYPE_PDA,
+      status: ProtoEnrollmentStatus.ENROLLMENT_STATUS_ISSUED,
+      pagination: { page: 2, pageSize: 10 }
+    })
+
+    expect(deps.listEnrollmentsHandler.execute).toHaveBeenCalledWith(expect.any(ListEnrollmentsQuery))
+    expect(deps.listEnrollmentsHandler.execute.mock.calls[0][0]).toMatchObject({
+      tenantId: 'tenant-1',
+      terminalDeviceType: 'PDA',
+      status: 'ISSUED',
+      page: 2,
+      pageSize: 10
+    })
+    expect(response).toEqual({
+      items: [
+        expect.objectContaining({
+          enrollmentId: 'enrollment-1',
+          status: ProtoEnrollmentStatus.ENROLLMENT_STATUS_ISSUED,
+          terminalDeviceType: ProtoDeviceType.TERMINAL_DEVICE_TYPE_PDA
+        })
+      ],
+      pagination: { page: 2, pageSize: 10, total: 21 }
+    })
+  })
+
+  it('UpdateTerminalDevice maps non-lifecycle edits into the command handler', async () => {
+    const { controller, deps } = buildController()
+    deps.updateTerminalDeviceHandler.execute.mockResolvedValue({
+      terminalDeviceId: 'device-1',
+      displayName: 'PDA-Warehouse-01',
+      notes: 'pilot shelf',
+      updatedAt: new Date('2026-05-16T06:00:00.000Z')
+    })
+
+    const response = await controller.updateTerminalDevice({
+      tenantId: 'tenant-1',
+      terminalDeviceId: 'device-1',
+      displayName: 'PDA-Warehouse-01',
+      notes: 'pilot shelf',
+      operatorContext: {
+        operatorAccountId: 'operator-1',
+        traceId: 'trace-1'
+      }
+    })
+
+    expect(deps.updateTerminalDeviceHandler.execute).toHaveBeenCalledWith(expect.any(UpdateTerminalDeviceCommand))
+    expect(deps.updateTerminalDeviceHandler.execute.mock.calls[0][0]).toMatchObject({
+      tenantId: 'tenant-1',
+      terminalDeviceId: 'device-1',
+      displayName: 'PDA-Warehouse-01',
+      notes: 'pilot shelf',
+      operatorContext: {
+        operatorAccountId: 'operator-1',
+        traceId: 'trace-1'
+      }
+    })
+    expect(response).toEqual({
+      terminalDeviceId: 'device-1',
+      displayName: 'PDA-Warehouse-01',
+      notes: 'pilot shelf',
+      updatedAt: '2026-05-16T06:00:00.000Z'
+    })
+  })
+
+  it('ListTerminalDeviceAuditEvents maps tenant pagination and serializes audit JSON payloads', async () => {
+    const { controller, deps } = buildController()
+    deps.listTerminalDeviceAuditEventsHandler.execute.mockResolvedValue({
+      items: [
+        {
+          auditEventId: 'audit-1',
+          tenantId: 'tenant-1',
+          operatorAccountId: 'operator-1',
+          operatorOrgId: null,
+          action: 'STATUS_CHANGED',
+          targetTerminalDeviceId: 'device-1',
+          beforeJson: { status: 'ACTIVE' },
+          afterJson: { status: 'DISABLED' },
+          reason: 'lost',
+          traceId: 'trace-1',
+          occurredAt: new Date('2026-05-16T07:00:00.000Z')
+        }
+      ],
+      page: 1,
+      pageSize: 20,
+      total: 1
+    })
+
+    const response = await controller.listTerminalDeviceAuditEvents({
+      tenantId: 'tenant-1',
+      terminalDeviceId: 'device-1',
+      pagination: { page: 1, pageSize: 20 }
+    })
+
+    expect(deps.listTerminalDeviceAuditEventsHandler.execute).toHaveBeenCalledWith(
+      expect.any(ListTerminalDeviceAuditEventsQuery)
+    )
+    expect(response).toEqual({
+      items: [
+        expect.objectContaining({
+          auditEventId: 'audit-1',
+          beforeJson: '{"status":"ACTIVE"}',
+          afterJson: '{"status":"DISABLED"}',
+          occurredAt: '2026-05-16T07:00:00.000Z'
+        })
+      ],
+      pagination: { page: 1, pageSize: 20, total: 1 }
+    })
+  })
+
+  it('GetRuntimeSnapshot maps tenant-scoped runtime snapshot reads', async () => {
+    const { controller, deps } = buildController()
+    deps.getRuntimeSnapshotHandler.execute.mockResolvedValue({
+      terminalDeviceId: 'device-1',
+      tenantId: 'tenant-1',
+      presenceStatus: 'ONLINE',
+      lastHeartbeatAt: new Date('2026-05-16T08:00:00.000Z'),
+      lastClientTime: null,
+      appVersion: '2.0.0',
+      androidVersion: '9',
+      webViewVersion: '66.0.3359.158',
+      networkStatus: 'ONLINE',
+      networkType: 'WIFI',
+      batteryLevel: 72,
+      appState: 'FOREGROUND',
+      lastReportedAccountId: 'account-1',
+      lastReportedSessionId: 'session-1'
+    })
+
+    const response = await controller.getRuntimeSnapshot({
+      tenantId: 'tenant-1',
+      terminalDeviceId: 'device-1'
+    })
+
+    expect(deps.getRuntimeSnapshotHandler.execute).toHaveBeenCalledWith(expect.any(GetRuntimeSnapshotQuery))
+    expect(deps.getRuntimeSnapshotHandler.execute.mock.calls[0][0]).toMatchObject({
+      tenantId: 'tenant-1',
+      terminalDeviceId: 'device-1'
+    })
+    expect(response.snapshot).toEqual(
+      expect.objectContaining({
+        terminalDeviceId: 'device-1',
+        presenceStatus: ProtoPresenceStatus.PRESENCE_STATUS_ONLINE,
+        appVersion: '2.0.0',
+        networkStatus: ProtoNetworkStatus.NETWORK_STATUS_ONLINE,
+        appState: ProtoAppState.APP_STATE_FOREGROUND
       })
-    }
+    )
   })
 })

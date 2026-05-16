@@ -45,4 +45,9 @@ export class InMemoryTerminalDeviceEnrollmentRepository implements TerminalDevic
     const enrollmentId = this.store.enrollmentIdsByCodeHash.get(codeHash)
     return enrollmentId ? this.findById(enrollmentId) : null
   }
+
+  // Lists enrollment entities owned by one tenant in creation order.
+  async listByTenant(tenantId: string): Promise<TerminalDeviceEnrollmentEntity[]> {
+    return [...this.store.enrollments.values()].filter((enrollment) => enrollment.tenantId === tenantId)
+  }
 }
