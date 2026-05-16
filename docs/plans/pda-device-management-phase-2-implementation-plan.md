@@ -189,7 +189,7 @@ Expected: command exits 0. If generated files are required by the repo pattern, 
 - Create: `src/services/system/terminal-device-service/test/**`
 - Modify: root workspace config if new service packages require registration
 
-- [ ] **Step 1: Scaffold service with standard layers**
+- [x] **Step 1: Scaffold service with standard layers**
 
 Create:
 
@@ -201,7 +201,7 @@ Create:
 
 Each new class/function must include a one-sentence summary comment.
 
-- [ ] **Step 2: Add Prisma models**
+- [x] **Step 2: Add Prisma models**
 
 Add models:
 
@@ -220,7 +220,7 @@ Required invariants:
 - Runtime snapshot is one current snapshot per terminal device.
 - Version policy is unique by `tenantId + terminalDeviceType`.
 
-- [ ] **Step 3: Add domain entities and repository ports**
+- [x] **Step 3: Add domain entities and repository ports**
 
 Create focused domain files for:
 
@@ -232,11 +232,11 @@ Create focused domain files for:
 
 Repository ports must be in `domain/repositories`, not in controllers.
 
-- [ ] **Step 4: Add module wiring**
+- [x] **Step 4: Add module wiring**
 
 Wire Nest modules following nearby system service conventions.
 
-- [ ] **Step 5: Add baseline tests**
+- [x] **Step 5: Add baseline tests**
 
 Create tests that instantiate the module and verify repository in-memory adapters can create an enrollment and device.
 

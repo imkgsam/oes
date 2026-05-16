@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model TerminalDevice {
+  terminalDeviceId     String               @id @default(uuid())
+  tenantId             String
+  terminalDeviceType   TerminalDeviceType
+  displayName          String
+  status               TerminalDeviceStatus
+  statusReason         String?
+  enrollmentId         String?              @unique
+  manufacturerSerial   String?
+  androidId            String?
+  appInstallationId    String?
+  manufacturer         String?
+  model                String?
+  androidVersion       String?
+  registeredAt         DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  notes                String?
+  enrollment           TerminalDeviceEnrollment? @relation(fields: [enrollmentId], references: [enrollmentId])
+  runtimeSnapshot      TerminalDeviceRuntimeSnapshot?
+  auditEvents          TerminalDeviceAuditEvent[]
+
+  @@index([tenantId, terminalDeviceType, status])
+  @@index([tenantId, manufacturerSerial])
+}
+
+model TerminalDeviceEnrollment {
+  enrollmentId                 String           @id @default(uuid())
+  tenantId                     String
+  terminalDeviceType           TerminalDeviceType
+  displayName                  String
+  codeHash                     String           @unique
+  status                       EnrollmentStatus
+  expectedManufacturerSerial   String?
+  expiresAt                    DateTime
+  usedAt                       DateTime?
+  usedByTerminalDeviceId       String?
+  revokedAt                    DateTime?
+  revokedBy                    String?
+  createdBy                    String
+  createdAt                    DateTime         @default(now())
+  notes                        String?
+  device                       TerminalDevice?
+
+  @@index([tenantId, terminalDeviceType, status])
+}
+
+model TerminalDeviceRuntimeSnapshot {
+  terminalDeviceId           String         @id
+  tenantId                   String
+  presenceStatus             PresenceStatus
+  lastHeartbeatAt            DateTime
+  lastClientTime             DateTime?
+  appVersion                 String?
+  androidVersion             String?
+  webViewVersion             String?
+  networkStatus              NetworkStatus
+  networkType                NetworkType
+  batteryLevel               Int?
+  appState                   AppState
+  lastReportedAccountId      String?
+  lastReportedSessionId      String?
+  updatedAt                  DateTime       @updatedAt
+  device                     TerminalDevice @relation(fields: [terminalDeviceId], references: [terminalDeviceId])
+
+  @@index([tenantId, presenceStatus])
+}
+
+model TerminalDeviceVersionPolicy {
+  versionPolicyId            String             @id @default(uuid())
+  tenantId                   String
+  terminalDeviceType         TerminalDeviceType
+  minSupportedAppVersion     String
+  latestAppVersion           String
+  upgradeRequired            Boolean
+  upgradeRecommended         Boolean
+  apkDownloadUrl             String?
+  releaseNotesUrl            String?
+  updatedBy                  String
+  updatedAt                  DateTime           @updatedAt
+  createdAt                  DateTime           @default(now())
+
+  @@unique([tenantId, terminalDeviceType])
+}
+
+model TerminalDeviceAuditEvent {
+  auditEventId             String          @id @default(uuid())
+  tenantId                 String
+  operatorAccountId        String
+  operatorOrgId            String?
+  action                   String
+  targetTerminalDeviceId   String?
+  beforeJson               Json?
+  afterJson                Json?
+  reason                   String?
+  traceId                  String?
+  occurredAt               DateTime        @default(now())
+  device                   TerminalDevice? @relation(fields: [targetTerminalDeviceId], references: [terminalDeviceId])
+
+  @@index([tenantId, targetTerminalDeviceId, occurredAt])
+  @@index([tenantId, action, occurredAt])
+}
+
+enum TerminalDeviceType {
+  PDA
+  KIOSK
+  INDUSTRIAL_TABLET
+  SHARED_MOBILE_TERMINAL
+}
+
+enum TerminalDeviceStatus {
+  PENDING_APPROVAL
+  ACTIVE
+  DISABLED
+  LOST
+  MAINTENANCE
+  DECOMMISSIONED
+}
+
+enum EnrollmentStatus {
+  ISSUED
+  USED
+  EXPIRED
+  REVOKED
+}
+
+enum PresenceStatus {
+  ONLINE
+  STALE
+  OFFLINE
+  UNKNOWN
+}
+
+enum NetworkStatus {
+  ONLINE
+  OFFLINE
+  UNKNOWN
+}
+
+enum NetworkType {
+  WIFI
+  CELLULAR
+  ETHERNET
+  NONE
+  UNKNOWN
+}
+
+enum AppState {
+  FOREGROUND
+  BACKGROUND
+  CLOSED
+  UNKNOWN
+}
