@@ -182,7 +182,35 @@
 - 端到端验收覆盖 enrollment、登录、禁用、清退、heartbeat、版本策略与退役重入网。
 - 文档中的非目标未被实现范围污染。
 
-## 13. 备注
+## 13. 实现与验证记录
+
+Status, 2026-05-17:
+
+- `terminal-device-service` 已实现 enrollment、device access decision、runtime snapshot、version policy、device management query/update、audit event query 与 unavailable event publish 最小闭环。
+- PDA BFF 已接入 managed device enrollment、tenant-bound login metadata、bootstrap access decision、heartbeat runtime snapshot 与 diagnostic log access decision。
+- Admin Terminal Device BFF 已接入 enrollment 管理、设备列表 / 详情 / 更新 / 状态变更、version policy、audit event，并在服务返回 revoke intent 时调用 `auth-service` 清理相关 PDA sessions。
+- app/pda web 已实现 enrollment、restricted、identity conflict、version blocked 与 tenant-bound managed login flow。
+- tenant-web 已实现 Phase 2 设备管理最小后台，包括 enrollment、设备看板、详情、状态操作、version policy 与审计列表。
+
+Fresh verification:
+
+- `pnpm proto:lint` passed.
+- `DATABASE_URL='postgres://imkgsam:imkgsam@localhost:5432/terminaldevicedb' pnpm --filter terminal-device-service prisma:push` passed.
+- `pnpm --filter auth-service prisma:push` passed.
+- `pnpm --filter terminal-device-service test` passed: 5 suites / 61 tests.
+- `pnpm --filter auth-service exec jest terminal-login-policy terminal-mfa-policy pda-account-resolution handle-terminal-device-unavailable --runInBand` passed: 8 suites / 34 tests.
+- `pnpm --filter api-gateway exec jest src/modules/pda-bff src/modules/terminal-device-admin-bff --runInBand` passed: 6 suites / 13 tests.
+- `pnpm --filter terminal-device-service build`, `pnpm --filter auth-service build`, and `pnpm --filter api-gateway build` passed.
+- `pnpm --dir app/pda/web test` passed: 6 files / 26 tests.
+- `pnpm --dir app/pda/web build` passed.
+- `pnpm --dir app/web test:unit apps/tenant-web/src/api/bff/terminal-device/index.spec.ts apps/tenant-web/src/views/admin/terminal-device-management/index.spec.ts` passed: 2 files / 6 tests.
+- `pnpm --dir app/web build:tenant` passed with the existing Node engine warning because local Node is `v25.5.0` while app/web declares `^20.19.0 || ^22.18.0 || ^24.0.0`.
+
+Live smoke note:
+
+- A live multi-service smoke was not run in this thread because the working tree contains unrelated uncommitted `permission-service` / policy-template changes from another thread. Running PDA Phase 2 against that dirty service state would mix ownership and weaken the evidence.
+
+## 14. 备注
 
 - 当前 Phase 2 只做 PDA 设备治理，不把 KIOSK / INDUSTRIAL_TABLET 带入实现。
 - 若后续发现 `DECOMMISSIONED` 误操作恢复需求，应作为高权限 break-glass 或审计补偿机制单独设计，不进入普通恢复流程。

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common'
+import { Injectable, OnModuleDestroy, Optional } from '@nestjs/common'
 import Redis from 'ioredis'
 import {
   TERMINAL_DEVICE_UNAVAILABLE_EVENT_NAME,
@@ -8,10 +8,12 @@ import {
 
 @Injectable()
 // RedisTerminalDeviceUnavailablePublisher publishes unavailable device facts to a cross-process Redis channel.
-export class RedisTerminalDeviceUnavailablePublisher implements TerminalDeviceUnavailableEventPublisher {
+export class RedisTerminalDeviceUnavailablePublisher implements TerminalDeviceUnavailableEventPublisher, OnModuleDestroy {
   private readonly redis: Redis
+  private readonly ownsRedisClient: boolean
 
-  constructor(redis?: Redis) {
+  constructor(@Optional() redis?: Redis) {
+    this.ownsRedisClient = !redis
     this.redis =
       redis ??
       new Redis({
@@ -30,5 +32,11 @@ export class RedisTerminalDeviceUnavailablePublisher implements TerminalDeviceUn
         occurredAt: event.occurredAt.toISOString()
       })
     )
+  }
+
+  onModuleDestroy(): void {
+    if (this.ownsRedisClient) {
+      this.redis.disconnect()
+    }
   }
 }

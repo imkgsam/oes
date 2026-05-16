@@ -743,7 +743,7 @@ Expected: tests pass.
 - Add or update smoke scripts if the repo has service smoke conventions
 - Update feature packet with completion evidence after implementation
 
-- [ ] **Step 1: Push schemas**
+- [x] **Step 1: Push schemas**
 
 Run Prisma push/generate commands for affected services:
 
@@ -766,7 +766,7 @@ Start:
 
 Use existing repo service start commands.
 
-- [ ] **Step 3: Validate enrollment loop**
+- [x] **Step 3: Validate enrollment loop**
 
 Scenario:
 
@@ -775,7 +775,7 @@ Scenario:
 3. `TerminalDevice(status=ACTIVE)` exists.
 4. Enrollment is `USED`.
 
-- [ ] **Step 4: Validate PDA login tenant binding**
+- [x] **Step 4: Validate PDA login tenant binding**
 
 Scenario:
 
@@ -784,7 +784,7 @@ Scenario:
 3. BFF resolves tenant from device.
 4. Auth session contains `terminal=PDA` and `terminalDeviceId`.
 
-- [ ] **Step 5: Validate disable and revoke**
+- [x] **Step 5: Validate disable and revoke**
 
 Scenario:
 
@@ -793,7 +793,7 @@ Scenario:
 3. PDA heartbeat/bootstrap returns cleanup decision.
 4. PDA clears local session and shows restricted page.
 
-- [ ] **Step 6: Validate decommission**
+- [x] **Step 6: Validate decommission**
 
 Scenario:
 
@@ -803,7 +803,7 @@ Scenario:
 4. PDA returns to enrollment flow.
 5. Old device record cannot restore to `ACTIVE`.
 
-- [ ] **Step 7: Validate version policy**
+- [x] **Step 7: Validate version policy**
 
 Scenario:
 
@@ -812,9 +812,15 @@ Scenario:
 3. Heartbeat/diagnostic logs still work.
 4. PDA shows version blocked page.
 
-- [ ] **Step 8: Record verification evidence**
+- [x] **Step 8: Record verification evidence**
 
 Update [feature packet](/Users/acehood/Documents/GitHub/oes/docs/plans/features/pda-device-management-phase-2.md) only with final implementation status and verification evidence after code is implemented.
+
+Execution note, 2026-05-17:
+
+- Schema push completed for `terminal-device-service` against local `terminaldevicedb` and for `auth-service` against local `authdb`.
+- Steps 3-7 were validated through focused automated service, BFF, PDA web, and tenant-web tests rather than a live multi-service manual smoke.
+- Step 2 remains unchecked because the working tree currently contains unrelated, uncommitted `permission-service` / policy-template work from another thread. Starting a live multi-service smoke with that dirty service would not produce clean PDA Phase 2 evidence.
 
 ## 6. Verification Matrix
 
