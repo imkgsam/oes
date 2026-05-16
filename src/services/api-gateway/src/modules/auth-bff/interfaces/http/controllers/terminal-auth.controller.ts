@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Ip, Post } from '@nestjs/common'
+import { BadRequestException, Body, Controller, Get, Headers, Ip, Post } from '@nestjs/common'
 import { ApiBody, ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { Public } from '@oes/common/auth'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
@@ -170,6 +170,18 @@ export class PdaAuthController extends TerminalAuthControllerBase {
       sessionContextUseCase,
       sessionSelfServiceUseCase
     )
+  }
+
+  @Post('account-selection')
+  @Public()
+  @ApiOperation({ summary: 'PDA account selection is unavailable because PDA tenant is device-bound' })
+  async selectAccount(
+    @Body() _dto: SelectAccountDto,
+    @DownstreamSource() _source: DownstreamRequestSource,
+    @Headers('user-agent') _userAgent?: string,
+    @Ip() _ipAddress?: string
+  ): Promise<never> {
+    throw new BadRequestException('PDA account selection is not available')
   }
 }
 

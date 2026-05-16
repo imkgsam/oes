@@ -138,6 +138,10 @@ export class AdminSessionViewModel {
   @ApiPropertyOptional() accountId?: string
   @ApiPropertyOptional() accountName?: string
   @ApiPropertyOptional() tenantId?: string
+  @ApiPropertyOptional() terminal?: string
+  @ApiPropertyOptional() terminalDeviceId?: string
+  @ApiPropertyOptional() deviceBoundTenantId?: string
+  @ApiPropertyOptional() loginFlow?: string
   @ApiProperty() status!: string
   @ApiProperty() loginMethod!: string
   @ApiPropertyOptional() deviceId?: string
@@ -244,4 +248,53 @@ export class AdminPlatformMfaPolicyViewModel {
 
   @ApiProperty({ type: AdminTenantMfaFactorPolicyViewModel, isArray: true })
   factors!: AdminTenantMfaFactorPolicyViewModel[]
+}
+
+export class AdminTerminalLoginPolicyEntryViewModel {
+  @ApiProperty({ enum: ['WEB', 'PDA', 'KIOSK'] })
+  terminal!: string
+
+  @ApiProperty({ type: String, isArray: true })
+  enabledLoginFlows!: string[]
+
+  @ApiProperty({ type: String, isArray: true })
+  supportedLoginFlows!: string[]
+}
+
+export class AdminPlatformTerminalLoginPolicyViewModel {
+  @ApiProperty({ type: AdminTerminalLoginPolicyEntryViewModel, isArray: true })
+  entries!: AdminTerminalLoginPolicyEntryViewModel[]
+}
+
+export class AdminTerminalMfaPolicyEntryViewModel {
+  @ApiProperty({ enum: ['WEB', 'PDA', 'KIOSK'] })
+  terminal!: string
+
+  @ApiProperty()
+  loginMfaRequired!: boolean
+
+  @ApiProperty()
+  newDeviceMfaRequired!: boolean
+
+  @ApiProperty({ enum: ['EMAIL_OTP', 'SMS_OTP', 'TOTP', 'BACKUP_CODE'], isArray: true })
+  allowedFactors!: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+
+  @ApiProperty({ enum: ['EMAIL_OTP', 'SMS_OTP', 'TOTP', 'BACKUP_CODE'], isArray: true })
+  factorPriority!: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+
+  @ApiPropertyOptional()
+  source?: string
+}
+
+export class AdminPlatformTerminalMfaPolicyViewModel {
+  @ApiProperty({ type: AdminTerminalMfaPolicyEntryViewModel, isArray: true })
+  entries!: AdminTerminalMfaPolicyEntryViewModel[]
+}
+
+export class AdminTenantTerminalMfaPolicyViewModel {
+  @ApiProperty()
+  tenantId!: string
+
+  @ApiProperty({ type: AdminTerminalMfaPolicyEntryViewModel, isArray: true })
+  entries!: AdminTerminalMfaPolicyEntryViewModel[]
 }

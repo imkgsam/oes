@@ -57,7 +57,13 @@ describe('AuthController', () => {
     listOnlineUsers: jest.fn(),
     listUserSessions: jest.fn(),
     revokeSession: jest.fn(),
-    listAuditEvents: jest.fn()
+    listAuditEvents: jest.fn(),
+    getPlatformTerminalLoginPolicy: jest.fn(),
+    updatePlatformTerminalLoginPolicy: jest.fn(),
+    getPlatformTerminalMfaPolicy: jest.fn(),
+    updatePlatformTerminalMfaPolicy: jest.fn(),
+    getTenantTerminalMfaPolicy: jest.fn(),
+    updateTenantTerminalMfaPolicy: jest.fn()
   }
   const sessionContextUseCase = {
     execute: jest.fn()
@@ -927,6 +933,90 @@ describe('AuthController', () => {
         AuthController.prototype.adminUpdateTenantMfaPolicy
       )
     ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminGetPlatformTerminalLoginPolicy
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminUpdatePlatformTerminalLoginPolicy
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminGetPlatformTerminalMfaPolicy
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminUpdatePlatformTerminalMfaPolicy
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminGetTenantTerminalMfaPolicy
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminUpdateTenantTerminalMfaPolicy
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+  })
+
+  it('forwards terminal-aware admin security endpoints to the admin security use case', async () => {
+    adminSecurityUseCase.getPlatformTerminalLoginPolicy.mockResolvedValue({ entries: [] })
+    adminSecurityUseCase.updatePlatformTerminalLoginPolicy.mockResolvedValue({ entries: [] })
+    adminSecurityUseCase.getPlatformTerminalMfaPolicy.mockResolvedValue({ entries: [] })
+    adminSecurityUseCase.updatePlatformTerminalMfaPolicy.mockResolvedValue({ entries: [] })
+    adminSecurityUseCase.getTenantTerminalMfaPolicy.mockResolvedValue({
+      tenantId: 'tenant-1',
+      entries: []
+    })
+    adminSecurityUseCase.updateTenantTerminalMfaPolicy.mockResolvedValue({
+      tenantId: 'tenant-1',
+      entries: []
+    })
+    const source = { user: { sub: 'operator-1', scopeLevel: 'TENANT', tenantId: 'tenant-1' } }
+
+    await expect(controller.adminGetPlatformTerminalLoginPolicy(source as any)).resolves.toEqual({
+      entries: []
+    })
+    await expect(
+      controller.adminUpdatePlatformTerminalLoginPolicy(
+        { entries: [{ terminal: 'WEB', enabledLoginFlows: ['EMAIL_PASSWORD'] }] } as any,
+        source as any
+      )
+    ).resolves.toEqual({ entries: [] })
+    await expect(controller.adminGetPlatformTerminalMfaPolicy(source as any)).resolves.toEqual({
+      entries: []
+    })
+    await expect(
+      controller.adminUpdatePlatformTerminalMfaPolicy({ entries: [] } as any, source as any)
+    ).resolves.toEqual({ entries: [] })
+    await expect(controller.adminGetTenantTerminalMfaPolicy(source as any)).resolves.toEqual({
+      tenantId: 'tenant-1',
+      entries: []
+    })
+    await expect(
+      controller.adminUpdateTenantTerminalMfaPolicy({ entries: [] } as any, source as any)
+    ).resolves.toEqual({ tenantId: 'tenant-1', entries: [] })
+
+    expect(adminSecurityUseCase.updatePlatformTerminalLoginPolicy).toHaveBeenCalledWith(
+      { entries: [{ terminal: 'WEB', enabledLoginFlows: ['EMAIL_PASSWORD'] }] },
+      source
+    )
+    expect(adminSecurityUseCase.updateTenantTerminalMfaPolicy).toHaveBeenCalledWith(
+      { entries: [] },
+      source
+    )
   })
 
   it('forwards admin account deletion endpoints to the admin security use case', async () => {

@@ -24,6 +24,26 @@ describe('tenant admin routes', () => {
     expect(terminalDeviceRoute?.component).toBeTypeOf('function')
   })
 
+  it('registers terminal-aware account security settings without reusing managed device routes', () => {
+    const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
+    const settingsRoute = tenantAdminRoutes.find((route) => route.name === 'TenantSettings')
+    const platformTerminalSecurityRoute = governanceRoute?.children?.find(
+      (route) => route.name === 'AdminPlatformTerminalSecuritySettings'
+    )
+    const tenantTerminalMfaRoute = settingsRoute?.children?.find(
+      (route) => route.name === 'TenantTerminalMfaSettings'
+    )
+
+    expect(platformTerminalSecurityRoute?.path).toBe('/admin/platform-terminal-security')
+    expect(platformTerminalSecurityRoute?.meta?.entryKey).toBe(
+      'admin.platform-terminal-security'
+    )
+    expect(platformTerminalSecurityRoute?.component).toBeTypeOf('function')
+    expect(tenantTerminalMfaRoute?.path).toBe('/settings/terminal-mfa')
+    expect(tenantTerminalMfaRoute?.meta?.entryKey).toBe('tenant-settings.terminal-mfa')
+    expect(tenantTerminalMfaRoute?.component).toBeTypeOf('function')
+  })
+
   it('removes the legacy organization-people routes after splitting org and employee settings pages', () => {
     const settingsRoute = tenantAdminRoutes.find((route) => route.name === 'TenantSettings')
     const organizationPeopleRoute = settingsRoute?.children?.find(

@@ -38,8 +38,11 @@ import {
   AdminLoginMethodStateMutationDto,
   AdminOnlineUserQueryDto,
   AdminPlatformMfaPolicyMutationDto,
+  AdminPlatformTerminalLoginPolicyMutationDto,
+  AdminPlatformTerminalMfaPolicyMutationDto,
   AdminRequirePasswordSetupDto,
   AdminTenantMfaPolicyMutationDto,
+  AdminTenantTerminalMfaPolicyMutationDto,
   AdminTenantOptionQueryDto,
   CreateAdminAccountDto,
   AdminRevokeSessionDto,
@@ -123,9 +126,12 @@ import {
   AdminAuditEventListViewModel,
   AdminOnlineUserListViewModel,
   AdminPlatformMfaPolicyViewModel,
+  AdminPlatformTerminalLoginPolicyViewModel,
+  AdminPlatformTerminalMfaPolicyViewModel,
   AdminSessionListViewModel,
   AdminSessionMutationViewModel,
   AdminTenantMfaPolicyViewModel,
+  AdminTenantTerminalMfaPolicyViewModel,
   AdminTenantOptionListViewModel,
   AdminUserSearchListViewModel
 } from '../view-models/admin-security.view-model'
@@ -1379,6 +1385,108 @@ export class AuthController {
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<AdminPlatformMfaPolicyViewModel> {
     return this.adminSecurityUseCase.updatePlatformMfaPolicy(body, source)
+  }
+
+  @Get('admin/platform-terminal-login-policy')
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_PLATFORM_MFA_POLICY] })
+  @ApiOperation({
+    summary: 'Get platform terminal login policy',
+    description: 'Returns platform-owned login-flow allowlists for each terminal entry.'
+  })
+  @ApiResponse({
+    status: 200,
+    type: AdminPlatformTerminalLoginPolicyViewModel
+  })
+  async adminGetPlatformTerminalLoginPolicy(
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<AdminPlatformTerminalLoginPolicyViewModel> {
+    return this.adminSecurityUseCase.getPlatformTerminalLoginPolicy(source)
+  }
+
+  @Put('admin/platform-terminal-login-policy')
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_PLATFORM_MFA_POLICY] })
+  @ApiOperation({
+    summary: 'Update platform terminal login policy',
+    description: 'Updates platform-owned login-flow allowlists for fixed terminal entries.'
+  })
+  @ApiBody({ type: AdminPlatformTerminalLoginPolicyMutationDto })
+  @ApiResponse({
+    status: 200,
+    type: AdminPlatformTerminalLoginPolicyViewModel
+  })
+  async adminUpdatePlatformTerminalLoginPolicy(
+    @Body() body: AdminPlatformTerminalLoginPolicyMutationDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<AdminPlatformTerminalLoginPolicyViewModel> {
+    return this.adminSecurityUseCase.updatePlatformTerminalLoginPolicy(body, source)
+  }
+
+  @Get('admin/platform-terminal-mfa-policy')
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_PLATFORM_MFA_POLICY] })
+  @ApiOperation({
+    summary: 'Get platform default terminal MFA policy',
+    description: 'Returns platform default terminal MFA settings without treating them as tenant baselines.'
+  })
+  @ApiResponse({
+    status: 200,
+    type: AdminPlatformTerminalMfaPolicyViewModel
+  })
+  async adminGetPlatformTerminalMfaPolicy(
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<AdminPlatformTerminalMfaPolicyViewModel> {
+    return this.adminSecurityUseCase.getPlatformTerminalMfaPolicy(source)
+  }
+
+  @Put('admin/platform-terminal-mfa-policy')
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_PLATFORM_MFA_POLICY] })
+  @ApiOperation({
+    summary: 'Update platform default terminal MFA policy',
+    description: 'Updates platform default terminal MFA settings used when no tenant override exists.'
+  })
+  @ApiBody({ type: AdminPlatformTerminalMfaPolicyMutationDto })
+  @ApiResponse({
+    status: 200,
+    type: AdminPlatformTerminalMfaPolicyViewModel
+  })
+  async adminUpdatePlatformTerminalMfaPolicy(
+    @Body() body: AdminPlatformTerminalMfaPolicyMutationDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<AdminPlatformTerminalMfaPolicyViewModel> {
+    return this.adminSecurityUseCase.updatePlatformTerminalMfaPolicy(body, source)
+  }
+
+  @Get('admin/tenant-terminal-mfa-policy')
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_TENANT_MFA_POLICY] })
+  @ApiOperation({
+    summary: 'Get tenant terminal MFA policy',
+    description: 'Returns effective terminal MFA settings for the tenant visible to the operator.'
+  })
+  @ApiResponse({
+    status: 200,
+    type: AdminTenantTerminalMfaPolicyViewModel
+  })
+  async adminGetTenantTerminalMfaPolicy(
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<AdminTenantTerminalMfaPolicyViewModel> {
+    return this.adminSecurityUseCase.getTenantTerminalMfaPolicy(source)
+  }
+
+  @Put('admin/tenant-terminal-mfa-policy')
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_TENANT_MFA_POLICY] })
+  @ApiOperation({
+    summary: 'Update tenant terminal MFA policy',
+    description: 'Updates tenant-owned terminal MFA overrides for each fixed terminal entry.'
+  })
+  @ApiBody({ type: AdminTenantTerminalMfaPolicyMutationDto })
+  @ApiResponse({
+    status: 200,
+    type: AdminTenantTerminalMfaPolicyViewModel
+  })
+  async adminUpdateTenantTerminalMfaPolicy(
+    @Body() body: AdminTenantTerminalMfaPolicyMutationDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<AdminTenantTerminalMfaPolicyViewModel> {
+    return this.adminSecurityUseCase.updateTenantTerminalMfaPolicy(body, source)
   }
 
   @Get('admin/account-tenant-options')

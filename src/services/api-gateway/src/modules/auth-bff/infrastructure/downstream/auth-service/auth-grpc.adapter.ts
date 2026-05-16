@@ -39,6 +39,9 @@ import {
   LoginWithPhoneOtpRequest,
   LoginWithPhonePasswordRequest,
   LoginResponse,
+  GetPlatformDefaultTerminalMfaPolicyResponse,
+  GetPlatformTerminalLoginPolicyResponse,
+  GetTenantTerminalMfaPolicyResponse,
   ListLoginMethodsResponse,
   ListMfaBindingsResponse,
   ListLoginHistoryResponse,
@@ -78,6 +81,11 @@ import {
   StepUpMfaChallengeResponse,
   StepUpMfaGrantResponse,
   TenantMfaPolicyResponse,
+  TerminalLoginPolicyEntry,
+  TerminalMfaPolicyEntry,
+  UpdatePlatformDefaultTerminalMfaPolicyResponse,
+  UpdatePlatformTerminalLoginPolicyResponse,
+  UpdateTenantTerminalMfaPolicyResponse,
   VerifyPasswordRecoveryChallengeRequest,
   VerifyEmailBindingRequest,
   VerifyPhoneBindingRequest
@@ -113,6 +121,9 @@ export class AuthGrpcAdapter implements OnModuleInit {
       userAgent?: string
       ipAddress?: string
       terminal?: string
+      terminalDeviceId?: string
+      deviceBoundTenantId?: string
+      loginFlow?: string
     },
     source: DownstreamRequestSource
   ): Promise<LoginResponse> {
@@ -128,9 +139,14 @@ export class AuthGrpcAdapter implements OnModuleInit {
     email: string,
     otp: string,
     terminal: string | undefined,
-    source: DownstreamRequestSource
+    source: DownstreamRequestSource,
+    deviceContext?: {
+      terminalDeviceId?: string
+      deviceBoundTenantId?: string
+      loginFlow?: string
+    }
   ): Promise<LoginResponse> {
-    const request: LoginWithEmailOtpRequest = { email, otp, terminal }
+    const request: LoginWithEmailOtpRequest = { email, otp, terminal, ...deviceContext }
 
     return this.call('loginWithEmailOtp', this.svc.loginWithEmailOtp(request, this.metadata(source)))
   }
@@ -170,6 +186,9 @@ export class AuthGrpcAdapter implements OnModuleInit {
       userAgent?: string
       ipAddress?: string
       terminal?: string
+      terminalDeviceId?: string
+      deviceBoundTenantId?: string
+      loginFlow?: string
     },
     source: DownstreamRequestSource
   ): Promise<LoginResponse> {
@@ -185,9 +204,14 @@ export class AuthGrpcAdapter implements OnModuleInit {
     phone: string,
     otp: string,
     terminal: string | undefined,
-    source: DownstreamRequestSource
+    source: DownstreamRequestSource,
+    deviceContext?: {
+      terminalDeviceId?: string
+      deviceBoundTenantId?: string
+      loginFlow?: string
+    }
   ): Promise<LoginResponse> {
-    const request: LoginWithPhoneOtpRequest = { phone, otp, terminal }
+    const request: LoginWithPhoneOtpRequest = { phone, otp, terminal, ...deviceContext }
 
     return this.call('loginWithPhoneOtp', this.svc.loginWithPhoneOtp(request, this.metadata(source)))
   }
@@ -947,6 +971,107 @@ export class AuthGrpcAdapter implements OnModuleInit {
     )
   }
 
+  getPlatformTerminalLoginPolicy(
+    source: DownstreamRequestSource
+  ): Promise<GetPlatformTerminalLoginPolicyResponse> {
+    return this.call(
+      'getPlatformTerminalLoginPolicy',
+      this.svc.getPlatformTerminalLoginPolicy({}, this.operatorMetadata(source))
+    )
+  }
+
+  updatePlatformTerminalLoginPolicy(
+    request: {
+      entries: Array<{
+        enabledLoginFlows: string[]
+        terminal: string
+      }>
+    },
+    source: DownstreamRequestSource
+  ): Promise<UpdatePlatformTerminalLoginPolicyResponse> {
+    return this.call(
+      'updatePlatformTerminalLoginPolicy',
+      this.svc.updatePlatformTerminalLoginPolicy(
+        {
+          entries: request.entries.map(
+            (entry): TerminalLoginPolicyEntry => ({
+              terminal: entry.terminal,
+              enabledLoginFlows: entry.enabledLoginFlows
+            })
+          )
+        },
+        this.operatorMetadata(source)
+      )
+    )
+  }
+
+  getPlatformDefaultTerminalMfaPolicy(
+    source: DownstreamRequestSource
+  ): Promise<GetPlatformDefaultTerminalMfaPolicyResponse> {
+    return this.call(
+      'getPlatformDefaultTerminalMfaPolicy',
+      this.svc.getPlatformDefaultTerminalMfaPolicy({}, this.operatorMetadata(source))
+    )
+  }
+
+  updatePlatformDefaultTerminalMfaPolicy(
+    request: {
+      entries: Array<{
+        allowedFactors: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+        factorPriority: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+        loginMfaRequired: boolean
+        newDeviceMfaRequired: boolean
+        terminal: string
+      }>
+    },
+    source: DownstreamRequestSource
+  ): Promise<UpdatePlatformDefaultTerminalMfaPolicyResponse> {
+    return this.call(
+      'updatePlatformDefaultTerminalMfaPolicy',
+      this.svc.updatePlatformDefaultTerminalMfaPolicy(
+        {
+          entries: request.entries.map((entry) => this.toGrpcTerminalMfaPolicyEntry(entry))
+        },
+        this.operatorMetadata(source)
+      )
+    )
+  }
+
+  getTenantTerminalMfaPolicy(
+    tenantId: string,
+    source: DownstreamRequestSource
+  ): Promise<GetTenantTerminalMfaPolicyResponse> {
+    return this.call(
+      'getTenantTerminalMfaPolicy',
+      this.svc.getTenantTerminalMfaPolicy({ tenantId }, this.operatorMetadata(source))
+    )
+  }
+
+  updateTenantTerminalMfaPolicy(
+    request: {
+      entries: Array<{
+        allowedFactors: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+        factorPriority: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+        loginMfaRequired: boolean
+        newDeviceMfaRequired: boolean
+        terminal: string
+      }>
+      tenantId: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<UpdateTenantTerminalMfaPolicyResponse> {
+    return this.call(
+      'updateTenantTerminalMfaPolicy',
+      this.svc.updateTenantTerminalMfaPolicy(
+        {
+          tenantId: request.tenantId,
+          entries: request.entries.map((entry) => this.toGrpcTerminalMfaPolicyEntry(entry))
+        },
+        this.operatorMetadata(source)
+      )
+    )
+  }
+
   listAuditEvents(
     request: {
       service?: string
@@ -1008,6 +1133,22 @@ export class AuthGrpcAdapter implements OnModuleInit {
         return MfaScenario.MFA_SCENARIO_CHANGE_CONTACT
       default:
         return MfaScenario.MFA_SCENARIO_UNSPECIFIED
+    }
+  }
+
+  private toGrpcTerminalMfaPolicyEntry(entry: {
+    allowedFactors: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+    factorPriority: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+    loginMfaRequired: boolean
+    newDeviceMfaRequired: boolean
+    terminal: string
+  }): TerminalMfaPolicyEntry {
+    return {
+      terminal: entry.terminal,
+      loginMfaRequired: entry.loginMfaRequired,
+      newDeviceMfaRequired: entry.newDeviceMfaRequired,
+      allowedFactors: entry.allowedFactors.map((factor) => this.toGrpcMfaBindingType(factor)),
+      factorPriority: entry.factorPriority.map((factor) => this.toGrpcMfaBindingType(factor))
     }
   }
 

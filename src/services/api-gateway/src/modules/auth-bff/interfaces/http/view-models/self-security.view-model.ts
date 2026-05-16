@@ -5,13 +5,36 @@ import {
   MfaScenarioViewModel
 } from './auth-response.view-model'
 
+export class SelfSessionAccountSummaryViewModel {
+  @ApiProperty() accountId!: string
+}
+
+export class SelfSessionTenantSummaryViewModel {
+  @ApiProperty() tenantId!: string
+}
+
+export class SelfSessionTerminalDeviceSummaryViewModel {
+  @ApiProperty() terminalDeviceId!: string
+  @ApiPropertyOptional() deviceBoundTenantId?: string
+}
+
 // Defines one self-service session entry returned to the authenticated user.
 export class SelfSessionViewModel {
   @ApiProperty() sessionId!: string
   @ApiPropertyOptional() accountId?: string
   @ApiPropertyOptional() tenantId?: string
+  @ApiPropertyOptional({ type: SelfSessionAccountSummaryViewModel })
+  accountSummary?: SelfSessionAccountSummaryViewModel
+  @ApiPropertyOptional({ type: SelfSessionTenantSummaryViewModel })
+  tenantSummary?: SelfSessionTenantSummaryViewModel
   @ApiProperty() status!: string
   @ApiProperty() loginMethod!: string
+  @ApiProperty() terminal!: string
+  @ApiProperty() loginFlow!: string
+  @ApiPropertyOptional() terminalDeviceId?: string
+  @ApiPropertyOptional() deviceBoundTenantId?: string
+  @ApiPropertyOptional({ type: SelfSessionTerminalDeviceSummaryViewModel })
+  terminalDeviceSummary?: SelfSessionTerminalDeviceSummaryViewModel
   @ApiPropertyOptional() deviceId?: string
   @ApiPropertyOptional() deviceName?: string
   @ApiPropertyOptional() userAgent?: string

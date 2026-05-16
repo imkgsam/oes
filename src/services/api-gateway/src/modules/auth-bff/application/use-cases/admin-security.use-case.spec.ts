@@ -433,6 +433,163 @@ describe('AdminSecurityUseCase', () => {
     })
   })
 
+  it('maps platform terminal login policy into admin view models', async () => {
+    const authAdapter = {
+      getPlatformTerminalLoginPolicy: jest.fn().mockResolvedValue({
+        entries: [
+          {
+            terminal: 'WEB',
+            enabledLoginFlows: ['EMAIL_PASSWORD'],
+            supportedLoginFlows: ['EMAIL_PASSWORD', 'EMAIL_OTP']
+          }
+        ]
+      }),
+      updatePlatformTerminalLoginPolicy: jest.fn().mockResolvedValue({
+        entries: [
+          {
+            terminal: 'WEB',
+            enabledLoginFlows: ['EMAIL_PASSWORD'],
+            supportedLoginFlows: ['EMAIL_PASSWORD', 'EMAIL_OTP']
+          }
+        ]
+      })
+    }
+    const useCase = new AdminSecurityUseCase(authAdapter as any, {} as any, {} as any)
+
+    await expect(useCase.getPlatformTerminalLoginPolicy({ user: { sub: 'operator-1' } } as any)).resolves.toEqual({
+      entries: [
+        {
+          terminal: 'WEB',
+          enabledLoginFlows: ['EMAIL_PASSWORD'],
+          supportedLoginFlows: ['EMAIL_PASSWORD', 'EMAIL_OTP']
+        }
+      ]
+    })
+
+    await useCase.updatePlatformTerminalLoginPolicy(
+      { entries: [{ terminal: 'WEB', enabledLoginFlows: ['EMAIL_PASSWORD'] }] } as any,
+      { user: { sub: 'operator-1' } } as any
+    )
+
+    expect(authAdapter.updatePlatformTerminalLoginPolicy).toHaveBeenCalledWith(
+      {
+        entries: [
+          {
+            terminal: 'WEB',
+            enabledLoginFlows: ['EMAIL_PASSWORD']
+          }
+        ]
+      },
+      expect.objectContaining({ user: expect.objectContaining({ sub: 'operator-1' }) })
+    )
+  })
+
+  it('maps tenant terminal MFA policy through the current tenant context', async () => {
+    const authAdapter = {
+      getTenantTerminalMfaPolicy: jest.fn().mockResolvedValue({
+        tenantId: 'tenant-1',
+        entries: [
+          {
+            terminal: 'PDA',
+            loginMfaRequired: false,
+            newDeviceMfaRequired: false,
+            allowedFactors: [MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP],
+            factorPriority: [MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP],
+            source: 'TENANT_OVERRIDE'
+          }
+        ]
+      }),
+      updateTenantTerminalMfaPolicy: jest.fn().mockResolvedValue({
+        tenantId: 'tenant-1',
+        entries: []
+      })
+    }
+    const useCase = new AdminSecurityUseCase(authAdapter as any, {} as any, {} as any)
+    const source = {
+      user: {
+        sub: 'operator-1',
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1'
+      }
+    } as any
+
+    await expect(useCase.getTenantTerminalMfaPolicy(source)).resolves.toEqual({
+      tenantId: 'tenant-1',
+      entries: [
+        {
+          terminal: 'PDA',
+          loginMfaRequired: false,
+          newDeviceMfaRequired: false,
+          allowedFactors: ['EMAIL_OTP'],
+          factorPriority: ['EMAIL_OTP'],
+          source: 'TENANT_OVERRIDE'
+        }
+      ]
+    })
+
+    await useCase.updateTenantTerminalMfaPolicy(
+      {
+        confirmOperationalImpact: true,
+        entries: [
+          {
+            terminal: 'PDA',
+            loginMfaRequired: false,
+            newDeviceMfaRequired: false,
+            allowedFactors: ['EMAIL_OTP'],
+            factorPriority: ['EMAIL_OTP']
+          }
+        ]
+      } as any,
+      source
+    )
+
+    expect(authAdapter.updateTenantTerminalMfaPolicy).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        entries: [
+          {
+            terminal: 'PDA',
+            loginMfaRequired: false,
+            newDeviceMfaRequired: false,
+            allowedFactors: ['EMAIL_OTP'],
+            factorPriority: ['EMAIL_OTP']
+          }
+        ]
+      },
+      source
+    )
+  })
+
+  it('requires explicit operational confirmation before enabling PDA or KIOSK MFA', async () => {
+    const authAdapter = {
+      updateTenantTerminalMfaPolicy: jest.fn()
+    }
+    const useCase = new AdminSecurityUseCase(authAdapter as any, {} as any, {} as any)
+
+    await expect(
+      useCase.updateTenantTerminalMfaPolicy(
+        {
+          entries: [
+            {
+              terminal: 'PDA',
+              loginMfaRequired: true,
+              newDeviceMfaRequired: false,
+              allowedFactors: ['EMAIL_OTP'],
+              factorPriority: ['EMAIL_OTP']
+            }
+          ]
+        } as any,
+        { user: { scopeLevel: 'TENANT', tenantId: 'tenant-1' } } as any
+      )
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        message: 'Enabling MFA for PDA or KIOSK requires operational impact confirmation'
+      })
+    })
+
+    expect(authAdapter.updateTenantTerminalMfaPolicy).not.toHaveBeenCalled()
+  })
+
   it('lists account directory rows with pagination metadata', async () => {
     const authAdapter = {}
     const identityAdapter = {
@@ -758,6 +915,10 @@ describe('AdminSecurityUseCase', () => {
             userId: 'user-1',
             accountId: 'account-1',
             tenantId: 'tenant-1',
+            terminal: 'PDA',
+            terminalDeviceId: 'terminal-device-1',
+            deviceBoundTenantId: 'tenant-1',
+            loginFlow: 'EMPLOYEE_CODE_PIN',
             status: 'ACTIVE',
             loginMethod: 'EMAIL_PASSWORD',
             createdAt: '2026-04-09T08:00:00.000Z',
@@ -890,6 +1051,10 @@ describe('AdminSecurityUseCase', () => {
             userId: 'user-1',
             accountId: 'account-1',
             tenantId: 'tenant-1',
+            terminal: 'PDA',
+            terminalDeviceId: 'terminal-device-1',
+            deviceBoundTenantId: 'tenant-1',
+            loginFlow: 'EMPLOYEE_CODE_PIN',
             status: 'ACTIVE',
             loginMethod: 'EMAIL_PASSWORD',
             createdAt: '2026-04-09T10:00:00.000Z',
@@ -932,6 +1097,10 @@ describe('AdminSecurityUseCase', () => {
         accountId: 'account-1',
         accountName: 'System Admin',
         tenantId: 'tenant-1',
+        terminal: 'PDA',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-1',
+        loginFlow: 'EMPLOYEE_CODE_PIN',
         isAdminControlled: true,
         adminRevokeReason: 'Security incident'
       })

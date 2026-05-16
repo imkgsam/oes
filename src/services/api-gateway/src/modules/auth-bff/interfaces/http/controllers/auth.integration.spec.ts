@@ -23,6 +23,13 @@ import {
   PermissionCheckServiceController,
   PermissionCheckServiceControllerMethods
 } from '@oes/common/generated/permission_service'
+import {
+  DeviceAccessDecisionCode,
+  TerminalDeviceAccessDecisionServiceController,
+  TerminalDeviceAccessDecisionServiceControllerMethods,
+  TerminalDeviceStatus,
+  TerminalDeviceType
+} from '@oes/common/generated/terminal_device_service'
 import { GatewaySessionAuthGuard } from '../../../../../common/guards/gateway-session-auth.guard'
 import { GrpcExceptionFilter } from '../../../../../../../../common/dist/core/filters'
 import { GatewayExceptionFilter } from '../../../../../common/filters/gateway-exception.filter'
@@ -33,6 +40,7 @@ const IDENTITY_PORT = 56052
 const ASSET_PORT = 56053
 const TENANT_ORG_PORT = 56054
 const PARTY_PORT = 56055
+const TERMINAL_DEVICE_PORT = 56056
 
 type ObservedCallState = {
   emailPasswordLoginRequest?: {
@@ -466,6 +474,101 @@ class TestAuthGrpcController implements AuthServiceController {
     }
   }
 
+  getPlatformTerminalLoginPolicy(): any {
+    return {
+      entries: [
+        {
+          terminal: 'WEB',
+          enabledLoginFlows: ['EMAIL_PASSWORD', 'EMAIL_OTP'],
+          supportedLoginFlows: ['EMAIL_PASSWORD', 'EMAIL_OTP', 'PHONE_PASSWORD', 'PHONE_OTP']
+        },
+        {
+          terminal: 'PDA',
+          enabledLoginFlows: ['PASSWORD'],
+          supportedLoginFlows: ['PASSWORD']
+        }
+      ]
+    }
+  }
+
+  updatePlatformTerminalLoginPolicy(request: {
+    entries?: Array<{ enabledLoginFlows?: string[]; terminal?: string }>
+  }): any {
+    return {
+      entries: (request.entries ?? []).map((entry) => ({
+        terminal: entry.terminal ?? '',
+        enabledLoginFlows: entry.enabledLoginFlows ?? [],
+        supportedLoginFlows: entry.enabledLoginFlows ?? []
+      }))
+    }
+  }
+
+  getPlatformDefaultTerminalMfaPolicy(): any {
+    return {
+      entries: [
+        {
+          terminal: 'WEB',
+          loginMfaRequired: true,
+          newDeviceMfaRequired: true,
+          allowedFactors: [MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP],
+          factorPriority: [MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP],
+          source: 'PLATFORM_DEFAULT'
+        },
+        {
+          terminal: 'PDA',
+          loginMfaRequired: false,
+          newDeviceMfaRequired: false,
+          allowedFactors: [MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP],
+          factorPriority: [MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP],
+          source: 'PLATFORM_DEFAULT'
+        }
+      ]
+    }
+  }
+
+  updatePlatformDefaultTerminalMfaPolicy(request: {
+    entries?: Array<{
+      allowedFactors?: number[]
+      factorPriority?: number[]
+      loginMfaRequired?: boolean
+      newDeviceMfaRequired?: boolean
+      terminal?: string
+    }>
+  }): any {
+    return {
+      entries: request.entries ?? []
+    }
+  }
+
+  getTenantTerminalMfaPolicy(request: { tenantId?: string }): any {
+    return {
+      tenantId: request.tenantId ?? 'tenant-1',
+      entries: this.getPlatformDefaultTerminalMfaPolicy().entries
+    }
+  }
+
+  updateTenantTerminalMfaPolicy(request: {
+    entries?: Array<{
+      allowedFactors?: number[]
+      factorPriority?: number[]
+      loginMfaRequired?: boolean
+      newDeviceMfaRequired?: boolean
+      terminal?: string
+    }>
+    tenantId?: string
+  }): any {
+    return {
+      tenantId: request.tenantId ?? 'tenant-1',
+      entries: request.entries ?? []
+    }
+  }
+
+  handleTerminalDeviceUnavailable(): any {
+    return {
+      revokedSessionCount: '0'
+    }
+  }
+
   requestPasswordRecoveryChallenge(): any {
     return {
       accepted: true,
@@ -836,6 +939,27 @@ class TestTenantOrgGrpcController {
   }
 }
 
+// Provides the managed terminal access decision surface needed by PDA auth-bff integration paths.
+@Controller()
+@TerminalDeviceAccessDecisionServiceControllerMethods()
+class TestTerminalDeviceGrpcController implements TerminalDeviceAccessDecisionServiceController {
+  resolveDeviceAccessDecision(request: {
+    terminalDeviceId?: string
+    terminalDeviceType?: TerminalDeviceType
+  }): any {
+    return {
+      decision: {
+        allowed: true,
+        decisionCode: DeviceAccessDecisionCode.DEVICE_ACCESS_DECISION_CODE_ALLOW,
+        resolvedTenantId: 'tenant-1',
+        terminalDeviceId: request.terminalDeviceId ?? 'terminal-device-1',
+        terminalDeviceType: request.terminalDeviceType ?? TerminalDeviceType.TERMINAL_DEVICE_TYPE_PDA,
+        deviceStatus: TerminalDeviceStatus.TERMINAL_DEVICE_STATUS_ACTIVE
+      }
+    }
+  }
+}
+
 // Hosts the test auth-service gRPC controller used by the gateway integration harness.
 @Module({
   imports: [LoggingModule.forRoot({ serviceName: 'auth-service-test' })],
@@ -872,6 +996,12 @@ class TestPartyGrpcModule {}
   controllers: [TestTenantOrgGrpcController]
 })
 class TestTenantOrgGrpcModule {}
+
+// Hosts the test terminal-device-service gRPC controller used by PDA login integration paths.
+@Module({
+  controllers: [TestTerminalDeviceGrpcController]
+})
+class TestTerminalDeviceGrpcModule {}
 
 // Hosts the minimal gateway application wiring needed to run auth-bff HTTP to gRPC integration tests.
 @Module({
@@ -921,10 +1051,20 @@ class TestTenantOrgGrpcModule {}
           protoPath: resolveCommonProtoPath('tenant_org_service/tenant_org.proto'),
           packageName: 'tenant_org_service',
           url: `127.0.0.1:${TENANT_ORG_PORT}`
+        },
+        [SERVICE_NAMES.TERMINAL_DEVICE]: {
+          serviceName: SERVICE_NAMES.TERMINAL_DEVICE,
+          protoPath: resolveCommonProtoPath('terminal_device_service/terminal_device.proto'),
+          packageName: 'terminal_device_service',
+          url: `127.0.0.1:${TERMINAL_DEVICE_PORT}`
         }
       }
     }),
-    GrpcTransportModule.forFeature([SERVICE_NAMES.PERMISSION, SERVICE_NAMES.TENANT_ORG]),
+    GrpcTransportModule.forFeature([
+      SERVICE_NAMES.PERMISSION,
+      SERVICE_NAMES.TENANT_ORG,
+      SERVICE_NAMES.TERMINAL_DEVICE
+    ]),
     AuthBffModule
   ],
   providers: [
@@ -945,6 +1085,7 @@ describe('AuthBff gateway integration', () => {
   let assetMicroservice: INestMicroservice
   let partyMicroservice: INestMicroservice
   let tenantOrgMicroservice: INestMicroservice
+  let terminalDeviceMicroservice: INestMicroservice
   let jwtService: CommonJwtService
 
   beforeAll(async () => {
@@ -1029,6 +1170,19 @@ describe('AuthBff gateway integration', () => {
     )
 
     await tenantOrgMicroservice.listen()
+    terminalDeviceMicroservice = await NestFactory.createMicroservice<MicroserviceOptions>(
+      TestTerminalDeviceGrpcModule,
+      {
+        transport: Transport.GRPC,
+        options: {
+          package: 'terminal_device_service',
+          protoPath: resolveCommonProtoPath('terminal_device_service/terminal_device.proto'),
+          url: `127.0.0.1:${TERMINAL_DEVICE_PORT}`
+        }
+      }
+    )
+
+    await terminalDeviceMicroservice.listen()
 
     const moduleRef = await Test.createTestingModule({
       imports: [TestGatewayAppModule]
@@ -1060,6 +1214,7 @@ describe('AuthBff gateway integration', () => {
     await assetMicroservice?.close()
     await partyMicroservice?.close()
     await tenantOrgMicroservice?.close()
+    await terminalDeviceMicroservice?.close()
   })
 
   beforeEach(() => {
@@ -1124,7 +1279,10 @@ describe('AuthBff gateway integration', () => {
       .send({
         method: 'EMAIL_PASSWORD',
         identifier: 'worker@example.com',
-        credential: 'secret-1'
+        credential: 'secret-1',
+        device: {
+          deviceId: 'terminal-device-1'
+        }
       })
       .expect(201)
 

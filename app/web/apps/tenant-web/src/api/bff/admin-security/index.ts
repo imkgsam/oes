@@ -216,6 +216,10 @@ export namespace AdminSecurityApi {
     sessionId: string;
     status: string;
     tenantId?: string;
+    terminal?: string;
+    terminalDeviceId?: string;
+    deviceBoundTenantId?: string;
+    loginFlow?: string;
     userAgent?: string;
     userId: string;
   }
@@ -297,6 +301,39 @@ export namespace AdminSecurityApi {
     factors: TenantMfaFactorPolicy[];
     loginRequired: boolean;
     scenarioRequirements: TenantMfaScenarioRequirement[];
+  }
+
+  export interface TerminalLoginPolicyEntry {
+    enabledLoginFlows: string[];
+    supportedLoginFlows: string[];
+    terminal: 'KIOSK' | 'PDA' | 'WEB';
+  }
+
+  export interface PlatformTerminalLoginPolicy {
+    entries: TerminalLoginPolicyEntry[];
+  }
+
+  export interface TerminalMfaPolicyEntry {
+    allowedFactors: TenantMfaFactor[];
+    factorPriority: TenantMfaFactor[];
+    loginMfaRequired: boolean;
+    newDeviceMfaRequired: boolean;
+    source?: string;
+    terminal: 'KIOSK' | 'PDA' | 'WEB';
+  }
+
+  export interface PlatformTerminalMfaPolicy {
+    entries: TerminalMfaPolicyEntry[];
+  }
+
+  export interface TenantTerminalMfaPolicy extends PlatformTerminalMfaPolicy {
+    tenantId: string;
+  }
+
+  export interface TerminalMfaPolicyMutationPayload {
+    confirmOperationalImpact?: boolean;
+    entries: TerminalMfaPolicyEntry[];
+    reason?: string;
   }
 }
 
@@ -484,6 +521,60 @@ export async function updateAdminPlatformMfaPolicyApi(
 ) {
   return requestClient.request<AdminSecurityApi.PlatformMfaPolicy>(
     '/auth/admin/platform-mfa-policy',
+    {
+      data,
+      method: 'PUT',
+    },
+  );
+}
+
+export async function getAdminPlatformTerminalLoginPolicyApi() {
+  return requestClient.get<AdminSecurityApi.PlatformTerminalLoginPolicy>(
+    '/auth/admin/platform-terminal-login-policy',
+  );
+}
+
+export async function updateAdminPlatformTerminalLoginPolicyApi(
+  data: Pick<AdminSecurityApi.PlatformTerminalLoginPolicy, 'entries'>,
+) {
+  return requestClient.request<AdminSecurityApi.PlatformTerminalLoginPolicy>(
+    '/auth/admin/platform-terminal-login-policy',
+    {
+      data,
+      method: 'PUT',
+    },
+  );
+}
+
+export async function getAdminPlatformTerminalMfaPolicyApi() {
+  return requestClient.get<AdminSecurityApi.PlatformTerminalMfaPolicy>(
+    '/auth/admin/platform-terminal-mfa-policy',
+  );
+}
+
+export async function updateAdminPlatformTerminalMfaPolicyApi(
+  data: AdminSecurityApi.TerminalMfaPolicyMutationPayload,
+) {
+  return requestClient.request<AdminSecurityApi.PlatformTerminalMfaPolicy>(
+    '/auth/admin/platform-terminal-mfa-policy',
+    {
+      data,
+      method: 'PUT',
+    },
+  );
+}
+
+export async function getAdminTenantTerminalMfaPolicyApi() {
+  return requestClient.get<AdminSecurityApi.TenantTerminalMfaPolicy>(
+    '/auth/admin/tenant-terminal-mfa-policy',
+  );
+}
+
+export async function updateAdminTenantTerminalMfaPolicyApi(
+  data: AdminSecurityApi.TerminalMfaPolicyMutationPayload,
+) {
+  return requestClient.request<AdminSecurityApi.TenantTerminalMfaPolicy>(
+    '/auth/admin/tenant-terminal-mfa-policy',
     {
       data,
       method: 'PUT',

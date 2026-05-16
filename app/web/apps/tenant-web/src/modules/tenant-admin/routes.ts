@@ -63,6 +63,16 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'AdminPlatformTerminalSecuritySettings',
+        path: '/admin/platform-terminal-security',
+        component: () => import('#/views/admin/platform-terminal-security-settings.vue'),
+        meta: {
+          entryKey: 'admin.platform-terminal-security',
+          icon: 'lucide:monitor-check',
+          title: '平台终端安全配置',
+        },
+      },
+      {
         name: 'AdminPermissionManagement',
         path: '/admin/permission-management',
         component: () => import('#/views/admin/permission-management.vue'),
@@ -164,6 +174,16 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
           entryKey: 'tenant-settings.login-mfa',
           icon: 'lucide:shield-check',
           title: '租户 MFA 配置',
+        },
+      },
+      {
+        name: 'TenantTerminalMfaSettings',
+        path: '/settings/terminal-mfa',
+        component: () => import('#/views/admin/terminal-mfa-settings.vue'),
+        meta: {
+          entryKey: 'tenant-settings.terminal-mfa',
+          icon: 'lucide:shield-check',
+          title: '终端 MFA 配置',
         },
       },
     ],

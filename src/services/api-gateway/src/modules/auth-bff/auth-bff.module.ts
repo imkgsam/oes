@@ -14,6 +14,7 @@ import { IdentityQueryGrpcAdapter } from './infrastructure/downstream/identity-s
 import { PartyQueryGrpcAdapter } from './infrastructure/downstream/party-service/party-query-grpc.adapter'
 import { PermissionAccessSummaryGrpcAdapter } from './infrastructure/downstream/permission-service/permission-access-summary-grpc.adapter'
 import { TenantOrgQueryGrpcAdapter } from './infrastructure/downstream/tenant-org-service/tenant-org-query-grpc.adapter'
+import { TerminalDeviceAccessAdapter } from './infrastructure/downstream/terminal-device-service/terminal-device-access.adapter'
 import { LoginUseCase } from './application/use-cases/login.use-case'
 import { RequestEmailOtpChallengeUseCase } from './application/use-cases/request-email-otp-challenge.use-case'
 import { RequestPhoneOtpChallengeUseCase } from './application/use-cases/request-phone-otp-challenge.use-case'
@@ -48,7 +49,8 @@ import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/person
       SERVICE_NAMES.IDENTITY,
       SERVICE_NAMES.PARTY,
       SERVICE_NAMES.PERMISSION,
-      SERVICE_NAMES.TENANT_ORG
+      SERVICE_NAMES.TENANT_ORG,
+      SERVICE_NAMES.TERMINAL_DEVICE
     ])
   ],
   controllers: [AuthController, PdaAuthController, KioskAuthController],
@@ -59,6 +61,7 @@ import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/person
     PartyQueryGrpcAdapter,
     PermissionAccessSummaryGrpcAdapter,
     TenantOrgQueryGrpcAdapter,
+    TerminalDeviceAccessAdapter,
     PersonalCenterSummaryAdapter,
     {
       provide: PERSONAL_CENTER_SUMMARY_PORT,

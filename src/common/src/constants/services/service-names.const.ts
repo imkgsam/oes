@@ -14,6 +14,7 @@ export const SERVICE_NAMES = {
   PROCUREMENT: 'procurement-service',
   SRM: 'srm-service',
   TENANT_ORG: 'tenant-org-service',
+  TERMINAL_DEVICE: 'terminal-device-service',
   RESOURCE: 'resource-service',
   WMS: 'wms-service'
 } as const

@@ -352,3 +352,77 @@ export class AdminTenantMfaPolicyMutationDto {
 }
 
 export class AdminPlatformMfaPolicyMutationDto extends AdminTenantMfaPolicyMutationDto {}
+
+// Defines one platform terminal-login policy row accepted by platform auth security settings.
+export class AdminTerminalLoginPolicyEntryDto {
+  @ApiProperty({ enum: ['WEB', 'PDA', 'KIOSK'] })
+  @IsIn(['WEB', 'PDA', 'KIOSK'])
+  terminal!: string
+
+  @ApiProperty({ type: String, isArray: true })
+  @IsArray()
+  @IsString({ each: true })
+  enabledLoginFlows!: string[]
+}
+
+// Defines the platform terminal-login policy mutation payload.
+export class AdminPlatformTerminalLoginPolicyMutationDto {
+  @ApiProperty({ type: AdminTerminalLoginPolicyEntryDto, isArray: true })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AdminTerminalLoginPolicyEntryDto)
+  entries!: AdminTerminalLoginPolicyEntryDto[]
+}
+
+// Defines one terminal-aware MFA policy row accepted by admin security settings.
+export class AdminTerminalMfaPolicyEntryDto {
+  @ApiProperty({ enum: ['WEB', 'PDA', 'KIOSK'] })
+  @IsIn(['WEB', 'PDA', 'KIOSK'])
+  terminal!: string
+
+  @ApiProperty()
+  @IsBoolean()
+  loginMfaRequired!: boolean
+
+  @ApiProperty()
+  @IsBoolean()
+  newDeviceMfaRequired!: boolean
+
+  @ApiProperty({ enum: ['EMAIL_OTP', 'SMS_OTP', 'TOTP', 'BACKUP_CODE'], isArray: true })
+  @IsArray()
+  @IsIn(['EMAIL_OTP', 'SMS_OTP', 'TOTP', 'BACKUP_CODE'], { each: true })
+  allowedFactors!: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+
+  @ApiProperty({ enum: ['EMAIL_OTP', 'SMS_OTP', 'TOTP', 'BACKUP_CODE'], isArray: true })
+  @IsArray()
+  @IsIn(['EMAIL_OTP', 'SMS_OTP', 'TOTP', 'BACKUP_CODE'], { each: true })
+  factorPriority!: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+}
+
+// Defines the platform terminal-aware MFA policy mutation payload.
+export class AdminPlatformTerminalMfaPolicyMutationDto {
+  @ApiProperty({ type: AdminTerminalMfaPolicyEntryDto, isArray: true })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AdminTerminalMfaPolicyEntryDto)
+  entries!: AdminTerminalMfaPolicyEntryDto[]
+
+  @ApiPropertyOptional({
+    description: 'Operator-visible reason for the terminal MFA policy change.',
+    maxLength: 512
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  reason?: string
+
+  @ApiPropertyOptional({
+    description: 'Required when enabling login or new-device MFA for high-throughput PDA/KIOSK terminals.'
+  })
+  @IsOptional()
+  @IsBoolean()
+  confirmOperationalImpact?: boolean
+}
+
+// Defines the tenant terminal-aware MFA policy mutation payload.
+export class AdminTenantTerminalMfaPolicyMutationDto extends AdminPlatformTerminalMfaPolicyMutationDto {}

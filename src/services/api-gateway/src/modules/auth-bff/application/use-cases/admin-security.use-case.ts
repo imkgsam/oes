@@ -12,8 +12,11 @@ import {
   AdminLoginMethodStateMutationDto,
   AdminOnlineUserQueryDto,
   AdminPlatformMfaPolicyMutationDto,
+  AdminPlatformTerminalLoginPolicyMutationDto,
+  AdminPlatformTerminalMfaPolicyMutationDto,
   AdminRequirePasswordSetupDto,
   AdminTenantMfaPolicyMutationDto,
+  AdminTenantTerminalMfaPolicyMutationDto,
   CreateAdminAccountDto,
   AdminTenantOptionQueryDto,
   AdminRevokeSessionDto,
@@ -31,10 +34,13 @@ import {
   AdminOnlineUserListViewModel,
   AdminOnlineUserViewModel,
   AdminPlatformMfaPolicyViewModel,
+  AdminPlatformTerminalLoginPolicyViewModel,
+  AdminPlatformTerminalMfaPolicyViewModel,
   AdminSessionListViewModel,
   AdminSessionMutationViewModel,
   AdminSessionViewModel,
   AdminTenantMfaPolicyViewModel,
+  AdminTenantTerminalMfaPolicyViewModel,
   AdminTenantOptionListViewModel,
   AdminUserSearchListViewModel
 } from '../../interfaces/http/view-models/admin-security.view-model'
@@ -102,6 +108,10 @@ export class AdminSecurityUseCase {
             session.accountId ? accountNameMap.get(session.accountId) : undefined
           ),
           tenantId: session.tenantId ?? undefined,
+          terminal: session.terminal ?? undefined,
+          terminalDeviceId: session.terminalDeviceId ?? undefined,
+          deviceBoundTenantId: session.deviceBoundTenantId ?? undefined,
+          loginFlow: session.loginFlow ?? undefined,
           status: session.status ?? '',
           loginMethod: session.loginMethod ?? '',
           deviceId: session.deviceId ?? undefined,
@@ -364,6 +374,77 @@ export class AdminSecurityUseCase {
     )
 
     return toPlatformMfaPolicyViewModel(result)
+  }
+
+  async getPlatformTerminalLoginPolicy(
+    source: DownstreamRequestSource
+  ): Promise<AdminPlatformTerminalLoginPolicyViewModel> {
+    const result = await this.authAdapter.getPlatformTerminalLoginPolicy(source)
+    return toPlatformTerminalLoginPolicyViewModel(result)
+  }
+
+  async updatePlatformTerminalLoginPolicy(
+    dto: AdminPlatformTerminalLoginPolicyMutationDto,
+    source: DownstreamRequestSource
+  ): Promise<AdminPlatformTerminalLoginPolicyViewModel> {
+    const result = await this.authAdapter.updatePlatformTerminalLoginPolicy(
+      {
+        entries: dto.entries.map((entry) => ({
+          terminal: entry.terminal,
+          enabledLoginFlows: entry.enabledLoginFlows
+        }))
+      },
+      source
+    )
+
+    return toPlatformTerminalLoginPolicyViewModel(result)
+  }
+
+  async getPlatformTerminalMfaPolicy(
+    source: DownstreamRequestSource
+  ): Promise<AdminPlatformTerminalMfaPolicyViewModel> {
+    const result = await this.authAdapter.getPlatformDefaultTerminalMfaPolicy(source)
+    return toPlatformTerminalMfaPolicyViewModel(result)
+  }
+
+  async updatePlatformTerminalMfaPolicy(
+    dto: AdminPlatformTerminalMfaPolicyMutationDto,
+    source: DownstreamRequestSource
+  ): Promise<AdminPlatformTerminalMfaPolicyViewModel> {
+    assertTerminalMfaOperationalImpactConfirmed(dto)
+    const result = await this.authAdapter.updatePlatformDefaultTerminalMfaPolicy(
+      {
+        entries: dto.entries.map(toTerminalMfaMutationEntry)
+      },
+      source
+    )
+
+    return toPlatformTerminalMfaPolicyViewModel(result)
+  }
+
+  async getTenantTerminalMfaPolicy(
+    source: DownstreamRequestSource
+  ): Promise<AdminTenantTerminalMfaPolicyViewModel> {
+    const tenantId = this.resolveTenantAdminTenantId(source)
+    const result = await this.authAdapter.getTenantTerminalMfaPolicy(tenantId, source)
+    return toTenantTerminalMfaPolicyViewModel(result)
+  }
+
+  async updateTenantTerminalMfaPolicy(
+    dto: AdminTenantTerminalMfaPolicyMutationDto,
+    source: DownstreamRequestSource
+  ): Promise<AdminTenantTerminalMfaPolicyViewModel> {
+    assertTerminalMfaOperationalImpactConfirmed(dto)
+    const tenantId = this.resolveTenantAdminTenantId(source)
+    const result = await this.authAdapter.updateTenantTerminalMfaPolicy(
+      {
+        tenantId,
+        entries: dto.entries.map(toTerminalMfaMutationEntry)
+      },
+      source
+    )
+
+    return toTenantTerminalMfaPolicyViewModel(result)
   }
 
   async createAccount(
@@ -1134,6 +1215,121 @@ function toPlatformMfaPolicyViewModel(result: {
       .filter((factor): factor is AdminPlatformMfaPolicyViewModel['factors'][number] => Boolean(factor))
       .sort((left, right) => left.priority - right.priority)
   }
+}
+
+function toPlatformTerminalLoginPolicyViewModel(result: {
+  entries?: Array<{
+    enabledLoginFlows?: string[]
+    supportedLoginFlows?: string[]
+    terminal?: string
+  }>
+}): AdminPlatformTerminalLoginPolicyViewModel {
+  return {
+    entries: (result.entries ?? []).map((entry) => ({
+      terminal: entry.terminal ?? '',
+      enabledLoginFlows: entry.enabledLoginFlows ?? [],
+      supportedLoginFlows: entry.supportedLoginFlows ?? []
+    }))
+  }
+}
+
+function toPlatformTerminalMfaPolicyViewModel(result: {
+  entries?: Array<{
+    allowedFactors?: MfaBindingType[]
+    factorPriority?: MfaBindingType[]
+    loginMfaRequired?: boolean
+    newDeviceMfaRequired?: boolean
+    source?: string
+    terminal?: string
+  }>
+}): AdminPlatformTerminalMfaPolicyViewModel {
+  return {
+    entries: (result.entries ?? []).map(toTerminalMfaPolicyEntryViewModel)
+  }
+}
+
+function toTenantTerminalMfaPolicyViewModel(result: {
+  entries?: Array<{
+    allowedFactors?: MfaBindingType[]
+    factorPriority?: MfaBindingType[]
+    loginMfaRequired?: boolean
+    newDeviceMfaRequired?: boolean
+    source?: string
+    terminal?: string
+  }>
+  tenantId?: string
+}): AdminTenantTerminalMfaPolicyViewModel {
+  return {
+    tenantId: result.tenantId ?? '',
+    entries: (result.entries ?? []).map(toTerminalMfaPolicyEntryViewModel)
+  }
+}
+
+function toTerminalMfaPolicyEntryViewModel(entry: {
+  allowedFactors?: MfaBindingType[]
+  factorPriority?: MfaBindingType[]
+  loginMfaRequired?: boolean
+  newDeviceMfaRequired?: boolean
+  source?: string
+  terminal?: string
+}): AdminPlatformTerminalMfaPolicyViewModel['entries'][number] {
+  return {
+    terminal: entry.terminal ?? '',
+    loginMfaRequired: Boolean(entry.loginMfaRequired),
+    newDeviceMfaRequired: Boolean(entry.newDeviceMfaRequired),
+    allowedFactors: (entry.allowedFactors ?? []).map(toTenantMfaFactor).filter(isMfaFactor),
+    factorPriority: (entry.factorPriority ?? []).map(toTenantMfaFactor).filter(isMfaFactor),
+    source: normalize(entry.source)
+  }
+}
+
+function toTerminalMfaMutationEntry(entry: {
+  allowedFactors: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+  factorPriority: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+  loginMfaRequired: boolean
+  newDeviceMfaRequired: boolean
+  terminal: string
+}): {
+  allowedFactors: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+  factorPriority: Array<'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'>
+  loginMfaRequired: boolean
+  newDeviceMfaRequired: boolean
+  terminal: string
+} {
+  return {
+    terminal: entry.terminal,
+    loginMfaRequired: entry.loginMfaRequired,
+    newDeviceMfaRequired: entry.newDeviceMfaRequired,
+    allowedFactors: entry.allowedFactors,
+    factorPriority: entry.factorPriority
+  }
+}
+
+function assertTerminalMfaOperationalImpactConfirmed(input: {
+  confirmOperationalImpact?: boolean
+  entries: Array<{
+    loginMfaRequired: boolean
+    newDeviceMfaRequired: boolean
+    terminal: string
+  }>
+}): void {
+  const enablesHighThroughputTerminalMfa = input.entries.some((entry) => {
+    const terminal = entry.terminal.trim().toUpperCase()
+    return (
+      (terminal === 'PDA' || terminal === 'KIOSK') &&
+      (entry.loginMfaRequired || entry.newDeviceMfaRequired)
+    )
+  })
+
+  if (enablesHighThroughputTerminalMfa && !input.confirmOperationalImpact) {
+    throw new BadRequestException('Enabling MFA for PDA or KIOSK requires operational impact confirmation')
+  }
+}
+
+function isMfaFactor(
+  factor?: 'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP'
+): factor is 'BACKUP_CODE' | 'EMAIL_OTP' | 'SMS_OTP' | 'TOTP' {
+  return Boolean(factor)
 }
 
 function toTenantMfaFactor(

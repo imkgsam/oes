@@ -72,6 +72,10 @@ describe('SessionSelfServiceUseCase', () => {
             sessionId: 'session-1',
             accountId: 'account-1',
             tenantId: 'tenant-1',
+            terminal: 'PDA',
+            terminalDeviceId: 'terminal-device-1',
+            deviceBoundTenantId: 'tenant-1',
+            loginFlow: 'EMPLOYEE_CODE_PIN',
             status: 'ACTIVE',
             loginMethod: 'EMAIL_PASSWORD',
             createdAt: '2026-04-09T10:00:00.000Z',
@@ -107,6 +111,16 @@ describe('SessionSelfServiceUseCase', () => {
         sessionId: 'session-1',
         accountId: 'account-1',
         tenantId: 'tenant-1',
+        terminal: 'PDA',
+        loginFlow: 'EMPLOYEE_CODE_PIN',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-1',
+        accountSummary: { accountId: 'account-1' },
+        tenantSummary: { tenantId: 'tenant-1' },
+        terminalDeviceSummary: {
+          terminalDeviceId: 'terminal-device-1',
+          deviceBoundTenantId: 'tenant-1'
+        },
         isCurrent: true
       })
     )
@@ -138,6 +152,7 @@ describe('SessionSelfServiceUseCase', () => {
 
     expect(authAdapter.listTrustedDevices).toHaveBeenCalledWith(
       'user-1',
+      'TENANT',
       'tenant-1',
       undefined,
       expect.objectContaining({ user: { sub: 'user-1', tid: 'tenant-1', sid: 'session-1' } })
@@ -271,6 +286,7 @@ describe('SessionSelfServiceUseCase', () => {
         userId: 'user-1',
         accountId: 'account-1',
         tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
         currentPassword: 'OldSecret123!',
         newPassword: 'NewSecret123!',
         mfaGrantToken: 'step-up-grant-1'
@@ -328,6 +344,7 @@ describe('SessionSelfServiceUseCase', () => {
 
     expect(authAdapter.revokeTrustedDevice).toHaveBeenCalledWith(
       'user-1',
+      'TENANT',
       'tenant-1',
       'trusted-1',
       expect.objectContaining({ user: { sub: 'user-1', tid: 'tenant-1', sid: 'session-1' } })
@@ -353,6 +370,7 @@ describe('SessionSelfServiceUseCase', () => {
 
     expect(authAdapter.revokeOtherTrustedDevices).toHaveBeenCalledWith(
       'user-1',
+      'TENANT',
       'tenant-1',
       undefined,
       expect.objectContaining({ user: { sub: 'user-1', tid: 'tenant-1', sid: 'session-1' } })

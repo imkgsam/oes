@@ -61,14 +61,24 @@ describe('LoginUseCase', () => {
         accounts: []
       })
     }
+    const terminalDeviceAdapter = {
+      resolveLoginDeviceContext: jest.fn().mockResolvedValue({
+        allowed: true,
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-bound'
+      })
+    }
 
-    const useCase = new LoginUseCase(authAdapter as any)
+    const useCase = new LoginUseCase(authAdapter as any, undefined, terminalDeviceAdapter as any)
 
     await useCase.execute(
       {
         method: LoginMethodDto.EMAIL_PASSWORD,
         identifier: 'worker@example.com',
-        credential: 'secret'
+        credential: 'secret',
+        device: {
+          deviceId: 'terminal-device-1'
+        }
       },
       { requestId: 'req-1' },
       {},
@@ -80,6 +90,111 @@ describe('LoginUseCase', () => {
         terminal: 'PDA'
       }),
       expect.objectContaining({ requestId: 'req-1' })
+    )
+  })
+
+  it('resolves PDA device context before calling auth-service and ignores tenant hints', async () => {
+    const calls: string[] = []
+    const authAdapter = {
+      loginWithEmailPassword: jest.fn().mockImplementation(async () => {
+        calls.push('auth')
+        return {
+          status: LoginStatus.LOGIN_STATUS_ACCOUNT_SELECTION_REQUIRED,
+          userId: 'user-1',
+          loginMethod: 'EMAIL_PASSWORD',
+          accounts: []
+        }
+      })
+    }
+    const terminalDeviceAdapter = {
+      resolveLoginDeviceContext: jest.fn().mockImplementation(async () => {
+        calls.push('terminal-device')
+        return {
+          allowed: true,
+          terminalDeviceId: 'terminal-device-1',
+          deviceBoundTenantId: 'tenant-bound'
+        }
+      })
+    }
+
+    const useCase = new LoginUseCase(authAdapter as any, undefined, terminalDeviceAdapter as any)
+
+    await useCase.execute(
+      {
+        method: LoginMethodDto.EMAIL_PASSWORD,
+        identifier: 'worker@example.com',
+        credential: 'secret',
+        tenantHint: 'frontend-selected-tenant',
+        device: {
+          deviceId: ' terminal-device-1 ',
+          deviceName: ' Warehouse PDA '
+        }
+      },
+      { requestId: 'req-1', traceId: 'trace-1' },
+      { userAgent: ' OES-PDA/1.0 ', ipAddress: ' 10.0.0.7 ' },
+      'PDA'
+    )
+
+    expect(calls).toEqual(['terminal-device', 'auth'])
+    expect(terminalDeviceAdapter.resolveLoginDeviceContext).toHaveBeenCalledWith({
+      terminalDeviceId: 'terminal-device-1',
+      deviceMetadata: expect.objectContaining({
+        deviceName: 'Warehouse PDA',
+        userAgent: 'OES-PDA/1.0',
+        ipAddress: '10.0.0.7'
+      })
+    })
+    expect(authAdapter.loginWithEmailPassword).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terminal: 'PDA',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-bound'
+      }),
+      expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
+    )
+    expect(authAdapter.loginWithEmailPassword).not.toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'frontend-selected-tenant' }),
+      expect.anything()
+    )
+  })
+
+  it('returns stable PDA terminal-device denial without calling auth-service', async () => {
+    const authAdapter = {
+      loginWithEmailPassword: jest.fn()
+    }
+    const terminalDeviceAdapter = {
+      resolveLoginDeviceContext: jest.fn().mockResolvedValue({
+        allowed: false,
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-bound',
+        reasonCode: 'DEVICE_DISABLED'
+      })
+    }
+
+    const useCase = new LoginUseCase(authAdapter as any, undefined, terminalDeviceAdapter as any)
+
+    const result = await useCase.execute(
+      {
+        method: LoginMethodDto.EMAIL_PASSWORD,
+        identifier: 'worker@example.com',
+        credential: 'secret',
+        device: {
+          deviceId: 'terminal-device-1'
+        }
+      },
+      { requestId: 'req-1' },
+      {},
+      'PDA'
+    )
+
+    expect(authAdapter.loginWithEmailPassword).not.toHaveBeenCalled()
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'DENIED',
+        nextStep: 'NONE',
+        reasonCode: 'TERMINAL_ACCESS_DENIED',
+        accountOptions: []
+      })
     )
   })
 

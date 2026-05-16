@@ -35,8 +35,28 @@ export class SessionSelfServiceUseCase {
           sessionId: session.sessionId ?? '',
           accountId: session.accountId ?? undefined,
           tenantId: session.tenantId ?? undefined,
+          accountSummary: session.accountId
+            ? {
+                accountId: session.accountId
+              }
+            : undefined,
+          tenantSummary: session.tenantId
+            ? {
+                tenantId: session.tenantId
+              }
+            : undefined,
           status: session.status ?? '',
           loginMethod: session.loginMethod ?? '',
+          terminal: session.terminal ?? 'WEB',
+          loginFlow: session.loginFlow ?? session.loginMethod ?? '',
+          terminalDeviceId: session.terminalDeviceId ?? undefined,
+          deviceBoundTenantId: session.deviceBoundTenantId ?? undefined,
+          terminalDeviceSummary: session.terminalDeviceId
+            ? {
+                terminalDeviceId: session.terminalDeviceId,
+                deviceBoundTenantId: session.deviceBoundTenantId ?? undefined
+              }
+            : undefined,
           deviceId: session.deviceId ?? undefined,
           deviceName: session.deviceName ?? undefined,
           userAgent: session.userAgent ?? undefined,
