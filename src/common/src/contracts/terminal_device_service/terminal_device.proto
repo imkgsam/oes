@@ -1,0 +1,561 @@
+// File: src/common/src/contracts/terminal_device_service/terminal_device.proto
+syntax = "proto3";
+
+package terminal_device_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.terminaldevice.v1";
+
+// TerminalDeviceEnrollmentService manages administrator-issued device enrollment authorizations.
+service TerminalDeviceEnrollmentService {
+  rpc CreateEnrollment(CreateEnrollmentRequest) returns (CreateEnrollmentResponse);
+  rpc ListEnrollments(ListEnrollmentsRequest) returns (ListEnrollmentsResponse);
+  rpc RevokeEnrollment(RevokeEnrollmentRequest) returns (RevokeEnrollmentResponse);
+  rpc ActivateEnrollment(ActivateEnrollmentRequest) returns (ActivateEnrollmentResponse);
+}
+
+// TerminalDeviceAccessDecisionService resolves managed terminal device access decisions.
+service TerminalDeviceAccessDecisionService {
+  rpc ResolveDeviceAccessDecision(ResolveDeviceAccessDecisionRequest) returns (ResolveDeviceAccessDecisionResponse);
+}
+
+// TerminalDeviceManagementService exposes managed terminal device command and query operations.
+service TerminalDeviceManagementService {
+  rpc ListTerminalDevices(ListTerminalDevicesRequest) returns (ListTerminalDevicesResponse);
+  rpc GetTerminalDevice(GetTerminalDeviceRequest) returns (GetTerminalDeviceResponse);
+  rpc UpdateTerminalDevice(UpdateTerminalDeviceRequest) returns (UpdateTerminalDeviceResponse);
+  rpc ChangeTerminalDeviceStatus(ChangeTerminalDeviceStatusRequest) returns (ChangeTerminalDeviceStatusResponse);
+  rpc ListTerminalDeviceAuditEvents(ListTerminalDeviceAuditEventsRequest) returns (ListTerminalDeviceAuditEventsResponse);
+}
+
+// TerminalDeviceRuntimeSnapshotService records and reads the latest device runtime snapshot.
+service TerminalDeviceRuntimeSnapshotService {
+  rpc RecordHeartbeat(RecordHeartbeatRequest) returns (RecordHeartbeatResponse);
+  rpc GetRuntimeSnapshot(GetRuntimeSnapshotRequest) returns (GetRuntimeSnapshotResponse);
+}
+
+// TerminalDeviceVersionPolicyService manages app version policies by tenant and terminal device type.
+service TerminalDeviceVersionPolicyService {
+  rpc GetVersionPolicy(GetVersionPolicyRequest) returns (GetVersionPolicyResponse);
+  rpc UpsertVersionPolicy(UpsertVersionPolicyRequest) returns (UpsertVersionPolicyResponse);
+}
+
+// TerminalDeviceType identifies supported managed terminal device categories.
+enum TerminalDeviceType {
+  TERMINAL_DEVICE_TYPE_UNSPECIFIED = 0;
+  TERMINAL_DEVICE_TYPE_PDA = 1;
+  TERMINAL_DEVICE_TYPE_KIOSK = 2;
+  TERMINAL_DEVICE_TYPE_INDUSTRIAL_TABLET = 3;
+  TERMINAL_DEVICE_TYPE_SHARED_MOBILE_TERMINAL = 4;
+}
+
+// TerminalDeviceStatus is the lifecycle status of a managed terminal device.
+enum TerminalDeviceStatus {
+  TERMINAL_DEVICE_STATUS_UNSPECIFIED = 0;
+  TERMINAL_DEVICE_STATUS_PENDING_APPROVAL = 1;
+  TERMINAL_DEVICE_STATUS_ACTIVE = 2;
+  TERMINAL_DEVICE_STATUS_DISABLED = 3;
+  TERMINAL_DEVICE_STATUS_LOST = 4;
+  TERMINAL_DEVICE_STATUS_MAINTENANCE = 5;
+  TERMINAL_DEVICE_STATUS_DECOMMISSIONED = 6;
+}
+
+// PresenceStatus is inferred from the latest heartbeat and is not lifecycle status.
+enum PresenceStatus {
+  PRESENCE_STATUS_UNSPECIFIED = 0;
+  PRESENCE_STATUS_ONLINE = 1;
+  PRESENCE_STATUS_STALE = 2;
+  PRESENCE_STATUS_OFFLINE = 3;
+  PRESENCE_STATUS_UNKNOWN = 4;
+}
+
+// EnrollmentStatus is the lifecycle status of an administrator-issued enrollment authorization.
+enum EnrollmentStatus {
+  ENROLLMENT_STATUS_UNSPECIFIED = 0;
+  ENROLLMENT_STATUS_ISSUED = 1;
+  ENROLLMENT_STATUS_USED = 2;
+  ENROLLMENT_STATUS_EXPIRED = 3;
+  ENROLLMENT_STATUS_REVOKED = 4;
+}
+
+// DeviceAccessRequestPurpose describes why a caller needs a device access decision.
+enum DeviceAccessRequestPurpose {
+  DEVICE_ACCESS_REQUEST_PURPOSE_UNSPECIFIED = 0;
+  DEVICE_ACCESS_REQUEST_PURPOSE_ENROLLMENT = 1;
+  DEVICE_ACCESS_REQUEST_PURPOSE_LOGIN = 2;
+  DEVICE_ACCESS_REQUEST_PURPOSE_BOOTSTRAP = 3;
+  DEVICE_ACCESS_REQUEST_PURPOSE_BUSINESS_REQUEST = 4;
+  DEVICE_ACCESS_REQUEST_PURPOSE_HEARTBEAT = 5;
+  DEVICE_ACCESS_REQUEST_PURPOSE_DIAGNOSTIC_LOG = 6;
+}
+
+// DeviceAccessDecisionCode explains the managed terminal device access decision.
+enum DeviceAccessDecisionCode {
+  DEVICE_ACCESS_DECISION_CODE_UNSPECIFIED = 0;
+  DEVICE_ACCESS_DECISION_CODE_ALLOW = 1;
+  DEVICE_ACCESS_DECISION_CODE_ENROLLMENT_REQUIRED = 2;
+  DEVICE_ACCESS_DECISION_CODE_DEVICE_PENDING_APPROVAL = 3;
+  DEVICE_ACCESS_DECISION_CODE_DEVICE_DISABLED = 4;
+  DEVICE_ACCESS_DECISION_CODE_DEVICE_LOST = 5;
+  DEVICE_ACCESS_DECISION_CODE_DEVICE_MAINTENANCE = 6;
+  DEVICE_ACCESS_DECISION_CODE_DEVICE_DECOMMISSIONED = 7;
+  DEVICE_ACCESS_DECISION_CODE_APP_VERSION_UNSUPPORTED = 8;
+  DEVICE_ACCESS_DECISION_CODE_DEVICE_IDENTITY_CONFLICT = 9;
+  DEVICE_ACCESS_DECISION_CODE_TERMINAL_DEVICE_NOT_FOUND = 10;
+  DEVICE_ACCESS_DECISION_CODE_INVALID_TERMINAL_DEVICE_TYPE = 11;
+  DEVICE_ACCESS_DECISION_CODE_ENROLLMENT_EXPIRED = 12;
+  DEVICE_ACCESS_DECISION_CODE_ENROLLMENT_USED = 13;
+  DEVICE_ACCESS_DECISION_CODE_ENROLLMENT_REVOKED = 14;
+  DEVICE_ACCESS_DECISION_CODE_ENROLLMENT_INVALID = 15;
+}
+
+// DeviceRequiredAction tells PDA clients how to converge local state after a decision.
+enum DeviceRequiredAction {
+  DEVICE_REQUIRED_ACTION_UNSPECIFIED = 0;
+  DEVICE_REQUIRED_ACTION_NONE = 1;
+  DEVICE_REQUIRED_ACTION_ENROLL_DEVICE = 2;
+  DEVICE_REQUIRED_ACTION_CONTACT_ADMIN = 3;
+  DEVICE_REQUIRED_ACTION_CLEAR_LOCAL_SESSION = 4;
+  DEVICE_REQUIRED_ACTION_CLEAR_LOCAL_DEVICE_AND_SESSION = 5;
+  DEVICE_REQUIRED_ACTION_UPGRADE_APP = 6;
+}
+
+// IdentityConfidence describes how reliable the current identity match is.
+enum IdentityConfidence {
+  IDENTITY_CONFIDENCE_UNSPECIFIED = 0;
+  IDENTITY_CONFIDENCE_HIGH = 1;
+  IDENTITY_CONFIDENCE_MEDIUM = 2;
+  IDENTITY_CONFIDENCE_LOW = 3;
+}
+
+// IdentitySource identifies the signal used to match or register the terminal device.
+enum IdentitySource {
+  IDENTITY_SOURCE_UNSPECIFIED = 0;
+  IDENTITY_SOURCE_MANUFACTURER_SERIAL = 1;
+  IDENTITY_SOURCE_ANDROID_ID = 2;
+  IDENTITY_SOURCE_APP_INSTALLATION_ID = 3;
+  IDENTITY_SOURCE_MANUAL_BINDING = 4;
+}
+
+// NetworkStatus describes the latest device network availability.
+enum NetworkStatus {
+  NETWORK_STATUS_UNSPECIFIED = 0;
+  NETWORK_STATUS_ONLINE = 1;
+  NETWORK_STATUS_OFFLINE = 2;
+  NETWORK_STATUS_UNKNOWN = 3;
+}
+
+// NetworkType describes the latest device network type.
+enum NetworkType {
+  NETWORK_TYPE_UNSPECIFIED = 0;
+  NETWORK_TYPE_WIFI = 1;
+  NETWORK_TYPE_CELLULAR = 2;
+  NETWORK_TYPE_ETHERNET = 3;
+  NETWORK_TYPE_NONE = 4;
+  NETWORK_TYPE_UNKNOWN = 5;
+}
+
+// AppState describes the latest PDA app foreground/background state.
+enum AppState {
+  APP_STATE_UNSPECIFIED = 0;
+  APP_STATE_FOREGROUND = 1;
+  APP_STATE_BACKGROUND = 2;
+  APP_STATE_CLOSED = 3;
+  APP_STATE_UNKNOWN = 4;
+}
+
+// OperatorContext carries audit metadata for administrative commands.
+message OperatorContext {
+  string operator_account_id = 1;
+  string operator_org_id = 2;
+  string trace_id = 3;
+}
+
+// TerminalDeviceIdentity contains device identity signals reported by the PDA shell.
+message TerminalDeviceIdentity {
+  string manufacturer_serial = 1;
+  string android_id = 2;
+  string app_installation_id = 3;
+  string manufacturer = 4;
+  string model = 5;
+  IdentitySource identity_source = 6;
+  IdentityConfidence identity_confidence = 7;
+  string manufacturer_serial_masked = 8;
+  string android_id_masked = 9;
+}
+
+// TerminalDeviceSoftware contains PDA OS, WebView, and App version facts.
+message TerminalDeviceSoftware {
+  string android_version = 1;
+  string web_view_version = 2;
+  string app_version = 3;
+}
+
+// TerminalDeviceRuntime contains the latest runtime facts reported by heartbeat.
+message TerminalDeviceRuntime {
+  NetworkStatus network_status = 1;
+  NetworkType network_type = 2;
+  int32 battery_level = 3;
+  AppState app_state = 4;
+}
+
+// ReportedSession is heartbeat diagnostic session metadata and is not login truth.
+message ReportedSession {
+  string account_id = 1;
+  string session_id = 2;
+}
+
+// TerminalDeviceVersionPolicy is the app version policy for a tenant and terminal device type.
+message TerminalDeviceVersionPolicy {
+  string tenant_id = 1;
+  TerminalDeviceType terminal_device_type = 2;
+  string min_supported_app_version = 3;
+  string latest_app_version = 4;
+  bool upgrade_required = 5;
+  bool upgrade_recommended = 6;
+  string apk_download_url = 7;
+  string release_notes_url = 8;
+  string updated_at = 9;
+  string updated_by = 10;
+}
+
+// DeviceAccessDecision is the central terminal device governance decision.
+message DeviceAccessDecision {
+  bool allowed = 1;
+  DeviceAccessDecisionCode decision_code = 2;
+  string resolved_tenant_id = 3;
+  string terminal_device_id = 4;
+  TerminalDeviceType terminal_device_type = 5;
+  TerminalDeviceStatus device_status = 6;
+  PresenceStatus presence_status = 7;
+  TerminalDeviceVersionPolicy version_policy = 8;
+  DeviceRequiredAction required_action = 9;
+  string message_key = 10;
+  bool should_clear_local_session = 11;
+  bool should_clear_local_terminal_device_id = 12;
+  bool should_revoke_server_sessions = 13;
+}
+
+// TerminalDeviceSummary is a list-friendly managed terminal device projection.
+message TerminalDeviceSummary {
+  string terminal_device_id = 1;
+  string tenant_id = 2;
+  TerminalDeviceType terminal_device_type = 3;
+  string display_name = 4;
+  TerminalDeviceStatus status = 5;
+  PresenceStatus presence_status = 6;
+  string app_version = 7;
+  string android_version = 8;
+  string manufacturer = 9;
+  string model = 10;
+  string last_heartbeat_at = 11;
+  string last_reported_account_id = 12;
+  string registered_at = 13;
+  string enrollment_id = 14;
+}
+
+// TerminalDeviceDetail is the management detail projection for one terminal device.
+message TerminalDeviceDetail {
+  string terminal_device_id = 1;
+  string tenant_id = 2;
+  TerminalDeviceType terminal_device_type = 3;
+  string display_name = 4;
+  TerminalDeviceStatus status = 5;
+  string status_reason = 6;
+  string registered_at = 7;
+  string enrollment_id = 8;
+  string notes = 9;
+}
+
+// TerminalDeviceEnrollment is an administrator-issued enrollment authorization projection.
+message TerminalDeviceEnrollment {
+  string enrollment_id = 1;
+  string tenant_id = 2;
+  TerminalDeviceType terminal_device_type = 3;
+  string display_name = 4;
+  EnrollmentStatus status = 5;
+  string expected_manufacturer_serial = 6;
+  string expires_at = 7;
+  string used_at = 8;
+  string used_by_terminal_device_id = 9;
+  string revoked_at = 10;
+  string revoked_by = 11;
+  string created_by = 12;
+  string created_at = 13;
+  string notes = 14;
+}
+
+// TerminalDeviceRuntimeSnapshot is the latest diagnostic runtime state for a terminal device.
+message TerminalDeviceRuntimeSnapshot {
+  string terminal_device_id = 1;
+  PresenceStatus presence_status = 2;
+  string last_heartbeat_at = 3;
+  string last_client_time = 4;
+  string app_version = 5;
+  string android_version = 6;
+  string web_view_version = 7;
+  NetworkStatus network_status = 8;
+  NetworkType network_type = 9;
+  int32 battery_level = 10;
+  AppState app_state = 11;
+  string last_reported_account_id = 12;
+  string last_reported_session_id = 13;
+}
+
+// TerminalDeviceAuditEvent is the device governance audit event projection.
+message TerminalDeviceAuditEvent {
+  string audit_event_id = 1;
+  string tenant_id = 2;
+  string operator_account_id = 3;
+  string operator_org_id = 4;
+  string action = 5;
+  string target_terminal_device_id = 6;
+  string before_json = 7;
+  string after_json = 8;
+  string reason = 9;
+  string trace_id = 10;
+  string occurred_at = 11;
+}
+
+// SessionRevokeIntent describes auth-service session cleanup requested by a status change.
+message SessionRevokeIntent {
+  bool required = 1;
+  string session_terminal = 2;
+  string terminal_device_id = 3;
+}
+
+// PaginationRequest describes list pagination.
+message PaginationRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+}
+
+// PaginationResponse describes list pagination results.
+message PaginationResponse {
+  int32 page = 1;
+  int32 page_size = 2;
+  int32 total = 3;
+}
+
+// CreateEnrollmentRequest creates an administrator-issued enrollment authorization.
+message CreateEnrollmentRequest {
+  string tenant_id = 1;
+  TerminalDeviceType terminal_device_type = 2;
+  string display_name = 3;
+  string expected_manufacturer_serial = 4;
+  string expires_at = 5;
+  string notes = 6;
+  OperatorContext operator_context = 7;
+}
+
+// CreateEnrollmentResponse returns the created enrollment and one-time enrollment code.
+message CreateEnrollmentResponse {
+  TerminalDeviceEnrollment enrollment = 1;
+  string enrollment_code = 2;
+}
+
+// ListEnrollmentsRequest filters enrollments in a tenant.
+message ListEnrollmentsRequest {
+  string tenant_id = 1;
+  TerminalDeviceType terminal_device_type = 2;
+  EnrollmentStatus status = 3;
+  PaginationRequest pagination = 4;
+}
+
+// ListEnrollmentsResponse returns enrollment page results.
+message ListEnrollmentsResponse {
+  repeated TerminalDeviceEnrollment items = 1;
+  PaginationResponse pagination = 2;
+}
+
+// RevokeEnrollmentRequest revokes an unused enrollment authorization.
+message RevokeEnrollmentRequest {
+  string tenant_id = 1;
+  string enrollment_id = 2;
+  string reason = 3;
+  OperatorContext operator_context = 4;
+}
+
+// RevokeEnrollmentResponse returns the revoked enrollment.
+message RevokeEnrollmentResponse {
+  TerminalDeviceEnrollment enrollment = 1;
+}
+
+// ActivateEnrollmentRequest activates a real PDA using an enrollment code.
+message ActivateEnrollmentRequest {
+  string enrollment_code = 1;
+  TerminalDeviceType terminal_device_type = 2;
+  TerminalDeviceIdentity identity = 3;
+  TerminalDeviceSoftware software = 4;
+  string trace_id = 5;
+}
+
+// ActivateEnrollmentResponse returns the activation result and created terminal device id.
+message ActivateEnrollmentResponse {
+  bool activated = 1;
+  string terminal_device_id = 2;
+  string tenant_id = 3;
+  TerminalDeviceType terminal_device_type = 4;
+  TerminalDeviceStatus device_status = 5;
+  string enrollment_id = 6;
+  DeviceAccessDecisionCode decision_code = 7;
+}
+
+// ResolveDeviceAccessDecisionRequest asks whether a device may perform a request purpose.
+message ResolveDeviceAccessDecisionRequest {
+  string tenant_id = 1;
+  string terminal_device_id = 2;
+  TerminalDeviceType terminal_device_type = 3;
+  DeviceAccessRequestPurpose request_purpose = 4;
+  string app_version = 5;
+  TerminalDeviceIdentity identity = 6;
+  ReportedSession session = 7;
+  string trace_id = 8;
+}
+
+// ResolveDeviceAccessDecisionResponse returns the managed terminal device access decision.
+message ResolveDeviceAccessDecisionResponse {
+  DeviceAccessDecision decision = 1;
+}
+
+// ListTerminalDevicesRequest filters managed terminal devices in a tenant.
+message ListTerminalDevicesRequest {
+  string tenant_id = 1;
+  TerminalDeviceType terminal_device_type = 2;
+  TerminalDeviceStatus status = 3;
+  PresenceStatus presence_status = 4;
+  string keyword = 5;
+  PaginationRequest pagination = 6;
+}
+
+// ListTerminalDevicesResponse returns terminal device page results.
+message ListTerminalDevicesResponse {
+  repeated TerminalDeviceSummary items = 1;
+  PaginationResponse pagination = 2;
+}
+
+// GetTerminalDeviceRequest loads one managed terminal device.
+message GetTerminalDeviceRequest {
+  string tenant_id = 1;
+  string terminal_device_id = 2;
+  bool include_sensitive_identity = 3;
+}
+
+// GetTerminalDeviceResponse returns terminal device detail.
+message GetTerminalDeviceResponse {
+  TerminalDeviceDetail device = 1;
+  TerminalDeviceIdentity identity = 2;
+  TerminalDeviceRuntimeSnapshot runtime = 3;
+}
+
+// UpdateTerminalDeviceRequest updates non-lifecycle device display fields.
+message UpdateTerminalDeviceRequest {
+  string tenant_id = 1;
+  string terminal_device_id = 2;
+  string display_name = 3;
+  string notes = 4;
+  OperatorContext operator_context = 5;
+}
+
+// UpdateTerminalDeviceResponse returns updated non-lifecycle display fields.
+message UpdateTerminalDeviceResponse {
+  string terminal_device_id = 1;
+  string display_name = 2;
+  string notes = 3;
+  string updated_at = 4;
+}
+
+// ChangeTerminalDeviceStatusRequest changes lifecycle status.
+message ChangeTerminalDeviceStatusRequest {
+  string tenant_id = 1;
+  string terminal_device_id = 2;
+  TerminalDeviceStatus target_status = 3;
+  string reason = 4;
+  OperatorContext operator_context = 5;
+}
+
+// ChangeTerminalDeviceStatusResponse returns lifecycle transition outcome.
+message ChangeTerminalDeviceStatusResponse {
+  string terminal_device_id = 1;
+  TerminalDeviceStatus previous_status = 2;
+  TerminalDeviceStatus status = 3;
+  string status_reason = 4;
+  string changed_at = 5;
+  SessionRevokeIntent session_revoke_intent = 6;
+}
+
+// ListTerminalDeviceAuditEventsRequest filters device governance audit events.
+message ListTerminalDeviceAuditEventsRequest {
+  string tenant_id = 1;
+  string terminal_device_id = 2;
+  PaginationRequest pagination = 3;
+}
+
+// ListTerminalDeviceAuditEventsResponse returns audit event page results.
+message ListTerminalDeviceAuditEventsResponse {
+  repeated TerminalDeviceAuditEvent items = 1;
+  PaginationResponse pagination = 2;
+}
+
+// RecordHeartbeatRequest records a PDA runtime heartbeat.
+message RecordHeartbeatRequest {
+  string tenant_id = 1;
+  string terminal_device_id = 2;
+  TerminalDeviceType terminal_device_type = 3;
+  TerminalDeviceIdentity identity = 4;
+  TerminalDeviceSoftware software = 5;
+  TerminalDeviceRuntime runtime = 6;
+  ReportedSession reported_session = 7;
+  string client_time = 8;
+  string received_at = 9;
+  string trace_id = 10;
+}
+
+// RecordHeartbeatResponse returns the updated heartbeat marker.
+message RecordHeartbeatResponse {
+  bool accepted = 1;
+  string terminal_device_id = 2;
+  string last_heartbeat_at = 3;
+  PresenceStatus presence_status = 4;
+}
+
+// GetRuntimeSnapshotRequest loads the current runtime snapshot for one device.
+message GetRuntimeSnapshotRequest {
+  string tenant_id = 1;
+  string terminal_device_id = 2;
+}
+
+// GetRuntimeSnapshotResponse returns the current runtime snapshot.
+message GetRuntimeSnapshotResponse {
+  TerminalDeviceRuntimeSnapshot snapshot = 1;
+}
+
+// GetVersionPolicyRequest reads version policy by tenant and terminal device type.
+message GetVersionPolicyRequest {
+  string tenant_id = 1;
+  TerminalDeviceType terminal_device_type = 2;
+}
+
+// GetVersionPolicyResponse returns the current version policy.
+message GetVersionPolicyResponse {
+  TerminalDeviceVersionPolicy policy = 1;
+}
+
+// UpsertVersionPolicyRequest creates or updates version policy.
+message UpsertVersionPolicyRequest {
+  string tenant_id = 1;
+  TerminalDeviceType terminal_device_type = 2;
+  string min_supported_app_version = 3;
+  string latest_app_version = 4;
+  bool upgrade_required = 5;
+  bool upgrade_recommended = 6;
+  string apk_download_url = 7;
+  string release_notes_url = 8;
+  string reason = 9;
+  OperatorContext operator_context = 10;
+}
+
+// UpsertVersionPolicyResponse returns the updated version policy.
+message UpsertVersionPolicyResponse {
+  TerminalDeviceVersionPolicy policy = 1;
+}
