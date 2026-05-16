@@ -12,7 +12,7 @@ PDA is an independent terminal entry, not a tenant-web skin. The BFF fixes `term
 
 ## 2. Endpoint Scope
 
-Phase 1 PDA auth exposes only the login/session initialization subset:
+Phase 1 PDA auth exposed the login/session initialization subset:
 
 - `POST /pda/auth/login`
 - `POST /pda/auth/account-selection`
@@ -20,6 +20,12 @@ Phase 1 PDA auth exposes only the login/session initialization subset:
 - `POST /pda/auth/mfa/challenges`
 - `POST /pda/auth/session/refresh`
 - `GET /pda/auth/session/context`
+
+Terminal-aware Account Security Phase 2 changes the PDA target flow:
+
+- PDA 登录租户由受管设备绑定决定，用户登录时不再选择租户。
+- PDA Phase 2 不提供 account selection；`POST /pda/auth/account-selection` 只作为历史 Phase 1 / compatibility 入口看待，不作为 Phase 2 目标流程继续扩展。
+- PDA 常规登录 MFA 默认关闭；`/pda/auth/mfa/*` 仅在租户显式开启 PDA terminal MFA 时才可能进入流程。
 
 Not part of Phase 1:
 
@@ -40,13 +46,18 @@ Rules:
 
 ## 4. Login Flow
 
-Request and response shapes mirror the stable Web auth BFF login contract unless this document states otherwise.
+Request and response shapes mirror the stable Web auth BFF login contract only where PDA terminal semantics do not differ.
 
 The major semantic difference is terminal binding:
 
 - `auth-service` receives `terminal = PDA`.
+- PDA BFF must provide the trusted `terminalDeviceId` and device-bound tenant context after consulting the managed terminal device capability.
+- `auth-service` authenticates the user, then resolves exactly one PDA-eligible account inside the device-bound tenant.
 - `auth-service` applies the Terminal Access Policy decision according to its unique truth source before MFA challenge creation or session issuance.
 - PDA sessions and tokens carry `terminal = PDA`.
+- PDA sessions carry `terminalDeviceId` and `deviceBoundTenantId`.
+- If no PDA-eligible account exists in the device-bound tenant, login is denied.
+- If multiple PDA-eligible accounts exist in the device-bound tenant, login is denied and requires admin-side identity / permission governance.
 
 Terminal denial response:
 
@@ -61,6 +72,18 @@ Terminal denial response:
 ```
 
 The response must not include `effectiveAllowedTerminals`.
+
+PDA account resolution denial response:
+
+```json
+{
+  "status": "DENIED",
+  "nextStep": "NONE",
+  "reasonCode": "PDA_ACCOUNT_RESOLUTION_FAILED",
+  "message": "当前账号无法在此 PDA 设备绑定租户内建立唯一可用登录上下文，请联系管理员。",
+  "accountOptions": []
+}
+```
 
 ## 5. Session Context
 
@@ -82,6 +105,11 @@ Target fields:
   "tenant": {
     "tenantId": "tenant_123",
     "name": "Meilong Ceramics"
+  },
+  "terminalDevice": {
+    "terminalDeviceId": "pda_001",
+    "deviceBoundTenantId": "tenant_123",
+    "displayName": "PDA-001"
   },
   "org": null,
   "terminal": "PDA",

@@ -238,6 +238,8 @@
   - `factors[].enabled`
   - `factors[].priority`
 - 语义约束：
+  - Terminal-aware Account Security Phase 2 后，租户 MFA 策略目标形态以 [terminal-mfa-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-mfa-policy.md) 为准：MFA 不再表达为全局登录开关，而是按 terminal 独立配置。
+  - 当前 `loginRequired` / `LOGIN` 字段只能作为历史兼容口径；新设计应返回 `terminalPolicies[]` 与每个 terminal 的 effective source。
   - 当前租户设置页已支持 `LOGIN / CHANGE_PASSWORD / CHANGE_CONTACT / NEW_DEVICE_LOGIN`
   - 因子启停与 priority 是当前租户统一设置，场景只决定“是否需要 MFA”，不单独维护每个场景自己的因子表
   - 前端拖拽排序只改变 `priority`，不改变用户自己的 MFA 绑定资产
@@ -259,6 +261,8 @@
   - `factors[].enabled`
   - `factors[].priority`
 - 稳定语义：
+  - Terminal-aware Account Security Phase 2 后，更新目标应迁移到 terminal-aware shape：按 terminal 设置 `loginMfaRequired / newDeviceMfaRequired / allowedFactors / factorPriority`。
+  - 租户不配置 primary login method；本接口不得被扩展为租户登录方式开关。
   - 请求必须覆盖 `EMAIL_OTP / SMS_OTP / TOTP / BACKUP_CODE` 四个受管因子且每个因子只出现一次
   - `loginRequired` 仍保留为 `LOGIN` 场景兼容字段；多场景真相以 `scenarioRequirements` 为准
   - priority 必须被服务端归一为当前租户登录 MFA 的最终排序

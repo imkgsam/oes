@@ -20,5 +20,7 @@
   - 决定 OES 的终端准入策略真相归 `permission-service`，由 `auth-service` 在登录 / refresh 链路消费判定，并由 Web / PDA / KIOSK BFF 固定可信 terminal。
 - `0006-terminal-device-service.md`
   - 决定 OES 新增 `terminal-device-service` 作为企业受管现场交互终端设备治理真相源，承接 PDA 设备入网、生命周期、禁用、运行快照、版本策略与设备治理审计。
+- `0007-terminal-aware-account-security-phase-2.md`
+  - 决定 Terminal-aware Account Security Phase 2 的登录方式、terminal MFA、PDA 设备绑定租户、session、trusted device、登录历史与受管设备清退协同边界。
 
 若后续涉及 bounded context、共享契约、事件模型、权限语义、租户模型、`src/common` 对外 API 或 AI 工具协议变更，应先在本目录新增 ADR，再进入实现。

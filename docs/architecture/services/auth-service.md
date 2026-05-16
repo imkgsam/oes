@@ -25,6 +25,7 @@
   - OTP usage 与验证码校验状态
   - password setup requirement
   - password recovery reset grant
+  - platform terminal entry login policy
 - session 与 token 真相：
   - active session
   - session context
@@ -40,11 +41,11 @@
   - user MFA binding
   - TOTP binding
   - recovery codes
-  - tenant MFA policy
-  - platform MFA policy
+  - platform default terminal MFA policy
+  - tenant terminal MFA policy
   - login MFA orchestration
   - sensitive action step-up MFA orchestration
-- trusted-device 与 new-device MFA 判定所需的认证域设备识别真相。
+- personal trusted-device 与 new-device MFA 判定所需的认证域设备识别真相。
 - 登录失败限流、OTP 发码频控、OTP 尝试次数与认证安全策略执行真相。
 - 认证域本地审计事实：
   - login
@@ -66,6 +67,8 @@
 - 角色、权限、policy、授权判定、权限摘要与导航授权真相；这些以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
 - 通知模板、渠道、provider、投递任务、投递状态、回执与成本治理真相；这些归属 `notification-service`。
 - API Gateway / BFF 的 HTTP contract、前端响应聚合形状、captcha 校验与前端 shell 状态。
+- 企业受管共享终端设备 registry、绑定租户、设备禁用、丢失、版本策略或设备运行快照真相；这些归属 `terminal-device-service`。
+- Terminal Access Policy、account 是否允许从某 terminal 建立 session 的授权事实；这些归属 `permission-service`。
 - 集中审计平台的索引、归档、检索与跨域审计视图；`auth-service` 只拥有认证域本地审计事实。
 - Redis、Prisma、具体存储引擎或 runtime repository 形态的长期架构真相。
 
@@ -77,8 +80,9 @@
 - 在登录后的 account context switch 中，负责验证目标 account 与当前 session 主体关系，并替换当前 session context、重新签发 token。
 - 维护 active session 生命周期，包括 validate、refresh、logout、logout all、logout other devices、admin revoke 与 tenant session revoke。
 - 维护 refresh token rotation 与 replay 检测语义。
-- 维护 user MFA binding、tenant / platform MFA policy、login MFA 与 step-up MFA challenge 编排。
+- 维护 user MFA binding、platform default / tenant terminal MFA policy、login MFA 与 step-up MFA challenge 编排。
 - 维护 login method、password credential、password setup requirement 与 password recovery 流程。
+- 维护平台级 Terminal Entry Login Policy，并在 primary credential 校验前判定当前 terminal 是否允许请求的 login flow。
 - 执行登录失败限流、OTP 发码频控、OTP 尝试次数控制与 trusted-device / new-device MFA 判定。
 - 记录认证、安全与 session 操作的本地审计事实。
 - 显式区分 self-service 与 admin-management 接口授权语义，不允许长期复用同一接口层权限门承载两种语义。
@@ -103,6 +107,13 @@
 
 单 account 自动建 session 是 future optimization。当前阶段主认证成功后仍进入 account selection 流程，后续是否优化为单 account 自动进入，需要单独评估设备上下文、MFA、审计与兼容影响。
 
+Terminal-aware Account Security Phase 2 增加以下稳定规则：
+
+- Web 保留现有固定登录入口与 account selection。
+- PDA 登录租户由受管设备绑定决定，用户登录时不选择租户。
+- PDA Phase 2 不提供 account selection；用户认证成功后，必须在设备绑定 tenant 内解析出唯一可 PDA 登录 account。
+- Terminal Entry Login Policy 不改变各前端固定登录流程，只作为平台级入口启停与后端准入。
+
 ## 6. Account Selection And Session Context
 
 `auth-service` 在 account selection 后建立当前 session context。
@@ -110,6 +121,8 @@
 稳定规则：
 
 - 当前 session context 必须包含 `userId`、`accountId`、`scopeLevel`、`tenantId`（TENANT scope 必填，SYSTEM scope 为空）以及适用时的 `orgId`。
+- terminal-aware session 必须包含 `terminal` 与 `loginFlow`。
+- PDA / KIOSK 等受管终端 session 可包含 `terminalDeviceId` 与 `deviceBoundTenantId`。
 - `SYSTEM` account 不绑定 tenant，也不读取 tenant lifecycle。
 - `TENANT` account 必须绑定 tenant，并在 session 建立、refresh、validate 等关键路径校验 tenant 仍为可用状态。
 - account 候选列表和 account 展示摘要由 `identity-service` 提供。
@@ -137,6 +150,8 @@
 - logout、logout other devices、logout all 与 admin revoke 都必须改变 active session truth，而不是只依赖客户端删除 token。
 - tenant 被 suspend / archive 后，`TENANT` scope session 不得继续 validate 或 refresh；可通过惰性失效与主动 revoke 双路径治理。
 - `SYSTEM` scope session 不受 tenant lifecycle 影响。
+- PDA / KIOSK 等受管终端设备进入 disabled / lost / unbound / retired 等不可登录状态后，`auth-service` 应消费设备状态事件并按 `terminalDeviceId` 幂等清退相关 active sessions。
+- PDA login / refresh / bootstrap 仍应重查受管设备状态，作为事件延迟或失败时的兜底。
 
 存储方向只在本文冻结到“active session truth 必须由 `auth-service` 拥有”。Redis、Prisma 或后续持久化 session 历史属于实现或专项架构问题，不在本文冻结为长期存储方案。
 
@@ -152,6 +167,9 @@
 - 联系资产绑定、变更或验证完成后，是否同步创建或启用 login method，必须通过显式 self-service 或 admin-management 接口完成。
 - password recovery 使用认证域 challenge 与一次性 reset grant，不暴露账号存在性。
 - 管理员要求用户重设密码应通过 admin-management 语义表达；用户自助修改或找回密码应通过 self-service / unauthenticated recovery 语义表达。
+- 租户不配置 primary login method。
+- 平台级 Terminal Entry Login Policy 定义每类 terminal 固定登录入口允许哪些已实现 login flow。
+- 用户自己管理 credential / authenticator 可用性；Terminal Entry Login Policy 不表达 user、account、tenant 或单台设备级 login method override。
 
 ## 9. OTP And Notification Boundary
 
@@ -195,8 +213,8 @@ OTP 与通知投递必须分离 owner。
 - `SMS_OTP`
 - `TOTP`
 - `BACKUP_CODE`
-- tenant MFA policy
-- platform MFA policy
+- platform default terminal MFA policy
+- tenant terminal MFA policy
 - login MFA challenge
 - new-device login MFA
 - sensitive action step-up MFA
@@ -204,8 +222,11 @@ OTP 与通知投递必须分离 owner。
 
 稳定规则：
 
-- tenant MFA policy 适用于 TENANT account scope。
-- platform MFA policy 适用于 SYSTEM account scope。
+- 不设计全局 MFA 开关；MFA 按 terminal 独立配置。
+- platform default terminal MFA policy 用作新租户或未配置租户的默认值，不是强制最低安全基线。
+- tenant terminal MFA policy 是 TENANT scope account 登录时的最终优先策略；租户可以按 terminal 覆盖得更严格或更宽松。
+- PDA / KIOSK 默认关闭登录 MFA，但模型层允许显式开启。
+- PDA / KIOSK 高风险业务动作优先通过业务 step-up、主管确认或审批流设计，不属于常规登录 MFA。
 - `permission-service` 不拥有 MFA policy 真相；它只判断管理者是否有权读取或修改 MFA policy。
 - user MFA binding 与 tenant / platform MFA policy 是两个不同层次：策略决定是否需要 MFA，binding 决定当前 user 有哪些可用因子。
 - `EMAIL_OTP / SMS_OTP` 的 MFA factor challenge 必须由用户显式触发发码；返回 `MFA_REQUIRED` 不等于已发出 OTP。
@@ -224,6 +245,9 @@ OTP 与通知投递必须分离 owner。
 - BFF 可以从 HTTP request 中提取 `user-agent`、client IP 或前端传入的 device 信息，再显式传给 `auth-service`。
 - 裸 `ipAddress` 或裸 `userAgent` 不得单独作为 trusted-device 判定依据。
 - trusted-device truth 需要以稳定 `deviceId` 等明确设备标识为基础。
+- Personal trusted login device 只用于个人化登录环境，例如 Web trusted browser 与 future Mobile remembered app/device。
+- PDA / KIOSK 受管设备不作为某个 user 的 personal trusted login device，不提供“信任此 PDA / KIOSK”或 remember MFA 语义。
+- 受管终端设备是否 active、disabled、lost、bound 或 retired 的真相归 `terminal-device-service`；`auth-service` 只消费其状态与 `terminalDeviceId` 引用。
 
 未来若要把设备上下文改为统一 gRPC metadata、operator context 或 `src/common` 自动传播机制，必须先走项目级 architecture / common 设计；`auth-service` 单服务线程不得私自扩展共享上下文结构。
 
@@ -245,10 +269,15 @@ Admin-management 默认语义：
 
 - 管理员查看或治理目标用户 sessions。
 - 管理员撤销目标 session。
+- 管理员按 user / account / tenant / terminal / terminalDeviceId 筛选 sessions。
+- 管理员撤销指定 user 的全部 sessions。
 - 管理员要求目标用户重设密码。
 - 管理员启用 / 停用目标用户 login method。
 - 管理员读取或修改 tenant / platform MFA policy。
+- 平台管理员读取或修改 platform terminal entry login policy 与 platform default terminal MFA policy。
 - 必须经过 `RBAC + scope / resource` 授权判定，并记录审计。
+
+Phase 2 管理员 session 写操作不提供按筛选结果、terminal、terminalDeviceId 或 tenant 的任意批量 revoke。
 
 application / domain 层可以复用底层业务逻辑，但 BFF / gRPC / interface 层不得长期复用同一个权限门承载 self-service 与 admin-management。
 
@@ -261,10 +290,12 @@ application / domain 层可以复用底层业务逻辑，但 BFF / gRPC / interf
 稳定规则：
 
 - 所有认证、安全与 session 状态变化都应记录认证域本地审计事实。
-- 审计事实应尽量携带 `operatorId`、`userId`、`accountId`、`scopeLevel`、`tenantId`、`orgId`、`sessionId`、`traceId` 与设备上下文摘要。
+- 审计事实应尽量携带 `operatorId`、`userId`、`accountId`、`scopeLevel`、`tenantId`、`orgId`、`sessionId`、`terminal`、`loginFlow`、`terminalDeviceId`、`deviceBoundTenantId`、`traceId` 与设备上下文摘要。
 - tenant-bound 审计查询必须按 operator scope 收敛。
 - system scope 可按授权查询全局认证域审计。
 - 未来集中审计平台可以聚合、索引、归档、检索或展示认证域审计事实，但不接管 `auth-service` 的本地审计事实 owner。
+- login history 是认证域审计事实的产品化、脱敏查询视图，不另立第二套登录历史真相。
+- 普通 login history 不展示每次 access token validate 或 refresh 成功；refresh replay、session revoke、设备状态触发清退等安全事件进入 security activity 或管理员审计视图。
 
 ## 14. External Interfaces
 
@@ -281,12 +312,19 @@ application / domain 层可以复用底层业务逻辑，但 BFF / gRPC / interf
 - [auth-service/session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
 - [auth-service/mfa.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/mfa.md)
 - [auth-service/audit.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/audit.md)
+- [auth-service/terminal-login-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-login-policy.md)
+- [auth-service/terminal-mfa-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-mfa-policy.md)
+- [auth-service/session-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session-management.md)
+- [auth-service/login-history.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login-history.md)
+- [auth-service/trusted-login-device.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/trusted-login-device.md)
 
 相关 BFF contract：
 
 - [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)
 - [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)
 - [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)
+- [account-security-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/account-security-bff.md)
+- [platform-auth-security-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/platform-auth-security-bff.md)
 - [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
 
 Contract 文档只描述黑盒调用语义、字段、错误与当前接口形状；不得重新定义本文中的服务 owner、核心对象或长期边界。
@@ -301,8 +339,11 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
   - 提供 tenant lifecycle、tenant 摘要、org tree 与组织上下文支撑。
   - 为 TENANT scope session 建立、refresh、validate 与 context switch 提供 tenant status 校验依据。
 - `permission-service`
-  - 为 admin-management、MFA policy 管理、audit 查询等受保护管理能力提供授权判定。
+  - 为 admin-management、terminal login policy、MFA policy 管理、audit 查询等受保护管理能力提供授权判定。
   - 提供 access summary 与导航授权支撑，但不拥有 session context；permission 侧核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+- `terminal-device-service`
+  - 提供受管终端设备状态、设备绑定 tenant 与设备不可登录事件。
+  - 不拥有 auth session、token、MFA、trusted login device 或认证审计真相。
 - `notification-service`
   - 提供 OTP、安全提醒等通知 dispatch 能力。
   - 不接管 OTP、challenge 或认证结果真相。
@@ -316,10 +357,12 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 - challenge 是否存在、是否已完成、是否过期。
 - 当前 session 是否有效。
 - 当前 session context 摘要。
+- terminal-aware session metadata。
 - access token 与 refresh token 签发结果。
 - refresh token rotation 与 replay 处理结果。
 - account selection / context switch 后的 session 更新结果。
 - MFA policy 与 MFA binding 查询结果。
+- Terminal Entry Login Policy 与 Terminal MFA Policy 查询结果。
 - step-up MFA grant 结果。
 - 登录历史与认证域本地审计查询结果。
 
@@ -330,10 +373,13 @@ Contract 文档只描述黑盒调用语义、字段、错误与当前接口形�
 - 不复制 `identity-service` 的 user / account / contact asset 主数据。
 - 不复制 `tenant-org-service` 的 tenant / org 主数据。
 - 不复制 `permission-service` 的 role / policy / authorization truth。
+- 不复制 `terminal-device-service` 的 managed terminal device registry、设备绑定、设备状态或版本策略真相。
 - 不直接对接 Email / SMS provider。
 - 不将 local notification fallback 视为长期平台通知边界。
 - 不在本文冻结 Redis、Prisma 或其他存储实现方案。
 - 不把基础 self-service 能力建模为普通 RBAC 岗位权限。
+- 不让租户配置 primary login method。
+- 不把 PDA / KIOSK 受管设备作为 personal trusted login device。
 - 不通过 service-local docs、feature packet 或 contract 文档长期承载第二份 auth-service 服务设计。
 
 ## 18. Current Stage And Cleanup Rules

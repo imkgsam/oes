@@ -54,6 +54,8 @@
    - 终端准入策略在 `permission-service`、`auth-service` 与 terminal-specific BFF 之间的协同蓝图
 16. [managed-terminal-device-management.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/managed-terminal-device-management.md)
    - 企业受管现场交互终端设备在 PDA BFF、Admin BFF、`terminal-device-service`、`auth-service` 与 `permission-service` 之间的入网、登录、禁用、heartbeat、版本策略与审计协同蓝图
+17. [terminal-aware-account-security.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-aware-account-security.md)
+   - Terminal-aware Account Security Phase 2 在 `auth-service`、`permission-service`、`identity-service`、`terminal-device-service` 与 BFF 之间的登录、MFA、session、trusted device、登录历史与设备状态清退协同蓝图
 
 ## 4. 新服务协同准入规则
 

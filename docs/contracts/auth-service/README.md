@@ -37,6 +37,16 @@ Proto 契约来源仍然是：
   - MFA 自助安全管理与挑战提交流程
 - [login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md)
   - 登录、认证挑战、账户选择与会话续期流程
+- [terminal-login-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-login-policy.md)
+  - 平台级 terminal entry login flow 策略
+- [terminal-mfa-policy.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/terminal-mfa-policy.md)
+  - 平台默认与租户 terminal MFA 策略
+- [session-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session-management.md)
+  - terminal-aware session 列表、筛选与清退语义
+- [login-history.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login-history.md)
+  - login history 作为 auth audit 脱敏视图的查询语义
+- [trusted-login-device.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/trusted-login-device.md)
+  - Web trusted browser 与 future Mobile remembered device 语义
 
 ## 3. 全局调用约束
 

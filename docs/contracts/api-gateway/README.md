@@ -39,8 +39,12 @@
   - 登录后权限摘要与 `actionCodes` 契约
 - [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)
   - 已登录用户自助安全管理接口
+- [account-security-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/account-security-bff.md)
+  - 当前用户账号安全中心接口，覆盖 session、login history 与 trusted devices
 - [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)
   - 管理员安全管理接口
+- [platform-auth-security-bff.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/platform-auth-security-bff.md)
+  - 平台管理员 terminal login policy 与平台默认 terminal MFA policy 接口
 - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
   - 权限管理后台接口
 - [tenant-onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/tenant-onboarding.md)

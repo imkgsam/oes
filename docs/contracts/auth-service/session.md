@@ -12,6 +12,8 @@
 - 管理员查看目标用户会话
 - 管理员撤销目标单个会话
 
+Terminal-aware Account Security Phase 2 的 session 管理目标契约以 [session-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session-management.md) 为准；本文保留既有 session API 语义入口。
+
 调用约束：
 
 - 接口类型：gRPC
@@ -63,6 +65,9 @@
 - 响应关键字段：
   - `sessions[].session_id`
   - `sessions[].tenant_id`
+  - `sessions[].terminal`
+  - `sessions[].login_flow`
+  - `sessions[].terminal_device_id`，PDA / KIOSK 等受管终端适用
   - `sessions[].device_name`
   - `sessions[].last_active_at`
   - `sessions[].is_current`
@@ -72,7 +77,7 @@
   - 不采用通用 `checkResource`
   - 依赖当前用户自助语义、调用方身份真实性与 `current_session_id` 解析出的当前 `account` 上下文
 - tenant / org 要求：
-  - 返回的会话以当前登录账号为边界，而不是当前自然人的全部账号会话
+  - Terminal-aware Account Security Phase 2 的自助账号安全页目标是展示当前 user 的 active sessions，并在列表项中显示 account / tenant / terminal 关联信息。
 
 ### `Logout`
 

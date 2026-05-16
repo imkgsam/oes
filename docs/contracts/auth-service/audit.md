@@ -7,6 +7,8 @@
 
 `AuthService` 的 audit 相关接口负责提供认证域本地审计事件查询能力，不修改状态。
 
+Terminal-aware Account Security Phase 2 中，login history 是认证域审计事实的产品化脱敏查询视图，具体语义见 [login-history.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login-history.md)。
+
 适用场景：
 
 - 租户管理员审查本租户认证与会话事件
