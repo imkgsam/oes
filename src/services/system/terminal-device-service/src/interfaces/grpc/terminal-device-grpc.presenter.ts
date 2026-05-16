@@ -63,10 +63,13 @@ export class TerminalDeviceGrpcPresenter {
 
   // Converts optional proto terminal device type filters into nullable domain values.
   static fromOptionalProtoTerminalDeviceType(value?: ProtoTerminalDeviceType): TerminalDeviceType | null {
-    if (!value || value === ProtoTerminalDeviceType.TERMINAL_DEVICE_TYPE_UNSPECIFIED) {
-      return null
+    switch (value) {
+      case undefined:
+      case ProtoTerminalDeviceType.TERMINAL_DEVICE_TYPE_UNSPECIFIED:
+        return null
+      default:
+        return this.fromProtoTerminalDeviceType(value)
     }
-    return this.fromProtoTerminalDeviceType(value)
   }
 
   // Converts proto lifecycle status values into domain string enum values.
@@ -91,10 +94,13 @@ export class TerminalDeviceGrpcPresenter {
 
   // Converts optional proto lifecycle status filters into nullable domain values.
   static fromOptionalProtoTerminalDeviceStatus(value?: ProtoTerminalDeviceStatus): TerminalDeviceStatus | null {
-    if (!value || value === ProtoTerminalDeviceStatus.TERMINAL_DEVICE_STATUS_UNSPECIFIED) {
-      return null
+    switch (value) {
+      case undefined:
+      case ProtoTerminalDeviceStatus.TERMINAL_DEVICE_STATUS_UNSPECIFIED:
+        return null
+      default:
+        return this.fromProtoTerminalDeviceStatus(value)
     }
-    return this.fromProtoTerminalDeviceStatus(value)
   }
 
   // Converts optional proto presence status filters into nullable domain values.

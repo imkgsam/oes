@@ -7,6 +7,7 @@ import { VersionPolicyCommandHandlers } from '../../application/commands/version
 import { DeviceQueryHandlers } from '../../application/queries/device'
 import { VersionPolicyQueryHandlers } from '../../application/queries/version-policy'
 import { ApplicationServices } from '../../application/services'
+import { RedisTerminalDeviceUnavailablePublisher } from '../../infrastructure/events'
 import { SYMBOLS } from '../../common/constants/symbols'
 import {
   InMemoryTerminalDeviceAuditEventRepository,
@@ -50,6 +51,10 @@ import { TerminalDeviceGrpcController } from '../../interfaces/grpc/terminal-dev
       provide: SYMBOLS.REPO.AUDIT_EVENT,
       useFactory: (store: InMemoryTerminalDeviceStore) => new InMemoryTerminalDeviceAuditEventRepository(store),
       inject: [InMemoryTerminalDeviceStore]
+    },
+    {
+      provide: SYMBOLS.EVENT_PUBLISHER.TERMINAL_DEVICE_UNAVAILABLE,
+      useClass: RedisTerminalDeviceUnavailablePublisher
     },
     ...EnrollmentCommandHandlers,
     ...DeviceCommandHandlers,

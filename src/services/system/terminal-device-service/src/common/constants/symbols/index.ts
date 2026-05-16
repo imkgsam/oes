@@ -1,5 +1,8 @@
 import { REPO } from './repo.symbols'
 
 export const SYMBOLS = {
-  REPO
+  REPO,
+  EVENT_PUBLISHER: {
+    TERMINAL_DEVICE_UNAVAILABLE: Symbol('TERMINAL_DEVICE_EVENT_PUBLISHER_UNAVAILABLE')
+  }
 }

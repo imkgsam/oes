@@ -8,6 +8,7 @@ import { TerminalDeviceStatus } from '../../../domain/enums/terminal-device.enum
 import { TerminalDeviceError } from '../../../domain/errors/terminal-device.error'
 import { TerminalDeviceAuditEventRepository } from '../../../domain/repositories/terminal-device-audit-event.repository'
 import { TerminalDeviceRepository } from '../../../domain/repositories/terminal-device.repository'
+import { TerminalDeviceUnavailableEventPublisher } from '../../events'
 
 export interface ChangeTerminalDeviceStatusOperatorContext {
   operatorAccountId: string
@@ -73,7 +74,9 @@ export class ChangeTerminalDeviceStatusHandler
     @Inject(SYMBOLS.REPO.TERMINAL_DEVICE)
     private readonly terminalDeviceRepository: TerminalDeviceRepository,
     @Inject(SYMBOLS.REPO.AUDIT_EVENT)
-    private readonly auditEventRepository: TerminalDeviceAuditEventRepository
+    private readonly auditEventRepository: TerminalDeviceAuditEventRepository,
+    @Inject(SYMBOLS.EVENT_PUBLISHER.TERMINAL_DEVICE_UNAVAILABLE)
+    private readonly unavailableEventPublisher?: TerminalDeviceUnavailableEventPublisher
   ) {}
 
   // Executes a lifecycle transition with audit and session revoke intent generation.
@@ -118,6 +121,20 @@ export class ChangeTerminalDeviceStatusHandler
       })
     )
 
+    if (isUnavailableStatus(updated.status)) {
+      await this.unavailableEventPublisher?.publish({
+        tenantId: updated.tenantId,
+        terminalDeviceId: updated.terminalDeviceId,
+        previousStatus: device.status,
+        newStatus: updated.status,
+        operatorAccountId: command.operatorContext.operatorAccountId,
+        operatorOrgId: command.operatorContext.operatorOrgId ?? null,
+        traceId: command.operatorContext.traceId ?? null,
+        reason: command.reason,
+        occurredAt: now
+      })
+    }
+
     return {
       terminalDeviceId: updated.terminalDeviceId,
       tenantId: updated.tenantId,
@@ -125,7 +142,7 @@ export class ChangeTerminalDeviceStatusHandler
       deviceStatus: updated.status,
       statusReason: updated.statusReason,
       changedAt: now,
-      sessionRevokeIntent: updated.status === 'ACTIVE'
+      sessionRevokeIntent: !isUnavailableStatus(updated.status)
         ? null
         : {
             tenantId: updated.tenantId,
@@ -137,6 +154,16 @@ export class ChangeTerminalDeviceStatusHandler
           }
     }
   }
+}
+
+// isUnavailableStatus identifies lifecycle states that make existing auth sessions unsafe to keep.
+function isUnavailableStatus(status: TerminalDeviceStatus): boolean {
+  return (
+    status === 'DISABLED' ||
+    status === 'LOST' ||
+    status === 'MAINTENANCE' ||
+    status === 'DECOMMISSIONED'
+  )
 }
 
 // assertTransitionAllowed protects terminal lifecycle invariants from invalid direct restoration.

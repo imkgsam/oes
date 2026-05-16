@@ -909,6 +909,9 @@ importers:
       class-validator:
         specifier: ^0.14.2
         version: 0.14.4
+      ioredis:
+        specifier: ^5.6.1
+        version: 5.10.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -1595,6 +1598,9 @@ importers:
       class-validator:
         specifier: ^0.14.2
         version: 0.14.4
+      ioredis:
+        specifier: ^5.6.1
+        version: 5.10.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2

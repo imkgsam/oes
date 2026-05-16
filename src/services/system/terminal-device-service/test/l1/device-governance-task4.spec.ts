@@ -335,9 +335,13 @@ describe('Task 4 device governance application services', () => {
       'returns a session revoke intent when transitioning to %s',
       async (targetStatus) => {
         const context = await createLifecycleContext('ACTIVE')
+        const unavailableEventPublisher = {
+          publish: jest.fn().mockResolvedValue(undefined)
+        }
         const handler = new ChangeTerminalDeviceStatusHandler(
           context.deviceRepository,
-          context.auditRepository
+          context.auditRepository,
+          unavailableEventPublisher
         )
 
         const result = await handler.execute(
@@ -360,6 +364,17 @@ describe('Task 4 device governance application services', () => {
           terminal: 'PDA',
           shouldRevokeServerSessions: true,
           reason: `mark ${targetStatus}`
+        })
+        expect(unavailableEventPublisher.publish).toHaveBeenCalledWith({
+          tenantId: 'tenant-1',
+          terminalDeviceId: 'terminal-device-1',
+          previousStatus: 'ACTIVE',
+          newStatus: targetStatus,
+          operatorAccountId: 'operator-1',
+          operatorOrgId: null,
+          traceId: 'trace-status',
+          reason: `mark ${targetStatus}`,
+          occurredAt: new Date('2026-05-16T02:00:00.000Z')
         })
       }
     )
