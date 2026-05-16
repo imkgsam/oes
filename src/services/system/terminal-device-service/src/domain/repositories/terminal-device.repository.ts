@@ -13,5 +13,6 @@ export interface TerminalDeviceRepository {
   create(entity: TerminalDeviceEntity): Promise<TerminalDeviceEntity>
   update(entity: TerminalDeviceEntity): Promise<TerminalDeviceEntity>
   findById(terminalDeviceId: string): Promise<TerminalDeviceEntity | null>
+  listByTenant(tenantId: string): Promise<TerminalDeviceEntity[]>
   findPossibleIdentityMatch(input: TerminalDeviceIdentityMatchInput): Promise<TerminalDeviceEntity | null>
 }

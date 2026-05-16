@@ -1,6 +1,15 @@
-import { ChangeTerminalDeviceStatusCommand, ChangeTerminalDeviceStatusHandler } from '../../src/application/commands/device/change-terminal-device-status.command'
-import { RecordHeartbeatCommand, RecordHeartbeatHandler } from '../../src/application/commands/runtime/record-heartbeat.command'
-import { UpsertVersionPolicyCommand, UpsertVersionPolicyHandler } from '../../src/application/commands/version-policy/upsert-version-policy.command'
+import {
+  ChangeTerminalDeviceStatusCommand,
+  ChangeTerminalDeviceStatusHandler
+} from '../../src/application/commands/device/change-terminal-device-status.command'
+import {
+  RecordHeartbeatCommand,
+  RecordHeartbeatHandler
+} from '../../src/application/commands/runtime/record-heartbeat.command'
+import {
+  UpsertVersionPolicyCommand,
+  UpsertVersionPolicyHandler
+} from '../../src/application/commands/version-policy/upsert-version-policy.command'
 import { DeviceAccessDecisionService } from '../../src/application/services/device-access-decision.service'
 import { TerminalDeviceEntity } from '../../src/domain/entities/terminal-device.entity'
 import { TerminalDeviceVersionPolicyEntity } from '../../src/domain/entities/terminal-device-version-policy.entity'
@@ -51,7 +60,13 @@ describe('Task 4 device governance application services', () => {
       }
     )
 
-    it.each(['PENDING_APPROVAL', 'DISABLED', 'LOST', 'MAINTENANCE', 'DECOMMISSIONED'] as TerminalDeviceStatus[])(
+    it.each([
+      'PENDING_APPROVAL',
+      'DISABLED',
+      'LOST',
+      'MAINTENANCE',
+      'DECOMMISSIONED'
+    ] as TerminalDeviceStatus[])(
       'denies login and business requests for %s devices with cleanup guidance',
       async (status) => {
         const context = await createDecisionContext(status)
@@ -219,42 +234,57 @@ describe('Task 4 device governance application services', () => {
   })
 
   describe('lifecycle transitions', () => {
-    it.each(['DISABLED', 'LOST', 'MAINTENANCE'] as TerminalDeviceStatus[])('restores %s devices to ACTIVE with audit', async (status) => {
-      const context = await createLifecycleContext(status)
-      const handler = new ChangeTerminalDeviceStatusHandler(context.deviceRepository, context.auditRepository)
+    it.each(['DISABLED', 'LOST', 'MAINTENANCE'] as TerminalDeviceStatus[])(
+      'restores %s devices to ACTIVE with audit',
+      async (status) => {
+        const context = await createLifecycleContext(status)
+        const handler = new ChangeTerminalDeviceStatusHandler(
+          context.deviceRepository,
+          context.auditRepository
+        )
 
-      const result = await handler.execute(
-        new ChangeTerminalDeviceStatusCommand({
-          terminalDeviceId: 'terminal-device-1',
-          targetStatus: 'ACTIVE',
+        const result = await handler.execute(
+          new ChangeTerminalDeviceStatusCommand({
+            tenantId: 'tenant-1',
+            terminalDeviceId: 'terminal-device-1',
+            targetStatus: 'ACTIVE',
+            reason: `restoring ${status}`,
+            operatorContext: {
+              operatorAccountId: 'operator-1',
+              operatorOrgId: 'org-1',
+              traceId: 'trace-restore'
+            },
+            now: new Date('2026-05-16T01:00:00.000Z')
+          })
+        )
+
+        expect(result.deviceStatus).toBe('ACTIVE')
+        expect(result.sessionRevokeIntent).toBeNull()
+        expect((await context.deviceRepository.findById('terminal-device-1'))?.status).toBe(
+          'ACTIVE'
+        )
+        expect(
+          (await context.auditRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-1'))[0]
+        ).toMatchObject({
+          action: 'STATUS_CHANGED',
           reason: `restoring ${status}`,
-          operatorContext: {
-            operatorAccountId: 'operator-1',
-            operatorOrgId: 'org-1',
-            traceId: 'trace-restore'
-          },
-          now: new Date('2026-05-16T01:00:00.000Z')
+          beforeJson: { status },
+          afterJson: { status: 'ACTIVE' }
         })
-      )
-
-      expect(result.deviceStatus).toBe('ACTIVE')
-      expect(result.sessionRevokeIntent).toBeNull()
-      expect((await context.deviceRepository.findById('terminal-device-1'))?.status).toBe('ACTIVE')
-      expect((await context.auditRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-1'))[0]).toMatchObject({
-        action: 'STATUS_CHANGED',
-        reason: `restoring ${status}`,
-        beforeJson: { status },
-        afterJson: { status: 'ACTIVE' }
-      })
-    })
+      }
+    )
 
     it('does not restore a DECOMMISSIONED device to ACTIVE', async () => {
       const context = await createLifecycleContext('DECOMMISSIONED')
-      const handler = new ChangeTerminalDeviceStatusHandler(context.deviceRepository, context.auditRepository)
+      const handler = new ChangeTerminalDeviceStatusHandler(
+        context.deviceRepository,
+        context.auditRepository
+      )
 
       await expect(
         handler.execute(
           new ChangeTerminalDeviceStatusCommand({
+            tenantId: 'tenant-1',
             terminalDeviceId: 'terminal-device-1',
             targetStatus: 'ACTIVE',
             reason: 'restore retired device',
@@ -272,11 +302,15 @@ describe('Task 4 device governance application services', () => {
       'does not let a DECOMMISSIONED device transition to %s and bypass terminal status',
       async (targetStatus) => {
         const context = await createLifecycleContext('DECOMMISSIONED')
-        const handler = new ChangeTerminalDeviceStatusHandler(context.deviceRepository, context.auditRepository)
+        const handler = new ChangeTerminalDeviceStatusHandler(
+          context.deviceRepository,
+          context.auditRepository
+        )
 
         await expect(
           handler.execute(
             new ChangeTerminalDeviceStatusCommand({
+              tenantId: 'tenant-1',
               terminalDeviceId: 'terminal-device-1',
               targetStatus,
               reason: `move retired device to ${targetStatus}`,
@@ -288,8 +322,12 @@ describe('Task 4 device governance application services', () => {
         ).rejects.toMatchObject({
           code: 'TERMINAL_DEVICE_DECOMMISSIONED_CANNOT_RESTORE'
         } satisfies Partial<TerminalDeviceError>)
-        expect((await context.deviceRepository.findById('terminal-device-1'))?.status).toBe('DECOMMISSIONED')
-        expect(await context.auditRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-1')).toHaveLength(0)
+        expect((await context.deviceRepository.findById('terminal-device-1'))?.status).toBe(
+          'DECOMMISSIONED'
+        )
+        expect(
+          await context.auditRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-1')
+        ).toHaveLength(0)
       }
     )
 
@@ -297,10 +335,14 @@ describe('Task 4 device governance application services', () => {
       'returns a session revoke intent when transitioning to %s',
       async (targetStatus) => {
         const context = await createLifecycleContext('ACTIVE')
-        const handler = new ChangeTerminalDeviceStatusHandler(context.deviceRepository, context.auditRepository)
+        const handler = new ChangeTerminalDeviceStatusHandler(
+          context.deviceRepository,
+          context.auditRepository
+        )
 
         const result = await handler.execute(
           new ChangeTerminalDeviceStatusCommand({
+            tenantId: 'tenant-1',
             terminalDeviceId: 'terminal-device-1',
             targetStatus,
             reason: `mark ${targetStatus}`,
@@ -324,11 +366,15 @@ describe('Task 4 device governance application services', () => {
 
     it('requires reason for high-risk lifecycle transitions before writing audit', async () => {
       const context = await createLifecycleContext('ACTIVE')
-      const handler = new ChangeTerminalDeviceStatusHandler(context.deviceRepository, context.auditRepository)
+      const handler = new ChangeTerminalDeviceStatusHandler(
+        context.deviceRepository,
+        context.auditRepository
+      )
 
       await expect(
         handler.execute(
           new ChangeTerminalDeviceStatusCommand({
+            tenantId: 'tenant-1',
             terminalDeviceId: 'terminal-device-1',
             targetStatus: 'LOST',
             operatorContext: {
@@ -339,14 +385,48 @@ describe('Task 4 device governance application services', () => {
       ).rejects.toMatchObject({
         code: 'TERMINAL_DEVICE_STATUS_REASON_REQUIRED'
       } satisfies Partial<TerminalDeviceError>)
-      expect(await context.auditRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-1')).toHaveLength(0)
+      expect(
+        await context.auditRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-1')
+      ).toHaveLength(0)
+    })
+
+    it('rejects lifecycle transition when tenant context does not own the device', async () => {
+      const context = await createLifecycleContext('ACTIVE')
+      const handler = new ChangeTerminalDeviceStatusHandler(
+        context.deviceRepository,
+        context.auditRepository
+      )
+
+      await expect(
+        handler.execute(
+          new ChangeTerminalDeviceStatusCommand({
+            tenantId: 'tenant-other',
+            terminalDeviceId: 'terminal-device-1',
+            targetStatus: 'DISABLED',
+            reason: 'wrong tenant attempt',
+            operatorContext: {
+              operatorAccountId: 'operator-1'
+            }
+          })
+        )
+      ).rejects.toMatchObject({
+        code: 'TERMINAL_DEVICE_NOT_FOUND'
+      } satisfies Partial<TerminalDeviceError>)
+      expect((await context.deviceRepository.findById('terminal-device-1'))?.status).toBe('ACTIVE')
+      expect(
+        await context.auditRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-1')
+      ).toHaveLength(0)
     })
   })
 
   describe('runtime heartbeat snapshot', () => {
     it('records heartbeat diagnostics using server receive time without changing lifecycle status', async () => {
       const context = await createDecisionContext('MAINTENANCE')
-      const handler = new RecordHeartbeatHandler(context.deviceRepository, context.runtimeSnapshotRepository, context.decisionService)
+      const handler = new RecordHeartbeatHandler(
+        context.deviceRepository,
+        context.runtimeSnapshotRepository,
+        context.decisionService
+      )
 
       const result = await handler.execute(
         new RecordHeartbeatCommand({
@@ -390,14 +470,18 @@ describe('Task 4 device governance application services', () => {
         deviceStatus: 'MAINTENANCE',
         presenceStatus: 'ONLINE'
       })
-      expect((await context.deviceRepository.findById('terminal-device-1'))?.status).toBe('MAINTENANCE')
+      expect((await context.deviceRepository.findById('terminal-device-1'))?.status).toBe(
+        'MAINTENANCE'
+      )
     })
   })
 
   describe('version policy commands and queries', () => {
     it('upserts and returns tenant terminal version policy with audit', async () => {
       const versionPolicyRepository = new InMemoryTerminalDeviceVersionPolicyRepository()
-      const auditRepository = new InMemoryTerminalDeviceAuditEventRepository(new InMemoryTerminalDeviceStore())
+      const auditRepository = new InMemoryTerminalDeviceAuditEventRepository(
+        new InMemoryTerminalDeviceStore()
+      )
       const handler = new UpsertVersionPolicyHandler(versionPolicyRepository, auditRepository)
 
       const result = await handler.execute(
@@ -433,7 +517,9 @@ describe('Task 4 device governance application services', () => {
         updatedAt: new Date('2026-05-16T03:00:00.000Z')
       })
       expect(await versionPolicyRepository.findByTenantAndType('tenant-1', 'PDA')).toEqual(result)
-      expect((await auditRepository.listByTerminalDeviceId('tenant-1', 'VERSION_POLICY:PDA'))[0]).toMatchObject({
+      expect(
+        (await auditRepository.listByTerminalDeviceId('tenant-1', 'VERSION_POLICY:PDA'))[0]
+      ).toMatchObject({
         action: 'VERSION_POLICY_UPSERTED',
         targetTerminalDeviceId: 'VERSION_POLICY:PDA',
         reason: 'Initial PDA rollout policy'
@@ -442,7 +528,9 @@ describe('Task 4 device governance application services', () => {
 
     it('requires a reason when updating an existing version policy before writing audit', async () => {
       const versionPolicyRepository = new InMemoryTerminalDeviceVersionPolicyRepository()
-      const auditRepository = new InMemoryTerminalDeviceAuditEventRepository(new InMemoryTerminalDeviceStore())
+      const auditRepository = new InMemoryTerminalDeviceAuditEventRepository(
+        new InMemoryTerminalDeviceStore()
+      )
       const handler = new UpsertVersionPolicyHandler(versionPolicyRepository, auditRepository)
 
       await handler.execute(
@@ -479,7 +567,9 @@ describe('Task 4 device governance application services', () => {
       ).rejects.toMatchObject({
         code: 'TERMINAL_DEVICE_VERSION_POLICY_REASON_REQUIRED'
       } satisfies Partial<TerminalDeviceError>)
-      expect(await auditRepository.listByTerminalDeviceId('tenant-1', 'VERSION_POLICY:PDA')).toHaveLength(1)
+      expect(
+        await auditRepository.listByTerminalDeviceId('tenant-1', 'VERSION_POLICY:PDA')
+      ).toHaveLength(1)
     })
   })
 })
@@ -494,7 +584,11 @@ async function createDecisionContext(status: TerminalDeviceStatus = 'ACTIVE') {
   await deviceRepository.create(createDevice(status))
   await versionPolicyRepository.upsert(createVersionPolicy())
 
-  const decisionService = new DeviceAccessDecisionService(deviceRepository, runtimeSnapshotRepository, versionPolicyRepository)
+  const decisionService = new DeviceAccessDecisionService(
+    deviceRepository,
+    runtimeSnapshotRepository,
+    versionPolicyRepository
+  )
 
   return {
     deviceRepository,

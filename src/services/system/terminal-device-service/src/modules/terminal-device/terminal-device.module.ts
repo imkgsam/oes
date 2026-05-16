@@ -4,6 +4,7 @@ import { DeviceCommandHandlers } from '../../application/commands/device'
 import { EnrollmentCommandHandlers } from '../../application/commands/enrollment'
 import { RuntimeCommandHandlers } from '../../application/commands/runtime'
 import { VersionPolicyCommandHandlers } from '../../application/commands/version-policy'
+import { DeviceQueryHandlers } from '../../application/queries/device'
 import { VersionPolicyQueryHandlers } from '../../application/queries/version-policy'
 import { ApplicationServices } from '../../application/services'
 import { SYMBOLS } from '../../common/constants/symbols'
@@ -54,6 +55,7 @@ import { TerminalDeviceGrpcController } from '../../interfaces/grpc/terminal-dev
     ...DeviceCommandHandlers,
     ...RuntimeCommandHandlers,
     ...VersionPolicyCommandHandlers,
+    ...DeviceQueryHandlers,
     ...VersionPolicyQueryHandlers,
     ...ApplicationServices
   ],
@@ -69,6 +71,7 @@ import { TerminalDeviceGrpcController } from '../../interfaces/grpc/terminal-dev
     ...DeviceCommandHandlers,
     ...RuntimeCommandHandlers,
     ...VersionPolicyCommandHandlers,
+    ...DeviceQueryHandlers,
     ...VersionPolicyQueryHandlers,
     ...ApplicationServices
   ]

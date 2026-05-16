@@ -386,7 +386,7 @@ Expected: terminal-device-service tests pass.
 - Create: presenter/mapper files under `src/services/system/terminal-device-service/src/interfaces/grpc/`
 - Test: gRPC surface tests under `src/services/system/terminal-device-service/test/`
 
-- [ ] **Step 1: Write failing gRPC surface tests**
+- [x] **Step 1: Write failing gRPC surface tests**
 
 Cover:
 
@@ -400,15 +400,15 @@ Cover:
 - `GetTerminalDevice`
 - `ChangeTerminalDeviceStatus`
 
-- [ ] **Step 2: Implement gRPC controllers**
+- [x] **Step 2: Implement gRPC controllers**
 
 Controllers must map proto requests to application commands/queries and must not contain domain rules.
 
-- [ ] **Step 3: Implement presenters**
+- [x] **Step 3: Implement presenters**
 
 Presenters handle enum/string response mapping and null-safe response fields.
 
-- [ ] **Step 4: Run gRPC tests**
+- [x] **Step 4: Run gRPC tests**
 
 Run:
 

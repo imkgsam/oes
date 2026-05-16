@@ -29,10 +29,13 @@ export interface ChangeTerminalDeviceStatusResult {
   tenantId: string
   previousStatus: TerminalDeviceStatus
   deviceStatus: TerminalDeviceStatus
+  statusReason: string | null
+  changedAt: Date
   sessionRevokeIntent: TerminalDeviceSessionRevokeIntent | null
 }
 
 export interface ChangeTerminalDeviceStatusCommandInput {
+  tenantId: string
   terminalDeviceId: string
   targetStatus: TerminalDeviceStatus
   reason?: string | null
@@ -42,6 +45,7 @@ export interface ChangeTerminalDeviceStatusCommandInput {
 
 // ChangeTerminalDeviceStatusCommand carries an administrator lifecycle transition request for one terminal device.
 export class ChangeTerminalDeviceStatusCommand implements ICommand {
+  readonly tenantId: string
   readonly terminalDeviceId: string
   readonly targetStatus: TerminalDeviceStatus
   readonly reason: string | null
@@ -50,6 +54,7 @@ export class ChangeTerminalDeviceStatusCommand implements ICommand {
 
   // Constructs a lifecycle command with normalized nullable reason and operator metadata.
   constructor(input: ChangeTerminalDeviceStatusCommandInput) {
+    this.tenantId = input.tenantId
     this.terminalDeviceId = input.terminalDeviceId
     this.targetStatus = input.targetStatus
     this.reason = input.reason ?? null
@@ -75,7 +80,7 @@ export class ChangeTerminalDeviceStatusHandler
   async execute(command: ChangeTerminalDeviceStatusCommand): Promise<ChangeTerminalDeviceStatusResult> {
     const now = command.now ?? new Date()
     const device = await this.terminalDeviceRepository.findById(command.terminalDeviceId)
-    if (!device) {
+    if (!device || device.tenantId !== command.tenantId) {
       throw new TerminalDeviceError('TERMINAL_DEVICE_NOT_FOUND', 'Terminal device not found')
     }
 
@@ -118,6 +123,8 @@ export class ChangeTerminalDeviceStatusHandler
       tenantId: updated.tenantId,
       previousStatus: device.status,
       deviceStatus: updated.status,
+      statusReason: updated.statusReason,
+      changedAt: now,
       sessionRevokeIntent: updated.status === 'ACTIVE'
         ? null
         : {

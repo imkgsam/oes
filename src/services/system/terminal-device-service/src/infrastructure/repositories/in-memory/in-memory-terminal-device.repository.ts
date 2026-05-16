@@ -54,6 +54,11 @@ export class InMemoryTerminalDeviceRepository implements TerminalDeviceRepositor
     return this.store.devices.get(terminalDeviceId) ?? null
   }
 
+  // Lists terminal devices owned by one tenant in registration order.
+  async listByTenant(tenantId: string): Promise<TerminalDeviceEntity[]> {
+    return [...this.store.devices.values()].filter((device) => device.tenantId === tenantId)
+  }
+
   // Finds any existing device sharing a strong or auxiliary identity signal with a new activation.
   async findPossibleIdentityMatch(input: TerminalDeviceIdentityMatchInput): Promise<TerminalDeviceEntity | null> {
     for (const device of this.store.devices.values()) {
