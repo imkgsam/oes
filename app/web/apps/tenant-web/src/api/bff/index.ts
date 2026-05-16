@@ -17,4 +17,5 @@ export * from './security';
 export * from './sales';
 export * from './supplier-management';
 export * from './tenant-management';
+export * from './terminal-device';
 export * from './wms';

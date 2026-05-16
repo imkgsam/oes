@@ -695,7 +695,7 @@ Expected: tests and build pass.
 - Modify tenant-web route/menu registration only where existing admin route patterns require it
 - Add tests beside API and view files
 
-- [ ] **Step 1: Add API client**
+- [x] **Step 1: Add API client**
 
 Client methods:
 
@@ -710,11 +710,11 @@ Client methods:
 - `updateVersionPolicy`
 - `listAuditEvents`
 
-- [ ] **Step 2: Write API client tests**
+- [x] **Step 2: Write API client tests**
 
 Assert endpoint paths and request/response mapping match Admin BFF contract.
 
-- [ ] **Step 3: Build management views**
+- [x] **Step 3: Build management views**
 
 Minimum UI:
 
@@ -725,13 +725,13 @@ Minimum UI:
 - version policy form
 - audit event list
 
-- [ ] **Step 4: Protect sensitive display**
+- [x] **Step 4: Protect sensitive display**
 
 UI must label `lastReportedAccount` as recently reported account, not current user.
 
 Full serial/android id display must depend on sensitive read capability.
 
-- [ ] **Step 5: Run tenant-web focused tests**
+- [x] **Step 5: Run tenant-web focused tests**
 
 Run the relevant tenant-web test command for new files. If no narrow command exists, run the existing tenant-web unit test suite used by adjacent admin pages.
 

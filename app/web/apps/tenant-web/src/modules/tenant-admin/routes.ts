@@ -83,6 +83,16 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'AdminTerminalDeviceManagement',
+        path: '/admin/terminal-device-management',
+        component: () => import('#/views/admin/terminal-device-management/index.vue'),
+        meta: {
+          entryKey: 'admin.terminal-device-management',
+          icon: 'lucide:smartphone',
+          title: '终端设备管理',
+        },
+      },
+      {
         name: 'AdminNavigationManagement',
         path: '/admin/navigation-management',
         component: () => import('#/views/admin/navigation-management.vue'),

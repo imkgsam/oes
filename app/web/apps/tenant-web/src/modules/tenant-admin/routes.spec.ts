@@ -13,6 +13,17 @@ describe('tenant admin routes', () => {
     expect(orgManagementRoute?.meta?.fullPathKey).toBe(false)
   })
 
+  it('registers managed terminal device governance under the tenant admin section', () => {
+    const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
+    const terminalDeviceRoute = governanceRoute?.children?.find(
+      (route) => route.name === 'AdminTerminalDeviceManagement'
+    )
+
+    expect(terminalDeviceRoute?.path).toBe('/admin/terminal-device-management')
+    expect(terminalDeviceRoute?.meta?.entryKey).toBe('admin.terminal-device-management')
+    expect(terminalDeviceRoute?.component).toBeTypeOf('function')
+  })
+
   it('removes the legacy organization-people routes after splitting org and employee settings pages', () => {
     const settingsRoute = tenantAdminRoutes.find((route) => route.name === 'TenantSettings')
     const organizationPeopleRoute = settingsRoute?.children?.find(
