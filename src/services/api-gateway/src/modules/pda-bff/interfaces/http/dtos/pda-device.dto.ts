@@ -16,41 +16,52 @@ import {
 } from 'class-validator'
 import { Type } from 'class-transformer'
 
-// Carries normalized PDA device identity supplied by the Android Shell.
-export class PdaHeartbeatDeviceDto {
-  @ApiProperty()
+// Carries managed PDA hardware identity signals supplied by the Android Shell.
+export class PdaManagedDeviceIdentityDto {
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   @MaxLength(128)
-  deviceId!: string
+  manufacturerSerial?: string | null
 
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  androidId?: string | null
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  appInstallationId?: string | null
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  manufacturer?: string | null
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  model?: string | null
+}
+
+// Carries managed PDA software facts needed for app version policy.
+export class PdaManagedDeviceSoftwareDto {
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
   @MaxLength(64)
-  idSource!: string
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(128)
-  fallbackAppDeviceId?: string
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(128)
-  manufacturer?: string
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  @MaxLength(128)
-  deviceModel?: string
+  androidVersion?: string | null
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(64)
-  androidVersion?: string
+  webViewVersion?: string | null
 
   @ApiProperty()
   @IsString()
@@ -58,11 +69,57 @@ export class PdaHeartbeatDeviceDto {
   appVersion!: string
 }
 
+// Carries normalized managed PDA device metadata supplied by the Android Shell.
+export class PdaManagedDeviceDescriptorDto {
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  terminalDeviceId?: string | null
+
+  @ApiProperty({ enum: ['PDA'] })
+  @IsIn(['PDA'])
+  terminalDeviceType!: 'PDA'
+
+  @ApiProperty({ type: PdaManagedDeviceIdentityDto })
+  @ValidateNested()
+  @Type(() => PdaManagedDeviceIdentityDto)
+  identity!: PdaManagedDeviceIdentityDto
+
+  @ApiProperty({ type: PdaManagedDeviceSoftwareDto })
+  @ValidateNested()
+  @Type(() => PdaManagedDeviceSoftwareDto)
+  software!: PdaManagedDeviceSoftwareDto
+}
+
+// Carries the administrator-issued enrollment code with the PDA device descriptor.
+export class PdaEnrollmentDto {
+  @ApiProperty()
+  @IsString()
+  @MaxLength(256)
+  enrollmentCode!: string
+
+  @ApiProperty({ type: PdaManagedDeviceDescriptorDto })
+  @ValidateNested()
+  @Type(() => PdaManagedDeviceDescriptorDto)
+  device!: PdaManagedDeviceDescriptorDto
+
+  @ApiProperty()
+  @IsISO8601()
+  clientTime!: string
+}
+
 // Carries volatile PDA runtime state for diagnostics and future device management.
 export class PdaHeartbeatRuntimeDto {
   @ApiProperty({ enum: ['ONLINE', 'OFFLINE'] })
   @IsIn(['ONLINE', 'OFFLINE'])
   networkStatus!: 'ONLINE' | 'OFFLINE'
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  networkType?: string
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -97,10 +154,10 @@ export class PdaHeartbeatSessionDto {
 
 // Defines the Phase 1 PDA heartbeat request accepted before or after login.
 export class PdaHeartbeatDto {
-  @ApiProperty({ type: PdaHeartbeatDeviceDto })
+  @ApiProperty({ type: PdaManagedDeviceDescriptorDto })
   @ValidateNested()
-  @Type(() => PdaHeartbeatDeviceDto)
-  device!: PdaHeartbeatDeviceDto
+  @Type(() => PdaManagedDeviceDescriptorDto)
+  device!: PdaManagedDeviceDescriptorDto
 
   @ApiProperty({ type: PdaHeartbeatRuntimeDto })
   @ValidateNested()
@@ -168,10 +225,10 @@ export class PdaDiagnosticLogEntryDto {
 
 // Defines the Phase 1 manual PDA diagnostic upload request accepted before or after login.
 export class PdaDeviceLogsDto {
-  @ApiProperty({ type: PdaHeartbeatDeviceDto })
+  @ApiProperty({ type: PdaManagedDeviceDescriptorDto })
   @ValidateNested()
-  @Type(() => PdaHeartbeatDeviceDto)
-  device!: PdaHeartbeatDeviceDto
+  @Type(() => PdaManagedDeviceDescriptorDto)
+  device!: PdaManagedDeviceDescriptorDto
 
   @ApiPropertyOptional({ type: PdaHeartbeatSessionDto, nullable: true })
   @IsOptional()

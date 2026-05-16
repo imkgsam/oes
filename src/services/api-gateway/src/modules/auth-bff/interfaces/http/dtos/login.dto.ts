@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator'
+import { Type } from 'class-transformer'
+import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator'
 
 export enum LoginMethodDto {
   EMAIL_PASSWORD = 'EMAIL_PASSWORD',
@@ -13,6 +14,60 @@ export enum MfaFactorDto {
   SMS_OTP = 'SMS_OTP',
   TOTP = 'TOTP',
   BACKUP_CODE = 'BACKUP_CODE'
+}
+
+// Carries optional managed terminal identity hints used by terminal-aware login decisions.
+export class LoginDeviceIdentityDto {
+  @ApiPropertyOptional({ maxLength: 128 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  manufacturerSerial?: string | null
+
+  @ApiPropertyOptional({ maxLength: 128 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  androidId?: string | null
+
+  @ApiPropertyOptional({ maxLength: 128 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  appInstallationId?: string | null
+
+  @ApiPropertyOptional({ maxLength: 128 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  manufacturer?: string | null
+
+  @ApiPropertyOptional({ maxLength: 128 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  model?: string | null
+}
+
+// Carries optional managed terminal software hints used by terminal-aware login decisions.
+export class LoginDeviceSoftwareDto {
+  @ApiPropertyOptional({ maxLength: 64 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  androidVersion?: string | null
+
+  @ApiPropertyOptional({ maxLength: 64 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  webViewVersion?: string | null
+
+  @ApiPropertyOptional({ maxLength: 64 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  appVersion?: string | null
 }
 
 // Defines optional device hints that help the auth flow label the resulting session.
@@ -36,6 +91,18 @@ export class LoginDeviceDto {
   @IsString()
   @MaxLength(128)
   deviceName?: string
+
+  @ApiPropertyOptional({ type: LoginDeviceIdentityDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LoginDeviceIdentityDto)
+  identity?: LoginDeviceIdentityDto
+
+  @ApiPropertyOptional({ type: LoginDeviceSoftwareDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LoginDeviceSoftwareDto)
+  software?: LoginDeviceSoftwareDto
 }
 
 // Defines the unified primary login request accepted by the auth BFF.

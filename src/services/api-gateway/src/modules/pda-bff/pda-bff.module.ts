@@ -1,22 +1,26 @@
 import { Module } from '@nestjs/common'
+import { SERVICE_NAMES } from '@oes/common/constants'
+import { GrpcTransportModule } from '@oes/common/transport'
 import { AuthBffModule } from '../auth-bff/auth-bff.module'
+import { PdaDeviceEnrollmentUseCase } from './application/use-cases/pda-device-enrollment.use-case'
 import { PdaDeviceHeartbeatUseCase } from './application/use-cases/pda-device-heartbeat.use-case'
 import { PdaDeviceLogsUseCase } from './application/use-cases/pda-device-logs.use-case'
 import { PdaSessionBootstrapUseCase } from './application/use-cases/pda-session-bootstrap.use-case'
+import { PdaTerminalDeviceAdapter } from './infrastructure/downstream/terminal-device-service/pda-terminal-device.adapter'
 import { InMemoryPdaDeviceDiagnosticLogStore } from './infrastructure/in-memory-pda-device-diagnostic-log.store'
-import { InMemoryPdaDeviceHeartbeatStore } from './infrastructure/in-memory-pda-device-heartbeat.store'
 import { PdaDeviceController } from './interfaces/http/controllers/pda-device.controller'
 import { PdaSessionController } from './interfaces/http/controllers/pda-session.controller'
 
 @Module({
-  imports: [AuthBffModule],
+  imports: [AuthBffModule, GrpcTransportModule.forFeature([SERVICE_NAMES.TERMINAL_DEVICE])],
   controllers: [PdaSessionController, PdaDeviceController],
   providers: [
+    PdaTerminalDeviceAdapter,
+    PdaDeviceEnrollmentUseCase,
     PdaSessionBootstrapUseCase,
     PdaDeviceHeartbeatUseCase,
     PdaDeviceLogsUseCase,
-    InMemoryPdaDeviceDiagnosticLogStore,
-    InMemoryPdaDeviceHeartbeatStore
+    InMemoryPdaDeviceDiagnosticLogStore
   ]
 })
 // Wires the PDA-specific BFF surface while reusing existing auth/session application services.

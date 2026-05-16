@@ -1,19 +1,21 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 import { SessionContextUseCase } from '../../../auth-bff/application/use-cases/session-context.use-case'
+import { PdaTerminalDeviceAdapter } from '../../infrastructure/downstream/terminal-device-service/pda-terminal-device.adapter'
 import { PdaBootstrapViewModel } from '../../interfaces/http/view-models/pda-bootstrap.view-model'
 
 const PDA_IDLE_TIMEOUT_SECONDS = 900
-const PDA_HEARTBEAT_INTERVAL_SECONDS = 300
-const PDA_APP_VERSION = '0.1.0'
 
 @Injectable()
-// Builds the PDA Phase 1 bootstrap payload from authenticated session context and fixed device defaults.
+// Builds the PDA bootstrap payload from authenticated session context and managed device decision.
 export class PdaSessionBootstrapUseCase {
-  constructor(private readonly sessionContextUseCase: SessionContextUseCase) {}
+  constructor(
+    private readonly sessionContextUseCase: SessionContextUseCase,
+    private readonly terminalDeviceAdapter: PdaTerminalDeviceAdapter
+  ) {}
 
   /** Returns PDA bootstrap data without owning auth, identity, permission, or device-management truth. */
-  async execute(source: DownstreamRequestSource): Promise<PdaBootstrapViewModel> {
+  async execute(source: DownstreamRequestSource, terminalDeviceId: string): Promise<PdaBootstrapViewModel> {
     const terminal = source.user?.terminal
     if (terminal && terminal !== 'PDA') {
       throw new UnauthorizedException('PDA bootstrap requires a PDA terminal session')
@@ -21,6 +23,16 @@ export class PdaSessionBootstrapUseCase {
 
     const context = await this.sessionContextUseCase.execute(source)
     const tenantId = context.tenant?.tenantId ?? null
+    const decision = await this.terminalDeviceAdapter.resolveDeviceAccessDecision({
+      tenantId,
+      terminalDeviceId,
+      requestPurpose: 'BOOTSTRAP',
+      session: {
+        accountId: context.account.accountId,
+        sessionId: source.user?.sid
+      },
+      traceId: source.traceId
+    })
 
     return {
       account: {
@@ -32,6 +44,7 @@ export class PdaSessionBootstrapUseCase {
       session: {
         sessionId: source.user?.sid,
         terminal: 'PDA',
+        terminalDeviceId,
         idleTimeoutSeconds: PDA_IDLE_TIMEOUT_SECONDS
       },
       access: {
@@ -39,17 +52,15 @@ export class PdaSessionBootstrapUseCase {
         actionCodes: context.access.actionCodes ?? []
       },
       device: {
-        deviceStatus: 'ACTIVE'
+        terminalDeviceId,
+        terminalDeviceType: 'PDA',
+        tenantId: decision.resolvedTenantId ?? tenantId,
+        displayName: null,
+        deviceStatus: decision.deviceStatus ?? 'UNKNOWN'
       },
-      devicePolicy: {
-        heartbeatIntervalSeconds: PDA_HEARTBEAT_INTERVAL_SECONDS,
-        idleTimeoutSeconds: PDA_IDLE_TIMEOUT_SECONDS,
-        minSupportedAppVersion: PDA_APP_VERSION,
-        latestAppVersion: PDA_APP_VERSION,
-        upgradeRequired: false
-      },
+      decision,
       workbench: {
-        mode: 'FOUNDATION_ACCEPTANCE',
+        mode: 'PDA_MANAGED_DEVICE',
         enabledCards: ['SESSION', 'DEVICE', 'NETWORK', 'SCAN', 'CAMERA', 'LOGS']
       },
       serverTime: new Date().toISOString()

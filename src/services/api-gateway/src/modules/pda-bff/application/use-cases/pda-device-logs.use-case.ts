@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { InMemoryPdaDeviceDiagnosticLogStore } from '../../infrastructure/in-memory-pda-device-diagnostic-log.store'
+import { PdaTerminalDeviceAdapter } from '../../infrastructure/downstream/terminal-device-service/pda-terminal-device.adapter'
 import { PdaDeviceLogsDto, PdaDiagnosticLogEntryDto } from '../../interfaces/http/dtos/pda-device.dto'
 import { PdaDeviceLogsViewModel } from '../../interfaces/http/view-models/pda-device.view-model'
 
@@ -10,25 +11,42 @@ const SENSITIVE_KEY_PATTERN = /(authorization|credential|password|secret|token)/
 @Injectable()
 // Accepts manually uploaded PDA diagnostics while enforcing Phase 1 redaction boundaries.
 export class PdaDeviceLogsUseCase {
-  constructor(private readonly store: InMemoryPdaDeviceDiagnosticLogStore) {}
+  constructor(
+    private readonly store: InMemoryPdaDeviceDiagnosticLogStore,
+    private readonly terminalDeviceAdapter: PdaTerminalDeviceAdapter
+  ) {}
 
-  execute(dto: PdaDeviceLogsDto): PdaDeviceLogsViewModel {
+  async execute(dto: PdaDeviceLogsDto): Promise<PdaDeviceLogsViewModel> {
     const serverTime = new Date().toISOString()
     const records = dto.logs.map((log) => this.toRecord(dto, log, serverTime))
+    const terminalDeviceId = dto.device.terminalDeviceId?.trim() || 'unbound-pda'
+    const decision = await this.terminalDeviceAdapter.resolveDeviceAccessDecision({
+      tenantId: normalizeNullable(dto.session?.tenantId ?? undefined),
+      terminalDeviceId,
+      requestPurpose: 'DIAGNOSTIC_LOG',
+      device: dto.device,
+      session: dto.session
+        ? {
+            accountId: normalizeNullable(dto.session.accountId),
+            sessionId: normalizeNullable(dto.session.sessionId)
+          }
+        : null
+    })
 
-    this.store.saveBatch(dto.device.deviceId, records)
+    this.store.saveBatch(terminalDeviceId, records)
 
     return {
       accepted: true,
       receivedCount: records.length,
+      decision,
       serverTime
     }
   }
 
   private toRecord(dto: PdaDeviceLogsDto, log: PdaDiagnosticLogEntryDto, receivedAt: string) {
     return {
-      deviceId: dto.device.deviceId,
-      idSource: dto.device.idSource,
+      deviceId: dto.device.terminalDeviceId ?? 'unbound-pda',
+      idSource: 'TERMINAL_DEVICE_ID',
       accountId: normalizeNullable(dto.session?.accountId),
       tenantId: normalizeNullable(dto.session?.tenantId ?? undefined),
       sessionId: normalizeNullable(dto.session?.sessionId),

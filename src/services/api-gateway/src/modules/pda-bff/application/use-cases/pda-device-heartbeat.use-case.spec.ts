@@ -1,19 +1,32 @@
 import { PdaDeviceHeartbeatUseCase } from './pda-device-heartbeat.use-case'
-import { InMemoryPdaDeviceHeartbeatStore } from '../../infrastructure/in-memory-pda-device-heartbeat.store'
 
 describe('PdaDeviceHeartbeatUseCase', () => {
-  it('accepts unauthenticated device heartbeat and records latest diagnostic state', async () => {
-    const store = new InMemoryPdaDeviceHeartbeatStore()
-    const useCase = new PdaDeviceHeartbeatUseCase(store)
+  it('records heartbeat runtime through terminal-device-service and returns the current decision', async () => {
+    const terminalDeviceAdapter = {
+      recordHeartbeat: jest.fn().mockResolvedValue({
+        accepted: true,
+        terminalDeviceId: 'terminal-device-1',
+        lastHeartbeatAt: '2026-05-14T10:00:01.000Z',
+        presenceStatus: 'ONLINE',
+        heartbeatIntervalSeconds: 300
+      }),
+      resolveDeviceAccessDecision: jest.fn().mockResolvedValue(allowDecision())
+    }
+    const useCase = new PdaDeviceHeartbeatUseCase(terminalDeviceAdapter as any)
 
     const result = await useCase.execute({
       device: {
-        deviceId: 'device-1',
-        idSource: 'MANUFACTURER_SERIAL',
-        manufacturer: 'Seuic',
-        deviceModel: 'Cruise Ge',
-        androidVersion: '9',
-        appVersion: '0.1.0'
+        terminalDeviceId: 'terminal-device-1',
+        terminalDeviceType: 'PDA',
+        identity: {
+          manufacturerSerial: 'SEUIC-SN-123456',
+          manufacturer: 'Seuic',
+          model: 'Cruise Ge'
+        },
+        software: {
+          androidVersion: '9',
+          appVersion: '2.0.0'
+        }
       },
       runtime: {
         networkStatus: 'ONLINE',
@@ -23,38 +36,47 @@ describe('PdaDeviceHeartbeatUseCase', () => {
       clientTime: '2026-05-14T10:00:00.000Z'
     })
 
+    expect(terminalDeviceAdapter.recordHeartbeat).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: null,
+        terminalDeviceId: 'terminal-device-1',
+        runtime: expect.objectContaining({ appState: 'FOREGROUND' })
+      })
+    )
+    expect(terminalDeviceAdapter.resolveDeviceAccessDecision).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terminalDeviceId: 'terminal-device-1',
+        requestPurpose: 'HEARTBEAT'
+      })
+    )
     expect(result).toEqual(
       expect.objectContaining({
         accepted: true,
-        deviceStatus: 'ACTIVE',
-        devicePolicy: expect.objectContaining({
-          heartbeatIntervalSeconds: 300,
-          idleTimeoutSeconds: 900
-        }),
+        decision: expect.objectContaining({ decisionCode: 'ALLOW' }),
+        heartbeatIntervalSeconds: 300,
         serverTime: expect.any(String)
-      })
-    )
-    expect(store.getLatest('device-1')).toEqual(
-      expect.objectContaining({
-        deviceId: 'device-1',
-        sessionId: null,
-        networkStatus: 'ONLINE',
-        appState: 'FOREGROUND',
-        lastClientTime: '2026-05-14T10:00:00.000Z',
-        lastHeartbeatAt: expect.any(String)
       })
     )
   })
 
-  it('records authenticated session summary when PDA web includes it', async () => {
-    const store = new InMemoryPdaDeviceHeartbeatStore()
-    const useCase = new PdaDeviceHeartbeatUseCase(store)
+  it('passes authenticated session summary when PDA web includes it', async () => {
+    const terminalDeviceAdapter = {
+      recordHeartbeat: jest.fn().mockResolvedValue({
+        accepted: true,
+        heartbeatIntervalSeconds: 300
+      }),
+      resolveDeviceAccessDecision: jest.fn().mockResolvedValue(allowDecision())
+    }
+    const useCase = new PdaDeviceHeartbeatUseCase(terminalDeviceAdapter as any)
 
     await useCase.execute({
       device: {
-        deviceId: 'device-1',
-        idSource: 'MANUFACTURER_SERIAL',
-        appVersion: '0.1.0'
+        terminalDeviceId: 'terminal-device-1',
+        terminalDeviceType: 'PDA',
+        identity: {},
+        software: {
+          appVersion: '2.0.0'
+        }
       },
       runtime: {
         networkStatus: 'ONLINE',
@@ -68,12 +90,31 @@ describe('PdaDeviceHeartbeatUseCase', () => {
       clientTime: '2026-05-14T10:00:00.000Z'
     })
 
-    expect(store.getLatest('device-1')).toEqual(
+    expect(terminalDeviceAdapter.recordHeartbeat).toHaveBeenCalledWith(
       expect.objectContaining({
-        accountId: 'account-1',
+        terminalDeviceId: 'terminal-device-1',
         tenantId: null,
-        sessionId: 'session-1'
+        session: {
+          accountId: 'account-1',
+          sessionId: 'session-1'
+        }
       })
     )
   })
 })
+
+function allowDecision() {
+  return {
+    allowed: true,
+    decisionCode: 'ALLOW',
+    resolvedTenantId: 'tenant-1',
+    terminalDeviceId: 'terminal-device-1',
+    terminalDeviceType: 'PDA',
+    deviceStatus: 'ACTIVE',
+    presenceStatus: 'ONLINE',
+    requiredAction: 'NONE',
+    shouldClearLocalSession: false,
+    shouldClearLocalTerminalDeviceId: false,
+    versionPolicy: null
+  }
+}

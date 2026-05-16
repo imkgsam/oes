@@ -22,6 +22,9 @@ export class PdaBootstrapSessionViewModel {
   terminal!: 'PDA'
 
   @ApiPropertyOptional()
+  terminalDeviceId?: string
+
+  @ApiPropertyOptional()
   expiresAt?: string
 
   @ApiProperty()
@@ -38,22 +41,22 @@ export class PdaBootstrapAccessViewModel {
 
 export class PdaBootstrapDeviceViewModel {
   @ApiProperty()
-  deviceStatus!: 'ACTIVE'
+  terminalDeviceId!: string
 
-  @ApiPropertyOptional()
-  deviceId?: string
+  @ApiProperty()
+  terminalDeviceType!: 'PDA'
 
-  @ApiPropertyOptional()
-  idSource?: string
+  @ApiPropertyOptional({ nullable: true })
+  tenantId?: string | null
+
+  @ApiPropertyOptional({ nullable: true })
+  displayName?: string | null
+
+  @ApiProperty()
+  deviceStatus!: string
 }
 
-export class PdaBootstrapDevicePolicyViewModel {
-  @ApiProperty()
-  heartbeatIntervalSeconds!: number
-
-  @ApiProperty()
-  idleTimeoutSeconds!: number
-
+export class PdaVersionPolicyViewModel {
   @ApiProperty()
   minSupportedAppVersion!: string
 
@@ -62,11 +65,58 @@ export class PdaBootstrapDevicePolicyViewModel {
 
   @ApiProperty()
   upgradeRequired!: boolean
+
+  @ApiPropertyOptional()
+  upgradeRecommended?: boolean
+
+  @ApiPropertyOptional({ nullable: true })
+  apkDownloadUrl?: string | null
+
+  @ApiPropertyOptional({ nullable: true })
+  releaseNotesUrl?: string | null
+}
+
+export class PdaDeviceAccessDecisionViewModel {
+  @ApiProperty()
+  allowed!: boolean
+
+  @ApiProperty()
+  decisionCode!: string
+
+  @ApiPropertyOptional({ nullable: true })
+  resolvedTenantId?: string | null
+
+  @ApiPropertyOptional({ nullable: true })
+  terminalDeviceId?: string | null
+
+  @ApiPropertyOptional({ nullable: true })
+  terminalDeviceType?: 'PDA' | null
+
+  @ApiPropertyOptional({ nullable: true })
+  deviceStatus?: string | null
+
+  @ApiPropertyOptional({ nullable: true })
+  presenceStatus?: 'OFFLINE' | 'ONLINE' | 'UNKNOWN' | null
+
+  @ApiPropertyOptional({ type: PdaVersionPolicyViewModel, nullable: true })
+  versionPolicy?: PdaVersionPolicyViewModel | null
+
+  @ApiProperty()
+  requiredAction!: string
+
+  @ApiPropertyOptional({ nullable: true })
+  messageKey?: string | null
+
+  @ApiProperty()
+  shouldClearLocalSession!: boolean
+
+  @ApiProperty()
+  shouldClearLocalTerminalDeviceId!: boolean
 }
 
 export class PdaBootstrapWorkbenchViewModel {
   @ApiProperty()
-  mode!: 'FOUNDATION_ACCEPTANCE'
+  mode!: 'FOUNDATION_ACCEPTANCE' | 'PDA_MANAGED_DEVICE'
 
   @ApiProperty({ type: String, isArray: true })
   enabledCards!: string[]
@@ -85,8 +135,8 @@ export class PdaBootstrapViewModel {
   @ApiProperty({ type: PdaBootstrapDeviceViewModel })
   device!: PdaBootstrapDeviceViewModel
 
-  @ApiProperty({ type: PdaBootstrapDevicePolicyViewModel })
-  devicePolicy!: PdaBootstrapDevicePolicyViewModel
+  @ApiProperty({ type: PdaDeviceAccessDecisionViewModel })
+  decision!: PdaDeviceAccessDecisionViewModel
 
   @ApiProperty({ type: PdaBootstrapWorkbenchViewModel })
   workbench!: PdaBootstrapWorkbenchViewModel

@@ -462,7 +462,7 @@ Expected: permission-service tests pass.
 - Modify auth-service Prisma schema if session persistence requires schema changes
 - Test: auth-service session/revoke tests
 
-- [ ] **Step 1: Write failing tests for PDA session metadata**
+- [x] **Step 1: Write failing tests for PDA session metadata**
 
 Cover:
 
@@ -470,11 +470,11 @@ Cover:
 - Non-PDA sessions may omit `terminalDeviceId`.
 - session context can return `terminalDeviceId` for PDA.
 
-- [ ] **Step 2: Implement metadata propagation**
+- [x] **Step 2: Implement metadata propagation**
 
 Propagate `terminalDeviceId` from PDA BFF login call into auth session truth.
 
-- [ ] **Step 3: Write failing tests for revoke by terminal device**
+- [x] **Step 3: Write failing tests for revoke by terminal device**
 
 Cover:
 
@@ -482,11 +482,11 @@ Cover:
 - sessions for other devices remain active;
 - revoke writes auth audit.
 
-- [ ] **Step 4: Implement revoke command and contract**
+- [x] **Step 4: Implement revoke command and contract**
 
 Expose internal command for api-gateway or terminal-device-service collaboration.
 
-- [ ] **Step 5: Run auth-service tests**
+- [x] **Step 5: Run auth-service tests**
 
 Run:
 
@@ -503,7 +503,7 @@ Expected: auth-service tests pass.
 - Add terminal-device-service adapter under API Gateway
 - Modify PDA BFF tests
 
-- [ ] **Step 1: Add terminal-device-service adapter**
+- [x] **Step 1: Add terminal-device-service adapter**
 
 Adapter methods:
 
@@ -511,7 +511,7 @@ Adapter methods:
 - `resolveDeviceAccessDecision`
 - `recordHeartbeat`
 
-- [ ] **Step 2: Write failing tests for `/pda/device/enroll`**
+- [x] **Step 2: Write failing tests for `/pda/device/enroll`**
 
 Cover:
 
@@ -520,11 +520,11 @@ Cover:
 - maps enrollment failure to PDA-friendly response;
 - does not decode tenant from QR payload.
 
-- [ ] **Step 3: Implement `/pda/device/enroll`**
+- [x] **Step 3: Implement `/pda/device/enroll`**
 
 Controller only validates DTO and calls use case. Use case orchestrates adapter calls.
 
-- [ ] **Step 4: Write failing tests for PDA login tenant resolution**
+- [x] **Step 4: Write failing tests for PDA login tenant resolution**
 
 Cover:
 
@@ -533,15 +533,15 @@ Cover:
 - BFF calls auth-service with resolved tenant, `terminal=PDA`, and `terminalDeviceId`;
 - BFF rejects device denial before auth call.
 
-- [ ] **Step 5: Implement login orchestration update**
+- [x] **Step 5: Implement login orchestration update**
 
 Do not expose tenant selection in PDA login request.
 
-- [ ] **Step 6: Update bootstrap, heartbeat and logs**
+- [x] **Step 6: Update bootstrap, heartbeat and logs**
 
 Each must consume `DeviceAccessDecision` and return cleanup flags to PDA.
 
-- [ ] **Step 7: Run api-gateway PDA BFF tests**
+- [x] **Step 7: Run api-gateway PDA BFF tests**
 
 Run:
 

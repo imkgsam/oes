@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common'
+import { Controller, Get, Query } from '@nestjs/common'
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
@@ -15,8 +15,9 @@ export class PdaSessionController {
   @ApiOperation({ summary: 'Initialize the authenticated PDA terminal workbench' })
   @ApiResponse({ status: 200, type: PdaBootstrapViewModel })
   async bootstrap(
-    @DownstreamSource() source: DownstreamRequestSource
+    @DownstreamSource() source: DownstreamRequestSource,
+    @Query('terminalDeviceId') terminalDeviceId: string
   ): Promise<PdaBootstrapViewModel> {
-    return this.bootstrapUseCase.execute(source)
+    return this.bootstrapUseCase.execute(source, terminalDeviceId)
   }
 }

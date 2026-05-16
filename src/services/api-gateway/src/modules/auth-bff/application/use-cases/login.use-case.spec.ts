@@ -127,7 +127,19 @@ describe('LoginUseCase', () => {
         tenantHint: 'frontend-selected-tenant',
         device: {
           deviceId: ' terminal-device-1 ',
-          deviceName: ' Warehouse PDA '
+          deviceName: ' Warehouse PDA ',
+          identity: {
+            manufacturerSerial: ' SEUIC-SN-123456 ',
+            androidId: ' android-id-1 ',
+            appInstallationId: ' install-1 ',
+            manufacturer: ' Seuic ',
+            model: ' Cruise Ge '
+          },
+          software: {
+            androidVersion: ' 9 ',
+            webViewVersion: ' 66.0.3359.158 ',
+            appVersion: ' 2.0.0 '
+          }
         }
       },
       { requestId: 'req-1', traceId: 'trace-1' },
@@ -140,6 +152,14 @@ describe('LoginUseCase', () => {
       terminalDeviceId: 'terminal-device-1',
       deviceMetadata: expect.objectContaining({
         deviceName: 'Warehouse PDA',
+        manufacturerSerial: 'SEUIC-SN-123456',
+        androidId: 'android-id-1',
+        appInstallationId: 'install-1',
+        manufacturer: 'Seuic',
+        model: 'Cruise Ge',
+        androidVersion: '9',
+        webViewVersion: '66.0.3359.158',
+        appVersion: '2.0.0',
         userAgent: 'OES-PDA/1.0',
         ipAddress: '10.0.0.7'
       })

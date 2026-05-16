@@ -177,12 +177,43 @@ export class LoginUseCase {
 
     return this.terminalDeviceAdapter.resolveLoginDeviceContext({
       terminalDeviceId,
-      deviceMetadata: {
-        ...(deviceName ? { deviceName } : {}),
-        ...(userAgent ? { userAgent } : {}),
-        ...(ipAddress ? { ipAddress } : {})
-      }
+      deviceMetadata: this.toPdaDeviceMetadata(dto, { deviceName, userAgent, ipAddress })
     })
+  }
+
+  // Extracts PDA device identity and software hints without making auth-bff own device governance rules.
+  private toPdaDeviceMetadata(
+    dto: LoginDto,
+    context: { deviceName?: string; userAgent?: string; ipAddress?: string }
+  ): Record<string, unknown> {
+    return {
+      ...(context.deviceName ? { deviceName: context.deviceName } : {}),
+      ...(context.userAgent ? { userAgent: context.userAgent } : {}),
+      ...(context.ipAddress ? { ipAddress: context.ipAddress } : {}),
+      ...this.normalizedObject(dto.device?.identity, [
+        'manufacturerSerial',
+        'androidId',
+        'appInstallationId',
+        'manufacturer',
+        'model'
+      ]),
+      ...this.normalizedObject(dto.device?.software, ['androidVersion', 'webViewVersion', 'appVersion'])
+    }
+  }
+
+  // Normalizes a selected subset of string fields from client-provided metadata.
+  private normalizedObject(source: unknown, keys: string[]): Record<string, string> {
+    if (!source || typeof source !== 'object') {
+      return {}
+    }
+
+    return keys.reduce<Record<string, string>>((acc, key) => {
+      const value = (source as Record<string, unknown>)[key]
+      if (typeof value === 'string' && value.trim()) {
+        acc[key] = value.trim()
+      }
+      return acc
+    }, {})
   }
 
   // Builds the stable PDA terminal-device denial response before auth-service is called.

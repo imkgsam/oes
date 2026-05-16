@@ -4,16 +4,24 @@ import { PdaDeviceLogsUseCase } from './pda-device-logs.use-case'
 describe('PdaDeviceLogsUseCase', () => {
   it('accepts manual diagnostic logs and stores sanitized recent entries', async () => {
     const store = new InMemoryPdaDeviceDiagnosticLogStore()
-    const useCase = new PdaDeviceLogsUseCase(store)
+    const terminalDeviceAdapter = {
+      resolveDeviceAccessDecision: jest.fn().mockResolvedValue(allowDecision())
+    }
+    const useCase = new PdaDeviceLogsUseCase(store, terminalDeviceAdapter as any)
 
     const result = await useCase.execute({
       device: {
-        deviceId: 'device-1',
-        idSource: 'MANUFACTURER_SERIAL',
-        manufacturer: 'Seuic',
-        deviceModel: 'Cruise Ge',
-        androidVersion: '9',
-        appVersion: '0.1.0'
+        terminalDeviceId: 'terminal-device-1',
+        terminalDeviceType: 'PDA',
+        identity: {
+          manufacturerSerial: 'SEUIC-SN-123456',
+          manufacturer: 'Seuic',
+          model: 'Cruise Ge'
+        },
+        software: {
+          androidVersion: '9',
+          appVersion: '2.0.0'
+        }
       },
       session: null,
       logs: [
@@ -42,12 +50,19 @@ describe('PdaDeviceLogsUseCase', () => {
       expect.objectContaining({
         accepted: true,
         receivedCount: 1,
+        decision: expect.objectContaining({ decisionCode: 'ALLOW' }),
         serverTime: expect.any(String)
       })
     )
-    expect(store.getRecent('device-1')).toEqual([
+    expect(terminalDeviceAdapter.resolveDeviceAccessDecision).toHaveBeenCalledWith(
       expect.objectContaining({
-        deviceId: 'device-1',
+        terminalDeviceId: 'terminal-device-1',
+        requestPurpose: 'DIAGNOSTIC_LOG'
+      })
+    )
+    expect(store.getRecent('terminal-device-1')).toEqual([
+      expect.objectContaining({
+        deviceId: 'terminal-device-1',
         sessionId: null,
         eventType: 'SCAN_RECEIVED',
         details: {
@@ -64,13 +79,19 @@ describe('PdaDeviceLogsUseCase', () => {
 
   it('redacts scan values when diagnostic mode is not explicitly enabled', async () => {
     const store = new InMemoryPdaDeviceDiagnosticLogStore()
-    const useCase = new PdaDeviceLogsUseCase(store)
+    const terminalDeviceAdapter = {
+      resolveDeviceAccessDecision: jest.fn().mockResolvedValue(allowDecision())
+    }
+    const useCase = new PdaDeviceLogsUseCase(store, terminalDeviceAdapter as any)
 
     await useCase.execute({
       device: {
-        deviceId: 'device-1',
-        idSource: 'MANUFACTURER_SERIAL',
-        appVersion: '0.1.0'
+        terminalDeviceId: 'terminal-device-1',
+        terminalDeviceType: 'PDA',
+        identity: {},
+        software: {
+          appVersion: '2.0.0'
+        }
       },
       session: {
         accountId: 'account-1',
@@ -92,7 +113,7 @@ describe('PdaDeviceLogsUseCase', () => {
       ]
     })
 
-    expect(store.getRecent('device-1')[0]).toEqual(
+    expect(store.getRecent('terminal-device-1')[0]).toEqual(
       expect.objectContaining({
         accountId: 'account-1',
         tenantId: null,
@@ -105,3 +126,19 @@ describe('PdaDeviceLogsUseCase', () => {
     )
   })
 })
+
+function allowDecision() {
+  return {
+    allowed: true,
+    decisionCode: 'ALLOW',
+    resolvedTenantId: 'tenant-1',
+    terminalDeviceId: 'terminal-device-1',
+    terminalDeviceType: 'PDA',
+    deviceStatus: 'ACTIVE',
+    presenceStatus: 'ONLINE',
+    requiredAction: 'NONE',
+    shouldClearLocalSession: false,
+    shouldClearLocalTerminalDeviceId: false,
+    versionPolicy: null
+  }
+}
