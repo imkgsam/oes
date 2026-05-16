@@ -1,6 +1,9 @@
 # auth-service Audit API
 
-## 1. 模块职责
+> 服务设计唯一真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只描述黑盒 gRPC audit 查询接口语义，不重新定义 `auth-service` 的长期职责、核心对象或 owner 边界。
+> 审计查询入口涉及的 permission code、checkPermission 或 buildQueryScope 语义，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 与项目级授权架构为准；本文只描述 auth-service audit contract。
+
+## 1. 接口范围
 
 `AuthService` 的 audit 相关接口负责提供认证域本地审计事件查询能力，不修改状态。
 
@@ -15,7 +18,7 @@
 - 接口类型：gRPC
 - 服务：`AuthService`
 - 调用方：内部服务
-- 契约真相源：
+- Proto 契约来源：
   - [auth.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/auth_service/auth.proto)
 
 ## 2. 审计查询接口

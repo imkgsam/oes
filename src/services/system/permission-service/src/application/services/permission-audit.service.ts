@@ -16,6 +16,7 @@ type AuditTargetType =
   | 'ROLE_PERMISSION'
   | 'NAVIGATION_ENTRY'
   | 'ROLE_NAVIGATION'
+  | 'TERMINAL_ACCESS'
 type EvaluationModeValue = 'RBAC' | 'RBAC_ABAC'
 type DecisionValue = 'ALLOW' | 'DENY'
 
@@ -138,6 +139,10 @@ export class PermissionAuditService {
 
     if (targetType === 'NAVIGATION_ENTRY' || targetType === 'ROLE_NAVIGATION') {
       return 'navigation'
+    }
+
+    if (targetType === 'TERMINAL_ACCESS') {
+      return 'terminal-access'
     }
 
     return 'role'

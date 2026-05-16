@@ -1,5 +1,13 @@
-import { Controller } from '@nestjs/common'
+import { Controller, UseGuards, UseInterceptors } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
+import {
+  RequirePermissions,
+  AuthenticatedOperatorGuard,
+  GrpcRequestContextInterceptor,
+  InternalServiceGuard,
+  PermissionGuard,
+  TENANT_ORG_MANAGEMENT_PERMISSION_CODES
+} from '@oes/common/authorization'
 import {
   GetOrgReferenceSummaryRequest,
   GetOrgReferenceSummaryResponse,
@@ -24,6 +32,8 @@ import { TenantOrgQueryService } from '../../application/services'
 
 /** TenantOrgQueryGrpcController exposes tenant/org read contracts over gRPC. */
 @Controller()
+@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
+@UseInterceptors(GrpcRequestContextInterceptor)
 @TenantOrgQueryServiceControllerMethods()
 export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceController {
   constructor(private readonly tenantOrgQueryService: TenantOrgQueryService) {}
@@ -36,6 +46,7 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     return { tenant: tenant ? mapTenant(tenant) : undefined }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_TENANT] })
   async listTenants(
     _request: ListTenantsRequest,
     _metadata?: Metadata
@@ -52,6 +63,7 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE] })
   async getOrgTreeByTenantId(
     _request: GetOrgTreeByTenantIdRequest,
     _metadata?: Metadata
@@ -60,6 +72,7 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     return { roots: roots.map(mapOrgNode) }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_ORG_UNIT_DETAIL] })
   async getOrgUnitById(
     _request: GetOrgUnitByIdRequest,
     _metadata?: Metadata
@@ -100,6 +113,7 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     return { orgUnit: orgUnit ? mapOrgUnit(orgUnit) : undefined }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE] })
   async listAncestorOrgUnits(
     _request: ListAncestorOrgUnitsRequest,
     _metadata?: Metadata
@@ -111,6 +125,7 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
     return { ancestors: ancestors.map(mapOrgUnit) }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE] })
   async listDescendantOrgUnits(
     _request: ListDescendantOrgUnitsRequest,
     _metadata?: Metadata

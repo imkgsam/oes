@@ -72,48 +72,75 @@ export class ListProductionSpecsDto {
 
 /** CreateProductionSpecDto captures the current ProductionSpec creation payload. */
 export class CreateProductionSpecDto {
+  @Allow()
   commandId?: string
+  @Allow()
   effectiveFrom?: string
+  @Allow()
   effectiveTo?: string
   @Allow()
   itemRef!: unknown
+  @Allow()
   name!: string
+  @Allow()
   orgId?: string
+  @Allow()
   reason?: string
+  @Allow()
   revisionCode?: string
+  @Allow()
   specCode!: string
+  @Allow()
   supersedesProductionSpecId?: string
 }
 
 /** ActivateProductionSpecDto captures the explicit ProductionSpec activation payload. */
 export class ActivateProductionSpecDto {
+  @Allow()
   activatedAt?: string
+  @Allow()
   commandId?: string
+  @Allow()
   expectedVersion?: number
+  @Allow()
   orgId?: string
+  @Allow()
   reason?: string
 }
 
 /** UpdateProductionSpecDto captures the current ProductionSpec update payload. */
 export class UpdateProductionSpecDto {
+  @Allow()
   commandId?: string
+  @Allow()
   effectiveFrom?: string
+  @Allow()
   effectiveTo?: string
+  @Allow()
   expectedVersion?: number
   @Allow()
   itemRef?: unknown
+  @Allow()
   name?: string
+  @Allow()
   orgId?: string
+  @Allow()
   reason?: string
 }
 
 /** RetireProductionSpecDto captures the current ProductionSpec retirement payload. */
 export class RetireProductionSpecDto {
+  @Allow()
   commandId?: string
+  @Allow()
   expectedVersion?: number
+  @Allow()
   orgId?: string
+  @Allow()
   reason?: string
+  @Allow()
   replacementProductionSpecId?: string
+  @Allow()
   retiredAt?: string
 }
 
@@ -161,41 +188,63 @@ export class ListMoldDesignsDto {
 
 /** RegisterMoldDesignDto captures the current MoldDesign registration payload. */
 export class RegisterMoldDesignDto {
+  @Allow()
   commandId?: string
+  @Allow()
   defaultLifeLimit?: string
+  @Allow()
   defaultLifeUnit?: string
+  @Allow()
   designCode!: string
+  @Allow()
   functionRole!: string
+  @Allow()
   itemRef?: unknown
+  @Allow()
   materialType!: string
+  @Allow()
   name!: string
+  @Allow()
   orgId?: string
+  @Allow()
   outputStructureType!: string
   @Allow()
   outputs!: unknown[]
+  @Allow()
   productionMethodTags?: string[]
   @Allow()
   productionSpecRefs?: unknown[]
+  @Allow()
   reason?: string
+  @Allow()
   revisionCode?: string
+  @Allow()
   supersedesMoldDesignId?: string
 }
 
 /** RegisterMasterMoldDto captures the current MasterMold registration payload. */
 export class RegisterMasterMoldDto {
+  @Allow()
   commandId?: string
   @Allow()
   initialCarrierResourceRef?: unknown
   @Allow()
   initialStorageResourceRef?: unknown
+  @Allow()
   masterMoldCode!: string
+  @Allow()
   moldDesignId!: string
+  @Allow()
   notes?: string
+  @Allow()
   orgId?: string
   @Allow()
   purchaseRef?: unknown
+  @Allow()
   qualitySummary?: string
+  @Allow()
   reason?: string
+  @Allow()
   receivedAt?: string
   @Allow()
   supplierRef?: unknown
@@ -203,19 +252,27 @@ export class RegisterMasterMoldDto {
 
 /** RegisterProductionMoldDto captures the current ProductionMold registration payload. */
 export class RegisterProductionMoldDto {
+  @Allow()
   acceptedAt?: string
+  @Allow()
   commandId?: string
   @Allow()
   initialCarrierResourceRef?: unknown
   @Allow()
   initialStorageResourceRef?: unknown
+  @Allow()
   moldCode!: string
+  @Allow()
   moldDesignId!: string
+  @Allow()
   orgId?: string
   @Allow()
   purchaseRef?: unknown
+  @Allow()
   reason?: string
+  @Allow()
   receivedAt?: string
+  @Allow()
   sourceMasterMoldId?: string
   @Allow()
   supplierRef?: unknown
@@ -273,14 +330,21 @@ export class ListProductionMoldsDto extends ListProductionMoldsByDesignDto {
 
 /** MoveToolingDto captures one storage or carrier placement command. */
 export class MoveToolingDto {
+  @Allow()
   commandId?: string
+  @Allow()
   movedAt?: string
+  @Allow()
   movementReason?: string
+  @Allow()
   orgId?: string
+  @Allow()
+  reason?: string
   @Allow()
   toCarrierResourceRef?: unknown
   @Allow()
   toStorageResourceRef?: unknown
+  @Allow()
   toolingType?: string
 }
 
@@ -312,17 +376,25 @@ export class InstallToolingDto {
 
 /** UnmountToolingDto captures one tooling unmount payload. */
 export class UnmountToolingDto {
+  @Allow()
   commandId?: string
+  @Allow()
   orgId?: string
+  @Allow()
   reason?: string
+  @Allow()
   unmountedAt?: string
 }
 
 /** ScrapProductionMoldDto captures one production mold scrap command payload. */
 export class ScrapProductionMoldDto {
+  @Allow()
   commandId?: string
+  @Allow()
   orgId?: string
+  @Allow()
   reason?: string
+  @Allow()
   scrappedAt?: string
 }
 
@@ -404,30 +476,49 @@ export class PrintDailyMoldChecklistDto {
 
 /** DailyMoldUsageBatchItemDto captures one checkbox row selected for manual usage recording. */
 export class DailyMoldUsageBatchItemDto {
+  @Allow()
   captureSource?: string
+  @Allow()
   checked?: boolean
+  @Allow()
   lifeDelta?: string
+  @Allow()
   lifeUnit?: string
+  @Allow()
   moldDesignOutputId?: string
+  @Allow()
   moldDesignOutputOptionId?: string
+  @Allow()
   productionMoldId!: string
+  @Allow()
   productionSpecRef?: unknown
+  @Allow()
   productionUnitRef?: unknown
+  @Allow()
   reason?: string
+  @Allow()
   toolingInstallationId!: string
+  @Allow()
   traceSubjectRef?: unknown
+  @Allow()
   usageQuantity?: string
+  @Allow()
   workCenterRef?: unknown
+  @Allow()
   workUnitRef?: unknown
 }
 
 /** RecordDailyMoldUsageBatchDto captures one idempotent web-stage checkbox batch submission. */
 export class RecordDailyMoldUsageBatchDto {
+  @Allow()
   batchCommandId!: string
   @Allow()
   items!: DailyMoldUsageBatchItemDto[]
+  @Allow()
   orgId?: string
+  @Allow()
   reason?: string
+  @Allow()
   usedAt?: string
   @Allow()
   workCenterRef!: unknown

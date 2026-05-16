@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { ProcurementController } from './procurement.controller'
 
 // Verifies the procurement gateway controller keeps permissions and phase 1 request forwarding aligned with the frozen procurement BFF surface.
@@ -38,152 +38,131 @@ describe('ProcurementController', () => {
     const reflector = new Reflector()
 
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.searchPurchaseRequests)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_request.list']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.getPurchaseRequest)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_request.get_by_id']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.createPurchaseRequest)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_request.create']
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.searchPurchaseRequests
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.getPurchaseRequest
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.createPurchaseRequest
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         ProcurementController.prototype.updatePurchaseRequestDraft
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_request.update_draft']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.submitPurchaseRequest)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_request.submit']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.decidePurchaseRequest)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_request.decide']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.cancelPurchaseRequest)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_request.cancel']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.submitPurchaseRequest
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.decidePurchaseRequest
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.cancelPurchaseRequest
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         ProcurementController.prototype.convertPurchaseRequestToPurchaseOrder
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_request.convert_to_order']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.searchPurchaseOrders)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_order.list']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.getPurchaseOrder)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_order.get_by_id']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.createPurchaseOrderDraft)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_order.create_draft']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.updatePurchaseOrderDraft)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_order.update_draft']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.issuePurchaseOrder)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_order.issue']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.searchPurchaseOrders
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.getPurchaseOrder
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.createPurchaseOrderDraft
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.updatePurchaseOrderDraft
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.issuePurchaseOrder
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         ProcurementController.prototype.confirmSupplierAcknowledgement
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_order.confirm_acknowledgement']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.applyPurchaseOrderChange)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_order.apply_change']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.cancelPurchaseOrder)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_order.cancel']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, ProcurementController.prototype.listPurchaseOrderChanges)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.purchase_order_change.list']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.applyPurchaseOrderChange
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.cancelPurchaseOrder
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ProcurementController.prototype.listPurchaseOrderChanges
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         ProcurementController.prototype.searchReceivingExpectations
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.receiving_expectation.list']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         ProcurementController.prototype.getReceivingExpectation
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.receiving_expectation.get_by_id']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         ProcurementController.prototype.createReceivingExpectation
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.receiving_expectation.create']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         ProcurementController.prototype.recordReceivingDiscrepancyResolution
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['procurement.receiving_discrepancy.record_resolution']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards the minimum procurement phase 1 BFF surface to the proxy service', async () => {

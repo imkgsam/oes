@@ -2,6 +2,8 @@
 
 更新时间：2026-04-09 21:10:00 +08:00
 
+> 前端不拥有 access summary、terminal access、Role、Policy、permission code 或授权判定真相；这些服务设计边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只描述 tenant-web 前端架构。
+
 ## 1. 文档目的
 
 本文档定义 `tenant-web` 的前端工程架构，用于回答以下问题：

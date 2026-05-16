@@ -53,6 +53,7 @@ export class SubmitMfaChallengeHandler
       deviceName: flow.deviceName,
       userAgent: flow.userAgent,
       ipAddress: flow.ipAddress,
+      terminal: flow.terminal || 'WEB',
       trustCurrentDevice: command.trustCurrentDevice
     })
   }

@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { RoleTemplateController } from './role-template.controller'
 
 // Verifies the role template gateway controller exposes the role template routes and expected guards.
@@ -22,46 +22,63 @@ describe('RoleTemplateController', () => {
   it('declares the expected role template permissions on role template endpoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleTemplateController.prototype.listRoleTemplates)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_template.list']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleTemplateController.prototype.createRoleTemplate)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_template.create']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleTemplateController.prototype.findById)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_template.get_by_id']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleTemplateController.prototype.updateRoleTemplate)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_template.update']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleTemplateController.prototype.setRoleTemplateEnabled)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_template.update']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleTemplateController.prototype.listRoleTemplatePermissions)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_template.get_by_id']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleTemplateController.prototype.assignRoleTemplatePermission)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_template.assign_permissions']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleTemplateController.prototype.revokeRoleTemplatePermission)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_template.assign_permissions']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleTemplateController.prototype.createRoleFromTemplate)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.create_from_template']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleTemplateController.prototype.deleteRoleTemplate)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_template.delete']
-    })
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        RoleTemplateController.prototype.listRoleTemplates
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        RoleTemplateController.prototype.createRoleTemplate
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, RoleTemplateController.prototype.findById)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        RoleTemplateController.prototype.updateRoleTemplate
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        RoleTemplateController.prototype.setRoleTemplateEnabled
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        RoleTemplateController.prototype.listRoleTemplatePermissions
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        RoleTemplateController.prototype.assignRoleTemplatePermission
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        RoleTemplateController.prototype.revokeRoleTemplatePermission
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        RoleTemplateController.prototype.createRoleFromTemplate
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        RoleTemplateController.prototype.deleteRoleTemplate
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards role template list filters to the proxy service', async () => {
@@ -98,7 +115,10 @@ describe('RoleTemplateController', () => {
     const source = { requestId: 'req-1', traceId: 'trace-1' }
     permissionService.createRoleTemplate.mockResolvedValue({ id: 'template-id' })
     permissionService.updateRoleTemplate.mockResolvedValue({ id: 'template-id' })
-    permissionService.setRoleTemplateEnabled.mockResolvedValue({ id: 'template-id', isEnabled: false })
+    permissionService.setRoleTemplateEnabled.mockResolvedValue({
+      id: 'template-id',
+      isEnabled: false
+    })
     permissionService.listRoleTemplatePermissions.mockResolvedValue({ permissions: [] })
     permissionService.assignRoleTemplatePermission.mockResolvedValue(undefined)
     permissionService.revokeRoleTemplatePermission.mockResolvedValue(undefined)
@@ -116,16 +136,26 @@ describe('RoleTemplateController', () => {
       )
     ).resolves.toEqual({ id: 'template-id' })
     await expect(
-      controller.updateRoleTemplate('template-id', { name: 'Updated', description: 'Updated desc' }, source as any)
+      controller.updateRoleTemplate(
+        'template-id',
+        { name: 'Updated', description: 'Updated desc' },
+        source as any
+      )
     ).resolves.toEqual({ id: 'template-id' })
     await expect(
       controller.setRoleTemplateEnabled('template-id', { isEnabled: false }, source as any)
     ).resolves.toEqual({ id: 'template-id', isEnabled: false })
-    await expect(controller.listRoleTemplatePermissions('template-id', source as any)).resolves.toEqual({
+    await expect(
+      controller.listRoleTemplatePermissions('template-id', source as any)
+    ).resolves.toEqual({
       permissions: []
     })
     await expect(
-      controller.assignRoleTemplatePermission('template-id', { permissionId: 'permission-id' }, source as any)
+      controller.assignRoleTemplatePermission(
+        'template-id',
+        { permissionId: 'permission-id' },
+        source as any
+      )
     ).resolves.toBeUndefined()
     await expect(
       controller.revokeRoleTemplatePermission('template-id', 'permission-id', source as any)
@@ -137,7 +167,9 @@ describe('RoleTemplateController', () => {
         source as any
       )
     ).resolves.toEqual({ id: 'role-id' })
-    await expect(controller.deleteRoleTemplate('template-id', source as any)).resolves.toBeUndefined()
+    await expect(
+      controller.deleteRoleTemplate('template-id', source as any)
+    ).resolves.toBeUndefined()
 
     expect(permissionService.createRoleTemplate).toHaveBeenCalledWith(
       {

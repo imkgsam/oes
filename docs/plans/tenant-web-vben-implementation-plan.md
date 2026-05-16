@@ -2,6 +2,8 @@
 
 更新时间：2026-04-13
 
+> tenant-web 底座不拥有 Role、Policy、permission code、access summary 或授权判定真相；这些服务设计边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只描述前端底座适配。
+
 ## 1. 文档目的
 
 本文档只负责说明 OES 在 `tenant-web` 中如何使用和收敛 `vue-vben-admin` 底座。

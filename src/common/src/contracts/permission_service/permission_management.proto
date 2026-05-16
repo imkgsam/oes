@@ -56,6 +56,12 @@ service PermissionManagementService {
   rpc SetRoleLandingPolicies(SetRoleLandingPoliciesRequest) returns (SetRoleLandingPoliciesResponse);
   rpc SyncRoleNavigationFromTemplate(SyncRoleNavigationFromTemplateRequest) returns (SyncRoleNavigationFromTemplateResponse);
   rpc ResolveNavigationPreview(ResolveNavigationPreviewRequest) returns (ResolveNavigationPreviewResponse);
+
+  rpc GetRoleTerminalAccess(GetRoleTerminalAccessRequest) returns (GetRoleTerminalAccessResponse);
+  rpc SetRoleTerminalAccess(SetRoleTerminalAccessRequest) returns (SetRoleTerminalAccessResponse);
+  rpc GetAccountTerminalAccess(GetAccountTerminalAccessRequest) returns (GetAccountTerminalAccessResponse);
+  rpc ReplaceAccountTerminalAccessOverride(ReplaceAccountTerminalAccessOverrideRequest) returns (ReplaceAccountTerminalAccessOverrideResponse);
+  rpc DeleteAccountTerminalAccessOverride(DeleteAccountTerminalAccessOverrideRequest) returns (DeleteAccountTerminalAccessOverrideResponse);
 }
 
 enum RoleKindProto {
@@ -774,4 +780,79 @@ message ResolveNavigationPreviewResponse {
   string default_entry = 2;
   string resolved_by_role_id = 3;
   string fallback_reason = 4;
+}
+
+message GetRoleTerminalAccessRequest {
+  string role_id = 1;
+}
+
+message SetRoleTerminalAccessRequest {
+  string role_id = 1;
+  repeated string allowed_terminals = 2;
+}
+
+message RoleTerminalAccessResponse {
+  string role_id = 1;
+  repeated string allowed_terminals = 2;
+}
+
+message GetRoleTerminalAccessResponse {
+  string role_id = 1;
+  repeated string allowed_terminals = 2;
+}
+
+message SetRoleTerminalAccessResponse {
+  string role_id = 1;
+  repeated string allowed_terminals = 2;
+}
+
+message GetAccountTerminalAccessRequest {
+  string account_id = 1;
+  string tenant_id = 2;
+  string scope_level = 3;
+}
+
+message ReplaceAccountTerminalAccessOverrideRequest {
+  string account_id = 1;
+  string tenant_id = 2;
+  string scope_level = 3;
+  repeated string allowed_terminals = 4;
+}
+
+message DeleteAccountTerminalAccessOverrideRequest {
+  string account_id = 1;
+  string tenant_id = 2;
+  string scope_level = 3;
+}
+
+message AccountTerminalAccessResponse {
+  string account_id = 1;
+  string tenant_id = 2;
+  string scope_level = 3;
+  bool has_override = 4;
+  repeated string effective_allowed_terminals = 5;
+}
+
+message GetAccountTerminalAccessResponse {
+  string account_id = 1;
+  string tenant_id = 2;
+  string scope_level = 3;
+  bool has_override = 4;
+  repeated string effective_allowed_terminals = 5;
+}
+
+message ReplaceAccountTerminalAccessOverrideResponse {
+  string account_id = 1;
+  string tenant_id = 2;
+  string scope_level = 3;
+  bool has_override = 4;
+  repeated string effective_allowed_terminals = 5;
+}
+
+message DeleteAccountTerminalAccessOverrideResponse {
+  string account_id = 1;
+  string tenant_id = 2;
+  string scope_level = 3;
+  bool has_override = 4;
+  repeated string effective_allowed_terminals = 5;
 }

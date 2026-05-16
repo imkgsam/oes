@@ -4,5 +4,6 @@ export const REPO = {
   PERMISSION: Symbol('PermissionRepository'),
   ROLE: Symbol('RoleRepository'),
   NAVIGATION: Symbol('NavigationRepository'),
+  TERMINAL_ACCESS: Symbol('TerminalAccessRepository'),
   POLICY: Symbol('PolicyRepository')
 }

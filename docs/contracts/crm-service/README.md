@@ -74,7 +74,7 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 
 `crm-service` phase 1 contract 明确不承载以下真相：
 
-- `party-service` 的 `Party / TenantParty`
+- `party-service` 的主体主数据与租户主体引用；具体核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
 - `sales-service` 的 `Quote / QuoteVersion / SalesOrder`
 - `Opportunity / Activity / Customer 360`
 - `AR / credit / payment`

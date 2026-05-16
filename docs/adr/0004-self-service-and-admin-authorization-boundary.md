@@ -1,5 +1,7 @@
 # ADR 0004: Self-service And Admin Authorization Boundary
 
+> 当前 `permission-service` 服务职责、核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本 ADR 只保留 self-service 与 admin-management 授权边界的架构决策记录。
+
 日期：2026-04-21
 
 ## 状态

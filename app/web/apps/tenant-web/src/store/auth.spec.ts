@@ -284,6 +284,31 @@ describe('tenant-web auth store logout', () => {
     expect(pushMock).toHaveBeenCalledWith({ name: 'CompleteMfa' })
   })
 
+  it('blocks terminal access denials without continuing the login flow', async () => {
+    const { message } = await import('ant-design-vue')
+    loginApiMock.mockResolvedValue({
+      status: 'DENIED',
+      nextStep: 'NONE',
+      reasonCode: 'TERMINAL_ACCESS_DENIED',
+      message: 'Current terminal is not allowed.'
+    })
+
+    const { useAuthStore } = await import('./auth')
+    const store = useAuthStore()
+
+    await expect(
+      store.authLogin({
+        username: 'worker@example.com',
+        password: 'secret-1'
+      })
+    ).resolves.toEqual({ userInfo: null })
+
+    expect(message.error).toHaveBeenCalledWith('当前账号不允许从 Web 端登录。')
+    expect(pushMock).not.toHaveBeenCalled()
+    expect(accessStoreMock.setAccessToken).not.toHaveBeenCalled()
+    expect(getSessionContextApiMock).not.toHaveBeenCalled()
+  })
+
   it('stores the default MFA factor without treating email OTP as sent before an explicit challenge request', async () => {
     loginApiMock.mockResolvedValue({
       status: 'MFA_REQUIRED',

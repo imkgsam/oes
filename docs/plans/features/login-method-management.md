@@ -1,5 +1,7 @@
 # Login Method Management
 
+> 涉及 permission code、checkPermission、self-service capability 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 与项目级授权架构为准。本文只记录 Login Method Management feature 的范围与状态。
+
 ## 1. 目标
 
 - 提供统一的登录方式管理能力，让用户可以自助管理自己的登录邮箱、登录手机号与密码状态。

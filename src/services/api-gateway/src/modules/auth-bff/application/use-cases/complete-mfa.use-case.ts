@@ -7,6 +7,7 @@ import { AuthResponseViewModel } from '../../interfaces/http/view-models/auth-re
 import { toAuthResponseViewModel } from './auth-response.mapper'
 import { hydrateAuthResponseTenantNames } from './auth-response-tenant-name.hydrator'
 import { toAuthServiceLoginMethod } from './login-method.mapper'
+import { toTerminalAccessDeniedAuthResponse } from './terminal-access-denial.mapper'
 
 @Injectable()
 // Completes a pending MFA challenge and returns the next normalized auth flow state.
@@ -17,15 +18,25 @@ export class CompleteMfaUseCase {
   ) {}
 
   async execute(dto: CompleteMfaDto, source: DownstreamRequestSource): Promise<AuthResponseViewModel> {
-    const result = await this.authAdapter.submitMfaChallenge(
-      dto.challengeId.trim(),
-      dto.factor,
-      dto.code.trim(),
-      toAuthServiceLoginMethod(dto.loginMethod),
-      dto.factorChallengeId?.trim() || undefined,
-      dto.trustCurrentDevice,
-      source
-    )
+    let result: Awaited<ReturnType<AuthGrpcAdapter['submitMfaChallenge']>>
+    try {
+      result = await this.authAdapter.submitMfaChallenge(
+        dto.challengeId.trim(),
+        dto.factor,
+        dto.code.trim(),
+        toAuthServiceLoginMethod(dto.loginMethod),
+        dto.factorChallengeId?.trim() || undefined,
+        dto.trustCurrentDevice,
+        source
+      )
+    } catch (error) {
+      const denial = toTerminalAccessDeniedAuthResponse(error)
+      if (denial) {
+        return denial
+      }
+
+      throw error
+    }
 
     const hydratedResult = await hydrateAuthResponseTenantNames(
       result,

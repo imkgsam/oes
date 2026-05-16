@@ -28,11 +28,11 @@
 
 | 服务 | 文档入口 |
 |---|---|
-| `auth-service` | [src/services/system/auth-service/doc/INDEX.md](../src/services/system/auth-service/doc/INDEX.md) |
-| `identity-service` | [src/services/system/identity-service/doc/INDEX.md](../src/services/system/identity-service/doc/INDEX.md) |
-| `permission-service` | [src/services/system/permission-service/doc/INDEX.md](../src/services/system/permission-service/doc/INDEX.md) |
+| `auth-service` | [docs/architecture/services/auth-service.md](architecture/services/auth-service.md) |
+| `identity-service` | [docs/architecture/services/identity-service.md](architecture/services/identity-service.md) |
+| `permission-service` | [docs/architecture/services/permission-service.md](architecture/services/permission-service.md) |
 | `crm-service` | [docs/architecture/services/crm-service.md](architecture/services/crm-service.md) |
 
 ## 清理结论
 
-旧根目录 `doc/` 已不再作为项目级设计入口。其有效规则已经收敛到 `AGENTS.md`、`docs/architecture/05-governance.md`、`docs/governance/*` 与服务自身 `doc/`；历史经验和过时方案不再作为当前稳定设计依据。
+旧根目录 `doc/` 已不再作为项目级设计入口。其有效规则已经收敛到 `AGENTS.md`、`docs/architecture/05-governance.md`、`docs/governance/*` 与 `docs/architecture/services/*.md`；历史经验和过时方案不再作为当前稳定设计依据。

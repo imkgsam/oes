@@ -109,6 +109,16 @@ export class SessionContextViewModel {
   @ApiProperty({ description: 'Scope level of the current shell context.' })
   scopeLevel!: 'SYSTEM' | 'TENANT'
 
+  @ApiProperty({ description: 'Terminal that established the current authenticated session.' })
+  terminal!: string
+
+  @ApiProperty({
+    type: String,
+    isArray: true,
+    description: 'Effective terminal access snapshot for the current account session.'
+  })
+  allowedTerminals!: string[]
+
   @ApiPropertyOptional({
     description: 'Whether the current authenticated session must complete first-login password setup before entering the workspace.'
   })

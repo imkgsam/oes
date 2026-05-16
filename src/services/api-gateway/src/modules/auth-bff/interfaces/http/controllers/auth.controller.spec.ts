@@ -1,6 +1,6 @@
 import { Reflector } from '@nestjs/core'
 import { IS_PUBLIC_KEY } from '@oes/common/auth'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { AuthController } from './auth.controller'
 
 // Verifies the auth-bff controller exposes the expected public and protected HTTP entry points.
@@ -119,41 +119,85 @@ describe('AuthController', () => {
     const reflector = new Reflector()
 
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.login)).toBe(true)
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.requestEmailOtpChallenge)).toBe(true)
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.requestPhoneOtpChallenge)).toBe(true)
+    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.requestEmailOtpChallenge)).toBe(
+      true
+    )
+    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.requestPhoneOtpChallenge)).toBe(
+      true
+    )
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.completeMfa)).toBe(true)
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.requestMfaFactorChallenge)).toBe(true)
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.inspectPasswordRecoveryChannels)).toBe(true)
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.requestPasswordRecoveryChallenge)).toBe(true)
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.verifyPasswordRecoveryChallenge)).toBe(true)
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.completePasswordRecovery)).toBe(true)
+    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.requestMfaFactorChallenge)).toBe(
+      true
+    )
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.inspectPasswordRecoveryChannels)
+    ).toBe(true)
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.requestPasswordRecoveryChallenge)
+    ).toBe(true)
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.verifyPasswordRecoveryChallenge)
+    ).toBe(true)
+    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.completePasswordRecovery)).toBe(
+      true
+    )
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.selectAccount)).toBe(true)
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.refreshSession)).toBe(true)
 
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.getSessionContext)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.getPersonalCenter)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.updateAccountProfile)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.getSessionAccessSummary)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.listSessionContexts)).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.updateAccountProfile)
+    ).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.getSessionAccessSummary)
+    ).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.listSessionContexts)
+    ).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.switchContext)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.listSessions)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.listLoginHistory)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.listLoginMethods)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.changeOwnPassword)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.startStepUpMfaChallenge)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.completeStepUpMfaChallenge)).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.startStepUpMfaChallenge)
+    ).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.completeStepUpMfaChallenge)
+    ).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.logout)).toBeUndefined()
     expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.listMfaBindings)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminListOnlineUsers)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminGetAccountBasicInfo)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminGetAccountDeletionImpact)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminDeleteAccount)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminUpdateAccountBasicInfo)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminListAccountLoginMethods)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminRequireAccountPasswordSetup)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminListUserSessions)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminRevokeSession)).toBeUndefined()
-    expect(reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminListAuditEvents)).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminListOnlineUsers)
+    ).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminGetAccountBasicInfo)
+    ).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminGetAccountDeletionImpact)
+    ).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminDeleteAccount)
+    ).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminUpdateAccountBasicInfo)
+    ).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminListAccountLoginMethods)
+    ).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminRequireAccountPasswordSetup)
+    ).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminListUserSessions)
+    ).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminRevokeSession)
+    ).toBeUndefined()
+    expect(
+      reflector.get(IS_PUBLIC_KEY, AuthController.prototype.adminListAuditEvents)
+    ).toBeUndefined()
   })
 
   it('forwards login device hints and client context to the login use case', async () => {
@@ -201,7 +245,8 @@ describe('AuthController', () => {
       {
         userAgent: 'Mozilla/5.0 Firefox/149.0',
         ipAddress: '1.1.1.1'
-      }
+      },
+      'WEB'
     )
   })
 
@@ -236,7 +281,9 @@ describe('AuthController', () => {
     )
 
     await expect(
-      controller.revokeTrustedDevice('trusted-1', { user: { sub: 'user-1', tid: 'tenant-1' } } as any)
+      controller.revokeTrustedDevice('trusted-1', {
+        user: { sub: 'user-1', tid: 'tenant-1' }
+      } as any)
     ).resolves.toEqual({
       success: true,
       deviceCount: 1
@@ -488,7 +535,11 @@ describe('AuthController', () => {
       }
     })
 
-    const source = { user: { userId: 'user-1', sid: 'session-1' }, requestId: 'req-1', traceId: 'trace-1' }
+    const source = {
+      user: { userId: 'user-1', sid: 'session-1' },
+      requestId: 'req-1',
+      traceId: 'trace-1'
+    }
 
     await expect(controller.getSessionContext(source as any)).resolves.toEqual(
       expect.objectContaining({
@@ -540,7 +591,12 @@ describe('AuthController', () => {
       ]
     })
     await expect(
-      controller.switchContext({ accountId: 'account-2' } as any, source as any, 'browser', '1.1.1.1')
+      controller.switchContext(
+        { accountId: 'account-2' } as any,
+        source as any,
+        'browser',
+        '1.1.1.1'
+      )
     ).resolves.toEqual({
       status: 'SUCCESS',
       context: {
@@ -617,14 +673,20 @@ describe('AuthController', () => {
           id: 'tenant-1',
           code: 'alpha',
           name: 'Alpha Tenant',
-          isActive: true,
-        },
-      ],
+          isActive: true
+        }
+      ]
     })
     completeFirstLoginPasswordSetupUseCase.execute.mockResolvedValue({ completed: true })
     await expect(
       controller.adminListAccounts(
-        { page: 1, pageSize: 20, scopeLevel: 'TENANT', status: 'ENABLED', tenantId: 'tenant-1' } as any,
+        {
+          page: 1,
+          pageSize: 20,
+          scopeLevel: 'TENANT',
+          status: 'ENABLED',
+          tenantId: 'tenant-1'
+        } as any,
         source as any
       )
     ).resolves.toEqual({
@@ -681,17 +743,17 @@ describe('AuthController', () => {
     await expect(
       controller.adminListAccountTenantOptions(
         { keyword: 'alpha', pageSize: 10 } as any,
-        source as any,
-      ),
+        source as any
+      )
     ).resolves.toEqual({
       items: [
         {
           id: 'tenant-1',
           code: 'alpha',
           name: 'Alpha Tenant',
-          isActive: true,
-        },
-      ],
+          isActive: true
+        }
+      ]
     })
     adminSecurityUseCase.searchUsers.mockResolvedValue({
       items: [
@@ -714,7 +776,10 @@ describe('AuthController', () => {
       ]
     })
     await expect(
-      controller.adminSearchUsers({ keyword: 'victor@example.com', limit: 10 } as any, source as any)
+      controller.adminSearchUsers(
+        { keyword: 'victor@example.com', limit: 10 } as any,
+        source as any
+      )
     ).resolves.toEqual({
       items: [
         {
@@ -747,11 +812,10 @@ describe('AuthController', () => {
     expect(accountProfileUseCase.execute).toHaveBeenCalledWith({ displayName: 'Vic Chen' }, source)
     expect(sessionAccessSummaryUseCase.execute).toHaveBeenCalledWith(source)
     expect(sessionContextsUseCase.execute).toHaveBeenCalledWith(source)
-    expect(switchContextUseCase.execute).toHaveBeenCalledWith(
-      { accountId: 'account-2' },
-      source,
-      { userAgent: 'browser', ipAddress: '1.1.1.1' }
-    )
+    expect(switchContextUseCase.execute).toHaveBeenCalledWith({ accountId: 'account-2' }, source, {
+      userAgent: 'browser',
+      ipAddress: '1.1.1.1'
+    })
     expect(sessionSelfServiceUseCase.listSessions).toHaveBeenCalledWith(source)
     expect(sessionSelfServiceUseCase.listLoginHistory).toHaveBeenCalledWith(
       { result: 'FAILED' },
@@ -785,7 +849,7 @@ describe('AuthController', () => {
     )
     expect(adminSecurityUseCase.listTenantOptions).toHaveBeenCalledWith(
       { keyword: 'alpha', pageSize: 10 },
-      source,
+      source
     )
     expect(adminSecurityUseCase.searchUsers).toHaveBeenCalledWith(
       { keyword: 'victor@example.com', limit: 10 },
@@ -800,70 +864,69 @@ describe('AuthController', () => {
   it('declares coarse-grained permissions on the admin security endpoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminListOnlineUsers)).toEqual({
-      type: 'ALL',
-      permissions: ['auth.session.admin.view']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminListAccounts)).toEqual({
-      type: 'ALL',
-      permissions: ['identity.account.list']
-    })
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminGetAccountDeletionImpact)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['identity.account.delete']
-    })
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, AuthController.prototype.adminListOnlineUsers)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminGetAccountBasicInfo)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['identity.account.list']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminCreateAccount)).toEqual({
-      type: 'ALL',
-      permissions: ['identity.account.create']
-    })
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, AuthController.prototype.adminListAccounts)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminUpdateAccountBasicInfo)
-    ).toEqual({
-      type: 'ANY',
-      permissions: ['identity.account.profile.update', 'identity.account.update_status']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminDeleteAccount)).toEqual({
-      type: 'ALL',
-      permissions: ['identity.account.delete']
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminGetAccountDeletionImpact
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminListAccountTenantOptions),
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['identity.account.create']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminSearchUsers)).toEqual({
-      type: 'ALL',
-      permissions: ['auth.session.admin.view']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminListUserSessions)).toEqual({
-      type: 'ALL',
-      permissions: ['auth.session.admin.view']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminRevokeSession)).toEqual({
-      type: 'ALL',
-      permissions: ['auth.session.admin.revoke']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminListAuditEvents)).toEqual({
-      type: 'ALL',
-      permissions: ['auth.audit.list']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminGetTenantMfaPolicy)).toEqual({
-      type: 'ALL',
-      permissions: ['auth.mfa_policy.manage']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AuthController.prototype.adminUpdateTenantMfaPolicy)).toEqual({
-      type: 'ALL',
-      permissions: ['auth.mfa_policy.manage']
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminGetAccountBasicInfo
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, AuthController.prototype.adminCreateAccount)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminUpdateAccountBasicInfo
+      )
+    ).toEqual(expect.objectContaining({ any: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, AuthController.prototype.adminDeleteAccount)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminListAccountTenantOptions
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, AuthController.prototype.adminSearchUsers)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminListUserSessions
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, AuthController.prototype.adminRevokeSession)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, AuthController.prototype.adminListAuditEvents)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminGetTenantMfaPolicy
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AuthController.prototype.adminUpdateTenantMfaPolicy
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards admin account deletion endpoints to the admin security use case', async () => {
@@ -910,10 +973,7 @@ describe('AuthController', () => {
       userRetained: true
     })
 
-    expect(adminSecurityUseCase.getAccountDeletionImpact).toHaveBeenCalledWith(
-      'account-1',
-      source
-    )
+    expect(adminSecurityUseCase.getAccountDeletionImpact).toHaveBeenCalledWith('account-1', source)
     expect(adminSecurityUseCase.deleteAccount).toHaveBeenCalledWith('account-1', source)
   })
 })

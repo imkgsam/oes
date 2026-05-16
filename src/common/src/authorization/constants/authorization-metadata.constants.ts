@@ -1,5 +1,5 @@
 export const PUBLIC_INTERFACE_METADATA_KEY = 'oes:public-interface'
 export const MANAGEMENT_INTERFACE_METADATA_KEY = 'oes:management-interface'
 export const REQUIRE_AUTHENTICATED_OPERATOR_METADATA_KEY = 'oes:require-authenticated-operator'
-export const REQUIRE_PERMISSION_METADATA_KEY = 'oes:require-permission'
+export const REQUIRE_PERMISSIONS_METADATA_KEY = 'oes:require-permissions'
 export const RPC_OPERATOR_CONTEXT_KEY = '__oesOperatorContext'

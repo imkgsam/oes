@@ -1,8 +1,11 @@
 # identity-service Management API
 
-## 1. 模块职责
+> 服务设计唯一真相源：[identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)。本文只描述黑盒 gRPC management 接口语义，不重新定义 `identity-service` 的长期职责、核心对象或 owner 边界。
+> 管理入口涉及的 permission code、PermissionGuard 或授权判定语义，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 与项目级授权架构为准；本文只描述 identity-service management contract。
 
-`IdentityManagementService` 负责管理型写接口：
+## 1. 接口范围
+
+`IdentityManagementService` 提供管理型写接口：
 
 - legacy 组织归属兼容管理
 - 工作邮箱 / 工作手机号资产管理
@@ -144,6 +147,7 @@
 
 - `identity-service` 不再提供 `AddAccountOrgMembership`、`RemoveAccountOrgMembership`、`SetAccountPrimaryOrg`
 - `identity-service` 创建 tenant-scope service account 时，只通过 `tenant-org-service` gRPC 校验 tenant 引用存在
+- `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；本文只描述 identity 侧上下文引用与账号管理行为。
 - `tenant_id` / `org_id` 可继续作为账号、联系资产、机器身份、审计记录的上下文引用字段
 - 任何 tenant / org 真相读取必须走 `tenant-org-service`，不得通过共享数据库或 identity 本地模型解决
 

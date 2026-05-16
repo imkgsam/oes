@@ -87,7 +87,7 @@ const productionSpec = {
 
 const moldDesign = {
   defaultLifeLimit: '1200',
-  defaultLifeUnit: 'USE',
+  defaultLifeUnit: 'CASTING_CYCLE',
   designCode: 'MD-LT-HP-01',
   moldDesignId: 'design-1',
   name: '连体马桶高压模具方案',
@@ -131,7 +131,7 @@ const productionMold = {
   },
   currentStatus: 'INSTALLED',
   lifeCounterSummary: {
-    lifeUnit: 'USE',
+    lifeUnit: 'CASTING_CYCLE',
     limitValue: '1200',
     usedValue: '340'
   },
@@ -226,12 +226,15 @@ describe('MES mold management workspace page', () => {
     await flushPromises()
 
     expect(listCurrentMoldsByWorkCenterApi).toHaveBeenCalledWith('tenant-1', 'wc-1')
+    const usagePayload = recordDailyMoldUsageBatchApi.mock.calls[0]?.[2]
+    expect(usagePayload.items[0]).not.toHaveProperty('moldPosition')
     expect(recordDailyMoldUsageBatchApi).toHaveBeenCalledWith(
       'tenant-1',
       expect.any(String),
       expect.objectContaining({
         items: [
           expect.objectContaining({
+            lifeUnit: 'CASTING_CYCLE',
             moldDesignOutputOptionId: 'option-300',
             productionMoldId: 'mold-1',
             toolingInstallationId: 'install-1',
@@ -272,7 +275,8 @@ describe('MES mold management workspace page', () => {
             productionSpecId: 'spec-300',
             specCodeSnapshot: 'SPEC-LT-300'
           })
-        ]
+        ],
+        defaultLifeUnit: 'CASTING_CYCLE'
       })
     )
 
@@ -290,6 +294,11 @@ describe('MES mold management workspace page', () => {
     await wrapper.get('[data-testid="mes-current-work-center-id"]').setValue('wc-1')
     await wrapper.get('[data-testid="mes-open-install-mold-mold-1"]').trigger('click')
     await flushPromises()
+    await wrapper.get('[data-testid="mes-install-work-unit-id"]').setValue('wu-1')
+    await wrapper.get('[data-testid="mes-install-work-unit-code"]').setValue('WU-01')
+    await wrapper.get('[data-testid="mes-install-work-unit-name"]').setValue('上模位 1')
+    await wrapper.get('[data-testid="mes-install-cavity-position"]').setValue('LEFT')
+    await wrapper.get('[data-testid="mes-install-setup-parameters"]').setValue('{"pressure":"normal"}')
     await wrapper.get('[data-testid="mes-submit-install-mold"]').trigger('click')
     await flushPromises()
 
@@ -297,7 +306,14 @@ describe('MES mold management workspace page', () => {
       'tenant-1',
       'mold-1',
       expect.objectContaining({
-        workCenterRef: expect.objectContaining({ workCenterId: 'wc-1' })
+        cavityPosition: 'LEFT',
+        setupParameters: '{"pressure":"normal"}',
+        workCenterRef: expect.objectContaining({ workCenterId: 'wc-1' }),
+        workUnitRef: {
+          displayNameSnapshot: '上模位 1',
+          workUnitCodeSnapshot: 'WU-01',
+          workUnitId: 'wu-1'
+        }
       })
     )
   })

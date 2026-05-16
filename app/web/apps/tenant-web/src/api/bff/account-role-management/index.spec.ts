@@ -96,4 +96,50 @@ describe('tenant-web account role management api', () => {
 
     expect(get).toHaveBeenCalledWith('/role/role-1/accounts');
   });
+
+  it('reads effective terminal access and manages account override by account id', async () => {
+    const {
+      deleteAccountTerminalAccessOverrideApi,
+      getAccountTerminalAccessApi,
+      replaceAccountTerminalAccessOverrideApi,
+    } = await import('./index');
+
+    await getAccountTerminalAccessApi('account-1', {
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-1',
+    });
+    await replaceAccountTerminalAccessOverrideApi('account-1', {
+      allowedTerminals: ['PDA'],
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-1',
+    });
+    await deleteAccountTerminalAccessOverrideApi('account-1', {
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-1',
+    });
+
+    expect(get).toHaveBeenCalledWith('/account/account-1/terminal-access', {
+      params: {
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+      },
+    });
+    expect(request).toHaveBeenCalledWith(
+      '/account/account-1/terminal-access/override',
+      {
+        data: {
+          allowedTerminals: ['PDA'],
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-1',
+        },
+        method: 'PUT',
+      },
+    );
+    expect(del).toHaveBeenCalledWith('/account/account-1/terminal-access/override', {
+      params: {
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+      },
+    });
+  });
 });

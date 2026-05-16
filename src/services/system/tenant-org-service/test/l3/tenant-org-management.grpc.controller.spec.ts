@@ -1,4 +1,12 @@
 import { BadRequestException } from '@nestjs/common'
+import { GUARDS_METADATA } from '@nestjs/common/constants'
+import {
+  AuthenticatedOperatorGuard,
+  InternalServiceGuard,
+  PermissionGuard,
+  REQUIRE_PERMISSIONS_METADATA_KEY,
+  TENANT_ORG_MANAGEMENT_PERMISSION_CODES
+} from '@oes/common/authorization'
 import { TenantOrgManagementService } from '../../src/application/services'
 import { TenantOrgManagementGrpcController } from '../../src/interfaces/grpc/tenant-org-management.grpc.controller'
 
@@ -27,6 +35,35 @@ function createTenantOnboardingServiceMock() {
 }
 
 describe('TenantOrgManagementGrpcController L3', () => {
+  it('declares RBAC guards and method permissions for tenant/org management APIs', () => {
+    const guards = Reflect.getMetadata(GUARDS_METADATA, TenantOrgManagementGrpcController) ?? []
+
+    expect(guards).toEqual(
+      expect.arrayContaining([InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard])
+    )
+    expectPermission('createTenant', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT)
+    expectPermission('startTenantOnboarding', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT)
+    expectPermission(
+      'getTenantOnboarding',
+      TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_TENANT_DETAIL
+    )
+    expectPermission('retryTenantOnboarding', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT)
+    expectPermission(
+      'updateTenantProfile',
+      TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_PROFILE
+    )
+    expectPermission('suspendTenant', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_STATUS)
+    expectPermission(
+      'reactivateTenant',
+      TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_STATUS
+    )
+    expectPermission('archiveTenant', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_STATUS)
+    expectPermission('createOrgUnit', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_ORG_UNIT)
+    expectPermission('updateOrgUnit', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_ORG_UNIT)
+    expectPermission('moveOrgUnit', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_ORG_UNIT)
+    expectPermission('archiveOrgUnit', TENANT_ORG_MANAGEMENT_PERMISSION_CODES.ARCHIVE_ORG_UNIT)
+  })
+
   it('createTenant / should map root org result to proto response', async () => {
     const service = createTenantOrgManagementServiceMock()
     const onboardingService = createTenantOnboardingServiceMock()
@@ -174,3 +211,16 @@ describe('TenantOrgManagementGrpcController L3', () => {
     })
   })
 })
+
+/** expectPermission verifies the controller method requires one tenant-org RBAC code. */
+function expectPermission(
+  methodName: keyof TenantOrgManagementGrpcController,
+  permissionCode: string
+) {
+  expect(
+    Reflect.getMetadata(
+      REQUIRE_PERMISSIONS_METADATA_KEY,
+      TenantOrgManagementGrpcController.prototype[methodName]
+    )
+  ).toEqual({ all: [permissionCode] })
+}

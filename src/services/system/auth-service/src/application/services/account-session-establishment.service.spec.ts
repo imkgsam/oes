@@ -2,6 +2,77 @@ import { LoginMethodEnum } from '@oes/common/constants'
 import { AccountSessionEstablishmentService } from './account-session-establishment.service'
 
 describe('AccountSessionEstablishmentService', () => {
+  it('audits and rejects when terminal access is denied before session issuance', async () => {
+    const sessionRepository = {
+      save: jest.fn(),
+      findById: jest.fn()
+    }
+    const authAuditService = {
+      emitLoginSucceeded: jest.fn(),
+      emitTerminalAccessDenied: jest.fn()
+    }
+    const service = new AccountSessionEstablishmentService(
+      {
+        getAccountAuthorizationSummary: jest.fn(),
+        resolveAccountTerminalAccess: jest.fn().mockResolvedValue({
+          allowed: false,
+          reasonCode: 'TERMINAL_ACCESS_DENIED',
+          effectiveAllowedTerminals: ['WEB'],
+          resolutionSource: 'ROLE_UNION',
+          matchedRoleIds: ['role-1']
+        })
+      } as any,
+      {
+        userRequiresPasswordSetup: jest.fn()
+      } as any,
+      {
+        signAccessToken: jest.fn(),
+        signRefreshToken: jest.fn()
+      } as any,
+      {
+        get: jest.fn()
+      } as any,
+      sessionRepository as any,
+      authAuditService as any,
+      {
+        rememberTrustedDevice: jest.fn()
+      } as any,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
+      } as any
+    )
+
+    await expect(
+      service.establish({
+        userId: 'user-1',
+        account: {
+          accountId: 'account-1',
+          userId: 'user-1',
+          tenantId: 'tenant-1',
+          scopeLevel: 'TENANT',
+          displayName: 'Tenant Account'
+        },
+        loginMethod: LoginMethodEnum.EmailPassword,
+        terminal: 'PDA'
+      } as any)
+    ).rejects.toMatchObject({
+      definition: {
+        code: 'AUTH_TERMINAL_ACCESS_DENIED'
+      }
+    })
+
+    expect(authAuditService.emitTerminalAccessDenied).toHaveBeenCalledWith({
+      accountId: 'account-1',
+      userId: 'user-1',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT',
+      terminal: 'PDA',
+      reasonCode: 'TERMINAL_ACCESS_DENIED',
+      phase: 'LOGIN'
+    })
+    expect(sessionRepository.save).not.toHaveBeenCalled()
+  })
+
   it('remembers the tenant device only when the login flow explicitly trusts the current device', async () => {
     const trustedDeviceService = {
       rememberTrustedDevice: jest.fn().mockResolvedValue(undefined)
@@ -10,6 +81,13 @@ describe('AccountSessionEstablishmentService', () => {
       {
         getAccountAuthorizationSummary: jest.fn().mockResolvedValue({
           roleIds: ['role-1']
+        }),
+        resolveAccountTerminalAccess: jest.fn().mockResolvedValue({
+          allowed: true,
+          reasonCode: 'ALLOWED',
+          effectiveAllowedTerminals: ['WEB'],
+          resolutionSource: 'ROLE_UNION',
+          matchedRoleIds: ['role-1']
         })
       } as any,
       {
@@ -78,6 +156,13 @@ describe('AccountSessionEstablishmentService', () => {
       {
         getAccountAuthorizationSummary: jest.fn().mockResolvedValue({
           roleIds: ['role-1']
+        }),
+        resolveAccountTerminalAccess: jest.fn().mockResolvedValue({
+          allowed: true,
+          reasonCode: 'ALLOWED',
+          effectiveAllowedTerminals: ['WEB'],
+          resolutionSource: 'ROLE_UNION',
+          matchedRoleIds: ['role-1']
         })
       } as any,
       {

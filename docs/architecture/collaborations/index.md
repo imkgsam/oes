@@ -1,5 +1,7 @@
 # OES 协同蓝图索引
 
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本索引只导航跨服务协同蓝图。
+
 ## 1. 目的
 
 本目录用于沉淀 OES 的关键跨服务协同蓝图，作为“多个服务围绕某项能力如何配合”的唯一真相源。
@@ -31,9 +33,9 @@
 5. [tenant-org-and-identity.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/tenant-org-and-identity.md)
    - 租户组织与身份边界协同蓝图
 6. [tenant-org-and-hr.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/tenant-org-and-hr.md)
-   - 租户组织与 HR 任职边界协同蓝图
+   - 租户组织与 HR 任职边界协同蓝图；HR 服务设计以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
 7. [employee-onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/employee-onboarding.md)
-   - 员工 onboarding 五服务协同蓝图
+   - 员工 onboarding 五服务协同蓝图；HR onboarding owner 边界以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
 8. [sales-crm-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-crm-party-item-master.md)
    - Sales 与 CRM、Party、Item Master 的交易引用与快照协同蓝图
 9. [item-master-sales-mes-wms-srm.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/item-master-sales-mes-wms-srm.md)
@@ -48,6 +50,8 @@
    - Sales 与 Finance 的 order-to-cash、finance release、应收与标准汇率协同蓝图
 14. [object-activity-and-timeline.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/object-activity-and-timeline.md)
    - 平台级 ObjectActivity 与 ObjectTimeline 协同蓝图
+15. [terminal-access-policy.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/terminal-access-policy.md)
+   - 终端准入策略在 `permission-service`、`auth-service` 与 terminal-specific BFF 之间的协同蓝图
 
 ## 4. 新服务协同准入规则
 

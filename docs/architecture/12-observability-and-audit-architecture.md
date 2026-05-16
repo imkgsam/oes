@@ -1,5 +1,7 @@
 # OES 可观测性与审计架构设计
 
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述可观测性与审计架构。
+
 ## 1. 文档目的
 
 本文档用于冻结 OES 在指标、日志、追踪、审计四类信号上的职责边界、推荐选型、治理规则与分阶段落地路径。

@@ -54,7 +54,7 @@
 ## 4. Does Not Own
 
 - 销售报价、销售订单、销售配置、销售价格、客户承诺与客户侧 item snapshot 真相。
-- 采购申请、采购订单、采购价格、MOQ、账期、lead time、采购收货与采购履约真相。
+- 采购申请、采购订单、采购价格、MOQ、lead time、采购收货与采购履约真相；`PaymentTerm` 主数据归 `finance-service`，采购交易只保存 payment term snapshot。
 - `srm-service` 的 `SupplierProfile`、`SupplierOffering`、联系人、关系治理与供应商状态真相。
 - `mes-service` 的 `ProductionSpec`、`ProductionUnit`、Route、Operation、WorkCenter、工序执行、质量结果、资源使用与生产事实。
 - `wms-service` 的 `InventoryUnit`、`InventoryLot`、`InventoryBalance`、`PackageUnit`、`InventoryGenealogy`、库位、库存状态、占用、收货、出库与仓储执行事实。
@@ -327,7 +327,7 @@ supplierId + supplierItemCode / supplierItemName -> itemId
 ```
 
 - `itemId` 必须指向执行层 `Item`，不映射到 `ItemModel`。
-- `SupplierItemMapping` 不承载价格、MOQ、账期、lead time、供应表现或供应商合作状态。
+- `SupplierItemMapping` 不承载价格、MOQ、payment term snapshot、lead time、供应表现或供应商合作状态。
 - `SupplierItemMapping` 不是 `SupplierOffering`。
 - `SupplierOffering` 归 `srm-service`，表达“某供应商可供应某个 Item”的关系事实。
 
@@ -345,7 +345,7 @@ supplierId + supplierItemCode / supplierItemName -> itemId
 - 标准采购最终引用 active + purchasable `Item`。
 - Procurement 可以从 `ItemModel + AttributeOption` 解析到 purchasable `Item`，也可以直接选择 `Item`。
 - 非标准 / 文本型采购需求可以留在 procurement 自身单据中，不强制进入 item-master。
-- 采购价格、MOQ、账期、lead time、RFQ、PO、收货与采购履约不归 `item-master-service`。
+- 采购价格、MOQ、lead time、RFQ、PO、收货与采购履约不归 `item-master-service`；`PaymentTerm` 主数据归 `finance-service`。
 
 ### 15.3 MES
 

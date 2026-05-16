@@ -36,7 +36,8 @@ describe('LoginUseCase', () => {
         password: 'secret',
         deviceName: 'Alice MacBook Pro',
         userAgent: 'Mozilla/5.0 Firefox/149.0',
-        ipAddress: '1.1.1.1'
+        ipAddress: '1.1.1.1',
+        terminal: 'WEB'
       },
       expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
     )
@@ -48,6 +49,37 @@ describe('LoginUseCase', () => {
         challenge: { challengeId: 'challenge-1' },
         operator: { userId: 'user-1' }
       })
+    )
+  })
+
+  it('forwards PDA terminal to downstream password login instead of trusting the client payload', async () => {
+    const authAdapter = {
+      loginWithEmailPassword: jest.fn().mockResolvedValue({
+        status: LoginStatus.LOGIN_STATUS_ACCOUNT_SELECTION_REQUIRED,
+        userId: 'user-1',
+        loginMethod: 'EMAIL_PASSWORD',
+        accounts: []
+      })
+    }
+
+    const useCase = new LoginUseCase(authAdapter as any)
+
+    await useCase.execute(
+      {
+        method: LoginMethodDto.EMAIL_PASSWORD,
+        identifier: 'worker@example.com',
+        credential: 'secret'
+      },
+      { requestId: 'req-1' },
+      {},
+      'PDA'
+    )
+
+    expect(authAdapter.loginWithEmailPassword).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terminal: 'PDA'
+      }),
+      expect.objectContaining({ requestId: 'req-1' })
     )
   })
 

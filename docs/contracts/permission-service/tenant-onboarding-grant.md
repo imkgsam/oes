@@ -1,5 +1,7 @@
 # Permission Service Tenant Onboarding Grant Contract
 
+> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只描述 tenant onboarding 初始授权 handoff contract，不重新定义 RoleTemplate、Role、AccountRole、grant 或权限 owner 边界。
+
 ## 1. 目的
 
 定义 tenant onboarding 中首个租户管理员角色派生与初始授权的 owner 语义。
@@ -10,9 +12,11 @@
 
 - `permission-service` 拥有 role template、tenant role instance、account role grant 真相。
 - `tenant-org-service` 只能作为 tenant onboarding Saga 编排方发起请求。
+- `Tenant` lifecycle 与 onboarding 编排边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；本文只定义 permission grant contract。
 - `identity-service` 不直接写角色绑定。
 - `api-gateway/BFF` 不直接展开角色推导或持久化 account-role 绑定。
 - 本 contract 不复用 employee onboarding 语义。
+- employee onboarding owner 与 HR 对象边界以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
 
 ## 3. `EnsureTenantRoleInstanceFromTemplate`
 
@@ -105,6 +109,8 @@
 ## 5. 与 employee onboarding grant 的关系
 
 现有 `GrantInitialAccessForEmployeeAccount` 保留给 employee onboarding 使用。
+
+employee onboarding 的业务 owner、`Employee / Employment` 与 HR 生命周期语义以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
 
 tenant onboarding 首管理员授权不应复用 employee 命名或 employee 语义，原因：
 

@@ -204,6 +204,107 @@ export class SetItemModelPrimaryCategoryDto {
   primaryCategoryId?: string
 }
 
+/** ListAttributeDefinitionsDto defines attribute definition directory filters. */
+export class ListAttributeDefinitionsDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  keyword?: string
+
+  @ApiPropertyOptional({ enum: ITEM_STATUS_VALUES })
+  @IsOptional()
+  @IsIn(ITEM_STATUS_VALUES)
+  status?: string
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  pageSize?: number
+}
+
+/** ListAttributeOptionsDto defines optional attribute option filters. */
+export class ListAttributeOptionsDto {
+  @ApiPropertyOptional({ enum: ITEM_STATUS_VALUES })
+  @IsOptional()
+  @IsIn(ITEM_STATUS_VALUES)
+  status?: string
+}
+
+/** CreateAttributeDefinitionDto creates one item attribute definition. */
+export class CreateAttributeDefinitionDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  attributeCode!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  attributeName!: string
+}
+
+/** UpdateAttributeDefinitionDto updates attribute definition basics and lifecycle together. */
+export class UpdateAttributeDefinitionDto extends CreateAttributeDefinitionDto {
+  @ApiProperty({ enum: ITEM_STATUS_VALUES })
+  @IsIn(ITEM_STATUS_VALUES)
+  status!: string
+}
+
+/** CreateAttributeOptionDto creates one option under an attribute definition. */
+export class CreateAttributeOptionDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  optionCode!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  optionName!: string
+}
+
+/** UpdateAttributeOptionDto updates option basics and lifecycle together. */
+export class UpdateAttributeOptionDto extends CreateAttributeOptionDto {
+  @ApiProperty({ enum: ITEM_STATUS_VALUES })
+  @IsIn(ITEM_STATUS_VALUES)
+  status!: string
+}
+
+/** ItemModelAttributeRuleDto defines one simple model-level attribute rule. */
+export class ItemModelAttributeRuleDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  attributeDefinitionId!: string
+
+  @ApiProperty()
+  @IsBoolean()
+  required!: boolean
+
+  @ApiProperty({ isArray: true, type: String })
+  @IsArray()
+  @IsString({ each: true })
+  allowedOptionIds!: string[]
+}
+
+/** SetItemModelAttributeRulesDto full-replaces one ItemModel's simple attribute rules. */
+export class SetItemModelAttributeRulesDto {
+  @ApiProperty({ type: [ItemModelAttributeRuleDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ItemModelAttributeRuleDto)
+  rules!: ItemModelAttributeRuleDto[]
+}
+
 /** ChangeStatusDto defines active/archive mutations exposed by the BFF. */
 export class ChangeStatusDto {
   @ApiProperty({ enum: ITEM_STATUS_VALUES })
@@ -338,6 +439,150 @@ export class ListItemCategoriesDto {
   @IsOptional()
   @IsString()
   parentCategoryId?: string
+}
+
+/** ListPackagingMethodsDto defines packaging method directory filters. */
+export class ListPackagingMethodsDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  keyword?: string
+
+  @ApiPropertyOptional({ enum: ITEM_STATUS_VALUES })
+  @IsOptional()
+  @IsIn(ITEM_STATUS_VALUES)
+  status?: string
+}
+
+/** CreatePackagingMethodDto defines one packaging method command payload. */
+export class CreatePackagingMethodDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  methodCode!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  methodName!: string
+}
+
+/** UpdatePackagingMethodDto updates one packaging method's basics. */
+export class UpdatePackagingMethodDto extends CreatePackagingMethodDto {}
+
+/** ListPackagingSpecsDto defines packaging spec directory filters. */
+export class ListPackagingSpecsDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  keyword?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  itemModelId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  packagingMethodId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  customerId?: string
+
+  @ApiPropertyOptional({ enum: ITEM_STATUS_VALUES })
+  @IsOptional()
+  @IsIn(ITEM_STATUS_VALUES)
+  status?: string
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  pageSize?: number
+}
+
+/** PackagingSpecDto defines the BFF command payload for item-master PackagingSpec. */
+export class PackagingSpecDto {
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  itemModelId!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  packagingMethodId!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  customerId?: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  specCode!: string
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  specName!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  grossWeight?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  volume?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  outerLength?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  outerWidth?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  outerHeight?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  workInstruction?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  version?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  effectiveFrom?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  effectiveTo?: string
 }
 
 /** CreateItemCategoryDto defines the minimal category creation payload exposed through item-management. */

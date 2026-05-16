@@ -17,6 +17,7 @@ async function bootstrap() {
       protoPath: [
         resolveCommonProtoPath('permission_service/permission_check.proto'),
         resolveCommonProtoPath('permission_service/permission_access_summary.proto'),
+        resolveCommonProtoPath('permission_service/permission_terminal_access.proto'),
         resolveCommonProtoPath('permission_service/permission_management.proto'),
         resolveCommonProtoPath('permission_service/policy_management.proto')
       ],

@@ -15,6 +15,8 @@ import {
 } from '../../../common/constants/exception-enums'
 import { assertTenantAccess } from '../../authorization/operator-scope'
 import { syncTemplateNavigationToRole } from './template-navigation.sync'
+import { syncTemplateTerminalAccessToRole } from './template-terminal-access.sync'
+import { TerminalAccessRepository } from '../../../domain/repositories/terminal-access.repository'
 
 @CommandHandler(CreateRoleInstanceFromTemplateCommand)
 export class CreateRoleInstanceFromTemplateHandler
@@ -24,7 +26,9 @@ export class CreateRoleInstanceFromTemplateHandler
     @Inject(SYMBOLS.REPO.ROLE)
     private readonly roleRepo: RoleRepository,
     @Inject(SYMBOLS.REPO.NAVIGATION)
-    private readonly navigationRepo: NavigationRepository
+    private readonly navigationRepo: NavigationRepository,
+    @Inject(SYMBOLS.REPO.TERMINAL_ACCESS)
+    private readonly terminalAccessRepo: TerminalAccessRepository
   ) {}
 
   async execute(command: CreateRoleInstanceFromTemplateCommand): Promise<Role> {
@@ -70,6 +74,7 @@ export class CreateRoleInstanceFromTemplateHandler
 
     const savedRole = await this.roleRepo.save(role)
     await syncTemplateNavigationToRole(this.navigationRepo, command.templateRoleId, savedRole.id)
+    await syncTemplateTerminalAccessToRole(this.terminalAccessRepo, command.templateRoleId, savedRole.id)
 
     return savedRole
   }

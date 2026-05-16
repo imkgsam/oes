@@ -20,9 +20,11 @@ describe('tenant-web MES api', () => {
   it('loads production specs, mold designs, production molds, tooling placement, and current installations', async () => {
     const {
       getMoldDesignApi,
+      getMoldUsageHistoryApi,
       getProductionMoldApi,
       getToolingCurrentPlacementApi,
       listCurrentMoldsByWorkCenterApi,
+      listMoldLifeCountersApi,
       listMoldDesignsApi,
       listProductionMoldsApi,
       listProductionMoldsByDesignApi,
@@ -40,6 +42,8 @@ describe('tenant-web MES api', () => {
     await listProductionMoldsByDesignApi('tenant-1', 'design-1', { page: 1, pageSize: 20 })
     await getProductionMoldApi('tenant-1', 'mold-1')
     await getToolingCurrentPlacementApi('tenant-1', 'mold-1')
+    await getMoldUsageHistoryApi('tenant-1', 'mold-1', { page: 1, pageSize: 20 })
+    await listMoldLifeCountersApi('tenant-1', { productionMoldId: 'mold-1', warningLevel: 'WARNING' })
     await listCurrentMoldsByWorkCenterApi('tenant-1', 'wc-1')
 
     expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-specs', {
@@ -74,6 +78,18 @@ describe('tenant-web MES api', () => {
         toolingType: 'MOLD'
       }
     })
+    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds/mold-1/usage-history', {
+      params: {
+        page: 1,
+        pageSize: 20
+      }
+    })
+    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-life-counters', {
+      params: {
+        productionMoldId: 'mold-1',
+        warningLevel: 'WARNING'
+      }
+    })
     expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/work-centers/wc-1/current-molds', {
       params: {
         page: 1,
@@ -85,6 +101,7 @@ describe('tenant-web MES api', () => {
   it('forwards mold design, production mold, tooling, and usage commands through current BFF endpoints', async () => {
     const {
       installProductionMoldApi,
+      moveProductionMoldApi,
       recordDailyMoldUsageBatchApi,
       registerMoldDesignApi,
       registerProductionMoldApi,
@@ -94,7 +111,7 @@ describe('tenant-web MES api', () => {
 
     await registerMoldDesignApi('tenant-1', {
       defaultLifeLimit: '1200',
-      defaultLifeUnit: 'USE',
+      defaultLifeUnit: 'CASTING_CYCLE',
       designCode: 'MD-LT-HP-01',
       functionRole: 'PRODUCTION',
       materialType: 'RESIN',
@@ -134,9 +151,20 @@ describe('tenant-web MES api', () => {
       }
     })
     await installProductionMoldApi('tenant-1', 'mold-1', {
+      cavityPosition: 'LEFT',
       moldPosition: 'A1',
+      setupParameters: '{"pressure":"normal"}',
       workCenterRef: {
         workCenterId: 'wc-1'
+      },
+      workUnitRef: {
+        workUnitCodeSnapshot: 'WU-01',
+        workUnitId: 'wu-1'
+      }
+    })
+    await moveProductionMoldApi('tenant-1', 'mold-1', {
+      toStorageResourceRef: {
+        storageResourceId: 'storage-1'
       }
     })
     await unmountProductionMoldApi('tenant-1', 'install-1', { reason: '换模' })
@@ -148,7 +176,7 @@ describe('tenant-web MES api', () => {
           checked: true,
           moldDesignOutputId: 'output-body',
           moldDesignOutputOptionId: 'option-300',
-          moldPosition: 'A1',
+          lifeUnit: 'CASTING_CYCLE',
           productionMoldId: 'mold-1',
           toolingInstallationId: 'install-1'
         }
@@ -160,7 +188,7 @@ describe('tenant-web MES api', () => {
 
     expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-designs', {
       defaultLifeLimit: '1200',
-      defaultLifeUnit: 'USE',
+      defaultLifeUnit: 'CASTING_CYCLE',
       designCode: 'MD-LT-HP-01',
       functionRole: 'PRODUCTION',
       materialType: 'RESIN',
@@ -200,9 +228,20 @@ describe('tenant-web MES api', () => {
       }
     })
     expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/tooling/mold-1/install', {
+      cavityPosition: 'LEFT',
       moldPosition: 'A1',
+      setupParameters: '{"pressure":"normal"}',
       workCenterRef: {
         workCenterId: 'wc-1'
+      },
+      workUnitRef: {
+        workUnitCodeSnapshot: 'WU-01',
+        workUnitId: 'wu-1'
+      }
+    })
+    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/tooling/mold-1/move', {
+      toStorageResourceRef: {
+        storageResourceId: 'storage-1'
       }
     })
     expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/tooling-installations/install-1/unmount', {
@@ -220,7 +259,7 @@ describe('tenant-web MES api', () => {
             checked: true,
             moldDesignOutputId: 'output-body',
             moldDesignOutputOptionId: 'option-300',
-            moldPosition: 'A1',
+            lifeUnit: 'CASTING_CYCLE',
             productionMoldId: 'mold-1',
             toolingInstallationId: 'install-1'
           }

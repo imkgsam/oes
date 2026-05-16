@@ -135,11 +135,11 @@ describe('SubmitMfaChallengeHandler', () => {
         isEnabled: true
       },
       loginMethod: LoginMethodEnum.EmailPassword,
-      currentSessionId: undefined,
       deviceId: 'browser-1',
       deviceName: 'Firefox on macOS',
       userAgent: 'Mozilla/5.0 Firefox/149.0',
       ipAddress: '127.0.0.1',
+      terminal: 'WEB',
       trustCurrentDevice: true
     })
     expect(result).toEqual(

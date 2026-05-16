@@ -1,6 +1,9 @@
 # auth-service MFA API
 
-## 1. 模块职责
+> 服务设计唯一真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只描述黑盒 gRPC MFA 接口语义，不重新定义 `auth-service` 的长期职责、核心对象或 owner 边界。
+> 管理入口涉及的 permission code、checkPermission、checkResource 或 buildQueryScope 语义，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 与项目级授权架构为准；本文只描述 auth-service MFA contract。
+
+## 1. 接口范围
 
 `AuthService` 的 MFA 相关接口负责提供：
 
@@ -14,7 +17,7 @@
 - 接口类型：gRPC
 - 服务：`AuthService`
 - 调用方：内部服务
-- 契约真相源：
+- Proto 契约来源：
   - [auth.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/auth_service/auth.proto)
 
 ## 2. 自助安全管理接口
@@ -287,7 +290,7 @@
   - 不能以裸 `ipAddress` 相等当作 trusted device
   - 不能以裸 `userAgent` 相等当作 trusted device
 - 成功后果：
-  - 用户完成本次 `NEW_DEVICE_LOGIN` MFA 后，当前 `userId + tenantId + deviceId` 会写入 trusted-device 真相。
+  - 用户完成本次 `NEW_DEVICE_LOGIN` MFA 后，当前 `userId + tenantId + deviceId` 会写入认证域 trusted-device 记录；长期边界以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。
   - 后续同一用户在同一租户、同一 `deviceId` 下再次登录时，不再单独命中 `NEW_DEVICE_LOGIN`。
 
 ## 7. 当前授权模型说明

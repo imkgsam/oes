@@ -22,6 +22,7 @@ export namespace ItemManagementApi {
     | 'SUB_ASSEMBLY'
     | 'VIRTUAL_KIT'
   export type ItemStatus = 'ACTIVE' | 'INACTIVE'
+  export type ItemCategoryStatus = ItemStatus
   export type ItemType = 'PACKAGED_FINISHED_GOOD' | 'STANDARD'
   export type BomType = 'COMPOSITION' | 'PACKAGING' | 'TRANSFORMATION'
   export type BomLineRole = 'COMPONENT' | 'PACKAGING_MATERIAL' | 'PRIMARY_INPUT'
@@ -164,6 +165,157 @@ export namespace ItemManagementApi {
     parentCategoryId?: string
   }
 
+  export interface UpdateItemCategoryBasicsPayload {
+    categoryCode: string
+    categoryName: string
+  }
+
+  export interface AttributeDefinitionRecord {
+    attributeDefinitionId: string
+    attributeCode: string
+    attributeName: string
+    status: ItemStatus | string
+  }
+
+  export interface AttributeDefinitionListQuery {
+    keyword?: string
+    page?: number
+    pageSize?: number
+    status?: ItemStatus
+  }
+
+  export interface AttributeDefinitionListResult {
+    attributeDefinitions: AttributeDefinitionRecord[]
+    page: number
+    pageSize: number
+    total: number
+  }
+
+  export interface CreateAttributeDefinitionPayload {
+    attributeCode: string
+    attributeName: string
+  }
+
+  export interface UpdateAttributeDefinitionPayload extends CreateAttributeDefinitionPayload {
+    status: ItemStatus
+  }
+
+  export interface AttributeOptionRecord {
+    attributeOptionId: string
+    attributeDefinitionId: string
+    optionCode: string
+    optionName: string
+    status: ItemStatus | string
+  }
+
+  export interface AttributeOptionListQuery {
+    status?: ItemStatus
+  }
+
+  export interface AttributeOptionListResult {
+    attributeOptions: AttributeOptionRecord[]
+  }
+
+  export interface CreateAttributeOptionPayload {
+    optionCode: string
+    optionName: string
+  }
+
+  export interface UpdateAttributeOptionPayload extends CreateAttributeOptionPayload {
+    status: ItemStatus
+  }
+
+  export interface ItemModelAttributeRuleRecord {
+    allowedOptionIds: string[]
+    attributeDefinitionId: string
+    itemModelId: string
+    required: boolean
+  }
+
+  export interface SetItemModelAttributeRulesPayload {
+    rules: Array<{
+      allowedOptionIds: string[]
+      attributeDefinitionId: string
+      required: boolean
+    }>
+  }
+
+  export interface PackagingMethodRecord {
+    packagingMethodId: string
+    methodCode: string
+    methodName: string
+    status: ItemStatus | string
+  }
+
+  export interface PackagingMethodListQuery {
+    keyword?: string
+    status?: ItemStatus
+  }
+
+  export interface PackagingMethodListResult {
+    packagingMethods: PackagingMethodRecord[]
+  }
+
+  export interface CreatePackagingMethodPayload {
+    methodCode: string
+    methodName: string
+  }
+
+  export type UpdatePackagingMethodPayload = CreatePackagingMethodPayload
+
+  export interface PackagingSpecRecord {
+    packagingSpecId: string
+    itemModelId: string
+    packagingMethodId: string
+    customerId?: string
+    specCode: string
+    specName: string
+    grossWeight?: string
+    volume?: string
+    outerLength?: string
+    outerWidth?: string
+    outerHeight?: string
+    workInstruction?: string
+    version?: string
+    effectiveFrom?: string
+    effectiveTo?: string
+    status: ItemStatus | string
+  }
+
+  export interface PackagingSpecListQuery {
+    customerId?: string
+    itemModelId?: string
+    keyword?: string
+    packagingMethodId?: string
+    page?: number
+    pageSize?: number
+    status?: ItemStatus
+  }
+
+  export interface PackagingSpecListResult {
+    packagingSpecs: PackagingSpecRecord[]
+    page: number
+    pageSize: number
+    total: number
+  }
+
+  export interface PackagingSpecPayload {
+    itemModelId: string
+    packagingMethodId: string
+    customerId?: string
+    specCode: string
+    specName: string
+    grossWeight?: string
+    volume?: string
+    outerLength?: string
+    outerWidth?: string
+    outerHeight?: string
+    workInstruction?: string
+    version?: string
+    effectiveFrom?: string
+    effectiveTo?: string
+  }
+
   export interface BomLineInput {
     componentItemId: string
     lineRole: BomLineRole
@@ -210,6 +362,11 @@ export namespace ItemManagementApi {
     bomType: BomType
     outputItemId: string
     lines: BomLineInput[]
+  }
+
+  export interface UpdateBomBasicsPayload {
+    bomCode: string
+    bomName: string
   }
 
   export interface ReplaceBomLinesPayload {
@@ -358,6 +515,218 @@ export async function createManagedItemCategoryApi(
   )
 }
 
+// Updates one item category code and name.
+export async function updateManagedItemCategoryBasicsApi(
+  tenantId: string,
+  categoryId: string,
+  data: ItemManagementApi.UpdateItemCategoryBasicsPayload
+) {
+  return requestClient.request<ItemManagementApi.ItemCategoryNode>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/categories/${encodeURIComponent(categoryId)}/basics`,
+    { data, method: 'PATCH' }
+  )
+}
+
+// Changes one item category lifecycle status.
+export async function changeManagedItemCategoryStatusApi(
+  tenantId: string,
+  categoryId: string,
+  data: ItemManagementApi.ChangeStatusPayload
+) {
+  return requestClient.request<ItemManagementApi.ItemCategoryNode>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/categories/${encodeURIComponent(categoryId)}/status`,
+    { data, method: 'PATCH' }
+  )
+}
+
+// Lists tenant-scoped attribute definitions.
+export async function listManagedAttributeDefinitionsApi(
+  tenantId: string,
+  params: ItemManagementApi.AttributeDefinitionListQuery
+) {
+  return requestClient.get<ItemManagementApi.AttributeDefinitionListResult>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/attributes/definitions`,
+    { params }
+  )
+}
+
+// Creates one attribute definition.
+export async function createManagedAttributeDefinitionApi(
+  tenantId: string,
+  data: ItemManagementApi.CreateAttributeDefinitionPayload
+) {
+  return requestClient.post<ItemManagementApi.AttributeDefinitionRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/attributes/definitions`,
+    data
+  )
+}
+
+// Updates one attribute definition.
+export async function updateManagedAttributeDefinitionApi(
+  tenantId: string,
+  attributeDefinitionId: string,
+  data: ItemManagementApi.UpdateAttributeDefinitionPayload
+) {
+  return requestClient.request<ItemManagementApi.AttributeDefinitionRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/attributes/definitions/${encodeURIComponent(attributeDefinitionId)}`,
+    { data, method: 'PATCH' }
+  )
+}
+
+// Lists options under one attribute definition.
+export async function listManagedAttributeOptionsApi(
+  tenantId: string,
+  attributeDefinitionId: string,
+  params: ItemManagementApi.AttributeOptionListQuery
+) {
+  return requestClient.get<ItemManagementApi.AttributeOptionListResult>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/attributes/definitions/${encodeURIComponent(attributeDefinitionId)}/options`,
+    { params }
+  )
+}
+
+// Creates one attribute option.
+export async function createManagedAttributeOptionApi(
+  tenantId: string,
+  attributeDefinitionId: string,
+  data: ItemManagementApi.CreateAttributeOptionPayload
+) {
+  return requestClient.post<ItemManagementApi.AttributeOptionRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/attributes/definitions/${encodeURIComponent(attributeDefinitionId)}/options`,
+    data
+  )
+}
+
+// Updates one attribute option.
+export async function updateManagedAttributeOptionApi(
+  tenantId: string,
+  attributeOptionId: string,
+  data: ItemManagementApi.UpdateAttributeOptionPayload
+) {
+  return requestClient.request<ItemManagementApi.AttributeOptionRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/attributes/options/${encodeURIComponent(attributeOptionId)}`,
+    { data, method: 'PATCH' }
+  )
+}
+
+// Reads one ItemModel's simple attribute rule set.
+export async function getManagedItemModelAttributeRulesApi(tenantId: string, itemModelId: string) {
+  return requestClient.get<{ rules: ItemManagementApi.ItemModelAttributeRuleRecord[] }>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/item-models/${encodeURIComponent(itemModelId)}/attribute-rules`
+  )
+}
+
+// Full-replaces one ItemModel's simple attribute rule set.
+export async function setManagedItemModelAttributeRulesApi(
+  tenantId: string,
+  itemModelId: string,
+  data: ItemManagementApi.SetItemModelAttributeRulesPayload
+) {
+  return requestClient.put<{ rules: ItemManagementApi.ItemModelAttributeRuleRecord[] }>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/item-models/${encodeURIComponent(itemModelId)}/attribute-rules`,
+    data
+  )
+}
+
+// Lists tenant-scoped packaging methods.
+export async function listManagedPackagingMethodsApi(
+  tenantId: string,
+  params: ItemManagementApi.PackagingMethodListQuery
+) {
+  return requestClient.get<ItemManagementApi.PackagingMethodListResult>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/packaging/methods`,
+    { params }
+  )
+}
+
+// Creates one packaging method.
+export async function createManagedPackagingMethodApi(
+  tenantId: string,
+  data: ItemManagementApi.CreatePackagingMethodPayload
+) {
+  return requestClient.post<ItemManagementApi.PackagingMethodRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/packaging/methods`,
+    data
+  )
+}
+
+// Updates one packaging method.
+export async function updateManagedPackagingMethodApi(
+  tenantId: string,
+  packagingMethodId: string,
+  data: ItemManagementApi.UpdatePackagingMethodPayload
+) {
+  return requestClient.request<ItemManagementApi.PackagingMethodRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/packaging/methods/${encodeURIComponent(packagingMethodId)}/basics`,
+    { data, method: 'PATCH' }
+  )
+}
+
+// Changes one packaging method lifecycle status.
+export async function changeManagedPackagingMethodStatusApi(
+  tenantId: string,
+  packagingMethodId: string,
+  data: ItemManagementApi.ChangeStatusPayload
+) {
+  return requestClient.request<ItemManagementApi.PackagingMethodRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/packaging/methods/${encodeURIComponent(packagingMethodId)}/status`,
+    { data, method: 'PATCH' }
+  )
+}
+
+// Searches tenant-scoped packaging specs.
+export async function listManagedPackagingSpecsApi(
+  tenantId: string,
+  params: ItemManagementApi.PackagingSpecListQuery
+) {
+  return requestClient.get<ItemManagementApi.PackagingSpecListResult>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/packaging/specs`,
+    { params }
+  )
+}
+
+// Loads one packaging spec.
+export async function getManagedPackagingSpecApi(tenantId: string, packagingSpecId: string) {
+  return requestClient.get<ItemManagementApi.PackagingSpecRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/packaging/specs/${encodeURIComponent(packagingSpecId)}`
+  )
+}
+
+// Creates one packaging spec.
+export async function createManagedPackagingSpecApi(
+  tenantId: string,
+  data: ItemManagementApi.PackagingSpecPayload
+) {
+  return requestClient.post<ItemManagementApi.PackagingSpecRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/packaging/specs`,
+    data
+  )
+}
+
+// Updates one packaging spec.
+export async function updateManagedPackagingSpecApi(
+  tenantId: string,
+  packagingSpecId: string,
+  data: ItemManagementApi.PackagingSpecPayload
+) {
+  return requestClient.request<ItemManagementApi.PackagingSpecRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/packaging/specs/${encodeURIComponent(packagingSpecId)}`,
+    { data, method: 'PATCH' }
+  )
+}
+
+// Changes one packaging spec lifecycle status.
+export async function changeManagedPackagingSpecStatusApi(
+  tenantId: string,
+  packagingSpecId: string,
+  data: ItemManagementApi.ChangeStatusPayload
+) {
+  return requestClient.request<ItemManagementApi.PackagingSpecRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/packaging/specs/${encodeURIComponent(packagingSpecId)}/status`,
+    { data, method: 'PATCH' }
+  )
+}
+
 // Lists BOMs owned by item-master.
 export async function listManagedBomsApi(
   tenantId: string,
@@ -395,6 +764,18 @@ export async function createManagedBomApi(
   }>(`/item-management/tenants/${encodeURIComponent(tenantId)}/boms`, data)
 }
 
+// Updates one BOM code and name.
+export async function updateManagedBomBasicsApi(
+  tenantId: string,
+  bomId: string,
+  data: ItemManagementApi.UpdateBomBasicsPayload
+) {
+  return requestClient.request<ItemManagementApi.BomRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/boms/${encodeURIComponent(bomId)}/basics`,
+    { data, method: 'PATCH' }
+  )
+}
+
 // Full-replaces one BOM line set.
 export async function replaceManagedBomLinesApi(
   tenantId: string,
@@ -404,6 +785,18 @@ export async function replaceManagedBomLinesApi(
   return requestClient.put<ItemManagementApi.BomRecord>(
     `/item-management/tenants/${encodeURIComponent(tenantId)}/boms/${encodeURIComponent(bomId)}/lines`,
     data
+  )
+}
+
+// Changes one BOM lifecycle status.
+export async function changeManagedBomStatusApi(
+  tenantId: string,
+  bomId: string,
+  data: ItemManagementApi.ChangeStatusPayload
+) {
+  return requestClient.request<ItemManagementApi.BomRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/boms/${encodeURIComponent(bomId)}/status`,
+    { data, method: 'PATCH' }
   )
 }
 

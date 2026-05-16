@@ -151,12 +151,12 @@ Required behavior:
 - [ ] **Step 4: Implement query/command handlers and gRPC controller methods**
 
 ```ts
-@RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT)
+@RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT] })
 async getAccountDeletionImpact(
   request: GetAccountDeletionImpactRequest
 ): Promise<GetAccountDeletionImpactResponse>
 
-@RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT)
+@RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT] })
 async deleteAccount(request: DeleteAccountRequest): Promise<DeleteAccountResponse>
 ```
 
@@ -247,10 +247,10 @@ Required behavior:
 
 ```ts
 @Get('admin/accounts/:accountId/deletion-impact')
-@PermissionCheckAll(IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT)
+@RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT] })
 
 @Delete('admin/accounts/:accountId')
-@PermissionCheckAll(IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT)
+@RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT] })
 ```
 
 - [ ] **Step 5: Run focused BFF tests**

@@ -19,6 +19,7 @@ type SessionAuditContext = {
   userId: string
   accountId: string
   tenantId: string
+  terminal: string
   loginMethod: string
   deviceId: string
   deviceName: string
@@ -370,6 +371,42 @@ export class AuthAuditService {
   }
 
   /**
+   * emitTerminalAccessDenied records a blocked login or refresh caused by terminal access policy.
+   */
+  emitTerminalAccessDenied(input: {
+    accountId: string
+    userId?: string
+    tenantId?: string | null
+    scopeLevel?: string
+    terminal: string
+    reasonCode: string
+    phase: 'LOGIN' | 'REFRESH'
+    sessionId?: string
+  }): void {
+    this.emit(input.phase === 'REFRESH' ? 'SESSION_REFRESH_DENIED_TERMINAL_ACCESS' : 'TERMINAL_ACCESS_DENIED', 'auth', {
+      result: 'REJECTED',
+      operator: input.userId ? this.userOperator(input.userId) : this.systemOperator(),
+      scope: {
+        tenantId: input.tenantId ?? null,
+        orgId: null
+      },
+      resource: {
+        resourceType: 'account_terminal_access',
+        resourceId: input.accountId
+      },
+      details: {
+        accountId: input.accountId,
+        userId: input.userId ?? '',
+        tenantId: input.tenantId ?? '',
+        scopeLevel: input.scopeLevel ?? '',
+        terminal: input.terminal,
+        reasonCode: input.reasonCode,
+        sessionId: input.sessionId ?? ''
+      }
+    })
+  }
+
+  /**
    * emitRefreshTokenReplayDetected records a detected refresh-token replay security event.
    */
   emitRefreshTokenReplayDetected(session: Session): void {
@@ -468,6 +505,7 @@ export class AuthAuditService {
       userId: session.getUserId(),
       accountId: session.getAccountId(),
       tenantId: session.getTenantId() ?? '',
+      terminal: session.getTerminal(),
       loginMethod: session.getLoginMethod(),
       deviceId: deviceInfo.deviceId,
       deviceName: deviceInfo.deviceName,

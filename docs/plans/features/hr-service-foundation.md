@@ -1,16 +1,12 @@
 # HR Service Foundation
 
+> 服务设计唯一真相源：[hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)。本文只记录 HR minimum foundation 的 feature 范围、状态、验收与后置问题；`Employee`、`Employment`、员工生命周期、正式 `人 -> org` 归属与 onboarding owner 边界不在本文重新定义。
+
 ## 1. 目标
 
 - 将 `hr-service` minimum 第一阶段结论转成可执行 feature packet，作为后续 contracts、协同文档与实现线程的主线入口。
-- 建立 `hr-service` 第一阶段最小闭环：
-  - `Employee`
-  - `Employment`
-  - `Employment -> OrgUnit`
-  - onboarding orchestration
-  - `identity-service` binding handoff
-  - `permission-service` grant handoff
-- 明确正式 `人 -> org` 真相在 `hr-service`，而不是 `account -> org` 或 legacy membership API。
+- 建立 `hr-service` 第一阶段最小闭环，具体服务对象与 owner 边界以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
+- 明确本 feature 不再作为 HR 服务设计入口。
 
 ## 2. 不做什么
 
@@ -31,27 +27,11 @@
 - collaborations:
   - [tenant-org-and-hr.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/tenant-org-and-hr.md)
   - [employee-onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/employee-onboarding.md)
-- plans:
-  - [hr-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/hr-service-design.md)
 
 ## 4. 当前结论
 
-- `hr-service` 是正式员工与任职真相 owner。
-- minimum 第一阶段主链是：
-  - `PersonParty`
-  - `Employee`
-  - `Employment`
-  - `OrgUnit`
-- `Employee` 必须使用独立 `employeeId`。
-- `hr-service` 以上游 `tenantPartyId` 作为员工主引用；`partyId` 可作为完整性影子。
-- 同一 `tenantId + tenantPartyId` 在第一阶段只能对应一个正式 `Employee` 聚合。
-- 第一阶段最多只允许一个当前 `ACTIVE` employment。
-- `primary employment org` 只来自当前 active employment 的 `orgUnitId`。
-- 调岗通过受控 `ChangePrimaryEmployment` command 原子完成“结束旧 Employment + 创建新 Employment”，而不是原地篡改正式归属。
-- onboarding 业务 owner 在 `hr-service application orchestration`。
-- account binding 属于 `identity-service`；role/access grant 属于 `permission-service`。
-- minimum 第一阶段不支持 future-dated employment 自动生效；`CreateEmployment` 创建立即 `ACTIVE` 任职。
-- account / grant 接入段失败不得回滚 `Party / Employee / Employment`，但必须进入可重试补偿状态。
+- `hr-service` minimum foundation 已关闭，服务设计已回写到 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)。
+- `Employee / Employment`、正式 `人 -> org`、onboarding owner、account binding handoff 与 permission grant handoff 均以服务真相源和协同 / contract 文档为准。
 - `tenant-web` 已形成租户侧 `组织与人员 > 成员` 主入口：
   - 主路径为 `/settings/organization-people/members`
   - dedicated `entryKey` 为 `tenant-settings.organization-people`
@@ -91,53 +71,7 @@
   - 协同蓝图已冻结 minimum 口径
   - hr minimum contracts 已建立入口
 
-## 7. 最小模型
-
-### 7.1 Employee
-
-- `employeeId`
-- `tenantId`
-- `tenantPartyId`
-- `partyId`
-- `employeeCode`
-- `lifecycleStatus`
-
-最小状态机：
-
-- `PREBOARDING`
-  - `CreateEmployee` 成功后的初始状态
-  - 表示员工主档已成立，但尚未形成 active employment
-- `ACTIVE`
-  - 第一条 active employment 成功创建后进入
-  - 若调岗通过 `ChangePrimaryEmployment` 成功完成，Employee 保持 `ACTIVE`
-- `OFFBOARDED`
-  - active employment 被结束且没有继任 active employment 时进入
-
-第一阶段不引入 suspended、leave、probation 等更细状态。
-
-### 7.2 Employment
-
-- `employmentId`
-- `tenantId`
-- `employeeId`
-- `orgUnitId`
-- `status`
-- `effectiveFrom`
-- `effectiveTo`
-- `endedReason`
-
-最小状态机：
-
-- `ACTIVE`
-  - `CreateEmployment` 成功后的初始状态
-  - 第一阶段仅允许立即生效任职；`effectiveFrom` 不得晚于命令 accepted time
-- `ENDED`
-  - `EndEmployment` 或 `ChangePrimaryEmployment` 结束旧任职后进入
-  - `effectiveTo` 必须存在且不得早于 `effectiveFrom`
-
-第一阶段不实现 `PENDING_EFFECTIVE`；若后续需要 future-dated employment，应另行冻结调度与生效规则。
-
-## 8. 线程分工
+## 7. 线程分工
 
 | Thread / Owner | 职责 | 允许修改路径 | 输入 | 输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
@@ -146,7 +80,7 @@
 | implementation owner | 在已冻结 minimum 边界内实现 Employee / Employment 与 onboarding handoff | `src/services/system/hr-service/**`, `src/common/src/contracts/hr_service/**` | feature packet、contracts、协同蓝图 | 可运行服务、测试与验证结果 | completed |
 | review / integration owner | 检查 HR 实现是否越界回到 account-org 双真相或角色 owner | 只读全局，必要时最小文档收口 | feature packet、contracts、实现结果 | review 结论与关闭判断 | completed |
 
-## 9. 派生问题 Ledger
+## 8. 派生问题 Ledger
 
 | 时间 | 问题 | 分类 | 当前影响 | 处理策略 | 目标落点 | 状态 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -163,7 +97,7 @@
 | 2026-04-24 | 是否在当前 `员工与任职管理` 入口内混入 account binding / onboarding access 查询与补偿管理面 | Blocker-Later | 若现在混入，会把 HR 真相页扩成账号与授权协同后台，并模糊 `identity-service` / `permission-service` owner | 维持当前页面只处理 `Employee / Employment`；后续单独冻结 BFF query / retry / compensation 管理面 | future onboarding admin surface | open |
 | 2026-04-24 | `account-management` 与 `employee-management` 是否合并成长期统一信息架构 | Blocker-Later | 若直接合并，会让账号 owner 与 HR owner 再次缠绕，并诱发 `account -> org` 伪真相回流 | 当前维持双入口；未来只允许在 IA 层冻结 cross-link 或聚合读模型，不把 account 并入 HR | future tenant-web IA / onboarding design | open |
 
-## 10. 验收标准
+## 9. 验收标准
 
 - 已明确 `Employee / Employment` 是正式人力真相。
 - 已明确 `Employment -> OrgUnit` 是正式 `人 -> org` 真相。
@@ -173,7 +107,7 @@
 - hr minimum contracts 已提供入口。
 - 已明确前端 `员工与任职管理` 入口只收口 HR 真相页，不吸收 account-management 语义。
 
-## 11. 关闭条件
+## 10. 关闭条件
 
 - hr minimum contracts 已冻结。
 - employee onboarding 协同蓝图已冻结。
@@ -185,7 +119,7 @@
 - 剩余多服务 smoke 与 repo-wide proto lint 债务不再阻塞 hr-service minimum foundation close。
 - `tenant-web` `Employee / Employment` 基础入口已按当前 minimum 边界接入。
 
-## 12. 备注
+## 11. 备注
 
 - 本 feature packet 只覆盖 minimum foundation，不替代未来完整 HR 子域设计。
 - 当前 packet 明确禁止把 legacy account-org membership 重新抬升为正式真相。

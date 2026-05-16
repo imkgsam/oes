@@ -3,13 +3,7 @@ import { Test } from '@nestjs/testing'
 import { Metadata } from '@grpc/grpc-js'
 import { ConfigService } from '@nestjs/config'
 import { lastValueFrom, Observable } from 'rxjs'
-import {
-  GrpcRequestContextInterceptor,
-  GrpcRequestContextStore,
-  INTERNAL_SERVICE_AUTHENTICATOR,
-  OPERATOR_CONTEXT_VERIFIER
-} from '@oes/common/authorization'
-import { DefaultInternalServiceAuthenticator } from '@oes/common/authorization'
+import { GrpcRequestContextInterceptor, GrpcRequestContextStore, INTERNAL_SERVICE_AUTHENTICATOR, OPERATOR_CONTEXT_VERIFIER, DefaultInternalServiceAuthenticator } from '@oes/common/authorization'
 import { AppLogger } from '@oes/common/logging'
 import { ItemMasterQueryV2Service } from '../../src/application/item-master-v2.service'
 import { ItemMasterQueryGrpcController } from '../../src/interfaces/grpc/item-master-query.grpc.controller'

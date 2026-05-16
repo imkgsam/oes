@@ -1,5 +1,11 @@
 import { Module } from '@nestjs/common'
-import { AuthorizationModule } from '@oes/common/authorization'
+import {
+  AuthorizationModule,
+  OPERATOR_PERMISSION_RESOLVER,
+  PermissionGuard,
+  PermissionServicePermissionReadAdaptor,
+  RoleBasedOperatorPermissionResolver
+} from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { GrpcTransportModule } from '@oes/common/transport'
 import { AUTH_SESSION_REVOCATION_PORT } from '../../application/ports/auth-session-revocation.port'
@@ -85,6 +91,13 @@ import { TenantOrgManagementGrpcController } from '../../interfaces/grpc/tenant-
     AuthLoginOnboardingGrpcAdapter,
     HrEmployeeOnboardingGrpcAdapter,
     PermissionTenantOnboardingGrpcAdapter,
+    PermissionServicePermissionReadAdaptor,
+    RoleBasedOperatorPermissionResolver,
+    {
+      provide: OPERATOR_PERMISSION_RESOLVER,
+      useExisting: RoleBasedOperatorPermissionResolver
+    },
+    PermissionGuard,
     TenantOnboardingService,
     TenantOrgManagementService
   ],

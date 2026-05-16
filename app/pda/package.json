@@ -1,0 +1,18 @@
+{
+  "name": "oes-pda-workspace",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:web": "pnpm --filter @oes/pda-web build",
+    "build:android": "scripts/android-gradle.sh :app:assembleDebug",
+    "build:apk": "pnpm build:web && pnpm build:android",
+    "doctor:android": "scripts/android-doctor.sh",
+    "dev:web": "pnpm --filter @oes/pda-web dev",
+    "gradle:android": "scripts/android-gradle.sh",
+    "install:android": "scripts/android-gradle.sh :app:installDebug",
+    "test:android": "scripts/android-gradle.sh :app:testDebugUnitTest",
+    "test:web": "pnpm --filter @oes/pda-web test",
+    "typecheck:web": "pnpm --filter @oes/pda-web typecheck"
+  },
+  "packageManager": "pnpm@10.32.1"
+}

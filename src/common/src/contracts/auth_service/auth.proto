@@ -69,6 +69,7 @@ message LoginWithEmailPasswordRequest {
   string device_name = 3;
   string user_agent = 4;
   string ip_address = 5;
+  string terminal = 6;
 }
 
 message EmailPasswordLoginRequest {
@@ -77,6 +78,7 @@ message EmailPasswordLoginRequest {
   string device_name = 3;
   string user_agent = 4;
   string ip_address = 5;
+  string terminal = 6;
 }
 
 message RequestEmailOtpLoginChallengeRequest {
@@ -100,11 +102,13 @@ message EmailBindingChallengeRequest {
 message LoginWithEmailOtpRequest {
   string email = 1;
   string otp = 2;
+  string terminal = 3;
 }
 
 message EmailOtpLoginRequest {
   string email = 1;
   string otp = 2;
+  string terminal = 3;
 }
 
 message LoginWithPhonePasswordRequest {
@@ -113,6 +117,7 @@ message LoginWithPhonePasswordRequest {
   string device_name = 3;
   string user_agent = 4;
   string ip_address = 5;
+  string terminal = 6;
 }
 
 message PhonePasswordLoginRequest {
@@ -121,6 +126,7 @@ message PhonePasswordLoginRequest {
   string device_name = 3;
   string user_agent = 4;
   string ip_address = 5;
+  string terminal = 6;
 }
 
 message RequestPhoneOtpLoginChallengeRequest {
@@ -379,11 +385,13 @@ message SetLoginMethodEnabledResponse {
 message LoginWithPhoneOtpRequest {
   string phone = 1;
   string otp = 2;
+  string terminal = 3;
 }
 
 message PhoneOtpLoginRequest {
   string phone = 1;
   string otp = 2;
+  string terminal = 3;
 }
 
 enum MfaBindingType {
@@ -518,6 +526,7 @@ message SelectAccountRequest {
   string user_agent = 6;
   string ip_address = 7;
   string current_session_id = 8;
+  string terminal = 9;
 }
 
 message SubmitMfaChallengeRequest {
@@ -600,6 +609,10 @@ message RefreshSessionResponse {
   string access_token = 2;
   string refresh_token = 3;
   int64 expires_in = 4;
+  string terminal = 5;
+  repeated string allowed_terminals = 6;
+  string reason_code = 7;
+  string message = 8;
 }
 
 message ValidateAccessTokenRequest {
@@ -614,6 +627,8 @@ message ValidateAccessTokenResponse {
   string scope_level = 5;
   repeated string role_ids = 6;
   bool password_setup_required = 7;
+  string terminal = 8;
+  repeated string allowed_terminals = 9;
 }
 
 message ListSessionsRequest {
@@ -647,6 +662,7 @@ message SessionView {
   bool is_access_expired = 23;
   bool is_refresh_expired = 24;
   bool is_revoked = 25;
+  string terminal = 26;
 }
 
 message ListSessionsResponse {
@@ -753,6 +769,7 @@ message AdminSessionView {
   bool is_access_expired = 25;
   bool is_refresh_expired = 26;
   bool is_revoked = 27;
+  string terminal = 28;
 }
 
 message AdminListUserSessionsResponse {
@@ -912,6 +929,10 @@ message SelectAccountResponse {
   string factor_challenge_id = 17;
   string challenge_destination = 18;
   string challenge_expires_at = 19;
+  string terminal = 20;
+  repeated string allowed_terminals = 21;
+  string reason_code = 22;
+  string message = 23;
 }
 
 message TenantMfaFactorPolicy {
@@ -993,6 +1014,10 @@ message LoginResponse {
   repeated AccountCandidate accounts = 7;
   string login_method = 8;
   bool password_setup_required = 9;
+  string terminal = 10;
+  repeated string allowed_terminals = 11;
+  string reason_code = 12;
+  string message = 13;
 }
 
 message LoginWithEmailPasswordResponse {
@@ -1005,6 +1030,10 @@ message LoginWithEmailPasswordResponse {
   repeated AccountCandidate accounts = 7;
   string login_method = 8;
   bool password_setup_required = 9;
+  string terminal = 10;
+  repeated string allowed_terminals = 11;
+  string reason_code = 12;
+  string message = 13;
 }
 
 message LoginWithEmailOtpResponse {
@@ -1017,6 +1046,10 @@ message LoginWithEmailOtpResponse {
   repeated AccountCandidate accounts = 7;
   string login_method = 8;
   bool password_setup_required = 9;
+  string terminal = 10;
+  repeated string allowed_terminals = 11;
+  string reason_code = 12;
+  string message = 13;
 }
 
 message LoginWithPhonePasswordResponse {
@@ -1029,6 +1062,10 @@ message LoginWithPhonePasswordResponse {
   repeated AccountCandidate accounts = 7;
   string login_method = 8;
   bool password_setup_required = 9;
+  string terminal = 10;
+  repeated string allowed_terminals = 11;
+  string reason_code = 12;
+  string message = 13;
 }
 
 message LoginWithPhoneOtpResponse {
@@ -1041,6 +1078,10 @@ message LoginWithPhoneOtpResponse {
   repeated AccountCandidate accounts = 7;
   string login_method = 8;
   bool password_setup_required = 9;
+  string terminal = 10;
+  repeated string allowed_terminals = 11;
+  string reason_code = 12;
+  string message = 13;
 }
 
 message SubmitMfaChallengeResponse {
@@ -1053,6 +1094,10 @@ message SubmitMfaChallengeResponse {
   repeated AccountCandidate accounts = 7;
   string login_method = 8;
   bool password_setup_required = 9;
+  string terminal = 10;
+  repeated string allowed_terminals = 11;
+  string reason_code = 12;
+  string message = 13;
 }
 
 message BootstrapUserLoginMethodsRequest {

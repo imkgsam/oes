@@ -42,7 +42,7 @@ export function createSmokeSeed(now = Date.now()) {
     lifeLimitValue: '10',
     usageQuantity: '6',
     lifeDelta: '6',
-    lifeUnit: 'USE'
+    lifeUnit: 'CASTING_CYCLE'
   };
 }
 

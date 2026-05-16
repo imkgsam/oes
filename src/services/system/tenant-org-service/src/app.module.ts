@@ -51,7 +51,10 @@ export function buildGrpcServiceConfigs() {
     },
     [SERVICE_NAMES.PERMISSION]: {
       serviceName: SERVICE_NAMES.PERMISSION,
-      protoPath: [resolveCommonProtoPath('permission_service/permission_management.proto')],
+      protoPath: [
+        resolveCommonProtoPath('permission_service/permission_management.proto'),
+        resolveCommonProtoPath('permission_service/permission_access_summary.proto')
+      ],
       packageName: 'permission_service',
       url: resolveGrpcUrl('GRPC_SERVICE_PERMISSION_URL', '127.0.0.1:50051')
     }

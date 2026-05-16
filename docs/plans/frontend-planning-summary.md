@@ -22,6 +22,7 @@
   - `/admin/org-management` 与 `/settings/organization-people/departments` 共同承接 `OrgUnit` 管理入口
   - `/settings/organization-people/members` 对应 `Employee / Employment` 管理入口
   - `/settings/org-structure` 与 `/settings/employee-employment` 仅保留兼容跳转
+  - `Tenant / OrgUnit / org tree` 的服务设计以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准，`Employee / Employment` 的服务设计以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准，本文只记录前端消费入口
 - `tenant-web` 租户侧 `组织与人员 wave-1` 已完成文档层收口：
   - 统一入口为 `组织与人员`
   - 固定为 `成员 / 部门` 两个 Tab
@@ -77,10 +78,11 @@
 先读：
 
 1. [tenant-web-code-refactor-checklist.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-code-refactor-checklist.md)
-2. [tenant-org-service-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/tenant-org-service-foundation.md)
-3. [hr-service-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/hr-service-foundation.md)
-4. [navigation-entry-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/navigation-entry-management.md)
-5. [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md)
+2. [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
+3. [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
+4. [hr-service-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/hr-service-foundation.md)
+5. [navigation-entry-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/navigation-entry-management.md)
+6. [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md)
 
 ## 4. 各文档职责
 
@@ -94,10 +96,10 @@
   - 当前阶段代码改造与验证状态
 - [tenant-web-vben-implementation-plan.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-vben-implementation-plan.md)
   - `vue-vben-admin` 底座适配与本地化专项说明
-- [tenant-org-service-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/tenant-org-service-foundation.md)
-  - tenant / org 边界主线与平台侧 / 租户侧入口收口口径
+- [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
+  - `Tenant / OrgUnit / org tree` 服务真相源；前端文档只能引用其设计，不重新定义 tenant-org 边界
 - [hr-service-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/hr-service-foundation.md)
-  - `Employee / Employment` 主线与前端入口边界口径
+  - HR minimum feature 状态与前端入口边界口径；`Employee / Employment` 服务设计以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
 - [navigation-entry-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/navigation-entry-management.md)
   - 导航 entryKey 收口与兼容入口保留口径
 - [backlog.md](/Users/acehood/Documents/GitHub/oes/docs/plans/backlog.md)

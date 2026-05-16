@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
-import { PermissionCheckAll } from '@oes/common/authorization'
 import {
+  RequirePermissions,
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
   ROLE_INSTANCE_PERMISSION_CODES,
   ROLE_TEMPLATE_PERMISSION_CODES
@@ -21,7 +21,7 @@ export class PermissionController {
   constructor(private readonly permissionService: PermissionProxyService) {}
 
   @Get()
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION] })
   @ApiOperation({ summary: 'List permissions with optional filters' })
   async listPermissions(
     @Query() query: ListPermissionsDto,
@@ -41,7 +41,7 @@ export class PermissionController {
   }
 
   @Post()
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_PERMISSION])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_PERMISSION] })
   @ApiOperation({ summary: 'Create a permission' })
   async createPermission(
     @Body() dto: CreatePermissionDto,
@@ -51,18 +51,15 @@ export class PermissionController {
   }
 
   @Get('id/:id')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION_DETAIL])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION_DETAIL] })
   @ApiOperation({ summary: 'Find permission by ID' })
   // Returns a global permission dictionary item by id for detail and edit views.
-  async findById(
-    @Param('id') id: string,
-    @DownstreamSource() source: DownstreamRequestSource
-  ) {
+  async findById(@Param('id') id: string, @DownstreamSource() source: DownstreamRequestSource) {
     return this.execute(() => this.permissionService.getPermissionById({ id }, source))
   }
 
   @Patch(':id')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_PERMISSION])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_PERMISSION] })
   @ApiOperation({ summary: 'Update a permission' })
   // Updates mutable metadata on a global permission dictionary item.
   async updatePermission(
@@ -83,7 +80,9 @@ export class PermissionController {
   }
 
   @Get(':id/roles')
-  @PermissionCheckAll([ROLE_TEMPLATE_PERMISSION_CODES.LIST, ROLE_INSTANCE_PERMISSION_CODES.LIST])
+  @RequirePermissions({
+    all: [ROLE_TEMPLATE_PERMISSION_CODES.LIST, ROLE_INSTANCE_PERMISSION_CODES.LIST]
+  })
   @ApiOperation({ summary: 'List roles that include a permission' })
   // Returns role summaries that reference one global permission.
   async listPermissionRoles(
@@ -96,7 +95,9 @@ export class PermissionController {
   }
 
   @Get(':code')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION_DETAIL_BY_CODE])
+  @RequirePermissions({
+    all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_PERMISSION_DETAIL_BY_CODE]
+  })
   @ApiOperation({ summary: 'Find permission by code' })
   async findByCode(
     @Param('code') code: string,
@@ -106,7 +107,7 @@ export class PermissionController {
   }
 
   @Delete(':id')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.DELETE_PERMISSION])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.DELETE_PERMISSION] })
   @ApiOperation({ summary: 'Delete a permission' })
   async delete(@Param('id') id: string, @DownstreamSource() source: DownstreamRequestSource) {
     return this.execute(() => this.permissionService.deletePermission({ id }, source))

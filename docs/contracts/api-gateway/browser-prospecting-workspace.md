@@ -1,5 +1,7 @@
 # Browser Prospecting Workspace BFF Contract
 
+> Browser Prospecting Workspace BFF 不拥有权限、policy、scope 或授权判定真相；这些服务设计边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 与项目级授权架构为准。
+
 ## 1. Scope
 
 This document defines the first-stage API Gateway / BFF black-box contract for the Chrome browser prospecting workspace.

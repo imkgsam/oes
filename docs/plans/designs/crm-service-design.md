@@ -1,5 +1,7 @@
 # CRM Service Design
 
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只记录 CRM 设计过程，不能替代服务真相源。
+
 ## 1. 文档目的
 
 本文件是 `crm-service` 的设计工作台，用于沉淀当前线程已经确认的 CRM 边界、协同关系、核心对象与阶段性结论。
@@ -105,19 +107,17 @@
 
 ### 4.2 CRM Does Not Own
 
-- `party-service` 的主体主数据真相：
-  - `Party`
-  - `TenantParty`
-  - `PartyIdentifier`
-  - `PartyRelationship`
+- `party-service` 的主体主数据、核心对象、地址 / 联系人正文与 owner 边界；以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
 - 认证、会话、令牌：
   - `auth-service`
 - 身份映射与 operator context 真相：
   - `identity-service`
 - 角色、权限、scope、policy 与授权判定真相：
   - `permission-service`
-- 组织树、部门、小组、成员归属真相：
+- 组织树、部门、小组真相：
   - `tenant-org-service`
+- 正式人员任职与成员归属：
+  - [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
 - 邮件线程、共享邮箱工作台、原始通信归档：
   - `communication / mailbox`
 - 正式报价、订单与销售履约真相：
@@ -430,8 +430,8 @@ CRM 前置入口正式分成两类：
 
 ### 9.4 与 `tenant-org-service`
 
-- `tenant-org-service` 提供组织树、团队归属与 org scope 真相。
-- CRM 只消费其组织上下文，不复制组织主模型。
+- `tenant-org-service` 的 `Tenant / OrgUnit / org tree / org reference validation` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
+- CRM 只消费组织引用与组织结构上下文，不复制组织主模型，也不把人员任职派生的 org scope 或团队归属真相写入 CRM；正式任职口径以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
 
 ### 9.5 与 `communication / mailbox`
 

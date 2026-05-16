@@ -9,6 +9,7 @@ import { AppModule } from './app.module'
 import { GatewayExceptionFilter } from './common/filters/gateway-exception.filter'
 import { ResponseTransformInterceptor } from './common/interceptors/response.interceptor'
 import { TimeoutInterceptor } from './common/interceptors/timeout.interceptor'
+import { resolveCorsOrigin } from './config/cors-origin.util'
 import { setupSwagger } from './config/swagger.setup'
 
 async function bootstrap() {
@@ -26,7 +27,7 @@ async function bootstrap() {
 
   app.use(helmet())
   app.enableCors({
-    origin: config.get<string[]>('gateway.cors.origins', ['*']),
+    origin: resolveCorsOrigin(config.get<string[]>('gateway.cors.origins', ['*'])),
     methods: config.get<string>('gateway.cors.methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS'),
     credentials: config.get<boolean>('gateway.cors.credentials', false)
   })

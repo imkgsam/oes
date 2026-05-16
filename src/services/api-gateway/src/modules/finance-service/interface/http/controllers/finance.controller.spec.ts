@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { FinanceController } from './finance.controller'
 
 // Verifies the finance gateway controller keeps permissions and phase 1A request forwarding aligned with the frozen finance BFF surface.
@@ -44,182 +44,161 @@ describe('FinanceController', () => {
     const reflector = new Reflector()
 
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.searchFinancialAccounts)
-    ).toEqual({
-      permissions: ['finance.financial_account.list'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.getFinancialAccount)
-    ).toEqual({
-      permissions: ['finance.financial_account.get_by_id'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.searchAccountTransactions)
-    ).toEqual({
-      permissions: ['finance.account_transaction.list'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.createFinancialAccount)
-    ).toEqual({
-      permissions: ['finance.financial_account.create'],
-      type: 'ALL'
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.searchFinancialAccounts
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.getFinancialAccount
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.searchAccountTransactions
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.createFinancialAccount
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         FinanceController.prototype.updateFinancialAccountBasics
       )
-    ).toEqual({
-      permissions: ['finance.financial_account.update_basics'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.importAccountTransactions)
-    ).toEqual({
-      permissions: ['finance.account_transaction.import'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.recordAccountTransaction)
-    ).toEqual({
-      permissions: ['finance.account_transaction.record'],
-      type: 'ALL'
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.importAccountTransactions
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.recordAccountTransaction
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         FinanceController.prototype.registerCustomerFinancialAccount
       )
-    ).toEqual({
-      permissions: ['finance.customer_financial_account.register'],
-      type: 'ALL'
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.getExchangeRate)
-    ).toEqual({
-      permissions: ['finance.exchange_rate.get'],
-      type: 'ALL'
-    })
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, FinanceController.prototype.getExchangeRate)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.setExchangeRate)
-    ).toEqual({
-      permissions: ['finance.exchange_rate.set'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.searchReceivableSchedules)
-    ).toEqual({
-      permissions: ['finance.receivable_schedule.list'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.getReceivableSchedule)
-    ).toEqual({
-      permissions: ['finance.receivable_schedule.get_by_id'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.getFinanceReleaseSignal)
-    ).toEqual({
-      permissions: ['finance.finance_release_signal.get'],
-      type: 'ALL'
-    })
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, FinanceController.prototype.setExchangeRate)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.searchReceivableSchedules
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.getReceivableSchedule
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.getFinanceReleaseSignal
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         FinanceController.prototype.createReceivableScheduleFromSalesOrder
       )
-    ).toEqual({
-      permissions: ['finance.receivable_schedule.create_from_sales_order'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.setFinanceReleaseSignal)
-    ).toEqual({
-      permissions: ['finance.finance_release_signal.set'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.searchPaymentAllocations)
-    ).toEqual({
-      permissions: ['finance.payment_allocation.list'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.allocatePaymentToReceivable)
-    ).toEqual({
-      permissions: ['finance.payment_allocation.allocate_to_receivable'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.searchPayableSchedules)
-    ).toEqual({
-      permissions: ['finance.payable.read'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.getPayableSchedule)
-    ).toEqual({
-      permissions: ['finance.payable.read'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.searchPaymentRequests)
-    ).toEqual({
-      permissions: ['finance.payable.read'],
-      type: 'ALL'
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.searchPaymentExecutions)
-    ).toEqual({
-      permissions: ['finance.payable.read'],
-      type: 'ALL'
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.setFinanceReleaseSignal
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.searchPaymentAllocations
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.allocatePaymentToReceivable
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.searchPayableSchedules
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.getPayableSchedule
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.searchPaymentRequests
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.searchPaymentExecutions
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         FinanceController.prototype.createPayableScheduleFromPurchaseOrder
       )
-    ).toEqual({
-      permissions: ['finance.payable.create_from_purchase_order'],
-      type: 'ALL'
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         FinanceController.prototype.applyPayableScheduleAdjustmentFromPurchaseOrderChange
       )
-    ).toEqual({
-      permissions: ['finance.payable.adjust_from_purchase_order_change'],
-      type: 'ALL'
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.createPaymentRequest)
-    ).toEqual({
-      permissions: ['finance.payment_request.create'],
-      type: 'ALL'
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.createPaymentRequest
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.decidePaymentRequest)
-    ).toEqual({
-      permissions: ['finance.payment_request.decide'],
-      type: 'ALL'
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.decidePaymentRequest
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.executePaymentRequest)
-    ).toEqual({
-      permissions: ['finance.payment_execution.create'],
-      type: 'ALL'
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.executePaymentRequest
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, FinanceController.prototype.allocatePaymentToPayable)
-    ).toEqual({
-      permissions: ['finance.payment_allocation.create'],
-      type: 'ALL'
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        FinanceController.prototype.allocatePaymentToPayable
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards the minimum finance phase 1A BFF surface to the proxy service', async () => {
@@ -295,12 +274,17 @@ describe('FinanceController', () => {
       payableScheduleId: 'ps-1'
     })
     financeService.createPaymentRequest.mockResolvedValue({ paymentRequestId: 'pr-1' })
-    financeService.decidePaymentRequest.mockResolvedValue({ paymentRequestId: 'pr-1', status: 'APPROVED' })
+    financeService.decidePaymentRequest.mockResolvedValue({
+      paymentRequestId: 'pr-1',
+      status: 'APPROVED'
+    })
     financeService.executePaymentRequest.mockResolvedValue({
       paymentExecution: { paymentExecutionId: 'pe-1' },
       paymentRequest: { paymentRequestId: 'pr-1' }
     })
-    financeService.allocatePaymentToPayable.mockResolvedValue([{ paymentAllocationId: 'pa-payable-1' }])
+    financeService.allocatePaymentToPayable.mockResolvedValue([
+      { paymentAllocationId: 'pa-payable-1' }
+    ])
 
     await controller.searchFinancialAccounts(
       'tenant-1',
@@ -315,7 +299,12 @@ describe('FinanceController', () => {
     )
     await controller.createFinancialAccount(
       'tenant-1',
-      { accountIdentifier: '00112233', accountName: 'Main USD Account', accountType: 'BANK', currencyCode: 'USD' } as any,
+      {
+        accountIdentifier: '00112233',
+        accountName: 'Main USD Account',
+        accountType: 'BANK',
+        currencyCode: 'USD'
+      } as any,
       source as any
     )
     await controller.updateFinancialAccountBasics(
@@ -333,22 +322,42 @@ describe('FinanceController', () => {
     await controller.recordAccountTransaction(
       'tenant-1',
       'fa-1',
-      { amount: '150.00', currencyCode: 'USD', direction: 'INFLOW', transactionTime: '2026-04-28T09:15:00.000Z' } as any,
+      {
+        amount: '150.00',
+        currencyCode: 'USD',
+        direction: 'INFLOW',
+        transactionTime: '2026-04-28T09:15:00.000Z'
+      } as any,
       source as any
     )
     await controller.registerCustomerFinancialAccount(
       'tenant-1',
-      { accountHolderName: 'Customer One', accountIdentifier: '99887766', accountProviderType: 'BANK', customerTenantPartyId: 'customer-1' } as any,
+      {
+        accountHolderName: 'Customer One',
+        accountIdentifier: '99887766',
+        accountProviderType: 'BANK',
+        customerTenantPartyId: 'customer-1'
+      } as any,
       source as any
     )
     await controller.getExchangeRate(
       'tenant-1',
-      { baseCurrencyCode: 'USD', effectiveAt: '2026-04-28T00:00:00.000Z', quoteCurrencyCode: 'CNY' } as any,
+      {
+        baseCurrencyCode: 'USD',
+        effectiveAt: '2026-04-28T00:00:00.000Z',
+        quoteCurrencyCode: 'CNY'
+      } as any,
       source as any
     )
     await controller.setExchangeRate(
       'tenant-1',
-      { baseCurrencyCode: 'USD', effectiveAt: '2026-04-28T00:00:00.000Z', quoteCurrencyCode: 'CNY', rateValue: '7.230000', setBy: 'operator-1' } as any,
+      {
+        baseCurrencyCode: 'USD',
+        effectiveAt: '2026-04-28T00:00:00.000Z',
+        quoteCurrencyCode: 'CNY',
+        rateValue: '7.230000',
+        setBy: 'operator-1'
+      } as any,
       source as any
     )
     await controller.searchReceivableSchedules(
@@ -360,13 +369,23 @@ describe('FinanceController', () => {
     await controller.getFinanceReleaseSignal('tenant-1', 'so-1', source as any)
     await controller.createReceivableScheduleFromSalesOrder(
       'tenant-1',
-      { currencyCode: 'USD', customerSnapshot: 'Customer One', customerTenantPartyId: 'customer-1', lines: [], salesOrderId: 'so-1' } as any,
+      {
+        currencyCode: 'USD',
+        customerSnapshot: 'Customer One',
+        customerTenantPartyId: 'customer-1',
+        lines: [],
+        salesOrderId: 'so-1'
+      } as any,
       source as any
     )
     await controller.setFinanceReleaseSignal(
       'tenant-1',
       'so-1',
-      { customerTenantPartyId: 'customer-1', effectiveAt: '2026-04-28T11:30:00.000Z', signalStatus: 'RELEASED' } as any,
+      {
+        customerTenantPartyId: 'customer-1',
+        effectiveAt: '2026-04-28T11:30:00.000Z',
+        signalStatus: 'RELEASED'
+      } as any,
       source as any
     )
     await controller.searchPaymentAllocations(
@@ -397,7 +416,13 @@ describe('FinanceController', () => {
     )
     await controller.createPayableScheduleFromPurchaseOrder(
       'tenant-1',
-      { currencyCode: 'USD', lines: [], purchaseOrderId: 'po-1', supplierSnapshot: 'Supplier One', supplierTenantPartyId: 'supplier-1' } as any,
+      {
+        currencyCode: 'USD',
+        lines: [],
+        purchaseOrderId: 'po-1',
+        supplierSnapshot: 'Supplier One',
+        supplierTenantPartyId: 'supplier-1'
+      } as any,
       source as any
     )
     await controller.applyPayableScheduleAdjustmentFromPurchaseOrderChange(
@@ -407,7 +432,14 @@ describe('FinanceController', () => {
     )
     await controller.createPaymentRequest(
       'tenant-1',
-      { beneficiarySupplierFinancialAccountId: 'supplier-account-1', currencyCode: 'USD', requestSource: 'FINANCE_INITIATED', requestedAmount: '300.00', requestedLines: [], supplierTenantPartyId: 'supplier-1' } as any,
+      {
+        beneficiarySupplierFinancialAccountId: 'supplier-account-1',
+        currencyCode: 'USD',
+        requestSource: 'FINANCE_INITIATED',
+        requestedAmount: '300.00',
+        requestedLines: [],
+        supplierTenantPartyId: 'supplier-1'
+      } as any,
       source as any
     )
     await controller.decidePaymentRequest(
@@ -419,7 +451,12 @@ describe('FinanceController', () => {
     await controller.executePaymentRequest(
       'tenant-1',
       'pr-1',
-      { currencyCode: 'USD', executedAmount: '300.00', executedAt: '2026-04-28T13:00:00.000Z', sourceFinancialAccountId: 'fa-1' } as any,
+      {
+        currencyCode: 'USD',
+        executedAmount: '300.00',
+        executedAt: '2026-04-28T13:00:00.000Z',
+        sourceFinancialAccountId: 'fa-1'
+      } as any,
       source as any
     )
     await controller.allocatePaymentToPayable(

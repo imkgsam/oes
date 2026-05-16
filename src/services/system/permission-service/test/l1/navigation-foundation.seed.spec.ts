@@ -21,6 +21,9 @@ describe('navigation foundation seed', () => {
       'tenant-settings.login-mfa',
       'master-data.item-management',
       'master-data.item-category-management',
+      'master-data.item-attribute-management',
+      'master-data.item-packaging-management',
+      'master-data.item-bom-management',
       'master-data.supplier-management',
       'master-data.customer-management',
       'sales.quote-orders',
@@ -31,7 +34,9 @@ describe('navigation foundation seed', () => {
       'admin.platform-mfa',
       'admin.permission-management',
       'admin.policy-governance',
-      'admin.navigation-management'
+      'admin.navigation-management',
+      'pda.home',
+      'kiosk.home'
     ])
   })
 
@@ -49,6 +54,9 @@ describe('navigation foundation seed', () => {
       '租户 MFA 配置',
       'Item 管理',
       'Item 分类管理',
+      'Item 属性管理',
+      'Item 包装管理',
+      'Item BOM 管理',
       '供应商管理',
       '客户管理',
       '报价与订单',
@@ -59,7 +67,9 @@ describe('navigation foundation seed', () => {
       '平台 MFA 配置',
       '权限管理',
       '策略治理',
-      '导航管理'
+      '导航管理',
+      'PDA 首页',
+      '触摸屏首页'
     ])
   })
 
@@ -291,6 +301,24 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'template-item-product-data-manager',
         entryKey: 'master-data.item-category-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-item-product-data-manager',
+        entryKey: 'master-data.item-attribute-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-item-product-data-manager',
+        entryKey: 'master-data.item-packaging-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-item-product-data-manager',
+        entryKey: 'master-data.item-bom-management',
         terminal: 'DEFAULT',
         enabled: true
       },

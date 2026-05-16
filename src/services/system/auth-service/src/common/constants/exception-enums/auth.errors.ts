@@ -218,6 +218,13 @@ export const AUTH_PERMISSION_UPSTREAM_UNAVAILABLE: ExceptionDefinition = {
   rpcStatus: status.UNAVAILABLE
 }
 
+export const AUTH_TERMINAL_ACCESS_DENIED: ExceptionDefinition = {
+  code: 'AUTH_TERMINAL_ACCESS_DENIED',
+  message: 'Terminal access denied',
+  messageKey: 'auth.terminal_access_denied',
+  rpcStatus: status.PERMISSION_DENIED
+}
+
 export const AUTH_NOTIFICATION_UPSTREAM_UNAVAILABLE: ExceptionDefinition = {
   code: 'AUTH_NOTIFICATION_UPSTREAM_UNAVAILABLE',
   message: 'Notification upstream is unavailable for OTP delivery',

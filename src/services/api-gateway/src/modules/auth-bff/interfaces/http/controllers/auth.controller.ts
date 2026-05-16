@@ -1,14 +1,36 @@
-import { Body, Controller, Delete, Get, Headers, HttpCode, Ip, Param, Patch, Post, Put, Query, UploadedFile, UseInterceptors } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  Ip,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Query,
+  UploadedFile,
+  UseInterceptors
+} from '@nestjs/common'
 import { FileInterceptor } from '@nestjs/platform-express'
-import { ApiBody, ApiConsumes, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger'
+import {
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags
+} from '@nestjs/swagger'
 import { Public } from '@oes/common/auth'
 import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
-  PermissionCheckAll,
-  PermissionCheckAny
+  RequirePermissions
 } from '@oes/common/authorization'
 import {
   AdminAccountDirectoryQueryDto,
@@ -193,7 +215,8 @@ export class AuthController {
         requestId: source.requestId,
         traceId: source.traceId
       },
-      { userAgent, ipAddress }
+      { userAgent, ipAddress },
+      'WEB'
     )
   }
 
@@ -408,14 +431,16 @@ export class AuthController {
         requestId: source.requestId,
         traceId: source.traceId
       },
-      { userAgent, ipAddress }
+      { userAgent, ipAddress },
+      'WEB'
     )
   }
 
   @Post('first-login/password')
   @ApiOperation({
     summary: 'Complete first-login password setup',
-    description: 'Sets the first password for an OTP-authenticated invited user before the workspace becomes available.'
+    description:
+      'Sets the first password for an OTP-authenticated invited user before the workspace becomes available.'
   })
   async completeFirstLoginPasswordSetup(
     @Body() dto: FirstLoginPasswordSetupDto,
@@ -543,7 +568,8 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     type: SessionAccessSummaryViewModel,
-    description: 'Returns the current account roles and effective action codes resolved by permission-service.'
+    description:
+      'Returns the current account roles and effective action codes resolved by permission-service.'
   })
   async getSessionAccessSummary(
     @DownstreamSource() source: DownstreamRequestSource
@@ -560,7 +586,8 @@ export class AuthController {
   @ApiResponse({
     status: 200,
     type: SessionContextListViewModel,
-    description: 'Returns the authenticated user account contexts that can be displayed in the context-switch flow.'
+    description:
+      'Returns the authenticated user account contexts that can be displayed in the context-switch flow.'
   })
   async listSessionContexts(
     @DownstreamSource() source: DownstreamRequestSource
@@ -595,13 +622,16 @@ export class AuthController {
   @Get('sessions')
   @ApiOperation({
     summary: 'List the authenticated user sessions',
-    description: 'Returns the currently authenticated user session inventory for self-service device management.'
+    description:
+      'Returns the currently authenticated user session inventory for self-service device management.'
   })
   @ApiResponse({
     status: 200,
     type: SelfSessionListViewModel
   })
-  async listSessions(@DownstreamSource() source: DownstreamRequestSource): Promise<SelfSessionListViewModel> {
+  async listSessions(
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<SelfSessionListViewModel> {
     return this.sessionSelfServiceUseCase.listSessions(source)
   }
 
@@ -657,7 +687,8 @@ export class AuthController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Change own password',
-    description: 'Changes the authenticated user password after auth-service verifies the current password.'
+    description:
+      'Changes the authenticated user password after auth-service verifies the current password.'
   })
   @ApiBody({ type: ChangeOwnPasswordDto })
   @ApiResponse({
@@ -675,7 +706,8 @@ export class AuthController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Start one authenticated step-up MFA challenge',
-    description: 'Creates a reusable MFA challenge for one protected in-session security scenario when tenant policy requires it.'
+    description:
+      'Creates a reusable MFA challenge for one protected in-session security scenario when tenant policy requires it.'
   })
   @ApiBody({ type: StartStepUpMfaChallengeDto })
   @ApiResponse({
@@ -693,7 +725,8 @@ export class AuthController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Complete one authenticated step-up MFA challenge',
-    description: 'Verifies the selected MFA factor for a protected self-service scenario and returns a short-lived scenario grant token.'
+    description:
+      'Verifies the selected MFA factor for a protected self-service scenario and returns a short-lived scenario grant token.'
   })
   @ApiBody({ type: CompleteStepUpMfaChallengeDto })
   @ApiResponse({
@@ -711,7 +744,8 @@ export class AuthController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Request self-service email binding challenge',
-    description: 'Sends an OTP to a new email address so the authenticated user can verify and bind it.'
+    description:
+      'Sends an OTP to a new email address so the authenticated user can verify and bind it.'
   })
   @ApiBody({ type: RequestEmailContactBindingChallengeDto })
   @ApiResponse({
@@ -747,7 +781,8 @@ export class AuthController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Request self-service phone binding challenge',
-    description: 'Sends an OTP to a new phone number so the authenticated user can verify and bind it.'
+    description:
+      'Sends an OTP to a new phone number so the authenticated user can verify and bind it.'
   })
   @ApiBody({ type: RequestPhoneContactBindingChallengeDto })
   @ApiResponse({
@@ -801,7 +836,8 @@ export class AuthController {
   @HttpCode(200)
   @ApiOperation({
     summary: 'Disable one self-service login method',
-    description: 'Disables one login method owned by the authenticated user if another usable method remains.'
+    description:
+      'Disables one login method owned by the authenticated user if another usable method remains.'
   })
   @ApiParam({ name: 'methodId' })
   @ApiResponse({
@@ -818,13 +854,16 @@ export class AuthController {
   @Post('logout')
   @ApiOperation({
     summary: 'Logout the current session',
-    description: 'Revokes the currently authenticated session using the session context resolved from the access token.'
+    description:
+      'Revokes the currently authenticated session using the session context resolved from the access token.'
   })
   @ApiResponse({
     status: 200,
     type: SessionMutationViewModel
   })
-  async logout(@DownstreamSource() source: DownstreamRequestSource): Promise<SessionMutationViewModel> {
+  async logout(
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<SessionMutationViewModel> {
     return this.sessionSelfServiceUseCase.logout(source)
   }
 
@@ -906,7 +945,9 @@ export class AuthController {
     status: 200,
     type: SessionMutationViewModel
   })
-  async logoutAll(@DownstreamSource() source: DownstreamRequestSource): Promise<SessionMutationViewModel> {
+  async logoutAll(
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<SessionMutationViewModel> {
     return this.sessionSelfServiceUseCase.logoutAll(source)
   }
 
@@ -977,7 +1018,8 @@ export class AuthController {
   @Post('mfa/totp/activate')
   @ApiOperation({
     summary: 'Activate TOTP binding',
-    description: 'Confirms a previously initialized TOTP binding with the authenticator verification code.'
+    description:
+      'Confirms a previously initialized TOTP binding with the authenticator verification code.'
   })
   @ApiBody({ type: ActivateTotpBindingDto })
   @ApiResponse({
@@ -1022,7 +1064,7 @@ export class AuthController {
   }
 
   @Get('admin/online-users')
-  @PermissionCheckAll([AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS])
+  @RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS] })
   @ApiOperation({
     summary: 'List online users visible to the administrator',
     description:
@@ -1044,7 +1086,7 @@ export class AuthController {
   }
 
   @Get('admin/accounts')
-  @PermissionCheckAll([IDENTITY_ACCOUNT_PERMISSION_CODES.LIST_ACCOUNT])
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.LIST_ACCOUNT] })
   @ApiOperation({
     summary: 'List accounts for account management',
     description:
@@ -1068,7 +1110,7 @@ export class AuthController {
   }
 
   @Get('admin/accounts/:accountId/profile')
-  @PermissionCheckAll([IDENTITY_ACCOUNT_PERMISSION_CODES.LIST_ACCOUNT])
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.LIST_ACCOUNT] })
   @ApiOperation({
     summary: 'Get one account basic-info profile',
     description:
@@ -1090,10 +1132,11 @@ export class AuthController {
   }
 
   @Get('admin/accounts/:accountId/deletion-impact')
-  @PermissionCheckAll([IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT])
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT] })
   @ApiOperation({
     summary: 'Get one account deletion impact preview',
-    description: 'Returns blockers and cleanup preview data before an administrator permanently deletes one account.'
+    description:
+      'Returns blockers and cleanup preview data before an administrator permanently deletes one account.'
   })
   @ApiParam({ name: 'accountId' })
   @ApiResponse({
@@ -1108,10 +1151,11 @@ export class AuthController {
   }
 
   @Post('admin/accounts')
-  @PermissionCheckAll([IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT])
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT] })
   @ApiOperation({
     summary: 'Create one admin-managed human account',
-    description: 'Creates one USER account, bootstraps login methods, dispatches an invitation, and optionally assigns initial roles.'
+    description:
+      'Creates one USER account, bootstraps login methods, dispatches an invitation, and optionally assigns initial roles.'
   })
   async adminCreateAccount(
     @Body() body: CreateAdminAccountDto,
@@ -1121,10 +1165,12 @@ export class AuthController {
   }
 
   @Patch('admin/accounts/:accountId/profile')
-  @PermissionCheckAny([
-    IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE,
-    IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_STATUS
-  ])
+  @RequirePermissions({
+    any: [
+      IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE,
+      IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_STATUS
+    ]
+  })
   @ApiOperation({
     summary: 'Update one account basic-info profile',
     description:
@@ -1148,7 +1194,7 @@ export class AuthController {
   }
 
   @Delete('admin/accounts/:accountId')
-  @PermissionCheckAll([IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT])
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT] })
   @ApiOperation({
     summary: 'Delete one account permanently',
     description:
@@ -1167,10 +1213,11 @@ export class AuthController {
   }
 
   @Get('admin/accounts/:accountId/login-methods')
-  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS])
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS] })
   @ApiOperation({
     summary: 'List account login methods',
-    description: 'Returns login-method status for the user behind one administrator-managed account.'
+    description:
+      'Returns login-method status for the user behind one administrator-managed account.'
   })
   @ApiParam({ name: 'accountId' })
   @ApiResponse({
@@ -1185,7 +1232,7 @@ export class AuthController {
   }
 
   @Post('admin/accounts/:accountId/password/setup-required')
-  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS])
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS] })
   @ApiOperation({
     summary: 'Require account password setup',
     description:
@@ -1206,7 +1253,7 @@ export class AuthController {
   }
 
   @Post('admin/accounts/:accountId/login-methods/:methodId/enable')
-  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS])
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS] })
   @ApiOperation({
     summary: 'Enable account login method',
     description: 'Enables one login method for the user behind an administrator-managed account.'
@@ -1234,7 +1281,7 @@ export class AuthController {
   }
 
   @Post('admin/accounts/:accountId/login-methods/:methodId/disable')
-  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS])
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS] })
   @ApiOperation({
     summary: 'Disable account login method',
     description:
@@ -1263,7 +1310,7 @@ export class AuthController {
   }
 
   @Get('admin/tenant-mfa-policy')
-  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_TENANT_MFA_POLICY])
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_TENANT_MFA_POLICY] })
   @ApiOperation({
     summary: 'Get tenant login MFA policy',
     description:
@@ -1280,7 +1327,7 @@ export class AuthController {
   }
 
   @Get('admin/platform-mfa-policy')
-  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_PLATFORM_MFA_POLICY])
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_PLATFORM_MFA_POLICY] })
   @ApiOperation({
     summary: 'Get platform MFA policy',
     description:
@@ -1297,7 +1344,7 @@ export class AuthController {
   }
 
   @Put('admin/tenant-mfa-policy')
-  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_TENANT_MFA_POLICY])
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_TENANT_MFA_POLICY] })
   @ApiOperation({
     summary: 'Update tenant login MFA policy',
     description:
@@ -1316,7 +1363,7 @@ export class AuthController {
   }
 
   @Put('admin/platform-mfa-policy')
-  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_PLATFORM_MFA_POLICY])
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_PLATFORM_MFA_POLICY] })
   @ApiOperation({
     summary: 'Update platform MFA policy',
     description:
@@ -1335,7 +1382,7 @@ export class AuthController {
   }
 
   @Get('admin/account-tenant-options')
-  @PermissionCheckAll([IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT])
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT] })
   @ApiOperation({
     summary: 'List tenant options for account creation selectors',
     description: 'Returns tenant selector rows for system-scope account creation flows.'
@@ -1354,7 +1401,7 @@ export class AuthController {
   }
 
   @Get('admin/users/search')
-  @PermissionCheckAll([AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS])
+  @RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS] })
   @ApiOperation({
     summary: 'Search users for admin session management',
     description:
@@ -1374,7 +1421,7 @@ export class AuthController {
   }
 
   @Get('admin/users/:userId/sessions')
-  @PermissionCheckAll([AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS])
+  @RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS] })
   @ApiOperation({
     summary: 'List another user session inventory',
     description: 'Returns the sessions visible to an authorized administrator for the target user.'
@@ -1395,7 +1442,7 @@ export class AuthController {
   }
 
   @Post('admin/sessions/:sessionId/revoke')
-  @PermissionCheckAll([AUTH_SESSION_PERMISSION_CODES.ADMIN_REVOKE_SESSION])
+  @RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_REVOKE_SESSION] })
   @ApiOperation({
     summary: 'Revoke one concrete user session',
     description: 'Performs an administrator-driven session revocation for the target session.'
@@ -1418,10 +1465,11 @@ export class AuthController {
   }
 
   @Get('admin/audit-events')
-  @PermissionCheckAll([AUTH_MANAGEMENT_PERMISSION_CODES.VIEW_AUDIT_EVENT])
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.VIEW_AUDIT_EVENT] })
   @ApiOperation({
     summary: 'List auth audit events',
-    description: 'Returns the auth-domain audit events visible to the authorized administrative caller.'
+    description:
+      'Returns the auth-domain audit events visible to the authorized administrative caller.'
   })
   @ApiQuery({ name: 'service', required: false })
   @ApiQuery({ name: 'module', required: false })

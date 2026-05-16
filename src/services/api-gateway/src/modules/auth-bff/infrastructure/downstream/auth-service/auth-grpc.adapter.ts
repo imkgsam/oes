@@ -112,6 +112,7 @@ export class AuthGrpcAdapter implements OnModuleInit {
       deviceName?: string
       userAgent?: string
       ipAddress?: string
+      terminal?: string
     },
     source: DownstreamRequestSource
   ): Promise<LoginResponse> {
@@ -123,8 +124,13 @@ export class AuthGrpcAdapter implements OnModuleInit {
     )
   }
 
-  loginWithEmailOtp(email: string, otp: string, source: DownstreamRequestSource): Promise<LoginResponse> {
-    const request: LoginWithEmailOtpRequest = { email, otp }
+  loginWithEmailOtp(
+    email: string,
+    otp: string,
+    terminal: string | undefined,
+    source: DownstreamRequestSource
+  ): Promise<LoginResponse> {
+    const request: LoginWithEmailOtpRequest = { email, otp, terminal }
 
     return this.call('loginWithEmailOtp', this.svc.loginWithEmailOtp(request, this.metadata(source)))
   }
@@ -163,6 +169,7 @@ export class AuthGrpcAdapter implements OnModuleInit {
       deviceName?: string
       userAgent?: string
       ipAddress?: string
+      terminal?: string
     },
     source: DownstreamRequestSource
   ): Promise<LoginResponse> {
@@ -174,8 +181,13 @@ export class AuthGrpcAdapter implements OnModuleInit {
     )
   }
 
-  loginWithPhoneOtp(phone: string, otp: string, source: DownstreamRequestSource): Promise<LoginResponse> {
-    const request: LoginWithPhoneOtpRequest = { phone, otp }
+  loginWithPhoneOtp(
+    phone: string,
+    otp: string,
+    terminal: string | undefined,
+    source: DownstreamRequestSource
+  ): Promise<LoginResponse> {
+    const request: LoginWithPhoneOtpRequest = { phone, otp, terminal }
 
     return this.call('loginWithPhoneOtp', this.svc.loginWithPhoneOtp(request, this.metadata(source)))
   }
@@ -306,6 +318,7 @@ export class AuthGrpcAdapter implements OnModuleInit {
       deviceName?: string
       userAgent?: string
       ipAddress?: string
+      terminal?: string
     },
     source: DownstreamRequestSource
   ): Promise<SelectAccountResponse> {

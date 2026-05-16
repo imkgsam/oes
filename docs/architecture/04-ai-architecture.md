@@ -1,5 +1,7 @@
 # OES AI 增强架构
 
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述 AI 场景如何消费授权与 policy 能力。
+
 ## 1. AI 在 OES 中的定位
 
 OES 中的 AI 不是一个孤立系统，也不是一个只负责调用大模型接口的技术附属模块。

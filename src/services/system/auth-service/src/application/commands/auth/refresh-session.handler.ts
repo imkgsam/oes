@@ -7,7 +7,8 @@ import { REPO } from '../../../common/constants'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import {
   AUTH_REFRESH_TOKEN_INVALID,
-  AUTH_REFRESH_TOKEN_REPLAY_DETECTED
+  AUTH_REFRESH_TOKEN_REPLAY_DETECTED,
+  AUTH_TERMINAL_ACCESS_DENIED
 } from '../../../common/constants/exception-enums'
 import { IPermissionServicePort } from '../../ports'
 import { AuthAuditService } from '../../services/auth-audit.service'
@@ -20,6 +21,8 @@ import { RefreshSessionCommand } from './refresh-session.command'
 
 export interface RefreshSessionResult {
   sessionId: string
+  terminal: string
+  allowedTerminals: string[]
   accessToken: string
   refreshToken: string
   expiresIn: number
@@ -77,6 +80,7 @@ export class RefreshSessionHandler
     }
 
     await this.assertTenantSessionCanContinue(session)
+    const terminalAccess = await this.assertTerminalAccessCanContinue(session)
 
     const signOptions = {
       ...(tokenConfig.issuer ? { issuer: tokenConfig.issuer } : {}),
@@ -94,6 +98,8 @@ export class RefreshSessionHandler
         session.getAccountId(),
         session.getTenantId(),
         session.getScopeLevel(),
+        session.getTerminal(),
+        terminalAccess.effectiveAllowedTerminals,
         roleIds,
         'access',
         passwordSetupRequired
@@ -108,6 +114,8 @@ export class RefreshSessionHandler
         session.getAccountId(),
         session.getTenantId(),
         session.getScopeLevel(),
+        session.getTerminal(),
+        terminalAccess.effectiveAllowedTerminals,
         roleIds,
         'refresh',
         passwordSetupRequired
@@ -134,6 +142,8 @@ export class RefreshSessionHandler
 
     const result = {
       sessionId: session.getId(),
+      terminal: session.getTerminal(),
+      allowedTerminals: terminalAccess.effectiveAllowedTerminals,
       accessToken,
       refreshToken: nextRefreshToken,
       expiresIn: tokenConfig.accessTokenValidity
@@ -141,6 +151,40 @@ export class RefreshSessionHandler
 
     this.authAuditService.emitSessionRefreshed(session)
     return result
+  }
+
+  /** assertTerminalAccessCanContinue blocks refresh when the session-bound terminal is no longer allowed. */
+  private async assertTerminalAccessCanContinue(session: Session) {
+    const terminalAccess = await this.permissionService.resolveAccountTerminalAccess({
+      accountId: session.getAccountId(),
+      tenantId: session.getTenantId(),
+      scopeLevel: session.getScopeLevel(),
+      terminal: session.getTerminal()
+    })
+
+    if (!terminalAccess.allowed) {
+      this.authAuditService.emitTerminalAccessDenied({
+        accountId: session.getAccountId(),
+        userId: session.getUserId(),
+        tenantId: session.getTenantId(),
+        scopeLevel: session.getScopeLevel(),
+        terminal: session.getTerminal(),
+        reasonCode: terminalAccess.reasonCode,
+        phase: 'REFRESH',
+        sessionId: session.getId()
+      })
+      await this.sessionRepository.delete(session.getId())
+      throw ExceptionFactory.domain(AUTH_TERMINAL_ACCESS_DENIED, {
+        sessionId: session.getId(),
+        accountId: session.getAccountId(),
+        tenantId: session.getTenantId(),
+        scopeLevel: session.getScopeLevel(),
+        terminal: session.getTerminal(),
+        reasonCode: terminalAccess.reasonCode
+      })
+    }
+
+    return terminalAccess
   }
 
   /** assertTenantSessionCanContinue blocks refresh token rotation when tenant lifecycle no longer allows session use. */
@@ -216,6 +260,8 @@ export class RefreshSessionHandler
     accountId: string,
     tenantId: string | null,
     scopeLevel: 'SYSTEM' | 'TENANT',
+    terminal: string,
+    allowedTerminals: string[],
     roleIds: string[],
     tokenType: 'access' | 'refresh',
     passwordSetupRequired: boolean
@@ -226,6 +272,8 @@ export class RefreshSessionHandler
       aid: accountId,
       ...(tenantId ? { tid: tenantId } : {}),
       scopeLevel,
+      terminal,
+      allowedTerminals,
       passwordSetupRequired,
       roles: roleIds,
       tokenType

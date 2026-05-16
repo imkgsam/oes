@@ -262,7 +262,7 @@ Place the static route before the parameterized `admin/users/:userId/sessions` r
 
 ```ts
 @Get('admin/users/search')
-@PermissionCheckAll([AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS])
+@RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS] })
 @ApiOperation({ summary: 'Search users for admin session management' })
 @ApiQuery({ name: 'keyword', required: true })
 @ApiQuery({ name: 'limit', required: false, type: Number })
@@ -439,7 +439,7 @@ Do not mark the feature complete if any verification command was skipped or fail
 
 - Do not add username/login-handle search in this implementation slice; that would prematurely freeze identity login handle semantics.
 - Do not treat `identity.username` as real name, display name, or account display name.
-- Real-name search belongs to a future `entity-service` collaboration because real names are not globally unique and are not identity-service truth.
+- Real-name search belongs to a future `party-service` collaboration because real names are not globally unique and are not identity-service truth.
 - `activeSessionCount` is an N-call aggregation for at most 10 users in phase one. Keep it simple now; only introduce a batch auth-service endpoint if this becomes a measured performance issue.
 - Tenant-bound operators must not see account summaries outside their current tenant. Use `source.user.tenantId || source.user.tid` as the BFF-side safety filter even if downstream also enforces visibility.
 - Do not add roles, permissions, full user directory pagination, tenant selector, display-name fuzzy search, or real-name search in this implementation slice.

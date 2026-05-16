@@ -1,10 +1,13 @@
 import { Controller, UseGuards, UseInterceptors } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
 import {
+  RequirePermissions,
   AuthenticatedOperatorGuard,
   GrpcRequestContextInterceptor,
   InternalServiceGuard,
-  RequireAuthenticatedOperator
+  PermissionGuard,
+  RequireAuthenticatedOperator,
+  TENANT_ORG_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
 import {
   ArchiveOrgUnitRequest,
@@ -34,12 +37,16 @@ import {
   UpdateTenantProfileRequest,
   UpdateTenantProfileResponse
 } from '@oes/common/generated/tenant_org_service'
-import { TenantOnboardingResult, TenantOnboardingService, TenantOrgManagementService } from '../../application/services'
+import {
+  TenantOnboardingResult,
+  TenantOnboardingService,
+  TenantOrgManagementService
+} from '../../application/services'
 
 /** TenantOrgManagementGrpcController exposes tenant/org management contracts over gRPC. */
 @Controller()
 @RequireAuthenticatedOperator()
-@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)
+@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
 @UseInterceptors(GrpcRequestContextInterceptor)
 @TenantOrgManagementServiceControllerMethods()
 export class TenantOrgManagementGrpcController implements TenantOrgManagementServiceController {
@@ -48,6 +55,7 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     private readonly tenantOnboardingService: TenantOnboardingService
   ) {}
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT] })
   async createTenant(
     _request: CreateTenantRequest,
     _metadata?: Metadata
@@ -63,6 +71,7 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT] })
   async startTenantOnboarding(
     request: StartTenantOnboardingRequest,
     _metadata?: Metadata
@@ -92,27 +101,39 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
         email: request.firstAdmin?.email || undefined,
         existingUserId: request.firstAdmin?.existingUserId || undefined,
         phone: request.firstAdmin?.phone || undefined,
-        provisioningMode: request.firstAdmin?.provisioningMode === 'EXISTING_USER' ? 'EXISTING_USER' : 'CREATE_NEW_USER',
+        provisioningMode:
+          request.firstAdmin?.provisioningMode === 'EXISTING_USER'
+            ? 'EXISTING_USER'
+            : 'CREATE_NEW_USER',
         requirePasswordSetup: request.firstAdmin?.requirePasswordSetup ?? true
       }
     })
     return { onboarding: mapOnboarding(onboarding) }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_TENANT_DETAIL] })
   async getTenantOnboarding(
     request: GetTenantOnboardingRequest,
     _metadata?: Metadata
   ): Promise<GetTenantOnboardingResponse> {
-    return { onboarding: mapOnboarding(await this.tenantOnboardingService.get(request.onboardingId ?? '')) }
+    return {
+      onboarding: mapOnboarding(await this.tenantOnboardingService.get(request.onboardingId ?? ''))
+    }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT] })
   async retryTenantOnboarding(
     request: RetryTenantOnboardingRequest,
     _metadata?: Metadata
   ): Promise<RetryTenantOnboardingResponse> {
-    return { onboarding: mapOnboarding(await this.tenantOnboardingService.retry(request.onboardingId ?? '')) }
+    return {
+      onboarding: mapOnboarding(
+        await this.tenantOnboardingService.retry(request.onboardingId ?? '')
+      )
+    }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_PROFILE] })
   async updateTenantProfile(
     _request: UpdateTenantProfileRequest,
     _metadata?: Metadata
@@ -125,6 +146,7 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { tenant: mapTenant(tenant) }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_STATUS] })
   async suspendTenant(
     _request: SuspendTenantRequest,
     _metadata?: Metadata
@@ -136,6 +158,7 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { tenant: mapTenant(tenant) }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_STATUS] })
   async reactivateTenant(
     _request: ReactivateTenantRequest,
     _metadata?: Metadata
@@ -146,6 +169,7 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { tenant: mapTenant(tenant) }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_STATUS] })
   async archiveTenant(
     _request: ArchiveTenantRequest,
     _metadata?: Metadata
@@ -157,6 +181,7 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { tenant: mapTenant(tenant) }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_ORG_UNIT] })
   async createOrgUnit(
     _request: CreateOrgUnitRequest,
     _metadata?: Metadata
@@ -172,6 +197,7 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { orgUnit: mapOrgUnit(orgUnit) }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_ORG_UNIT] })
   async updateOrgUnit(
     _request: UpdateOrgUnitRequest,
     _metadata?: Metadata
@@ -187,12 +213,13 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
       type: _request.type || undefined,
       sortOrder: _request.sortOrder,
       organizationPartyId: hasOrganizationPartyId
-        ? (_request.organizationPartyId?.trim() || null)
+        ? _request.organizationPartyId?.trim() || null
         : undefined
     })
     return { orgUnit: mapOrgUnit(orgUnit) }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_ORG_UNIT] })
   async moveOrgUnit(
     _request: MoveOrgUnitRequest,
     _metadata?: Metadata
@@ -205,6 +232,7 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     return { orgUnit: mapOrgUnit(orgUnit) }
   }
 
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.ARCHIVE_ORG_UNIT] })
   async archiveOrgUnit(
     _request: ArchiveOrgUnitRequest,
     _metadata?: Metadata

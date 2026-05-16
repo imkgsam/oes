@@ -54,6 +54,7 @@ describe('SelectAccountUseCase', () => {
         deviceName: 'Alice MacBook Pro',
         userAgent: 'Mozilla/5.0',
         ipAddress: '1.1.1.1',
+        terminal: 'WEB',
       },
       expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' }),
     )

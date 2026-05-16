@@ -398,7 +398,7 @@ ResolveNavigationPreviewDto
 
 - [ ] **Step 3: Implement controller and adapter**
 
-Use existing `@RequirePermission` / Gateway guard pattern from role and permission controllers.
+Use existing `@RequirePermissions` / Gateway guard pattern from role and permission controllers.
 
 - [ ] **Step 4: Run Gateway tests**
 

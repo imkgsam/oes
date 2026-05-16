@@ -41,13 +41,16 @@ import {
   disableAdminAccountLoginMethodApi,
   enableAdminAccountLoginMethodApi,
   getAccountRoleSelectionApi,
+  getAccountTerminalAccessApi,
   getAdminAccountBasicInfoApi,
   getAdminAccountDeletionImpactApi,
   listAdminAccountLoginMethodsApi,
   listAdminAccountsApi,
   listAdminAccountTenantOptionsApi,
   requireAdminAccountPasswordSetupApi,
+  replaceAccountTerminalAccessOverrideApi,
   setAccountRolesApi,
+  deleteAccountTerminalAccessOverrideApi,
   updateAdminAccountBasicInfoApi,
 } from '#/api';
 import { useAuthContextStore } from '#/store/auth-context';
@@ -82,6 +85,7 @@ interface AccountFilterState {
 }
 
 type AccountActionKey = 'basicInfo' | 'delete' | 'loginMethods' | 'roles';
+type AccountTerminal = 'KIOSK' | 'PDA' | 'WEB';
 
 const authContextStore = useAuthContextStore();
 const createAccountForm = reactive<CreateAccountFormState>({
@@ -103,10 +107,15 @@ const accountLoading = ref(false);
 const roleDrawerOpen = ref(false);
 const roleLoading = ref(false);
 const roleSaving = ref(false);
+const terminalAccessLoading = ref(false);
+const terminalAccessSaving = ref(false);
 const roleKeyword = ref('');
 const selectedAccount = ref<AccountManagementRow | null>(null);
 const availableRoles = ref<AccountRoleManagementApi.Role[]>([]);
 const selectedRoleIds = ref<string[]>([]);
+const terminalOverrideEnabled = ref(false);
+const effectiveAllowedTerminals = ref<AccountTerminal[]>([]);
+const terminalOverrideValues = ref<AccountTerminal[]>([]);
 const createModalOpen = ref(false);
 const createSaving = ref(false);
 const tenantOptionLoading = ref(false);
@@ -146,6 +155,12 @@ const canReadAccountRoles = computed(() =>
 const canSetAccountRoles = computed(() =>
   authContextStore.actionCodes.includes('permission.account.assign_roles'),
 );
+const canViewTerminalAccess = computed(() =>
+  authContextStore.actionCodes.includes('permission.terminal_access.view'),
+);
+const canManageAccountTerminalAccess = computed(() =>
+  authContextStore.actionCodes.includes('permission.terminal_access.account.manage'),
+);
 const canCreateAccount = computed(() =>
   authContextStore.actionCodes.includes('identity.account.create'),
 );
@@ -164,6 +179,11 @@ const canManageLoginMethods = computed(() =>
 const currentAccountId = computed(
   () => authContextStore.sessionContext?.account?.accountId ?? '',
 );
+const terminalAccessOptions: Array<{ label: string; value: AccountTerminal }> = [
+  { label: 'WEB', value: 'WEB' },
+  { label: 'PDA', value: 'PDA' },
+  { label: 'KIOSK', value: 'KIOSK' },
+];
 
 const filteredRoles = computed(() => {
   const keyword = roleKeyword.value.trim().toLowerCase();
@@ -345,6 +365,13 @@ function getAccountDisplayName(record: AccountManagementRow) {
   return record.accountDisplayName?.trim() || record.userDisplayName?.trim() || '未命名账号';
 }
 
+// Keeps terminal access values limited to the Phase 1 UI terminals.
+function normalizeAccountTerminals(terminals?: string[]) {
+  return [...(terminals ?? [])].filter((terminal): terminal is AccountTerminal =>
+    terminalAccessOptions.some((option) => option.value === terminal),
+  );
+}
+
 // Loads the account directory with the current filter state and pagination.
 async function loadAccountDirectory(
   page = accountPagination.current,
@@ -437,22 +464,104 @@ async function openRoleConfig(account: AccountManagementRow) {
   selectedAccount.value = account;
   roleDrawerOpen.value = true;
   roleLoading.value = true;
+  terminalAccessLoading.value = canViewTerminalAccess.value;
   roleKeyword.value = '';
   availableRoles.value = [];
   selectedRoleIds.value = [];
+  effectiveAllowedTerminals.value = [];
+  terminalOverrideValues.value = [];
+  terminalOverrideEnabled.value = false;
 
   try {
-    const result = await getAccountRoleSelectionApi(account.accountId, {
+    const scopeContext = {
       scopeLevel: account.scopeLevel,
       tenantId: account.scopeLevel === 'TENANT' ? account.tenantId : undefined,
-    });
+    };
+    const [result, terminalAccess] = await Promise.all([
+      getAccountRoleSelectionApi(account.accountId, scopeContext),
+      canViewTerminalAccess.value
+        ? getAccountTerminalAccessApi(account.accountId, scopeContext)
+        : Promise.resolve(null),
+    ]);
     availableRoles.value = result.availableRoles ?? [];
     selectedRoleIds.value = [...(result.selectedRoleIds ?? [])];
+    if (terminalAccess) {
+      const effectiveTerminals = normalizeAccountTerminals(
+        terminalAccess.effectiveAllowedTerminals,
+      );
+      effectiveAllowedTerminals.value = effectiveTerminals;
+      terminalOverrideEnabled.value = Boolean(terminalAccess.hasOverride);
+      terminalOverrideValues.value = terminalOverrideEnabled.value
+        ? [...effectiveTerminals]
+        : [];
+    }
   } catch {
     message.error('角色配置加载失败，请稍后重试');
   } finally {
     roleLoading.value = false;
+    terminalAccessLoading.value = false;
   }
+}
+
+// Persists the account-level terminal access override mutation and refreshes the effective snapshot.
+async function persistAccountTerminalAccess() {
+  if (!selectedAccount.value || !canManageAccountTerminalAccess.value) {
+    return;
+  }
+
+  const scopeContext = {
+    scopeLevel: selectedAccount.value.scopeLevel,
+    tenantId:
+      selectedAccount.value.scopeLevel === 'TENANT'
+        ? selectedAccount.value.tenantId
+        : undefined,
+  };
+
+  terminalAccessSaving.value = true;
+
+  try {
+    const result = terminalOverrideEnabled.value
+      ? await replaceAccountTerminalAccessOverrideApi(selectedAccount.value.accountId, {
+          ...scopeContext,
+          allowedTerminals: terminalOverrideValues.value,
+        })
+      : await deleteAccountTerminalAccessOverrideApi(
+          selectedAccount.value.accountId,
+          scopeContext,
+        );
+    const effectiveTerminals = normalizeAccountTerminals(
+      result.effectiveAllowedTerminals,
+    );
+    effectiveAllowedTerminals.value = effectiveTerminals;
+    terminalOverrideEnabled.value = Boolean(result.hasOverride);
+    terminalOverrideValues.value = terminalOverrideEnabled.value
+      ? [...effectiveTerminals]
+      : [];
+    message.success('账号终端准入已保存');
+  } catch {
+    message.error('账号终端准入保存失败，请稍后重试');
+  } finally {
+    terminalAccessSaving.value = false;
+  }
+}
+
+// Confirms full terminal lockout before saving an empty account-level override.
+function saveAccountTerminalAccess() {
+  if (terminalOverrideEnabled.value && terminalOverrideValues.value.length === 0) {
+    Modal.confirm({
+      centered: true,
+      content: '开启账号专属终端准入但不选择任何终端，会封禁该账号从所有终端登录。',
+      okText: '确认封禁',
+      okType: 'danger',
+      title: '确认封禁该账号全部终端登录？',
+      async onOk() {
+        await persistAccountTerminalAccess();
+      },
+    });
+    return;
+  }
+
+  void persistAccountTerminalAccess();
 }
 
 function resetBasicInfoForm() {
@@ -1265,6 +1374,66 @@ onMounted(() => {
             </div>
           </section>
 
+          <section
+            v-if="canViewTerminalAccess"
+            v-loading="terminalAccessLoading"
+            class="account-management__editor-block account-management__terminal-editor"
+          >
+            <div class="account-management__role-toolbar">
+              <div>
+                <div class="account-management__section-title">最终终端准入</div>
+                <div class="account-management__section-description">
+                  当前账号最终允许登录的终端。
+                </div>
+              </div>
+              <div class="account-management__terminal-tags">
+                <Tag
+                  v-for="terminal in effectiveAllowedTerminals"
+                  :key="terminal"
+                  color="blue"
+                >
+                  {{ terminal }}
+                </Tag>
+                <Tag v-if="effectiveAllowedTerminals.length === 0" color="default">
+                  无可登录终端
+                </Tag>
+              </div>
+            </div>
+
+            <div class="account-management__terminal-override-row">
+              <div>
+                <div class="account-management__section-title">账号专属终端准入</div>
+                <div class="account-management__section-description">
+                  开启后，所选终端会完全替代角色默认准入。
+                </div>
+              </div>
+              <Switch
+                v-model:checked="terminalOverrideEnabled"
+                :disabled="!canManageAccountTerminalAccess"
+              />
+            </div>
+
+            <Checkbox.Group
+              v-if="terminalOverrideEnabled"
+              v-model:value="terminalOverrideValues"
+              class="account-management__terminal-group"
+              :disabled="!canManageAccountTerminalAccess"
+              :options="terminalAccessOptions"
+            />
+
+            <div
+              v-if="canManageAccountTerminalAccess"
+              class="account-management__terminal-actions"
+            >
+              <Button
+                :loading="terminalAccessSaving"
+                @click="saveAccountTerminalAccess"
+              >
+                保存终端准入
+              </Button>
+            </div>
+          </section>
+
           <section v-loading="roleLoading" class="account-management__editor-block account-management__role-editor">
             <div class="account-management__role-toolbar">
               <div>
@@ -1872,6 +2041,32 @@ onMounted(() => {
 
 .account-management__role-editor {
   background: hsl(var(--muted) / 0.38);
+}
+
+.account-management__terminal-editor {
+  display: grid;
+  gap: 14px;
+}
+
+.account-management__terminal-tags,
+.account-management__terminal-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.account-management__terminal-override-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--account-border);
+}
+
+.account-management__terminal-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .account-management__role-search {

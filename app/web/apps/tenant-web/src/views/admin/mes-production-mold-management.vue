@@ -27,14 +27,16 @@ import {
 } from 'ant-design-vue'
 
 import {
+  getMoldUsageHistoryApi,
   getProductionMoldApi,
   listMoldDesignsApi,
   listProductionMoldsApi,
+  moveProductionMoldApi,
   registerProductionMoldApi
 } from '#/api'
 import { useAuthContextStore } from '#/store/auth-context'
 
-type DrawerMode = '' | 'create' | 'detail'
+type DrawerMode = '' | 'create' | 'detail' | 'move'
 
 const statusOptions: Array<{ label: string; value: MesApi.ProductionMoldStatus }> = [
   { label: '已接收', value: 'RECEIVED' },
@@ -66,6 +68,7 @@ const drawerMode = ref<DrawerMode>('')
 const moldDesigns = ref<MesApi.MoldDesign[]>([])
 const productionMolds = ref<MesApi.ProductionMold[]>([])
 const selectedMold = ref<MesApi.ProductionMold | null>(null)
+const selectedMoldHistory = ref<MesApi.MoldUsageHistoryEntry[]>([])
 const total = ref(0)
 const productionMoldColumns: TableColumnsType<MesApi.ProductionMold> = [
   {
@@ -113,8 +116,25 @@ const filters = reactive({
 })
 
 const createForm = reactive({
+  initialCarrierResourceCode: '',
+  initialCarrierResourceId: '',
+  initialCarrierResourceName: '',
+  initialPlacementType: 'STORAGE' as '' | 'CARRIER' | 'STORAGE',
+  initialStorageResourceCode: '',
+  initialStorageResourceId: '',
+  initialStorageResourceName: '',
   moldDesignId: '',
   moldCode: `PM-${Date.now().toString().slice(-5)}`
+})
+
+const moveForm = reactive({
+  carrierResourceCode: '',
+  carrierResourceId: '',
+  carrierResourceName: '',
+  placementType: 'STORAGE' as 'CARRIER' | 'STORAGE',
+  storageResourceCode: '',
+  storageResourceId: '',
+  storageResourceName: ''
 })
 
 const formErrors = reactive({
@@ -234,6 +254,7 @@ function openCreateDrawer() {
 /** openDetailDrawer loads one read-only production mold snapshot for basic inspection. */
 async function openDetailDrawer(mold: MesApi.ProductionMold) {
   selectedMold.value = mold
+  selectedMoldHistory.value = []
   drawerMode.value = 'detail'
   if (!activeTenantId.value || !canReadMold.value) {
     return
@@ -241,16 +262,40 @@ async function openDetailDrawer(mold: MesApi.ProductionMold) {
 
   detailLoading.value = true
   try {
-    selectedMold.value = await getProductionMoldApi(activeTenantId.value, mold.productionMoldId)
+    const [moldDetail, historyResult] = await Promise.all([
+      getProductionMoldApi(activeTenantId.value, mold.productionMoldId),
+      getMoldUsageHistoryApi(activeTenantId.value, mold.productionMoldId, {
+        page: 1,
+        pageSize: 20
+      })
+    ])
+    selectedMold.value = moldDetail
+    selectedMoldHistory.value = historyResult.entries ?? []
   } finally {
     detailLoading.value = false
   }
+}
+
+/** openMoveDrawer prepares a placement movement command for one production mold. */
+function openMoveDrawer(mold: MesApi.ProductionMold) {
+  selectedMold.value = mold
+  submitError.value = ''
+  successMessage.value = ''
+  moveForm.placementType = 'STORAGE'
+  moveForm.storageResourceId = ''
+  moveForm.storageResourceCode = ''
+  moveForm.storageResourceName = ''
+  moveForm.carrierResourceId = ''
+  moveForm.carrierResourceCode = ''
+  moveForm.carrierResourceName = ''
+  drawerMode.value = 'move'
 }
 
 /** closeDrawer resets the drawer mode without mutating loaded table data. */
 function closeDrawer() {
   drawerMode.value = ''
   submitError.value = ''
+  selectedMoldHistory.value = []
 }
 
 /** submitCreateProductionMold registers one ProductionMold through the existing MES command API. */
@@ -273,6 +318,49 @@ async function submitCreateProductionMold() {
   }
 }
 
+/** submitMoveProductionMold records a storage or carrier placement fact for the selected production mold. */
+async function submitMoveProductionMold() {
+  if (!selectedMold.value) {
+    return
+  }
+
+  submitting.value = true
+  submitError.value = ''
+  try {
+    await moveProductionMoldApi(activeTenantId.value, selectedMold.value.productionMoldId, buildMovePayload())
+    drawerMode.value = ''
+    successMessage.value = '生产模具位置已更新'
+    await loadProductionMolds()
+  } catch (error) {
+    submitError.value = error instanceof Error ? error.message : '生产模具移动失败'
+  } finally {
+    submitting.value = false
+  }
+}
+
+/** buildMovePayload maps the movement drawer to exactly one MES placement target. */
+function buildMovePayload(): MesApi.MoveProductionMoldPayload {
+  if (moveForm.placementType === 'CARRIER') {
+    return {
+      reason: 'web move production mold',
+      toCarrierResourceRef: {
+        carrierResourceId: moveForm.carrierResourceId.trim(),
+        displayNameSnapshot: moveForm.carrierResourceName.trim() || undefined,
+        resourceCodeSnapshot: moveForm.carrierResourceCode.trim() || undefined
+      }
+    }
+  }
+
+  return {
+    reason: 'web move production mold',
+    toStorageResourceRef: {
+      displayNameSnapshot: moveForm.storageResourceName.trim() || undefined,
+      resourceCodeSnapshot: moveForm.storageResourceCode.trim() || undefined,
+      storageResourceId: moveForm.storageResourceId.trim()
+    }
+  }
+}
+
 /** validateCreateForm keeps required field errors directly below the drawer controls. */
 function validateCreateForm() {
   formErrors.moldDesignId = createForm.moldDesignId ? '' : '请选择模具方案'
@@ -287,6 +375,23 @@ function buildCreatePayload(): MesApi.RegisterProductionMoldPayload {
     moldCode: createForm.moldCode.trim(),
     reason: 'web create production mold'
   }
+
+  if (createForm.initialPlacementType === 'STORAGE' && createForm.initialStorageResourceId.trim()) {
+    payload.initialStorageResourceRef = {
+      displayNameSnapshot: createForm.initialStorageResourceName.trim() || undefined,
+      resourceCodeSnapshot: createForm.initialStorageResourceCode.trim() || undefined,
+      storageResourceId: createForm.initialStorageResourceId.trim()
+    }
+  }
+
+  if (createForm.initialPlacementType === 'CARRIER' && createForm.initialCarrierResourceId.trim()) {
+    payload.initialCarrierResourceRef = {
+      carrierResourceId: createForm.initialCarrierResourceId.trim(),
+      displayNameSnapshot: createForm.initialCarrierResourceName.trim() || undefined,
+      resourceCodeSnapshot: createForm.initialCarrierResourceCode.trim() || undefined
+    }
+  }
+
   return payload
 }
 
@@ -373,6 +478,11 @@ function formatMoldLocation(mold: MesApi.ProductionMold) {
     return `${location.resourceCodeSnapshot ?? location.storageResourceId} · ${location.displayNameSnapshot ?? '存储资源'}`
   }
 
+  const carrier = mold.currentCarrierResourceRef
+  if (carrier) {
+    return `${carrier.resourceCodeSnapshot ?? carrier.carrierResourceId} · ${carrier.displayNameSnapshot ?? '承载资源'}`
+  }
+
   return '未记录'
 }
 
@@ -406,6 +516,11 @@ function formatDateTime(value?: string) {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+/** formatHistoryEntry renders one mold lifecycle or usage history row. */
+function formatHistoryEntry(entry: MesApi.MoldUsageHistoryEntry) {
+  return `${formatDateTime(entry.happenedAt)} · ${entry.summary ?? entry.entryType}`
 }
 
 onMounted(() => {
@@ -554,14 +669,25 @@ onMounted(() => {
                 {{ formatDateTime(record.createdAt) }}
               </template>
               <template v-else-if="column.key === 'actions'">
-                <a-button
-                  :data-testid="`mes-production-mold-view-${record.productionMoldId}`"
-                  size="small"
-                  type="link"
-                  @click="openDetailDrawer(asProductionMold(record))"
-                >
-                  基础信息
-                </a-button>
+                <a-space size="small">
+                  <a-button
+                    :data-testid="`mes-production-mold-view-${record.productionMoldId}`"
+                    size="small"
+                    type="link"
+                    @click="openDetailDrawer(asProductionMold(record))"
+                  >
+                    基础信息
+                  </a-button>
+                  <a-button
+                    v-if="canManageMold"
+                    :data-testid="`mes-production-mold-move-${record.productionMoldId}`"
+                    size="small"
+                    type="link"
+                    @click="openMoveDrawer(asProductionMold(record))"
+                  >
+                    移动
+                  </a-button>
+                </a-space>
               </template>
             </template>
             <template #emptyText>
@@ -573,7 +699,7 @@ onMounted(() => {
 
       <a-drawer
         :open="!!drawerMode"
-        :title="drawerMode === 'create' ? '新建生产模具' : '生产模具基础信息'"
+        :title="drawerMode === 'create' ? '新建生产模具' : drawerMode === 'move' ? '移动生产模具' : '生产模具基础信息'"
         :width="640"
         destroy-on-close
         @close="closeDrawer"
@@ -609,8 +735,61 @@ onMounted(() => {
           >
             <a-input v-model:value="createForm.moldCode" data-testid="mes-production-mold-code" />
           </a-form-item>
+          <section class="mes-production-form__subsection">
+            <strong>初始位置引用</strong>
+            <a-form-item label="位置类型">
+              <a-select
+                v-model:value="createForm.initialPlacementType"
+                data-testid="mes-production-mold-initial-placement-type"
+              >
+                <a-select-option value="">暂不记录</a-select-option>
+                <a-select-option value="STORAGE">StorageResource</a-select-option>
+                <a-select-option value="CARRIER">CarrierResource</a-select-option>
+              </a-select>
+            </a-form-item>
+            <template v-if="createForm.initialPlacementType === 'STORAGE'">
+              <a-form-item label="StorageResource ID">
+                <a-input
+                  v-model:value="createForm.initialStorageResourceId"
+                  data-testid="mes-production-mold-initial-storage-id"
+                />
+              </a-form-item>
+              <a-form-item label="资源编码快照">
+                <a-input
+                  v-model:value="createForm.initialStorageResourceCode"
+                  data-testid="mes-production-mold-initial-storage-code"
+                />
+              </a-form-item>
+              <a-form-item label="资源名称快照">
+                <a-input
+                  v-model:value="createForm.initialStorageResourceName"
+                  data-testid="mes-production-mold-initial-storage-name"
+                />
+              </a-form-item>
+            </template>
+            <template v-if="createForm.initialPlacementType === 'CARRIER'">
+              <a-form-item label="CarrierResource ID">
+                <a-input
+                  v-model:value="createForm.initialCarrierResourceId"
+                  data-testid="mes-production-mold-initial-carrier-id"
+                />
+              </a-form-item>
+              <a-form-item label="载具编码快照">
+                <a-input
+                  v-model:value="createForm.initialCarrierResourceCode"
+                  data-testid="mes-production-mold-initial-carrier-code"
+                />
+              </a-form-item>
+              <a-form-item label="载具名称快照">
+                <a-input
+                  v-model:value="createForm.initialCarrierResourceName"
+                  data-testid="mes-production-mold-initial-carrier-name"
+                />
+              </a-form-item>
+            </template>
+          </section>
           <a-alert
-            message="生产模具登记只写入身份、来源与设计归属；寿命规则来自 MoldDesign，状态由 MES 生命周期命令推进。"
+            message="生产模具登记只写入身份、设计归属与可选初始位置引用；寿命规则来自 MoldDesign，状态由 MES 生命周期命令推进。"
             show-icon
             type="info"
           />
@@ -662,8 +841,59 @@ onMounted(() => {
                 {{ formatDateTime(selectedMold.createdAt) }}
               </a-descriptions-item>
             </a-descriptions>
+            <section class="mes-production-history">
+              <h3>模具历史</h3>
+              <p v-for="entry in selectedMoldHistory" :key="`${entry.entryType}-${entry.happenedAt}`">
+                {{ formatHistoryEntry(entry) }}
+              </p>
+              <a-empty v-if="!selectedMoldHistory.length" description="暂无历史记录" />
+            </section>
           </a-spin>
         </section>
+
+        <a-form v-if="drawerMode === 'move'" class="mes-production-form" layout="vertical">
+          <a-alert v-if="submitError" show-icon :message="submitError" type="error" />
+          <a-alert :message="selectedMold?.moldCode || '未选择生产模具'" show-icon type="info" />
+          <a-form-item label="目标位置类型">
+            <a-select v-model:value="moveForm.placementType" data-testid="mes-production-mold-move-placement-type">
+              <a-select-option value="STORAGE">StorageResource</a-select-option>
+              <a-select-option value="CARRIER">CarrierResource</a-select-option>
+            </a-select>
+          </a-form-item>
+          <template v-if="moveForm.placementType === 'STORAGE'">
+            <a-form-item label="StorageResource ID">
+              <a-input v-model:value="moveForm.storageResourceId" data-testid="mes-production-mold-move-storage-id" />
+            </a-form-item>
+            <a-form-item label="资源编码快照">
+              <a-input v-model:value="moveForm.storageResourceCode" data-testid="mes-production-mold-move-storage-code" />
+            </a-form-item>
+            <a-form-item label="资源名称快照">
+              <a-input v-model:value="moveForm.storageResourceName" data-testid="mes-production-mold-move-storage-name" />
+            </a-form-item>
+          </template>
+          <template v-if="moveForm.placementType === 'CARRIER'">
+            <a-form-item label="CarrierResource ID">
+              <a-input v-model:value="moveForm.carrierResourceId" data-testid="mes-production-mold-move-carrier-id" />
+            </a-form-item>
+            <a-form-item label="载具编码快照">
+              <a-input v-model:value="moveForm.carrierResourceCode" data-testid="mes-production-mold-move-carrier-code" />
+            </a-form-item>
+            <a-form-item label="载具名称快照">
+              <a-input v-model:value="moveForm.carrierResourceName" data-testid="mes-production-mold-move-carrier-name" />
+            </a-form-item>
+          </template>
+          <a-space class="mes-production-form__actions">
+            <a-button
+              data-testid="mes-submit-move-production-mold"
+              :loading="submitting"
+              type="primary"
+              @click="submitMoveProductionMold"
+            >
+              提交移动
+            </a-button>
+            <a-button @click="closeDrawer">取消</a-button>
+          </a-space>
+        </a-form>
       </a-drawer>
     </div>
   </Page>
@@ -797,6 +1027,22 @@ onMounted(() => {
 .mes-production-detail :deep(.ant-descriptions-title) {
   margin-bottom: 12px;
   font-size: 15px;
+}
+
+.mes-production-history {
+  margin-top: 16px;
+}
+
+.mes-production-history h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.mes-production-history p {
+  margin: 0;
+  border-bottom: 1px solid #edf0f5;
+  padding: 8px 0;
+  color: #374151;
 }
 
 @media (max-width: 1180px) {

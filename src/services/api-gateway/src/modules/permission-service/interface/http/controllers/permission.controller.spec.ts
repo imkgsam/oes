@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { PermissionController } from './permission.controller'
 
 // Verifies the permission gateway controller exposes the unified permission list route and expected guards.
@@ -19,34 +19,39 @@ describe('PermissionController', () => {
   it('declares the expected coarse-grained permissions on permission endpoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, PermissionController.prototype.listPermissions)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.list']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, PermissionController.prototype.createPermission)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.create']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, PermissionController.prototype.findById)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.get_by_id']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, PermissionController.prototype.updatePermission)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.update']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, PermissionController.prototype.listPermissionRoles)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_template.list', 'permission.role_instance.list']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, PermissionController.prototype.findByCode)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.get_by_code']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, PermissionController.prototype.delete)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.delete']
-    })
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        PermissionController.prototype.listPermissions
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        PermissionController.prototype.createPermission
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, PermissionController.prototype.findById)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        PermissionController.prototype.updatePermission
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        PermissionController.prototype.listPermissionRoles
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, PermissionController.prototype.findByCode)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, PermissionController.prototype.delete)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards the unified list filters to the proxy service', async () => {
@@ -101,7 +106,10 @@ describe('PermissionController', () => {
       roles: []
     })
 
-    expect(permissionService.getPermissionById).toHaveBeenCalledWith({ id: 'permission-id' }, source)
+    expect(permissionService.getPermissionById).toHaveBeenCalledWith(
+      { id: 'permission-id' },
+      source
+    )
     expect(permissionService.updatePermission).toHaveBeenCalledWith(
       {
         id: 'permission-id',

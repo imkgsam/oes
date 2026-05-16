@@ -80,6 +80,9 @@ describe('permission service seed writer', () => {
           return {}
         }),
         updateMany: jest.fn(async () => ({}))
+      },
+      roleTerminalAccess: {
+        upsert: jest.fn(async () => ({}))
       }
     }
 
@@ -155,6 +158,9 @@ describe('permission service seed writer', () => {
         ]),
         createMany: jest.fn(async () => ({})),
         updateMany: jest.fn(async () => ({}))
+      },
+      roleTerminalAccess: {
+        upsert: jest.fn(async () => ({}))
       }
     }
 
@@ -163,7 +169,7 @@ describe('permission service seed writer', () => {
     expect(prisma.roleNavigationVisibility.createMany).toHaveBeenCalledWith({
       data: expect.arrayContaining([
         expect.objectContaining({
-          entryKey: 'master-data.item-category-management',
+          entryKey: 'master-data.item-bom-management',
           roleId: 'item-role-1',
           terminal: 'DEFAULT'
         })

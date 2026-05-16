@@ -74,6 +74,11 @@ const selectedWorkCenterId = ref('')
 const selectedWorkCenterCode = ref('')
 const selectedWorkCenterName = ref('')
 const installMoldPosition = ref('')
+const installCavityPosition = ref('')
+const installSetupParameters = ref('')
+const installWorkUnitCode = ref('')
+const installWorkUnitId = ref('')
+const installWorkUnitName = ref('')
 const activeDialog = ref<'' | 'createMold' | 'createMoldDesign' | 'dailyUsage' | 'installMold'>('')
 const selectedMold = ref<MesApi.ProductionMold | null>(null)
 const dailyRows = ref<DailyUsageRow[]>([])
@@ -88,7 +93,7 @@ const productionMoldForm = reactive({
 const moldDesignForm = reactive({
   componentRole: '主体',
   defaultLifeLimit: '1200',
-  defaultLifeUnit: 'USE',
+  defaultLifeUnit: 'CASTING_CYCLE',
   designCode: `MD-${Date.now().toString().slice(-4)}`,
   hasOutputOption: true,
   itemId: '',
@@ -445,9 +450,12 @@ async function submitInstallMold() {
   submitError.value = ''
   try {
     await installProductionMoldApi(activeTenantId.value, selectedMold.value.productionMoldId, {
+      cavityPosition: installCavityPosition.value.trim() || undefined,
       moldPosition: installMoldPosition.value.trim() || undefined,
       reason: 'web install mold',
-      workCenterRef: buildSelectedWorkCenterRef()
+      setupParameters: installSetupParameters.value.trim() || undefined,
+      workCenterRef: buildSelectedWorkCenterRef(),
+      workUnitRef: buildInstallWorkUnitRef()
     })
     activeDialog.value = ''
     await loadWorkspace()
@@ -527,12 +535,11 @@ async function submitDailyUsage() {
       items: dailyRows.value.map((row) => ({
         checked: row.checked,
         lifeDelta: '1',
-        lifeUnit: 'USE',
+        lifeUnit: 'CASTING_CYCLE',
         moldDesignOutputId: row.moldDesignOutputId,
         moldDesignOutputOptionId: row.moldDesignOutputOptionId,
         toolingInstallationId: row.toolingInstallationId,
         productionMoldId: row.productionMoldId,
-        moldPosition: row.moldPosition,
         usageQuantity: '1',
         workCenterRef: row.workCenterRef
       })),
@@ -618,6 +625,20 @@ function buildSelectedWorkCenterRef(): MesApi.WorkCenterRef {
     displayNameSnapshot: selectedWorkCenterName.value.trim() || selectedWorkCenterId.value,
     workCenterCodeSnapshot: selectedWorkCenterCode.value.trim() || undefined,
     workCenterId: selectedWorkCenterId.value
+  }
+}
+
+/** buildInstallWorkUnitRef maps optional install-point fields into the MES WorkUnitRef contract. */
+function buildInstallWorkUnitRef(): MesApi.WorkUnitRef | undefined {
+  const workUnitId = installWorkUnitId.value.trim()
+  if (!workUnitId) {
+    return undefined
+  }
+
+  return {
+    displayNameSnapshot: installWorkUnitName.value.trim() || undefined,
+    workUnitCodeSnapshot: installWorkUnitCode.value.trim() || undefined,
+    workUnitId
   }
 }
 
@@ -1017,8 +1038,25 @@ onMounted(() => {
         <a-form-item label="WorkCenter ID">
           <a-input data-testid="mes-install-work-center-id" v-model:value="selectedWorkCenterId" />
         </a-form-item>
+        <div class="mes-form-grid">
+          <a-form-item label="WorkUnit ID">
+            <a-input data-testid="mes-install-work-unit-id" v-model:value="installWorkUnitId" />
+          </a-form-item>
+          <a-form-item label="WorkUnit 编码快照">
+            <a-input data-testid="mes-install-work-unit-code" v-model:value="installWorkUnitCode" />
+          </a-form-item>
+          <a-form-item label="WorkUnit 名称快照">
+            <a-input data-testid="mes-install-work-unit-name" v-model:value="installWorkUnitName" />
+          </a-form-item>
+        </div>
         <a-form-item label="安装位置">
           <a-input data-testid="mes-install-mold-position" v-model:value="installMoldPosition" />
+        </a-form-item>
+        <a-form-item label="型腔位置">
+          <a-input data-testid="mes-install-cavity-position" v-model:value="installCavityPosition" />
+        </a-form-item>
+        <a-form-item label="安装参数快照">
+          <a-input data-testid="mes-install-setup-parameters" v-model:value="installSetupParameters" />
         </a-form-item>
         <a-button
           block

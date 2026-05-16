@@ -4,6 +4,9 @@
 
 定义 OES 中“操作者在当前上下文下是否可以执行某操作、访问某资源、查询某范围”的长期协同方式。
 
+`identity-service` 的身份上下文事实边界只以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准；本文只记录授权判定协同方式。
+`permission-service` 的服务设计、核心对象与 owner 边界只以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文不重新定义权限、角色、policy 或授权判定真相。
+
 ## 2. 参与服务
 
 - `api-gateway`
@@ -18,7 +21,7 @@
 - `permission-service`
   - 提供权限、角色、scope、policy 与授权判定真相
 - `identity-service`
-  - 提供账号、租户、组织等身份上下文事实
+  - 按唯一真相源提供账号、scope、tenant 引用等身份上下文事实
 - 业务服务
   - 提供资源归属、业务状态与领域规则事实
 
@@ -41,7 +44,7 @@
 ## 6. 真相归属
 
 - 权限码、角色、scope、policy、授权判定：`permission-service`
-- 操作者身份上下文：`identity-service`
+- 操作者身份上下文：以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准
 - 资源本体与业务规则：对应业务服务
 - HTTP 消费摘要：`api-gateway`
 

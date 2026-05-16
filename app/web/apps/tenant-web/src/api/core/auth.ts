@@ -70,27 +70,36 @@ export namespace AuthApi {
 
   export interface SessionPayload {
     accessToken: string;
+    allowedTerminals?: string[];
     expiresIn: number;
     refreshToken: string;
+    terminal?: string;
   }
 
   export interface LoginResult {
     accountOptions: AccountOptionPayload[];
+    allowedTerminals?: string[];
     challenge?: ChallengePayload | null;
     loginMethod?: string;
+    message?: string;
     nextStep: AuthNextStep;
     operator?: null | OperatorPayload;
     passwordSetupRequired?: boolean;
+    reasonCode?: string;
     session?: null | SessionPayload;
     status: AuthResultStatus;
+    terminal?: string;
   }
 
   export interface RefreshSessionResult {
     data: {
       accessToken: string;
+      allowedTerminals?: string[];
       expiresIn: number;
       refreshToken: string;
+      reasonCode?: string;
       sessionId: string;
+      terminal?: string;
     };
   }
 

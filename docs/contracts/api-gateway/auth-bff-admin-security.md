@@ -4,6 +4,10 @@
 
 本文档描述 `auth-bff` 面向管理员安全管理场景开放的 HTTP 接口。
 
+`auth-service` 的服务设计、session、login method、MFA policy 与认证审计边界只以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准；本文只描述 `auth-bff` 的 HTTP contract、编排与返回形状。
+
+涉及 permission code、checkPermission、checkResource 或 buildQueryScope 的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 与项目级授权架构为准。
+
 这组接口覆盖：
 
 - 查看当前管理员可见范围内的在线用户总览
@@ -371,9 +375,17 @@
   - system scope 可查询全局
   - tenant-bound operator 仅可查询本 tenant 审计
 
-## 3. 真相源
+## 3. 参考入口
 
-前端与其他线程在阅读本黑盒文档之外，还应同时参考以下当前真相源：
+前端与其他线程在阅读本黑盒文档之外，还应同时参考以下入口：
+
+- 服务设计唯一真相源：
+  - [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)
+- 黑盒接口说明：
+  - [auth-service session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
+  - [auth-service audit.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/audit.md)
+
+以下代码文件是当前实现参考，不作为服务设计真相源：
 
 - BFF controller：
   - [auth.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/auth-bff/interfaces/http/controllers/auth.controller.ts)
@@ -381,9 +393,6 @@
   - [admin-security.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/auth-bff/interfaces/http/dtos/admin-security.dto.ts)
 - 响应 ViewModel：
   - [admin-security.view-model.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/auth-bff/interfaces/http/view-models/admin-security.view-model.ts)
-- 下游黑盒说明：
-  - [auth-service session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
-  - [auth-service audit.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/audit.md)
 
 ## 4. 当前边界
 

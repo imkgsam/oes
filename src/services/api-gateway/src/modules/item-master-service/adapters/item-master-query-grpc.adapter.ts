@@ -9,10 +9,20 @@ import {
   GetItemModelResponse,
   GetItemRequest,
   GetItemResponse,
+  GetItemModelAttributeRulesRequest,
+  GetItemModelAttributeRulesResponse,
+  GetPackagingSpecRequest,
+  GetPackagingSpecResponse,
   ITEM_MASTER_QUERY_SERVICE_NAME,
   ItemMasterQueryServiceClient,
+  ListAttributeDefinitionsRequest,
+  ListAttributeDefinitionsResponse,
+  ListAttributeOptionsRequest,
+  ListAttributeOptionsResponse,
   ListItemCategoriesRequest,
   ListItemCategoriesResponse,
+  ListPackagingMethodsRequest,
+  ListPackagingMethodsResponse,
   ListSupplierItemMappingsByItemRequest,
   ListSupplierItemMappingsByItemResponse,
   SearchBomsRequest,
@@ -20,7 +30,9 @@ import {
   SearchItemModelsRequest,
   SearchItemModelsResponse,
   SearchItemsRequest,
-  SearchItemsResponse
+  SearchItemsResponse,
+  SearchPackagingSpecsRequest,
+  SearchPackagingSpecsResponse
 } from '@oes/common/generated/item_master_service'
 import {
   GRPC_METADATA_PROPAGATION_FACTORY,
@@ -67,11 +79,56 @@ export class ItemMasterQueryGrpcAdapter implements OnModuleInit {
     return this.call('getItem', this.svc.getItem(input, this.metadata(source)))
   }
 
+  listAttributeDefinitions(
+    input: ListAttributeDefinitionsRequest,
+    source: DownstreamRequestSource
+  ): Promise<ListAttributeDefinitionsResponse> {
+    return this.call('listAttributeDefinitions', this.svc.listAttributeDefinitions(input, this.metadata(source)))
+  }
+
+  listAttributeOptions(
+    input: ListAttributeOptionsRequest,
+    source: DownstreamRequestSource
+  ): Promise<ListAttributeOptionsResponse> {
+    return this.call('listAttributeOptions', this.svc.listAttributeOptions(input, this.metadata(source)))
+  }
+
+  getItemModelAttributeRules(
+    input: GetItemModelAttributeRulesRequest,
+    source: DownstreamRequestSource
+  ): Promise<GetItemModelAttributeRulesResponse> {
+    return this.call(
+      'getItemModelAttributeRules',
+      this.svc.getItemModelAttributeRules(input, this.metadata(source))
+    )
+  }
+
   listItemCategories(
     input: ListItemCategoriesRequest,
     source: DownstreamRequestSource
   ): Promise<ListItemCategoriesResponse> {
     return this.call('listItemCategories', this.svc.listItemCategories(input, this.metadata(source)))
+  }
+
+  listPackagingMethods(
+    input: ListPackagingMethodsRequest,
+    source: DownstreamRequestSource
+  ): Promise<ListPackagingMethodsResponse> {
+    return this.call('listPackagingMethods', this.svc.listPackagingMethods(input, this.metadata(source)))
+  }
+
+  getPackagingSpec(
+    input: GetPackagingSpecRequest,
+    source: DownstreamRequestSource
+  ): Promise<GetPackagingSpecResponse> {
+    return this.call('getPackagingSpec', this.svc.getPackagingSpec(input, this.metadata(source)))
+  }
+
+  searchPackagingSpecs(
+    input: SearchPackagingSpecsRequest,
+    source: DownstreamRequestSource
+  ): Promise<SearchPackagingSpecsResponse> {
+    return this.call('searchPackagingSpecs', this.svc.searchPackagingSpecs(input, this.metadata(source)))
   }
 
   searchBoms(input: SearchBomsRequest, source: DownstreamRequestSource): Promise<SearchBomsResponse> {

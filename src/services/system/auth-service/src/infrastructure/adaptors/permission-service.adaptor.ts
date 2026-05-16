@@ -12,13 +12,17 @@ import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import { Observable } from 'rxjs'
 import {
   AccountAuthorizationSummary,
+  AccountTerminalAccessDecision,
   IPermissionServicePort
 } from '../../application/ports/permission-service.port'
 import { AUTH_PERMISSION_UPSTREAM_UNAVAILABLE } from '../../common/constants/exception-enums'
 import {
   AccountAccessSummaryResponse,
   PERMISSION_ACCESS_SUMMARY_SERVICE_NAME,
-  PermissionAccessSummaryServiceClient
+  PermissionAccessSummaryServiceClient,
+  PERMISSION_TERMINAL_ACCESS_SERVICE_NAME,
+  PermissionTerminalAccessServiceClient,
+  ResolveAccountTerminalAccessResponse
 } from '@oes/common/generated/permission_service'
 
 const PERMISSION_CHECK_SERVICE_NAME = 'PermissionCheckService'
@@ -35,6 +39,7 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
   private readonly logger = new Logger(PermissionServiceAdaptor.name)
   private permissionService!: PermissionCheckGrpcClient
   private permissionAccessSummaryService!: PermissionAccessSummaryServiceClient
+  private permissionTerminalAccessService!: PermissionTerminalAccessServiceClient
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.PERMISSION)
@@ -51,6 +56,10 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
     this.permissionAccessSummaryService =
       this.permissionClient.getService<PermissionAccessSummaryServiceClient>(
         PERMISSION_ACCESS_SUMMARY_SERVICE_NAME
+      )
+    this.permissionTerminalAccessService =
+      this.permissionClient.getService<PermissionTerminalAccessServiceClient>(
+        PERMISSION_TERMINAL_ACCESS_SERVICE_NAME
       )
   }
 
@@ -107,6 +116,57 @@ export class PermissionServiceAdaptor implements IPermissionServicePort, OnModul
           upstream: 'permission-service',
           method: 'getAccountAuthorizationSummary',
           accountId
+        })
+      }
+
+      throw error
+    }
+  }
+
+  // Resolves whether an account may establish or continue a session from the requested login terminal.
+  async resolveAccountTerminalAccess(params: {
+    accountId: string
+    tenantId?: string | null
+    scopeLevel: 'SYSTEM' | 'TENANT'
+    terminal: string
+  }): Promise<AccountTerminalAccessDecision> {
+    const accountId = params.accountId.trim()
+
+    try {
+      const response = await safeGrpcCall<ResolveAccountTerminalAccessResponse>(
+        this.permissionTerminalAccessService.resolveAccountTerminalAccess(
+          {
+            accountId,
+            tenantId: params.tenantId ?? undefined,
+            scopeLevel: params.scopeLevel,
+            terminal: params.terminal
+          },
+          this.metadata()
+        ),
+        {
+          caller: 'auth-service',
+          method: 'PermissionTerminalAccessService.resolveAccountTerminalAccess'
+        }
+      )
+
+      return {
+        allowed: response.allowed ?? false,
+        reasonCode: response.reasonCode ?? 'TERMINAL_ACCESS_DENIED',
+        effectiveAllowedTerminals: response.effectiveAllowedTerminals ?? [],
+        resolutionSource: response.resolutionSource ?? '',
+        matchedRoleIds: response.matchedRoleIds ?? []
+      }
+    } catch (error) {
+      if (error instanceof InfrastructureException) {
+        this.logger.error(
+          `Permission upstream unavailable during terminal access resolution: ${accountId}`,
+          error
+        )
+        throw ExceptionFactory.infrastructure(AUTH_PERMISSION_UPSTREAM_UNAVAILABLE, {
+          upstream: 'permission-service',
+          method: 'resolveAccountTerminalAccess',
+          accountId,
+          terminal: params.terminal
         })
       }
 

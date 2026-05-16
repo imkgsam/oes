@@ -1,5 +1,7 @@
 # Personal Center
 
+> 涉及 access summary、terminal access、Role、Policy 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只记录 Personal Center feature 的范围、状态与前端接入约束。
+
 ## 1. 目标
 
 - 为登录后的用户提供一个统一的“个人中心”入口页。

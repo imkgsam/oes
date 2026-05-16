@@ -4,12 +4,14 @@
 
 定义 `identity-service` 在员工 onboarding 中负责的 `UserAccount <-> Employee` 绑定黑盒语义。
 
+`identity-service` 的长期服务边界以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准；HR `Employee / Employment` 与正式 `人 -> org` 归属以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。本文只描述 employee binding contract，不重新定义 HR 对象语义。
+
 ## 2. owner 边界
 
-- `identity-service` 拥有 `User / UserAccount` 真相
-- `identity-service` 持久化 `UserAccount <-> Employee` 绑定结果
+- `identity-service` 的 `User / UserAccount` 与 `UserAccount <-> Employee` binding 边界以服务真相源为准
 - `hr-service` 只发起绑定请求或读取绑定结果
-- `Employee / Employment` 真相仍归 `hr-service`
+- `Employee / Employment` 真相仍归 `hr-service`，具体服务边界以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
+- `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；本文不把 account-org membership 重新抬升为正式组织归属。
 
 ## 3. 最小能力
 

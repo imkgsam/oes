@@ -162,10 +162,10 @@ Required behavior:
 - [ ] **Step 4: Expose guarded gRPC methods**
 
 ```ts
-@RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT)
+@RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT] })
 async createUserAccount(request: CreateUserAccountRequest): Promise<GetAccountByIdResponse>
 
-@RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_STATUS)
+@RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_STATUS] })
 async setAccountEnabled(request: SetAccountEnabledRequest): Promise<GetAccountByIdResponse>
 ```
 
@@ -246,7 +246,7 @@ it('creates the first enabled password credential for an authenticated invited u
 - [ ] **Step 4: Expose the bootstrap and first-login RPCs**
 
 ```ts
-@RequirePermission(AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS)
+@RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS] })
 async bootstrapUserLoginMethods(
   request: BootstrapUserLoginMethodsRequest
 ): Promise<BootstrapUserLoginMethodsResponse>
@@ -398,13 +398,13 @@ Required behavior:
 
 ```ts
 @Get('admin/accounts')
-@PermissionCheckAll([IDENTITY_ACCOUNT_PERMISSION_CODES.LIST_ACCOUNT])
+@RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.LIST_ACCOUNT] })
 
 @Post('admin/accounts')
-@PermissionCheckAll([IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT])
+@RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT] })
 
 @Patch('admin/accounts/:accountId/enabled')
-@PermissionCheckAll([IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_STATUS])
+@RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_STATUS] })
 
 @Post('first-login/password')
 async completeFirstLoginPasswordSetup(

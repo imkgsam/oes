@@ -691,6 +691,7 @@ export const useAuthStore = defineStore('auth', () => {
       } | null;
       nextStep?: string;
       operator?: { userId?: string } | null;
+      reasonCode?: string;
       status: string;
     },
     context: {
@@ -737,6 +738,11 @@ export const useAuthStore = defineStore('auth', () => {
         break;
       }
       case 'DENIED': {
+        if (result.reasonCode === 'TERMINAL_ACCESS_DENIED') {
+          message.error('当前账号不允许从 Web 端登录。');
+          resetPendingAuthFlow();
+          break;
+        }
         throw new Error('登录被拒绝，请检查账号状态或认证信息。');
       }
       default: {

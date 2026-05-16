@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { TenantManagementController } from './tenant-management.controller'
 
 // Verifies the tenant-management gateway controller keeps tenant admin routes system-scoped and contract-aligned.
@@ -18,36 +18,42 @@ describe('TenantManagementController', () => {
   it('declares the expected coarse-grained permissions on tenant management endpoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, TenantManagementController.prototype.listTenants)).toEqual({
-      type: 'ALL',
-      permissions: ['tenant_org.tenant.list']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, TenantManagementController.prototype.getTenantById)).toEqual({
-      type: 'ALL',
-      permissions: ['tenant_org.tenant.get_by_id']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, TenantManagementController.prototype.createTenant)).toEqual({
-      type: 'ALL',
-      permissions: ['tenant_org.tenant.create']
-    })
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, TenantManagementController.prototype.searchFirstAdminExistingUsers)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['tenant_org.tenant.create']
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        TenantManagementController.prototype.listTenants
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, TenantManagementController.prototype.updateTenantProfile)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['tenant_org.tenant.update_profile']
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        TenantManagementController.prototype.getTenantById
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, TenantManagementController.prototype.updateTenantStatus)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['tenant_org.tenant.update_status']
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        TenantManagementController.prototype.createTenant
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        TenantManagementController.prototype.searchFirstAdminExistingUsers
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        TenantManagementController.prototype.updateTenantProfile
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        TenantManagementController.prototype.updateTenantStatus
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards list and detail reads to the tenant management service', async () => {

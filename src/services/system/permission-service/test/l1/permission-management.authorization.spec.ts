@@ -58,4 +58,22 @@ describe('permission management gRPC authorization metadata', () => {
       PERMISSION_MANAGEMENT_PERMISSION_CODES.SET_ACCOUNT_ROLES
     )
   })
+
+  it('uses dedicated authorization for terminal access management', () => {
+    expect(requiredPermission('getRoleTerminalAccess')).toBe(
+      PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_TERMINAL_ACCESS
+    )
+    expect(requiredPermission('setRoleTerminalAccess')).toBe(
+      PERMISSION_MANAGEMENT_PERMISSION_CODES.MANAGE_ROLE_TERMINAL_ACCESS
+    )
+    expect(requiredPermission('getAccountTerminalAccess')).toBe(
+      PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_TERMINAL_ACCESS
+    )
+    expect(requiredPermission('replaceAccountTerminalAccessOverride')).toBe(
+      PERMISSION_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_TERMINAL_ACCESS
+    )
+    expect(requiredPermission('deleteAccountTerminalAccessOverride')).toBe(
+      PERMISSION_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_TERMINAL_ACCESS
+    )
+  })
 })

@@ -190,6 +190,7 @@ onMounted(() => {
           <PersonalUserSection :user-profile="summary.userProfile" />
           <PersonalAccountSection
             :account-context="summary.accountContext"
+            :allowed-terminals="authContextStore.sessionContext?.allowedTerminals ?? []"
             :saving="accountSaving"
             @save="handleAccountProfileSave"
           />

@@ -30,6 +30,7 @@ model Role {
 
   permissions  RolePermission[]
   accounts     AccountRole[]
+  terminalAccess RoleTerminalAccess?
   navigationVisibilities RoleNavigationVisibility[]
   landingPolicies RoleLandingPolicy[]
   templateRole Role?            @relation("RoleTemplateInstances", fields: [templateRoleId], references: [id])
@@ -37,6 +38,28 @@ model Role {
 
   @@unique([scopeKey, kind, code])
   @@index([tenantId, kind])
+}
+
+model RoleTerminalAccess {
+  id               String   @id @default(uuid())
+  roleId           String   @unique
+  allowedTerminals String[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  role Role @relation(fields: [roleId], references: [id])
+}
+
+model AccountTerminalAccessOverride {
+  id               String     @id @default(uuid())
+  accountId        String
+  scopeLevel       ScopeLevel
+  tenantId         String?
+  allowedTerminals String[]
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([accountId, scopeLevel, tenantId])
 }
 
 model Permission {

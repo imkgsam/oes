@@ -79,11 +79,13 @@ export namespace UserApi {
   export interface SessionContext {
     access: SessionContextAccess;
     account: SessionContextAccount;
+    allowedTerminals: string[];
     navigation: SessionContextNavigation;
     operator: SessionContextOperator;
     org?: null | SessionContextOrg;
     passwordSetupRequired?: boolean;
     scopeLevel: 'SYSTEM' | 'TENANT';
+    terminal: string;
     tenant?: null | SessionContextTenant;
   }
 

@@ -3,6 +3,16 @@ import { SelectAccountCommand } from './select-account.command'
 import { SelectAccountHandler } from './select-account.handler'
 
 describe('SelectAccountHandler', () => {
+  const allowPermissionService = () => ({
+    resolveAccountTerminalAccess: jest.fn().mockResolvedValue({
+      allowed: true,
+      reasonCode: 'ALLOWED',
+      effectiveAllowedTerminals: ['WEB'],
+      resolutionSource: 'ROLE_UNION',
+      matchedRoleIds: ['role-1']
+    })
+  })
+
   it('rejects tenant-scope account selection when tenant-org reports the tenant is not active', async () => {
     const identityService = {
       getAccountById: jest.fn().mockResolvedValue({
@@ -27,7 +37,8 @@ describe('SelectAccountHandler', () => {
       identityService as any,
       accountSessionEstablishmentService as any,
       loginMfaOrchestrationService as any,
-      tenantSessionAccessService as any
+      tenantSessionAccessService as any,
+      allowPermissionService() as any
     )
 
     await expect(
@@ -80,7 +91,8 @@ describe('SelectAccountHandler', () => {
       {
         resolveChallengeForSelectedAccount: jest.fn().mockResolvedValue(null)
       } as any,
-      tenantSessionAccessService as any
+      tenantSessionAccessService as any,
+      allowPermissionService() as any
     )
 
     await expect(
@@ -125,7 +137,8 @@ describe('SelectAccountHandler', () => {
       } as any,
       {
         assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
-      } as any
+      } as any,
+      allowPermissionService() as any
     )
 
     const result = await handler.execute(
@@ -184,7 +197,8 @@ describe('SelectAccountHandler', () => {
       } as any,
       {
         assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
-      } as any
+      } as any,
+      allowPermissionService() as any
     )
 
     const result = await handler.execute(
@@ -206,7 +220,8 @@ describe('SelectAccountHandler', () => {
       deviceId: 'browser-device-1',
       deviceName: 'Firefox on macOS',
       userAgent: 'Mozilla/5.0 Firefox/149.0',
-      ipAddress: '127.0.0.1'
+      ipAddress: '127.0.0.1',
+      terminal: 'WEB'
     })
     expect(result).toEqual({
       status: 'MFA_REQUIRED',
@@ -222,7 +237,68 @@ describe('SelectAccountHandler', () => {
         { type: 'EMAIL_OTP', label: '邮箱验证码' },
         { type: 'TOTP', label: '认证器 App' }
       ],
+      factorChallengeId: undefined,
+      destination: undefined,
+      expiresAt: undefined,
+      terminal: 'WEB',
+      allowedTerminals: ['WEB'],
       passwordSetupRequired: false
     })
+  })
+
+  it('denies terminal access after tenant lifecycle and before MFA or session creation', async () => {
+    const identityService = {
+      getAccountById: jest.fn().mockResolvedValue({
+        accountId: 'account-2',
+        userId: 'user-1',
+        tenantId: 'tenant-2',
+        scopeLevel: 'TENANT',
+        displayName: 'Target Account',
+        isEnabled: true
+      })
+    }
+    const loginMfaOrchestrationService = {
+      resolveChallengeForSelectedAccount: jest.fn()
+    }
+    const accountSessionEstablishmentService = {
+      establish: jest.fn()
+    }
+    const permissionService = {
+      resolveAccountTerminalAccess: jest.fn().mockResolvedValue({
+        allowed: false,
+        reasonCode: 'TERMINAL_ACCESS_DENIED',
+        effectiveAllowedTerminals: ['PDA'],
+        resolutionSource: 'ROLE_UNION',
+        matchedRoleIds: ['worker-role']
+      })
+    }
+    const handler = new SelectAccountHandler(
+      identityService as any,
+      accountSessionEstablishmentService as any,
+      loginMfaOrchestrationService as any,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
+      } as any,
+      permissionService as any
+    )
+
+    await expect(
+      handler.execute(
+        new SelectAccountCommand('user-1', 'account-2', LoginMethodEnum.EmailPassword, {
+          userAgent: 'Mozilla/5.0 Chrome/123.0',
+          ipAddress: '127.0.0.1',
+          terminal: 'WEB'
+        })
+      )
+    ).rejects.toThrow('Terminal access denied')
+
+    expect(permissionService.resolveAccountTerminalAccess).toHaveBeenCalledWith({
+      accountId: 'account-2',
+      tenantId: 'tenant-2',
+      scopeLevel: 'TENANT',
+      terminal: 'WEB'
+    })
+    expect(loginMfaOrchestrationService.resolveChallengeForSelectedAccount).not.toHaveBeenCalled()
+    expect(accountSessionEstablishmentService.establish).not.toHaveBeenCalled()
   })
 })

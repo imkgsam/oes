@@ -179,6 +179,19 @@ export async function applyPermissionServiceSeed(
 
   await syncBuiltInRoleInstanceBaselines(prisma, permissionIdByCode)
 
+  for (const roleTerminalAccess of seed.roleTerminalAccess) {
+    await prisma.roleTerminalAccess.upsert({
+      where: { roleId: roleTerminalAccess.roleId },
+      create: {
+        roleId: roleTerminalAccess.roleId,
+        allowedTerminals: roleTerminalAccess.allowedTerminals
+      },
+      update: {
+        allowedTerminals: roleTerminalAccess.allowedTerminals
+      }
+    })
+  }
+
   return renderPermissionServiceSeedDryRunSummary(seed)
 }
 

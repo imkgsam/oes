@@ -75,7 +75,17 @@ import {
   UpdatePermissionRequest,
   UpdateRoleRequest,
   UpdateRoleTemplateRequest,
-  AccountRoleSelectionResponse
+  AccountRoleSelectionResponse,
+  GetRoleTerminalAccessRequest,
+  GetRoleTerminalAccessResponse,
+  SetRoleTerminalAccessRequest,
+  SetRoleTerminalAccessResponse,
+  GetAccountTerminalAccessRequest,
+  GetAccountTerminalAccessResponse,
+  ReplaceAccountTerminalAccessOverrideRequest,
+  ReplaceAccountTerminalAccessOverrideResponse,
+  DeleteAccountTerminalAccessOverrideRequest,
+  DeleteAccountTerminalAccessOverrideResponse
 } from '@oes/common/generated/permission_service'
 import { ManagementAuthorizationGuard } from '../guards'
 import { RequireManagementPermission } from '../decorators'
@@ -140,6 +150,17 @@ import { GetNavigationEntryQuery } from '../../application/queries/navigation/ge
 import { GetRoleNavigationQuery } from '../../application/queries/navigation/get-role-navigation.query'
 import { ListNavigationEntriesQuery } from '../../application/queries/navigation/list-navigation-entries.query'
 import { ResolveNavigationPreviewQuery } from '../../application/queries/navigation/resolve-navigation-preview.query'
+import {
+  DeleteAccountTerminalAccessOverrideCommand,
+  ReplaceAccountTerminalAccessOverrideCommand,
+  SetRoleTerminalAccessCommand
+} from '../../application/commands/terminal-access'
+import {
+  AccountTerminalAccessResult,
+  GetAccountTerminalAccessQuery,
+  GetRoleTerminalAccessQuery,
+  RoleTerminalAccessResult
+} from '../../application/queries/terminal-access'
 import {
   NavigationEntryPageResult,
   NavigationPreviewResult,
@@ -1205,10 +1226,136 @@ export class PermissionManagementGrpcController implements PermissionManagementS
     return toResolveNavigationPreviewResponse(result)
   }
 
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_TERMINAL_ACCESS)
+  // This method reads the configured default terminal access for one role.
+  async getRoleTerminalAccess(
+    request: GetRoleTerminalAccessRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<GetRoleTerminalAccessResponse> {
+    const result: RoleTerminalAccessResult = await this.queryBus.execute(
+      new GetRoleTerminalAccessQuery(request.roleId!)
+    )
+    return {
+      roleId: result.roleId,
+      allowedTerminals: result.allowedTerminals
+    }
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.MANAGE_ROLE_TERMINAL_ACCESS)
+  // This method replaces the configured default terminal access for one role.
+  async setRoleTerminalAccess(
+    request: SetRoleTerminalAccessRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<SetRoleTerminalAccessResponse> {
+    await this.commandBus.execute(
+      new SetRoleTerminalAccessCommand({
+        roleId: request.roleId!,
+        allowedTerminals: request.allowedTerminals ?? [],
+        operatorScope: this.getOperatorScope(request)
+      })
+    )
+    const result: RoleTerminalAccessResult = await this.queryBus.execute(
+      new GetRoleTerminalAccessQuery(request.roleId!)
+    )
+    const response = {
+      roleId: result.roleId,
+      allowedTerminals: result.allowedTerminals
+    }
+    this.recordMutation(
+      request,
+      'ROLE_TERMINAL_ACCESS_SET',
+      'TERMINAL_ACCESS',
+      request.roleId!,
+      undefined,
+      response as Record<string, unknown>
+    )
+    return response
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.VIEW_TERMINAL_ACCESS)
+  // This method reads only the final effective terminal access for one account scope.
+  async getAccountTerminalAccess(
+    request: GetAccountTerminalAccessRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<GetAccountTerminalAccessResponse> {
+    const result: AccountTerminalAccessResult = await this.queryBus.execute(
+      new GetAccountTerminalAccessQuery(
+        request.accountId!,
+        request.tenantId || undefined,
+        normalizeScopeLevel(request.scopeLevel)
+      )
+    )
+    return toAccountTerminalAccessResponse(result)
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_TERMINAL_ACCESS)
+  // This method replaces one account's terminal override for the selected scope.
+  async replaceAccountTerminalAccessOverride(
+    request: ReplaceAccountTerminalAccessOverrideRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<ReplaceAccountTerminalAccessOverrideResponse> {
+    const scopeLevel = normalizeScopeLevel(request.scopeLevel)
+    await this.commandBus.execute(
+      new ReplaceAccountTerminalAccessOverrideCommand({
+        accountId: request.accountId!,
+        tenantId: request.tenantId || undefined,
+        scopeLevel,
+        allowedTerminals: request.allowedTerminals ?? []
+      })
+    )
+    const result: AccountTerminalAccessResult = await this.queryBus.execute(
+      new GetAccountTerminalAccessQuery(request.accountId!, request.tenantId || undefined, scopeLevel)
+    )
+    const response = toAccountTerminalAccessResponse(result)
+    this.recordMutation(
+      request,
+      'ACCOUNT_TERMINAL_ACCESS_OVERRIDE_REPLACED',
+      'TERMINAL_ACCESS',
+      request.accountId!,
+      undefined,
+      response as Record<string, unknown>
+    )
+    return response
+  }
+
+  @RequireManagementPermission(MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_TERMINAL_ACCESS)
+  // This method removes one account's override so role terminal defaults apply again.
+  async deleteAccountTerminalAccessOverride(
+    request: DeleteAccountTerminalAccessOverrideRequest,
+    metadata?: Metadata,
+    ...rest: any
+  ): Promise<DeleteAccountTerminalAccessOverrideResponse> {
+    const scopeLevel = normalizeScopeLevel(request.scopeLevel)
+    await this.commandBus.execute(
+      new DeleteAccountTerminalAccessOverrideCommand({
+        accountId: request.accountId!,
+        tenantId: request.tenantId || undefined,
+        scopeLevel
+      })
+    )
+    const result: AccountTerminalAccessResult = await this.queryBus.execute(
+      new GetAccountTerminalAccessQuery(request.accountId!, request.tenantId || undefined, scopeLevel)
+    )
+    const response = toAccountTerminalAccessResponse(result)
+    this.recordMutation(
+      request,
+      'ACCOUNT_TERMINAL_ACCESS_OVERRIDE_DELETED',
+      'TERMINAL_ACCESS',
+      request.accountId!,
+      undefined,
+      response as Record<string, unknown>
+    )
+    return response
+  }
+
   private recordMutation(
     rpcData: unknown,
     action: string,
-    targetType: 'ROLE' | 'PERMISSION' | 'ACCOUNT_ROLE' | 'ROLE_PERMISSION' | 'NAVIGATION_ENTRY' | 'ROLE_NAVIGATION',
+    targetType: 'ROLE' | 'PERMISSION' | 'ACCOUNT_ROLE' | 'ROLE_PERMISSION' | 'NAVIGATION_ENTRY' | 'ROLE_NAVIGATION' | 'TERMINAL_ACCESS',
     targetId: string,
     targetCode?: string,
     afterData?: Record<string, unknown>
@@ -1254,4 +1401,15 @@ function normalizeOptionalScopeLevel(scopeLevel?: string): ScopeLevel | undefine
   return scopeLevel === ScopeLevel.SYSTEM || scopeLevel === ScopeLevel.TENANT
     ? scopeLevel
     : undefined
+}
+
+// Maps application terminal access results into the management gRPC response shape.
+function toAccountTerminalAccessResponse(result: AccountTerminalAccessResult) {
+  return {
+    accountId: result.accountId,
+    tenantId: result.tenantId ?? '',
+    scopeLevel: result.scopeLevel,
+    hasOverride: result.hasOverride,
+    effectiveAllowedTerminals: result.effectiveAllowedTerminals
+  }
 }

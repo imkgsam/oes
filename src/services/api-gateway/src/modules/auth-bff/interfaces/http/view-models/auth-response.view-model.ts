@@ -40,6 +40,16 @@ export class SessionViewModel {
 
   @ApiProperty({ description: 'Access token lifetime in seconds.' })
   expiresIn!: number
+
+  @ApiPropertyOptional({ description: 'Terminal that established the issued session.' })
+  terminal?: string
+
+  @ApiPropertyOptional({
+    type: String,
+    isArray: true,
+    description: 'Effective terminal access snapshot returned with the issued session.'
+  })
+  allowedTerminals?: string[]
 }
 
 // Defines the operator context that becomes available as the auth flow progresses.
@@ -197,6 +207,26 @@ export class AuthResponseViewModel {
     description: 'Whether the authenticated user must complete first-login password setup before entering the workspace.'
   })
   passwordSetupRequired?: boolean
+
+  @ApiPropertyOptional({
+    description: 'Stable denial reason code when the authentication result is DENIED.'
+  })
+  reasonCode?: string
+
+  @ApiPropertyOptional({
+    description: 'Generic denial message suitable for client display.'
+  })
+  message?: string
+
+  @ApiPropertyOptional({ description: 'Terminal associated with the current authentication flow.' })
+  terminal?: string
+
+  @ApiPropertyOptional({
+    type: String,
+    isArray: true,
+    description: 'Effective terminal access snapshot when returned by auth-service.'
+  })
+  allowedTerminals?: string[]
 }
 
 // Defines the OTP challenge payload returned when the caller requests a login code.
@@ -224,4 +254,20 @@ export class RefreshSessionViewModel {
 
   @ApiProperty({ description: 'Access token lifetime in seconds.' })
   expiresIn!: number
+
+  @ApiPropertyOptional({ description: 'Terminal bound to the refreshed session.' })
+  terminal?: string
+
+  @ApiPropertyOptional({
+    type: String,
+    isArray: true,
+    description: 'Effective terminal access snapshot after refresh.'
+  })
+  allowedTerminals?: string[]
+
+  @ApiPropertyOptional({ description: 'Stable denial reason code when refresh is refused.' })
+  reasonCode?: string
+
+  @ApiPropertyOptional({ description: 'Generic denial message suitable for client display.' })
+  message?: string
 }

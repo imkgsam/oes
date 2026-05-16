@@ -83,7 +83,7 @@
 
 - 新建账户默认状态为 `ACTIVE_CUSTOMER`
 - 新建成功不等于已拥有 active primary binding
-- 新建成功不创建 `Party / TenantParty`
+- 新建成功不创建 `party-service` 主体事实或租户主体引用
 
 ### `UpdateCustomerAccountBasics`
 

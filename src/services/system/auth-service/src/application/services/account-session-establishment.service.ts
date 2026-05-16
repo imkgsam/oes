@@ -11,6 +11,8 @@ import {
 import { IUserSessionRepository } from '../../domain/repositories/user-session.repository'
 import { IdentityAccountSummary } from '../ports/identity-service.port'
 import { IPermissionServicePort } from '../ports'
+import { ExceptionFactory } from '@oes/common/exceptions'
+import { AUTH_TERMINAL_ACCESS_DENIED } from '../../common/constants/exception-enums'
 import { AuthAuditService } from './auth-audit.service'
 import { normalizeAuthDeviceContext } from './auth-device-context'
 import { PasswordSetupRequirementService } from './password-setup-requirement.service'
@@ -24,6 +26,7 @@ export interface EstablishAccountSessionInput {
   deviceName?: string
   ipAddress?: string
   loginMethod: LoginMethodEnum
+  terminal?: string
   trustCurrentDevice?: boolean
   userAgent?: string
   userId: string
@@ -36,6 +39,8 @@ export interface EstablishedAccountSession {
   tenantId: string | null
   scopeLevel: 'SYSTEM' | 'TENANT'
   sessionId: string
+  terminal: string
+  allowedTerminals: string[]
   accessToken: string
   refreshToken: string
   expiresIn: number
@@ -60,11 +65,37 @@ export class AccountSessionEstablishmentService {
   ) {}
 
   async establish(input: EstablishAccountSessionInput): Promise<EstablishedAccountSession> {
+    const terminal = input.terminal || 'WEB'
     if (input.account.scopeLevel === 'TENANT') {
       await this.tenantSessionAccessService.assertAccountCanEstablishSession({
         accountId: input.account.accountId,
         tenantId: input.account.tenantId,
         scopeLevel: input.account.scopeLevel
+      })
+    }
+
+    const terminalAccess = await this.permissionService.resolveAccountTerminalAccess({
+      accountId: input.account.accountId,
+      tenantId: input.account.tenantId,
+      scopeLevel: input.account.scopeLevel,
+      terminal
+    })
+    if (!terminalAccess.allowed) {
+      this.authAuditService.emitTerminalAccessDenied({
+        accountId: input.account.accountId,
+        userId: input.userId,
+        tenantId: input.account.tenantId,
+        scopeLevel: input.account.scopeLevel,
+        terminal,
+        reasonCode: terminalAccess.reasonCode,
+        phase: 'LOGIN'
+      })
+      throw ExceptionFactory.domain(AUTH_TERMINAL_ACCESS_DENIED, {
+        accountId: input.account.accountId,
+        tenantId: input.account.tenantId,
+        scopeLevel: input.account.scopeLevel,
+        terminal,
+        reasonCode: terminalAccess.reasonCode
       })
     }
 
@@ -91,11 +122,13 @@ export class AccountSessionEstablishmentService {
       accountId: input.account.accountId,
       scopeLevel: input.account.scopeLevel,
       tenantId: input.account.tenantId,
+      terminal,
       deviceInfo: this.buildDeviceInfo(input),
       config: sessionConfig,
       metadata: {
         loginMethod: sessionLoginMethod,
-        scopeLevel: input.account.scopeLevel
+        scopeLevel: input.account.scopeLevel,
+        terminal
       }
     })
 
@@ -113,6 +146,8 @@ export class AccountSessionEstablishmentService {
         input.userId,
         session.getId(),
         input.account,
+        terminal,
+        terminalAccess.effectiveAllowedTerminals,
         roleIds,
         'access',
         passwordSetupRequired
@@ -125,6 +160,8 @@ export class AccountSessionEstablishmentService {
         input.userId,
         session.getId(),
         input.account,
+        terminal,
+        terminalAccess.effectiveAllowedTerminals,
         roleIds,
         'refresh',
         passwordSetupRequired
@@ -164,6 +201,8 @@ export class AccountSessionEstablishmentService {
       tenantId: input.account.tenantId,
       scopeLevel: input.account.scopeLevel,
       sessionId: session.getId(),
+      terminal,
+      allowedTerminals: terminalAccess.effectiveAllowedTerminals,
       accessToken,
       refreshToken,
       expiresIn: tokenConfig.accessTokenValidity,
@@ -199,6 +238,8 @@ export class AccountSessionEstablishmentService {
     userId: string,
     sessionId: string,
     account: IdentityAccountSummary,
+    terminal: string,
+    allowedTerminals: string[],
     roleIds: string[],
     tokenType: 'access' | 'refresh',
     passwordSetupRequired: boolean
@@ -209,6 +250,8 @@ export class AccountSessionEstablishmentService {
       aid: account.accountId,
       ...(account.tenantId ? { tid: account.tenantId } : {}),
       scopeLevel: account.scopeLevel,
+      terminal,
+      allowedTerminals,
       passwordSetupRequired,
       roles: roleIds,
       tokenType

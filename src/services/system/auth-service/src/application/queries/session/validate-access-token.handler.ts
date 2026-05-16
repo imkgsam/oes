@@ -16,6 +16,8 @@ export interface ValidateAccessTokenResult {
   tenantId?: string
   sessionId: string
   scopeLevel: 'SYSTEM' | 'TENANT'
+  terminal: string
+  allowedTerminals: string[]
   passwordSetupRequired: boolean
   roleIds: string[]
 }
@@ -98,6 +100,8 @@ export class ValidateAccessTokenHandler
       tenantId: sessionTenantId,
       sessionId: session.getId(),
       scopeLevel: session.getScopeLevel(),
+      terminal: session.getTerminal(),
+      allowedTerminals: this.normalizeStringArray(payload.allowedTerminals),
       passwordSetupRequired: Boolean(payload.passwordSetupRequired),
       roleIds: this.normalizeRoleIds(payload.roles)
     }
@@ -129,6 +133,10 @@ export class ValidateAccessTokenHandler
   }
 
   private normalizeRoleIds(value: unknown): string[] {
+    return this.normalizeStringArray(value)
+  }
+
+  private normalizeStringArray(value: unknown): string[] {
     if (!Array.isArray(value)) {
       return []
     }

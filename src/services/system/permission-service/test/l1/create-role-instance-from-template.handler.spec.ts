@@ -6,6 +6,7 @@ import { Role } from '../../src/domain/aggregates/role.aggregate'
 import { RoleKind } from '../../src/domain/enums/role-kind.enum'
 import { NavigationRepository } from '../../src/domain/repositories/navigation.repository'
 import { RoleRepository } from '../../src/domain/repositories/role.repository'
+import { TerminalAccessRepository } from '../../src/domain/repositories/terminal-access.repository'
 import { RoleLandingPolicy } from '../../src/domain/vo/role-landing-policy.value-object'
 import { RoleNavigationVisibility } from '../../src/domain/vo/role-navigation-visibility.value-object'
 import { RolePermission } from '../../src/domain/vo/role-permission.value-object'
@@ -50,10 +51,19 @@ describe('CreateRoleInstanceFromTemplateHandler', () => {
     replaceRoleLandingPolicies: jest.fn()
   })
 
+  /** Builds a mocked terminal access repository for template terminal access inheritance tests. */
+  const createTerminalAccessRepository = (): jest.Mocked<
+    Pick<TerminalAccessRepository, 'findRoleTerminalAccess' | 'replaceRoleTerminalAccess'>
+  > => ({
+    findRoleTerminalAccess: jest.fn(),
+    replaceRoleTerminalAccess: jest.fn()
+  })
+
   it('通过模板创建角色实例时应继承模板 code，忽略请求体中的 code 覆盖', async () => {
     const roleRepo = createRoleRepository()
     const navigationRepo = createNavigationRepository()
-    const handler = new CreateRoleInstanceFromTemplateHandler(roleRepo, navigationRepo as any)
+    const terminalAccessRepo = createTerminalAccessRepository()
+    const handler = new CreateRoleInstanceFromTemplateHandler(roleRepo, navigationRepo as any, terminalAccessRepo as any)
     const templateRole = new Role(
       'template-role-id',
       'Tenant Admin Template',
@@ -76,6 +86,7 @@ describe('CreateRoleInstanceFromTemplateHandler', () => {
       visibility: [],
       landingPolicies: []
     })
+    terminalAccessRepo.findRoleTerminalAccess.mockResolvedValue([])
 
     const created = await handler.execute(
       new CreateRoleInstanceFromTemplateCommand({
@@ -105,7 +116,8 @@ describe('CreateRoleInstanceFromTemplateHandler', () => {
   it('通过模板创建角色实例时应复制模板导航配置为实例自己的快照', async () => {
     const roleRepo = createRoleRepository()
     const navigationRepo = createNavigationRepository()
-    const handler = new CreateRoleInstanceFromTemplateHandler(roleRepo, navigationRepo as any)
+    const terminalAccessRepo = createTerminalAccessRepository()
+    const handler = new CreateRoleInstanceFromTemplateHandler(roleRepo, navigationRepo as any, terminalAccessRepo as any)
     const templateRole = new Role(
       'template-role-id',
       'Tenant Admin Template',
@@ -139,6 +151,7 @@ describe('CreateRoleInstanceFromTemplateHandler', () => {
       visibility: [],
       landingPolicies: []
     })
+    terminalAccessRepo.findRoleTerminalAccess.mockResolvedValue([])
 
     const created = await handler.execute(
       new CreateRoleInstanceFromTemplateCommand({
@@ -160,6 +173,47 @@ describe('CreateRoleInstanceFromTemplateHandler', () => {
       new RoleLandingPolicy(created.id, 'DEFAULT', 'workbench.home', 100, true),
       new RoleLandingPolicy(created.id, 'MOBILE', 'mobile.todo', 100, true)
     ])
+  })
+
+  it('通过模板创建角色实例时应复制模板终端准入配置为实例自己的快照', async () => {
+    const roleRepo = createRoleRepository()
+    const navigationRepo = createNavigationRepository()
+    const terminalAccessRepo = createTerminalAccessRepository()
+    const handler = new CreateRoleInstanceFromTemplateHandler(roleRepo, navigationRepo as any, terminalAccessRepo as any)
+    const templateRole = new Role(
+      'template-role-id',
+      'Tenant Admin Template',
+      'tenant.admin',
+      null,
+      RoleKind.SYSTEM_TEMPLATE,
+      true
+    )
+
+    roleRepo.findRoleTemplateById.mockResolvedValue(templateRole)
+    roleRepo.findByScopeKindAndCode.mockResolvedValue(null)
+    roleRepo.save.mockImplementation(async (role) => role)
+    navigationRepo.findRoleNavigation.mockResolvedValue({
+      roleId: 'template-role-id',
+      visibility: [],
+      landingPolicies: []
+    })
+    terminalAccessRepo.findRoleTerminalAccess.mockResolvedValue([
+      { roleId: 'template-role-id', allowedTerminals: ['WEB', 'PDA'] }
+    ])
+
+    const created = await handler.execute(
+      new CreateRoleInstanceFromTemplateCommand({
+        templateRoleId: 'template-role-id',
+        tenantId: 'tenant-1',
+        operatorScope: {
+          operatorId: 'system-admin',
+          isSystemScope: true
+        }
+      } as any)
+    )
+
+    expect(terminalAccessRepo.findRoleTerminalAccess).toHaveBeenCalledWith(['template-role-id'])
+    expect(terminalAccessRepo.replaceRoleTerminalAccess).toHaveBeenCalledWith(created.id, ['WEB', 'PDA'])
   })
 
   it('角色实例应支持一键同步模板导航快照', async () => {

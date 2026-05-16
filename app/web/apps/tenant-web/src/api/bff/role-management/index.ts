@@ -96,6 +96,15 @@ export namespace RoleManagementApi {
     name?: string;
     tenantId: string;
   }
+
+  export interface RoleTerminalAccess {
+    allowedTerminals: string[];
+    roleId: string;
+  }
+
+  export interface SetRoleTerminalAccessPayload {
+    allowedTerminals: string[];
+  }
 }
 
 // Lists role instances with the current management filters.
@@ -182,6 +191,27 @@ export async function revokeRolePermissionApi(
 ) {
   return requestClient.delete(
     `/role/${encodeURIComponent(id)}/permissions/${encodeURIComponent(permissionId)}`,
+  );
+}
+
+// Loads the default login terminals granted by one role instance.
+export async function getRoleTerminalAccessApi(id: string) {
+  return requestClient.get<RoleManagementApi.RoleTerminalAccess>(
+    `/role/${encodeURIComponent(id)}/terminal-access`,
+  );
+}
+
+// Replaces the default login terminals granted by one role instance.
+export async function setRoleTerminalAccessApi(
+  id: string,
+  data: RoleManagementApi.SetRoleTerminalAccessPayload,
+) {
+  return requestClient.request<RoleManagementApi.RoleTerminalAccess>(
+    `/role/${encodeURIComponent(id)}/terminal-access`,
+    {
+      data,
+      method: 'PUT',
+    },
   );
 }
 

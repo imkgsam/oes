@@ -1,6 +1,6 @@
 # Barcode / Trace Identity Design Workspace
 
-> 本文是统一扫码、条码注册与追溯主体设计工作台。当前只记录已冻结或明确后置的设计结论，不替代 MES、WMS、HR、Item Master 的业务真相源。
+> 本文是统一扫码、条码注册与追溯主体设计工作台。当前只记录已冻结或明确后置的设计结论，不替代 MES、WMS、HR、Item Master 的业务真相源；涉及 HR `Employee / Employment`、员工生命周期或正式 `人 -> org` 归属时，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
 
 ## 0. 文档控制
 

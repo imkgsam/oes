@@ -1,5 +1,7 @@
 # finance-service Contracts
 
+> Finance contract 只描述财务黑盒接口；涉及权限、scope、policy、checkPermission、checkResource 或 buildQueryScope 的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 和项目级授权架构为准。
+
 ## 1. 目的
 
 本目录用于冻结 `finance-service` phase 1 / phase 1B 经营财务闭环的黑盒契约文档。

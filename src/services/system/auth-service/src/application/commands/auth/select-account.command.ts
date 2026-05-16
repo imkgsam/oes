@@ -36,6 +36,10 @@ export class SelectAccountCommand implements ICommand {
   @IsString()
   public readonly currentSessionId?: string
 
+  @IsOptional()
+  @IsString()
+  public readonly terminal?: string
+
   constructor(
     userId: string,
     accountId: string,
@@ -46,6 +50,7 @@ export class SelectAccountCommand implements ICommand {
       deviceName?: string
       userAgent?: string
       ipAddress?: string
+      terminal?: string
     }
   ) {
     this.userId = userId
@@ -56,5 +61,6 @@ export class SelectAccountCommand implements ICommand {
     this.userAgent = deviceContext?.userAgent
     this.ipAddress = deviceContext?.ipAddress
     this.currentSessionId = deviceContext?.currentSessionId
+    this.terminal = deviceContext?.terminal
   }
 }

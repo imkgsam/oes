@@ -1,5 +1,7 @@
 # ADR 0001: Unified Web Shell And Scope-aware UserAccount
 
+> 当前 `permission-service` 服务职责、核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本 ADR 只保留统一 Web shell 与 scope-aware account 的架构决策记录。
+
 日期：2026-04-11
 
 ## 状态

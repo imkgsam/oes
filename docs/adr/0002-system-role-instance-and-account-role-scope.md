@@ -1,5 +1,7 @@
 # ADR 0002: System Role Instance And Account Role Scope
 
+> 当前 `permission-service` 服务职责、核心对象与 owner 边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本 ADR 只保留 role kind 与 account-role scope 的架构决策记录。
+
 ## Status
 
 Accepted

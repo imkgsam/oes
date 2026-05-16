@@ -1,11 +1,13 @@
 import { ArgumentMetadata, ValidationPipe } from '@nestjs/common'
 import {
+  CreateProductionSpecDto,
   InstallToolingDto,
   ListCurrentMoldsByWorkCenterDto,
   ListMoldDesignsDto,
   ListProductionMoldsByDesignDto,
   ListProductionMoldsDto,
   ListProductionSpecsDto,
+  MoveToolingDto,
   PrintDailyMoldChecklistDto
 } from './mes.dto'
 
@@ -53,6 +55,28 @@ describe('MES HTTP DTOs', () => {
       page: 1,
       pageSize: 50,
       status: 'ACTIVE'
+    })
+  })
+
+  it('accepts ProductionSpec creation commands under gateway whitelist validation', async () => {
+    await expect(
+      transformBody(CreateProductionSpecDto, {
+        commandId: 'cmd-1',
+        itemRef: { itemId: 'item-1' },
+        name: 'Spec A',
+        orgId: 'org-1',
+        reason: 'runtime check',
+        revisionCode: 'R1',
+        specCode: 'SPEC-001'
+      })
+    ).resolves.toMatchObject({
+      commandId: 'cmd-1',
+      itemRef: { itemId: 'item-1' },
+      name: 'Spec A',
+      orgId: 'org-1',
+      reason: 'runtime check',
+      revisionCode: 'R1',
+      specCode: 'SPEC-001'
     })
   })
 
@@ -123,6 +147,26 @@ describe('MES HTTP DTOs', () => {
     ).resolves.toMatchObject({
       moldPosition: 'A1',
       workCenterRef: { workCenterId: 'wc-1' }
+    })
+  })
+
+  it('accepts tooling movement commands with command envelope fields', async () => {
+    await expect(
+      transformBody(MoveToolingDto, {
+        commandId: 'cmd-move-1',
+        movementReason: 'ready',
+        orgId: 'org-1',
+        reason: 'runtime check',
+        toolingType: 'MOLD',
+        toStorageResourceRef: { storageResourceId: 'storage-1' }
+      })
+    ).resolves.toMatchObject({
+      commandId: 'cmd-move-1',
+      movementReason: 'ready',
+      orgId: 'org-1',
+      reason: 'runtime check',
+      toolingType: 'MOLD',
+      toStorageResourceRef: { storageResourceId: 'storage-1' }
     })
   })
 

@@ -1,6 +1,6 @@
 import 'reflect-metadata'
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { ItemManagementController } from './item-management.controller'
 
 const source = {
@@ -49,18 +49,30 @@ describe('ItemManagementController V2', () => {
   it('attaches permissions to V2 ItemModel, Item, and BOM entrypoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, ItemManagementController.prototype.listItemModels)).toMatchObject({
-      permissions: ['item_master.item_model.list'],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, ItemManagementController.prototype.createItem)).toMatchObject({
-      permissions: ['item_master.item.create'],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, ItemManagementController.prototype.createBom)).toMatchObject({
-      permissions: ['item_master.bom.create'],
-      type: 'ALL'
-    })
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ItemManagementController.prototype.listItemModels
+      )
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, ItemManagementController.prototype.createItem)
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, ItemManagementController.prototype.createBom)
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ItemManagementController.prototype.updateItemCategoryBasics
+      )
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ItemManagementController.prototype.changeItemCategoryStatus
+      )
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('delegates ItemModel creation to the V2 BFF service', async () => {

@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
 import {
-  PermissionCheckAll,
+  RequirePermissions,
   PROCUREMENT_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
@@ -36,8 +36,10 @@ export class ProcurementController {
   constructor(private readonly procurementService: ProcurementService) {}
 
   @Get('purchase-requests')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_REQUEST])
-  @ApiOperation({ summary: 'Search procurement purchase requests for the phase 1 procurement workspace' })
+  @RequirePermissions({ all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_REQUEST] })
+  @ApiOperation({
+    summary: 'Search procurement purchase requests for the phase 1 procurement workspace'
+  })
   async searchPurchaseRequests(
     @Param('tenantId') tenantId: string,
     @Query() query: SearchPurchaseRequestsDto,
@@ -61,7 +63,7 @@ export class ProcurementController {
   }
 
   @Get('purchase-requests/:purchaseRequestId')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_PURCHASE_REQUEST])
+  @RequirePermissions({ all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_PURCHASE_REQUEST] })
   @ApiOperation({ summary: 'Get one procurement purchase request detail snapshot' })
   async getPurchaseRequest(
     @Param('tenantId') tenantId: string,
@@ -72,7 +74,7 @@ export class ProcurementController {
   }
 
   @Post('purchase-requests')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_PURCHASE_REQUEST])
+  @RequirePermissions({ all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_PURCHASE_REQUEST] })
   @ApiOperation({ summary: 'Create one procurement purchase request draft' })
   @ApiBody({ type: CreatePurchaseRequestDto })
   async createPurchaseRequest(
@@ -84,7 +86,9 @@ export class ProcurementController {
   }
 
   @Put('purchase-requests/:purchaseRequestId/draft')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.UPDATE_PURCHASE_REQUEST_DRAFT])
+  @RequirePermissions({
+    all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.UPDATE_PURCHASE_REQUEST_DRAFT]
+  })
   @ApiOperation({ summary: 'Full-replace one procurement purchase request draft snapshot' })
   @ApiBody({ type: UpdatePurchaseRequestDraftDto })
   async updatePurchaseRequestDraft(
@@ -102,7 +106,7 @@ export class ProcurementController {
   }
 
   @Post('purchase-requests/:purchaseRequestId/submit')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.SUBMIT_PURCHASE_REQUEST])
+  @RequirePermissions({ all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.SUBMIT_PURCHASE_REQUEST] })
   @ApiOperation({ summary: 'Submit one procurement purchase request draft' })
   @ApiBody({ type: SubmitPurchaseRequestDto })
   async submitPurchaseRequest(
@@ -121,7 +125,7 @@ export class ProcurementController {
   }
 
   @Post('purchase-requests/:purchaseRequestId/decision')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.DECIDE_PURCHASE_REQUEST])
+  @RequirePermissions({ all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.DECIDE_PURCHASE_REQUEST] })
   @ApiOperation({ summary: 'Record one procurement purchase request decision snapshot' })
   @ApiBody({ type: DecidePurchaseRequestDto })
   async decidePurchaseRequest(
@@ -134,7 +138,7 @@ export class ProcurementController {
   }
 
   @Post('purchase-requests/:purchaseRequestId/cancel')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CANCEL_PURCHASE_REQUEST])
+  @RequirePermissions({ all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CANCEL_PURCHASE_REQUEST] })
   @ApiOperation({ summary: 'Cancel one procurement purchase request' })
   @ApiBody({ type: CancelPurchaseRequestDto })
   async cancelPurchaseRequest(
@@ -147,10 +151,12 @@ export class ProcurementController {
   }
 
   @Post('purchase-requests/:purchaseRequestId/convert-to-order')
-  @PermissionCheckAll([
-    PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CONVERT_PURCHASE_REQUEST_TO_ORDER
-  ])
-  @ApiOperation({ summary: 'Convert one approved procurement purchase request into a purchase order draft' })
+  @RequirePermissions({
+    all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CONVERT_PURCHASE_REQUEST_TO_ORDER]
+  })
+  @ApiOperation({
+    summary: 'Convert one approved procurement purchase request into a purchase order draft'
+  })
   @ApiBody({ type: ConvertPurchaseRequestToPurchaseOrderDto })
   async convertPurchaseRequestToPurchaseOrder(
     @Param('tenantId') tenantId: string,
@@ -167,8 +173,10 @@ export class ProcurementController {
   }
 
   @Get('purchase-orders')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_ORDER])
-  @ApiOperation({ summary: 'Search procurement purchase orders for the phase 1 procurement workspace' })
+  @RequirePermissions({ all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_ORDER] })
+  @ApiOperation({
+    summary: 'Search procurement purchase orders for the phase 1 procurement workspace'
+  })
   async searchPurchaseOrders(
     @Param('tenantId') tenantId: string,
     @Query() query: SearchPurchaseOrdersDto,
@@ -192,7 +200,7 @@ export class ProcurementController {
   }
 
   @Get('purchase-orders/:purchaseOrderId')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_PURCHASE_ORDER])
+  @RequirePermissions({ all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_PURCHASE_ORDER] })
   @ApiOperation({ summary: 'Get one procurement purchase order detail snapshot' })
   async getPurchaseOrder(
     @Param('tenantId') tenantId: string,
@@ -203,7 +211,9 @@ export class ProcurementController {
   }
 
   @Post('purchase-orders')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_PURCHASE_ORDER_DRAFT])
+  @RequirePermissions({
+    all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_PURCHASE_ORDER_DRAFT]
+  })
   @ApiOperation({ summary: 'Create one procurement purchase order draft' })
   @ApiBody({ type: CreatePurchaseOrderDraftDto })
   async createPurchaseOrderDraft(
@@ -215,7 +225,9 @@ export class ProcurementController {
   }
 
   @Put('purchase-orders/:purchaseOrderId/draft')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.UPDATE_PURCHASE_ORDER_DRAFT])
+  @RequirePermissions({
+    all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.UPDATE_PURCHASE_ORDER_DRAFT]
+  })
   @ApiOperation({ summary: 'Full-replace one procurement purchase order draft snapshot' })
   @ApiBody({ type: UpdatePurchaseOrderDraftDto })
   async updatePurchaseOrderDraft(
@@ -228,7 +240,7 @@ export class ProcurementController {
   }
 
   @Post('purchase-orders/:purchaseOrderId/issue')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.ISSUE_PURCHASE_ORDER])
+  @RequirePermissions({ all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.ISSUE_PURCHASE_ORDER] })
   @ApiOperation({ summary: 'Issue one procurement purchase order draft' })
   @ApiBody({ type: IssuePurchaseOrderDto })
   async issuePurchaseOrder(
@@ -247,9 +259,9 @@ export class ProcurementController {
   }
 
   @Post('purchase-orders/:purchaseOrderId/supplier-acknowledgement')
-  @PermissionCheckAll([
-    PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CONFIRM_SUPPLIER_ACKNOWLEDGEMENT
-  ])
+  @RequirePermissions({
+    all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CONFIRM_SUPPLIER_ACKNOWLEDGEMENT]
+  })
   @ApiOperation({ summary: 'Record one procurement supplier acknowledgement summary' })
   @ApiBody({ type: ConfirmSupplierAcknowledgementDto })
   async confirmSupplierAcknowledgement(
@@ -267,8 +279,12 @@ export class ProcurementController {
   }
 
   @Post('purchase-orders/:purchaseOrderId/changes')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.APPLY_PURCHASE_ORDER_CHANGE])
-  @ApiOperation({ summary: 'Apply one procurement purchase order change and return the saved change record' })
+  @RequirePermissions({
+    all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.APPLY_PURCHASE_ORDER_CHANGE]
+  })
+  @ApiOperation({
+    summary: 'Apply one procurement purchase order change and return the saved change record'
+  })
   @ApiBody({ type: ApplyPurchaseOrderChangeDto })
   async applyPurchaseOrderChange(
     @Param('tenantId') tenantId: string,
@@ -276,16 +292,11 @@ export class ProcurementController {
     @Body() body: ApplyPurchaseOrderChangeDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.procurementService.applyPurchaseOrderChange(
-      tenantId,
-      purchaseOrderId,
-      body,
-      source
-    )
+    return this.procurementService.applyPurchaseOrderChange(tenantId, purchaseOrderId, body, source)
   }
 
   @Post('purchase-orders/:purchaseOrderId/cancel')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CANCEL_PURCHASE_ORDER])
+  @RequirePermissions({ all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CANCEL_PURCHASE_ORDER] })
   @ApiOperation({ summary: 'Cancel one procurement purchase order' })
   @ApiBody({ type: CancelPurchaseOrderDto })
   async cancelPurchaseOrder(
@@ -298,7 +309,9 @@ export class ProcurementController {
   }
 
   @Get('purchase-orders/:purchaseOrderId/changes')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_ORDER_CHANGES])
+  @RequirePermissions({
+    all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_PURCHASE_ORDER_CHANGES]
+  })
   @ApiOperation({ summary: 'List one procurement purchase order change history page' })
   async listPurchaseOrderChanges(
     @Param('tenantId') tenantId: string,
@@ -318,8 +331,10 @@ export class ProcurementController {
   }
 
   @Get('receiving-expectations')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_RECEIVING_EXPECTATION])
-  @ApiOperation({ summary: 'Search procurement receiving expectations for the phase 1 procurement workspace' })
+  @RequirePermissions({ all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.LIST_RECEIVING_EXPECTATION] })
+  @ApiOperation({
+    summary: 'Search procurement receiving expectations for the phase 1 procurement workspace'
+  })
   async searchReceivingExpectations(
     @Param('tenantId') tenantId: string,
     @Query() query: SearchReceivingExpectationsDto,
@@ -342,22 +357,20 @@ export class ProcurementController {
   }
 
   @Get('receiving-expectations/:receivingExpectationId')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_RECEIVING_EXPECTATION])
+  @RequirePermissions({ all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.GET_RECEIVING_EXPECTATION] })
   @ApiOperation({ summary: 'Get one procurement receiving expectation detail snapshot' })
   async getReceivingExpectation(
     @Param('tenantId') tenantId: string,
     @Param('receivingExpectationId') receivingExpectationId: string,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.procurementService.getReceivingExpectation(
-      tenantId,
-      receivingExpectationId,
-      source
-    )
+    return this.procurementService.getReceivingExpectation(tenantId, receivingExpectationId, source)
   }
 
   @Post('receiving-expectations')
-  @PermissionCheckAll([PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_RECEIVING_EXPECTATION])
+  @RequirePermissions({
+    all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.CREATE_RECEIVING_EXPECTATION]
+  })
   @ApiOperation({ summary: 'Create one procurement receiving expectation snapshot' })
   @ApiBody({ type: CreateReceivingExpectationDto })
   async createReceivingExpectation(
@@ -368,10 +381,12 @@ export class ProcurementController {
     return this.procurementService.createReceivingExpectation(tenantId, body, source)
   }
 
-  @Post('receiving-expectations/:receivingExpectationId/discrepancies/:receivingDiscrepancyId/resolution')
-  @PermissionCheckAll([
-    PROCUREMENT_MANAGEMENT_PERMISSION_CODES.RECORD_RECEIVING_DISCREPANCY_RESOLUTION
-  ])
+  @Post(
+    'receiving-expectations/:receivingExpectationId/discrepancies/:receivingDiscrepancyId/resolution'
+  )
+  @RequirePermissions({
+    all: [PROCUREMENT_MANAGEMENT_PERMISSION_CODES.RECORD_RECEIVING_DISCREPANCY_RESOLUTION]
+  })
   @ApiOperation({ summary: 'Record one procurement receiving discrepancy resolution summary' })
   @ApiBody({ type: RecordReceivingDiscrepancyResolutionDto })
   async recordReceivingDiscrepancyResolution(

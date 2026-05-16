@@ -1,5 +1,7 @@
 # OES 可观测性与审计基础实施计划
 
+> 涉及 permission-service 的审计样板、权限审计或授权判定审计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只记录可观测性与审计基础实施路径。
+
 ## 1. 目标
 
 将 [12-observability-and-audit-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/12-observability-and-audit-architecture.md) 中确认的方案拆成可执行实施路径。

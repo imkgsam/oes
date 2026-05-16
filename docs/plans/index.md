@@ -1,5 +1,7 @@
 # OES 实施计划索引
 
+> 涉及 HR `Employee / Employment`、员工生命周期、正式 `人 -> org` 归属或 onboarding owner 边界时，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本索引只导航计划文档。
+
 ## 1. 目的
 
 本目录用于承载 OES 的阶段性实施计划、专题规划与执行拆分文档。
@@ -51,24 +53,20 @@
    - 可观测性与审计基础实施计划
 19. `mfa-login-policy-and-factor-orchestration-implementation-plan.md`
    - 登录场景 MFA 策略、因子优先级与登录续流编排实施计划
-20. `tenant-org-service-foundation-implementation-plan.md`
-   - Tenant-Org Service 第一阶段实现、迁移与验证计划
-21. `tenant-org-service-migration-plan.md`
-   - Tenant 与 org tree 从 `identity-service` 迁入 `tenant-org-service` 的迁移计划
-22. `features/hr-service-foundation.md`
+20. `features/hr-service-foundation.md`
    - HR Service minimum 第一阶段 feature packet
-23. `hr-service-minimum-implementation-plan.md`
-   - HR Service minimum 第一阶段 contract-realization、服务骨架与实现拆分计划
-24. `features/sales-quote-order-core.md`
+21. `features/sales-quote-order-core.md`
     - Sales Service 第一阶段报价、正式版本、订单成立与 fulfillment handoff feature packet
-25. `features/finance-ar-credit-core.md`
+22. `features/finance-ar-credit-core.md`
     - Finance Service 第一阶段 AR、invoice、collection、allocation、credit、finance release 与 standard FX feature packet
-26. `features/object-activity-foundation.md`
+23. `features/object-activity-foundation.md`
     - 平台级 ObjectActivity / ObjectTimeline 第一阶段 foundation feature packet
-27. `features/crm-customer-master-foundation.md`
+24. `features/crm-customer-master-foundation.md`
     - CRM Service 最小客户主档闭环与 Sales selector 边界 feature packet
-28. `features/procurement-pr-po-foundation.md`
+25. `features/procurement-pr-po-foundation.md`
     - Procurement Service 第一阶段 PR、PO、allocation、收货预期与采购差异摘要 feature packet
+26. `pda-phase-1-foundation-implementation-plan.md`
+    - PDA Android 设备端第一阶段系统基础能力、Android Shell、Vue3 Web、JS Bridge、PDA BFF 与真机验收实施计划
 
 ## 3. 使用规则
 

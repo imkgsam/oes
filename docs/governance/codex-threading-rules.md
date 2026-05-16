@@ -399,7 +399,7 @@
 | `src/services/system/auth-service/**` | implementation thread | 中 | 可独立线程开发，认证语义变更需升级 |
 | `src/services/system/identity-service/**` | implementation thread | 中 | 可独立线程开发，身份边界变更需升级 |
 | `src/services/system/permission-service/**` | implementation thread | 中 | 可独立线程开发，权限语义变更需升级 |
-| `src/services/system/party-service/**` | implementation thread | 中 | 可独立线程开发；旧 `entity-service` 残留仅按迁移治理处理，主体边界变更需升级 |
+| `src/services/system/party-service/**` | implementation thread | 中 | 可独立线程开发，主体边界变更需升级 |
 | `src/services/business/**` | implementation thread | 高 | 在不碰共享边界前提下可按服务并行 |
 | `src/services/auxiliary/**` | implementation thread | 高 | 在不碰共享边界前提下可按服务并行 |
 

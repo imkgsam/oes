@@ -1,5 +1,7 @@
 # Procurement、SRM、Item Master、WMS 与 Finance 协同蓝图
 
+> 涉及 permission-service 的权限、scope、policy 或授权判定边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述采购、供应商、物料、仓储与财务之间的业务协同。
+
 ## 1. 目标
 
 定义 OES 中 `procurement-service` 如何围绕 `PR + PO` 最小闭环，与 `srm-service`、`item-master-service`、`wms-service` 与 `finance-service` 协同，并明确哪些事实归 Procurement、哪些事实继续归 SRM、Item Master、WMS 与 Finance。
@@ -50,7 +52,7 @@
 - `srm-service` 继续 owns `SupplierProfile / SupplierOffering`。
 - 标准 `Item` 转 `PO` 时，`procurement-service` 必须校验目标供应商存在有效 `ACTIVE SupplierOffering`。
 - 日常非标准采购可不强制依赖 `ACTIVE SupplierOffering`，但这不改变 `SupplierOffering` 的 owner 归属。
-- Procurement 不把采购价格、`MOQ`、lead time、账期等商业条款塞回 `SRM`。
+- Procurement 不把采购价格、`MOQ`、lead time、payment term snapshot 等商业条款塞回 `SRM`；`PaymentTerm` 主数据归 `finance-service`。
 
 ### 4.3 Procurement 与 Item Master 边界
 

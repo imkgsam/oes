@@ -74,10 +74,12 @@ describe('tenant-web role management api', () => {
     const {
       assignRolePermissionApi,
       deleteRoleApi,
+      getRoleTerminalAccessApi,
       getRoleByIdApi,
       listRolePermissionsApi,
       revokeRolePermissionApi,
       setRoleEnabledApi,
+      setRoleTerminalAccessApi,
       updateRoleApi,
     } = await import('./index');
 
@@ -90,6 +92,10 @@ describe('tenant-web role management api', () => {
     await listRolePermissionsApi('role-1');
     await assignRolePermissionApi('role-1', { permissionId: 'perm-1' });
     await revokeRolePermissionApi('role-1', 'perm-1');
+    await getRoleTerminalAccessApi('role-1');
+    await setRoleTerminalAccessApi('role-1', {
+      allowedTerminals: ['WEB', 'PDA'],
+    });
     await deleteRoleApi('role-1');
 
     expect(get).toHaveBeenCalledWith('/role/role-1');
@@ -111,6 +117,13 @@ describe('tenant-web role management api', () => {
       permissionId: 'perm-1',
     });
     expect(del).toHaveBeenCalledWith('/role/role-1/permissions/perm-1');
+    expect(get).toHaveBeenCalledWith('/role/role-1/terminal-access');
+    expect(request).toHaveBeenCalledWith('/role/role-1/terminal-access', {
+      data: {
+        allowedTerminals: ['WEB', 'PDA'],
+      },
+      method: 'PUT',
+    });
     expect(del).toHaveBeenCalledWith('/role/role-1');
   });
 

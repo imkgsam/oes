@@ -90,7 +90,7 @@ OES 应建立独立的 `notification-service`，而不是让各业务服务分�
 
 `auth-service`
 
-- 负责生成 OTP、频控、挑战、认证审计语义
+- OTP、challenge、频控与认证审计边界以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准
 - 调用 `notification-service` 发出 OTP 类通知
 - 不直接对接 Email/SMS 供应商
 
@@ -241,7 +241,7 @@ SMS 渠道应支持：
 
 例如 OTP 场景中：
 
-- OTP 的生成、有效期、挑战真相归 `auth-service`
+- OTP 的生成、有效期、挑战真相以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准
 - 模板只负责把 `{code}`、`{ttlMinutes}`、`{maskedDestination}` 渲染为消息内容
 
 ### 8.3 推荐模板分类
@@ -480,13 +480,9 @@ OTP 场景下可以更具体：
 
 OTP 是通知平台落地时最先会碰到的场景，因此边界必须特别明确。
 
-### 15.1 `auth-service` 负责
+### 15.1 `auth-service` 边界引用
 
-- 生成 OTP
-- 保存 OTP
-- 决定 OTP 用途
-- 决定是否允许重发
-- 决定挑战是否仍有效
+OTP challenge、OTP value / hash、用途、过期、重发、尝试次数、校验与认证审计语义以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。本文不重新定义 `auth-service` 设计，只记录 `notification-service` 侧如何承接投递。
 
 ### 15.2 `notification-service` 负责
 
@@ -499,15 +495,15 @@ OTP 是通知平台落地时最先会碰到的场景，因此边界必须特别�
 
 - `notification-service` 不校验 OTP
 - `auth-service` 不直接依赖供应商 SDK
-- OTP 是否送达，不影响 OTP 真相是否存在
+- OTP 是否送达，不影响 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 定义的 OTP challenge 是否存在
 
 ## 16. 与 `identity-service` 的专门边界
 
-`identity-service` 拥有联系资产主数据，例如：
+联系资产边界以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准。对通知平台而言，典型消费对象包括：
 
 - 账号工作邮箱
-- 个人邮箱
-- 手机号资产
+- 工作手机号
+- 其他由 identity contract 明确发布的联系目标摘要
 
 `notification-service` 应遵循：
 

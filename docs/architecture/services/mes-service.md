@@ -5,8 +5,8 @@
 ```text
 designKey: mes-service-architecture
 designStatus: STABLE_ARCHITECTURE_BASELINE
-lastUpdatedAt: 2026-05-10 00:00:00 CST
-lastUpdatedBy: Codex MES redesign thread
+lastUpdatedAt: 2026-05-16 00:00:00 CST
+lastUpdatedBy: Codex MES mold minimum-loop design thread
 truthSource: 本文是 MES 当前已确认新设计的唯一架构化入口。
 conflictResolution: 当本文与旧 MES design workspace、旧 feature packet、旧 contract 或旧 runtime 命名冲突时，以本文为准；后续 ADR 或更新后的 contract 可在明确标注后覆盖对应章节。
 ```
@@ -51,7 +51,7 @@ MES 不拥有：
 | 执行单元 | `WorkCenter` 表达派工、报工、排产和产能统计的执行单元。 |
 | 现场位置 | 固定 / 半固定存放用 `StorageResource`；可移动承载用 `CarrierResource`。 |
 | 工具资源 | 模具、检具、夹具、窑具等属于 `Tooling`。 |
-| 模具对象 | `MoldDesign -> ProductionMold -> ToolingInstallation(type=MOLD) -> MoldInstallationDetail -> MoldUsageRecord -> MoldLifeCounter`。 |
+| 模具对象 | `MoldDesign -> MasterMold optional -> ProductionMold -> ToolingInstallation(type=MOLD) -> MoldInstallationDetail -> MoldUsageRecord -> MoldLifeCounter`。 |
 | 生产实物 | `ProductionUnit` 表示 MES 责任范围内的生产实物对象，交仓后不删除。 |
 | 目标规格 | 新设计统一使用 `ProductionSpec`，不再以 `ManufacturingSpec` 作为目标设计名。 |
 | 追溯主体 | 产品码绑定 `TraceSubject`，再通过对象链接关联 `ProductionUnit / InventoryUnit / PackageUnit`。 |
@@ -90,6 +90,7 @@ MES 资源模型从 `ProductionResource` 统一抽象出发，但稳定设计必
 
 ```text
 MoldDesign
+  -> MasterMold optional
   -> ProductionMold
   -> ToolingInstallation(type = MOLD)
   -> MoldInstallationDetail
@@ -109,16 +110,79 @@ MoldDesign
 
 冻结规则：
 
+- `MoldDesign` 是模具工程设计真相，决定产品模型、理论输出结构、材质、生产方式和默认寿命模板。
+- `MoldDesign` 主关联 `ItemModel`，不是执行层 `Item`；执行层 `Item` 在生产、交仓、库存、BOM、成本等场景再解析或引用。
+- 不同材质或明显不同生产方式应创建不同 `MoldDesign`，例如石膏地摊模和树脂高压模不共用同一个设计。
+- `MoldDesign.defaultLifeLimit / defaultLifeUnit` 是创建生产模时初始化 `MoldLifeCounter` 的模板，不表示 `MoldDesign` 自身有寿命。
+- `MasterMold` 是母模结果对象，是未来母模开发流程的最终产物；第一阶段不实现开发流程，只管理已完成、可引用的母模实物。
+- `MasterMold` 第一阶段只支持登记、列表和详情查询；不支持移动、安装、使用、寿命、报废。
+- `ProductionMold` 应在实际到达使用工厂并收货登记时创建，不在开始制作时创建。
+- `RegisterProductionMold` 创建 `RECEIVED` 状态生产模；`AcceptProductionMold` 表示验收通过并推进到 `AVAILABLE`。
+- 外部模具厂来源通过 `supplierRef / purchaseRef` 引用供应商和采购事实；内部模具车间来源通过内部组织 / 制造地点 / `sourceMasterMoldId` 等引用表达，不建模成采购或外部供应商。
 - 安装和报工关联 `ProductionMold`，不关联 `MoldDesign`。
 - 模具存放位置使用 `StorageResource`。
 - 模具安装主事实是 `ToolingInstallation(type=MOLD)`，不再创建并行的 `MoldInstallation` 主对象。
 - 模具专属安装字段放入 `MoldInstallationDetail`，包括 `moldPosition`、`cavityPosition`、`cavityMapping`、`setupParameters`。
+- `InstallTooling` 第一阶段只允许安装 `AVAILABLE` 的生产模。
+- `MoveTooling` 只能移动未安装且未待报废 / 未报废的生产模。
 - `MoldUsageRecord` 是模具寿命事实，不替代 `OperationExecution`。
 - `MoldLifeCounter` 是独立对象，不是 `ProductionMold` 上的简单数字字段。
+- `RecordMoldUsage` 和 `RecordMoldUsageBatch` 都必须在 mes-service 内累计 `MoldLifeCounter`。
+- `RecordMoldUsageBatch` 是 MES command，不是 BFF 拆行循环；同一批次内任一已提交行无效时整批失败且不写入 usage / counter。
+- Web / PDA 不暴露 `lifeDelta` 给操作员；第一阶段由 mes-service 以 `usageQuantity` 推导 `lifeDelta`，寿命单位默认 `CASTING_CYCLE`。
+- `AdjustMoldLifeCounter` 仅用于后台手工调整，必须有 audit reason，不进入每日注浆录入流程。
+- 生产模报废采用两步模型：已安装模具先标记 `SCRAP_PENDING` 并保留 active installation，现场拆除后由 `UnmountTooling` 推进到 `SCRAPPED`；未安装模具可直接进入 `SCRAPPED`。
+- `SCRAP_PENDING` 表示已禁止继续使用但仍可能占据产线模位；查询、打印清单和 PDA 列表必须显示该位置，但 usage 行必须禁用。
+- daily checklist 是 Web 过渡作业形态，不是 MES 领域对象；mes-service 不把 `PrintDailyMoldChecklist` 作为稳定核心 query，BFF 可基于当前安装模具查询组装打印模型。
 - 第一阶段不强行解决模具产出胚体与 `ProductionUnit` 的自动逐件绑定。
+
+第一阶段 `ProductionMold` 状态：
+
+```text
+RECEIVED
+PREPARING
+AVAILABLE
+INSTALLED
+MAINTENANCE
+DISABLED
+SCRAP_PENDING
+SCRAPPED
+```
+
+第一阶段命令状态迁移：
+
+| 命令 | 允许状态 / 结果 | 拒绝状态 |
+| --- | --- | --- |
+| `RegisterProductionMold` | 创建 `RECEIVED` | 不适用 |
+| `AcceptProductionMold` | `RECEIVED -> AVAILABLE` | 非 `RECEIVED` |
+| `MoveTooling` | `RECEIVED / PREPARING / AVAILABLE / MAINTENANCE / DISABLED` | `INSTALLED / SCRAP_PENDING / SCRAPPED` |
+| `InstallTooling` | `AVAILABLE -> INSTALLED` | 其他状态 |
+| `UnmountTooling` | `INSTALLED -> AVAILABLE`；`SCRAP_PENDING -> SCRAPPED` | 非 active installation |
+| `RecordMoldUsage / RecordMoldUsageBatch` | `INSTALLED` | 其他状态，包含 `SCRAP_PENDING` |
+| `AdjustMoldLifeCounter` | 非 `SCRAPPED` | `SCRAPPED` |
+| `MarkProductionMoldForScrap` | `INSTALLED -> SCRAP_PENDING`；非安装活动态 -> `SCRAPPED` | `SCRAP_PENDING / SCRAPPED` |
+
+Web 过渡清单与未来 PDA 目标：
+
+```text
+Web 过渡：
+文员按 WorkCenter 打印当前安装模具清单
+-> 成型主管现场记录当天注浆次数
+-> 文员在 Web 批量录入
+-> BFF 调用 mes-service RecordMoldUsageBatch
+-> MES 写 MoldUsageRecord 并累计 MoldLifeCounter
+
+PDA 目标：
+成型主管扫描 WorkCenter / 产线码
+-> PDA 读取当前安装模具列表
+-> 主管确认每套可用模具当天使用次数
+-> PDA 调用同一个 RecordMoldUsageBatch
+```
 
 第一阶段暂不实现：
 
+- 母模开发流程、试模、评审、修订、开发工单。
+- 内部模具车间生产模具制作过程、内部调拨过程或跨工厂资产流转闭环。
 - 完整维修 / 保养工单闭环。
 - 复杂寿命预警事件流。
 - 自动从 `OperationExecution` 反推模具寿命。
@@ -206,6 +270,8 @@ barcode
 
 - `item-master-service` 提供 active + manufacturable `Item` 准入边界。
 - `ProductionSpec` 可引用可生产的 `Item`。
+- `MoldDesign` 在设计层主引用 `ItemModel`，用于表达模具设计对应的产品模型、规格族或理论输出模型。
+- MES 不把 `MoldDesign` 主绑定到执行层 `Item`；具体 `Item` 是生产执行、交仓、库存、BOM 和成本核算的落地身份。
 - MES 不复制 `ItemModel`、Item code、name、category、BOM、Packaging 等 Item 主数据真相。
 - 本文只定义 MES 侧边界，不替代 Item Master 的完整设计。
 

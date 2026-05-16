@@ -25,9 +25,9 @@
 - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
 - [ADR 0003](/Users/acehood/Documents/GitHub/oes/docs/adr/0003-party-master-service-and-tenant-party-binding.md)
 
-当前 proto、generated client 与主服务源码已经采用 `party-service` / `party_service` 命名。
+涉及 HR `Employee / Employment`、员工生命周期或正式 `人 -> org` 归属时，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；Party contract 只提供主体事实与租户主体引用能力。
 
-仓库中仍可能残留 `entity-service` 级别的运行配置、工程引用与历史文档；这些属于迁移治理问题，不改变 `party-service` 作为稳定服务边界与黑盒契约入口的结论。
+当前 proto、generated client 与主服务源码采用 `party-service` / `party_service` 命名。
 
 ## 2. 模块划分
 
@@ -42,12 +42,14 @@
 
 - `merge.md` 已冻结第一阶段 `MergeParties` 黑盒语义。
 - merge 审批流、unmerge、事件契约与更细的治理流程仍后置到 future collaboration / feature。
+- `PartyOfficialAddress / TenantPartyAddress / TenantPartyContact` 的 owner 归属已在服务真相源冻结，但当前 contract 目录尚未补齐对应黑盒 API。
 
 ## 3. 全局调用约束
 
 - 所有接口均为内部服务接口，不直接对外部客户端开放。
 - 所有调用方都应将 `party-service` 视为 black box，而不是依赖其内部实现结构。
 - 第一阶段业务域默认引用 `tenantPartyId`，而不是直接持有裸 `partyId` 作为业务主体主引用。
+- `Tenant / OrgUnit / org tree / organizationPartyId` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；Party contract 只描述主体与租户主体引用能力。
 - 当前调用链约束：
   - `identity-service`、`api-gateway` 已开始向 `party-service` 传递 `tenantId`、operator / trace metadata
   - 写接口的业务请求体仍以 `tenant_id` 等显式字段为准
@@ -59,7 +61,6 @@
   - internal-service / authenticated-operator / permission guard
   - handler 级 trace context enforcement
   - 审计事件落库、outbox 或统一 audit 集成
-- 在现有运行时代码仍使用旧 `entity-service` 名称期间，任何调用方不得继续扩展泛化 entity 语义；应按本目录的 `party-service` 边界设计新能力。
 
 ## 4. 与当前 proto 的对齐口径
 
@@ -92,8 +93,9 @@
 
 当前不包含：
 
-- customer / supplier / employee / contact 业务角色管理
-- org tree 或 org membership 管理
+- customer / supplier / employee / contact 业务角色管理；其中 employee / employment 语义以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
+- `PartyOfficialAddress / TenantPartyAddress / TenantPartyContact` 的正式 API surface
+- org tree 或 org membership 管理；组织树本体以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准
 - 完整主数据治理平台能力
 - 自动外部工商 / 证照数据同步
 - merge redirect、history traceability、downstream repair、unmerge 等完整治理链

@@ -1,5 +1,7 @@
 # Navigation Summary Design
 
+> `permission-service` 的服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只描述 API Gateway / BFF navigation-summary contract，不重新定义 NavigationEntry、RoleNavigationVisibility、RoleLandingPolicy 或 navigation governance owner 边界。
+
 ## 1. Purpose
 
 This document defines the OES navigation-summary design used by API Gateway / BFF contracts.
@@ -17,6 +19,7 @@ The stable contract is:
 - Web maps entry keys to routes and menu trees.
 - Mobile maps entry keys to screens or tabs.
 - PDA maps entry keys to task entries.
+- KIOSK maps entry keys to fixed-station touch-screen workspaces.
 - Mini programs map entry keys to page paths.
 
 ## 3. Responsibility Split
@@ -242,3 +245,21 @@ Current implementation decision:
 - Terminal-aware visibility presenters.
 - Action-code summary for button-level authorization.
 - Data-level authorization remains handled by downstream `buildQueryScope` and `checkResource`.
+
+## 12. PDA / KIOSK Baseline
+
+PDA and KIOSK consume the same `navigation.defaultEntry` and `navigation.visibleEntries` shape as Web, but each terminal maps entries to its own local UI.
+
+Phase 1 Terminal Access Policy work may seed only minimal system entries:
+
+| Entry key | Terminal | Purpose |
+| --- | --- | --- |
+| `pda.home` | `PDA` | PDA shell home / first task surface |
+| `kiosk.home` | `KIOSK` | Fixed station touch-screen shell home |
+
+Business entries such as quality inspection, warehouse receiving, production execution, or scan result pages are not part of the terminal access baseline. They must be introduced by their owning business feature contracts.
+
+Terminal access and navigation visibility remain separate:
+
+- Terminal Access Policy decides whether a session can be established or refreshed from a terminal.
+- Navigation visibility decides which entry keys are visible after a session exists.

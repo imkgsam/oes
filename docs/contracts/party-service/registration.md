@@ -50,6 +50,7 @@ deferred enforcement：
   - optional `tenant_id`
   - optional `local_display_name`
   - optional `local_code`
+  - optional `idempotency_key`
 - 关键语义：
   - phase-1 当前只冻结 identifier `strong-match reuse`
   - 当 `identifiers[]` 提供且命中 strong match 时，runtime 直接复用已存在 `party`，并在提供 `tenant_id` 时创建 `TenantParty`
@@ -82,11 +83,12 @@ deferred enforcement：
   - optional `tenant_id`
   - optional `local_display_name`
   - optional `local_code`
+  - optional `idempotency_key`
 - 关键语义：
   - 与 `RegisterPersonParty` 相同，phase-1 当前只冻结 identifier `strong-match reuse`
   - strong match 命中时，runtime 直接复用已存在 `party`，并在提供 `tenant_id` 时创建 `TenantParty`
   - 未命中 strong match 时，runtime 直接创建新的 canonical `Party`
-  - 当前 runtime 允许空 `identifiers[]`
+  - 当前 runtime 允许空 `identifiers[]`；但服务职责真相源已要求组织主体创建第一阶段必须采集官方强标识，新的 CRM / SRM / onboarding 调用方不得把空标识视为推荐路径
   - 候选查重、create-reject / preflight flow、人工确认复用流程当前未落地，统一 deferred
   - 组织主体的名字不是全局唯一键，不能只按名称判断是否为同一主体
 - 响应关键字段：
@@ -113,6 +115,7 @@ deferred enforcement：
   - optional `local_display_name`
   - optional `local_code`
   - optional `tags[]`
+  - optional `idempotency_key`
 - 关键语义：
   - 同一租户对同一 `partyId` 只能存在一条有效 `TenantParty`
   - 该接口不创建新的 canonical `Party`
@@ -163,6 +166,10 @@ deferred enforcement：
 
 ## 8. 幂等性与副作用提示
 
-- `RegisterPersonParty` 与 `RegisterOrganizationParty` 都有明确副作用，不是幂等查询接口。
-- `BindExistingPartyToTenant` 对同一 `tenantId + partyId` 组合当前直接抛 `duplicate binding`，不返回现有绑定。
+- `RegisterPersonParty`、`RegisterOrganizationParty` 与 `BindExistingPartyToTenant` 都是有副作用的写接口，不是幂等查询接口。
+- 当前 proto / runtime 已支持 `idempotency_key`。
+- 同一 `idempotency_key` + 同一 request fingerprint 可安全复用既有结果。
+- 同一 `idempotency_key` + 不同 request fingerprint 应返回 idempotency conflict。
+- 未提供 `idempotency_key` 时，调用方不得假设写接口天然幂等。
+- `BindExistingPartyToTenant` 未通过 idempotency 命中既有结果时，对同一 `tenantId + partyId` 组合仍按 duplicate binding 处理。
 - `DeactivateTenantParty` 不是删除接口；调用方不得把停用当成清理历史引用的替代方案。

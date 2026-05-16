@@ -2,7 +2,7 @@ import { CommandBus } from '@nestjs/cqrs'
 import { status } from '@grpc/grpc-js'
 import {
   IDENTITY_ACCOUNT_PERMISSION_CODES,
-  REQUIRE_PERMISSION_METADATA_KEY
+  REQUIRE_PERMISSIONS_METADATA_KEY
 } from '@oes/common/authorization'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
@@ -10,10 +10,7 @@ import { IdentityAuditService } from '../../src/application/services/identity-au
 import { IdentityMachineAuthGrpcController } from '../../src/interfaces/grpc/identity-machine-auth.grpc.controller'
 import { IdentityManagementGrpcController } from '../../src/interfaces/grpc/identity-management.grpc.controller'
 import { IDENTITY_INVALID_WORK_EMAIL } from '../../src/common/constants/exceptions/contact-asset.exceptions'
-import {
-  createApiKeyFixture,
-  createServiceAccountFixture
-} from '../helpers/machine-fixtures'
+import { createApiKeyFixture, createServiceAccountFixture } from '../helpers/machine-fixtures'
 import { createContactAssetFixture } from '../helpers/identity-fixtures'
 
 describe('identity audit controller integration', () => {
@@ -68,10 +65,7 @@ describe('identity audit controller integration', () => {
     const auditService = {
       emitApiKeyAuthenticated: jest.fn()
     } as unknown as IdentityAuditService
-    const controller = new IdentityMachineAuthGrpcController(
-      commandBus as any,
-      auditService
-    )
+    const controller = new IdentityMachineAuthGrpcController(commandBus as any, auditService)
 
     await controller.authenticateApiKey({ secret: 'sk_test' })
 
@@ -117,8 +111,8 @@ describe('identity audit controller integration', () => {
         result: 'REJECTED',
         operator: {
           operatorId: '11111111-1111-4111-8111-111111111111',
-        operatorType: 'HUMAN'
-      },
+          operatorType: 'HUMAN'
+        },
         details: expect.objectContaining({
           accountId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
           assetType: 'WORK_EMAIL',
@@ -136,10 +130,7 @@ describe('identity audit controller integration', () => {
       emitApiKeyAuthenticated: jest.fn(),
       emitEnvelope: jest.fn()
     } as unknown as IdentityAuditService
-    const controller = new IdentityMachineAuthGrpcController(
-      commandBus as any,
-      auditService
-    )
+    const controller = new IdentityMachineAuthGrpcController(commandBus as any, auditService)
 
     await expect(controller.authenticateApiKey({ secret: 'sk_test' })).rejects.toMatchObject({
       definition: expect.objectContaining({
@@ -345,9 +336,9 @@ describe('identity audit controller integration', () => {
   it('management controller / updateUserBasicInfo 应保留管理员资料权限元数据', () => {
     expect(
       Reflect.getMetadata(
-        REQUIRE_PERMISSION_METADATA_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         IdentityManagementGrpcController.prototype.updateUserBasicInfo
       )
-    ).toBe(IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE)
+    ).toEqual({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE] })
   })
 })

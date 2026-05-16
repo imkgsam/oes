@@ -16,9 +16,12 @@ const getAdminAccountDeletionImpactApi = vi.fn();
 const getAdminAccountBasicInfoApi = vi.fn();
 const updateAdminAccountBasicInfoApi = vi.fn();
 const getAccountRoleSelectionApi = vi.fn();
+const getAccountTerminalAccessApi = vi.fn();
 const listAdminAccountLoginMethodsApi = vi.fn();
 const requireAdminAccountPasswordSetupApi = vi.fn();
+const replaceAccountTerminalAccessOverrideApi = vi.fn();
 const setAccountRolesApi = vi.fn();
+const deleteAccountTerminalAccessOverrideApi = vi.fn();
 
 const authContextState: any = {
   actionCodes: [
@@ -28,6 +31,8 @@ const authContextState: any = {
     'identity.account.update_status',
     'permission.account.get_roles',
     'permission.account.assign_roles',
+    'permission.terminal_access.account.manage',
+    'permission.terminal_access.view',
   ],
   isPlatformScope: true,
   sessionContext: {
@@ -47,11 +52,14 @@ vi.mock('#/api', () => ({
   getAdminAccountDeletionImpactApi,
   getAdminAccountBasicInfoApi,
   getAccountRoleSelectionApi,
+  getAccountTerminalAccessApi,
   listAdminAccountLoginMethodsApi,
   listAdminAccountsApi,
   listAdminAccountTenantOptionsApi,
   requireAdminAccountPasswordSetupApi,
+  replaceAccountTerminalAccessOverrideApi,
   setAccountRolesApi,
+  deleteAccountTerminalAccessOverrideApi,
   updateAdminAccountBasicInfoApi,
 }));
 
@@ -242,9 +250,12 @@ describe('account management page', () => {
     getAdminAccountBasicInfoApi.mockReset();
     updateAdminAccountBasicInfoApi.mockReset();
     getAccountRoleSelectionApi.mockReset();
+    getAccountTerminalAccessApi.mockReset();
     listAdminAccountLoginMethodsApi.mockReset();
     requireAdminAccountPasswordSetupApi.mockReset();
+    replaceAccountTerminalAccessOverrideApi.mockReset();
     setAccountRolesApi.mockReset();
+    deleteAccountTerminalAccessOverrideApi.mockReset();
     authContextState.actionCodes = [
       'identity.account.create',
       'identity.account.delete',
@@ -253,6 +264,8 @@ describe('account management page', () => {
       'auth.account_login_methods.manage',
       'permission.account.get_roles',
       'permission.account.assign_roles',
+      'permission.terminal_access.account.manage',
+      'permission.terminal_access.view',
     ];
     authContextState.isPlatformScope = true;
     authContextState.sessionContext = {
@@ -302,6 +315,27 @@ describe('account management page', () => {
         },
       ],
       selectedRoleIds: ['role-1'],
+    });
+    getAccountTerminalAccessApi.mockResolvedValue({
+      accountId: '9894c123-0f4b-452e-812f-f7cc9eed6006',
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-1',
+      hasOverride: false,
+      effectiveAllowedTerminals: ['WEB'],
+    });
+    replaceAccountTerminalAccessOverrideApi.mockResolvedValue({
+      accountId: '9894c123-0f4b-452e-812f-f7cc9eed6006',
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-1',
+      hasOverride: true,
+      effectiveAllowedTerminals: ['PDA'],
+    });
+    deleteAccountTerminalAccessOverrideApi.mockResolvedValue({
+      accountId: '9894c123-0f4b-452e-812f-f7cc9eed6006',
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-1',
+      hasOverride: false,
+      effectiveAllowedTerminals: ['WEB'],
     });
     setAccountRolesApi.mockResolvedValue({
       roles: [],
@@ -486,6 +520,10 @@ describe('account management page', () => {
       scopeLevel: 'TENANT',
       tenantId: 'tenant-1',
     });
+    expect(getAccountTerminalAccessApi).toHaveBeenCalledWith('9894c123-0f4b-452e-812f-f7cc9eed6006', {
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-1',
+    });
     const roleDrawer = Array.from(document.body.querySelectorAll('.ant-drawer')).find((element) =>
       element.textContent?.includes('保存角色'),
     ) as HTMLElement | undefined;
@@ -494,6 +532,8 @@ describe('account management page', () => {
     expect(roleDrawer?.textContent).not.toContain('用户 ID');
     expect(roleDrawer?.textContent).not.toContain('Scope');
     expect(roleDrawer?.textContent).toContain('Alpha Tenant');
+    expect(roleDrawer?.textContent).toContain('最终终端准入');
+    expect(roleDrawer?.textContent).toContain('WEB');
 
     const roleSearchInput = document.body.querySelector(
       'input[placeholder="搜索角色名称或角色码"]',
@@ -593,6 +633,47 @@ describe('account management page', () => {
       (roleSummary as HTMLElement).compareDocumentPosition(roleList as HTMLElement)
       & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
+  });
+
+  it('saves account terminal access override from the role drawer', async () => {
+    getAccountTerminalAccessApi.mockResolvedValueOnce({
+      accountId: '9894c123-0f4b-452e-812f-f7cc9eed6006',
+      scopeLevel: 'TENANT',
+      tenantId: 'tenant-1',
+      hasOverride: true,
+      effectiveAllowedTerminals: ['PDA'],
+    });
+    const view = await import('./account-management.vue');
+
+    mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+    await clickAccountAction('角色配置');
+
+    expect(document.body.textContent).toContain('账号专属终端准入');
+    expect(document.body.textContent).toContain('PDA');
+
+    const saveButton = Array.from(document.body.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('保存终端准入'),
+    ) as HTMLButtonElement | undefined;
+    saveButton?.click();
+    await flushPromises();
+
+    expect(replaceAccountTerminalAccessOverrideApi).toHaveBeenCalledWith(
+      '9894c123-0f4b-452e-812f-f7cc9eed6006',
+      {
+        allowedTerminals: ['PDA'],
+        scopeLevel: 'TENANT',
+        tenantId: 'tenant-1',
+      },
+    );
   });
 
   it('opens the create modal without showing the tenant column to tenant administrators', async () => {

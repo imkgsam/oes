@@ -121,4 +121,26 @@ describe('personal account section', () => {
 
     expect(wrapper.text()).toContain('上传头像')
   })
+
+  it('shows read-only effective terminal access for the current account', async () => {
+    const view = await import('./personal-account-section.vue')
+    const wrapper = mount(view.default, {
+      props: {
+        accountContext: {
+          accountId: 'account-1',
+          accountName: 'Workshop Supervisor',
+          roles: [],
+          scopeLevel: 'TENANT',
+          tenantId: 'tenant-1',
+          tenantName: 'Alpha Tenant'
+        },
+        allowedTerminals: ['WEB', 'PDA']
+      }
+    })
+
+    expect(wrapper.text()).toContain('终端准入')
+    expect(wrapper.text()).toContain('WEB')
+    expect(wrapper.text()).toContain('PDA')
+    expect(wrapper.text()).not.toContain('保存终端')
+  })
 })

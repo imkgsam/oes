@@ -1,0 +1,29 @@
+// File: src/common/src/contracts/permission_service/permission_terminal_access.proto
+syntax = "proto3";
+
+package permission_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.permission.v1";
+
+// PermissionTerminalAccessService resolves account-scoped terminal login eligibility for internal auth-service callers.
+service PermissionTerminalAccessService {
+  rpc ResolveAccountTerminalAccess(ResolveAccountTerminalAccessRequest) returns (ResolveAccountTerminalAccessResponse);
+}
+
+// ResolveAccountTerminalAccessRequest identifies a selected account context and requested login terminal.
+message ResolveAccountTerminalAccessRequest {
+  string account_id = 1;
+  string tenant_id = 2;
+  string scope_level = 3;
+  string terminal = 4;
+}
+
+// ResolveAccountTerminalAccessResponse explains the effective account terminal access decision for auth audit and enforcement.
+message ResolveAccountTerminalAccessResponse {
+  bool allowed = 1;
+  string reason_code = 2;
+  repeated string effective_allowed_terminals = 3;
+  string resolution_source = 4;
+  repeated string matched_role_ids = 5;
+}

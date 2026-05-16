@@ -1,5 +1,8 @@
 # tenant-org-service Management API
 
+> 服务设计唯一真相源：[tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)。本文只描述黑盒 management contract，不重新定义 `Tenant / OrgUnit / org tree` 的长期职责或 owner 边界。
+> 管理入口涉及的 PermissionGuard、permission code 或授权判定语义，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 与项目级授权架构为准。
+
 ## 1. 模块职责
 
 `TenantOrgManagementService` 负责 tenant 与 org tree 的管理型写接口。
@@ -19,7 +22,7 @@
 - 必要 guard：
   - internal service
   - authenticated operator
-  - permission guard
+  - `PermissionGuard`
 
 ## 2. 通用上下文要求
 
@@ -37,6 +40,7 @@
 ### `CreateTenant`
 
 - 作用：创建 tenant，并同步创建 root org
+- 权限码：`tenant_org.tenant.create`
 - 请求关键字段：
   - `code`
   - `name`
@@ -51,6 +55,7 @@
 ### `UpdateTenantProfile`
 
 - 作用：更新 tenant 基础信息
+- 权限码：`tenant_org.tenant.update_profile`
 - 请求关键字段：
   - `tenant_id`
   - `name`
@@ -59,6 +64,7 @@
 ### `SuspendTenant`
 
 - 作用：停用 tenant
+- 权限码：`tenant_org.tenant.update_status`
 - 请求关键字段：
   - `tenant_id`
   - optional `reason`
@@ -70,6 +76,7 @@
 ### `ReactivateTenant`
 
 - 作用：重新启用 tenant
+- 权限码：`tenant_org.tenant.update_status`
 - 请求关键字段：
   - `tenant_id`
 - 跨服务副作用：
@@ -79,6 +86,7 @@
 ### `ArchiveTenant`
 
 - 作用：归档 tenant
+- 权限码：`tenant_org.tenant.update_status`
 - 请求关键字段：
   - `tenant_id`
   - optional `reason`
@@ -92,6 +100,7 @@
 ### `CreateOrgUnit`
 
 - 作用：创建组织节点
+- 权限码：`tenant_org.org_unit.create`
 - 请求关键字段：
   - `tenant_id`
   - `parent_org_id`
@@ -100,7 +109,7 @@
   - optional `sort_order`
   - optional `organization_party_id`
 - `organization_party_id` 语义：
-  - 表示该 `OrgUnit` 对 `party-service.OrganizationParty` 的可选正式引用
+  - 表示该 `OrgUnit` 对 `party-service` 组织主体的可选正式引用；组织主体边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
   - 当前第一阶段仅允许 `type = ROOT | BRANCH` 时传入
   - `DEPARTMENT`、`TEAM`、`OTHER` 传入该字段时应返回 validation failure
 - 写入前校验：
@@ -111,6 +120,7 @@
 ### `UpdateOrgUnit`
 
 - 作用：更新组织节点基础信息
+- 权限码：`tenant_org.org_unit.update`
 - 请求关键字段：
   - `tenant_id`
   - `org_unit_id`
@@ -130,6 +140,7 @@
 ### `MoveOrgUnit`
 
 - 作用：移动组织节点到新的父节点
+- 权限码：`tenant_org.org_unit.update`
 - 请求关键字段：
   - `tenant_id`
   - `org_unit_id`
@@ -141,6 +152,7 @@
 ### `ArchiveOrgUnit`
 
 - 作用：归档组织节点
+- 权限码：`tenant_org.org_unit.archive`
 - 请求关键字段：
   - `tenant_id`
   - `org_unit_id`
@@ -167,4 +179,4 @@
 - 不提供 `AddAccountOrgMembership`
 - 不提供 `RemoveAccountOrgMembership`
 - 不提供 `SetAccountPrimaryOrg`
-- 不提供 employee / employment 写接口
+- 不提供 employee / employment 写接口；HR 写语义以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准

@@ -38,6 +38,7 @@ import {
   deleteRoleTemplateApi,
   getRoleNavigationApi,
   getRoleByIdApi,
+  getRoleTerminalAccessApi,
   getRoleTemplateByIdApi,
   instantiateRoleTemplateApi,
   listNavigationEntriesApi,
@@ -52,6 +53,7 @@ import {
   setRoleEnabledApi,
   setRoleLandingPoliciesApi,
   setRoleNavigationVisibilityApi,
+  setRoleTerminalAccessApi,
   syncRoleNavigationFromTemplateApi,
   setRoleTemplateEnabledApi,
   updateRoleApi,
@@ -85,13 +87,21 @@ type RoleOwnerPermissionAction =
   | 'delete'
   | 'get_by_id'
   | 'update';
-type RoleActionKey = 'delete' | 'edit' | 'navigation' | 'permissions' | 'toggle';
+type RoleActionKey =
+  | 'delete'
+  | 'edit'
+  | 'navigation'
+  | 'permissions'
+  | 'terminalAccess'
+  | 'toggle';
+type RoleTerminal = 'KIOSK' | 'PDA' | 'WEB';
 type TemplateActionKey =
   | 'delete'
   | 'edit'
   | 'instantiate'
   | 'navigation'
   | 'permissions'
+  | 'terminalAccess'
   | 'toggle';
 
 interface InstanceFilterState {
@@ -161,6 +171,8 @@ const navigationSaving = ref(false);
 const navigationEntryLoading = ref(false);
 const permissionLoading = ref(false);
 const permissionMutating = ref(false);
+const terminalAccessLoading = ref(false);
+const terminalAccessSaving = ref(false);
 const tenantOptionsLoading = ref(false);
 const createRoleModalOpen = ref(false);
 const createTemplateModalOpen = ref(false);
@@ -168,6 +180,7 @@ const editDrawerOpen = ref(false);
 const instantiateModalOpen = ref(false);
 const navigationDrawerOpen = ref(false);
 const permissionDrawerOpen = ref(false);
+const terminalAccessDrawerOpen = ref(false);
 const instantiateTemplateId = ref('');
 const editTargetType = ref<PermissionOwnerType>('role');
 const permissionOwnerType = ref<PermissionOwnerType>('role');
@@ -188,6 +201,8 @@ const navigationVisibilityOverrides = ref<NavigationVisibilityOverrideState[]>([
 const navigationLandingBaseEntryKey = ref('');
 const navigationLandingOverrides = ref<NavigationLandingOverrideState[]>([]);
 const navigationOverrideActiveTab = ref('');
+const terminalAccessRole = ref<RoleManagementApi.Role | null>(null);
+const roleTerminalAccessValues = ref<RoleTerminal[]>([]);
 const moduleOptions = ref<{ label: string; value: string }[]>([]);
 const tenantOptions = ref<RoleManagementApi.TenantOption[]>([]);
 let tenantOptionSearchTimer: ReturnType<typeof setTimeout> | null = null;
@@ -305,6 +320,17 @@ const canUpdateNavigationOwner = computed(() =>
 const canSyncRoleInstanceFromTemplate = computed(() =>
   hasActionCode('permission.role_instance.sync_from_template'),
 );
+const canViewTerminalAccess = computed(() =>
+  hasActionCode('permission.terminal_access.view'),
+);
+const canManageRoleTerminalAccess = computed(() =>
+  hasActionCode('permission.terminal_access.role.manage'),
+);
+const terminalAccessSubtitle = computed(() =>
+  terminalAccessRole.value?.roleKind === 'SYSTEM_TEMPLATE'
+    ? '模板实例化时复制为角色初始终端准入。'
+    : '空选择表示该角色不提供任何终端登录准入。',
+);
 const isPlatformScope = computed(() => authContextStore.isPlatformScope);
 const showTemplateTab = computed(() => isPlatformScope.value);
 const currentTenantId = computed(
@@ -334,6 +360,11 @@ const permissionFilterModuleOptions = computed(() =>
 const navigationTerminalOptions = [
   { label: 'WEB', value: 'WEB' },
   { label: 'MOBILE', value: 'MOBILE' },
+];
+const terminalAccessOptions: Array<{ label: string; value: RoleTerminal }> = [
+  { label: 'WEB', value: 'WEB' },
+  { label: 'PDA', value: 'PDA' },
+  { label: 'KIOSK', value: 'KIOSK' },
 ];
 const navigationEntriesByKey = computed(
   () => new Map(navigationEntries.value.map((entry) => [entry.entryKey, entry])),
@@ -1256,6 +1287,55 @@ async function openPermissionDrawer(
   await reloadPermissionDrawerData({ page: 1 });
 }
 
+// Opens the role terminal access editor and loads the role default terminal allow-list.
+async function openTerminalAccessDrawer(role: RoleManagementApi.Role) {
+  if (!canViewTerminalAccess.value) {
+    return;
+  }
+
+  terminalAccessRole.value = role;
+  roleTerminalAccessValues.value = [];
+  terminalAccessDrawerOpen.value = true;
+  terminalAccessLoading.value = true;
+
+  try {
+    const result = await getRoleTerminalAccessApi(role.id);
+    roleTerminalAccessValues.value = [...(result.allowedTerminals ?? [])]
+      .filter((terminal): terminal is RoleTerminal =>
+        terminalAccessOptions.some((option) => option.value === terminal),
+      );
+  } catch (error) {
+    message.error(getErrorMessage(error, '加载角色终端准入失败，请稍后重试'));
+  } finally {
+    terminalAccessLoading.value = false;
+  }
+}
+
+// Persists the role default terminal allow-list through permission-service management APIs.
+async function saveRoleTerminalAccess() {
+  if (!terminalAccessRole.value || !canManageRoleTerminalAccess.value) {
+    return;
+  }
+
+  terminalAccessSaving.value = true;
+
+  try {
+    const result = await setRoleTerminalAccessApi(terminalAccessRole.value.id, {
+      allowedTerminals: roleTerminalAccessValues.value,
+    });
+    roleTerminalAccessValues.value = [...(result.allowedTerminals ?? [])]
+      .filter((terminal): terminal is RoleTerminal =>
+        terminalAccessOptions.some((option) => option.value === terminal),
+      );
+    terminalAccessDrawerOpen.value = false;
+    message.success('角色终端准入已保存');
+  } catch (error) {
+    message.error(getErrorMessage(error, '保存角色终端准入失败，请稍后重试'));
+  } finally {
+    terminalAccessSaving.value = false;
+  }
+}
+
 async function openNavigationDrawer(
   type: PermissionOwnerType,
   role: RoleManagementApi.Role,
@@ -1546,6 +1626,10 @@ async function handleRoleAction(
       await openNavigationDrawer('role', role);
       return;
     }
+    case 'terminalAccess': {
+      await openTerminalAccessDrawer(role);
+      return;
+    }
     case 'toggle': {
       await setEnabled('role', role, !role.isEnabled);
       return;
@@ -1572,6 +1656,10 @@ async function handleTemplateAction(
     }
     case 'navigation': {
       await openNavigationDrawer('template', role);
+      return;
+    }
+    case 'terminalAccess': {
+      await openTerminalAccessDrawer(role);
       return;
     }
     case 'toggle': {
@@ -1622,6 +1710,14 @@ function renderRoleActionDropdown(
           ),
           h(
             Menu.Item,
+            {
+              disabled: !canViewTerminalAccess.value,
+              key: 'terminalAccess' satisfies RoleActionKey,
+            },
+            () => '终端准入',
+          ),
+          h(
+            Menu.Item,
             { disabled: disabledEdit, key: 'toggle' satisfies RoleActionKey },
             () => (role.isEnabled ? '停用' : '启用'),
           ),
@@ -1652,6 +1748,14 @@ function renderRoleActionDropdown(
               key: 'navigation' satisfies TemplateActionKey,
             },
             () => '导航',
+          ),
+          h(
+            Menu.Item,
+            {
+              disabled: !canViewTerminalAccess.value,
+              key: 'terminalAccess' satisfies TemplateActionKey,
+            },
+            () => '终端准入',
           ),
           h(
             Menu.Item,
@@ -2209,6 +2313,50 @@ onBeforeUnmount(() => {
                 @click="submitEdit"
               >
                 保存
+              </Button>
+            </Space>
+          </div>
+        </template>
+      </Drawer>
+
+      <Drawer
+        v-model:open="terminalAccessDrawerOpen"
+        destroy-on-close
+        :title="`终端准入 · ${terminalAccessRole?.name || ''}`"
+        width="460"
+      >
+        <section
+          v-loading="terminalAccessLoading"
+          class="role-management__permission-section"
+        >
+          <div class="role-management__panel-header">
+            <div>
+              <div class="role-management__panel-title">角色默认准入终端</div>
+              <div class="role-management__panel-subtitle">
+                {{ terminalAccessSubtitle }}
+              </div>
+            </div>
+          </div>
+
+          <Checkbox.Group
+            v-model:value="roleTerminalAccessValues"
+            class="role-management__terminal-group"
+            :options="terminalAccessOptions"
+            :disabled="!canManageRoleTerminalAccess"
+          />
+        </section>
+
+        <template #footer>
+          <div class="role-management__drawer-footer">
+            <Space>
+              <Button @click="terminalAccessDrawerOpen = false">取消</Button>
+              <Button
+                v-if="canManageRoleTerminalAccess"
+                :loading="terminalAccessSaving"
+                type="primary"
+                @click="saveRoleTerminalAccess"
+              >
+                保存终端准入
               </Button>
             </Space>
           </div>
@@ -2953,6 +3101,13 @@ onBeforeUnmount(() => {
 .role-management__help-dot--sm {
   height: 16px;
   width: 16px;
+}
+
+.role-management__terminal-group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 16px;
 }
 
 @media (max-width: 991px) {

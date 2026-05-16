@@ -6,11 +6,14 @@ import { LoginDto, LoginMethodDto } from '../../interfaces/http/dtos/login.dto'
 import { AuthResponseViewModel } from '../../interfaces/http/view-models/auth-response.view-model'
 import { toAuthResponseViewModel } from './auth-response.mapper'
 import { hydrateAuthResponseTenantNames } from './auth-response-tenant-name.hydrator'
+import { toTerminalAccessDeniedAuthResponse } from './terminal-access-denial.mapper'
 
 interface LoginClientContext {
   userAgent?: string
   ipAddress?: string
 }
+
+export type LoginTerminal = 'KIOSK' | 'PDA' | 'WEB'
 
 @Injectable()
 // Executes the primary login submission and normalizes downstream auth flow responses for HTTP clients.
@@ -23,9 +26,20 @@ export class LoginUseCase {
   async execute(
     dto: LoginDto,
     source: DownstreamRequestSource,
-    clientContext: LoginClientContext
+    clientContext: LoginClientContext,
+    terminal: LoginTerminal = 'WEB'
   ): Promise<AuthResponseViewModel> {
-    const result = await this.dispatch(dto, source, clientContext)
+    let result: Awaited<ReturnType<LoginUseCase['dispatch']>>
+    try {
+      result = await this.dispatch(dto, source, clientContext, terminal)
+    } catch (error) {
+      const denial = toTerminalAccessDeniedAuthResponse(error)
+      if (denial) {
+        return denial
+      }
+
+      throw error
+    }
     const hydratedResult = await hydrateAuthResponseTenantNames(
       result,
       source,
@@ -37,7 +51,8 @@ export class LoginUseCase {
   private dispatch(
     dto: LoginDto,
     source: DownstreamRequestSource,
-    clientContext: LoginClientContext
+    clientContext: LoginClientContext,
+    terminal: LoginTerminal
   ) {
     const identifier = dto.identifier.trim()
     const credential = dto.credential.trim()
@@ -53,12 +68,13 @@ export class LoginUseCase {
             password: credential,
             deviceName,
             userAgent,
-            ipAddress
+            ipAddress,
+            terminal
           },
           source
         )
       case LoginMethodDto.EMAIL_OTP:
-        return this.authAdapter.loginWithEmailOtp(identifier, credential, source)
+        return this.authAdapter.loginWithEmailOtp(identifier, credential, terminal, source)
       case LoginMethodDto.PHONE_PASSWORD:
         return this.authAdapter.loginWithPhonePassword(
           {
@@ -66,12 +82,13 @@ export class LoginUseCase {
             password: credential,
             deviceName,
             userAgent,
-            ipAddress
+            ipAddress,
+            terminal
           },
           source
         )
       case LoginMethodDto.PHONE_OTP:
-        return this.authAdapter.loginWithPhoneOtp(identifier, credential, source)
+        return this.authAdapter.loginWithPhoneOtp(identifier, credential, terminal, source)
       default:
         throw new BadRequestException('Unsupported login method')
     }

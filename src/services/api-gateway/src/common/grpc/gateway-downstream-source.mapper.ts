@@ -17,6 +17,8 @@ export interface GatewayAuthenticatedUser {
   aid?: string
   tid?: string
   scopeLevel?: string
+  terminal?: string
+  allowedTerminals?: string[]
   typ?: string
   passwordSetupRequired?: boolean
   roles?: string[]

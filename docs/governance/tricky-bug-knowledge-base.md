@@ -79,21 +79,21 @@
 - 代码只写了：
   - `@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)`
 - 但没有显式声明：
-  - `@RequirePermission(...)`，或
+  - `@RequirePermissions({ all: [...] })`，或
   - `@RequireAuthenticatedOperator()`
 
 **根本原因**
 
 `AuthenticatedOperatorGuard` 当前不是“只要挂上 guard 就自动消费 metadata”的实现。
 
-它只有在接口显式带有 `@RequirePermission(...)` 或 `@RequireAuthenticatedOperator()` 元数据时，才会真正读取 gRPC metadata，并把 operator context 挂到 request context 上。
+它只有在接口显式带有 `@RequirePermissions({ all: [...] })` 或 `@RequireAuthenticatedOperator()` 元数据时，才会真正读取 gRPC metadata，并把 operator context 挂到 request context 上。
 
 因此，如果接口只写 guard、不写上述元数据，handler 再去读取 operator context，就会得到“上下文缺失”的错误。
 
 **正式修复方案**
 
 - 对所有需要读取 operator context 的管理类 gRPC 接口，显式声明：
-  - `@RequirePermission(...)`，或
+  - `@RequirePermissions({ all: [...] })`，或
   - `@RequireAuthenticatedOperator()`
 - 不在 handler 内自行兜底解析 metadata
 - 不绕过既有 guard / decorator 机制
@@ -107,13 +107,12 @@
 **防复发规则**
 
 - 任何 admin / management gRPC 接口，只要 handler 会读取 operator identity、operator scope、resource boundary 或审计归因信息，就必须显式声明：
-  - `@RequirePermission(...)`，或
+  - `@RequirePermissions({ all: [...] })`，或
   - `@RequireAuthenticatedOperator()`
 - 代码评审时，不能只检查 `@UseGuards(...)`，还要检查 decorator 元数据是否齐全
 
 **相关文档 / 代码入口**
 
 - `docs/architecture/14-grpc-metadata-and-service-trust-architecture.md`
-- `src/services/system/auth-service/doc/history/sess-05-admin-permission-enforcement.history.md`
+- `docs/architecture/services/auth-service.md`
 - `src/common/src/authorization/guards/authenticated-operator.guard.ts`
-

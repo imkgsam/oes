@@ -1,9 +1,6 @@
 import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
-import {
-  FINANCE_MANAGEMENT_PERMISSION_CODES,
-  PermissionCheckAll
-} from '@oes/common/authorization'
+import { RequirePermissions, FINANCE_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { FinanceService } from '../../../finance.service'
@@ -41,7 +38,7 @@ export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
   @Get('accounts')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_FINANCIAL_ACCOUNT])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_FINANCIAL_ACCOUNT] })
   @ApiOperation({ summary: 'Search finance company accounts for the phase 1A finance workspace' })
   async searchFinancialAccounts(
     @Param('tenantId') tenantId: string,
@@ -52,7 +49,7 @@ export class FinanceController {
   }
 
   @Get('accounts/:financialAccountId')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.GET_FINANCIAL_ACCOUNT])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.GET_FINANCIAL_ACCOUNT] })
   @ApiOperation({ summary: 'Get one finance company-account detail snapshot' })
   async getFinancialAccount(
     @Param('tenantId') tenantId: string,
@@ -63,8 +60,10 @@ export class FinanceController {
   }
 
   @Get('account-transactions')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_ACCOUNT_TRANSACTION])
-  @ApiOperation({ summary: 'Search finance real account transactions for the phase 1A finance workspace' })
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_ACCOUNT_TRANSACTION] })
+  @ApiOperation({
+    summary: 'Search finance real account transactions for the phase 1A finance workspace'
+  })
   async searchAccountTransactions(
     @Param('tenantId') tenantId: string,
     @Query() query: SearchAccountTransactionsDto,
@@ -74,7 +73,7 @@ export class FinanceController {
   }
 
   @Post('accounts')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_FINANCIAL_ACCOUNT])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_FINANCIAL_ACCOUNT] })
   @ApiOperation({ summary: 'Create one finance company account' })
   @ApiBody({ type: CreateFinancialAccountDto })
   async createFinancialAccount(
@@ -86,7 +85,9 @@ export class FinanceController {
   }
 
   @Put('accounts/:financialAccountId/basics')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.UPDATE_FINANCIAL_ACCOUNT_BASICS])
+  @RequirePermissions({
+    all: [FINANCE_MANAGEMENT_PERMISSION_CODES.UPDATE_FINANCIAL_ACCOUNT_BASICS]
+  })
   @ApiOperation({ summary: 'Update one finance company-account basic snapshot' })
   @ApiBody({ type: UpdateFinancialAccountBasicsDto })
   async updateFinancialAccountBasics(
@@ -104,7 +105,7 @@ export class FinanceController {
   }
 
   @Post('accounts/:financialAccountId/transactions/import')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.IMPORT_ACCOUNT_TRANSACTION])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.IMPORT_ACCOUNT_TRANSACTION] })
   @ApiOperation({ summary: 'Import finance real account transactions into one company account' })
   @ApiBody({ type: ImportAccountTransactionsDto })
   async importAccountTransactions(
@@ -117,7 +118,7 @@ export class FinanceController {
   }
 
   @Post('accounts/:financialAccountId/transactions')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.RECORD_ACCOUNT_TRANSACTION])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.RECORD_ACCOUNT_TRANSACTION] })
   @ApiOperation({ summary: 'Record one finance real account transaction manually' })
   @ApiBody({ type: RecordAccountTransactionDto })
   async recordAccountTransaction(
@@ -130,7 +131,9 @@ export class FinanceController {
   }
 
   @Post('customer-financial-accounts')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.REGISTER_CUSTOMER_FINANCIAL_ACCOUNT])
+  @RequirePermissions({
+    all: [FINANCE_MANAGEMENT_PERMISSION_CODES.REGISTER_CUSTOMER_FINANCIAL_ACCOUNT]
+  })
   @ApiOperation({ summary: 'Register one finance customer remittance account reference' })
   @ApiBody({ type: RegisterCustomerFinancialAccountDto })
   async registerCustomerFinancialAccount(
@@ -142,8 +145,10 @@ export class FinanceController {
   }
 
   @Get('exchange-rate')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.GET_EXCHANGE_RATE])
-  @ApiOperation({ summary: 'Get one finance standard exchange rate by currency pair and effective time' })
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.GET_EXCHANGE_RATE] })
+  @ApiOperation({
+    summary: 'Get one finance standard exchange rate by currency pair and effective time'
+  })
   async getExchangeRate(
     @Param('tenantId') tenantId: string,
     @Query() query: GetExchangeRateDto,
@@ -153,7 +158,7 @@ export class FinanceController {
   }
 
   @Post('exchange-rates')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.SET_EXCHANGE_RATE])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.SET_EXCHANGE_RATE] })
   @ApiOperation({ summary: 'Write one finance standard exchange rate record' })
   @ApiBody({ type: SetExchangeRateDto })
   async setExchangeRate(
@@ -165,8 +170,10 @@ export class FinanceController {
   }
 
   @Get('receivable-schedules')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_RECEIVABLE_SCHEDULE])
-  @ApiOperation({ summary: 'Search finance receivable schedules for the phase 1A finance workspace' })
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_RECEIVABLE_SCHEDULE] })
+  @ApiOperation({
+    summary: 'Search finance receivable schedules for the phase 1A finance workspace'
+  })
   async searchReceivableSchedules(
     @Param('tenantId') tenantId: string,
     @Query() query: SearchReceivableSchedulesDto,
@@ -176,7 +183,7 @@ export class FinanceController {
   }
 
   @Get('receivable-schedules/:receivableScheduleId')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.GET_RECEIVABLE_SCHEDULE])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.GET_RECEIVABLE_SCHEDULE] })
   @ApiOperation({ summary: 'Get one finance receivable schedule detail snapshot' })
   async getReceivableSchedule(
     @Param('tenantId') tenantId: string,
@@ -187,7 +194,7 @@ export class FinanceController {
   }
 
   @Get('finance-release-signals/:salesOrderId')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.GET_FINANCE_RELEASE_SIGNAL])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.GET_FINANCE_RELEASE_SIGNAL] })
   @ApiOperation({ summary: 'Get the current finance release signal for one sales order' })
   async getFinanceReleaseSignal(
     @Param('tenantId') tenantId: string,
@@ -198,10 +205,12 @@ export class FinanceController {
   }
 
   @Post('receivable-schedules/from-sales-order')
-  @PermissionCheckAll([
-    FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_RECEIVABLE_SCHEDULE_FROM_SALES_ORDER
-  ])
-  @ApiOperation({ summary: 'Create one finance receivable schedule from an established sales order summary' })
+  @RequirePermissions({
+    all: [FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_RECEIVABLE_SCHEDULE_FROM_SALES_ORDER]
+  })
+  @ApiOperation({
+    summary: 'Create one finance receivable schedule from an established sales order summary'
+  })
   @ApiBody({ type: CreateReceivableScheduleFromSalesOrderDto })
   async createReceivableScheduleFromSalesOrder(
     @Param('tenantId') tenantId: string,
@@ -212,7 +221,7 @@ export class FinanceController {
   }
 
   @Post('finance-release-signals/:salesOrderId')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.SET_FINANCE_RELEASE_SIGNAL])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.SET_FINANCE_RELEASE_SIGNAL] })
   @ApiOperation({ summary: 'Write one finance release signal for a sales order' })
   @ApiBody({ type: SetFinanceReleaseSignalDto })
   async setFinanceReleaseSignal(
@@ -225,8 +234,10 @@ export class FinanceController {
   }
 
   @Get('payment-allocations')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_PAYMENT_ALLOCATION])
-  @ApiOperation({ summary: 'Search finance payment allocations linked to receivable or payable schedules' })
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.LIST_PAYMENT_ALLOCATION] })
+  @ApiOperation({
+    summary: 'Search finance payment allocations linked to receivable or payable schedules'
+  })
   async searchPaymentAllocations(
     @Param('tenantId') tenantId: string,
     @Query() query: SearchPaymentAllocationsDto,
@@ -236,7 +247,7 @@ export class FinanceController {
   }
 
   @Post('payment-allocations/allocate-to-receivable')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.ALLOCATE_PAYMENT_TO_RECEIVABLE])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.ALLOCATE_PAYMENT_TO_RECEIVABLE] })
   @ApiOperation({ summary: 'Allocate one real inflow transaction to receivable schedule lines' })
   @ApiBody({ type: AllocatePaymentToReceivableDto })
   async allocatePaymentToReceivable(
@@ -248,7 +259,7 @@ export class FinanceController {
   }
 
   @Get('payable-schedules')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.READ_PAYABLE])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.READ_PAYABLE] })
   @ApiOperation({ summary: 'Search finance payable schedules for the phase 1B finance workspace' })
   // searchPayableSchedules exposes finance-owned payable summaries without leaking finance-service internals.
   async searchPayableSchedules(
@@ -260,7 +271,7 @@ export class FinanceController {
   }
 
   @Get('payable-schedules/:payableScheduleId')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.READ_PAYABLE])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.READ_PAYABLE] })
   @ApiOperation({ summary: 'Get one finance payable schedule detail snapshot' })
   // getPayableSchedule exposes one payable schedule detail while preserving payable truth ownership in finance-service.
   async getPayableSchedule(
@@ -272,7 +283,7 @@ export class FinanceController {
   }
 
   @Get('payment-requests')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.READ_PAYABLE])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.READ_PAYABLE] })
   @ApiOperation({ summary: 'Search finance payment requests for phase 1B payment governance' })
   // searchPaymentRequests exposes payment request summaries as governance records, not payable truth.
   async searchPaymentRequests(
@@ -284,8 +295,10 @@ export class FinanceController {
   }
 
   @Get('payment-executions')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.READ_PAYABLE])
-  @ApiOperation({ summary: 'Search finance payment execution records without exposing account balances' })
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.READ_PAYABLE] })
+  @ApiOperation({
+    summary: 'Search finance payment execution records without exposing account balances'
+  })
   // searchPaymentExecutions exposes payment execution records without turning them into real account transactions.
   async searchPaymentExecutions(
     @Param('tenantId') tenantId: string,
@@ -296,8 +309,12 @@ export class FinanceController {
   }
 
   @Post('payable-schedules/from-purchase-order')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_PAYABLE_FROM_PURCHASE_ORDER])
-  @ApiOperation({ summary: 'Create one finance payable schedule from a controlled purchase-order summary' })
+  @RequirePermissions({
+    all: [FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_PAYABLE_FROM_PURCHASE_ORDER]
+  })
+  @ApiOperation({
+    summary: 'Create one finance payable schedule from a controlled purchase-order summary'
+  })
   @ApiBody({ type: CreatePayableScheduleFromPurchaseOrderDto })
   // createPayableScheduleFromPurchaseOrder forwards PO-derived payable creation to finance-service without touching Procurement runtime.
   async createPayableScheduleFromPurchaseOrder(
@@ -309,10 +326,12 @@ export class FinanceController {
   }
 
   @Post('payable-schedules/from-purchase-order-change')
-  @PermissionCheckAll([
-    FINANCE_MANAGEMENT_PERMISSION_CODES.ADJUST_PAYABLE_FROM_PURCHASE_ORDER_CHANGE
-  ])
-  @ApiOperation({ summary: 'Apply one controlled purchase-order change to finance payable schedules' })
+  @RequirePermissions({
+    all: [FINANCE_MANAGEMENT_PERMISSION_CODES.ADJUST_PAYABLE_FROM_PURCHASE_ORDER_CHANGE]
+  })
+  @ApiOperation({
+    summary: 'Apply one controlled purchase-order change to finance payable schedules'
+  })
   @ApiBody({ type: ApplyPayableScheduleAdjustmentFromPurchaseOrderChangeDto })
   // applyPayableScheduleAdjustmentFromPurchaseOrderChange forwards PO-change adjustments without mutating PO owner truth.
   async applyPayableScheduleAdjustmentFromPurchaseOrderChange(
@@ -328,7 +347,7 @@ export class FinanceController {
   }
 
   @Post('payment-requests')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_PAYMENT_REQUEST])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_PAYMENT_REQUEST] })
   @ApiOperation({ summary: 'Create one phase 1B payment request without changing payable truth' })
   @ApiBody({ type: CreatePaymentRequestDto })
   // createPaymentRequest forwards a payment governance command without making PaymentRequest the payable source of truth.
@@ -341,7 +360,7 @@ export class FinanceController {
   }
 
   @Post('payment-requests/:paymentRequestId/decisions')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.DECIDE_PAYMENT_REQUEST])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.DECIDE_PAYMENT_REQUEST] })
   @ApiOperation({ summary: 'Approve or reject one phase 1B payment request' })
   @ApiBody({ type: DecidePaymentRequestDto })
   // decidePaymentRequest forwards approval decisions without implying money has moved.
@@ -355,8 +374,10 @@ export class FinanceController {
   }
 
   @Post('payment-requests/:paymentRequestId/executions')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_PAYMENT_EXECUTION])
-  @ApiOperation({ summary: 'Record one phase 1B payment execution without creating account-transaction truth' })
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_PAYMENT_EXECUTION] })
+  @ApiOperation({
+    summary: 'Record one phase 1B payment execution without creating account-transaction truth'
+  })
   @ApiBody({ type: ExecutePaymentRequestDto })
   // executePaymentRequest forwards execution records while keeping AccountTransaction as separate funds truth.
   async executePaymentRequest(
@@ -369,7 +390,7 @@ export class FinanceController {
   }
 
   @Post('payment-allocations/allocate-to-payable')
-  @PermissionCheckAll([FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_PAYMENT_ALLOCATION])
+  @RequirePermissions({ all: [FINANCE_MANAGEMENT_PERMISSION_CODES.CREATE_PAYMENT_ALLOCATION] })
   @ApiOperation({ summary: 'Allocate one real outflow transaction to payable schedule lines' })
   @ApiBody({ type: AllocatePaymentToPayableDto })
   // allocatePaymentToPayable forwards real outflow allocations to finance-service payable lines.

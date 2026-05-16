@@ -3,7 +3,7 @@ import type { ItemManagementApi } from '#/api'
 import type { TableColumnsType } from 'ant-design-vue'
 
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
 
@@ -25,12 +25,10 @@ import {
 
 import {
   changeManagedItemStatusApi,
-  createManagedBomApi,
   getManagedBomByOutputItemApi,
   getManagedItemByIdApi,
-  listManagedItemsApi,
+  getManagedPackagingSpecApi,
   listManagedSupplierItemMappingsApi,
-  replaceManagedBomLinesApi,
   setManagedItemCapabilitiesApi,
   updateManagedItemBasicsApi,
   upsertManagedSupplierItemMappingApi
@@ -61,6 +59,7 @@ const capabilityOptions: ItemManagementApi.ItemCapabilityKey[] = [
 
 const authContextStore = useAuthContextStore()
 const route = useRoute()
+const router = useRouter()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
 const itemId = computed(() => `${route.params.itemId ?? ''}`)
 const canEditItem = computed(() =>
@@ -68,16 +67,15 @@ const canEditItem = computed(() =>
     'item_master.item.update_basics',
     'item_master.item.update_status',
     'item_master.item.set_capabilities',
-    'item_master.bom.manage',
     'item_master.supplier_item_mapping.upsert'
   ].some((code) => authContextStore.actionCodes.includes(code))
 )
+const canManageBom = computed(() => authContextStore.actionCodes.includes('item_master.bom.manage'))
 
 const item = ref<null | ItemManagementApi.ItemSummary>(null)
 const bom = ref<null | ItemManagementApi.BomRecord>(null)
+const packagingSpec = ref<null | ItemManagementApi.PackagingSpecRecord>(null)
 const supplierMappings = ref<ItemManagementApi.SupplierItemMappingListEntry[]>([])
-const componentChoices = ref<ItemManagementApi.ItemSummary[]>([])
-const selectedComponentIds = ref<string[]>([])
 const isEditing = ref(false)
 const saveSubmitting = ref(false)
 const saveError = ref('')
@@ -95,6 +93,14 @@ const supplierMappingColumns = computed<TableColumnsType<ItemManagementApi.Suppl
   { dataIndex: 'supplierItemCode', key: 'supplierItemCode', title: 'Supplier Item Code', width: 180 },
   { dataIndex: 'supplierItemName', key: 'supplierItemName', title: 'Supplier Item Name', width: 220 }
 ])
+const activeBomType = computed<ItemManagementApi.BomType>(() =>
+  item.value?.itemType === 'PACKAGED_FINISHED_GOOD' ? 'PACKAGING' : 'COMPOSITION'
+)
+const activeBomTitle = computed(() => `${activeBomType.value === 'PACKAGING' ? 'Packaging' : 'Composition'} BOM`)
+const focusTarget = computed(() => firstQueryValue(route.query.focus))
+const isCapabilityFocused = computed(() => focusTarget.value === 'capabilities')
+const isSupplierMappingFocused = computed(() => focusTarget.value === 'supplierMapping')
+const detailGaps = computed(() => getDetailGaps())
 
 /** emptyCapabilities returns the explicit eight-capability V2 shape used by forms and commands. */
 function emptyCapabilities(): ItemManagementApi.ItemCapabilities {
@@ -108,6 +114,30 @@ function emptyCapabilities(): ItemManagementApi.ItemCapabilities {
     stockable: false,
     transformable: false
   }
+}
+
+/** firstQueryValue reads a route query value as the detail focus marker. */
+function firstQueryValue(value: unknown) {
+  return Array.isArray(value) ? `${value[0] ?? ''}` : `${value ?? ''}`
+}
+
+/** getExecutionCapabilityLabels excludes derived flags when checking Item execution readiness. */
+function getExecutionCapabilityLabels() {
+  return capabilityOptions.filter((capability) => capability !== 'packaged' && item.value?.capabilities[capability])
+}
+
+/** getDetailGaps lists the concrete setup gaps visible from the Item detail read model. */
+function getDetailGaps() {
+  const gaps: string[] = []
+
+  if (item.value && !getExecutionCapabilityLabels().length) {
+    gaps.push('缺 capability')
+  }
+  if (item.value?.capabilities.purchasable && !supplierMappings.value.some((mapping) => mapping.active)) {
+    gaps.push('缺 SupplierMapping')
+  }
+
+  return gaps
 }
 
 /** hydrateEditableDraft copies the latest read model into the edit draft. */
@@ -131,19 +161,27 @@ async function loadItem() {
   hydrateEditableDraft(result)
 }
 
-/** loadBom refreshes the composition BOM for the current output Item. */
+/** loadBom refreshes the execution-semantics BOM for the current output Item. */
 async function loadBom() {
   if (!activeTenantId.value || !itemId.value) {
     bom.value = null
-    selectedComponentIds.value = []
     return
   }
 
   const result = await getManagedBomByOutputItemApi(activeTenantId.value, itemId.value, {
-    bomType: 'COMPOSITION'
+    bomType: activeBomType.value
   })
   bom.value = result.bom ?? null
-  selectedComponentIds.value = (bom.value?.lines ?? []).map((line) => line.componentItemId)
+}
+
+/** loadPackagingSpec refreshes the PackagingSpec snapshot when the Item is a packaged finished good. */
+async function loadPackagingSpec() {
+  if (!activeTenantId.value || !item.value?.packagingSpecId) {
+    packagingSpec.value = null
+    return
+  }
+
+  packagingSpec.value = await getManagedPackagingSpecApi(activeTenantId.value, item.value.packagingSpecId)
 }
 
 /** loadSupplierMappings refreshes supplier codes for this executable Item. */
@@ -159,30 +197,6 @@ async function loadSupplierMappings() {
   supplierMappings.value = result.mappings ?? []
 }
 
-/** loadComponentChoices loads active Items that can be referenced by BOM lines. */
-async function loadComponentChoices() {
-  if (!activeTenantId.value) {
-    return
-  }
-
-  const result = await listManagedItemsApi(activeTenantId.value, {
-    page: 1,
-    pageSize: 100,
-    status: 'ACTIVE'
-  })
-  componentChoices.value = (result.items ?? []).filter((candidate) => candidate.itemId !== itemId.value)
-}
-
-/** toggleComponentSelection keeps the BOM editor state aligned with checkbox selections. */
-function toggleComponentSelection(componentItemId: string, checked: boolean) {
-  if (checked) {
-    selectedComponentIds.value = [...new Set([...selectedComponentIds.value, componentItemId])]
-    return
-  }
-
-  selectedComponentIds.value = selectedComponentIds.value.filter((value) => value !== componentItemId)
-}
-
 /** beginPageEdit switches the detail page into editable mode. */
 function beginPageEdit() {
   if (!item.value || !canEditItem.value) {
@@ -190,7 +204,6 @@ function beginPageEdit() {
   }
 
   hydrateEditableDraft(item.value)
-  selectedComponentIds.value = (bom.value?.lines ?? []).map((line) => line.componentItemId)
   saveError.value = ''
   isEditing.value = true
 }
@@ -200,7 +213,6 @@ function cancelPageEdit() {
   if (item.value) {
     hydrateEditableDraft(item.value)
   }
-  selectedComponentIds.value = (bom.value?.lines ?? []).map((line) => line.componentItemId)
   supplierForm.supplierId = ''
   supplierForm.supplierItemCode = ''
   supplierForm.supplierItemName = ''
@@ -208,42 +220,7 @@ function cancelPageEdit() {
   isEditing.value = false
 }
 
-/** haveSameIds compares full-replace component id sets without depending on UI ordering. */
-function haveSameIds(left: string[], right: string[]) {
-  return [...left].sort().join('|') === [...right].sort().join('|')
-}
-
-/** saveBomDraft creates or replaces the composition BOM for this output Item. */
-async function saveBomDraft() {
-  const existingComponentIds = (bom.value?.lines ?? []).map((line) => line.componentItemId)
-  if (haveSameIds(selectedComponentIds.value, existingComponentIds)) {
-    return
-  }
-
-  const lines = selectedComponentIds.value.map((componentItemId) => ({
-    componentItemId,
-    lineRole: 'COMPONENT' as const,
-    quantity: '1',
-    uomCode: 'PCS'
-  }))
-
-  if (bom.value?.bomId) {
-    await replaceManagedBomLinesApi(activeTenantId.value, bom.value.bomId, { lines })
-    return
-  }
-
-  if (lines.length > 0) {
-    await createManagedBomApi(activeTenantId.value, {
-      bomCode: `BOM-${item.value?.itemCode ?? itemId.value}`,
-      bomName: `${item.value?.itemName ?? itemId.value} Composition`,
-      bomType: 'COMPOSITION',
-      outputItemId: itemId.value,
-      lines
-    })
-  }
-}
-
-/** savePageEdit persists changed Item basics, capabilities, status, BOM lines, and supplier mapping. */
+/** savePageEdit persists changed Item basics, capabilities, status, and supplier mapping. */
 async function savePageEdit() {
   if (!activeTenantId.value || !itemId.value || !item.value) {
     return
@@ -279,8 +256,6 @@ async function savePageEdit() {
       )
     }
 
-    tasks.push(saveBomDraft())
-
     if (supplierForm.supplierId.trim()) {
       tasks.push(
         upsertManagedSupplierItemMappingApi(activeTenantId.value, itemId.value, {
@@ -295,7 +270,8 @@ async function savePageEdit() {
     supplierForm.supplierId = ''
     supplierForm.supplierItemCode = ''
     supplierForm.supplierItemName = ''
-    await Promise.all([loadItem(), loadBom(), loadSupplierMappings()])
+    await loadItem()
+    await Promise.all([loadBom(), loadPackagingSpec(), loadSupplierMappings()])
     isEditing.value = false
   } catch (error) {
     saveError.value = error instanceof Error ? error.message : '保存失败，请稍后重试'
@@ -304,14 +280,32 @@ async function savePageEdit() {
   }
 }
 
+/** openBomManagement keeps typed BOM line maintenance inside the dedicated BOM workbench. */
+function openBomManagement() {
+  if (!itemId.value || !canManageBom.value) {
+    return
+  }
+
+  router.push({
+    name: 'TenantItemBomManagement',
+    query: { outputItemId: itemId.value }
+  })
+}
+
 /** getStatusColor maps lifecycle status to Ant Design Vue tag colors. */
 function getStatusColor(status: string) {
   return status === 'ACTIVE' ? 'green' : 'default'
 }
 
+/** isCapabilityReadonly locks capabilities whose truth is derived from another stable Item field. */
+function isCapabilityReadonly(capability: ItemManagementApi.ItemCapabilityKey) {
+  return capability === 'packaged'
+}
+
 /** loadInitialDetail loads the Item and its item-master-owned relations. */
 async function loadInitialDetail() {
-  await Promise.all([loadItem(), loadBom(), loadSupplierMappings(), loadComponentChoices()])
+  await loadItem()
+  await Promise.all([loadBom(), loadPackagingSpec(), loadSupplierMappings()])
 }
 
 onMounted(() => {
@@ -350,7 +344,19 @@ onMounted(() => {
 
       <p v-if="saveError" class="item-detail-workbench__error">{{ saveError }}</p>
 
-      <Card title="Item 执行身份">
+      <Card v-if="detailGaps.length" data-testid="detail-completeness-summary" title="待补齐配置">
+        <p class="item-detail-workbench__note">这些缺口会影响该 Item 作为执行层对象进入采购、销售、库存或生产流程。</p>
+        <Space wrap>
+          <Tag v-for="gap in detailGaps" :key="gap" color="orange">{{ gap }}</Tag>
+        </Space>
+      </Card>
+
+      <Card
+        title="Item 执行身份"
+        data-testid="detail-capability-section"
+        :class="{ 'item-detail-workbench__focus-card': isCapabilityFocused }"
+      >
+        <p v-if="isCapabilityFocused" class="item-detail-workbench__focus-note">请补齐 Item.capabilities 执行真相。</p>
         <Form v-if="isEditing" class="item-detail-workbench__form-grid" layout="vertical">
           <Form.Item label="Item Code">
             <Input data-testid="detail-item-code" v-model:value="basicForm.itemCode" :disabled="saveSubmitting" />
@@ -370,8 +376,8 @@ onMounted(() => {
                 v-for="capability in capabilityOptions"
                 :key="capability"
                 :checked="capabilityForm[capability]"
-                :data-testid="capability === 'purchasable' ? 'detail-capability-purchasable' : undefined"
-                :disabled="saveSubmitting"
+                :data-testid="`detail-capability-${capability}`"
+                :disabled="saveSubmitting || isCapabilityReadonly(capability)"
                 @update:checked="capabilityForm[capability] = $event"
               >
                 {{ capability }}
@@ -387,6 +393,9 @@ onMounted(() => {
           <DescriptionsItem label="ItemModel">
             {{ item?.itemModelSummary?.modelCode ?? item?.itemModelId ?? '-' }}
           </DescriptionsItem>
+          <DescriptionsItem label="PackagingSpec">
+            {{ packagingSpec ? `${packagingSpec.specCode} · ${packagingSpec.specName}` : item?.packagingSpecId || '-' }}
+          </DescriptionsItem>
           <DescriptionsItem label="Status">
             <Tag :color="getStatusColor(item?.status ?? 'ACTIVE')">{{ item?.status ?? '-' }}</Tag>
           </DescriptionsItem>
@@ -401,21 +410,14 @@ onMounted(() => {
         </Descriptions>
       </Card>
 
-      <Card title="Composition BOM">
-        <p class="item-detail-workbench__note">组成关系通过 item-master BOM 表达，不再由 Item 自身嵌套。</p>
-        <Space v-if="isEditing" wrap>
-          <Checkbox
-            v-for="choice in componentChoices"
-            :key="choice.itemId"
-            :checked="selectedComponentIds.includes(choice.itemId)"
-            :data-testid="`detail-component-${choice.itemId}`"
-            :disabled="saveSubmitting"
-            @update:checked="toggleComponentSelection(choice.itemId, $event)"
-          >
-            {{ choice.itemCode }} · {{ choice.itemName }}
-          </Checkbox>
+      <Card :title="activeBomTitle">
+        <p class="item-detail-workbench__note">组成、包装消耗和转换关系通过 item-master BOM 表达，不再由 Item 自身嵌套。</p>
+        <Space v-if="canManageBom" class="item-detail-workbench__bom-actions" wrap>
+          <Button data-testid="detail-open-bom-management" @click="openBomManagement">
+            去 BOM 管理
+          </Button>
         </Space>
-        <Space v-else-if="bom?.lines.length" wrap>
+        <Space v-if="bom?.lines.length" wrap>
           <Tag v-for="line in bom.lines" :key="line.bomLineId || line.componentItemId">
             {{ line.componentItem?.itemCode ?? line.componentItemId }} x {{ line.quantity }} {{ line.uomCode }}
           </Tag>
@@ -423,7 +425,12 @@ onMounted(() => {
         <Empty v-else description="暂无 Composition BOM" />
       </Card>
 
-      <Card title="供应商型号映射">
+      <Card
+        title="供应商型号映射"
+        data-testid="detail-supplier-section"
+        :class="{ 'item-detail-workbench__focus-card': isSupplierMappingFocused }"
+      >
+        <p v-if="isSupplierMappingFocused" class="item-detail-workbench__focus-note">请维护供应商如何识别该执行层 Item。</p>
         <Table
           :columns="supplierMappingColumns"
           :data-source="supplierMappings"
@@ -482,6 +489,10 @@ onMounted(() => {
   margin-top: 8px;
 }
 
+.item-detail-workbench__bom-actions {
+  margin-bottom: 10px;
+}
+
 .item-detail-workbench__form-grid {
   display: grid;
   gap: 12px;
@@ -495,6 +506,20 @@ onMounted(() => {
 
 .item-detail-workbench__error {
   color: #dc2626;
+}
+
+.item-detail-workbench__focus-card {
+  border: 1px solid #f59e0b;
+  box-shadow: 0 0 0 3px rgb(245 158 11 / 14%);
+}
+
+.item-detail-workbench__focus-note {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  color: #92400e;
+  margin-top: 0;
+  padding: 10px 12px;
 }
 
 @media (max-width: 800px) {

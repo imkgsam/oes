@@ -79,7 +79,7 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 
 `srm-service` phase 1 contract 明确不承载以下真相：
 
-- `party-service` 的 `Party / TenantParty / PartyIdentifier / PartyRelationship`
+- `party-service` 的主体主数据、租户主体引用、标识与稳定主体关系；具体核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
 - `item-master-service` 的 `Item / ItemCapability / SupplierItemMapping`
 - future `procurement-service` 的 RFQ、采购价格、采购价格历史、MOQ、账期、lead time、采购单、收货与履约
 - 供应商绩效、评分、质量整改、资质闭环

@@ -1,5 +1,7 @@
 # OES 基于角色的权限解析设计
 
+> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只定义项目级 role -> permission 解析协作方式，不重新定义 Role、AccountRole、Permission 或 access summary 的 owner 边界。
+
 ## 1. 目的
 
 本设计用于明确 OES 内部服务在管理型接口上如何完成权限判断，解决当前实现中的两个问题：
@@ -15,7 +17,7 @@
 
 - `src/common` 中统一权限码语义源
 - `permission-service` 中角色与权限主数据管理
-- 各子服务基于 `@RequirePermission(...)` 和 `PermissionGuard` 做接口保护
+- 各子服务基于 `@RequirePermissions({ all: [...] })` 和 `PermissionGuard` 做接口保护
 
 但当前仍存在一个关键缺口：
 

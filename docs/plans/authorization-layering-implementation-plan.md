@@ -1,5 +1,7 @@
 # OES 授权分层实施计划
 
+> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录授权分层实施进度与推广路径，不重新定义 permission-service 的核心对象、owner 边界或长期授权模型。
+
 ## 1. 目标
 
 将 OES 当前“粗粒度 `RBAC` 已部分落地、细粒度能力存在但业务接入不完整”的状态，推进到以下目标：
@@ -24,6 +26,8 @@
 - 本计划不在本阶段引入新的全局 policy DSL
 - 本计划不在本阶段把领域规则外置为通用规则引擎
 - 本计划不在本阶段要求所有列表查询都立即接入统一共享 scope builder
+
+说明：本文历史进度中出现的 `identity-service` account-org membership 相关接口名，仅表示当时授权接入试点范围，不再作为现行组织归属或组织树设计依据；`Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
 
 ## 4. 当前进度快照
 
@@ -347,7 +351,7 @@ Updated: 2026-04-12 22:30 +08:00
 - 当前仓库中缺少订单 / 库存等更典型业务域服务时，下一站优先选择 `auth-service`
 - `auth-service` 同时具备列表查询、单资源命令、管理员入口与明确租户上下文，适合继续验证 `buildQueryScope + checkResource`
 - `notification-service` 更偏基础设施发送，不作为下一批授权分层主试点
-- `party-service` 已是当前稳定 owner；若后续补齐更完整的管理 query / command 面，可再评估是否作为授权分层试点，历史 `entity-service` 残留不再作为当前候选
+- `party-service` 已是当前稳定 owner；若后续补齐更完整的管理 query / command 面，可再评估是否作为授权分层试点
 
 `auth-service` 首批接口分层建议：
 

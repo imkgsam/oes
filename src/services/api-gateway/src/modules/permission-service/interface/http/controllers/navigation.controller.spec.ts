@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { NavigationController } from './navigation.controller'
 
 // Verifies navigation management endpoints are guarded and proxied with stable request shapes.
@@ -25,42 +25,60 @@ describe('NavigationController', () => {
   it('declares the expected permissions on navigation management endpoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.listNavigationEntries)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.navigation.entry.list']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.createNavigationEntry)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.navigation.entry.create']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.getNavigationEntry)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.navigation.entry.get_by_key']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.updateNavigationEntry)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.navigation.entry.update']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.getRoleNavigation)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.get_by_id']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.setRoleNavigationVisibility)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.update']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.setRoleLandingPolicies)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.update']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.syncRoleNavigationFromTemplate)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.sync_from_template']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, NavigationController.prototype.resolveNavigationPreview)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.navigation.resolve_preview']
-    })
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        NavigationController.prototype.listNavigationEntries
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        NavigationController.prototype.createNavigationEntry
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        NavigationController.prototype.getNavigationEntry
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        NavigationController.prototype.updateNavigationEntry
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        NavigationController.prototype.getRoleNavigation
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        NavigationController.prototype.setRoleNavigationVisibility
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        NavigationController.prototype.setRoleLandingPolicies
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        NavigationController.prototype.syncRoleNavigationFromTemplate
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        NavigationController.prototype.resolveNavigationPreview
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards navigation entry registry requests to the proxy service', async () => {

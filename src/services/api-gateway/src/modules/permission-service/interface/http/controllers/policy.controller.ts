@@ -1,6 +1,9 @@
 import { Controller, Get, Param, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { PermissionCheckAll, PERMISSION_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
+import {
+  RequirePermissions,
+  PERMISSION_MANAGEMENT_PERMISSION_CODES
+} from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { PermissionProxyService } from '../../../permission-service.service'
@@ -14,7 +17,7 @@ export class PolicyController {
   constructor(private readonly permissionService: PermissionProxyService) {}
 
   @Get('policy')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_POLICY])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_POLICY] })
   @ApiOperation({ summary: 'List readonly policy governance records' })
   async listPolicies(
     @Query() query: ListPoliciesDto,
@@ -37,7 +40,7 @@ export class PolicyController {
   }
 
   @Get('policy/:id')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_POLICY])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_POLICY] })
   @ApiOperation({ summary: 'Get one readonly policy governance record by id' })
   async getPolicyById(
     @Param('id') id: string,
@@ -47,7 +50,7 @@ export class PolicyController {
   }
 
   @Get('permission/:permissionCode/policies')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_POLICY])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_POLICY] })
   @ApiOperation({ summary: 'List readonly policy records attached to one permission code' })
   async listPoliciesByPermission(
     @Param('permissionCode') permissionCode: string,

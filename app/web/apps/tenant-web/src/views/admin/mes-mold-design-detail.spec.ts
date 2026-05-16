@@ -137,7 +137,7 @@ describe('MES mold design detail page', () => {
     getMoldDesignApi.mockResolvedValue({
       createdAt: '2026-05-01T08:30:00.000Z',
       defaultLifeLimit: '1200',
-      defaultLifeUnit: 'USE',
+      defaultLifeUnit: 'CASTING_CYCLE',
       designCode: 'MD-LT-HP-01',
       functionRole: 'PRODUCTION',
       itemRef: {
@@ -155,7 +155,7 @@ describe('MES mold design detail page', () => {
           productionSpecRef: {
             displayNameSnapshot: '连体马桶 300 坑距注浆规格',
             productionSpecId: 'spec-300',
-            specCodeSnapshot: 'MS-LT-300'
+            specCodeSnapshot: 'SPEC-LT-300'
           },
           moldDesignOutputId: 'output-body',
           options: [
@@ -165,7 +165,7 @@ describe('MES mold design detail page', () => {
               productionSpecRef: {
                 displayNameSnapshot: '连体马桶 300 坑距注浆规格',
                 productionSpecId: 'spec-300',
-                specCodeSnapshot: 'MS-LT-300'
+                specCodeSnapshot: 'SPEC-LT-300'
               },
               moldDesignOutputId: 'output-body',
               moldDesignOutputOptionId: 'option-300',
@@ -201,7 +201,7 @@ describe('MES mold design detail page', () => {
           },
           currentStatus: 'INSTALLED',
           lifeCounterSummary: {
-            lifeUnit: 'USE',
+            lifeUnit: 'CASTING_CYCLE',
             limitValue: '1200',
             remainingValue: '860',
             usedValue: '340'
@@ -243,15 +243,15 @@ describe('MES mold design detail page', () => {
     expect(wrapper.text()).toContain('连体马桶 300/400 坑距')
     expect(wrapper.text()).toContain('高压机')
     expect(wrapper.text()).toContain('未记录')
-    expect(wrapper.text()).toContain('1200 USE')
+    expect(wrapper.text()).toContain('1200 CASTING_CYCLE')
     expect(wrapper.text()).not.toContain('产品合格率')
     expect(wrapper.text()).toContain('BODY')
-    expect(wrapper.text()).toContain('MS-LT-300')
+    expect(wrapper.text()).toContain('SPEC-LT-300')
     expect(wrapper.text()).toContain('PIT-300')
     expect(wrapper.text()).toContain('300 坑距')
     expect(wrapper.text()).toContain('PM-LT-001')
     expect(wrapper.text()).toContain('连体马桶上线一线')
-    expect(wrapper.text()).toContain('340/1200 USE')
+    expect(wrapper.text()).toContain('340/1200 CASTING_CYCLE')
     expect(wrapper.findAll('.ant-statistic')).toHaveLength(3)
     expect(wrapper.find('.ant-descriptions').exists()).toBe(true)
     expect(wrapper.find('.ant-list').exists()).toBe(true)

@@ -6,7 +6,9 @@
 
 - `party-service`、`identity-service`、`tenant-org-service`、`hr-service` 各自拥有哪一层真相
 - `User`、`Party`、`TenantParty`、`Employee`、`Employment`、`OrgUnit` 之间如何受控关联
-- 哪些入口已经允许开始迁移，哪些入口仍需后置
+- 哪些入口已经允许接入，哪些入口仍需后置
+
+`identity-service` 的长期职责、核心对象与 owner 语义只以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准；`hr-service` 的 `Employee / Employment` 与正式 `人 -> org` 归属边界只以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。本文只记录 Party、Identity、Tenant-Org 与 HR 之间的协同方式。
 
 ## 2. 参与服务
 
@@ -19,33 +21,20 @@
 ## 3. 真相归属
 
 - `party-service`
-  - canonical `Party`
-  - `TenantParty`
-  - `PartyIdentifier`
-  - 稳定 `PartyRelationship`
+  - Party 主体、租户主体引用、标识、地址 / 联系人正文与稳定主体关系等服务边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
 - `identity-service`
-  - `User`
-  - `UserAccount`
-  - `User.partyId -> Party(Person)` 受控关联
-  - `UserAccount <-> Employee` 绑定真相
-  - 账号、租户、组织、联系资产的身份映射查询
+  - `User`、`UserAccount`、`User.partyId -> Party(Person)`、`UserAccount <-> Employee` binding 与联系资产边界以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准
 - `tenant-org-service`
-  - tenant boundary
-  - org tree
-  - `OrgUnit` 到 organization party 的可选受控关联
+  - tenant boundary、org tree 与 `OrgUnit` 到 organization party 的可选受控关联边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准
 - `hr-service`
-  - `Employee`
-  - `Employment`
-  - 正式 `人 -> org` 任职真相
+  - `Employee / Employment` 与正式 `人 -> org` 任职真相以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
 
 ## 4. 核心边界
 
-- `Party` 回答“这个自然人 / 组织主体是谁”。
-- `User` 回答“这个主体如何登录、绑定了哪些认证标识、拥有哪些账号”。
-- `UserAccount` 回答“这个主体在某个租户 / scope 下如何出现”。
+- `Party` 与 `TenantParty` 的核心语义以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
+- `User` 与 `UserAccount` 的稳定语义以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准。
 - `TenantParty` 是业务域第一阶段默认主体引用入口，不是裸 `partyId`。
-- `Employee` 回答“这个自然人在某个 tenant 内是否构成员工”。
-- `Employment` 回答“这个员工当前如何正式任职到 `OrgUnit`”。
+- HR 对象语义、员工是否成立、员工如何正式任职到 `OrgUnit` 以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
 - `OrgUnit` 不等于 `Party`；组织节点如需表达现实世界组织主体，应受控关联到 organization party，而不是把 org tree 放进 `party-service`。
 - `account -> org` 不是正式真相；若未来存在 account 视角 org 数据，也只能来自 `Employment` 派生投影。
 
@@ -58,44 +47,34 @@
 3. `identity-service` query contract 已开始向上游暴露 `partyId / userPartyId`
 4. `api-gateway/auth-bff` 管理端展示名已开始优先通过 `party-service` 补水
 
-这些实现说明 `party-service` 已经具备“平台层定向迁移”的基础，不再只是目标态设计。
+这些实现说明 `party-service` 已经具备平台层受控接入基础，不再只是目标态设计。
 
 ## 6. 当前未落地协同
 
-截至当前，以下能力仍未进入正式迁移：
+截至当前，以下能力仍未进入正式接入：
 
-- employee onboarding 的运行时实现；协同边界与 minimum contracts 已由 [employee-onboarding.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/employee-onboarding.md) 与 `hr-service` minimum contracts 冻结
-- 业务域统一以 `tenantPartyId` 引用主体的迁移
-- repo 范围内所有 `entity-service` 历史命名、配置、generated 产物和旧契约的全面清理
-- 全局 repo-wide rename 或一次性切换
+- 业务域统一以 `tenantPartyId` 引用主体的接入
 
-其中业务域统一 `tenantPartyId` 引用、repo-wide cleanup 与全局 rename 仍不应在当前 platform-first 主线中顺手扩张实现。
+业务域统一 `tenantPartyId` 引用仍不应在当前 platform-first 主线中顺手扩张实现。
 
 ## 7. `organizationPartyId` 正式收口
 
-截至 2026-04-24，`tenant-org-service -> party-service` 的 `organizationPartyId` 协同已冻结以下最小正式语义：
-
-- `organizationPartyId` 表示某个 `OrgUnit` 对现实世界 `OrganizationParty` 的可选正式引用，不改变 `OrgUnit` 仍由 `tenant-org-service` 拥有、`OrganizationParty` 仍由 `party-service` 拥有的边界。
-- 该关联不是第一阶段通用必填字段；默认仍是 optional association。
-- 当前第一阶段只允许 `ROOT` 与 `BRANCH` 节点持有 `organizationPartyId`，因为它们才可能稳定表示 tenant 自身或 tenant 下的现实世界组织主体。
-- `DEPARTMENT`、`TEAM`、`OTHER` 节点不得绑定 `organizationPartyId`；这些节点表达的是 tenant 内部组织结构，不是 canonical 组织主体。
-- “required in some cases” 不在当前通用 `OrgUnit` contract 中冻结；若 future onboarding、directory、legal-doc 或其他场景要求某类组织节点必须关联 organization party，应在该场景自己的 collaboration / contract 中单独提升为必填规则。
+`organizationPartyId` 的字段语义、允许节点类型与必填边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；组织主体边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
 
 ## 8. 校验责任分工
 
 - `tenant-org-service`
-  - 拥有 `organizationPartyId` 字段的写入、更新、清空与读侧发布语义
-  - 在写入口校验当前 `OrgUnit` 类型是否允许持有 organization party 引用
-  - 通过 `party-service` 只读 query 校验目标 party 是否存在、是否为 `ORGANIZATION`、是否处于可引用状态
+  - 按 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 拥有 `organizationPartyId` 字段的写入、更新、清空、读侧发布与 org type 校验语义
+  - 通过 `party-service` 只读 query 校验目标 party 是否存在、是否为可绑定组织主体、是否处于可引用状态
 - `party-service`
-  - 继续只拥有 canonical `Party` / `OrganizationParty` 真相
+  - 继续只拥有 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 中冻结的主体真相
   - 通过 query contract 提供 existence / type / status 事实
   - 不拥有 org tree、OrgUnit 生命周期或节点类型规则
 - `api-gateway`
   - 只暴露管理入口和查询入口所需的 `organizationPartyId` 字段
   - 不在 gateway/BFF 层承载 party type、org type 或 owner 语义判断
 
-## 9. 迁移护栏
+## 9. 接入护栏
 
 - 当前闭环只做 platform-first 的 `tenant-org-service` 写入口、查询入口与 gateway 暴露。
 - 不把 org tree 语义并入 `party-service`。
@@ -103,23 +82,21 @@
 - 不把 `organizationPartyId` 扩张为 repo-wide `tenantPartyId` 或裸 `partyId` 统一运动。
 - 不顺手做 admin / directory 大面积聚合增强。
 
-## 10. 迁移准入规则
+## 10. 接入准入规则
 
-当前允许开始的迁移类型：
+当前允许开始的接入类型：
 
-- 平台层服务之间的受控迁移
+- 平台层服务之间的受控接入
   - `identity-service -> party-service`
   - `api-gateway -> party-service`
-  - future `tenant-org-service -> party-service`
+  - `tenant-org-service -> party-service`
   - `hr-service` minimum 在既有 `party-service` 边界内受控消费 `Register / Bind / Get / Search`
 - 明确只读展示型聚合
-- 明确不会改变业务域引用语义的命名与历史遗留清理
 
-当前不允许直接开始的迁移类型：
+当前不允许直接开始的接入类型：
 
 - 业务域在没有独立 feature / contract 的前提下直接改为裸 `partyId`
 - 把 `tenant-org-service` 的 org tree 语义并入 `party-service`
-- 在没有 migration plan 的情况下做 repo-wide rename
 - 让前端绕过 BFF / gateway 直接消费 `party-service`
 
 ## 11. 入口规则
@@ -129,7 +106,7 @@
 - `party-service` 不直接成为前端入口
 - 用户与账号相关入口继续由 `identity-service` / `auth-service` 承接，再按需要联动 `party-service`
 
-## 12. 迁移顺序
+## 12. 接入顺序
 
 推荐顺序如下：
 
@@ -137,12 +114,7 @@
    - `identity-service`
    - `api-gateway`
    - `tenant-org-service`
-2. 历史 `entity` 残留治理
-   - schema
-   - docs
-   - config
-   - generated / naming
-3. 业务域引用迁移
+2. 业务域引用接入
    - CRM / SRM / 订单 / 合同 / 会计
    - 统一按 `tenantPartyId` 进入
 
@@ -152,7 +124,7 @@
 - 不让 `party-service` 承担登录、会话、org tree、客户联系人或员工任职语义
 - 不让 `identity-service`、`tenant-org-service` 或兼容 membership API 重新拥有正式 `employee -> org` 真相
 - 不让业务域绕过 `TenantParty`
-- 不让单个实现线程自行决定跨服务迁移边界
+- 不让单个实现线程自行决定跨服务接入边界
 
 ## 14. 关联文档
 

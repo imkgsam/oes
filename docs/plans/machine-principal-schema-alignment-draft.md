@@ -1,5 +1,7 @@
 # Machine Principal Schema Alignment Draft
 
+> 涉及 permission-service 的权限、policy 或 delegation 设计边界，必须回写到 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 或新的 ADR。本文只保留 schema alignment 草稿，不作为 permission-service 设计真相源。
+
 Updated: 2026-03-25 +08:00
 
 ## 1. Purpose

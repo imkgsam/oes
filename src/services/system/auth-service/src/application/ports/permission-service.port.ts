@@ -5,6 +5,14 @@ export interface AccountAuthorizationSummary {
   permissionCodes: string[]
 }
 
+export interface AccountTerminalAccessDecision {
+  allowed: boolean
+  reasonCode: string
+  effectiveAllowedTerminals: string[]
+  resolutionSource: string
+  matchedRoleIds: string[]
+}
+
 /**
  * Application port for permission lookups required by auth-service.
  *
@@ -19,5 +27,11 @@ export interface IPermissionServicePort {
     tenantId?: string | null
     scopeLevel: 'SYSTEM' | 'TENANT'
   }): Promise<AccountAuthorizationSummary>
+  resolveAccountTerminalAccess(params: {
+    accountId: string
+    tenantId?: string | null
+    scopeLevel: 'SYSTEM' | 'TENANT'
+    terminal: string
+  }): Promise<AccountTerminalAccessDecision>
   checkAccountPermission(accountId: string, permissionCode: string): Promise<boolean>
 }

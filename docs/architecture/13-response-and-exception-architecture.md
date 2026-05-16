@@ -1,5 +1,7 @@
 # OES 统一返回与异常架构设计
 
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述响应、异常与调用错误传播规则。
+
 ## 1. 文档目的
 
 本文档用于冻结 OES 项目中 HTTP、gRPC、多层服务调用与第三方依赖接入场景下的统一返回与异常处理模型，作为后续 Gateway 重构、子服务治理与公共异常基线收敛的项目级依据。

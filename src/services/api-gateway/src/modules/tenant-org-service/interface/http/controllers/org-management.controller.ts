@@ -1,6 +1,9 @@
 import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { PermissionCheckAll, TENANT_ORG_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
+import {
+  RequirePermissions,
+  TENANT_ORG_MANAGEMENT_PERMISSION_CODES
+} from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { OrgManagementService } from '../../../org-management.service'
@@ -15,8 +18,10 @@ export class OrgManagementController {
   constructor(private readonly orgManagementService: OrgManagementService) {}
 
   @Get('org-tree')
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE])
-  @ApiOperation({ summary: 'Get one tenant org tree for system-admin or tenant-admin org management' })
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_ORG_TREE] })
+  @ApiOperation({
+    summary: 'Get one tenant org tree for system-admin or tenant-admin org management'
+  })
   async getOrgTree(
     @Param('tenantId') tenantId: string,
     @DownstreamSource() source: DownstreamRequestSource
@@ -25,7 +30,7 @@ export class OrgManagementController {
   }
 
   @Get('org-units/:orgUnitId')
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_ORG_UNIT_DETAIL])
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_ORG_UNIT_DETAIL] })
   @ApiOperation({ summary: 'Get one org unit detail inside the selected tenant org tree' })
   async getOrgUnitDetail(
     @Param('tenantId') tenantId: string,
@@ -36,7 +41,7 @@ export class OrgManagementController {
   }
 
   @Post('org-units')
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_ORG_UNIT])
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_ORG_UNIT] })
   @ApiOperation({ summary: 'Create one org unit under the selected parent node' })
   @ApiBody({ type: CreateOrgUnitDto })
   async createOrgUnit(
@@ -48,7 +53,7 @@ export class OrgManagementController {
   }
 
   @Patch('org-units/:orgUnitId')
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_ORG_UNIT])
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_ORG_UNIT] })
   @ApiOperation({ summary: 'Update one org unit display metadata' })
   @ApiBody({ type: UpdateOrgUnitDto })
   async updateOrgUnit(
@@ -61,7 +66,7 @@ export class OrgManagementController {
   }
 
   @Post('org-units/:orgUnitId/archive')
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.ARCHIVE_ORG_UNIT])
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.ARCHIVE_ORG_UNIT] })
   @ApiOperation({ summary: 'Archive one org unit from the current tenant org tree' })
   async archiveOrgUnit(
     @Param('tenantId') tenantId: string,

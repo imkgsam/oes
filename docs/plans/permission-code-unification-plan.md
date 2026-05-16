@@ -1,5 +1,7 @@
 # 权限码统一治理实施计划
 
+> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录权限码统一实施切片，不重新定义 Permission、Role、Policy 或授权判定 owner 边界。
+
 ## 1. 目标
 
 将 OES 项目中的权限码收敛为单一语义源，并建立数据库同步能力。
@@ -35,7 +37,7 @@
 ### SLICE-04 auth-service admin session 权限接入
 
 - 在 `common` 中新增 `auth` 域 session 管理权限码
-- `auth-service` 的 admin session 接口接入 `@RequirePermission(...)`
+- `auth-service` 的 admin session 接口接入 `@RequirePermissions({ all: [...] })`
 - 通过 `permission-service` 做授权判断
 
 ### SLICE-05 其他服务逐步迁移
@@ -58,7 +60,7 @@
 | `SLICE-01` | completed | `common` 中统一权限码目录与导出基线已建立 |
 | `SLICE-02` | completed | `permission-service` 的 `MANAGEMENT_PERMISSION_CODES` 已改为复用 `common` 中的统一定义 |
 | `SLICE-03` | completed | `permission-service` 已新增 `permission-codes:sync` 脚本与最小 upsert 同步逻辑 |
-| `SLICE-04` | completed | `auth-service` admin session 接口已接入统一权限码与 `RequirePermission(...)` |
+| `SLICE-04` | completed | `auth-service` admin session 接口已接入统一权限码与 `RequirePermissions(...)` |
 
 ## 6. 当前快照
 
@@ -75,7 +77,7 @@ Updated: 2026-03-26 00:45 +08:00
 - `auth-service`
   - `AdminListUserSessions`
   - `AdminRevokeSession`
-  - 已接入统一权限码常量与 `RequirePermission(...)`
+  - 已接入统一权限码常量与 `RequirePermissions(...)`
   - 当时通过旧的权限快照字段完成权限解析
 
 需要补充说明：

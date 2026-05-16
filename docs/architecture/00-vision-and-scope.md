@@ -1,5 +1,7 @@
 # OES 愿景与范围
 
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述项目愿景与范围。
+
 ## 1. 项目定位
 
 OES 是一个面向企业经营、制造执行、供应链协同与智能自动化场景的企业级平台。
@@ -109,7 +111,7 @@ OES 当前不应做的事情包括：
 - `auth-service`
 - `identity-service`
 - `permission-service`
-- `party-service`（由既有 `entity-service` 概念演进）
+- `party-service`
 - `src/common`
 
 这意味着项目已经具备平台化方向，但离完整的项目级全局架构仍有明显差距。

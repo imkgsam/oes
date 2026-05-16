@@ -9,17 +9,22 @@ import {
   CreateRoleInstanceFromTemplateRequest,
   CreateRoleInstanceRequest,
   CreateRoleTemplateRequest,
+  DeleteAccountTerminalAccessOverrideRequest,
   DeletePolicyRequest,
   DeletePermissionRequest,
   DeleteRoleRequest,
   DeleteRoleTemplateRequest,
   GetAccountRoleSelectionRequest,
+  GetAccountTerminalAccessRequest,
+  GetAccountTerminalAccessResponse,
   GetNavigationEntryRequest,
   GetPermissionByCodeRequest,
   GetPermissionByIdRequest,
   GetPolicyByIdRequest,
   GetRoleByIdRequest,
   GetRoleNavigationRequest,
+  GetRoleTerminalAccessRequest,
+  GetRoleTerminalAccessResponse,
   GetRoleTemplateByIdRequest,
   ListAccountRolesRequest,
   ListNavigationEntriesRequest,
@@ -47,6 +52,8 @@ import {
   RevokeRolePermissionRequest,
   RevokeRoleTemplatePermissionRequest,
   RevokeAccountRoleRequest,
+  ReplaceAccountTerminalAccessOverrideRequest,
+  ReplaceAccountTerminalAccessOverrideResponse,
   RoleNavigationResponse,
   RoleResponse,
   SetAccountRolesRequest,
@@ -54,6 +61,8 @@ import {
   SyncRoleNavigationFromTemplateRequest,
   SetRoleEnabledRequest,
   SetRoleNavigationVisibilityRequest,
+  SetRoleTerminalAccessRequest,
+  SetRoleTerminalAccessResponse,
   SetRoleTemplateEnabledRequest,
   UpdateNavigationEntryRequest,
   UpdatePermissionRequest,
@@ -342,6 +351,30 @@ export class PermissionProxyService {
     return this.managementPort.setAccountRoles(req, source)
   }
 
+  // Reads effective terminal access for one account management view.
+  async getAccountTerminalAccess(
+    req: GetAccountTerminalAccessRequest,
+    source: DownstreamRequestSource
+  ): Promise<GetAccountTerminalAccessResponse> {
+    return this.managementPort.getAccountTerminalAccess(req, source)
+  }
+
+  // Replaces one account's terminal access override.
+  async replaceAccountTerminalAccessOverride(
+    req: ReplaceAccountTerminalAccessOverrideRequest,
+    source: DownstreamRequestSource
+  ): Promise<ReplaceAccountTerminalAccessOverrideResponse> {
+    return this.managementPort.replaceAccountTerminalAccessOverride(req, source)
+  }
+
+  // Deletes one account's terminal access override and returns effective role-based access.
+  async deleteAccountTerminalAccessOverride(
+    req: DeleteAccountTerminalAccessOverrideRequest,
+    source: DownstreamRequestSource
+  ) {
+    return this.managementPort.deleteAccountTerminalAccessOverride(req, source)
+  }
+
   // Reads account-role bindings that currently reference one role instance.
   async listRoleAccounts(
     req: ListRoleAccountsRequest,
@@ -388,6 +421,22 @@ export class PermissionProxyService {
     source: DownstreamRequestSource
   ): Promise<RoleNavigationResponse> {
     return this.managementPort.getRoleNavigation(req, source)
+  }
+
+  // Reads the role-level terminal defaults used by terminal access resolution.
+  async getRoleTerminalAccess(
+    req: GetRoleTerminalAccessRequest,
+    source: DownstreamRequestSource
+  ): Promise<GetRoleTerminalAccessResponse> {
+    return this.managementPort.getRoleTerminalAccess(req, source)
+  }
+
+  // Replaces the role-level terminal defaults used by terminal access resolution.
+  async setRoleTerminalAccess(
+    req: SetRoleTerminalAccessRequest,
+    source: DownstreamRequestSource
+  ): Promise<SetRoleTerminalAccessResponse> {
+    return this.managementPort.setRoleTerminalAccess(req, source)
   }
 
   // Replaces one role's navigation visibility configuration as a full set.

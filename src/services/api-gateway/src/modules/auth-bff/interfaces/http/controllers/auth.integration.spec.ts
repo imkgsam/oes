@@ -41,6 +41,12 @@ type ObservedCallState = {
     deviceName?: string
     userAgent?: string
     ipAddress?: string
+    terminal?: string
+  }
+  selectAccountRequest?: {
+    accountId?: string
+    terminal?: string
+    userId?: string
   }
   completeMfaRequest?: {
     challengeId?: string
@@ -139,13 +145,15 @@ class TestAuthGrpcController implements AuthServiceController {
     deviceName?: string
     userAgent?: string
     ipAddress?: string
+    terminal?: string
   }): any {
     observedState.emailPasswordLoginRequest = {
       email: request.email ?? undefined,
       password: request.password ?? undefined,
       deviceName: request.deviceName ?? undefined,
       userAgent: request.userAgent ?? undefined,
-      ipAddress: request.ipAddress ?? undefined
+      ipAddress: request.ipAddress ?? undefined,
+      terminal: request.terminal ?? undefined
     }
     return {
       status: LoginStatus.LOGIN_STATUS_MFA_REQUIRED,
@@ -500,11 +508,18 @@ class TestAuthGrpcController implements AuthServiceController {
       tenantId: payload.tid ?? payload.tenantId ?? '',
       sessionId,
       scopeLevel: payload.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT',
+      terminal: payload.terminal ?? '',
+      allowedTerminals: Array.isArray(payload.allowedTerminals) ? payload.allowedTerminals : [],
       roleIds: Array.isArray(payload.roles) ? payload.roles : []
     }
   }
 
-  selectAccount(): any {
+  selectAccount(request: { accountId?: string; terminal?: string; userId?: string }): any {
+    observedState.selectAccountRequest = {
+      accountId: request.accountId ?? undefined,
+      terminal: request.terminal ?? undefined,
+      userId: request.userId ?? undefined
+    }
     return {
       status: LoginStatus.LOGIN_STATUS_SUCCESS,
       userId: 'user-1',
@@ -514,7 +529,9 @@ class TestAuthGrpcController implements AuthServiceController {
       sessionId: 'session-1',
       accessToken: 'access-3',
       refreshToken: 'refresh-3',
-      expiresIn: '3600'
+      expiresIn: '3600',
+      terminal: request.terminal ?? 'WEB',
+      allowedTerminals: [request.terminal ?? 'WEB']
     }
   }
 
@@ -625,6 +642,10 @@ class TestAuthGrpcController implements AuthServiceController {
 
   adminDeleteAccountSessions(): any {
     return { success: true, deletedSessionCount: '1' }
+  }
+
+  revokeTenantSessions(): any {
+    return { success: true, revokedSessionCount: '1' }
   }
 
   logout(): any {
@@ -1043,6 +1064,7 @@ describe('AuthBff gateway integration', () => {
 
   beforeEach(() => {
     observedState.emailPasswordLoginRequest = undefined
+    observedState.selectAccountRequest = undefined
     observedState.completeMfaRequest = undefined
     observedState.listLoginHistoryUserId = undefined
     observedState.listAuditEventsOperatorContext = undefined
@@ -1081,7 +1103,8 @@ describe('AuthBff gateway integration', () => {
         password: 'secret-1',
         deviceName: 'Alice MacBook Pro',
         userAgent: 'Mozilla/5.0 Firefox/149.0',
-        ipAddress: expect.stringContaining('127.0.0.1')
+        ipAddress: expect.stringContaining('127.0.0.1'),
+        terminal: 'WEB'
       })
     )
     expect(response.body).toEqual(
@@ -1090,6 +1113,50 @@ describe('AuthBff gateway integration', () => {
         nextStep: 'COMPLETE_MFA',
         loginMethod: 'EMAIL_PASSWORD',
         challenge: expect.objectContaining({ challengeId: 'challenge-1' })
+      })
+    )
+  })
+
+  it('routes PDA login with a server-fixed PDA terminal', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/pda/auth/login')
+      .set('User-Agent', 'Dalvik/2.1.0 Android PDA')
+      .send({
+        method: 'EMAIL_PASSWORD',
+        identifier: 'worker@example.com',
+        credential: 'secret-1'
+      })
+      .expect(201)
+
+    expect(observedState.emailPasswordLoginRequest).toEqual(
+      expect.objectContaining({
+        email: 'worker@example.com',
+        terminal: 'PDA'
+      })
+    )
+  })
+
+  it('routes KIOSK account selection with a server-fixed KIOSK terminal', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/api/v1/kiosk/auth/account-selection')
+      .send({
+        userId: 'user-1',
+        accountId: 'account-1',
+        loginMethod: 'EMAIL_PASSWORD'
+      })
+      .expect(201)
+
+    expect(observedState.selectAccountRequest).toEqual(
+      expect.objectContaining({
+        userId: 'user-1',
+        accountId: 'account-1',
+        terminal: 'KIOSK'
+      })
+    )
+    expect(response.body.session).toEqual(
+      expect.objectContaining({
+        terminal: 'KIOSK',
+        allowedTerminals: ['KIOSK']
       })
     )
   })
@@ -1316,7 +1383,9 @@ describe('AuthBff gateway integration', () => {
       access: {
         actionCodes: []
       },
-      scopeLevel: 'TENANT'
+      scopeLevel: 'TENANT',
+      terminal: 'WEB',
+      allowedTerminals: []
     })
   })
 

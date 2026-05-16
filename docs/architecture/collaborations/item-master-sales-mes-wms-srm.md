@@ -57,7 +57,7 @@
 - Procurement 可以从 `ItemModel + AttributeOption` 解析到 purchasable `Item`，也可以直接选择 `Item`。
 - `SupplierItemMapping` 归 `item-master-service`，只表达供应商侧编码 / 名称如何映射到执行层 `Item`。
 - `SupplierOffering` 归 `srm-service`，表达某供应商可供应某个 `Item`。
-- 采购价格、MOQ、账期、lead time、RFQ、PO、收货与履约继续归 procurement，不写入 `SupplierItemMapping`。
+- 采购价格、MOQ、lead time、RFQ、PO、收货与履约继续归 procurement，不写入 `SupplierItemMapping`；`PaymentTerm` 主数据归 `finance-service`，采购交易只保存 payment term snapshot。
 
 ### 4.4 MES 侧采用口径
 
@@ -109,7 +109,7 @@
 
 - 不让销售、采购、MES、WMS、SRM 各自维护脱离 `item-master-service` 的 Item 主数据真相。
 - 不让 `item-master-service` 接管销售、采购、制造、仓储或供应商关系执行事实。
-- 不把 `SupplierItemMapping` 扩成价格、MOQ、账期、lead time 或供应表现。
+- 不把 `SupplierItemMapping` 扩成价格、MOQ、payment term snapshot、lead time 或供应表现。
 - 不把客户自己的 SKU / 型号 / 标签显示名写回 item-master。
 - 不在 WMS 重新建立 `StockItemType` 作为 Item 的替代真相。
 - 不把 BOM 写成 MES Route / Operation。

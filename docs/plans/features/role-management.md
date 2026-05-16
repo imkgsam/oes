@@ -1,5 +1,7 @@
 # Role Management
 
+> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 Role Management feature 的范围、状态与页面接入约束；`Role`、`RoleTemplate`、`AccountRole` 与 role-permission 绑定边界不在本文重新定义。
+
 ## 1. 目标
 
 - 提供管理员角色管理工作台，优先完成 `Role Instance` 与 `Role Template` 的管理闭环。

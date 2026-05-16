@@ -1,8 +1,14 @@
 # Auth BFF Login Flow
 
+> `auth-service` 的服务设计唯一真相源是 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。涉及 Terminal Access Policy、access summary、角色、权限或导航授权的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述 Auth BFF HTTP contract。
+
 ## Scope
 
 This document defines the public HTTP login flow exposed by `auth-bff`. These endpoints orchestrate authentication steps for web and app clients and intentionally hide the downstream gRPC auth-service contract.
+
+For the existing `/auth/*` endpoints, `auth-bff` is the Web terminal entry and normalizes the downstream terminal as `WEB`.
+
+`auth-service` service design, account selection, session, token, OTP and MFA boundaries are defined only in [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md). This BFF contract describes HTTP orchestration and response shape only.
 
 ## Product Flow Constraints
 
@@ -24,6 +30,10 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
 - Active device propagation:
   - for `EMAIL_PASSWORD` and `PHONE_PASSWORD`, BFF now forwards `device.deviceName` together with the incoming HTTP `user-agent` and `ip` to `auth-service`
   - this propagation is currently used to enrich failed-login audit records and the self-service login-history view
+- Terminal propagation:
+  - Web `/auth/*` endpoints always forward trusted `terminal=WEB` downstream
+  - clients must not be able to turn Web login into `PDA` or `KIOSK` by submitting a terminal field
+  - terminal access is checked after account selection and before MFA challenge creation or session issuance
 - Downstream:
   - `LoginWithEmailPassword`
   - `LoginWithEmailOtp`
@@ -160,6 +170,19 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
 }
 ```
 
+- Proposed terminal-access denial response:
+
+```json
+{
+  "status": "DENIED",
+  "nextStep": "NONE",
+  "loginMethod": "EMAIL_PASSWORD",
+  "reasonCode": "TERMINAL_ACCESS_DENIED",
+  "message": "该账号不允许从当前终端登录，请联系管理员。",
+  "accountOptions": []
+}
+```
+
 - Proposed response field expectations:
   - `status`: `SUCCESS`, `MFA_REQUIRED`, `ACCOUNT_SELECTION_REQUIRED`, `DENIED`
   - `nextStep`: `NONE`, `COMPLETE_MFA`, `SELECT_ACCOUNT`
@@ -287,6 +310,11 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
 }
 ```
 
+- Terminal constraint:
+  - Web auth-bff forwards `terminal=WEB` to `auth-service.SelectAccount`.
+  - Terminal access denial is returned as `DENIED / TERMINAL_ACCESS_DENIED`.
+  - Denial does not include `effectiveAllowedTerminals`.
+
 - Proposed response:
 
 ```json
@@ -315,6 +343,10 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
 - Users: authenticated clients holding a refresh token.
 - Control model: token protocol endpoint; refresh-token validation replaces resource authorization.
 - Downstream: `RefreshSession`
+- Terminal constraint:
+  - refresh preserves the terminal bound to the original session
+  - refresh does not accept a client-supplied terminal override
+  - if terminal access is no longer allowed, BFF returns `DENIED / TERMINAL_ACCESS_DENIED` and no new tokens
 
 ### `GET /auth/session/context`
 
@@ -325,6 +357,8 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
   - JWT current-session context
   - `identity-service.GetAccountById`
   - `tenant-org-service.GetTenantById`
+  - effective terminal access summary from `permission-service`
+- Tenant lifecycle 与 tenant status 语义以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；BFF 只做聚合与展示适配。
 - Stage-one delivery:
   - `operator / account / tenant` return real authenticated context
   - `org` is optional and may be `null`
@@ -333,6 +367,8 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
   - `navigation.defaultHomePath` is a temporary Web compatibility field
   - `navigation.menus` is a temporary compatibility placeholder
   - `access.actionCodes` is currently an empty compatibility placeholder
+  - `terminal` is the terminal bound to the current session, currently `WEB` for this contract
+  - `allowedTerminals` is the current account's effective terminal access summary for read-only display
 - Related design references:
   - Navigation semantics follow [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md).
   - Access-summary semantics follow [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md).
@@ -353,6 +389,8 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
     "name": "Meilong Ceramics"
   },
   "org": null,
+  "terminal": "WEB",
+  "allowedTerminals": ["WEB"],
   "navigation": {
     "defaultEntry": "workbench.home",
     "defaultHomePath": "/workbench/home",
@@ -372,6 +410,8 @@ This document defines the public HTTP login flow exposed by `auth-bff`. These en
   - `account`: selected account summary
   - `tenant`: selected tenant summary
   - `org`: selected org summary when available; currently may be `null`
+  - `terminal`: session-bound terminal
+  - `allowedTerminals`: current account's effective terminal access for read-only display
   - `navigation.defaultEntry`: stable default entry key selected by BFF
   - `navigation.visibleEntries`: stable visible entry keys selected by BFF
   - Current minimal emitted entry set:

@@ -1,5 +1,7 @@
 # OES 架构文档索引
 
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本索引只导航项目级架构文档。
+
 ## 1. 目的
 
 本目录用于沉淀 OES 项目的项目级架构主文档，作为后续所有开发线程、设计决策与实现分工的统一依据。
@@ -14,6 +16,7 @@
 - 多线程开发时如何保持一致性
 - 服务职责如何作为唯一真相源归位
 - 多个服务围绕关键能力如何协同
+- 各类客户端终端如何接入平台能力并保持边界清晰
 
 ## 2. 推荐阅读顺序
 
@@ -35,6 +38,7 @@
 16. `15-authorization-layering-and-resource-policy-architecture.md`
 17. `16-unified-web-account-context-architecture.md`
 18. `service-collaboration-rules.md`
+19. `terminals/index.md`
 
 ## 3. 文档职责
 
@@ -74,6 +78,8 @@
   - 定义统一 Web Shell、scope-aware `UserAccount`、系统账号与租户账号、登录上下文选择、上下文切换、token 与菜单权限协作模型
 - `service-collaboration-rules.md`
   - 定义项目级 `gRPC / Event` 适用边界、写前校验与写后事实扩散组合规则，以及事件命名、payload 与长流程解耦护栏
+- `terminals/index.md`
+  - 定义客户端终端稳定设计真相源入口，例如 PDA 这类独立设备端的边界、技术形态与平台协同方式
 
 ## 4. 配套目录
 
@@ -81,6 +87,8 @@
   - 用于记录服务职责卡；每个服务只有一份服务职责真相
 - `docs/architecture/collaborations/`
   - 用于记录跨服务关键能力协同蓝图；每个协同主题只有一份协同真相
+- `docs/architecture/terminals/`
+  - 用于记录客户端终端稳定设计真相源；每个重要终端只有一份终端真相
 - `docs/adr/`
   - 用于记录关键架构决策与取舍
 - `docs/plans/`
@@ -99,6 +107,7 @@
 - 项目级设计应优先沉淀到本目录，而不是继续扩散到多个历史文档中。
 - 服务“负责什么 / 不负责什么 / 拥有哪些核心能力”的真相应优先沉淀到 `docs/architecture/services/*.md`。
 - 跨服务“如何围绕某项能力协同”的真相应优先沉淀到 `docs/architecture/collaborations/*.md`。
+- 客户端终端“是什么 / 不是什么 / 如何消费平台能力”的真相应优先沉淀到 `docs/architecture/terminals/*.md`。
 - `docs/plans/features/*.md` 只记录当前 feature 执行状态，不应重复承载已冻结的服务职责与协同规则正文。
 
 ## 6. 配套计划文档
@@ -116,3 +125,5 @@
   - [services/index.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/index.md)
 - 协同蓝图入口：
   - [collaborations/index.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/index.md)
+- 终端架构入口：
+  - [terminals/index.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/terminals/index.md)

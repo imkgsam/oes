@@ -1,5 +1,7 @@
 # org-people UX data hardening Design
 
+> 涉及 HR `Employee / Employment`、员工生命周期、正式 `人 -> org` 归属或 onboarding owner 边界时，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只记录组织与人员 UX / data hardening 设计过程。
+
 ## 1. 目标
 
 - 收敛 `tenant-web` 中“组织与人员”入口的最终信息架构与交互方案。
@@ -404,7 +406,6 @@ Drawer：
   - [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)
   - [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md)
   - [tenant-org-and-hr.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/tenant-org-and-hr.md)
-  - [tenant-org-service-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/tenant-org-service-foundation.md)
   - [hr-service-foundation.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/hr-service-foundation.md)
   - [tenant-web-information-architecture.md](/Users/acehood/Documents/GitHub/oes/docs/plans/tenant-web-information-architecture.md)
   - 本 workspace

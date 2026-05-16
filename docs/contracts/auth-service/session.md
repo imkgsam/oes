@@ -1,6 +1,10 @@
 # auth-service Session API
 
-## 1. 模块职责
+> 服务设计唯一真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只描述黑盒 gRPC session 接口语义，不重新定义 `auth-service` 的长期职责、核心对象或 owner 边界。
+> `Tenant` lifecycle 与 tenant status 语义以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；本文只描述 session 校验时如何消费该事实。
+> 角色、权限、policy、access summary、navigation governance 或 terminal access policy 的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+
+## 1. 接口范围
 
 `AuthService` 的 session 相关接口负责提供：
 
@@ -13,7 +17,7 @@
 - 接口类型：gRPC
 - 服务：`AuthService`
 - 调用方：内部服务
-- 契约真相源：
+- Proto 契约来源：
   - [auth.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/auth_service/auth.proto)
 
 ## 2. 自助会话接口

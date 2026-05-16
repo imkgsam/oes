@@ -17,6 +17,12 @@ export type PermissionServiceRolePermissionSeed = {
   roleId: string
 }
 
+export type PermissionServiceRoleTerminalAccessSeed = {
+  roleCode: string
+  roleId: string
+  allowedTerminals: string[]
+}
+
 export type PermissionServiceSeed = {
   deprecatedNavigationEntryKeys: readonly string[]
   deprecatedPermissionCodes: readonly string[]
@@ -25,6 +31,7 @@ export type PermissionServiceSeed = {
   roleLandingPolicies: ReturnType<typeof buildNavigationFoundationLandingSeeds>
   roleNavigationVisibility: ReturnType<typeof buildNavigationFoundationVisibilitySeeds>
   rolePermissions: PermissionServiceRolePermissionSeed[]
+  roleTerminalAccess: PermissionServiceRoleTerminalAccessSeed[]
   roles: BuiltInRoleSeed[]
 }
 
@@ -37,6 +44,7 @@ export type PermissionServiceSeedDryRunSummary = {
   roleLandingPolicyCount: number
   roleNavigationVisibilityCount: number
   rolePermissionCount: number
+  roleTerminalAccessCount: number
 }
 
 /** buildPermissionServiceSeed returns the full permission-service seed source without touching the database. */
@@ -57,6 +65,11 @@ export function buildPermissionServiceSeed(): PermissionServiceSeed {
         roleId: role.id
       }))
     ),
+    roleTerminalAccess: roles.map((role) => ({
+      roleCode: role.code,
+      roleId: role.id,
+      allowedTerminals: ['WEB']
+    })),
     roles
   }
 }
@@ -104,6 +117,14 @@ export function validatePermissionServiceSeed(seed: PermissionServiceSeed): stri
     }
   }
 
+  for (const roleTerminalAccess of seed.roleTerminalAccess) {
+    if (!roleIds.has(roleTerminalAccess.roleId)) {
+      errors.push(
+        `${roleTerminalAccess.roleCode}: role terminal access references unknown roleId ${roleTerminalAccess.roleId}`
+      )
+    }
+  }
+
   for (const visibility of seed.roleNavigationVisibility) {
     if (!roleIds.has(visibility.roleId)) {
       errors.push(`Navigation visibility references unknown roleId ${visibility.roleId}`)
@@ -147,7 +168,8 @@ export function renderPermissionServiceSeedDryRunSummary(
     navigationEntryCount: seed.navigationEntries.length,
     deprecatedNavigationEntryCount: seed.deprecatedNavigationEntryKeys.length,
     roleNavigationVisibilityCount: seed.roleNavigationVisibility.length,
-    roleLandingPolicyCount: seed.roleLandingPolicies.length
+    roleLandingPolicyCount: seed.roleLandingPolicies.length,
+    roleTerminalAccessCount: seed.roleTerminalAccess.length
   }
 }
 

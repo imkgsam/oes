@@ -4,6 +4,10 @@ import { GrpcTransportModule } from '@oes/common/transport'
 import { AuthorizationModule } from '@oes/common/authorization'
 import { PermissionServiceProxyModule } from '../permission-service/permission-service.module'
 import { AuthController } from './interfaces/http/controllers/auth.controller'
+import {
+  KioskAuthController,
+  PdaAuthController
+} from './interfaces/http/controllers/terminal-auth.controller'
 import { AuthGrpcAdapter } from './infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { AssetGrpcAdapter } from './infrastructure/downstream/asset-service/asset-grpc.adapter'
 import { IdentityQueryGrpcAdapter } from './infrastructure/downstream/identity-service/identity-query-grpc.adapter'
@@ -47,7 +51,7 @@ import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/person
       SERVICE_NAMES.TENANT_ORG
     ])
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, PdaAuthController, KioskAuthController],
   providers: [
     AuthGrpcAdapter,
     AssetGrpcAdapter,
@@ -82,6 +86,6 @@ import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/person
     SelfContactBindingUseCase,
     StepUpMfaUseCase
   ],
-  exports: [AuthGrpcAdapter]
+  exports: [AuthGrpcAdapter, SessionContextUseCase]
 })
 export class AuthBffModule {}

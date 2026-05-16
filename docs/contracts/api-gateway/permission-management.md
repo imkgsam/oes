@@ -1,5 +1,7 @@
 # Permission Management API
 
+> `permission-service` 的服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只描述 API Gateway permission-management HTTP contract 与页面接入边界，不重新定义 Permission、Role、AccountRole、Policy、navigation governance 或 terminal access 的长期 owner 边界。
+
 ## 1. 组定位
 
 本组接口用于权限管理后台读取和维护全局 `Permission` / `Role` 主数据。
@@ -841,7 +843,109 @@
   - `PUT /roles/:roleId/navigation/landing-policies`
   - `POST /navigation/resolve-preview`
 
-## 11. 真相源
+## 11. `terminal-access-management` 组边界
+
+本组接口用于管理 Terminal Access Policy。该能力属于 `permission-service` 的 role / access governance 范围，通过 `api-gateway` 的 permission-management 薄代理对管理端开放。
+
+### 边界
+
+- 运行时判定 RPC `ResolveAccountTerminalAccess` 不直接暴露给前端。
+- 管理接口只负责配置、读取和当前账号最终准入展示。
+- 登录准入裁决仍由 `auth-service -> permission-service` 的内部 gRPC 链路完成。
+- 管理 UI Phase 1 只显示 `WEB / PDA / KIOSK`。
+- 后端 enum 预留 `MOBILE / MINIAPP`。
+
+### 权限码建议
+
+- `permission.terminal_access.role.view`
+- `permission.terminal_access.role.update`
+- `permission.terminal_access.account_override.view`
+- `permission.terminal_access.account_override.update`
+
+### `GET /roles/:roleId/terminal-access`
+
+- 用途：读取某个 role 的 terminal access 配置。
+- 权限控制：
+  - `checkPermission(permission.terminal_access.role.view)`
+  - 租户管理员只能读取本租户 role instance
+  - system admin 可读取 system role instance 与 template
+- 响应语义：
+
+```json
+{
+  "roleId": "role_001",
+  "allowedTerminals": ["WEB", "PDA"]
+}
+```
+
+### `PUT /roles/:roleId/terminal-access`
+
+- 用途：整组替换某个 role 的 allowed terminals。
+- 权限控制：
+  - `checkPermission(permission.terminal_access.role.update)`
+  - 租户管理员只能更新本租户 role instance
+  - system admin 可更新 system role instance 与 template
+  - template 修改不自动同步已有 role instances
+- 请求语义：
+
+```json
+{
+  "allowedTerminals": ["WEB", "PDA"]
+}
+```
+
+- 空数组允许，表示该 role 不提供任何 terminal login access。
+- 成功后必须记录管理审计。
+
+### `GET /accounts/:accountId/terminal-access`
+
+- 用途：读取一个账号的最终 terminal access，用于管理员账号详情展示。
+- 权限控制：
+  - `checkPermission(permission.terminal_access.account_override.view)`
+  - 租户管理员只能读取本租户账号
+  - system admin 可读取 system account
+- 响应语义：
+
+```json
+{
+  "accountId": "acc_001",
+  "scopeLevel": "TENANT",
+  "tenantId": "tenant_001",
+  "overrideEnabled": true,
+  "effectiveAllowedTerminals": ["WEB"],
+  "overrideAllowedTerminals": ["WEB"]
+}
+```
+
+### `PUT /accounts/:accountId/terminal-access-override`
+
+- 用途：启用或更新账号专属 terminal access。
+- 权限控制：
+  - `checkPermission(permission.terminal_access.account_override.update)`
+  - 租户管理员只能更新本租户账号
+  - system admin 可更新 system account
+  - 后端必须通过 `identity-service` 校验目标账号 scope / tenant 事实
+- 请求语义：
+
+```json
+{
+  "allowedTerminals": ["WEB"]
+}
+```
+
+- 空数组允许，表示账号级全终端封禁；UI 必须二次确认。
+- 成功后必须记录管理审计。
+
+### `DELETE /accounts/:accountId/terminal-access-override`
+
+- 用途：关闭账号专属 terminal access，恢复 role 默认 union。
+- 权限控制：
+  - `checkPermission(permission.terminal_access.account_override.update)`
+  - 租户管理员只能删除本租户账号 override
+  - system admin 可删除 system account override
+- 成功后必须记录管理审计。
+
+## 12. 真相源
 
 前端或调用方除本文件外，还应同时参考以下真相源：
 
@@ -855,10 +959,10 @@
 - 下游 proto：
   - [permission_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/permission_management.proto)
   - [policy_management.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/permission_service/policy_management.proto)
-- 下游设计：
-  - [permission-management.md](/Users/acehood/Documents/GitHub/oes/src/services/system/permission-service/doc/design/permission-management.md)
+- 服务设计真相源：
+  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
 
-## 12. 文档边界
+## 13. 文档边界
 
 - 本文保留“调用方可依赖的权限管理 HTTP 契约”和“页面接入边界”。
 - 详细按钮权限、页面实现步骤、测试命令与联调记录，不再继续堆叠到本文件。

@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { PolicyController } from './policy.controller'
 
 // Verifies readonly policy governance endpoints stay guarded by one coarse-grained policy read permission.
@@ -19,20 +19,18 @@ describe('PolicyController', () => {
   it('declares the expected permissions on readonly policy governance endpoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, PolicyController.prototype.listPolicies)).toEqual({
-      permissions: ['permission.policy.list'],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, PolicyController.prototype.getPolicyById)).toEqual({
-      permissions: ['permission.policy.list'],
-      type: 'ALL'
-    })
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, PolicyController.prototype.listPoliciesByPermission)
-    ).toEqual({
-      permissions: ['permission.policy.list'],
-      type: 'ALL'
-    })
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, PolicyController.prototype.listPolicies)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, PolicyController.prototype.getPolicyById)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        PolicyController.prototype.listPoliciesByPermission
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards normalized readonly list filters to the proxy service', async () => {

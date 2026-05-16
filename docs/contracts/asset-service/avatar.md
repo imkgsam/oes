@@ -7,7 +7,7 @@
 ## Product Flow Constraints
 
 - 头像文件本体必须进入受控对象存储，不允许前端或 BFF 直接保存任意外链 URL 作为业务真相。
-- `identity-service` 只拥有当前账号头像资产引用，不拥有对象存储写入逻辑。
+- 当前账号头像资产引用边界以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准；`identity-service` 不拥有对象存储写入逻辑。
 - 头像上传与账号资料更新是两步流程：
   - 先上传头像候选资产
   - 再由资料更新链路绑定到当前账号

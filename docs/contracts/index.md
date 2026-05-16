@@ -2,6 +2,8 @@
 
 更新时间：2026-05-04
 
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本索引只导航黑盒 contract。
+
 本目录用于沉淀黑盒接口契约，描述调用方可依赖的请求、响应、错误语义与边界，不承载服务内部实现设计。
 
 ## 当前契约入口
@@ -11,7 +13,7 @@
 | API Gateway / BFF | [api-gateway/README.md](./api-gateway/README.md) |
 | asset-service | [asset-service/README.md](./asset-service/README.md) |
 | auth-service | [auth-service/README.md](./auth-service/README.md) |
-| hr-service | [hr-service/README.md](./hr-service/README.md) |
+| hr-service | [hr-service/README.md](./hr-service/README.md)，服务设计以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准 |
 | identity-service | [identity-service/README.md](./identity-service/README.md) |
 | mes-service | [mes-service/README.md](./mes-service/README.md) |
 | permission-service | [permission-service/README.md](./permission-service/README.md) |

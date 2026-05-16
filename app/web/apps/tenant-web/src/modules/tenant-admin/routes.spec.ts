@@ -70,13 +70,22 @@ describe('tenant admin routes', () => {
     expect(employeeDetailRoute?.meta?.hideInMenu).toBe(true)
   })
 
-  it('binds item list, category, create, and detail routes to the dedicated master-data item entries', () => {
+  it('binds item list, category, attribute, create, and detail routes to dedicated master-data entries', () => {
     const masterDataRoute = tenantAdminRoutes.find((route) => route.name === 'TenantMasterData')
     const itemListRoute = masterDataRoute?.children?.find(
       (route) => route.name === 'TenantItemManagement'
     )
     const itemCategoryRoute = masterDataRoute?.children?.find(
       (route) => route.name === 'TenantItemCategoryManagement'
+    )
+    const itemAttributeRoute = masterDataRoute?.children?.find(
+      (route) => route.name === 'TenantItemAttributeManagement'
+    )
+    const itemPackagingRoute = masterDataRoute?.children?.find(
+      (route) => route.name === 'TenantItemPackagingManagement'
+    )
+    const itemBomRoute = masterDataRoute?.children?.find(
+      (route) => route.name === 'TenantItemBomManagement'
     )
     const itemCreateRoute = masterDataRoute?.children?.find(
       (route) => route.name === 'TenantItemManagementCreate'
@@ -91,6 +100,18 @@ describe('tenant admin routes', () => {
     expect(itemCategoryRoute?.path).toBe('/master-data/item-categories')
     expect(itemCategoryRoute?.meta?.hideInMenu).toBeUndefined()
     expect(itemCategoryRoute?.meta?.title).toBe('Item 分类管理')
+    expect(itemAttributeRoute?.meta?.entryKey).toBe('master-data.item-attribute-management')
+    expect(itemAttributeRoute?.path).toBe('/master-data/item-attributes')
+    expect(itemAttributeRoute?.meta?.hideInMenu).toBeUndefined()
+    expect(itemAttributeRoute?.meta?.title).toBe('Item 属性管理')
+    expect(itemPackagingRoute?.meta?.entryKey).toBe('master-data.item-packaging-management')
+    expect(itemPackagingRoute?.path).toBe('/master-data/item-packaging')
+    expect(itemPackagingRoute?.meta?.hideInMenu).toBeUndefined()
+    expect(itemPackagingRoute?.meta?.title).toBe('Item 包装管理')
+    expect(itemBomRoute?.meta?.entryKey).toBe('master-data.item-bom-management')
+    expect(itemBomRoute?.path).toBe('/master-data/item-boms')
+    expect(itemBomRoute?.meta?.hideInMenu).toBeUndefined()
+    expect(itemBomRoute?.meta?.title).toBe('Item BOM 管理')
     expect(itemCreateRoute?.meta?.entryKey).toBe('master-data.item-management')
     expect(itemCreateRoute?.meta?.hideInMenu).toBe(true)
     expect(itemCreateRoute?.meta?.activePath).toBe('/master-data/items')

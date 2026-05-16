@@ -10,7 +10,7 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(189)
+    expect(seed.permissionCodes).toHaveLength(201)
     expect(seed.deprecatedPermissionCodes).toEqual([
       'permission.role.create',
       'permission.role.update',
@@ -35,22 +35,24 @@ describe('permission service seed source', () => {
       'mes.forming_workshop.supervisor',
       'item_master.product_data_manager'
     ])
-    expect(seed.rolePermissions).toHaveLength(138)
-    expect(seed.navigationEntries).toHaveLength(23)
-    expect(seed.roleNavigationVisibility).toHaveLength(25)
+    expect(seed.rolePermissions).toHaveLength(153)
+    expect(seed.navigationEntries).toHaveLength(28)
+    expect(seed.roleNavigationVisibility).toHaveLength(28)
     expect(seed.roleLandingPolicies).toHaveLength(6)
+    expect(seed.roleTerminalAccess).toHaveLength(6)
   })
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 189,
+      permissionCodeCount: 201,
       deprecatedPermissionCodeCount: 14,
       roleCount: 6,
-      rolePermissionCount: 138,
-      navigationEntryCount: 23,
+      rolePermissionCount: 153,
+      navigationEntryCount: 28,
       deprecatedNavigationEntryCount: 1,
-      roleNavigationVisibilityCount: 25,
-      roleLandingPolicyCount: 6
+      roleNavigationVisibilityCount: 28,
+      roleLandingPolicyCount: 6,
+      roleTerminalAccessCount: 6
     })
   })
 

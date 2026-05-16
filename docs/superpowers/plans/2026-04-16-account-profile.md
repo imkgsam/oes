@@ -335,7 +335,7 @@ return this.accountRepository.updateProfile(command.payload.accountId, {
 Add a controller method:
 
 ```ts
-@RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE)
+@RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE] })
 async updateAccountProfile(request: UpdateAccountProfileRequest): Promise<GetAccountByIdResponse> {
   const operatorId = getRequiredOperatorId(request)
   const operatorScope = getOptionalOperatorScope(request)

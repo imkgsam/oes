@@ -6,6 +6,7 @@ import { PrismaRoleRepository } from '../../infrastructure/repositories/prisma/p
 import { PrismaOnboardingGrantRequestRepository } from '../../infrastructure/repositories/prisma/prisma.onboarding-grant-request.repository'
 import { PrismaPermissionRepository } from '../../infrastructure/repositories/prisma/prisma.permission.repository'
 import { PrismaNavigationRepository } from '../../infrastructure/repositories/prisma/prisma.navigation.repository'
+import { PrismaTerminalAccessRepository } from '../../infrastructure/repositories/prisma/prisma.terminal-access.repository'
 import { SYMBOLS } from '../../common/constants/symbols'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { RoleCommandHandlers } from '../../application/commands/role'
@@ -56,6 +57,10 @@ import {
       useClass: PrismaNavigationRepository
     },
     {
+      provide: SYMBOLS.REPO.TERMINAL_ACCESS,
+      useClass: PrismaTerminalAccessRepository
+    },
+    {
       provide: IDENTITY_ACCOUNT_REFERENCE_PORT,
       useClass: IdentityAccountReferenceGrpcAdaptor
     },
@@ -82,6 +87,6 @@ import {
     ...RoleQueryHandlers
   ],
   controllers: [],
-  exports: [SYMBOLS.REPO.ROLE]
+  exports: [SYMBOLS.REPO.ROLE, SYMBOLS.REPO.TERMINAL_ACCESS]
 })
 export class RoleModule {}

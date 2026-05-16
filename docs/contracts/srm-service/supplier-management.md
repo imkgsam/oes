@@ -88,7 +88,7 @@
 关键语义：
 
 - 新建 `SupplierProfile` 不等于已绑定正式主体
-- 新建成功不创建 `Party / TenantParty`
+- 新建成功不创建 `party-service` 主体事实或租户主体引用
 - 新建成功默认不是已可生效的 `ACTIVE SupplierProfile`
 
 ### `UpdateSupplierProfileBasics`

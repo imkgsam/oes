@@ -1,5 +1,7 @@
 # Permission Management
 
+> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 Permission Management feature 的范围、状态与前端接入约束；`Permission`、权限码、Role / Policy / AccountRole 边界不在本文重新定义。
+
 ## 1. 目标
 
 - 提供 tenant-web 管理端的 Permission 管理最小闭环，为后续 Role Management 提供稳定 permission catalog 与 selector 基础。

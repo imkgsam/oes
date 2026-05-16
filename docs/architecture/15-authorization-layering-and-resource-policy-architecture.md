@@ -1,5 +1,7 @@
 # OES 授权分层与资源策略架构
 
+> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只定义项目级授权分层、资源授权、查询范围与 policy 分类规则，不重新定义 permission-service 的核心对象或长期 owner 边界。
+
 ## 1. 文档目的
 
 本文档用于冻结 OES 在“粗粒度接口权限、细粒度资源权限、查询范围约束、环境安全策略、跨服务派生协作授权”上的统一分层模型，作为后续 Gateway、`permission-service` 与各业务子服务改造的项目级依据。
@@ -33,6 +35,10 @@ OES 的目标状态不是“所有权限控制都通过 guard 完成”，而是
 - 业务正确性控制：
   - 由 domain rule 负责
   - 不通过 policy 替代聚合生命周期、不变量与流程约束
+- 平台硬边界控制：
+  - 不依赖 permission policy
+  - 不允许被租户配置或业务 policy 放宽
+  - 由认证、租户隔离、服务间信任、operator context、审计与领域不变量等对应 owner 负责
 
 历史 `CheckPermissionWithContext` RPC 仅作为 `permission-service` 既有兼容能力与 policy AST 评估能力载体保留，不再作为新业务资源授权的标准接入方式。新业务的单资源授权必须优先落到 application 层 `checkResource`，列表 / 搜索 / 分页授权必须优先落到 `buildQueryScope`。
 
@@ -403,6 +409,58 @@ infrastructure 层不应承载：
 - domain rule 负责业务正确性
 - 不允许用 policy 替代聚合生命周期、不变量和流程约束
 
+### 6.5 平台硬边界
+
+平台硬边界是 OES 的不可放宽底线，不属于 permission policy、resource policy、query scope policy 或 security policy 的可配置范围。
+
+硬边界回答的问题不是“某个租户、角色或操作者是否被允许”，而是“系统是否仍处在可信、隔离、可审计、业务正确的基本前提内”。
+
+稳定规则：
+
+- 硬边界不依赖 permission policy。
+- 硬边界不允许被租户 policy、角色授权、资源策略或 security policy 放宽。
+- 硬边界可以由对应服务或平台能力配置具体参数，但其存在性和强制性不能由 permission policy 决定。
+- permission policy 只能在硬边界之内进一步收窄访问范围，不能扩大硬边界。
+
+第一阶段冻结的硬边界如下：
+
+- `tenant isolation`
+  - 租户隔离是平台硬边界。
+  - 任何 policy、role 或 permission 不能授予跨租户读取或写入业务资源的能力。
+  - 需要跨租户运维或系统级治理时，必须走显式 system scope、专用接口、审计和最小数据暴露，不得复用普通租户业务授权语义。
+- `authentication / session / token validity`
+  - 认证状态、session 有效性、token 有效性由认证链路负责。
+  - 未认证、session 失效或 token 无效时，不进入 permission policy 判定。
+- `operator context validity`
+  - operator context 的存在性、完整性、签发来源与传播有效性是调用链硬前提。
+  - operator context 缺失或不可验证时，应 fail closed。
+- `service-to-service trust / metadata`
+  - 内部服务调用的可信身份、metadata、签名或等价机制属于平台通信硬边界。
+  - permission policy 不负责把不可信内部调用变成可信调用。
+- `self-service target binding`
+  - 自助能力必须由服务端把 target 绑定为当前主体。
+  - 客户端传入的任意 target id 不能绕过 self-bound target 约束。
+- `password failure count / account lockout`
+  - 密码错误次数、账号锁定、登录风控属于 `auth-service` security / risk policy。
+  - 不进入 `permission-service` policy，不由 role / permission / resource policy 控制。
+- `domain invariant`
+  - 聚合生命周期、不变量、流程状态合法性属于 domain rule。
+  - policy 不能允许违反领域不变量的状态变更。
+- 跨服务数据库边界
+  - 服务之间不得直接查询或写入对方数据库。
+  - 该边界不能通过 policy 授权绕过。
+- 审计与 trace context 传播
+  - 关键操作必须携带 operator、tenant、trace 与审计元数据。
+  - policy 不能关闭必要审计。
+- AI 写入边界
+  - AI 不直接写入业务核心表。
+  - AI 改变业务状态必须通过受控工具、应用服务、审批流程与审计链路。
+
+关于 `org` 的第一阶段结论：
+
+- 如果 `org` 表示组织架构下的数据可见范围，例如本部门、本组织、下级组织数据可见，则它不是平台硬边界，应进入 resource policy / query scope policy。
+- 只有当未来某类 `org` 被明确冻结为法律实体、账套、监管隔离或等价的数据隔离边界时，才可以升级为硬边界；升级前必须经过 architecture / ADR 决策。
+
 ## 7. policy 分类
 
 OES 当前只保留三类 policy：
@@ -643,7 +701,7 @@ Updated: 2026-04-09 11:35 +08:00
   - 原 `common/permission` 中用于授权执行的 decorator / guard 已并入 `common/authorization`
   - `common` 中基于 `operator_roles -> permission-service` 的共享 resolver / adaptor 已落地
   - 共享 `OperatorContextPayload` 与共享授权实现已不再暴露旧的权限快照字段
-  - `auth-service`、`identity-service` 已接入接口级 `RequirePermission + PermissionGuard`
+  - `auth-service`、`identity-service` 已接入接口级 `RequirePermissions + PermissionGuard`
   - `permission-service` 已具备 `CheckPermission`
   - `permission-service` 已具备历史兼容的 `CheckPermissionWithContext` 与 policy AST 能力；该 RPC 不作为新业务资源授权标准入口
   - `permission-service` 角色管理查询已开始通过显式 query scope builder 收口租户 / 系统范围
@@ -730,6 +788,9 @@ OES 的目标状态明确为：
 - 业务正确性：
   - domain rule
   - 由领域层负责
+- 平台硬边界：
+  - 不依赖 permission policy
+  - 不允许被租户配置或业务 policy 放宽
 - policy 只保留：
   - `resource policy`
   - `query scope policy`

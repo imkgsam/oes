@@ -1,8 +1,10 @@
 # identity-service Query API
 
-## 1. 模块职责
+> 服务设计唯一真相源：[identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)。涉及 HR `Employee / Employment`、员工生命周期或正式 `人 -> org` 归属时，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。本文只描述黑盒 gRPC query 接口语义，不重新定义 `identity-service` 或 HR 的长期职责、核心对象或 owner 边界。
 
-`IdentityQueryService` 负责提供只读身份查询能力，不修改状态。
+## 1. 接口范围
+
+`IdentityQueryService` 提供只读身份查询接口，不修改状态。
 
 适用场景：
 
@@ -138,7 +140,8 @@
 
 - `identity-service` 不再暴露 `GetOrgTreeByTenantId` 或 `ListAccountOrgMemberships`
 - tenant / org tree 真相由 `tenant-org-service` 提供
-- 人员正式组织归属应由 `hr-service` 的 employment 语义承接，不在 identity account projection 中继续维护
+- `Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；本文只描述 identity query 对 tenant/org 引用的消费方式。
+- 人员正式组织归属应由 `hr-service` 的 employment 语义承接，具体以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准，不在 identity account projection 中继续维护
 - `tenant_id` / `org_id` 在 identity 查询中只作为上下文、审计或外部 owner 引用字段出现
 
 ## 4. 联系方式资产查询

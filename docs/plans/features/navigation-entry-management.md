@@ -1,5 +1,7 @@
 # Navigation Entry Management
 
+> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 Navigation Entry Management feature 的范围、执行状态与验收要求；NavigationEntry、RoleNavigationVisibility、RoleLandingPolicy 的 owner、命名和长期边界不在本文重复定义。
+
 ## 1. 目标
 
 - 提供 OES 第一阶段的 navigation governance 管理闭环。
@@ -31,33 +33,16 @@
   - [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
   - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)
 - plans:
-  - [navigation-entry-governance-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/navigation-entry-governance-design.md)
+  - navigation entry governance 的设计过程已回写到 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)、[navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md) 与 [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md)，不再保留独立 design workspace。
   - [role-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/role-management.md)
 
 ## 4. 当前结论
 
 - 当前 feature 的目标是“navigation governance 管理闭环”，不是“菜单后台配置中心”。
-- 导航治理拆分为三块：
-  - `NavigationEntry Registry`
-  - `RoleNavigationVisibility`
-  - `RoleLandingPolicy`
-- 第一阶段由 `permission-service` 承载上述三块治理真相；BFF 只消费与聚合，不持久化导航治理规则。
-- Role 是导航配置中心：
-  - 系统管理员在 role 上配置可见 entries
-  - 系统管理员在 role 上配置默认 landing entry
-- 用户不支持自定义 landing page。
-- role default landing entry 必须来自该 role 可见 entry 集合；landing 配置不能授予可见性、按钮权限或数据权限。
-- 多 role landing 冲突第一阶段使用 `RoleLandingPolicy.priority` 解决。
-- feature / plugin enablement 不进入真实 visibility 过滤链路，也不作为当前导航治理路线图的后续依赖。
-- 管理面采用双层结构：
-  - 系统级 `Navigation Entry` 管理页负责 registry
-  - `Role Detail > Navigation` 负责 visibility、landing policy 与 preview
-- 管理接口继续放在现有 `permission-management` 管理薄代理体系内。
-- `resolver preview` 第一阶段作为正式管理 API 暴露，并支持多 role 组合输入；单 role 页面预览复用同一接口并传单元素 `roleIds[]`。
-- tenant 侧 `组织与人员` 已收口为 dedicated entry：
-  - 统一入口使用 `tenant-settings.organization-people`
-  - 旧 `/settings/org-structure` 与 `/settings/employee-employment` 保留兼容跳转，并继续挂在各自原 entryKey
-  - 路由可见性过滤以 dedicated entry 为准，不能依赖 legacy entryKey 继续保活统一工作台
+- Navigation governance 的 owner、核心对象、解析规则与非目标以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+- BFF 响应形状与默认入口解析 contract 以 [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md) 为准。
+- 管理接口分组以 [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md) 为准。
+- tenant 侧 `组织与人员` dedicated entry 是本 feature 的消费结果之一，不改变 tenant-org / HR / identity 的服务边界；HR `Employee / Employment` 设计以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
 
 ## 5. 契约真相位置
 
@@ -83,8 +68,8 @@
 
 | Thread / Owner | 职责 | 允许修改路径 | 输入 | 输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| design owner | 冻结 navigation governance 第一阶段边界、feature packet 与 contract 方向 | `docs/plans/features/navigation-entry-management.md`, `docs/plans/designs/navigation-entry-governance-design.md`, 必要时 `docs/plans/backlog.md` | 当前 design workspace、现有 navigation / permission 管理 contract | feature packet 与 contract 方向结论 | completed |
-| contract / architecture owner | 回写 `permission-management`、`navigation-summary` 与 `permission-service` 服务职责文档 | `docs/contracts/api-gateway/**`, `docs/architecture/services/**` | 当前 feature packet、design workspace | 冻结后的管理 contract 与服务职责收口 | pending |
+| design owner | 冻结 navigation governance 第一阶段边界、feature packet 与 contract 方向 | `docs/plans/features/navigation-entry-management.md`, 必要时 `docs/plans/backlog.md` | 服务真相源、现有 navigation / permission 管理 contract | feature packet 与 contract 方向结论 | completed |
+| contract / architecture owner | 回写 `permission-management`、`navigation-summary` 与 `permission-service` 服务职责文档 | `docs/contracts/api-gateway/**`, `docs/architecture/services/**` | 当前 feature packet、服务真相源与 contract | 冻结后的管理 contract 与服务职责收口 | pending |
 | implementation owner | 实现 permission-service / api-gateway / tenant-web 第一阶段 navigation management 闭环 | `src/services/system/permission-service/**`, `src/services/api-gateway/**`, `app/web/apps/tenant-web/**` | 当前 feature packet、冻结后的 contract | 可运行实现与验证结果 | completed |
 | review / integration owner | 检查实现是否越界进入菜单树、个人偏好或 feature/plugin enablement，并验证 session context 导航解析链路 | 只读全局，必要时最小修正 | feature packet、contract、实现结果、验证结果 | review 结论与关闭判断 | pending |
 
@@ -111,11 +96,9 @@
 ## 8. 主线范围
 
 - 当前主线任务：
-  - 将 navigation governance 从 design workspace 转成稳定 feature packet。
-  - 回写 `permission-management` 管理 contract，新增 entry registry、role navigation 与 preview 分组。
-  - 回写 `navigation-summary`，明确 role landing policy 如何影响 `defaultEntry`，但不改变响应形状。
-  - 回写 `permission-service` 服务职责文档，明确其第一阶段承载 navigation governance truth，但不拥有 terminal-specific UI 呈现配置。
-  - 基于冻结后的 contract，推进 permission-service、api-gateway、tenant-web 的第一阶段实现。
+  - 以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 作为服务设计真相源，推进 permission-service、api-gateway、tenant-web 的第一阶段实现。
+  - 以 [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/permission-management.md) 作为管理 contract。
+  - 以 [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md) 作为 BFF 输出 contract。
 - 本线程不做：
   - 独立 navigation BFF
   - 用户个人 landing 配置

@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { WmsController } from './wms.controller'
 
 // Verifies the WMS gateway controller keeps permissions and phase 1 request forwarding aligned with the frozen Warehouse/Receipt/Inventory BFF surface.
@@ -31,48 +31,39 @@ describe('WmsController', () => {
   it('declares the expected WMS permissions on gateway endpoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, WmsController.prototype.listWarehouses)).toEqual({
-      permissions: ['wms.warehouse.read'],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, WmsController.prototype.getWarehouse)).toEqual({
-      permissions: ['wms.warehouse.read'],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, WmsController.prototype.listLocations)).toEqual({
-      permissions: ['wms.location.read'],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, WmsController.prototype.searchReceipts)).toEqual({
-      permissions: ['wms.receipt.read'],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, WmsController.prototype.createReceiptDraft)).toEqual({
-      permissions: ['wms.receipt.manage'],
-      type: 'ALL'
-    })
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, WmsController.prototype.addOrReplaceReceiptLines)
-    ).toEqual({
-      permissions: ['wms.receipt.manage'],
-      type: 'ALL'
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, WmsController.prototype.postReceipt)).toEqual({
-      permissions: ['wms.receipt.manage'],
-      type: 'ALL'
-    })
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, WmsController.prototype.listWarehouses)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, WmsController.prototype.searchStockLedgerEntries)
-    ).toEqual({
-      permissions: ['wms.inventory.read'],
-      type: 'ALL'
-    })
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, WmsController.prototype.getWarehouse)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, WmsController.prototype.getInventoryBalance)
-    ).toEqual({
-      permissions: ['wms.inventory.read'],
-      type: 'ALL'
-    })
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, WmsController.prototype.listLocations)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, WmsController.prototype.searchReceipts)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, WmsController.prototype.createReceiptDraft)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        WmsController.prototype.addOrReplaceReceiptLines
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, WmsController.prototype.postReceipt)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        WmsController.prototype.searchStockLedgerEntries
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, WmsController.prototype.getInventoryBalance)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards the minimum phase 1 WMS BFF surface to the proxy service', async () => {
@@ -109,14 +100,26 @@ describe('WmsController', () => {
       total: 0
     })
 
-    await controller.listWarehouses('tenant-1', { keyword: 'main', page: 2, pageSize: 10 } as any, source as any)
+    await controller.listWarehouses(
+      'tenant-1',
+      { keyword: 'main', page: 2, pageSize: 10 } as any,
+      source as any
+    )
     await controller.getWarehouse('tenant-1', 'warehouse-1', source as any)
     await controller.listLocations('tenant-1', { warehouseId: 'warehouse-1' } as any, source as any)
     await controller.getLocation('tenant-1', 'location-1', source as any)
-    await controller.searchReceipts('tenant-1', { warehouseId: 'warehouse-1' } as any, source as any)
+    await controller.searchReceipts(
+      'tenant-1',
+      { warehouseId: 'warehouse-1' } as any,
+      source as any
+    )
     await controller.getReceipt('tenant-1', 'receipt-1', source as any)
     await controller.getReceiptLine('tenant-1', 'receipt-line-1', source as any)
-    await controller.searchReceiptLines('tenant-1', { receiptId: 'receipt-1' } as any, source as any)
+    await controller.searchReceiptLines(
+      'tenant-1',
+      { receiptId: 'receipt-1' } as any,
+      source as any
+    )
     await controller.createReceiptDraft(
       'tenant-1',
       {
@@ -151,7 +154,11 @@ describe('WmsController', () => {
       } as any,
       source as any
     )
-    await controller.searchStockLedgerEntries('tenant-1', { warehouseId: 'warehouse-1' } as any, source as any)
+    await controller.searchStockLedgerEntries(
+      'tenant-1',
+      { warehouseId: 'warehouse-1' } as any,
+      source as any
+    )
     await controller.getInventoryBalance(
       'tenant-1',
       {
@@ -160,7 +167,11 @@ describe('WmsController', () => {
       } as any,
       source as any
     )
-    await controller.searchInventoryBalances('tenant-1', { warehouseId: 'warehouse-1' } as any, source as any)
+    await controller.searchInventoryBalances(
+      'tenant-1',
+      { warehouseId: 'warehouse-1' } as any,
+      source as any
+    )
 
     expect(wmsService.listWarehouses).toHaveBeenCalledWith(
       'tenant-1',

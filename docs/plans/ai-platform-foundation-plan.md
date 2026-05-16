@@ -2,6 +2,8 @@
 
 Updated: 2026-03-25 +08:00
 
+> AI 平台只消费授权与 policy 能力，不拥有 permission-service 服务设计真相；涉及权限、policy、scope 或授权判定的边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+
 ## 1. Objective
 
 Build an AI platform foundation for OES that can absorb future AI scenarios without redesigning the base architecture each time.

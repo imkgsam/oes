@@ -1,8 +1,11 @@
 # identity-service Machine Auth API
 
-## 1. 模块职责
+> 服务设计唯一真相源：[identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md)。本文只描述现有黑盒 gRPC machine auth 接口语义；machine principal 与 credential 的长期边界以服务真相源及后续专项设计为准。
+> 涉及 permission code、upper-bound policy、delegation scope 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
 
-`IdentityMachineAuthService` 负责机器身份认证入口。
+## 1. 接口范围
+
+`IdentityMachineAuthService` 提供现有机器身份认证入口。
 
 当前仅开放一个接口：
 

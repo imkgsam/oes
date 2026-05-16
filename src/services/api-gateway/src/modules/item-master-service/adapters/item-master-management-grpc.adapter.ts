@@ -9,6 +9,14 @@ import {
   ChangeItemModelStatusResponse,
   ChangeItemStatusRequest,
   ChangeItemStatusResponse,
+  ChangePackagingMethodStatusRequest,
+  ChangePackagingMethodStatusResponse,
+  ChangePackagingSpecStatusRequest,
+  ChangePackagingSpecStatusResponse,
+  CreateAttributeDefinitionRequest,
+  CreateAttributeDefinitionResponse,
+  CreateAttributeOptionRequest,
+  CreateAttributeOptionResponse,
   CreateBomRequest,
   CreateBomResponse,
   CreateItemCategoryRequest,
@@ -17,16 +25,26 @@ import {
   CreateItemModelResponse,
   CreateItemRequest,
   CreateItemResponse,
+  CreatePackagingMethodRequest,
+  CreatePackagingMethodResponse,
+  CreatePackagingSpecRequest,
+  CreatePackagingSpecResponse,
   ITEM_MASTER_MANAGEMENT_SERVICE_NAME,
   ItemMasterManagementServiceClient,
   ReplaceBomLinesRequest,
   ReplaceBomLinesResponse,
+  SetItemModelAttributeRulesRequest,
+  SetItemModelAttributeRulesResponse,
   SetItemCapabilitiesRequest,
   SetItemCapabilitiesResponse,
   SetItemModelCapabilitiesRequest,
   SetItemModelCapabilitiesResponse,
   SetItemModelPrimaryCategoryRequest,
   SetItemModelPrimaryCategoryResponse,
+  UpdateAttributeDefinitionRequest,
+  UpdateAttributeDefinitionResponse,
+  UpdateAttributeOptionRequest,
+  UpdateAttributeOptionResponse,
   UpdateBomBasicsRequest,
   UpdateBomBasicsResponse,
   UpdateItemBasicsRequest,
@@ -35,6 +53,10 @@ import {
   UpdateItemCategoryBasicsResponse,
   UpdateItemModelBasicsRequest,
   UpdateItemModelBasicsResponse,
+  UpdatePackagingMethodRequest,
+  UpdatePackagingMethodResponse,
+  UpdatePackagingSpecRequest,
+  UpdatePackagingSpecResponse,
   UpsertSupplierItemMappingRequest,
   UpsertSupplierItemMappingResponse
 } from '@oes/common/generated/item_master_service'
@@ -118,6 +140,41 @@ export class ItemMasterManagementGrpcAdapter implements OnModuleInit {
     return this.call('changeItemStatus', this.svc.changeItemStatus(input, this.metadata(source)))
   }
 
+  createAttributeDefinition(
+    input: CreateAttributeDefinitionRequest,
+    source: DownstreamRequestSource
+  ): Promise<CreateAttributeDefinitionResponse> {
+    return this.call('createAttributeDefinition', this.svc.createAttributeDefinition(input, this.metadata(source)))
+  }
+
+  updateAttributeDefinition(
+    input: UpdateAttributeDefinitionRequest,
+    source: DownstreamRequestSource
+  ): Promise<UpdateAttributeDefinitionResponse> {
+    return this.call('updateAttributeDefinition', this.svc.updateAttributeDefinition(input, this.metadata(source)))
+  }
+
+  createAttributeOption(
+    input: CreateAttributeOptionRequest,
+    source: DownstreamRequestSource
+  ): Promise<CreateAttributeOptionResponse> {
+    return this.call('createAttributeOption', this.svc.createAttributeOption(input, this.metadata(source)))
+  }
+
+  updateAttributeOption(
+    input: UpdateAttributeOptionRequest,
+    source: DownstreamRequestSource
+  ): Promise<UpdateAttributeOptionResponse> {
+    return this.call('updateAttributeOption', this.svc.updateAttributeOption(input, this.metadata(source)))
+  }
+
+  setItemModelAttributeRules(
+    input: SetItemModelAttributeRulesRequest,
+    source: DownstreamRequestSource
+  ): Promise<SetItemModelAttributeRulesResponse> {
+    return this.call('setItemModelAttributeRules', this.svc.setItemModelAttributeRules(input, this.metadata(source)))
+  }
+
   createItemCategory(
     input: CreateItemCategoryRequest,
     source: DownstreamRequestSource
@@ -137,6 +194,48 @@ export class ItemMasterManagementGrpcAdapter implements OnModuleInit {
     source: DownstreamRequestSource
   ): Promise<ChangeItemCategoryStatusResponse> {
     return this.call('changeItemCategoryStatus', this.svc.changeItemCategoryStatus(input, this.metadata(source)))
+  }
+
+  createPackagingMethod(
+    input: CreatePackagingMethodRequest,
+    source: DownstreamRequestSource
+  ): Promise<CreatePackagingMethodResponse> {
+    return this.call('createPackagingMethod', this.svc.createPackagingMethod(input, this.metadata(source)))
+  }
+
+  updatePackagingMethod(
+    input: UpdatePackagingMethodRequest,
+    source: DownstreamRequestSource
+  ): Promise<UpdatePackagingMethodResponse> {
+    return this.call('updatePackagingMethod', this.svc.updatePackagingMethod(input, this.metadata(source)))
+  }
+
+  changePackagingMethodStatus(
+    input: ChangePackagingMethodStatusRequest,
+    source: DownstreamRequestSource
+  ): Promise<ChangePackagingMethodStatusResponse> {
+    return this.call('changePackagingMethodStatus', this.svc.changePackagingMethodStatus(input, this.metadata(source)))
+  }
+
+  createPackagingSpec(
+    input: CreatePackagingSpecRequest,
+    source: DownstreamRequestSource
+  ): Promise<CreatePackagingSpecResponse> {
+    return this.call('createPackagingSpec', this.svc.createPackagingSpec(input, this.metadata(source)))
+  }
+
+  updatePackagingSpec(
+    input: UpdatePackagingSpecRequest,
+    source: DownstreamRequestSource
+  ): Promise<UpdatePackagingSpecResponse> {
+    return this.call('updatePackagingSpec', this.svc.updatePackagingSpec(input, this.metadata(source)))
+  }
+
+  changePackagingSpecStatus(
+    input: ChangePackagingSpecStatusRequest,
+    source: DownstreamRequestSource
+  ): Promise<ChangePackagingSpecStatusResponse> {
+    return this.call('changePackagingSpecStatus', this.svc.changePackagingSpecStatus(input, this.metadata(source)))
   }
 
   createBom(input: CreateBomRequest, source: DownstreamRequestSource): Promise<CreateBomResponse> {

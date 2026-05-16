@@ -1,5 +1,7 @@
 # Permission Service Access Summary Contract
 
+> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只描述 access summary gRPC contract，不重新定义 Role、AccountRole、permission code 或授权摘要 owner 边界。
+
 ## 1. Purpose
 
 This document defines the `permission-service` gRPC contract that supports `auth-bff`'s `GET /auth/session/access-summary` endpoint.

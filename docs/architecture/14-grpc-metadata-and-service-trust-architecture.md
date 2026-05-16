@@ -1,5 +1,7 @@
 # OES gRPC Metadata 与服务信任架构
 
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述 gRPC metadata、operator context 与服务信任传播规则。
+
 ## 1. 目的
 
 本设计用于明确 OES 内部服务在 gRPC 调用链中的三类问题：
@@ -89,9 +91,9 @@ Gateway 是外部入口的首跳上下文装配点，但不是 metadata 传播�
 实现护栏：
 
 - 仅仅在接口上挂 `AuthenticatedOperatorGuard` 并不等于一定会解析 `x-operator-context`
-- 当前 `AuthenticatedOperatorGuard` 只会在接口显式带有 `@RequirePermission(...)` 或 `@RequireAuthenticatedOperator()` 元数据时，才会真正读取 gRPC metadata 并把 operator context 挂到 request context 上
+- 当前 `AuthenticatedOperatorGuard` 只会在接口显式带有 `@RequirePermissions({ all: [...] })` 或 `@RequireAuthenticatedOperator()` 元数据时，才会真正读取 gRPC metadata 并把 operator context 挂到 request context 上
 - 因此，凡是 handler 内部会调用 `getRequiredOperatorId(...)`、`getOptionalOperatorScope(...)`、资源边界校验、操作者审计写入等逻辑的 gRPC 管理接口，都必须显式声明：
-  - `@RequirePermission(...)`，或
+  - `@RequirePermissions({ all: [...] })`，或
   - `@RequireAuthenticatedOperator()`
 - 只写 `@UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard)` 但未声明上述元数据时，接口表面上接入了 guard，实际上不会消费 operator context，后续在 handler 内取 operator id 会得到 `APP_SECURITY_003 / operator context is missing`
 

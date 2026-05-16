@@ -1,5 +1,7 @@
 # Permission Service Onboarding Grant Contract
 
+> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。HR `Employee / Employment`、员工生命周期、正式 `人 -> org` 归属与 onboarding owner 边界以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。本文只描述 employee onboarding 初始授权 handoff contract，不重新定义 Role、AccountRole、grant、权限 owner 或 HR 对象语义。
+
 ## 1. 目的
 
 定义员工 onboarding 中初始角色 / grant 的 owner 语义与最小 handoff 合同。

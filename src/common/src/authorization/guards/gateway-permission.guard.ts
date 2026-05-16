@@ -3,12 +3,12 @@ import { Reflector } from '@nestjs/core'
 import { ClientGrpc } from '@nestjs/microservices'
 import { Observable } from 'rxjs'
 import { SERVICE_NAMES } from '../../constants'
-import { PERMISSION_CHECK_KEY, PermissionCheckType } from '../decorators/permission-check.decorator'
+import { RequirePermissionsMetadata } from '../decorators'
 import { InjectGrpcClient } from '../../transport/grpc/grpc-client.decorator'
 import { safeGrpcCall } from '../../transport/grpc/safe-grpc-call'
 import { AppLogger } from '../../logging/app-logger.service'
 import { PermissionCheckServiceClient } from '../../generated/permission_service/permission_check'
-import { GRPC_METADATA_PROPAGATION_FACTORY } from '../constants'
+import { GRPC_METADATA_PROPAGATION_FACTORY, REQUIRE_PERMISSIONS_METADATA_KEY } from '../constants'
 import { GrpcMetadataPropagationFactory } from '../types'
 
 /** 权限检查超时时间（毫秒） */
@@ -40,26 +40,36 @@ export class GatewayPermissionGuard implements CanActivate, OnModuleInit {
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const metadata = this.reflector.get<{
-      type: PermissionCheckType
-      permissions: string[]
-    }>(PERMISSION_CHECK_KEY, context.getHandler())
+    const metadata = this.reflector.getAllAndOverride<RequirePermissionsMetadata>(
+      REQUIRE_PERMISSIONS_METADATA_KEY,
+      [context.getHandler(), context.getClass()]
+    )
     if (!metadata) return true
 
-    const { permissions, type } = metadata
+    const mode = this.resolveMode(metadata)
+    const permissions = metadata[mode]
     const request = context.switchToHttp().getRequest<any>()
     const userId = this.resolveOperatorId(request.user)
     if (!userId) return false
 
     const results = await Promise.all(permissions.map((code) => this.checkSingle(userId, code)))
 
-    if (type === PermissionCheckType.ALL) {
+    if (mode === 'all') {
       return results.every(Boolean)
     }
-    if (type === PermissionCheckType.ANY) {
-      return results.some(Boolean)
+    return results.some(Boolean)
+  }
+
+  // Resolves the permission requirement mode and fails closed for malformed metadata.
+  private resolveMode(metadata: RequirePermissionsMetadata): 'all' | 'any' {
+    const hasAll = Array.isArray(metadata.all)
+    const hasAny = Array.isArray(metadata.any)
+
+    if (hasAll === hasAny) {
+      throw new Error('RequirePermissions metadata must declare exactly one of all or any')
     }
-    return false
+
+    return hasAll ? 'all' : 'any'
   }
 
   /**

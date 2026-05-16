@@ -95,7 +95,7 @@ Docs close-out:
   - `GET /policy`
   - `GET /policy/:id`
   - `GET /permission/:permissionCode/policies`
-- [ ] Guard all three routes with `@PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_POLICY])`.
+- [ ] Guard all three routes with `@RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_POLICY] })`.
 - [ ] Add succinct controller comments clarifying this controller is readonly governance only.
 - [ ] Export the controller from `interface/http/controllers/index.ts`.
 - [ ] Add `policy.controller.spec.ts` covering:

@@ -1,9 +1,9 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
 import {
+  RequirePermissions,
   HR_MANAGEMENT_PERMISSION_CODES,
-  IDENTITY_ACCOUNT_PERMISSION_CODES,
-  PermissionCheckAll
+  IDENTITY_ACCOUNT_PERMISSION_CODES
 } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
@@ -23,7 +23,7 @@ export class HrManagementController {
   constructor(private readonly hrManagementService: HrManagementService) {}
 
   @Get('employees')
-  @PermissionCheckAll([HR_MANAGEMENT_PERMISSION_CODES.LIST_EMPLOYEE])
+  @RequirePermissions({ all: [HR_MANAGEMENT_PERMISSION_CODES.LIST_EMPLOYEE] })
   @ApiOperation({ summary: 'List employees for the tenant HR entry' })
   async listEmployees(
     @Param('tenantId') tenantId: string,
@@ -43,8 +43,10 @@ export class HrManagementController {
   }
 
   @Get('employees/:employeeId')
-  @PermissionCheckAll([HR_MANAGEMENT_PERMISSION_CODES.VIEW_EMPLOYEE_DETAIL])
-  @ApiOperation({ summary: 'Get one employee detail and employment history for the tenant HR entry' })
+  @RequirePermissions({ all: [HR_MANAGEMENT_PERMISSION_CODES.VIEW_EMPLOYEE_DETAIL] })
+  @ApiOperation({
+    summary: 'Get one employee detail and employment history for the tenant HR entry'
+  })
   async getEmployeeDetail(
     @Param('tenantId') tenantId: string,
     @Param('employeeId') employeeId: string,
@@ -54,7 +56,7 @@ export class HrManagementController {
   }
 
   @Get('employees/:employeeId/account-access')
-  @PermissionCheckAll([HR_MANAGEMENT_PERMISSION_CODES.VIEW_EMPLOYEE_DETAIL])
+  @RequirePermissions({ all: [HR_MANAGEMENT_PERMISSION_CODES.VIEW_EMPLOYEE_DETAIL] })
   @ApiOperation({ summary: 'Get one employee account and access summary in member context' })
   async getEmployeeAccountAccess(
     @Param('tenantId') tenantId: string,
@@ -65,10 +67,12 @@ export class HrManagementController {
   }
 
   @Get('employee-user-candidates')
-  @PermissionCheckAll([
-    HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE,
-    IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT
-  ])
+  @RequirePermissions({
+    all: [
+      HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE,
+      IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT
+    ]
+  })
   @ApiOperation({ summary: 'Find an existing user candidate for employee account binding' })
   async searchEmployeeUserCandidates(
     @Param('tenantId') tenantId: string,
@@ -84,7 +88,7 @@ export class HrManagementController {
   }
 
   @Post('employees')
-  @PermissionCheckAll([HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE])
+  @RequirePermissions({ all: [HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE] })
   @ApiOperation({ summary: 'Create one employee master record' })
   @ApiBody({ type: CreateEmployeeDto })
   async createEmployee(
@@ -96,7 +100,7 @@ export class HrManagementController {
   }
 
   @Post('employees/:employeeId/employments')
-  @PermissionCheckAll([HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYMENT])
+  @RequirePermissions({ all: [HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYMENT] })
   @ApiOperation({ summary: 'Create one employment under the selected employee' })
   @ApiBody({ type: CreateEmploymentDto })
   async createEmployment(
@@ -109,7 +113,7 @@ export class HrManagementController {
   }
 
   @Post('employees/:employeeId/employments/:employmentId/end')
-  @PermissionCheckAll([HR_MANAGEMENT_PERMISSION_CODES.END_EMPLOYMENT])
+  @RequirePermissions({ all: [HR_MANAGEMENT_PERMISSION_CODES.END_EMPLOYMENT] })
   @ApiOperation({ summary: 'End one active employment in the current tenant employee scope' })
   @ApiBody({ type: EndEmploymentDto })
   async endEmployment(
@@ -123,7 +127,7 @@ export class HrManagementController {
   }
 
   @Post('employees/:employeeId/employments/change-primary')
-  @PermissionCheckAll([HR_MANAGEMENT_PERMISSION_CODES.CHANGE_PRIMARY_EMPLOYMENT])
+  @RequirePermissions({ all: [HR_MANAGEMENT_PERMISSION_CODES.CHANGE_PRIMARY_EMPLOYMENT] })
   @ApiOperation({ summary: 'Change the selected employee primary employment' })
   @ApiBody({ type: ChangePrimaryEmploymentDto })
   async changePrimaryEmployment(
@@ -136,8 +140,10 @@ export class HrManagementController {
   }
 
   @Post('employees/:employeeId/account-access')
-  @PermissionCheckAll([HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE])
-  @ApiOperation({ summary: 'Complete one member login enablement flow through the HR onboarding owner' })
+  @RequirePermissions({ all: [HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE] })
+  @ApiOperation({
+    summary: 'Complete one member login enablement flow through the HR onboarding owner'
+  })
   @ApiBody({ type: CompleteEmployeeAccessDto })
   async completeEmployeeAccess(
     @Param('tenantId') tenantId: string,

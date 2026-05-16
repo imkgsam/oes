@@ -1,5 +1,7 @@
 # OES 治理规则
 
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述项目治理规则。
+
 ## 1. 治理目标
 
 治理的目标不是增加流程，而是在多人、多线程、长期演进的前提下，让 OES 保持：

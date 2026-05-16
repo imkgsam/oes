@@ -1,6 +1,7 @@
 # Browser Prospecting Workspace Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> 涉及 permission code、policy、scope 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只记录 Browser Prospecting Workspace 实施拆分。
 
 **Goal:** Build the first-stage OES browser prospecting workspace so the Chrome extension can read OES-visible context, persist research events under target workspaces, and create lead drafts without depending on formal CRM lead/contact/account models.
 

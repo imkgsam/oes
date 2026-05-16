@@ -11,10 +11,12 @@ import { uploadAccountAvatarApi } from '#/api/bff/personal-center';
 
 const props = withDefaults(
   defineProps<{
-  accountContext: PersonalCenterApi.AccountContext;
-  saving?: boolean;
-}>(),
+    accountContext: PersonalCenterApi.AccountContext;
+    allowedTerminals?: string[];
+    saving?: boolean;
+  }>(),
   {
+    allowedTerminals: () => [],
     saving: false,
   },
 );
@@ -37,6 +39,7 @@ const scopeLabel = computed(() => {
 
 const roleItems = computed(() => props.accountContext.roles ?? []);
 const roleCount = computed(() => roleItems.value.length);
+const terminalItems = computed(() => props.allowedTerminals ?? []);
 const isDirty = computed(() => {
   return Boolean(formState.avatarAssetId)
     || normalize(formState.displayName) !== normalize(props.accountContext.displayName)
@@ -229,6 +232,21 @@ function normalize(value?: string) {
           <div class="subpanel-title">工作信息</div>
           <div class="mt-4 grid gap-4">
             <div class="field-card">
+              <div class="field-label">终端准入</div>
+              <div class="field-value">
+                <span v-if="terminalItems.length === 0">当前账号无可登录终端</span>
+                <span v-else class="terminal-tags">
+                  <Tag
+                    v-for="terminal in terminalItems"
+                    :key="terminal"
+                    color="blue"
+                  >
+                    {{ terminal }}
+                  </Tag>
+                </span>
+              </div>
+            </div>
+            <div class="field-card">
               <div class="field-label">企业工作邮箱</div>
               <div class="field-value">{{ accountContext.workEmail || '未下发' }}</div>
             </div>
@@ -332,5 +350,11 @@ function normalize(value?: string) {
   line-height: 1.6;
   color: hsl(var(--foreground));
   word-break: break-all;
+}
+
+.terminal-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 </style>

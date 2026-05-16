@@ -114,7 +114,7 @@ phase 1 contract 明确围绕以下 owner 边界展开：
 `sales-service` phase 1 contract 明确不承载以下真相：
 
 - `crm-service` 的 `opportunity`
-- `party-service` 的 `Party / TenantParty`
+- `party-service` 的主体主数据与租户主体引用；具体核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
 - `item-master-service` 的 `Item`
 - `wms-service` 的库存、占用、包装转换与仓储执行
 - `mes-service` 的制造执行、WIP、工序与放行执行

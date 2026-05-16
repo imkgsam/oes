@@ -19,14 +19,26 @@ function createNavigationRepository() {
   }
 }
 
+function createTerminalAccessRepository() {
+  return {
+    findRoleTerminalAccess: jest.fn().mockResolvedValue([]),
+    replaceRoleTerminalAccess: jest.fn()
+  }
+}
+
 describe('EnsureTenantRoleInstanceFromTemplateHandler', () => {
   it('returns an existing tenant role instance without creating a duplicate', async () => {
     const existing = new Role('tenant-admin-role-1', 'Tenant Admin', 'tenant.admin', 'tenant-1', RoleKind.TENANT_INSTANCE, true)
     const roleRepository = createRoleRepository()
     const navigationRepository = createNavigationRepository()
+    const terminalAccessRepository = createTerminalAccessRepository()
     roleRepository.findByScopeKindAndCode.mockResolvedValueOnce(existing)
 
-    const handler = new EnsureTenantRoleInstanceFromTemplateHandler(roleRepository as any, navigationRepository as any)
+    const handler = new EnsureTenantRoleInstanceFromTemplateHandler(
+      roleRepository as any,
+      navigationRepository as any,
+      terminalAccessRepository as any
+    )
 
     await expect(
       handler.execute(
@@ -45,6 +57,7 @@ describe('EnsureTenantRoleInstanceFromTemplateHandler', () => {
       created: false
     })
     expect(roleRepository.save).not.toHaveBeenCalled()
+    expect(terminalAccessRepository.replaceRoleTerminalAccess).not.toHaveBeenCalled()
   })
 
   it('creates a tenant role instance from the system template code when missing', async () => {
@@ -52,10 +65,15 @@ describe('EnsureTenantRoleInstanceFromTemplateHandler', () => {
     const saved = new Role('tenant-admin-role-1', 'Tenant Admin', 'tenant.admin', 'tenant-1', RoleKind.TENANT_INSTANCE, true)
     const roleRepository = createRoleRepository()
     const navigationRepository = createNavigationRepository()
+    const terminalAccessRepository = createTerminalAccessRepository()
     roleRepository.findByScopeKindAndCode.mockResolvedValueOnce(null).mockResolvedValueOnce(template)
     roleRepository.save.mockResolvedValue(saved)
 
-    const handler = new EnsureTenantRoleInstanceFromTemplateHandler(roleRepository as any, navigationRepository as any)
+    const handler = new EnsureTenantRoleInstanceFromTemplateHandler(
+      roleRepository as any,
+      navigationRepository as any,
+      terminalAccessRepository as any
+    )
 
     await expect(
       handler.execute(
@@ -80,6 +98,43 @@ describe('EnsureTenantRoleInstanceFromTemplateHandler', () => {
         kind: RoleKind.TENANT_INSTANCE,
         templateRoleId: 'template-1'
       })
+    )
+  })
+
+  it('copies terminal access from the system template when creating a tenant role instance', async () => {
+    const template = new Role('template-1', 'Tenant Admin', 'tenant.admin', null, RoleKind.SYSTEM_TEMPLATE, true)
+    const saved = new Role('tenant-admin-role-1', 'Tenant Admin', 'tenant.admin', 'tenant-1', RoleKind.TENANT_INSTANCE, true)
+    const roleRepository = createRoleRepository()
+    const navigationRepository = createNavigationRepository()
+    const terminalAccessRepository = createTerminalAccessRepository()
+    roleRepository.findByScopeKindAndCode.mockResolvedValueOnce(null).mockResolvedValueOnce(template)
+    roleRepository.save.mockResolvedValue(saved)
+    terminalAccessRepository.findRoleTerminalAccess.mockResolvedValue([
+      { roleId: 'template-1', allowedTerminals: ['WEB', 'PDA'] }
+    ])
+
+    const handler = new EnsureTenantRoleInstanceFromTemplateHandler(
+      roleRepository as any,
+      navigationRepository as any,
+      terminalAccessRepository as any
+    )
+
+    await handler.execute(
+      new EnsureTenantRoleInstanceFromTemplateCommand({
+        tenantId: 'tenant-1',
+        templateRoleCode: 'tenant.admin',
+        idempotencyKey: 'tenant-onboarding-1:ensure-admin-role',
+        operatorScope: buildTenantBoundQueryScope(
+          { operatorId: 'operator-1', tenantId: 'tenant-1', isSystemScope: false },
+          'tenant-1'
+        )
+      })
+    )
+
+    expect(terminalAccessRepository.findRoleTerminalAccess).toHaveBeenCalledWith(['template-1'])
+    expect(terminalAccessRepository.replaceRoleTerminalAccess).toHaveBeenCalledWith(
+      'tenant-admin-role-1',
+      ['WEB', 'PDA']
     )
   })
 })

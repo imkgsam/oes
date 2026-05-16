@@ -2,6 +2,8 @@
 
 更新时间：2026-04-11
 
+> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只定义统一 Web account context 如何消费权限摘要与导航授权，不重新定义 Role、AccountRole、Policy、access summary 或 navigation governance 的 owner 边界。
+
 ## 1. 文档目的
 
 本文档定义 OES 统一 Web Shell、scope-aware `UserAccount`、登录上下文、上下文切换与前后端协作模型。
@@ -15,6 +17,8 @@
 - 登录、账户选择、上下文切换、token、导航和权限如何协作。
 
 本设计覆盖 `tenant-web` 与未来 `platform` 区域的统一 Web 方向。它不改变后端 bounded context 边界，也不允许跨服务共享数据库。
+
+其中 `auth-service` 的长期服务边界、account selection、session、token 与 context switch 语义只以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准；本文只描述统一 Web 与 scope-aware account context 对各服务的协同影响。
 
 ## 2. 核心结论
 
@@ -103,6 +107,7 @@ model UserAccount {
 ### 3.3 Tenant
 
 `Tenant` 仍然只表达租户隔离边界。
+`Tenant / OrgUnit / org tree` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；本文只定义统一 Web account context 如何引用 tenant 上下文。
 
 约束：
 
@@ -227,14 +232,14 @@ interface WebSessionContext {
 
 主认证成功后，`auth-service` 应通过 `identity-service` 查询当前 user 可用 accounts。
 
-目标流程：
+当前稳定流程：
 
 ```txt
 primary auth success
   -> list available UserAccounts by userId
   -> zero accounts: NO_AVAILABLE_CONTEXT
-  -> one account: create scoped session
-  -> multiple accounts: CONTEXT_SELECTION_REQUIRED
+  -> one account: ACCOUNT_SELECTION_REQUIRED
+  -> multiple accounts: ACCOUNT_SELECTION_REQUIRED
 ```
 
 `available accounts` 包括：
@@ -244,8 +249,7 @@ primary auth success
 
 这意味着：
 
-- 只有系统管理员账号的用户，可以直接进入系统管理区域。
-- 只有一个租户账号的用户，可以直接进入租户区域。
+- 只有系统管理员账号或只有一个租户账号的用户，当前阶段仍进入 account selection；单 account 自动进入是 future optimization，不作为当前 `auth-service` 稳定行为。
 - 同时拥有系统账号和多个租户账号的用户，需要选择工作上下文。
 
 ### 4.3 Context Selection
@@ -509,13 +513,13 @@ POST /auth/session/switch-context
 
 ### 8.2 auth-service
 
-需要调整：
+服务设计、认证续流、account selection、session、token 与 context switch 语义以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。
 
-- 登录后决策从“必须有租户 account”改为“必须有可用 account context”。
-- session 聚合必须持久化 `scopeLevel` 与 `accountId`。
-- `tenantId` 在 `SYSTEM` session 中允许为空。
-- `selectAccount` 应支持选择 `SYSTEM` account。
-- 增加或调整错误码，例如 `AUTH_NO_AVAILABLE_CONTEXT`。
+本文只冻结统一 Web 对 `auth-service` 的协同影响：
+
+- account candidate / session context / token payload 需要携带 `scopeLevel`。
+- `SYSTEM` session 的 `tenantId` 为空，`TENANT` session 的 `tenantId` 必填。
+- 当前阶段保留 account selection 主流程；单 account 自动建立 session 只作为后续优化方向。
 
 ### 8.3 permission-service
 
@@ -581,8 +585,8 @@ POST /auth/session/switch-context
 
 后端仍保持：
 
-- auth-service 负责认证、session、token。
-- identity-service 负责 user/account/tenant/org 身份映射。
+- `auth-service` 的认证、session 与 token 边界以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。
+- `identity-service` 的 user / account / scope / tenant 引用边界以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准。
 - permission-service 负责角色、权限、policy 与授权摘要。
 - api-gateway / BFF 负责客户端契约聚合与防腐层。
 

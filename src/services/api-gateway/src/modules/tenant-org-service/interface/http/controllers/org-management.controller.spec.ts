@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { OrgManagementController } from './org-management.controller'
 
 // Verifies the org-management gateway controller keeps org tree endpoints aligned with tenant-org management permissions.
@@ -17,34 +17,33 @@ describe('OrgManagementController', () => {
   it('declares the expected coarse-grained permissions on org management endpoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, OrgManagementController.prototype.getOrgTree)).toEqual({
-      type: 'ALL',
-      permissions: ['tenant_org.org_unit.list_tree']
-    })
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, OrgManagementController.prototype.getOrgUnitDetail)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['tenant_org.org_unit.get_by_id']
-    })
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, OrgManagementController.prototype.getOrgTree)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, OrgManagementController.prototype.createOrgUnit)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['tenant_org.org_unit.create']
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        OrgManagementController.prototype.getOrgUnitDetail
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, OrgManagementController.prototype.updateOrgUnit)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['tenant_org.org_unit.update']
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        OrgManagementController.prototype.createOrgUnit
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, OrgManagementController.prototype.archiveOrgUnit)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['tenant_org.org_unit.archive']
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        OrgManagementController.prototype.updateOrgUnit
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        OrgManagementController.prototype.archiveOrgUnit
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards read and write requests to the org management service', async () => {

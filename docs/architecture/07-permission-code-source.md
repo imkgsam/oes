@@ -1,5 +1,7 @@
 # OES 统一权限码语义源设计
 
+> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只定义项目级权限码语义源与同步机制，不重新定义 permission-service 的核心对象、owner 边界或授权判定模型。
+
 ## 1. 目的
 
 本设计用于统一 OES 项目中权限码的定义、引用与数据库同步方式，避免以下问题：
@@ -85,10 +87,10 @@ export const AUTH_SESSION_PERMISSION_CODES = {
 
 ## 7. 与装饰器的关系
 
-`@RequirePermission(...)` 不再接收散落字符串，而是接收统一常量值，例如：
+`@RequirePermissions({ all: [...] })` 不再接收散落字符串，而是接收统一常量值，例如：
 
 ```ts
-@RequirePermission(AUTH_SESSION_PERMISSION_CODES.ADMIN_REVOKE_SESSION)
+@RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_REVOKE_SESSION] })
 ```
 
 这保证：
@@ -193,7 +195,7 @@ Updated: 2026-03-26 00:45 +08:00
 - `SLICE-04`
   - `auth-service` 的 `AdminListUserSessions`
   - `auth-service` 的 `AdminRevokeSession`
-  - 已接入统一权限码常量与 `RequirePermission(...)`
+  - 已接入统一权限码常量与 `RequirePermissions(...)`
 
 当前仍未完成的内容：
 

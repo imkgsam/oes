@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
 import {
-  PermissionCheckAll,
+  RequirePermissions,
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
   ROLE_INSTANCE_PERMISSION_CODES
 } from '@oes/common/authorization'
@@ -25,7 +25,7 @@ export class NavigationController {
   constructor(private readonly permissionService: PermissionProxyService) {}
 
   @Get('navigation/entries')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_NAVIGATION_ENTRY])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_NAVIGATION_ENTRY] })
   @ApiOperation({ summary: 'List managed navigation entries' })
   async listNavigationEntries(
     @Query() query: ListNavigationEntriesDto,
@@ -48,7 +48,7 @@ export class NavigationController {
   }
 
   @Post('navigation/entries')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_NAVIGATION_ENTRY])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.CREATE_NAVIGATION_ENTRY] })
   @ApiOperation({ summary: 'Create a managed navigation entry' })
   @ApiBody({ type: CreateNavigationEntryDto })
   async createNavigationEntry(
@@ -59,7 +59,9 @@ export class NavigationController {
   }
 
   @Get('navigation/entries/:entryKey')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_NAVIGATION_ENTRY_DETAIL])
+  @RequirePermissions({
+    all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_NAVIGATION_ENTRY_DETAIL]
+  })
   @ApiOperation({ summary: 'Get a managed navigation entry' })
   async getNavigationEntry(
     @Param('entryKey') entryKey: string,
@@ -69,7 +71,7 @@ export class NavigationController {
   }
 
   @Patch('navigation/entries/:entryKey')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_NAVIGATION_ENTRY])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.UPDATE_NAVIGATION_ENTRY] })
   @ApiOperation({ summary: 'Update a managed navigation entry' })
   @ApiBody({ type: UpdateNavigationEntryDto })
   async updateNavigationEntry(
@@ -95,7 +97,7 @@ export class NavigationController {
   }
 
   @Get('roles/:roleId/navigation')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID] })
   @ApiOperation({ summary: 'Get role navigation config' })
   async getRoleNavigation(
     @Param('roleId') roleId: string,
@@ -105,7 +107,7 @@ export class NavigationController {
   }
 
   @Put('roles/:roleId/navigation/visibility')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.UPDATE])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.UPDATE] })
   @ApiOperation({ summary: 'Replace role navigation visibility config' })
   @ApiBody({ type: SetRoleNavigationVisibilityDto })
   async setRoleNavigationVisibility(
@@ -125,7 +127,7 @@ export class NavigationController {
   }
 
   @Put('roles/:roleId/navigation/landing-policies')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.UPDATE])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.UPDATE] })
   @ApiOperation({ summary: 'Replace role landing policy config' })
   @ApiBody({ type: SetRoleLandingPoliciesDto })
   async setRoleLandingPolicies(
@@ -145,7 +147,7 @@ export class NavigationController {
   }
 
   @Post('roles/:roleId/navigation/sync-template')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.SYNC_FROM_TEMPLATE])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.SYNC_FROM_TEMPLATE] })
   @ApiOperation({ summary: 'Reset role navigation config to the linked template snapshot' })
   async syncRoleNavigationFromTemplate(
     @Param('roleId') roleId: string,
@@ -162,7 +164,7 @@ export class NavigationController {
   }
 
   @Post('navigation/resolve-preview')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.RESOLVE_NAVIGATION_PREVIEW])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.RESOLVE_NAVIGATION_PREVIEW] })
   @ApiOperation({ summary: 'Preview resolved navigation entries and default landing entry' })
   @ApiBody({ type: ResolveNavigationPreviewDto })
   async resolveNavigationPreview(

@@ -78,6 +78,18 @@ const permissionManagement = definePermissionGroup(Modules.PERMISSION_SERVICE, {
     code: 'permission.navigation.resolve_preview',
     description: '预览导航解析结果'
   },
+  VIEW_TERMINAL_ACCESS: {
+    code: 'permission.terminal_access.view',
+    description: '查看账号或角色终端准入'
+  },
+  MANAGE_ROLE_TERMINAL_ACCESS: {
+    code: 'permission.terminal_access.role.manage',
+    description: '维护角色默认终端准入'
+  },
+  MANAGE_ACCOUNT_TERMINAL_ACCESS: {
+    code: 'permission.terminal_access.account.manage',
+    description: '维护账号专属终端准入覆盖'
+  },
   ASSIGN_ACCOUNT_ROLE: {
     code: 'permission.account.assign_roles',
     description: '为账号分配或调整角色'
@@ -278,6 +290,42 @@ const itemMasterManagement = definePermissionGroup(Modules.ITEM_MASTER_SERVICE, 
   UPDATE_ITEM_CATEGORY_STATUS: {
     code: 'item_master.item_category.update_status',
     description: '更新 Item 分类状态'
+  },
+  LIST_ATTRIBUTE: {
+    code: 'item_master.attribute.list',
+    description: '查看 Item 属性定义与选项'
+  },
+  CREATE_ATTRIBUTE: {
+    code: 'item_master.attribute.create',
+    description: '创建 Item 属性定义与选项'
+  },
+  MANAGE_ATTRIBUTE: {
+    code: 'item_master.attribute.manage',
+    description: '维护 Item 属性定义与选项'
+  },
+  LIST_PACKAGING: {
+    code: 'item_master.packaging.list',
+    description: '查看 Item 包装方式与包装规格'
+  },
+  CREATE_PACKAGING: {
+    code: 'item_master.packaging.create',
+    description: '创建 Item 包装方式与包装规格'
+  },
+  MANAGE_PACKAGING: {
+    code: 'item_master.packaging.manage',
+    description: '维护 Item 包装方式与包装规格'
+  },
+  LIST_BOM: {
+    code: 'item_master.bom.list',
+    description: '查看 Item BOM'
+  },
+  CREATE_BOM: {
+    code: 'item_master.bom.create',
+    description: '创建 Item BOM'
+  },
+  MANAGE_BOM: {
+    code: 'item_master.bom.manage',
+    description: '维护 Item BOM'
   },
   SET_ITEM_CAPABILITIES: {
     code: 'item_master.item.set_capabilities',

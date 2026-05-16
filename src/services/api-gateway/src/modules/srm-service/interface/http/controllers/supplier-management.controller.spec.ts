@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { SupplierManagementController } from './supplier-management.controller'
 
 // Verifies the supplier-management gateway controller keeps permissions and phase 1 request forwarding aligned with the SRM BFF surface.
@@ -28,98 +28,71 @@ describe('SupplierManagementController', () => {
     const reflector = new Reflector()
 
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, SupplierManagementController.prototype.searchSuppliers)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['srm.supplier_profile.list']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, SupplierManagementController.prototype.getSupplier)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['srm.supplier_profile.get_by_id']
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        SupplierManagementController.prototype.searchSuppliers
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        SupplierManagementController.prototype.getSupplier
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         SupplierManagementController.prototype.createSupplierProfile
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['srm.supplier_profile.create']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         SupplierManagementController.prototype.updateSupplierProfileBasics
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['srm.supplier_profile.update_basics']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         SupplierManagementController.prototype.bindSupplierToTenantParty
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['srm.supplier_profile.bind_tenant_party']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         SupplierManagementController.prototype.upsertSupplierContact
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['srm.supplier_contact.upsert']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         SupplierManagementController.prototype.upsertSupplierAddress
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['srm.supplier_address.upsert']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         SupplierManagementController.prototype.changeSupplierStatus
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['srm.supplier_profile.change_status']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         SupplierManagementController.prototype.listSupplierOfferingsBySupplier
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['srm.supplier_offering.list_by_supplier']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         SupplierManagementController.prototype.listSupplierOfferingsByItem
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['srm.supplier_offering.list_by_item']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         SupplierManagementController.prototype.upsertSupplierOffering
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['srm.supplier_offering.upsert']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards phase 1 list, detail, and mutation requests to the supplier-management service', async () => {

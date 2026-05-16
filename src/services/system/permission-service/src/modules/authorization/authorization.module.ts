@@ -6,13 +6,16 @@ import { RoleModule } from '../role/role.module'
 import { PolicyModule } from '../policy/policy.module'
 import { AccessSummaryQueryHandlers } from '../../application/queries/access-summary'
 import { AuthorizationQueryHandlers } from '../../application/queries/authorization'
+import { TerminalAccessRuntimeQueryHandlers } from '../../application/queries/terminal-access'
 import { ACCOUNT_AUTHORIZATION_SERVICE } from '../../application/queries/authorization/check-permission-with-context.handler'
 import { SYMBOLS } from '../../common/constants/symbols'
 import { AccountAuthorizationService } from '../../domain/services/account-authorization.service'
 import { NavigationResolverService } from '../../domain/services/navigation-resolver.service'
+import { TerminalAccessResolverService } from '../../domain/services/terminal-access-resolver.service'
 import { PolicyEngine } from '../../domain/services/policy-engine'
 import { PermissionAccessSummaryGrpcController } from '../../interfaces/grpc/permission-access-summary.grpc.controller'
 import { PermissionCheckGrpcController } from '../../interfaces/grpc/permission-check.grpc.controller'
+import { PermissionTerminalAccessGrpcController } from '../../interfaces/grpc/permission-terminal-access.grpc.controller'
 import { PermissionAuditModule } from '../audit/permission-audit.module'
 
 @Module({
@@ -20,6 +23,7 @@ import { PermissionAuditModule } from '../audit/permission-audit.module'
   providers: [
     PolicyEngine,
     NavigationResolverService,
+    TerminalAccessResolverService,
     {
       provide: ACCOUNT_AUTHORIZATION_SERVICE,
       useFactory: (roleRepo: any, permRepo: any, policyRepo: any, engine: PolicyEngine) =>
@@ -28,8 +32,13 @@ import { PermissionAuditModule } from '../audit/permission-audit.module'
     },
     ValidatingQueryBus,
     ...AccessSummaryQueryHandlers,
+    ...TerminalAccessRuntimeQueryHandlers,
     ...AuthorizationQueryHandlers
   ],
-  controllers: [PermissionCheckGrpcController, PermissionAccessSummaryGrpcController]
+  controllers: [
+    PermissionCheckGrpcController,
+    PermissionAccessSummaryGrpcController,
+    PermissionTerminalAccessGrpcController
+  ]
 })
 export class AuthorizationModule {}

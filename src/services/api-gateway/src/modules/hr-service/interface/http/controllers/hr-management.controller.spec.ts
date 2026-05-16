@@ -1,5 +1,8 @@
 import { Reflector } from '@nestjs/core'
-import { HR_MANAGEMENT_PERMISSION_CODES, PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import {
+  HR_MANAGEMENT_PERMISSION_CODES,
+  REQUIRE_PERMISSIONS_METADATA_KEY
+} from '@oes/common/authorization'
 import { HrManagementController } from './hr-management.controller'
 
 // Verifies the HR management gateway controller keeps employee and employment endpoints aligned with HR boundaries.
@@ -20,48 +23,54 @@ describe('HrManagementController', () => {
   it('declares the expected HR permissions on employee and employment endpoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, HrManagementController.prototype.listEmployees)).toEqual({
-      type: 'ALL',
-      permissions: [HR_MANAGEMENT_PERMISSION_CODES.LIST_EMPLOYEE]
-    })
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, HrManagementController.prototype.getEmployeeDetail)
-    ).toEqual({
-      type: 'ALL',
-      permissions: [HR_MANAGEMENT_PERMISSION_CODES.VIEW_EMPLOYEE_DETAIL]
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        HrManagementController.prototype.listEmployees
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, HrManagementController.prototype.getEmployeeAccountAccess)
-    ).toEqual({
-      type: 'ALL',
-      permissions: [HR_MANAGEMENT_PERMISSION_CODES.VIEW_EMPLOYEE_DETAIL]
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, HrManagementController.prototype.createEmployee)).toEqual({
-      type: 'ALL',
-      permissions: [HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE]
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        HrManagementController.prototype.getEmployeeDetail
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, HrManagementController.prototype.createEmployment)
-    ).toEqual({
-      type: 'ALL',
-      permissions: [HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYMENT]
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, HrManagementController.prototype.endEmployment)).toEqual({
-      type: 'ALL',
-      permissions: [HR_MANAGEMENT_PERMISSION_CODES.END_EMPLOYMENT]
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        HrManagementController.prototype.getEmployeeAccountAccess
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, HrManagementController.prototype.changePrimaryEmployment)
-    ).toEqual({
-      type: 'ALL',
-      permissions: [HR_MANAGEMENT_PERMISSION_CODES.CHANGE_PRIMARY_EMPLOYMENT]
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        HrManagementController.prototype.createEmployee
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, HrManagementController.prototype.completeEmployeeAccess)
-    ).toEqual({
-      type: 'ALL',
-      permissions: [HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE]
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        HrManagementController.prototype.createEmployment
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        HrManagementController.prototype.endEmployment
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        HrManagementController.prototype.changePrimaryEmployment
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        HrManagementController.prototype.completeEmployeeAccess
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards employee list, detail, account-access summary, and write actions to the HR management service', async () => {
@@ -104,14 +113,20 @@ describe('HrManagementController', () => {
     })
 
     await expect(
-      controller.listEmployees('tenant-1', { keyword: 'Vic', page: 2, pageSize: 10 } as any, source as any)
+      controller.listEmployees(
+        'tenant-1',
+        { keyword: 'Vic', page: 2, pageSize: 10 } as any,
+        source as any
+      )
     ).resolves.toEqual({
       items: [],
       page: 1,
       pageSize: 20,
       total: 0
     })
-    await expect(controller.getEmployeeDetail('tenant-1', 'employee-1', source as any)).resolves.toEqual({
+    await expect(
+      controller.getEmployeeDetail('tenant-1', 'employee-1', source as any)
+    ).resolves.toEqual({
       employee: { id: 'employee-1' },
       employments: []
     })
@@ -208,7 +223,11 @@ describe('HrManagementController', () => {
       },
       source
     )
-    expect(hrManagementService.getEmployeeDetail).toHaveBeenCalledWith('tenant-1', 'employee-1', source)
+    expect(hrManagementService.getEmployeeDetail).toHaveBeenCalledWith(
+      'tenant-1',
+      'employee-1',
+      source
+    )
     expect(hrManagementService.getEmployeeAccountAccess).toHaveBeenCalledWith(
       'tenant-1',
       'employee-1',

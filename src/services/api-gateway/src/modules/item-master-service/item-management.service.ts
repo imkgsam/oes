@@ -4,37 +4,58 @@ import {
   BomLineRole,
   BomRecord,
   BomType,
+  AttributeDefinitionRecord,
+  AttributeOptionRecord,
   ChangeBomStatusRequest,
   ChangeItemCategoryStatusRequest,
   ChangeItemModelStatusRequest,
   ChangeItemStatusRequest,
+  ChangePackagingMethodStatusRequest,
+  ChangePackagingSpecStatusRequest,
+  CreateAttributeDefinitionRequest,
+  CreateAttributeOptionRequest,
   CreateBomRequest,
   CreateItemCategoryRequest,
   CreateItemModelRequest,
   CreateItemRequest,
+  CreatePackagingMethodRequest,
+  CreatePackagingSpecRequest,
+  GetItemModelAttributeRulesResponse,
   GetItemModelResponse,
   GetItemResponse,
+  GetPackagingSpecResponse,
   ItemCapabilities,
   ItemCapabilityFilters,
   ItemCategorySummary,
   ItemCategoryTreeNode,
+  ItemModelAttributeRuleRecord,
   ItemModelKind,
   ItemModelRecord,
   ItemModelType,
   ItemSummary,
   ItemType,
+  ListAttributeDefinitionsResponse,
+  ListAttributeOptionsResponse,
+  ListPackagingMethodsResponse,
+  SearchPackagingSpecsRequest,
+  SearchPackagingSpecsResponse,
   ListSupplierItemMappingsByItemResponse,
   ReplaceBomLinesRequest,
   SearchBomsRequest,
   SearchItemModelsRequest,
   SearchItemsRequest,
   SetItemCapabilitiesRequest,
+  SetItemModelAttributeRulesRequest,
   SetItemModelCapabilitiesRequest,
   SetItemModelPrimaryCategoryRequest,
+  UpdateAttributeDefinitionRequest,
+  UpdateAttributeOptionRequest,
   UpdateBomBasicsRequest,
   UpdateItemBasicsRequest,
   UpdateItemCategoryBasicsRequest,
   UpdateItemModelBasicsRequest,
+  UpdatePackagingMethodRequest,
+  UpdatePackagingSpecRequest,
   UpsertSupplierItemMappingRequest
 } from '@oes/common/generated/item_master_service'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
@@ -57,6 +78,27 @@ type BffBomLineInput = {
   lineNote?: string
   quantity?: string
   uomCode?: string
+}
+type BffAttributeRuleInput = {
+  attributeDefinitionId?: string
+  allowedOptionIds?: string[]
+  required?: boolean
+}
+type BffPackagingSpecInput = {
+  customerId?: string
+  effectiveFrom?: string
+  effectiveTo?: string
+  grossWeight?: string
+  itemModelId?: string
+  outerHeight?: string
+  outerLength?: string
+  outerWidth?: string
+  packagingMethodId?: string
+  specCode?: string
+  specName?: string
+  version?: string
+  volume?: string
+  workInstruction?: string
 }
 
 @Injectable()
@@ -363,6 +405,154 @@ export class ItemManagementService {
     return mapGetItem(result as GetItemResponse)
   }
 
+  async listAttributeDefinitions(
+    tenantId: string,
+    query: { keyword?: string; page?: number; pageSize?: number; status?: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemQueryAdapter.listAttributeDefinitions(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        keyword: normalize(query.keyword),
+        active: toActiveFilter(query.status),
+        page: page(query.page),
+        pageSize: pageSize(query.pageSize)
+      },
+      source
+    )
+
+    return mapAttributeDefinitions(result)
+  }
+
+  async listAttributeOptions(
+    tenantId: string,
+    attributeDefinitionId: string,
+    query: { status?: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemQueryAdapter.listAttributeOptions(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        attributeDefinitionId: requireNonBlank(attributeDefinitionId, 'attributeDefinitionId'),
+        active: toActiveFilter(query.status)
+      },
+      source
+    )
+
+    return mapAttributeOptions(result)
+  }
+
+  async getItemModelAttributeRules(tenantId: string, itemModelId: string, source: DownstreamRequestSource) {
+    const result = await this.itemQueryAdapter.getItemModelAttributeRules(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        itemModelId: requireNonBlank(itemModelId, 'itemModelId')
+      },
+      source
+    )
+
+    return mapItemModelAttributeRules(result)
+  }
+
+  async createAttributeDefinition(
+    tenantId: string,
+    input: { attributeCode: string; attributeName: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.createAttributeDefinition(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        attributeCode: requireNonBlank(input.attributeCode, 'attributeCode'),
+        attributeName: requireNonBlank(input.attributeName, 'attributeName')
+      } satisfies CreateAttributeDefinitionRequest,
+      source
+    )
+
+    return mapAttributeDefinition(result.attributeDefinition)
+  }
+
+  async updateAttributeDefinition(
+    tenantId: string,
+    attributeDefinitionId: string,
+    input: { attributeCode: string; attributeName: string; status: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.updateAttributeDefinition(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        attributeDefinitionId: requireNonBlank(attributeDefinitionId, 'attributeDefinitionId'),
+        attributeCode: requireNonBlank(input.attributeCode, 'attributeCode'),
+        attributeName: requireNonBlank(input.attributeName, 'attributeName'),
+        active: requireActive(input.status)
+      } satisfies UpdateAttributeDefinitionRequest,
+      source
+    )
+
+    return mapAttributeDefinition(result.attributeDefinition)
+  }
+
+  async createAttributeOption(
+    tenantId: string,
+    attributeDefinitionId: string,
+    input: { optionCode: string; optionName: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.createAttributeOption(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        attributeDefinitionId: requireNonBlank(attributeDefinitionId, 'attributeDefinitionId'),
+        optionCode: requireNonBlank(input.optionCode, 'optionCode'),
+        optionName: requireNonBlank(input.optionName, 'optionName')
+      } satisfies CreateAttributeOptionRequest,
+      source
+    )
+
+    return mapAttributeOption(result.attributeOption)
+  }
+
+  async updateAttributeOption(
+    tenantId: string,
+    attributeOptionId: string,
+    input: { optionCode: string; optionName: string; status: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.updateAttributeOption(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        attributeOptionId: requireNonBlank(attributeOptionId, 'attributeOptionId'),
+        optionCode: requireNonBlank(input.optionCode, 'optionCode'),
+        optionName: requireNonBlank(input.optionName, 'optionName'),
+        active: requireActive(input.status)
+      } satisfies UpdateAttributeOptionRequest,
+      source
+    )
+
+    return mapAttributeOption(result.attributeOption)
+  }
+
+  async setItemModelAttributeRules(
+    tenantId: string,
+    itemModelId: string,
+    input: { rules: BffAttributeRuleInput[] },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.setItemModelAttributeRules(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        itemModelId: requireNonBlank(itemModelId, 'itemModelId'),
+        rules: (input.rules ?? []).map((rule) => ({
+          itemModelId,
+          attributeDefinitionId: requireNonBlank(rule.attributeDefinitionId ?? '', 'attributeDefinitionId'),
+          required: Boolean(rule.required),
+          allowedOptionIds: rule.allowedOptionIds ?? []
+        }))
+      } satisfies SetItemModelAttributeRulesRequest,
+      source
+    )
+
+    return mapItemModelAttributeRules(result)
+  }
+
   async listItemCategories(tenantId: string, query: { parentCategoryId?: string }, source: DownstreamRequestSource) {
     const result = await this.itemQueryAdapter.listItemCategories(
       {
@@ -430,6 +620,167 @@ export class ItemManagementService {
     )
 
     return mapCategoryTreeNode(result.category)
+  }
+
+  async listPackagingMethods(
+    tenantId: string,
+    query: { keyword?: string; status?: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemQueryAdapter.listPackagingMethods(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        keyword: normalize(query.keyword),
+        active: toActiveFilter(query.status)
+      },
+      source
+    )
+
+    return mapPackagingMethods(result)
+  }
+
+  async createPackagingMethod(
+    tenantId: string,
+    input: { methodCode: string; methodName: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.createPackagingMethod(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        methodCode: requireNonBlank(input.methodCode, 'methodCode'),
+        methodName: requireNonBlank(input.methodName, 'methodName')
+      } satisfies CreatePackagingMethodRequest,
+      source
+    )
+
+    return mapPackagingMethod(result.packagingMethod)
+  }
+
+  async updatePackagingMethod(
+    tenantId: string,
+    packagingMethodId: string,
+    input: { methodCode: string; methodName: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.updatePackagingMethod(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        packagingMethodId: requireNonBlank(packagingMethodId, 'packagingMethodId'),
+        methodCode: requireNonBlank(input.methodCode, 'methodCode'),
+        methodName: requireNonBlank(input.methodName, 'methodName')
+      } satisfies UpdatePackagingMethodRequest,
+      source
+    )
+
+    return mapPackagingMethod(result.packagingMethod)
+  }
+
+  async changePackagingMethodStatus(
+    tenantId: string,
+    packagingMethodId: string,
+    input: { status: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.changePackagingMethodStatus(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        packagingMethodId: requireNonBlank(packagingMethodId, 'packagingMethodId'),
+        active: requireActive(input.status)
+      } satisfies ChangePackagingMethodStatusRequest,
+      source
+    )
+
+    return mapPackagingMethod(result.packagingMethod)
+  }
+
+  async getPackagingSpec(tenantId: string, packagingSpecId: string, source: DownstreamRequestSource) {
+    const result = await this.itemQueryAdapter.getPackagingSpec(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        packagingSpecId: requireNonBlank(packagingSpecId, 'packagingSpecId')
+      },
+      source
+    )
+
+    return mapGetPackagingSpec(result)
+  }
+
+  async searchPackagingSpecs(
+    tenantId: string,
+    query: {
+      customerId?: string
+      itemModelId?: string
+      keyword?: string
+      packagingMethodId?: string
+      page?: number
+      pageSize?: number
+      status?: string
+    },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemQueryAdapter.searchPackagingSpecs(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        keyword: normalize(query.keyword),
+        itemModelId: normalize(query.itemModelId),
+        packagingMethodId: normalize(query.packagingMethodId),
+        customerId: normalize(query.customerId),
+        active: toActiveFilter(query.status),
+        page: page(query.page),
+        pageSize: pageSize(query.pageSize)
+      } satisfies SearchPackagingSpecsRequest,
+      source
+    )
+
+    return mapPackagingSpecs(result)
+  }
+
+  async createPackagingSpec(tenantId: string, input: BffPackagingSpecInput, source: DownstreamRequestSource) {
+    const result = await this.itemManagementAdapter.createPackagingSpec(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        ...mapPackagingSpecInput(input)
+      } satisfies CreatePackagingSpecRequest,
+      source
+    )
+
+    return mapPackagingSpec(result.packagingSpec)
+  }
+
+  async updatePackagingSpec(
+    tenantId: string,
+    packagingSpecId: string,
+    input: BffPackagingSpecInput,
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.updatePackagingSpec(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        packagingSpecId: requireNonBlank(packagingSpecId, 'packagingSpecId'),
+        ...mapPackagingSpecInput(input)
+      } satisfies UpdatePackagingSpecRequest,
+      source
+    )
+
+    return mapPackagingSpec(result.packagingSpec)
+  }
+
+  async changePackagingSpecStatus(
+    tenantId: string,
+    packagingSpecId: string,
+    input: { status: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.changePackagingSpecStatus(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        packagingSpecId: requireNonBlank(packagingSpecId, 'packagingSpecId'),
+        active: requireActive(input.status)
+      } satisfies ChangePackagingSpecStatusRequest,
+      source
+    )
+
+    return mapPackagingSpec(result.packagingSpec)
   }
 
   async listBoms(
@@ -725,6 +1076,127 @@ function mapCategoryTreeNode(category?: ItemCategoryTreeNode) {
   }
 }
 
+/** mapAttributeDefinitions converts generated attribute definition pages into BFF pages. */
+function mapAttributeDefinitions(result: ListAttributeDefinitionsResponse) {
+  return {
+    attributeDefinitions: (result.attributeDefinitions ?? []).map(mapAttributeDefinition),
+    total: result.total ?? 0,
+    page: result.page ?? 1,
+    pageSize: result.pageSize ?? 20
+  }
+}
+
+/** mapAttributeDefinition converts one generated attribute definition into the BFF shape. */
+function mapAttributeDefinition(record?: AttributeDefinitionRecord) {
+  return {
+    attributeDefinitionId: record?.attributeDefinitionId ?? '',
+    attributeCode: record?.attributeCode ?? '',
+    attributeName: record?.attributeName ?? '',
+    status: fromActive(record?.active)
+  }
+}
+
+/** mapAttributeOptions converts generated attribute options into the BFF list shape. */
+function mapAttributeOptions(result: ListAttributeOptionsResponse) {
+  return {
+    attributeOptions: (result.attributeOptions ?? []).map(mapAttributeOption)
+  }
+}
+
+/** mapAttributeOption converts one generated attribute option into the BFF shape. */
+function mapAttributeOption(record?: AttributeOptionRecord) {
+  return {
+    attributeOptionId: record?.attributeOptionId ?? '',
+    attributeDefinitionId: record?.attributeDefinitionId ?? '',
+    optionCode: record?.optionCode ?? '',
+    optionName: record?.optionName ?? '',
+    status: fromActive(record?.active)
+  }
+}
+
+/** mapItemModelAttributeRules converts generated model attribute rules into the BFF shape. */
+function mapItemModelAttributeRules(result: GetItemModelAttributeRulesResponse | { rules?: ItemModelAttributeRuleRecord[] }) {
+  return {
+    rules: (result.rules ?? []).map((rule) => ({
+      itemModelId: rule.itemModelId ?? '',
+      attributeDefinitionId: rule.attributeDefinitionId ?? '',
+      required: Boolean(rule.required),
+      allowedOptionIds: rule.allowedOptionIds ?? []
+    }))
+  }
+}
+
+/** mapPackagingMethods converts generated packaging method lists into the BFF shape. */
+function mapPackagingMethods(result: ListPackagingMethodsResponse) {
+  return {
+    packagingMethods: (result.packagingMethods ?? []).map(mapPackagingMethod)
+  }
+}
+
+/** mapPackagingMethod converts one generated packaging method into the BFF shape. */
+function mapPackagingMethod(record?: { active?: boolean; methodCode?: string; methodName?: string; packagingMethodId?: string }) {
+  return {
+    packagingMethodId: record?.packagingMethodId ?? '',
+    methodCode: record?.methodCode ?? '',
+    methodName: record?.methodName ?? '',
+    status: fromActive(record?.active)
+  }
+}
+
+/** mapGetPackagingSpec flattens one packaging spec get response into the BFF shape. */
+function mapGetPackagingSpec(result: GetPackagingSpecResponse) {
+  return mapPackagingSpec(result.packagingSpec)
+}
+
+/** mapPackagingSpecs converts generated packaging spec pages into BFF pages. */
+function mapPackagingSpecs(result: SearchPackagingSpecsResponse) {
+  return {
+    packagingSpecs: (result.packagingSpecs ?? []).map(mapPackagingSpec),
+    total: result.total ?? 0,
+    page: result.page ?? 1,
+    pageSize: result.pageSize ?? 20
+  }
+}
+
+/** mapPackagingSpec converts one generated packaging spec into the BFF shape. */
+function mapPackagingSpec(record?: {
+  active?: boolean
+  customerId?: string
+  effectiveFrom?: string
+  effectiveTo?: string
+  grossWeight?: string
+  itemModelId?: string
+  outerHeight?: string
+  outerLength?: string
+  outerWidth?: string
+  packagingMethodId?: string
+  packagingSpecId?: string
+  specCode?: string
+  specName?: string
+  version?: string
+  volume?: string
+  workInstruction?: string
+}) {
+  return {
+    packagingSpecId: record?.packagingSpecId ?? '',
+    itemModelId: record?.itemModelId ?? '',
+    packagingMethodId: record?.packagingMethodId ?? '',
+    customerId: record?.customerId ?? '',
+    specCode: record?.specCode ?? '',
+    specName: record?.specName ?? '',
+    grossWeight: record?.grossWeight ?? '',
+    volume: record?.volume ?? '',
+    outerLength: record?.outerLength ?? '',
+    outerWidth: record?.outerWidth ?? '',
+    outerHeight: record?.outerHeight ?? '',
+    workInstruction: record?.workInstruction ?? '',
+    version: record?.version ?? '',
+    effectiveFrom: record?.effectiveFrom ?? '',
+    effectiveTo: record?.effectiveTo ?? '',
+    status: fromActive(record?.active)
+  }
+}
+
 /** mapBom converts generated BOM records into the BFF BOM shape. */
 function mapBom(bom?: BomRecord) {
   return {
@@ -745,6 +1217,26 @@ function mapBom(bom?: BomRecord) {
     })),
     createdAt: bom?.createdAt ?? '',
     updatedAt: bom?.updatedAt ?? ''
+  }
+}
+
+/** mapPackagingSpecInput validates and converts BFF packaging spec payloads into generated request fields. */
+function mapPackagingSpecInput(input: BffPackagingSpecInput) {
+  return {
+    itemModelId: requireNonBlank(input.itemModelId ?? '', 'itemModelId'),
+    packagingMethodId: requireNonBlank(input.packagingMethodId ?? '', 'packagingMethodId'),
+    customerId: normalize(input.customerId),
+    specCode: requireNonBlank(input.specCode ?? '', 'specCode'),
+    specName: requireNonBlank(input.specName ?? '', 'specName'),
+    grossWeight: normalize(input.grossWeight),
+    volume: normalize(input.volume),
+    outerLength: normalize(input.outerLength),
+    outerWidth: normalize(input.outerWidth),
+    outerHeight: normalize(input.outerHeight),
+    workInstruction: normalize(input.workInstruction),
+    version: normalize(input.version),
+    effectiveFrom: normalize(input.effectiveFrom),
+    effectiveTo: normalize(input.effectiveTo)
   }
 }
 

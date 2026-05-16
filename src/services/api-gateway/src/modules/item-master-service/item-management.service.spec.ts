@@ -17,32 +17,49 @@ const source = {
 /** item-management service specs protect the API Gateway mapping layer against item-master Contract V2 drift. */
 describe('ItemManagementService V2 BFF mapping', () => {
   const itemQueryAdapter = {
+    getItemModelAttributeRules: jest.fn(),
     getBomByOutputItem: jest.fn(),
     getItem: jest.fn(),
     getItemModel: jest.fn(),
+    getPackagingSpec: jest.fn(),
+    listAttributeDefinitions: jest.fn(),
+    listAttributeOptions: jest.fn(),
     listItemCategories: jest.fn(),
+    listPackagingMethods: jest.fn(),
     listSupplierItemMappingsByItem: jest.fn(),
     searchBoms: jest.fn(),
     searchItemModels: jest.fn(),
-    searchItems: jest.fn()
+    searchItems: jest.fn(),
+    searchPackagingSpecs: jest.fn()
   }
   const itemManagementAdapter = {
     changeBomStatus: jest.fn(),
     changeItemCategoryStatus: jest.fn(),
     changeItemModelStatus: jest.fn(),
+    changePackagingMethodStatus: jest.fn(),
+    changePackagingSpecStatus: jest.fn(),
     changeItemStatus: jest.fn(),
+    createAttributeDefinition: jest.fn(),
+    createAttributeOption: jest.fn(),
     createBom: jest.fn(),
     createItem: jest.fn(),
     createItemCategory: jest.fn(),
     createItemModel: jest.fn(),
+    createPackagingMethod: jest.fn(),
+    createPackagingSpec: jest.fn(),
     replaceBomLines: jest.fn(),
     setItemCapabilities: jest.fn(),
+    setItemModelAttributeRules: jest.fn(),
     setItemModelCapabilities: jest.fn(),
     setItemModelPrimaryCategory: jest.fn(),
+    updateAttributeDefinition: jest.fn(),
+    updateAttributeOption: jest.fn(),
     updateBomBasics: jest.fn(),
     updateItemBasics: jest.fn(),
     updateItemCategoryBasics: jest.fn(),
     updateItemModelBasics: jest.fn(),
+    updatePackagingMethod: jest.fn(),
+    updatePackagingSpec: jest.fn(),
     upsertSupplierItemMapping: jest.fn()
   }
   let service: ItemManagementService
@@ -258,6 +275,126 @@ describe('ItemManagementService V2 BFF mapping', () => {
             lineRole: BomLineRole.BOM_LINE_ROLE_COMPONENT
           })
         ]
+      }),
+      source
+    )
+  })
+
+  it('maps attribute definition query and mutation commands', async () => {
+    itemQueryAdapter.listAttributeDefinitions.mockResolvedValue({
+      attributeDefinitions: [
+        {
+          attributeDefinitionId: 'attr-1',
+          attributeCode: 'COLOR',
+          attributeName: 'Color',
+          active: true
+        }
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20
+    })
+    itemManagementAdapter.updateAttributeDefinition.mockResolvedValue({
+      attributeDefinition: {
+        attributeDefinitionId: 'attr-1',
+        attributeCode: 'COLOR',
+        attributeName: 'Color',
+        active: false
+      }
+    })
+
+    await expect(
+      service.listAttributeDefinitions('tenant-1', { keyword: 'color', status: 'ACTIVE' }, source as never)
+    ).resolves.toMatchObject({
+      attributeDefinitions: [
+        {
+          attributeDefinitionId: 'attr-1',
+          attributeCode: 'COLOR',
+          status: 'ACTIVE'
+        }
+      ],
+      total: 1
+    })
+
+    await expect(
+      service.updateAttributeDefinition(
+        'tenant-1',
+        'attr-1',
+        { attributeCode: 'COLOR', attributeName: 'Color', status: 'INACTIVE' },
+        source as never
+      )
+    ).resolves.toMatchObject({
+      attributeDefinitionId: 'attr-1',
+      status: 'INACTIVE'
+    })
+
+    expect(itemQueryAdapter.listAttributeDefinitions).toHaveBeenCalledWith(
+      expect.objectContaining({ active: true, keyword: 'color' }),
+      source
+    )
+    expect(itemManagementAdapter.updateAttributeDefinition).toHaveBeenCalledWith(
+      expect.objectContaining({ active: false, attributeDefinitionId: 'attr-1' }),
+      source
+    )
+  })
+
+  it('maps packaging method and packaging spec commands', async () => {
+    itemManagementAdapter.createPackagingMethod.mockResolvedValue({
+      packagingMethod: {
+        packagingMethodId: 'method-1',
+        methodCode: 'ECOM',
+        methodName: 'E-commerce',
+        active: true
+      }
+    })
+    itemManagementAdapter.createPackagingSpec.mockResolvedValue({
+      packagingSpec: {
+        packagingSpecId: 'spec-1',
+        itemModelId: 'model-1',
+        packagingMethodId: 'method-1',
+        customerId: '',
+        specCode: 'PKG-1',
+        specName: 'Standard box',
+        active: true
+      }
+    })
+
+    await expect(
+      service.createPackagingMethod(
+        'tenant-1',
+        { methodCode: 'ECOM', methodName: 'E-commerce' },
+        source as never
+      )
+    ).resolves.toMatchObject({
+      methodCode: 'ECOM',
+      status: 'ACTIVE'
+    })
+    await expect(
+      service.createPackagingSpec(
+        'tenant-1',
+        {
+          itemModelId: 'model-1',
+          packagingMethodId: 'method-1',
+          specCode: 'PKG-1',
+          specName: 'Standard box'
+        },
+        source as never
+      )
+    ).resolves.toMatchObject({
+      packagingSpecId: 'spec-1',
+      itemModelId: 'model-1',
+      status: 'ACTIVE'
+    })
+
+    expect(itemManagementAdapter.createPackagingMethod).toHaveBeenCalledWith(
+      expect.objectContaining({ methodCode: 'ECOM', tenantId: 'tenant-1' }),
+      source
+    )
+    expect(itemManagementAdapter.createPackagingSpec).toHaveBeenCalledWith(
+      expect.objectContaining({
+        itemModelId: 'model-1',
+        packagingMethodId: 'method-1',
+        specCode: 'PKG-1'
       }),
       source
     )

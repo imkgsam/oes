@@ -2,12 +2,19 @@
 import type { ItemManagementApi } from '#/api'
 
 import { computed, onMounted, reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
 import { IconifyIcon } from '@vben/icons'
 
-import { createManagedItemApi, listManagedItemModelsApi } from '#/api'
+import {
+  createManagedItemApi,
+  getManagedItemModelAttributeRulesApi,
+  listManagedAttributeDefinitionsApi,
+  listManagedAttributeOptionsApi,
+  listManagedItemModelsApi,
+  listManagedPackagingSpecsApi
+} from '#/api'
 import { useAuthContextStore } from '#/store/auth-context'
 
 interface CreateFormState {
@@ -15,19 +22,34 @@ interface CreateFormState {
   itemModelId: string
   itemName: string
   itemType: ItemManagementApi.ItemType
+  packagingSpecId: string
 }
 
 const authContextStore = useAuthContextStore()
+const route = useRoute()
 const router = useRouter()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
 const saving = ref(false)
 const itemModels = ref<ItemManagementApi.ItemModelRecord[]>([])
+const attributeDefinitions = ref<ItemManagementApi.AttributeDefinitionRecord[]>([])
+const attributeOptionsByDefinition = ref<Record<string, ItemManagementApi.AttributeOptionRecord[]>>({})
+const packagingSpecs = ref<ItemManagementApi.PackagingSpecRecord[]>([])
+const selectedRules = ref<ItemManagementApi.ItemModelAttributeRuleRecord[]>([])
+const validationErrors = ref<string[]>([])
+const lockedAttributeSelections = reactive<Record<string, string[]>>({})
 const form = reactive<CreateFormState>({
   itemCode: '',
   itemModelId: '',
   itemName: '',
-  itemType: 'STANDARD'
+  itemType: 'STANDARD',
+  packagingSpecId: ''
 })
+const selectedModel = computed(() => itemModels.value.find((model) => model.itemModelId === form.itemModelId) ?? null)
+
+/** firstQueryValue reads a single route query value without leaking vue-router unions into form state. */
+function firstQueryValue(value: unknown) {
+  return Array.isArray(value) ? `${value[0] ?? ''}` : `${value ?? ''}`
+}
 
 /** emptyCapabilities returns the explicit eight-capability V2 shape required by create Item. */
 function emptyCapabilities(): ItemManagementApi.ItemCapabilities {
@@ -55,7 +77,122 @@ async function loadItemModels() {
     status: 'ACTIVE'
   })
   itemModels.value = result.itemModels ?? []
-  form.itemModelId = form.itemModelId || itemModels.value[0]?.itemModelId || ''
+  const requestedItemModelId = firstQueryValue(route.query.itemModelId)
+  const requestedModelExists = itemModels.value.some((model) => model.itemModelId === requestedItemModelId)
+  form.itemModelId = form.itemModelId || (requestedModelExists ? requestedItemModelId : '') || itemModels.value[0]?.itemModelId || ''
+  await loadModelScopedChoices()
+}
+
+/** loadAttributeDirectory loads active attribute definitions and options referenced by ItemModel rules. */
+async function loadAttributeDirectory() {
+  if (!activeTenantId.value) {
+    attributeDefinitions.value = []
+    attributeOptionsByDefinition.value = {}
+    return
+  }
+
+  const result = await listManagedAttributeDefinitionsApi(activeTenantId.value, {
+    page: 1,
+    pageSize: 50,
+    status: 'ACTIVE'
+  })
+  attributeDefinitions.value = result.attributeDefinitions ?? []
+  const nextOptionsByDefinition: Record<string, ItemManagementApi.AttributeOptionRecord[]> = {}
+
+  for (const definition of attributeDefinitions.value) {
+    const optionsResult = await listManagedAttributeOptionsApi(activeTenantId.value, definition.attributeDefinitionId, {
+      status: 'ACTIVE'
+    })
+    nextOptionsByDefinition[definition.attributeDefinitionId] = optionsResult.attributeOptions ?? []
+  }
+
+  attributeOptionsByDefinition.value = nextOptionsByDefinition
+}
+
+/** loadModelScopedChoices refreshes attribute rules and packaging specs for the selected ItemModel. */
+async function loadModelScopedChoices() {
+  if (!activeTenantId.value || !form.itemModelId) {
+    selectedRules.value = []
+    packagingSpecs.value = []
+    return
+  }
+
+  await loadAttributeDirectory()
+
+  const [rulesResult, packagingResult] = await Promise.all([
+    getManagedItemModelAttributeRulesApi(activeTenantId.value, form.itemModelId),
+    listManagedPackagingSpecsApi(activeTenantId.value, {
+      itemModelId: form.itemModelId,
+      page: 1,
+      pageSize: 50,
+      status: 'ACTIVE'
+    })
+  ])
+
+  selectedRules.value = rulesResult.rules ?? []
+  packagingSpecs.value = packagingResult.packagingSpecs ?? []
+  for (const key of Object.keys(lockedAttributeSelections)) {
+    delete lockedAttributeSelections[key]
+  }
+  for (const rule of selectedRules.value) {
+    lockedAttributeSelections[rule.attributeDefinitionId] = []
+  }
+  form.packagingSpecId = ''
+}
+
+/** getAttributeLabel resolves an AttributeDefinition for display in the Item create form. */
+function getAttributeLabel(attributeDefinitionId: string) {
+  const definition = attributeDefinitions.value.find(
+    (candidate) => candidate.attributeDefinitionId === attributeDefinitionId
+  )
+
+  return definition ? `${definition.attributeCode} · ${definition.attributeName}` : attributeDefinitionId
+}
+
+/** getRuleOptions returns the AttributeOptions allowed by a model rule. */
+function getRuleOptions(rule: ItemManagementApi.ItemModelAttributeRuleRecord) {
+  const options = attributeOptionsByDefinition.value[rule.attributeDefinitionId] ?? []
+  const allowed = new Set(rule.allowedOptionIds)
+  return options.filter((option) => allowed.has(option.attributeOptionId))
+}
+
+/** collectLockedAttributeOptionIds flattens the user's locked option selections for Item creation. */
+function collectLockedAttributeOptionIds() {
+  return selectedRules.value.flatMap((rule) => lockedAttributeSelections[rule.attributeDefinitionId] ?? [])
+}
+
+/** validateCreateForm blocks incomplete Item identities before they reach the backend contract. */
+function validateCreateForm() {
+  const errors: string[] = []
+
+  if (!form.itemCode.trim()) {
+    errors.push('Item Code 必填。')
+  }
+  if (!form.itemName.trim()) {
+    errors.push('Item Name 必填。')
+  }
+
+  for (const rule of selectedRules.value) {
+    const selectedOptionIds = lockedAttributeSelections[rule.attributeDefinitionId] ?? []
+    if (rule.required && selectedOptionIds.length === 0) {
+      errors.push(`必选 AttributeRule ${getAttributeLabel(rule.attributeDefinitionId)} 必须选择至少一个 AttributeOption。`)
+    }
+  }
+
+  if (form.itemType === 'PACKAGED_FINISHED_GOOD' && !form.packagingSpecId) {
+    errors.push('PackagedItem 必须选择 PackagingSpec。')
+  }
+
+  validationErrors.value = errors
+  return errors.length === 0
+}
+
+/** buildCreateCapabilities keeps Item.capabilities aligned with the selected execution type. */
+function buildCreateCapabilities(): ItemManagementApi.ItemCapabilities {
+  return {
+    ...emptyCapabilities(),
+    packaged: form.itemType === 'PACKAGED_FINISHED_GOOD'
+  }
 }
 
 /** submitCreate creates one V2 executable Item and opens its detail workbench. */
@@ -63,15 +200,20 @@ async function submitCreate() {
   if (!activeTenantId.value || !form.itemModelId) {
     return
   }
+  if (!validateCreateForm()) {
+    return
+  }
 
   saving.value = true
   try {
     const result = await createManagedItemApi(activeTenantId.value, {
-      capabilities: emptyCapabilities(),
+      capabilities: buildCreateCapabilities(),
       itemCode: form.itemCode.trim(),
       itemModelId: form.itemModelId,
       itemName: form.itemName.trim(),
-      itemType: form.itemType
+      itemType: form.itemType,
+      lockedAttributeOptionIds: collectLockedAttributeOptionIds(),
+      packagingSpecId: form.itemType === 'PACKAGED_FINISHED_GOOD' ? form.packagingSpecId || undefined : undefined
     })
 
     if (result.itemId) {
@@ -141,7 +283,7 @@ onMounted(() => {
         <div class="item-create-grid">
           <label>
             <span>ItemModel</span>
-            <select data-testid="create-item-model" v-model="form.itemModelId">
+            <select data-testid="create-item-model" v-model="form.itemModelId" @change="loadModelScopedChoices">
               <option value="">请选择 ItemModel</option>
               <option v-for="model in itemModels" :key="model.itemModelId" :value="model.itemModelId">
                 {{ model.modelCode }} · {{ model.modelName }}
@@ -163,6 +305,44 @@ onMounted(() => {
               <option value="PACKAGED_FINISHED_GOOD">PACKAGED_FINISHED_GOOD</option>
             </select>
           </label>
+        </div>
+        <section class="item-create-subsection">
+          <h3>Locked Attributes</h3>
+          <p v-if="selectedModel">根据 {{ selectedModel.modelCode }} 的 ItemModelAttributeRule 锁定具体执行规格。</p>
+          <div v-if="selectedRules.length" class="item-create-grid">
+            <label v-for="rule in selectedRules" :key="rule.attributeDefinitionId">
+              <span>{{ getAttributeLabel(rule.attributeDefinitionId) }} {{ rule.required ? '*' : '' }}</span>
+              <select
+                multiple
+                :data-testid="`create-item-locked-${rule.attributeDefinitionId}`"
+                v-model="lockedAttributeSelections[rule.attributeDefinitionId]"
+              >
+                <option v-for="option in getRuleOptions(rule)" :key="option.attributeOptionId" :value="option.attributeOptionId">
+                  {{ option.optionCode }} · {{ option.optionName }}
+                </option>
+              </select>
+            </label>
+          </div>
+          <p v-else>该 ItemModel 暂无 AttributeRule。</p>
+        </section>
+
+        <section v-if="form.itemType === 'PACKAGED_FINISHED_GOOD'" class="item-create-subsection">
+          <h3>PackagedItem</h3>
+          <p>PackagedItem 是 Item(type = PACKAGED_FINISHED_GOOD)，包装消耗仍通过 PACKAGING_BOM 表达。</p>
+          <div class="item-create-grid">
+            <label>
+              <span>Packaging Spec</span>
+              <select data-testid="create-item-packaging-spec" v-model="form.packagingSpecId">
+                <option value="">请选择 PackagingSpec</option>
+                <option v-for="spec in packagingSpecs" :key="spec.packagingSpecId" :value="spec.packagingSpecId">
+                  {{ spec.specCode }} · {{ spec.specName }}
+                </option>
+              </select>
+            </label>
+          </div>
+        </section>
+        <div v-if="validationErrors.length" class="item-create-error" data-testid="create-item-error">
+          <p v-for="error in validationErrors" :key="error">{{ error }}</p>
         </div>
         <button data-testid="create-item-submit" type="button" :disabled="saving || !form.itemModelId" @click="submitCreate">
           {{ saving ? '创建中...' : '创建 Item' }}
@@ -288,6 +468,19 @@ button {
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+.item-create-error {
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+  border-radius: 8px;
+  color: #be123c;
+  margin-top: 14px;
+  padding: 10px 12px;
+}
+
+.item-create-error p {
+  margin: 0;
 }
 
 @media (max-width: 760px) {

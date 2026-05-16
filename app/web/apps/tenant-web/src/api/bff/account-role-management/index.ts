@@ -57,6 +57,24 @@ export namespace AccountRoleManagementApi {
   export interface RoleAccountBindingListResult {
     accounts: RoleAccountBinding[];
   }
+
+  export interface AccountTerminalAccessQuery {
+    scopeLevel: ScopeLevel;
+    tenantId?: string;
+  }
+
+  export interface AccountTerminalAccess {
+    accountId: string;
+    effectiveAllowedTerminals: string[];
+    hasOverride: boolean;
+    scopeLevel: ScopeLevel;
+    tenantId?: string;
+  }
+
+  export interface ReplaceAccountTerminalAccessOverridePayload
+    extends AccountTerminalAccessQuery {
+    allowedTerminals: string[];
+  }
 }
 
 // Lists currently effective roles assigned to one account in a scope.
@@ -117,5 +135,41 @@ export async function revokeAccountRoleApi(accountId: string, roleId: string) {
 export async function listRoleAccountsApi(roleId: string) {
   return requestClient.get<AccountRoleManagementApi.RoleAccountBindingListResult>(
     `/role/${encodeURIComponent(roleId)}/accounts`,
+  );
+}
+
+// Loads the effective terminal login access for one account in the selected scope.
+export async function getAccountTerminalAccessApi(
+  accountId: string,
+  params: AccountRoleManagementApi.AccountTerminalAccessQuery,
+) {
+  return requestClient.get<AccountRoleManagementApi.AccountTerminalAccess>(
+    `/account/${encodeURIComponent(accountId)}/terminal-access`,
+    { params },
+  );
+}
+
+// Replaces an account-level terminal access override for one account scope.
+export async function replaceAccountTerminalAccessOverrideApi(
+  accountId: string,
+  data: AccountRoleManagementApi.ReplaceAccountTerminalAccessOverridePayload,
+) {
+  return requestClient.request<AccountRoleManagementApi.AccountTerminalAccess>(
+    `/account/${encodeURIComponent(accountId)}/terminal-access/override`,
+    {
+      data,
+      method: 'PUT',
+    },
+  );
+}
+
+// Deletes an account-level terminal access override so role defaults apply again.
+export async function deleteAccountTerminalAccessOverrideApi(
+  accountId: string,
+  params: AccountRoleManagementApi.AccountTerminalAccessQuery,
+) {
+  return requestClient.delete(
+    `/account/${encodeURIComponent(accountId)}/terminal-access/override`,
+    { params },
   );
 }

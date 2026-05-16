@@ -49,6 +49,8 @@ describe('SessionContextUseCase', () => {
         sub: 'user-1',
         aid: 'account-1',
         tid: 'tenant-1',
+        terminal: 'WEB',
+        allowedTerminals: ['WEB', 'PDA'],
         passwordSetupRequired: true
       },
       requestId: 'req-1',
@@ -90,6 +92,8 @@ describe('SessionContextUseCase', () => {
         actionCodes: []
       },
       scopeLevel: 'TENANT',
+      terminal: 'WEB',
+      allowedTerminals: ['WEB', 'PDA'],
       passwordSetupRequired: true
     })
   })
@@ -326,6 +330,112 @@ describe('SessionContextUseCase', () => {
     expect(sessionAccessSummaryUseCase.resolveNavigation).toHaveBeenCalled()
     expect(result.navigation.defaultEntry).toBe('mes.work-order-board')
     expect(result.navigation.visibleEntries).toEqual(['workbench.home', 'mes.work-order-board'])
+  })
+
+  it('resolves navigation with the authenticated session terminal', async () => {
+    const identityAdapter = {
+      getAccountById: jest.fn().mockResolvedValue({
+        account: {
+          id: 'account-pda',
+          userId: 'user-pda',
+          tenantId: 'tenant-1',
+          displayName: 'PDA User',
+          scopeLevel: 'TENANT',
+          isEnabled: true
+        }
+      })
+    }
+    const tenantOrgAdapter = {
+      getTenantById: jest.fn().mockResolvedValue({
+        tenant: {
+          id: 'tenant-1',
+          name: 'Tenant A'
+        }
+      })
+    }
+    const sessionAccessSummaryUseCase = {
+      resolveNavigation: jest.fn().mockResolvedValue({
+        defaultEntry: 'pda.home',
+        visibleEntries: ['pda.home']
+      })
+    }
+
+    const useCase = new SessionContextUseCase(
+      identityAdapter as any,
+      sessionAccessSummaryUseCase as any,
+      tenantOrgAdapter as any
+    )
+
+    const result = await useCase.execute({
+      user: {
+        sub: 'user-pda',
+        aid: 'account-pda',
+        tid: 'tenant-1',
+        terminal: 'PDA',
+        allowedTerminals: ['PDA']
+      }
+    } as any)
+
+    expect(sessionAccessSummaryUseCase.resolveNavigation).toHaveBeenCalledWith(
+      expect.any(Object),
+      'PDA'
+    )
+    expect(result.terminal).toBe('PDA')
+    expect(result.allowedTerminals).toEqual(['PDA'])
+    expect(result.navigation.defaultEntry).toBe('pda.home')
+  })
+
+  it('keeps PDA foundation sessions usable before PDA navigation entries are configured', async () => {
+    const identityAdapter = {
+      getAccountById: jest.fn().mockResolvedValue({
+        account: {
+          id: 'account-pda',
+          userId: 'user-pda',
+          tenantId: 'tenant-1',
+          displayName: 'PDA User',
+          scopeLevel: 'TENANT',
+          isEnabled: true
+        }
+      })
+    }
+    const tenantOrgAdapter = {
+      getTenantById: jest.fn().mockResolvedValue({
+        tenant: {
+          id: 'tenant-1',
+          name: 'Tenant A'
+        }
+      })
+    }
+    const sessionAccessSummaryUseCase = {
+      resolveNavigation: jest.fn().mockResolvedValue({
+        defaultEntry: '',
+        visibleEntries: [],
+        fallbackReason: 'NO_TERMINAL_NAVIGATION'
+      })
+    }
+
+    const useCase = new SessionContextUseCase(
+      identityAdapter as any,
+      sessionAccessSummaryUseCase as any,
+      tenantOrgAdapter as any
+    )
+
+    const result = await useCase.execute({
+      user: {
+        sub: 'user-pda',
+        aid: 'account-pda',
+        tid: 'tenant-1',
+        terminal: 'PDA',
+        allowedTerminals: ['PDA']
+      }
+    } as any)
+
+    expect(sessionAccessSummaryUseCase.resolveNavigation).toHaveBeenCalledWith(
+      expect.any(Object),
+      'PDA'
+    )
+    expect(result.navigation.defaultEntry).toBe('pda.foundation')
+    expect(result.navigation.visibleEntries).toEqual(['pda.foundation'])
   })
 
   it('rejects session context when managed navigation resolution fails', async () => {

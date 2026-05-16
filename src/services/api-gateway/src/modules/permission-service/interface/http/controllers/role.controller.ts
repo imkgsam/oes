@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiBody } from '@nestjs/swagger'
-import { PermissionCheckAll } from '@oes/common/authorization'
 import {
+  RequirePermissions,
+  PERMISSION_MANAGEMENT_PERMISSION_CODES,
   ROLE_INSTANCE_PERMISSION_CODES
 } from '@oes/common/authorization'
 import { PermissionProxyService } from '../../../permission-service.service'
@@ -14,6 +15,7 @@ import { CreateRoleDto } from '../dtos/create-role.dto'
 import { UpdateRoleDto } from '../dtos/update-role.dto'
 import { SetRoleEnabledDto } from '../dtos/set-role-enabled.dto'
 import { AssignRolePermissionDto } from '../dtos/role-permission.dto'
+import { TerminalAccessMutationDto } from '../dtos/terminal-access.dto'
 
 @ApiBearerAuth('JWT')
 @ApiTags('role')
@@ -26,7 +28,7 @@ export class RoleController {
   ) {}
 
   @Get()
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.LIST])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.LIST] })
   @ApiOperation({ summary: 'List role instances with pagination and filters' })
   async listRoles(
     @Query() query: ListRolesDto,
@@ -47,7 +49,7 @@ export class RoleController {
   }
 
   @Get('tenant-options')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.CREATE])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.CREATE] })
   @ApiOperation({ summary: 'List tenant options for role creation selectors' })
   async listTenantOptions(
     @Query() query: ListRoleTenantOptionsDto,
@@ -65,7 +67,7 @@ export class RoleController {
   }
 
   @Post()
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.CREATE])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.CREATE] })
   @ApiOperation({ summary: 'Create a role instance' })
   @ApiBody({ type: CreateRoleDto })
   async createRole(
@@ -88,14 +90,44 @@ export class RoleController {
   }
 
   @Get(':id')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID] })
   @ApiOperation({ summary: 'Find role by ID' })
   async findById(@Param('id') id: string, @DownstreamSource() source: DownstreamRequestSource) {
     return this.execute(() => this.roleManagementReadService.getRoleById({ id }, source))
   }
 
+  @Get(':id/terminal-access')
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_TERMINAL_ACCESS] })
+  @ApiOperation({ summary: 'Get role terminal access defaults' })
+  async getRoleTerminalAccess(
+    @Param('id') id: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.execute(() => this.permissionService.getRoleTerminalAccess({ roleId: id }, source))
+  }
+
+  @Put(':id/terminal-access')
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.MANAGE_ROLE_TERMINAL_ACCESS] })
+  @ApiOperation({ summary: 'Replace role terminal access defaults' })
+  @ApiBody({ type: TerminalAccessMutationDto })
+  async setRoleTerminalAccess(
+    @Param('id') id: string,
+    @Body() body: TerminalAccessMutationDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.execute(() =>
+      this.permissionService.setRoleTerminalAccess(
+        {
+          roleId: id,
+          allowedTerminals: body.allowedTerminals
+        },
+        source
+      )
+    )
+  }
+
   @Patch(':id')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.UPDATE])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.UPDATE] })
   @ApiOperation({ summary: 'Update a role instance' })
   @ApiBody({ type: UpdateRoleDto })
   async updateRole(
@@ -116,7 +148,7 @@ export class RoleController {
   }
 
   @Patch(':id/enabled')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.UPDATE])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.UPDATE] })
   @ApiOperation({ summary: 'Enable or disable a role instance' })
   @ApiBody({ type: SetRoleEnabledDto })
   async setRoleEnabled(
@@ -136,7 +168,7 @@ export class RoleController {
   }
 
   @Get(':id/permissions')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.GET_BY_ID] })
   @ApiOperation({ summary: 'List permissions assigned to a role instance' })
   async listRolePermissions(
     @Param('id') id: string,
@@ -146,7 +178,7 @@ export class RoleController {
   }
 
   @Post(':id/permissions')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.ASSIGN_PERMISSIONS])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.ASSIGN_PERMISSIONS] })
   @ApiOperation({ summary: 'Assign a permission to a role instance' })
   @ApiBody({ type: AssignRolePermissionDto })
   async assignRolePermission(
@@ -166,7 +198,7 @@ export class RoleController {
   }
 
   @Delete(':id/permissions/:permissionId')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.ASSIGN_PERMISSIONS])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.ASSIGN_PERMISSIONS] })
   @ApiOperation({ summary: 'Revoke a permission from a role instance' })
   async revokeRolePermission(
     @Param('id') id: string,
@@ -185,7 +217,7 @@ export class RoleController {
   }
 
   @Delete(':id')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.DELETE])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.DELETE] })
   @ApiOperation({ summary: 'Delete a role' })
   async deleteRole(@Param('id') id: string, @DownstreamSource() source: DownstreamRequestSource) {
     return this.execute(() => this.permissionService.deleteRole({ id }, source))

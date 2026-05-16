@@ -11,12 +11,14 @@ const revokeRoleTemplatePermissionApi = vi.fn();
 const listRolePermissionsApi = vi.fn();
 const listNavigationEntriesApi = vi.fn();
 const getRoleNavigationApi = vi.fn();
+const getRoleTerminalAccessApi = vi.fn();
 const listRoleTenantOptionsApi = vi.fn();
 const listPermissionsApi = vi.fn();
 const listRolesApi = vi.fn();
 const listRoleTemplatesApi = vi.fn();
 const setRoleLandingPoliciesApi = vi.fn();
 const setRoleNavigationVisibilityApi = vi.fn();
+const setRoleTerminalAccessApi = vi.fn();
 const syncRoleNavigationFromTemplateApi = vi.fn();
 const refreshCurrentSessionAccess = vi.fn();
 const authContextState = {
@@ -35,6 +37,8 @@ const authContextState = {
     'permission.role_template.get_by_id',
     'permission.role_template.list',
     'permission.role_template.update',
+    'permission.terminal_access.role.manage',
+    'permission.terminal_access.view',
   ],
   isPlatformScope: true,
   sessionContext: {
@@ -55,6 +59,7 @@ vi.mock('#/api', () => ({
   deleteRoleApi: vi.fn(),
   deleteRoleTemplateApi: vi.fn(),
   getRoleNavigationApi,
+  getRoleTerminalAccessApi,
   getRoleByIdApi: vi.fn(),
   getRoleTemplateByIdApi: vi.fn(),
   instantiateRoleTemplateApi: vi.fn(),
@@ -70,6 +75,7 @@ vi.mock('#/api', () => ({
   setRoleEnabledApi: vi.fn(),
   setRoleLandingPoliciesApi,
   setRoleNavigationVisibilityApi,
+  setRoleTerminalAccessApi,
   syncRoleNavigationFromTemplateApi,
   setRoleTemplateEnabledApi: vi.fn(),
   updateRoleApi: vi.fn(),
@@ -122,6 +128,7 @@ function collectNodeText(node: unknown): string[] {
 describe('role management page', () => {
   beforeEach(() => {
     getRoleNavigationApi.mockReset();
+    getRoleTerminalAccessApi.mockReset();
     listNavigationEntriesApi.mockReset();
     listRolePermissionsApi.mockReset();
     listRoleTenantOptionsApi.mockReset();
@@ -135,6 +142,7 @@ describe('role management page', () => {
     refreshCurrentSessionAccess.mockReset();
     setRoleLandingPoliciesApi.mockReset();
     setRoleNavigationVisibilityApi.mockReset();
+    setRoleTerminalAccessApi.mockReset();
     syncRoleNavigationFromTemplateApi.mockReset();
     authContextState.actionCodes = [
       'permission.role_instance.assign_permissions',
@@ -151,6 +159,8 @@ describe('role management page', () => {
       'permission.role_template.get_by_id',
       'permission.role_template.list',
       'permission.role_template.update',
+      'permission.terminal_access.role.manage',
+      'permission.terminal_access.view',
     ];
     authContextState.isPlatformScope = true;
     authContextState.sessionContext = {
@@ -193,6 +203,14 @@ describe('role management page', () => {
       ],
       roleId: 'role-1',
       visibility: [],
+    });
+    getRoleTerminalAccessApi.mockResolvedValue({
+      roleId: 'role-1',
+      allowedTerminals: ['WEB'],
+    });
+    setRoleTerminalAccessApi.mockResolvedValue({
+      roleId: 'role-1',
+      allowedTerminals: ['WEB', 'PDA'],
     });
     listNavigationEntriesApi.mockResolvedValue({
       entries: [
@@ -393,7 +411,101 @@ describe('role management page', () => {
 
     expect(document.body.textContent).toContain('编辑');
     expect(document.body.textContent).toContain('权限');
+    expect(document.body.textContent).toContain('终端准入');
     expect(document.body.textContent).toContain('删除');
+  });
+
+  it('loads and saves role terminal access from the dedicated action drawer', async () => {
+    const view = await import('./role-management.vue');
+
+    mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const trigger = document.body.querySelector(
+      'button[aria-label="角色操作"]',
+    ) as HTMLButtonElement | null;
+
+    trigger?.click();
+    await flushPromises();
+
+    const terminalAction = Array.from(
+      document.body.querySelectorAll('.ant-dropdown-menu-title-content'),
+    ).find((node) => node.textContent?.includes('终端准入')) as HTMLElement | undefined;
+
+    terminalAction?.click();
+    await flushPromises();
+    await flushPromises();
+
+    expect(getRoleTerminalAccessApi).toHaveBeenCalledWith('role-1');
+    expect(document.body.textContent).toContain('终端准入 · System Auditor');
+    expect(document.body.textContent).toContain('WEB');
+    expect(document.body.textContent).toContain('PDA');
+    expect(document.body.textContent).toContain('KIOSK');
+
+    const pdaCheckbox = Array.from(
+      document.body.querySelectorAll('input[type="checkbox"]'),
+    ).find((input) => (input as HTMLInputElement).value === 'PDA') as HTMLInputElement | undefined;
+    pdaCheckbox?.click();
+    await flushPromises();
+
+    const saveButton = Array.from(document.body.querySelectorAll('button')).find(
+      (button) => button.textContent?.includes('保存终端准入'),
+    ) as HTMLButtonElement | undefined;
+    saveButton?.click();
+    await flushPromises();
+
+    expect(setRoleTerminalAccessApi).toHaveBeenCalledWith('role-1', {
+      allowedTerminals: ['WEB', 'PDA'],
+    });
+  });
+
+  it('lets administrators configure terminal access on role templates', async () => {
+    const view = await import('./role-management.vue');
+
+    mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {},
+        },
+      },
+    });
+
+    await flushPromises();
+
+    const templateTab = Array.from(document.body.querySelectorAll('[role="tab"]')).find(
+      (node) => node.textContent?.includes('角色模板'),
+    ) as HTMLElement | undefined;
+
+    templateTab?.click();
+    await flushPromises();
+
+    const trigger = document.body.querySelector(
+      'button[aria-label="模板操作"]',
+    ) as HTMLButtonElement | null;
+
+    trigger?.click();
+    await flushPromises();
+
+    const terminalAction = Array.from(
+      document.body.querySelectorAll('.ant-dropdown-menu-title-content'),
+    ).find((node) => node.textContent?.includes('终端准入')) as HTMLElement | undefined;
+
+    terminalAction?.click();
+    await flushPromises();
+    await flushPromises();
+
+    expect(getRoleTerminalAccessApi).toHaveBeenCalledWith('template-1');
+    expect(document.body.textContent).toContain('终端准入 · 租户管理员模板');
+    expect(document.body.textContent).toContain('模板实例化时复制为角色初始终端准入');
   });
 
   it('renders tenant and source template names from the read model instead of raw ids', async () => {

@@ -1,8 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
 import {
-  PERMISSION_MANAGEMENT_PERMISSION_CODES,
-  PermissionCheckAll
+  RequirePermissions,
+  PERMISSION_MANAGEMENT_PERMISSION_CODES
 } from '@oes/common/authorization'
 import { PermissionProxyService } from '../../../permission-service.service'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
@@ -10,6 +10,10 @@ import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-down
 import { AssignAccountRoleDto } from '../dtos/assign-account-role.dto'
 import { ListAccountRolesDto } from '../dtos/list-account-roles.dto'
 import { SetAccountRolesDto } from '../dtos/set-account-roles.dto'
+import {
+  AccountTerminalAccessMutationDto,
+  AccountTerminalAccessQueryDto
+} from '../dtos/terminal-access.dto'
 
 @ApiBearerAuth('JWT')
 @ApiTags('account-role')
@@ -19,7 +23,7 @@ export class AccountRoleController {
   constructor(private readonly permissionService: PermissionProxyService) {}
 
   @Get('account/:accountId/roles')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE] })
   @ApiOperation({ summary: 'List effective roles currently assigned to one account' })
   async listAccountRoles(
     @Param('accountId') accountId: string,
@@ -39,7 +43,7 @@ export class AccountRoleController {
   }
 
   @Get('account/:accountId/roles/selection')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE] })
   @ApiOperation({ summary: 'Get assignable roles and selected role ids for one account' })
   async getAccountRoleSelection(
     @Param('accountId') accountId: string,
@@ -58,8 +62,74 @@ export class AccountRoleController {
     )
   }
 
+  @Get('account/:accountId/terminal-access')
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_TERMINAL_ACCESS] })
+  @ApiOperation({ summary: 'Get effective terminal access for one account' })
+  async getAccountTerminalAccess(
+    @Param('accountId') accountId: string,
+    @Query() query: AccountTerminalAccessQueryDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.execute(() =>
+      this.permissionService.getAccountTerminalAccess(
+        {
+          accountId,
+          tenantId: query.tenantId || '',
+          scopeLevel: query.scopeLevel
+        },
+        source
+      )
+    )
+  }
+
+  @Put('account/:accountId/terminal-access/override')
+  @RequirePermissions({
+    all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_TERMINAL_ACCESS]
+  })
+  @ApiOperation({ summary: 'Replace one account terminal access override' })
+  @ApiBody({ type: AccountTerminalAccessMutationDto })
+  async replaceAccountTerminalAccessOverride(
+    @Param('accountId') accountId: string,
+    @Body() body: AccountTerminalAccessMutationDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.execute(() =>
+      this.permissionService.replaceAccountTerminalAccessOverride(
+        {
+          accountId,
+          tenantId: body.tenantId || '',
+          scopeLevel: body.scopeLevel,
+          allowedTerminals: body.allowedTerminals
+        },
+        source
+      )
+    )
+  }
+
+  @Delete('account/:accountId/terminal-access/override')
+  @RequirePermissions({
+    all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_TERMINAL_ACCESS]
+  })
+  @ApiOperation({ summary: 'Delete one account terminal access override' })
+  async deleteAccountTerminalAccessOverride(
+    @Param('accountId') accountId: string,
+    @Query() query: AccountTerminalAccessQueryDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.execute(() =>
+      this.permissionService.deleteAccountTerminalAccessOverride(
+        {
+          accountId,
+          tenantId: query.tenantId || '',
+          scopeLevel: query.scopeLevel
+        },
+        source
+      )
+    )
+  }
+
   @Post('account/:accountId/roles')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.ASSIGN_ACCOUNT_ROLE])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.ASSIGN_ACCOUNT_ROLE] })
   @ApiOperation({ summary: 'Assign one role instance to one account' })
   @ApiBody({ type: AssignAccountRoleDto })
   async assignAccountRole(
@@ -84,7 +154,7 @@ export class AccountRoleController {
   }
 
   @Delete('account/:accountId/roles/:roleId')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.REVOKE_ACCOUNT_ROLE])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.REVOKE_ACCOUNT_ROLE] })
   @ApiOperation({ summary: 'Revoke one role instance from one account' })
   async revokeAccountRole(
     @Param('accountId') accountId: string,
@@ -103,7 +173,7 @@ export class AccountRoleController {
   }
 
   @Put('account/:accountId/roles')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.SET_ACCOUNT_ROLES])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.SET_ACCOUNT_ROLES] })
   @ApiOperation({ summary: 'Replace the effective role set for one account within one scope' })
   @ApiBody({ type: SetAccountRolesDto })
   async setAccountRoles(
@@ -126,7 +196,7 @@ export class AccountRoleController {
   }
 
   @Get('role/:roleId/accounts')
-  @PermissionCheckAll([PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE])
+  @RequirePermissions({ all: [PERMISSION_MANAGEMENT_PERMISSION_CODES.VIEW_ACCOUNT_ROLE] })
   @ApiOperation({ summary: 'List account bindings that currently reference one role instance' })
   async listRoleAccounts(
     @Param('roleId') roleId: string,

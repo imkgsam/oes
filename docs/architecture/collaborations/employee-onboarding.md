@@ -8,6 +8,8 @@
 - `party-service`、`hr-service`、`identity-service`、`permission-service`、`api-gateway/BFF` 如何配合
 - 失败时哪些事实可保留、哪些只能进入待补偿状态
 
+`hr-service` 的 `Employee / Employment`、员工生命周期、正式 `人 -> org` 归属与 onboarding owner 边界只以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；`identity-service` 的 `User / UserAccount / UserAccount <-> Employee` binding 长期边界只以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准；本文只记录员工 onboarding 协同方式，不重新定义任一服务核心对象。
+
 ## 2. 参与服务
 
 - `api-gateway` / BFF
@@ -20,15 +22,11 @@
 ## 3. 真相归属
 
 - `party-service`
-  - `PersonParty`
-  - `TenantParty`
+  - 提供 `PersonParty / TenantParty` 主体事实；核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
 - `hr-service`
-  - `Employee`
-  - `Employment`
+  - `Employee / Employment` 与 onboarding owner 边界以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
 - `identity-service`
-  - `User`
-  - `UserAccount`
-  - `UserAccount <-> Employee` binding
+  - `User / UserAccount / UserAccount <-> Employee` binding 边界以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准
 - `permission-service`
   - role / access grant
 - `tenant-org-service`
@@ -39,8 +37,8 @@
 
 - `api-gateway/BFF` 只负责收集输入、显示状态和触发命令，不拥有核心 onboarding 规则。
 - `hr-service` 是 onboarding 的业务 owner；minimum 第一阶段由其 application orchestration 负责串联跨服务步骤。
-- `party-service` 只负责创建或复用 `PersonParty / TenantParty`，不拥有 employee、employment、account、role grant 语义。
-- `identity-service` 只负责 account / login identity 与 `UserAccount <-> Employee` binding。
+- `party-service` 只按 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 提供主体事实与租户主体引用，不拥有 employee、employment、account、role grant 语义。
+- `identity-service` 按唯一真相源提供 account identity 与 `UserAccount <-> Employee` binding 能力。
 - `permission-service` 只负责初始角色 / grant；HR、Identity、BFF 都不能直接写角色绑定。
 
 ## 5. 协同链
@@ -48,7 +46,7 @@
 推荐最小链路如下：
 
 ```txt
-Create/Reuse PersonParty + TenantParty
+Create/Reuse party subject + tenant party reference
   -> Create Employee
   -> Create Employment -> OrgUnit
   -> optional Create/Bind UserAccount -> Employee
@@ -59,7 +57,7 @@ Create/Reuse PersonParty + TenantParty
 
 ### 6.1 正式 HR 入档段
 
-- `party-service` 创建或复用 `PersonParty / TenantParty`
+- `party-service` 创建或复用主体事实与租户主体引用
 - `hr-service` 创建 `Employee`
 - `hr-service` 创建 `Employment -> OrgUnit`
 
@@ -87,12 +85,9 @@ Create/Reuse PersonParty + TenantParty
   - 后续由 HR onboarding orchestration 以幂等方式重试 `permission-service` grant
 - access 段补偿成功后，onboarding 才能进入 completed 状态。
 
-## 7. 最小一致性规则
+## 7. 最小协同一致性规则
 
-- `Employee` 必须使用独立 `employeeId`，不能复用 `partyId`、`tenantPartyId` 或 `accountId`。
-- `hr-service` 以上游 `tenantPartyId` 作为员工主引用；`partyId` 可作为完整性影子，但不是第二 owner。
-- 同一 `tenantId + tenantPartyId` 在 minimum 第一阶段只能对应一个正式 `Employee` 聚合。
-- `Employment -> OrgUnit` 是正式 `人 -> org` 真相。
+- HR 对象、主引用、唯一性与正式 `人 -> org` 归属规则以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；本文只约束 onboarding 协同链不得反向制造第二真相。
 - `UserAccount <-> Employee` 绑定前，应校验：
   - 同 tenant
   - 同自然人主体

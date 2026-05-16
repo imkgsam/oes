@@ -58,6 +58,7 @@ export interface AccountMfaChallengeInput {
   scenario: TenantMfaScenario
   scopeLevel: 'SYSTEM' | 'TENANT'
   tenantId: null | string
+  terminal?: string
   userAgent?: string
   userId: string
 }
@@ -73,6 +74,7 @@ export interface LoginMfaFlowPayload {
   scenario: TenantMfaScenario
   scopeLevel: 'SYSTEM' | 'TENANT'
   sub: string
+  terminal?: string
   tid?: string
   tokenType: 'mfa_flow'
   userAgent?: string
@@ -312,6 +314,7 @@ export class LoginMfaOrchestrationService {
         displayName: input.displayName,
         loginMethod: input.loginMethod,
         scenario: input.scenario,
+        terminal: input.terminal,
         tokenType: 'mfa_flow',
         deviceId: input.deviceId,
         deviceName: input.deviceName,

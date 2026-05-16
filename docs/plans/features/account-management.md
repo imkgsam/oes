@@ -1,5 +1,7 @@
 # Account Management
 
+> 涉及 AccountRole、Role、Policy、permission code 或授权判定的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。本文只记录 Account Management feature 的范围、状态与页面接入约束。
+
 ## 1. 目标
 
 - 提供管理员账号管理入口，以账号列表与过滤作为第一层工作流。

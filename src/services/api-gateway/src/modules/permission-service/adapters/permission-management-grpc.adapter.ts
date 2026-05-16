@@ -18,12 +18,18 @@ import {
   CreateRoleInstanceFromTemplateRequest,
   CreateRoleTemplateRequest,
   CreatePermissionRequest,
+  DeleteAccountTerminalAccessOverrideRequest,
   DeletePermissionRequest,
+  DeleteAccountTerminalAccessOverrideResponse,
   GetAccountRoleSelectionRequest,
+  GetAccountTerminalAccessRequest,
+  GetAccountTerminalAccessResponse,
   GetNavigationEntryRequest,
   GetPermissionByCodeRequest,
   GetPermissionByIdRequest,
   GetRoleNavigationRequest,
+  GetRoleTerminalAccessRequest,
+  GetRoleTerminalAccessResponse,
   GetRoleTemplateByIdRequest,
   ListAccountRolesRequest,
   ListNavigationEntriesRequest,
@@ -39,8 +45,12 @@ import {
   RevokeAccountRoleRequest,
   RevokeRolePermissionRequest,
   RevokeRoleTemplatePermissionRequest,
+  ReplaceAccountTerminalAccessOverrideRequest,
+  ReplaceAccountTerminalAccessOverrideResponse,
   SetAccountRolesRequest,
   SetRoleEnabledRequest,
+  SetRoleTerminalAccessRequest,
+  SetRoleTerminalAccessResponse,
   SetRoleTemplateEnabledRequest,
   UpdatePermissionRequest,
   DeleteRoleRequest,
@@ -577,6 +587,71 @@ export class PermissionManagementGrpcAdapter implements OnModuleInit {
   ): Promise<RoleNavigationResponse> {
     return this.call('getRoleNavigation', () =>
       this.svc.getRoleNavigation(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Reads the terminal access defaults configured for one role instance.
+  async getRoleTerminalAccess(
+    req: GetRoleTerminalAccessRequest,
+    source: DownstreamRequestSource
+  ): Promise<GetRoleTerminalAccessResponse> {
+    return this.call('getRoleTerminalAccess', () =>
+      this.svc.getRoleTerminalAccess(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Replaces the terminal access defaults configured for one role instance.
+  async setRoleTerminalAccess(
+    req: SetRoleTerminalAccessRequest,
+    source: DownstreamRequestSource
+  ): Promise<SetRoleTerminalAccessResponse> {
+    return this.call('setRoleTerminalAccess', () =>
+      this.svc.setRoleTerminalAccess(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Reads the effective terminal access for one account and whether an override exists.
+  async getAccountTerminalAccess(
+    req: GetAccountTerminalAccessRequest,
+    source: DownstreamRequestSource
+  ): Promise<GetAccountTerminalAccessResponse> {
+    return this.call('getAccountTerminalAccess', () =>
+      this.svc.getAccountTerminalAccess(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Replaces the account-level terminal access override for one account.
+  async replaceAccountTerminalAccessOverride(
+    req: ReplaceAccountTerminalAccessOverrideRequest,
+    source: DownstreamRequestSource
+  ): Promise<ReplaceAccountTerminalAccessOverrideResponse> {
+    return this.call('replaceAccountTerminalAccessOverride', () =>
+      this.svc.replaceAccountTerminalAccessOverride(
+        req,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  // Deletes the account-level terminal access override so the account inherits role defaults.
+  async deleteAccountTerminalAccessOverride(
+    req: DeleteAccountTerminalAccessOverrideRequest,
+    source: DownstreamRequestSource
+  ): Promise<DeleteAccountTerminalAccessOverrideResponse> {
+    return this.call('deleteAccountTerminalAccessOverride', () =>
+      this.svc.deleteAccountTerminalAccessOverride(
         req,
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       )

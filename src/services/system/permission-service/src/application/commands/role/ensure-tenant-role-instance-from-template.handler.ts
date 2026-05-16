@@ -10,7 +10,9 @@ import { RolePermission } from '../../../domain/vo/role-permission.value-object'
 import { SYMBOLS } from '../../../common/constants/symbols'
 import { assertTenantAccess } from '../../authorization/operator-scope'
 import { syncTemplateNavigationToRole } from './template-navigation.sync'
+import { syncTemplateTerminalAccessToRole } from './template-terminal-access.sync'
 import { NavigationRepository } from '../../../domain/repositories/navigation.repository'
+import { TerminalAccessRepository } from '../../../domain/repositories/terminal-access.repository'
 import { EnsureTenantRoleInstanceFromTemplateCommand } from './ensure-tenant-role-instance-from-template.command'
 
 export type EnsureTenantRoleInstanceFromTemplateResult = {
@@ -27,7 +29,9 @@ export class EnsureTenantRoleInstanceFromTemplateHandler
     @Inject(SYMBOLS.REPO.ROLE)
     private readonly roleRepository: RoleRepository,
     @Inject(SYMBOLS.REPO.NAVIGATION)
-    private readonly navigationRepository: NavigationRepository
+    private readonly navigationRepository: NavigationRepository,
+    @Inject(SYMBOLS.REPO.TERMINAL_ACCESS)
+    private readonly terminalAccessRepository: TerminalAccessRepository
   ) {}
 
   async execute(command: EnsureTenantRoleInstanceFromTemplateCommand): Promise<EnsureTenantRoleInstanceFromTemplateResult> {
@@ -75,6 +79,7 @@ export class EnsureTenantRoleInstanceFromTemplateHandler
 
     const savedRole = await this.roleRepository.save(role)
     await syncTemplateNavigationToRole(this.navigationRepository, templateRole.id, savedRole.id)
+    await syncTemplateTerminalAccessToRole(this.terminalAccessRepository, templateRole.id, savedRole.id)
     return { role: savedRole, created: true }
   }
 }

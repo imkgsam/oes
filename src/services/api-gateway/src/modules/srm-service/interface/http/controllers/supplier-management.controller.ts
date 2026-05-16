@@ -1,9 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
-import {
-  PermissionCheckAll,
-  SRM_MANAGEMENT_PERMISSION_CODES
-} from '@oes/common/authorization'
+import { RequirePermissions, SRM_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { SupplierManagementService } from '../../../supplier-management.service'
@@ -27,7 +24,7 @@ export class SupplierManagementController {
   constructor(private readonly supplierManagementService: SupplierManagementService) {}
 
   @Get('suppliers')
-  @PermissionCheckAll([SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_PROFILE])
+  @RequirePermissions({ all: [SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_PROFILE] })
   @ApiOperation({ summary: 'Search SRM supplier profiles for the tenant master-data entry' })
   async searchSuppliers(
     @Param('tenantId') tenantId: string,
@@ -48,8 +45,10 @@ export class SupplierManagementController {
   }
 
   @Get('suppliers/:supplierId')
-  @PermissionCheckAll([SRM_MANAGEMENT_PERMISSION_CODES.VIEW_SUPPLIER_DETAIL])
-  @ApiOperation({ summary: 'Get one SRM supplier detail aggregate with contacts, addresses, and offerings' })
+  @RequirePermissions({ all: [SRM_MANAGEMENT_PERMISSION_CODES.VIEW_SUPPLIER_DETAIL] })
+  @ApiOperation({
+    summary: 'Get one SRM supplier detail aggregate with contacts, addresses, and offerings'
+  })
   async getSupplier(
     @Param('tenantId') tenantId: string,
     @Param('supplierId') supplierId: string,
@@ -59,7 +58,7 @@ export class SupplierManagementController {
   }
 
   @Post('suppliers')
-  @PermissionCheckAll([SRM_MANAGEMENT_PERMISSION_CODES.CREATE_SUPPLIER_PROFILE])
+  @RequirePermissions({ all: [SRM_MANAGEMENT_PERMISSION_CODES.CREATE_SUPPLIER_PROFILE] })
   @ApiOperation({ summary: 'Create one SRM supplier profile shell' })
   @ApiBody({ type: CreateSupplierProfileDto })
   async createSupplierProfile(
@@ -71,7 +70,7 @@ export class SupplierManagementController {
   }
 
   @Patch('suppliers/:supplierId/basics')
-  @PermissionCheckAll([SRM_MANAGEMENT_PERMISSION_CODES.UPDATE_SUPPLIER_PROFILE_BASICS])
+  @RequirePermissions({ all: [SRM_MANAGEMENT_PERMISSION_CODES.UPDATE_SUPPLIER_PROFILE_BASICS] })
   @ApiOperation({ summary: 'Update one SRM supplier profile basics only' })
   @ApiBody({ type: UpdateSupplierProfileBasicsDto })
   async updateSupplierProfileBasics(
@@ -89,7 +88,7 @@ export class SupplierManagementController {
   }
 
   @Post('suppliers/:supplierId/tenant-party-binding')
-  @PermissionCheckAll([SRM_MANAGEMENT_PERMISSION_CODES.BIND_SUPPLIER_TO_TENANT_PARTY])
+  @RequirePermissions({ all: [SRM_MANAGEMENT_PERMISSION_CODES.BIND_SUPPLIER_TO_TENANT_PARTY] })
   @ApiOperation({ summary: 'Bind one SRM supplier profile to its phase 1 active tenantPartyId' })
   @ApiBody({ type: BindSupplierToTenantPartyDto })
   async bindSupplierToTenantParty(
@@ -107,7 +106,7 @@ export class SupplierManagementController {
   }
 
   @Post('suppliers/:supplierId/contacts')
-  @PermissionCheckAll([SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_CONTACT])
+  @RequirePermissions({ all: [SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_CONTACT] })
   @ApiOperation({ summary: 'Create or update one SRM supplier contact' })
   @ApiBody({ type: UpsertSupplierContactDto })
   async upsertSupplierContact(
@@ -120,7 +119,7 @@ export class SupplierManagementController {
   }
 
   @Post('suppliers/:supplierId/addresses')
-  @PermissionCheckAll([SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_ADDRESS])
+  @RequirePermissions({ all: [SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_ADDRESS] })
   @ApiOperation({ summary: 'Create or update one SRM supplier address' })
   @ApiBody({ type: UpsertSupplierAddressDto })
   async upsertSupplierAddress(
@@ -133,7 +132,7 @@ export class SupplierManagementController {
   }
 
   @Patch('suppliers/:supplierId/status')
-  @PermissionCheckAll([SRM_MANAGEMENT_PERMISSION_CODES.CHANGE_SUPPLIER_STATUS])
+  @RequirePermissions({ all: [SRM_MANAGEMENT_PERMISSION_CODES.CHANGE_SUPPLIER_STATUS] })
   @ApiOperation({ summary: 'Change one SRM supplier profile lifecycle status' })
   @ApiBody({ type: ChangeSupplierStatusDto })
   async changeSupplierStatus(
@@ -146,7 +145,9 @@ export class SupplierManagementController {
   }
 
   @Get('suppliers/:supplierId/offerings')
-  @PermissionCheckAll([SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_OFFERINGS_BY_SUPPLIER])
+  @RequirePermissions({
+    all: [SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_OFFERINGS_BY_SUPPLIER]
+  })
   @ApiOperation({ summary: 'List one supplier offering directory keyed by supplierId' })
   async listSupplierOfferingsBySupplier(
     @Param('tenantId') tenantId: string,
@@ -167,7 +168,7 @@ export class SupplierManagementController {
   }
 
   @Get('items/:itemId/offerings')
-  @PermissionCheckAll([SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_OFFERINGS_BY_ITEM])
+  @RequirePermissions({ all: [SRM_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_OFFERINGS_BY_ITEM] })
   @ApiOperation({ summary: 'List one supplier offering directory keyed by itemId' })
   async listSupplierOfferingsByItem(
     @Param('tenantId') tenantId: string,
@@ -188,7 +189,7 @@ export class SupplierManagementController {
   }
 
   @Post('suppliers/:supplierId/offerings')
-  @PermissionCheckAll([SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_OFFERING])
+  @RequirePermissions({ all: [SRM_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_OFFERING] })
   @ApiOperation({ summary: 'Create or update one SRM supplier offering fact' })
   @ApiBody({ type: UpsertSupplierOfferingDto })
   async upsertSupplierOffering(
@@ -197,11 +198,6 @@ export class SupplierManagementController {
     @Body() body: UpsertSupplierOfferingDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.supplierManagementService.upsertSupplierOffering(
-      tenantId,
-      supplierId,
-      body,
-      source
-    )
+    return this.supplierManagementService.upsertSupplierOffering(tenantId, supplierId, body, source)
   }
 }

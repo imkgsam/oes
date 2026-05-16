@@ -87,4 +87,4 @@ merge 是高风险管理动作；完整审计链路、审批链与治理链当�
 - merge 结果会影响后续主体解析和绑定，但不能替代业务单据自己的历史快照。
 - 若未来需要 `UnmergeParties`、merge preview、merge approval 或批量治理，应单独新增 contract / feature packet。
 - redirect、history traceability、downstream effects 与引用修复链统一 deferred。
-- HR minimum 第一阶段不得消费 `party.merged` 或 `tenant_party.deactivated` 事件来修复 `Employee` / binding；相关修复链应在独立 party-HR governance feature 中冻结后再实现。
+- HR minimum 第一阶段不得消费 `party.merged` 或 `tenant_party.deactivated` 事件来修复 `Employee` / binding；HR 对象语义以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准，相关修复链应在独立 party-HR governance feature 中冻结后再实现。

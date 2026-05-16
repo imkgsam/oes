@@ -153,7 +153,10 @@ describe('role instance foundation sync', () => {
       prisma,
       new Map([
         ['item_master.item.list', 'perm-list-item'],
-        ['item_master.item_category.list', 'perm-list-item-category']
+        ['item_master.item_category.list', 'perm-list-item-category'],
+        ['item_master.attribute.list', 'perm-list-attribute'],
+        ['item_master.packaging.list', 'perm-list-packaging'],
+        ['item_master.bom.list', 'perm-list-bom']
       ])
     )
 
@@ -168,6 +171,24 @@ describe('role instance foundation sync', () => {
         {
           enabled: true,
           entryKey: 'master-data.item-category-management',
+          roleId: 'item-role-1',
+          terminal: 'DEFAULT'
+        },
+        {
+          enabled: true,
+          entryKey: 'master-data.item-attribute-management',
+          roleId: 'item-role-1',
+          terminal: 'DEFAULT'
+        },
+        {
+          enabled: true,
+          entryKey: 'master-data.item-packaging-management',
+          roleId: 'item-role-1',
+          terminal: 'DEFAULT'
+        },
+        {
+          enabled: true,
+          entryKey: 'master-data.item-bom-management',
           roleId: 'item-role-1',
           terminal: 'DEFAULT'
         }

@@ -9,6 +9,7 @@ import { getAuthenticatedSelfContext } from './self-security-context'
 
 const DEFAULT_HOME_PATH = '/workbench/home'
 const SYSTEM_HOME_PATH = '/platform/home'
+const PDA_FOUNDATION_ENTRY = 'pda.foundation'
 
 @Injectable()
 // Builds the minimal authenticated shell context needed for the front-end to enter the workbench.
@@ -51,9 +52,11 @@ export class SessionContextUseCase {
       accountResult.account?.avatarUrl,
       source
     )
+    const terminal = normalize(source.user?.terminal) ?? 'WEB'
     const navigation = await resolveManagedNavigation(
       this.sessionAccessSummaryUseCase,
-      source
+      source,
+      terminal
     )
 
     return {
@@ -86,6 +89,8 @@ export class SessionContextUseCase {
         actionCodes: []
       },
       scopeLevel: accountScope,
+      terminal,
+      allowedTerminals: normalizeStringArray(source.user?.allowedTerminals),
       ...(source.user?.passwordSetupRequired === true
         ? { passwordSetupRequired: true }
         : {})
@@ -134,7 +139,8 @@ function normalizeScopeLevel(scopeLevel?: string): 'SYSTEM' | 'TENANT' {
 // Resolves managed navigation and fails closed when the role navigation truth is unavailable.
 async function resolveManagedNavigation(
   useCase: SessionAccessSummaryUseCase,
-  source: DownstreamRequestSource
+  source: DownstreamRequestSource,
+  terminal: string
 ): Promise<SessionNavigationSummary> {
   const resolver = (useCase as any).resolveNavigation
   if (typeof resolver !== 'function') {
@@ -144,9 +150,13 @@ async function resolveManagedNavigation(
   let navigation: SessionNavigationSummary
 
   try {
-    navigation = await resolver.call(useCase, source, 'WEB')
+    navigation = await resolver.call(useCase, source, terminal)
   } catch {
     throw new InternalServerErrorException('managed navigation resolver failed')
+  }
+
+  if (!useManagedNavigation(navigation) && terminal === 'PDA') {
+    return buildPdaFoundationNavigation()
   }
 
   if (!useManagedNavigation(navigation)) {
@@ -154,6 +164,23 @@ async function resolveManagedNavigation(
   }
 
   return navigation
+}
+
+function normalizeStringArray(values?: string[]): string[] {
+  if (!Array.isArray(values)) {
+    return []
+  }
+
+  return values.map((value) => normalize(value)).filter(Boolean) as string[]
+}
+
+// Provides a safe Phase 1 PDA shell entry before managed PDA navigation is configured.
+function buildPdaFoundationNavigation(): SessionNavigationSummary {
+  return {
+    defaultEntry: PDA_FOUNDATION_ENTRY,
+    visibleEntries: [PDA_FOUNDATION_ENTRY],
+    fallbackReason: 'PDA_FOUNDATION_NAVIGATION'
+  }
 }
 
 // Accepts managed navigation only when it is complete enough for current tenant-web rendering.

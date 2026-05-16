@@ -3,6 +3,7 @@ import { ACCESS_DENIED, ExceptionFactory } from '@oes/common/exceptions'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
+  RequirePermissions,
   AuthenticatedOperatorGuard,
   getAuthenticatedGrpcRequestContext,
   GrpcRequestContextInterceptor,
@@ -12,7 +13,6 @@ import {
   OPERATOR_PERMISSION_RESOLVER,
   OperatorPermissionResolver,
   PermissionGuard,
-  RequirePermission,
   RequireAuthenticatedOperator
 } from '@oes/common/authorization'
 import {
@@ -105,7 +105,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     private readonly permissionResolver: OperatorPermissionResolver
   ) {}
 
-  @RequirePermission(IDENTITY_MACHINE_PERMISSION_CODES.CREATE_API_KEY)
+  @RequirePermissions({ all: [IDENTITY_MACHINE_PERMISSION_CODES.CREATE_API_KEY] })
   async createApiKey(request: CreateApiKeyRequest): Promise<CreateApiKeyResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
@@ -143,7 +143,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_MACHINE_PERMISSION_CODES.CREATE_SERVICE_ACCOUNT)
+  @RequirePermissions({ all: [IDENTITY_MACHINE_PERMISSION_CODES.CREATE_SERVICE_ACCOUNT] })
   async createServiceAccount(
     request: CreateServiceAccountRequest
   ): Promise<CreateServiceAccountResponse> {
@@ -188,19 +188,20 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT)
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT] })
   async getAccountDeletionImpact(
     request: GetAccountDeletionImpactRequest
   ): Promise<GetAccountDeletionImpactResponse> {
     const operatorScope = getOptionalOperatorScope(request)
-    const result = await this.queryBus.execute<GetAccountDeletionImpactQuery, AccountDeletionImpactView>(
-      new GetAccountDeletionImpactQuery(request.accountId!, operatorScope)
-    )
+    const result = await this.queryBus.execute<
+      GetAccountDeletionImpactQuery,
+      AccountDeletionImpactView
+    >(new GetAccountDeletionImpactQuery(request.accountId!, operatorScope))
 
     return IdentityGrpcPresenter.toAccountDeletionImpact(result)
   }
 
-  @RequirePermission(IDENTITY_MACHINE_PERMISSION_CODES.REVOKE_API_KEY)
+  @RequirePermissions({ all: [IDENTITY_MACHINE_PERMISSION_CODES.REVOKE_API_KEY] })
   async revokeApiKey(request: RevokeApiKeyRequest): Promise<RevokeApiKeyResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
@@ -229,7 +230,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_MACHINE_PERMISSION_CODES.ROTATE_API_KEY)
+  @RequirePermissions({ all: [IDENTITY_MACHINE_PERMISSION_CODES.ROTATE_API_KEY] })
   async rotateApiKey(request: RotateApiKeyRequest): Promise<RotateApiKeyResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
@@ -267,7 +268,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_MACHINE_PERMISSION_CODES.UPDATE_SERVICE_ACCOUNT_STATUS)
+  @RequirePermissions({ all: [IDENTITY_MACHINE_PERMISSION_CODES.UPDATE_SERVICE_ACCOUNT_STATUS] })
   async setServiceAccountEnabled(
     request: SetServiceAccountEnabledRequest
   ): Promise<SetServiceAccountEnabledResponse> {
@@ -308,7 +309,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT)
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.CREATE_ACCOUNT] })
   async createUserAccount(request: CreateUserAccountRequest): Promise<CreateUserAccountResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
@@ -551,7 +552,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE)
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE] })
   async updateUserBasicInfo(
     request: UpdateUserBasicInfoRequest
   ): Promise<UpdateUserBasicInfoResponse> {
@@ -597,7 +598,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT)
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.DELETE_ACCOUNT] })
   async deleteAccount(request: DeleteAccountRequest): Promise<DeleteAccountResponse> {
     const operatorId = getRequiredOperatorId(request)
     const operatorScope = getOptionalOperatorScope(request)
@@ -634,7 +635,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_WORK_EMAIL)
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_WORK_EMAIL] })
   async assignAccountWorkEmailAsset(
     request: AssignAccountWorkEmailAssetRequest
   ): Promise<AssignAccountWorkEmailAssetResponse> {
@@ -678,7 +679,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_WORK_PHONE)
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.ASSIGN_WORK_PHONE] })
   async assignAccountWorkPhoneAsset(
     request: AssignAccountWorkPhoneAssetRequest
   ): Promise<AssignAccountWorkPhoneAssetResponse> {
@@ -722,7 +723,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.REVOKE_WORK_EMAIL)
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.REVOKE_WORK_EMAIL] })
   async revokeAccountWorkEmailAsset(
     request: RevokeAccountWorkEmailAssetRequest
   ): Promise<RevokeAccountWorkEmailAssetResponse> {
@@ -758,7 +759,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.REVOKE_WORK_PHONE)
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.REVOKE_WORK_PHONE] })
   async revokeAccountWorkPhoneAsset(
     request: RevokeAccountWorkPhoneAssetRequest
   ): Promise<RevokeAccountWorkPhoneAssetResponse> {
@@ -794,7 +795,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_WORK_EMAIL)
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_WORK_EMAIL] })
   async setAccountPrimaryWorkEmailAsset(
     request: SetAccountPrimaryWorkEmailAssetRequest
   ): Promise<SetAccountPrimaryWorkEmailAssetResponse> {
@@ -830,7 +831,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_WORK_PHONE)
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_PRIMARY_WORK_PHONE] })
   async setAccountPrimaryWorkPhoneAsset(
     request: SetAccountPrimaryWorkPhoneAssetRequest
   ): Promise<SetAccountPrimaryWorkPhoneAssetResponse> {
@@ -866,7 +867,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.SET_WORK_EMAIL_STATUS)
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_WORK_EMAIL_STATUS] })
   async setAccountWorkEmailAssetStatus(
     request: SetAccountWorkEmailAssetStatusRequest
   ): Promise<SetAccountWorkEmailAssetStatusResponse> {
@@ -908,7 +909,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
     )
   }
 
-  @RequirePermission(IDENTITY_ACCOUNT_PERMISSION_CODES.SET_WORK_PHONE_STATUS)
+  @RequirePermissions({ all: [IDENTITY_ACCOUNT_PERMISSION_CODES.SET_WORK_PHONE_STATUS] })
   async setAccountWorkPhoneAssetStatus(
     request: SetAccountWorkPhoneAssetStatusRequest
   ): Promise<SetAccountWorkPhoneAssetStatusResponse> {
@@ -1039,7 +1040,11 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   private async enforceAccountProfileUpdatePermissions(
     request: UpdateAccountProfileRequest
   ): Promise<void> {
-    if (request.avatarAssetId !== undefined || request.displayName !== undefined || request.bio !== undefined) {
+    if (
+      request.avatarAssetId !== undefined ||
+      request.displayName !== undefined ||
+      request.bio !== undefined
+    ) {
       await this.requireOperatorPermission(
         request,
         IDENTITY_ACCOUNT_PERMISSION_CODES.UPDATE_ACCOUNT_PROFILE
@@ -1055,10 +1060,7 @@ export class IdentityManagementGrpcController implements IdentityManagementServi
   }
 
   // Resolves one operator permission code from the authenticated gRPC request context for interface-layer authorization checks.
-  private async requireOperatorPermission(
-    request: object,
-    permissionCode: string
-  ): Promise<void> {
+  private async requireOperatorPermission(request: object, permissionCode: string): Promise<void> {
     const operatorContext = getAuthenticatedGrpcRequestContext(request)?.operatorContext
 
     if (!operatorContext) {

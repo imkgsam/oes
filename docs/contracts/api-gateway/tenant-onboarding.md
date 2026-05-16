@@ -1,5 +1,7 @@
 # API Gateway Tenant Onboarding Contract
 
+> Gateway 不拥有 tenant onboarding grant、Role、AccountRole 或授权判定真相；permission 侧服务设计边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。涉及 HR `Employee / Employment`、员工生命周期或正式 `人 -> org` 归属时，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；本文只描述 Gateway BFF contract。
+
 ## 1. 目的
 
 定义 tenant-web / system admin 发起 tenant onboarding 的 HTTP BFF contract。
@@ -11,6 +13,7 @@ Gateway 只负责客户端入口、鉴权、DTO 校验、下游调用与展示�
 ## 2. 下游 owner
 
 - 主要下游：`tenant-org-service`
+- Tenant onboarding、`Tenant` 与 `organizationPartyId` 边界以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；Gateway 不重新定义 onboarding 状态机或租户真相。
 - Gateway 调用：
   - `StartTenantOnboarding`
   - `GetTenantOnboarding`

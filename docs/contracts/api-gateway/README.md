@@ -23,6 +23,10 @@
 
 - [auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-login.md)
   - 登录主流程与登录后初始化上下文
+- [pda-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/pda-auth-bff-login.md)
+  - PDA 专用登录闭环与 session context 契约
+- [kiosk-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/kiosk-auth-bff-login.md)
+  - KIOSK 专用登录闭环与 session context 契约
 - [auth-bff-extension-connect.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-extension-connect.md)
   - 浏览器插件显式连接授权与扩展端 session 建立契约
 - [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
@@ -42,7 +46,7 @@
 - [browser-prospecting-workspace.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/browser-prospecting-workspace.md)
   - Chrome 插件销售背调工作区 BFF 契约草案；当前为设计对齐用，尚未实现
 
-## 4. 真相源位置
+## 4. 契约实现参考
 
 前端或调用方在阅读黑盒文档之外，还应同时参考当前代码中的契约实现：
 
@@ -51,12 +55,14 @@
 - ViewModel / presenter
 - Swagger
 
-其中 `auth-bff` 当前主要真相源位于：
+其中 `auth-bff` 当前主要实现参考位于：
 
 - [auth.controller.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/auth-bff/interfaces/http/controllers/auth.controller.ts)
 - [login.dto.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/auth-bff/interfaces/http/dtos/login.dto.ts)
 - [auth-response.view-model.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/auth-bff/interfaces/http/view-models/auth-response.view-model.ts)
 - [session-context.view-model.ts](/Users/acehood/Documents/GitHub/oes/src/services/api-gateway/src/modules/auth-bff/interfaces/http/view-models/session-context.view-model.ts)
+
+这些代码文件只作为 HTTP contract 实现参考，不定义 `auth-service` 服务设计。`auth-service` 的长期职责、边界、session、token、MFA、OTP 与 self-service / admin-management 语义只以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。
 
 ## 5. 目录边界
 

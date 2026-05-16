@@ -1,0 +1,16 @@
+# PDA web build output
+node_modules/
+web/dist/
+web/node_modules/
+web/.vite/
+web/coverage/
+
+# PDA Android build output
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+
+# Local editor and OS files
+.DS_Store
+*.iml

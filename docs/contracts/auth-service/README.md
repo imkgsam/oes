@@ -4,6 +4,10 @@
 
 本目录用于提供 `auth-service` 的黑盒接口文档。
 
+`auth-service` 的唯一稳定服务设计真相源是 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本目录只描述黑盒接口、字段、错误与调用语义，不重新定义服务职责、核心对象或长期边界。
+
+涉及角色、权限、policy、access summary、navigation governance 或 terminal access policy 的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
+
 这些文档面向：
 
 - `api-gateway`
@@ -19,7 +23,7 @@
 
 这些文档不是 proto 副本。
 
-契约真相源仍然是：
+Proto 契约来源仍然是：
 
 - [auth.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/auth_service/auth.proto)
 

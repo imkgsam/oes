@@ -105,7 +105,7 @@ describe('Prisma MES mold repository L2', () => {
         }
       ],
       defaultLifeLimit: '10',
-      defaultLifeUnit: 'USE'
+      defaultLifeUnit: 'CASTING_CYCLE'
     })
 
     const productionMold = await management.registerProductionMold({
@@ -148,7 +148,7 @@ describe('Prisma MES mold repository L2', () => {
       },
       usageQuantity: '6',
       lifeDelta: '6',
-      lifeUnit: 'USE',
+      lifeUnit: 'CASTING_CYCLE',
       captureSource: 'CHECKLIST'
     })
 
@@ -194,7 +194,7 @@ describe('Prisma MES mold repository L2', () => {
         }
       ],
       defaultLifeLimit: '10',
-      defaultLifeUnit: 'USE'
+      defaultLifeUnit: 'CASTING_CYCLE'
     })
 
     const input = {
@@ -275,7 +275,7 @@ describe('Prisma MES mold repository L2', () => {
         }
       ],
       defaultLifeLimit: '10',
-      defaultLifeUnit: 'USE'
+      defaultLifeUnit: 'CASTING_CYCLE'
     })
     const productionMold = await management.registerProductionMold({
       ...commandContext(prefix, `${prefix}_cmd_mold_counter`),

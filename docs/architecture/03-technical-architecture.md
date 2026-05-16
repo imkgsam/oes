@@ -1,5 +1,7 @@
 # OES 总体技术架构
 
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述项目级技术架构。
+
 ## 1. 总体风格
 
 OES 采用：
@@ -304,7 +306,7 @@ OES 必须从平台层面支持多租户隔离。
 
 ### 9.4 Party
 
-负责统一表示交易与法律主体，并通过 `TenantParty` 提供租户内受控引用基础；不承载客户、供应商、员工等业务角色。
+负责统一表示交易与法律主体；具体职责、核心对象、`TenantParty` 引用规则与 non-goals 以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
 
 ### 9.5 Tenant / Org
 
@@ -356,7 +358,7 @@ OES 必须平台化提供以下横向能力：
 - `auth-service`
 - `identity-service`
 - `permission-service`
-- `party-service`（由既有 `entity-service` 概念演进）
+- `party-service`
 - `src/common` 中已有 transport、registry、logging、auth、contracts 等通用能力
 
 因此当前阶段的首要任务不是继续增加更多业务实现，而是：

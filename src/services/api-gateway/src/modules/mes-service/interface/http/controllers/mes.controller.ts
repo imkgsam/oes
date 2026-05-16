@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { MES_MANAGEMENT_PERMISSION_CODES, PermissionCheckAll } from '@oes/common/authorization'
+import { RequirePermissions, MES_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { MesService } from '../../../mes.service'
@@ -35,7 +35,7 @@ export class MesController {
   constructor(private readonly mesService: MesService) {}
 
   @Get('production-specs')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_SPEC])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_SPEC] })
   @ApiOperation({ summary: 'List MES production specs for mold setup' })
   async listProductionSpecs(
     @Param('tenantId') tenantId: string,
@@ -46,7 +46,7 @@ export class MesController {
   }
 
   @Get('production-specs/:productionSpecId')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_SPEC])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_SPEC] })
   @ApiOperation({ summary: 'Get one MES production spec detail snapshot' })
   async getProductionSpec(
     @Param('tenantId') tenantId: string,
@@ -57,7 +57,7 @@ export class MesController {
   }
 
   @Post('production-specs')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC] })
   @ApiOperation({ summary: 'Create one MES production spec draft' })
   @ApiBody({ type: CreateProductionSpecDto })
   async createProductionSpec(
@@ -69,7 +69,7 @@ export class MesController {
   }
 
   @Post('production-specs/:productionSpecId/activate')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC] })
   @ApiOperation({ summary: 'Activate one MES production spec' })
   @ApiBody({ type: ActivateProductionSpecDto })
   async activateProductionSpec(
@@ -82,7 +82,7 @@ export class MesController {
   }
 
   @Post('production-specs/:productionSpecId/update')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC] })
   @ApiOperation({ summary: 'Update one MES production spec' })
   @ApiBody({ type: UpdateProductionSpecDto })
   async updateProductionSpec(
@@ -95,7 +95,7 @@ export class MesController {
   }
 
   @Post('production-specs/:productionSpecId/retire')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_SPEC] })
   @ApiOperation({ summary: 'Retire one MES production spec' })
   @ApiBody({ type: RetireProductionSpecDto })
   async retireProductionSpec(
@@ -108,7 +108,7 @@ export class MesController {
   }
 
   @Get('mold-designs')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_MOLD_DESIGN])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_MOLD_DESIGN] })
   @ApiOperation({ summary: 'List MES mold designs' })
   async listMoldDesigns(
     @Param('tenantId') tenantId: string,
@@ -119,7 +119,7 @@ export class MesController {
   }
 
   @Get('mold-designs/:moldDesignId')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_MOLD_DESIGN])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_MOLD_DESIGN] })
   @ApiOperation({ summary: 'Get one MES mold design detail snapshot' })
   async getMoldDesign(
     @Param('tenantId') tenantId: string,
@@ -130,7 +130,7 @@ export class MesController {
   }
 
   @Post('mold-designs')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MOLD_DESIGN])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MOLD_DESIGN] })
   @ApiOperation({ summary: 'Register one MES mold design' })
   @ApiBody({ type: RegisterMoldDesignDto })
   async registerMoldDesign(
@@ -142,7 +142,7 @@ export class MesController {
   }
 
   @Post('master-molds')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD] })
   @ApiOperation({ summary: 'Register one MES master mold' })
   @ApiBody({ type: RegisterMasterMoldDto })
   async registerMasterMold(
@@ -154,7 +154,7 @@ export class MesController {
   }
 
   @Post('production-molds')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD] })
   @ApiOperation({ summary: 'Register one MES production mold' })
   @ApiBody({ type: RegisterProductionMoldDto })
   async registerProductionMold(
@@ -166,7 +166,7 @@ export class MesController {
   }
 
   @Get('production-molds')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD] })
   @ApiOperation({ summary: 'List MES production molds' })
   async listProductionMolds(
     @Param('tenantId') tenantId: string,
@@ -177,7 +177,7 @@ export class MesController {
   }
 
   @Get('mold-designs/:moldDesignId/production-molds')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD] })
   @ApiOperation({ summary: 'List MES production molds by mold design' })
   async listProductionMoldsByDesign(
     @Param('tenantId') tenantId: string,
@@ -189,7 +189,7 @@ export class MesController {
   }
 
   @Get('production-molds/:productionMoldId')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD] })
   @ApiOperation({ summary: 'Get one MES production mold detail snapshot' })
   async getProductionMold(
     @Param('tenantId') tenantId: string,
@@ -200,7 +200,7 @@ export class MesController {
   }
 
   @Get('tooling/:toolingId/current-placement')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_TOOLING_INSTALLATION])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_TOOLING_INSTALLATION] })
   @ApiOperation({ summary: 'Get one MES tooling current placement' })
   async getToolingCurrentPlacement(
     @Param('tenantId') tenantId: string,
@@ -212,7 +212,7 @@ export class MesController {
   }
 
   @Post('tooling/:toolingId/move')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_TOOLING_INSTALLATION])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_TOOLING_INSTALLATION] })
   @ApiOperation({ summary: 'Move one MES tooling object to storage or carrier resource' })
   @ApiBody({ type: MoveToolingDto })
   async moveTooling(
@@ -225,7 +225,7 @@ export class MesController {
   }
 
   @Post('tooling/:toolingId/install')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_TOOLING_INSTALLATION])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_TOOLING_INSTALLATION] })
   @ApiOperation({ summary: 'Install one MES tooling object on a work center or work unit' })
   @ApiBody({ type: InstallToolingDto })
   async installTooling(
@@ -238,7 +238,7 @@ export class MesController {
   }
 
   @Post('tooling-installations/:toolingInstallationId/unmount')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_TOOLING_INSTALLATION])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_TOOLING_INSTALLATION] })
   @ApiOperation({ summary: 'Unmount one MES tooling installation' })
   @ApiBody({ type: UnmountToolingDto })
   async unmountTooling(
@@ -251,7 +251,7 @@ export class MesController {
   }
 
   @Post('production-molds/:productionMoldId/scrap')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD] })
   @ApiOperation({ summary: 'Scrap one MES production mold' })
   @ApiBody({ type: ScrapProductionMoldDto })
   async scrapProductionMold(
@@ -264,7 +264,7 @@ export class MesController {
   }
 
   @Get('work-centers/:workCenterId/current-molds')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_TOOLING_INSTALLATION])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_TOOLING_INSTALLATION] })
   @ApiOperation({ summary: 'List current molds installed on one MES work center' })
   async listCurrentMoldsByWorkCenter(
     @Param('tenantId') tenantId: string,
@@ -276,7 +276,7 @@ export class MesController {
   }
 
   @Get('mold-life-counters')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MOLD_LIFE])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_MOLD_LIFE] })
   @ApiOperation({ summary: 'List MES mold life counters' })
   async listMoldLifeCounters(
     @Param('tenantId') tenantId: string,
@@ -287,7 +287,7 @@ export class MesController {
   }
 
   @Get('production-molds/:productionMoldId/usage-history')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD])
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD] })
   @ApiOperation({ summary: 'Get one production mold usage history' })
   async getMoldUsageHistory(
     @Param('tenantId') tenantId: string,
@@ -299,8 +299,10 @@ export class MesController {
   }
 
   @Get('daily-mold-checklists')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.READ_TOOLING_INSTALLATION])
-  @ApiOperation({ summary: 'Print the daily MES mold checklist for web-stage manual usage capture' })
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_TOOLING_INSTALLATION] })
+  @ApiOperation({
+    summary: 'Print the daily MES mold checklist for web-stage manual usage capture'
+  })
   async printDailyMoldChecklist(
     @Param('tenantId') tenantId: string,
     @Query() query: PrintDailyMoldChecklistDto,
@@ -310,8 +312,10 @@ export class MesController {
   }
 
   @Post('daily-mold-checklists/:checklistDate/usage-batch')
-  @PermissionCheckAll([MES_MANAGEMENT_PERMISSION_CODES.RECORD_MOLD_USAGE])
-  @ApiOperation({ summary: 'Record checked daily mold usage rows as idempotent MES usage commands' })
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.RECORD_MOLD_USAGE] })
+  @ApiOperation({
+    summary: 'Record checked daily mold usage rows as idempotent MES usage commands'
+  })
   @ApiBody({ type: RecordDailyMoldUsageBatchDto })
   async recordDailyMoldUsageBatch(
     @Param('tenantId') tenantId: string,

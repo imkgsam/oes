@@ -97,7 +97,7 @@ export namespace MesApi {
     outputs?: MoldDesignOutput[]
     productionMethodTags?: string[]
     status?: string | number
-    supersedesDesignId?: string
+    supersedesMoldDesignId?: string
     updatedAt?: string
   }
 
@@ -106,7 +106,7 @@ export namespace MesApi {
     keyword?: string
     page?: number
     pageSize?: number
-    productionMethodTag?: string
+    productionSpecId?: string
     status?: string
   }
 
@@ -142,6 +142,7 @@ export namespace MesApi {
     productionMethodTags?: string[]
     reason?: string
     revisionCode?: string
+    supersedesMoldDesignId?: string
   }
 
   export interface ProductionMold {
@@ -237,7 +238,6 @@ export namespace MesApi {
       moldDesignOutputOptionId?: string
       toolingInstallationId: string
       productionMoldId: string
-      moldPosition?: string
       usageQuantity?: string
       workCenterRef?: WorkCenterRef
       workUnitRef?: WorkUnitRef
@@ -293,6 +293,48 @@ export namespace MesApi {
     toolingInstallationId?: string
     workCenterRef?: WorkCenterRef
     workUnitRef?: WorkUnitRef
+  }
+
+  export interface MoldUsageHistoryEntry {
+    auditRef?: unknown
+    entryType: string | number
+    happenedAt?: string
+    productionMoldId: string
+    summary?: string
+  }
+
+  export interface MoldUsageHistoryResult {
+    entries: MoldUsageHistoryEntry[]
+    total: number
+  }
+
+  export interface ListMoldLifeCountersQuery {
+    page?: number
+    pageSize?: number
+    productionMoldId?: string
+    warningLevel?: string
+  }
+
+  export interface MoldLifeCounter {
+    lastAdjustedAt?: string
+    lastUsageRecordId?: string
+    lifeUnit: string
+    limitValue?: string
+    moldLifeCounterId: string
+    productionMoldId: string
+    usedValue: string
+    warningThresholdValue?: string
+  }
+
+  export interface ListMoldLifeCountersResult {
+    counters: MoldLifeCounter[]
+    total: number
+  }
+
+  export interface MoveProductionMoldPayload {
+    reason?: string
+    toCarrierResourceRef?: CarrierResourceRef
+    toStorageResourceRef?: StorageResourceRef
   }
 }
 
@@ -376,11 +418,53 @@ export async function getToolingCurrentPlacementApi(tenantId: string, toolingId:
   )
 }
 
+/** getMoldUsageHistoryApi loads flattened lifecycle and usage facts for one production mold. */
+export async function getMoldUsageHistoryApi(
+  tenantId: string,
+  productionMoldId: string,
+  params: { from?: string; page?: number; pageSize?: number; to?: string }
+) {
+  return requestClient.get<MesApi.MoldUsageHistoryResult>(
+    `/mes/tenants/${tenantId}/production-molds/${productionMoldId}/usage-history`,
+    { params }
+  )
+}
+
+/** listMoldLifeCountersApi loads independent mold life counters for warnings and detail panels. */
+export async function listMoldLifeCountersApi(
+  tenantId: string,
+  params: MesApi.ListMoldLifeCountersQuery
+) {
+  return requestClient.get<MesApi.ListMoldLifeCountersResult>(
+    `/mes/tenants/${tenantId}/mold-life-counters`,
+    { params }
+  )
+}
+
+/** moveProductionMoldApi moves one mold tooling object between storage and carrier references. */
+export async function moveProductionMoldApi(
+  tenantId: string,
+  productionMoldId: string,
+  payload: MesApi.MoveProductionMoldPayload
+) {
+  return requestClient.post<MesApi.ToolingPlacementSummary>(
+    `/mes/tenants/${tenantId}/tooling/${productionMoldId}/move`,
+    payload
+  )
+}
+
 /** installProductionMoldApi installs one production mold as Tooling(type=MOLD). */
 export async function installProductionMoldApi(
   tenantId: string,
   productionMoldId: string,
-  payload: { moldPosition?: string; reason?: string; workCenterRef: MesApi.WorkCenterRef; workUnitRef?: MesApi.WorkUnitRef }
+  payload: {
+    cavityPosition?: string
+    moldPosition?: string
+    reason?: string
+    setupParameters?: string
+    workCenterRef: MesApi.WorkCenterRef
+    workUnitRef?: MesApi.WorkUnitRef
+  }
 ) {
   return requestClient.post<{ toolingInstallation: MesApi.ToolingInstallation }>(
     `/mes/tenants/${tenantId}/tooling/${productionMoldId}/install`,

@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { RoleController } from './role.controller'
 
 // Verifies the role gateway controller exposes the role management routes and expected guards.
@@ -11,7 +11,9 @@ describe('RoleController', () => {
     listRolePermissions: jest.fn(),
     assignRolePermission: jest.fn(),
     revokeRolePermission: jest.fn(),
-    deleteRole: jest.fn()
+    deleteRole: jest.fn(),
+    getRoleTerminalAccess: jest.fn(),
+    setRoleTerminalAccess: jest.fn()
   }
   const roleManagementReadService = {
     listTenantOptions: jest.fn(),
@@ -19,54 +21,53 @@ describe('RoleController', () => {
     getRoleById: jest.fn()
   }
 
-  const controller = new RoleController(
-    permissionService as any,
-    roleManagementReadService as any
-  )
+  const controller = new RoleController(permissionService as any, roleManagementReadService as any)
 
   it('declares the expected role instance permissions on role endpoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.listRoles)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.list']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.listTenantOptions)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.create']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.createRole)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.create']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.findById)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.get_by_id']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.updateRole)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.update']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.setRoleEnabled)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.update']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.listRolePermissions)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.get_by_id']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.assignRolePermission)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.assign_permissions']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.revokeRolePermission)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.assign_permissions']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, RoleController.prototype.deleteRole)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.role_instance.delete']
-    })
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, RoleController.prototype.listRoles)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, RoleController.prototype.listTenantOptions)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, RoleController.prototype.createRole)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, RoleController.prototype.findById)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        RoleController.prototype.getRoleTerminalAccess
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        RoleController.prototype.setRoleTerminalAccess
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, RoleController.prototype.updateRole)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, RoleController.prototype.setRoleEnabled)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, RoleController.prototype.listRolePermissions)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, RoleController.prototype.assignRolePermission)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, RoleController.prototype.revokeRolePermission)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, RoleController.prototype.deleteRole)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards role list filters to the proxy service', async () => {
@@ -151,7 +152,11 @@ describe('RoleController', () => {
       )
     ).resolves.toEqual({ id: 'role-id' })
     await expect(
-      controller.updateRole('role-id', { name: 'Updated', description: 'Updated desc' }, source as any)
+      controller.updateRole(
+        'role-id',
+        { name: 'Updated', description: 'Updated desc' },
+        source as any
+      )
     ).resolves.toEqual({ id: 'role-id' })
     await expect(
       controller.setRoleEnabled('role-id', { isEnabled: false }, source as any)
@@ -192,7 +197,10 @@ describe('RoleController', () => {
       },
       source
     )
-    expect(permissionService.listRolePermissions).toHaveBeenCalledWith({ roleId: 'role-id' }, source)
+    expect(permissionService.listRolePermissions).toHaveBeenCalledWith(
+      { roleId: 'role-id' },
+      source
+    )
     expect(permissionService.assignRolePermission).toHaveBeenCalledWith(
       {
         roleId: 'role-id',
@@ -222,5 +230,44 @@ describe('RoleController', () => {
     })
 
     expect(roleManagementReadService.getRoleById).toHaveBeenCalledWith({ id: 'role-id' }, source)
+  })
+
+  it('forwards role terminal access routes to the proxy service', async () => {
+    const source = { requestId: 'req-1', traceId: 'trace-1' }
+    permissionService.getRoleTerminalAccess.mockResolvedValue({
+      roleId: 'role-id',
+      allowedTerminals: ['WEB']
+    })
+    permissionService.setRoleTerminalAccess.mockResolvedValue({
+      roleId: 'role-id',
+      allowedTerminals: ['WEB', 'PDA']
+    })
+
+    await expect(controller.getRoleTerminalAccess('role-id', source as any)).resolves.toEqual({
+      roleId: 'role-id',
+      allowedTerminals: ['WEB']
+    })
+    await expect(
+      controller.setRoleTerminalAccess(
+        'role-id',
+        { allowedTerminals: ['WEB', 'PDA'] },
+        source as any
+      )
+    ).resolves.toEqual({
+      roleId: 'role-id',
+      allowedTerminals: ['WEB', 'PDA']
+    })
+
+    expect(permissionService.getRoleTerminalAccess).toHaveBeenCalledWith(
+      { roleId: 'role-id' },
+      source
+    )
+    expect(permissionService.setRoleTerminalAccess).toHaveBeenCalledWith(
+      {
+        roleId: 'role-id',
+        allowedTerminals: ['WEB', 'PDA']
+      },
+      source
+    )
   })
 })

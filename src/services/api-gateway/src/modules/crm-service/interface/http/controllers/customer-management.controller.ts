@@ -1,9 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
-import {
-  CRM_MANAGEMENT_PERMISSION_CODES,
-  PermissionCheckAll
-} from '@oes/common/authorization'
+import { RequirePermissions, CRM_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { CustomerManagementService } from '../../../customer-management.service'
@@ -26,7 +23,7 @@ export class CustomerManagementController {
   constructor(private readonly customerManagementService: CustomerManagementService) {}
 
   @Get('customers')
-  @PermissionCheckAll([CRM_MANAGEMENT_PERMISSION_CODES.LIST_CUSTOMER_ACCOUNT])
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.LIST_CUSTOMER_ACCOUNT] })
   @ApiOperation({ summary: 'Search CRM customer accounts for the tenant master-data entry' })
   async searchCustomerAccounts(
     @Param('tenantId') tenantId: string,
@@ -47,7 +44,7 @@ export class CustomerManagementController {
   }
 
   @Get('selectable-customers')
-  @PermissionCheckAll([CRM_MANAGEMENT_PERMISSION_CODES.SEARCH_SELECTABLE_CUSTOMERS])
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.SEARCH_SELECTABLE_CUSTOMERS] })
   @ApiOperation({ summary: 'Search selector-eligible CRM customers for downstream sales adoption' })
   async searchSelectableCustomers(
     @Param('tenantId') tenantId: string,
@@ -66,8 +63,10 @@ export class CustomerManagementController {
   }
 
   @Get('customers/:customerAccountId')
-  @PermissionCheckAll([CRM_MANAGEMENT_PERMISSION_CODES.VIEW_CUSTOMER_ACCOUNT_DETAIL])
-  @ApiOperation({ summary: 'Get one CRM customer account detail aggregate with contacts and addresses' })
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.VIEW_CUSTOMER_ACCOUNT_DETAIL] })
+  @ApiOperation({
+    summary: 'Get one CRM customer account detail aggregate with contacts and addresses'
+  })
   async getCustomerAccount(
     @Param('tenantId') tenantId: string,
     @Param('customerAccountId') customerAccountId: string,
@@ -81,7 +80,7 @@ export class CustomerManagementController {
   }
 
   @Post('customers')
-  @PermissionCheckAll([CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CUSTOMER_ACCOUNT])
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CUSTOMER_ACCOUNT] })
   @ApiOperation({ summary: 'Create one CRM customer account shell' })
   @ApiBody({ type: CreateCustomerAccountDto })
   async createCustomerAccount(
@@ -93,7 +92,7 @@ export class CustomerManagementController {
   }
 
   @Patch('customers/:customerAccountId/basics')
-  @PermissionCheckAll([CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CUSTOMER_ACCOUNT_BASICS])
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.UPDATE_CUSTOMER_ACCOUNT_BASICS] })
   @ApiOperation({ summary: 'Update one CRM customer account basics only' })
   @ApiBody({ type: UpdateCustomerAccountBasicsDto })
   async updateCustomerAccountBasics(
@@ -111,8 +110,12 @@ export class CustomerManagementController {
   }
 
   @Post('customers/:customerAccountId/tenant-party-binding')
-  @PermissionCheckAll([CRM_MANAGEMENT_PERMISSION_CODES.BIND_CUSTOMER_ACCOUNT_TO_TENANT_PARTY])
-  @ApiOperation({ summary: 'Bind one CRM customer account to its phase 1 active primary tenantPartyId' })
+  @RequirePermissions({
+    all: [CRM_MANAGEMENT_PERMISSION_CODES.BIND_CUSTOMER_ACCOUNT_TO_TENANT_PARTY]
+  })
+  @ApiOperation({
+    summary: 'Bind one CRM customer account to its phase 1 active primary tenantPartyId'
+  })
   @ApiBody({ type: BindCustomerAccountToTenantPartyDto })
   async bindCustomerAccountToTenantParty(
     @Param('tenantId') tenantId: string,
@@ -129,7 +132,7 @@ export class CustomerManagementController {
   }
 
   @Post('customers/:customerAccountId/contacts')
-  @PermissionCheckAll([CRM_MANAGEMENT_PERMISSION_CODES.UPSERT_CUSTOMER_CONTACT])
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.UPSERT_CUSTOMER_CONTACT] })
   @ApiOperation({ summary: 'Create or update one CRM customer contact' })
   @ApiBody({ type: UpsertCustomerContactDto })
   async upsertCustomerContact(
@@ -147,7 +150,7 @@ export class CustomerManagementController {
   }
 
   @Post('customers/:customerAccountId/addresses')
-  @PermissionCheckAll([CRM_MANAGEMENT_PERMISSION_CODES.UPSERT_CUSTOMER_ADDRESS])
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.UPSERT_CUSTOMER_ADDRESS] })
   @ApiOperation({ summary: 'Create or update one CRM customer address' })
   @ApiBody({ type: UpsertCustomerAddressDto })
   async upsertCustomerAddress(
@@ -165,7 +168,7 @@ export class CustomerManagementController {
   }
 
   @Patch('customers/:customerAccountId/status')
-  @PermissionCheckAll([CRM_MANAGEMENT_PERMISSION_CODES.CHANGE_CUSTOMER_STATUS])
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.CHANGE_CUSTOMER_STATUS] })
   @ApiOperation({ summary: 'Change one CRM customer account lifecycle status' })
   @ApiBody({ type: ChangeCustomerStatusDto })
   async changeCustomerStatus(

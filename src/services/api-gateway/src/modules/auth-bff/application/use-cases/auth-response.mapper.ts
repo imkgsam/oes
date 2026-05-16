@@ -32,7 +32,11 @@ export function toAuthResponseViewModel(result: AuthFlowResult): AuthResponseVie
     operator: mapOperator(result),
     challenge: hasChallenge(result) ? mapChallenge(result) : null,
     accountOptions: hasAccountOptions(result) ? mapAccountOptions(result) : [],
-    passwordSetupRequired: Boolean(result.passwordSetupRequired)
+    passwordSetupRequired: Boolean(result.passwordSetupRequired),
+    reasonCode: normalizeOptional(result.reasonCode),
+    message: normalizeOptional(result.message),
+    terminal: normalizeOptional(result.terminal),
+    allowedTerminals: normalizeStringArray(result.allowedTerminals)
   }
 }
 
@@ -62,7 +66,11 @@ export function toRefreshSessionViewModel(result: RefreshSessionResponse): Refre
     sessionId: result.sessionId ?? '',
     accessToken: result.accessToken ?? '',
     refreshToken: result.refreshToken ?? '',
-    expiresIn: Number(result.expiresIn ?? '0')
+    expiresIn: Number(result.expiresIn ?? '0'),
+    terminal: normalizeOptional(result.terminal),
+    allowedTerminals: normalizeStringArray(result.allowedTerminals),
+    reasonCode: normalizeOptional(result.reasonCode),
+    message: normalizeOptional(result.message)
   }
 }
 
@@ -101,8 +109,10 @@ function mapNextStep(status?: LoginStatus, passwordSetupRequired?: boolean): Aut
 // Maps final token material when the auth flow returns a completed session.
 function mapSession(result: {
   accessToken?: string
+  allowedTerminals?: string[]
   refreshToken?: string
   expiresIn?: string
+  terminal?: string
 }): SessionViewModel | null {
   if (!result.accessToken || !result.refreshToken) {
     return null
@@ -111,7 +121,9 @@ function mapSession(result: {
   return {
     accessToken: result.accessToken,
     refreshToken: result.refreshToken,
-    expiresIn: Number(result.expiresIn ?? '0')
+    expiresIn: Number(result.expiresIn ?? '0'),
+    terminal: normalizeOptional(result.terminal),
+    allowedTerminals: normalizeStringArray(result.allowedTerminals)
   }
 }
 
@@ -195,6 +207,14 @@ function mapAccountOptions(result: {
 function normalizeOptional(value?: string): string | undefined {
   const normalized = value?.trim()
   return normalized ? normalized : undefined
+}
+
+function normalizeStringArray(values?: string[]): string[] {
+  if (!Array.isArray(values)) {
+    return []
+  }
+
+  return values.map((value) => normalizeOptional(value)).filter(Boolean) as string[]
 }
 
 // Normalizes the account scope carried over gRPC while keeping old TENANT payloads compatible.

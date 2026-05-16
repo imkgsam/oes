@@ -4,6 +4,7 @@ import { AuthGrpcAdapter } from '../../infrastructure/downstream/auth-service/au
 import { RefreshSessionDto } from '../../interfaces/http/dtos/login.dto'
 import { RefreshSessionViewModel } from '../../interfaces/http/view-models/auth-response.view-model'
 import { toRefreshSessionViewModel } from './auth-response.mapper'
+import { toTerminalAccessDeniedRefreshResponse } from './terminal-access-denial.mapper'
 
 @Injectable()
 // Refreshes an existing session token pair and normalizes the downstream token payload.
@@ -14,7 +15,17 @@ export class RefreshSessionUseCase {
     dto: RefreshSessionDto,
     source: DownstreamRequestSource
   ): Promise<RefreshSessionViewModel> {
-    const result = await this.authAdapter.refreshSession(dto.refreshToken.trim(), source)
+    let result: Awaited<ReturnType<AuthGrpcAdapter['refreshSession']>>
+    try {
+      result = await this.authAdapter.refreshSession(dto.refreshToken.trim(), source)
+    } catch (error) {
+      const denial = toTerminalAccessDeniedRefreshResponse(error)
+      if (denial) {
+        return denial
+      }
+
+      throw error
+    }
     return toRefreshSessionViewModel(result)
   }
 }

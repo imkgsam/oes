@@ -1,7 +1,7 @@
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
-  REQUIRE_PERMISSION_METADATA_KEY
+  REQUIRE_PERMISSIONS_METADATA_KEY
 } from '@oes/common/authorization'
 import {
   GetTenantMfaPolicyResponse,
@@ -77,16 +77,16 @@ describe('AuthGrpcController', () => {
       }
     })
 
-    expect((commandBus.execute as jest.Mock)).not.toHaveBeenCalled()
+    expect(commandBus.execute as jest.Mock).not.toHaveBeenCalled()
   })
 
   it('keeps bootstrapUserLoginMethods marked with the admin bootstrap permission metadata', () => {
     expect(
       Reflect.getMetadata(
-        REQUIRE_PERMISSION_METADATA_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         AuthGrpcController.prototype.bootstrapUserLoginMethods
       )
-    ).toBe(AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS)
+    ).toEqual({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS] })
   })
 
   it('should map requestLoginMfaFactorChallenge requests into factor-specific otp responses', async () => {
@@ -103,8 +103,8 @@ describe('AuthGrpcController', () => {
 
     const response: RequestLoginMfaFactorChallengeResponse =
       await controller.requestLoginMfaFactorChallenge({
-      challengeId: 'login-mfa-flow-token',
-      factor: MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP
+        challengeId: 'login-mfa-flow-token',
+        factor: MfaBindingType.MFA_BINDING_TYPE_EMAIL_OTP
       } as any)
 
     expect((commandBus.execute as jest.Mock).mock.calls[0][0]).toEqual(
@@ -280,11 +280,11 @@ describe('AuthGrpcController', () => {
     const controller = new AuthGrpcController(commandBus, queryBus)
 
     await expect(
-      (controller.revokeTrustedDevice({
+      controller.revokeTrustedDevice({
         userId: 'user-1',
         tenantId: 'tenant-1',
         trustedDeviceId: 'trusted-device-1'
-      } as any) as Promise<RevokeTrustedDeviceResponse>)
+      } as any) as Promise<RevokeTrustedDeviceResponse>
     ).resolves.toEqual({
       success: true,
       deviceCount: '1'
@@ -351,6 +351,8 @@ describe('AuthGrpcController', () => {
         tenantId: 'tenant-1',
         sessionId: 'session-1',
         scopeLevel: 'TENANT',
+        terminal: 'WEB',
+        allowedTerminals: ['WEB', 'PDA'],
         passwordSetupRequired: true,
         roleIds: ['role-1']
       })
@@ -373,6 +375,8 @@ describe('AuthGrpcController', () => {
       tenantId: 'tenant-1',
       sessionId: 'session-1',
       scopeLevel: 'TENANT',
+      terminal: 'WEB',
+      allowedTerminals: ['WEB', 'PDA'],
       passwordSetupRequired: true,
       roleIds: ['role-1']
     })

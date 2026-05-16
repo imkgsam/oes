@@ -25,6 +25,7 @@ type SessionProps = {
   accountId: string
   scopeLevel?: 'SYSTEM' | 'TENANT'
   tenantId?: string
+  terminal?: string
   orgId?: string
   refreshToken: string
   status: SessionStatus
@@ -54,6 +55,7 @@ export class Session {
     accountId: string
     scopeLevel?: 'SYSTEM' | 'TENANT'
     tenantId?: string
+    terminal?: string
     orgId?: string
     deviceInfo: DeviceInfo
     config: SessionConfig
@@ -67,6 +69,7 @@ export class Session {
       accountId: params.accountId,
       scopeLevel: params.scopeLevel,
       tenantId: params.tenantId,
+      terminal: Session.normalizeTerminal(params.terminal),
       orgId: params.orgId,
       refreshToken: randomUUID(),
       status: SessionStatus.ACTIVE,
@@ -87,6 +90,7 @@ export class Session {
       accountId: data.accountId,
       scopeLevel: data.scopeLevel ?? data.metadata?.scopeLevel,
       tenantId: data.tenantId ?? data.metadata?.tenantId,
+      terminal: data.terminal ?? data.metadata?.terminal,
       orgId: data.orgId ?? data.metadata?.orgId,
       refreshToken: data.refreshToken,
       status: data.status as SessionStatus,
@@ -126,6 +130,10 @@ export class Session {
     return scopeLevel === 'SYSTEM' && !Session.normalizeOptionalText(tenantId) ? 'SYSTEM' : 'TENANT'
   }
 
+  private static normalizeTerminal(value: unknown): string {
+    return typeof value === 'string' && value.trim().length > 0 ? value.trim().toUpperCase() : 'WEB'
+  }
+
   toRedis(): Record<string, any> {
     return {
       id: this.props.id,
@@ -133,6 +141,7 @@ export class Session {
       accountId: this.props.accountId,
       scopeLevel: this.props.scopeLevel,
       tenantId: this.props.tenantId,
+      terminal: this.props.terminal,
       orgId: this.props.orgId,
       refreshToken: this.props.refreshToken,
       status: this.props.status,
@@ -289,6 +298,11 @@ export class Session {
   // Returns the tenant boundary carried by the session metadata when the session belongs to a tenant scope.
   getTenantId(): string | undefined {
     return this.props.tenantId
+  }
+
+  // Returns the terminal that established this session for audit and refresh governance.
+  getTerminal(): string {
+    return Session.normalizeTerminal(this.props.terminal ?? this.props.metadata?.terminal)
   }
 
   getOrgId(): string | undefined {

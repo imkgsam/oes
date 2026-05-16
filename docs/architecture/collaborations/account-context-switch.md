@@ -4,6 +4,9 @@
 
 定义 OES 中“已登录用户如何在可用 account context 之间切换，并让会话、权限摘要与前端 shell 同步刷新”的长期协同方式。
 
+`auth-service` 的 session context、token 与 context switch 服务边界只以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准；本文只记录跨服务协同链路。
+`permission-service` 的权限摘要、角色、policy 与导航授权边界只以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述 context switch 后如何刷新这些消费视图。
+
 ## 2. 参与服务
 
 - `api-gateway`
@@ -19,7 +22,7 @@
 - `api-gateway`
   - 暴露对前端友好的 `contexts` / `switch-context` HTTP contract，并编排下游调用
 - `auth-service`
-  - 负责切换后的 session context 重建与 token 重新签发
+  - 按 `auth-service` 唯一真相源执行切换后的 session context 替换与 token 重新签发
 - `identity-service`
   - 提供当前用户可切换 account context 的事实列表与展示摘要
 - `permission-service`
@@ -47,7 +50,7 @@
 ## 6. 真相归属
 
 - 当前可切换 account context 列表：`identity-service`
-- 切换后会话上下文与 token：`auth-service`
+- 切换后会话上下文与 token：以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准
 - 权限摘要：`permission-service`
 - HTTP contract 与前端消费形状：`api-gateway`
 - 前端刷新链路：`tenant-web`

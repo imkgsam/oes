@@ -1,5 +1,7 @@
 # OES Gateway / BFF 架构设计
 
+> `permission-service` 的服务设计唯一真相源为 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只定义 Gateway / BFF 如何消费权限、授权摘要与导航授权结果，不重新定义 permission-service 的核心对象、owner 边界或授权模型。
+
 ## 1. 文档目的
 
 本文档用于冻结 OES 项目中入口治理层、应用聚合层与下游系统服务之间的职责边界，作为后续 `api-gateway` 重设计与 APISIX 接入的项目级依据。
@@ -244,12 +246,7 @@ Gateway 负责：
 
 ### 6.1 与 `auth-service` 的协作
 
-`auth-service` 负责：
-
-- 登录链路真相
-- token / session 真相
-- 刷新与登出语义
-- 挑战、验证码、OTP、安全审计
+`auth-service` 的登录链路、token / session、刷新、登出、挑战、验证码、OTP 与安全审计边界以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。
 
 Gateway / BFF 负责：
 
@@ -266,11 +263,7 @@ Gateway / BFF 负责：
 
 ### 6.2 与 `identity-service` 的协作
 
-`identity-service` 负责：
-
-- 账号与身份映射
-- 主体基础信息
-- 身份资料与展示信息真相
+`identity-service` 的账号、身份映射、联系资产、机器主体与展示摘要边界以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准。
 
 Gateway / BFF 负责：
 
@@ -381,7 +374,7 @@ OES 允许少量薄代理作为过渡，但长期目标应明确为：
 
 说明：
 
-- `login / challenge / account-selection / refresh / logout` 由 Gateway 面向客户端暴露，但认证真相仍来自 `auth-service`
+- `login / challenge / account-selection / refresh / logout` 由 Gateway 面向客户端暴露，但认证语义以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准
 - `me/context` 是典型场景型 BFF 接口，应聚合 `auth-service`、`identity-service`、`permission-service`
 - `menu-tree` 与 `permissions` 面向前端消费，不应简单暴露底层内部 message
 
@@ -881,7 +874,7 @@ OES 推荐在 Gateway 设计阶段就同步考虑 APISIX 接入，而不是等 G
 1. 客户端调用 `POST /api/v1/auth/login`
 2. APISIX 完成入口路由、基础限流、request id 注入后转发到 Gateway
 3. Gateway 校验 HTTP DTO，并根据登录方式映射到 `auth-service` 的对应 gRPC 请求
-4. `auth-service` 返回登录结果真相：
+4. `auth-service` 按唯一真相源返回登录结果：
    - 登录成功
    - 需要 MFA
    - 需要账号选择
@@ -891,7 +884,7 @@ OES 推荐在 Gateway 设计阶段就同步考虑 APISIX 接入，而不是等 G
 
 设计约束：
 
-- 登录结果语义真相由 `auth-service` 决定
+- 登录结果语义以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准
 - Gateway 负责入口 contract、mapping 与返回模型
 - 不要求 `auth-service` 直接面向前端暴露其 gRPC message 结构
 
@@ -903,7 +896,7 @@ OES 推荐在 Gateway 设计阶段就同步考虑 APISIX 接入，而不是等 G
 
 1. 客户端调用 `POST /api/v1/auth/challenges/request`
 2. Gateway 根据 `flowType` 与 `method` 映射到 `auth-service` 的 challenge issuance 能力
-3. `auth-service` 返回 `challengeId / expiresAt / destination`
+3. `auth-service` 按唯一真相源返回 `challengeId / expiresAt / destination`
 4. Gateway 返回前端可消费的 challenge 摘要
 
 说明：
@@ -920,7 +913,7 @@ OES 推荐在 Gateway 设计阶段就同步考虑 APISIX 接入，而不是等 G
 1. 客户端调用 `POST /api/v1/auth/challenges/respond`
 2. Gateway 校验 `challengeId / response / method` 等 HTTP 字段
 3. Gateway 调用 `auth-service` challenge submit 能力
-4. `auth-service` 返回后续状态：
+4. `auth-service` 按唯一真相源返回后续状态：
    - 进入账户选择
    - 或直接最终成功
 5. Gateway 返回统一认证响应模型
@@ -939,17 +932,13 @@ OES 推荐在 Gateway 设计阶段就同步考虑 APISIX 接入，而不是等 G
 1. 客户端调用 `POST /api/v1/auth/account-selection`
 2. Gateway 校验 `userId / accountId / loginMethod` 等必要字段
 3. Gateway 调用 `auth-service.selectAccount`
-4. `auth-service` 执行：
-   - 账户存在校验
-   - 账户归属校验
-   - 账户启用状态校验
-   - session 建立与 token 签发
+4. `auth-service` 按唯一真相源执行 account selection、session 建立与 token 签发
 5. Gateway 返回最终登录成功响应
 
 说明：
 
 - account selection 是正式流程节点，不应被浏览器本地逻辑吞掉
-- 当前 `auth-service` 已明确存在 `SelectAccount` 能力，Gateway 应以正式接口承接
+- 当前 `auth-service` 唯一真相源已明确存在 `SelectAccount` 能力，Gateway 应以正式接口承接
 
 ### 13.2 刷新会话
 
@@ -958,12 +947,12 @@ OES 推荐在 Gateway 设计阶段就同步考虑 APISIX 接入，而不是等 G
 1. 客户端调用 `POST /api/v1/auth/refresh`
 2. Gateway 校验 refresh token 相关 HTTP 请求结构
 3. Gateway 调用 `auth-service.refreshSession`
-4. `auth-service` 返回新的会话结果
+4. `auth-service` 按唯一真相源返回新的会话结果
 5. Gateway 输出统一的 session response
 
 设计约束：
 
-- refresh token 的真相、有效期、轮换策略由 `auth-service` 决定
+- refresh token 的有效期与轮换策略以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准
 - Gateway 不定义自己的 refresh 状态机
 
 ### 13.3 登出
@@ -973,7 +962,7 @@ OES 推荐在 Gateway 设计阶段就同步考虑 APISIX 接入，而不是等 G
 1. 客户端调用 `POST /api/v1/auth/logout`
 2. Gateway 从认证态与请求体中恢复会话上下文
 3. Gateway 调用 `auth-service.logout`
-4. `auth-service` 执行会话失效
+4. `auth-service` 按唯一真相源执行会话失效
 5. Gateway 返回统一成功响应
 
 ### 13.4 初始化上下文

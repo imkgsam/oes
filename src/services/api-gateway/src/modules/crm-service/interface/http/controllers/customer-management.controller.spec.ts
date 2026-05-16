@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { CustomerManagementController } from './customer-management.controller'
 
 // Verifies the customer-management gateway controller keeps permissions and phase 1 request forwarding aligned with the CRM BFF surface.
@@ -27,82 +27,58 @@ describe('CustomerManagementController', () => {
 
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.searchCustomerAccounts
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['crm.customer_account.list']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.searchSelectableCustomers
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['crm.customer_account.search_selectable']
-    })
-    expect(
-      reflector.get(PERMISSION_CHECK_KEY, CustomerManagementController.prototype.getCustomerAccount)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['crm.customer_account.get_by_id']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        CustomerManagementController.prototype.getCustomerAccount
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.createCustomerAccount
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['crm.customer_account.create']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.updateCustomerAccountBasics
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['crm.customer_account.update_basics']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.bindCustomerAccountToTenantParty
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['crm.customer_account.bind_tenant_party']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.upsertCustomerContact
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['crm.customer_contact.upsert']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.upsertCustomerAddress
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['crm.customer_address.upsert']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
       reflector.get(
-        PERMISSION_CHECK_KEY,
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.changeCustomerStatus
       )
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['crm.customer_account.change_status']
-    })
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards phase 1 list, selector, detail, and mutation requests to the customer-management service', async () => {

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { PermissionCheckAll, WMS_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
+import { RequirePermissions, WMS_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { WmsService } from '../../../wms.service'
@@ -26,7 +26,7 @@ export class WmsController {
   constructor(private readonly wmsService: WmsService) {}
 
   @Get('warehouses')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.READ_WAREHOUSE])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.READ_WAREHOUSE] })
   @ApiOperation({ summary: 'List WMS warehouses for the phase 1 workspace' })
   async listWarehouses(
     @Param('tenantId') tenantId: string,
@@ -46,7 +46,7 @@ export class WmsController {
   }
 
   @Get('warehouses/:warehouseId')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.READ_WAREHOUSE])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.READ_WAREHOUSE] })
   @ApiOperation({ summary: 'Get one WMS warehouse detail snapshot' })
   async getWarehouse(
     @Param('tenantId') tenantId: string,
@@ -57,7 +57,7 @@ export class WmsController {
   }
 
   @Get('locations')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.READ_LOCATION])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.READ_LOCATION] })
   @ApiOperation({ summary: 'List WMS locations for the phase 1 workspace' })
   async listLocations(
     @Param('tenantId') tenantId: string,
@@ -81,7 +81,7 @@ export class WmsController {
   }
 
   @Get('locations/:locationId')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.READ_LOCATION])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.READ_LOCATION] })
   @ApiOperation({ summary: 'Get one WMS location detail snapshot' })
   async getLocation(
     @Param('tenantId') tenantId: string,
@@ -92,7 +92,7 @@ export class WmsController {
   }
 
   @Get('receipts')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT] })
   @ApiOperation({ summary: 'Search WMS receipts for the phase 1 workspace' })
   async searchReceipts(
     @Param('tenantId') tenantId: string,
@@ -119,7 +119,7 @@ export class WmsController {
   }
 
   @Get('receipts/:receiptId')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT] })
   @ApiOperation({ summary: 'Get one WMS receipt detail snapshot' })
   async getReceipt(
     @Param('tenantId') tenantId: string,
@@ -130,7 +130,7 @@ export class WmsController {
   }
 
   @Get('receipt-lines')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT] })
   @ApiOperation({ summary: 'Search WMS receipt lines for the phase 1 workspace' })
   async searchReceiptLines(
     @Param('tenantId') tenantId: string,
@@ -158,7 +158,7 @@ export class WmsController {
   }
 
   @Get('receipt-lines/:receiptLineId')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.READ_RECEIPT] })
   @ApiOperation({ summary: 'Get one WMS receipt line detail snapshot' })
   async getReceiptLine(
     @Param('tenantId') tenantId: string,
@@ -169,7 +169,7 @@ export class WmsController {
   }
 
   @Post('receipts')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.MANAGE_RECEIPT])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.MANAGE_RECEIPT] })
   @ApiOperation({ summary: 'Create one WMS receipt draft' })
   @ApiBody({ type: CreateReceiptDraftDto })
   async createReceiptDraft(
@@ -181,7 +181,7 @@ export class WmsController {
   }
 
   @Put('receipts/:receiptId/lines')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.MANAGE_RECEIPT])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.MANAGE_RECEIPT] })
   @ApiOperation({ summary: 'Full-replace one WMS receipt draft line snapshot' })
   @ApiBody({ type: ReplaceReceiptLinesDto })
   async addOrReplaceReceiptLines(
@@ -194,7 +194,7 @@ export class WmsController {
   }
 
   @Post('receipts/:receiptId/post')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.MANAGE_RECEIPT])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.MANAGE_RECEIPT] })
   @ApiOperation({ summary: 'Post one WMS receipt draft into inventory truth' })
   @ApiBody({ type: PostReceiptDto })
   async postReceipt(
@@ -207,7 +207,7 @@ export class WmsController {
   }
 
   @Post('receipts/:receiptId/cancel')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.MANAGE_RECEIPT])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.MANAGE_RECEIPT] })
   @ApiOperation({ summary: 'Cancel one WMS receipt draft' })
   @ApiBody({ type: CancelReceiptDraftDto })
   async cancelReceiptDraft(
@@ -220,7 +220,7 @@ export class WmsController {
   }
 
   @Get('stock-ledger-entries')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY] })
   @ApiOperation({ summary: 'Search WMS stock ledger entries for the phase 1 workspace' })
   async searchStockLedgerEntries(
     @Param('tenantId') tenantId: string,
@@ -248,7 +248,7 @@ export class WmsController {
   }
 
   @Get('inventory-balance')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY] })
   @ApiOperation({ summary: 'Get one WMS inventory balance snapshot' })
   async getInventoryBalance(
     @Param('tenantId') tenantId: string,
@@ -267,7 +267,7 @@ export class WmsController {
   }
 
   @Get('inventory-balances')
-  @PermissionCheckAll([WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY])
+  @RequirePermissions({ all: [WMS_MANAGEMENT_PERMISSION_CODES.READ_INVENTORY] })
   @ApiOperation({ summary: 'Search WMS inventory balances for the phase 1 workspace' })
   async searchInventoryBalances(
     @Param('tenantId') tenantId: string,

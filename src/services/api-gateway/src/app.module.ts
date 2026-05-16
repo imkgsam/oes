@@ -14,6 +14,7 @@ import { HealthModule } from './health/health.module'
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware'
 import { GatewaySessionAuthGuard } from './common/guards/gateway-session-auth.guard'
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
+import { PdaBffModule } from './modules/pda-bff/pda-bff.module'
 import { CrmServiceProxyModule } from './modules/crm-service/crm-service.module'
 import { FinanceServiceProxyModule } from './modules/finance-service/finance-service.module'
 import { HrServiceProxyModule } from './modules/hr-service/hr-service.module'
@@ -207,6 +208,7 @@ export function resolveMesGrpcUrl() {
 
     HealthModule,
     AuthBffModule,
+    PdaBffModule,
     CrmServiceProxyModule,
     FinanceServiceProxyModule,
     HrServiceProxyModule,

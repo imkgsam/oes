@@ -1,5 +1,7 @@
 # procurement-service Contracts
 
+> Procurement contract 只描述采购黑盒接口；涉及权限、scope、policy、checkPermission、checkResource 或 buildQueryScope 的服务设计边界，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 和项目级授权架构为准。
+
 ## 1. 目的
 
 本目录用于冻结 `procurement-service` phase 1 的 `PR + PO` 最小闭环黑盒契约文档。

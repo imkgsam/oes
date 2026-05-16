@@ -1,6 +1,10 @@
 # auth-service Login API
 
-## 1. 模块职责
+> 服务设计唯一真相源：[auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md)。本文只描述黑盒 gRPC 登录接口语义，不重新定义 `auth-service` 的长期职责、核心对象或 owner 边界。
+> `Tenant` lifecycle 与 tenant status 语义以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准；本文只描述登录与账号选择流程如何消费该事实。
+> Terminal Access Policy 与 permission 侧授权边界以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述登录 / refresh 链路如何消费该事实。
+
+## 1. 接口范围
 
 `AuthService` 的登录与认证流程接口负责提供：
 
@@ -9,6 +13,7 @@
 - MFA challenge 提交
 - 多账户选择
 - refresh token 续期
+- Terminal Access Policy 登录 / refresh 准入消费
 
 这些接口共同组成认证协议与会话建立流程，而不是管理员资源访问模型。
 
@@ -17,7 +22,7 @@
 - 接口类型：gRPC
 - 服务：`AuthService`
 - 调用方：内部服务
-- 契约真相源：
+- Proto 契约来源：
   - [auth.proto](/Users/acehood/Documents/GitHub/oes/src/common/src/contracts/auth_service/auth.proto)
 
 ## 2. 登录入口
@@ -36,6 +41,7 @@
   - `device_name`，可选
   - `user_agent`，可选
   - `ip_address`，可选
+  - `terminal`，由可信 BFF 入口归一化后传入
 - 响应关键字段：
   - `status`
   - `user_id`
@@ -49,6 +55,7 @@
   - 不采用 `checkPermission`
   - 不采用 `buildQueryScope`
   - 不采用 `checkResource`
+  - 不在 primary credential 阶段做 terminal access 判定
   - 依赖凭证校验、登录限流、MFA 分支逻辑与认证流程状态机
   - 密码登录失败时，`device_name / user_agent / ip_address` 会进入本地 audit，用于自助登录历史展示
 
@@ -107,6 +114,7 @@
   - `device_name`，可选
   - `user_agent`，可选
   - `ip_address`，可选
+  - `terminal`，由可信 BFF 入口归一化后传入
 - 响应关键字段：
   - `status`
   - `user_id`
@@ -117,6 +125,7 @@
   - 若调用方仍需要 tenant 名称，应在 gateway / BFF 通过 `tenant-org-service` 按 `tenant_id` 聚合补水
 - 权限与上下文要求：
   - 不采用资源授权模型
+  - 不在 primary credential 阶段做 terminal access 判定
   - 依赖凭证校验、登录限流、MFA 分支逻辑与认证流程状态机
   - 密码登录失败时，`device_name / user_agent / ip_address` 会进入本地 audit，用于自助登录历史展示
 
@@ -168,11 +177,16 @@
   - `user_id`
   - `account_id`
   - `login_method`
+  - `terminal`
 - tenant lifecycle 准入：
   - `TENANT` scope account 必须通过 `tenant-org-service.GetTenantById` 查询目标 `tenant_id`
   - 只有 `tenant.status = ACTIVE` 时才允许继续 MFA challenge 或建立 session
   - `SYSTEM` scope account 不读取也不受 tenant status 影响
   - 同一用户存在多个 tenant account 时，只阻断被停用或归档 tenant 下的账号，不影响其他 `ACTIVE` tenant account
+- terminal access 准入：
+  - account 选择完成后、MFA challenge 创建前，`auth-service` 必须调用 `permission-service.PermissionTerminalAccessService.ResolveAccountTerminalAccess`
+  - 若当前 account 不允许请求 terminal，返回稳定 `TERMINAL_ACCESS_DENIED`
+  - 不允许时不得创建 MFA challenge，也不得建立 session 或签发 token
 
 ### `SubmitMfaChallenge`
 
@@ -181,9 +195,13 @@
   - `challenge_id`
   - `factor`
   - `code`
+  - pending MFA flow 中携带的 `terminal`
 - tenant lifecycle 准入：
   - MFA challenge 发起后，管理员可能停用或归档租户，因此 session 建立前必须再次按 `tenant-org-service.GetTenantById` 校验 `TENANT` scope account
   - 若 tenant 不再是 `ACTIVE`，不得建立 session；调用方应要求用户重新选择可用账号或重新登录
+- terminal access 准入：
+  - MFA challenge 验证成功后、session 建立前，`auth-service` 必须再次使用 flow 中的 terminal 重查 terminal access
+  - 若不允许，返回 `TERMINAL_ACCESS_DENIED`，不得签发 session / token
 
 ### `RequestPasswordRecoveryChallenge`
 
@@ -203,8 +221,8 @@
   - `masked_destination`
 - 稳定语义：
   - 返回通用 accepted 语义，避免暴露账号存在性
-  - OTP 真相归 `auth-service`
-  - Notification 仅负责模拟投递
+  - OTP challenge 与校验语义以 `auth-service` 唯一真相源为准
+  - `notification-service` 只负责通知 dispatch；local / mock delivery 只属于开发、测试或兼容运行方式，不是服务边界真相
 
 ### `InspectPasswordRecoveryChannels`
 
@@ -374,6 +392,7 @@
   - `device_name`
   - `user_agent`
   - `ip_address`
+  - `terminal`
 - 响应关键字段：
   - `status`
   - `user_id`
@@ -388,6 +407,10 @@
 - 权限与上下文要求：
   - 不采用资源授权模型
   - 依赖账户归属校验、账户可用性校验与会话建立流程
+- Terminal Access Policy 语义：
+  - `terminal` 来自可信 BFF 入口，不来自客户端自由声明
+  - terminal access 判定发生在 tenant lifecycle 校验之后、MFA 判定之前
+  - 不允许时返回 `TERMINAL_ACCESS_DENIED`，不创建 MFA challenge，不签发 session
 - MFA 语义：
   - 登录 MFA 判定发生在账号选择之后，因为只有选定 account 后才能确定 tenant policy。
   - 如果所选 tenant 未要求 `LOGIN` MFA，则直接建立 session。
@@ -410,6 +433,14 @@
 - 响应关键字段：
   - `session_id`
   - `access_token`
+  - `refresh_token`
+  - `terminal`
+  - `expires_in`
+- Terminal Access Policy 语义：
+  - refresh 不接受客户端重新声明 terminal
+  - `auth-service` 必须从当前 session / refresh token claims 读取原 terminal
+  - refresh 前重查 terminal access
+  - 若当前 terminal 已不再允许，拒绝 refresh，删除或撤销 session，并记录 `SESSION_REFRESH_DENIED_TERMINAL_ACCESS`
 
 ## 5. 登录方式管理
 
@@ -521,7 +552,7 @@
   - 不采用管理员型 `checkPermission`
   - 不采用 `buildQueryScope`
   - 不采用 `checkResource`
-  - 依赖 self-bound `user_id` 语义与本地 audit 真相源
+  - 依赖 self-bound `user_id` 语义与本地 audit 记录
 - 语义说明：
   - 当前只查询 `LOGIN_SUCCEEDED / LOGIN_FAILED`
   - 不混入 session 生命周期事件
@@ -543,3 +574,27 @@
 - 限流 / 风控
 - 账户归属校验
 - 登录流程状态机
+- Terminal Access Policy 判定，其中策略真相归 `permission-service`
+
+## 7. Terminal Access Policy 集成说明
+
+登录准入 terminal 由上游可信 BFF 固定：
+
+- Web auth-bff 固定 `WEB`
+- PDA auth-bff 固定 `PDA`
+- KIOSK auth-bff 固定 `KIOSK`
+
+`auth-service` 不信任客户端自由声明 terminal，也不拥有 terminal access 策略模型。
+
+Session / token 要求：
+
+- 建立 session 时持久化 terminal。
+- access token 和 refresh token claims 携带 terminal。
+- `ValidateAccessTokenResponse` 返回 terminal。
+- 登录成功审计包含 terminal。
+
+稳定拒绝语义：
+
+- gRPC 层：`LOGIN_STATUS_DENIED + reason_code=TERMINAL_ACCESS_DENIED`
+- HTTP 层：由 BFF 映射为业务型 `DENIED` 响应
+- 不向登录端返回 `effectiveAllowedTerminals`

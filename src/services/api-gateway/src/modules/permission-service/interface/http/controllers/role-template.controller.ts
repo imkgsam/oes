@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
 import {
-  PermissionCheckAll,
+  RequirePermissions,
   ROLE_INSTANCE_PERMISSION_CODES,
   ROLE_TEMPLATE_PERMISSION_CODES
 } from '@oes/common/authorization'
@@ -23,7 +23,7 @@ export class RoleTemplateController {
   constructor(private readonly permissionService: PermissionProxyService) {}
 
   @Get()
-  @PermissionCheckAll([ROLE_TEMPLATE_PERMISSION_CODES.LIST])
+  @RequirePermissions({ all: [ROLE_TEMPLATE_PERMISSION_CODES.LIST] })
   @ApiOperation({ summary: 'List role templates with pagination and filters' })
   async listRoleTemplates(
     @Query() query: ListRoleTemplatesDto,
@@ -42,7 +42,7 @@ export class RoleTemplateController {
   }
 
   @Post()
-  @PermissionCheckAll([ROLE_TEMPLATE_PERMISSION_CODES.CREATE])
+  @RequirePermissions({ all: [ROLE_TEMPLATE_PERMISSION_CODES.CREATE] })
   @ApiOperation({ summary: 'Create a role template' })
   @ApiBody({ type: CreateRoleTemplateDto })
   async createRoleTemplate(
@@ -62,14 +62,14 @@ export class RoleTemplateController {
   }
 
   @Get(':id')
-  @PermissionCheckAll([ROLE_TEMPLATE_PERMISSION_CODES.GET_BY_ID])
+  @RequirePermissions({ all: [ROLE_TEMPLATE_PERMISSION_CODES.GET_BY_ID] })
   @ApiOperation({ summary: 'Find role template by ID' })
   async findById(@Param('id') id: string, @DownstreamSource() source: DownstreamRequestSource) {
     return this.execute(() => this.permissionService.getRoleTemplateById({ id }, source))
   }
 
   @Patch(':id')
-  @PermissionCheckAll([ROLE_TEMPLATE_PERMISSION_CODES.UPDATE])
+  @RequirePermissions({ all: [ROLE_TEMPLATE_PERMISSION_CODES.UPDATE] })
   @ApiOperation({ summary: 'Update a role template' })
   @ApiBody({ type: UpdateRoleDto })
   async updateRoleTemplate(
@@ -90,7 +90,7 @@ export class RoleTemplateController {
   }
 
   @Patch(':id/enabled')
-  @PermissionCheckAll([ROLE_TEMPLATE_PERMISSION_CODES.UPDATE])
+  @RequirePermissions({ all: [ROLE_TEMPLATE_PERMISSION_CODES.UPDATE] })
   @ApiOperation({ summary: 'Enable or disable a role template' })
   @ApiBody({ type: SetRoleEnabledDto })
   async setRoleTemplateEnabled(
@@ -110,7 +110,7 @@ export class RoleTemplateController {
   }
 
   @Get(':id/permissions')
-  @PermissionCheckAll([ROLE_TEMPLATE_PERMISSION_CODES.GET_BY_ID])
+  @RequirePermissions({ all: [ROLE_TEMPLATE_PERMISSION_CODES.GET_BY_ID] })
   @ApiOperation({ summary: 'List permissions assigned to a role template' })
   async listRoleTemplatePermissions(
     @Param('id') id: string,
@@ -122,7 +122,7 @@ export class RoleTemplateController {
   }
 
   @Post(':id/permissions')
-  @PermissionCheckAll([ROLE_TEMPLATE_PERMISSION_CODES.ASSIGN_PERMISSIONS])
+  @RequirePermissions({ all: [ROLE_TEMPLATE_PERMISSION_CODES.ASSIGN_PERMISSIONS] })
   @ApiOperation({ summary: 'Assign a permission to a role template' })
   @ApiBody({ type: AssignRolePermissionDto })
   async assignRoleTemplatePermission(
@@ -142,7 +142,7 @@ export class RoleTemplateController {
   }
 
   @Delete(':id/permissions/:permissionId')
-  @PermissionCheckAll([ROLE_TEMPLATE_PERMISSION_CODES.ASSIGN_PERMISSIONS])
+  @RequirePermissions({ all: [ROLE_TEMPLATE_PERMISSION_CODES.ASSIGN_PERMISSIONS] })
   @ApiOperation({ summary: 'Revoke a permission from a role template' })
   async revokeRoleTemplatePermission(
     @Param('id') id: string,
@@ -161,7 +161,7 @@ export class RoleTemplateController {
   }
 
   @Post(':id/instantiate')
-  @PermissionCheckAll([ROLE_INSTANCE_PERMISSION_CODES.CREATE_FROM_TEMPLATE])
+  @RequirePermissions({ all: [ROLE_INSTANCE_PERMISSION_CODES.CREATE_FROM_TEMPLATE] })
   @ApiOperation({ summary: 'Create a tenant role instance from a role template' })
   @ApiBody({ type: CreateRoleFromTemplateDto })
   async createRoleFromTemplate(
@@ -183,7 +183,7 @@ export class RoleTemplateController {
   }
 
   @Delete(':id')
-  @PermissionCheckAll([ROLE_TEMPLATE_PERMISSION_CODES.DELETE])
+  @RequirePermissions({ all: [ROLE_TEMPLATE_PERMISSION_CODES.DELETE] })
   @ApiOperation({ summary: 'Delete a role template' })
   async deleteRoleTemplate(
     @Param('id') id: string,

@@ -1,12 +1,10 @@
 import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
 import { GrpcMethod } from '@nestjs/microservices'
 import {
+  RequirePermissions,
   AUTH_MANAGEMENT_PERMISSION_CODES,
   PermissionGuard,
   RequireAuthenticatedOperator,
-  RequirePermission
-} from '@oes/common/authorization'
-import {
   AuthenticatedOperatorGuard,
   AUTH_SESSION_PERMISSION_CODES,
   GrpcRequestContextInterceptor,
@@ -16,9 +14,7 @@ import {
 } from '@oes/common/authorization'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { ACCESS_DENIED, ExceptionFactory } from '@oes/common/exceptions'
-import {
-  GrpcExceptionFilter
-} from '../../../../../../common/dist/core/filters'
+import { GrpcExceptionFilter } from '../../../../../../common/dist/core/filters'
 import {
   AdminListOnlineUsersRequest,
   AdminListOnlineUsersResponse,
@@ -219,7 +215,7 @@ export class AuthGrpcController implements AuthServiceController {
     private readonly accountInvitationService?: AccountInvitationService
   ) {}
 
-  @RequirePermission(AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS)
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.BOOTSTRAP_ACCOUNT_CREDENTIALS] })
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async bootstrapUserLoginMethods(
     request: BootstrapUserLoginMethodsRequest
@@ -370,7 +366,7 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequirePermission(AUTH_MANAGEMENT_PERMISSION_CODES.VIEW_AUDIT_EVENT)
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.VIEW_AUDIT_EVENT] })
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async listAuditEvents(request: ListAuditEventsRequest): Promise<ListAuditEventsResponse> {
     this.getRequiredOperatorId(request)
@@ -395,7 +391,9 @@ export class AuthGrpcController implements AuthServiceController {
     )
 
     return {
-      items: result.items.map((event): AuditEventRecord => AuthGrpcPresenter.toAuditEventRecord(event)),
+      items: result.items.map(
+        (event): AuditEventRecord => AuthGrpcPresenter.toAuditEventRecord(event)
+      ),
       nextCursor: result.nextCursor ?? ''
     }
   }
@@ -446,9 +444,7 @@ export class AuthGrpcController implements AuthServiceController {
   /**
    * changeOwnPassword updates the user's password after the application handler verifies the current password.
    */
-  async changeOwnPassword(
-    request: ChangeOwnPasswordRequest
-  ): Promise<ChangeOwnPasswordResponse> {
+  async changeOwnPassword(request: ChangeOwnPasswordRequest): Promise<ChangeOwnPasswordResponse> {
     return this.commandBus.execute(
       new ChangeOwnPasswordCommand({
         userId: request.userId ?? '',
@@ -486,7 +482,7 @@ export class AuthGrpcController implements AuthServiceController {
   /**
    * requirePasswordSetup marks one target user as needing to set a new password without accepting plaintext.
    */
-  @RequirePermission(AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS)
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS] })
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async requirePasswordSetup(
     request: RequirePasswordSetupRequest
@@ -506,7 +502,7 @@ export class AuthGrpcController implements AuthServiceController {
   /**
    * setLoginMethodEnabled toggles a target login method under admin security management.
    */
-  @RequirePermission(AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS)
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS] })
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async setLoginMethodEnabled(
     request: SetLoginMethodEnabledRequest
@@ -524,7 +520,7 @@ export class AuthGrpcController implements AuthServiceController {
     )
   }
 
-  @RequirePermission(AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS)
+  @RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS] })
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async adminListOnlineUsers(
     request: AdminListOnlineUsersRequest
@@ -550,17 +546,14 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequirePermission(AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS)
+  @RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS] })
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async adminListUserSessions(
     request: AdminListUserSessionsRequest
   ): Promise<AdminListUserSessionsResponse> {
     this.getRequiredOperatorId(request)
     const sessions = await this.queryBus.execute(
-      new AdminListUserSessionsQuery(
-        request.userId ?? '',
-        getOptionalOperatorScope(request)
-      )
+      new AdminListUserSessionsQuery(request.userId ?? '', getOptionalOperatorScope(request))
     )
 
     return {
@@ -598,11 +591,7 @@ export class AuthGrpcController implements AuthServiceController {
 
   async listSessions(request: ListSessionsRequest): Promise<ListSessionsResponse> {
     const sessions = await this.queryBus.execute(
-      new ListSessionsQuery(
-        request.userId ?? '',
-        request.currentSessionId ?? undefined,
-        undefined
-      )
+      new ListSessionsQuery(request.userId ?? '', request.currentSessionId ?? undefined, undefined)
     )
 
     return {
@@ -701,7 +690,7 @@ export class AuthGrpcController implements AuthServiceController {
     }
   }
 
-  @RequirePermission(AUTH_SESSION_PERMISSION_CODES.ADMIN_REVOKE_SESSION)
+  @RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_REVOKE_SESSION] })
   @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
   async adminRevokeSession(
     request: AdminRevokeSessionRequest
@@ -785,11 +774,7 @@ export class AuthGrpcController implements AuthServiceController {
     request: LogoutOtherDevicesRequest
   ): Promise<LogoutOtherDevicesResponse> {
     const result = await this.commandBus.execute(
-      new LogoutOtherDevicesCommand(
-        request.userId ?? '',
-        request.currentSessionId ?? '',
-        undefined
-      )
+      new LogoutOtherDevicesCommand(request.userId ?? '', request.currentSessionId ?? '', undefined)
     )
 
     return {
@@ -800,11 +785,7 @@ export class AuthGrpcController implements AuthServiceController {
 
   async logoutAll(request: LogoutAllRequest): Promise<LogoutAllResponse> {
     const result = await this.commandBus.execute(
-      new LogoutAllCommand(
-        request.userId ?? '',
-        request.currentSessionId ?? undefined,
-        undefined
-      )
+      new LogoutAllCommand(request.userId ?? '', request.currentSessionId ?? undefined, undefined)
     )
 
     return {
@@ -987,6 +968,8 @@ export class AuthGrpcController implements AuthServiceController {
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
       expiresIn: String(result.expiresIn),
+      terminal: result.terminal,
+      allowedTerminals: result.allowedTerminals,
       loginMethod: result.loginMethod,
       accounts: [],
       passwordSetupRequired: result.passwordSetupRequired
@@ -1055,7 +1038,9 @@ export class AuthGrpcController implements AuthServiceController {
       sessionId: result.sessionId,
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
-      expiresIn: String(result.expiresIn)
+      expiresIn: String(result.expiresIn),
+      terminal: result.terminal,
+      allowedTerminals: result.allowedTerminals
     }
   }
 
@@ -1073,6 +1058,8 @@ export class AuthGrpcController implements AuthServiceController {
       tenantId: result.tenantId ?? '',
       sessionId: result.sessionId,
       scopeLevel: result.scopeLevel,
+      terminal: result.terminal,
+      allowedTerminals: result.allowedTerminals,
       passwordSetupRequired: result.passwordSetupRequired,
       roleIds: result.roleIds
     } as ValidateAccessTokenResponse
@@ -1089,7 +1076,8 @@ export class AuthGrpcController implements AuthServiceController {
           deviceId: request.deviceId ?? '',
           deviceName: request.deviceName ?? '',
           userAgent: request.userAgent ?? '',
-          ipAddress: request.ipAddress ?? ''
+          ipAddress: request.ipAddress ?? '',
+          terminal: request.terminal ?? 'WEB'
         }
       )
     )
@@ -1118,7 +1106,9 @@ export class AuthGrpcController implements AuthServiceController {
         })),
         factorChallengeId: result.factorChallengeId ?? '',
         challengeDestination: result.destination ?? '',
-        challengeExpiresAt: result.expiresAt ?? ''
+        challengeExpiresAt: result.expiresAt ?? '',
+        terminal: result.terminal,
+        allowedTerminals: result.allowedTerminals
       }
     }
 
@@ -1141,7 +1131,9 @@ export class AuthGrpcController implements AuthServiceController {
       availableFactors: [],
       factorChallengeId: '',
       challengeDestination: '',
-      challengeExpiresAt: ''
+      challengeExpiresAt: '',
+      terminal: result.terminal,
+      allowedTerminals: result.allowedTerminals
     }
   }
 
@@ -1151,19 +1143,19 @@ export class AuthGrpcController implements AuthServiceController {
     request: GetTenantMfaPolicyRequest
   ): Promise<GetTenantMfaPolicyResponse> {
     this.getRequiredOperatorId(request)
-    const result = await this.queryBus.execute(
-      new GetTenantMfaPolicyQuery(request.tenantId ?? '')
-    )
+    const result = await this.queryBus.execute(new GetTenantMfaPolicyQuery(request.tenantId ?? ''))
 
     return {
       tenantId: result.tenantId,
       loginRequired: result.loginRequired,
       scenarioRequirements: this.toProtoScenarioRequirements(result.scenarioRequirements),
-      factors: result.factors.map((factor): TenantMfaFactorPolicy => ({
-        factor: this.toProtoMfaBindingType(factor.factor),
-        enabled: factor.enabled,
-        priority: factor.priority
-      }))
+      factors: result.factors.map(
+        (factor): TenantMfaFactorPolicy => ({
+          factor: this.toProtoMfaBindingType(factor.factor),
+          enabled: factor.enabled,
+          priority: factor.priority
+        })
+      )
     }
   }
 
@@ -1178,11 +1170,13 @@ export class AuthGrpcController implements AuthServiceController {
     return {
       loginRequired: result.loginRequired,
       scenarioRequirements: this.toProtoScenarioRequirements(result.scenarioRequirements),
-      factors: result.factors.map((factor): TenantMfaFactorPolicy => ({
-        factor: this.toProtoMfaBindingType(factor.factor),
-        enabled: factor.enabled,
-        priority: factor.priority
-      }))
+      factors: result.factors.map(
+        (factor): TenantMfaFactorPolicy => ({
+          factor: this.toProtoMfaBindingType(factor.factor),
+          enabled: factor.enabled,
+          priority: factor.priority
+        })
+      )
     }
   }
 
@@ -1213,11 +1207,13 @@ export class AuthGrpcController implements AuthServiceController {
       tenantId: result.tenantId,
       loginRequired: result.loginRequired,
       scenarioRequirements: this.toProtoScenarioRequirements(result.scenarioRequirements),
-      factors: result.factors.map((factor): TenantMfaFactorPolicy => ({
-        factor: this.toProtoMfaBindingType(factor.factor),
-        enabled: factor.enabled,
-        priority: factor.priority
-      }))
+      factors: result.factors.map(
+        (factor): TenantMfaFactorPolicy => ({
+          factor: this.toProtoMfaBindingType(factor.factor),
+          enabled: factor.enabled,
+          priority: factor.priority
+        })
+      )
     }
   }
 
@@ -1246,11 +1242,13 @@ export class AuthGrpcController implements AuthServiceController {
     return {
       loginRequired: result.loginRequired,
       scenarioRequirements: this.toProtoScenarioRequirements(result.scenarioRequirements),
-      factors: result.factors.map((factor): TenantMfaFactorPolicy => ({
-        factor: this.toProtoMfaBindingType(factor.factor),
-        enabled: factor.enabled,
-        priority: factor.priority
-      }))
+      factors: result.factors.map(
+        (factor): TenantMfaFactorPolicy => ({
+          factor: this.toProtoMfaBindingType(factor.factor),
+          enabled: factor.enabled,
+          priority: factor.priority
+        })
+      )
     }
   }
 
@@ -1652,17 +1650,17 @@ export class AuthGrpcController implements AuthServiceController {
   }
 
   private toProtoScenarioRequirements(
-    requirements: Record<'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'LOGIN' | 'NEW_DEVICE_LOGIN', boolean>
+    requirements: Record<
+      'CHANGE_CONTACT' | 'CHANGE_PASSWORD' | 'LOGIN' | 'NEW_DEVICE_LOGIN',
+      boolean
+    >
   ): TenantMfaScenarioRequirement[] {
-    return ([
-      'LOGIN',
-      'CHANGE_PASSWORD',
-      'CHANGE_CONTACT',
-      'NEW_DEVICE_LOGIN'
-    ] as const).map((scenario) => ({
-      scenario: this.toProtoMfaScenario(scenario),
-      required: Boolean(requirements[scenario])
-    }))
+    return (['LOGIN', 'CHANGE_PASSWORD', 'CHANGE_CONTACT', 'NEW_DEVICE_LOGIN'] as const).map(
+      (scenario) => ({
+        scenario: this.toProtoMfaScenario(scenario),
+        required: Boolean(requirements[scenario])
+      })
+    )
   }
 
   private toDomainScenarioRequirements(

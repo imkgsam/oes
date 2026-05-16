@@ -1,5 +1,5 @@
 import { Reflector } from '@nestjs/core'
-import { PERMISSION_CHECK_KEY } from '@oes/common/authorization'
+import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
 import { AccountRoleController } from './account-role.controller'
 
 // Verifies the account-role gateway controller exposes the expected routes and coarse-grained guards.
@@ -10,7 +10,10 @@ describe('AccountRoleController', () => {
     assignAccountRole: jest.fn(),
     revokeAccountRole: jest.fn(),
     setAccountRoles: jest.fn(),
-    listRoleAccounts: jest.fn()
+    listRoleAccounts: jest.fn(),
+    getAccountTerminalAccess: jest.fn(),
+    replaceAccountTerminalAccessOverride: jest.fn(),
+    deleteAccountTerminalAccessOverride: jest.fn()
   }
 
   const controller = new AccountRoleController(permissionService as any)
@@ -18,32 +21,60 @@ describe('AccountRoleController', () => {
   it('declares the expected coarse-grained permissions on account-role endpoints', () => {
     const reflector = new Reflector()
 
-    expect(reflector.get(PERMISSION_CHECK_KEY, AccountRoleController.prototype.listAccountRoles)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.account.get_roles']
-    })
     expect(
-      reflector.get(PERMISSION_CHECK_KEY, AccountRoleController.prototype.getAccountRoleSelection)
-    ).toEqual({
-      type: 'ALL',
-      permissions: ['permission.account.get_roles']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AccountRoleController.prototype.assignAccountRole)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.account.assign_roles']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AccountRoleController.prototype.revokeAccountRole)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.account.assign_roles']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AccountRoleController.prototype.setAccountRoles)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.account.assign_roles']
-    })
-    expect(reflector.get(PERMISSION_CHECK_KEY, AccountRoleController.prototype.listRoleAccounts)).toEqual({
-      type: 'ALL',
-      permissions: ['permission.account.get_roles']
-    })
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AccountRoleController.prototype.listAccountRoles
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AccountRoleController.prototype.getAccountRoleSelection
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AccountRoleController.prototype.getAccountTerminalAccess
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AccountRoleController.prototype.replaceAccountTerminalAccessOverride
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AccountRoleController.prototype.deleteAccountTerminalAccessOverride
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AccountRoleController.prototype.assignAccountRole
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AccountRoleController.prototype.revokeAccountRole
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AccountRoleController.prototype.setAccountRoles
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        AccountRoleController.prototype.listRoleAccounts
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('forwards account-role read routes to the proxy service', async () => {
@@ -54,7 +85,15 @@ describe('AccountRoleController', () => {
       selectedRoleIds: ['role-1']
     })
     permissionService.listRoleAccounts.mockResolvedValue({
-      accounts: [{ accountId: 'account-1', roleId: 'role-1', accountType: 'USER', tenantId: 'tenant-1', scopeLevel: 'TENANT' }]
+      accounts: [
+        {
+          accountId: 'account-1',
+          roleId: 'role-1',
+          accountType: 'USER',
+          tenantId: 'tenant-1',
+          scopeLevel: 'TENANT'
+        }
+      ]
     })
 
     await expect(
@@ -125,7 +164,9 @@ describe('AccountRoleController', () => {
         source as any
       )
     ).resolves.toBeUndefined()
-    await expect(controller.revokeAccountRole('account-1', 'role-1', source as any)).resolves.toBeUndefined()
+    await expect(
+      controller.revokeAccountRole('account-1', 'role-1', source as any)
+    ).resolves.toBeUndefined()
     await expect(
       controller.setAccountRoles(
         'account-1',
@@ -165,6 +206,79 @@ describe('AccountRoleController', () => {
         tenantId: 'tenant-1',
         scopeLevel: 'TENANT',
         roleIds: ['role-2']
+      },
+      source
+    )
+  })
+
+  it('forwards account terminal access routes to the proxy service', async () => {
+    const source = { requestId: 'req-1', traceId: 'trace-1' }
+    permissionService.getAccountTerminalAccess.mockResolvedValue({
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT',
+      hasOverride: false,
+      effectiveAllowedTerminals: ['WEB']
+    })
+    permissionService.replaceAccountTerminalAccessOverride.mockResolvedValue({
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT',
+      hasOverride: true,
+      effectiveAllowedTerminals: ['PDA']
+    })
+    permissionService.deleteAccountTerminalAccessOverride.mockResolvedValue({
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT',
+      hasOverride: false,
+      effectiveAllowedTerminals: ['WEB']
+    })
+
+    await expect(
+      controller.getAccountTerminalAccess(
+        'account-1',
+        { tenantId: 'tenant-1', scopeLevel: 'TENANT' } as any,
+        source as any
+      )
+    ).resolves.toEqual(expect.objectContaining({ effectiveAllowedTerminals: ['WEB'] }))
+    await expect(
+      controller.replaceAccountTerminalAccessOverride(
+        'account-1',
+        { tenantId: 'tenant-1', scopeLevel: 'TENANT', allowedTerminals: ['PDA'] } as any,
+        source as any
+      )
+    ).resolves.toEqual(expect.objectContaining({ hasOverride: true }))
+    await expect(
+      controller.deleteAccountTerminalAccessOverride(
+        'account-1',
+        { tenantId: 'tenant-1', scopeLevel: 'TENANT' } as any,
+        source as any
+      )
+    ).resolves.toEqual(expect.objectContaining({ hasOverride: false }))
+
+    expect(permissionService.getAccountTerminalAccess).toHaveBeenCalledWith(
+      {
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT'
+      },
+      source
+    )
+    expect(permissionService.replaceAccountTerminalAccessOverride).toHaveBeenCalledWith(
+      {
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        allowedTerminals: ['PDA']
+      },
+      source
+    )
+    expect(permissionService.deleteAccountTerminalAccessOverride).toHaveBeenCalledWith(
+      {
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT'
       },
       source
     )

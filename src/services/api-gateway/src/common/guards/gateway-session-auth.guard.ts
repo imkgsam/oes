@@ -59,6 +59,8 @@ export class GatewaySessionAuthGuard implements CanActivate {
       tid: result.tenantId || undefined,
       sid: result.sessionId,
       scopeLevel: result.scopeLevel,
+      terminal: result.terminal || undefined,
+      allowedTerminals: result.allowedTerminals ?? [],
       passwordSetupRequired: Boolean(result.passwordSetupRequired),
       roles: result.roleIds ?? [],
       typ: AccountType.USER

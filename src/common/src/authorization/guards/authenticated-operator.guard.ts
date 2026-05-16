@@ -5,7 +5,7 @@ import {
   MANAGEMENT_INTERFACE_METADATA_KEY,
   OPERATOR_CONTEXT_METADATA_KEY,
   OPERATOR_CONTEXT_VERIFIER,
-  REQUIRE_PERMISSION_METADATA_KEY,
+  REQUIRE_PERMISSIONS_METADATA_KEY,
   REQUIRE_AUTHENTICATED_OPERATOR_METADATA_KEY
 } from '../constants'
 import { OPERATOR_CONTEXT_INVALID, OPERATOR_CONTEXT_MISSING } from '../exceptions'
@@ -21,10 +21,10 @@ export class AuthenticatedOperatorGuard implements CanActivate {
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredPermission = this.reflector.getAllAndOverride<string>(REQUIRE_PERMISSION_METADATA_KEY, [
-      context.getHandler(),
-      context.getClass()
-    ])
+    const requiredPermissions = this.reflector.getAllAndOverride<unknown>(
+      REQUIRE_PERMISSIONS_METADATA_KEY,
+      [context.getHandler(), context.getClass()]
+    )
     const shouldRequireAuthenticatedOperator =
       this.reflector.getAllAndOverride<boolean>(REQUIRE_AUTHENTICATED_OPERATOR_METADATA_KEY, [
         context.getHandler(),
@@ -34,7 +34,7 @@ export class AuthenticatedOperatorGuard implements CanActivate {
         context.getHandler(),
         context.getClass()
       ]) ||
-      Boolean(requiredPermission)
+      Boolean(requiredPermissions)
 
     if (!shouldRequireAuthenticatedOperator) {
       return true

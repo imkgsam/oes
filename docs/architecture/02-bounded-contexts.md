@@ -1,5 +1,7 @@
 # OES Bounded Context 设计
 
+> 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述项目级 bounded context 划分。
+
 ## 1. 划分原则
 
 bounded context 的划分依据应当是：
@@ -76,7 +78,7 @@ bounded context 的划分依据应当是：
 边界说明：
 
 - 它负责“谁能做什么”
-- 不负责客户、供应商、员工等业务角色定义
+- 不负责客户、供应商、员工等业务角色定义；员工与任职语义以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
 
 ### 3.2 Tenant & Organization
 
@@ -84,7 +86,7 @@ bounded context 的划分依据应当是：
 
 - 租户边界
 - 组织结构
-- 部门、岗位、成员归属
+- 部门与组织结构；正式员工任职归属以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
 
 边界说明：
 
@@ -95,14 +97,12 @@ bounded context 的划分依据应当是：
 
 职责：
 
-- 交易与法律主体主数据
-- Person / Organization 的统一 party 模型
-- 租户对主体的 `TenantParty` 绑定关系
+- 交易与法律主体主数据边界；具体服务职责、核心对象与 owner 规则以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
 
 边界说明：
 
-- 它不关心这个主体是客户、员工、供应商还是合作伙伴
-- 业务域第一阶段应引用 `tenantPartyId`，而不是复制主体主数据
+- 它不关心这个主体是客户、员工、供应商还是合作伙伴；员工与任职语义以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准
+- 业务域第一阶段应引用 `tenantPartyId`，而不是复制主体主数据；详细规则以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准
 - 业务角色由其他上下文定义
 
 ### 3.4 CRM

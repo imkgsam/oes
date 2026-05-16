@@ -1,5 +1,7 @@
 # Policy Governance Readonly
 
+> 服务设计唯一真相源：[permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)。本文只记录 Policy Governance Readonly feature 的范围、状态与只读接入约束；`Policy`、policy AST、授权判定与 policy owner 边界不在本文重新定义。
+
 ## 1. 目标
 
 - 提供权限平台第一阶段的 Policy 只读治理台，让管理员能看清当前已存在的授权策略事实。
@@ -30,8 +32,8 @@
   - [permission-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/permission-management.md)
   - [role-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/role-management.md)
   - [navigation-entry-management.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/navigation-entry-management.md)
-- service design:
-  - [policy-management.md](/Users/acehood/Documents/GitHub/oes/src/services/system/permission-service/doc/design/policy-management.md)
+- service truth source:
+  - [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md)
 
 ## 4. 当前结论
 

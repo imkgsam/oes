@@ -1,10 +1,14 @@
 # tenant-org-service Tenant Onboarding Contract
 
+> 服务设计唯一真相源：[tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md)。本文只描述 tenant onboarding contract，不替代服务真相源中的 owner 边界。
+> onboarding 涉及的 HR `Employee / Employment`、员工生命周期与正式 `人 -> org` 归属语义，以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准；本文只描述 tenant-org 编排侧如何消费该能力。
+> onboarding 涉及的角色、grant、AccountRole 或授权判定语义，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本文只描述 tenant-org 编排侧如何消费该能力。
+
 ## 1. 目的
 
 定义 tenant onboarding 的内部服务 contract，让“创建租户 + 创建第一个租户管理员”成为可幂等、可恢复、可审计的生产级流程。
 
-当前文档冻结目标 contract 语义；截至 2026-05-05，proto / runtime 已支持当前 onboarding 主线，本次文档收口不重跑 Jest / Vitest。
+当前文档冻结 runtime contract 语义；proto、application service 与 gRPC controller 已支持当前 onboarding 主线。
 
 ## 2. Owner 边界
 
@@ -13,13 +17,13 @@
   - 拥有 `Tenant` 与 root `OrgUnit` 真相。
   - 作为轻量 Saga / Process Manager 调用下游 owner service。
 - `party-service`
-  - 拥有 organization / person `Party` 与 `TenantParty` 真相。
+  - 提供 onboarding 所需 organization / person party 与 tenant party 主体事实；核心对象与 owner 边界以 [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md) 为准。
 - `identity-service`
   - 拥有 `User` 与 `UserAccount` 真相。
 - `auth-service`
   - 拥有 login method、credential、password setup gate 与 session 真相。
 - `hr-service`
-  - 拥有首租户管理员对应的 employee 与 employment 真相。
+  - 拥有首租户管理员对应的 employee 与 employment 真相；服务边界以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
 - `permission-service`
   - 拥有 `tenant.admin` / `hr.admin` / `account.basic` role instance 与 account role grant 真相。
 - `api-gateway`
@@ -37,6 +41,7 @@
 
 - internal service caller
 - authenticated system-scope operator
+- `tenant_org.tenant.create` 权限
 - operator context
 - trace context
 - idempotency key

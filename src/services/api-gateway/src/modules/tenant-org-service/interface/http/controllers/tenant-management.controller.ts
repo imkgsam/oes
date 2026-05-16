@@ -1,6 +1,9 @@
 import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
-import { PermissionCheckAll, TENANT_ORG_MANAGEMENT_PERMISSION_CODES } from '@oes/common/authorization'
+import {
+  RequirePermissions,
+  TENANT_ORG_MANAGEMENT_PERMISSION_CODES
+} from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { TenantManagementService } from '../../../tenant-management.service'
@@ -19,7 +22,7 @@ export class TenantManagementController {
   constructor(private readonly tenantManagementService: TenantManagementService) {}
 
   @Get()
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_TENANT])
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.LIST_TENANT] })
   @ApiOperation({ summary: 'List tenants for the system-admin tenant management entry' })
   async listTenants(
     @Query() query: ListTenantsDto,
@@ -37,18 +40,21 @@ export class TenantManagementController {
   }
 
   @Get('first-admin-candidates')
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT])
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT] })
   @ApiOperation({ summary: 'Find an existing user candidate for tenant first-admin binding' })
   async searchFirstAdminExistingUsers(
     @Query('keyword') keyword: string,
     @Query('countryOrRegion') countryOrRegion: string | undefined,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.tenantManagementService.searchFirstAdminExistingUsers({ countryOrRegion, keyword }, source)
+    return this.tenantManagementService.searchFirstAdminExistingUsers(
+      { countryOrRegion, keyword },
+      source
+    )
   }
 
   @Get(':tenantId')
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_TENANT_DETAIL])
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_TENANT_DETAIL] })
   @ApiOperation({ summary: 'Get one tenant detail for the system-admin tenant management entry' })
   async getTenantById(
     @Param('tenantId') tenantId: string,
@@ -58,7 +64,7 @@ export class TenantManagementController {
   }
 
   @Post()
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT])
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT] })
   @ApiOperation({ summary: 'Create one tenant and its root org' })
   @ApiBody({ type: CreateTenantDto })
   async createTenant(
@@ -69,8 +75,10 @@ export class TenantManagementController {
   }
 
   @Post('onboardings')
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT])
-  @ApiOperation({ summary: 'Start tenant onboarding with party, first admin, login, and role grant' })
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT] })
+  @ApiOperation({
+    summary: 'Start tenant onboarding with party, first admin, login, and role grant'
+  })
   @ApiBody({ type: CreateTenantOnboardingDto })
   async startTenantOnboarding(
     @Body() body: CreateTenantOnboardingDto,
@@ -80,7 +88,7 @@ export class TenantManagementController {
   }
 
   @Get('onboardings/:onboardingId')
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_TENANT_DETAIL])
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.VIEW_TENANT_DETAIL] })
   @ApiOperation({ summary: 'Get tenant onboarding run status' })
   async getTenantOnboarding(
     @Param('onboardingId') onboardingId: string,
@@ -90,7 +98,7 @@ export class TenantManagementController {
   }
 
   @Post('onboardings/:onboardingId/retry')
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT])
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.CREATE_TENANT] })
   @ApiOperation({ summary: 'Retry a failed tenant onboarding run' })
   @ApiBody({ type: RetryTenantOnboardingDto })
   async retryTenantOnboarding(
@@ -102,7 +110,7 @@ export class TenantManagementController {
   }
 
   @Patch(':tenantId/profile')
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_PROFILE])
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_PROFILE] })
   @ApiOperation({ summary: 'Update tenant profile metadata' })
   @ApiBody({ type: UpdateTenantProfileDto })
   async updateTenantProfile(
@@ -114,7 +122,7 @@ export class TenantManagementController {
   }
 
   @Patch(':tenantId/status')
-  @PermissionCheckAll([TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_STATUS])
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_TENANT_STATUS] })
   @ApiOperation({ summary: 'Change tenant lifecycle status' })
   @ApiBody({ type: UpdateTenantStatusDto })
   async updateTenantStatus(

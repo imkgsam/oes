@@ -190,6 +190,39 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         },
       },
       {
+        name: 'TenantItemAttributeManagement',
+        path: '/master-data/item-attributes',
+        component: () => import('#/views/admin/item-attribute-management.vue'),
+        meta: {
+          entryKey: 'master-data.item-attribute-management',
+          fullPathKey: false,
+          icon: 'lucide:sliders-horizontal',
+          title: 'Item 属性管理',
+        },
+      },
+      {
+        name: 'TenantItemPackagingManagement',
+        path: '/master-data/item-packaging',
+        component: () => import('#/views/admin/item-packaging-management.vue'),
+        meta: {
+          entryKey: 'master-data.item-packaging-management',
+          fullPathKey: false,
+          icon: 'lucide:package-check',
+          title: 'Item 包装管理',
+        },
+      },
+      {
+        name: 'TenantItemBomManagement',
+        path: '/master-data/item-boms',
+        component: () => import('#/views/admin/item-bom-management.vue'),
+        meta: {
+          entryKey: 'master-data.item-bom-management',
+          fullPathKey: false,
+          icon: 'lucide:workflow',
+          title: 'Item BOM 管理',
+        },
+      },
+      {
         name: 'TenantCustomerManagement',
         path: '/master-data/customers',
         component: () => import('#/views/admin/customer-management.vue'),
