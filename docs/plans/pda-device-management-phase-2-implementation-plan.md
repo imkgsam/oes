@@ -318,7 +318,7 @@ Expected: enrollment test suite passes.
 - Create: `src/services/system/terminal-device-service/src/application/queries/version-policy/get-version-policy.query.ts`
 - Test: focused service tests
 
-- [ ] **Step 1: Write failing tests for lifecycle decisions**
+- [x] **Step 1: Write failing tests for lifecycle decisions**
 
 Cover:
 
@@ -327,11 +327,11 @@ Cover:
 - `HEARTBEAT / DIAGNOSTIC_LOG` may return governance response for non-active states.
 - `DECOMMISSIONED` returns `shouldClearLocalSession=true` and `shouldClearLocalTerminalDeviceId=true`.
 
-- [ ] **Step 2: Implement DeviceAccessDecision**
+- [x] **Step 2: Implement DeviceAccessDecision**
 
 The service must return `resolvedTenantId`, status, presence, version policy, required action and cleanup flags.
 
-- [ ] **Step 3: Write failing tests for version rules**
+- [x] **Step 3: Write failing tests for version rules**
 
 Cover:
 
@@ -339,11 +339,11 @@ Cover:
 - below latest but above min allows and recommends upgrade;
 - heartbeat still accepted when app version is unsupported.
 
-- [ ] **Step 4: Implement version policy handling**
+- [x] **Step 4: Implement version policy handling**
 
 Version comparison must be centralized in `terminal-device-service`.
 
-- [ ] **Step 5: Write failing tests for lifecycle transitions**
+- [x] **Step 5: Write failing tests for lifecycle transitions**
 
 Cover:
 
@@ -352,11 +352,11 @@ Cover:
 - non-active status transitions produce session revoke intent;
 - high-risk transitions require reason and audit.
 
-- [ ] **Step 6: Implement lifecycle transition command**
+- [x] **Step 6: Implement lifecycle transition command**
 
 Return session revoke intent to caller or event publisher.
 
-- [ ] **Step 7: Write failing tests for heartbeat runtime snapshot**
+- [x] **Step 7: Write failing tests for heartbeat runtime snapshot**
 
 Cover:
 
@@ -365,11 +365,11 @@ Cover:
 - heartbeat does not change lifecycle status;
 - `lastReportedAccountId` is stored only as runtime diagnostic data.
 
-- [ ] **Step 8: Implement runtime snapshot command/query**
+- [x] **Step 8: Implement runtime snapshot command/query**
 
 Use server receive time for `lastHeartbeatAt`.
 
-- [ ] **Step 9: Run tests**
+- [x] **Step 9: Run tests**
 
 Run:
 

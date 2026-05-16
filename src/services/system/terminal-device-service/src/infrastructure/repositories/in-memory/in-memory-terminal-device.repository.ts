@@ -25,6 +25,30 @@ export class InMemoryTerminalDeviceRepository implements TerminalDeviceRepositor
     return entity
   }
 
+  // Replaces an existing terminal device entity while preserving uniqueness indexes.
+  async update(entity: TerminalDeviceEntity): Promise<TerminalDeviceEntity> {
+    const current = this.store.devices.get(entity.terminalDeviceId)
+    if (!current) {
+      throw new TerminalDeviceError('TERMINAL_DEVICE_NOT_FOUND', 'Terminal device not found')
+    }
+
+    if (current.enrollmentId !== entity.enrollmentId) {
+      const linkedDeviceId = entity.enrollmentId ? this.store.terminalDeviceIdsByEnrollmentId.get(entity.enrollmentId) : null
+      if (linkedDeviceId && linkedDeviceId !== entity.terminalDeviceId) {
+        throw new TerminalDeviceError('TERMINAL_DEVICE_ENROLLMENT_ALREADY_LINKED', 'Terminal device enrollment is already linked')
+      }
+      if (current.enrollmentId) {
+        this.store.terminalDeviceIdsByEnrollmentId.delete(current.enrollmentId)
+      }
+      if (entity.enrollmentId) {
+        this.store.terminalDeviceIdsByEnrollmentId.set(entity.enrollmentId, entity.terminalDeviceId)
+      }
+    }
+
+    this.store.devices.set(entity.terminalDeviceId, entity)
+    return entity
+  }
+
   // Loads a terminal device entity from memory by its service-owned identifier.
   async findById(terminalDeviceId: string): Promise<TerminalDeviceEntity | null> {
     return this.store.devices.get(terminalDeviceId) ?? null

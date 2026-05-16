@@ -11,6 +11,7 @@ export interface TerminalDeviceIdentityMatchInput {
 // TerminalDeviceRepository defines persistence operations for managed terminal device registry records.
 export interface TerminalDeviceRepository {
   create(entity: TerminalDeviceEntity): Promise<TerminalDeviceEntity>
+  update(entity: TerminalDeviceEntity): Promise<TerminalDeviceEntity>
   findById(terminalDeviceId: string): Promise<TerminalDeviceEntity | null>
   findPossibleIdentityMatch(input: TerminalDeviceIdentityMatchInput): Promise<TerminalDeviceEntity | null>
 }

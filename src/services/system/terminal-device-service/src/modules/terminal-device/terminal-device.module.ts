@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common'
 import { CqrsModule } from '@nestjs/cqrs'
+import { DeviceCommandHandlers } from '../../application/commands/device'
 import { EnrollmentCommandHandlers } from '../../application/commands/enrollment'
+import { RuntimeCommandHandlers } from '../../application/commands/runtime'
+import { VersionPolicyCommandHandlers } from '../../application/commands/version-policy'
+import { VersionPolicyQueryHandlers } from '../../application/queries/version-policy'
+import { ApplicationServices } from '../../application/services'
 import { SYMBOLS } from '../../common/constants/symbols'
 import {
   InMemoryTerminalDeviceAuditEventRepository,
@@ -45,7 +50,12 @@ import { TerminalDeviceGrpcController } from '../../interfaces/grpc/terminal-dev
       useFactory: (store: InMemoryTerminalDeviceStore) => new InMemoryTerminalDeviceAuditEventRepository(store),
       inject: [InMemoryTerminalDeviceStore]
     },
-    ...EnrollmentCommandHandlers
+    ...EnrollmentCommandHandlers,
+    ...DeviceCommandHandlers,
+    ...RuntimeCommandHandlers,
+    ...VersionPolicyCommandHandlers,
+    ...VersionPolicyQueryHandlers,
+    ...ApplicationServices
   ],
   controllers: [TerminalDeviceGrpcController],
   exports: [
@@ -55,7 +65,12 @@ import { TerminalDeviceGrpcController } from '../../interfaces/grpc/terminal-dev
     SYMBOLS.REPO.RUNTIME_SNAPSHOT,
     SYMBOLS.REPO.VERSION_POLICY,
     SYMBOLS.REPO.AUDIT_EVENT,
-    ...EnrollmentCommandHandlers
+    ...EnrollmentCommandHandlers,
+    ...DeviceCommandHandlers,
+    ...RuntimeCommandHandlers,
+    ...VersionPolicyCommandHandlers,
+    ...VersionPolicyQueryHandlers,
+    ...ApplicationServices
   ]
 })
 // TerminalDeviceModule assembles the terminal device skeleton with repository ports and in-memory adapters.
