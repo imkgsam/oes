@@ -1,4 +1,85 @@
 import { getBridgeClient } from '@/bridge/bridge-client';
+import type { DeviceInfo } from '@/bridge/types';
+
+export type TerminalDeviceStatus =
+  | 'PENDING_APPROVAL'
+  | 'ACTIVE'
+  | 'DISABLED'
+  | 'LOST'
+  | 'MAINTENANCE'
+  | 'DECOMMISSIONED';
+
+export type DeviceAccessDecisionCode =
+  | 'ALLOW'
+  | 'ENROLLMENT_REQUIRED'
+  | 'DEVICE_PENDING_APPROVAL'
+  | 'DEVICE_DISABLED'
+  | 'DEVICE_LOST'
+  | 'DEVICE_MAINTENANCE'
+  | 'DEVICE_DECOMMISSIONED'
+  | 'APP_VERSION_UNSUPPORTED'
+  | 'DEVICE_IDENTITY_CONFLICT'
+  | 'ENROLLMENT_EXPIRED'
+  | 'ENROLLMENT_USED'
+  | 'ENROLLMENT_REVOKED'
+  | 'ENROLLMENT_INVALID';
+
+export type DeviceRequiredAction =
+  | 'NONE'
+  | 'ENROLL_DEVICE'
+  | 'CONTACT_ADMIN'
+  | 'CLEAR_LOCAL_SESSION'
+  | 'CLEAR_LOCAL_DEVICE_AND_SESSION'
+  | 'UPGRADE_APP';
+
+export type PdaVersionPolicy = {
+  minSupportedAppVersion: string;
+  latestAppVersion: string;
+  upgradeRequired: boolean;
+  upgradeRecommended?: boolean;
+  apkDownloadUrl?: string | null;
+  releaseNotesUrl?: string | null;
+};
+
+export type PdaDeviceAccessDecision = {
+  allowed: boolean;
+  decisionCode: DeviceAccessDecisionCode;
+  deviceStatus?: TerminalDeviceStatus | null;
+  presenceStatus?: 'ONLINE' | 'OFFLINE' | 'UNKNOWN' | null;
+  requiredAction: DeviceRequiredAction;
+  messageKey?: string | null;
+  shouldClearLocalSession: boolean;
+  shouldClearLocalTerminalDeviceId: boolean;
+  versionPolicy?: PdaVersionPolicy | null;
+};
+
+export type PdaManagedDeviceDescriptor = {
+  terminalDeviceId?: string | null;
+  terminalDeviceType: 'PDA';
+  identity: {
+    manufacturerSerial?: string | null;
+    androidId?: string | null;
+    appInstallationId?: string | null;
+    manufacturer?: string | null;
+    model?: string | null;
+  };
+  software: {
+    androidVersion?: string | null;
+    webViewVersion?: string | null;
+    appVersion: string;
+  };
+};
+
+export type PdaEnrollmentResponse = {
+  enrolled: boolean;
+  terminalDeviceId: string | null;
+  tenantId?: string | null;
+  terminalDeviceType?: 'PDA';
+  displayName?: string | null;
+  deviceStatus?: TerminalDeviceStatus | null;
+  decision: PdaDeviceAccessDecision;
+  serverTime?: string;
+};
 
 export type BootstrapResponse = {
   account?: {
@@ -10,6 +91,7 @@ export type BootstrapResponse = {
   session?: {
     sessionId?: string;
     terminal: 'PDA';
+    terminalDeviceId?: string;
     expiresAt?: string;
     idleTimeoutSeconds: number;
   };
@@ -24,6 +106,14 @@ export type BootstrapResponse = {
     latestAppVersion: string;
     upgradeRequired: boolean;
   };
+  device?: {
+    terminalDeviceId: string;
+    terminalDeviceType: 'PDA';
+    tenantId?: string | null;
+    displayName?: string | null;
+    deviceStatus: TerminalDeviceStatus;
+  };
+  decision?: PdaDeviceAccessDecision;
   serverTime?: string;
 };
 
@@ -31,6 +121,8 @@ export type PdaLoginRequest = {
   identifier: string;
   credential: string;
   deviceName?: string;
+  terminalDeviceId: string;
+  device: PdaManagedDeviceDescriptor;
 };
 
 export type PdaAccountSelectionRequest = {
@@ -49,6 +141,7 @@ export type PdaLoginResponse = {
     refreshToken: string;
     expiresIn: number;
     terminal?: string;
+    terminalDeviceId?: string;
   } | null;
   operator?: {
     userId?: string;
@@ -65,6 +158,9 @@ export type PdaLoginResponse = {
   }>;
   reasonCode?: string;
   message?: string;
+  terminal?: 'PDA';
+  terminalDeviceId?: string;
+  deviceBoundTenantId?: string;
 };
 
 export type PdaRefreshSessionResponse = {
@@ -76,6 +172,8 @@ export type PdaRefreshSessionResponse = {
   allowedTerminals?: string[];
   reasonCode?: string;
   message?: string;
+  terminalDeviceId?: string;
+  deviceBoundTenantId?: string;
 };
 
 export type PdaLogoutResponse = {
@@ -83,17 +181,10 @@ export type PdaLogoutResponse = {
 };
 
 export type PdaHeartbeatRequest = {
-  device: {
-    deviceId: string;
-    idSource: string;
-    fallbackAppDeviceId?: string;
-    manufacturer?: string;
-    deviceModel?: string;
-    androidVersion?: string;
-    appVersion: string;
-  };
+  device: PdaManagedDeviceDescriptor;
   runtime: {
     networkStatus: 'ONLINE' | 'OFFLINE';
+    networkType?: string;
     batteryLevel?: number;
     appState: 'FOREGROUND' | 'BACKGROUND' | 'LOGIN' | 'LOGOUT' | 'SESSION_RESTORED';
   };
@@ -107,14 +198,8 @@ export type PdaHeartbeatRequest = {
 
 export type PdaHeartbeatResponse = {
   accepted: boolean;
-  deviceStatus: 'ACTIVE';
-  devicePolicy: {
-    heartbeatIntervalSeconds: number;
-    idleTimeoutSeconds: number;
-    minSupportedAppVersion: string;
-    latestAppVersion: string;
-    upgradeRequired: boolean;
-  };
+  decision: PdaDeviceAccessDecision;
+  heartbeatIntervalSeconds?: number;
   serverTime: string;
 };
 
@@ -138,7 +223,9 @@ export type PdaDeviceLogsRequest = {
 
 export type PdaDeviceLogsResponse = {
   accepted: boolean;
-  receivedCount: number;
+  receivedCount?: number;
+  logBatchId?: string;
+  decision?: PdaDeviceAccessDecision;
   serverTime: string;
 };
 
@@ -180,6 +267,22 @@ export class PdaBffError extends Error {
   }
 }
 
+/** Activates a managed PDA device using an administrator-issued enrollment code. */
+export async function enrollPdaDevice(
+  enrollmentCode: string,
+  device: PdaManagedDeviceDescriptor,
+): Promise<PdaEnrollmentResponse> {
+  return requestPdaBff<PdaEnrollmentResponse>('/pda/device/enroll', {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({
+      enrollmentCode,
+      device,
+      clientTime: new Date().toISOString(),
+    }),
+  });
+}
+
 /** Logs into the PDA terminal through the terminal-scoped auth BFF endpoint. */
 export async function loginPda(request: PdaLoginRequest): Promise<PdaLoginResponse> {
   return requestPdaBff<PdaLoginResponse>('/pda/auth/login', {
@@ -189,7 +292,10 @@ export async function loginPda(request: PdaLoginRequest): Promise<PdaLoginRespon
       method: resolvePasswordLoginMethod(request.identifier),
       identifier: request.identifier,
       credential: request.credential,
+      terminalDeviceId: request.terminalDeviceId,
       device: {
+        ...request.device,
+        deviceId: request.terminalDeviceId,
         deviceName: request.deviceName || 'OES PDA',
       },
     }),
@@ -232,9 +338,10 @@ export async function logoutPda(accessToken: string): Promise<PdaLogoutResponse>
   });
 }
 
-/** Calls PDA BFF bootstrap while keeping Phase 1 UI independent from tenant-web APIs. */
-export async function fetchPdaBootstrap(accessToken: string): Promise<BootstrapResponse> {
-  return requestPdaBff<BootstrapResponse>('/pda/session/bootstrap', {
+/** Calls PDA BFF bootstrap with the managed terminal device binding. */
+export async function fetchPdaBootstrap(accessToken: string, terminalDeviceId: string): Promise<BootstrapResponse> {
+  const searchParams = new URLSearchParams({ terminalDeviceId });
+  return requestPdaBff<BootstrapResponse>(`/pda/session/bootstrap?${searchParams.toString()}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
@@ -269,6 +376,29 @@ export async function postPdaDiagnosticLogs(
     },
     body: JSON.stringify(request),
   });
+}
+
+/** Maps Android bridge device facts into the managed PDA metadata contract. */
+export function toManagedPdaDeviceDescriptor(
+  deviceInfo: DeviceInfo,
+  terminalDeviceId?: string | null,
+): PdaManagedDeviceDescriptor {
+  return {
+    terminalDeviceId: terminalDeviceId || undefined,
+    terminalDeviceType: 'PDA',
+    identity: {
+      manufacturerSerial: deviceInfo.idSource === 'MANUFACTURER_SERIAL' ? deviceInfo.deviceId : null,
+      androidId: deviceInfo.idSource === 'ANDROID_ID' ? deviceInfo.deviceId : null,
+      appInstallationId: deviceInfo.idSource === 'APP_GENERATED' ? deviceInfo.deviceId : null,
+      manufacturer: deviceInfo.manufacturer,
+      model: deviceInfo.model,
+    },
+    software: {
+      androidVersion: deviceInfo.osVersion,
+      webViewVersion: deviceInfo.webViewVersion,
+      appVersion: deviceInfo.appVersion,
+    },
+  };
 }
 
 /** Sends one PDA BFF request and unwraps the API Gateway success envelope. */

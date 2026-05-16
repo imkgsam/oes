@@ -632,7 +632,7 @@ Expected: Admin BFF tests pass.
 - Modify `app/pda/web/src/views/version-blocked-view.vue`
 - Add/modify tests under `app/pda/web/src/tests/`
 
-- [ ] **Step 1: Add API client methods**
+- [x] **Step 1: Add API client methods**
 
 Methods:
 
@@ -641,7 +641,7 @@ Methods:
 - `bootstrap` with `terminalDeviceId`
 - PDA login with `terminalDeviceId`
 
-- [ ] **Step 2: Add device governance store state**
+- [x] **Step 2: Add device governance store state**
 
 State:
 
@@ -652,7 +652,7 @@ State:
 - `shouldClearLocalSession`
 - `shouldClearLocalTerminalDeviceId`
 
-- [ ] **Step 3: Write routing tests**
+- [x] **Step 3: Write routing tests**
 
 Cover:
 
@@ -661,7 +661,7 @@ Cover:
 - unsupported version routes to version blocked page;
 - identity conflict routes to contact-admin page.
 
-- [ ] **Step 4: Implement views**
+- [x] **Step 4: Implement views**
 
 Views:
 
@@ -670,13 +670,13 @@ Views:
 - identity conflict view asks user to contact administrator;
 - version blocked view consumes version policy.
 
-- [ ] **Step 5: Implement cleanup actions**
+- [x] **Step 5: Implement cleanup actions**
 
 When response has `shouldClearLocalSession`, clear access token and refresh token through Bridge.
 
 When response has `shouldClearLocalTerminalDeviceId`, clear local terminal device binding and route to enrollment.
 
-- [ ] **Step 6: Run PDA web tests**
+- [x] **Step 6: Run PDA web tests**
 
 Run:
 

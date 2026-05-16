@@ -38,6 +38,14 @@ describe('session store', () => {
 
   it('restores a persisted session by refreshing the token pair and loading bootstrap', async () => {
     localStorage.setItem(
+      'oes:pda:terminal-device-binding',
+      JSON.stringify({
+        terminalDeviceId: 'terminal-device-1',
+        displayName: 'PDA-01',
+        deviceStatus: 'ACTIVE',
+      }),
+    );
+    localStorage.setItem(
       'oes:pda:session-tokens',
       JSON.stringify({
         accessToken: 'old-access-token',
@@ -70,7 +78,20 @@ describe('session store', () => {
               },
               session: {
                 terminal: 'PDA',
+                terminalDeviceId: 'terminal-device-1',
                 idleTimeoutSeconds: 900,
+              },
+              device: {
+                terminalDeviceId: 'terminal-device-1',
+                terminalDeviceType: 'PDA',
+                deviceStatus: 'ACTIVE',
+              },
+              decision: {
+                allowed: true,
+                decisionCode: 'ALLOW',
+                requiredAction: 'NONE',
+                shouldClearLocalSession: false,
+                shouldClearLocalTerminalDeviceId: false,
               },
             },
           }),
@@ -82,10 +103,47 @@ describe('session store', () => {
 
     expect(restored).toBe(true);
     expect(sessionStore.accessToken).toBe('new-access-token');
+    expect(sessionStore.terminalDeviceId).toBe('terminal-device-1');
     expect(sessionStore.operatorName).toBe('Operator One');
   });
 
+  it('clears token and device binding when a device decision requires local cleanup', async () => {
+    const sessionStore = useSessionStore();
+    await sessionStore.signIn(
+      {
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        expiresIn: 900,
+        terminal: 'PDA',
+      },
+      'operator-a',
+    );
+    await sessionStore.setTerminalDeviceBinding({
+      terminalDeviceId: 'terminal-device-1',
+      deviceStatus: 'ACTIVE',
+    });
+
+    await sessionStore.applyDeviceDecision({
+      allowed: false,
+      decisionCode: 'DEVICE_DECOMMISSIONED',
+      deviceStatus: 'DECOMMISSIONED',
+      requiredAction: 'CLEAR_LOCAL_DEVICE_AND_SESSION',
+      shouldClearLocalSession: true,
+      shouldClearLocalTerminalDeviceId: true,
+    });
+
+    expect(sessionStore.isAuthenticated).toBe(false);
+    expect(sessionStore.terminalDeviceId).toBe(null);
+    expect(localStorage.getItem('oes:pda:terminal-device-binding')).toBe(null);
+  });
+
   it('clears local session state when refresh is rejected', async () => {
+    localStorage.setItem(
+      'oes:pda:terminal-device-binding',
+      JSON.stringify({
+        terminalDeviceId: 'terminal-device-1',
+      }),
+    );
     localStorage.setItem(
       'oes:pda:session-tokens',
       JSON.stringify({

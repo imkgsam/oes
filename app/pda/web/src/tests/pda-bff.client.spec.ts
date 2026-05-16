@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  enrollPdaDevice,
   fetchPdaBootstrap,
   logoutPda,
   loginPda,
   PdaBffError,
   refreshPdaSession,
   selectPdaAccount,
+  toManagedPdaDeviceDescriptor,
 } from '@/api/pda-bff.client';
 import { setBridgeClient } from '@/bridge/bridge-client';
 
@@ -49,6 +51,8 @@ describe('pda bff client', () => {
       identifier: 'worker@example.com',
       credential: 'secret',
       deviceName: 'CRUISE Ge',
+      terminalDeviceId: 'terminal-device-1',
+      device: toManagedPdaDeviceDescriptor(createDeviceInfo(), 'terminal-device-1'),
     });
 
     expect(fetchMock).toHaveBeenCalledWith(
@@ -59,7 +63,23 @@ describe('pda bff client', () => {
           method: 'EMAIL_PASSWORD',
           identifier: 'worker@example.com',
           credential: 'secret',
+          terminalDeviceId: 'terminal-device-1',
           device: {
+            terminalDeviceId: 'terminal-device-1',
+            terminalDeviceType: 'PDA',
+            identity: {
+              manufacturerSerial: 'SEUIC-SN-123',
+              androidId: null,
+              appInstallationId: null,
+              manufacturer: 'Seuic',
+              model: 'Cruise Ge',
+            },
+            software: {
+              androidVersion: '9',
+              webViewVersion: '66.0.3359.158',
+              appVersion: '2.0.0',
+            },
+            deviceId: 'terminal-device-1',
             deviceName: 'CRUISE Ge',
           },
         }),
@@ -78,16 +98,48 @@ describe('pda bff client', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await fetchPdaBootstrap('access-token-1');
+    await fetchPdaBootstrap('access-token-1', 'terminal-device-1');
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://10.0.0.2:9101/api/v1/pda/session/bootstrap',
+      'http://10.0.0.2:9101/api/v1/pda/session/bootstrap?terminalDeviceId=terminal-device-1',
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: 'Bearer access-token-1',
         }),
       }),
     );
+  });
+
+  it('posts enrollment code with normalized device metadata', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: {
+            enrolled: true,
+            terminalDeviceId: 'terminal-device-1',
+            decision: {
+              allowed: true,
+              decisionCode: 'ALLOW',
+              requiredAction: 'NONE',
+              shouldClearLocalSession: false,
+              shouldClearLocalTerminalDeviceId: false,
+            },
+          },
+        }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await enrollPdaDevice('ENR-123456', toManagedPdaDeviceDescriptor(createDeviceInfo()));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://192.168.2.33:9101/api/v1/pda/device/enroll',
+      expect.objectContaining({
+        method: 'POST',
+        body: expect.stringContaining('"enrollmentCode":"ENR-123456"'),
+      }),
+    );
+    expect(result.terminalDeviceId).toBe('terminal-device-1');
   });
 
   it('normalizes login method casing when selecting one PDA account', async () => {
@@ -141,7 +193,7 @@ describe('pda bff client', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(fetchPdaBootstrap('access-token-1')).rejects.toMatchObject({
+    await expect(fetchPdaBootstrap('access-token-1', 'terminal-device-1')).rejects.toMatchObject({
       status: 500,
       message: 'managed navigation resolver returned incomplete navigation',
     });
@@ -201,7 +253,7 @@ describe('pda bff client', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    await expect(fetchPdaBootstrap('expired-token')).rejects.toBeInstanceOf(PdaBffError);
+    await expect(fetchPdaBootstrap('expired-token', 'terminal-device-1')).rejects.toBeInstanceOf(PdaBffError);
   });
 
   it('falls back from the company LAN gateway to the alternate LAN gateway and remembers the working one', async () => {
@@ -218,22 +270,22 @@ describe('pda bff client', () => {
       });
     vi.stubGlobal('fetch', fetchMock);
 
-    await fetchPdaBootstrap('access-token-1');
-    await fetchPdaBootstrap('access-token-1');
+    await fetchPdaBootstrap('access-token-1', 'terminal-device-1');
+    await fetchPdaBootstrap('access-token-1', 'terminal-device-1');
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
-      'http://192.168.2.33:9101/api/v1/pda/session/bootstrap',
+      'http://192.168.2.33:9101/api/v1/pda/session/bootstrap?terminalDeviceId=terminal-device-1',
       expect.any(Object),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'http://192.168.100.44:9101/api/v1/pda/session/bootstrap',
+      'http://192.168.100.44:9101/api/v1/pda/session/bootstrap?terminalDeviceId=terminal-device-1',
       expect.any(Object),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
-      'http://192.168.100.44:9101/api/v1/pda/session/bootstrap',
+      'http://192.168.100.44:9101/api/v1/pda/session/bootstrap?terminalDeviceId=terminal-device-1',
       expect.any(Object),
     );
   });
@@ -260,6 +312,8 @@ describe('pda bff client', () => {
       loginPda({
         identifier: 'worker@example.com',
         credential: 'secret',
+        terminalDeviceId: 'terminal-device-1',
+        device: toManagedPdaDeviceDescriptor(createDeviceInfo(), 'terminal-device-1'),
       }),
     ).rejects.toMatchObject({
       status: 0,
@@ -279,4 +333,16 @@ function installMemoryStorage(): void {
       removeItem: (key: string) => values.delete(key),
     },
   });
+}
+
+function createDeviceInfo() {
+  return {
+    appVersion: '2.0.0',
+    deviceId: 'SEUIC-SN-123',
+    idSource: 'MANUFACTURER_SERIAL' as const,
+    manufacturer: 'Seuic',
+    model: 'Cruise Ge',
+    osVersion: '9',
+    webViewVersion: '66.0.3359.158',
+  };
 }

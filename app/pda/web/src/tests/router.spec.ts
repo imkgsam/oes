@@ -27,6 +27,13 @@ describe('pda router session restore', () => {
 
   it('restores a persisted PDA session before staying on the login route', async () => {
     window.localStorage.setItem(
+      'oes:pda:terminal-device-binding',
+      JSON.stringify({
+        terminalDeviceId: 'terminal-device-1',
+        displayName: 'PDA-01',
+      }),
+    );
+    window.localStorage.setItem(
       'oes:pda:session-tokens',
       JSON.stringify({
         accessToken: 'old-access-token',
@@ -61,7 +68,15 @@ describe('pda router session restore', () => {
                 },
                 session: {
                   terminal: 'PDA',
+                  terminalDeviceId: 'terminal-device-1',
                   idleTimeoutSeconds: 900,
+                },
+                decision: {
+                  allowed: true,
+                  decisionCode: 'ALLOW',
+                  requiredAction: 'NONE',
+                  shouldClearLocalSession: false,
+                  shouldClearLocalTerminalDeviceId: false,
                 },
               },
             }),
@@ -72,6 +87,41 @@ describe('pda router session restore', () => {
 
     expect(redirect).toBe('/workbench');
     expect(useSessionStore().operatorName).toBe('Operator One');
+  });
+
+  it('routes unbound PDA launches to enrollment before login', async () => {
+    const redirect = await resolvePdaSessionRoute('/login');
+
+    expect(redirect).toBe('/enrollment');
+  });
+
+  it('routes denied managed devices to their restricted pages', async () => {
+    const sessionStore = useSessionStore();
+    await sessionStore.setTerminalDeviceBinding({ terminalDeviceId: 'terminal-device-1' });
+    await sessionStore.applyDeviceDecision({
+      allowed: false,
+      decisionCode: 'DEVICE_IDENTITY_CONFLICT',
+      requiredAction: 'CONTACT_ADMIN',
+      shouldClearLocalSession: false,
+      shouldClearLocalTerminalDeviceId: false,
+    });
+
+    expect(await resolvePdaSessionRoute('/login')).toBe('/identity-conflict');
+
+    await sessionStore.applyDeviceDecision({
+      allowed: false,
+      decisionCode: 'APP_VERSION_UNSUPPORTED',
+      requiredAction: 'UPGRADE_APP',
+      shouldClearLocalSession: false,
+      shouldClearLocalTerminalDeviceId: false,
+      versionPolicy: {
+        minSupportedAppVersion: '2.0.0',
+        latestAppVersion: '2.1.0',
+        upgradeRequired: true,
+      },
+    });
+
+    expect(await resolvePdaSessionRoute('/login')).toBe('/version-blocked');
   });
 });
 

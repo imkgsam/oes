@@ -1,5 +1,9 @@
 import { getBridgeClient } from '@/bridge/bridge-client';
-import { postPdaHeartbeat, type PdaHeartbeatRequest } from '@/api/pda-bff.client';
+import {
+  postPdaHeartbeat,
+  toManagedPdaDeviceDescriptor,
+  type PdaHeartbeatRequest,
+} from '@/api/pda-bff.client';
 import { useSessionStore } from '@/stores/session.store';
 
 export type PdaHeartbeatAppState = 'FOREGROUND' | 'BACKGROUND' | 'LOGIN' | 'LOGOUT' | 'SESSION_RESTORED';
@@ -27,17 +31,12 @@ export async function sendPdaHeartbeat(appState: PdaHeartbeatAppState): Promise<
   }
 
   const sessionStore = useSessionStore();
+  const terminalDeviceBinding = sessionStore.loadTerminalDeviceBinding();
   const request: PdaHeartbeatRequest = {
-    device: {
-      deviceId: deviceResult.data.deviceId,
-      idSource: deviceResult.data.idSource,
-      manufacturer: deviceResult.data.manufacturer,
-      deviceModel: deviceResult.data.model,
-      androidVersion: deviceResult.data.osVersion,
-      appVersion: deviceResult.data.appVersion,
-    },
+    device: toManagedPdaDeviceDescriptor(deviceResult.data, terminalDeviceBinding?.terminalDeviceId),
     runtime: {
       networkStatus: 'ONLINE',
+      networkType: networkResult.data.type,
       appState,
     },
     session: buildSessionSummary(sessionStore),
@@ -45,7 +44,8 @@ export async function sendPdaHeartbeat(appState: PdaHeartbeatAppState): Promise<
   };
 
   try {
-    await postPdaHeartbeat(request, sessionStore.accessToken);
+    const response = await postPdaHeartbeat(request, sessionStore.accessToken);
+    await sessionStore.applyDeviceDecision(response.decision);
     return true;
   } catch {
     return false;
@@ -75,6 +75,7 @@ export function stopPdaHeartbeat(): void {
   heartbeatTimer = undefined;
 }
 
+/** Builds the optional authenticated session snapshot included in PDA heartbeat. */
 function buildSessionSummary(sessionStore: ReturnType<typeof useSessionStore>): PdaHeartbeatRequest['session'] {
   const accountId = sessionStore.bootstrap?.account?.accountId;
   const sessionId = sessionStore.bootstrap?.session?.sessionId;
@@ -89,6 +90,7 @@ function buildSessionSummary(sessionStore: ReturnType<typeof useSessionStore>): 
   };
 }
 
+/** Sends a fresh heartbeat when the WebView returns to the foreground. */
 function installVisibilityHeartbeat(): void {
   if (visibilityListenerInstalled) {
     return;

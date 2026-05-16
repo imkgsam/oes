@@ -5,7 +5,10 @@ import {
   PdaBffError,
   refreshPdaSession,
   type BootstrapResponse,
+  type PdaDeviceAccessDecision,
   type PdaRefreshSessionResponse,
+  type PdaVersionPolicy,
+  type TerminalDeviceStatus,
 } from '@/api/pda-bff.client';
 import {
   clearSessionTokens,
@@ -18,10 +21,26 @@ type SessionState = {
   accessToken: string | null;
   refreshToken: string | null;
   expiresAt: string | null;
+  terminalDeviceId: string | null;
+  terminalDeviceDisplayName: string | null;
+  deviceStatus: TerminalDeviceStatus | null;
+  decisionCode: string | null;
+  versionPolicy: PdaVersionPolicy | null;
+  shouldClearLocalSession: boolean;
+  shouldClearLocalTerminalDeviceId: boolean;
   bootstrap: BootstrapResponse | null;
   operatorName: string | null;
   restoring: boolean;
 };
+
+type PersistedTerminalDeviceBinding = {
+  terminalDeviceId: string;
+  displayName?: string | null;
+  tenantId?: string | null;
+  deviceStatus?: TerminalDeviceStatus | null;
+};
+
+const TERMINAL_DEVICE_BINDING_STORAGE_KEY = 'oes:pda:terminal-device-binding';
 
 /** Owns PDA session lifecycle across login, restart restore, refresh, and logout. */
 export const useSessionStore = defineStore('pda-session', {
@@ -29,21 +48,87 @@ export const useSessionStore = defineStore('pda-session', {
     accessToken: null,
     refreshToken: null,
     expiresAt: null,
+    terminalDeviceId: null,
+    terminalDeviceDisplayName: null,
+    deviceStatus: null,
+    decisionCode: null,
+    versionPolicy: null,
+    shouldClearLocalSession: false,
+    shouldClearLocalTerminalDeviceId: false,
     bootstrap: null,
     operatorName: null,
     restoring: false,
   }),
   getters: {
     isAuthenticated: (state) => Boolean(state.accessToken),
+    hasTerminalDeviceBinding: (state) => Boolean(state.terminalDeviceId),
   },
   actions: {
     async signIn(session: PdaRefreshSessionResponse, operatorName: string) {
       await this.applyTokenPair(session);
       this.operatorName = operatorName;
     },
-    applyBootstrap(bootstrap: BootstrapResponse) {
+    async applyBootstrap(bootstrap: BootstrapResponse): Promise<void> {
       this.bootstrap = bootstrap;
       this.operatorName = bootstrap.account?.displayName || this.operatorName;
+      if (bootstrap.device?.terminalDeviceId) {
+        await this.setTerminalDeviceBinding({
+          terminalDeviceId: bootstrap.device.terminalDeviceId,
+          displayName: bootstrap.device.displayName,
+          tenantId: bootstrap.device.tenantId,
+          deviceStatus: bootstrap.device.deviceStatus,
+        });
+      }
+      if (bootstrap.decision) {
+        await this.applyDeviceDecision(bootstrap.decision);
+      }
+    },
+    loadTerminalDeviceBinding(): PersistedTerminalDeviceBinding | null {
+      if (this.terminalDeviceId) {
+        return {
+          terminalDeviceId: this.terminalDeviceId,
+          displayName: this.terminalDeviceDisplayName,
+          deviceStatus: this.deviceStatus,
+        };
+      }
+
+      const binding = loadPersistedTerminalDeviceBinding();
+      if (!binding?.terminalDeviceId) {
+        return null;
+      }
+
+      this.terminalDeviceId = binding.terminalDeviceId;
+      this.terminalDeviceDisplayName = binding.displayName ?? null;
+      this.deviceStatus = binding.deviceStatus ?? null;
+      return binding;
+    },
+    async setTerminalDeviceBinding(binding: PersistedTerminalDeviceBinding): Promise<void> {
+      this.terminalDeviceId = binding.terminalDeviceId;
+      this.terminalDeviceDisplayName = binding.displayName ?? this.terminalDeviceDisplayName;
+      this.deviceStatus = binding.deviceStatus ?? this.deviceStatus;
+      persistTerminalDeviceBinding(binding);
+    },
+    async clearTerminalDeviceBinding(): Promise<void> {
+      this.terminalDeviceId = null;
+      this.terminalDeviceDisplayName = null;
+      this.deviceStatus = null;
+      this.decisionCode = null;
+      this.versionPolicy = null;
+      clearPersistedTerminalDeviceBinding();
+    },
+    async applyDeviceDecision(decision: PdaDeviceAccessDecision): Promise<void> {
+      this.decisionCode = decision.decisionCode;
+      this.deviceStatus = decision.deviceStatus ?? this.deviceStatus;
+      this.versionPolicy = decision.versionPolicy ?? this.versionPolicy;
+      this.shouldClearLocalSession = decision.shouldClearLocalSession;
+      this.shouldClearLocalTerminalDeviceId = decision.shouldClearLocalTerminalDeviceId;
+
+      if (decision.shouldClearLocalSession) {
+        await this.clearSession();
+      }
+      if (decision.shouldClearLocalTerminalDeviceId) {
+        await this.clearTerminalDeviceBinding();
+      }
     },
     async restoreSession(): Promise<boolean> {
       if (this.restoring || this.isAuthenticated) {
@@ -52,6 +137,11 @@ export const useSessionStore = defineStore('pda-session', {
 
       this.restoring = true;
       try {
+        const terminalDeviceBinding = this.loadTerminalDeviceBinding();
+        if (!terminalDeviceBinding?.terminalDeviceId) {
+          return false;
+        }
+
         const tokens = await loadSessionTokens();
         if (!tokens?.refreshToken) {
           return false;
@@ -64,8 +154,8 @@ export const useSessionStore = defineStore('pda-session', {
         }
 
         await this.applyTokenPair(refreshed);
-        const bootstrap = await fetchPdaBootstrap(refreshed.accessToken);
-        this.applyBootstrap(bootstrap);
+        const bootstrap = await fetchPdaBootstrap(refreshed.accessToken, terminalDeviceBinding.terminalDeviceId);
+        await this.applyBootstrap(bootstrap);
         return true;
       } catch (error) {
         if (isAuthRejected(error)) {
@@ -133,6 +223,40 @@ export const useSessionStore = defineStore('pda-session', {
     },
   },
 });
+
+/** Loads the local pointer to the server-owned terminal device record. */
+function loadPersistedTerminalDeviceBinding(): PersistedTerminalDeviceBinding | null {
+  const rawValue = getBrowserStorage()?.getItem(TERMINAL_DEVICE_BINDING_STORAGE_KEY);
+  if (!rawValue) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawValue) as PersistedTerminalDeviceBinding;
+  } catch {
+    clearPersistedTerminalDeviceBinding();
+    return null;
+  }
+}
+
+/** Persists only the local terminal device pointer and display metadata. */
+function persistTerminalDeviceBinding(binding: PersistedTerminalDeviceBinding): void {
+  getBrowserStorage()?.setItem(TERMINAL_DEVICE_BINDING_STORAGE_KEY, JSON.stringify(binding));
+}
+
+/** Removes the local terminal device pointer after unenrollment or identity reset. */
+function clearPersistedTerminalDeviceBinding(): void {
+  getBrowserStorage()?.removeItem(TERMINAL_DEVICE_BINDING_STORAGE_KEY);
+}
+
+/** Returns browser storage when WebView privacy settings allow local persistence. */
+function getBrowserStorage(): Storage | undefined {
+  try {
+    return window.localStorage;
+  } catch {
+    return undefined;
+  }
+}
 
 function calculateExpiresAt(expiresIn: number): string {
   const safeExpiresIn = Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn : 900;

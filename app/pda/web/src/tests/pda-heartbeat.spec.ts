@@ -45,13 +45,14 @@ describe('pda heartbeat', () => {
           Promise.resolve({
             data: {
               accepted: true,
-              deviceStatus: 'ACTIVE',
-              devicePolicy: {
-                heartbeatIntervalSeconds: 300,
-                idleTimeoutSeconds: 900,
-                minSupportedAppVersion: '0.1.0',
-                latestAppVersion: '0.1.0',
-                upgradeRequired: false,
+              heartbeatIntervalSeconds: 300,
+              decision: {
+                allowed: true,
+                decisionCode: 'ALLOW',
+                deviceStatus: 'ACTIVE',
+                requiredAction: 'NONE',
+                shouldClearLocalSession: false,
+                shouldClearLocalTerminalDeviceId: false,
               },
               serverTime: '2026-05-14T10:00:00.000Z',
             },
@@ -60,6 +61,7 @@ describe('pda heartbeat', () => {
     );
     const sessionStore = useSessionStore();
     sessionStore.accessToken = 'access-token';
+    await sessionStore.setTerminalDeviceBinding({ terminalDeviceId: 'terminal-device-1' });
     sessionStore.bootstrap = {
       account: {
         accountId: 'account-1',
@@ -83,14 +85,22 @@ describe('pda heartbeat', () => {
           Authorization: 'Bearer access-token',
           'Content-Type': 'application/json',
         }),
-        body: expect.stringContaining('"deviceId":"device-1"'),
+        body: expect.stringContaining('"manufacturerSerial":"device-1"'),
       }),
     );
     const body = JSON.parse((fetch as any).mock.calls[0][1].body);
     expect(body).toEqual(
       expect.objectContaining({
+        device: expect.objectContaining({
+          terminalDeviceId: 'terminal-device-1',
+          terminalDeviceType: 'PDA',
+          identity: expect.objectContaining({
+            manufacturerSerial: 'device-1',
+          }),
+        }),
         runtime: expect.objectContaining({
           networkStatus: 'ONLINE',
+          networkType: 'WIFI',
           appState: 'FOREGROUND',
         }),
         session: {

@@ -43,6 +43,9 @@ body {
 }
 
 .login-view,
+.enrollment-view,
+.device-restricted-view,
+.identity-conflict-view,
 .version-blocked-view {
   display: grid;
   min-height: 100dvh;
@@ -51,6 +54,9 @@ body {
 }
 
 .login-view__panel,
+.enrollment-view__panel,
+.device-restricted-view__panel,
+.identity-conflict-view__panel,
 .version-blocked-view__panel {
   width: min(100%, 28rem);
   padding: 1.5rem;
@@ -61,6 +67,9 @@ body {
 }
 
 .login-view h1,
+.enrollment-view h1,
+.device-restricted-view h1,
+.identity-conflict-view h1,
 .version-blocked-view h1,
 .workbench-view h1 {
   margin: 0;
@@ -70,6 +79,9 @@ body {
 }
 
 .login-view__copy,
+.enrollment-view__copy,
+.device-restricted-view p,
+.identity-conflict-view p,
 .version-blocked-view p,
 .pda-card p {
   color: var(--pda-muted);
@@ -81,6 +93,19 @@ body {
   display: grid;
   gap: 0.85rem;
   margin-top: 1.5rem;
+}
+
+.enrollment-form {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1.5rem;
+}
+
+.enrollment-form__hint {
+  margin: 0;
+  color: var(--pda-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .login-form__button {

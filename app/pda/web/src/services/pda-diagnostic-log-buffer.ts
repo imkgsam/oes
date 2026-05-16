@@ -1,5 +1,10 @@
 import { getBridgeClient } from '@/bridge/bridge-client';
-import { postPdaDiagnosticLogs, type PdaDeviceLogsRequest, type PdaDiagnosticLogEntry } from '@/api/pda-bff.client';
+import {
+  postPdaDiagnosticLogs,
+  toManagedPdaDeviceDescriptor,
+  type PdaDeviceLogsRequest,
+  type PdaDiagnosticLogEntry,
+} from '@/api/pda-bff.client';
 import { useSessionStore } from '@/stores/session.store';
 
 export type PdaDiagnosticLogInput = Omit<PdaDiagnosticLogEntry, 'clientTime'> & {
@@ -83,13 +88,16 @@ export async function uploadPdaDiagnosticLogs(): Promise<PdaDiagnosticUploadResu
     logs,
   };
   const response = await postPdaDiagnosticLogs(request, sessionStore.accessToken);
+  if (response.decision) {
+    await sessionStore.applyDeviceDecision(response.decision);
+  }
 
   if (response.accepted) {
     clearPdaDiagnosticLogs();
   }
 
   return {
-    uploadedCount: response.receivedCount,
+    uploadedCount: response.receivedCount ?? logs.length,
     remainingCount: getPdaDiagnosticLogs().length,
     serverTime: response.serverTime,
   };
@@ -108,22 +116,17 @@ function notifyListeners(logs: PdaDiagnosticLogEntry[]): void {
   listeners.forEach((listener) => listener([...logs]));
 }
 
+/** Reads device metadata for manual diagnostic uploads under managed-device governance. */
 async function resolveDeviceMetadata(): Promise<PdaDeviceLogsRequest['device']> {
   const result = await getBridgeClient().getDeviceInfo();
   if (!result.ok) {
     throw new Error('无法读取 PDA 设备信息，暂不能上传诊断日志。');
   }
 
-  return {
-    deviceId: result.data.deviceId,
-    idSource: result.data.idSource,
-    manufacturer: result.data.manufacturer,
-    deviceModel: result.data.model,
-    androidVersion: result.data.osVersion,
-    appVersion: result.data.appVersion,
-  };
+  return toManagedPdaDeviceDescriptor(result.data, useSessionStore().terminalDeviceId);
 }
 
+/** Builds the diagnostic session attachment without treating it as login truth. */
 function buildSessionSummary(sessionStore: ReturnType<typeof useSessionStore>): PdaDeviceLogsRequest['session'] {
   const accountId = sessionStore.bootstrap?.account?.accountId;
   const sessionId = sessionStore.bootstrap?.session?.sessionId;

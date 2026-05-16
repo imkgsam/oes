@@ -126,14 +126,30 @@ describe('pda diagnostic log buffer', () => {
           Promise.resolve({
             data: {
               accepted: true,
-              receivedCount: 1,
+              logBatchId: 'pda-log-batch-1',
+              decision: {
+                allowed: false,
+                decisionCode: 'DEVICE_DISABLED',
+                deviceStatus: 'DISABLED',
+                requiredAction: 'CLEAR_LOCAL_SESSION',
+                shouldClearLocalSession: true,
+                shouldClearLocalTerminalDeviceId: false,
+              },
               serverTime: '2026-05-14T10:20:00.000Z',
             },
           }),
       }),
     );
     const sessionStore = useSessionStore();
-    sessionStore.accessToken = 'access-token';
+    await sessionStore.signIn(
+      {
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        expiresIn: 900,
+        terminal: 'PDA',
+      },
+      'operator-a',
+    );
     sessionStore.bootstrap = {
       account: {
         accountId: 'account-1',
@@ -177,8 +193,11 @@ describe('pda diagnostic log buffer', () => {
     expect(body).toEqual(
       expect.objectContaining({
         device: expect.objectContaining({
-          deviceId: 'device-1',
-          deviceModel: 'Cruise Ge',
+          terminalDeviceType: 'PDA',
+          identity: expect.objectContaining({
+            manufacturerSerial: 'device-1',
+            model: 'Cruise Ge',
+          }),
         }),
         session: {
           accountId: 'account-1',
@@ -198,6 +217,8 @@ describe('pda diagnostic log buffer', () => {
       }),
     );
     expect(getPdaDiagnosticLogs()).toEqual([]);
+    expect(sessionStore.isAuthenticated).toBe(false);
+    expect(sessionStore.decisionCode).toBe('DEVICE_DISABLED');
   });
 
   it('keeps local logs when manual upload fails so the operator can retry', async () => {

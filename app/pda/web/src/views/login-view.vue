@@ -3,7 +3,7 @@
     <div class="login-view__panel">
       <p class="eyebrow">OES PDA TERMINAL</p>
       <h1>车间设备登录</h1>
-      <p class="login-view__copy">一期仅开放账号密码登录；终端准入由后端策略判定，PDA Web 不保存刷新令牌。</p>
+      <p class="login-view__copy">设备 enrollment 通过后才能登录；PDA 租户由设备绑定决定，不在登录页选择。</p>
 
       <van-form class="login-form" @submit="handleSubmit">
         <van-field v-model="account" label="账号" name="account" placeholder="请输入邮箱或手机号" required />
@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { fetchPdaBootstrap, loginPda, selectPdaAccount } from '@/api/pda-bff.client';
+import { fetchPdaBootstrap, loginPda, toManagedPdaDeviceDescriptor } from '@/api/pda-bff.client';
 import type { PdaLoginResponse } from '@/api/pda-bff.client';
 import { getBridgeClient } from '@/bridge/bridge-client';
 import { markActionPainted, markActionStart, markActionStep } from '@/diagnostics/performance-probe';
@@ -45,27 +45,20 @@ async function handleSubmit(): Promise<void> {
 
   try {
     const deviceName = await resolveDeviceName();
+    const terminalDeviceBinding = sessionStore.loadTerminalDeviceBinding();
+    if (!terminalDeviceBinding?.terminalDeviceId) {
+      errorMessage.value = '此 PDA 尚未完成设备 enrollment，请先绑定设备。';
+      await router.push('/enrollment');
+      return;
+    }
+    const deviceInfo = await resolveDeviceInfo();
     let loginResult = await loginPda({
       identifier: account.value.trim(),
       credential: password.value,
       deviceName,
+      terminalDeviceId: terminalDeviceBinding.terminalDeviceId,
+      device: toManagedPdaDeviceDescriptor(deviceInfo, terminalDeviceBinding.terminalDeviceId),
     });
-
-    if (loginResult.status === 'ACCOUNT_SELECTION_REQUIRED' && loginResult.accountOptions.length === 1) {
-      if (!loginResult.operator?.userId) {
-        errorMessage.value = '后端未返回用户信息，无法自动选择唯一账号。';
-        return;
-      }
-
-      const onlyAccount = loginResult.accountOptions[0];
-      markActionStep('session.login', 'single-account-auto-select');
-      loginResult = await selectPdaAccount({
-        userId: loginResult.operator.userId,
-        accountId: onlyAccount.accountId,
-        loginMethod: loginResult.loginMethod,
-        deviceName,
-      });
-    }
 
     if (loginResult.status !== 'SUCCESS' || !loginResult.session?.accessToken) {
       errorMessage.value = loginResult.message || describePendingLoginStep(loginResult);
@@ -89,8 +82,8 @@ async function handleSubmit(): Promise<void> {
     );
     markActionStep('session.login', 'session-signed-in');
 
-    const bootstrap = await fetchPdaBootstrap(loginResult.session.accessToken);
-    sessionStore.applyBootstrap(bootstrap);
+    const bootstrap = await fetchPdaBootstrap(loginResult.session.accessToken, terminalDeviceBinding.terminalDeviceId);
+    await sessionStore.applyBootstrap(bootstrap);
     markActionStep('session.login', 'bootstrap-loaded');
     void sendPdaHeartbeat('LOGIN');
 
@@ -119,12 +112,22 @@ async function resolveDeviceName(): Promise<string> {
   return `${result.data.manufacturer || 'PDA'} ${result.data.model || ''}`.trim();
 }
 
+/** Reads device identity facts required by the managed PDA login contract. */
+async function resolveDeviceInfo() {
+  const result = await getBridgeClient().getDeviceInfo();
+  if (!result.ok) {
+    throw new Error('无法读取 PDA 设备信息，请检查 Android Shell。');
+  }
+
+  return result.data;
+}
+
 function describePendingLoginStep(loginResult: PdaLoginResponse): string {
   if (loginResult.reasonCode === 'TERMINAL_ACCESS_DENIED') {
     return '该账号不允许登录 PDA，请检查 Terminal Access Policy。';
   }
   if (loginResult.nextStep === 'SELECT_ACCOUNT') {
-    return '该账号需要选择租户/账号上下文，PDA Phase 1 暂未开放多账号选择。';
+    return '该账号无法在当前 PDA 绑定租户内建立唯一登录上下文，请联系管理员。';
   }
   if (loginResult.nextStep === 'COMPLETE_MFA') {
     return '该账号需要 MFA 验证，PDA Phase 1 暂未开放 MFA 流程。';
