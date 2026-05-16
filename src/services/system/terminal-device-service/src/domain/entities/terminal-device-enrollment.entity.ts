@@ -1,4 +1,7 @@
 import { EnrollmentStatus, TerminalDeviceType } from '../enums/terminal-device.enums'
+import { TerminalDeviceError } from '../errors/terminal-device.error'
+
+export type EnrollmentActivationRejection = 'ENROLLMENT_EXPIRED' | 'ENROLLMENT_USED' | 'ENROLLMENT_REVOKED'
 
 export interface TerminalDeviceEnrollmentProps {
   enrollmentId: string
@@ -53,5 +56,51 @@ export class TerminalDeviceEnrollmentEntity {
     this.createdBy = props.createdBy
     this.createdAt = props.createdAt
     this.notes = props.notes
+  }
+
+  // Returns the lifecycle rejection that prevents this enrollment from being activated.
+  activationRejectionAt(now: Date): EnrollmentActivationRejection | null {
+    if (this.status === 'USED') {
+      return 'ENROLLMENT_USED'
+    }
+    if (this.status === 'REVOKED') {
+      return 'ENROLLMENT_REVOKED'
+    }
+    if (this.status === 'EXPIRED' || this.expiresAt.getTime() <= now.getTime()) {
+      return 'ENROLLMENT_EXPIRED'
+    }
+    return null
+  }
+
+  // Marks an issued enrollment as used by the newly activated terminal device.
+  markUsed(terminalDeviceId: string, usedAt: Date): TerminalDeviceEnrollmentEntity {
+    const rejection = this.activationRejectionAt(usedAt)
+    if (rejection) {
+      throw new TerminalDeviceError(rejection, `Enrollment cannot be used: ${rejection}`)
+    }
+
+    return new TerminalDeviceEnrollmentEntity({
+      ...this,
+      status: 'USED',
+      usedAt,
+      usedByTerminalDeviceId: terminalDeviceId
+    })
+  }
+
+  // Marks an issued enrollment as revoked by an administrator.
+  revoke(operatorAccountId: string, revokedAt: Date): TerminalDeviceEnrollmentEntity {
+    if (this.status === 'USED') {
+      throw new TerminalDeviceError('ENROLLMENT_USED', 'Used enrollment cannot be revoked')
+    }
+    if (this.status !== 'ISSUED') {
+      throw new TerminalDeviceError('ENROLLMENT_NOT_ISSUED', `Only ISSUED enrollment can be revoked: ${this.status}`)
+    }
+
+    return new TerminalDeviceEnrollmentEntity({
+      ...this,
+      status: 'REVOKED',
+      revokedAt,
+      revokedBy: operatorAccountId
+    })
   }
 }

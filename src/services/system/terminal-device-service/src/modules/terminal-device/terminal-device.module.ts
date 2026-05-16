@@ -1,23 +1,36 @@
 import { Module } from '@nestjs/common'
+import { CqrsModule } from '@nestjs/cqrs'
+import { EnrollmentCommandHandlers } from '../../application/commands/enrollment'
 import { SYMBOLS } from '../../common/constants/symbols'
 import {
   InMemoryTerminalDeviceAuditEventRepository,
+  InMemoryTerminalDeviceActivationRepository,
   InMemoryTerminalDeviceEnrollmentRepository,
   InMemoryTerminalDeviceRepository,
   InMemoryTerminalDeviceRuntimeSnapshotRepository,
+  InMemoryTerminalDeviceStore,
   InMemoryTerminalDeviceVersionPolicyRepository
 } from '../../infrastructure/repositories/in-memory'
 import { TerminalDeviceGrpcController } from '../../interfaces/grpc/terminal-device.grpc.controller'
 
 @Module({
+  imports: [CqrsModule],
   providers: [
+    InMemoryTerminalDeviceStore,
     {
       provide: SYMBOLS.REPO.TERMINAL_DEVICE,
-      useClass: InMemoryTerminalDeviceRepository
+      useFactory: (store: InMemoryTerminalDeviceStore) => new InMemoryTerminalDeviceRepository(store),
+      inject: [InMemoryTerminalDeviceStore]
+    },
+    {
+      provide: SYMBOLS.REPO.ACTIVATION,
+      useFactory: (store: InMemoryTerminalDeviceStore) => new InMemoryTerminalDeviceActivationRepository(store),
+      inject: [InMemoryTerminalDeviceStore]
     },
     {
       provide: SYMBOLS.REPO.ENROLLMENT,
-      useClass: InMemoryTerminalDeviceEnrollmentRepository
+      useFactory: (store: InMemoryTerminalDeviceStore) => new InMemoryTerminalDeviceEnrollmentRepository(store),
+      inject: [InMemoryTerminalDeviceStore]
     },
     {
       provide: SYMBOLS.REPO.RUNTIME_SNAPSHOT,
@@ -29,16 +42,20 @@ import { TerminalDeviceGrpcController } from '../../interfaces/grpc/terminal-dev
     },
     {
       provide: SYMBOLS.REPO.AUDIT_EVENT,
-      useClass: InMemoryTerminalDeviceAuditEventRepository
-    }
+      useFactory: (store: InMemoryTerminalDeviceStore) => new InMemoryTerminalDeviceAuditEventRepository(store),
+      inject: [InMemoryTerminalDeviceStore]
+    },
+    ...EnrollmentCommandHandlers
   ],
   controllers: [TerminalDeviceGrpcController],
   exports: [
     SYMBOLS.REPO.TERMINAL_DEVICE,
+    SYMBOLS.REPO.ACTIVATION,
     SYMBOLS.REPO.ENROLLMENT,
     SYMBOLS.REPO.RUNTIME_SNAPSHOT,
     SYMBOLS.REPO.VERSION_POLICY,
-    SYMBOLS.REPO.AUDIT_EVENT
+    SYMBOLS.REPO.AUDIT_EVENT,
+    ...EnrollmentCommandHandlers
   ]
 })
 // TerminalDeviceModule assembles the terminal device skeleton with repository ports and in-memory adapters.

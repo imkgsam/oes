@@ -256,7 +256,7 @@ Expected: baseline tests pass.
 - Create: `src/services/system/terminal-device-service/src/application/commands/enrollment/revoke-enrollment.command.ts`
 - Create: corresponding tests under `src/services/system/terminal-device-service/test/`
 
-- [ ] **Step 1: Write failing tests for create enrollment**
+- [x] **Step 1: Write failing tests for create enrollment**
 
 Cover:
 
@@ -265,11 +265,11 @@ Cover:
 - stores code hash / digest, not plaintext;
 - writes audit event.
 
-- [ ] **Step 2: Implement create enrollment**
+- [x] **Step 2: Implement create enrollment**
 
 Implementation belongs in application command handler; domain object owns status invariants.
 
-- [ ] **Step 3: Write failing tests for activation**
+- [x] **Step 3: Write failing tests for activation**
 
 Cover:
 
@@ -281,11 +281,11 @@ Cover:
 - rejects expected serial mismatch;
 - does not auto-recover old device on possible match.
 
-- [ ] **Step 4: Implement activation**
+- [x] **Step 4: Implement activation**
 
 Activation must create the formal `TerminalDevice` only after valid enrollment.
 
-- [ ] **Step 5: Write failing tests for revoke**
+- [x] **Step 5: Write failing tests for revoke**
 
 Cover:
 
@@ -294,11 +294,11 @@ Cover:
 - requires reason;
 - writes audit event.
 
-- [ ] **Step 6: Implement revoke**
+- [x] **Step 6: Implement revoke**
 
 Keep reason and operator context in audit.
 
-- [ ] **Step 7: Run enrollment tests**
+- [x] **Step 7: Run enrollment tests**
 
 Run:
 
