@@ -4,7 +4,7 @@
 
 `MoldQueryService` exposes read-only access to Mold / Tooling foundation data owned by `mes-service`.
 
-Query models are optimized for selectors, workbench pages, checklist generation, and traceable mold history. They do not replace command-side domain rules.
+Query models are optimized for selectors, workbench pages, Web/PDA usage capture, and traceable mold history. They do not replace command-side domain rules.
 
 ## 2. Common Query Context
 
@@ -28,6 +28,17 @@ Every query requires:
 | `name` | Display name. |
 | `revisionCode` | Revision label. |
 | `status` | Lifecycle status. |
+| `primaryItemModelRef` | Primary ItemModel summary for the design. |
+
+### MasterMoldSummary
+
+| Field | Meaning |
+| --- | --- |
+| `masterMoldId` | Stable master mold id. |
+| `masterMoldCode` | Display code. |
+| `moldDesignSummary` | Mold design summary. |
+| `currentStatus` | `AVAILABLE / DISABLED`. |
+| `currentPlacementSummary` | Storage or carrier placement summary. |
 
 ### ProductionMoldSummary
 
@@ -87,7 +98,7 @@ Request:
 | `keyword` | no | Code / name search. |
 | `status` | no | Status filter. |
 | `productionSpecId` | no | Compatible production spec filter. |
-| `itemId` | no | Optional Item filter. |
+| `itemModelId` | no | Optional ItemModel filter. |
 | `page` | no | Page number. |
 | `pageSize` | no | Page size. |
 
@@ -96,6 +107,43 @@ Response:
 | Field | Meaning |
 | --- | --- |
 | `moldDesigns[]` | Page of summaries. |
+| `total` | Total matched rows. |
+| `page` | Current page. |
+| `pageSize` | Page size. |
+
+### GetMasterMold
+
+Request:
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `masterMoldId` | yes | Target master mold. |
+
+Response:
+
+| Field | Meaning |
+| --- | --- |
+| `masterMold` | Full master mold read model. |
+
+### ListMasterMolds
+
+Request:
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `keyword` | no | Code search. |
+| `moldDesignId` | no | Design filter. |
+| `status` | no | `AVAILABLE / DISABLED`. |
+| `storageResourceId` | no | Storage filter. |
+| `carrierResourceId` | no | Carrier filter. |
+| `page` | no | Page number. |
+| `pageSize` | no | Page size. |
+
+Response:
+
+| Field | Meaning |
+| --- | --- |
+| `masterMolds[]` | Page of summaries. |
 | `total` | Total matched rows. |
 | `page` | Current page. |
 | `pageSize` | Page size. |
@@ -205,6 +253,11 @@ Response:
 | --- | --- |
 | `items[]` | Active mold installations and production mold summaries. |
 
+Rules:
+
+- Items include `SCRAP_PENDING` installed molds so Web/PDA can preserve mold position order and show disabled rows.
+- Usage eligibility is derived from production mold status and active installation state; command-side validation remains in `RecordMoldUsageBatch`.
+
 ### ListMoldLifeCounters
 
 Request:
@@ -223,27 +276,14 @@ Response:
 | `counters[]` | Mold life counters. |
 | `total` | Total matched rows. |
 
-### PrintDailyMoldChecklist
-
-Request:
-
-| Field | Required | Meaning |
-| --- | --- | --- |
-| `workCenterId` | yes | Execution unit. |
-| `checklistDate` | yes | Checklist date. |
-
-Response:
-
-| Field | Meaning |
-| --- | --- |
-| `items[]` | Current installed molds that can receive usage records. |
-| `checklistDate` | Checklist date. |
-| `workCenterId` | Execution unit. |
+### Web Daily Mold Checklist Boundary
 
 Rules:
 
-- Checklist output is a read model, not a write commitment.
-- Usage is recorded only by `RecordMoldUsage`.
+- `PrintDailyMoldChecklist` is not a stable mes-service query.
+- API Gateway may expose `/daily-mold-checklists` as a Web convenience route.
+- That BFF route must build its print model from `ListCurrentMoldsByWorkCenter` and submit usage through `RecordMoldUsageBatch`.
+- mes-service persists usage facts and life counters, not checklist or print batch business objects.
 
 ## 5. Errors
 

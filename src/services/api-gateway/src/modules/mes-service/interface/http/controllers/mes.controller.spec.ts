@@ -12,11 +12,13 @@ describe('MesController', () => {
     createProductionSpec: jest.fn(),
     getMoldDesign: jest.fn(),
     getMoldUsageHistory: jest.fn(),
+    getMasterMold: jest.fn(),
     getProductionMold: jest.fn(),
     getProductionSpec: jest.fn(),
     getToolingCurrentPlacement: jest.fn(),
     installTooling: jest.fn(),
     listCurrentMoldsByWorkCenter: jest.fn(),
+    listMasterMolds: jest.fn(),
     listMoldDesigns: jest.fn(),
     listMoldLifeCounters: jest.fn(),
     listProductionMolds: jest.fn(),
@@ -25,11 +27,12 @@ describe('MesController', () => {
     moveTooling: jest.fn(),
     printDailyMoldChecklist: jest.fn(),
     recordDailyMoldUsageBatch: jest.fn(),
+    acceptProductionMold: jest.fn(),
     registerMasterMold: jest.fn(),
     registerMoldDesign: jest.fn(),
     registerProductionMold: jest.fn(),
     retireProductionSpec: jest.fn(),
-    scrapProductionMold: jest.fn(),
+    markProductionMoldForScrap: jest.fn(),
     updateProductionSpec: jest.fn(),
     unmountTooling: jest.fn()
   }
@@ -64,6 +67,9 @@ describe('MesController', () => {
       )
     ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, MesController.prototype.acceptProductionMold)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
       reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, MesController.prototype.moveTooling)
     ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
@@ -91,14 +97,18 @@ describe('MesController', () => {
     mesService.listMoldDesigns.mockResolvedValue({ moldDesigns: [] })
     mesService.getMoldDesign.mockResolvedValue({ moldDesignId: 'design-1' })
     mesService.registerMoldDesign.mockResolvedValue({ moldDesignId: 'design-1' })
+    mesService.registerMasterMold.mockResolvedValue({ masterMoldId: 'master-1' })
+    mesService.listMasterMolds.mockResolvedValue({ masterMolds: [] })
+    mesService.getMasterMold.mockResolvedValue({ masterMoldId: 'master-1' })
     mesService.listProductionMolds.mockResolvedValue({ productionMolds: [] })
     mesService.listProductionMoldsByDesign.mockResolvedValue({ productionMolds: [] })
     mesService.registerProductionMold.mockResolvedValue({ productionMoldId: 'mold-1' })
+    mesService.acceptProductionMold.mockResolvedValue({ productionMoldId: 'mold-1' })
     mesService.getProductionMold.mockResolvedValue({ productionMoldId: 'mold-1' })
     mesService.moveTooling.mockResolvedValue({ toolingId: 'mold-1' })
     mesService.installTooling.mockResolvedValue({ toolingInstallationId: 'install-1' })
     mesService.unmountTooling.mockResolvedValue({ toolingInstallationId: 'install-1' })
-    mesService.scrapProductionMold.mockResolvedValue({ productionMoldId: 'mold-1' })
+    mesService.markProductionMoldForScrap.mockResolvedValue({ productionMoldId: 'mold-1' })
     mesService.listCurrentMoldsByWorkCenter.mockResolvedValue({ items: [] })
     mesService.printDailyMoldChecklist.mockResolvedValue({ items: [] })
     mesService.recordDailyMoldUsageBatch.mockResolvedValue({ acceptedItems: [], skippedItems: [] })
@@ -130,6 +140,9 @@ describe('MesController', () => {
     await controller.listMoldDesigns('tenant-1', { keyword: 'bowl' } as any, source as any)
     await controller.getMoldDesign('tenant-1', 'design-1', source as any)
     await controller.registerMoldDesign('tenant-1', { designCode: 'MD-001' } as any, source as any)
+    await controller.registerMasterMold('tenant-1', { masterMoldCode: 'MM-001' } as any, source as any)
+    await controller.listMasterMolds('tenant-1', { status: 'AVAILABLE' } as any, source as any)
+    await controller.getMasterMold('tenant-1', 'master-1', source as any)
     await controller.listProductionMoldsByDesign(
       'tenant-1',
       'design-1',
@@ -144,6 +157,12 @@ describe('MesController', () => {
     await controller.registerProductionMold(
       'tenant-1',
       { moldCode: 'PM-001' } as any,
+      source as any
+    )
+    await controller.acceptProductionMold(
+      'tenant-1',
+      'mold-1',
+      { commandId: 'cmd-accept' } as any,
       source as any
     )
     await controller.getProductionMold('tenant-1', 'mold-1', source as any)
@@ -165,7 +184,7 @@ describe('MesController', () => {
       { commandId: 'cmd-unmount' } as any,
       source as any
     )
-    await controller.scrapProductionMold(
+    await controller.markProductionMoldForScrap(
       'tenant-1',
       'mold-1',
       { commandId: 'cmd-scrap' } as any,
@@ -209,6 +228,12 @@ describe('MesController', () => {
       'tenant-1',
       'mold-1',
       { commandId: 'cmd-move' },
+      source
+    )
+    expect(mesService.markProductionMoldForScrap).toHaveBeenCalledWith(
+      'tenant-1',
+      'mold-1',
+      { commandId: 'cmd-scrap' },
       source
     )
     expect(mesService.recordDailyMoldUsageBatch).toHaveBeenCalledWith(

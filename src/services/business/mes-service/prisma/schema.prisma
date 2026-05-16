@@ -41,7 +41,7 @@ model MoldDesign {
   name                     String             @db.VarChar(255)
   revisionCode             String?            @db.VarChar(128)
   supersedesMoldDesignId   String?            @db.VarChar(128)
-  itemRef                  Json?
+  primaryItemModelRef      Json
   productionSpecRefs       Json
   materialType             String             @db.VarChar(128)
   functionRole             String             @db.VarChar(64)
@@ -67,6 +67,7 @@ model MoldDesignOutput {
   outputCode     String     @db.VarChar(128)
   outputKind     String     @db.VarChar(64)
   productionSpecRef Json?
+  itemModelRef   Json?
   quantityPerUse String     @db.VarChar(64)
   componentRole  String?    @db.VarChar(128)
   assemblyHint   String?    @db.VarChar(255)

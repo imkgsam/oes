@@ -45,6 +45,7 @@ const statusOptions: Array<{ label: string; value: MesApi.ProductionMoldStatus }
   { label: '已安装', value: 'INSTALLED' },
   { label: '维护中', value: 'MAINTENANCE' },
   { label: '停用', value: 'DISABLED' },
+  { label: '待报废 / 待拆除', value: 'SCRAP_PENDING' },
   { label: '已报废', value: 'SCRAPPED' }
 ]
 
@@ -138,6 +139,7 @@ const moveForm = reactive({
 })
 
 const formErrors = reactive({
+  initialPlacement: '',
   moldDesignId: '',
   moldCode: ''
 })
@@ -365,7 +367,15 @@ function buildMovePayload(): MesApi.MoveProductionMoldPayload {
 function validateCreateForm() {
   formErrors.moldDesignId = createForm.moldDesignId ? '' : '请选择模具方案'
   formErrors.moldCode = createForm.moldCode.trim() ? '' : '请填写生产模具编号'
-  return !formErrors.moldDesignId && !formErrors.moldCode
+  formErrors.initialPlacement =
+    createForm.initialPlacementType === 'CARRIER'
+      ? createForm.initialCarrierResourceId.trim()
+        ? ''
+        : '请填写初始载具'
+      : createForm.initialStorageResourceId.trim()
+        ? ''
+        : '请填写初始库位'
+  return !formErrors.moldDesignId && !formErrors.moldCode && !formErrors.initialPlacement
 }
 
 /** buildCreatePayload maps form fields onto the existing RegisterProductionMold contract. */
@@ -423,7 +433,7 @@ function normalizeStatus(status: MesApi.ProductionMold['currentStatus']) {
     4: 'INSTALLED',
     5: 'MAINTENANCE',
     6: 'DISABLED',
-    7: 'DISABLED',
+    7: 'SCRAP_PENDING',
     8: 'SCRAPPED'
   }
   return typeof status === 'number' ? generatedStatusMap[status] ?? 'UNKNOWN' : status
@@ -437,6 +447,9 @@ function resolveStatusTagColor(status: MesApi.ProductionMold['currentStatus']) {
     }
     case 'MAINTENANCE': {
       return 'gold'
+    }
+    case 'SCRAP_PENDING': {
+      return 'orange'
     }
     case 'DISABLED':
     case 'SCRAPPED': {
@@ -737,12 +750,15 @@ onMounted(() => {
           </a-form-item>
           <section class="mes-production-form__subsection">
             <strong>初始位置引用</strong>
-            <a-form-item label="位置类型">
+            <a-form-item
+              :help="formErrors.initialPlacement"
+              label="位置类型"
+              :validate-status="formErrors.initialPlacement ? 'error' : undefined"
+            >
               <a-select
                 v-model:value="createForm.initialPlacementType"
                 data-testid="mes-production-mold-initial-placement-type"
               >
-                <a-select-option value="">暂不记录</a-select-option>
                 <a-select-option value="STORAGE">StorageResource</a-select-option>
                 <a-select-option value="CARRIER">CarrierResource</a-select-option>
               </a-select>

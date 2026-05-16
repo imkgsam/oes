@@ -5,15 +5,17 @@ import { Select } from 'ant-design-vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const installProductionMoldApi = vi.fn()
+const acceptProductionMoldApi = vi.fn()
 const listCurrentMoldsByWorkCenterApi = vi.fn()
-const listManagedItemsApi = vi.fn()
+const listManagedItemModelsApi = vi.fn()
+const listMasterMoldsApi = vi.fn()
 const listMoldDesignsApi = vi.fn()
 const listProductionMoldsApi = vi.fn()
 const listProductionSpecsApi = vi.fn()
+const markProductionMoldForScrapApi = vi.fn()
 const recordDailyMoldUsageBatchApi = vi.fn()
 const registerMoldDesignApi = vi.fn()
 const registerProductionMoldApi = vi.fn()
-const scrapProductionMoldApi = vi.fn()
 const unmountProductionMoldApi = vi.fn()
 const push = vi.fn()
 
@@ -30,16 +32,18 @@ const authContextState: any = {
 }
 
 vi.mock('#/api', () => ({
+  acceptProductionMoldApi,
   installProductionMoldApi,
   listCurrentMoldsByWorkCenterApi,
-  listManagedItemsApi,
+  listManagedItemModelsApi,
+  listMasterMoldsApi,
   listMoldDesignsApi,
   listProductionMoldsApi,
   listProductionSpecsApi,
+  markProductionMoldForScrapApi,
   recordDailyMoldUsageBatchApi,
   registerMoldDesignApi,
   registerProductionMoldApi,
-  scrapProductionMoldApi,
   unmountProductionMoldApi
 }))
 
@@ -149,15 +153,17 @@ const productionMold = {
 describe('MES mold management workspace page', () => {
   beforeEach(() => {
     installProductionMoldApi.mockReset()
+    acceptProductionMoldApi.mockReset()
     listCurrentMoldsByWorkCenterApi.mockReset()
-    listManagedItemsApi.mockReset()
+    listManagedItemModelsApi.mockReset()
+    listMasterMoldsApi.mockReset()
     listMoldDesignsApi.mockReset()
     listProductionMoldsApi.mockReset()
     listProductionSpecsApi.mockReset()
+    markProductionMoldForScrapApi.mockReset()
     recordDailyMoldUsageBatchApi.mockReset()
     registerMoldDesignApi.mockReset()
     registerProductionMoldApi.mockReset()
-    scrapProductionMoldApi.mockReset()
     unmountProductionMoldApi.mockReset()
     push.mockReset()
     authContextState.actionCodes = [
@@ -171,6 +177,7 @@ describe('MES mold management workspace page', () => {
     ]
 
     listMoldDesignsApi.mockResolvedValue({ moldDesigns: [moldDesign], page: 1, pageSize: 50, total: 1 })
+    listMasterMoldsApi.mockResolvedValue({ masterMolds: [], page: 1, pageSize: 50, total: 0 })
     listProductionMoldsApi.mockResolvedValue({ productionMolds: [productionMold], page: 1, pageSize: 50, total: 1 })
     listCurrentMoldsByWorkCenterApi.mockResolvedValue({
       items: [
@@ -180,21 +187,25 @@ describe('MES mold management workspace page', () => {
         }
       ]
     })
-    listManagedItemsApi.mockResolvedValue({
-      items: [
+    listManagedItemModelsApi.mockResolvedValue({
+      itemModels: [
         {
-          itemCode: 'WC-ONE-300',
-          itemId: 'item-1',
-          itemName: '连体马桶 300/400 坑距'
+          itemModelId: 'item-model-1',
+          modelCode: 'WC-ONE',
+          modelName: '连体马桶 300/400 坑距',
+          modelKind: 'PHYSICAL',
+          modelType: 'PRODUCT',
+          status: 'ACTIVE'
         }
       ]
     })
     listProductionSpecsApi.mockResolvedValue({ productionSpecs: [productionSpec], page: 1, pageSize: 50, total: 1 })
     registerMoldDesignApi.mockResolvedValue(moldDesign)
     registerProductionMoldApi.mockResolvedValue({ ...productionMold, productionMoldId: 'mold-new' })
+    acceptProductionMoldApi.mockResolvedValue({ ...productionMold, currentStatus: 'AVAILABLE' })
     installProductionMoldApi.mockResolvedValue({ toolingInstallation: productionMold.currentInstallationSummary })
     unmountProductionMoldApi.mockResolvedValue({ toolingInstallation: productionMold.currentInstallationSummary })
-    scrapProductionMoldApi.mockResolvedValue({ productionMold })
+    markProductionMoldForScrapApi.mockResolvedValue({ productionMold })
     recordDailyMoldUsageBatchApi.mockResolvedValue({ acceptedItems: [], skippedItems: [] })
   })
 
@@ -205,6 +216,7 @@ describe('MES mold management workspace page', () => {
     await flushPromises()
 
     expect(listMoldDesignsApi).toHaveBeenCalledWith('tenant-1', { page: 1, pageSize: 50, status: 'ACTIVE' })
+    expect(listMasterMoldsApi).toHaveBeenCalledWith('tenant-1', { page: 1, pageSize: 50, status: 'AVAILABLE' })
     expect(listProductionMoldsApi).toHaveBeenCalledWith('tenant-1', { page: 1, pageSize: 50 })
     expect(wrapper.text()).toContain('MD-LT-HP-01')
     expect(wrapper.find('[data-testid="mes-open-create-work-center"]').exists()).toBe(false)
@@ -259,17 +271,20 @@ describe('MES mold management workspace page', () => {
     await flushPromises()
     await wrapper.get('[data-testid="mes-open-create-mold-design"]').trigger('click')
     await flushPromises()
-    await setAntSelectValue(wrapper, 'mes-mold-design-item', 'item-1')
+    await setAntSelectValue(wrapper, 'mes-mold-design-item', 'item-model-1')
     await flushPromises()
     await wrapper.get('[data-testid="mes-submit-create-mold-design"]').trigger('click')
     await flushPromises()
 
-    expect(listManagedItemsApi).toHaveBeenCalledWith('tenant-1', expect.objectContaining({
+    expect(listManagedItemModelsApi).toHaveBeenCalledWith('tenant-1', expect.objectContaining({
       capabilities: ['manufacturable']
     }))
     expect(registerMoldDesignApi).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({
+        primaryItemModelRef: expect.objectContaining({
+          itemModelId: 'item-model-1'
+        }),
         productionSpecRefs: [
           expect.objectContaining({
             productionSpecId: 'spec-300',
@@ -282,14 +297,16 @@ describe('MES mold management workspace page', () => {
 
     await wrapper.get('[data-testid="mes-open-create-mold"]').trigger('click')
     await flushPromises()
+    await wrapper.get('[data-testid="mes-production-mold-initial-storage-id"]').setValue('storage-1')
     await wrapper.get('[data-testid="mes-submit-create-mold"]').trigger('click')
     await flushPromises()
 
-    expect(registerProductionMoldApi).toHaveBeenCalledWith('tenant-1', {
+    expect(registerProductionMoldApi).toHaveBeenCalledWith('tenant-1', expect.objectContaining({
+      initialStorageResourceRef: expect.objectContaining({ storageResourceId: 'storage-1' }),
       moldCode: expect.stringContaining('PM-'),
       moldDesignId: 'design-1',
       reason: 'web create production mold'
-    })
+    }))
 
     await wrapper.get('[data-testid="mes-current-work-center-id"]').setValue('wc-1')
     await wrapper.get('[data-testid="mes-open-install-mold-mold-1"]').trigger('click')
@@ -318,3 +335,4 @@ describe('MES mold management workspace page', () => {
     )
   })
 })
+    markProductionMoldForScrapApi.mockReset()

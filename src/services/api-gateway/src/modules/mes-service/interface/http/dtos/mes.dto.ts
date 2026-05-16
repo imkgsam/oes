@@ -149,7 +149,7 @@ export class ListMoldDesignsDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  itemId?: string
+  itemModelId?: string
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -199,7 +199,7 @@ export class RegisterMoldDesignDto {
   @Allow()
   functionRole!: string
   @Allow()
-  itemRef?: unknown
+  primaryItemModelRef?: unknown
   @Allow()
   materialType!: string
   @Allow()
@@ -220,6 +220,53 @@ export class RegisterMoldDesignDto {
   revisionCode?: string
   @Allow()
   supersedesMoldDesignId?: string
+}
+
+/** ListMasterMoldsDto captures the supported MasterMold directory filters. */
+export class ListMasterMoldsDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  carrierResourceId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  keyword?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  moldDesignId?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  orgId?: string
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number
+
+  @ApiPropertyOptional({ minimum: 1 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  pageSize?: number
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  status?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  storageResourceId?: string
 }
 
 /** RegisterMasterMoldDto captures the current MasterMold registration payload. */
@@ -253,8 +300,6 @@ export class RegisterMasterMoldDto {
 /** RegisterProductionMoldDto captures the current ProductionMold registration payload. */
 export class RegisterProductionMoldDto {
   @Allow()
-  acceptedAt?: string
-  @Allow()
   commandId?: string
   @Allow()
   initialCarrierResourceRef?: unknown
@@ -276,6 +321,18 @@ export class RegisterProductionMoldDto {
   sourceMasterMoldId?: string
   @Allow()
   supplierRef?: unknown
+}
+
+/** AcceptProductionMoldDto captures one production mold acceptance command payload. */
+export class AcceptProductionMoldDto {
+  @Allow()
+  acceptedAt?: string
+  @Allow()
+  commandId?: string
+  @Allow()
+  orgId?: string
+  @Allow()
+  reason?: string
 }
 
 /** ListProductionMoldsByDesignDto captures production mold directory filters for one MoldDesign. */
@@ -386,16 +443,16 @@ export class UnmountToolingDto {
   unmountedAt?: string
 }
 
-/** ScrapProductionMoldDto captures one production mold scrap command payload. */
-export class ScrapProductionMoldDto {
+/** MarkProductionMoldForScrapDto captures the first step of the production mold scrap lifecycle. */
+export class MarkProductionMoldForScrapDto {
   @Allow()
   commandId?: string
+  @Allow()
+  markedAt?: string
   @Allow()
   orgId?: string
   @Allow()
   reason?: string
-  @Allow()
-  scrappedAt?: string
 }
 
 /** ListCurrentMoldsByWorkCenterDto captures current work-center mold visualization filters. */
@@ -480,8 +537,6 @@ export class DailyMoldUsageBatchItemDto {
   captureSource?: string
   @Allow()
   checked?: boolean
-  @Allow()
-  lifeDelta?: string
   @Allow()
   lifeUnit?: string
   @Allow()

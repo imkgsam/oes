@@ -5,6 +5,8 @@ import {
   GetMoldDesignResponse,
   GetMoldUsageHistoryRequest,
   GetMoldUsageHistoryResponse,
+  GetMasterMoldRequest,
+  GetMasterMoldResponse,
   GetProductionMoldRequest,
   GetProductionMoldResponse,
   GetProductionSpecRequest,
@@ -13,6 +15,8 @@ import {
   GetToolingCurrentPlacementResponse,
   ListCurrentMoldsByWorkCenterRequest,
   ListCurrentMoldsByWorkCenterResponse,
+  ListMasterMoldsRequest,
+  ListMasterMoldsResponse,
   ListMoldDesignsRequest,
   ListMoldDesignsResponse,
   ListMoldLifeCountersRequest,
@@ -26,8 +30,6 @@ import {
   MOLD_QUERY_SERVICE_NAME,
   MoldQueryServiceClient,
   PRODUCTION_SPEC_QUERY_SERVICE_NAME,
-  PrintDailyMoldChecklistRequest,
-  PrintDailyMoldChecklistResponse,
   ProductionSpecQueryServiceClient,
   ResolveProductionSpecsForMoldRequest,
   ResolveProductionSpecsForMoldResponse
@@ -137,6 +139,34 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
     )
   }
 
+  /** getMasterMold forwards one MasterMold detail read. */
+  getMasterMold(
+    input: Omit<GetMasterMoldRequest, 'operatorContext' | 'traceContext'>,
+    source: DownstreamRequestSource
+  ): Promise<GetMasterMoldResponse> {
+    return this.call(
+      'getMasterMold',
+      this.moldSvc.getMasterMold(
+        this.attachQueryContext(input, source),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** listMasterMolds forwards one MasterMold directory read. */
+  listMasterMolds(
+    input: Omit<ListMasterMoldsRequest, 'operatorContext' | 'traceContext'>,
+    source: DownstreamRequestSource
+  ): Promise<ListMasterMoldsResponse> {
+    return this.call(
+      'listMasterMolds',
+      this.moldSvc.listMasterMolds(
+        this.attachQueryContext(input, source),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
   /** getProductionMold forwards one ProductionMold detail read. */
   getProductionMold(
     input: Omit<GetProductionMoldRequest, 'operatorContext' | 'traceContext'>,
@@ -229,20 +259,6 @@ export class MesQueryGrpcAdapter implements OnModuleInit {
     return this.call(
       'listMoldLifeCounters',
       this.moldSvc.listMoldLifeCounters(
-        this.attachQueryContext(input, source),
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
-  }
-
-  /** printDailyMoldChecklist forwards one daily checklist read for web-stage checkbox capture. */
-  printDailyMoldChecklist(
-    input: Omit<PrintDailyMoldChecklistRequest, 'operatorContext' | 'traceContext'>,
-    source: DownstreamRequestSource
-  ): Promise<PrintDailyMoldChecklistResponse> {
-    return this.call(
-      'printDailyMoldChecklist',
-      this.moldSvc.printDailyMoldChecklist(
         this.attachQueryContext(input, source),
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       )

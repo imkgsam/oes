@@ -66,6 +66,15 @@ function queryContext(prefix: string) {
   }
 }
 
+/** itemModelRef builds the required MoldDesign primary ItemModel snapshot for direct Prisma fixtures. */
+function itemModelRef(prefix: string) {
+  return {
+    itemModelId: `${prefix}_item_model`,
+    modelCodeSnapshot: `${prefix}_MODEL`,
+    modelNameSnapshot: 'L2 Item Model'
+  }
+}
+
 describe('Prisma ProductionSpec repository L2', () => {
   let prisma: PrismaService
   let repository: PrismaProductionSpecRepository
@@ -160,7 +169,7 @@ describe('Prisma ProductionSpec repository L2', () => {
         name: 'L2 Mold Design',
         revisionCode: 'R1',
         supersedesMoldDesignId: null,
-        itemRef: null,
+        primaryItemModelRef: itemModelRef(prefix),
         productionSpecRefs: [
           {
             productionSpecId: active.productionSpecId

@@ -1,5 +1,6 @@
 import { ForbiddenException } from '@nestjs/common'
 import {
+  MasterMoldStatus,
   MoldWarningLevel,
   ProductionMoldStatus,
   ProductionSpecStatus,
@@ -14,7 +15,9 @@ describe('MesService', () => {
     listProductionSpecs: jest.fn(),
     resolveProductionSpecsForMold: jest.fn(),
     getMoldDesign: jest.fn(),
+    getMasterMold: jest.fn(),
     listMoldDesigns: jest.fn(),
+    listMasterMolds: jest.fn(),
     getProductionMold: jest.fn(),
     listProductionMolds: jest.fn(),
     listProductionMoldsByDesign: jest.fn(),
@@ -22,7 +25,6 @@ describe('MesService', () => {
     getMoldUsageHistory: jest.fn(),
     listCurrentMoldsByWorkCenter: jest.fn(),
     listMoldLifeCounters: jest.fn(),
-    printDailyMoldChecklist: jest.fn()
   }
   const mesManagementAdapter = {
     createProductionSpec: jest.fn(),
@@ -32,12 +34,13 @@ describe('MesService', () => {
     registerMoldDesign: jest.fn(),
     registerMasterMold: jest.fn(),
     registerProductionMold: jest.fn(),
+    acceptProductionMold: jest.fn(),
     moveTooling: jest.fn(),
     installTooling: jest.fn(),
     unmountTooling: jest.fn(),
-    recordMoldUsage: jest.fn(),
+    recordMoldUsageBatch: jest.fn(),
     adjustMoldLifeCounter: jest.fn(),
-    scrapProductionMold: jest.fn()
+    markProductionMoldForScrap: jest.fn()
   }
   const service = new MesService(mesQueryAdapter as any, mesManagementAdapter as any)
 
@@ -149,6 +152,31 @@ describe('MesService', () => {
     )
   })
 
+  it('lists MasterMolds with current status filters', async () => {
+    const source = buildSource('req-list-master-molds')
+    mesQueryAdapter.listMasterMolds.mockResolvedValue({
+      masterMolds: [{ masterMoldId: 'master-1' }],
+      page: 1,
+      pageSize: 20,
+      total: 1
+    })
+
+    await service.listMasterMolds(
+      'tenant-1',
+      { status: 'AVAILABLE', moldDesignId: 'design-1' },
+      source as any
+    )
+
+    expect(mesQueryAdapter.listMasterMolds).toHaveBeenCalledWith(
+      expect.objectContaining({
+        moldDesignId: 'design-1',
+        status: MasterMoldStatus.MASTER_MOLD_STATUS_AVAILABLE,
+        tenantId: 'tenant-1'
+      }),
+      source
+    )
+  })
+
   it('maps tooling placement and installation commands to current Tooling contract names', async () => {
     const source = buildSource('req-tooling')
     mesManagementAdapter.moveTooling.mockResolvedValue({ placement: { toolingInstallationId: 'install-1' } })
@@ -185,11 +213,11 @@ describe('MesService', () => {
     )
   })
 
-  it('records one checkbox batch as idempotent MoldUsageRecord commands', async () => {
+  it('records one checkbox batch as a single MES RecordMoldUsageBatch command', async () => {
     const source = buildSource('req-batch')
-    mesManagementAdapter.recordMoldUsage.mockResolvedValueOnce({
-      moldLifeCounter: { productionMoldId: 'mold-1', usedValue: '11' },
-      moldUsageRecord: { moldUsageRecordId: 'usage-1' }
+    mesManagementAdapter.recordMoldUsageBatch.mockResolvedValueOnce({
+      moldLifeCounters: [{ productionMoldId: 'mold-1', usedValue: '11' }],
+      moldUsageRecords: [{ moldUsageRecordId: 'usage-1', productionMoldId: 'mold-1' }]
     })
 
     const result = await service.recordDailyMoldUsageBatch(
@@ -200,7 +228,6 @@ describe('MesService', () => {
         items: [
           {
             checked: true,
-            lifeDelta: '1',
             productionMoldId: 'mold-1',
             toolingInstallationId: 'install-1',
             usageQuantity: '1'
@@ -228,16 +255,56 @@ describe('MesService', () => {
       skippedItems: [{ productionMoldId: 'mold-2', reason: 'unchecked' }],
       workCenterRef: { workCenterId: 'wc-1' }
     })
-    expect(mesManagementAdapter.recordMoldUsage).toHaveBeenCalledWith(
+    expect(mesManagementAdapter.recordMoldUsageBatch).toHaveBeenCalledWith(
       expect.objectContaining({
-        commandId: 'batch-1:mold-1:install-1',
+        commandId: 'batch-1',
         lifeUnit: 'CASTING_CYCLE',
-        productionMoldId: 'mold-1',
-        toolingInstallationId: 'install-1',
+        lines: [
+          expect.objectContaining({
+            isSubmitted: true,
+            productionMoldId: 'mold-1',
+            toolingInstallationId: 'install-1',
+            usageQuantity: '1'
+          }),
+          expect.objectContaining({
+            isSubmitted: false,
+            productionMoldId: 'mold-2',
+            toolingInstallationId: 'install-2'
+          })
+        ],
         workCenterRef: { workCenterId: 'wc-1' }
       }),
       source
     )
+  })
+
+  it('builds daily checklist rows from current molds instead of a MES checklist RPC', async () => {
+    const source = buildSource('req-checklist')
+    mesQueryAdapter.listCurrentMoldsByWorkCenter.mockResolvedValue({
+      items: [
+        {
+          productionMold: { productionMoldId: 'mold-1' },
+          toolingInstallation: { toolingInstallationId: 'install-1' },
+          usageAllowed: false,
+          usageDisabledReason: 'SCRAP_PENDING'
+        }
+      ]
+    })
+
+    const result = await service.printDailyMoldChecklist(
+      'tenant-1',
+      { checklistDate: '2026-05-05', workCenterId: 'wc-1' },
+      source as any
+    )
+
+    expect(mesQueryAdapter.listCurrentMoldsByWorkCenter).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        workCenterId: 'wc-1'
+      }),
+      source
+    )
+    expect(result.items[0]).toEqual(expect.objectContaining({ usageAllowed: false }))
   })
 })
 

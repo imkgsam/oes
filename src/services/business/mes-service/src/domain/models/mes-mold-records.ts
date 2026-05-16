@@ -34,6 +34,7 @@ export enum ProductionMoldStatus {
   INSTALLED = 'INSTALLED',
   MAINTENANCE = 'MAINTENANCE',
   DISABLED = 'DISABLED',
+  SCRAP_PENDING = 'SCRAP_PENDING',
   SCRAPPED = 'SCRAPPED'
 }
 
@@ -45,8 +46,7 @@ export enum ToolingType {
 /** ToolingInstallationStatus captures active and closed tooling installation facts. */
 export enum ToolingInstallationStatus {
   ACTIVE = 'ACTIVE',
-  UNMOUNTED = 'UNMOUNTED',
-  CLOSED_BY_SCRAP = 'CLOSED_BY_SCRAP'
+  UNMOUNTED = 'UNMOUNTED'
 }
 
 /** ToolingPlacementType names the current placement projection for a tooling object. */
@@ -150,6 +150,13 @@ export interface ItemRefRecord {
   itemNameSnapshot?: string | null
 }
 
+/** ItemModelRefRecord stores an item-master model reference and optional display snapshots. */
+export interface ItemModelRefRecord {
+  itemModelId: string
+  modelCodeSnapshot?: string | null
+  modelNameSnapshot?: string | null
+}
+
 /** SupplierRefRecord stores supplier identity references without copying SRM truth. */
 export interface SupplierRefRecord {
   supplierId: string
@@ -237,6 +244,7 @@ export interface MoldDesignOutputRecord {
   outputCode: string
   outputKind: MoldDesignOutputKind
   productionSpecRef?: ProductionSpecRefRecord | null
+  itemModelRef?: ItemModelRefRecord | null
   quantityPerUse: string
   componentRole?: string | null
   assemblyHint?: string | null
@@ -251,6 +259,7 @@ export interface MoldDesignSummaryRecord {
   name: string
   revisionCode?: string | null
   status: MoldDesignStatus
+  primaryItemModelRef?: ItemModelRefRecord | null
 }
 
 /** MoldDesignRecord captures the MES tooling design record without owning external item truth. */
@@ -262,7 +271,7 @@ export interface MoldDesignRecord {
   name: string
   revisionCode?: string | null
   supersedesMoldDesignId?: string | null
-  itemRef?: ItemRefRecord | null
+  primaryItemModelRef: ItemModelRefRecord
   productionSpecRefs: ProductionSpecRefRecord[]
   materialType: string
   functionRole: MoldFunctionRole
@@ -280,8 +289,15 @@ export interface MoldDesignRecord {
 export interface MasterMoldSummaryRecord {
   masterMoldId: string
   masterMoldCode: string
-  moldDesignId: string
-  currentStatus: string
+  moldDesignSummary: MoldDesignSummaryRecord
+  currentStatus: MasterMoldStatus
+  currentPlacementSummary?: ToolingPlacementSummaryRecord | null
+}
+
+/** MasterMoldStatus captures the minimal first-slice master mold lifecycle. */
+export enum MasterMoldStatus {
+  AVAILABLE = 'AVAILABLE',
+  DISABLED = 'DISABLED'
 }
 
 /** MasterMoldRecord captures master mold asset tracking outside production usage. */
@@ -294,7 +310,7 @@ export interface MasterMoldRecord {
   supplierRef?: SupplierRefRecord | null
   purchaseRef?: PurchaseRefRecord | null
   receivedAt?: string | null
-  currentStatus: string
+  currentStatus: MasterMoldStatus
   currentStorageResourceRef?: StorageResourceRefRecord | null
   currentCarrierResourceRef?: CarrierResourceRefRecord | null
   qualitySummary?: string | null
@@ -456,6 +472,8 @@ export interface MoldUsageHistoryEntryRecord {
 export interface CurrentMoldByWorkCenterRecord {
   productionMold: ProductionMoldSummaryRecord
   toolingInstallation: ToolingInstallationRecord
+  usageAllowed: boolean
+  usageDisabledReason?: string | null
 }
 
 /** DailyMoldChecklistRecord is the printable daily read model for selected work centers. */

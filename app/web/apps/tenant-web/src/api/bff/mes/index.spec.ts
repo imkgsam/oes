@@ -21,9 +21,11 @@ describe('tenant-web MES api', () => {
     const {
       getMoldDesignApi,
       getMoldUsageHistoryApi,
+      getMasterMoldApi,
       getProductionMoldApi,
       getToolingCurrentPlacementApi,
       listCurrentMoldsByWorkCenterApi,
+      listMasterMoldsApi,
       listMoldLifeCountersApi,
       listMoldDesignsApi,
       listProductionMoldsApi,
@@ -32,8 +34,10 @@ describe('tenant-web MES api', () => {
     } = await import('./index')
 
     await listProductionSpecsApi('tenant-1', { itemId: 'item-1', status: 'ACTIVE' })
-    await listMoldDesignsApi('tenant-1', { itemId: 'item-1', keyword: '高压' })
+    await listMoldDesignsApi('tenant-1', { itemModelId: 'item-model-1', keyword: '高压' })
     await getMoldDesignApi('tenant-1', 'design-1')
+    await listMasterMoldsApi('tenant-1', { moldDesignId: 'design-1', status: 'AVAILABLE' })
+    await getMasterMoldApi('tenant-1', 'master-1')
     await listProductionMoldsApi('tenant-1', {
       carrierResourceId: 'carrier-1',
       moldDesignId: 'design-1',
@@ -54,11 +58,18 @@ describe('tenant-web MES api', () => {
     })
     expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-designs', {
       params: {
-        itemId: 'item-1',
+        itemModelId: 'item-model-1',
         keyword: '高压'
       }
     })
     expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-designs/design-1')
+    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/master-molds', {
+      params: {
+        moldDesignId: 'design-1',
+        status: 'AVAILABLE'
+      }
+    })
+    expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/master-molds/master-1')
     expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds', {
       params: {
         carrierResourceId: 'carrier-1',
@@ -101,11 +112,13 @@ describe('tenant-web MES api', () => {
   it('forwards mold design, production mold, tooling, and usage commands through current BFF endpoints', async () => {
     const {
       installProductionMoldApi,
+      acceptProductionMoldApi,
+      markProductionMoldForScrapApi,
       moveProductionMoldApi,
       recordDailyMoldUsageBatchApi,
+      registerMasterMoldApi,
       registerMoldDesignApi,
       registerProductionMoldApi,
-      scrapProductionMoldApi,
       unmountProductionMoldApi
     } = await import('./index')
 
@@ -114,6 +127,10 @@ describe('tenant-web MES api', () => {
       defaultLifeUnit: 'CASTING_CYCLE',
       designCode: 'MD-LT-HP-01',
       functionRole: 'PRODUCTION',
+      primaryItemModelRef: {
+        itemModelId: 'item-model-1',
+        modelCodeSnapshot: 'WC-MODEL'
+      },
       materialType: 'RESIN',
       name: '连体马桶高压模具方案',
       outputStructureType: 'SINGLE',
@@ -121,6 +138,9 @@ describe('tenant-web MES api', () => {
         {
           componentRole: '主体',
           isPrimaryOutput: true,
+          itemModelRef: {
+            itemModelId: 'item-model-1'
+          },
           optionCode: 'BODY',
           outputCode: 'BODY',
           outputKind: 'PRODUCT',
@@ -140,8 +160,14 @@ describe('tenant-web MES api', () => {
       ],
       reason: '创建模具方案'
     })
+    await registerMasterMoldApi('tenant-1', {
+      initialStorageResourceRef: { storageResourceId: 'storage-1' },
+      masterMoldCode: 'MM-LT-001',
+      moldDesignId: 'design-1',
+      reason: '母模入库'
+    })
     await registerProductionMoldApi('tenant-1', {
-      acceptedAt: '2026-05-05T08:00:00.000Z',
+      initialStorageResourceRef: { storageResourceId: 'storage-1' },
       moldCode: 'PM-LT-001',
       moldDesignId: 'design-1',
       supplierRef: {
@@ -150,6 +176,7 @@ describe('tenant-web MES api', () => {
         supplierId: 'supplier-1'
       }
     })
+    await acceptProductionMoldApi('tenant-1', 'mold-1', { reason: '验收通过' })
     await installProductionMoldApi('tenant-1', 'mold-1', {
       cavityPosition: 'LEFT',
       moldPosition: 'A1',
@@ -168,7 +195,7 @@ describe('tenant-web MES api', () => {
       }
     })
     await unmountProductionMoldApi('tenant-1', 'install-1', { reason: '换模' })
-    await scrapProductionMoldApi('tenant-1', 'mold-1', { reason: '破损' })
+    await markProductionMoldForScrapApi('tenant-1', 'mold-1', { reason: '破损' })
     await recordDailyMoldUsageBatchApi('tenant-1', '2026-05-05', {
       batchCommandId: 'batch-1',
       items: [
@@ -191,6 +218,10 @@ describe('tenant-web MES api', () => {
       defaultLifeUnit: 'CASTING_CYCLE',
       designCode: 'MD-LT-HP-01',
       functionRole: 'PRODUCTION',
+      primaryItemModelRef: {
+        itemModelId: 'item-model-1',
+        modelCodeSnapshot: 'WC-MODEL'
+      },
       materialType: 'RESIN',
       name: '连体马桶高压模具方案',
       outputStructureType: 'SINGLE',
@@ -198,6 +229,9 @@ describe('tenant-web MES api', () => {
         {
           componentRole: '主体',
           isPrimaryOutput: true,
+          itemModelRef: {
+            itemModelId: 'item-model-1'
+          },
           optionCode: 'BODY',
           outputCode: 'BODY',
           outputKind: 'PRODUCT',
@@ -217,8 +251,14 @@ describe('tenant-web MES api', () => {
       ],
       reason: '创建模具方案'
     })
+    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/master-molds', {
+      initialStorageResourceRef: { storageResourceId: 'storage-1' },
+      masterMoldCode: 'MM-LT-001',
+      moldDesignId: 'design-1',
+      reason: '母模入库'
+    })
     expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds', {
-      acceptedAt: '2026-05-05T08:00:00.000Z',
+      initialStorageResourceRef: { storageResourceId: 'storage-1' },
       moldCode: 'PM-LT-001',
       moldDesignId: 'design-1',
       supplierRef: {
@@ -226,6 +266,9 @@ describe('tenant-web MES api', () => {
         supplierDisplayNameSnapshot: '精工模具厂',
         supplierId: 'supplier-1'
       }
+    })
+    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds/mold-1/accept', {
+      reason: '验收通过'
     })
     expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/tooling/mold-1/install', {
       cavityPosition: 'LEFT',
@@ -247,7 +290,7 @@ describe('tenant-web MES api', () => {
     expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/tooling-installations/install-1/unmount', {
       reason: '换模'
     })
-    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds/mold-1/scrap', {
+    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds/mold-1/mark-for-scrap', {
       reason: '破损'
     })
     expect(post).toHaveBeenCalledWith(

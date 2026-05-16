@@ -262,22 +262,24 @@ function formatRef(ref?: MesApi.ProductionSpecRef) {
   return `${code}${ref.displayNameSnapshot ?? ref.productionSpecId}`
 }
 
-/** formatItemRef renders the optional Item snapshot attached to the MoldDesign. */
-function formatItemRef(itemRef?: MesApi.ItemRef) {
-  if (!itemRef) {
+/** formatItemModelRef renders the optional ItemModel snapshot attached to the MoldDesign. */
+function formatItemModelRef(itemModelRef?: MesApi.ItemModelRef) {
+  if (!itemModelRef) {
     return '未记录'
   }
 
-  const code = itemRef.itemCodeSnapshot ? `${itemRef.itemCodeSnapshot} · ` : ''
-  return `${code}${itemRef.itemNameSnapshot ?? itemRef.itemId}`
+  const code = itemModelRef.modelCodeSnapshot ? `${itemModelRef.modelCodeSnapshot} · ` : ''
+  return `${code}${itemModelRef.modelNameSnapshot ?? itemModelRef.itemModelId}`
 }
 
-/** formatOutputItem renders the output item signal from real MoldDesign output snapshots only. */
+/** formatOutputItem renders the output ItemModel or ProductionSpec signal from real MoldDesign snapshots only. */
 function formatOutputItem(output: MesApi.MoldDesignOutput) {
   return output.productionSpecRef
     ? formatRef(output.productionSpecRef)
-    : moldDesign.value?.itemRef
-      ? formatItemRef(moldDesign.value.itemRef)
+    : output.itemModelRef
+      ? formatItemModelRef(output.itemModelRef)
+      : moldDesign.value?.primaryItemModelRef
+        ? formatItemModelRef(moldDesign.value.primaryItemModelRef)
       : output.outputCode
 }
 
@@ -407,8 +409,8 @@ onMounted(() => {
               <DescriptionsItem label="方案名称">
                 {{ moldDesign?.name ?? '未记录' }}
               </DescriptionsItem>
-              <DescriptionsItem label="关联 Item">
-                {{ formatItemRef(moldDesign?.itemRef) }}
+              <DescriptionsItem label="关联 ItemModel">
+                {{ formatItemModelRef(moldDesign?.primaryItemModelRef) }}
               </DescriptionsItem>
               <DescriptionsItem label="模具类型">
                 {{ getMaterialTypeLabel(moldDesign?.materialType) }}

@@ -8,6 +8,7 @@ This contract follows the MES architecture baseline:
 
 ```text
 MoldDesign
+  -> MasterMold optional
   -> ProductionMold
   -> ToolingInstallation(type = MOLD)
   -> MoldInstallationDetail
@@ -42,13 +43,13 @@ Business rules must execute inside `mes-service` domain / application code.
 | `specCodeSnapshot` | no | Historical display snapshot. |
 | `displayNameSnapshot` | no | Historical display snapshot. |
 
-### ItemRef
+### ItemModelRef
 
 | Field | Required | Meaning |
 | --- | --- | --- |
-| `itemId` | yes | Item Master identifier. |
-| `itemCodeSnapshot` | no | Historical display snapshot. |
-| `itemNameSnapshot` | no | Historical display snapshot. |
+| `itemModelId` | yes | Item Master model identifier. |
+| `modelCodeSnapshot` | no | Historical display snapshot. |
+| `modelNameSnapshot` | no | Historical display snapshot. |
 
 ### StorageResourceRef
 
@@ -93,7 +94,7 @@ Business rules must execute inside `mes-service` domain / application code.
 | `name` | yes | Design name. |
 | `revisionCode` | no | Revision label. |
 | `supersedesMoldDesignId` | no | Previous design. |
-| `itemRef` | no | Optional Item reference. |
+| `primaryItemModelRef` | yes | Primary product / component model this design outputs. |
 | `productionSpecRefs[]` | no | Compatible production specs. |
 | `materialType` | yes | Material dimension such as resin or gypsum. |
 | `functionRole` | yes | `MASTER / PRODUCTION`. |
@@ -116,7 +117,7 @@ Business rules must execute inside `mes-service` domain / application code.
 | `purchaseRef` | no | Procurement reference snapshot. |
 | `receivedAt` | no | Received timestamp. |
 | `acceptedAt` | no | Accepted timestamp. |
-| `currentStatus` | yes | `RECEIVED / PREPARING / AVAILABLE / INSTALLED / MAINTENANCE / DISABLED / SCRAPPED`. |
+| `currentStatus` | yes | `RECEIVED / PREPARING / AVAILABLE / INSTALLED / MAINTENANCE / DISABLED / SCRAP_PENDING / SCRAPPED`. |
 | `currentStorageResourceRef` | no | Current fixed or semi-fixed storage. |
 | `currentCarrierResourceRef` | no | Current movable carrier. |
 | `currentInstallationSummary` | no | Active installation summary. |
@@ -134,7 +135,7 @@ Business rules must execute inside `mes-service` domain / application code.
 | `workUnitRef` | no | Target work point. |
 | `installedAt` | yes | Installation timestamp. |
 | `unmountedAt` | no | Unmount timestamp. |
-| `status` | yes | `ACTIVE / UNMOUNTED / CLOSED_BY_SCRAP`. |
+| `status` | yes | `ACTIVE / UNMOUNTED`. |
 
 ### MoldInstallationDetail
 
@@ -188,7 +189,8 @@ Rules:
 - `designCode` must be unique inside tenant + org.
 - `outputs[]` must contain at least one primary output.
 - Referenced production specs must be active and visible.
-- Item snapshots are display aids only and do not become Item Master truth.
+- `primaryItemModelRef` and output `itemModelRef` snapshots are display aids only and do not become Item Master truth.
+- `MoldDesign` references design-layer `ItemModel`, not execution-layer `Item`.
 
 ### RegisterMasterMold
 
@@ -197,6 +199,8 @@ Creates a master mold record.
 Rules:
 
 - The referenced `MoldDesign` must be visible.
+- Registering means the master mold already exists and can be referenced as a production mold source.
+- Initial placement must be either a `StorageResourceRef` or a `CarrierResourceRef`.
 - Master molds do not enter production installation or usage lifecycle.
 
 ### RegisterProductionMold
@@ -206,16 +210,29 @@ Creates a production mold record.
 Rules:
 
 - The referenced `MoldDesign` must be visible and active.
+- If `sourceMasterMoldId` is provided, it must reference an available master mold for the same mold design.
 - Initial placement must be either a `StorageResourceRef` or a `CarrierResourceRef`, not both unless the carrier is explicitly stored inside that storage resource by a future resource contract.
-- Created production molds are not installed until `InstallTooling` succeeds.
+- Created production molds start as `RECEIVED`.
+- Created production molds cannot be installed until `AcceptProductionMold` succeeds.
 
-### MoveTooling
+### AcceptProductionMold
 
-Moves a master mold or production mold between storage and carrier references.
+Accepts a received production mold into available status.
 
 Rules:
 
-- Scrapped production molds cannot move to an available production placement.
+- Only `RECEIVED` production molds can be accepted.
+- Acceptance records `acceptedAt` and audit context.
+- Acceptance does not create quality details or inspection records in this slice.
+
+### MoveTooling
+
+Moves a production mold between storage and carrier references.
+
+Rules:
+
+- Only `RECEIVED / PREPARING / AVAILABLE / MAINTENANCE / DISABLED` production molds can move.
+- `INSTALLED / SCRAP_PENDING / SCRAPPED` production molds cannot move.
 - Movement records placement facts only; it does not change execution history.
 
 ### InstallTooling
@@ -225,7 +242,7 @@ Installs a production mold to a WorkCenter / WorkUnit.
 Rules:
 
 - `toolingType` must be `MOLD`.
-- The target production mold must be installable.
+- The target production mold must be `AVAILABLE`.
 - The target WorkCenter must be an execution unit, not an Area.
 - WorkUnit is used for finer installation points such as mold slot, upper mold point, or casting point.
 - A production mold can have at most one active tooling installation.
@@ -238,6 +255,8 @@ Closes an active tooling installation.
 Rules:
 
 - The installation must be active.
+- Unmounting an `INSTALLED` production mold returns it to `AVAILABLE`.
+- Unmounting a `SCRAP_PENDING` production mold moves it to `SCRAPPED`.
 - Closing an installation does not delete usage records or life counters.
 
 ### RecordMoldUsage
@@ -247,9 +266,26 @@ Records mold usage and increments life counters.
 Rules:
 
 - Usage is a mold life fact, not an operation execution replacement.
+- The production mold must be `INSTALLED`.
+- `toolingInstallationId` is required and must point to the active installation for the production mold.
 - If a production unit exists, reference it through `productionUnitRef`.
 - If trace identity exists, reference it through `traceSubjectRef`.
+- `lifeDelta` is derived by mes-service from `usageQuantity`; Web and PDA clients do not provide it.
 - The first slice uses `CASTING_CYCLE` as the primary life unit.
+
+### RecordMoldUsageBatch
+
+Records one WorkCenter usage batch and increments life counters in one local transaction.
+
+Rules:
+
+- Batch usage is a command envelope, not a persisted checklist or batch business object.
+- The batch has one `usedAt`; row-level `usedAt` overrides are not supported.
+- Unsubmitted rows are ignored.
+- Every submitted row must include `productionMoldId`, `toolingInstallationId`, and `usageQuantity > 0`.
+- Every submitted row must reference an active installation matching the production mold and batch WorkCenter.
+- If any submitted row is invalid, the whole batch fails and no usage record or life counter change is written.
+- mes-service derives `lifeDelta = usageQuantity` for each submitted row.
 
 ### AdjustMoldLifeCounter
 
@@ -259,15 +295,19 @@ Rules:
 
 - Requires audit reason.
 - Does not delete historical usage records.
+- `SCRAPPED` production molds cannot be adjusted.
 
-### ScrapProductionMold
+### MarkProductionMoldForScrap
 
-Scraps a production mold.
+Marks a production mold for scrap or moves it directly to scrapped status.
 
 Rules:
 
-- Scrapped production molds cannot be installed, moved to available placement, or used.
-- Active tooling installation must be closed as part of the same local transaction.
+- Installed production molds become `SCRAP_PENDING`; their active installation remains active until field unmount.
+- Non-installed active production molds become `SCRAPPED`.
+- `SCRAP_PENDING` production molds cannot be used, installed, moved, or marked again.
+- `SCRAPPED` production molds are terminal and cannot be installed, moved, used, or adjusted.
+- No `closedToolingInstallation` is returned because marking scrap does not itself unmount the mold.
 
 ## 6. Errors
 

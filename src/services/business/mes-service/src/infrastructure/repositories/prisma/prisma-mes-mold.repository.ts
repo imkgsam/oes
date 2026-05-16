@@ -3,8 +3,8 @@ import { ExceptionFactory } from '@oes/common/exceptions'
 import { Prisma } from '../../../../prisma/generated/prisma'
 import {
   CurrentMoldByWorkCenterRecord,
-  DailyMoldChecklistRecord,
   MasterMoldRecord,
+  MasterMoldStatus,
   MesAuditEnvelopeRecord,
   MesCommandIdempotencyRecord,
   MesOutboxEventRecord,
@@ -38,7 +38,7 @@ import {
   MoldDesignSummaryPageResult,
   MoldLifeCounterPageResult,
   MoldUsageHistoryResult,
-  PrintDailyMoldChecklistInput,
+  SearchMasterMoldsInput,
   SearchMoldDesignsInput,
   SearchProductionMoldsInput,
   ProductionMoldSummaryPageResult
@@ -94,7 +94,7 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
       tenantId: input.tenantId,
       ...(input.orgId ? { orgId: input.orgId } : {}),
       ...(input.status ? { status: input.status } : {}),
-      ...(input.itemId ? { itemRef: { path: ['itemId'], equals: input.itemId } } : {}),
+      ...(input.itemModelId ? { primaryItemModelRef: { path: ['itemModelId'], equals: input.itemModelId } } : {}),
       ...(keyword
         ? {
             OR: [
@@ -141,6 +141,23 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
   ): Promise<MasterMoldRecord | null> {
     const row = await this.client().masterMold.findFirst({ where: { tenantId, orgId: orgId ?? null, masterMoldCode } })
     return row ? fromPrismaMasterMold(row) : null
+  }
+
+  async searchMasterMolds(input: SearchMasterMoldsInput) {
+    const keyword = input.keyword?.trim()
+    const where: Prisma.MasterMoldWhereInput = {
+      tenantId: input.tenantId,
+      ...(input.orgId ? { orgId: input.orgId } : {}),
+      ...(input.moldDesignId ? { moldDesignId: input.moldDesignId } : {}),
+      ...(input.status ? { currentStatus: input.status } : {}),
+      ...(input.storageResourceId ? { currentStorageResourceRef: { path: ['storageResourceId'], equals: input.storageResourceId } } : {}),
+      ...(input.carrierResourceId ? { currentCarrierResourceRef: { path: ['carrierResourceId'], equals: input.carrierResourceId } } : {}),
+      ...(keyword ? { masterMoldCode: { contains: keyword, mode: 'insensitive' } } : {})
+    }
+    const rows = await this.client().masterMold.findMany({ where, orderBy: { masterMoldCode: 'asc' } })
+    const summaries = await Promise.all(rows.map(fromPrismaMasterMold).map((record) => this.toMasterMoldSummary(record)))
+    const page = paginate(summaries, input.page, input.pageSize)
+    return { masterMolds: page.items, total: page.total, page: page.page, pageSize: page.pageSize }
   }
 
   async saveProductionMold(record: ProductionMoldRecord): Promise<ProductionMoldRecord> {
@@ -319,7 +336,12 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
     for (const toolingInstallation of filtered) {
       const mold = await this.findProductionMoldById(input.tenantId, toolingInstallation.toolingId)
       if (mold) {
-        items.push({ productionMold: await this.toProductionMoldSummary(mold), toolingInstallation })
+        items.push({
+          productionMold: await this.toProductionMoldSummary(mold),
+          toolingInstallation,
+          usageAllowed: mold.currentStatus === ProductionMoldStatus.INSTALLED,
+          usageDisabledReason: mold.currentStatus === ProductionMoldStatus.INSTALLED ? null : `MOLD_${mold.currentStatus}`
+        })
       }
     }
     return { items }
@@ -472,14 +494,6 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
     return { counters: page.items, total: page.total, page: page.page, pageSize: page.pageSize }
   }
 
-  async printDailyMoldChecklist(input: PrintDailyMoldChecklistInput): Promise<DailyMoldChecklistRecord> {
-    return {
-      checklistDate: input.checklistDate,
-      workCenterId: input.workCenterId,
-      items: (await this.listCurrentMoldsByWorkCenter(input)).items
-    }
-  }
-
   async appendAuditEnvelope(record: MesAuditEnvelopeRecord): Promise<MesAuditEnvelopeRecord> {
     const saved = await this.client().mesAuditEnvelope.create({ data: toPrismaMesAuditEnvelope(record) })
     return fromPrismaMesAuditEnvelope(saved)
@@ -541,6 +555,26 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
     }
   }
 
+  /** toMasterMoldSummary enriches one master mold with design and placement summaries. */
+  private async toMasterMoldSummary(record: MasterMoldRecord) {
+    const design = await this.findMoldDesignById(record.tenantId, record.moldDesignId)
+    return {
+      masterMoldId: record.masterMoldId,
+      masterMoldCode: record.masterMoldCode,
+      moldDesignSummary: design ? toMoldDesignSummary(design) : {
+        moldDesignId: record.moldDesignId,
+        designCode: '',
+        name: '',
+        revisionCode: null,
+        status: 'INACTIVE' as MoldDesignSummaryRecord['status']
+      },
+      currentStatus: record.currentStatus,
+      currentPlacementSummary: record.currentCarrierResourceRef
+        ? { placementType: ToolingPlacementType.CARRIER_RESOURCE, carrierResourceRef: record.currentCarrierResourceRef }
+        : { placementType: ToolingPlacementType.STORAGE_RESOURCE, storageResourceRef: record.currentStorageResourceRef ?? null }
+    }
+  }
+
   /** client returns the ambient Prisma transaction client when one is active. */
   private client(): PrismaExecutionClient {
     return this.prisma.getExecutionClient()
@@ -561,7 +595,7 @@ function toPrismaMoldDesign(record: MoldDesignRecord): Prisma.MoldDesignUnchecke
     name: record.name,
     revisionCode: record.revisionCode ?? null,
     supersedesMoldDesignId: record.supersedesMoldDesignId ?? null,
-    itemRef: nullableJson(record.itemRef),
+    primaryItemModelRef: toJson(record.primaryItemModelRef),
     productionSpecRefs: toJson(record.productionSpecRefs),
     materialType: record.materialType,
     functionRole: record.functionRole,
@@ -586,6 +620,7 @@ function toPrismaMoldDesignOutput(record: MoldDesignOutputRecord): Prisma.MoldDe
     outputCode: record.outputCode,
     outputKind: record.outputKind,
     productionSpecRef: nullableJson(record.productionSpecRef),
+    itemModelRef: nullableJson(record.itemModelRef),
     quantityPerUse: record.quantityPerUse,
     componentRole: record.componentRole ?? null,
     assemblyHint: record.assemblyHint ?? null,
@@ -604,7 +639,7 @@ function fromPrismaMoldDesign(row: MoldDesignWithOutputs): MoldDesignRecord {
     name: row.name,
     revisionCode: row.revisionCode,
     supersedesMoldDesignId: row.supersedesMoldDesignId,
-    itemRef: fromNullableJson<MoldDesignRecord['itemRef']>(row.itemRef),
+    primaryItemModelRef: fromJson<MoldDesignRecord['primaryItemModelRef']>(row.primaryItemModelRef),
     productionSpecRefs: fromJson<MoldDesignRecord['productionSpecRefs']>(row.productionSpecRefs),
     materialType: row.materialType,
     functionRole: row.functionRole as MoldDesignRecord['functionRole'],
@@ -619,6 +654,7 @@ function fromPrismaMoldDesign(row: MoldDesignWithOutputs): MoldDesignRecord {
       outputCode: output.outputCode,
       outputKind: output.outputKind as MoldDesignOutputRecord['outputKind'],
       productionSpecRef: fromNullableJson<MoldDesignOutputRecord['productionSpecRef']>(output.productionSpecRef),
+      itemModelRef: fromNullableJson<MoldDesignOutputRecord['itemModelRef']>(output.itemModelRef),
       quantityPerUse: output.quantityPerUse,
       componentRole: output.componentRole,
       assemblyHint: output.assemblyHint,
@@ -640,7 +676,8 @@ function toMoldDesignSummary(record: MoldDesignRecord): MoldDesignSummaryRecord 
     designCode: record.designCode,
     name: record.name,
     revisionCode: record.revisionCode ?? null,
-    status: record.status
+    status: record.status,
+    primaryItemModelRef: record.primaryItemModelRef
   }
 }
 
@@ -677,7 +714,7 @@ function fromPrismaMasterMold(row: Prisma.MasterMoldGetPayload<object>): MasterM
     supplierRef: fromNullableJson<MasterMoldRecord['supplierRef']>(row.supplierRef),
     purchaseRef: fromNullableJson<MasterMoldRecord['purchaseRef']>(row.purchaseRef),
     receivedAt: row.receivedAt,
-    currentStatus: row.currentStatus,
+    currentStatus: row.currentStatus as MasterMoldStatus,
     currentStorageResourceRef: fromNullableJson<MasterMoldRecord['currentStorageResourceRef']>(row.currentStorageResourceRef),
     currentCarrierResourceRef: fromNullableJson<MasterMoldRecord['currentCarrierResourceRef']>(row.currentCarrierResourceRef),
     qualitySummary: row.qualitySummary,

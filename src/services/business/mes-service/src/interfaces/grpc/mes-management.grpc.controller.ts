@@ -3,14 +3,20 @@ import { GrpcRequestContextStore } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
+  AcceptProductionMoldRequest,
+  AcceptProductionMoldResponse,
   AdjustMoldLifeCounterRequest,
   AdjustMoldLifeCounterResponse,
   InstallToolingRequest,
   InstallToolingResponse,
+  MarkProductionMoldForScrapRequest,
+  MarkProductionMoldForScrapResponse,
   MoldManagementServiceController,
   MoldManagementServiceControllerMethods,
   MoveToolingRequest,
   MoveToolingResponse,
+  RecordMoldUsageBatchRequest,
+  RecordMoldUsageBatchResponse,
   RecordMoldUsageRequest,
   RecordMoldUsageResponse,
   RegisterMasterMoldRequest,
@@ -19,8 +25,6 @@ import {
   RegisterMoldDesignResponse,
   RegisterProductionMoldRequest,
   RegisterProductionMoldResponse,
-  ScrapProductionMoldRequest,
-  ScrapProductionMoldResponse,
   UnmountToolingRequest,
   UnmountToolingResponse
 } from '@oes/common/generated/mes_service'
@@ -30,6 +34,7 @@ import {
   toDomainCarrierResourceRef,
   toDomainMoldDesignOutputKind,
   toDomainMoldFunctionRole,
+  toDomainItemModelRef,
   toDomainMoldLifeAdjustmentType,
   toDomainMoldOutputStructureType,
   toDomainProductionSpecRef,
@@ -65,13 +70,7 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
           name: request.name ?? '',
           revisionCode: request.revisionCode ?? undefined,
           supersedesMoldDesignId: request.supersedesMoldDesignId ?? undefined,
-          itemRef: request.itemRef?.itemId
-            ? {
-                itemId: request.itemRef.itemId,
-                itemCodeSnapshot: request.itemRef.itemCodeSnapshot,
-                itemNameSnapshot: request.itemRef.itemNameSnapshot
-              }
-            : undefined,
+          primaryItemModelRef: toDomainItemModelRef(request.primaryItemModelRef) as never,
           productionSpecRefs: (request.productionSpecRefs ?? [])
             .map((ref) => toDomainProductionSpecRef(ref))
             .filter((ref): ref is NonNullable<typeof ref> => !!ref),
@@ -84,6 +83,7 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
             outputCode: output.outputCode ?? '',
             outputKind: toDomainMoldDesignOutputKind(output.outputKind),
             productionSpecRef: toDomainProductionSpecRef(output.productionSpecRef) ?? null,
+            itemModelRef: toDomainItemModelRef(output.itemModelRef) ?? null,
             quantityPerUse: output.quantityPerUse ?? '',
             componentRole: output.componentRole ?? undefined,
             assemblyHint: output.assemblyHint ?? undefined,
@@ -140,9 +140,23 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
           supplierRef: toDomainSupplierRef(request.supplierRef),
           purchaseRef: toDomainPurchaseRef(request.purchaseRef),
           receivedAt: request.receivedAt ?? undefined,
-          acceptedAt: request.acceptedAt ?? undefined,
           initialStorageResourceRef: toDomainStorageResourceRef(request.initialStorageResourceRef),
           initialCarrierResourceRef: toDomainCarrierResourceRef(request.initialCarrierResourceRef)
+        })
+      )
+    )
+  }
+
+  /** acceptProductionMold forwards production mold acceptance into the application layer. */
+  async acceptProductionMold(request: AcceptProductionMoldRequest): Promise<AcceptProductionMoldResponse> {
+    const context = MesRpcContextValidator.assertManagementContext(request)
+    return this.runWithContext(context, async () =>
+      MesGrpcPresenter.toAcceptProductionMoldResponse(
+        await this.managementService.acceptProductionMold({
+          ...context,
+          commandId: request.commandId ?? '',
+          productionMoldId: request.productionMoldId ?? '',
+          acceptedAt: request.acceptedAt ?? undefined
         })
       )
     )
@@ -218,7 +232,6 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
           workUnitRef: toDomainWorkUnitRef(request.workUnitRef),
           usedAt: request.usedAt ?? undefined,
           usageQuantity: request.usageQuantity ?? '',
-          lifeDelta: request.lifeDelta ?? '',
           lifeUnit: request.lifeUnit ?? '',
           productionSpecRef: toDomainProductionSpecRef(request.productionSpecRef),
           productionUnitRef: request.productionUnitRef?.productionUnitId
@@ -232,6 +245,41 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
           captureSource: request.captureSource ?? undefined,
           moldDesignOutputId: request.moldDesignOutputId ?? undefined,
           moldDesignOutputOptionId: request.moldDesignOutputOptionId ?? undefined
+        })
+      )
+    )
+  }
+
+  /** recordMoldUsageBatch forwards one transactional WorkCenter usage batch. */
+  async recordMoldUsageBatch(request: RecordMoldUsageBatchRequest): Promise<RecordMoldUsageBatchResponse> {
+    const context = MesRpcContextValidator.assertManagementContext(request)
+    return this.runWithContext(context, async () =>
+      MesGrpcPresenter.toRecordMoldUsageBatchResponse(
+        await this.managementService.recordMoldUsageBatch({
+          ...context,
+          commandId: request.commandId ?? '',
+          workCenterRef: toDomainWorkCenterRef(request.workCenterRef) as never,
+          workUnitRef: toDomainWorkUnitRef(request.workUnitRef),
+          usedAt: request.usedAt ?? undefined,
+          lifeUnit: request.lifeUnit ?? undefined,
+          captureSource: request.captureSource ?? undefined,
+          lines: (request.lines ?? []).map((line) => ({
+            isSubmitted: line.isSubmitted ?? false,
+            productionMoldId: line.productionMoldId ?? '',
+            toolingInstallationId: line.toolingInstallationId ?? '',
+            usageQuantity: line.usageQuantity ?? '',
+            productionSpecRef: toDomainProductionSpecRef(line.productionSpecRef),
+            productionUnitRef: line.productionUnitRef?.productionUnitId
+              ? {
+                  productionUnitId: line.productionUnitRef.productionUnitId,
+                  unitCodeSnapshot: line.productionUnitRef.unitCodeSnapshot,
+                  displayNameSnapshot: line.productionUnitRef.displayNameSnapshot
+                }
+              : undefined,
+            traceSubjectRef: toDomainTraceSubjectRef(line.traceSubjectRef),
+            moldDesignOutputId: line.moldDesignOutputId ?? undefined,
+            moldDesignOutputOptionId: line.moldDesignOutputOptionId ?? undefined
+          }))
         })
       )
     )
@@ -255,16 +303,16 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
     )
   }
 
-  /** scrapProductionMold forwards the terminal production mold lifecycle command. */
-  async scrapProductionMold(request: ScrapProductionMoldRequest): Promise<ScrapProductionMoldResponse> {
+  /** markProductionMoldForScrap forwards the two-step scrap lifecycle command. */
+  async markProductionMoldForScrap(request: MarkProductionMoldForScrapRequest): Promise<MarkProductionMoldForScrapResponse> {
     const context = MesRpcContextValidator.assertManagementContext(request)
     return this.runWithContext(context, async () =>
-      MesGrpcPresenter.toScrapProductionMoldResponse(
-        await this.managementService.scrapProductionMold({
+      MesGrpcPresenter.toMarkProductionMoldForScrapResponse(
+        await this.managementService.markProductionMoldForScrap({
           ...context,
           commandId: request.commandId ?? '',
           productionMoldId: request.productionMoldId ?? '',
-          scrappedAt: request.scrappedAt ?? undefined
+          markedAt: request.markedAt ?? undefined
         })
       )
     )

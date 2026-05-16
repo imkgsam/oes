@@ -5,12 +5,16 @@ import {
   GetMoldDesignResponse,
   GetMoldUsageHistoryRequest,
   GetMoldUsageHistoryResponse,
+  GetMasterMoldRequest,
+  GetMasterMoldResponse,
   GetProductionMoldRequest,
   GetProductionMoldResponse,
   GetToolingCurrentPlacementRequest,
   GetToolingCurrentPlacementResponse,
   ListCurrentMoldsByWorkCenterRequest,
   ListCurrentMoldsByWorkCenterResponse,
+  ListMasterMoldsRequest,
+  ListMasterMoldsResponse,
   ListMoldDesignsRequest,
   ListMoldDesignsResponse,
   ListMoldLifeCountersRequest,
@@ -20,13 +24,12 @@ import {
   ListProductionMoldsRequest,
   ListProductionMoldsResponse,
   MoldQueryServiceController,
-  MoldQueryServiceControllerMethods,
-  PrintDailyMoldChecklistRequest,
-  PrintDailyMoldChecklistResponse
+  MoldQueryServiceControllerMethods
 } from '@oes/common/generated/mes_service'
 import { MesMoldQueryService } from '../../application/services/mes-mold-query.service'
 import {
   MesGrpcPresenter,
+  toDomainMasterMoldStatus,
   toDomainMoldDesignStatus,
   toDomainMoldWarningLevel,
   toDomainProductionMoldStatus,
@@ -61,7 +64,35 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
         keyword: request.keyword ?? undefined,
         status: toDomainMoldDesignStatus(request.status),
         productionSpecId: request.productionSpecId ?? undefined,
-        itemId: request.itemId ?? undefined,
+        itemModelId: request.itemModelId ?? undefined,
+        page: request.page ?? undefined,
+        pageSize: request.pageSize ?? undefined
+      })
+    )
+  }
+
+  /** getMasterMold delegates one master mold lookup. */
+  async getMasterMold(request: GetMasterMoldRequest): Promise<GetMasterMoldResponse> {
+    const context = MesRpcContextValidator.assertQueryContext(request)
+    return MesGrpcPresenter.toGetMasterMoldResponse(
+      await this.queryService.getMasterMold({
+        ...context,
+        masterMoldId: request.masterMoldId ?? ''
+      })
+    )
+  }
+
+  /** listMasterMolds delegates the master mold directory query. */
+  async listMasterMolds(request: ListMasterMoldsRequest): Promise<ListMasterMoldsResponse> {
+    const context = MesRpcContextValidator.assertQueryContext(request)
+    return MesGrpcPresenter.toListMasterMoldsResponse(
+      await this.queryService.listMasterMolds({
+        ...context,
+        keyword: request.keyword ?? undefined,
+        moldDesignId: request.moldDesignId ?? undefined,
+        status: toDomainMasterMoldStatus(request.status),
+        storageResourceId: request.storageResourceId ?? undefined,
+        carrierResourceId: request.carrierResourceId ?? undefined,
         page: request.page ?? undefined,
         pageSize: request.pageSize ?? undefined
       })
@@ -165,20 +196,6 @@ export class MesQueryGrpcController implements MoldQueryServiceController {
         warningLevel: toDomainMoldWarningLevel(request.warningLevel),
         page: request.page ?? undefined,
         pageSize: request.pageSize ?? undefined
-      })
-    )
-  }
-
-  /** printDailyMoldChecklist delegates a read-only printable checklist query. */
-  async printDailyMoldChecklist(
-    request: PrintDailyMoldChecklistRequest
-  ): Promise<PrintDailyMoldChecklistResponse> {
-    const context = MesRpcContextValidator.assertQueryContext(request)
-    return MesGrpcPresenter.toPrintDailyMoldChecklistResponse(
-      await this.queryService.printDailyMoldChecklist({
-        ...context,
-        workCenterId: request.workCenterId ?? '',
-        checklistDate: request.checklistDate ?? ''
       })
     )
   }

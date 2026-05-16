@@ -3,8 +3,8 @@ import { MesMoldManagementService } from '../../src/application/services/mes-mol
 import { MesMoldQueryService } from '../../src/application/services/mes-mold-query.service'
 import {
   CurrentMoldByWorkCenterRecord,
-  DailyMoldChecklistRecord,
   MasterMoldRecord,
+  MasterMoldStatus,
   MesAuditEnvelopeRecord,
   MesCommandIdempotencyRecord,
   MesOutboxEventRecord,
@@ -44,7 +44,6 @@ import {
   ListMoldLifeCountersInput,
   ListProductionMoldsByDesignInput,
   MesMoldRepository,
-  PrintDailyMoldChecklistInput,
   SearchMoldDesignsInput,
   SearchProductionMoldsInput
 } from '../../src/domain/repositories/mes-mold.repository'
@@ -105,9 +104,41 @@ class FakeMoldRepository implements MesMoldRepository {
   readonly outbox: MesOutboxEventRecord[] = []
   readonly commandRecords = new Map<string, MesCommandIdempotencyRecord>()
 
-  /** runInTransaction executes synchronously against the in-memory fake repository. */
+  /** runInTransaction executes fake local transactions with rollback on thrown errors. */
   async runInTransaction<T>(callback: () => Promise<T>): Promise<T> {
-    return callback()
+    const snapshot = {
+      designs: structuredClone(Array.from(this.designs.entries())),
+      masterMolds: structuredClone(Array.from(this.masterMolds.entries())),
+      productionMolds: structuredClone(Array.from(this.productionMolds.entries())),
+      movements: structuredClone(this.movements),
+      installations: structuredClone(Array.from(this.installations.entries())),
+      usages: structuredClone(this.usages),
+      counters: structuredClone(Array.from(this.counters.entries())),
+      audits: structuredClone(this.audits),
+      outbox: structuredClone(this.outbox),
+      commandRecords: structuredClone(Array.from(this.commandRecords.entries()))
+    }
+    try {
+      return await callback()
+    } catch (error) {
+      this.designs.clear()
+      snapshot.designs.forEach(([key, value]) => this.designs.set(key, value))
+      this.masterMolds.clear()
+      snapshot.masterMolds.forEach(([key, value]) => this.masterMolds.set(key, value))
+      this.productionMolds.clear()
+      snapshot.productionMolds.forEach(([key, value]) => this.productionMolds.set(key, value))
+      this.movements.splice(0, this.movements.length, ...snapshot.movements)
+      this.installations.clear()
+      snapshot.installations.forEach(([key, value]) => this.installations.set(key, value))
+      this.usages.splice(0, this.usages.length, ...snapshot.usages)
+      this.counters.clear()
+      snapshot.counters.forEach(([key, value]) => this.counters.set(key, value))
+      this.audits.splice(0, this.audits.length, ...snapshot.audits)
+      this.outbox.splice(0, this.outbox.length, ...snapshot.outbox)
+      this.commandRecords.clear()
+      snapshot.commandRecords.forEach(([key, value]) => this.commandRecords.set(key, value))
+      throw error
+    }
   }
 
   /** saveMoldDesign upserts one mold design. */
@@ -140,6 +171,7 @@ class FakeMoldRepository implements MesMoldRepository {
       .filter((record) => (record.orgId ?? null) === (input.orgId ?? null))
       .filter((record) => !input.status || record.status === input.status)
       .filter((record) => !input.productionSpecId || record.productionSpecRefs.some((ref) => ref.productionSpecId === input.productionSpecId))
+      .filter((record) => !input.itemModelId || record.primaryItemModelRef.itemModelId === input.itemModelId)
     const start = (input.page - 1) * input.pageSize
     return {
       moldDesigns: filtered.slice(start, start + input.pageSize).map(toDesignSummary),
@@ -170,6 +202,24 @@ class FakeMoldRepository implements MesMoldRepository {
         candidate.masterMoldCode === masterMoldCode
     )
     return record ? structuredClone(record) : null
+  }
+
+  /** searchMasterMolds returns contract-shaped pages of compact master mold summaries. */
+  async searchMasterMolds(input: Parameters<MesMoldRepository['searchMasterMolds']>[0]) {
+    const filtered = Array.from(this.masterMolds.values())
+      .filter((record) => record.tenantId === input.tenantId)
+      .filter((record) => (record.orgId ?? null) === (input.orgId ?? null))
+      .filter((record) => !input.moldDesignId || record.moldDesignId === input.moldDesignId)
+      .filter((record) => !input.status || record.currentStatus === input.status)
+      .filter((record) => !input.storageResourceId || record.currentStorageResourceRef?.storageResourceId === input.storageResourceId)
+      .filter((record) => !input.carrierResourceId || record.currentCarrierResourceRef?.carrierResourceId === input.carrierResourceId)
+    const start = (input.page - 1) * input.pageSize
+    return {
+      masterMolds: filtered.slice(start, start + input.pageSize).map((record) => this.toMasterMoldSummary(record)),
+      total: filtered.length,
+      page: input.page,
+      pageSize: input.pageSize
+    }
   }
 
   /** saveProductionMold upserts one production mold and keeps its current installation projection fresh. */
@@ -318,7 +368,9 @@ class FakeMoldRepository implements MesMoldRepository {
         }
         return {
           productionMold: this.toProductionMoldSummary(mold),
-          toolingInstallation: structuredClone(toolingInstallation)
+          toolingInstallation: structuredClone(toolingInstallation),
+          usageAllowed: mold.currentStatus === ProductionMoldStatus.INSTALLED,
+          usageDisabledReason: mold.currentStatus === ProductionMoldStatus.INSTALLED ? null : `MOLD_${mold.currentStatus}`
         }
       })
     return { items }
@@ -420,15 +472,6 @@ class FakeMoldRepository implements MesMoldRepository {
     }
   }
 
-  /** printDailyMoldChecklist returns the active molds currently installed at one work center. */
-  async printDailyMoldChecklist(input: PrintDailyMoldChecklistInput): Promise<DailyMoldChecklistRecord> {
-    return {
-      checklistDate: input.checklistDate,
-      workCenterId: input.workCenterId,
-      items: (await this.listCurrentMoldsByWorkCenter(input)).items
-    }
-  }
-
   /** appendAuditEnvelope stores one command audit envelope. */
   async appendAuditEnvelope(record: MesAuditEnvelopeRecord): Promise<MesAuditEnvelopeRecord> {
     this.audits.push(structuredClone(record))
@@ -469,6 +512,23 @@ class FakeMoldRepository implements MesMoldRepository {
       currentStatus: record.currentStatus,
       currentPlacementSummary: buildPlacement(record),
       lifeCounterSummary: record.lifeCounterSummary ?? null
+    }
+  }
+
+  /** toMasterMoldSummary converts one master mold into the compact query row. */
+  private toMasterMoldSummary(record: MasterMoldRecord) {
+    const design = this.designs.get(record.moldDesignId)
+    if (!design) {
+      throw new Error('missing design')
+    }
+    return {
+      masterMoldId: record.masterMoldId,
+      masterMoldCode: record.masterMoldCode,
+      moldDesignSummary: toDesignSummary(design),
+      currentStatus: record.currentStatus,
+      currentPlacementSummary: record.currentCarrierResourceRef
+        ? { placementType: ToolingPlacementType.CARRIER_RESOURCE, carrierResourceRef: record.currentCarrierResourceRef }
+        : { placementType: ToolingPlacementType.STORAGE_RESOURCE, storageResourceRef: record.currentStorageResourceRef ?? null }
     }
   }
 }
@@ -576,7 +636,8 @@ function toDesignSummary(record: MoldDesignRecord) {
     designCode: record.designCode,
     name: record.name,
     revisionCode: record.revisionCode,
-    status: record.status
+    status: record.status,
+    primaryItemModelRef: record.primaryItemModelRef
   }
 }
 
@@ -697,6 +758,11 @@ async function registerDesign(management: MesMoldManagementService) {
     designCode: 'body-a-design',
     name: 'Body A Design',
     revisionCode: 'R1',
+    primaryItemModelRef: {
+      itemModelId: 'item-model-body-a',
+      modelCodeSnapshot: 'BODY-A',
+      modelNameSnapshot: 'Body A'
+    },
     productionSpecRefs: [
       {
         productionSpecId: 'spec-1',
@@ -716,6 +782,9 @@ async function registerDesign(management: MesMoldManagementService) {
         productionSpecRef: {
           productionSpecId: 'spec-1'
         },
+        itemModelRef: {
+          itemModelId: 'item-model-body-a'
+        },
         quantityPerUse: '1',
         isPrimaryOutput: true
       }
@@ -732,6 +801,9 @@ describe('mes-service mold/tooling application behavior L1', () => {
     const design = await registerDesign(management)
     expect(design).toMatchObject({
       designCode: 'BODY-A-DESIGN',
+      primaryItemModelRef: {
+        itemModelId: 'item-model-body-a'
+      },
       status: MoldDesignStatus.ACTIVE
     })
     await expect(registerDesign(management)).resolves.toEqual(design)
@@ -740,6 +812,9 @@ describe('mes-service mold/tooling application behavior L1', () => {
         ...commandContext('cmd-design-1'),
         designCode: 'different',
         name: 'Different',
+        primaryItemModelRef: {
+          itemModelId: 'item-model-body-a'
+        },
         materialType: 'GYPSUM',
         functionRole: MoldFunctionRole.PRODUCTION,
         outputStructureType: MoldOutputStructureType.SINGLE,
@@ -759,6 +834,9 @@ describe('mes-service mold/tooling application behavior L1', () => {
         ...commandContext('cmd-design-draft-spec'),
         designCode: 'draft-spec-design',
         name: 'Draft Spec Design',
+        primaryItemModelRef: {
+          itemModelId: 'item-model-body-draft'
+        },
         productionSpecRefs: [{ productionSpecId: 'spec-draft' }],
         materialType: 'GYPSUM',
         functionRole: MoldFunctionRole.PRODUCTION,
@@ -769,6 +847,7 @@ describe('mes-service mold/tooling application behavior L1', () => {
             outputCode: 'BODY-DRAFT',
             outputKind: 'PRODUCTION_SPEC',
             productionSpecRef: { productionSpecId: 'spec-draft' },
+            itemModelRef: { itemModelId: 'item-model-body-draft' },
             quantityPerUse: '1',
             isPrimaryOutput: true
           }
@@ -780,6 +859,9 @@ describe('mes-service mold/tooling application behavior L1', () => {
         ...commandContext('cmd-design-cross-org-spec'),
         designCode: 'cross-org-spec-design',
         name: 'Cross Org Spec Design',
+        primaryItemModelRef: {
+          itemModelId: 'item-model-body-other'
+        },
         productionSpecRefs: [{ productionSpecId: 'spec-other-org' }],
         materialType: 'GYPSUM',
         functionRole: MoldFunctionRole.PRODUCTION,
@@ -790,6 +872,7 @@ describe('mes-service mold/tooling application behavior L1', () => {
             outputCode: 'BODY-OTHER',
             outputKind: 'PRODUCTION_SPEC',
             productionSpecRef: { productionSpecId: 'spec-other-org' },
+            itemModelRef: { itemModelId: 'item-model-body-other' },
             quantityPerUse: '1',
             isPrimaryOutput: true
           }
@@ -807,6 +890,7 @@ describe('mes-service mold/tooling application behavior L1', () => {
       }
     })
     expect(master.currentStorageResourceRef?.storageResourceId).toBe('storage-master')
+    expect(master.currentStatus).toBe(MasterMoldStatus.AVAILABLE)
 
     repository.designs.set('design-other-org', {
       ...design,
@@ -829,6 +913,9 @@ describe('mes-service mold/tooling application behavior L1', () => {
         ...commandContext('cmd-design-cross-org-supersedes'),
         designCode: 'cross-org-supersedes',
         name: 'Cross Org Supersedes',
+        primaryItemModelRef: {
+          itemModelId: 'item-model-body-a'
+        },
         supersedesMoldDesignId: 'design-other-org',
         productionSpecRefs: [{ productionSpecId: 'spec-1' }],
         materialType: 'GYPSUM',
@@ -840,25 +927,13 @@ describe('mes-service mold/tooling application behavior L1', () => {
             outputCode: 'BODY-A',
             outputKind: 'PRODUCTION_SPEC',
             productionSpecRef: { productionSpecId: 'spec-1' },
+            itemModelRef: { itemModelId: 'item-model-body-a' },
             quantityPerUse: '1',
             isPrimaryOutput: true
           }
         ]
       })
     ).rejects.toMatchObject({ definition: { rpcStatus: status.NOT_FOUND } })
-
-    const movedMaster = await management.moveTooling({
-      ...commandContext('cmd-move-master-1'),
-      toolingType: ToolingType.MOLD,
-      toolingId: 'master-1',
-      toCarrierResourceRef: {
-        carrierResourceId: 'carrier-master'
-      },
-      movementReason: 'master storage transfer',
-      movedAt: '2026-05-10T00:30:00.000Z'
-    })
-    expect(movedMaster.placement.placementType).toBe(ToolingPlacementType.CARRIER_RESOURCE)
-    expect((await repository.findMasterMoldById(tenantId, 'master-1'))?.currentCarrierResourceRef?.carrierResourceId).toBe('carrier-master')
 
     const productionMold = await management.registerProductionMold({
       ...commandContext('cmd-mold-1'),
@@ -870,7 +945,8 @@ describe('mes-service mold/tooling application behavior L1', () => {
         storageResourceId: 'storage-ready'
       }
     })
-    expect(productionMold.currentStatus).toBe(ProductionMoldStatus.AVAILABLE)
+    expect(productionMold.currentStatus).toBe(ProductionMoldStatus.RECEIVED)
+    expect(productionMold.acceptedAt).toBeNull()
     expect(productionMold.lifeCounterSummary?.usedValue).toBe('0')
 
     await expect(
@@ -896,6 +972,25 @@ describe('mes-service mold/tooling application behavior L1', () => {
     })
     expect(moved.placement.placementType).toBe(ToolingPlacementType.CARRIER_RESOURCE)
     expect(repository.movements.some((movement) => movement.toolingId === 'mold-1')).toBe(true)
+
+    await expect(
+      management.installTooling({
+        ...commandContext('cmd-install-before-accept'),
+        toolingType: ToolingType.MOLD,
+        toolingId: 'mold-1',
+        workCenterRef: {
+          workCenterId: 'wc-1'
+        }
+      })
+    ).rejects.toMatchObject({ definition: { rpcStatus: status.FAILED_PRECONDITION } })
+
+    const accepted = await management.acceptProductionMold({
+      ...commandContext('cmd-accept-1'),
+      productionMoldId: 'mold-1',
+      acceptedAt: '2026-05-10T00:45:00.000Z'
+    })
+    expect(accepted.productionMold.currentStatus).toBe(ProductionMoldStatus.AVAILABLE)
+    expect(accepted.productionMold.acceptedAt).toBe('2026-05-10T00:45:00.000Z')
 
     const installed = await management.installTooling({
       ...commandContext('cmd-install-1'),
@@ -926,14 +1021,75 @@ describe('mes-service mold/tooling application behavior L1', () => {
       },
       usedAt: '2026-05-10T02:00:00.000Z',
       usageQuantity: '12',
-      lifeDelta: '12',
       lifeUnit: 'CASTING_CYCLE',
       productionSpecRef: {
         productionSpecId: 'spec-1'
       }
     })
     expect(usage.moldLifeCounter.usedValue).toBe('12')
+    expect(usage.moldUsageRecord.lifeDelta).toBe('12')
     expect(usage.moldUsageRecord.productionSpecRef?.productionSpecId).toBe('spec-1')
+
+    const batch = await management.recordMoldUsageBatch({
+      ...commandContext('cmd-usage-batch-1'),
+      workCenterRef: {
+        workCenterId: 'wc-1'
+      },
+      workUnitRef: {
+        workUnitId: 'wu-1'
+      },
+      usedAt: '2026-05-10T02:30:00.000Z',
+      lifeUnit: 'CASTING_CYCLE',
+      captureSource: 'WEB_DAILY_CHECKLIST',
+      lines: [
+        {
+          isSubmitted: true,
+          productionMoldId: 'mold-1',
+          toolingInstallationId: installed.toolingInstallation.toolingInstallationId,
+          usageQuantity: '5',
+          productionSpecRef: {
+            productionSpecId: 'spec-1'
+          }
+        },
+        {
+          isSubmitted: false,
+          productionMoldId: 'mold-1',
+          toolingInstallationId: installed.toolingInstallation.toolingInstallationId,
+          usageQuantity: '99'
+        }
+      ]
+    })
+    expect(batch.moldUsageRecords).toHaveLength(1)
+    expect(batch.moldUsageRecords[0]?.lifeDelta).toBe('5')
+    expect(batch.moldLifeCounters[0]?.usedValue).toBe('17')
+
+    const usageCountBeforeInvalidBatch = repository.usages.length
+    await expect(
+      management.recordMoldUsageBatch({
+        ...commandContext('cmd-usage-batch-invalid'),
+        workCenterRef: {
+          workCenterId: 'wc-1'
+        },
+        usedAt: '2026-05-10T02:45:00.000Z',
+        lifeUnit: 'CASTING_CYCLE',
+        lines: [
+          {
+            isSubmitted: true,
+            productionMoldId: 'mold-1',
+            toolingInstallationId: installed.toolingInstallation.toolingInstallationId,
+            usageQuantity: '1'
+          },
+          {
+            isSubmitted: true,
+            productionMoldId: 'missing-mold',
+            toolingInstallationId: 'missing-installation',
+            usageQuantity: '1'
+          }
+        ]
+      })
+    ).rejects.toMatchObject({ definition: { rpcStatus: status.NOT_FOUND } })
+    expect(repository.usages).toHaveLength(usageCountBeforeInvalidBatch)
+    expect((await repository.findMoldLifeCounterByProductionMold(tenantId, 'mold-1'))?.usedValue).toBe('17')
 
     const otherOrgCommand = {
       ...commandContext('cmd-other-org'),
@@ -968,7 +1124,6 @@ describe('mes-service mold/tooling application behavior L1', () => {
           workUnitId: 'wu-1'
         },
         usageQuantity: '1',
-        lifeDelta: '1',
         lifeUnit: 'CASTING_CYCLE'
       })
     ).rejects.toMatchObject({ definition: { rpcStatus: status.NOT_FOUND } })
@@ -992,7 +1147,7 @@ describe('mes-service mold/tooling application behavior L1', () => {
       adjustmentType: MoldLifeAdjustmentType.ADD_USED_VALUE,
       value: '3'
     })
-    expect(adjusted.moldLifeCounter.usedValue).toBe('15')
+    expect(adjusted.moldLifeCounter.usedValue).toBe('20')
     expect(adjusted.moldLifeCounter.adjustmentReason).toBe('reason-cmd-adjust-1')
 
     await expect(
@@ -1010,13 +1165,35 @@ describe('mes-service mold/tooling application behavior L1', () => {
       workCenterId: 'wc-1'
     })
     expect(currentByWorkCenter.items).toHaveLength(1)
+    expect(currentByWorkCenter.items[0]?.usageAllowed).toBe(true)
 
-    const checklist = await query.printDailyMoldChecklist({
-      ...queryContext(),
-      workCenterId: 'wc-1',
-      checklistDate: '2026-05-10'
+    const markedForScrap = await management.markProductionMoldForScrap({
+      ...commandContext('cmd-mark-scrap-1'),
+      productionMoldId: 'mold-1',
+      markedAt: '2026-05-10T02:50:00.000Z'
     })
-    expect(checklist.items[0]?.productionMold.productionMoldId).toBe('mold-1')
+    expect(markedForScrap.productionMold.currentStatus).toBe(ProductionMoldStatus.SCRAP_PENDING)
+    expect(markedForScrap.productionMold.currentInstallationSummary?.toolingInstallationId).toBe(installed.toolingInstallation.toolingInstallationId)
+
+    const currentAfterMark = await query.listCurrentMoldsByWorkCenter({
+      ...queryContext(),
+      workCenterId: 'wc-1'
+    })
+    expect(currentAfterMark.items[0]?.productionMold.currentStatus).toBe(ProductionMoldStatus.SCRAP_PENDING)
+    expect(currentAfterMark.items[0]?.usageAllowed).toBe(false)
+
+    await expect(
+      management.recordMoldUsage({
+        ...commandContext('cmd-usage-scrap-pending'),
+        productionMoldId: 'mold-1',
+        toolingInstallationId: installed.toolingInstallation.toolingInstallationId,
+        workCenterRef: {
+          workCenterId: 'wc-1'
+        },
+        usageQuantity: '1',
+        lifeUnit: 'CASTING_CYCLE'
+      })
+    ).rejects.toMatchObject({ definition: { rpcStatus: status.FAILED_PRECONDITION } })
 
     const unmounted = await management.unmountTooling({
       ...commandContext('cmd-unmount-1'),
@@ -1024,6 +1201,7 @@ describe('mes-service mold/tooling application behavior L1', () => {
       unmountedAt: '2026-05-10T03:00:00.000Z'
     })
     expect(unmounted.toolingInstallation.status).toBe(ToolingInstallationStatus.UNMOUNTED)
+    expect((await repository.findProductionMoldById(tenantId, 'mold-1'))?.currentStatus).toBe(ProductionMoldStatus.SCRAPPED)
 
     await expect(
       management.unmountTooling({
@@ -1033,20 +1211,22 @@ describe('mes-service mold/tooling application behavior L1', () => {
       })
     ).rejects.toMatchObject({ definition: { rpcStatus: status.NOT_FOUND } })
 
-    const scrapped = await management.scrapProductionMold({
-      ...commandContext('cmd-scrap-1'),
-      productionMoldId: 'mold-1',
-      scrappedAt: '2026-05-10T04:00:00.000Z'
-    })
-    expect(scrapped.productionMold.currentStatus).toBe(ProductionMoldStatus.SCRAPPED)
-    expect(scrapped.closedToolingInstallation).toBeNull()
     await expect(
-      management.scrapProductionMold({
+      management.markProductionMoldForScrap({
         ...otherOrgCommand,
         commandId: 'cmd-cross-org-scrap',
-        productionMoldId: 'mold-1'
+        productionMoldId: 'mold-1',
+        markedAt: '2026-05-10T04:00:00.000Z'
       })
     ).rejects.toMatchObject({ definition: { rpcStatus: status.NOT_FOUND } })
+    await expect(
+      management.adjustMoldLifeCounter({
+        ...commandContext('cmd-adjust-scrapped'),
+        moldLifeCounterId: usage.moldLifeCounter.moldLifeCounterId,
+        adjustmentType: MoldLifeAdjustmentType.ADD_USED_VALUE,
+        value: '1'
+      })
+    ).rejects.toMatchObject({ definition: { rpcStatus: status.FAILED_PRECONDITION } })
     expect(repository.audits.length).toBeGreaterThanOrEqual(9)
     expect(repository.outbox.some((event) => event.eventType === 'ProductionMoldScrapped')).toBe(true)
   })

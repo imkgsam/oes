@@ -1,7 +1,8 @@
 import {
   CurrentMoldByWorkCenterRecord,
-  DailyMoldChecklistRecord,
   MasterMoldRecord,
+  MasterMoldStatus,
+  MasterMoldSummaryRecord,
   MesAuditEnvelopeRecord,
   MesCommandIdempotencyRecord,
   MesOutboxEventRecord,
@@ -28,7 +29,7 @@ export interface SearchMoldDesignsInput {
   keyword?: string
   status?: MoldDesignStatus
   productionSpecId?: string
-  itemId?: string
+  itemModelId?: string
   page: number
   pageSize: number
 }
@@ -57,6 +58,27 @@ export interface MoldDesignSummaryPageResult {
 /** ProductionMoldSummaryPageResult mirrors the ListProductionMolds contract response shape. */
 export interface ProductionMoldSummaryPageResult {
   productionMolds: ProductionMoldSummaryRecord[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+/** SearchMasterMoldsInput captures the contract filter set for master mold directories. */
+export interface SearchMasterMoldsInput {
+  tenantId: string
+  orgId?: string | null
+  keyword?: string
+  moldDesignId?: string
+  status?: MasterMoldStatus
+  storageResourceId?: string
+  carrierResourceId?: string
+  page: number
+  pageSize: number
+}
+
+/** MasterMoldSummaryPageResult mirrors the ListMasterMolds contract response shape. */
+export interface MasterMoldSummaryPageResult {
+  masterMolds: MasterMoldSummaryRecord[]
   total: number
   page: number
   pageSize: number
@@ -131,14 +153,6 @@ export interface MoldLifeCounterPageResult {
   pageSize: number
 }
 
-/** PrintDailyMoldChecklistInput captures the printable checklist selector. */
-export interface PrintDailyMoldChecklistInput {
-  tenantId: string
-  orgId?: string | null
-  workCenterId: string
-  checklistDate: string
-}
-
 /** MesMoldRepository defines persistence for Mold / Tooling truth, facts, audit, and outbox records. */
 export interface MesMoldRepository {
   runInTransaction<T>(callback: () => Promise<T>): Promise<T>
@@ -151,6 +165,7 @@ export interface MesMoldRepository {
   saveMasterMold(record: MasterMoldRecord): Promise<MasterMoldRecord>
   findMasterMoldById(tenantId: string, masterMoldId: string): Promise<MasterMoldRecord | null>
   findMasterMoldByCode(tenantId: string, orgId: string | null | undefined, masterMoldCode: string): Promise<MasterMoldRecord | null>
+  searchMasterMolds(input: SearchMasterMoldsInput): Promise<MasterMoldSummaryPageResult>
 
   saveProductionMold(record: ProductionMoldRecord): Promise<ProductionMoldRecord>
   findProductionMoldById(tenantId: string, productionMoldId: string): Promise<ProductionMoldRecord | null>
@@ -183,8 +198,6 @@ export interface MesMoldRepository {
   findMoldLifeCounterById(tenantId: string, moldLifeCounterId: string): Promise<MoldLifeCounterRecord | null>
   findMoldLifeCounterByProductionMold(tenantId: string, productionMoldId: string): Promise<MoldLifeCounterRecord | null>
   listMoldLifeCounters(input: ListMoldLifeCountersInput): Promise<MoldLifeCounterPageResult>
-
-  printDailyMoldChecklist(input: PrintDailyMoldChecklistInput): Promise<DailyMoldChecklistRecord>
 
   appendAuditEnvelope(record: MesAuditEnvelopeRecord): Promise<MesAuditEnvelopeRecord>
   appendOutboxEvent(record: MesOutboxEventRecord): Promise<MesOutboxEventRecord>

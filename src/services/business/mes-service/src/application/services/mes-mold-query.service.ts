@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { TOKENS } from '../../common/constants/tokens'
 import {
-  DailyMoldChecklistRecord,
   MasterMoldRecord,
+  MasterMoldStatus,
   MesQueryContext,
   MoldDesignRecord,
   MoldDesignStatus,
@@ -17,6 +17,7 @@ import {
 } from '../../domain/models/mes-mold-records'
 import {
   ListCurrentMoldsByWorkCenterResult,
+  MasterMoldSummaryPageResult,
   ListProductionMoldsByDesignResult,
   MesMoldRepository,
   MoldDesignSummaryPageResult,
@@ -42,13 +43,27 @@ export interface ListMoldDesignsInput extends MesQueryContext {
   keyword?: string
   status?: MoldDesignStatus
   productionSpecId?: string
-  itemId?: string
+  itemModelId?: string
   page?: number
   pageSize?: number
 }
 
 export interface GetProductionMoldInput extends MesQueryContext {
   productionMoldId: string
+}
+
+export interface GetMasterMoldInput extends MesQueryContext {
+  masterMoldId: string
+}
+
+export interface ListMasterMoldsInput extends MesQueryContext {
+  keyword?: string
+  moldDesignId?: string
+  status?: MasterMoldStatus
+  storageResourceId?: string
+  carrierResourceId?: string
+  page?: number
+  pageSize?: number
 }
 
 export interface ListProductionMoldsInput extends MesQueryContext {
@@ -93,11 +108,6 @@ export interface ListMoldLifeCountersInput extends MesQueryContext {
   pageSize?: number
 }
 
-export interface PrintDailyMoldChecklistInput extends MesQueryContext {
-  workCenterId: string
-  checklistDate: string
-}
-
 /** MesMoldQueryService exposes the current Mold / Tooling read surface without mutating MES truth. */
 @Injectable()
 export class MesMoldQueryService {
@@ -128,7 +138,36 @@ export class MesMoldQueryService {
       keyword: normalizeOptionalString(input.keyword),
       status: input.status,
       productionSpecId: normalizeOptionalString(input.productionSpecId),
-      itemId: normalizeOptionalString(input.itemId),
+      itemModelId: normalizeOptionalString(input.itemModelId),
+      page: page.page,
+      pageSize: page.pageSize
+    })
+  }
+
+  /** getMasterMold returns one visible master mold or NOT_FOUND. */
+  async getMasterMold(input: GetMasterMoldInput): Promise<MasterMoldRecord> {
+    assertQueryContext(input)
+    assertRequiredString(input.masterMoldId, 'masterMoldId')
+    return assertVisibleByOrg(
+      assertExists(await this.repository.findMasterMoldById(input.tenantId, input.masterMoldId), 'MasterMold', input.masterMoldId),
+      resolveContextOrgId(input),
+      input.masterMoldId,
+      'MasterMold'
+    )
+  }
+
+  /** listMasterMolds returns contract-shaped master mold summary pages. */
+  async listMasterMolds(input: ListMasterMoldsInput): Promise<MasterMoldSummaryPageResult> {
+    assertQueryContext(input)
+    const page = normalizePageInput(input.page, input.pageSize)
+    return this.repository.searchMasterMolds({
+      tenantId: input.tenantId,
+      orgId: resolveContextOrgId(input),
+      keyword: normalizeOptionalString(input.keyword),
+      moldDesignId: normalizeOptionalString(input.moldDesignId),
+      status: input.status,
+      storageResourceId: normalizeOptionalString(input.storageResourceId),
+      carrierResourceId: normalizeOptionalString(input.carrierResourceId),
       page: page.page,
       pageSize: page.pageSize
     })
@@ -250,18 +289,6 @@ export class MesMoldQueryService {
     })
   }
 
-  /** printDailyMoldChecklist returns the printable current mold checklist without creating a domain fact. */
-  async printDailyMoldChecklist(input: PrintDailyMoldChecklistInput): Promise<DailyMoldChecklistRecord> {
-    assertQueryContext(input)
-    assertRequiredString(input.workCenterId, 'workCenterId')
-    assertRequiredString(input.checklistDate, 'checklistDate')
-    return this.repository.printDailyMoldChecklist({
-      tenantId: input.tenantId,
-      orgId: resolveContextOrgId(input),
-      workCenterId: input.workCenterId,
-      checklistDate: input.checklistDate
-    })
-  }
 }
 
 /** assertVisibleByOrg hides cross-org records behind NOT_FOUND semantics. */

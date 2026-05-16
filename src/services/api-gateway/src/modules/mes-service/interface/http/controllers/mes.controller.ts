@@ -6,15 +6,18 @@ import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-down
 import { MesService } from '../../../mes.service'
 import {
   ActivateProductionSpecDto,
+  AcceptProductionMoldDto,
   CreateProductionSpecDto,
   GetMoldUsageHistoryDto,
   InstallToolingDto,
   ListCurrentMoldsByWorkCenterDto,
+  ListMasterMoldsDto,
   ListMoldDesignsDto,
   ListMoldLifeCountersDto,
   ListProductionMoldsByDesignDto,
   ListProductionMoldsDto,
   ListProductionSpecsDto,
+  MarkProductionMoldForScrapDto,
   MoveToolingDto,
   PrintDailyMoldChecklistDto,
   RecordDailyMoldUsageBatchDto,
@@ -22,7 +25,6 @@ import {
   RegisterMoldDesignDto,
   RegisterProductionMoldDto,
   RetireProductionSpecDto,
-  ScrapProductionMoldDto,
   UnmountToolingDto,
   UpdateProductionSpecDto
 } from '../dtos/mes.dto'
@@ -153,6 +155,28 @@ export class MesController {
     return this.mesService.registerMasterMold(tenantId, body, source)
   }
 
+  @Get('master-molds')
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD] })
+  @ApiOperation({ summary: 'List MES master molds' })
+  async listMasterMolds(
+    @Param('tenantId') tenantId: string,
+    @Query() query: ListMasterMoldsDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.mesService.listMasterMolds(tenantId, query, source)
+  }
+
+  @Get('master-molds/:masterMoldId')
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD] })
+  @ApiOperation({ summary: 'Get one MES master mold result object' })
+  async getMasterMold(
+    @Param('tenantId') tenantId: string,
+    @Param('masterMoldId') masterMoldId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.mesService.getMasterMold(tenantId, masterMoldId, source)
+  }
+
   @Post('production-molds')
   @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD] })
   @ApiOperation({ summary: 'Register one MES production mold' })
@@ -163,6 +187,19 @@ export class MesController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.mesService.registerProductionMold(tenantId, body, source)
+  }
+
+  @Post('production-molds/:productionMoldId/accept')
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD] })
+  @ApiOperation({ summary: 'Accept one received MES production mold' })
+  @ApiBody({ type: AcceptProductionMoldDto })
+  async acceptProductionMold(
+    @Param('tenantId') tenantId: string,
+    @Param('productionMoldId') productionMoldId: string,
+    @Body() body: AcceptProductionMoldDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.mesService.acceptProductionMold(tenantId, productionMoldId, body, source)
   }
 
   @Get('production-molds')
@@ -250,17 +287,17 @@ export class MesController {
     return this.mesService.unmountTooling(tenantId, toolingInstallationId, body, source)
   }
 
-  @Post('production-molds/:productionMoldId/scrap')
+  @Post('production-molds/:productionMoldId/mark-for-scrap')
   @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD] })
-  @ApiOperation({ summary: 'Scrap one MES production mold' })
-  @ApiBody({ type: ScrapProductionMoldDto })
-  async scrapProductionMold(
+  @ApiOperation({ summary: 'Mark one MES production mold for scrap' })
+  @ApiBody({ type: MarkProductionMoldForScrapDto })
+  async markProductionMoldForScrap(
     @Param('tenantId') tenantId: string,
     @Param('productionMoldId') productionMoldId: string,
-    @Body() body: ScrapProductionMoldDto,
+    @Body() body: MarkProductionMoldForScrapDto,
     @DownstreamSource() source: DownstreamRequestSource
   ) {
-    return this.mesService.scrapProductionMold(tenantId, productionMoldId, body, source)
+    return this.mesService.markProductionMoldForScrap(tenantId, productionMoldId, body, source)
   }
 
   @Get('work-centers/:workCenterId/current-molds')

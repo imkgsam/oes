@@ -27,16 +27,18 @@ import {
 } from 'ant-design-vue'
 
 import {
+  acceptProductionMoldApi,
   installProductionMoldApi,
   listCurrentMoldsByWorkCenterApi,
-  listManagedItemsApi,
+  listManagedItemModelsApi,
+  listMasterMoldsApi,
   listProductionSpecsApi,
   listMoldDesignsApi,
   listProductionMoldsApi,
+  markProductionMoldForScrapApi,
   recordDailyMoldUsageBatchApi,
   registerMoldDesignApi,
   registerProductionMoldApi,
-  scrapProductionMoldApi,
   unmountProductionMoldApi
 } from '#/api'
 import { useAuthContextStore } from '#/store/auth-context'
@@ -45,6 +47,8 @@ interface DailyUsageRow {
   checked: boolean
   moldDesignOutputId?: string
   moldDesignOutputOptionId?: string
+  usageAllowed: boolean
+  usageDisabledReason?: string
   toolingInstallationId: string
   moldCode: string
   productionMoldId: string
@@ -66,8 +70,9 @@ const canReadWorkCenter = computed(() => authContextStore.actionCodes.includes('
 const canRecordUsage = computed(() => authContextStore.actionCodes.includes('mes.mold_usage.record'))
 const loading = ref(false)
 const moldDesigns = ref<MesApi.MoldDesign[]>([])
-const manufacturableItems = ref<ItemManagementApi.ItemSummary[]>([])
+const manufacturableItemModels = ref<ItemManagementApi.ItemModelRecord[]>([])
 const productionSpecs = ref<MesApi.ProductionSpecSummary[]>([])
+const masterMolds = ref<MesApi.MasterMold[]>([])
 const productionMolds = ref<MesApi.ProductionMold[]>([])
 const installedMolds = ref<MesApi.CurrentMoldsResult['items']>([])
 const selectedWorkCenterId = ref('')
@@ -87,6 +92,9 @@ const submitError = ref('')
 const submitting = ref(false)
 
 const productionMoldForm = reactive({
+  initialStorageDisplayName: '',
+  initialStorageId: '',
+  initialStorageCode: '',
   moldDesignId: '',
   moldCode: `PM-${Date.now().toString().slice(-4)}`
 })
@@ -96,7 +104,7 @@ const moldDesignForm = reactive({
   defaultLifeUnit: 'CASTING_CYCLE',
   designCode: `MD-${Date.now().toString().slice(-4)}`,
   hasOutputOption: true,
-  itemId: '',
+  itemModelId: '',
   productionSpecId: '',
   materialType: 'GYPSUM',
   name: '连体马桶上线模具方案',
@@ -114,8 +122,8 @@ const installedCount = computed(
 )
 const warningCount = computed(() => productionMolds.value.filter((mold) => mold.lifeCounterSummary?.warningLevel).length)
 const defaultMoldDesign = computed(() => moldDesigns.value[0])
-const selectedMoldDesignItem = computed(() =>
-  manufacturableItems.value.find((candidate) => candidate.itemId === moldDesignForm.itemId)
+const selectedMoldDesignItemModel = computed(() =>
+  manufacturableItemModels.value.find((candidate) => candidate.itemModelId === moldDesignForm.itemModelId)
 )
 const selectedProductionSpec = computed(() =>
   productionSpecs.value.find((spec) => spec.productionSpecId === moldDesignForm.productionSpecId)
@@ -169,6 +177,23 @@ const moldDesignColumns: TableColumnsType<MesApi.MoldDesign> = [
     width: 100
   }
 ]
+const masterMoldColumns: TableColumnsType<MesApi.MasterMold> = [
+  {
+    dataIndex: 'masterMoldCode',
+    key: 'masterMoldCode',
+    title: '母模编码',
+    width: 150
+  },
+  {
+    key: 'moldDesign',
+    title: '模具方案'
+  },
+  {
+    key: 'status',
+    title: '状态',
+    width: 120
+  }
+]
 const productionMoldColumns: TableColumnsType<MesApi.ProductionMold> = [
   {
     dataIndex: 'moldCode',
@@ -214,15 +239,19 @@ async function loadWorkspace() {
   loading.value = true
   loadError.value = ''
   try {
-    const [designResult, moldResult] = await Promise.all([
+    const [designResult, masterMoldResult, moldResult] = await Promise.all([
       canReadDesign.value
         ? listMoldDesignsApi(activeTenantId.value, { page: 1, pageSize: 50, status: 'ACTIVE' })
         : Promise.resolve({ moldDesigns: [] as MesApi.MoldDesign[] }),
+      canReadMold.value
+        ? listMasterMoldsApi(activeTenantId.value, { page: 1, pageSize: 50, status: 'AVAILABLE' })
+        : Promise.resolve({ masterMolds: [] as MesApi.MasterMold[] }),
       canReadMold.value
         ? listProductionMoldsApi(activeTenantId.value, { page: 1, pageSize: 50 })
         : Promise.resolve({ productionMolds: [] as MesApi.ProductionMold[] })
     ])
     moldDesigns.value = designResult.moldDesigns ?? []
+    masterMolds.value = masterMoldResult.masterMolds ?? []
     productionMolds.value = moldResult.productionMolds ?? []
     productionMoldForm.moldDesignId = productionMoldForm.moldDesignId || moldDesigns.value[0]?.moldDesignId || ''
     if (selectedWorkCenterId.value) {
@@ -285,9 +314,9 @@ function openProductionMoldManagement() {
 /** openCreateMoldDesignDialog loads the Item and ProductionSpec selectors used by the MoldDesign drawer. */
 async function openCreateMoldDesignDialog() {
   activeDialog.value = 'createMoldDesign'
-  await loadManufacturableItems()
-  if (moldDesignForm.itemId) {
-    await loadProductionSpecsForItem()
+  await loadManufacturableItemModels()
+  if (moldDesignForm.itemModelId) {
+    await loadProductionSpecsForModel()
   }
 }
 
@@ -297,34 +326,34 @@ function openInstallDialog(mold: MesApi.ProductionMold) {
   activeDialog.value = 'installMold'
 }
 
-/** loadManufacturableItems loads physical manufacturable Item choices without copying item-master ownership. */
-async function loadManufacturableItems() {
+/** loadManufacturableItemModels loads physical manufacturable ItemModel choices without copying item-master ownership. */
+async function loadManufacturableItemModels() {
   if (!activeTenantId.value) {
-    manufacturableItems.value = []
+    manufacturableItemModels.value = []
     return
   }
 
   submitError.value = ''
   try {
-    const result = await listManagedItemsApi(activeTenantId.value, {
+    const result = await listManagedItemModelsApi(activeTenantId.value, {
       capabilities: ['manufacturable'],
       keyword: undefined,
       page: 1,
       pageSize: 100,
       status: 'ACTIVE'
     })
-    manufacturableItems.value = result.items ?? []
-    moldDesignForm.itemId = moldDesignForm.itemId || manufacturableItems.value[0]?.itemId || ''
+    manufacturableItemModels.value = result.itemModels ?? []
+    moldDesignForm.itemModelId = moldDesignForm.itemModelId || manufacturableItemModels.value[0]?.itemModelId || ''
   } catch (error) {
-    manufacturableItems.value = []
-    moldDesignForm.itemId = ''
-    submitError.value = formatErrorMessage(error, '加载可制造 Item 失败，请稍后重试。')
+    manufacturableItemModels.value = []
+    moldDesignForm.itemModelId = ''
+    submitError.value = formatErrorMessage(error, '加载可制造 ItemModel 失败，请稍后重试。')
   }
 }
 
-/** loadProductionSpecsForItem loads active MES specs eligible for the selected Item. */
-async function loadProductionSpecsForItem() {
-  if (!activeTenantId.value || !moldDesignForm.itemId) {
+/** loadProductionSpecsForModel loads active MES specs available for design output binding. */
+async function loadProductionSpecsForModel() {
+  if (!activeTenantId.value || !moldDesignForm.itemModelId) {
     productionSpecs.value = []
     moldDesignForm.productionSpecId = ''
     return
@@ -333,7 +362,6 @@ async function loadProductionSpecsForItem() {
   submitError.value = ''
   try {
     const result = await listProductionSpecsApi(activeTenantId.value, {
-      itemId: moldDesignForm.itemId,
       page: 1,
       pageSize: 50,
       status: 'ACTIVE'
@@ -349,10 +377,10 @@ async function loadProductionSpecsForItem() {
 
 /** submitCreateMoldDesign registers a MoldDesign with one primary output and optional selectable output option. */
 async function submitCreateMoldDesign() {
-  const item = selectedMoldDesignItem.value
+  const itemModel = selectedMoldDesignItemModel.value
   const spec = selectedProductionSpec.value
-  if (!item || !spec) {
-    submitError.value = '请选择有效的 Item 与 ProductionSpec。'
+  if (!itemModel || !spec) {
+    submitError.value = '请选择有效的 ItemModel 与 ProductionSpec。'
     return
   }
 
@@ -374,10 +402,10 @@ async function submitCreateMoldDesign() {
       defaultLifeUnit: moldDesignForm.defaultLifeUnit.trim() || undefined,
       designCode: moldDesignForm.designCode.trim(),
       functionRole: 'PRODUCTION',
-      itemRef: {
-        itemCodeSnapshot: item.itemCode,
-        itemId: item.itemId,
-        itemNameSnapshot: item.itemName
+      primaryItemModelRef: {
+        itemModelId: itemModel.itemModelId,
+        modelCodeSnapshot: itemModel.modelCode,
+        modelNameSnapshot: itemModel.modelName
       },
       productionSpecRefs: [productionSpecRef],
       materialType: moldDesignForm.materialType.trim(),
@@ -387,6 +415,11 @@ async function submitCreateMoldDesign() {
         moldDesignForm.hasOutputOption
           ? {
               ...outputBase,
+              itemModelRef: {
+                itemModelId: itemModel.itemModelId,
+                modelCodeSnapshot: itemModel.modelCode,
+                modelNameSnapshot: itemModel.modelName
+              },
               options: [
                 {
                   isDefault: true,
@@ -399,6 +432,11 @@ async function submitCreateMoldDesign() {
             }
           : {
               ...outputBase,
+              itemModelRef: {
+                itemModelId: itemModel.itemModelId,
+                modelCodeSnapshot: itemModel.modelCode,
+                modelNameSnapshot: itemModel.modelName
+              },
               productionSpecRef
             }
       ],
@@ -422,7 +460,16 @@ async function submitCreateProductionMold() {
     submitError.value = '请选择有效的模具方案。'
     return
   }
+  if (!productionMoldForm.initialStorageId.trim()) {
+    submitError.value = '请填写生产模具到厂后的初始库位。'
+    return
+  }
   const payload: MesApi.RegisterProductionMoldPayload = {
+    initialStorageResourceRef: {
+      displayNameSnapshot: productionMoldForm.initialStorageDisplayName.trim() || undefined,
+      resourceCodeSnapshot: productionMoldForm.initialStorageCode.trim() || undefined,
+      storageResourceId: productionMoldForm.initialStorageId.trim()
+    },
     moldDesignId: design.moldDesignId,
     moldCode: productionMoldForm.moldCode,
     reason: 'web create production mold'
@@ -436,6 +483,22 @@ async function submitCreateProductionMold() {
     await loadWorkspace()
   } catch (error) {
     submitError.value = formatErrorMessage(error, '创建生产模具失败，请检查输入后重试。')
+  } finally {
+    submitting.value = false
+  }
+}
+
+/** submitAcceptMold accepts one received production mold before it can be installed. */
+async function submitAcceptMold(mold: MesApi.ProductionMold) {
+  submitting.value = true
+  submitError.value = ''
+  try {
+    await acceptProductionMoldApi(activeTenantId.value, mold.productionMoldId, {
+      reason: 'web accept production mold'
+    })
+    await loadWorkspace()
+  } catch (error) {
+    submitError.value = formatErrorMessage(error, '验收生产模具失败，请稍后重试。')
   } finally {
     submitting.value = false
   }
@@ -487,12 +550,12 @@ async function submitUnmountMold(mold: MesApi.ProductionMold) {
   }
 }
 
-/** submitScrapMold scraps one production mold and closes installation when needed. */
-async function submitScrapMold(mold: MesApi.ProductionMold) {
+/** submitMarkMoldForScrap marks one production mold pending scrap without forcing unmount. */
+async function submitMarkMoldForScrap(mold: MesApi.ProductionMold) {
   submitting.value = true
   submitError.value = ''
   try {
-    await scrapProductionMoldApi(activeTenantId.value, mold.productionMoldId, {
+    await markProductionMoldForScrapApi(activeTenantId.value, mold.productionMoldId, {
       reason: 'web scrap mold'
     })
     await loadWorkspace()
@@ -506,18 +569,20 @@ async function submitScrapMold(mold: MesApi.ProductionMold) {
 /** openDailyUsageDialog builds checkbox rows from current line molds and their design output options. */
 function openDailyUsageDialog() {
   dailyRows.value = installedMolds.value
-    .map((row) => row.productionMold)
-    .map((mold) => {
+    .map((row) => {
+      const mold = row.productionMold
       const selection = findDefaultOutputSelection(mold.moldDesignSummary?.moldDesignId ?? mold.moldDesignId ?? '')
       return {
-        checked: true,
+        checked: row.usageAllowed !== false,
         moldDesignOutputId: selection.moldDesignOutputId,
         moldDesignOutputOptionId: selection.moldDesignOutputOptionId,
-        toolingInstallationId: mold.currentInstallationSummary?.toolingInstallationId ?? '',
+        usageAllowed: row.usageAllowed !== false,
+        usageDisabledReason: row.usageDisabledReason,
+        toolingInstallationId: row.toolingInstallation.toolingInstallationId ?? mold.currentInstallationSummary?.toolingInstallationId ?? '',
         moldCode: mold.moldCode,
         productionMoldId: mold.productionMoldId,
-        moldPosition: mold.currentInstallationSummary?.moldDetail?.moldPosition,
-        workCenterRef: mold.currentInstallationSummary?.workCenterRef ?? buildSelectedWorkCenterRef()
+        moldPosition: row.toolingInstallation.moldDetail?.moldPosition ?? mold.currentInstallationSummary?.moldDetail?.moldPosition,
+        workCenterRef: row.toolingInstallation.workCenterRef ?? mold.currentInstallationSummary?.workCenterRef ?? buildSelectedWorkCenterRef()
       }
     })
     .filter((row) => row.toolingInstallationId)
@@ -534,7 +599,6 @@ async function submitDailyUsage() {
       batchCommandId: `web-${selectedWorkCenterId.value}-${today}`,
       items: dailyRows.value.map((row) => ({
         checked: row.checked,
-        lifeDelta: '1',
         lifeUnit: 'CASTING_CYCLE',
         moldDesignOutputId: row.moldDesignOutputId,
         moldDesignOutputOptionId: row.moldDesignOutputOptionId,
@@ -575,7 +639,7 @@ function normalizeStatus(status: MesApi.ProductionMold['currentStatus']) {
     4: 'INSTALLED',
     5: 'MAINTENANCE',
     6: 'DISABLED',
-    7: 'DISABLED',
+    7: 'SCRAP_PENDING',
     8: 'SCRAPPED'
   }
   return typeof status === 'number' ? generatedStatusMap[status] ?? 'UNKNOWN' : status
@@ -590,6 +654,9 @@ function resolveStatusTagColor(status: MesApi.ProductionMold['currentStatus']) {
     case 'MAINTENANCE': {
       return 'gold'
     }
+    case 'SCRAP_PENDING': {
+      return 'orange'
+    }
     case 'DISABLED':
     case 'SCRAPPED': {
       return 'default'
@@ -598,6 +665,26 @@ function resolveStatusTagColor(status: MesApi.ProductionMold['currentStatus']) {
       return 'blue'
     }
   }
+}
+
+/** canInstallMold keeps UI actions aligned with the MES AVAILABLE-only installation rule. */
+function canInstallMold(mold: MesApi.ProductionMold) {
+  return canManageMold.value && normalizeStatus(mold.currentStatus) === 'AVAILABLE'
+}
+
+/** canAcceptMold keeps UI actions aligned with the MES RECEIVED acceptance rule. */
+function canAcceptMold(mold: MesApi.ProductionMold) {
+  return canManageMold.value && normalizeStatus(mold.currentStatus) === 'RECEIVED'
+}
+
+/** canUnmountMold allows unloading installed and scrap-pending molds that still occupy a position. */
+function canUnmountMold(mold: MesApi.ProductionMold) {
+  return canManageMold.value && ['INSTALLED', 'SCRAP_PENDING'].includes(normalizeStatus(mold.currentStatus))
+}
+
+/** canMarkMoldForScrap hides terminal or already-pending scrap commands from operators. */
+function canMarkMoldForScrap(mold: MesApi.ProductionMold) {
+  return canManageMold.value && !['SCRAP_PENDING', 'SCRAPPED'].includes(normalizeStatus(mold.currentStatus))
 }
 
 /** formatProductionMoldLife renders backend life snapshots without inventing missing counters. */
@@ -704,6 +791,9 @@ onMounted(() => {
           </a-card>
           <a-card size="small">
             <a-statistic title="生产模具" :value="productionMolds.length" />
+          </a-card>
+          <a-card size="small">
+            <a-statistic title="母模" :value="masterMolds.length" />
           </a-card>
           <a-card size="small">
             <a-statistic title="已安装" :value="installedCount" />
@@ -831,6 +921,31 @@ onMounted(() => {
         </a-card>
 
         <a-card size="small">
+          <template #title>母模</template>
+          <template #extra>
+            <a-tag>{{ masterMolds.length }} 个可用母模</a-tag>
+          </template>
+          <a-table
+            v-if="masterMolds.length"
+            :columns="masterMoldColumns"
+            :data-source="masterMolds"
+            :pagination="false"
+            :row-key="(row) => row.masterMoldId"
+            size="small"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'moldDesign'">
+                {{ record.moldDesignSummary?.designCode || record.moldDesignId }}
+              </template>
+              <template v-if="column.key === 'status'">
+                <a-tag>{{ record.currentStatus }}</a-tag>
+              </template>
+            </template>
+          </a-table>
+          <a-empty v-else description="暂无可用母模" />
+        </a-card>
+
+        <a-card size="small">
           <template #title>生产模具</template>
           <template #extra>
             <a-space>
@@ -872,7 +987,16 @@ onMounted(() => {
               <template v-if="column.key === 'action'">
                 <a-space size="small">
                   <a-button
-                    v-if="canManageMold && normalizeStatus(record.currentStatus) !== 'INSTALLED'"
+                    v-if="canAcceptMold(readProductionMold(record))"
+                    :data-testid="`mes-accept-mold-${record.productionMoldId}`"
+                    size="small"
+                    type="link"
+                    @click="submitAcceptMold(readProductionMold(record))"
+                  >
+                    验收
+                  </a-button>
+                  <a-button
+                    v-if="canInstallMold(readProductionMold(record))"
                     :data-testid="`mes-open-install-mold-${record.productionMoldId}`"
                     size="small"
                     type="link"
@@ -881,18 +1005,18 @@ onMounted(() => {
                     安装
                   </a-button>
                   <a-popconfirm
-                    v-if="canManageMold && normalizeStatus(record.currentStatus) === 'INSTALLED'"
+                    v-if="canUnmountMold(readProductionMold(record))"
                     title="确认卸下该生产模具？"
                     @confirm="submitUnmountMold(readProductionMold(record))"
                   >
                     <a-button size="small" type="link">卸下</a-button>
                   </a-popconfirm>
                   <a-popconfirm
-                    v-if="canManageMold"
-                    title="确认报废该生产模具？"
-                    @confirm="submitScrapMold(readProductionMold(record))"
+                    v-if="canMarkMoldForScrap(readProductionMold(record))"
+                    title="确认将该生产模具标记为待报废？"
+                    @confirm="submitMarkMoldForScrap(readProductionMold(record))"
                   >
-                    <a-button danger size="small" type="link">报废</a-button>
+                    <a-button danger size="small" type="link">标记待报废</a-button>
                   </a-popconfirm>
                 </a-space>
               </template>
@@ -922,11 +1046,15 @@ onMounted(() => {
           <a-form-item label="关联 Item">
             <a-select
               data-testid="mes-mold-design-item"
-              v-model:value="moldDesignForm.itemId"
-              @change="loadProductionSpecsForItem"
+              v-model:value="moldDesignForm.itemModelId"
+              @update:value="loadProductionSpecsForModel"
             >
-              <a-select-option v-for="itemChoice in manufacturableItems" :key="itemChoice.itemId" :value="itemChoice.itemId">
-                {{ itemChoice.itemCode }} - {{ itemChoice.itemName }}
+              <a-select-option
+                v-for="itemChoice in manufacturableItemModels"
+                :key="itemChoice.itemModelId"
+                :value="itemChoice.itemModelId"
+              >
+                {{ itemChoice.modelCode }} - {{ itemChoice.modelName }}
               </a-select-option>
             </a-select>
           </a-form-item>
@@ -1022,6 +1150,17 @@ onMounted(() => {
         <a-form-item label="生产模具编码">
           <a-input v-model:value="productionMoldForm.moldCode" />
         </a-form-item>
+        <a-form-item label="初始库位 ID">
+          <a-input data-testid="mes-production-mold-initial-storage-id" v-model:value="productionMoldForm.initialStorageId" />
+        </a-form-item>
+        <div class="mes-form-grid">
+          <a-form-item label="库位编码快照">
+            <a-input v-model:value="productionMoldForm.initialStorageCode" />
+          </a-form-item>
+          <a-form-item label="库位名称快照">
+            <a-input v-model:value="productionMoldForm.initialStorageDisplayName" />
+          </a-form-item>
+        </div>
         <a-button
           block
           data-testid="mes-submit-create-mold"
@@ -1071,8 +1210,14 @@ onMounted(() => {
 
       <a-form v-if="activeDialog === 'dailyUsage'" layout="vertical">
         <a-space class="mes-daily-list" direction="vertical" size="small">
-          <a-checkbox v-for="row in dailyRows" :key="row.productionMoldId" v-model:checked="row.checked">
+          <a-checkbox
+            v-for="row in dailyRows"
+            :key="row.productionMoldId"
+            v-model:checked="row.checked"
+            :disabled="!row.usageAllowed"
+          >
             {{ row.moldCode }} / {{ row.moldDesignOutputOptionId || '默认产出' }}
+            <a-tag v-if="!row.usageAllowed" color="orange">{{ row.usageDisabledReason || '不可录入' }}</a-tag>
           </a-checkbox>
         </a-space>
         <a-empty v-if="!dailyRows.length" description="暂无可录入的已安装模具" />

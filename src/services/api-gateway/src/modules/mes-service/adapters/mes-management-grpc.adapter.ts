@@ -3,18 +3,24 @@ import { ClientGrpc } from '@nestjs/microservices'
 import {
   ActivateProductionSpecRequest,
   ActivateProductionSpecResponse,
+  AcceptProductionMoldRequest,
+  AcceptProductionMoldResponse,
   AdjustMoldLifeCounterRequest,
   AdjustMoldLifeCounterResponse,
   CreateProductionSpecRequest,
   CreateProductionSpecResponse,
   InstallToolingRequest,
   InstallToolingResponse,
+  MarkProductionMoldForScrapRequest,
+  MarkProductionMoldForScrapResponse,
   MOLD_MANAGEMENT_SERVICE_NAME,
   MoldManagementServiceClient,
   MoveToolingRequest,
   MoveToolingResponse,
   PRODUCTION_SPEC_MANAGEMENT_SERVICE_NAME,
   ProductionSpecManagementServiceClient,
+  RecordMoldUsageBatchRequest,
+  RecordMoldUsageBatchResponse,
   RecordMoldUsageRequest,
   RecordMoldUsageResponse,
   RegisterMasterMoldRequest,
@@ -25,8 +31,6 @@ import {
   RegisterProductionMoldResponse,
   RetireProductionSpecRequest,
   RetireProductionSpecResponse,
-  ScrapProductionMoldRequest,
-  ScrapProductionMoldResponse,
   UnmountToolingRequest,
   UnmountToolingResponse,
   UpdateProductionSpecRequest,
@@ -176,6 +180,21 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
+  /** acceptProductionMold forwards one ProductionMold acceptance command. */
+  acceptProductionMold(
+    input: Omit<AcceptProductionMoldRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<AcceptProductionMoldResponse> {
+    return this.call(
+      'acceptProductionMold',
+      this.moldSvc.acceptProductionMold(
+        this.attachManagementContext(input, source, input.auditReason ?? 'accept production mold from api-gateway'),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
   /** moveTooling forwards one storage or carrier placement command. */
   moveTooling(
     input: Omit<MoveToolingRequest, 'auditContext' | 'operatorContext' | 'traceContext'> & ManagementInputBase,
@@ -233,6 +252,21 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
+  /** recordMoldUsageBatch forwards one transactional work-center usage batch. */
+  recordMoldUsageBatch(
+    input: Omit<RecordMoldUsageBatchRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<RecordMoldUsageBatchResponse> {
+    return this.call(
+      'recordMoldUsageBatch',
+      this.moldSvc.recordMoldUsageBatch(
+        this.attachManagementContext(input, source, input.auditReason ?? 'record mold usage batch from api-gateway'),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
   /** adjustMoldLifeCounter forwards one mold life counter correction command. */
   adjustMoldLifeCounter(
     input: Omit<AdjustMoldLifeCounterRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
@@ -248,16 +282,20 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  /** scrapProductionMold forwards one production mold scrap command. */
-  scrapProductionMold(
-    input: Omit<ScrapProductionMoldRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+  /** markProductionMoldForScrap forwards the first step of the production mold scrap lifecycle. */
+  markProductionMoldForScrap(
+    input: Omit<MarkProductionMoldForScrapRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
-  ): Promise<ScrapProductionMoldResponse> {
+  ): Promise<MarkProductionMoldForScrapResponse> {
     return this.call(
-      'scrapProductionMold',
-      this.moldSvc.scrapProductionMold(
-        this.attachManagementContext(input, source, input.auditReason ?? 'scrap production mold from api-gateway'),
+      'markProductionMoldForScrap',
+      this.moldSvc.markProductionMoldForScrap(
+        this.attachManagementContext(
+          input,
+          source,
+          input.auditReason ?? 'mark production mold for scrap from api-gateway'
+        ),
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       )
     )

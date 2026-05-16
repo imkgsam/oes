@@ -1,19 +1,24 @@
 import {
+  AcceptProductionMoldResponse,
   AdjustMoldLifeCounterResponse,
   AuditRef,
   CarrierResourceRef,
   CurrentMoldByWorkCenterItem,
-  DailyMoldChecklistItem,
+  GetMasterMoldResponse,
   GetMoldDesignResponse,
   GetMoldUsageHistoryResponse,
   GetProductionMoldResponse,
   GetToolingCurrentPlacementResponse,
+  ItemModelRef,
   InstallToolingResponse,
   ListCurrentMoldsByWorkCenterResponse,
+  ListMasterMoldsResponse,
   ListMoldDesignsResponse,
   ListMoldLifeCountersResponse,
   ListProductionMoldsByDesignResponse,
   ListProductionMoldsResponse,
+  MarkProductionMoldForScrapResponse,
+  MasterMoldStatus as ProtoMasterMoldStatus,
   MasterMold,
   MoldDesign,
   MoldDesignOutput,
@@ -32,18 +37,17 @@ import {
   MoldWarningLevel as ProtoMoldWarningLevel,
   MoveToolingResponse,
   OperatorRef,
-  PrintDailyMoldChecklistResponse,
   ProductionMold,
   ProductionMoldStatus as ProtoProductionMoldStatus,
   ProductionMoldSummary,
   ProductionSpecRef,
   PurchaseRef,
   PurchaseSourceType as ProtoPurchaseSourceType,
+  RecordMoldUsageBatchResponse,
   RecordMoldUsageResponse,
   RegisterMasterMoldResponse,
   RegisterMoldDesignResponse,
   RegisterProductionMoldResponse,
-  ScrapProductionMoldResponse,
   StorageResourceRef,
   SupplierRef,
   ToolingInstallation,
@@ -60,9 +64,9 @@ import {
   AuditRefRecord,
   CarrierResourceRefRecord,
   CurrentMoldByWorkCenterRecord,
-  DailyMoldChecklistRecord,
-  ItemRefRecord,
+  ItemModelRefRecord,
   MasterMoldRecord,
+  MasterMoldStatus,
   MoldDesignOutputKind,
   MoldDesignRecord,
   MoldDesignStatus,
@@ -96,6 +100,7 @@ import {
 } from '../../domain/models/mes-mold-records'
 import {
   ListCurrentMoldsByWorkCenterResult,
+  MasterMoldSummaryPageResult,
   ListProductionMoldsByDesignResult,
   MoldDesignSummaryPageResult,
   MoldLifeCounterPageResult,
@@ -118,6 +123,11 @@ export class MesGrpcPresenter {
   /** toRegisterProductionMoldResponse presents one newly registered production mold. */
   static toRegisterProductionMoldResponse(record: ProductionMoldRecord): RegisterProductionMoldResponse {
     return { productionMold: this.toProductionMold(record) }
+  }
+
+  /** toAcceptProductionMoldResponse presents one accepted production mold. */
+  static toAcceptProductionMoldResponse(input: { productionMold: ProductionMoldRecord }): AcceptProductionMoldResponse {
+    return { productionMold: this.toProductionMold(input.productionMold) }
   }
 
   /** toMoveToolingResponse presents the new current tooling placement. */
@@ -146,6 +156,17 @@ export class MesGrpcPresenter {
     }
   }
 
+  /** toRecordMoldUsageBatchResponse presents transactional batch usage results. */
+  static toRecordMoldUsageBatchResponse(input: {
+    moldUsageRecords: MoldUsageRecord[]
+    moldLifeCounters: MoldLifeCounterRecord[]
+  }): RecordMoldUsageBatchResponse {
+    return {
+      moldUsageRecords: input.moldUsageRecords.map((record) => this.toMoldUsageRecord(record)),
+      moldLifeCounters: input.moldLifeCounters.map((record) => this.toMoldLifeCounter(record))
+    }
+  }
+
   /** toAdjustMoldLifeCounterResponse presents the adjusted independent life counter. */
   static toAdjustMoldLifeCounterResponse(input: {
     moldLifeCounter: MoldLifeCounterRecord
@@ -153,16 +174,12 @@ export class MesGrpcPresenter {
     return { moldLifeCounter: this.toMoldLifeCounter(input.moldLifeCounter) }
   }
 
-  /** toScrapProductionMoldResponse presents the terminal production mold and optional closed installation. */
-  static toScrapProductionMoldResponse(input: {
+  /** toMarkProductionMoldForScrapResponse presents the pending or terminal scrap state. */
+  static toMarkProductionMoldForScrapResponse(input: {
     productionMold: ProductionMoldRecord
-    closedToolingInstallation: ToolingInstallationRecord | null
-  }): ScrapProductionMoldResponse {
+  }): MarkProductionMoldForScrapResponse {
     return {
-      productionMold: this.toProductionMold(input.productionMold),
-      closedToolingInstallation: input.closedToolingInstallation
-        ? this.toToolingInstallation(input.closedToolingInstallation)
-        : undefined
+      productionMold: this.toProductionMold(input.productionMold)
     }
   }
 
@@ -175,6 +192,29 @@ export class MesGrpcPresenter {
   static toListMoldDesignsResponse(input: MoldDesignSummaryPageResult): ListMoldDesignsResponse {
     return {
       moldDesigns: input.moldDesigns.map((record) => this.toMoldDesignSummary(record)),
+      total: input.total,
+      page: input.page,
+      pageSize: input.pageSize
+    }
+  }
+
+  /** toGetMasterMoldResponse presents one master mold query result. */
+  static toGetMasterMoldResponse(record: MasterMoldRecord): GetMasterMoldResponse {
+    return { masterMold: this.toMasterMold(record) }
+  }
+
+  /** toListMasterMoldsResponse presents one master mold summary page. */
+  static toListMasterMoldsResponse(input: MasterMoldSummaryPageResult): ListMasterMoldsResponse {
+    return {
+      masterMolds: input.masterMolds.map((record) => ({
+        masterMoldId: record.masterMoldId,
+        masterMoldCode: record.masterMoldCode,
+        moldDesignSummary: this.toMoldDesignSummary(record.moldDesignSummary),
+        currentStatus: toProtoMasterMoldStatus(record.currentStatus),
+        currentPlacementSummary: record.currentPlacementSummary
+          ? this.toToolingPlacementSummary(record.currentPlacementSummary)
+          : undefined
+      })),
       total: input.total,
       page: input.page,
       pageSize: input.pageSize
@@ -233,7 +273,9 @@ export class MesGrpcPresenter {
     return {
       items: input.items.map((record): CurrentMoldByWorkCenterItem => ({
         productionMold: this.toProductionMoldSummary(record.productionMold),
-        toolingInstallation: this.toToolingInstallation(record.toolingInstallation)
+        toolingInstallation: this.toToolingInstallation(record.toolingInstallation),
+        usageAllowed: record.usageAllowed,
+        usageDisabledReason: record.usageDisabledReason ?? undefined
       }))
     }
   }
@@ -248,18 +290,6 @@ export class MesGrpcPresenter {
     }
   }
 
-  /** toPrintDailyMoldChecklistResponse presents a printable current mold checklist. */
-  static toPrintDailyMoldChecklistResponse(record: DailyMoldChecklistRecord): PrintDailyMoldChecklistResponse {
-    return {
-      checklistDate: record.checklistDate,
-      workCenterId: record.workCenterId,
-      items: record.items.map((item): DailyMoldChecklistItem => ({
-        productionMold: this.toProductionMoldSummary(item.productionMold),
-        toolingInstallation: this.toToolingInstallation(item.toolingInstallation)
-      }))
-    }
-  }
-
   /** toMoldDesign converts one mold design record into generated shape. */
   static toMoldDesign(record: MoldDesignRecord): MoldDesign {
     return {
@@ -270,7 +300,7 @@ export class MesGrpcPresenter {
       name: record.name,
       revisionCode: record.revisionCode ?? undefined,
       supersedesMoldDesignId: record.supersedesMoldDesignId ?? undefined,
-      itemRef: record.itemRef ? toProtoItemRef(record.itemRef) : undefined,
+      primaryItemModelRef: toProtoItemModelRef(record.primaryItemModelRef),
       productionSpecRefs: record.productionSpecRefs.map((ref) => toProtoProductionSpecRef(ref)),
       materialType: record.materialType,
       functionRole: toProtoMoldFunctionRole(record.functionRole),
@@ -296,6 +326,7 @@ export class MesGrpcPresenter {
       outputCode: record.outputCode,
       outputKind: toProtoMoldDesignOutputKind(record.outputKind),
       productionSpecRef: record.productionSpecRef ? toProtoProductionSpecRef(record.productionSpecRef) : undefined,
+      itemModelRef: record.itemModelRef ? toProtoItemModelRef(record.itemModelRef) : undefined,
       quantityPerUse: record.quantityPerUse,
       componentRole: record.componentRole ?? undefined,
       assemblyHint: record.assemblyHint ?? undefined,
@@ -329,7 +360,8 @@ export class MesGrpcPresenter {
       designCode: record.designCode,
       name: record.name,
       revisionCode: record.revisionCode ?? undefined,
-      status: toProtoMoldDesignStatus(record.status)
+      status: toProtoMoldDesignStatus(record.status),
+      primaryItemModelRef: record.primaryItemModelRef ? toProtoItemModelRef(record.primaryItemModelRef) : undefined
     }
   }
 
@@ -344,7 +376,7 @@ export class MesGrpcPresenter {
       supplierRef: record.supplierRef ? toProtoSupplierRef(record.supplierRef) : undefined,
       purchaseRef: record.purchaseRef ? toProtoPurchaseRef(record.purchaseRef) : undefined,
       receivedAt: record.receivedAt ?? undefined,
-      currentStatus: record.currentStatus,
+      currentStatus: toProtoMasterMoldStatus(record.currentStatus),
       currentStorageResourceRef: record.currentStorageResourceRef
         ? toProtoStorageResourceRef(record.currentStorageResourceRef)
         : undefined,
@@ -563,6 +595,18 @@ export function toDomainMoldDesignStatus(value?: ProtoMoldDesignStatus): MoldDes
   }
 }
 
+/** toDomainMasterMoldStatus maps generated master mold status filters into domain values. */
+export function toDomainMasterMoldStatus(value?: ProtoMasterMoldStatus): MasterMoldStatus | undefined {
+  switch (value) {
+    case ProtoMasterMoldStatus.MASTER_MOLD_STATUS_AVAILABLE:
+      return MasterMoldStatus.AVAILABLE
+    case ProtoMasterMoldStatus.MASTER_MOLD_STATUS_DISABLED:
+      return MasterMoldStatus.DISABLED
+    default:
+      return undefined
+  }
+}
+
 /** toDomainProductionMoldStatus maps generated production mold status filters into domain values. */
 export function toDomainProductionMoldStatus(value?: ProtoProductionMoldStatus): ProductionMoldStatus | undefined {
   switch (value) {
@@ -578,6 +622,8 @@ export function toDomainProductionMoldStatus(value?: ProtoProductionMoldStatus):
       return ProductionMoldStatus.MAINTENANCE
     case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_DISABLED:
       return ProductionMoldStatus.DISABLED
+    case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_SCRAP_PENDING:
+      return ProductionMoldStatus.SCRAP_PENDING
     case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_SCRAPPED:
       return ProductionMoldStatus.SCRAPPED
     default:
@@ -627,6 +673,18 @@ export function toDomainProductionSpecRef(value?: ProductionSpecRef): Production
     productionSpecId: value.productionSpecId,
     specCodeSnapshot: value.specCodeSnapshot,
     displayNameSnapshot: value.displayNameSnapshot
+  }
+}
+
+/** toDomainItemModelRef maps generated ItemModel refs into MES display reference records. */
+export function toDomainItemModelRef(value?: ItemModelRef): ItemModelRefRecord | undefined {
+  if (!value?.itemModelId) {
+    return undefined
+  }
+  return {
+    itemModelId: value.itemModelId,
+    modelCodeSnapshot: value.modelCodeSnapshot,
+    modelNameSnapshot: value.modelNameSnapshot
   }
 }
 
@@ -774,11 +832,19 @@ function toProtoProductionMoldStatus(value: ProductionMoldStatus): ProtoProducti
       return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_MAINTENANCE
     case ProductionMoldStatus.DISABLED:
       return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_DISABLED
+    case ProductionMoldStatus.SCRAP_PENDING:
+      return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_SCRAP_PENDING
     case ProductionMoldStatus.SCRAPPED:
       return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_SCRAPPED
     default:
       return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_AVAILABLE
   }
+}
+
+function toProtoMasterMoldStatus(value: MasterMoldStatus): ProtoMasterMoldStatus {
+  return value === MasterMoldStatus.DISABLED
+    ? ProtoMasterMoldStatus.MASTER_MOLD_STATUS_DISABLED
+    : ProtoMasterMoldStatus.MASTER_MOLD_STATUS_AVAILABLE
 }
 
 function toProtoToolingType(value: ToolingType): ProtoToolingType {
@@ -789,8 +855,6 @@ function toProtoToolingInstallationStatus(value: ToolingInstallationStatus): Pro
   switch (value) {
     case ToolingInstallationStatus.UNMOUNTED:
       return ProtoToolingInstallationStatus.TOOLING_INSTALLATION_STATUS_UNMOUNTED
-    case ToolingInstallationStatus.CLOSED_BY_SCRAP:
-      return ProtoToolingInstallationStatus.TOOLING_INSTALLATION_STATUS_CLOSED_BY_SCRAP
     default:
       return ProtoToolingInstallationStatus.TOOLING_INSTALLATION_STATUS_ACTIVE
   }
@@ -845,11 +909,11 @@ function toProtoProductionSpecRef(record: ProductionSpecRefRecord): ProductionSp
   }
 }
 
-function toProtoItemRef(record: ItemRefRecord) {
+function toProtoItemModelRef(record: ItemModelRefRecord): ItemModelRef {
   return {
-    itemId: record.itemId,
-    itemCodeSnapshot: record.itemCodeSnapshot ?? undefined,
-    itemNameSnapshot: record.itemNameSnapshot ?? undefined
+    itemModelId: record.itemModelId,
+    modelCodeSnapshot: record.modelCodeSnapshot ?? undefined,
+    modelNameSnapshot: record.modelNameSnapshot ?? undefined
   }
 }
 

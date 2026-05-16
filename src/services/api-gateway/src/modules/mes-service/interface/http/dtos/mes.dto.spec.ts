@@ -3,6 +3,7 @@ import {
   CreateProductionSpecDto,
   InstallToolingDto,
   ListCurrentMoldsByWorkCenterDto,
+  ListMasterMoldsDto,
   ListMoldDesignsDto,
   ListProductionMoldsByDesignDto,
   ListProductionMoldsDto,
@@ -83,18 +84,34 @@ describe('MES HTTP DTOs', () => {
   it('accepts and transforms MoldDesign list query filters', async () => {
     await expect(
       transformQuery(ListMoldDesignsDto, {
-        itemId: 'item-1',
+        itemModelId: 'item-model-1',
         page: '1',
         pageSize: '20',
         productionSpecId: 'spec-1',
         status: 'ACTIVE'
       })
     ).resolves.toMatchObject({
-      itemId: 'item-1',
+      itemModelId: 'item-model-1',
       page: 1,
       pageSize: 20,
       productionSpecId: 'spec-1',
       status: 'ACTIVE'
+    })
+  })
+
+  it('accepts and transforms MasterMold list query filters', async () => {
+    await expect(
+      transformQuery(ListMasterMoldsDto, {
+        moldDesignId: 'design-1',
+        page: '1',
+        pageSize: '20',
+        status: 'AVAILABLE'
+      })
+    ).resolves.toMatchObject({
+      moldDesignId: 'design-1',
+      page: 1,
+      pageSize: 20,
+      status: 'AVAILABLE'
     })
   })
 

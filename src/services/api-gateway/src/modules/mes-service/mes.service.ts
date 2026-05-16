@@ -4,6 +4,7 @@ import {
   MoldDesignStatus,
   MoldFunctionRole,
   MoldOutputStructureType,
+  MasterMoldStatus,
   MoldWarningLevel,
   ProductionMoldStatus,
   ProductionSpecStatus,
@@ -102,7 +103,7 @@ export class MesService {
   async listMoldDesigns(tenantId: string, query: any, source: DownstreamRequestSource) {
     return this.mesQueryAdapter.listMoldDesigns(
       {
-        itemId: normalize(query.itemId),
+        itemModelId: normalize(query.itemModelId),
         keyword: normalize(query.keyword),
         orgId: this.resolveOrgId(query.orgId, source),
         page: clampPage(query.page),
@@ -155,10 +156,53 @@ export class MesService {
     return result.masterMold
   }
 
+  /** listMasterMolds returns the MasterMold result-object directory. */
+  async listMasterMolds(tenantId: string, query: any, source: DownstreamRequestSource) {
+    return this.mesQueryAdapter.listMasterMolds(
+      {
+        carrierResourceId: normalize(query.carrierResourceId),
+        keyword: normalize(query.keyword),
+        moldDesignId: normalize(query.moldDesignId),
+        orgId: this.resolveOrgId(query.orgId, source),
+        page: clampPage(query.page),
+        pageSize: clampPageSize(query.pageSize),
+        status: toEnum(MasterMoldStatus, 'MASTER_MOLD_STATUS_', query.status),
+        storageResourceId: normalize(query.storageResourceId),
+        tenantId: this.resolveTenantId(tenantId, source)
+      },
+      source
+    )
+  }
+
+  /** getMasterMold returns one MasterMold result-object snapshot. */
+  async getMasterMold(tenantId: string, masterMoldId: string, source: DownstreamRequestSource) {
+    const result = await this.mesQueryAdapter.getMasterMold(
+      {
+        masterMoldId: requireNonBlank(masterMoldId, 'masterMoldId'),
+        orgId: this.resolveOrgId(undefined, source),
+        tenantId: this.resolveTenantId(tenantId, source)
+      },
+      source
+    )
+    return result.masterMold
+  }
+
   /** registerProductionMold forwards one ProductionMold registration command. */
   async registerProductionMold(tenantId: string, input: any, source: DownstreamRequestSource) {
     const result = await this.mesManagementAdapter.registerProductionMold(
       this.withCommandEnvelope(tenantId, input, source),
+      source
+    )
+    return result.productionMold
+  }
+
+  /** acceptProductionMold forwards one ProductionMold acceptance command. */
+  async acceptProductionMold(tenantId: string, productionMoldId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.acceptProductionMold(
+      {
+        ...this.withCommandEnvelope(tenantId, input, source),
+        productionMoldId: requireNonBlank(productionMoldId, 'productionMoldId')
+      },
       source
     )
     return result.productionMold
@@ -262,9 +306,9 @@ export class MesService {
     return result.toolingInstallation
   }
 
-  /** scrapProductionMold forwards one terminal ProductionMold command. */
-  async scrapProductionMold(tenantId: string, productionMoldId: string, input: any, source: DownstreamRequestSource) {
-    const result = await this.mesManagementAdapter.scrapProductionMold(
+  /** markProductionMoldForScrap forwards the first step of the production mold scrap lifecycle. */
+  async markProductionMoldForScrap(tenantId: string, productionMoldId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.markProductionMoldForScrap(
       {
         ...this.withCommandEnvelope(tenantId, input, source),
         productionMoldId: requireNonBlank(productionMoldId, 'productionMoldId')
@@ -318,70 +362,74 @@ export class MesService {
     )
   }
 
-  /** printDailyMoldChecklist returns the daily web checklist for manual casting usage capture. */
+  /** printDailyMoldChecklist builds the web checklist view from current mold installations. */
   async printDailyMoldChecklist(tenantId: string, query: any, source: DownstreamRequestSource) {
-    return this.mesQueryAdapter.printDailyMoldChecklist(
+    const checklistDate = requireNonBlank(query.checklistDate, 'checklistDate')
+    const workCenterId = requireNonBlank(query.workCenterId, 'workCenterId')
+    const current = await this.mesQueryAdapter.listCurrentMoldsByWorkCenter(
       {
-        checklistDate: requireNonBlank(query.checklistDate, 'checklistDate'),
         orgId: this.resolveOrgId(query.orgId, source),
         tenantId: this.resolveTenantId(tenantId, source),
-        workCenterId: requireNonBlank(query.workCenterId, 'workCenterId')
+        workCenterId,
+        workUnitId: normalize(query.workUnitId)
       },
       source
     )
+    return {
+      checklistDate,
+      items: (current.items ?? []).map((item: any) => ({
+        productionMold: item.productionMold,
+        toolingInstallation: item.toolingInstallation,
+        usageAllowed: item.usageAllowed,
+        usageDisabledReason: item.usageDisabledReason
+      })),
+      workCenterId
+    }
   }
 
-  /** recordDailyMoldUsageBatch turns checked web checklist rows into idempotent MES MoldUsageRecord commands. */
+  /** recordDailyMoldUsageBatch forwards one web checklist submission as a single MES usage batch command. */
   async recordDailyMoldUsageBatch(tenantId: string, checklistDate: string, input: any, source: DownstreamRequestSource) {
     const batchCommandId = requireNonBlank(input.batchCommandId, 'batchCommandId')
     const resolvedTenantId = this.resolveTenantId(tenantId, source)
     const orgId = this.resolveOrgId(input.orgId, source)
-    const acceptedItems: any[] = []
-    const skippedItems: any[] = []
-
-    for (const item of input.items ?? []) {
-      const productionMoldId = requireNonBlank(item.productionMoldId, 'productionMoldId')
-      if (!item.checked) {
-        skippedItems.push({ productionMoldId, reason: 'unchecked' })
-        continue
-      }
-
-      const toolingInstallationId = requireNonBlank(item.toolingInstallationId, 'toolingInstallationId')
-      const response = await this.mesManagementAdapter.recordMoldUsage(
-        {
-          captureSource: normalize(item.captureSource) ?? 'WEB_CHECKLIST',
-          commandId: `${batchCommandId}:${productionMoldId}:${toolingInstallationId}`,
-          lifeDelta: normalize(item.lifeDelta) ?? '1',
-          lifeUnit: normalize(item.lifeUnit) ?? 'CASTING_CYCLE',
+    const response = await this.mesManagementAdapter.recordMoldUsageBatch(
+      {
+        auditReason: normalize(input.reason) ?? 'daily mold usage checklist',
+        captureSource: normalize(input.captureSource) ?? 'WEB_CHECKLIST',
+        commandId: batchCommandId,
+        lifeUnit: normalize(input.lifeUnit) ?? 'CASTING_CYCLE',
+        lines: (input.items ?? []).map((item: any) => ({
+          isSubmitted: !!item.checked,
           moldDesignOutputId: normalize(item.moldDesignOutputId),
           moldDesignOutputOptionId: normalize(item.moldDesignOutputOptionId),
-          orgId,
-          productionMoldId,
+          productionMoldId: normalize(item.productionMoldId) ?? '',
           productionSpecRef: item.productionSpecRef,
           productionUnitRef: item.productionUnitRef,
-          auditReason: normalize(item.reason) ?? normalize(input.reason) ?? 'daily mold usage checklist',
-          tenantId: resolvedTenantId,
-          toolingInstallationId,
+          toolingInstallationId: normalize(item.toolingInstallationId) ?? '',
           traceSubjectRef: item.traceSubjectRef,
-          usageQuantity: normalize(item.usageQuantity) ?? '1',
-          usedAt: normalize(input.usedAt) ?? requireNonBlank(checklistDate, 'checklistDate'),
-          workCenterRef: item.workCenterRef ?? input.workCenterRef,
-          workUnitRef: item.workUnitRef
-        },
-        source
-      )
-
-      acceptedItems.push({
-        moldLifeCounter: response.moldLifeCounter,
-        productionMoldId,
-        usageRecordId: response.moldUsageRecord?.moldUsageRecordId
-      })
-    }
+          usageQuantity: normalize(item.usageQuantity) ?? ''
+        })),
+        orgId,
+        tenantId: resolvedTenantId,
+        usedAt: normalize(input.usedAt) ?? requireNonBlank(checklistDate, 'checklistDate'),
+        workCenterRef: input.workCenterRef,
+        workUnitRef: input.workUnitRef
+      },
+      source
+    )
 
     return {
-      acceptedItems,
+      acceptedItems: (response.moldUsageRecords ?? []).map((record: any) => ({
+        moldLifeCounter: (response.moldLifeCounters ?? []).find(
+          (counter: any) => counter.productionMoldId === record.productionMoldId
+        ),
+        productionMoldId: record.productionMoldId,
+        usageRecordId: record.moldUsageRecordId
+      })),
       checklistDate: requireNonBlank(checklistDate, 'checklistDate'),
-      skippedItems,
+      skippedItems: (input.items ?? [])
+        .filter((item: any) => !item.checked)
+        .map((item: any) => ({ productionMoldId: normalize(item.productionMoldId), reason: 'unchecked' })),
       workCenterRef: input.workCenterRef
     }
   }

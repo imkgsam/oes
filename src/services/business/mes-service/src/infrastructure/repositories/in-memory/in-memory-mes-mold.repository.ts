@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common'
 import { ExceptionFactory } from '@oes/common/exceptions'
 import {
   CurrentMoldByWorkCenterRecord,
-  DailyMoldChecklistRecord,
   MasterMoldRecord,
   MesAuditEnvelopeRecord,
   MesCommandIdempotencyRecord,
@@ -30,8 +29,8 @@ import {
   ListMoldLifeCountersInput,
   ListProductionMoldsByDesignInput,
   MesMoldRepository,
-  PrintDailyMoldChecklistInput,
   SearchMoldDesignsInput,
+  SearchMasterMoldsInput,
   SearchProductionMoldsInput
 } from '../../../domain/repositories/mes-mold.repository'
 import { MES_NOT_FOUND } from '../../../common/errors/mes.errors'
@@ -75,7 +74,7 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
       .filter((record) => record.tenantId === input.tenantId && (!input.orgId || sameOrg(record.orgId, input.orgId)))
       .filter((record) => !keyword || record.designCode.toUpperCase().includes(keyword) || record.name.toUpperCase().includes(keyword))
       .filter((record) => !input.productionSpecId || record.productionSpecRefs.some((ref) => ref.productionSpecId === input.productionSpecId))
-      .filter((record) => !input.itemId || record.itemRef?.itemId === input.itemId)
+      .filter((record) => !input.itemModelId || record.primaryItemModelRef.itemModelId === input.itemModelId)
       .filter((record) => !input.status || record.status === input.status)
       .sort((left, right) => left.designCode.localeCompare(right.designCode))
     const page = paginate(records.map(toMoldDesignSummary), input.page, input.pageSize)
@@ -97,6 +96,20 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
         (record) => record.tenantId === tenantId && sameOrg(record.orgId, orgId) && record.masterMoldCode === masterMoldCode
       )
     )
+  }
+
+  async searchMasterMolds(input: SearchMasterMoldsInput) {
+    const keyword = input.keyword?.trim().toUpperCase()
+    const records = Array.from(this.store.masterMolds.values())
+      .filter((record) => record.tenantId === input.tenantId && (!input.orgId || sameOrg(record.orgId, input.orgId)))
+      .filter((record) => !keyword || record.masterMoldCode.toUpperCase().includes(keyword))
+      .filter((record) => !input.moldDesignId || record.moldDesignId === input.moldDesignId)
+      .filter((record) => !input.status || record.currentStatus === input.status)
+      .filter((record) => !input.storageResourceId || record.currentStorageResourceRef?.storageResourceId === input.storageResourceId)
+      .filter((record) => !input.carrierResourceId || record.currentCarrierResourceRef?.carrierResourceId === input.carrierResourceId)
+      .sort((left, right) => left.masterMoldCode.localeCompare(right.masterMoldCode))
+    const page = paginate(records.map((record) => this.toMasterMoldSummary(record)), input.page, input.pageSize)
+    return { masterMolds: page.items, total: page.total, page: page.page, pageSize: page.pageSize }
   }
 
   async saveProductionMold(record: ProductionMoldRecord): Promise<ProductionMoldRecord> {
@@ -240,7 +253,12 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
       }
       const mold = this.store.productionMolds.get(installation.toolingId)
       if (mold) {
-        items.push({ productionMold: this.toProductionMoldSummary(mold), toolingInstallation: clone(installation) })
+        items.push({
+          productionMold: this.toProductionMoldSummary(mold),
+          toolingInstallation: clone(installation),
+          usageAllowed: mold.currentStatus === ProductionMoldStatus.INSTALLED,
+          usageDisabledReason: mold.currentStatus === ProductionMoldStatus.INSTALLED ? null : `MOLD_${mold.currentStatus}`
+        })
       }
     }
     return { items }
@@ -362,14 +380,6 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
     return { counters: page.items, total: page.total, page: page.page, pageSize: page.pageSize }
   }
 
-  async printDailyMoldChecklist(input: PrintDailyMoldChecklistInput): Promise<DailyMoldChecklistRecord> {
-    return {
-      checklistDate: input.checklistDate,
-      workCenterId: input.workCenterId,
-      items: (await this.listCurrentMoldsByWorkCenter(input)).items
-    }
-  }
-
   async appendAuditEnvelope(record: MesAuditEnvelopeRecord): Promise<MesAuditEnvelopeRecord> {
     this.store.auditEnvelopes.push(clone(record))
     return clone(record)
@@ -421,6 +431,26 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
       lifeCounterSummary: counter ? toMoldLifeCounterSummary(counter) : record.lifeCounterSummary ?? null
     }
   }
+
+  /** toMasterMoldSummary enriches one master mold with its design and placement summaries. */
+  private toMasterMoldSummary(record: MasterMoldRecord) {
+    const design = this.store.moldDesigns.get(record.moldDesignId)
+    return {
+      masterMoldId: record.masterMoldId,
+      masterMoldCode: record.masterMoldCode,
+      moldDesignSummary: design ? toMoldDesignSummary(design) : {
+        moldDesignId: record.moldDesignId,
+        designCode: '',
+        name: '',
+        revisionCode: null,
+        status: 'INACTIVE' as MoldDesignSummaryRecord['status']
+      },
+      currentStatus: record.currentStatus,
+      currentPlacementSummary: record.currentCarrierResourceRef
+        ? { placementType: ToolingPlacementType.CARRIER_RESOURCE, carrierResourceRef: record.currentCarrierResourceRef }
+        : { placementType: ToolingPlacementType.STORAGE_RESOURCE, storageResourceRef: record.currentStorageResourceRef ?? null }
+    }
+  }
 }
 
 /** toMoldDesignSummary projects one design into a list/query summary row. */
@@ -430,7 +460,8 @@ function toMoldDesignSummary(record: MoldDesignRecord): MoldDesignSummaryRecord 
     designCode: record.designCode,
     name: record.name,
     revisionCode: record.revisionCode ?? null,
-    status: record.status
+    status: record.status,
+    primaryItemModelRef: record.primaryItemModelRef
   }
 }
 

@@ -140,10 +140,10 @@ describe('MES mold design detail page', () => {
       defaultLifeUnit: 'CASTING_CYCLE',
       designCode: 'MD-LT-HP-01',
       functionRole: 'PRODUCTION',
-      itemRef: {
-        itemCodeSnapshot: 'WC-ONE-300',
-        itemId: 'item-1',
-        itemNameSnapshot: '连体马桶 300/400 坑距'
+      primaryItemModelRef: {
+        itemModelId: 'item-model-1',
+        modelCodeSnapshot: 'WC-ONE',
+        modelNameSnapshot: '连体马桶 300/400 坑距'
       },
       materialType: 'RESIN',
       moldDesignId: 'design-1',

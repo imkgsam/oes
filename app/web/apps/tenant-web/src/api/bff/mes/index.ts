@@ -8,6 +8,7 @@ export namespace MesApi {
     | 'MAINTENANCE'
     | 'PREPARING'
     | 'RECEIVED'
+    | 'SCRAP_PENDING'
     | 'SCRAPPED'
   export type WorkCenterStatus = 'ACTIVE' | 'INACTIVE'
 
@@ -23,6 +24,12 @@ export namespace MesApi {
     itemNameSnapshot?: string
   }
 
+  export interface ItemModelRef {
+    itemModelId: string
+    modelCodeSnapshot?: string
+    modelNameSnapshot?: string
+  }
+
   export interface StorageResourceRef {
     displayNameSnapshot?: string
     resourceCodeSnapshot?: string
@@ -33,6 +40,7 @@ export namespace MesApi {
     designCode: string
     moldDesignId: string
     name: string
+    primaryItemModelRef?: ItemModelRef
     revisionCode?: string
   }
 
@@ -51,6 +59,7 @@ export namespace MesApi {
     componentRole?: string
     isPrimaryOutput?: boolean
     productionSpecRef?: ProductionSpecRef
+    itemModelRef?: ItemModelRef
     moldDesignOutputId: string
     optionCode?: string
     options?: MoldDesignOutputOption[]
@@ -90,7 +99,7 @@ export namespace MesApi {
     defaultLifeLimit?: string
     defaultLifeUnit?: string
     functionRole?: string | number
-    itemRef?: ItemRef
+    primaryItemModelRef?: ItemModelRef
     productionSpecRefs?: ProductionSpecRef[]
     materialType?: string
     outputStructureType?: string | number
@@ -102,7 +111,7 @@ export namespace MesApi {
   }
 
   export interface ListMoldDesignsQuery {
-    itemId?: string
+    itemModelId?: string
     keyword?: string
     page?: number
     pageSize?: number
@@ -122,7 +131,7 @@ export namespace MesApi {
     defaultLifeUnit?: string
     designCode: string
     functionRole: string
-    itemRef?: ItemRef
+    primaryItemModelRef: ItemModelRef
     productionSpecRefs?: ProductionSpecRef[]
     materialType: string
     name: string
@@ -131,6 +140,7 @@ export namespace MesApi {
       assemblyHint?: string
       componentRole?: string
       isPrimaryOutput: boolean
+      itemModelRef?: ItemModelRef
       productionSpecRef?: ProductionSpecRef
       optionCode?: string
       options?: MoldDesignOutputOption[]
@@ -143,6 +153,44 @@ export namespace MesApi {
     reason?: string
     revisionCode?: string
     supersedesMoldDesignId?: string
+  }
+
+  export interface MasterMold {
+    currentCarrierResourceRef?: CarrierResourceRef
+    currentPlacementSummary?: ToolingPlacementSummary
+    currentStatus: string | number
+    currentStorageResourceRef?: StorageResourceRef
+    masterMoldCode: string
+    masterMoldId: string
+    moldDesignId?: string
+    moldDesignSummary?: MoldDesignSummary
+  }
+
+  export interface ListMasterMoldsQuery {
+    carrierResourceId?: string
+    keyword?: string
+    moldDesignId?: string
+    page?: number
+    pageSize?: number
+    status?: string
+    storageResourceId?: string
+  }
+
+  export interface ListMasterMoldsResult {
+    masterMolds: MasterMold[]
+    page: number
+    pageSize: number
+    total: number
+  }
+
+  export interface RegisterMasterMoldPayload {
+    commandId?: string
+    initialCarrierResourceRef?: CarrierResourceRef
+    initialStorageResourceRef?: StorageResourceRef
+    masterMoldCode: string
+    moldDesignId: string
+    reason?: string
+    receivedAt?: string
   }
 
   export interface ProductionMold {
@@ -209,7 +257,6 @@ export namespace MesApi {
   }
 
   export interface RegisterProductionMoldPayload {
-    acceptedAt?: string
     initialCarrierResourceRef?: CarrierResourceRef
     initialStorageResourceRef?: StorageResourceRef
     moldDesignId: string
@@ -225,6 +272,8 @@ export namespace MesApi {
     items: Array<{
       productionMold: ProductionMold
       toolingInstallation: ToolingInstallation
+      usageAllowed?: boolean
+      usageDisabledReason?: string
     }>
   }
 
@@ -232,7 +281,6 @@ export namespace MesApi {
     batchCommandId: string
     items: Array<{
       checked?: boolean
-      lifeDelta?: string
       lifeUnit?: string
       moldDesignOutputId?: string
       moldDesignOutputOptionId?: string
@@ -369,6 +417,26 @@ export async function registerMoldDesignApi(
   return requestClient.post<MesApi.MoldDesign>(`/mes/tenants/${tenantId}/mold-designs`, payload)
 }
 
+/** listMasterMoldsApi loads first-slice MasterMold result objects. */
+export async function listMasterMoldsApi(tenantId: string, params: MesApi.ListMasterMoldsQuery) {
+  return requestClient.get<MesApi.ListMasterMoldsResult>(`/mes/tenants/${tenantId}/master-molds`, {
+    params
+  })
+}
+
+/** getMasterMoldApi loads one MasterMold result object. */
+export async function getMasterMoldApi(tenantId: string, masterMoldId: string) {
+  return requestClient.get<MesApi.MasterMold>(`/mes/tenants/${tenantId}/master-molds/${masterMoldId}`)
+}
+
+/** registerMasterMoldApi registers one completed master mold result object. */
+export async function registerMasterMoldApi(
+  tenantId: string,
+  payload: MesApi.RegisterMasterMoldPayload
+) {
+  return requestClient.post<MesApi.MasterMold>(`/mes/tenants/${tenantId}/master-molds`, payload)
+}
+
 /** listProductionMoldsApi loads the tenant-wide production mold directory. */
 export async function listProductionMoldsApi(
   tenantId: string,
@@ -406,6 +474,18 @@ export async function registerProductionMoldApi(
 ) {
   return requestClient.post<MesApi.ProductionMold>(
     `/mes/tenants/${tenantId}/production-molds`,
+    payload
+  )
+}
+
+/** acceptProductionMoldApi accepts one received production mold into AVAILABLE status. */
+export async function acceptProductionMoldApi(
+  tenantId: string,
+  productionMoldId: string,
+  payload: { acceptedAt?: string; reason?: string }
+) {
+  return requestClient.post<MesApi.ProductionMold>(
+    `/mes/tenants/${tenantId}/production-molds/${productionMoldId}/accept`,
     payload
   )
 }
@@ -484,14 +564,14 @@ export async function unmountProductionMoldApi(
   )
 }
 
-/** scrapProductionMoldApi scraps one production mold. */
-export async function scrapProductionMoldApi(
+/** markProductionMoldForScrapApi marks one production mold as pending scrap or terminal scrap. */
+export async function markProductionMoldForScrapApi(
   tenantId: string,
   productionMoldId: string,
-  payload: { reason?: string; scrappedAt?: string }
+  payload: { markedAt?: string; reason?: string }
 ) {
   return requestClient.post(
-    `/mes/tenants/${tenantId}/production-molds/${productionMoldId}/scrap`,
+    `/mes/tenants/${tenantId}/production-molds/${productionMoldId}/mark-for-scrap`,
     payload
   )
 }

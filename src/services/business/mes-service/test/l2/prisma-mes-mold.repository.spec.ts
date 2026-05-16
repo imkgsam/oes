@@ -55,6 +55,15 @@ function queryContext(prefix: string) {
   }
 }
 
+/** itemModelRef builds the required MoldDesign primary ItemModel snapshot for L2 fixtures. */
+function itemModelRef(prefix: string) {
+  return {
+    itemModelId: `${prefix}_item_model`,
+    modelCodeSnapshot: `${prefix}_MODEL`,
+    modelNameSnapshot: 'L2 Item Model'
+  }
+}
+
 describe('Prisma MES mold repository L2', () => {
   let prisma: PrismaService
   let repository: PrismaMesMoldRepository
@@ -92,6 +101,7 @@ describe('Prisma MES mold repository L2', () => {
       moldDesignId: `${prefix}_design`,
       designCode: `${prefix}_design_code`,
       name: 'L2 Mold Design',
+      primaryItemModelRef: itemModelRef(prefix),
       materialType: 'GYPSUM',
       functionRole: MoldFunctionRole.PRODUCTION,
       outputStructureType: MoldOutputStructureType.SINGLE,
@@ -100,6 +110,7 @@ describe('Prisma MES mold repository L2', () => {
           sequenceNo: 1,
           outputCode: `${prefix}_OUT`,
           outputKind: MoldDesignOutputKind.PRODUCT,
+          itemModelRef: itemModelRef(prefix),
           quantityPerUse: '1',
           isPrimaryOutput: true
         }
@@ -119,11 +130,15 @@ describe('Prisma MES mold repository L2', () => {
         displayNameSnapshot: 'Ready Rack'
       }
     })
+    const accepted = await management.acceptProductionMold({
+      ...commandContext(prefix, `${prefix}_cmd_accept`),
+      productionMoldId: productionMold.productionMoldId
+    })
 
     const installed = await management.installTooling({
       ...commandContext(prefix, `${prefix}_cmd_install`),
       toolingType: ToolingType.MOLD,
-      toolingId: productionMold.productionMoldId,
+      toolingId: accepted.productionMold.productionMoldId,
       workCenterRef: {
         workCenterId: `${prefix}_wc`,
         workCenterCodeSnapshot: `${prefix}_WC`,
@@ -147,7 +162,6 @@ describe('Prisma MES mold repository L2', () => {
         workUnitId: `${prefix}_wu_a`
       },
       usageQuantity: '6',
-      lifeDelta: '6',
       lifeUnit: 'CASTING_CYCLE',
       captureSource: 'CHECKLIST'
     })
@@ -181,6 +195,7 @@ describe('Prisma MES mold repository L2', () => {
       moldDesignId: `${prefix}_design`,
       designCode: `${prefix}_design_code`,
       name: 'L2 Mold Design',
+      primaryItemModelRef: itemModelRef(prefix),
       materialType: 'GYPSUM',
       functionRole: MoldFunctionRole.PRODUCTION,
       outputStructureType: MoldOutputStructureType.SINGLE,
@@ -189,6 +204,7 @@ describe('Prisma MES mold repository L2', () => {
           sequenceNo: 1,
           outputCode: `${prefix}_OUT`,
           outputKind: MoldDesignOutputKind.PRODUCT,
+          itemModelRef: itemModelRef(prefix),
           quantityPerUse: '1',
           isPrimaryOutput: true
         }
@@ -260,6 +276,7 @@ describe('Prisma MES mold repository L2', () => {
       ...commandContext(prefix, `${prefix}_cmd_design_counter`),
       designCode: `${prefix}_design_counter`,
       name: 'L2 Counter Mold Design',
+      primaryItemModelRef: itemModelRef(prefix),
       productionSpecRefs: [{ productionSpecId: `${prefix}_spec` }],
       materialType: 'GYPSUM',
       functionRole: MoldFunctionRole.PRODUCTION,

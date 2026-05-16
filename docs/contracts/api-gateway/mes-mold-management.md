@@ -50,7 +50,9 @@ Recommended first-slice action code families:
 | `mes.mold_design.read` | Read mold designs. |
 | `mes.mold_design.manage` | Register mold designs. |
 | `mes.production_mold.read` | Read production molds. |
-| `mes.production_mold.manage` | Register, move, install, unmount, or scrap production molds. |
+| `mes.master_mold.read` | Read master molds. |
+| `mes.master_mold.manage` | Register master molds. |
+| `mes.production_mold.manage` | Register, accept, move, install, unmount, or mark production molds for scrap. |
 | `mes.tooling_installation.read` | Read current tooling placement. |
 | `mes.tooling_installation.manage` | Install or unmount tooling. |
 | `mes.mold_usage.record` | Record mold usage facts. |
@@ -72,9 +74,10 @@ Recommended route groups:
 | --- | --- |
 | `/production-specs` | Production spec query and management contracts. |
 | `/mold-designs` | Mold design query and registration. |
+| `/master-molds` | Master mold registration and query. |
 | `/production-molds` | Production mold query and management. |
 | `/tooling-installations` | Installation, unmount, and current placement reads. |
-| `/mold-usage-records` | Mold usage recording and usage history. |
+| `/mold-usage-records` | Single and batch mold usage recording plus usage history. |
 | `/mold-life-counters` | Mold life counter reads and adjustments. |
 | `/daily-mold-checklists` | Web checklist read model and batch usage submission. |
 
@@ -89,7 +92,19 @@ For every request:
 - `auditContext` is generated for management commands using request reason and route metadata.
 - `commandId` comes from request body when provided, otherwise from the request id.
 
-## 7. Error Mapping
+## 7. Web Daily Checklist Convenience
+
+`/daily-mold-checklists` is a BFF convenience route, not a MES domain object.
+
+Rules:
+
+- Print/read endpoints must call `ListCurrentMoldsByWorkCenter`.
+- Submission endpoints must call `RecordMoldUsageBatch` once per WorkCenter batch.
+- The BFF must not split a submitted checklist into multiple `RecordMoldUsage` gRPC calls.
+- The BFF must not persist checklist, print batch, or usage batch business records.
+- `SCRAP_PENDING` installed molds must remain visible in print/input rows but disabled for submission.
+
+## 8. Error Mapping
 
 | gRPC / application error | HTTP status | Meaning |
 | --- | --- | --- |
@@ -102,7 +117,7 @@ For every request:
 | `ABORTED` | `409` | Version or idempotency conflict. |
 | `INTERNAL` | `500` | Unexpected server failure. |
 
-## 8. Explicit Non-goals
+## 9. Explicit Non-goals
 
 - No BFF-owned MES domain rules.
 - No BFF-owned resource model.

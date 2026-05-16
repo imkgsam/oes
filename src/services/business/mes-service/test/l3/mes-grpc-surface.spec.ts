@@ -2,6 +2,7 @@ import {
   MoldDesignOutputKind as ProtoMoldDesignOutputKind,
   MoldFunctionRole as ProtoMoldFunctionRole,
   MoldOutputStructureType as ProtoMoldOutputStructureType,
+  MasterMoldStatus as ProtoMasterMoldStatus,
   ProductionMoldStatus as ProtoProductionMoldStatus,
   ToolingPlacementType as ProtoToolingPlacementType,
   ToolingType as ProtoToolingType
@@ -56,7 +57,11 @@ function moldDesignRecord() {
     name: 'Wash Basin A100',
     revisionCode: 'R1',
     supersedesMoldDesignId: null,
-    itemRef: null,
+    primaryItemModelRef: {
+      itemModelId: 'item-model-1',
+      modelCodeSnapshot: 'WB-A100',
+      modelNameSnapshot: 'Wash Basin A100'
+    },
     productionSpecRefs: [
       {
         productionSpecId: 'spec-1',
@@ -79,6 +84,11 @@ function moldDesignRecord() {
         outputKind: 'PRODUCTION_SPEC',
         productionSpecRef: {
           productionSpecId: 'spec-1'
+        },
+        itemModelRef: {
+          itemModelId: 'item-model-1',
+          modelCodeSnapshot: 'WB-A100',
+          modelNameSnapshot: 'Wash Basin A100'
         },
         quantityPerUse: '1',
         componentRole: null,
@@ -110,6 +120,31 @@ function moldDesignRecord() {
   }
 }
 
+/** masterMoldRecord returns one current application-layer MasterMold record. */
+function masterMoldRecord() {
+  return {
+    masterMoldId: 'master-1',
+    tenantId: 'tenant-1',
+    orgId: 'org-1',
+    masterMoldCode: 'MM-001',
+    moldDesignId: 'design-1',
+    supplierRef: null,
+    purchaseRef: null,
+    receivedAt: '2026-05-04T10:00:00.000Z',
+    currentStatus: 'AVAILABLE',
+    currentStorageResourceRef: {
+      storageResourceId: 'storage-1',
+      resourceCodeSnapshot: 'MASTER-01',
+      displayNameSnapshot: 'Master Mold Rack'
+    },
+    currentCarrierResourceRef: null,
+    qualitySummary: null,
+    notes: null,
+    createdAt: '2026-05-04T10:00:00.000Z',
+    updatedAt: '2026-05-04T10:00:00.000Z'
+  }
+}
+
 /** productionMoldRecord returns one current application-layer ProductionMold record. */
 function productionMoldRecord() {
   return {
@@ -123,7 +158,7 @@ function productionMoldRecord() {
     purchaseRef: null,
     receivedAt: null,
     acceptedAt: null,
-    currentStatus: 'AVAILABLE',
+    currentStatus: 'RECEIVED',
     currentStorageResourceRef: {
       storageResourceId: 'storage-1',
       resourceCodeSnapshot: 'READY-01',
@@ -204,6 +239,7 @@ describe('mes-service mold/tooling grpc surface L3', () => {
       ...buildManagementContext(),
       designCode: 'wb-a100',
       name: 'Wash Basin A100',
+      primaryItemModelRef: { itemModelId: 'item-model-1' },
       productionSpecRefs: [{ productionSpecId: 'spec-1' }],
       materialType: 'GYPSUM',
       functionRole: ProtoMoldFunctionRole.MOLD_FUNCTION_ROLE_PRODUCTION,
@@ -214,6 +250,7 @@ describe('mes-service mold/tooling grpc surface L3', () => {
           outputCode: 'MAIN',
           outputKind: ProtoMoldDesignOutputKind.MOLD_DESIGN_OUTPUT_KIND_PRODUCTION_SPEC,
           productionSpecRef: { productionSpecId: 'spec-1' },
+          itemModelRef: { itemModelId: 'item-model-1' },
           quantityPerUse: '1',
           isPrimaryOutput: true
         }
@@ -251,6 +288,7 @@ describe('mes-service mold/tooling grpc surface L3', () => {
       ...buildManagementContext(),
       designCode: 'wb-a100',
       name: 'Wash Basin A100',
+      primaryItemModelRef: { itemModelId: 'item-model-1' },
       productionSpecRefs: [{ productionSpecId: 'spec-1' }],
       materialType: 'GYPSUM',
       functionRole: ProtoMoldFunctionRole.MOLD_FUNCTION_ROLE_PRODUCTION,
@@ -261,6 +299,7 @@ describe('mes-service mold/tooling grpc surface L3', () => {
           outputCode: 'MAIN',
           outputKind: ProtoMoldDesignOutputKind.MOLD_DESIGN_OUTPUT_KIND_PRODUCTION_SPEC,
           productionSpecRef: { productionSpecId: 'spec-1' },
+          itemModelRef: { itemModelId: 'item-model-1' },
           quantityPerUse: '1',
           isPrimaryOutput: true,
           options: [
@@ -278,18 +317,89 @@ describe('mes-service mold/tooling grpc surface L3', () => {
 
     expect(registerMoldDesign).toHaveBeenCalledWith(
       expect.objectContaining({
+        primaryItemModelRef: expect.objectContaining({ itemModelId: 'item-model-1' }),
         productionSpecRefs: [expect.objectContaining({ productionSpecId: 'spec-1' })],
         outputs: [
           expect.objectContaining({
             outputKind: 'PRODUCTION_SPEC',
             productionSpecRef: expect.objectContaining({ productionSpecId: 'spec-1' }),
+            itemModelRef: expect.objectContaining({ itemModelId: 'item-model-1' }),
             options: [expect.objectContaining({ optionCode: 'DEFAULT' })]
           })
         ]
       })
     )
+    expect(response.moldDesign?.primaryItemModelRef?.itemModelId).toBe('item-model-1')
     expect(response.moldDesign?.productionSpecRefs?.[0]?.productionSpecId).toBe('spec-1')
     expect(response.moldDesign?.outputs?.[0]?.options?.[0]?.optionCode).toBe('DEFAULT')
+  })
+
+  it('RegisterMasterMold and ListMasterMolds / should map the first-slice master mold result object', async () => {
+    const registerMasterMold = jest.fn().mockResolvedValue(masterMoldRecord())
+    const listMasterMolds = jest.fn().mockResolvedValue({
+      masterMolds: [
+        {
+          masterMoldId: 'master-1',
+          masterMoldCode: 'MM-001',
+          moldDesignSummary: {
+            moldDesignId: 'design-1',
+            designCode: 'WB-A100',
+            name: 'Wash Basin A100',
+            revisionCode: 'R1',
+            status: 'ACTIVE',
+            primaryItemModelRef: { itemModelId: 'item-model-1' }
+          },
+          currentStatus: 'AVAILABLE',
+          currentPlacementSummary: {
+            placementType: 'STORAGE_RESOURCE',
+            storageResourceRef: {
+              storageResourceId: 'storage-1'
+            }
+          }
+        }
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 20
+    })
+    const managementController = new MesManagementGrpcController(
+      {
+        registerMasterMold
+      } as never,
+      createRequestContextStore() as never
+    )
+    const queryController = new MesQueryGrpcController({
+      listMasterMolds
+    } as never)
+
+    const registered = await managementController.registerMasterMold({
+      ...buildManagementContext(),
+      masterMoldCode: 'MM-001',
+      moldDesignId: 'design-1',
+      initialStorageResourceRef: { storageResourceId: 'storage-1' }
+    })
+    const listed = await queryController.listMasterMolds({
+      ...buildQueryContext(),
+      status: ProtoMasterMoldStatus.MASTER_MOLD_STATUS_AVAILABLE,
+      moldDesignId: 'design-1',
+      page: 1,
+      pageSize: 20
+    })
+
+    expect(registerMasterMold).toHaveBeenCalledWith(
+      expect.objectContaining({
+        masterMoldCode: 'MM-001',
+        initialStorageResourceRef: expect.objectContaining({ storageResourceId: 'storage-1' })
+      })
+    )
+    expect(listMasterMolds).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'AVAILABLE',
+        moldDesignId: 'design-1'
+      })
+    )
+    expect(registered.masterMold?.currentStatus).toBe(ProtoMasterMoldStatus.MASTER_MOLD_STATUS_AVAILABLE)
+    expect(listed.masterMolds?.[0]?.masterMoldCode).toBe('MM-001')
   })
 
   it('RegisterProductionMold / should expose ProductionMold without old instance naming', async () => {
@@ -317,6 +427,36 @@ describe('mes-service mold/tooling grpc surface L3', () => {
       })
     )
     expect(response.productionMold?.productionMoldId).toBe('mold-1')
+    expect(response.productionMold?.currentStatus).toBe(ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_RECEIVED)
+  })
+
+  it('AcceptProductionMold / should expose the RECEIVED to AVAILABLE acceptance command', async () => {
+    const acceptProductionMold = jest.fn().mockResolvedValue({
+      productionMold: {
+        ...productionMoldRecord(),
+        currentStatus: 'AVAILABLE',
+        acceptedAt: '2026-05-05T08:00:00.000Z'
+      }
+    })
+    const controller = new MesManagementGrpcController(
+      {
+        acceptProductionMold
+      } as never,
+      createRequestContextStore() as never
+    )
+
+    const response = await controller.acceptProductionMold({
+      ...buildManagementContext(),
+      productionMoldId: 'mold-1',
+      acceptedAt: '2026-05-05T08:00:00.000Z'
+    })
+
+    expect(acceptProductionMold).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productionMoldId: 'mold-1',
+        acceptedAt: '2026-05-05T08:00:00.000Z'
+      })
+    )
     expect(response.productionMold?.currentStatus).toBe(ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_AVAILABLE)
   })
 
@@ -467,7 +607,6 @@ describe('mes-service mold/tooling grpc surface L3', () => {
         workCenterId: 'wc-1'
       },
       usageQuantity: '1',
-      lifeDelta: '1',
       lifeUnit: 'CASTING_CYCLE',
       productionSpecRef: {
         productionSpecId: 'spec-1'
@@ -487,6 +626,135 @@ describe('mes-service mold/tooling grpc surface L3', () => {
       })
     )
     expect(response.moldUsageRecord?.moldDesignOutputOptionId).toBe('option-1')
+  })
+
+  it('RecordMoldUsageBatch / should forward one transactional WorkCenter usage batch', async () => {
+    const recordMoldUsageBatch = jest.fn().mockResolvedValue({
+      moldUsageRecords: [
+        {
+          moldUsageRecordId: 'usage-1',
+          tenantId: 'tenant-1',
+          orgId: 'org-1',
+          productionMoldId: 'mold-1',
+          toolingInstallationId: 'install-1',
+          workCenterRef: {
+            workCenterId: 'wc-1'
+          },
+          workUnitRef: null,
+          usedAt: '2026-05-05T10:00:00.000Z',
+          usageQuantity: '3',
+          lifeDelta: '3',
+          lifeUnit: 'CASTING_CYCLE',
+          productionSpecRef: null,
+          productionUnitRef: null,
+          traceSubjectRef: null,
+          operatorRef: {
+            operatorId: 'operator-1'
+          },
+          captureSource: 'web',
+          auditRef: {
+            auditId: 'audit-1',
+            commandId: 'cmd-1',
+            reason: 'test'
+          },
+          moldDesignOutputId: null,
+          moldDesignOutputOptionId: null
+        }
+      ],
+      moldLifeCounters: [
+        {
+          moldLifeCounterId: 'life-1',
+          tenantId: 'tenant-1',
+          orgId: 'org-1',
+          productionMoldId: 'mold-1',
+          lifeUnit: 'CASTING_CYCLE',
+          usedValue: '3',
+          limitValue: '1000',
+          warningThresholdValue: null,
+          lastUsageRecordId: 'usage-1',
+          lastAdjustedAt: null,
+          lastAdjustedByRef: null,
+          adjustmentReason: null,
+          updatedAt: '2026-05-05T10:00:00.000Z'
+        }
+      ]
+    })
+    const controller = new MesManagementGrpcController(
+      {
+        recordMoldUsageBatch
+      } as never,
+      createRequestContextStore() as never
+    )
+
+    const response = await controller.recordMoldUsageBatch({
+      ...buildManagementContext(),
+      workCenterRef: {
+        workCenterId: 'wc-1'
+      },
+      usedAt: '2026-05-05T10:00:00.000Z',
+      lifeUnit: 'CASTING_CYCLE',
+      captureSource: 'web',
+      lines: [
+        {
+          isSubmitted: true,
+          productionMoldId: 'mold-1',
+          toolingInstallationId: 'install-1',
+          usageQuantity: '3'
+        },
+        {
+          isSubmitted: false,
+          productionMoldId: 'mold-2',
+          toolingInstallationId: 'install-2',
+          usageQuantity: ''
+        }
+      ]
+    })
+
+    expect(recordMoldUsageBatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workCenterRef: expect.objectContaining({ workCenterId: 'wc-1' }),
+        lines: [
+          expect.objectContaining({
+            isSubmitted: true,
+            productionMoldId: 'mold-1',
+            toolingInstallationId: 'install-1',
+            usageQuantity: '3'
+          }),
+          expect.objectContaining({ isSubmitted: false })
+        ]
+      })
+    )
+    expect(response.moldUsageRecords?.[0]?.lifeDelta).toBe('3')
+  })
+
+  it('MarkProductionMoldForScrap / should expose the two-step scrap command', async () => {
+    const markProductionMoldForScrap = jest.fn().mockResolvedValue({
+      productionMold: {
+        ...productionMoldRecord(),
+        currentStatus: 'SCRAP_PENDING',
+        currentInstallationSummary: toolingInstallationRecord()
+      }
+    })
+    const controller = new MesManagementGrpcController(
+      {
+        markProductionMoldForScrap
+      } as never,
+      createRequestContextStore() as never
+    )
+
+    const response = await controller.markProductionMoldForScrap({
+      ...buildManagementContext(),
+      productionMoldId: 'mold-1',
+      markedAt: '2026-05-05T11:00:00.000Z'
+    })
+
+    expect(markProductionMoldForScrap).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productionMoldId: 'mold-1',
+        markedAt: '2026-05-05T11:00:00.000Z'
+      })
+    )
+    expect(response.productionMold?.currentStatus).toBe(ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_SCRAP_PENDING)
   })
 
   it('ListProductionMolds / should expose the tenant-wide production mold directory', async () => {
