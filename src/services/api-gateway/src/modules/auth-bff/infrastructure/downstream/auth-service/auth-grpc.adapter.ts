@@ -42,6 +42,7 @@ import {
   GetPlatformDefaultTerminalMfaPolicyResponse,
   GetPlatformTerminalLoginPolicyResponse,
   GetTenantTerminalMfaPolicyResponse,
+  HandleTerminalDeviceUnavailableResponse,
   ListLoginMethodsResponse,
   ListMfaBindingsResponse,
   ListLoginHistoryResponse,
@@ -807,6 +808,29 @@ export class AuthGrpcAdapter implements OnModuleInit {
     return this.call(
       'adminRevokeSession',
       this.svc.adminRevokeSession({ sessionId, reason }, this.operatorMetadata(source))
+    )
+  }
+
+  handleTerminalDeviceUnavailable(
+    request: {
+      terminal: string
+      terminalDeviceId: string
+      deviceBoundTenantId: string
+      reasonCode: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<HandleTerminalDeviceUnavailableResponse> {
+    return this.call(
+      'handleTerminalDeviceUnavailable',
+      this.svc.handleTerminalDeviceUnavailable(
+        {
+          terminal: request.terminal,
+          terminalDeviceId: request.terminalDeviceId,
+          deviceBoundTenantId: request.deviceBoundTenantId,
+          reasonCode: request.reasonCode
+        },
+        this.metadata(source)
+      )
     )
   }
 

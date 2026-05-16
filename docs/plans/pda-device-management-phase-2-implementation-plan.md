@@ -558,7 +558,7 @@ Expected: PDA BFF tests pass.
 - Add module registration in API Gateway root module
 - Add tests for controller/use cases/DTOs
 
-- [ ] **Step 1: Add adapters**
+- [x] **Step 1: Add adapters**
 
 Adapters:
 
@@ -566,7 +566,7 @@ Adapters:
 - auth-service session query/revoke adapter
 - permission-service authorization path using existing gateway guard/pattern
 
-- [ ] **Step 2: Write failing tests for enrollment management endpoints**
+- [x] **Step 2: Write failing tests for enrollment management endpoints**
 
 Cover:
 
@@ -574,7 +574,7 @@ Cover:
 - revoke enrollment requires reason;
 - list enrollment maps service response.
 
-- [ ] **Step 3: Implement enrollment endpoints**
+- [x] **Step 3: Implement enrollment endpoints**
 
 Endpoints:
 
@@ -582,7 +582,7 @@ Endpoints:
 - `GET /admin/terminal-devices/enrollments`
 - `POST /admin/terminal-devices/enrollments/{enrollmentId}/revoke`
 
-- [ ] **Step 4: Write failing tests for device list/detail/status**
+- [x] **Step 4: Write failing tests for device list/detail/status**
 
 Cover:
 
@@ -591,7 +591,7 @@ Cover:
 - status change returns session revoke result;
 - `DECOMMISSIONED` is represented as terminal state.
 
-- [ ] **Step 5: Implement device endpoints**
+- [x] **Step 5: Implement device endpoints**
 
 Endpoints:
 
@@ -600,7 +600,7 @@ Endpoints:
 - `PATCH /admin/terminal-devices/{terminalDeviceId}`
 - `PATCH /admin/terminal-devices/{terminalDeviceId}/status`
 
-- [ ] **Step 6: Add version policy and audit endpoints**
+- [x] **Step 6: Add version policy and audit endpoints**
 
 Endpoints:
 
@@ -608,7 +608,7 @@ Endpoints:
 - `PUT /admin/terminal-devices/version-policy`
 - `GET /admin/terminal-devices/{terminalDeviceId}/audit-events`
 
-- [ ] **Step 7: Run API Gateway admin tests**
+- [x] **Step 7: Run API Gateway admin tests**
 
 Run:
 

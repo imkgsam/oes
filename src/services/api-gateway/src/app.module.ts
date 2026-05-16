@@ -15,6 +15,7 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
 import { GatewaySessionAuthGuard } from './common/guards/gateway-session-auth.guard'
 import { AuthBffModule } from './modules/auth-bff/auth-bff.module'
 import { PdaBffModule } from './modules/pda-bff/pda-bff.module'
+import { TerminalDeviceAdminBffModule } from './modules/terminal-device-admin-bff/terminal-device-admin-bff.module'
 import { CrmServiceProxyModule } from './modules/crm-service/crm-service.module'
 import { FinanceServiceProxyModule } from './modules/finance-service/finance-service.module'
 import { HrServiceProxyModule } from './modules/hr-service/hr-service.module'
@@ -169,6 +170,15 @@ export function resolveMesGrpcUrl() {
           packageName: 'tenant_org_service',
           url: resolveTenantOrgGrpcUrl()
         },
+        [SERVICE_NAMES.TERMINAL_DEVICE]: {
+          serviceName: SERVICE_NAMES.TERMINAL_DEVICE,
+          protoPath: resolveCommonProtoPath('terminal_device_service/terminal_device.proto'),
+          packageName: 'terminal_device_service',
+          url:
+            process.env.TERMINAL_DEVICE_SERVICE_HOST && process.env.TERMINAL_DEVICE_SERVICE_PORT
+              ? `${process.env.TERMINAL_DEVICE_SERVICE_HOST}:${process.env.TERMINAL_DEVICE_SERVICE_PORT}`
+              : 'localhost:50057'
+        },
         [SERVICE_NAMES.WMS]: {
           serviceName: SERVICE_NAMES.WMS,
           protoPath: resolveCommonProtoPath('wms_service/wms.proto'),
@@ -209,6 +219,7 @@ export function resolveMesGrpcUrl() {
     HealthModule,
     AuthBffModule,
     PdaBffModule,
+    TerminalDeviceAdminBffModule,
     CrmServiceProxyModule,
     FinanceServiceProxyModule,
     HrServiceProxyModule,
