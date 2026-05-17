@@ -185,4 +185,40 @@ describe('PrismaPermissionRepository L2', () => {
 
     expect(result).toBe(true)
   })
+
+  it('删除权限前检查 / 当存在 PolicyInstance 关联时 / 应识别为禁止删除', async () => {
+    const permission = await repository.save(
+      new Permission(
+        randomUUID(),
+        `${prefix}_permission_policy_instance_ref`,
+        PermissionModule.PERMISSION_SERVICE,
+        'permission referenced by policy instance'
+      )
+    )
+
+    await prisma.policyInstance.create({
+      data: {
+        id: randomUUID(),
+        tenantId: `${prefix}_tenant`,
+        subjectSelectorType: 'ACCOUNT',
+        subjectSelectorValue: `${prefix}_account`,
+        permissionCode: permission.code,
+        resourceType: 'item',
+        templateCode: 'resource-field-in-set',
+        effect: 'ALLOW',
+        params: {
+          field: 'categoryId',
+          allowedValues: [`${prefix}_category`]
+        },
+        priority: 0,
+        isEnabled: true,
+        createdBy: `${prefix}_operator`,
+        updatedBy: `${prefix}_operator`
+      }
+    })
+
+    const result = await repository.hasAttachedPolicyInstances(permission.code)
+
+    expect(result).toBe(true)
+  })
 })

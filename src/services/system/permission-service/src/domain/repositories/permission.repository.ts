@@ -15,6 +15,7 @@ export interface PermissionRepository {
   findByCodes(codes: string[]): Promise<Permission[]>
   hasAssignedRoles(permissionId: string): Promise<boolean>
   hasAttachedPolicies(permissionCode: string): Promise<boolean>
+  hasAttachedPolicyInstances(permissionCode: string): Promise<boolean>
   createMany(permissions: Permission[]): Promise<Permission[]>
   save(permission: Permission): Promise<Permission>
   delete(id: string): Promise<Permission | null>

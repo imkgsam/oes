@@ -16,6 +16,10 @@ import {
 } from './policy-instance-foundation'
 import { BuiltInRoleSeed, buildBuiltInRoleSeeds, validateBuiltInRoleSeedDefinitions } from './role-foundation'
 
+export type PermissionServiceSeedOptions = {
+  includeSmokePolicyInstances?: boolean
+}
+
 export type PermissionServiceRolePermissionSeed = {
   permissionCode: string
   roleCode: string
@@ -55,7 +59,9 @@ export type PermissionServiceSeedDryRunSummary = {
 }
 
 /** buildPermissionServiceSeed returns the full permission-service seed source without touching the database. */
-export function buildPermissionServiceSeed(): PermissionServiceSeed {
+export function buildPermissionServiceSeed(
+  options: PermissionServiceSeedOptions = {}
+): PermissionServiceSeed {
   const roles = buildBuiltInRoleSeeds()
 
   return {
@@ -63,7 +69,7 @@ export function buildPermissionServiceSeed(): PermissionServiceSeed {
     deprecatedPermissionCodes: DEPRECATED_PERMISSION_CODES,
     navigationEntries: DEFAULT_NAVIGATION_ENTRIES,
     permissionCodes: PERMISSION_CODE_SEED_ITEMS,
-    policyInstances: buildPolicyInstanceFoundationSeeds(),
+    policyInstances: options.includeSmokePolicyInstances ? buildPolicyInstanceFoundationSeeds() : [],
     roleLandingPolicies: buildNavigationFoundationLandingSeeds(roles),
     roleNavigationVisibility: buildNavigationFoundationVisibilitySeeds(roles),
     rolePermissions: roles.flatMap((role) =>

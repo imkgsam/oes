@@ -88,6 +88,11 @@ export class PrismaPermissionRepository implements PermissionRepository {
     return count > 0
   }
 
+  async hasAttachedPolicyInstances(permissionCode: string): Promise<boolean> {
+    const count = await this.prisma.policyInstance.count({ where: { permissionCode } })
+    return count > 0
+  }
+
   async save(permission: Permission): Promise<Permission> {
     const data = PermissionMapper.toPersistant(permission)
     const saved = await this.prisma.permission.upsert({

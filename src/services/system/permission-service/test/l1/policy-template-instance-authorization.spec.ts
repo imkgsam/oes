@@ -96,6 +96,95 @@ describe('PolicyTemplateInstanceAuthorizationService', () => {
     expect(result.trace?.evaluatedPolicyIds).toEqual(['invalid-template'])
   })
 
+  it('checkResource / other account invalid template / 不应影响当前账号', async () => {
+    const result = await service([
+      policy({
+        id: 'current-account-valid',
+        params: {
+          field: 'categoryId',
+          allowedValues: ['raw-material']
+        }
+      }),
+      policy({
+        id: 'other-account-invalid-template',
+        subjectSelector: {
+          type: 'ACCOUNT',
+          accountId: 'account-2'
+        },
+        templateCode: 'tenant-custom-script'
+      })
+    ]).checkResource({
+      subject,
+      permissionCode: 'procurement.purchase.create',
+      resource: {
+        tenantId: 'tenant-1',
+        resourceType: 'item',
+        categoryId: 'raw-material'
+      }
+    })
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        allowed: true,
+        reasonCode: 'POLICY_ALLOW_MATCHED',
+        matchedPolicyIds: ['current-account-valid']
+      })
+    )
+    expect(result.trace?.skippedPolicyIds).toEqual(['other-account-invalid-template'])
+  })
+
+  it('checkResource / other role invalid template / 只有 role 命中时才影响当前账号', async () => {
+    const authz = service([
+      policy({
+        id: 'account-valid',
+        params: {
+          field: 'categoryId',
+          allowedValues: ['raw-material']
+        }
+      }),
+      policy({
+        id: 'other-role-invalid-template',
+        subjectSelector: {
+          type: 'ROLE',
+          roleId: 'finance-role'
+        },
+        templateCode: 'tenant-custom-script'
+      })
+    ])
+
+    await expect(
+      authz.checkResource({
+        subject,
+        permissionCode: 'procurement.purchase.create',
+        resource: {
+          tenantId: 'tenant-1',
+          resourceType: 'item',
+          categoryId: 'raw-material'
+        }
+      })
+    ).resolves.toEqual(expect.objectContaining({ allowed: true }))
+
+    await expect(
+      authz.checkResource({
+        subject: {
+          ...subject,
+          roleIds: ['buyer-role', 'finance-role']
+        },
+        permissionCode: 'procurement.purchase.create',
+        resource: {
+          tenantId: 'tenant-1',
+          resourceType: 'item',
+          categoryId: 'raw-material'
+        }
+      })
+    ).resolves.toEqual(
+      expect.objectContaining({
+        allowed: false,
+        reasonCode: 'POLICY_TEMPLATE_NOT_FOUND'
+      })
+    )
+  })
+
   it('checkResource / ACCOUNT resource-field-in-set / 应允许命中值并拒绝未命中值', async () => {
     const authz = service([
       policy({

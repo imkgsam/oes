@@ -23,12 +23,13 @@ export class DeletePermissionHandler implements ICommandHandler<DeletePermission
       throw ExceptionFactory.domain(PERMISSION_NOT_FOUND)
     }
 
-    const [hasAssignedRoles, hasAttachedPolicies] = await Promise.all([
+    const [hasAssignedRoles, hasAttachedPolicies, hasAttachedPolicyInstances] = await Promise.all([
       this.permissionRepo.hasAssignedRoles(command.id),
-      this.permissionRepo.hasAttachedPolicies(existing.code)
+      this.permissionRepo.hasAttachedPolicies(existing.code),
+      this.permissionRepo.hasAttachedPolicyInstances(existing.code)
     ])
 
-    if (hasAssignedRoles || hasAttachedPolicies) {
+    if (hasAssignedRoles || hasAttachedPolicies || hasAttachedPolicyInstances) {
       throw ExceptionFactory.domain(PERMISSION_DELETE_FORBIDDEN)
     }
 

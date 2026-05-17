@@ -68,12 +68,7 @@ describe('permission service seed source', () => {
     expect(seed.roleNavigationVisibility).toHaveLength(28)
     expect(seed.roleLandingPolicies).toHaveLength(6)
     expect(seed.roleTerminalAccess).toHaveLength(6)
-    expect(seed.policyInstances).toHaveLength(3)
-    expect(seed.policyInstances.map((policy) => policy.templateCode)).toEqual([
-      'resource-field-matches-subject-field',
-      'resource-field-matches-subject-field',
-      'resource-field-in-set'
-    ])
+    expect(seed.policyInstances).toHaveLength(0)
   })
 
   it('renders a stable dry-run summary for audit output', () => {
@@ -87,7 +82,7 @@ describe('permission service seed source', () => {
       roleNavigationVisibilityCount: 28,
       roleLandingPolicyCount: 6,
       roleTerminalAccessCount: 6,
-      policyInstanceCount: 3
+      policyInstanceCount: 0
     })
   })
 

@@ -14,6 +14,7 @@ describe('ListPermissionsPagedHandler', () => {
     findByCodes: jest.fn(),
     hasAssignedRoles: jest.fn(),
     hasAttachedPolicies: jest.fn(),
+    hasAttachedPolicyInstances: jest.fn(),
     createMany: jest.fn(),
     save: jest.fn(),
     delete: jest.fn()

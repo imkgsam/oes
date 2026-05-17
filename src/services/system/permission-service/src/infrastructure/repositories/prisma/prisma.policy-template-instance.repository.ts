@@ -11,10 +11,9 @@ import { PrismaService } from '../../prisma/prisma.service'
 /** PrismaPolicyTemplateInstanceRepository persists template-based policy instances separately from legacy AST policies. */
 @Injectable()
 export class PrismaPolicyTemplateInstanceRepository implements PolicyTemplateInstanceRepository {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly registry = new BuiltInPolicyTemplateRegistry()
-  ) {}
+  private readonly registry = new BuiltInPolicyTemplateRegistry()
+
+  constructor(private readonly prisma: PrismaService) {}
 
   /** findById loads one policy template instance by stable id. */
   async findById(id: string): Promise<PolicyInstance | null> {

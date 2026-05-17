@@ -37,10 +37,9 @@ interface RelevantPolicies {
 
 /** PolicyTemplateInstanceAuthorizationService evaluates first-stage policy instances for resource checks and query scopes. */
 export class PolicyTemplateInstanceAuthorizationService {
-  constructor(
-    private readonly policyInstanceReader: PolicyInstanceReader,
-    private readonly registry = new BuiltInPolicyTemplateRegistry()
-  ) {}
+  private readonly registry = new BuiltInPolicyTemplateRegistry()
+
+  constructor(private readonly policyInstanceReader: PolicyInstanceReader) {}
 
   /** checkResource evaluates enabled policy instances against caller-provided resource facts. */
   async checkResource(request: CheckResourceRequest): Promise<CheckResourceResult> {
@@ -52,7 +51,7 @@ export class PolicyTemplateInstanceAuthorizationService {
       return this.allowWithoutPolicy(evaluatedPolicyIds, selected.skippedPolicyIds)
     }
 
-    const missingTemplate = selected.relevant.find((policy) => !this.registry.get(policy.templateCode))
+    const missingTemplate = selected.applicable.find((policy) => !this.registry.get(policy.templateCode))
     if (missingTemplate) {
       return this.deny('POLICY_TEMPLATE_NOT_FOUND', evaluatedPolicyIds, [], [], selected.skippedPolicyIds)
     }
@@ -123,7 +122,7 @@ export class PolicyTemplateInstanceAuthorizationService {
       }
     }
 
-    const missingTemplate = selected.relevant.find((policy) => !this.registry.get(policy.templateCode))
+    const missingTemplate = selected.applicable.find((policy) => !this.registry.get(policy.templateCode))
     if (missingTemplate) {
       return this.denyQueryScope(
         'POLICY_TEMPLATE_NOT_FOUND',

@@ -107,14 +107,7 @@ describe('permission service seed writer', () => {
     expect(prisma.policyInstance.deleteMany).toHaveBeenCalledWith({
       where: { id: { in: seed.policyInstances.map((policy) => policy.id) } }
     })
-    expect(prisma.policyInstance.createMany).toHaveBeenCalledWith({
-      data: seed.policyInstances.map((policy) => expect.objectContaining({
-        id: policy.id,
-        templateCode: policy.templateCode,
-        permissionCode: policy.permissionCode
-      })),
-      skipDuplicates: true
-    })
+    expect(prisma.policyInstance.createMany).not.toHaveBeenCalled()
   })
 
   it('backfills built-in tenant role instance navigation during seed apply', async () => {
