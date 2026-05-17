@@ -1,4 +1,45 @@
-import { resolveMesGrpcUrl, resolveTenantOrgGrpcUrl } from './app.module'
+import { resolveAuthGrpcUrl, resolveMesGrpcUrl, resolveTenantOrgGrpcUrl } from './app.module'
+
+describe('resolveAuthGrpcUrl', () => {
+  const originalHost = process.env.AUTH_SERVICE_HOST
+  const originalPort = process.env.AUTH_SERVICE_PORT
+  const originalNodeEnv = process.env.NODE_ENV
+
+  afterEach(() => {
+    if (originalHost === undefined) {
+      delete process.env.AUTH_SERVICE_HOST
+    } else {
+      process.env.AUTH_SERVICE_HOST = originalHost
+    }
+
+    if (originalPort === undefined) {
+      delete process.env.AUTH_SERVICE_PORT
+    } else {
+      process.env.AUTH_SERVICE_PORT = originalPort
+    }
+
+    if (originalNodeEnv === undefined) {
+      delete process.env.NODE_ENV
+    } else {
+      process.env.NODE_ENV = originalNodeEnv
+    }
+  })
+
+  it('normalizes localhost to the IPv4 loopback endpoint', () => {
+    process.env.NODE_ENV = 'development'
+    process.env.AUTH_SERVICE_HOST = 'localhost'
+    process.env.AUTH_SERVICE_PORT = '50050'
+
+    expect(resolveAuthGrpcUrl()).toBe('127.0.0.1:50050')
+  })
+
+  it('uses the explicit auth endpoint when a non-localhost host and port are provided', () => {
+    process.env.AUTH_SERVICE_HOST = '10.0.0.50'
+    process.env.AUTH_SERVICE_PORT = '56050'
+
+    expect(resolveAuthGrpcUrl()).toBe('10.0.0.50:56050')
+  })
+})
 
 describe('resolveTenantOrgGrpcUrl', () => {
   const originalHost = process.env.TENANT_ORG_SERVICE_HOST

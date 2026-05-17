@@ -1,4 +1,4 @@
-import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
+import { Inject, Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { CommandBus } from '@nestjs/cqrs'
 import Redis from 'ioredis'
 import {
@@ -6,6 +6,7 @@ import {
   TerminalDeviceUnavailableEvent
 } from '../../application/events/terminal-device-unavailable.event'
 import { HandleTerminalDeviceUnavailableCommand } from '../../application/commands/auth'
+import { TERMINAL_DEVICE_UNAVAILABLE_REDIS_CLIENT } from '../../common/constants/injection-tokens'
 
 @Injectable()
 // TerminalDeviceUnavailableSubscriber consumes cross-process terminal-device unavailable facts and dispatches auth cleanup.
@@ -14,16 +15,10 @@ export class TerminalDeviceUnavailableSubscriber implements OnModuleInit, OnModu
 
   constructor(
     private readonly commandBus: CommandBus,
-    redis?: Redis
+    @Inject(TERMINAL_DEVICE_UNAVAILABLE_REDIS_CLIENT)
+    redis: Redis
   ) {
-    this.redis =
-      redis ??
-      new Redis({
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-        password: process.env.REDIS_PASSWORD,
-        db: parseInt(process.env.REDIS_DB || '0')
-      })
+    this.redis = redis
   }
 
   async onModuleInit(): Promise<void> {

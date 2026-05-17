@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { CqrsModule } from '@nestjs/cqrs'
 import { EventEmitterModule } from '@nestjs/event-emitter'
+import Redis from 'ioredis'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { CommonJwtModule } from '@oes/common/auth'
 import {
@@ -10,7 +11,11 @@ import {
   AuthorizationModule
 } from '@oes/common/authorization'
 import { REPO } from '../../common/constants'
-import { HASHING_SERVICE, NOTIFICATION_DISPATCH_PORT } from '../../common/constants/injection-tokens'
+import {
+  HASHING_SERVICE,
+  NOTIFICATION_DISPATCH_PORT,
+  TERMINAL_DEVICE_UNAVAILABLE_REDIS_CLIENT
+} from '../../common/constants/injection-tokens'
 import {
   AdminUserSessionQueryScopeBuilder,
   AuditEventQueryScopeBuilder,
@@ -99,6 +104,16 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     { provide: REPO.LOGIN_RISK, useClass: RedisLoginRiskRepository },
     { provide: REPO.OTP_SEND_THROTTLE, useClass: RedisOtpSendThrottleRepository },
     { provide: REPO.SESSION, useClass: RedisUserSessionRepository },
+    {
+      provide: TERMINAL_DEVICE_UNAVAILABLE_REDIS_CLIENT,
+      useFactory: () =>
+        new Redis({
+          host: process.env.REDIS_HOST || 'localhost',
+          port: parseInt(process.env.REDIS_PORT || '6379', 10),
+          password: process.env.REDIS_PASSWORD,
+          db: parseInt(process.env.REDIS_DB || '0', 10)
+        })
+    },
     { provide: HASHING_SERVICE, useClass: BcryptHashingService },
     {
       provide: NOTIFICATION_DISPATCH_PORT,

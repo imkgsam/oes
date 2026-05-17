@@ -38,11 +38,28 @@ export function resolveTenantOrgGrpcUrl() {
     : '127.0.0.1:50054'
 }
 
+/** resolveAuthGrpcUrl avoids localhost IPv6 ambiguity for the local auth-service endpoint. */
+export function resolveAuthGrpcUrl() {
+  const host = process.env.AUTH_SERVICE_HOST?.trim()
+  const port = process.env.AUTH_SERVICE_PORT?.trim()
+
+  if (host && port) {
+    return `${normalizeLocalhostGrpcHost(host)}:${port}`
+  }
+
+  return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50050' : undefined
+}
+
 /** resolveMesGrpcUrl centralizes the local MES fallback endpoint used by api-gateway. */
 export function resolveMesGrpcUrl() {
   return process.env.MES_SERVICE_HOST && process.env.MES_SERVICE_PORT
     ? `${process.env.MES_SERVICE_HOST}:${process.env.MES_SERVICE_PORT}`
     : 'localhost:50065'
+}
+
+/** normalizeLocalhostGrpcHost maps local gRPC clients to IPv4 when services bind IPv4-only sockets. */
+function normalizeLocalhostGrpcHost(host: string) {
+  return host === 'localhost' ? '127.0.0.1' : host
 }
 
 @Module({
@@ -58,10 +75,7 @@ export function resolveMesGrpcUrl() {
           serviceName: SERVICE_NAMES.AUTH,
           protoPath: resolveCommonProtoPath('auth_service/auth.proto'),
           packageName: 'auth_service',
-          url:
-            process.env.AUTH_SERVICE_HOST && process.env.AUTH_SERVICE_PORT
-              ? `${process.env.AUTH_SERVICE_HOST}:${process.env.AUTH_SERVICE_PORT}`
-              : undefined
+          url: resolveAuthGrpcUrl()
         },
         [SERVICE_NAMES.ASSET]: {
           serviceName: SERVICE_NAMES.ASSET,
