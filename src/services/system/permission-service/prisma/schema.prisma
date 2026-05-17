@@ -70,8 +70,9 @@ model Permission {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  roles    RolePermission[]
-  policies Policy[]
+  roles           RolePermission[]
+  policies        Policy[]
+  policyInstances PolicyInstance[]
 }
 
 model RolePermission {
@@ -191,6 +192,29 @@ model Policy {
   @@index([subjectType, subjectId])
 }
 
+model PolicyInstance {
+  id                   String                            @id @default(uuid())
+  tenantId             String
+  subjectSelectorType  PolicyInstanceSubjectSelectorType
+  subjectSelectorValue String?
+  permissionCode       String
+  permission           Permission                        @relation(fields: [permissionCode], references: [code])
+  resourceType         String?
+  templateCode         String
+  effect               PolicyEffect
+  params               Json
+  priority             Int                               @default(0)
+  isEnabled            Boolean                           @default(true)
+  createdBy            String
+  updatedBy            String
+  createdAt            DateTime                          @default(now())
+  updatedAt            DateTime                          @updatedAt
+
+  @@index([tenantId, permissionCode, isEnabled])
+  @@index([subjectSelectorType, subjectSelectorValue])
+  @@index([templateCode])
+}
+
 model AuditEvent {
   id           String   @id
   service      String
@@ -283,6 +307,12 @@ enum PolicySubjectType {
   ROLE
   ACCOUNT
   ANY
+}
+
+enum PolicyInstanceSubjectSelectorType {
+  ROLE
+  ACCOUNT
+  TENANT_WIDE
 }
 
 enum EvaluationMode {

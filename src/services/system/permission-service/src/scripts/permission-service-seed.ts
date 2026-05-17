@@ -9,6 +9,11 @@ import {
   PERMISSION_CODE_SEED_ITEMS,
   PermissionSeedItem
 } from './permission-catalog'
+import { BuiltInPolicyTemplateRegistry } from '../application/authorization/resource-policy'
+import {
+  PolicyInstanceFoundationSeed,
+  buildPolicyInstanceFoundationSeeds
+} from './policy-instance-foundation'
 import { BuiltInRoleSeed, buildBuiltInRoleSeeds, validateBuiltInRoleSeedDefinitions } from './role-foundation'
 
 export type PermissionServiceRolePermissionSeed = {
@@ -28,6 +33,7 @@ export type PermissionServiceSeed = {
   deprecatedPermissionCodes: readonly string[]
   navigationEntries: typeof DEFAULT_NAVIGATION_ENTRIES
   permissionCodes: PermissionSeedItem[]
+  policyInstances: PolicyInstanceFoundationSeed[]
   roleLandingPolicies: ReturnType<typeof buildNavigationFoundationLandingSeeds>
   roleNavigationVisibility: ReturnType<typeof buildNavigationFoundationVisibilitySeeds>
   rolePermissions: PermissionServiceRolePermissionSeed[]
@@ -45,6 +51,7 @@ export type PermissionServiceSeedDryRunSummary = {
   roleNavigationVisibilityCount: number
   rolePermissionCount: number
   roleTerminalAccessCount: number
+  policyInstanceCount: number
 }
 
 /** buildPermissionServiceSeed returns the full permission-service seed source without touching the database. */
@@ -56,6 +63,7 @@ export function buildPermissionServiceSeed(): PermissionServiceSeed {
     deprecatedPermissionCodes: DEPRECATED_PERMISSION_CODES,
     navigationEntries: DEFAULT_NAVIGATION_ENTRIES,
     permissionCodes: PERMISSION_CODE_SEED_ITEMS,
+    policyInstances: buildPolicyInstanceFoundationSeeds(),
     roleLandingPolicies: buildNavigationFoundationLandingSeeds(roles),
     roleNavigationVisibility: buildNavigationFoundationVisibilitySeeds(roles),
     rolePermissions: roles.flatMap((role) =>
@@ -78,6 +86,7 @@ export function buildPermissionServiceSeed(): PermissionServiceSeed {
 export function validatePermissionServiceSeed(seed: PermissionServiceSeed): string[] {
   const errors = [...validateBuiltInRoleSeedDefinitions()]
   const permissionCodes = new Set<string>()
+  const templateCodes = new Set(new BuiltInPolicyTemplateRegistry().list().map((template) => template.code))
   const roleIds = new Set(seed.roles.map((role) => role.id))
   const navigationEntryKeys = new Set(seed.navigationEntries.map((entry) => entry.entryKey))
   const visibleEntryKeys = new Set(
@@ -125,6 +134,30 @@ export function validatePermissionServiceSeed(seed: PermissionServiceSeed): stri
     }
   }
 
+  const policyInstanceIds = new Set<string>()
+  for (const policyInstance of seed.policyInstances) {
+    if (policyInstanceIds.has(policyInstance.id)) {
+      errors.push(`Duplicate policy instance id: ${policyInstance.id}`)
+    }
+    policyInstanceIds.add(policyInstance.id)
+
+    if (!permissionCodes.has(policyInstance.permissionCode)) {
+      errors.push(`Policy instance ${policyInstance.id} references unknown permission ${policyInstance.permissionCode}`)
+    }
+    if (!templateCodes.has(policyInstance.templateCode)) {
+      errors.push(`Policy instance ${policyInstance.id} references unknown template ${policyInstance.templateCode}`)
+    }
+    if (
+      policyInstance.subjectSelector.type === 'ACCOUNT' &&
+      !policyInstance.subjectSelector.accountId
+    ) {
+      errors.push(`Policy instance ${policyInstance.id} ACCOUNT selector is missing accountId`)
+    }
+    if (policyInstance.subjectSelector.type === 'ROLE' && !policyInstance.subjectSelector.roleId) {
+      errors.push(`Policy instance ${policyInstance.id} ROLE selector is missing roleId`)
+    }
+  }
+
   for (const visibility of seed.roleNavigationVisibility) {
     if (!roleIds.has(visibility.roleId)) {
       errors.push(`Navigation visibility references unknown roleId ${visibility.roleId}`)
@@ -169,7 +202,8 @@ export function renderPermissionServiceSeedDryRunSummary(
     deprecatedNavigationEntryCount: seed.deprecatedNavigationEntryKeys.length,
     roleNavigationVisibilityCount: seed.roleNavigationVisibility.length,
     roleLandingPolicyCount: seed.roleLandingPolicies.length,
-    roleTerminalAccessCount: seed.roleTerminalAccess.length
+    roleTerminalAccessCount: seed.roleTerminalAccess.length,
+    policyInstanceCount: seed.policyInstances.length
   }
 }
 

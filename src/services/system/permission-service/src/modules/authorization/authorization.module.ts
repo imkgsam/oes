@@ -13,6 +13,11 @@ import { AccountAuthorizationService } from '../../domain/services/account-autho
 import { NavigationResolverService } from '../../domain/services/navigation-resolver.service'
 import { TerminalAccessResolverService } from '../../domain/services/terminal-access-resolver.service'
 import { PolicyEngine } from '../../domain/services/policy-engine'
+import {
+  PolicyTemplateInstanceAuthorizationService,
+  PolicyTemplateInstanceReader
+} from '../../application/authorization/resource-policy'
+import { ResourceAuthorizationService } from '../../application/authorization/resource-authorization.service'
 import { PermissionAccessSummaryGrpcController } from '../../interfaces/grpc/permission-access-summary.grpc.controller'
 import { PermissionCheckGrpcController } from '../../interfaces/grpc/permission-check.grpc.controller'
 import { PermissionTerminalAccessGrpcController } from '../../interfaces/grpc/permission-terminal-access.grpc.controller'
@@ -24,6 +29,19 @@ import { PermissionAuditModule } from '../audit/permission-audit.module'
     PolicyEngine,
     NavigationResolverService,
     TerminalAccessResolverService,
+    {
+      provide: PolicyTemplateInstanceReader,
+      useFactory: (policyTemplateInstanceRepo: any) =>
+        new PolicyTemplateInstanceReader(policyTemplateInstanceRepo),
+      inject: [SYMBOLS.REPO.POLICY_TEMPLATE_INSTANCE]
+    },
+    {
+      provide: PolicyTemplateInstanceAuthorizationService,
+      useFactory: (reader: PolicyTemplateInstanceReader) =>
+        new PolicyTemplateInstanceAuthorizationService(reader),
+      inject: [PolicyTemplateInstanceReader]
+    },
+    ResourceAuthorizationService,
     {
       provide: ACCOUNT_AUTHORIZATION_SERVICE,
       useFactory: (roleRepo: any, permRepo: any, policyRepo: any, engine: PolicyEngine) =>
@@ -39,6 +57,7 @@ import { PermissionAuditModule } from '../audit/permission-audit.module'
     PermissionCheckGrpcController,
     PermissionAccessSummaryGrpcController,
     PermissionTerminalAccessGrpcController
-  ]
+  ],
+  exports: [ResourceAuthorizationService]
 })
 export class AuthorizationModule {}

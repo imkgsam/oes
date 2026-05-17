@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common'
 import { CqrsModule } from '@nestjs/cqrs'
 import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { PrismaPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.policy.repository'
+import { PrismaPolicyTemplateInstanceRepository } from '../../infrastructure/repositories/prisma/prisma.policy-template-instance.repository'
 import { SYMBOLS } from '../../common/constants/symbols'
 import { ValidatingCommandBus, ValidatingQueryBus } from '@oes/common/cqrs'
 import { PolicyCommandHandlers } from '../../application/commands/policy'
@@ -18,12 +19,16 @@ import { PermissionAuditModule } from '../audit/permission-audit.module'
       provide: SYMBOLS.REPO.POLICY,
       useClass: PrismaPolicyRepository
     },
+    {
+      provide: SYMBOLS.REPO.POLICY_TEMPLATE_INSTANCE,
+      useClass: PrismaPolicyTemplateInstanceRepository
+    },
     ValidatingCommandBus,
     ValidatingQueryBus,
     ...PolicyCommandHandlers,
     ...PolicyQueryHandlers
   ],
   controllers: [PolicyManagementGrpcController],
-  exports: [SYMBOLS.REPO.POLICY]
+  exports: [SYMBOLS.REPO.POLICY, SYMBOLS.REPO.POLICY_TEMPLATE_INSTANCE]
 })
 export class PolicyModule {}

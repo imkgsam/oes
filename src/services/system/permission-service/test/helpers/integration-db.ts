@@ -134,6 +134,14 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
   })
 
   if (permissionCodes.length > 0) {
+    await prisma.policyInstance.deleteMany({
+      where: {
+        permissionCode: {
+          in: permissionCodes
+        }
+      }
+    })
+
     await prisma.policy.deleteMany({
       where: {
         permissionCode: {

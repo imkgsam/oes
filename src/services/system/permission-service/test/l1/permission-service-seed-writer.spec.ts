@@ -83,6 +83,10 @@ describe('permission service seed writer', () => {
       },
       roleTerminalAccess: {
         upsert: jest.fn(async () => ({}))
+      },
+      policyInstance: {
+        deleteMany: jest.fn(async () => ({})),
+        createMany: jest.fn(async () => ({}))
       }
     }
 
@@ -100,6 +104,17 @@ describe('permission service seed writer', () => {
     expect(calls.indexOf('roleLandingPolicy.deleteMany')).toBeLessThan(
       calls.indexOf('roleLandingPolicy.createMany')
     )
+    expect(prisma.policyInstance.deleteMany).toHaveBeenCalledWith({
+      where: { id: { in: seed.policyInstances.map((policy) => policy.id) } }
+    })
+    expect(prisma.policyInstance.createMany).toHaveBeenCalledWith({
+      data: seed.policyInstances.map((policy) => expect.objectContaining({
+        id: policy.id,
+        templateCode: policy.templateCode,
+        permissionCode: policy.permissionCode
+      })),
+      skipDuplicates: true
+    })
   })
 
   it('backfills built-in tenant role instance navigation during seed apply', async () => {
@@ -161,6 +176,10 @@ describe('permission service seed writer', () => {
       },
       roleTerminalAccess: {
         upsert: jest.fn(async () => ({}))
+      },
+      policyInstance: {
+        deleteMany: jest.fn(async () => ({})),
+        createMany: jest.fn(async () => ({}))
       }
     }
 

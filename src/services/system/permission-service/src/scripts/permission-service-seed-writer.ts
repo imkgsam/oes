@@ -1,4 +1,4 @@
-import { PrismaClient } from '../../prisma/generated/prisma'
+import { Prisma, PrismaClient } from '../../prisma/generated/prisma'
 import {
   PermissionServiceSeed,
   PermissionServiceSeedDryRunSummary,
@@ -6,6 +6,7 @@ import {
   renderPermissionServiceSeedDryRunSummary,
   validatePermissionServiceSeed
 } from './permission-service-seed'
+import { PolicyTemplateInstanceMapper } from '../infrastructure/mappers/policy-template-instance.mapper'
 import { syncBuiltInRoleInstanceBaselines } from './role-instance-foundation'
 
 export type PermissionServiceSeedWriterOptions = {
@@ -189,6 +190,25 @@ export async function applyPermissionServiceSeed(
       update: {
         allowedTerminals: roleTerminalAccess.allowedTerminals
       }
+    })
+  }
+
+  const policyInstanceIds = seed.policyInstances.map((policyInstance) => policyInstance.id)
+  await prisma.policyInstance.deleteMany({
+    where: {
+      id: { in: policyInstanceIds }
+    }
+  })
+  if (seed.policyInstances.length > 0) {
+    await prisma.policyInstance.createMany({
+      data: seed.policyInstances.map((policyInstance) => {
+        const data = PolicyTemplateInstanceMapper.toPersistent(policyInstance)
+        return {
+          ...data,
+          params: data.params as Prisma.InputJsonValue
+        }
+      }),
+      skipDuplicates: true
     })
   }
 
