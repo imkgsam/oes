@@ -822,6 +822,13 @@ Execution note, 2026-05-17:
 - Steps 3-7 were validated through focused automated service, BFF, PDA web, and tenant-web tests rather than a live multi-service manual smoke.
 - Step 2 remains unchecked because the working tree currently contains unrelated, uncommitted `permission-service` / policy-template work from another thread. Starting a live multi-service smoke with that dirty service would not produce clean PDA Phase 2 evidence.
 
+Live smoke note, 2026-05-17:
+
+- After policy-service implementation files were committed by their owning thread, a focused PDA device-governance live smoke was run with the existing local API Gateway on `9101` and `terminal-device-service` started on `127.0.0.1:50057`.
+- The smoke created an enrollment over `TerminalDeviceEnrollmentService.CreateEnrollment`, activated it through `POST /api/v1/pda/device/enroll`, sent PDA heartbeats through `POST /api/v1/pda/device/heartbeat`, changed status over `TerminalDeviceManagementService.ChangeTerminalDeviceStatus`, and updated version policy over `TerminalDeviceVersionPolicyService.UpsertVersionPolicy`.
+- Observed results: enrollment activated with `decisionCode=ALLOW`; active heartbeat returned `ALLOW`; `DISABLED` returned `DEVICE_DISABLED` with `shouldClearLocalSession=true`; unsupported app version returned `APP_VERSION_UNSUPPORTED` with `requiredAction=UPGRADE_APP`; `DECOMMISSIONED` returned `DEVICE_DECOMMISSIONED` with both `shouldClearLocalSession=true` and `shouldClearLocalTerminalDeviceId=true`.
+- Full live auth login smoke remains separate because it requires a known tenant account with password credentials and PDA Terminal Access Policy seed data. The login tenant-binding and auth session metadata paths remain covered by automated BFF/auth tests in this phase.
+
 ## 6. Verification Matrix
 
 | Area | Command | Expected |
