@@ -754,7 +754,7 @@ pnpm --filter auth-service prisma:push
 
 Expected: schemas apply to local database.
 
-- [ ] **Step 2: Start required services**
+- [x] **Step 2: Start required services**
 
 Start:
 
@@ -820,7 +820,7 @@ Execution note, 2026-05-17:
 
 - Schema push completed for `terminal-device-service` against local `terminaldevicedb` and for `auth-service` against local `authdb`.
 - Steps 3-7 were validated through focused automated service, BFF, PDA web, and tenant-web tests rather than a live multi-service manual smoke.
-- Step 2 remains unchecked because the working tree currently contains unrelated, uncommitted `permission-service` / policy-template work from another thread. Starting a live multi-service smoke with that dirty service would not produce clean PDA Phase 2 evidence.
+- Step 2 was later validated by the focused live smoke noted below after the unrelated policy-template work was committed by its owning thread.
 
 Live smoke note, 2026-05-17:
 
