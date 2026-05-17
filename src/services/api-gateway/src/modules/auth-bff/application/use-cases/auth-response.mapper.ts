@@ -110,9 +110,11 @@ function mapNextStep(status?: LoginStatus, passwordSetupRequired?: boolean): Aut
 function mapSession(result: {
   accessToken?: string
   allowedTerminals?: string[]
+  deviceBoundTenantId?: string
   refreshToken?: string
   expiresIn?: string
   terminal?: string
+  terminalDeviceId?: string
 }): SessionViewModel | null {
   if (!result.accessToken || !result.refreshToken) {
     return null
@@ -123,7 +125,9 @@ function mapSession(result: {
     refreshToken: result.refreshToken,
     expiresIn: Number(result.expiresIn ?? '0'),
     terminal: normalizeOptional(result.terminal),
-    allowedTerminals: normalizeStringArray(result.allowedTerminals)
+    allowedTerminals: normalizeStringArray(result.allowedTerminals),
+    terminalDeviceId: normalizeOptional(result.terminalDeviceId),
+    deviceBoundTenantId: normalizeOptional(result.deviceBoundTenantId)
   }
 }
 

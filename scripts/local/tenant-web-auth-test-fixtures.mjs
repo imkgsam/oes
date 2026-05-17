@@ -728,6 +728,66 @@ export const MANAGED_EMPLOYMENT_IDS = EMPLOYEE_FIXTURES.flatMap((employee) =>
 export const SEEDED_LOGIN_IDENTIFIERS = SEEDED_USERS.flatMap((user) => [user.email, user.phone]);
 export const SEEDED_OTP_IDENTIFIERS = [...new Set([...SEEDED_LOGIN_IDENTIFIERS, ...LEGACY_IDENTIFIERS])];
 
+// Builds the deterministic local PDA login smoke grant without broadening tenant role terminal defaults.
+export function buildPdaLoginSmokeSeed() {
+  const tenantKey = 'meilong';
+  const accountKey = 'account.chen-shuangpeng.meilong';
+  const navigationRoleCode = 'account.basic';
+  const tenant = companyByKey.get(tenantKey);
+  const account = accountByKey.get(accountKey);
+  const user = SEEDED_USERS.find((candidate) => candidate.id === account?.userId);
+  const navigationRole = buildSeedTenantRoles().find(
+    (role) => role.tenantId === tenant?.id && role.code === navigationRoleCode
+  );
+
+  if (!tenant || !account || !user || !navigationRole) {
+    throw new Error('PDA login smoke seed fixtures are incomplete.');
+  }
+
+  return {
+    key: 'pda-login-smoke',
+    tenantKey,
+    tenantId: tenant.id,
+    accountKey,
+    accountId: account.id,
+    userId: user.id,
+    identifier: user.email,
+    password: DEFAULT_PASSWORD,
+    terminal: 'PDA',
+    accountTerminalAccessOverride: {
+      accountId: account.id,
+      scopeLevel: 'TENANT',
+      tenantId: tenant.id,
+      allowedTerminals: ['WEB', 'PDA'],
+    },
+    roleNavigationVisibility: {
+      roleId: navigationRole.id,
+      entryKey: 'pda.home',
+      terminal: 'PDA',
+      enabled: true,
+    },
+    roleLandingPolicy: {
+      roleId: navigationRole.id,
+      terminal: 'PDA',
+      defaultEntryKey: 'pda.home',
+      priority: 1000,
+      enabled: true,
+    },
+    terminalLoginPolicy: {
+      terminal: 'PDA',
+      enabledLoginFlows: ['PASSWORD', 'EMAIL_PASSWORD'],
+    },
+    tenantTerminalMfaPolicy: {
+      tenantId: tenant.id,
+      terminal: 'PDA',
+      loginMfaRequired: false,
+      newDeviceMfaRequired: false,
+      allowedFactors: ['EMAIL_OTP', 'SMS_OTP', 'TOTP', 'BACKUP_CODE'],
+      factorPriority: ['EMAIL_OTP', 'SMS_OTP', 'TOTP', 'BACKUP_CODE'],
+    },
+  };
+}
+
 // Summarizes the seeded memberships per person so local operators can quickly choose a login context.
 export const SEEDED_USER_MEMBERSHIPS = new Map(
   SEEDED_USERS.map((user) => {

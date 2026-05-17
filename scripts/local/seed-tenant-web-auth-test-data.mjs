@@ -18,6 +18,7 @@ import {
   buildSeedOrganizationParties,
   buildSeedParties,
   buildSeedPersonParties,
+  buildPdaLoginSmokeSeed,
   buildSeedSummary,
   buildSeedTenantOrgTenants,
   buildSeedTenantOrgUnits,
@@ -117,6 +118,7 @@ const SEEDED_TENANT_PARTIES = buildSeedTenantParties();
 const SEEDED_TENANT_ROLES = buildSeedTenantRoles();
 const SEEDED_USERS_DATA = buildSeedUsers();
 const SEEDED_ACCOUNT_ROLE_BINDINGS = buildSeedAccountRoleBindings();
+const PDA_LOGIN_SMOKE_SEED = buildPdaLoginSmokeSeed();
 const SEEDED_USER_IDENTIFIERS = {
   usernames: SEEDED_USERS_DATA.map((user) => user.username).filter(Boolean),
   emails: SEEDED_USERS_DATA.map((user) => user.email).filter(Boolean),
@@ -205,9 +207,15 @@ async function seedIdentity(identity) {
     });
     const staleUserIds = staleUsers.map((user) => user.id);
 
-    await tx.userAccountOrgMembership.deleteMany({});
-    await tx.userAccountEmployeeBinding.deleteMany({});
-    await tx.accountContactAsset.deleteMany({});
+    if (tx.userAccountOrgMembership) {
+      await tx.userAccountOrgMembership.deleteMany({});
+    }
+    if (tx.userAccountEmployeeBinding) {
+      await tx.userAccountEmployeeBinding.deleteMany({});
+    }
+    if (tx.accountContactAsset) {
+      await tx.accountContactAsset.deleteMany({});
+    }
     await tx.userAccount.deleteMany({
       where: {
         OR: [
@@ -217,30 +225,38 @@ async function seedIdentity(identity) {
         ].filter(Boolean),
       },
     });
-    await tx.org.deleteMany({});
-    await tx.tenant.deleteMany({});
+    if (tx.org) {
+      await tx.org.deleteMany({});
+    }
+    if (tx.tenant) {
+      await tx.tenant.deleteMany({});
+    }
     await tx.user.deleteMany({
       where: {
         id: { in: staleUserIds },
       },
     });
 
-    await tx.tenant.createMany({
-      data: SEEDED_IDENTITY_TENANTS,
-    });
+    if (tx.tenant) {
+      await tx.tenant.createMany({
+        data: SEEDED_IDENTITY_TENANTS,
+      });
+    }
 
-    await tx.org.createMany({
-      data: SEEDED_IDENTITY_ORGS.map((org) => ({
-        id: org.id,
-        tenantId: org.tenantId,
-        parentId: org.parentId,
-        name: org.name,
-        code: org.code,
-        type: OrgType[org.type],
-        order: org.order,
-        createdBy: 'seed:tenant-web-auth',
-      })),
-    });
+    if (tx.org) {
+      await tx.org.createMany({
+        data: SEEDED_IDENTITY_ORGS.map((org) => ({
+          id: org.id,
+          tenantId: org.tenantId,
+          parentId: org.parentId,
+          name: org.name,
+          code: org.code,
+          type: OrgType[org.type],
+          order: org.order,
+          createdBy: 'seed:tenant-web-auth',
+        })),
+      });
+    }
 
     await tx.user.createMany({
       data: SEEDED_USERS_DATA,
@@ -259,7 +275,7 @@ async function seedIdentity(identity) {
       })),
     });
 
-    if (SEEDED_CONTACT_ASSETS.length > 0) {
+    if (tx.accountContactAsset && SEEDED_CONTACT_ASSETS.length > 0) {
       await tx.accountContactAsset.createMany({
         data: SEEDED_CONTACT_ASSETS.map((asset) => ({
           id: asset.id,
@@ -275,13 +291,13 @@ async function seedIdentity(identity) {
       });
     }
 
-    if (SEEDED_EMPLOYEE_BINDINGS.length > 0) {
+    if (tx.userAccountEmployeeBinding && SEEDED_EMPLOYEE_BINDINGS.length > 0) {
       await tx.userAccountEmployeeBinding.createMany({
         data: SEEDED_EMPLOYEE_BINDINGS,
       });
     }
 
-    if (SEEDED_IDENTITY_ORG_MEMBERSHIPS.length > 0) {
+    if (tx.userAccountOrgMembership && SEEDED_IDENTITY_ORG_MEMBERSHIPS.length > 0) {
       await tx.userAccountOrgMembership.createMany({
         data: SEEDED_IDENTITY_ORG_MEMBERSHIPS.map((membership) => ({
           id: membership.id,
@@ -375,6 +391,44 @@ async function seedAuth(auth, passwordHash) {
         },
       });
     }
+
+    await tx.terminalLoginPolicy.upsert({
+      where: { terminal: PDA_LOGIN_SMOKE_SEED.terminalLoginPolicy.terminal },
+      update: {
+        enabledLoginFlows: PDA_LOGIN_SMOKE_SEED.terminalLoginPolicy.enabledLoginFlows,
+        updatedBy: 'seed:pda-login-smoke',
+      },
+      create: {
+        terminal: PDA_LOGIN_SMOKE_SEED.terminalLoginPolicy.terminal,
+        enabledLoginFlows: PDA_LOGIN_SMOKE_SEED.terminalLoginPolicy.enabledLoginFlows,
+        updatedBy: 'seed:pda-login-smoke',
+      },
+    });
+
+    await tx.tenantTerminalMfaPolicy.upsert({
+      where: {
+        tenantId_terminal: {
+          tenantId: PDA_LOGIN_SMOKE_SEED.tenantTerminalMfaPolicy.tenantId,
+          terminal: PDA_LOGIN_SMOKE_SEED.tenantTerminalMfaPolicy.terminal,
+        },
+      },
+      update: {
+        loginMfaRequired: PDA_LOGIN_SMOKE_SEED.tenantTerminalMfaPolicy.loginMfaRequired,
+        newDeviceMfaRequired: PDA_LOGIN_SMOKE_SEED.tenantTerminalMfaPolicy.newDeviceMfaRequired,
+        allowedFactors: PDA_LOGIN_SMOKE_SEED.tenantTerminalMfaPolicy.allowedFactors,
+        factorPriority: PDA_LOGIN_SMOKE_SEED.tenantTerminalMfaPolicy.factorPriority,
+        updatedBy: 'seed:pda-login-smoke',
+      },
+      create: {
+        tenantId: PDA_LOGIN_SMOKE_SEED.tenantTerminalMfaPolicy.tenantId,
+        terminal: PDA_LOGIN_SMOKE_SEED.tenantTerminalMfaPolicy.terminal,
+        loginMfaRequired: PDA_LOGIN_SMOKE_SEED.tenantTerminalMfaPolicy.loginMfaRequired,
+        newDeviceMfaRequired: PDA_LOGIN_SMOKE_SEED.tenantTerminalMfaPolicy.newDeviceMfaRequired,
+        allowedFactors: PDA_LOGIN_SMOKE_SEED.tenantTerminalMfaPolicy.allowedFactors,
+        factorPriority: PDA_LOGIN_SMOKE_SEED.tenantTerminalMfaPolicy.factorPriority,
+        updatedBy: 'seed:pda-login-smoke',
+      },
+    });
   });
 }
 
@@ -414,6 +468,7 @@ async function seedPermission(permission) {
     });
     if (existingTenantRoleIds.length > 0) {
       await tx.rolePermission.deleteMany({ where: { roleId: { in: existingTenantRoleIds } } });
+      await tx.roleTerminalAccess.deleteMany({ where: { roleId: { in: existingTenantRoleIds } } });
       await tx.roleNavigationVisibility.deleteMany({ where: { roleId: { in: existingTenantRoleIds } } });
       await tx.roleLandingPolicy.deleteMany({ where: { roleId: { in: existingTenantRoleIds } } });
       await tx.role.deleteMany({ where: { id: { in: existingTenantRoleIds } } });
@@ -511,6 +566,73 @@ async function seedPermission(permission) {
   });
 }
 
+// Ensures the local PDA smoke account can log in only after the device is enrolled to its tenant.
+async function seedPdaLoginSmokeAccess(permission) {
+  const smoke = PDA_LOGIN_SMOKE_SEED;
+  await permission.$transaction(async (tx) => {
+    const navigationEntry = await tx.navigationEntry.findUnique({
+      where: { entryKey: smoke.roleNavigationVisibility.entryKey },
+      select: { entryKey: true },
+    });
+    if (!navigationEntry) {
+      throw new Error('Missing pda.home navigation entry. Run permission foundation seed first.');
+    }
+
+    const navigationRole = await tx.role.findUnique({
+      where: { id: smoke.roleNavigationVisibility.roleId },
+      select: { id: true },
+    });
+    if (!navigationRole) {
+      throw new Error('Missing PDA smoke navigation role. Run tenant-web seed roles first.');
+    }
+
+    await tx.accountTerminalAccessOverride.deleteMany({
+      where: {
+        accountId: smoke.accountTerminalAccessOverride.accountId,
+        scopeLevel: ScopeLevel[smoke.accountTerminalAccessOverride.scopeLevel],
+        tenantId: smoke.accountTerminalAccessOverride.tenantId,
+      },
+    });
+    await tx.accountTerminalAccessOverride.create({
+      data: {
+        accountId: smoke.accountTerminalAccessOverride.accountId,
+        scopeLevel: ScopeLevel[smoke.accountTerminalAccessOverride.scopeLevel],
+        tenantId: smoke.accountTerminalAccessOverride.tenantId,
+        allowedTerminals: smoke.accountTerminalAccessOverride.allowedTerminals,
+      },
+    });
+
+    await tx.roleNavigationVisibility.upsert({
+      where: {
+        roleId_entryKey_terminal: {
+          roleId: smoke.roleNavigationVisibility.roleId,
+          entryKey: smoke.roleNavigationVisibility.entryKey,
+          terminal: smoke.roleNavigationVisibility.terminal,
+        },
+      },
+      update: {
+        enabled: smoke.roleNavigationVisibility.enabled,
+      },
+      create: smoke.roleNavigationVisibility,
+    });
+
+    await tx.roleLandingPolicy.upsert({
+      where: {
+        roleId_terminal_defaultEntryKey: {
+          roleId: smoke.roleLandingPolicy.roleId,
+          terminal: smoke.roleLandingPolicy.terminal,
+          defaultEntryKey: smoke.roleLandingPolicy.defaultEntryKey,
+        },
+      },
+      update: {
+        priority: smoke.roleLandingPolicy.priority,
+        enabled: smoke.roleLandingPolicy.enabled,
+      },
+      create: smoke.roleLandingPolicy,
+    });
+  });
+}
+
 // Rebuilds tenant and org-unit truth in tenant-org-service for the organization workspace tree.
 async function seedTenantOrg(tenantOrg) {
   await tenantOrg.$transaction(async (tx) => {
@@ -548,6 +670,7 @@ async function seedTenantOrg(tenantOrg) {
 async function seedParty(party) {
   await party.$transaction(async (tx) => {
     await tx.partyRelationship.deleteMany({});
+    await tx.partyRegistrationIdempotency.deleteMany({});
     await tx.partyIdentifier.deleteMany({});
     await tx.tenantParty.deleteMany({});
     await tx.personParty.deleteMany({});
@@ -559,17 +682,16 @@ async function seedParty(party) {
         id: seed.id,
         type: PartyType[seed.type],
         status: PartyStatus[seed.status],
-        canonicalName: seed.canonicalName,
-        displayName: seed.displayName,
+        legalName: seed.legalName ?? seed.canonicalName ?? seed.displayName,
       })),
     });
 
     await tx.organizationParty.createMany({
-      data: SEEDED_ORGANIZATION_PARTIES,
+      data: SEEDED_ORGANIZATION_PARTIES.map(({ legalName: _legalName, ...seed }) => seed),
     });
 
     await tx.personParty.createMany({
-      data: SEEDED_PERSON_PARTIES,
+      data: SEEDED_PERSON_PARTIES.map(({ legalName: _legalName, ...seed }) => seed),
     });
 
     await tx.tenantParty.createMany({
@@ -646,6 +768,9 @@ function printSummary() {
   console.log(`Lifecycle coverage: ${summary.lifecycleCoverage.join(', ')}`);
   console.log(`Access coverage: ${summary.accessCoverage.join(', ')}`);
   console.log(`Login users: ${summary.loginUsers.join(' ; ')}`);
+  console.log(
+    `PDA smoke login: ${PDA_LOGIN_SMOKE_SEED.identifier} / tenant ${PDA_LOGIN_SMOKE_SEED.tenantId}`
+  );
   console.log(`Password: ${DEFAULT_PASSWORD}`);
   console.log(`OTP: ${DEFAULT_OTP_CODE}`);
 }
@@ -693,6 +818,7 @@ async function main() {
     syncPermissionFoundationForLocalSystemAccount();
     await seedPermission(permission);
     syncPermissionFoundationForLocalSystemAccount();
+    await seedPdaLoginSmokeAccess(permission);
     printSummary();
   } finally {
     await Promise.allSettled([

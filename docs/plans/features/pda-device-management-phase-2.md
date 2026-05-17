@@ -205,13 +205,17 @@ Fresh verification:
 - `pnpm --dir app/pda/web build` passed.
 - `pnpm --dir app/web test:unit apps/tenant-web/src/api/bff/terminal-device/index.spec.ts apps/tenant-web/src/views/admin/terminal-device-management/index.spec.ts` passed: 2 files / 6 tests.
 - `pnpm --dir app/web build:tenant` passed with the existing Node engine warning because local Node is `v25.5.0` while app/web declares `^20.19.0 || ^22.18.0 || ^24.0.0`.
+- `node --test scripts/local/seed-system-admin.spec.mjs scripts/local/reset-to-system-admin.spec.mjs scripts/local/tenant-web-auth-test-fixtures.spec.mjs scripts/local/seed-tenant-web-auth-test-data.spec.mjs` passed: 10 tests.
+- `pnpm --filter auth-service exec jest account-session-establishment terminal-login-policy terminal-mfa-policy pda-account-resolution handle-terminal-device-unavailable --runInBand` passed: 9 suites / 38 tests.
+- `pnpm --filter api-gateway exec jest auth-response.mapper src/modules/pda-bff src/modules/terminal-device-admin-bff --runInBand` passed: 8 suites / 15 tests.
+- `pnpm --filter terminal-device-service build`, `pnpm --filter auth-service build`, `pnpm --filter api-gateway build`, and `pnpm proto:lint` passed after the PDA auth live smoke closure.
 
 Live smoke note:
 
-- A live multi-service smoke was not run in this thread because the working tree contains unrelated uncommitted `permission-service` / policy-template changes from another thread. Running PDA Phase 2 against that dirty service state would mix ownership and weaken the evidence.
 - After the policy-service implementation files were committed by their owning thread, a focused PDA device-governance live smoke was run on 2026-05-17 with the existing local API Gateway on `9101` and `terminal-device-service` on `127.0.0.1:50057`.
 - Smoke evidence: gRPC enrollment creation succeeded; `POST /api/v1/pda/device/enroll` activated the PDA with `decisionCode=ALLOW`; active heartbeat returned `ALLOW`; `DISABLED` returned `DEVICE_DISABLED` and `shouldClearLocalSession=true`; unsupported app version returned `APP_VERSION_UNSUPPORTED` and `requiredAction=UPGRADE_APP`; `DECOMMISSIONED` returned `DEVICE_DECOMMISSIONED`, `shouldClearLocalSession=true`, and `shouldClearLocalTerminalDeviceId=true`.
-- Full live auth login smoke remains a follow-up because it requires a known tenant account with password credentials and PDA Terminal Access Policy seed data. The tenant-bound PDA login and auth session metadata paths are covered by focused automated tests in this phase.
+- A follow-up PDA auth login live smoke was run on 2026-05-17 after adding deterministic local seed data for the Meilong PDA smoke account.
+- Auth smoke evidence: gRPC enrollment creation succeeded; `POST /api/v1/pda/device/enroll` activated a PDA with `decisionCode=ALLOW`; `POST /api/v1/pda/auth/login` returned `SUCCESS` and `nextStep=NONE`; the HTTP session returned `terminal=PDA`, `terminalDeviceId`, and `deviceBoundTenantId`; the decoded access token carried the same `terminalDeviceId` and `deviceBoundTenantId`; `GET /api/v1/pda/session/bootstrap` returned the same account, tenant, session device id, device id, and `decisionCode=ALLOW`.
 
 ## 14. 备注
 

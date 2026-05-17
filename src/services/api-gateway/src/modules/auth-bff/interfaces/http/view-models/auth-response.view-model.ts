@@ -50,6 +50,12 @@ export class SessionViewModel {
     description: 'Effective terminal access snapshot returned with the issued session.'
   })
   allowedTerminals?: string[]
+
+  @ApiPropertyOptional({ description: 'Managed terminal device id bound to the issued PDA session.' })
+  terminalDeviceId?: string
+
+  @ApiPropertyOptional({ description: 'Tenant id resolved from the managed PDA device binding.' })
+  deviceBoundTenantId?: string
 }
 
 // Defines the operator context that becomes available as the auth flow progresses.

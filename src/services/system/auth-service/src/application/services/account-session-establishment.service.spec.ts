@@ -11,6 +11,10 @@ describe('AccountSessionEstablishmentService', () => {
       emitLoginSucceeded: jest.fn(),
       emitTerminalAccessDenied: jest.fn()
     }
+    const jwtService = {
+      signAccessToken: jest.fn().mockReturnValue('access-token'),
+      signRefreshToken: jest.fn().mockReturnValue('refresh-token')
+    }
     const service = new AccountSessionEstablishmentService(
       {
         getAccountAuthorizationSummary: jest.fn(),
@@ -218,6 +222,10 @@ describe('AccountSessionEstablishmentService', () => {
       save: jest.fn().mockImplementation(async (session) => session),
       findById: jest.fn().mockResolvedValue(null)
     }
+    const jwtService = {
+      signAccessToken: jest.fn().mockReturnValue('access-token'),
+      signRefreshToken: jest.fn().mockReturnValue('refresh-token')
+    }
     const service = new AccountSessionEstablishmentService(
       {
         getAccountAuthorizationSummary: jest.fn().mockResolvedValue({
@@ -234,10 +242,7 @@ describe('AccountSessionEstablishmentService', () => {
       {
         userRequiresPasswordSetup: jest.fn().mockResolvedValue(false)
       } as any,
-      {
-        signAccessToken: jest.fn().mockReturnValue('access-token'),
-        signRefreshToken: jest.fn().mockReturnValue('refresh-token')
-      } as any,
+      jwtService as any,
       {
         get: jest.fn().mockReturnValue({
           accessTokenValidity: 900,
@@ -282,5 +287,13 @@ describe('AccountSessionEstablishmentService', () => {
     expect(savedSession.getLoginFlow()).toBe('PHONE_PASSWORD')
     expect(savedSession.getTerminalDeviceId()).toBe('terminal-device-1')
     expect(savedSession.getDeviceBoundTenantId()).toBe('tenant-1')
+    expect(jwtService.signAccessToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terminal: 'PDA',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-1'
+      }),
+      expect.any(Object)
+    )
   })
 })

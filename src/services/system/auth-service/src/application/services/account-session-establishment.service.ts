@@ -169,7 +169,9 @@ export class AccountSessionEstablishmentService {
         terminalAccess.effectiveAllowedTerminals,
         roleIds,
         'access',
-        passwordSetupRequired
+        passwordSetupRequired,
+        session.getTerminalDeviceId(),
+        session.getDeviceBoundTenantId()
       ),
       signOptions
     )
@@ -183,7 +185,9 @@ export class AccountSessionEstablishmentService {
         terminalAccess.effectiveAllowedTerminals,
         roleIds,
         'refresh',
-        passwordSetupRequired
+        passwordSetupRequired,
+        session.getTerminalDeviceId(),
+        session.getDeviceBoundTenantId()
       ),
       signOptions
     )
@@ -265,7 +269,9 @@ export class AccountSessionEstablishmentService {
     allowedTerminals: string[],
     roleIds: string[],
     tokenType: 'access' | 'refresh',
-    passwordSetupRequired: boolean
+    passwordSetupRequired: boolean,
+    terminalDeviceId?: string,
+    deviceBoundTenantId?: string
   ): Record<string, unknown> {
     return {
       sub: userId,
@@ -274,6 +280,8 @@ export class AccountSessionEstablishmentService {
       ...(account.tenantId ? { tid: account.tenantId } : {}),
       scopeLevel: account.scopeLevel,
       terminal,
+      ...(terminalDeviceId ? { terminalDeviceId } : {}),
+      ...(deviceBoundTenantId ? { deviceBoundTenantId } : {}),
       allowedTerminals,
       passwordSetupRequired,
       roles: roleIds,
