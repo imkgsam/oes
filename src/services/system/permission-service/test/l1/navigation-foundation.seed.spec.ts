@@ -34,6 +34,7 @@ describe('navigation foundation seed', () => {
       'admin.platform-mfa',
       'admin.permission-management',
       'admin.policy-governance',
+      'admin.terminal-device-management',
       'admin.navigation-management',
       'pda.home',
       'kiosk.home'
@@ -67,6 +68,7 @@ describe('navigation foundation seed', () => {
       '平台 MFA 配置',
       '权限管理',
       '策略治理',
+      '终端设备管理',
       '导航管理',
       'PDA 首页',
       '触摸屏首页'
@@ -75,6 +77,42 @@ describe('navigation foundation seed', () => {
 
   it('marks the removed organization-people entry for navigation cleanup', () => {
     expect(DEPRECATED_NAVIGATION_ENTRY_KEYS).toEqual(['tenant-settings.organization-people'])
+  })
+
+  it('publishes terminal device management for built-in administrator navigation', () => {
+    expect(DEFAULT_NAVIGATION_ENTRIES.map((item) => item.entryKey)).toContain(
+      'admin.terminal-device-management'
+    )
+
+    const visibility = buildNavigationFoundationVisibilitySeeds([
+      {
+        id: 'role-system-admin',
+        code: 'system.admin',
+        kind: RoleKind.SYSTEM_INSTANCE
+      },
+      {
+        id: 'role-tenant-admin',
+        code: 'tenant.admin',
+        kind: RoleKind.TENANT_INSTANCE
+      }
+    ])
+
+    expect(visibility).toEqual(
+      expect.arrayContaining([
+        {
+          roleId: 'role-system-admin',
+          entryKey: 'admin.terminal-device-management',
+          terminal: 'DEFAULT',
+          enabled: true
+        },
+        {
+          roleId: 'role-tenant-admin',
+          entryKey: 'admin.terminal-device-management',
+          terminal: 'DEFAULT',
+          enabled: true
+        }
+      ])
+    )
   })
 
   it('publishes unique registry priorities for deterministic ordering', () => {
@@ -180,6 +218,12 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'role-system-admin',
+        entryKey: 'admin.terminal-device-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-system-admin',
         entryKey: 'admin.navigation-management',
         terminal: 'DEFAULT',
         enabled: true
@@ -205,6 +249,12 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'template-tenant-admin',
         entryKey: 'admin.account-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'template-tenant-admin',
+        entryKey: 'admin.terminal-device-management',
         terminal: 'DEFAULT',
         enabled: true
       },
@@ -247,6 +297,12 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'role-tenant-admin',
         entryKey: 'admin.account-management',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-tenant-admin',
+        entryKey: 'admin.terminal-device-management',
         terminal: 'DEFAULT',
         enabled: true
       },

@@ -64,8 +64,8 @@ describe('permission service seed source', () => {
       'item_master.product_data_manager'
     ])
     expect(seed.rolePermissions).toHaveLength(173)
-    expect(seed.navigationEntries).toHaveLength(28)
-    expect(seed.roleNavigationVisibility).toHaveLength(28)
+    expect(seed.navigationEntries).toHaveLength(29)
+    expect(seed.roleNavigationVisibility).toHaveLength(30)
     expect(seed.roleLandingPolicies).toHaveLength(6)
     expect(seed.roleTerminalAccess).toHaveLength(6)
     expect(seed.policyInstances).toHaveLength(0)
@@ -77,9 +77,9 @@ describe('permission service seed source', () => {
       deprecatedPermissionCodeCount: 14,
       roleCount: 6,
       rolePermissionCount: 173,
-      navigationEntryCount: 28,
+      navigationEntryCount: 29,
       deprecatedNavigationEntryCount: 1,
-      roleNavigationVisibilityCount: 28,
+      roleNavigationVisibilityCount: 30,
       roleLandingPolicyCount: 6,
       roleTerminalAccessCount: 6,
       policyInstanceCount: 0

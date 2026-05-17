@@ -44,6 +44,7 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = 
     'admin.platform-mfa',
     'admin.permission-management',
     'admin.policy-governance',
+    'admin.terminal-device-management',
     'admin.navigation-management'
   ],
   'tenant.admin': [
@@ -51,6 +52,7 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = 
     'admin.auth-session-management',
     'admin.role-management',
     'admin.account-management',
+    'admin.terminal-device-management',
     'tenant-settings.org-structure',
     'tenant-settings.employee-employment',
     'tenant-settings.login-mfa'
@@ -327,12 +329,22 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     entryType: 'page'
   },
   {
+    entryKey: 'admin.terminal-device-management',
+    name: '终端设备管理',
+    description: '管理员受管终端设备 enrollment、状态、版本策略与审计入口。',
+    featureKey: 'terminal-device',
+    supportedTerminals: ['WEB'],
+    registryPriority: 25,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
     entryKey: 'admin.navigation-management',
     name: '导航管理',
     description: '管理员导航治理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 25,
+    registryPriority: 26,
     enabled: true,
     entryType: 'page'
   },
@@ -342,7 +354,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '现场 PDA 端默认系统入口。',
     featureKey: 'pda',
     supportedTerminals: ['PDA'],
-    registryPriority: 26,
+    registryPriority: 27,
     enabled: true,
     entryType: 'workspace'
   },
@@ -352,7 +364,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '固定工位触摸屏默认系统入口。',
     featureKey: 'kiosk',
     supportedTerminals: ['KIOSK'],
-    registryPriority: 27,
+    registryPriority: 28,
     enabled: true,
     entryType: 'workspace'
   }
