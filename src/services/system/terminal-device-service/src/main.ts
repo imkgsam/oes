@@ -14,7 +14,7 @@ async function bootstrap() {
     options: {
       package: 'terminal_device_service',
       protoPath: [resolveCommonProtoPath('terminal_device_service/terminal_device.proto')],
-      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50074'}`
+      url: `${process.env.GRPC_LISTEN_HOST || '0.0.0.0'}:${process.env.GRPC_LISTEN_PORT || '50057'}`
     }
   })
 

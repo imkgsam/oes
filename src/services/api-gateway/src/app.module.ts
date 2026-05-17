@@ -50,6 +50,18 @@ export function resolveAuthGrpcUrl() {
   return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50050' : undefined
 }
 
+/** resolveTerminalDeviceGrpcUrl centralizes the managed terminal-device gRPC endpoint for PDA/Admin BFFs. */
+export function resolveTerminalDeviceGrpcUrl() {
+  const host = process.env.TERMINAL_DEVICE_SERVICE_HOST?.trim()
+  const port = process.env.TERMINAL_DEVICE_SERVICE_PORT?.trim()
+
+  if (host && port) {
+    return `${normalizeLocalhostGrpcHost(host)}:${port}`
+  }
+
+  return '127.0.0.1:50057'
+}
+
 /** resolveMesGrpcUrl centralizes the local MES fallback endpoint used by api-gateway. */
 export function resolveMesGrpcUrl() {
   return process.env.MES_SERVICE_HOST && process.env.MES_SERVICE_PORT
@@ -188,10 +200,7 @@ function normalizeLocalhostGrpcHost(host: string) {
           serviceName: SERVICE_NAMES.TERMINAL_DEVICE,
           protoPath: resolveCommonProtoPath('terminal_device_service/terminal_device.proto'),
           packageName: 'terminal_device_service',
-          url:
-            process.env.TERMINAL_DEVICE_SERVICE_HOST && process.env.TERMINAL_DEVICE_SERVICE_PORT
-              ? `${process.env.TERMINAL_DEVICE_SERVICE_HOST}:${process.env.TERMINAL_DEVICE_SERVICE_PORT}`
-              : 'localhost:50057'
+          url: resolveTerminalDeviceGrpcUrl()
         },
         [SERVICE_NAMES.WMS]: {
           serviceName: SERVICE_NAMES.WMS,

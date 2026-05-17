@@ -1,4 +1,4 @@
-import { resolveAuthGrpcUrl, resolveMesGrpcUrl, resolveTenantOrgGrpcUrl } from './app.module'
+import { resolveAuthGrpcUrl, resolveMesGrpcUrl, resolveTenantOrgGrpcUrl, resolveTerminalDeviceGrpcUrl } from './app.module'
 
 describe('resolveAuthGrpcUrl', () => {
   const originalHost = process.env.AUTH_SERVICE_HOST
@@ -71,6 +71,39 @@ describe('resolveTenantOrgGrpcUrl', () => {
     delete process.env.TENANT_ORG_SERVICE_PORT
 
     expect(resolveTenantOrgGrpcUrl()).toBe('127.0.0.1:50054')
+  })
+})
+
+describe('resolveTerminalDeviceGrpcUrl', () => {
+  const originalHost = process.env.TERMINAL_DEVICE_SERVICE_HOST
+  const originalPort = process.env.TERMINAL_DEVICE_SERVICE_PORT
+
+  afterEach(() => {
+    if (originalHost === undefined) {
+      delete process.env.TERMINAL_DEVICE_SERVICE_HOST
+    } else {
+      process.env.TERMINAL_DEVICE_SERVICE_HOST = originalHost
+    }
+
+    if (originalPort === undefined) {
+      delete process.env.TERMINAL_DEVICE_SERVICE_PORT
+    } else {
+      process.env.TERMINAL_DEVICE_SERVICE_PORT = originalPort
+    }
+  })
+
+  it('normalizes localhost to the IPv4 terminal-device endpoint', () => {
+    process.env.TERMINAL_DEVICE_SERVICE_HOST = 'localhost'
+    process.env.TERMINAL_DEVICE_SERVICE_PORT = '50057'
+
+    expect(resolveTerminalDeviceGrpcUrl()).toBe('127.0.0.1:50057')
+  })
+
+  it('falls back to the local terminal-device endpoint used by the BFF', () => {
+    delete process.env.TERMINAL_DEVICE_SERVICE_HOST
+    delete process.env.TERMINAL_DEVICE_SERVICE_PORT
+
+    expect(resolveTerminalDeviceGrpcUrl()).toBe('127.0.0.1:50057')
   })
 })
 

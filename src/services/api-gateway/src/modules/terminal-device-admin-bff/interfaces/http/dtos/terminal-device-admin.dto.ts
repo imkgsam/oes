@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { Type } from 'class-transformer'
 import { IsBoolean, IsIn, IsISO8601, IsNumber, IsOptional, IsString, MaxLength, Min } from 'class-validator'
 
 export const ADMIN_TERMINAL_DEVICE_TYPES = ['PDA', 'TOUCH_PANEL'] as const
@@ -55,12 +56,14 @@ export class ListTerminalDeviceEnrollmentsQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   page?: number
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   pageSize?: number
@@ -99,12 +102,14 @@ export class ListTerminalDevicesQueryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   page?: number
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   pageSize?: number
@@ -190,12 +195,14 @@ export class UpdateTerminalDeviceVersionPolicyDto {
 export class TerminalDeviceAuditEventsQueryDto {
   @ApiPropertyOptional()
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   page?: number
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   @Min(1)
   pageSize?: number
