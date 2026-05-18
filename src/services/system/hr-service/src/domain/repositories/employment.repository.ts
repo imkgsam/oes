@@ -34,6 +34,7 @@ export interface ChangePrimaryEmploymentInput {
   employeeId: string
   fromEmploymentId: string
   toOrgUnitId: string
+  positionName?: string
   effectiveFrom: Date
   endedReason?: string
 }

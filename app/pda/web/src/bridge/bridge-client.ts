@@ -22,6 +22,7 @@ declare global {
 let bridgeClient: PdaBridgeClient | undefined;
 const eventListeners = new Set<(event: BridgeEventEnvelope) => void>();
 const pendingCameraCaptures = new Map<string, (result: BridgeResult<CameraCaptureResult>) => void>();
+const CAMERA_CAPTURE_TIMEOUT_MS = 5 * 60 * 1000;
 
 /** Returns the active PDA bridge client, falling back to a browser-safe mock before Android is attached. */
 export function getBridgeClient(): PdaBridgeClient {
@@ -106,7 +107,7 @@ function waitForCameraCapture(requestId: string): Promise<BridgeResult<CameraCap
           message: 'Camera capture did not complete in time',
         },
       });
-    }, 60_000);
+    }, CAMERA_CAPTURE_TIMEOUT_MS);
 
     pendingCameraCaptures.set(requestId, (result) => {
       window.clearTimeout(timeout);

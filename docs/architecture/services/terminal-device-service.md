@@ -105,9 +105,12 @@ Phase 2 只正式支持 `PDA`，但服务命名和领域模型预留未来 `KIOS
 
 `TerminalDeviceRuntimeSnapshot` 是最近一次 heartbeat 形成的运行诊断快照。
 
+`TerminalDeviceHeartbeatRecord` 是每次 heartbeat 形成的不可变诊断记录，用于后台排查设备在线、网络、电量、App 版本和上报 session 摘要变化。
+
 稳定规则：
 
 - runtime snapshot 不等于设备管理真相。
+- heartbeat history 不等于生命周期状态、登录状态或审计事实。
 - `lastHeartbeatAt` 使用服务端接收时间。
 - `lastClientTime` 只用于诊断客户端时钟偏差。
 - `lastReportedAccount` 只表示最近 heartbeat 附带的账号摘要，不是当前登录用户真相。
@@ -265,6 +268,8 @@ PDA 登录租户由受管设备绑定决定。
   - 版本策略管理
 
 PDA BFF 与 Admin BFF 只拥有外部 HTTP 契约、DTO 映射、权限聚合和服务编排，不拥有设备治理规则。
+
+`/pda/device/logs` 的上传入口仍由 PDA BFF 暴露，但 Phase 2 的后台可查询诊断日志历史由 `terminal-device-service` 持久化；Admin BFF 不以 gateway 进程内存作为日志历史真相。
 
 ## 9. Upstream Dependencies
 

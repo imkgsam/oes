@@ -5,6 +5,8 @@ import type { TableColumnsType } from 'ant-design-vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { IconifyIcon } from '@vben/icons'
+
 import {
   Button,
   Card,
@@ -31,6 +33,7 @@ import {
   getManagedOrgTreeApi,
   getManagedOrgUnitByIdApi,
   listManagedTenantsApi,
+  moveManagedOrgUnitApi,
   updateManagedOrgUnitApi
 } from '#/api'
 import { useAuthContextStore } from '#/store/auth-context'
@@ -54,6 +57,16 @@ interface OrgTreeSelectOption {
 }
 
 type ManagementMode = 'SYSTEM' | 'TENANT'
+type OrgActionKey = 'append' | 'edit' | 'view'
+
+interface TableActionMenuItem<ActionKey extends string> {
+  danger?: boolean
+  disabled?: boolean
+  hidden?: boolean
+  key: ActionKey
+  label: string
+  testId?: string
+}
 type OrgUnitType = 'BRANCH' | 'DEPARTMENT' | 'ROOT' | 'TEAM'
 
 interface Props {
@@ -65,6 +78,11 @@ type OrgGridRow = ReturnType<typeof flattenManagedOrgTree>[number] & {
   children?: OrgGridRow[]
 }
 
+interface OrgDetailRow {
+  label: string
+  value: string
+}
+
 const props = withDefaults(defineProps<Props>(), {
   selectedOrgUnitId: ''
 })
@@ -74,6 +92,7 @@ const emit = defineEmits<{
 }>()
 
 const authContextStore = useAuthContextStore()
+const operationColumnTitle = '操作'
 const router = useRouter()
 const tenantOptions = ref<TenantManagementApi.TenantSummary[]>([])
 const activeTenantId = ref('')
@@ -93,6 +112,7 @@ const createDrawerOpen = ref(false)
 const createDrawerSaving = ref(false)
 const createDrawerParentName = ref('')
 const createParentOrgUnitId = ref('')
+const editParentOrgUnitId = ref('')
 const form = reactive<OrgFormState>({
   name: '',
   sortOrder: '0',
@@ -125,6 +145,38 @@ const canArchive = computed(() =>
 const selectedOrgChildren = computed(() =>
   treeRows.value.filter((node) => node.parentOrgId === selectedOrgUnit.value?.id)
 )
+const orgDetailColumns: TableColumnsType<OrgDetailRow> = [
+  { dataIndex: 'label', key: 'label', title: '字段', width: 140 },
+  { dataIndex: 'value', key: 'value', title: '内容' }
+]
+const orgOverviewRows = computed<OrgDetailRow[]>(() => {
+  if (!selectedOrgUnit.value) {
+    return []
+  }
+
+  return [
+    { label: '名称', value: selectedOrgUnit.value.name },
+    { label: '类型', value: selectedOrgUnit.value.type },
+    {
+      label: '状态',
+      value: selectedOrgUnit.value.status === 'ARCHIVED' ? '已停用' : '启用中'
+    },
+    { label: '父节点', value: selectedOrgUnit.value.parentOrgId || 'ROOT' },
+    { label: '负责人', value: 'Backend gap：当前读模型尚未提供组织负责人名字' }
+  ]
+})
+const orgTechnicalRows = computed<OrgDetailRow[]>(() => {
+  if (!selectedOrgUnit.value) {
+    return []
+  }
+
+  return [
+    { label: '节点 ID', value: selectedOrgUnit.value.id },
+    { label: '层级深度', value: `${selectedOrgUnit.value.depth}` },
+    { label: '排序', value: `${selectedOrgUnit.value.sortOrder}` },
+    { label: '组织路径', value: selectedOrgUnit.value.path }
+  ]
+})
 const drawerTitle = computed(() => '组织详情')
 const editDrawerTitle = computed(() => '编辑 OrgUnit')
 const createDrawerTitle = computed(() => '新建 OrgUnit')
@@ -141,6 +193,7 @@ const createDrawerSubtitle = computed(() =>
   isSystemEntry.value ? activeTenantName.value || createParentOrgUnitId.value || '' : ''
 )
 const createParentTreeOptions = computed(() => buildCreateParentTreeOptions())
+const editParentTreeOptions = computed(() => buildEditParentTreeOptions())
 const createOrgTypeOptions = computed(() =>
   resolveCreateChildTypeOptions(createParentOrgUnitId.value).map((type) => ({
     label: orgTypeLabels[type],
@@ -178,10 +231,42 @@ const orgTableColumns = computed<TableColumnsType<OrgGridRow>>(() => [
   },
   {
     key: 'operation',
-    title: '操作',
+    align: 'right',
+    title: operationColumnTitle,
     width: 260
   }
 ])
+
+/** getOrgActionItems exposes organization row operations for the native Ant Design dropdown. */
+function getOrgActionItems(orgUnitRecord: Record<string, any>): TableActionMenuItem<OrgActionKey>[] {
+  const orgUnit = orgUnitRecord as OrgGridRow
+
+  return [
+    {
+      hidden: !canReadDetail.value,
+      key: 'view',
+      label: '查看',
+      testId: `org-view-${orgUnit.id}`
+    },
+    {
+      hidden: !canCreate.value || !canCreateChildOrgUnit(orgUnit),
+      key: 'append',
+      label: '新增下级',
+      testId: `org-append-${orgUnit.id}`
+    },
+    {
+      hidden: !canUpdate.value || isRootOrgUnit(orgUnit),
+      key: 'edit',
+      label: '编辑',
+      testId: `org-edit-${orgUnit.id}`
+    }
+  ]
+}
+
+/** getVisibleTableActionItems filters hidden table actions before handing them to Ant Design Menu. */
+function getVisibleTableActionItems<ActionKey extends string>(items: TableActionMenuItem<ActionKey>[]) {
+  return items.filter((item) => !item.hidden)
+}
 
 /** isRootOrgUnit identifies immutable tenant root nodes that anchor the org tree. */
 function isRootOrgUnit(orgUnit?: null | Partial<Pick<TenantManagementApi.ManagedOrgUnit, 'depth' | 'type'>>) {
@@ -223,6 +308,51 @@ function buildCreateParentTreeOptions() {
 
   for (const orgUnit of treeRows.value) {
     if (!canCreateChildOrgUnit(orgUnit)) {
+      continue
+    }
+
+    nodeMap.set(orgUnit.id, {
+      children: [],
+      key: orgUnit.id,
+      title: orgUnit.name,
+      value: orgUnit.id
+    })
+  }
+
+  for (const orgUnit of treeRows.value) {
+    const node = nodeMap.get(orgUnit.id)
+    if (!node) {
+      continue
+    }
+
+    const parent = orgUnit.parentOrgId ? nodeMap.get(orgUnit.parentOrgId) : undefined
+    if (parent) {
+      parent.children.push(node)
+    } else {
+      roots.push(node)
+    }
+  }
+
+  return roots
+}
+
+/** buildEditParentTreeOptions exposes valid non-cyclic move targets for the selected org node. */
+function buildEditParentTreeOptions() {
+  const selected = selectedOrgUnit.value
+  if (!selected || isRootOrgUnit(selected)) {
+    return []
+  }
+
+  const selectedPathPrefix = `${selected.path}/`
+  const nodeMap = new Map<string, OrgTreeSelectOption>()
+  const roots: OrgTreeSelectOption[] = []
+
+  for (const orgUnit of treeRows.value) {
+    if (
+      orgUnit.id === selected.id ||
+      orgUnit.path.startsWith(selectedPathPrefix) ||
+      !resolveCreateChildTypeOptions(orgUnit.id).includes(form.type as Exclude<OrgUnitType, 'ROOT'>)
+    ) {
       continue
     }
 
@@ -406,6 +536,7 @@ function resetOrgForm(orgUnit?: null | TenantManagementApi.ManagedOrgUnit) {
   form.name = orgUnit?.name ?? ''
   form.sortOrder = String(orgUnit?.sortOrder ?? 0)
   form.type = orgUnit?.type === 'ROOT' ? 'DEPARTMENT' : (orgUnit?.type ?? 'DEPARTMENT')
+  editParentOrgUnitId.value = orgUnit?.parentOrgId ?? ''
 }
 
 /** openDetailDrawer enters the read-first org drawer mode used by grid view actions. */
@@ -455,6 +586,25 @@ async function openEditDrawer(orgUnitId: string) {
 
   resetOrgForm(selectedOrgUnit.value)
   editDrawerOpen.value = true
+}
+
+/** handleOrgAction dispatches one dropdown menu action for an organization row. */
+async function handleOrgAction(actionKey: OrgActionKey, orgUnitRecord: Record<string, any>) {
+  const orgUnit = orgUnitRecord as OrgGridRow
+
+  switch (actionKey) {
+    case 'view': {
+      await openOrgUnitDetail(orgUnit.id)
+      return
+    }
+    case 'append': {
+      await openCreateChildDrawer(orgUnit.id)
+      return
+    }
+    case 'edit': {
+      await openEditDrawer(orgUnit.id)
+    }
+  }
 }
 
 /** openCreateChildDrawer opens the dedicated create drawer under the given parent node. */
@@ -524,18 +674,30 @@ async function submitEditDrawerForm() {
 
   editDrawerSaving.value = true
   try {
+    if (!editParentOrgUnitId.value) {
+      message.error('请选择挂载父节点')
+      return
+    }
+
+    const selectedOrgUnitId = internalSelectedOrgUnitId.value
+    const previousParentOrgUnitId = selectedOrgUnit.value.parentOrgId ?? ''
     const payload = {
       name: form.name.trim(),
       sortOrder: Number.parseInt(form.sortOrder || '0', 10) || 0,
       type: form.type
     }
 
-    await updateManagedOrgUnitApi(activeTenantId.value, internalSelectedOrgUnitId.value, payload)
+    await updateManagedOrgUnitApi(activeTenantId.value, selectedOrgUnitId, payload)
+    if (editParentOrgUnitId.value !== previousParentOrgUnitId) {
+      await moveManagedOrgUnitApi(activeTenantId.value, selectedOrgUnitId, {
+        newParentOrgId: editParentOrgUnitId.value
+      })
+    }
     message.success('组织节点已更新')
 
     editDrawerOpen.value = false
     await refreshOrgGrid()
-    await loadOrgUnitDetail(internalSelectedOrgUnitId.value)
+    await loadOrgUnitDetail(selectedOrgUnitId)
   } catch (error) {
     message.error(resolveErrorMessage(error, '组织节点更新失败'))
   } finally {
@@ -777,36 +939,28 @@ onMounted(async () => {
               </Tag>
             </template>
             <template v-else-if="column.key === 'operation'">
-              <Space size="small">
-                <Button
-                  :data-testid="`org-view-${record.id}`"
-                  size="small"
-                  type="link"
-                  @click="openOrgUnitDetail(record.id)"
-                >
-                  查看
+              <Dropdown
+                v-if="getVisibleTableActionItems(getOrgActionItems(record)).length > 0"
+                :trigger="['click']"
+              >
+                <Button aria-label="组织操作" shape="circle" size="small" type="text">
+                  <IconifyIcon icon="ant-design:more-outlined" />
                 </Button>
-                <Button
-                  v-access:code="'tenant_org.org_unit.create'"
-                  v-if="canCreate && canCreateChildOrgUnit(record)"
-                  :data-testid="`org-append-${record.id}`"
-                  size="small"
-                  type="link"
-                  @click="openCreateChildDrawer(record.id)"
-                >
-                  新增下级
-                </Button>
-                <Button
-                  v-access:code="'tenant_org.org_unit.update'"
-                  v-if="canUpdate && !isRootOrgUnit(record)"
-                  :data-testid="`org-edit-${record.id}`"
-                  size="small"
-                  type="link"
-                  @click="openEditDrawer(record.id)"
-                >
-                  编辑
-                </Button>
-              </Space>
+                <template #overlay>
+                  <Menu @click="(info) => handleOrgAction(String(info.key) as OrgActionKey, record)">
+                    <Menu.Item
+                      v-for="item in getVisibleTableActionItems(getOrgActionItems(record))"
+                      :key="item.key"
+                      :danger="item.danger"
+                      :data-testid="item.testId"
+                      :disabled="item.disabled"
+                    >
+                      {{ item.label }}
+                    </Menu.Item>
+                  </Menu>
+                </template>
+              </Dropdown>
+              <span v-else class="tenant-table-action-empty">无可用操作</span>
             </template>
           </template>
           <template #emptyText>
@@ -858,42 +1012,16 @@ onMounted(async () => {
             </Space>
           </div>
 
-          <Tabs v-model:active-key="detailDrawerTab">
-            <Tabs.TabPane key="overview" tab="概览">
-              <table
-                v-if="selectedOrgUnit"
-                class="org-management__detail-table"
-              >
-                <tbody>
-                  <tr>
-                    <th>名称</th>
-                    <td>{{ selectedOrgUnit.name }}</td>
-                  </tr>
-                  <tr>
-                    <th>类型</th>
-                    <td>{{ selectedOrgUnit.type }}</td>
-                  </tr>
-                  <tr>
-                    <th>状态</th>
-                    <td>
-                      <Tag :color="selectedOrgUnit.status === 'ARCHIVED' ? 'default' : 'green'">
-                        {{ selectedOrgUnit.status === 'ARCHIVED' ? '已停用' : '启用中' }}
-                      </Tag>
-                    </td>
-                  </tr>
-                  <tr>
-                    <th>父节点</th>
-                    <td>{{ selectedOrgUnit.parentOrgId || 'ROOT' }}</td>
-                  </tr>
-                  <tr>
-                    <th>负责人</th>
-                    <td>
-                      <span class="org-management__backend-gap">Backend gap</span>
-                      <div>当前读模型尚未提供组织负责人名字</div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <Tabs v-model:active-key="detailDrawerTab">
+              <Tabs.TabPane key="overview" tab="概览">
+                <Table
+                  v-if="selectedOrgUnit"
+                  :columns="orgDetailColumns"
+                  :data-source="orgOverviewRows"
+                  :pagination="false"
+                  row-key="label"
+                  size="small"
+                />
             </Tabs.TabPane>
 
             <Tabs.TabPane key="members" tab="成员">
@@ -923,29 +1051,14 @@ onMounted(async () => {
             </Tabs.TabPane>
 
             <Tabs.TabPane key="tech" tab="技术信息">
-              <table
+              <Table
                 v-if="selectedOrgUnit"
-                class="org-management__detail-table"
-              >
-                <tbody>
-                  <tr>
-                    <th>节点 ID</th>
-                    <td>{{ selectedOrgUnit.id }}</td>
-                  </tr>
-                  <tr>
-                    <th>层级深度</th>
-                    <td>{{ selectedOrgUnit.depth }}</td>
-                  </tr>
-                  <tr>
-                    <th>排序</th>
-                    <td>{{ selectedOrgUnit.sortOrder }}</td>
-                  </tr>
-                  <tr>
-                    <th>组织路径</th>
-                    <td><code>{{ selectedOrgUnit.path }}</code></td>
-                  </tr>
-                </tbody>
-              </table>
+                :columns="orgDetailColumns"
+                :data-source="orgTechnicalRows"
+                :pagination="false"
+                row-key="label"
+                size="small"
+              />
             </Tabs.TabPane>
           </Tabs>
         </div>
@@ -996,9 +1109,14 @@ onMounted(async () => {
             />
           </Form.Item>
           <Form.Item label="挂载父节点">
-            <Input
-              :value="selectedOrgUnit?.parentOrgId || 'ROOT'"
-              disabled
+            <TreeSelect
+              v-model:value="editParentOrgUnitId"
+              data-testid="org-edit-parent-tree"
+              placeholder="选择父节点"
+              show-search
+              tree-default-expand-all
+              tree-node-filter-prop="title"
+              :tree-data="editParentTreeOptions"
             />
           </Form.Item>
         </Form>
@@ -1009,6 +1127,7 @@ onMounted(async () => {
           <Button
             v-access:code="'tenant_org.org_unit.update'"
             v-if="canUpdate"
+            data-testid="org-edit-save"
             :loading="editDrawerSaving"
             type="primary"
             @click="submitEditDrawerForm"
@@ -1192,25 +1311,6 @@ onMounted(async () => {
   font-weight: 600;
 }
 
-.org-management__detail-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-.org-management__detail-table th,
-.org-management__detail-table td {
-  border: 1px solid #f0f0f0;
-  padding: 10px 12px;
-  text-align: left;
-  vertical-align: top;
-}
-
-.org-management__detail-table th {
-  background: #fafafa;
-  font-weight: 600;
-  width: 140px;
-}
-
 .org-management__plain-list {
   margin: 0;
   padding-left: 18px;
@@ -1225,6 +1325,12 @@ onMounted(async () => {
 }
 
 .org-management__number-input {
+  width: 100%;
+}
+
+.org-management__operation-cell {
+  display: flex;
+  justify-content: flex-end;
   width: 100%;
 }
 

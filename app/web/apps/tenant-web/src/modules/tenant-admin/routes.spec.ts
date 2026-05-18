@@ -112,6 +112,9 @@ describe('tenant admin routes', () => {
     const itemAttributeRoute = masterDataRoute?.children?.find(
       (route) => route.name === 'TenantItemAttributeManagement'
     )
+    const itemAttributeDetailRoute = masterDataRoute?.children?.find(
+      (route) => route.name === 'TenantItemAttributeDetail'
+    )
     const itemPackagingRoute = masterDataRoute?.children?.find(
       (route) => route.name === 'TenantItemPackagingManagement'
     )
@@ -130,11 +133,15 @@ describe('tenant admin routes', () => {
     expect(itemCategoryRoute?.meta?.entryKey).toBe('master-data.item-category-management')
     expect(itemCategoryRoute?.path).toBe('/master-data/item-categories')
     expect(itemCategoryRoute?.meta?.hideInMenu).toBeUndefined()
-    expect(itemCategoryRoute?.meta?.title).toBe('Item 分类管理')
+    expect(itemCategoryRoute?.meta?.title).toBe('产品分类管理')
     expect(itemAttributeRoute?.meta?.entryKey).toBe('master-data.item-attribute-management')
     expect(itemAttributeRoute?.path).toBe('/master-data/item-attributes')
     expect(itemAttributeRoute?.meta?.hideInMenu).toBeUndefined()
-    expect(itemAttributeRoute?.meta?.title).toBe('Item 属性管理')
+    expect(itemAttributeRoute?.meta?.title).toBe('产品属性管理')
+    expect(itemAttributeDetailRoute?.path).toBe('/master-data/item-attributes/:attributeDefinitionId')
+    expect(itemAttributeDetailRoute?.meta?.entryKey).toBe('master-data.item-attribute-management')
+    expect(itemAttributeDetailRoute?.meta?.hideInMenu).toBe(true)
+    expect(itemAttributeDetailRoute?.meta?.activePath).toBe('/master-data/item-attributes')
     expect(itemPackagingRoute?.meta?.entryKey).toBe('master-data.item-packaging-management')
     expect(itemPackagingRoute?.path).toBe('/master-data/item-packaging')
     expect(itemPackagingRoute?.meta?.hideInMenu).toBeUndefined()

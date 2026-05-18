@@ -6,14 +6,17 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { IconifyIcon } from '@vben/icons'
 
 import {
   Button,
   Card,
   Checkbox,
+  Dropdown,
   Empty,
   Form,
   Input,
+  Menu,
   Modal,
   Select,
   SelectOption,
@@ -63,8 +66,20 @@ const modelTypeOptions: ItemManagementApi.ItemModelType[] = [
   'VIRTUAL_KIT'
 ]
 const itemTypeOptions: ItemManagementApi.ItemType[] = ['STANDARD', 'PACKAGED_FINISHED_GOOD']
+type ItemActionKey = 'detail'
+type ItemModelActionKey = 'open'
+
+interface TableActionMenuItem<ActionKey extends string> {
+  danger?: boolean
+  disabled?: boolean
+  hidden?: boolean
+  key: ActionKey
+  label: string
+  testId?: string
+}
 
 const authContextStore = useAuthContextStore()
+const operationColumnTitle = '操作'
 const router = useRouter()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
 const canCreateItem = computed(() => authContextStore.actionCodes.includes('item_master.item.create'))
@@ -130,7 +145,7 @@ const itemColumns = computed<TableColumnsType<ItemManagementApi.ItemSummary>>(()
   { key: 'itemModel', title: 'ItemModel', width: 220 },
   { key: 'capabilities', title: 'Capabilities', width: 360 },
   { dataIndex: 'status', key: 'status', title: 'Status', width: 120 },
-  { key: 'action', title: 'Action', width: 100 }
+  { key: 'action', title: operationColumnTitle, width: 100 }
 ])
 const modelColumns = computed<TableColumnsType<ItemManagementApi.ItemModelRecord>>(() => [
   { dataIndex: 'modelCode', key: 'modelCode', title: 'Model Code', width: 160 },
@@ -140,8 +155,42 @@ const modelColumns = computed<TableColumnsType<ItemManagementApi.ItemModelRecord
   { dataIndex: 'modelType', key: 'modelType', title: 'Type', width: 180 },
   { key: 'modelCapabilities', title: 'Defaults', width: 280 },
   { dataIndex: 'status', key: 'status', title: 'Status', width: 120 },
-  { key: 'modelAction', title: 'Workbench', width: 130 }
+  { key: 'modelAction', title: operationColumnTitle, width: 130 }
 ])
+
+/** getItemModelActionItems exposes ItemModel row operations for the native Ant Design dropdown. */
+function getItemModelActionItems(
+  itemModelRecord: Record<string, any>
+): TableActionMenuItem<ItemModelActionKey>[] {
+  const itemModel = itemModelRecord as ItemManagementApi.ItemModelRecord
+
+  return [
+    {
+      key: 'open',
+      label: '打开',
+      testId: `item-model-select-${itemModel.itemModelId}`
+    }
+  ]
+}
+
+/** getItemActionItems exposes Item row operations for the native Ant Design dropdown. */
+function getItemActionItems(itemRecord: Record<string, any>): TableActionMenuItem<ItemActionKey>[] {
+  const item = itemRecord as ItemManagementApi.ItemSummary
+
+  return [
+    {
+      hidden: !canViewItemDetail.value,
+      key: 'detail',
+      label: '详情',
+      testId: `item-detail-${item.itemId}`
+    }
+  ]
+}
+
+/** getVisibleTableActionItems filters hidden table actions before handing them to Ant Design Menu. */
+function getVisibleTableActionItems<ActionKey extends string>(items: TableActionMenuItem<ActionKey>[]) {
+  return items.filter((item) => !item.hidden)
+}
 
 const activeItemCount = computed(() => items.value.filter((item) => item.status === 'ACTIVE').length)
 const activeModelCount = computed(() => itemModels.value.filter((model) => model.status === 'ACTIVE').length)
@@ -700,6 +749,24 @@ function openItemCreatePage() {
   })
 }
 
+/** handleItemModelAction dispatches one dropdown menu action for an ItemModel row. */
+async function handleItemModelAction(actionKey: ItemModelActionKey, itemModelRecord: Record<string, any>) {
+  const itemModel = itemModelRecord as ItemManagementApi.ItemModelRecord
+
+  if (actionKey === 'open') {
+    await selectItemModel(itemModel.itemModelId)
+  }
+}
+
+/** handleItemAction dispatches one dropdown menu action for an Item row. */
+function handleItemAction(actionKey: ItemActionKey, itemRecord: Record<string, any>) {
+  const item = itemRecord as ItemManagementApi.ItemSummary
+
+  if (actionKey === 'detail') {
+    openDetailPage(item.itemId)
+  }
+}
+
 /** openModelModal prepares the ItemModel create form. */
 function openModelModal() {
   modelForm.modelCode = ''
@@ -868,13 +935,28 @@ onMounted(() => {
               <Tag :color="getStatusColor(record.status)">{{ record.status }}</Tag>
             </template>
             <template v-else-if="column.key === 'modelAction'">
-              <Button
-                type="link"
-                :data-testid="`item-model-select-${record.itemModelId}`"
-                @click="selectItemModel(record.itemModelId)"
+              <Dropdown
+                v-if="getVisibleTableActionItems(getItemModelActionItems(record)).length > 0"
+                :trigger="['click']"
               >
-                打开
-              </Button>
+                <Button aria-label="物料模型操作" shape="circle" size="small" type="text">
+                  <IconifyIcon icon="ant-design:more-outlined" />
+                </Button>
+                <template #overlay>
+                  <Menu @click="(info) => handleItemModelAction(String(info.key) as ItemModelActionKey, record)">
+                    <Menu.Item
+                      v-for="item in getVisibleTableActionItems(getItemModelActionItems(record))"
+                      :key="item.key"
+                      :danger="item.danger"
+                      :data-testid="item.testId"
+                      :disabled="item.disabled"
+                    >
+                      {{ item.label }}
+                    </Menu.Item>
+                  </Menu>
+                </template>
+              </Dropdown>
+              <span v-else class="tenant-table-action-empty">无可用操作</span>
             </template>
           </template>
         </Table>
@@ -1131,7 +1213,28 @@ onMounted(() => {
               <Tag :color="getStatusColor(record.status)">{{ record.status }}</Tag>
             </template>
             <template v-else-if="column.key === 'action'">
-              <Button v-if="canViewItemDetail" type="link" @click="openDetailPage(record.itemId)">详情</Button>
+              <Dropdown
+                v-if="getVisibleTableActionItems(getItemActionItems(record)).length > 0"
+                :trigger="['click']"
+              >
+                <Button aria-label="物料操作" shape="circle" size="small" type="text">
+                  <IconifyIcon icon="ant-design:more-outlined" />
+                </Button>
+                <template #overlay>
+                  <Menu @click="(info) => handleItemAction(String(info.key) as ItemActionKey, record)">
+                    <Menu.Item
+                      v-for="item in getVisibleTableActionItems(getItemActionItems(record))"
+                      :key="item.key"
+                      :danger="item.danger"
+                      :data-testid="item.testId"
+                      :disabled="item.disabled"
+                    >
+                      {{ item.label }}
+                    </Menu.Item>
+                  </Menu>
+                </template>
+              </Dropdown>
+              <span v-else class="tenant-table-action-empty">无可用操作</span>
             </template>
           </template>
         </Table>

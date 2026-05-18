@@ -230,6 +230,8 @@ Uploads PDA diagnostic logs manually triggered from the PDA App.
 
 This endpoint is for Phase 1 field diagnostics. It is not a general log platform and does not replace observability or audit architecture.
 
+Phase 2 persists sanitized accepted logs in `terminal-device-service`; any gateway-local buffer is only a convenience cache and is not admin history truth.
+
 ### 6.2 Users
 
 PDA App before or after login.

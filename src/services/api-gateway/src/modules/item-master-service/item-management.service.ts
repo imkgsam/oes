@@ -20,6 +20,7 @@ import {
   CreateItemRequest,
   CreatePackagingMethodRequest,
   CreatePackagingSpecRequest,
+  DeleteItemCategoryRequest,
   GetItemModelAttributeRulesResponse,
   GetItemModelResponse,
   GetItemResponse,
@@ -37,6 +38,7 @@ import {
   ListAttributeDefinitionsResponse,
   ListAttributeOptionsResponse,
   ListPackagingMethodsResponse,
+  MoveItemCategoryRequest,
   SearchPackagingSpecsRequest,
   SearchPackagingSpecsResponse,
   ListSupplierItemMappingsByItemResponse,
@@ -494,7 +496,7 @@ export class ItemManagementService {
   async createAttributeOption(
     tenantId: string,
     attributeDefinitionId: string,
-    input: { optionCode: string; optionName: string },
+    input: { optionCode: string; optionName: string; description?: string },
     source: DownstreamRequestSource
   ) {
     const result = await this.itemManagementAdapter.createAttributeOption(
@@ -502,7 +504,8 @@ export class ItemManagementService {
         tenantId: this.resolveTenantId(tenantId, source),
         attributeDefinitionId: requireNonBlank(attributeDefinitionId, 'attributeDefinitionId'),
         optionCode: requireNonBlank(input.optionCode, 'optionCode'),
-        optionName: requireNonBlank(input.optionName, 'optionName')
+        optionName: requireNonBlank(input.optionName, 'optionName'),
+        description: input.description?.trim() ?? ''
       } satisfies CreateAttributeOptionRequest,
       source
     )
@@ -513,7 +516,7 @@ export class ItemManagementService {
   async updateAttributeOption(
     tenantId: string,
     attributeOptionId: string,
-    input: { optionCode: string; optionName: string; status: string },
+    input: { optionCode: string; optionName: string; description?: string; status: string },
     source: DownstreamRequestSource
   ) {
     const result = await this.itemManagementAdapter.updateAttributeOption(
@@ -522,7 +525,8 @@ export class ItemManagementService {
         attributeOptionId: requireNonBlank(attributeOptionId, 'attributeOptionId'),
         optionCode: requireNonBlank(input.optionCode, 'optionCode'),
         optionName: requireNonBlank(input.optionName, 'optionName'),
-        active: requireActive(input.status)
+        active: requireActive(input.status),
+        description: input.description?.trim() ?? ''
       } satisfies UpdateAttributeOptionRequest,
       source
     )
@@ -604,6 +608,24 @@ export class ItemManagementService {
     return mapCategoryTreeNode(result.category)
   }
 
+  async moveItemCategory(
+    tenantId: string,
+    categoryId: string,
+    input: { parentCategoryId?: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.itemManagementAdapter.moveItemCategory(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        categoryId: requireNonBlank(categoryId, 'categoryId'),
+        parentCategoryId: normalize(input.parentCategoryId)
+      } satisfies MoveItemCategoryRequest,
+      source
+    )
+
+    return mapCategoryTreeNode(result.category)
+  }
+
   async changeItemCategoryStatus(
     tenantId: string,
     categoryId: string,
@@ -620,6 +642,18 @@ export class ItemManagementService {
     )
 
     return mapCategoryTreeNode(result.category)
+  }
+
+  async deleteItemCategory(tenantId: string, categoryId: string, source: DownstreamRequestSource) {
+    await this.itemManagementAdapter.deleteItemCategory(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        categoryId: requireNonBlank(categoryId, 'categoryId')
+      } satisfies DeleteItemCategoryRequest,
+      source
+    )
+
+    return {}
   }
 
   async listPackagingMethods(
@@ -1092,6 +1126,7 @@ function mapAttributeDefinition(record?: AttributeDefinitionRecord) {
     attributeDefinitionId: record?.attributeDefinitionId ?? '',
     attributeCode: record?.attributeCode ?? '',
     attributeName: record?.attributeName ?? '',
+    optionCount: record?.optionCount ?? 0,
     status: fromActive(record?.active)
   }
 }
@@ -1110,6 +1145,7 @@ function mapAttributeOption(record?: AttributeOptionRecord) {
     attributeDefinitionId: record?.attributeDefinitionId ?? '',
     optionCode: record?.optionCode ?? '',
     optionName: record?.optionName ?? '',
+    description: record?.description ?? '',
     status: fromActive(record?.active)
   }
 }

@@ -107,7 +107,11 @@ describe('supplier management list page', () => {
     })
 
     await wrapper.get('[data-testid="supplier-create-button"]').trigger('click')
-    await wrapper.get('[data-testid="supplier-detail-button-supplier-1"]').trigger('click')
+    await wrapper.get('button[aria-label="供应商操作"]').trigger('click')
+    await flushPromises()
+    document.querySelector('[data-testid="supplier-detail-button-supplier-1"]')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
 
     expect(push).toHaveBeenNthCalledWith(1, {
       name: 'TenantSupplierManagementCreate'

@@ -3,6 +3,10 @@ import {
   ChangeTerminalDeviceStatusHandler
 } from '../../src/application/commands/device/change-terminal-device-status.command'
 import {
+  RecordDiagnosticLogsCommand,
+  RecordDiagnosticLogsHandler
+} from '../../src/application/commands/runtime/record-diagnostic-logs.command'
+import {
   RecordHeartbeatCommand,
   RecordHeartbeatHandler
 } from '../../src/application/commands/runtime/record-heartbeat.command'
@@ -229,6 +233,59 @@ describe('Task 4 device governance application services', () => {
       expect(decision.versionPolicy).toMatchObject({
         upgradeRequired: false,
         upgradeRecommended: true
+      })
+    })
+
+    it('persists sanitized manual diagnostic logs beyond the gateway process', async () => {
+      const context = await createDecisionContext()
+      const handler = new RecordDiagnosticLogsHandler(
+        context.deviceRepository,
+        context.runtimeSnapshotRepository
+      )
+
+      const result = await handler.execute(
+        new RecordDiagnosticLogsCommand({
+          tenantId: 'tenant-1',
+          terminalDeviceId: 'terminal-device-1',
+          logs: [
+            {
+              accountId: 'account-1',
+              sessionId: null,
+              clientTime: new Date('2026-05-16T09:59:00.000Z'),
+              receivedAt: new Date('2026-05-16T10:00:00.000Z'),
+              level: 'WARN',
+              eventType: 'SCAN_RECEIVED',
+              message: 'Scan received',
+              traceId: 'trace-log',
+              requestId: null,
+              errorCode: null,
+              diagnosticMode: false,
+              details: { scanValue: '[REDACTED_DIAGNOSTIC_MODE_REQUIRED]' }
+            }
+          ]
+        })
+      )
+
+      expect(result).toEqual({ accepted: true, receivedCount: 1 })
+      await expect(
+        context.runtimeSnapshotRepository.listDiagnosticLogs({
+          tenantId: 'tenant-1',
+          terminalDeviceId: 'terminal-device-1',
+          page: 1,
+          pageSize: 20
+        })
+      ).resolves.toMatchObject({
+        items: [
+          expect.objectContaining({
+            terminalDeviceId: 'terminal-device-1',
+            tenantId: 'tenant-1',
+            accountId: 'account-1',
+            sessionId: null,
+            eventType: 'SCAN_RECEIVED',
+            details: { scanValue: '[REDACTED_DIAGNOSTIC_MODE_REQUIRED]' }
+          })
+        ],
+        total: 1
       })
     })
   })
@@ -488,15 +545,33 @@ describe('Task 4 device governance application services', () => {
       expect((await context.deviceRepository.findById('terminal-device-1'))?.status).toBe(
         'MAINTENANCE'
       )
+      await expect(
+        context.runtimeSnapshotRepository.listHeartbeatRecords({
+          tenantId: 'tenant-1',
+          terminalDeviceId: 'terminal-device-1',
+          page: 1,
+          pageSize: 20
+        })
+      ).resolves.toMatchObject({
+        items: [
+          expect.objectContaining({
+            terminalDeviceId: 'terminal-device-1',
+            tenantId: 'tenant-1',
+            receivedAt: new Date('2026-05-16T00:00:00.000Z'),
+            reportedAccountId: 'account-1',
+            traceId: 'trace-heartbeat'
+          })
+        ],
+        total: 1
+      })
     })
   })
 
   describe('version policy commands and queries', () => {
     it('upserts and returns tenant terminal version policy with audit', async () => {
       const versionPolicyRepository = new InMemoryTerminalDeviceVersionPolicyRepository()
-      const auditRepository = new InMemoryTerminalDeviceAuditEventRepository(
-        new InMemoryTerminalDeviceStore()
-      )
+      const auditStore = new InMemoryTerminalDeviceStore()
+      const auditRepository = new InMemoryTerminalDeviceAuditEventRepository(auditStore)
       const handler = new UpsertVersionPolicyHandler(versionPolicyRepository, auditRepository)
 
       const result = await handler.execute(
@@ -532,20 +607,17 @@ describe('Task 4 device governance application services', () => {
         updatedAt: new Date('2026-05-16T03:00:00.000Z')
       })
       expect(await versionPolicyRepository.findByTenantAndType('tenant-1', 'PDA')).toEqual(result)
-      expect(
-        (await auditRepository.listByTerminalDeviceId('tenant-1', 'VERSION_POLICY:PDA'))[0]
-      ).toMatchObject({
+      expect(auditStore.auditEvents[0]).toMatchObject({
         action: 'VERSION_POLICY_UPSERTED',
-        targetTerminalDeviceId: 'VERSION_POLICY:PDA',
+        targetTerminalDeviceId: null,
         reason: 'Initial PDA rollout policy'
       })
     })
 
     it('requires a reason when updating an existing version policy before writing audit', async () => {
       const versionPolicyRepository = new InMemoryTerminalDeviceVersionPolicyRepository()
-      const auditRepository = new InMemoryTerminalDeviceAuditEventRepository(
-        new InMemoryTerminalDeviceStore()
-      )
+      const auditStore = new InMemoryTerminalDeviceStore()
+      const auditRepository = new InMemoryTerminalDeviceAuditEventRepository(auditStore)
       const handler = new UpsertVersionPolicyHandler(versionPolicyRepository, auditRepository)
 
       await handler.execute(
@@ -582,9 +654,7 @@ describe('Task 4 device governance application services', () => {
       ).rejects.toMatchObject({
         code: 'TERMINAL_DEVICE_VERSION_POLICY_REASON_REQUIRED'
       } satisfies Partial<TerminalDeviceError>)
-      expect(
-        await auditRepository.listByTerminalDeviceId('tenant-1', 'VERSION_POLICY:PDA')
-      ).toHaveLength(1)
+      expect(auditStore.auditEvents).toHaveLength(1)
     })
   })
 })

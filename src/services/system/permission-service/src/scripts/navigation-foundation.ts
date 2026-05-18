@@ -42,6 +42,7 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = 
     'admin.role-management',
     'admin.account-management',
     'admin.platform-mfa',
+    'admin.platform-terminal-security',
     'admin.permission-management',
     'admin.policy-governance',
     'admin.terminal-device-management',
@@ -190,8 +191,8 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
   },
   {
     entryKey: 'master-data.item-category-management',
-    name: 'Item 分类管理',
-    description: '租户侧 Item 分类树维护入口。',
+    name: '产品分类管理',
+    description: '租户侧产品分类层级维护入口。',
     featureKey: 'item-master',
     supportedTerminals: ['WEB'],
     registryPriority: 11,
@@ -300,11 +301,21 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
   },
   {
     entryKey: 'admin.platform-mfa',
-    name: '平台 MFA 配置',
-    description: '系统账号 MFA 场景、因子优先级与新设备登录保护配置入口。',
+    name: 'MFA 因子配置',
+    description: '系统账号 MFA 场景、因子启用状态与展示优先级配置入口。',
     featureKey: 'auth',
     supportedTerminals: ['WEB'],
     registryPriority: 22,
+    enabled: true,
+    entryType: 'page'
+  },
+  {
+    entryKey: 'admin.platform-terminal-security',
+    name: 'Terminal 登录策略',
+    description: '系统管理员维护平台级 terminal 登录流与各 terminal MFA 默认开关的账号安全入口。',
+    featureKey: 'auth',
+    supportedTerminals: ['WEB'],
+    registryPriority: 23,
     enabled: true,
     entryType: 'page'
   },
@@ -314,7 +325,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员权限管理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 23,
+    registryPriority: 24,
     enabled: true,
     entryType: 'page'
   },
@@ -324,7 +335,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员策略治理只读入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 24,
+    registryPriority: 25,
     enabled: true,
     entryType: 'page'
   },
@@ -334,7 +345,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员受管终端设备 enrollment、状态、版本策略与审计入口。',
     featureKey: 'terminal-device',
     supportedTerminals: ['WEB'],
-    registryPriority: 25,
+    registryPriority: 26,
     enabled: true,
     entryType: 'page'
   },
@@ -344,7 +355,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '管理员导航治理入口。',
     featureKey: 'permission',
     supportedTerminals: ['WEB'],
-    registryPriority: 26,
+    registryPriority: 27,
     enabled: true,
     entryType: 'page'
   },
@@ -354,7 +365,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '现场 PDA 端默认系统入口。',
     featureKey: 'pda',
     supportedTerminals: ['PDA'],
-    registryPriority: 27,
+    registryPriority: 28,
     enabled: true,
     entryType: 'workspace'
   },
@@ -364,7 +375,7 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     description: '固定工位触摸屏默认系统入口。',
     featureKey: 'kiosk',
     supportedTerminals: ['KIOSK'],
-    registryPriority: 28,
+    registryPriority: 29,
     enabled: true,
     entryType: 'workspace'
   }

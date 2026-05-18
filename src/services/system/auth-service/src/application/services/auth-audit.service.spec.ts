@@ -119,6 +119,8 @@ describe('AuthAuditService', () => {
       service.emitLoginFailed('user@example.com', 'BAD_CREDENTIALS', {
         method: 'EMAIL_PASSWORD',
         userId: 'user-1',
+        terminal: 'WEB',
+        loginFlow: 'EMAIL_PASSWORD',
         deviceName: 'macOS / Firefox',
         userAgent: 'Mozilla/5.0 Firefox/149.0',
         ipAddress: '127.0.0.1',
@@ -140,6 +142,8 @@ describe('AuthAuditService', () => {
           reason: 'BAD_CREDENTIALS',
           method: 'EMAIL_PASSWORD',
           userId: 'user-1',
+          terminal: 'WEB',
+          loginFlow: 'EMAIL_PASSWORD',
           deviceName: 'macOS / Firefox',
           userAgent: 'Mozilla/5.0 Firefox/149.0',
           ipAddress: '127.0.0.1',

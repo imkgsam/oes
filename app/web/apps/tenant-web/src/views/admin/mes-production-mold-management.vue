@@ -6,6 +6,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { IconifyIcon } from '@vben/icons'
 import {
   Alert as AAlert,
   Button as AButton,
@@ -13,10 +14,12 @@ import {
   Descriptions as ADescriptions,
   DescriptionsItem as ADescriptionsItem,
   Drawer as ADrawer,
+  Dropdown as ADropdown,
   Empty as AEmpty,
   Form as AForm,
   FormItem as AFormItem,
   Input as AInput,
+  Menu as AMenu,
   Select as ASelect,
   SelectOption as ASelectOption,
   Space as ASpace,
@@ -37,6 +40,16 @@ import {
 import { useAuthContextStore } from '#/store/auth-context'
 
 type DrawerMode = '' | 'create' | 'detail' | 'move'
+type ProductionMoldActionKey = 'move' | 'view'
+
+interface TableActionMenuItem<ActionKey extends string> {
+  danger?: boolean
+  disabled?: boolean
+  hidden?: boolean
+  key: ActionKey
+  label: string
+  testId?: string
+}
 
 const statusOptions: Array<{ label: string; value: MesApi.ProductionMoldStatus }> = [
   { label: '已接收', value: 'RECEIVED' },
@@ -50,6 +63,7 @@ const statusOptions: Array<{ label: string; value: MesApi.ProductionMoldStatus }
 ]
 
 const authContextStore = useAuthContextStore()
+const operationColumnTitle = '操作'
 const route = useRoute()
 const router = useRouter()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
@@ -105,10 +119,35 @@ const productionMoldColumns: TableColumnsType<MesApi.ProductionMold> = [
   {
     fixed: 'right',
     key: 'actions',
-    title: '操作',
+    title: operationColumnTitle,
     width: 110
   }
 ]
+
+/** getProductionMoldActionItems exposes production mold row operations for the native Ant Design dropdown. */
+function getProductionMoldActionItems(
+  mold: MesApi.ProductionMold
+): TableActionMenuItem<ProductionMoldActionKey>[] {
+  return [
+    {
+      hidden: !canReadMold.value,
+      key: 'view',
+      label: '基础信息',
+      testId: `mes-production-mold-view-${mold.productionMoldId}`
+    },
+    {
+      hidden: !canManageMold.value,
+      key: 'move',
+      label: '移动',
+      testId: `mes-production-mold-move-${mold.productionMoldId}`
+    }
+  ]
+}
+
+/** getVisibleTableActionItems filters hidden table actions before handing them to Ant Design Menu. */
+function getVisibleTableActionItems<ActionKey extends string>(items: TableActionMenuItem<ActionKey>[]) {
+  return items.filter((item) => !item.hidden)
+}
 
 const filters = reactive({
   keyword: '',
@@ -291,6 +330,16 @@ function openMoveDrawer(mold: MesApi.ProductionMold) {
   moveForm.carrierResourceCode = ''
   moveForm.carrierResourceName = ''
   drawerMode.value = 'move'
+}
+
+/** handleProductionMoldAction dispatches one dropdown menu action for a production mold row. */
+function handleProductionMoldAction(actionKey: ProductionMoldActionKey, mold: MesApi.ProductionMold) {
+  if (actionKey === 'view') {
+    openDetailDrawer(mold)
+    return
+  }
+
+  openMoveDrawer(mold)
 }
 
 /** closeDrawer resets the drawer mode without mutating loaded table data. */
@@ -682,25 +731,28 @@ onMounted(() => {
                 {{ formatDateTime(record.createdAt) }}
               </template>
               <template v-else-if="column.key === 'actions'">
-                <a-space size="small">
-                  <a-button
-                    :data-testid="`mes-production-mold-view-${record.productionMoldId}`"
-                    size="small"
-                    type="link"
-                    @click="openDetailDrawer(asProductionMold(record))"
-                  >
-                    基础信息
-                  </a-button>
-                  <a-button
-                    v-if="canManageMold"
-                    :data-testid="`mes-production-mold-move-${record.productionMoldId}`"
-                    size="small"
-                    type="link"
-                    @click="openMoveDrawer(asProductionMold(record))"
-                  >
-                    移动
-                  </a-button>
-                </a-space>
+                <ADropdown
+                  v-if="getVisibleTableActionItems(getProductionMoldActionItems(asProductionMold(record))).length > 0"
+                  :trigger="['click']"
+                >
+                  <AButton aria-label="生产模具操作" shape="circle" size="small" type="text">
+                    <IconifyIcon icon="ant-design:more-outlined" />
+                  </AButton>
+                  <template #overlay>
+                    <AMenu @click="(info) => handleProductionMoldAction(String(info.key) as ProductionMoldActionKey, asProductionMold(record))">
+                      <AMenu.Item
+                        v-for="item in getVisibleTableActionItems(getProductionMoldActionItems(asProductionMold(record)))"
+                        :key="item.key"
+                        :danger="item.danger"
+                        :data-testid="item.testId"
+                        :disabled="item.disabled"
+                      >
+                        {{ item.label }}
+                      </AMenu.Item>
+                    </AMenu>
+                  </template>
+                </ADropdown>
+                <span v-else class="tenant-table-action-empty">无可用操作</span>
               </template>
             </template>
             <template #emptyText>

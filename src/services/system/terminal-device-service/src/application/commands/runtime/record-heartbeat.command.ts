@@ -1,6 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common'
 import { CommandHandler, ICommand, ICommandHandler } from '@nestjs/cqrs'
+import { randomUUID } from 'crypto'
 import { SYMBOLS } from '../../../common/constants/symbols'
+import { TerminalDeviceHeartbeatRecordEntity } from '../../../domain/entities/terminal-device-heartbeat-record.entity'
 import { TerminalDeviceRuntimeSnapshotEntity } from '../../../domain/entities/terminal-device-runtime-snapshot.entity'
 import { AppState, NetworkStatus, NetworkType, TerminalDeviceType } from '../../../domain/enums/terminal-device.enums'
 import { TerminalDeviceError } from '../../../domain/errors/terminal-device.error'
@@ -104,6 +106,26 @@ export class RecordHeartbeatHandler implements ICommandHandler<RecordHeartbeatCo
         appState: command.appState,
         lastReportedAccountId: command.session?.accountId ?? null,
         lastReportedSessionId: command.session?.sessionId ?? null
+      })
+    )
+    await this.runtimeSnapshotRepository.appendHeartbeatRecord(
+      new TerminalDeviceHeartbeatRecordEntity({
+        heartbeatId: randomUUID(),
+        terminalDeviceId: device.terminalDeviceId,
+        tenantId: device.tenantId,
+        presenceStatus: 'ONLINE',
+        receivedAt,
+        clientTime: command.lastClientTime,
+        appVersion: command.appVersion,
+        androidVersion: command.androidVersion,
+        webViewVersion: command.webViewVersion,
+        networkStatus: command.networkStatus,
+        networkType: command.networkType,
+        batteryLevel: command.batteryLevel,
+        appState: command.appState,
+        reportedAccountId: command.session?.accountId ?? null,
+        reportedSessionId: command.session?.sessionId ?? null,
+        traceId: command.traceId
       })
     )
 

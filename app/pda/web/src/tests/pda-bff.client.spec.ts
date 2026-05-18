@@ -63,10 +63,9 @@ describe('pda bff client', () => {
           method: 'EMAIL_PASSWORD',
           identifier: 'worker@example.com',
           credential: 'secret',
-          terminalDeviceId: 'terminal-device-1',
           device: {
-            terminalDeviceId: 'terminal-device-1',
-            terminalDeviceType: 'PDA',
+            deviceId: 'terminal-device-1',
+            deviceName: 'CRUISE Ge',
             identity: {
               manufacturerSerial: 'SEUIC-SN-123',
               androidId: null,
@@ -79,8 +78,6 @@ describe('pda bff client', () => {
               webViewVersion: '66.0.3359.158',
               appVersion: '2.0.0',
             },
-            deviceId: 'terminal-device-1',
-            deviceName: 'CRUISE Ge',
           },
         }),
       }),

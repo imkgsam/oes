@@ -1,5 +1,5 @@
-import { ApiProperty } from '@nestjs/swagger'
-import { IsString } from 'class-validator'
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
+import { IsOptional, IsString } from 'class-validator'
 
 export class CreateEmploymentDto {
   @ApiProperty()
@@ -9,4 +9,9 @@ export class CreateEmploymentDto {
   @ApiProperty()
   @IsString()
   effectiveFrom!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  positionName?: string
 }

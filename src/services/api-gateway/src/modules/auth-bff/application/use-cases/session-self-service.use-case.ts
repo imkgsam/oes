@@ -130,6 +130,8 @@ export class SessionSelfServiceUseCase {
         occurredAt: item.occurredAt ?? '',
         outcome: item.outcome ?? '',
         loginMethod: item.loginMethod ?? undefined,
+        terminal: item.terminal ?? undefined,
+        loginFlow: item.loginFlow ?? undefined,
         ipAddress: item.ipAddress ?? undefined,
         deviceName: item.deviceName ?? undefined,
         platform: item.platform ?? undefined,

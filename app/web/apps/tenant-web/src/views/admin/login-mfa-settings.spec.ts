@@ -114,9 +114,11 @@ describe('login mfa settings page', () => {
       }),
     );
     expect(document.body.textContent).toContain('租户 MFA 配置');
-    expect(document.body.textContent).toContain('登录');
+    expect(document.body.textContent).toContain('账号安全场景');
+    expect(document.body.textContent).toContain('修改密码');
+    expect(document.body.textContent).toContain('更换邮箱 / 手机');
+    expect(document.body.textContent).not.toContain('新设备登录');
     expect(document.body.textContent).toContain('拖拽排序');
-    expect(document.body.textContent).toContain('场景要求');
     expect(document.body.textContent).not.toContain('策略治理');
   });
 

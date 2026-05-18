@@ -214,6 +214,105 @@ export function isMfaEnableActionDisabled(binding: SelfSecurityApi.MfaBinding) {
   return !binding.enabled && !binding.available && binding.type !== 'BACKUP_CODE';
 }
 
+// Maps one recorded auth-session terminal code to a compact user-facing label.
+export function getSessionTerminalLabel(terminal?: string) {
+  const normalizedTerminal = terminal?.trim().toUpperCase();
+
+  switch (normalizedTerminal) {
+    case 'WEB':
+    case 'TENANT_WEB': {
+      return 'Web';
+    }
+    case 'PDA': {
+      return 'PDA';
+    }
+    case 'KIOSK': {
+      return 'Kiosk';
+    }
+    case 'MOBILE': {
+      return 'Mobile';
+    }
+    case 'API_CLIENT': {
+      return 'API Client';
+    }
+    case 'INDUSTRIAL_TABLET': {
+      return '工业平板';
+    }
+    case '':
+    case undefined: {
+      return '未知终端';
+    }
+    default: {
+      return terminal?.trim() || '未知终端';
+    }
+  }
+}
+
+// Maps one recorded auth-session terminal code to a stable Ant Design tag color.
+export function getSessionTerminalColor(terminal?: string) {
+  const normalizedTerminal = terminal?.trim().toUpperCase();
+
+  switch (normalizedTerminal) {
+    case 'WEB':
+    case 'TENANT_WEB': {
+      return 'blue';
+    }
+    case 'PDA': {
+      return 'green';
+    }
+    case 'KIOSK': {
+      return 'orange';
+    }
+    case 'MOBILE': {
+      return 'cyan';
+    }
+    case 'API_CLIENT': {
+      return 'geekblue';
+    }
+    case 'INDUSTRIAL_TABLET': {
+      return 'gold';
+    }
+    default: {
+      return 'default';
+    }
+  }
+}
+
+// Converts backend login-history failure codes into safe explanations for self-service display.
+export function getLoginHistoryFailureExplanation(reason?: string) {
+  const normalizedReason = reason?.trim().toUpperCase();
+
+  switch (normalizedReason) {
+    case undefined:
+    case '': {
+      return '-';
+    }
+    case 'INVALID_CREDENTIALS':
+    case 'AUTH_INVALID_CREDENTIALS': {
+      return '凭证验证失败';
+    }
+    case 'TERMINAL_ACCESS_DENIED':
+    case 'AUTH_TERMINAL_ACCESS_DENIED': {
+      return '终端准入策略拦截';
+    }
+    case 'AUTH_LOGIN_TEMPORARILY_LOCKED':
+    case 'LOGIN_TEMPORARILY_LOCKED': {
+      return '账号暂时锁定';
+    }
+    case 'AUTH_TERMINAL_LOGIN_FLOW_DISABLED':
+    case 'TERMINAL_LOGIN_FLOW_DISABLED': {
+      return '该终端暂不允许此登录方式';
+    }
+    case 'AUTH_MFA_REQUIRED':
+    case 'MFA_REQUIRED': {
+      return '需要完成二次验证';
+    }
+    default: {
+      return '登录未完成';
+    }
+  }
+}
+
 function buildLoginMethodGroup(
   loginMethods: SelfSecurityApi.LoginMethod[],
   definition: LoginMethodGroupDefinition,

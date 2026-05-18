@@ -100,6 +100,8 @@ PDA session 额外记录：
 
 session 不复制完整设备 registry 信息；设备名称、状态、版本策略、绑定治理等真相仍归 `terminal-device-service`。
 
+PDA session lifetime 使用作业终端短会话策略：access token 默认 15 分钟，refresh token 默认 20 分钟；PDA 端 15 分钟无操作应主动 logout。PDA App 关闭后不恢复用户登录态，只恢复设备 enrollment / `terminalDeviceId`，重新打开 App 必须重新登录。Web session 继续沿用 Web 的通用 refresh 策略。
+
 登录历史归 `auth-service`，本质上是认证域审计事实的产品化、脱敏查询视图。普通 login history 不展示每次 refresh / access token validate，只展示登录成功、失败、拒绝、MFA 结果等用户可理解事件。refresh replay、session revoke 等安全事件可进入 security activity 视图。
 
 ## Trusted Login Device

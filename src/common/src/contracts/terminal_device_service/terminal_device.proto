@@ -32,6 +32,9 @@ service TerminalDeviceManagementService {
 service TerminalDeviceRuntimeSnapshotService {
   rpc RecordHeartbeat(RecordHeartbeatRequest) returns (RecordHeartbeatResponse);
   rpc GetRuntimeSnapshot(GetRuntimeSnapshotRequest) returns (GetRuntimeSnapshotResponse);
+  rpc ListHeartbeatRecords(ListHeartbeatRecordsRequest) returns (ListHeartbeatRecordsResponse);
+  rpc RecordDiagnosticLogs(RecordDiagnosticLogsRequest) returns (RecordDiagnosticLogsResponse);
+  rpc ListDiagnosticLogs(ListDiagnosticLogsRequest) returns (ListDiagnosticLogsResponse);
 }
 
 // TerminalDeviceVersionPolicyService manages app version policies by tenant and terminal device type.
@@ -302,6 +305,45 @@ message TerminalDeviceRuntimeSnapshot {
   string last_reported_session_id = 13;
 }
 
+// TerminalDeviceHeartbeatRecord is an immutable heartbeat diagnostic record.
+message TerminalDeviceHeartbeatRecord {
+  string heartbeat_id = 1;
+  string tenant_id = 2;
+  string terminal_device_id = 3;
+  PresenceStatus presence_status = 4;
+  string received_at = 5;
+  string client_time = 6;
+  string app_version = 7;
+  string android_version = 8;
+  string web_view_version = 9;
+  NetworkStatus network_status = 10;
+  NetworkType network_type = 11;
+  int32 battery_level = 12;
+  AppState app_state = 13;
+  string reported_account_id = 14;
+  string reported_session_id = 15;
+  string trace_id = 16;
+}
+
+// TerminalDeviceDiagnosticLog is one sanitized manually uploaded PDA diagnostic entry.
+message TerminalDeviceDiagnosticLog {
+  string diagnostic_log_id = 1;
+  string tenant_id = 2;
+  string terminal_device_id = 3;
+  string account_id = 4;
+  string session_id = 5;
+  string client_time = 6;
+  string received_at = 7;
+  string level = 8;
+  string event_type = 9;
+  string message = 10;
+  string trace_id = 11;
+  string request_id = 12;
+  string error_code = 13;
+  bool diagnostic_mode = 14;
+  string details_json = 15;
+}
+
 // TerminalDeviceAuditEvent is the device governance audit event projection.
 message TerminalDeviceAuditEvent {
   string audit_event_id = 1;
@@ -528,6 +570,45 @@ message GetRuntimeSnapshotRequest {
 // GetRuntimeSnapshotResponse returns the current runtime snapshot.
 message GetRuntimeSnapshotResponse {
   TerminalDeviceRuntimeSnapshot snapshot = 1;
+}
+
+// ListHeartbeatRecordsRequest loads immutable heartbeat diagnostics for one device.
+message ListHeartbeatRecordsRequest {
+  string tenant_id = 1;
+  string terminal_device_id = 2;
+  PaginationRequest pagination = 3;
+}
+
+// ListHeartbeatRecordsResponse returns heartbeat diagnostic records newest first.
+message ListHeartbeatRecordsResponse {
+  repeated TerminalDeviceHeartbeatRecord items = 1;
+  PaginationResponse pagination = 2;
+}
+
+// RecordDiagnosticLogsRequest persists sanitized PDA diagnostic logs for one managed device.
+message RecordDiagnosticLogsRequest {
+  string tenant_id = 1;
+  string terminal_device_id = 2;
+  repeated TerminalDeviceDiagnosticLog logs = 3;
+}
+
+// RecordDiagnosticLogsResponse returns the accepted diagnostic log count.
+message RecordDiagnosticLogsResponse {
+  bool accepted = 1;
+  int32 received_count = 2;
+}
+
+// ListDiagnosticLogsRequest loads sanitized PDA diagnostic logs for one managed device.
+message ListDiagnosticLogsRequest {
+  string tenant_id = 1;
+  string terminal_device_id = 2;
+  PaginationRequest pagination = 3;
+}
+
+// ListDiagnosticLogsResponse returns diagnostic logs newest first.
+message ListDiagnosticLogsResponse {
+  repeated TerminalDeviceDiagnosticLog items = 1;
+  PaginationResponse pagination = 2;
 }
 
 // GetVersionPolicyRequest reads version policy by tenant and terminal device type.

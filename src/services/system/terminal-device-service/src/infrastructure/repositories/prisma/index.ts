@@ -1,1 +1,6 @@
-export {}
+export * from './prisma-terminal-device-activation.repository'
+export * from './prisma-terminal-device-audit-event.repository'
+export * from './prisma-terminal-device-enrollment.repository'
+export * from './prisma-terminal-device-runtime-snapshot.repository'
+export * from './prisma-terminal-device-version-policy.repository'
+export * from './prisma-terminal-device.repository'

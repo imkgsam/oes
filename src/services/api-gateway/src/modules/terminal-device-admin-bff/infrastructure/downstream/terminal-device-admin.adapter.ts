@@ -8,7 +8,9 @@ import {
   EnrollmentStatus,
   GetTerminalDeviceResponse,
   GetVersionPolicyResponse,
+  ListDiagnosticLogsResponse,
   ListEnrollmentsResponse,
+  ListHeartbeatRecordsResponse,
   ListTerminalDeviceAuditEventsResponse,
   ListTerminalDevicesResponse,
   AppState,
@@ -18,9 +20,11 @@ import {
   RevokeEnrollmentResponse,
   TERMINAL_DEVICE_ENROLLMENT_SERVICE_NAME,
   TERMINAL_DEVICE_MANAGEMENT_SERVICE_NAME,
+  TERMINAL_DEVICE_RUNTIME_SNAPSHOT_SERVICE_NAME,
   TERMINAL_DEVICE_VERSION_POLICY_SERVICE_NAME,
   TerminalDeviceEnrollmentServiceClient,
   TerminalDeviceManagementServiceClient,
+  TerminalDeviceRuntimeSnapshotServiceClient,
   TerminalDeviceStatus,
   TerminalDeviceType,
   TerminalDeviceVersionPolicyServiceClient,
@@ -137,11 +141,48 @@ export interface AdminAuditEvent {
   occurredAt: string
 }
 
+export interface AdminHeartbeatRecord {
+  heartbeatId: string
+  terminalDeviceId: string
+  presenceStatus: AdminPresenceStatus
+  receivedAt: string
+  clientTime?: string | null
+  appVersion?: string | null
+  androidVersion?: string | null
+  webViewVersion?: string | null
+  networkStatus?: string | null
+  networkType?: string | null
+  batteryLevel?: number | null
+  appState?: string | null
+  reportedAccountId?: string | null
+  reportedSessionId?: string | null
+  traceId?: string | null
+}
+
+export interface AdminDiagnosticLog {
+  diagnosticLogId: string
+  deviceId: string
+  accountId?: string | null
+  tenantId?: string | null
+  sessionId?: string | null
+  clientTime: string
+  receivedAt: string
+  level: string
+  eventType: string
+  message: string
+  traceId?: string | null
+  requestId?: string | null
+  errorCode?: string | null
+  diagnosticMode: boolean
+  details: Record<string, unknown>
+}
+
 @Injectable()
 // Bridges Admin Terminal Device BFF use cases to terminal-device-service gRPC contracts.
 export class TerminalDeviceAdminAdapter implements OnModuleInit {
   private enrollmentSvc!: TerminalDeviceEnrollmentServiceClient
   private managementSvc!: TerminalDeviceManagementServiceClient
+  private runtimeSvc!: TerminalDeviceRuntimeSnapshotServiceClient
   private versionPolicySvc!: TerminalDeviceVersionPolicyServiceClient
 
   constructor(
@@ -155,6 +196,9 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
     )
     this.managementSvc = this.client.getService<TerminalDeviceManagementServiceClient>(
       TERMINAL_DEVICE_MANAGEMENT_SERVICE_NAME
+    )
+    this.runtimeSvc = this.client.getService<TerminalDeviceRuntimeSnapshotServiceClient>(
+      TERMINAL_DEVICE_RUNTIME_SNAPSHOT_SERVICE_NAME
     )
     this.versionPolicySvc = this.client.getService<TerminalDeviceVersionPolicyServiceClient>(
       TERMINAL_DEVICE_VERSION_POLICY_SERVICE_NAME
@@ -436,6 +480,82 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
     }
   }
 
+  // Lists immutable heartbeat records for one terminal device from terminal-device-service.
+  async listHeartbeatRecords(input: {
+    tenantId: string
+    terminalDeviceId: string
+    page?: number
+    pageSize?: number
+  }): Promise<{ items: AdminHeartbeatRecord[] } & AdminPagination> {
+    const response = await safeGrpcCall<ListHeartbeatRecordsResponse>(
+      this.runtimeSvc.listHeartbeatRecords({
+        tenantId: input.tenantId,
+        terminalDeviceId: input.terminalDeviceId,
+        pagination: toPagination(input.page, input.pageSize)
+      }),
+      this.opts('listHeartbeatRecords')
+    )
+
+    return {
+      items: (response.items ?? []).map((item) => ({
+        heartbeatId: item.heartbeatId ?? '',
+        terminalDeviceId: item.terminalDeviceId ?? input.terminalDeviceId,
+        presenceStatus: toPresenceStatus(item.presenceStatus),
+        receivedAt: item.receivedAt ?? '',
+        clientTime: emptyToNull(item.clientTime),
+        appVersion: emptyToNull(item.appVersion),
+        androidVersion: emptyToNull(item.androidVersion),
+        webViewVersion: emptyToNull(item.webViewVersion),
+        networkStatus: enumName(item.networkStatus, 'NETWORK_STATUS_', 'UNKNOWN'),
+        networkType: enumName(item.networkType, 'NETWORK_TYPE_', 'UNKNOWN'),
+        batteryLevel: item.batteryLevel ?? null,
+        appState: enumName(item.appState, 'APP_STATE_', 'UNKNOWN'),
+        reportedAccountId: emptyToNull(item.reportedAccountId),
+        reportedSessionId: emptyToNull(item.reportedSessionId),
+        traceId: emptyToNull(item.traceId)
+      })),
+      ...toPaginationResult(response.pagination)
+    }
+  }
+
+  // Lists persisted manual PDA diagnostic logs from terminal-device-service.
+  async listDiagnosticLogs(input: {
+    tenantId: string
+    terminalDeviceId: string
+    page?: number
+    pageSize?: number
+  }): Promise<{ items: AdminDiagnosticLog[] } & AdminPagination> {
+    const response = await safeGrpcCall<ListDiagnosticLogsResponse>(
+      this.runtimeSvc.listDiagnosticLogs({
+        tenantId: input.tenantId,
+        terminalDeviceId: input.terminalDeviceId,
+        pagination: toPagination(input.page, input.pageSize)
+      }),
+      this.opts('listDiagnosticLogs')
+    )
+
+    return {
+      items: (response.items ?? []).map((item) => ({
+        diagnosticLogId: item.diagnosticLogId ?? '',
+        deviceId: item.terminalDeviceId ?? input.terminalDeviceId,
+        tenantId: emptyToNull(item.tenantId),
+        accountId: emptyToNull(item.accountId),
+        sessionId: emptyToNull(item.sessionId),
+        clientTime: item.clientTime ?? '',
+        receivedAt: item.receivedAt ?? '',
+        level: item.level ?? '',
+        eventType: item.eventType ?? '',
+        message: item.message ?? '',
+        traceId: emptyToNull(item.traceId),
+        requestId: emptyToNull(item.requestId),
+        errorCode: emptyToNull(item.errorCode),
+        diagnosticMode: item.diagnosticMode ?? false,
+        details: parseDetailsJson(item.detailsJson)
+      })),
+      ...toPaginationResult(response.pagination)
+    }
+  }
+
   // Builds safe gRPC call metadata for admin terminal device diagnostics.
   private opts(method: string): SafeGrpcCallOptions {
     return { caller: CALLER, method }
@@ -614,6 +734,10 @@ function normalize(value?: string | null): string | undefined {
 
 function emptyToNull(value?: string | null): string | null {
   return normalize(value) ?? null
+}
+
+function parseDetailsJson(value?: string | null): Record<string, unknown> {
+  return parseJsonObject(value) ?? {}
 }
 
 function parseJsonObject(value?: string | null): Record<string, unknown> | undefined {

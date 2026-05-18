@@ -119,6 +119,7 @@ export class ItemMasterQueryV2Service {
     const [total, records] = await this.prisma.$transaction([
       this.prisma.attributeDefinition.count({ where }),
       this.prisma.attributeDefinition.findMany({
+        include: { _count: { select: { options: true } } },
         where,
         orderBy: [{ attributeCode: 'asc' }, { id: 'asc' }],
         skip: (page - 1) * pageSize,
@@ -241,7 +242,7 @@ export class ItemMasterQueryV2Service {
     const parentCategoryId = normalizeOptional(request.parentCategoryId)
     if (parentCategoryId) await ensureExists(this.prisma.itemCategory, { tenantId, id: parentCategoryId }, 'item_category')
     const records = await this.prisma.itemCategory.findMany({
-      where: { tenantId, parentCategoryId, ...(request.active !== undefined ? { active: request.active } : {}) },
+      where: { tenantId, parentCategoryId: parentCategoryId ?? null, ...(request.active !== undefined ? { active: request.active } : {}) },
       include: { children: true },
       orderBy: [{ categoryCode: 'asc' }, { id: 'asc' }]
     })
@@ -508,7 +509,8 @@ export class ItemMasterManagementV2Service
         tenantId,
         attributeDefinitionId,
         optionCode: requireText(request.optionCode, 'option_code'),
-        optionName: requireText(request.optionName, 'option_name')
+        optionName: requireText(request.optionName, 'option_name'),
+        description: normalizeOptional(request.description) ?? null
       }
     }).catch(handleUnique)
     return { attributeOption: toAttributeOptionRecord(record) }
@@ -523,6 +525,7 @@ export class ItemMasterManagementV2Service
       data: {
         optionCode: requireText(request.optionCode, 'option_code'),
         optionName: requireText(request.optionName, 'option_name'),
+        description: normalizeOptional(request.description) ?? null,
         active: Boolean(request.active)
       }
     }).catch(handleUnique)
@@ -654,6 +657,25 @@ export class ItemMasterManagementV2Service
     return { category: toItemCategoryTreeNode(record) }
   }
 
+  async moveItemCategory(request: any) {
+    const tenantId = requireText(request.tenantId, 'tenant_id')
+    const categoryId = requireText(request.categoryId, 'category_id')
+    const parentCategoryId = normalizeOptional(request.parentCategoryId)
+    await ensureExists(this.prisma.itemCategory, { tenantId, id: categoryId }, 'item_category')
+    if (parentCategoryId) {
+      await ensureExists(this.prisma.itemCategory, { tenantId, id: parentCategoryId }, 'item_category')
+    }
+
+    await ensureCategoryMoveIsAcyclic(this.prisma, tenantId, categoryId, parentCategoryId)
+
+    const record = await this.prisma.itemCategory.update({
+      where: { id: categoryId },
+      data: { parentCategoryId: parentCategoryId ?? null },
+      include: { children: true }
+    })
+    return { category: toItemCategoryTreeNode(record) }
+  }
+
   async changeItemCategoryStatus(request: any) {
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const categoryId = requireText(request.categoryId, 'category_id')
@@ -664,6 +686,27 @@ export class ItemMasterManagementV2Service
       include: { children: true }
     })
     return { category: toItemCategoryTreeNode(record) }
+  }
+
+  async deleteItemCategory(request: any) {
+    const tenantId = requireText(request.tenantId, 'tenant_id')
+    const categoryId = requireText(request.categoryId, 'category_id')
+    await ensureExists(this.prisma.itemCategory, { tenantId, id: categoryId }, 'item_category')
+
+    const childCount = await this.prisma.itemCategory.count({
+      where: { tenantId, parentCategoryId: categoryId }
+    })
+    if (childCount > 0) throw failedPrecondition('item_category_has_children')
+
+    const itemModelCount = await this.prisma.itemModel.count({
+      where: { tenantId, primaryCategoryId: categoryId }
+    })
+    if (itemModelCount > 0) throw failedPrecondition('item_category_in_use')
+
+    await this.prisma.itemCategory.delete({
+      where: { id: categoryId }
+    })
+    return {}
   }
 
   async createPackagingMethod(request: any) {
@@ -898,6 +941,30 @@ async function resolveCategoryFilter(prisma: PrismaService, tenantId: string, ca
   return result
 }
 
+async function ensureCategoryMoveIsAcyclic(
+  prisma: PrismaService,
+  tenantId: string,
+  categoryId: string,
+  parentCategoryId?: string
+): Promise<void> {
+  if (!parentCategoryId) return
+  if (parentCategoryId === categoryId) throw failedPrecondition('item_category_parent_cycle')
+
+  const all = await prisma.itemCategory.findMany({ where: { tenantId }, select: { id: true, parentCategoryId: true } })
+  const children = new Map<string, string[]>()
+  for (const category of all) {
+    if (!category.parentCategoryId) continue
+    children.set(category.parentCategoryId, [...(children.get(category.parentCategoryId) ?? []), category.id])
+  }
+
+  const descendants = [...(children.get(categoryId) ?? [])]
+  for (let index = 0; index < descendants.length; index += 1) {
+    const descendantId = descendants[index]
+    if (descendantId === parentCategoryId) throw failedPrecondition('item_category_parent_cycle')
+    descendants.push(...(children.get(descendantId) ?? []))
+  }
+}
+
 async function findItem(prisma: PrismaService, tenantId: string, itemId: string): Promise<any | null> {
   return prisma.item.findFirst({ where: { tenantId, id: itemId }, include: itemInclude() })
 }
@@ -1045,7 +1112,13 @@ function toItemCategoryTreeNode(record: any): ItemCategoryTreeNode {
 }
 
 function toAttributeDefinitionRecord(record: any): AttributeDefinitionRecord {
-  return { attributeDefinitionId: record.id, attributeCode: record.attributeCode, attributeName: record.attributeName, active: record.active }
+  return {
+    attributeDefinitionId: record.id,
+    attributeCode: record.attributeCode,
+    attributeName: record.attributeName,
+    active: record.active,
+    optionCount: record._count?.options ?? 0
+  }
 }
 
 function toAttributeOptionRecord(record: any): AttributeOptionRecord {
@@ -1054,7 +1127,8 @@ function toAttributeOptionRecord(record: any): AttributeOptionRecord {
     attributeDefinitionId: record.attributeDefinitionId,
     optionCode: record.optionCode,
     optionName: record.optionName,
-    active: record.active
+    active: record.active,
+    description: record.description ?? ''
   }
 }
 

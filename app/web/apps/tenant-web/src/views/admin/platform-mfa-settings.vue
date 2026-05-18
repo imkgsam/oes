@@ -20,6 +20,7 @@ import {
   getTenantMfaFactorTooltip,
   getTenantMfaScenarioLabel,
   getTenantMfaScenarioTooltip,
+  orderAccountSecurityMfaScenarioRequirements,
   orderTenantMfaScenarioRequirements,
   reorderTenantMfaFactors,
   type TenantMfaScenarioCode,
@@ -61,7 +62,7 @@ const editableFactors = ref<TenantMfaFactorItem[]>([]);
 const factorListRef = ref<HTMLElement | null>(null);
 const sortableInstance = ref<null | Sortable>(null);
 const editableScenarioRows = computed(() =>
-  orderTenantMfaScenarioRequirements(
+  orderAccountSecurityMfaScenarioRequirements(
     scenarioRequirements.value.map((item) =>
       item.scenario === 'LOGIN'
         ? {
@@ -153,7 +154,7 @@ async function loadPlatformMfaPolicy() {
     applyPlatformMfaPolicy(policy);
   } catch (error) {
     editableFactors.value = [];
-    message.error(getErrorMessage(error, '加载平台 MFA 配置失败'));
+    message.error(getErrorMessage(error, '加载平台 MFA 因子配置失败'));
   } finally {
     platformMfaLoading.value = false;
   }
@@ -187,9 +188,9 @@ async function savePlatformMfaPolicy() {
     applyPlatformMfaPolicy(policy);
     await nextTick();
     await initFactorSortable();
-    message.success('平台 MFA 配置已更新');
+    message.success('平台 MFA 因子配置已更新');
   } catch (error) {
-    message.error(getErrorMessage(error, '保存平台 MFA 配置失败'));
+    message.error(getErrorMessage(error, '保存平台 MFA 因子配置失败'));
   } finally {
     platformMfaSaving.value = false;
   }
@@ -236,18 +237,18 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <Page auto-content-height title="平台 MFA 配置">
+  <Page auto-content-height title="平台 MFA 因子配置">
     <div class="platform-mfa-settings-page">
       <Card :bordered="false" class="platform-mfa-settings__panel">
         <div class="platform-mfa-settings__header">
           <div class="platform-mfa-settings__title-row">
             <div>
-              <div class="platform-mfa-settings__title">平台 MFA 配置</div>
+              <div class="platform-mfa-settings__title">平台 MFA 因子配置</div>
               <div class="platform-mfa-settings__description">
-                配置系统账号哪些场景需要 MFA，以及因子展示顺序。
+                配置系统账号安全操作的 MFA 要求、可用因子以及因子展示顺序。
               </div>
             </div>
-            <Tooltip title="这里只管理系统级账号的 MFA 场景与因子顺序，不处理租户策略。">
+            <Tooltip title="这里只管理系统账号安全操作与 MFA 因子；Web / PDA / Kiosk 登录 MFA 由 Terminal 登录策略统一控制。">
               <span class="platform-mfa-settings__help-dot">?</span>
             </Tooltip>
           </div>
@@ -257,11 +258,11 @@ onBeforeUnmount(() => {
           v-if="!hasPlatformContext || !canManagePlatformMfa"
           class="platform-mfa-settings__empty"
         >
-          <Empty description="当前上下文暂不支持管理平台 MFA 配置" />
+          <Empty description="当前上下文暂不支持管理平台 MFA 因子配置" />
         </div>
 
         <div v-else-if="platformMfaLoading" class="platform-mfa-settings__empty">
-          正在加载平台 MFA 配置...
+          正在加载平台 MFA 因子配置...
         </div>
 
         <div v-else class="platform-mfa-settings__content">
@@ -271,9 +272,9 @@ onBeforeUnmount(() => {
                 <div class="platform-mfa-settings__section">
                   <div class="platform-mfa-settings__section-head">
                     <div>
-                      <div class="platform-mfa-settings__section-title">场景要求</div>
+                      <div class="platform-mfa-settings__section-title">账号安全场景</div>
                       <div class="platform-mfa-settings__meta">
-                        控制系统账号哪些入口需要先完成 MFA。
+                        控制系统账号修改密码、修改联系方式等账号操作是否需要先完成 MFA。
                       </div>
                     </div>
                   </div>
@@ -357,7 +358,7 @@ onBeforeUnmount(() => {
 
           <div class="platform-mfa-settings__footer">
             <div class="platform-mfa-settings__footer-meta">
-              保存后，系统账号后续命中的 MFA 流程会按这里的配置执行。
+              保存后，系统账号安全操作会按这里的 MFA 因子与场景配置执行；登录 MFA 由 Terminal 登录策略控制。
             </div>
             <Button
               v-access:code="'auth.platform_mfa_policy.manage'"

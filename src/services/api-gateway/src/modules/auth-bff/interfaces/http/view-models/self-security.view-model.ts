@@ -67,6 +67,8 @@ export class SelfLoginHistoryItemViewModel {
   @ApiProperty() occurredAt!: string
   @ApiProperty() outcome!: string
   @ApiPropertyOptional() loginMethod?: string
+  @ApiPropertyOptional() terminal?: string
+  @ApiPropertyOptional() loginFlow?: string
   @ApiPropertyOptional() ipAddress?: string
   @ApiPropertyOptional() deviceName?: string
   @ApiPropertyOptional() platform?: string

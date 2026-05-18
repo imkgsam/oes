@@ -5,6 +5,7 @@ describe('PdaDeviceLogsUseCase', () => {
   it('accepts manual diagnostic logs and stores sanitized recent entries', async () => {
     const store = new InMemoryPdaDeviceDiagnosticLogStore()
     const terminalDeviceAdapter = {
+      recordDiagnosticLogs: jest.fn().mockResolvedValue({ accepted: true, receivedCount: 1 }),
       resolveDeviceAccessDecision: jest.fn().mockResolvedValue(allowDecision())
     }
     const useCase = new PdaDeviceLogsUseCase(store, terminalDeviceAdapter as any)
@@ -60,19 +61,33 @@ describe('PdaDeviceLogsUseCase', () => {
         requestPurpose: 'DIAGNOSTIC_LOG'
       })
     )
-    expect(store.getRecent('terminal-device-1')).toEqual([
+    expect(terminalDeviceAdapter.recordDiagnosticLogs).toHaveBeenCalledWith(
       expect.objectContaining({
-        deviceId: 'terminal-device-1',
-        sessionId: null,
+        tenantId: 'tenant-1',
+        terminalDeviceId: 'terminal-device-1',
+        records: [
+          expect.objectContaining({
+            deviceId: 'terminal-device-1',
+            sessionId: null,
+            eventType: 'SCAN_RECEIVED',
+            details: {
+              scanValue: 'PB202605140001',
+              scanLength: 14,
+              accessToken: '[REDACTED]',
+              nested: {
+                password: '[REDACTED]'
+              }
+            }
+          })
+        ]
+      })
+    )
+    expect(store.getRecent('terminal-device-1')).toMatchObject([
+      expect.objectContaining({
         eventType: 'SCAN_RECEIVED',
-        details: {
-          scanValue: 'PB202605140001',
-          scanLength: 14,
-          accessToken: '[REDACTED]',
-          nested: {
-            password: '[REDACTED]'
-          }
-        }
+        details: expect.objectContaining({
+          scanValue: 'PB202605140001'
+        })
       })
     ])
   })
@@ -80,6 +95,7 @@ describe('PdaDeviceLogsUseCase', () => {
   it('redacts scan values when diagnostic mode is not explicitly enabled', async () => {
     const store = new InMemoryPdaDeviceDiagnosticLogStore()
     const terminalDeviceAdapter = {
+      recordDiagnosticLogs: jest.fn().mockResolvedValue({ accepted: true, receivedCount: 1 }),
       resolveDeviceAccessDecision: jest.fn().mockResolvedValue(allowDecision())
     }
     const useCase = new PdaDeviceLogsUseCase(store, terminalDeviceAdapter as any)
@@ -113,15 +129,19 @@ describe('PdaDeviceLogsUseCase', () => {
       ]
     })
 
-    expect(store.getRecent('terminal-device-1')[0]).toEqual(
+    expect(terminalDeviceAdapter.recordDiagnosticLogs).toHaveBeenCalledWith(
       expect.objectContaining({
-        accountId: 'account-1',
-        tenantId: null,
-        sessionId: 'session-1',
-        details: {
-          scanValue: '[REDACTED_DIAGNOSTIC_MODE_REQUIRED]',
-          scanLength: 14
-        }
+        records: [
+          expect.objectContaining({
+            accountId: 'account-1',
+            tenantId: 'tenant-1',
+            sessionId: 'session-1',
+            details: {
+              scanValue: '[REDACTED_DIAGNOSTIC_MODE_REQUIRED]',
+              scanLength: 14
+            }
+          })
+        ]
       })
     )
   })

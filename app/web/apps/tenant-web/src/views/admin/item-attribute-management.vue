@@ -2,220 +2,193 @@
 import type { ItemManagementApi } from '#/api'
 
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { IconifyIcon } from '@vben/icons'
 
 import {
   Alert,
   Button,
   Card,
-  Empty,
+  Drawer,
+  Dropdown,
   Form,
   Input,
+  Menu,
   Select,
   SelectOption,
   Space,
+  Switch,
+  Table,
   Tag
 } from 'ant-design-vue'
 
 import {
   createManagedAttributeDefinitionApi,
-  createManagedAttributeOptionApi,
   listManagedAttributeDefinitionsApi,
-  listManagedAttributeOptionsApi,
-  updateManagedAttributeDefinitionApi,
-  updateManagedAttributeOptionApi
+  updateManagedAttributeDefinitionApi
 } from '#/api'
 import { useAuthContextStore } from '#/store/auth-context'
 
 type AttributeStatus = ItemManagementApi.ItemStatus
-type DefinitionFormMode = 'create' | 'edit'
-type OptionFormMode = 'create' | 'edit'
+type AttributeFormMode = 'create' | 'edit'
+type AttributeActionKey = 'detail' | 'edit'
 
-interface DefinitionFormState {
+interface TableActionMenuItem<ActionKey extends string> {
+  danger?: boolean
+  disabled?: boolean
+  hidden?: boolean
+  key: ActionKey
+  label: string
+  testId?: string
+}
+
+interface AttributeFormState {
   attributeCode: string
   attributeName: string
   status: AttributeStatus
 }
 
-interface OptionFormState {
-  optionCode: string
-  optionName: string
-  status: AttributeStatus
-}
-
+const router = useRouter()
 const authContextStore = useAuthContextStore()
+const operationColumnTitle = '操作'
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
-const activeTenantName = computed(
-  () => authContextStore.sessionContext?.tenant?.name ?? authContextStore.tenantName ?? '当前租户'
-)
-const canListAttribute = computed(() =>
-  authContextStore.actionCodes.includes('item_master.attribute.list')
-)
-const canCreateAttribute = computed(() =>
-  authContextStore.actionCodes.includes('item_master.attribute.create')
-)
-const canManageAttribute = computed(() =>
-  authContextStore.actionCodes.includes('item_master.attribute.manage')
-)
+const canListAttribute = computed(() => authContextStore.actionCodes.includes('item_master.attribute.list'))
+const canCreateAttribute = computed(() => authContextStore.actionCodes.includes('item_master.attribute.create'))
+const canManageAttribute = computed(() => authContextStore.actionCodes.includes('item_master.attribute.manage'))
 const filters = reactive({
   keyword: '',
   status: '' as '' | AttributeStatus
 })
-const definitions = ref<ItemManagementApi.AttributeDefinitionRecord[]>([])
-const options = ref<ItemManagementApi.AttributeOptionRecord[]>([])
-const selectedDefinitionId = ref('')
-const selectedOptionId = ref('')
-const originalDefinitionStatus = ref<AttributeStatus>('ACTIVE')
-const originalOptionStatus = ref<AttributeStatus>('ACTIVE')
-const definitionLoading = ref(false)
-const optionLoading = ref(false)
-const savingDefinition = ref(false)
-const savingOption = ref(false)
+const attributes = ref<ItemManagementApi.AttributeDefinitionRecord[]>([])
+const selectedAttributeId = ref('')
+const originalAttributeStatus = ref<AttributeStatus>('ACTIVE')
+const attributeLoading = ref(false)
+const drawerOpen = ref(false)
+const saving = ref(false)
 const errorMessage = ref('')
-const definitionFormMode = ref<DefinitionFormMode>('create')
-const optionFormMode = ref<OptionFormMode>('create')
-const definitionForm = reactive<DefinitionFormState>({
+const formMode = ref<AttributeFormMode>('create')
+const form = reactive<AttributeFormState>({
   attributeCode: '',
   attributeName: '',
   status: 'ACTIVE'
 })
-const optionForm = reactive<OptionFormState>({
-  optionCode: '',
-  optionName: '',
-  status: 'ACTIVE'
+const formTitle = computed(() => (formMode.value === 'edit' ? '编辑属性' : '创建属性'))
+const attributeStatusChecked = computed({
+  get: () => form.status === 'ACTIVE',
+  set: (checked: boolean) => {
+    form.status = checked ? 'ACTIVE' : 'INACTIVE'
+  }
 })
-const selectedDefinition = computed(
-  () => definitions.value.find((definition) => definition.attributeDefinitionId === selectedDefinitionId.value) ?? null
-)
-const definitionFormTitle = computed(() =>
-  definitionFormMode.value === 'edit' ? '属性定义详情' : '新建属性定义'
-)
-const optionFormTitle = computed(() =>
-  optionFormMode.value === 'edit' ? '属性选项详情' : '新建属性选项'
-)
+const attributeTableColumns = [
+  {
+    key: 'name',
+    title: '属性名称'
+  },
+  {
+    key: 'code',
+    title: '属性编码'
+  },
+  {
+    key: 'optionCount',
+    title: '选项数'
+  },
+  {
+    key: 'status',
+    title: '状态'
+  },
+  {
+    key: 'operation',
+    title: operationColumnTitle
+  }
+]
+
+/** getAttributeActionItems exposes attribute row operations for the native Ant Design dropdown. */
+function getAttributeActionItems(
+  attributeRecord: ItemManagementApi.AttributeDefinitionRecord | Record<string, any>
+): TableActionMenuItem<AttributeActionKey>[] {
+  const attribute = attributeRecord as ItemManagementApi.AttributeDefinitionRecord
+  return [
+    {
+      key: 'detail',
+      label: '详情',
+      testId: `attribute-row-detail-${attribute.attributeDefinitionId}`
+    },
+    {
+      hidden: !canManageAttribute.value,
+      key: 'edit',
+      label: '编辑',
+      testId: `attribute-row-edit-${attribute.attributeDefinitionId}`
+    }
+  ]
+}
+
+/** getVisibleTableActionItems filters hidden table actions before handing them to Ant Design Menu. */
+function getVisibleTableActionItems<ActionKey extends string>(items: TableActionMenuItem<ActionKey>[]) {
+  return items.filter((item) => !item.hidden)
+}
 
 /** normalizeStatus keeps backend lifecycle strings inside the first-phase ACTIVE/INACTIVE UI contract. */
 function normalizeStatus(status?: string): AttributeStatus {
   return status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE'
 }
 
-/** resetDefinitionForm prepares the definition editor for create mode. */
-function resetDefinitionForm() {
-  definitionForm.attributeCode = ''
-  definitionForm.attributeName = ''
-  definitionForm.status = 'ACTIVE'
-  originalDefinitionStatus.value = 'ACTIVE'
+/** resetForm clears mutable attribute form state before create mode. */
+function resetForm() {
+  form.attributeCode = ''
+  form.attributeName = ''
+  form.status = 'ACTIVE'
+  originalAttributeStatus.value = 'ACTIVE'
 }
 
-/** resetOptionForm prepares the option editor for create mode. */
-function resetOptionForm() {
-  optionForm.optionCode = ''
-  optionForm.optionName = ''
-  optionForm.status = 'ACTIVE'
-  originalOptionStatus.value = 'ACTIVE'
-  selectedOptionId.value = ''
+/** openCreateAttributeForm prepares the drawer for a new AttributeDefinition. */
+function openCreateAttributeForm() {
+  formMode.value = 'create'
+  selectedAttributeId.value = ''
+  resetForm()
+  drawerOpen.value = true
 }
 
-/** openCreateDefinitionForm switches the definition editor back to a blank create draft. */
-function openCreateDefinitionForm() {
-  definitionFormMode.value = 'create'
-  selectedDefinitionId.value = ''
-  options.value = []
-  resetDefinitionForm()
-  resetOptionForm()
+/** openEditAttributeForm copies one AttributeDefinition into the drawer form. */
+function openEditAttributeForm(attributeRecord: ItemManagementApi.AttributeDefinitionRecord | Record<string, any>) {
+  const attribute = attributeRecord as ItemManagementApi.AttributeDefinitionRecord
+  formMode.value = 'edit'
+  selectedAttributeId.value = attribute.attributeDefinitionId
+  form.attributeCode = attribute.attributeCode
+  form.attributeName = attribute.attributeName
+  form.status = normalizeStatus(attribute.status)
+  originalAttributeStatus.value = form.status
+  drawerOpen.value = true
 }
 
-/** openCreateOptionForm switches the option editor back to a blank create draft under the selected definition. */
-function openCreateOptionForm() {
-  if (!selectedDefinition.value) {
+/** handleAttributeAction dispatches one dropdown menu action for an attribute row. */
+function handleAttributeAction(
+  actionKey: AttributeActionKey,
+  attributeRecord: ItemManagementApi.AttributeDefinitionRecord | Record<string, any>
+) {
+  const attribute = attributeRecord as ItemManagementApi.AttributeDefinitionRecord
+  if (actionKey === 'detail') {
+    openAttributeDetail(attribute.attributeDefinitionId)
     return
   }
 
-  optionFormMode.value = 'create'
-  resetOptionForm()
+  openEditAttributeForm(attribute)
 }
 
-/** hydrateDefinitionEditor copies a selected AttributeDefinition into the editable form. */
-function hydrateDefinitionEditor(definition: ItemManagementApi.AttributeDefinitionRecord) {
-  selectedDefinitionId.value = definition.attributeDefinitionId
-  definitionFormMode.value = 'edit'
-  definitionForm.attributeCode = definition.attributeCode
-  definitionForm.attributeName = definition.attributeName
-  definitionForm.status = normalizeStatus(definition.status)
-  originalDefinitionStatus.value = definitionForm.status
+/** updateAttributeCode normalizes attribute codes to the uppercase convention used by item master data. */
+function updateAttributeCode(value: string) {
+  form.attributeCode = value.toUpperCase()
 }
 
-/** hydrateOptionEditor copies a selected AttributeOption into the editable form. */
-function hydrateOptionEditor(option: ItemManagementApi.AttributeOptionRecord) {
-  selectedOptionId.value = option.attributeOptionId
-  optionFormMode.value = 'edit'
-  optionForm.optionCode = option.optionCode
-  optionForm.optionName = option.optionName
-  optionForm.status = normalizeStatus(option.status)
-  originalOptionStatus.value = optionForm.status
-}
-
-/** loadOptions refreshes the option list for the currently selected AttributeDefinition. */
-async function loadOptions(attributeDefinitionId = selectedDefinitionId.value) {
-  if (!canListAttribute.value || !activeTenantId.value || !attributeDefinitionId) {
-    options.value = []
-    resetOptionForm()
-    return
-  }
-
-  optionLoading.value = true
-  errorMessage.value = ''
-  try {
-    const result = await listManagedAttributeOptionsApi(activeTenantId.value, attributeDefinitionId, {
-      status: undefined
-    })
-    options.value = result.attributeOptions ?? []
-    if (selectedOptionId.value) {
-      const nextSelected = options.value.find((option) => option.attributeOptionId === selectedOptionId.value)
-      if (nextSelected) {
-        hydrateOptionEditor(nextSelected)
-        return
-      }
-    }
-    openCreateOptionForm()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '属性选项加载失败'
-  } finally {
-    optionLoading.value = false
-  }
-}
-
-/** selectDefinition opens one AttributeDefinition and loads its first-phase AttributeOption set. */
-async function selectDefinition(definitionId: string) {
-  const definition = definitions.value.find((entry) => entry.attributeDefinitionId === definitionId)
-  if (!definition) {
-    return
-  }
-
-  hydrateDefinitionEditor(definition)
-  resetOptionForm()
-  await loadOptions(definition.attributeDefinitionId)
-}
-
-/** selectOption opens one AttributeOption in the option editor. */
-function selectOption(optionId: string) {
-  const option = options.value.find((entry) => entry.attributeOptionId === optionId)
-  if (option) {
-    hydrateOptionEditor(option)
-  }
-}
-
-/** loadDefinitions refreshes AttributeDefinition directory data and keeps a sensible selection. */
-async function loadDefinitions() {
+/** loadAttributes refreshes the AttributeDefinition directory table. */
+async function loadAttributes() {
   if (!canListAttribute.value || !activeTenantId.value) {
-    definitions.value = []
-    selectedDefinitionId.value = ''
-    options.value = []
+    attributes.value = []
     return
   }
 
-  definitionLoading.value = true
+  attributeLoading.value = true
   errorMessage.value = ''
   try {
     const result = await listManagedAttributeDefinitionsApi(activeTenantId.value, {
@@ -224,53 +197,40 @@ async function loadDefinitions() {
       pageSize: 50,
       status: filters.status || undefined
     })
-    definitions.value = result.attributeDefinitions ?? []
-    const selectedStillExists = definitions.value.some(
-      (definition) => definition.attributeDefinitionId === selectedDefinitionId.value
-    )
-    const nextSelection = selectedStillExists
-      ? selectedDefinitionId.value
-      : (definitions.value[0]?.attributeDefinitionId ?? '')
-
-    if (nextSelection) {
-      await selectDefinition(nextSelection)
-    } else {
-      openCreateDefinitionForm()
-    }
+    attributes.value = result.attributeDefinitions ?? []
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '属性定义加载失败'
+    errorMessage.value = error instanceof Error ? error.message : '属性加载失败'
   } finally {
-    definitionLoading.value = false
+    attributeLoading.value = false
   }
 }
 
-/** applyFilters reloads the definition directory using the lightweight search form. */
+/** applyFilters reloads the attribute directory using the lightweight search form. */
 async function applyFilters() {
-  selectedDefinitionId.value = ''
-  selectedOptionId.value = ''
-  await loadDefinitions()
+  await loadAttributes()
 }
 
-/** submitDefinitionForm persists AttributeDefinition create or edit drafts. */
-async function submitDefinitionForm() {
-  if (!activeTenantId.value) {
+/** submitAttributeForm persists AttributeDefinition create or edit drafts. */
+async function submitAttributeForm() {
+  if (saving.value || !activeTenantId.value) {
     return
   }
 
-  savingDefinition.value = true
+  saving.value = true
   errorMessage.value = ''
   try {
-    if (definitionFormMode.value === 'edit') {
-      if (!selectedDefinitionId.value || !canManageAttribute.value) {
+    if (formMode.value === 'edit') {
+      if (!selectedAttributeId.value || !canManageAttribute.value) {
         return
       }
 
-      await updateManagedAttributeDefinitionApi(activeTenantId.value, selectedDefinitionId.value, {
-        attributeCode: definitionForm.attributeCode.trim(),
-        attributeName: definitionForm.attributeName.trim(),
-        status: definitionForm.status
+      await updateManagedAttributeDefinitionApi(activeTenantId.value, selectedAttributeId.value, {
+        attributeCode: form.attributeCode.trim(),
+        attributeName: form.attributeName.trim(),
+        status: form.status
       })
-      await loadDefinitions()
+      drawerOpen.value = false
+      await loadAttributes()
       return
     }
 
@@ -279,364 +239,315 @@ async function submitDefinitionForm() {
     }
 
     await createManagedAttributeDefinitionApi(activeTenantId.value, {
-      attributeCode: definitionForm.attributeCode.trim(),
-      attributeName: definitionForm.attributeName.trim()
+      attributeCode: form.attributeCode.trim(),
+      attributeName: form.attributeName.trim()
     })
-    await loadDefinitions()
+    drawerOpen.value = false
+    await loadAttributes()
   } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '属性定义保存失败'
+    errorMessage.value = error instanceof Error ? error.message : '属性保存失败'
   } finally {
-    savingDefinition.value = false
+    saving.value = false
   }
 }
 
-/** submitOptionForm persists AttributeOption create or edit drafts under the selected definition. */
-async function submitOptionForm() {
-  if (!activeTenantId.value || !selectedDefinition.value) {
-    return
-  }
-
-  savingOption.value = true
-  errorMessage.value = ''
-  try {
-    if (optionFormMode.value === 'edit') {
-      if (!selectedOptionId.value || !canManageAttribute.value) {
-        return
-      }
-
-      await updateManagedAttributeOptionApi(activeTenantId.value, selectedOptionId.value, {
-        optionCode: optionForm.optionCode.trim(),
-        optionName: optionForm.optionName.trim(),
-        status: optionForm.status
-      })
-      await loadOptions()
-      return
+/** openAttributeDetail navigates to AttributeOption configuration for one AttributeDefinition. */
+function openAttributeDetail(attributeDefinitionId: string) {
+  void router.push({
+    name: 'TenantItemAttributeDetail',
+    params: {
+      attributeDefinitionId
     }
-
-    if (!canCreateAttribute.value) {
-      return
-    }
-
-    await createManagedAttributeOptionApi(activeTenantId.value, selectedDefinition.value.attributeDefinitionId, {
-      optionCode: optionForm.optionCode.trim(),
-      optionName: optionForm.optionName.trim()
-    })
-    await loadOptions()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '属性选项保存失败'
-  } finally {
-    savingOption.value = false
-  }
+  })
 }
 
-onMounted(async () => {
-  await loadDefinitions()
+onMounted(() => {
+  void loadAttributes()
 })
 </script>
 
 <template>
   <Page>
     <section class="item-attribute-workbench">
-      <header class="item-attribute-workbench__header">
-        <div>
-          <div class="item-attribute-workbench__eyebrow">主数据 / Item 属性管理</div>
-          <h1>Item 属性管理</h1>
-          <p>{{ activeTenantName }} 的 AttributeDefinition 与 AttributeOption 基础数据。</p>
-        </div>
-        <Space class="item-attribute-workbench__actions">
-          <Button data-testid="attribute-definition-create-button" type="primary" @click="openCreateDefinitionForm">
-            新建属性
-          </Button>
-        </Space>
-      </header>
-
       <Alert v-if="errorMessage" :message="errorMessage" type="error" />
 
-      <Card>
-        <Form class="item-attribute-workbench__filters" layout="inline" @submit.prevent="applyFilters">
-          <Input
-            v-model:value="filters.keyword"
-            data-testid="attribute-filter-keyword"
-            placeholder="按编码或名称搜索"
-          />
-          <Select v-model:value="filters.status" data-testid="attribute-filter-status">
-            <SelectOption value="">全部状态</SelectOption>
-            <SelectOption value="ACTIVE">ACTIVE</SelectOption>
-            <SelectOption value="INACTIVE">INACTIVE</SelectOption>
-          </Select>
-          <Button data-testid="attribute-filter-submit" html-type="button" type="primary" @click="applyFilters">
-            筛选
-          </Button>
-        </Form>
+      <Card :bordered="false" class="item-attribute-workbench__panel">
+        <div class="item-attribute-workbench__table-panel">
+          <div class="item-attribute-workbench__table-head">
+            <div>
+              <h2>产品属性管理</h2>
+              <p>维护 AttributeDefinition，选项在详情页配置</p>
+            </div>
+            <Space wrap>
+              <Button
+                v-if="canCreateAttribute"
+                data-testid="attribute-create-button"
+                type="primary"
+                @click="openCreateAttributeForm"
+              >
+                创建属性
+              </Button>
+            </Space>
+          </div>
+
+          <Form class="item-attribute-workbench__filters" layout="vertical" @submit.prevent="applyFilters">
+            <Form.Item label="搜索属性">
+              <Input
+                v-model:value="filters.keyword"
+                data-testid="attribute-filter-keyword"
+                placeholder="编码 / 名称"
+              />
+            </Form.Item>
+            <Form.Item label="状态">
+              <Select v-model:value="filters.status" data-testid="attribute-filter-status">
+                <SelectOption value="">全部状态</SelectOption>
+                <SelectOption value="ACTIVE">ACTIVE</SelectOption>
+                <SelectOption value="INACTIVE">INACTIVE</SelectOption>
+              </Select>
+            </Form.Item>
+            <Form.Item label=" ">
+              <Button data-testid="attribute-filter-submit" html-type="button" type="primary" @click="applyFilters">
+                筛选
+              </Button>
+            </Form.Item>
+          </Form>
+
+          <Table
+            class="item-attribute-workbench__ant-table"
+            :columns="attributeTableColumns"
+            :data-source="attributes"
+            :loading="attributeLoading"
+            :locale="{ emptyText: '暂无产品属性' }"
+            :pagination="false"
+            :row-key="(record: ItemManagementApi.AttributeDefinitionRecord) => record.attributeDefinitionId"
+            size="middle"
+          >
+            <template #bodyCell="{ column, record }">
+              <template v-if="column.key === 'name'">
+                <span class="item-attribute-workbench__name">{{ record.attributeName }}</span>
+              </template>
+              <template v-else-if="column.key === 'code'">
+                <span class="item-attribute-workbench__code">{{ record.attributeCode }}</span>
+              </template>
+              <template v-else-if="column.key === 'optionCount'">
+                <span>{{ record.optionCount ?? 0 }}</span>
+              </template>
+              <template v-else-if="column.key === 'status'">
+                <Tag :color="record.status === 'ACTIVE' ? 'green' : 'default'">
+                  {{ record.status }}
+                </Tag>
+              </template>
+              <template v-else-if="column.key === 'operation'">
+                <Dropdown
+                  v-if="getVisibleTableActionItems(getAttributeActionItems(record)).length > 0"
+                  :trigger="['click']"
+                >
+                  <Button aria-label="属性操作" shape="circle" size="small" type="text">
+                    <IconifyIcon icon="ant-design:more-outlined" />
+                  </Button>
+                  <template #overlay>
+                    <Menu @click="(info) => handleAttributeAction(String(info.key) as AttributeActionKey, record)">
+                      <Menu.Item
+                        v-for="item in getVisibleTableActionItems(getAttributeActionItems(record))"
+                        :key="item.key"
+                        :danger="item.danger"
+                        :data-testid="item.testId"
+                        :disabled="item.disabled"
+                      >
+                        {{ item.label }}
+                      </Menu.Item>
+                    </Menu>
+                  </template>
+                </Dropdown>
+                <span v-else class="tenant-table-action-empty">无可用操作</span>
+              </template>
+            </template>
+          </Table>
+        </div>
       </Card>
 
-      <section class="item-attribute-workbench__layout">
-        <Card>
-          <template #title>
-            <div class="item-attribute-workbench__card-title">
-              <span>属性定义</span>
-              <small>{{ definitions.length }} 条</small>
+      <Drawer
+        data-testid="attribute-form-drawer"
+        :open="drawerOpen"
+        :title="formTitle"
+        :width="560"
+        destroy-on-close
+        placement="right"
+        @close="drawerOpen = false"
+      >
+        <div class="item-attribute-workbench__drawer-shell">
+          <div class="item-attribute-workbench__drawer-head">
+            <div>
+              <div class="item-attribute-workbench__drawer-title">{{ formTitle }}</div>
+              <div class="item-attribute-workbench__drawer-subtitle">
+                Attribute 用于表达物料本体或规格识别属性，不承载包装要求。
+              </div>
             </div>
-          </template>
-          <div v-if="definitions.length" class="item-attribute-workbench__list">
-            <button
-              v-for="definition in definitions"
-              :key="definition.attributeDefinitionId"
-              :class="[
-                'item-attribute-workbench__row',
-                {
-                  'item-attribute-workbench__row--active':
-                    selectedDefinitionId === definition.attributeDefinitionId
-                }
-              ]"
-              :data-testid="`attribute-definition-row-${definition.attributeDefinitionId}`"
-              type="button"
-              @click="selectDefinition(definition.attributeDefinitionId)"
-            >
-              <span>
-                <strong>{{ definition.attributeCode }}</strong>
-                <small>{{ definition.attributeName }}</small>
-              </span>
-              <Tag :color="definition.status === 'ACTIVE' ? 'green' : 'default'">
-                {{ definition.status }}
-              </Tag>
-            </button>
           </div>
-          <Empty v-else :description="definitionLoading ? '属性加载中' : '暂无 Item 属性'" />
-        </Card>
 
-        <Card>
-          <template #title>
-            <div class="item-attribute-workbench__card-title">
-              <span>{{ definitionFormTitle }}</span>
-              <small>定义规格识别维度，不承载包装要求</small>
-            </div>
-          </template>
-          <Form class="item-attribute-workbench__form" layout="vertical" @submit.prevent="submitDefinitionForm">
-            <Form.Item label="属性编码">
-              <Input v-model:value="definitionForm.attributeCode" data-testid="attribute-definition-code" />
-            </Form.Item>
-            <Form.Item label="属性名称">
-              <Input v-model:value="definitionForm.attributeName" data-testid="attribute-definition-name" />
-            </Form.Item>
-            <Form.Item v-if="definitionFormMode === 'edit'" label="状态">
-              <Select v-model:value="definitionForm.status" data-testid="attribute-definition-status">
-                <SelectOption value="ACTIVE">ACTIVE</SelectOption>
-                <SelectOption value="INACTIVE">INACTIVE</SelectOption>
-              </Select>
-            </Form.Item>
-            <div class="item-attribute-workbench__footer">
-              <Button
-                :loading="savingDefinition"
-                data-testid="attribute-definition-submit"
-                html-type="button"
-                type="primary"
-                @click="submitDefinitionForm"
-              >
-                保存属性
-              </Button>
+          <Form class="item-attribute-workbench__form" layout="vertical">
+            <div class="item-attribute-workbench__form-section">
+              <div class="item-attribute-workbench__section-title">基础信息</div>
+              <Form.Item label="属性编码">
+                <Input
+                  data-testid="attribute-form-code"
+                  :value="form.attributeCode"
+                  placeholder="例如 COLOR"
+                  @update:value="updateAttributeCode"
+                />
+              </Form.Item>
+              <Form.Item label="属性名称">
+                <Input data-testid="attribute-form-name" v-model:value="form.attributeName" placeholder="例如 颜色" />
+              </Form.Item>
+              <Form.Item v-if="formMode === 'edit'" label="启用">
+                <div class="item-attribute-workbench__status-row">
+                  <Switch
+                    data-testid="attribute-status-switch"
+                    v-model:checked="attributeStatusChecked"
+                    checked-children="启用"
+                    un-checked-children="停用"
+                  />
+                  <span>{{ form.status === 'ACTIVE' ? '启用中' : '已停用' }}</span>
+                </div>
+              </Form.Item>
             </div>
           </Form>
-        </Card>
 
-        <Card>
-          <template #title>
-            <div class="item-attribute-workbench__card-title">
-              <span>属性选项</span>
-              <small>{{ selectedDefinition?.attributeCode ?? '未选择属性' }}</small>
-            </div>
-          </template>
-          <Space class="item-attribute-workbench__option-actions">
-            <Button
-              :disabled="!selectedDefinition"
-              data-testid="attribute-option-create-button"
-              type="primary"
-              @click="openCreateOptionForm"
-            >
-              新建选项
+          <div class="item-attribute-workbench__form-actions">
+            <Button data-testid="attribute-form-cancel" :disabled="saving" @click="drawerOpen = false">
+              取消
             </Button>
-          </Space>
-          <div v-if="options.length" class="item-attribute-workbench__list">
-            <button
-              v-for="option in options"
-              :key="option.attributeOptionId"
-              :class="[
-                'item-attribute-workbench__row',
-                {
-                  'item-attribute-workbench__row--active': selectedOptionId === option.attributeOptionId
-                }
-              ]"
-              :data-testid="`attribute-option-row-${option.attributeOptionId}`"
-              type="button"
-              @click="selectOption(option.attributeOptionId)"
+            <Button
+              data-testid="attribute-form-submit"
+              type="primary"
+              :loading="saving"
+              @click="submitAttributeForm"
             >
-              <span>
-                <strong>{{ option.optionCode }}</strong>
-                <small>{{ option.optionName }}</small>
-              </span>
-              <Tag :color="option.status === 'ACTIVE' ? 'green' : 'default'">
-                {{ option.status }}
-              </Tag>
-            </button>
+              保存属性
+            </Button>
           </div>
-          <Empty v-else :description="optionLoading ? '选项加载中' : '暂无属性选项'" />
-        </Card>
-
-        <Card>
-          <template #title>
-            <div class="item-attribute-workbench__card-title">
-              <span>{{ optionFormTitle }}</span>
-              <small>选项用于锁定具体 Item 规格</small>
-            </div>
-          </template>
-          <Form class="item-attribute-workbench__form" layout="vertical" @submit.prevent="submitOptionForm">
-            <Form.Item label="选项编码">
-              <Input
-                v-model:value="optionForm.optionCode"
-                :disabled="!selectedDefinition"
-                data-testid="attribute-option-code"
-              />
-            </Form.Item>
-            <Form.Item label="选项名称">
-              <Input
-                v-model:value="optionForm.optionName"
-                :disabled="!selectedDefinition"
-                data-testid="attribute-option-name"
-              />
-            </Form.Item>
-            <Form.Item v-if="optionFormMode === 'edit'" label="状态">
-              <Select v-model:value="optionForm.status" data-testid="attribute-option-status">
-                <SelectOption value="ACTIVE">ACTIVE</SelectOption>
-                <SelectOption value="INACTIVE">INACTIVE</SelectOption>
-              </Select>
-            </Form.Item>
-            <div class="item-attribute-workbench__footer">
-              <Button
-                :disabled="!selectedDefinition"
-                :loading="savingOption"
-                data-testid="attribute-option-submit"
-                html-type="button"
-                type="primary"
-                @click="submitOptionForm"
-              >
-                保存选项
-              </Button>
-            </div>
-          </Form>
-        </Card>
-      </section>
+        </div>
+      </Drawer>
     </section>
   </Page>
 </template>
 
 <style scoped>
 .item-attribute-workbench {
-  display: grid;
-  gap: 18px;
-  padding: 4px;
-}
-
-.item-attribute-workbench__header {
-  align-items: flex-start;
   display: flex;
-  gap: 16px;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 16px;
+}
+
+.item-attribute-workbench__panel {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.item-attribute-workbench__table-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.item-attribute-workbench__table-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
   justify-content: space-between;
+  margin-bottom: 16px;
 }
 
-.item-attribute-workbench__eyebrow,
-.item-attribute-workbench__header p,
-.item-attribute-workbench__card-title small {
-  color: #64748b;
-}
-
-.item-attribute-workbench__header h1 {
-  color: #0f172a;
-  font-size: 28px;
-  font-weight: 760;
-  margin: 4px 0;
-}
-
-.item-attribute-workbench__header p {
+.item-attribute-workbench__table-head h2 {
+  color: #1f2937;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 26px;
   margin: 0;
 }
 
+.item-attribute-workbench__table-head p {
+  color: #6b7280;
+  font-size: 13px;
+  margin: 2px 0 0;
+}
+
 .item-attribute-workbench__filters {
-  align-items: center;
+  align-items: end;
   display: grid;
   gap: 12px;
   grid-template-columns: minmax(220px, 1fr) 180px auto;
 }
 
-.item-attribute-workbench__layout {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: minmax(280px, 1fr) minmax(280px, 1fr);
+.item-attribute-workbench__name,
+.item-attribute-workbench__code {
+  color: #1f2937;
+  font-weight: 500;
 }
 
-.item-attribute-workbench__card-title {
-  align-items: baseline;
+.item-attribute-workbench__operation-cell {
   display: flex;
-  gap: 10px;
-  justify-content: space-between;
-}
-
-.item-attribute-workbench__list {
-  display: grid;
-  gap: 8px;
-}
-
-.item-attribute-workbench__row {
-  align-items: center;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  cursor: pointer;
-  display: flex;
-  justify-content: space-between;
-  padding: 12px;
-  text-align: left;
+  justify-content: flex-end;
   width: 100%;
 }
 
-.item-attribute-workbench__row--active {
-  background: #ecfeff;
-  border-color: #06b6d4;
+.item-attribute-workbench__ant-table :deep(.ant-table-cell-operation) {
+  text-align: right;
 }
 
-.item-attribute-workbench__row span:first-child {
-  display: grid;
-  gap: 2px;
+.item-attribute-workbench__drawer-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.item-attribute-workbench__row strong {
-  color: #0f172a;
+.item-attribute-workbench__drawer-title {
+  font-size: 18px;
+  font-weight: 700;
 }
 
-.item-attribute-workbench__row small {
+.item-attribute-workbench__drawer-subtitle {
   color: #64748b;
 }
 
-.item-attribute-workbench__form {
-  display: grid;
-  gap: 10px;
+.item-attribute-workbench__form-section {
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 14px;
 }
 
-.item-attribute-workbench__option-actions {
+.item-attribute-workbench__section-title {
+  color: #1f2937;
+  font-size: 13px;
+  font-weight: 600;
   margin-bottom: 12px;
 }
 
-.item-attribute-workbench__footer {
+.item-attribute-workbench__status-row {
+  align-items: center;
+  color: #1f2937;
   display: flex;
+  gap: 10px;
+}
+
+.item-attribute-workbench__form-actions {
+  display: flex;
+  gap: 12px;
   justify-content: flex-end;
+  margin-top: 16px;
 }
 
 @media (max-width: 960px) {
-  .item-attribute-workbench__header {
-    display: grid;
-  }
-
-  .item-attribute-workbench__filters,
-  .item-attribute-workbench__layout {
+  .item-attribute-workbench__filters {
     grid-template-columns: 1fr;
   }
 }

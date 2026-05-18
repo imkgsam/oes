@@ -35,6 +35,8 @@ export namespace SelfSecurityApi {
     sessionAgeSeconds: number;
     sessionId: string;
     status: string;
+    terminal?: string;
+    terminalDeviceId?: string;
     tenantId?: string;
     userAgent?: string;
   }
@@ -74,10 +76,12 @@ export namespace SelfSecurityApi {
     deviceName?: string;
     failureReason?: string;
     ipAddress?: string;
+    loginFlow?: string;
     loginMethod?: string;
     occurredAt: string;
     outcome: LoginHistoryOutcome;
     platform?: string;
+    terminal?: string;
     traceId?: string;
   }
 

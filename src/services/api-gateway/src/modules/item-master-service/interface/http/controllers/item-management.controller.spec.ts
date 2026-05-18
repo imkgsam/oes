@@ -20,6 +20,7 @@ describe('ItemManagementController V2', () => {
     createBom: jest.fn(),
     createItem: jest.fn(),
     createItemCategory: jest.fn(),
+    deleteItemCategory: jest.fn(),
     createItemModel: jest.fn(),
     getBom: jest.fn(),
     getBomByOutputItem: jest.fn(),
@@ -30,6 +31,7 @@ describe('ItemManagementController V2', () => {
     listItemModels: jest.fn(),
     listItems: jest.fn(),
     listSupplierMappings: jest.fn(),
+    moveItemCategory: jest.fn(),
     replaceBomLines: jest.fn(),
     setItemCapabilities: jest.fn(),
     setItemModelCapabilities: jest.fn(),
@@ -70,7 +72,19 @@ describe('ItemManagementController V2', () => {
     expect(
       reflector.get(
         REQUIRE_PERMISSIONS_METADATA_KEY,
+        ItemManagementController.prototype.moveItemCategory
+      )
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
         ItemManagementController.prototype.changeItemCategoryStatus
+      )
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ItemManagementController.prototype.deleteItemCategory
       )
     ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
   })
@@ -123,6 +137,36 @@ describe('ItemManagementController V2', () => {
         itemModelId: 'model-1',
         itemType: 'STANDARD'
       }),
+      source
+    )
+  })
+
+  it('delegates hard item category deletion to the V2 BFF service', async () => {
+    itemManagementService.deleteItemCategory.mockResolvedValue({})
+
+    await expect(
+      controller.deleteItemCategory('tenant-1', 'category-1', source as never)
+    ).resolves.toEqual({})
+
+    expect(itemManagementService.deleteItemCategory).toHaveBeenCalledWith('tenant-1', 'category-1', source)
+  })
+
+  it('delegates item category move commands to the V2 BFF service', async () => {
+    itemManagementService.moveItemCategory.mockResolvedValue({ categoryId: 'category-1' })
+
+    await expect(
+      controller.moveItemCategory(
+        'tenant-1',
+        'category-1',
+        { parentCategoryId: 'category-parent' },
+        source as never
+      )
+    ).resolves.toEqual({ categoryId: 'category-1' })
+
+    expect(itemManagementService.moveItemCategory).toHaveBeenCalledWith(
+      'tenant-1',
+      'category-1',
+      { parentCategoryId: 'category-parent' },
       source
     )
   })

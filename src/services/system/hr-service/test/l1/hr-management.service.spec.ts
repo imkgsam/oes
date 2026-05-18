@@ -195,6 +195,7 @@ describe('HrManagementService L1', () => {
       employeeId: 'employee-1',
       fromEmploymentId: 'employment-1',
       toOrgUnitId: 'org-2',
+      positionName: '生产经理',
       effectiveFrom,
       endedReason: 'transfer'
     })
@@ -204,6 +205,7 @@ describe('HrManagementService L1', () => {
       employeeId: 'employee-1',
       fromEmploymentId: 'employment-1',
       toOrgUnitId: 'org-2',
+      positionName: '生产经理',
       effectiveFrom,
       endedReason: 'transfer'
     })

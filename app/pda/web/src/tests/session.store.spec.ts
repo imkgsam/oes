@@ -36,7 +36,7 @@ describe('session store', () => {
     expect(localStorage.getItem('oes:pda:session-tokens')).toBe(null);
   });
 
-  it('restores a persisted session by refreshing the token pair and loading bootstrap', async () => {
+  it('does not restore a persisted user session across PDA app restart', async () => {
     localStorage.setItem(
       'oes:pda:terminal-device-binding',
       JSON.stringify({
@@ -53,58 +53,52 @@ describe('session store', () => {
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
       }),
     );
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            data: {
-              accessToken: 'new-access-token',
-              refreshToken: 'new-refresh-token',
-              expiresIn: 900,
-              terminal: 'PDA',
-            },
-          }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: () =>
-          Promise.resolve({
-            data: {
-              account: {
-                accountId: 'account-1',
-                displayName: 'Operator One',
-              },
-              session: {
-                terminal: 'PDA',
-                terminalDeviceId: 'terminal-device-1',
-                idleTimeoutSeconds: 900,
-              },
-              device: {
-                terminalDeviceId: 'terminal-device-1',
-                terminalDeviceType: 'PDA',
-                deviceStatus: 'ACTIVE',
-              },
-              decision: {
-                allowed: true,
-                decisionCode: 'ALLOW',
-                requiredAction: 'NONE',
-                shouldClearLocalSession: false,
-                shouldClearLocalTerminalDeviceId: false,
-              },
-            },
-          }),
-      });
+    const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
 
     const sessionStore = useSessionStore();
     const restored = await sessionStore.restoreSession();
 
-    expect(restored).toBe(true);
-    expect(sessionStore.accessToken).toBe('new-access-token');
+    expect(restored).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(sessionStore.accessToken).toBe(null);
     expect(sessionStore.terminalDeviceId).toBe('terminal-device-1');
-    expect(sessionStore.operatorName).toBe('Operator One');
+    expect(localStorage.getItem('oes:pda:session-tokens')).toBe(null);
+  });
+
+  it('restores a restricted device decision from persisted device status', () => {
+    localStorage.setItem(
+      'oes:pda:terminal-device-binding',
+      JSON.stringify({
+        terminalDeviceId: 'terminal-device-1',
+        displayName: 'PDA-01',
+        deviceStatus: 'DISABLED',
+      }),
+    );
+
+    const sessionStore = useSessionStore();
+    const binding = sessionStore.loadTerminalDeviceBinding();
+
+    expect(binding?.terminalDeviceId).toBe('terminal-device-1');
+    expect(sessionStore.deviceStatus).toBe('DISABLED');
+    expect(sessionStore.decisionCode).toBe('DEVICE_DISABLED');
+  });
+
+  it('does not restore a restricted decision for active persisted device status', () => {
+    localStorage.setItem(
+      'oes:pda:terminal-device-binding',
+      JSON.stringify({
+        terminalDeviceId: 'terminal-device-1',
+        displayName: 'PDA-01',
+        deviceStatus: 'ACTIVE',
+      }),
+    );
+
+    const sessionStore = useSessionStore();
+    sessionStore.loadTerminalDeviceBinding();
+
+    expect(sessionStore.deviceStatus).toBe('ACTIVE');
+    expect(sessionStore.decisionCode).toBe(null);
   });
 
   it('clears token and device binding when a device decision requires local cleanup', async () => {

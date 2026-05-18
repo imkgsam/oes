@@ -10,14 +10,16 @@ import { IconifyIcon } from '@vben/icons';
 import {
   Button,
   Card,
+  Col,
   Drawer,
+  Dropdown,
   Empty,
   Form,
   Input,
+  Menu,
   Modal,
   Radio,
   Row,
-  Col,
   Select,
   Space,
   Steps,
@@ -41,6 +43,16 @@ import PhoneNumberInput from '../_core/authentication/phone-number-input.vue';
 interface TenantFilterState {
   keyword: string;
   status: '' | 'ACTIVE' | 'ARCHIVED' | 'SUSPENDED';
+}
+
+type TenantActionKey = 'archive' | 'detail' | 'restore' | 'suspend';
+
+interface TenantTableActionItem<ActionKey extends string> {
+  danger?: boolean;
+  disabled?: boolean;
+  hidden?: boolean;
+  key: ActionKey;
+  label: string;
 }
 
 interface TenantCreateFormState {
@@ -130,6 +142,64 @@ const pagination = reactive({
   total: 0,
 });
 
+/** renderTenantNativeActions renders tenant row commands with Ant Design Vue Dropdown/Menu directly. */
+function renderTenantNativeActions<ActionKey extends string>(
+  ariaLabel: string,
+  items: Array<TenantTableActionItem<ActionKey>>,
+  onClick: (key: ActionKey) => void,
+) {
+  const visibleItems = items.filter((item) => !item.hidden);
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作');
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': ariaLabel,
+            shape: 'circle',
+            size: 'small',
+            type: 'text',
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' }),
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: (info) => {
+              const action = visibleItems.find((item) => item.key === String(info.key));
+
+              if (!action || action.disabled) {
+                return;
+              }
+
+              onClick(action.key);
+            },
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                },
+                () => item.label,
+              ),
+            ),
+        ),
+    },
+  );
+}
+
 const isPlatformScope = computed(() => authContextStore.isPlatformScope);
 const canCreateTenant = computed(() =>
   authContextStore.actionCodes.includes('tenant_org.tenant.create'),
@@ -200,61 +270,47 @@ const columns = computed<TableColumnsType<TenantManagementApi.TenantSummary>>(()
     customRender: ({ record }) => formatUserCount(record.userCount),
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'actions',
     title: '操作',
+    width: 72,
     customRender: ({ record }) =>
-      h(
-        Space,
-        {},
-        () => [
-          canReadTenant.value
-            ? h(
-                Button,
-                {
-                  'data-testid': `tenant-detail-button-${record.id}`,
-                  size: 'small',
-                  type: 'link',
-                  onClick: () => openTenantDetail(record.id),
-                },
-                () => '查看',
-              )
-            : null,
-          canUpdateTenantStatus.value && record.status === 'ACTIVE'
-            ? h(
-                Button,
-                {
-                  'data-testid': `tenant-suspend-button-${record.id}`,
-                  danger: true,
-                  size: 'small',
-                  type: 'link',
-                  onClick: () => confirmTenantStatus(record.id, 'SUSPENDED'),
-                },
-                () => '停用',
-              )
-            : null,
-          canUpdateTenantStatus.value && record.status === 'SUSPENDED'
-            ? h(
-                Button,
-                {
-                  size: 'small',
-                  type: 'link',
-                  onClick: () => confirmTenantStatus(record.id, 'ACTIVE'),
-                },
-                () => '恢复',
-              )
-            : null,
-          canUpdateTenantStatus.value && record.status !== 'ARCHIVED'
-            ? h(
-                Button,
-                {
-                  size: 'small',
-                  type: 'link',
-                  onClick: () => confirmTenantStatus(record.id, 'ARCHIVED'),
-                },
-                () => '归档',
-              )
-            : null,
-        ].filter(Boolean),
+      renderTenantNativeActions<TenantActionKey>(
+        '租户操作',
+        [
+          { hidden: !canReadTenant.value, key: 'detail', label: '查看' },
+          {
+            danger: true,
+            hidden: !canUpdateTenantStatus.value || record.status !== 'ACTIVE',
+            key: 'suspend',
+            label: '停用',
+          },
+          {
+            hidden: !canUpdateTenantStatus.value || record.status !== 'SUSPENDED',
+            key: 'restore',
+            label: '恢复',
+          },
+          {
+            danger: true,
+            hidden: !canUpdateTenantStatus.value || record.status === 'ARCHIVED',
+            key: 'archive',
+            label: '归档',
+          },
+        ],
+        (key) => {
+          if (key === 'detail') {
+            openTenantDetail(record.id);
+            return;
+          }
+
+          if (key === 'suspend') {
+            confirmTenantStatus(record.id, 'SUSPENDED');
+            return;
+          }
+
+          confirmTenantStatus(record.id, key === 'restore' ? 'ACTIVE' : 'ARCHIVED');
+        },
       ),
   },
 ]);

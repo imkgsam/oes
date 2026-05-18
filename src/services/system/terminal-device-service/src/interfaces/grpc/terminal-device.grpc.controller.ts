@@ -10,16 +10,22 @@ import {
   GetRuntimeSnapshotResponse,
   GetTerminalDeviceRequest,
   GetTerminalDeviceResponse,
+  ListDiagnosticLogsRequest,
+  ListDiagnosticLogsResponse,
   GetVersionPolicyRequest,
   GetVersionPolicyResponse,
   ListEnrollmentsRequest,
   ListEnrollmentsResponse,
+  ListHeartbeatRecordsRequest,
+  ListHeartbeatRecordsResponse,
   ListTerminalDeviceAuditEventsRequest,
   ListTerminalDeviceAuditEventsResponse,
   ListTerminalDevicesRequest,
   ListTerminalDevicesResponse,
   RecordHeartbeatRequest,
   RecordHeartbeatResponse,
+  RecordDiagnosticLogsRequest,
+  RecordDiagnosticLogsResponse,
   ResolveDeviceAccessDecisionRequest,
   ResolveDeviceAccessDecisionResponse,
   RevokeEnrollmentRequest,
@@ -53,7 +59,12 @@ import {
   UpdateTerminalDeviceCommand,
   UpdateTerminalDeviceHandler
 } from '../../application/commands/device'
-import { RecordHeartbeatCommand, RecordHeartbeatHandler } from '../../application/commands/runtime'
+import {
+  RecordDiagnosticLogsCommand,
+  RecordDiagnosticLogsHandler,
+  RecordHeartbeatCommand,
+  RecordHeartbeatHandler
+} from '../../application/commands/runtime'
 import { UpsertVersionPolicyCommand, UpsertVersionPolicyHandler } from '../../application/commands/version-policy'
 import {
   GetTerminalDeviceHandler,
@@ -64,7 +75,14 @@ import {
   ListTerminalDevicesQuery
 } from '../../application/queries/device'
 import { ListEnrollmentsHandler, ListEnrollmentsQuery } from '../../application/queries/enrollment'
-import { GetRuntimeSnapshotHandler, GetRuntimeSnapshotQuery } from '../../application/queries/runtime'
+import {
+  GetRuntimeSnapshotHandler,
+  GetRuntimeSnapshotQuery,
+  ListDiagnosticLogsHandler,
+  ListDiagnosticLogsQuery,
+  ListHeartbeatRecordsHandler,
+  ListHeartbeatRecordsQuery
+} from '../../application/queries/runtime'
 import { GetVersionPolicyHandler, GetVersionPolicyQuery } from '../../application/queries/version-policy'
 import { DeviceAccessDecisionService } from '../../application/services'
 import { TerminalDeviceError } from '../../domain/errors/terminal-device.error'
@@ -90,6 +108,7 @@ export class TerminalDeviceGrpcController
     private readonly activateEnrollmentHandler: ActivateEnrollmentHandler,
     private readonly deviceAccessDecisionService: DeviceAccessDecisionService,
     private readonly recordHeartbeatHandler: RecordHeartbeatHandler,
+    private readonly recordDiagnosticLogsHandler: RecordDiagnosticLogsHandler,
     private readonly getVersionPolicyHandler: GetVersionPolicyHandler,
     private readonly upsertVersionPolicyHandler: UpsertVersionPolicyHandler,
     private readonly listTerminalDevicesHandler: ListTerminalDevicesHandler,
@@ -99,6 +118,8 @@ export class TerminalDeviceGrpcController
     private readonly listEnrollmentsHandler: ListEnrollmentsHandler,
     private readonly listTerminalDeviceAuditEventsHandler: ListTerminalDeviceAuditEventsHandler,
     private readonly getRuntimeSnapshotHandler: GetRuntimeSnapshotHandler,
+    private readonly listHeartbeatRecordsHandler: ListHeartbeatRecordsHandler,
+    private readonly listDiagnosticLogsHandler: ListDiagnosticLogsHandler,
     @Optional()
     private readonly revokeEnrollmentHandler?: RevokeEnrollmentHandler
   ) {}
@@ -329,6 +350,77 @@ export class TerminalDeviceGrpcController
     }
   }
 
+  // Handles immutable heartbeat history lookups for admin diagnostics.
+  async listHeartbeatRecords(request: ListHeartbeatRecordsRequest): Promise<ListHeartbeatRecordsResponse> {
+    const result = await this.listHeartbeatRecordsHandler.execute(
+      new ListHeartbeatRecordsQuery({
+        tenantId: request.tenantId ?? '',
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        page: request.pagination?.page,
+        pageSize: request.pagination?.pageSize
+      })
+    )
+
+    return {
+      items: result.items.map((item) => TerminalDeviceGrpcPresenter.toHeartbeatRecord(item)),
+      pagination: {
+        page: result.page,
+        pageSize: result.pageSize,
+        total: result.total
+      }
+    }
+  }
+
+  // Handles sanitized diagnostic log persistence for manually uploaded PDA logs.
+  async recordDiagnosticLogs(request: RecordDiagnosticLogsRequest): Promise<RecordDiagnosticLogsResponse> {
+    const result = await this.recordDiagnosticLogsHandler.execute(
+      new RecordDiagnosticLogsCommand({
+        tenantId: request.tenantId ?? '',
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        logs: (request.logs ?? []).map((log) => ({
+          accountId: emptyToNull(log.accountId),
+          sessionId: emptyToNull(log.sessionId),
+          clientTime: parseRequiredDate(log.clientTime),
+          receivedAt: parseRequiredDate(log.receivedAt),
+          level: log.level ?? '',
+          eventType: log.eventType ?? '',
+          message: log.message ?? '',
+          traceId: emptyToNull(log.traceId),
+          requestId: emptyToNull(log.requestId),
+          errorCode: emptyToNull(log.errorCode),
+          diagnosticMode: log.diagnosticMode ?? false,
+          details: parseDetailsJson(log.detailsJson)
+        }))
+      })
+    )
+
+    return {
+      accepted: result.accepted,
+      receivedCount: result.receivedCount
+    }
+  }
+
+  // Handles persisted diagnostic log history lookups for admin diagnostics.
+  async listDiagnosticLogs(request: ListDiagnosticLogsRequest): Promise<ListDiagnosticLogsResponse> {
+    const result = await this.listDiagnosticLogsHandler.execute(
+      new ListDiagnosticLogsQuery({
+        tenantId: request.tenantId ?? '',
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        page: request.pagination?.page,
+        pageSize: request.pagination?.pageSize
+      })
+    )
+
+    return {
+      items: result.items.map((item) => TerminalDeviceGrpcPresenter.toDiagnosticLog(item)),
+      pagination: {
+        page: result.page,
+        pageSize: result.pageSize,
+        total: result.total
+      }
+    }
+  }
+
   // Handles version policy reads by mapping tenant and device type into the application query.
   async getVersionPolicy(request: GetVersionPolicyRequest): Promise<GetVersionPolicyResponse> {
     const policy = await this.getVersionPolicyHandler.execute(
@@ -379,6 +471,20 @@ function parseRequiredDate(value?: string | null): Date {
 // parseOptionalDate converts optional proto date strings into nullable Date values.
 function parseOptionalDate(value?: string | null): Date | null {
   return value?.trim() ? new Date(value) : null
+}
+
+// parseDetailsJson safely maps a generated JSON string into diagnostic details.
+function parseDetailsJson(value?: string | null): Record<string, unknown> {
+  if (!value?.trim()) {
+    return {}
+  }
+
+  try {
+    const parsed = JSON.parse(value)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    return {}
+  }
 }
 
 // toOperatorContext maps generated operator context into the application audit metadata shape.

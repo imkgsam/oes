@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 import { AuthGrpcAdapter } from '../../../auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
+import { InMemoryPdaDeviceDiagnosticLogStore } from '../../../pda-bff/infrastructure/in-memory-pda-device-diagnostic-log.store'
 import {
   AdminDeviceDetail,
   AdminTerminalDeviceStatus,
@@ -13,7 +14,8 @@ import {
 export class TerminalDeviceAdminUseCase {
   constructor(
     private readonly terminalDeviceAdapter: TerminalDeviceAdminAdapter,
-    private readonly authAdapter: AuthGrpcAdapter
+    private readonly authAdapter: AuthGrpcAdapter,
+    private readonly diagnosticLogStore: InMemoryPdaDeviceDiagnosticLogStore
   ) {}
 
   // Creates a tenant-scoped one-time enrollment through terminal-device-service.
@@ -84,10 +86,8 @@ export class TerminalDeviceAdminUseCase {
       terminalDeviceId,
       includeSensitiveIdentity: hasPermission(source, 'terminal-device.sensitive.read')
     })
-    const accountId = detail.runtime.lastReportedAccount?.accountId
-    const sessions = accountId
-      ? (await this.authAdapter.adminListUserSessions(accountId, source)).sessions ?? []
-      : []
+    const terminal = detail.device.terminalDeviceType === 'TOUCH_PANEL' ? 'KIOSK' : detail.device.terminalDeviceType
+    const sessions = (await this.authAdapter.adminListTerminalDeviceSessions(terminalDeviceId, source, terminal)).sessions ?? []
     const currentSessions = sessions
       .filter((session) => session.terminalDeviceId === terminalDeviceId && !session.isRevoked)
       .map((session) => ({
@@ -188,6 +188,26 @@ export class TerminalDeviceAdminUseCase {
   // Lists terminal-device governance audit events.
   listAuditEvents(terminalDeviceId: string, query: { page?: number; pageSize?: number }, source: DownstreamRequestSource) {
     return this.terminalDeviceAdapter.listAuditEvents({
+      tenantId: requireTenantId(source),
+      terminalDeviceId,
+      page: query.page,
+      pageSize: query.pageSize
+    })
+  }
+
+  // Lists immutable heartbeat diagnostics for one terminal device.
+  listHeartbeatRecords(terminalDeviceId: string, query: { page?: number; pageSize?: number }, source: DownstreamRequestSource) {
+    return this.terminalDeviceAdapter.listHeartbeatRecords({
+      tenantId: requireTenantId(source),
+      terminalDeviceId,
+      page: query.page,
+      pageSize: query.pageSize
+    })
+  }
+
+  // Lists persisted PDA diagnostic logs through terminal-device-service.
+  listDiagnosticLogs(terminalDeviceId: string, query: { page?: number; pageSize?: number }, source: DownstreamRequestSource) {
+    return this.terminalDeviceAdapter.listDiagnosticLogs({
       tenantId: requireTenantId(source),
       terminalDeviceId,
       page: query.page,

@@ -6,6 +6,7 @@ import type { SelfSecurityApi } from '#/api';
 
 import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue';
 
+import { IconifyIcon } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
 
 import {
@@ -13,9 +14,11 @@ import {
   Button,
   Card,
   DatePicker,
+  Dropdown,
   Empty,
   Form,
   Input,
+  Menu,
   message,
   Modal,
   QRCode,
@@ -58,8 +61,11 @@ import SecurityContactBindingCard from './components/security-contact-binding-ca
 import SecurityStepUpMfaDialog from './components/security-step-up-mfa-dialog.vue';
 import {
   buildLoginMethodGroups,
+  getLoginHistoryFailureExplanation,
   getMfaAvailabilityHint,
   getMfaDisplayDestination,
+  getSessionTerminalColor,
+  getSessionTerminalLabel,
   isMfaEnableActionDisabled,
   resolveCurrentUserDisplayIdentifier,
   resolveMfaEnableFlow,
@@ -67,6 +73,19 @@ import {
 
 const authStore = useAuthStore();
 const authContextStore = useAuthContextStore();
+const operationColumnTitle = '操作';
+type MfaActionKey = 'toggle';
+type SessionActionKey = 'logout';
+
+interface TableActionMenuItem<ActionKey extends string> {
+  danger?: boolean;
+  disabled?: boolean;
+  hidden?: boolean;
+  key: ActionKey;
+  label: string;
+  testId?: string;
+}
+
 const userStore = useUserStore();
 const { RangePicker } = DatePicker;
 
@@ -191,6 +210,8 @@ const filteredSessions = computed(() => {
       session.userAgent,
       session.ipAddress,
       session.sessionId,
+      session.terminal,
+      session.terminalDeviceId,
     ]
       .filter(Boolean)
       .some((value) => value!.toLowerCase().includes(deviceQuery));
@@ -226,6 +247,11 @@ const sessionColumns = computed<TableColumnsType<SelfSecurityApi.Session>>(() =>
     width: 160,
   },
   {
+    key: 'terminal',
+    title: '终端',
+    width: 140,
+  },
+  {
     key: 'status',
     title: '状态',
     width: 170,
@@ -242,7 +268,7 @@ const sessionColumns = computed<TableColumnsType<SelfSecurityApi.Session>>(() =>
   },
   {
     key: 'action',
-    title: '操作',
+    title: operationColumnTitle,
     width: 120,
     align: 'right',
   },
@@ -266,6 +292,11 @@ const loginHistoryColumns = computed<TableColumnsType<SelfSecurityApi.LoginHisto
     width: 150,
   },
   {
+    key: 'terminal',
+    title: '终端',
+    width: 130,
+  },
+  {
     key: 'device',
     title: '设备',
     ellipsis: true,
@@ -278,14 +309,7 @@ const loginHistoryColumns = computed<TableColumnsType<SelfSecurityApi.LoginHisto
   },
   {
     key: 'failureReason',
-    title: '原因',
-    ellipsis: true,
-  },
-  {
-    dataIndex: 'traceId',
-    key: 'traceId',
-    title: 'Trace',
-    width: 220,
+    title: '说明',
     ellipsis: true,
   },
 ]);
@@ -316,11 +340,41 @@ const mfaColumns = computed<TableColumnsType<SelfSecurityApi.MfaBinding>>(() => 
   },
   {
     key: 'action',
-    title: '操作',
+    title: operationColumnTitle,
     width: 120,
     align: 'right',
   },
 ]);
+
+// Exposes self-session row operations for the native Ant Design dropdown.
+function getSessionActionItems(session: SelfSecurityApi.Session): TableActionMenuItem<SessionActionKey>[] {
+  return [
+    {
+      danger: true,
+      hidden: session.isCurrent || session.isRevoked,
+      key: 'logout',
+      label: '退出',
+      testId: `security-session-logout-${session.sessionId}`,
+    },
+  ];
+}
+
+// Exposes MFA binding row operations for the native Ant Design dropdown.
+function getMfaActionItems(binding: SelfSecurityApi.MfaBinding): TableActionMenuItem<MfaActionKey>[] {
+  return [
+    {
+      disabled: isMfaEnableActionDisabled(binding),
+      key: 'toggle',
+      label: binding.enabled ? '停用' : '启用',
+      testId: `security-mfa-toggle-${binding.type}`,
+    },
+  ];
+}
+
+// Filters hidden table actions before handing them to Ant Design Menu.
+function getVisibleTableActionItems<ActionKey extends string>(items: TableActionMenuItem<ActionKey>[]) {
+  return items.filter((item) => !item.hidden);
+}
 
 // Loads the signed-in user's current session list.
 async function loadSessionsSnapshot() {
@@ -625,6 +679,20 @@ function confirmLogoutSession(session: SelfSecurityApi.Session) {
       }
     },
   });
+}
+
+// Dispatches one self-session dropdown action.
+function handleSessionAction(actionKey: SessionActionKey, session: SelfSecurityApi.Session) {
+  if (actionKey === 'logout') {
+    confirmLogoutSession(session);
+  }
+}
+
+// Dispatches one MFA binding dropdown action.
+async function handleMfaAction(actionKey: MfaActionKey, binding: SelfSecurityApi.MfaBinding) {
+  if (actionKey === 'toggle') {
+    await toggleMfaBinding(binding);
+  }
 }
 
 // Revokes all other sessions and refreshes the session list.
@@ -1181,7 +1249,7 @@ watch(activeTab, (tab) => {
                 <Input
                   v-model:value="sessionFilters.deviceQuery"
                   class="toolbar-control toolbar-control--wide"
-                  placeholder="按设备、浏览器、平台、IP 或会话 ID 过滤"
+                  placeholder="按设备、终端、浏览器、平台、IP 或会话 ID 过滤"
                 />
                 <Button
                   @click="
@@ -1218,7 +1286,7 @@ watch(activeTab, (tab) => {
               :data-source="filteredSessions"
               :loading="loading"
               :pagination="false"
-              :scroll="{ x: 1080 }"
+              :scroll="{ x: 1220 }"
               class="security-table"
               row-key="sessionId"
               size="middle"
@@ -1241,6 +1309,16 @@ watch(activeTab, (tab) => {
                   </div>
                   <div class="table-cell-meta">
                     {{ [record.platform, record.browser].filter(Boolean).join(' / ') || '未识别环境' }}
+                  </div>
+                </template>
+                <template v-else-if="column.key === 'terminal'">
+                  <div class="table-cell-title">
+                    <Tag :color="getSessionTerminalColor(record.terminal)">
+                      {{ getSessionTerminalLabel(record.terminal) }}
+                    </Tag>
+                  </div>
+                  <div class="table-cell-meta">
+                    {{ record.terminalDeviceId ? `设备 ${record.terminalDeviceId}` : '未关联受管终端设备' }}
                   </div>
                 </template>
                 <template v-else-if="column.key === 'status'">
@@ -1268,16 +1346,28 @@ watch(activeTab, (tab) => {
                   </div>
                 </template>
                 <template v-else-if="column.key === 'action'">
-                  <Button
-                    v-if="!record.isCurrent && !record.isRevoked"
-                    :loading="sessionMutationLoading"
-                    danger
-                    size="small"
-                    @click="confirmLogoutSession(asSession(record))"
+                  <Dropdown
+                    v-if="getVisibleTableActionItems(getSessionActionItems(asSession(record))).length > 0"
+                    :trigger="['click']"
                   >
-                    退出
-                  </Button>
-                  <span v-else class="table-cell-meta">-</span>
+                    <Button aria-label="会话操作" shape="circle" size="small" type="text">
+                      <IconifyIcon icon="ant-design:more-outlined" />
+                    </Button>
+                    <template #overlay>
+                      <Menu @click="(info) => handleSessionAction(String(info.key) as SessionActionKey, asSession(record))">
+                        <Menu.Item
+                          v-for="item in getVisibleTableActionItems(getSessionActionItems(asSession(record)))"
+                          :key="item.key"
+                          :danger="item.danger"
+                          :data-testid="item.testId"
+                          :disabled="item.disabled"
+                        >
+                          {{ item.label }}
+                        </Menu.Item>
+                      </Menu>
+                    </template>
+                  </Dropdown>
+                  <span v-else class="tenant-table-action-empty">-</span>
                 </template>
               </template>
             </Table>
@@ -1412,7 +1502,7 @@ watch(activeTab, (tab) => {
               :data-source="loginHistoryItems"
               :loading="loginHistoryLoading"
               :pagination="false"
-              :scroll="{ x: 1200 }"
+              :scroll="{ x: 1110 }"
               class="security-table"
               :row-key="(record, index) => `${record.occurredAt}-${record.traceId || index}`"
               size="middle"
@@ -1432,6 +1522,11 @@ watch(activeTab, (tab) => {
                 <template v-else-if="column.key === 'loginMethod'">
                   {{ getLoginHistoryMethodLabel(asLoginHistoryItem(record)) }}
                 </template>
+                <template v-else-if="column.key === 'terminal'">
+                  <Tag :color="getSessionTerminalColor(record.terminal)">
+                    {{ getSessionTerminalLabel(record.terminal) }}
+                  </Tag>
+                </template>
                 <template v-else-if="column.key === 'device'">
                   <div class="table-cell-title">
                     {{ record.deviceName || [record.platform, record.browser].filter(Boolean).join(' / ') || '未知设备' }}
@@ -1442,11 +1537,8 @@ watch(activeTab, (tab) => {
                 </template>
                 <template v-else-if="column.key === 'failureReason'">
                   <span :class="record.failureReason ? 'failure-text' : 'table-cell-meta'">
-                    {{ record.failureReason || '-' }}
+                    {{ getLoginHistoryFailureExplanation(record.failureReason) }}
                   </span>
-                </template>
-                <template v-else-if="column.key === 'traceId'">
-                  <code class="trace-code">{{ record.traceId || '-' }}</code>
                 </template>
               </template>
             </Table>
@@ -1520,14 +1612,28 @@ watch(activeTab, (tab) => {
                     {{ formatDateTime(record.updatedAt) }}
                   </template>
                   <template v-else-if="column.key === 'action'">
-                    <Button
-                      :disabled="isMfaEnableActionDisabled(asMfaBinding(record))"
-                      :loading="mfaMutationLoading"
-                      size="small"
-                      @click="toggleMfaBinding(asMfaBinding(record))"
+                    <Dropdown
+                      v-if="getVisibleTableActionItems(getMfaActionItems(asMfaBinding(record))).length > 0"
+                      :trigger="['click']"
                     >
-                      {{ record.enabled ? '停用' : '启用' }}
-                    </Button>
+                      <Button aria-label="MFA 操作" shape="circle" size="small" type="text">
+                        <IconifyIcon icon="ant-design:more-outlined" />
+                      </Button>
+                      <template #overlay>
+                        <Menu @click="(info) => handleMfaAction(String(info.key) as MfaActionKey, asMfaBinding(record))">
+                          <Menu.Item
+                            v-for="item in getVisibleTableActionItems(getMfaActionItems(asMfaBinding(record)))"
+                            :key="item.key"
+                            :danger="item.danger"
+                            :data-testid="item.testId"
+                            :disabled="item.disabled"
+                          >
+                            {{ item.label }}
+                          </Menu.Item>
+                        </Menu>
+                      </template>
+                    </Dropdown>
+                    <span v-else class="tenant-table-action-empty">无可用操作</span>
                   </template>
                 </template>
               </Table>

@@ -11,6 +11,7 @@ import {
   AUTH_SERVICE_NAME,
   ActivateTotpBindingRequest,
   AdminListOnlineUsersResponse,
+  AdminListTerminalDeviceSessionsResponse,
   AdminListUserSessionsResponse,
   AdminDeleteAccountSessionsRequest,
   AdminDeleteAccountSessionsResponse,
@@ -784,6 +785,20 @@ export class AuthGrpcAdapter implements OnModuleInit {
     return this.call(
       'adminListUserSessions',
       this.svc.adminListUserSessions({ userId }, this.operatorMetadata(source))
+    )
+  }
+
+  adminListTerminalDeviceSessions(
+    terminalDeviceId: string,
+    source: DownstreamRequestSource,
+    terminal?: string
+  ): Promise<AdminListTerminalDeviceSessionsResponse> {
+    return this.call(
+      'adminListTerminalDeviceSessions',
+      this.svc.adminListTerminalDeviceSessions(
+        { terminalDeviceId, terminal: terminal ?? '' },
+        this.operatorMetadata(source)
+      )
     )
   }
 

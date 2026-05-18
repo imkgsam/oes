@@ -35,6 +35,8 @@ type SessionAuditContext = {
 type FailedLoginAuditContext = {
   method?: string
   userId?: string
+  terminal?: string
+  loginFlow?: string
   deviceName?: string
   userAgent?: string
   ipAddress?: string
@@ -70,6 +72,8 @@ export class AuthAuditService {
         reason,
         method: context?.method ?? '',
         userId: context?.userId ?? '',
+        terminal: context?.terminal ?? '',
+        loginFlow: context?.loginFlow ?? '',
         deviceName: context?.deviceName ?? '',
         userAgent: context?.userAgent ?? '',
         ipAddress: context?.ipAddress ?? '',

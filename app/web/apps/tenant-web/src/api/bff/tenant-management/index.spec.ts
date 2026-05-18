@@ -113,6 +113,7 @@ describe('tenant-web tenant management api', () => {
       createManagedOrgUnitApi,
       getManagedOrgTreeApi,
       getManagedOrgUnitByIdApi,
+      moveManagedOrgUnitApi,
       updateManagedOrgUnitApi,
     } = await import('./index');
 
@@ -128,6 +129,9 @@ describe('tenant-web tenant management api', () => {
       name: 'Manufacturing Updated',
       sortOrder: 11,
       type: 'DEPARTMENT',
+    });
+    await moveManagedOrgUnitApi('tenant-1', 'org-1', {
+      newParentOrgId: 'org-root-2',
     });
     await archiveManagedOrgUnitApi('tenant-1', 'org-1');
 
@@ -146,6 +150,9 @@ describe('tenant-web tenant management api', () => {
         type: 'DEPARTMENT',
       },
       method: 'PATCH',
+    });
+    expect(post).toHaveBeenCalledWith('/tenant-management/tenants/tenant-1/org-units/org-1/move', {
+      newParentOrgId: 'org-root-2',
     });
     expect(post).toHaveBeenCalledWith('/tenant-management/tenants/tenant-1/org-units/org-1/archive');
   });

@@ -56,6 +56,8 @@ The major semantic difference is terminal binding:
 - `auth-service` applies the Terminal Access Policy decision according to its unique truth source before MFA challenge creation or session issuance.
 - PDA sessions and tokens carry `terminal = PDA`.
 - PDA sessions carry `terminalDeviceId` and `deviceBoundTenantId`.
+- PDA access tokens use the short PDA work-session window, currently 15 minutes by default.
+- PDA refresh tokens use a short rotation window, currently 20 minutes by default; they are not used to restore a user session after the PDA App is closed.
 - If no PDA-eligible account exists in the device-bound tenant, login is denied.
 - If multiple PDA-eligible accounts exist in the device-bound tenant, login is denied and requires admin-side identity / permission governance.
 

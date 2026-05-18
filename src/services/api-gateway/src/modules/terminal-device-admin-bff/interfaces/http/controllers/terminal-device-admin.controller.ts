@@ -9,8 +9,10 @@ import {
   CreateTerminalDeviceEnrollmentDto,
   ListTerminalDeviceEnrollmentsQueryDto,
   ListTerminalDevicesQueryDto,
+  TerminalDeviceDiagnosticLogsQueryDto,
   RevokeTerminalDeviceEnrollmentDto,
   TerminalDeviceAuditEventsQueryDto,
+  TerminalDeviceHeartbeatRecordsQueryDto,
   TerminalDeviceVersionPolicyQueryDto,
   UpdateTerminalDeviceDto,
   UpdateTerminalDeviceVersionPolicyDto
@@ -129,5 +131,29 @@ export class TerminalDeviceAdminController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.useCase.listAuditEvents(terminalDeviceId, query, source)
+  }
+
+  @Get(':terminalDeviceId/heartbeat-records')
+  @RequirePermissions({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_DEVICE] })
+  @ApiOperation({ summary: 'List managed terminal device heartbeat diagnostics' })
+  @ApiResponse({ status: 200, type: TerminalDeviceAdminObjectViewModel })
+  listHeartbeatRecords(
+    @Param('terminalDeviceId') terminalDeviceId: string,
+    @Query() query: TerminalDeviceHeartbeatRecordsQueryDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.useCase.listHeartbeatRecords(terminalDeviceId, query, source)
+  }
+
+  @Get(':terminalDeviceId/diagnostic-logs')
+  @RequirePermissions({ all: [TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES.READ_DEVICE] })
+  @ApiOperation({ summary: 'List recently uploaded PDA diagnostic logs' })
+  @ApiResponse({ status: 200, type: TerminalDeviceAdminObjectViewModel })
+  listDiagnosticLogs(
+    @Param('terminalDeviceId') terminalDeviceId: string,
+    @Query() query: TerminalDeviceDiagnosticLogsQueryDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.useCase.listDiagnosticLogs(terminalDeviceId, query, source)
   }
 }

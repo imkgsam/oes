@@ -20,6 +20,7 @@ import {
   getTenantMfaFactorTooltip,
   getTenantMfaScenarioLabel,
   getTenantMfaScenarioTooltip,
+  orderAccountSecurityMfaScenarioRequirements,
   orderTenantMfaScenarioRequirements,
   reorderTenantMfaFactors,
   type TenantMfaScenarioCode,
@@ -62,7 +63,7 @@ const editableFactors = ref<TenantMfaFactorItem[]>([]);
 const factorListRef = ref<HTMLElement | null>(null);
 const sortableInstance = ref<null | Sortable>(null);
 const editableScenarioRows = computed(() =>
-  orderTenantMfaScenarioRequirements(
+  orderAccountSecurityMfaScenarioRequirements(
     scenarioRequirements.value.map((item) =>
       item.scenario === 'LOGIN'
         ? {
@@ -245,10 +246,10 @@ onBeforeUnmount(() => {
             <div>
               <div class="login-mfa-settings__title">租户 MFA 配置</div>
               <div class="login-mfa-settings__description">
-                配置当前租户哪些场景需要 MFA，以及因子展示顺序。
+                配置当前租户账号安全操作的 MFA 要求、可用因子以及因子展示顺序。
               </div>
             </div>
-            <Tooltip title="这里只管理当前租户的 MFA 场景与因子顺序，不处理平台级默认策略。">
+            <Tooltip title="这里只管理租户账号安全操作与 MFA 因子；Web / PDA / Kiosk 登录 MFA 由 Terminal 登录策略统一控制。">
               <span class="login-mfa-settings__help-dot">?</span>
             </Tooltip>
           </div>
@@ -272,9 +273,9 @@ onBeforeUnmount(() => {
                 <div class="login-mfa-settings__section">
                   <div class="login-mfa-settings__section-head">
                     <div>
-                      <div class="login-mfa-settings__section-title">场景要求</div>
+                      <div class="login-mfa-settings__section-title">账号安全场景</div>
                       <div class="login-mfa-settings__meta">
-                        控制当前租户哪些入口需要先完成 MFA。
+                        控制当前租户修改密码、修改联系方式等账号操作是否需要先完成 MFA。
                       </div>
                     </div>
                   </div>
@@ -358,7 +359,7 @@ onBeforeUnmount(() => {
 
           <div class="login-mfa-settings__footer">
             <div class="login-mfa-settings__footer-meta">
-              保存后，当前租户后续命中的 MFA 流程会按这里的配置执行。
+              保存后，当前租户账号安全操作会按这里的 MFA 因子与场景配置执行；登录 MFA 由 Terminal 登录策略控制。
             </div>
             <Button
               v-access:code="'auth.mfa_policy.manage'"

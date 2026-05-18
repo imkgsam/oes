@@ -6,8 +6,12 @@ import App from './app.vue';
 import { installBridgeEventSink } from './bridge/bridge-client';
 import { router } from './router';
 import { sendPdaHeartbeat } from './services/pda-heartbeat';
+import { clearPdaSessionOnAppExit } from './services/pda-session-lifecycle';
 
 /** Bootstraps the independent PDA web app inside the Android WebView shell. */
 installBridgeEventSink();
 createApp(App).use(createPinia()).use(router).use(Vant).mount('#app');
 void sendPdaHeartbeat('FOREGROUND');
+window.addEventListener('pagehide', () => {
+  void clearPdaSessionOnAppExit();
+});

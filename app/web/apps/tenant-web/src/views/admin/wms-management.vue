@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { WmsApi } from '#/api'
+import type { TableColumnsType } from 'ant-design-vue'
 
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, h, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { IconifyIcon } from '@vben/icons'
+import { Button, Dropdown, Menu, Table } from 'ant-design-vue'
 
 import {
   listInventoryBalancesApi,
@@ -23,6 +26,15 @@ interface WmsFilterState {
   receiptStatus: '' | WmsApi.ReceiptStatus
   warehouseId: string
   warehouseKeyword: string
+}
+
+interface WmsTableActionItem<ActionKey extends string> {
+  danger?: boolean
+  disabled?: boolean
+  hidden?: boolean
+  key: ActionKey
+  label: string
+  testId?: string
 }
 
 const authContextStore = useAuthContextStore()
@@ -51,6 +63,141 @@ const ledgerEntries = ref<WmsApi.StockLedgerEntrySummary[]>([])
 const locations = ref<WmsApi.LocationSummary[]>([])
 const receipts = ref<WmsApi.ReceiptSummary[]>([])
 const warehouses = ref<WmsApi.WarehouseSummary[]>([])
+
+/** renderWmsNativeActions renders WMS row commands with Ant Design Vue Dropdown/Menu directly. */
+function renderWmsNativeActions<ActionKey extends string>(
+  ariaLabel: string,
+  items: Array<WmsTableActionItem<ActionKey>>,
+  onClick: (key: ActionKey) => void
+) {
+  const visibleItems = items.filter((item) => !item.hidden)
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作')
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': ariaLabel,
+            shape: 'circle',
+            size: 'small',
+            type: 'text'
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' })
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: (info) => {
+              const action = visibleItems.find((item) => item.key === String(info.key))
+
+              if (!action || action.disabled) {
+                return
+              }
+
+              onClick(action.key)
+            }
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                  'data-testid': item.testId
+                },
+                () => item.label
+              )
+            )
+        )
+    }
+  )
+}
+
+const warehouseColumns: TableColumnsType<WmsApi.WarehouseSummary> = [
+  { dataIndex: 'warehouseCode', key: 'warehouseCode', title: 'Code' },
+  { dataIndex: 'warehouseName', key: 'warehouseName', title: 'Name' },
+  { dataIndex: 'status', key: 'status', title: 'Status' },
+  {
+    dataIndex: 'defaultReceivingLocationId',
+    key: 'defaultReceivingLocationId',
+    title: 'Default Receiving',
+    customRender: ({ record }) => record.defaultReceivingLocationId || '-'
+  }
+]
+const locationColumns: TableColumnsType<WmsApi.LocationSummary> = [
+  { dataIndex: 'locationCode', key: 'locationCode', title: 'Code' },
+  { dataIndex: 'locationName', key: 'locationName', title: 'Name' },
+  { dataIndex: 'locationType', key: 'locationType', title: 'Type' },
+  { dataIndex: 'warehouseId', key: 'warehouseId', title: 'Warehouse' }
+]
+const receiptColumns = computed<TableColumnsType<WmsApi.ReceiptSummary>>(() => [
+  { dataIndex: 'receiptNo', key: 'receiptNo', title: 'Receipt No' },
+  { dataIndex: 'status', key: 'status', title: 'Status' },
+  { dataIndex: 'warehouseId', key: 'warehouseId', title: 'Warehouse' },
+  {
+    key: 'restricted',
+    title: 'Restricted',
+    customRender: ({ record }) => (record.hasRestrictedLines ? 'YES' : 'NO')
+  },
+  {
+    key: 'discrepancy',
+    title: 'Discrepancy',
+    customRender: ({ record }) => (record.hasPhysicalDiscrepancy ? 'YES' : 'NO')
+  },
+  {
+    align: 'center',
+    fixed: 'right',
+    key: 'actions',
+    title: '操作',
+    width: 72,
+    customRender: ({ record }) =>
+      renderWmsNativeActions(
+        '收货单操作',
+        canReadReceipt.value
+          ? [{ key: 'detail', label: '详情', testId: `wms-open-receipt-${record.receiptId}` }]
+          : [],
+        () => openReceiptDetail(record.receiptId)
+      )
+  }
+])
+const inventoryBalanceColumns: TableColumnsType<WmsApi.InventoryBalanceSummary> = [
+  {
+    key: 'item',
+    title: 'Item',
+    customRender: ({ record }) => record.itemCode || record.itemId
+  },
+  { dataIndex: 'warehouseId', key: 'warehouseId', title: 'Warehouse' },
+  { dataIndex: 'onHandQuantity', key: 'onHandQuantity', title: 'On Hand' },
+  { dataIndex: 'availableQuantity', key: 'availableQuantity', title: 'Available' },
+  { dataIndex: 'restrictedQuantity', key: 'restrictedQuantity', title: 'Restricted' }
+]
+const ledgerColumns: TableColumnsType<WmsApi.StockLedgerEntrySummary> = [
+  { dataIndex: 'stockLedgerEntryId', key: 'stockLedgerEntryId', title: 'Ledger Id' },
+  { dataIndex: 'itemId', key: 'itemId', title: 'Item' },
+  { dataIndex: 'quantityDelta', key: 'quantityDelta', title: 'Qty' },
+  { dataIndex: 'inventoryStatus', key: 'inventoryStatus', title: 'Status' },
+  {
+    dataIndex: 'restrictedReasonCode',
+    key: 'restrictedReasonCode',
+    title: 'Reason',
+    customRender: ({ record }) => record.restrictedReasonCode || '-'
+  }
+]
+
+/** getInventoryBalanceRowKey provides a stable composite key for location-level inventory rows. */
+function getInventoryBalanceRowKey(record: WmsApi.InventoryBalanceSummary) {
+  return `${record.warehouseId}-${record.locationId}-${record.itemId}`
+}
 
 /** loadWorkspace refreshes the phase 1 WMS directories visible in the current tenant workspace. */
 async function loadWorkspace() {
@@ -208,145 +355,67 @@ onMounted(() => {
 
       <section class="wms-card">
         <h2>Warehouse</h2>
-        <table class="wms-table">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Name</th>
-              <th>Status</th>
-              <th>Default Receiving</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="warehouse in warehouses" :key="warehouse.warehouseId">
-              <td>{{ warehouse.warehouseCode }}</td>
-              <td>{{ warehouse.warehouseName }}</td>
-              <td>{{ warehouse.status }}</td>
-              <td>{{ warehouse.defaultReceivingLocationId || '-' }}</td>
-            </tr>
-            <tr v-if="!warehouses.length">
-              <td colspan="4">暂无仓库</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="warehouseColumns"
+          :data-source="warehouses"
+          :loading="loading"
+          :locale="{ emptyText: '暂无仓库' }"
+          :pagination="false"
+          row-key="warehouseId"
+          size="middle"
+        />
       </section>
 
       <section class="wms-card">
         <h2>Location</h2>
-        <table class="wms-table">
-          <thead>
-            <tr>
-              <th>Code</th>
-              <th>Name</th>
-              <th>Type</th>
-              <th>Warehouse</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="location in locations" :key="location.locationId">
-              <td>{{ location.locationCode }}</td>
-              <td>{{ location.locationName }}</td>
-              <td>{{ location.locationType }}</td>
-              <td>{{ location.warehouseId }}</td>
-            </tr>
-            <tr v-if="!locations.length">
-              <td colspan="4">暂无库位</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="locationColumns"
+          :data-source="locations"
+          :loading="loading"
+          :locale="{ emptyText: '暂无库位' }"
+          :pagination="false"
+          row-key="locationId"
+          size="middle"
+        />
       </section>
 
       <section class="wms-card">
         <h2>Receipt</h2>
-        <table class="wms-table">
-          <thead>
-            <tr>
-              <th>Receipt No</th>
-              <th>Status</th>
-              <th>Warehouse</th>
-              <th>Restricted</th>
-              <th>Discrepancy</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="receipt in receipts" :key="receipt.receiptId">
-              <td>{{ receipt.receiptNo }}</td>
-              <td>{{ receipt.status }}</td>
-              <td>{{ receipt.warehouseId }}</td>
-              <td>{{ receipt.hasRestrictedLines ? 'YES' : 'NO' }}</td>
-              <td>{{ receipt.hasPhysicalDiscrepancy ? 'YES' : 'NO' }}</td>
-              <td>
-                <button
-                  v-access:code="'wms.receipt.read'"
-                  v-if="canReadReceipt"
-                  :data-testid="`wms-open-receipt-${receipt.receiptId}`"
-                  type="button"
-                  @click="openReceiptDetail(receipt.receiptId)"
-                >
-                  详情
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!receipts.length">
-              <td colspan="6">暂无收货单</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="receiptColumns"
+          :data-source="receipts"
+          :loading="loading"
+          :locale="{ emptyText: '暂无收货单' }"
+          :pagination="false"
+          row-key="receiptId"
+          size="middle"
+        />
       </section>
 
       <section class="wms-card">
         <h2>Inventory Balance</h2>
-        <table class="wms-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Warehouse</th>
-              <th>On Hand</th>
-              <th>Available</th>
-              <th>Restricted</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="balance in inventoryBalances" :key="`${balance.warehouseId}-${balance.locationId}-${balance.itemId}`">
-              <td>{{ balance.itemCode || balance.itemId }}</td>
-              <td>{{ balance.warehouseId }}</td>
-              <td>{{ balance.onHandQuantity }}</td>
-              <td>{{ balance.availableQuantity }}</td>
-              <td>{{ balance.restrictedQuantity }}</td>
-            </tr>
-            <tr v-if="!inventoryBalances.length">
-              <td colspan="5">暂无库存快照</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="inventoryBalanceColumns"
+          :data-source="inventoryBalances"
+          :loading="loading"
+          :locale="{ emptyText: '暂无库存快照' }"
+          :pagination="false"
+          :row-key="getInventoryBalanceRowKey"
+          size="middle"
+        />
       </section>
 
       <section class="wms-card">
         <h2>Stock Ledger</h2>
-        <table class="wms-table">
-          <thead>
-            <tr>
-              <th>Ledger Id</th>
-              <th>Item</th>
-              <th>Qty</th>
-              <th>Status</th>
-              <th>Reason</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="entry in ledgerEntries" :key="entry.stockLedgerEntryId">
-              <td>{{ entry.stockLedgerEntryId }}</td>
-              <td>{{ entry.itemId }}</td>
-              <td>{{ entry.quantityDelta }}</td>
-              <td>{{ entry.inventoryStatus }}</td>
-              <td>{{ entry.restrictedReasonCode || '-' }}</td>
-            </tr>
-            <tr v-if="!ledgerEntries.length">
-              <td colspan="5">暂无库存总账</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="ledgerColumns"
+          :data-source="ledgerEntries"
+          :loading="loading"
+          :locale="{ emptyText: '暂无库存总账' }"
+          :pagination="false"
+          row-key="stockLedgerEntryId"
+          size="middle"
+        />
       </section>
     </section>
   </Page>
@@ -435,15 +504,4 @@ onMounted(() => {
   align-items: center;
 }
 
-.wms-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.wms-table th,
-.wms-table td {
-  padding: 10px 8px;
-  border-bottom: 1px solid #e5e7eb;
-  text-align: left;
-}
 </style>

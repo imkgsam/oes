@@ -109,7 +109,7 @@ export class UpsertVersionPolicyHandler implements ICommandHandler<UpsertVersion
         operatorAccountId: command.operatorContext.operatorAccountId,
         operatorOrgId: command.operatorContext.operatorOrgId ?? null,
         action: 'VERSION_POLICY_UPSERTED',
-        targetTerminalDeviceId: `VERSION_POLICY:${command.terminalDeviceType}`,
+        targetTerminalDeviceId: null,
         beforeJson: existing ? versionPolicyAuditJson(existing) : null,
         afterJson: versionPolicyAuditJson(policy),
         reason: command.reason,

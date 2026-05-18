@@ -150,6 +150,7 @@ export class PrismaEmploymentRepository implements EmploymentRepository {
             tenantId: input.tenantId,
             employeeId: input.employeeId,
             orgUnitId: input.toOrgUnitId,
+            positionName: input.positionName ?? existing.positionName,
             status: EmploymentStatus.ACTIVE,
             effectiveFrom: input.effectiveFrom,
             activeSlot: input.employeeId

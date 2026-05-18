@@ -5,6 +5,8 @@ import type { TableColumnsType } from 'ant-design-vue'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { IconifyIcon } from '@vben/icons'
+
 import {
   Button,
   Card,
@@ -12,9 +14,11 @@ import {
   Descriptions,
   Divider,
   Drawer,
+  Dropdown,
   Empty,
   Form,
   Input,
+  Menu,
   message,
   Modal,
   Radio,
@@ -69,6 +73,7 @@ interface CreateEmployeeFormState {
 interface ChangeEmploymentFormState {
   effectiveFrom: string
   orgUnitId: string
+  positionName: string
 }
 
 interface EmployeeAccessFormState {
@@ -78,7 +83,6 @@ interface EmployeeAccessFormState {
 }
 
 interface EmployeeFilterFormState {
-  accessStatus?: 'ACTIVE' | 'ALL' | 'NOT_ENABLED' | 'PENDING'
   keyword?: string
   lifecycleStatus?: 'ACTIVE' | 'ALL' | 'OFFBOARDED' | 'PREBOARDING'
   orgUnitIds?: string[]
@@ -93,18 +97,29 @@ interface DepartmentTreeOption {
 }
 
 interface EmployeeGridRow {
-  accessStatus: string
+  activeEmploymentId?: string
   employeeCode: string
   id: string
   joinedAt: string
   lifecycleStatus: string
   name: string
-  orgSummary: string
+  positionName: string
   primaryDepartment: string
 }
 
 interface Props {
   selectedEmployeeId?: string
+}
+
+type EmployeeActionKey = 'account' | 'changeEmployment' | 'detail' | 'edit' | 'offboard'
+
+interface TableActionMenuItem<ActionKey extends string> {
+  danger?: boolean
+  disabled?: boolean
+  hidden?: boolean
+  key: ActionKey
+  label: string
+  testId?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -116,6 +131,7 @@ const emit = defineEmits<{
 }>()
 
 const authContextStore = useAuthContextStore()
+const operationColumnTitle = '操作'
 const router = useRouter()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
 const activeTenantName = computed(
@@ -149,7 +165,6 @@ const employees = ref<HrManagementApi.EmployeeDirectoryItem[]>([])
 const employeeRows = ref<EmployeeGridRow[]>([])
 const employeeLoading = ref(false)
 const employeeTotal = ref(0)
-const directoryAccessMap = ref<Record<string, HrManagementApi.EmployeeAccountAccessResult | null>>({})
 const internalSelectedEmployeeId = ref('')
 const detail = ref<HrManagementApi.EmployeeDetailResult | null>(null)
 const accountAccess = ref<HrManagementApi.EmployeeAccountAccessResult | null>(null)
@@ -182,7 +197,8 @@ const createForm = ref<CreateEmployeeFormState>({
 })
 const changeForm = ref<ChangeEmploymentFormState>({
   effectiveFrom: '',
-  orgUnitId: ''
+  orgUnitId: '',
+  positionName: ''
 })
 const accessForm = ref<EmployeeAccessFormState>({
   loginEmail: '',
@@ -190,7 +206,6 @@ const accessForm = ref<EmployeeAccessFormState>({
   selectedRoleId: ''
 })
 const employeeFilters = reactive<EmployeeFilterFormState>({
-  accessStatus: 'ALL',
   keyword: '',
   lifecycleStatus: 'ALL',
   orgUnitIds: []
@@ -216,6 +231,12 @@ const roleSelectOptions = computed(() =>
     value: role.id
   }))
 )
+const departmentDropdownWidth = 320
+const departmentDropdownStyle = {
+  maxHeight: '360px',
+  overflow: 'auto'
+} as const
+const drawerChildModalZIndex = 1200
 const employeeColumns = computed<TableColumnsType<EmployeeGridRow>>(() => [
   {
     dataIndex: 'name',
@@ -236,8 +257,8 @@ const employeeColumns = computed<TableColumnsType<EmployeeGridRow>>(() => [
     width: 200
   },
   {
-    dataIndex: 'orgSummary',
-    key: 'orgSummary',
+    dataIndex: 'positionName',
+    key: 'positionName',
     title: '职位',
     width: 220
   },
@@ -255,10 +276,54 @@ const employeeColumns = computed<TableColumnsType<EmployeeGridRow>>(() => [
   },
   {
     key: 'operation',
-    title: '操作',
-    width: 150
+    title: operationColumnTitle,
+    width: 180
   }
 ])
+
+/** getEmployeeActionItems exposes employee row operations for the native Ant Design dropdown. */
+function getEmployeeActionItems(employee: Record<string, any>): TableActionMenuItem<EmployeeActionKey>[] {
+  const employeeId = `${employee.id ?? ''}`
+
+  return [
+    {
+      hidden: !canViewEmployeeDetail.value,
+      key: 'detail',
+      label: '查看详情',
+      testId: `employee-open-detail-${employeeId}`
+    },
+    {
+      hidden: !canViewEmployeeDetail.value,
+      key: 'edit',
+      label: '编辑',
+      testId: `employee-edit-${employeeId}`
+    },
+    {
+      hidden: !canChangeEmployment.value || !employee.activeEmploymentId,
+      key: 'changeEmployment',
+      label: '调岗位',
+      testId: `employee-change-employment-${employeeId}`
+    },
+    {
+      danger: true,
+      hidden: !canEndEmployment.value || !employee.activeEmploymentId,
+      key: 'offboard',
+      label: '离岗',
+      testId: `employee-offboard-${employeeId}`
+    },
+    {
+      hidden: !canOpenAccountManagement.value,
+      key: 'account',
+      label: '前往账号',
+      testId: `employee-account-link-${employeeId}`
+    }
+  ]
+}
+
+/** getVisibleTableActionItems filters hidden table actions before handing them to Ant Design Menu. */
+function getVisibleTableActionItems<ActionKey extends string>(items: TableActionMenuItem<ActionKey>[]) {
+  return items.filter((item) => !item.hidden)
+}
 
 /** syncSelectedEmployeeId keeps the current selection aligned with the owning page shell when one exists. */
 function syncSelectedEmployeeId(employeeId: string) {
@@ -300,26 +365,6 @@ async function loadRoleOptions() {
     roleOptions.value = []
     message.error(resolveErrorMessage(error, '角色选项加载失败'))
   }
-}
-
-/** loadDirectoryAccessStatuses hydrates list-level login access states without inventing frontend summaries. */
-async function loadDirectoryAccessStatuses(items: HrManagementApi.EmployeeDirectoryItem[]) {
-  if (!canViewEmployeeDetail.value || !activeTenantId.value) {
-    directoryAccessMap.value = {}
-    return
-  }
-
-  const entries = await Promise.all(
-    items.map(async (item) => {
-      try {
-        const access = await getManagedEmployeeAccountAccessApi(activeTenantId.value, item.employee.id)
-        return [item.employee.id, access] as const
-      } catch {
-        return [item.employee.id, null] as const
-      }
-    })
-  )
-  directoryAccessMap.value = Object.fromEntries(entries)
 }
 
 /** loadEmployeeAccountAccess refreshes the bounded member-context account and access summary. */
@@ -384,7 +429,6 @@ async function queryEmployeeGrid(formValues: EmployeeFilterFormState = {}) {
     employees.value = []
     employeeRows.value = []
     employeeTotal.value = 0
-    directoryAccessMap.value = {}
     syncSelectedEmployeeId('')
     detail.value = null
     accountAccess.value = null
@@ -404,11 +448,8 @@ async function queryEmployeeGrid(formValues: EmployeeFilterFormState = {}) {
       pageSize: 20
     })
     employees.value = result.items ?? []
-    await loadDirectoryAccessStatuses(employees.value)
 
-    const filteredItems = employees.value.filter((item) =>
-      matchesEmployeeFilters(item, formValues, directoryAccessMap.value)
-    )
+    const filteredItems = employees.value.filter((item) => matchesEmployeeFilters(item, formValues))
     const rows = filteredItems.map((item) => buildEmployeeGridRow(item))
     const nextEmployeeId = resolvePreferredEmployeeId(filteredItems)
     employeeRows.value = rows
@@ -437,6 +478,42 @@ async function selectEmployee(employeeId: string) {
   syncSelectedEmployeeId(employeeId)
   detailDrawerTab.value = 'overview'
   detailDrawerOpen.value = true
+  await loadEmployeeDetail(employeeId)
+}
+
+/** handleEmployeeAction dispatches one dropdown menu action for an employee row. */
+async function handleEmployeeAction(actionKey: EmployeeActionKey, employee: Record<string, any>) {
+  const employeeId = `${employee.id ?? ''}`
+
+  if (actionKey === 'detail') {
+    await openEmployeeDetailPage(employeeId)
+    return
+  }
+
+  if (actionKey === 'changeEmployment') {
+    await prepareEmploymentRowAction(employeeId)
+    openChangeEmploymentModal()
+    return
+  }
+
+  if (actionKey === 'offboard') {
+    await prepareEmploymentRowAction(employeeId)
+    confirmEndEmployment()
+    return
+  }
+
+  if (actionKey === 'account') {
+    syncSelectedEmployeeId(employeeId)
+    openAccountManagementLink()
+    return
+  }
+
+  await selectEmployee(employeeId)
+}
+
+/** prepareEmploymentRowAction loads the current employment context without making the drawer the action owner. */
+async function prepareEmploymentRowAction(employeeId: string) {
+  syncSelectedEmployeeId(employeeId)
   await loadEmployeeDetail(employeeId)
 }
 
@@ -582,7 +659,8 @@ async function submitCreateFlow() {
         created.employee.id,
         {
           effectiveFrom: normalizeDateInput(createForm.value.joinedOn),
-          orgUnitId: createForm.value.orgUnitId
+          orgUnitId: createForm.value.orgUnitId,
+          positionName: createForm.value.primaryPositionName.trim()
         }
       )) as { employment?: HrManagementApi.EmploymentSummary }
       createdEmploymentId = createdEmployment.employment?.id ?? ''
@@ -657,8 +735,9 @@ function openChangeEmploymentModal() {
   }
 
   changeForm.value = {
-    effectiveFrom: '',
-    orgUnitId: currentActiveEmployment.value?.orgUnitId ?? orgOptions.value[0]?.id ?? ''
+    effectiveFrom: formatDateTimeLocalInputValue(new Date()),
+    orgUnitId: currentActiveEmployment.value?.orgUnitId ?? orgOptions.value[0]?.id ?? '',
+    positionName: currentActiveEmployment.value?.positionName ?? ''
   }
   changeOpen.value = true
 }
@@ -674,18 +753,30 @@ async function submitChangeEmployment() {
     return
   }
 
+  if (!changeForm.value.orgUnitId) {
+    message.error('请选择目标部门')
+    return
+  }
+  if (!changeForm.value.effectiveFrom.trim()) {
+    message.error('请选择调岗生效时间')
+    return
+  }
+
   changeSaving.value = true
   try {
     await changeManagedPrimaryEmploymentApi(activeTenantId.value, internalSelectedEmployeeId.value, {
       effectiveFrom: normalizeDateTimeLocal(changeForm.value.effectiveFrom),
       endedReason: 'transfer',
       fromEmploymentId: currentActiveEmployment.value.id,
+      positionName: changeForm.value.positionName.trim() || undefined,
       toOrgUnitId: changeForm.value.orgUnitId
     })
     changeOpen.value = false
     message.success('调岗已提交')
     await refreshEmployeeGrid()
-    await loadEmployeeDetail(internalSelectedEmployeeId.value)
+    if (detailDrawerOpen.value) {
+      await loadEmployeeDetail(internalSelectedEmployeeId.value)
+    }
   } catch (error) {
     message.error(resolveErrorMessage(error, '调岗失败'))
   } finally {
@@ -706,21 +797,24 @@ function confirmEndEmployment() {
 
   const activeEmployment = currentActiveEmployment.value
   Modal.confirm({
-    title: '结束任职',
-    content: '此操作只结束当前 active employment，不会把账号管理并入 HR 页面。',
-    okText: '确认结束',
+    title: '离岗',
+    content: '此操作会结束当前 active employment，并在没有其他 active employment 时将员工置为离职。',
+    okText: '确认离岗',
     cancelText: '取消',
+    zIndex: drawerChildModalZIndex,
     onOk: async () => {
       try {
         await endManagedEmploymentApi(activeTenantId.value, internalSelectedEmployeeId.value, activeEmployment.id, {
           effectiveTo: new Date().toISOString(),
           endedReason: 'manual_end'
         })
-        message.success('任职已结束')
+        message.success('离岗已提交')
         await refreshEmployeeGrid()
-        await loadEmployeeDetail(internalSelectedEmployeeId.value)
+        if (detailDrawerOpen.value) {
+          await loadEmployeeDetail(internalSelectedEmployeeId.value)
+        }
       } catch (error) {
-        message.error(resolveErrorMessage(error, '结束任职失败'))
+        message.error(resolveErrorMessage(error, '离岗失败'))
       }
     }
   })
@@ -792,10 +886,6 @@ async function submitEmployeeAccess() {
     accessOpen.value = false
     message.success(result.status === 'PENDING' ? '登录接入仍待继续完成' : '成员登录接入已提交')
     await loadEmployeeAccountAccess(internalSelectedEmployeeId.value)
-    directoryAccessMap.value = {
-      ...directoryAccessMap.value,
-      [internalSelectedEmployeeId.value]: result
-    }
     await refreshEmployeeGrid()
   } catch (error) {
     message.error(resolveErrorMessage(error, '成员登录接入失败'))
@@ -811,14 +901,14 @@ function openAccountManagementLink() {
 
 function buildEmployeeGridRow(item: HrManagementApi.EmployeeDirectoryItem): EmployeeGridRow {
   return {
-    accessStatus: resolveDirectoryAccessStatus(item.employee.id),
+    activeEmploymentId: item.activeEmployment?.id,
     employeeCode: item.employee.employeeCode,
     id: item.employee.id,
     joinedAt: formatDate(item.activeEmployment?.effectiveFrom),
     lifecycleStatus: item.employee.lifecycleStatus,
     name: formatEmployeeName(item.employee),
-    orgSummary: formatEmploymentOrgSummary(item.activeEmployment) || '未提供',
-    primaryDepartment: formatEmploymentOrgTitle(item.activeEmployment)
+    positionName: item.activeEmployment?.positionName?.trim() || '未提供',
+    primaryDepartment: formatOrgName(item.activeEmployment?.orgUnitId)
   }
 }
 
@@ -861,7 +951,6 @@ async function searchEmployeeDirectory() {
 
 /** resetEmployeeDirectoryFilters returns the toolbar to the broad employee directory view. */
 async function resetEmployeeDirectoryFilters() {
-  employeeFilters.accessStatus = 'ALL'
   employeeFilters.keyword = ''
   employeeFilters.lifecycleStatus = 'ALL'
   employeeFilters.orgUnitIds = []
@@ -889,9 +978,19 @@ function resolveEmploymentOrgUnit(employment?: HrManagementApi.EmploymentSummary
   return employment?.orgUnit ?? findManagedOrgUnitOption(orgOptions.value, employment?.orgUnitId)
 }
 
-function formatEmploymentOrgTitle(employment?: HrManagementApi.EmploymentSummary) {
+/** formatEmploymentDepartmentName displays only org-unit truth for department fields. */
+function formatEmploymentDepartmentName(employment?: HrManagementApi.EmploymentSummary) {
   const orgUnit = resolveEmploymentOrgUnit(employment)
-  const orgName = orgUnit?.name || formatOrgName(employment?.orgUnitId)
+  return orgUnit?.name || formatOrgName(employment?.orgUnitId)
+}
+
+/** formatEmploymentPositionName displays only employment-owned position truth. */
+function formatEmploymentPositionName(employment?: HrManagementApi.EmploymentSummary) {
+  return employment?.positionName?.trim() || '未提供'
+}
+
+function formatEmploymentOrgTitle(employment?: HrManagementApi.EmploymentSummary) {
+  const orgName = formatEmploymentDepartmentName(employment)
   return [orgName, employment?.positionName].filter(Boolean).join(' / ')
 }
 
@@ -934,23 +1033,6 @@ function formatLifecycleStatus(status?: string) {
   }
 }
 
-function formatAccountAccessStatus(status?: string) {
-  switch (status) {
-    case 'ACTIVE': {
-      return '已开通登录'
-    }
-    case 'NOT_ENABLED': {
-      return '未开通登录'
-    }
-    case 'PENDING': {
-      return '待继续完成接入'
-    }
-    default: {
-      return status || '未提供'
-    }
-  }
-}
-
 function formatLoginMethodSummary(loginMethods: HrManagementApi.EmployeeAccessLoginMethodSummary[]) {
   if (loginMethods.length === 0) {
     return '未配置登录方式'
@@ -984,14 +1066,9 @@ function formatDate(value?: string) {
   return value.slice(0, 10)
 }
 
-function resolveDirectoryAccessStatus(employeeId: string) {
-  return directoryAccessMap.value[employeeId]?.status || 'NOT_ENABLED'
-}
-
 function matchesEmployeeFilters(
   item: HrManagementApi.EmployeeDirectoryItem,
-  state: EmployeeFilterFormState,
-  accessMap: Record<string, HrManagementApi.EmployeeAccountAccessResult | null>
+  state: EmployeeFilterFormState
 ) {
   const keyword = (state.keyword ?? '').trim().toLowerCase()
   const searchCorpus = [
@@ -1020,10 +1097,6 @@ function matchesEmployeeFilters(
     return false
   }
 
-  if (state.accessStatus && state.accessStatus !== 'ALL' && accessMap[item.employee.id]?.status !== state.accessStatus) {
-    return false
-  }
-
   return true
 }
 
@@ -1038,6 +1111,11 @@ function normalizeDateTimeLocal(value: string) {
   }
 
   return new Date(normalized).toISOString()
+}
+
+/** formatDateTimeLocalInputValue seeds datetime-local controls with the API's minute precision. */
+function formatDateTimeLocalInputValue(value: Date) {
+  return value.toISOString().slice(0, 16)
 }
 
 /** normalizeDateInput converts date-only HR form values to the backend timestamp contract. */
@@ -1164,7 +1242,9 @@ onMounted(async () => {
         <TreeSelect
           v-model:value="employeeFilters.orgUnitIds"
           allow-clear
-          class="employee-management__filter-select"
+          class="employee-management__filter-select employee-management__department-filter"
+          :dropdown-match-select-width="departmentDropdownWidth"
+          :dropdown-style="departmentDropdownStyle"
           max-tag-count="responsive"
           placeholder="部门"
           show-search
@@ -1182,17 +1262,6 @@ onMounted(async () => {
             { label: '在职', value: 'ACTIVE' },
             { label: '待入职', value: 'PREBOARDING' },
             { label: '已离职', value: 'OFFBOARDED' },
-          ]"
-          @change="searchEmployeeDirectory"
-        />
-        <Select
-          v-model:value="employeeFilters.accessStatus"
-          class="employee-management__filter-select"
-          :options="[
-            { label: '职位', value: 'ALL' },
-            { label: '已开通登录', value: 'ACTIVE' },
-            { label: '待继续完成接入', value: 'PENDING' },
-            { label: '未开通登录', value: 'NOT_ENABLED' },
           ]"
           @change="searchEmployeeDirectory"
         />
@@ -1221,9 +1290,6 @@ onMounted(async () => {
               <div class="employee-management__avatar">{{ record.name.slice(0, 1).toUpperCase() }}</div>
               <div>
                 <div class="employee-management__employee-name">{{ record.name }}</div>
-                <div class="employee-management__employee-sub">
-                  {{ formatAccountAccessStatus(record.accessStatus) }}
-                </div>
               </div>
             </div>
           </template>
@@ -1233,25 +1299,28 @@ onMounted(async () => {
             </Tag>
           </template>
           <template v-else-if="column.key === 'operation'">
-            <Space size="small">
-              <Button
-                :data-testid="`employee-open-detail-${record.id}`"
-                size="small"
-                type="link"
-                @click="openEmployeeDetailPage(record.id)"
-              >
-                查看详情
+            <Dropdown
+              v-if="getVisibleTableActionItems(getEmployeeActionItems(record)).length > 0"
+              :trigger="['click']"
+            >
+              <Button aria-label="员工操作" shape="circle" size="small" type="text">
+                <IconifyIcon icon="ant-design:more-outlined" />
               </Button>
-              <Button
-                :data-testid="`employee-edit-${record.id}`"
-                size="small"
-                type="link"
-                @click="selectEmployee(record.id)"
-              >
-                编辑
-              </Button>
-              <Button size="small" type="link">更多</Button>
-            </Space>
+              <template #overlay>
+                <Menu @click="(info) => handleEmployeeAction(String(info.key) as EmployeeActionKey, record)">
+                  <Menu.Item
+                    v-for="item in getVisibleTableActionItems(getEmployeeActionItems(record))"
+                    :key="item.key"
+                    :danger="item.danger"
+                    :data-testid="item.testId"
+                    :disabled="item.disabled"
+                  >
+                    {{ item.label }}
+                  </Menu.Item>
+                </Menu>
+              </template>
+            </Dropdown>
+            <span v-else class="tenant-table-action-empty">无可用操作</span>
           </template>
         </template>
         <template #emptyText>
@@ -1262,7 +1331,6 @@ onMounted(async () => {
 
     <Drawer
       v-model:open="detailDrawerOpen"
-      :get-container="false"
       :width="720"
       data-testid="employee-detail-drawer"
       destroy-on-close
@@ -1285,14 +1353,6 @@ onMounted(async () => {
             </div>
             <Space wrap>
               <Button
-                v-access:code="'hr.employment.change_primary'"
-                v-if="canChangeEmployment && currentActiveEmployment"
-                data-testid="change-employment-open"
-                @click="openChangeEmploymentModal"
-              >
-                调岗
-              </Button>
-              <Button
                 v-access:code="'identity.account.create'"
                 v-if="accountAccess?.status === 'PENDING' && canProvisionLogin && currentActiveEmployment"
                 data-testid="employee-continue-access-open"
@@ -1307,26 +1367,6 @@ onMounted(async () => {
               >
                 开通登录
               </Button>
-              <Button
-                v-access:code="'hr.employment.end'"
-                v-if="canEndEmployment && currentActiveEmployment"
-                danger
-                data-testid="employment-end-button"
-                @click="confirmEndEmployment"
-              >
-                结束任职
-              </Button>
-              <Button
-                v-access:code="[
-                  'permission.account.get_roles',
-                  'permission.account.assign_roles',
-                ]"
-                v-if="canOpenAccountManagement"
-                data-testid="employee-account-management-link"
-                @click="openAccountManagementLink"
-              >
-                前往账号管理
-              </Button>
             </Space>
           </div>
 
@@ -1340,16 +1380,14 @@ onMounted(async () => {
                   {{ detail.employee.employeeCode }}
                 </Descriptions.Item>
                 <Descriptions.Item label="主部门">
-                  {{ formatEmploymentOrgTitle(currentActiveEmployment) }}
+                  {{ formatEmploymentDepartmentName(currentActiveEmployment) }}
+                </Descriptions.Item>
+                <Descriptions.Item label="职位">
+                  {{ formatEmploymentPositionName(currentActiveEmployment) }}
                 </Descriptions.Item>
                 <Descriptions.Item label="生命周期">
                   <Tag color="blue">
                     {{ formatLifecycleStatus(detail.employee.lifecycleStatus) }}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="登录接入">
-                  <Tag :color="accountAccess?.status === 'ACTIVE' ? 'blue' : accountAccess?.status === 'PENDING' ? 'gold' : 'default'">
-                    {{ formatAccountAccessStatus(accountAccess?.status) }}
                   </Tag>
                 </Descriptions.Item>
                 <Descriptions.Item label="当前任职摘要">
@@ -1362,7 +1400,10 @@ onMounted(async () => {
               <div class="employee-management__section-stack">
                 <Descriptions :column="1" bordered size="small" title="当前任职">
                   <Descriptions.Item label="所属部门">
-                    {{ formatEmploymentOrgTitle(currentActiveEmployment) }}
+                    {{ formatEmploymentDepartmentName(currentActiveEmployment) }}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="职位">
+                    {{ formatEmploymentPositionName(currentActiveEmployment) }}
                   </Descriptions.Item>
                   <Descriptions.Item label="任职状态">
                     {{ formatEmploymentStatus(currentActiveEmployment?.status) }}
@@ -1570,7 +1611,7 @@ onMounted(async () => {
       v-if="changeOpen"
       v-model:open="changeOpen"
       :confirm-loading="changeSaving"
-      :get-container="false"
+      :z-index="drawerChildModalZIndex"
       title="调岗"
       @ok="submitChangeEmployment"
     >
@@ -1581,6 +1622,13 @@ onMounted(async () => {
             data-testid="change-employment-org-select"
             :options="orgSelectOptions"
             placeholder="选择目标部门"
+          />
+        </Form.Item>
+        <Form.Item label="目标职位">
+          <Input
+            v-model:value="changeForm.positionName"
+            data-testid="change-employment-position-input"
+            placeholder="例如 生产经理"
           />
         </Form.Item>
         <Form.Item label="生效时间">
@@ -1610,7 +1658,7 @@ onMounted(async () => {
       v-if="accessOpen"
       v-model:open="accessOpen"
       :confirm-loading="accessSaving"
-      :get-container="false"
+      :z-index="drawerChildModalZIndex"
       :title="accessMode === 'CONTINUE' ? '继续完成登录接入' : '开通成员登录'"
       @ok="submitEmployeeAccess"
     >
@@ -1705,6 +1753,10 @@ onMounted(async () => {
   min-width: 136px;
 }
 
+.employee-management__department-filter {
+  min-width: 220px;
+}
+
 .employee-management__search {
   flex: 1 1 260px;
   min-width: 220px;
@@ -1736,12 +1788,6 @@ onMounted(async () => {
   color: #111827;
   font-weight: 600;
   line-height: 1.35;
-}
-
-.employee-management__employee-sub {
-  color: #667085;
-  font-size: 12px;
-  line-height: 1.4;
 }
 
 .employee-management__tenant-caption,

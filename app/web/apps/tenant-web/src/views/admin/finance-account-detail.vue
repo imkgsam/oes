@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { FinanceApi } from '#/api'
+import type { TableColumnsType } from 'ant-design-vue'
 
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { Table } from 'ant-design-vue'
 
 import {
   getFinancialAccountByIdApi,
@@ -47,6 +49,13 @@ const recordForm = reactive<FinanceApi.RecordAccountTransactionPayload>({
   status: 'CONFIRMED',
   transactionTime: '2026-04-28T10:15:00.000Z'
 })
+const transactionColumns: TableColumnsType<FinanceApi.AccountTransaction> = [
+  { dataIndex: 'accountTransactionId', key: 'accountTransactionId', title: '流水号' },
+  { dataIndex: 'direction', key: 'direction', title: '方向' },
+  { dataIndex: 'amount', key: 'amount', title: '金额' },
+  { dataIndex: 'status', key: 'status', title: '状态' },
+  { dataIndex: 'allocationStatus', key: 'allocationStatus', title: '核销状态' }
+]
 
 /** loadAccountDetail refreshes the selected account detail snapshot and its real transaction list. */
 async function loadAccountDetail() {
@@ -132,29 +141,15 @@ onMounted(() => {
 
       <section class="finance-detail-card">
         <h2>账户流水</h2>
-        <table class="finance-detail-table">
-          <thead>
-            <tr>
-              <th>流水号</th>
-              <th>方向</th>
-              <th>金额</th>
-              <th>状态</th>
-              <th>核销状态</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="transaction in transactions" :key="transaction.accountTransactionId">
-              <td>{{ transaction.accountTransactionId }}</td>
-              <td>{{ transaction.direction }}</td>
-              <td>{{ transaction.amount }}</td>
-              <td>{{ transaction.status }}</td>
-              <td>{{ transaction.allocationStatus }}</td>
-            </tr>
-            <tr v-if="!transactions.length">
-              <td colspan="5">暂无流水</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="transactionColumns"
+          :data-source="transactions"
+          :loading="loading"
+          :locale="{ emptyText: '暂无流水' }"
+          :pagination="false"
+          row-key="accountTransactionId"
+          size="middle"
+        />
       </section>
 
       <section class="finance-detail-card finance-detail-card--actions">
@@ -205,18 +200,6 @@ onMounted(() => {
   display: grid;
   gap: 8px;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-}
-
-.finance-detail-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.finance-detail-table th,
-.finance-detail-table td {
-  padding: 10px 8px;
-  border-bottom: 1px solid hsl(var(--border));
-  text-align: left;
 }
 
 .finance-detail-actions {

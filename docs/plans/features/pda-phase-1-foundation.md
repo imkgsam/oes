@@ -266,7 +266,7 @@ Phase 1 最小接口：
 - 东集 Cruise Ge 扫码接入已通过真机广播路径验证。
 - 东集 Cruise Ge 设备标识读取已通过真机验证，并保留 App-generated fallback。
 - Android 9 WebView 与本地资源加载策略已通过真机验证；PDA Web build target 固定为 `chrome66`。
-- refresh token 安全存储已在 Android Shell 中验证，可支持关闭 App 后恢复登录态。
+- refresh token 安全存储已在 Android Shell 中验证；Phase 2 设备治理已将 PDA 调整为只恢复设备 enrollment，不跨 App 关闭恢复用户登录态。
 
 ## 12. 派生问题 Ledger
 

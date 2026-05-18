@@ -954,9 +954,9 @@ describe('role management page', () => {
     await flushPromises();
     await flushPromises();
 
-    const addButton = Array.from(document.body.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('添加'),
-    ) as HTMLButtonElement | undefined;
+    const addButton = document.body.querySelector(
+      '[data-testid="role-permission-action-perm-delete-account-assign"]',
+    ) as HTMLButtonElement | null;
 
     addButton?.click();
     await flushPromises();

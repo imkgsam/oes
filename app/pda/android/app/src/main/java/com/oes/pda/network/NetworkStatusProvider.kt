@@ -1,6 +1,7 @@
 package com.oes.pda.network
 
 import android.content.Context
+import android.os.BatteryManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 
@@ -17,7 +18,15 @@ class NetworkStatusProvider(private val context: Context) {
             "connected" to connected,
             "metered" to connectivityManager.isActiveNetworkMetered,
             "type" to resolveNetworkType(capabilities),
+            "batteryLevel" to readBatteryLevel(),
         )
+    }
+
+    /** Reads current battery percentage for heartbeat diagnostics when Android exposes it. */
+    private fun readBatteryLevel(): Int? {
+        val batteryManager = context.getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        val capacity = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        return capacity.takeIf { it in 0..100 }
     }
 
     private fun resolveNetworkType(capabilities: NetworkCapabilities?): String {

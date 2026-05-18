@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { ProcurementApi } from '#/api'
+import type { TableColumnsType } from 'ant-design-vue'
 
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, h, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { IconifyIcon } from '@vben/icons'
+import { Button, Dropdown, Menu, Table } from 'ant-design-vue'
 
 import {
   listPurchaseOrdersApi,
@@ -21,6 +24,15 @@ interface ProcurementFilterState {
   requestType: '' | ProcurementApi.PurchaseRequestType
   showOpenDiscrepancyOnly: boolean | undefined
   receivingStatus: '' | ProcurementApi.ReceivingExpectationStatus
+}
+
+interface ProcurementTableActionItem<ActionKey extends string> {
+  danger?: boolean
+  disabled?: boolean
+  hidden?: boolean
+  key: ActionKey
+  label: string
+  testId?: string
 }
 
 const authContextStore = useAuthContextStore()
@@ -63,6 +75,134 @@ const loading = ref(false)
 const purchaseRequests = ref<ProcurementApi.PurchaseRequestSummary[]>([])
 const purchaseOrders = ref<ProcurementApi.PurchaseOrderSummary[]>([])
 const receivingExpectations = ref<ProcurementApi.ReceivingExpectationSummary[]>([])
+
+/** renderProcurementNativeActions renders procurement row commands with Ant Design Vue Dropdown/Menu directly. */
+function renderProcurementNativeActions<ActionKey extends string>(
+  ariaLabel: string,
+  items: Array<ProcurementTableActionItem<ActionKey>>,
+  onClick: (key: ActionKey) => void
+) {
+  const visibleItems = items.filter((item) => !item.hidden)
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作')
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': ariaLabel,
+            shape: 'circle',
+            size: 'small',
+            type: 'text'
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' })
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: (info) => {
+              const action = visibleItems.find((item) => item.key === String(info.key))
+
+              if (!action || action.disabled) {
+                return
+              }
+
+              onClick(action.key)
+            }
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                  'data-testid': item.testId
+                },
+                () => item.label
+              )
+            )
+        )
+    }
+  )
+}
+
+const purchaseRequestColumns = computed<TableColumnsType<ProcurementApi.PurchaseRequestSummary>>(() => [
+  { dataIndex: 'requestNo', key: 'requestNo', title: 'PR 编号' },
+  { dataIndex: 'requestType', key: 'requestType', title: '类型' },
+  { dataIndex: 'status', key: 'status', title: '状态' },
+  { dataIndex: 'requesterDisplayName', key: 'requesterDisplayName', title: '申请人' },
+  {
+    align: 'center',
+    fixed: 'right',
+    key: 'actions',
+    title: '操作',
+    width: 72,
+    customRender: ({ record }) =>
+      renderProcurementNativeActions(
+        '采购申请操作',
+        canViewPurchaseRequest.value
+          ? [{ key: 'detail', label: '详情', testId: `procurement-open-pr-${record.purchaseRequestId}` }]
+          : [],
+        () => openPurchaseRequestDetail(record.purchaseRequestId)
+      )
+  }
+])
+const purchaseOrderColumns = computed<TableColumnsType<ProcurementApi.PurchaseOrderSummary>>(() => [
+  { dataIndex: 'orderNo', key: 'orderNo', title: 'PO 编号' },
+  { dataIndex: 'supplierDisplayName', key: 'supplierDisplayName', title: '供应商' },
+  { dataIndex: 'status', key: 'status', title: '状态' },
+  { dataIndex: 'currencyCode', key: 'currencyCode', title: '货币' },
+  {
+    align: 'center',
+    fixed: 'right',
+    key: 'actions',
+    title: '操作',
+    width: 72,
+    customRender: ({ record }) =>
+      renderProcurementNativeActions(
+        '采购订单操作',
+        canViewPurchaseOrder.value
+          ? [{ key: 'detail', label: '详情', testId: `procurement-open-po-${record.purchaseOrderId}` }]
+          : [],
+        () => openPurchaseOrderDetail(record.purchaseOrderId)
+      )
+  }
+])
+const receivingExpectationColumns = computed<TableColumnsType<ProcurementApi.ReceivingExpectationSummary>>(() => [
+  { dataIndex: 'receivingExpectationId', key: 'receivingExpectationId', title: 'Expectation' },
+  { dataIndex: 'purchaseOrderId', key: 'purchaseOrderId', title: 'PO' },
+  { dataIndex: 'openQuantity', key: 'openQuantity', title: '未收数量' },
+  { dataIndex: 'status', key: 'status', title: '状态' },
+  {
+    key: 'discrepancy',
+    title: '差异',
+    customRender: ({ record }) => (record.hasOpenDiscrepancy ? 'OPEN' : 'NONE')
+  },
+  {
+    align: 'center',
+    fixed: 'right',
+    key: 'actions',
+    title: '操作',
+    width: 72,
+    customRender: ({ record }) =>
+      renderProcurementNativeActions(
+        '收货预期操作',
+        canViewReceivingExpectation.value
+          ? [{ key: 'detail', label: '详情', testId: `procurement-open-re-${record.receivingExpectationId}` }]
+          : [],
+        () => openReceivingExpectationDetail(record.receivingExpectationId)
+      )
+  }
+])
 
 /** loadWorkspace refreshes the three procurement phase 1 directories for the current tenant workspace. */
 async function loadWorkspace() {
@@ -233,118 +373,41 @@ onMounted(() => {
 
       <section class="procurement-card">
         <h2>采购申请</h2>
-        <table class="procurement-table">
-          <thead>
-            <tr>
-              <th>PR 编号</th>
-              <th>类型</th>
-              <th>状态</th>
-              <th>申请人</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="purchaseRequest in purchaseRequests" :key="purchaseRequest.purchaseRequestId">
-              <td>{{ purchaseRequest.requestNo }}</td>
-              <td>{{ purchaseRequest.requestType }}</td>
-              <td>{{ purchaseRequest.status }}</td>
-              <td>{{ purchaseRequest.requesterDisplayName }}</td>
-              <td>
-                <button
-                  v-access:code="'procurement.purchase_request.get_by_id'"
-                  v-if="canViewPurchaseRequest"
-                  :data-testid="`procurement-open-pr-${purchaseRequest.purchaseRequestId}`"
-                  type="button"
-                  @click="openPurchaseRequestDetail(purchaseRequest.purchaseRequestId)"
-                >
-                  详情
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!purchaseRequests.length">
-              <td colspan="5">暂无采购申请</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="purchaseRequestColumns"
+          :data-source="purchaseRequests"
+          :loading="loading"
+          :locale="{ emptyText: '暂无采购申请' }"
+          :pagination="false"
+          row-key="purchaseRequestId"
+          size="middle"
+        />
       </section>
 
       <section class="procurement-card">
         <h2>采购订单</h2>
-        <table class="procurement-table">
-          <thead>
-            <tr>
-              <th>PO 编号</th>
-              <th>供应商</th>
-              <th>状态</th>
-              <th>货币</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="purchaseOrder in purchaseOrders" :key="purchaseOrder.purchaseOrderId">
-              <td>{{ purchaseOrder.orderNo }}</td>
-              <td>{{ purchaseOrder.supplierDisplayName }}</td>
-              <td>{{ purchaseOrder.status }}</td>
-              <td>{{ purchaseOrder.currencyCode }}</td>
-              <td>
-                <button
-                  v-access:code="'procurement.purchase_order.get_by_id'"
-                  v-if="canViewPurchaseOrder"
-                  :data-testid="`procurement-open-po-${purchaseOrder.purchaseOrderId}`"
-                  type="button"
-                  @click="openPurchaseOrderDetail(purchaseOrder.purchaseOrderId)"
-                >
-                  详情
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!purchaseOrders.length">
-              <td colspan="5">暂无采购订单</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="purchaseOrderColumns"
+          :data-source="purchaseOrders"
+          :loading="loading"
+          :locale="{ emptyText: '暂无采购订单' }"
+          :pagination="false"
+          row-key="purchaseOrderId"
+          size="middle"
+        />
       </section>
 
       <section class="procurement-card">
         <h2>收货预期</h2>
-        <table class="procurement-table">
-          <thead>
-            <tr>
-              <th>Expectation</th>
-              <th>PO</th>
-              <th>未收数量</th>
-              <th>状态</th>
-              <th>差异</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="receivingExpectation in receivingExpectations"
-              :key="receivingExpectation.receivingExpectationId"
-            >
-              <td>{{ receivingExpectation.receivingExpectationId }}</td>
-              <td>{{ receivingExpectation.purchaseOrderId }}</td>
-              <td>{{ receivingExpectation.openQuantity }}</td>
-              <td>{{ receivingExpectation.status }}</td>
-              <td>{{ receivingExpectation.hasOpenDiscrepancy ? 'OPEN' : 'NONE' }}</td>
-              <td>
-                <button
-                  v-access:code="'procurement.receiving_expectation.get_by_id'"
-                  v-if="canViewReceivingExpectation"
-                  :data-testid="`procurement-open-re-${receivingExpectation.receivingExpectationId}`"
-                  type="button"
-                  @click="openReceivingExpectationDetail(receivingExpectation.receivingExpectationId)"
-                >
-                  详情
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!receivingExpectations.length">
-              <td colspan="6">暂无收货预期</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="receivingExpectationColumns"
+          :data-source="receivingExpectations"
+          :loading="loading"
+          :locale="{ emptyText: '暂无收货预期' }"
+          :pagination="false"
+          row-key="receivingExpectationId"
+          size="middle"
+        />
       </section>
     </section>
   </Page>
@@ -448,15 +511,4 @@ onMounted(() => {
   gap: 8px;
 }
 
-.procurement-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-.procurement-table th,
-.procurement-table td {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 10px 8px;
-  text-align: left;
-}
 </style>

@@ -117,6 +117,100 @@ describe('HrManagementGrpcController L3', () => {
     ).rejects.toBeInstanceOf(BadRequestException)
   })
 
+  it('Employment commands / should map positionName as employment-owned truth', async () => {
+    const service = createHrManagementServiceMock()
+    const onboardingService = createHrOnboardingAccessServiceMock()
+    const employeeOnboardingService = createHrEmployeeOnboardingServiceMock()
+    service.createEmployment.mockResolvedValue({
+      employee: {
+        id: 'employee-1',
+        tenantId: 'tenant-1',
+        tenantPartyId: 'tenant-party-1',
+        lifecycleStatus: 'ACTIVE'
+      },
+      employment: {
+        id: 'employment-1',
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        orgUnitId: 'org-1',
+        positionName: '生产主管',
+        status: 'ACTIVE',
+        effectiveFrom: new Date('2026-04-25T00:00:00.000Z')
+      }
+    })
+    service.changePrimaryEmployment.mockResolvedValue({
+      employee: {
+        id: 'employee-1',
+        tenantId: 'tenant-1',
+        tenantPartyId: 'tenant-party-1',
+        lifecycleStatus: 'ACTIVE'
+      },
+      endedEmployment: {
+        id: 'employment-1',
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        orgUnitId: 'org-1',
+        positionName: '生产主管',
+        status: 'ENDED',
+        effectiveFrom: new Date('2026-04-25T00:00:00.000Z')
+      },
+      newEmployment: {
+        id: 'employment-2',
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        orgUnitId: 'org-2',
+        positionName: '生产经理',
+        status: 'ACTIVE',
+        effectiveFrom: new Date('2026-04-26T00:00:00.000Z')
+      }
+    })
+    const controller = new HrManagementGrpcController(
+      service as unknown as HrManagementService,
+      employeeOnboardingService as any,
+      onboardingService as any
+    )
+
+    await controller.createEmployment(
+      {
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        orgUnitId: 'org-1',
+        effectiveFrom: '2026-04-25T00:00:00.000Z',
+        positionName: '生产主管'
+      },
+      createOperatorMetadata()
+    )
+    await controller.changePrimaryEmployment(
+      {
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        fromEmploymentId: 'employment-1',
+        toOrgUnitId: 'org-2',
+        effectiveFrom: '2026-04-26T00:00:00.000Z',
+        endedReason: 'transfer',
+        positionName: '生产经理'
+      },
+      createOperatorMetadata()
+    )
+
+    expect(service.createEmployment).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1',
+      orgUnitId: 'org-1',
+      positionName: '生产主管',
+      effectiveFrom: new Date('2026-04-25T00:00:00.000Z')
+    })
+    expect(service.changePrimaryEmployment).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1',
+      fromEmploymentId: 'employment-1',
+      toOrgUnitId: 'org-2',
+      positionName: '生产经理',
+      effectiveFrom: new Date('2026-04-26T00:00:00.000Z'),
+      endedReason: 'transfer'
+    })
+  })
+
   it('CreateEmployeeOnboarding / should map employee onboarding to HR-owned saga input', async () => {
     const service = createHrManagementServiceMock()
     const onboardingService = createHrOnboardingAccessServiceMock()

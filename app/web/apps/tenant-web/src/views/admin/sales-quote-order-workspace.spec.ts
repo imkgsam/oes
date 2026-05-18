@@ -423,10 +423,26 @@ describe('sales quote order workspace page', () => {
     expect(wrapper.text()).toContain('North America Standard')
 
     await wrapper.get('[data-testid="sales-open-create"]').trigger('click')
-    await wrapper.get('[data-testid="sales-open-quote-quote-1"]').trigger('click')
-    await wrapper.get('[data-testid="sales-publish-quote-quote-1"]').trigger('click')
-    await wrapper.get('[data-testid="sales-convert-version-version-1"]').trigger('click')
-    await wrapper.get('[data-testid="sales-open-order-order-1"]').trigger('click')
+    await wrapper.get('button[aria-label="报价操作"]').trigger('click')
+    await flushPromises()
+    document.querySelector('[data-testid="sales-open-quote-quote-1"]')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
+    await wrapper.get('button[aria-label="报价操作"]').trigger('click')
+    await flushPromises()
+    document.querySelector('[data-testid="sales-publish-quote-quote-1"]')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
+    await wrapper.get('button[aria-label="报价操作"]').trigger('click')
+    await flushPromises()
+    document.querySelector('[data-testid="sales-convert-version-version-1"]')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
+    await wrapper.get('button[aria-label="销售订单操作"]').trigger('click')
+    await flushPromises()
+    document.querySelector('[data-testid="sales-open-order-order-1"]')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
 
     await wrapper.get('[data-testid="pricing-open-price-list-price-list-1"]').trigger('click')
     await flushPromises()

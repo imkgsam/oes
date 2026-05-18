@@ -37,6 +37,7 @@ export async function sendPdaHeartbeat(appState: PdaHeartbeatAppState): Promise<
     runtime: {
       networkStatus: 'ONLINE',
       networkType: networkResult.data.type,
+      batteryLevel: networkResult.data.batteryLevel,
       appState,
     },
     session: buildSessionSummary(sessionStore),
@@ -79,14 +80,14 @@ export function stopPdaHeartbeat(): void {
 function buildSessionSummary(sessionStore: ReturnType<typeof useSessionStore>): PdaHeartbeatRequest['session'] {
   const accountId = sessionStore.bootstrap?.account?.accountId;
   const sessionId = sessionStore.bootstrap?.session?.sessionId;
-  if (!accountId || !sessionId) {
+  if (!accountId) {
     return null;
   }
 
   return {
     accountId,
     tenantId: sessionStore.bootstrap?.account?.tenantId ?? null,
-    sessionId,
+    sessionId: sessionId ?? null,
   };
 }
 

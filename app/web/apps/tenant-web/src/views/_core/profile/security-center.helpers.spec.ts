@@ -4,8 +4,11 @@ import {
   buildLoginMethodGroups,
   canRequestContactBindingChallenge,
   getContactBindingActionLabel,
+  getLoginHistoryFailureExplanation,
   getMfaAvailabilityHint,
   getMfaDisplayDestination,
+  getSessionTerminalColor,
+  getSessionTerminalLabel,
   isMfaEnableActionDisabled,
   resolveMfaEnableFlow,
   resolveBoundContact,
@@ -398,5 +401,39 @@ describe('security center contact binding helpers', () => {
         type: 'TOTP',
       }),
     ).toBe(false);
+  });
+
+  it('maps session terminal codes to compact account-security labels', () => {
+    expect(getSessionTerminalLabel('WEB')).toBe('Web');
+    expect(getSessionTerminalLabel('PDA')).toBe('PDA');
+    expect(getSessionTerminalLabel('KIOSK')).toBe('Kiosk');
+    expect(getSessionTerminalLabel('INDUSTRIAL_TABLET')).toBe('工业平板');
+    expect(getSessionTerminalLabel('future-terminal')).toBe('future-terminal');
+    expect(getSessionTerminalLabel('')).toBe('未知终端');
+  });
+
+  it('maps session terminal codes to stable tag colors', () => {
+    expect(getSessionTerminalColor('WEB')).toBe('blue');
+    expect(getSessionTerminalColor('PDA')).toBe('green');
+    expect(getSessionTerminalColor('KIOSK')).toBe('orange');
+    expect(getSessionTerminalColor('MOBILE')).toBe('cyan');
+    expect(getSessionTerminalColor('API_CLIENT')).toBe('geekblue');
+    expect(getSessionTerminalColor('unknown-terminal')).toBe('default');
+  });
+
+  it('maps login-history failure reasons to user-facing explanations', () => {
+    expect(getLoginHistoryFailureExplanation('INVALID_CREDENTIALS')).toBe(
+      '凭证验证失败',
+    );
+    expect(getLoginHistoryFailureExplanation('TERMINAL_ACCESS_DENIED')).toBe(
+      '终端准入策略拦截',
+    );
+    expect(getLoginHistoryFailureExplanation('AUTH_TERMINAL_ACCESS_DENIED')).toBe(
+      '终端准入策略拦截',
+    );
+    expect(getLoginHistoryFailureExplanation('unexpected_internal_code')).toBe(
+      '登录未完成',
+    );
+    expect(getLoginHistoryFailureExplanation()).toBe('-');
   });
 });

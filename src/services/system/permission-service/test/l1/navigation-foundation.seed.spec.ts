@@ -32,6 +32,7 @@ describe('navigation foundation seed', () => {
       'wms.management',
       'mes.mold-management',
       'admin.platform-mfa',
+      'admin.platform-terminal-security',
       'admin.permission-management',
       'admin.policy-governance',
       'admin.terminal-device-management',
@@ -54,7 +55,7 @@ describe('navigation foundation seed', () => {
       '员工管理',
       '租户 MFA 配置',
       'Item 管理',
-      'Item 分类管理',
+      '产品分类管理',
       'Item 属性管理',
       'Item 包装管理',
       'Item BOM 管理',
@@ -65,7 +66,8 @@ describe('navigation foundation seed', () => {
       '财务管理',
       'WMS 管理',
       '模具管理',
-      '平台 MFA 配置',
+      'MFA 因子配置',
+      'Terminal 登录策略',
       '权限管理',
       '策略治理',
       '终端设备管理',
@@ -201,6 +203,12 @@ describe('navigation foundation seed', () => {
       {
         roleId: 'role-system-admin',
         entryKey: 'admin.platform-mfa',
+        terminal: 'DEFAULT',
+        enabled: true
+      },
+      {
+        roleId: 'role-system-admin',
+        entryKey: 'admin.platform-terminal-security',
         terminal: 'DEFAULT',
         enabled: true
       },

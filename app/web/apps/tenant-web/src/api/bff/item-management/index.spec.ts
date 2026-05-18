@@ -27,6 +27,7 @@ describe('item-management V2 BFF API client', async () => {
     changeManagedPackagingSpecStatusApi,
     changeManagedItemCategoryStatusApi,
     changeManagedBomStatusApi,
+    deleteManagedItemCategoryApi,
     getManagedBomByOutputItemApi,
     listManagedAttributeDefinitionsApi,
     listManagedAttributeOptionsApi,
@@ -34,6 +35,7 @@ describe('item-management V2 BFF API client', async () => {
     listManagedItemModelsApi,
     listManagedPackagingMethodsApi,
     listManagedPackagingSpecsApi,
+    moveManagedItemCategoryApi,
     replaceManagedBomLinesApi,
     updateManagedBomBasicsApi,
     updateManagedAttributeDefinitionApi,
@@ -145,6 +147,10 @@ describe('item-management V2 BFF API client', async () => {
     await changeManagedItemCategoryStatusApi('tenant-1', 'category-1', {
       status: 'INACTIVE'
     })
+    await moveManagedItemCategoryApi('tenant-1', 'category-1', {
+      parentCategoryId: 'category-parent'
+    })
+    await deleteManagedItemCategoryApi('tenant-1', 'category-1')
 
     expect(request).toHaveBeenCalledWith('/item-management/tenants/tenant-1/categories/category-1/basics', {
       data: {
@@ -158,6 +164,15 @@ describe('item-management V2 BFF API client', async () => {
         status: 'INACTIVE'
       },
       method: 'PATCH'
+    })
+    expect(request).toHaveBeenCalledWith('/item-management/tenants/tenant-1/categories/category-1/parent', {
+      data: {
+        parentCategoryId: 'category-parent'
+      },
+      method: 'PATCH'
+    })
+    expect(request).toHaveBeenCalledWith('/item-management/tenants/tenant-1/categories/category-1', {
+      method: 'DELETE'
     })
   })
 
@@ -174,10 +189,12 @@ describe('item-management V2 BFF API client', async () => {
     })
     await listManagedAttributeOptionsApi('tenant-1', 'attribute-1', { status: 'ACTIVE' })
     await createManagedAttributeOptionApi('tenant-1', 'attribute-1', {
+      description: 'Glossy white option',
       optionCode: 'WHITE',
       optionName: 'White'
     })
     await updateManagedAttributeOptionApi('tenant-1', 'option-1', {
+      description: 'Updated white option',
       optionCode: 'WHITE',
       optionName: 'White',
       status: 'INACTIVE'
@@ -204,12 +221,14 @@ describe('item-management V2 BFF API client', async () => {
     expect(post).toHaveBeenCalledWith(
       '/item-management/tenants/tenant-1/attributes/definitions/attribute-1/options',
       {
+        description: 'Glossy white option',
         optionCode: 'WHITE',
         optionName: 'White'
       }
     )
     expect(request).toHaveBeenCalledWith('/item-management/tenants/tenant-1/attributes/options/option-1', {
       data: {
+        description: 'Updated white option',
         optionCode: 'WHITE',
         optionName: 'White',
         status: 'INACTIVE'

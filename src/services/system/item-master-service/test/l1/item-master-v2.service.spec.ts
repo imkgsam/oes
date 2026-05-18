@@ -5,7 +5,10 @@ import {
   ItemModelType,
   ItemType
 } from '@oes/common/generated/item_master_service'
-import { ItemMasterManagementV2Service } from '../../src/application/item-master-v2.service'
+import {
+  ItemMasterManagementV2Service,
+  ItemMasterQueryV2Service
+} from '../../src/application/item-master-v2.service'
 
 function createPrismaMock(overrides: Record<string, any> = {}): any {
   const prisma: any = {
@@ -15,6 +18,26 @@ function createPrismaMock(overrides: Record<string, any> = {}): any {
       create: jest.fn(),
       update: jest.fn(),
       count: jest.fn()
+    },
+    itemCategory: {
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      count: jest.fn(),
+      delete: jest.fn()
+    },
+    attributeDefinition: {
+      count: jest.fn(),
+      findFirst: jest.fn(),
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn()
+    },
+    attributeOption: {
+      findMany: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn()
     },
     item: {
       findFirst: jest.fn(),
@@ -44,6 +67,7 @@ function createPrismaMock(overrides: Record<string, any> = {}): any {
       findMany: jest.fn().mockResolvedValue([])
     },
     runInTransaction: jest.fn(async (callback) => callback()),
+    $transaction: jest.fn(async (queries) => Promise.all(queries)),
     getExecutionClient: jest.fn()
   }
   prisma.getExecutionClient.mockReturnValue(prisma)
@@ -83,6 +107,28 @@ const activeModel = {
 
 /** item-master V2 application service tests assert the new contract invariants before persistence. */
 describe('ItemMasterManagementV2Service', () => {
+  it('lists only root item categories when parent category is omitted', async () => {
+    const prisma = createPrismaMock({
+      itemCategory: {
+        findMany: jest.fn().mockResolvedValue([])
+      }
+    })
+    const service = new ItemMasterQueryV2Service(prisma)
+
+    await service.listItemCategories({
+      tenantId: 'tenant-1'
+    })
+
+    expect(prisma.itemCategory.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          parentCategoryId: null,
+          tenantId: 'tenant-1'
+        })
+      })
+    )
+  })
+
   it('rejects packaged finished goods without packaging spec', async () => {
     const prisma = createPrismaMock({
       itemModel: {
@@ -200,5 +246,269 @@ describe('ItemMasterManagementV2Service', () => {
         })
       })
     )
+  })
+
+  it('lists attribute definitions with option counts', async () => {
+    const prisma = createPrismaMock({
+      attributeDefinition: {
+        count: jest.fn().mockResolvedValue(1),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'attr-1',
+            tenantId: 'tenant-1',
+            attributeCode: 'COLOR',
+            attributeName: 'Color',
+            active: true,
+            _count: { options: 3 }
+          }
+        ])
+      }
+    })
+    const service = new ItemMasterQueryV2Service(prisma)
+
+    await expect(
+      service.listAttributeDefinitions({
+        tenantId: 'tenant-1',
+        page: 1,
+        pageSize: 20
+      })
+    ).resolves.toMatchObject({
+      attributeDefinitions: [
+        {
+          attributeDefinitionId: 'attr-1',
+          optionCount: 3
+        }
+      ]
+    })
+
+    expect(prisma.attributeDefinition.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: { _count: { select: { options: true } } }
+      })
+    )
+  })
+
+  it('creates and updates attribute options with descriptions', async () => {
+    const prisma = createPrismaMock({
+      attributeDefinition: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'attr-1',
+          tenantId: 'tenant-1'
+        })
+      },
+      attributeOption: {
+        create: jest.fn().mockResolvedValue({
+          id: 'opt-1',
+          tenantId: 'tenant-1',
+          attributeDefinitionId: 'attr-1',
+          optionCode: 'WHITE',
+          optionName: 'White',
+          description: 'Glossy white option',
+          active: true
+        }),
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'opt-1',
+          tenantId: 'tenant-1'
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: 'opt-1',
+          tenantId: 'tenant-1',
+          attributeDefinitionId: 'attr-1',
+          optionCode: 'WHITE-REV',
+          optionName: 'White Rev',
+          description: null,
+          active: false
+        })
+      }
+    })
+    const service = new ItemMasterManagementV2Service(prisma)
+
+    await expect(
+      service.createAttributeOption({
+        tenantId: 'tenant-1',
+        attributeDefinitionId: 'attr-1',
+        optionCode: 'WHITE',
+        optionName: 'White',
+        description: ' Glossy white option '
+      })
+    ).resolves.toMatchObject({
+      attributeOption: {
+        attributeOptionId: 'opt-1',
+        description: 'Glossy white option'
+      }
+    })
+    expect(prisma.attributeOption.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: 'Glossy white option'
+        })
+      })
+    )
+
+    await expect(
+      service.updateAttributeOption({
+        tenantId: 'tenant-1',
+        attributeOptionId: 'opt-1',
+        optionCode: 'WHITE-REV',
+        optionName: 'White Rev',
+        description: '   ',
+        active: false
+      })
+    ).resolves.toMatchObject({
+      attributeOption: {
+        attributeOptionId: 'opt-1',
+        description: ''
+      }
+    })
+    expect(prisma.attributeOption.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: null
+        })
+      })
+    )
+  })
+
+  it('deletes an unused leaf item category', async () => {
+    const prisma = createPrismaMock({
+      itemCategory: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'category-leaf',
+          tenantId: 'tenant-1'
+        }),
+        count: jest.fn().mockResolvedValue(0),
+        delete: jest.fn().mockResolvedValue({
+          id: 'category-leaf',
+          tenantId: 'tenant-1'
+        })
+      },
+      itemModel: {
+        count: jest.fn().mockResolvedValue(0)
+      }
+    })
+    const service = new ItemMasterManagementV2Service(prisma)
+
+    await expect(
+      service.deleteItemCategory({
+        tenantId: 'tenant-1',
+        categoryId: 'category-leaf'
+      })
+    ).resolves.toEqual({})
+
+    expect(prisma.itemCategory.delete).toHaveBeenCalledWith({
+      where: { id: 'category-leaf' }
+    })
+  })
+
+  it('moves an item category to a valid parent or root', async () => {
+    const prisma = createPrismaMock({
+      itemCategory: {
+        findFirst: jest.fn()
+          .mockResolvedValueOnce({ id: 'category-child', tenantId: 'tenant-1' })
+          .mockResolvedValueOnce({ id: 'category-parent', tenantId: 'tenant-1' }),
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'category-parent', parentCategoryId: null },
+          { id: 'category-child', parentCategoryId: null }
+        ]),
+        update: jest.fn().mockResolvedValue({
+          id: 'category-child',
+          tenantId: 'tenant-1',
+          categoryCode: 'CHILD',
+          categoryName: 'Child',
+          parentCategoryId: 'category-parent',
+          active: true,
+          children: []
+        })
+      }
+    })
+    const service = new ItemMasterManagementV2Service(prisma)
+
+    await expect(
+      service.moveItemCategory({
+        tenantId: 'tenant-1',
+        categoryId: 'category-child',
+        parentCategoryId: 'category-parent'
+      })
+    ).resolves.toMatchObject({
+      category: expect.objectContaining({
+        categoryId: 'category-child',
+        parentCategoryId: 'category-parent'
+      })
+    })
+
+    expect(prisma.itemCategory.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { parentCategoryId: 'category-parent' },
+        where: { id: 'category-child' }
+      })
+    )
+  })
+
+  it('rejects moving item categories under themselves or descendants', async () => {
+    const prisma = createPrismaMock({
+      itemCategory: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'category-root', tenantId: 'tenant-1' }),
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'category-root', parentCategoryId: null },
+          { id: 'category-child', parentCategoryId: 'category-root' }
+        ]),
+        update: jest.fn()
+      }
+    })
+    const service = new ItemMasterManagementV2Service(prisma)
+
+    await expect(
+      service.moveItemCategory({
+        tenantId: 'tenant-1',
+        categoryId: 'category-root',
+        parentCategoryId: 'category-root'
+      })
+    ).rejects.toBeDefined()
+
+    await expect(
+      service.moveItemCategory({
+        tenantId: 'tenant-1',
+        categoryId: 'category-root',
+        parentCategoryId: 'category-child'
+      })
+    ).rejects.toBeDefined()
+
+    expect(prisma.itemCategory.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects deleting item categories that still have children or ItemModel references', async () => {
+    const category = {
+      id: 'category-parent',
+      tenantId: 'tenant-1'
+    }
+    const prisma = createPrismaMock({
+      itemCategory: {
+        findFirst: jest.fn().mockResolvedValue(category),
+        count: jest.fn()
+          .mockResolvedValueOnce(1)
+          .mockResolvedValueOnce(0),
+        delete: jest.fn()
+      },
+      itemModel: {
+        count: jest.fn().mockResolvedValue(1)
+      }
+    })
+    const service = new ItemMasterManagementV2Service(prisma)
+
+    await expect(
+      service.deleteItemCategory({
+        tenantId: 'tenant-1',
+        categoryId: 'category-parent'
+      })
+    ).rejects.toBeDefined()
+
+    await expect(
+      service.deleteItemCategory({
+        tenantId: 'tenant-1',
+        categoryId: 'category-parent'
+      })
+    ).rejects.toBeDefined()
+
+    expect(prisma.itemCategory.delete).not.toHaveBeenCalled()
   })
 })

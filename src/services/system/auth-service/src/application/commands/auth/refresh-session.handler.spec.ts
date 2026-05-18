@@ -17,6 +17,8 @@ function createSessionFixture(input: {
   tenantId?: string
   refreshToken: string
   terminal?: string
+  terminalDeviceId?: string
+  deviceBoundTenantId?: string
 }): Session {
   return Session.fromRedis({
     id: input.id,
@@ -24,6 +26,8 @@ function createSessionFixture(input: {
     accountId: input.accountId,
     tenantId: input.tenantId,
     terminal: input.terminal,
+    terminalDeviceId: input.terminalDeviceId,
+    deviceBoundTenantId: input.deviceBoundTenantId,
     refreshToken: input.refreshToken,
     status: SessionStatus.ACTIVE,
     deviceInfo: {
@@ -53,7 +57,9 @@ describe('RefreshSessionHandler', () => {
       accountId: 'account-1',
       tenantId: 'tenant-1',
       refreshToken: existingRefreshToken,
-      terminal: 'PDA'
+      terminal: 'PDA',
+      terminalDeviceId: 'terminal-device-1',
+      deviceBoundTenantId: 'tenant-1'
     })
     const jwtService = {
       verifyAsync: jest.fn().mockResolvedValue({
@@ -288,5 +294,99 @@ describe('RefreshSessionHandler', () => {
       refreshToken: 'next-refresh-token',
       expiresIn: 900
     })
+  })
+
+  it('rotates PDA sessions with the short PDA refresh window', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-05-18T08:00:00.000Z'))
+    const existingRefreshToken = 'refresh-token-pda'
+    const session = createSessionFixture({
+      id: 'session-pda',
+      userId: 'user-1',
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      refreshToken: existingRefreshToken,
+      terminal: 'PDA',
+      terminalDeviceId: 'terminal-device-1',
+      deviceBoundTenantId: 'tenant-1'
+    })
+
+    const jwtService = {
+      verifyAsync: jest.fn().mockResolvedValue({
+        sid: 'session-pda',
+        tokenType: 'refresh'
+      }),
+      signAccessToken: jest.fn().mockReturnValue('next-access-token'),
+      signRefreshToken: jest.fn().mockReturnValue('next-refresh-token')
+    } as unknown as CommonJwtService
+    const sessionRepository = {
+      findById: jest.fn().mockResolvedValue(session),
+      findByRefreshToken: jest.fn().mockResolvedValue(session),
+      save: jest.fn().mockImplementation(async (savedSession: Session) => savedSession),
+      delete: jest.fn().mockResolvedValue(undefined)
+    }
+    const handler = new RefreshSessionHandler(
+      jwtService,
+      {
+        get: jest.fn().mockReturnValue({
+          accessTokenValidity: 900,
+          refreshTokenValidity: 604800,
+          issuer: '',
+          audience: ''
+        })
+      } as unknown as ConfigService,
+      {
+        resolveAccountTerminalAccess: jest.fn().mockResolvedValue({
+          allowed: true,
+          reasonCode: 'ALLOWED',
+          effectiveAllowedTerminals: ['PDA'],
+          resolutionSource: 'ACCOUNT_OVERRIDE',
+          matchedRoleIds: []
+        }),
+        getAccountAuthorizationSummary: jest.fn().mockResolvedValue({
+          accountId: 'account-1',
+          roleIds: ['role-1'],
+          roleCodes: ['pda.operator'],
+          permissionCodes: []
+        })
+      } as any,
+      {
+        userRequiresPasswordSetup: jest.fn().mockResolvedValue(false)
+      } as unknown as PasswordSetupRequirementService,
+      sessionRepository as any,
+      new AuthAuditService({ emit: jest.fn() } as unknown as EventEmitter2),
+      {
+        markTrustedDeviceSeen: jest.fn().mockResolvedValue(undefined)
+      } as unknown as TrustedDeviceService,
+      {
+        assertSessionCanContinue: jest.fn().mockResolvedValue(undefined)
+      } as any
+    )
+
+    const result = await handler.execute(new RefreshSessionCommand(existingRefreshToken))
+
+    expect(result.expiresIn).toBe(900)
+    expect(session.getRemainingTime()).toBe(900)
+    expect(session.getRefreshRemainingTime()).toBe(1200)
+    expect((jwtService as any).signAccessToken).toHaveBeenCalledWith(expect.any(Object), {
+      expiresIn: 900
+    })
+    expect((jwtService as any).signRefreshToken).toHaveBeenCalledWith(expect.any(Object), {
+      expiresIn: 1200
+    })
+    expect((jwtService as any).signAccessToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-1'
+      }),
+      expect.any(Object)
+    )
+    expect((jwtService as any).signRefreshToken).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-1'
+      }),
+      expect.any(Object)
+    )
+    jest.useRealTimers()
   })
 })

@@ -112,6 +112,40 @@ function emitCheckboxValue(wrapper: ReturnType<typeof mount>, testId: string, ch
   checkbox.vm.$emit('change', { target: { checked } })
 }
 
+/** getDocumentTestElement reads teleported Ant Design overlays from document.body. */
+function getDocumentTestElement(testId: string) {
+  const element = document.body.querySelector(`[data-testid="${testId}"]`)
+  expect(element).toBeTruthy()
+  return element as HTMLElement
+}
+
+/** setDocumentInputValue updates inputs rendered through Ant Design teleport containers. */
+async function setDocumentInputValue(testId: string, value: string) {
+  const element = getDocumentTestElement(testId) as HTMLInputElement
+  element.value = value
+  element.dispatchEvent(new Event('input', { bubbles: true }))
+  await flushPromises()
+}
+
+/** clickEmployeeRowAction runs one employee operation through the native Ant Design dropdown. */
+async function clickEmployeeRowAction(_wrapper: ReturnType<typeof mount>, actionKey: string) {
+  const labelByKey: Record<string, string> = {
+    account: '前往账号',
+    changeEmployment: '调岗位',
+    detail: '查看详情',
+    edit: '编辑',
+    offboard: '离岗'
+  }
+  const trigger = document.body.querySelector('button[aria-label="员工操作"]') as HTMLButtonElement | null
+  trigger?.click()
+  await flushPromises()
+  const action = Array.from(document.body.querySelectorAll('.ant-dropdown-menu-item, .ant-menu-item')).find(
+    (element) => element.textContent?.includes(labelByKey[actionKey] ?? actionKey)
+  ) as HTMLElement | undefined
+  action?.click()
+  await flushPromises()
+}
+
 describe('employee management page', () => {
   beforeEach(() => {
     replace.mockReset()
@@ -160,6 +194,7 @@ describe('employee management page', () => {
             employeeId: 'employee-1',
             id: 'employment-1',
             orgUnitId: 'org-branch-1',
+            positionName: '生产主管',
             orgUnit: {
               depth: 1,
               id: 'org-branch-1',
@@ -201,6 +236,7 @@ describe('employee management page', () => {
         employeeId: 'employee-1',
         id: 'employment-1',
         orgUnitId: 'org-branch-1',
+        positionName: '生产主管',
         orgUnit: {
           depth: 1,
           id: 'org-branch-1',
@@ -228,6 +264,7 @@ describe('employee management page', () => {
           employeeId: 'employee-1',
           id: 'employment-1',
           orgUnitId: 'org-branch-1',
+          positionName: '生产主管',
           orgUnit: {
             depth: 1,
             id: 'org-branch-1',
@@ -491,10 +528,12 @@ describe('employee management page', () => {
     expect(wrapper.text()).toContain('新增员工')
     expect(wrapper.find('.employee-management__hero').exists()).toBe(false)
     expect(wrapper.find('.employee-management__table-card').exists()).toBe(true)
-    expect(wrapper.text()).toContain('待继续完成接入')
+    expect(wrapper.text()).not.toContain('待继续完成接入')
     expect(wrapper.text()).toContain('EMP-001')
     expect(wrapper.text()).toContain('华东分公司')
-    expect(wrapper.text()).toContain('华东制造主体')
+    expect(wrapper.text()).toContain('生产主管')
+    expect(wrapper.text()).not.toContain('BRANCH')
+    expect(wrapper.text()).not.toContain('华东制造主体')
     expect(wrapper.text()).not.toContain('TenantPartyId')
     expect(wrapper.text()).not.toContain('PartyId')
     expect(listManagedEmployeesApi).toHaveBeenCalledWith('tenant-1', {
@@ -504,7 +543,7 @@ describe('employee management page', () => {
       pageSize: 20
     })
     expect(getManagedOrgTreeApi).toHaveBeenCalledWith('tenant-1')
-    expect(getManagedEmployeeAccountAccessApi).toHaveBeenCalledWith('tenant-1', 'employee-1')
+    expect(getManagedEmployeeAccountAccessApi).not.toHaveBeenCalled()
     expect(getManagedEmployeeDetailApi).not.toHaveBeenCalled()
     expect(getManagedOrgUnitByIdApi).not.toHaveBeenCalled()
   })
@@ -539,7 +578,7 @@ describe('employee management page', () => {
     })
 
     await flushPromises()
-    await wrapper.get('[data-testid="employee-open-detail-employee-1"]').trigger('click')
+    await clickEmployeeRowAction(wrapper, 'detail')
     await flushPromises()
 
     expect(push).toHaveBeenCalledWith({
@@ -563,10 +602,14 @@ describe('employee management page', () => {
     })
 
     await flushPromises()
-    await wrapper.get('[data-testid="employee-edit-employee-1"]').trigger('click')
+    await clickEmployeeRowAction(wrapper, 'edit')
     await flushPromises()
-    expect(wrapper.text()).toContain('继续完成接入')
-    await wrapper.get('[data-testid="employee-account-management-link"]').trigger('click')
+    expect(document.body.textContent).toContain('主部门')
+    expect(document.body.textContent).toContain('华东分公司')
+    expect(document.body.textContent).toContain('职位')
+    expect(document.body.textContent).toContain('生产主管')
+    expect(document.body.textContent).toContain('继续完成接入')
+    await clickEmployeeRowAction(wrapper, 'account')
 
     expect(push).toHaveBeenCalledWith('/admin/account-management')
   })
@@ -588,7 +631,7 @@ describe('employee management page', () => {
     emitSelectValue(wrapper, 'employee-gender-select', 'FEMALE')
     emitSelectValue(wrapper, 'employee-identity-type-select', 'NATIONAL_ID')
     await wrapper.get('[data-testid="employee-identity-number-input"]').setValue('110101199001011234')
-    expect(wrapper.text()).toContain('华东制造主体')
+    expect(wrapper.text()).toContain('华东分公司')
     emitTreeSelectValue(wrapper, 'employee-org-select', 'org-branch-1')
     await wrapper.get('[data-testid="employee-primary-position-input"]').setValue('生产主管')
     await wrapper.get('[data-testid="employee-joined-on-input"]').setValue('2026-04-25')
@@ -624,18 +667,10 @@ describe('employee management page', () => {
     })
     expect(createManagedEmploymentApi).toHaveBeenCalledWith('tenant-1', 'employee-2', {
       effectiveFrom: '2026-04-25T00:00:00.000Z',
-      orgUnitId: 'org-branch-1'
+      orgUnitId: 'org-branch-1',
+      positionName: '生产主管'
     })
-    expect(completeManagedEmployeeAccessApi).toHaveBeenCalledWith('tenant-1', 'employee-2', {
-      employmentId: 'employment-2',
-      roleIds: ['role-1'],
-      reason: 'member_create_allow_login',
-      createAccount: {
-        displayName: '林予安',
-        email: 'member@example.com',
-        phone: undefined
-      }
-    })
+    expect(completeManagedEmployeeAccessApi).not.toHaveBeenCalled()
   })
 
   it('allows ending the active employment and changing primary employment when backend commands exist', async () => {
@@ -650,14 +685,12 @@ describe('employee management page', () => {
     })
 
     await flushPromises()
-    await wrapper.get('[data-testid="employee-edit-employee-1"]').trigger('click')
-    await flushPromises()
-    await wrapper.get('[data-testid="employment-end-button"]').trigger('click')
-    await flushPromises()
-    await wrapper.get('[data-testid="change-employment-open"]').trigger('click')
+    await clickEmployeeRowAction(wrapper, 'offboard')
+    await clickEmployeeRowAction(wrapper, 'changeEmployment')
     emitSelectValue(wrapper, 'change-employment-org-select', 'org-branch-1')
-    await wrapper.get('[data-testid="change-employment-effective-from-input"]').setValue('2026-04-26T00:00')
-    await wrapper.get('[data-testid="change-employment-submit"]').trigger('click')
+    await setDocumentInputValue('change-employment-position-input', '生产经理')
+    await setDocumentInputValue('change-employment-effective-from-input', '2026-04-26T00:00')
+    getDocumentTestElement('change-employment-submit').click()
     await flushPromises()
 
     expect(endManagedEmploymentApi).toHaveBeenCalledWith('tenant-1', 'employee-1', 'employment-1', {
@@ -668,6 +701,7 @@ describe('employee management page', () => {
       effectiveFrom: '2026-04-26T00:00:00.000Z',
       endedReason: 'transfer',
       fromEmploymentId: 'employment-1',
+      positionName: '生产经理',
       toOrgUnitId: 'org-branch-1'
     })
   })
@@ -684,11 +718,12 @@ describe('employee management page', () => {
     })
 
     await flushPromises()
-    await wrapper.get('[data-testid="employee-edit-employee-1"]').trigger('click')
+    await clickEmployeeRowAction(wrapper, 'edit')
     await flushPromises()
-    await wrapper.get('[data-testid="employee-continue-access-open"]').trigger('click')
+    getDocumentTestElement('employee-continue-access-open').click()
+    await flushPromises()
     emitSelectValue(wrapper, 'employee-login-role-select', 'role-1')
-    await wrapper.get('[data-testid="employee-access-submit"]').trigger('click')
+    getDocumentTestElement('employee-access-submit').click()
     await flushPromises()
 
     expect(completeManagedEmployeeAccessApi).toHaveBeenCalledWith('tenant-1', 'employee-1', {

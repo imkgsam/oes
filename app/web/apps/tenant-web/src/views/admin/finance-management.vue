@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { FinanceApi } from '#/api'
+import type { TableColumnsType } from 'ant-design-vue'
 
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, h, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { IconifyIcon } from '@vben/icons'
+import { Button, Dropdown, Menu, Table } from 'ant-design-vue'
 
 import {
   allocatePaymentToPayableApi,
@@ -35,6 +38,15 @@ interface FinanceFilterState {
   paymentRequestStatus: '' | FinanceApi.PaymentRequestStatus
   receivableKeyword: string
   receivableStatus: '' | FinanceApi.ReceivableScheduleStatus
+}
+
+interface FinanceTableActionItem<ActionKey extends string> {
+  danger?: boolean
+  disabled?: boolean
+  hidden?: boolean
+  key: ActionKey
+  label: string
+  testId?: string
 }
 
 const authContextStore = useAuthContextStore()
@@ -210,6 +222,141 @@ const lastPaymentRequestId = ref('')
 const lastPaymentDecision = ref('')
 const lastPaymentExecutionId = ref('')
 const lastPayableAllocationCount = ref(0)
+
+/** renderFinanceNativeActions renders finance row commands with Ant Design Vue Dropdown/Menu directly. */
+function renderFinanceNativeActions<ActionKey extends string>(
+  ariaLabel: string,
+  items: Array<FinanceTableActionItem<ActionKey>>,
+  onClick: (key: ActionKey) => void
+) {
+  const visibleItems = items.filter((item) => !item.hidden)
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作')
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': ariaLabel,
+            shape: 'circle',
+            size: 'small',
+            type: 'text'
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' })
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: (info) => {
+              const action = visibleItems.find((item) => item.key === String(info.key))
+
+              if (!action || action.disabled) {
+                return
+              }
+
+              onClick(action.key)
+            }
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                  'data-testid': item.testId
+                },
+                () => item.label
+              )
+            )
+        )
+    }
+  )
+}
+
+const financialAccountColumns = computed<TableColumnsType<FinanceApi.FinancialAccountSummary>>(() => [
+  { dataIndex: 'accountNo', key: 'accountNo', title: '账户编号' },
+  { dataIndex: 'accountName', key: 'accountName', title: '账户名称' },
+  { dataIndex: 'accountType', key: 'accountType', title: '类型' },
+  { dataIndex: 'currencyCode', key: 'currencyCode', title: '币种' },
+  { dataIndex: 'currentBalance', key: 'currentBalance', title: '余额' },
+  {
+    align: 'center',
+    fixed: 'right',
+    key: 'actions',
+    title: '操作',
+    width: 72,
+    customRender: ({ record }) =>
+      renderFinanceNativeActions(
+        '资金账户操作',
+        [{ key: 'detail', label: '详情', testId: `finance-open-account-${record.financialAccountId}` }],
+        () => openFinancialAccountDetail(record.financialAccountId)
+      )
+  }
+])
+const receivableScheduleColumns = computed<TableColumnsType<FinanceApi.ReceivableScheduleSummary>>(() => [
+  { dataIndex: 'scheduleNo', key: 'scheduleNo', title: '计划编号' },
+  { dataIndex: 'customerDisplayName', key: 'customerDisplayName', title: '客户' },
+  { dataIndex: 'status', key: 'status', title: '状态' },
+  { dataIndex: 'outstandingAmount', key: 'outstandingAmount', title: '未收金额' },
+  { dataIndex: 'financeReleaseStatus', key: 'financeReleaseStatus', title: '财务放行' },
+  {
+    align: 'center',
+    fixed: 'right',
+    key: 'actions',
+    title: '操作',
+    width: 72,
+    customRender: ({ record }) =>
+      renderFinanceNativeActions(
+        '应收计划操作',
+        [{ key: 'detail', label: '详情', testId: `finance-open-receivable-${record.receivableScheduleId}` }],
+        () => openReceivableScheduleDetail(record.receivableScheduleId)
+      )
+  }
+])
+const payableScheduleColumns: TableColumnsType<FinanceApi.PayableScheduleSummary> = [
+  { dataIndex: 'scheduleNo', key: 'scheduleNo', title: '计划编号' },
+  {
+    key: 'sourcePurchaseOrder',
+    title: '来源 PO',
+    customRender: ({ record }) => record.sourcePurchaseOrderNo || record.sourcePurchaseOrderId
+  },
+  { dataIndex: 'supplierDisplayName', key: 'supplierDisplayName', title: '供应商' },
+  { dataIndex: 'requestGovernanceStatusSummary', key: 'requestGovernanceStatusSummary', title: '治理状态' },
+  { dataIndex: 'outstandingAmount', key: 'outstandingAmount', title: '未付金额' },
+  { dataIndex: 'nearestDueDate', key: 'nearestDueDate', title: '最近到期' }
+]
+const paymentRequestColumns: TableColumnsType<FinanceApi.PaymentRequestSummary> = [
+  { dataIndex: 'requestNo', key: 'requestNo', title: '申请编号' },
+  { dataIndex: 'supplierDisplayName', key: 'supplierDisplayName', title: '供应商' },
+  { dataIndex: 'requestSource', key: 'requestSource', title: '来源' },
+  {
+    key: 'amount',
+    title: '金额',
+    customRender: ({ record }) => `${record.requestedAmount} ${record.currencyCode}`
+  },
+  { dataIndex: 'status', key: 'status', title: '状态' },
+  { dataIndex: 'requestedAt', key: 'requestedAt', title: '申请时间' }
+]
+const paymentExecutionColumns: TableColumnsType<FinanceApi.PaymentExecutionSummary> = [
+  { dataIndex: 'paymentExecutionId', key: 'paymentExecutionId', title: '执行号' },
+  { dataIndex: 'paymentRequestId', key: 'paymentRequestId', title: '申请号' },
+  {
+    key: 'amount',
+    title: '金额',
+    customRender: ({ record }) => `${record.executedAmount} ${record.currencyCode}`
+  },
+  { dataIndex: 'status', key: 'status', title: '状态' },
+  { dataIndex: 'executedAt', key: 'executedAt', title: '执行时间' }
+]
 
 /** loadWorkspace refreshes the finance account and receivable directories for the current tenant workspace. */
 async function loadWorkspace() {
@@ -546,164 +693,67 @@ onMounted(() => {
 
       <section class="finance-card">
         <h2>资金账户</h2>
-        <table class="finance-table">
-          <thead>
-            <tr>
-              <th>账户编号</th>
-              <th>账户名称</th>
-              <th>类型</th>
-              <th>币种</th>
-              <th>余额</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="account in financialAccounts" :key="account.financialAccountId">
-              <td>{{ account.accountNo }}</td>
-              <td>{{ account.accountName }}</td>
-              <td>{{ account.accountType }}</td>
-              <td>{{ account.currencyCode }}</td>
-              <td>{{ account.currentBalance }}</td>
-              <td>
-                <button
-                  type="button"
-                  :data-testid="`finance-open-account-${account.financialAccountId}`"
-                  @click="openFinancialAccountDetail(account.financialAccountId)"
-                >
-                  详情
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!financialAccounts.length">
-              <td colspan="6">暂无资金账户</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="financialAccountColumns"
+          :data-source="financialAccounts"
+          :loading="loading"
+          :locale="{ emptyText: '暂无资金账户' }"
+          :pagination="false"
+          row-key="financialAccountId"
+          size="middle"
+        />
       </section>
 
       <section class="finance-card">
         <h2>应收计划</h2>
-        <table class="finance-table">
-          <thead>
-            <tr>
-              <th>计划编号</th>
-              <th>客户</th>
-              <th>状态</th>
-              <th>未收金额</th>
-              <th>财务放行</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="schedule in receivableSchedules"
-              :key="schedule.receivableScheduleId"
-            >
-              <td>{{ schedule.scheduleNo }}</td>
-              <td>{{ schedule.customerDisplayName }}</td>
-              <td>{{ schedule.status }}</td>
-              <td>{{ schedule.outstandingAmount }}</td>
-              <td>{{ schedule.financeReleaseStatus }}</td>
-              <td>
-                <button
-                  type="button"
-                  :data-testid="`finance-open-receivable-${schedule.receivableScheduleId}`"
-                  @click="openReceivableScheduleDetail(schedule.receivableScheduleId)"
-                >
-                  详情
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!receivableSchedules.length">
-              <td colspan="6">暂无应收计划</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="receivableScheduleColumns"
+          :data-source="receivableSchedules"
+          :loading="loading"
+          :locale="{ emptyText: '暂无应收计划' }"
+          :pagination="false"
+          row-key="receivableScheduleId"
+          size="middle"
+        />
       </section>
 
       <section class="finance-card">
         <h2>应付计划</h2>
-        <table class="finance-table">
-          <thead>
-            <tr>
-              <th>计划编号</th>
-              <th>来源 PO</th>
-              <th>供应商</th>
-              <th>治理状态</th>
-              <th>未付金额</th>
-              <th>最近到期</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="schedule in payableSchedules" :key="schedule.payableScheduleId">
-              <td>{{ schedule.scheduleNo }}</td>
-              <td>{{ schedule.sourcePurchaseOrderNo || schedule.sourcePurchaseOrderId }}</td>
-              <td>{{ schedule.supplierDisplayName }}</td>
-              <td>{{ schedule.requestGovernanceStatusSummary }}</td>
-              <td>{{ schedule.outstandingAmount }}</td>
-              <td>{{ schedule.nearestDueDate }}</td>
-            </tr>
-            <tr v-if="!payableSchedules.length">
-              <td colspan="6">暂无应付计划</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="payableScheduleColumns"
+          :data-source="payableSchedules"
+          :loading="loading"
+          :locale="{ emptyText: '暂无应付计划' }"
+          :pagination="false"
+          row-key="payableScheduleId"
+          size="middle"
+        />
       </section>
 
       <section class="finance-card">
         <h2>付款申请</h2>
-        <table class="finance-table">
-          <thead>
-            <tr>
-              <th>申请编号</th>
-              <th>供应商</th>
-              <th>来源</th>
-              <th>金额</th>
-              <th>状态</th>
-              <th>申请时间</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="request in paymentRequests" :key="request.paymentRequestId">
-              <td>{{ request.requestNo }}</td>
-              <td>{{ request.supplierDisplayName }}</td>
-              <td>{{ request.requestSource }}</td>
-              <td>{{ request.requestedAmount }} {{ request.currencyCode }}</td>
-              <td>{{ request.status }}</td>
-              <td>{{ request.requestedAt }}</td>
-            </tr>
-            <tr v-if="!paymentRequests.length">
-              <td colspan="6">暂无付款申请</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="paymentRequestColumns"
+          :data-source="paymentRequests"
+          :loading="loading"
+          :locale="{ emptyText: '暂无付款申请' }"
+          :pagination="false"
+          row-key="paymentRequestId"
+          size="middle"
+        />
       </section>
 
       <section class="finance-card">
         <h2>付款执行记录</h2>
-        <table class="finance-table">
-          <thead>
-            <tr>
-              <th>执行号</th>
-              <th>申请号</th>
-              <th>金额</th>
-              <th>状态</th>
-              <th>执行时间</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="execution in paymentExecutions" :key="execution.paymentExecutionId">
-              <td>{{ execution.paymentExecutionId }}</td>
-              <td>{{ execution.paymentRequestId }}</td>
-              <td>{{ execution.executedAmount }} {{ execution.currencyCode }}</td>
-              <td>{{ execution.status }}</td>
-              <td>{{ execution.executedAt }}</td>
-            </tr>
-            <tr v-if="!paymentExecutions.length">
-              <td colspan="5">暂无付款执行记录</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="paymentExecutionColumns"
+          :data-source="paymentExecutions"
+          :loading="loading"
+          :locale="{ emptyText: '暂无付款执行记录' }"
+          :pagination="false"
+          row-key="paymentExecutionId"
+          size="middle"
+        />
       </section>
 
       <section class="finance-card finance-card--actions">
@@ -1002,18 +1052,6 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-.finance-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.finance-table th,
-.finance-table td {
-  padding: 10px 8px;
-  border-bottom: 1px solid hsl(var(--border));
-  text-align: left;
 }
 
 input,

@@ -185,6 +185,7 @@ message CreateEmploymentRequest {
   string employee_id = 2;
   string org_unit_id = 3;
   string effective_from = 4;
+  string position_name = 5;
 }
 
 message CreateEmploymentResponse {
@@ -210,6 +211,7 @@ message ChangePrimaryEmploymentRequest {
   string to_org_unit_id = 4;
   string effective_from = 5;
   string ended_reason = 6;
+  string position_name = 7;
 }
 
 message ChangePrimaryEmploymentResponse {

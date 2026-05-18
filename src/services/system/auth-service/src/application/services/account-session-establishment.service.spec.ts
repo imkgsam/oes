@@ -296,4 +296,79 @@ describe('AccountSessionEstablishmentService', () => {
       expect.any(Object)
     )
   })
+
+  it('uses the short PDA token window without changing the global web token window', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-05-18T08:00:00.000Z'))
+    const sessionRepository = {
+      save: jest.fn().mockImplementation(async (session) => session),
+      findById: jest.fn().mockResolvedValue(null)
+    }
+    const jwtService = {
+      signAccessToken: jest.fn().mockReturnValue('access-token'),
+      signRefreshToken: jest.fn().mockReturnValue('refresh-token')
+    }
+    const service = new AccountSessionEstablishmentService(
+      {
+        getAccountAuthorizationSummary: jest.fn().mockResolvedValue({
+          roleIds: ['role-1']
+        }),
+        resolveAccountTerminalAccess: jest.fn().mockResolvedValue({
+          allowed: true,
+          reasonCode: 'ALLOWED',
+          effectiveAllowedTerminals: ['PDA'],
+          resolutionSource: 'ACCOUNT_OVERRIDE',
+          matchedRoleIds: []
+        })
+      } as any,
+      {
+        userRequiresPasswordSetup: jest.fn().mockResolvedValue(false)
+      } as any,
+      jwtService as any,
+      {
+        get: jest.fn().mockReturnValue({
+          accessTokenValidity: 900,
+          refreshTokenValidity: 604800,
+          issuer: '',
+          audience: ''
+        })
+      } as any,
+      sessionRepository as any,
+      {
+        emitLoginSucceeded: jest.fn()
+      } as any,
+      {
+        rememberTrustedDevice: jest.fn()
+      } as any,
+      {
+        assertAccountCanEstablishSession: jest.fn().mockResolvedValue(undefined)
+      } as any
+    )
+
+    const result = await service.establish({
+      userId: 'user-1',
+      account: {
+        accountId: 'account-1',
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        displayName: 'Tenant Account'
+      },
+      loginMethod: LoginMethodEnum.PhonePassword,
+      terminal: 'PDA',
+      terminalDeviceId: 'terminal-device-1',
+      deviceBoundTenantId: 'tenant-1'
+    } as any)
+
+    const savedSession = sessionRepository.save.mock.calls[0][0]
+    expect(result.expiresIn).toBe(900)
+    expect(savedSession.getRemainingTime()).toBe(900)
+    expect(savedSession.getRefreshRemainingTime()).toBe(1200)
+    expect(jwtService.signAccessToken).toHaveBeenCalledWith(expect.any(Object), {
+      expiresIn: 900
+    })
+    expect(jwtService.signRefreshToken).toHaveBeenCalledWith(expect.any(Object), {
+      expiresIn: 1200
+    })
+    jest.useRealTimers()
+  })
 })

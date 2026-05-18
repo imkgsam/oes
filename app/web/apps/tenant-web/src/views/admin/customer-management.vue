@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { CustomerManagementApi } from '#/api'
+import type { TableColumnsType } from 'ant-design-vue'
 
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, h, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { IconifyIcon } from '@vben/icons'
+import { Button, Dropdown, Menu, Table } from 'ant-design-vue'
 
 import { listManagedCustomerAccountsApi } from '#/api'
 import { useAuthContextStore } from '#/store/auth-context'
@@ -13,6 +16,15 @@ interface CustomerFilterState {
   keyword: string
   primaryTenantPartyId: string
   status: '' | CustomerManagementApi.CustomerStatus
+}
+
+interface CustomerTableActionItem<ActionKey extends string> {
+  danger?: boolean
+  disabled?: boolean
+  hidden?: boolean
+  key: ActionKey
+  label: string
+  testId?: string
 }
 
 const authContextStore = useAuthContextStore()
@@ -37,6 +49,109 @@ const filters = reactive<CustomerFilterState>({
 })
 const customerAccounts = ref<CustomerManagementApi.CustomerAccount[]>([])
 const loading = ref(false)
+
+/** renderCustomerNativeActions renders customer row commands with Ant Design Vue Dropdown/Menu directly. */
+function renderCustomerNativeActions<ActionKey extends string>(
+  ariaLabel: string,
+  items: Array<CustomerTableActionItem<ActionKey>>,
+  onClick: (key: ActionKey) => void
+) {
+  const visibleItems = items.filter((item) => !item.hidden)
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作')
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': ariaLabel,
+            shape: 'circle',
+            size: 'small',
+            type: 'text'
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' })
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: (info) => {
+              const action = visibleItems.find((item) => item.key === String(info.key))
+
+              if (!action || action.disabled) {
+                return
+              }
+
+              onClick(action.key)
+            }
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                  'data-testid': item.testId
+                },
+                () => item.label
+              )
+            )
+        )
+    }
+  )
+}
+
+const customerColumns = computed<TableColumnsType<CustomerManagementApi.CustomerAccount>>(() => [
+  { dataIndex: 'customerAccountNo', key: 'customerAccountNo', title: '编号' },
+  { dataIndex: 'displayName', key: 'displayName', title: '名称' },
+  { dataIndex: 'status', key: 'status', title: '状态' },
+  {
+    dataIndex: 'customerCategory',
+    key: 'customerCategory',
+    title: '分类',
+    customRender: ({ record }) => record.customerCategory || '-'
+  },
+  {
+    dataIndex: 'tags',
+    key: 'tags',
+    title: '标签',
+    customRender: ({ record }) => record.tags.join(', ') || '-'
+  },
+  {
+    key: 'primaryBinding',
+    title: '主绑定',
+    customRender: ({ record }) =>
+      record.primaryBinding
+        ? h('span', [
+            record.primaryBinding.tenantPartyId,
+            h('small', record.primaryBinding.partyDisplayName)
+          ])
+        : '-'
+  },
+  {
+    align: 'center',
+    fixed: 'right',
+    key: 'actions',
+    title: '操作',
+    width: 72,
+    customRender: ({ record }) =>
+      renderCustomerNativeActions(
+        '客户操作',
+        canViewCustomerDetail.value
+          ? [{ key: 'detail', label: '详情', testId: `customer-detail-button-${record.customerAccountId}` }]
+          : [],
+        () => openDetailPage(record.customerAccountId)
+      )
+  }
+])
 
 /** loadCustomerAccounts refreshes the tenant-scoped CRM customer directory using the current filter state. */
 async function loadCustomerAccounts() {
@@ -140,49 +255,15 @@ onMounted(() => {
       <section class="customer-card">
         <h2>客户列表</h2>
         <p class="customer-note">phase 1 不扩展多主体、多 legal entity、财务信息、Customer 360 或 CustomerItemMapping。</p>
-        <table class="customer-table">
-          <thead>
-            <tr>
-              <th>编号</th>
-              <th>名称</th>
-              <th>状态</th>
-              <th>分类</th>
-              <th>标签</th>
-              <th>主绑定</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="customer in customerAccounts" :key="customer.customerAccountId">
-              <td>{{ customer.customerAccountNo }}</td>
-              <td>{{ customer.displayName }}</td>
-              <td>{{ customer.status }}</td>
-              <td>{{ customer.customerCategory || '-' }}</td>
-              <td>{{ customer.tags.join(', ') || '-' }}</td>
-              <td>
-                <span v-if="customer.primaryBinding">
-                  {{ customer.primaryBinding.tenantPartyId }}
-                  <small>{{ customer.primaryBinding.partyDisplayName }}</small>
-                </span>
-                <span v-else>-</span>
-              </td>
-              <td>
-                <button
-                  v-access:code="'crm.customer_account.get_by_id'"
-                  v-if="canViewCustomerDetail"
-                  :data-testid="`customer-detail-button-${customer.customerAccountId}`"
-                  type="button"
-                  @click="openDetailPage(customer.customerAccountId)"
-                >
-                  详情
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!customerAccounts.length">
-              <td colspan="7">暂无客户</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="customerColumns"
+          :data-source="customerAccounts"
+          :loading="loading"
+          :locale="{ emptyText: '暂无客户' }"
+          :pagination="false"
+          row-key="customerAccountId"
+          size="middle"
+        />
       </section>
     </section>
   </Page>

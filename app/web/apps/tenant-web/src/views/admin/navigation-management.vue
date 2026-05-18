@@ -5,6 +5,7 @@ import type { TableColumnsType } from 'ant-design-vue';
 import { computed, h, onMounted, reactive, ref, watch } from 'vue';
 
 import { Page } from '@vben/common-ui';
+import { IconifyIcon } from '@vben/icons';
 
 import {
   Button,
@@ -12,10 +13,12 @@ import {
   Checkbox,
   Col,
   Drawer,
+  Dropdown,
   Empty,
   Form,
   Input,
   InputNumber,
+  Menu,
   Radio,
   Row,
   Select,
@@ -50,6 +53,14 @@ import {
 } from './navigation-management.helpers';
 
 type EntryFormMode = 'create' | 'edit';
+
+interface NavigationTableActionItem<ActionKey extends string> {
+  danger?: boolean;
+  disabled?: boolean;
+  hidden?: boolean;
+  key: ActionKey;
+  label: string;
+}
 
 interface EntryFilterState {
   enabled: '' | 'false' | 'true';
@@ -86,6 +97,64 @@ interface RoleSelectOption extends SelectOption {
 
 const authContextStore = useAuthContextStore();
 const authStore = useAuthStore();
+
+/** renderNavigationNativeActions renders navigation row commands with Ant Design Vue Dropdown/Menu directly. */
+function renderNavigationNativeActions<ActionKey extends string>(
+  ariaLabel: string,
+  items: Array<NavigationTableActionItem<ActionKey>>,
+  onClick: (key: ActionKey) => void,
+) {
+  const visibleItems = items.filter((item) => !item.hidden);
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作');
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': ariaLabel,
+            shape: 'circle',
+            size: 'small',
+            type: 'text',
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' }),
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: (info) => {
+              const action = visibleItems.find((item) => item.key === String(info.key));
+
+              if (!action || action.disabled) {
+                return;
+              }
+
+              onClick(action.key);
+            },
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                },
+                () => item.label,
+              ),
+            ),
+        ),
+    },
+  );
+}
 const entryStatusOptions: SelectOption[] = [
   { label: '全部状态', value: '' },
   { label: '启用', value: 'true' },
@@ -256,20 +325,16 @@ const entryColumns = computed<TableColumnsType>(() => [
       ),
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'actions',
     title: '操作',
     width: 120,
     customRender: ({ record }) =>
-      h(
-        Button,
-        {
-          disabled: !canUpdateEntry.value,
-          size: 'small',
-          type: 'link',
-          onClick: () =>
-            openEntryDrawer('edit', record as PermissionManagementApi.NavigationEntry),
-        },
-        () => '编辑',
+      renderNavigationNativeActions<'edit'>(
+        '导航入口操作',
+        [{ disabled: !canUpdateEntry.value, key: 'edit', label: '编辑' }],
+        () => openEntryDrawer('edit', record as PermissionManagementApi.NavigationEntry),
       ),
   },
 ]);

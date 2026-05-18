@@ -203,7 +203,11 @@ describe('wms workspace page', () => {
     expect(wrapper.text()).toContain('ledger-1')
 
     await wrapper.get('[data-testid="wms-open-create-receipt"]').trigger('click')
-    await wrapper.get('[data-testid="wms-open-receipt-receipt-1"]').trigger('click')
+    await wrapper.get('button[aria-label="收货单操作"]').trigger('click')
+    await flushPromises()
+    document.querySelector('[data-testid="wms-open-receipt-receipt-1"]')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
 
     expect(push).toHaveBeenNthCalledWith(1, {
       name: 'TenantWmsReceiptCreate'

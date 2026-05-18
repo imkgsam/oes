@@ -118,6 +118,26 @@ export class OrgManagementService {
     }
   }
 
+  async moveOrgUnit(
+    tenantId: string,
+    orgUnitId: string,
+    input: { newParentOrgId?: string },
+    source: DownstreamRequestSource
+  ) {
+    const result = await this.tenantOrgManagementAdapter.moveOrgUnit(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        orgUnitId: requireNonBlank(orgUnitId, 'orgUnitId'),
+        newParentOrgId: requireNonBlank(input.newParentOrgId, 'newParentOrgId')
+      },
+      source
+    )
+
+    return {
+      orgUnit: this.mapOrgUnit(result.orgUnit)
+    }
+  }
+
   async archiveOrgUnit(tenantId: string, orgUnitId: string, source: DownstreamRequestSource) {
     const result = await this.tenantOrgManagementAdapter.archiveOrgUnit(
       {

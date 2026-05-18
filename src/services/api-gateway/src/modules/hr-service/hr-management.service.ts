@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
 import { DownstreamRequestSource } from '../../common/grpc/gateway-downstream-source.mapper'
 import { AuthGrpcAdapter } from '../auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { IdentityQueryGrpcAdapter } from '../auth-bff/infrastructure/downstream/identity-service/identity-query-grpc.adapter'
@@ -232,7 +232,7 @@ export class HrManagementService {
   async createEmployment(
     tenantId: string,
     employeeId: string,
-    input: { orgUnitId: string; effectiveFrom: string },
+    input: { orgUnitId: string; effectiveFrom: string; positionName?: string },
     source: DownstreamRequestSource
   ) {
     const resolvedTenantId = this.resolveTenantId(tenantId, source)
@@ -243,7 +243,8 @@ export class HrManagementService {
         tenantId: resolvedTenantId,
         employeeId,
         orgUnitId: requireNonBlank(input.orgUnitId, 'orgUnitId'),
-        effectiveFrom: requireNonBlank(input.effectiveFrom, 'effectiveFrom')
+        effectiveFrom: requireNonBlank(input.effectiveFrom, 'effectiveFrom'),
+        positionName: normalize(input.positionName)
       },
       source
     )
@@ -277,6 +278,7 @@ export class HrManagementService {
       toOrgUnitId: string
       effectiveFrom: string
       endedReason?: string
+      positionName?: string
     },
     source: DownstreamRequestSource
   ) {
@@ -295,7 +297,8 @@ export class HrManagementService {
         fromEmploymentId: requireNonBlank(input.fromEmploymentId, 'fromEmploymentId'),
         toOrgUnitId: requireNonBlank(input.toOrgUnitId, 'toOrgUnitId'),
         effectiveFrom: requireNonBlank(input.effectiveFrom, 'effectiveFrom'),
-        endedReason: normalize(input.endedReason)
+        endedReason: normalize(input.endedReason),
+        positionName: normalize(input.positionName)
       },
       source
     )
@@ -709,7 +712,7 @@ function buildEmployeeOnboardingIdempotencyKey(
 function requireNonBlank(value: string | undefined, fieldName: string): string {
   const normalized = value?.trim()
   if (!normalized) {
-    throw new NotFoundException(`${fieldName} is required`)
+    throw new BadRequestException(`${fieldName} is required`)
   }
   return normalized
 }

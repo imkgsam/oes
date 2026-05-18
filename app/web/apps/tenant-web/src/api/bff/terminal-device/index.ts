@@ -223,6 +223,64 @@ export namespace TerminalDeviceApi {
     pageSize: number;
     total: number;
   }
+
+  export interface HeartbeatRecord {
+    androidVersion?: null | string;
+    appState?: null | string;
+    appVersion?: null | string;
+    batteryLevel?: null | number;
+    clientTime?: null | string;
+    heartbeatId: string;
+    networkStatus?: null | string;
+    networkType?: null | string;
+    presenceStatus: PresenceStatus;
+    receivedAt: string;
+    reportedAccountId?: null | string;
+    reportedSessionId?: null | string;
+    terminalDeviceId: string;
+    traceId?: null | string;
+    webViewVersion?: null | string;
+  }
+
+  export interface HeartbeatRecordListQuery {
+    page?: number;
+    pageSize?: number;
+  }
+
+  export interface HeartbeatRecordListResult {
+    items: HeartbeatRecord[];
+    page: number;
+    pageSize: number;
+    total: number;
+  }
+
+  export interface DiagnosticLog {
+    accountId?: null | string;
+    clientTime: string;
+    details: Record<string, unknown>;
+    diagnosticMode: boolean;
+    errorCode?: null | string;
+    eventType: string;
+    level: 'ERROR' | 'INFO' | 'WARN';
+    message: string;
+    receivedAt: string;
+    requestId?: null | string;
+    sessionId?: null | string;
+    tenantId?: null | string;
+    traceId?: null | string;
+  }
+
+  export interface DiagnosticLogListQuery {
+    page?: number;
+    pageSize?: number;
+  }
+
+  export interface DiagnosticLogListResult {
+    items: DiagnosticLog[];
+    page: number;
+    pageSize: number;
+    total: number;
+  }
 }
 
 // Creates a short-lived, single-use enrollment through the Admin Terminal Device BFF.
@@ -328,6 +386,28 @@ export async function listTerminalDeviceAuditEventsApi(
 ) {
   return requestClient.get<TerminalDeviceApi.AuditEventListResult>(
     `/admin/terminal-devices/${encodeURIComponent(terminalDeviceId)}/audit-events`,
+    { params },
+  );
+}
+
+// Lists immutable heartbeat diagnostic records for one managed terminal device.
+export async function listTerminalDeviceHeartbeatRecordsApi(
+  terminalDeviceId: string,
+  params: TerminalDeviceApi.HeartbeatRecordListQuery,
+) {
+  return requestClient.get<TerminalDeviceApi.HeartbeatRecordListResult>(
+    `/admin/terminal-devices/${encodeURIComponent(terminalDeviceId)}/heartbeat-records`,
+    { params },
+  );
+}
+
+// Lists recently uploaded PDA diagnostic logs for one managed terminal device.
+export async function listTerminalDeviceDiagnosticLogsApi(
+  terminalDeviceId: string,
+  params: TerminalDeviceApi.DiagnosticLogListQuery,
+) {
+  return requestClient.get<TerminalDeviceApi.DiagnosticLogListResult>(
+    `/admin/terminal-devices/${encodeURIComponent(terminalDeviceId)}/diagnostic-logs`,
     { params },
   );
 }

@@ -191,6 +191,52 @@ export const Select = defineComponent({
 
 ;(Select as any).Option = SelectOption
 
+/** TreeSelect maps Ant Design Vue tree selection onto a native select for deterministic drawer specs. */
+export const TreeSelect = defineComponent({
+  name: 'TreeSelect',
+  props: {
+    placeholder: String,
+    treeData: {
+      default: () => [],
+      type: Array as PropType<AnyRecord[]>
+    },
+    value: {
+      default: '',
+      type: [Number, String] as PropType<number | string>
+    }
+  },
+  emits: ['update:value'],
+  setup(props, { attrs, emit }) {
+    const renderOptions = (nodes: AnyRecord[], depth = 0): VNodeChild[] =>
+      nodes.flatMap((node) => [
+        h(
+          'option',
+          {
+            disabled: node.disabled,
+            value: node.value
+          },
+          `${'　'.repeat(depth)}${node.title}`
+        ),
+        ...renderOptions(node.children ?? [], depth + 1)
+      ])
+
+    return () =>
+      h(
+        'select',
+        {
+          ...attrs,
+          class: mergeClass('ant-tree-select', attrs.class),
+          value: props.value,
+          onChange: (event: Event) => emit('update:value', (event.target as HTMLSelectElement).value)
+        },
+        [
+          props.placeholder ? h('option', { disabled: true, value: '' }, props.placeholder) : null,
+          ...renderOptions(props.treeData)
+        ]
+      )
+  }
+})
+
 /** Checkbox maps Ant Design Vue v-model:checked onto a native checkbox. */
 export const Checkbox = defineComponent({
   name: 'Checkbox',
@@ -260,6 +306,34 @@ export const CheckboxGroup = defineComponent({
 
 ;(Checkbox as any).Group = CheckboxGroup
 
+/** Switch maps Ant Design Vue v-model:checked onto a native checkbox with switch semantics. */
+export const Switch = defineComponent({
+  name: 'Switch',
+  inheritAttrs: false,
+  props: {
+    checked: Boolean,
+    checkedChildren: String,
+    disabled: Boolean,
+    unCheckedChildren: String
+  },
+  emits: ['update:checked'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h('label', { class: 'ant-switch-wrapper' }, [
+        h('input', {
+          ...attrs,
+          checked: props.checked,
+          class: mergeClass('ant-switch', attrs.class),
+          disabled: props.disabled,
+          role: 'switch',
+          type: 'checkbox',
+          onChange: (event: Event) => emit('update:checked', (event.target as HTMLInputElement).checked)
+        }),
+        h('span', { class: 'ant-switch-label' }, props.checked ? props.checkedChildren : props.unCheckedChildren)
+      ])
+  }
+})
+
 /** Space preserves grouped button and tag layout without Ant Design runtime dependencies. */
 export const Space = defineComponent({
   name: 'Space',
@@ -318,20 +392,25 @@ export const Tag = defineComponent({
 /** Popconfirm exposes a deterministic confirmation button around its trigger slot. */
 export const Popconfirm = defineComponent({
   name: 'Popconfirm',
+  props: {
+    disabled: Boolean
+  },
   emits: ['confirm'],
-  setup(_props, { emit, slots }) {
+  setup(props, { attrs, emit, slots }) {
     return () =>
-      h('span', { class: 'ant-popconfirm' }, [
+      h('span', { ...attrs, class: mergeClass('ant-popconfirm', attrs.class) }, [
         slots.default?.(),
-        h(
-          'button',
-          {
-            class: 'ant-popconfirm-confirm',
-            type: 'button',
-            onClick: () => emit('confirm')
-          },
-          'confirm'
-        )
+        props.disabled
+          ? null
+          : h(
+              'button',
+              {
+                class: 'ant-popconfirm-confirm',
+                type: 'button',
+                onClick: () => emit('confirm')
+              },
+              'confirm'
+            )
       ])
   }
 })
@@ -359,6 +438,56 @@ export const Dropdown = defineComponent({
       ])
   }
 })
+
+/** Menu renders dropdown actions and emits Ant Design-style click payloads. */
+export const Menu = defineComponent({
+  name: 'Menu',
+  emits: ['click'],
+  setup(_props, { attrs, emit, slots }) {
+    return () =>
+      h(
+        'ul',
+        {
+          ...attrs,
+          class: mergeClass('ant-menu', attrs.class),
+          onClick: (event: MouseEvent) => {
+            const target = event.target as HTMLElement
+            const item = target.closest('[data-menu-key]') as HTMLElement | null
+            if (item?.dataset.menuKey) {
+              emit('click', { key: item.dataset.menuKey })
+            }
+          }
+        },
+        slots.default?.()
+      )
+  }
+})
+
+/** MenuItem renders one dropdown command with a stable data key. */
+export const MenuItem = defineComponent({
+  name: 'MenuItem',
+  props: {
+    disabled: Boolean,
+    key: {
+      default: '',
+      type: String
+    }
+  },
+  setup(props, { slots }) {
+    return () =>
+      h(
+        'li',
+        {
+          'aria-disabled': props.disabled ? 'true' : undefined,
+          class: 'ant-menu-item',
+          'data-menu-key': props.key
+        },
+        slots.default?.()
+      )
+  }
+})
+
+;(Menu as any).Item = MenuItem
 
 /** Drawer conditionally renders its contents when the open prop is true. */
 export const Drawer = defineComponent({
@@ -403,6 +532,25 @@ export const Modal = defineComponent({
               : h('footer', { class: 'ant-modal-footer' }, slots.footer?.())
           ])
         : null
+  }
+})
+
+// Modal.confirm runs the accepted callback immediately so destructive-action specs stay deterministic.
+;(Modal as typeof Modal & { confirm: (options: { onOk?: () => Promise<void> | void }) => void }).confirm = (
+  options,
+) => {
+  void options.onOk?.()
+}
+
+/** QRCode renders the encoded value as a stable marker for registration and MFA specs. */
+export const QRCode = defineComponent({
+  name: 'QRCode',
+  props: {
+    value: String
+  },
+  setup(props, { attrs }) {
+    return () =>
+      h('div', { ...attrs, class: mergeClass('ant-qrcode', attrs.class), 'data-value': props.value }, props.value)
   }
 })
 
@@ -474,15 +622,70 @@ export const Table = defineComponent({
       default: false,
       type: [Boolean, Object] as PropType<boolean | AnyRecord>
     },
+    expandedRowKeys: {
+      default: () => [],
+      type: Array as PropType<string[]>
+    },
     rowKey: {
       default: 'key',
       type: [Function, String] as PropType<((record: AnyRecord) => string) | string>
     }
   },
-  setup(props, { attrs, slots }) {
+  emits: ['update:expandedRowKeys'],
+  setup(props, { attrs, emit, slots }) {
     const resolveText = (column: AnyRecord, record: AnyRecord) => {
       if (!column.dataIndex) return undefined
       return record[column.dataIndex]
+    }
+    const resolveKey = (record: AnyRecord) =>
+      typeof props.rowKey === 'function' ? props.rowKey(record) : record[props.rowKey]
+    const renderRecord = (record: AnyRecord, depth = 0): VNodeChild[] => {
+      const key = resolveKey(record)
+      const children = record.children ?? []
+      const expanded = props.expandedRowKeys.includes(key)
+      const togglePrefix = attrs['data-row-toggle-prefix']
+      const row = h(
+        'div',
+        {
+          class: 'ant-table-row',
+          key
+        },
+        props.columns.map((column, index) =>
+          h(
+            'div',
+            {
+              class: `ant-table-cell ant-table-cell-${column.key ?? column.dataIndex ?? 'column'}`
+            },
+            [
+              index === 0 && children.length
+                ? h(
+                    'button',
+                    {
+                      class: 'ant-table-row-expand-icon',
+                      'data-testid': togglePrefix ? `${togglePrefix}-${key}` : undefined,
+                      type: 'button',
+                      onClick: () => {
+                        const next = expanded
+                          ? props.expandedRowKeys.filter((item) => item !== key)
+                          : [...props.expandedRowKeys, key]
+                        emit('update:expandedRowKeys', next)
+                      }
+                    },
+                    expanded ? '收起' : '展开'
+                  )
+                : null,
+              slots.bodyCell?.({
+                column,
+                record,
+                text: resolveText(column, record),
+                depth
+              }) ?? resolveText(column, record)
+            ]
+          )
+        )
+      )
+
+      return expanded ? [row, ...children.flatMap((child: AnyRecord) => renderRecord(child, depth + 1))] : [row]
     }
 
     return () =>
@@ -495,31 +698,7 @@ export const Table = defineComponent({
           )
         ),
         props.dataSource.length
-          ? props.dataSource.map((record) =>
-              h(
-                'div',
-                {
-                  class: 'ant-table-row',
-                  key:
-                    typeof props.rowKey === 'function'
-                      ? props.rowKey(record)
-                      : record[props.rowKey]
-                },
-                props.columns.map((column) =>
-                  h(
-                    'div',
-                    {
-                      class: `ant-table-cell ant-table-cell-${column.key ?? column.dataIndex ?? 'column'}`
-                    },
-                    slots.bodyCell?.({
-                      column,
-                      record,
-                      text: resolveText(column, record)
-                    }) ?? resolveText(column, record)
-                  )
-                )
-              )
-            )
+          ? props.dataSource.flatMap((record) => renderRecord(record))
           : h('div', { class: 'ant-table-empty' }, props.locale?.emptyText ?? '暂无数据')
       ])
   }

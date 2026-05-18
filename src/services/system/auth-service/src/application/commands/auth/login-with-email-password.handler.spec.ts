@@ -69,7 +69,9 @@ describe('LoginWithEmailPasswordHandler', () => {
       handler.execute(
         new LoginWithEmailPasswordCommand('user@example.com', 'bad-password', {
           userAgent: 'Mozilla/5.0 Firefox/149.0 (Macintosh; Intel Mac OS X 10_15)',
-          ipAddress: '127.0.0.1'
+          ipAddress: '127.0.0.1',
+          terminal: 'PDA',
+          loginFlow: TerminalLoginFlow.Password
         })
       )
     ).rejects.toBe(invalidCredentialsError)
@@ -85,6 +87,8 @@ describe('LoginWithEmailPasswordHandler', () => {
       {
         method: LoginMethodEnum.EmailPassword,
         userId: 'user-1',
+        terminal: 'PDA',
+        loginFlow: TerminalLoginFlow.Password,
         deviceName: 'macOS / Firefox',
         userAgent: 'Mozilla/5.0 Firefox/149.0 (Macintosh; Intel Mac OS X 10_15)',
         ipAddress: '127.0.0.1',
@@ -93,8 +97,8 @@ describe('LoginWithEmailPasswordHandler', () => {
       }
     )
     expect(terminalLoginPolicyService.assertFlowAllowed).toHaveBeenCalledWith(
-      'WEB',
-      TerminalLoginFlow.EmailPassword
+      'PDA',
+      TerminalLoginFlow.Password
     )
   })
 
@@ -137,6 +141,42 @@ describe('LoginWithEmailPasswordHandler', () => {
     )
     expect(loginRiskThrottleService.assertPasswordLoginAllowed).not.toHaveBeenCalled()
     expect(authStrategyFactory.get).not.toHaveBeenCalled()
+  })
+
+  it('uses the explicit PDA password login flow when enforcing terminal policy', async () => {
+    const invalidCredentialsError = ExceptionFactory.domain(AUTH_INVALID_CREDENTIALS)
+    const strategy = {
+      authenticate: jest.fn().mockRejectedValue(invalidCredentialsError)
+    }
+    const terminalLoginPolicyService = {
+      assertFlowAllowed: jest.fn().mockResolvedValue(undefined)
+    }
+    const handler = new LoginWithEmailPasswordHandler(
+      { get: jest.fn().mockReturnValue(strategy) } as any,
+      { emitLoginBlocked: jest.fn(), emitLoginFailed: jest.fn() } as any,
+      {
+        assertPasswordLoginAllowed: jest.fn().mockResolvedValue(undefined),
+        recordPasswordLoginFailure: jest.fn().mockResolvedValue(undefined),
+        clearPasswordLoginFailures: jest.fn()
+      } as any,
+      { getUserByEmail: jest.fn().mockResolvedValue(null), getAvailableAccountsByUserId: jest.fn() } as any,
+      { filterActiveAccountCandidates: jest.fn() } as any,
+      terminalLoginPolicyService as any
+    )
+
+    await expect(
+      handler.execute(
+        new LoginWithEmailPasswordCommand('worker@example.com', 'bad-password', {
+          terminal: 'PDA',
+          loginFlow: TerminalLoginFlow.Password
+        })
+      )
+    ).rejects.toBe(invalidCredentialsError)
+
+    expect(terminalLoginPolicyService.assertFlowAllowed).toHaveBeenCalledWith(
+      'PDA',
+      TerminalLoginFlow.Password
+    )
   })
 
   it('returns account selection even when MFA bindings exist because tenant MFA is resolved after account selection', async () => {
@@ -303,7 +343,7 @@ describe('LoginWithEmailPasswordHandler', () => {
         terminal: 'PDA',
         terminalDeviceId: 'terminal-device-1',
         deviceBoundTenantId: 'tenant-bound',
-        loginFlow: 'PDA_EMAIL_PASSWORD',
+        loginFlow: TerminalLoginFlow.Password,
         deviceName: 'PDA-001'
       })
     )
@@ -315,7 +355,7 @@ describe('LoginWithEmailPasswordHandler', () => {
         loginMethod: LoginMethodEnum.EmailPassword,
         terminalDeviceId: 'terminal-device-1',
         deviceBoundTenantId: 'tenant-bound',
-        loginFlow: 'PDA_EMAIL_PASSWORD'
+        loginFlow: TerminalLoginFlow.Password
       })
     )
   })

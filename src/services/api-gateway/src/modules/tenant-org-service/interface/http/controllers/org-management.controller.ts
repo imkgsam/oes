@@ -8,6 +8,7 @@ import { DownstreamSource } from '../../../../../common/decorators/downstream-so
 import { DownstreamRequestSource } from '../../../../../common/grpc/gateway-downstream-source.mapper'
 import { OrgManagementService } from '../../../org-management.service'
 import { CreateOrgUnitDto } from '../dtos/create-org-unit.dto'
+import { MoveOrgUnitDto } from '../dtos/move-org-unit.dto'
 import { UpdateOrgUnitDto } from '../dtos/update-org-unit.dto'
 
 @ApiBearerAuth('JWT')
@@ -63,6 +64,19 @@ export class OrgManagementController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.orgManagementService.updateOrgUnit(tenantId, orgUnitId, body, source)
+  }
+
+  @Post('org-units/:orgUnitId/move')
+  @RequirePermissions({ all: [TENANT_ORG_MANAGEMENT_PERMISSION_CODES.UPDATE_ORG_UNIT] })
+  @ApiOperation({ summary: 'Move one org unit below another parent node' })
+  @ApiBody({ type: MoveOrgUnitDto })
+  async moveOrgUnit(
+    @Param('tenantId') tenantId: string,
+    @Param('orgUnitId') orgUnitId: string,
+    @Body() body: MoveOrgUnitDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.orgManagementService.moveOrgUnit(tenantId, orgUnitId, body, source)
   }
 
   @Post('org-units/:orgUnitId/archive')

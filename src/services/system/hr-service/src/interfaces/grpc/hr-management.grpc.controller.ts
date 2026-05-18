@@ -131,6 +131,7 @@ export class HrManagementGrpcController implements HrManagementServiceController
       tenantId: request.tenantId ?? '',
       employeeId: request.employeeId ?? '',
       orgUnitId: request.orgUnitId ?? '',
+      positionName: request.positionName || undefined,
       effectiveFrom: parseProtoDate(request.effectiveFrom, 'effectiveFrom')
     })
     return {
@@ -165,6 +166,7 @@ export class HrManagementGrpcController implements HrManagementServiceController
       employeeId: request.employeeId ?? '',
       fromEmploymentId: request.fromEmploymentId ?? '',
       toOrgUnitId: request.toOrgUnitId ?? '',
+      positionName: request.positionName || undefined,
       effectiveFrom: parseProtoDate(request.effectiveFrom, 'effectiveFrom'),
       endedReason: request.endedReason || undefined
     })

@@ -84,7 +84,16 @@ interface AccountFilterState {
   tenantId: string;
 }
 
+interface AccountTableActionItem<ActionKey extends string> {
+  danger?: boolean;
+  disabled?: boolean;
+  hidden?: boolean;
+  key: ActionKey;
+  label: string;
+}
+
 type AccountActionKey = 'basicInfo' | 'delete' | 'loginMethods' | 'roles';
+type LoginMethodActionKey = 'toggle';
 type AccountTerminal = 'KIOSK' | 'PDA' | 'WEB';
 
 const authContextStore = useAuthContextStore();
@@ -363,6 +372,65 @@ function getAccountContextTitle(record: AccountManagementRow) {
 
 function getAccountDisplayName(record: AccountManagementRow) {
   return record.accountDisplayName?.trim() || record.userDisplayName?.trim() || '未命名账号';
+}
+
+// Renders account row commands through Ant Design Vue's native Dropdown/Menu event flow.
+function renderAccountNativeActions<ActionKey extends string>(
+  ariaLabel: string,
+  items: Array<AccountTableActionItem<ActionKey>>,
+  onClick: (key: ActionKey) => void,
+) {
+  const visibleItems = items.filter((item) => !item.hidden);
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作');
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': ariaLabel,
+            shape: 'circle',
+            size: 'small',
+            type: 'text',
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' }),
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: (info) => {
+              const actionKey = String(info.key) as ActionKey;
+              const action = visibleItems.find((item) => item.key === actionKey);
+
+              if (!action || action.disabled) {
+                return;
+              }
+
+              onClick(action.key);
+            },
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                },
+                () => item.label,
+              ),
+            ),
+        ),
+    },
+  );
 }
 
 // Keeps terminal access values limited to the Phase 1 UI terminals.
@@ -1019,73 +1087,6 @@ function handleActionClick(key: string, record: AccountManagementRow) {
   }
 }
 
-function renderAccountActionDropdown(record: AccountManagementRow) {
-  const items = [
-    h(Menu.Item, { key: 'basicInfo' satisfies AccountActionKey }, () => '基本信息'),
-  ];
-
-  if (canManageLoginMethods.value) {
-    items.push(
-      h(
-        Menu.Item,
-        { key: 'loginMethods' satisfies AccountActionKey },
-        () => '登录方式',
-      ),
-    );
-  }
-
-  if (canReadAccountRoles.value) {
-    items.push(
-      h(
-        Menu.Item,
-        { key: 'roles' satisfies AccountActionKey },
-        () => '角色配置',
-      ),
-    );
-  }
-
-  if (canDeleteAccount.value && record.accountId !== currentAccountId.value) {
-    items.push(
-      h(
-        Menu.Item,
-        {
-          danger: true,
-          key: 'delete' satisfies AccountActionKey,
-        },
-        () => '删除账号',
-      ),
-    );
-  }
-
-  return h(
-    Dropdown,
-    { trigger: ['click'] },
-    {
-      default: () =>
-        h(
-          Button,
-          {
-            'aria-label': '账号操作',
-            shape: 'circle',
-            size: 'small',
-            type: 'text',
-          },
-          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' }),
-        ),
-      overlay: () =>
-        h(
-          Menu,
-          {
-            onClick: ({ key }: { key: number | string }) => {
-              handleActionClick(String(key), record);
-            },
-          },
-          () => items,
-        ),
-    },
-  );
-}
-
 const accountColumns = computed<TableColumnsType<AccountManagementRow>>(() => [
   {
     dataIndex: 'userDisplayName',
@@ -1128,10 +1129,27 @@ const accountColumns = computed<TableColumnsType<AccountManagementRow>>(() => [
       ),
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'actions',
     title: '操作',
     width: 72,
-    customRender: ({ record }) => renderAccountActionDropdown(record),
+    customRender: ({ record }) =>
+      renderAccountNativeActions<AccountActionKey>(
+        '账号操作',
+        [
+          { key: 'basicInfo', label: '基本信息' },
+          { hidden: !canManageLoginMethods.value, key: 'loginMethods', label: '登录方式' },
+          { hidden: !canReadAccountRoles.value, key: 'roles', label: '角色配置' },
+          {
+            danger: true,
+            hidden: !canDeleteAccount.value || record.accountId === currentAccountId.value,
+            key: 'delete',
+            label: '删除账号',
+          },
+        ],
+        (key) => handleActionClick(key, record),
+      ),
   },
 ]);
 
@@ -1184,20 +1202,24 @@ const loginMethodColumns = computed<TableColumnsType<AdminSecurityApi.LoginMetho
         : h('span', { class: 'account-management__table-muted' }, '不支持'),
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'actions',
     title: '操作',
     width: 96,
     customRender: ({ record }) =>
-      h(
-        Button,
-        {
-          loading: loginMethodSaving.value,
-          size: 'small',
-          onClick: () => {
-            void toggleAccountLoginMethod(record);
+      renderAccountNativeActions<LoginMethodActionKey>(
+        '登录方式操作',
+        [
+          {
+            disabled: loginMethodSaving.value,
+            key: 'toggle',
+            label: record.enabled ? '停用' : '启用',
           },
+        ],
+        () => {
+          void toggleAccountLoginMethod(record);
         },
-        () => (record.enabled ? '停用' : '启用'),
       ),
   },
 ]);

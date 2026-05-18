@@ -28,6 +28,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { enrollPdaDevice, toManagedPdaDeviceDescriptor } from '@/api/pda-bff.client';
 import { getBridgeClient, onScanResult } from '@/bridge/bridge-client';
+import { normalizeEnrollmentCodeInput } from '@/services/enrollment-code';
 import { recordPdaDiagnosticLog } from '@/services/pda-diagnostic-log-buffer';
 import { useSessionStore } from '@/stores/session.store';
 
@@ -42,7 +43,7 @@ let unsubscribeScan: (() => void) | undefined;
 /** Subscribes to scanner input so operators can bind a PDA without typing long codes. */
 onMounted(() => {
   unsubscribeScan = onScanResult((event) => {
-    enrollmentCode.value = event.payload.scanValue.trim();
+    enrollmentCode.value = normalizeEnrollmentCodeInput(event.payload.scanValue);
     lastScanHint.value = `已读取扫码值，长度 ${event.payload.rawLength}`;
   });
 });
@@ -53,7 +54,8 @@ onBeforeUnmount(() => {
 
 /** Activates enrollment and stores only the returned terminalDeviceId pointer locally. */
 async function handleSubmit(): Promise<void> {
-  const code = enrollmentCode.value.trim();
+  const code = normalizeEnrollmentCodeInput(enrollmentCode.value);
+  enrollmentCode.value = code;
   if (!code) {
     errorMessage.value = '请输入 enrollment code。';
     return;

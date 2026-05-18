@@ -48,6 +48,14 @@ import {
 type PermissionFormMode = 'create' | 'edit';
 type PermissionActionKey = 'delete' | 'edit' | 'roles';
 
+interface PermissionTableActionItem<ActionKey extends string> {
+  danger?: boolean;
+  disabled?: boolean;
+  hidden?: boolean;
+  key: ActionKey;
+  label: string;
+}
+
 interface PermissionFilterState {
   keyword: string;
   module: string;
@@ -92,6 +100,64 @@ const moduleOptions = ref<{ label: string; value: string }[]>([]);
 const permissions = ref<PermissionManagementApi.Permission[]>([]);
 const selectedPermission = ref<PermissionManagementApi.Permission | null>(null);
 const roleReferences = ref<PermissionManagementApi.RoleReference[]>([]);
+
+/** renderPermissionNativeActions renders permission row commands with Ant Design Vue Dropdown/Menu directly. */
+function renderPermissionNativeActions<ActionKey extends string>(
+  ariaLabel: string,
+  items: Array<PermissionTableActionItem<ActionKey>>,
+  onClick: (key: ActionKey) => void,
+) {
+  const visibleItems = items.filter((item) => !item.hidden);
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作');
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': ariaLabel,
+            shape: 'circle',
+            size: 'small',
+            type: 'text',
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' }),
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: (info) => {
+              const action = visibleItems.find((item) => item.key === String(info.key));
+
+              if (!action || action.disabled) {
+                return;
+              }
+
+              onClick(action.key);
+            },
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                },
+                () => item.label,
+              ),
+            ),
+        ),
+    },
+  );
+}
 
 const canCreatePermission = computed(() =>
   authContextStore.actionCodes.includes('permission.create'),
@@ -448,96 +514,27 @@ const permissionColumns = computed<TableColumnsType<PermissionManagementApi.Perm
     customRender: ({ value }) => value || '-',
   },
   {
+    align: 'center',
     fixed: 'right',
     key: 'actions',
     title: '操作',
     width: 110,
-    customRender: ({ record }) => {
-      const permission = record as PermissionManagementApi.Permission;
-      const items: Array<{
-        danger?: boolean;
-        disabled?: boolean;
-        key: PermissionActionKey;
-        label: string;
-      }> = [];
-
-      if (canListPermissionRoles.value) {
-        items.push({
-          key: 'roles',
-          label: '引用角色',
-        });
-      }
-
-      if (canUpdatePermission.value) {
-        items.push({
-          key: 'edit',
-          label: '编辑',
-        });
-      }
-
-      if (canDeletePermission.value) {
-        items.push({
-          danger: true,
-          disabled: deleting.value,
-          key: 'delete',
-          label: '删除',
-        });
-      }
-
-      if (items.length === 0) {
-        return null;
-      }
-
-      return h(
-        Dropdown,
-        {
-          trigger: ['click'],
-        },
-        {
-          overlay: () =>
-            h(
-              Menu,
-              {
-                onClick: ({ key }: { key: string | number }) =>
-                  handlePermissionAction(
-                    permission,
-                    String(key) as PermissionActionKey,
-                  ),
-              },
-              () =>
-                items.map((item) =>
-                  h(
-                    Menu.Item,
-                    {
-                      danger: item.danger,
-                      disabled: item.disabled,
-                      key: item.key,
-                    },
-                    { default: () => item.label },
-                  ),
-                ),
-            ),
-          default: () =>
-            h(
-              Button,
-              {
-                'aria-label': '权限操作',
-                class: 'inline-flex items-center justify-center',
-                shape: 'circle',
-                size: 'small',
-                type: 'text',
-              },
-              {
-                icon: () =>
-                  h(IconifyIcon, {
-                    class: 'size-4',
-                    icon: 'ant-design:more-outlined',
-                  }),
-              },
-            ),
-        },
-      );
-    },
+    customRender: ({ record }) =>
+      renderPermissionNativeActions<PermissionActionKey>(
+        '权限操作',
+        [
+          { hidden: !canListPermissionRoles.value, key: 'roles', label: '引用角色' },
+          { hidden: !canUpdatePermission.value, key: 'edit', label: '编辑' },
+          {
+            danger: true,
+            disabled: deleting.value,
+            hidden: !canDeletePermission.value,
+            key: 'delete',
+            label: '删除',
+          },
+        ],
+        (key) => handlePermissionAction(record, key),
+      ),
   },
 ]);
 

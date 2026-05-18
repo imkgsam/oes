@@ -34,6 +34,17 @@ export class PdaDeviceLogsUseCase {
     })
 
     this.store.saveBatch(terminalDeviceId, records)
+    const tenantId = decision.resolvedTenantId ?? normalizeNullable(dto.session?.tenantId ?? undefined)
+    if (tenantId && terminalDeviceId !== 'unbound-pda') {
+      await this.terminalDeviceAdapter.recordDiagnosticLogs({
+        tenantId,
+        terminalDeviceId,
+        records: records.map((record) => ({
+          ...record,
+          tenantId
+        }))
+      })
+    }
 
     return {
       accepted: true,

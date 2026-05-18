@@ -170,10 +170,15 @@ export namespace ItemManagementApi {
     categoryName: string
   }
 
+  export interface MoveItemCategoryPayload {
+    parentCategoryId?: string
+  }
+
   export interface AttributeDefinitionRecord {
     attributeDefinitionId: string
     attributeCode: string
     attributeName: string
+    optionCount: number
     status: ItemStatus | string
   }
 
@@ -205,6 +210,7 @@ export namespace ItemManagementApi {
     attributeDefinitionId: string
     optionCode: string
     optionName: string
+    description: string
     status: ItemStatus | string
   }
 
@@ -217,6 +223,7 @@ export namespace ItemManagementApi {
   }
 
   export interface CreateAttributeOptionPayload {
+    description?: string
     optionCode: string
     optionName: string
   }
@@ -527,6 +534,18 @@ export async function updateManagedItemCategoryBasicsApi(
   )
 }
 
+// Moves one item category under a new parent, or to the root level when parentCategoryId is empty.
+export async function moveManagedItemCategoryApi(
+  tenantId: string,
+  categoryId: string,
+  data: ItemManagementApi.MoveItemCategoryPayload
+) {
+  return requestClient.request<ItemManagementApi.ItemCategoryNode>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/categories/${encodeURIComponent(categoryId)}/parent`,
+    { data, method: 'PATCH' }
+  )
+}
+
 // Changes one item category lifecycle status.
 export async function changeManagedItemCategoryStatusApi(
   tenantId: string,
@@ -536,6 +555,17 @@ export async function changeManagedItemCategoryStatusApi(
   return requestClient.request<ItemManagementApi.ItemCategoryNode>(
     `/item-management/tenants/${encodeURIComponent(tenantId)}/categories/${encodeURIComponent(categoryId)}/status`,
     { data, method: 'PATCH' }
+  )
+}
+
+// Deletes one unused leaf item category.
+export async function deleteManagedItemCategoryApi(
+  tenantId: string,
+  categoryId: string
+) {
+  return requestClient.request<Record<string, never>>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/categories/${encodeURIComponent(categoryId)}`,
+    { method: 'DELETE' }
   )
 }
 

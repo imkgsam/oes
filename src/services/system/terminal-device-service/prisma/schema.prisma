@@ -27,6 +27,8 @@ model TerminalDevice {
   notes                String?
   enrollment           TerminalDeviceEnrollment? @relation(fields: [enrollmentId], references: [enrollmentId])
   runtimeSnapshot      TerminalDeviceRuntimeSnapshot?
+  heartbeatRecords     TerminalDeviceHeartbeatRecord[]
+  diagnosticLogs       TerminalDeviceDiagnosticLog[]
   auditEvents          TerminalDeviceAuditEvent[]
 
   @@index([tenantId, terminalDeviceType, status])
@@ -73,6 +75,49 @@ model TerminalDeviceRuntimeSnapshot {
   device                     TerminalDevice @relation(fields: [terminalDeviceId], references: [terminalDeviceId])
 
   @@index([tenantId, presenceStatus])
+}
+
+model TerminalDeviceHeartbeatRecord {
+  heartbeatId               String         @id @default(uuid())
+  tenantId                  String
+  terminalDeviceId          String
+  presenceStatus            PresenceStatus
+  receivedAt                DateTime
+  clientTime                DateTime?
+  appVersion                String?
+  androidVersion            String?
+  webViewVersion            String?
+  networkStatus             NetworkStatus
+  networkType               NetworkType
+  batteryLevel              Int?
+  appState                  AppState
+  reportedAccountId         String?
+  reportedSessionId         String?
+  traceId                   String?
+  device                    TerminalDevice @relation(fields: [terminalDeviceId], references: [terminalDeviceId])
+
+  @@index([tenantId, terminalDeviceId, receivedAt])
+}
+
+model TerminalDeviceDiagnosticLog {
+  diagnosticLogId          String         @id @default(uuid())
+  tenantId                 String
+  terminalDeviceId         String
+  accountId                String?
+  sessionId                String?
+  clientTime               DateTime
+  receivedAt               DateTime
+  level                    String
+  eventType                String
+  message                  String
+  traceId                  String?
+  requestId                String?
+  errorCode                String?
+  diagnosticMode           Boolean
+  detailsJson              Json
+  device                   TerminalDevice @relation(fields: [terminalDeviceId], references: [terminalDeviceId])
+
+  @@index([tenantId, terminalDeviceId, receivedAt])
 }
 
 model TerminalDeviceVersionPolicy {

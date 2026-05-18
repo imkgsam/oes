@@ -207,3 +207,37 @@ export class TerminalDeviceAuditEventsQueryDto {
   @Min(1)
   pageSize?: number
 }
+
+// Carries heartbeat record pagination from tenant-web.
+export class TerminalDeviceHeartbeatRecordsQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  page?: number
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  pageSize?: number
+}
+
+// Carries uploaded diagnostic log pagination from tenant-web.
+export class TerminalDeviceDiagnosticLogsQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  page?: number
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(1)
+  pageSize?: number
+}

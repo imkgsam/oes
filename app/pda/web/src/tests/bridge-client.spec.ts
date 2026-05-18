@@ -4,6 +4,7 @@ import type { BridgeResult, CameraCaptureResult, DeviceInfo, NetworkStatus } fro
 
 describe('bridge client', () => {
   afterEach(() => {
+    vi.useRealTimers();
     setBridgeClient(undefined);
     delete window.OesPdaBridge;
     delete window.OesPdaBridgeEvents;
@@ -100,6 +101,37 @@ describe('bridge client', () => {
     );
 
     await expect(capture).resolves.toEqual(photoResult);
+  });
+
+  it('keeps camera capture pending long enough for real PDA operator confirmation', async () => {
+    vi.useFakeTimers();
+    window.OesPdaBridge = {
+      getDeviceInfo: () => JSON.stringify({ ok: true, data: {} }),
+      getNetworkStatus: () => JSON.stringify({ ok: true, data: {} }),
+      openCamera: (requestJson: string) => {
+        const requestId = JSON.parse(requestJson).requestId;
+        return JSON.stringify({ ok: true, data: { accepted: true, requestId } });
+      },
+      beep: () => JSON.stringify({ ok: true, data: { played: true } }),
+      vibrate: () => JSON.stringify({ ok: true, data: { vibrated: true } }),
+    };
+    const settled = vi.fn();
+
+    const capture = getBridgeClient().openCamera();
+    capture.then(settled);
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(settled).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(4 * 60_000);
+
+    await expect(capture).resolves.toEqual({
+      ok: false,
+      error: {
+        code: 'CAMERA_CAPTURE_TIMEOUT',
+        message: 'Camera capture did not complete in time',
+      },
+    });
   });
 
   it('dispatches scanResult events pushed by Android Shell', () => {

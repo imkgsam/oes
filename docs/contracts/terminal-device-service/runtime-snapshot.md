@@ -14,6 +14,9 @@ Runtime snapshot is diagnostic data. It is not lifecycle status truth and not lo
 service TerminalDeviceRuntimeSnapshotService {
   rpc RecordHeartbeat(RecordHeartbeatRequest) returns (RecordHeartbeatResponse);
   rpc GetRuntimeSnapshot(GetRuntimeSnapshotRequest) returns (GetRuntimeSnapshotResponse);
+  rpc ListHeartbeatRecords(ListHeartbeatRecordsRequest) returns (ListHeartbeatRecordsResponse);
+  rpc RecordDiagnosticLogs(RecordDiagnosticLogsRequest) returns (RecordDiagnosticLogsResponse);
+  rpc ListDiagnosticLogs(ListDiagnosticLogsRequest) returns (ListDiagnosticLogsResponse);
 }
 ```
 
@@ -106,3 +109,25 @@ Rules:
 - `lastReportedAccountId` is diagnostic attachment only.
 - Current valid sessions belong to `auth-service`.
 - Admin BFF must query `auth-service` to show current active PDA sessions.
+
+## 8. Heartbeat History
+
+Phase 2 stores an immutable heartbeat diagnostic record for each accepted heartbeat in addition to the latest runtime snapshot.
+
+Rules:
+
+- History is newest-first and paginated by `tenantId + terminalDeviceId`.
+- History is diagnostic evidence only; lifecycle status remains owned by `TerminalDevice`.
+- `reportedAccountId` and `reportedSessionId` remain client-reported diagnostics and are not current login truth.
+
+## 9. Manual Diagnostic Log History
+
+Phase 2 persists sanitized PDA diagnostic logs accepted by `/pda/device/logs` in `terminal-device-service`.
+
+Rules:
+
+- Logs are tenant-scoped by `tenantId + terminalDeviceId`.
+- Logs are newest-first and paginated.
+- PDA BFF remains responsible for Phase 1 redaction rules before calling `terminal-device-service`.
+- Admin BFF must query `terminal-device-service`; it must not rely on gateway process memory for log history.
+- Diagnostic logs are troubleshooting evidence only and do not replace audit events or observability pipelines.

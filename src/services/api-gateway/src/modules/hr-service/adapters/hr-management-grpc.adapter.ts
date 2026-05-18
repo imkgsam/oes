@@ -146,7 +146,13 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
   }
 
   createEmployment(
-    input: { tenantId: string; employeeId: string; orgUnitId: string; effectiveFrom: string },
+    input: {
+      tenantId: string
+      employeeId: string
+      orgUnitId: string
+      effectiveFrom: string
+      positionName?: string
+    },
     source: DownstreamRequestSource
   ): Promise<{ employee?: HrEmployeeSummary; employment?: HrEmploymentSummary }> {
     return this.call(
@@ -205,6 +211,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
       toOrgUnitId: string
       effectiveFrom: string
       endedReason?: string
+      positionName?: string
     },
     source: DownstreamRequestSource
   ): Promise<{

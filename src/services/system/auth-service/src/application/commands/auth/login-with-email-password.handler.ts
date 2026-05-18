@@ -58,7 +58,7 @@ export class LoginWithEmailPasswordHandler
   ): Promise<LoginWithEmailPasswordResult> {
     await this.terminalLoginPolicyService.assertFlowAllowed(
       command.terminal || 'WEB',
-      TerminalLoginFlow.EmailPassword
+      command.loginFlow || TerminalLoginFlow.EmailPassword
     )
 
     try {
@@ -98,6 +98,8 @@ export class LoginWithEmailPasswordHandler
         this.authAuditService.emitLoginFailed(command.email, 'INVALID_CREDENTIALS', {
           method: LoginMethodEnum.EmailPassword,
           userId: user?.userId,
+          terminal: command.terminal || 'WEB',
+          loginFlow: command.loginFlow || TerminalLoginFlow.EmailPassword,
           deviceName: deviceContext.deviceName,
           userAgent: deviceContext.userAgent,
           ipAddress: deviceContext.ipAddress,

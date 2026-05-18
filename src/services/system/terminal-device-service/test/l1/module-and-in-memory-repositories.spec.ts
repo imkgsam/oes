@@ -1,21 +1,18 @@
-import { Test } from '@nestjs/testing'
-import { TerminalDeviceModule } from '../../src/modules/terminal-device/terminal-device.module'
-import { SYMBOLS } from '../../src/common/constants/symbols'
 import { TerminalDeviceEnrollmentEntity } from '../../src/domain/entities/terminal-device-enrollment.entity'
 import { TerminalDeviceEntity } from '../../src/domain/entities/terminal-device.entity'
 import { TerminalDeviceAuditEventEntity } from '../../src/domain/entities/terminal-device-audit-event.entity'
-import { TerminalDeviceAuditEventRepository } from '../../src/domain/repositories/terminal-device-audit-event.repository'
-import { TerminalDeviceEnrollmentRepository } from '../../src/domain/repositories/terminal-device-enrollment.repository'
-import { TerminalDeviceRepository } from '../../src/domain/repositories/terminal-device.repository'
+import {
+  InMemoryTerminalDeviceAuditEventRepository,
+  InMemoryTerminalDeviceEnrollmentRepository,
+  InMemoryTerminalDeviceRepository,
+  InMemoryTerminalDeviceStore
+} from '../../src/infrastructure/repositories/in-memory'
 
 describe('terminal device module and in-memory repositories', () => {
-  it('instantiates the module and persists an enrollment and device in memory', async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [TerminalDeviceModule]
-    }).compile()
-
-    const enrollmentRepository = moduleRef.get<TerminalDeviceEnrollmentRepository>(SYMBOLS.REPO.ENROLLMENT)
-    const deviceRepository = moduleRef.get<TerminalDeviceRepository>(SYMBOLS.REPO.TERMINAL_DEVICE)
+  it('persists an enrollment and device in memory', async () => {
+    const store = new InMemoryTerminalDeviceStore()
+    const enrollmentRepository = new InMemoryTerminalDeviceEnrollmentRepository(store)
+    const deviceRepository = new InMemoryTerminalDeviceRepository(store)
 
     const enrollment = await enrollmentRepository.create(
       new TerminalDeviceEnrollmentEntity({
@@ -60,17 +57,12 @@ describe('terminal device module and in-memory repositories', () => {
     expect(await enrollmentRepository.findById('enrollment-1')).toEqual(enrollment)
     expect(await deviceRepository.findById('terminal-device-1')).toEqual(device)
     expect(device.tenantId).toBe('tenant-1')
-
-    await moduleRef.close()
   })
 
   it('mirrors unique enrollment code and device enrollment constraints in memory', async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [TerminalDeviceModule]
-    }).compile()
-
-    const enrollmentRepository = moduleRef.get<TerminalDeviceEnrollmentRepository>(SYMBOLS.REPO.ENROLLMENT)
-    const deviceRepository = moduleRef.get<TerminalDeviceRepository>(SYMBOLS.REPO.TERMINAL_DEVICE)
+    const store = new InMemoryTerminalDeviceStore()
+    const enrollmentRepository = new InMemoryTerminalDeviceEnrollmentRepository(store)
+    const deviceRepository = new InMemoryTerminalDeviceRepository(store)
 
     const firstEnrollment = new TerminalDeviceEnrollmentEntity({
       enrollmentId: 'enrollment-unique-1',
@@ -128,16 +120,10 @@ describe('terminal device module and in-memory repositories', () => {
         })
       )
     ).rejects.toThrow('Terminal device enrollment is already linked')
-
-    await moduleRef.close()
   })
 
   it('mirrors audit event primary-key uniqueness in memory', async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [TerminalDeviceModule]
-    }).compile()
-
-    const auditEventRepository = moduleRef.get<TerminalDeviceAuditEventRepository>(SYMBOLS.REPO.AUDIT_EVENT)
+    const auditEventRepository = new InMemoryTerminalDeviceAuditEventRepository(new InMemoryTerminalDeviceStore())
     const event = new TerminalDeviceAuditEventEntity({
       auditEventId: 'audit-event-1',
       tenantId: 'tenant-1',
@@ -154,7 +140,5 @@ describe('terminal device module and in-memory repositories', () => {
 
     await auditEventRepository.create(event)
     await expect(auditEventRepository.create(event)).rejects.toThrow('Terminal device audit event already exists')
-
-    await moduleRef.close()
   })
 })

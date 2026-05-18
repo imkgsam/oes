@@ -98,6 +98,7 @@ describe('HR Prisma repositories L2', () => {
       tenantId: employee.tenantId,
       employeeId: employee.id,
       orgUnitId: `${prefix}_org_1`,
+      positionName: '生产主管',
       effectiveFrom: new Date('2026-04-23T00:00:00.000Z')
     })
 
@@ -106,6 +107,7 @@ describe('HR Prisma repositories L2', () => {
       employeeId: employee.id,
       fromEmploymentId: created.employment.id,
       toOrgUnitId: `${prefix}_org_2`,
+      positionName: '生产经理',
       effectiveFrom: new Date('2026-04-23T01:00:00.000Z'),
       endedReason: 'transfer'
     })
@@ -114,7 +116,9 @@ describe('HR Prisma repositories L2', () => {
 
     expect(result.endedEmployment.status).toBe(EmploymentStatus.ENDED)
     expect(result.newEmployment.status).toBe(EmploymentStatus.ACTIVE)
+    expect(result.newEmployment.positionName).toBe('生产经理')
     expect(active?.id).toBe(result.newEmployment.id)
+    expect(active?.positionName).toBe('生产经理')
     expect(history).toHaveLength(2)
   })
 

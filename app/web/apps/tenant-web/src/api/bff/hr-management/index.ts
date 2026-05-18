@@ -144,6 +144,7 @@ export namespace HrManagementApi {
   export interface CreateEmploymentPayload {
     effectiveFrom: string
     orgUnitId: string
+    positionName?: string
   }
 
   export interface EndEmploymentPayload {
@@ -155,6 +156,7 @@ export namespace HrManagementApi {
     effectiveFrom: string
     endedReason?: string
     fromEmploymentId: string
+    positionName?: string
     toOrgUnitId: string
   }
 }

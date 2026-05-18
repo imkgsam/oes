@@ -47,6 +47,7 @@ describe('ItemManagementService V2 BFF mapping', () => {
     createItemModel: jest.fn(),
     createPackagingMethod: jest.fn(),
     createPackagingSpec: jest.fn(),
+    moveItemCategory: jest.fn(),
     replaceBomLines: jest.fn(),
     setItemCapabilities: jest.fn(),
     setItemModelAttributeRules: jest.fn(),
@@ -60,7 +61,8 @@ describe('ItemManagementService V2 BFF mapping', () => {
     updateItemModelBasics: jest.fn(),
     updatePackagingMethod: jest.fn(),
     updatePackagingSpec: jest.fn(),
-    upsertSupplierItemMapping: jest.fn()
+    upsertSupplierItemMapping: jest.fn(),
+    deleteItemCategory: jest.fn()
   }
   let service: ItemManagementService
 
@@ -212,6 +214,50 @@ describe('ItemManagementService V2 BFF mapping', () => {
     )
   })
 
+  it('deletes item categories through the management adapter', async () => {
+    itemManagementAdapter.deleteItemCategory.mockResolvedValue({})
+
+    await expect(
+      service.deleteItemCategory('tenant-1', 'category-1', source as never)
+    ).resolves.toEqual({})
+
+    expect(itemManagementAdapter.deleteItemCategory).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        categoryId: 'category-1'
+      },
+      source
+    )
+  })
+
+  it('moves item categories through the management adapter', async () => {
+    itemManagementAdapter.moveItemCategory.mockResolvedValue({
+      category: {
+        categoryId: 'category-1',
+        categoryCode: 'CHILD',
+        categoryName: 'Child',
+        parentCategoryId: 'category-parent',
+        active: true
+      }
+    })
+
+    await expect(
+      service.moveItemCategory('tenant-1', 'category-1', { parentCategoryId: 'category-parent' }, source as never)
+    ).resolves.toMatchObject({
+      categoryId: 'category-1',
+      parentCategoryId: 'category-parent'
+    })
+
+    expect(itemManagementAdapter.moveItemCategory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        categoryId: 'category-1',
+        parentCategoryId: 'category-parent'
+      }),
+      source
+    )
+  })
+
   it('creates BOMs with typed output and component lines', async () => {
     itemManagementAdapter.createBom.mockResolvedValue({
       bomId: 'bom-1',
@@ -287,7 +333,8 @@ describe('ItemManagementService V2 BFF mapping', () => {
           attributeDefinitionId: 'attr-1',
           attributeCode: 'COLOR',
           attributeName: 'Color',
-          active: true
+          active: true,
+          optionCount: 2
         }
       ],
       total: 1,
@@ -310,7 +357,8 @@ describe('ItemManagementService V2 BFF mapping', () => {
         {
           attributeDefinitionId: 'attr-1',
           attributeCode: 'COLOR',
-          status: 'ACTIVE'
+          status: 'ACTIVE',
+          optionCount: 2
         }
       ],
       total: 1
@@ -334,6 +382,92 @@ describe('ItemManagementService V2 BFF mapping', () => {
     )
     expect(itemManagementAdapter.updateAttributeDefinition).toHaveBeenCalledWith(
       expect.objectContaining({ active: false, attributeDefinitionId: 'attr-1' }),
+      source
+    )
+  })
+
+  it('maps attribute option descriptions across query and mutation commands', async () => {
+    itemQueryAdapter.listAttributeOptions.mockResolvedValue({
+      attributeOptions: [
+        {
+          attributeOptionId: 'opt-1',
+          attributeDefinitionId: 'attr-1',
+          optionCode: 'WHITE',
+          optionName: 'White',
+          description: 'Glossy white option',
+          active: true
+        }
+      ]
+    })
+    itemManagementAdapter.createAttributeOption.mockResolvedValue({
+      attributeOption: {
+        attributeOptionId: 'opt-2',
+        attributeDefinitionId: 'attr-1',
+        optionCode: 'BLACK',
+        optionName: 'Black',
+        description: 'Matte black option',
+        active: true
+      }
+    })
+    itemManagementAdapter.updateAttributeOption.mockResolvedValue({
+      attributeOption: {
+        attributeOptionId: 'opt-1',
+        attributeDefinitionId: 'attr-1',
+        optionCode: 'WHITE-REV',
+        optionName: 'White Rev',
+        description: 'Updated option',
+        active: false
+      }
+    })
+
+    await expect(
+      service.listAttributeOptions('tenant-1', 'attr-1', { status: 'ACTIVE' }, source as never)
+    ).resolves.toMatchObject({
+      attributeOptions: [
+        {
+          attributeOptionId: 'opt-1',
+          description: 'Glossy white option',
+          status: 'ACTIVE'
+        }
+      ]
+    })
+
+    await expect(
+      service.createAttributeOption(
+        'tenant-1',
+        'attr-1',
+        { optionCode: 'BLACK', optionName: 'Black', description: 'Matte black option' },
+        source as never
+      )
+    ).resolves.toMatchObject({
+      attributeOptionId: 'opt-2',
+      description: 'Matte black option'
+    })
+
+    await expect(
+      service.updateAttributeOption(
+        'tenant-1',
+        'opt-1',
+        { optionCode: 'WHITE-REV', optionName: 'White Rev', description: 'Updated option', status: 'INACTIVE' },
+        source as never
+      )
+    ).resolves.toMatchObject({
+      attributeOptionId: 'opt-1',
+      description: 'Updated option',
+      status: 'INACTIVE'
+    })
+
+    expect(itemManagementAdapter.createAttributeOption).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: 'Matte black option'
+      }),
+      source
+    )
+    expect(itemManagementAdapter.updateAttributeOption).toHaveBeenCalledWith(
+      expect.objectContaining({
+        active: false,
+        description: 'Updated option'
+      }),
       source
     )
   })

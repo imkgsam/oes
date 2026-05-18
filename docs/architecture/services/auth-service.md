@@ -148,6 +148,8 @@ Terminal-aware Account Security Phase 2 增加以下稳定规则：
 - refresh token 必须走 rotation 语义。
 - refresh token replay 必须触发安全处理，并记录认证域审计事实。
 - logout、logout other devices、logout all 与 admin revoke 都必须改变 active session truth，而不是只依赖客户端删除 token。
+- terminal-aware session lifetime 由 `auth-service` 按 terminal 决定；`WEB` 保持通用长 refresh 策略，`PDA` 使用短作业终端策略（access token 默认 15 分钟，refresh token 默认 20 分钟）。
+- PDA 用户 session 不跨 App 关闭自动恢复；PDA 端只持久化设备 enrollment / `terminalDeviceId`，重新打开 App 后必须重新登录。
 - tenant 被 suspend / archive 后，`TENANT` scope session 不得继续 validate 或 refresh；可通过惰性失效与主动 revoke 双路径治理。
 - `SYSTEM` scope session 不受 tenant lifecycle 影响。
 - PDA / KIOSK 等受管终端设备进入 disabled / lost / unbound / retired 等不可登录状态后，`auth-service` 应消费设备状态事件并按 `terminalDeviceId` 幂等清退相关 active sessions。

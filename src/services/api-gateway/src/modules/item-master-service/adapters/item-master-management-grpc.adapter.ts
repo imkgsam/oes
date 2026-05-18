@@ -29,8 +29,12 @@ import {
   CreatePackagingMethodResponse,
   CreatePackagingSpecRequest,
   CreatePackagingSpecResponse,
+  DeleteItemCategoryRequest,
+  DeleteItemCategoryResponse,
   ITEM_MASTER_MANAGEMENT_SERVICE_NAME,
   ItemMasterManagementServiceClient,
+  MoveItemCategoryRequest,
+  MoveItemCategoryResponse,
   ReplaceBomLinesRequest,
   ReplaceBomLinesResponse,
   SetItemModelAttributeRulesRequest,
@@ -189,11 +193,25 @@ export class ItemMasterManagementGrpcAdapter implements OnModuleInit {
     return this.call('updateItemCategoryBasics', this.svc.updateItemCategoryBasics(input, this.metadata(source)))
   }
 
+  moveItemCategory(
+    input: MoveItemCategoryRequest,
+    source: DownstreamRequestSource
+  ): Promise<MoveItemCategoryResponse> {
+    return this.call('moveItemCategory', this.svc.moveItemCategory(input, this.metadata(source)))
+  }
+
   changeItemCategoryStatus(
     input: ChangeItemCategoryStatusRequest,
     source: DownstreamRequestSource
   ): Promise<ChangeItemCategoryStatusResponse> {
     return this.call('changeItemCategoryStatus', this.svc.changeItemCategoryStatus(input, this.metadata(source)))
+  }
+
+  deleteItemCategory(
+    input: DeleteItemCategoryRequest,
+    source: DownstreamRequestSource
+  ): Promise<DeleteItemCategoryResponse> {
+    return this.call('deleteItemCategory', this.svc.deleteItemCategory(input, this.metadata(source)))
   }
 
   createPackagingMethod(

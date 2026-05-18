@@ -7,20 +7,19 @@ import { PdaDeviceHeartbeatUseCase } from './application/use-cases/pda-device-he
 import { PdaDeviceLogsUseCase } from './application/use-cases/pda-device-logs.use-case'
 import { PdaSessionBootstrapUseCase } from './application/use-cases/pda-session-bootstrap.use-case'
 import { PdaTerminalDeviceAdapter } from './infrastructure/downstream/terminal-device-service/pda-terminal-device.adapter'
-import { InMemoryPdaDeviceDiagnosticLogStore } from './infrastructure/in-memory-pda-device-diagnostic-log.store'
 import { PdaDeviceController } from './interfaces/http/controllers/pda-device.controller'
 import { PdaSessionController } from './interfaces/http/controllers/pda-session.controller'
+import { PdaDiagnosticsModule } from './pda-diagnostics.module'
 
 @Module({
-  imports: [AuthBffModule, GrpcTransportModule.forFeature([SERVICE_NAMES.TERMINAL_DEVICE])],
+  imports: [AuthBffModule, PdaDiagnosticsModule, GrpcTransportModule.forFeature([SERVICE_NAMES.TERMINAL_DEVICE])],
   controllers: [PdaSessionController, PdaDeviceController],
   providers: [
     PdaTerminalDeviceAdapter,
     PdaDeviceEnrollmentUseCase,
     PdaSessionBootstrapUseCase,
     PdaDeviceHeartbeatUseCase,
-    PdaDeviceLogsUseCase,
-    InMemoryPdaDeviceDiagnosticLogStore
+    PdaDeviceLogsUseCase
   ]
 })
 // Wires the PDA-specific BFF surface while reusing existing auth/session application services.

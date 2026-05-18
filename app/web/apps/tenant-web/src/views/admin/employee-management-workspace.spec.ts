@@ -1,8 +1,8 @@
 /* @vitest-environment happy-dom */
 
 import { flushPromises, mount } from '@vue/test-utils'
-import { Checkbox, TreeSelect } from 'ant-design-vue'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Checkbox, Drawer, Modal, TreeSelect } from 'ant-design-vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const changeManagedPrimaryEmploymentApi = vi.fn()
 const completeManagedEmployeeAccessApi = vi.fn()
@@ -56,6 +56,40 @@ vi.mock('vue-router', () => ({
   })
 }))
 
+/** getDocumentTestElement reads teleported Ant Design overlays from document.body. */
+function getDocumentTestElement(testId: string) {
+  const element = document.body.querySelector(`[data-testid="${testId}"]`)
+  expect(element).toBeTruthy()
+  return element as HTMLElement
+}
+
+/** setDocumentInputValue updates inputs rendered through Ant Design teleport containers. */
+async function setDocumentInputValue(testId: string, value: string) {
+  const element = getDocumentTestElement(testId) as HTMLInputElement
+  element.value = value
+  element.dispatchEvent(new Event('input', { bubbles: true }))
+  await flushPromises()
+}
+
+/** clickEmployeeRowAction runs one employee operation through the native Ant Design dropdown. */
+async function clickEmployeeRowAction(_wrapper: ReturnType<typeof mount>, actionKey: string) {
+  const labelByKey: Record<string, string> = {
+    account: '前往账号',
+    changeEmployment: '调岗位',
+    detail: '查看详情',
+    edit: '编辑',
+    offboard: '离岗'
+  }
+  const trigger = document.body.querySelector('button[aria-label="员工操作"]') as HTMLButtonElement | null
+  trigger?.click()
+  await flushPromises()
+  const action = Array.from(document.body.querySelectorAll('.ant-dropdown-menu-item, .ant-menu-item')).find(
+    (element) => element.textContent?.includes(labelByKey[actionKey] ?? actionKey)
+  ) as HTMLElement | undefined
+  action?.click()
+  await flushPromises()
+}
+
 describe('employee management workspace', () => {
   beforeEach(() => {
     changeManagedPrimaryEmploymentApi.mockReset()
@@ -69,6 +103,12 @@ describe('employee management workspace', () => {
     listManagedEmployeesApi.mockReset()
     listRolesApi.mockReset()
     push.mockReset()
+    authContextState.actionCodes = [
+      'hr.employee.list',
+      'hr.employee.get_by_id',
+      'hr.employee.create',
+      'identity.account.create'
+    ]
 
     getManagedOrgTreeApi.mockResolvedValue({
       roots: [
@@ -266,6 +306,10 @@ describe('employee management workspace', () => {
     })
   })
 
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
   it('renders the members workbench as an Ant Design directory matching the Stitch employee page', async () => {
     const view = await import('./employee-management-workspace.vue')
 
@@ -294,11 +338,18 @@ describe('employee management workspace', () => {
     expect(wrapper.text()).toContain('新增员工')
     expect(wrapper.text()).toContain('在职')
     expect(wrapper.text()).toContain('已离职')
-    expect(wrapper.find('[data-testid="employee-open-detail-employee-1"]').exists()).toBe(true)
+    const trigger = document.body.querySelector('button[aria-label="员工操作"]') as HTMLButtonElement | null
+    trigger?.click()
+    await flushPromises()
+    const detailAction = document.body.querySelector(
+      '[data-testid="employee-open-detail-employee-1"]'
+    )
+    expect(detailAction?.textContent).toContain('查看详情')
     expect(wrapper.text()).not.toContain('其他任职')
     expect(wrapper.text()).toContain('EMP-001')
     expect(wrapper.text()).toContain('制造中心')
-    expect(wrapper.text()).toContain('待继续完成接入')
+    expect(wrapper.text()).not.toContain('待继续完成接入')
+    expect(getManagedEmployeeAccountAccessApi).not.toHaveBeenCalled()
   })
 
   it('routes employee detail reads to the independent detail page', async () => {
@@ -314,7 +365,7 @@ describe('employee management workspace', () => {
     })
 
     await flushPromises()
-    await wrapper.get('[data-testid="employee-open-detail-employee-1"]').trigger('click')
+    await clickEmployeeRowAction(wrapper, 'detail')
     await flushPromises()
 
     expect(push).toHaveBeenCalledWith({
@@ -324,6 +375,27 @@ describe('employee management workspace', () => {
       }
     })
     expect(getManagedEmployeeDetailApi).not.toHaveBeenCalled()
+  })
+
+  it('loads the employee directory without per-row account access requests', async () => {
+    const view = await import('./employee-management-workspace.vue')
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {}
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect(listManagedEmployeesApi).toHaveBeenCalledTimes(1)
+    expect(getManagedEmployeeAccountAccessApi).not.toHaveBeenCalled()
+    expect(wrapper.text()).not.toContain('待继续完成接入')
+    expect(wrapper.text()).not.toContain('已开通登录')
+    expect(wrapper.text()).not.toContain('未开通登录')
   })
 
   it('filters employees with a checkable department tree selector', async () => {
@@ -343,6 +415,11 @@ describe('employee management workspace', () => {
     const departmentTree = wrapper.findComponent(TreeSelect)
     expect(departmentTree.exists()).toBe(true)
     expect(departmentTree.props('treeCheckable')).toBe(true)
+    expect(departmentTree.props('dropdownMatchSelectWidth')).toBe(320)
+    expect(departmentTree.props('dropdownStyle')).toEqual({
+      maxHeight: '360px',
+      overflow: 'auto'
+    })
     expect(departmentTree.props('treeData')).toEqual([
       {
         children: [
@@ -365,6 +442,84 @@ describe('employee management workspace', () => {
 
     expect(wrapper.text()).toContain('EMP-001')
     expect(wrapper.text()).not.toContain('EMP-002')
+  })
+
+  it('mounts the employee edit drawer to the viewport container', async () => {
+    const view = await import('./employee-management-workspace.vue')
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {}
+        }
+      }
+    })
+
+    await flushPromises()
+
+    const detailDrawer = wrapper.findComponent(Drawer)
+    expect(detailDrawer.exists()).toBe(true)
+    expect(detailDrawer.props('getContainer')).not.toBe(false)
+  })
+
+  it('renders row-launched employment modals above the drawer layer', async () => {
+    authContextState.actionCodes = [
+      'hr.employee.list',
+      'hr.employee.get_by_id',
+      'hr.employee.create',
+      'hr.employment.change_primary',
+      'identity.account.create'
+    ]
+    const view = await import('./employee-management-workspace.vue')
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {}
+        }
+      }
+    })
+
+    await flushPromises()
+    await clickEmployeeRowAction(wrapper, 'changeEmployment')
+
+    const openModal = wrapper.findComponent(Modal)
+    expect(openModal.exists()).toBe(true)
+    expect(openModal.props('getContainer')).not.toBe(false)
+    expect(openModal.props('zIndex')).toBe(1200)
+
+    const effectiveFromInput = getDocumentTestElement('change-employment-effective-from-input') as HTMLInputElement
+    expect(effectiveFromInput.value).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+  })
+
+  it('does not call the change-primary endpoint without an effective time', async () => {
+    authContextState.actionCodes = [
+      'hr.employee.list',
+      'hr.employee.get_by_id',
+      'hr.employee.create',
+      'hr.employment.change_primary',
+      'identity.account.create'
+    ]
+    const view = await import('./employee-management-workspace.vue')
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {}
+        }
+      }
+    })
+
+    await flushPromises()
+    await clickEmployeeRowAction(wrapper, 'changeEmployment')
+    await setDocumentInputValue('change-employment-effective-from-input', '')
+    getDocumentTestElement('change-employment-submit').click()
+    await flushPromises()
+
+    expect(changeManagedPrimaryEmploymentApi).not.toHaveBeenCalled()
   })
 
   it('renders employee creation as party-by-identifier onboarding without internal ids or editable employee code', async () => {

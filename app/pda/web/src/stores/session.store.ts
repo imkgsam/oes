@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia';
 import {
-  fetchPdaBootstrap,
   logoutPda,
   PdaBffError,
   refreshPdaSession,
@@ -12,7 +11,6 @@ import {
 } from '@/api/pda-bff.client';
 import {
   clearSessionTokens,
-  loadSessionTokens,
   saveSessionTokens,
   type PersistedSessionTokens,
 } from './session-token-store';
@@ -42,7 +40,7 @@ type PersistedTerminalDeviceBinding = {
 
 const TERMINAL_DEVICE_BINDING_STORAGE_KEY = 'oes:pda:terminal-device-binding';
 
-/** Owns PDA session lifecycle across login, restart restore, refresh, and logout. */
+/** Owns PDA session lifecycle across login, foreground refresh, app restart cleanup, and logout. */
 export const useSessionStore = defineStore('pda-session', {
   state: (): SessionState => ({
     accessToken: null,
@@ -100,6 +98,7 @@ export const useSessionStore = defineStore('pda-session', {
       this.terminalDeviceId = binding.terminalDeviceId;
       this.terminalDeviceDisplayName = binding.displayName ?? null;
       this.deviceStatus = binding.deviceStatus ?? null;
+      this.decisionCode = resolveDecisionCodeForDeviceStatus(this.deviceStatus);
       return binding;
     },
     async setTerminalDeviceBinding(binding: PersistedTerminalDeviceBinding): Promise<void> {
@@ -142,27 +141,9 @@ export const useSessionStore = defineStore('pda-session', {
           return false;
         }
 
-        const tokens = await loadSessionTokens();
-        if (!tokens?.refreshToken) {
-          return false;
-        }
-
-        const refreshed = await refreshPdaSession(tokens.refreshToken);
-        if (!refreshed.accessToken || !refreshed.refreshToken) {
-          await this.clearSession();
-          return false;
-        }
-
-        await this.applyTokenPair(refreshed);
-        const bootstrap = await fetchPdaBootstrap(refreshed.accessToken, terminalDeviceBinding.terminalDeviceId);
-        await this.applyBootstrap(bootstrap);
-        return true;
-      } catch (error) {
-        if (isAuthRejected(error)) {
-          await this.clearSession();
-          return false;
-        }
-
+        await this.clearSession();
+        return false;
+      } catch {
         await this.clearSession();
         return false;
       } finally {
@@ -265,4 +246,22 @@ function calculateExpiresAt(expiresIn: number): string {
 
 function isAuthRejected(error: unknown): boolean {
   return error instanceof PdaBffError && (error.status === 401 || error.status === 403);
+}
+
+/** Converts persisted terminal device status back into the local route decision after app restart. */
+function resolveDecisionCodeForDeviceStatus(status: TerminalDeviceStatus | null): string | null {
+  switch (status) {
+    case 'PENDING_APPROVAL':
+      return 'DEVICE_PENDING_APPROVAL';
+    case 'DISABLED':
+      return 'DEVICE_DISABLED';
+    case 'LOST':
+      return 'DEVICE_LOST';
+    case 'MAINTENANCE':
+      return 'DEVICE_MAINTENANCE';
+    case 'DECOMMISSIONED':
+      return 'DEVICE_DECOMMISSIONED';
+    default:
+      return null;
+  }
 }

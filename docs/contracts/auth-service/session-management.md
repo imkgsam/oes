@@ -101,6 +101,18 @@ Web / Mobile session 可包含：
 - 查询结果必须按 operator scope 收敛。
 - tenant-bound operator 只能查看可见租户范围内的 sessions。
 
+### `AdminListTerminalDeviceSessions`
+
+- 作用：管理员按受管终端设备 ID 查询当前 active sessions，用于 PDA / KIOSK 设备详情聚合展示。
+- 输入：
+  - `terminal_device_id`
+  - `terminal` 可选，用于进一步限制 PDA / KIOSK 等 terminal 类型
+- 稳定语义：
+  - 只读取 `auth-service` 自己持有的 session metadata。
+  - 必须按 operator scope 收敛 tenant 可见性。
+  - 不能反查或复制 `terminal-device-service` 的设备 registry 真相。
+  - 该查询不执行 revoke；设备不可用清退仍走 `HandleTerminalDeviceUnavailable` 或显式 session revoke。
+
 ### `AdminRevokeSession`
 
 - 作用：管理员清退指定 session。

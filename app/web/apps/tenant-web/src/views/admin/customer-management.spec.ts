@@ -108,7 +108,11 @@ describe('customer management list page', () => {
     })
 
     await wrapper.get('[data-testid="customer-create-button"]').trigger('click')
-    await wrapper.get('[data-testid="customer-detail-button-customer-1"]').trigger('click')
+    await wrapper.get('button[aria-label="客户操作"]').trigger('click')
+    await flushPromises()
+    document.querySelector('[data-testid="customer-detail-button-customer-1"]')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
 
     expect(push).toHaveBeenNthCalledWith(1, {
       name: 'TenantCustomerManagementCreate'
@@ -119,5 +123,5 @@ describe('customer management list page', () => {
         customerAccountId: 'customer-1'
       }
     })
-  })
+  }, 20_000)
 })

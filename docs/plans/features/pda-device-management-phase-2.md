@@ -163,6 +163,7 @@
 - PDA 登录页不再选择租户，登录租户由 `terminalDeviceId` 解析。
 - 不属于该租户或无 PDA terminal access 的账号无法登录。
 - PDA session 记录 `terminal = PDA` 与 `terminalDeviceId`。
+- PDA 只持久化设备 enrollment / `terminalDeviceId`；用户登录态不跨 App 关闭恢复，15 分钟 idle 后 logout，refresh token 短窗口仅用于持续作业中的 token rotation。
 - 管理员可查看设备列表与详情，区分管理真相与 runtime snapshot。
 - 管理员可执行 `DISABLED / LOST / MAINTENANCE / ACTIVE restore / DECOMMISSIONED`，高风险动作必填原因并审计。
 - 非 `ACTIVE` 设备无法登录或发起业务请求。

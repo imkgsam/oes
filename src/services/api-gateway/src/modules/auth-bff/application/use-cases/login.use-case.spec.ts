@@ -87,7 +87,8 @@ describe('LoginUseCase', () => {
 
     expect(authAdapter.loginWithEmailPassword).toHaveBeenCalledWith(
       expect.objectContaining({
-        terminal: 'PDA'
+        terminal: 'PDA',
+        loginFlow: 'PASSWORD'
       }),
       expect.objectContaining({ requestId: 'req-1' })
     )

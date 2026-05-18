@@ -113,10 +113,11 @@ describe('platform terminal security settings page', () => {
 
     expect(getAdminPlatformTerminalLoginPolicyApi).toHaveBeenCalledTimes(1);
     expect(getAdminPlatformTerminalMfaPolicyApi).toHaveBeenCalledTimes(1);
-    expect(document.body.textContent).toContain('平台终端安全配置');
+    expect(document.body.textContent).toContain('平台 Terminal 登录策略');
     expect(document.body.textContent).toContain('Web');
     expect(document.body.textContent).toContain('PDA');
-    expect(document.body.textContent).toContain('邮箱 + 密码');
+    expect(document.body.textContent).toContain('2 / 4 个登录流已启用');
+    expect(document.body.textContent).toContain('1 / 2 个登录流已启用');
   });
 
   it('requires confirmation before saving a terminal with no enabled login flow', async () => {
@@ -201,4 +202,3 @@ describe('platform terminal security settings page', () => {
     });
   });
 });
-

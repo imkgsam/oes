@@ -10,49 +10,44 @@ import { RuntimeQueryHandlers } from '../../application/queries/runtime'
 import { VersionPolicyQueryHandlers } from '../../application/queries/version-policy'
 import { ApplicationServices } from '../../application/services'
 import { RedisTerminalDeviceUnavailablePublisher } from '../../infrastructure/events'
+import { PrismaModule } from '../../infrastructure/prisma/prisma.module'
 import { SYMBOLS } from '../../common/constants/symbols'
 import {
-  InMemoryTerminalDeviceAuditEventRepository,
-  InMemoryTerminalDeviceActivationRepository,
-  InMemoryTerminalDeviceEnrollmentRepository,
-  InMemoryTerminalDeviceRepository,
-  InMemoryTerminalDeviceRuntimeSnapshotRepository,
-  InMemoryTerminalDeviceStore,
-  InMemoryTerminalDeviceVersionPolicyRepository
-} from '../../infrastructure/repositories/in-memory'
+  PrismaTerminalDeviceActivationRepository,
+  PrismaTerminalDeviceAuditEventRepository,
+  PrismaTerminalDeviceEnrollmentRepository,
+  PrismaTerminalDeviceRepository,
+  PrismaTerminalDeviceRuntimeSnapshotRepository,
+  PrismaTerminalDeviceVersionPolicyRepository
+} from '../../infrastructure/repositories/prisma'
 import { TerminalDeviceGrpcController } from '../../interfaces/grpc/terminal-device.grpc.controller'
 
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, PrismaModule],
   providers: [
-    InMemoryTerminalDeviceStore,
     {
       provide: SYMBOLS.REPO.TERMINAL_DEVICE,
-      useFactory: (store: InMemoryTerminalDeviceStore) => new InMemoryTerminalDeviceRepository(store),
-      inject: [InMemoryTerminalDeviceStore]
+      useClass: PrismaTerminalDeviceRepository
     },
     {
       provide: SYMBOLS.REPO.ACTIVATION,
-      useFactory: (store: InMemoryTerminalDeviceStore) => new InMemoryTerminalDeviceActivationRepository(store),
-      inject: [InMemoryTerminalDeviceStore]
+      useClass: PrismaTerminalDeviceActivationRepository
     },
     {
       provide: SYMBOLS.REPO.ENROLLMENT,
-      useFactory: (store: InMemoryTerminalDeviceStore) => new InMemoryTerminalDeviceEnrollmentRepository(store),
-      inject: [InMemoryTerminalDeviceStore]
+      useClass: PrismaTerminalDeviceEnrollmentRepository
     },
     {
       provide: SYMBOLS.REPO.RUNTIME_SNAPSHOT,
-      useClass: InMemoryTerminalDeviceRuntimeSnapshotRepository
+      useClass: PrismaTerminalDeviceRuntimeSnapshotRepository
     },
     {
       provide: SYMBOLS.REPO.VERSION_POLICY,
-      useClass: InMemoryTerminalDeviceVersionPolicyRepository
+      useClass: PrismaTerminalDeviceVersionPolicyRepository
     },
     {
       provide: SYMBOLS.REPO.AUDIT_EVENT,
-      useFactory: (store: InMemoryTerminalDeviceStore) => new InMemoryTerminalDeviceAuditEventRepository(store),
-      inject: [InMemoryTerminalDeviceStore]
+      useClass: PrismaTerminalDeviceAuditEventRepository
     },
     {
       provide: SYMBOLS.EVENT_PUBLISHER.TERMINAL_DEVICE_UNAVAILABLE,
@@ -87,5 +82,5 @@ import { TerminalDeviceGrpcController } from '../../interfaces/grpc/terminal-dev
     ...ApplicationServices
   ]
 })
-// TerminalDeviceModule assembles the terminal device skeleton with repository ports and in-memory adapters.
+// TerminalDeviceModule assembles the managed terminal device boundary with persistent repository adapters.
 export class TerminalDeviceModule {}

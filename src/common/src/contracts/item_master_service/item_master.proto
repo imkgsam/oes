@@ -44,7 +44,9 @@ service ItemMasterManagementService {
   rpc ChangeItemStatus(ChangeItemStatusRequest) returns (ChangeItemStatusResponse);
   rpc CreateItemCategory(CreateItemCategoryRequest) returns (CreateItemCategoryResponse);
   rpc UpdateItemCategoryBasics(UpdateItemCategoryBasicsRequest) returns (UpdateItemCategoryBasicsResponse);
+  rpc MoveItemCategory(MoveItemCategoryRequest) returns (MoveItemCategoryResponse);
   rpc ChangeItemCategoryStatus(ChangeItemCategoryStatusRequest) returns (ChangeItemCategoryStatusResponse);
+  rpc DeleteItemCategory(DeleteItemCategoryRequest) returns (DeleteItemCategoryResponse);
   rpc CreatePackagingMethod(CreatePackagingMethodRequest) returns (CreatePackagingMethodResponse);
   rpc UpdatePackagingMethod(UpdatePackagingMethodRequest) returns (UpdatePackagingMethodResponse);
   rpc ChangePackagingMethodStatus(ChangePackagingMethodStatusRequest) returns (ChangePackagingMethodStatusResponse);
@@ -182,6 +184,7 @@ message AttributeDefinitionRecord {
   string attribute_code = 2;
   string attribute_name = 3;
   bool active = 4;
+  int32 option_count = 5;
 }
 
 message AttributeOptionRecord {
@@ -190,6 +193,7 @@ message AttributeOptionRecord {
   string option_code = 3;
   string option_name = 4;
   bool active = 5;
+  string description = 6;
 }
 
 message ItemModelAttributeRuleRecord {
@@ -602,6 +606,7 @@ message CreateAttributeOptionRequest {
   string attribute_definition_id = 2;
   string option_code = 3;
   string option_name = 4;
+  string description = 5;
 }
 
 message CreateAttributeOptionResponse {
@@ -614,6 +619,7 @@ message UpdateAttributeOptionRequest {
   string option_code = 3;
   string option_name = 4;
   bool active = 5;
+  string description = 6;
 }
 
 message UpdateAttributeOptionResponse {
@@ -699,6 +705,16 @@ message UpdateItemCategoryBasicsResponse {
   ItemCategoryTreeNode category = 1;
 }
 
+message MoveItemCategoryRequest {
+  string tenant_id = 1;
+  string category_id = 2;
+  string parent_category_id = 3;
+}
+
+message MoveItemCategoryResponse {
+  ItemCategoryTreeNode category = 1;
+}
+
 message ChangeItemCategoryStatusRequest {
   string tenant_id = 1;
   string category_id = 2;
@@ -708,6 +724,13 @@ message ChangeItemCategoryStatusRequest {
 message ChangeItemCategoryStatusResponse {
   ItemCategoryTreeNode category = 1;
 }
+
+message DeleteItemCategoryRequest {
+  string tenant_id = 1;
+  string category_id = 2;
+}
+
+message DeleteItemCategoryResponse {}
 
 message CreatePackagingMethodRequest {
   string tenant_id = 1;

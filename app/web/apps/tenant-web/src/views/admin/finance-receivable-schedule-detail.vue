@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { FinanceApi } from '#/api'
+import type { TableColumnsType } from 'ant-design-vue'
 
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { Table } from 'ant-design-vue'
 
 import {
   getFinanceReleaseSignalApi,
@@ -31,6 +33,21 @@ const loading = ref(false)
 const receivableSchedule = ref<FinanceApi.ReceivableSchedule | null>(null)
 const financeReleaseSignal = ref<FinanceApi.FinanceReleaseSignal | null>(null)
 const paymentAllocations = ref<FinanceApi.PaymentAllocation[]>([])
+const receivableLines = computed(() => receivableSchedule.value?.lines ?? [])
+const receivableLineColumns: TableColumnsType<NonNullable<FinanceApi.ReceivableSchedule['lines']>[number]> = [
+  { dataIndex: 'lineNo', key: 'lineNo', title: '行号' },
+  { dataIndex: 'dueDate', key: 'dueDate', title: '到期日' },
+  { dataIndex: 'scheduledAmount', key: 'scheduledAmount', title: '计划金额' },
+  { dataIndex: 'allocatedAmount', key: 'allocatedAmount', title: '已核销' },
+  { dataIndex: 'outstandingAmount', key: 'outstandingAmount', title: '未收' },
+  { dataIndex: 'status', key: 'status', title: '状态' }
+]
+const paymentAllocationColumns: TableColumnsType<FinanceApi.PaymentAllocation> = [
+  { dataIndex: 'paymentAllocationId', key: 'paymentAllocationId', title: '核销号' },
+  { dataIndex: 'accountTransactionId', key: 'accountTransactionId', title: '流水号' },
+  { dataIndex: 'allocatedAmount', key: 'allocatedAmount', title: '金额' },
+  { dataIndex: 'targetScheduleLineId', key: 'targetScheduleLineId', title: '目标计划行' }
+]
 
 /** loadReceivableDetail refreshes the selected receivable schedule and its linked finance summary reads. */
 async function loadReceivableDetail() {
@@ -86,34 +103,15 @@ onMounted(() => {
           <div>来源订单: {{ receivableSchedule.sourceSalesOrderId }}</div>
           <div>未收金额: {{ receivableSchedule.outstandingAmount }}</div>
         </div>
-        <table class="receivable-detail-table">
-          <thead>
-            <tr>
-              <th>行号</th>
-              <th>到期日</th>
-              <th>计划金额</th>
-              <th>已核销</th>
-              <th>未收</th>
-              <th>状态</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="line in receivableSchedule?.lines ?? []"
-              :key="line.receivableScheduleLineId"
-            >
-              <td>{{ line.lineNo }}</td>
-              <td>{{ line.dueDate }}</td>
-              <td>{{ line.scheduledAmount }}</td>
-              <td>{{ line.allocatedAmount }}</td>
-              <td>{{ line.outstandingAmount }}</td>
-              <td>{{ line.status }}</td>
-            </tr>
-            <tr v-if="!(receivableSchedule?.lines?.length ?? 0)">
-              <td colspan="6">暂无计划行</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="receivableLineColumns"
+          :data-source="receivableLines"
+          :loading="loading"
+          :locale="{ emptyText: '暂无计划行' }"
+          :pagination="false"
+          row-key="receivableScheduleLineId"
+          size="middle"
+        />
       </section>
 
       <section class="receivable-detail-card">
@@ -121,30 +119,15 @@ onMounted(() => {
         <p v-if="financeReleaseSignal">
           当前放行信号: {{ financeReleaseSignal.signalStatus }}
         </p>
-        <table class="receivable-detail-table">
-          <thead>
-            <tr>
-              <th>核销号</th>
-              <th>流水号</th>
-              <th>金额</th>
-              <th>目标计划行</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="allocation in paymentAllocations"
-              :key="allocation.paymentAllocationId"
-            >
-              <td>{{ allocation.paymentAllocationId }}</td>
-              <td>{{ allocation.accountTransactionId }}</td>
-              <td>{{ allocation.allocatedAmount }}</td>
-              <td>{{ allocation.targetScheduleLineId }}</td>
-            </tr>
-            <tr v-if="!paymentAllocations.length">
-              <td colspan="4">暂无核销记录</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="paymentAllocationColumns"
+          :data-source="paymentAllocations"
+          :loading="loading"
+          :locale="{ emptyText: '暂无核销记录' }"
+          :pagination="false"
+          row-key="paymentAllocationId"
+          size="middle"
+        />
       </section>
     </section>
   </Page>
@@ -170,15 +153,4 @@ onMounted(() => {
   margin-bottom: 12px;
 }
 
-.receivable-detail-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.receivable-detail-table th,
-.receivable-detail-table td {
-  padding: 10px 8px;
-  border-bottom: 1px solid hsl(var(--border));
-  text-align: left;
-}
 </style>

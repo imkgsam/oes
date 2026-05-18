@@ -146,10 +146,11 @@ export class PdaHeartbeatSessionDto {
   @MaxLength(128)
   tenantId?: string | null
 
-  @ApiProperty()
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
   @IsString()
   @MaxLength(128)
-  sessionId!: string
+  sessionId?: string | null
 }
 
 // Defines the Phase 1 PDA heartbeat request accepted before or after login.

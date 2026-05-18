@@ -9,6 +9,7 @@ describe('OrgManagementController', () => {
     createOrgUnit: jest.fn(),
     getOrgTree: jest.fn(),
     getOrgUnitDetail: jest.fn(),
+    moveOrgUnit: jest.fn(),
     updateOrgUnit: jest.fn()
   }
 
@@ -36,6 +37,12 @@ describe('OrgManagementController', () => {
       reflector.get(
         REQUIRE_PERMISSIONS_METADATA_KEY,
         OrgManagementController.prototype.updateOrgUnit
+      )
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        OrgManagementController.prototype.moveOrgUnit
       )
     ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
@@ -70,6 +77,14 @@ describe('OrgManagementController', () => {
         name: 'Manufacturing Updated',
         type: 'BRANCH',
         organizationPartyId: null
+      }
+    })
+    orgManagementService.moveOrgUnit.mockResolvedValue({
+      orgUnit: {
+        id: 'org-2',
+        name: 'Manufacturing Updated',
+        parentOrgId: 'org-3',
+        type: 'BRANCH'
       }
     })
     orgManagementService.archiveOrgUnit.mockResolvedValue({
@@ -123,6 +138,23 @@ describe('OrgManagementController', () => {
         organizationPartyId: null
       }
     })
+    await expect(
+      controller.moveOrgUnit(
+        'tenant-1',
+        'org-2',
+        {
+          newParentOrgId: 'org-3'
+        } as any,
+        source as any
+      )
+    ).resolves.toEqual({
+      orgUnit: {
+        id: 'org-2',
+        name: 'Manufacturing Updated',
+        parentOrgId: 'org-3',
+        type: 'BRANCH'
+      }
+    })
     await expect(controller.archiveOrgUnit('tenant-1', 'org-2', source as any)).resolves.toEqual({
       orgUnit: { id: 'org-2', name: 'Manufacturing Updated', status: 'ARCHIVED' }
     })
@@ -148,6 +180,14 @@ describe('OrgManagementController', () => {
         organizationPartyId: null,
         sortOrder: 11,
         type: undefined
+      },
+      source
+    )
+    expect(orgManagementService.moveOrgUnit).toHaveBeenCalledWith(
+      'tenant-1',
+      'org-2',
+      {
+        newParentOrgId: 'org-3'
       },
       source
     )

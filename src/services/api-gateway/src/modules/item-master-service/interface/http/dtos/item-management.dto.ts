@@ -270,6 +270,11 @@ export class CreateAttributeOptionDto {
   @IsString()
   @IsNotEmpty()
   optionName!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string
 }
 
 /** UpdateAttributeOptionDto updates option basics and lifecycle together. */
@@ -614,6 +619,14 @@ export class UpdateItemCategoryBasicsDto {
   @IsString()
   @IsNotEmpty()
   categoryName!: string
+}
+
+/** MoveItemCategoryDto carries a new parent id; an empty value moves the category to the root level. */
+export class MoveItemCategoryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  parentCategoryId?: string
 }
 
 /** BomLineDto defines one V2 BOM line input. */

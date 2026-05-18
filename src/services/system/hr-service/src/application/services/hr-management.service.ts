@@ -100,6 +100,7 @@ export class HrManagementService {
     employeeId: string
     fromEmploymentId: string
     toOrgUnitId: string
+    positionName?: string
     effectiveFrom: Date
     endedReason?: string
   }) {
@@ -116,6 +117,7 @@ export class HrManagementService {
       employeeId,
       fromEmploymentId,
       toOrgUnitId,
+      positionName: input.positionName?.trim() || undefined,
       effectiveFrom,
       endedReason: input.endedReason?.trim() || undefined
     })

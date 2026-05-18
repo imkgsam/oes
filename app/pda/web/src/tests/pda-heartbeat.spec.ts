@@ -29,6 +29,7 @@ describe('pda heartbeat', () => {
         ok: true,
         data: {
           connected: true,
+          batteryLevel: 87,
           metered: false,
           type: 'WIFI',
         },
@@ -101,6 +102,7 @@ describe('pda heartbeat', () => {
         runtime: expect.objectContaining({
           networkStatus: 'ONLINE',
           networkType: 'WIFI',
+          batteryLevel: 87,
           appState: 'FOREGROUND',
         }),
         session: {
@@ -110,6 +112,79 @@ describe('pda heartbeat', () => {
         },
       }),
     );
+  });
+
+  it('keeps the reported account in heartbeat even when the session id is unavailable', async () => {
+    setBridgeClient({
+      getDeviceInfo: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          appVersion: '0.1.0',
+          deviceId: 'device-1',
+          idSource: 'MANUFACTURER_SERIAL',
+          manufacturer: 'Seuic',
+          model: 'Cruise Ge',
+          osVersion: '9',
+          webViewVersion: '66',
+        },
+      }),
+      getNetworkStatus: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          connected: true,
+          batteryLevel: 87,
+          metered: false,
+          type: 'WIFI',
+        },
+      }),
+      openCamera: vi.fn() as never,
+      beep: vi.fn() as never,
+      vibrate: vi.fn() as never,
+    });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: {
+              accepted: true,
+              heartbeatIntervalSeconds: 300,
+              decision: {
+                allowed: true,
+                decisionCode: 'ALLOW',
+                deviceStatus: 'ACTIVE',
+                requiredAction: 'NONE',
+                shouldClearLocalSession: false,
+                shouldClearLocalTerminalDeviceId: false,
+              },
+              serverTime: '2026-05-14T10:00:00.000Z',
+            },
+          }),
+      }),
+    );
+    const sessionStore = useSessionStore();
+    sessionStore.accessToken = 'access-token';
+    await sessionStore.setTerminalDeviceBinding({ terminalDeviceId: 'terminal-device-1' });
+    sessionStore.bootstrap = {
+      account: {
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+      },
+      session: {
+        terminal: 'PDA',
+        idleTimeoutSeconds: 900,
+      },
+    };
+
+    await sendPdaHeartbeat('FOREGROUND');
+
+    const body = JSON.parse((fetch as any).mock.calls[0][1].body);
+    expect(body.session).toEqual({
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      sessionId: null,
+    });
   });
 
   it('skips heartbeat without bothering the operator when the PDA is offline', async () => {

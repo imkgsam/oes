@@ -186,6 +186,10 @@ export namespace TenantManagementApi {
     sortOrder?: number;
     type?: string;
   }
+
+  export interface MoveManagedOrgUnitPayload {
+    newParentOrgId: string;
+  }
 }
 
 // Lists tenant summaries for the system-admin tenant management entry.
@@ -326,6 +330,18 @@ export async function updateManagedOrgUnitApi(
       data,
       method: 'PATCH',
     },
+  );
+}
+
+// Moves one org node below another parent while tenant-org-service keeps path/depth truth.
+export async function moveManagedOrgUnitApi(
+  tenantId: string,
+  orgUnitId: string,
+  data: TenantManagementApi.MoveManagedOrgUnitPayload,
+) {
+  return requestClient.post<TenantManagementApi.ManagedOrgUnitDetailResult>(
+    `/tenant-management/tenants/${encodeURIComponent(tenantId)}/org-units/${encodeURIComponent(orgUnitId)}/move`,
+    data,
   );
 }
 

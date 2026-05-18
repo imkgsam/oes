@@ -18,8 +18,11 @@ import { GrpcExceptionFilter } from '../../../../../../common/dist/core/filters'
 import {
   AdminListOnlineUsersRequest,
   AdminListOnlineUsersResponse,
+  AdminListTerminalDeviceSessionsRequest,
+  AdminListTerminalDeviceSessionsResponse,
   AdminListUserSessionsRequest,
   AdminListUserSessionsResponse,
+  AdminSessionView,
   AdminDeleteAccountSessionsRequest,
   AdminDeleteAccountSessionsResponse,
   AdminRevokeSessionRequest,
@@ -199,6 +202,7 @@ import {
 } from '../../application/commands/auth'
 import {
   AdminListOnlineUsersQuery,
+  AdminListTerminalDeviceSessionsQuery,
   AdminListUserSessionsQuery,
   ListLoginHistoryQuery,
   ListAuditEventsQuery,
@@ -448,6 +452,8 @@ export class AuthGrpcController implements AuthServiceController {
         occurredAt: item.occurredAt.toISOString(),
         outcome: item.outcome,
         loginMethod: item.loginMethod ?? '',
+        terminal: item.terminal ?? '',
+        loginFlow: item.loginFlow ?? '',
         ipAddress: item.ipAddress ?? '',
         deviceName: item.deviceName ?? '',
         platform: item.platform ?? '',
@@ -587,39 +593,26 @@ export class AuthGrpcController implements AuthServiceController {
     )
 
     return {
-      sessions: sessions.map((session) => ({
-        sessionId: session.sessionId,
-        userId: session.userId,
-        accountId: session.accountId,
-        tenantId: session.tenantId,
-        terminal: session.terminal,
-        terminalDeviceId: session.terminalDeviceId,
-        deviceBoundTenantId: session.deviceBoundTenantId,
-        loginFlow: session.loginFlow,
-        status: session.status,
-        loginMethod: session.loginMethod,
-        deviceId: session.deviceId,
-        deviceName: session.deviceName,
-        userAgent: session.userAgent,
-        ipAddress: session.ipAddress,
-        platform: session.platform,
-        browser: session.browser,
-        createdAt: session.createdAt.toISOString(),
-        lastActiveAt: session.lastActiveAt.toISOString(),
-        expiresAt: session.expiresAt.toISOString(),
-        refreshExpiresAt: session.refreshExpiresAt.toISOString(),
-        accessRemainingSeconds: String(session.accessRemainingSeconds),
-        refreshRemainingSeconds: String(session.refreshRemainingSeconds),
-        sessionAgeSeconds: String(session.sessionAgeSeconds),
-        idleSeconds: String(session.idleSeconds),
-        isAccessExpired: session.isAccessExpired,
-        isRefreshExpired: session.isRefreshExpired,
-        isRevoked: session.isRevoked,
-        isAdminControlled: session.isAdminControlled,
-        adminRevokeReason: session.adminRevokeReason,
-        adminRevokeAt: session.adminRevokeAt?.toISOString() ?? '',
-        adminRevokeBy: session.adminRevokeBy
-      }))
+      sessions: sessions.map((session) => this.toProtoAdminSessionView(session))
+    }
+  }
+
+  @RequirePermissions({ all: [AUTH_SESSION_PERMISSION_CODES.ADMIN_VIEW_USER_SESSIONS] })
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
+  async adminListTerminalDeviceSessions(
+    request: AdminListTerminalDeviceSessionsRequest
+  ): Promise<AdminListTerminalDeviceSessionsResponse> {
+    this.getRequiredOperatorId(request)
+    const sessions = await this.queryBus.execute(
+      new AdminListTerminalDeviceSessionsQuery(
+        request.terminalDeviceId ?? '',
+        getOptionalOperatorScope(request),
+        request.terminal ?? ''
+      )
+    )
+
+    return {
+      sessions: sessions.map((session) => this.toProtoAdminSessionView(session))
     }
   }
 
@@ -2041,6 +2034,75 @@ export class AuthGrpcController implements AuthServiceController {
 
   private normalizeScopeLevel(scopeLevel?: string): 'SYSTEM' | 'TENANT' {
     return scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT'
+  }
+
+  // Converts an auth-service admin session projection into the generated gRPC session view.
+  private toProtoAdminSessionView(session: {
+    sessionId: string
+    userId: string
+    accountId: string
+    tenantId: string
+    terminal: string
+    terminalDeviceId: string
+    deviceBoundTenantId: string
+    loginFlow: string
+    status: string
+    loginMethod: string
+    deviceId: string
+    deviceName: string
+    userAgent: string
+    ipAddress: string
+    platform: string
+    browser: string
+    createdAt: Date
+    lastActiveAt: Date
+    expiresAt: Date
+    refreshExpiresAt: Date
+    accessRemainingSeconds: number
+    refreshRemainingSeconds: number
+    sessionAgeSeconds: number
+    idleSeconds: number
+    isAccessExpired: boolean
+    isRefreshExpired: boolean
+    isRevoked: boolean
+    isAdminControlled: boolean
+    adminRevokeReason: string
+    adminRevokeAt: Date | null
+    adminRevokeBy: string
+  }): AdminSessionView {
+    return {
+      sessionId: session.sessionId,
+      userId: session.userId,
+      accountId: session.accountId,
+      tenantId: session.tenantId,
+      terminal: session.terminal,
+      terminalDeviceId: session.terminalDeviceId,
+      deviceBoundTenantId: session.deviceBoundTenantId,
+      loginFlow: session.loginFlow,
+      status: session.status,
+      loginMethod: session.loginMethod,
+      deviceId: session.deviceId,
+      deviceName: session.deviceName,
+      userAgent: session.userAgent,
+      ipAddress: session.ipAddress,
+      platform: session.platform,
+      browser: session.browser,
+      createdAt: session.createdAt.toISOString(),
+      lastActiveAt: session.lastActiveAt.toISOString(),
+      expiresAt: session.expiresAt.toISOString(),
+      refreshExpiresAt: session.refreshExpiresAt.toISOString(),
+      accessRemainingSeconds: String(session.accessRemainingSeconds),
+      refreshRemainingSeconds: String(session.refreshRemainingSeconds),
+      sessionAgeSeconds: String(session.sessionAgeSeconds),
+      idleSeconds: String(session.idleSeconds),
+      isAccessExpired: session.isAccessExpired,
+      isRefreshExpired: session.isRefreshExpired,
+      isRevoked: session.isRevoked,
+      isAdminControlled: session.isAdminControlled,
+      adminRevokeReason: session.adminRevokeReason,
+      adminRevokeAt: session.adminRevokeAt?.toISOString() ?? '',
+      adminRevokeBy: session.adminRevokeBy
+    }
   }
 
   private toProtoScenarioRequirements(

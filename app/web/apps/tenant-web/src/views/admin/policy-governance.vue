@@ -5,13 +5,16 @@ import type { TableColumnsType } from 'ant-design-vue';
 import { computed, h, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
+import { IconifyIcon } from '@vben/icons';
 
 import {
   Button,
   Card,
   Drawer,
+  Dropdown,
   Empty,
   Form,
+  Menu,
   Table,
   Tag,
   Tooltip,
@@ -43,6 +46,14 @@ interface SelectOption {
   value: string;
 }
 
+interface PolicyTableActionItem<ActionKey extends string> {
+  danger?: boolean;
+  disabled?: boolean;
+  hidden?: boolean;
+  key: ActionKey;
+  label: string;
+}
+
 const authContextStore = useAuthContextStore();
 
 const filters = reactive<PolicyFilterState>({
@@ -64,6 +75,64 @@ const selectedPolicy = ref<null | PolicyGovernanceApi.Policy>(null);
 const linkedPolicies = ref<PolicyGovernanceApi.Policy[]>([]);
 const detailDrawerOpen = ref(false);
 const loadError = ref('');
+
+/** renderPolicyNativeActions renders policy row commands with Ant Design Vue Dropdown/Menu directly. */
+function renderPolicyNativeActions<ActionKey extends string>(
+  ariaLabel: string,
+  items: Array<PolicyTableActionItem<ActionKey>>,
+  onClick: (key: ActionKey) => void,
+) {
+  const visibleItems = items.filter((item) => !item.hidden);
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作');
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': ariaLabel,
+            shape: 'circle',
+            size: 'small',
+            type: 'text',
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' }),
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: (info) => {
+              const action = visibleItems.find((item) => item.key === String(info.key));
+
+              if (!action || action.disabled) {
+                return;
+              }
+
+              onClick(action.key);
+            },
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                },
+                () => item.label,
+              ),
+            ),
+        ),
+    },
+  );
+}
 
 const statusOptions: SelectOption[] = [
   { label: '全部状态', value: '' },
@@ -190,18 +259,16 @@ const policyColumns = computed<TableColumnsType>(() => [
       `${(record as PolicyGovernanceApi.Policy).priority ?? '-'}`,
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'actions',
     title: '操作',
     width: 120,
     customRender: ({ record }) =>
-      h(
-        Button,
-        {
-          size: 'small',
-          type: 'link',
-          onClick: () => openPolicyDetail(record as PolicyGovernanceApi.Policy),
-        },
-        () => '查看详情',
+      renderPolicyNativeActions<'detail'>(
+        '策略操作',
+        [{ key: 'detail', label: '查看详情' }],
+        () => openPolicyDetail(record as PolicyGovernanceApi.Policy),
       ),
   },
 ]);

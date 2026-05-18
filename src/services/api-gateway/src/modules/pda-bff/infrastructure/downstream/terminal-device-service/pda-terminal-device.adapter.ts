@@ -9,6 +9,7 @@ import {
   DeviceRequiredAction,
   PresenceStatus,
   RecordHeartbeatResponse,
+  RecordDiagnosticLogsResponse,
   ResolveDeviceAccessDecisionResponse,
   TERMINAL_DEVICE_ACCESS_DECISION_SERVICE_NAME,
   TERMINAL_DEVICE_ENROLLMENT_SERVICE_NAME,
@@ -83,6 +84,34 @@ export interface PdaRecordHeartbeatResult {
   lastHeartbeatAt: string | null
   presenceStatus: string | null
   heartbeatIntervalSeconds: number
+}
+
+export interface PdaDiagnosticLogRecordInput {
+  deviceId: string
+  accountId: string | null
+  tenantId: string | null
+  sessionId: string | null
+  clientTime: string
+  receivedAt: string
+  level: 'ERROR' | 'INFO' | 'WARN'
+  eventType: string
+  message: string
+  traceId: string | null
+  requestId: string | null
+  errorCode: string | null
+  diagnosticMode: boolean
+  details: Record<string, unknown>
+}
+
+export interface PdaRecordDiagnosticLogsInput {
+  tenantId: string
+  terminalDeviceId: string
+  records: PdaDiagnosticLogRecordInput[]
+}
+
+export interface PdaRecordDiagnosticLogsResult {
+  accepted: boolean
+  receivedCount: number
 }
 
 @Injectable()
@@ -185,6 +214,38 @@ export class PdaTerminalDeviceAdapter implements OnModuleInit {
       lastHeartbeatAt: normalize(response.lastHeartbeatAt) ?? null,
       presenceStatus: toPresenceStatus(response.presenceStatus),
       heartbeatIntervalSeconds: 300
+    }
+  }
+
+  // Persists sanitized manual PDA diagnostic logs through terminal-device-service.
+  async recordDiagnosticLogs(input: PdaRecordDiagnosticLogsInput): Promise<PdaRecordDiagnosticLogsResult> {
+    const response = await safeGrpcCall<RecordDiagnosticLogsResponse>(
+      this.runtimeSvc.recordDiagnosticLogs({
+        tenantId: input.tenantId,
+        terminalDeviceId: input.terminalDeviceId,
+        logs: input.records.map((record) => ({
+          terminalDeviceId: input.terminalDeviceId,
+          tenantId: input.tenantId,
+          accountId: normalize(record.accountId),
+          sessionId: normalize(record.sessionId),
+          clientTime: record.clientTime,
+          receivedAt: record.receivedAt,
+          level: record.level,
+          eventType: record.eventType,
+          message: record.message,
+          traceId: normalize(record.traceId),
+          requestId: normalize(record.requestId),
+          errorCode: normalize(record.errorCode),
+          diagnosticMode: record.diagnosticMode,
+          detailsJson: JSON.stringify(record.details)
+        }))
+      }),
+      this.opts('recordDiagnosticLogs')
+    )
+
+    return {
+      accepted: Boolean(response.accepted),
+      receivedCount: Number(response.receivedCount ?? 0)
     }
   }
 

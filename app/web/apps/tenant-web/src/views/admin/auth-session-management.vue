@@ -6,6 +6,7 @@ import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue';
 import { computed, h, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
+import { IconifyIcon } from '@vben/icons';
 
 import {
   Button,
@@ -13,11 +14,14 @@ import {
   Col,
   DatePicker,
   Drawer,
+  Dropdown,
   Empty,
   Form,
   Input,
+  Menu,
   Modal,
   Row,
+  Select,
   Space,
   Spin,
   Statistic,
@@ -36,7 +40,23 @@ import {
 } from '#/api';
 import { useAuthContextStore } from '#/store/auth-context';
 
+import {
+  getSessionTerminalColor,
+  getSessionTerminalLabel,
+} from '../_core/profile/security-center.helpers';
+
 type AuditResultTagColor = 'blue' | 'default' | 'error' | 'orange' | 'success';
+type AuditActionKey = 'inspectSessions';
+type OnlineUserActionKey = 'inspectSessions';
+type SessionActionKey = 'revoke';
+
+interface AuthTableActionItem<ActionKey extends string> {
+  danger?: boolean;
+  disabled?: boolean;
+  hidden?: boolean;
+  key: ActionKey;
+  label: string;
+}
 
 interface AuditFilterState {
   eventType: string;
@@ -81,7 +101,77 @@ const onlineUserQuery = reactive({
 const sessionFilters = reactive({
   deviceQuery: '',
   status: '',
+  terminal: '',
 });
+
+const terminalFilterOptions = [
+  { label: 'Web', value: 'WEB' },
+  { label: 'PDA', value: 'PDA' },
+  { label: 'Mobile', value: 'MOBILE' },
+  { label: 'Kiosk', value: 'KIOSK' },
+  { label: 'API Client', value: 'API_CLIENT' },
+  { label: '工业平板', value: 'INDUSTRIAL_TABLET' },
+];
+
+/** renderAuthNativeActions renders auth session row commands with Ant Design Vue Dropdown/Menu directly. */
+function renderAuthNativeActions<ActionKey extends string>(
+  ariaLabel: string,
+  items: Array<AuthTableActionItem<ActionKey>>,
+  onClick: (key: ActionKey) => void,
+  width?: number,
+) {
+  const visibleItems = items.filter((item) => !item.hidden);
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作');
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': ariaLabel,
+            shape: 'circle',
+            size: 'small',
+            type: 'text',
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' }),
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            style: width ? `min-width:${width}px;` : undefined,
+            onClick: (info) => {
+              const action = visibleItems.find((item) => item.key === String(info.key));
+
+              if (!action || action.disabled) {
+                return;
+              }
+
+              onClick(action.key);
+            },
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                },
+                () => item.label,
+              ),
+            ),
+        ),
+    },
+  );
+}
 
 const filters = reactive<AuditFilterState>({
   eventType: '',
@@ -574,31 +664,27 @@ const auditColumns: TableColumnsType<AdminSecurityApi.AuditEvent> = [
     ellipsis: true,
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'actions',
     title: '操作',
     width: 150,
-    fixed: 'right',
-    customRender: ({ record }) => {
-      const item = record as AdminSecurityApi.AuditEvent;
-
-      if (!canViewUserSessions.value || !item.operatorId) {
-        return h('span', { class: 'session-muted-action' }, '无可用操作');
-      }
-
-      return h(
-        Button,
-        {
-          size: 'small',
-          type: 'link',
-          onClick: () =>
-            inspectUserSessions({
-              tenantId: item.tenantId,
-              userId: item.operatorId!,
-            }),
-        },
-        { default: () => '查看会话' },
-      );
-    },
+    customRender: ({ record }) =>
+      renderAuthNativeActions<AuditActionKey>(
+        '审计事件操作',
+        [
+          {
+            hidden: !canViewUserSessions.value || !record.operatorId,
+            key: 'inspectSessions',
+            label: '查看会话',
+          },
+        ],
+        () =>
+          inspectUserSessions({
+            tenantId: record.tenantId,
+            userId: record.operatorId!,
+          }),
+      ),
   },
 ];
 
@@ -645,29 +731,23 @@ const onlineUserColumns: TableColumnsType<AdminSecurityApi.OnlineUser> = [
     customRender: ({ value }) => formatTime(value as string | undefined),
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'actions',
     title: '操作',
     width: 150,
-    fixed: 'right',
-    customRender: ({ record }) => {
-      const user = record as AdminSecurityApi.OnlineUser;
-
-      return h(
-        Button,
-        {
-          size: 'small',
-          type: 'link',
-          onClick: () =>
-            inspectUserSessions({
-              displayName: user.displayName,
-              tenantId: user.tenantId,
-              tenantName: user.tenantName,
-              userId: user.userId,
-            }),
-        },
-        { default: () => '查看会话' },
-      );
-    },
+    customRender: ({ record }) =>
+      renderAuthNativeActions<OnlineUserActionKey>(
+        '在线用户操作',
+        [{ key: 'inspectSessions', label: '查看会话' }],
+        () =>
+          inspectUserSessions({
+            displayName: record.displayName,
+            tenantId: record.tenantId,
+            tenantName: record.tenantName,
+            userId: record.userId,
+          }),
+      ),
   },
 ];
 
@@ -697,6 +777,20 @@ const sessionColumns: TableColumnsType<AdminSecurityApi.Session> = [
     key: 'loginMethod',
     title: '登录方式',
     width: 140,
+  },
+  {
+    dataIndex: 'terminal',
+    key: 'terminal',
+    title: '终端',
+    width: 120,
+    customRender: ({ record }) => {
+      const session = record as AdminSecurityApi.Session;
+      return h(
+        Tag,
+        { color: getSessionTerminalColor(session.terminal) },
+        { default: () => getSessionTerminalLabel(session.terminal) },
+      );
+    },
   },
   {
     dataIndex: 'deviceName',
@@ -736,27 +830,24 @@ const sessionColumns: TableColumnsType<AdminSecurityApi.Session> = [
     customRender: ({ value }) => formatDuration(value as number | undefined),
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'actions',
     title: '操作',
     width: 150,
-    fixed: 'right',
-    customRender: ({ record }) => {
-      const session = record as AdminSecurityApi.Session;
-
-      if (!canRevokeUserSession.value || session.isRevoked) {
-        return h('span', { class: 'session-muted-action' }, '无可用操作');
-      }
-
-      return h(
-        Button,
-        {
-          size: 'small',
-          type: 'link',
-          onClick: () => openRevokeModal(session),
-        },
-        { default: () => '强制下线' },
-      );
-    },
+    customRender: ({ record }) =>
+      renderAuthNativeActions<SessionActionKey>(
+        '会话操作',
+        [
+          {
+            danger: true,
+            hidden: !canRevokeUserSession.value || record.isRevoked,
+            key: 'revoke',
+            label: '强制下线',
+          },
+        ],
+        () => openRevokeModal(record),
+      ),
   },
 ];
 
@@ -764,6 +855,7 @@ const sessionColumns: TableColumnsType<AdminSecurityApi.Session> = [
 const filteredSessionItems = computed(() => {
   const deviceQuery = sessionFilters.deviceQuery.trim().toLowerCase();
   const status = sessionFilters.status.trim().toUpperCase();
+  const terminal = (sessionFilters.terminal || '').trim().toUpperCase();
 
   return sessionItems.value.filter((session) => {
     if (status) {
@@ -778,11 +870,16 @@ const filteredSessionItems = computed(() => {
       }
     }
 
+    if (terminal && session.terminal?.trim().toUpperCase() !== terminal) {
+      return false;
+    }
+
     if (!deviceQuery) {
       return true;
     }
 
     return [
+      session.terminal,
       session.deviceName,
       session.platform,
       session.browser,
@@ -1132,10 +1229,10 @@ onMounted(async () => {
           <Form layout="vertical" class="filter-shell filter-shell--drawer">
             <div class="session-filter-header">
               <div class="session-filter-header__title">会话筛选</div>
-              <div class="session-filter-header__hint">按状态、设备、浏览器或 IP 缩小列表</div>
+              <div class="session-filter-header__hint">按状态、终端、设备、浏览器或 IP 缩小列表</div>
             </div>
             <Row :gutter="16">
-              <Col :span="10">
+              <Col :span="7">
                 <Form.Item label="状态">
                   <Input
                     v-model:value="sessionFilters.status"
@@ -1143,19 +1240,30 @@ onMounted(async () => {
                   />
                 </Form.Item>
               </Col>
-              <Col :span="10">
-                <Form.Item label="设备关键词">
-                  <Input
-                    v-model:value="sessionFilters.deviceQuery"
-                    placeholder="按设备、浏览器、平台或 IP 过滤"
+              <Col :span="7">
+                <Form.Item label="终端">
+                  <Select
+                    v-model:value="sessionFilters.terminal"
+                    allow-clear
+                    :options="terminalFilterOptions"
+                    placeholder="全部终端"
                   />
                 </Form.Item>
               </Col>
-              <Col :span="4">
+              <Col :span="7">
+                <Form.Item label="设备关键词">
+                  <Input
+                    v-model:value="sessionFilters.deviceQuery"
+                    placeholder="按设备、终端、浏览器、平台或 IP 过滤"
+                  />
+                </Form.Item>
+              </Col>
+              <Col :span="3">
                 <Form.Item label=" " :colon="false">
                   <Button
                     @click="
                       sessionFilters.status = '';
+                      sessionFilters.terminal = '';
                       sessionFilters.deviceQuery = '';
                     "
                   >
@@ -1194,7 +1302,7 @@ onMounted(async () => {
                 :pagination="false"
                 class="clean-table"
                 :row-key="(record) => record.sessionId"
-                :scroll="{ x: 1080 }"
+                :scroll="{ x: 1200 }"
                 size="small"
               />
             </Card>

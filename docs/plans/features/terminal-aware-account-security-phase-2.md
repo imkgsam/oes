@@ -161,6 +161,7 @@
 - PDA user 在绑定 tenant 内多个可 PDA account 时拒绝。
 - PDA user 在绑定 tenant 内唯一可 PDA account 时建立 session。
 - PDA session 记录 `terminalDeviceId / deviceBoundTenantId`。
+- PDA session 使用短作业终端 lifetime：access token 15 分钟、refresh token 20 分钟；PDA 15 分钟 idle 后 logout，App 关闭后不自动恢复用户登录态。
 - Web session 记录 `terminal / loginFlow / userId / accountId / tenantId`。
 - 租户 terminal MFA 覆盖平台默认。
 - PDA / KIOSK 默认 MFA 关闭，显式开启后才触发。

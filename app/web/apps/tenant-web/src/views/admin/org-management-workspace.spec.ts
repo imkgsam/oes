@@ -10,6 +10,7 @@ const createManagedOrgUnitApi = vi.fn()
 const getManagedOrgTreeApi = vi.fn()
 const getManagedOrgUnitByIdApi = vi.fn()
 const listManagedTenantsApi = vi.fn()
+const moveManagedOrgUnitApi = vi.fn()
 const updateManagedOrgUnitApi = vi.fn()
 const setTreeExpand = vi.fn()
 const push = vi.fn()
@@ -53,6 +54,7 @@ vi.mock('#/api', () => ({
   getManagedOrgTreeApi,
   getManagedOrgUnitByIdApi,
   listManagedTenantsApi,
+  moveManagedOrgUnitApi,
   updateManagedOrgUnitApi
 }))
 
@@ -186,6 +188,7 @@ describe('org management workspace', () => {
     getManagedOrgTreeApi.mockReset()
     getManagedOrgUnitByIdApi.mockReset()
     listManagedTenantsApi.mockReset()
+    moveManagedOrgUnitApi.mockReset()
     updateManagedOrgUnitApi.mockReset()
     setTreeExpand.mockReset()
     push.mockReset()
@@ -273,6 +276,20 @@ describe('org management workspace', () => {
         type: 'DEPARTMENT'
       }
     })
+    moveManagedOrgUnitApi.mockResolvedValue({
+      orgUnit: {
+        depth: 2,
+        id: 'org-dept-1',
+        name: '制造中心',
+        organizationPartyId: undefined,
+        parentOrgId: 'org-support-1',
+        path: '/org-root-1/org-support-1/org-dept-1',
+        sortOrder: 10,
+        status: 'ACTIVE',
+        tenantId: 'tenant-1',
+        type: 'DEPARTMENT'
+      }
+    })
   })
 
   afterEach(() => {
@@ -305,6 +322,8 @@ describe('org management workspace', () => {
     expect(wrapper.get('[data-testid="org-tree-panel"]').text()).not.toContain('未关联')
 
     const table = wrapper.findComponent(Table)
+    const operationColumn = (table.props('columns') as any[]).find((column) => column.key === 'operation')
+    expect(operationColumn).toEqual(expect.objectContaining({ align: 'right' }))
     const tableRows = table.props('dataSource') as any[]
     expect(tableRows[0].children[0].id).toBe('org-dept-1')
     expect(tableRows[0].children[0]).not.toHaveProperty('children')
@@ -542,6 +561,146 @@ describe('org management workspace', () => {
     expect(editDrawer).not.toBeNull()
     expect(editDrawer?.textContent ?? '').toContain('编辑组织节点')
     expect(editDrawer?.textContent ?? '').toContain('排序')
+  })
+
+  it('edits an org unit parent through the same tree selector pattern as creation', async () => {
+    authContextState.actionCodes = [
+      'tenant_org.org_unit.list_tree',
+      'tenant_org.org_unit.get_by_id',
+      'tenant_org.org_unit.update'
+    ]
+    getManagedOrgTreeApi.mockResolvedValue({
+      roots: [
+        {
+          children: [
+            {
+              children: [
+                {
+                  children: [],
+                  orgUnit: {
+                    depth: 2,
+                    id: 'org-team-1',
+                    name: '夜班小组',
+                    parentOrgId: 'org-dept-1',
+                    path: '/org-root-1/org-dept-1/org-team-1',
+                    sortOrder: 20,
+                    status: 'ACTIVE',
+                    tenantId: 'tenant-1',
+                    type: 'TEAM'
+                  }
+                }
+              ],
+              orgUnit: {
+                depth: 1,
+                id: 'org-dept-1',
+                name: '制造中心',
+                parentOrgId: 'org-root-1',
+                path: '/org-root-1/org-dept-1',
+                sortOrder: 10,
+                status: 'ACTIVE',
+                tenantId: 'tenant-1',
+                type: 'DEPARTMENT'
+              }
+            },
+            {
+              children: [],
+              orgUnit: {
+                depth: 1,
+                id: 'org-support-1',
+                name: '运营支持',
+                parentOrgId: 'org-root-1',
+                path: '/org-root-1/org-support-1',
+                sortOrder: 30,
+                status: 'ACTIVE',
+                tenantId: 'tenant-1',
+                type: 'DEPARTMENT'
+              }
+            }
+          ],
+          orgUnit: {
+            depth: 0,
+            id: 'org-root-1',
+            name: 'Alpha 集团',
+            path: '/org-root-1',
+            sortOrder: 0,
+            status: 'ACTIVE',
+            tenantId: 'tenant-1',
+            type: 'ROOT'
+          }
+        }
+      ],
+      scope: 'TENANT'
+    })
+    updateManagedOrgUnitApi.mockResolvedValue({
+      orgUnit: {
+        depth: 1,
+        id: 'org-dept-1',
+        name: '制造中心',
+        organizationPartyId: undefined,
+        parentOrgId: 'org-root-1',
+        path: '/org-root-1/org-dept-1',
+        sortOrder: 10,
+        status: 'ACTIVE',
+        tenantId: 'tenant-1',
+        type: 'DEPARTMENT'
+      }
+    })
+
+    const view = await import('./org-management-workspace.vue')
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      props: {
+        managementMode: 'TENANT'
+      },
+      global: {
+        directives: {
+          loading: {}
+        }
+      }
+    })
+
+    await flushPromises()
+    await wrapper.get('[data-testid="org-edit-org-dept-1"]').trigger('click')
+    await flushPromises()
+
+    const parentTree = wrapper.findAllComponents(TreeSelect).find(
+      (component) => component.attributes('data-testid') === 'org-edit-parent-tree'
+    )
+    expect(parentTree?.exists()).toBe(true)
+    expect(parentTree?.props('treeCheckable')).toBeFalsy()
+    expect(parentTree?.props('multiple')).toBeFalsy()
+    expect(parentTree?.props('treeData')).toEqual([
+      {
+        children: [
+          {
+            children: [],
+            key: 'org-support-1',
+            title: '运营支持',
+            value: 'org-support-1'
+          }
+        ],
+        key: 'org-root-1',
+        title: 'Alpha 集团',
+        value: 'org-root-1'
+      }
+    ])
+
+    parentTree?.vm.$emit('update:value', 'org-support-1')
+    await flushPromises()
+
+    const saveButton = document.body.querySelector('[data-testid="org-edit-save"]') as HTMLButtonElement
+    saveButton.click()
+    await flushPromises()
+
+    expect(updateManagedOrgUnitApi).toHaveBeenCalledWith('tenant-1', 'org-dept-1', {
+      name: '制造中心',
+      sortOrder: 10,
+      type: 'DEPARTMENT'
+    })
+    expect(moveManagedOrgUnitApi).toHaveBeenCalledWith('tenant-1', 'org-dept-1', {
+      newParentOrgId: 'org-support-1'
+    })
   })
 
   it('keeps ordinary creation on row append actions instead of a duplicate toolbar create button', async () => {
@@ -830,5 +989,5 @@ describe('org management workspace', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="org-tree-panel"]').text()).toContain('制造中心')
-  })
+  }, 15_000)
 })

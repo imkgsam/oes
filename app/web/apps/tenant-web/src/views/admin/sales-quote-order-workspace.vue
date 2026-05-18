@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { SalesApi } from '#/api'
+import type { TableColumnsType } from 'ant-design-vue'
 
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, h, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { IconifyIcon } from '@vben/icons'
+import { Button, Dropdown, Menu, Table } from 'ant-design-vue'
 
 import {
   changePriceListStatusApi,
@@ -33,6 +36,15 @@ interface WorkspaceFilters {
   quoteStatus: '' | SalesApi.QuoteStatus
 }
 
+interface SalesTableActionItem<ActionKey extends string> {
+  danger?: boolean
+  disabled?: boolean
+  hidden?: boolean
+  key: ActionKey
+  label: string
+  testId?: string
+}
+
 interface PriceListLineFormState {
   brandKey: string
   itemId: string
@@ -53,6 +65,8 @@ interface PriceListFormState {
 }
 
 interface CustomerAgreementLineFormState extends PriceListLineFormState {}
+
+type QuoteTableActionKey = 'convert' | 'detail' | 'publish'
 
 const authContextStore = useAuthContextStore()
 const router = useRouter()
@@ -112,6 +126,138 @@ const agreementStatus = ref<SalesApi.CustomerPriceAgreementStatus | string>('DRA
 const agreementVersionNo = ref(0)
 const agreementLines = ref<CustomerAgreementLineFormState[]>([])
 const agreementVersions = ref<SalesApi.CustomerPriceAgreementVersionSummary[]>([])
+
+/** renderSalesNativeActions renders sales row commands with Ant Design Vue Dropdown/Menu directly. */
+function renderSalesNativeActions<ActionKey extends string>(
+  ariaLabel: string,
+  items: Array<SalesTableActionItem<ActionKey>>,
+  onClick: (key: ActionKey) => void
+) {
+  const visibleItems = items.filter((item) => !item.hidden)
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作')
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': ariaLabel,
+            shape: 'circle',
+            size: 'small',
+            type: 'text'
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' })
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: (info) => {
+              const action = visibleItems.find((item) => item.key === String(info.key))
+
+              if (!action || action.disabled) {
+                return
+              }
+
+              onClick(action.key)
+            }
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                  'data-testid': item.testId
+                },
+                () => item.label
+              )
+            )
+        )
+    }
+  )
+}
+
+const quoteColumns = computed<TableColumnsType<SalesApi.Quote>>(() => [
+  { dataIndex: 'quoteNo', key: 'quoteNo', title: '报价单号' },
+  { dataIndex: 'customerTenantPartyId', key: 'customerTenantPartyId', title: '客户主体' },
+  { dataIndex: 'status', key: 'status', title: '状态' },
+  {
+    dataIndex: 'latestPublishedVersionId',
+    key: 'latestPublishedVersionId',
+    title: '最近版本',
+    customRender: ({ record }) => record.latestPublishedVersionId || '未发布'
+  },
+  {
+    align: 'center',
+    fixed: 'right',
+    key: 'actions',
+    title: '操作',
+    width: 72,
+    customRender: ({ record }) =>
+      renderSalesNativeActions<QuoteTableActionKey>(
+        '报价操作',
+        [
+          {
+            hidden: !canViewQuoteDetail.value,
+            key: 'detail',
+            label: '详情',
+            testId: `sales-open-quote-${record.quoteId}`
+          },
+          {
+            hidden: !canPublishQuote.value,
+            key: 'publish',
+            label: '发布',
+            testId: `sales-publish-quote-${record.quoteId}`
+          },
+          {
+            hidden: !record.latestPublishedVersionId || !canConvertQuote.value,
+            key: 'convert',
+            label: '转订单',
+            testId: `sales-convert-version-${record.latestPublishedVersionId}`
+          }
+        ],
+        (key) => handleQuoteTableAction(key, record)
+      )
+  }
+])
+const salesOrderColumns = computed<TableColumnsType<SalesApi.SalesOrder>>(() => [
+  { dataIndex: 'salesOrderNo', key: 'salesOrderNo', title: '订单单号' },
+  { dataIndex: 'quoteVersionId', key: 'quoteVersionId', title: '来源版本' },
+  {
+    key: 'productionGate',
+    title: '生产放行',
+    customRender: ({ record }) => (record.commercialGateSummary.productionGate ? 'YES' : 'NO')
+  },
+  {
+    key: 'fulfillmentHandoff',
+    title: '发货交接',
+    customRender: ({ record }) => record.fulfillmentHandoffStatus.status
+  },
+  {
+    align: 'center',
+    fixed: 'right',
+    key: 'actions',
+    title: '操作',
+    width: 72,
+    customRender: ({ record }) =>
+      renderSalesNativeActions(
+        '销售订单操作',
+        canViewSalesOrderDetail.value
+          ? [{ key: 'detail', label: '详情', testId: `sales-open-order-${record.salesOrderId}` }]
+          : [],
+        () => openOrderDetail(record.salesOrderId)
+      )
+  }
+])
 
 /** buildAgreementLineFromApi converts one loaded agreement line into the editable workspace form shape. */
 function buildAgreementLineFromApi(line: SalesApi.CustomerPriceAgreementLine): CustomerAgreementLineFormState {
@@ -243,6 +389,23 @@ async function publishQuote(quoteId: string) {
     auditReason: 'publish from tenant-web sales workspace'
   })
   await loadWorkspace()
+}
+
+/** handleQuoteTableAction routes one quote row menu command to the existing sales workspace actions. */
+function handleQuoteTableAction(key: QuoteTableActionKey, quote: SalesApi.Quote) {
+  if (key === 'detail') {
+    openQuoteDetail(quote.quoteId)
+    return
+  }
+
+  if (key === 'publish') {
+    void publishQuote(quote.quoteId)
+    return
+  }
+
+  if (quote.latestPublishedVersionId) {
+    void convertVersion(quote.latestPublishedVersionId)
+  }
 }
 
 /** convertVersion converts one published quote version into an established order, then opens the new order detail route. */
@@ -508,94 +671,28 @@ onMounted(() => {
 
       <section class="sales-card">
         <h2>报价列表</h2>
-        <table class="sales-table">
-          <thead>
-            <tr>
-              <th>报价单号</th>
-              <th>客户主体</th>
-              <th>状态</th>
-              <th>最近版本</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="quote in quotes" :key="quote.quoteId">
-              <td>{{ quote.quoteNo }}</td>
-              <td>{{ quote.customerTenantPartyId }}</td>
-              <td>{{ quote.status }}</td>
-              <td>{{ quote.latestPublishedVersionId || '未发布' }}</td>
-              <td class="sales-actions">
-                <button
-                  v-access:code="'sales.quote.get_by_id'"
-                  v-if="canViewQuoteDetail"
-                  :data-testid="`sales-open-quote-${quote.quoteId}`"
-                  type="button"
-                  @click="openQuoteDetail(quote.quoteId)"
-                >
-                  详情
-                </button>
-                <button
-                  v-access:code="'sales.quote.publish'"
-                  v-if="canPublishQuote"
-                  :data-testid="`sales-publish-quote-${quote.quoteId}`"
-                  type="button"
-                  @click="publishQuote(quote.quoteId)"
-                >
-                  发布
-                </button>
-                <button
-                  v-access:code="'sales.quote.convert_to_order'"
-                  v-if="quote.latestPublishedVersionId && canConvertQuote"
-                  :data-testid="`sales-convert-version-${quote.latestPublishedVersionId}`"
-                  type="button"
-                  @click="convertVersion(quote.latestPublishedVersionId)"
-                >
-                  转订单
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!quotes.length">
-              <td colspan="5">暂无报价</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="quoteColumns"
+          :data-source="quotes"
+          :loading="loading"
+          :locale="{ emptyText: '暂无报价' }"
+          :pagination="false"
+          row-key="quoteId"
+          size="middle"
+        />
       </section>
 
       <section class="sales-card">
         <h2>订单列表</h2>
-        <table class="sales-table">
-          <thead>
-            <tr>
-              <th>订单单号</th>
-              <th>来源版本</th>
-              <th>生产放行</th>
-              <th>发货交接</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="order in salesOrders" :key="order.salesOrderId">
-              <td>{{ order.salesOrderNo }}</td>
-              <td>{{ order.quoteVersionId }}</td>
-              <td>{{ order.commercialGateSummary.productionGate ? 'YES' : 'NO' }}</td>
-              <td>{{ order.fulfillmentHandoffStatus.status }}</td>
-              <td>
-                <button
-                  v-access:code="'sales.order.get_by_id'"
-                  v-if="canViewSalesOrderDetail"
-                  :data-testid="`sales-open-order-${order.salesOrderId}`"
-                  type="button"
-                  @click="openOrderDetail(order.salesOrderId)"
-                >
-                  详情
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!salesOrders.length">
-              <td colspan="5">暂无订单</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="salesOrderColumns"
+          :data-source="salesOrders"
+          :loading="loading"
+          :locale="{ emptyText: '暂无订单' }"
+          :pagination="false"
+          row-key="salesOrderId"
+          size="middle"
+        />
       </section>
 
       <section
@@ -850,18 +947,6 @@ onMounted(() => {
 .sales-pricing-list button {
   justify-content: space-between;
   width: 100%;
-}
-
-.sales-table {
-  border-collapse: collapse;
-  width: 100%;
-}
-
-.sales-table th,
-.sales-table td {
-  border-bottom: 1px solid #e5e7eb;
-  padding: 10px 8px;
-  text-align: left;
 }
 
 button,

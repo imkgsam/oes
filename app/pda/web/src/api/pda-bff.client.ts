@@ -191,7 +191,7 @@ export type PdaHeartbeatRequest = {
   session: {
     accountId: string;
     tenantId?: string | null;
-    sessionId: string;
+    sessionId?: string | null;
   } | null;
   clientTime: string;
 };
@@ -292,14 +292,19 @@ export async function loginPda(request: PdaLoginRequest): Promise<PdaLoginRespon
       method: resolvePasswordLoginMethod(request.identifier),
       identifier: request.identifier,
       credential: request.credential,
-      terminalDeviceId: request.terminalDeviceId,
-      device: {
-        ...request.device,
-        deviceId: request.terminalDeviceId,
-        deviceName: request.deviceName || 'OES PDA',
-      },
+      device: toLoginDeviceDescriptor(request),
     }),
   });
+}
+
+/** Maps a managed PDA descriptor into the auth BFF login device DTO shape. */
+function toLoginDeviceDescriptor(request: PdaLoginRequest) {
+  return {
+    deviceId: request.terminalDeviceId,
+    deviceName: request.deviceName || 'OES PDA',
+    identity: request.device.identity,
+    software: request.device.software,
+  };
 }
 
 /** Selects a single PDA account candidate and continues the terminal-scoped login flow. */

@@ -30,8 +30,12 @@ import {
   CreatePackagingMethodResponse,
   CreatePackagingSpecRequest,
   CreatePackagingSpecResponse,
+  DeleteItemCategoryRequest,
+  DeleteItemCategoryResponse,
   ItemMasterManagementServiceController,
   ItemMasterManagementServiceControllerMethods,
+  MoveItemCategoryRequest,
+  MoveItemCategoryResponse,
   ReplaceBomLinesRequest,
   ReplaceBomLinesResponse,
   SetItemCapabilitiesRequest,
@@ -173,9 +177,21 @@ export class ItemMasterManagementGrpcController implements ItemMasterManagementS
     )
   }
 
+  moveItemCategory(request: MoveItemCategoryRequest): Promise<MoveItemCategoryResponse> {
+    return this.audit('MoveItemCategory', request.tenantId, request.categoryId, request, () =>
+      this.commands.moveItemCategory(request)
+    )
+  }
+
   changeItemCategoryStatus(request: ChangeItemCategoryStatusRequest): Promise<ChangeItemCategoryStatusResponse> {
     return this.audit('ChangeItemCategoryStatus', request.tenantId, request.categoryId, request, () =>
       this.commands.changeItemCategoryStatus(request)
+    )
+  }
+
+  deleteItemCategory(request: DeleteItemCategoryRequest): Promise<DeleteItemCategoryResponse> {
+    return this.audit('DeleteItemCategory', request.tenantId, request.categoryId, request, () =>
+      this.commands.deleteItemCategory(request)
     )
   }
 

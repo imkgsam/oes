@@ -4,7 +4,7 @@ import { resolvePdaSessionRoute } from '@/router';
 import { setBridgeClient } from '@/bridge/bridge-client';
 import { useSessionStore } from '@/stores/session.store';
 
-describe('pda router session restore', () => {
+describe('pda router session guard', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     setBridgeClient({
@@ -25,7 +25,7 @@ describe('pda router session restore', () => {
     vi.unstubAllGlobals();
   });
 
-  it('restores a persisted PDA session before staying on the login route', async () => {
+  it('keeps a bound PDA on login after app restart instead of restoring a user session', async () => {
     window.localStorage.setItem(
       'oes:pda:terminal-device-binding',
       JSON.stringify({
@@ -41,58 +41,39 @@ describe('pda router session restore', () => {
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
       }),
     );
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              data: {
-                accessToken: 'new-access-token',
-                refreshToken: 'new-refresh-token',
-                expiresIn: 900,
-                terminal: 'PDA',
-              },
-            }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              data: {
-                account: {
-                  accountId: 'account-1',
-                  displayName: 'Operator One',
-                },
-                session: {
-                  terminal: 'PDA',
-                  terminalDeviceId: 'terminal-device-1',
-                  idleTimeoutSeconds: 900,
-                },
-                decision: {
-                  allowed: true,
-                  decisionCode: 'ALLOW',
-                  requiredAction: 'NONE',
-                  shouldClearLocalSession: false,
-                  shouldClearLocalTerminalDeviceId: false,
-                },
-              },
-            }),
-        }),
-    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
 
     const redirect = await resolvePdaSessionRoute('/login');
 
-    expect(redirect).toBe('/workbench');
-    expect(useSessionStore().operatorName).toBe('Operator One');
+    expect(redirect).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(useSessionStore().operatorName).toBe(null);
+    expect(window.localStorage.getItem('oes:pda:session-tokens')).toBe(null);
   });
 
   it('routes unbound PDA launches to enrollment before login', async () => {
     const redirect = await resolvePdaSessionRoute('/login');
 
     expect(redirect).toBe('/enrollment');
+  });
+
+  it('routes a persisted disabled device binding to the restricted page after app restart', async () => {
+    window.localStorage.setItem(
+      'oes:pda:terminal-device-binding',
+      JSON.stringify({
+        terminalDeviceId: 'terminal-device-1',
+        displayName: 'PDA-01',
+        deviceStatus: 'DISABLED',
+      }),
+    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const redirect = await resolvePdaSessionRoute('/login');
+
+    expect(redirect).toBe('/device-restricted');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it('routes denied managed devices to their restricted pages', async () => {

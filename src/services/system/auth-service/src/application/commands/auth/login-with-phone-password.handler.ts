@@ -56,7 +56,7 @@ export class LoginWithPhonePasswordHandler
   async execute(command: LoginWithPhonePasswordCommand): Promise<LoginWithPhonePasswordResult> {
     await this.terminalLoginPolicyService.assertFlowAllowed(
       command.terminal || 'WEB',
-      TerminalLoginFlow.PhonePassword
+      command.loginFlow || TerminalLoginFlow.PhonePassword
     )
 
     try {
@@ -96,6 +96,8 @@ export class LoginWithPhonePasswordHandler
         this.authAuditService.emitLoginFailed(command.phone, 'INVALID_CREDENTIALS', {
           method: LoginMethodEnum.PhonePassword,
           userId: user?.userId,
+          terminal: command.terminal || 'WEB',
+          loginFlow: command.loginFlow || TerminalLoginFlow.PhonePassword,
           deviceName: deviceContext.deviceName,
           userAgent: deviceContext.userAgent,
           ipAddress: deviceContext.ipAddress,

@@ -10,6 +10,7 @@ export const ITEM_MASTER_MANAGEMENT_PERMISSION_CODES = {
   CREATE_ITEM_CATEGORY: 'item_master.item_category.create',
   UPDATE_ITEM_CATEGORY_BASICS: 'item_master.item_category.update_basics',
   UPDATE_ITEM_CATEGORY_STATUS: 'item_master.item_category.update_status',
+  DELETE_ITEM_CATEGORY: 'item_master.item_category.delete',
   LIST_ATTRIBUTE: 'item_master.attribute.list',
   CREATE_ATTRIBUTE: 'item_master.attribute.create',
   MANAGE_ATTRIBUTE: 'item_master.attribute.manage',

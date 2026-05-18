@@ -145,9 +145,21 @@ describe('procurement workspace page', () => {
     expect(wrapper.text()).toContain('re-1')
 
     await wrapper.get('[data-testid="procurement-open-create-pr"]').trigger('click')
-    await wrapper.get('[data-testid="procurement-open-pr-pr-1"]').trigger('click')
-    await wrapper.get('[data-testid="procurement-open-po-po-1"]').trigger('click')
-    await wrapper.get('[data-testid="procurement-open-re-re-1"]').trigger('click')
+    await wrapper.get('button[aria-label="采购申请操作"]').trigger('click')
+    await flushPromises()
+    document.querySelector('[data-testid="procurement-open-pr-pr-1"]')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
+    await wrapper.get('button[aria-label="采购订单操作"]').trigger('click')
+    await flushPromises()
+    document.querySelector('[data-testid="procurement-open-po-po-1"]')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
+    await wrapper.get('button[aria-label="收货预期操作"]').trigger('click')
+    await flushPromises()
+    document.querySelector('[data-testid="procurement-open-re-re-1"]')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
 
     expect(push).toHaveBeenNthCalledWith(1, {
       name: 'TenantPurchaseRequestCreate'

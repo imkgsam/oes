@@ -14,6 +14,7 @@ import { IPermissionServicePort } from '../../ports'
 import { AuthAuditService } from '../../services/auth-audit.service'
 import { PasswordSetupRequirementService } from '../../services/password-setup-requirement.service'
 import { TenantSessionAccessService } from '../../services/tenant-session-access.service'
+import { resolveTerminalSessionLifetime } from '../../services/terminal-session-lifetime'
 import { TrustedDeviceService } from '../../services/trusted-device.service'
 import { IUserSessionRepository } from '../../../domain/repositories/user-session.repository'
 import { Session } from '../../../domain/aggregates/usersession.aggregate'
@@ -81,6 +82,7 @@ export class RefreshSessionHandler
 
     await this.assertTenantSessionCanContinue(session)
     const terminalAccess = await this.assertTerminalAccessCanContinue(session)
+    const tokenWindow = resolveTerminalSessionLifetime(session.getTerminal(), tokenConfig)
 
     const signOptions = {
       ...(tokenConfig.issuer ? { issuer: tokenConfig.issuer } : {}),
@@ -102,9 +104,14 @@ export class RefreshSessionHandler
         terminalAccess.effectiveAllowedTerminals,
         roleIds,
         'access',
-        passwordSetupRequired
+        passwordSetupRequired,
+        session.getTerminalDeviceId(),
+        session.getDeviceBoundTenantId()
       ),
-      signOptions
+      {
+        ...signOptions,
+        expiresIn: tokenWindow.accessTokenValidity
+      }
     )
 
     const nextRefreshToken = this.jwtService.signRefreshToken(
@@ -118,15 +125,20 @@ export class RefreshSessionHandler
         terminalAccess.effectiveAllowedTerminals,
         roleIds,
         'refresh',
-        passwordSetupRequired
+        passwordSetupRequired,
+        session.getTerminalDeviceId(),
+        session.getDeviceBoundTenantId()
       ),
-      signOptions
+      {
+        ...signOptions,
+        expiresIn: tokenWindow.refreshTokenValidity
+      }
     )
 
     session.activateTokenWindow(
       nextRefreshToken,
-      tokenConfig.accessTokenValidity,
-      tokenConfig.refreshTokenValidity
+      tokenWindow.accessTokenValidity,
+      tokenWindow.refreshTokenValidity
     )
     await this.sessionRepository.save(session)
     await this.trustedDeviceService.markTrustedDeviceSeen({
@@ -146,7 +158,7 @@ export class RefreshSessionHandler
       allowedTerminals: terminalAccess.effectiveAllowedTerminals,
       accessToken,
       refreshToken: nextRefreshToken,
-      expiresIn: tokenConfig.accessTokenValidity
+      expiresIn: tokenWindow.accessTokenValidity
     }
 
     this.authAuditService.emitSessionRefreshed(session)
@@ -264,7 +276,9 @@ export class RefreshSessionHandler
     allowedTerminals: string[],
     roleIds: string[],
     tokenType: 'access' | 'refresh',
-    passwordSetupRequired: boolean
+    passwordSetupRequired: boolean,
+    terminalDeviceId?: string,
+    deviceBoundTenantId?: string
   ): Record<string, unknown> {
     return {
       sub: userId,
@@ -273,6 +287,8 @@ export class RefreshSessionHandler
       ...(tenantId ? { tid: tenantId } : {}),
       scopeLevel,
       terminal,
+      ...(terminalDeviceId ? { terminalDeviceId } : {}),
+      ...(deviceBoundTenantId ? { deviceBoundTenantId } : {}),
       allowedTerminals,
       passwordSetupRequired,
       roles: roleIds,

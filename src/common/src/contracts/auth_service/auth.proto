@@ -61,6 +61,7 @@ service AuthService {
   rpc RevokeOtherTrustedDevices(RevokeOtherTrustedDevicesRequest) returns (RevokeOtherTrustedDevicesResponse);
   rpc AdminListOnlineUsers(AdminListOnlineUsersRequest) returns (AdminListOnlineUsersResponse);
   rpc AdminListUserSessions(AdminListUserSessionsRequest) returns (AdminListUserSessionsResponse);
+  rpc AdminListTerminalDeviceSessions(AdminListTerminalDeviceSessionsRequest) returns (AdminListTerminalDeviceSessionsResponse);
   rpc AdminRevokeSession(AdminRevokeSessionRequest) returns (AdminRevokeSessionResponse);
   rpc AdminDeleteAccountSessions(AdminDeleteAccountSessionsRequest) returns (AdminDeleteAccountSessionsResponse);
   rpc RevokeTenantSessions(RevokeTenantSessionsRequest) returns (RevokeTenantSessionsResponse);
@@ -826,6 +827,15 @@ message AdminListUserSessionsResponse {
   repeated AdminSessionView sessions = 1;
 }
 
+message AdminListTerminalDeviceSessionsRequest {
+  string terminal_device_id = 1;
+  string terminal = 2;
+}
+
+message AdminListTerminalDeviceSessionsResponse {
+  repeated AdminSessionView sessions = 1;
+}
+
 message AdminRevokeSessionRequest {
   string session_id = 1;
   string reason = 2;
@@ -952,6 +962,8 @@ message LoginHistoryRecord {
   string browser = 7;
   string failure_reason = 8;
   string trace_id = 9;
+  string terminal = 10;
+  string login_flow = 11;
 }
 
 message ListLoginHistoryResponse {

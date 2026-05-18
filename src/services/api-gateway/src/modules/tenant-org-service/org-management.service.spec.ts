@@ -13,6 +13,7 @@ describe('OrgManagementService', () => {
   const tenantOrgManagementAdapter = {
     archiveOrgUnit: jest.fn(),
     createOrgUnit: jest.fn(),
+    moveOrgUnit: jest.fn(),
     updateOrgUnit: jest.fn()
   }
 
@@ -29,6 +30,7 @@ describe('OrgManagementService', () => {
     partyQueryAdapter.getPartyById.mockReset()
     tenantOrgManagementAdapter.archiveOrgUnit.mockReset()
     tenantOrgManagementAdapter.createOrgUnit.mockReset()
+    tenantOrgManagementAdapter.moveOrgUnit.mockReset()
     tenantOrgManagementAdapter.updateOrgUnit.mockReset()
   })
 
@@ -231,6 +233,49 @@ describe('OrgManagementService', () => {
         type: undefined,
         sortOrder: undefined,
         organizationPartyId: null
+      },
+      source
+    )
+  })
+
+  it('moveOrgUnit / should forward a bounded move command to tenant-org-service', async () => {
+    const source = { requestId: 'req-1', traceId: 'trace-1', user: { scopeLevel: 'SYSTEM' } }
+    tenantOrgManagementAdapter.moveOrgUnit.mockResolvedValue({
+      orgUnit: {
+        id: 'org-1',
+        tenantId: 'tenant-1',
+        parentOrgId: 'org-parent-2',
+        name: 'Manufacturing',
+        type: 'DEPARTMENT',
+        status: 'ACTIVE',
+        path: '/root-1/org-parent-2/org-1',
+        depth: 2,
+        sortOrder: 10,
+        organizationPartyId: undefined
+      }
+    })
+
+    await expect(
+      service.moveOrgUnit(
+        'tenant-1',
+        'org-1',
+        {
+          newParentOrgId: 'org-parent-2'
+        },
+        source as any
+      )
+    ).resolves.toEqual({
+      orgUnit: expect.objectContaining({
+        id: 'org-1',
+        parentOrgId: 'org-parent-2'
+      })
+    })
+
+    expect(tenantOrgManagementAdapter.moveOrgUnit).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        orgUnitId: 'org-1',
+        newParentOrgId: 'org-parent-2'
       },
       source
     )

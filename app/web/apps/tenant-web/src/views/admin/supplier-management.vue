@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import type { SupplierManagementApi } from '#/api'
+import type { TableColumnsType } from 'ant-design-vue'
 
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, h, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { IconifyIcon } from '@vben/icons'
+import { Button, Dropdown, Menu, Table } from 'ant-design-vue'
 
 import { listManagedSuppliersApi } from '#/api'
 import { useAuthContextStore } from '#/store/auth-context'
@@ -13,6 +16,15 @@ interface SupplierFilterState {
   keyword: string
   status: '' | SupplierManagementApi.SupplierStatus
   tenantPartyId: string
+}
+
+interface SupplierTableActionItem<ActionKey extends string> {
+  danger?: boolean
+  disabled?: boolean
+  hidden?: boolean
+  key: ActionKey
+  label: string
+  testId?: string
 }
 
 const authContextStore = useAuthContextStore()
@@ -37,6 +49,114 @@ const filters = reactive<SupplierFilterState>({
 })
 const suppliers = ref<SupplierManagementApi.SupplierProfile[]>([])
 const loading = ref(false)
+
+/** renderSupplierNativeActions renders supplier row commands with Ant Design Vue Dropdown/Menu directly. */
+function renderSupplierNativeActions<ActionKey extends string>(
+  ariaLabel: string,
+  items: Array<SupplierTableActionItem<ActionKey>>,
+  onClick: (key: ActionKey) => void
+) {
+  const visibleItems = items.filter((item) => !item.hidden)
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作')
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': ariaLabel,
+            shape: 'circle',
+            size: 'small',
+            type: 'text'
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' })
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: (info) => {
+              const action = visibleItems.find((item) => item.key === String(info.key))
+
+              if (!action || action.disabled) {
+                return
+              }
+
+              onClick(action.key)
+            }
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                  'data-testid': item.testId
+                },
+                () => item.label
+              )
+            )
+        )
+    }
+  )
+}
+
+const supplierColumns = computed<TableColumnsType<SupplierManagementApi.SupplierProfile>>(() => [
+  {
+    dataIndex: 'supplierNo',
+    key: 'supplierNo',
+    title: '编号',
+    customRender: ({ record }) => record.supplierNo || '-'
+  },
+  { dataIndex: 'displayName', key: 'displayName', title: '名称' },
+  { dataIndex: 'status', key: 'status', title: '状态' },
+  {
+    dataIndex: 'supplierCategory',
+    key: 'supplierCategory',
+    title: '分类',
+    customRender: ({ record }) => record.supplierCategory || '-'
+  },
+  {
+    dataIndex: 'tags',
+    key: 'tags',
+    title: '标签',
+    customRender: ({ record }) => record.tags.join(', ') || '-'
+  },
+  {
+    key: 'partyBinding',
+    title: '正式主体',
+    customRender: ({ record }) =>
+      record.partyBinding
+        ? h('span', [
+            record.partyBinding.tenantPartyId,
+            h('small', record.partyBinding.partyDisplayName)
+          ])
+        : '-'
+  },
+  {
+    align: 'center',
+    fixed: 'right',
+    key: 'actions',
+    title: '操作',
+    width: 72,
+    customRender: ({ record }) =>
+      renderSupplierNativeActions(
+        '供应商操作',
+        canViewSupplierDetail.value
+          ? [{ key: 'detail', label: '详情', testId: `supplier-detail-button-${record.supplierId}` }]
+          : [],
+        () => openDetailPage(record.supplierId)
+      )
+  }
+])
 
 /** loadSuppliers refreshes the tenant-scoped SRM supplier directory using the current filter state. */
 async function loadSuppliers() {
@@ -139,49 +259,15 @@ onMounted(() => {
       <section class="supplier-card">
         <h2>供应商列表</h2>
         <p class="supplier-note">phase 1 不扩展 SupplierItemMapping、RFQ、SupplierQuote、采购价格、MOQ、账期或 lead time。</p>
-        <table class="supplier-table">
-          <thead>
-            <tr>
-              <th>编号</th>
-              <th>名称</th>
-              <th>状态</th>
-              <th>分类</th>
-              <th>标签</th>
-              <th>正式主体</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="supplier in suppliers" :key="supplier.supplierId">
-              <td>{{ supplier.supplierNo || '-' }}</td>
-              <td>{{ supplier.displayName }}</td>
-              <td>{{ supplier.status }}</td>
-              <td>{{ supplier.supplierCategory || '-' }}</td>
-              <td>{{ supplier.tags.join(', ') || '-' }}</td>
-              <td>
-                <span v-if="supplier.partyBinding">
-                  {{ supplier.partyBinding.tenantPartyId }}
-                  <small>{{ supplier.partyBinding.partyDisplayName }}</small>
-                </span>
-                <span v-else>-</span>
-              </td>
-              <td>
-                <button
-                  v-access:code="'srm.supplier_profile.get_by_id'"
-                  v-if="canViewSupplierDetail"
-                  :data-testid="`supplier-detail-button-${supplier.supplierId}`"
-                  type="button"
-                  @click="openDetailPage(supplier.supplierId)"
-                >
-                  详情
-                </button>
-              </td>
-            </tr>
-            <tr v-if="!suppliers.length">
-              <td colspan="7">暂无供应商</td>
-            </tr>
-          </tbody>
-        </table>
+        <Table
+          :columns="supplierColumns"
+          :data-source="suppliers"
+          :loading="loading"
+          :locale="{ emptyText: '暂无供应商' }"
+          :pagination="false"
+          row-key="supplierId"
+          size="middle"
+        />
       </section>
     </section>
   </Page>

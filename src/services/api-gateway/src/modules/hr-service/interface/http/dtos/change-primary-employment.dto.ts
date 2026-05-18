@@ -18,4 +18,9 @@ export class ChangePrimaryEmploymentDto {
   @IsOptional()
   @IsString()
   endedReason?: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  positionName?: string
 }

@@ -11,6 +11,7 @@ import {
   CreateOrgUnitResponse,
   CreateTenantResponse,
   GetTenantOnboardingResponse,
+  MoveOrgUnitResponse,
   ReactivateTenantResponse,
   RetryTenantOnboardingResponse,
   StartTenantOnboardingResponse,
@@ -267,6 +268,26 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       ),
       (response: UpdateOrgUnitResponse) => ({
+        orgUnit: response.orgUnit ? mapOrgUnit(response.orgUnit) : undefined
+      })
+    )
+  }
+
+  moveOrgUnit(
+    input: {
+      newParentOrgId: string
+      orgUnitId: string
+      tenantId: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<{ orgUnit?: TenantManagementMutationOrgUnit }> {
+    return this.call(
+      'moveOrgUnit',
+      this.svc.moveOrgUnit(
+        input,
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      ),
+      (response: MoveOrgUnitResponse) => ({
         orgUnit: response.orgUnit ? mapOrgUnit(response.orgUnit) : undefined
       })
     )

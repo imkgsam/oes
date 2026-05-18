@@ -59,7 +59,7 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         meta: {
           entryKey: 'admin.platform-mfa',
           icon: 'lucide:shield-check',
-          title: '平台 MFA 配置',
+          title: 'MFA 因子配置',
         },
       },
       {
@@ -69,7 +69,7 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         meta: {
           entryKey: 'admin.platform-terminal-security',
           icon: 'lucide:monitor-check',
-          title: '平台终端安全配置',
+          title: 'Terminal 登录策略',
         },
       },
       {
@@ -216,7 +216,7 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
           entryKey: 'master-data.item-category-management',
           fullPathKey: false,
           icon: 'lucide:folder-tree',
-          title: 'Item 分类管理',
+          title: '产品分类管理',
         },
       },
       {
@@ -227,7 +227,18 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
           entryKey: 'master-data.item-attribute-management',
           fullPathKey: false,
           icon: 'lucide:sliders-horizontal',
-          title: 'Item 属性管理',
+          title: '产品属性管理',
+        },
+      },
+      {
+        name: 'TenantItemAttributeDetail',
+        path: '/master-data/item-attributes/:attributeDefinitionId',
+        component: () => import('#/views/admin/item-attribute-detail.vue'),
+        meta: {
+          activePath: '/master-data/item-attributes',
+          entryKey: 'master-data.item-attribute-management',
+          hideInMenu: true,
+          title: '属性详情',
         },
       },
       {

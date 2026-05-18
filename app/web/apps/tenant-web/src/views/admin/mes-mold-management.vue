@@ -6,17 +6,20 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
+import { IconifyIcon } from '@vben/icons'
 import {
   Alert as AAlert,
   Button as AButton,
   Card as ACard,
   Checkbox as ACheckbox,
   Drawer as ADrawer,
+  Dropdown as ADropdown,
   Empty as AEmpty,
   Form as AForm,
   FormItem as AFormItem,
   Input as AInput,
-  Popconfirm as APopconfirm,
+  Menu as AMenu,
+  Modal as AModal,
   Select as ASelect,
   SelectOption as ASelectOption,
   Space as ASpace,
@@ -56,7 +59,20 @@ interface DailyUsageRow {
   workCenterRef: MesApi.WorkCenterRef
 }
 
+type MoldDesignActionKey = 'detail'
+type ProductionMoldRowActionKey = 'accept' | 'install' | 'scrap' | 'unmount'
+
+interface TableActionMenuItem<ActionKey extends string> {
+  danger?: boolean
+  disabled?: boolean
+  hidden?: boolean
+  key: ActionKey
+  label: string
+  testId?: string
+}
+
 const authContextStore = useAuthContextStore()
+const operationColumnTitle = '操作'
 const router = useRouter()
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
 const activeTenantName = computed(
@@ -173,7 +189,7 @@ const moldDesignColumns: TableColumnsType<MesApi.MoldDesign> = [
   },
   {
     key: 'action',
-    title: '操作',
+    title: operationColumnTitle,
     width: 100
   }
 ]
@@ -222,10 +238,62 @@ const productionMoldColumns: TableColumnsType<MesApi.ProductionMold> = [
   },
   {
     key: 'action',
-    title: '操作',
+    title: operationColumnTitle,
     width: 190
   }
 ]
+
+/** getMoldDesignActionItems exposes MoldDesign row operations for the native Ant Design dropdown. */
+function getMoldDesignActionItems(moldDesignRecord: Record<string, any>): TableActionMenuItem<MoldDesignActionKey>[] {
+  const moldDesign = moldDesignRecord as MesApi.MoldDesign
+
+  return [
+    {
+      hidden: !canReadDesign.value,
+      key: 'detail',
+      label: '详情',
+      testId: `mes-mold-design-detail-${moldDesign.moldDesignId}`
+    }
+  ]
+}
+
+/** getProductionMoldRowActionItems exposes production mold row operations for the native Ant Design dropdown. */
+function getProductionMoldRowActionItems(
+  mold: MesApi.ProductionMold
+): TableActionMenuItem<ProductionMoldRowActionKey>[] {
+  return [
+    {
+      hidden: !canAcceptMold(mold),
+      key: 'accept',
+      label: '验收',
+      testId: `mes-accept-mold-${mold.productionMoldId}`
+    },
+    {
+      hidden: !canInstallMold(mold),
+      key: 'install',
+      label: '安装',
+      testId: `mes-open-install-mold-${mold.productionMoldId}`
+    },
+    {
+      hidden: !canUnmountMold(mold),
+      key: 'unmount',
+      label: '卸下',
+      testId: `mes-unmount-mold-${mold.productionMoldId}`
+    },
+    {
+      danger: true,
+      hidden: !canMarkMoldForScrap(mold),
+      key: 'scrap',
+      label: '标记待报废',
+      testId: `mes-scrap-mold-${mold.productionMoldId}`
+    }
+  ]
+}
+
+/** getVisibleTableActionItems filters hidden table actions before handing them to Ant Design Menu. */
+function getVisibleTableActionItems<ActionKey extends string>(items: TableActionMenuItem<ActionKey>[]) {
+  return items.filter((item) => !item.hidden)
+}
 
 /** loadWorkspace refreshes the MES mold directories needed by the minimum closed loop. */
 async function loadWorkspace() {
@@ -309,6 +377,53 @@ function openProductionMoldManagement() {
   router.push({
     name: 'TenantMesProductionMoldManagement'
   })
+}
+
+/** handleMoldDesignAction dispatches one dropdown menu action for a MoldDesign row. */
+function handleMoldDesignAction(actionKey: MoldDesignActionKey, moldDesignRecord: Record<string, any>) {
+  const moldDesign = moldDesignRecord as MesApi.MoldDesign
+
+  if (actionKey === 'detail') {
+    openMoldDesignDetail(moldDesign.moldDesignId)
+  }
+}
+
+/** handleProductionMoldRowAction dispatches one dropdown menu action for a production mold row. */
+async function handleProductionMoldRowAction(actionKey: ProductionMoldRowActionKey, mold: MesApi.ProductionMold) {
+  switch (actionKey) {
+    case 'accept': {
+      await submitAcceptMold(mold)
+      return
+    }
+    case 'install': {
+      openInstallDialog(mold)
+      return
+    }
+    case 'unmount': {
+      AModal.confirm({
+        centered: true,
+        content: `确认卸下生产模具“${mold.moldCode}”？`,
+        okText: '卸下',
+        title: '确认卸下该生产模具？',
+        async onOk() {
+          await submitUnmountMold(mold)
+        }
+      })
+      return
+    }
+    case 'scrap': {
+      AModal.confirm({
+        centered: true,
+        content: `确认将生产模具“${mold.moldCode}”标记为待报废？`,
+        okText: '标记待报废',
+        okType: 'danger',
+        title: '确认标记待报废？',
+        async onOk() {
+          await submitMarkMoldForScrap(mold)
+        }
+      })
+    }
+  }
 }
 
 /** openCreateMoldDesignDialog loads the Item and ProductionSpec selectors used by the MoldDesign drawer. */
@@ -905,15 +1020,28 @@ onMounted(() => {
                 </a-space>
               </template>
               <template v-if="column.key === 'action'">
-                <a-button
-                  v-if="canReadDesign"
-                  :data-testid="`mes-mold-design-detail-${record.moldDesignId}`"
-                  size="small"
-                  type="link"
-                  @click="openMoldDesignDetail(record.moldDesignId)"
+                <ADropdown
+                  v-if="getVisibleTableActionItems(getMoldDesignActionItems(record)).length > 0"
+                  :trigger="['click']"
                 >
-                  详情
-                </a-button>
+                  <AButton aria-label="模具方案操作" shape="circle" size="small" type="text">
+                    <IconifyIcon icon="ant-design:more-outlined" />
+                  </AButton>
+                  <template #overlay>
+                    <AMenu @click="(info) => handleMoldDesignAction(String(info.key) as MoldDesignActionKey, record)">
+                      <AMenu.Item
+                        v-for="item in getVisibleTableActionItems(getMoldDesignActionItems(record))"
+                        :key="item.key"
+                        :danger="item.danger"
+                        :data-testid="item.testId"
+                        :disabled="item.disabled"
+                      >
+                        {{ item.label }}
+                      </AMenu.Item>
+                    </AMenu>
+                  </template>
+                </ADropdown>
+                <span v-else class="tenant-table-action-empty">无可用操作</span>
               </template>
             </template>
           </a-table>
@@ -985,40 +1113,28 @@ onMounted(() => {
                 {{ formatProductionMoldWorkCenter(readProductionMold(record)) }}
               </template>
               <template v-if="column.key === 'action'">
-                <a-space size="small">
-                  <a-button
-                    v-if="canAcceptMold(readProductionMold(record))"
-                    :data-testid="`mes-accept-mold-${record.productionMoldId}`"
-                    size="small"
-                    type="link"
-                    @click="submitAcceptMold(readProductionMold(record))"
-                  >
-                    验收
-                  </a-button>
-                  <a-button
-                    v-if="canInstallMold(readProductionMold(record))"
-                    :data-testid="`mes-open-install-mold-${record.productionMoldId}`"
-                    size="small"
-                    type="link"
-                    @click="openInstallDialog(readProductionMold(record))"
-                  >
-                    安装
-                  </a-button>
-                  <a-popconfirm
-                    v-if="canUnmountMold(readProductionMold(record))"
-                    title="确认卸下该生产模具？"
-                    @confirm="submitUnmountMold(readProductionMold(record))"
-                  >
-                    <a-button size="small" type="link">卸下</a-button>
-                  </a-popconfirm>
-                  <a-popconfirm
-                    v-if="canMarkMoldForScrap(readProductionMold(record))"
-                    title="确认将该生产模具标记为待报废？"
-                    @confirm="submitMarkMoldForScrap(readProductionMold(record))"
-                  >
-                    <a-button danger size="small" type="link">标记待报废</a-button>
-                  </a-popconfirm>
-                </a-space>
+                <ADropdown
+                  v-if="getVisibleTableActionItems(getProductionMoldRowActionItems(readProductionMold(record))).length > 0"
+                  :trigger="['click']"
+                >
+                  <AButton aria-label="生产模具操作" shape="circle" size="small" type="text">
+                    <IconifyIcon icon="ant-design:more-outlined" />
+                  </AButton>
+                  <template #overlay>
+                    <AMenu @click="(info) => handleProductionMoldRowAction(String(info.key) as ProductionMoldRowActionKey, readProductionMold(record))">
+                      <AMenu.Item
+                        v-for="item in getVisibleTableActionItems(getProductionMoldRowActionItems(readProductionMold(record)))"
+                        :key="item.key"
+                        :danger="item.danger"
+                        :data-testid="item.testId"
+                        :disabled="item.disabled"
+                      >
+                        {{ item.label }}
+                      </AMenu.Item>
+                    </AMenu>
+                  </template>
+                </ADropdown>
+                <span v-else class="tenant-table-action-empty">无可用操作</span>
               </template>
             </template>
           </a-table>

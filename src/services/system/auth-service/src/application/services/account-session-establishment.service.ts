@@ -17,6 +17,7 @@ import { AuthAuditService } from './auth-audit.service'
 import { normalizeAuthDeviceContext } from './auth-device-context'
 import { PasswordSetupRequirementService } from './password-setup-requirement.service'
 import { TenantSessionAccessService } from './tenant-session-access.service'
+import { resolveTerminalSessionLifetime } from './terminal-session-lifetime'
 import { TrustedDeviceService } from './trusted-device.service'
 
 export interface EstablishAccountSessionInput {
@@ -111,9 +112,10 @@ export class AccountSessionEstablishmentService {
         ? await this.sessionRepository.findById(input.currentSessionId)
         : null
     const tokenConfig = this.getTokenConfig()
+    const tokenWindow = resolveTerminalSessionLifetime(terminal, tokenConfig)
     const sessionConfig: SessionConfig = {
-      accessTokenExpiry: tokenConfig.accessTokenValidity,
-      refreshTokenExpiry: tokenConfig.refreshTokenValidity,
+      accessTokenExpiry: tokenWindow.accessTokenValidity,
+      refreshTokenExpiry: tokenWindow.refreshTokenValidity,
       maxSessionsPerUser: 0,
       enableAutoRenewal: true,
       enableDeviceTracking: true
@@ -173,7 +175,10 @@ export class AccountSessionEstablishmentService {
         session.getTerminalDeviceId(),
         session.getDeviceBoundTenantId()
       ),
-      signOptions
+      {
+        ...signOptions,
+        expiresIn: tokenWindow.accessTokenValidity
+      }
     )
 
     const refreshToken = this.jwtService.signRefreshToken(
@@ -189,13 +194,16 @@ export class AccountSessionEstablishmentService {
         session.getTerminalDeviceId(),
         session.getDeviceBoundTenantId()
       ),
-      signOptions
+      {
+        ...signOptions,
+        expiresIn: tokenWindow.refreshTokenValidity
+      }
     )
 
     session.activateTokenWindow(
       refreshToken,
-      tokenConfig.accessTokenValidity,
-      tokenConfig.refreshTokenValidity
+      tokenWindow.accessTokenValidity,
+      tokenWindow.refreshTokenValidity
     )
     await this.sessionRepository.save(session)
     if (previousSession && previousSession.getId() !== session.getId()) {
@@ -228,7 +236,7 @@ export class AccountSessionEstablishmentService {
       allowedTerminals: terminalAccess.effectiveAllowedTerminals,
       accessToken,
       refreshToken,
-      expiresIn: tokenConfig.accessTokenValidity,
+      expiresIn: tokenWindow.accessTokenValidity,
       displayName: input.account.displayName,
       passwordSetupRequired,
       loginMethod: sessionLoginMethod,

@@ -313,6 +313,15 @@ export namespace AdminSecurityApi {
     entries: TerminalLoginPolicyEntry[];
   }
 
+  export interface TerminalLoginPolicyMutationEntry {
+    enabledLoginFlows: string[];
+    terminal: 'KIOSK' | 'PDA' | 'WEB';
+  }
+
+  export interface PlatformTerminalLoginPolicyMutationPayload {
+    entries: TerminalLoginPolicyMutationEntry[];
+  }
+
   export interface TerminalMfaPolicyEntry {
     allowedFactors: TenantMfaFactor[];
     factorPriority: TenantMfaFactor[];
@@ -535,7 +544,7 @@ export async function getAdminPlatformTerminalLoginPolicyApi() {
 }
 
 export async function updateAdminPlatformTerminalLoginPolicyApi(
-  data: Pick<AdminSecurityApi.PlatformTerminalLoginPolicy, 'entries'>,
+  data: AdminSecurityApi.PlatformTerminalLoginPolicyMutationPayload,
 ) {
   return requestClient.request<AdminSecurityApi.PlatformTerminalLoginPolicy>(
     '/auth/admin/platform-terminal-login-policy',

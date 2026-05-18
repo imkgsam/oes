@@ -269,6 +269,7 @@ Returns device detail for management and diagnostics.
 Rules:
 
 - `currentSessions` must come from `auth-service`, not heartbeat.
+- Admin BFF must query current sessions by `terminalDeviceId`; it must not pass heartbeat `lastReportedAccount.accountId` as `userId`.
 - Sensitive identity fields require `terminal-device.sensitive.read`.
 
 ## 9. `PATCH /admin/terminal-devices/{terminalDeviceId}`
@@ -419,7 +420,56 @@ Returns device governance audit events.
 }
 ```
 
-## 14. Explicitly Forbidden
+## 14. `GET /admin/terminal-devices/{terminalDeviceId}/heartbeat-records`
+
+### 14.1 Purpose
+
+Returns immutable heartbeat diagnostic records for one managed terminal device.
+
+### 14.2 Response
+
+```json
+{
+  "items": [
+    {
+      "heartbeatId": "hb_001",
+      "terminalDeviceId": "tdv_001",
+      "presenceStatus": "ONLINE",
+      "receivedAt": "2026-05-16T10:10:03Z",
+      "clientTime": "2026-05-16T10:10:00Z",
+      "appVersion": "2.0.0",
+      "networkStatus": "ONLINE",
+      "batteryLevel": 72,
+      "reportedAccountId": "acc_001",
+      "reportedSessionId": "sess_001",
+      "traceId": "trace_001"
+    }
+  ],
+  "page": 1,
+  "pageSize": 20,
+  "total": 1
+}
+```
+
+Rules:
+
+- Heartbeat records are diagnostics, not lifecycle truth and not login truth.
+- Current online / offline display may use latest snapshot; history is for troubleshooting.
+
+## 15. `GET /admin/terminal-devices/{terminalDeviceId}/diagnostic-logs`
+
+### 15.1 Purpose
+
+Returns recently uploaded manual PDA diagnostic logs accepted by `/pda/device/logs`.
+
+Rules:
+
+- Log details must preserve Phase 1 redaction rules.
+- Admin BFF reads persisted diagnostic logs from `terminal-device-service`.
+- Admin BFF must not read gateway-local in-memory diagnostic buffers as the source for this page.
+- This endpoint is for field diagnostics and does not replace observability or audit storage.
+
+## 16. Explicitly Forbidden
 
 - Admin BFF must not persist terminal device registry truth.
 - Admin BFF must not copy lifecycle transition rules.

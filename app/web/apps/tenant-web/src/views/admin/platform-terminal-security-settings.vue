@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import { Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
 
-import { Button, Card, Checkbox, Empty, message, Modal, Switch, Tag } from 'ant-design-vue';
+import { Button, Card, Empty, message, Modal, Select, Switch, Tag } from 'ant-design-vue';
 
 import {
   type AdminSecurityApi,
@@ -97,7 +97,7 @@ async function loadPlatformTerminalSecurity() {
   } catch (error) {
     loginEntries.value = [];
     mfaEntries.value = [];
-    message.error(getErrorMessage(error, '加载平台终端安全配置失败'));
+    message.error(getErrorMessage(error, '加载平台 Terminal 登录策略失败'));
   } finally {
     loading.value = false;
   }
@@ -113,6 +113,14 @@ function updateLoginFlows(terminal: string, flows: string[]) {
         }
       : entry,
   );
+}
+
+// Builds compact select options for one terminal's supported login flows.
+function getLoginFlowOptions(entry: TerminalLoginEntry) {
+  return entry.supportedLoginFlows.map((flow) => ({
+    label: getTerminalLoginFlowLabel(flow),
+    value: flow,
+  }));
 }
 
 // Rewrites one terminal MFA switch while preserving the current factor order returned by auth-service.
@@ -177,7 +185,7 @@ async function savePlatformTerminalLoginPolicy() {
   }
 }
 
-// Persists platform terminal MFA defaults and confirms high-throughput PDA/KIOSK impact when needed.
+// Persists platform terminal login MFA switches and confirms high-throughput PDA/KIOSK impact when needed.
 async function savePlatformTerminalMfaPolicy() {
   const requiresConfirmation = requiresTerminalMfaOperationalConfirmation(
     mfaEntries.value,
@@ -187,7 +195,7 @@ async function savePlatformTerminalMfaPolicy() {
     requiresConfirmation &&
     !(await confirmDangerousSave({
       content: 'PDA / Kiosk 是一线高频操作入口，开启 MFA 可能明显增加登录耗时。',
-      title: '确认保存终端 MFA 默认策略',
+      title: '确认保存 Terminal 登录 MFA',
     }))
   ) {
     return;
@@ -207,9 +215,9 @@ async function savePlatformTerminalMfaPolicy() {
       })),
     });
     mfaEntries.value = normalizeMfaEntries(policy.entries ?? []);
-    message.success('平台终端 MFA 默认策略已更新');
+    message.success('Terminal 登录 MFA 已更新');
   } catch (error) {
-    message.error(getErrorMessage(error, '保存平台终端 MFA 默认策略失败'));
+    message.error(getErrorMessage(error, '保存 Terminal 登录 MFA 失败'));
   } finally {
     savingMfaPolicy.value = false;
   }
@@ -221,14 +229,14 @@ onMounted(() => {
 </script>
 
 <template>
-  <Page auto-content-height title="平台终端安全配置">
+  <Page auto-content-height title="平台 Terminal 登录策略">
     <div class="terminal-security-page">
       <Card :bordered="false" class="terminal-security__panel">
         <div class="terminal-security__header">
           <div>
-            <div class="terminal-security__title">平台终端安全配置</div>
+            <div class="terminal-security__title">平台 Terminal 登录策略</div>
             <div class="terminal-security__description">
-              管理平台拥有的 terminal 入口登录流，以及 platform scope 的终端 MFA 默认值。
+              管理全平台 terminal 登录流，以及各 terminal 登录入口是否要求 MFA。
             </div>
           </div>
           <Tag color="blue">Platform</Tag>
@@ -238,11 +246,11 @@ onMounted(() => {
           v-if="!hasPlatformContext || !canManagePlatformSecurity"
           class="terminal-security__empty"
         >
-          <Empty description="当前上下文暂不支持管理平台终端安全配置" />
+          <Empty description="当前上下文暂不支持管理平台 Terminal 登录策略" />
         </div>
 
         <div v-else-if="loading" class="terminal-security__empty">
-          正在加载平台终端安全配置...
+          正在加载平台 Terminal 登录策略...
         </div>
 
         <div v-else class="terminal-security__content">
@@ -281,19 +289,15 @@ onMounted(() => {
                     个登录流已启用
                   </div>
                 </div>
-                <Checkbox.Group
+                <Select
                   :value="entry.enabledLoginFlows"
+                  :max-tag-count="'responsive'"
+                  :options="getLoginFlowOptions(entry)"
                   class="terminal-security__flow-group"
+                  mode="multiple"
+                  placeholder="选择允许的登录流"
                   @change="(flows) => updateLoginFlows(entry.terminal, flows as string[])"
-                >
-                  <Checkbox
-                    v-for="flow in entry.supportedLoginFlows"
-                    :key="flow"
-                    :value="flow"
-                  >
-                    {{ getTerminalLoginFlowLabel(flow) }}
-                  </Checkbox>
-                </Checkbox.Group>
+                />
               </div>
             </div>
           </section>
@@ -301,9 +305,9 @@ onMounted(() => {
           <section class="terminal-security__section">
             <div class="terminal-security__section-head">
               <div>
-                <div class="terminal-security__section-title">Platform 终端 MFA 默认值</div>
+                <div class="terminal-security__section-title">Terminal 登录 MFA</div>
                 <div class="terminal-security__meta">
-                  平台默认值只在没有租户覆盖时生效；PDA / Kiosk 默认保持关闭。
+                  这里只决定各 terminal 登录入口是否触发 MFA；实际可用因子取决于当前账号 scope 的 MFA 配置。
                 </div>
               </div>
               <Button
@@ -314,7 +318,7 @@ onMounted(() => {
                 <template #icon>
                   <IconifyIcon icon="lucide:save" />
                 </template>
-                保存 MFA 默认值
+                保存登录 MFA
               </Button>
             </div>
 
@@ -438,10 +442,7 @@ onMounted(() => {
 }
 
 .terminal-security__flow-group {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 10px 16px;
+  width: min(100%, 520px);
 }
 
 .terminal-security__switch-stack {
@@ -469,7 +470,7 @@ onMounted(() => {
   }
 
   .terminal-security__flow-group {
-    justify-content: flex-start;
+    width: 100%;
   }
 
   .terminal-security__switch-stack {

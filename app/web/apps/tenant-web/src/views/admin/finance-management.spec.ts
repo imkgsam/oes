@@ -265,8 +265,16 @@ describe('finance workspace page', () => {
     expect(wrapper.text()).toContain('PAY-REQ-001')
     expect(wrapper.text()).toContain('pe-1')
 
-    await wrapper.get('[data-testid="finance-open-account-fa-1"]').trigger('click')
-    await wrapper.get('[data-testid="finance-open-receivable-rs-1"]').trigger('click')
+    await wrapper.get('button[aria-label="资金账户操作"]').trigger('click')
+    await flushPromises()
+    document.querySelector('[data-testid="finance-open-account-fa-1"]')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
+    await wrapper.get('button[aria-label="应收计划操作"]').trigger('click')
+    await flushPromises()
+    document.querySelector('[data-testid="finance-open-receivable-rs-1"]')!.dispatchEvent(
+      new MouseEvent('click', { bubbles: true }),
+    )
 
     expect(push).toHaveBeenNthCalledWith(1, {
       name: 'TenantFinancialAccountDetail',

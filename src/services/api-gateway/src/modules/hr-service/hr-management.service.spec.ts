@@ -1,4 +1,4 @@
-import { ForbiddenException, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common'
 import { HrManagementService } from './hr-management.service'
 
 // Verifies the gateway HR management service keeps tenant-admin access tenant-scoped while composing employee and employment read models.
@@ -214,6 +214,7 @@ describe('HrManagementService', () => {
     )
     expect(hrQueryAdapter.getActiveEmployment).toHaveBeenNthCalledWith(1, 'employee-preboarding', source)
     expect(hrQueryAdapter.getActiveEmployment).toHaveBeenNthCalledWith(2, 'employee-active', source)
+    expect(hrQueryAdapter.getLatestOnboardingAccess).not.toHaveBeenCalled()
     expect(orgManagementService.getOrgUnitDetail).toHaveBeenCalledWith('tenant-1', 'org-1', source)
   })
 
@@ -562,5 +563,45 @@ describe('HrManagementService', () => {
       source
     )
     expect(permissionService.listAccountRoles).toHaveBeenCalled()
+  })
+
+  it('rejects change-primary employment requests without effectiveFrom as a bad request', async () => {
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
+    }
+    hrQueryAdapter.getEmployeeById.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      employeeCode: 'EMP-001',
+      lifecycleStatus: 'ACTIVE'
+    })
+    hrQueryAdapter.listEmployments.mockResolvedValue([
+      {
+        id: 'employment-1',
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        orgUnitId: 'org-1',
+        status: 'ACTIVE',
+        effectiveFrom: '2026-04-24T00:00:00.000Z'
+      }
+    ])
+
+    await expect(
+      service.changePrimaryEmployment(
+        'tenant-1',
+        'employee-1',
+        {
+          fromEmploymentId: 'employment-1',
+          toOrgUnitId: 'org-2',
+          effectiveFrom: ''
+        },
+        source as any
+      )
+    ).rejects.toBeInstanceOf(BadRequestException)
+
+    expect(hrMutationAdapter.changePrimaryEmployment).not.toHaveBeenCalled()
   })
 })

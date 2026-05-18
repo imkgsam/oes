@@ -291,6 +291,10 @@ const itemMasterManagement = definePermissionGroup(Modules.ITEM_MASTER_SERVICE, 
     code: 'item_master.item_category.update_status',
     description: '更新 Item 分类状态'
   },
+  DELETE_ITEM_CATEGORY: {
+    code: 'item_master.item_category.delete',
+    description: '删除未被引用的叶子 Item 分类'
+  },
   LIST_ATTRIBUTE: {
     code: 'item_master.attribute.list',
     description: '查看 Item 属性定义与选项'

@@ -20,6 +20,7 @@ export type DeviceInfo = {
 };
 
 export type NetworkStatus = {
+  batteryLevel?: number;
   connected: boolean;
   metered: boolean;
   type: 'WIFI' | 'CELLULAR' | 'ETHERNET' | 'UNKNOWN' | 'NONE';

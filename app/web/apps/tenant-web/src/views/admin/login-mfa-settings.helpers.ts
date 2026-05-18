@@ -21,6 +21,11 @@ export interface TenantMfaScenarioRequirementItem {
   scenario: TenantMfaScenarioCode;
 }
 
+export const ACCOUNT_SECURITY_MFA_SCENARIOS: TenantMfaScenarioCode[] = [
+  'CHANGE_PASSWORD',
+  'CHANGE_CONTACT',
+];
+
 // Maps one tenant MFA factor code into the stable label shown in the tenant settings page.
 export function getTenantMfaFactorLabel(factor: TenantMfaFactorCode) {
   switch (factor) {
@@ -106,6 +111,18 @@ export function orderTenantMfaScenarioRequirements(
   const itemMap = new Map(items.map((item) => [item.scenario, item]));
 
   return order.map((scenario) => ({
+    scenario,
+    required: itemMap.get(scenario)?.required ?? false,
+  }));
+}
+
+// Narrows MFA scenario rows to account-security operations because terminal login MFA is governed separately.
+export function orderAccountSecurityMfaScenarioRequirements(
+  items: TenantMfaScenarioRequirementItem[],
+) {
+  const itemMap = new Map(items.map((item) => [item.scenario, item]));
+
+  return ACCOUNT_SECURITY_MFA_SCENARIOS.map((scenario) => ({
     scenario,
     required: itemMap.get(scenario)?.required ?? false,
   }));

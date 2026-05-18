@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { RequirePermissions } from '@oes/common/authorization'
 import { DownstreamSource } from '../../../../../common/decorators/downstream-source.decorator'
@@ -22,6 +22,7 @@ import {
   ListPackagingMethodsDto,
   ListPackagingSpecsDto,
   ListSupplierMappingsDto,
+  MoveItemCategoryDto,
   PackagingSpecDto,
   ReplaceBomLinesDto,
   SetItemCapabilitiesDto,
@@ -43,6 +44,7 @@ const ITEM_MANAGEMENT_PERMISSIONS = {
   CREATE_BOM: 'item_master.bom.create',
   CREATE_ITEM: 'item_master.item.create',
   CREATE_ITEM_CATEGORY: 'item_master.item_category.create',
+  DELETE_ITEM_CATEGORY: 'item_master.item_category.delete',
   CREATE_ITEM_MODEL: 'item_master.item_model.create',
   CREATE_PACKAGING: 'item_master.packaging.create',
   LIST_ATTRIBUTE: 'item_master.attribute.list',
@@ -396,6 +398,19 @@ export class ItemManagementController {
     return this.itemManagementService.updateItemCategoryBasics(tenantId, categoryId, body, source)
   }
 
+  @Patch('categories/:categoryId/parent')
+  @RequirePermissions({ all: [ITEM_MANAGEMENT_PERMISSIONS.UPDATE_ITEM_CATEGORY_BASICS] })
+  @ApiOperation({ summary: 'Move one item category under a new parent' })
+  @ApiBody({ type: MoveItemCategoryDto })
+  async moveItemCategory(
+    @Param('tenantId') tenantId: string,
+    @Param('categoryId') categoryId: string,
+    @Body() body: MoveItemCategoryDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.itemManagementService.moveItemCategory(tenantId, categoryId, body, source)
+  }
+
   @Patch('categories/:categoryId/status')
   @RequirePermissions({ all: [ITEM_MANAGEMENT_PERMISSIONS.UPDATE_ITEM_CATEGORY_STATUS] })
   @ApiOperation({ summary: 'Archive or reactivate one item category' })
@@ -407,6 +422,17 @@ export class ItemManagementController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.itemManagementService.changeItemCategoryStatus(tenantId, categoryId, body, source)
+  }
+
+  @Delete('categories/:categoryId')
+  @RequirePermissions({ all: [ITEM_MANAGEMENT_PERMISSIONS.DELETE_ITEM_CATEGORY] })
+  @ApiOperation({ summary: 'Delete one unused leaf item category' })
+  async deleteItemCategory(
+    @Param('tenantId') tenantId: string,
+    @Param('categoryId') categoryId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.itemManagementService.deleteItemCategory(tenantId, categoryId, source)
   }
 
   @Get('packaging/methods')

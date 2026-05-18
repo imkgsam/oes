@@ -77,7 +77,7 @@ export class LoginUseCase {
     terminal: LoginTerminal,
     pdaDeviceContext?: PdaLoginDeviceContext
   ) {
-    const loginFlow = this.toLoginFlow(dto.method)
+    const loginFlow = this.toLoginFlow(dto.method, terminal)
     const authDeviceContext = pdaDeviceContext
       ? {
           terminalDeviceId: pdaDeviceContext.terminalDeviceId,
@@ -139,14 +139,20 @@ export class LoginUseCase {
     }
   }
 
-  // Maps the fixed frontend login method to the platform terminal login flow recorded by auth-service.
-  private toLoginFlow(method: LoginMethodDto): TerminalLoginFlow {
+  // Maps the fixed frontend login method to the terminal policy flow enforced by auth-service.
+  private toLoginFlow(method: LoginMethodDto, terminal: LoginTerminal): TerminalLoginFlow {
     switch (method) {
       case LoginMethodDto.EMAIL_PASSWORD:
+        if (terminal !== 'WEB') {
+          return TerminalLoginFlow.Password
+        }
         return TerminalLoginFlow.EmailPassword
       case LoginMethodDto.EMAIL_OTP:
         return TerminalLoginFlow.EmailOtp
       case LoginMethodDto.PHONE_PASSWORD:
+        if (terminal !== 'WEB') {
+          return TerminalLoginFlow.Password
+        }
         return TerminalLoginFlow.PhonePassword
       case LoginMethodDto.PHONE_OTP:
         return TerminalLoginFlow.PhoneOtp

@@ -129,6 +129,18 @@ class MainActivity : Activity() {
         super.onPause()
     }
 
+    /** Treats hardware Back as sending the PDA app to background instead of closing the operator session. */
+    @Suppress("OVERRIDE_DEPRECATION")
+    override fun onBackPressed() {
+        moveTaskToBack(true)
+    }
+
+    /** Clears user session token material when Android destroys the PDA activity. */
+    override fun onDestroy() {
+        clearStoredSessionTokens()
+        super.onDestroy()
+    }
+
     /** Opens static PDA Web assets from the APK with headers that WebView module loading requires. */
     private fun openPackagedAsset(url: String): WebResourceResponse? {
         val prefix = PDA_ASSET_BASE_URL
@@ -238,8 +250,17 @@ class MainActivity : Activity() {
         return "\"$escaped\""
     }
 
+    /** Removes native token storage without touching the persisted terminal enrollment binding. */
+    private fun clearStoredSessionTokens() {
+        getSharedPreferences(SESSION_PREFERENCES_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .apply()
+    }
+
     companion object {
         private const val TAG = "OesPda"
         private const val PDA_ASSET_BASE_URL = "https://oes-pda.local/"
+        private const val SESSION_PREFERENCES_NAME = "oes_pda_session"
     }
 }

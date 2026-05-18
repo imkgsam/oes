@@ -95,6 +95,16 @@ type RoleActionKey =
   | 'terminalAccess'
   | 'toggle';
 type RoleTerminal = 'KIOSK' | 'PDA' | 'WEB';
+type PermissionActionKey = 'assign' | 'revoke';
+
+interface TableActionMenuItem<ActionKey extends string = string> {
+  danger?: boolean;
+  disabled?: boolean;
+  hidden?: boolean;
+  key: ActionKey;
+  label: string;
+  testId?: string;
+}
 type TemplateActionKey =
   | 'delete'
   | 'edit'
@@ -156,6 +166,7 @@ interface NavigationLandingOverrideState {
 }
 
 const authContextStore = useAuthContextStore();
+const operationColumnTitle = '操作';
 const authStore = useAuthStore();
 const DEFAULT_NAVIGATION_TAB_KEY = 'DEFAULT';
 
@@ -1677,120 +1688,31 @@ async function handleTemplateAction(
   }
 }
 
-function renderRoleActionDropdown(
-  role: RoleManagementApi.Role,
-  type: PermissionOwnerType,
-) {
-  const disabledEdit = !canUpdateRoleOwner(type);
-  const disabledPermissions = !canReadRoleOwner(type);
-  const disabledDelete = !canDeleteRoleOwner(type);
-  const items =
-    type === 'role'
-      ? [
-          h(
-            Menu.Item,
-            { disabled: disabledEdit, key: 'edit' satisfies RoleActionKey },
-            () => '编辑',
-          ),
-          h(
-            Menu.Item,
-            {
-              disabled: disabledPermissions,
-              key: 'permissions' satisfies RoleActionKey,
-            },
-            () => '权限',
-          ),
-          h(
-            Menu.Item,
-            {
-              disabled: disabledPermissions,
-              key: 'navigation' satisfies RoleActionKey,
-            },
-            () => '导航',
-          ),
-          h(
-            Menu.Item,
-            {
-              disabled: !canViewTerminalAccess.value,
-              key: 'terminalAccess' satisfies RoleActionKey,
-            },
-            () => '终端准入',
-          ),
-          h(
-            Menu.Item,
-            { disabled: disabledEdit, key: 'toggle' satisfies RoleActionKey },
-            () => (role.isEnabled ? '停用' : '启用'),
-          ),
-          h(
-            Menu.Item,
-            { disabled: disabledDelete, danger: true, key: 'delete' satisfies RoleActionKey },
-            () => '删除',
-          ),
-        ]
-      : [
-          h(
-            Menu.Item,
-            { disabled: disabledEdit, key: 'edit' satisfies TemplateActionKey },
-            () => '编辑',
-          ),
-          h(
-            Menu.Item,
-            {
-              disabled: disabledPermissions,
-              key: 'permissions' satisfies TemplateActionKey,
-            },
-            () => '权限',
-          ),
-          h(
-            Menu.Item,
-            {
-              disabled: disabledPermissions,
-              key: 'navigation' satisfies TemplateActionKey,
-            },
-            () => '导航',
-          ),
-          h(
-            Menu.Item,
-            {
-              disabled: !canViewTerminalAccess.value,
-              key: 'terminalAccess' satisfies TemplateActionKey,
-            },
-            () => '终端准入',
-          ),
-          h(
-            Menu.Item,
-            {
-              disabled: !canCreateRoleFromTemplate.value || !role.isEnabled,
-              key: 'instantiate' satisfies TemplateActionKey,
-            },
-            () => '实例化',
-          ),
-          h(
-            Menu.Item,
-            {
-              disabled: disabledEdit,
-              key: 'toggle' satisfies TemplateActionKey,
-            },
-            () => (role.isEnabled ? '停用' : '启用'),
-          ),
-          h(
-            Menu.Item,
-            { disabled: disabledDelete, danger: true, key: 'delete' satisfies TemplateActionKey },
-            () => '删除',
-          ),
-        ];
+// Renders role management row commands through Ant Design Vue Dropdown/Menu primitives.
+function renderRoleNativeActions<ActionKey extends string>({
+  ariaLabel,
+  items,
+  onClick,
+}: {
+  ariaLabel: string;
+  items: Array<TableActionMenuItem<ActionKey>>;
+  onClick: (key: ActionKey) => void | Promise<void>;
+}) {
+  const visibleItems = items.filter((item) => !item.hidden);
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '无可用操作');
+  }
 
   return h(
     Dropdown,
-    {
-      trigger: ['click'],
-    },
+    { trigger: ['click'] },
     {
       default: () =>
         h(
           Button,
           {
-            'aria-label': type === 'role' ? '角色操作' : '模板操作',
+            'aria-label': ariaLabel,
             shape: 'circle',
             size: 'small',
             type: 'text',
@@ -1801,18 +1723,113 @@ function renderRoleActionDropdown(
         h(
           Menu,
           {
-            onClick: async ({ key }: { key: number | string }) => {
-              if (type === 'role') {
-                await handleRoleAction(String(key) as RoleActionKey, role);
-              } else {
-                await handleTemplateAction(String(key) as TemplateActionKey, role);
+            onClick: (info) => {
+              const action = visibleItems.find((item) => item.key === String(info.key));
+
+              if (!action || action.disabled) {
+                return;
               }
+
+              void onClick(action.key);
             },
           },
-          () => items,
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  disabled: item.disabled,
+                  key: item.key,
+                  'data-testid': item.testId,
+                },
+                () => item.label,
+              ),
+            ),
         ),
     },
   );
+}
+
+function renderRoleActionDropdown(
+  role: RoleManagementApi.Role,
+  type: PermissionOwnerType,
+) {
+  const disabledEdit = !canUpdateRoleOwner(type);
+  const disabledPermissions = !canReadRoleOwner(type);
+  const disabledDelete = !canDeleteRoleOwner(type);
+  const items =
+    type === 'role'
+      ? [
+          { disabled: disabledEdit, key: 'edit' satisfies RoleActionKey, label: '编辑' },
+          { disabled: disabledPermissions, key: 'permissions' satisfies RoleActionKey, label: '权限' },
+          { disabled: disabledPermissions, key: 'navigation' satisfies RoleActionKey, label: '导航' },
+          { disabled: !canViewTerminalAccess.value, key: 'terminalAccess' satisfies RoleActionKey, label: '终端准入' },
+          { disabled: disabledEdit, key: 'toggle' satisfies RoleActionKey, label: role.isEnabled ? '停用' : '启用' },
+          { danger: true, disabled: disabledDelete, key: 'delete' satisfies RoleActionKey, label: '删除' },
+        ]
+      : [
+          { disabled: disabledEdit, key: 'edit' satisfies TemplateActionKey, label: '编辑' },
+          { disabled: disabledPermissions, key: 'permissions' satisfies TemplateActionKey, label: '权限' },
+          { disabled: disabledPermissions, key: 'navigation' satisfies TemplateActionKey, label: '导航' },
+          { disabled: !canViewTerminalAccess.value, key: 'terminalAccess' satisfies TemplateActionKey, label: '终端准入' },
+          { disabled: !canCreateRoleFromTemplate.value || !role.isEnabled, key: 'instantiate' satisfies TemplateActionKey, label: '实例化' },
+          { disabled: disabledEdit, key: 'toggle' satisfies TemplateActionKey, label: role.isEnabled ? '停用' : '启用' },
+          { danger: true, disabled: disabledDelete, key: 'delete' satisfies TemplateActionKey, label: '删除' },
+        ];
+
+  return renderRoleNativeActions({
+    ariaLabel: type === 'role' ? '角色操作' : '模板操作',
+    items,
+    onClick: async (key) => {
+      if (type === 'role') {
+        await handleRoleAction(key as RoleActionKey, role);
+      } else {
+        await handleTemplateAction(key as TemplateActionKey, role);
+      }
+    },
+  });
+}
+
+function renderPermissionActionDropdown(
+  permission: Pick<PermissionManagementApi.Permission, 'id'>,
+  action: PermissionActionKey,
+) {
+  const assigned = assignedPermissionIds.value.has(permission.id);
+  const items: TableActionMenuItem<PermissionActionKey>[] =
+    action === 'revoke'
+      ? [
+          {
+            danger: true,
+            disabled: !canAssignSelectedRolePermissions.value || permissionMutating.value,
+            key: 'revoke',
+            label: '移除',
+            testId: `role-permission-action-${permission.id}-revoke`,
+          },
+        ]
+      : [
+          {
+            disabled:
+              !canAssignSelectedRolePermissions.value ||
+              permissionMutating.value ||
+              assigned,
+            key: 'assign',
+            label: assigned ? '已分配' : '添加',
+            testId: `role-permission-action-${permission.id}-assign`,
+          },
+        ];
+
+  return renderRoleNativeActions({
+    ariaLabel: action === 'revoke' ? '已分配权限操作' : '权限目录操作',
+    items,
+    onClick: async (key) => {
+      if (key === 'revoke') {
+        await revokePermission(permission.id);
+      } else {
+        await assignPermission(permission.id);
+      }
+    },
+  });
 }
 
 const roleColumns = computed<TableColumnsType<RoleManagementApi.Role>>(() => [
@@ -1864,7 +1881,7 @@ const roleColumns = computed<TableColumnsType<RoleManagementApi.Role>>(() => [
   },
   {
     key: 'actions',
-    title: '操作',
+    title: operationColumnTitle,
     width: 72,
     customRender: ({ record }) => renderRoleActionDropdown(record, 'role'),
   },
@@ -1902,7 +1919,7 @@ const templateColumns = computed<TableColumnsType<RoleManagementApi.Role>>(() =>
   },
   {
     key: 'actions',
-    title: '操作',
+    title: operationColumnTitle,
     width: 72,
     customRender: ({ record }) => renderRoleActionDropdown(record, 'template'),
   },
@@ -1927,21 +1944,9 @@ const assignedPermissionColumns = computed<
   },
   {
     key: 'actions',
-    title: '操作',
+    title: operationColumnTitle,
     width: 90,
-    customRender: ({ record }) =>
-      h(
-        Button,
-        {
-          danger: true,
-          disabled:
-            !canAssignSelectedRolePermissions.value || permissionMutating.value,
-          size: 'small',
-          type: 'link',
-          onClick: () => revokePermission(record.id),
-        },
-        () => '移除',
-      ),
+    customRender: ({ record }) => renderPermissionActionDropdown(record, 'revoke'),
   },
 ]);
 
@@ -1964,22 +1969,9 @@ const availablePermissionColumns = computed<
   },
   {
     key: 'actions',
-    title: '操作',
+    title: operationColumnTitle,
     width: 90,
-    customRender: ({ record }) =>
-      h(
-        Button,
-        {
-          disabled:
-            !canAssignSelectedRolePermissions.value ||
-            permissionMutating.value ||
-            assignedPermissionIds.value.has(record.id),
-          size: 'small',
-          type: 'link',
-          onClick: () => assignPermission(record.id),
-        },
-        () => (assignedPermissionIds.value.has(record.id) ? '已分配' : '添加'),
-      ),
+    customRender: ({ record }) => renderPermissionActionDropdown(record, 'assign'),
   },
 ]);
 

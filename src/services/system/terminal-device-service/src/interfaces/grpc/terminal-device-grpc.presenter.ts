@@ -9,7 +9,9 @@ import {
   NetworkType as ProtoNetworkType,
   PresenceStatus as ProtoPresenceStatus,
   TerminalDeviceDetail,
+  TerminalDeviceDiagnosticLog,
   TerminalDeviceEnrollment,
+  TerminalDeviceHeartbeatRecord,
   TerminalDeviceIdentity,
   TerminalDeviceRuntimeSnapshot,
   TerminalDeviceStatus as ProtoTerminalDeviceStatus,
@@ -32,6 +34,8 @@ import {
   DeviceAccessVersionPolicyDecision
 } from '../../application/services'
 import { TerminalDeviceEnrollmentEntity } from '../../domain/entities/terminal-device-enrollment.entity'
+import { TerminalDeviceDiagnosticLogEntity } from '../../domain/entities/terminal-device-diagnostic-log.entity'
+import { TerminalDeviceHeartbeatRecordEntity } from '../../domain/entities/terminal-device-heartbeat-record.entity'
 import { TerminalDeviceRuntimeSnapshotEntity } from '../../domain/entities/terminal-device-runtime-snapshot.entity'
 import { TerminalDeviceVersionPolicyEntity } from '../../domain/entities/terminal-device-version-policy.entity'
 import { TerminalDeviceEntity } from '../../domain/entities/terminal-device.entity'
@@ -322,6 +326,49 @@ export class TerminalDeviceGrpcPresenter {
       terminalDeviceId: result.snapshot.terminalDeviceId,
       lastHeartbeatAt: result.snapshot.lastHeartbeatAt.toISOString(),
       presenceStatus: toProtoPresenceStatus(result.snapshot.presenceStatus)
+    }
+  }
+
+  // Presents one immutable heartbeat diagnostic record as generated gRPC output.
+  static toHeartbeatRecord(record: TerminalDeviceHeartbeatRecordEntity): TerminalDeviceHeartbeatRecord {
+    return {
+      heartbeatId: record.heartbeatId,
+      tenantId: record.tenantId,
+      terminalDeviceId: record.terminalDeviceId,
+      presenceStatus: toProtoPresenceStatus(record.presenceStatus),
+      receivedAt: record.receivedAt.toISOString(),
+      clientTime: toIsoString(record.clientTime),
+      appVersion: record.appVersion ?? '',
+      androidVersion: record.androidVersion ?? '',
+      webViewVersion: record.webViewVersion ?? '',
+      networkStatus: toProtoNetworkStatus(record.networkStatus),
+      networkType: toProtoNetworkType(record.networkType),
+      batteryLevel: record.batteryLevel ?? undefined,
+      appState: toProtoAppState(record.appState),
+      reportedAccountId: record.reportedAccountId ?? '',
+      reportedSessionId: record.reportedSessionId ?? '',
+      traceId: record.traceId ?? ''
+    }
+  }
+
+  // Presents one sanitized diagnostic log as generated gRPC output.
+  static toDiagnosticLog(record: TerminalDeviceDiagnosticLogEntity): TerminalDeviceDiagnosticLog {
+    return {
+      diagnosticLogId: record.diagnosticLogId,
+      tenantId: record.tenantId,
+      terminalDeviceId: record.terminalDeviceId,
+      accountId: record.accountId ?? '',
+      sessionId: record.sessionId ?? '',
+      clientTime: record.clientTime.toISOString(),
+      receivedAt: record.receivedAt.toISOString(),
+      level: record.level,
+      eventType: record.eventType,
+      message: record.message,
+      traceId: record.traceId ?? '',
+      requestId: record.requestId ?? '',
+      errorCode: record.errorCode ?? '',
+      diagnosticMode: record.diagnosticMode,
+      detailsJson: JSON.stringify(record.details)
     }
   }
 
