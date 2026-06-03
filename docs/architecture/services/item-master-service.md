@@ -239,6 +239,8 @@ Deferred：
 
 `PackagingMethod` 表示包装方式分类，例如普通包装、加强包装、电商包装。它是轻量可维护字典，不建议写死成 enum。
 
+`PackagingMethod` 支持受保护硬删除：只有未被任何 `PackagingSpec` 引用的包装方式可以物理删除；一旦被包装规格引用，历史语义必须保留，只能停用。
+
 `PackagingSpec` 是具体包装规格：
 
 ```text

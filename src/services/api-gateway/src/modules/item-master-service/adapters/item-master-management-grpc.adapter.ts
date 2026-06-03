@@ -31,6 +31,8 @@ import {
   CreatePackagingSpecResponse,
   DeleteItemCategoryRequest,
   DeleteItemCategoryResponse,
+  DeletePackagingMethodRequest,
+  DeletePackagingMethodResponse,
   ITEM_MASTER_MANAGEMENT_SERVICE_NAME,
   ItemMasterManagementServiceClient,
   MoveItemCategoryRequest,
@@ -233,6 +235,13 @@ export class ItemMasterManagementGrpcAdapter implements OnModuleInit {
     source: DownstreamRequestSource
   ): Promise<ChangePackagingMethodStatusResponse> {
     return this.call('changePackagingMethodStatus', this.svc.changePackagingMethodStatus(input, this.metadata(source)))
+  }
+
+  deletePackagingMethod(
+    input: DeletePackagingMethodRequest,
+    source: DownstreamRequestSource
+  ): Promise<DeletePackagingMethodResponse> {
+    return this.call('deletePackagingMethod', this.svc.deletePackagingMethod(input, this.metadata(source)))
   }
 
   createPackagingSpec(

@@ -118,7 +118,7 @@ describe('org management detail page', () => {
         {
           employee: {
             displayName: '林予安',
-            employeeCode: 'EMP-001',
+            employeeCode: 'EMP-0AF-0001',
             id: 'employee-1',
             lifecycleStatus: 'ACTIVE',
             tenantId: 'tenant-1',
@@ -136,7 +136,7 @@ describe('org management detail page', () => {
         {
           employee: {
             displayName: '周承屿',
-            employeeCode: 'EMP-002',
+            employeeCode: 'EMP-0AF-0002',
             id: 'employee-2',
             lifecycleStatus: 'ACTIVE',
             tenantId: 'tenant-1',
@@ -197,7 +197,7 @@ describe('org management detail page', () => {
 
     expect(wrapper.text()).toContain('直属成员')
     expect(wrapper.text()).toContain('林予安')
-    expect(wrapper.text()).toContain('EMP-001')
+    expect(wrapper.text()).toContain('EMP-0AF-0001')
     expect(wrapper.text()).not.toContain('周承屿')
     expect(wrapper.text()).toContain('1')
   })

@@ -204,6 +204,34 @@ describe('TerminalDeviceAdminUseCase', () => {
       affectedSessionCount: 2
     })
   })
+
+  it('passes an omitted status reason through as optional audit metadata', async () => {
+    const terminalDeviceAdapter = {
+      changeStatus: jest.fn().mockResolvedValue({
+        terminalDeviceId: 'tdv-1',
+        previousStatus: 'ACTIVE',
+        status: 'LOST',
+        statusReason: null,
+        changedAt: '2026-05-16T10:00:00.000Z',
+        sessionRevokeIntent: {
+          required: false,
+          terminalDeviceId: 'tdv-1'
+        }
+      })
+    }
+    const useCase = new TerminalDeviceAdminUseCase(terminalDeviceAdapter as any, {} as any, diagnosticLogStoreStub() as any)
+
+    await useCase.changeStatus('tdv-1', { targetStatus: 'LOST' }, sourceWithTenant())
+
+    expect(terminalDeviceAdapter.changeStatus).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        terminalDeviceId: 'tdv-1',
+        targetStatus: 'LOST',
+        reason: undefined
+      })
+    )
+  })
 })
 
 function sourceWithTenant() {

@@ -29,10 +29,23 @@ describe('ListLoginMethodsHandler', () => {
       new Date('2026-04-20T00:00:00.000Z'),
       []
     )
+    const terminalPin = await Credential.createTerminalPinCredential('482915')
+    const terminalPinMethod = new LoginMethod(
+      'method-terminal-pin',
+      'user-1',
+      LoginMethodType.TERMINAL_PIN,
+      'terminal-pin',
+      true,
+      true,
+      new Date('2026-04-20T00:00:00.000Z'),
+      new Date('2026-04-20T00:00:00.000Z'),
+      [terminalPin]
+    )
     const repo = {
       findByUserId: jest.fn().mockResolvedValue([
         emailMethod,
         phoneMethod,
+        terminalPinMethod,
       ])
     }
     const requirementService = { userRequiresPasswordSetup: jest.fn().mockResolvedValue(false) }
@@ -81,8 +94,19 @@ describe('ListLoginMethodsHandler', () => {
         verified: true,
         enabled: true,
         hasPassword: false
+      }),
+      expect.objectContaining({
+        methodId: 'method-terminal-pin',
+        userId: 'user-1',
+        type: 'TERMINAL_PIN',
+        identifier: 'terminal-pin',
+        maskedIdentifier: 'terminal-pin',
+        verified: true,
+        enabled: true,
+        hasPassword: false
       })
     ])
     expect(JSON.stringify(result)).not.toContain(password.getSecret())
+    expect(JSON.stringify(result)).not.toContain(terminalPin.getSecret())
   })
 })

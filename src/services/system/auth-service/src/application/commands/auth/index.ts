@@ -12,6 +12,7 @@ import { InitializeRecoveryCodesHandler } from './initialize-recovery-codes.hand
 import { InitializeTotpBindingHandler } from './initialize-totp-binding.handler'
 import { HandleTerminalDeviceUnavailableHandler } from './handle-terminal-device-unavailable.handler'
 import { LoginWithEmailPasswordHandler } from './login-with-email-password.handler'
+import { LoginWithEmployeeCodePinHandler } from './login-with-employee-code-pin.handler'
 import { LoginWithEmailOtpHandler } from './login-with-email-otp.handler'
 import { LoginWithPhoneOtpHandler } from './login-with-phone-otp.handler'
 import { LoginWithPhonePasswordHandler } from './login-with-phone-password.handler'
@@ -34,6 +35,13 @@ import { SelectAccountHandler } from './select-account.handler'
 import { SetLoginMethodEnabledHandler } from './set-login-method-enabled.handler'
 import { StartStepUpMfaChallengeHandler } from './start-step-up-mfa-challenge.handler'
 import { SubmitMfaChallengeHandler } from './submit-mfa-challenge.handler'
+import {
+  DisableUserTerminalPinHandler,
+  RequireTerminalPinResetHandler,
+  ResetOwnTerminalPinHandler,
+  SetOwnTerminalPinEnabledHandler,
+  SetOwnTerminalPinHandler
+} from './terminal-pin-management.handler'
 import { UpdateTenantMfaPolicyHandler } from './update-tenant-mfa-policy.handler'
 import { UpdatePlatformMfaPolicyHandler } from './update-platform-mfa-policy.handler'
 import { VerifyPasswordRecoveryChallengeHandler } from './verify-password-recovery-challenge.handler'
@@ -69,6 +77,8 @@ export * from './handle-terminal-device-unavailable.command'
 export * from './handle-terminal-device-unavailable.handler'
 export * from './login-with-email-password.command'
 export * from './login-with-email-password.handler'
+export * from './login-with-employee-code-pin.command'
+export * from './login-with-employee-code-pin.handler'
 export * from './login-with-email-otp.command'
 export * from './login-with-email-otp.handler'
 export * from './login-with-phone-otp.command'
@@ -111,6 +121,7 @@ export * from './select-account.command'
 export * from './select-account.handler'
 export * from './set-login-method-enabled.command'
 export * from './set-login-method-enabled.handler'
+export * from './terminal-pin-management.handler'
 export * from './start-step-up-mfa-challenge.command'
 export * from './start-step-up-mfa-challenge.handler'
 export * from './submit-mfa-challenge.command'
@@ -141,6 +152,7 @@ export const AuthCommandHandlers = [
   InitializeRecoveryCodesHandler,
   InitializeTotpBindingHandler,
   LoginWithEmailPasswordHandler,
+  LoginWithEmployeeCodePinHandler,
   LoginWithEmailOtpHandler,
   LoginWithPhoneOtpHandler,
   LoginWithPhonePasswordHandler,
@@ -162,6 +174,11 @@ export const AuthCommandHandlers = [
   RequirePasswordSetupHandler,
   SelectAccountHandler,
   SetLoginMethodEnabledHandler,
+  SetOwnTerminalPinHandler,
+  ResetOwnTerminalPinHandler,
+  SetOwnTerminalPinEnabledHandler,
+  RequireTerminalPinResetHandler,
+  DisableUserTerminalPinHandler,
   StartStepUpMfaChallengeHandler,
   SubmitMfaChallengeHandler,
   UpdatePlatformMfaPolicyHandler,

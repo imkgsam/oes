@@ -1,4 +1,4 @@
-import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
+import { Inject, Injectable, NotFoundException, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
   GRPC_METADATA_PROPAGATION_FACTORY,
@@ -54,6 +54,26 @@ export class TenantOrgGrpcAdapter implements TenantOrgReferencePort, OnModuleIni
       valid: Boolean(response.result?.valid),
       rejectionReason: response.result?.rejectionReason || undefined
     }
+  }
+
+  async getTenantEmployeeCodePrefix(tenantId: string): Promise<string> {
+    const response = await safeGrpcCall(
+      this.tenantOrgQueryService.getTenantById(
+        {
+          tenantId
+        },
+        this.buildMetadata()
+      ),
+      {
+        caller: SERVICE_NAMES.HR,
+        method: 'TenantOrgQueryService.getTenantById'
+      }
+    )
+    const prefix = response.tenant?.employeeCodePrefix?.trim().toUpperCase()
+    if (!prefix) {
+      throw new NotFoundException(`Tenant ${tenantId} employee code prefix not found`)
+    }
+    return prefix
   }
 
   /** buildMetadata forwards the current HR operator context to tenant-org reference validation. */

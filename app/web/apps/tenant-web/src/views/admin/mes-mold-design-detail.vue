@@ -177,10 +177,10 @@ function normalizeMoldDesignStatus(status: MesApi.MoldDesign['status']) {
 /** normalizeMoldStatus converts generated enum values and strings into readable production mold statuses. */
 function normalizeMoldStatus(status: MesApi.ProductionMold['currentStatus']) {
   const generatedStatusMap: Record<number, string> = {
-    1: 'RECEIVED',
+    1: 'PRE_REGISTERED',
     2: 'PREPARING',
     3: 'AVAILABLE',
-    4: 'INSTALLED',
+    4: 'READY',
     5: 'MAINTENANCE',
     6: 'DISABLED',
     7: 'DISABLED',
@@ -210,7 +210,7 @@ function getDesignStatusColor(status: MesApi.MoldDesign['status']) {
 /** getMoldStatusColor maps production mold lifecycle status to compact Ant Design status tag colors. */
 function getMoldStatusColor(status: MesApi.ProductionMold['currentStatus']) {
   switch (normalizeMoldStatus(status)) {
-    case 'INSTALLED': {
+    case 'READY': {
       return 'green'
     }
     case 'PREPARING':
@@ -307,7 +307,7 @@ function formatMoldLocation(mold: MesApi.ProductionMold) {
       installation.workCenterRef?.displayNameSnapshot ||
       installation.workCenterRef?.workCenterCodeSnapshot ||
       installation.workCenterRef?.workCenterId
-    const position = installation.moldDetail?.moldPosition ? ` · ${installation.moldDetail.moldPosition}` : ''
+    const position = installation.moldDetail?.moldPositionIndex ? ` · 第 ${installation.moldDetail.moldPositionIndex} 位` : ''
     return `${line}${position}`
   }
 

@@ -494,6 +494,21 @@ export class ItemManagementController {
     )
   }
 
+  @Delete('packaging/methods/:packagingMethodId')
+  @RequirePermissions({ all: [ITEM_MANAGEMENT_PERMISSIONS.MANAGE_PACKAGING] })
+  @ApiOperation({ summary: 'Hard-delete one unused packaging method' })
+  async deletePackagingMethod(
+    @Param('tenantId') tenantId: string,
+    @Param('packagingMethodId') packagingMethodId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.itemManagementService.deletePackagingMethod(
+      tenantId,
+      packagingMethodId,
+      source
+    )
+  }
+
   @Get('packaging/specs')
   @RequirePermissions({ all: [ITEM_MANAGEMENT_PERMISSIONS.LIST_PACKAGING] })
   @ApiOperation({ summary: 'Search tenant packaging specs' })

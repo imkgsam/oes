@@ -4,7 +4,8 @@
 export enum LoginMethodType {
   EMAIL = 'EMAIL',
   PHONE = 'PHONE',
-  OAUTH_OPENID = 'OAUTH_OPENID'
+  OAUTH_OPENID = 'OAUTH_OPENID',
+  TERMINAL_PIN = 'TERMINAL_PIN'
 }
 
 /**
@@ -16,6 +17,7 @@ export enum LoginMethodEnum {
   PhoneOtp = 'phone-otp',
   PhonePassword = 'phone-password',
   ContextSwitch = 'context-switch',
+  EmployeeCodePin = 'employee-code-pin',
   Google = 'google',
   Wechat = 'wechat'
 }

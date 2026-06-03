@@ -42,11 +42,13 @@ describe('bridge client', () => {
     };
     const vibrate = vi.fn(() => JSON.stringify({ ok: true, data: { vibrated: true } }));
     const openCamera = vi.fn(() => JSON.stringify({ ok: true, data: { accepted: true, requestId: 'camera_001' } }));
+    const openCameraScanner = vi.fn(() => JSON.stringify({ ok: true, data: { accepted: true } }));
 
     window.OesPdaBridge = {
       getDeviceInfo: () => JSON.stringify(deviceResult),
       getNetworkStatus: () => JSON.stringify(networkResult),
       openCamera,
+      openCameraScanner,
       beep: () => JSON.stringify({ ok: true, data: { played: true } }),
       vibrate,
     };
@@ -55,8 +57,14 @@ describe('bridge client', () => {
 
     await expect(bridgeClient.getDeviceInfo()).resolves.toEqual(deviceResult);
     await expect(bridgeClient.getNetworkStatus()).resolves.toEqual(networkResult);
+    await expect(bridgeClient.openCameraScanner()).resolves.toEqual({ ok: true, data: { accepted: true } });
     await expect(bridgeClient.beep()).resolves.toEqual({ ok: true, data: { played: true } });
     await expect(bridgeClient.vibrate(180)).resolves.toEqual({ ok: true, data: { vibrated: true } });
+    expect(openCameraScanner).toHaveBeenCalledWith(
+      JSON.stringify({
+        formats: ['QR_CODE', 'CODE128', 'CODE39', 'CODE93', 'EAN13', 'EAN8', 'UPCA', 'UPCE', 'CODABAR', 'ITF'],
+      }),
+    );
     expect(vibrate).toHaveBeenCalledWith(180);
   });
 

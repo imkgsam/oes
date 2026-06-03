@@ -11,6 +11,7 @@
 - 按 `tenantId` 分页查询员工目录
 - 按 `employeeId` 查询员工摘要
 - 按 `tenantPartyId` 查询是否已形成员工主档
+- 按 `tenantId + employeeCode` 精确解析 active employee 与当前 active employment
 - 查询当前 active employment
 - 查询员工任职摘要供 BFF、审批或业务服务消费
 
@@ -70,6 +71,34 @@
   - `tenant_id`
   - `tenant_party_id`
 
+### `ResolveActiveEmployeeByCode`
+
+- 作用：按 `tenantId + employeeCode` 精确解析当前可工作的员工事实
+- 使用场景：
+  - `auth-service` 在 `EMPLOYEE_CODE_PIN` 现场终端登录中消费 HR 真相
+  - 需要用租户内员工编号确认员工仍为 active 且存在当前 active employment
+- 请求关键字段：
+  - `tenant_id`
+  - `employee_code`
+- 当前 tenant 语义：
+  - 该查询入口显式要求 `tenant_id`
+  - runtime 只在目标 `tenant_id` 下精确匹配 `employee_code`
+  - 不做模糊搜索，不跨 tenant 查询
+- 成功响应关键字段：
+  - `employee.id`
+  - `employee.tenant_id`
+  - `employee.employee_code`
+  - `employee.lifecycle_status`
+  - `active_employment.id`
+  - `active_employment.employee_id`
+  - `active_employment.org_unit_id`
+  - `active_employment.status`
+  - `active_employment.effective_from`
+- 稳定规则：
+  - 只有 `Employee.lifecycleStatus = ACTIVE` 且存在当前唯一 active employment 时才返回成功
+  - 该 RPC 不返回 account binding、权限、PIN 或认证结果
+  - account binding 以 `identity-service` 为准，认证凭据和 session 以 `auth-service` 为准
+
 ### `GetActiveEmployment`
 
 - 作用：查询某员工当前唯一 active employment
@@ -102,6 +131,11 @@
   - 请求关键字段缺失
 - not found
   - `employee_id` 或目标员工不存在
+  - `tenant_id + employee_code` 未匹配到员工
+- inactive employee
+  - `ResolveActiveEmployeeByCode` 匹配到员工但员工不是 `ACTIVE`
+- active employment not found
+  - `ResolveActiveEmployeeByCode` 匹配到 active employee 但不存在当前 active employment
 - tenant mismatch
   - 当前仅适用于提供 tenant context 的查询入口，例如 `GetEmployeeByTenantPartyId`
   - `GetEmployeeById`、`GetActiveEmployment`、`ListEmployments` 当前没有请求级或 metadata 级 tenant context，runtime 不承诺在这些 RPC 内识别 tenant mismatch

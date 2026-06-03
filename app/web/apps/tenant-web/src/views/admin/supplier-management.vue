@@ -265,6 +265,7 @@ onMounted(() => {
           :loading="loading"
           :locale="{ emptyText: '暂无供应商' }"
           :pagination="false"
+          :scroll="{ x: 980 }"
           row-key="supplierId"
           size="middle"
         />

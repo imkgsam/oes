@@ -330,12 +330,12 @@ function resolveValueValidationError() {
 <template>
   <Card :bordered="false" class="binding-card">
     <div class="binding-card__header">
-      <div>
+      <div class="binding-card__heading">
         <div class="binding-card__title-row">
           <div class="binding-card__title">{{ kindLabel }}绑定</div>
         </div>
       </div>
-      <Button type="primary" ghost @click="openModal">
+      <Button class="binding-card__action" type="primary" ghost @click="openModal">
         {{ actionLabel }}
       </Button>
     </div>
@@ -501,9 +501,15 @@ function resolveValueValidationError() {
 
 .binding-card__header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
+  flex-wrap: nowrap;
   justify-content: space-between;
   gap: 12px;
+}
+
+.binding-card__heading {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .binding-card__title-row {
@@ -516,6 +522,17 @@ function resolveValueValidationError() {
   font-size: 14px;
   font-weight: 600;
   color: var(--binding-title);
+}
+
+.binding-card__action {
+  align-self: center;
+  flex: 0 0 auto;
+  inline-size: max-content;
+  margin-left: auto;
+  max-inline-size: max-content;
+  min-width: 88px;
+  white-space: nowrap;
+  width: max-content;
 }
 
 .binding-summary {
@@ -652,10 +669,21 @@ function resolveValueValidationError() {
 }
 
 @media (max-width: 768px) {
-  .binding-card__header,
   .binding-summary__row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .binding-card__header {
+    gap: 8px;
+  }
+
+  .binding-card__action {
+    inline-size: max-content;
+    max-inline-size: max-content;
+    min-width: 84px;
+    padding-inline: 14px;
+    width: max-content;
   }
 
   .otp-row {

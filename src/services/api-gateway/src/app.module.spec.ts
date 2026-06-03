@@ -1,4 +1,10 @@
-import { resolveAuthGrpcUrl, resolveMesGrpcUrl, resolveTenantOrgGrpcUrl, resolveTerminalDeviceGrpcUrl } from './app.module'
+import {
+  resolveAuthGrpcUrl,
+  resolveHrGrpcUrl,
+  resolveMesGrpcUrl,
+  resolveTenantOrgGrpcUrl,
+  resolveTerminalDeviceGrpcUrl
+} from './app.module'
 
 describe('resolveAuthGrpcUrl', () => {
   const originalHost = process.env.AUTH_SERVICE_HOST
@@ -71,6 +77,47 @@ describe('resolveTenantOrgGrpcUrl', () => {
     delete process.env.TENANT_ORG_SERVICE_PORT
 
     expect(resolveTenantOrgGrpcUrl()).toBe('127.0.0.1:50054')
+  })
+})
+
+describe('resolveHrGrpcUrl', () => {
+  const originalHost = process.env.HR_SERVICE_HOST
+  const originalPort = process.env.HR_SERVICE_PORT
+  const originalNodeEnv = process.env.NODE_ENV
+
+  afterEach(() => {
+    if (originalHost === undefined) {
+      delete process.env.HR_SERVICE_HOST
+    } else {
+      process.env.HR_SERVICE_HOST = originalHost
+    }
+
+    if (originalPort === undefined) {
+      delete process.env.HR_SERVICE_PORT
+    } else {
+      process.env.HR_SERVICE_PORT = originalPort
+    }
+
+    if (originalNodeEnv === undefined) {
+      delete process.env.NODE_ENV
+    } else {
+      process.env.NODE_ENV = originalNodeEnv
+    }
+  })
+
+  it('falls back to the IPv4 loopback endpoint for local HR calls', () => {
+    delete process.env.HR_SERVICE_HOST
+    delete process.env.HR_SERVICE_PORT
+    process.env.NODE_ENV = 'development'
+
+    expect(resolveHrGrpcUrl()).toBe('127.0.0.1:50055')
+  })
+
+  it('normalizes localhost to the IPv4 loopback endpoint', () => {
+    process.env.HR_SERVICE_HOST = 'localhost'
+    process.env.HR_SERVICE_PORT = '50055'
+
+    expect(resolveHrGrpcUrl()).toBe('127.0.0.1:50055')
   })
 })
 

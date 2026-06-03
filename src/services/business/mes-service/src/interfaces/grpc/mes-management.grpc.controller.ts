@@ -7,8 +7,14 @@ import {
   AcceptProductionMoldResponse,
   AdjustMoldLifeCounterRequest,
   AdjustMoldLifeCounterResponse,
+  ConfirmInstalledMoldReadyRequest,
+  ConfirmInstalledMoldReadyResponse,
+  ConfirmProductionMoldArrivalRequest,
+  ConfirmProductionMoldArrivalResponse,
   InstallToolingRequest,
   InstallToolingResponse,
+  MarkInstalledMoldMaintenanceRequest,
+  MarkInstalledMoldMaintenanceResponse,
   MarkProductionMoldForScrapRequest,
   MarkProductionMoldForScrapResponse,
   MoldManagementServiceController,
@@ -147,6 +153,21 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
     )
   }
 
+  /** confirmProductionMoldArrival forwards PDA arrival confirmation into the application layer. */
+  async confirmProductionMoldArrival(request: ConfirmProductionMoldArrivalRequest): Promise<ConfirmProductionMoldArrivalResponse> {
+    const context = MesRpcContextValidator.assertManagementContext(request)
+    return this.runWithContext(context, async () =>
+      MesGrpcPresenter.toConfirmProductionMoldArrivalResponse(
+        await this.managementService.confirmProductionMoldArrival({
+          ...context,
+          commandId: request.commandId ?? '',
+          productionMoldId: request.productionMoldId ?? '',
+          arrivedAt: request.arrivedAt ?? undefined
+        })
+      )
+    )
+  }
+
   /** acceptProductionMold forwards production mold acceptance into the application layer. */
   async acceptProductionMold(request: AcceptProductionMoldRequest): Promise<AcceptProductionMoldResponse> {
     const context = MesRpcContextValidator.assertManagementContext(request)
@@ -194,7 +215,7 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
           workCenterRef: toDomainWorkCenterRef(request.workCenterRef) as never,
           workUnitRef: toDomainWorkUnitRef(request.workUnitRef),
           installedAt: request.installedAt ?? undefined,
-          moldPosition: request.moldPosition ?? undefined,
+          moldPositionIndex: request.moldPositionIndex ?? undefined,
           cavityPosition: request.cavityPosition ?? undefined,
           cavityMapping: request.cavityMapping ?? undefined,
           setupParameters: request.setupParameters ?? undefined
@@ -213,6 +234,42 @@ export class MesManagementGrpcController implements MoldManagementServiceControl
           commandId: request.commandId ?? '',
           toolingInstallationId: request.toolingInstallationId ?? '',
           unmountedAt: request.unmountedAt ?? undefined
+        })
+      )
+    )
+  }
+
+  /** confirmInstalledMoldReady forwards field readiness confirmation into the application layer. */
+  async confirmInstalledMoldReady(request: ConfirmInstalledMoldReadyRequest): Promise<ConfirmInstalledMoldReadyResponse> {
+    const context = MesRpcContextValidator.assertManagementContext(request)
+    return this.runWithContext(context, async () =>
+      MesGrpcPresenter.toConfirmInstalledMoldReadyResponse(
+        await this.managementService.confirmInstalledMoldReady({
+          ...context,
+          commandId: request.commandId ?? '',
+          productionMoldId: request.productionMoldId ?? '',
+          toolingInstallationId: request.toolingInstallationId ?? '',
+          confirmedAt: request.readyAt ?? undefined
+        })
+      )
+    )
+  }
+
+  /** markInstalledMoldMaintenance forwards field maintenance marking into the application layer. */
+  async markInstalledMoldMaintenance(request: MarkInstalledMoldMaintenanceRequest): Promise<MarkInstalledMoldMaintenanceResponse> {
+    const context = MesRpcContextValidator.assertManagementContext(request)
+    return this.runWithContext(context, async () =>
+      MesGrpcPresenter.toMarkInstalledMoldMaintenanceResponse(
+        await this.managementService.markInstalledMoldMaintenance({
+          ...context,
+          auditContext: {
+            ...context.auditContext,
+            reason: request.reason ?? context.auditContext.reason
+          },
+          commandId: request.commandId ?? '',
+          productionMoldId: request.productionMoldId ?? '',
+          toolingInstallationId: request.toolingInstallationId ?? '',
+          markedAt: request.markedAt ?? undefined
         })
       )
     )

@@ -4,7 +4,11 @@ import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstr
 import { AuthGrpcAdapter } from '../../infrastructure/downstream/auth-service/auth-grpc.adapter'
 import { TenantOrgQueryGrpcAdapter } from '../../infrastructure/downstream/tenant-org-service/tenant-org-query-grpc.adapter'
 import { TerminalDeviceAccessAdapter } from '../../infrastructure/downstream/terminal-device-service/terminal-device-access.adapter'
-import { LoginDto, LoginMethodDto } from '../../interfaces/http/dtos/login.dto'
+import {
+  EmployeeCodePinPreflightDto,
+  LoginDto,
+  LoginMethodDto
+} from '../../interfaces/http/dtos/login.dto'
 import {
   AuthNextStep,
   AuthResponseViewModel,
@@ -24,6 +28,14 @@ export type LoginTerminal = 'KIOSK' | 'PDA' | 'WEB'
 interface PdaLoginDeviceContext {
   terminalDeviceId: string
   deviceBoundTenantId: string
+}
+
+type PdaDeviceMetadataCarrier = Pick<LoginDto, 'device'>
+
+export type EmployeeCodePinPreflightViewModel = {
+  allowed: boolean
+  reasonCode: string
+  message: string
 }
 
 @Injectable()
@@ -70,6 +82,45 @@ export class LoginUseCase {
     return toAuthResponseViewModel(hydratedResult)
   }
 
+  async preflightEmployeeCodePin(
+    dto: EmployeeCodePinPreflightDto,
+    source: DownstreamRequestSource,
+    clientContext: LoginClientContext,
+    terminal: LoginTerminal = 'WEB'
+  ): Promise<EmployeeCodePinPreflightViewModel> {
+    const pdaDeviceContext = await this.resolvePdaDeviceContextIfNeeded(
+      dto,
+      clientContext,
+      terminal
+    )
+    if (pdaDeviceContext && !pdaDeviceContext.allowed) {
+      return {
+        allowed: false,
+        reasonCode: 'TERMINAL_ACCESS_DENIED',
+        message: pdaDeviceContext.reasonCode || 'TERMINAL_ACCESS_DENIED'
+      }
+    }
+
+    const employeeCode = dto.employeeCode.trim()
+    const loginFlow = this.toLoginFlow(LoginMethodDto.EMPLOYEE_CODE_PIN, terminal)
+    const result = await this.authAdapter.preflightEmployeeCodePin(
+      {
+        employeeCode,
+        terminal,
+        terminalDeviceId: pdaDeviceContext?.terminalDeviceId,
+        deviceBoundTenantId: pdaDeviceContext?.deviceBoundTenantId,
+        loginFlow
+      },
+      source
+    )
+
+    return {
+      allowed: Boolean(result.allowed),
+      reasonCode: result.reasonCode || (result.allowed ? 'READY_FOR_PIN' : 'EMPLOYEE_CODE_LOGIN_UNAVAILABLE'),
+      message: result.message || result.reasonCode || ''
+    }
+  }
+
   private dispatch(
     dto: LoginDto,
     source: DownstreamRequestSource,
@@ -85,8 +136,10 @@ export class LoginUseCase {
           loginFlow
         }
       : undefined
-    const identifier = dto.identifier.trim()
-    const credential = dto.credential.trim()
+    const identifier = dto.identifier?.trim() ?? ''
+    const credential = dto.credential?.trim() ?? ''
+    const employeeCode = dto.employeeCode?.trim() || identifier
+    const pin = dto.pin?.trim() || credential
     const deviceName = dto.device?.deviceName?.trim()
     const userAgent = clientContext.userAgent?.trim()
     const ipAddress = clientContext.ipAddress?.trim()
@@ -134,6 +187,19 @@ export class LoginUseCase {
           source,
           authDeviceContext
         )
+      case LoginMethodDto.EMPLOYEE_CODE_PIN:
+        return this.authAdapter.loginWithEmployeeCodePin(
+          {
+            employeeCode,
+            pin,
+            deviceName,
+            userAgent,
+            ipAddress,
+            terminal,
+            ...authDeviceContext
+          },
+          source
+        )
       default:
         throw new BadRequestException('Unsupported login method')
     }
@@ -156,12 +222,14 @@ export class LoginUseCase {
         return TerminalLoginFlow.PhonePassword
       case LoginMethodDto.PHONE_OTP:
         return TerminalLoginFlow.PhoneOtp
+      case LoginMethodDto.EMPLOYEE_CODE_PIN:
+        return TerminalLoginFlow.EmployeeCodePin
     }
   }
 
   // Resolves the managed PDA device tenant binding when the fixed terminal requires it.
   private async resolvePdaDeviceContextIfNeeded(
-    dto: LoginDto,
+    dto: PdaDeviceMetadataCarrier,
     clientContext: LoginClientContext,
     terminal: LoginTerminal
   ): Promise<(PdaLoginDeviceContext & { allowed: boolean; reasonCode?: string }) | undefined> {
@@ -189,7 +257,7 @@ export class LoginUseCase {
 
   // Extracts PDA device identity and software hints without making auth-bff own device governance rules.
   private toPdaDeviceMetadata(
-    dto: LoginDto,
+    dto: PdaDeviceMetadataCarrier,
     context: { deviceName?: string; userAgent?: string; ipAddress?: string }
   ): Record<string, unknown> {
     return {

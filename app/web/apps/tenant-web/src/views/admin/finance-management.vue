@@ -699,6 +699,7 @@ onMounted(() => {
           :loading="loading"
           :locale="{ emptyText: '暂无资金账户' }"
           :pagination="false"
+          :scroll="{ x: 880 }"
           row-key="financialAccountId"
           size="middle"
         />
@@ -712,6 +713,7 @@ onMounted(() => {
           :loading="loading"
           :locale="{ emptyText: '暂无应收计划' }"
           :pagination="false"
+          :scroll="{ x: 900 }"
           row-key="receivableScheduleId"
           size="middle"
         />

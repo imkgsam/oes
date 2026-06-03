@@ -48,6 +48,10 @@ export namespace HrManagementApi {
     total: number
   }
 
+  export interface EmployeeCodePreviewResult {
+    employeeCode: string
+  }
+
   export interface EmployeeDetailResult {
     activeEmployment?: EmploymentSummary
     employee: EmployeeSummary
@@ -185,6 +189,13 @@ export async function getManagedEmployeeDetailApi(tenantId: string, employeeId: 
 export async function getManagedEmployeeAccountAccessApi(tenantId: string, employeeId: string) {
   return requestClient.get<HrManagementApi.EmployeeAccountAccessResult>(
     `/hr-management/tenants/${encodeURIComponent(tenantId)}/employees/${encodeURIComponent(employeeId)}/account-access`
+  )
+}
+
+// Previews the next system-owned employee code for the create employee dialog.
+export async function getManagedNextEmployeeCodeApi(tenantId: string) {
+  return requestClient.get<HrManagementApi.EmployeeCodePreviewResult>(
+    `/hr-management/tenants/${encodeURIComponent(tenantId)}/employees/next-code`
   )
 }
 

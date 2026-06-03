@@ -170,6 +170,25 @@ class TestAuthGrpcController implements AuthServiceController {
     }
   }
 
+  loginWithEmployeeCodePin(): any {
+    return {
+      status: LoginStatus.LOGIN_STATUS_SUCCESS,
+      accessToken: 'access-employee-pin',
+      refreshToken: 'refresh-employee-pin',
+      expiresIn: '3600',
+      loginMethod: 'EMPLOYEE_CODE_PIN'
+    }
+  }
+
+  // Mirrors the employee-code PIN preflight contract without creating a session.
+  preflightEmployeeCodePinLogin(): any {
+    return {
+      allowed: true,
+      reasonCode: 'READY_FOR_PIN',
+      message: 'READY_FOR_PIN'
+    }
+  }
+
   requestEmailOtpLoginChallenge(): any {
     return { challengeId: 'email-challenge-1', destination: 'a***@example.com' }
   }
@@ -251,6 +270,18 @@ class TestAuthGrpcController implements AuthServiceController {
     return { success: true, passwordSetupRequired: false }
   }
 
+  setOwnTerminalPin(): any {
+    return { success: true }
+  }
+
+  resetOwnTerminalPin(): any {
+    return { success: true }
+  }
+
+  setOwnTerminalPinEnabled(): any {
+    return { success: true }
+  }
+
   verifyEmailBinding(request: { email?: string }): any {
     return {
       success: true,
@@ -269,6 +300,14 @@ class TestAuthGrpcController implements AuthServiceController {
 
   requirePasswordSetup(): any {
     return { success: true, passwordSetupRequired: true }
+  }
+
+  requireTerminalPinReset(): any {
+    return { success: true }
+  }
+
+  disableUserTerminalPin(): any {
+    return { success: true }
   }
 
   setLoginMethodEnabled(): any {
@@ -702,6 +741,34 @@ class TestAuthGrpcController implements AuthServiceController {
           tenantId: 'tenant-1',
           status: 'ACTIVE',
           loginMethod: 'EMAIL_PASSWORD',
+          createdAt: '2026-04-09T10:00:00.000Z',
+          lastActiveAt: '2026-04-09T10:10:00.000Z',
+          expiresAt: '2026-04-09T11:00:00.000Z',
+          refreshExpiresAt: '2026-04-10T10:00:00.000Z',
+          accessRemainingSeconds: '300',
+          refreshRemainingSeconds: '86400',
+          sessionAgeSeconds: '600',
+          idleSeconds: '30',
+          isAccessExpired: false,
+          isRefreshExpired: false,
+          isRevoked: false,
+          isAdminControlled: true
+        }
+      ]
+    }
+  }
+
+  adminListTerminalDeviceSessions(request: { terminalDeviceId?: string }): any {
+    return {
+      sessions: [
+        {
+          sessionId: 'session-terminal-1',
+          userId: 'user-1',
+          accountId: 'account-1',
+          tenantId: 'tenant-1',
+          terminalDeviceId: request.terminalDeviceId ?? 'terminal-device-1',
+          status: 'ACTIVE',
+          loginMethod: 'EMPLOYEE_CODE_PIN',
           createdAt: '2026-04-09T10:00:00.000Z',
           lastActiveAt: '2026-04-09T10:10:00.000Z',
           expiresAt: '2026-04-09T11:00:00.000Z',

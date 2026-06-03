@@ -94,6 +94,141 @@ describe('LoginUseCase', () => {
     )
   })
 
+  it('forwards PDA employee-code PIN login to auth-service with device-bound context', async () => {
+    const authAdapter = {
+      loginWithEmployeeCodePin: jest.fn().mockResolvedValue({
+        status: LoginStatus.LOGIN_STATUS_SUCCESS,
+        userId: 'user-1',
+        accessToken: 'access',
+        refreshToken: 'refresh',
+        expiresIn: 900,
+        loginMethod: 'EMPLOYEE_CODE_PIN',
+        terminal: 'PDA',
+        allowedTerminals: ['PDA']
+      })
+    }
+    const terminalDeviceAdapter = {
+      resolveLoginDeviceContext: jest.fn().mockResolvedValue({
+        allowed: true,
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-bound'
+      })
+    }
+    const useCase = new LoginUseCase(authAdapter as any, undefined, terminalDeviceAdapter as any)
+
+    await useCase.execute(
+      {
+        method: LoginMethodDto.EMPLOYEE_CODE_PIN,
+        identifier: ' EMP001 ',
+        credential: '482915',
+        device: {
+          deviceId: 'terminal-device-1',
+          deviceName: ' Warehouse PDA '
+        }
+      },
+      { requestId: 'req-1' },
+      { userAgent: ' OES-PDA/1.0 ', ipAddress: ' 10.0.0.7 ' },
+      'PDA'
+    )
+
+    expect(authAdapter.loginWithEmployeeCodePin).toHaveBeenCalledWith(
+      {
+        employeeCode: 'EMP001',
+        pin: '482915',
+        deviceName: 'Warehouse PDA',
+        userAgent: 'OES-PDA/1.0',
+        ipAddress: '10.0.0.7',
+        terminal: 'PDA',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-bound',
+        loginFlow: 'EMPLOYEE_CODE_PIN'
+      },
+      expect.objectContaining({ requestId: 'req-1' })
+    )
+  })
+
+  it('preflights PDA employee-code PIN login before the PIN popup opens', async () => {
+    const authAdapter = {
+      preflightEmployeeCodePin: jest.fn().mockResolvedValue({
+        allowed: true,
+        reasonCode: 'READY_FOR_PIN',
+        message: 'READY_FOR_PIN'
+      })
+    }
+    const terminalDeviceAdapter = {
+      resolveLoginDeviceContext: jest.fn().mockResolvedValue({
+        allowed: true,
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-bound'
+      })
+    }
+    const useCase = new LoginUseCase(authAdapter as any, undefined, terminalDeviceAdapter as any)
+
+    await expect(
+      useCase.preflightEmployeeCodePin(
+        {
+          employeeCode: ' EMP-0AF-0001 ',
+          device: {
+            deviceId: 'terminal-device-1',
+            deviceName: ' Warehouse PDA '
+          }
+        },
+        { requestId: 'req-1' },
+        { userAgent: ' OES-PDA/1.0 ', ipAddress: ' 10.0.0.7 ' },
+        'PDA'
+      )
+    ).resolves.toEqual({
+      allowed: true,
+      reasonCode: 'READY_FOR_PIN',
+      message: 'READY_FOR_PIN'
+    })
+
+    expect(authAdapter.preflightEmployeeCodePin).toHaveBeenCalledWith(
+      {
+        employeeCode: 'EMP-0AF-0001',
+        terminal: 'PDA',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-bound',
+        loginFlow: 'EMPLOYEE_CODE_PIN'
+      },
+      expect.objectContaining({ requestId: 'req-1' })
+    )
+  })
+
+  it('denies PDA employee-code preflight before auth-service when the managed device is unavailable', async () => {
+    const authAdapter = {
+      preflightEmployeeCodePin: jest.fn()
+    }
+    const terminalDeviceAdapter = {
+      resolveLoginDeviceContext: jest.fn().mockResolvedValue({
+        allowed: false,
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-bound',
+        reasonCode: 'DEVICE_LOST'
+      })
+    }
+    const useCase = new LoginUseCase(authAdapter as any, undefined, terminalDeviceAdapter as any)
+
+    await expect(
+      useCase.preflightEmployeeCodePin(
+        {
+          employeeCode: 'EMP-0AF-0001',
+          device: {
+            deviceId: 'terminal-device-1'
+          }
+        },
+        { requestId: 'req-1' },
+        {},
+        'PDA'
+      )
+    ).resolves.toEqual({
+      allowed: false,
+      reasonCode: 'TERMINAL_ACCESS_DENIED',
+      message: 'DEVICE_LOST'
+    })
+    expect(authAdapter.preflightEmployeeCodePin).not.toHaveBeenCalled()
+  })
+
   it('resolves PDA device context before calling auth-service and ignores tenant hints', async () => {
     const calls: string[] = []
     const authAdapter = {

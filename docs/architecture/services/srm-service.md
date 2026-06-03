@@ -1,12 +1,12 @@
 # srm-service 职责卡
 
-Last Updated: 2026-05-13
+Last Updated: 2026-05-18
 
 ## 1. Purpose
 
-`srm-service` 是 OES 的供应商关系主档服务，负责回答“这个租户内有哪些正式供应商档案、它们绑定了哪个正式主体、当前处于什么供应商状态、有哪些联系人/地址/分类/标签、以及它当前可供应哪些可采购 Item”。
+`srm-service` 是 OES 的供应商关系主档服务，负责回答“这个租户内有哪些正式供应商档案、它们绑定了哪个正式主体、当前处于什么供应商状态、有哪些联系人/地址/分类/标签，以及后续有哪些供应商采购信息可供采购参考”。
 
-当前职责卡只冻结 `SRM-MINIMAL` 的最小供应商主档闭环，不展开 RFQ、采购价格、MOQ、lead time、供应商绩效或质量整改；`PaymentTerm` 主数据归 `finance-service`，SRM 只保存默认引用。
+当前职责卡只冻结 `SRM-MINIMAL` 的最小供应商主档闭环，不在第一阶段实现或强制校验 `SupplierOffering`。`SupplierOffering` 后续方向调整为类似 Odoo supplierinfo 的供应商采购信息，可承载默认价格、MOQ、lead time 等参考字段；正式 RFQ、PO、成交价、收货和履约事实仍归 future `procurement-service`，`PaymentTerm` 主数据归 `finance-service`。
 
 ## 2. Owns
 
@@ -17,7 +17,7 @@ Last Updated: 2026-05-13
 - `SupplierStatus`
 - `SupplierCategory`
 - `SupplierTag`
-- `SupplierOffering`
+- future `SupplierOffering` / supplier purchasing info
 - `SupplierProfile.tenantPartyId` 供应商角色到 `TenantParty` 的正式引用
 - 供应商默认交易条件：
   - `defaultCurrency`
@@ -30,9 +30,9 @@ Last Updated: 2026-05-13
 - `SupplierProfile` 的正式主体引用是 `tenantPartyId`
 - `ACTIVE SupplierProfile` 必须绑定 `tenantPartyId`
 - 同一 `tenantId + tenantPartyId` 只允许一个正式 `SupplierProfile`
-- `SupplierOffering` 表达 `supplierId + itemId` 的“可供应关系事实”
-- `ACTIVE SupplierOffering` 只允许挂在 `ACTIVE SupplierProfile` 下
-- `ACTIVE SupplierOffering` 只允许指向 active + purchasable `Item`
+- 第一阶段标准采购不强制要求 `SupplierOffering`
+- future `SupplierOffering` 表达供应商针对内部 `Item` 或后续允许的 `ItemModel` 范围的采购参考信息，而不是第一阶段 PO 准入门槛
+- future `SupplierOffering` 可承载默认采购价格、币种、MOQ、lead time、供应商料号引用等参考信息；实际交易价格和历史成交事实归 Procurement
 
 ## 3. Does Not Own
 
@@ -45,7 +45,7 @@ Last Updated: 2026-05-13
 - `SupplierItemMapping` 真相
 - 采购单、收货与采购执行真相：
   - future `procurement-service`
-- RFQ、采购价格、MOQ、lead time
+- RFQ、采购订单、收货、履约、实际成交价和历史采购价格事实
 - `PaymentTerm`、付款控制、付款冻结、付款账户与供应商发票财务事实
 - 供应商绩效评分真相
 - 来料质量、拒收、整改与质量处理真相
@@ -58,7 +58,7 @@ Last Updated: 2026-05-13
 - 维护供应商联系人 usage、地址 usage、分类、标签和供应商状态等 SRM 业务语义；联系人与地址正文继续归 `party-service`。
 - 管理 `SupplierTaxProfile` 作为供应商交易税务默认配置，不拥有供应商发票、进项税、认证或付款事实。
 - 维护供应商默认交易条件，例如默认币种、默认付款条款、默认收票地址 usage 与默认财务联系人 usage；这些只作为采购创建默认值，不能解释历史交易。
-- 维护 `SupplierOffering` 这一“供应商可供应某个 Item”的关系事实。
+- 第一阶段不维护 `SupplierOffering` 作为采购准入事实；后续如启用 `SupplierOffering`，其定位是供应商采购信息 / supplierinfo，而不是强制采购校验对象。
 - 对 future `procurement-service` 与其他受控消费者提供统一供应商主档查询口径。
 - 在状态变更时执行最小主档闭环所需的一致性校验，而不是把采购商业条款并入 SRM。
 
@@ -98,13 +98,13 @@ Last Updated: 2026-05-13
 - `SupplierProfile.tenantPartyId` 正式主体引用事实
 - 供应商联系人 usage、地址 usage、分类与标签摘要
 - `SupplierTaxProfile` 默认税务配置摘要
-- `SupplierOffering` 可供应关系事实
+- future `SupplierOffering` / supplier purchasing info 摘要
 - 供下游校验或引用的供应商启停状态摘要
 
 ## 8. Non-goals
 
 - 不把 `SupplierItemMapping` 扩成采购商业档
-- 不把 `SupplierOffering` 扩成价格表、MOQ 表或 lead time 表
+- 不把 first-stage `SupplierProfile` 主档扩成采购价格表或 RFQ 系统
 - 不复制 `party-service` 的主体注册信息作为 SRM 真相
 - 不冻结 future `procurement-service` 的 PO / RFQ 对象名
 - 不在本阶段承诺供应商绩效、质量整改或资质闭环
@@ -122,6 +122,7 @@ Last Updated: 2026-05-13
 - `SupplierProfile.displayName / shortName / supplierCode` 归 SRM；`Party.legalName` 归 Party。创建时可从 legal name 初始化 display name，但后续 legal name 变化不能覆盖 SRM 角色显示名。
 - `SupplierTaxProfile` 第一阶段最小字段为 `invoiceTitle / taxRegistrationNo / taxpayerType / defaultInvoiceType / canIssueVatSpecialInvoice / defaultTaxTreatment / invoiceAddressUsageId / financeContactUsageId`。
 - `defaultCurrency / defaultPaymentTermId` 只作为采购默认值；PurchaseOrder / supplier invoice / Payable 必须保存自己的交易币种与付款条款 snapshot。
-- `SupplierOffering` 只表达“能供应这个 Item”，不表达价格、MOQ、payment term snapshot、lead time 或供应表现。
+- 第一阶段不实现 `SupplierOffering`，也不在采购保存时强制校验 `SupplierOffering`。
+- future `SupplierOffering` 方向调整为类似 Odoo supplierinfo 的供应商采购信息，可记录默认价格、币种、MOQ、lead time、供应商料号引用等参考字段；它不等于 RFQ、PO、成交价或采购履约事实。
 - `SupplierItemMapping` 继续归 `item-master-service`，只表达 `supplierId + supplierItemCode / supplierItemName -> itemId`。
-- 采购交易、质量、绩效、整改、RFQ 与商业条款全部 deferred 到后续独立 contract / feature 线程。
+- 采购交易、质量、绩效、整改、RFQ、实际成交价与履约全部 deferred 到后续独立 contract / feature 线程。

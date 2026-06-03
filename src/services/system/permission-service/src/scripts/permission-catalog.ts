@@ -260,6 +260,22 @@ const hrManagement = definePermissionGroup(Modules.HR_SERVICE, {
 })
 
 const itemMasterManagement = definePermissionGroup(Modules.ITEM_MASTER_SERVICE, {
+  LIST_ITEM_MODEL: {
+    code: 'item_master.item_model.list',
+    description: '查看 ItemModel 列表'
+  },
+  VIEW_ITEM_MODEL_DETAIL: {
+    code: 'item_master.item_model.get_by_id',
+    description: '查看 ItemModel 详情'
+  },
+  CREATE_ITEM_MODEL: {
+    code: 'item_master.item_model.create',
+    description: '创建 ItemModel'
+  },
+  MANAGE_ITEM_MODEL: {
+    code: 'item_master.item_model.manage',
+    description: '维护 ItemModel 基础信息、能力与分类'
+  },
   LIST_ITEM: { code: 'item_master.item.list', description: '查看 Item 列表' },
   VIEW_ITEM_DETAIL: { code: 'item_master.item.get_by_id', description: '查看 Item 详情' },
   CREATE_ITEM: { code: 'item_master.item.create', description: '创建 Item' },

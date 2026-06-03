@@ -7,6 +7,8 @@ import { MesService } from '../../../mes.service'
 import {
   ActivateProductionSpecDto,
   AcceptProductionMoldDto,
+  ConfirmInstalledMoldReadyDto,
+  ConfirmProductionMoldArrivalDto,
   CreateProductionSpecDto,
   GetMoldUsageHistoryDto,
   InstallToolingDto,
@@ -17,6 +19,7 @@ import {
   ListProductionMoldsByDesignDto,
   ListProductionMoldsDto,
   ListProductionSpecsDto,
+  MarkInstalledMoldMaintenanceDto,
   MarkProductionMoldForScrapDto,
   MoveToolingDto,
   PrintDailyMoldChecklistDto,
@@ -202,6 +205,19 @@ export class MesController {
     return this.mesService.acceptProductionMold(tenantId, productionMoldId, body, source)
   }
 
+  @Post('production-molds/:productionMoldId/confirm-arrival')
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_PRODUCTION_MOLD] })
+  @ApiOperation({ summary: 'Confirm one pre-registered MES production mold has arrived' })
+  @ApiBody({ type: ConfirmProductionMoldArrivalDto })
+  async confirmProductionMoldArrival(
+    @Param('tenantId') tenantId: string,
+    @Param('productionMoldId') productionMoldId: string,
+    @Body() body: ConfirmProductionMoldArrivalDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.mesService.confirmProductionMoldArrival(tenantId, productionMoldId, body, source)
+  }
+
   @Get('production-molds')
   @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.READ_PRODUCTION_MOLD] })
   @ApiOperation({ summary: 'List MES production molds' })
@@ -285,6 +301,32 @@ export class MesController {
     @DownstreamSource() source: DownstreamRequestSource
   ) {
     return this.mesService.unmountTooling(tenantId, toolingInstallationId, body, source)
+  }
+
+  @Post('production-molds/:productionMoldId/confirm-ready')
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_TOOLING_INSTALLATION] })
+  @ApiOperation({ summary: 'Confirm one installed MES production mold is ready for usage recording' })
+  @ApiBody({ type: ConfirmInstalledMoldReadyDto })
+  async confirmInstalledMoldReady(
+    @Param('tenantId') tenantId: string,
+    @Param('productionMoldId') productionMoldId: string,
+    @Body() body: ConfirmInstalledMoldReadyDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.mesService.confirmInstalledMoldReady(tenantId, productionMoldId, body, source)
+  }
+
+  @Post('production-molds/:productionMoldId/mark-maintenance')
+  @RequirePermissions({ all: [MES_MANAGEMENT_PERMISSION_CODES.MANAGE_TOOLING_INSTALLATION] })
+  @ApiOperation({ summary: 'Mark one ready installed MES production mold as maintenance' })
+  @ApiBody({ type: MarkInstalledMoldMaintenanceDto })
+  async markInstalledMoldMaintenance(
+    @Param('tenantId') tenantId: string,
+    @Param('productionMoldId') productionMoldId: string,
+    @Body() body: MarkInstalledMoldMaintenanceDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.mesService.markInstalledMoldMaintenance(tenantId, productionMoldId, body, source)
   }
 
   @Post('production-molds/:productionMoldId/mark-for-scrap')

@@ -43,6 +43,9 @@ export function createMockBridgeClient(): PdaBridgeClient {
         },
       };
     },
+    async openCameraScanner() {
+      return { ok: false, error: { code: 'CAMERA_SCANNER_UNAVAILABLE', message: 'Camera scanner is unavailable' } };
+    },
     async beep() {
       return { ok: true, data: { played: true } };
     },

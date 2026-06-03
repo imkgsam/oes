@@ -239,6 +239,21 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
     )
   }
 
+  async listActiveToolingInstallationsByWorkCenter(input: {
+    tenantId: string
+    orgId?: string | null
+    workCenterId: string
+  }): Promise<ToolingInstallationRecord[]> {
+    return clone(
+      Array.from(this.store.toolingInstallations.values())
+        .filter((record) => record.tenantId === input.tenantId)
+        .filter((record) => record.status === ToolingInstallationStatus.ACTIVE && !record.unmountedAt)
+        .filter((record) => record.workCenterRef.workCenterId === input.workCenterId)
+        .filter((record) => !input.orgId || sameOrg(record.orgId, input.orgId))
+        .sort((left, right) => (left.moldDetail?.moldPositionIndex ?? 0) - (right.moldDetail?.moldPositionIndex ?? 0))
+    )
+  }
+
   async listCurrentMoldsByWorkCenter(input: ListCurrentMoldsByWorkCenterInput) {
     const items: CurrentMoldByWorkCenterRecord[] = []
     for (const installation of this.store.toolingInstallations.values()) {
@@ -256,11 +271,16 @@ export class InMemoryMesMoldRepository implements MesMoldRepository {
         items.push({
           productionMold: this.toProductionMoldSummary(mold),
           toolingInstallation: clone(installation),
-          usageAllowed: mold.currentStatus === ProductionMoldStatus.INSTALLED,
-          usageDisabledReason: mold.currentStatus === ProductionMoldStatus.INSTALLED ? null : `MOLD_${mold.currentStatus}`
+          usageAllowed: mold.currentStatus === ProductionMoldStatus.READY,
+          usageDisabledReason: mold.currentStatus === ProductionMoldStatus.READY ? null : `MOLD_${mold.currentStatus}`
         })
       }
     }
+    items.sort(
+      (left, right) =>
+        (left.toolingInstallation.moldDetail?.moldPositionIndex ?? 0) -
+        (right.toolingInstallation.moldDetail?.moldPositionIndex ?? 0)
+    )
     return { items }
   }
 

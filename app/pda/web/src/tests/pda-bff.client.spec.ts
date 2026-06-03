@@ -2,12 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   enrollPdaDevice,
   fetchPdaBootstrap,
+  confirmPdaInstalledMoldReady,
+  confirmPdaProductionMoldArrival,
+  installPdaProductionMold,
+  loginPdaWithEmployeeCodePin,
+  markPdaProductionMoldForScrap,
+  movePdaProductionMold,
+  preflightPdaEmployeeCodePin,
   logoutPda,
   loginPda,
   PdaBffError,
+  recordPdaMoldUsageBatch,
   refreshPdaSession,
   selectPdaAccount,
   toManagedPdaDeviceDescriptor,
+  unmountPdaProductionMold,
 } from '@/api/pda-bff.client';
 import { setBridgeClient } from '@/bridge/bridge-client';
 
@@ -19,6 +28,7 @@ describe('pda bff client', () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     setBridgeClient(undefined);
     delete window.__OES_PDA_CONFIG__;
   });
@@ -85,6 +95,115 @@ describe('pda bff client', () => {
     expect(result.session?.accessToken).toBe('access-token-1');
   });
 
+  it('posts PDA employee code PIN login without placing the PIN in diagnostic fields', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: {
+            status: 'SUCCESS',
+            nextStep: 'NONE',
+            session: {
+              accessToken: 'access-token-1',
+              refreshToken: 'refresh-token-1',
+              expiresIn: 900,
+              terminal: 'PDA',
+            },
+            operator: {
+              displayName: 'PDA Operator',
+            },
+            accountOptions: [],
+          },
+        }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await loginPdaWithEmployeeCodePin({
+      employeeCode: 'EMP001',
+      pin: '123456',
+      deviceName: 'CRUISE Ge',
+      terminalDeviceId: 'terminal-device-1',
+      device: toManagedPdaDeviceDescriptor(createDeviceInfo(), 'terminal-device-1'),
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://192.168.2.33:9101/api/v1/pda/auth/login',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          method: 'EMPLOYEE_CODE_PIN',
+          employeeCode: 'EMP001',
+          pin: '123456',
+          device: {
+            deviceId: 'terminal-device-1',
+            deviceName: 'CRUISE Ge',
+            identity: {
+              manufacturerSerial: 'SEUIC-SN-123',
+              androidId: null,
+              appInstallationId: null,
+              manufacturer: 'Seuic',
+              model: 'Cruise Ge',
+            },
+            software: {
+              androidVersion: '9',
+              webViewVersion: '66.0.3359.158',
+              appVersion: '2.0.0',
+            },
+          },
+        }),
+      }),
+    );
+  });
+
+  it('preflights PDA employee code login without sending a PIN', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          data: {
+            allowed: true,
+            reasonCode: 'READY_FOR_PIN',
+            message: 'READY_FOR_PIN',
+          },
+        }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await preflightPdaEmployeeCodePin({
+      employeeCode: 'EMP-0AF-0001',
+      deviceName: 'CRUISE Ge',
+      terminalDeviceId: 'terminal-device-1',
+      device: toManagedPdaDeviceDescriptor(createDeviceInfo(), 'terminal-device-1'),
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://192.168.2.33:9101/api/v1/pda/auth/employee-code/preflight',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          employeeCode: 'EMP-0AF-0001',
+          device: {
+            deviceId: 'terminal-device-1',
+            deviceName: 'CRUISE Ge',
+            identity: {
+              manufacturerSerial: 'SEUIC-SN-123',
+              androidId: null,
+              appInstallationId: null,
+              manufacturer: 'Seuic',
+              model: 'Cruise Ge',
+            },
+            software: {
+              androidVersion: '9',
+              webViewVersion: '66.0.3359.158',
+              appVersion: '2.0.0',
+            },
+          },
+        }),
+      }),
+    );
+    expect(result.allowed).toBe(true);
+  });
+
   it('uses Android-injected config when the APK shell provides a BFF base URL', async () => {
     window.__OES_PDA_CONFIG__ = {
       bffBaseUrl: 'http://10.0.0.2:9101/api/v1',
@@ -99,6 +218,29 @@ describe('pda bff client', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       'http://10.0.0.2:9101/api/v1/pda/session/bootstrap?terminalDeviceId=terminal-device-1',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer access-token-1',
+        }),
+      }),
+    );
+  });
+
+  it('prefers the Android-injected gateway over a remembered gateway from an older APK run', async () => {
+    window.localStorage.setItem('oes:pda:last-bff-base-url', 'http://192.168.100.48:9101/api/v1');
+    window.__OES_PDA_CONFIG__ = {
+      bffBaseUrl: 'http://192.168.2.33:9101/api/v1',
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { account: { accountId: 'acc-1' } } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await fetchPdaBootstrap('access-token-1', 'terminal-device-1');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://192.168.2.33:9101/api/v1/pda/session/bootstrap?terminalDeviceId=terminal-device-1',
       expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: 'Bearer access-token-1',
@@ -242,6 +384,90 @@ describe('pda bff client', () => {
     expect(loggedOut.success).toBe(true);
   });
 
+  it('sends PDA mold execution commands through the tenant MES BFF surface', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ data: { accepted: true } }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await confirmPdaProductionMoldArrival('access-token-1', 'tenant-1', 'mold-1');
+    await movePdaProductionMold('access-token-1', 'tenant-1', 'mold-1', { storageResourceId: 'storage-1' });
+    await installPdaProductionMold('access-token-1', 'tenant-1', 'mold-1', {
+      workCenterRef: { workCenterId: 'wc-1' },
+      moldPositionIndex: 2,
+    });
+    await confirmPdaInstalledMoldReady('access-token-1', 'tenant-1', 'mold-1', 'install-1');
+    await recordPdaMoldUsageBatch(
+      'access-token-1',
+      'tenant-1',
+      { workCenterId: 'wc-1' },
+      [{ checked: true, productionMoldId: 'mold-1', toolingInstallationId: 'install-1', usageQuantity: '12' }],
+    );
+    await markPdaProductionMoldForScrap('access-token-1', 'tenant-1', 'mold-1');
+    await unmountPdaProductionMold('access-token-1', 'tenant-1', 'install-1');
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://192.168.2.33:9101/api/v1/mes/tenants/tenant-1/production-molds/mold-1/confirm-arrival',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ Authorization: 'Bearer access-token-1' }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://192.168.2.33:9101/api/v1/mes/tenants/tenant-1/tooling/mold-1/move',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          reason: 'pda move production mold',
+          toolingType: 'MOLD',
+          toStorageResourceRef: { storageResourceId: 'storage-1' },
+        }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      'http://192.168.2.33:9101/api/v1/mes/tenants/tenant-1/tooling/mold-1/install',
+      expect.objectContaining({
+        body: JSON.stringify({
+          reason: 'pda install production mold',
+          toolingType: 'MOLD',
+          workCenterRef: { workCenterId: 'wc-1' },
+          moldPositionIndex: 2,
+        }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      'http://192.168.2.33:9101/api/v1/mes/tenants/tenant-1/production-molds/mold-1/confirm-ready',
+      expect.objectContaining({
+        body: JSON.stringify({
+          reason: 'pda confirm installed mold ready',
+          toolingInstallationId: 'install-1',
+        }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      5,
+      expect.stringContaining('/mes/tenants/tenant-1/daily-mold-checklists/'),
+      expect.objectContaining({
+        body: expect.stringContaining('"captureSource":"PDA_MOLD_USAGE"'),
+      }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      6,
+      'http://192.168.2.33:9101/api/v1/mes/tenants/tenant-1/production-molds/mold-1/mark-for-scrap',
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      7,
+      'http://192.168.2.33:9101/api/v1/mes/tenants/tenant-1/tooling-installations/install-1/unmount',
+      expect.any(Object),
+    );
+  });
+
   it('throws typed auth errors for 401 and 403 responses', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,
@@ -277,14 +503,42 @@ describe('pda bff client', () => {
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
-      'http://192.168.100.44:9101/api/v1/pda/session/bootstrap?terminalDeviceId=terminal-device-1',
+      'http://192.168.100.48:9101/api/v1/pda/session/bootstrap?terminalDeviceId=terminal-device-1',
       expect.any(Object),
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
-      'http://192.168.100.44:9101/api/v1/pda/session/bootstrap?terminalDeviceId=terminal-device-1',
+      'http://192.168.100.48:9101/api/v1/pda/session/bootstrap?terminalDeviceId=terminal-device-1',
       expect.any(Object),
     );
+  });
+
+  it('times out one stalled LAN gateway quickly before trying the fallback gateway', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockReturnValueOnce(new Promise(() => undefined))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ data: { account: { accountId: 'account-1' } } }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const resultPromise = fetchPdaBootstrap('access-token-1', 'terminal-device-1');
+    await vi.advanceTimersByTimeAsync(1200);
+    const result = await resultPromise;
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'http://192.168.2.33:9101/api/v1/pda/session/bootstrap?terminalDeviceId=terminal-device-1',
+      expect.any(Object),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'http://192.168.100.48:9101/api/v1/pda/session/bootstrap?terminalDeviceId=terminal-device-1',
+      expect.any(Object),
+    );
+    expect(result.account?.accountId).toBe('account-1');
   });
 
   it('shows a clear offline message before attempting BFF requests when Android reports no network', async () => {
@@ -301,6 +555,7 @@ describe('pda bff client', () => {
         },
       }),
       openCamera: vi.fn() as never,
+      openCameraScanner: vi.fn() as never,
       beep: vi.fn() as never,
       vibrate: vi.fn() as never,
     });

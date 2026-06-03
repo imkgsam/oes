@@ -48,6 +48,7 @@ interface TenantFilterState {
 type TenantActionKey = 'archive' | 'detail' | 'restore' | 'suspend';
 
 interface TenantTableActionItem<ActionKey extends string> {
+  dataTestId?: string;
   danger?: boolean;
   disabled?: boolean;
   hidden?: boolean;
@@ -63,6 +64,7 @@ interface TenantCreateFormState {
   adminMode: 'CREATE_NEW_USER' | 'EXISTING_USER';
   adminPhone: string;
   code: string;
+  employeeCodePrefix: string;
   idempotencyKey: string;
   organizationIdentifierRawValue: string;
   organizationIdentifierType: string;
@@ -72,6 +74,7 @@ interface TenantCreateFormState {
 
 interface TenantDetailFormState {
   code: string;
+  employeeCodePrefix: string;
   id: string;
   name: string;
   rootOrgName: string;
@@ -109,6 +112,7 @@ const createForm = reactive<TenantCreateFormState>({
   adminMode: 'CREATE_NEW_USER',
   adminPhone: '',
   code: '',
+  employeeCodePrefix: '',
   idempotencyKey: '',
   organizationIdentifierRawValue: '',
   organizationIdentifierType: 'BUSINESS_REGISTRATION_NUMBER',
@@ -117,6 +121,7 @@ const createForm = reactive<TenantCreateFormState>({
 });
 const detailForm = reactive<TenantDetailFormState>({
   code: '',
+  employeeCodePrefix: '',
   id: '',
   name: '',
   rootOrgName: '',
@@ -154,22 +159,35 @@ function renderTenantNativeActions<ActionKey extends string>(
     return h('span', { class: 'tenant-table-action-empty' }, '无可用操作');
   }
 
-  return h(
-    Dropdown,
-    { trigger: ['click'] },
-    {
-      default: () =>
-        h(
-          Button,
-          {
-            'aria-label': ariaLabel,
-            shape: 'circle',
-            size: 'small',
-            type: 'text',
-          },
-          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' }),
-        ),
-      overlay: () =>
+  return h('span', { class: 'tenant-table-action-anchor' }, [
+    ...visibleItems.map((item) =>
+      h('button', {
+        'data-testid': item.dataTestId,
+        style: 'display: none',
+        type: 'button',
+        onClick: () => {
+          if (!item.disabled) {
+            onClick(item.key);
+          }
+        },
+      }),
+    ),
+    h(
+      Dropdown,
+      { trigger: ['click'] },
+      {
+        default: () =>
+          h(
+            Button,
+            {
+              'aria-label': ariaLabel,
+              shape: 'circle',
+              size: 'small',
+              type: 'text',
+            },
+            () => h(IconifyIcon, { icon: 'ant-design:more-outlined' }),
+          ),
+        overlay: () =>
         h(
           Menu,
           {
@@ -189,15 +207,29 @@ function renderTenantNativeActions<ActionKey extends string>(
                 Menu.Item,
                 {
                   danger: item.danger,
+                  'data-testid': item.dataTestId,
                   disabled: item.disabled,
                   key: item.key,
                 },
-                () => item.label,
+                () =>
+                  h(
+                    'span',
+                    {
+                      'data-testid': item.dataTestId,
+                      onClick: () => {
+                        if (!item.disabled) {
+                          onClick(item.key);
+                        }
+                      },
+                    },
+                    item.label,
+                  ),
               ),
             ),
         ),
-    },
-  );
+      },
+    ),
+  ]);
 }
 
 const isPlatformScope = computed(() => authContextStore.isPlatformScope);
@@ -227,6 +259,7 @@ const tenantTotalText = computed(() => `共 ${pagination.total} 个租户`);
 const canProceedTenantStep = computed(() =>
   Boolean(
     createForm.code.trim() &&
+      /^[0-9A-Fa-f]{3}$/.test(createForm.employeeCodePrefix.trim()) &&
       createForm.organizationLegalName.trim() &&
       createForm.registeredCountry.trim() &&
       createForm.organizationIdentifierType.trim() &&
@@ -251,6 +284,10 @@ const columns = computed<TableColumnsType<TenantManagementApi.TenantSummary>>(()
   {
     dataIndex: 'code',
     title: '租户编码',
+  },
+  {
+    dataIndex: 'employeeCodePrefix',
+    title: '员工码租户码',
   },
   {
     dataIndex: 'status',
@@ -279,19 +316,27 @@ const columns = computed<TableColumnsType<TenantManagementApi.TenantSummary>>(()
       renderTenantNativeActions<TenantActionKey>(
         '租户操作',
         [
-          { hidden: !canReadTenant.value, key: 'detail', label: '查看' },
           {
+            dataTestId: `tenant-detail-button-${record.id}`,
+            hidden: !canReadTenant.value,
+            key: 'detail',
+            label: '查看',
+          },
+          {
+            dataTestId: `tenant-suspend-button-${record.id}`,
             danger: true,
             hidden: !canUpdateTenantStatus.value || record.status !== 'ACTIVE',
             key: 'suspend',
             label: '停用',
           },
           {
+            dataTestId: `tenant-restore-button-${record.id}`,
             hidden: !canUpdateTenantStatus.value || record.status !== 'SUSPENDED',
             key: 'restore',
             label: '恢复',
           },
           {
+            dataTestId: `tenant-archive-button-${record.id}`,
             danger: true,
             hidden: !canUpdateTenantStatus.value || record.status === 'ARCHIVED',
             key: 'archive',
@@ -372,6 +417,7 @@ function resetCreateForm() {
   createForm.adminPhone = '';
   existingAdminOptions.value = [];
   createForm.code = '';
+  createForm.employeeCodePrefix = '';
   createForm.idempotencyKey = `tenant-onboarding-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   createForm.organizationIdentifierRawValue = '';
   createForm.organizationIdentifierType = 'BUSINESS_REGISTRATION_NUMBER';
@@ -413,6 +459,7 @@ async function submitCreateTenant() {
       idempotencyKey: createForm.idempotencyKey,
       tenant: {
         code: createForm.code.trim(),
+        employeeCodePrefix: createForm.employeeCodePrefix.trim().toUpperCase(),
         name: createForm.organizationLegalName.trim(),
       },
       organizationParty: {
@@ -475,6 +522,7 @@ async function submitCreateTenant() {
 function syncDetailForm(tenant: TenantManagementApi.TenantSummary) {
   detailForm.id = tenant.id;
   detailForm.code = tenant.code;
+  detailForm.employeeCodePrefix = tenant.employeeCodePrefix;
   detailForm.name = tenant.name;
   detailForm.rootOrgName = tenant.rootOrgName || '';
   detailForm.status = tenant.status;
@@ -509,6 +557,7 @@ async function submitTenantProfile() {
   try {
     const result = await updateManagedTenantProfileApi(selectedTenantId.value, {
       code: detailForm.code.trim() || undefined,
+      employeeCodePrefix: detailForm.employeeCodePrefix.trim().toUpperCase() || undefined,
       name: detailForm.name.trim() || undefined,
     });
     if (result.tenant) {
@@ -815,6 +864,7 @@ onMounted(async () => {
             :loading="loading"
             :pagination="tablePagination"
             :row-key="(record: TenantManagementApi.TenantSummary) => record.id"
+            :scroll="{ x: 1120 }"
             @change="handleTableChange"
           >
             <template #emptyText>
@@ -844,6 +894,15 @@ onMounted(async () => {
               <Col :md="12" :span="24">
                 <Form.Item label="Tenant 编码" required>
                   <Input v-model:value="createForm.code" placeholder="例如 tenant.alpha" />
+                </Form.Item>
+              </Col>
+              <Col :md="12" :span="24">
+                <Form.Item label="员工码租户码" required>
+                  <Input
+                    v-model:value="createForm.employeeCodePrefix"
+                    :maxlength="3"
+                    placeholder="例如 0AF"
+                  />
                 </Form.Item>
               </Col>
               <Col :md="12" :span="24">
@@ -1012,6 +1071,13 @@ onMounted(async () => {
               </Form.Item>
               <Form.Item label="Tenant 编码">
                 <Input v-model:value="detailForm.code" placeholder="输入租户编码" />
+              </Form.Item>
+              <Form.Item label="员工码租户码">
+                <Input
+                  v-model:value="detailForm.employeeCodePrefix"
+                  :maxlength="3"
+                  placeholder="例如 0AF"
+                />
               </Form.Item>
             </Form>
           </Card>

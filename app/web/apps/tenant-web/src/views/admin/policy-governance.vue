@@ -475,6 +475,7 @@ onMounted(() => {
             :data-source="policies"
             :loading="loading"
             :pagination="tablePagination"
+            :scroll="{ x: 1100 }"
             @change="handleTableChange"
           >
             <template #emptyText>

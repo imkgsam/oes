@@ -411,7 +411,7 @@ KILN-CAR-01
 ### 10.6 扫员工码
 
 ```text
-EMP-0001
+EMP-0AF-0001
 -> Barcode(type = WORKER)
 -> BarcodeBinding(target = WorkerResource)
 -> MES / HR 根据场景执行身份确认、报工归属或权限校验

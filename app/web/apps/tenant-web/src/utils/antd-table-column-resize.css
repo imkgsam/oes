@@ -1,0 +1,40 @@
+.tenant-table-resizable-header {
+  position: relative;
+  user-select: none;
+}
+
+.tenant-table-column-resizer {
+  position: absolute;
+  top: 0;
+  right: -7px;
+  bottom: 0;
+  z-index: 4;
+  width: 14px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.tenant-table-column-resizer::after {
+  position: absolute;
+  top: 25%;
+  bottom: 25%;
+  left: 6px;
+  width: 1px;
+  content: '';
+  background: rgb(15 23 42 / 16%);
+  transition: background 0.16s ease;
+}
+
+.tenant-table-column-resizer:hover::after,
+body.tenant-table-column-resize--dragging .tenant-table-column-resizer::after {
+  background: hsl(var(--primary));
+}
+
+body.tenant-table-column-resize--dragging {
+  cursor: col-resize;
+  user-select: none;
+}
+
+body.tenant-table-column-resize--dragging .ant-table {
+  cursor: col-resize;
+}

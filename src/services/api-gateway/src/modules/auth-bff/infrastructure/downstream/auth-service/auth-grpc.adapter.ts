@@ -37,9 +37,12 @@ import {
   InspectPasswordRecoveryChannelsResponse,
   LoginWithEmailOtpRequest,
   LoginWithEmailPasswordRequest,
+  LoginWithEmployeeCodePinRequest,
   LoginWithPhoneOtpRequest,
   LoginWithPhonePasswordRequest,
   LoginResponse,
+  PreflightEmployeeCodePinLoginRequest,
+  PreflightEmployeeCodePinLoginResponse,
   GetPlatformDefaultTerminalMfaPolicyResponse,
   GetPlatformTerminalLoginPolicyResponse,
   GetTenantTerminalMfaPolicyResponse,
@@ -78,7 +81,10 @@ import {
   RevokeTrustedDeviceRequest,
   RequestPasswordRecoveryChallengeRequest,
   RequirePasswordSetupRequest,
+  ResetOwnTerminalPinRequest,
   SelectAccountResponse,
+  SetOwnTerminalPinEnabledRequest,
+  SetOwnTerminalPinRequest,
   SetOwnLoginMethodEnabledRequest,
   StepUpMfaChallengeResponse,
   StepUpMfaGrantResponse,
@@ -199,6 +205,46 @@ export class AuthGrpcAdapter implements OnModuleInit {
     return this.call(
       'loginWithPhonePassword',
       this.svc.loginWithPhonePassword(grpcRequest, this.metadata(source))
+    )
+  }
+
+  loginWithEmployeeCodePin(
+    request: {
+      employeeCode: string
+      pin: string
+      deviceName?: string
+      userAgent?: string
+      ipAddress?: string
+      terminal?: string
+      terminalDeviceId?: string
+      deviceBoundTenantId?: string
+      loginFlow?: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<LoginResponse> {
+    const grpcRequest: LoginWithEmployeeCodePinRequest = request
+
+    return this.call(
+      'loginWithEmployeeCodePin',
+      this.svc.loginWithEmployeeCodePin(grpcRequest, this.metadata(source))
+    )
+  }
+
+  preflightEmployeeCodePin(
+    request: {
+      employeeCode: string
+      terminal?: string
+      terminalDeviceId?: string
+      deviceBoundTenantId?: string
+      loginFlow?: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<PreflightEmployeeCodePinLoginResponse> {
+    const grpcRequest: PreflightEmployeeCodePinLoginRequest = request
+
+    return this.call(
+      'preflightEmployeeCodePinLogin',
+      this.svc.preflightEmployeeCodePinLogin(grpcRequest, this.metadata(source))
     )
   }
 
@@ -555,6 +601,55 @@ export class AuthGrpcAdapter implements OnModuleInit {
     return this.call(
       'changeOwnPassword',
       this.svc.changeOwnPassword(grpcRequest, this.metadata(source))
+    )
+  }
+
+  setOwnTerminalPin(
+    request: {
+      currentPassword?: string
+      mfaGrantToken?: string
+      newPin: string
+      userId: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<{ success?: boolean }> {
+    const grpcRequest: SetOwnTerminalPinRequest = request
+
+    return this.call(
+      'setOwnTerminalPin',
+      this.svc.setOwnTerminalPin(grpcRequest, this.metadata(source))
+    )
+  }
+
+  resetOwnTerminalPin(
+    request: {
+      currentPassword?: string
+      mfaGrantToken?: string
+      newPin: string
+      userId: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<{ success?: boolean }> {
+    const grpcRequest: ResetOwnTerminalPinRequest = request
+
+    return this.call(
+      'resetOwnTerminalPin',
+      this.svc.resetOwnTerminalPin(grpcRequest, this.metadata(source))
+    )
+  }
+
+  setOwnTerminalPinEnabled(
+    request: {
+      enabled: boolean
+      userId: string
+    },
+    source: DownstreamRequestSource
+  ): Promise<{ success?: boolean }> {
+    const grpcRequest: SetOwnTerminalPinEnabledRequest = request
+
+    return this.call(
+      'setOwnTerminalPinEnabled',
+      this.svc.setOwnTerminalPinEnabled(grpcRequest, this.metadata(source))
     )
   }
 

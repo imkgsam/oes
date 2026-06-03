@@ -13,7 +13,7 @@ import {
   TENANT_REPOSITORY,
   TenantRepository
 } from '../../domain/repositories'
-import { OrgUnitType, TenantStatus } from '../../domain/value-objects'
+import { OrgUnitType, TenantStatus, normalizeEmployeeCodePrefix } from '../../domain/value-objects'
 
 /** TenantOrgManagementService coordinates tenant lifecycle and org tree write use cases. */
 @Injectable()
@@ -29,18 +29,22 @@ export class TenantOrgManagementService {
     private readonly authSessionRevocationPort: AuthSessionRevocationPort
   ) {}
 
-  async createTenant(input: { code: string; name: string; rootOrgName?: string }) {
+  async createTenant(input: { code: string; employeeCodePrefix: string; name: string; rootOrgName?: string }) {
     const code = requireNonBlank(input.code, 'code')
+    const employeeCodePrefix = normalizeEmployeeCodePrefix(input.employeeCodePrefix)
     const name = requireNonBlank(input.name, 'name')
     const rootOrgName = input.rootOrgName?.trim() || name
-    return this.tenantRepository.createWithRootOrg({ code, name, rootOrgName })
+    return this.tenantRepository.createWithRootOrg({ code, employeeCodePrefix, name, rootOrgName })
   }
 
-  async updateTenantProfile(input: { tenantId: string; name?: string; code?: string }) {
+  async updateTenantProfile(input: { tenantId: string; name?: string; code?: string; employeeCodePrefix?: string }) {
     return this.tenantRepository.updateProfile({
       tenantId: requireNonBlank(input.tenantId, 'tenantId'),
       name: input.name?.trim() || undefined,
-      code: input.code?.trim() || undefined
+      code: input.code?.trim() || undefined,
+      employeeCodePrefix: input.employeeCodePrefix === undefined
+        ? undefined
+        : normalizeEmployeeCodePrefix(input.employeeCodePrefix)
     })
   }
 

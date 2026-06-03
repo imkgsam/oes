@@ -61,6 +61,18 @@ export class OrgManagementService {
     }
   }
 
+  async getTenantEmployeeCodePrefix(tenantId: string, source: DownstreamRequestSource) {
+    const result = await this.tenantOrgQueryAdapter.getTenantById(
+      this.resolveTenantId(tenantId, source),
+      source
+    )
+    const prefix = normalize(result.tenant?.employeeCodePrefix)?.toUpperCase()
+    if (!prefix) {
+      throw new NotFoundException('Tenant employee code prefix not found')
+    }
+    return prefix
+  }
+
   async createOrgUnit(
     tenantId: string,
     input: {

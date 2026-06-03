@@ -23,6 +23,7 @@
 | `packaging_method_id` | 包装方式标识。 |
 | `method_code` | tenant 内包装方式编码。 |
 | `method_name` | 包装方式名称。 |
+| `description` | 包装方式说明，可用于记录适用场景、包装要求或备注。 |
 | `active` | 是否可用于新建业务。 |
 
 ## 3. PackagingSpec Shape
@@ -68,7 +69,7 @@ PackagingSpec =
 | 字段 | 必填 | 说明 |
 | --- | --- | --- |
 | `tenant_id` | 是 | 显式租户边界。 |
-| `keyword` | 否 | 按 code / name 检索。 |
+| `keyword` | 否 | 按 code / name / description 检索。 |
 | `active` | 否 | 按 active 状态过滤。 |
 
 响应最小 shape：
@@ -133,6 +134,7 @@ PackagingSpec =
 | `tenant_id` | 是 | 显式租户边界。 |
 | `method_code` | 是 | tenant 内包装方式编码。 |
 | `method_name` | 是 | 包装方式名称。 |
+| `description` | 否 | 包装方式说明；空白按空值处理。 |
 
 响应最小 shape：
 
@@ -152,6 +154,7 @@ PackagingSpec =
 | `packaging_method_id` | 是 | 目标包装方式。 |
 | `method_code` | 是 | 新包装方式编码。 |
 | `method_name` | 是 | 新包装方式名称。 |
+| `description` | 否 | 新包装方式说明；空白表示清空说明，字段缺省时保持既有说明。 |
 
 响应最小 shape：
 
@@ -176,6 +179,29 @@ PackagingSpec =
 | 字段 | 说明 |
 | --- | --- |
 | `packaging_method` | 变更后的包装方式。 |
+
+### `DeletePackagingMethod`
+
+硬删除未被使用的包装方式。
+
+请求最小 shape：
+
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `tenant_id` | 是 | 显式租户边界。 |
+| `packaging_method_id` | 是 | 目标包装方式。 |
+
+响应最小 shape：
+
+| 字段 | 说明 |
+| --- | --- |
+| 空响应 | 删除成功。 |
+
+行为约束：
+
+- 仅允许删除没有被任何 `PackagingSpec` 引用的 `PackagingMethod`。
+- 若已有 `PackagingSpec.packaging_method_id` 引用该包装方式，必须返回 `FAILED_PRECONDITION`。
+- 已被引用的包装方式只能通过 `ChangePackagingMethodStatus(active = false)` 停用。
 
 ### `CreatePackagingSpec`
 

@@ -114,6 +114,9 @@ HR minimum 第一阶段允许在员工 onboarding 中可选触发账号接入与
   - 通过“结束旧 employment + 建立新 employment”的本地事务完成调岗，不允许原地篡改既有 employment 的正式 `orgUnitId`。
 - `ListEmployees`
   - 查询租户员工目录。
+- `ResolveActiveEmployeeByCode`
+  - 按 `tenantId + employeeCode` 精确解析当前可工作的员工事实，返回 `Employee` 摘要与当前唯一 active employment。
+  - 该查询只表达 HR 真相：员工编号、员工 active lifecycle 与 active employment；不返回账号绑定、权限或认证凭据事实。
 - `GetEmployeeById`
   - 按 `employeeId` 查询员工摘要。
 - `GetEmployeeByTenantPartyId`
@@ -175,6 +178,7 @@ HR minimum 第一阶段允许在员工 onboarding 中可选触发账号接入与
 - 员工编号、汇报关系与主要任职摘要
 - 面向组织、审批与业务服务可消费的正式人力事实
 - 面向 `identity-service` 的 `UserAccount <-> Employee` 绑定目标摘要，但不拥有账号真相
+- 面向认证编排可消费的 `tenantId + employeeCode -> active employee + active employment` 查询事实；认证结果、PIN 与 session 仍归 `auth-service`
 
 ## 10. Non-goals
 

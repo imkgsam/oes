@@ -7,6 +7,9 @@
 // Identity Service 端口
 export { IIdentityServicePort } from './identity-service.port'
 
+// HR Service 端口
+export { IHrServicePort } from './hr-service.port'
+
 // Permission Service 端口
 export { IPermissionServicePort } from './permission-service.port'
 

@@ -125,6 +125,22 @@ export type PdaLoginRequest = {
   device: PdaManagedDeviceDescriptor;
 };
 
+export type PdaEmployeeCodePinLoginRequest = {
+  employeeCode: string;
+  pin: string;
+  deviceName?: string;
+  terminalDeviceId: string;
+  device: PdaManagedDeviceDescriptor;
+};
+
+export type PdaEmployeeCodePinPreflightRequest = Omit<PdaEmployeeCodePinLoginRequest, 'pin'>;
+
+export type PdaEmployeeCodePinPreflightResponse = {
+  allowed: boolean;
+  reasonCode: string;
+  message: string;
+};
+
 export type PdaAccountSelectionRequest = {
   userId: string;
   accountId: string;
@@ -229,6 +245,27 @@ export type PdaDeviceLogsResponse = {
   serverTime: string;
 };
 
+export type PdaMoldWorkCenterRef = {
+  workCenterId: string;
+  workCenterCodeSnapshot?: string;
+  displayNameSnapshot?: string;
+};
+
+export type PdaMoldStorageResourceRef = {
+  storageResourceId: string;
+  resourceCodeSnapshot?: string;
+  displayNameSnapshot?: string;
+};
+
+export type PdaMoldUsageBatchItem = {
+  checked: boolean;
+  productionMoldId: string;
+  toolingInstallationId: string;
+  usageQuantity: string;
+};
+
+export type PdaMoldCommandResponse = Record<string, unknown>;
+
 type GatewayEnvelope<T> = {
   data?: T;
 };
@@ -251,9 +288,11 @@ declare global {
 
 const DEFAULT_BFF_BASE_URLS = [
   'http://192.168.2.33:9101/api/v1',
+  'http://192.168.100.48:9101/api/v1',
   'http://192.168.100.44:9101/api/v1',
 ];
 const LAST_WORKING_BFF_BASE_URL_KEY = 'oes:pda:last-bff-base-url';
+const PDA_BFF_REQUEST_TIMEOUT_MS = 1200;
 const PDA_OFFLINE_MESSAGE = 'PDA 当前没有网络，请连接 Wi-Fi 或公司局域网后重试。';
 
 /** Carries PDA BFF HTTP status so session code can distinguish auth expiry from network failures. */
@@ -297,8 +336,38 @@ export async function loginPda(request: PdaLoginRequest): Promise<PdaLoginRespon
   });
 }
 
+/** Logs into a managed PDA with employee code and terminal PIN without exposing PIN outside the request body. */
+export async function loginPdaWithEmployeeCodePin(request: PdaEmployeeCodePinLoginRequest): Promise<PdaLoginResponse> {
+  return requestPdaBff<PdaLoginResponse>('/pda/auth/login', {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({
+      method: 'EMPLOYEE_CODE_PIN',
+      employeeCode: request.employeeCode,
+      pin: request.pin,
+      device: toLoginDeviceDescriptor(request),
+    }),
+  });
+}
+
+/** Checks employee-code login readiness before showing the terminal PIN keypad. */
+export async function preflightPdaEmployeeCodePin(
+  request: PdaEmployeeCodePinPreflightRequest,
+): Promise<PdaEmployeeCodePinPreflightResponse> {
+  return requestPdaBff<PdaEmployeeCodePinPreflightResponse>('/pda/auth/employee-code/preflight', {
+    method: 'POST',
+    headers: jsonHeaders(),
+    body: JSON.stringify({
+      employeeCode: request.employeeCode,
+      device: toLoginDeviceDescriptor(request),
+    }),
+  });
+}
+
 /** Maps a managed PDA descriptor into the auth BFF login device DTO shape. */
-function toLoginDeviceDescriptor(request: PdaLoginRequest) {
+function toLoginDeviceDescriptor(
+  request: Pick<PdaLoginRequest, 'device' | 'deviceName' | 'terminalDeviceId'>,
+) {
   return {
     deviceId: request.terminalDeviceId,
     deviceName: request.deviceName || 'OES PDA',
@@ -383,6 +452,129 @@ export async function postPdaDiagnosticLogs(
   });
 }
 
+/** confirmPdaProductionMoldArrival marks a pre-registered mold as physically arrived by scan. */
+export async function confirmPdaProductionMoldArrival(
+  accessToken: string,
+  tenantId: string,
+  productionMoldId: string,
+): Promise<PdaMoldCommandResponse> {
+  return requestPdaBff<PdaMoldCommandResponse>(`/mes/tenants/${tenantId}/production-molds/${productionMoldId}/confirm-arrival`, {
+    method: 'POST',
+    headers: authorizedJsonHeaders(accessToken),
+    body: JSON.stringify({
+      reason: 'pda confirm production mold arrival',
+    }),
+  });
+}
+
+/** movePdaProductionMold moves one scanned mold to a scanned storage resource. */
+export async function movePdaProductionMold(
+  accessToken: string,
+  tenantId: string,
+  productionMoldId: string,
+  toStorageResourceRef: PdaMoldStorageResourceRef,
+): Promise<PdaMoldCommandResponse> {
+  return requestPdaBff<PdaMoldCommandResponse>(`/mes/tenants/${tenantId}/tooling/${productionMoldId}/move`, {
+    method: 'POST',
+    headers: authorizedJsonHeaders(accessToken),
+    body: JSON.stringify({
+      reason: 'pda move production mold',
+      toolingType: 'MOLD',
+      toStorageResourceRef,
+    }),
+  });
+}
+
+/** installPdaProductionMold installs one scanned mold on a WorkCenter at a numeric line position. */
+export async function installPdaProductionMold(
+  accessToken: string,
+  tenantId: string,
+  productionMoldId: string,
+  payload: {
+    workCenterRef: PdaMoldWorkCenterRef;
+    moldPositionIndex?: number;
+  },
+): Promise<PdaMoldCommandResponse> {
+  return requestPdaBff<PdaMoldCommandResponse>(`/mes/tenants/${tenantId}/tooling/${productionMoldId}/install`, {
+    method: 'POST',
+    headers: authorizedJsonHeaders(accessToken),
+    body: JSON.stringify({
+      reason: 'pda install production mold',
+      toolingType: 'MOLD',
+      workCenterRef: payload.workCenterRef,
+      moldPositionIndex: payload.moldPositionIndex,
+    }),
+  });
+}
+
+/** confirmPdaInstalledMoldReady marks an installed mold ready for casting usage. */
+export async function confirmPdaInstalledMoldReady(
+  accessToken: string,
+  tenantId: string,
+  productionMoldId: string,
+  toolingInstallationId: string,
+): Promise<PdaMoldCommandResponse> {
+  return requestPdaBff<PdaMoldCommandResponse>(`/mes/tenants/${tenantId}/production-molds/${productionMoldId}/confirm-ready`, {
+    method: 'POST',
+    headers: authorizedJsonHeaders(accessToken),
+    body: JSON.stringify({
+      reason: 'pda confirm installed mold ready',
+      toolingInstallationId,
+    }),
+  });
+}
+
+/** recordPdaMoldUsageBatch records submitted usage rows from the production line PDA screen. */
+export async function recordPdaMoldUsageBatch(
+  accessToken: string,
+  tenantId: string,
+  workCenterRef: PdaMoldWorkCenterRef,
+  items: PdaMoldUsageBatchItem[],
+): Promise<PdaMoldCommandResponse> {
+  const checklistDate = new Date().toISOString().slice(0, 10);
+  return requestPdaBff<PdaMoldCommandResponse>(`/mes/tenants/${tenantId}/daily-mold-checklists/${checklistDate}/usage-batch`, {
+    method: 'POST',
+    headers: authorizedJsonHeaders(accessToken),
+    body: JSON.stringify({
+      batchCommandId: `pda-${workCenterRef.workCenterId}-${checklistDate}`,
+      captureSource: 'PDA_MOLD_USAGE',
+      items,
+      reason: 'pda record mold usage',
+      workCenterRef,
+    }),
+  });
+}
+
+/** markPdaProductionMoldForScrap records a scanned mold as pending or terminal scrap. */
+export async function markPdaProductionMoldForScrap(
+  accessToken: string,
+  tenantId: string,
+  productionMoldId: string,
+): Promise<PdaMoldCommandResponse> {
+  return requestPdaBff<PdaMoldCommandResponse>(`/mes/tenants/${tenantId}/production-molds/${productionMoldId}/mark-for-scrap`, {
+    method: 'POST',
+    headers: authorizedJsonHeaders(accessToken),
+    body: JSON.stringify({
+      reason: 'pda mark production mold scrap',
+    }),
+  });
+}
+
+/** unmountPdaProductionMold confirms physical removal for a scanned active installation. */
+export async function unmountPdaProductionMold(
+  accessToken: string,
+  tenantId: string,
+  toolingInstallationId: string,
+): Promise<PdaMoldCommandResponse> {
+  return requestPdaBff<PdaMoldCommandResponse>(`/mes/tenants/${tenantId}/tooling-installations/${toolingInstallationId}/unmount`, {
+    method: 'POST',
+    headers: authorizedJsonHeaders(accessToken),
+    body: JSON.stringify({
+      reason: 'pda unmount production mold',
+    }),
+  });
+}
+
 /** Maps Android bridge device facts into the managed PDA metadata contract. */
 export function toManagedPdaDeviceDescriptor(
   deviceInfo: DeviceInfo,
@@ -406,6 +598,14 @@ export function toManagedPdaDeviceDescriptor(
   };
 }
 
+/** authorizedJsonHeaders builds the bearer-token JSON header set for protected PDA MES commands. */
+function authorizedJsonHeaders(accessToken: string): Record<string, string> {
+  return {
+    ...jsonHeaders(),
+    Authorization: `Bearer ${accessToken}`,
+  };
+}
+
 /** Sends one PDA BFF request and unwraps the API Gateway success envelope. */
 async function requestPdaBff<T>(path: string, init: RequestInit): Promise<T> {
   await assertNetworkAvailable();
@@ -415,7 +615,7 @@ async function requestPdaBff<T>(path: string, init: RequestInit): Promise<T> {
     let response: Response;
 
     try {
-      response = await fetch(`${baseUrl}${path}`, init);
+      response = await fetchWithTimeout(`${baseUrl}${path}`, init);
     } catch (error) {
       lastNetworkError = error;
       continue;
@@ -437,6 +637,24 @@ async function requestPdaBff<T>(path: string, init: RequestInit): Promise<T> {
   }
 
   throw new PdaBffError(resolveNetworkFailureMessage(lastNetworkError), 0);
+}
+
+/** Bounds one LAN request so a dead BFF address quickly falls through to the alternate gateway. */
+async function fetchWithTimeout(url: string, init: RequestInit): Promise<Response> {
+  let timeoutId: number | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      reject(new Error(`request timed out after ${PDA_BFF_REQUEST_TIMEOUT_MS}ms`));
+    }, PDA_BFF_REQUEST_TIMEOUT_MS);
+  });
+
+  try {
+    return await Promise.race([fetch(url, init), timeout]);
+  } finally {
+    if (timeoutId !== undefined) {
+      window.clearTimeout(timeoutId);
+    }
+  }
 }
 
 /** Uses Android connectivity state to avoid showing browser-internal fetch errors to operators. */
@@ -474,9 +692,9 @@ function normalizeGatewayErrorMessage(payload?: GatewayErrorPayload): string | u
 
 function getPdaBffBaseUrls(): string[] {
   return uniqueStrings([
-    getStoredWorkingBffBaseUrl(),
     ...(window.__OES_PDA_CONFIG__?.bffBaseUrls || []),
     window.__OES_PDA_CONFIG__?.bffBaseUrl,
+    getStoredWorkingBffBaseUrl(),
     ...DEFAULT_BFF_BASE_URLS,
   ])
     .map((baseUrl) => baseUrl.replace(/\/$/, ''))

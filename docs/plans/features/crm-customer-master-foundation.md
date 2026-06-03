@@ -1,187 +1,170 @@
 # CRM Customer Master Foundation
 
-## 1. 目标
+## 1. Feature Status
 
-- 将 `crm-service` 最小客户主档闭环的已冻结结论回写为可执行 feature packet，作为后续 `CRM-CONTRACT` 的唯一主线入口。
-- 建立 CRM phase 1 最小闭环：
+Current status: `implemented / hardening pending`
+
+本 feature packet 记录 `crm-service` customer master phase 1 的执行状态。稳定服务设计唯一真相源为：
+
+- [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
+
+本文不重新定义 CRM 核心对象、owner 边界或长期命名。若本文与服务真相源冲突，以服务真相源为准。
+
+## 2. Goal
+
+建立 CRM phase 1 最小客户主档闭环：
+
+- `CustomerAccount`
+- `CustomerPartyBinding`
+- phase 1 `CustomerContact`，按长期 `CustomerContactUsage` 语义理解
+- phase 1 `CustomerAddress`，按长期 `CustomerAddressUsage` 语义理解
+- `CustomerStatus`
+- `CustomerCategory`
+- customer `tags`
+- Sales selector eligibility
+
+核心业务原则：
+
+- `CustomerAccount` 是客户关系外壳，不是 Party 主体真相。
+- active primary `tenantPartyId` 是 Sales / Pricing / Agreement 的稳定主体引用。
+- Sales 必须通过 CRM customer selector 采用客户，不应长期绕过 CRM 直接把 Party selector 当 customer selector。
+
+## 3. Current Delivered Scope
+
+### 3.1 Architecture / Design
+
+已完成：
+
+- `crm-service` 唯一真相源已收口到 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)。
+- `Sales / CRM / Party / Item Master` 协同规则已记录在 [sales-crm-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-crm-party-item-master.md)。
+- CRM 设计工作台已降级为历史记录和开放问题入口：[crm-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/crm-service-design.md)。
+
+### 3.2 Contracts
+
+已完成 phase 1 customer master 黑盒契约：
+
+- [customer-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/crm-service/customer-management.md)
+- [customer-query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/crm-service/customer-query.md)
+
+已实现 proto surface：
+
+- `src/common/src/contracts/crm_service/crm.proto`
+
+### 3.3 crm-service Runtime
+
+已实现：
+
+- `CustomerManagementService`
+  - `CreateCustomerAccount`
+  - `UpdateCustomerAccountBasics`
+  - `BindCustomerAccountToTenantParty`
+  - `UpsertCustomerContact`
+  - `UpsertCustomerAddress`
+  - `ChangeCustomerStatus`
+- `CustomerQueryService`
+  - `SearchSelectableCustomers`
+  - `GetCustomerAccount`
+  - `SearchCustomerAccounts`
+  - `ListCustomerContacts`
+  - `ListCustomerAddresses`
+- Prisma 持久化：
   - `CustomerAccount`
+  - `CustomerPartyBinding`
   - `CustomerContact`
   - `CustomerAddress`
-  - `CustomerStatus`
-  - `CustomerCategory`
-  - customer `tags`
-  - `CustomerPartyBinding`
-- 明确 `CustomerAccount` 只是客户关系外壳，`tenantPartyId` 才是 Sales / Pricing / Agreement 的稳定主体引用。
+  - `CrmAuditEnvelope`
+- `party-service` lookup adapter for `tenantPartyId` binding validation。
+- command audit envelope。
 
-## 2. 不做什么
+### 3.4 Gateway / Tenant Web
 
-- 不在本 packet 中进入代码实现、proto 字段设计、数据库结构设计或 UI 设计。
-- 不在本 packet 中扩展完整 `Opportunity / Activity / Customer 360 / BI`。
-- 不在本 packet 中把 Party 主体主数据复制成 CRM 真相。
-- 不在本 packet 中把 `Quote / QuoteVersion / SalesOrder` 真相并入 CRM。
-- 不在本 packet 中把 `AR / credit / payment` 并入 CRM。
-- 不在本 packet 中扩展一客多主体、多 bill-to / ship-to / legal entity 模型。
-- 不在本 packet 中交付完整 `CustomerItemMapping / customer SKU` 目录。
+已实现：
 
-## 3. 上游依赖
+- api-gateway customer-management BFF。
+- tenant-web customer-management API client。
+- tenant-web customer list / create / detail / binding / contact / address / status pages。
+- Gateway 入口级 CRM permission code 校验。
 
-- services:
-  - [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-  - [party-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/party-service.md)
-  - [sales-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/sales-service.md)
-- collaborations:
-  - [sales-crm-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-crm-party-item-master.md)
-- contracts:
-  - [README.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/README.md)
-  - [query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/query.md)
-  - [management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/management.md)
-- plans:
-  - [crm-service-design.md](/Users/acehood/Documents/GitHub/oes/docs/plans/designs/crm-service-design.md)
+## 4. Stable Phase 1 Rules
 
-## 4. 当前结论
+phase 1 已冻结规则：
 
-- `crm-service` owns：
-  - `CustomerAccount`
-  - `CustomerContact`
-  - `CustomerAddress`
-  - `CustomerStatus`
-  - `CustomerCategory`
-  - customer `tags`
-  - `CustomerPartyBinding`
-- `crm-service` does-not-own：
-  - `party-service` 主体真相
-  - `sales-service Quote / QuoteVersion / SalesOrder` 真相
-  - `AR / credit / payment`
-  - `Customer 360 / BI`
-  - 完整 `Opportunity / Activity`
-- `CustomerAccount` 是客户关系外壳；`tenantPartyId` 是 Sales / Pricing / Agreement 的稳定主体引用。
-- phase 1 一条 `CustomerAccount` 只有一个 active primary `tenantPartyId`。
-- 同一 `tenantId + tenantPartyId` 最多对应一个 active `CustomerAccount`。
-- 只有 `ACTIVE_CUSTOMER + active primary binding` 才可进入 Sales selector。
-- Sales 必须通过 CRM selector 选择客户，但 `sales-service` 真相仍保存：
-  - `customer_tenant_party_id`
-  - customer snapshot
+- 一条 `CustomerAccount` 最多一个 active primary `tenantPartyId`。
+- 同一 `tenantId + tenantPartyId` 最多对应一个 active / non-archived `CustomerAccount`。
+- `BindCustomerAccountToTenantParty` 成功前必须校验 `tenantPartyId` 在当前租户存在且可绑定。
+- `SearchSelectableCustomers` 只返回 `ACTIVE_CUSTOMER + active primary binding`。
+- `BLOCKED / ARCHIVED` customer 不得进入 customer selector。
+- 未绑定 active primary `tenantPartyId` 的 customer 不得进入 customer selector。
+- Sales 采用 customer selector 后，必须保存 `customer_tenant_party_id` 与 customer snapshot。
 - `PublishQuote` 必须复制 customer snapshot 到 `QuoteVersion`。
-- `ConvertQuoteVersionToOrder` 必须把 `QuoteVersion` 中的 customer snapshot 复制到 `SalesOrder`，不重新回源 CRM。
-- `CustomerItemMapping / customer SKU` 目录 deferred；phase 1 仅使用 `SalesOrderLine.customerItemSnapshot`。
+- `ConvertQuoteVersionToOrder` 必须复制 `QuoteVersion` 中的 customer snapshot 到 `SalesOrder`，不重新回源 CRM / Party。
 
-## 5. 契约真相位置
+## 5. Current Hardening Gaps
 
-- 稳定服务职责：
-  - [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
-- 稳定协同蓝图：
-  - [sales-crm-party-item-master.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-crm-party-item-master.md)
-- 当前 Sales contract 参考：
-  - [README.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/README.md)
-  - [query.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/query.md)
-  - [management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/management.md)
-- 下一步 contract 入口：
-  - future `docs/contracts/crm-service/**`
+以下 gap 是 customer master phase 1 继续推进前的优先收口项：
 
-## 6. 当前 slice
+1. `ChangeCustomerStatus` enum 校验需与 contract 对齐，非法 / unspecified status 不得默认为 `ACTIVE_CUSTOMER`。
+2. customer 创建仍缺少 Party resolve / create / select + CustomerAccount 创建 + binding 的完整业务编排。
+3. tenant-web binding 体验仍偏向手填 `tenantPartyId`，需要 Party selector。
+4. phase 1 `CustomerContact / CustomerAddress` 与长期 `CustomerContactUsage / CustomerAddressUsage` 的 contract 命名和语义需在后续演进中收敛。
+5. primary contact / primary address 唯一性、inactive 关系与自动降级规则尚未冻结。
+6. `CustomerTaxProfile / defaultCurrency / defaultPaymentTermId` 尚未进入 contract / proto / schema / UI。
+7. 服务内资源级 owner / team / query scope 授权尚未形成闭环。
+8. Sales selector 采用链路仍需做 Quote / QuoteVersion / SalesOrder snapshot 联调验收。
 
-- slice:
-  - `crm-service` customer master foundation
-- status:
-  - ready-for-crm-contract
-- scope:
-  - `CustomerAccount` 关系外壳
-  - active primary `CustomerPartyBinding`
-  - `CustomerContact / CustomerAddress`
-  - `CustomerStatus / CustomerCategory / tags`
-  - Sales selector eligibility boundary
-  - Sales customer snapshot handoff rules
-- ready definition:
-  - 服务职责已回写
-  - `Sales / CRM / Party` 协同蓝图已冻结 minimum 口径
-  - 后续 contract 线程可以在不重新讨论 customer owner 边界的前提下继续推进
+## 6. Deferred
 
-## 7. 最小模型
+以下能力不属于当前 customer master phase 1 已交付范围：
 
-### 7.1 CustomerAccount
-
-- 表达客户在 CRM 中的关系外壳，而不是交易 / 法律主体真相。
-- 负责承接客户状态、分类、标签、联系人、地址和 party binding 关系。
-- `ACTIVE_CUSTOMER` 是当前 phase 1 唯一明确进入 Sales selector 的客户状态门槛。
-- 完整 `CustomerStatus` 状态机与 `CustomerCategory` taxonomy deferred。
-
-### 7.2 CustomerPartyBinding
-
-- 表达 `CustomerAccount` 与 `tenantPartyId` 的受控绑定关系。
-- phase 1 一条 `CustomerAccount` 只有一个 active primary binding。
-- 同一 `tenantId + tenantPartyId` 最多只能对应一个 active `CustomerAccount`。
-- 绑定目标主体真相仍归 `party-service`；CRM 不复制 Party 主数据。
-
-### 7.3 CustomerContact
-
-- 表达客户关系中的业务联系人语义、可联络状态与与账户的业务关系。
-- phase 1 只冻结其 owner 边界，不冻结完整联系人角色枚举或 person-party 细化映射。
-
-### 7.4 CustomerAddress
-
-- 表达客户关系侧需要管理的地址与地址摘要。
-- phase 1 不扩展多 bill-to / ship-to / legal entity 地址矩阵。
-
-### 7.5 Sales Selector
-
-- 只返回 `ACTIVE_CUSTOMER + active primary binding` 的客户账户。
-- selector 结果用于选择“哪个客户关系对象可进入报价 / 订单链”，不转移 customer truth owner。
-- `sales-service` 在采用 selector 结果后，必须保存 `customer_tenant_party_id` 与 customer snapshot。
-- customer snapshot 的后续复制链是：
-  - `Quote`
-  - `QuoteVersion`
-  - `SalesOrder`
-
-## 8. 主线范围
-
-- 本线程主线：
-  - 冻结 `CustomerAccount / CustomerContact / CustomerAddress / CustomerPartyBinding` 的最小 owner 边界
-  - 冻结 CRM selector 与 Sales customer snapshot 协同规则
-- 本线程不做：
-  - proto、数据库、运行时状态机、UI、full text search、Customer 360、财务协同
-- 偏移返回条件：
-  - 如需新增跨服务公共契约、事件模型、租户模型或 operator context 结构，必须先升级 architecture / ADR
-
-## 9. 阻塞 / 依赖
-
-- `CRM-CONTRACT` 线程需要基于本 packet 冻结 customer selector、customer master query / management contract，而不是回到 design workspace 重谈 owner 边界。
-- `sales-service` 现有 contracts 已冻结 customer snapshot 复制方向，这使 CRM contract 可以只聚焦 selector 与 customer master owner，而无需重开 Quote / Order 真相边界。
-- Party merge、customer dedup 与长期多主体模型仍未冻结，但不阻塞当前 minimum customer master foundation 进入 contract 阶段。
-
-## 10. Deferred 清单
-
-- 完整 `Opportunity` 模型
-- 完整 `Activity` 模型
+- 完整 `Intake`
+- 完整 `Prospecting`
+- formal `Lead`
+- formal `Opportunity`
+- formal `Activity`
 - `Customer 360 / BI`
 - `AR / credit / payment`
 - 一客多主体模型
-- 多 bill-to / ship-to / legal entity 模型
-- 完整 `CustomerItemMapping / customer SKU` 目录
+- 多 legal entity、bill-to / ship-to 地址矩阵
+- 完整 `CustomerItemMapping / customer SKU`
 - customer dedup / merge 全流程治理
-- 完整 `CustomerStatus` 状态机与 `CustomerCategory` taxonomy
+- 完整 `CustomerStatus` 状态机
+- 完整 `CustomerCategory` taxonomy
+- CRM integration events
 
-## 11. 线程分工
+## 7. Thread Ownership
 
 | Thread / Owner | 职责 | 允许修改路径 | 输入 | 输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| CRM-MINIMAL architecture write-back thread | 回写 `crm-service` 最小客户主档真相源与 feature packet | `docs/architecture/services/crm-service.md`, `docs/architecture/collaborations/sales-crm-party-item-master.md`, `docs/plans/features/crm-customer-master-foundation.md`, 必要索引页 | 当前冻结结论、Sales contracts、CRM design workspace | 服务职责、协同蓝图、feature packet | completed |
-| CRM-CONTRACT thread | 冻结 `crm-service` customer master 黑盒契约 | future `docs/contracts/crm-service/**` | 本 feature packet、服务职责、协同蓝图 | selector / query / management contracts | pending |
-| CRM-IMPL thread | 在已冻结边界内实现最小 customer master 闭环 | future `src/services/**/crm-service/**` | feature packet、contracts | 可运行服务、测试与验证结果 | pending |
+| CRM-MINIMAL architecture write-back thread | 回写 `crm-service` 最小客户主档真相源与 feature packet | `docs/architecture/services/crm-service.md`, `docs/architecture/collaborations/sales-crm-party-item-master.md`, `docs/plans/features/crm-customer-master-foundation.md` | CRM design workspace、Sales contracts | 服务职责、协同蓝图、feature packet | completed |
+| CRM-TRUTH-SOURCE consolidation thread | 收口完整 CRM 边界到唯一服务真相源，并降级 design workspace | `docs/architecture/services/crm-service.md`, `docs/plans/designs/crm-service-design.md`, `docs/plans/features/crm-customer-master-foundation.md` | 既有 design / feature / contract / implementation 状态 | 唯一真相源与状态校正 | completed |
+| CRM-CONTRACT thread | 冻结 customer master phase 1 query / management 黑盒契约 | `docs/contracts/crm-service/**`, `src/common/src/contracts/crm_service/**` | feature packet、服务职责、协同蓝图 | query / management contracts and proto surface | completed for phase 1 |
+| CRM-IMPL thread | 实现 customer master phase 1 runtime、Gateway、tenant-web 基础闭环 | `src/services/**/crm-service/**`, `src/common/**`, `app/web/apps/tenant-web/**` | contracts、feature packet、服务职责 | 可运行服务、BFF、页面与测试 | implemented / hardening pending |
+| CRM-HARDENING thread | 修正 contract-code 偏差、Party selector、primary 规则、Sales selector 联调 | CRM service / Gateway / tenant-web / Sales selector 相关路径 | 当前实现与 hardening gaps | 可验收 customer master foundation | pending |
 
-## 12. 验收标准
+## 8. Acceptance Criteria For Hardening Completion
 
-- `crm-service` 职责卡已明确最小 customer master owns / does-not-own / phase 1 范围。
-- `Sales / CRM / Party` 协同蓝图已冻结 selector、binding 与 customer snapshot 规则。
-- feature packet 已能直接作为 `CRM-CONTRACT` 输入，而不需要继续引用 design workspace 重谈主边界。
-- 已明确 `CustomerItemMapping`、多主体模型与财务对象不属于本阶段 CRM owner。
+customer master phase 1 hardening 完成条件：
 
-## 13. 关闭条件
+- `ChangeCustomerStatus` 非法状态严格返回 `INVALID_ARGUMENT`。
+- tenant-web 通过 Party selector 完成 customer primary binding，不要求用户手填 `tenantPartyId`。
+- primary contact / primary address 规则已冻结并实现。
+- `SearchSelectableCustomers` 已被 Sales 创建报价链路采用。
+- blocked / archived / unbound customer 无法进入新报价 selector。
+- Quote / QuoteVersion / SalesOrder customer snapshot 复制链通过测试或 smoke 验收。
+- 当前 feature packet 与服务真相源、contract、实现状态一致。
 
-- `docs/contracts/crm-service/**` 已建立并承接本 packet。
-- 后续 contract 线程无需再次讨论 `CustomerAccount` 是否等于 Party truth。
-- Sales selector 入口、active primary binding 约束与 customer snapshot 复制链在 contract 阶段未被重新打开。
+## 9. Suggested Next Implementation Order
 
-## 14. 备注
+1. `ChangeCustomerStatus` contract-code hardening。
+2. Party selector customer binding。
+3. primary contact / address 规则冻结与实现。
+4. Sales selector integration smoke。
+5. `CustomerTaxProfile / defaultCurrency / defaultPaymentTermId` contract。
+6. Customer tax / default terms runtime implementation。
+7. resource owner / team / query scope 授权设计与 contract。
 
-- 本 packet 只覆盖 minimum customer master foundation，不替代未来完整 CRM 子域设计。
-- 既有 `prospecting` slice 仍归 `crm-service`，但不在本 packet 中展开其完整后续模型。
+## 10. Notes
+
+- 本 packet 只覆盖 customer master foundation，不替代完整 CRM 子域设计。
+- 完整 CRM 长期边界见 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)。
+- 既有 `prospecting` slice 仍归 `crm-service`，但 formal `LeadDraft -> Lead` 契约尚未冻结。

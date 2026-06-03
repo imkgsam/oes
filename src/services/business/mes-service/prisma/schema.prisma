@@ -227,7 +227,7 @@ model ToolingInstallation {
 
 model MoldInstallationDetail {
   toolingInstallationId String              @id @db.VarChar(128)
-  moldPosition          String?             @db.VarChar(128)
+  moldPositionIndex     Int
   cavityPosition        String?             @db.VarChar(128)
   cavityMapping         String?             @db.VarChar(1000)
   setupParameters       String?             @db.VarChar(1000)

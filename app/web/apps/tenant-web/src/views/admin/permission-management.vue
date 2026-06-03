@@ -616,7 +616,7 @@ onMounted(() => {
         <Form layout="vertical" class="permission-management__filter-panel">
           <Row :gutter="[10, 10]" class="permission-management__filter-row">
             <Col :lg="10" :md="24" :xs="24" :xl="11">
-              <Form.Item label="关键词">
+              <Form.Item>
                 <Input
                   v-model:value="filters.keyword"
                   allow-clear
@@ -627,7 +627,7 @@ onMounted(() => {
               </Form.Item>
             </Col>
             <Col :lg="8" :md="12" :xs="24" :xl="8">
-              <Form.Item label="模块">
+              <Form.Item>
                 <Select
                   v-model:value="filters.module"
                   allow-clear
@@ -646,7 +646,7 @@ onMounted(() => {
               :xl="5"
               class="permission-management__filter-actions-col"
             >
-              <Form.Item label=" " :colon="false">
+              <Form.Item>
                 <div class="permission-management__filter-buttons">
                   <Button class="permission-management__filter-button" type="primary" @click="searchPermissions">
                     查询

@@ -61,11 +61,6 @@ export function markPdaUserActivity(): void {
   scheduleIdleLogout();
 }
 
-/** Clears local PDA user session material when the WebView is unloading or the activity is destroyed. */
-export async function clearPdaSessionOnAppExit(): Promise<void> {
-  await useSessionStore().clearSession();
-}
-
 function installActivityListeners(): void {
   ACTIVITY_EVENTS.forEach((eventName) => {
     window.addEventListener(eventName, markPdaUserActivity, { passive: true });

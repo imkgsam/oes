@@ -8,6 +8,7 @@ option java_package = "com.oes.hr.v1";
 service HrQueryService {
   rpc GetEmployeeById(GetEmployeeByIdRequest) returns (GetEmployeeByIdResponse);
   rpc GetEmployeeByTenantPartyId(GetEmployeeByTenantPartyIdRequest) returns (GetEmployeeByTenantPartyIdResponse);
+  rpc ResolveActiveEmployeeByCode(ResolveActiveEmployeeByCodeRequest) returns (ResolveActiveEmployeeByCodeResponse);
   rpc ListEmployees(ListEmployeesRequest) returns (ListEmployeesResponse);
   rpc GetActiveEmployment(GetActiveEmploymentRequest) returns (GetActiveEmploymentResponse);
   rpc ListEmployments(ListEmploymentsRequest) returns (ListEmploymentsResponse);
@@ -79,6 +80,16 @@ message GetEmployeeByTenantPartyIdRequest {
 
 message GetEmployeeByTenantPartyIdResponse {
   EmployeeSummary employee = 1;
+}
+
+message ResolveActiveEmployeeByCodeRequest {
+  string tenant_id = 1;
+  string employee_code = 2;
+}
+
+message ResolveActiveEmployeeByCodeResponse {
+  EmployeeSummary employee = 1;
+  EmploymentSummary active_employment = 2;
 }
 
 message ListEmployeesRequest {

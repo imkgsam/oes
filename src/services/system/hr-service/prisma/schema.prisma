@@ -30,7 +30,7 @@ model Employee {
   tenantId        String                  @db.VarChar(100)
   tenantPartyId   String                  @db.VarChar(100)
   partyId         String?                 @db.VarChar(100)
-  employeeCode    String                  @db.VarChar(100)
+  employeeCode    String                  @db.VarChar(4)
   lifecycleStatus EmployeeLifecycleStatus @default(PREBOARDING)
   createdAt       DateTime                @default(now())
   updatedAt       DateTime                @updatedAt

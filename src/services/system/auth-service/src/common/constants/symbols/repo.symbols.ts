@@ -11,6 +11,7 @@ export const REPO = {
   TENANT_MFA_POLICY: Symbol('TenantMfaPolicyRepository'),
   TRUSTED_DEVICE: Symbol('TrustedDeviceRepository'),
   PASSWORD_SETUP_REQUIREMENT: Symbol('PasswordSetupRequirementRepository'),
+  TERMINAL_PIN_RESET_REQUIREMENT: Symbol('TerminalPinResetRequirementRepository'),
   PASSWORD_RECOVERY_GRANT: Symbol('PasswordRecoveryGrantRepository'),
   LOGIN_RISK: Symbol('LoginRiskRepository')
 }

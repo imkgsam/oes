@@ -32,7 +32,7 @@
 - `wms-service`
   - 负责 `InventoryUnit`、`InventoryBalance`、`InventoryLot`、`PackageUnit`、`InventoryGenealogy`、库位、库存状态与仓储执行事实。
 - `srm-service`
-  - 负责 `SupplierProfile`、`SupplierOffering`、联系人、供应商状态与供应商关系事实。
+  - 负责 `SupplierProfile`、联系人、供应商状态与供应商关系事实；future `SupplierOffering` / supplier purchasing info 后续由 SRM 承接。
 
 ## 4. 稳定协同规则
 
@@ -56,8 +56,9 @@
 - future `procurement-service` 的标准采购最终引用 active + purchasable `Item`。
 - Procurement 可以从 `ItemModel + AttributeOption` 解析到 purchasable `Item`，也可以直接选择 `Item`。
 - `SupplierItemMapping` 归 `item-master-service`，只表达供应商侧编码 / 名称如何映射到执行层 `Item`。
-- `SupplierOffering` 归 `srm-service`，表达某供应商可供应某个 `Item`。
-- 采购价格、MOQ、lead time、RFQ、PO、收货与履约继续归 procurement，不写入 `SupplierItemMapping`；`PaymentTerm` 主数据归 `finance-service`，采购交易只保存 payment term snapshot。
+- 第一阶段标准采购不强制校验 `SupplierOffering`；只校验供应商 ACTIVE 与内部 `Item.active + purchasable`。
+- future `SupplierOffering` 归 `srm-service`，方向更接近 Odoo supplierinfo，可表达供应商针对内部 `Item` 或后续允许的 `ItemModel` 范围的默认价格、MOQ、lead time 等采购参考信息。
+- RFQ、PO、实际成交价、历史采购价格、收货与履约继续归 procurement，不写入 `SupplierItemMapping`；`PaymentTerm` 主数据归 `finance-service`，采购交易只保存 payment term snapshot。
 
 ### 4.4 MES 侧采用口径
 
@@ -102,7 +103,7 @@
 - 采购申请、采购订单、收货预期、采购商业条款：future `procurement-service`
 - `ProductionSpec`、`ProductionUnit`、路线、工序、质量结果、制造资源使用：`mes-service`
 - `InventoryUnit`、`InventoryBalance`、`InventoryLot`、`PackageUnit`、`InventoryGenealogy`、仓储执行：`wms-service`
-- `SupplierProfile`、`SupplierOffering`、联系人、供应商关系：`srm-service`
+- `SupplierProfile`、联系人、供应商关系、future `SupplierOffering` / supplier purchasing info：`srm-service`
 - 商机、询盘、客户产品兴趣：`crm-service`
 
 ## 7. 明确禁止
@@ -110,6 +111,7 @@
 - 不让销售、采购、MES、WMS、SRM 各自维护脱离 `item-master-service` 的 Item 主数据真相。
 - 不让 `item-master-service` 接管销售、采购、制造、仓储或供应商关系执行事实。
 - 不把 `SupplierItemMapping` 扩成价格、MOQ、payment term snapshot、lead time 或供应表现。
+- 不把 `SupplierOffering` 作为 phase 1 标准采购强制准入校验。
 - 不把客户自己的 SKU / 型号 / 标签显示名写回 item-master。
 - 不在 WMS 重新建立 `StockItemType` 作为 Item 的替代真相。
 - 不把 BOM 写成 MES Route / Operation。

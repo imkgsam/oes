@@ -31,4 +31,20 @@ class ScannerIntentNormalizerTest {
 
         assertNull(result)
     }
+
+    @Test
+    fun createsCameraScanResultsForDecodedQrOrCode128Values() {
+        val result = ScannerIntentNormalizer.cameraScan(
+            scanValue = "EMP001",
+            symbology = "QR_CODE",
+            occurredAt = Instant.parse("2026-05-21T10:20:00Z"),
+        )
+
+        assertEquals("EMP001", result.scanValue)
+        assertEquals("CAMERA", result.scanSource)
+        assertEquals("ANDROID_CAMERA", result.scannerProvider)
+        assertEquals("QR_CODE", result.symbology)
+        assertEquals(6, result.rawLength)
+        assertEquals("2026-05-21T10:20:00Z", result.occurredAt)
+    }
 }

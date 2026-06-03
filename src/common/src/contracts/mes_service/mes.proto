@@ -22,10 +22,13 @@ service MoldManagementService {
   rpc RegisterMoldDesign(RegisterMoldDesignRequest) returns (RegisterMoldDesignResponse);
   rpc RegisterMasterMold(RegisterMasterMoldRequest) returns (RegisterMasterMoldResponse);
   rpc RegisterProductionMold(RegisterProductionMoldRequest) returns (RegisterProductionMoldResponse);
+  rpc ConfirmProductionMoldArrival(ConfirmProductionMoldArrivalRequest) returns (ConfirmProductionMoldArrivalResponse);
   rpc AcceptProductionMold(AcceptProductionMoldRequest) returns (AcceptProductionMoldResponse);
   rpc MoveTooling(MoveToolingRequest) returns (MoveToolingResponse);
   rpc InstallTooling(InstallToolingRequest) returns (InstallToolingResponse);
   rpc UnmountTooling(UnmountToolingRequest) returns (UnmountToolingResponse);
+  rpc ConfirmInstalledMoldReady(ConfirmInstalledMoldReadyRequest) returns (ConfirmInstalledMoldReadyResponse);
+  rpc MarkInstalledMoldMaintenance(MarkInstalledMoldMaintenanceRequest) returns (MarkInstalledMoldMaintenanceResponse);
   rpc RecordMoldUsage(RecordMoldUsageRequest) returns (RecordMoldUsageResponse);
   rpc RecordMoldUsageBatch(RecordMoldUsageBatchRequest) returns (RecordMoldUsageBatchResponse);
   rpc AdjustMoldLifeCounter(AdjustMoldLifeCounterRequest) returns (AdjustMoldLifeCounterResponse);
@@ -97,10 +100,10 @@ enum MasterMoldStatus {
 
 enum ProductionMoldStatus {
   PRODUCTION_MOLD_STATUS_UNSPECIFIED = 0;
-  PRODUCTION_MOLD_STATUS_RECEIVED = 1;
+  PRODUCTION_MOLD_STATUS_PRE_REGISTERED = 1;
   PRODUCTION_MOLD_STATUS_PREPARING = 2;
   PRODUCTION_MOLD_STATUS_AVAILABLE = 3;
-  PRODUCTION_MOLD_STATUS_INSTALLED = 4;
+  PRODUCTION_MOLD_STATUS_READY = 4;
   PRODUCTION_MOLD_STATUS_MAINTENANCE = 5;
   PRODUCTION_MOLD_STATUS_DISABLED = 6;
   PRODUCTION_MOLD_STATUS_SCRAP_PENDING = 7;
@@ -392,7 +395,7 @@ message MasterMold {
 
 message MoldInstallationDetail {
   string tooling_installation_id = 1;
-  string mold_position = 2;
+  int32 mold_position_index = 2;
   string cavity_position = 3;
   string cavity_mapping = 4;
   string setup_parameters = 5;
@@ -706,6 +709,21 @@ message RegisterProductionMoldResponse {
   ProductionMold production_mold = 1;
 }
 
+message ConfirmProductionMoldArrivalRequest {
+  string tenant_id = 1;
+  string org_id = 2;
+  OperatorContext operator_context = 3;
+  TraceContext trace_context = 4;
+  AuditContext audit_context = 5;
+  string command_id = 6;
+  string production_mold_id = 7;
+  string arrived_at = 8;
+}
+
+message ConfirmProductionMoldArrivalResponse {
+  ProductionMold production_mold = 1;
+}
+
 message AcceptProductionMoldRequest {
   string tenant_id = 1;
   string org_id = 2;
@@ -752,7 +770,7 @@ message InstallToolingRequest {
   WorkCenterRef work_center_ref = 9;
   WorkUnitRef work_unit_ref = 10;
   string installed_at = 11;
-  string mold_position = 12;
+  int32 mold_position_index = 12;
   string cavity_position = 13;
   string cavity_mapping = 14;
   string setup_parameters = 15;
@@ -775,6 +793,39 @@ message UnmountToolingRequest {
 
 message UnmountToolingResponse {
   ToolingInstallation tooling_installation = 1;
+}
+
+message ConfirmInstalledMoldReadyRequest {
+  string tenant_id = 1;
+  string org_id = 2;
+  OperatorContext operator_context = 3;
+  TraceContext trace_context = 4;
+  AuditContext audit_context = 5;
+  string command_id = 6;
+  string production_mold_id = 7;
+  string tooling_installation_id = 8;
+  string ready_at = 9;
+}
+
+message ConfirmInstalledMoldReadyResponse {
+  ProductionMold production_mold = 1;
+}
+
+message MarkInstalledMoldMaintenanceRequest {
+  string tenant_id = 1;
+  string org_id = 2;
+  OperatorContext operator_context = 3;
+  TraceContext trace_context = 4;
+  AuditContext audit_context = 5;
+  string command_id = 6;
+  string production_mold_id = 7;
+  string tooling_installation_id = 8;
+  string reason = 9;
+  string marked_at = 10;
+}
+
+message MarkInstalledMoldMaintenanceResponse {
+  ProductionMold production_mold = 1;
 }
 
 message RecordMoldUsageRequest {

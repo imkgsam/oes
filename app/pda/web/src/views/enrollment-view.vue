@@ -12,7 +12,19 @@
           name="enrollmentCode"
           placeholder="扫描或输入绑定码"
           required
-        />
+        >
+          <template #right-icon>
+            <button
+              class="camera-scan-icon-button"
+              type="button"
+              aria-label="使用相机扫描 enrollment code"
+              :disabled="submitting || cameraScanning"
+              @click.stop.prevent="openEnrollmentCameraScanner"
+            >
+              <van-icon name="scan" />
+            </button>
+          </template>
+        </van-field>
         <p v-if="lastScanHint" class="enrollment-form__hint">{{ lastScanHint }}</p>
         <p v-if="errorMessage" class="login-form__error">{{ errorMessage }}</p>
         <van-button block class="login-form__button" :loading="submitting" native-type="submit" type="primary">
@@ -28,6 +40,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { enrollPdaDevice, toManagedPdaDeviceDescriptor } from '@/api/pda-bff.client';
 import { getBridgeClient, onScanResult } from '@/bridge/bridge-client';
+import { openCameraScanner } from '@/services/camera-scanner';
 import { normalizeEnrollmentCodeInput } from '@/services/enrollment-code';
 import { recordPdaDiagnosticLog } from '@/services/pda-diagnostic-log-buffer';
 import { useSessionStore } from '@/stores/session.store';
@@ -36,6 +49,7 @@ const enrollmentCode = ref('');
 const errorMessage = ref('');
 const lastScanHint = ref('');
 const submitting = ref(false);
+const cameraScanning = ref(false);
 const router = useRouter();
 const sessionStore = useSessionStore();
 let unsubscribeScan: (() => void) | undefined;
@@ -51,6 +65,20 @@ onMounted(() => {
 onBeforeUnmount(() => {
   unsubscribeScan?.();
 });
+
+/** Opens native camera scanning so non-PDA phones can bind devices from enrollment QR codes. */
+async function openEnrollmentCameraScanner(): Promise<void> {
+  errorMessage.value = '';
+  cameraScanning.value = true;
+  try {
+    await openCameraScanner();
+    lastScanHint.value = '请将 enrollment 二维码或条码置于取景框内。';
+  } catch (error) {
+    errorMessage.value = error instanceof Error ? error.message : '无法打开相机扫码。';
+  } finally {
+    cameraScanning.value = false;
+  }
+}
 
 /** Activates enrollment and stores only the returned terminalDeviceId pointer locally. */
 async function handleSubmit(): Promise<void> {

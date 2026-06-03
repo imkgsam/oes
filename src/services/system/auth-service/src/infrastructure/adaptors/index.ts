@@ -8,6 +8,9 @@
 // Identity Service 适配器
 export { IdentityServiceAdaptor } from './identity-service.adaptor'
 
+// HR Service 适配器
+export { HrServiceAdaptor } from './hr-service.adaptor'
+
 // Permission Service 适配器
 export { PermissionServiceAdaptor } from './permission-service.adaptor'
 

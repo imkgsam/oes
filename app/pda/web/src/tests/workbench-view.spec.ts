@@ -1,5 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
+import { nextTick } from 'vue';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import WorkbenchView from '@/views/workbench-view.vue';
 import { useSessionStore } from '@/stores/session.store';
@@ -120,6 +121,14 @@ describe('workbench view session refresh', () => {
     expect(useSessionStore().terminalDeviceDisplayName).toBe('PDA-01');
   });
 
+  it('opens the mold execution workbench from the protected PDA workbench', async () => {
+    const wrapper = mountWorkbench();
+
+    await wrapper.get('[data-test-id="pda-open-mold-workbench"]').trigger('click');
+
+    expect(mockApi.routerPush).toHaveBeenCalledWith('/molds');
+  });
+
   it('clears the local PDA session when protected bootstrap rejects the revoked session', async () => {
     mockApi.fetchPdaBootstrap.mockRejectedValue(new mockApi.MockPdaBffError('Unauthorized', 401));
 
@@ -131,6 +140,27 @@ describe('workbench view session refresh', () => {
     expect(localStorage.getItem('oes:pda:session-tokens')).toBe(null);
     expect(mockApi.routerPush).toHaveBeenCalledWith('/login');
   });
+
+  it.each(['DEVICE_DISABLED', 'DEVICE_LOST'] as const)(
+    'routes the open workbench to restricted when heartbeat reports %s',
+    async (decisionCode) => {
+      mountWorkbench();
+      const sessionStore = useSessionStore();
+
+      await sessionStore.applyDeviceDecision({
+        allowed: false,
+        decisionCode,
+        deviceStatus: decisionCode === 'DEVICE_DISABLED' ? 'DISABLED' : 'LOST',
+        requiredAction: 'CLEAR_LOCAL_SESSION',
+        shouldClearLocalSession: true,
+        shouldClearLocalTerminalDeviceId: false,
+      });
+      await nextTick();
+
+      expect(sessionStore.isAuthenticated).toBe(false);
+      expect(mockApi.routerPush).toHaveBeenCalledWith('/device-restricted');
+    },
+  );
 });
 
 function mountWorkbench() {

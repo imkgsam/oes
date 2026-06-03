@@ -28,10 +28,13 @@ describe('MesController', () => {
     printDailyMoldChecklist: jest.fn(),
     recordDailyMoldUsageBatch: jest.fn(),
     acceptProductionMold: jest.fn(),
+    confirmInstalledMoldReady: jest.fn(),
+    confirmProductionMoldArrival: jest.fn(),
     registerMasterMold: jest.fn(),
     registerMoldDesign: jest.fn(),
     registerProductionMold: jest.fn(),
     retireProductionSpec: jest.fn(),
+    markInstalledMoldMaintenance: jest.fn(),
     markProductionMoldForScrap: jest.fn(),
     updateProductionSpec: jest.fn(),
     unmountTooling: jest.fn()
@@ -70,6 +73,9 @@ describe('MesController', () => {
       reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, MesController.prototype.acceptProductionMold)
     ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
+      reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, MesController.prototype.confirmProductionMoldArrival)
+    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
       reflector.get(REQUIRE_PERMISSIONS_METADATA_KEY, MesController.prototype.moveTooling)
     ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
     expect(
@@ -104,9 +110,12 @@ describe('MesController', () => {
     mesService.listProductionMoldsByDesign.mockResolvedValue({ productionMolds: [] })
     mesService.registerProductionMold.mockResolvedValue({ productionMoldId: 'mold-1' })
     mesService.acceptProductionMold.mockResolvedValue({ productionMoldId: 'mold-1' })
+    mesService.confirmProductionMoldArrival.mockResolvedValue({ productionMoldId: 'mold-1' })
     mesService.getProductionMold.mockResolvedValue({ productionMoldId: 'mold-1' })
     mesService.moveTooling.mockResolvedValue({ toolingId: 'mold-1' })
     mesService.installTooling.mockResolvedValue({ toolingInstallationId: 'install-1' })
+    mesService.confirmInstalledMoldReady.mockResolvedValue({ productionMoldId: 'mold-1' })
+    mesService.markInstalledMoldMaintenance.mockResolvedValue({ productionMoldId: 'mold-1' })
     mesService.unmountTooling.mockResolvedValue({ toolingInstallationId: 'install-1' })
     mesService.markProductionMoldForScrap.mockResolvedValue({ productionMoldId: 'mold-1' })
     mesService.listCurrentMoldsByWorkCenter.mockResolvedValue({ items: [] })
@@ -146,12 +155,12 @@ describe('MesController', () => {
     await controller.listProductionMoldsByDesign(
       'tenant-1',
       'design-1',
-      { status: 'INSTALLED' } as any,
+      { status: 'READY' } as any,
       source as any
     )
     await controller.listProductionMolds(
       'tenant-1',
-      { status: 'INSTALLED', moldDesignId: 'design-1' } as any,
+      { status: 'READY', moldDesignId: 'design-1' } as any,
       source as any
     )
     await controller.registerProductionMold(
@@ -165,6 +174,12 @@ describe('MesController', () => {
       { commandId: 'cmd-accept' } as any,
       source as any
     )
+    await controller.confirmProductionMoldArrival(
+      'tenant-1',
+      'mold-1',
+      { commandId: 'cmd-arrival' } as any,
+      source as any
+    )
     await controller.getProductionMold('tenant-1', 'mold-1', source as any)
     await controller.moveTooling(
       'tenant-1',
@@ -176,6 +191,18 @@ describe('MesController', () => {
       'tenant-1',
       'mold-1',
       { commandId: 'cmd-install' } as any,
+      source as any
+    )
+    await controller.confirmInstalledMoldReady(
+      'tenant-1',
+      'mold-1',
+      { commandId: 'cmd-ready', toolingInstallationId: 'install-1' } as any,
+      source as any
+    )
+    await controller.markInstalledMoldMaintenance(
+      'tenant-1',
+      'mold-1',
+      { commandId: 'cmd-maintenance', reason: 'repair', toolingInstallationId: 'install-1' } as any,
       source as any
     )
     await controller.unmountTooling(
@@ -221,13 +248,31 @@ describe('MesController', () => {
     expect(mesService.listProductionMoldsByDesign).toHaveBeenCalledWith(
       'tenant-1',
       'design-1',
-      { status: 'INSTALLED' },
+      { status: 'READY' },
+      source
+    )
+    expect(mesService.confirmProductionMoldArrival).toHaveBeenCalledWith(
+      'tenant-1',
+      'mold-1',
+      { commandId: 'cmd-arrival' },
       source
     )
     expect(mesService.moveTooling).toHaveBeenCalledWith(
       'tenant-1',
       'mold-1',
       { commandId: 'cmd-move' },
+      source
+    )
+    expect(mesService.confirmInstalledMoldReady).toHaveBeenCalledWith(
+      'tenant-1',
+      'mold-1',
+      { commandId: 'cmd-ready', toolingInstallationId: 'install-1' },
+      source
+    )
+    expect(mesService.markInstalledMoldMaintenance).toHaveBeenCalledWith(
+      'tenant-1',
+      'mold-1',
+      { commandId: 'cmd-maintenance', reason: 'repair', toolingInstallationId: 'install-1' },
       source
     )
     expect(mesService.markProductionMoldForScrap).toHaveBeenCalledWith(

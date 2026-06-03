@@ -28,7 +28,9 @@ describe('item-management V2 BFF API client', async () => {
     changeManagedItemCategoryStatusApi,
     changeManagedBomStatusApi,
     deleteManagedItemCategoryApi,
+    deleteManagedPackagingMethodApi,
     getManagedBomByOutputItemApi,
+    getManagedItemModelByIdApi,
     listManagedAttributeDefinitionsApi,
     listManagedAttributeOptionsApi,
     listManagedBomsApi,
@@ -38,8 +40,11 @@ describe('item-management V2 BFF API client', async () => {
     moveManagedItemCategoryApi,
     replaceManagedBomLinesApi,
     updateManagedBomBasicsApi,
+    setManagedItemModelCapabilitiesApi,
+    setManagedItemModelPrimaryCategoryApi,
     updateManagedAttributeDefinitionApi,
     updateManagedAttributeOptionApi,
+    updateManagedItemModelBasicsApi,
     updateManagedPackagingMethodApi,
     updateManagedPackagingSpecApi,
     updateManagedItemCategoryBasicsApi
@@ -50,6 +55,7 @@ describe('item-management V2 BFF API client', async () => {
       modelKind: 'PHYSICAL',
       modelType: 'FINISHED_PRODUCT'
     })
+    await getManagedItemModelByIdApi('tenant-1', 'model-1')
     await createManagedItemModelApi('tenant-1', {
       modelCode: 'MODEL-1',
       modelKind: 'PHYSICAL',
@@ -63,6 +69,7 @@ describe('item-management V2 BFF API client', async () => {
         modelType: 'FINISHED_PRODUCT'
       }
     })
+    expect(get).toHaveBeenCalledWith('/item-management/tenants/tenant-1/item-models/model-1')
     expect(post).toHaveBeenCalledWith(
       '/item-management/tenants/tenant-1/item-models',
       expect.objectContaining({
@@ -70,6 +77,47 @@ describe('item-management V2 BFF API client', async () => {
         modelKind: 'PHYSICAL'
       })
     )
+  })
+
+  it('uses ItemModel update endpoints for detail editing', async () => {
+    await updateManagedItemModelBasicsApi('tenant-1', 'model-1', {
+      modelCode: 'MODEL-1-UPD',
+      modelName: 'Model 1 Updated'
+    })
+    await setManagedItemModelCapabilitiesApi('tenant-1', 'model-1', {
+      capabilities: {
+        assemblable: false,
+        manufacturable: true,
+        packable: false,
+        packaged: false,
+        purchasable: true,
+        sellable: true,
+        stockable: true,
+        transformable: false
+      }
+    })
+    await setManagedItemModelPrimaryCategoryApi('tenant-1', 'model-1', {
+      primaryCategoryId: 'category-2'
+    })
+
+    expect(request).toHaveBeenCalledWith('/item-management/tenants/tenant-1/item-models/model-1/basics', {
+      data: {
+        modelCode: 'MODEL-1-UPD',
+        modelName: 'Model 1 Updated'
+      },
+      method: 'PATCH'
+    })
+    expect(put).toHaveBeenCalledWith(
+      '/item-management/tenants/tenant-1/item-models/model-1/capabilities',
+      expect.objectContaining({
+        capabilities: expect.objectContaining({
+          purchasable: true
+        })
+      })
+    )
+    expect(put).toHaveBeenCalledWith('/item-management/tenants/tenant-1/item-models/model-1/primary-category', {
+      primaryCategoryId: 'category-2'
+    })
   })
 
   it('creates executable Items from ItemModel ids', async () => {
@@ -240,16 +288,19 @@ describe('item-management V2 BFF API client', async () => {
   it('uses packaging endpoints for method and spec master data', async () => {
     await listManagedPackagingMethodsApi('tenant-1', { status: 'ACTIVE' })
     await createManagedPackagingMethodApi('tenant-1', {
+      description: 'Online parcel packaging',
       methodCode: 'ECOM',
       methodName: 'E-commerce'
     })
     await updateManagedPackagingMethodApi('tenant-1', 'method-1', {
+      description: 'Online parcel packaging rev',
       methodCode: 'ECOM-REV',
       methodName: 'E-commerce Rev'
     })
     await changeManagedPackagingMethodStatusApi('tenant-1', 'method-1', {
       status: 'INACTIVE'
     })
+    await deleteManagedPackagingMethodApi('tenant-1', 'method-1')
     await listManagedPackagingSpecsApi('tenant-1', { itemModelId: 'model-1' })
     await createManagedPackagingSpecApi('tenant-1', {
       itemModelId: 'model-1',
@@ -271,11 +322,13 @@ describe('item-management V2 BFF API client', async () => {
       params: { status: 'ACTIVE' }
     })
     expect(post).toHaveBeenCalledWith('/item-management/tenants/tenant-1/packaging/methods', {
+      description: 'Online parcel packaging',
       methodCode: 'ECOM',
       methodName: 'E-commerce'
     })
     expect(request).toHaveBeenCalledWith('/item-management/tenants/tenant-1/packaging/methods/method-1/basics', {
       data: {
+        description: 'Online parcel packaging rev',
         methodCode: 'ECOM-REV',
         methodName: 'E-commerce Rev'
       },
@@ -286,6 +339,9 @@ describe('item-management V2 BFF API client', async () => {
         status: 'INACTIVE'
       },
       method: 'PATCH'
+    })
+    expect(request).toHaveBeenCalledWith('/item-management/tenants/tenant-1/packaging/methods/method-1', {
+      method: 'DELETE'
     })
     expect(get).toHaveBeenCalledWith('/item-management/tenants/tenant-1/packaging/specs', {
       params: { itemModelId: 'model-1' }

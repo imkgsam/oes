@@ -128,6 +128,19 @@ export namespace ItemManagementApi {
     primaryCategoryId?: string
   }
 
+  export interface UpdateItemModelBasicsPayload {
+    modelCode: string
+    modelName: string
+  }
+
+  export interface SetItemModelCapabilitiesPayload {
+    capabilities: ItemCapabilities
+  }
+
+  export interface SetItemModelPrimaryCategoryPayload {
+    primaryCategoryId?: string
+  }
+
   export interface CreateItemPayload {
     capabilities?: ItemCapabilities
     itemCode: string
@@ -251,6 +264,7 @@ export namespace ItemManagementApi {
     packagingMethodId: string
     methodCode: string
     methodName: string
+    description: string
     status: ItemStatus | string
   }
 
@@ -264,6 +278,7 @@ export namespace ItemManagementApi {
   }
 
   export interface CreatePackagingMethodPayload {
+    description?: string
     methodCode: string
     methodName: string
   }
@@ -433,6 +448,49 @@ export async function createManagedItemModelApi(
     itemModelId: string
     itemModel?: ItemManagementApi.ItemModelRecord
   }>(`/item-management/tenants/${encodeURIComponent(tenantId)}/item-models`, data)
+}
+
+// Loads one tenant-scoped ItemModel detail record.
+export async function getManagedItemModelByIdApi(tenantId: string, itemModelId: string) {
+  return requestClient.get<ItemManagementApi.ItemModelRecord>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/item-models/${encodeURIComponent(itemModelId)}`
+  )
+}
+
+// Updates one ItemModel identity without changing derived Item truth.
+export async function updateManagedItemModelBasicsApi(
+  tenantId: string,
+  itemModelId: string,
+  data: ItemManagementApi.UpdateItemModelBasicsPayload
+) {
+  return requestClient.request<{ itemModel?: ItemManagementApi.ItemModelRecord }>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/item-models/${encodeURIComponent(itemModelId)}/basics`,
+    { data, method: 'PATCH' }
+  )
+}
+
+// Full-replaces one ItemModel's default capability profile.
+export async function setManagedItemModelCapabilitiesApi(
+  tenantId: string,
+  itemModelId: string,
+  data: ItemManagementApi.SetItemModelCapabilitiesPayload
+) {
+  return requestClient.put<{ itemModel?: ItemManagementApi.ItemModelRecord }>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/item-models/${encodeURIComponent(itemModelId)}/capabilities`,
+    data
+  )
+}
+
+// Sets or clears one ItemModel's primary category.
+export async function setManagedItemModelPrimaryCategoryApi(
+  tenantId: string,
+  itemModelId: string,
+  data: ItemManagementApi.SetItemModelPrimaryCategoryPayload
+) {
+  return requestClient.put<{ itemModel?: ItemManagementApi.ItemModelRecord }>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/item-models/${encodeURIComponent(itemModelId)}/primary-category`,
+    data
+  )
 }
 
 // Lists tenant-scoped executable Items.
@@ -701,6 +759,17 @@ export async function changeManagedPackagingMethodStatusApi(
   return requestClient.request<ItemManagementApi.PackagingMethodRecord>(
     `/item-management/tenants/${encodeURIComponent(tenantId)}/packaging/methods/${encodeURIComponent(packagingMethodId)}/status`,
     { data, method: 'PATCH' }
+  )
+}
+
+// Hard-deletes one unused packaging method.
+export async function deleteManagedPackagingMethodApi(
+  tenantId: string,
+  packagingMethodId: string
+) {
+  return requestClient.request<Record<string, never>>(
+    `/item-management/tenants/${encodeURIComponent(tenantId)}/packaging/methods/${encodeURIComponent(packagingMethodId)}`,
+    { method: 'DELETE' }
   )
 }
 

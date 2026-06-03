@@ -323,7 +323,6 @@ class FakeMoldRepository implements MesMoldRepository {
     const mold = this.productionMolds.get(record.toolingId)
     if (mold) {
       mold.currentInstallationSummary = record.status === ToolingInstallationStatus.ACTIVE ? structuredClone(record) : null
-      mold.currentStatus = record.status === ToolingInstallationStatus.ACTIVE ? ProductionMoldStatus.INSTALLED : mold.currentStatus
       this.productionMolds.set(mold.productionMoldId, structuredClone(mold))
     }
     return structuredClone(record)
@@ -354,6 +353,16 @@ class FakeMoldRepository implements MesMoldRepository {
       .map((record) => structuredClone(record))
   }
 
+  /** listActiveToolingInstallationsByWorkCenter returns active installations for position sequencing. */
+  async listActiveToolingInstallationsByWorkCenter(input: Parameters<MesMoldRepository['listActiveToolingInstallationsByWorkCenter']>[0]) {
+    return Array.from(this.installations.values())
+      .filter((record) => record.tenantId === input.tenantId && (record.orgId ?? null) === (input.orgId ?? null))
+      .filter((record) => record.status === ToolingInstallationStatus.ACTIVE)
+      .filter((record) => record.workCenterRef.workCenterId === input.workCenterId)
+      .sort((left, right) => (left.moldDetail?.moldPositionIndex ?? 0) - (right.moldDetail?.moldPositionIndex ?? 0))
+      .map((record) => structuredClone(record))
+  }
+
   /** listCurrentMoldsByWorkCenter returns active installation rows for one work center. */
   async listCurrentMoldsByWorkCenter(input: ListCurrentMoldsByWorkCenterInput) {
     const items = Array.from(this.installations.values())
@@ -361,6 +370,7 @@ class FakeMoldRepository implements MesMoldRepository {
       .filter((record) => record.status === ToolingInstallationStatus.ACTIVE)
       .filter((record) => record.workCenterRef.workCenterId === input.workCenterId)
       .filter((record) => !input.workUnitId || record.workUnitRef?.workUnitId === input.workUnitId)
+      .sort((left, right) => (left.moldDetail?.moldPositionIndex ?? 0) - (right.moldDetail?.moldPositionIndex ?? 0))
       .map((toolingInstallation): CurrentMoldByWorkCenterRecord => {
         const mold = this.productionMolds.get(toolingInstallation.toolingId)
         if (!mold) {
@@ -369,8 +379,8 @@ class FakeMoldRepository implements MesMoldRepository {
         return {
           productionMold: this.toProductionMoldSummary(mold),
           toolingInstallation: structuredClone(toolingInstallation),
-          usageAllowed: mold.currentStatus === ProductionMoldStatus.INSTALLED,
-          usageDisabledReason: mold.currentStatus === ProductionMoldStatus.INSTALLED ? null : `MOLD_${mold.currentStatus}`
+          usageAllowed: mold.currentStatus === ProductionMoldStatus.READY,
+          usageDisabledReason: mold.currentStatus === ProductionMoldStatus.READY ? null : `MOLD_${mold.currentStatus}`
         }
       })
     return { items }
@@ -795,6 +805,143 @@ async function registerDesign(management: MesMoldManagementService) {
 }
 
 describe('mes-service mold/tooling application behavior L1', () => {
+  it('production mold field loop pre-registers, confirms arrival, installs by index, readies, records usage, and reindexes on removal', async () => {
+    const { management, query } = createHarness()
+
+    await registerDesign(management)
+
+    const firstMold = await management.registerProductionMold({
+      ...commandContext('cmd-loop-mold-1'),
+      productionMoldId: 'loop-mold-1',
+      moldCode: 'loop-mold-1',
+      moldDesignId: 'design-1',
+      initialStorageResourceRef: {
+        storageResourceId: 'storage-ready'
+      }
+    })
+    expect(firstMold.currentStatus).toBe('PRE_REGISTERED')
+
+    const arrivedFirst = await (management as any).confirmProductionMoldArrival({
+      ...commandContext('cmd-loop-arrival-1'),
+      productionMoldId: 'loop-mold-1',
+      arrivedAt: '2026-05-10T00:30:00.000Z'
+    })
+    expect(arrivedFirst.productionMold.currentStatus).toBe(ProductionMoldStatus.AVAILABLE)
+
+    const firstInstallation = await management.installTooling({
+      ...commandContext('cmd-loop-install-1'),
+      toolingType: ToolingType.MOLD,
+      toolingId: 'loop-mold-1',
+      workCenterRef: {
+        workCenterId: 'wc-loop'
+      },
+      installedAt: '2026-05-10T01:00:00.000Z'
+    } as any)
+    expect((firstInstallation.toolingInstallation.moldDetail as any).moldPositionIndex).toBe(1)
+    expect((await query.getProductionMold({ ...queryContext(), productionMoldId: 'loop-mold-1' })).currentStatus).toBe(
+      ProductionMoldStatus.MAINTENANCE
+    )
+
+    await expect(
+      management.recordMoldUsageBatch({
+        ...commandContext('cmd-loop-usage-before-ready'),
+        workCenterRef: {
+          workCenterId: 'wc-loop'
+        },
+        usedAt: '2026-05-10T01:20:00.000Z',
+        lines: [
+          {
+            isSubmitted: true,
+            productionMoldId: 'loop-mold-1',
+            toolingInstallationId: firstInstallation.toolingInstallation.toolingInstallationId,
+            usageQuantity: '1'
+          }
+        ]
+      })
+    ).rejects.toMatchObject({ definition: { rpcStatus: status.FAILED_PRECONDITION } })
+
+    const readyFirst = await (management as any).confirmInstalledMoldReady({
+      ...commandContext('cmd-loop-ready-1'),
+      productionMoldId: 'loop-mold-1',
+      toolingInstallationId: firstInstallation.toolingInstallation.toolingInstallationId,
+      confirmedAt: '2026-05-10T01:30:00.000Z'
+    })
+    expect(readyFirst.productionMold.currentStatus).toBe('READY')
+
+    const usage = await management.recordMoldUsageBatch({
+      ...commandContext('cmd-loop-usage-ready'),
+      workCenterRef: {
+        workCenterId: 'wc-loop'
+      },
+      usedAt: '2026-05-10T02:00:00.000Z',
+      lines: [
+        {
+          isSubmitted: true,
+          productionMoldId: 'loop-mold-1',
+          toolingInstallationId: firstInstallation.toolingInstallation.toolingInstallationId,
+          usageQuantity: '2'
+        }
+      ]
+    })
+    expect(usage.moldLifeCounters[0]?.usedValue).toBe('2')
+
+    const secondMold = await management.registerProductionMold({
+      ...commandContext('cmd-loop-mold-2'),
+      productionMoldId: 'loop-mold-2',
+      moldCode: 'loop-mold-2',
+      moldDesignId: 'design-1',
+      initialStorageResourceRef: {
+        storageResourceId: 'storage-ready'
+      }
+    })
+    expect(secondMold.currentStatus).toBe('PRE_REGISTERED')
+    await (management as any).confirmProductionMoldArrival({
+      ...commandContext('cmd-loop-arrival-2'),
+      productionMoldId: 'loop-mold-2'
+    })
+
+    const secondInstallation = await management.installTooling({
+      ...commandContext('cmd-loop-install-2'),
+      toolingType: ToolingType.MOLD,
+      toolingId: 'loop-mold-2',
+      workCenterRef: {
+        workCenterId: 'wc-loop'
+      },
+      moldPositionIndex: 1
+    } as any)
+    expect((secondInstallation.toolingInstallation.moldDetail as any).moldPositionIndex).toBe(1)
+
+    const afterInsert = await query.listCurrentMoldsByWorkCenter({
+      ...queryContext(),
+      workCenterId: 'wc-loop'
+    })
+    expect(
+      afterInsert.items.map((item) => ({
+        moldId: item.productionMold.productionMoldId,
+        index: (item.toolingInstallation.moldDetail as any).moldPositionIndex
+      }))
+    ).toEqual([
+      { moldId: 'loop-mold-2', index: 1 },
+      { moldId: 'loop-mold-1', index: 2 }
+    ])
+
+    await management.unmountTooling({
+      ...commandContext('cmd-loop-unmount-2'),
+      toolingInstallationId: secondInstallation.toolingInstallation.toolingInstallationId
+    })
+
+    const afterRemoval = await query.listCurrentMoldsByWorkCenter({
+      ...queryContext(),
+      workCenterId: 'wc-loop'
+    })
+    expect(
+      afterRemoval.items.map((item) => ({
+        moldId: item.productionMold.productionMoldId,
+        index: (item.toolingInstallation.moldDetail as any).moldPositionIndex
+      }))
+    ).toEqual([{ moldId: 'loop-mold-1', index: 1 }])
+  })
+
   it('management lifecycle / registers design, master mold, production mold, moves, installs, uses, adjusts, unmounts, and scraps', async () => {
     const { management, repository, query } = createHarness()
 
@@ -945,7 +1092,7 @@ describe('mes-service mold/tooling application behavior L1', () => {
         storageResourceId: 'storage-ready'
       }
     })
-    expect(productionMold.currentStatus).toBe(ProductionMoldStatus.RECEIVED)
+    expect(productionMold.currentStatus).toBe(ProductionMoldStatus.PRE_REGISTERED)
     expect(productionMold.acceptedAt).toBeNull()
     expect(productionMold.lifeCounterSummary?.usedValue).toBe('0')
 
@@ -960,6 +1107,38 @@ describe('mes-service mold/tooling application behavior L1', () => {
       })
     ).rejects.toMatchObject({ definition: { rpcStatus: status.NOT_FOUND } })
 
+    await expect(
+      management.moveTooling({
+        ...commandContext('cmd-move-before-arrival'),
+        toolingType: ToolingType.MOLD,
+        toolingId: 'mold-1',
+        toCarrierResourceRef: {
+          carrierResourceId: 'carrier-1'
+        },
+        movementReason: 'ready for line',
+        movedAt: '2026-05-10T00:00:00.000Z'
+      })
+    ).rejects.toMatchObject({ definition: { rpcStatus: status.FAILED_PRECONDITION } })
+
+    await expect(
+      management.installTooling({
+        ...commandContext('cmd-install-before-arrival'),
+        toolingType: ToolingType.MOLD,
+        toolingId: 'mold-1',
+        workCenterRef: {
+          workCenterId: 'wc-1'
+        }
+      })
+    ).rejects.toMatchObject({ definition: { rpcStatus: status.FAILED_PRECONDITION } })
+
+    const arrived = await management.confirmProductionMoldArrival({
+      ...commandContext('cmd-arrival-1'),
+      productionMoldId: 'mold-1',
+      arrivedAt: '2026-05-10T00:45:00.000Z'
+    })
+    expect(arrived.productionMold.currentStatus).toBe(ProductionMoldStatus.AVAILABLE)
+    expect(arrived.productionMold.acceptedAt).toBeNull()
+
     const moved = await management.moveTooling({
       ...commandContext('cmd-move-1'),
       toolingType: ToolingType.MOLD,
@@ -973,25 +1152,6 @@ describe('mes-service mold/tooling application behavior L1', () => {
     expect(moved.placement.placementType).toBe(ToolingPlacementType.CARRIER_RESOURCE)
     expect(repository.movements.some((movement) => movement.toolingId === 'mold-1')).toBe(true)
 
-    await expect(
-      management.installTooling({
-        ...commandContext('cmd-install-before-accept'),
-        toolingType: ToolingType.MOLD,
-        toolingId: 'mold-1',
-        workCenterRef: {
-          workCenterId: 'wc-1'
-        }
-      })
-    ).rejects.toMatchObject({ definition: { rpcStatus: status.FAILED_PRECONDITION } })
-
-    const accepted = await management.acceptProductionMold({
-      ...commandContext('cmd-accept-1'),
-      productionMoldId: 'mold-1',
-      acceptedAt: '2026-05-10T00:45:00.000Z'
-    })
-    expect(accepted.productionMold.currentStatus).toBe(ProductionMoldStatus.AVAILABLE)
-    expect(accepted.productionMold.acceptedAt).toBe('2026-05-10T00:45:00.000Z')
-
     const installed = await management.installTooling({
       ...commandContext('cmd-install-1'),
       toolingType: ToolingType.MOLD,
@@ -1003,11 +1163,33 @@ describe('mes-service mold/tooling application behavior L1', () => {
         workUnitId: 'wu-1'
       },
       installedAt: '2026-05-10T01:00:00.000Z',
-      moldPosition: 'A1'
+      moldPositionIndex: 1
     })
     expect(installed.toolingInstallation.toolingType).toBe(ToolingType.MOLD)
-    expect(installed.toolingInstallation.moldDetail?.moldPosition).toBe('A1')
+    expect(installed.toolingInstallation.moldDetail?.moldPositionIndex).toBe(1)
     expect(installed.toolingInstallation.moldDetail?.toolingInstallationId).toBe(installed.toolingInstallation.toolingInstallationId)
+    expect((await repository.findProductionMoldById(tenantId, 'mold-1'))?.currentStatus).toBe(ProductionMoldStatus.MAINTENANCE)
+
+    await expect(
+      management.recordMoldUsage({
+        ...commandContext('cmd-usage-before-ready'),
+        productionMoldId: 'mold-1',
+        toolingInstallationId: installed.toolingInstallation.toolingInstallationId,
+        workCenterRef: {
+          workCenterId: 'wc-1'
+        },
+        usageQuantity: '1',
+        lifeUnit: 'CASTING_CYCLE'
+      })
+    ).rejects.toMatchObject({ definition: { rpcStatus: status.FAILED_PRECONDITION } })
+
+    const ready = await management.confirmInstalledMoldReady({
+      ...commandContext('cmd-ready-1'),
+      productionMoldId: 'mold-1',
+      toolingInstallationId: installed.toolingInstallation.toolingInstallationId,
+      readyAt: '2026-05-10T01:30:00.000Z'
+    })
+    expect(ready.productionMold.currentStatus).toBe(ProductionMoldStatus.READY)
 
     const usage = await management.recordMoldUsage({
       ...commandContext('cmd-usage-1'),
@@ -1242,6 +1424,10 @@ describe('mes-service mold/tooling application behavior L1', () => {
       initialStorageResourceRef: {
         storageResourceId: 'storage-ready'
       }
+    })
+    await management.confirmProductionMoldArrival({
+      ...commandContext('cmd-arrival-1'),
+      productionMoldId: 'mold-1'
     })
     await management.moveTooling({
       ...commandContext('cmd-move-1'),

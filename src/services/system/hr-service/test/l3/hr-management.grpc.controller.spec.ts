@@ -64,7 +64,7 @@ describe('HrManagementGrpcController L3', () => {
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
       partyId: 'party-1',
-      employeeCode: 'E001',
+      employeeCode: 'EMP-0AF-0001',
       lifecycleStatus: 'PREBOARDING'
     })
     const controller = new HrManagementGrpcController(
@@ -78,7 +78,7 @@ describe('HrManagementGrpcController L3', () => {
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
         partyId: 'party-1',
-        employeeCode: 'E001'
+        employeeCode: 'EMP-0AF-0001'
       },
       createOperatorMetadata()
     )
@@ -87,7 +87,7 @@ describe('HrManagementGrpcController L3', () => {
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
       partyId: 'party-1',
-      employeeCode: 'E001'
+      employeeCode: 'EMP-0AF-0001'
     })
     expect(result.employee?.id).toBe('employee-1')
     expect(result.employee?.lifecycleStatus).toBe(1)
@@ -221,7 +221,7 @@ describe('HrManagementGrpcController L3', () => {
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
         partyId: 'party-1',
-        employeeCode: 'EMP-0001',
+        employeeCode: 'EMP-0AF-0001',
         lifecycleStatus: 'ACTIVE'
       },
       employment: {
@@ -331,7 +331,7 @@ describe('HrManagementGrpcController L3', () => {
       controller.createEmployee({
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
-        employeeCode: 'E001'
+        employeeCode: 'EMP-0AF-0001'
       })
     ).rejects.toBeInstanceOf(BadRequestException)
     expect(service.createEmployee).not.toHaveBeenCalled()
@@ -366,7 +366,7 @@ describe('HrManagementGrpcController L3', () => {
         roleIds: ['role-1'],
         reason: 'member_access_enable',
         createAccount: {
-          displayName: 'EMP-001',
+          displayName: 'EMP-0AF-0001',
           email: 'member@example.com',
           phone: ''
         }
@@ -383,7 +383,7 @@ describe('HrManagementGrpcController L3', () => {
         roleIds: ['role-1'],
         reason: 'member_access_enable',
         createAccount: {
-          displayName: 'EMP-001',
+          displayName: 'EMP-0AF-0001',
           email: 'member@example.com',
           existingUserId: undefined,
           phone: undefined

@@ -37,6 +37,8 @@ export interface EmployeeListResult {
 export interface EmployeeRepository {
   create(input: CreateEmployeeInput): Promise<EmployeeSummary>
   findById(employeeId: string): Promise<EmployeeSummary | null>
+  findMaxEmployeeCodeSuffix(tenantId: string): Promise<string | null>
+  findByTenantAndEmployeeCode(tenantId: string, employeeCode: string): Promise<EmployeeSummary | null>
   findByTenantPartyId(tenantId: string, tenantPartyId: string): Promise<EmployeeSummary | null>
   listByTenant(input: ListEmployeesInput): Promise<EmployeeListResult>
   setLifecycleStatus(input: {

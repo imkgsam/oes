@@ -48,7 +48,7 @@ describe('HR Prisma repositories L2', () => {
       tenantId: `${prefix}_tenant`,
       tenantPartyId: `${prefix}_tenant_party`,
       partyId: `${prefix}_party`,
-      employeeCode: `${prefix}_E001`,
+      employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
 
@@ -57,7 +57,7 @@ describe('HR Prisma repositories L2', () => {
         tenantId: `${prefix}_tenant`,
         tenantPartyId: `${prefix}_tenant_party`,
         partyId: `${prefix}_party`,
-        employeeCode: `${prefix}_E002`,
+        employeeCode: '0002',
         lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
       })
     ).rejects.toBeInstanceOf(ConflictException)
@@ -67,7 +67,7 @@ describe('HR Prisma repositories L2', () => {
     const employee = await employeeRepository.create({
       tenantId: `${prefix}_tenant`,
       tenantPartyId: `${prefix}_tenant_party`,
-      employeeCode: `${prefix}_E001`,
+      employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
     await employmentRepository.createActive({
@@ -91,7 +91,7 @@ describe('HR Prisma repositories L2', () => {
     const employee = await employeeRepository.create({
       tenantId: `${prefix}_tenant`,
       tenantPartyId: `${prefix}_tenant_party`,
-      employeeCode: `${prefix}_E001`,
+      employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
     const created = await employmentRepository.createActive({
@@ -126,7 +126,7 @@ describe('HR Prisma repositories L2', () => {
     const employee = await employeeRepository.create({
       tenantId: `${prefix}_tenant`,
       tenantPartyId: `${prefix}_tenant_party`,
-      employeeCode: `${prefix}_E001`,
+      employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
     await employmentRepository.createActive({
@@ -155,7 +155,7 @@ describe('HR Prisma repositories L2', () => {
     const employee = await employeeRepository.create({
       tenantId: `${prefix}_tenant`,
       tenantPartyId: `${prefix}_tenant_party`,
-      employeeCode: `${prefix}_E001`,
+      employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
     const created = await employmentRepository.createActive({
@@ -185,7 +185,7 @@ describe('HR Prisma repositories L2', () => {
     const employee = await employeeRepository.create({
       tenantId: `${prefix}_tenant_latest`,
       tenantPartyId: `${prefix}_tenant_party_latest`,
-      employeeCode: `${prefix}_E002`,
+      employeeCode: '0002',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
     const created = await employmentRepository.createActive({
@@ -220,13 +220,13 @@ describe('HR Prisma repositories L2', () => {
     await employeeRepository.create({
       tenantId: `${prefix}_tenant_a`,
       tenantPartyId: `${prefix}_tenant_party_a`,
-      employeeCode: `${prefix}_A001`,
+      employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
     await employeeRepository.create({
       tenantId: `${prefix}_tenant_b`,
       tenantPartyId: `${prefix}_tenant_party_b`,
-      employeeCode: `${prefix}_B001`,
+      employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
 
@@ -238,44 +238,67 @@ describe('HR Prisma repositories L2', () => {
     expect(found).toBeNull()
   })
 
+  it('Employee / should read the maximum tenant-scoped suffix for generated codes', async () => {
+    await employeeRepository.create({
+      tenantId: `${prefix}_tenant_max`,
+      tenantPartyId: `${prefix}_tenant_party_max_1`,
+      employeeCode: '000A',
+      lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
+    })
+    await employeeRepository.create({
+      tenantId: `${prefix}_tenant_max`,
+      tenantPartyId: `${prefix}_tenant_party_max_2`,
+      employeeCode: '0010',
+      lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
+    })
+    await employeeRepository.create({
+      tenantId: `${prefix}_tenant_other`,
+      tenantPartyId: `${prefix}_tenant_party_other`,
+      employeeCode: 'FFFF',
+      lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
+    })
+
+    await expect(employeeRepository.findMaxEmployeeCodeSuffix(`${prefix}_tenant_max`)).resolves.toBe('0010')
+  })
+
   it('ListEmployees / should page one tenant directory without leaking or reordering other tenant rows', async () => {
     await employeeRepository.create({
       tenantId: `${prefix}_tenant_a`,
       tenantPartyId: `${prefix}_tenant_party_a_1`,
-      employeeCode: `${prefix}_A001`,
+      employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
     })
     await employeeRepository.create({
       tenantId: `${prefix}_tenant_a`,
       tenantPartyId: `${prefix}_tenant_party_a_2`,
-      employeeCode: `${prefix}_A002`,
+      employeeCode: '0002',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
     await employeeRepository.create({
       tenantId: `${prefix}_tenant_b`,
       tenantPartyId: `${prefix}_tenant_party_b_1`,
-      employeeCode: `${prefix}_B001`,
+      employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
     })
 
     const firstPage = await employeeRepository.listByTenant({
       tenantId: `${prefix}_tenant_a`,
-      keyword: `${prefix}_A`,
+      keyword: '000',
       page: 1,
       pageSize: 1
     })
     const secondPage = await employeeRepository.listByTenant({
       tenantId: `${prefix}_tenant_a`,
-      keyword: `${prefix}_A`,
+      keyword: '000',
       page: 2,
       pageSize: 1
     })
 
     expect(firstPage.total).toBe(2)
     expect(firstPage.items).toHaveLength(1)
-    expect(firstPage.items[0].employeeCode).toBe(`${prefix}_A001`)
+    expect(firstPage.items[0].employeeCode).toBe('0001')
     expect(secondPage.total).toBe(2)
     expect(secondPage.items).toHaveLength(1)
-    expect(secondPage.items[0].employeeCode).toBe(`${prefix}_A002`)
+    expect(secondPage.items[0].employeeCode).toBe('0002')
   })
 })

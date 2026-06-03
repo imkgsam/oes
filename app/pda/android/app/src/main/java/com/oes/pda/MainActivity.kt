@@ -21,6 +21,8 @@ import com.oes.pda.camera.CameraCaptureCoordinator
 import com.oes.pda.device.DeviceInfoProvider
 import com.oes.pda.feedback.NativeFeedbackController
 import com.oes.pda.network.NetworkStatusProvider
+import com.oes.pda.scanner.CameraScanSuccessFeedback
+import com.oes.pda.scanner.CameraScannerCoordinator
 import com.oes.pda.scanner.NormalizedScanResult
 import com.oes.pda.scanner.ScannerBroadcastReceiver
 import com.oes.pda.scanner.ScannerIntentNormalizer
@@ -29,6 +31,8 @@ import com.oes.pda.scanner.ScannerIntentNormalizer
 class MainActivity : Activity() {
     private lateinit var webView: WebView
     private lateinit var cameraCaptureCoordinator: CameraCaptureCoordinator
+    private lateinit var cameraScannerCoordinator: CameraScannerCoordinator
+    private lateinit var nativeFeedbackController: NativeFeedbackController
     private val scannerReceiver = ScannerBroadcastReceiver(::pushScanResult)
 
     /** Creates the WebView container and loads the static PDA Web assets packaged in the APK. */
@@ -37,6 +41,14 @@ class MainActivity : Activity() {
         cameraCaptureCoordinator = CameraCaptureCoordinator(
             this,
             "$packageName.fileprovider",
+        )
+        nativeFeedbackController = NativeFeedbackController(this)
+        cameraScannerCoordinator = CameraScannerCoordinator(
+            this,
+            CameraScanSuccessFeedback(
+                beep = nativeFeedbackController::beep,
+                vibrate = nativeFeedbackController::vibrate,
+            ),
         )
         webView = WebView(this).apply {
                 webViewClient = object : WebViewClient() {
@@ -93,8 +105,9 @@ class MainActivity : Activity() {
                         this@MainActivity,
                         DeviceInfoProvider(this@MainActivity),
                         NetworkStatusProvider(this@MainActivity),
-                        NativeFeedbackController(this@MainActivity),
+                        nativeFeedbackController,
                         cameraCaptureCoordinator::openCamera,
+                        cameraScannerCoordinator::openCameraScanner,
                     ),
                     "OesPdaBridge",
                 )
@@ -113,6 +126,7 @@ class MainActivity : Activity() {
     /** Receives system-camera completion and resolves the matching PDA Web bridge request. */
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        cameraScannerCoordinator.handleActivityResult(requestCode, resultCode, data)?.let(::pushScanResult)
         val completion = cameraCaptureCoordinator.handleActivityResult(requestCode, resultCode) ?: return
         pushCameraCaptureCompletion(completion)
     }
@@ -133,12 +147,6 @@ class MainActivity : Activity() {
     @Suppress("OVERRIDE_DEPRECATION")
     override fun onBackPressed() {
         moveTaskToBack(true)
-    }
-
-    /** Clears user session token material when Android destroys the PDA activity. */
-    override fun onDestroy() {
-        clearStoredSessionTokens()
-        super.onDestroy()
     }
 
     /** Opens static PDA Web assets from the APK with headers that WebView module loading requires. */
@@ -250,17 +258,8 @@ class MainActivity : Activity() {
         return "\"$escaped\""
     }
 
-    /** Removes native token storage without touching the persisted terminal enrollment binding. */
-    private fun clearStoredSessionTokens() {
-        getSharedPreferences(SESSION_PREFERENCES_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .clear()
-            .apply()
-    }
-
     companion object {
         private const val TAG = "OesPda"
         private const val PDA_ASSET_BASE_URL = "https://oes-pda.local/"
-        private const val SESSION_PREFERENCES_NAME = "oes_pda_session"
     }
 }

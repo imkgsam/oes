@@ -1,7 +1,12 @@
 /* @vitest-environment happy-dom */
 
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const pageSource = readFileSync(join(__dirname, 'permission-management.vue'), 'utf8');
 
 const listPermissionsApi = vi.fn();
 const authContextState = vi.hoisted(() => ({
@@ -45,6 +50,15 @@ vi.mock('@vben/icons', () => ({
     template: '<span :data-icon="icon" />',
   },
 }));
+
+// Extracts the permission filter panel markup so tests can enforce compact field-label conventions.
+function extractFilterPanelBlock() {
+  const match = pageSource.match(
+    /<Form layout="vertical" class="permission-management__filter-panel">[\s\S]*?<\/Form>/,
+  );
+
+  return match?.[0] ?? '';
+}
 
 describe('permission management page', () => {
   beforeEach(() => {
@@ -173,5 +187,15 @@ describe('permission management page', () => {
     );
 
     expect(createModalWrap).not.toBeNull();
+  });
+
+  it('uses placeholders instead of top labels in the filter panel', () => {
+    const filterPanel = extractFilterPanelBlock();
+
+    expect(filterPanel).toContain('placeholder="搜索权限码或说明"');
+    expect(filterPanel).toContain('placeholder="选择模块"');
+    expect(filterPanel).not.toContain('label="关键词"');
+    expect(filterPanel).not.toContain('label="模块"');
+    expect(filterPanel).not.toContain('label=" "');
   });
 });

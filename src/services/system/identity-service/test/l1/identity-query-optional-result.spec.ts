@@ -31,6 +31,20 @@ describe('identity query optional result', () => {
     ).resolves.toEqual({})
   })
 
+  it('当员工登录账号无法解析时 / resolveEmployeeLoginAccount 应返回空对象', async () => {
+    const queryBus = {
+      execute: jest.fn().mockResolvedValue(null)
+    } as unknown as QueryBus
+    const controller = new IdentityQueryGrpcController(new ValidatingQueryBus(queryBus))
+
+    await expect(
+      controller.resolveEmployeeLoginAccount({
+        tenantId: 'tenant-1',
+        employeeId: '11111111-1111-4111-8111-111111111111'
+      })
+    ).resolves.toEqual({})
+  })
+
   it('当 user 存在时 / getUserById 应返回完整用户资料摘要并带 partyId', async () => {
     const userId = '11111111-1111-4111-8111-111111111111'
     const partyId = '22222222-2222-4222-8222-222222222222'
@@ -97,6 +111,36 @@ describe('identity query optional result', () => {
         bio: '负责美隆陶瓷的外贸协同与重点客户经营。',
         isEnabled: true,
         scopeLevel: 'TENANT'
+      }
+    })
+  })
+
+  it('当员工登录账号可解析时 / resolveEmployeeLoginAccount 应返回账号登录摘要', async () => {
+    const queryBus = {
+      execute: jest.fn().mockResolvedValue({
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        displayName: '陈双鹏',
+        accountEnabled: true
+      })
+    } as unknown as QueryBus
+    const controller = new IdentityQueryGrpcController(new ValidatingQueryBus(queryBus))
+
+    await expect(
+      controller.resolveEmployeeLoginAccount({
+        tenantId: 'tenant-1',
+        employeeId: '11111111-1111-4111-8111-111111111111'
+      })
+    ).resolves.toEqual({
+      account: {
+        userId: 'user-1',
+        accountId: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        displayName: '陈双鹏',
+        accountEnabled: true
       }
     })
   })

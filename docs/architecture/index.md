@@ -39,6 +39,7 @@
 17. `16-unified-web-account-context-architecture.md`
 18. `service-collaboration-rules.md`
 19. `terminals/index.md`
+20. `frontends/index.md`
 
 ## 3. 文档职责
 
@@ -80,6 +81,8 @@
   - 定义项目级 `gRPC / Event` 适用边界、写前校验与写后事实扩散组合规则，以及事件命名、payload 与长流程解耦护栏
 - `terminals/index.md`
   - 定义客户端终端稳定设计真相源入口，例如 PDA 这类独立设备端的边界、技术形态与平台协同方式
+- `frontends/index.md`
+  - 定义前端职责稳定真相源入口，例如 tenant-web 与 PDA Web 的职责边界、技术约束与协作方式
 
 ## 4. 配套目录
 
@@ -89,6 +92,8 @@
   - 用于记录跨服务关键能力协同蓝图；每个协同主题只有一份协同真相
 - `docs/architecture/terminals/`
   - 用于记录客户端终端稳定设计真相源；每个重要终端只有一份终端真相
+- `docs/architecture/frontends/`
+  - 用于记录前端职责稳定设计真相源；每个重要前端只有一份职责边界真相
 - `docs/adr/`
   - 用于记录关键架构决策与取舍
 - `docs/plans/`
@@ -108,6 +113,7 @@
 - 服务“负责什么 / 不负责什么 / 拥有哪些核心能力”的真相应优先沉淀到 `docs/architecture/services/*.md`。
 - 跨服务“如何围绕某项能力协同”的真相应优先沉淀到 `docs/architecture/collaborations/*.md`。
 - 客户端终端“是什么 / 不是什么 / 如何消费平台能力”的真相应优先沉淀到 `docs/architecture/terminals/*.md`。
+- 前端“负责哪些交互 / 不负责哪些交互 / 应使用哪套 UI 技术边界”的真相应优先沉淀到 `docs/architecture/frontends/*.md`。
 - `docs/plans/features/*.md` 只记录当前 feature 执行状态，不应重复承载已冻结的服务职责与协同规则正文。
 
 ## 6. 配套计划文档
@@ -127,3 +133,5 @@
   - [collaborations/index.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/index.md)
 - 终端架构入口：
   - [terminals/index.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/terminals/index.md)
+- 前端职责入口：
+  - [frontends/index.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/frontends/index.md)

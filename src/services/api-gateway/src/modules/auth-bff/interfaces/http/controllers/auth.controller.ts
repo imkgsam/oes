@@ -72,9 +72,11 @@ import {
   ChangeOwnPasswordDto,
   CompleteStepUpMfaChallengeDto,
   MfaBindingMutationDto,
+  OwnTerminalPinDto,
   RequestEmailContactBindingChallengeDto,
   RequestPhoneContactBindingChallengeDto,
   SelfLoginHistoryQueryDto,
+  SetOwnTerminalPinEnabledDto,
   StartStepUpMfaChallengeDto,
   VerifyEmailContactBindingDto,
   VerifyPhoneContactBindingDto
@@ -102,7 +104,8 @@ import {
   PasswordMutationViewModel,
   RecoveryCodesViewModel,
   SelfSessionListViewModel,
-  SessionMutationViewModel
+  SessionMutationViewModel,
+  TerminalPinMutationViewModel
 } from '../view-models/self-security.view-model'
 import {
   StepUpMfaChallengeViewModel,
@@ -706,6 +709,63 @@ export class AuthController {
     @DownstreamSource() source: DownstreamRequestSource
   ): Promise<PasswordMutationViewModel> {
     return this.sessionSelfServiceUseCase.changeOwnPassword(dto, source)
+  }
+
+  @Post('terminal-pin/set')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Set own terminal PIN',
+    description:
+      'Sets the authenticated user terminal PIN after auth-service verifies step-up proof.'
+  })
+  @ApiBody({ type: OwnTerminalPinDto })
+  @ApiResponse({
+    status: 200,
+    type: TerminalPinMutationViewModel
+  })
+  async setOwnTerminalPin(
+    @Body() dto: OwnTerminalPinDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<TerminalPinMutationViewModel> {
+    return this.sessionSelfServiceUseCase.setOwnTerminalPin(dto, source)
+  }
+
+  @Post('terminal-pin/reset')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Reset own terminal PIN',
+    description:
+      'Resets the authenticated user terminal PIN from web account security without exposing the previous PIN.'
+  })
+  @ApiBody({ type: OwnTerminalPinDto })
+  @ApiResponse({
+    status: 200,
+    type: TerminalPinMutationViewModel
+  })
+  async resetOwnTerminalPin(
+    @Body() dto: OwnTerminalPinDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<TerminalPinMutationViewModel> {
+    return this.sessionSelfServiceUseCase.resetOwnTerminalPin(dto, source)
+  }
+
+  @Post('terminal-pin/enabled')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'Enable or disable own terminal PIN',
+    description:
+      'Toggles the authenticated user terminal PIN login method without returning credential material.'
+  })
+  @ApiBody({ type: SetOwnTerminalPinEnabledDto })
+  @ApiResponse({
+    status: 200,
+    type: TerminalPinMutationViewModel
+  })
+  async setOwnTerminalPinEnabled(
+    @Body() dto: SetOwnTerminalPinEnabledDto,
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<TerminalPinMutationViewModel> {
+    return this.sessionSelfServiceUseCase.setOwnTerminalPinEnabled(dto, source)
   }
 
   @Post('security/mfa/challenges')

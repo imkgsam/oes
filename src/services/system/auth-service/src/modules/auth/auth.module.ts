@@ -61,6 +61,7 @@ import { PrismaPasswordRecoveryGrantRepository } from '../../infrastructure/repo
 import { PrismaPasswordSetupRequirementRepository } from '../../infrastructure/repositories/prisma/prisma.password-setup-requirement.repository'
 import { PrismaPlatformMfaPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.platform-mfa-policy.repository'
 import { PrismaTenantMfaPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.tenant-mfa-policy.repository'
+import { PrismaTerminalPinResetRequirementRepository } from '../../infrastructure/repositories/prisma/prisma.terminal-pin-reset-requirement.repository'
 import { PrismaTerminalLoginPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.terminal-login-policy.repository'
 import { PrismaTerminalMfaPolicyRepository } from '../../infrastructure/repositories/prisma/prisma.terminal-mfa-policy.repository'
 import { PrismaTrustedDeviceRepository } from '../../infrastructure/repositories/prisma/prisma.trusted-device.repository'
@@ -100,6 +101,10 @@ import { AuthGrpcController } from '../../interfaces/grpc/auth.grpc.controller'
     {
       provide: REPO.PASSWORD_SETUP_REQUIREMENT,
       useClass: PrismaPasswordSetupRequirementRepository
+    },
+    {
+      provide: REPO.TERMINAL_PIN_RESET_REQUIREMENT,
+      useClass: PrismaTerminalPinResetRequirementRepository
     },
     { provide: REPO.LOGIN_RISK, useClass: RedisLoginRiskRepository },
     { provide: REPO.OTP_SEND_THROTTLE, useClass: RedisOtpSendThrottleRepository },

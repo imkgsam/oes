@@ -31,6 +31,7 @@ describe('HrManagementService', () => {
     listAccountRoles: jest.fn()
   }
   const orgManagementService = {
+    getTenantEmployeeCodePrefix: jest.fn(),
     getOrgUnitDetail: jest.fn()
   }
 
@@ -60,6 +61,7 @@ describe('HrManagementService', () => {
     authAdapter.listLoginMethods.mockReset()
     partyTenantQueryAdapter.getTenantPartyById.mockReset()
     permissionService.listAccountRoles.mockReset()
+    orgManagementService.getTenantEmployeeCodePrefix.mockReset()
     orgManagementService.getOrgUnitDetail.mockReset()
   })
 
@@ -97,7 +99,7 @@ describe('HrManagementService', () => {
           tenantId: 'tenant-1',
           tenantPartyId: 'tenant-party-1',
           partyId: 'party-1',
-          employeeCode: 'EMP-001',
+          employeeCode: 'EMP-0AF-0001',
           lifecycleStatus: 'PREBOARDING'
         },
         {
@@ -105,7 +107,7 @@ describe('HrManagementService', () => {
           tenantId: 'tenant-1',
           tenantPartyId: 'tenant-party-2',
           partyId: 'party-2',
-          employeeCode: 'EMP-002',
+          employeeCode: 'EMP-0AF-0002',
           lifecycleStatus: 'ACTIVE'
         }
       ],
@@ -159,7 +161,7 @@ describe('HrManagementService', () => {
             tenantId: 'tenant-1',
             tenantPartyId: 'tenant-party-1',
             partyId: 'party-1',
-            employeeCode: 'EMP-001',
+            employeeCode: 'EMP-0AF-0001',
             lifecycleStatus: 'PREBOARDING'
           }
         },
@@ -192,7 +194,7 @@ describe('HrManagementService', () => {
             tenantId: 'tenant-1',
             tenantPartyId: 'tenant-party-2',
             partyId: 'party-2',
-            employeeCode: 'EMP-002',
+            employeeCode: 'EMP-0AF-0002',
             lifecycleStatus: 'ACTIVE'
           }
         }
@@ -229,7 +231,7 @@ describe('HrManagementService', () => {
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
       partyId: 'party-1',
-      employeeCode: 'EMP-001',
+      employeeCode: 'EMP-0AF-0001',
       lifecycleStatus: 'ACTIVE'
     })
     hrQueryAdapter.getActiveEmployment.mockResolvedValue({
@@ -297,7 +299,7 @@ describe('HrManagementService', () => {
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
         partyId: 'party-1',
-        employeeCode: 'EMP-001',
+        employeeCode: 'EMP-0AF-0001',
         lifecycleStatus: 'ACTIVE'
       },
       activeEmployment: {
@@ -374,7 +376,7 @@ describe('HrManagementService', () => {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      employeeCode: 'EMP-001',
+      employeeCode: 'EMP-0AF-0001',
       lifecycleStatus: 'ACTIVE'
     })
     hrQueryAdapter.getActiveEmployment.mockResolvedValue({
@@ -400,7 +402,7 @@ describe('HrManagementService', () => {
         id: 'account-1',
         userId: 'user-1',
         tenantId: 'tenant-1',
-        displayName: 'EMP-001',
+        displayName: 'EMP-0AF-0001',
         isEnabled: true,
         scopeLevel: 'TENANT'
       }
@@ -440,7 +442,7 @@ describe('HrManagementService', () => {
         accountId: 'account-1',
         userId: 'user-1',
         tenantId: 'tenant-1',
-        displayName: 'EMP-001',
+        displayName: 'EMP-0AF-0001',
         isEnabled: true,
         scopeLevel: 'TENANT'
       },
@@ -475,7 +477,7 @@ describe('HrManagementService', () => {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      employeeCode: 'EMP-001',
+      employeeCode: 'EMP-0AF-0001',
       lifecycleStatus: 'ACTIVE'
     })
     hrQueryAdapter.getActiveEmployment.mockResolvedValue({
@@ -513,7 +515,7 @@ describe('HrManagementService', () => {
         id: 'account-1',
         userId: 'user-1',
         tenantId: 'tenant-1',
-        displayName: 'EMP-001',
+        displayName: 'EMP-0AF-0001',
         isEnabled: true,
         scopeLevel: 'TENANT'
       }
@@ -535,7 +537,7 @@ describe('HrManagementService', () => {
           roleIds: ['role-1'],
           reason: 'member_access_enable',
           createAccount: {
-            displayName: 'EMP-001',
+            displayName: 'EMP-0AF-0001',
             email: 'member@example.com'
           }
         },
@@ -556,13 +558,42 @@ describe('HrManagementService', () => {
         roleIds: ['role-1'],
         reason: 'member_access_enable',
         createAccount: {
-          displayName: 'EMP-001',
+          displayName: 'EMP-0AF-0001',
           email: 'member@example.com'
         }
       },
       source
     )
     expect(permissionService.listAccountRoles).toHaveBeenCalled()
+  })
+
+  it('previews the next system-owned employee code from tenant prefix and current HR count', async () => {
+    const source = {
+      requestId: 'req-1',
+      traceId: 'trace-1',
+      user: { aid: 'account-1', scopeLevel: 'TENANT', tid: 'tenant-1' }
+    }
+    orgManagementService.getTenantEmployeeCodePrefix.mockResolvedValue('0AF')
+    hrQueryAdapter.listEmployees.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 1,
+      total: 2
+    })
+
+    await expect(service.previewNextEmployeeCode('tenant-1', source as any)).resolves.toEqual({
+      employeeCode: 'EMP-0AF-0003'
+    })
+
+    expect(orgManagementService.getTenantEmployeeCodePrefix).toHaveBeenCalledWith('tenant-1', source)
+    expect(hrQueryAdapter.listEmployees).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        page: 1,
+        pageSize: 1
+      },
+      source
+    )
   })
 
   it('rejects change-primary employment requests without effectiveFrom as a bad request', async () => {
@@ -575,7 +606,7 @@ describe('HrManagementService', () => {
       id: 'employee-1',
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
-      employeeCode: 'EMP-001',
+      employeeCode: 'EMP-0AF-0001',
       lifecycleStatus: 'ACTIVE'
     })
     hrQueryAdapter.listEmployments.mockResolvedValue([

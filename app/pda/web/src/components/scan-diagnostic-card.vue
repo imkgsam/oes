@@ -3,6 +3,7 @@
     <p class="pda-card__label">扫码诊断</p>
     <h2>{{ latestScan ? latestScan.payload.scanValue : '等待扫码' }}</h2>
     <p>{{ latestDescription }}</p>
+    <p v-if="cameraScanError" class="login-form__error">{{ cameraScanError }}</p>
     <dl v-if="latestScan" class="pda-card__facts">
       <dt>来源</dt>
       <dd>{{ latestScan.payload.scanSource }}</dd>
@@ -14,6 +15,9 @@
       <dd>{{ latestScan.occurredAt }}</dd>
     </dl>
     <div class="pda-card__actions" @touchstart.passive="markActionStart('scan.clear')">
+      <van-button size="small" type="primary" :loading="cameraScanning" @click="openDiagnosticCameraScanner">
+        相机扫码
+      </van-button>
       <van-button plain size="small" type="primary" @click="clearScans">清空</van-button>
     </div>
     <ol v-if="scanHistory.length" class="scan-history">
@@ -29,10 +33,13 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { onScanResult } from '@/bridge/bridge-client';
 import { markActionPainted, markActionStart, markActionStep } from '@/diagnostics/performance-probe';
+import { openCameraScanner } from '@/services/camera-scanner';
 import { recordPdaDiagnosticLog } from '@/services/pda-diagnostic-log-buffer';
 import type { BridgeEventEnvelope, ScanResult } from '@/bridge/types';
 
 const scanHistory = ref<Array<BridgeEventEnvelope<ScanResult>>>([]);
+const cameraScanning = ref(false);
+const cameraScanError = ref('');
 const latestScan = computed(() => scanHistory.value[0] ?? null);
 const latestDescription = computed(() => {
   if (!latestScan.value) {
@@ -67,6 +74,27 @@ onMounted(() => {
 onBeforeUnmount(() => {
   unsubscribe?.();
 });
+
+/** Opens native camera scanning and leaves decoded values to arrive through the normal scanResult event. */
+async function openDiagnosticCameraScanner(): Promise<void> {
+  markActionStart('scan.camera');
+  cameraScanError.value = '';
+  cameraScanning.value = true;
+  try {
+    await openCameraScanner();
+    markActionStep('scan.camera', 'scanner-opened');
+  } catch (error) {
+    cameraScanError.value = error instanceof Error ? error.message : '无法打开相机扫码。';
+    recordPdaDiagnosticLog({
+      level: 'WARN',
+      eventType: 'CAMERA_SCAN_OPEN_FAILED',
+      message: cameraScanError.value,
+      diagnosticMode: true,
+    });
+  } finally {
+    cameraScanning.value = false;
+  }
+}
 
 /** Clears local scan diagnostics without affecting business state. */
 function clearScans(): void {

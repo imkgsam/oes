@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { ItemManagementApi } from '#/api'
+import type { TableColumnsType } from 'ant-design-vue'
 
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 
 import { Page } from '@vben/common-ui'
 import { IconifyIcon } from '@vben/icons'
@@ -56,6 +57,7 @@ interface CategoryTreeSelectOption {
 
 type CategoryFormMode = 'create-child' | 'create-root' | 'edit'
 type CategoryActionKey = 'create-child' | 'delete' | 'edit'
+type CategoryColumnKey = 'code' | 'name' | 'operation' | 'status'
 
 interface TableActionMenuItem<ActionKey extends string> {
   danger?: boolean
@@ -68,6 +70,18 @@ interface TableActionMenuItem<ActionKey extends string> {
 
 const authContextStore = useAuthContextStore()
 const operationColumnTitle = '操作'
+const categoryColumnWidths = reactive<Record<CategoryColumnKey, number>>({
+  code: 360,
+  name: 360,
+  operation: 112,
+  status: 180
+})
+const categoryColumnMinWidths: Record<CategoryColumnKey, number> = {
+  code: 180,
+  name: 220,
+  operation: 88,
+  status: 120
+}
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
 const canListCategories = computed(() =>
   authContextStore.actionCodes.includes('item_master.item_category.list')
@@ -101,6 +115,7 @@ const form = reactive<CategoryFormState>({
   categoryName: '',
   status: 'ACTIVE'
 })
+let activeCategoryColumnCleanup: null | (() => void) = null
 const selectedCategory = computed(
   () => categoryNodes.value.find((category) => category.categoryId === selectedCategoryId.value) ?? null
 )
@@ -117,24 +132,87 @@ const categoryStatusChecked = computed({
     form.status = checked ? 'ACTIVE' : 'INACTIVE'
   }
 })
-const categoryTableColumns = [
-  {
-    key: 'name',
-    title: '分类名称'
-  },
-  {
-    key: 'code',
-    title: '分类编码'
-  },
-  {
-    key: 'status',
-    title: '状态'
-  },
-  {
-    key: 'operation',
-    title: operationColumnTitle
+const categoryTableScrollX = computed(() =>
+  Object.values(categoryColumnWidths).reduce((sum, width) => sum + width, 0)
+)
+
+// stopCategoryColumnResize releases active table header drag listeners.
+function stopCategoryColumnResize() {
+  activeCategoryColumnCleanup?.()
+  activeCategoryColumnCleanup = null
+  document.body.classList.remove('item-category-workbench--resizing-column')
+}
+
+// startCategoryColumnResize updates one product category table column width while dragging.
+function startCategoryColumnResize(event: MouseEvent, columnKey: CategoryColumnKey) {
+  event.preventDefault()
+  event.stopPropagation()
+
+  stopCategoryColumnResize()
+
+  const startX = event.clientX
+  const startWidth = categoryColumnWidths[columnKey]
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    categoryColumnWidths[columnKey] = Math.max(
+      categoryColumnMinWidths[columnKey],
+      Math.round(startWidth + moveEvent.clientX - startX)
+    )
   }
-]
+
+  const handleMouseUp = () => {
+    stopCategoryColumnResize()
+  }
+
+  document.body.classList.add('item-category-workbench--resizing-column')
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp, { once: true })
+  activeCategoryColumnCleanup = () => {
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+  }
+}
+
+// renderResizableCategoryHeader exposes a compact resize handle for category table columns.
+function renderResizableCategoryHeader(columnKey: CategoryColumnKey, label: string) {
+  return h('div', { class: 'item-category-workbench__resizable-title' }, [
+    h('span', { class: 'item-category-workbench__resizable-title-text' }, label),
+    h('span', {
+      'aria-label': `调整${label}列宽`,
+      class: 'item-category-workbench__column-resizer',
+      onMousedown: (event: MouseEvent) => startCategoryColumnResize(event, columnKey),
+      role: 'separator'
+    })
+  ])
+}
+
+const categoryTableColumns = computed<TableColumnsType<CategoryTreeRow>>(() => [
+  {
+    align: 'center',
+    key: 'name',
+    title: renderResizableCategoryHeader('name', '分类名称'),
+    width: categoryColumnWidths.name
+  },
+  {
+    align: 'center',
+    key: 'code',
+    title: renderResizableCategoryHeader('code', '分类编码'),
+    width: categoryColumnWidths.code
+  },
+  {
+    align: 'center',
+    key: 'status',
+    title: renderResizableCategoryHeader('status', '状态'),
+    width: categoryColumnWidths.status
+  },
+  {
+    align: 'center',
+    fixed: 'right',
+    key: 'operation',
+    title: renderResizableCategoryHeader('operation', operationColumnTitle),
+    width: categoryColumnWidths.operation
+  }
+])
 
 /** getCategoryActionItems exposes category row operations for the native Ant Design dropdown. */
 function getCategoryActionItems(categoryRecord: Record<string, any>): TableActionMenuItem<CategoryActionKey>[] {
@@ -530,6 +608,10 @@ async function deleteCategory(categoryId: string) {
 onMounted(() => {
   void loadCategories()
 })
+
+onBeforeUnmount(() => {
+  stopCategoryColumnResize()
+})
 </script>
 
 <template>
@@ -573,6 +655,7 @@ onMounted(() => {
             :locale="{ emptyText: '暂无产品分类' }"
             :pagination="false"
             :row-key="(record: CategoryTreeRow) => record.categoryId"
+            :scroll="{ x: categoryTableScrollX }"
             size="middle"
           >
             <template #bodyCell="{ column, record }">
@@ -584,7 +667,6 @@ onMounted(() => {
                   ]"
                   :data-depth="record.depth"
                   :data-testid="`category-list-row-${record.categoryId}`"
-                  :style="{ paddingLeft: `${record.depth * 24}px` }"
                   role="button"
                   tabindex="0"
                   @click="selectCategory(record.categoryId)"
@@ -773,11 +855,60 @@ onMounted(() => {
   min-width: 0;
 }
 
+:deep(.item-category-workbench__ant-table .ant-table-cell) {
+  text-align: center;
+  white-space: nowrap;
+}
+
+:deep(.item-category-workbench__ant-table .ant-table-thead > tr > th) {
+  position: relative;
+  user-select: none;
+}
+
+.item-category-workbench__resizable-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  padding-right: 12px;
+}
+
+.item-category-workbench__resizable-title-text {
+  min-width: 0;
+}
+
+.item-category-workbench__column-resizer {
+  position: absolute;
+  top: -12px;
+  right: -10px;
+  bottom: -12px;
+  z-index: 2;
+  width: 14px;
+  cursor: col-resize;
+}
+
+.item-category-workbench__column-resizer::after {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 6px;
+  width: 1px;
+  content: '';
+  background: rgb(15 23 42 / 14%);
+  transition: background 0.16s ease;
+}
+
+.item-category-workbench__column-resizer:hover::after {
+  background: hsl(var(--primary));
+}
+
 .item-category-workbench__code-cell {
   color: #1f2937;
   cursor: pointer;
   font-weight: 500;
   min-width: 0;
+  text-align: center;
 }
 
 .item-category-workbench__code-cell--active {
@@ -785,11 +916,14 @@ onMounted(() => {
 }
 
 .item-category-workbench__name-cell {
+  align-items: center;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  justify-content: center;
   min-width: 0;
+  text-align: center;
 }
 
 .item-category-workbench__name-cell--active {
@@ -807,12 +941,12 @@ onMounted(() => {
 
 .item-category-workbench__operation-cell {
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   width: 100%;
 }
 
 .item-category-workbench__ant-table :deep(.ant-table-cell-operation) {
-  text-align: right;
+  text-align: center;
 }
 
 .item-category-workbench__drawer-shell {
@@ -871,6 +1005,11 @@ onMounted(() => {
   gap: 12px;
   justify-content: flex-end;
   margin-top: 16px;
+}
+
+:global(body.item-category-workbench--resizing-column) {
+  cursor: col-resize;
+  user-select: none;
 }
 
 @media (max-width: 960px) {

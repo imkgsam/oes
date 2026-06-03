@@ -379,6 +379,7 @@ onMounted(() => {
           :loading="loading"
           :locale="{ emptyText: '暂无采购申请' }"
           :pagination="false"
+          :scroll="{ x: 820 }"
           row-key="purchaseRequestId"
           size="middle"
         />
@@ -392,6 +393,7 @@ onMounted(() => {
           :loading="loading"
           :locale="{ emptyText: '暂无采购订单' }"
           :pagination="false"
+          :scroll="{ x: 820 }"
           row-key="purchaseOrderId"
           size="middle"
         />
@@ -405,6 +407,7 @@ onMounted(() => {
           :loading="loading"
           :locale="{ emptyText: '暂无收货预期' }"
           :pagination="false"
+          :scroll="{ x: 900 }"
           row-key="receivingExpectationId"
           size="middle"
         />

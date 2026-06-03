@@ -62,4 +62,26 @@ export class LoginMethod {
 
     this.credentials.push(credential)
   }
+
+  // Replaces the user-scoped terminal PIN credential while keeping the login method verified.
+  async replaceTerminalPinCredential(plainPin: string): Promise<void> {
+    const credential = await Credential.createTerminalPinCredential(plainPin)
+    const existing = this.getCredentialByType(CredentialType.TERMINAL_PIN)
+
+    if (existing) {
+      existing.updateSecret(credential.getSecret())
+      existing.enable()
+      this.enable()
+      this.verify()
+      return
+    }
+
+    this.credentials.push(credential)
+    this.enable()
+    this.verify()
+  }
+
+  getTerminalPinCredential(): Credential | null {
+    return this.credentials.find((c) => c.type === 'TERMINAL_PIN' && c.isEnabled()) || null
+  }
 }

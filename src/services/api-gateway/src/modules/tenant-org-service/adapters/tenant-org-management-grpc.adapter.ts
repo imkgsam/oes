@@ -31,6 +31,7 @@ const CALLER = 'api-gateway'
 
 export interface TenantManagementMutationTenant {
   code?: string
+  employeeCodePrefix?: string
   id?: string
   name?: string
   rootOrgId?: string
@@ -91,7 +92,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
   }
 
   createTenant(
-    input: { code: string; name: string; rootOrgName?: string },
+    input: { code: string; employeeCodePrefix: string; name: string; rootOrgName?: string },
     source: DownstreamRequestSource
   ): Promise<{ rootOrgUnit?: { id?: string; name?: string }; tenant?: TenantManagementMutationTenant }> {
     return this.call(
@@ -164,7 +165,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
   }
 
   updateTenantProfile(
-    input: { code?: string; name?: string; tenantId: string },
+    input: { code?: string; employeeCodePrefix?: string; name?: string; tenantId: string },
     source: DownstreamRequestSource
   ): Promise<{ tenant?: TenantManagementMutationTenant }> {
     return this.call(
@@ -324,6 +325,7 @@ export class TenantOrgManagementGrpcAdapter implements OnModuleInit {
 
 function mapTenant(tenant: {
   code?: string
+  employeeCodePrefix?: string
   id?: string
   name?: string
   rootOrgId?: string
@@ -332,6 +334,7 @@ function mapTenant(tenant: {
   return {
     id: tenant.id,
     code: tenant.code,
+    employeeCodePrefix: tenant.employeeCodePrefix,
     name: tenant.name,
     status: tenant.status,
     rootOrgId: normalize(tenant.rootOrgId)

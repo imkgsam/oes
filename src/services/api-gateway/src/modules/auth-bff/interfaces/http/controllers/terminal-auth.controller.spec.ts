@@ -63,4 +63,46 @@ describe('PdaAuthController', () => {
       )
     ).rejects.toBeInstanceOf(BadRequestException)
   })
+
+  it('routes PDA employee-code preflight through the server-owned PDA terminal', async () => {
+    const loginUseCase = {
+      preflightEmployeeCodePin: jest.fn().mockResolvedValue({
+        allowed: true,
+        reasonCode: 'READY_FOR_PIN',
+        message: 'READY_FOR_PIN'
+      })
+    }
+    const controller = new PdaAuthController(
+      loginUseCase as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any
+    )
+
+    await expect(
+      controller.preflightEmployeeCodePin(
+        {
+          employeeCode: 'EMP-0AF-0001',
+          device: { deviceId: 'terminal-device-1' }
+        },
+        { requestId: 'req-1', traceId: 'trace-1' },
+        'OES-PDA/1.0',
+        '10.0.0.7'
+      )
+    ).resolves.toEqual({
+      allowed: true,
+      reasonCode: 'READY_FOR_PIN',
+      message: 'READY_FOR_PIN'
+    })
+
+    expect(loginUseCase.preflightEmployeeCodePin).toHaveBeenCalledWith(
+      expect.objectContaining({ employeeCode: 'EMP-0AF-0001' }),
+      { requestId: 'req-1', traceId: 'trace-1' },
+      { userAgent: 'OES-PDA/1.0', ipAddress: '10.0.0.7' },
+      'PDA'
+    )
+  })
 })

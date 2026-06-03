@@ -3,7 +3,7 @@ import type { AdminSecurityApi } from '#/api';
 import type { Dayjs } from 'dayjs';
 import type { TableColumnsType, TablePaginationConfig } from 'ant-design-vue';
 
-import { computed, h, onMounted, reactive, ref } from 'vue';
+import { computed, h, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
@@ -47,6 +47,13 @@ import {
 
 type AuditResultTagColor = 'blue' | 'default' | 'error' | 'orange' | 'success';
 type AuditActionKey = 'inspectSessions';
+type OnlineUserColumnKey =
+  | 'actions'
+  | 'activeAccountCount'
+  | 'activeSessionCount'
+  | 'displayName'
+  | 'lastActiveAt'
+  | 'tenantNames';
 type OnlineUserActionKey = 'inspectSessions';
 type SessionActionKey = 'revoke';
 
@@ -103,6 +110,23 @@ const sessionFilters = reactive({
   status: '',
   terminal: '',
 });
+const onlineUserColumnMinWidths: Record<OnlineUserColumnKey, number> = {
+  actions: 72,
+  activeAccountCount: 96,
+  activeSessionCount: 96,
+  displayName: 140,
+  lastActiveAt: 150,
+  tenantNames: 180,
+};
+const onlineUserColumnWidths = reactive<Record<OnlineUserColumnKey, number>>({
+  actions: 120,
+  activeAccountCount: 120,
+  activeSessionCount: 120,
+  displayName: 220,
+  lastActiveAt: 180,
+  tenantNames: 240,
+});
+let activeOnlineUserColumnCleanup: null | (() => void) = null;
 
 const terminalFilterOptions = [
   { label: 'Web', value: 'WEB' },
@@ -255,6 +279,9 @@ const auditTablePagination = computed<TablePaginationConfig>(() => ({
     auditItems.value.length +
     (auditNextCursor.value ? 1 : 0),
 }));
+const onlineUserTableScrollX = computed(() =>
+  Object.values(onlineUserColumnWidths).reduce((total, width) => total + width, 0),
+);
 
 // Normalizes unknown request failures into a stable user-facing message.
 function getErrorMessage(error: unknown, fallback: string) {
@@ -608,6 +635,63 @@ function formatAuditDetails(detailsJson?: string) {
   }
 }
 
+// stopOnlineUserColumnResize clears the active drag listeners for the online-user table.
+function stopOnlineUserColumnResize() {
+  activeOnlineUserColumnCleanup?.();
+  activeOnlineUserColumnCleanup = null;
+  document.body.classList.remove('admin-session--resizing-column');
+}
+
+// startOnlineUserColumnResize updates one online-user table column width from header drag movement.
+function startOnlineUserColumnResize(
+  event: MouseEvent,
+  columnKey: OnlineUserColumnKey,
+) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  stopOnlineUserColumnResize();
+
+  const startX = event.clientX;
+  const startWidth = onlineUserColumnWidths[columnKey];
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    onlineUserColumnWidths[columnKey] = Math.max(
+      onlineUserColumnMinWidths[columnKey],
+      Math.round(startWidth + moveEvent.clientX - startX),
+    );
+  };
+
+  const handleMouseUp = () => {
+    stopOnlineUserColumnResize();
+  };
+
+  document.body.classList.add('admin-session--resizing-column');
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp, { once: true });
+  activeOnlineUserColumnCleanup = () => {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+}
+
+// renderResizableOnlineUserHeader adds the column-width drag handle to online-user headers.
+function renderResizableOnlineUserHeader(
+  columnKey: OnlineUserColumnKey,
+  label: string,
+) {
+  return h('div', { class: 'session-resizable-title' }, [
+    h('span', { class: 'session-resizable-title__text' }, label),
+    h('span', {
+      'aria-label': `调整${label}列宽`,
+      class: 'session-column-resizer',
+      onMousedown: (event: MouseEvent) =>
+        startOnlineUserColumnResize(event, columnKey),
+      role: 'separator',
+    }),
+  ]);
+}
+
 const auditColumns: TableColumnsType<AdminSecurityApi.AuditEvent> = [
   {
     dataIndex: 'occurredAt',
@@ -689,12 +773,12 @@ const auditColumns: TableColumnsType<AdminSecurityApi.AuditEvent> = [
 ];
 
 // Defines the first-layer online-user overview columns for administrator session management.
-const onlineUserColumns: TableColumnsType<AdminSecurityApi.OnlineUser> = [
+const onlineUserColumns = computed<TableColumnsType<AdminSecurityApi.OnlineUser>>(() => [
   {
     dataIndex: 'displayName',
     key: 'displayName',
-    title: '用户',
-    width: 220,
+    title: renderResizableOnlineUserHeader('displayName', '用户'),
+    width: onlineUserColumnWidths.displayName,
     customRender: ({ record }) => {
       const user = record as AdminSecurityApi.OnlineUser;
       return user.displayName || user.userId;
@@ -703,20 +787,20 @@ const onlineUserColumns: TableColumnsType<AdminSecurityApi.OnlineUser> = [
   {
     dataIndex: 'activeAccountCount',
     key: 'activeAccountCount',
-    title: '在线账号数',
-    width: 120,
+    title: renderResizableOnlineUserHeader('activeAccountCount', '在线账号数'),
+    width: onlineUserColumnWidths.activeAccountCount,
   },
   {
     dataIndex: 'activeSessionCount',
     key: 'activeSessionCount',
-    title: '在线会话数',
-    width: 120,
+    title: renderResizableOnlineUserHeader('activeSessionCount', '在线会话数'),
+    width: onlineUserColumnWidths.activeSessionCount,
   },
   {
     dataIndex: 'tenantNames',
     key: 'tenantNames',
-    title: '可见范围',
-    width: 240,
+    title: renderResizableOnlineUserHeader('tenantNames', '可见范围'),
+    width: onlineUserColumnWidths.tenantNames,
     ellipsis: true,
     customRender: ({ record }) => {
       const user = record as AdminSecurityApi.OnlineUser;
@@ -726,16 +810,16 @@ const onlineUserColumns: TableColumnsType<AdminSecurityApi.OnlineUser> = [
   {
     dataIndex: 'lastActiveAt',
     key: 'lastActiveAt',
-    title: '最近活跃',
-    width: 180,
+    title: renderResizableOnlineUserHeader('lastActiveAt', '最近活跃'),
+    width: onlineUserColumnWidths.lastActiveAt,
     customRender: ({ value }) => formatTime(value as string | undefined),
   },
   {
     align: 'center',
     fixed: 'right',
     key: 'actions',
-    title: '操作',
-    width: 150,
+    title: renderResizableOnlineUserHeader('actions', '操作'),
+    width: onlineUserColumnWidths.actions,
     customRender: ({ record }) =>
       renderAuthNativeActions<OnlineUserActionKey>(
         '在线用户操作',
@@ -749,7 +833,7 @@ const onlineUserColumns: TableColumnsType<AdminSecurityApi.OnlineUser> = [
           }),
       ),
   },
-];
+]);
 
 const sessionColumns: TableColumnsType<AdminSecurityApi.Session> = [
   {
@@ -945,6 +1029,10 @@ onMounted(async () => {
     // Nested loaders already emit stable user-facing error state.
   }
 });
+
+onBeforeUnmount(() => {
+  stopOnlineUserColumnResize();
+});
 </script>
 
 <template>
@@ -1009,21 +1097,15 @@ onMounted(async () => {
                 class="filter-shell"
               >
                 <Row :gutter="16">
-                  <Col :span="isPlatformScope ? 8 : 12">
-                    <Form.Item v-if="isPlatformScope" label="租户 ID">
+                  <Col v-if="isPlatformScope" :span="8">
+                    <Form.Item label="租户 ID">
                       <Input
                         v-model:value="onlineUserQuery.tenantId"
                         placeholder="系统管理员可按租户收敛在线用户范围"
                       />
                     </Form.Item>
-                    <Form.Item v-else label="当前租户">
-                      <Input
-                        :value="authContextStore.tenantName || effectiveTenantId || '-'"
-                        disabled
-                      />
-                    </Form.Item>
                   </Col>
-                  <Col :span="isPlatformScope ? 10 : 12">
+                  <Col :span="isPlatformScope ? 10 : 18">
                     <Form.Item label="在线用户关键词">
                       <Input
                         v-model:value="onlineUserQuery.query"
@@ -1051,11 +1133,6 @@ onMounted(async () => {
                 </Row>
               </Form>
 
-              <div class="section-caption">
-                <span>在线用户总览</span>
-                <span>{{ onlineUserCount }} 个用户</span>
-              </div>
-
               <Table
                 v-access:code="'auth.session.admin.view'"
                 v-if="canViewUserSessions"
@@ -1063,9 +1140,9 @@ onMounted(async () => {
                 :data-source="onlineUsers"
                 :loading="onlineUsersLoading"
                 :pagination="false"
-                class="clean-table"
+                class="clean-table online-user-table"
                 :row-key="(record) => record.userId"
-                :scroll="{ x: 980, y: 420 }"
+                :scroll="{ x: onlineUserTableScrollX, y: 420 }"
                 size="small"
               />
 
@@ -1096,25 +1173,22 @@ onMounted(async () => {
 
               <Form layout="vertical" class="filter-shell">
                 <Row :gutter="[10, 10]">
-                  <Col :span="isPlatformScope ? 6 : 8">
-                    <Form.Item v-if="isPlatformScope" label="租户 ID">
+                  <Col v-if="isPlatformScope" :span="6">
+                    <Form.Item label="租户 ID">
                       <Input v-model:value="filters.tenantId" placeholder="系统管理员可按租户收敛范围" />
                     </Form.Item>
-                    <Form.Item v-else label="当前租户">
-                      <Input :value="authContextStore.tenantName || effectiveTenantId || '-'" disabled />
-                    </Form.Item>
                   </Col>
-                  <Col :span="6">
+                  <Col :span="isPlatformScope ? 6 : 8">
                     <Form.Item label="操作人 ID">
                       <Input v-model:value="filters.operatorId" placeholder="按 operatorId 过滤" />
                     </Form.Item>
                   </Col>
-                  <Col :span="6">
+                  <Col :span="isPlatformScope ? 6 : 8">
                     <Form.Item label="事件类型">
                       <Input v-model:value="filters.eventType" placeholder="如 LOGIN_FAILED" />
                     </Form.Item>
                   </Col>
-                  <Col :span="6">
+                  <Col :span="isPlatformScope ? 6 : 8">
                     <Form.Item label="结果">
                       <Input v-model:value="filters.result" placeholder="如 SUCCESS / REJECTED" />
                     </Form.Item>
@@ -1185,6 +1259,14 @@ onMounted(async () => {
 
     <Drawer
       :open="sessionDrawerOpen"
+      :body-style="{
+        background: 'hsl(var(--background-deep))',
+        padding: '24px 28px',
+      }"
+      :header-style="{
+        background: 'hsl(var(--card))',
+        borderBottom: '1px solid hsl(var(--border))',
+      }"
       :title="selectedUserScopeText"
       width="68%"
       @close="sessionDrawerOpen = false"
@@ -1196,14 +1278,6 @@ onMounted(async () => {
               <div class="session-drawer-hero__eyebrow">Session Inspection</div>
               <div class="session-drawer-hero__title">
                 {{ selectedUserDisplayName || selectedUserId || '未选择目标用户' }}
-              </div>
-              <div class="session-drawer-hero__meta">
-                <span class="session-drawer-meta-pill">
-                  用户 ID：{{ selectedUserId || '-' }}
-                </span>
-                <span class="session-drawer-meta-pill">
-                  范围：{{ selectedUserTenantName || selectedUserTenantId || '系统范围' }}
-                </span>
               </div>
             </div>
             <Tag color="blue" class="session-drawer-hero__tag">按账号聚合查看</Tag>
@@ -1229,7 +1303,6 @@ onMounted(async () => {
           <Form layout="vertical" class="filter-shell filter-shell--drawer">
             <div class="session-filter-header">
               <div class="session-filter-header__title">会话筛选</div>
-              <div class="session-filter-header__hint">按状态、终端、设备、浏览器或 IP 缩小列表</div>
             </div>
             <Row :gutter="16">
               <Col :span="7">
@@ -1283,15 +1356,7 @@ onMounted(async () => {
               class="account-group-card"
             >
               <template #title>
-                <div class="account-group-header">
-                  <div class="account-group-header__main">
-                    <div class="account-group-header__name">
-                      {{ group.accountName }}
-                    </div>
-                    <div class="account-group-header__id">
-                      {{ group.accountId || '未提供账号 ID' }}
-                    </div>
-                  </div>
+                <div class="account-group-header account-group-header--count-only">
                   <Tag color="blue">{{ group.sessions.length }} 个会话</Tag>
                 </div>
               </template>
@@ -1453,13 +1518,21 @@ onMounted(async () => {
 }
 
 .filter-shell--drawer {
-  background: var(--session-card-bg-soft);
+  border-radius: 8px;
+  background: var(--session-card-bg);
 }
 
 .session-drawer-shell {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  --session-border: hsl(var(--border));
+  --session-card-bg: hsl(var(--card));
+  --session-card-bg-soft: hsl(var(--muted) / 0.46);
+  --session-card-bg-strong: hsl(var(--muted) / 0.76);
+  --session-text: hsl(var(--foreground) / 0.9);
+  --session-title: hsl(var(--foreground));
+  --session-muted: hsl(var(--muted-foreground));
 }
 
 .session-drawer-hero {
@@ -1469,8 +1542,9 @@ onMounted(async () => {
   gap: 16px;
   padding: 20px 22px;
   border: 1px solid var(--session-border);
-  border-radius: 18px;
-  background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--muted) / 0.72) 100%);
+  border-radius: 8px;
+  background: var(--session-card-bg);
+  box-shadow: 0 8px 22px rgb(15 23 42 / 0.04);
 }
 
 .session-drawer-hero__main {
@@ -1522,23 +1596,26 @@ onMounted(async () => {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.session-drawer-shell .summary-card--compact,
+.session-drawer-shell .account-group-card {
+  border-radius: 8px;
+  background: var(--session-card-bg);
+  box-shadow: 0 8px 22px rgb(15 23 42 / 0.035);
+}
+
 .session-filter-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .session-filter-header__title {
-  font-size: 13px;
+  color: var(--session-title);
+  font-size: 15px;
   font-weight: 700;
-  color: var(--session-text);
-}
-
-.session-filter-header__hint {
-  font-size: 12px;
-  color: var(--session-muted);
+  line-height: 22px;
 }
 
 .section-caption {
@@ -1577,26 +1654,8 @@ onMounted(async () => {
   gap: 16px;
 }
 
-.account-group-header__main {
-  min-width: 0;
-}
-
-.account-group-header__name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--session-title);
-}
-
-.account-group-header__id {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--session-muted);
+.account-group-header--count-only {
+  justify-content: flex-end;
 }
 
 :deep(.clean-table .ant-table) {
@@ -1610,6 +1669,57 @@ onMounted(async () => {
   color: var(--session-text);
   font-size: 12px;
   font-weight: 700;
+}
+
+:deep(.online-user-table .ant-table-cell) {
+  white-space: nowrap;
+}
+
+:deep(.online-user-table .ant-table-thead > tr > th) {
+  position: relative;
+  user-select: none;
+}
+
+.session-resizable-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding-right: 12px;
+}
+
+.session-resizable-title__text {
+  min-width: 0;
+}
+
+.session-column-resizer {
+  position: absolute;
+  top: -12px;
+  right: -10px;
+  bottom: -12px;
+  z-index: 2;
+  width: 14px;
+  cursor: col-resize;
+}
+
+.session-column-resizer::after {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 6px;
+  width: 1px;
+  content: '';
+  background: rgb(15 23 42 / 14%);
+  transition: background 0.16s ease;
+}
+
+.session-column-resizer:hover::after {
+  background: hsl(var(--primary));
+}
+
+:global(body.admin-session--resizing-column) {
+  cursor: col-resize;
+  user-select: none;
 }
 
 :deep(.clean-table .ant-table-tbody > tr > td) {

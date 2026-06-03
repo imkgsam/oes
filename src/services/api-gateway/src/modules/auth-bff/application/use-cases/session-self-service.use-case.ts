@@ -10,12 +10,15 @@ import {
   SelfSessionListViewModel,
   SelfSessionViewModel,
   SessionMutationViewModel,
+  TerminalPinMutationViewModel,
   TrustedDeviceListViewModel,
   TrustedDeviceMutationViewModel,
   TrustedDeviceViewModel
 } from '../../interfaces/http/view-models/self-security.view-model'
 import {
   ChangeOwnPasswordDto,
+  OwnTerminalPinDto,
+  SetOwnTerminalPinEnabledDto,
   SelfLoginHistoryQueryDto
 } from '../../interfaces/http/dtos/self-security.dto'
 import { getAuthenticatedSelfContext } from './self-security-context'
@@ -175,6 +178,58 @@ export class SessionSelfServiceUseCase {
       success: Boolean(result.success),
       passwordSetupRequired: Boolean(result.passwordSetupRequired)
     }
+  }
+
+  async setOwnTerminalPin(
+    dto: OwnTerminalPinDto,
+    source: DownstreamRequestSource
+  ): Promise<TerminalPinMutationViewModel> {
+    const self = getAuthenticatedSelfContext(source)
+    const result = await this.authAdapter.setOwnTerminalPin(
+      {
+        userId: self.userId,
+        currentPassword: dto.currentPassword,
+        newPin: dto.newPin,
+        mfaGrantToken: dto.mfaGrantToken
+      },
+      source
+    )
+
+    return { success: Boolean(result.success) }
+  }
+
+  async resetOwnTerminalPin(
+    dto: OwnTerminalPinDto,
+    source: DownstreamRequestSource
+  ): Promise<TerminalPinMutationViewModel> {
+    const self = getAuthenticatedSelfContext(source)
+    const result = await this.authAdapter.resetOwnTerminalPin(
+      {
+        userId: self.userId,
+        currentPassword: dto.currentPassword,
+        newPin: dto.newPin,
+        mfaGrantToken: dto.mfaGrantToken
+      },
+      source
+    )
+
+    return { success: Boolean(result.success) }
+  }
+
+  async setOwnTerminalPinEnabled(
+    dto: SetOwnTerminalPinEnabledDto,
+    source: DownstreamRequestSource
+  ): Promise<TerminalPinMutationViewModel> {
+    const self = getAuthenticatedSelfContext(source)
+    const result = await this.authAdapter.setOwnTerminalPinEnabled(
+      {
+        userId: self.userId,
+        enabled: Boolean(dto.enabled)
+      },
+      source
+    )
+
+    return { success: Boolean(result.success) }
   }
 
   async setLoginMethodEnabled(

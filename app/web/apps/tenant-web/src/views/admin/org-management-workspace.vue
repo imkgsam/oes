@@ -2,7 +2,7 @@
 import type { TenantManagementApi } from '#/api'
 import type { TableColumnsType } from 'ant-design-vue'
 
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { IconifyIcon } from '@vben/icons'
@@ -58,6 +58,7 @@ interface OrgTreeSelectOption {
 
 type ManagementMode = 'SYSTEM' | 'TENANT'
 type OrgActionKey = 'append' | 'edit' | 'view'
+type OrgColumnKey = 'name' | 'operation' | 'status' | 'type'
 
 interface TableActionMenuItem<ActionKey extends string> {
   danger?: boolean
@@ -94,6 +95,18 @@ const emit = defineEmits<{
 const authContextStore = useAuthContextStore()
 const operationColumnTitle = '操作'
 const router = useRouter()
+const orgColumnWidths = reactive<Record<OrgColumnKey, number>>({
+  name: 360,
+  operation: 140,
+  status: 180,
+  type: 180
+})
+const orgColumnMinWidths: Record<OrgColumnKey, number> = {
+  name: 240,
+  operation: 96,
+  status: 120,
+  type: 120
+}
 const tenantOptions = ref<TenantManagementApi.TenantSummary[]>([])
 const activeTenantId = ref('')
 const activeTenantName = ref('')
@@ -210,30 +223,89 @@ const editOrgTypeOptions = computed(() => {
     { label: orgTypeLabels.TEAM, value: 'TEAM' }
   ]
 })
+const orgTableScrollX = computed(() =>
+  Object.values(orgColumnWidths).reduce((sum, width) => sum + width, 0)
+)
+
+let activeOrgColumnCleanup: null | (() => void) = null
+
+// stopOrgColumnResize releases the global listeners used while dragging an org table header.
+function stopOrgColumnResize() {
+  activeOrgColumnCleanup?.()
+  activeOrgColumnCleanup = null
+  document.body.classList.remove('org-management--resizing-column')
+}
+
+// startOrgColumnResize wires one header drag handle to the organization table column width state.
+function startOrgColumnResize(event: MouseEvent, columnKey: OrgColumnKey) {
+  event.preventDefault()
+  event.stopPropagation()
+
+  stopOrgColumnResize()
+
+  const startX = event.clientX
+  const startWidth = orgColumnWidths[columnKey]
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    orgColumnWidths[columnKey] = Math.max(
+      orgColumnMinWidths[columnKey],
+      Math.round(startWidth + moveEvent.clientX - startX)
+    )
+  }
+
+  const handleMouseUp = () => {
+    stopOrgColumnResize()
+  }
+
+  document.body.classList.add('org-management--resizing-column')
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp, { once: true })
+  activeOrgColumnCleanup = () => {
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+  }
+}
+
+// renderResizableOrgHeader exposes a compact resize handle for organization table columns.
+function renderResizableOrgHeader(columnKey: OrgColumnKey, label: string) {
+  return h('div', { class: 'org-management__resizable-title' }, [
+    h('span', { class: 'org-management__resizable-title-text' }, label),
+    h('span', {
+      'aria-label': `调整${label}列宽`,
+      class: 'org-management__column-resizer',
+      onMousedown: (event: MouseEvent) => startOrgColumnResize(event, columnKey),
+      role: 'separator'
+    })
+  ])
+}
+
 const orgTableColumns = computed<TableColumnsType<OrgGridRow>>(() => [
   {
     dataIndex: 'name',
     key: 'name',
-    title: '组织名称',
-    width: 280
+    title: renderResizableOrgHeader('name', '组织名称'),
+    width: orgColumnWidths.name
   },
   {
+    align: 'center',
     dataIndex: 'type',
     key: 'type',
-    title: '类型',
-    width: 140
+    title: renderResizableOrgHeader('type', '类型'),
+    width: orgColumnWidths.type
   },
   {
+    align: 'center',
     dataIndex: 'status',
     key: 'status',
-    title: '状态',
-    width: 140
+    title: renderResizableOrgHeader('status', '状态'),
+    width: orgColumnWidths.status
   },
   {
     key: 'operation',
-    align: 'right',
-    title: operationColumnTitle,
-    width: 260
+    align: 'center',
+    fixed: 'right',
+    title: renderResizableOrgHeader('operation', operationColumnTitle),
+    width: orgColumnWidths.operation
   }
 ])
 
@@ -862,6 +934,10 @@ onMounted(async () => {
     message.error(resolveErrorMessage(error, '组织架构入口初始化失败'))
   }
 })
+
+onBeforeUnmount(() => {
+  stopOrgColumnResize()
+})
 </script>
 
 <template>
@@ -922,6 +998,7 @@ onMounted(async () => {
           :loading="orgTreeLoading"
           :pagination="false"
           :row-key="(record: OrgGridRow) => record.id"
+          :scroll="{ x: orgTableScrollX }"
           size="middle"
         >
           <template #bodyCell="{ column, record }">
@@ -1270,6 +1347,58 @@ onMounted(async () => {
   min-width: 0;
 }
 
+:deep(.org-management__ant-table .ant-table-thead > tr > th) {
+  position: relative;
+  user-select: none;
+}
+
+.org-management__resizable-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding-right: 12px;
+}
+
+:deep(
+  .org-management__ant-table
+    .ant-table-thead
+    > tr
+    > th:not(:first-child)
+    .org-management__resizable-title
+) {
+  justify-content: center;
+}
+
+.org-management__resizable-title-text {
+  min-width: 0;
+}
+
+.org-management__column-resizer {
+  position: absolute;
+  top: -12px;
+  right: -10px;
+  bottom: -12px;
+  z-index: 2;
+  width: 14px;
+  cursor: col-resize;
+}
+
+.org-management__column-resizer::after {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 6px;
+  width: 1px;
+  content: '';
+  background: rgb(15 23 42 / 14%);
+  transition: background 0.16s ease;
+}
+
+.org-management__column-resizer:hover::after {
+  background: hsl(var(--primary));
+}
+
 .org-management__name-cell {
   display: flex;
   flex-direction: column;
@@ -1343,6 +1472,11 @@ onMounted(async () => {
 
 .org-management__empty-shell {
   padding: 24px 0;
+}
+
+:global(body.org-management--resizing-column) {
+  cursor: col-resize;
+  user-select: none;
 }
 
 @media (max-width: 960px) {

@@ -52,6 +52,7 @@
 - 维护 `User.partyId` 到 `party-service` 自然人主体的受控关联。
 - 维护 scope-aware `UserAccount`，支持 `SYSTEM` 与 `TENANT` 两类 account context。
 - 为 `auth-service` 提供登录后 account candidate、account existence、account ownership、account enabled state 与 scope / tenant 引用事实。
+- 为 `auth-service` 的员工码现场终端登录提供 `employeeId -> unique UserAccount + enabled state` 的受控解析事实；员工 lifecycle 与 active employment 仍由 `hr-service` 判断，PIN 仍由 `auth-service` 校验。
 - 为 `api-gateway` / BFF 提供 account context、账号目录、身份展示摘要与必要的用户发现能力。
 - 维护 `UserAccount <-> Employee` 绑定结果，并在绑定时校验同 tenant 与同自然人主体约束。
 - 维护工作邮箱 / 工作手机号这类账号联系资产的分配、回收、启停和主联系方式语义。
@@ -97,6 +98,7 @@
 - `OrgUnit`、org tree、org hierarchy 与 org reference validation 以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
 - `Employment -> OrgUnit` 是正式 `人 -> org` 任职真相，归 `hr-service`。
 - `UserAccount <-> Employee` binding 只表达账号与员工聚合的受控关联，不替代 `Employee / Employment`。
+- `ResolveEmployeeLoginAccount` 可基于既有 `UserAccount <-> Employee` binding 返回某 active employee 对应的唯一 account 及其 enabled state，用于认证编排与准确审计；该能力不得把 identity-service 扩展为 HR lifecycle、terminal access 或 PIN owner。
 - legacy account-org membership 或 account 视角 org 数据只能作为 compatibility / projection 口径存在，不得成为 onboarding、HR、授权或组织治理主链 owner。
 - `identity-service` 可在账号、联系资产、机器主体、审计记录中保留 `tenantId / orgId` 引用字段，但不得通过本地模型或共享数据库读取 tenant / org 真相。
 

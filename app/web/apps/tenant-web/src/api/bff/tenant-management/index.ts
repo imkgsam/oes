@@ -3,6 +3,7 @@ import { requestClient } from '#/api/request';
 export namespace TenantManagementApi {
   export interface TenantSummary {
     code: string;
+    employeeCodePrefix: string;
     id: string;
     name: string;
     rootOrgId?: string;
@@ -31,6 +32,7 @@ export namespace TenantManagementApi {
 
   export interface CreateTenantPayload {
     code: string;
+    employeeCodePrefix: string;
     name: string;
     rootOrgName?: string;
   }
@@ -60,6 +62,7 @@ export namespace TenantManagementApi {
     };
     tenant: {
       code: string;
+      employeeCodePrefix: string;
       name: string;
     };
   }
@@ -126,6 +129,7 @@ export namespace TenantManagementApi {
 
   export interface UpdateTenantProfilePayload {
     code?: string;
+    employeeCodePrefix?: string;
     name?: string;
   }
 

@@ -14,6 +14,7 @@ import {
   AccountDeletionImpactView,
   AuditEventView,
   ApiKeyView,
+  EmployeeLoginAccountView,
   EmployeeBindingSummaryView,
   ServiceAccountView
 } from '../../application/queries'
@@ -75,6 +76,18 @@ export class IdentityGrpcPresenter {
       tenantId: binding.tenantId,
       accountId: binding.accountId,
       employeeId: binding.employeeId
+    }
+  }
+
+  /** Maps an employee login account view into the gRPC response account shape. */
+  static toEmployeeLoginAccount(account: EmployeeLoginAccountView) {
+    return {
+      userId: account.userId,
+      accountId: account.accountId,
+      tenantId: account.tenantId,
+      scopeLevel: account.scopeLevel,
+      displayName: account.displayName ?? '',
+      accountEnabled: account.accountEnabled
     }
   }
 

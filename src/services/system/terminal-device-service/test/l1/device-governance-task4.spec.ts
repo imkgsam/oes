@@ -3,6 +3,10 @@ import {
   ChangeTerminalDeviceStatusHandler
 } from '../../src/application/commands/device/change-terminal-device-status.command'
 import {
+  ListTerminalDevicesHandler,
+  ListTerminalDevicesQuery
+} from '../../src/application/queries/device/list-terminal-devices.query'
+import {
   RecordDiagnosticLogsCommand,
   RecordDiagnosticLogsHandler
 } from '../../src/application/commands/runtime/record-diagnostic-logs.command'
@@ -16,6 +20,7 @@ import {
 } from '../../src/application/commands/version-policy/upsert-version-policy.command'
 import { DeviceAccessDecisionService } from '../../src/application/services/device-access-decision.service'
 import { TerminalDeviceEntity } from '../../src/domain/entities/terminal-device.entity'
+import { TerminalDeviceRuntimeSnapshotEntity } from '../../src/domain/entities/terminal-device-runtime-snapshot.entity'
 import { TerminalDeviceVersionPolicyEntity } from '../../src/domain/entities/terminal-device-version-policy.entity'
 import { TerminalDeviceStatus } from '../../src/domain/enums/terminal-device.enums'
 import { TerminalDeviceError } from '../../src/domain/errors/terminal-device.error'
@@ -436,30 +441,35 @@ describe('Task 4 device governance application services', () => {
       }
     )
 
-    it('requires reason for high-risk lifecycle transitions before writing audit', async () => {
+    it('allows lifecycle transitions without an administrator reason and keeps audit reason empty', async () => {
       const context = await createLifecycleContext('ACTIVE')
       const handler = new ChangeTerminalDeviceStatusHandler(
         context.deviceRepository,
         context.auditRepository
       )
 
-      await expect(
-        handler.execute(
-          new ChangeTerminalDeviceStatusCommand({
-            tenantId: 'tenant-1',
-            terminalDeviceId: 'terminal-device-1',
-            targetStatus: 'LOST',
-            operatorContext: {
-              operatorAccountId: 'operator-1'
-            }
-          })
-        )
-      ).rejects.toMatchObject({
-        code: 'TERMINAL_DEVICE_STATUS_REASON_REQUIRED'
-      } satisfies Partial<TerminalDeviceError>)
+      const result = await handler.execute(
+        new ChangeTerminalDeviceStatusCommand({
+          tenantId: 'tenant-1',
+          terminalDeviceId: 'terminal-device-1',
+          targetStatus: 'LOST',
+          operatorContext: {
+            operatorAccountId: 'operator-1'
+          },
+          now: new Date('2026-05-16T02:30:00.000Z')
+        })
+      )
+
+      expect(result.deviceStatus).toBe('LOST')
+      expect(result.statusReason).toBeNull()
       expect(
-        await context.auditRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-1')
-      ).toHaveLength(0)
+        (await context.auditRepository.listByTerminalDeviceId('tenant-1', 'terminal-device-1'))[0]
+      ).toMatchObject({
+        action: 'STATUS_CHANGED',
+        reason: null,
+        beforeJson: { status: 'ACTIVE' },
+        afterJson: { status: 'LOST', statusReason: null }
+      })
     })
 
     it('rejects lifecycle transition when tenant context does not own the device', async () => {
@@ -564,6 +574,28 @@ describe('Task 4 device governance application services', () => {
         ],
         total: 1
       })
+    })
+
+    it('derives management presence from heartbeat age instead of keeping stale snapshots online forever', async () => {
+      const context = await createDecisionContext('ACTIVE')
+      await context.runtimeSnapshotRepository.upsert(createRuntimeSnapshot({
+        lastHeartbeatAt: new Date('2026-05-16T00:00:00.000Z')
+      }))
+      const handler = new ListTerminalDevicesHandler(
+        context.deviceRepository,
+        context.runtimeSnapshotRepository
+      )
+
+      const result = await handler.execute(
+        new ListTerminalDevicesQuery({
+          tenantId: 'tenant-1',
+          presenceStatus: 'OFFLINE',
+          now: new Date('2026-05-16T00:31:00.000Z')
+        })
+      )
+
+      expect(result.items).toHaveLength(1)
+      expect(result.items[0]?.runtime?.presenceStatus).toBe('OFFLINE')
     })
   })
 
@@ -734,5 +766,25 @@ function createVersionPolicy(): TerminalDeviceVersionPolicyEntity {
     updatedBy: 'operator-1',
     updatedAt: new Date('2026-05-15T00:00:00.000Z'),
     createdAt: new Date('2026-05-15T00:00:00.000Z')
+  })
+}
+
+// createRuntimeSnapshot builds a heartbeat snapshot whose stored presence may be re-derived by management queries.
+function createRuntimeSnapshot(input: { lastHeartbeatAt: Date }): TerminalDeviceRuntimeSnapshotEntity {
+  return new TerminalDeviceRuntimeSnapshotEntity({
+    terminalDeviceId: 'terminal-device-1',
+    tenantId: 'tenant-1',
+    presenceStatus: 'ONLINE',
+    lastHeartbeatAt: input.lastHeartbeatAt,
+    lastClientTime: input.lastHeartbeatAt,
+    appVersion: '2.1.0',
+    androidVersion: '14',
+    webViewVersion: '124.0.0',
+    networkStatus: 'ONLINE',
+    networkType: 'WIFI',
+    batteryLevel: 88,
+    appState: 'FOREGROUND',
+    lastReportedAccountId: null,
+    lastReportedSessionId: null
   })
 }

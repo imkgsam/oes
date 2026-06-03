@@ -1,4 +1,5 @@
 import { Controller, UseFilters } from '@nestjs/common'
+import { GrpcMethod } from '@nestjs/microservices'
 import { GrpcExceptionFilter } from '@oes/common/filters'
 import {
   EmployeeLifecycleStatus as ProtoEmployeeLifecycleStatus,
@@ -23,6 +24,16 @@ import { HrQueryService } from '../../application/services'
 import { EmployeeLifecycleStatus, EmploymentStatus } from '../../domain/value-objects'
 import { mapEmployee, mapEmployment } from './hr-management.grpc.controller'
 
+interface ResolveActiveEmployeeByCodeRequest {
+  tenantId?: string
+  employeeCode?: string
+}
+
+interface ResolveActiveEmployeeByCodeResponse {
+  employee?: ReturnType<typeof mapEmployee>
+  activeEmployment?: ReturnType<typeof mapEmployment>
+}
+
 /** HrQueryGrpcController exposes read-only HR Employee and Employment contracts over gRPC. */
 @UseFilters(GrpcExceptionFilter)
 @Controller()
@@ -43,6 +54,21 @@ export class HrQueryGrpcController implements HrQueryServiceController {
       tenantPartyId: request.tenantPartyId ?? ''
     })
     return { employee: mapEmployee(employee) }
+  }
+
+  /** resolveActiveEmployeeByCode maps the HR active employee-code lookup to the gRPC response shape. */
+  @GrpcMethod('HrQueryService', 'resolveActiveEmployeeByCode')
+  async resolveActiveEmployeeByCode(
+    request: ResolveActiveEmployeeByCodeRequest
+  ): Promise<ResolveActiveEmployeeByCodeResponse> {
+    const result = await this.hrQueryService.resolveActiveEmployeeByCode({
+      tenantId: request.tenantId ?? '',
+      employeeCode: request.employeeCode ?? ''
+    })
+    return {
+      employee: mapEmployee(result.employee),
+      activeEmployment: mapEmployment(result.activeEmployment)
+    }
   }
 
   async listEmployees(request: ListEmployeesRequest): Promise<ListEmployeesResponse> {

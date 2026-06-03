@@ -103,6 +103,10 @@ import {
   RequestPhoneOtpLoginChallengeResponse,
   LoginWithPhoneOtpRequest,
   LoginWithPhoneOtpResponse,
+  LoginWithEmployeeCodePinRequest,
+  LoginWithEmployeeCodePinResponse,
+  PreflightEmployeeCodePinLoginRequest,
+  PreflightEmployeeCodePinLoginResponse,
   LoginWithPhonePasswordRequest,
   LoginWithPhonePasswordResponse,
   RefreshSessionRequest,
@@ -117,6 +121,7 @@ import {
   RevokeTrustedDeviceResponse,
   RequirePasswordSetupRequest,
   RequirePasswordSetupResponse,
+  RequireTerminalPinResetRequest,
   SelectAccountRequest,
   SelectAccountResponse,
   SetLoginMethodEnabledRequest,
@@ -154,7 +159,16 @@ import {
   VerifyEmailBindingResponse,
   VerifyEmailBindingRequest,
   VerifyPhoneBindingResponse,
-  VerifyPhoneBindingRequest
+  VerifyPhoneBindingRequest,
+  DisableUserTerminalPinRequest,
+  ResetOwnTerminalPinRequest,
+  ResetOwnTerminalPinResponse,
+  SetOwnTerminalPinEnabledRequest,
+  SetOwnTerminalPinEnabledResponse,
+  SetOwnTerminalPinRequest,
+  SetOwnTerminalPinResponse,
+  DisableUserTerminalPinResponse,
+  RequireTerminalPinResetResponse
 } from '@oes/common/generated/auth_service'
 import {
   AdminDeleteAccountSessionsCommand,
@@ -163,12 +177,14 @@ import {
   ChangeOwnPasswordCommand,
   CompletePasswordRecoveryCommand,
   DisableMfaBindingCommand,
+  DisableUserTerminalPinCommand,
   EnableMfaBindingCommand,
   HandleTerminalDeviceUnavailableCommand,
   InitializeRecoveryCodesCommand,
   InitializeTotpBindingCommand,
   LoginWithEmailPasswordCommand,
   LoginWithEmailOtpCommand,
+  LoginWithEmployeeCodePinCommand,
   LoginWithPhoneOtpCommand,
   LoginWithPhonePasswordCommand,
   BootstrapUserLoginMethodsCommand,
@@ -190,8 +206,12 @@ import {
   RequestPhoneBindingChallengeCommand,
   RequestPhoneOtpLoginChallengeCommand,
   RequirePasswordSetupCommand,
+  RequireTerminalPinResetCommand,
+  ResetOwnTerminalPinCommand,
   SelectAccountCommand,
   SetLoginMethodEnabledCommand,
+  SetOwnTerminalPinCommand,
+  SetOwnTerminalPinEnabledCommand,
   StartStepUpMfaChallengeCommand,
   SubmitMfaChallengeCommand,
   UpdatePlatformMfaPolicyCommand,
@@ -207,6 +227,7 @@ import {
   ListLoginHistoryQuery,
   ListAuditEventsQuery,
   InspectPasswordRecoveryChannelsQuery,
+  PreflightEmployeeCodePinLoginQuery,
   ListLoginMethodsQuery,
   ListMfaBindingsQuery,
   GetPlatformMfaPolicyQuery,
@@ -495,6 +516,49 @@ export class AuthGrpcController implements AuthServiceController {
   }
 
   /**
+   * setOwnTerminalPin sets the authenticated user's terminal PIN without returning credential material.
+   */
+  async setOwnTerminalPin(
+    request: SetOwnTerminalPinRequest
+  ): Promise<SetOwnTerminalPinResponse> {
+    return this.commandBus.execute(
+      new SetOwnTerminalPinCommand({
+        userId: request.userId ?? '',
+        currentPassword: request.currentPassword || undefined,
+        newPin: request.newPin ?? '',
+        mfaGrantToken: request.mfaGrantToken || undefined
+      })
+    )
+  }
+
+  /**
+   * resetOwnTerminalPin replaces the authenticated user's forgotten terminal PIN from account security.
+   */
+  async resetOwnTerminalPin(
+    request: ResetOwnTerminalPinRequest
+  ): Promise<ResetOwnTerminalPinResponse> {
+    return this.commandBus.execute(
+      new ResetOwnTerminalPinCommand({
+        userId: request.userId ?? '',
+        currentPassword: request.currentPassword || undefined,
+        newPin: request.newPin ?? '',
+        mfaGrantToken: request.mfaGrantToken || undefined
+      })
+    )
+  }
+
+  /**
+   * setOwnTerminalPinEnabled toggles the authenticated user's terminal PIN login method.
+   */
+  async setOwnTerminalPinEnabled(
+    request: SetOwnTerminalPinEnabledRequest
+  ): Promise<SetOwnTerminalPinEnabledResponse> {
+    return this.commandBus.execute(
+      new SetOwnTerminalPinEnabledCommand(request.userId ?? '', Boolean(request.enabled))
+    )
+  }
+
+  /**
    * setOwnLoginMethodEnabled toggles one authenticated user's own login method through the self-service path.
    */
   @RequireAuthenticatedOperator()
@@ -532,6 +596,36 @@ export class AuthGrpcController implements AuthServiceController {
         reason: request.reason ?? '',
         revokeSessions: request.revokeSessions ?? false
       })
+    )
+  }
+
+  /**
+   * requireTerminalPinReset marks a target user as needing to reset their own terminal PIN.
+   */
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS] })
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
+  async requireTerminalPinReset(
+    request: RequireTerminalPinResetRequest
+  ): Promise<RequireTerminalPinResetResponse> {
+    const requiredBy = this.getRequiredOperatorId(request)
+
+    return this.commandBus.execute(
+      new RequireTerminalPinResetCommand(requiredBy, request.userId ?? '')
+    )
+  }
+
+  /**
+   * disableUserTerminalPin disables a target user's terminal PIN login method without plaintext access.
+   */
+  @RequirePermissions({ all: [AUTH_MANAGEMENT_PERMISSION_CODES.MANAGE_ACCOUNT_LOGIN_METHODS] })
+  @UseGuards(InternalServiceGuard, AuthenticatedOperatorGuard, PermissionGuard)
+  async disableUserTerminalPin(
+    request: DisableUserTerminalPinRequest
+  ): Promise<DisableUserTerminalPinResponse> {
+    const disabledBy = this.getRequiredOperatorId(request)
+
+    return this.commandBus.execute(
+      new DisableUserTerminalPinCommand(disabledBy, request.userId ?? '')
     )
   }
 
@@ -1721,6 +1815,81 @@ export class AuthGrpcController implements AuthServiceController {
     throw ExceptionFactory.application(AUTH_LOGIN_FLOW_RESULT_UNSUPPORTED)
   }
 
+  async loginWithEmployeeCodePin(
+    request: LoginWithEmployeeCodePinRequest
+  ): Promise<LoginWithEmployeeCodePinResponse> {
+    const result = await this.commandBus.execute(
+      new LoginWithEmployeeCodePinCommand(request.employeeCode ?? '', request.pin ?? '', {
+        deviceName: request.deviceName ?? '',
+        userAgent: request.userAgent ?? '',
+        ipAddress: request.ipAddress ?? '',
+        terminal: request.terminal || 'PDA',
+        terminalDeviceId: request.terminalDeviceId || undefined,
+        deviceBoundTenantId: request.deviceBoundTenantId || undefined,
+        loginFlow: request.loginFlow || TerminalLoginFlow.EmployeeCodePin
+      })
+    )
+
+    if ('status' in result && result.status === 'SUCCESS') {
+      return {
+        status: LoginStatus.LOGIN_STATUS_SUCCESS,
+        userId: result.userId,
+        challengeId: '',
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+        loginMethod: LoginMethodEnum.EmployeeCodePin,
+        accounts: [],
+        passwordSetupRequired: result.passwordSetupRequired,
+        terminal: result.terminal,
+        allowedTerminals: result.allowedTerminals,
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        deviceBoundTenantId: request.deviceBoundTenantId ?? '',
+        loginFlow: request.loginFlow || TerminalLoginFlow.EmployeeCodePin
+      }
+    }
+
+    if (result.nextStep === 'MFA_REQUIRED') {
+      return {
+        status: LoginStatus.LOGIN_STATUS_MFA_REQUIRED,
+        userId: result.userId,
+        challengeId: result.challengeId ?? '',
+        accessToken: '',
+        refreshToken: '',
+        expiresIn: '0',
+        loginMethod: result.method,
+        accounts: [],
+        passwordSetupRequired: false,
+        terminal: result.terminal ?? request.terminal ?? 'PDA',
+        allowedTerminals: result.allowedTerminals ?? [],
+        terminalDeviceId: request.terminalDeviceId ?? '',
+        deviceBoundTenantId: request.deviceBoundTenantId ?? '',
+        loginFlow: request.loginFlow || TerminalLoginFlow.EmployeeCodePin
+      }
+    }
+
+    throw ExceptionFactory.application(AUTH_LOGIN_FLOW_RESULT_UNSUPPORTED)
+  }
+
+  async preflightEmployeeCodePinLogin(
+    request: PreflightEmployeeCodePinLoginRequest
+  ): Promise<PreflightEmployeeCodePinLoginResponse> {
+    const result = await this.queryBus.execute(
+      new PreflightEmployeeCodePinLoginQuery(request.employeeCode ?? '', {
+        terminal: request.terminal || 'PDA',
+        terminalDeviceId: request.terminalDeviceId || undefined,
+        deviceBoundTenantId: request.deviceBoundTenantId || undefined,
+        loginFlow: request.loginFlow || TerminalLoginFlow.EmployeeCodePin
+      })
+    )
+
+    return {
+      allowed: result.allowed,
+      reasonCode: result.reasonCode,
+      message: result.message
+    }
+  }
+
   async requestPhoneOtpLoginChallenge(
     request: RequestPhoneOtpLoginChallengeRequest
   ): Promise<RequestPhoneOtpLoginChallengeResponse> {
@@ -1895,7 +2064,7 @@ export class AuthGrpcController implements AuthServiceController {
           TerminalLoginFlow.PhoneOtp
         ]
       case 'PDA':
-        return [TerminalLoginFlow.Password]
+        return [TerminalLoginFlow.Password, TerminalLoginFlow.EmployeeCodePin]
       case 'KIOSK':
         return []
       default:

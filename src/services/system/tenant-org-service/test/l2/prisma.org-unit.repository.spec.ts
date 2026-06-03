@@ -4,6 +4,7 @@ import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
 import { OrgUnitStatus, OrgUnitType } from '../../src/domain/value-objects'
 import {
   cleanupByPrefix,
+  createTestEmployeeCodePrefix,
   createPrismaForIntegration,
   createTestPrefix
 } from '../helpers/integration-db'
@@ -38,6 +39,7 @@ describe('PrismaOrgUnitRepository L2', () => {
   it('move / should reject cycles when moving an org below its descendant', async () => {
     const { tenant, rootOrgUnit } = await tenantRepository.createWithRootOrg({
       code: `${prefix}_cycle`,
+      employeeCodePrefix: createTestEmployeeCodePrefix(),
       name: `${prefix}_Cycle`,
       rootOrgName: `${prefix}_Cycle`
     })
@@ -60,6 +62,7 @@ describe('PrismaOrgUnitRepository L2', () => {
   it('archive / should mark org archived without physically deleting it', async () => {
     const { tenant, rootOrgUnit } = await tenantRepository.createWithRootOrg({
       code: `${prefix}_archive`,
+      employeeCodePrefix: createTestEmployeeCodePrefix(),
       name: `${prefix}_Archive`,
       rootOrgName: `${prefix}_Archive`
     })
@@ -80,11 +83,13 @@ describe('PrismaOrgUnitRepository L2', () => {
   it('listDescendants / should respect tenant boundary even when ids are mixed', async () => {
     const tenantA = await tenantRepository.createWithRootOrg({
       code: `${prefix}_tenant_a`,
+      employeeCodePrefix: createTestEmployeeCodePrefix(),
       name: `${prefix}_TenantA`,
       rootOrgName: `${prefix}_TenantA`
     })
     const tenantB = await tenantRepository.createWithRootOrg({
       code: `${prefix}_tenant_b`,
+      employeeCodePrefix: createTestEmployeeCodePrefix(),
       name: `${prefix}_TenantB`,
       rootOrgName: `${prefix}_TenantB`
     })

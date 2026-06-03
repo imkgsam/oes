@@ -29,7 +29,7 @@ export type NetworkStatus = {
 export type ScanResult = {
   scanValue: string;
   scanSource: 'BROADCAST' | 'SDK' | 'KEYBOARD' | 'CAMERA' | 'UNKNOWN';
-  scannerProvider: 'MANUFACTURER_BROADCAST' | 'MANUFACTURER_SDK' | 'WEB_FALLBACK' | 'UNKNOWN';
+  scannerProvider: 'MANUFACTURER_BROADCAST' | 'MANUFACTURER_SDK' | 'ANDROID_CAMERA' | 'WEB_FALLBACK' | 'UNKNOWN';
   symbology?: string;
   rawLength: number;
   occurredAt: string;
@@ -38,6 +38,12 @@ export type ScanResult = {
 export type CameraCaptureRequest = {
   maxCount?: 1;
   quality?: 'ORIGINAL' | 'COMPRESSED';
+};
+
+export type CameraScannerRequest = {
+  formats?: Array<
+    'QR_CODE' | 'CODE128' | 'CODE39' | 'CODE93' | 'EAN13' | 'EAN8' | 'UPCA' | 'UPCE' | 'CODABAR' | 'ITF'
+  >;
 };
 
 export type CameraCaptureResult = {
@@ -71,6 +77,7 @@ export type PdaBridgeClient = {
   getDeviceInfo: () => Promise<BridgeResult<DeviceInfo>>;
   getNetworkStatus: () => Promise<BridgeResult<NetworkStatus>>;
   openCamera: (request?: CameraCaptureRequest) => Promise<BridgeResult<CameraCaptureResult>>;
+  openCameraScanner: (request?: CameraScannerRequest) => Promise<BridgeResult<{ accepted: boolean }>>;
   getSessionTokens?: () => Promise<BridgeResult<SessionTokens | null>>;
   saveSessionTokens?: (tokens: SessionTokens) => Promise<BridgeResult<{ saved: boolean }>>;
   clearSessionTokens?: () => Promise<BridgeResult<{ cleared: boolean }>>;
@@ -82,6 +89,7 @@ export type AndroidPdaBridge = {
   getDeviceInfo: () => string;
   getNetworkStatus: () => string;
   openCamera: (requestJson: string) => string;
+  openCameraScanner?: (requestJson: string) => string;
   getSessionTokens?: () => string;
   saveSessionTokens?: (tokensJson: string) => string;
   clearSessionTokens?: () => string;

@@ -49,7 +49,7 @@ describe('tenant-web hr management api', () => {
     } = await import('./index')
 
     await createManagedEmployeeApi('tenant-1', {
-      employeeCode: 'EMP-001',
+      employeeCode: 'EMP-0AF-0001',
       partyId: 'party-1',
       tenantPartyId: 'tenant-party-1'
     })
@@ -72,13 +72,13 @@ describe('tenant-web hr management api', () => {
       roleIds: ['role-1'],
       reason: 'member_access_enable',
       createAccount: {
-        displayName: 'EMP-001',
+        displayName: 'EMP-0AF-0001',
         email: 'member@example.com'
       }
     })
 
     expect(post).toHaveBeenCalledWith('/hr-management/tenants/tenant-1/employees', {
-      employeeCode: 'EMP-001',
+      employeeCode: 'EMP-0AF-0001',
       partyId: 'party-1',
       tenantPartyId: 'tenant-party-1'
     })
@@ -109,7 +109,7 @@ describe('tenant-web hr management api', () => {
         roleIds: ['role-1'],
         reason: 'member_access_enable',
         createAccount: {
-          displayName: 'EMP-001',
+          displayName: 'EMP-0AF-0001',
           email: 'member@example.com'
         }
       }

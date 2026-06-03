@@ -306,6 +306,61 @@ export class AuthAuditService {
   }
 
   /**
+   * emitTerminalPinChanged records a self-service terminal PIN credential change without credential material.
+   */
+  emitTerminalPinChanged(userId: string, action: 'SET' | 'RESET' | 'CHANGE'): void {
+    this.emit('TERMINAL_PIN_CHANGED', 'auth', {
+      operator: this.userOperator(userId),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'terminal_pin',
+        resourceId: userId
+      },
+      details: {
+        userId,
+        action
+      }
+    })
+  }
+
+  /**
+   * emitTerminalPinResetRequired records an administrator reset requirement without credential material.
+   */
+  emitTerminalPinResetRequired(requiredBy: string, userId: string): void {
+    this.emit('TERMINAL_PIN_RESET_REQUIRED', 'auth', {
+      operator: this.userOperator(requiredBy),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'terminal_pin',
+        resourceId: userId
+      },
+      details: {
+        requiredBy,
+        userId
+      }
+    })
+  }
+
+  /**
+   * emitTerminalPinEnabledChanged records a terminal PIN login method enablement-state change.
+   */
+  emitTerminalPinEnabledChanged(operatorId: string, userId: string, enabled: boolean): void {
+    this.emit('TERMINAL_PIN_ENABLED_CHANGED', 'auth', {
+      operator: this.userOperator(operatorId),
+      scope: this.emptyScope(),
+      resource: {
+        resourceType: 'terminal_pin',
+        resourceId: userId
+      },
+      details: {
+        operatorId,
+        userId,
+        enabled
+      }
+    })
+  }
+
+  /**
    * emitLoginMethodEnabledChanged records an enablement-state change for one login method.
    */
   emitLoginMethodEnabledChanged(

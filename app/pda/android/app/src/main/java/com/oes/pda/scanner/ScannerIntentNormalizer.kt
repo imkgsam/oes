@@ -61,4 +61,17 @@ object ScannerIntentNormalizer {
             occurredAt = occurredAt.toString(),
         )
     }
+
+    /** Creates the stable scanResult payload for decoded camera QR Code or Code128 values. */
+    fun cameraScan(scanValue: String, symbology: String?, occurredAt: Instant = Instant.now()): NormalizedScanResult {
+        val normalizedValue = scanValue.trim()
+        return NormalizedScanResult(
+            scanValue = normalizedValue,
+            scanSource = "CAMERA",
+            scannerProvider = "ANDROID_CAMERA",
+            symbology = symbology,
+            rawLength = normalizedValue.length,
+            occurredAt = occurredAt.toString(),
+        )
+    }
 }

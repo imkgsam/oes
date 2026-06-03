@@ -38,6 +38,7 @@ import {
   revokeTerminalDeviceEnrollmentApi,
   updateTerminalDeviceVersionPolicyApi,
 } from '#/api';
+import { $t } from '#/locales';
 
 interface SelectOption {
   label: string;
@@ -113,21 +114,21 @@ const statusForm = reactive({
   targetStatus: 'DISABLED',
 });
 
-const statusTargetCatalog: SelectOption[] = [
-  { label: 'ACTIVE', value: 'ACTIVE' },
-  { label: 'DISABLED', value: 'DISABLED' },
-  { label: 'LOST', value: 'LOST' },
-  { label: 'MAINTENANCE', value: 'MAINTENANCE' },
-  { label: 'DECOMMISSIONED', value: 'DECOMMISSIONED' },
+const statusTargetValues: TerminalDeviceApi.TerminalDeviceStatus[] = [
+  'ACTIVE',
+  'DISABLED',
+  'LOST',
+  'MAINTENANCE',
+  'DECOMMISSIONED',
 ];
-const statusOptions: SelectOption[] = [
-  { label: '全部状态', value: '' },
-  { label: 'ACTIVE', value: 'ACTIVE' },
-  { label: 'DISABLED', value: 'DISABLED' },
-  { label: 'LOST', value: 'LOST' },
-  { label: 'MAINTENANCE', value: 'MAINTENANCE' },
-  { label: 'PENDING_APPROVAL', value: 'PENDING_APPROVAL' },
-  { label: 'DECOMMISSIONED', value: 'DECOMMISSIONED' },
+const statusFilterValues: Array<'' | TerminalDeviceApi.TerminalDeviceStatus> = [
+  '',
+  'ACTIVE',
+  'DISABLED',
+  'LOST',
+  'MAINTENANCE',
+  'PENDING_APPROVAL',
+  'DECOMMISSIONED',
 ];
 
 const deviceColumns = computed<TableColumnsType>(() => [
@@ -137,7 +138,7 @@ const deviceColumns = computed<TableColumnsType>(() => [
   { dataIndex: 'appVersion', title: 'App 版本', width: 120 },
   { dataIndex: 'lastReportedAccount', title: '最近上报账号（非当前会话）' },
   { dataIndex: 'lastHeartbeatAt', title: '最近 heartbeat', width: 180 },
-  { key: 'actions', title: operationColumnTitle, width: 120 },
+  { align: 'center', fixed: 'right', key: 'actions', title: operationColumnTitle, width: 120 },
 ]);
 
 const auditColumns = computed<TableColumnsType>(() => [
@@ -199,8 +200,16 @@ const selectedCurrentSessions = computed(() => selectedDeviceDetail.value?.curre
 const selectedDeviceTitle = computed(() => selectedDeviceDetail.value?.device.displayName || '未命名设备');
 const selectedStatusDeviceTitle = computed(() => selectedStatusDevice.value?.displayName || selectedStatusDevice.value?.terminalDeviceId || '-');
 const statusTargetOptions = computed(() => resolveStatusTargetOptions(selectedStatusDevice.value?.status ?? null));
+const statusOptions = computed<SelectOption[]>(() =>
+  statusFilterValues.map((status) => ({
+    label: status ? formatDeviceStatus(status) : $t('page.terminalDevice.status.all'),
+    value: status,
+  })),
+);
 const statusModalTitle = computed(() =>
-  statusForm.targetStatus === 'DECOMMISSIONED' ? '退役/解绑设备' : '状态操作',
+  statusForm.targetStatus === 'DECOMMISSIONED'
+    ? $t('page.terminalDevice.statusOperation.decommissionTitle')
+    : $t('page.terminalDevice.statusOperation.title'),
 );
 const issuedEnrollmentQrValue = computed(
   () => issuedEnrollment.value?.qrPayload || issuedEnrollment.value?.enrollmentCode || '',
@@ -567,7 +576,7 @@ async function changeSelectedDeviceStatus(): Promise<void> {
   changingStatus.value = true;
   try {
     await changeTerminalDeviceStatusApi(target.terminalDeviceId, {
-      reason: statusForm.reason.trim(),
+      reason: nullableText(statusForm.reason),
       targetStatus: statusForm.targetStatus as TerminalDeviceApi.TerminalDeviceStatus,
     });
     message.success('设备状态变更已提交');
@@ -638,7 +647,12 @@ function resolveStatusTargetOptions(status: TerminalDeviceApi.TerminalDeviceStat
     return [];
   }
 
-  return statusTargetCatalog.filter((option) => option.value !== status);
+  return statusTargetValues
+    .filter((value) => value !== status)
+    .map((value) => ({
+      label: formatDeviceStatus(value),
+      value,
+    }));
 }
 
 // Copies server version policy fields into the local edit form.
@@ -702,6 +716,16 @@ function getStatusColor(status?: string): string {
   }
 }
 
+// formatDeviceStatus renders lifecycle status with the active tenant-web locale catalog.
+function formatDeviceStatus(status?: string): string {
+  return status ? $t(`page.terminalDevice.status.${status}`) : '-';
+}
+
+// formatPresenceStatus renders heartbeat-derived presence with the active tenant-web locale catalog.
+function formatPresenceStatus(status?: string): string {
+  return status ? $t(`page.terminalDevice.presence.${status}`) : '-';
+}
+
 // Formats optional ISO timestamps without hiding malformed diagnostic values.
 function formatTime(value?: null | string): string {
   if (!value) {
@@ -737,6 +761,8 @@ defineExpose({
   enrollmentForm,
   handleDeviceListActionMenu,
   handleDeviceRowActionMenu,
+  formatDeviceStatus,
+  formatPresenceStatus,
   issuedEnrollment,
   openDiagnosticLogs,
   openDeviceDetail,
@@ -791,15 +817,16 @@ defineExpose({
             :data-source="devices"
             :loading="loading"
             :locale="{ emptyText: '暂无终端设备' }"
+            :scroll="{ x: 1180 }"
             row-key="terminalDeviceId"
           >
             <template #bodyCell="{ column, record }">
               <template v-if="column.dataIndex === 'status'">
-                <Tag :color="getStatusColor(record.status)">{{ record.status }}</Tag>
+                <Tag :color="getStatusColor(record.status)">{{ formatDeviceStatus(record.status) }}</Tag>
               </template>
               <template v-else-if="column.dataIndex === 'presenceStatus'">
                 <Tag :color="record.presenceStatus === 'ONLINE' ? 'green' : 'default'">
-                  {{ record.presenceStatus }}
+                  {{ formatPresenceStatus(record.presenceStatus) }}
                 </Tag>
               </template>
               <template v-else-if="column.dataIndex === 'lastReportedAccount'">
@@ -936,7 +963,7 @@ defineExpose({
                 <p>{{ selectedDeviceDetail?.device.terminalDeviceId }}</p>
               </div>
               <Tag :color="getStatusColor(selectedDeviceDetail?.device.status)">
-                {{ selectedDeviceDetail?.device.status || '-' }}
+                {{ formatDeviceStatus(selectedDeviceDetail?.device.status) }}
               </Tag>
             </header>
 
@@ -1092,7 +1119,7 @@ defineExpose({
           <p v-if="statusTargetOptions.length === 0" class="terminal-device-management__status-empty">
             退役设备是终态，不能再变更生命周期状态。
           </p>
-          <Input v-model:value="statusForm.reason" placeholder="状态变更原因，必须用于审计" />
+          <Input v-model:value="statusForm.reason" :placeholder="$t('page.terminalDevice.statusOperation.reasonPlaceholder')" />
           <Button
             html-type="submit"
             :disabled="statusTargetOptions.length === 0"
@@ -1196,7 +1223,8 @@ defineExpose({
 }
 
 .terminal-device-management__filters {
-  grid-template-columns: minmax(220px, 1fr) 180px 96px;
+  align-items: center;
+  grid-template-columns: minmax(240px, 1fr) minmax(150px, 220px) minmax(96px, 128px);
 }
 
 .terminal-device-management__form label {
@@ -1489,13 +1517,11 @@ defineExpose({
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 720px) {
   .terminal-device-management__filters {
     grid-template-columns: 1fr;
   }
-}
 
-@media (max-width: 720px) {
   .terminal-device-management__facts {
     grid-template-columns: 1fr;
   }

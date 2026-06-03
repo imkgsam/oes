@@ -677,6 +677,7 @@ onMounted(() => {
           :loading="loading"
           :locale="{ emptyText: '暂无报价' }"
           :pagination="false"
+          :scroll="{ x: 900 }"
           row-key="quoteId"
           size="middle"
         />
@@ -690,6 +691,7 @@ onMounted(() => {
           :loading="loading"
           :locale="{ emptyText: '暂无订单' }"
           :pagination="false"
+          :scroll="{ x: 900 }"
           row-key="salesOrderId"
           size="middle"
         />

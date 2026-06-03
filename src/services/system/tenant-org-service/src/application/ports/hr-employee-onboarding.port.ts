@@ -5,6 +5,7 @@ export interface HrEmployeeOnboardingPort {
     account: {
       existingAccountId: string
     }
+    employeeCode: string
     idempotencyKey: string
     person: {
       existingPartyId?: string

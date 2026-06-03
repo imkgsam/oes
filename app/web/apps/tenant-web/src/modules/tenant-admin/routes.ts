@@ -150,7 +150,7 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         component: () => import('#/views/admin/employee-management.vue'),
         meta: {
           entryKey: 'tenant-settings.employee-employment',
-          icon: 'lucide:badge-id-card',
+          icon: 'lucide:id-card',
           title: '员工管理',
         },
       },
@@ -205,7 +205,7 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
           entryKey: 'master-data.item-management',
           fullPathKey: false,
           icon: 'lucide:package-2',
-          title: 'Item 管理',
+          title: 'ItemModel 管理',
         },
       },
       {
@@ -249,7 +249,7 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
           entryKey: 'master-data.item-packaging-management',
           fullPathKey: false,
           icon: 'lucide:package-check',
-          title: 'Item 包装管理',
+          title: '包装管理',
         },
       },
       {
@@ -338,6 +338,28 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
           entryKey: 'master-data.item-management',
           hideInMenu: true,
           title: '创建 Item',
+        },
+      },
+      {
+        name: 'TenantItemModelCreate',
+        path: '/master-data/item-models/create',
+        component: () => import('#/views/admin/item-model-create.vue'),
+        meta: {
+          activePath: '/master-data/items',
+          entryKey: 'master-data.item-management',
+          hideInMenu: true,
+          title: '创建 ItemModel',
+        },
+      },
+      {
+        name: 'TenantItemModelDetail',
+        path: '/master-data/item-models/:itemModelId',
+        component: () => import('#/views/admin/item-model-detail.vue'),
+        meta: {
+          activePath: '/master-data/items',
+          entryKey: 'master-data.item-management',
+          hideInMenu: true,
+          title: 'ItemModel 详情',
         },
       },
       {

@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
 import {
   IsDateString,
+  IsBoolean,
   IsEnum,
   IsInt,
   IsOptional,
@@ -83,6 +84,43 @@ export class ChangeOwnPasswordDto {
   @IsOptional()
   @IsString()
   mfaGrantToken?: string
+}
+
+// Defines the payload used by an authenticated user to set or reset their own terminal PIN.
+export class OwnTerminalPinDto {
+  @ApiPropertyOptional({
+    description: 'Current password used as step-up proof when MFA grant is unavailable.'
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  currentPassword?: string
+
+  @ApiProperty({
+    description: 'New six digit terminal PIN.',
+    minLength: 6,
+    maxLength: 6
+  })
+  @IsString()
+  @MinLength(6)
+  @MaxLength(6)
+  newPin!: string
+
+  @ApiPropertyOptional({
+    description: 'Optional short-lived step-up MFA grant required by protected tenant scenarios.'
+  })
+  @IsOptional()
+  @IsString()
+  mfaGrantToken?: string
+}
+
+// Defines the payload used by an authenticated user to enable or disable terminal PIN login.
+export class SetOwnTerminalPinEnabledDto {
+  @ApiProperty({
+    description: 'Whether terminal PIN login should be enabled for the current user.'
+  })
+  @IsBoolean()
+  enabled!: boolean
 }
 
 // Defines the payload used to request one authenticated self-service email binding challenge.

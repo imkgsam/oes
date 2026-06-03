@@ -18,6 +18,7 @@ describe('pda router session guard', () => {
         },
       }),
       openCamera: vi.fn() as never,
+      openCameraScanner: vi.fn() as never,
       beep: vi.fn() as never,
       vibrate: vi.fn() as never,
     });
@@ -56,6 +57,18 @@ describe('pda router session guard', () => {
     const redirect = await resolvePdaSessionRoute('/login');
 
     expect(redirect).toBe('/enrollment');
+  });
+
+  it('protects mold execution route behind an authenticated PDA session', async () => {
+    window.localStorage.setItem(
+      'oes:pda:terminal-device-binding',
+      JSON.stringify({
+        terminalDeviceId: 'terminal-device-1',
+        displayName: 'PDA-01',
+      }),
+    );
+
+    expect(await resolvePdaSessionRoute('/molds')).toBe('/login');
   });
 
   it('routes a persisted disabled device binding to the restricted page after app restart', async () => {

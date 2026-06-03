@@ -6,6 +6,7 @@ export interface TenantOrgReferenceValidationResult {
 }
 
 export interface TenantOrgReferencePort {
+  getTenantEmployeeCodePrefix(tenantId: string): Promise<string>
   validateOrgReference(input: {
     tenantId: string
     orgUnitId: string

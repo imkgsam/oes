@@ -1,5 +1,7 @@
 # crm-service Customer Management API
 
+> `crm-service` 的服务职责、核心对象、owner 边界与长期命名以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为唯一稳定真相源。本文只描述 phase 1 management command 黑盒契约。
+
 ## 1. 模块职责
 
 `CustomerManagementService` 负责 phase 1 最小客户主档的写接口。

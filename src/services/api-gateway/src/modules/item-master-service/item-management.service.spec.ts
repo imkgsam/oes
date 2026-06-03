@@ -47,6 +47,7 @@ describe('ItemManagementService V2 BFF mapping', () => {
     createItemModel: jest.fn(),
     createPackagingMethod: jest.fn(),
     createPackagingSpec: jest.fn(),
+    deletePackagingMethod: jest.fn(),
     moveItemCategory: jest.fn(),
     replaceBomLines: jest.fn(),
     setItemCapabilities: jest.fn(),
@@ -478,6 +479,7 @@ describe('ItemManagementService V2 BFF mapping', () => {
         packagingMethodId: 'method-1',
         methodCode: 'ECOM',
         methodName: 'E-commerce',
+        description: 'Online parcel packaging',
         active: true
       }
     })
@@ -496,10 +498,11 @@ describe('ItemManagementService V2 BFF mapping', () => {
     await expect(
       service.createPackagingMethod(
         'tenant-1',
-        { methodCode: 'ECOM', methodName: 'E-commerce' },
+        { methodCode: 'ECOM', methodName: 'E-commerce', description: ' Online parcel packaging ' },
         source as never
       )
     ).resolves.toMatchObject({
+      description: 'Online parcel packaging',
       methodCode: 'ECOM',
       status: 'ACTIVE'
     })
@@ -521,7 +524,11 @@ describe('ItemManagementService V2 BFF mapping', () => {
     })
 
     expect(itemManagementAdapter.createPackagingMethod).toHaveBeenCalledWith(
-      expect.objectContaining({ methodCode: 'ECOM', tenantId: 'tenant-1' }),
+      expect.objectContaining({
+        description: 'Online parcel packaging',
+        methodCode: 'ECOM',
+        tenantId: 'tenant-1'
+      }),
       source
     )
     expect(itemManagementAdapter.createPackagingSpec).toHaveBeenCalledWith(
@@ -530,6 +537,22 @@ describe('ItemManagementService V2 BFF mapping', () => {
         packagingMethodId: 'method-1',
         specCode: 'PKG-1'
       }),
+      source
+    )
+  })
+
+  it('deletes packaging methods through the management adapter', async () => {
+    itemManagementAdapter.deletePackagingMethod.mockResolvedValue({})
+
+    await expect(
+      service.deletePackagingMethod('tenant-1', 'method-1', source as never)
+    ).resolves.toEqual({})
+
+    expect(itemManagementAdapter.deletePackagingMethod).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        packagingMethodId: 'method-1'
+      },
       source
     )
   })

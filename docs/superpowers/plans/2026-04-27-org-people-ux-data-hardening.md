@@ -27,14 +27,14 @@ Add assertions that `listEmployees()` and `getEmployeeDetail()` return `employee
 expect(result.items[0].employee).toEqual(
   expect.objectContaining({
     displayName: '陈双鹏',
-    employeeCode: 'EMP-001',
+    employeeCode: 'EMP-0AF-0001',
   }),
 );
 
 expect(result.items[1].employee).toEqual(
   expect.objectContaining({
     displayName: undefined,
-    employeeCode: 'EMP-002',
+    employeeCode: 'EMP-0AF-0002',
   }),
 );
 ```
@@ -320,7 +320,7 @@ export function buildSeedHrEmployees() {
       tenantId: COMPANY_MEILONG_ID,
       tenantPartyId: 'tenant-party-chen-shuangpeng-meilong',
       partyId: 'party-chen-shuangpeng',
-      employeeCode: 'ML-EMP-001',
+      employeeCode: '0001',
       lifecycleStatus: 'ACTIVE',
     },
   ];

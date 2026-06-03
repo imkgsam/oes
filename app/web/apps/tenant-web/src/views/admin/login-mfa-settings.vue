@@ -358,9 +358,6 @@ onBeforeUnmount(() => {
           </Row>
 
           <div class="login-mfa-settings__footer">
-            <div class="login-mfa-settings__footer-meta">
-              保存后，当前租户账号安全操作会按这里的 MFA 因子与场景配置执行；登录 MFA 由 Terminal 登录策略控制。
-            </div>
             <Button
               v-access:code="'auth.mfa_policy.manage'"
               v-if="canManageLoginMfa"
@@ -412,8 +409,7 @@ onBeforeUnmount(() => {
 
 .login-mfa-settings__meta,
  .login-mfa-settings__drag-hint,
- .login-mfa-settings__empty,
- .login-mfa-settings__footer-meta {
+ .login-mfa-settings__empty {
   color: var(--tenant-settings-muted);
   font-size: 13px;
 }
@@ -432,8 +428,7 @@ onBeforeUnmount(() => {
 }
 
 .login-mfa-settings__description,
-.login-mfa-settings__meta,
-.login-mfa-settings__footer-meta {
+.login-mfa-settings__meta {
   line-height: 1.6;
 }
 
@@ -554,7 +549,7 @@ onBeforeUnmount(() => {
 }
 
 .login-mfa-settings__footer {
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 18px 20px 4px;
 }
 
@@ -572,8 +567,7 @@ onBeforeUnmount(() => {
   .login-mfa-settings__header,
   .login-mfa-settings__section-head,
   .login-mfa-settings__factor-row,
-  .login-mfa-settings__scenario-row,
-  .login-mfa-settings__footer {
+  .login-mfa-settings__scenario-row {
     align-items: flex-start;
     flex-direction: column;
   }
@@ -583,6 +577,8 @@ onBeforeUnmount(() => {
   }
 
   .login-mfa-settings__footer {
+    align-items: flex-end;
+    flex-direction: column;
     padding-left: 0;
     padding-right: 0;
   }

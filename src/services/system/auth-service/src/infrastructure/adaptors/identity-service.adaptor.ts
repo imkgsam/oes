@@ -18,11 +18,14 @@ import {
   GetUserByEmailResponse,
   GetUserByPhoneRequest,
   GetUserByPhoneResponse,
-  IdentityQueryServiceClient
+  IdentityQueryServiceClient,
+  ResolveEmployeeLoginAccountRequest,
+  ResolveEmployeeLoginAccountResponse
 } from '@oes/common/generated/identity_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
 import {
   AccountCandidateSummary,
+  EmployeeLoginAccountSummary,
   IIdentityServicePort,
   IdentityAccountSummary,
   IdentityUserSummary
@@ -158,6 +161,42 @@ export class IdentityServiceAdaptor implements IIdentityServicePort, OnModuleIni
       }
     } catch (error) {
       this.rethrowIfInfrastructureError(error, 'getAccountById', { accountId })
+      throw error
+    }
+  }
+
+  async resolveEmployeeLoginAccount(input: {
+    tenantId: string
+    employeeId: string
+  }): Promise<EmployeeLoginAccountSummary | null> {
+    try {
+      const response = await safeGrpcCall<ResolveEmployeeLoginAccountResponse>(
+        this.identityQueryService.resolveEmployeeLoginAccount({
+          tenantId: input.tenantId,
+          employeeId: input.employeeId
+        } as ResolveEmployeeLoginAccountRequest, this.metadata()),
+        {
+          caller: 'auth-service',
+          method: 'IdentityQueryService.resolveEmployeeLoginAccount'
+        }
+      )
+
+      const account = response.account
+      if (!account?.accountId || !account.userId) {
+        return null
+      }
+
+      return {
+        employeeId: input.employeeId,
+        userId: account.userId,
+        accountId: account.accountId,
+        tenantId: this.normalizeTenantId(account.tenantId),
+        scopeLevel: this.normalizeScopeLevel(account.scopeLevel),
+        displayName: account.displayName ?? '',
+        isEnabled: account.accountEnabled ?? false
+      }
+    } catch (error) {
+      this.rethrowIfInfrastructureError(error, 'resolveEmployeeLoginAccount', input)
       throw error
     }
   }

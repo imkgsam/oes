@@ -99,8 +99,11 @@ const optionColumns = [
     title: '状态'
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'operation',
-    title: operationColumnTitle
+    title: operationColumnTitle,
+    width: 110
   }
 ]
 
@@ -298,6 +301,7 @@ onMounted(() => {
             :locale="{ emptyText: '暂无属性选项' }"
             :pagination="false"
             :row-key="(record: ItemManagementApi.AttributeOptionRecord) => record.attributeOptionId"
+            :scroll="{ x: 760 }"
             size="middle"
           >
             <template #bodyCell="{ column, record }">

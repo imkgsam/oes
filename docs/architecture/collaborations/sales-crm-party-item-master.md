@@ -1,6 +1,8 @@
 # Sales、CRM、Party 与 Item Master 协同蓝图
 
-Last Updated: 2026-05-13
+Last Updated: 2026-05-22
+
+> `crm-service` 的服务职责、核心对象、owner 边界与长期命名以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为唯一稳定真相源。本文只描述 `sales-service`、`crm-service`、`party-service` 与 `item-master-service` 的跨服务协同，不重新定义 CRM 服务内部设计。
 
 ## 1. 目标
 

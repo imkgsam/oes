@@ -153,6 +153,28 @@ export class HrManagementService {
     return { items: [] }
   }
 
+  async previewNextEmployeeCode(tenantId: string, source: DownstreamRequestSource) {
+    const resolvedTenantId = this.resolveTenantId(tenantId, source)
+    const [employeeCodePrefix, employeeResult] = await Promise.all([
+      this.orgManagementService.getTenantEmployeeCodePrefix(resolvedTenantId, source),
+      this.hrQueryAdapter.listEmployees(
+        {
+          tenantId: resolvedTenantId,
+          page: 1,
+          pageSize: 1
+        },
+        source
+      )
+    ])
+    const sequence = Number(employeeResult.total ?? 0) + 1
+    if (sequence > 0xffff) {
+      throw new BadRequestException('employeeCode sequence exhausted for this tenant')
+    }
+    return {
+      employeeCode: `EMP-${employeeCodePrefix}-${sequence.toString(16).toUpperCase().padStart(4, '0')}`
+    }
+  }
+
   async createEmployee(
     tenantId: string,
     input: {
@@ -192,7 +214,7 @@ export class HrManagementService {
           tenantId: resolvedTenantId,
           tenantPartyId: requireNonBlank(input.tenantPartyId, 'tenantPartyId'),
           partyId: normalize(input.partyId),
-          employeeCode: requireNonBlank(input.employeeCode, 'employeeCode')
+          employeeCode: normalize(input.employeeCode)
         },
         source
       )

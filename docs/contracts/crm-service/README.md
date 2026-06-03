@@ -1,5 +1,7 @@
 # crm-service Contracts
 
+> `crm-service` 的服务职责、核心对象、owner 边界与长期命名以 [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md) 为唯一稳定真相源。本目录只描述 phase 1 customer master 黑盒契约，不重新定义 CRM 服务设计。
+
 ## 1. 目的
 
 本目录用于冻结 `crm-service` phase 1 最小客户主档的黑盒契约文档。

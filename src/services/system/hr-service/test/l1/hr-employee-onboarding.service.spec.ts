@@ -21,7 +21,7 @@ function createHrManagementServiceMock() {
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
       partyId: 'party-1',
-      employeeCode: 'EMP-0001',
+      employeeCode: 'EMP-0AF-0001',
       lifecycleStatus: 'PREBOARDING'
     }),
     createEmployment: jest.fn().mockResolvedValue({
@@ -30,7 +30,7 @@ function createHrManagementServiceMock() {
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
         partyId: 'party-1',
-        employeeCode: 'EMP-0001',
+        employeeCode: 'EMP-0AF-0001',
         lifecycleStatus: 'ACTIVE'
       },
       employment: {
@@ -52,7 +52,12 @@ function createHrQueryServiceMock() {
   return {
     getEmployeeByTenantPartyId: jest.fn().mockRejectedValue(new NotFoundException('not found')),
     getActiveEmployment: jest.fn().mockRejectedValue(new NotFoundException('not found')),
-    listEmployees: jest.fn().mockResolvedValue({ total: 0, items: [], page: 1, pageSize: 1 })
+    listEmployees: jest.fn().mockResolvedValue({
+      total: 1,
+      items: [{ employeeCode: 'EMP-0AF-0001' }],
+      page: 1,
+      pageSize: 1
+    })
   }
 }
 
@@ -230,7 +235,7 @@ describe('HrEmployeeOnboardingService', () => {
     expect(result.access?.failureReason).toBe('CONTACT_ALREADY_BOUND')
   })
 
-  it('retries backend-owned employee code generation when concurrent onboarding consumes the first code', async () => {
+  it('retries backend-owned employee creation when generated suffix allocation collides', async () => {
     const partyPort = createPartyPortMock()
     const hrManagementService = createHrManagementServiceMock()
     hrManagementService.createEmployee
@@ -240,13 +245,10 @@ describe('HrEmployeeOnboardingService', () => {
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
         partyId: 'party-1',
-        employeeCode: 'EMP-0002',
+        employeeCode: 'EMP-0AF-0003',
         lifecycleStatus: 'PREBOARDING'
       })
     const hrQueryService = createHrQueryServiceMock()
-    hrQueryService.listEmployees
-      .mockResolvedValueOnce({ total: 0, items: [], page: 1, pageSize: 1 })
-      .mockResolvedValueOnce({ total: 1, items: [], page: 1, pageSize: 1 })
     const accessService = createAccessServiceMock()
     const service = new HrEmployeeOnboardingService(
       partyPort as never,
@@ -262,16 +264,39 @@ describe('HrEmployeeOnboardingService', () => {
         person: { legalName: '林予安' }
       })
     ).resolves.toMatchObject({
-      employee: { id: 'employee-2', employeeCode: 'EMP-0002' }
+      employee: { id: 'employee-2', employeeCode: 'EMP-0AF-0003' }
     })
 
     expect(hrManagementService.createEmployee).toHaveBeenNthCalledWith(
       1,
-      expect.objectContaining({ employeeCode: 'EMP-0001' })
+      expect.not.objectContaining({ employeeCode: expect.any(String) })
     )
     expect(hrManagementService.createEmployee).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({ employeeCode: 'EMP-0002' })
+      expect.not.objectContaining({ employeeCode: expect.any(String) })
+    )
+  })
+
+  it('delegates omitted employee code generation to HR management', async () => {
+    const partyPort = createPartyPortMock()
+    const hrManagementService = createHrManagementServiceMock()
+    const hrQueryService = createHrQueryServiceMock()
+    const accessService = createAccessServiceMock()
+    const service = new HrEmployeeOnboardingService(
+      partyPort as never,
+      hrManagementService as never,
+      hrQueryService as never,
+      accessService as never
+    )
+
+    await service.startEmployeeOnboarding({
+      idempotencyKey: 'first-employee',
+      tenantId: 'tenant-1',
+      person: { legalName: '首位员工' }
+    })
+
+    expect(hrManagementService.createEmployee).toHaveBeenCalledWith(
+      expect.not.objectContaining({ employeeCode: expect.any(String) })
     )
   })
 })

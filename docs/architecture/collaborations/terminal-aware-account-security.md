@@ -78,7 +78,7 @@ Terminal Entry Login Policy 是平台级认证入口策略，定义每类 termin
 - 由平台管理员配置。
 - 租户管理员不配置 primary login method。
 - 策略只启停已实现 login flow。
-- 未实现的 employee code + PIN、badge + PIN、SSO、passkey 不应作为可启用开关；可作为 planned/disabled 展示或不展示。
+- 在 PDA Employee Code + Terminal PIN Login feature 实现前，employee code + PIN 不应作为可启用开关；badge + PIN、SSO、passkey 等未实现 flow 也不应作为可启用开关，可作为 planned/disabled 展示或不展示。
 - 策略不改变各前端固定登录流程，只控制入口可用性与后端准入。
 
 示例：
@@ -96,6 +96,8 @@ PDA:
 KIOSK:
   none in Phase 2, future EMPLOYEE_CODE_PIN / BADGE_PIN
 ```
+
+PDA Employee Code + Terminal PIN Login 实现后，`EMPLOYEE_CODE_PIN` 可作为已实现 flow 纳入 PDA / future KIOSK 的 platform terminal entry login policy。`badge + PIN` 仍属于独立后续设计，不因 employee code login 自动成为可启用项。
 
 ## 5. Web Login 协同
 
@@ -133,12 +135,31 @@ PDA App
 -> session issued with terminalDeviceId and deviceBoundTenantId
 ```
 
+Employee Code + Terminal PIN 登录协同：
+
+```text
+PDA App
+-> /pda/auth/login, method=EMPLOYEE_CODE_PIN
+-> BFF / terminal-device-service confirms terminalDeviceId and deviceBoundTenantId
+-> auth-service checks EMPLOYEE_CODE_PIN is enabled for PDA
+-> auth-service calls hr-service ResolveActiveEmployeeByCode(deviceBoundTenantId, employeeCode)
+-> auth-service calls identity-service ResolveEmployeeLoginAccount(tenantId, employeeId)
+-> auth-service verifies user-scoped TERMINAL_PIN
+-> permission-service resolves Terminal Access Policy for resolved account
+-> auth-service resolves terminal MFA policy; PDA default is false
+-> session issued with terminalDeviceId, deviceBoundTenantId and loginFlow=EMPLOYEE_CODE_PIN
+```
+
 稳定规则：
 
 - PDA Phase 2 不提供 account selection。
 - 没有可 PDA 登录 account 时拒绝登录。
 - 多个可 PDA 登录 account 时拒绝登录，并要求后台治理收敛。
 - PDA 常规登录 MFA 默认关闭，但模型层支持租户按 terminal 显式开启。
+- `employeeCode` 不是认证凭据；它只在设备绑定租户内解析 HR employee 和目标 account。
+- `TERMINAL_PIN` 是 `auth-service` 拥有的 user-scoped login credential，可供 PDA 与 future KIOSK / 触摸屏共用。
+- `TERMINAL_PIN` 设置、修改、忘记后重设、启用与停用在 Web 个人中心账号安全中完成，PDA 不提供 PIN 找回或设置流程。
+- 管理员只能要求重设或禁用目标用户 `TERMINAL_PIN`，不得查看或设置明文 PIN。
 
 ## 7. Terminal MFA Policy
 

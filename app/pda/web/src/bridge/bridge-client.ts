@@ -6,6 +6,7 @@ import type {
   CameraCaptureCompleted,
   CameraCaptureRequest,
   CameraCaptureResult,
+  CameraScannerRequest,
   PdaBridgeClient,
   ScanResult,
 } from './types';
@@ -23,6 +24,18 @@ let bridgeClient: PdaBridgeClient | undefined;
 const eventListeners = new Set<(event: BridgeEventEnvelope) => void>();
 const pendingCameraCaptures = new Map<string, (result: BridgeResult<CameraCaptureResult>) => void>();
 const CAMERA_CAPTURE_TIMEOUT_MS = 5 * 60 * 1000;
+export const DEFAULT_CAMERA_SCANNER_FORMATS: NonNullable<CameraScannerRequest['formats']> = [
+  'QR_CODE',
+  'CODE128',
+  'CODE39',
+  'CODE93',
+  'EAN13',
+  'EAN8',
+  'UPCA',
+  'UPCE',
+  'CODABAR',
+  'ITF',
+];
 
 /** Returns the active PDA bridge client, falling back to a browser-safe mock before Android is attached. */
 export function getBridgeClient(): PdaBridgeClient {
@@ -59,6 +72,19 @@ function createAndroidBridgeClient(androidBridge: AndroidPdaBridge): PdaBridgeCl
       }
 
       return waitForCameraCapture(requestId);
+    },
+    async openCameraScanner(request = { formats: DEFAULT_CAMERA_SCANNER_FORMATS }) {
+      if (!androidBridge.openCameraScanner) {
+        return {
+          ok: false,
+          error: {
+            code: 'CAMERA_SCANNER_UNAVAILABLE',
+            message: 'Camera scanner is unavailable',
+          },
+        };
+      }
+
+      return parseBridgeJson(androidBridge.openCameraScanner(JSON.stringify(request)));
     },
     async getSessionTokens() {
       if (!androidBridge.getSessionTokens) {

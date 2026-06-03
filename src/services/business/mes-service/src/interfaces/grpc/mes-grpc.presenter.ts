@@ -3,6 +3,8 @@ import {
   AdjustMoldLifeCounterResponse,
   AuditRef,
   CarrierResourceRef,
+  ConfirmInstalledMoldReadyResponse,
+  ConfirmProductionMoldArrivalResponse,
   CurrentMoldByWorkCenterItem,
   GetMasterMoldResponse,
   GetMoldDesignResponse,
@@ -17,6 +19,7 @@ import {
   ListMoldLifeCountersResponse,
   ListProductionMoldsByDesignResponse,
   ListProductionMoldsResponse,
+  MarkInstalledMoldMaintenanceResponse,
   MarkProductionMoldForScrapResponse,
   MasterMoldStatus as ProtoMasterMoldStatus,
   MasterMold,
@@ -125,6 +128,11 @@ export class MesGrpcPresenter {
     return { productionMold: this.toProductionMold(record) }
   }
 
+  /** toConfirmProductionMoldArrivalResponse presents one arrived production mold. */
+  static toConfirmProductionMoldArrivalResponse(input: { productionMold: ProductionMoldRecord }): ConfirmProductionMoldArrivalResponse {
+    return { productionMold: this.toProductionMold(input.productionMold) }
+  }
+
   /** toAcceptProductionMoldResponse presents one accepted production mold. */
   static toAcceptProductionMoldResponse(input: { productionMold: ProductionMoldRecord }): AcceptProductionMoldResponse {
     return { productionMold: this.toProductionMold(input.productionMold) }
@@ -143,6 +151,16 @@ export class MesGrpcPresenter {
   /** toUnmountToolingResponse presents one closed tooling installation fact. */
   static toUnmountToolingResponse(input: { toolingInstallation: ToolingInstallationRecord }): UnmountToolingResponse {
     return { toolingInstallation: this.toToolingInstallation(input.toolingInstallation) }
+  }
+
+  /** toConfirmInstalledMoldReadyResponse presents one installed mold that can record usage. */
+  static toConfirmInstalledMoldReadyResponse(input: { productionMold: ProductionMoldRecord }): ConfirmInstalledMoldReadyResponse {
+    return { productionMold: this.toProductionMold(input.productionMold) }
+  }
+
+  /** toMarkInstalledMoldMaintenanceResponse presents one installed mold returned to maintenance. */
+  static toMarkInstalledMoldMaintenanceResponse(input: { productionMold: ProductionMoldRecord }): MarkInstalledMoldMaintenanceResponse {
+    return { productionMold: this.toProductionMold(input.productionMold) }
   }
 
   /** toRecordMoldUsageResponse presents usage and life counter facts. */
@@ -610,14 +628,14 @@ export function toDomainMasterMoldStatus(value?: ProtoMasterMoldStatus): MasterM
 /** toDomainProductionMoldStatus maps generated production mold status filters into domain values. */
 export function toDomainProductionMoldStatus(value?: ProtoProductionMoldStatus): ProductionMoldStatus | undefined {
   switch (value) {
-    case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_RECEIVED:
-      return ProductionMoldStatus.RECEIVED
+    case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_PRE_REGISTERED:
+      return ProductionMoldStatus.PRE_REGISTERED
     case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_PREPARING:
       return ProductionMoldStatus.PREPARING
     case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_AVAILABLE:
       return ProductionMoldStatus.AVAILABLE
-    case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_INSTALLED:
-      return ProductionMoldStatus.INSTALLED
+    case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_READY:
+      return ProductionMoldStatus.READY
     case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_MAINTENANCE:
       return ProductionMoldStatus.MAINTENANCE
     case ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_DISABLED:
@@ -822,12 +840,12 @@ function toProtoMoldDesignStatus(value: MoldDesignStatus): ProtoMoldDesignStatus
 
 function toProtoProductionMoldStatus(value: ProductionMoldStatus): ProtoProductionMoldStatus {
   switch (value) {
-    case ProductionMoldStatus.RECEIVED:
-      return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_RECEIVED
+    case ProductionMoldStatus.PRE_REGISTERED:
+      return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_PRE_REGISTERED
     case ProductionMoldStatus.PREPARING:
       return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_PREPARING
-    case ProductionMoldStatus.INSTALLED:
-      return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_INSTALLED
+    case ProductionMoldStatus.READY:
+      return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_READY
     case ProductionMoldStatus.MAINTENANCE:
       return ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_MAINTENANCE
     case ProductionMoldStatus.DISABLED:
@@ -991,7 +1009,7 @@ function toProtoAuditRef(record: AuditRefRecord): AuditRef {
 function toProtoMoldInstallationDetail(record: MoldInstallationDetailRecord): MoldInstallationDetail {
   return {
     toolingInstallationId: record.toolingInstallationId,
-    moldPosition: record.moldPosition ?? undefined,
+    moldPositionIndex: record.moldPositionIndex,
     cavityPosition: record.cavityPosition ?? undefined,
     cavityMapping: record.cavityMapping ?? undefined,
     setupParameters: record.setupParameters ?? undefined

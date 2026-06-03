@@ -252,7 +252,7 @@ export class ItemMasterQueryV2Service {
   async listPackagingMethods(request: { tenantId?: string; keyword?: string; active?: boolean }) {
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const where: any = { tenantId }
-    applyKeyword(where, request.keyword, 'methodCode', 'methodName')
+    applyKeyword(where, request.keyword, 'methodCode', 'methodName', 'description')
     if (request.active !== undefined) where.active = request.active
     const records = await this.prisma.packagingMethod.findMany({ where, orderBy: [{ methodCode: 'asc' }, { id: 'asc' }] })
     return { packagingMethods: records.map(toPackagingMethodRecord) }
@@ -715,7 +715,8 @@ export class ItemMasterManagementV2Service
         id: randomUUID(),
         tenantId: requireText(request.tenantId, 'tenant_id'),
         methodCode: requireText(request.methodCode, 'method_code'),
-        methodName: requireText(request.methodName, 'method_name')
+        methodName: requireText(request.methodName, 'method_name'),
+        description: normalizeOptional(request.description) ?? null
       }
     }).catch(handleUnique)
     return { packagingMethod: toPackagingMethodRecord(record) }
@@ -725,9 +726,16 @@ export class ItemMasterManagementV2Service
     const tenantId = requireText(request.tenantId, 'tenant_id')
     const id = requireText(request.packagingMethodId, 'packaging_method_id')
     await ensureExists(this.prisma.packagingMethod, { tenantId, id }, 'packaging_method')
+    const data: any = {
+      methodCode: requireText(request.methodCode, 'method_code'),
+      methodName: requireText(request.methodName, 'method_name')
+    }
+    if (Object.prototype.hasOwnProperty.call(request, 'description')) {
+      data.description = normalizeOptional(request.description) ?? null
+    }
     const record = await this.prisma.packagingMethod.update({
       where: { id },
-      data: { methodCode: requireText(request.methodCode, 'method_code'), methodName: requireText(request.methodName, 'method_name') }
+      data
     }).catch(handleUnique)
     return { packagingMethod: toPackagingMethodRecord(record) }
   }
@@ -738,6 +746,21 @@ export class ItemMasterManagementV2Service
     await ensureExists(this.prisma.packagingMethod, { tenantId, id }, 'packaging_method')
     const record = await this.prisma.packagingMethod.update({ where: { id }, data: { active: Boolean(request.active) } })
     return { packagingMethod: toPackagingMethodRecord(record) }
+  }
+
+  /** deletePackagingMethod hard-deletes only unused packaging method dictionary rows. */
+  async deletePackagingMethod(request: any) {
+    const tenantId = requireText(request.tenantId, 'tenant_id')
+    const id = requireText(request.packagingMethodId, 'packaging_method_id')
+    await ensureExists(this.prisma.packagingMethod, { tenantId, id }, 'packaging_method')
+
+    const specCount = await this.prisma.packagingSpec.count({
+      where: { tenantId, packagingMethodId: id }
+    })
+    if (specCount > 0) throw failedPrecondition('packaging_method_in_use')
+
+    await this.prisma.packagingMethod.delete({ where: { id } })
+    return {}
   }
 
   async createPackagingSpec(request: any) {
@@ -906,10 +929,10 @@ function bomInclude(): any {
   return { lines: { include: { componentItem: { include: itemInclude() } }, orderBy: { sortOrder: 'asc' } } }
 }
 
-function applyKeyword(where: any, keyword: string | undefined, codeField: string, nameField: string): void {
+function applyKeyword(where: any, keyword: string | undefined, ...fields: string[]): void {
   const value = normalizeOptional(keyword)
   if (!value) return
-  where.OR = [{ [codeField]: { contains: value, mode: 'insensitive' } }, { [nameField]: { contains: value, mode: 'insensitive' } }]
+  where.OR = fields.map((field) => ({ [field]: { contains: value, mode: 'insensitive' } }))
 }
 
 function applyCapabilityFilters(where: any, filters?: ItemCapabilityFilters): void {
@@ -1133,7 +1156,13 @@ function toAttributeOptionRecord(record: any): AttributeOptionRecord {
 }
 
 function toPackagingMethodRecord(record: any): PackagingMethodRecord {
-  return { packagingMethodId: record.id, methodCode: record.methodCode, methodName: record.methodName, active: record.active }
+  return {
+    packagingMethodId: record.id,
+    methodCode: record.methodCode,
+    methodName: record.methodName,
+    active: record.active,
+    description: record.description ?? ''
+  }
 }
 
 function toPackagingSpecRecord(record: any): PackagingSpecRecord {

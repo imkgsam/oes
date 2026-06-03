@@ -67,7 +67,7 @@ export class HrManagementGrpcController implements HrManagementServiceController
       tenantId: request.tenantId ?? '',
       tenantPartyId: request.tenantPartyId ?? '',
       partyId: request.partyId || undefined,
-      employeeCode: request.employeeCode ?? ''
+      employeeCode: request.employeeCode || undefined
     })
     return { employee: mapEmployee(employee) }
   }

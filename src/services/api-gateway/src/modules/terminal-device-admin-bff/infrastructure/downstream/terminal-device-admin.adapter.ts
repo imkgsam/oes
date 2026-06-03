@@ -44,7 +44,7 @@ export type AdminTerminalDeviceStatus =
   | 'MAINTENANCE'
   | 'PENDING_APPROVAL'
 export type AdminEnrollmentStatus = 'EXPIRED' | 'ISSUED' | 'REVOKED' | 'USED'
-export type AdminPresenceStatus = 'OFFLINE' | 'ONLINE' | 'UNKNOWN'
+export type AdminPresenceStatus = 'OFFLINE' | 'ONLINE' | 'STALE' | 'UNKNOWN'
 
 export interface AdminPagination {
   page: number
@@ -263,7 +263,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
   async revokeEnrollment(input: {
     tenantId: string
     enrollmentId: string
-    reason: string
+    reason?: string | null
     source: DownstreamRequestSource
   }): Promise<{ enrollmentId: string; status: 'REVOKED'; revokedAt: string; revokedBy: string }> {
     const response = await safeGrpcCall<RevokeEnrollmentResponse>(
@@ -383,7 +383,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
     terminalDeviceId: string
     previousStatus: AdminTerminalDeviceStatus
     status: AdminTerminalDeviceStatus
-    statusReason: string
+    statusReason: string | null
     changedAt: string
     sessionRevokeIntent: { required: boolean; terminalDeviceId: string }
   }> {
@@ -392,7 +392,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
         tenantId: input.tenantId,
         terminalDeviceId: input.terminalDeviceId,
         targetStatus: toProtoDeviceStatus(input.targetStatus),
-        reason: input.reason,
+        reason: input.reason ?? '',
         operatorContext: toOperatorContext(input.source)
       }),
       this.opts('changeTerminalDeviceStatus')
@@ -402,7 +402,7 @@ export class TerminalDeviceAdminAdapter implements OnModuleInit {
       terminalDeviceId: response.terminalDeviceId ?? input.terminalDeviceId,
       previousStatus: toDeviceStatus(response.previousStatus),
       status: toDeviceStatus(response.status),
-      statusReason: response.statusReason ?? '',
+      statusReason: emptyToNull(response.statusReason),
       changedAt: response.changedAt ?? '',
       sessionRevokeIntent: {
         required: Boolean(response.sessionRevokeIntent?.required),
@@ -702,7 +702,7 @@ function toProtoPresenceStatus(value: AdminPresenceStatus): PresenceStatus {
 
 function toPresenceStatus(value?: PresenceStatus): AdminPresenceStatus {
   const status = enumName(value, 'PRESENCE_STATUS_', 'UNKNOWN')
-  return status === 'ONLINE' || status === 'OFFLINE' ? status : 'UNKNOWN'
+  return status === 'ONLINE' || status === 'STALE' || status === 'OFFLINE' ? status : 'UNKNOWN'
 }
 
 function enumName(value: number | undefined, prefix: string, fallback: string): string {

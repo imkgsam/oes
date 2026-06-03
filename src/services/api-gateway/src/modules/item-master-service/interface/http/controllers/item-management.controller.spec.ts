@@ -21,6 +21,7 @@ describe('ItemManagementController V2', () => {
     createItem: jest.fn(),
     createItemCategory: jest.fn(),
     deleteItemCategory: jest.fn(),
+    deletePackagingMethod: jest.fn(),
     createItemModel: jest.fn(),
     getBom: jest.fn(),
     getBomByOutputItem: jest.fn(),
@@ -87,6 +88,12 @@ describe('ItemManagementController V2', () => {
         ItemManagementController.prototype.deleteItemCategory
       )
     ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        ItemManagementController.prototype.deletePackagingMethod
+      )
+    ).toMatchObject(expect.objectContaining({ all: expect.any(Array) }))
   })
 
   it('delegates ItemModel creation to the V2 BFF service', async () => {
@@ -149,6 +156,16 @@ describe('ItemManagementController V2', () => {
     ).resolves.toEqual({})
 
     expect(itemManagementService.deleteItemCategory).toHaveBeenCalledWith('tenant-1', 'category-1', source)
+  })
+
+  it('delegates hard packaging method deletion to the V2 BFF service', async () => {
+    itemManagementService.deletePackagingMethod.mockResolvedValue({})
+
+    await expect(
+      controller.deletePackagingMethod('tenant-1', 'method-1', source as never)
+    ).resolves.toEqual({})
+
+    expect(itemManagementService.deletePackagingMethod).toHaveBeenCalledWith('tenant-1', 'method-1', source)
   })
 
   it('delegates item category move commands to the V2 BFF service', async () => {

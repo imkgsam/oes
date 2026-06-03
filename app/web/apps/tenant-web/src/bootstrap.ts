@@ -15,6 +15,8 @@ import { router } from '#/router';
 import { initComponentAdapter } from './adapter/component';
 import { initSetupVbenForm } from './adapter/form';
 import App from './app.vue';
+import './utils/antd-table-column-resize.css';
+import { installAntdTableColumnResize } from './utils/antd-table-column-resize';
 
 async function bootstrap(namespace: string) {
   // 初始化组件适配器
@@ -71,6 +73,9 @@ async function bootstrap(namespace: string) {
   });
 
   app.mount('#app');
+
+  // 全局增强 Ant Design Table 表头，统一支持拖拽调整列宽。
+  installAntdTableColumnResize();
 }
 
 export { bootstrap };

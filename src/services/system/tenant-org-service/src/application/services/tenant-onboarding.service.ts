@@ -30,11 +30,11 @@ import {
   TenantOnboardingStepKey,
   TenantOnboardingStepStatus
 } from '../../domain/value-objects/tenant-onboarding.enums'
-import { OrgUnitType } from '../../domain/value-objects'
+import { OrgUnitType, normalizeEmployeeCodePrefix } from '../../domain/value-objects'
 
 export interface StartTenantOnboardingInput {
   idempotencyKey: string
-  tenant: { code: string; name: string }
+  tenant: { code: string; employeeCodePrefix: string; name: string }
   organizationParty: {
     legalName: string
     registeredCountry?: string
@@ -59,7 +59,7 @@ export interface StartTenantOnboardingInput {
 export interface TenantOnboardingResult {
   onboardingId: string
   status: string
-  tenant?: { id: string; code: string; name: string; status: string; rootOrgId: string | null }
+  tenant?: { id: string; code: string; employeeCodePrefix: string; name: string; status: string; rootOrgId: string | null }
   rootOrg?: {
     id: string
     tenantId: string
@@ -181,6 +181,7 @@ export class TenantOnboardingService {
         if (refs.tenantId && refs.rootOrgId) return
         const result = await this.tenantRepository.createWithRootOrg({
           code: input.tenant.code,
+          employeeCodePrefix: input.tenant.employeeCodePrefix,
           name: input.tenant.name,
           rootOrgName: input.rootOrg.name
         })
@@ -243,6 +244,7 @@ export class TenantOnboardingService {
         if (refs.firstAdminEmployeeId && refs.firstAdminEmploymentId) return
         const result = await this.hrEmployeeOnboardingPort.createEmployeeOnboarding({
           tenantId: refs.tenantId,
+          employeeCode: `EMP-${input.tenant.employeeCodePrefix}-0001`,
           idempotencyKey: stepKey(run.id, TenantOnboardingStepKey.CREATE_FIRST_ADMIN_EMPLOYEE),
           person: {
             existingPartyId: refs.firstAdminPersonPartyId,
@@ -506,6 +508,7 @@ function normalizeInput(input: StartTenantOnboardingInput): StartTenantOnboardin
     idempotencyKey: requireNonBlank(input.idempotencyKey, 'idempotencyKey'),
     tenant: {
       code: requireNonBlank(input.tenant.code, 'tenant.code'),
+      employeeCodePrefix: normalizeEmployeeCodePrefix(input.tenant.employeeCodePrefix, 'tenant.employeeCodePrefix'),
       name: requireNonBlank(input.tenant.name, 'tenant.name')
     },
     organizationParty: {

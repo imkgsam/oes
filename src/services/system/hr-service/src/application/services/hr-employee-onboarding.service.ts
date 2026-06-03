@@ -2,15 +2,13 @@ import { BadRequestException, ConflictException, Inject, Injectable, NotFoundExc
 import { EmployeeAccessPendingException, HrOnboardingAccessService } from './hr-onboarding-access.service'
 import { HrManagementService } from './hr-management.service'
 import { HrQueryService } from './hr-query.service'
-import {
-  PARTY_REGISTRATION_PORT,
-  PartyRegistrationPort
-} from '../ports'
+import { PARTY_REGISTRATION_PORT, PartyRegistrationPort } from '../ports'
 import {
   EmployeeSummary,
   EmploymentSummary,
   OnboardingAccessProcessSummary
 } from '../../domain/repositories'
+import { parseEmployeeCodeStrict } from '../../domain/value-objects'
 
 export interface EmployeeOnboardingPersonInput {
   existingPartyId?: string
@@ -80,7 +78,7 @@ export class HrEmployeeOnboardingService {
       tenantId,
       tenantPartyId: requireNonBlank(partyRefs.tenantPartyId, 'tenantPartyId'),
       partyId: partyRefs.partyId,
-      employeeCode: input.employeeCode || await this.generateNextEmployeeCode(tenantId),
+      employeeCode: input.employeeCode ? parseEmployeeCodeStrict(input.employeeCode).employeeCode : undefined,
       retryGeneratedEmployeeCode: !input.employeeCode
     })
     const employment = input.primaryEmployment
@@ -114,7 +112,7 @@ export class HrEmployeeOnboardingService {
 
   /** ensureEmployee creates the HR employee once and reuses the existing employee on idempotent retries. */
   private async ensureEmployee(input: {
-    employeeCode: string
+    employeeCode?: string
     partyId?: string
     retryGeneratedEmployeeCode: boolean
     tenantId: string
@@ -131,20 +129,18 @@ export class HrEmployeeOnboardingService {
       }
     }
 
-    let employeeCode = input.employeeCode
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         return await this.hrManagementService.createEmployee({
           tenantId: input.tenantId,
           tenantPartyId: input.tenantPartyId,
           partyId: input.partyId,
-          employeeCode
+          employeeCode: input.employeeCode
         })
       } catch (error) {
         if (!input.retryGeneratedEmployeeCode || !(error instanceof ConflictException) || attempt === 2) {
           throw error
         }
-        employeeCode = await this.generateNextEmployeeCode(input.tenantId)
       }
     }
 
@@ -257,15 +253,6 @@ export class HrEmployeeOnboardingService {
     }
   }
 
-  /** generateNextEmployeeCode keeps employee code system-owned when HR creates employees from the UI. */
-  private async generateNextEmployeeCode(tenantId: string) {
-    const result = await this.hrQueryService.listEmployees({
-      tenantId,
-      page: 1,
-      pageSize: 1
-    })
-    return `EMP-${String(Number(result.total ?? 0) + 1).padStart(4, '0')}`
-  }
 }
 
 /** normalizeIdentifiers prepares person identifiers for the party-service strong-match contract. */

@@ -99,8 +99,11 @@ const attributeTableColumns = [
     title: '状态'
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'operation',
-    title: operationColumnTitle
+    title: operationColumnTitle,
+    width: 110
   }
 ]
 
@@ -320,6 +323,7 @@ onMounted(() => {
             :locale="{ emptyText: '暂无产品属性' }"
             :pagination="false"
             :row-key="(record: ItemManagementApi.AttributeDefinitionRecord) => record.attributeDefinitionId"
+            :scroll="{ x: 860 }"
             size="middle"
           >
             <template #bodyCell="{ column, record }">

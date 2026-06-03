@@ -7,6 +7,7 @@ function createEmployeeRepositoryMock() {
   return {
     create: jest.fn(),
     findById: jest.fn(),
+    findByTenantAndEmployeeCode: jest.fn(),
     findByTenantPartyId: jest.fn(),
     listByTenant: jest.fn(),
     setLifecycleStatus: jest.fn()
@@ -25,7 +26,126 @@ function createEmploymentRepositoryMock() {
   }
 }
 
+/** createTenantOrgPortMock supplies tenant employee-code prefixes for display-code composition. */
+function createTenantOrgPortMock() {
+  return {
+    getTenantEmployeeCodePrefix: jest.fn().mockResolvedValue('0AF')
+  }
+}
+
+/** createHrQueryService builds HrQueryService with all query dependencies. */
+function createHrQueryService(employeeRepository: any, employmentRepository: any) {
+  return new HrQueryService(
+    employeeRepository,
+    employmentRepository,
+    { findLatestByEmployeeId: jest.fn() } as any,
+    createTenantOrgPortMock() as any
+  )
+}
+
 describe('HrQueryService L1', () => {
+  it('ResolveActiveEmployeeByCode / should return active employee and current active employment by exact tenant employee code', async () => {
+    const employeeRepository = createEmployeeRepositoryMock()
+    const employmentRepository = createEmploymentRepositoryMock()
+    employeeRepository.findByTenantAndEmployeeCode.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      partyId: 'party-1',
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
+    })
+    employmentRepository.findActiveByEmployeeId.mockResolvedValue({
+      id: 'employment-1',
+      tenantId: 'tenant-1',
+      employeeId: 'employee-1',
+      orgUnitId: 'org-1',
+      status: EmploymentStatus.ACTIVE,
+      effectiveFrom: new Date('2026-04-23T00:00:00.000Z'),
+      effectiveTo: null,
+      endedReason: null
+    })
+    const service = createHrQueryService(employeeRepository, employmentRepository)
+
+    await expect(
+      (service as any).resolveActiveEmployeeByCode({
+        tenantId: ' tenant-1 ',
+        employeeCode: ' EMP-0AF-0001 '
+      })
+    ).resolves.toEqual({
+      employee: {
+        id: 'employee-1',
+        tenantId: 'tenant-1',
+        tenantPartyId: 'tenant-party-1',
+        partyId: 'party-1',
+        employeeCode: 'EMP-0AF-0001',
+        lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
+      },
+      activeEmployment: {
+        id: 'employment-1',
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        orgUnitId: 'org-1',
+        status: EmploymentStatus.ACTIVE,
+        effectiveFrom: new Date('2026-04-23T00:00:00.000Z'),
+        effectiveTo: null,
+        endedReason: null
+      }
+    })
+    expect(employeeRepository.findByTenantAndEmployeeCode).toHaveBeenCalledWith(
+      'tenant-1',
+      '0001'
+    )
+    expect(employmentRepository.findActiveByEmployeeId).toHaveBeenCalledWith(
+      'tenant-1',
+      'employee-1'
+    )
+  })
+
+  it('ResolveActiveEmployeeByCode / should reject inactive employees before returning employment facts', async () => {
+    const employeeRepository = createEmployeeRepositoryMock()
+    const employmentRepository = createEmploymentRepositoryMock()
+    employeeRepository.findByTenantAndEmployeeCode.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      partyId: 'party-1',
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.OFFBOARDED
+    })
+    const service = createHrQueryService(employeeRepository, employmentRepository)
+
+    await expect(
+      (service as any).resolveActiveEmployeeByCode({
+        tenantId: 'tenant-1',
+        employeeCode: 'EMP-0AF-0001'
+      })
+    ).rejects.toBeInstanceOf(NotFoundException)
+    expect(employmentRepository.findActiveByEmployeeId).not.toHaveBeenCalled()
+  })
+
+  it('ResolveActiveEmployeeByCode / should reject active employees without current active employment', async () => {
+    const employeeRepository = createEmployeeRepositoryMock()
+    const employmentRepository = createEmploymentRepositoryMock()
+    employeeRepository.findByTenantAndEmployeeCode.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      partyId: 'party-1',
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
+    })
+    employmentRepository.findActiveByEmployeeId.mockResolvedValue(null)
+    const service = createHrQueryService(employeeRepository, employmentRepository)
+
+    await expect(
+      (service as any).resolveActiveEmployeeByCode({
+        tenantId: 'tenant-1',
+        employeeCode: 'EMP-0AF-0001'
+      })
+    ).rejects.toBeInstanceOf(NotFoundException)
+  })
+
   it('ListEmployees / should forward tenant-scoped pagination and filters to the employee repository', async () => {
     const employeeRepository = createEmployeeRepositoryMock()
     const employmentRepository = createEmploymentRepositoryMock()
@@ -36,7 +156,7 @@ describe('HrQueryService L1', () => {
           tenantId: 'tenant-1',
           tenantPartyId: 'tenant-party-1',
           partyId: 'party-1',
-          employeeCode: 'EMP-001',
+          employeeCode: '0001',
           lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
         }
       ],
@@ -44,12 +164,12 @@ describe('HrQueryService L1', () => {
       pageSize: 5,
       total: 1
     })
-    const service = new HrQueryService(employeeRepository as any, employmentRepository as any)
+    const service = createHrQueryService(employeeRepository, employmentRepository)
 
     await expect(
       service.listEmployees({
         tenantId: ' tenant-1 ',
-        keyword: ' EMP-001 ',
+        keyword: ' EMP-0AF-0001 ',
         lifecycleStatus: EmployeeLifecycleStatus.ACTIVE,
         page: 2,
         pageSize: 5
@@ -61,7 +181,7 @@ describe('HrQueryService L1', () => {
           tenantId: 'tenant-1',
           tenantPartyId: 'tenant-party-1',
           partyId: 'party-1',
-          employeeCode: 'EMP-001',
+          employeeCode: 'EMP-0AF-0001',
           lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
         }
       ],
@@ -72,7 +192,7 @@ describe('HrQueryService L1', () => {
 
     expect(employeeRepository.listByTenant).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
-      keyword: 'EMP-001',
+      keyword: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.ACTIVE,
       page: 2,
       pageSize: 5
@@ -82,7 +202,9 @@ describe('HrQueryService L1', () => {
   it('ListEmployees / should require a non-blank tenant id before querying HR truth', async () => {
     const service = new HrQueryService(
       createEmployeeRepositoryMock() as any,
-      createEmploymentRepositoryMock() as any
+      createEmploymentRepositoryMock() as any,
+      { findLatestByEmployeeId: jest.fn() } as any,
+      createTenantOrgPortMock() as any
     )
 
     await expect(
@@ -102,11 +224,11 @@ describe('HrQueryService L1', () => {
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
       partyId: 'party-1',
-      employeeCode: 'EMP-001',
+      employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
     employmentRepository.findActiveByEmployeeId.mockResolvedValue(null)
-    const service = new HrQueryService(employeeRepository as any, employmentRepository as any)
+    const service = createHrQueryService(employeeRepository, employmentRepository)
 
     await expect(service.getActiveEmployment('employee-1')).rejects.toBeInstanceOf(NotFoundException)
     expect(employmentRepository.findActiveByEmployeeId).toHaveBeenCalledWith('tenant-1', 'employee-1')
@@ -120,11 +242,11 @@ describe('HrQueryService L1', () => {
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
       partyId: 'party-1',
-      employeeCode: 'EMP-001',
+      employeeCode: '0001',
       lifecycleStatus: EmployeeLifecycleStatus.ACTIVE
     })
     employmentRepository.listByEmployeeId.mockResolvedValue([])
-    const service = new HrQueryService(employeeRepository as any, employmentRepository as any)
+    const service = createHrQueryService(employeeRepository, employmentRepository)
 
     await service.listEmployments({
       employeeId: 'employee-1',

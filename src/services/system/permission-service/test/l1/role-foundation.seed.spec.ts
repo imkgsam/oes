@@ -255,6 +255,10 @@ describe('role foundation seed', () => {
       templateRoleCode: null,
       tenantId: null,
       permissionCodes: [
+        ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_ITEM_MODEL,
+        ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.VIEW_ITEM_MODEL_DETAIL,
+        ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.CREATE_ITEM_MODEL,
+        ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.MANAGE_ITEM_MODEL,
         ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_ITEM,
         ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.VIEW_ITEM_DETAIL,
         ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.CREATE_ITEM,
@@ -281,5 +285,18 @@ describe('role foundation seed', () => {
         ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_ITEM_MAPPING
       ]
     })
+  })
+
+  it('grants ItemModel lifecycle permissions to the item product data manager template', () => {
+    const productDataManager = BUILT_IN_ROLE_TEMPLATES.find(
+      (role) => role.code === 'item_master.product_data_manager'
+    )
+
+    expect(productDataManager?.permissionCodes).toEqual(expect.arrayContaining([
+      'item_master.item_model.list',
+      'item_master.item_model.get_by_id',
+      'item_master.item_model.create',
+      'item_master.item_model.manage'
+    ]))
   })
 })

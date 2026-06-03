@@ -1,6 +1,10 @@
 import { plainToInstance } from 'class-transformer'
 import { validateSync } from 'class-validator'
-import { CompleteMfaDto, RequestMfaFactorChallengeDto } from './login.dto'
+import {
+  CompleteMfaDto,
+  EmployeeCodePinPreflightDto,
+  RequestMfaFactorChallengeDto
+} from './login.dto'
 
 describe('login dto validation', () => {
   it('accepts JWT-sized challenge ids for MFA completion', () => {
@@ -20,6 +24,29 @@ describe('login dto validation', () => {
     const dto = plainToInstance(RequestMfaFactorChallengeDto, {
       challengeId: 'x'.repeat(512),
       factor: 'EMAIL_OTP'
+    })
+
+    const errors = validateSync(dto)
+
+    expect(errors).toEqual([])
+  })
+
+  it('accepts PDA employee-code preflight without a redundant login method', () => {
+    const dto = plainToInstance(EmployeeCodePinPreflightDto, {
+      employeeCode: 'EMP-0AF-0001',
+      device: {
+        deviceId: 'terminal-device-1',
+        deviceName: 'OES PDA',
+        identity: {
+          manufacturerSerial: 'xiaomi-serial-1',
+          manufacturer: 'Xiaomi',
+          model: '23127PN0CC'
+        },
+        software: {
+          androidVersion: '15',
+          appVersion: '0.1.0'
+        }
+      }
     })
 
     const errors = validateSync(dto)

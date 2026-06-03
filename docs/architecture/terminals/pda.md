@@ -100,7 +100,9 @@ Phase 1 最小 BFF 能力：
 - PDA BFF 只做终端聚合、DTO 校验、设备 metadata 归一化与下游服务编排。
 - PDA BFF 不拥有认证、身份、权限、设备治理或业务域真相。
 - 登录请求必须固定 `terminal = PDA`，Terminal Access Policy 以独立设计和实现为准。
-- Phase 1 `/pda/auth/login` 只正式支持账号密码登录；员工工号登录和工牌扫码登录只预留，不进入 Phase 1 实现。若后续启用员工身份入口，HR 对象语义以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准。
+- Phase 1 `/pda/auth/login` 只正式支持账号密码登录。
+- PDA Employee Code + Terminal PIN 登录启用后，PDA 默认入口使用 `employeeCode + TERMINAL_PIN`；员工码语义以 [hr-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/hr-service.md) 为准，员工账号绑定以 [identity-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/identity-service.md) 为准，PIN credential 与 session 以 [auth-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/auth-service.md) 为准。
+- 工牌、IC 卡、NFC、badge credential service 不属于 PDA Employee Code + Terminal PIN 登录阶段。
 - `/pda/session/bootstrap` 是 PDA 启动聚合接口，一次返回 account、session、access、device policy、version policy、workbench 与 server time。
 - `/pda/device/heartbeat` 用于保存最近设备 / App 状态，允许未登录和已登录状态上报。
 - `/pda/device/logs` 用于手动上传诊断日志，Phase 1 允许诊断日志携带完整扫码值，但必须标记 `diagnosticMode`。
@@ -150,6 +152,7 @@ Bridge 契约规则：
 - 事件推送应包含 `eventId / eventType / payload / occurredAt`。
 - Vue3 必须通过 `bridgeClient` 统一封装 Bridge 调用，页面不得直接访问原始 Android 对象。
 - Android Shell 不识别业务码类型，只负责把扫码结果推给 Vue3。
+- PDA Employee Code + Terminal PIN 登录阶段，Vue3 扫码登录只接受 `OES:EMPLOYEE:<employeeCode>` 员工条码并解析为纯 `employeeCode`；手动输入仍可提交纯 `employeeCode`；Android Shell 不解析员工码，也不识别工牌或业务码语义。
 
 明确后置：
 

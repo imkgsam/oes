@@ -15,7 +15,8 @@ describe('HrManagementController', () => {
     endEmployment: jest.fn(),
     getEmployeeAccountAccess: jest.fn(),
     getEmployeeDetail: jest.fn(),
-    listEmployees: jest.fn()
+    listEmployees: jest.fn(),
+    previewNextEmployeeCode: jest.fn()
   }
 
   const controller = new HrManagementController(hrManagementService as any)
@@ -41,6 +42,12 @@ describe('HrManagementController', () => {
         HrManagementController.prototype.getEmployeeAccountAccess
       )
     ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    expect(
+      reflector.get(
+        REQUIRE_PERMISSIONS_METADATA_KEY,
+        HrManagementController.prototype.previewNextEmployeeCode
+      )
+    ).toEqual(expect.objectContaining({ all: [HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE] }))
     expect(
       reflector.get(
         REQUIRE_PERMISSIONS_METADATA_KEY,
@@ -92,6 +99,9 @@ describe('HrManagementController', () => {
     hrManagementService.getEmployeeAccountAccess.mockResolvedValue({
       status: 'PENDING'
     })
+    hrManagementService.previewNextEmployeeCode.mockResolvedValue({
+      employeeCode: 'EMP-0AF-0003'
+    })
     hrManagementService.createEmployee.mockResolvedValue({
       employee: { id: 'employee-1' }
     })
@@ -136,10 +146,15 @@ describe('HrManagementController', () => {
       status: 'PENDING'
     })
     await expect(
+      controller.previewNextEmployeeCode('tenant-1', source as any)
+    ).resolves.toEqual({
+      employeeCode: 'EMP-0AF-0003'
+    })
+    await expect(
       controller.createEmployee(
         'tenant-1',
         {
-          employeeCode: 'EMP-001',
+          employeeCode: 'EMP-0AF-0001',
           partyId: 'party-1',
           tenantPartyId: 'tenant-party-1'
         } as any,
@@ -203,7 +218,7 @@ describe('HrManagementController', () => {
           roleIds: ['role-1'],
           reason: 'member_access_enable',
           createAccount: {
-            displayName: 'EMP-001',
+            displayName: 'EMP-0AF-0001',
             email: 'member@example.com'
           }
         } as any,
@@ -233,10 +248,11 @@ describe('HrManagementController', () => {
       'employee-1',
       source
     )
+    expect(hrManagementService.previewNextEmployeeCode).toHaveBeenCalledWith('tenant-1', source)
     expect(hrManagementService.createEmployee).toHaveBeenCalledWith(
       'tenant-1',
       {
-        employeeCode: 'EMP-001',
+        employeeCode: 'EMP-0AF-0001',
         partyId: 'party-1',
         tenantPartyId: 'tenant-party-1'
       },
@@ -280,7 +296,7 @@ describe('HrManagementController', () => {
         roleIds: ['role-1'],
         reason: 'member_access_enable',
         createAccount: {
-          displayName: 'EMP-001',
+          displayName: 'EMP-0AF-0001',
           email: 'member@example.com'
         }
       },

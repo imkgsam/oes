@@ -185,6 +185,7 @@ model PackagingMethod {
   tenantId   String   @db.VarChar(64)
   methodCode String   @db.VarChar(128)
   methodName String   @db.VarChar(255)
+  description String?  @db.Text
   active     Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

@@ -5,7 +5,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { Page } from '@vben/common-ui'
-import { Button, Card, Descriptions, Empty, message, Skeleton, Space, Table, Tabs, Tag } from 'ant-design-vue'
+import { Button, Card, Descriptions, Empty, message, QRCode, Skeleton, Space, Table, Tabs, Tag } from 'ant-design-vue'
 
 import type { HrManagementApi } from '#/api'
 import { getManagedEmployeeAccountAccessApi, getManagedEmployeeDetailApi } from '#/api'
@@ -24,6 +24,7 @@ const employeeId = computed(() =>
   typeof route.params.employeeId === 'string' ? route.params.employeeId : ''
 )
 const currentActiveEmployment = computed(() => detail.value?.activeEmployment)
+const employeeCodeQrValue = computed(() => detail.value?.employee.employeeCode ?? '')
 const employmentRows = computed(() => detail.value?.employments ?? [])
 const employmentColumns: TableColumnsType<HrManagementApi.EmploymentSummary> = [
   {
@@ -252,6 +253,23 @@ onMounted(() => {
                   </Descriptions.Item>
                 </Descriptions>
               </Card>
+
+              <Card :bordered="false" title="员工码二维码">
+                <div class="employee-detail-page__qr-panel">
+                  <div
+                    class="employee-detail-page__qr-code"
+                    data-testid="employee-code-qr"
+                    :data-value="employeeCodeQrValue"
+                  >
+                    <QRCode :value="employeeCodeQrValue" />
+                  </div>
+                  <div class="employee-detail-page__qr-copy">
+                    <span>工号</span>
+                    <strong>{{ detail.employee.employeeCode }}</strong>
+                    <p>PDA 扫描后只填入员工码，Terminal PIN 仍由员工本人输入。</p>
+                  </div>
+                </div>
+              </Card>
             </div>
           </Tabs.TabPane>
 
@@ -382,8 +400,46 @@ onMounted(() => {
 
 .employee-detail-page__grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
+}
+
+.employee-detail-page__qr-panel {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+}
+
+.employee-detail-page__qr-copy {
+  min-width: 0;
+}
+
+.employee-detail-page__qr-code {
+  flex: 0 0 auto;
+}
+
+.employee-detail-page__qr-copy span {
+  color: #6b7280;
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.employee-detail-page__qr-copy strong {
+  color: #111827;
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+  overflow-wrap: anywhere;
+}
+
+.employee-detail-page__qr-copy p {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 18px;
+  margin: 6px 0 0;
 }
 
 @media (max-width: 960px) {

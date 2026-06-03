@@ -46,6 +46,12 @@ function createPrismaMock(overrides: Record<string, any> = {}): any {
       update: jest.fn(),
       count: jest.fn()
     },
+    packagingMethod: {
+      findFirst: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn()
+    },
     packagingSpec: {
       findFirst: jest.fn(),
       create: jest.fn(),
@@ -510,5 +516,168 @@ describe('ItemMasterManagementV2Service', () => {
     ).rejects.toBeDefined()
 
     expect(prisma.itemCategory.delete).not.toHaveBeenCalled()
+  })
+
+  it('deletes an unused packaging method', async () => {
+    const prisma = createPrismaMock({
+      packagingMethod: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'method-unused',
+          tenantId: 'tenant-1'
+        }),
+        delete: jest.fn().mockResolvedValue({
+          id: 'method-unused',
+          tenantId: 'tenant-1'
+        })
+      },
+      packagingSpec: {
+        count: jest.fn().mockResolvedValue(0)
+      }
+    })
+    const service = new ItemMasterManagementV2Service(prisma)
+
+    await expect(
+      service.deletePackagingMethod({
+        tenantId: 'tenant-1',
+        packagingMethodId: 'method-unused'
+      })
+    ).resolves.toEqual({})
+
+    expect(prisma.packagingSpec.count).toHaveBeenCalledWith({
+      where: {
+        tenantId: 'tenant-1',
+        packagingMethodId: 'method-unused'
+      }
+    })
+    expect(prisma.packagingMethod.delete).toHaveBeenCalledWith({
+      where: { id: 'method-unused' }
+    })
+  })
+
+  it('creates, updates, lists, and returns packaging method descriptions', async () => {
+    const prisma = createPrismaMock({
+      packagingMethod: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'method-1',
+          tenantId: 'tenant-1'
+        }),
+        findMany: jest.fn().mockResolvedValue([
+          {
+            id: 'method-1',
+            tenantId: 'tenant-1',
+            methodCode: 'ECOM',
+            methodName: 'E-commerce',
+            description: 'Online parcel packaging',
+            active: true
+          }
+        ]),
+        create: jest.fn().mockResolvedValue({
+          id: 'method-1',
+          tenantId: 'tenant-1',
+          methodCode: 'ECOM',
+          methodName: 'E-commerce',
+          description: 'Online parcel packaging',
+          active: true
+        }),
+        update: jest.fn().mockResolvedValue({
+          id: 'method-1',
+          tenantId: 'tenant-1',
+          methodCode: 'ECOM-REV',
+          methodName: 'E-commerce Rev',
+          description: null,
+          active: true
+        })
+      }
+    })
+    const service = new ItemMasterManagementV2Service(prisma)
+    const queryService = new ItemMasterQueryV2Service(prisma)
+
+    await expect(
+      service.createPackagingMethod({
+        tenantId: 'tenant-1',
+        methodCode: 'ECOM',
+        methodName: 'E-commerce',
+        description: ' Online parcel packaging '
+      })
+    ).resolves.toMatchObject({
+      packagingMethod: {
+        description: 'Online parcel packaging'
+      }
+    })
+    await expect(
+      service.updatePackagingMethod({
+        tenantId: 'tenant-1',
+        packagingMethodId: 'method-1',
+        methodCode: 'ECOM-REV',
+        methodName: 'E-commerce Rev',
+        description: '   '
+      })
+    ).resolves.toMatchObject({
+      packagingMethod: {
+        description: ''
+      }
+    })
+    await expect(
+      queryService.listPackagingMethods({
+        tenantId: 'tenant-1',
+        keyword: 'parcel'
+      })
+    ).resolves.toMatchObject({
+      packagingMethods: [
+        {
+          description: 'Online parcel packaging'
+        }
+      ]
+    })
+
+    expect(prisma.packagingMethod.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        description: 'Online parcel packaging'
+      })
+    })
+    expect(prisma.packagingMethod.update).toHaveBeenCalledWith({
+      where: { id: 'method-1' },
+      data: expect.objectContaining({
+        description: null
+      })
+    })
+    expect(prisma.packagingMethod.findMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        OR: expect.arrayContaining([
+          {
+            description: {
+              contains: 'parcel',
+              mode: 'insensitive'
+            }
+          }
+        ])
+      }),
+      orderBy: [{ methodCode: 'asc' }, { id: 'asc' }]
+    })
+  })
+
+  it('rejects deleting packaging methods that are referenced by packaging specs', async () => {
+    const prisma = createPrismaMock({
+      packagingMethod: {
+        findFirst: jest.fn().mockResolvedValue({
+          id: 'method-in-use',
+          tenantId: 'tenant-1'
+        }),
+        delete: jest.fn()
+      },
+      packagingSpec: {
+        count: jest.fn().mockResolvedValue(1)
+      }
+    })
+    const service = new ItemMasterManagementV2Service(prisma)
+
+    await expect(
+      service.deletePackagingMethod({
+        tenantId: 'tenant-1',
+        packagingMethodId: 'method-in-use'
+      })
+    ).rejects.toBeDefined()
+
+    expect(prisma.packagingMethod.delete).not.toHaveBeenCalled()
   })
 })

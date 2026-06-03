@@ -261,6 +261,7 @@ onMounted(() => {
           :loading="loading"
           :locale="{ emptyText: '暂无客户' }"
           :pagination="false"
+          :scroll="{ x: 980 }"
           row-key="customerAccountId"
           size="middle"
         />

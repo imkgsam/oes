@@ -111,6 +111,13 @@ export interface ListCurrentMoldsByWorkCenterInput {
   workUnitId?: string
 }
 
+/** ListActiveToolingInstallationsByWorkCenterInput captures active installation lookup for position sequencing. */
+export interface ListActiveToolingInstallationsByWorkCenterInput {
+  tenantId: string
+  orgId?: string | null
+  workCenterId: string
+}
+
 /** ListCurrentMoldsByWorkCenterResult mirrors the contract response for current mold installations. */
 export interface ListCurrentMoldsByWorkCenterResult {
   items: CurrentMoldByWorkCenterRecord[]
@@ -187,6 +194,7 @@ export interface MesMoldRepository {
   findToolingInstallationById(tenantId: string, toolingInstallationId: string): Promise<ToolingInstallationRecord | null>
   findActiveToolingInstallationByMold(tenantId: string, productionMoldId: string): Promise<ToolingInstallationRecord | null>
   listToolingInstallationsByMold(tenantId: string, productionMoldId: string): Promise<ToolingInstallationRecord[]>
+  listActiveToolingInstallationsByWorkCenter(input: ListActiveToolingInstallationsByWorkCenterInput): Promise<ToolingInstallationRecord[]>
   listCurrentMoldsByWorkCenter(input: ListCurrentMoldsByWorkCenterInput): Promise<ListCurrentMoldsByWorkCenterResult>
 
   appendMoldUsageRecord(record: MoldUsageRecord): Promise<MoldUsageRecord>

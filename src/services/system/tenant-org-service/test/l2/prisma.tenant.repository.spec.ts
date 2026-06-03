@@ -3,6 +3,7 @@ import { PrismaService } from '../../src/infrastructure/prisma/prisma.service'
 import { OrgUnitType, TenantStatus } from '../../src/domain/value-objects'
 import {
   cleanupByPrefix,
+  createTestEmployeeCodePrefix,
   createPrismaForIntegration,
   createTestPrefix
 } from '../helpers/integration-db'
@@ -35,6 +36,7 @@ describe('PrismaTenantRepository L2', () => {
   it('createWithRootOrg / should create tenant and root org in one transaction', async () => {
     const result = await tenantRepository.createWithRootOrg({
       code: `${prefix}_acme`,
+      employeeCodePrefix: createTestEmployeeCodePrefix(),
       name: `${prefix}_Acme`,
       rootOrgName: `${prefix}_Acme Root`
     })
@@ -52,6 +54,7 @@ describe('PrismaTenantRepository L2', () => {
   it('createWithRootOrg / should reject duplicate tenant code', async () => {
     await tenantRepository.createWithRootOrg({
       code: `${prefix}_duplicate`,
+      employeeCodePrefix: createTestEmployeeCodePrefix(),
       name: `${prefix}_One`,
       rootOrgName: `${prefix}_One`
     })
@@ -59,6 +62,7 @@ describe('PrismaTenantRepository L2', () => {
     await expect(
       tenantRepository.createWithRootOrg({
         code: `${prefix}_duplicate`,
+        employeeCodePrefix: createTestEmployeeCodePrefix(),
         name: `${prefix}_Two`,
         rootOrgName: `${prefix}_Two`
       })

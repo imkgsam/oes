@@ -39,6 +39,9 @@ const savingLoginPolicy = ref(false);
 const savingMfaPolicy = ref(false);
 const loginEntries = ref<TerminalLoginEntry[]>([]);
 const mfaEntries = ref<TerminalMfaEntry[]>([]);
+const savingTerminalSecurity = computed(
+  () => savingLoginPolicy.value || savingMfaPolicy.value,
+);
 
 // Normalizes terminal login rows so rendering remains stable across partial mutation responses.
 function normalizeLoginEntries(entries: TerminalLoginEntry[]) {
@@ -151,60 +154,49 @@ function confirmDangerousSave(options: { content: string; title: string }) {
   });
 }
 
-// Persists platform terminal login policy and requires confirmation before disabling all flows.
-async function savePlatformTerminalLoginPolicy() {
+// Persists both platform terminal login policy groups behind one page-level save action.
+async function savePlatformTerminalSecurity() {
   const hasDisabledTerminal = loginEntries.value.some(
     (entry) => entry.enabledLoginFlows.length === 0,
   );
+  const requiresConfirmation = requiresTerminalMfaOperationalConfirmation(
+    mfaEntries.value,
+  );
+  const confirmationMessages: string[] = [];
+
+  if (hasDisabledTerminal) {
+    confirmationMessages.push(
+      '至少一个 terminal 将没有任何可用登录流程，命中该入口的用户将无法继续登录。',
+    );
+  }
+
+  if (requiresConfirmation) {
+    confirmationMessages.push(
+      'PDA / Kiosk 是一线高频操作入口，开启 MFA 可能明显增加登录耗时。',
+    );
+  }
 
   if (
-    hasDisabledTerminal &&
+    confirmationMessages.length > 0 &&
     !(await confirmDangerousSave({
-      content: '至少一个 terminal 将没有任何可用登录流程，命中该入口的用户将无法继续登录。',
-      title: '确认保存终端登录策略',
+      content: confirmationMessages.join(' '),
+      title: '确认保存平台 Terminal 登录策略',
     }))
   ) {
     return;
   }
 
   savingLoginPolicy.value = true;
+  savingMfaPolicy.value = true;
 
   try {
-    const policy = await updateAdminPlatformTerminalLoginPolicyApi({
+    const loginPolicy = await updateAdminPlatformTerminalLoginPolicyApi({
       entries: loginEntries.value.map((entry) => ({
         enabledLoginFlows: entry.enabledLoginFlows,
         terminal: entry.terminal,
       })),
     });
-    loginEntries.value = normalizeLoginEntries(policy.entries ?? []);
-    message.success('平台终端登录策略已更新');
-  } catch (error) {
-    message.error(getErrorMessage(error, '保存平台终端登录策略失败'));
-  } finally {
-    savingLoginPolicy.value = false;
-  }
-}
-
-// Persists platform terminal login MFA switches and confirms high-throughput PDA/KIOSK impact when needed.
-async function savePlatformTerminalMfaPolicy() {
-  const requiresConfirmation = requiresTerminalMfaOperationalConfirmation(
-    mfaEntries.value,
-  );
-
-  if (
-    requiresConfirmation &&
-    !(await confirmDangerousSave({
-      content: 'PDA / Kiosk 是一线高频操作入口，开启 MFA 可能明显增加登录耗时。',
-      title: '确认保存 Terminal 登录 MFA',
-    }))
-  ) {
-    return;
-  }
-
-  savingMfaPolicy.value = true;
-
-  try {
-    const policy = await updateAdminPlatformTerminalMfaPolicyApi({
+    const mfaPolicy = await updateAdminPlatformTerminalMfaPolicyApi({
       confirmOperationalImpact: requiresConfirmation || undefined,
       entries: mfaEntries.value.map((entry) => ({
         allowedFactors: entry.allowedFactors,
@@ -214,11 +206,13 @@ async function savePlatformTerminalMfaPolicy() {
         terminal: entry.terminal,
       })),
     });
-    mfaEntries.value = normalizeMfaEntries(policy.entries ?? []);
-    message.success('Terminal 登录 MFA 已更新');
+    loginEntries.value = normalizeLoginEntries(loginPolicy.entries ?? []);
+    mfaEntries.value = normalizeMfaEntries(mfaPolicy.entries ?? []);
+    message.success('平台 Terminal 登录策略已保存');
   } catch (error) {
-    message.error(getErrorMessage(error, '保存 Terminal 登录 MFA 失败'));
+    message.error(getErrorMessage(error, '保存平台 Terminal 登录策略失败'));
   } finally {
+    savingLoginPolicy.value = false;
     savingMfaPolicy.value = false;
   }
 }
@@ -232,6 +226,24 @@ onMounted(() => {
   <Page auto-content-height title="平台 Terminal 登录策略">
     <div class="terminal-security-page">
       <Card :bordered="false" class="terminal-security__panel">
+        <div
+          v-if="hasPlatformContext && canManagePlatformSecurity"
+          class="terminal-security__page-actions"
+        >
+          <Button
+            :disabled="loading"
+            :loading="savingTerminalSecurity"
+            class="terminal-security__save-button"
+            type="primary"
+            @click="savePlatformTerminalSecurity"
+          >
+            <template #icon>
+              <IconifyIcon icon="lucide:save" />
+            </template>
+            保存配置
+          </Button>
+        </div>
+
         <div class="terminal-security__header">
           <div>
             <div class="terminal-security__title">平台 Terminal 登录策略</div>
@@ -262,16 +274,6 @@ onMounted(() => {
                   这里只控制固定前端入口可使用哪些已实现登录流，不配置租户级主登录方式。
                 </div>
               </div>
-              <Button
-                :loading="savingLoginPolicy"
-                type="primary"
-                @click="savePlatformTerminalLoginPolicy"
-              >
-                <template #icon>
-                  <IconifyIcon icon="lucide:save" />
-                </template>
-                保存登录策略
-              </Button>
             </div>
 
             <div class="terminal-security__terminal-list">
@@ -310,16 +312,6 @@ onMounted(() => {
                   这里只决定各 terminal 登录入口是否触发 MFA；实际可用因子取决于当前账号 scope 的 MFA 配置。
                 </div>
               </div>
-              <Button
-                :loading="savingMfaPolicy"
-                type="primary"
-                @click="savePlatformTerminalMfaPolicy"
-              >
-                <template #icon>
-                  <IconifyIcon icon="lucide:save" />
-                </template>
-                保存登录 MFA
-              </Button>
             </div>
 
             <div class="terminal-security__mfa-grid">
@@ -328,7 +320,7 @@ onMounted(() => {
                 :key="entry.terminal"
                 class="terminal-security__mfa-row"
               >
-                <div>
+                <div class="terminal-security__mfa-main">
                   <div class="terminal-security__terminal-name">
                     {{ getTerminalLabel(entry.terminal) }}
                   </div>
@@ -376,6 +368,15 @@ onMounted(() => {
   padding: 24px;
 }
 
+.terminal-security__page-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.terminal-security__save-button {
+  width: auto;
+}
+
 .terminal-security__header,
 .terminal-security__section-head,
 .terminal-security__terminal-row,
@@ -417,6 +418,11 @@ onMounted(() => {
   gap: 14px;
 }
 
+.terminal-security__terminal-list,
+.terminal-security__mfa-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+}
+
 .terminal-security__section {
   padding-top: 4px;
 }
@@ -437,16 +443,37 @@ onMounted(() => {
   background: var(--terminal-security-surface);
 }
 
+.terminal-security__terminal-row {
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 132px;
+}
+
+.terminal-security__mfa-row {
+  align-items: flex-start;
+  flex-direction: column;
+  justify-content: flex-start;
+  min-height: 132px;
+}
+
 .terminal-security__terminal-main {
-  min-width: 170px;
+  min-width: 0;
+  width: 100%;
+}
+
+.terminal-security__mfa-main {
+  min-width: 0;
+  width: 100%;
 }
 
 .terminal-security__flow-group {
-  width: min(100%, 520px);
+  width: 100%;
 }
 
 .terminal-security__switch-stack {
-  min-width: 190px;
+  min-width: 0;
+  width: 100%;
 }
 
 .terminal-security__switch-row {

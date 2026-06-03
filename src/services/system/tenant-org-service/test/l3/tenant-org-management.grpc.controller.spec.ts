@@ -75,6 +75,7 @@ describe('TenantOrgManagementGrpcController L3', () => {
       tenant: {
         id: 'tenant-1',
         code: 'acme',
+        employeeCodePrefix: '0AF',
         name: 'Acme',
         status: 'ACTIVE',
         rootOrgId: 'root-1'
@@ -93,10 +94,11 @@ describe('TenantOrgManagementGrpcController L3', () => {
       }
     })
 
-    const result = await controller.createTenant({ code: 'acme', name: 'Acme' } as any)
+    const result = await controller.createTenant({ code: 'acme', employeeCodePrefix: '0AF', name: 'Acme' } as any)
 
     expect(service.createTenant).toHaveBeenCalledWith({
       code: 'acme',
+      employeeCodePrefix: '0AF',
       name: 'Acme',
       rootOrgName: ''
     })

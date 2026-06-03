@@ -85,6 +85,7 @@ describe('tenant management page', () => {
       items: [
         {
           code: 'tenant.alpha',
+          employeeCodePrefix: '0AF',
           id: 'tenant-1',
           name: 'Alpha Tenant',
           rootOrgId: 'org-root-1',
@@ -99,6 +100,7 @@ describe('tenant management page', () => {
     getManagedTenantByIdApi.mockResolvedValue({
       tenant: {
         code: 'tenant.alpha',
+        employeeCodePrefix: '0AF',
         id: 'tenant-1',
         name: 'Alpha Tenant',
         rootOrgId: 'org-root-1',
@@ -128,6 +130,7 @@ describe('tenant management page', () => {
         status: 'SUCCEEDED',
         tenant: {
           code: 'tenant.beta',
+          employeeCodePrefix: '0B0',
           id: 'tenant-2',
           name: 'Beta Tenant',
           rootOrgId: 'org-root-2',
@@ -138,6 +141,7 @@ describe('tenant management page', () => {
     updateManagedTenantProfileApi.mockResolvedValue({
       tenant: {
         code: 'tenant.alpha.updated',
+        employeeCodePrefix: '0AF',
         id: 'tenant-1',
         name: 'Alpha Tenant Updated',
         rootOrgId: 'org-root-1',
@@ -147,6 +151,7 @@ describe('tenant management page', () => {
     updateManagedTenantStatusApi.mockResolvedValue({
       tenant: {
         code: 'tenant.alpha',
+        employeeCodePrefix: '0AF',
         id: 'tenant-1',
         name: 'Alpha Tenant',
         rootOrgId: 'org-root-1',
@@ -255,6 +260,7 @@ describe('tenant management page', () => {
     const inputs = document.body.querySelectorAll('input');
     inputs[0]?.dispatchEvent(new Event('focus'));
     await wrapper.find('input[placeholder="例如 tenant.alpha"]').setValue('tenant.beta');
+    await wrapper.find('input[placeholder="例如 0AF"]').setValue('0B0');
     await wrapper.find('input[placeholder="例如 Alpha Inc."]').setValue('Beta Inc.');
     expect(wrapper.find('input[placeholder="默认与租户名称一致，可按需覆盖"]').exists()).toBe(false);
     wrapper.findComponent({ name: 'CountryRegionSelect' }).vm.$emit('update:value', 'US');
@@ -295,6 +301,7 @@ describe('tenant management page', () => {
         },
         tenant: {
           code: 'tenant.beta',
+          employeeCodePrefix: '0B0',
           name: 'Beta Inc.',
         },
       }),
@@ -315,6 +322,7 @@ describe('tenant management page', () => {
 
     expect(updateManagedTenantProfileApi).toHaveBeenCalledWith('tenant-1', {
       code: 'tenant.alpha.updated',
+      employeeCodePrefix: '0AF',
       name: 'Alpha Tenant Updated',
     });
 
@@ -343,6 +351,7 @@ describe('tenant management page', () => {
 
     await wrapper.find('[data-testid="tenant-create-open"]').trigger('click');
     await wrapper.find('input[placeholder="例如 tenant.alpha"]').setValue('tenant.phone');
+    await wrapper.find('input[placeholder="例如 0AF"]').setValue('0B1');
     await wrapper.find('input[placeholder="例如 Alpha Inc."]').setValue('Phone Tenant Inc.');
     wrapper.findComponent({ name: 'CountryRegionSelect' }).vm.$emit('update:value', 'US');
     await flushPromises();
@@ -384,6 +393,7 @@ describe('tenant management page', () => {
 
     await wrapper.find('[data-testid="tenant-create-open"]').trigger('click');
     await wrapper.find('input[placeholder="例如 tenant.alpha"]').setValue('tenant.own');
+    await wrapper.find('input[placeholder="例如 0AF"]').setValue('0B2');
     await wrapper.find('input[placeholder="例如 Alpha Inc."]').setValue('Own Company Inc.');
     wrapper.findComponent({ name: 'CountryRegionSelect' }).vm.$emit('update:value', 'US');
     await flushPromises();
@@ -451,6 +461,7 @@ describe('tenant management page', () => {
     await flushPromises();
     await wrapper.find('[data-testid="tenant-create-open"]').trigger('click');
     await wrapper.find('input[placeholder="例如 tenant.alpha"]').setValue('tenant.beta');
+    await wrapper.find('input[placeholder="例如 0AF"]').setValue('0B0');
     await wrapper.find('input[placeholder="例如 Alpha Inc."]').setValue('Beta Inc.');
     wrapper.findComponent({ name: 'CountryRegionSelect' }).vm.$emit('update:value', 'US');
     await flushPromises();

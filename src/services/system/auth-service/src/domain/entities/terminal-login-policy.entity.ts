@@ -27,7 +27,10 @@ export class TerminalLoginPolicyEntity {
   static defaults(): TerminalLoginPolicyEntity[] {
     return [
       new TerminalLoginPolicyEntity('WEB', [...WEB_IMPLEMENTED_LOGIN_FLOWS]),
-      new TerminalLoginPolicyEntity('PDA', [TerminalLoginFlow.Password]),
+      new TerminalLoginPolicyEntity('PDA', [
+        TerminalLoginFlow.Password,
+        TerminalLoginFlow.EmployeeCodePin
+      ]),
       new TerminalLoginPolicyEntity('KIOSK', [])
     ]
   }

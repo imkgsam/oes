@@ -64,7 +64,7 @@ export class TerminalDeviceAdminUseCase {
   listDevices(query: {
     terminalDeviceType?: AdminTerminalDeviceType
     status?: AdminTerminalDeviceStatus
-    presenceStatus?: 'OFFLINE' | 'ONLINE' | 'UNKNOWN'
+    presenceStatus?: 'OFFLINE' | 'ONLINE' | 'STALE' | 'UNKNOWN'
     keyword?: string
     page?: number
     pageSize?: number
@@ -120,7 +120,7 @@ export class TerminalDeviceAdminUseCase {
   }
 
   // Changes lifecycle status and asks auth-service to revoke terminal sessions when required.
-  async changeStatus(terminalDeviceId: string, dto: { targetStatus: AdminTerminalDeviceStatus; reason: string }, source: DownstreamRequestSource) {
+  async changeStatus(terminalDeviceId: string, dto: { targetStatus: AdminTerminalDeviceStatus; reason?: string | null }, source: DownstreamRequestSource) {
     const tenantId = requireTenantId(source)
     const result = await this.terminalDeviceAdapter.changeStatus({
       tenantId,

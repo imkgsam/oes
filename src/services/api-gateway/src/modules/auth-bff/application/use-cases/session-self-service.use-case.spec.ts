@@ -310,6 +310,83 @@ describe('SessionSelfServiceUseCase', () => {
     })
   })
 
+  it('forwards own terminal PIN setup and reset through the authenticated user context', async () => {
+    const authAdapter = {
+      setOwnTerminalPin: jest.fn().mockResolvedValue({ success: true }),
+      resetOwnTerminalPin: jest.fn().mockResolvedValue({ success: true })
+    }
+    const useCase = new SessionSelfServiceUseCase(authAdapter as any)
+    const source = {
+      user: { sub: 'user-1', tid: 'tenant-1', sid: 'session-1' }
+    } as any
+
+    await expect(
+      useCase.setOwnTerminalPin(
+        {
+          currentPassword: 'CurrentSecret123!',
+          newPin: '482915',
+          mfaGrantToken: 'step-up-grant-1'
+        } as any,
+        source
+      )
+    ).resolves.toEqual({ success: true })
+
+    await expect(
+      useCase.resetOwnTerminalPin(
+        {
+          currentPassword: 'CurrentSecret123!',
+          newPin: '739204',
+          mfaGrantToken: 'step-up-grant-2'
+        } as any,
+        source
+      )
+    ).resolves.toEqual({ success: true })
+
+    expect(authAdapter.setOwnTerminalPin).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        currentPassword: 'CurrentSecret123!',
+        newPin: '482915',
+        mfaGrantToken: 'step-up-grant-1'
+      },
+      expect.objectContaining({ user: { sub: 'user-1', tid: 'tenant-1', sid: 'session-1' } })
+    )
+    expect(authAdapter.resetOwnTerminalPin).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        currentPassword: 'CurrentSecret123!',
+        newPin: '739204',
+        mfaGrantToken: 'step-up-grant-2'
+      },
+      expect.objectContaining({ user: { sub: 'user-1', tid: 'tenant-1', sid: 'session-1' } })
+    )
+  })
+
+  it('toggles only the current user terminal PIN login method', async () => {
+    const authAdapter = {
+      setOwnTerminalPinEnabled: jest.fn().mockResolvedValue({ success: true })
+    }
+    const useCase = new SessionSelfServiceUseCase(authAdapter as any)
+
+    const result = await useCase.setOwnTerminalPinEnabled(
+      { enabled: false } as any,
+      {
+        user: { userId: 'user-1', sid: 'session-1', aid: 'account-1' }
+      } as any
+    )
+
+    expect(authAdapter.setOwnTerminalPinEnabled).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        enabled: false
+      },
+      expect.objectContaining({
+        user: { userId: 'user-1', sid: 'session-1', aid: 'account-1' }
+      })
+    )
+    expect(result).toEqual({ success: true })
+  })
+
   it('forwards a target session id when logging out a single other session', async () => {
     const authAdapter = {
       logoutSession: jest.fn().mockResolvedValue({

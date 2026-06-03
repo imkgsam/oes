@@ -208,6 +208,18 @@ export class MesService {
     return result.productionMold
   }
 
+  /** confirmProductionMoldArrival forwards first-stage PDA/web arrival confirmation. */
+  async confirmProductionMoldArrival(tenantId: string, productionMoldId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.confirmProductionMoldArrival(
+      {
+        ...this.withCommandEnvelope(tenantId, input, source),
+        productionMoldId: requireNonBlank(productionMoldId, 'productionMoldId')
+      },
+      source
+    )
+    return result.productionMold
+  }
+
   /** getProductionMold returns one ProductionMold detail snapshot. */
   async getProductionMold(tenantId: string, productionMoldId: string, source: DownstreamRequestSource) {
     const result = await this.mesQueryAdapter.getProductionMold(
@@ -304,6 +316,33 @@ export class MesService {
       source
     )
     return result.toolingInstallation
+  }
+
+  /** confirmInstalledMoldReady forwards the field command that makes an installed mold usable for casting. */
+  async confirmInstalledMoldReady(tenantId: string, productionMoldId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.confirmInstalledMoldReady(
+      {
+        ...this.withCommandEnvelope(tenantId, input, source),
+        productionMoldId: requireNonBlank(productionMoldId, 'productionMoldId'),
+        toolingInstallationId: requireNonBlank(input.toolingInstallationId, 'toolingInstallationId')
+      },
+      source
+    )
+    return result.productionMold
+  }
+
+  /** markInstalledMoldMaintenance forwards the field command that returns a ready installed mold to maintenance. */
+  async markInstalledMoldMaintenance(tenantId: string, productionMoldId: string, input: any, source: DownstreamRequestSource) {
+    const result = await this.mesManagementAdapter.markInstalledMoldMaintenance(
+      {
+        ...this.withCommandEnvelope(tenantId, input, source),
+        productionMoldId: requireNonBlank(productionMoldId, 'productionMoldId'),
+        reason: requireNonBlank(input.reason, 'reason'),
+        toolingInstallationId: requireNonBlank(input.toolingInstallationId, 'toolingInstallationId')
+      },
+      source
+    )
+    return result.productionMold
   }
 
   /** markProductionMoldForScrap forwards the first step of the production mold scrap lifecycle. */

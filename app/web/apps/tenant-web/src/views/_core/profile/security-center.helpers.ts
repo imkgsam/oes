@@ -1,7 +1,7 @@
 import type { SelfSecurityApi } from '#/api';
 
 export type ContactBindingKind = 'email' | 'phone';
-export type LoginMethodGroupKind = 'email' | 'phone';
+export type LoginMethodGroupKind = 'email' | 'phone' | 'terminalPin';
 
 export interface LoginMethodCapabilityItem {
   actionDisabled: boolean;
@@ -18,6 +18,7 @@ export interface LoginMethodCapabilityItem {
 export interface LoginMethodGroup {
   boundValue: string;
   capabilities: LoginMethodCapabilityItem[];
+  emptyLabel: string;
   kind: LoginMethodGroupKind;
   statusColor: 'blue' | 'default' | 'orange';
   statusText: string;
@@ -141,13 +142,16 @@ export function canRequestContactBindingChallenge(input: {
   return input.captchaVerified && input.value.trim().length > 0;
 }
 
-// Builds email and phone login-capability groups for the compact security-center card layout.
+// Builds contact and terminal-PIN login-capability groups for the compact security-center card layout.
 export function buildLoginMethodGroups(
   loginMethods: SelfSecurityApi.LoginMethod[],
 ): LoginMethodGroup[] {
-  return LOGIN_METHOD_GROUP_DEFINITIONS.map((definition) =>
-    buildLoginMethodGroup(loginMethods, definition),
-  );
+  return [
+    ...LOGIN_METHOD_GROUP_DEFINITIONS.map((definition) =>
+      buildLoginMethodGroup(loginMethods, definition),
+    ),
+    buildTerminalPinLoginMethodGroup(loginMethods),
+  ];
 }
 
 // Explains why one MFA factor is currently unavailable in self-service security management.
@@ -358,10 +362,39 @@ function buildLoginMethodGroup(
         verified: Boolean(otpMethod?.verified),
       },
     ],
+    emptyLabel: `暂未绑定${definition.contactLabel}`,
     kind: definition.kind,
     statusColor: representativeMethod ? (verified ? 'blue' : 'orange') : 'default',
     statusText: representativeMethod ? (verified ? '已验证' : '待验证') : '未绑定',
     title: definition.title,
+  };
+}
+
+function buildTerminalPinLoginMethodGroup(
+  loginMethods: SelfSecurityApi.LoginMethod[],
+): LoginMethodGroup {
+  const method = loginMethods.find((item) => item.type === 'TERMINAL_PIN') ?? null;
+
+  return {
+    boundValue: method ? (method.maskedIdentifier || method.identifier || '已设置') : '',
+    capabilities: [
+      {
+        actionDisabled: !method?.methodId,
+        disabledLabel: '先设置 PIN',
+        enabled: Boolean(method?.enabled),
+        hasPassword: false,
+        hint: method?.methodId ? '' : '需要先在右侧设置终端 PIN',
+        label: 'PIN 登录',
+        methodId: method?.methodId ?? '',
+        type: 'TERMINAL_PIN',
+        verified: Boolean(method?.verified),
+      },
+    ],
+    emptyLabel: '尚未设置 PIN',
+    kind: 'terminalPin',
+    statusColor: method ? (method.enabled ? 'blue' : 'orange') : 'default',
+    statusText: method ? (method.enabled ? '已启用' : '已停用') : '未设置',
+    title: '现场终端 PIN',
   };
 }
 

@@ -50,6 +50,7 @@ service ItemMasterManagementService {
   rpc CreatePackagingMethod(CreatePackagingMethodRequest) returns (CreatePackagingMethodResponse);
   rpc UpdatePackagingMethod(UpdatePackagingMethodRequest) returns (UpdatePackagingMethodResponse);
   rpc ChangePackagingMethodStatus(ChangePackagingMethodStatusRequest) returns (ChangePackagingMethodStatusResponse);
+  rpc DeletePackagingMethod(DeletePackagingMethodRequest) returns (DeletePackagingMethodResponse);
   rpc CreatePackagingSpec(CreatePackagingSpecRequest) returns (CreatePackagingSpecResponse);
   rpc UpdatePackagingSpec(UpdatePackagingSpecRequest) returns (UpdatePackagingSpecResponse);
   rpc ChangePackagingSpecStatus(ChangePackagingSpecStatusRequest) returns (ChangePackagingSpecStatusResponse);
@@ -224,6 +225,7 @@ message PackagingMethodRecord {
   string method_code = 2;
   string method_name = 3;
   bool active = 4;
+  string description = 5;
 }
 
 message PackagingSpecRecord {
@@ -736,6 +738,7 @@ message CreatePackagingMethodRequest {
   string tenant_id = 1;
   string method_code = 2;
   string method_name = 3;
+  string description = 4;
 }
 
 message CreatePackagingMethodResponse {
@@ -747,6 +750,7 @@ message UpdatePackagingMethodRequest {
   string packaging_method_id = 2;
   string method_code = 3;
   string method_name = 4;
+  string description = 5;
 }
 
 message UpdatePackagingMethodResponse {
@@ -762,6 +766,13 @@ message ChangePackagingMethodStatusRequest {
 message ChangePackagingMethodStatusResponse {
   PackagingMethodRecord packaging_method = 1;
 }
+
+message DeletePackagingMethodRequest {
+  string tenant_id = 1;
+  string packaging_method_id = 2;
+}
+
+message DeletePackagingMethodResponse {}
 
 message CreatePackagingSpecRequest {
   string tenant_id = 1;

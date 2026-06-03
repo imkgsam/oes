@@ -34,6 +34,106 @@ describe('AuthGrpcAdapter', () => {
     )
   })
 
+  it('forwards PDA employee-code PIN login without exposing HR or identity orchestration', async () => {
+    const svc = {
+      loginWithEmployeeCodePin: jest.fn().mockReturnValue(of({ userId: 'user-1' }))
+    }
+    const adapter = new AuthGrpcAdapter(
+      { getService: jest.fn().mockReturnValue(svc) } as any,
+      { createInternalCallMetadata: jest.fn().mockReturnValue({}) } as any
+    )
+    adapter.onModuleInit()
+
+    await adapter.loginWithEmployeeCodePin(
+      {
+        employeeCode: 'EMP001',
+        pin: '482915',
+        terminal: 'PDA',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-bound',
+        loginFlow: 'EMPLOYEE_CODE_PIN'
+      },
+      { requestId: 'req-1' }
+    )
+
+    expect(svc.loginWithEmployeeCodePin).toHaveBeenCalledWith(
+      {
+        employeeCode: 'EMP001',
+        pin: '482915',
+        terminal: 'PDA',
+        terminalDeviceId: 'terminal-device-1',
+        deviceBoundTenantId: 'tenant-bound',
+        loginFlow: 'EMPLOYEE_CODE_PIN'
+      },
+      expect.anything()
+    )
+  })
+
+  it('forwards terminal PIN self-service mutations with request metadata', async () => {
+    const svc = {
+      setOwnTerminalPin: jest.fn().mockReturnValue(of({ success: true })),
+      resetOwnTerminalPin: jest.fn().mockReturnValue(of({ success: true })),
+      setOwnTerminalPinEnabled: jest.fn().mockReturnValue(of({ success: true }))
+    }
+    const metadataFactory = {
+      createInternalCallMetadata: jest.fn().mockReturnValue({ internal: true })
+    }
+    const adapter = new AuthGrpcAdapter({ getService: jest.fn().mockReturnValue(svc) } as any, metadataFactory as any)
+    adapter.onModuleInit()
+
+    await adapter.setOwnTerminalPin(
+      {
+        userId: 'user-1',
+        currentPassword: 'CurrentSecret123!',
+        newPin: '482915',
+        mfaGrantToken: 'step-up-grant-1'
+      },
+      { requestId: 'req-1' }
+    )
+    await adapter.resetOwnTerminalPin(
+      {
+        userId: 'user-1',
+        currentPassword: 'CurrentSecret123!',
+        newPin: '739204',
+        mfaGrantToken: 'step-up-grant-2'
+      },
+      { requestId: 'req-2' }
+    )
+    await adapter.setOwnTerminalPinEnabled(
+      {
+        userId: 'user-1',
+        enabled: false
+      },
+      { requestId: 'req-3' }
+    )
+
+    expect(svc.setOwnTerminalPin).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        currentPassword: 'CurrentSecret123!',
+        newPin: '482915',
+        mfaGrantToken: 'step-up-grant-1'
+      },
+      { internal: true }
+    )
+    expect(svc.resetOwnTerminalPin).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        currentPassword: 'CurrentSecret123!',
+        newPin: '739204',
+        mfaGrantToken: 'step-up-grant-2'
+      },
+      { internal: true }
+    )
+    expect(svc.setOwnTerminalPinEnabled).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        enabled: false
+      },
+      { internal: true }
+    )
+  })
+
   it('forwards terminal policy management calls with operator-scoped metadata', async () => {
     const svc = {
       getPlatformTerminalLoginPolicy: jest.fn().mockReturnValue(of({ entries: [] })),

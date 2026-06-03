@@ -5,6 +5,7 @@ import { IsBoolean, IsEnum, IsOptional, IsString, MaxLength, MinLength, Validate
 export enum LoginMethodDto {
   EMAIL_PASSWORD = 'EMAIL_PASSWORD',
   EMAIL_OTP = 'EMAIL_OTP',
+  EMPLOYEE_CODE_PIN = 'EMPLOYEE_CODE_PIN',
   PHONE_PASSWORD = 'PHONE_PASSWORD',
   PHONE_OTP = 'PHONE_OTP'
 }
@@ -121,9 +122,10 @@ export class LoginDto {
     example: 'alice@example.com'
   })
   @IsString()
+  @IsOptional()
   @MinLength(1)
   @MaxLength(256)
-  identifier: string
+  identifier?: string
 
   @ApiProperty({
     description: 'Password or OTP credential matching the selected login method.',
@@ -131,9 +133,32 @@ export class LoginDto {
     example: 'p@ssw0rd-or-otp'
   })
   @IsString()
+  @IsOptional()
   @MinLength(1)
   @MaxLength(256)
-  credential: string
+  credential?: string
+
+  @ApiPropertyOptional({
+    description: 'Tenant-scoped employee code for managed terminal PIN login.',
+    maxLength: 64,
+    example: 'EMP001'
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  employeeCode?: string
+
+  @ApiPropertyOptional({
+    description: 'Six digit terminal PIN used with employee-code login.',
+    maxLength: 6,
+    example: '482915'
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(6)
+  @MaxLength(6)
+  pin?: string
 
   @ApiPropertyOptional({
     description: 'Optional tenant hint used only as a client-side preference before account selection.',
@@ -150,6 +175,28 @@ export class LoginDto {
     description: 'Optional lightweight device hints attached to the login attempt.'
   })
   @IsOptional()
+  device?: LoginDeviceDto
+}
+
+// Defines the PDA employee-code preflight payload; the endpoint itself fixes the login method.
+export class EmployeeCodePinPreflightDto {
+  @ApiProperty({
+    description: 'Tenant-scoped employee code scanned or entered on a managed PDA.',
+    maxLength: 64,
+    example: 'EMP-0AF-0001'
+  })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  employeeCode: string
+
+  @ApiPropertyOptional({
+    type: LoginDeviceDto,
+    description: 'Optional lightweight PDA device hints attached to the preflight attempt.'
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LoginDeviceDto)
   device?: LoginDeviceDto
 }
 

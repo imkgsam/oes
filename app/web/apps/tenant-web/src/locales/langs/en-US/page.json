@@ -11,5 +11,27 @@
     "title": "Workbench",
     "analytics": "Analytics",
     "workspace": "Tenant Workbench"
+  },
+  "terminalDevice": {
+    "presence": {
+      "OFFLINE": "Offline",
+      "ONLINE": "Online",
+      "STALE": "Stale",
+      "UNKNOWN": "Unknown"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "DECOMMISSIONED": "Decommissioned",
+      "DISABLED": "Disabled",
+      "LOST": "Lost",
+      "MAINTENANCE": "Maintenance",
+      "PENDING_APPROVAL": "Pending approval",
+      "all": "All statuses"
+    },
+    "statusOperation": {
+      "decommissionTitle": "Decommission device",
+      "reasonPlaceholder": "Optional status change reason for audit",
+      "title": "Status operation"
+    }
   }
 }

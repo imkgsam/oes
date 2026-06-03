@@ -1,5 +1,7 @@
 import { BindAccountToEmployeeCommand } from '../../src/application/commands/employee-binding/bind-account-to-employee.command'
 import { BindAccountToEmployeeHandler } from '../../src/application/commands/employee-binding/bind-account-to-employee.handler'
+import { ResolveEmployeeLoginAccountQuery } from '../../src/application/queries/employee-binding/resolve-employee-login-account.query'
+import { ResolveEmployeeLoginAccountHandler } from '../../src/application/queries/employee-binding/resolve-employee-login-account.handler'
 import { EmployeeBindingSummaryEntity } from '../../src/domain/entities/employee-binding-summary.entity'
 import { AccountRepository } from '../../src/domain/repositories/account.repository'
 import { EmployeeBindingRepository } from '../../src/domain/repositories/employee-binding.repository'
@@ -141,5 +143,111 @@ describe('BindAccountToEmployeeHandler', () => {
     })
 
     expect(bindingRepository.bind).not.toHaveBeenCalled()
+  })
+})
+
+describe('ResolveEmployeeLoginAccountHandler', () => {
+  it('resolves the enabled tenant account bound to the employee', async () => {
+    const accountRepository = createAccountRepositoryMock()
+    const bindingRepository = createEmployeeBindingRepositoryMock()
+
+    bindingRepository.findByEmployeeId.mockResolvedValue(
+      new EmployeeBindingSummaryEntity('binding-1', 'tenant-1', 'account-1', 'employee-1')
+    )
+    accountRepository.findById.mockResolvedValue(
+      createAccountSummaryFixture({
+        id: 'account-1',
+        userId: 'user-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        displayName: 'PDA Operator',
+        isEnabled: true
+      })
+    )
+
+    const handler = new ResolveEmployeeLoginAccountHandler(
+      bindingRepository as unknown as EmployeeBindingRepository,
+      accountRepository as unknown as AccountRepository
+    )
+
+    await expect(
+      handler.execute(
+        new ResolveEmployeeLoginAccountQuery({
+          tenantId: 'tenant-1',
+          employeeId: 'employee-1'
+        })
+      )
+    ).resolves.toEqual({
+      userId: 'user-1',
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT',
+      displayName: 'PDA Operator',
+      accountEnabled: true
+    })
+  })
+
+  it('does not resolve an account when the binding tenant does not match the request tenant', async () => {
+    const accountRepository = createAccountRepositoryMock()
+    const bindingRepository = createEmployeeBindingRepositoryMock()
+
+    bindingRepository.findByEmployeeId.mockResolvedValue(
+      new EmployeeBindingSummaryEntity('binding-1', 'tenant-2', 'account-1', 'employee-1')
+    )
+
+    const handler = new ResolveEmployeeLoginAccountHandler(
+      bindingRepository as unknown as EmployeeBindingRepository,
+      accountRepository as unknown as AccountRepository
+    )
+
+    await expect(
+      handler.execute(
+        new ResolveEmployeeLoginAccountQuery({
+          tenantId: 'tenant-1',
+          employeeId: 'employee-1'
+        })
+      )
+    ).resolves.toBeNull()
+
+    expect(accountRepository.findById).not.toHaveBeenCalled()
+  })
+
+  it('resolves a disabled bound account with accountEnabled=false for caller-side audit', async () => {
+    const accountRepository = createAccountRepositoryMock()
+    const bindingRepository = createEmployeeBindingRepositoryMock()
+
+    bindingRepository.findByEmployeeId.mockResolvedValue(
+      new EmployeeBindingSummaryEntity('binding-1', 'tenant-1', 'account-1', 'employee-1')
+    )
+    accountRepository.findById.mockResolvedValue(
+      createAccountSummaryFixture({
+        id: 'account-1',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        displayName: 'PDA Operator',
+        isEnabled: false
+      })
+    )
+
+    const handler = new ResolveEmployeeLoginAccountHandler(
+      bindingRepository as unknown as EmployeeBindingRepository,
+      accountRepository as unknown as AccountRepository
+    )
+
+    await expect(
+      handler.execute(
+        new ResolveEmployeeLoginAccountQuery({
+          tenantId: 'tenant-1',
+          employeeId: 'employee-1'
+        })
+      )
+    ).resolves.toEqual({
+      userId: 'user-1',
+      accountId: 'account-1',
+      tenantId: 'tenant-1',
+      scopeLevel: 'TENANT',
+      displayName: 'PDA Operator',
+      accountEnabled: false
+    })
   })
 })

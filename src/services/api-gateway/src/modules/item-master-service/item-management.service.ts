@@ -21,6 +21,7 @@ import {
   CreatePackagingMethodRequest,
   CreatePackagingSpecRequest,
   DeleteItemCategoryRequest,
+  DeletePackagingMethodRequest,
   GetItemModelAttributeRulesResponse,
   GetItemModelResponse,
   GetItemResponse,
@@ -675,14 +676,15 @@ export class ItemManagementService {
 
   async createPackagingMethod(
     tenantId: string,
-    input: { methodCode: string; methodName: string },
+    input: { description?: string; methodCode: string; methodName: string },
     source: DownstreamRequestSource
   ) {
     const result = await this.itemManagementAdapter.createPackagingMethod(
       {
         tenantId: this.resolveTenantId(tenantId, source),
         methodCode: requireNonBlank(input.methodCode, 'methodCode'),
-        methodName: requireNonBlank(input.methodName, 'methodName')
+        methodName: requireNonBlank(input.methodName, 'methodName'),
+        description: normalize(input.description) ?? ''
       } satisfies CreatePackagingMethodRequest,
       source
     )
@@ -693,18 +695,19 @@ export class ItemManagementService {
   async updatePackagingMethod(
     tenantId: string,
     packagingMethodId: string,
-    input: { methodCode: string; methodName: string },
+    input: { description?: string; methodCode: string; methodName: string },
     source: DownstreamRequestSource
   ) {
-    const result = await this.itemManagementAdapter.updatePackagingMethod(
-      {
-        tenantId: this.resolveTenantId(tenantId, source),
-        packagingMethodId: requireNonBlank(packagingMethodId, 'packagingMethodId'),
-        methodCode: requireNonBlank(input.methodCode, 'methodCode'),
-        methodName: requireNonBlank(input.methodName, 'methodName')
-      } satisfies UpdatePackagingMethodRequest,
-      source
-    )
+    const command: UpdatePackagingMethodRequest = {
+      tenantId: this.resolveTenantId(tenantId, source),
+      packagingMethodId: requireNonBlank(packagingMethodId, 'packagingMethodId'),
+      methodCode: requireNonBlank(input.methodCode, 'methodCode'),
+      methodName: requireNonBlank(input.methodName, 'methodName')
+    }
+    if (Object.prototype.hasOwnProperty.call(input, 'description')) {
+      command.description = normalize(input.description) ?? ''
+    }
+    const result = await this.itemManagementAdapter.updatePackagingMethod(command, source)
 
     return mapPackagingMethod(result.packagingMethod)
   }
@@ -725,6 +728,18 @@ export class ItemManagementService {
     )
 
     return mapPackagingMethod(result.packagingMethod)
+  }
+
+  async deletePackagingMethod(tenantId: string, packagingMethodId: string, source: DownstreamRequestSource) {
+    await this.itemManagementAdapter.deletePackagingMethod(
+      {
+        tenantId: this.resolveTenantId(tenantId, source),
+        packagingMethodId: requireNonBlank(packagingMethodId, 'packagingMethodId')
+      } satisfies DeletePackagingMethodRequest,
+      source
+    )
+
+    return {}
   }
 
   async getPackagingSpec(tenantId: string, packagingSpecId: string, source: DownstreamRequestSource) {
@@ -1170,11 +1185,18 @@ function mapPackagingMethods(result: ListPackagingMethodsResponse) {
 }
 
 /** mapPackagingMethod converts one generated packaging method into the BFF shape. */
-function mapPackagingMethod(record?: { active?: boolean; methodCode?: string; methodName?: string; packagingMethodId?: string }) {
+function mapPackagingMethod(record?: {
+  active?: boolean
+  description?: string
+  methodCode?: string
+  methodName?: string
+  packagingMethodId?: string
+}) {
   return {
     packagingMethodId: record?.packagingMethodId ?? '',
     methodCode: record?.methodCode ?? '',
     methodName: record?.methodName ?? '',
+    description: record?.description ?? '',
     status: fromActive(record?.active)
   }
 }

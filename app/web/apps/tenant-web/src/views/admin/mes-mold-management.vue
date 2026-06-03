@@ -18,6 +18,7 @@ import {
   Form as AForm,
   FormItem as AFormItem,
   Input as AInput,
+  InputNumber as AInputNumber,
   Menu as AMenu,
   Modal as AModal,
   Select as ASelect,
@@ -30,7 +31,6 @@ import {
 } from 'ant-design-vue'
 
 import {
-  acceptProductionMoldApi,
   installProductionMoldApi,
   listCurrentMoldsByWorkCenterApi,
   listManagedItemModelsApi,
@@ -55,12 +55,12 @@ interface DailyUsageRow {
   toolingInstallationId: string
   moldCode: string
   productionMoldId: string
-  moldPosition?: string
+  moldPositionIndex?: number
   workCenterRef: MesApi.WorkCenterRef
 }
 
 type MoldDesignActionKey = 'detail'
-type ProductionMoldRowActionKey = 'accept' | 'install' | 'scrap' | 'unmount'
+type ProductionMoldRowActionKey = 'install' | 'scrap' | 'unmount'
 
 interface TableActionMenuItem<ActionKey extends string> {
   danger?: boolean
@@ -94,12 +94,9 @@ const installedMolds = ref<MesApi.CurrentMoldsResult['items']>([])
 const selectedWorkCenterId = ref('')
 const selectedWorkCenterCode = ref('')
 const selectedWorkCenterName = ref('')
-const installMoldPosition = ref('')
+const installMoldPositionIndex = ref<number | undefined>(undefined)
 const installCavityPosition = ref('')
 const installSetupParameters = ref('')
-const installWorkUnitCode = ref('')
-const installWorkUnitId = ref('')
-const installWorkUnitName = ref('')
 const activeDialog = ref<'' | 'createMold' | 'createMoldDesign' | 'dailyUsage' | 'installMold'>('')
 const selectedMold = ref<MesApi.ProductionMold | null>(null)
 const dailyRows = ref<DailyUsageRow[]>([])
@@ -134,7 +131,7 @@ const moldDesignForm = reactive({
 })
 
 const installedCount = computed(
-  () => productionMolds.value.filter((mold) => normalizeStatus(mold.currentStatus) === 'INSTALLED').length
+  () => productionMolds.value.filter((mold) => ['READY', 'MAINTENANCE'].includes(normalizeStatus(mold.currentStatus))).length
 )
 const warningCount = computed(() => productionMolds.value.filter((mold) => mold.lifeCounterSummary?.warningLevel).length)
 const defaultMoldDesign = computed(() => moldDesigns.value[0])
@@ -188,6 +185,8 @@ const moldDesignColumns: TableColumnsType<MesApi.MoldDesign> = [
     width: 260
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'action',
     title: operationColumnTitle,
     width: 100
@@ -237,6 +236,8 @@ const productionMoldColumns: TableColumnsType<MesApi.ProductionMold> = [
     width: 170
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'action',
     title: operationColumnTitle,
     width: 190
@@ -262,12 +263,6 @@ function getProductionMoldRowActionItems(
   mold: MesApi.ProductionMold
 ): TableActionMenuItem<ProductionMoldRowActionKey>[] {
   return [
-    {
-      hidden: !canAcceptMold(mold),
-      key: 'accept',
-      label: '验收',
-      testId: `mes-accept-mold-${mold.productionMoldId}`
-    },
     {
       hidden: !canInstallMold(mold),
       key: 'install',
@@ -391,10 +386,6 @@ function handleMoldDesignAction(actionKey: MoldDesignActionKey, moldDesignRecord
 /** handleProductionMoldRowAction dispatches one dropdown menu action for a production mold row. */
 async function handleProductionMoldRowAction(actionKey: ProductionMoldRowActionKey, mold: MesApi.ProductionMold) {
   switch (actionKey) {
-    case 'accept': {
-      await submitAcceptMold(mold)
-      return
-    }
     case 'install': {
       openInstallDialog(mold)
       return
@@ -435,9 +426,12 @@ async function openCreateMoldDesignDialog() {
   }
 }
 
-/** openInstallDialog prepares one production mold installation panel. */
+/** openInstallDialog prepares one production mold installation panel with numeric line position only. */
 function openInstallDialog(mold: MesApi.ProductionMold) {
   selectedMold.value = mold
+  installMoldPositionIndex.value = undefined
+  installCavityPosition.value = ''
+  installSetupParameters.value = ''
   activeDialog.value = 'installMold'
 }
 
@@ -603,22 +597,6 @@ async function submitCreateProductionMold() {
   }
 }
 
-/** submitAcceptMold accepts one received production mold before it can be installed. */
-async function submitAcceptMold(mold: MesApi.ProductionMold) {
-  submitting.value = true
-  submitError.value = ''
-  try {
-    await acceptProductionMoldApi(activeTenantId.value, mold.productionMoldId, {
-      reason: 'web accept production mold'
-    })
-    await loadWorkspace()
-  } catch (error) {
-    submitError.value = formatErrorMessage(error, '验收生产模具失败，请稍后重试。')
-  } finally {
-    submitting.value = false
-  }
-}
-
 /** submitInstallMold installs one production mold onto the selected production unit. */
 async function submitInstallMold() {
   if (!selectedMold.value || !selectedWorkCenterId.value) {
@@ -629,11 +607,10 @@ async function submitInstallMold() {
   try {
     await installProductionMoldApi(activeTenantId.value, selectedMold.value.productionMoldId, {
       cavityPosition: installCavityPosition.value.trim() || undefined,
-      moldPosition: installMoldPosition.value.trim() || undefined,
+      moldPositionIndex: installMoldPositionIndex.value ?? undefined,
       reason: 'web install mold',
       setupParameters: installSetupParameters.value.trim() || undefined,
-      workCenterRef: buildSelectedWorkCenterRef(),
-      workUnitRef: buildInstallWorkUnitRef()
+      workCenterRef: buildSelectedWorkCenterRef()
     })
     activeDialog.value = ''
     await loadWorkspace()
@@ -696,7 +673,8 @@ function openDailyUsageDialog() {
         toolingInstallationId: row.toolingInstallation.toolingInstallationId ?? mold.currentInstallationSummary?.toolingInstallationId ?? '',
         moldCode: mold.moldCode,
         productionMoldId: mold.productionMoldId,
-        moldPosition: row.toolingInstallation.moldDetail?.moldPosition ?? mold.currentInstallationSummary?.moldDetail?.moldPosition,
+        moldPositionIndex:
+          row.toolingInstallation.moldDetail?.moldPositionIndex ?? mold.currentInstallationSummary?.moldDetail?.moldPositionIndex,
         workCenterRef: row.toolingInstallation.workCenterRef ?? mold.currentInstallationSummary?.workCenterRef ?? buildSelectedWorkCenterRef()
       }
     })
@@ -748,10 +726,10 @@ function findDefaultOutputSelection(moldDesignId: string) {
 /** normalizeStatus converts generated numeric enum values and strings into displayable mold statuses. */
 function normalizeStatus(status: MesApi.ProductionMold['currentStatus']) {
   const generatedStatusMap: Record<number, string> = {
-    1: 'RECEIVED',
+    1: 'PRE_REGISTERED',
     2: 'PREPARING',
     3: 'AVAILABLE',
-    4: 'INSTALLED',
+    4: 'READY',
     5: 'MAINTENANCE',
     6: 'DISABLED',
     7: 'SCRAP_PENDING',
@@ -763,7 +741,7 @@ function normalizeStatus(status: MesApi.ProductionMold['currentStatus']) {
 /** resolveStatusTagColor maps mold lifecycle states to compact Ant Design tag colors. */
 function resolveStatusTagColor(status: MesApi.ProductionMold['currentStatus']) {
   switch (normalizeStatus(status)) {
-    case 'INSTALLED': {
+    case 'READY': {
       return 'green'
     }
     case 'MAINTENANCE': {
@@ -787,14 +765,9 @@ function canInstallMold(mold: MesApi.ProductionMold) {
   return canManageMold.value && normalizeStatus(mold.currentStatus) === 'AVAILABLE'
 }
 
-/** canAcceptMold keeps UI actions aligned with the MES RECEIVED acceptance rule. */
-function canAcceptMold(mold: MesApi.ProductionMold) {
-  return canManageMold.value && normalizeStatus(mold.currentStatus) === 'RECEIVED'
-}
-
 /** canUnmountMold allows unloading installed and scrap-pending molds that still occupy a position. */
 function canUnmountMold(mold: MesApi.ProductionMold) {
-  return canManageMold.value && ['INSTALLED', 'SCRAP_PENDING'].includes(normalizeStatus(mold.currentStatus))
+  return canManageMold.value && ['READY', 'MAINTENANCE', 'SCRAP_PENDING'].includes(normalizeStatus(mold.currentStatus))
 }
 
 /** canMarkMoldForScrap hides terminal or already-pending scrap commands from operators. */
@@ -830,20 +803,6 @@ function buildSelectedWorkCenterRef(): MesApi.WorkCenterRef {
   }
 }
 
-/** buildInstallWorkUnitRef maps optional install-point fields into the MES WorkUnitRef contract. */
-function buildInstallWorkUnitRef(): MesApi.WorkUnitRef | undefined {
-  const workUnitId = installWorkUnitId.value.trim()
-  if (!workUnitId) {
-    return undefined
-  }
-
-  return {
-    displayNameSnapshot: installWorkUnitName.value.trim() || undefined,
-    workUnitCodeSnapshot: installWorkUnitCode.value.trim() || undefined,
-    workUnitId
-  }
-}
-
 /** buildProductionSpecRef creates the opaque MES ProductionSpec ref required by MoldDesign outputs. */
 function buildProductionSpecRef(spec: MesApi.ProductionSpecSummary): MesApi.ProductionSpecRef {
   return {
@@ -876,7 +835,7 @@ onMounted(() => {
             <p class="mes-mold-header__eyebrow">{{ activeTenantName }} / MES</p>
             <h1>模具管理</h1>
           </div>
-          <a-space wrap>
+          <a-space class="mes-mold-header__actions" wrap>
             <a-button type="default" @click="loadWorkspace">
               {{ loading ? '刷新中' : '刷新' }}
             </a-button>
@@ -1006,6 +965,7 @@ onMounted(() => {
             :data-source="moldDesigns"
             :pagination="false"
             :row-key="(row) => row.moldDesignId"
+            :scroll="{ x: 870 }"
             size="small"
           >
             <template #bodyCell="{ column, record }">
@@ -1033,6 +993,7 @@ onMounted(() => {
                         v-for="item in getVisibleTableActionItems(getMoldDesignActionItems(record))"
                         :key="item.key"
                         :danger="item.danger"
+                        :data-menu-key="item.key"
                         :data-testid="item.testId"
                         :disabled="item.disabled"
                       >
@@ -1095,6 +1056,7 @@ onMounted(() => {
             :data-source="productionMolds"
             :pagination="false"
             :row-key="(row) => row.productionMoldId"
+            :scroll="{ x: 1040 }"
             size="small"
           >
             <template #bodyCell="{ column, record }">
@@ -1126,6 +1088,7 @@ onMounted(() => {
                         v-for="item in getVisibleTableActionItems(getProductionMoldRowActionItems(readProductionMold(record)))"
                         :key="item.key"
                         :danger="item.danger"
+                        :data-menu-key="item.key"
                         :data-testid="item.testId"
                         :disabled="item.disabled"
                       >
@@ -1293,19 +1256,15 @@ onMounted(() => {
         <a-form-item label="WorkCenter ID">
           <a-input data-testid="mes-install-work-center-id" v-model:value="selectedWorkCenterId" />
         </a-form-item>
-        <div class="mes-form-grid">
-          <a-form-item label="WorkUnit ID">
-            <a-input data-testid="mes-install-work-unit-id" v-model:value="installWorkUnitId" />
-          </a-form-item>
-          <a-form-item label="WorkUnit 编码快照">
-            <a-input data-testid="mes-install-work-unit-code" v-model:value="installWorkUnitCode" />
-          </a-form-item>
-          <a-form-item label="WorkUnit 名称快照">
-            <a-input data-testid="mes-install-work-unit-name" v-model:value="installWorkUnitName" />
-          </a-form-item>
-        </div>
         <a-form-item label="安装位置">
-          <a-input data-testid="mes-install-mold-position" v-model:value="installMoldPosition" />
+          <a-input-number
+            data-testid="mes-install-mold-position-index"
+            v-model:value="installMoldPositionIndex"
+            :min="1"
+            :precision="0"
+            class="mes-full-width"
+            placeholder="默认追加到最后一位"
+          />
         </a-form-item>
         <a-form-item label="型腔位置">
           <a-input data-testid="mes-install-cavity-position" v-model:value="installCavityPosition" />
@@ -1365,6 +1324,11 @@ onMounted(() => {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
+  padding: 18px 20px;
+  border: 1px solid rgb(226 232 240 / 0.95);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 0.04);
 }
 
 .mes-mold-header h1 {
@@ -1378,6 +1342,10 @@ onMounted(() => {
   margin: 0 0 4px;
   color: #6b7280;
   font-size: 12px;
+}
+
+.mes-mold-header__actions {
+  flex: 0 0 auto;
 }
 
 .mes-mold-metrics {
@@ -1428,6 +1396,12 @@ onMounted(() => {
   .mes-mold-header {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .mes-mold-header__actions,
+  .mes-mold-header__actions :deep(.ant-space-item),
+  .mes-mold-header__actions :deep(.ant-btn) {
+    width: 100%;
   }
 
   .mes-form-grid {

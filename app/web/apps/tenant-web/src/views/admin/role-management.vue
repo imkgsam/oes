@@ -82,6 +82,7 @@ import {
 type ActiveTabKey = 'instances' | 'templates';
 type CreateRoleMenuKey = 'instantiate' | 'role';
 type PermissionOwnerType = 'role' | 'template';
+type PermissionColumnKey = 'assigned' | 'code' | 'description' | 'module';
 type RoleOwnerPermissionAction =
   | 'assign_permissions'
   | 'delete'
@@ -94,8 +95,16 @@ type RoleActionKey =
   | 'permissions'
   | 'terminalAccess'
   | 'toggle';
+type RoleColumnKey =
+  | 'actions'
+  | 'code'
+  | 'isEnabled'
+  | 'name'
+  | 'roleKind'
+  | 'scope'
+  | 'templateRoleName'
+  | 'tenantName';
 type RoleTerminal = 'KIOSK' | 'PDA' | 'WEB';
-type PermissionActionKey = 'assign' | 'revoke';
 
 interface TableActionMenuItem<ActionKey extends string = string> {
   danger?: boolean;
@@ -217,6 +226,8 @@ const roleTerminalAccessValues = ref<RoleTerminal[]>([]);
 const moduleOptions = ref<{ label: string; value: string }[]>([]);
 const tenantOptions = ref<RoleManagementApi.TenantOption[]>([]);
 let tenantOptionSearchTimer: ReturnType<typeof setTimeout> | null = null;
+let activePermissionColumnCleanup: null | (() => void) = null;
+let activeRoleColumnCleanup: null | (() => void) = null;
 
 const instanceFilters = reactive<InstanceFilterState>({
   keyword: '',
@@ -229,6 +240,38 @@ const templateFilters = reactive<TemplateFilterState>({
 const permissionFilters = reactive<PermissionFilterState>({
   keyword: '',
   module: '',
+});
+const permissionColumnMinWidths: Record<PermissionColumnKey, number> = {
+  assigned: 72,
+  code: 220,
+  description: 220,
+  module: 160,
+};
+const permissionColumnWidths = reactive<Record<PermissionColumnKey, number>>({
+  assigned: 88,
+  code: 360,
+  description: 380,
+  module: 220,
+});
+const roleColumnMinWidths: Record<RoleColumnKey, number> = {
+  actions: 72,
+  code: 220,
+  isEnabled: 88,
+  name: 120,
+  roleKind: 100,
+  scope: 96,
+  templateRoleName: 120,
+  tenantName: 150,
+};
+const roleColumnWidths = reactive<Record<RoleColumnKey, number>>({
+  actions: 72,
+  code: 330,
+  isEnabled: 96,
+  name: 140,
+  roleKind: 112,
+  scope: 120,
+  templateRoleName: 150,
+  tenantName: 190,
 });
 
 const instancePagination = reactive({
@@ -339,8 +382,13 @@ const canManageRoleTerminalAccess = computed(() =>
 );
 const terminalAccessSubtitle = computed(() =>
   terminalAccessRole.value?.roleKind === 'SYSTEM_TEMPLATE'
-    ? '模板实例化时复制为角色初始终端准入。'
-    : '空选择表示该角色不提供任何终端登录准入。',
+    ? '选择模板默认开放的登录终端。'
+    : '选择该角色允许登录的终端。',
+);
+const terminalAccessSelectedSummary = computed(() =>
+  roleTerminalAccessValues.value.length > 0
+    ? `已允许 ${roleTerminalAccessValues.value.length} 个终端`
+    : '未开放终端',
 );
 const isPlatformScope = computed(() => authContextStore.isPlatformScope);
 const showTemplateTab = computed(() => isPlatformScope.value);
@@ -359,6 +407,10 @@ const tenantSelectOptions = computed(() =>
     value: tenant.id,
   })),
 );
+const tenantFilterSelectOptions = computed(() => [
+  { label: '全部租户', value: '' },
+  ...tenantSelectOptions.value,
+]);
 const assignedPermissionIds = computed(
   () => new Set(assignedPermissions.value.map((permission) => permission.id)),
 );
@@ -377,6 +429,23 @@ const terminalAccessOptions: Array<{ label: string; value: RoleTerminal }> = [
   { label: 'PDA', value: 'PDA' },
   { label: 'KIOSK', value: 'KIOSK' },
 ];
+const terminalAccessOptionMeta: Record<
+  RoleTerminal,
+  { description: string; icon: string }
+> = {
+  KIOSK: {
+    description: '面向固定工位、自助机或门店终端的受控登录入口。',
+    icon: 'ant-design:tablet-outlined',
+  },
+  PDA: {
+    description: '面向仓储、扫码、现场作业等手持终端登录。',
+    icon: 'ant-design:scan-outlined',
+  },
+  WEB: {
+    description: '面向浏览器工作台和管理后台访问。',
+    icon: 'ant-design:desktop-outlined',
+  },
+};
 const navigationEntriesByKey = computed(
   () => new Map(navigationEntries.value.map((entry) => [entry.entryKey, entry])),
 );
@@ -455,6 +524,12 @@ const instanceTablePagination = computed(() =>
     pageSize: instancePagination.pageSize,
     total: instancePagination.total,
   }),
+);
+const roleTableScrollX = computed(() =>
+  Object.values(roleColumnWidths).reduce((total, width) => total + width, 0),
+);
+const permissionTableScrollX = computed(() =>
+  Object.values(permissionColumnWidths).reduce((total, width) => total + width, 0),
 );
 const templateTablePagination = computed(() =>
   buildRoleTablePagination({
@@ -1547,6 +1622,30 @@ async function revokePermission(permissionId: string) {
   }
 }
 
+function isPermissionAssigned(permissionId: string) {
+  return assignedPermissionIds.value.has(permissionId);
+}
+
+function isTerminalAccessSelected(terminal: RoleTerminal) {
+  return roleTerminalAccessValues.value.includes(terminal);
+}
+
+// togglePermissionAssignment keeps the single permission table checkbox in sync with role assignment APIs.
+async function togglePermissionAssignment(permissionId: string, checked: boolean) {
+  const assigned = isPermissionAssigned(permissionId);
+
+  if (checked === assigned) {
+    return;
+  }
+
+  if (checked) {
+    await assignPermission(permissionId);
+    return;
+  }
+
+  await revokePermission(permissionId);
+}
+
 function handleInstantiateTemplateChange(templateId?: unknown) {
   const normalizedTemplateId =
     typeof templateId === 'string'
@@ -1791,60 +1890,126 @@ function renderRoleActionDropdown(
   });
 }
 
-function renderPermissionActionDropdown(
-  permission: Pick<PermissionManagementApi.Permission, 'id'>,
-  action: PermissionActionKey,
-) {
-  const assigned = assignedPermissionIds.value.has(permission.id);
-  const items: TableActionMenuItem<PermissionActionKey>[] =
-    action === 'revoke'
-      ? [
-          {
-            danger: true,
-            disabled: !canAssignSelectedRolePermissions.value || permissionMutating.value,
-            key: 'revoke',
-            label: '移除',
-            testId: `role-permission-action-${permission.id}-revoke`,
-          },
-        ]
-      : [
-          {
-            disabled:
-              !canAssignSelectedRolePermissions.value ||
-              permissionMutating.value ||
-              assigned,
-            key: 'assign',
-            label: assigned ? '已分配' : '添加',
-            testId: `role-permission-action-${permission.id}-assign`,
-          },
-        ];
+function stopPermissionColumnResize() {
+  activePermissionColumnCleanup?.();
+  activePermissionColumnCleanup = null;
+  document.body.classList.remove('role-management--resizing-column');
+}
 
-  return renderRoleNativeActions({
-    ariaLabel: action === 'revoke' ? '已分配权限操作' : '权限目录操作',
-    items,
-    onClick: async (key) => {
-      if (key === 'revoke') {
-        await revokePermission(permission.id);
-      } else {
-        await assignPermission(permission.id);
-      }
-    },
-  });
+// startPermissionColumnResize wires one header drag handle to permission table column width state.
+function startPermissionColumnResize(
+  event: MouseEvent,
+  columnKey: PermissionColumnKey,
+) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  stopPermissionColumnResize();
+
+  const startX = event.clientX;
+  const startWidth = permissionColumnWidths[columnKey];
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    permissionColumnWidths[columnKey] = Math.max(
+      permissionColumnMinWidths[columnKey],
+      Math.round(startWidth + moveEvent.clientX - startX),
+    );
+  };
+
+  const handleMouseUp = () => {
+    stopPermissionColumnResize();
+  };
+
+  document.body.classList.add('role-management--resizing-column');
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp, { once: true });
+  activePermissionColumnCleanup = () => {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+}
+
+// renderResizablePermissionHeader exposes a compact resize handle for permission table headers.
+function renderResizablePermissionHeader(
+  columnKey: PermissionColumnKey,
+  label: string,
+) {
+  return h('div', { class: 'role-management__resizable-title' }, [
+    h('span', { class: 'role-management__resizable-title-text' }, label),
+    h('span', {
+      'aria-label': `调整${label}列宽`,
+      class: 'role-management__column-resizer',
+      onMousedown: (event: MouseEvent) =>
+        startPermissionColumnResize(event, columnKey),
+      role: 'separator',
+    }),
+  ]);
+}
+
+function stopRoleColumnResize() {
+  activeRoleColumnCleanup?.();
+  activeRoleColumnCleanup = null;
+  document.body.classList.remove('role-management--resizing-column');
+}
+
+// startRoleColumnResize wires one header drag handle to the role table column width state.
+function startRoleColumnResize(event: MouseEvent, columnKey: RoleColumnKey) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  stopRoleColumnResize();
+
+  const startX = event.clientX;
+  const startWidth = roleColumnWidths[columnKey];
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    roleColumnWidths[columnKey] = Math.max(
+      roleColumnMinWidths[columnKey],
+      Math.round(startWidth + moveEvent.clientX - startX),
+    );
+  };
+
+  const handleMouseUp = () => {
+    stopRoleColumnResize();
+  };
+
+  document.body.classList.add('role-management--resizing-column');
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp, { once: true });
+  activeRoleColumnCleanup = () => {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+}
+
+// renderResizableRoleHeader exposes a compact resize handle without changing table cell content.
+function renderResizableRoleHeader(columnKey: RoleColumnKey, label: string) {
+  return h('div', { class: 'role-management__resizable-title' }, [
+    h('span', { class: 'role-management__resizable-title-text' }, label),
+    h('span', {
+      'aria-label': `调整${label}列宽`,
+      class: 'role-management__column-resizer',
+      onMousedown: (event: MouseEvent) => startRoleColumnResize(event, columnKey),
+      role: 'separator',
+    }),
+  ]);
 }
 
 const roleColumns = computed<TableColumnsType<RoleManagementApi.Role>>(() => [
   {
     dataIndex: 'name',
-    title: '角色名称',
+    title: renderResizableRoleHeader('name', '角色名称'),
+    width: roleColumnWidths.name,
   },
   {
     dataIndex: 'code',
-    title: '角色编码',
+    title: renderResizableRoleHeader('code', '角色编码'),
+    width: roleColumnWidths.code,
   },
   {
     dataIndex: 'roleKind',
-    title: '类型',
-    width: 110,
+    title: renderResizableRoleHeader('roleKind', '类型'),
+    width: roleColumnWidths.roleKind,
     customRender: ({ record }) =>
       h(Tag, { color: record.isSystem ? 'blue' : 'green' }, () =>
         getRoleKindLabel(record),
@@ -1852,8 +2017,8 @@ const roleColumns = computed<TableColumnsType<RoleManagementApi.Role>>(() => [
   },
   {
     key: 'scope',
-    title: 'Scope',
-    width: 100,
+    title: renderResizableRoleHeader('scope', 'Scope'),
+    width: roleColumnWidths.scope,
     customRender: ({ record }) =>
       h(Tag, { color: record.isSystem ? 'blue' : 'default' }, () =>
         getRoleScopeLabel(record),
@@ -1861,28 +2026,32 @@ const roleColumns = computed<TableColumnsType<RoleManagementApi.Role>>(() => [
   },
   {
     dataIndex: 'tenantName',
-    title: '租户',
+    title: renderResizableRoleHeader('tenantName', '租户'),
+    width: roleColumnWidths.tenantName,
     customRender: ({ record }) => record.tenantName || record.tenantId || '-',
   },
   {
     dataIndex: 'templateRoleName',
-    title: '来源模板',
+    title: renderResizableRoleHeader('templateRoleName', '来源模板'),
+    width: roleColumnWidths.templateRoleName,
     customRender: ({ record }) =>
       record.templateRoleName || record.templateRoleId || '-',
   },
   {
     dataIndex: 'isEnabled',
-    title: '状态',
-    width: 90,
+    title: renderResizableRoleHeader('isEnabled', '状态'),
+    width: roleColumnWidths.isEnabled,
     customRender: ({ record }) =>
       h(Tag, { color: record.isEnabled ? 'green' : 'default' }, () =>
         record.isEnabled ? '启用' : '停用',
       ),
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'actions',
     title: operationColumnTitle,
-    width: 72,
+    width: roleColumnWidths.actions,
     customRender: ({ record }) => renderRoleActionDropdown(record, 'role'),
   },
 ]);
@@ -1918,6 +2087,8 @@ const templateColumns = computed<TableColumnsType<RoleManagementApi.Role>>(() =>
       ),
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'actions',
     title: operationColumnTitle,
     width: 72,
@@ -1925,53 +2096,42 @@ const templateColumns = computed<TableColumnsType<RoleManagementApi.Role>>(() =>
   },
 ]);
 
-const assignedPermissionColumns = computed<
-  TableColumnsType<RoleManagementApi.Permission>
->(() => [
-  {
-    dataIndex: 'code',
-    title: '权限码',
-  },
-  {
-    dataIndex: 'module',
-    title: '模块',
-    width: 140,
-  },
-  {
-    dataIndex: 'description',
-    title: '说明',
-    customRender: ({ record }) => record.description || '-',
-  },
-  {
-    key: 'actions',
-    title: operationColumnTitle,
-    width: 90,
-    customRender: ({ record }) => renderPermissionActionDropdown(record, 'revoke'),
-  },
-]);
-
-const availablePermissionColumns = computed<
+const permissionListColumns = computed<
   TableColumnsType<PermissionManagementApi.Permission>
 >(() => [
   {
+    align: 'center',
+    key: 'assigned',
+    title: renderResizablePermissionHeader('assigned', '已分配'),
+    width: permissionColumnWidths.assigned,
+    customRender: ({ record }) => {
+      const checked = isPermissionAssigned(record.id);
+
+      return h(Checkbox, {
+        checked,
+        disabled: !canAssignSelectedRolePermissions.value || permissionMutating.value,
+        'data-testid': `role-permission-checkbox-${record.id}`,
+        onChange: (event: { target?: { checked?: boolean } }) => {
+          void togglePermissionAssignment(record.id, Boolean(event.target?.checked));
+        },
+      });
+    },
+  },
+  {
     dataIndex: 'code',
-    title: '权限码',
+    title: renderResizablePermissionHeader('code', '权限码'),
+    width: permissionColumnWidths.code,
   },
   {
     dataIndex: 'module',
-    title: '模块',
-    width: 140,
+    title: renderResizablePermissionHeader('module', '模块'),
+    width: permissionColumnWidths.module,
   },
   {
     dataIndex: 'description',
-    title: '说明',
+    title: renderResizablePermissionHeader('description', '说明'),
+    width: permissionColumnWidths.description,
     customRender: ({ record }) => record.description || '-',
-  },
-  {
-    key: 'actions',
-    title: operationColumnTitle,
-    width: 90,
-    customRender: ({ record }) => renderPermissionActionDropdown(record, 'assign'),
   },
 ]);
 
@@ -1993,6 +2153,9 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  stopPermissionColumnResize();
+  stopRoleColumnResize();
+
   if (tenantOptionSearchTimer) {
     clearTimeout(tenantOptionSearchTimer);
   }
@@ -2051,7 +2214,7 @@ onBeforeUnmount(() => {
 
             <section class="role-management__filter-panel">
               <Row :gutter="[10, 10]" class="role-management__filter-row">
-                <Col :lg="9" :md="24" :span="24" :xl="10">
+                <Col class="role-management__keyword-filter-col" flex="0 1 320px">
                   <Input
                     v-model:value="instanceFilters.keyword"
                     allow-clear
@@ -2060,7 +2223,11 @@ onBeforeUnmount(() => {
                     @press-enter="searchInstances"
                   />
                 </Col>
-                <Col v-if="showTemplateTab" :lg="5" :md="8" :span="24" :xl="4">
+                <Col
+                  v-if="showTemplateTab"
+                  class="role-management__scope-filter-col"
+                  flex="0 0 150px"
+                >
                   <Select
                     v-model:value="instanceFilters.scopeLevel"
                     class="role-management__filter-control"
@@ -2073,11 +2240,8 @@ onBeforeUnmount(() => {
                 </Col>
                 <Col
                   v-if="showTemplateTab"
-                  :lg="6"
-                  :md="8"
-                  :span="24"
-                  :xl="5"
                   class="role-management__tenant-filter-col"
+                  flex="0 1 220px"
                 >
                   <Select
                     v-model:value="instanceFilters.tenantId"
@@ -2086,31 +2250,14 @@ onBeforeUnmount(() => {
                     show-search
                     :filter-option="false"
                     :loading="tenantOptionsLoading"
-                    :options="tenantSelectOptions"
-                    placeholder="选择租户"
+                    :options="tenantFilterSelectOptions"
+                    placeholder="全部租户"
                     @search="scheduleTenantOptionSearch"
                   />
                 </Col>
                 <Col
-                  v-else
-                  :lg="6"
-                  :md="8"
-                  :span="24"
-                  :xl="5"
-                  class="role-management__tenant-filter-col"
-                >
-                  <Input
-                    :value="currentTenantLabel"
-                    class="role-management__filter-control"
-                    disabled
-                  />
-                </Col>
-                <Col
-                  :lg="4"
-                  :md="8"
-                  :span="24"
-                  :xl="5"
                   class="role-management__filter-actions-col"
+                  flex="0 0 204px"
                 >
                   <div class="role-management__filter-buttons">
                     <Button class="role-management__filter-button" type="primary" @click="searchInstances">查询</Button>
@@ -2121,11 +2268,13 @@ onBeforeUnmount(() => {
             </section>
 
             <Table
+              class="role-management__instance-table"
               :columns="roleColumns"
               :data-source="instances"
               :loading="instancesLoading"
               :pagination="instanceTablePagination"
               :row-key="(record) => record.id"
+              :scroll="{ x: roleTableScrollX }"
               @change="handleInstanceTableChange"
             />
           </Tabs.TabPane>
@@ -2180,6 +2329,7 @@ onBeforeUnmount(() => {
               :loading="templatesLoading"
               :pagination="templateTablePagination"
               :row-key="(record) => record.id"
+              :scroll="{ x: 900 }"
               @change="handleTemplateTableChange"
             />
           </Tabs.TabPane>
@@ -2313,29 +2463,65 @@ onBeforeUnmount(() => {
 
       <Drawer
         v-model:open="terminalAccessDrawerOpen"
+        :body-style="{
+          background: 'hsl(var(--muted) / 0.58)',
+          padding: '16px',
+        }"
         destroy-on-close
+        :header-style="{
+          background: 'hsl(var(--card))',
+          borderBottom: '1px solid hsl(var(--border))',
+        }"
         :title="`终端准入 · ${terminalAccessRole?.name || ''}`"
-        width="460"
+        width="560"
       >
         <section
           v-loading="terminalAccessLoading"
-          class="role-management__permission-section"
+          class="role-management__terminal-access-panel"
         >
-          <div class="role-management__panel-header">
+          <div class="role-management__terminal-access-hero">
             <div>
-              <div class="role-management__panel-title">角色默认准入终端</div>
-              <div class="role-management__panel-subtitle">
+              <div class="role-management__terminal-access-title">
+                默认准入终端
+              </div>
+              <div class="role-management__terminal-access-description">
                 {{ terminalAccessSubtitle }}
               </div>
             </div>
+            <Tag :color="roleTerminalAccessValues.length > 0 ? 'blue' : 'default'">
+              {{ terminalAccessSelectedSummary }}
+            </Tag>
           </div>
 
           <Checkbox.Group
             v-model:value="roleTerminalAccessValues"
             class="role-management__terminal-group"
-            :options="terminalAccessOptions"
             :disabled="!canManageRoleTerminalAccess"
-          />
+          >
+            <Checkbox
+              v-for="option in terminalAccessOptions"
+              :key="option.value"
+              class="role-management__terminal-card"
+              :class="{
+                'role-management__terminal-card--active': isTerminalAccessSelected(option.value),
+              }"
+              :value="option.value"
+            >
+              <span class="role-management__terminal-card-main">
+                <span class="role-management__terminal-card-icon">
+                  <IconifyIcon :icon="terminalAccessOptionMeta[option.value].icon" />
+                </span>
+                <span class="role-management__terminal-card-content">
+                  <span class="role-management__terminal-card-title">
+                    {{ option.label }}
+                  </span>
+                  <span class="role-management__terminal-card-desc">
+                    {{ terminalAccessOptionMeta[option.value].description }}
+                  </span>
+                </span>
+              </span>
+            </Checkbox>
+          </Checkbox.Group>
         </section>
 
         <template #footer>
@@ -2547,72 +2733,51 @@ onBeforeUnmount(() => {
         v-model:open="permissionDrawerOpen"
         destroy-on-close
         :title="`权限维护 · ${selectedRole?.name || ''}`"
-        width="840"
+        width="76%"
       >
         <div class="role-management__permission-stack">
           <section class="role-management__permission-section">
             <div class="role-management__panel-header">
-              <div class="role-management__panel-title">已分配权限</div>
+              <div class="role-management__panel-title">权限列表</div>
               <div class="role-management__panel-meta">
-                共 {{ assignedPermissions.length }} 条
-              </div>
-            </div>
-            <Table
-              :columns="assignedPermissionColumns"
-              :data-source="assignedPermissions"
-              :loading="permissionLoading || permissionMutating"
-              :pagination="false"
-              :row-key="(record) => record.id"
-              size="small"
-            />
-          </section>
-
-          <section class="role-management__permission-section">
-            <div class="role-management__panel-header">
-              <div class="role-management__panel-title">权限目录</div>
-              <div class="role-management__panel-meta">
-                共 {{ permissionPagination.total }} 条
+                已分配 {{ assignedPermissions.length }} / 共 {{ permissionPagination.total }} 条
               </div>
             </div>
             <section class="role-management__permission-filter-panel">
-              <Row :gutter="[10, 10]" class="role-management__filter-row">
-                <Col :md="12" :span="24">
-                  <Input
-                    v-model:value="permissionFilters.keyword"
-                    allow-clear
-                    class="role-management__filter-control"
-                    placeholder="搜索权限码或说明"
-                    @press-enter="searchPermissions"
-                  />
-                </Col>
-                <Col :md="8" :span="24">
-                  <Select
-                    v-model:value="permissionFilters.module"
-                    class="role-management__filter-control"
-                    show-search
-                    :filter-option="false"
-                    :options="permissionFilterModuleOptions"
-                    placeholder="按模块筛选"
-                    @search="(value: string) => (moduleSearch = value)"
-                  />
-                </Col>
-                <Col :md="4" :span="24" class="role-management__filter-actions-col">
-                  <div class="role-management__filter-buttons">
-                    <Button class="role-management__filter-button" type="primary" @click="searchPermissions">
-                      查询
-                    </Button>
-                    <Button class="role-management__filter-button" @click="resetPermissionFilters">重置</Button>
-                  </div>
-                </Col>
-              </Row>
+              <div class="role-management__permission-filter-grid">
+                <Input
+                  v-model:value="permissionFilters.keyword"
+                  allow-clear
+                  class="role-management__filter-control"
+                  placeholder="搜索权限码或说明"
+                  @press-enter="searchPermissions"
+                />
+                <Select
+                  v-model:value="permissionFilters.module"
+                  class="role-management__filter-control"
+                  show-search
+                  :filter-option="false"
+                  :options="permissionFilterModuleOptions"
+                  placeholder="按模块筛选"
+                  @search="(value: string) => (moduleSearch = value)"
+                />
+                <div class="role-management__permission-filter-actions">
+                  <Button class="role-management__filter-button" type="primary" @click="searchPermissions">
+                    查询
+                  </Button>
+                  <Button class="role-management__filter-button" @click="resetPermissionFilters">重置</Button>
+                </div>
+              </div>
             </section>
 
             <Table
-              :columns="availablePermissionColumns"
+              class="role-management__permission-table"
+              :columns="permissionListColumns"
               :data-source="availablePermissions"
               :loading="permissionLoading || permissionMutating"
               :pagination="permissionTablePagination"
               :row-key="(record) => record.id"
+              :scroll="{ x: permissionTableScrollX }"
               size="small"
               @change="handlePermissionTableChange"
             />
@@ -2744,6 +2909,33 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
+.role-management__permission-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.35fr) minmax(180px, 0.9fr) minmax(176px, auto);
+  gap: 10px;
+  align-items: center;
+}
+
+.role-management__permission-filter-actions {
+  display: grid;
+  grid-template-columns: minmax(84px, 1fr) minmax(84px, 1fr);
+  gap: 8px;
+  justify-self: end;
+  width: 184px;
+}
+
+.role-management__keyword-filter-col {
+  max-width: 320px;
+}
+
+.role-management__scope-filter-col {
+  max-width: 150px;
+}
+
+.role-management__tenant-filter-col {
+  max-width: 220px;
+}
+
 .role-management__filter-control {
   width: 100%;
 }
@@ -2757,6 +2949,8 @@ onBeforeUnmount(() => {
 .role-management__filter-actions-col {
   display: flex;
   justify-content: flex-end;
+  margin-left: auto;
+  max-width: 204px;
 }
 
 .role-management__filter-buttons {
@@ -2770,6 +2964,43 @@ onBeforeUnmount(() => {
 .role-management__filter-button {
   min-width: 0;
   width: 100%;
+}
+
+.role-management__resizable-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding-right: 12px;
+}
+
+.role-management__resizable-title-text {
+  min-width: 0;
+}
+
+.role-management__column-resizer {
+  position: absolute;
+  top: -12px;
+  right: -10px;
+  bottom: -12px;
+  z-index: 2;
+  width: 14px;
+  cursor: col-resize;
+}
+
+.role-management__column-resizer::after {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 6px;
+  width: 1px;
+  content: '';
+  background: rgb(15 23 42 / 14%);
+  transition: background 0.16s ease;
+}
+
+.role-management__column-resizer:hover::after {
+  background: hsl(var(--primary));
 }
 
 .role-management__drawer-footer {
@@ -3046,6 +3277,24 @@ onBeforeUnmount(() => {
   background: transparent;
 }
 
+:deep(.role-management__instance-table .ant-table-cell) {
+  white-space: nowrap;
+}
+
+:deep(.role-management__instance-table .ant-table-thead > tr > th) {
+  position: relative;
+  user-select: none;
+}
+
+:deep(.role-management__permission-table .ant-table-cell) {
+  white-space: nowrap;
+}
+
+:deep(.role-management__permission-table .ant-table-thead > tr > th) {
+  position: relative;
+  user-select: none;
+}
+
 :deep(.role-management__card .ant-table-thead > tr > th),
 :deep(.role-management__filter-panel),
 :deep(.role-management__permission-filter-panel) {
@@ -3090,16 +3339,123 @@ onBeforeUnmount(() => {
   border-radius: 10px;
 }
 
+:global(body.role-management--resizing-column) {
+  cursor: col-resize;
+  user-select: none;
+}
+
 .role-management__help-dot--sm {
   height: 16px;
   width: 16px;
 }
 
+.role-management__terminal-access-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.role-management__terminal-access-hero {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--card));
+  padding: 14px 16px;
+}
+
+.role-management__terminal-access-title {
+  color: hsl(var(--foreground));
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 22px;
+}
+
+.role-management__terminal-access-description {
+  color: hsl(var(--muted-foreground));
+  font-size: 13px;
+  line-height: 20px;
+  margin-top: 2px;
+}
+
 .role-management__terminal-group {
+  align-self: stretch;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+.role-management__terminal-card {
+  align-items: center;
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  background: hsl(var(--card));
+  cursor: pointer;
+  margin-inline-start: 0;
+  min-height: 72px;
+  padding: 12px 14px;
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease;
+  width: 100%;
+}
+
+.role-management__terminal-card:hover {
+  border-color: hsl(var(--primary) / 0.36);
+}
+
+.role-management__terminal-card--active {
+  border-color: hsl(var(--primary) / 0.58);
+  background: hsl(var(--primary) / 0.06);
+}
+
+.role-management__terminal-card-main {
+  align-items: center;
+  display: flex;
   gap: 10px;
-  margin-top: 16px;
+  min-width: 0;
+}
+
+.role-management__terminal-card-icon {
+  align-items: center;
+  background: hsl(var(--primary) / 0.08);
+  border-radius: 6px;
+  color: hsl(var(--primary));
+  display: inline-flex;
+  flex: 0 0 30px;
+  height: 30px;
+  justify-content: center;
+  width: 30px;
+}
+
+.role-management__terminal-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.role-management__terminal-card-title {
+  color: hsl(var(--foreground));
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 20px;
+}
+
+.role-management__terminal-card-desc {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  line-height: 18px;
+}
+
+:deep(.role-management__terminal-group .ant-checkbox-wrapper) {
+  margin-inline-start: 0;
+}
+
+:deep(.role-management__terminal-card .ant-checkbox) {
+  margin-top: 0;
 }
 
 @media (max-width: 991px) {
@@ -3113,6 +3469,22 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 767px) {
+  .role-management__permission-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .role-management__permission-filter-actions {
+    width: min(100%, 184px);
+  }
+
+  .role-management__keyword-filter-col,
+  .role-management__scope-filter-col,
+  .role-management__tenant-filter-col,
+  .role-management__filter-actions-col {
+    flex: 1 1 100% !important;
+    max-width: 100%;
+  }
+
   .role-management__panel-header {
     align-items: flex-start;
     flex-direction: column;

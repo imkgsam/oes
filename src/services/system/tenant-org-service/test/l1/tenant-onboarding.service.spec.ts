@@ -40,7 +40,7 @@ describe('TenantOnboardingService', () => {
   it('creates tenant, party refs, first admin account, auth bootstrap, and tenant/hr admin grants through owner ports', async () => {
     const tenantRepository = {
       createWithRootOrg: jest.fn().mockResolvedValue({
-        tenant: { id: 'tenant-1', code: 'acme', name: 'ACME', status: 'ACTIVE', rootOrgId: 'root-org-1' },
+        tenant: { id: 'tenant-1', code: 'acme', employeeCodePrefix: '0AF', name: 'ACME', status: 'ACTIVE', rootOrgId: 'root-org-1' },
         rootOrgUnit: {
           id: 'root-org-1',
           tenantId: 'tenant-1',
@@ -54,7 +54,7 @@ describe('TenantOnboardingService', () => {
           organizationPartyId: null
         }
       }),
-      findById: jest.fn().mockResolvedValue({ id: 'tenant-1', code: 'acme', name: 'ACME', status: 'ACTIVE', rootOrgId: 'root-org-1' })
+      findById: jest.fn().mockResolvedValue({ id: 'tenant-1', code: 'acme', employeeCodePrefix: '0AF', name: 'ACME', status: 'ACTIVE', rootOrgId: 'root-org-1' })
     }
     const orgUnitRepository = {
       update: jest.fn().mockResolvedValue({}),
@@ -117,7 +117,7 @@ describe('TenantOnboardingService', () => {
     await expect(
       service.start({
         idempotencyKey: 'onboarding-key-1',
-        tenant: { code: 'acme', name: 'ACME' },
+        tenant: { code: 'acme', employeeCodePrefix: '0AF', name: 'ACME' },
         organizationParty: {
           legalName: 'ACME Inc.',
           registeredCountry: 'US',
@@ -168,6 +168,7 @@ describe('TenantOnboardingService', () => {
     expect(permissionPort.ensureAccountBasicRole).toHaveBeenCalledWith(expect.objectContaining({ tenantId: 'tenant-1' }))
     expect(hrEmployeeOnboardingPort.createEmployeeOnboarding).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
+      employeeCode: 'EMP-0AF-0001',
       idempotencyKey: 'onboarding-1:CREATE_FIRST_ADMIN_EMPLOYEE',
       person: {
         existingPartyId: 'person-party-1',
@@ -200,7 +201,7 @@ describe('TenantOnboardingService', () => {
     await expect(
       service.start({
         idempotencyKey: 'onboarding-key-1',
-        tenant: { code: 'acme', name: 'ACME' },
+        tenant: { code: 'acme', employeeCodePrefix: '0AF', name: 'ACME' },
         organizationParty: { legalName: 'ACME Inc.', registeredCountry: 'US', identifiers: [] },
         rootOrg: { name: 'ACME HQ' },
         firstAdmin: { displayName: 'Alice Admin', email: 'alice@example.com', requirePasswordSetup: true }
@@ -211,7 +212,7 @@ describe('TenantOnboardingService', () => {
   it('can bind an existing user as the first tenant admin without creating login methods', async () => {
     const tenantRepository = {
       createWithRootOrg: jest.fn().mockResolvedValue({
-        tenant: { id: 'tenant-1', code: 'acme', name: 'ACME', status: 'ACTIVE', rootOrgId: 'root-org-1' },
+        tenant: { id: 'tenant-1', code: 'acme', employeeCodePrefix: '0AF', name: 'ACME', status: 'ACTIVE', rootOrgId: 'root-org-1' },
         rootOrgUnit: {
           id: 'root-org-1',
           tenantId: 'tenant-1',
@@ -225,7 +226,7 @@ describe('TenantOnboardingService', () => {
           organizationPartyId: null
         }
       }),
-      findById: jest.fn().mockResolvedValue({ id: 'tenant-1', code: 'acme', name: 'ACME', status: 'ACTIVE', rootOrgId: 'root-org-1' })
+      findById: jest.fn().mockResolvedValue({ id: 'tenant-1', code: 'acme', employeeCodePrefix: '0AF', name: 'ACME', status: 'ACTIVE', rootOrgId: 'root-org-1' })
     }
     const orgUnitRepository = {
       update: jest.fn().mockResolvedValue({}),
@@ -287,7 +288,7 @@ describe('TenantOnboardingService', () => {
     await expect(
       service.start({
         idempotencyKey: 'onboarding-key-1',
-        tenant: { code: 'acme', name: 'ACME' },
+        tenant: { code: 'acme', employeeCodePrefix: '0AF', name: 'ACME' },
         organizationParty: {
           legalName: 'ACME Inc.',
           registeredCountry: 'US',
@@ -320,6 +321,7 @@ describe('TenantOnboardingService', () => {
     expect(hrEmployeeOnboardingPort.createEmployeeOnboarding).toHaveBeenCalledWith(
       expect.objectContaining({
         tenantId: 'tenant-1',
+        employeeCode: 'EMP-0AF-0001',
         person: expect.objectContaining({
           existingPartyId: 'person-party-1',
           existingTenantPartyId: 'person-tenant-party-1',

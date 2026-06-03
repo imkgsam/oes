@@ -12,6 +12,7 @@ import { SessionContextUseCase } from '../../../application/use-cases/session-co
 import { SessionSelfServiceUseCase } from '../../../application/use-cases/session-self-service.use-case'
 import {
   CompleteMfaDto,
+  EmployeeCodePinPreflightDto,
   LoginDto,
   RefreshSessionDto,
   RequestMfaFactorChallengeDto,
@@ -19,6 +20,7 @@ import {
 } from '../dtos/login.dto'
 import {
   AuthResponseViewModel,
+  EmployeeCodePinPreflightViewModel,
   OtpChallengeViewModel,
   RefreshSessionViewModel
 } from '../view-models/auth-response.view-model'
@@ -51,6 +53,27 @@ abstract class TerminalAuthControllerBase {
     @Ip() ipAddress?: string
   ): Promise<AuthResponseViewModel> {
     return this.loginUseCase.execute(
+      dto,
+      {
+        requestId: source.requestId,
+        traceId: source.traceId
+      },
+      { userAgent, ipAddress },
+      this.terminal
+    )
+  }
+
+  @Post('employee-code/preflight')
+  @Public()
+  @ApiOperation({ summary: 'Preflight a terminal-scoped employee-code login before PIN entry' })
+  @ApiBody({ type: EmployeeCodePinPreflightDto })
+  async preflightEmployeeCodePin(
+    @Body() dto: EmployeeCodePinPreflightDto,
+    @DownstreamSource() source: DownstreamRequestSource,
+    @Headers('user-agent') userAgent?: string,
+    @Ip() ipAddress?: string
+  ): Promise<EmployeeCodePinPreflightViewModel> {
+    return this.loginUseCase.preflightEmployeeCodePin(
       dto,
       {
         requestId: source.requestId,

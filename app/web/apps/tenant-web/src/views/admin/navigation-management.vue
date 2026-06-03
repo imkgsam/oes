@@ -934,6 +934,7 @@ watch(
                 :data-source="entries"
                 :loading="entryLoading"
                 :pagination="tablePagination"
+                :scroll="{ x: 1160 }"
                 size="middle"
                 @change="handleEntryTableChange"
               />

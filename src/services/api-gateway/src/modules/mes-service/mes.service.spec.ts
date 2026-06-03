@@ -35,8 +35,11 @@ describe('MesService', () => {
     registerMasterMold: jest.fn(),
     registerProductionMold: jest.fn(),
     acceptProductionMold: jest.fn(),
+    confirmProductionMoldArrival: jest.fn(),
     moveTooling: jest.fn(),
     installTooling: jest.fn(),
+    confirmInstalledMoldReady: jest.fn(),
+    markInstalledMoldMaintenance: jest.fn(),
     unmountTooling: jest.fn(),
     recordMoldUsageBatch: jest.fn(),
     adjustMoldLifeCounter: jest.fn(),
@@ -137,14 +140,14 @@ describe('MesService', () => {
 
     await service.listProductionMolds(
       'tenant-1',
-      { status: 'INSTALLED', warningLevel: 'INFO', moldDesignId: 'design-1' },
+      { status: 'READY', warningLevel: 'INFO', moldDesignId: 'design-1' },
       source as any
     )
 
     expect(mesQueryAdapter.listProductionMolds).toHaveBeenCalledWith(
       expect.objectContaining({
         moldDesignId: 'design-1',
-        status: ProductionMoldStatus.PRODUCTION_MOLD_STATUS_INSTALLED,
+        status: ProductionMoldStatus.PRODUCTION_MOLD_STATUS_READY,
         tenantId: 'tenant-1',
         warningLevel: MoldWarningLevel.MOLD_WARNING_LEVEL_INFO
       }),
@@ -191,7 +194,7 @@ describe('MesService', () => {
     await service.installTooling(
       'tenant-1',
       'mold-1',
-      { workCenterRef: { workCenterId: 'wc-1' }, moldPosition: 'A1' },
+      { workCenterRef: { workCenterId: 'wc-1' }, moldPositionIndex: 1 },
       source as any
     )
 
@@ -205,9 +208,59 @@ describe('MesService', () => {
     )
     expect(mesManagementAdapter.installTooling).toHaveBeenCalledWith(
       expect.objectContaining({
-        moldPosition: 'A1',
+        moldPositionIndex: 1,
         toolingId: 'mold-1',
         workCenterRef: { workCenterId: 'wc-1' }
+      }),
+      source
+    )
+  })
+
+  it('maps arrival, ready, and maintenance production mold field commands', async () => {
+    const source = buildSource('req-mold-state')
+    mesManagementAdapter.confirmProductionMoldArrival.mockResolvedValue({ productionMold: { productionMoldId: 'mold-1' } })
+    mesManagementAdapter.confirmInstalledMoldReady.mockResolvedValue({ productionMold: { productionMoldId: 'mold-1' } })
+    mesManagementAdapter.markInstalledMoldMaintenance.mockResolvedValue({ productionMold: { productionMoldId: 'mold-1' } })
+
+    await service.confirmProductionMoldArrival(
+      'tenant-1',
+      'mold-1',
+      { arrivedAt: '2026-05-05T08:00:00.000Z' },
+      source as any
+    )
+    await service.confirmInstalledMoldReady(
+      'tenant-1',
+      'mold-1',
+      { toolingInstallationId: 'install-1', readyAt: '2026-05-05T09:00:00.000Z' },
+      source as any
+    )
+    await service.markInstalledMoldMaintenance(
+      'tenant-1',
+      'mold-1',
+      { toolingInstallationId: 'install-1', reason: 'repair required' },
+      source as any
+    )
+
+    expect(mesManagementAdapter.confirmProductionMoldArrival).toHaveBeenCalledWith(
+      expect.objectContaining({
+        arrivedAt: '2026-05-05T08:00:00.000Z',
+        productionMoldId: 'mold-1'
+      }),
+      source
+    )
+    expect(mesManagementAdapter.confirmInstalledMoldReady).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productionMoldId: 'mold-1',
+        readyAt: '2026-05-05T09:00:00.000Z',
+        toolingInstallationId: 'install-1'
+      }),
+      source
+    )
+    expect(mesManagementAdapter.markInstalledMoldMaintenance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productionMoldId: 'mold-1',
+        reason: 'repair required',
+        toolingInstallationId: 'install-1'
       }),
       source
     )

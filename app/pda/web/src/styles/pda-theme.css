@@ -46,6 +46,44 @@ body {
   letter-spacing: 0.16em;
 }
 
+.login-view__brand-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin-bottom: 0.8rem;
+}
+
+.login-view__brand-row .eyebrow {
+  margin-bottom: 0;
+}
+
+.login-view__logo {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  width: 2.6rem;
+  height: 2.6rem;
+  place-items: center;
+  border-radius: 0.82rem;
+  background: #163f35;
+}
+
+.login-view__logo-ring {
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 0.28rem solid #f7fbf5;
+  border-radius: 999px;
+}
+
+.login-view__logo-scan {
+  position: absolute;
+  right: 0.56rem;
+  bottom: 0.78rem;
+  width: 0.78rem;
+  height: 0.36rem;
+  background: #9cd7bf;
+}
+
 .login-view,
 .enrollment-view,
 .device-restricted-view,
@@ -113,6 +151,13 @@ body {
   font-weight: 700;
 }
 
+.login-form__hint {
+  margin: 0;
+  color: var(--pda-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .login-form__button {
   height: 3rem;
   border: 0;
@@ -120,11 +165,185 @@ body {
   background: var(--pda-accent);
 }
 
+.login-form__link {
+  border: 0;
+  background: transparent;
+  color: var(--pda-accent);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
 .login-form__error {
   margin: 0;
   color: #9a3f36;
   font-size: 0.86rem;
   font-weight: 700;
+}
+
+.camera-scan-icon-button {
+  display: inline-grid;
+  width: 2.2rem;
+  height: 2.2rem;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: #e7eee8;
+  color: var(--pda-accent);
+  font: inherit;
+  font-size: 1.15rem;
+  touch-action: manipulation;
+}
+
+.camera-scan-icon-button:active {
+  transform: translate3d(0, 1px, 0) scale(0.96);
+}
+
+.camera-scan-icon-button:disabled {
+  opacity: 0.52;
+}
+
+.login-pin-unlock {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 1rem 1.25rem 1.5rem;
+  background: #163f35;
+  color: #f7fbf5;
+}
+
+.login-pin-unlock__back {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  min-width: 4.2rem;
+  min-height: 2.35rem;
+  border: 1px solid rgba(247, 251, 245, 0.28);
+  border-radius: 999px;
+  background: rgba(247, 251, 245, 0.1);
+  color: #f7fbf5;
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  touch-action: manipulation;
+}
+
+.login-pin-unlock__back:active {
+  background: rgba(247, 251, 245, 0.18);
+}
+
+.login-pin-unlock__back:disabled {
+  opacity: 0.45;
+}
+
+.login-pin-unlock__stage {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 1.15rem;
+  width: 100%;
+  max-width: 22rem;
+  margin: 0 auto;
+  padding-bottom: 0.6rem;
+}
+
+.login-pin-unlock__dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.78rem;
+  min-height: 1rem;
+}
+
+.login-pin-unlock__dot {
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 1px solid #cbd9d2;
+  border-radius: 999px;
+  background: transparent;
+}
+
+.login-pin-unlock__dot--filled {
+  border-color: #f7fbf5;
+  background: #f7fbf5;
+}
+
+.login-pin-unlock__error,
+.login-pin-unlock__loading {
+  min-height: 1.35rem;
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.login-pin-unlock__error {
+  color: #ffd7ce;
+}
+
+.login-pin-unlock__loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: rgba(247, 251, 245, 0.74);
+}
+
+.login-pin-unlock__spinner {
+  width: 0.95rem;
+  height: 0.95rem;
+  border: 2px solid rgba(247, 251, 245, 0.24);
+  border-top-color: #f7fbf5;
+  border-radius: 999px;
+  animation: login-pin-spin 0.72s linear infinite;
+}
+
+@keyframes login-pin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.login-pin-unlock__keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 4.7rem);
+  justify-content: center;
+  gap: 0.8rem 1rem;
+  width: 100%;
+}
+
+.login-pin-unlock__key {
+  width: 4.7rem;
+  height: 4.7rem;
+  border: 1px solid #58766d;
+  border-radius: 999px;
+  background: #2a5147;
+  color: #f7fbf5;
+  font: inherit;
+  font-size: 1.42rem;
+  font-weight: 800;
+  touch-action: manipulation;
+}
+
+.login-pin-unlock__key:active {
+  background: #376357;
+}
+
+.login-pin-unlock__key:disabled {
+  opacity: 0.5;
+}
+
+.login-pin-unlock__key--action {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  font-size: 0.9rem;
+}
+
+.login-pin-unlock__key-spacer {
+  width: 4.7rem;
+  height: 4.7rem;
 }
 
 .workbench-view {

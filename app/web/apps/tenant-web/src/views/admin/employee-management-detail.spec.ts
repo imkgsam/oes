@@ -51,7 +51,7 @@ describe('employee management detail page', () => {
     getManagedEmployeeDetailApi.mockReset()
     getManagedEmployeeDetailApi.mockResolvedValue({
       employee: {
-        employeeCode: 'EMP-001',
+        employeeCode: 'EMP-0AF-0001',
         displayName: 'Ada Chen',
         id: 'employee-1',
         lifecycleStatus: 'ACTIVE',
@@ -146,6 +146,8 @@ describe('employee management detail page', () => {
     expect(wrapper.text()).toContain('员工详情')
     expect(wrapper.text()).toContain('Ada Chen')
     expect(wrapper.text()).toContain('制造中心')
+    expect(wrapper.text()).toContain('员工码二维码')
+    expect(wrapper.find('[data-testid="employee-code-qr"]').attributes('data-value')).toBe('EMP-0AF-0001')
     expect(wrapper.text()).toContain('账号与访问')
   })
 })

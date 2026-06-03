@@ -13,6 +13,7 @@
   - 手机密码登录
   - 邮箱 OTP 登录
   - 手机 OTP 登录
+  - 员工码 + 现场终端 PIN 登录
 - 认证 challenge 真相：
   - login challenge
   - OTP challenge
@@ -22,6 +23,7 @@
 - 认证凭据与登录方式真相：
   - `LoginMethod`
   - password credential
+  - user-scoped `TERMINAL_PIN` credential
   - OTP usage 与验证码校验状态
   - password setup requirement
   - password recovery reset grant
@@ -112,6 +114,7 @@ Terminal-aware Account Security Phase 2 增加以下稳定规则：
 - Web 保留现有固定登录入口与 account selection。
 - PDA 登录租户由受管设备绑定决定，用户登录时不选择租户。
 - PDA Phase 2 不提供 account selection；用户认证成功后，必须在设备绑定 tenant 内解析出唯一可 PDA 登录 account。
+- `EMPLOYEE_CODE_PIN` 是现场终端登录流程：`employeeCode` 只用于在设备绑定租户内解析 HR 员工与目标 account，真正的认证凭据是 user-scoped `TERMINAL_PIN`。
 - Terminal Entry Login Policy 不改变各前端固定登录流程，只作为平台级入口启停与后端准入。
 
 ## 6. Account Selection And Session Context
@@ -165,6 +168,11 @@ Terminal-aware Account Security Phase 2 增加以下稳定规则：
 
 - `identity-service` owns email / phone contact asset、联系资产验证状态、用户 / 账号展示资料。
 - `auth-service` owns login method、password credential、OTP challenge、MFA credential、recovery code 与 password setup requirement。
+- `TERMINAL_PIN` 是 `auth-service` 拥有的 user-scoped login credential，可供 PDA、KIOSK、触摸屏等现场共享终端使用；不得命名或建模为 PDA 专属凭据。
+- `TERMINAL_PIN` 绑定 `userId`，不绑定 `accountId`、`employeeId` 或 `terminalDeviceId`；能否登录某租户终端仍由设备绑定租户、active employee、employee-account binding、account enabled、Terminal Access Policy 与设备状态共同决定。
+- `TERMINAL_PIN` 设置、修改、忘记后重设、启用和停用属于 Web 已登录后的 self-service 账号安全能力，必须通过 step-up 保护；PDA 不提供 PIN 设置或找回流程。
+- 管理员可要求用户重设 `TERMINAL_PIN` 或禁用目标用户的 `TERMINAL_PIN` login method，但不得查看、生成或设置明文 PIN。
+- `TERMINAL_PIN` 必须只保存 hash；认证、诊断或审计日志不得记录 PIN 明文。
 - `auth-service` 可以保存认证所需的 normalized identifier 或目标地址快照，但不得把它扩展为 email / phone 联系资产主数据。
 - 联系资产绑定、变更或验证完成后，是否同步创建或启用 login method，必须通过显式 self-service 或 admin-management 接口完成。
 - password recovery 使用认证域 challenge 与一次性 reset grant，不暴露账号存在性。

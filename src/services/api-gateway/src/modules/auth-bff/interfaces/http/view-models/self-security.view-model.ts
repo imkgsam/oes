@@ -115,6 +115,11 @@ export class PasswordMutationViewModel {
   @ApiProperty() passwordSetupRequired!: boolean
 }
 
+// Defines a terminal PIN mutation response without exposing credential material.
+export class TerminalPinMutationViewModel {
+  @ApiProperty() success!: boolean
+}
+
 // Defines the OTP challenge payload returned when the authenticated user starts a contact-binding flow.
 export class ContactBindingMutationViewModel {
   @ApiProperty() challengeId!: string

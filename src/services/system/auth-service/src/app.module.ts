@@ -38,6 +38,12 @@ function resolveGrpcUrl(envKey: string, fallbackUrl: string): string | undefined
           packageName: 'identity_service',
           url: resolveGrpcUrl('IDENTITY_SERVICE_GRPC_URL', '127.0.0.1:50052')
         },
+        [SERVICE_NAMES.HR]: {
+          serviceName: SERVICE_NAMES.HR,
+          protoPath: resolveCommonProtoPath('hr_service/hr.proto'),
+          packageName: 'hr_service',
+          url: resolveGrpcUrl('GRPC_SERVICE_HR_URL', '127.0.0.1:50055')
+        },
         [SERVICE_NAMES.PERMISSION]: {
           serviceName: SERVICE_NAMES.PERMISSION,
           protoPath: [

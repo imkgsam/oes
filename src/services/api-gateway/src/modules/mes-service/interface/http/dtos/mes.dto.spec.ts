@@ -136,12 +136,12 @@ describe('MES HTTP DTOs', () => {
       transformQuery(ListProductionMoldsByDesignDto, {
         page: '1',
         pageSize: '50',
-        status: 'INSTALLED'
+        status: 'READY'
       })
     ).resolves.toMatchObject({
       page: 1,
       pageSize: 50,
-      status: 'INSTALLED'
+      status: 'READY'
     })
   })
 
@@ -158,11 +158,11 @@ describe('MES HTTP DTOs', () => {
   it('accepts tooling installation commands with work refs and mold detail fields', async () => {
     await expect(
       transformBody(InstallToolingDto, {
-        moldPosition: 'A1',
+        moldPositionIndex: 1,
         workCenterRef: { workCenterId: 'wc-1' }
       })
     ).resolves.toMatchObject({
-      moldPosition: 'A1',
+      moldPositionIndex: 1,
       workCenterRef: { workCenterId: 'wc-1' }
     })
   })

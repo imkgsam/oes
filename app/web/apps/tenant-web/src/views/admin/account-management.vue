@@ -9,7 +9,7 @@ import type {
 
 import type { AccountRoleManagementApi, AdminSecurityApi } from '#/api';
 
-import { computed, h, onMounted, reactive, ref } from 'vue';
+import { computed, h, onBeforeUnmount, onMounted, reactive, ref } from 'vue';
 
 import { Page } from '@vben/common-ui';
 import { IconifyIcon } from '@vben/icons';
@@ -93,6 +93,13 @@ interface AccountTableActionItem<ActionKey extends string> {
 }
 
 type AccountActionKey = 'basicInfo' | 'delete' | 'loginMethods' | 'roles';
+type AccountColumnKey =
+  | 'accountDisplayName'
+  | 'actions'
+  | 'contextLabel'
+  | 'isEnabled'
+  | 'scopeLevel'
+  | 'userDisplayName';
 type LoginMethodActionKey = 'toggle';
 type AccountTerminal = 'KIOSK' | 'PDA' | 'WEB';
 
@@ -110,6 +117,23 @@ const accountFilters = reactive<AccountFilterState>({
   status: '',
   tenantId: '',
 });
+const accountColumnMinWidths: Record<AccountColumnKey, number> = {
+  accountDisplayName: 120,
+  actions: 72,
+  contextLabel: 180,
+  isEnabled: 88,
+  scopeLevel: 110,
+  userDisplayName: 120,
+};
+const accountColumnWidths = reactive<Record<AccountColumnKey, number>>({
+  accountDisplayName: 150,
+  actions: 72,
+  contextLabel: 260,
+  isEnabled: 96,
+  scopeLevel: 140,
+  userDisplayName: 140,
+});
+let activeAccountColumnCleanup: null | (() => void) = null;
 
 const accountRows = ref<AccountManagementRow[]>([]);
 const accountLoading = ref(false);
@@ -269,6 +293,9 @@ const accountTablePagination = computed(() => ({
   showTotal: (total: number) => `共 ${total} 条`,
   total: accountPagination.total,
 }));
+const accountTableScrollX = computed(() =>
+  Object.values(accountColumnWidths).reduce((total, width) => total + width, 0),
+);
 const accountTenantFilterOptions = computed(() => [
   { label: '全部租户', value: '' },
   ...tenantOptions.value.map((tenant) => ({
@@ -1087,11 +1114,63 @@ function handleActionClick(key: string, record: AccountManagementRow) {
   }
 }
 
+// stopAccountColumnResize clears active drag listeners for the account table.
+function stopAccountColumnResize() {
+  activeAccountColumnCleanup?.();
+  activeAccountColumnCleanup = null;
+  document.body.classList.remove('account-management--resizing-column');
+}
+
+// startAccountColumnResize updates one account table column width from pointer movement.
+function startAccountColumnResize(event: MouseEvent, columnKey: AccountColumnKey) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  stopAccountColumnResize();
+
+  const startX = event.clientX;
+  const startWidth = accountColumnWidths[columnKey];
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    accountColumnWidths[columnKey] = Math.max(
+      accountColumnMinWidths[columnKey],
+      Math.round(startWidth + moveEvent.clientX - startX),
+    );
+  };
+
+  const handleMouseUp = () => {
+    stopAccountColumnResize();
+  };
+
+  document.body.classList.add('account-management--resizing-column');
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp, { once: true });
+  activeAccountColumnCleanup = () => {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+}
+
+// renderResizableAccountHeader exposes the resize handle inside an account table header.
+function renderResizableAccountHeader(columnKey: AccountColumnKey, label: string) {
+  return h('div', { class: 'account-management__resizable-title' }, [
+    h('span', { class: 'account-management__resizable-title-text' }, label),
+    h('span', {
+      'aria-label': `调整${label}列宽`,
+      class: 'account-management__column-resizer',
+      onMousedown: (event: MouseEvent) =>
+        startAccountColumnResize(event, columnKey),
+      role: 'separator',
+    }),
+  ]);
+}
+
 const accountColumns = computed<TableColumnsType<AccountManagementRow>>(() => [
   {
     dataIndex: 'userDisplayName',
     key: 'userDisplayName',
-    title: '用户姓名',
+    title: renderResizableAccountHeader('userDisplayName', '用户姓名'),
+    width: accountColumnWidths.userDisplayName,
     customRender: ({ record }) => record.userDisplayName || '未命名用户',
   },
   {
@@ -1099,20 +1178,22 @@ const accountColumns = computed<TableColumnsType<AccountManagementRow>>(() => [
     key: 'accountDisplayName',
     sorter: (left, right) =>
       getAccountDisplayName(left).localeCompare(getAccountDisplayName(right), 'zh-Hans-CN'),
-    title: '账号名称',
+    title: renderResizableAccountHeader('accountDisplayName', '账号名称'),
+    width: accountColumnWidths.accountDisplayName,
     customRender: ({ record }) => getAccountDisplayName(record),
   },
   {
     dataIndex: 'contextLabel',
     key: 'contextLabel',
-    title: '账号上下文',
+    title: renderResizableAccountHeader('contextLabel', '账号上下文'),
+    width: accountColumnWidths.contextLabel,
     customRender: ({ record }) => getAccountContextTitle(record),
   },
   {
     dataIndex: 'scopeLevel',
     key: 'scopeLevel',
-    title: 'Scope',
-    width: 110,
+    title: renderResizableAccountHeader('scopeLevel', 'Scope'),
+    width: accountColumnWidths.scopeLevel,
     customRender: ({ record }) =>
       h(Tag, { color: record.scopeLevel === 'SYSTEM' ? 'blue' : 'green' }, () =>
         getAccountScopeLabel(record.scopeLevel),
@@ -1121,8 +1202,8 @@ const accountColumns = computed<TableColumnsType<AccountManagementRow>>(() => [
   {
     dataIndex: 'isEnabled',
     key: 'isEnabled',
-    title: '状态',
-    width: 90,
+    title: renderResizableAccountHeader('isEnabled', '状态'),
+    width: accountColumnWidths.isEnabled,
     customRender: ({ record }) =>
       h(Tag, { color: record.isEnabled ? 'green' : 'default' }, () =>
         getAccountStatusLabel(record.isEnabled),
@@ -1132,8 +1213,8 @@ const accountColumns = computed<TableColumnsType<AccountManagementRow>>(() => [
     align: 'center',
     fixed: 'right',
     key: 'actions',
-    title: '操作',
-    width: 72,
+    title: renderResizableAccountHeader('actions', '操作'),
+    width: accountColumnWidths.actions,
     customRender: ({ record }) =>
       renderAccountNativeActions<AccountActionKey>(
         '账号操作',
@@ -1231,6 +1312,10 @@ onMounted(() => {
     void loadTenantOptions();
   }
 });
+
+onBeforeUnmount(() => {
+  stopAccountColumnResize();
+});
 </script>
 
 <template>
@@ -1245,6 +1330,7 @@ onMounted(() => {
           <Button
             v-access:code="'identity.account.create'"
             v-if="canCreateAccount"
+            class="account-management__create-button"
             type="primary"
             @click="openCreateAccountModal"
           >
@@ -1355,6 +1441,8 @@ onMounted(() => {
             :loading="accountLoading"
             :pagination="accountTablePagination"
             :row-key="(record) => record.accountId"
+            :scroll="{ x: accountTableScrollX }"
+            class="account-management__account-table"
             @change="handleAccountTableChange"
           />
         </div>
@@ -1774,6 +1862,7 @@ onMounted(() => {
               :loading="loginMethodLoading"
               :locale="{ emptyText: h(Empty, { description: '暂无登录方式' }) }"
               :pagination="false"
+              :scroll="{ x: 760 }"
               row-key="methodId"
               size="middle"
             />
@@ -1816,13 +1905,24 @@ onMounted(() => {
 
 .account-management__toolbar {
   align-items: center;
+  flex-wrap: nowrap;
   margin-bottom: 12px;
 }
 
 .account-management__heading {
   align-items: baseline;
   display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
   gap: 12px;
+  min-width: 0;
+}
+
+.account-management__create-button {
+  flex: 0 0 auto;
+  margin-left: auto;
+  min-width: 96px;
+  width: auto;
 }
 
 .account-management__title {
@@ -2348,6 +2448,57 @@ onMounted(() => {
   background: rgb(248 250 252 / 0.9);
 }
 
+:deep(.account-management__account-table .ant-table-cell) {
+  white-space: nowrap;
+}
+
+:deep(.account-management__account-table .ant-table-thead > tr > th) {
+  position: relative;
+  user-select: none;
+}
+
+.account-management__resizable-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding-right: 12px;
+}
+
+.account-management__resizable-title-text {
+  min-width: 0;
+}
+
+.account-management__column-resizer {
+  position: absolute;
+  top: -12px;
+  right: -10px;
+  bottom: -12px;
+  z-index: 2;
+  width: 14px;
+  cursor: col-resize;
+}
+
+.account-management__column-resizer::after {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 6px;
+  width: 1px;
+  content: '';
+  background: rgb(15 23 42 / 14%);
+  transition: background 0.16s ease;
+}
+
+.account-management__column-resizer:hover::after {
+  background: hsl(var(--primary));
+}
+
+:global(body.account-management--resizing-column) {
+  cursor: col-resize;
+  user-select: none;
+}
+
 :deep(.account-management__login-method-table-shell .ant-table-tbody > tr > td) {
   border-bottom-color: rgb(226 232 240 / 0.88);
 }
@@ -2378,12 +2529,24 @@ onMounted(() => {
 }
 
 @media (width <= 768px) {
-  .account-management__toolbar,
   .account-management__block-header,
   .account-management__role-toolbar,
   .account-management__login-action-row {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .account-management__toolbar {
+    gap: 8px;
+  }
+
+  .account-management__heading {
+    gap: 6px 10px;
+  }
+
+  .account-management__create-button {
+    min-width: 88px;
+    padding-inline: 14px;
   }
 
   .account-management__filter-actions-col {

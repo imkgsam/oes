@@ -26,6 +26,7 @@ Terminal-aware Account Security Phase 2 changes the PDA target flow:
 - PDA 登录租户由受管设备绑定决定，用户登录时不再选择租户。
 - PDA Phase 2 不提供 account selection；`POST /pda/auth/account-selection` 只作为历史 Phase 1 / compatibility 入口看待，不作为 Phase 2 目标流程继续扩展。
 - PDA 常规登录 MFA 默认关闭；`/pda/auth/mfa/*` 仅在租户显式开启 PDA terminal MFA 时才可能进入流程。
+- PDA Employee Code + Terminal PIN 登录启用后，`POST /pda/auth/login` 支持 `method = EMPLOYEE_CODE_PIN`。PDA BFF 仍只负责 terminal / device trust boundary，核心员工解析、PIN 校验与 session issuance 由 `auth-service` 编排。
 
 Not part of Phase 1:
 
@@ -60,6 +61,81 @@ The major semantic difference is terminal binding:
 - PDA refresh tokens use a short rotation window, currently 20 minutes by default; they are not used to restore a user session after the PDA App is closed.
 - If no PDA-eligible account exists in the device-bound tenant, login is denied.
 - If multiple PDA-eligible accounts exist in the device-bound tenant, login is denied and requires admin-side identity / permission governance.
+
+### 4.1 Employee Code + Terminal PIN Login
+
+Request:
+
+```json
+{
+  "method": "EMPLOYEE_CODE_PIN",
+  "employeeCode": "EMP001",
+  "pin": "123456",
+  "device": {
+    "deviceId": "terminal-device-id",
+    "deviceName": "Seuic Cruise Ge",
+    "identity": {
+      "manufacturerSerial": "SN123",
+      "androidId": null,
+      "appInstallationId": null,
+      "manufacturer": "Seuic",
+      "model": "Cruise Ge"
+    },
+    "software": {
+      "androidVersion": "9",
+      "webViewVersion": "66.0.3359.158",
+      "appVersion": "1.0.0"
+    }
+  }
+}
+```
+
+Rules:
+
+- PDA Web may parse employee barcode scan values such as `OES:EMPLOYEE:EMP001`, while manual entry may still submit pure `employeeCode`; BFF receives only normalized `employeeCode`.
+- `pin` must be a 6-digit terminal PIN value. BFF validates shape but does not verify the credential.
+- BFF must require managed PDA `device.deviceId` / `terminalDeviceId` and resolve device-bound tenant before calling `auth-service`.
+- BFF forwards `terminal = PDA`, `terminalDeviceId`, `deviceBoundTenantId`, device metadata and `loginFlow = EMPLOYEE_CODE_PIN`.
+- BFF must not call HR or identity directly for the core employee-code login decision.
+- BFF must not log `pin`.
+
+Success response shape is the same PDA auth success shape already used by password login, with:
+
+```json
+{
+  "status": "SUCCESS",
+  "nextStep": "NONE",
+  "session": {
+    "terminal": "PDA",
+    "terminalDeviceId": "terminal-device-id"
+  },
+  "terminal": "PDA",
+  "terminalDeviceId": "terminal-device-id",
+  "deviceBoundTenantId": "tenant_123"
+}
+```
+
+Credential failure response should be product-safe:
+
+```json
+{
+  "status": "DENIED",
+  "nextStep": "NONE",
+  "reasonCode": "EMPLOYEE_CODE_PIN_DENIED",
+  "message": "员工码或 PIN 错误",
+  "accountOptions": []
+}
+```
+
+Actionable setup/governance denial reason codes may be returned when the UI can guide the operator:
+
+- `TERMINAL_PIN_NOT_SET`
+- `TERMINAL_PIN_RESET_REQUIRED`
+- `TERMINAL_PIN_DISABLED`
+- `TERMINAL_PIN_LOCKED`
+- `EMPLOYEE_ACCOUNT_GOVERNANCE_REQUIRED`
+
+The response must never include `pin`, credential hashes or `effectiveAllowedTerminals`.
 
 Terminal denial response:
 

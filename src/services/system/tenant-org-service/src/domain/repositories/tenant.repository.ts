@@ -5,6 +5,7 @@ export const TENANT_REPOSITORY = Symbol('TENANT_REPOSITORY')
 export interface TenantSummary {
   id: string
   code: string
+  employeeCodePrefix: string
   name: string
   status: TenantStatus | string
   rootOrgId: string | null
@@ -12,6 +13,7 @@ export interface TenantSummary {
 
 export interface CreateTenantWithRootInput {
   code: string
+  employeeCodePrefix: string
   name: string
   rootOrgName: string
 }
@@ -29,6 +31,6 @@ export interface TenantRepository {
   ): Promise<{ tenant: TenantSummary; rootOrgUnit: import('./org-unit.repository').OrgUnitSummary }>
   findById(id: string): Promise<TenantSummary | null>
   list(input: ListTenantsInput): Promise<{ tenants: TenantSummary[]; total: number }>
-  updateProfile(input: { tenantId: string; name?: string; code?: string }): Promise<TenantSummary>
+  updateProfile(input: { tenantId: string; name?: string; code?: string; employeeCodePrefix?: string }): Promise<TenantSummary>
   setStatus(input: { tenantId: string; status: TenantStatus }): Promise<TenantSummary>
 }

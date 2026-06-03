@@ -32,6 +32,8 @@ import {
   CreatePackagingSpecResponse,
   DeleteItemCategoryRequest,
   DeleteItemCategoryResponse,
+  DeletePackagingMethodRequest,
+  DeletePackagingMethodResponse,
   ItemMasterManagementServiceController,
   ItemMasterManagementServiceControllerMethods,
   MoveItemCategoryRequest,
@@ -212,6 +214,12 @@ export class ItemMasterManagementGrpcController implements ItemMasterManagementS
   ): Promise<ChangePackagingMethodStatusResponse> {
     return this.audit('ChangePackagingMethodStatus', request.tenantId, request.packagingMethodId, request, () =>
       this.commands.changePackagingMethodStatus(request)
+    )
+  }
+
+  deletePackagingMethod(request: DeletePackagingMethodRequest): Promise<DeletePackagingMethodResponse> {
+    return this.audit('DeletePackagingMethod', request.tenantId, request.packagingMethodId, request, () =>
+      this.commands.deletePackagingMethod(request)
     )
   }
 

@@ -45,7 +45,7 @@ export class HrManagementGrpcAdapter implements OnModuleInit {
   }
 
   createEmployee(
-    input: { tenantId: string; tenantPartyId: string; partyId?: string; employeeCode: string },
+    input: { tenantId: string; tenantPartyId: string; partyId?: string; employeeCode?: string },
     source: DownstreamRequestSource
   ): Promise<{ employee?: HrEmployeeSummary }> {
     return this.call(

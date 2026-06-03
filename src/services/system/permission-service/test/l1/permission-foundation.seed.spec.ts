@@ -69,4 +69,15 @@ describe('permission foundation seed', () => {
       }
     }
   })
+
+  it('publishes item model permissions used by the item-management BFF', () => {
+    const seedCodes = PERMISSION_CODE_SEED_ITEMS.map((item) => item.code)
+
+    expect(seedCodes).toEqual(expect.arrayContaining([
+      'item_master.item_model.list',
+      'item_master.item_model.get_by_id',
+      'item_master.item_model.create',
+      'item_master.item_model.manage'
+    ]))
+  })
 })

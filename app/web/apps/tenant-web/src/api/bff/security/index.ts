@@ -126,6 +126,10 @@ export namespace SelfSecurityApi {
     success: boolean;
   }
 
+  export interface TerminalPinMutationResult {
+    success: boolean;
+  }
+
   export interface StepUpMfaChallenge {
     availableFactors?: Array<{
       label: string;
@@ -253,6 +257,35 @@ export async function changeOwnPasswordApi(data: {
 }) {
   return requestClient.post<SelfSecurityApi.PasswordMutationResult>(
     '/auth/password/change',
+    data,
+  );
+}
+
+export async function setOwnTerminalPinApi(data: {
+  currentPassword?: string;
+  mfaGrantToken?: string;
+  newPin: string;
+}) {
+  return requestClient.post<SelfSecurityApi.TerminalPinMutationResult>(
+    '/auth/terminal-pin/set',
+    data,
+  );
+}
+
+export async function resetOwnTerminalPinApi(data: {
+  currentPassword?: string;
+  mfaGrantToken?: string;
+  newPin: string;
+}) {
+  return requestClient.post<SelfSecurityApi.TerminalPinMutationResult>(
+    '/auth/terminal-pin/reset',
+    data,
+  );
+}
+
+export async function setOwnTerminalPinEnabledApi(data: { enabled: boolean }) {
+  return requestClient.post<SelfSecurityApi.TerminalPinMutationResult>(
+    '/auth/terminal-pin/enabled',
     data,
   );
 }

@@ -1,4 +1,5 @@
 import { Controller, UseFilters, UseGuards, UseInterceptors } from '@nestjs/common'
+import { GrpcMethod } from '@nestjs/microservices'
 import {
   AuthenticatedOperatorGuard,
   GrpcRequestContextInterceptor,
@@ -49,12 +50,14 @@ import {
   AccountContactAssetView,
   AccountSummaryView,
   CountTenantAccountsQuery,
+  EmployeeLoginAccountView,
   EmployeeBindingSummaryView,
   ListAuditEventsQuery,
   ListAuditEventsView,
   ApiKeyView,
   GetAccountByIdQuery,
   GetEmployeeBindingByAccountIdQuery,
+  ResolveEmployeeLoginAccountQuery,
   GetAccountsByUserIdQuery,
   ListAccountsQuery,
   GetApiKeyByIdQuery,
@@ -72,6 +75,15 @@ import {
 } from '../../application/queries'
 import { IdentityGrpcPresenter } from './identity-grpc.presenter'
 import { getOptionalOperatorScope } from './grpc-request-context'
+
+type ResolveEmployeeLoginAccountRequest = {
+  tenantId?: string
+  employeeId?: string
+}
+
+type ResolveEmployeeLoginAccountResponse = {
+  account?: ReturnType<typeof IdentityGrpcPresenter.toEmployeeLoginAccount>
+}
 
 @UseFilters(GrpcExceptionFilter)
 @Controller()
@@ -160,6 +172,29 @@ export class IdentityQueryGrpcController implements IdentityQueryServiceControll
 
     return {
       binding: IdentityGrpcPresenter.toEmployeeBinding(binding)
+    }
+  }
+
+  @GrpcMethod('IdentityQueryService', 'ResolveEmployeeLoginAccount')
+  async resolveEmployeeLoginAccount(
+    request: ResolveEmployeeLoginAccountRequest
+  ): Promise<ResolveEmployeeLoginAccountResponse> {
+    const account = await this.queryBus.execute<
+      ResolveEmployeeLoginAccountQuery,
+      EmployeeLoginAccountView | null
+    >(
+      new ResolveEmployeeLoginAccountQuery({
+        tenantId: request.tenantId!,
+        employeeId: request.employeeId!
+      })
+    )
+
+    if (!account) {
+      return {}
+    }
+
+    return {
+      account: IdentityGrpcPresenter.toEmployeeLoginAccount(account)
     }
   }
 

@@ -191,7 +191,7 @@ describe('MES mold design detail page', () => {
             installedAt: '2026-05-03T09:00:00.000Z',
             toolingInstallationId: 'install-1',
             moldDetail: {
-              moldPosition: 'A01'
+              moldPositionIndex: 1
             },
             workCenterRef: {
               displayNameSnapshot: '连体马桶上线一线',
@@ -199,7 +199,7 @@ describe('MES mold design detail page', () => {
               workCenterId: 'wc-1'
             }
           },
-          currentStatus: 'INSTALLED',
+          currentStatus: 'READY',
           lifeCounterSummary: {
             lifeUnit: 'CASTING_CYCLE',
             limitValue: '1200',

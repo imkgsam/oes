@@ -41,7 +41,7 @@ describe('tenant-web MES api', () => {
     await listProductionMoldsApi('tenant-1', {
       carrierResourceId: 'carrier-1',
       moldDesignId: 'design-1',
-      status: 'INSTALLED'
+      status: 'READY'
     })
     await listProductionMoldsByDesignApi('tenant-1', 'design-1', { page: 1, pageSize: 20 })
     await getProductionMoldApi('tenant-1', 'mold-1')
@@ -74,7 +74,7 @@ describe('tenant-web MES api', () => {
       params: {
         carrierResourceId: 'carrier-1',
         moldDesignId: 'design-1',
-        status: 'INSTALLED'
+        status: 'READY'
       }
     })
     expect(get).toHaveBeenCalledWith('/mes/tenants/tenant-1/mold-designs/design-1/production-molds', {
@@ -112,7 +112,9 @@ describe('tenant-web MES api', () => {
   it('forwards mold design, production mold, tooling, and usage commands through current BFF endpoints', async () => {
     const {
       installProductionMoldApi,
-      acceptProductionMoldApi,
+      confirmInstalledMoldReadyApi,
+      confirmProductionMoldArrivalApi,
+      markInstalledMoldMaintenanceApi,
       markProductionMoldForScrapApi,
       moveProductionMoldApi,
       recordDailyMoldUsageBatchApi,
@@ -176,10 +178,10 @@ describe('tenant-web MES api', () => {
         supplierId: 'supplier-1'
       }
     })
-    await acceptProductionMoldApi('tenant-1', 'mold-1', { reason: '验收通过' })
+    await confirmProductionMoldArrivalApi('tenant-1', 'mold-1', { reason: '到场确认' })
     await installProductionMoldApi('tenant-1', 'mold-1', {
       cavityPosition: 'LEFT',
-      moldPosition: 'A1',
+      moldPositionIndex: 1,
       setupParameters: '{"pressure":"normal"}',
       workCenterRef: {
         workCenterId: 'wc-1'
@@ -188,6 +190,14 @@ describe('tenant-web MES api', () => {
         workUnitCodeSnapshot: 'WU-01',
         workUnitId: 'wu-1'
       }
+    })
+    await confirmInstalledMoldReadyApi('tenant-1', 'mold-1', {
+      readyAt: '2026-05-05T08:00:00.000Z',
+      toolingInstallationId: 'install-1'
+    })
+    await markInstalledMoldMaintenanceApi('tenant-1', 'mold-1', {
+      reason: '修补',
+      toolingInstallationId: 'install-1'
     })
     await moveProductionMoldApi('tenant-1', 'mold-1', {
       toStorageResourceRef: {
@@ -267,12 +277,12 @@ describe('tenant-web MES api', () => {
         supplierId: 'supplier-1'
       }
     })
-    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds/mold-1/accept', {
-      reason: '验收通过'
+    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds/mold-1/confirm-arrival', {
+      reason: '到场确认'
     })
     expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/tooling/mold-1/install', {
       cavityPosition: 'LEFT',
-      moldPosition: 'A1',
+      moldPositionIndex: 1,
       setupParameters: '{"pressure":"normal"}',
       workCenterRef: {
         workCenterId: 'wc-1'
@@ -281,6 +291,14 @@ describe('tenant-web MES api', () => {
         workUnitCodeSnapshot: 'WU-01',
         workUnitId: 'wu-1'
       }
+    })
+    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds/mold-1/confirm-ready', {
+      readyAt: '2026-05-05T08:00:00.000Z',
+      toolingInstallationId: 'install-1'
+    })
+    expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/production-molds/mold-1/mark-maintenance', {
+      reason: '修补',
+      toolingInstallationId: 'install-1'
     })
     expect(post).toHaveBeenCalledWith('/mes/tenants/tenant-1/tooling/mold-1/move', {
       toStorageResourceRef: {

@@ -23,6 +23,7 @@ const CALLER = 'api-gateway'
 
 export interface TenantManagementQueryTenant {
   code?: string
+  employeeCodePrefix?: string
   id?: string
   name?: string
   rootOrgId?: string
@@ -75,6 +76,7 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
           ? {
               id: response.tenant.id,
               code: response.tenant.code,
+              employeeCodePrefix: response.tenant.employeeCodePrefix,
               name: response.tenant.name,
               status: response.tenant.status,
               rootOrgId: normalize(response.tenant.rootOrgId)
@@ -103,6 +105,7 @@ export class TenantOrgQueryGrpcAdapter implements OnModuleInit {
         tenants: (response.tenants ?? []).map((tenant) => ({
           id: tenant.id,
           code: tenant.code,
+          employeeCodePrefix: tenant.employeeCodePrefix,
           name: tenant.name,
           status: tenant.status,
           rootOrgId: normalize(tenant.rootOrgId)

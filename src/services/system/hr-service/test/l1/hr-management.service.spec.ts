@@ -7,6 +7,7 @@ function createEmployeeRepositoryMock() {
   return {
     create: jest.fn(),
     findById: jest.fn(),
+    findMaxEmployeeCodeSuffix: jest.fn(),
     findByTenantPartyId: jest.fn(),
     setLifecycleStatus: jest.fn()
   }
@@ -27,6 +28,7 @@ function createEmploymentRepositoryMock() {
 /** createTenantOrgPortMock builds the org reference validator double for HR management tests. */
 function createTenantOrgPortMock(valid = true) {
   return {
+    getTenantEmployeeCodePrefix: jest.fn().mockResolvedValue('0AF'),
     validateOrgReference: jest.fn().mockResolvedValue({
       valid,
       rejectionReason: valid ? '' : 'ORG_UNIT_NOT_FOUND'
@@ -45,7 +47,46 @@ describe('HrManagementService L1', () => {
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
       partyId: 'party-1',
-      employeeCode: 'E001',
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
+    })
+    employeeRepository.findMaxEmployeeCodeSuffix.mockResolvedValue(null)
+    const service = new HrManagementService(
+      employeeRepository as never,
+      employmentRepository as never,
+      tenantOrgPort as never
+    )
+
+    const employee = await service.createEmployee({
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      partyId: 'party-1'
+    })
+
+    expect(employee.id).toBe('employee-1')
+    expect(employee.id).not.toBe('tenant-party-1')
+    expect(employee.lifecycleStatus).toBe(EmployeeLifecycleStatus.PREBOARDING)
+    expect(employee.employeeCode).toBe('EMP-0AF-0001')
+    expect(employeeRepository.create).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      partyId: 'party-1',
+      employeeCode: '0001',
+      lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
+    })
+  })
+
+  it('CreateEmployee / should store an explicit full employee code as a suffix only', async () => {
+    const employeeRepository = createEmployeeRepositoryMock()
+    const employmentRepository = createEmploymentRepositoryMock()
+    const tenantOrgPort = createTenantOrgPortMock()
+    employeeRepository.findByTenantPartyId.mockResolvedValue(null)
+    employeeRepository.create.mockResolvedValue({
+      id: 'employee-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: 'tenant-party-1',
+      partyId: 'party-1',
+      employeeCode: '000A',
       lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
     })
     const service = new HrManagementService(
@@ -58,19 +99,16 @@ describe('HrManagementService L1', () => {
       tenantId: 'tenant-1',
       tenantPartyId: 'tenant-party-1',
       partyId: 'party-1',
-      employeeCode: 'E001'
+      employeeCode: 'EMP-0AF-000A'
     })
 
-    expect(employee.id).toBe('employee-1')
-    expect(employee.id).not.toBe('tenant-party-1')
-    expect(employee.lifecycleStatus).toBe(EmployeeLifecycleStatus.PREBOARDING)
-    expect(employeeRepository.create).toHaveBeenCalledWith({
-      tenantId: 'tenant-1',
-      tenantPartyId: 'tenant-party-1',
-      partyId: 'party-1',
-      employeeCode: 'E001',
-      lifecycleStatus: EmployeeLifecycleStatus.PREBOARDING
-    })
+    expect(employee.employeeCode).toBe('EMP-0AF-000A')
+    expect(employeeRepository.findMaxEmployeeCodeSuffix).not.toHaveBeenCalled()
+    expect(employeeRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        employeeCode: '000A'
+      })
+    )
   })
 
   it('CreateEmployee / should reject duplicate tenantPartyId in the same tenant', async () => {
@@ -86,7 +124,7 @@ describe('HrManagementService L1', () => {
       service.createEmployee({
         tenantId: 'tenant-1',
         tenantPartyId: 'tenant-party-1',
-        employeeCode: 'E001'
+        employeeCode: 'EMP-0AF-0001'
       })
     ).rejects.toBeInstanceOf(ConflictException)
   })

@@ -37,6 +37,7 @@ message TenantSummary {
   string name = 3;
   string status = 4;
   string root_org_id = 5;
+  string employee_code_prefix = 6;
 }
 
 message OrgUnitSummary {
@@ -142,6 +143,7 @@ message CreateTenantRequest {
   string code = 1;
   string name = 2;
   string root_org_name = 3;
+  string employee_code_prefix = 4;
 }
 
 message CreateTenantResponse {
@@ -152,6 +154,7 @@ message CreateTenantResponse {
 message TenantOnboardingTenantInput {
   string code = 1;
   string name = 2;
+  string employee_code_prefix = 3;
 }
 
 message TenantOnboardingIdentifierInput {
@@ -270,6 +273,7 @@ message UpdateTenantProfileRequest {
   string tenant_id = 1;
   string name = 2;
   string code = 3;
+  string employee_code_prefix = 4;
 }
 
 message UpdateTenantProfileResponse {

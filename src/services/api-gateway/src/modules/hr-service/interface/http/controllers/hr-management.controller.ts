@@ -42,6 +42,16 @@ export class HrManagementController {
     )
   }
 
+  @Get('employees/next-code')
+  @RequirePermissions({ all: [HR_MANAGEMENT_PERMISSION_CODES.CREATE_EMPLOYEE] })
+  @ApiOperation({ summary: 'Preview the next system-owned employee code' })
+  async previewNextEmployeeCode(
+    @Param('tenantId') tenantId: string,
+    @DownstreamSource() source: DownstreamRequestSource
+  ) {
+    return this.hrManagementService.previewNextEmployeeCode(tenantId, source)
+  }
+
   @Get('employees/:employeeId')
   @RequirePermissions({ all: [HR_MANAGEMENT_PERMISSION_CODES.VIEW_EMPLOYEE_DETAIL] })
   @ApiOperation({

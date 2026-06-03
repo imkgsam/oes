@@ -319,6 +319,26 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
     return rows.map(fromPrismaToolingInstallation)
   }
 
+  async listActiveToolingInstallationsByWorkCenter(input: {
+    tenantId: string
+    orgId?: string | null
+    workCenterId: string
+  }): Promise<ToolingInstallationRecord[]> {
+    const rows = await this.client().toolingInstallation.findMany({
+      where: {
+        tenantId: input.tenantId,
+        status: ToolingInstallationStatus.ACTIVE,
+        unmountedAt: null
+      },
+      include: { moldDetail: true }
+    })
+    return rows
+      .map(fromPrismaToolingInstallation)
+      .filter((installation) => (!input.orgId || (installation.orgId ?? null) === input.orgId))
+      .filter((installation) => installation.workCenterRef.workCenterId === input.workCenterId)
+      .sort((left, right) => (left.moldDetail?.moldPositionIndex ?? 0) - (right.moldDetail?.moldPositionIndex ?? 0))
+  }
+
   async listCurrentMoldsByWorkCenter(input: ListCurrentMoldsByWorkCenterInput): Promise<ListCurrentMoldsByWorkCenterResult> {
     const rows = await this.client().toolingInstallation.findMany({
       where: { tenantId: input.tenantId, status: ToolingInstallationStatus.ACTIVE, unmountedAt: null },
@@ -339,11 +359,16 @@ export class PrismaMesMoldRepository implements MesMoldRepository {
         items.push({
           productionMold: await this.toProductionMoldSummary(mold),
           toolingInstallation,
-          usageAllowed: mold.currentStatus === ProductionMoldStatus.INSTALLED,
-          usageDisabledReason: mold.currentStatus === ProductionMoldStatus.INSTALLED ? null : `MOLD_${mold.currentStatus}`
+          usageAllowed: mold.currentStatus === ProductionMoldStatus.READY,
+          usageDisabledReason: mold.currentStatus === ProductionMoldStatus.READY ? null : `MOLD_${mold.currentStatus}`
         })
       }
     }
+    items.sort(
+      (left, right) =>
+        (left.toolingInstallation.moldDetail?.moldPositionIndex ?? 0) -
+        (right.toolingInstallation.moldDetail?.moldPositionIndex ?? 0)
+    )
     return { items }
   }
 
@@ -834,7 +859,7 @@ function toPrismaToolingInstallation(record: ToolingInstallationRecord): Prisma.
 function toPrismaMoldInstallationDetail(record: NonNullable<ToolingInstallationRecord['moldDetail']>): Prisma.MoldInstallationDetailUncheckedCreateInput {
   return {
     toolingInstallationId: record.toolingInstallationId,
-    moldPosition: record.moldPosition ?? null,
+    moldPositionIndex: record.moldPositionIndex,
     cavityPosition: record.cavityPosition ?? null,
     cavityMapping: record.cavityMapping ?? null,
     setupParameters: record.setupParameters ?? null
@@ -859,7 +884,7 @@ function fromPrismaToolingInstallation(row: ToolingInstallationWithDetail): Tool
     moldDetail: row.moldDetail
       ? {
           toolingInstallationId: row.moldDetail.toolingInstallationId,
-          moldPosition: row.moldDetail.moldPosition,
+          moldPositionIndex: row.moldDetail.moldPositionIndex,
           cavityPosition: row.moldDetail.cavityPosition,
           cavityMapping: row.moldDetail.cavityMapping,
           setupParameters: row.moldDetail.setupParameters

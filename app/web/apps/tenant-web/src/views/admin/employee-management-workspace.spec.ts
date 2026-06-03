@@ -11,6 +11,7 @@ const createManagedEmploymentApi = vi.fn()
 const endManagedEmploymentApi = vi.fn()
 const getManagedEmployeeAccountAccessApi = vi.fn()
 const getManagedEmployeeDetailApi = vi.fn()
+const getManagedNextEmployeeCodeApi = vi.fn()
 const getManagedOrgTreeApi = vi.fn()
 const listManagedEmployeesApi = vi.fn()
 const listRolesApi = vi.fn()
@@ -41,6 +42,7 @@ vi.mock('#/api', () => ({
   endManagedEmploymentApi,
   getManagedEmployeeAccountAccessApi,
   getManagedEmployeeDetailApi,
+  getManagedNextEmployeeCodeApi,
   getManagedOrgTreeApi,
   listManagedEmployeesApi,
   listRolesApi
@@ -99,6 +101,7 @@ describe('employee management workspace', () => {
     endManagedEmploymentApi.mockReset()
     getManagedEmployeeAccountAccessApi.mockReset()
     getManagedEmployeeDetailApi.mockReset()
+    getManagedNextEmployeeCodeApi.mockReset()
     getManagedOrgTreeApi.mockReset()
     listManagedEmployeesApi.mockReset()
     listRolesApi.mockReset()
@@ -148,7 +151,7 @@ describe('employee management workspace', () => {
       items: [
         {
           employee: {
-            employeeCode: 'EMP-001',
+            employeeCode: 'EMP-0AF-0001',
             id: 'employee-1',
             lifecycleStatus: 'ACTIVE',
             tenantId: 'tenant-1',
@@ -176,7 +179,7 @@ describe('employee management workspace', () => {
         },
         {
           employee: {
-            employeeCode: 'EMP-002',
+            employeeCode: 'EMP-0AF-0002',
             id: 'employee-2',
             lifecycleStatus: 'OFFBOARDED',
             tenantId: 'tenant-1',
@@ -193,7 +196,7 @@ describe('employee management workspace', () => {
       if (employeeId === 'employee-2') {
         return {
           employee: {
-            employeeCode: 'EMP-002',
+            employeeCode: 'EMP-0AF-0002',
             id: 'employee-2',
             lifecycleStatus: 'OFFBOARDED',
             tenantId: 'tenant-1',
@@ -205,7 +208,7 @@ describe('employee management workspace', () => {
 
       return {
         employee: {
-          employeeCode: 'EMP-001',
+          employeeCode: 'EMP-0AF-0001',
           id: 'employee-1',
           lifecycleStatus: 'ACTIVE',
           tenantId: 'tenant-1',
@@ -304,6 +307,9 @@ describe('employee management workspace', () => {
       roles: [],
       total: 0
     })
+    getManagedNextEmployeeCodeApi.mockResolvedValue({
+      employeeCode: 'EMP-0AF-0003'
+    })
   })
 
   afterEach(() => {
@@ -346,7 +352,7 @@ describe('employee management workspace', () => {
     )
     expect(detailAction?.textContent).toContain('查看详情')
     expect(wrapper.text()).not.toContain('其他任职')
-    expect(wrapper.text()).toContain('EMP-001')
+    expect(wrapper.text()).toContain('EMP-0AF-0001')
     expect(wrapper.text()).toContain('制造中心')
     expect(wrapper.text()).not.toContain('待继续完成接入')
     expect(getManagedEmployeeAccountAccessApi).not.toHaveBeenCalled()
@@ -375,6 +381,29 @@ describe('employee management workspace', () => {
       }
     })
     expect(getManagedEmployeeDetailApi).not.toHaveBeenCalled()
+  })
+
+  it('shows the employee code QR in the management drawer detail', async () => {
+    const view = await import('./employee-management-workspace.vue')
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {}
+        }
+      }
+    })
+
+    await flushPromises()
+    await clickEmployeeRowAction(wrapper, 'edit')
+    await flushPromises()
+
+    expect(getManagedEmployeeDetailApi).toHaveBeenCalledWith('tenant-1', 'employee-1')
+    const drawerText = document.body.textContent ?? ''
+    const qr = document.body.querySelector('[data-testid="employee-management-code-qr"]')
+    expect(drawerText).toContain('员工码二维码')
+    expect(qr?.getAttribute('data-value')).toBe('EMP-0AF-0001')
   })
 
   it('loads the employee directory without per-row account access requests', async () => {
@@ -440,8 +469,8 @@ describe('employee management workspace', () => {
     departmentTree.vm.$emit('change', ['org-dept-1'])
     await flushPromises()
 
-    expect(wrapper.text()).toContain('EMP-001')
-    expect(wrapper.text()).not.toContain('EMP-002')
+    expect(wrapper.text()).toContain('EMP-0AF-0001')
+    expect(wrapper.text()).not.toContain('EMP-0AF-0002')
   })
 
   it('mounts the employee edit drawer to the viewport container', async () => {
@@ -539,6 +568,10 @@ describe('employee management workspace', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('员工编号由系统生成')
+    await flushPromises()
+    const employeeCodePreview = getDocumentTestElement('employee-code-preview-input') as HTMLInputElement
+    expect(employeeCodePreview.value).toBe('EMP-0AF-0003')
+    expect(employeeCodePreview.disabled).toBe(true)
     expect(wrapper.text()).toContain('姓名')
     expect(wrapper.text()).toContain('性别')
     expect(wrapper.text()).toContain('证件类型')
@@ -553,5 +586,52 @@ describe('employee management workspace', () => {
     expect(wrapper.find('[data-testid="employee-tenant-party-input"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="employee-party-input"]').exists()).toBe(false)
     expect(wrapper.findComponent({ name: 'PhoneNumberInput' }).exists()).toBe(true)
+  })
+
+  it('creates employees without submitting the readonly preview employee code', async () => {
+    createManagedEmployeeApi.mockResolvedValue({
+      employee: {
+        employeeCode: 'EMP-0AF-0003',
+        id: 'employee-3',
+        lifecycleStatus: 'ACTIVE',
+        tenantId: 'tenant-1',
+        tenantPartyId: 'tenant-party-3'
+      },
+      employment: {
+        effectiveFrom: '2026-05-21T00:00:00.000Z',
+        employeeId: 'employee-3',
+        id: 'employment-3',
+        orgUnitId: 'org-dept-1',
+        status: 'ACTIVE',
+        tenantId: 'tenant-1'
+      }
+    })
+    const view = await import('./employee-management-workspace.vue')
+
+    const wrapper = mount(view.default, {
+      attachTo: document.body,
+      global: {
+        directives: {
+          loading: {}
+        }
+      }
+    })
+
+    await flushPromises()
+    await wrapper.get('[data-testid="employee-create-open"]').trigger('click')
+    await flushPromises()
+    await setDocumentInputValue('employee-display-name-input', '林予安')
+    await setDocumentInputValue('employee-identity-number-input', '110101199001011234')
+    await setDocumentInputValue('employee-primary-position-input', '生产主管')
+    await setDocumentInputValue('employee-joined-on-input', '2026-05-21')
+    getDocumentTestElement('employee-create-submit').click()
+    await flushPromises()
+
+    expect(createManagedEmployeeApi).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.not.objectContaining({
+        employeeCode: expect.any(String)
+      })
+    )
   })
 })

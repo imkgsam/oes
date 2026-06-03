@@ -130,15 +130,15 @@ describe('Prisma MES mold repository L2', () => {
         displayNameSnapshot: 'Ready Rack'
       }
     })
-    const accepted = await management.acceptProductionMold({
-      ...commandContext(prefix, `${prefix}_cmd_accept`),
+    const arrived = await management.confirmProductionMoldArrival({
+      ...commandContext(prefix, `${prefix}_cmd_arrival`),
       productionMoldId: productionMold.productionMoldId
     })
 
     const installed = await management.installTooling({
       ...commandContext(prefix, `${prefix}_cmd_install`),
       toolingType: ToolingType.MOLD,
-      toolingId: accepted.productionMold.productionMoldId,
+      toolingId: arrived.productionMold.productionMoldId,
       workCenterRef: {
         workCenterId: `${prefix}_wc`,
         workCenterCodeSnapshot: `${prefix}_WC`,
@@ -149,7 +149,12 @@ describe('Prisma MES mold repository L2', () => {
         workUnitCodeSnapshot: 'A',
         displayNameSnapshot: 'Position A'
       },
-      moldPosition: 'A'
+      moldPositionIndex: 1
+    })
+    await management.confirmInstalledMoldReady({
+      ...commandContext(prefix, `${prefix}_cmd_ready`),
+      productionMoldId: productionMold.productionMoldId,
+      toolingInstallationId: installed.toolingInstallation.toolingInstallationId
     })
     const usage = await management.recordMoldUsage({
       ...commandContext(prefix, `${prefix}_cmd_usage`),
@@ -171,7 +176,7 @@ describe('Prisma MES mold repository L2', () => {
       productionMoldId: productionMold.productionMoldId
     })
 
-    expect(persisted.currentStatus).toBe(ProductionMoldStatus.INSTALLED)
+    expect(persisted.currentStatus).toBe(ProductionMoldStatus.READY)
     expect(usage.moldLifeCounter.usedValue).toBe('6')
     expect(await prisma.moldUsageRecord.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)
     expect(await prisma.toolingInstallation.count({ where: { tenantId: `${prefix}_tenant` } })).toBe(1)

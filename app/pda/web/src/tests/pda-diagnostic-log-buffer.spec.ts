@@ -115,6 +115,7 @@ describe('pda diagnostic log buffer', () => {
         },
       }),
       openCamera: vi.fn() as never,
+      openCameraScanner: vi.fn() as never,
       beep: vi.fn() as never,
       vibrate: vi.fn() as never,
     });
@@ -244,6 +245,7 @@ describe('pda diagnostic log buffer', () => {
         },
       }),
       openCamera: vi.fn() as never,
+      openCameraScanner: vi.fn() as never,
       beep: vi.fn() as never,
       vibrate: vi.fn() as never,
     });

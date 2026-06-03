@@ -148,6 +148,13 @@ export const AUTH_IDENTITY_UPSTREAM_UNAVAILABLE: ExceptionDefinition = {
   rpcStatus: status.UNAVAILABLE
 }
 
+export const AUTH_HR_UPSTREAM_UNAVAILABLE: ExceptionDefinition = {
+  code: 'AUTH_HR_UPSTREAM_UNAVAILABLE',
+  message: 'HR upstream is unavailable for employee resolution',
+  messageKey: 'auth.hr_upstream_unavailable',
+  rpcStatus: status.UNAVAILABLE
+}
+
 export const AUTH_ACCOUNT_NOT_FOUND: ExceptionDefinition = {
   code: 'AUTH_ACCOUNT_NOT_FOUND',
   message: 'Account was not found',

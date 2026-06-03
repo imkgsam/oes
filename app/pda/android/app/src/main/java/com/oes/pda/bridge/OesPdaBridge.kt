@@ -14,6 +14,7 @@ class OesPdaBridge(
     private val networkStatusProvider: NetworkStatusProvider,
     private val feedbackController: NativeFeedbackController,
     private val openCameraCapture: (String) -> BridgeResult,
+    private val openCameraScanner: () -> BridgeResult,
 ) {
     private val sessionPreferences = context.getSharedPreferences("oes_pda_session", Context.MODE_PRIVATE)
 
@@ -49,6 +50,16 @@ class OesPdaBridge(
             }
         }.getOrElse { error ->
             BridgeResult.failure("CAMERA_CAPTURE_FAILED", error.message ?: "Camera capture failed").toJson()
+        }
+    }
+
+    /** Starts native camera scanning and completes successful decodes through the normal scanResult event. */
+    @JavascriptInterface
+    fun openCameraScanner(requestJson: String): String {
+        return runCatching {
+            openCameraScanner().toJson()
+        }.getOrElse { error ->
+            BridgeResult.failure("CAMERA_SCANNER_FAILED", error.message ?: "Camera scanner failed").toJson()
         }
     }
 

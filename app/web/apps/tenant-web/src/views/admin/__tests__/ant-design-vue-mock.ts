@@ -99,6 +99,22 @@ export const FormItem = defineComponent({
 
 ;(Form as any).Item = FormItem
 
+/** Row preserves Ant Design grid grouping while keeping tests layout-agnostic. */
+export const Row = defineComponent({
+  name: 'Row',
+  setup(_props, { attrs, slots }) {
+    return () => h('div', { ...attrs, class: mergeClass('ant-row', attrs.class) }, slots.default?.())
+  }
+})
+
+/** Col preserves Ant Design grid child grouping while keeping tests layout-agnostic. */
+export const Col = defineComponent({
+  name: 'Col',
+  setup(_props, { attrs, slots }) {
+    return () => h('div', { ...attrs, class: mergeClass('ant-col', attrs.class) }, slots.default?.())
+  }
+})
+
 /** Input maps Ant Design Vue v-model:value onto a plain input for deterministic tests. */
 export const Input = defineComponent({
   name: 'Input',
@@ -120,6 +136,39 @@ export const Input = defineComponent({
         placeholder: props.placeholder,
         value: props.value,
         onInput: (event: Event) => emit('update:value', (event.target as HTMLInputElement).value)
+      })
+  }
+})
+
+/** InputNumber maps Ant Design Vue numeric v-model:value onto a native number input for deterministic tests. */
+export const InputNumber = defineComponent({
+  name: 'InputNumber',
+  props: {
+    disabled: Boolean,
+    min: Number,
+    placeholder: String,
+    precision: Number,
+    value: {
+      default: undefined,
+      type: [Number, String] as PropType<number | string | undefined>
+    }
+  },
+  emits: ['update:value'],
+  setup(props, { attrs, emit }) {
+    return () =>
+      h('input', {
+        ...attrs,
+        class: mergeClass('ant-input-number', attrs.class),
+        disabled: props.disabled,
+        min: props.min,
+        placeholder: props.placeholder,
+        step: props.precision === 0 ? 1 : undefined,
+        type: 'number',
+        value: props.value ?? '',
+        onInput: (event: Event) => {
+          const rawValue = (event.target as HTMLInputElement).value
+          emit('update:value', rawValue === '' ? null : Number(rawValue))
+        }
       })
   }
 })
@@ -467,20 +516,23 @@ export const Menu = defineComponent({
 export const MenuItem = defineComponent({
   name: 'MenuItem',
   props: {
+    danger: Boolean,
     disabled: Boolean,
     key: {
       default: '',
       type: String
     }
   },
-  setup(props, { slots }) {
+  setup(props, { attrs, slots }) {
     return () =>
       h(
         'li',
         {
+          ...attrs,
           'aria-disabled': props.disabled ? 'true' : undefined,
-          class: 'ant-menu-item',
-          'data-menu-key': props.key
+          class: mergeClass('ant-menu-item', attrs.class),
+          'data-danger': props.danger ? 'true' : undefined,
+          'data-menu-key': attrs['data-menu-key'] ?? props.key
         },
         slots.default?.()
       )
@@ -639,6 +691,13 @@ export const Table = defineComponent({
     }
     const resolveKey = (record: AnyRecord) =>
       typeof props.rowKey === 'function' ? props.rowKey(record) : record[props.rowKey]
+    const resolveColumnKey = (column: AnyRecord) => column.key ?? column.dataIndex ?? 'column'
+    const resolveColumnStyle = (column: AnyRecord) =>
+      column.width === undefined
+        ? undefined
+        : {
+            width: typeof column.width === 'number' ? `${column.width}px` : column.width
+          }
     const renderRecord = (record: AnyRecord, depth = 0): VNodeChild[] => {
       const key = resolveKey(record)
       const children = record.children ?? []
@@ -654,7 +713,9 @@ export const Table = defineComponent({
           h(
             'div',
             {
-              class: `ant-table-cell ant-table-cell-${column.key ?? column.dataIndex ?? 'column'}`
+              class: `ant-table-cell ant-table-cell-${resolveColumnKey(column)}`,
+              'data-testid': `ant-table-body-cell-${resolveColumnKey(column)}`,
+              style: resolveColumnStyle(column)
             },
             [
               index === 0 && children.length
@@ -694,7 +755,16 @@ export const Table = defineComponent({
           'div',
           { class: 'ant-table-header' },
           props.columns.map((column) =>
-            h('span', { class: 'ant-table-header-cell', key: column.key ?? column.dataIndex }, column.title)
+            h(
+              'span',
+              {
+                class: 'ant-table-header-cell',
+                'data-testid': `ant-table-header-cell-${resolveColumnKey(column)}`,
+                key: resolveColumnKey(column),
+                style: resolveColumnStyle(column)
+              },
+              column.title
+            )
           )
         ),
         props.dataSource.length

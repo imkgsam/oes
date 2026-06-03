@@ -70,7 +70,7 @@ const statusCards = [
 </script>
 
 <template>
-  <div class="space-y-5 p-5">
+  <div class="flex flex-col gap-5 p-5">
     <Card :bordered="false">
       <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div class="space-y-2">

@@ -387,6 +387,7 @@ onMounted(() => {
           :loading="loading"
           :locale="{ emptyText: '暂无收货单' }"
           :pagination="false"
+          :scroll="{ x: 920 }"
           row-key="receiptId"
           size="middle"
         />

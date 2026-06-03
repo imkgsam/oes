@@ -11,5 +11,27 @@
     "title": "工作台",
     "analytics": "分析",
     "workspace": "租户工作台"
+  },
+  "terminalDevice": {
+    "presence": {
+      "OFFLINE": "离线",
+      "ONLINE": "在线",
+      "STALE": "疑似离线",
+      "UNKNOWN": "未知"
+    },
+    "status": {
+      "ACTIVE": "启用",
+      "DECOMMISSIONED": "已退役",
+      "DISABLED": "禁用",
+      "LOST": "丢失",
+      "MAINTENANCE": "维护中",
+      "PENDING_APPROVAL": "待审批",
+      "all": "全部状态"
+    },
+    "statusOperation": {
+      "decommissionTitle": "退役/解绑设备",
+      "reasonPlaceholder": "状态变更原因，可选，用于审计",
+      "title": "状态操作"
+    }
   }
 }

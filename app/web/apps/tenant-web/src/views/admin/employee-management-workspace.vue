@@ -2,7 +2,7 @@
 import type { HrManagementApi, RoleManagementApi } from '#/api'
 import type { TableColumnsType } from 'ant-design-vue'
 
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, h, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { IconifyIcon } from '@vben/icons'
@@ -21,6 +21,7 @@ import {
   Menu,
   message,
   Modal,
+  QRCode,
   Radio,
   Select,
   Space,
@@ -38,6 +39,7 @@ import {
   endManagedEmploymentApi,
   getManagedEmployeeAccountAccessApi,
   getManagedEmployeeDetailApi,
+  getManagedNextEmployeeCodeApi,
   getManagedOrgTreeApi,
   listManagedEmployeesApi,
   listRolesApi,
@@ -56,6 +58,7 @@ interface CreateEmployeeFormState {
   accountMode: 'EXISTING_USER' | 'NEW_USER'
   allowLogin: boolean
   displayName: string
+  employeeCodePreview: string
   existingUserDisplayName: string
   existingUserId: string
   gender: string
@@ -112,6 +115,14 @@ interface Props {
 }
 
 type EmployeeActionKey = 'account' | 'changeEmployment' | 'detail' | 'edit' | 'offboard'
+type EmployeeColumnKey =
+  | 'employeeCode'
+  | 'joinedAt'
+  | 'lifecycleStatus'
+  | 'name'
+  | 'operation'
+  | 'positionName'
+  | 'primaryDepartment'
 
 interface TableActionMenuItem<ActionKey extends string> {
   danger?: boolean
@@ -133,6 +144,24 @@ const emit = defineEmits<{
 const authContextStore = useAuthContextStore()
 const operationColumnTitle = '操作'
 const router = useRouter()
+const employeeColumnWidths = reactive<Record<EmployeeColumnKey, number>>({
+  employeeCode: 140,
+  joinedAt: 150,
+  lifecycleStatus: 120,
+  name: 220,
+  operation: 180,
+  positionName: 220,
+  primaryDepartment: 200
+})
+const employeeColumnMinWidths: Record<EmployeeColumnKey, number> = {
+  employeeCode: 120,
+  joinedAt: 120,
+  lifecycleStatus: 96,
+  name: 160,
+  operation: 120,
+  positionName: 140,
+  primaryDepartment: 140
+}
 const activeTenantId = computed(() => authContextStore.sessionContext?.tenant?.tenantId ?? '')
 const activeTenantName = computed(
   () => authContextStore.sessionContext?.tenant?.name ?? authContextStore.tenantName ?? ''
@@ -182,6 +211,7 @@ const createForm = ref<CreateEmployeeFormState>({
   accountMode: 'NEW_USER',
   allowLogin: false,
   displayName: '',
+  employeeCodePreview: '',
   existingUserDisplayName: '',
   existingUserId: '',
   gender: '',
@@ -210,8 +240,10 @@ const employeeFilters = reactive<EmployeeFilterFormState>({
   lifecycleStatus: 'ALL',
   orgUnitIds: []
 })
+let activeEmployeeColumnCleanup: null | (() => void) = null
 
 const currentActiveEmployment = computed(() => detail.value?.activeEmployment)
+const employeeCodeQrValue = computed(() => detail.value?.employee.employeeCode ?? '')
 const employmentHistory = computed(() => detail.value?.employments ?? [])
 const sortedRoleOptions = computed(() =>
   roleOptions.value.filter((role) => role.isEnabled !== false)
@@ -237,47 +269,114 @@ const departmentDropdownStyle = {
   overflow: 'auto'
 } as const
 const drawerChildModalZIndex = 1200
+const employeeTableScrollX = computed(() =>
+  Object.values(employeeColumnWidths).reduce((sum, width) => sum + width, 0)
+)
+
+// compareEmployeeColumnText keeps employee table sorting locale-aware and numeric-friendly.
+function compareEmployeeColumnText(left?: string, right?: string) {
+  return (left || '').localeCompare(right || '', 'zh-Hans-CN', {
+    numeric: true,
+    sensitivity: 'base'
+  })
+}
+
+// stopEmployeeColumnResize releases active listeners after resizing an employee table column.
+function stopEmployeeColumnResize() {
+  activeEmployeeColumnCleanup?.()
+  activeEmployeeColumnCleanup = null
+  document.body.classList.remove('employee-management--resizing-column')
+}
+
+// startEmployeeColumnResize updates one employee table column width from pointer movement.
+function startEmployeeColumnResize(event: MouseEvent, columnKey: EmployeeColumnKey) {
+  event.preventDefault()
+  event.stopPropagation()
+
+  stopEmployeeColumnResize()
+
+  const startX = event.clientX
+  const startWidth = employeeColumnWidths[columnKey]
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    employeeColumnWidths[columnKey] = Math.max(
+      employeeColumnMinWidths[columnKey],
+      Math.round(startWidth + moveEvent.clientX - startX)
+    )
+  }
+
+  const handleMouseUp = () => {
+    stopEmployeeColumnResize()
+  }
+
+  document.body.classList.add('employee-management--resizing-column')
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp, { once: true })
+  activeEmployeeColumnCleanup = () => {
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+  }
+}
+
+// renderResizableEmployeeHeader exposes a compact resize handle for employee table columns.
+function renderResizableEmployeeHeader(columnKey: EmployeeColumnKey, label: string) {
+  return h('div', { class: 'employee-management__resizable-title' }, [
+    h('span', { class: 'employee-management__resizable-title-text' }, label),
+    h('span', {
+      'aria-label': `调整${label}列宽`,
+      class: 'employee-management__column-resizer',
+      onMousedown: (event: MouseEvent) => startEmployeeColumnResize(event, columnKey),
+      role: 'separator'
+    })
+  ])
+}
+
 const employeeColumns = computed<TableColumnsType<EmployeeGridRow>>(() => [
   {
     dataIndex: 'name',
     key: 'name',
-    title: '员工姓名',
-    width: 220
+    title: renderResizableEmployeeHeader('name', '员工姓名'),
+    width: employeeColumnWidths.name
   },
   {
     dataIndex: 'employeeCode',
     key: 'employeeCode',
-    title: '工号',
-    width: 140
+    sorter: (left, right) => compareEmployeeColumnText(left.employeeCode, right.employeeCode),
+    title: renderResizableEmployeeHeader('employeeCode', '工号'),
+    width: employeeColumnWidths.employeeCode
   },
   {
     dataIndex: 'primaryDepartment',
     key: 'primaryDepartment',
-    title: '所属部门',
-    width: 200
+    sorter: (left, right) =>
+      compareEmployeeColumnText(left.primaryDepartment, right.primaryDepartment),
+    title: renderResizableEmployeeHeader('primaryDepartment', '所属部门'),
+    width: employeeColumnWidths.primaryDepartment
   },
   {
     dataIndex: 'positionName',
     key: 'positionName',
-    title: '职位',
-    width: 220
+    title: renderResizableEmployeeHeader('positionName', '职位'),
+    width: employeeColumnWidths.positionName
   },
   {
     dataIndex: 'joinedAt',
     key: 'joinedAt',
-    title: '入职日期',
-    width: 150
+    title: renderResizableEmployeeHeader('joinedAt', '入职日期'),
+    width: employeeColumnWidths.joinedAt
   },
   {
     dataIndex: 'lifecycleStatus',
     key: 'lifecycleStatus',
-    title: '状态',
-    width: 120
+    title: renderResizableEmployeeHeader('lifecycleStatus', '状态'),
+    width: employeeColumnWidths.lifecycleStatus
   },
   {
+    align: 'center',
+    fixed: 'right',
     key: 'operation',
-    title: operationColumnTitle,
-    width: 180
+    title: renderResizableEmployeeHeader('operation', operationColumnTitle),
+    width: employeeColumnWidths.operation
   }
 ])
 
@@ -538,6 +637,7 @@ function openCreateModal() {
     accountMode: 'NEW_USER',
     allowLogin: false,
     displayName: '',
+    employeeCodePreview: '生成中',
     existingUserDisplayName: '',
     existingUserId: '',
     gender: '',
@@ -553,6 +653,23 @@ function openCreateModal() {
   }
   existingUserOptions.value = []
   createOpen.value = true
+  void loadEmployeeCodePreview()
+}
+
+/** loadEmployeeCodePreview shows the system-owned employee code before submission without making it user-editable. */
+async function loadEmployeeCodePreview() {
+  if (!activeTenantId.value) {
+    createForm.value.employeeCodePreview = '提交时生成'
+    return
+  }
+
+  try {
+    const result = await getManagedNextEmployeeCodeApi(activeTenantId.value)
+    createForm.value.employeeCodePreview = result.employeeCode || '提交时生成'
+  } catch (error) {
+    createForm.value.employeeCodePreview = '提交时生成'
+    message.error(resolveErrorMessage(error, '员工码预览加载失败'))
+  }
 }
 
 /** submitCreateFlow creates the employee, establishes the first employment, and optionally starts login onboarding. */
@@ -1217,6 +1334,10 @@ onMounted(async () => {
     message.error(resolveErrorMessage(error, '员工与任职入口初始化失败'))
   }
 })
+
+onBeforeUnmount(() => {
+  stopEmployeeColumnResize()
+})
 </script>
 
 <template>
@@ -1230,6 +1351,7 @@ onMounted(async () => {
         <Button
           v-access:code="'hr.employee.create'"
           v-if="canCreateEmployee"
+          class="employee-management__create-button"
           data-testid="employee-create-open"
           type="primary"
           @click="openCreateModal"
@@ -1282,6 +1404,8 @@ onMounted(async () => {
         :loading="employeeLoading"
         :pagination="{ pageSize: 20, showSizeChanger: false, total: employeeTotal }"
         :row-key="(record: EmployeeGridRow) => record.id"
+        :scroll="{ x: employeeTableScrollX }"
+        class="employee-management__employee-table"
         size="middle"
       >
         <template #bodyCell="{ column, record }">
@@ -1372,28 +1496,45 @@ onMounted(async () => {
 
           <Tabs v-model:active-key="detailDrawerTab">
             <Tabs.TabPane key="overview" tab="概览">
-              <Descriptions :column="1" bordered size="small">
-                <Descriptions.Item label="姓名">
-                  {{ formatEmployeeName(detail.employee) }}
-                </Descriptions.Item>
-                <Descriptions.Item label="员工编码">
-                  {{ detail.employee.employeeCode }}
-                </Descriptions.Item>
-                <Descriptions.Item label="主部门">
-                  {{ formatEmploymentDepartmentName(currentActiveEmployment) }}
-                </Descriptions.Item>
-                <Descriptions.Item label="职位">
-                  {{ formatEmploymentPositionName(currentActiveEmployment) }}
-                </Descriptions.Item>
-                <Descriptions.Item label="生命周期">
-                  <Tag color="blue">
-                    {{ formatLifecycleStatus(detail.employee.lifecycleStatus) }}
-                  </Tag>
-                </Descriptions.Item>
-                <Descriptions.Item label="当前任职摘要">
-                  {{ formatEmploymentOrgSummary(currentActiveEmployment) || '未提供' }}
-                </Descriptions.Item>
-              </Descriptions>
+              <div class="employee-management__section-stack">
+                <Descriptions :column="1" bordered size="small">
+                  <Descriptions.Item label="姓名">
+                    {{ formatEmployeeName(detail.employee) }}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="员工编码">
+                    {{ detail.employee.employeeCode }}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="主部门">
+                    {{ formatEmploymentDepartmentName(currentActiveEmployment) }}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="职位">
+                    {{ formatEmploymentPositionName(currentActiveEmployment) }}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="生命周期">
+                    <Tag color="blue">
+                      {{ formatLifecycleStatus(detail.employee.lifecycleStatus) }}
+                    </Tag>
+                  </Descriptions.Item>
+                  <Descriptions.Item label="当前任职摘要">
+                    {{ formatEmploymentOrgSummary(currentActiveEmployment) || '未提供' }}
+                  </Descriptions.Item>
+                </Descriptions>
+
+                <section class="employee-management__code-qr-card">
+                  <div
+                    class="employee-management__code-qr"
+                    data-testid="employee-management-code-qr"
+                    :data-value="employeeCodeQrValue"
+                  >
+                    <QRCode :value="employeeCodeQrValue" />
+                  </div>
+                  <div class="employee-management__code-copy">
+                    <span>员工码二维码</span>
+                    <strong>{{ detail.employee.employeeCode }}</strong>
+                    <p>PDA 扫码后只带入员工码，PIN 由员工本人在终端弹窗输入。</p>
+                  </div>
+                </section>
+              </div>
             </Tabs.TabPane>
 
             <Tabs.TabPane key="employment" tab="任职">
@@ -1482,6 +1623,13 @@ onMounted(async () => {
         <div class="employee-management__form-note">
           员工编号由系统生成；人员 Party 会按证件标识匹配，未命中时自动创建。
         </div>
+        <Form.Item label="员工码">
+          <Input
+            :value="createForm.employeeCodePreview"
+            data-testid="employee-code-preview-input"
+            disabled
+          />
+        </Form.Item>
         <Form.Item label="姓名" required>
           <Input
             v-model:value="createForm.displayName"
@@ -1720,7 +1868,7 @@ onMounted(async () => {
 }
 
 .employee-management__list-head {
-  align-items: flex-start;
+  align-items: center;
   display: flex;
   gap: 16px;
   justify-content: space-between;
@@ -1741,25 +1889,79 @@ onMounted(async () => {
   margin: 4px 0 0;
 }
 
+.employee-management__create-button {
+  flex: 0 0 auto;
+  min-width: 128px;
+}
+
 .employee-management__toolbar {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-bottom: 14px;
+  gap: 10px 12px;
+  margin-bottom: 16px;
+  max-width: 760px;
 }
 
 .employee-management__filter-select {
-  min-width: 136px;
+  flex: 0 0 132px;
+  width: 132px;
 }
 
 .employee-management__department-filter {
-  min-width: 220px;
+  flex-basis: 180px;
+  width: 180px;
 }
 
 .employee-management__search {
-  flex: 1 1 260px;
-  min-width: 220px;
+  flex: 0 1 280px;
+  width: 280px;
+}
+
+:deep(.employee-management__employee-table .ant-table-cell) {
+  white-space: nowrap;
+}
+
+:deep(.employee-management__employee-table .ant-table-thead > tr > th) {
+  position: relative;
+  user-select: none;
+}
+
+.employee-management__resizable-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding-right: 12px;
+}
+
+.employee-management__resizable-title-text {
+  min-width: 0;
+}
+
+.employee-management__column-resizer {
+  position: absolute;
+  top: -12px;
+  right: -10px;
+  bottom: -12px;
+  z-index: 2;
+  width: 14px;
+  cursor: col-resize;
+}
+
+.employee-management__column-resizer::after {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 6px;
+  width: 1px;
+  content: '';
+  background: rgb(15 23 42 / 14%);
+  transition: background 0.16s ease;
+}
+
+.employee-management__column-resizer:hover::after {
+  background: hsl(var(--primary));
 }
 
 .employee-management__employee-cell {
@@ -1815,6 +2017,52 @@ onMounted(async () => {
   font-weight: 700;
 }
 
+.employee-management__code-qr-card {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+  padding: 14px;
+}
+
+.employee-management__code-qr {
+  background: #fff;
+  border: 1px solid #eef1f5;
+  border-radius: 8px;
+  flex: 0 0 auto;
+  padding: 8px;
+}
+
+.employee-management__code-copy {
+  min-width: 0;
+}
+
+.employee-management__code-copy span {
+  color: #64748b;
+  display: block;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.employee-management__code-copy strong {
+  color: #111827;
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 28px;
+  overflow-wrap: anywhere;
+}
+
+.employee-management__code-copy p {
+  color: #64748b;
+  font-size: 12px;
+  line-height: 18px;
+  margin: 6px 0 0;
+}
+
 .employee-management__timeline-list {
   display: flex;
   flex-direction: column;
@@ -1852,7 +2100,12 @@ onMounted(async () => {
   padding: 24px 0;
 }
 
-@media (max-width: 960px) {
+:global(body.employee-management--resizing-column) {
+  cursor: col-resize;
+  user-select: none;
+}
+
+@media (max-width: 640px) {
   .employee-management__drawer-head {
     align-items: flex-start;
     flex-direction: column;
@@ -1867,6 +2120,7 @@ onMounted(async () => {
   .employee-management__search {
     flex: 1 1 100%;
     min-width: 100%;
+    width: 100%;
   }
 }
 </style>

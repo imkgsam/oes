@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import {
+  fetchPdaBootstrap,
   logoutPda,
   PdaBffError,
   refreshPdaSession,
@@ -11,6 +12,7 @@ import {
 } from '@/api/pda-bff.client';
 import {
   clearSessionTokens,
+  loadSessionTokens,
   saveSessionTokens,
   type PersistedSessionTokens,
 } from './session-token-store';
@@ -39,6 +41,7 @@ type PersistedTerminalDeviceBinding = {
 };
 
 const TERMINAL_DEVICE_BINDING_STORAGE_KEY = 'oes:pda:terminal-device-binding';
+const WEBVIEW_SESSION_ACTIVE_STORAGE_KEY = 'oes:pda:webview-session-active';
 
 /** Owns PDA session lifecycle across login, foreground refresh, app restart cleanup, and logout. */
 export const useSessionStore = defineStore('pda-session', {
@@ -141,8 +144,24 @@ export const useSessionStore = defineStore('pda-session', {
           return false;
         }
 
-        await this.clearSession();
-        return false;
+        if (!hasActiveWebViewSession()) {
+          await this.clearSession();
+          return false;
+        }
+
+        const tokens = await loadSessionTokens();
+        if (!tokens?.accessToken || !tokens.refreshToken || !isFutureIsoDate(tokens.expiresAt)) {
+          await this.clearSession();
+          return false;
+        }
+
+        this.accessToken = tokens.accessToken;
+        this.refreshToken = tokens.refreshToken;
+        this.expiresAt = tokens.expiresAt;
+
+        const bootstrap = await fetchPdaBootstrap(tokens.accessToken, terminalDeviceBinding.terminalDeviceId);
+        await this.applyBootstrap(bootstrap);
+        return true;
       } catch {
         await this.clearSession();
         return false;
@@ -187,12 +206,14 @@ export const useSessionStore = defineStore('pda-session', {
       this.expiresAt = null;
       this.bootstrap = null;
       this.operatorName = null;
+      clearActiveWebViewSession();
       await clearSessionTokens();
     },
     async applyTokenPair(session: PdaRefreshSessionResponse): Promise<void> {
       this.accessToken = session.accessToken;
       this.refreshToken = session.refreshToken;
       this.expiresAt = calculateExpiresAt(session.expiresIn);
+      markActiveWebViewSession();
       await saveSessionTokens(this.toPersistedTokens());
     },
     toPersistedTokens(): PersistedSessionTokens {
@@ -242,6 +263,31 @@ function getBrowserStorage(): Storage | undefined {
 function calculateExpiresAt(expiresIn: number): string {
   const safeExpiresIn = Number.isFinite(expiresIn) && expiresIn > 0 ? expiresIn : 900;
   return new Date(Date.now() + safeExpiresIn * 1000).toISOString();
+}
+
+function isFutureIsoDate(value: string): boolean {
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) && timestamp > Date.now();
+}
+
+function markActiveWebViewSession(): void {
+  getBrowserSessionStorage()?.setItem(WEBVIEW_SESSION_ACTIVE_STORAGE_KEY, '1');
+}
+
+function hasActiveWebViewSession(): boolean {
+  return getBrowserSessionStorage()?.getItem(WEBVIEW_SESSION_ACTIVE_STORAGE_KEY) === '1';
+}
+
+function clearActiveWebViewSession(): void {
+  getBrowserSessionStorage()?.removeItem(WEBVIEW_SESSION_ACTIVE_STORAGE_KEY);
+}
+
+function getBrowserSessionStorage(): Storage | undefined {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return undefined;
+  }
 }
 
 function isAuthRejected(error: unknown): boolean {

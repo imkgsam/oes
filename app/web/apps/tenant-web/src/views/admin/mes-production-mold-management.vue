@@ -20,6 +20,7 @@ import {
   FormItem as AFormItem,
   Input as AInput,
   Menu as AMenu,
+  QRCode as AQRCode,
   Select as ASelect,
   SelectOption as ASelectOption,
   Space as ASpace,
@@ -52,10 +53,10 @@ interface TableActionMenuItem<ActionKey extends string> {
 }
 
 const statusOptions: Array<{ label: string; value: MesApi.ProductionMoldStatus }> = [
-  { label: '已接收', value: 'RECEIVED' },
+  { label: '预登记', value: 'PRE_REGISTERED' },
   { label: '准备中', value: 'PREPARING' },
   { label: '可用', value: 'AVAILABLE' },
-  { label: '已安装', value: 'INSTALLED' },
+  { label: '可注浆', value: 'READY' },
   { label: '维护中', value: 'MAINTENANCE' },
   { label: '停用', value: 'DISABLED' },
   { label: '待报废 / 待拆除', value: 'SCRAP_PENDING' },
@@ -90,6 +91,11 @@ const productionMoldColumns: TableColumnsType<MesApi.ProductionMold> = [
     key: 'moldCode',
     title: '编号',
     width: 150
+  },
+  {
+    key: 'identityCode',
+    title: '识别码',
+    width: 96
   },
   {
     key: 'moldDesign',
@@ -187,7 +193,7 @@ const selectedCreateDesign = computed(() =>
   moldDesigns.value.find((design) => design.moldDesignId === createForm.moldDesignId)
 )
 const installedCount = computed(
-  () => productionMolds.value.filter((mold) => normalizeStatus(mold.currentStatus) === 'INSTALLED').length
+  () => productionMolds.value.filter((mold) => ['READY', 'MAINTENANCE'].includes(normalizeStatus(mold.currentStatus))).length
 )
 const warningCount = computed(() => productionMolds.value.filter((mold) => mold.lifeCounterSummary?.warningLevel).length)
 const tableEmptyText = computed(() => (filters.keyword ? '没有匹配的生产模具' : '暂无生产模具'))
@@ -476,10 +482,10 @@ function goBack() {
 /** normalizeStatus converts generated numeric enum values and strings into displayable mold statuses. */
 function normalizeStatus(status: MesApi.ProductionMold['currentStatus']) {
   const generatedStatusMap: Record<number, string> = {
-    1: 'RECEIVED',
+    1: 'PRE_REGISTERED',
     2: 'PREPARING',
     3: 'AVAILABLE',
-    4: 'INSTALLED',
+    4: 'READY',
     5: 'MAINTENANCE',
     6: 'DISABLED',
     7: 'SCRAP_PENDING',
@@ -491,7 +497,7 @@ function normalizeStatus(status: MesApi.ProductionMold['currentStatus']) {
 /** resolveStatusTagColor maps backend status values to Ant Design tag colors for scanning. */
 function resolveStatusTagColor(status: MesApi.ProductionMold['currentStatus']) {
   switch (normalizeStatus(status)) {
-    case 'INSTALLED': {
+    case 'READY': {
       return 'green'
     }
     case 'MAINTENANCE': {
@@ -531,7 +537,7 @@ function formatMoldLocation(mold: MesApi.ProductionMold) {
       installation.workCenterRef?.displayNameSnapshot ||
       installation.workCenterRef?.workCenterCodeSnapshot ||
       installation.workCenterRef?.workCenterId
-    const position = installation.moldDetail?.moldPosition ? ` · ${installation.moldDetail.moldPosition}` : ''
+    const position = installation.moldDetail?.moldPositionIndex ? ` · 第 ${installation.moldDetail.moldPositionIndex} 位` : ''
     return `${line}${position}`
   }
 
@@ -707,6 +713,9 @@ onMounted(() => {
               <template v-if="column.key === 'moldCode'">
                 <span class="mes-production-mold-code">{{ record.moldCode }}</span>
               </template>
+              <template v-else-if="column.key === 'identityCode'">
+                <a-q-r-code :value="record.productionMoldId" :size="52" />
+              </template>
               <template v-else-if="column.key === 'moldDesign'">
                 <div class="mes-production-mold-design-cell">
                   <strong>{{ record.moldDesignSummary?.designCode || record.moldDesignId }}</strong>
@@ -744,6 +753,7 @@ onMounted(() => {
                         v-for="item in getVisibleTableActionItems(getProductionMoldActionItems(asProductionMold(record)))"
                         :key="item.key"
                         :danger="item.danger"
+                        :data-menu-key="item.key"
                         :data-testid="item.testId"
                         :disabled="item.disabled"
                       >

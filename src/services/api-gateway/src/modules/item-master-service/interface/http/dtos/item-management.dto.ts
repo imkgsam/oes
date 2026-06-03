@@ -470,6 +470,11 @@ export class CreatePackagingMethodDto {
   @IsString()
   @IsNotEmpty()
   methodName!: string
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string
 }
 
 /** UpdatePackagingMethodDto updates one packaging method's basics. */

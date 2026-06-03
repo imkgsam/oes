@@ -7,6 +7,7 @@ function createHrQueryServiceMock() {
     listEmployees: jest.fn(),
     getEmployeeById: jest.fn(),
     getEmployeeByTenantPartyId: jest.fn(),
+    resolveActiveEmployeeByCode: jest.fn(),
     getActiveEmployment: jest.fn(),
     listEmployments: jest.fn(),
     getLatestOnboardingAccess: jest.fn()
@@ -14,6 +15,46 @@ function createHrQueryServiceMock() {
 }
 
 describe('HrQueryGrpcController L3', () => {
+  it('ResolveActiveEmployeeByCode / should map active employee and employment without account or PIN facts', async () => {
+    const service = createHrQueryServiceMock()
+    service.resolveActiveEmployeeByCode.mockResolvedValue({
+      employee: {
+        id: 'employee-1',
+        tenantId: 'tenant-1',
+        tenantPartyId: 'tenant-party-1',
+        partyId: 'party-1',
+        employeeCode: 'EMP-0AF-0001',
+        lifecycleStatus: 'ACTIVE'
+      },
+      activeEmployment: {
+        id: 'employment-1',
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        orgUnitId: 'org-1',
+        status: 'ACTIVE',
+        effectiveFrom: new Date('2026-04-23T00:00:00.000Z'),
+        effectiveTo: null,
+        endedReason: null
+      }
+    })
+    const controller = new HrQueryGrpcController(service as unknown as HrQueryService)
+
+    const result = await (controller as any).resolveActiveEmployeeByCode({
+      tenantId: 'tenant-1',
+      employeeCode: 'EMP-0AF-0001'
+    })
+
+    expect(service.resolveActiveEmployeeByCode).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      employeeCode: 'EMP-0AF-0001'
+    })
+    expect(result.employee?.employeeCode).toBe('EMP-0AF-0001')
+    expect(result.activeEmployment?.orgUnitId).toBe('org-1')
+    expect(result.employee).not.toHaveProperty('accountId')
+    expect(result).not.toHaveProperty('pin')
+    expect(result).not.toHaveProperty('loginMethods')
+  })
+
   it('GetActiveEmployment / should expose Employment -> OrgUnit as HR truth without account-org fields', async () => {
     const service = createHrQueryServiceMock()
     service.getActiveEmployment.mockResolvedValue({
@@ -44,7 +85,7 @@ describe('HrQueryGrpcController L3', () => {
           tenantId: 'tenant-1',
           tenantPartyId: 'tenant-party-1',
           partyId: 'party-1',
-          employeeCode: 'EMP-001',
+          employeeCode: 'EMP-0AF-0001',
           lifecycleStatus: 'ACTIVE'
         }
       ],
@@ -69,7 +110,7 @@ describe('HrQueryGrpcController L3', () => {
       pageSize: 10,
       tenantId: 'tenant-1'
     })
-    expect(result.items?.[0]?.employeeCode).toBe('EMP-001')
+    expect(result.items?.[0]?.employeeCode).toBe('EMP-0AF-0001')
     expect(result.items?.[0]).not.toHaveProperty('accountId')
     expect(result.total).toBe(1)
   })

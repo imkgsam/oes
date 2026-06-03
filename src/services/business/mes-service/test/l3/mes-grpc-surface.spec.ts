@@ -158,7 +158,7 @@ function productionMoldRecord() {
     purchaseRef: null,
     receivedAt: null,
     acceptedAt: null,
-    currentStatus: 'RECEIVED',
+    currentStatus: 'PRE_REGISTERED',
     currentStorageResourceRef: {
       storageResourceId: 'storage-1',
       resourceCodeSnapshot: 'READY-01',
@@ -211,7 +211,7 @@ function toolingInstallationRecord() {
     status: 'ACTIVE',
     moldDetail: {
       toolingInstallationId: 'install-1',
-      moldPosition: 'A1',
+      moldPositionIndex: 1,
       cavityPosition: 'LEFT',
       cavityMapping: null,
       setupParameters: null
@@ -427,34 +427,34 @@ describe('mes-service mold/tooling grpc surface L3', () => {
       })
     )
     expect(response.productionMold?.productionMoldId).toBe('mold-1')
-    expect(response.productionMold?.currentStatus).toBe(ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_RECEIVED)
+    expect(response.productionMold?.currentStatus).toBe(ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_PRE_REGISTERED)
   })
 
-  it('AcceptProductionMold / should expose the RECEIVED to AVAILABLE acceptance command', async () => {
-    const acceptProductionMold = jest.fn().mockResolvedValue({
+  it('ConfirmProductionMoldArrival / should expose the PRE_REGISTERED to AVAILABLE arrival command', async () => {
+    const confirmProductionMoldArrival = jest.fn().mockResolvedValue({
       productionMold: {
         ...productionMoldRecord(),
         currentStatus: 'AVAILABLE',
-        acceptedAt: '2026-05-05T08:00:00.000Z'
+        receivedAt: '2026-05-05T08:00:00.000Z'
       }
     })
     const controller = new MesManagementGrpcController(
       {
-        acceptProductionMold
+        confirmProductionMoldArrival
       } as never,
       createRequestContextStore() as never
     )
 
-    const response = await controller.acceptProductionMold({
+    const response = await controller.confirmProductionMoldArrival({
       ...buildManagementContext(),
       productionMoldId: 'mold-1',
-      acceptedAt: '2026-05-05T08:00:00.000Z'
+      arrivedAt: '2026-05-05T08:00:00.000Z'
     })
 
-    expect(acceptProductionMold).toHaveBeenCalledWith(
+    expect(confirmProductionMoldArrival).toHaveBeenCalledWith(
       expect.objectContaining({
         productionMoldId: 'mold-1',
-        acceptedAt: '2026-05-05T08:00:00.000Z'
+        arrivedAt: '2026-05-05T08:00:00.000Z'
       })
     )
     expect(response.productionMold?.currentStatus).toBe(ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_AVAILABLE)
@@ -481,7 +481,7 @@ describe('mes-service mold/tooling grpc surface L3', () => {
       workUnitRef: {
         workUnitId: 'wu-1'
       },
-      moldPosition: 'A1',
+      moldPositionIndex: 1,
       cavityPosition: 'LEFT'
     })
 
@@ -491,10 +491,66 @@ describe('mes-service mold/tooling grpc surface L3', () => {
         toolingId: 'mold-1',
         workCenterRef: expect.objectContaining({ workCenterId: 'wc-1' }),
         workUnitRef: expect.objectContaining({ workUnitId: 'wu-1' }),
-        moldPosition: 'A1'
+        moldPositionIndex: 1
       })
     )
-    expect(response.toolingInstallation?.moldDetail?.moldPosition).toBe('A1')
+    expect(response.toolingInstallation?.moldDetail?.moldPositionIndex).toBe(1)
+  })
+
+  it('ConfirmInstalledMoldReady and MarkInstalledMoldMaintenance / should expose installed readiness transitions', async () => {
+    const confirmInstalledMoldReady = jest.fn().mockResolvedValue({
+      productionMold: {
+        ...productionMoldRecord(),
+        currentStatus: 'READY',
+        currentInstallationSummary: toolingInstallationRecord()
+      }
+    })
+    const markInstalledMoldMaintenance = jest.fn().mockResolvedValue({
+      productionMold: {
+        ...productionMoldRecord(),
+        currentStatus: 'MAINTENANCE',
+        currentInstallationSummary: toolingInstallationRecord()
+      }
+    })
+    const controller = new MesManagementGrpcController(
+      {
+        confirmInstalledMoldReady,
+        markInstalledMoldMaintenance
+      } as never,
+      createRequestContextStore() as never
+    )
+
+    const ready = await controller.confirmInstalledMoldReady({
+      ...buildManagementContext(),
+      productionMoldId: 'mold-1',
+      toolingInstallationId: 'install-1',
+      readyAt: '2026-05-05T09:00:00.000Z'
+    })
+    const maintenance = await controller.markInstalledMoldMaintenance({
+      ...buildManagementContext(),
+      productionMoldId: 'mold-1',
+      toolingInstallationId: 'install-1',
+      reason: 'repair required',
+      markedAt: '2026-05-05T10:00:00.000Z'
+    })
+
+    expect(confirmInstalledMoldReady).toHaveBeenCalledWith(
+      expect.objectContaining({
+        productionMoldId: 'mold-1',
+        toolingInstallationId: 'install-1',
+        confirmedAt: '2026-05-05T09:00:00.000Z'
+      })
+    )
+    expect(markInstalledMoldMaintenance).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auditContext: expect.objectContaining({ reason: 'repair required' }),
+        productionMoldId: 'mold-1',
+        toolingInstallationId: 'install-1',
+        markedAt: '2026-05-05T10:00:00.000Z'
+      })
+    )
+    expect(ready.productionMold?.currentStatus).toBe(ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_READY)
+    expect(maintenance.productionMold?.currentStatus).toBe(ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_MAINTENANCE)
   })
 
   it('MoveTooling and GetToolingCurrentPlacement / should use storage or carrier resource refs', async () => {
@@ -770,7 +826,7 @@ describe('mes-service mold/tooling grpc surface L3', () => {
             revisionCode: 'R1',
             status: 'ACTIVE'
           },
-          currentStatus: 'INSTALLED',
+          currentStatus: 'READY',
           currentPlacementSummary: {
             placementType: 'WORK_CENTER',
             workCenterRef: {
@@ -791,14 +847,14 @@ describe('mes-service mold/tooling grpc surface L3', () => {
 
     const response = await controller.listProductionMolds({
       ...buildQueryContext(),
-      status: ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_INSTALLED,
+      status: ProtoProductionMoldStatus.PRODUCTION_MOLD_STATUS_READY,
       page: 1,
       pageSize: 20
     })
 
     expect(listProductionMolds).toHaveBeenCalledWith(
       expect.objectContaining({
-        status: 'INSTALLED',
+        status: 'READY',
         page: 1,
         pageSize: 20
       })

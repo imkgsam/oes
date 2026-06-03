@@ -1,6 +1,7 @@
 import { plainToInstance } from 'class-transformer'
 import { validateSync } from 'class-validator'
 import {
+  ChangeTerminalDeviceStatusDto,
   ListTerminalDeviceEnrollmentsQueryDto,
   ListTerminalDevicesQueryDto,
   TerminalDeviceAuditEventsQueryDto
@@ -32,5 +33,14 @@ describe('terminal device admin query DTOs', () => {
     expect(enrollmentQuery.pageSize).toBe(20)
     expect(auditQuery.page).toBe(1)
     expect(auditQuery.pageSize).toBe(20)
+  })
+
+  it('accepts lifecycle status changes without an optional reason', () => {
+    const dto = plainToInstance(ChangeTerminalDeviceStatusDto, {
+      targetStatus: 'LOST'
+    })
+
+    expect(validateSync(dto)).toEqual([])
+    expect(dto.reason).toBeUndefined()
   })
 })

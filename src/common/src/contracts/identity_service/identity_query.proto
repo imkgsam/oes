@@ -8,6 +8,7 @@ option java_package = "com.oes.identity.v1";
 service IdentityQueryService {
   rpc GetAccountById(GetAccountByIdRequest) returns (GetAccountByIdResponse);
   rpc GetEmployeeBindingByAccountId(GetEmployeeBindingByAccountIdRequest) returns (GetEmployeeBindingByAccountIdResponse);
+  rpc ResolveEmployeeLoginAccount(ResolveEmployeeLoginAccountRequest) returns (ResolveEmployeeLoginAccountResponse);
   rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse);
   rpc GetApiKeyById(GetApiKeyByIdRequest) returns (GetApiKeyByIdResponse);
   rpc GetServiceAccountById(GetServiceAccountByIdRequest) returns (GetServiceAccountByIdResponse);
@@ -424,6 +425,24 @@ message GetEmployeeBindingByAccountIdRequest {
 
 message GetEmployeeBindingByAccountIdResponse {
   EmployeeBinding binding = 1;
+}
+
+message ResolveEmployeeLoginAccountRequest {
+  string tenant_id = 1;
+  string employee_id = 2;
+}
+
+message EmployeeLoginAccount {
+  string user_id = 1;
+  string account_id = 2;
+  string tenant_id = 3;
+  string scope_level = 4;
+  string display_name = 5;
+  bool account_enabled = 6;
+}
+
+message ResolveEmployeeLoginAccountResponse {
+  EmployeeLoginAccount account = 1;
 }
 
 message BindAccountToEmployeeResponse {

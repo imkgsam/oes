@@ -65,6 +65,14 @@ export function createTestPrefix(): string {
   return `tos_l2_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 }
 
+let employeeCodePrefixCursor = Math.floor(Date.now() % 0xfff)
+
+/** createTestEmployeeCodePrefix returns a valid unique-ish tenant employee-code prefix for L2 fixtures. */
+export function createTestEmployeeCodePrefix(): string {
+  employeeCodePrefixCursor = (employeeCodePrefixCursor % 0xfff) + 1
+  return employeeCodePrefixCursor.toString(16).toUpperCase().padStart(3, '0')
+}
+
 /** cleanupByPrefix removes tenant-org integration records keyed by generated test prefixes. */
 export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Promise<void> {
   if (!prisma) return

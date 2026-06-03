@@ -88,7 +88,6 @@ export class ChangeTerminalDeviceStatusHandler
     }
 
     assertTransitionAllowed(device.status, command.targetStatus)
-    assertReasonPresentIfRequired(device.status, command.targetStatus, command.reason)
 
     const updated = await this.terminalDeviceRepository.update(
       new TerminalDeviceEntity({
@@ -173,18 +172,5 @@ function assertTransitionAllowed(currentStatus: TerminalDeviceStatus, targetStat
       'TERMINAL_DEVICE_DECOMMISSIONED_CANNOT_RESTORE',
       'Decommissioned terminal devices cannot leave terminal status'
     )
-  }
-}
-
-// assertReasonPresentIfRequired enforces audit-ready reasons for high-risk lifecycle transitions.
-function assertReasonPresentIfRequired(
-  currentStatus: TerminalDeviceStatus,
-  targetStatus: TerminalDeviceStatus,
-  reason: string | null
-): void {
-  const restoresToActive = currentStatus !== 'ACTIVE' && targetStatus === 'ACTIVE'
-  const movesToNonActive = targetStatus !== 'ACTIVE'
-  if ((restoresToActive || movesToNonActive) && !reason?.trim()) {
-    throw new TerminalDeviceError('TERMINAL_DEVICE_STATUS_REASON_REQUIRED', 'Lifecycle transition reason is required')
   }
 }

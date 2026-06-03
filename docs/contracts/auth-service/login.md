@@ -10,6 +10,7 @@
 
 - 邮箱 / 手机密码登录
 - 邮箱 / 手机 OTP 登录
+- 员工码 + 现场终端 PIN 登录
 - MFA challenge 提交
 - 多账户选择
 - refresh token 续期
@@ -169,6 +170,49 @@
 - 权限与上下文要求：
   - 不采用资源授权模型
   - 依赖 OTP 校验与认证流程状态机
+
+### `LoginWithEmployeeCodePin`
+
+- 作用：使用租户内员工编号与 user-scoped `TERMINAL_PIN` 发起现场终端登录
+- 使用场景：
+  - PDA 默认员工码 + PIN 登录
+  - future KIOSK / 触摸屏员工码 + PIN 登录
+- 适用调用方：
+  - terminal-specific BFF
+  - 未登录现场终端用户
+- 请求关键字段：
+  - `tenant_id` 或 `device_bound_tenant_id`，由受信 BFF 从受管终端设备绑定解析后传入
+  - `employee_code`
+  - `pin`
+  - `terminal`，由可信 BFF 入口归一化后传入
+  - `terminal_device_id`，受管终端必填
+  - `device_name`，可选
+  - `user_agent`，可选
+  - `ip_address`，可选
+  - `login_flow = EMPLOYEE_CODE_PIN`
+- 响应关键字段：
+  - `status`
+  - `user_id`
+  - `account_id`
+  - `tenant_id`
+  - `session`
+  - `terminal`
+  - `terminal_device_id`
+  - `device_bound_tenant_id`
+- 稳定流程：
+  - `auth-service` 在 credential 校验前检查 Terminal Entry Login Policy 是否允许当前 terminal 使用 `EMPLOYEE_CODE_PIN`
+  - `auth-service` 调用 `hr-service.ResolveActiveEmployeeByCode`，按 `device_bound_tenant_id + employee_code` 获取 active employee 与 active employment
+  - `auth-service` 调用 `identity-service.ResolveEmployeeLoginAccount`，按 `tenant_id + employee_id` 获取唯一 enabled account 与 user
+  - `auth-service` 校验该 user 的 `TERMINAL_PIN`
+  - `auth-service` 执行 Terminal Access Policy 准入
+  - 成功后建立 terminal-aware session，记录 `terminal / loginFlow / terminalDeviceId / deviceBoundTenantId`
+- 失败语义：
+  - PDA / KIOSK 等现场终端展示可以对凭据类失败统一显示“员工码或 PIN 错误”
+  - 本地 auth audit 必须记录真实 reason code，例如 `EMPLOYEE_CODE_NOT_FOUND / EMPLOYEE_INACTIVE / TERMINAL_PIN_NOT_SET / INVALID_TERMINAL_PIN / TERMINAL_ACCESS_DENIED`
+  - 不得在审计、日志或响应中记录 PIN 明文
+- account selection：
+  - `EMPLOYEE_CODE_PIN` 不进入 PDA account selection
+  - 员工必须通过 `identity-service` 解析出唯一 enabled account；无绑定、disabled 或治理冲突时拒绝登录
 
 ### `SelectAccount`
 

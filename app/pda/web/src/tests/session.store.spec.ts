@@ -66,6 +66,88 @@ describe('session store', () => {
     expect(localStorage.getItem('oes:pda:session-tokens')).toBe(null);
   });
 
+  it('restores a valid token pair across a WebView reload while the app session is still active', async () => {
+    localStorage.setItem(
+      'oes:pda:terminal-device-binding',
+      JSON.stringify({
+        terminalDeviceId: 'terminal-device-1',
+        displayName: 'PDA-01',
+        deviceStatus: 'ACTIVE',
+      }),
+    );
+    sessionStorage.setItem('oes:pda:webview-session-active', '1');
+    localStorage.setItem(
+      'oes:pda:session-tokens',
+      JSON.stringify({
+        accessToken: 'active-access-token',
+        refreshToken: 'active-refresh-token',
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      }),
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            data: {
+              account: { displayName: 'Operator A' },
+              device: {
+                terminalDeviceId: 'terminal-device-1',
+                displayName: 'PDA-01',
+                deviceStatus: 'ACTIVE',
+              },
+              decision: {
+                allowed: true,
+                decisionCode: 'ALLOW',
+                requiredAction: 'NONE',
+                shouldClearLocalSession: false,
+                shouldClearLocalTerminalDeviceId: false,
+              },
+            },
+          }),
+      }),
+    );
+
+    const sessionStore = useSessionStore();
+    const restored = await sessionStore.restoreSession();
+
+    expect(restored).toBe(true);
+    expect(sessionStore.isAuthenticated).toBe(true);
+    expect(sessionStore.accessToken).toBe('active-access-token');
+    expect(sessionStore.operatorName).toBe('Operator A');
+  });
+
+  it('does not restore expired tokens during a background reload', async () => {
+    localStorage.setItem(
+      'oes:pda:terminal-device-binding',
+      JSON.stringify({
+        terminalDeviceId: 'terminal-device-1',
+        displayName: 'PDA-01',
+        deviceStatus: 'ACTIVE',
+      }),
+    );
+    sessionStorage.setItem('oes:pda:webview-session-active', '1');
+    localStorage.setItem(
+      'oes:pda:session-tokens',
+      JSON.stringify({
+        accessToken: 'expired-access-token',
+        refreshToken: 'expired-refresh-token',
+        expiresAt: new Date(Date.now() - 1_000).toISOString(),
+      }),
+    );
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const sessionStore = useSessionStore();
+    const restored = await sessionStore.restoreSession();
+
+    expect(restored).toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(sessionStore.isAuthenticated).toBe(false);
+    expect(localStorage.getItem('oes:pda:session-tokens')).toBe(null);
+  });
+
   it('restores a restricted device decision from persisted device status', () => {
     localStorage.setItem(
       'oes:pda:terminal-device-binding',
@@ -165,13 +247,22 @@ describe('session store', () => {
 });
 
 function installMemoryStorage(): void {
-  const values = new Map<string, string>();
+  const localValues = new Map<string, string>();
+  const sessionValues = new Map<string, string>();
   Object.defineProperty(window, 'localStorage', {
     configurable: true,
     value: {
-      getItem: (key: string) => values.get(key) ?? null,
-      setItem: (key: string, value: string) => values.set(key, value),
-      removeItem: (key: string) => values.delete(key),
+      getItem: (key: string) => localValues.get(key) ?? null,
+      setItem: (key: string, value: string) => localValues.set(key, value),
+      removeItem: (key: string) => localValues.delete(key),
+    },
+  });
+  Object.defineProperty(window, 'sessionStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => sessionValues.get(key) ?? null,
+      setItem: (key: string, value: string) => sessionValues.set(key, value),
+      removeItem: (key: string) => sessionValues.delete(key),
     },
   });
 }

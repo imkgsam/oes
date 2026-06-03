@@ -7,10 +7,16 @@ import {
   AcceptProductionMoldResponse,
   AdjustMoldLifeCounterRequest,
   AdjustMoldLifeCounterResponse,
+  ConfirmInstalledMoldReadyRequest,
+  ConfirmInstalledMoldReadyResponse,
+  ConfirmProductionMoldArrivalRequest,
+  ConfirmProductionMoldArrivalResponse,
   CreateProductionSpecRequest,
   CreateProductionSpecResponse,
   InstallToolingRequest,
   InstallToolingResponse,
+  MarkInstalledMoldMaintenanceRequest,
+  MarkInstalledMoldMaintenanceResponse,
   MarkProductionMoldForScrapRequest,
   MarkProductionMoldForScrapResponse,
   MOLD_MANAGEMENT_SERVICE_NAME,
@@ -195,6 +201,21 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
+  /** confirmProductionMoldArrival forwards the first-stage physical arrival confirmation command. */
+  confirmProductionMoldArrival(
+    input: Omit<ConfirmProductionMoldArrivalRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<ConfirmProductionMoldArrivalResponse> {
+    return this.call(
+      'confirmProductionMoldArrival',
+      this.moldSvc.confirmProductionMoldArrival(
+        this.attachManagementContext(input, source, input.auditReason ?? 'confirm production mold arrival from api-gateway'),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
   /** moveTooling forwards one storage or carrier placement command. */
   moveTooling(
     input: Omit<MoveToolingRequest, 'auditContext' | 'operatorContext' | 'traceContext'> & ManagementInputBase,
@@ -232,6 +253,36 @@ export class MesManagementGrpcAdapter implements OnModuleInit {
       'unmountTooling',
       this.moldSvc.unmountTooling(
         this.attachManagementContext(input, source, input.auditReason ?? 'unmount tooling from api-gateway'),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** confirmInstalledMoldReady forwards readiness confirmation after installation maintenance. */
+  confirmInstalledMoldReady(
+    input: Omit<ConfirmInstalledMoldReadyRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<ConfirmInstalledMoldReadyResponse> {
+    return this.call(
+      'confirmInstalledMoldReady',
+      this.moldSvc.confirmInstalledMoldReady(
+        this.attachManagementContext(input, source, input.auditReason ?? 'confirm installed mold ready from api-gateway'),
+        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
+      )
+    )
+  }
+
+  /** markInstalledMoldMaintenance forwards a ready installed mold back to maintenance. */
+  markInstalledMoldMaintenance(
+    input: Omit<MarkInstalledMoldMaintenanceRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+      ManagementInputBase,
+    source: DownstreamRequestSource
+  ): Promise<MarkInstalledMoldMaintenanceResponse> {
+    return this.call(
+      'markInstalledMoldMaintenance',
+      this.moldSvc.markInstalledMoldMaintenance(
+        this.attachManagementContext(input, source, input.auditReason ?? input.reason ?? 'mark installed mold maintenance from api-gateway'),
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
       )
     )

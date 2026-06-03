@@ -62,6 +62,7 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
   ): Promise<CreateTenantResponse> {
     const result = await this.tenantOrgManagementService.createTenant({
       code: _request.code ?? '',
+      employeeCodePrefix: _request.employeeCodePrefix ?? '',
       name: _request.name ?? '',
       rootOrgName: _request.rootOrgName ?? ''
     })
@@ -80,6 +81,7 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
       idempotencyKey: request.idempotencyKey ?? '',
       tenant: {
         code: request.tenant?.code ?? '',
+        employeeCodePrefix: request.tenant?.employeeCodePrefix ?? '',
         name: request.tenant?.name ?? ''
       },
       organizationParty: {
@@ -141,7 +143,8 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
     const tenant = await this.tenantOrgManagementService.updateTenantProfile({
       tenantId: _request.tenantId ?? '',
       name: _request.name || undefined,
-      code: _request.code || undefined
+      code: _request.code || undefined,
+      employeeCodePrefix: _request.employeeCodePrefix || undefined
     })
     return { tenant: mapTenant(tenant) }
   }
@@ -250,6 +253,7 @@ export class TenantOrgManagementGrpcController implements TenantOrgManagementSer
 function mapTenant(tenant: {
   id: string
   code: string
+  employeeCodePrefix: string
   name: string
   status: string
   rootOrgId: string | null
@@ -257,6 +261,7 @@ function mapTenant(tenant: {
   return {
     id: tenant.id,
     code: tenant.code,
+    employeeCodePrefix: tenant.employeeCodePrefix,
     name: tenant.name,
     status: String(tenant.status),
     rootOrgId: tenant.rootOrgId ?? ''

@@ -204,7 +204,36 @@ Phase 1 rules:
 - Photo upload is not part of this contract.
 - Android Shell may compress photos before returning metadata.
 
-### 6.4 `vibrate`
+### 6.4 `openCameraScanner`
+
+Opens a native live camera scanner and returns immediately after Android accepts the request. A successful decode is pushed back to Vue3 through the existing `scanResult` event.
+
+Request:
+
+```json
+{
+  "formats": ["QR_CODE", "CODE128"]
+}
+```
+
+Response `data`:
+
+```json
+{
+  "accepted": true
+}
+```
+
+Rules:
+
+- The Android Shell owns camera permission, preview, decode loop, cancellation, and camera lifecycle.
+- Android Shell must decode only the configured first-phase formats: `QR_CODE` and `CODE128`.
+- Android Shell must not infer WMS / MES / HR / enrollment business meaning from the decoded value.
+- Vue3 must consume successful camera scans through the same `scanResult` event used by hardware scanners.
+- If the operator cancels, Android Shell returns or logs a stable cancellation result without creating a `scanResult`.
+- This command is separate from `openCamera`; photo capture and camera scanning are different device capabilities.
+
+### 6.5 `vibrate`
 
 Triggers device vibration feedback.
 
@@ -224,7 +253,7 @@ Response `data`:
 }
 ```
 
-### 6.5 `beep`
+### 6.6 `beep`
 
 Triggers device sound feedback.
 
@@ -250,7 +279,7 @@ Response `data`:
 - `ERROR`
 - `WARNING`
 
-### 6.6 `saveRefreshToken`
+### 6.7 `saveRefreshToken`
 
 Stores refresh token in Android Shell secure storage.
 
@@ -277,7 +306,7 @@ Rules:
 - Android Shell owns refresh token persistence.
 - The Bridge must never expose refresh token through logs.
 
-### 6.7 `getAccessTokenByRefresh`
+### 6.8 `getAccessTokenByRefresh`
 
 Uses the stored refresh token to request or return a fresh access token.
 
@@ -302,7 +331,7 @@ Rules:
 - If refresh fails, Android Shell should clear stored session data and return a stable error.
 - Terminal Access Policy and session validity remain backend-owned.
 
-### 6.8 `clearSession`
+### 6.9 `clearSession`
 
 Clears Shell-owned session data.
 
@@ -329,7 +358,7 @@ Response `data`:
 - `SESSION_EXPIRED`
 - `DEVICE_DISABLED`
 
-### 6.9 `writeLog`
+### 6.10 `writeLog`
 
 Writes a local diagnostic log entry.
 
@@ -392,6 +421,14 @@ Event:
 - `SDK`
 - `KEYBOARD`
 - `CAMERA`
+- `UNKNOWN`
+
+`scannerProvider` examples:
+
+- `MANUFACTURER_BROADCAST`
+- `MANUFACTURER_SDK`
+- `ANDROID_CAMERA`
+- `WEB_FALLBACK`
 - `UNKNOWN`
 
 Rules:

@@ -29,6 +29,7 @@ export const SEEDED_COMPANIES = [
     id: makeUuid(1),
     code: 'meilong-ceramics',
     domain: 'meilong.local',
+    employeeCodePrefix: '0AF',
     name: '广东美隆陶瓷有限公司',
     rootOrgId: makeUuid(101),
     rootOrgName: '广东美隆陶瓷有限公司',
@@ -39,6 +40,7 @@ export const SEEDED_COMPANIES = [
     id: makeUuid(2),
     code: 'haisheng-trade',
     domain: 'haisheng.local',
+    employeeCodePrefix: '0B0',
     name: '海晟国际贸易有限公司',
     rootOrgId: makeUuid(102),
     rootOrgName: '海晟国际贸易有限公司',
@@ -49,6 +51,7 @@ export const SEEDED_COMPANIES = [
     id: makeUuid(3),
     code: 'beichen-retail',
     domain: 'beichen.local',
+    employeeCodePrefix: '0B1',
     name: '北辰零售运营有限公司',
     rootOrgId: makeUuid(103),
     rootOrgName: '北辰零售运营有限公司',
@@ -115,6 +118,12 @@ function buildOrgDepth(orgKey) {
   return depth;
 }
 
+// Builds the public employee barcode while HR fixtures store only the employee-owned suffix.
+function buildEmployeeDisplayCode(employee) {
+  const company = companyByKey.get(employee.tenantKey);
+  return `EMP-${company.employeeCodePrefix}-${employee.employeeCode}`;
+}
+
 const EMPLOYEE_FIXTURES = [
   {
     key: 'meilong.chen-shuangpeng',
@@ -122,7 +131,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(301),
     partyId: makeUuid(401),
     tenantPartyId: makeUuid(501),
-    employeeCode: 'ML-001',
+    employeeCode: '0001',
     personName: '陈双鹏',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(601), orgKey: 'meilong.office', status: 'ACTIVE', effectiveFrom: '2025-01-06T09:00:00.000Z' }],
@@ -134,7 +143,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(302),
     partyId: makeUuid(402),
     tenantPartyId: makeUuid(502),
-    employeeCode: 'ML-002',
+    employeeCode: '0002',
     personName: '林晓雯',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(602), orgKey: 'meilong.hr-admin', status: 'ACTIVE', effectiveFrom: '2025-02-03T09:00:00.000Z' }],
@@ -146,7 +155,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(303),
     partyId: makeUuid(403),
     tenantPartyId: makeUuid(503),
-    employeeCode: 'ML-003',
+    employeeCode: '0003',
     personName: '赵明杰',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(603), orgKey: 'meilong.finance', status: 'ACTIVE', effectiveFrom: '2025-02-10T09:00:00.000Z' }],
@@ -157,7 +166,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(304),
     partyId: makeUuid(404),
     tenantPartyId: makeUuid(504),
-    employeeCode: 'ML-004',
+    employeeCode: '0004',
     personName: '许嘉豪',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(604), orgKey: 'meilong.foreign-trade', status: 'ACTIVE', effectiveFrom: '2025-02-10T09:00:00.000Z' }],
@@ -169,7 +178,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(305),
     partyId: makeUuid(405),
     tenantPartyId: makeUuid(505),
-    employeeCode: 'ML-005',
+    employeeCode: '0005',
     personName: '蔡依琳',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(605), orgKey: 'meilong.foreign-trade', status: 'ACTIVE', effectiveFrom: '2025-03-03T09:00:00.000Z' }],
@@ -180,7 +189,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(306),
     partyId: makeUuid(406),
     tenantPartyId: makeUuid(506),
-    employeeCode: 'ML-006',
+    employeeCode: '0006',
     personName: '彭锐',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(606), orgKey: 'meilong.domestic-sales', status: 'ACTIVE', effectiveFrom: '2025-03-17T09:00:00.000Z' }],
@@ -192,7 +201,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(307),
     partyId: makeUuid(407),
     tenantPartyId: makeUuid(507),
-    employeeCode: 'ML-007',
+    employeeCode: '0007',
     personName: '唐思齐',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(607), orgKey: 'meilong.procurement', status: 'ACTIVE', effectiveFrom: '2025-03-24T09:00:00.000Z' }],
@@ -203,7 +212,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(308),
     partyId: makeUuid(408),
     tenantPartyId: makeUuid(508),
-    employeeCode: 'ML-008',
+    employeeCode: '0008',
     personName: '高文涛',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(608), orgKey: 'meilong.warehouse', status: 'ACTIVE', effectiveFrom: '2025-03-31T09:00:00.000Z' }],
@@ -214,7 +223,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(309),
     partyId: makeUuid(409),
     tenantPartyId: makeUuid(509),
-    employeeCode: 'ML-009',
+    employeeCode: '0009',
     personName: '谢成',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(609), orgKey: 'meilong.forming', status: 'ACTIVE', effectiveFrom: '2025-04-07T09:00:00.000Z' }],
@@ -225,7 +234,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(310),
     partyId: makeUuid(410),
     tenantPartyId: makeUuid(510),
-    employeeCode: 'ML-010',
+    employeeCode: '000A',
     personName: '罗志远',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(610), orgKey: 'meilong.firing', status: 'ACTIVE', effectiveFrom: '2025-04-14T09:00:00.000Z' }],
@@ -236,7 +245,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(311),
     partyId: makeUuid(411),
     tenantPartyId: makeUuid(511),
-    employeeCode: 'ML-011',
+    employeeCode: '000B',
     personName: '周雅晴',
     lifecycleStatus: 'ACTIVE',
     employments: [
@@ -250,7 +259,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(312),
     partyId: makeUuid(412),
     tenantPartyId: makeUuid(512),
-    employeeCode: 'ML-012',
+    employeeCode: '000C',
     personName: '欧嘉敏',
     lifecycleStatus: 'OFFBOARDED',
     employments: [{ id: makeUuid(613), orgKey: 'meilong.hr-admin', status: 'ENDED', effectiveFrom: '2024-11-04T09:00:00.000Z', effectiveTo: '2025-05-30T09:00:00.000Z', endedReason: 'resigned' }],
@@ -261,7 +270,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(313),
     partyId: makeUuid(413),
     tenantPartyId: makeUuid(513),
-    employeeCode: 'ML-013',
+    employeeCode: '000D',
     personName: '韩卓然',
     lifecycleStatus: 'PREBOARDING',
     employments: [],
@@ -273,7 +282,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(321),
     partyId: makeUuid(421),
     tenantPartyId: makeUuid(521),
-    employeeCode: 'HS-001',
+    employeeCode: '0001',
     personName: '何宇辰',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(621), orgKey: 'haisheng.gm', status: 'ACTIVE', effectiveFrom: '2025-01-08T09:00:00.000Z' }],
@@ -285,7 +294,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(322),
     partyId: makeUuid(422),
     tenantPartyId: makeUuid(522),
-    employeeCode: 'HS-002',
+    employeeCode: '0002',
     personName: '苏曼丽',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(622), orgKey: 'haisheng.trade-1', status: 'ACTIVE', effectiveFrom: '2025-02-10T09:00:00.000Z' }],
@@ -297,7 +306,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(323),
     partyId: makeUuid(423),
     tenantPartyId: makeUuid(523),
-    employeeCode: 'HS-003',
+    employeeCode: '0003',
     personName: '叶嘉诚',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(623), orgKey: 'haisheng.trade-1', status: 'ACTIVE', effectiveFrom: '2025-02-17T09:00:00.000Z' }],
@@ -308,7 +317,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(324),
     partyId: makeUuid(424),
     tenantPartyId: makeUuid(524),
-    employeeCode: 'HS-004',
+    employeeCode: '0004',
     personName: '方晴',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(624), orgKey: 'haisheng.trade-2', status: 'ACTIVE', effectiveFrom: '2025-03-03T09:00:00.000Z' }],
@@ -320,7 +329,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(325),
     partyId: makeUuid(425),
     tenantPartyId: makeUuid(525),
-    employeeCode: 'HS-005',
+    employeeCode: '0005',
     personName: '张语菲',
     lifecycleStatus: 'ACTIVE',
     employments: [
@@ -334,7 +343,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(326),
     partyId: makeUuid(426),
     tenantPartyId: makeUuid(526),
-    employeeCode: 'HS-006',
+    employeeCode: '0006',
     personName: '马芮',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(627), orgKey: 'haisheng.finance', status: 'ACTIVE', effectiveFrom: '2025-03-10T09:00:00.000Z' }],
@@ -345,7 +354,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(327),
     partyId: makeUuid(427),
     tenantPartyId: makeUuid(527),
-    employeeCode: 'HS-007',
+    employeeCode: '0007',
     personName: '黎远航',
     lifecycleStatus: 'OFFBOARDED',
     employments: [{ id: makeUuid(628), orgKey: 'haisheng.trade-2', status: 'ENDED', effectiveFrom: '2024-12-02T09:00:00.000Z', effectiveTo: '2025-05-15T09:00:00.000Z', endedReason: 'resigned' }],
@@ -357,7 +366,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(331),
     partyId: makeUuid(431),
     tenantPartyId: makeUuid(531),
-    employeeCode: 'BC-001',
+    employeeCode: '0001',
     personName: '秦浩',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(631), orgKey: 'beichen.headquarters', status: 'ACTIVE', effectiveFrom: '2025-01-06T09:00:00.000Z' }],
@@ -369,7 +378,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(332),
     partyId: makeUuid(432),
     tenantPartyId: makeUuid(532),
-    employeeCode: 'BC-002',
+    employeeCode: '0002',
     personName: '许琳',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(632), orgKey: 'beichen.south-region', status: 'ACTIVE', effectiveFrom: '2025-02-03T09:00:00.000Z' }],
@@ -380,7 +389,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(333),
     partyId: makeUuid(433),
     tenantPartyId: makeUuid(533),
-    employeeCode: 'BC-003',
+    employeeCode: '0003',
     personName: '梁思源',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(633), orgKey: 'beichen.east-region', status: 'ACTIVE', effectiveFrom: '2025-02-10T09:00:00.000Z' }],
@@ -391,7 +400,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(334),
     partyId: makeUuid(434),
     tenantPartyId: makeUuid(534),
-    employeeCode: 'BC-004',
+    employeeCode: '0004',
     personName: '陈一诺',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(634), orgKey: 'beichen.shenzhen-store', status: 'ACTIVE', effectiveFrom: '2025-02-17T09:00:00.000Z' }],
@@ -402,7 +411,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(335),
     partyId: makeUuid(435),
     tenantPartyId: makeUuid(535),
-    employeeCode: 'BC-005',
+    employeeCode: '0005',
     personName: '黄可欣',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(635), orgKey: 'beichen.guangzhou-store', status: 'ACTIVE', effectiveFrom: '2025-03-03T09:00:00.000Z' }],
@@ -414,7 +423,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(336),
     partyId: makeUuid(436),
     tenantPartyId: makeUuid(536),
-    employeeCode: 'BC-006',
+    employeeCode: '0006',
     personName: '唐嘉禾',
     lifecycleStatus: 'ACTIVE',
     employments: [{ id: makeUuid(636), orgKey: 'beichen.ecommerce', status: 'ACTIVE', effectiveFrom: '2025-03-10T09:00:00.000Z' }],
@@ -426,7 +435,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(337),
     partyId: makeUuid(437),
     tenantPartyId: makeUuid(537),
-    employeeCode: 'BC-007',
+    employeeCode: '0007',
     personName: '吴承泽',
     lifecycleStatus: 'ACTIVE',
     employments: [
@@ -441,7 +450,7 @@ const EMPLOYEE_FIXTURES = [
     employeeId: makeUuid(338),
     partyId: makeUuid(438),
     tenantPartyId: makeUuid(538),
-    employeeCode: 'BC-008',
+    employeeCode: '0008',
     personName: '何知夏',
     lifecycleStatus: 'OFFBOARDED',
     employments: [{ id: makeUuid(639), orgKey: 'beichen.guangzhou-store', status: 'ENDED', effectiveFrom: '2024-12-09T09:00:00.000Z', effectiveTo: '2025-05-20T09:00:00.000Z', endedReason: 'resigned' }],
@@ -602,6 +611,14 @@ const SEEDED_TENANT_ROLE_TEMPLATES = [
     allowTenantPermissionOverride: false,
     isProtected: true,
   },
+  {
+    templateRoleId: '2cf72f72-e04a-4946-b8c0-22f120f82005',
+    code: 'item_master.product_data_manager',
+    name: 'Item 主数据管理员',
+    description: '本地 Item 主数据管理员角色实例。',
+    allowTenantPermissionOverride: true,
+    isProtected: false,
+  },
 ];
 
 export const SEEDED_TENANT_ROLES = SEEDED_COMPANIES.flatMap((company, companyIndex) =>
@@ -666,6 +683,37 @@ const HR_ADMIN_PERMISSION_CODES = [
   'permission.account.get_roles',
 ];
 
+const ITEM_MASTER_PRODUCT_DATA_MANAGER_PERMISSION_CODES = [
+  'item_master.item_model.list',
+  'item_master.item_model.get_by_id',
+  'item_master.item_model.create',
+  'item_master.item_model.manage',
+  'item_master.item.list',
+  'item_master.item.get_by_id',
+  'item_master.item.create',
+  'item_master.item.update_basics',
+  'item_master.item.update_status',
+  'item_master.item.set_primary_category',
+  'item_master.item_category.list',
+  'item_master.item_category.create',
+  'item_master.item_category.update_basics',
+  'item_master.item_category.update_status',
+  'item_master.item_category.delete',
+  'item_master.attribute.list',
+  'item_master.attribute.create',
+  'item_master.attribute.manage',
+  'item_master.packaging.list',
+  'item_master.packaging.create',
+  'item_master.packaging.manage',
+  'item_master.bom.list',
+  'item_master.bom.create',
+  'item_master.bom.manage',
+  'item_master.item.set_capabilities',
+  'item_master.item.set_composition',
+  'item_master.supplier_item_mapping.list_by_item',
+  'item_master.supplier_item_mapping.upsert',
+];
+
 const ACCOUNT_BASIC_PERMISSION_CODES = [
   'identity.account.self.read',
   'identity.account.self.update_profile',
@@ -682,6 +730,7 @@ export const SEEDED_TENANT_ROLE_PERMISSION_CODES = new Map([
   ['tenant.admin', TENANT_ADMIN_PERMISSION_CODES],
   ['hr.admin', HR_ADMIN_PERMISSION_CODES],
   ['account.basic', ACCOUNT_BASIC_PERMISSION_CODES],
+  ['item_master.product_data_manager', ITEM_MASTER_PRODUCT_DATA_MANAGER_PERMISSION_CODES],
 ]);
 
 function resolveSeedAccountRoleCodes(account) {
@@ -693,6 +742,7 @@ function resolveSeedAccountRoleCodes(account) {
   roleCodes.add('account.basic');
   if (roleCodes.has('tenant.admin')) {
     roleCodes.add('hr.admin');
+    roleCodes.add('item_master.product_data_manager');
   }
   return [...roleCodes];
 }
@@ -707,7 +757,13 @@ export const SEEDED_ROLE_BINDINGS = SEEDED_USERS.flatMap((user) =>
   )
 );
 
-export const EXPECTED_ROLE_CODES = new Set(['system.admin', 'tenant.admin', 'hr.admin', 'account.basic']);
+export const EXPECTED_ROLE_CODES = new Set([
+  'system.admin',
+  'tenant.admin',
+  'hr.admin',
+  'account.basic',
+  'item_master.product_data_manager',
+]);
 
 export const MANAGED_TENANT_IDS = SEEDED_COMPANIES.map((company) => company.id);
 export const MANAGED_USER_IDS = SEEDED_USERS.map((user) => user.id);
@@ -878,6 +934,7 @@ export function buildSeedTenantOrgTenants() {
     id: company.id,
     code: company.code,
     name: company.name,
+    employeeCodePrefix: company.employeeCodePrefix,
     rootOrgId: company.rootOrgId,
     status: 'ACTIVE',
   }));
@@ -1008,7 +1065,7 @@ export function buildSeedTenantParties() {
     tenantId: companyByKey.get(employee.tenantKey).id,
     partyId: employee.partyId,
     localDisplayName: employee.personName,
-    localCode: employee.employeeCode,
+    localCode: buildEmployeeDisplayCode(employee),
     tags: null,
     status: 'ACTIVE',
   }));

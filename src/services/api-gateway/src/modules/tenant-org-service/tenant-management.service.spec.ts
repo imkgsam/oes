@@ -59,7 +59,9 @@ describe('TenantManagementService', () => {
     await expect(service.listTenants({}, tenantScopedSource as any)).rejects.toBeInstanceOf(
       ForbiddenException
     )
-    await expect(service.createTenant({ code: 'alpha', name: 'Alpha' }, tenantScopedSource as any)).rejects.toBeInstanceOf(
+    await expect(
+      service.createTenant({ code: 'alpha', employeeCodePrefix: '0AF', name: 'Alpha' }, tenantScopedSource as any)
+    ).rejects.toBeInstanceOf(
       ForbiddenException
     )
 
@@ -70,7 +72,7 @@ describe('TenantManagementService', () => {
   it('lists tenant summaries for system operators', async () => {
     const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
     tenantOrgQueryAdapter.listTenants.mockResolvedValue({
-      tenants: [{ id: 'tenant-1', code: 'alpha', name: 'Alpha Tenant', isActive: true, rootOrgId: 'org-root-1' }],
+      tenants: [{ id: 'tenant-1', code: 'alpha', employeeCodePrefix: '0AF', name: 'Alpha Tenant', isActive: true, rootOrgId: 'org-root-1' }],
       total: 1
     })
     identityTenantAccountStatsAdapter.countTenantAccounts.mockResolvedValue({
@@ -92,6 +94,7 @@ describe('TenantManagementService', () => {
         {
           id: 'tenant-1',
           code: 'alpha',
+          employeeCodePrefix: '0AF',
           name: 'Alpha Tenant',
           userCount: 3,
           status: 'ACTIVE'
@@ -127,6 +130,7 @@ describe('TenantManagementService', () => {
       tenant: {
         id: 'tenant-1',
         code: 'alpha',
+        employeeCodePrefix: '0AF',
         name: 'Alpha Tenant',
         isActive: false,
         rootOrgId: 'org-root-1'
@@ -146,6 +150,7 @@ describe('TenantManagementService', () => {
       tenant: {
         id: 'tenant-1',
         code: 'alpha',
+        employeeCodePrefix: '0AF',
         name: 'Alpha Tenant',
         rootOrgId: 'org-root-1',
         rootOrgName: 'Alpha Root',
@@ -184,11 +189,11 @@ describe('TenantManagementService', () => {
   it('forwards tenant lifecycle writes to the dedicated management adapter', async () => {
     const source = { requestId: 'req-1', traceId: 'trace-1', user: { aid: 'account-1', scopeLevel: 'SYSTEM' } }
     tenantOrgManagementAdapter.createTenant.mockResolvedValue({
-      tenant: { id: 'tenant-1', code: 'alpha', name: 'Alpha Tenant', status: 'ACTIVE' },
+      tenant: { id: 'tenant-1', code: 'alpha', employeeCodePrefix: '0AF', name: 'Alpha Tenant', status: 'ACTIVE' },
       rootOrgUnit: { id: 'org-root-1', name: 'Alpha Root' }
     })
     tenantOrgManagementAdapter.updateTenantProfile.mockResolvedValue({
-      tenant: { id: 'tenant-1', code: 'alpha-new', name: 'Alpha Tenant New', status: 'ACTIVE' }
+      tenant: { id: 'tenant-1', code: 'alpha-new', employeeCodePrefix: '0B0', name: 'Alpha Tenant New', status: 'ACTIVE' }
     })
     tenantOrgManagementAdapter.suspendTenant.mockResolvedValue({
       tenant: { id: 'tenant-1', code: 'alpha', name: 'Alpha Tenant', status: 'SUSPENDED' }
@@ -204,13 +209,14 @@ describe('TenantManagementService', () => {
       service.createTenant(
         {
           code: 'alpha',
+          employeeCodePrefix: '0af',
           name: 'Alpha Tenant',
           rootOrgName: 'Alpha Root'
         },
         source as any
       )
     ).resolves.toEqual({
-      tenant: { id: 'tenant-1', code: 'alpha', name: 'Alpha Tenant', status: 'ACTIVE' },
+      tenant: { id: 'tenant-1', code: 'alpha', employeeCodePrefix: '0AF', name: 'Alpha Tenant', status: 'ACTIVE' },
       rootOrgUnit: { id: 'org-root-1', name: 'Alpha Root' }
     })
 
@@ -219,12 +225,13 @@ describe('TenantManagementService', () => {
         'tenant-1',
         {
           code: 'alpha-new',
+          employeeCodePrefix: '0b0',
           name: 'Alpha Tenant New'
         },
         source as any
       )
     ).resolves.toEqual({
-      tenant: { id: 'tenant-1', code: 'alpha-new', name: 'Alpha Tenant New', status: 'ACTIVE' }
+      tenant: { id: 'tenant-1', code: 'alpha-new', employeeCodePrefix: '0B0', name: 'Alpha Tenant New', status: 'ACTIVE' }
     })
 
     await expect(
@@ -268,6 +275,7 @@ describe('TenantManagementService', () => {
     expect(tenantOrgManagementAdapter.createTenant).toHaveBeenCalledWith(
       {
         code: 'alpha',
+        employeeCodePrefix: '0AF',
         name: 'Alpha Tenant',
         rootOrgName: 'Alpha Root'
       },
@@ -276,6 +284,7 @@ describe('TenantManagementService', () => {
     expect(tenantOrgManagementAdapter.updateTenantProfile).toHaveBeenCalledWith(
       {
         code: 'alpha-new',
+        employeeCodePrefix: '0B0',
         name: 'Alpha Tenant New',
         tenantId: 'tenant-1'
       },
@@ -313,7 +322,7 @@ describe('TenantManagementService', () => {
       service.startTenantOnboarding(
         {
           idempotencyKey: 'onboarding-key-1',
-          tenant: { code: 'tenant.beta', name: 'Beta Inc.' },
+          tenant: { code: 'tenant.beta', employeeCodePrefix: '0B0', name: 'Beta Inc.' },
           organizationParty: {
             legalName: 'Beta Inc.',
             registeredCountry: 'US',
@@ -371,7 +380,7 @@ describe('TenantManagementService', () => {
       service.startTenantOnboarding(
         {
           idempotencyKey: 'onboarding-key-1',
-          tenant: { code: 'tenant.beta', name: 'Beta Inc.' },
+          tenant: { code: 'tenant.beta', employeeCodePrefix: '0B0', name: 'Beta Inc.' },
           organizationParty: {
             legalName: 'Beta Inc.',
             registeredCountry: 'US',
@@ -520,7 +529,7 @@ describe('TenantManagementService', () => {
       service.startTenantOnboarding(
         {
           idempotencyKey: 'onboarding-key-1',
-          tenant: { code: 'tenant.beta', name: 'Beta Inc.' },
+          tenant: { code: 'tenant.beta', employeeCodePrefix: '0B0', name: 'Beta Inc.' },
           organizationParty: {
             legalName: 'Beta Inc.',
             registeredCountry: 'US',

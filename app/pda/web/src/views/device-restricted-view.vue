@@ -11,7 +11,7 @@
         <dd>{{ sessionStore.deviceStatus || sessionStore.decisionCode || 'UNKNOWN' }}</dd>
       </dl>
       <div class="pda-card__actions">
-        <van-button plain type="primary" @click="retry">重试</van-button>
+        <van-button data-test-id="pda-restricted-retry" plain type="primary" @click="retry">重试</van-button>
         <van-button v-if="canReEnroll" type="primary" @click="clearBinding">重新绑定</van-button>
       </div>
     </div>
@@ -21,6 +21,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRouter } from 'vue-router';
+import { sendPdaHeartbeat } from '@/services/pda-heartbeat';
 import { useSessionStore } from '@/stores/session.store';
 
 const router = useRouter();
@@ -50,8 +51,9 @@ const description = computed(() =>
 );
 const canReEnroll = computed(() => sessionStore.decisionCode === 'DEVICE_DECOMMISSIONED');
 
-/** Re-checks route guards after an administrator changes the managed device state. */
+/** Revalidates the server-owned device status before leaving the restricted surface. */
 async function retry(): Promise<void> {
+  await sendPdaHeartbeat('FOREGROUND');
   await router.push('/login');
 }
 

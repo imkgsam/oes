@@ -19,6 +19,9 @@
             刷新工作台
           </van-button>
         </div>
+        <van-button data-test-id="pda-open-mold-workbench" plain size="small" type="primary" @click="router.push('/molds')">
+          模具作业
+        </van-button>
         <div @touchstart.passive="markActionStart('session.logout')">
           <van-button plain size="small" type="primary" @click="logout">退出</van-button>
         </div>
@@ -39,7 +42,7 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 import { fetchPdaBootstrap, PdaBffError } from '@/api/pda-bff.client';
 import CameraDiagnosticCard from '@/components/camera-diagnostic-card.vue';
 import DeviceStatusCard from '@/components/device-status-card.vue';
@@ -56,6 +59,16 @@ const router = useRouter();
 const sessionStore = useSessionStore();
 const refreshing = ref(false);
 const refreshErrorMessage = ref('');
+
+/** Sends the open workbench to the governed restricted surface as soon as a terminal denial arrives. */
+watch(
+  () => sessionStore.decisionCode,
+  (decisionCode) => {
+    if (isRestrictedDeviceDecision(decisionCode)) {
+      void router.push('/device-restricted');
+    }
+  },
+);
 
 /** Revalidates the protected PDA session through bootstrap so revoked sessions clear local state promptly. */
 async function refreshWorkbench(): Promise<void> {
@@ -127,5 +140,15 @@ function isAuthRejected(error: unknown): boolean {
       : undefined;
 
   return status === 401 || status === 403;
+}
+
+function isRestrictedDeviceDecision(decisionCode: string | null): boolean {
+  return (
+    decisionCode === 'DEVICE_DISABLED' ||
+    decisionCode === 'DEVICE_LOST' ||
+    decisionCode === 'DEVICE_MAINTENANCE' ||
+    decisionCode === 'DEVICE_DECOMMISSIONED' ||
+    decisionCode === 'DEVICE_PENDING_APPROVAL'
+  );
 }
 </script>

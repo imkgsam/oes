@@ -12,7 +12,7 @@ export const ADMIN_TERMINAL_DEVICE_STATUSES = [
   'PENDING_APPROVAL'
 ] as const
 export const ADMIN_ENROLLMENT_STATUSES = ['EXPIRED', 'ISSUED', 'REVOKED', 'USED'] as const
-export const ADMIN_PRESENCE_STATUSES = ['OFFLINE', 'ONLINE', 'UNKNOWN'] as const
+export const ADMIN_PRESENCE_STATUSES = ['OFFLINE', 'ONLINE', 'STALE', 'UNKNOWN'] as const
 
 // Carries administrator input for creating a one-time terminal enrollment.
 export class CreateTerminalDeviceEnrollmentDto {
@@ -92,7 +92,7 @@ export class ListTerminalDevicesQueryDto {
   @ApiPropertyOptional({ enum: ADMIN_PRESENCE_STATUSES })
   @IsOptional()
   @IsIn(ADMIN_PRESENCE_STATUSES)
-  presenceStatus?: 'OFFLINE' | 'ONLINE' | 'UNKNOWN'
+  presenceStatus?: 'OFFLINE' | 'ONLINE' | 'STALE' | 'UNKNOWN'
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -136,10 +136,11 @@ export class ChangeTerminalDeviceStatusDto {
   @IsIn(ADMIN_TERMINAL_DEVICE_STATUSES)
   targetStatus!: typeof ADMIN_TERMINAL_DEVICE_STATUSES[number]
 
-  @ApiProperty()
+  @ApiPropertyOptional({ nullable: true })
+  @IsOptional()
   @IsString()
   @MaxLength(512)
-  reason!: string
+  reason?: string | null
 }
 
 // Carries version policy lookup filters from tenant-web.

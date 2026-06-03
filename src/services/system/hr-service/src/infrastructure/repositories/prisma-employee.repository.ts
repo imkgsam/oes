@@ -39,6 +39,26 @@ export class PrismaEmployeeRepository implements EmployeeRepository {
     return employee ? mapEmployee(employee) : null
   }
 
+  /** findMaxEmployeeCodeSuffix returns the greatest tenant-scoped HR-owned suffix for code generation. */
+  async findMaxEmployeeCodeSuffix(tenantId: string): Promise<string | null> {
+    const result = await this.prisma.employee.aggregate({
+      where: { tenantId },
+      _max: { employeeCode: true }
+    })
+    return result._max.employeeCode ?? null
+  }
+
+  /** findByTenantAndEmployeeCode resolves one employee using exact tenant-scoped employee code matching. */
+  async findByTenantAndEmployeeCode(
+    tenantId: string,
+    employeeCode: string
+  ): Promise<EmployeeSummary | null> {
+    const employee = await this.prisma.employee.findFirst({
+      where: { tenantId, employeeCode }
+    })
+    return employee ? mapEmployee(employee) : null
+  }
+
   async findByTenantPartyId(
     tenantId: string,
     tenantPartyId: string

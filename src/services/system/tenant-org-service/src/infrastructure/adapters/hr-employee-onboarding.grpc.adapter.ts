@@ -35,6 +35,7 @@ export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort
 
   async createEmployeeOnboarding(input: {
     account: { existingAccountId: string }
+    employeeCode: string
     idempotencyKey: string
     person: {
       existingPartyId?: string
@@ -63,7 +64,8 @@ export class HrEmployeeOnboardingGrpcAdapter implements HrEmployeeOnboardingPort
             orgUnitId: input.primaryEmployment.orgUnitId,
             positionName: input.primaryEmployment.positionName
           },
-          existingAccountId: input.account.existingAccountId
+          existingAccountId: input.account.existingAccountId,
+          employeeCode: input.employeeCode
         },
         this.buildMetadata()
       ),

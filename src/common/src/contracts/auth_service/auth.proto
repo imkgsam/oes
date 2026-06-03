@@ -15,6 +15,8 @@ service AuthService {
   rpc RequestEmailOtpLoginChallenge(RequestEmailOtpLoginChallengeRequest) returns (RequestEmailOtpLoginChallengeResponse);
   rpc RequestEmailBindingChallenge(RequestEmailBindingChallengeRequest) returns (RequestEmailBindingChallengeResponse);
   rpc LoginWithEmailOtp(LoginWithEmailOtpRequest) returns (LoginWithEmailOtpResponse);
+  rpc LoginWithEmployeeCodePin(LoginWithEmployeeCodePinRequest) returns (LoginWithEmployeeCodePinResponse);
+  rpc PreflightEmployeeCodePinLogin(PreflightEmployeeCodePinLoginRequest) returns (PreflightEmployeeCodePinLoginResponse);
   rpc LoginWithPhonePassword(LoginWithPhonePasswordRequest) returns (LoginWithPhonePasswordResponse);
   rpc RequestPhoneOtpLoginChallenge(RequestPhoneOtpLoginChallengeRequest) returns (RequestPhoneOtpLoginChallengeResponse);
   rpc RequestPhoneBindingChallenge(RequestPhoneBindingChallengeRequest) returns (RequestPhoneBindingChallengeResponse);
@@ -25,10 +27,15 @@ service AuthService {
   rpc CompletePasswordRecovery(CompletePasswordRecoveryRequest) returns (CompletePasswordRecoveryResponse);
   rpc ListLoginMethods(ListLoginMethodsRequest) returns (ListLoginMethodsResponse);
   rpc ChangeOwnPassword(ChangeOwnPasswordRequest) returns (ChangeOwnPasswordResponse);
+  rpc SetOwnTerminalPin(SetOwnTerminalPinRequest) returns (SetOwnTerminalPinResponse);
+  rpc ResetOwnTerminalPin(ResetOwnTerminalPinRequest) returns (ResetOwnTerminalPinResponse);
+  rpc SetOwnTerminalPinEnabled(SetOwnTerminalPinEnabledRequest) returns (SetOwnTerminalPinEnabledResponse);
   rpc SetOwnLoginMethodEnabled(SetOwnLoginMethodEnabledRequest) returns (SetOwnLoginMethodEnabledResponse);
   rpc VerifyEmailBinding(VerifyEmailBindingRequest) returns (VerifyEmailBindingResponse);
   rpc VerifyPhoneBinding(VerifyPhoneBindingRequest) returns (VerifyPhoneBindingResponse);
   rpc RequirePasswordSetup(RequirePasswordSetupRequest) returns (RequirePasswordSetupResponse);
+  rpc RequireTerminalPinReset(RequireTerminalPinResetRequest) returns (RequireTerminalPinResetResponse);
+  rpc DisableUserTerminalPin(DisableUserTerminalPinRequest) returns (DisableUserTerminalPinResponse);
   rpc SetLoginMethodEnabled(SetLoginMethodEnabledRequest) returns (SetLoginMethodEnabledResponse);
   rpc ListMfaBindings(ListMfaBindingsRequest) returns (ListMfaBindingsResponse);
   rpc EnableMfaBinding(EnableMfaBindingRequest) returns (EnableMfaBindingResponse);
@@ -122,6 +129,32 @@ message LoginWithEmailOtpRequest {
   string terminal_device_id = 20;
   string device_bound_tenant_id = 21;
   string login_flow = 22;
+}
+
+message LoginWithEmployeeCodePinRequest {
+  string employee_code = 1;
+  string pin = 2;
+  string device_name = 3;
+  string user_agent = 4;
+  string ip_address = 5;
+  string terminal = 6;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
+}
+
+message PreflightEmployeeCodePinLoginRequest {
+  string employee_code = 1;
+  string terminal = 2;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
+}
+
+message PreflightEmployeeCodePinLoginResponse {
+  bool allowed = 1;
+  string reason_code = 2;
+  string message = 3;
 }
 
 message EmailOtpLoginRequest {
@@ -321,11 +354,40 @@ message ChangeOwnPasswordRequest {
   string scope_level = 7;
 }
 
+message SetOwnTerminalPinRequest {
+  string user_id = 1;
+  string current_password = 2;
+  string new_pin = 3;
+  string mfa_grant_token = 4;
+}
+
+message ResetOwnTerminalPinRequest {
+  string user_id = 1;
+  string current_password = 2;
+  string new_pin = 3;
+  string mfa_grant_token = 4;
+}
+
 message RequirePasswordSetupRequest {
   string user_id = 1;
   string required_by = 2;
   string reason = 3;
   bool revoke_sessions = 4;
+}
+
+message SetOwnTerminalPinEnabledRequest {
+  string user_id = 1;
+  bool enabled = 2;
+}
+
+message RequireTerminalPinResetRequest {
+  string user_id = 1;
+  string required_by = 2;
+}
+
+message DisableUserTerminalPinRequest {
+  string user_id = 1;
+  string disabled_by = 2;
 }
 
 message SetLoginMethodEnabledRequest {
@@ -352,6 +414,26 @@ message PasswordMutationResponse {
 message ChangeOwnPasswordResponse {
   bool success = 1;
   bool password_setup_required = 2;
+}
+
+message SetOwnTerminalPinResponse {
+  bool success = 1;
+}
+
+message ResetOwnTerminalPinResponse {
+  bool success = 1;
+}
+
+message SetOwnTerminalPinEnabledResponse {
+  bool success = 1;
+}
+
+message RequireTerminalPinResetResponse {
+  bool success = 1;
+}
+
+message DisableUserTerminalPinResponse {
+  bool success = 1;
 }
 
 message RequirePasswordSetupResponse {
@@ -1207,6 +1289,25 @@ message LoginWithEmailOtpResponse {
 }
 
 message LoginWithPhonePasswordResponse {
+  LoginStatus status = 1;
+  string user_id = 2;
+  string challenge_id = 3;
+  string access_token = 4;
+  string refresh_token = 5;
+  int64 expires_in = 6;
+  repeated AccountCandidate accounts = 7;
+  string login_method = 8;
+  bool password_setup_required = 9;
+  string terminal = 10;
+  repeated string allowed_terminals = 11;
+  string reason_code = 12;
+  string message = 13;
+  string terminal_device_id = 20;
+  string device_bound_tenant_id = 21;
+  string login_flow = 22;
+}
+
+message LoginWithEmployeeCodePinResponse {
   LoginStatus status = 1;
   string user_id = 2;
   string challenge_id = 3;

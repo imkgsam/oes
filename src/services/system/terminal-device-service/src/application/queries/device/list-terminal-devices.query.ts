@@ -15,6 +15,7 @@ export interface ListTerminalDevicesQueryInput {
   keyword?: string | null
   page?: number | null
   pageSize?: number | null
+  now?: Date | null
 }
 
 export interface TerminalDeviceSummaryProjection {
@@ -38,6 +39,7 @@ export class ListTerminalDevicesQuery implements IQuery {
   readonly keyword: string | null
   readonly page: number
   readonly pageSize: number
+  readonly now: Date
 
   // Constructs a list query with conservative pagination defaults.
   constructor(input: ListTerminalDevicesQueryInput) {
@@ -48,6 +50,7 @@ export class ListTerminalDevicesQuery implements IQuery {
     this.keyword = input.keyword?.trim() || null
     this.page = Math.max(1, input.page ?? 1)
     this.pageSize = Math.min(100, Math.max(1, input.pageSize ?? 20))
+    this.now = input.now ?? new Date()
   }
 }
 
@@ -68,7 +71,10 @@ export class ListTerminalDevicesHandler implements IQueryHandler<ListTerminalDev
     const projections = await Promise.all(
       allDevices.map(async (device) => ({
         device,
-        runtime: await this.runtimeSnapshotRepository.findByTerminalDeviceId(device.terminalDeviceId)
+        runtime: deriveRuntimePresence(
+          await this.runtimeSnapshotRepository.findByTerminalDeviceId(device.terminalDeviceId),
+          query.now
+        )
       }))
     )
     const filtered = projections.filter((projection) => matchesQuery(projection, query))
@@ -106,4 +112,46 @@ function matchesQuery(projection: TerminalDeviceSummaryProjection, query: ListTe
     projection.device.model,
     projection.device.enrollmentId
   ].some((value) => value?.toLowerCase().includes(keyword))
+}
+
+const ONLINE_WINDOW_MS = 10 * 60 * 1000
+const STALE_WINDOW_MS = 30 * 60 * 1000
+
+// deriveRuntimePresence keeps heartbeat storage append-only while making management presence age-aware.
+export function deriveRuntimePresence(
+  runtime: TerminalDeviceRuntimeSnapshotEntity | null,
+  now: Date
+): TerminalDeviceRuntimeSnapshotEntity | null {
+  if (!runtime) {
+    return null
+  }
+
+  const ageMs = Math.max(0, now.getTime() - runtime.lastHeartbeatAt.getTime())
+  const presenceStatus: PresenceStatus =
+    ageMs <= ONLINE_WINDOW_MS
+      ? 'ONLINE'
+      : ageMs <= STALE_WINDOW_MS
+        ? 'STALE'
+        : 'OFFLINE'
+
+  if (runtime.presenceStatus === presenceStatus) {
+    return runtime
+  }
+
+  return new TerminalDeviceRuntimeSnapshotEntity({
+    terminalDeviceId: runtime.terminalDeviceId,
+    tenantId: runtime.tenantId,
+    presenceStatus,
+    lastHeartbeatAt: runtime.lastHeartbeatAt,
+    lastClientTime: runtime.lastClientTime,
+    appVersion: runtime.appVersion,
+    androidVersion: runtime.androidVersion,
+    webViewVersion: runtime.webViewVersion,
+    networkStatus: runtime.networkStatus,
+    networkType: runtime.networkType,
+    batteryLevel: runtime.batteryLevel,
+    appState: runtime.appState,
+    lastReportedAccountId: runtime.lastReportedAccountId,
+    lastReportedSessionId: runtime.lastReportedSessionId
+  })
 }

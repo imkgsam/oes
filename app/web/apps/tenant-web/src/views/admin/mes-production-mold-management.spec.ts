@@ -101,7 +101,7 @@ const productionMold = {
   currentInstallationSummary: {
     toolingInstallationId: 'install-1',
     moldDetail: {
-      moldPosition: 'A01'
+      moldPositionIndex: 1
     },
     workCenterRef: {
       displayNameSnapshot: '连体马桶上线一线',
@@ -109,7 +109,7 @@ const productionMold = {
       workCenterId: 'wc-1'
     }
   },
-  currentStatus: 'INSTALLED',
+  currentStatus: 'READY',
   lifeCounterSummary: {
     lifeUnit: 'CASTING_CYCLE',
     limitValue: '1200',
@@ -220,7 +220,8 @@ describe('MES production mold management page', () => {
     expect(wrapper.text()).toContain('生产模具管理')
     expect(wrapper.text()).toContain('PM-LT-001')
     expect(wrapper.text()).toContain('MD-LT-HP-01')
-    expect(wrapper.text()).toContain('INSTALLED')
+    expect(wrapper.text()).toContain('READY')
+    expect(wrapper.find('.ant-qrcode').attributes('data-value')).toBe('mold-1')
     expect(wrapper.text()).toContain('连体马桶上线一线')
     expect(wrapper.text()).toContain('340/1200 CASTING_CYCLE')
     expect(wrapper.text()).toContain('CAR-01 · 周转车 1')
@@ -237,7 +238,7 @@ describe('MES production mold management page', () => {
     const wrapper = mount(page)
 
     await flushPromises()
-    await wrapper.get('[data-testid="mes-production-mold-status"]').setValue('INSTALLED')
+    await wrapper.get('[data-testid="mes-production-mold-status"]').setValue('READY')
     await wrapper.get('[data-testid="mes-production-mold-design"]').setValue('design-1')
     await wrapper.get('[data-testid="mes-production-mold-apply-filters"]').trigger('click')
 
@@ -245,7 +246,7 @@ describe('MES production mold management page', () => {
       moldDesignId: 'design-1',
       page: 1,
       pageSize: 100,
-      status: 'INSTALLED'
+      status: 'READY'
     })
   })
 

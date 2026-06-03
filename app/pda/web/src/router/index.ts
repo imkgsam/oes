@@ -3,6 +3,7 @@ import DeviceRestrictedView from '@/views/device-restricted-view.vue';
 import EnrollmentView from '@/views/enrollment-view.vue';
 import IdentityConflictView from '@/views/identity-conflict-view.vue';
 import LoginView from '@/views/login-view.vue';
+import MoldWorkbenchView from '@/views/mold-workbench-view.vue';
 import VersionBlockedView from '@/views/version-blocked-view.vue';
 import WorkbenchView from '@/views/workbench-view.vue';
 import { sendPdaHeartbeat } from '@/services/pda-heartbeat';
@@ -16,6 +17,7 @@ export const router = createRouter({
     { path: '/enrollment', component: EnrollmentView },
     { path: '/login', component: LoginView },
     { path: '/workbench', component: WorkbenchView },
+    { path: '/molds', component: MoldWorkbenchView },
     { path: '/device-restricted', component: DeviceRestrictedView },
     { path: '/identity-conflict', component: IdentityConflictView },
     { path: '/version-blocked', component: VersionBlockedView },
@@ -42,10 +44,10 @@ export async function resolvePdaSessionRoute(path: string): Promise<string | tru
     return '/login';
   }
 
-  if ((path === '/workbench' || path === '/login') && !sessionStore.isAuthenticated) {
+  if ((path === '/workbench' || path === '/molds' || path === '/login') && !sessionStore.isAuthenticated) {
     const restored = await sessionStore.restoreSession();
     if (!restored) {
-      return path === '/workbench' ? '/login' : true;
+      return path === '/workbench' || path === '/molds' ? '/login' : true;
     }
   }
 

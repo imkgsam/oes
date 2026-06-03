@@ -62,6 +62,18 @@ export function resolveTerminalDeviceGrpcUrl() {
   return '127.0.0.1:50057'
 }
 
+/** resolveHrGrpcUrl avoids localhost IPv6 ambiguity for the local hr-service endpoint. */
+export function resolveHrGrpcUrl() {
+  const host = process.env.HR_SERVICE_HOST?.trim()
+  const port = process.env.HR_SERVICE_PORT?.trim()
+
+  if (host && port) {
+    return `${normalizeLocalhostGrpcHost(host)}:${port}`
+  }
+
+  return (process.env.NODE_ENV ?? 'development') !== 'production' ? '127.0.0.1:50055' : undefined
+}
+
 /** resolveMesGrpcUrl centralizes the local MES fallback endpoint used by api-gateway. */
 export function resolveMesGrpcUrl() {
   return process.env.MES_SERVICE_HOST && process.env.MES_SERVICE_PORT
@@ -116,10 +128,7 @@ function normalizeLocalhostGrpcHost(host: string) {
           serviceName: SERVICE_NAMES.HR,
           protoPath: resolveCommonProtoPath('hr_service/hr.proto'),
           packageName: 'hr_service',
-          url:
-            process.env.HR_SERVICE_HOST && process.env.HR_SERVICE_PORT
-              ? `${process.env.HR_SERVICE_HOST}:${process.env.HR_SERVICE_PORT}`
-              : 'localhost:50055'
+          url: resolveHrGrpcUrl()
         },
         [SERVICE_NAMES.CRM]: {
           serviceName: SERVICE_NAMES.CRM,

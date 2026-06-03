@@ -10,7 +10,7 @@ export namespace TerminalDeviceApi {
     | 'MAINTENANCE'
     | 'PENDING_APPROVAL';
   export type EnrollmentStatus = 'EXPIRED' | 'ISSUED' | 'REVOKED' | 'USED';
-  export type PresenceStatus = 'OFFLINE' | 'ONLINE' | 'UNKNOWN';
+  export type PresenceStatus = 'OFFLINE' | 'ONLINE' | 'STALE' | 'UNKNOWN';
   export type IdentityConfidence = 'HIGH' | 'LOW' | 'MEDIUM' | 'UNKNOWN';
 
   export interface CreateEnrollmentPayload {
@@ -155,7 +155,7 @@ export namespace TerminalDeviceApi {
   }
 
   export interface ChangeStatusPayload {
-    reason: string;
+    reason?: null | string;
     targetStatus: TerminalDeviceStatus;
   }
 
@@ -168,7 +168,7 @@ export namespace TerminalDeviceApi {
       status: 'ACCEPTED' | 'FAILED' | 'NOT_REQUESTED';
     };
     status: TerminalDeviceStatus;
-    statusReason: string;
+    statusReason?: null | string;
     terminalDeviceId: string;
   }
 

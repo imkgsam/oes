@@ -1,6 +1,7 @@
 // ── Service identifiers ──
 export const API_GATEWAY = Symbol('api-gateway')
 export const IDENTITY_SERVICE = Symbol('identity-service')
+export const HR_SERVICE = Symbol('hr-service')
 export const PERMISSION_SERVICE = Symbol('permission-service')
 export const AUTH_SERVICE = Symbol('auth-service')
 export const PARTY_SERVICE = Symbol('party-service')

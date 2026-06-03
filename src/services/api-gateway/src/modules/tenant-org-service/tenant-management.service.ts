@@ -35,6 +35,7 @@ export class TenantManagementService {
     const tenantItems = (result.tenants ?? []).map((tenant) => ({
       id: tenant.id ?? '',
       code: tenant.code ?? '',
+      employeeCodePrefix: tenant.employeeCodePrefix ?? '',
       name: tenant.name ?? '',
       status: normalizeTenantStatus(tenant)
     }))
@@ -100,6 +101,7 @@ export class TenantManagementService {
       tenant: {
         id: tenant.id,
         code: tenant.code ?? '',
+        employeeCodePrefix: tenant.employeeCodePrefix ?? '',
         name: tenant.name ?? '',
         rootOrgId,
         rootOrgName: normalize(rootOrg?.orgUnit?.name),
@@ -110,13 +112,14 @@ export class TenantManagementService {
   }
 
   async createTenant(
-    input: { code: string; name: string; rootOrgName?: string },
+    input: { code: string; employeeCodePrefix: string; name: string; rootOrgName?: string },
     source: DownstreamRequestSource
   ) {
     this.assertSystemScope(source)
     return this.tenantOrgManagementAdapter.createTenant(
       {
         code: requireNonBlank(input.code, 'code'),
+        employeeCodePrefix: normalizeEmployeeCodePrefix(input.employeeCodePrefix),
         name: requireNonBlank(input.name, 'name'),
         rootOrgName: normalize(input.rootOrgName)
       },
@@ -156,7 +159,7 @@ export class TenantManagementService {
 
   async startTenantOnboarding(input: {
     idempotencyKey: string
-    tenant: { code: string; name: string }
+    tenant: { code: string; employeeCodePrefix: string; name: string }
     organizationParty: {
       legalName: string
       registeredCountry?: string
@@ -189,6 +192,7 @@ export class TenantManagementService {
         idempotencyKey: requireNonBlank(input.idempotencyKey, 'idempotencyKey'),
         tenant: {
           code: requireNonBlank(input.tenant.code, 'tenant.code'),
+          employeeCodePrefix: normalizeEmployeeCodePrefix(input.tenant.employeeCodePrefix),
           name: requireNonBlank(input.tenant.name, 'tenant.name')
         },
         organizationParty: {
@@ -240,7 +244,7 @@ export class TenantManagementService {
 
   async updateTenantProfile(
     tenantId: string,
-    input: { code?: string; name?: string },
+    input: { code?: string; employeeCodePrefix?: string; name?: string },
     source: DownstreamRequestSource
   ) {
     this.assertSystemScope(source)
@@ -248,6 +252,7 @@ export class TenantManagementService {
       {
         tenantId: requireNonBlank(tenantId, 'tenantId'),
         code: normalize(input.code),
+        employeeCodePrefix: input.employeeCodePrefix === undefined ? undefined : normalizeEmployeeCodePrefix(input.employeeCodePrefix),
         name: normalize(input.name)
       },
       source
@@ -299,6 +304,14 @@ export class TenantManagementService {
 function normalize(value?: string): string | undefined {
   const normalized = value?.trim()
   return normalized ? normalized : undefined
+}
+
+function normalizeEmployeeCodePrefix(value?: string): string {
+  const normalized = value?.trim().toUpperCase()
+  if (!normalized || !/^[0-9A-F]{3}$/.test(normalized)) {
+    throw new BadRequestException('employeeCodePrefix must be a 3 digit hexadecimal value')
+  }
+  return normalized
 }
 
 function requireNonBlank(value: string, fieldName: string): string {

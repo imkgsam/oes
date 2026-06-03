@@ -27,6 +27,7 @@ enum LoginMethodType {
   EMAIL
   PHONE
   OAUTH_OPENID
+  TERMINAL_PIN
 }
 
 model Credential {
@@ -47,6 +48,7 @@ enum CredentialType {
   EMAIL_OTP
   PHONE_OTP
   OAUTH
+  TERMINAL_PIN
 }
 
 model PasswordSetupRequirement {
@@ -63,6 +65,23 @@ model PasswordSetupRequirement {
 
 enum PasswordSetupReason {
   FIRST_LOGIN
+  ADMIN_RESET
+  SECURITY_POLICY
+}
+
+model TerminalPinResetRequirement {
+  id          String                 @id @default(uuid())
+  userId      String                 @unique
+  required    Boolean                @default(true)
+  reason      TerminalPinResetReason
+  requiredBy  String?
+  requiredAt  DateTime               @default(now())
+  completedAt DateTime?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+}
+
+enum TerminalPinResetReason {
   ADMIN_RESET
   SECURITY_POLICY
 }

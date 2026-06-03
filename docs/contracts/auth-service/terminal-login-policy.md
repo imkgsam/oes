@@ -48,7 +48,7 @@ Phase 2 terminal 集合：
 - `KIOSK`
 - future `MOBILE`
 
-Phase 2 已实现 login flow 才能被启停。未实现的 employee code + PIN、badge + PIN、SSO、passkey 不应作为可启用项。
+Phase 2 已实现 login flow 才能被启停。`EMPLOYEE_CODE_PIN` 在 PDA Employee Code + Terminal PIN Login feature 实现并验收前不得作为可启用项；`badge + PIN`、SSO、passkey 等未实现 flow 不应作为可启用项。
 
 示例：
 
@@ -60,6 +60,10 @@ WEB:
   PHONE_OTP
 
 PDA:
+  PASSWORD
+
+PDA after Employee Code + Terminal PIN Login:
+  EMPLOYEE_CODE_PIN
   PASSWORD
 ```
 

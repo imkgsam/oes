@@ -124,7 +124,7 @@ const moldDesign = {
 const productionMold = {
   currentInstallationSummary: {
     moldDetail: {
-      moldPosition: 'A01'
+      moldPositionIndex: 1
     },
     toolingInstallationId: 'install-1',
     workCenterRef: {
@@ -133,7 +133,7 @@ const productionMold = {
       workCenterId: 'wc-1'
     }
   },
-  currentStatus: 'INSTALLED',
+  currentStatus: 'READY',
   lifeCounterSummary: {
     lifeUnit: 'CASTING_CYCLE',
     limitValue: '1200',
@@ -311,9 +311,8 @@ describe('MES mold management workspace page', () => {
     await wrapper.get('[data-testid="mes-current-work-center-id"]').setValue('wc-1')
     await wrapper.get('[data-testid="mes-open-install-mold-mold-1"]').trigger('click')
     await flushPromises()
-    await wrapper.get('[data-testid="mes-install-work-unit-id"]').setValue('wu-1')
-    await wrapper.get('[data-testid="mes-install-work-unit-code"]').setValue('WU-01')
-    await wrapper.get('[data-testid="mes-install-work-unit-name"]').setValue('上模位 1')
+    expect(wrapper.find('[data-testid="mes-install-work-unit-id"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="mes-install-mold-position-index"]').setValue('2')
     await wrapper.get('[data-testid="mes-install-cavity-position"]').setValue('LEFT')
     await wrapper.get('[data-testid="mes-install-setup-parameters"]').setValue('{"pressure":"normal"}')
     await wrapper.get('[data-testid="mes-submit-install-mold"]').trigger('click')
@@ -324,15 +323,11 @@ describe('MES mold management workspace page', () => {
       'mold-1',
       expect.objectContaining({
         cavityPosition: 'LEFT',
+        moldPositionIndex: 2,
         setupParameters: '{"pressure":"normal"}',
-        workCenterRef: expect.objectContaining({ workCenterId: 'wc-1' }),
-        workUnitRef: {
-          displayNameSnapshot: '上模位 1',
-          workUnitCodeSnapshot: 'WU-01',
-          workUnitId: 'wu-1'
-        }
+        workCenterRef: expect.objectContaining({ workCenterId: 'wc-1' })
       })
     )
+    expect(installProductionMoldApi.mock.calls[0]?.[2]).not.toHaveProperty('workUnitRef')
   })
 })
-    markProductionMoldForScrapApi.mockReset()

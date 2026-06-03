@@ -143,6 +143,7 @@ export class TenantOrgQueryGrpcController implements TenantOrgQueryServiceContro
 function mapTenant(tenant: {
   id: string
   code: string
+  employeeCodePrefix: string
   name: string
   status: string
   rootOrgId: string | null
@@ -150,6 +151,7 @@ function mapTenant(tenant: {
   return {
     id: tenant.id,
     code: tenant.code,
+    employeeCodePrefix: tenant.employeeCodePrefix,
     name: tenant.name,
     status: String(tenant.status),
     rootOrgId: tenant.rootOrgId ?? ''

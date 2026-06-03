@@ -182,7 +182,7 @@ describe('employee management page', () => {
       items: [
         {
           employee: {
-            employeeCode: 'EMP-001',
+            employeeCode: 'EMP-0AF-0001',
             id: 'employee-1',
             lifecycleStatus: 'ACTIVE',
             partyId: 'party-1',
@@ -224,7 +224,7 @@ describe('employee management page', () => {
     })
     getManagedEmployeeDetailApi.mockResolvedValue({
       employee: {
-        employeeCode: 'EMP-001',
+        employeeCode: 'EMP-0AF-0001',
         id: 'employee-1',
         lifecycleStatus: 'ACTIVE',
         partyId: 'party-1',
@@ -325,7 +325,7 @@ describe('employee management page', () => {
         accountId: 'account-1',
         userId: 'user-1',
         tenantId: 'tenant-1',
-        displayName: 'EMP-001',
+        displayName: 'EMP-0AF-0001',
         isEnabled: true,
         scopeLevel: 'TENANT'
       },
@@ -416,7 +416,7 @@ describe('employee management page', () => {
     })
     createManagedEmployeeApi.mockResolvedValue({
       employee: {
-        employeeCode: 'EMP-002',
+        employeeCode: 'EMP-0AF-0002',
         id: 'employee-2',
         lifecycleStatus: 'PREBOARDING',
         partyId: 'party-2',
@@ -426,7 +426,7 @@ describe('employee management page', () => {
     })
     createManagedEmploymentApi.mockResolvedValue({
       employee: {
-        employeeCode: 'EMP-002',
+        employeeCode: 'EMP-0AF-0002',
         id: 'employee-2',
         lifecycleStatus: 'ACTIVE',
         partyId: 'party-2',
@@ -460,7 +460,7 @@ describe('employee management page', () => {
         accountId: 'account-1',
         userId: 'user-1',
         tenantId: 'tenant-1',
-        displayName: 'EMP-001',
+        displayName: 'EMP-0AF-0001',
         isEnabled: true,
         scopeLevel: 'TENANT'
       },
@@ -529,7 +529,7 @@ describe('employee management page', () => {
     expect(wrapper.find('.employee-management__hero').exists()).toBe(false)
     expect(wrapper.find('.employee-management__table-card').exists()).toBe(true)
     expect(wrapper.text()).not.toContain('待继续完成接入')
-    expect(wrapper.text()).toContain('EMP-001')
+    expect(wrapper.text()).toContain('EMP-0AF-0001')
     expect(wrapper.text()).toContain('华东分公司')
     expect(wrapper.text()).toContain('生产主管')
     expect(wrapper.text()).not.toContain('BRANCH')

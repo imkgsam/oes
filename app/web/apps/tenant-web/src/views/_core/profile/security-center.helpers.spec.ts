@@ -202,6 +202,16 @@ describe('security center contact binding helpers', () => {
         userId: 'user-1',
         verified: false,
       },
+      {
+        enabled: true,
+        hasPassword: false,
+        identifier: 'terminal-pin',
+        maskedIdentifier: '已设置',
+        methodId: 'terminal-pin-method',
+        type: 'TERMINAL_PIN',
+        userId: 'user-1',
+        verified: true,
+      },
     ]);
 
     expect(groups).toEqual([
@@ -219,6 +229,13 @@ describe('security center contact binding helpers', () => {
         statusText: '待验证',
         title: '手机登录',
       }),
+      expect.objectContaining({
+        boundValue: '已设置',
+        kind: 'terminalPin',
+        statusColor: 'blue',
+        statusText: '已启用',
+        title: '现场终端 PIN',
+      }),
     ]);
 
     expect(groups[0]?.capabilities).toEqual([
@@ -233,6 +250,32 @@ describe('security center contact binding helpers', () => {
         enabled: false,
         hint: '',
         label: '验证码登录',
+      }),
+    ]);
+  });
+
+  it('shows terminal pin as a first-class login method even when no pin has been set', () => {
+    const groups = buildLoginMethodGroups([]);
+    const terminalPinGroup = groups.find((group) => group.kind === 'terminalPin');
+
+    expect(terminalPinGroup).toEqual(
+      expect.objectContaining({
+        boundValue: '',
+        statusColor: 'default',
+        statusText: '未设置',
+        title: '现场终端 PIN',
+      }),
+    );
+    expect(terminalPinGroup?.capabilities).toEqual([
+      expect.objectContaining({
+        actionDisabled: true,
+        disabledLabel: '先设置 PIN',
+        enabled: false,
+        hint: '需要先在右侧设置终端 PIN',
+        label: 'PIN 登录',
+        methodId: '',
+        type: 'TERMINAL_PIN',
+        verified: false,
       }),
     ]);
   });

@@ -42,6 +42,10 @@ vi.mock('#/api', () => ({
   updateTerminalDeviceVersionPolicyApi,
 }));
 
+vi.mock('#/locales', () => ({
+  $t: (key: string) => `i18n:${key}`,
+}));
+
 // Verifies the managed terminal device admin page keeps management truth separate from runtime diagnostics.
 describe('terminal device management page', () => {
   beforeEach(() => {
@@ -318,7 +322,7 @@ describe('terminal device management page', () => {
 
     expect(getTerminalDeviceApi).not.toHaveBeenCalled();
     expect((wrapper.vm as any).statusForm.targetStatus).toBe('DISABLED');
-    expect(wrapper.text()).toContain('状态操作');
+    expect(wrapper.text()).toContain('i18n:page.terminalDevice.statusOperation.title');
 
     (wrapper.vm as any).statusForm.reason = 'Device retired from Meilong tenant';
     (wrapper.vm as any).statusForm.targetStatus = 'DECOMMISSIONED';
@@ -328,6 +332,41 @@ describe('terminal device management page', () => {
       reason: 'Device retired from Meilong tenant',
       targetStatus: 'DECOMMISSIONED',
     });
+  });
+
+  it('submits a status change without a reason as null instead of an empty string', async () => {
+    const view = await import('./index.vue');
+    const wrapper = mount(view.default);
+
+    await flushPromises();
+    (wrapper.vm as any).handleDeviceRowActionMenu(
+      { key: 'status' },
+      {
+        displayName: 'PDA-Warehouse-01',
+        status: 'ACTIVE',
+        terminalDeviceId: 'tdv_001',
+      },
+    );
+    await flushPromises();
+    (wrapper.vm as any).statusForm.reason = '   ';
+    (wrapper.vm as any).statusForm.targetStatus = 'LOST';
+    await (wrapper.vm as any).changeSelectedDeviceStatus();
+
+    expect(changeTerminalDeviceStatusApi).toHaveBeenCalledWith('tdv_001', {
+      reason: null,
+      targetStatus: 'LOST',
+    });
+  });
+
+  it('uses locale keys for lifecycle and presence labels', async () => {
+    const view = await import('./index.vue');
+    const wrapper = mount(view.default);
+
+    await flushPromises();
+
+    expect((wrapper.vm as any).formatDeviceStatus('LOST')).toBe('i18n:page.terminalDevice.status.LOST');
+    expect((wrapper.vm as any).formatPresenceStatus('STALE')).toBe('i18n:page.terminalDevice.presence.STALE');
+    expect((wrapper.vm as any).statusTargetOptions[0].label).toMatch(/^i18n:page\.terminalDevice\.status\./);
   });
 
   it('excludes the current lifecycle status from status operation targets', async () => {

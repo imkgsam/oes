@@ -50,8 +50,11 @@ import {
   logoutOtherDevicesApi,
   logoutSelfSessionApi,
   regenerateRecoveryCodesApi,
+  resetOwnTerminalPinApi,
   revokeOtherTrustedDevicesApi,
   revokeTrustedDeviceApi,
+  setOwnTerminalPinApi,
+  setOwnTerminalPinEnabledApi,
 } from '#/api';
 import { useAuthStore } from '#/store';
 import { useAuthContextStore } from '#/store/auth-context';
@@ -94,6 +97,7 @@ const loading = ref(false);
 const sessionMutationLoading = ref(false);
 const loginMethodMutationLoading = ref(false);
 const passwordMutationLoading = ref(false);
+const terminalPinMutationLoading = ref(false);
 const mfaMutationLoading = ref(false);
 const totpMutationLoading = ref(false);
 const recoveryCodeLoading = ref(false);
@@ -141,6 +145,17 @@ const passwordForm = reactive({
   currentPassword: '',
   newPassword: '',
 });
+const terminalPinForm = reactive({
+  confirmPin: '',
+  currentPassword: '',
+  enabled: true,
+  newPin: '',
+});
+const terminalPinFormErrors = reactive({
+  confirmPin: '',
+  currentPassword: '',
+  newPin: '',
+});
 const passwordFormErrors = reactive({
   confirmPassword: '',
   currentPassword: '',
@@ -175,6 +190,9 @@ const totpBinding = computed(
 
 const recoveryCodeBinding = computed(
   () => mfaBindings.value.find((binding) => binding.type === 'BACKUP_CODE') ?? null,
+);
+const terminalPinLoginMethod = computed(
+  () => loginMethods.value.find((method) => method.type === 'TERMINAL_PIN') ?? null,
 );
 const currentAuthDeviceId = resolveAuthDeviceHints()?.deviceId ?? '';
 const normalizedTrustedDevices = computed(() =>
@@ -233,6 +251,7 @@ const loginMethodLabel: Record<string, string> = {
   PHONE: '手机',
   PHONE_OTP: '手机验证码',
   PHONE_PASSWORD: '手机密码',
+  TERMINAL_PIN: '现场终端 PIN',
 };
 
 const sessionColumns = computed<TableColumnsType<SelfSecurityApi.Session>>(() => [
@@ -267,10 +286,11 @@ const sessionColumns = computed<TableColumnsType<SelfSecurityApi.Session>>(() =>
     width: 180,
   },
   {
+    fixed: 'right',
     key: 'action',
     title: operationColumnTitle,
     width: 120,
-    align: 'right',
+    align: 'center',
   },
 ]);
 
@@ -339,10 +359,11 @@ const mfaColumns = computed<TableColumnsType<SelfSecurityApi.MfaBinding>>(() => 
     width: 180,
   },
   {
+    fixed: 'right',
     key: 'action',
     title: operationColumnTitle,
     width: 120,
-    align: 'right',
+    align: 'center',
   },
 ]);
 
@@ -824,7 +845,10 @@ async function toggleMfaBinding(binding: SelfSecurityApi.MfaBinding) {
 async function toggleLoginMethod(method: SelfSecurityApi.LoginMethod) {
   loginMethodMutationLoading.value = true;
   try {
-    if (method.enabled) {
+    if (method.type === 'TERMINAL_PIN') {
+      await setOwnTerminalPinEnabledApi({ enabled: !method.enabled });
+      message.success(method.enabled ? '终端 PIN 已停用' : '终端 PIN 已启用');
+    } else if (method.enabled) {
       await disableSelfLoginMethodApi(method.methodId);
       message.success(`${getLoginMethodTypeLabel(method)} 已停用`);
     } else {
@@ -900,6 +924,80 @@ function resetPasswordFormErrors() {
   passwordFormErrors.confirmPassword = '';
   passwordFormErrors.currentPassword = '';
   passwordFormErrors.newPassword = '';
+}
+
+async function saveOwnTerminalPin(action: 'reset' | 'set') {
+  if (!validateTerminalPinForm()) {
+    message.warning('请先修正终端 PIN 表单中的校验问题');
+    return;
+  }
+
+  terminalPinMutationLoading.value = true;
+  try {
+    const mfaGrantToken = await stepUpMfaDialogRef.value?.beginChallenge(
+      'CHANGE_PASSWORD',
+    );
+    if (mfaGrantToken === null) {
+      return;
+    }
+
+    const payload = {
+      currentPassword: terminalPinForm.currentPassword,
+      mfaGrantToken: mfaGrantToken || undefined,
+      newPin: terminalPinForm.newPin,
+    };
+    if (action === 'reset') {
+      await resetOwnTerminalPinApi(payload);
+    } else {
+      await setOwnTerminalPinApi(payload);
+    }
+
+    terminalPinForm.confirmPin = '';
+    terminalPinForm.currentPassword = '';
+    terminalPinForm.newPin = '';
+    resetTerminalPinFormErrors();
+    message.success(action === 'reset' ? '终端 PIN 已重设' : '终端 PIN 已设置');
+    await loadLoginMethodSnapshot();
+  } finally {
+    terminalPinMutationLoading.value = false;
+  }
+}
+
+async function toggleOwnTerminalPinEnabled() {
+  terminalPinMutationLoading.value = true;
+  try {
+    await setOwnTerminalPinEnabledApi({
+      enabled: !terminalPinLoginMethod.value?.enabled,
+    });
+    message.success(terminalPinLoginMethod.value?.enabled ? '终端 PIN 已停用' : '终端 PIN 已启用');
+    await loadLoginMethodSnapshot();
+  } finally {
+    terminalPinMutationLoading.value = false;
+  }
+}
+
+function validateTerminalPinForm() {
+  resetTerminalPinFormErrors();
+
+  if (!terminalPinForm.currentPassword) {
+    terminalPinFormErrors.currentPassword = '请输入当前密码';
+  }
+  if (!/^\d{6}$/.test(terminalPinForm.newPin)) {
+    terminalPinFormErrors.newPin = '终端 PIN 必须是 6 位数字';
+  } else if (['000000', '111111', '123456', '654321'].includes(terminalPinForm.newPin)) {
+    terminalPinFormErrors.newPin = '请避免使用过于简单的 PIN';
+  }
+  if (terminalPinForm.confirmPin !== terminalPinForm.newPin) {
+    terminalPinFormErrors.confirmPin = '两次输入的 PIN 不一致';
+  }
+
+  return !Object.values(terminalPinFormErrors).some(Boolean);
+}
+
+function resetTerminalPinFormErrors() {
+  terminalPinFormErrors.confirmPin = '';
+  terminalPinFormErrors.currentPassword = '';
+  terminalPinFormErrors.newPin = '';
 }
 
 // Opens the TOTP setup modal and initializes a fresh enrollment secret when needed.
@@ -1095,12 +1193,12 @@ watch(activeTab, (tab) => {
                 <div class="panel-caption">
                   <span class="panel-caption__title">登录方式管理</span>
                   <span class="panel-caption__meta">
-                    登录能力已按邮箱/手机分组展示；密码与验证码现在可分别启用或停用。
+                    登录能力已按邮箱/手机/终端 PIN 分组展示；密码、验证码与 PIN 现在可分别启用或停用。
                   </span>
                 </div>
 
                 <Empty
-                  v-if="!loading && groupedLoginMethods.every((group) => !group.boundValue)"
+                  v-if="!loading && groupedLoginMethods.length === 0"
                   description="暂无可管理的登录方式"
                 />
 
@@ -1116,7 +1214,7 @@ watch(activeTab, (tab) => {
                           {{ group.title }}
                         </div>
                         <div class="login-method-group-card__meta">
-                          {{ group.boundValue || `暂未绑定${group.kind === 'email' ? '邮箱' : '手机号'}` }}
+                          {{ group.boundValue || group.emptyLabel }}
                         </div>
                       </div>
                       <Tag :color="group.statusColor">
@@ -1144,31 +1242,35 @@ watch(activeTab, (tab) => {
                           </div>
                         </div>
 
-                        <Button
-                          v-if="capability.actionDisabled"
-                          disabled
-                          size="small"
-                        >
-                          {{ capability.disabledLabel }}
-                        </Button>
-                        <Button
-                          v-else
-                          :disabled="capability.enabled && enabledLoginMethodCount <= 1"
-                          :loading="loginMethodMutationLoading"
-                          size="small"
-                          @click="
-                            toggleLoginMethod({
-                              enabled: capability.enabled,
-                              hasPassword: capability.hasPassword,
-                              methodId: capability.methodId,
-                              type: capability.type,
-                              userId: '',
-                              verified: capability.verified,
-                            })
-                          "
-                        >
-                          {{ capability.enabled ? '停用' : '启用' }}
-                        </Button>
+                        <div class="login-method-capability-item__action-cell">
+                          <Button
+                            v-if="capability.actionDisabled"
+                            class="login-method-capability-item__action"
+                            disabled
+                            size="small"
+                          >
+                            {{ capability.disabledLabel }}
+                          </Button>
+                          <Button
+                            v-else
+                            class="login-method-capability-item__action"
+                            :disabled="capability.enabled && enabledLoginMethodCount <= 1"
+                            :loading="loginMethodMutationLoading"
+                            size="small"
+                            @click="
+                              toggleLoginMethod({
+                                enabled: capability.enabled,
+                                hasPassword: capability.hasPassword,
+                                methodId: capability.methodId,
+                                type: capability.type,
+                                userId: '',
+                                verified: capability.verified,
+                              })
+                            "
+                          >
+                            {{ capability.enabled ? '停用' : '启用' }}
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1218,14 +1320,80 @@ watch(activeTab, (tab) => {
                       placeholder="请再次输入新密码"
                     />
                   </Form.Item>
-                  <Button
-                    block
-                    type="primary"
-                    :loading="passwordMutationLoading"
-                    @click="changeOwnPassword"
+                  <div class="security-form-actions">
+                    <Button
+                      class="security-form-action-button"
+                      type="primary"
+                      :loading="passwordMutationLoading"
+                      @click="changeOwnPassword"
+                    >
+                      更新密码
+                    </Button>
+                  </div>
+                </Form>
+              </Card>
+
+              <Card :bordered="false" class="section-card side-card">
+                <div class="panel-caption">
+                  <span class="panel-caption__title">现场终端 PIN</span>
+                  <span class="panel-caption__meta">
+                    {{ terminalPinLoginMethod?.enabled ? '已启用' : terminalPinLoginMethod ? '已停用' : '未设置' }}
+                  </span>
+                </div>
+                <Form layout="vertical" class="form-stack">
+                  <Form.Item
+                    label="当前密码"
+                    :help="terminalPinFormErrors.currentPassword || undefined"
+                    :validate-status="terminalPinFormErrors.currentPassword ? 'error' : undefined"
                   >
-                    更新密码
-                  </Button>
+                    <Input.Password
+                      v-model:value="terminalPinForm.currentPassword"
+                      autocomplete="current-password"
+                      placeholder="用于确认本人操作"
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label="新终端 PIN"
+                    :help="terminalPinFormErrors.newPin || undefined"
+                    :validate-status="terminalPinFormErrors.newPin ? 'error' : undefined"
+                  >
+                    <Input.Password
+                      v-model:value="terminalPinForm.newPin"
+                      autocomplete="new-password"
+                      :maxlength="6"
+                      placeholder="6 位数字"
+                    />
+                  </Form.Item>
+                  <Form.Item
+                    label="确认终端 PIN"
+                    :help="terminalPinFormErrors.confirmPin || undefined"
+                    :validate-status="terminalPinFormErrors.confirmPin ? 'error' : undefined"
+                  >
+                    <Input.Password
+                      v-model:value="terminalPinForm.confirmPin"
+                      autocomplete="new-password"
+                      :maxlength="6"
+                      placeholder="再次输入 6 位数字"
+                    />
+                  </Form.Item>
+                  <div class="security-form-actions">
+                    <Button
+                      class="security-form-action-button"
+                      type="primary"
+                      :loading="terminalPinMutationLoading"
+                      @click="saveOwnTerminalPin(terminalPinLoginMethod ? 'reset' : 'set')"
+                    >
+                      {{ terminalPinLoginMethod ? '重设终端 PIN' : '设置终端 PIN' }}
+                    </Button>
+                    <Button
+                      v-if="terminalPinLoginMethod"
+                      class="security-form-action-button"
+                      :loading="terminalPinMutationLoading"
+                      @click="toggleOwnTerminalPinEnabled"
+                    >
+                      {{ terminalPinLoginMethod.enabled ? '停用终端 PIN 登录' : '启用终端 PIN 登录' }}
+                    </Button>
+                  </div>
                 </Form>
               </Card>
             </div>
@@ -1483,17 +1651,19 @@ watch(activeTab, (tab) => {
                   value-format="YYYY-MM-DDTHH:mm:ss[Z]"
                   @change="handleLoginHistoryRangeChange"
                 />
-                <Button type="primary" :loading="loginHistoryLoading" @click="loadLoginHistory()">
-                  查询
-                </Button>
-                <Button
-                  @click="
-                    resetLoginHistoryFilters();
-                    loadLoginHistory();
-                  "
-                >
-                  重置
-                </Button>
+                <div class="security-toolbar__filter-actions">
+                  <Button type="primary" :loading="loginHistoryLoading" @click="loadLoginHistory()">
+                    查询
+                  </Button>
+                  <Button
+                    @click="
+                      resetLoginHistoryFilters();
+                      loadLoginHistory();
+                    "
+                  >
+                    重置
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -1834,9 +2004,9 @@ watch(activeTab, (tab) => {
 }
 
 .login-method-capability-item {
-  display: flex;
+  display: grid;
   align-items: center;
-  justify-content: space-between;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   padding: 14px;
   border-radius: 14px;
@@ -1845,6 +2015,7 @@ watch(activeTab, (tab) => {
 }
 
 .login-method-capability-item__body {
+  flex: 1 1 auto;
   min-width: 0;
 }
 
@@ -1859,6 +2030,28 @@ watch(activeTab, (tab) => {
   font-size: 14px;
   font-weight: 600;
   color: var(--security-text);
+}
+
+.login-method-capability-item__action {
+  align-self: center;
+  flex: 0 0 auto;
+  inline-size: max-content;
+  max-inline-size: max-content;
+  min-width: 72px;
+  white-space: nowrap;
+  width: max-content;
+}
+
+.login-method-capability-item__action-cell {
+  display: flex;
+  justify-content: flex-end;
+  justify-self: end;
+  min-width: max-content;
+}
+
+:deep(.login-method-capability-item__action-cell .ant-btn) {
+  flex: 0 0 auto;
+  width: max-content !important;
 }
 
 .mfa-layout {
@@ -1974,6 +2167,17 @@ watch(activeTab, (tab) => {
   gap: 12px;
 }
 
+.security-toolbar__filter-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.security-toolbar__filter-actions :deep(.ant-btn) {
+  min-width: 76px;
+}
+
 .toolbar-control {
   width: 100%;
 }
@@ -2025,6 +2229,21 @@ watch(activeTab, (tab) => {
 
 .form-stack {
   margin-top: 8px;
+}
+
+.security-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.security-form-action-button {
+  min-width: 128px;
+}
+
+.full-width {
+  width: 100%;
 }
 
 .tool-panel {
@@ -2133,7 +2352,6 @@ watch(activeTab, (tab) => {
 
 @media (max-width: 768px) {
   .login-method-group-card__header,
-  .login-method-capability-item,
   .trusted-device-card__header,
   .trusted-device-card__footer,
   .trusted-device-card__meta-item {
@@ -2141,8 +2359,24 @@ watch(activeTab, (tab) => {
     align-items: stretch;
   }
 
+  .login-method-capability-item {
+    gap: 8px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 12px;
+  }
+
+  .login-method-capability-item__action {
+    min-width: 64px;
+    padding-inline: 14px;
+  }
+
   .security-toolbar__actions :deep(.ant-btn) {
     flex: 1 1 auto;
+  }
+
+  .security-toolbar__filter-actions {
+    margin-left: auto;
+    width: max-content;
   }
 
   .toolbar-control--compact,

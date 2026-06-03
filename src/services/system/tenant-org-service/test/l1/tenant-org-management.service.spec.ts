@@ -134,6 +134,7 @@ describe('TenantOrgManagementService', () => {
       tenant: {
         id: 'tenant-1',
         code: 'acme',
+        employeeCodePrefix: '0AF',
         name: 'Acme',
         status: TenantStatus.ACTIVE,
         rootOrgId: 'root-1'
@@ -158,10 +159,11 @@ describe('TenantOrgManagementService', () => {
       createAuthSessionRevocationPortMock() as never
     )
 
-    const result = await service.createTenant({ code: 'acme', name: 'Acme' })
+    const result = await service.createTenant({ code: 'acme', employeeCodePrefix: '0af', name: 'Acme' })
 
     expect(tenantRepository.createWithRootOrg).toHaveBeenCalledWith({
       code: 'acme',
+      employeeCodePrefix: '0AF',
       name: 'Acme',
       rootOrgName: 'Acme'
     })

@@ -247,6 +247,18 @@ export class OtpChallengeViewModel {
   destination?: string
 }
 
+// Defines whether PDA employee-code login may proceed to terminal PIN entry.
+export class EmployeeCodePinPreflightViewModel {
+  @ApiProperty({ description: 'Whether the scanned employee code may proceed to terminal PIN entry.' })
+  allowed!: boolean
+
+  @ApiProperty({ description: 'Stable preflight decision code for PDA display and diagnostics.' })
+  reasonCode!: string
+
+  @ApiProperty({ description: 'Generic preflight message suitable for PDA display.' })
+  message!: string
+}
+
 // Defines the refresh response returned when a session token pair is renewed.
 export class RefreshSessionViewModel {
   @ApiProperty({ description: 'Current session identifier associated with the refreshed tokens.' })

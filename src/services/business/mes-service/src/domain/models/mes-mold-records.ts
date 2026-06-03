@@ -28,11 +28,12 @@ export enum MoldDesignStatus {
 
 /** ProductionMoldStatus captures the current lifecycle for a production mold. */
 export enum ProductionMoldStatus {
+  PRE_REGISTERED = 'PRE_REGISTERED',
   RECEIVED = 'RECEIVED',
   PREPARING = 'PREPARING',
   AVAILABLE = 'AVAILABLE',
-  INSTALLED = 'INSTALLED',
   MAINTENANCE = 'MAINTENANCE',
+  READY = 'READY',
   DISABLED = 'DISABLED',
   SCRAP_PENDING = 'SCRAP_PENDING',
   SCRAPPED = 'SCRAPPED'
@@ -322,7 +323,7 @@ export interface MasterMoldRecord {
 /** MoldInstallationDetailRecord captures mold-specific fields under a tooling installation. */
 export interface MoldInstallationDetailRecord {
   toolingInstallationId: string
-  moldPosition?: string | null
+  moldPositionIndex: number
   cavityPosition?: string | null
   cavityMapping?: string | null
   setupParameters?: string | null

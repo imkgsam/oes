@@ -77,6 +77,7 @@ describe('tenant admin routes', () => {
     expect(legacyEmployeeRoute?.meta?.entryKey).toBe(
       'tenant-settings.employee-employment'
     )
+    expect(legacyEmployeeRoute?.meta?.icon).toBe('lucide:id-card')
     expect(legacyEmployeeRoute?.component).toBeTypeOf('function')
     expect(legacyEmployeeRoute?.meta?.hideInMenu).toBeUndefined()
     expect(legacyEmployeeRoute?.meta?.title).toBe('员工管理')
@@ -124,6 +125,12 @@ describe('tenant admin routes', () => {
     const itemCreateRoute = masterDataRoute?.children?.find(
       (route) => route.name === 'TenantItemManagementCreate'
     )
+    const itemModelCreateRoute = masterDataRoute?.children?.find(
+      (route) => route.name === 'TenantItemModelCreate'
+    )
+    const itemModelDetailRoute = masterDataRoute?.children?.find(
+      (route) => route.name === 'TenantItemModelDetail'
+    )
     const itemDetailRoute = masterDataRoute?.children?.find(
       (route) => route.name === 'TenantItemManagementDetail'
     )
@@ -145,7 +152,7 @@ describe('tenant admin routes', () => {
     expect(itemPackagingRoute?.meta?.entryKey).toBe('master-data.item-packaging-management')
     expect(itemPackagingRoute?.path).toBe('/master-data/item-packaging')
     expect(itemPackagingRoute?.meta?.hideInMenu).toBeUndefined()
-    expect(itemPackagingRoute?.meta?.title).toBe('Item 包装管理')
+    expect(itemPackagingRoute?.meta?.title).toBe('包装管理')
     expect(itemBomRoute?.meta?.entryKey).toBe('master-data.item-bom-management')
     expect(itemBomRoute?.path).toBe('/master-data/item-boms')
     expect(itemBomRoute?.meta?.hideInMenu).toBeUndefined()
@@ -153,6 +160,15 @@ describe('tenant admin routes', () => {
     expect(itemCreateRoute?.meta?.entryKey).toBe('master-data.item-management')
     expect(itemCreateRoute?.meta?.hideInMenu).toBe(true)
     expect(itemCreateRoute?.meta?.activePath).toBe('/master-data/items')
+    expect(itemModelCreateRoute?.path).toBe('/master-data/item-models/create')
+    expect(itemModelCreateRoute?.meta?.entryKey).toBe('master-data.item-management')
+    expect(itemModelCreateRoute?.meta?.hideInMenu).toBe(true)
+    expect(itemModelCreateRoute?.meta?.activePath).toBe('/master-data/items')
+    expect(itemModelCreateRoute?.meta?.title).toBe('创建 ItemModel')
+    expect(itemModelDetailRoute?.path).toBe('/master-data/item-models/:itemModelId')
+    expect(itemModelDetailRoute?.meta?.entryKey).toBe('master-data.item-management')
+    expect(itemModelDetailRoute?.meta?.hideInMenu).toBe(true)
+    expect(itemModelDetailRoute?.meta?.activePath).toBe('/master-data/items')
     expect(itemDetailRoute?.meta?.entryKey).toBe('master-data.item-management')
     expect(itemDetailRoute?.meta?.hideInMenu).toBe(true)
     expect(itemDetailRoute?.meta?.activePath).toBe('/master-data/items')

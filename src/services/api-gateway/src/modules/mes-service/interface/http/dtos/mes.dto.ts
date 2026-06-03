@@ -323,7 +323,19 @@ export class RegisterProductionMoldDto {
   supplierRef?: unknown
 }
 
-/** AcceptProductionMoldDto captures one production mold acceptance command payload. */
+/** ConfirmProductionMoldArrivalDto captures the first-stage production mold arrival confirmation. */
+export class ConfirmProductionMoldArrivalDto {
+  @Allow()
+  arrivedAt?: string
+  @Allow()
+  commandId?: string
+  @Allow()
+  orgId?: string
+  @Allow()
+  reason?: string
+}
+
+/** AcceptProductionMoldDto captures the legacy production mold acceptance command payload. */
 export class AcceptProductionMoldDto {
   @Allow()
   acceptedAt?: string
@@ -416,7 +428,7 @@ export class InstallToolingDto {
   @Allow()
   installedAt?: string
   @Allow()
-  moldPosition?: string
+  moldPositionIndex?: number
   @Allow()
   orgId?: string
   @Allow()
@@ -429,6 +441,34 @@ export class InstallToolingDto {
   workCenterRef!: unknown
   @Allow()
   workUnitRef?: unknown
+}
+
+/** ConfirmInstalledMoldReadyDto captures the field command that enables usage recording. */
+export class ConfirmInstalledMoldReadyDto {
+  @Allow()
+  commandId?: string
+  @Allow()
+  orgId?: string
+  @Allow()
+  readyAt?: string
+  @Allow()
+  reason?: string
+  @Allow()
+  toolingInstallationId!: string
+}
+
+/** MarkInstalledMoldMaintenanceDto captures the field command that returns a ready mold to maintenance. */
+export class MarkInstalledMoldMaintenanceDto {
+  @Allow()
+  commandId?: string
+  @Allow()
+  markedAt?: string
+  @Allow()
+  orgId?: string
+  @Allow()
+  reason!: string
+  @Allow()
+  toolingInstallationId!: string
 }
 
 /** UnmountToolingDto captures one tooling unmount payload. */

@@ -4,10 +4,10 @@ export namespace MesApi {
   export type ProductionMoldStatus =
     | 'AVAILABLE'
     | 'DISABLED'
-    | 'INSTALLED'
     | 'MAINTENANCE'
     | 'PREPARING'
-    | 'RECEIVED'
+    | 'PRE_REGISTERED'
+    | 'READY'
     | 'SCRAP_PENDING'
     | 'SCRAPPED'
   export type WorkCenterStatus = 'ACTIVE' | 'INACTIVE'
@@ -316,7 +316,7 @@ export namespace MesApi {
   export interface MoldInstallationDetail {
     cavityMapping?: string
     cavityPosition?: string
-    moldPosition?: string
+    moldPositionIndex?: number
     setupParameters?: string
     toolingInstallationId?: string
   }
@@ -478,14 +478,14 @@ export async function registerProductionMoldApi(
   )
 }
 
-/** acceptProductionMoldApi accepts one received production mold into AVAILABLE status. */
-export async function acceptProductionMoldApi(
+/** confirmProductionMoldArrivalApi confirms one pre-registered production mold has physically arrived. */
+export async function confirmProductionMoldArrivalApi(
   tenantId: string,
   productionMoldId: string,
-  payload: { acceptedAt?: string; reason?: string }
+  payload: { arrivedAt?: string; reason?: string }
 ) {
   return requestClient.post<MesApi.ProductionMold>(
-    `/mes/tenants/${tenantId}/production-molds/${productionMoldId}/accept`,
+    `/mes/tenants/${tenantId}/production-molds/${productionMoldId}/confirm-arrival`,
     payload
   )
 }
@@ -539,7 +539,7 @@ export async function installProductionMoldApi(
   productionMoldId: string,
   payload: {
     cavityPosition?: string
-    moldPosition?: string
+    moldPositionIndex?: number
     reason?: string
     setupParameters?: string
     workCenterRef: MesApi.WorkCenterRef
@@ -548,6 +548,30 @@ export async function installProductionMoldApi(
 ) {
   return requestClient.post<{ toolingInstallation: MesApi.ToolingInstallation }>(
     `/mes/tenants/${tenantId}/tooling/${productionMoldId}/install`,
+    payload
+  )
+}
+
+/** confirmInstalledMoldReadyApi confirms an installed mold can record casting usage. */
+export async function confirmInstalledMoldReadyApi(
+  tenantId: string,
+  productionMoldId: string,
+  payload: { readyAt?: string; reason?: string; toolingInstallationId: string }
+) {
+  return requestClient.post<MesApi.ProductionMold>(
+    `/mes/tenants/${tenantId}/production-molds/${productionMoldId}/confirm-ready`,
+    payload
+  )
+}
+
+/** markInstalledMoldMaintenanceApi returns a ready installed mold to maintenance. */
+export async function markInstalledMoldMaintenanceApi(
+  tenantId: string,
+  productionMoldId: string,
+  payload: { markedAt?: string; reason: string; toolingInstallationId: string }
+) {
+  return requestClient.post<MesApi.ProductionMold>(
+    `/mes/tenants/${tenantId}/production-molds/${productionMoldId}/mark-maintenance`,
     payload
   )
 }

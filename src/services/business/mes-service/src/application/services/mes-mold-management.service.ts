@@ -123,6 +123,11 @@ export interface AcceptProductionMoldInput extends MesCommandContext {
   acceptedAt?: string | null
 }
 
+export interface ConfirmProductionMoldArrivalInput extends MesCommandContext {
+  productionMoldId: string
+  arrivedAt?: string | null
+}
+
 export interface MoveToolingInput extends MesCommandContext {
   toolingType: ToolingType
   toolingId: string
@@ -138,7 +143,7 @@ export interface InstallToolingInput extends MesCommandContext {
   workCenterRef: WorkCenterRefRecord
   workUnitRef?: WorkUnitRefRecord | null
   installedAt?: string | null
-  moldPosition?: string | null
+  moldPositionIndex?: number | null
   cavityPosition?: string | null
   cavityMapping?: string | null
   setupParameters?: string | null
@@ -147,6 +152,18 @@ export interface InstallToolingInput extends MesCommandContext {
 export interface UnmountToolingInput extends MesCommandContext {
   toolingInstallationId: string
   unmountedAt?: string | null
+}
+
+export interface ConfirmInstalledMoldReadyInput extends MesCommandContext {
+  productionMoldId: string
+  toolingInstallationId: string
+  confirmedAt?: string | null
+}
+
+export interface MarkInstalledMoldMaintenanceInput extends MesCommandContext {
+  productionMoldId: string
+  toolingInstallationId: string
+  markedAt?: string | null
 }
 
 export interface RecordMoldUsageInput extends MesCommandContext {
@@ -394,7 +411,7 @@ export class MesMoldManagementService {
         purchaseRef: input.purchaseRef ? normalizePurchaseRef(input.purchaseRef) : null,
         receivedAt: normalizeOptionalString(input.receivedAt) ?? null,
         acceptedAt: null,
-        currentStatus: ProductionMoldStatus.RECEIVED,
+        currentStatus: ProductionMoldStatus.PRE_REGISTERED,
         currentStorageResourceRef: input.initialStorageResourceRef ? normalizeStorageRef(input.initialStorageResourceRef) : null,
         currentCarrierResourceRef: input.initialCarrierResourceRef ? normalizeCarrierRef(input.initialCarrierResourceRef) : null,
         currentInstallationSummary: null,
@@ -415,12 +432,36 @@ export class MesMoldManagementService {
       await this.repository.saveMoldLifeCounter(counter)
       const saved = assertExists(await this.repository.findProductionMoldById(input.tenantId, productionMoldId), 'ProductionMold', productionMoldId)
       const audit = await this.appendAudit(input, 'RegisterProductionMold', 'PRODUCTION_MOLD', saved.productionMoldId, null, saved)
-      await this.appendOutbox(input, 'ProductionMoldRegistered', 'PRODUCTION_MOLD', saved.productionMoldId, {
+      await this.appendOutbox(input, 'ProductionMoldPreRegistered', 'PRODUCTION_MOLD', saved.productionMoldId, {
         productionMoldId: saved.productionMoldId,
         moldCode: saved.moldCode,
         auditRef: audit.mesAuditEnvelopeId
       })
       return saved
+    })
+  }
+
+  /** confirmProductionMoldArrival confirms the pre-registered physical mold has arrived and can enter field use preparation. */
+  async confirmProductionMoldArrival(input: ConfirmProductionMoldArrivalInput): Promise<{ productionMold: ProductionMoldRecord }> {
+    return this.executeIdempotent(input, 'ConfirmProductionMoldArrival', async () => {
+      assertCommandContext(input)
+      const orgId = resolveContextOrgId(input)
+      assertRequiredString(input.productionMoldId, 'productionMoldId')
+      const mold = await this.loadVisibleProductionMold(input.tenantId, orgId, input.productionMoldId)
+      assertPrecondition(mold.currentStatus === ProductionMoldStatus.PRE_REGISTERED, 'only pre-registered production molds can confirm arrival')
+      const timestamp = normalizeOptionalString(input.arrivedAt) ?? nowIso()
+      const saved = await this.repository.saveProductionMold({
+        ...mold,
+        receivedAt: timestamp,
+        currentStatus: ProductionMoldStatus.AVAILABLE,
+        updatedAt: timestamp
+      })
+      await this.appendAudit(input, 'ConfirmProductionMoldArrival', 'PRODUCTION_MOLD', saved.productionMoldId, mold, saved)
+      await this.appendOutbox(input, 'ProductionMoldArrivalConfirmed', 'PRODUCTION_MOLD', saved.productionMoldId, {
+        productionMoldId: saved.productionMoldId,
+        arrivedAt: timestamp
+      })
+      return { productionMold: saved }
     })
   }
 
@@ -458,13 +499,7 @@ export class MesMoldManagementService {
       const orgId = resolveContextOrgId(input)
       const tooling = await this.loadVisibleProductionMold(input.tenantId, orgId, input.toolingId)
       assertPrecondition(
-        [
-          ProductionMoldStatus.RECEIVED,
-          ProductionMoldStatus.PREPARING,
-          ProductionMoldStatus.AVAILABLE,
-          ProductionMoldStatus.MAINTENANCE,
-          ProductionMoldStatus.DISABLED
-        ].includes(tooling.currentStatus),
+        [ProductionMoldStatus.AVAILABLE, ProductionMoldStatus.MAINTENANCE, ProductionMoldStatus.DISABLED].includes(tooling.currentStatus),
         'production mold cannot move in current status'
       )
       const timestamp = normalizeOptionalString(input.movedAt) ?? nowIso()
@@ -520,10 +555,17 @@ export class MesMoldManagementService {
       )
       const timestamp = normalizeOptionalString(input.installedAt) ?? nowIso()
       const toolingInstallationId = randomUUID()
+      const activeInstallations = await this.repository.listActiveToolingInstallationsByWorkCenter({
+        tenantId: input.tenantId,
+        orgId,
+        workCenterId: workCenterRef.workCenterId
+      })
+      const moldPositionIndex = resolveInstallPositionIndex(input.moldPositionIndex, activeInstallations)
+      await this.shiftActiveInstallationsAtOrAfter(input, activeInstallations, moldPositionIndex, 1)
       const toolingInstallation: ToolingInstallationRecord = {
         toolingInstallationId,
         tenantId: input.tenantId,
-        orgId: resolveContextOrgId(input),
+        orgId,
         toolingType: input.toolingType,
         toolingId: input.toolingId,
         workCenterRef,
@@ -533,13 +575,13 @@ export class MesMoldManagementService {
         installedByRef: buildOperatorRef(input),
         unmountedByRef: null,
         status: ToolingInstallationStatus.ACTIVE,
-        moldDetail: normalizeMoldDetail(toolingInstallationId, input),
+        moldDetail: normalizeMoldDetail(toolingInstallationId, input, moldPositionIndex),
         auditRef: buildAuditRef(input)
       }
       const savedInstallation = await this.repository.saveToolingInstallation(toolingInstallation)
       const savedMold = await this.repository.saveProductionMold({
         ...mold,
-        currentStatus: ProductionMoldStatus.INSTALLED,
+        currentStatus: ProductionMoldStatus.MAINTENANCE,
         currentStorageResourceRef: null,
         currentCarrierResourceRef: null,
         currentInstallationSummary: savedInstallation,
@@ -565,12 +607,21 @@ export class MesMoldManagementService {
       assertPrecondition(current.status === ToolingInstallationStatus.ACTIVE, 'tooling installation is not active')
       const mold = await this.loadVisibleProductionMold(input.tenantId, orgId, current.toolingId)
       const timestamp = normalizeOptionalString(input.unmountedAt) ?? nowIso()
+      const removedIndex = current.moldDetail?.moldPositionIndex
       const savedInstallation = await this.repository.saveToolingInstallation({
         ...current,
         unmountedAt: timestamp,
         unmountedByRef: buildOperatorRef(input),
         status: ToolingInstallationStatus.UNMOUNTED
       })
+      if (removedIndex) {
+        const activeInstallations = await this.repository.listActiveToolingInstallationsByWorkCenter({
+          tenantId: input.tenantId,
+          orgId,
+          workCenterId: current.workCenterRef.workCenterId
+        })
+        await this.shiftActiveInstallationsAfter(input, activeInstallations, removedIndex, -1)
+      }
       const nextStatus = mold.currentStatus === ProductionMoldStatus.SCRAP_PENDING ? ProductionMoldStatus.SCRAPPED : ProductionMoldStatus.AVAILABLE
       const savedMold = await this.repository.saveProductionMold({
         ...mold,
@@ -595,6 +646,65 @@ export class MesMoldManagementService {
     })
   }
 
+  /** confirmInstalledMoldReady marks an actively installed mold ready for casting usage. */
+  async confirmInstalledMoldReady(input: ConfirmInstalledMoldReadyInput): Promise<{ productionMold: ProductionMoldRecord }> {
+    return this.executeIdempotent(input, 'ConfirmInstalledMoldReady', async () => {
+      assertCommandContext(input)
+      const orgId = resolveContextOrgId(input)
+      assertRequiredString(input.productionMoldId, 'productionMoldId')
+      assertRequiredString(input.toolingInstallationId, 'toolingInstallationId')
+      const mold = await this.loadVisibleProductionMold(input.tenantId, orgId, input.productionMoldId)
+      assertPrecondition(mold.currentStatus === ProductionMoldStatus.MAINTENANCE, 'only maintenance production molds can be marked ready')
+      const current = await this.loadVisibleToolingInstallation(input.tenantId, orgId, input.toolingInstallationId)
+      assertPrecondition(current.status === ToolingInstallationStatus.ACTIVE, 'tooling installation is not active')
+      assertPrecondition(current.toolingId === input.productionMoldId, 'tooling installation does not match production mold')
+      const timestamp = normalizeOptionalString(input.confirmedAt) ?? nowIso()
+      const saved = await this.repository.saveProductionMold({
+        ...mold,
+        currentStatus: ProductionMoldStatus.READY,
+        currentInstallationSummary: current,
+        updatedAt: timestamp
+      })
+      await this.appendAudit(input, 'ConfirmInstalledMoldReady', 'PRODUCTION_MOLD', saved.productionMoldId, mold, saved)
+      await this.appendOutbox(input, 'InstalledMoldReadyConfirmed', 'PRODUCTION_MOLD', saved.productionMoldId, {
+        productionMoldId: saved.productionMoldId,
+        toolingInstallationId: current.toolingInstallationId,
+        confirmedAt: timestamp
+      })
+      return { productionMold: saved }
+    })
+  }
+
+  /** markInstalledMoldMaintenance returns a ready installed mold to maintenance with an audit reason. */
+  async markInstalledMoldMaintenance(input: MarkInstalledMoldMaintenanceInput): Promise<{ productionMold: ProductionMoldRecord }> {
+    return this.executeIdempotent(input, 'MarkInstalledMoldMaintenance', async () => {
+      assertCommandContext(input)
+      assertRequiredString(input.auditContext.reason, 'auditContext.reason')
+      const orgId = resolveContextOrgId(input)
+      assertRequiredString(input.productionMoldId, 'productionMoldId')
+      assertRequiredString(input.toolingInstallationId, 'toolingInstallationId')
+      const mold = await this.loadVisibleProductionMold(input.tenantId, orgId, input.productionMoldId)
+      assertPrecondition(mold.currentStatus === ProductionMoldStatus.READY, 'only ready production molds can return to maintenance')
+      const current = await this.loadVisibleToolingInstallation(input.tenantId, orgId, input.toolingInstallationId)
+      assertPrecondition(current.status === ToolingInstallationStatus.ACTIVE, 'tooling installation is not active')
+      assertPrecondition(current.toolingId === input.productionMoldId, 'tooling installation does not match production mold')
+      const timestamp = normalizeOptionalString(input.markedAt) ?? nowIso()
+      const saved = await this.repository.saveProductionMold({
+        ...mold,
+        currentStatus: ProductionMoldStatus.MAINTENANCE,
+        currentInstallationSummary: current,
+        updatedAt: timestamp
+      })
+      await this.appendAudit(input, 'MarkInstalledMoldMaintenance', 'PRODUCTION_MOLD', saved.productionMoldId, mold, saved)
+      await this.appendOutbox(input, 'InstalledMoldMaintenanceMarked', 'PRODUCTION_MOLD', saved.productionMoldId, {
+        productionMoldId: saved.productionMoldId,
+        toolingInstallationId: current.toolingInstallationId,
+        markedAt: timestamp
+      })
+      return { productionMold: saved }
+    })
+  }
+
   /** recordMoldUsage appends usage truth and increments the independent life counter. */
   async recordMoldUsage(input: RecordMoldUsageInput): Promise<{
     moldUsageRecord: MoldUsageRecord
@@ -606,7 +716,7 @@ export class MesMoldManagementService {
       const usageQuantity = assertPositiveQuantity(input.usageQuantity, 'usageQuantity')
       const orgId = resolveContextOrgId(input)
       const mold = await this.loadVisibleProductionMold(input.tenantId, orgId, input.productionMoldId)
-      assertPrecondition(mold.currentStatus === ProductionMoldStatus.INSTALLED, 'production mold must be installed before usage')
+      assertPrecondition(mold.currentStatus === ProductionMoldStatus.READY, 'production mold must be ready before usage')
       const activeInstallation = assertVisibleByOrg(
         assertExists(
           await this.repository.findActiveToolingInstallationByMold(input.tenantId, input.productionMoldId),
@@ -821,7 +931,7 @@ export class MesMoldManagementService {
     const usageQuantity = assertPositiveQuantity(input.usageQuantity, 'usageQuantity')
     const orgId = resolveContextOrgId(context)
     const mold = await this.loadVisibleProductionMold(context.tenantId, orgId, input.productionMoldId)
-    assertPrecondition(mold.currentStatus === ProductionMoldStatus.INSTALLED, 'production mold must be installed before usage')
+    assertPrecondition(mold.currentStatus === ProductionMoldStatus.READY, 'production mold must be ready before usage')
     const activeInstallation = assertVisibleByOrg(
       assertExists(
         await this.repository.findActiveToolingInstallationByMold(context.tenantId, input.productionMoldId),
@@ -944,6 +1054,48 @@ export class MesMoldManagementService {
       'ToolingInstallation',
       toolingInstallationId
     )
+  }
+
+  /** shiftActiveInstallationsAtOrAfter keeps WorkCenter mold position indexes unique and continuous during insertion. */
+  private async shiftActiveInstallationsAtOrAfter(
+    context: MesCommandContext,
+    activeInstallations: ToolingInstallationRecord[],
+    targetIndex: number,
+    delta: 1
+  ): Promise<void> {
+    const affected = activeInstallations
+      .filter((installation) => (installation.moldDetail?.moldPositionIndex ?? 0) >= targetIndex)
+      .sort((left, right) => (right.moldDetail?.moldPositionIndex ?? 0) - (left.moldDetail?.moldPositionIndex ?? 0))
+    for (const installation of affected) {
+      await this.repository.saveToolingInstallation({
+        ...installation,
+        moldDetail: {
+          ...assertExists(installation.moldDetail, 'MoldInstallationDetail', installation.toolingInstallationId),
+          moldPositionIndex: (installation.moldDetail?.moldPositionIndex ?? 0) + delta
+        }
+      })
+    }
+  }
+
+  /** shiftActiveInstallationsAfter keeps WorkCenter mold position indexes continuous after removal. */
+  private async shiftActiveInstallationsAfter(
+    context: MesCommandContext,
+    activeInstallations: ToolingInstallationRecord[],
+    removedIndex: number,
+    delta: -1
+  ): Promise<void> {
+    const affected = activeInstallations
+      .filter((installation) => (installation.moldDetail?.moldPositionIndex ?? 0) > removedIndex)
+      .sort((left, right) => (left.moldDetail?.moldPositionIndex ?? 0) - (right.moldDetail?.moldPositionIndex ?? 0))
+    for (const installation of affected) {
+      await this.repository.saveToolingInstallation({
+        ...installation,
+        moldDetail: {
+          ...assertExists(installation.moldDetail, 'MoldInstallationDetail', installation.toolingInstallationId),
+          moldPositionIndex: (installation.moldDetail?.moldPositionIndex ?? 0) + delta
+        }
+      })
+    }
   }
 
   /** executeIdempotent keeps command replay semantics, state changes, audit, and outbox in one local transaction. */
@@ -1156,14 +1308,28 @@ function normalizeWorkUnitRef(ref: WorkUnitRefRecord): WorkUnitRefRecord {
 }
 
 /** normalizeMoldDetail validates mold-specific fields nested under a tooling installation. */
-function normalizeMoldDetail(toolingInstallationId: string, input: InstallToolingInput): MoldInstallationDetailRecord {
+function normalizeMoldDetail(toolingInstallationId: string, input: InstallToolingInput, moldPositionIndex: number): MoldInstallationDetailRecord {
   return {
     toolingInstallationId,
-    moldPosition: normalizeOptionalString(input.moldPosition) ?? null,
+    moldPositionIndex,
     cavityPosition: normalizeOptionalString(input.cavityPosition) ?? null,
     cavityMapping: normalizeOptionalString(input.cavityMapping) ?? null,
     setupParameters: normalizeOptionalString(input.setupParameters) ?? null
   }
+}
+
+/** resolveInstallPositionIndex computes the inserted or appended production-line mold position. */
+function resolveInstallPositionIndex(inputIndex: number | null | undefined, activeInstallations: ToolingInstallationRecord[]): number {
+  const activeIndexes = activeInstallations
+    .map((installation) => installation.moldDetail?.moldPositionIndex)
+    .filter((index): index is number => typeof index === 'number')
+  const maxIndex = activeIndexes.length > 0 ? Math.max(...activeIndexes) : 0
+  if (inputIndex === null || inputIndex === undefined) {
+    return maxIndex + 1
+  }
+  assertInvalidArgument(Number.isInteger(inputIndex) && inputIndex > 0, 'moldPositionIndex must be a positive integer')
+  assertInvalidArgument(inputIndex <= maxIndex + 1, 'moldPositionIndex cannot skip positions')
+  return inputIndex
 }
 
 /** normalizeItemModelRef validates an ItemModel display reference without copying external truth. */
