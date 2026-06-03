@@ -49,6 +49,21 @@ This makes the project closer to a focused industry system than a generic ERP sh
 - It keeps frontend workspaces, BFF APIs, service contracts, and domain logic aligned through architecture documents and service truth sources.
 - It is designed for long-lived enterprise evolution, where permissions, audit trails, and cross-service boundaries matter as much as feature screens.
 
+## AI-assisted Manufacturing Direction
+
+OES is designed with AI-assisted operations in mind, but AI is treated as a governed assistant rather than the source of business truth. In a sanitary ceramic factory, useful AI should work with mold records, production events, warehouse movement, PDA logs, permissions, and audit trails through controlled application services.
+
+The project direction includes:
+
+- Mold lifecycle intelligence: summarize mold usage history, surface high-risk molds, explain abnormal repair frequency, and help planners understand when a mold may affect production reliability.
+- Slip-casting and production anomaly review: turn daily shop-floor records into concise exception summaries for supervisors, including missing records, unusual output, delayed operations, and repeated process deviations.
+- PDA shop-floor assistant: help operators choose the correct work action, interpret scan results, and reduce input errors without allowing AI to bypass terminal access policy or employee identity checks.
+- Sales-to-production traceability: connect customer demand, item master data, mold readiness, MES execution, WMS inventory movement, procurement status, and finance signals into a readable operational narrative.
+- Manufacturing knowledge retrieval: help users search product models, mold standards, packaging rules, process notes, and historical issue records without spreading domain knowledge across informal chat logs.
+- Audit-friendly recommendations: every AI-assisted suggestion that affects business execution should be traceable to source data, operator context, permissions, and a human-confirmed workflow.
+
+This makes AI a practical layer on top of governed manufacturing workflows, not a shortcut around MES, WMS, permission, or audit systems.
+
 ## Current Status
 
 OES is under active solo development. The repository already contains the core monorepo structure, backend services, BFF/API gateway modules, tenant web workspace, PDA web and Android surfaces, gRPC contracts, architecture documents, and product direction screens for mold-management workflows.
