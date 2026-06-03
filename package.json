@@ -1,11 +1,34 @@
 {
   "name": "oes",
   "version": "0.0.1",
-  "description": "Open-source enterprise operating system monorepo for governed ERP, MES, WMS, CRM, SRM, tenant identity, permission, audit, and AI-safe operations.",
+  "description": "Vertical enterprise application system for sanitary ceramic manufacturing, covering mold management, MES, WMS, CRM, SRM, finance, tenant identity, permissions, PDA workflows, and auditability.",
   "author": "OES contributors",
   "private": false,
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.33.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imkgsam/oes.git"
+  },
+  "bugs": {
+    "url": "https://github.com/imkgsam/oes/issues"
+  },
+  "homepage": "https://github.com/imkgsam/oes#readme",
+  "keywords": [
+    "sanitary-ceramic",
+    "manufacturing",
+    "mes",
+    "wms",
+    "crm",
+    "srm",
+    "erp",
+    "mold-management",
+    "pda",
+    "multi-tenant",
+    "nestjs",
+    "ddd",
+    "grpc"
+  ],
   "workspaces": [
     "src/services/*",
     "src/services/auxiliary/*",
