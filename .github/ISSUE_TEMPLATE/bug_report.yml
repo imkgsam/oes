@@ -1,0 +1,56 @@
+name: Bug Report
+description: Report a reproducible defect in OES.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a defect. Please include enough context for maintainers to reproduce and route the issue to the right service or frontend surface.
+  - type: input
+    id: area
+    attributes:
+      label: Area
+      description: Service, frontend surface, contract, or workflow affected.
+      placeholder: auth-service, tenant-web, api-gateway, PDA, CRM, WMS, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: List the smallest steps or commands that reproduce the issue.
+      placeholder: |
+        1. Run ...
+        2. Open ...
+        3. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact
+      description: Explain the business, tenant, permission, contract, or developer impact.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Paste relevant logs, traces, screenshots, or error messages. Remove secrets and tokens.
+      render: shell
+  - type: checkboxes
+    id: boundary
+    attributes:
+      label: Boundary check
+      options:
+        - label: I checked whether this affects a service boundary, contract, tenant isolation, permission policy, or audit path.
+          required: false

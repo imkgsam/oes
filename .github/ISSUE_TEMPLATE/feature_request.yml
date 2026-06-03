@@ -1,0 +1,53 @@
+name: Feature Request
+description: Propose a new capability or improvement.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        OES changes should start with boundaries. Please describe the capability, affected context, and why it belongs there.
+  - type: input
+    id: area
+    attributes:
+      label: Area
+      description: Service, frontend surface, contract, governance topic, or cross-service collaboration.
+      placeholder: tenant-org-service, CRM, PDA, permission-service, docs/governance, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What user, maintainer, or business problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the smallest useful capability and the expected behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Architecture boundaries
+      description: Which service owns the truth? Which contracts, events, permissions, tenant context, or audit paths might change?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What other approaches did you consider?
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Readiness
+      options:
+        - label: This request has a clear owner context or asks for help identifying one.
+          required: true
+        - label: This request does not require services to share databases.
+          required: true
