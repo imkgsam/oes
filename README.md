@@ -3,22 +3,106 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 [![CI](https://github.com/imkgsam/oes/actions/workflows/ci.yml/badge.svg)](https://github.com/imkgsam/oes/actions/workflows/ci.yml)
 
-OES is an open-source enterprise operating system monorepo for complex business software. It brings ERP, MES, WMS, CRM, SRM, finance, tenant identity, permission governance, PDA workflows, BFF/API gateway capabilities, auditability, and AI-safe collaboration patterns into one governed architecture.
+OES is a vertical enterprise application system for sanitary ceramic manufacturing. It is designed for manufacturers that need one governed software backbone across customer operations, sales, item master data, molds, production, warehousing, procurement, suppliers, finance, PDA shop-floor execution, tenant identity, permission control, and auditability.
 
-The project is not trying to be a collection of loosely related modules. Its core value is the discipline around bounded contexts, explicit service contracts, multi-tenant safety, operator context propagation, audit trails, and maintainable cross-service collaboration.
+The project is built around a concrete manufacturing domain: bathroom ceramic products, molds, materials, semi-finished goods, finished goods, production execution, warehouse movement, terminal devices, and the enterprise workflows that connect office planning with factory-floor operations.
 
 ## Why OES Exists
 
-Enterprise operating systems often fail at the boundaries: services share databases, permission logic drifts across modules, frontend screens encode business rules, and AI workflows bypass governance. OES is built to make those boundaries explicit and reviewable.
+Sanitary ceramic manufacturing has a different operating shape from generic retail, SaaS, or simple inventory systems. A real factory needs to coordinate product models, mold lifecycle, material preparation, production execution, warehouse scanning, quality-sensitive process records, sales commitments, procurement, supplier collaboration, finance settlement, terminal access, and role-based control.
 
-OES is useful for maintainers, contributors, and organizations that want to study or build:
+OES exists to make those workflows work as one system instead of as disconnected spreadsheets, isolated modules, and fragile custom integrations.
 
-- DDD-oriented enterprise service boundaries.
-- Multi-tenant identity, account, role, scope, and policy governance.
-- Contract-first collaboration through gRPC and documented BFF surfaces.
-- ERP/MES/WMS/CRM/SRM-style workflows under one architecture.
-- AI-assisted operations that remain auditable and permission-aware.
-- PDA and tenant web experiences connected to governed backend services.
+It focuses on:
+
+- Sanitary ceramic product and item master management.
+- Mold design, mold records, production mold usage, and MES-side manufacturing data.
+- Warehouse operations connected to PDA and terminal-device workflows.
+- CRM, sales, procurement, supplier, and finance collaboration around manufacturing demand.
+- Tenant, organization, employee, account, role, scope, and policy governance.
+- Auditable business execution across backend services and frontend workspaces.
+- Clear service boundaries so the system can grow without turning into a single ungoverned application.
+
+## Manufacturing Workflow Coverage
+
+OES is organized around the end-to-end operating chain of a sanitary ceramic manufacturer:
+
+```text
+Customer / CRM
+  -> Sales quotation and order collaboration
+  -> Item master, product models, categories, attributes, packaging
+  -> Mold design, mold records, and production mold management
+  -> MES production execution and shop-floor records
+  -> WMS inventory movement, PDA scanning, and terminal operations
+  -> Procurement and supplier collaboration
+  -> Finance settlement and operating visibility
+```
+
+This makes the project closer to a focused industry system than a generic ERP shell. The architecture is intentionally broad enough to cover enterprise operations, but the product narrative is grounded in manufacturing workflows that sanitary ceramic factories actually need.
+
+## What Makes OES Different
+
+- It treats manufacturing data as governed business truth, not just table CRUD.
+- It connects office workflows with PDA and terminal-driven shop-floor operations.
+- It separates system capabilities such as identity, permission, tenant organization, and audit from business capabilities such as CRM, MES, WMS, procurement, and finance.
+- It uses explicit contracts between services instead of hidden database coupling.
+- It keeps frontend workspaces, BFF APIs, service contracts, and domain logic aligned through architecture documents and service truth sources.
+- It is designed for long-lived enterprise evolution, where permissions, audit trails, and cross-service boundaries matter as much as feature screens.
+
+## Current Status
+
+OES is under active solo development. The repository already contains the core monorepo structure, backend services, BFF/API gateway modules, tenant web workspace, PDA web and Android surfaces, gRPC contracts, architecture documents, and product direction screens for mold-management workflows.
+
+The project is not presented as a finished commercial suite. It is a working vertical system foundation that is being expanded toward a complete sanitary ceramic manufacturing operating platform.
+
+Current development is focused on:
+
+- Tenant, identity, permission, and account security foundations.
+- Item master, product model, category, attribute, and packaging workflows.
+- MES mold design, mold detail, production mold, and slip-casting records.
+- PDA-oriented shop-floor login, scanning, device restriction, and workbench flows.
+- Tenant web administration, security center, and manufacturing management pages.
+- Contract consistency across backend services and BFF surfaces.
+
+See [ROADMAP.md](ROADMAP.md) for the product direction.
+
+## Representative Modules
+
+| Area | Module | Purpose |
+| --- | --- | --- |
+| Entry point | `api-gateway` | External HTTP/BFF entry for tenant web, PDA, auth, terminal, HR, item, and MES workflows. |
+| Identity foundation | `auth-service` | Authentication, sessions, login methods, terminal PIN flows, and audit-oriented auth events. |
+| Identity foundation | `identity-service` | Account identity, employee binding, and identity lookup surfaces. |
+| Governance | `permission-service` | Role, permission catalog, policy seed, and authorization foundation. |
+| Organization | `tenant-org-service` | Tenant, organization, and onboarding boundaries. |
+| People | `hr-service` | Employee records, employee-code format, HR query, and onboarding collaboration. |
+| Product data | `item-master-service` | Item models, categories, attributes, packaging, and product master data. |
+| Manufacturing | `mes-service` | Mold records, production mold management, MES surfaces, and manufacturing execution data. |
+| Customer operations | `crm-service` | Customer master and customer query/management contracts. |
+| Supply chain | `srm-service`, `procurement-service`, `wms-service` | Supplier, procurement, warehouse, and inventory-oriented business contexts. |
+| Finance | `finance-service` | Finance context foundation for settlement and operating visibility. |
+| Frontend | `app/web` | Tenant web administration and manufacturing management workspace. |
+| Shop floor | `app/pda` | PDA web/Android surfaces for device-aware operational workflows. |
+
+## Product Screens
+
+The mold-management experience is a central part of OES for sanitary ceramic manufacturing. These screens show the product direction for managing mold assets, mold-design relationships, production mold usage, and daily slip-casting records.
+
+### Mold Management Overview
+
+![Mold management overview](assets/demo-screens/mold-management-overview.png)
+
+### Mold Detail With Design Linkage
+
+![Mold detail with design linkage](assets/demo-screens/mold-detail-design-linkage.png)
+
+### Production Mold Management
+
+![Production mold management](assets/demo-screens/production-mold-management.png)
+
+### Daily Slip-casting Entry
+
+![Daily slip-casting entry](assets/demo-screens/slip-casting-entry.png)
 
 ## Repository Layout
 
@@ -56,15 +140,16 @@ For the full project baseline, start with [AGENTS.md](AGENTS.md) and [docs/index
 
 ## Main Capabilities
 
-- System foundation: auth, identity, permission, tenant organization, HR, party, asset, terminal device, and item master services.
-- Business foundation: CRM, SRM, procurement, sales, finance, WMS, and MES services.
+- Manufacturing business foundation: CRM, sales, item master, MES, WMS, SRM, procurement, and finance services.
+- Mold and production operations: mold design/detail surfaces, production mold management, MES mold records, and manufacturing workflow contracts.
+- Shop-floor execution: PDA web/Android surfaces, scanning diagnostics, terminal access policies, and device-aware login flows.
+- Enterprise system foundation: auth, identity, permission, tenant organization, HR, party, asset, terminal device, and audit-oriented service design.
 - Frontend surfaces: tenant web administration/workbench and PDA-oriented operational flows.
-- Contracts and governance: proto contracts, BFF contracts, service truth-source docs, ADRs, and Codex collaboration rules.
-- Observability and audit direction: trace context, operator context, audit metadata, and service trust architecture.
+- Contracts and architecture: proto contracts, BFF contracts, service truth-source docs, ADRs, and cross-service collaboration rules.
 
 ## Getting Started
 
-OES is a large monorepo. The commands below are the maintainer-oriented local baseline.
+OES is a large monorepo. The commands below are the local baseline for running the system foundation and tenant web workspace.
 
 ### Prerequisites
 
@@ -117,11 +202,10 @@ pnpm web
 - [Contracts index](docs/contracts/index.md)
 - [Governance index](docs/governance/index.md)
 - [Plans index](docs/plans/index.md)
-- [Open-source maintainer workflows with Codex](docs/governance/codex-oss-maintainer-workflows.md)
 
 ## Contributing
 
-OES welcomes contributors who care about long-lived enterprise architecture and clear service boundaries. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
+OES welcomes contributors who care about manufacturing software, long-lived enterprise architecture, and clear service boundaries. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
 The short version:
 
