@@ -36,5 +36,8 @@ jobs:
       - name: Lint proto contracts
         run: pnpm proto:lint
 
+      - name: Generate proto TypeScript
+        run: pnpm proto:gen
+
       - name: Build common package
         run: pnpm common:build
