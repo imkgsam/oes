@@ -3,6 +3,7 @@ import { validateSync } from 'class-validator'
 import {
   CompleteMfaDto,
   EmployeeCodePinPreflightDto,
+  LoginDto,
   RequestMfaFactorChallengeDto
 } from './login.dto'
 
@@ -52,5 +53,22 @@ describe('login dto validation', () => {
     const errors = validateSync(dto)
 
     expect(errors).toEqual([])
+  })
+
+  it('accepts but does not validate authority from a client terminal hint', () => {
+    const dto = plainToInstance(LoginDto, {
+      method: 'EMAIL_PASSWORD',
+      identifier: 'designer@example.com',
+      credential: 'secret-1',
+      terminal: 'WEB'
+    })
+
+    const errors = validateSync(dto, {
+      whitelist: true,
+      forbidNonWhitelisted: true
+    })
+
+    expect(errors).toEqual([])
+    expect(dto.terminal).toBe('WEB')
   })
 })

@@ -104,7 +104,7 @@ type RoleColumnKey =
   | 'scope'
   | 'templateRoleName'
   | 'tenantName';
-type RoleTerminal = 'KIOSK' | 'PDA' | 'WEB';
+type RoleTerminal = 'BROWSER_EXTENSION' | 'KIOSK' | 'PDA' | 'WEB';
 
 interface TableActionMenuItem<ActionKey extends string = string> {
   danger?: boolean;
@@ -426,6 +426,7 @@ const navigationTerminalOptions = [
 ];
 const terminalAccessOptions: Array<{ label: string; value: RoleTerminal }> = [
   { label: 'WEB', value: 'WEB' },
+  { label: 'Browser Extension', value: 'BROWSER_EXTENSION' },
   { label: 'PDA', value: 'PDA' },
   { label: 'KIOSK', value: 'KIOSK' },
 ];
@@ -433,6 +434,10 @@ const terminalAccessOptionMeta: Record<
   RoleTerminal,
   { description: string; icon: string }
 > = {
+  BROWSER_EXTENSION: {
+    description: '面向浏览器插件工作区、右键菜单和快捷键能力的独立终端入口。',
+    icon: 'ant-design:chrome-outlined',
+  },
   KIOSK: {
     description: '面向固定工位、自助机或门店终端的受控登录入口。',
     icon: 'ant-design:tablet-outlined',

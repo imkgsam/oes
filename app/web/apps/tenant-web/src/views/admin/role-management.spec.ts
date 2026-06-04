@@ -447,13 +447,14 @@ describe('role management page', () => {
     expect(getRoleTerminalAccessApi).toHaveBeenCalledWith('role-1');
     expect(document.body.textContent).toContain('终端准入 · System Auditor');
     expect(document.body.textContent).toContain('WEB');
+    expect(document.body.textContent).toContain('Browser Extension');
     expect(document.body.textContent).toContain('PDA');
     expect(document.body.textContent).toContain('KIOSK');
 
-    const pdaCheckbox = Array.from(
+    const extensionCheckbox = Array.from(
       document.body.querySelectorAll('input[type="checkbox"]'),
-    ).find((input) => (input as HTMLInputElement).value === 'PDA') as HTMLInputElement | undefined;
-    pdaCheckbox?.click();
+    ).find((input) => (input as HTMLInputElement).value === 'BROWSER_EXTENSION') as HTMLInputElement | undefined;
+    extensionCheckbox?.click();
     await flushPromises();
 
     const saveButton = Array.from(document.body.querySelectorAll('button')).find(
@@ -463,7 +464,7 @@ describe('role management page', () => {
     await flushPromises();
 
     expect(setRoleTerminalAccessApi).toHaveBeenCalledWith('role-1', {
-      allowedTerminals: ['WEB', 'PDA'],
+      allowedTerminals: ['WEB', 'BROWSER_EXTENSION'],
     });
   });
 
@@ -505,7 +506,7 @@ describe('role management page', () => {
 
     expect(getRoleTerminalAccessApi).toHaveBeenCalledWith('template-1');
     expect(document.body.textContent).toContain('终端准入 · 租户管理员模板');
-    expect(document.body.textContent).toContain('模板实例化时复制为角色初始终端准入');
+    expect(document.body.textContent).toContain('选择模板默认开放的登录终端');
   });
 
   it('renders tenant and source template names from the read model instead of raw ids', async () => {

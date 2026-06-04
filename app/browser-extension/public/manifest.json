@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "OES Workspace Extension",
+  "description": "OES browser terminal for workspace-aware productivity flows.",
+  "version": "0.1.0",
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "OES Workspace"
+  },
+  "permissions": ["storage"],
+  "host_permissions": ["http://localhost:9101/*", "https://*.oes.local/*"],
+  "icons": {
+    "16": "icons/icon-16.svg",
+    "32": "icons/icon-32.svg",
+    "48": "icons/icon-48.svg",
+    "128": "icons/icon-128.svg"
+  }
+}

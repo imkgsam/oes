@@ -821,7 +821,8 @@ describe('AuthGrpcController', () => {
     const queryBus = {} as ValidatingQueryBus
     const terminalLoginPolicyService = {
       getPlatformPolicy: jest.fn().mockResolvedValue([
-        new TerminalLoginPolicyEntity('WEB', [TerminalLoginFlow.EmailPassword])
+        new TerminalLoginPolicyEntity('WEB', [TerminalLoginFlow.EmailPassword]),
+        new TerminalLoginPolicyEntity('BROWSER_EXTENSION', [TerminalLoginFlow.Password])
       ]),
       updatePlatformPolicy: jest.fn().mockResolvedValue(
         new TerminalLoginPolicyEntity('WEB', [TerminalLoginFlow.EmailPassword])
@@ -846,6 +847,13 @@ describe('AuthGrpcController', () => {
           TerminalLoginFlow.PhonePassword,
           TerminalLoginFlow.PhoneOtp
         ]
+      })
+    )
+    expect(getResponse.entries?.[1]).toEqual(
+      expect.objectContaining({
+        terminal: 'BROWSER_EXTENSION',
+        enabledLoginFlows: [TerminalLoginFlow.Password],
+        supportedLoginFlows: [TerminalLoginFlow.Password]
       })
     )
 

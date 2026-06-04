@@ -7,6 +7,7 @@ import {
   SwitchContextViewModel
 } from '../../interfaces/http/view-models/session-context-switch.view-model'
 import { getAuthenticatedSelfContext } from './self-security-context'
+import { LoginTerminal } from './login.use-case'
 
 interface SwitchContextDto {
   accountId: string
@@ -29,7 +30,8 @@ export class SwitchContextUseCase {
   async execute(
     dto: SwitchContextDto,
     source: DownstreamRequestSource,
-    clientContext: SwitchContextClientContext
+    clientContext: SwitchContextClientContext,
+    terminal: LoginTerminal = 'WEB'
   ): Promise<SwitchContextViewModel> {
     const self = getAuthenticatedSelfContext(source)
     const accountId = dto.accountId.trim()
@@ -51,7 +53,8 @@ export class SwitchContextUseCase {
         deviceId: dto.device?.deviceId?.trim(),
         deviceName: dto.device?.deviceName?.trim(),
         userAgent: clientContext.userAgent?.trim(),
-        ipAddress: clientContext.ipAddress?.trim()
+        ipAddress: clientContext.ipAddress?.trim(),
+        terminal
       },
       source
     )

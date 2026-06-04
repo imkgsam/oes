@@ -306,7 +306,7 @@ export namespace AdminSecurityApi {
   export interface TerminalLoginPolicyEntry {
     enabledLoginFlows: string[];
     supportedLoginFlows: string[];
-    terminal: 'KIOSK' | 'PDA' | 'WEB';
+    terminal: 'BROWSER_EXTENSION' | 'KIOSK' | 'PDA' | 'WEB';
   }
 
   export interface PlatformTerminalLoginPolicy {
@@ -315,7 +315,7 @@ export namespace AdminSecurityApi {
 
   export interface TerminalLoginPolicyMutationEntry {
     enabledLoginFlows: string[];
-    terminal: 'KIOSK' | 'PDA' | 'WEB';
+    terminal: 'BROWSER_EXTENSION' | 'KIOSK' | 'PDA' | 'WEB';
   }
 
   export interface PlatformTerminalLoginPolicyMutationPayload {
@@ -328,7 +328,7 @@ export namespace AdminSecurityApi {
     loginMfaRequired: boolean;
     newDeviceMfaRequired: boolean;
     source?: string;
-    terminal: 'KIOSK' | 'PDA' | 'WEB';
+    terminal: 'BROWSER_EXTENSION' | 'KIOSK' | 'PDA' | 'WEB';
   }
 
   export interface PlatformTerminalMfaPolicy {

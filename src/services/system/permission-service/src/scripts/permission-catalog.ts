@@ -841,6 +841,21 @@ const terminalDeviceManagement = definePermissionGroup(Modules.TERMINAL_DEVICE_S
   }
 })
 
+const browserExtensionDesigner = definePermissionGroup(Modules.PERMISSION_SERVICE, {
+  PROJECT_CREATE: {
+    code: 'extension.designer.project.create',
+    description: '在浏览器插件 Designer Workspace 中创建选品项目'
+  },
+  PRODUCT_COLLECT: {
+    code: 'extension.designer.product.collect',
+    description: '在浏览器插件 Designer Workspace 中收藏候选产品'
+  },
+  SUBMIT_TO_OES: {
+    code: 'extension.designer.submit_to_oes',
+    description: '将浏览器插件 Designer Workspace 选品项目提交到 OES'
+  }
+})
+
 export const PERMISSION_MANAGEMENT_PERMISSION_CODES = permissionManagement.codes
 export const ROLE_TEMPLATE_PERMISSION_CODES = roleTemplateManagement.codes
 export const ROLE_INSTANCE_PERMISSION_CODES = roleInstanceManagement.codes
@@ -864,6 +879,7 @@ export const AUTH_MANAGEMENT_PERMISSION_CODES = authManagement.codes
 export const AUTH_SELF_PERMISSION_CODES = authSelfManagement.codes
 export const AUTH_SESSION_PERMISSION_CODES = authSessionManagement.codes
 export const TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES = terminalDeviceManagement.codes
+export const BROWSER_EXTENSION_DESIGNER_PERMISSION_CODES = browserExtensionDesigner.codes
 
 /** DEPRECATED_PERMISSION_CODES tracks legacy permission rows that should be cleaned from local/dev seed data. */
 export const DEPRECATED_PERMISSION_CODES = [
@@ -906,5 +922,6 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...authManagement.items,
   ...authSelfManagement.items,
   ...authSessionManagement.items,
-  ...terminalDeviceManagement.items
+  ...terminalDeviceManagement.items,
+  ...browserExtensionDesigner.items
 ]

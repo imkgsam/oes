@@ -1,10 +1,19 @@
 import {
+  permissionGrpcProtoPaths,
   resolveAuthGrpcUrl,
   resolveHrGrpcUrl,
   resolveMesGrpcUrl,
   resolveTenantOrgGrpcUrl,
   resolveTerminalDeviceGrpcUrl
 } from './app.module'
+
+describe('permissionGrpcProtoPaths', () => {
+  it('loads terminal access proto so auth-bff can resolve account terminal eligibility', () => {
+    expect(permissionGrpcProtoPaths).toContainEqual(
+      expect.stringContaining('permission_terminal_access.proto')
+    )
+  })
+})
 
 describe('resolveAuthGrpcUrl', () => {
   const originalHost = process.env.AUTH_SERVICE_HOST

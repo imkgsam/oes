@@ -250,8 +250,10 @@ export class AdminPlatformMfaPolicyViewModel {
   factors!: AdminTenantMfaFactorPolicyViewModel[]
 }
 
+const HUMAN_TERMINALS = ['WEB', 'PDA', 'KIOSK', 'BROWSER_EXTENSION'] as const
+
 export class AdminTerminalLoginPolicyEntryViewModel {
-  @ApiProperty({ enum: ['WEB', 'PDA', 'KIOSK'] })
+  @ApiProperty({ enum: HUMAN_TERMINALS })
   terminal!: string
 
   @ApiProperty({ type: String, isArray: true })
@@ -267,7 +269,7 @@ export class AdminPlatformTerminalLoginPolicyViewModel {
 }
 
 export class AdminTerminalMfaPolicyEntryViewModel {
-  @ApiProperty({ enum: ['WEB', 'PDA', 'KIOSK'] })
+  @ApiProperty({ enum: HUMAN_TERMINALS })
   terminal!: string
 
   @ApiProperty()

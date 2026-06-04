@@ -64,9 +64,49 @@ describe('SwitchContextUseCase', () => {
         deviceId: 'device-1',
         deviceName: 'Firefox on macOS',
         userAgent: 'browser',
-        ipAddress: '1.1.1.1'
+        ipAddress: '1.1.1.1',
+        terminal: 'WEB'
       },
       expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
+    )
+  })
+
+  it('preserves the fixed browser extension terminal when switching context from extension routes', async () => {
+    const authAdapter = {
+      selectAccount: jest.fn().mockResolvedValue({
+        status: LoginStatus.LOGIN_STATUS_SUCCESS,
+        accountId: 'account-designer',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        accessToken: 'next-access',
+        refreshToken: 'next-refresh',
+        expiresIn: '3600'
+      })
+    }
+
+    const useCase = new SwitchContextUseCase(authAdapter as any)
+
+    await useCase.execute(
+      { accountId: 'account-designer' },
+      {
+        user: {
+          sub: 'user-1',
+          aid: 'account-current',
+          sid: 'session-current',
+          tid: 'tenant-1',
+          scopeLevel: 'TENANT'
+        }
+      } as any,
+      {},
+      'BROWSER_EXTENSION'
+    )
+
+    expect(authAdapter.selectAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountId: 'account-designer',
+        terminal: 'BROWSER_EXTENSION'
+      }),
+      expect.anything()
     )
   })
 

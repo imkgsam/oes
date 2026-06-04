@@ -101,7 +101,7 @@ type AccountColumnKey =
   | 'scopeLevel'
   | 'userDisplayName';
 type LoginMethodActionKey = 'toggle';
-type AccountTerminal = 'KIOSK' | 'PDA' | 'WEB';
+type AccountTerminal = 'BROWSER_EXTENSION' | 'KIOSK' | 'PDA' | 'WEB';
 
 const authContextStore = useAuthContextStore();
 const createAccountForm = reactive<CreateAccountFormState>({
@@ -214,6 +214,7 @@ const currentAccountId = computed(
 );
 const terminalAccessOptions: Array<{ label: string; value: AccountTerminal }> = [
   { label: 'WEB', value: 'WEB' },
+  { label: 'Browser Extension', value: 'BROWSER_EXTENSION' },
   { label: 'PDA', value: 'PDA' },
   { label: 'KIOSK', value: 'KIOSK' },
 ];

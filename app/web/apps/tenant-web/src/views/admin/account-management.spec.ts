@@ -641,7 +641,7 @@ describe('account management page', () => {
       scopeLevel: 'TENANT',
       tenantId: 'tenant-1',
       hasOverride: true,
-      effectiveAllowedTerminals: ['PDA'],
+      effectiveAllowedTerminals: ['PDA', 'BROWSER_EXTENSION'],
     });
     const view = await import('./account-management.vue');
 
@@ -659,6 +659,7 @@ describe('account management page', () => {
 
     expect(document.body.textContent).toContain('账号专属终端准入');
     expect(document.body.textContent).toContain('PDA');
+    expect(document.body.textContent).toContain('BROWSER_EXTENSION');
 
     const saveButton = Array.from(document.body.querySelectorAll('button')).find(
       (button) => button.textContent?.includes('保存终端准入'),
@@ -669,7 +670,7 @@ describe('account management page', () => {
     expect(replaceAccountTerminalAccessOverrideApi).toHaveBeenCalledWith(
       '9894c123-0f4b-452e-812f-f7cc9eed6006',
       {
-        allowedTerminals: ['PDA'],
+        allowedTerminals: ['PDA', 'BROWSER_EXTENSION'],
         scopeLevel: 'TENANT',
         tenantId: 'tenant-1',
       },

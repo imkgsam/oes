@@ -67,6 +67,7 @@ Phase 1 外部登录入口只实现：
 - `/auth/*`：Web 登录闭环，固定 `terminal=WEB`
 - `/pda/auth/*`：PDA 登录闭环，固定 `terminal=PDA`
 - `/kiosk/auth/*`：KIOSK 登录闭环，固定 `terminal=KIOSK`
+- `/extension/auth/*`：browser extension 登录闭环，固定 `terminal=BROWSER_EXTENSION`
 
 客户端请求不能自由声明 terminal 后被信任。若未来 HTTP payload 携带 terminal 意图，BFF 也必须按入口校验并归一化。
 
@@ -81,7 +82,9 @@ client
 -> permission-service gRPC ResolveAccountTerminalAccess
 ```
 
-账号密码 / OTP 等主认证通过后，候选账号仍按当前身份链路返回，不在 account options 阶段过滤 terminal access。
+账号密码 / OTP 等主认证通过后，Web 候选账号仍按当前身份链路返回，不在 account options 阶段过滤 terminal access。
+
+Browser extension terminal 是当前规则的第一阶段例外：`/extension/auth/login` 返回 account options 时，应只返回允许 `BROWSER_EXTENSION` terminal 登录的账号。若过滤后没有可选账号，应返回稳定 denial，例如 `NO_SELECTABLE_ACCOUNT_FOR_TERMINAL`，而不是返回空 options 让前端猜测。PDA Phase 2 不提供 account selection，仍按设备绑定租户解析唯一可用账号。
 
 用户选择 account 后：
 

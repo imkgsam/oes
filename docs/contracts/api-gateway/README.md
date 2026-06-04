@@ -31,8 +31,8 @@
   - tenant-web 后台 terminal device enrollment、设备列表/详情、状态操作、版本策略与审计查询契约
 - [kiosk-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/kiosk-auth-bff-login.md)
   - KIOSK 专用登录闭环与 session context 契约
-- [auth-bff-extension-connect.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-extension-connect.md)
-  - 浏览器插件显式连接授权与扩展端 session 建立契约
+- [extension-auth-bff-login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/extension-auth-bff-login.md)
+  - 浏览器插件专用登录闭环、extension terminal session 与 launcher 初始化契约草案
 - [navigation-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/navigation-summary.md)
   - 登录后导航可见性摘要契约
 - [access-summary.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/access-summary.md)
@@ -51,8 +51,6 @@
   - Tenant onboarding BFF 目标契约草案；当前为设计对齐用，尚未实现
 - [mes-mold-management.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/mes-mold-management.md)
   - MES 模具管理第一阶段 web 手工闭环 BFF 契约
-- [browser-prospecting-workspace.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/browser-prospecting-workspace.md)
-  - Chrome 插件销售背调工作区 BFF 契约草案；当前为设计对齐用，尚未实现
 
 ## 4. 契约实现参考
 

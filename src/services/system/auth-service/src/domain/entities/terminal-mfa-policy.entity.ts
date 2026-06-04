@@ -37,7 +37,7 @@ export class TerminalMfaPolicyEntity {
   }
 
   static platformDefaults(): TerminalMfaPolicyEntity[] {
-    return ['WEB', 'PDA', 'KIOSK'].map(
+    return ['WEB', 'PDA', 'KIOSK', 'BROWSER_EXTENSION'].map(
       (terminal) =>
         new TerminalMfaPolicyEntity({
           terminal,

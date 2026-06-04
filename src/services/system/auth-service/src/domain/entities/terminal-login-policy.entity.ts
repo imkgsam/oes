@@ -31,7 +31,8 @@ export class TerminalLoginPolicyEntity {
         TerminalLoginFlow.Password,
         TerminalLoginFlow.EmployeeCodePin
       ]),
-      new TerminalLoginPolicyEntity('KIOSK', [])
+      new TerminalLoginPolicyEntity('KIOSK', []),
+      new TerminalLoginPolicyEntity('BROWSER_EXTENSION', [TerminalLoginFlow.Password])
     ]
   }
 

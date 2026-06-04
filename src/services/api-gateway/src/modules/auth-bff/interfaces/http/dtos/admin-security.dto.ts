@@ -354,9 +354,11 @@ export class AdminTenantMfaPolicyMutationDto {
 export class AdminPlatformMfaPolicyMutationDto extends AdminTenantMfaPolicyMutationDto {}
 
 // Defines one platform terminal-login policy row accepted by platform auth security settings.
+const HUMAN_TERMINALS = ['WEB', 'PDA', 'KIOSK', 'BROWSER_EXTENSION'] as const
+
 export class AdminTerminalLoginPolicyEntryDto {
-  @ApiProperty({ enum: ['WEB', 'PDA', 'KIOSK'] })
-  @IsIn(['WEB', 'PDA', 'KIOSK'])
+  @ApiProperty({ enum: HUMAN_TERMINALS })
+  @IsIn(HUMAN_TERMINALS)
   terminal!: string
 
   @ApiProperty({ type: String, isArray: true })
@@ -376,8 +378,8 @@ export class AdminPlatformTerminalLoginPolicyMutationDto {
 
 // Defines one terminal-aware MFA policy row accepted by admin security settings.
 export class AdminTerminalMfaPolicyEntryDto {
-  @ApiProperty({ enum: ['WEB', 'PDA', 'KIOSK'] })
-  @IsIn(['WEB', 'PDA', 'KIOSK'])
+  @ApiProperty({ enum: HUMAN_TERMINALS })
+  @IsIn(HUMAN_TERMINALS)
   terminal!: string
 
   @ApiProperty()

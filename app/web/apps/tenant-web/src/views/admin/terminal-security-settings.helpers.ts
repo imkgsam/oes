@@ -1,4 +1,4 @@
-export type TerminalCode = 'KIOSK' | 'PDA' | 'WEB';
+export type TerminalCode = 'BROWSER_EXTENSION' | 'KIOSK' | 'PDA' | 'WEB';
 
 export type TerminalMfaFactorCode =
   | 'BACKUP_CODE'
@@ -6,7 +6,7 @@ export type TerminalMfaFactorCode =
   | 'SMS_OTP'
   | 'TOTP';
 
-const TERMINAL_ORDER: TerminalCode[] = ['WEB', 'PDA', 'KIOSK'];
+const TERMINAL_ORDER: TerminalCode[] = ['WEB', 'BROWSER_EXTENSION', 'PDA', 'KIOSK'];
 
 const TERMINAL_LOGIN_FLOW_LABELS: Record<string, string> = {
   BADGE_PIN: '工牌扫码 + PIN',
@@ -21,6 +21,9 @@ const TERMINAL_LOGIN_FLOW_LABELS: Record<string, string> = {
 // Maps one terminal code into the stable label used by terminal-aware security settings pages.
 export function getTerminalLabel(terminal: string) {
   switch (terminal) {
+    case 'BROWSER_EXTENSION': {
+      return 'Browser Extension / 浏览器插件';
+    }
     case 'KIOSK': {
       return 'Kiosk / 触控终端';
     }
@@ -53,7 +56,7 @@ export function getTerminalMfaSourceLabel(source?: string) {
   }
 }
 
-// Sorts terminal rows into a predictable Web, PDA, Kiosk order while preserving unknown terminals last.
+// Sorts terminal rows into a predictable Web, browser-extension, PDA, Kiosk order while preserving unknown terminals last.
 export function orderTerminalEntries<T extends { terminal: string }>(entries: T[]) {
   return entries.toSorted((left, right) => {
     const leftIndex = TERMINAL_ORDER.indexOf(left.terminal as TerminalCode);
@@ -76,4 +79,3 @@ export function requiresTerminalMfaOperationalConfirmation(
       (entry.loginMfaRequired || entry.newDeviceMfaRequired),
   );
 }
-

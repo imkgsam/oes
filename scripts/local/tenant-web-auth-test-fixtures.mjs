@@ -1,4 +1,4 @@
-export const DEFAULT_PASSWORD = 'Passw0rd!123';
+export const DEFAULT_PASSWORD = 'imkgsam6593';
 export const DEFAULT_OTP_CODE = '123456';
 export const LEGACY_IDENTIFIERS = ['ui.tester@oes.local', '+8613800000001'];
 
@@ -467,11 +467,11 @@ export const SEEDED_USERS = [
     partyId: employeeByKey.get('meilong.chen-shuangpeng').partyId,
     personName: '陈双鹏',
     username: 'chen.shuangpeng',
-    email: 'chen.shuangpeng@meilong.local',
+    email: 'csp@ml.lc',
     phone: '+8613900000101',
     avatarUrl: buildSeedAvatar({ accent: '#0f766e', label: 'SP' }),
     accounts: [
-      { key: 'account.chen-shuangpeng.meilong', id: makeUuid(901), scopeLevel: 'TENANT', companyKey: 'meilong', displayName: '陈双鹏', workEmail: 'chen.shuangpeng@meilong.local', bindEmployeeKey: 'meilong.chen-shuangpeng', primaryOrgKey: 'meilong.office', roleCodes: ['tenant.admin'] },
+      { key: 'account.chen-shuangpeng.meilong', id: makeUuid(901), scopeLevel: 'TENANT', companyKey: 'meilong', displayName: '陈双鹏', workEmail: 'csp@ml.lc', bindEmployeeKey: 'meilong.chen-shuangpeng', primaryOrgKey: 'meilong.office', roleCodes: ['tenant.admin', 'extension.designer'] },
       { key: 'account.chen-shuangpeng.system', id: makeUuid(902), scopeLevel: 'SYSTEM', contextKey: 'SYSTEM', displayName: '陈双鹏', roleCodes: ['system.admin'] },
     ],
   },
@@ -563,7 +563,7 @@ export const SEEDED_USERS = [
     phone: '+8613900000108',
     avatarUrl: buildSeedAvatar({ accent: '#334155', label: 'JH' }),
     accounts: [
-      { key: 'account.tang-jiahe.beichen', id: makeUuid(909), scopeLevel: 'TENANT', companyKey: 'beichen', displayName: '唐嘉禾', workEmail: 'tang.jiahe@beichen.local', bindEmployeeKey: 'beichen.tang-jiahe', primaryOrgKey: 'beichen.ecommerce', roleCodes: [] },
+      { key: 'account.tang-jiahe.beichen', id: makeUuid(909), scopeLevel: 'TENANT', companyKey: 'beichen', displayName: '唐嘉禾', workEmail: 'tang.jiahe@beichen.local', bindEmployeeKey: 'beichen.tang-jiahe', primaryOrgKey: 'beichen.ecommerce', roleCodes: ['extension.designer'] },
     ],
   },
   {
@@ -616,6 +616,14 @@ const SEEDED_TENANT_ROLE_TEMPLATES = [
     code: 'item_master.product_data_manager',
     name: 'Item 主数据管理员',
     description: '本地 Item 主数据管理员角色实例。',
+    allowTenantPermissionOverride: true,
+    isProtected: false,
+  },
+  {
+    templateRoleId: '2cf72f72-e04a-4946-b8c0-22f120f82006',
+    code: 'extension.designer',
+    name: '插件设计师',
+    description: '本地浏览器插件 Designer Workspace demo 角色实例。',
     allowTenantPermissionOverride: true,
     isProtected: false,
   },
@@ -714,6 +722,12 @@ const ITEM_MASTER_PRODUCT_DATA_MANAGER_PERMISSION_CODES = [
   'item_master.supplier_item_mapping.upsert',
 ];
 
+const EXTENSION_DESIGNER_PERMISSION_CODES = [
+  'extension.designer.project.create',
+  'extension.designer.product.collect',
+  'extension.designer.submit_to_oes',
+];
+
 const ACCOUNT_BASIC_PERMISSION_CODES = [
   'identity.account.self.read',
   'identity.account.self.update_profile',
@@ -731,6 +745,7 @@ export const SEEDED_TENANT_ROLE_PERMISSION_CODES = new Map([
   ['hr.admin', HR_ADMIN_PERMISSION_CODES],
   ['account.basic', ACCOUNT_BASIC_PERMISSION_CODES],
   ['item_master.product_data_manager', ITEM_MASTER_PRODUCT_DATA_MANAGER_PERMISSION_CODES],
+  ['extension.designer', EXTENSION_DESIGNER_PERMISSION_CODES],
 ]);
 
 function resolveSeedAccountRoleCodes(account) {
@@ -763,6 +778,7 @@ export const EXPECTED_ROLE_CODES = new Set([
   'hr.admin',
   'account.basic',
   'item_master.product_data_manager',
+  'extension.designer',
 ]);
 
 export const MANAGED_TENANT_IDS = SEEDED_COMPANIES.map((company) => company.id);
@@ -831,11 +847,75 @@ export function buildPdaLoginSmokeSeed() {
     },
     terminalLoginPolicy: {
       terminal: 'PDA',
-      enabledLoginFlows: ['PASSWORD', 'EMAIL_PASSWORD'],
+      enabledLoginFlows: ['PASSWORD'],
     },
     tenantTerminalMfaPolicy: {
       tenantId: tenant.id,
       terminal: 'PDA',
+      loginMfaRequired: false,
+      newDeviceMfaRequired: false,
+      allowedFactors: ['EMAIL_OTP', 'SMS_OTP', 'TOTP', 'BACKUP_CODE'],
+      factorPriority: ['EMAIL_OTP', 'SMS_OTP', 'TOTP', 'BACKUP_CODE'],
+    },
+  };
+}
+
+// Builds the deterministic local browser-extension designer login grant for the first plugin demo.
+export function buildBrowserExtensionDesignerDemoSeed() {
+  const tenantKey = 'meilong';
+  const accountKey = 'account.chen-shuangpeng.meilong';
+  const navigationRoleCode = 'extension.designer';
+  const tenant = companyByKey.get(tenantKey);
+  const account = accountByKey.get(accountKey);
+  const user = SEEDED_USERS.find((candidate) => candidate.id === account?.userId);
+  const navigationRole = buildSeedTenantRoles().find(
+    (role) => role.tenantId === tenant?.id && role.code === navigationRoleCode
+  );
+
+  if (!tenant || !account || !user || !navigationRole) {
+    throw new Error('Browser extension designer demo seed fixtures are incomplete.');
+  }
+
+  return {
+    key: 'browser-extension-designer-demo',
+    tenantKey,
+    tenantId: tenant.id,
+    accountKey,
+    accountId: account.id,
+    userId: user.id,
+    identifier: user.email,
+    password: DEFAULT_PASSWORD,
+    terminal: 'BROWSER_EXTENSION',
+    accountTerminalAccessOverride: {
+      accountId: account.id,
+      scopeLevel: 'TENANT',
+      tenantId: tenant.id,
+      allowedTerminals: ['WEB', 'PDA', 'BROWSER_EXTENSION'],
+    },
+    roleTerminalAccess: {
+      roleId: navigationRole.id,
+      allowedTerminals: ['WEB', 'BROWSER_EXTENSION'],
+    },
+    roleNavigationVisibility: {
+      roleId: navigationRole.id,
+      entryKey: 'extension.designer.workspace',
+      terminal: 'BROWSER_EXTENSION',
+      enabled: true,
+    },
+    roleLandingPolicy: {
+      roleId: navigationRole.id,
+      terminal: 'BROWSER_EXTENSION',
+      defaultEntryKey: 'extension.designer.workspace',
+      priority: 1000,
+      enabled: true,
+    },
+    terminalLoginPolicy: {
+      terminal: 'BROWSER_EXTENSION',
+      enabledLoginFlows: ['PASSWORD'],
+    },
+    tenantTerminalMfaPolicy: {
+      tenantId: tenant.id,
+      terminal: 'BROWSER_EXTENSION',
       loginMfaRequired: false,
       newDeviceMfaRequired: false,
       allowedFactors: ['EMAIL_OTP', 'SMS_OTP', 'TOTP', 'BACKUP_CODE'],

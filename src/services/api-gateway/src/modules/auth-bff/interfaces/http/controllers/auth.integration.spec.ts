@@ -21,7 +21,9 @@ import {
 } from '@oes/common/generated/auth_service'
 import {
   PermissionCheckServiceController,
-  PermissionCheckServiceControllerMethods
+  PermissionCheckServiceControllerMethods,
+  PermissionTerminalAccessServiceController,
+  PermissionTerminalAccessServiceControllerMethods
 } from '@oes/common/generated/permission_service'
 import {
   DeviceAccessDecisionCode,
@@ -89,11 +91,18 @@ type ObservedCallState = {
     targetSessionId?: string
     userId?: string
   }
+  resolvedTerminalAccessRequests: Array<{
+    accountId?: string
+    tenantId?: string
+    scopeLevel?: string
+    terminal?: string
+  }>
   checkedPermissions: string[]
   revokedSessionIds: Set<string>
 }
 
 const observedState: ObservedCallState = {
+  resolvedTerminalAccessRequests: [],
   checkedPermissions: [],
   revokedSessionIds: new Set<string>()
 }
@@ -888,6 +897,34 @@ class TestPermissionGrpcController implements PermissionCheckServiceController {
   }
 }
 
+// Resolves terminal eligibility in auth-bff integration tests without bypassing the permission gRPC contract.
+@Controller()
+@PermissionTerminalAccessServiceControllerMethods()
+class TestPermissionTerminalAccessGrpcController
+  implements PermissionTerminalAccessServiceController
+{
+  resolveAccountTerminalAccess(request: {
+    accountId?: string
+    tenantId?: string
+    scopeLevel?: string
+    terminal?: string
+  }) {
+    observedState.resolvedTerminalAccessRequests.push({
+      accountId: request.accountId ?? undefined,
+      tenantId: request.tenantId ?? undefined,
+      scopeLevel: request.scopeLevel ?? undefined,
+      terminal: request.terminal ?? undefined
+    })
+    return {
+      allowed: true,
+      reasonCode: 'ALLOW',
+      effectiveAllowedTerminals: [request.terminal ?? 'WEB'],
+      resolutionSource: 'TEST_POLICY',
+      matchedRoleIds: ['role-1']
+    }
+  }
+}
+
 // Implements the downstream identity-service gRPC contract used by the auth-bff integration test.
 @Controller()
 class TestIdentityGrpcController {
@@ -1036,7 +1073,7 @@ class TestAuthGrpcModule {}
 
 // Hosts the test permission-service gRPC controller used by the gateway integration harness.
 @Module({
-  controllers: [TestPermissionGrpcController]
+  controllers: [TestPermissionGrpcController, TestPermissionTerminalAccessGrpcController]
 })
 class TestPermissionGrpcModule {}
 
@@ -1090,7 +1127,8 @@ class TestTerminalDeviceGrpcModule {}
             resolveCommonProtoPath('permission_service/policy_management.proto'),
             resolveCommonProtoPath('permission_service/permission_management.proto'),
             resolveCommonProtoPath('permission_service/permission_check.proto'),
-            resolveCommonProtoPath('permission_service/permission_access_summary.proto')
+            resolveCommonProtoPath('permission_service/permission_access_summary.proto'),
+            resolveCommonProtoPath('permission_service/permission_terminal_access.proto')
           ],
           packageName: 'permission_service',
           url: `127.0.0.1:${PERMISSION_PORT}`
@@ -1176,7 +1214,8 @@ describe('AuthBff gateway integration', () => {
           package: 'permission_service',
           protoPath: [
             resolveCommonProtoPath('permission_service/permission_check.proto'),
-            resolveCommonProtoPath('permission_service/permission_access_summary.proto')
+            resolveCommonProtoPath('permission_service/permission_access_summary.proto'),
+            resolveCommonProtoPath('permission_service/permission_terminal_access.proto')
           ],
           url: `127.0.0.1:${PERMISSION_PORT}`
         }
@@ -1301,6 +1340,7 @@ describe('AuthBff gateway integration', () => {
     observedState.updatePlatformMfaPolicyRequest = undefined
     observedState.updatePlatformMfaPolicyOperatorContext = undefined
     observedState.checkedPermissions = []
+    observedState.resolvedTerminalAccessRequests = []
     observedState.revokedSessionIds.clear()
     allowedPermissions.clear()
   })
@@ -1357,6 +1397,26 @@ describe('AuthBff gateway integration', () => {
       expect.objectContaining({
         email: 'worker@example.com',
         terminal: 'PDA'
+      })
+    )
+  })
+
+  it('routes extension login with a server-fixed browser extension terminal', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/extension/auth/login')
+      .set('User-Agent', 'OES Browser Extension/1.0')
+      .send({
+        method: 'EMAIL_PASSWORD',
+        identifier: 'designer@example.com',
+        credential: 'secret-1',
+        terminal: 'WEB'
+      })
+      .expect(201)
+
+    expect(observedState.emailPasswordLoginRequest).toEqual(
+      expect.objectContaining({
+        email: 'designer@example.com',
+        terminal: 'BROWSER_EXTENSION'
       })
     )
   })

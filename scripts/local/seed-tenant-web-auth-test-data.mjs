@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import {
   buildSeedAccountRoleBindings,
   buildSeedAccounts,
+  buildBrowserExtensionDesignerDemoSeed,
   buildSeedContactAssets,
   buildSeedEmployments,
   buildSeedHrEmployees,
@@ -119,6 +120,7 @@ const SEEDED_TENANT_ROLES = buildSeedTenantRoles();
 const SEEDED_USERS_DATA = buildSeedUsers();
 const SEEDED_ACCOUNT_ROLE_BINDINGS = buildSeedAccountRoleBindings();
 const PDA_LOGIN_SMOKE_SEED = buildPdaLoginSmokeSeed();
+const BROWSER_EXTENSION_DESIGNER_DEMO_SEED = buildBrowserExtensionDesignerDemoSeed();
 const SEEDED_USER_IDENTIFIERS = {
   usernames: SEEDED_USERS_DATA.map((user) => user.username).filter(Boolean),
   emails: SEEDED_USERS_DATA.map((user) => user.email).filter(Boolean),
@@ -429,6 +431,44 @@ async function seedAuth(auth, passwordHash) {
         updatedBy: 'seed:pda-login-smoke',
       },
     });
+
+    await tx.terminalLoginPolicy.upsert({
+      where: { terminal: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.terminalLoginPolicy.terminal },
+      update: {
+        enabledLoginFlows: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.terminalLoginPolicy.enabledLoginFlows,
+        updatedBy: 'seed:browser-extension-designer-demo',
+      },
+      create: {
+        terminal: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.terminalLoginPolicy.terminal,
+        enabledLoginFlows: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.terminalLoginPolicy.enabledLoginFlows,
+        updatedBy: 'seed:browser-extension-designer-demo',
+      },
+    });
+
+    await tx.tenantTerminalMfaPolicy.upsert({
+      where: {
+        tenantId_terminal: {
+          tenantId: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantTerminalMfaPolicy.tenantId,
+          terminal: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantTerminalMfaPolicy.terminal,
+        },
+      },
+      update: {
+        loginMfaRequired: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantTerminalMfaPolicy.loginMfaRequired,
+        newDeviceMfaRequired: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantTerminalMfaPolicy.newDeviceMfaRequired,
+        allowedFactors: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantTerminalMfaPolicy.allowedFactors,
+        factorPriority: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantTerminalMfaPolicy.factorPriority,
+        updatedBy: 'seed:browser-extension-designer-demo',
+      },
+      create: {
+        tenantId: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantTerminalMfaPolicy.tenantId,
+        terminal: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantTerminalMfaPolicy.terminal,
+        loginMfaRequired: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantTerminalMfaPolicy.loginMfaRequired,
+        newDeviceMfaRequired: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantTerminalMfaPolicy.newDeviceMfaRequired,
+        allowedFactors: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantTerminalMfaPolicy.allowedFactors,
+        factorPriority: BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantTerminalMfaPolicy.factorPriority,
+        updatedBy: 'seed:browser-extension-designer-demo',
+      },
+    });
   });
 }
 
@@ -633,6 +673,81 @@ async function seedPdaLoginSmokeAccess(permission) {
   });
 }
 
+// Ensures the local browser-extension designer demo account can enter only the plugin workspace.
+async function seedBrowserExtensionDesignerDemoAccess(permission) {
+  const demo = BROWSER_EXTENSION_DESIGNER_DEMO_SEED;
+  await permission.$transaction(async (tx) => {
+    const navigationEntry = await tx.navigationEntry.findUnique({
+      where: { entryKey: demo.roleNavigationVisibility.entryKey },
+      select: { entryKey: true },
+    });
+    if (!navigationEntry) {
+      throw new Error('Missing extension.designer.workspace navigation entry. Run permission foundation seed first.');
+    }
+
+    const navigationRole = await tx.role.findUnique({
+      where: { id: demo.roleNavigationVisibility.roleId },
+      select: { id: true },
+    });
+    if (!navigationRole) {
+      throw new Error('Missing browser-extension designer role. Run tenant-web seed roles first.');
+    }
+
+    await tx.accountTerminalAccessOverride.deleteMany({
+      where: {
+        accountId: demo.accountTerminalAccessOverride.accountId,
+        scopeLevel: ScopeLevel[demo.accountTerminalAccessOverride.scopeLevel],
+        tenantId: demo.accountTerminalAccessOverride.tenantId,
+      },
+    });
+    await tx.accountTerminalAccessOverride.create({
+      data: {
+        accountId: demo.accountTerminalAccessOverride.accountId,
+        scopeLevel: ScopeLevel[demo.accountTerminalAccessOverride.scopeLevel],
+        tenantId: demo.accountTerminalAccessOverride.tenantId,
+        allowedTerminals: demo.accountTerminalAccessOverride.allowedTerminals,
+      },
+    });
+
+    await tx.roleTerminalAccess.upsert({
+      where: { roleId: demo.roleTerminalAccess.roleId },
+      update: {
+        allowedTerminals: demo.roleTerminalAccess.allowedTerminals,
+      },
+      create: demo.roleTerminalAccess,
+    });
+
+    await tx.roleNavigationVisibility.upsert({
+      where: {
+        roleId_entryKey_terminal: {
+          roleId: demo.roleNavigationVisibility.roleId,
+          entryKey: demo.roleNavigationVisibility.entryKey,
+          terminal: demo.roleNavigationVisibility.terminal,
+        },
+      },
+      update: {
+        enabled: demo.roleNavigationVisibility.enabled,
+      },
+      create: demo.roleNavigationVisibility,
+    });
+
+    await tx.roleLandingPolicy.upsert({
+      where: {
+        roleId_terminal_defaultEntryKey: {
+          roleId: demo.roleLandingPolicy.roleId,
+          terminal: demo.roleLandingPolicy.terminal,
+          defaultEntryKey: demo.roleLandingPolicy.defaultEntryKey,
+        },
+      },
+      update: {
+        priority: demo.roleLandingPolicy.priority,
+        enabled: demo.roleLandingPolicy.enabled,
+      },
+      create: demo.roleLandingPolicy,
+    });
+  });
+}
+
 // Rebuilds tenant and org-unit truth in tenant-org-service for the organization workspace tree.
 async function seedTenantOrg(tenantOrg) {
   await tenantOrg.$transaction(async (tx) => {
@@ -643,6 +758,7 @@ async function seedTenantOrg(tenantOrg) {
       data: SEEDED_TENANT_ORG_TENANTS.map((tenant) => ({
         id: tenant.id,
         code: tenant.code,
+        employeeCodePrefix: tenant.employeeCodePrefix,
         name: tenant.name,
         rootOrgId: tenant.rootOrgId,
         status: TenantStatus[tenant.status],
@@ -771,6 +887,9 @@ function printSummary() {
   console.log(
     `PDA smoke login: ${PDA_LOGIN_SMOKE_SEED.identifier} / tenant ${PDA_LOGIN_SMOKE_SEED.tenantId}`
   );
+  console.log(
+    `Browser extension designer demo: ${BROWSER_EXTENSION_DESIGNER_DEMO_SEED.identifier} / tenant ${BROWSER_EXTENSION_DESIGNER_DEMO_SEED.tenantId}`
+  );
   console.log(`Password: ${DEFAULT_PASSWORD}`);
   console.log(`OTP: ${DEFAULT_OTP_CODE}`);
 }
@@ -819,6 +938,7 @@ async function main() {
     await seedPermission(permission);
     syncPermissionFoundationForLocalSystemAccount();
     await seedPdaLoginSmokeAccess(permission);
+    await seedBrowserExtensionDesignerDemoAccess(permission);
     printSummary();
   } finally {
     await Promise.allSettled([

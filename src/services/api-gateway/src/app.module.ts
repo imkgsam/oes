@@ -86,6 +86,15 @@ function normalizeLocalhostGrpcHost(host: string) {
   return host === 'localhost' ? '127.0.0.1' : host
 }
 
+/** permissionGrpcProtoPaths lists every permission-service contract used by api-gateway adapters. */
+export const permissionGrpcProtoPaths = [
+  resolveCommonProtoPath('permission_service/policy_management.proto'),
+  resolveCommonProtoPath('permission_service/permission_management.proto'),
+  resolveCommonProtoPath('permission_service/permission_check.proto'),
+  resolveCommonProtoPath('permission_service/permission_access_summary.proto'),
+  resolveCommonProtoPath('permission_service/permission_terminal_access.proto')
+]
+
 @Module({
   imports: [
     RegistryModule,
@@ -112,12 +121,7 @@ function normalizeLocalhostGrpcHost(host: string) {
         },
         [SERVICE_NAMES.PERMISSION]: {
           serviceName: SERVICE_NAMES.PERMISSION,
-          protoPath: [
-            resolveCommonProtoPath('permission_service/policy_management.proto'),
-            resolveCommonProtoPath('permission_service/permission_management.proto'),
-            resolveCommonProtoPath('permission_service/permission_check.proto'),
-            resolveCommonProtoPath('permission_service/permission_access_summary.proto')
-          ],
+          protoPath: permissionGrpcProtoPaths,
           packageName: 'permission_service',
           url:
             process.env.PERMISSION_SERVICE_HOST && process.env.PERMISSION_SERVICE_PORT

@@ -11,16 +11,27 @@ describe('TerminalLoginPolicyEntity', () => {
     expect(webPolicy?.isFlowAllowed(TerminalLoginFlow.PhoneOtp)).toBe(true)
   })
 
-  it('enables PASSWORD only for the PDA default policy', () => {
+  it('enables PDA implemented login flows by default', () => {
     const pdaPolicy = TerminalLoginPolicyEntity.defaults().find((policy) => policy.terminal === 'PDA')
 
-    expect(pdaPolicy?.getEnabledFlows()).toEqual([TerminalLoginFlow.Password])
+    expect(pdaPolicy?.getEnabledFlows()).toEqual([
+      TerminalLoginFlow.Password,
+      TerminalLoginFlow.EmployeeCodePin
+    ])
   })
 
   it('keeps KIOSK without enabled Phase 2 login flows by default', () => {
     const kioskPolicy = TerminalLoginPolicyEntity.defaults().find((policy) => policy.terminal === 'KIOSK')
 
     expect(kioskPolicy?.getEnabledFlows()).toEqual([])
+  })
+
+  it('enables password login for the browser extension default policy', () => {
+    const extensionPolicy = TerminalLoginPolicyEntity.defaults().find(
+      (policy) => policy.terminal === 'BROWSER_EXTENSION'
+    )
+
+    expect(extensionPolicy?.getEnabledFlows()).toEqual([TerminalLoginFlow.Password])
   })
 
   it('rejects unsupported login flows when replacing enabled flows', () => {

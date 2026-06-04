@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { ArrayUnique, IsArray, IsIn, IsString, IsUUID, ValidateIf } from 'class-validator'
 
-const TERMINALS = ['WEB', 'PDA', 'KIOSK'] as const
+const TERMINALS = ['WEB', 'PDA', 'KIOSK', 'BROWSER_EXTENSION'] as const
 
 // Captures the scope context required to read account terminal access through permission-service.
 export class AccountTerminalAccessQueryDto {

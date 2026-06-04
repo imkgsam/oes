@@ -38,7 +38,8 @@ describe('navigation foundation seed', () => {
       'admin.terminal-device-management',
       'admin.navigation-management',
       'pda.home',
-      'kiosk.home'
+      'kiosk.home',
+      'extension.designer.workspace'
     ])
   })
 
@@ -73,7 +74,8 @@ describe('navigation foundation seed', () => {
       '终端设备管理',
       '导航管理',
       'PDA 首页',
-      '触摸屏首页'
+      '触摸屏首页',
+      'Designer Workspace'
     ])
   })
 
@@ -159,6 +161,11 @@ describe('navigation foundation seed', () => {
       {
         id: 'template-mes-supervisor',
         code: 'mes.forming_workshop.supervisor',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'template-extension-designer',
+        code: 'extension.designer',
         kind: RoleKind.SYSTEM_TEMPLATE
       }
     ])
@@ -397,6 +404,12 @@ describe('navigation foundation seed', () => {
         entryKey: 'mes.mold-management',
         terminal: 'DEFAULT',
         enabled: true
+      },
+      {
+        roleId: 'template-extension-designer',
+        entryKey: 'workbench.home',
+        terminal: 'DEFAULT',
+        enabled: true
       }
     ])
   })
@@ -431,6 +444,11 @@ describe('navigation foundation seed', () => {
       {
         id: 'template-mes-supervisor',
         code: 'mes.forming_workshop.supervisor',
+        kind: RoleKind.SYSTEM_TEMPLATE
+      },
+      {
+        id: 'template-extension-designer',
+        code: 'extension.designer',
         kind: RoleKind.SYSTEM_TEMPLATE
       }
     ])
@@ -473,6 +491,13 @@ describe('navigation foundation seed', () => {
       },
       {
         roleId: 'template-mes-supervisor',
+        terminal: 'DEFAULT',
+        defaultEntryKey: 'workbench.home',
+        priority: 0,
+        enabled: true
+      },
+      {
+        roleId: 'template-extension-designer',
         terminal: 'DEFAULT',
         defaultEntryKey: 'workbench.home',
         priority: 0,

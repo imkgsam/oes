@@ -71,7 +71,8 @@ const NAVIGATION_VISIBILITY_ENTRY_KEYS_BY_ROLE_CODE: Record<string, string[]> = 
     'master-data.item-packaging-management',
     'master-data.item-bom-management'
   ],
-  'mes.forming_workshop.supervisor': ['workbench.home', 'mes.mold-management']
+  'mes.forming_workshop.supervisor': ['workbench.home', 'mes.mold-management'],
+  'extension.designer': ['workbench.home']
 }
 
 /** DEPRECATED_NAVIGATION_ENTRY_KEYS disables removed built-in entries during seed sync. */
@@ -376,6 +377,16 @@ export const DEFAULT_NAVIGATION_ENTRIES: NavigationEntrySeed[] = [
     featureKey: 'kiosk',
     supportedTerminals: ['KIOSK'],
     registryPriority: 29,
+    enabled: true,
+    entryType: 'workspace'
+  },
+  {
+    entryKey: 'extension.designer.workspace',
+    name: 'Designer Workspace',
+    description: '浏览器插件设计师选品、加入项目并提交到 OES 的 demo workspace。',
+    featureKey: 'browser-extension',
+    supportedTerminals: ['BROWSER_EXTENSION'],
+    registryPriority: 30,
     enabled: true,
     entryType: 'workspace'
   }

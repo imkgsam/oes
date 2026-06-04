@@ -5,6 +5,7 @@ import { AuthorizationModule } from '@oes/common/authorization'
 import { PermissionServiceProxyModule } from '../permission-service/permission-service.module'
 import { AuthController } from './interfaces/http/controllers/auth.controller'
 import {
+  ExtensionAuthController,
   KioskAuthController,
   PdaAuthController
 } from './interfaces/http/controllers/terminal-auth.controller'
@@ -13,6 +14,7 @@ import { AssetGrpcAdapter } from './infrastructure/downstream/asset-service/asse
 import { IdentityQueryGrpcAdapter } from './infrastructure/downstream/identity-service/identity-query-grpc.adapter'
 import { PartyQueryGrpcAdapter } from './infrastructure/downstream/party-service/party-query-grpc.adapter'
 import { PermissionAccessSummaryGrpcAdapter } from './infrastructure/downstream/permission-service/permission-access-summary-grpc.adapter'
+import { PermissionTerminalAccessGrpcAdapter } from './infrastructure/downstream/permission-service/permission-terminal-access-grpc.adapter'
 import { TenantOrgQueryGrpcAdapter } from './infrastructure/downstream/tenant-org-service/tenant-org-query-grpc.adapter'
 import { TerminalDeviceAccessAdapter } from './infrastructure/downstream/terminal-device-service/terminal-device-access.adapter'
 import { LoginUseCase } from './application/use-cases/login.use-case'
@@ -53,13 +55,14 @@ import { PersonalCenterSummaryAdapter } from './infrastructure/downstream/person
       SERVICE_NAMES.TERMINAL_DEVICE
     ])
   ],
-  controllers: [AuthController, PdaAuthController, KioskAuthController],
+  controllers: [AuthController, PdaAuthController, KioskAuthController, ExtensionAuthController],
   providers: [
     AuthGrpcAdapter,
     AssetGrpcAdapter,
     IdentityQueryGrpcAdapter,
     PartyQueryGrpcAdapter,
     PermissionAccessSummaryGrpcAdapter,
+    PermissionTerminalAccessGrpcAdapter,
     TenantOrgQueryGrpcAdapter,
     TerminalDeviceAccessAdapter,
     PersonalCenterSummaryAdapter,

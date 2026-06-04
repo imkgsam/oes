@@ -25,7 +25,7 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(216)
+    expect(seed.permissionCodes).toHaveLength(219)
     expect(Object.values(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES)).toEqual([
       ...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES
     ])
@@ -61,27 +61,28 @@ describe('permission service seed source', () => {
       'hr.admin',
       'account.basic',
       'mes.forming_workshop.supervisor',
-      'item_master.product_data_manager'
+      'item_master.product_data_manager',
+      'extension.designer'
     ])
-    expect(seed.rolePermissions).toHaveLength(178)
-    expect(seed.navigationEntries).toHaveLength(30)
-    expect(seed.roleNavigationVisibility).toHaveLength(31)
-    expect(seed.roleLandingPolicies).toHaveLength(6)
-    expect(seed.roleTerminalAccess).toHaveLength(6)
+    expect(seed.rolePermissions).toHaveLength(181)
+    expect(seed.navigationEntries).toHaveLength(31)
+    expect(seed.roleNavigationVisibility).toHaveLength(32)
+    expect(seed.roleLandingPolicies).toHaveLength(7)
+    expect(seed.roleTerminalAccess).toHaveLength(7)
     expect(seed.policyInstances).toHaveLength(0)
   })
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 216,
+      permissionCodeCount: 219,
       deprecatedPermissionCodeCount: 14,
-      roleCount: 6,
-      rolePermissionCount: 178,
-      navigationEntryCount: 30,
+      roleCount: 7,
+      rolePermissionCount: 181,
+      navigationEntryCount: 31,
       deprecatedNavigationEntryCount: 1,
-      roleNavigationVisibilityCount: 31,
-      roleLandingPolicyCount: 6,
-      roleTerminalAccessCount: 6,
+      roleNavigationVisibilityCount: 32,
+      roleLandingPolicyCount: 7,
+      roleTerminalAccessCount: 7,
       policyInstanceCount: 0
     })
   })

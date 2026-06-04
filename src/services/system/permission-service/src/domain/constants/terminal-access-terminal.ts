@@ -1,4 +1,11 @@
-export const TERMINAL_ACCESS_TERMINALS = ['WEB', 'PDA', 'KIOSK', 'MOBILE', 'MINIAPP'] as const
+export const TERMINAL_ACCESS_TERMINALS = [
+  'WEB',
+  'PDA',
+  'KIOSK',
+  'MOBILE',
+  'MINIAPP',
+  'BROWSER_EXTENSION'
+] as const
 
 export type TerminalAccessTerminal = (typeof TERMINAL_ACCESS_TERMINALS)[number]
 

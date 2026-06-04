@@ -2,6 +2,7 @@ import {
   AUTH_MANAGEMENT_PERMISSION_CODES,
   AUTH_SELF_PERMISSION_CODES,
   AUTH_SESSION_PERMISSION_CODES,
+  BROWSER_EXTENSION_DESIGNER_PERMISSION_CODES,
   HR_MANAGEMENT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_PERMISSION_CODES,
   IDENTITY_ACCOUNT_SELF_PERMISSION_CODES,
@@ -309,6 +310,24 @@ export const BUILT_IN_ROLE_TEMPLATES: BuiltInRoleTemplateSeed[] = [
       ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.SET_ITEM_COMPOSITION,
       ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.LIST_SUPPLIER_ITEM_MAPPINGS,
       ITEM_MASTER_MANAGEMENT_PERMISSION_CODES.UPSERT_SUPPLIER_ITEM_MAPPING
+    ]
+  },
+  {
+    id: '2cf72f72-e04a-4946-b8c0-22f120f82006',
+    code: 'extension.designer',
+    name: '插件设计师',
+    description: 'Built-in browser extension designer template for the product discovery demo loop.',
+    allowTenantPermissionOverride: true,
+    isEnabled: true,
+    isProtected: false,
+    kind: RoleKind.SYSTEM_TEMPLATE,
+    scopeKey: '__SYSTEM_TEMPLATE__',
+    templateRoleCode: null,
+    tenantId: null,
+    permissionCodes: [
+      BROWSER_EXTENSION_DESIGNER_PERMISSION_CODES.PROJECT_CREATE,
+      BROWSER_EXTENSION_DESIGNER_PERMISSION_CODES.PRODUCT_COLLECT,
+      BROWSER_EXTENSION_DESIGNER_PERMISSION_CODES.SUBMIT_TO_OES
     ]
   }
 ]

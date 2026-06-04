@@ -2065,6 +2065,8 @@ export class AuthGrpcController implements AuthServiceController {
         ]
       case 'PDA':
         return [TerminalLoginFlow.Password, TerminalLoginFlow.EmployeeCodePin]
+      case 'BROWSER_EXTENSION':
+        return [TerminalLoginFlow.Password]
       case 'KIOSK':
         return []
       default:

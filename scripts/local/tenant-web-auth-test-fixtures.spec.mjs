@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import {
   DEFAULT_PASSWORD,
+  buildBrowserExtensionDesignerDemoSeed,
   buildSeedAccountRoleBindings,
   buildSeedTenantRoles,
   buildPdaLoginSmokeSeed
@@ -14,8 +15,9 @@ test('pda login smoke seed targets one tenant account with PDA terminal access a
   assert.equal(seed.tenantKey, 'meilong')
   assert.equal(seed.tenantId, '00000000-0000-4000-8000-000000000001')
   assert.equal(seed.accountId, '00000000-0000-4000-8000-000000000901')
-  assert.equal(seed.identifier, 'chen.shuangpeng@meilong.local')
+  assert.equal(seed.identifier, 'csp@ml.lc')
   assert.equal(seed.password, DEFAULT_PASSWORD)
+  assert.equal(seed.password, 'imkgsam6593')
 
   assert.deepEqual(seed.accountTerminalAccessOverride, {
     accountId: '00000000-0000-4000-8000-000000000901',
@@ -39,7 +41,7 @@ test('pda login smoke seed targets one tenant account with PDA terminal access a
   })
   assert.deepEqual(seed.terminalLoginPolicy, {
     terminal: 'PDA',
-    enabledLoginFlows: ['PASSWORD', 'EMAIL_PASSWORD']
+    enabledLoginFlows: ['PASSWORD']
   })
   assert.deepEqual(seed.tenantTerminalMfaPolicy, {
     tenantId: '00000000-0000-4000-8000-000000000001',
@@ -67,6 +69,53 @@ test('tenant admin demo accounts also receive item master product data permissio
       (binding) =>
         binding.accountId === '00000000-0000-4000-8000-000000000901' &&
         binding.roleId === meilongProductDataManager.id
+    )
+  )
+})
+
+test('browser extension designer demo seed targets one tenant account with plugin workspace access', () => {
+  const seed = buildBrowserExtensionDesignerDemoSeed()
+  const bindings = buildSeedAccountRoleBindings()
+
+  assert.equal(seed.tenantKey, 'meilong')
+  assert.equal(seed.tenantId, '00000000-0000-4000-8000-000000000001')
+  assert.equal(seed.accountId, '00000000-0000-4000-8000-000000000901')
+  assert.equal(seed.identifier, 'csp@ml.lc')
+  assert.equal(seed.password, DEFAULT_PASSWORD)
+  assert.equal(seed.password, 'imkgsam6593')
+
+  assert.deepEqual(seed.accountTerminalAccessOverride, {
+    accountId: '00000000-0000-4000-8000-000000000901',
+    scopeLevel: 'TENANT',
+    tenantId: '00000000-0000-4000-8000-000000000001',
+    allowedTerminals: ['WEB', 'PDA', 'BROWSER_EXTENSION']
+  })
+  assert.deepEqual(seed.roleTerminalAccess, {
+    roleId: '00000000-0000-4000-8000-000000001005',
+    allowedTerminals: ['WEB', 'BROWSER_EXTENSION']
+  })
+  assert.deepEqual(seed.roleNavigationVisibility, {
+    roleId: '00000000-0000-4000-8000-000000001005',
+    entryKey: 'extension.designer.workspace',
+    terminal: 'BROWSER_EXTENSION',
+    enabled: true
+  })
+  assert.deepEqual(seed.roleLandingPolicy, {
+    roleId: '00000000-0000-4000-8000-000000001005',
+    terminal: 'BROWSER_EXTENSION',
+    defaultEntryKey: 'extension.designer.workspace',
+    priority: 1000,
+    enabled: true
+  })
+  assert.deepEqual(seed.terminalLoginPolicy, {
+    terminal: 'BROWSER_EXTENSION',
+    enabledLoginFlows: ['PASSWORD']
+  })
+  assert.ok(
+    bindings.some(
+      (binding) =>
+        binding.accountId === '00000000-0000-4000-8000-000000000901' &&
+        binding.roleId === seed.roleTerminalAccess.roleId
     )
   )
 })

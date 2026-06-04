@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, Optional } from '@nestjs/common'
 import { TerminalLoginFlow } from '@oes/common/auth'
+import { LoginStatus } from '@oes/common/generated/auth_service'
 import { DownstreamRequestSource } from '../../../../common/grpc/gateway-downstream-source.mapper'
 import { AuthGrpcAdapter } from '../../infrastructure/downstream/auth-service/auth-grpc.adapter'
+import { PermissionTerminalAccessGrpcAdapter } from '../../infrastructure/downstream/permission-service/permission-terminal-access-grpc.adapter'
 import { TenantOrgQueryGrpcAdapter } from '../../infrastructure/downstream/tenant-org-service/tenant-org-query-grpc.adapter'
 import { TerminalDeviceAccessAdapter } from '../../infrastructure/downstream/terminal-device-service/terminal-device-access.adapter'
 import {
@@ -23,7 +25,20 @@ interface LoginClientContext {
   ipAddress?: string
 }
 
-export type LoginTerminal = 'KIOSK' | 'PDA' | 'WEB'
+export type LoginTerminal = 'BROWSER_EXTENSION' | 'KIOSK' | 'PDA' | 'WEB'
+
+interface LoginAccountCandidate {
+  accountId?: string
+  tenantId?: string
+  tenantName?: string
+  displayName?: string
+  scopeLevel?: string
+}
+
+interface AccountSelectionCarrier {
+  status?: LoginStatus
+  accounts?: LoginAccountCandidate[]
+}
 
 interface PdaLoginDeviceContext {
   terminalDeviceId: string
@@ -45,7 +60,9 @@ export class LoginUseCase {
     private readonly authAdapter: AuthGrpcAdapter,
     private readonly tenantOrgAdapter?: TenantOrgQueryGrpcAdapter,
     @Optional()
-    private readonly terminalDeviceAdapter?: TerminalDeviceAccessAdapter
+    private readonly terminalDeviceAdapter?: TerminalDeviceAccessAdapter,
+    @Optional()
+    private readonly terminalAccessAdapter?: PermissionTerminalAccessGrpcAdapter
   ) {}
 
   async execute(
@@ -74,12 +91,80 @@ export class LoginUseCase {
 
       throw error
     }
+    result = await this.filterExtensionAccountOptions(result, terminal, source)
     const hydratedResult = await hydrateAuthResponseTenantNames(
       result,
       source,
       this.tenantOrgAdapter
     )
     return toAuthResponseViewModel(hydratedResult)
+  }
+
+  private async filterExtensionAccountOptions<T extends AccountSelectionCarrier>(
+    result: T,
+    terminal: LoginTerminal,
+    source: DownstreamRequestSource
+  ): Promise<T> {
+    if (
+      terminal !== 'BROWSER_EXTENSION' ||
+      result.status !== LoginStatus.LOGIN_STATUS_ACCOUNT_SELECTION_REQUIRED ||
+      !Array.isArray(result.accounts)
+    ) {
+      return result
+    }
+
+    const filtered = await this.filterBrowserExtensionEligibleAccounts(result.accounts, source)
+    if (filtered.length > 0) {
+      return { ...result, accounts: filtered }
+    }
+
+    return {
+      ...result,
+      status: LoginStatus.LOGIN_STATUS_DENIED,
+      accounts: [],
+      reasonCode: 'NO_SELECTABLE_ACCOUNT_FOR_TERMINAL',
+      message: '当前账号不允许从浏览器插件登录，请联系管理员。'
+    } as T
+  }
+
+  private async filterBrowserExtensionEligibleAccounts(
+    accounts: LoginAccountCandidate[],
+    source: DownstreamRequestSource
+  ): Promise<LoginAccountCandidate[]> {
+    const adapter = this.requireTerminalAccessAdapter()
+    const decisions = await Promise.all(
+      accounts.map(async (account) => {
+        const accountId = account.accountId?.trim()
+        const scopeLevel = account.scopeLevel === 'SYSTEM' ? 'SYSTEM' : 'TENANT'
+        const tenantId = account.tenantId?.trim()
+
+        if (!accountId || scopeLevel === 'SYSTEM' || !tenantId) {
+          return { account, allowed: false }
+        }
+
+        const decision = await adapter.resolveAccountTerminalAccess(
+          {
+            accountId,
+            tenantId,
+            scopeLevel,
+            terminal: 'BROWSER_EXTENSION'
+          },
+          source
+        )
+
+        return { account, allowed: decision.allowed === true }
+      })
+    )
+
+    return decisions.filter((decision) => decision.allowed).map((decision) => decision.account)
+  }
+
+  private requireTerminalAccessAdapter(): PermissionTerminalAccessGrpcAdapter {
+    if (!this.terminalAccessAdapter) {
+      throw new BadRequestException('browser extension terminal access adapter is unavailable')
+    }
+
+    return this.terminalAccessAdapter
   }
 
   async preflightEmployeeCodePin(
@@ -129,13 +214,15 @@ export class LoginUseCase {
     pdaDeviceContext?: PdaLoginDeviceContext
   ) {
     const loginFlow = this.toLoginFlow(dto.method, terminal)
-    const authDeviceContext = pdaDeviceContext
-      ? {
-          terminalDeviceId: pdaDeviceContext.terminalDeviceId,
-          deviceBoundTenantId: pdaDeviceContext.deviceBoundTenantId,
-          loginFlow
-        }
-      : undefined
+    const terminalLoginContext = {
+      loginFlow,
+      ...(pdaDeviceContext
+        ? {
+            terminalDeviceId: pdaDeviceContext.terminalDeviceId,
+            deviceBoundTenantId: pdaDeviceContext.deviceBoundTenantId
+          }
+        : {})
+    }
     const identifier = dto.identifier?.trim() ?? ''
     const credential = dto.credential?.trim() ?? ''
     const employeeCode = dto.employeeCode?.trim() || identifier
@@ -154,7 +241,7 @@ export class LoginUseCase {
             userAgent,
             ipAddress,
             terminal,
-            ...authDeviceContext
+            ...terminalLoginContext
           },
           source
         )
@@ -164,7 +251,7 @@ export class LoginUseCase {
           credential,
           terminal,
           source,
-          authDeviceContext
+          terminalLoginContext
         )
       case LoginMethodDto.PHONE_PASSWORD:
         return this.authAdapter.loginWithPhonePassword(
@@ -175,7 +262,7 @@ export class LoginUseCase {
             userAgent,
             ipAddress,
             terminal,
-            ...authDeviceContext
+            ...terminalLoginContext
           },
           source
         )
@@ -185,7 +272,7 @@ export class LoginUseCase {
           credential,
           terminal,
           source,
-          authDeviceContext
+          terminalLoginContext
         )
       case LoginMethodDto.EMPLOYEE_CODE_PIN:
         return this.authAdapter.loginWithEmployeeCodePin(
@@ -196,7 +283,7 @@ export class LoginUseCase {
             userAgent,
             ipAddress,
             terminal,
-            ...authDeviceContext
+            ...terminalLoginContext
           },
           source
         )

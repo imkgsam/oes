@@ -171,6 +171,16 @@ export class LoginDto {
   tenantHint?: string
 
   @ApiPropertyOptional({
+    description: 'Client-provided terminal hint kept for compatibility; auth-bff ignores it and uses the route-fixed terminal.',
+    maxLength: 64,
+    example: 'WEB'
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  terminal?: string
+
+  @ApiPropertyOptional({
     type: LoginDeviceDto,
     description: 'Optional lightweight device hints attached to the login attempt.'
   })

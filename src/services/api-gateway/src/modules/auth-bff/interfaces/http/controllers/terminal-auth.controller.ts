@@ -8,15 +8,19 @@ import { SelectAccountUseCase } from '../../../application/use-cases/select-acco
 import { CompleteMfaUseCase } from '../../../application/use-cases/complete-mfa.use-case'
 import { RequestMfaFactorChallengeUseCase } from '../../../application/use-cases/request-mfa-factor-challenge.use-case'
 import { RefreshSessionUseCase } from '../../../application/use-cases/refresh-session.use-case'
+import { SessionAccessSummaryUseCase } from '../../../application/use-cases/session-access-summary.use-case'
 import { SessionContextUseCase } from '../../../application/use-cases/session-context.use-case'
+import { SessionContextsUseCase } from '../../../application/use-cases/session-contexts.use-case'
 import { SessionSelfServiceUseCase } from '../../../application/use-cases/session-self-service.use-case'
+import { SwitchContextUseCase } from '../../../application/use-cases/switch-context.use-case'
 import {
   CompleteMfaDto,
   EmployeeCodePinPreflightDto,
   LoginDto,
   RefreshSessionDto,
   RequestMfaFactorChallengeDto,
-  SelectAccountDto
+  SelectAccountDto,
+  SwitchContextDto
 } from '../dtos/login.dto'
 import {
   AuthResponseViewModel,
@@ -24,7 +28,12 @@ import {
   OtpChallengeViewModel,
   RefreshSessionViewModel
 } from '../view-models/auth-response.view-model'
+import { SessionAccessSummaryViewModel } from '../view-models/session-access-summary.view-model'
 import { SessionContextViewModel } from '../view-models/session-context.view-model'
+import {
+  SessionContextListViewModel,
+  SwitchContextViewModel
+} from '../view-models/session-context-switch.view-model'
 import { SessionMutationViewModel } from '../view-models/self-security.view-model'
 
 // Exposes one terminal-scoped public auth surface whose terminal value is fixed by the BFF route.
@@ -37,7 +46,10 @@ abstract class TerminalAuthControllerBase {
     private readonly completeMfaUseCase: CompleteMfaUseCase,
     private readonly requestMfaFactorChallengeUseCase: RequestMfaFactorChallengeUseCase,
     private readonly refreshSessionUseCase: RefreshSessionUseCase,
+    private readonly sessionAccessSummaryUseCase: SessionAccessSummaryUseCase,
     private readonly sessionContextUseCase: SessionContextUseCase,
+    private readonly sessionContextsUseCase: SessionContextsUseCase,
+    private readonly switchContextUseCase: SwitchContextUseCase,
     private readonly sessionSelfServiceUseCase: SessionSelfServiceUseCase
   ) {}
 
@@ -168,6 +180,45 @@ abstract class TerminalAuthControllerBase {
   ): Promise<SessionContextViewModel> {
     return this.sessionContextUseCase.execute(source)
   }
+
+  @Get('session/access-summary')
+  @ApiOperation({ summary: 'Get the terminal-bound authenticated access summary' })
+  @ApiResponse({ status: 200, type: SessionAccessSummaryViewModel })
+  async getSessionAccessSummary(
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<SessionAccessSummaryViewModel> {
+    return this.sessionAccessSummaryUseCase.execute(source)
+  }
+
+  @Get('session/contexts')
+  @ApiOperation({ summary: 'List terminal-bound switchable account contexts' })
+  @ApiResponse({ status: 200, type: SessionContextListViewModel })
+  async listSessionContexts(
+    @DownstreamSource() source: DownstreamRequestSource
+  ): Promise<SessionContextListViewModel> {
+    return this.sessionContextsUseCase.execute(source)
+  }
+
+  @Post('session/switch-context')
+  @ApiOperation({ summary: 'Switch account context inside the fixed terminal session' })
+  @ApiBody({ type: SwitchContextDto })
+  @ApiResponse({ status: 200, type: SwitchContextViewModel })
+  async switchContext(
+    @Body() dto: SwitchContextDto,
+    @DownstreamSource() source: DownstreamRequestSource,
+    @Headers('user-agent') userAgent?: string,
+    @Ip() ipAddress?: string
+  ): Promise<SwitchContextViewModel> {
+    return this.switchContextUseCase.execute(
+      dto,
+      source,
+      {
+        userAgent,
+        ipAddress
+      },
+      this.terminal
+    )
+  }
 }
 
 @ApiTags('pda-auth')
@@ -181,7 +232,10 @@ export class PdaAuthController extends TerminalAuthControllerBase {
     completeMfaUseCase: CompleteMfaUseCase,
     requestMfaFactorChallengeUseCase: RequestMfaFactorChallengeUseCase,
     refreshSessionUseCase: RefreshSessionUseCase,
+    sessionAccessSummaryUseCase: SessionAccessSummaryUseCase,
     sessionContextUseCase: SessionContextUseCase,
+    sessionContextsUseCase: SessionContextsUseCase,
+    switchContextUseCase: SwitchContextUseCase,
     sessionSelfServiceUseCase: SessionSelfServiceUseCase
   ) {
     super(
@@ -190,7 +244,10 @@ export class PdaAuthController extends TerminalAuthControllerBase {
       completeMfaUseCase,
       requestMfaFactorChallengeUseCase,
       refreshSessionUseCase,
+      sessionAccessSummaryUseCase,
       sessionContextUseCase,
+      sessionContextsUseCase,
+      switchContextUseCase,
       sessionSelfServiceUseCase
     )
   }
@@ -219,7 +276,10 @@ export class KioskAuthController extends TerminalAuthControllerBase {
     completeMfaUseCase: CompleteMfaUseCase,
     requestMfaFactorChallengeUseCase: RequestMfaFactorChallengeUseCase,
     refreshSessionUseCase: RefreshSessionUseCase,
+    sessionAccessSummaryUseCase: SessionAccessSummaryUseCase,
     sessionContextUseCase: SessionContextUseCase,
+    sessionContextsUseCase: SessionContextsUseCase,
+    switchContextUseCase: SwitchContextUseCase,
     sessionSelfServiceUseCase: SessionSelfServiceUseCase
   ) {
     super(
@@ -228,7 +288,42 @@ export class KioskAuthController extends TerminalAuthControllerBase {
       completeMfaUseCase,
       requestMfaFactorChallengeUseCase,
       refreshSessionUseCase,
+      sessionAccessSummaryUseCase,
       sessionContextUseCase,
+      sessionContextsUseCase,
+      switchContextUseCase,
+      sessionSelfServiceUseCase
+    )
+  }
+}
+
+@ApiTags('extension-auth')
+@Controller('extension/auth')
+export class ExtensionAuthController extends TerminalAuthControllerBase {
+  protected readonly terminal = 'BROWSER_EXTENSION' as const
+
+  constructor(
+    loginUseCase: LoginUseCase,
+    selectAccountUseCase: SelectAccountUseCase,
+    completeMfaUseCase: CompleteMfaUseCase,
+    requestMfaFactorChallengeUseCase: RequestMfaFactorChallengeUseCase,
+    refreshSessionUseCase: RefreshSessionUseCase,
+    sessionAccessSummaryUseCase: SessionAccessSummaryUseCase,
+    sessionContextUseCase: SessionContextUseCase,
+    sessionContextsUseCase: SessionContextsUseCase,
+    switchContextUseCase: SwitchContextUseCase,
+    sessionSelfServiceUseCase: SessionSelfServiceUseCase
+  ) {
+    super(
+      loginUseCase,
+      selectAccountUseCase,
+      completeMfaUseCase,
+      requestMfaFactorChallengeUseCase,
+      refreshSessionUseCase,
+      sessionAccessSummaryUseCase,
+      sessionContextUseCase,
+      sessionContextsUseCase,
+      switchContextUseCase,
       sessionSelfServiceUseCase
     )
   }

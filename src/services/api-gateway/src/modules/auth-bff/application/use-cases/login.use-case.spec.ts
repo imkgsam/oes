@@ -37,7 +37,8 @@ describe('LoginUseCase', () => {
         deviceName: 'Alice MacBook Pro',
         userAgent: 'Mozilla/5.0 Firefox/149.0',
         ipAddress: '1.1.1.1',
-        terminal: 'WEB'
+        terminal: 'WEB',
+        loginFlow: 'EMAIL_PASSWORD'
       },
       expect.objectContaining({ requestId: 'req-1', traceId: 'trace-1' })
     )
@@ -91,6 +92,99 @@ describe('LoginUseCase', () => {
         loginFlow: 'PASSWORD'
       }),
       expect.objectContaining({ requestId: 'req-1' })
+    )
+  })
+
+  it('filters extension account options to browser-extension eligible tenant accounts', async () => {
+    const authAdapter = {
+      loginWithEmailPassword: jest.fn().mockResolvedValue({
+        status: LoginStatus.LOGIN_STATUS_ACCOUNT_SELECTION_REQUIRED,
+        userId: 'user-1',
+        loginMethod: 'EMAIL_PASSWORD',
+        accounts: [
+          {
+            accountId: 'designer-account',
+            tenantId: 'tenant-1',
+            tenantName: 'Tenant 1',
+            displayName: 'Designer',
+            scopeLevel: 'TENANT'
+          },
+          {
+            accountId: 'web-only-account',
+            tenantId: 'tenant-2',
+            tenantName: 'Tenant 2',
+            displayName: 'Web Only',
+            scopeLevel: 'TENANT'
+          },
+          {
+            accountId: 'system-account',
+            displayName: 'System Admin',
+            scopeLevel: 'SYSTEM'
+          }
+        ]
+      })
+    }
+    const terminalAccessAdapter = {
+      resolveAccountTerminalAccess: jest
+        .fn()
+        .mockResolvedValueOnce({ allowed: true })
+        .mockResolvedValueOnce({ allowed: false })
+    }
+    const useCase = new LoginUseCase(
+      authAdapter as any,
+      undefined,
+      undefined,
+      terminalAccessAdapter as any
+    )
+
+    const result = await useCase.execute(
+      {
+        method: LoginMethodDto.EMAIL_PASSWORD,
+        identifier: 'designer@example.com',
+        credential: 'secret'
+      },
+      { requestId: 'req-1', traceId: 'trace-1' },
+      {},
+      'BROWSER_EXTENSION'
+    )
+
+    expect(terminalAccessAdapter.resolveAccountTerminalAccess).toHaveBeenCalledTimes(2)
+    expect(authAdapter.loginWithEmailPassword).toHaveBeenCalledWith(
+      expect.objectContaining({
+        terminal: 'BROWSER_EXTENSION',
+        loginFlow: 'PASSWORD'
+      }),
+      expect.objectContaining({ requestId: 'req-1' })
+    )
+    expect(terminalAccessAdapter.resolveAccountTerminalAccess).toHaveBeenCalledWith(
+      {
+        accountId: 'designer-account',
+        tenantId: 'tenant-1',
+        scopeLevel: 'TENANT',
+        terminal: 'BROWSER_EXTENSION'
+      },
+      expect.objectContaining({ requestId: 'req-1' })
+    )
+    expect(terminalAccessAdapter.resolveAccountTerminalAccess).toHaveBeenCalledWith(
+      {
+        accountId: 'web-only-account',
+        tenantId: 'tenant-2',
+        scopeLevel: 'TENANT',
+        terminal: 'BROWSER_EXTENSION'
+      },
+      expect.objectContaining({ requestId: 'req-1' })
+    )
+    expect(result).toEqual(
+      expect.objectContaining({
+        status: 'ACCOUNT_SELECTION_REQUIRED',
+        accountOptions: [
+          expect.objectContaining({
+            accountId: 'designer-account',
+            tenantId: 'tenant-1',
+            scopeLevel: 'TENANT'
+          })
+        ]
+      })
     )
   })
 

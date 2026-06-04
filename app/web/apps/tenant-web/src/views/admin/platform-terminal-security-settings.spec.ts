@@ -62,6 +62,11 @@ describe('platform terminal security settings page', () => {
           supportedLoginFlows: ['EMAIL_PASSWORD', 'EMAIL_OTP', 'PHONE_PASSWORD', 'PHONE_OTP'],
           terminal: 'WEB',
         },
+        {
+          enabledLoginFlows: ['PASSWORD'],
+          supportedLoginFlows: ['PASSWORD'],
+          terminal: 'BROWSER_EXTENSION',
+        },
       ],
     });
     getAdminPlatformTerminalMfaPolicyApi.mockResolvedValue({
@@ -81,6 +86,14 @@ describe('platform terminal security settings page', () => {
           newDeviceMfaRequired: true,
           source: 'PLATFORM_DEFAULT',
           terminal: 'WEB',
+        },
+        {
+          allowedFactors: ['EMAIL_OTP'],
+          factorPriority: ['EMAIL_OTP'],
+          loginMfaRequired: false,
+          newDeviceMfaRequired: false,
+          source: 'PLATFORM_DEFAULT',
+          terminal: 'BROWSER_EXTENSION',
         },
       ],
     });
@@ -115,8 +128,10 @@ describe('platform terminal security settings page', () => {
     expect(getAdminPlatformTerminalMfaPolicyApi).toHaveBeenCalledTimes(1);
     expect(document.body.textContent).toContain('平台 Terminal 登录策略');
     expect(document.body.textContent).toContain('Web');
+    expect(document.body.textContent).toContain('Browser Extension / 浏览器插件');
     expect(document.body.textContent).toContain('PDA');
     expect(document.body.textContent).toContain('2 / 4 个登录流已启用');
+    expect(document.body.textContent).toContain('1 / 1 个登录流已启用');
     expect(document.body.textContent).toContain('1 / 2 个登录流已启用');
   });
 
@@ -140,7 +155,10 @@ describe('platform terminal security settings page', () => {
 
     const vm = wrapper.vm as any;
     vm.updateLoginFlows('PDA', []);
-    await vm.savePlatformTerminalLoginPolicy();
+    const saveButton = Array.from(document.body.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('保存配置'),
+    ) as HTMLButtonElement | undefined;
+    saveButton?.click();
     await flushPromises();
 
     expect(confirmSpy).toHaveBeenCalledTimes(1);
@@ -149,6 +167,10 @@ describe('platform terminal security settings page', () => {
         {
           enabledLoginFlows: ['EMAIL_PASSWORD', 'EMAIL_OTP'],
           terminal: 'WEB',
+        },
+        {
+          enabledLoginFlows: ['PASSWORD'],
+          terminal: 'BROWSER_EXTENSION',
         },
         {
           enabledLoginFlows: [],
@@ -178,7 +200,10 @@ describe('platform terminal security settings page', () => {
 
     const vm = wrapper.vm as any;
     vm.updateMfaEntry('PDA', { loginMfaRequired: true });
-    await vm.savePlatformTerminalMfaPolicy();
+    const saveButton = Array.from(document.body.querySelectorAll('button')).find((button) =>
+      button.textContent?.includes('保存配置'),
+    ) as HTMLButtonElement | undefined;
+    saveButton?.click();
     await flushPromises();
 
     expect(updateAdminPlatformTerminalMfaPolicyApi).toHaveBeenCalledWith({
@@ -190,6 +215,13 @@ describe('platform terminal security settings page', () => {
           loginMfaRequired: true,
           newDeviceMfaRequired: true,
           terminal: 'WEB',
+        },
+        {
+          allowedFactors: ['EMAIL_OTP'],
+          factorPriority: ['EMAIL_OTP'],
+          loginMfaRequired: false,
+          newDeviceMfaRequired: false,
+          terminal: 'BROWSER_EXTENSION',
         },
         {
           allowedFactors: ['EMAIL_OTP', 'TOTP'],
