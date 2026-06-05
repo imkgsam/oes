@@ -7,6 +7,7 @@ const MIN_COLUMN_WIDTH = 72;
 let observer: MutationObserver | null = null;
 let scanFrame: number | null = null;
 let activeStopResize: null | (() => void) = null;
+const tableColumnWidthState = new WeakMap<HTMLElement, Map<number, number>>();
 
 interface ResizeTableState {
   initialWidth: number;
@@ -15,10 +16,12 @@ interface ResizeTableState {
 
 interface ResizeSession {
   columnIndex: number;
+  columnWidths: Map<number, number>;
+  initialTableWidths: WeakMap<HTMLTableElement, number>;
   scope: HTMLElement;
   startWidth: number;
   startX: number;
-  tables: ResizeTableState[];
+  tableRootIndex: number;
 }
 
 // installAntdTableColumnResize enables lightweight column dragging for every rendered Ant Design Vue table.
@@ -63,6 +66,7 @@ function enhanceRenderedTables() {
           '.ant-table-thead > tr > th.ant-table-cell',
         )
         .forEach((headerCell) => enhanceHeaderCell(headerCell));
+      applyStoredColumnWidths(tableRoot);
     });
 }
 
@@ -122,18 +126,18 @@ function startColumnResize(
   activeStopResize?.();
 
   const columnIndex = headerCell.cellIndex;
-  const startWidth = Math.max(
-    MIN_COLUMN_WIDTH,
-    Math.round(headerCell.getBoundingClientRect().width),
-  );
-  const tables = collectResizeTables(tableScope);
+  const startWidth = resolveColumnStartWidth(headerCell, tableScope, columnIndex);
+  const columnWidths = tableColumnWidthState.get(tableScope) ?? new Map<number, number>();
   const session: ResizeSession = {
     columnIndex,
+    columnWidths,
+    initialTableWidths: new WeakMap<HTMLTableElement, number>(),
     scope: tableScope,
     startWidth,
     startX: event.clientX,
-    tables,
+    tableRootIndex: getTableScopeIndex(tableScope),
   };
+  tableColumnWidthState.set(tableScope, columnWidths);
 
   const handleMouseMove = (moveEvent: MouseEvent) => {
     const nextWidth = Math.max(
@@ -152,6 +156,35 @@ function startColumnResize(
   activeStopResize = () => stopColumnResize(handleMouseMove, handleMouseUp);
 }
 
+// resolveColumnStartWidth prefers explicit Ant Table widths before falling back to live layout.
+function resolveColumnStartWidth(
+  headerCell: HTMLTableCellElement,
+  tableScope: HTMLElement,
+  columnIndex: number,
+): number {
+  const firstTableColumn = tableScope.querySelectorAll<HTMLTableColElement>(
+    'table colgroup col',
+  )[columnIndex];
+  const explicitWidth =
+    parseCssPixelWidth(headerCell.style.width) ??
+    parseCssPixelWidth(firstTableColumn?.style.width ?? '') ??
+    parseCssPixelWidth(firstTableColumn?.getAttribute('width') ?? '');
+  const layoutWidth = Math.round(headerCell.getBoundingClientRect().width);
+
+  return Math.max(MIN_COLUMN_WIDTH, explicitWidth ?? layoutWidth);
+}
+
+// parseCssPixelWidth reads inline pixel widths that remain available even when layout is not.
+function parseCssPixelWidth(value: string): number | undefined {
+  const parsedWidth = Number.parseFloat(value);
+
+  if (!Number.isFinite(parsedWidth) || parsedWidth <= 0) {
+    return undefined;
+  }
+
+  return Math.round(parsedWidth);
+}
+
 // collectResizeTables records all table fragments that belong to one Ant Design table instance.
 function collectResizeTables(tableScope: HTMLElement): ResizeTableState[] {
   return [...tableScope.querySelectorAll<HTMLTableElement>('table')].map(
@@ -164,16 +197,67 @@ function collectResizeTables(tableScope: HTMLElement): ResizeTableState[] {
   );
 }
 
+// getTableScopeIndex records a stable fallback position when Ant Table replaces its root node.
+function getTableScopeIndex(tableScope: HTMLElement): number {
+  return [...document.querySelectorAll<HTMLElement>('.ant-table')].indexOf(tableScope);
+}
+
+// resolveCurrentTableScope keeps an active drag attached when the table root is redrawn mid-drag.
+function resolveCurrentTableScope(session: ResizeSession): HTMLElement {
+  if (session.scope.isConnected) {
+    return session.scope;
+  }
+
+  return (
+    [...document.querySelectorAll<HTMLElement>('.ant-table')][session.tableRootIndex] ??
+    session.scope
+  );
+}
+
 // applyColumnWidth updates matching colgroup entries and table widths for the active drag session.
 function applyColumnWidth(session: ResizeSession, nextWidth: number) {
-  const width = `${nextWidth}px`;
-  const delta = nextWidth - session.startWidth;
-  const minTableWidthOffset = MIN_COLUMN_WIDTH - session.startWidth;
+  const scope = resolveCurrentTableScope(session);
+  session.scope = scope;
+  session.columnWidths.set(session.columnIndex, nextWidth);
+  tableColumnWidthState.set(scope, session.columnWidths);
+  applyColumnWidthToScope(
+    scope,
+    session.columnIndex,
+    nextWidth,
+    session.startWidth,
+    session.initialTableWidths,
+  );
+}
 
-  for (const tableState of session.tables) {
+// applyStoredColumnWidths replays remembered DOM-level widths after Ant Table redraws internal tables.
+function applyStoredColumnWidths(tableScope: HTMLElement) {
+  const columnWidths = tableColumnWidthState.get(tableScope);
+
+  if (!columnWidths) {
+    return;
+  }
+
+  columnWidths.forEach((nextWidth, columnIndex) => {
+    applyColumnWidthToScope(tableScope, columnIndex, nextWidth, nextWidth, new WeakMap());
+  });
+}
+
+// applyColumnWidthToScope writes one column width against the current Ant Table DOM fragments.
+function applyColumnWidthToScope(
+  scope: HTMLElement,
+  columnIndex: number,
+  nextWidth: number,
+  startWidth: number,
+  initialTableWidths: WeakMap<HTMLTableElement, number>,
+) {
+  const width = `${nextWidth}px`;
+  const delta = nextWidth - startWidth;
+  const minTableWidthOffset = MIN_COLUMN_WIDTH - startWidth;
+
+  for (const tableState of collectResizeTables(scope)) {
     const cols =
       tableState.table.querySelectorAll<HTMLTableColElement>('colgroup col');
-    const column = cols[session.columnIndex];
+    const column = cols[columnIndex];
 
     if (column) {
       column.style.width = width;
@@ -181,20 +265,23 @@ function applyColumnWidth(session: ResizeSession, nextWidth: number) {
     }
 
     if (tableState.initialWidth > 0) {
+      const initialWidth =
+        initialTableWidths.get(tableState.table) ?? tableState.initialWidth;
+      initialTableWidths.set(tableState.table, initialWidth);
       const nextTableWidth = Math.max(
-        tableState.initialWidth + minTableWidthOffset,
-        tableState.initialWidth + delta,
+        initialWidth + minTableWidthOffset,
+        initialWidth + delta,
       );
       tableState.table.style.width = `${Math.round(nextTableWidth)}px`;
       tableState.table.style.minWidth = `${Math.round(nextTableWidth)}px`;
     }
   }
 
-  session.scope
+  scope
     .querySelectorAll<HTMLElement>(
       [
-        `thead tr > th:nth-child(${session.columnIndex + 1})`,
-        `tbody tr > td:nth-child(${session.columnIndex + 1})`,
+        `thead tr > th:nth-child(${columnIndex + 1})`,
+        `tbody tr > td:nth-child(${columnIndex + 1})`,
       ].join(', '),
     )
     .forEach((cell) => {

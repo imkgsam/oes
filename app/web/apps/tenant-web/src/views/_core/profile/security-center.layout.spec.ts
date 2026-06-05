@@ -42,3 +42,22 @@ describe('security center form action layout', () => {
     expect(source).not.toMatch(/\.security-form-action-button\s*{[^}]*flex:\s*1 1 100%;/);
   });
 });
+
+// Keeps Ant Table column dragging state-driven so global DOM resizing cannot fight tabbed table layouts.
+describe('security center table column resizing', () => {
+  it('uses local resize handles for every tabbed security table', () => {
+    expect(source).toContain('security-center__column-resizer');
+    expect(source).toContain("renderResizableSecurityHeader('sessions'");
+    expect(source).toContain("renderResizableSecurityHeader('loginHistory'");
+    expect(source).toContain("renderResizableSecurityHeader('mfa'");
+  });
+
+  it('derives horizontal scroll widths from local column width state', () => {
+    expect(source).toContain('sessionTableScrollX');
+    expect(source).toContain('loginHistoryTableScrollX');
+    expect(source).toContain('mfaTableScrollX');
+    expect(source).not.toContain(':scroll="{ x: 1220 }"');
+    expect(source).not.toContain(':scroll="{ x: 1110 }"');
+    expect(source).not.toContain(':scroll="{ x: 860 }"');
+  });
+});

@@ -4,7 +4,7 @@ import type { Dayjs } from 'dayjs';
 
 import type { SelfSecurityApi } from '#/api';
 
-import { computed, onActivated, onMounted, reactive, ref, watch } from 'vue';
+import { computed, h, onActivated, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 
 import { IconifyIcon } from '@vben/icons';
 import { useUserStore } from '@vben/stores';
@@ -79,6 +79,24 @@ const authContextStore = useAuthContextStore();
 const operationColumnTitle = '操作';
 type MfaActionKey = 'toggle';
 type SessionActionKey = 'logout';
+type SecurityTableKey = 'loginHistory' | 'mfa' | 'sessions';
+type SessionColumnKey =
+  | 'action'
+  | 'device'
+  | 'lastActiveAt'
+  | 'loginMethod'
+  | 'remaining'
+  | 'status'
+  | 'terminal';
+type LoginHistoryColumnKey =
+  | 'device'
+  | 'failureReason'
+  | 'ipAddress'
+  | 'loginMethod'
+  | 'occurredAt'
+  | 'outcome'
+  | 'terminal';
+type MfaColumnKey = 'action' | 'destination' | 'status' | 'type' | 'updatedAt';
 
 interface TableActionMenuItem<ActionKey extends string> {
   danger?: boolean;
@@ -161,6 +179,57 @@ const passwordFormErrors = reactive({
   currentPassword: '',
   newPassword: '',
 });
+const sessionColumnMinWidths: Record<SessionColumnKey, number> = {
+  action: 96,
+  device: 220,
+  lastActiveAt: 160,
+  loginMethod: 130,
+  remaining: 150,
+  status: 140,
+  terminal: 120,
+};
+const sessionColumnWidths = reactive<Record<SessionColumnKey, number>>({
+  action: 120,
+  device: 290,
+  lastActiveAt: 200,
+  loginMethod: 160,
+  remaining: 180,
+  status: 170,
+  terminal: 140,
+});
+const loginHistoryColumnMinWidths: Record<LoginHistoryColumnKey, number> = {
+  device: 220,
+  failureReason: 220,
+  ipAddress: 120,
+  loginMethod: 130,
+  occurredAt: 160,
+  outcome: 100,
+  terminal: 110,
+};
+const loginHistoryColumnWidths = reactive<Record<LoginHistoryColumnKey, number>>({
+  device: 260,
+  failureReason: 320,
+  ipAddress: 150,
+  loginMethod: 150,
+  occurredAt: 180,
+  outcome: 120,
+  terminal: 130,
+});
+const mfaColumnMinWidths: Record<MfaColumnKey, number> = {
+  action: 96,
+  destination: 220,
+  status: 160,
+  type: 150,
+  updatedAt: 160,
+};
+const mfaColumnWidths = reactive<Record<MfaColumnKey, number>>({
+  action: 120,
+  destination: 280,
+  status: 200,
+  type: 180,
+  updatedAt: 180,
+});
+let activeSecurityColumnCleanup: null | (() => void) = null;
 
 const currentSession = computed(() =>
   sessions.value.find((session) => session.isCurrent),
@@ -182,6 +251,15 @@ const hasOtherSessions = computed(() =>
 
 const failedLoginHistoryCount = computed(
   () => loginHistoryItems.value.filter((item) => item.outcome === 'FAILED').length,
+);
+const sessionTableScrollX = computed(() =>
+  Object.values(sessionColumnWidths).reduce((total, width) => total + width, 0),
+);
+const loginHistoryTableScrollX = computed(() =>
+  Object.values(loginHistoryColumnWidths).reduce((total, width) => total + width, 0),
+);
+const mfaTableScrollX = computed(() =>
+  Object.values(mfaColumnWidths).reduce((total, width) => total + width, 0),
 );
 
 const totpBinding = computed(
@@ -254,42 +332,137 @@ const loginMethodLabel: Record<string, string> = {
   TERMINAL_PIN: '现场终端 PIN',
 };
 
+// Returns the mutable width state that owns one security-center Ant Table.
+function getSecurityColumnWidths(tableKey: SecurityTableKey): Record<string, number> {
+  switch (tableKey) {
+    case 'loginHistory': {
+      return loginHistoryColumnWidths;
+    }
+    case 'mfa': {
+      return mfaColumnWidths;
+    }
+    case 'sessions':
+    default: {
+      return sessionColumnWidths;
+    }
+  }
+}
+
+// Returns the minimum width guardrails for one security-center Ant Table.
+function getSecurityColumnMinWidths(tableKey: SecurityTableKey): Record<string, number> {
+  switch (tableKey) {
+    case 'loginHistory': {
+      return loginHistoryColumnMinWidths;
+    }
+    case 'mfa': {
+      return mfaColumnMinWidths;
+    }
+    case 'sessions':
+    default: {
+      return sessionColumnMinWidths;
+    }
+  }
+}
+
+// stopSecurityColumnResize clears drag listeners for all security-center local table resizers.
+function stopSecurityColumnResize() {
+  activeSecurityColumnCleanup?.();
+  activeSecurityColumnCleanup = null;
+  document.body.classList.remove('security-center--resizing-column');
+}
+
+// startSecurityColumnResize updates one table-owned column width from pointer movement.
+function startSecurityColumnResize(
+  event: MouseEvent,
+  tableKey: SecurityTableKey,
+  columnKey: string,
+) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  stopSecurityColumnResize();
+
+  const widths = getSecurityColumnWidths(tableKey);
+  const minWidths = getSecurityColumnMinWidths(tableKey);
+  const startX = event.clientX;
+  const startWidth = widths[columnKey] ?? minWidths[columnKey] ?? 120;
+  const minWidth = minWidths[columnKey] ?? 72;
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    widths[columnKey] = Math.max(
+      minWidth,
+      Math.round(startWidth + moveEvent.clientX - startX),
+    );
+  };
+
+  const handleMouseUp = () => {
+    stopSecurityColumnResize();
+  };
+
+  document.body.classList.add('security-center--resizing-column');
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp, { once: true });
+  activeSecurityColumnCleanup = () => {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  };
+}
+
+// renderResizableSecurityHeader exposes a local resize handle so global DOM resizing is bypassed.
+function renderResizableSecurityHeader(
+  tableKey: SecurityTableKey,
+  columnKey: string,
+  label: string,
+) {
+  return h('div', { class: 'security-center__resizable-title' }, [
+    h('span', { class: 'security-center__resizable-title-text' }, label),
+    h('span', {
+      'aria-label': `调整${label}列宽`,
+      class: 'security-center__column-resizer',
+      onMousedown: (event: MouseEvent) =>
+        startSecurityColumnResize(event, tableKey, columnKey),
+      role: 'separator',
+    }),
+  ]);
+}
+
 const sessionColumns = computed<TableColumnsType<SelfSecurityApi.Session>>(() => [
   {
     key: 'device',
-    title: '设备',
+    title: renderResizableSecurityHeader('sessions', 'device', '设备'),
+    width: sessionColumnWidths.device,
     ellipsis: true,
   },
   {
     key: 'loginMethod',
-    title: '登录方式',
-    width: 160,
+    title: renderResizableSecurityHeader('sessions', 'loginMethod', '登录方式'),
+    width: sessionColumnWidths.loginMethod,
   },
   {
     key: 'terminal',
-    title: '终端',
-    width: 140,
+    title: renderResizableSecurityHeader('sessions', 'terminal', '终端'),
+    width: sessionColumnWidths.terminal,
   },
   {
     key: 'status',
-    title: '状态',
-    width: 170,
+    title: renderResizableSecurityHeader('sessions', 'status', '状态'),
+    width: sessionColumnWidths.status,
   },
   {
     key: 'lastActiveAt',
-    title: '最近活跃',
-    width: 200,
+    title: renderResizableSecurityHeader('sessions', 'lastActiveAt', '最近活跃'),
+    width: sessionColumnWidths.lastActiveAt,
   },
   {
     key: 'remaining',
-    title: '会话剩余',
-    width: 180,
+    title: renderResizableSecurityHeader('sessions', 'remaining', '会话剩余'),
+    width: sessionColumnWidths.remaining,
   },
   {
     fixed: 'right',
     key: 'action',
-    title: operationColumnTitle,
-    width: 120,
+    title: renderResizableSecurityHeader('sessions', 'action', operationColumnTitle),
+    width: sessionColumnWidths.action,
     align: 'center',
   },
 ]);
@@ -298,38 +471,40 @@ const loginHistoryColumns = computed<TableColumnsType<SelfSecurityApi.LoginHisto
   {
     dataIndex: 'occurredAt',
     key: 'occurredAt',
-    title: '时间',
-    width: 180,
+    title: renderResizableSecurityHeader('loginHistory', 'occurredAt', '时间'),
+    width: loginHistoryColumnWidths.occurredAt,
   },
   {
     key: 'outcome',
-    title: '结果',
-    width: 120,
+    title: renderResizableSecurityHeader('loginHistory', 'outcome', '结果'),
+    width: loginHistoryColumnWidths.outcome,
   },
   {
     key: 'loginMethod',
-    title: '登录方式',
-    width: 150,
+    title: renderResizableSecurityHeader('loginHistory', 'loginMethod', '登录方式'),
+    width: loginHistoryColumnWidths.loginMethod,
   },
   {
     key: 'terminal',
-    title: '终端',
-    width: 130,
+    title: renderResizableSecurityHeader('loginHistory', 'terminal', '终端'),
+    width: loginHistoryColumnWidths.terminal,
   },
   {
     key: 'device',
-    title: '设备',
+    title: renderResizableSecurityHeader('loginHistory', 'device', '设备'),
+    width: loginHistoryColumnWidths.device,
     ellipsis: true,
   },
   {
     dataIndex: 'ipAddress',
     key: 'ipAddress',
-    title: 'IP',
-    width: 150,
+    title: renderResizableSecurityHeader('loginHistory', 'ipAddress', 'IP'),
+    width: loginHistoryColumnWidths.ipAddress,
   },
   {
     key: 'failureReason',
-    title: '说明',
+    title: renderResizableSecurityHeader('loginHistory', 'failureReason', '说明'),
+    width: loginHistoryColumnWidths.failureReason,
     ellipsis: true,
   },
 ]);
@@ -338,31 +513,32 @@ const mfaColumns = computed<TableColumnsType<SelfSecurityApi.MfaBinding>>(() => 
   {
     dataIndex: 'type',
     key: 'type',
-    title: 'MFA 方式',
-    width: 180,
+    title: renderResizableSecurityHeader('mfa', 'type', 'MFA 方式'),
+    width: mfaColumnWidths.type,
   },
   {
     dataIndex: 'destination',
     key: 'destination',
-    title: '绑定目标',
+    title: renderResizableSecurityHeader('mfa', 'destination', '绑定目标'),
+    width: mfaColumnWidths.destination,
     ellipsis: true,
   },
   {
     key: 'status',
-    title: '状态',
-    width: 200,
+    title: renderResizableSecurityHeader('mfa', 'status', '状态'),
+    width: mfaColumnWidths.status,
   },
   {
     dataIndex: 'updatedAt',
     key: 'updatedAt',
-    title: '最近更新',
-    width: 180,
+    title: renderResizableSecurityHeader('mfa', 'updatedAt', '最近更新'),
+    width: mfaColumnWidths.updatedAt,
   },
   {
     fixed: 'right',
     key: 'action',
-    title: operationColumnTitle,
-    width: 120,
+    title: renderResizableSecurityHeader('mfa', 'action', operationColumnTitle),
+    width: mfaColumnWidths.action,
     align: 'center',
   },
 ]);
@@ -1130,6 +1306,10 @@ onActivated(() => {
   });
 });
 
+onBeforeUnmount(() => {
+  stopSecurityColumnResize();
+});
+
 watch(activeTab, (tab) => {
   if (tab !== 'trusted-devices') {
     return;
@@ -1454,7 +1634,7 @@ watch(activeTab, (tab) => {
               :data-source="filteredSessions"
               :loading="loading"
               :pagination="false"
-              :scroll="{ x: 1220 }"
+              :scroll="{ x: sessionTableScrollX }"
               class="security-table"
               row-key="sessionId"
               size="middle"
@@ -1672,7 +1852,7 @@ watch(activeTab, (tab) => {
               :data-source="loginHistoryItems"
               :loading="loginHistoryLoading"
               :pagination="false"
-              :scroll="{ x: 1110 }"
+              :scroll="{ x: loginHistoryTableScrollX }"
               class="security-table"
               :row-key="(record, index) => `${record.occurredAt}-${record.traceId || index}`"
               size="middle"
@@ -1745,7 +1925,7 @@ watch(activeTab, (tab) => {
                 :data-source="mfaBindings"
                 :loading="mfaBindingsLoading || loading"
                 :pagination="false"
-                :scroll="{ x: 860 }"
+                :scroll="{ x: mfaTableScrollX }"
                 class="security-table"
                 row-key="bindingId"
                 size="middle"
@@ -2195,9 +2375,11 @@ watch(activeTab, (tab) => {
 }
 
 .security-table :deep(.ant-table-thead > tr > th) {
+  position: relative;
   font-weight: 600;
   color: var(--security-text);
   background: var(--security-card-bg-strong);
+  user-select: none;
 }
 
 .security-table :deep(.ant-table-tbody > tr > td) {
@@ -2207,6 +2389,48 @@ watch(activeTab, (tab) => {
 .security-table :deep(.ant-table),
 .security-table :deep(.ant-table-container) {
   background: transparent;
+}
+
+.security-center__resizable-title {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  padding-right: 12px;
+}
+
+.security-center__resizable-title-text {
+  min-width: 0;
+}
+
+.security-center__column-resizer {
+  position: absolute;
+  top: -12px;
+  right: -10px;
+  bottom: -12px;
+  z-index: 2;
+  width: 14px;
+  cursor: col-resize;
+}
+
+.security-center__column-resizer::after {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 6px;
+  width: 1px;
+  content: '';
+  background: rgb(15 23 42 / 14%);
+  transition: background 0.16s ease;
+}
+
+.security-center__column-resizer:hover::after {
+  background: hsl(var(--primary));
+}
+
+:global(body.security-center--resizing-column) {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .table-cell-title {

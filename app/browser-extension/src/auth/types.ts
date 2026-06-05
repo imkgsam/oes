@@ -108,6 +108,7 @@ export interface SessionContext {
   }
   account?: {
     accountId: string
+    avatar?: string | null
     name?: string
     scopeLevel?: 'SYSTEM' | 'TENANT'
   }
