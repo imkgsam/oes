@@ -63,7 +63,7 @@
 ## 3. Does Not Own
 
 - 自然人、账号、租户、组织、联系资产主数据真相；这些归属 `identity-service`、[tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 或 `party-service`。
-- email / phone contact asset 的主数据、验证状态与展示资料真相；这些归属 `identity-service`。
+- email / phone / social contact asset 的主数据、验证状态、展示资料、公司受控联系方式交接与外部通信账号展示引用真相；这些归属 `identity-service`。
 - 当前用户可用 account context 列表与 account 展示摘要真相；这些归属 `identity-service`。
 - tenant lifecycle 与 org tree 真相；这些以 [tenant-org-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/tenant-org-service.md) 为准。
 - 角色、权限、policy、授权判定、权限摘要与导航授权真相；这些以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准。
@@ -166,8 +166,9 @@ Terminal-aware Account Security Phase 2 增加以下稳定规则：
 
 稳定规则：
 
-- `identity-service` owns email / phone contact asset、联系资产验证状态、用户 / 账号展示资料。
+- `identity-service` owns email / phone / social contact asset、联系资产验证状态、用户 / 账号展示资料、公司受控联系方式交接与外部通信账号展示引用。
 - `auth-service` owns login method、password credential、OTP challenge、MFA credential、recovery code 与 password setup requirement。
+- 第一阶段 OES 登录默认使用个人 primary login method；公司分配的工作邮箱、工作手机号、公司受控社交账号或外部通信账号展示引用不作为默认登录方式。
 - `TERMINAL_PIN` 是 `auth-service` 拥有的 user-scoped login credential，可供 PDA、KIOSK、触摸屏等现场共享终端使用；不得命名或建模为 PDA 专属凭据。
 - `TERMINAL_PIN` 绑定 `userId`，不绑定 `accountId`、`employeeId` 或 `terminalDeviceId`；能否登录某租户终端仍由设备绑定租户、active employee、employee-account binding、account enabled、Terminal Access Policy 与设备状态共同决定。
 - `TERMINAL_PIN` 设置、修改、忘记后重设、启用和停用属于 Web 已登录后的 self-service 账号安全能力，必须通过 step-up 保护；PDA 不提供 PIN 设置或找回流程。
@@ -175,6 +176,7 @@ Terminal-aware Account Security Phase 2 增加以下稳定规则：
 - `TERMINAL_PIN` 必须只保存 hash；认证、诊断或审计日志不得记录 PIN 明文。
 - `auth-service` 可以保存认证所需的 normalized identifier 或目标地址快照，但不得把它扩展为 email / phone 联系资产主数据。
 - 联系资产绑定、变更或验证完成后，是否同步创建或启用 login method，必须通过显式 self-service 或 admin-management 接口完成。
+- Contact Asset 与 Login Identifier 必须分离；任何工作邮箱、工作手机号或社交 handle 是否可登录，都必须通过 `auth-service` login method 显式表达。
 - password recovery 使用认证域 challenge 与一次性 reset grant，不暴露账号存在性。
 - 管理员要求用户重设密码应通过 admin-management 语义表达；用户自助修改或找回密码应通过 self-service / unauthenticated recovery 语义表达。
 - 租户不配置 primary login method。

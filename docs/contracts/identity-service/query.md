@@ -146,6 +146,196 @@
 
 ## 4. 联系方式资产查询
 
+### 4.1 Shared Contact Asset shapes
+
+Contact Asset query shapes 只描述调用方可消费的黑盒字段，不暴露 `identity-service` 内部持久化模型。
+
+`ContactAssetRef`：
+
+```json
+{
+  "targetRefType": "CONTACT_ASSET",
+  "targetRefId": "ca_001"
+}
+```
+
+字段语义：
+
+- `targetRefType` 表示引用来源类型。
+- `CONTACT_ASSET` 指向 `identity-service` Contact Asset。
+- `NONE` 可用于 `SAVE_VCARD` 等不引用单一 Contact Asset 的动作，但 `ResolveContactActionTargets` 不会为 `NONE` 返回联系方式正文。
+- `TENANT_PUBLIC_PROFILE` 不属于个人 Contact Asset；公司官网等能力应由 BusinessCard / Public Entry 通过 tenant/company profile 边界解析。
+- `targetRefId` 是 Contact Asset id；调用方不得从该 id 推断 tenant、account、employee 或联系方式正文。
+
+`ContactAssetSummary`：
+
+```json
+{
+  "contactAssetId": "ca_001",
+  "tenantId": "tenant_001",
+  "accountId": "acc_001",
+  "userId": "user_001",
+  "employeeId": "emp_001",
+  "type": "WORK_PHONE",
+  "provider": null,
+  "ownership": "COMPANY_CONTROLLED",
+  "status": "ACTIVE",
+  "isPrimary": true,
+  "displayLabel": "Work phone",
+  "displayValue": "+1 555 123 4567",
+  "assignedAt": "2026-06-08T02:20:00+08:00",
+  "releasedAt": null
+}
+```
+
+字段语义：
+
+- `tenantId + accountId` 是 Phase 1 查询与归属限定口径。
+- `userId` 是身份主体引用与查询辅助。
+- `employeeId` 是当前分配对象或 HR lifecycle 协同引用，不是 Contact Asset owner。
+- `type` 第一阶段支持 `WORK_EMAIL / WORK_PHONE / WECHAT / WHATSAPP / EXTERNAL_COMMUNICATION_ACCOUNT / OTHER_SOCIAL`。
+- `provider` 用于 `EXTERNAL_COMMUNICATION_ACCOUNT`、`OTHER_SOCIAL` 或需要区分平台的社交资产，例如 `WE_COM / FEISHU / DINGTALK`。
+- `ownership` 第一阶段至少区分 `COMPANY_CONTROLLED / EMPLOYEE_OWNED`。
+- `status` 第一阶段支持 `ACTIVE / PENDING_HANDOVER / DISABLED / RELEASED`。
+- `displayValue` 是查询侧受控展示摘要，不代表登录标识、credential 或认证可用性。
+
+`ContactAssetPublicValueSummary`：
+
+```json
+{
+  "type": "WORK_PHONE",
+  "provider": null,
+  "label": "Phone",
+  "displayValue": "+1 555 123 4567",
+  "actionValue": "+15551234567",
+  "actionUri": "tel:+15551234567",
+  "includeInVCardAllowed": true
+}
+```
+
+公开值约束：
+
+- 只包含公开渲染或 vCard 组装所需最小值。
+- 不包含 login method、password、OTP、MFA、OAuth token、external credential、审计详情或内部备注。
+- `displayValue` 用于页面展示。
+- `actionValue` 用于生成动作，例如 phone number、email address、handle 或 external reference。
+- `actionUri` 是可直接用于 public action 的 URI，例如 `tel:`、`mailto:` 或 WhatsApp deep link；具体 URI 生成规则由 identity query contract 与 renderer 共同保持兼容。
+- `includeInVCardAllowed` 表示该 Contact Asset 类型和值允许进入 vCard；最终是否进入 vCard 仍受 BusinessCard `includeInVCard` 与 public visibility 控制。
+
+### 4.2 `ResolveContactActionTargets`
+
+- 作用：为 BusinessCard Phase 1 public render / vCard 组装解析 Contact Action 的 Contact Asset 引用，返回 public-safe value summary。
+- 调用方：
+  - BusinessCard public render / Public Entry 内部 resolver
+  - BusinessCard 管理端 readiness diagnostics
+- 请求关键字段：
+
+```json
+{
+  "tenantId": "tenant_001",
+  "accountId": "acc_001",
+  "employeeId": "emp_001",
+  "targetRefs": [
+    {
+      "contactActionType": "CALL_PHONE",
+      "targetRefType": "CONTACT_ASSET",
+      "targetRefId": "ca_phone_001"
+    }
+  ]
+}
+```
+
+输入语义：
+
+- `tenantId` 必须来自 BusinessCard / Public Entry 已解析的受控上下文，不来自匿名访问者任意输入。
+- `accountId` 是 Contact Asset Phase 1 primary owner 限定口径。
+- `employeeId` 可作为当前员工分配对象或 HR lifecycle 协同校验输入；它不是 Contact Asset owner。
+- `targetRefs[]` 来自 BusinessCard `contactActionConfigs`，包含 `contactActionType / targetRefType / targetRefId`。
+- `SAVE_VCARD` 不引用单一 Contact Asset；调用方不应要求本接口为 `SAVE_VCARD` 解析联系方式正文。
+- `OPEN_COMPANY_WEBSITE` 不属于个人 Contact Asset；调用方应通过 tenant/company public profile 边界解析。
+
+响应关键字段：
+
+```json
+{
+  "targets": [
+    {
+      "contactActionType": "CALL_PHONE",
+      "targetRefType": "CONTACT_ASSET",
+      "targetRefId": "ca_phone_001",
+      "renderable": true,
+      "hiddenReason": null,
+      "publicValueSummary": {
+        "type": "WORK_PHONE",
+        "provider": null,
+        "label": "Phone",
+        "displayValue": "+1 555 123 4567",
+        "actionValue": "+15551234567",
+        "actionUri": "tel:+15551234567",
+        "includeInVCardAllowed": true
+      }
+    }
+  ]
+}
+```
+
+`ResolvedContactActionTarget` 字段语义：
+
+- `renderable = true` 仅当 Contact Asset 存在、属于请求 `tenantId + accountId` 上下文、状态为 `ACTIVE`，且 `contactActionType` 与 Contact Asset 类型兼容。
+- `renderable = false` 时，`publicValueSummary` 必须为空。
+- `hiddenReason` 面向内部诊断；匿名 public render 不应直接向访客暴露该 reason。
+- 建议的 `hiddenReason` 归一化值包括：
+  - `TARGET_REF_EMPTY`
+  - `TARGET_REF_TYPE_UNSUPPORTED`
+  - `CONTACT_ASSET_NOT_FOUND`
+  - `CONTACT_ASSET_NOT_ACTIVE`
+  - `CONTACT_ASSET_SCOPE_MISMATCH`
+  - `CONTACT_ACTION_TYPE_MISMATCH`
+  - `PUBLIC_VALUE_UNAVAILABLE`
+
+动作兼容规则：
+
+| BusinessCard action | 可解析 Contact Asset 类型 | 规则 |
+| --- | --- | --- |
+| `CALL_PHONE` | `WORK_PHONE` | 只返回 `ACTIVE` 工作电话 public summary。 |
+| `SEND_EMAIL` | `WORK_EMAIL` | 只返回 `ACTIVE` 工作邮箱 public summary。 |
+| `ADD_WECHAT` | `WECHAT`、兼容展示的 `EXTERNAL_COMMUNICATION_ACCOUNT` | 只返回可公开展示的 WeChat / 外部通信展示摘要。 |
+| `OPEN_WHATSAPP` | `WHATSAPP`、兼容 phone-based WhatsApp 展示的 `WORK_PHONE` | 只返回可公开展示的 WhatsApp action summary。 |
+| `SAVE_VCARD` | none | 不通过单一 Contact Asset 解析。 |
+| `OPEN_COMPANY_WEBSITE` | none | 不属于个人 Contact Asset。 |
+
+公开与安全约束：
+
+- Contact Asset `PENDING_HANDOVER / DISABLED / RELEASED / missing` 一律解析为 `renderable = false`。
+- tenant mismatch、account mismatch、target 不属于该上下文时一律解析为 `renderable = false`，不得返回正文值。
+- 本接口不做 BusinessCard 展示配置判定；`enabled / visibility / displayOrder / includeInVCard` 仍由 BusinessCard owner 决定。
+- 本接口不做匿名访问授权；它只在内部服务上下文中解析 public-safe contact value。
+- 本接口不得返回个人登录标识、认证 credential、OTP、MFA、OAuth token、外部通信 token、内部审计字段或不可公开联系方式字段。
+
+### 4.3 `ListAccountContactAssets`
+
+- 作用：按账号工作上下文列出 Contact Asset 摘要，用于员工资料页、管理员资产治理页或 BusinessCard 配置候选项。
+- 请求关键字段：
+  - `tenant_id`
+  - `account_id`
+  - `employee_id`
+  - `types[]`
+  - `status[]`
+  - `ownership[]`
+- 请求语义：
+  - `tenant_id + account_id` 是主要限定条件。
+  - `employee_id` 可选，只用于当前分配对象过滤或校验。
+  - `types / status / ownership` 均可选。
+- 响应关键字段：
+  - `assets[]`，元素为 `ContactAssetSummary`
+- 边界：
+  - 不返回 login method、credential、OTP、MFA 或外部 OAuth / channel token。
+  - 不替代 BusinessCard 展示配置；调用方只能把结果作为候选引用。
+
+### 4.4 Legacy narrow work asset queries
+
+以下接口是历史 work email / work phone 窄口径查询。Phase 1 BusinessCard 新链路优先使用 `ResolveContactActionTargets`；管理端或兼容页面如需列出资产，应逐步迁移到统一 Contact Asset list contract。
+
 ### `ListAccountWorkEmailAssets`
 
 - 作用：列出账户全部工作邮箱资产

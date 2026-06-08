@@ -27,8 +27,11 @@
 - 联系资产与账号归属关系：
   - 工作邮箱资产
   - 工作手机号资产
+  - 公司受控微信 / WhatsApp / 其他社交账号资产
+  - 员工个人社交联系方式在 OES 内的受控展示引用
+  - 企业微信、飞书、钉钉等外部通信账号的名片展示摘要引用
   - 主工作联系方式标记
-  - 联系资产启停、分配、回收与审计语义
+  - 联系资产启停、分配、回收、交接与审计语义
 - 机器主体基础身份：
   - `ServiceAccount`
   - machine principal scope / type / lifecycle
@@ -44,6 +47,8 @@
 - 现实世界自然人的真实姓名、法定姓名、昵称、多语言姓名或组织主体 canonical truth；这些归属 `party-service`。
 - 客户、供应商、员工、联系人等业务角色语义真相；这些归属对应业务服务。
 - 通知模板、渠道、provider、投递任务或通知投递状态真相；这些归属 `notification-service`。
+- BusinessCard 的展示配置、Contact Action 排序、公开范围、vCard 输出规则或 public entry 真相；这些归属 BusinessCard / Public Entry owner。
+- 外部通信平台的账号生命周期、OAuth token、refresh token、webhook、消息读取、消息发送或会话同步真相；这些需由后续 external communication integration / channel binding 设计冻结。
 - API Gateway / BFF 的 HTTP contract、前端聚合形状或 UI 状态。
 
 ## 4. Core Responsibilities
@@ -55,7 +60,7 @@
 - 为 `auth-service` 的员工码现场终端登录提供 `employeeId -> unique UserAccount + enabled state` 的受控解析事实；员工 lifecycle 与 active employment 仍由 `hr-service` 判断，PIN 仍由 `auth-service` 校验。
 - 为 `api-gateway` / BFF 提供 account context、账号目录、身份展示摘要与必要的用户发现能力。
 - 维护 `UserAccount <-> Employee` 绑定结果，并在绑定时校验同 tenant 与同自然人主体约束。
-- 维护工作邮箱 / 工作手机号这类账号联系资产的分配、回收、启停和主联系方式语义。
+- 维护工作邮箱、工作手机号、公司受控社交账号、员工个人社交联系方式展示引用与外部通信账号展示摘要这类账号联系资产的分配、回收、启停、交接和主联系方式语义。
 - 维护机器主体基础身份；机器认证、API Key credential 与 delegation 的长期协同需按专项 contract / architecture 继续推进。
 - 区分登录标识、联系资产、真实姓名与展示名，不把一个字段扩张成多种真相。
 - 对当前账号自助资料修改与管理员资料管理使用显式分离的接口边界，不允许长期复用同一个 management 写接口承载 self-service 语义。
@@ -108,8 +113,31 @@
 
 稳定规则：
 
+- Contact Asset 第一阶段服务员工资料与 Employee Digital Business Card 的联系方式展示，不承接外部账号登录绑定、OAuth token、webhook、消息读取或消息发送。
+- Contact Asset 的 primary 关联是 tenant-scoped `UserAccount`：
+  - `tenantId + accountId` 是第一阶段主归属口径。
+  - `userId` 是身份主体引用与查询辅助。
+  - `employeeId` 可作为当前分配对象或 HR lifecycle 协同引用，但不是 Contact Asset owner。
+- 第一阶段 Contact Asset 类型包括：
+  - `WORK_EMAIL`
+  - `WORK_PHONE`
+  - `WECHAT`
+  - `WHATSAPP`
+  - `EXTERNAL_COMMUNICATION_ACCOUNT`
+  - `OTHER_SOCIAL`
 - 工作邮箱和工作手机号是账号联系资产，可分配、回收、启停、标记主联系方式并记录审计。
+- `WECHAT` / `WHATSAPP` 可表达公司受控账号或员工个人账号，必须通过 ownership 区分。
+- 公司名下手机号注册的微信、WhatsApp 或其他社交账号在 OES 内视为公司受控 Contact Asset；员工只是当前使用 / 分配对象，不是资产 owner。
+- 员工个人微信、WhatsApp 或其他个人社交联系方式可作为名片兜底展示引用，但不是公司资产；公司不得在离职后回收或转交该个人账号。
+- 员工个人联系方式第一阶段不建立独立 consent 模型；添加、修改、移除和展示配置动作必须记录审计元数据。
+- 企业微信、飞书、钉钉等第一阶段建模为 `EXTERNAL_COMMUNICATION_ACCOUNT`，只保存 provider、handle / external reference、display summary 等名片展示摘要；外部平台账号 lifecycle 仍归外部平台。
+- 同一类社交联系入口在 BusinessCard 默认只展示一个：公司受控 Contact Asset 优先；没有公司受控账号时，才展示员工个人联系方式引用。
+- 公司受控社交账号在员工离职、调岗失去使用权或 account disabled 时，默认立即从原员工名片隐藏，并进入交接或停用状态。
+- 第一阶段 Contact Asset 最小状态语义为 `ACTIVE`、`PENDING_HANDOVER`、`DISABLED`、`RELEASED`；更细 verification、sync、claim、lost 或 revoked 状态需另行冻结。
 - 工作联系方式不天然等于登录方式；是否可登录、是否已启用 login method、OTP / password credential 均归 `auth-service`。
+- 第一阶段 OES 登录默认使用个人 primary login method；公司分配的工作邮箱、工作手机号、公司受控社交账号不作为默认登录方式。
+- BusinessCard 只能引用 Contact Asset 并决定展示配置、排序、公开范围和是否进入 vCard，不拥有 phone、email、WeChat、WhatsApp 或外部通信账号正文。
+- 第一阶段不做 org / team / role 级公共联系资产；公共号、部门号、客服号或销售公共号应通过后续设计单独冻结。
 - 自助联系绑定与管理员联系资产治理必须分离：
   - self-service 只作用于当前登录主体，并从当前 session / operator context 派生 target。
   - admin-management 面向目标账号或目标用户，必须经过权限与 scope 判定。
