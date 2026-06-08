@@ -78,14 +78,14 @@
   - [sales-fulfillment-mes-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
   - [item-master-sales-mes-wms-srm.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/item-master-sales-mes-wms-srm.md)
 - 下一步 contract 入口：
-  - future `docs/contracts/sales-service/**`
+  - [sales-service contracts](/Users/acehood/Documents/GitHub/oes/docs/contracts/sales-service/README.md)
 
 ## 6. 当前 slice
 
 - slice:
   - `sales-service` quote-order core
 - status:
-  - ready-for-sales-contract
+  - implementation-present / fresh-verification-needed
 - scope:
   - `Quote`
   - `QuoteVersion`
@@ -97,7 +97,16 @@
 - ready definition:
   - 服务职责已回写
   - 关键协同蓝图已冻结 minimum 口径
-  - 后续 contract 线程可以在不重新讨论 owner 边界的前提下继续推进
+  - sales-service 黑盒 contract 已建立
+  - sales-service runtime 已存在；本次状态校准未重跑 fresh verification
+
+### 6.1 状态校准记录
+
+Status, 2026-06-07:
+
+- `docs/contracts/sales-service/**` 已存在并承接 Sales phase 1 management、query、pricing management 与 pricing query contract。
+- `src/services/business/sales-service/**` 已存在 service runtime、Prisma schema、gRPC controller、tests 与 smoke script。
+- 本次校准只修正文档状态；未重跑 `sales-service` test / build / smoke，因此当前状态不得写成 fresh verified 或 fully closed。
 
 ## 7. 最小模型
 
@@ -162,8 +171,8 @@
 | Thread / Owner | 职责 | 允许修改路径 | 输入 | 输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | SALES-ARCH-WRITEBACK thread | 回写 `sales-service` 稳定真相源与 feature packet | `docs/architecture/services/sales-service.md`, `docs/architecture/collaborations/**`, `docs/plans/features/sales-quote-order-core.md`, 必要索引页 | `erp-service-design` 与本轮冻结结论 | 服务职责、协同蓝图、feature packet | completed |
-| SALES-CONTRACT thread | 冻结 `sales-service` 黑盒契约 | future `docs/contracts/sales-service/**` | 本 feature packet、服务职责、协同蓝图 | quote / order / handoff contracts | pending |
-| SALES-REALIZATION thread | 在已冻结边界内实现服务骨架与验证 | future `src/services/**/sales-service/**` | feature packet、contracts | 可运行服务与验证结果 | pending |
+| SALES-CONTRACT thread | 冻结 `sales-service` 黑盒契约 | `docs/contracts/sales-service/**` | 本 feature packet、服务职责、协同蓝图 | quote / order / handoff contracts | completed |
+| SALES-REALIZATION thread | 在已冻结边界内实现服务骨架与验证 | `src/services/business/sales-service/**` | feature packet、contracts | 可运行服务与验证结果 | implementation-present / fresh-verification-needed |
 
 ## 12. 验收标准
 
@@ -177,3 +186,4 @@
 - `docs/contracts/sales-service/**` 已建立并承接本 packet。
 - 后续 contract 线程无需再次讨论“是否设计大 erp-service”。
 - line snapshot、quote version 与 handoff 边界在 contract 阶段未被重新打开。
+- 若需要关闭本 packet，应先重跑 sales-service 相关 test / build / smoke，并把 fresh verification 结果回写到本文。

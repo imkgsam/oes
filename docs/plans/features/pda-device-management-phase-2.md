@@ -91,14 +91,14 @@
 
 | Thread / Owner | 职责 | 允许修改路径 | 输入 | 输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| architecture owner | 冻结 ADR、服务真相源与协同蓝图 | `docs/adr/**`, `docs/architecture/services/**`, `docs/architecture/collaborations/**` | 当前 Phase 2 设计讨论 | 架构边界与协同真相源 | in_progress |
-| contract owner | 冻结 PDA BFF、Admin BFF 与 terminal-device-service contracts | `docs/contracts/api-gateway/**`, `docs/contracts/terminal-device-service/**` | 架构真相源与 feature packet | 黑盒契约 | pending |
-| terminal-device-service owner | 实现服务领域模型、application use cases、repositories、gRPC / internal contracts 与审计 | `src/services/**/terminal-device-service/**`, 必要时新增服务 workspace | contracts 与 architecture | 设备治理服务 | pending |
-| api-gateway owner | 接入 PDA BFF 与 Admin BFF，编排 auth / permission / terminal-device-service | `src/services/api-gateway/**` | BFF contracts 与 service contracts | 外部 HTTP 能力 | pending |
-| auth-service owner | 支持按 `terminalDeviceId + terminal=PDA` 记录和 revoke sessions | `src/services/system/auth-service/**`, auth contracts | 协同蓝图与 contracts | PDA device session revoke 协作 | pending |
-| PDA Android/Web owner | 实现入网、受限、版本过低、identity conflict 体验与本地清理 | `app/pda/**` | PDA BFF contracts 与 JS Bridge contract | 端侧设备治理体验 | pending |
-| tenant-web owner | 实现 enrollment 管理、设备列表、详情、状态操作、版本策略 UI | `app/web/apps/tenant-web/**` | Admin BFF contracts | 后台设备管理 UI | pending |
-| integration owner | 串联 enrollment、登录、禁用、session revoke、heartbeat、版本策略与验收 | `app/pda/**`, `src/services/**`, `docs/plans/features/**` | 所有 owner 输出 | Phase 2 验收结论 | pending |
+| architecture owner | 冻结 ADR、服务真相源与协同蓝图 | `docs/adr/**`, `docs/architecture/services/**`, `docs/architecture/collaborations/**` | 当前 Phase 2 设计讨论 | 架构边界与协同真相源 | completed |
+| contract owner | 冻结 PDA BFF、Admin BFF 与 terminal-device-service contracts | `docs/contracts/api-gateway/**`, `docs/contracts/terminal-device-service/**` | 架构真相源与 feature packet | 黑盒契约 | completed |
+| terminal-device-service owner | 实现服务领域模型、application use cases、repositories、gRPC / internal contracts 与审计 | `src/services/**/terminal-device-service/**`, 必要时新增服务 workspace | contracts 与 architecture | 设备治理服务 | completed |
+| api-gateway owner | 接入 PDA BFF 与 Admin BFF，编排 auth / permission / terminal-device-service | `src/services/api-gateway/**` | BFF contracts 与 service contracts | 外部 HTTP 能力 | completed |
+| auth-service owner | 支持按 `terminalDeviceId + terminal=PDA` 记录和 revoke sessions | `src/services/system/auth-service/**`, auth contracts | 协同蓝图与 contracts | PDA device session revoke 协作 | completed |
+| PDA Android/Web owner | 实现入网、受限、版本过低、identity conflict 体验与本地清理 | `app/pda/**` | PDA BFF contracts 与 JS Bridge contract | 端侧设备治理体验 | completed |
+| tenant-web owner | 实现 enrollment 管理、设备列表、详情、状态操作、版本策略 UI | `app/web/apps/tenant-web/**` | Admin BFF contracts | 后台设备管理 UI | completed |
+| integration owner | 串联 enrollment、登录、禁用、session revoke、heartbeat、版本策略与验收 | `app/pda/**`, `src/services/**`, `docs/plans/features/**` | 所有 owner 输出 | Phase 2 验收结论 | completed |
 
 ## 7. 当前 slice
 

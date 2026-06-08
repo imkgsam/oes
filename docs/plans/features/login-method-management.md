@@ -56,21 +56,37 @@
 
 ## 5. 契约真相位置
 
-- 自助登录方式管理的 BFF 契约应回写到 [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)。
-- 管理员登录方式治理的 BFF 契约应回写到 [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)。
-- `auth-service` 内部 gRPC 契约应回写到 [login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md) 或新增独立 `login-method.md` 后由 contracts index 链接。
-- 若新增 `PasswordSetupRequirement` 持久模型，应同步更新 `auth-service` 服务职责文档与相关契约说明。
+- 自助登录方式管理的 BFF 契约已回写到 [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)。
+- 管理员登录方式治理的 BFF 契约已回写到 [auth-bff-admin-security.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-admin-security.md)。
+- `auth-service` 内部 gRPC 契约已回写到 [login.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/login.md)。
+- `PasswordSetupRequirement` 持久模型已进入 auth-service runtime；长期职责仍以 auth-service 服务真相源为准。
+
+### 5.1 状态校准记录
+
+Status, 2026-06-07:
+
+- `auth-service` 已存在 `ListLoginMethods`、`ChangeOwnPassword`、`RequirePasswordSetup` 与 `SetLoginMethodEnabled` 相关 command / query / gRPC controller / repository / tests。
+- API Gateway 已存在 self-service HTTP API：`GET /auth/login-methods`、`POST /auth/password/change`、`POST /auth/login-methods/:methodId/enable`、`POST /auth/login-methods/:methodId/disable`。
+- API Gateway 已存在 admin HTTP API：`GET /auth/admin/accounts/:accountId/login-methods`、`POST /auth/admin/accounts/:accountId/password/setup-required`、`POST /auth/admin/accounts/:accountId/login-methods/:methodId/enable|disable`。
+- tenant-web 已存在 self-service security center 登录方式 API / 页面接入，以及 account-management 管理员登录方式区块。
+- 本次已完成 fresh verification，当前 V1A 状态为 `completed / closed`。
+
+Fresh verification:
+
+- `pnpm --filter auth-service exec jest auth.grpc.controller list-login-methods change-own-password require-password-setup set-login-method-enabled password-setup-requirement --runInBand` passed: 6 suites / 47 tests.
+- `pnpm --filter api-gateway exec jest auth.controller session-self-service admin-security auth-grpc.adapter --runInBand` passed: 5 suites / 53 tests.
+- `pnpm --dir app/web test:unit apps/tenant-web/src/views/_core/profile/security-center.layout.spec.ts apps/tenant-web/src/views/admin/account-management.spec.ts apps/tenant-web/src/api/bff/security/index.spec.ts apps/tenant-web/src/api/bff/admin-security/index.spec.ts` passed: 2 files / 22 tests. Local Node emitted the existing engine warning because current Node is `v25.5.0` while app/web declares `^20.19.0 || ^22.18.0 || ^24.0.0`.
 
 ## 6. 线程分工
 
 | Thread / Owner | 职责 | 允许修改路径 | 输入 | 输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | design owner | 冻结登录方式管理目标、边界、安全规则、V1 slice 与后续拆分 | `docs/plans/features/**`, 必要时 `docs/contracts/**` | 当前 feature 讨论、现有认证与个人中心能力 | 当前 feature packet | completed |
-| contract owner | 冻结自助与管理员 BFF 黑盒契约，补 auth-service gRPC 契约 | `docs/contracts/**`, `src/common/src/contracts/auth_service/**` | 当前 feature packet | 契约文档与 proto 变更计划 | pending |
-| auth-service owner | 实现登录方式 read model、密码变更、密码重设要求、登录方式启停与审计 | `src/services/system/auth-service/**` | contracts / feature packet | 可测试认证服务能力 | pending |
-| api-gateway owner | 编排 self/admin HTTP API，做 account -> user 解析与 operator scope 限制 | `src/services/api-gateway/src/modules/auth-bff/**` | auth-service / identity-service 契约 | BFF 黑盒能力 | pending |
-| tenant-web owner | 接入个人安全中心与账号管理页登录方式区块 | `app/web/apps/tenant-web/**` | BFF 契约 | 用户侧与管理员侧页面 | pending |
-| review / integration owner | 检查安全规则、审计、权限、会话影响与端到端行为 | 只读全局，必要时最小修正 | 各实现输出 | 验证结论与关闭判断 | pending |
+| contract owner | 冻结自助与管理员 BFF 黑盒契约，补 auth-service gRPC 契约 | `docs/contracts/**`, `src/common/src/contracts/auth_service/**` | 当前 feature packet | 契约文档与 proto 变更计划 | completed |
+| auth-service owner | 实现登录方式 read model、密码变更、密码重设要求、登录方式启停与审计 | `src/services/system/auth-service/**` | contracts / feature packet | 可测试认证服务能力 | completed |
+| api-gateway owner | 编排 self/admin HTTP API，做 account -> user 解析与 operator scope 限制 | `src/services/api-gateway/src/modules/auth-bff/**` | auth-service / identity-service 契约 | BFF 黑盒能力 | completed |
+| tenant-web owner | 接入个人安全中心与账号管理页登录方式区块 | `app/web/apps/tenant-web/**` | BFF 契约 | 用户侧与管理员侧页面 | completed |
+| review / integration owner | 检查安全规则、审计、权限、会话影响与端到端行为 | 只读全局，必要时最小修正 | 各实现输出 | 验证结论与关闭判断 | completed |
 
 ## 7. 当前 slice
 
@@ -93,15 +109,15 @@
 ## 8. 主线范围
 
 - 本线程主线：
-  - 冻结登录方式管理 feature 的 V1 方案
-  - 明确自助与管理员两个入口
-  - 明确密码安全语义
-  - 明确后续实现分片
+  - 登录方式管理 feature 的 V1A 方案与实现状态校准
+  - 自助与管理员两个入口
+  - 密码安全语义
+  - V1B 绑定 / 更换邮箱手机号后置边界
 - 本线程不做：
-  - 直接实现代码
-  - 直接修改 proto
-  - 直接修改权限码
-  - 直接新增数据库迁移
+  - 新增 V1B 邮箱 / 手机号更换流程
+  - 新增 OAuth / 第三方登录绑定
+  - 新增租户级登录策略
+  - 在未 fresh verification 前声明 fully closed
 - 偏移返回条件：
   - 若实现需要改变 `user` / `account` / `tenant` 归属语义，暂停并升级到 architecture / ADR。
   - 若需要让管理员直接设置明文密码，暂停并重新评估安全设计。
@@ -214,11 +230,11 @@ POST /api/v1/auth/admin/accounts/:accountId/login-methods/phone
 
 ## 13. 阻塞 / 依赖
 
-- 当前个人中心只有登录方式只读展示，没有登录方式管理页。
+- 当前个人中心 / 安全中心已有登录方式管理入口。
 - 当前安全中心已有 MFA、会话与恢复码管理，不应把这些能力重复搬进登录方式管理。
-- 当前管理员账号管理页能创建账号并 bootstrap 登录方式，但不是登录方式治理入口。
-- 当前 `auth-service` 主要靠 `LoginMethod` 与 `Credential` 表达登录方式和凭据，缺少管理员重设密码所需的显式状态。
-- V1A 确认新增独立 `PasswordSetupRequirement` 持久模型，用于表达管理员重设密码、首次登录补密码和未来安全策略触发的显式 password setup gate。
+- 当前管理员账号管理页已存在登录方式治理区块。
+- 当前 `auth-service` 仍主要靠 `LoginMethod` 与 `Credential` 表达登录方式和凭据；这是 V1A 兼容结构，不作为 V1B 联系方式更换流程的完整模型。
+- V1A 已新增独立 `PasswordSetupRequirement` 持久模型，用于表达管理员重设密码、首次登录补密码和未来安全策略触发的显式 password setup gate。
 
 ## 14. 派生问题 Ledger
 
@@ -249,8 +265,15 @@ POST /api/v1/auth/admin/accounts/:accountId/login-methods/phone
 - feature packet 已冻结为当前阶段执行真相。
 - 自助与管理员 BFF 黑盒契约已回写到 `docs/contracts/api-gateway/**`。
 - auth-service 登录方式管理命令 / 查询契约已冻结。
-- V1A 代码链路完成并通过聚焦验证。
+- V1A 代码链路已实现并通过聚焦 fresh verification。
 - V1B 绑定 / 更换邮箱手机号流程已单独拆分或明确后置。
+
+## 16.1 关闭结论
+
+- Status: `completed / closed`
+- 本 feature packet 已关闭，仅保留为历史执行记录。
+- 当前关闭范围为 V1A：登录方式只读模型、用户自助修改密码、登录方式启停、管理员查看目标账号登录方式、管理员要求用户重设密码。
+- V1B 邮箱 / 手机号绑定与更换验证、OAuth / 第三方登录绑定、租户级登录策略继续后置，不回流到当前已关闭主线。
 
 ## 17. 备注
 

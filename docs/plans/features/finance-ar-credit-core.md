@@ -80,14 +80,14 @@
   - [sales-finance-order-to-cash.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-finance-order-to-cash.md)
   - [sales-fulfillment-mes-wms-finance.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/collaborations/sales-fulfillment-mes-wms-finance.md)
 - 下一步 contract 入口：
-  - future `docs/contracts/finance-service/**`
+  - [finance-service contracts](/Users/acehood/Documents/GitHub/oes/docs/contracts/finance-service/README.md)
 
 ## 6. 当前 slice
 
 - slice:
   - `finance-service` AR credit core
 - status:
-  - ready-for-finance-contract
+  - implementation-present / fresh-verification-needed
 - scope:
   - `Receivable`
   - `Invoice`
@@ -101,7 +101,16 @@
 - ready definition:
   - 服务职责已回写
   - `Sales / Finance` 协同蓝图已冻结 minimum 口径
-  - 后续 contract 线程可以在不重谈 owner 边界的前提下继续推进
+  - finance-service 黑盒 contract 已建立
+  - finance-service runtime 已存在；本次状态校准未重跑 fresh verification
+
+### 6.1 状态校准记录
+
+Status, 2026-06-07:
+
+- `docs/contracts/finance-service/**` 已存在并承接 Finance phase 1 account、receivable、payable、payment 与 integration contract。
+- `src/services/business/finance-service/**` 已存在 service runtime、Prisma schema、repository、gRPC controller、tests 与 smoke script。
+- 本次校准只修正文档状态；未重跑 `finance-service` test / build / smoke，因此当前状态不得写成 fresh verified 或 fully closed。
 
 ## 7. 最小模型
 
@@ -188,8 +197,8 @@
 | Thread / Owner | 职责 | 允许修改路径 | 输入 | 输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | FINANCE-ARCH-WRITEBACK thread | 回写 `finance-service` 稳定真相源与 feature packet | `docs/architecture/services/finance-service.md`, `docs/architecture/collaborations/sales-finance-order-to-cash.md`, `docs/plans/features/finance-ar-credit-core.md`, 必要索引页 | `erp-service-design`、Sales 稳定边界与本轮冻结结论 | 服务职责、协同蓝图、feature packet | completed |
-| FINANCE-CONTRACT thread | 冻结 `finance-service` 黑盒契约 | future `docs/contracts/finance-service/**` | 本 feature packet、服务职责、协同蓝图 | finance query / management / integration contracts | pending |
-| FINANCE-REALIZATION thread | 在已冻结边界内实现 `finance-service` phase 1 骨架与验证 | future `src/services/**/finance-service/**` | feature packet、contracts | 可运行服务、测试与验证结果 | pending |
+| FINANCE-CONTRACT thread | 冻结 `finance-service` 黑盒契约 | `docs/contracts/finance-service/**` | 本 feature packet、服务职责、协同蓝图 | finance query / management / integration contracts | completed |
+| FINANCE-REALIZATION thread | 在已冻结边界内实现 `finance-service` phase 1 骨架与验证 | `src/services/business/finance-service/**` | feature packet、contracts | 可运行服务、测试与验证结果 | implementation-present / fresh-verification-needed |
 
 ## 12. 验收标准
 
@@ -203,3 +212,4 @@
 - `docs/contracts/finance-service/**` 已建立并承接本 packet。
 - 后续 contract 线程无需再次讨论 `finance-service` 是否还应拆成多个细服务。
 - `FinanceRelease`、standard FX owner、AR / invoice / collection / allocation / credit 边界在 contract 阶段未被重新打开。
+- 若需要关闭本 packet，应先重跑 finance-service 相关 test / build / smoke，并把 fresh verification 结果回写到本文。

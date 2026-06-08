@@ -1,8 +1,11 @@
 # PDA Employee Code + Terminal PIN Login
 
+Status: completed / closed
+Closed at: 2026-06-07
+
 ## 1. Purpose
 
-本 feature packet 冻结 PDA `employeeCode + TERMINAL_PIN` 登录的设计范围、服务边界、契约变更与实施顺序。
+本 feature packet 记录 PDA `employeeCode + TERMINAL_PIN` 登录的已冻结设计范围、服务边界、契约变更与实现验收结果。
 
 PDA 是受管现场终端。设备 enrollment、设备状态治理、PDA session 短窗口、heartbeat、诊断日志与设备绑定租户已经在 PDA Phase 1 / Device Management Phase 2 中完成。本 feature 不重新定义设备治理，只在已受管 PDA 上新增现场员工快速登录方式。
 
@@ -386,9 +389,9 @@ PIN 弹窗保持打开
 
 不修改 PDA Device Management Phase 2 feature packet，避免把本 feature 混入已验收设备治理线程。
 
-## 11. Implementation Order
+## 11. Implementation Record
 
-实现前必须先完成文档冻结，然后按 TDD 推进：
+本 feature 已按以下顺序完成并验收：
 
 1. HR `ResolveActiveEmployeeByCode` contract、tests、runtime。
 2. Identity `ResolveEmployeeLoginAccount` contract、tests、runtime。
@@ -396,11 +399,41 @@ PIN 弹窗保持打开
 4. Auth `LoginWithEmployeeCodePin` tests、runtime。
 5. API Gateway PDA login DTO / mapping tests、runtime。
 6. PDA Web login UI tests、runtime。
-7. Android / WebView 66 真机或兼容 smoke。
-8. Auth / PDA BFF / PDA Web smoke verification。
+7. Android / WebView 66 兼容约束纳入 PDA Web build target 与前端测试覆盖。
+8. Auth / PDA BFF / PDA Web targeted verification completed on 2026-06-07.
 
 ## 12. Open Risks
 
 - `TERMINAL_PIN` 是 user-scoped 低熵凭据。必须依赖设备绑定租户、active employee、account binding、Terminal Access Policy 和失败锁定共同收窄风险。
 - Web 个人中心需要承接 PIN 设置 / 重设 / 启停 UI；如果该 UI 不在同一阶段交付，PDA 登录会遇到“PIN 未设置但无入口处理”的体验缺口。
 - HR 与 identity 新增查询是跨服务 contract 变更，必须先更新 proto / contract，再实现。
+
+## 13. Verification And Closure
+
+Status, 2026-06-07:
+
+- HR `ResolveActiveEmployeeByCode` proto、controller、query service 与 tests 已实现并验证。
+- Identity `ResolveEmployeeLoginAccount` query handler、gRPC controller 与 auth-service adapter 已实现并验证。
+- Auth `EMPLOYEE_CODE_PIN`、`TERMINAL_PIN` credential、PIN management、preflight、login completion、audit 与 gRPC mapping 已实现并验证。
+- API Gateway PDA login DTO / mapping / downstream auth adapter / HTTP integration 已实现并验证。
+- app/pda employee-code scan/manual input、PIN popup、6-digit auto submit、error handling 与 BFF client 已实现并验证。
+- tenant-web 个人中心账号安全与平台终端安全设置中的 `TERMINAL_PIN` / `EMPLOYEE_CODE_PIN` 展示与辅助逻辑已实现并验证。
+
+Fresh verification, 2026-06-07:
+
+- `pnpm --filter hr-service exec jest test/l1/hr-query.service.spec.ts test/l3/hr-query.grpc.controller.spec.ts --runInBand`: 2 suites / 11 tests passed.
+- `pnpm --filter identity-service exec jest test/l1/employee-binding.handler.spec.ts --runInBand`: 1 suite / 5 tests passed.
+- `pnpm --filter auth-service exec jest src/application/commands/auth/login-with-employee-code-pin.handler.spec.ts src/application/queries/login-preflight/preflight-employee-code-pin-login.handler.spec.ts src/application/commands/auth/terminal-pin-management.handler.spec.ts src/interfaces/grpc/auth.grpc.controller.spec.ts --runInBand`: 4 suites / 52 tests passed.
+- `pnpm --filter api-gateway exec jest src/modules/auth-bff/application/use-cases/login.use-case.spec.ts src/modules/auth-bff/infrastructure/downstream/auth-service/auth-grpc.adapter.spec.ts src/modules/auth-bff/interfaces/http/controllers/auth.integration.spec.ts --runInBand`: 3 suites / 31 tests passed.
+- `pnpm --dir app/pda/web exec vitest run src/tests/employee-code-login.spec.ts src/tests/login-view-pin-popup.spec.ts src/tests/login-pin-immediate-loading.spec.ts src/tests/login-pin-performance.spec.ts src/tests/pda-bff.client.spec.ts`: 5 files / 28 tests passed.
+- `pnpm --dir app/web exec vitest run apps/tenant-web/src/views/_core/profile/security-center.helpers.spec.ts apps/tenant-web/src/views/admin/platform-terminal-security-settings.spec.ts`: 2 files / 18 tests passed.
+- `pnpm --filter hr-service build`: passed.
+- `pnpm --filter identity-service build`: passed.
+- `pnpm --filter auth-service build`: passed.
+- `pnpm --filter api-gateway build`: passed.
+- `pnpm --dir app/pda/web build`: passed.
+
+Closure decision:
+
+- 第十项 `PDA Employee Code + PIN Login` 已实现，可从未完成 feature 清单移除。
+- 本次未执行 Android 真机 smoke；当前关闭依据为代码实现、contract/architecture 文档同步、targeted tests 与 build verification。

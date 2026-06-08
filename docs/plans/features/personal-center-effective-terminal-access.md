@@ -2,6 +2,15 @@
 
 > 所属设计主题：Terminal-aware Account Security。本文只冻结“个人中心实时展示当前 account 的最终终端准入”这一补充闭环项，不承接 PDA Device Management、设备 registry、设备状态、PDA 版本策略或 PDA 页面联调。
 
+## 状态校准
+
+Status, 2026-06-07:
+
+- 本 feature 已冻结推荐实现与验收标准，但尚未形成关闭记录。
+- 本次源码核对发现 tenant-web 个人中心仍存在使用 `authContextStore.sessionContext?.allowedTerminals` 展示终端准入的痕迹。
+- 因此当前状态校准为 `frozen / implementation-pending-or-incomplete`。
+- 后续实现应以本文第 6-8 节为准，完成 BFF 动态查询 effective terminal access、tenant-web 改用 `summary.accountContext.allowedTerminals`，并补 fresh verification。
+
 ## 1. 目标
 
 让 tenant-web 个人中心中的“终端准入”显示当前 account 的实时有效 terminal access，而不是显示登录时写入 token / session context 的旧快照。
@@ -205,4 +214,3 @@ feat: show effective terminal access in personal center
 - 不应把该动态查询下沉到每次 `ValidateAccessToken`，否则会让所有受保护请求都依赖 permission-service terminal access 动态解析，扩大运行时耦合。
 - 如果 permission-service 不可用，personal-center 可以失败关闭或降级为空列表；推荐失败关闭并提示个人中心加载失败，避免展示错误安全配置。
 - 当前 session 的可继续使用性仍由 auth-service 在 refresh / session continuation 时执行 terminal access enforcement。本 feature 只解决“个人中心展示当前配置事实”的问题。
-

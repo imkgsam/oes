@@ -1,5 +1,11 @@
 # 自助单会话退出
 
+## 0. 状态
+
+Status: `completed / closed`
+
+本 feature packet 已关闭，仅保留为历史执行记录。当前关闭范围是账户安全页中对“其他活动会话”的单条自助退出能力；登录历史、异常登录提示、安全通知联动仍保持后置，不回流到当前已关闭主线。
+
 ## 1. 目标
 
 - 在“个人账户 > 账户安全 > 会话管理”中展示当前账号的全部活动会话。
@@ -48,20 +54,20 @@
 - 当前已存在相关契约：
   - [auth-bff-self-service.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/api-gateway/auth-bff-self-service.md)
   - [session.md](/Users/acehood/Documents/GitHub/oes/docs/contracts/auth-service/session.md)
-- 本 feature 预期新增或更新的契约：
+- 本 feature 已新增或更新的契约：
   - `POST /auth/sessions/:sessionId/logout`
   - `LogoutSession` 或等价的自助单会话退出下游能力
   - “目标会话不可操作 / 不允许操作当前会话”的稳定错误语义
 - 当前状态：
-  - 以上新增契约尚未正式写入契约真相源；本 packet 只冻结 feature 主线与预期增量，不把未落地接口伪装为已完成契约
+  - 新增契约已回写到契约真相源，并已完成 auth-service、api-gateway 与 tenant-web 最小闭环。
 
 ## 6. 线程分工
 
 | Thread / Owner | 职责 | 允许修改路径 | 输入 | 输出 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | design owner | 冻结自助单会话退出的产品语义、交互边界、契约增量与非目标 | `docs/plans/features/**`, 必要时 `docs/contracts/**` | 当前自助会话契约、账户安全页现状与本 feature 目标 | 冻结后的 feature packet 与后续契约增量要求 | completed |
-| implementation owner | 实现自助单会话退出闭环，覆盖 auth-service、auth-bff 与 tenant-web 会话页交互 | `src/services/system/auth-service/**`, `src/services/api-gateway/**`, `app/web/apps/tenant-web/**`, 必要时 `docs/contracts/**` | feature packet、现有 self-service session 契约 | 可运行实现与验证结果 | pending |
-| review / integration owner | 审核自助语义是否与管理员撤销、登录历史与当前登出边界保持分离 | 只读全局，必要时最小修正 | design + implementation 结果 | review 结论、集成验证结果 | pending |
+| implementation owner | 实现自助单会话退出闭环，覆盖 auth-service、auth-bff 与 tenant-web 会话页交互 | `src/services/system/auth-service/**`, `src/services/api-gateway/**`, `app/web/apps/tenant-web/**`, 必要时 `docs/contracts/**` | feature packet、现有 self-service session 契约 | 可运行实现与验证结果 | completed |
+| review / integration owner | 审核自助语义是否与管理员撤销、登录历史与当前登出边界保持分离 | 只读全局，必要时最小修正 | design + implementation 结果 | review 结论、集成验证结果 | completed |
 
 ## 7. 当前 slice
 
@@ -135,6 +141,7 @@
 - feature packet 已冻结为当前阶段执行真相。
 - 自助单会话退出所需的 BFF / auth-service 契约增量已明确。
 - 后续实现线程可以在不重新讨论产品边界的前提下直接推进实现。
+- V1 代码链路已实现并通过聚焦 fresh verification。
 
 ## 13. 当前实现状态
 
@@ -159,6 +166,17 @@
 
 ## 14. 已完成验证
 
+Fresh verification, 2026-06-07:
+
+- `pnpm --dir src/services/system/auth-service exec jest src/application/commands/auth/logout-session.handler.spec.ts src/interfaces/grpc/auth.grpc.controller.spec.ts --runInBand` passed: 2 suites / 41 tests.
+- `pnpm --dir src/services/api-gateway exec jest src/modules/auth-bff/application/use-cases/session-self-service.use-case.spec.ts src/modules/auth-bff/interfaces/http/controllers/auth.controller.spec.ts src/modules/auth-bff/interfaces/http/controllers/auth.integration.spec.ts --runInBand` passed: 3 suites / 39 tests.
+- `pnpm --dir app/web test:unit apps/tenant-web/src/views/_core/profile/security-center.layout.spec.ts apps/tenant-web/src/api/bff/security/index.spec.ts` passed: 1 file / 4 tests. Local Node emitted the existing engine warning because current Node is `v25.5.0` while app/web declares `^20.19.0 || ^22.18.0 || ^24.0.0`.
+- `pnpm --dir src/services/system/auth-service build` passed.
+- `pnpm --dir src/services/api-gateway build` passed.
+- `pnpm --dir app/web --filter @oes/tenant-web run typecheck` failed on existing unrelated tenant-web type errors in `tenant-management` spec payloads and `item-attribute` table column typing; no failure was in the self-service session logout paths.
+
+Earlier verification:
+
 - `auth-service`
   - `pnpm --dir src/services/system/auth-service exec jest src/application/commands/auth/logout-session.handler.spec.ts src/interfaces/grpc/auth.grpc.controller.spec.ts --runInBand`
   - `pnpm --dir src/services/system/auth-service build`
@@ -174,3 +192,4 @@
 
 - 当前判断该 feature 属于范围清晰、可直接进入执行的 feature，不需要额外建立 design workspace。
 - 若后续扩展出“登录历史”“异常登录提示”“安全通知联动”等长期议题，应拆成独立 feature 或 design workspace，而不是继续追加到本 packet。
+- 当前 packet 已关闭；后续只保留历史执行记录作用。
