@@ -12,6 +12,7 @@ export const SERVICE_NAMES = {
   NOTIFICATION: 'notification-service',
   PARTY: 'party-service',
   PROCUREMENT: 'procurement-service',
+  PUBLIC_ENTRY: 'public-entry-service',
   SRM: 'srm-service',
   TENANT_ORG: 'tenant-org-service',
   TERMINAL_DEVICE: 'terminal-device-service',

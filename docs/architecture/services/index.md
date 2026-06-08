@@ -54,6 +54,7 @@
 | `wms-service` | [wms-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/wms-service.md) | `DESIGNING` | 已有职责卡，但 inventory、receipt、warehouse、packaging、MES / procurement 协同尚未完全冻结，不能作为稳定服务真相源引用。 |
 | `mes-service` | [mes-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/mes-service.md) | `OK` | 当前新设计已收敛到唯一架构化入口；旧 design workspace、contract 与 runtime 后续按本文重写对齐。 |
 | `asset-service` | [asset-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/asset-service.md) | `DESIGNING` | 已有职责卡，但头像资产、通用资产平台与对象存储编排设计尚未完全冻结，不能作为稳定服务真相源引用。 |
+| `public-entry-service` | [public-entry-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/public-entry-service.md) | `DESIGNING` | ShortLink 与 BusinessCard 同服务模块边界已冻结；Phase 1 contracts 与 runtime 尚未实现。 |
 | `notification-service` | 待建 | `MISSING` | runtime 已存在且被 `auth-service` 与架构文档引用；需从 notification architecture / plans 抽取职责卡。 |
 
 ## 5. Future / Designing 服务

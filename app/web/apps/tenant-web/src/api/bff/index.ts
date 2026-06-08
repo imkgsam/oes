@@ -12,6 +12,8 @@ export * from './permission-management';
 export * from './personal-center';
 export * from './policy-governance';
 export * from './procurement';
+export * from './public-entry-short-link';
+export * from './public-entry-business-card';
 export * from './role-management';
 export * from './security';
 export * from './sales';

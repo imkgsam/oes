@@ -1,0 +1,139 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ShortLinkTargetKind {
+  INTERNAL_REF
+  EXTERNAL_URL
+}
+
+enum ShortLinkStatus {
+  ACTIVE
+  DISABLED
+  ARCHIVED
+}
+
+enum VisitResultStatus {
+  REDIRECTED
+  DISABLED
+  EXPIRED
+  ARCHIVED
+  INVALID_TARGET
+}
+
+enum BusinessCardStatus {
+  DRAFT
+  ACTIVE
+  DISABLED
+  ARCHIVED
+}
+
+model ShortLink {
+  id               String              @id @default(uuid()) @db.Uuid
+  tenantId         String              @db.VarChar(100)
+  displayName      String              @db.VarChar(200)
+  shortCode        String              @unique @db.VarChar(32)
+  targetKind       ShortLinkTargetKind
+  targetType       String?             @db.VarChar(100)
+  targetResourceId String?             @db.VarChar(100)
+  targetUrl        String?             @db.VarChar(2048)
+  entryPurpose     String              @db.VarChar(100)
+  sourcePlacement  String              @db.VarChar(100)
+  campaignRef      String?             @db.VarChar(200)
+  status           ShortLinkStatus     @default(ACTIVE)
+  expiresAt        DateTime?
+  createdBy        String              @db.VarChar(100)
+  createdAt        DateTime            @default(now())
+  updatedBy        String              @db.VarChar(100)
+  updatedAt        DateTime            @updatedAt
+
+  visitEvents VisitEvent[]
+  auditLogs   ShortLinkAuditLog[]
+
+  @@index([tenantId])
+  @@index([tenantId, targetType, targetResourceId])
+  @@index([tenantId, status])
+}
+
+model VisitEvent {
+  id              String            @id @default(uuid()) @db.Uuid
+  tenantId        String            @db.VarChar(100)
+  shortLinkId     String            @db.Uuid
+  visitedAt       DateTime          @default(now())
+  userAgent       String            @db.VarChar(512)
+  ipAddress       String            @db.VarChar(128)
+  detectedChannel String            @db.VarChar(32)
+  deviceType      String            @db.VarChar(32)
+  locale          String            @db.VarChar(64)
+  referrer        String            @db.VarChar(512)
+  resultStatus    VisitResultStatus
+
+  shortLink ShortLink @relation(fields: [shortLinkId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, shortLinkId, visitedAt])
+  @@index([tenantId, resultStatus])
+}
+
+model ShortLinkAuditLog {
+  id                String    @id @default(uuid()) @db.Uuid
+  tenantId          String    @db.VarChar(100)
+  shortLinkId       String    @db.Uuid
+  action            String    @db.VarChar(64)
+  before            Json?
+  after             Json?
+  reason            String?   @db.VarChar(500)
+  operatorAccountId String    @db.VarChar(100)
+  operatorOrgId     String?   @db.VarChar(100)
+  traceId           String?   @db.VarChar(100)
+  createdAt         DateTime  @default(now())
+
+  shortLink ShortLink @relation(fields: [shortLinkId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, shortLinkId, createdAt])
+  @@index([tenantId, action])
+}
+
+model BusinessCard {
+  id                   String             @id @default(uuid()) @db.Uuid
+  tenantId             String             @db.VarChar(100)
+  employeeId           String             @db.VarChar(100)
+  status               BusinessCardStatus @default(DRAFT)
+  templateKey          String             @db.VarChar(100)
+  publicEntryRefJson   Json?
+  contactActionsJson   Json
+  visibilityConfigJson Json
+  createdBy            String             @db.VarChar(100)
+  createdAt            DateTime           @default(now())
+  updatedBy            String             @db.VarChar(100)
+  updatedAt            DateTime           @updatedAt
+
+  auditLogs BusinessCardAuditLog[]
+
+  @@unique([tenantId, employeeId])
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model BusinessCardAuditLog {
+  id                String   @id @default(uuid()) @db.Uuid
+  tenantId          String   @db.VarChar(100)
+  businessCardId    String   @db.Uuid
+  action            String   @db.VarChar(64)
+  before            Json?
+  after             Json?
+  operatorAccountId String   @db.VarChar(100)
+  operatorOrgId     String?  @db.VarChar(100)
+  traceId           String?  @db.VarChar(100)
+  createdAt         DateTime @default(now())
+
+  businessCard BusinessCard @relation(fields: [businessCardId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, businessCardId, createdAt])
+  @@index([tenantId, action])
+}

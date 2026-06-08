@@ -127,6 +127,17 @@ const coreRoutes: RouteRecordRaw[] = [
       },
     ],
   },
+  {
+    name: 'PublicBusinessCard',
+    path: '/public/business-cards/:businessCardId',
+    component: () => import('#/views/public/business-card-public.vue'),
+    meta: {
+      hideInBreadcrumb: true,
+      hideInMenu: true,
+      hideInTab: true,
+      title: '员工数字名片',
+    },
+  },
 ];
 
 export { coreRoutes, fallbackNotFoundRoute };

@@ -1,0 +1,195 @@
+import {
+  BusinessCardStatus,
+  ContactActionTargetRefType,
+  PublicRedirectResultType,
+  ShortLinkStatus
+} from '@oes/common/generated/public_entry_service'
+import {
+  BusinessCardLiveSmokeClient,
+  buildBusinessCardLiveSmokeInputFromEnv,
+  runBusinessCardLiveSmokeFlow
+} from '../../scripts/business-card-live-smoke'
+
+// Verifies the live smoke orchestrates the real BusinessCard gRPC contract without accepting arbitrary self-view targets.
+describe('BusinessCard live smoke flow', () => {
+  it('drives the full Phase 1 flow through the public-entry-service BusinessCard and ShortLink gRPC clients', async () => {
+    const calls: string[] = []
+    const client: BusinessCardLiveSmokeClient = {
+      ensurePrimaryBusinessCard: jest.fn(async (request) => {
+        calls.push('ensurePrimaryBusinessCard')
+        expect(request.tenantId).toBe('tenant-1')
+        expect(request.employeeId).toBe('employee-1')
+        expect(request.operatorContext?.operatorAccountId).toBe('operator-1')
+        return {
+          businessCard: {
+            businessCardId: 'card-1',
+            tenantId: 'tenant-1',
+            employeeId: 'employee-1',
+            status: BusinessCardStatus.BUSINESS_CARD_STATUS_DRAFT,
+            templateKey: 'classic'
+          }
+        }
+      }),
+      updateBusinessCardContactActions: jest.fn(async (request) => {
+        calls.push('updateBusinessCardContactActions')
+        expect(request.businessCardId).toBe('card-1')
+        expect(request.contactActionConfigs).toEqual([
+          expect.objectContaining({
+            contactActionType: 'SEND_EMAIL',
+            targetRefType: ContactActionTargetRefType.CONTACT_ACTION_TARGET_REF_TYPE_CONTACT_ASSET,
+            targetRefId: 'contact-email-1',
+            enabled: true,
+            includeInVCard: true
+          }),
+          expect.objectContaining({
+            contactActionType: 'SAVE_VCARD',
+            targetRefType: ContactActionTargetRefType.CONTACT_ACTION_TARGET_REF_TYPE_NONE,
+            targetRefId: '',
+            enabled: true
+          })
+        ])
+        return { businessCard: { businessCardId: 'card-1' } }
+      }),
+      bindOrRefreshBusinessCardPublicEntry: jest.fn(async (request) => {
+        calls.push('bindOrRefreshBusinessCardPublicEntry')
+        expect(request.businessCardId).toBe('card-1')
+        return {
+          publicEntryRef: {
+            publicEntryId: 'short-link-1',
+            shortCode: 'abc123',
+            publicUrl: 'https://public.example.test/s/abc123',
+            qrContent: 'https://public.example.test/s/abc123',
+            status: ShortLinkStatus.SHORT_LINK_STATUS_ACTIVE
+          }
+        }
+      }),
+      enableBusinessCard: jest.fn(async (request) => {
+        calls.push('enableBusinessCard')
+        expect(request.businessCardId).toBe('card-1')
+        return {
+          businessCardId: 'card-1',
+          previousStatus: BusinessCardStatus.BUSINESS_CARD_STATUS_DRAFT,
+          status: BusinessCardStatus.BUSINESS_CARD_STATUS_ACTIVE
+        }
+      }),
+      getBusinessCardDetail: jest.fn(async (request) => {
+        calls.push('getBusinessCardDetail')
+        expect(request.businessCardId).toBe('card-1')
+        return {
+          businessCard: {
+            businessCardId: 'card-1',
+            tenantId: 'tenant-1',
+            employeeId: 'employee-1',
+            status: BusinessCardStatus.BUSINESS_CARD_STATUS_ACTIVE,
+            publicEntryRef: {
+              publicEntryId: 'short-link-1',
+              shortCode: 'abc123',
+              publicUrl: 'https://public.example.test/s/abc123',
+              qrContent: 'https://public.example.test/s/abc123',
+              status: ShortLinkStatus.SHORT_LINK_STATUS_ACTIVE
+            }
+          },
+          readiness: { ready: true, reasons: [] }
+        }
+      }),
+      runBusinessCardReadinessCheck: jest.fn(async (request) => {
+        calls.push('runBusinessCardReadinessCheck')
+        expect(request.businessCardId).toBe('card-1')
+        return { ready: true, reasons: [] }
+      }),
+      renderPublicBusinessCard: jest.fn(async (request) => {
+        calls.push('renderPublicBusinessCard')
+        expect(request.businessCardId).toBe('card-1')
+        return {
+          state: 'AVAILABLE',
+          view: {
+            businessCardId: 'card-1',
+            publicUrl: 'https://public.example.test/s/abc123',
+            person: { displayName: 'Alex Chen' },
+            company: { companyDisplayName: 'OES Manufacturing' },
+            contactActions: [
+              { contactActionType: 'SEND_EMAIL', actionUrl: 'mailto:alex@example.test' },
+              { contactActionType: 'SAVE_VCARD', actionUrl: '/public/business-cards/card-1/card.vcf' }
+            ]
+          }
+        }
+      }),
+      generateBusinessCardVCard: jest.fn(async (request) => {
+        calls.push('generateBusinessCardVCard')
+        expect(request.businessCardId).toBe('card-1')
+        return { contentType: 'text/vcard; charset=utf-8', body: 'BEGIN:VCARD\nEND:VCARD' }
+      }),
+      getOwnBusinessCardPreview: jest.fn(async (request) => {
+        calls.push('getOwnBusinessCardPreview')
+        expect(request).toEqual({
+          tenantId: 'tenant-1',
+          accountId: 'self-account-1',
+          traceId: 'business-card-live-smoke-test'
+        })
+        return {
+          businessCardId: 'card-1',
+          employeeId: 'employee-1',
+          status: BusinessCardStatus.BUSINESS_CARD_STATUS_ACTIVE,
+          enabledActions: ['SEND_EMAIL', 'SAVE_VCARD'],
+          preview: { state: 'AVAILABLE' }
+        }
+      }),
+      resolvePublicRedirect: jest.fn(async (request) => {
+        calls.push('resolvePublicRedirect')
+        expect(request.shortCode).toBe('abc123')
+        return {
+          resultType: PublicRedirectResultType.PUBLIC_REDIRECT_RESULT_TYPE_REDIRECT,
+          location: 'https://app.example.test/public/business-cards/card-1'
+        }
+      }),
+      getBusinessCardVisitSummary: jest.fn(async (request) => {
+        calls.push('getBusinessCardVisitSummary')
+        expect(request.businessCardId).toBe('card-1')
+        return { shortLinkId: 'short-link-1', totalVisits: 1 }
+      }),
+      close: jest.fn(async () => {
+        calls.push('close')
+      })
+    }
+
+    const report = await runBusinessCardLiveSmokeFlow({
+      client,
+      input: {
+        tenantId: 'tenant-1',
+        employeeId: 'employee-1',
+        operatorAccountId: 'operator-1',
+        selfAccountId: 'self-account-1',
+        workEmailContactAssetId: 'contact-email-1',
+        traceId: 'business-card-live-smoke-test'
+      }
+    })
+
+    expect(report.ready).toBe(true)
+    expect(report.businessCardId).toBe('card-1')
+    expect(report.shortCode).toBe('abc123')
+    expect(report.publicRenderState).toBe('AVAILABLE')
+    expect(report.selfPreviewState).toBe('AVAILABLE')
+    expect(report.vCardContentType).toBe('text/vcard; charset=utf-8')
+    expect(report.visitTotal).toBe(1)
+    expect(calls).toEqual([
+      'ensurePrimaryBusinessCard',
+      'updateBusinessCardContactActions',
+      'bindOrRefreshBusinessCardPublicEntry',
+      'enableBusinessCard',
+      'getBusinessCardDetail',
+      'runBusinessCardReadinessCheck',
+      'renderPublicBusinessCard',
+      'generateBusinessCardVCard',
+      'getOwnBusinessCardPreview',
+      'resolvePublicRedirect',
+      'getBusinessCardVisitSummary',
+      'close'
+    ])
+  })
+
+  it('requires explicit fixture env for the live chain', () => {
+    expect(() => buildBusinessCardLiveSmokeInputFromEnv({})).toThrow(
+      'BUSINESS_CARD_LIVE_TENANT_ID is required'
+    )
+  })
+})

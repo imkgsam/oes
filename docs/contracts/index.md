@@ -1,6 +1,6 @@
 # OES 契约文档索引
 
-更新时间：2026-05-04
+更新时间：2026-06-08
 
 > 涉及 permission-service 的服务职责、核心对象或 owner 边界时，以 [permission-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/permission-service.md) 为准；本索引只导航黑盒 contract。
 
@@ -18,6 +18,7 @@
 | mes-service | [mes-service/README.md](./mes-service/README.md) |
 | permission-service | [permission-service/README.md](./permission-service/README.md) |
 | party-service | [party-service/README.md](./party-service/README.md) |
+| public-entry-service | [public-entry-service/README.md](./public-entry-service/README.md) |
 | tenant-org-service | [tenant-org-service/README.md](./tenant-org-service/README.md) |
 | wms-service | [wms-service/README.md](./wms-service/README.md) |
 

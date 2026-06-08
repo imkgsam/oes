@@ -112,6 +112,37 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
           title: '导航管理',
         },
       },
+      {
+        name: 'AdminPublicEntryShortLinks',
+        path: '/admin/public-entry-short-links',
+        component: () => import('#/views/admin/public-entry-short-link-management.vue'),
+        meta: {
+          entryKey: 'admin.public-entry-short-links',
+          icon: 'lucide:link',
+          title: '公开短链',
+        },
+      },
+      {
+        name: 'AdminBusinessCards',
+        path: '/admin/business-cards',
+        component: () => import('#/views/admin/business-card-management.vue'),
+        meta: {
+          entryKey: 'admin.business-cards',
+          icon: 'lucide:contact-round',
+          title: '员工数字名片',
+        },
+      },
+      {
+        name: 'EmployeeBusinessCardSelfView',
+        path: '/admin/business-card-self-view',
+        alias: '/admin/business-card-self',
+        component: () => import('#/views/admin/business-card-self-view.vue'),
+        meta: {
+          entryKey: 'admin.business-card-self',
+          icon: 'lucide:badge-check',
+          title: '我的名片',
+        },
+      },
     ],
   },
   {

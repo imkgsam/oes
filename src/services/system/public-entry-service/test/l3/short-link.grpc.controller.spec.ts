@@ -1,0 +1,88 @@
+import {
+  PublicEntryShortLinkGrpcController,
+  toGrpcShortLinkTargetKind,
+  toGrpcShortLinkStatus
+} from '../../src/interfaces/grpc/public-entry-short-link.grpc.controller'
+import { ShortLinkApplicationService } from '../../src/application/services/short-link-application.service'
+import { PublicRedirectService } from '../../src/application/services/public-redirect.service'
+import { InMemoryShortLinkRepository } from '../../src/infrastructure/repositories/in-memory-short-link.repository'
+import { ShortCodeGenerator } from '../../src/domain/services/short-code-generator'
+import { ShortLinkTargetResolverRegistry } from '../../src/application/services/short-link-target-resolver.registry'
+import { QrCodeService } from '../../src/application/services/qr-code.service'
+
+const operatorContext = {
+  operatorAccountId: 'acc_admin',
+  operatorOrgId: 'org_001',
+  traceId: 'trace_001'
+}
+
+// buildController wires the gRPC controller directly for transport mapping tests.
+function buildController() {
+  const repository = new InMemoryShortLinkRepository()
+  const resolverRegistry = new ShortLinkTargetResolverRegistry()
+  const appService = new ShortLinkApplicationService(
+    repository,
+    new ShortCodeGenerator(() => 0),
+    resolverRegistry,
+    new QrCodeService()
+  )
+  const redirectService = new PublicRedirectService(repository, resolverRegistry)
+  return {
+    controller: new PublicEntryShortLinkGrpcController(appService, redirectService),
+    appService,
+    repository
+  }
+}
+
+describe('PublicEntryShortLinkGrpcController', () => {
+  it('creates, updates status, resolves redirect, reads stats, and generates QR through contract shapes', async () => {
+    const { controller, repository } = buildController()
+
+    const created = await controller.createShortLink({
+      tenantId: 'tenant_001',
+      displayName: 'Public catalog',
+      target: {
+        targetKind: toGrpcShortLinkTargetKind('EXTERNAL_URL'),
+        targetUrl: 'https://example.com/catalog'
+      },
+      entryPurpose: 'CATALOG',
+      sourcePlacement: 'NAVIGATION',
+      operatorContext
+    } as any)
+
+    expect(created.shortLink?.targetKind).toBe(toGrpcShortLinkTargetKind('EXTERNAL_URL'))
+    expect(created.shortLink?.status).toBe(toGrpcShortLinkStatus('ACTIVE'))
+
+    const redirect = await controller.resolvePublicRedirect({
+      shortCode: created.shortLink?.shortCode,
+      userAgent: 'Mozilla/5.0',
+      ipAddress: '203.0.113.10',
+      acceptLanguage: 'en-US,en;q=0.9'
+    } as any)
+    expect(redirect.location).toBe('https://example.com/catalog')
+    expect(repository.visitEvents).toHaveLength(1)
+
+    const stats = await controller.getShortLinkStats({
+      tenantId: 'tenant_001',
+      shortLinkId: created.shortLink?.id
+    } as any)
+    expect(stats.totalVisits).toBe(1)
+    expect(stats.byResultStatus).toEqual([{ key: 'REDIRECTED', count: 1 }])
+
+    const qr = await controller.generateShortLinkQr({
+      tenantId: 'tenant_001',
+      shortLinkId: created.shortLink?.id
+    } as any)
+    expect(qr.content).toBe(created.shortLink?.publicUrl)
+    expect(qr.format).toBe('PNG')
+
+    const status = await controller.changeShortLinkStatus({
+      tenantId: 'tenant_001',
+      shortLinkId: created.shortLink?.id,
+      targetStatus: toGrpcShortLinkStatus('DISABLED'),
+      reason: 'Pause public access',
+      operatorContext
+    } as any)
+    expect(status.status).toBe(toGrpcShortLinkStatus('DISABLED'))
+  })
+})

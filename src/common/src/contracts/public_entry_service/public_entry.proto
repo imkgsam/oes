@@ -1,0 +1,468 @@
+syntax = "proto3";
+
+package public_entry_service;
+
+option java_multiple_files = true;
+option java_package = "com.oes.publicentry.v1";
+
+service PublicEntryShortLinkService {
+  rpc CreateShortLink(CreateShortLinkRequest) returns (CreateShortLinkResponse);
+  rpc GetShortLink(GetShortLinkRequest) returns (GetShortLinkResponse);
+  rpc ListShortLinksByTarget(ListShortLinksByTargetRequest) returns (ListShortLinksByTargetResponse);
+  rpc UpdateShortLinkTarget(UpdateShortLinkTargetRequest) returns (UpdateShortLinkTargetResponse);
+  rpc UpdateShortLinkMetadata(UpdateShortLinkMetadataRequest) returns (UpdateShortLinkMetadataResponse);
+  rpc ChangeShortLinkStatus(ChangeShortLinkStatusRequest) returns (ChangeShortLinkStatusResponse);
+  rpc GetShortLinkStats(GetShortLinkStatsRequest) returns (GetShortLinkStatsResponse);
+  rpc GenerateShortLinkQr(GenerateShortLinkQrRequest) returns (GenerateShortLinkQrResponse);
+  rpc ResolvePublicRedirect(ResolvePublicRedirectRequest) returns (ResolvePublicRedirectResponse);
+}
+
+service PublicEntryBusinessCardService {
+  rpc EnsurePrimaryBusinessCard(EnsurePrimaryBusinessCardRequest) returns (EnsurePrimaryBusinessCardResponse);
+  rpc ListBusinessCards(ListBusinessCardsRequest) returns (ListBusinessCardsResponse);
+  rpc GetBusinessCardDetail(GetBusinessCardDetailRequest) returns (GetBusinessCardDetailResponse);
+  rpc UpdateBusinessCardConfig(UpdateBusinessCardConfigRequest) returns (UpdateBusinessCardConfigResponse);
+  rpc UpdateBusinessCardContactActions(UpdateBusinessCardContactActionsRequest) returns (UpdateBusinessCardContactActionsResponse);
+  rpc EnableBusinessCard(EnableBusinessCardRequest) returns (EnableBusinessCardResponse);
+  rpc DisableBusinessCard(DisableBusinessCardRequest) returns (DisableBusinessCardResponse);
+  rpc RunBusinessCardReadinessCheck(RunBusinessCardReadinessCheckRequest) returns (RunBusinessCardReadinessCheckResponse);
+  rpc BindOrRefreshBusinessCardPublicEntry(BindOrRefreshBusinessCardPublicEntryRequest) returns (BindOrRefreshBusinessCardPublicEntryResponse);
+  rpc GetBusinessCardVisitSummary(GetBusinessCardVisitSummaryRequest) returns (GetBusinessCardVisitSummaryResponse);
+  rpc GetOwnBusinessCardPreview(GetOwnBusinessCardPreviewRequest) returns (GetOwnBusinessCardPreviewResponse);
+  rpc RenderPublicBusinessCard(RenderPublicBusinessCardRequest) returns (RenderPublicBusinessCardResponse);
+  rpc GenerateBusinessCardVCard(GenerateBusinessCardVCardRequest) returns (GenerateBusinessCardVCardResponse);
+}
+
+enum ShortLinkTargetKind {
+  SHORT_LINK_TARGET_KIND_UNSPECIFIED = 0;
+  SHORT_LINK_TARGET_KIND_INTERNAL_REF = 1;
+  SHORT_LINK_TARGET_KIND_EXTERNAL_URL = 2;
+}
+
+enum ShortLinkStatus {
+  SHORT_LINK_STATUS_UNSPECIFIED = 0;
+  SHORT_LINK_STATUS_ACTIVE = 1;
+  SHORT_LINK_STATUS_DISABLED = 2;
+  SHORT_LINK_STATUS_ARCHIVED = 3;
+}
+
+enum PublicRedirectResultType {
+  PUBLIC_REDIRECT_RESULT_TYPE_UNSPECIFIED = 0;
+  PUBLIC_REDIRECT_RESULT_TYPE_REDIRECT = 1;
+  PUBLIC_REDIRECT_RESULT_TYPE_UNAVAILABLE = 2;
+  PUBLIC_REDIRECT_RESULT_TYPE_NOT_FOUND = 3;
+}
+
+message OperatorContext {
+  string operator_account_id = 1;
+  string operator_org_id = 2;
+  string trace_id = 3;
+}
+
+message ShortLinkTargetInput {
+  ShortLinkTargetKind target_kind = 1;
+  string target_type = 2;
+  string target_resource_id = 3;
+  string target_url = 4;
+}
+
+message ShortLinkRecord {
+  string id = 1;
+  string tenant_id = 2;
+  string display_name = 3;
+  string short_code = 4;
+  string public_url = 5;
+  ShortLinkTargetKind target_kind = 6;
+  string target_type = 7;
+  string target_resource_id = 8;
+  string target_url = 9;
+  string entry_purpose = 10;
+  string source_placement = 11;
+  string campaign_ref = 12;
+  ShortLinkStatus status = 13;
+  string expires_at = 14;
+  string created_by = 15;
+  string created_at = 16;
+  string updated_by = 17;
+  string updated_at = 18;
+}
+
+message CreateShortLinkRequest {
+  string tenant_id = 1;
+  string display_name = 2;
+  ShortLinkTargetInput target = 3;
+  string entry_purpose = 4;
+  string source_placement = 5;
+  string campaign_ref = 6;
+  string expires_at = 7;
+  OperatorContext operator_context = 8;
+}
+
+message CreateShortLinkResponse {
+  ShortLinkRecord short_link = 1;
+}
+
+message GetShortLinkRequest {
+  string tenant_id = 1;
+  string short_link_id = 2;
+}
+
+message GetShortLinkResponse {
+  ShortLinkRecord short_link = 1;
+}
+
+message ListShortLinksByTargetRequest {
+  string tenant_id = 1;
+  string target_type = 2;
+  string target_resource_id = 3;
+  int32 page = 4;
+  int32 page_size = 5;
+}
+
+message ListShortLinksByTargetResponse {
+  repeated ShortLinkRecord items = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  int32 total = 4;
+}
+
+message UpdateShortLinkTargetRequest {
+  string tenant_id = 1;
+  string short_link_id = 2;
+  ShortLinkTargetInput target = 3;
+  string reason = 4;
+  OperatorContext operator_context = 5;
+}
+
+message UpdateShortLinkTargetResponse {
+  string short_link_id = 1;
+  string public_url = 2;
+  ShortLinkTargetInput previous_target = 3;
+  ShortLinkTargetInput target = 4;
+  string updated_at = 5;
+}
+
+message UpdateShortLinkMetadataRequest {
+  string tenant_id = 1;
+  string short_link_id = 2;
+  string display_name = 3;
+  string entry_purpose = 4;
+  string source_placement = 5;
+  string campaign_ref = 6;
+  string expires_at = 7;
+  OperatorContext operator_context = 8;
+}
+
+message UpdateShortLinkMetadataResponse {
+  ShortLinkRecord short_link = 1;
+}
+
+message ChangeShortLinkStatusRequest {
+  string tenant_id = 1;
+  string short_link_id = 2;
+  ShortLinkStatus target_status = 3;
+  string reason = 4;
+  OperatorContext operator_context = 5;
+}
+
+message ChangeShortLinkStatusResponse {
+  string short_link_id = 1;
+  ShortLinkStatus previous_status = 2;
+  ShortLinkStatus status = 3;
+  string changed_at = 4;
+}
+
+message GetShortLinkStatsRequest {
+  string tenant_id = 1;
+  string short_link_id = 2;
+  string from = 3;
+  string to = 4;
+}
+
+message CountBucket {
+  string key = 1;
+  int32 count = 2;
+}
+
+message GetShortLinkStatsResponse {
+  string short_link_id = 1;
+  int32 total_visits = 2;
+  repeated CountBucket by_result_status = 3;
+  repeated CountBucket by_detected_channel = 4;
+  repeated CountBucket by_device_type = 5;
+  repeated CountBucket by_referrer = 6;
+  string last_visited_at = 7;
+}
+
+message GenerateShortLinkQrRequest {
+  string tenant_id = 1;
+  string short_link_id = 2;
+}
+
+message GenerateShortLinkQrResponse {
+  string short_link_id = 1;
+  string content = 2;
+  string format = 3;
+  string image_base64 = 4;
+}
+
+message ResolvePublicRedirectRequest {
+  string short_code = 1;
+  string user_agent = 2;
+  string ip_address = 3;
+  string accept_language = 4;
+  string referrer = 5;
+  string trace_id = 6;
+}
+
+message ResolvePublicRedirectResponse {
+  PublicRedirectResultType result_type = 1;
+  string location = 2;
+}
+
+enum BusinessCardStatus {
+  BUSINESS_CARD_STATUS_UNSPECIFIED = 0;
+  BUSINESS_CARD_STATUS_DRAFT = 1;
+  BUSINESS_CARD_STATUS_ACTIVE = 2;
+  BUSINESS_CARD_STATUS_DISABLED = 3;
+  BUSINESS_CARD_STATUS_ARCHIVED = 4;
+}
+
+enum ContactActionTargetRefType {
+  CONTACT_ACTION_TARGET_REF_TYPE_UNSPECIFIED = 0;
+  CONTACT_ACTION_TARGET_REF_TYPE_CONTACT_ASSET = 1;
+  CONTACT_ACTION_TARGET_REF_TYPE_TENANT_PUBLIC_PROFILE = 2;
+  CONTACT_ACTION_TARGET_REF_TYPE_NONE = 3;
+}
+
+message ContactActionConfigRecord {
+  string contact_action_type = 1;
+  ContactActionTargetRefType target_ref_type = 2;
+  string target_ref_id = 3;
+  string visibility = 4;
+  int32 display_order = 5;
+  bool enabled = 6;
+  bool include_in_v_card = 7;
+}
+
+message BusinessCardVisibilityConfigRecord {
+  bool show_title = 1;
+  bool show_department = 2;
+  bool show_company = 3;
+  bool show_official_photo = 4;
+}
+
+message BusinessCardPublicEntryRefRecord {
+  string public_entry_id = 1;
+  string short_code = 2;
+  string public_url = 3;
+  string qr_content = 4;
+  ShortLinkStatus status = 5;
+  string expires_at = 6;
+}
+
+message BusinessCardRecord {
+  string business_card_id = 1;
+  string tenant_id = 2;
+  string employee_id = 3;
+  BusinessCardStatus status = 4;
+  string template_key = 5;
+  BusinessCardPublicEntryRefRecord public_entry_ref = 6;
+  repeated ContactActionConfigRecord contact_action_configs = 7;
+  BusinessCardVisibilityConfigRecord visibility_config = 8;
+  string updated_at = 9;
+}
+
+message BusinessCardReadinessRecord {
+  bool ready = 1;
+  repeated string reasons = 2;
+}
+
+message EnsurePrimaryBusinessCardRequest {
+  string tenant_id = 1;
+  string employee_id = 2;
+  OperatorContext operator_context = 3;
+}
+
+message EnsurePrimaryBusinessCardResponse {
+  BusinessCardRecord business_card = 1;
+}
+
+message ListBusinessCardsRequest {
+  string tenant_id = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  OperatorContext operator_context = 4;
+}
+
+message ListBusinessCardsResponse {
+  repeated BusinessCardRecord items = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  int32 total = 4;
+}
+
+message GetBusinessCardDetailRequest {
+  string tenant_id = 1;
+  string business_card_id = 2;
+  OperatorContext operator_context = 3;
+}
+
+message GetBusinessCardDetailResponse {
+  BusinessCardRecord business_card = 1;
+  BusinessCardReadinessRecord readiness = 2;
+}
+
+message UpdateBusinessCardConfigRequest {
+  string tenant_id = 1;
+  string business_card_id = 2;
+  string template_key = 3;
+  BusinessCardVisibilityConfigRecord visibility_config = 4;
+  OperatorContext operator_context = 5;
+}
+
+message UpdateBusinessCardConfigResponse {
+  BusinessCardRecord business_card = 1;
+}
+
+message UpdateBusinessCardContactActionsRequest {
+  string tenant_id = 1;
+  string business_card_id = 2;
+  repeated ContactActionConfigRecord contact_action_configs = 3;
+  BusinessCardVisibilityConfigRecord visibility_config = 4;
+  OperatorContext operator_context = 5;
+}
+
+message UpdateBusinessCardContactActionsResponse {
+  BusinessCardRecord business_card = 1;
+}
+
+message EnableBusinessCardRequest {
+  string tenant_id = 1;
+  string business_card_id = 2;
+  OperatorContext operator_context = 3;
+}
+
+message EnableBusinessCardResponse {
+  string business_card_id = 1;
+  BusinessCardStatus previous_status = 2;
+  BusinessCardStatus status = 3;
+}
+
+message DisableBusinessCardRequest {
+  string tenant_id = 1;
+  string business_card_id = 2;
+  OperatorContext operator_context = 3;
+}
+
+message DisableBusinessCardResponse {
+  string business_card_id = 1;
+  BusinessCardStatus previous_status = 2;
+  BusinessCardStatus status = 3;
+}
+
+message RunBusinessCardReadinessCheckRequest {
+  string tenant_id = 1;
+  string business_card_id = 2;
+  OperatorContext operator_context = 3;
+}
+
+message RunBusinessCardReadinessCheckResponse {
+  bool ready = 1;
+  repeated string reasons = 2;
+}
+
+message BindOrRefreshBusinessCardPublicEntryRequest {
+  string tenant_id = 1;
+  string business_card_id = 2;
+  OperatorContext operator_context = 3;
+}
+
+message BindOrRefreshBusinessCardPublicEntryResponse {
+  BusinessCardPublicEntryRefRecord public_entry_ref = 1;
+}
+
+message GetBusinessCardVisitSummaryRequest {
+  string tenant_id = 1;
+  string business_card_id = 2;
+  string from = 3;
+  string to = 4;
+  OperatorContext operator_context = 5;
+}
+
+message GetBusinessCardVisitSummaryResponse {
+  string short_link_id = 1;
+  int32 total_visits = 2;
+  repeated CountBucket by_result_status = 3;
+  repeated CountBucket by_detected_channel = 4;
+  repeated CountBucket by_device_type = 5;
+  repeated CountBucket by_referrer = 6;
+  string last_visited_at = 7;
+}
+
+message GetOwnBusinessCardPreviewRequest {
+  string tenant_id = 1;
+  string account_id = 2;
+  string trace_id = 3;
+}
+
+message GetOwnBusinessCardPreviewResponse {
+  string business_card_id = 1;
+  string employee_id = 2;
+  BusinessCardStatus status = 3;
+  BusinessCardPublicEntryRefRecord public_entry_ref = 4;
+  repeated string enabled_actions = 5;
+  RenderPublicBusinessCardResponse preview = 6;
+}
+
+message PublicBusinessCardPersonRecord {
+  string display_name = 1;
+  string english_name = 2;
+  string title = 3;
+  string department = 4;
+  string official_photo_url = 5;
+}
+
+message PublicBusinessCardCompanyRecord {
+  string company_display_name = 1;
+  string website_url = 2;
+  string logo_url = 3;
+}
+
+message PublicBusinessCardActionRecord {
+  string contact_action_type = 1;
+  int32 display_order = 2;
+  string display_value = 3;
+  string action_url = 4;
+}
+
+message PublicBusinessCardViewRecord {
+  string business_card_id = 1;
+  string public_url = 2;
+  string template_key = 3;
+  PublicBusinessCardPersonRecord person = 4;
+  PublicBusinessCardCompanyRecord company = 5;
+  repeated PublicBusinessCardActionRecord contact_actions = 6;
+}
+
+message RenderPublicBusinessCardRequest {
+  string tenant_id = 1;
+  string business_card_id = 2;
+  string trace_id = 3;
+}
+
+message RenderPublicBusinessCardResponse {
+  string state = 1;
+  PublicBusinessCardViewRecord view = 2;
+}
+
+message GenerateBusinessCardVCardRequest {
+  string tenant_id = 1;
+  string business_card_id = 2;
+  string trace_id = 3;
+}
+
+message GenerateBusinessCardVCardResponse {
+  string content_type = 1;
+  string body = 2;
+}

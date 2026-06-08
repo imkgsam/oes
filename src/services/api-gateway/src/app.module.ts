@@ -23,6 +23,7 @@ import { ItemMasterServiceProxyModule } from './modules/item-master-service/item
 import { MesServiceProxyModule } from './modules/mes-service/mes-service.module'
 import { PermissionServiceProxyModule } from './modules/permission-service/permission-service.module'
 import { ProcurementServiceProxyModule } from './modules/procurement-service/procurement-service.module'
+import { PublicEntryServiceProxyModule } from './modules/public-entry-service/public-entry-service.module'
 import { SalesServiceProxyModule } from './modules/sales-service/sales-service.module'
 import { SrmServiceProxyModule } from './modules/srm-service/srm-service.module'
 import { TenantOrgServiceProxyModule } from './modules/tenant-org-service/tenant-org-service.module'
@@ -79,6 +80,13 @@ export function resolveMesGrpcUrl() {
   return process.env.MES_SERVICE_HOST && process.env.MES_SERVICE_PORT
     ? `${process.env.MES_SERVICE_HOST}:${process.env.MES_SERVICE_PORT}`
     : 'localhost:50065'
+}
+
+/** resolvePublicEntryGrpcUrl centralizes the local public-entry-service fallback endpoint used by api-gateway. */
+export function resolvePublicEntryGrpcUrl() {
+  return process.env.PUBLIC_ENTRY_SERVICE_HOST && process.env.PUBLIC_ENTRY_SERVICE_PORT
+    ? `${process.env.PUBLIC_ENTRY_SERVICE_HOST}:${process.env.PUBLIC_ENTRY_SERVICE_PORT}`
+    : 'localhost:50067'
 }
 
 /** normalizeLocalhostGrpcHost maps local gRPC clients to IPv4 when services bind IPv4-only sockets. */
@@ -194,6 +202,12 @@ export const permissionGrpcProtoPaths = [
               ? `${process.env.PROCUREMENT_SERVICE_HOST}:${process.env.PROCUREMENT_SERVICE_PORT}`
               : 'localhost:50062'
         },
+        [SERVICE_NAMES.PUBLIC_ENTRY]: {
+          serviceName: SERVICE_NAMES.PUBLIC_ENTRY,
+          protoPath: resolveCommonProtoPath('public_entry_service/public_entry.proto'),
+          packageName: 'public_entry_service',
+          url: resolvePublicEntryGrpcUrl()
+        },
         [SERVICE_NAMES.SRM]: {
           serviceName: SERVICE_NAMES.SRM,
           protoPath: resolveCommonProtoPath('srm_service/srm.proto'),
@@ -263,6 +277,7 @@ export const permissionGrpcProtoPaths = [
     MesServiceProxyModule,
     PermissionServiceProxyModule,
     ProcurementServiceProxyModule,
+    PublicEntryServiceProxyModule,
     SalesServiceProxyModule,
     SrmServiceProxyModule,
     TenantOrgServiceProxyModule,

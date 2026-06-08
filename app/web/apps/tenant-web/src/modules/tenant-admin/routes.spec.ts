@@ -24,6 +24,37 @@ describe('tenant admin routes', () => {
     expect(terminalDeviceRoute?.component).toBeTypeOf('function')
   })
 
+  it('registers public entry ShortLink management under the tenant admin section', () => {
+    const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
+    const publicEntryRoute = governanceRoute?.children?.find(
+      (route) => route.name === 'AdminPublicEntryShortLinks'
+    )
+
+    expect(publicEntryRoute?.path).toBe('/admin/public-entry-short-links')
+    expect(publicEntryRoute?.meta?.entryKey).toBe('admin.public-entry-short-links')
+    expect(publicEntryRoute?.component).toBeTypeOf('function')
+  })
+
+  it('registers BusinessCard admin and employee self-view pages under tenant admin', () => {
+    const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
+    const businessCardAdminRoute = governanceRoute?.children?.find(
+      (route) => route.name === 'AdminBusinessCards'
+    )
+    const businessCardSelfRoute = governanceRoute?.children?.find(
+      (route) => route.name === 'EmployeeBusinessCardSelfView'
+    )
+
+    expect(businessCardAdminRoute?.path).toBe('/admin/business-cards')
+    expect(businessCardAdminRoute?.meta?.entryKey).toBe('admin.business-cards')
+    expect(businessCardAdminRoute?.meta?.title).toBe('员工数字名片')
+    expect(businessCardAdminRoute?.component).toBeTypeOf('function')
+    expect(businessCardSelfRoute?.path).toBe('/admin/business-card-self-view')
+    expect(businessCardSelfRoute?.alias).toBe('/admin/business-card-self')
+    expect(businessCardSelfRoute?.meta?.entryKey).toBe('admin.business-card-self')
+    expect(businessCardSelfRoute?.meta?.title).toBe('我的名片')
+    expect(businessCardSelfRoute?.component).toBeTypeOf('function')
+  })
+
   it('registers terminal-aware account security settings without reusing managed device routes', () => {
     const governanceRoute = tenantAdminRoutes.find((route) => route.name === 'TenantAdminGovernance')
     const settingsRoute = tenantAdminRoutes.find((route) => route.name === 'TenantSettings')
