@@ -53,12 +53,13 @@ describe('tenant-web tenant management api', () => {
 
     await createManagedTenantApi({
       code: 'tenant.alpha',
+      employeeCodePrefix: 'ALP',
       name: 'Alpha Tenant',
       rootOrgName: 'Alpha Root',
     });
     await startTenantOnboardingApi({
       idempotencyKey: 'key-1',
-      tenant: { code: 'tenant.alpha', name: 'Alpha Tenant' },
+      tenant: { code: 'tenant.alpha', employeeCodePrefix: 'ALP', name: 'Alpha Tenant' },
       organizationParty: { legalName: 'Alpha Inc.', identifiers: [] },
       rootOrg: { name: 'Alpha Root' },
       firstAdmin: { displayName: 'Alice Admin', email: 'alice@example.com' },
@@ -75,12 +76,13 @@ describe('tenant-web tenant management api', () => {
 
     expect(post).toHaveBeenCalledWith('/tenant-management/tenants', {
       code: 'tenant.alpha',
+      employeeCodePrefix: 'ALP',
       name: 'Alpha Tenant',
       rootOrgName: 'Alpha Root',
     });
     expect(post).toHaveBeenCalledWith('/tenant-management/tenants/onboardings', {
       idempotencyKey: 'key-1',
-      tenant: { code: 'tenant.alpha', name: 'Alpha Tenant' },
+      tenant: { code: 'tenant.alpha', employeeCodePrefix: 'ALP', name: 'Alpha Tenant' },
       organizationParty: { legalName: 'Alpha Inc.', identifiers: [] },
       rootOrg: { name: 'Alpha Root' },
       firstAdmin: { displayName: 'Alice Admin', email: 'alice@example.com' },

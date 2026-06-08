@@ -99,8 +99,8 @@ const optionColumns = [
     title: '状态'
   },
   {
-    align: 'center',
-    fixed: 'right',
+    align: 'center' as const,
+    fixed: 'right' as const,
     key: 'operation',
     title: operationColumnTitle,
     width: 110
