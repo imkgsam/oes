@@ -25,7 +25,7 @@ describe('permission service seed source', () => {
     const seed = buildPermissionServiceSeed()
 
     expect(validatePermissionServiceSeed(seed)).toEqual([])
-    expect(seed.permissionCodes).toHaveLength(219)
+    expect(seed.permissionCodes).toHaveLength(231)
     expect(Object.values(TERMINAL_DEVICE_MANAGEMENT_PERMISSION_CODES)).toEqual([
       ...EXPECTED_TERMINAL_DEVICE_PERMISSION_CODES
     ])
@@ -64,7 +64,7 @@ describe('permission service seed source', () => {
       'item_master.product_data_manager',
       'extension.designer'
     ])
-    expect(seed.rolePermissions).toHaveLength(181)
+    expect(seed.rolePermissions).toHaveLength(193)
     expect(seed.navigationEntries).toHaveLength(31)
     expect(seed.roleNavigationVisibility).toHaveLength(32)
     expect(seed.roleLandingPolicies).toHaveLength(7)
@@ -74,10 +74,10 @@ describe('permission service seed source', () => {
 
   it('renders a stable dry-run summary for audit output', () => {
     expect(renderPermissionServiceSeedDryRunSummary(buildPermissionServiceSeed())).toEqual({
-      permissionCodeCount: 219,
+      permissionCodeCount: 231,
       deprecatedPermissionCodeCount: 14,
       roleCount: 7,
-      rolePermissionCount: 181,
+      rolePermissionCount: 193,
       navigationEntryCount: 31,
       deprecatedNavigationEntryCount: 1,
       roleNavigationVisibilityCount: 32,

@@ -9,6 +9,8 @@ import {
   ITEM_MASTER_MANAGEMENT_PERMISSION_CODES,
   PERMISSION_ACCOUNT_SELF_PERMISSION_CODES,
   PROCUREMENT_MANAGEMENT_PERMISSION_CODES,
+  PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES,
+  PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES,
   ROLE_INSTANCE_PERMISSION_CODES,
   ROLE_TEMPLATE_PERMISSION_CODES,
   SALES_MANAGEMENT_PERMISSION_CODES,
@@ -53,6 +55,13 @@ describe('permission foundation seed', () => {
       [Modules.PROCUREMENT_SERVICE, Object.values(PROCUREMENT_MANAGEMENT_PERMISSION_CODES)],
       [Modules.FINANCE_SERVICE, Object.values(FINANCE_MANAGEMENT_PERMISSION_CODES)],
       [
+        Modules.PUBLIC_ENTRY_SERVICE,
+        [
+          ...Object.values(PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES),
+          ...Object.values(PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES)
+        ]
+      ],
+      [
         Modules.PERMISSION_SERVICE,
         [
           ...Object.values(ROLE_TEMPLATE_PERMISSION_CODES),
@@ -78,6 +87,25 @@ describe('permission foundation seed', () => {
       'item_master.item_model.get_by_id',
       'item_master.item_model.create',
       'item_master.item_model.manage'
+    ]))
+  })
+
+  it('publishes Public Entry permissions required by ShortLink and BusinessCard Phase 1', () => {
+    const seedCodes = PERMISSION_CODE_SEED_ITEMS.map((item) => item.code)
+
+    expect(seedCodes).toEqual(expect.arrayContaining([
+      'public-entry.short-link.read',
+      'public-entry.short-link.create',
+      'public-entry.short-link.update',
+      'public-entry.short-link.disable',
+      'public-entry.short-link.archive',
+      'public-entry.short-link.stats.read',
+      'public-entry.business-card.read',
+      'public-entry.business-card.manage',
+      'public-entry.business-card.enable',
+      'public-entry.business-card.disable',
+      'public-entry.business-card.public-entry.manage',
+      'public-entry.business-card.stats.read'
     ]))
   })
 })

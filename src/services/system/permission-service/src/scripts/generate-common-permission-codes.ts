@@ -16,6 +16,8 @@ import {
   PERMISSION_ACCOUNT_SELF_PERMISSION_CODES,
   PERMISSION_MANAGEMENT_PERMISSION_CODES,
   PROCUREMENT_MANAGEMENT_PERMISSION_CODES,
+  PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES,
+  PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES,
   ROLE_INSTANCE_PERMISSION_CODES,
   ROLE_TEMPLATE_PERMISSION_CODES,
   SALES_MANAGEMENT_PERMISSION_CODES,
@@ -62,6 +64,7 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
       './mes',
       './procurement',
       './permission',
+      './public-entry',
       './sales',
       './srm',
       './tenant-org',
@@ -225,6 +228,23 @@ const COMMON_PERMISSION_CODE_FILES: CommonPermissionCodeFileDefinition[] = [
     relativePath: 'procurement/management.permission-codes.ts',
     constName: 'PROCUREMENT_MANAGEMENT_PERMISSION_CODES',
     records: PROCUREMENT_MANAGEMENT_PERMISSION_CODES
+  },
+  {
+    kind: 'index',
+    relativePath: 'public-entry/index.ts',
+    exports: ['./short-link.permission-codes', './business-card.permission-codes']
+  },
+  {
+    kind: 'const',
+    relativePath: 'public-entry/short-link.permission-codes.ts',
+    constName: 'PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES',
+    records: PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES
+  },
+  {
+    kind: 'const',
+    relativePath: 'public-entry/business-card.permission-codes.ts',
+    constName: 'PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES',
+    records: PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES
   },
   {
     kind: 'index',

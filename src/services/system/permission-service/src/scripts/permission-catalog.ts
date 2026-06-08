@@ -688,6 +688,27 @@ const financeManagement = definePermissionGroup(Modules.FINANCE_SERVICE, {
   }
 })
 
+const publicEntryShortLinkManagement = definePermissionGroup(Modules.PUBLIC_ENTRY_SERVICE, {
+  READ: { code: 'public-entry.short-link.read', description: '查看 ShortLink 公开入口' },
+  CREATE: { code: 'public-entry.short-link.create', description: '创建 ShortLink 公开入口' },
+  UPDATE: { code: 'public-entry.short-link.update', description: '更新 ShortLink 公开入口' },
+  DISABLE: { code: 'public-entry.short-link.disable', description: '禁用 ShortLink 公开入口' },
+  ARCHIVE: { code: 'public-entry.short-link.archive', description: '归档 ShortLink 公开入口' },
+  STATS_READ: { code: 'public-entry.short-link.stats.read', description: '查看 ShortLink 访问摘要' }
+})
+
+const publicEntryBusinessCardManagement = definePermissionGroup(Modules.PUBLIC_ENTRY_SERVICE, {
+  READ: { code: 'public-entry.business-card.read', description: '查看员工数字名片' },
+  MANAGE: { code: 'public-entry.business-card.manage', description: '维护员工数字名片配置' },
+  ENABLE: { code: 'public-entry.business-card.enable', description: '启用员工数字名片' },
+  DISABLE: { code: 'public-entry.business-card.disable', description: '禁用员工数字名片' },
+  PUBLIC_ENTRY_MANAGE: {
+    code: 'public-entry.business-card.public-entry.manage',
+    description: '绑定或刷新员工数字名片主公开入口'
+  },
+  STATS_READ: { code: 'public-entry.business-card.stats.read', description: '查看员工数字名片访问摘要' }
+})
+
 const wmsManagement = definePermissionGroup(Modules.WMS_SERVICE, {
   READ_WAREHOUSE: {
     code: 'wms.warehouse.read',
@@ -873,6 +894,8 @@ export const SALES_MANAGEMENT_PERMISSION_CODES = salesManagement.codes
 export const SALES_PRICING_PERMISSION_CODES = salesPricingManagement.codes
 export const PROCUREMENT_MANAGEMENT_PERMISSION_CODES = procurementManagement.codes
 export const FINANCE_MANAGEMENT_PERMISSION_CODES = financeManagement.codes
+export const PUBLIC_ENTRY_SHORT_LINK_PERMISSION_CODES = publicEntryShortLinkManagement.codes
+export const PUBLIC_ENTRY_BUSINESS_CARD_PERMISSION_CODES = publicEntryBusinessCardManagement.codes
 export const WMS_MANAGEMENT_PERMISSION_CODES = wmsManagement.codes
 export const MES_MANAGEMENT_PERMISSION_CODES = mesManagement.codes
 export const AUTH_MANAGEMENT_PERMISSION_CODES = authManagement.codes
@@ -917,6 +940,8 @@ export const PERMISSION_CODE_SEED_ITEMS: PermissionSeedItem[] = [
   ...salesPricingManagement.items,
   ...procurementManagement.items,
   ...financeManagement.items,
+  ...publicEntryShortLinkManagement.items,
+  ...publicEntryBusinessCardManagement.items,
   ...wmsManagement.items,
   ...mesManagement.items,
   ...authManagement.items,
