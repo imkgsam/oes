@@ -1,62 +1,44 @@
 import { Controller } from '@nestjs/common'
 import { Metadata } from '@grpc/grpc-js'
 import {
-  GetPartyByIdRequest,
-  GetPartyByIdResponse,
   GetTenantPartyByIdRequest,
   GetTenantPartyByIdResponse,
-  ListPartyRelationshipsRequest,
-  ListPartyRelationshipsResponse,
   PartyQueryServiceController,
   PartyQueryServiceControllerMethods,
-  ResolvePartyByIdentifierRequest,
-  ResolvePartyByIdentifierResponse,
-  SearchPartyCandidatesRequest,
-  SearchPartyCandidatesResponse
+  ResolveTenantPartyByIdentifierRequest,
+  ResolveTenantPartyByIdentifierResponse,
+  ResolveTenantPartyForConsumerRequest,
+  ResolveTenantPartyForConsumerResponse,
+  SearchTenantPartyCandidatesRequest,
+  SearchTenantPartyCandidatesResponse
 } from '@oes/common/generated/party_service'
 import { PartyQueryService } from '../../application/services'
+import { ResolvedTenantPartyCandidate, TenantPartySummary } from '../../domain/repositories'
 
-/** PartyQueryGrpcController exposes the read-only party query contract over gRPC. */
+/** PartyQueryGrpcController exposes read-only tenant-scoped TenantParty queries over gRPC. */
 @Controller()
 @PartyQueryServiceControllerMethods()
 export class PartyQueryGrpcController implements PartyQueryServiceController {
   constructor(private readonly partyQueryService: PartyQueryService) {}
 
-  async getPartyById(request: GetPartyByIdRequest, _metadata?: Metadata): Promise<GetPartyByIdResponse> {
-    const party = await this.partyQueryService.getPartyById(request.partyId ?? '')
-    return {
-      party: party
-        ? {
-            id: party.id,
-            type: party.type,
-            status: party.status,
-            legalName: party.legalName
-          }
-        : undefined
-    }
-  }
-
-  async getTenantPartyById(request: GetTenantPartyByIdRequest, _metadata?: Metadata): Promise<GetTenantPartyByIdResponse> {
-    const tenantParty = await this.partyQueryService.getTenantPartyById(request.tenantId ?? '', request.tenantPartyId ?? '')
-    return {
-      tenantParty: tenantParty
-        ? {
-            id: tenantParty.id,
-            tenantId: tenantParty.tenantId,
-            partyId: tenantParty.partyId,
-            localDisplayName: tenantParty.localDisplayName ?? '',
-            localCode: tenantParty.localCode ?? '',
-            status: String(tenantParty.status)
-          }
-        : undefined
-    }
-  }
-
-  async resolvePartyByIdentifier(
-    request: ResolvePartyByIdentifierRequest,
+  async getTenantPartyById(
+    request: GetTenantPartyByIdRequest,
     _metadata?: Metadata
-  ): Promise<ResolvePartyByIdentifierResponse> {
-    const party = await this.partyQueryService.resolvePartyByIdentifier({
+  ): Promise<GetTenantPartyByIdResponse> {
+    const tenantParty = await this.partyQueryService.getTenantPartyById(
+      request.tenantId ?? '',
+      request.tenantPartyId ?? ''
+    )
+    return {
+      tenantParty: tenantParty ? mapTenantParty(tenantParty) : undefined
+    }
+  }
+
+  async resolveTenantPartyByIdentifier(
+    request: ResolveTenantPartyByIdentifierRequest,
+    _metadata?: Metadata
+  ): Promise<ResolveTenantPartyByIdentifierResponse> {
+    const tenantParty = await this.partyQueryService.resolveTenantPartyByIdentifier(request.tenantId ?? '', {
       identifierType: request.identifierType ?? '',
       normalizedValue: request.normalizedValue ?? '',
       rawValue: request.rawValue ?? request.normalizedValue ?? '',
@@ -64,23 +46,16 @@ export class PartyQueryGrpcController implements PartyQueryServiceController {
     })
 
     return {
-      matchType: party ? 'STRONG_MATCH' : 'NO_MATCH',
-      party: party
-        ? {
-            id: party.id,
-            type: party.type,
-            status: party.status,
-            legalName: party.legalName
-          }
-        : undefined
+      matchType: tenantParty ? 'STRONG_MATCH' : 'NO_MATCH',
+      tenantParty: tenantParty ? mapTenantParty(tenantParty) : undefined
     }
   }
 
-  async searchPartyCandidates(
-    request: SearchPartyCandidatesRequest,
+  async searchTenantPartyCandidates(
+    request: SearchTenantPartyCandidatesRequest,
     _metadata?: Metadata
-  ): Promise<SearchPartyCandidatesResponse> {
-    const candidates = await this.partyQueryService.searchPartyCandidates({
+  ): Promise<SearchTenantPartyCandidatesResponse> {
+    const candidates = await this.partyQueryService.searchTenantPartyCandidates({
       tenantId: request.tenantId ?? '',
       keyword: request.keyword ?? undefined,
       partyType: (request.partyType || undefined) as never,
@@ -96,37 +71,65 @@ export class PartyQueryGrpcController implements PartyQueryServiceController {
 
     return {
       candidates: candidates.map((candidate) => ({
-        party: {
-          id: candidate.party.id,
-          type: candidate.party.type,
-          status: candidate.party.status,
-          legalName: candidate.party.legalName
-        },
+        tenantParty: mapTenantParty(candidate.tenantParty),
         confidence: candidate.confidence,
         matchSignals: candidate.matchSignals
       }))
     }
   }
 
-  async listPartyRelationships(
-    request: ListPartyRelationshipsRequest,
+  /** resolveTenantPartyForConsumer exposes consumer-neutral tenant party resolution over gRPC. */
+  async resolveTenantPartyForConsumer(
+    request: ResolveTenantPartyForConsumerRequest,
     _metadata?: Metadata
-  ): Promise<ListPartyRelationshipsResponse> {
-    const relationships = await this.partyQueryService.listPartyRelationships(
-      request.partyId ?? '',
-      request.relationshipType ?? undefined
-    )
+  ): Promise<ResolveTenantPartyForConsumerResponse> {
+    const result = await this.partyQueryService.resolveTenantPartyForConsumer({
+      tenantId: request.tenantId ?? '',
+      typeHint: (request.typeHint || undefined) as never,
+      name: request.name || undefined,
+      country: request.country || undefined,
+      domain: request.domain || undefined,
+      email: request.email || undefined,
+      phone: request.phone || undefined,
+      whatsapp: request.whatsapp || undefined,
+      identifiers:
+        request.identifiers?.map((identifier) => ({
+          identifierType: identifier.identifierType ?? '',
+          normalizedValue: identifier.normalizedValue ?? '',
+          rawValue: identifier.rawValue ?? identifier.normalizedValue ?? '',
+          issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? undefined
+        })) ?? []
+    })
 
     return {
-      relationships: relationships.map((relationship) => ({
-        id: relationship.id,
-        fromPartyId: relationship.fromPartyId,
-        toPartyId: relationship.toPartyId,
-        relationshipType: relationship.relationshipType,
-        assertionLevel: relationship.assertionLevel,
-        effectiveFrom: relationship.effectiveFrom ?? '',
-        effectiveTo: relationship.effectiveTo ?? ''
-      }))
+      result: result.result,
+      tenantParty: result.tenantParty ? mapTenantParty(result.tenantParty) : undefined,
+      candidates: result.candidates.map(mapResolvedCandidate),
+      matchedFields: result.matchedFields
     }
+  }
+}
+
+/** mapTenantParty converts an application TenantParty summary into the generated gRPC response shape. */
+function mapTenantParty(tenantParty: TenantPartySummary) {
+  return {
+    id: tenantParty.id,
+    tenantId: tenantParty.tenantId,
+    type: String(tenantParty.type),
+    status: String(tenantParty.status),
+    legalName: tenantParty.legalName,
+    displayName: tenantParty.displayName ?? '',
+    localCode: tenantParty.localCode ?? '',
+    registeredCountry: tenantParty.registeredCountry ?? ''
+  }
+}
+
+/** mapResolvedCandidate converts an application resolution candidate into the gRPC response shape. */
+function mapResolvedCandidate(candidate: ResolvedTenantPartyCandidate) {
+  return {
+    tenantParty: mapTenantParty(candidate.tenantParty),
+    confidence: candidate.confidence,
+    matchedFields: candidate.matchedFields,
+    conflictFlags: candidate.conflictFlags
   }
 }

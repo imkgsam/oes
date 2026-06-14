@@ -3,37 +3,34 @@ import assert from 'node:assert/strict';
 
 import { createSmokeSeed, runPartySmokeFlow } from './party-smoke-lib.mjs';
 
-// Verifies the smoke flow registers a party, finds it through candidates, and resolves the tenant binding.
+// Verifies the smoke flow registers a tenant party, finds it through candidates, and resolves it by id.
 test('runPartySmokeFlow executes the expected happy path against injected service stubs', async () => {
   const calls = [];
   const seed = createSmokeSeed(1710000000000);
 
   const services = {
     registration: {
-      registerOrganizationParty: async (request) => {
-        calls.push(['registerOrganizationParty', request]);
+      registerTenantParty: async (request) => {
+        calls.push(['registerTenantParty', request]);
         return {
-          party: {
-            id: 'party-1',
-            legalName: request.legalName,
-          },
           tenantParty: {
             id: 'tenant-party-1',
             tenantId: request.tenantId,
-            partyId: 'party-1',
+            type: request.type,
+            legalName: request.legalName,
           },
           matchResult: 'CREATED',
         };
       },
     },
     query: {
-      searchPartyCandidates: async (request) => {
-        calls.push(['searchPartyCandidates', request]);
+      searchTenantPartyCandidates: async (request) => {
+        calls.push(['searchTenantPartyCandidates', request]);
         return {
           candidates: [
             {
-              party: {
-                id: 'party-1',
+              tenantParty: {
+                id: 'tenant-party-1',
               },
             },
           ],
@@ -45,7 +42,6 @@ test('runPartySmokeFlow executes the expected happy path against injected servic
           tenantParty: {
             id: request.tenantPartyId,
             tenantId: request.tenantId,
-            partyId: 'party-1',
           },
         };
       },
@@ -55,15 +51,15 @@ test('runPartySmokeFlow executes the expected happy path against injected servic
   const result = await runPartySmokeFlow(services, seed);
 
   assert.deepEqual(result, {
-    partyId: 'party-1',
     tenantPartyId: 'tenant-party-1',
     matchResult: 'CREATED',
   });
 
   assert.equal(calls.length, 3);
-  assert.equal(calls[0][0], 'registerOrganizationParty');
-  assert.equal(calls[1][0], 'searchPartyCandidates');
+  assert.equal(calls[0][0], 'registerTenantParty');
+  assert.equal(calls[1][0], 'searchTenantPartyCandidates');
   assert.equal(calls[2][0], 'getTenantPartyById');
+  assert.equal(calls[0][1].type, 'ORGANIZATION');
   assert.equal(calls[1][1].partyType, 'ORGANIZATION');
   assert.equal(calls[2][1].tenantPartyId, 'tenant-party-1');
 });
@@ -77,22 +73,19 @@ test('runPartySmokeFlow throws when registration response is incomplete', async 
       runPartySmokeFlow(
         {
           registration: {
-            registerOrganizationParty: async () => ({
-              party: {
-                id: '',
-              },
+            registerTenantParty: async () => ({
               tenantParty: {
                 id: '',
               },
             }),
           },
           query: {
-            searchPartyCandidates: async () => ({ candidates: [] }),
+            searchTenantPartyCandidates: async () => ({ candidates: [] }),
             getTenantPartyById: async () => ({ tenantParty: undefined }),
           },
         },
         seed,
       ),
-    /registerOrganizationParty did not return party and tenantParty ids/,
+    /registerTenantParty did not return tenantParty id/,
   );
 });

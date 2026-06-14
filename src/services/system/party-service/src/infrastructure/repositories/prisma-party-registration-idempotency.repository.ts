@@ -14,7 +14,6 @@ export class PrismaPartyRegistrationIdempotencyRepository implements PartyRegist
     const record = await this.prisma.partyRegistrationIdempotency.findUnique({
       where: { idempotencyKey },
       include: {
-        party: true,
         tenantParty: true
       }
     })
@@ -26,8 +25,7 @@ export class PrismaPartyRegistrationIdempotencyRepository implements PartyRegist
     idempotencyKey: string
     requestHash: string
     operation: string
-    partyId: string
-    tenantPartyId?: string | undefined
+    tenantPartyId: string
     matchResult?: string | undefined
   }): Promise<PartyRegistrationIdempotencyRecord> {
     try {
@@ -36,12 +34,10 @@ export class PrismaPartyRegistrationIdempotencyRepository implements PartyRegist
           idempotencyKey: input.idempotencyKey,
           requestHash: input.requestHash,
           operation: input.operation,
-          partyId: input.partyId,
-          tenantPartyId: input.tenantPartyId ?? null,
+          tenantPartyId: input.tenantPartyId,
           matchResult: input.matchResult ?? null
         },
         include: {
-          party: true,
           tenantParty: true
         }
       })
@@ -64,41 +60,31 @@ function mapRecord(record: {
   requestHash: string
   operation: string
   matchResult: string | null
-  party: {
-    id: string
-    type: string
-    status: string
-    legalName: string
-  }
   tenantParty: {
     id: string
     tenantId: string
-    partyId: string
-    localDisplayName: string | null
+    type: string
+    legalName: string
+    displayName: string | null
     localCode: string | null
+    registeredCountry: string | null
     status: string
-  } | null
+  }
 }): PartyRegistrationIdempotencyRecord {
   return {
     idempotencyKey: record.idempotencyKey,
     requestHash: record.requestHash,
     operation: record.operation,
-    party: {
-      id: record.party.id,
-      type: record.party.type as never,
-      status: record.party.status as never,
-      legalName: record.party.legalName
+    tenantParty: {
+      id: record.tenantParty.id,
+      tenantId: record.tenantParty.tenantId,
+      type: record.tenantParty.type as never,
+      legalName: record.tenantParty.legalName,
+      displayName: record.tenantParty.displayName,
+      localCode: record.tenantParty.localCode,
+      registeredCountry: record.tenantParty.registeredCountry,
+      status: record.tenantParty.status
     },
-    tenantParty: record.tenantParty
-      ? {
-          id: record.tenantParty.id,
-          tenantId: record.tenantParty.tenantId,
-          partyId: record.tenantParty.partyId,
-          localDisplayName: record.tenantParty.localDisplayName,
-          localCode: record.tenantParty.localCode,
-          status: record.tenantParty.status
-        }
-      : null,
     matchResult: record.matchResult
   }
 }

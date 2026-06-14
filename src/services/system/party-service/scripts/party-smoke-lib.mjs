@@ -4,7 +4,7 @@ export function createSmokeSeed(now = Date.now()) {
   return {
     tenantId: `smoke-tenant-${suffix}`,
     legalName: `Smoke Organization ${suffix}`,
-    localDisplayName: `Smoke Local ${suffix}`,
+    displayName: `Smoke Local ${suffix}`,
     localCode: `SMOKE-${suffix}`,
     registeredCountry: 'CN',
     identifierType: 'BUSINESS_REG_NO',
@@ -14,10 +14,11 @@ export function createSmokeSeed(now = Date.now()) {
 
 // Executes the minimal party-service smoke scenario against injected gRPC service stubs.
 export async function runPartySmokeFlow(services, seed, log = () => {}) {
-  const registerResponse = await services.registration.registerOrganizationParty({
+  const registerResponse = await services.registration.registerTenantParty({
     tenantId: seed.tenantId,
+    type: 'ORGANIZATION',
     legalName: seed.legalName,
-    localDisplayName: seed.localDisplayName,
+    displayName: seed.displayName,
     localCode: seed.localCode,
     registeredCountry: seed.registeredCountry,
     identifiers: [
@@ -31,15 +32,14 @@ export async function runPartySmokeFlow(services, seed, log = () => {}) {
   });
 
   const tenantPartyId = registerResponse?.tenantParty?.id;
-  const partyId = registerResponse?.party?.id;
 
-  if (!tenantPartyId || !partyId) {
-    throw new Error('party-service smoke failed: registerOrganizationParty did not return party and tenantParty ids');
+  if (!tenantPartyId) {
+    throw new Error('party-service smoke failed: registerTenantParty did not return tenantParty id');
   }
 
-  log(`registered tenantParty=${tenantPartyId} party=${partyId}`);
+  log(`registered tenantParty=${tenantPartyId}`);
 
-  const candidateResponse = await services.query.searchPartyCandidates({
+  const candidateResponse = await services.query.searchTenantPartyCandidates({
     tenantId: seed.tenantId,
     keyword: seed.legalName,
     partyType: 'ORGANIZATION',
@@ -54,26 +54,27 @@ export async function runPartySmokeFlow(services, seed, log = () => {}) {
     ],
   });
 
-  const matchedCandidate = candidateResponse?.candidates?.find((candidate) => candidate?.party?.id === partyId);
+  const matchedCandidate = candidateResponse?.candidates?.find(
+    (candidate) => candidate?.tenantParty?.id === tenantPartyId,
+  );
   if (!matchedCandidate) {
-    throw new Error('party-service smoke failed: searchPartyCandidates did not return the registered party');
+    throw new Error('party-service smoke failed: searchTenantPartyCandidates did not return the registered tenant party');
   }
 
-  log(`candidate matched party=${partyId}`);
+  log(`candidate matched tenantParty=${tenantPartyId}`);
 
   const tenantPartyResponse = await services.query.getTenantPartyById({
     tenantId: seed.tenantId,
     tenantPartyId,
   });
 
-  if (tenantPartyResponse?.tenantParty?.partyId !== partyId) {
+  if (tenantPartyResponse?.tenantParty?.id !== tenantPartyId) {
     throw new Error('party-service smoke failed: getTenantPartyById did not resolve the registered tenant party');
   }
 
-  log(`tenant party lookup resolved party=${partyId}`);
+  log(`tenant party lookup resolved tenantParty=${tenantPartyId}`);
 
   return {
-    partyId,
     tenantPartyId,
     matchResult: registerResponse?.matchResult ?? '',
   };

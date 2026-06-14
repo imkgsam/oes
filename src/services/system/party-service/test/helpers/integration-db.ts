@@ -66,66 +66,37 @@ export function createTestPrefix(): string {
 export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Promise<void> {
   if (!prisma) return
 
-  const prefixedParties = await prisma.party.findMany({
+  const prefixedTenantParties = await prisma.tenantParty.findMany({
     where: {
-      legalName: { startsWith: prefix }
+      OR: [
+        { tenantId: { startsWith: prefix } },
+        { legalName: { startsWith: prefix } },
+        { displayName: { startsWith: prefix } },
+        { localCode: { startsWith: prefix } },
+        { registeredCountry: { startsWith: prefix } }
+      ]
     },
     select: {
       id: true
     }
   })
 
-  const prefixedIdentifiers = await prisma.partyIdentifier.findMany({
-    where: {
-      OR: [{ normalizedValue: { startsWith: prefix } }, { rawValue: { startsWith: prefix } }]
-    },
-    select: {
-      partyId: true
-    }
-  })
-
-  const prefixedTenantParties = await prisma.tenantParty.findMany({
-    where: {
-      OR: [
-        { tenantId: { startsWith: prefix } },
-        { localDisplayName: { startsWith: prefix } },
-        { localCode: { startsWith: prefix } }
-      ]
-    },
-    select: {
-      partyId: true
-    }
-  })
-
-  const prefixedPartyIds = Array.from(
-    new Set([
-      ...prefixedParties.map((party) => party.id),
-      ...prefixedIdentifiers.map((identifier) => identifier.partyId),
-      ...prefixedTenantParties.map((tenantParty) => tenantParty.partyId)
-    ])
-  )
+  const prefixedTenantPartyIds = prefixedTenantParties.map((tenantParty) => tenantParty.id)
 
   await prisma.partyRegistrationIdempotency.deleteMany({
     where: {
       OR: [
         { idempotencyKey: { startsWith: prefix } },
-        prefixedPartyIds.length > 0 ? { partyId: { in: prefixedPartyIds } } : undefined
+        prefixedTenantPartyIds.length > 0 ? { tenantPartyId: { in: prefixedTenantPartyIds } } : undefined
       ].filter(Boolean) as any
     }
   })
 
-  if (prefixedPartyIds.length > 0) {
-    await prisma.partyRelationship.deleteMany({
-      where: {
-        OR: [{ fromPartyId: { in: prefixedPartyIds } }, { toPartyId: { in: prefixedPartyIds } }]
-      }
-    })
-  }
-
-  await prisma.partyIdentifier.deleteMany({
+  await prisma.tenantPartyIdentifier.deleteMany({
     where: {
       OR: [
-        prefixedPartyIds.length > 0 ? { partyId: { in: prefixedPartyIds } } : undefined,
+        { tenantId: { startsWith: prefix } },
+        prefixedTenantPartyIds.length > 0 ? { tenantPartyId: { in: prefixedTenantPartyIds } } : undefined,
         { normalizedValue: { startsWith: prefix } },
         { rawValue: { startsWith: prefix } }
       ].filter(Boolean) as any
@@ -136,38 +107,11 @@ export async function cleanupByPrefix(prisma: PrismaService, prefix: string): Pr
     where: {
       OR: [
         { tenantId: { startsWith: prefix } },
-        prefixedPartyIds.length > 0 ? { partyId: { in: prefixedPartyIds } } : undefined,
-        { localDisplayName: { startsWith: prefix } },
-        { localCode: { startsWith: prefix } }
-      ].filter(Boolean) as any
-    }
-  })
-
-  await prisma.personParty.deleteMany({
-    where: {
-      OR: [
-        prefixedPartyIds.length > 0 ? { partyId: { in: prefixedPartyIds } } : undefined,
-        { preferredName: { startsWith: prefix } }
-      ].filter(Boolean) as any
-    }
-  })
-
-  await prisma.organizationParty.deleteMany({
-    where: {
-      OR: [
-        prefixedPartyIds.length > 0 ? { partyId: { in: prefixedPartyIds } } : undefined,
-        { registeredCountry: { startsWith: prefix } },
-        { registrationStatus: { startsWith: prefix } }
-      ].filter(Boolean) as any
-    }
-  })
-
-  await prisma.party.deleteMany({
-    where: {
-      OR: [
-        prefixedPartyIds.length > 0 ? { id: { in: prefixedPartyIds } } : undefined,
-        { legalName: { startsWith: prefix } }
-      ].filter(Boolean) as any
+        { legalName: { startsWith: prefix } },
+        { displayName: { startsWith: prefix } },
+        { localCode: { startsWith: prefix } },
+        { registeredCountry: { startsWith: prefix } }
+      ]
     }
   })
 }

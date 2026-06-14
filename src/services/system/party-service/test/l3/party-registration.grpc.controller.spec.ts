@@ -3,40 +3,35 @@ import { PartyRegistrationGrpcController } from '../../src/interfaces/grpc/party
 
 function createPartyRegistrationServiceMock() {
   return {
-    registerPersonParty: jest.fn(),
-    registerOrganizationParty: jest.fn(),
-    bindExistingPartyToTenant: jest.fn(),
+    registerTenantParty: jest.fn(),
     deactivateTenantParty: jest.fn()
   }
 }
 
 describe('PartyRegistrationGrpcController L3', () => {
-  it('gRPC 注册组织主体 / 当请求合法时 / 应映射为应用服务输入并返回标准响应', async () => {
+  it('gRPC 注册租户组织主体 / 当请求合法时 / 应映射为应用服务输入并返回不含 partyId 的响应', async () => {
     const service = createPartyRegistrationServiceMock()
     const controller = new PartyRegistrationGrpcController(service as unknown as PartyRegistrationService)
 
-    service.registerOrganizationParty.mockResolvedValue({
-      party: {
-        id: 'party-1',
-        type: 'ORGANIZATION',
-        status: 'ACTIVE',
-        legalName: 'Acme Legal'
-      },
+    service.registerTenantParty.mockResolvedValue({
       tenantParty: {
         id: 'tenant-party-1',
         tenantId: 'tenant-1',
-        partyId: 'party-1',
-        localDisplayName: null,
-        localCode: null,
-        status: 'ACTIVE'
+        type: 'ORGANIZATION',
+        status: 'ACTIVE',
+        legalName: 'Acme Legal',
+        displayName: 'Acme Local',
+        localCode: 'ACME-001',
+        registeredCountry: 'CN'
       },
       matchResult: 'CREATED'
     })
 
-    const result = await controller.registerOrganizationParty({
+    const result = await controller.registerTenantParty({
       tenantId: 'tenant-1',
+      type: 'ORGANIZATION',
       legalName: 'Acme Legal',
-      localDisplayName: 'Acme Local',
+      displayName: 'Acme Local',
       localCode: 'ACME-001',
       registeredCountry: 'CN',
       identifiers: [
@@ -46,14 +41,22 @@ describe('PartyRegistrationGrpcController L3', () => {
           rawValue: 'CN-ACME-001',
           issuerCountryOrRegion: 'CN'
         }
+      ],
+      contactPoints: [
+        {
+          contactPointType: 'DOMAIN',
+          normalizedValue: 'acme.example',
+          rawValue: 'https://acme.example'
+        }
       ]
     } as any)
 
-    expect(service.registerOrganizationParty).toHaveBeenCalledWith({
+    expect(service.registerTenantParty).toHaveBeenCalledWith({
       tenantId: 'tenant-1',
+      type: 'ORGANIZATION',
       legalName: 'Acme Legal',
       registeredCountry: 'CN',
-      localDisplayName: 'Acme Local',
+      displayName: 'Acme Local',
       localCode: 'ACME-001',
       identifiers: [
         {
@@ -61,64 +64,56 @@ describe('PartyRegistrationGrpcController L3', () => {
           normalizedValue: 'cn-acme-001',
           rawValue: 'CN-ACME-001',
           issuerCountryOrRegion: 'CN'
+        }
+      ],
+      contactPoints: [
+        {
+          contactPointType: 'DOMAIN',
+          normalizedValue: 'acme.example',
+          rawValue: 'https://acme.example',
+          label: undefined
         }
       ]
     })
     expect(result).toEqual({
-      party: {
-        id: 'party-1',
-        type: 'ORGANIZATION',
-        status: 'ACTIVE',
-        legalName: 'Acme Legal'
-      },
       tenantParty: {
         id: 'tenant-party-1',
         tenantId: 'tenant-1',
-        partyId: 'party-1',
-        localDisplayName: '',
-        localCode: '',
-        status: 'ACTIVE'
+        type: 'ORGANIZATION',
+        status: 'ACTIVE',
+        legalName: 'Acme Legal',
+        displayName: 'Acme Local',
+        localCode: 'ACME-001',
+        registeredCountry: 'CN'
       },
       matchResult: 'CREATED'
     })
+    expect(result.tenantParty).not.toHaveProperty('partyId')
   })
 
-  it('gRPC 绑定已有主体 / 当请求包含 tags 时 / 应完整映射到租户绑定输入', async () => {
+  it('gRPC 停用租户主体 / 当请求合法时 / 应映射 tenant scoped lifecycle 输入', async () => {
     const service = createPartyRegistrationServiceMock()
     const controller = new PartyRegistrationGrpcController(service as unknown as PartyRegistrationService)
 
-    service.bindExistingPartyToTenant.mockResolvedValue({
-      party: {
-        id: 'party-2',
-        type: 'ORGANIZATION',
-        status: 'ACTIVE',
-        legalName: 'Bound Party'
-      },
-      tenantParty: {
-        id: 'tenant-party-2',
-        tenantId: 'tenant-2',
-        partyId: 'party-2',
-        localDisplayName: 'Local Bound Party',
-        localCode: 'BOUND-002',
-        status: 'ACTIVE'
-      }
+    service.deactivateTenantParty.mockResolvedValue({
+      id: 'tenant-party-2',
+      tenantId: 'tenant-2',
+      type: 'PERSON',
+      status: 'INACTIVE',
+      legalName: 'Zhang San'
     })
 
-    const result = await controller.bindExistingPartyToTenant({
+    const result = await controller.deactivateTenantParty({
       tenantId: 'tenant-2',
-      partyId: 'party-2',
-      localDisplayName: 'Local Bound Party',
-      localCode: 'BOUND-002',
-      tags: ['supplier', 'preferred']
+      tenantPartyId: 'tenant-party-2',
+      reason: 'duplicate local subject'
     } as any)
 
-    expect(service.bindExistingPartyToTenant).toHaveBeenCalledWith({
+    expect(service.deactivateTenantParty).toHaveBeenCalledWith({
       tenantId: 'tenant-2',
-      partyId: 'party-2',
-      localDisplayName: 'Local Bound Party',
-      localCode: 'BOUND-002',
-      tags: ['supplier', 'preferred']
+      tenantPartyId: 'tenant-party-2',
+      reason: 'duplicate local subject'
     })
-    expect(result.tenantParty.status).toBe('ACTIVE')
+    expect(result.tenantParty?.status).toBe('INACTIVE')
   })
 })

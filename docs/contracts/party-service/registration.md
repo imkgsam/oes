@@ -1,175 +1,85 @@
-# party-service Registration And Binding API
+# party-service Registration API
 
 ## 1. 模块职责
 
-`PartyRegistrationService` 负责主体注册、租户绑定、主体停用等管理型写接口。
+`PartyRegistrationService` 提供租户内主体注册与停用写接口。
 
-第一阶段适用场景：
+接口类型：内部 gRPC 服务。
 
-- 租户注册新的自然人主体
-- 租户注册新的组织主体
-- 租户绑定已存在主体
-- 租户停用自己的 `TenantParty`
-- 未来扩展主体级停用能力时，提供受控管理入口
+当前服务面：
 
-调用约束：
+- `RegisterTenantParty`
+- `DeactivateTenantParty`
 
-- 接口类型：内部服务接口
-- 服务：`PartyRegistrationService`
-- 调用方：内部服务
-- 当前 runtime truth：
-  - phase-1 runtime 尚未在 `party-service` 内落实 internal-service / authenticated-operator / permission guard enforcement
-  - 调用方仍应按 architecture 要求继续传递 operator / trace metadata；更强 enforcement deferred
+已移除旧接口：
 
-## 2. 通用上下文要求
+- `RegisterPersonParty`
+- `RegisterOrganizationParty`
+- `BindExistingPartyToTenant`
 
-当前请求面中真正落在 proto / runtime 上的显式上下文主要是：
+## 2. `RegisterTenantParty`
 
-- `tenantId`
+作用：在当前租户内创建或复用一个 `TenantParty`。
 
-当前调用链已经开始由上游传递但尚未在 `party-service` handler 内强制使用的是：
+请求关键字段：
 
-- `operatorId`
-- 如场景适用则携带 `orgId`
-- request trace / correlation metadata
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `tenant_id` | 是 | 租户边界 |
+| `type` | 是 | `PERSON` 或 `ORGANIZATION` |
+| `legal_name` | 是 | 法定 / 官方名称 |
+| `display_name` | 否 | 租户内展示名 |
+| `local_code` | 否 | 租户内本地编码 |
+| `registered_country` | 否 | 注册国家或地区 |
+| `identifiers[]` | 否 | 租户内标识 |
+| `idempotency_key` | 否 | 幂等键 |
 
-deferred enforcement：
+`identifiers[]` 字段：
 
-- operator context mandatory enforcement
-- permission guard
-- audit event persistence / replay chain
+| 字段 | 说明 |
+| --- | --- |
+| `identifier_type` | 标识类型 |
+| `issuer_country_or_region` | 签发国家或地区 |
+| `normalized_value` | 规范化值 |
+| `raw_value` | 原始值 |
+| `status` | 标识状态 |
 
-## 3. 注册自然人主体
+关键语义：
 
-### `RegisterPersonParty`
+- `TenantPartyIdentifier` 唯一性为 `tenantId + identifierType + issuerCountryOrRegion + normalizedValue`。
+- 命中当前租户内同一 identifier 时返回既有 `TenantParty`。
+- 不查询或复用其他租户主体。
+- 不创建 system-wide `Party`。
+- 不返回旧 `partyId`。
 
-- 作用：注册自然人主体；当提供 `tenant_id` 时同时为该租户创建 `TenantParty`，未提供时只创建 canonical `Party`
-- 请求关键字段：
-  - `canonical_name`
-  - optional `identifiers[]`
-  - optional `tenant_id`
-  - optional `local_display_name`
-  - optional `local_code`
-  - optional `idempotency_key`
-- 关键语义：
-  - phase-1 当前只冻结 identifier `strong-match reuse`
-  - 当 `identifiers[]` 提供且命中 strong match 时，runtime 直接复用已存在 `party`，并在提供 `tenant_id` 时创建 `TenantParty`
-  - 当未命中 strong match 时，runtime 直接创建新的 canonical `Party`
-  - 当前 runtime 允许空 `identifiers[]`；此时不会发生 identifier strong-match reuse
-  - 候选查重、create-reject / preflight flow、人工确认复用流程当前未落地，统一 deferred
-  - 当前契约不允许调用方绕过查重显式声明“强制新建 canonical party”
-- 响应关键字段：
-  - `party`
-  - optional `tenant_party`
-  - `match_result`
-- 当前 `match_result` 只冻结：
-  - `CREATED`
-  - `STRONG_MATCH_REUSED`
-- 主要副作用：
-  - 创建 `Party`
-  - 创建 `PersonParty`
-  - 创建 `PartyIdentifier`
-  - 在提供 `tenant_id` 时创建 `TenantParty`
+响应关键字段：
 
-## 4. 注册组织主体
+| 字段 | 说明 |
+| --- | --- |
+| `tenant_party` | 租户主体摘要 |
+| `match_result` | `CREATED` 或租户内复用结果 |
 
-### `RegisterOrganizationParty`
+## 3. `DeactivateTenantParty`
 
-- 作用：注册组织主体；当提供 `tenant_id` 时同时为该租户创建 `TenantParty`，未提供时只创建 canonical `Party`
-- 请求关键字段：
-  - `canonical_name`
-  - `registered_country`
-  - optional `identifiers[]`
-  - optional `tenant_id`
-  - optional `local_display_name`
-  - optional `local_code`
-  - optional `idempotency_key`
-- 关键语义：
-  - 与 `RegisterPersonParty` 相同，phase-1 当前只冻结 identifier `strong-match reuse`
-  - strong match 命中时，runtime 直接复用已存在 `party`，并在提供 `tenant_id` 时创建 `TenantParty`
-  - 未命中 strong match 时，runtime 直接创建新的 canonical `Party`
-  - 当前 runtime 允许空 `identifiers[]`；但服务职责真相源已要求组织主体创建第一阶段必须采集官方强标识，新的 CRM / SRM / onboarding 调用方不得把空标识视为推荐路径
-  - 候选查重、create-reject / preflight flow、人工确认复用流程当前未落地，统一 deferred
-  - 组织主体的名字不是全局唯一键，不能只按名称判断是否为同一主体
-- 响应关键字段：
-  - `party`
-  - optional `tenant_party`
-  - `match_result`
-- 当前 `match_result` 只冻结：
-  - `CREATED`
-  - `STRONG_MATCH_REUSED`
-- 主要副作用：
-  - 创建 `Party`
-  - 创建 `OrganizationParty`
-  - 创建 `PartyIdentifier`
-  - 在提供 `tenant_id` 时创建 `TenantParty`
+作用：停用当前租户下的 `TenantParty`。
 
-## 5. 绑定已有主体到租户
+请求关键字段：
 
-### `BindExistingPartyToTenant`
+| 字段 | 必填 | 说明 |
+| --- | --- | --- |
+| `tenant_id` | 是 | 租户边界 |
+| `tenant_party_id` | 是 | 目标主体 |
+| `reason` | 否 | 停用原因 |
 
-- 作用：将已存在的 canonical `Party` 绑定到当前租户，创建 `TenantParty`
-- 请求关键字段：
-  - `tenant_id`
-  - `party_id`
-  - optional `local_display_name`
-  - optional `local_code`
-  - optional `tags[]`
-  - optional `idempotency_key`
-- 关键语义：
-  - 同一租户对同一 `partyId` 只能存在一条有效 `TenantParty`
-  - 该接口不创建新的 canonical `Party`
-- 当前 runtime 命中重复绑定时直接返回 conflict，不提供“返回现有绑定”的幂等结果
-- 响应关键字段：
-  - `tenant_party`
-  - `party`
-- 主要副作用：
-  - 创建 `TenantParty`
+关键语义：
 
-## 6. 停用租户主体
+- 停用不是物理删除。
+- 若该主体已被业务域引用，是否允许继续操作由调用方业务规则决定。
+- 响应返回停用后的 `tenant_party` 摘要。
 
-### `DeactivateTenantParty`
+## 4. 幂等性与审计
 
-- 作用：停用某租户下的 `TenantParty`
-- 请求关键字段：
-  - `tenant_id`
-  - `tenant_party_id`
-  - optional `reason`
-- 关键语义：
-  - 第一阶段默认是停用，不是物理删除
-  - 若该 `TenantParty` 已被业务域引用，调用方应依赖下游业务规则决定是否允许停用或仅允许标记为 inactive
-- 响应关键字段：
-  - `tenant_party`
-- 主要副作用：
-  - `TenantParty.status` 从 active 类状态切换到 inactive 类状态
-  - 当前 runtime 不包含显式 audit event 落库；审计要求 deferred
-
-## 7. 主要错误语义
-
-调用方应重点关注这几类失败：
-
-- validation failure
-  - 当前 runtime 明确校验的是注册接口中的 `canonical_name` 不能为空
-- duplicate binding
-  - `BindExistingPartyToTenant` 命中相同 `tenant_id + party_id`
-- not found
-  - `BindExistingPartyToTenant` 中的 `party_id` 不存在
-  - `DeactivateTenantParty` 中的 `tenant_party_id` 不存在
-
-以下语义当前不要写成已承诺：
-
-- permission denied
-- strong-match-conflict create-reject flow
-- candidate-review / manual-approval flow
-- 完整 cross-tenant misuse guard enforcement
-- 标识格式、标识类型或更细状态转换校验
-
-## 8. 幂等性与副作用提示
-
-- `RegisterPersonParty`、`RegisterOrganizationParty` 与 `BindExistingPartyToTenant` 都是有副作用的写接口，不是幂等查询接口。
-- 当前 proto / runtime 已支持 `idempotency_key`。
-- 同一 `idempotency_key` + 同一 request fingerprint 可安全复用既有结果。
-- 同一 `idempotency_key` + 不同 request fingerprint 应返回 idempotency conflict。
-- 未提供 `idempotency_key` 时，调用方不得假设写接口天然幂等。
-- `BindExistingPartyToTenant` 未通过 idempotency 命中既有结果时，对同一 `tenantId + partyId` 组合仍按 duplicate binding 处理。
-- `DeactivateTenantParty` 不是删除接口；调用方不得把停用当成清理历史引用的替代方案。
+- `RegisterTenantParty` 支持 `idempotency_key`。
+- 同一 `idempotency_key` + 同一 request fingerprint 可复用既有结果。
+- 同一 `idempotency_key` + 不同 request fingerprint 应返回幂等冲突。
+- 调用链应继续传递 operator / trace metadata；更强 permission guard 与 audit event 持久化按后续治理能力补齐。
