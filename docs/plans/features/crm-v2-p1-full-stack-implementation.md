@@ -2,7 +2,7 @@
 
 ## 1. Feature Status
 
-Current status: `implementation in progress / core account flow implemented and under verification`
+Current status: `implemented / CRM P1 account flow verified`
 
 本 feature packet 是 CRM v2 P1 的全栈执行入口，承接以下稳定设计：
 
@@ -19,6 +19,15 @@ Current implementation checkpoint:
 - Active gRPC/BFF read path currently exposes `ListCrmAccounts` and `GetCrmAccount`.
 - `CrmSourceRecord`, `CrmContact`, `CrmActivity`, and `Opportunity` are P1 schema/domain foundations, but their external commands/pages are not treated as complete until separately exposed and verified.
 - Old customer-master runtime endpoints and schema are not part of the active P1 surface.
+
+Completion checkpoint:
+
+- Party tenant-scoped `TenantParty` model and CRM P1 resolution contract are implemented.
+- CRM old customer-master runtime has been replaced by the P1 `CrmAccount` lead-to-prospect flow.
+- API Gateway/BFF exposes CRM P1 list, detail, create Lead, and convert-to-prospect endpoints.
+- tenant-web CRM page uses real BFF APIs and supports list/filter, Lead creation, detail drawer, and formalization.
+- Local seed fixtures and CRM smoke cover the P1 lead creation and conversion path.
+- Browser verification confirmed `New Lead`, Lead creation, `Formalize`, TenantParty binding, and Prospect Customer filtering on `2026-06-14`.
 
 ## 2. Goal
 
