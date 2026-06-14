@@ -47,6 +47,7 @@
       "loadFailed": "CRM account loading failed",
       "newLead": "New Lead",
       "noAccounts": "No CRM accounts",
+      "operation": "Operation",
       "owner": "Owner",
       "ownerPlaceholder": "Account ID",
       "partyType": "Party type",

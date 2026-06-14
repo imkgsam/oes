@@ -80,6 +80,16 @@ async function setDocumentInputValue(testId: string, value: string) {
   await flushPromises()
 }
 
+// Opens the native Ant Design dropdown and dispatches one CRM row menu action from the teleported overlay.
+async function clickCrmRowAction(wrapper: any, crmAccountId: string, actionTestId: string) {
+  await wrapper.get(`[data-testid="crm-account-actions-${crmAccountId}"]`).trigger('click')
+  await flushPromises()
+  const action = document.querySelector(`[data-testid="${actionTestId}"]`) as HTMLElement | null
+  expect(action).toBeTruthy()
+  action!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
+  await flushPromises()
+}
+
 // Verifies the CRM P1 workspace uses the tenant-scoped account BFF and keeps lead creation/formalization inside the sales flow.
 describe('customer management CRM P1 workspace', () => {
   beforeEach(() => {
@@ -250,19 +260,20 @@ describe('customer management CRM P1 workspace', () => {
       sourceType: 'WEB_RESEARCH'
     })
 
-    await wrapper.get('[data-testid="crm-account-detail-crm-account-1"]').trigger('click')
+    await clickCrmRowAction(wrapper, 'crm-account-1', 'crm-account-detail-crm-account-1')
     await flushPromises()
 
     expect(getCrmAccountApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
     expect(document.body.textContent).toContain('sourcing@northline.example')
 
-    await wrapper.get('[data-testid="crm-account-convert-crm-account-1"]').trigger('click')
+    await clickCrmRowAction(wrapper, 'crm-account-1', 'crm-account-convert-crm-account-1')
     await flushPromises()
 
     expect(convertLeadToProspectCustomerApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
     expect(document.body.textContent).toContain('CONVERTED')
 
-    await wrapper.get('[data-testid="crm-account-archive-crm-account-1"]').trigger('click')
+    expect(wrapper.find('[data-testid="crm-account-actions-crm-account-1"]').exists()).toBe(true)
+    await clickCrmRowAction(wrapper, 'crm-account-1', 'crm-account-archive-crm-account-1')
     await flushPromises()
 
     expect(archiveCrmAccountApi).not.toHaveBeenCalled()
@@ -330,7 +341,8 @@ describe('customer management CRM P1 workspace', () => {
     })
     expect(document.body.textContent).toContain('Archived Northline')
 
-    await wrapper.get('[data-testid="crm-account-restore-crm-account-archived-1"]').trigger('click')
+    expect(wrapper.find('[data-testid="crm-account-actions-crm-account-archived-1"]').exists()).toBe(true)
+    await clickCrmRowAction(wrapper, 'crm-account-archived-1', 'crm-account-restore-crm-account-archived-1')
     await flushPromises()
 
     expect(restoreCrmAccountApi).not.toHaveBeenCalled()

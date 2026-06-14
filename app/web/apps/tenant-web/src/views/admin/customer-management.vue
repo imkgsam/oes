@@ -12,8 +12,10 @@ import {
   Card,
   Col,
   Drawer,
+  Dropdown,
   Form,
   Input,
+  Menu,
   Modal,
   Row,
   Select,
@@ -38,6 +40,7 @@ import { useAuthContextStore } from '#/store/auth-context'
 
 type LifecycleStageFilter = CustomerManagementApi.CrmAccountLifecycleStage
 type WorkspaceStageFilter = LifecycleStageFilter | 'ARCHIVED'
+type CrmAccountActionKey = 'archive' | 'detail' | 'formalize' | 'restore'
 type AccountColumnKey =
   | 'actions'
   | 'displayName'
@@ -69,6 +72,15 @@ interface LeadFormState {
   sourceName: string
   sourceNote: string
   sourceType: CustomerManagementApi.CrmSourceType
+}
+
+interface CrmAccountActionItem {
+  danger?: boolean
+  dataTestId: string
+  disabled?: boolean
+  hidden?: boolean
+  key: CrmAccountActionKey
+  label: string
 }
 
 const customerManagementFallbackMessages = {
@@ -105,6 +117,7 @@ const customerManagementFallbackMessages = {
   loadFailed: 'CRM 客户关系加载失败',
   newLead: '新建 Lead',
   noAccounts: '暂无 CRM 客户关系',
+  operation: '操作',
   owner: '负责人',
   ownerPlaceholder: '账号 ID',
   partyType: '主体类型',
@@ -220,7 +233,7 @@ const partyTypeOptions: Array<{ label: string; value: CustomerManagementApi.CrmA
 
 const priorityOptions: CustomerManagementApi.CrmPriority[] = ['A', 'B', 'C', 'D']
 const accountColumnMinWidths: Record<AccountColumnKey, number> = {
-  actions: 150,
+  actions: 72,
   displayName: 160,
   leadCountry: 96,
   leadDomain: 160,
@@ -230,7 +243,7 @@ const accountColumnMinWidths: Record<AccountColumnKey, number> = {
   tenantPartyId: 160
 }
 const accountColumnWidths = reactive<Record<AccountColumnKey, number>>({
-  actions: 188,
+  actions: 88,
   displayName: 260,
   leadCountry: 110,
   leadDomain: 260,
@@ -307,68 +320,129 @@ const accountColumns = computed<TableColumnsType<CustomerManagementApi.CrmAccoun
       record.tenantPartyId ? h('code', record.tenantPartyId) : h('span', { class: 'crm-muted' }, t('unbound'))
   },
   {
+    align: 'center',
     fixed: 'right',
     key: 'actions',
-    title: renderResizableAccountHeader('actions', ''),
+    title: renderResizableAccountHeader('actions', t('operation')),
     width: accountColumnWidths.actions,
-    customRender: ({ record }) =>
-      h('div', { class: 'crm-row-actions' }, [
-        canViewAccount.value
-          ? h(
-              Button,
-              {
-                'data-testid': `crm-account-detail-${record.crmAccountId}`,
-                size: 'small',
-                type: 'link',
-                onClick: () => openAccountDetail(record.crmAccountId)
-              },
-              () => t('detail')
-            )
-          : null,
-        canFormalizeLead.value && record.lifecycleStage === 'LEAD'
-          && record.recordStatus === 'ACTIVE'
-          ? h(
-              Button,
-              {
-                'data-testid': `crm-account-convert-${record.crmAccountId}`,
-                loading: convertingAccountId.value === record.crmAccountId,
-                size: 'small',
-                type: 'primary',
-                onClick: () => formalizeLead(record.crmAccountId)
-              },
-              () => t('formalize')
-            )
-          : null,
-        canArchiveAccount.value && canArchiveRecord(record)
-          ? h(
-              Button,
-              {
-                danger: true,
-                'data-testid': `crm-account-archive-${record.crmAccountId}`,
-                loading: convertingAccountId.value === record.crmAccountId,
-                size: 'small',
-                type: 'link',
-                onClick: () => openArchiveConfirm(record.crmAccountId)
-              },
-              () => t('archive')
-            )
-          : null,
-        canArchiveAccount.value && canRestoreRecord(record)
-          ? h(
-              Button,
-              {
-                'data-testid': `crm-account-restore-${record.crmAccountId}`,
-                loading: convertingAccountId.value === record.crmAccountId,
-                size: 'small',
-                type: 'link',
-                onClick: () => openRestoreConfirm(record.crmAccountId)
-              },
-              () => t('restore')
-            )
-          : null
-      ])
+    customRender: ({ record }) => renderCrmAccountActionDropdown(record)
   }
 ])
+
+/** getCrmAccountActionItems exposes CRM row commands through the native Ant Design dropdown pattern. */
+function getCrmAccountActionItems(record: CustomerManagementApi.CrmAccount): CrmAccountActionItem[] {
+  const busy = convertingAccountId.value === record.crmAccountId
+
+  return [
+    {
+      dataTestId: `crm-account-detail-${record.crmAccountId}`,
+      hidden: !canViewAccount.value,
+      key: 'detail',
+      label: t('detail')
+    },
+    {
+      dataTestId: `crm-account-convert-${record.crmAccountId}`,
+      disabled: busy,
+      hidden: !canFormalizeLead.value || record.lifecycleStage !== 'LEAD' || record.recordStatus !== 'ACTIVE',
+      key: 'formalize',
+      label: t('formalize')
+    },
+    {
+      danger: true,
+      dataTestId: `crm-account-archive-${record.crmAccountId}`,
+      disabled: busy,
+      hidden: !canArchiveAccount.value || !canArchiveRecord(record),
+      key: 'archive',
+      label: t('archive')
+    },
+    {
+      dataTestId: `crm-account-restore-${record.crmAccountId}`,
+      disabled: busy,
+      hidden: !canArchiveAccount.value || !canRestoreRecord(record),
+      key: 'restore',
+      label: t('restore')
+    }
+  ]
+}
+
+/** getVisibleCrmAccountActionItems filters unavailable CRM row commands before Menu rendering. */
+function getVisibleCrmAccountActionItems(record: CustomerManagementApi.CrmAccount) {
+  return getCrmAccountActionItems(record).filter((item) => !item.hidden)
+}
+
+/** handleCrmAccountAction dispatches one CRM row dropdown command to the matching P1 use case. */
+function handleCrmAccountAction(actionKey: CrmAccountActionKey, record: CustomerManagementApi.CrmAccount) {
+  if (actionKey === 'detail') {
+    void openAccountDetail(record.crmAccountId)
+    return
+  }
+
+  if (actionKey === 'formalize') {
+    void formalizeLead(record.crmAccountId)
+    return
+  }
+
+  if (actionKey === 'archive') {
+    openArchiveConfirm(record.crmAccountId)
+    return
+  }
+
+  openRestoreConfirm(record.crmAccountId)
+}
+
+/** renderCrmAccountActionDropdown renders CRM account row operations with the project-standard Dropdown/Menu. */
+function renderCrmAccountActionDropdown(record: CustomerManagementApi.CrmAccount) {
+  const visibleItems = getVisibleCrmAccountActionItems(record)
+
+  if (!visibleItems.length) {
+    return h('span', { class: 'tenant-table-action-empty' }, '-')
+  }
+
+  return h(
+    Dropdown,
+    { trigger: ['click'] },
+    {
+      default: () =>
+        h(
+          Button,
+          {
+            'aria-label': t('operation'),
+            'data-testid': `crm-account-actions-${record.crmAccountId}`,
+            shape: 'circle',
+            size: 'small',
+            type: 'text'
+          },
+          () => h(IconifyIcon, { icon: 'ant-design:more-outlined' })
+        ),
+      overlay: () =>
+        h(
+          Menu,
+          {
+            onClick: (info) => {
+              const item = visibleItems.find((entry) => entry.key === String(info.key))
+              if (!item || item.disabled) {
+                return
+              }
+              handleCrmAccountAction(item.key, record)
+            }
+          },
+          () =>
+            visibleItems.map((item) =>
+              h(
+                Menu.Item,
+                {
+                  danger: item.danger,
+                  'data-testid': item.dataTestId,
+                  disabled: item.disabled,
+                  key: item.key
+                },
+                () => item.label
+              )
+            )
+        )
+    }
+  )
+}
 
 /** stopAccountColumnResize releases document listeners created while resizing CRM account columns. */
 function stopAccountColumnResize() {
@@ -1245,12 +1319,6 @@ onBeforeUnmount(() => {
   color: var(--crm-title);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-weight: 700;
-}
-
-.crm-row-actions {
-  display: flex;
-  gap: 6px;
-  justify-content: flex-end;
 }
 
 .crm-workspace__modal-form {

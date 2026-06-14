@@ -47,6 +47,7 @@
       "loadFailed": "CRM 客户关系加载失败",
       "newLead": "新建 Lead",
       "noAccounts": "暂无 CRM 客户关系",
+      "operation": "操作",
       "owner": "负责人",
       "ownerPlaceholder": "账号 ID",
       "partyType": "主体类型",
