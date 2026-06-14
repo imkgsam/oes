@@ -13,8 +13,8 @@ export const POLICY_INSTANCE_FOUNDATION_SEEDS: PolicyInstanceFoundationSeed[] = 
       type: 'ACCOUNT',
       accountId: POLICY_INSTANCE_FIXTURE_ACCOUNT_ID
     },
-    permissionCode: 'crm.customer_account.list',
-    resourceType: 'customer-account',
+    permissionCode: 'crm.account.read',
+    resourceType: 'crm-account',
     templateCode: 'resource-field-matches-subject-field',
     effect: 'ALLOW',
     params: {

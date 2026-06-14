@@ -1,5 +1,8 @@
 import { Reflector } from '@nestjs/core'
-import { REQUIRE_PERMISSIONS_METADATA_KEY } from '@oes/common/authorization'
+import {
+  CRM_MANAGEMENT_PERMISSION_CODES,
+  REQUIRE_PERMISSIONS_METADATA_KEY
+} from '@oes/common/authorization'
 import { CustomerManagementController } from './customer-management.controller'
 
 // Verifies the customer-management gateway controller exposes only the CRM P1 BFF surface.
@@ -25,25 +28,25 @@ describe('CustomerManagementController', () => {
         REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.listCrmAccounts
       )
-    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    ).toEqual({ all: [CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT] })
     expect(
       reflector.get(
         REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.getCrmAccountP1
       )
-    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    ).toEqual({ all: [CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT] })
     expect(
       reflector.get(
         REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.createLead
       )
-    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    ).toEqual({ all: [CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT] })
     expect(
       reflector.get(
         REQUIRE_PERMISSIONS_METADATA_KEY,
         CustomerManagementController.prototype.convertLeadToProspectCustomer
       )
-    ).toEqual(expect.objectContaining({ all: expect.any(Array) }))
+    ).toEqual({ all: [CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT] })
   })
 
   it('forwards CRM P1 list, detail, lead creation, and conversion requests', async () => {

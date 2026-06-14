@@ -160,6 +160,26 @@ const identityAccountManagement = definePermissionGroup(Modules.IDENTITY_SERVICE
     description: '更新账号档案信息'
   },
   DELETE_ACCOUNT: { code: 'identity.account.delete', description: '删除账号' },
+  ASSIGN_CONTACT_ASSET: {
+    code: 'identity.contact.asset.assign',
+    description: '分配通信资产'
+  },
+  UPDATE_CONTACT_ASSET: {
+    code: 'identity.contact.asset.update',
+    description: '更新通信资产'
+  },
+  SET_CONTACT_ASSET_STATUS: {
+    code: 'identity.contact.asset.set_status',
+    description: '更新通信资产状态'
+  },
+  SET_PRIMARY_CONTACT_ASSET: {
+    code: 'identity.contact.asset.set_primary',
+    description: '设置主通信资产'
+  },
+  RELEASE_CONTACT_ASSET: {
+    code: 'identity.contact.asset.release',
+    description: '释放通信资产'
+  },
   ASSIGN_WORK_EMAIL: {
     code: 'identity.contact.work_email.assign',
     description: '分配工作邮箱'
@@ -366,41 +386,37 @@ const itemMasterManagement = definePermissionGroup(Modules.ITEM_MASTER_SERVICE, 
 })
 
 const crmManagement = definePermissionGroup(Modules.CRM_SERVICE, {
-  LIST_CUSTOMER_ACCOUNT: {
-    code: 'crm.customer_account.list',
-    description: '查看 CRM 客户账户列表'
+  READ_CRM_ACCOUNT: {
+    code: 'crm.account.read',
+    description: '查看 CRM P1 客户关系账户'
   },
-  VIEW_CUSTOMER_ACCOUNT_DETAIL: {
-    code: 'crm.customer_account.get_by_id',
-    description: '查看 CRM 客户账户详情'
+  CREATE_CRM_ACCOUNT: {
+    code: 'crm.account.create',
+    description: '创建 CRM P1 Lead 客户关系账户'
   },
-  SEARCH_SELECTABLE_CUSTOMERS: {
-    code: 'crm.customer_account.search_selectable',
-    description: '查看可进入交易链的 CRM 客户选择结果'
+  CONVERT_CRM_ACCOUNT: {
+    code: 'crm.account.convert',
+    description: '将 CRM P1 Lead 转为 Prospect Customer'
   },
-  CREATE_CUSTOMER_ACCOUNT: {
-    code: 'crm.customer_account.create',
-    description: '创建 CRM 客户账户外壳'
+  VIEW_RESTRICTED_DUPLICATE: {
+    code: 'crm.duplicate.viewRestricted',
+    description: '查看 CRM 重复线索受限候选信息'
   },
-  UPDATE_CUSTOMER_ACCOUNT_BASICS: {
-    code: 'crm.customer_account.update_basics',
-    description: '更新 CRM 客户账户基础信息'
+  MANAGE_CRM_CONTACT: {
+    code: 'crm.contact.manage',
+    description: '维护 CRM 联系人基础记录'
   },
-  BIND_CUSTOMER_ACCOUNT_TO_TENANT_PARTY: {
-    code: 'crm.customer_account.bind_tenant_party',
-    description: '绑定 CRM 客户账户到租户主体'
+  MANAGE_CRM_SOURCE: {
+    code: 'crm.source.manage',
+    description: '维护 CRM 来源记录'
   },
-  CHANGE_CUSTOMER_STATUS: {
-    code: 'crm.customer_account.change_status',
-    description: '切换 CRM 客户账户状态'
+  CREATE_CRM_ACTIVITY: {
+    code: 'crm.activity.create',
+    description: '创建 CRM 动态记录'
   },
-  UPSERT_CUSTOMER_CONTACT: {
-    code: 'crm.customer_contact.upsert',
-    description: '新增或更新 CRM 客户联系人'
-  },
-  UPSERT_CUSTOMER_ADDRESS: {
-    code: 'crm.customer_address.upsert',
-    description: '新增或更新 CRM 客户地址'
+  MANAGE_CRM_OPPORTUNITY: {
+    code: 'crm.opportunity.manage',
+    description: '维护 CRM 商机基础记录'
   }
 })
 

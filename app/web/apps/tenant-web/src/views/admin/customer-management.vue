@@ -47,16 +47,16 @@ const activeTenantName = computed(
   () => authContextStore.sessionContext?.tenant?.name ?? authContextStore.tenantName ?? '当前租户'
 )
 const canCreateLead = computed(() =>
-  authContextStore.actionCodes.includes('crm.customer_account.create')
+  authContextStore.actionCodes.includes('crm.account.create')
 )
 const canListAccounts = computed(() =>
-  authContextStore.actionCodes.includes('crm.customer_account.list')
+  authContextStore.actionCodes.includes('crm.account.read')
 )
 const canViewAccount = computed(() =>
-  authContextStore.actionCodes.includes('crm.customer_account.get_by_id')
+  authContextStore.actionCodes.includes('crm.account.read')
 )
 const canFormalizeLead = computed(() =>
-  authContextStore.actionCodes.includes('crm.customer_account.bind_tenant_party')
+  authContextStore.actionCodes.includes('crm.account.convert')
 )
 
 const filters = reactive<CrmWorkspaceFilterState>({

@@ -17,7 +17,7 @@ export class CustomerManagementController {
   constructor(private readonly customerManagementService: CustomerManagementService) {}
 
   @Get('crm-accounts')
-  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.LIST_CUSTOMER_ACCOUNT] })
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT] })
   @ApiOperation({ summary: 'List CRM P1 accounts for the sales workspace' })
   async listCrmAccounts(
     @Param('tenantId') tenantId: string,
@@ -39,7 +39,7 @@ export class CustomerManagementController {
   }
 
   @Get('crm-accounts/:crmAccountId')
-  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.VIEW_CUSTOMER_ACCOUNT_DETAIL] })
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.READ_CRM_ACCOUNT] })
   @ApiOperation({ summary: 'Get one CRM P1 account for the sales workspace detail panel' })
   async getCrmAccountP1(
     @Param('tenantId') tenantId: string,
@@ -50,7 +50,7 @@ export class CustomerManagementController {
   }
 
   @Post('leads')
-  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CUSTOMER_ACCOUNT] })
+  @RequirePermissions({ all: [CRM_MANAGEMENT_PERMISSION_CODES.CREATE_CRM_ACCOUNT] })
   @ApiOperation({ summary: 'Create one CRM P1 active lead with a primary source record' })
   @ApiBody({ type: CreateLeadDto })
   async createLead(
@@ -63,7 +63,7 @@ export class CustomerManagementController {
 
   @Post('leads/:crmAccountId/convert-to-prospect-customer')
   @RequirePermissions({
-    all: [CRM_MANAGEMENT_PERMISSION_CODES.BIND_CUSTOMER_ACCOUNT_TO_TENANT_PARTY]
+    all: [CRM_MANAGEMENT_PERMISSION_CODES.CONVERT_CRM_ACCOUNT]
   })
   @ApiOperation({ summary: 'Convert one CRM P1 lead to prospect customer through Party resolution' })
   async convertLeadToProspectCustomer(

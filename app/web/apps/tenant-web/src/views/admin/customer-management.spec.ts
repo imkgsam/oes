@@ -11,10 +11,9 @@ const useRoute = vi.fn()
 
 const authContextState: any = {
   actionCodes: [
-    'crm.customer_account.bind_tenant_party',
-    'crm.customer_account.create',
-    'crm.customer_account.get_by_id',
-    'crm.customer_account.list'
+    'crm.account.convert',
+    'crm.account.create',
+    'crm.account.read'
   ],
   sessionContext: {
     tenant: {
