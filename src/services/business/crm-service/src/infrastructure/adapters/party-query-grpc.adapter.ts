@@ -7,17 +7,27 @@ import {
 } from '@oes/common/authorization'
 import { SERVICE_NAMES } from '@oes/common/constants'
 import {
+  PARTY_REGISTRATION_SERVICE_NAME,
+  PartyRegistrationServiceClient,
   PARTY_QUERY_SERVICE_NAME,
   PartyQueryServiceClient
 } from '@oes/common/generated/party_service'
 import { InjectGrpcClient, safeGrpcCall } from '@oes/common/transport'
-import { TOKENS } from '../../common/constants/tokens'
 import { TenantPartyLookupPort, TenantPartyLookupResult } from '../../application/ports/tenant-party-lookup.port'
+import {
+  RegisterTenantPartyFromCrmInput,
+  RegisterTenantPartyFromCrmResult,
+  ResolveTenantPartyForConsumerInput,
+  ResolveTenantPartyForConsumerResult,
+  TenantPartyResolutionPort,
+  TenantPartyResolutionResultType
+} from '../../application/ports/tenant-party-resolution.port'
 
-/** PartyQueryGrpcAdapter validates tenantParty references against party-service before CRM binds them. */
+/** PartyQueryGrpcAdapter validates and resolves tenant-scoped parties through party-service gRPC contracts. */
 @Injectable()
-export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, OnModuleInit {
+export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, TenantPartyResolutionPort, OnModuleInit {
   private partyQueryService!: PartyQueryServiceClient
+  private partyRegistrationService!: PartyRegistrationServiceClient
 
   constructor(
     @InjectGrpcClient(SERVICE_NAMES.PARTY)
@@ -30,6 +40,9 @@ export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, OnModuleIni
   onModuleInit(): void {
     this.partyQueryService = this.partyClient.getService<PartyQueryServiceClient>(
       PARTY_QUERY_SERVICE_NAME
+    )
+    this.partyRegistrationService = this.partyClient.getService<PartyRegistrationServiceClient>(
+      PARTY_REGISTRATION_SERVICE_NAME
     )
   }
 
@@ -57,7 +70,93 @@ export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, OnModuleIni
       tenantId: tenantParty.tenantId ?? tenantId,
       tenantPartyId: tenantParty.id,
       status: tenantParty.status ?? '',
-      partyDisplayName: tenantParty.localDisplayName ?? ''
+      partyDisplayName: tenantParty.displayName ?? ''
+    }
+  }
+
+  /** resolveTenantPartyForConsumer asks party-service to classify tenant-local subject evidence. */
+  async resolveTenantPartyForConsumer(
+    input: ResolveTenantPartyForConsumerInput
+  ): Promise<ResolveTenantPartyForConsumerResult> {
+    const response = await safeGrpcCall(
+      this.partyQueryService.resolveTenantPartyForConsumer(
+        {
+          tenantId: input.tenantId,
+          typeHint: input.typeHint,
+          name: input.name,
+          country: input.country ?? '',
+          domain: input.domain ?? '',
+          email: input.email ?? '',
+          phone: input.phone ?? '',
+          whatsapp: input.whatsapp ?? '',
+          identifiers: input.identifiers.map((identifier) => ({
+            identifierType: identifier.identifierType,
+            normalizedValue: identifier.normalizedValue,
+            rawValue: identifier.rawValue ?? '',
+            issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? '',
+            status: 'ACTIVE'
+          }))
+        },
+        this.buildMetadata()
+      ),
+      {
+        caller: SERVICE_NAMES.CRM,
+        method: 'PartyQueryService.resolveTenantPartyForConsumer'
+      }
+    )
+
+    return {
+      resultType: toTenantPartyResolutionResultType(response.result),
+      tenantPartyId: response.tenantParty?.id ?? null,
+      displayName: response.tenantParty?.displayName ?? null,
+      candidates: (response.candidates ?? []).map((candidate) => ({
+        tenantPartyId: candidate.tenantParty?.id ?? '',
+        displayName: candidate.tenantParty?.displayName ?? '',
+        confidence: candidate.confidence ?? 0,
+        matchedFields: candidate.matchedFields ?? [],
+        conflictFlags: candidate.conflictFlags ?? []
+      })),
+      matchedFields: response.matchedFields ?? []
+    }
+  }
+
+  /** registerTenantParty creates a tenant-scoped party only after CRM has accepted formalization. */
+  async registerTenantParty(input: RegisterTenantPartyFromCrmInput): Promise<RegisterTenantPartyFromCrmResult> {
+    const response = await safeGrpcCall(
+      this.partyRegistrationService.registerTenantParty(
+        {
+          tenantId: input.tenantId,
+          type: input.typeHint,
+          legalName: input.displayName,
+          displayName: input.displayName,
+          localCode: '',
+          registeredCountry: input.country ?? '',
+          identifiers: input.identifiers.map((identifier) => ({
+            identifierType: identifier.identifierType,
+            normalizedValue: identifier.normalizedValue,
+            rawValue: identifier.rawValue ?? '',
+            issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? '',
+            status: 'ACTIVE'
+          })),
+          idempotencyKey: `crm:${input.tenantId}:${input.displayName}`,
+          contactPoints: input.contactPoints.map((contactPoint) => ({
+            contactPointType: contactPoint.contactPointType,
+            normalizedValue: contactPoint.normalizedValue,
+            rawValue: contactPoint.rawValue ?? contactPoint.normalizedValue,
+            label: 'CRM lead evidence'
+          }))
+        },
+        this.buildMetadata()
+      ),
+      {
+        caller: SERVICE_NAMES.CRM,
+        method: 'PartyRegistrationService.registerTenantParty'
+      }
+    )
+
+    return {
+      tenantPartyId: response.tenantParty?.id ?? '',
+      displayName: response.tenantParty?.displayName ?? input.displayName
     }
   }
 
@@ -70,4 +169,19 @@ export class PartyQueryGrpcAdapter implements TenantPartyLookupPort, OnModuleIni
       traceId: current?.traceId
     })
   }
+}
+
+/** toTenantPartyResolutionResultType maps party-service string results into CRM application enum values. */
+function toTenantPartyResolutionResultType(result?: string): TenantPartyResolutionResultType {
+  if (result === TenantPartyResolutionResultType.EXACT_MATCH) {
+    return TenantPartyResolutionResultType.EXACT_MATCH
+  }
+  if (result === TenantPartyResolutionResultType.CANDIDATES_FOUND) {
+    return TenantPartyResolutionResultType.CANDIDATES_FOUND
+  }
+  if (result === TenantPartyResolutionResultType.IDENTITY_CONFLICT) {
+    return TenantPartyResolutionResultType.IDENTITY_CONFLICT
+  }
+
+  return TenantPartyResolutionResultType.NO_MATCH
 }

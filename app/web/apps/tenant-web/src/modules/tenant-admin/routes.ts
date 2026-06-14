@@ -317,28 +317,6 @@ const tenantAdminRoutes: RouteRecordRaw[] = [
         },
       },
       {
-        name: 'TenantCustomerManagementCreate',
-        path: '/master-data/customers/create',
-        component: () => import('#/views/admin/customer-management-create.vue'),
-        meta: {
-          activePath: '/master-data/customers',
-          entryKey: 'master-data.customer-management',
-          hideInMenu: true,
-          title: '创建客户',
-        },
-      },
-      {
-        name: 'TenantCustomerManagementDetail',
-        path: '/master-data/customers/:customerAccountId',
-        component: () => import('#/views/admin/customer-management-detail.vue'),
-        meta: {
-          activePath: '/master-data/customers',
-          entryKey: 'master-data.customer-management',
-          hideInMenu: true,
-          title: '客户详情',
-        },
-      },
-      {
         name: 'TenantSupplierManagementCreate',
         path: '/master-data/suppliers/create',
         component: () => import('#/views/admin/supplier-management-create.vue'),

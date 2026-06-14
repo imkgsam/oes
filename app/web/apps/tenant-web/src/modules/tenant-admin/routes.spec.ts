@@ -205,26 +205,20 @@ describe('tenant admin routes', () => {
     expect(itemDetailRoute?.meta?.activePath).toBe('/master-data/items')
   })
 
-  it('binds customer list, create, and detail routes to the dedicated master-data customer entry', () => {
+  it('binds the CRM P1 customer workspace to the dedicated master-data customer entry', () => {
     const masterDataRoute = tenantAdminRoutes.find((route) => route.name === 'TenantMasterData')
     const customerListRoute = masterDataRoute?.children?.find(
       (route) => route.name === 'TenantCustomerManagement'
     )
-    const customerCreateRoute = masterDataRoute?.children?.find(
-      (route) => route.name === 'TenantCustomerManagementCreate'
-    )
-    const customerDetailRoute = masterDataRoute?.children?.find(
-      (route) => route.name === 'TenantCustomerManagementDetail'
-    )
 
     expect(customerListRoute?.meta?.entryKey).toBe('master-data.customer-management')
     expect(customerListRoute?.path).toBe('/master-data/customers')
-    expect(customerCreateRoute?.meta?.entryKey).toBe('master-data.customer-management')
-    expect(customerCreateRoute?.meta?.hideInMenu).toBe(true)
-    expect(customerCreateRoute?.meta?.activePath).toBe('/master-data/customers')
-    expect(customerDetailRoute?.meta?.entryKey).toBe('master-data.customer-management')
-    expect(customerDetailRoute?.meta?.hideInMenu).toBe(true)
-    expect(customerDetailRoute?.meta?.activePath).toBe('/master-data/customers')
+    expect(
+      masterDataRoute?.children?.some((route) => route.name === 'TenantCustomerManagementCreate')
+    ).toBe(false)
+    expect(
+      masterDataRoute?.children?.some((route) => route.name === 'TenantCustomerManagementDetail')
+    ).toBe(false)
   })
 
   it('binds supplier list, create, and detail routes to the dedicated master-data supplier entry', () => {

@@ -3,16 +3,10 @@ import { ClientGrpc } from '@nestjs/microservices'
 import {
   CUSTOMER_QUERY_SERVICE_NAME,
   CustomerQueryServiceClient,
-  GetCustomerAccountRequest,
-  GetCustomerAccountResponse,
-  ListCustomerAddressesRequest,
-  ListCustomerAddressesResponse,
-  ListCustomerContactsRequest,
-  ListCustomerContactsResponse,
-  SearchCustomerAccountsRequest,
-  SearchCustomerAccountsResponse,
-  SearchSelectableCustomersRequest,
-  SearchSelectableCustomersResponse
+  GetCrmAccountRequest,
+  GetCrmAccountResponse,
+  ListCrmAccountsRequest,
+  ListCrmAccountsResponse
 } from '@oes/common/generated/crm_service'
 import {
   GRPC_METADATA_PROPAGATION_FACTORY,
@@ -44,14 +38,14 @@ export class CustomerQueryGrpcAdapter implements OnModuleInit {
     this.svc = this.client.getService<CustomerQueryServiceClient>(CUSTOMER_QUERY_SERVICE_NAME)
   }
 
-  /** searchCustomerAccounts forwards one tenant-scoped CRM customer directory query. */
-  searchCustomerAccounts(
-    input: Omit<SearchCustomerAccountsRequest, 'operatorContext' | 'traceContext'>,
+  /** listCrmAccounts forwards one CRM P1 account workspace query. */
+  listCrmAccounts(
+    input: Omit<ListCrmAccountsRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
-  ): Promise<SearchCustomerAccountsResponse> {
+  ): Promise<ListCrmAccountsResponse> {
     return this.call(
-      'searchCustomerAccounts',
-      this.svc.searchCustomerAccounts(
+      'listCrmAccounts',
+      this.svc.listCrmAccounts(
         {
           ...input,
           operatorContext: buildCrmOperatorContext(source),
@@ -62,68 +56,14 @@ export class CustomerQueryGrpcAdapter implements OnModuleInit {
     )
   }
 
-  /** searchSelectableCustomers forwards one selector-eligible CRM customer query. */
-  searchSelectableCustomers(
-    input: Omit<SearchSelectableCustomersRequest, 'operatorContext' | 'traceContext'>,
+  /** getCrmAccount forwards one CRM P1 account detail query. */
+  getCrmAccount(
+    input: Omit<GetCrmAccountRequest, 'operatorContext' | 'traceContext'>,
     source: DownstreamRequestSource
-  ): Promise<SearchSelectableCustomersResponse> {
+  ): Promise<GetCrmAccountResponse> {
     return this.call(
-      'searchSelectableCustomers',
-      this.svc.searchSelectableCustomers(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
-  }
-
-  /** getCustomerAccount forwards one customer-account read needed by the detail aggregate page. */
-  getCustomerAccount(
-    input: Omit<GetCustomerAccountRequest, 'operatorContext' | 'traceContext'>,
-    source: DownstreamRequestSource
-  ): Promise<GetCustomerAccountResponse> {
-    return this.call(
-      'getCustomerAccount',
-      this.svc.getCustomerAccount(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
-  }
-
-  /** listCustomerContacts forwards one customer contact-list read. */
-  listCustomerContacts(
-    input: Omit<ListCustomerContactsRequest, 'operatorContext' | 'traceContext'>,
-    source: DownstreamRequestSource
-  ): Promise<ListCustomerContactsResponse> {
-    return this.call(
-      'listCustomerContacts',
-      this.svc.listCustomerContacts(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source)
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
-  }
-
-  /** listCustomerAddresses forwards one customer address-list read. */
-  listCustomerAddresses(
-    input: Omit<ListCustomerAddressesRequest, 'operatorContext' | 'traceContext'>,
-    source: DownstreamRequestSource
-  ): Promise<ListCustomerAddressesResponse> {
-    return this.call(
-      'listCustomerAddresses',
-      this.svc.listCustomerAddresses(
+      'getCrmAccount',
+      this.svc.getCrmAccount(
         {
           ...input,
           operatorContext: buildCrmOperatorContext(source),

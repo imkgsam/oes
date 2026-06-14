@@ -3,15 +3,18 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const listManagedCustomerAccountsApi = vi.fn()
-const push = vi.fn()
+const convertLeadToProspectCustomerApi = vi.fn()
+const createCrmLeadApi = vi.fn()
+const getCrmAccountApi = vi.fn()
+const listCrmAccountsApi = vi.fn()
 const useRoute = vi.fn()
 
 const authContextState: any = {
   actionCodes: [
-    'crm.customer_account.list',
+    'crm.customer_account.bind_tenant_party',
+    'crm.customer_account.create',
     'crm.customer_account.get_by_id',
-    'crm.customer_account.create'
+    'crm.customer_account.list'
   ],
   sessionContext: {
     tenant: {
@@ -24,7 +27,10 @@ const authContextState: any = {
 }
 
 vi.mock('#/api', () => ({
-  listManagedCustomerAccountsApi
+  convertLeadToProspectCustomerApi,
+  createCrmLeadApi,
+  getCrmAccountApi,
+  listCrmAccountsApi
 }))
 
 vi.mock('#/store/auth-context', () => ({
@@ -32,10 +38,7 @@ vi.mock('#/store/auth-context', () => ({
 }))
 
 vi.mock('vue-router', () => ({
-  useRoute: () => useRoute(),
-  useRouter: () => ({
-    push
-  })
+  useRoute: () => useRoute()
 }))
 
 vi.mock('@vben/common-ui', () => ({
@@ -45,83 +48,174 @@ vi.mock('@vben/common-ui', () => ({
   }
 }))
 
-// Verifies the customer management list page keeps filters, navigation, and tenant-scoped directory loading aligned with the BFF.
-describe('customer management list page', () => {
+vi.mock('@vben/icons', () => ({
+  IconifyIcon: {
+    name: 'IconifyIcon',
+    template: '<span />'
+  }
+}))
+
+// Verifies the CRM P1 workspace uses the tenant-scoped account BFF and keeps lead creation/formalization inside the sales flow.
+describe('customer management CRM P1 workspace', () => {
   beforeEach(() => {
-    listManagedCustomerAccountsApi.mockReset()
-    push.mockReset()
+    convertLeadToProspectCustomerApi.mockReset()
+    createCrmLeadApi.mockReset()
+    getCrmAccountApi.mockReset()
+    listCrmAccountsApi.mockReset()
     useRoute.mockReturnValue({
       meta: {
         entryKey: 'master-data.customer-management'
       }
     })
-    listManagedCustomerAccountsApi.mockResolvedValue({
-      customerAccounts: [
+    listCrmAccountsApi.mockResolvedValue({
+      crmAccounts: [
         {
-          customerAccountId: 'customer-1',
-          customerAccountNo: 'CUST-001',
+          crmAccountId: 'crm-account-1',
           tenantId: 'tenant-1',
-          displayName: 'Alpha Manufacturing',
-          status: 'ACTIVE_CUSTOMER',
-          customerCategory: 'DISTRIBUTOR',
-          tags: ['key', 'cn'],
-          primaryBinding: {
-            customerPartyBindingId: 'binding-1',
-            tenantPartyId: 'party-1',
-            bindingStatus: 'ACTIVE_PRIMARY',
-            partyDisplayName: 'Alpha Party'
-          }
+          tenantPartyId: '',
+          recordStatus: 'ACTIVE',
+          lifecycleStage: 'LEAD',
+          partyTypeHint: 'ORGANIZATION',
+          displayName: 'Northline Bathworks',
+          leadCompanyName: 'Northline Bathworks LLC',
+          leadDomain: 'northline.example',
+          leadEmail: 'sourcing@northline.example',
+          leadPhone: '',
+          leadWhatsapp: '',
+          leadCountry: 'US',
+          leadIdentifiers: [],
+          ownerAccountId: 'account-1',
+          priority: 'A',
+          lastActivityAt: '',
+          nextFollowUpAt: '2026-07-01T00:00:00.000Z',
+          createdBy: 'account-1',
+          createdAt: '2026-06-10T00:00:00.000Z',
+          updatedAt: '2026-06-10T00:00:00.000Z',
+          archivedAt: ''
         }
       ],
       page: 1,
       pageSize: 20,
       total: 1
     })
+    getCrmAccountApi.mockResolvedValue({
+      crmAccountId: 'crm-account-1',
+      tenantId: 'tenant-1',
+      tenantPartyId: '',
+      recordStatus: 'ACTIVE',
+      lifecycleStage: 'LEAD',
+      partyTypeHint: 'ORGANIZATION',
+      displayName: 'Northline Bathworks',
+      leadCompanyName: 'Northline Bathworks LLC',
+      leadDomain: 'northline.example',
+      leadEmail: 'sourcing@northline.example',
+      leadPhone: '',
+      leadWhatsapp: '',
+      leadCountry: 'US',
+      leadIdentifiers: [],
+      ownerAccountId: 'account-1',
+      priority: 'A',
+      lastActivityAt: '',
+      nextFollowUpAt: '2026-07-01T00:00:00.000Z',
+      createdBy: 'account-1',
+      createdAt: '2026-06-10T00:00:00.000Z',
+      updatedAt: '2026-06-10T00:00:00.000Z',
+      archivedAt: ''
+    })
+    createCrmLeadApi.mockResolvedValue({
+      resultType: 'CREATED',
+      crmAccount: { crmAccountId: 'crm-account-2', displayName: 'Serrano Fixtures' },
+      duplicateResult: { resultType: 'NO_DUPLICATE', candidates: [] }
+    })
+    convertLeadToProspectCustomerApi.mockResolvedValue({
+      resultType: 'CONVERTED',
+      crmAccount: {
+        crmAccountId: 'crm-account-1',
+        displayName: 'Northline Bathworks',
+        tenantPartyId: 'tenant-party-1'
+      },
+      candidates: [],
+      existingCrmAccountId: ''
+    })
   })
 
-  it('loads the tenant customer directory, applies filters, and navigates to create/detail routes', async () => {
+  it('loads, filters, creates, inspects, and formalizes CRM P1 accounts', async () => {
     const page = (await import('./customer-management.vue')).default
     const wrapper = mount(page)
 
     await flushPromises()
 
-    expect(listManagedCustomerAccountsApi).toHaveBeenCalledWith('tenant-1', {
+    expect(listCrmAccountsApi).toHaveBeenCalledWith('tenant-1', {
       keyword: undefined,
+      lifecycleStage: 'LEAD',
+      ownerAccountId: undefined,
       page: 1,
       pageSize: 20,
-      primaryTenantPartyId: undefined,
-      status: undefined
+      recordStatus: 'ACTIVE'
     })
-    expect(wrapper.text()).toContain('Alpha Manufacturing')
+    expect(wrapper.text()).toContain('Northline Bathworks')
 
-    await wrapper.get('[data-testid="customer-filter-keyword"]').setValue('alpha')
-    await wrapper.get('[data-testid="customer-filter-status"]').setValue('ACTIVE_CUSTOMER')
-    await wrapper.get('[data-testid="customer-filter-party"]').setValue('party-1')
-    await wrapper.get('[data-testid="customer-filter-search"]').trigger('click')
-
-    expect(listManagedCustomerAccountsApi).toHaveBeenLastCalledWith('tenant-1', {
-      keyword: 'alpha',
-      page: 1,
-      pageSize: 20,
-      primaryTenantPartyId: 'party-1',
-      status: 'ACTIVE_CUSTOMER'
-    })
-
-    await wrapper.get('[data-testid="customer-create-button"]').trigger('click')
-    await wrapper.get('button[aria-label="客户操作"]').trigger('click')
+    await wrapper.get('[data-testid="crm-filter-keyword"]').setValue('northline')
+    await wrapper.get('[data-testid="crm-filter-owner"]').setValue('account-1')
+    await wrapper.get('[data-testid="crm-stage-prospect"]').trigger('click')
     await flushPromises()
-    document.querySelector('[data-testid="customer-detail-button-customer-1"]')!.dispatchEvent(
-      new MouseEvent('click', { bubbles: true }),
-    )
 
-    expect(push).toHaveBeenNthCalledWith(1, {
-      name: 'TenantCustomerManagementCreate'
+    expect(listCrmAccountsApi).toHaveBeenLastCalledWith('tenant-1', {
+      keyword: 'northline',
+      lifecycleStage: 'PROSPECT_CUSTOMER',
+      ownerAccountId: 'account-1',
+      page: 1,
+      pageSize: 20,
+      recordStatus: 'ACTIVE'
     })
-    expect(push).toHaveBeenNthCalledWith(2, {
-      name: 'TenantCustomerManagementDetail',
-      params: {
-        customerAccountId: 'customer-1'
-      }
+
+    await wrapper.get('[data-testid="crm-filter-search"]').trigger('click')
+
+    expect(listCrmAccountsApi).toHaveBeenLastCalledWith('tenant-1', {
+      keyword: 'northline',
+      lifecycleStage: 'PROSPECT_CUSTOMER',
+      ownerAccountId: 'account-1',
+      page: 1,
+      pageSize: 20,
+      recordStatus: 'ACTIVE'
     })
+
+    await wrapper.get('[data-testid="crm-create-lead-open"]').trigger('click')
+    await wrapper.get('[data-testid="crm-lead-display-name"]').setValue('Serrano Fixtures')
+    await wrapper.get('[data-testid="crm-lead-domain"]').setValue('serrano.example')
+    await wrapper.get('[data-testid="crm-lead-email"]').setValue('imports@serrano.example')
+    await wrapper.get('[data-testid="crm-lead-country"]').setValue('ES')
+    await wrapper.get('[data-testid="crm-lead-source-type"]').setValue('WEB_RESEARCH')
+    await wrapper.get('[data-testid="crm-lead-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(createCrmLeadApi).toHaveBeenCalledWith('tenant-1', {
+      displayName: 'Serrano Fixtures',
+      leadCompanyName: undefined,
+      leadCountry: 'ES',
+      leadDomain: 'serrano.example',
+      leadEmail: 'imports@serrano.example',
+      leadPersonName: undefined,
+      leadPhone: undefined,
+      leadWhatsapp: undefined,
+      nextFollowUpAt: undefined,
+      partyTypeHint: 'ORGANIZATION',
+      priority: 'B',
+      sourceName: undefined,
+      sourceNote: undefined,
+      sourceType: 'WEB_RESEARCH'
+    })
+
+    await wrapper.get('[data-testid="crm-account-detail-crm-account-1"]').trigger('click')
+    await flushPromises()
+
+    expect(getCrmAccountApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
+    expect(wrapper.text()).toContain('sourcing@northline.example')
+
+    await wrapper.get('[data-testid="crm-account-convert-crm-account-1"]').trigger('click')
+    await flushPromises()
+
+    expect(convertLeadToProspectCustomerApi).toHaveBeenCalledWith('tenant-1', 'crm-account-1')
+    expect(wrapper.text()).toContain('CONVERTED')
   }, 20_000)
 })

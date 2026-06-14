@@ -1,192 +1,123 @@
 import {
-  BindCustomerAccountToTenantPartyResponse,
-  ChangeCustomerStatusResponse,
-  CreateCustomerAccountResponse,
-  CustomerAccount,
-  CustomerAddress,
-  CustomerPartyBindingStatus as ProtoCustomerPartyBindingStatus,
-  CustomerStatus as ProtoCustomerStatus,
-  GetCustomerAccountResponse,
-  ListCustomerAddressesResponse,
-  ListCustomerContactsResponse,
-  SearchCustomerAccountsResponse,
-  SearchSelectableCustomersResponse,
-  UpsertCustomerAddressResponse,
-  UpsertCustomerContactResponse
+  ConvertLeadToProspectCustomerResponse,
+  CreateLeadResponse,
+  CrmAccountP1,
+  CrmDuplicateCandidate,
+  CrmLeadDuplicateResult,
+  CrmPartyCandidate,
+  GetCrmAccountResponse,
+  ListCrmAccountsResponse
 } from '@oes/common/generated/crm_service'
 import {
-  CustomerAccountRecord,
-  CustomerAddressRecord,
-  CustomerContactRecord,
-  CustomerPartyBindingStatus,
-  CustomerStatus,
-  SelectableCustomerRecord
+  CrmAccountRecord,
+  CrmLeadConversionResultType,
+  CrmLeadCreateResultType
 } from '../../domain/models/crm-records'
-import { ListCustomerAddressesResult } from '../../application/queries/list-customer-addresses.handler'
-import { ListCustomerContactsResult } from '../../application/queries/list-customer-contacts.handler'
-import { SearchCustomerAccountsResult } from '../../application/queries/search-customer-accounts.handler'
-import { SearchSelectableCustomersResult } from '../../application/queries/search-selectable-customers.handler'
+import { ConvertLeadToProspectCustomerResult } from '../../application/commands/convert-lead-to-prospect-customer.handler'
+import { CreateLeadResult } from '../../application/commands/create-lead.handler'
+import { GetCrmAccountResult } from '../../application/queries/get-crm-account.handler'
+import { ListCrmAccountsResult } from '../../application/queries/list-crm-accounts.handler'
+import { CrmAccountDuplicateCandidate } from '../../domain/repositories/crm-account.repository'
 
 /** CustomerGrpcPresenter maps CRM domain records into the frozen phase 1 gRPC response shapes. */
 export class CustomerGrpcPresenter {
-  /** toCustomerAccount renders one CRM customer-account shell with its optional active primary binding summary. */
-  static toCustomerAccount(account: CustomerAccountRecord): CustomerAccount {
+  /** toCrmAccountP1 renders one CRM v2 account shell for P1 lead/customer workflows. */
+  static toCrmAccountP1(account: CrmAccountRecord): CrmAccountP1 {
     return {
-      customerAccountId: account.id,
-      customerAccountNo: account.customerAccountNo,
+      crmAccountId: account.id,
       tenantId: account.tenantId,
+      tenantPartyId: account.tenantPartyId ?? '',
+      recordStatus: account.recordStatus,
+      lifecycleStage: account.lifecycleStage,
+      partyTypeHint: account.partyTypeHint,
       displayName: account.displayName,
-      status: toProtoCustomerStatus(account.status),
-      customerCategory: account.customerCategory ?? '',
-      tags: account.tags,
-      primaryBinding: account.primaryBinding
-        ? {
-            customerPartyBindingId: account.primaryBinding.customerPartyBindingId,
-            tenantPartyId: account.primaryBinding.tenantPartyId,
-            bindingStatus:
-              account.primaryBinding.bindingStatus === CustomerPartyBindingStatus.ACTIVE_PRIMARY
-                ? ProtoCustomerPartyBindingStatus.CUSTOMER_PARTY_BINDING_STATUS_ACTIVE_PRIMARY
-                : ProtoCustomerPartyBindingStatus.CUSTOMER_PARTY_BINDING_STATUS_UNSPECIFIED,
-            partyDisplayName: account.primaryBinding.partyDisplayName ?? ''
-          }
-        : undefined
+      leadCompanyName: account.leadCompanyName ?? '',
+      leadPersonName: account.leadPersonName ?? '',
+      leadDomain: account.leadDomain ?? '',
+      leadEmail: account.leadEmail ?? '',
+      leadPhone: account.leadPhone ?? '',
+      leadWhatsapp: account.leadWhatsapp ?? '',
+      leadCountry: account.leadCountry ?? '',
+      leadIdentifiers: account.leadIdentifiers.map((identifier) => ({
+        identifierType: identifier.identifierType,
+        normalizedValue: identifier.normalizedValue,
+        rawValue: identifier.rawValue ?? '',
+        issuerCountryOrRegion: identifier.issuerCountryOrRegion ?? ''
+      })),
+      ownerAccountId: account.ownerAccountId ?? '',
+      priority: account.priority,
+      lastActivityAt: toIsoString(account.lastActivityAt),
+      nextFollowUpAt: toIsoString(account.nextFollowUpAt),
+      createdBy: account.createdBy,
+      createdAt: toIsoString(account.createdAt),
+      updatedAt: toIsoString(account.updatedAt),
+      archivedAt: toIsoString(account.archivedAt)
     }
   }
 
-  /** toSelectableCustomer renders one selector-eligible CRM customer summary. */
-  static toSelectableCustomer(customer: SelectableCustomerRecord) {
+  /** toCreateLeadResponse renders one P1 CreateLead use-case result. */
+  static toCreateLeadResponse(result: CreateLeadResult): CreateLeadResponse {
     return {
-      customerAccountId: customer.customerAccountId,
-      customerAccountNo: customer.customerAccountNo,
-      displayName: customer.displayName,
-      status: toProtoCustomerStatus(customer.status),
-      primaryTenantPartyId: customer.primaryTenantPartyId,
-      primaryPartyDisplayName: customer.primaryPartyDisplayName ?? ''
+      resultType: result.resultType,
+      crmAccount: result.account ? this.toCrmAccountP1(result.account) : undefined,
+      duplicateResult: {
+        resultType: result.duplicateResult.resultType,
+        candidates: result.duplicateResult.candidates.map(toCrmDuplicateCandidate)
+      }
     }
   }
 
-  /** toCustomerContact renders one CRM business-contact relationship record. */
-  static toCustomerContact(contact: CustomerContactRecord) {
+  /** toConvertLeadToProspectCustomerResponse renders one P1 formalization result. */
+  static toConvertLeadToProspectCustomerResponse(
+    result: ConvertLeadToProspectCustomerResult
+  ): ConvertLeadToProspectCustomerResponse {
     return {
-      customerContactId: contact.customerContactId,
-      customerAccountId: contact.customerAccountId,
-      displayName: contact.displayName,
-      roleTitle: contact.roleTitle ?? '',
-      email: contact.email ?? '',
-      phone: contact.phone ?? '',
-      isPrimaryContact: contact.isPrimaryContact,
-      isActive: contact.isActive
+      resultType: result.resultType,
+      crmAccount: result.account ? this.toCrmAccountP1(result.account) : undefined,
+      candidates: result.candidates.map((candidate): CrmPartyCandidate => ({
+        tenantPartyId: candidate.tenantPartyId,
+        displayName: candidate.displayName,
+        confidence: candidate.confidence,
+        matchedFields: candidate.matchedFields,
+        conflictFlags: candidate.conflictFlags
+      })),
+      existingCrmAccountId: result.existingCrmAccountId ?? ''
     }
   }
 
-  /** toCustomerAddress renders one CRM business-address relationship record. */
-  static toCustomerAddress(address: CustomerAddressRecord): CustomerAddress {
+  /** toListCrmAccountsResponse renders one P1 CRM account page. */
+  static toListCrmAccountsResponse(result: ListCrmAccountsResult): ListCrmAccountsResponse {
     return {
-      customerAddressId: address.customerAddressId,
-      customerAccountId: address.customerAccountId,
-      label: address.label,
-      countryCode: address.countryCode,
-      region: address.region ?? '',
-      locality: address.locality ?? '',
-      addressLine1: address.addressLine1,
-      addressLine2: address.addressLine2 ?? '',
-      postalCode: address.postalCode ?? '',
-      isPrimaryAddress: address.isPrimaryAddress,
-      isActive: address.isActive
-    }
-  }
-
-  /** toCreateCustomerAccountResponse renders one CreateCustomerAccount success payload. */
-  static toCreateCustomerAccountResponse(account: CustomerAccountRecord): CreateCustomerAccountResponse {
-    return { customerAccount: this.toCustomerAccount(account) }
-  }
-
-  /** toGetCustomerAccountResponse renders one GetCustomerAccount success payload. */
-  static toGetCustomerAccountResponse(account: CustomerAccountRecord): GetCustomerAccountResponse {
-    return { customerAccount: this.toCustomerAccount(account) }
-  }
-
-  /** toSearchSelectableCustomersResponse renders one selector search success payload. */
-  static toSearchSelectableCustomersResponse(
-    result: SearchSelectableCustomersResult
-  ): SearchSelectableCustomersResponse {
-    return {
-      customers: result.customers.map((customer) => this.toSelectableCustomer(customer)),
+      crmAccounts: result.crmAccounts.map((account) => this.toCrmAccountP1(account)),
       total: result.total,
       page: result.page,
       pageSize: result.pageSize
     }
   }
 
-  /** toSearchCustomerAccountsResponse renders one CRM account-directory search success payload. */
-  static toSearchCustomerAccountsResponse(result: SearchCustomerAccountsResult): SearchCustomerAccountsResponse {
+  /** toGetCrmAccountResponse renders one P1 CRM account lookup result. */
+  static toGetCrmAccountResponse(result: GetCrmAccountResult): GetCrmAccountResponse {
     return {
-      customerAccounts: result.customerAccounts.map((account) => this.toCustomerAccount(account)),
-      total: result.total,
-      page: result.page,
-      pageSize: result.pageSize
-    }
-  }
-
-  /** toListCustomerContactsResponse renders one CRM contact-list success payload. */
-  static toListCustomerContactsResponse(result: ListCustomerContactsResult): ListCustomerContactsResponse {
-    return {
-      contacts: result.contacts.map((contact) => this.toCustomerContact(contact))
-    }
-  }
-
-  /** toListCustomerAddressesResponse renders one CRM address-list success payload. */
-  static toListCustomerAddressesResponse(result: ListCustomerAddressesResult): ListCustomerAddressesResponse {
-    return {
-      addresses: result.addresses.map((address) => this.toCustomerAddress(address))
-    }
-  }
-
-  /** toUpdateCustomerAccountBasicsResponse renders one account-basics update success payload. */
-  static toUpdateCustomerAccountBasicsResponse(account: CustomerAccountRecord) {
-    return {
-      customerAccount: this.toCustomerAccount(account)
-    }
-  }
-
-  /** toBindCustomerAccountToTenantPartyResponse renders one primary-binding success payload. */
-  static toBindCustomerAccountToTenantPartyResponse(
-    account: CustomerAccountRecord
-  ): BindCustomerAccountToTenantPartyResponse {
-    return {
-      customerAccount: this.toCustomerAccount(account)
-    }
-  }
-
-  /** toUpsertCustomerContactResponse renders one contact write success payload. */
-  static toUpsertCustomerContactResponse(contact: CustomerContactRecord): UpsertCustomerContactResponse {
-    return {
-      contact: this.toCustomerContact(contact)
-    }
-  }
-
-  /** toUpsertCustomerAddressResponse renders one address write success payload. */
-  static toUpsertCustomerAddressResponse(address: CustomerAddressRecord): UpsertCustomerAddressResponse {
-    return {
-      address: this.toCustomerAddress(address)
-    }
-  }
-
-  /** toChangeCustomerStatusResponse renders one customer-status change success payload. */
-  static toChangeCustomerStatusResponse(account: CustomerAccountRecord): ChangeCustomerStatusResponse {
-    return {
-      customerAccount: this.toCustomerAccount(account)
+      crmAccount: result.crmAccount ? this.toCrmAccountP1(result.crmAccount) : undefined
     }
   }
 }
 
-/** toProtoCustomerStatus maps the CRM domain enum into the generated contract enum. */
-function toProtoCustomerStatus(status: CustomerStatus): ProtoCustomerStatus {
-  if (status === CustomerStatus.BLOCKED) {
-    return ProtoCustomerStatus.CUSTOMER_STATUS_BLOCKED
+/** toCrmDuplicateCandidate renders one CRM-local duplicate candidate for P1 duplicate results. */
+function toCrmDuplicateCandidate(candidate: CrmAccountDuplicateCandidate): CrmDuplicateCandidate {
+  return {
+    crmAccountId: candidate.crmAccountId,
+    tenantId: candidate.tenantId,
+    displayName: candidate.displayName,
+    ownerAccountId: candidate.ownerAccountId ?? '',
+    recordStatus: candidate.recordStatus,
+    lifecycleStage: candidate.lifecycleStage,
+    matchedFields: candidate.matchedFields,
+    confidence: candidate.confidence
   }
-  if (status === CustomerStatus.ARCHIVED) {
-    return ProtoCustomerStatus.CUSTOMER_STATUS_ARCHIVED
-  }
-  return ProtoCustomerStatus.CUSTOMER_STATUS_ACTIVE_CUSTOMER
+}
+
+/** toIsoString serializes optional date values into protobuf-friendly strings. */
+function toIsoString(value?: Date | null): string {
+  return value ? value.toISOString() : ''
 }

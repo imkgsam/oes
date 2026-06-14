@@ -1,20 +1,12 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common'
 import { ClientGrpc } from '@nestjs/microservices'
 import {
-  BindCustomerAccountToTenantPartyRequest,
-  BindCustomerAccountToTenantPartyResponse,
-  ChangeCustomerStatusRequest,
-  ChangeCustomerStatusResponse,
-  CreateCustomerAccountRequest,
-  CreateCustomerAccountResponse,
+  ConvertLeadToProspectCustomerRequest,
+  ConvertLeadToProspectCustomerResponse,
+  CreateLeadRequest,
+  CreateLeadResponse,
   CUSTOMER_MANAGEMENT_SERVICE_NAME,
-  CustomerManagementServiceClient,
-  UpdateCustomerAccountBasicsRequest,
-  UpdateCustomerAccountBasicsResponse,
-  UpsertCustomerAddressRequest,
-  UpsertCustomerAddressResponse,
-  UpsertCustomerContactRequest,
-  UpsertCustomerContactResponse
+  CustomerManagementServiceClient
 } from '@oes/common/generated/crm_service'
 import {
   GRPC_METADATA_PROPAGATION_FACTORY,
@@ -56,22 +48,22 @@ export class CustomerManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  /** createCustomerAccount forwards one CRM customer-account shell creation command. */
-  createCustomerAccount(
-    input: Omit<CreateCustomerAccountRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
+  /** createLead forwards one CRM P1 active lead creation command. */
+  createLead(
+    input: Omit<CreateLeadRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
       ManagementInputBase,
     source: DownstreamRequestSource
-  ): Promise<CreateCustomerAccountResponse> {
+  ): Promise<CreateLeadResponse> {
     return this.call(
-      'createCustomerAccount',
-      this.svc.createCustomerAccount(
+      'createLead',
+      this.svc.createLead(
         {
           ...input,
           operatorContext: buildCrmOperatorContext(source),
           traceContext: buildCrmTraceContext(source),
           auditContext: buildCrmAuditContext(
             source,
-            input.auditReason ?? 'create customer account from api-gateway'
+            input.auditReason ?? 'create crm lead from api-gateway'
           )
         },
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
@@ -79,120 +71,25 @@ export class CustomerManagementGrpcAdapter implements OnModuleInit {
     )
   }
 
-  /** updateCustomerAccountBasics forwards one basics-only customer mutation command. */
-  updateCustomerAccountBasics(
+  /** convertLeadToProspectCustomer forwards one CRM P1 lead formalization command. */
+  convertLeadToProspectCustomer(
     input: Omit<
-      UpdateCustomerAccountBasicsRequest,
+      ConvertLeadToProspectCustomerRequest,
       'auditContext' | 'operatorContext' | 'traceContext'
     > &
       ManagementInputBase,
     source: DownstreamRequestSource
-  ): Promise<UpdateCustomerAccountBasicsResponse> {
+  ): Promise<ConvertLeadToProspectCustomerResponse> {
     return this.call(
-      'updateCustomerAccountBasics',
-      this.svc.updateCustomerAccountBasics(
+      'convertLeadToProspectCustomer',
+      this.svc.convertLeadToProspectCustomer(
         {
           ...input,
           operatorContext: buildCrmOperatorContext(source),
           traceContext: buildCrmTraceContext(source),
           auditContext: buildCrmAuditContext(
             source,
-            input.auditReason ?? 'update customer account basics from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
-  }
-
-  /** bindCustomerAccountToTenantParty forwards one primary tenant-party binding command. */
-  bindCustomerAccountToTenantParty(
-    input: Omit<
-      BindCustomerAccountToTenantPartyRequest,
-      'auditContext' | 'operatorContext' | 'traceContext'
-    > &
-      ManagementInputBase,
-    source: DownstreamRequestSource
-  ): Promise<BindCustomerAccountToTenantPartyResponse> {
-    return this.call(
-      'bindCustomerAccountToTenantParty',
-      this.svc.bindCustomerAccountToTenantParty(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'bind customer account to tenant party from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
-  }
-
-  /** upsertCustomerContact forwards one contact create-or-update command. */
-  upsertCustomerContact(
-    input: Omit<UpsertCustomerContactRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
-    source: DownstreamRequestSource
-  ): Promise<UpsertCustomerContactResponse> {
-    return this.call(
-      'upsertCustomerContact',
-      this.svc.upsertCustomerContact(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'upsert customer contact from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
-  }
-
-  /** upsertCustomerAddress forwards one address create-or-update command. */
-  upsertCustomerAddress(
-    input: Omit<UpsertCustomerAddressRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
-    source: DownstreamRequestSource
-  ): Promise<UpsertCustomerAddressResponse> {
-    return this.call(
-      'upsertCustomerAddress',
-      this.svc.upsertCustomerAddress(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'upsert customer address from api-gateway'
-          )
-        },
-        this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))
-      )
-    )
-  }
-
-  /** changeCustomerStatus forwards one explicit customer status mutation command. */
-  changeCustomerStatus(
-    input: Omit<ChangeCustomerStatusRequest, 'auditContext' | 'operatorContext' | 'traceContext'> &
-      ManagementInputBase,
-    source: DownstreamRequestSource
-  ): Promise<ChangeCustomerStatusResponse> {
-    return this.call(
-      'changeCustomerStatus',
-      this.svc.changeCustomerStatus(
-        {
-          ...input,
-          operatorContext: buildCrmOperatorContext(source),
-          traceContext: buildCrmTraceContext(source),
-          auditContext: buildCrmAuditContext(
-            source,
-            input.auditReason ?? 'change customer status from api-gateway'
+            input.auditReason ?? 'convert crm lead to prospect customer from api-gateway'
           )
         },
         this.metadataFactory.createOperatorScopedMetadata(toOperatorScopedMetadataInput(source))

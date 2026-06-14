@@ -2,13 +2,19 @@
 
 ## 1. Feature Status
 
-Current status: `implemented / hardening pending`
+Current status: `superseded by CRM v2`
+
+Superseded by:
+
+- [crm-v2-core-object-model.md](/Users/acehood/Documents/GitHub/oes/docs/plans/features/crm-v2-core-object-model.md)
 
 本 feature packet 记录 `crm-service` customer master phase 1 的执行状态。稳定服务设计唯一真相源为：
 
 - [crm-service.md](/Users/acehood/Documents/GitHub/oes/docs/architecture/services/crm-service.md)
 
 本文不重新定义 CRM 核心对象、owner 边界或长期命名。若本文与服务真相源冲突，以服务真相源为准。
+
+> 2026-06-10 更新：CRM v2 已原地替代此前 customer master phase 1 设计。本文仅保留旧实现和历史执行状态，不再作为新的 CRM 实现入口。后续 CRM contract、proto、schema、runtime、Gateway 与 tenant-web 工作必须以 `crm-service.md` 和 `crm-v2-core-object-model.md` 为准。
 
 ## 2. Goal
 
@@ -104,8 +110,8 @@ phase 1 已冻结规则：
 以下 gap 是 customer master phase 1 继续推进前的优先收口项：
 
 1. `ChangeCustomerStatus` enum 校验需与 contract 对齐，非法 / unspecified status 不得默认为 `ACTIVE_CUSTOMER`。
-2. customer 创建仍缺少 Party resolve / create / select + CustomerAccount 创建 + binding 的完整业务编排。
-3. tenant-web binding 体验仍偏向手填 `tenantPartyId`，需要 Party selector。
+2. customer 创建仍缺少 tenant-scoped `TenantParty` register / select + CustomerAccount 创建 + binding 的完整业务编排。
+3. tenant-web binding 体验仍偏向手填 `tenantPartyId`，需要 TenantParty selector。
 4. phase 1 `CustomerContact / CustomerAddress` 与长期 `CustomerContactUsage / CustomerAddressUsage` 的 contract 命名和语义需在后续演进中收敛。
 5. primary contact / primary address 唯一性、inactive 关系与自动降级规则尚未冻结。
 6. `CustomerTaxProfile / defaultCurrency / defaultPaymentTermId` 尚未进入 contract / proto / schema / UI。
@@ -146,7 +152,7 @@ phase 1 已冻结规则：
 customer master phase 1 hardening 完成条件：
 
 - `ChangeCustomerStatus` 非法状态严格返回 `INVALID_ARGUMENT`。
-- tenant-web 通过 Party selector 完成 customer primary binding，不要求用户手填 `tenantPartyId`。
+- tenant-web 通过 TenantParty selector 完成 customer primary binding，不要求用户手填 `tenantPartyId`。
 - primary contact / primary address 规则已冻结并实现。
 - `SearchSelectableCustomers` 已被 Sales 创建报价链路采用。
 - blocked / archived / unbound customer 无法进入新报价 selector。
@@ -156,7 +162,7 @@ customer master phase 1 hardening 完成条件：
 ## 9. Suggested Next Implementation Order
 
 1. `ChangeCustomerStatus` contract-code hardening。
-2. Party selector customer binding。
+2. TenantParty selector customer binding。
 3. primary contact / address 规则冻结与实现。
 4. Sales selector integration smoke。
 5. `CustomerTaxProfile / defaultCurrency / defaultPaymentTermId` contract。

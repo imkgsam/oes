@@ -1,47 +1,49 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createSmokeSeed, runCrmSmokeFlow } from './crm-smoke-lib.mjs';
+import { createSmokeSeed, runCrmP1SmokeFlow } from './crm-smoke-lib.mjs';
 
-// Verifies the minimal CRM smoke flow keeps an unbound customer out of the selector and binds it when party-service is available.
-test('crm smoke flow / should create an account and bind it into the selector when party registration is available', async () => {
+// Verifies the CRM P1 smoke flow creates a Lead, lists it, formalizes it, and reads back the Prospect Customer account.
+test('crm p1 smoke flow / should create, list, formalize, and read one crm account', async () => {
   const calls = [];
-  const seed = createSmokeSeed(1700000000000);
+  const seed = createSmokeSeed(1700000000003);
 
-  const result = await runCrmSmokeFlow(
+  const result = await runCrmP1SmokeFlow(
     {
       crm: {
         query: {
-          searchSelectableCustomers: async (request) => {
-            calls.push(['searchSelectableCustomers', request]);
-
-            if (calls.length === 1) {
-              return {
-                customers: [],
-                total: 0,
-                page: request.page,
-                pageSize: request.pageSize,
-              };
-            }
-
-            if (calls.length === 3) {
-              return {
-                customers: [],
-                total: 0,
-                page: request.page,
-                pageSize: request.pageSize,
-              };
-            }
+          listCrmAccounts: async (request) => {
+            calls.push(['listCrmAccounts', request]);
 
             return {
-              customers: [
+              crmAccounts: [
                 {
-                  customerAccountId: 'customer-1',
-                  customerAccountNo: 'CA-0001',
+                  crmAccountId: 'crm-account-1',
+                  tenantId: request.tenantId,
+                  tenantPartyId: calls.some(([name]) => name === 'convertLeadToProspectCustomer')
+                    ? 'tenant-party-1'
+                    : '',
+                  recordStatus: 'ACTIVE',
+                  lifecycleStage: calls.some(([name]) => name === 'convertLeadToProspectCustomer')
+                    ? 'PROSPECT_CUSTOMER'
+                    : 'LEAD',
+                  partyTypeHint: 'ORGANIZATION',
                   displayName: seed.displayName,
-                  status: 1,
-                  primaryTenantPartyId: 'tenant-party-1',
-                  primaryPartyDisplayName: seed.partyLocalDisplayName,
+                  leadCompanyName: seed.partyCanonicalName,
+                  leadDomain: seed.leadDomain,
+                  leadEmail: seed.leadEmail,
+                  leadCountry: seed.partyRegisteredCountry,
+                  leadIdentifiers: [
+                    {
+                      identifierType: seed.partyIdentifierType,
+                      normalizedValue: seed.partyIdentifierValue,
+                      rawValue: seed.partyIdentifierValue,
+                      issuerCountryOrRegion: seed.partyRegisteredCountry,
+                    },
+                  ],
+                  ownerAccountId: seed.operatorContext.operatorId,
+                  priority: 'A',
+                  createdBy: seed.operatorContext.operatorId,
                 },
               ],
               total: 1,
@@ -49,49 +51,80 @@ test('crm smoke flow / should create an account and bind it into the selector wh
               pageSize: request.pageSize,
             };
           },
+          getCrmAccount: async (request) => {
+            calls.push(['getCrmAccount', request]);
+            return {
+              crmAccount: {
+                crmAccountId: request.crmAccountId,
+                tenantId: request.tenantId,
+                tenantPartyId: 'tenant-party-1',
+                recordStatus: 'ACTIVE',
+                lifecycleStage: 'PROSPECT_CUSTOMER',
+                partyTypeHint: 'ORGANIZATION',
+                displayName: seed.displayName,
+                leadCompanyName: seed.partyCanonicalName,
+                leadDomain: seed.leadDomain,
+                leadEmail: seed.leadEmail,
+                leadCountry: seed.partyRegisteredCountry,
+                leadIdentifiers: [],
+                ownerAccountId: seed.operatorContext.operatorId,
+                priority: 'A',
+                createdBy: seed.operatorContext.operatorId,
+              },
+            };
+          },
         },
         management: {
-          createCustomerAccount: async (request) => {
-            calls.push(['createCustomerAccount', request]);
+          createLead: async (request) => {
+            calls.push(['createLead', request]);
             return {
-              customerAccount: {
-                customerAccountId: 'customer-1',
-                customerAccountNo: 'CA-0001',
+              resultType: 'CREATED',
+              crmAccount: {
+                crmAccountId: 'crm-account-1',
                 tenantId: request.tenantId,
+                tenantPartyId: '',
+                recordStatus: 'ACTIVE',
+                lifecycleStage: 'LEAD',
+                partyTypeHint: request.partyTypeHint,
                 displayName: request.displayName,
-                status: 1,
-                tags: request.tags ?? [],
+                leadCompanyName: request.leadCompanyName,
+                leadDomain: request.leadDomain,
+                leadEmail: request.leadEmail,
+                leadCountry: request.leadCountry,
+                leadIdentifiers: request.leadIdentifiers,
+                ownerAccountId: request.ownerAccountId,
+                priority: request.priority,
+                createdBy: request.operatorContext.operatorId,
+              },
+              duplicateResult: {
+                resultType: 'NO_DUPLICATE',
+                candidates: [],
               },
             };
           },
-          bindCustomerAccountToTenantParty: async (request) => {
-            calls.push(['bindCustomerAccountToTenantParty', request]);
+          convertLeadToProspectCustomer: async (request) => {
+            calls.push(['convertLeadToProspectCustomer', request]);
             return {
-              customerAccount: {
-                customerAccountId: request.customerAccountId,
-                customerAccountNo: 'CA-0001',
+              resultType: 'CONVERTED',
+              crmAccount: {
+                crmAccountId: request.crmAccountId,
                 tenantId: request.tenantId,
+                tenantPartyId: 'tenant-party-1',
+                recordStatus: 'ACTIVE',
+                lifecycleStage: 'PROSPECT_CUSTOMER',
+                partyTypeHint: 'ORGANIZATION',
                 displayName: seed.displayName,
-                status: 1,
-                primaryBinding: {
-                  customerPartyBindingId: 'binding-1',
-                  tenantPartyId: request.tenantPartyId,
-                  bindingStatus: 1,
-                  partyDisplayName: seed.partyLocalDisplayName,
-                },
+                leadCompanyName: seed.partyCanonicalName,
+                leadDomain: seed.leadDomain,
+                leadEmail: seed.leadEmail,
+                leadCountry: seed.partyRegisteredCountry,
+                leadIdentifiers: [],
+                ownerAccountId: seed.operatorContext.operatorId,
+                priority: 'A',
+                createdBy: seed.operatorContext.operatorId,
               },
-            };
-          },
-        },
-      },
-      party: {
-        registration: {
-          registerOrganizationParty: async (request) => {
-            calls.push(['registerOrganizationParty', request]);
-            return {
-              party: { id: 'party-1' },
-              tenantParty: { id: 'tenant-party-1' },
-              matchResult: 'CREATED',
+              candidates: [],
+              existingCrmAccountId: '',
             };
           },
         },
@@ -100,110 +133,13 @@ test('crm smoke flow / should create an account and bind it into the selector wh
     seed,
   );
 
-  assert.equal(result.customerAccountId, 'customer-1');
-  assert.equal(result.binding.status, 'bound');
-  assert.equal(result.binding.tenantPartyId, 'tenant-party-1');
-  assert.equal(result.selectableTotals.beforeCreate, 0);
-  assert.equal(result.selectableTotals.afterCreate, 0);
-  assert.equal(result.selectableTotals.afterBind, 1);
+  assert.equal(result.crmAccountId, 'crm-account-1');
+  assert.equal(result.conversionResultType, 'CONVERTED');
+  assert.equal(result.tenantPartyId, 'tenant-party-1');
+  assert.equal(result.listTotals.afterCreate, 1);
+  assert.equal(result.listTotals.afterConvert, 1);
   assert.deepEqual(
     calls.map(([name]) => name),
-    [
-      'searchSelectableCustomers',
-      'createCustomerAccount',
-      'searchSelectableCustomers',
-      'registerOrganizationParty',
-      'bindCustomerAccountToTenantParty',
-      'searchSelectableCustomers',
-    ],
+    ['createLead', 'listCrmAccounts', 'convertLeadToProspectCustomer', 'listCrmAccounts', 'getCrmAccount'],
   );
-});
-
-// Verifies the minimal CRM smoke flow still succeeds when party-service is unavailable and binding must be skipped explicitly.
-test('crm smoke flow / should skip binding when party registration is unavailable', async () => {
-  const seed = createSmokeSeed(1700000000001);
-
-  const result = await runCrmSmokeFlow(
-    {
-      crm: {
-        query: {
-          searchSelectableCustomers: async (request) => ({
-            customers: [],
-            total: 0,
-            page: request.page,
-            pageSize: request.pageSize,
-          }),
-        },
-        management: {
-          createCustomerAccount: async (request) => ({
-            customerAccount: {
-              customerAccountId: 'customer-2',
-              customerAccountNo: 'CA-0002',
-              tenantId: request.tenantId,
-              displayName: request.displayName,
-              status: 1,
-            },
-          }),
-        },
-      },
-    },
-    seed,
-  );
-
-  assert.equal(result.customerAccountId, 'customer-2');
-  assert.equal(result.binding.status, 'skipped');
-  assert.equal(result.binding.reason, 'party-service unavailable');
-  assert.equal(result.selectableTotals.beforeCreate, 0);
-  assert.equal(result.selectableTotals.afterCreate, 0);
-  assert.equal(result.selectableTotals.afterBind, null);
-});
-
-// Verifies optional party unavailability can be surfaced by the caller without re-running the CRM creation flow.
-test('crm smoke flow / should skip binding when the party registration client marks the environment unavailable', async () => {
-  const seed = createSmokeSeed(1700000000002);
-  let createCount = 0;
-
-  const result = await runCrmSmokeFlow(
-    {
-      crm: {
-        query: {
-          searchSelectableCustomers: async (request) => ({
-            customers: [],
-            total: 0,
-            page: request.page,
-            pageSize: request.pageSize,
-          }),
-        },
-        management: {
-          createCustomerAccount: async (request) => {
-            createCount += 1;
-            return {
-              customerAccount: {
-                customerAccountId: 'customer-3',
-                customerAccountNo: 'CA-0003',
-                tenantId: request.tenantId,
-                displayName: request.displayName,
-                status: 1,
-              },
-            };
-          },
-        },
-      },
-      party: {
-        registration: {
-          registerOrganizationParty: async () => {
-            const error = new Error('party-service unavailable');
-            error.crmSmokeOptionalPartyUnavailable = true;
-            throw error;
-          },
-        },
-      },
-    },
-    seed,
-  );
-
-  assert.equal(createCount, 1);
-  assert.equal(result.customerAccountId, 'customer-3');
-  assert.equal(result.binding.status, 'skipped');
-  assert.equal(result.binding.reason, 'party-service unavailable');
 });

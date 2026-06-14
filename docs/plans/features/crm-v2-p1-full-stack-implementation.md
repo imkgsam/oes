@@ -2,7 +2,7 @@
 
 ## 1. Feature Status
 
-Current status: `implementation planned / not started`
+Current status: `implementation in progress / core account flow implemented and under verification`
 
 本 feature packet 是 CRM v2 P1 的全栈执行入口，承接以下稳定设计：
 
@@ -11,6 +11,14 @@ Current status: `implementation planned / not started`
 - [ADR 0008: Tenant-scoped TenantParty As Primary Party Model](/Users/acehood/Documents/GitHub/oes/docs/adr/0008-tenant-scoped-tenant-party-primary-party-model.md)
 
 本文只冻结实现策略、阶段顺序、测试矩阵与验收方式，不重新定义 CRM 服务边界。若本文与 `crm-service.md` 冲突，以 `crm-service.md` 为准。
+
+Current implementation checkpoint:
+
+- CRM P1 active runtime surface is `CrmAccount` account workflow first.
+- Active gRPC/BFF write path currently exposes `CreateLead` and `ConvertLeadToProspectCustomer`.
+- Active gRPC/BFF read path currently exposes `ListCrmAccounts` and `GetCrmAccount`.
+- `CrmSourceRecord`, `CrmContact`, `CrmActivity`, and `Opportunity` are P1 schema/domain foundations, but their external commands/pages are not treated as complete until separately exposed and verified.
+- Old customer-master runtime endpoints and schema are not part of the active P1 surface.
 
 ## 2. Goal
 
@@ -76,7 +84,7 @@ CRM 负责：
 CRM P1 BFF 采用“资源接口 + 动作接口”的混合风格。
 
 - 列表、详情、普通创建 / 编辑用 resource endpoint。
-- 查重、转化、claim、archive、restore、close opportunity 等有业务规则的操作用 action endpoint。
+- 查重、转化等有业务规则的操作用 action endpoint。
 - action endpoint 必须进入 application use case，不能在 controller 中写业务规则。
 - 每个 command 必须携带 tenant / operator / trace / audit context。
 
@@ -87,9 +95,9 @@ tenant-web CRM P1 不冻结具体实现顺序，但交付必须满足：
 - 对齐 Vue 3 / Vite / Vben / Ant Design Vue。
 - 不引入新 UI 框架。
 - 接真实 Gateway/BFF，不用 mock 数据冒充完成。
-- 4 个一级入口 + `CrmAccountDetail` 完整可用。
+- CRM P1 account workspace + account detail drawer must be complete for the implemented account flow.
 - 状态、空态、加载态、错误态完整。
-- duplicate、convert、restricted、claim、archive、opportunity close 等关键状态必须有清晰 UI。
+- duplicate warning and convert-to-prospect states must have clear UI for the implemented account flow.
 - 专业企业后台风格，布局稳定，文字不溢出，窄屏不崩。
 - tenant-web unit tests 与浏览器真机验证覆盖核心路径。
 
@@ -164,11 +172,7 @@ Primary files to replace or add:
 - `app/web/apps/tenant-web/src/api/bff/customer-management/index.spec.ts`
 - `app/web/apps/tenant-web/src/views/admin/customer-management.vue`
 - `app/web/apps/tenant-web/src/views/admin/customer-management.spec.ts`
-- `app/web/apps/tenant-web/src/views/admin/customer-management-create.vue`
-- `app/web/apps/tenant-web/src/views/admin/customer-management-create.spec.ts`
-- `app/web/apps/tenant-web/src/views/admin/customer-management-detail.vue`
-- `app/web/apps/tenant-web/src/views/admin/customer-management-detail.spec.ts`
-- `app/web/apps/tenant-web/src/router/routes/modules/tenant-admin.ts`
+- `app/web/apps/tenant-web/src/modules/tenant-admin/routes.ts`
 - `app/web/apps/tenant-web/src/locales/langs/zh-CN/page.json`
 - `app/web/apps/tenant-web/src/locales/langs/en-US/page.json`
 
@@ -260,15 +264,9 @@ Tasks:
 - Add or sync permission codes:
   - `crm.account.create`
   - `crm.account.read`
-  - `crm.account.update`
-  - `crm.account.archive`
   - `crm.account.convert`
-  - `crm.contact.manage`
-  - `crm.source.manage`
-  - `crm.activity.create`
-  - `crm.opportunity.manage`
-  - `crm.duplicate.viewRestricted`
-  - `crm.account.claim`
+  - `crm.duplicate.viewRestricted` if restricted duplicate UI is exposed in the implemented account flow.
+  - `crm.contact.manage`, `crm.source.manage`, `crm.activity.create`, and `crm.opportunity.manage` only when those API use cases are exposed beyond the current foundation.
 
 Tests:
 
@@ -326,19 +324,14 @@ Tasks:
   - medium confidence name + country checks.
   - restricted masking.
 - Implement commands:
-  - draft lead creation/update/submit.
   - active lead creation/update.
   - convert lead to prospect customer.
-  - archive/restore.
-  - claim unowned account.
-  - source/contact/activity/opportunity commands.
 - Implement queries:
   - account workspace list.
   - account detail aggregate.
-  - dashboard summary.
-  - opportunity workspace list.
 - Implement Party resolution adapter using the formal Party contract.
 - Ensure `CUSTOMER` cannot be set by CRM user command.
+- Keep `CrmSourceRecord`, `CrmContact`, `CrmActivity`, and `Opportunity` as schema/domain foundation until their API use cases are separately frozen.
 
 Tests:
 
@@ -350,13 +343,10 @@ pnpm --filter crm-service test:l3
 
 Expected coverage:
 
-- draft lead submit rules.
 - duplicate check and create blocking.
 - conversion result branches.
 - existing formal account conflict.
-- archive/restore restrictions.
-- opportunity allowed only for formal accounts.
-- close won / close lost / cancel rules.
+- repository-level source/contact/activity/opportunity invariants where the foundation models exist.
 
 ### Phase 5: CRM gRPC Controllers And Smoke
 
@@ -365,7 +355,7 @@ Tasks:
 - Replace old customer gRPC controllers and presenters with CRM P1 controllers and presenters.
 - Preserve context validation discipline.
 - Update `crm-smoke-lib.mjs` and `crm-smoke.mjs` to cover P1 flow.
-- Add fixture data for sales user, manager/admin, leads, prospect customer, readonly customer, source/contact/activity/opportunity and Party resolution samples.
+- Add fixture data for sales user, leads, prospect customer and Party resolution samples.
 
 Tests:
 
@@ -376,15 +366,11 @@ pnpm crm:smoke
 
 Expected smoke path:
 
-1. create draft lead.
-2. submit active lead.
-3. duplicate check possible duplicate.
-4. high confidence duplicate blocked.
-5. convert lead to prospect customer.
-6. add source/contact/activity.
-7. create opportunity.
-8. change stage.
-9. close won / close lost / cancel.
+1. create active lead.
+2. list lead workspace.
+3. convert lead to prospect customer.
+4. list prospect workspace.
+5. read account detail.
 
 ### Phase 6: Gateway / BFF
 
@@ -394,17 +380,9 @@ Tasks:
 - Resource endpoints:
   - list accounts.
   - get account detail aggregate.
-  - list opportunities.
-  - create lead / draft lead / opportunity.
+  - create lead.
 - Action endpoints:
-  - check duplicate.
-  - submit draft.
   - convert to prospect customer.
-  - archive / restore.
-  - claim.
-  - change opportunity stage.
-  - close opportunity.
-  - cancel opportunity.
 - Map auth/operator/tenant/trace/audit context consistently.
 - Do not encode core business rules in controllers.
 
@@ -417,7 +395,6 @@ pnpm --filter api-gateway exec jest src/modules/crm-service
 Expected coverage:
 
 - BFF request/response mapping.
-- permission-sensitive duplicate masking.
 - command context propagation.
 - error mapping for insufficient info, conflict and authorization failure.
 
@@ -426,24 +403,16 @@ Expected coverage:
 Tasks:
 
 - Implement CRM menu entries and routes:
-  - `CRM > 工作台`
-  - `CRM > 线索`
-  - `CRM > 客户资源`
-  - `CRM > 商机`
-  - `CrmAccountDetail`
+  - `CRM > 客户管理` account workspace.
+  - Account detail drawer.
 - Implement pages with Vben `Page` and Ant Design Vue.
 - Implement drawers:
-  - create/edit lead.
-  - source.
-  - contact.
-  - activity.
-  - opportunity.
+  - create lead.
+  - convert to prospect customer.
+  - account detail.
 - Implement modals:
   - duplicate decision.
   - convert to prospect customer.
-  - claim.
-  - archive/restore.
-  - close/cancel opportunity.
 - Ensure pages use real BFF APIs.
 - Ensure loading, empty, error and restricted states are implemented.
 - Ensure table layout remains readable and text does not overflow.
@@ -461,12 +430,10 @@ Browser verification:
 - Log in with seed user.
 - Execute CRM P1 core flows from the UI.
 - Capture screenshots of:
-  - dashboard.
-  - lead workspace.
+  - account workspace.
   - duplicate modal.
   - convert modal.
   - account detail.
-  - opportunity workspace.
 
 ### Phase 8: Full Integration Verification
 
@@ -507,12 +474,11 @@ P1 must pass:
 
 Core acceptance paths:
 
-1. Draft Lead -> Submit Active Lead.
+1. Active Lead creation with source evidence.
 2. Active Lead duplicate check -> possible duplicate acknowledge.
-3. High confidence duplicate -> blocked / claim / restricted masking.
+3. High confidence duplicate -> blocked.
 4. Lead -> Prospect Customer, covering Party exact / no match / candidates / conflict.
-5. Prospect Customer -> Source / Contact / Activity / Opportunity.
-6. Opportunity stage change -> close won / close lost / cancel.
+5. Prospect Customer detail can be read through Gateway/BFF and tenant-web.
 
 ## 7. Seed / Fixture / Smoke Requirements
 
@@ -527,19 +493,15 @@ P1 must deliver:
 Seed data must include:
 
 - one salesperson account.
-- one manager/admin account.
-- Draft Lead.
 - Active Lead.
-- unowned Lead.
 - Prospect Customer.
-- Customer readonly sample.
 - SourceRecord.
 - Contact.
 - Activity.
-- Opportunity open / won / lost / cancelled.
+- Opportunity foundation sample if repository coverage requires it.
 - Party resolution exact / no match / candidates / conflict samples.
 
-The Customer readonly sample is for display and verification only. CRM P1 still must not expose manual Mark as Customer.
+CRM P1 still must not expose manual Mark as Customer.
 
 ## 8. Commit Plan
 
@@ -568,7 +530,7 @@ The CRM P1 goal is not complete until current evidence proves:
 - Old CRM runtime/schema has been replaced by CRM P1.
 - CRM P1 use cases are implemented behind application handlers.
 - gRPC and Gateway/BFF expose the required P1 capabilities.
-- tenant-web exposes the four CRM P1 entrances plus `CrmAccountDetail`.
+- tenant-web exposes the CRM P1 account workspace plus account detail drawer for completed flows.
 - tenant-web uses real BFF APIs for completed flows.
 - seed / fixture / smoke data exists and covers core flows.
 - all required automated tests pass.

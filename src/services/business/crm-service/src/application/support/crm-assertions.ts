@@ -6,8 +6,7 @@ import {
 import {
   CrmAuditContext,
   CrmOperatorContext,
-  CrmTraceContext,
-  CustomerStatus
+  CrmTraceContext
 } from '../../domain/models/crm-records'
 
 /** assertRequiredString rejects blank scalar fields before command or query handlers touch repositories. */
@@ -101,21 +100,6 @@ export function assertAuditContext(value?: CrmAuditContext | null): CrmAuditCont
   assertNonEmptyContextField(value.reason, 'auditContext.reason')
   assertNonEmptyContextField(value.source, 'auditContext.source')
   return value
-}
-
-/** assertKnownCustomerStatus rejects unsupported enum values outside the frozen phase 1 CRM status set. */
-export function assertKnownCustomerStatus(status: CustomerStatus): CustomerStatus {
-  if (
-    status !== CustomerStatus.ACTIVE_CUSTOMER &&
-    status !== CustomerStatus.BLOCKED &&
-    status !== CustomerStatus.ARCHIVED
-  ) {
-    throw ExceptionFactory.application(CRM_INVALID_ARGUMENT, {
-      field: 'targetStatus'
-    })
-  }
-
-  return status
 }
 
 /** assertNonEmptyContextField keeps missing nested context fields aligned with the contract's UNAUTHENTICATED semantics. */
